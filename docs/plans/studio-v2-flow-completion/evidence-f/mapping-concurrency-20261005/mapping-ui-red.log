@@ -1,0 +1,87 @@
+npm notice run frontend@0.0.0 test
+npm notice run vitest --run tests/unit/workbench-v2/mapping-save-error-ui.test.tsx --maxWorkers=1 --no-file-parallelism
+
+ RUN  v3.2.4 /private/tmp/go-gateway-mapping-save-concurrency/frontend
+
+stderr | tests/unit/workbench-v2/mapping-save-error-ui.test.tsx > safe actionable mapping failures > renders distinct safe copy, status/code/request identity and functional retry in en
+An update to MappingRow inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/unit/workbench-v2/mapping-save-error-ui.test.tsx > safe actionable mapping failures > renders distinct safe copy, status/code/request identity and functional retry in zh-TW
+An update to MappingRow inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ tests/unit/workbench-v2/mapping-save-error-ui.test.tsx (2 tests | 2 failed) 28ms
+   × safe actionable mapping failures > renders distinct safe copy, status/code/request identity and functional retry in en 23ms
+     → expect(element).toHaveTextContent()
+
+Expected element to have text content:
+  409
+Received:
+  Save failed · Mapping could not be saved. · Review the mapping and retry.
+   × safe actionable mapping failures > renders distinct safe copy, status/code/request identity and functional retry in zh-TW 4ms
+     → expect(element).toHaveTextContent()
+
+Expected element to have text content:
+  409
+Received:
+  儲存失敗 · Mapping 無法儲存。 · 請檢查映射內容後重試。
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/workbench-v2/mapping-save-error-ui.test.tsx > safe actionable mapping failures > renders distinct safe copy, status/code/request identity and functional retry in en
+Error: expect(element).toHaveTextContent()
+
+Expected element to have text content:
+  409
+Received:
+  Save failed · Mapping could not be saved. · Review the mapping and retry.
+ ❯ tests/unit/workbench-v2/mapping-save-error-ui.test.tsx:18:19
+     16|     render(<table><tbody><MappingRow point={point} mapping={mapping} d…
+     17|     const alert = screen.getByTestId(`mapping-save-state-${point.id}`);
+     18|     expect(alert).toHaveTextContent('409');
+       |                   ^
+     19|     expect(alert).toHaveTextContent('workspace_mapping_conflict');
+     20|     expect(alert).toHaveTextContent('req_safe_42');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/unit/workbench-v2/mapping-save-error-ui.test.tsx > safe actionable mapping failures > renders distinct safe copy, status/code/request identity and functional retry in zh-TW
+Error: expect(element).toHaveTextContent()
+
+Expected element to have text content:
+  409
+Received:
+  儲存失敗 · Mapping 無法儲存。 · 請檢查映射內容後重試。
+ ❯ tests/unit/workbench-v2/mapping-save-error-ui.test.tsx:18:19
+     16|     render(<table><tbody><MappingRow point={point} mapping={mapping} d…
+     17|     const alert = screen.getByTestId(`mapping-save-state-${point.id}`);
+     18|     expect(alert).toHaveTextContent('409');
+       |                   ^
+     19|     expect(alert).toHaveTextContent('workspace_mapping_conflict');
+     20|     expect(alert).toHaveTextContent('req_safe_42');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  22:01:28
+   Duration  1.05s (transform 66ms, setup 80ms, collect 163ms, tests 28ms, environment 656ms, prepare 42ms)
+

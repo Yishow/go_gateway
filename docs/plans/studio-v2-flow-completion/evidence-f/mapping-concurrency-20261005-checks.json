@@ -1,0 +1,469 @@
+{
+  "base": "d9ba336ecd575ec7f71950677c4ad64af1552ecb",
+  "code_commit": "2c6919da2ff2d1df1fb7ae757035b81a71f45199",
+  "runtime_commit": "2c6919da2ff2d1df1fb7ae757035b81a71f45199",
+  "runtime_source_content_sha256": "d7ac58695889fa2ebad349fb06caeda075dd9b30b82c4a7d6b2ff026eb49b57c",
+  "runner_syntax_check_exit_code": 0,
+  "gate_results": [
+    {
+      "name": "go-test",
+      "command": "GOMAXPROCS=2 go test -p 1 -parallel 1 ./...",
+      "exit_code": 0,
+      "tested_source_commit": "0ba22461397e443d1150d8553151a653a6320179",
+      "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-final-go-test.log",
+      "log_sha256": "20e94833751a46e5cd74457b00938e9a47e5544d60b04127b7ac0978e00de9d9"
+    },
+    {
+      "name": "go-vet",
+      "command": "GOMAXPROCS=2 go vet -p 1 ./...",
+      "exit_code": 0,
+      "tested_source_commit": "0ba22461397e443d1150d8553151a653a6320179",
+      "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-final-go-vet.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "go-lint",
+      "command": "GOMAXPROCS=2 golangci-lint run --concurrency 1 ./...",
+      "exit_code": 0,
+      "tested_source_commit": "0ba22461397e443d1150d8553151a653a6320179",
+      "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-final-golangci.log",
+      "log_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+    },
+    {
+      "name": "frontend-lint",
+      "command": "NODE_OPTIONS=--max-old-space-size=2048 npm run lint",
+      "exit_code": 0,
+      "tested_source_commit": "2c6919da2ff2d1df1fb7ae757035b81a71f45199",
+      "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-bootstrap-full-frontend-lint.log",
+      "log_sha256": "b0975a8065fa0c12ce051848241e245ae6a00293c4ecd435fe8d493b7b925ea4"
+    },
+    {
+      "name": "frontend-tests",
+      "command": "NODE_OPTIONS=--max-old-space-size=2048 npm test -- --run --maxWorkers=1 --no-file-parallelism",
+      "exit_code": 0,
+      "tested_source_commit": "2c6919da2ff2d1df1fb7ae757035b81a71f45199",
+      "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-bootstrap-full-frontend-tests.log",
+      "log_sha256": "8b6ce6b10c70f7b1bf3412640bb4b7269a2a64be3b41177099aa88bddda8ec1c"
+    },
+    {
+      "name": "frontend-build",
+      "command": "NODE_OPTIONS=--max-old-space-size=2048 npm run build",
+      "exit_code": 0,
+      "tested_source_commit": "2c6919da2ff2d1df1fb7ae757035b81a71f45199",
+      "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-bootstrap-full-frontend-build.log",
+      "log_sha256": "85cf792f3d3e870ad1e939cdc8841108401fa0ed717b8bc392f116c42e42bfbe"
+    }
+  ],
+  "frontend_test_files": 199,
+  "frontend_tests": 1275,
+  "go_passed_test_packages": 49,
+  "go_no_test_packages": 7,
+  "binaries": [
+    {
+      "path": "/tmp/go-gateway-mapping-concurrency-bin/test-ui",
+      "sha256": "a47773b7cba8002ff9ee377f595957c5d292166529f94ccb861ad12fd258a0cb",
+      "build_info": "/tmp/go-gateway-mapping-concurrency-bin/test-ui: go1.27.1\n\tpath\tgo-gateway/cmd/test_ui\n\tmod\tgo-gateway\tv0.0.0-20261005153504-2c6919da2ff2+dirty\t\n\tdep\tfilippo.io/edwards25519\tv1.1.0\th1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=\n\tdep\tgithub.com/KyleBanks/depth\tv1.2.1\th1:5h8fQADFrWtarTdtDudMmGsC7GPbOAu6RVB3ffsVFHc=\n\tdep\tgithub.com/creack/goselect\tv0.1.2\th1:2DNy14+JPjRBgPzAd1thbQp4BSIihxcBf0IXhQXDRa0=\n\tdep\tgithub.com/dustin/go-humanize\tv1.0.1\th1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=\n\tdep\tgithub.com/eclipse/paho.mqtt.golang\tv1.5.0\th1:EH+bUVJNgttidWFkLLVKaQPGmkTUfQQqjOsyvMGvD6o=\n\tdep\tgithub.com/gabriel-vasile/mimetype\tv1.4.8\th1:FfZ3gj38NjllZIeJAmMhr+qKL8Wu+nOoI3GqacKw1NM=\n\tdep\tgithub.com/gin-contrib/sse\tv1.1.0\th1:n0w2GMuUpWDVp7qSpvze6fAu9iRxJY4Hmj6AmBOU05w=\n\tdep\tgithub.com/gin-gonic/gin\tv1.11.0\th1:OW/6PLjyusp2PPXtyxKHU0RbX6I/l28FTdDlae5ueWk=\n\tdep\tgithub.com/go-openapi/jsonpointer\tv0.22.4\th1:dZtK82WlNpVLDW2jlA1YCiVJFVqkED1MegOUy9kR5T4=\n\tdep\tgithub.com/go-openapi/jsonreference\tv0.21.4\th1:24qaE2y9bx/q3uRK/qN+TDwbok1NhbSmGjjySRCHtC8=\n\tdep\tgithub.com/go-openapi/spec\tv0.22.3\th1:qRSmj6Smz2rEBxMnLRBMeBWxbbOvuOoElvSvObIgwQc=\n\tdep\tgithub.com/go-openapi/swag/conv\tv0.25.4\th1:/Dd7p0LZXczgUcC/Ikm1+YqVzkEeCc9LnOWjfkpkfe4=\n\tdep\tgithub.com/go-openapi/swag/jsonname\tv0.25.4\th1:bZH0+MsS03MbnwBXYhuTttMOqk+5KcQ9869Vye1bNHI=\n\tdep\tgithub.com/go-openapi/swag/jsonutils\tv0.25.4\th1:VSchfbGhD4UTf4vCdR2F4TLBdLwHyUDTd1/q4i+jGZA=\n\tdep\tgithub.com/go-openapi/swag/loading\tv0.25.4\th1:jN4MvLj0X6yhCDduRsxDDw1aHe+ZWoLjW+9ZQWIKn2s=\n\tdep\tgithub.com/go-openapi/swag/stringutils\tv0.25.4\th1:O6dU1Rd8bej4HPA3/CLPciNBBDwZj9HiEpdVsb8B5A8=\n\tdep\tgithub.com/go-openapi/swag/typeutils\tv0.25.4\th1:1/fbZOUN472NTc39zpa+YGHn3jzHWhv42wAJSN91wRw=\n\tdep\tgithub.com/go-openapi/swag/yamlutils\tv0.25.4\th1:6jdaeSItEUb7ioS9lFoCZ65Cne1/RZtPBZ9A56h92Sw=\n\tdep\tgithub.com/go-playground/locales\tv0.14.1\th1:EWaQ/wswjilfKLTECiXz7Rh+3BjFhfDFKv/oXslEjJA=\n\tdep\tgithub.com/go-playground/universal-translator\tv0.18.1\th1:Bcnm0ZwsGyWbCzImXv+pAJnYK9S473LQFuzCbDbfSFY=\n\tdep\tgithub.com/go-playground/validator/v10\tv10.27.0\th1:w8+XrWVMhGkxOaaowyKH35gFydVHOvC0/uWoy2Fzwn4=\n\tdep\tgithub.com/go-sql-driver/mysql\tv1.9.3\th1:U/N249h2WzJ3Ukj8SowVFjdtZKfu9vlLZxjPXV1aweo=\n\tdep\tgithub.com/goccy/go-yaml\tv1.18.0\th1:8W7wMFS12Pcas7KU+VVkaiCng+kG8QiFeFwzFb+rwuw=\n\tdep\tgithub.com/google/uuid\tv1.6.0\th1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=\n\tdep\tgithub.com/gorilla/websocket\tv1.5.3\th1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=\n\tdep\tgithub.com/jackc/pgpassfile\tv1.0.0\th1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=\n\tdep\tgithub.com/jackc/pgservicefile\tv0.0.0-20240606120523-5a60cdf6a761\th1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=\n\tdep\tgithub.com/jackc/pgx/v5\tv5.8.0\th1:TYPDoleBBme0xGSAX3/+NujXXtpZn9HBONkQC7IEZSo=\n\tdep\tgithub.com/joho/godotenv\tv1.5.1\th1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=\n\tdep\tgithub.com/leodido/go-urn\tv1.4.0\th1:WT9HwE9SGECu3lg4d/dIA+jxlljEa1/ffXKmRjqdmIQ=\n\tdep\tgithub.com/lib/pq\tv1.10.9\th1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=\n\tdep\tgithub.com/mattn/go-isatty\tv0.0.20\th1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=\n\tdep\tgithub.com/ncruces/go-strftime\tv1.0.0\th1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOFAw7w=\n\tdep\tgithub.com/pelletier/go-toml/v2\tv2.2.4\th1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=\n\tdep\tgithub.com/quic-go/qpack\tv0.5.1\th1:giqksBPnT/HDtZ6VhtFKgoLOWmlyo9Ei6u9PqzIMbhI=\n\tdep\tgithub.com/quic-go/quic-go\tv0.54.0\th1:6s1YB9QotYI6Ospeiguknbp2Znb/jZYjZLRXn9kMQBg=\n\tdep\tgithub.com/remyoudompheng/bigfft\tv0.0.0-20230129092748-24d4a6f8daec\th1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=\n\tdep\tgithub.com/swaggo/files\tv1.0.1\th1:J1bVJ4XHZNq0I46UU90611i9/YzdrF7x92oX1ig5IdE=\n\tdep\tgithub.com/swaggo/gin-swagger\tv1.6.1\th1:Ri06G4gc9N4t4k8hekMigJ9zKTFSlqj/9paAQCQs7cY=\n\tdep\tgithub.com/swaggo/swag\tv1.16.6\th1:qBNcx53ZaX+M5dxVyTrgQ0PJ/ACK+NzhwcbieTt+9yI=\n\tdep\tgithub.com/ugorji/go/codec\tv1.3.0\th1:Qd2W2sQawAfG8XSvzwhBeoGq71zXOC/Q1E9y/wUcsUA=\n\tdep\tgo.bug.st/serial\tv1.6.4\th1:7FmqNPgVp3pu2Jz5PoPtbZ9jJO5gnEnZIvnI1lzve8A=\n\tdep\tgo.yaml.in/yaml/v3\tv3.0.4\th1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=\n\tdep\tgolang.org/x/crypto\tv0.47.0\th1:V6e3FRj+n4dbpw86FJ8Fv7XVOql7TEwpHapKoMJ/GO8=\n\tdep\tgolang.org/x/exp\tv0.0.0-20251023183803-a4bb9ffd2546\th1:mgKeJMpvi0yx/sU5GsxQ7p6s2wtOnGAHZWCHUM4KGzY=\n\tdep\tgolang.org/x/mod\tv0.32.0\th1:9F4d3PHLljb6x//jOyokMv3eX+YDeepZSEo3mFJy93c=\n\tdep\tgolang.org/x/net\tv0.49.0\th1:eeHFmOGUTtaaPSGNmjBKpbng9MulQsJURQUAfUwY++o=\n\tdep\tgolang.org/x/sync\tv0.19.0\th1:vV+1eWNmZ5geRlYjzm2adRgW2/mcpevXNg50YZtPCE4=\n\tdep\tgolang.org/x/sys\tv0.40.0\th1:DBZZqJ2Rkml6QMQsZywtnjnnGvHza6BTfYFWY9kjEWQ=\n\tdep\tgolang.org/x/text\tv0.33.0\th1:B3njUFyqtHDUI5jMn1YIr5B0IE2U0qck04r6d4KPAxE=\n\tdep\tgolang.org/x/tools\tv0.41.0\th1:a9b8iMweWG+S0OBnlU36rzLp20z1Rp10w+IY2czHTQc=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.9\th1:w2gp2mA27hUeUzj9Ex9FBjsBm40zfaDtEWow293U7Iw=\n\tdep\tmodernc.org/libc\tv1.67.6\th1:eVOQvpModVLKOdT+LvBPjdQqfrZq+pC39BygcT+E7OI=\n\tdep\tmodernc.org/mathutil\tv1.7.1\th1:GCZVGXdaN8gTqB1Mf/usp1Y/hSqgI2vAGGP4jZMCxOU=\n\tdep\tmodernc.org/memory\tv1.11.0\th1:o4QC8aMQzmcwCK3t3Ux/ZHmwFPzE6hf2Y5LbkRs+hbI=\n\tdep\tmodernc.org/sqlite\tv1.44.2\th1:EdYqXeBpKFJjg8QYnw6E71MpANkoxyuYi+g68ugOL8g=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tDefaultGODEBUG=cryptocustomrand=1,tlssecpmlkem=0,tracebacklabels=0,urlstrictcolons=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n\tbuild\tvcs=git\n\tbuild\tvcs.revision=2c6919da2ff2d1df1fb7ae757035b81a71f45199\n\tbuild\tvcs.time=2026-10-05T15:35:04Z\n\tbuild\tvcs.modified=true\n"
+    },
+    {
+      "path": "/tmp/go-gateway-mapping-concurrency-bin/f-sim",
+      "sha256": "34346a8db186ac9bbd928c6817c7ceff26dd527d3dd93bca2db8458de5ebab8e",
+      "build_info": "/tmp/go-gateway-mapping-concurrency-bin/f-sim: go1.27.1\n\tpath\tgo-gateway/cmd/f_modbus_simulator\n\tmod\tgo-gateway\tv0.0.0-20261005153504-2c6919da2ff2+dirty\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tDefaultGODEBUG=cryptocustomrand=1,tlssecpmlkem=0,tracebacklabels=0,urlstrictcolons=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n\tbuild\tvcs=git\n\tbuild\tvcs.revision=2c6919da2ff2d1df1fb7ae757035b81a71f45199\n\tbuild\tvcs.time=2026-10-05T15:35:04Z\n\tbuild\tvcs.modified=true\n"
+    }
+  ],
+  "embedded_index_matches_frontend_dist": true,
+  "mapping_ui_result": "mapping-concurrency-20261005c.json",
+  "basic_recovery_status": "passed",
+  "limits": [
+    "process-local rule guards",
+    "preexisting manual mapping disable policy unchanged",
+    "no true PLC/Windows/LAN/soak/production PostgreSQL",
+    "original3222/5173 services unchanged",
+    "runtime screenshots retain stream-degraded/projection-stale banners; selected fresh values correct; cause not proven in this scope"
+  ],
+  "prior_9dd_validation": {
+    "base": "d9ba336ecd575ec7f71950677c4ad64af1552ecb",
+    "code_commit": "0ba22461397e443d1150d8553151a653a6320179",
+    "runtime_commit": "9dd92a34a7425764d96b65153d3ab54285913c47",
+    "runtime_source_content_sha256": "d5eb24320e8052fe02fc42d6e7a4bbaea01f8209a36d3de6158f34a5233a6d4f",
+    "only_change_since_full_gates": [
+      "scripts/tests/f_device_to_sql/mapping-save-concurrency.mjs"
+    ],
+    "runner_syntax_check_exit_code": 0,
+    "gate_results": [
+      {
+        "name": "go-test",
+        "command": "GOMAXPROCS=2 go test -p 1 -parallel 1 ./...",
+        "exit_code": 0,
+        "tested_source_commit": "0ba22461397e443d1150d8553151a653a6320179",
+        "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-final-go-test.log",
+        "log_sha256": "20e94833751a46e5cd74457b00938e9a47e5544d60b04127b7ac0978e00de9d9"
+      },
+      {
+        "name": "go-vet",
+        "command": "GOMAXPROCS=2 go vet -p 1 ./...",
+        "exit_code": 0,
+        "tested_source_commit": "0ba22461397e443d1150d8553151a653a6320179",
+        "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-final-go-vet.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "go-lint",
+        "command": "GOMAXPROCS=2 golangci-lint run --concurrency 1 ./...",
+        "exit_code": 0,
+        "tested_source_commit": "0ba22461397e443d1150d8553151a653a6320179",
+        "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-final-golangci.log",
+        "log_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+      },
+      {
+        "name": "frontend-lint",
+        "command": "NODE_OPTIONS=--max-old-space-size=2048 npm run lint",
+        "exit_code": 0,
+        "tested_source_commit": "0ba22461397e443d1150d8553151a653a6320179",
+        "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-final-frontend-lint.log",
+        "log_sha256": "b0975a8065fa0c12ce051848241e245ae6a00293c4ecd435fe8d493b7b925ea4"
+      },
+      {
+        "name": "frontend-tests",
+        "command": "NODE_OPTIONS=--max-old-space-size=2048 npm test -- --run --maxWorkers=1 --no-file-parallelism",
+        "exit_code": 0,
+        "tested_source_commit": "0ba22461397e443d1150d8553151a653a6320179",
+        "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-final-frontend-tests.log",
+        "log_sha256": "dac6fe1e708b9051030516643a5aab679b3e830ae81b2987a1e1a2a7be969ab3"
+      },
+      {
+        "name": "frontend-build",
+        "command": "NODE_OPTIONS=--max-old-space-size=2048 npm run build",
+        "exit_code": 0,
+        "tested_source_commit": "0ba22461397e443d1150d8553151a653a6320179",
+        "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-final-frontend-build.log",
+        "log_sha256": "81f601b09a2ddcdab4c440d4c66495335f9f4b30d620759daa3cfc784c51c625"
+      }
+    ],
+    "frontend_test_files": 198,
+    "frontend_tests": 1269,
+    "go_passed_test_packages": 49,
+    "go_no_test_packages": 7,
+    "binaries": [
+      {
+        "path": "/tmp/go-gateway-mapping-concurrency-bin/test-ui",
+        "sha256": "bbbfb083efbf0d088e22fca307a05e76931136361b29707dbf05ddd21ad5b5d9",
+        "build_info": "/tmp/go-gateway-mapping-concurrency-bin/test-ui: go1.27.1\n\tpath\tgo-gateway/cmd/test_ui\n\tmod\tgo-gateway\tv0.0.0-20261005150338-9dd92a34a742+dirty\t\n\tdep\tfilippo.io/edwards25519\tv1.1.0\th1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=\n\tdep\tgithub.com/KyleBanks/depth\tv1.2.1\th1:5h8fQADFrWtarTdtDudMmGsC7GPbOAu6RVB3ffsVFHc=\n\tdep\tgithub.com/creack/goselect\tv0.1.2\th1:2DNy14+JPjRBgPzAd1thbQp4BSIihxcBf0IXhQXDRa0=\n\tdep\tgithub.com/dustin/go-humanize\tv1.0.1\th1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=\n\tdep\tgithub.com/eclipse/paho.mqtt.golang\tv1.5.0\th1:EH+bUVJNgttidWFkLLVKaQPGmkTUfQQqjOsyvMGvD6o=\n\tdep\tgithub.com/gabriel-vasile/mimetype\tv1.4.8\th1:FfZ3gj38NjllZIeJAmMhr+qKL8Wu+nOoI3GqacKw1NM=\n\tdep\tgithub.com/gin-contrib/sse\tv1.1.0\th1:n0w2GMuUpWDVp7qSpvze6fAu9iRxJY4Hmj6AmBOU05w=\n\tdep\tgithub.com/gin-gonic/gin\tv1.11.0\th1:OW/6PLjyusp2PPXtyxKHU0RbX6I/l28FTdDlae5ueWk=\n\tdep\tgithub.com/go-openapi/jsonpointer\tv0.22.4\th1:dZtK82WlNpVLDW2jlA1YCiVJFVqkED1MegOUy9kR5T4=\n\tdep\tgithub.com/go-openapi/jsonreference\tv0.21.4\th1:24qaE2y9bx/q3uRK/qN+TDwbok1NhbSmGjjySRCHtC8=\n\tdep\tgithub.com/go-openapi/spec\tv0.22.3\th1:qRSmj6Smz2rEBxMnLRBMeBWxbbOvuOoElvSvObIgwQc=\n\tdep\tgithub.com/go-openapi/swag/conv\tv0.25.4\th1:/Dd7p0LZXczgUcC/Ikm1+YqVzkEeCc9LnOWjfkpkfe4=\n\tdep\tgithub.com/go-openapi/swag/jsonname\tv0.25.4\th1:bZH0+MsS03MbnwBXYhuTttMOqk+5KcQ9869Vye1bNHI=\n\tdep\tgithub.com/go-openapi/swag/jsonutils\tv0.25.4\th1:VSchfbGhD4UTf4vCdR2F4TLBdLwHyUDTd1/q4i+jGZA=\n\tdep\tgithub.com/go-openapi/swag/loading\tv0.25.4\th1:jN4MvLj0X6yhCDduRsxDDw1aHe+ZWoLjW+9ZQWIKn2s=\n\tdep\tgithub.com/go-openapi/swag/stringutils\tv0.25.4\th1:O6dU1Rd8bej4HPA3/CLPciNBBDwZj9HiEpdVsb8B5A8=\n\tdep\tgithub.com/go-openapi/swag/typeutils\tv0.25.4\th1:1/fbZOUN472NTc39zpa+YGHn3jzHWhv42wAJSN91wRw=\n\tdep\tgithub.com/go-openapi/swag/yamlutils\tv0.25.4\th1:6jdaeSItEUb7ioS9lFoCZ65Cne1/RZtPBZ9A56h92Sw=\n\tdep\tgithub.com/go-playground/locales\tv0.14.1\th1:EWaQ/wswjilfKLTECiXz7Rh+3BjFhfDFKv/oXslEjJA=\n\tdep\tgithub.com/go-playground/universal-translator\tv0.18.1\th1:Bcnm0ZwsGyWbCzImXv+pAJnYK9S473LQFuzCbDbfSFY=\n\tdep\tgithub.com/go-playground/validator/v10\tv10.27.0\th1:w8+XrWVMhGkxOaaowyKH35gFydVHOvC0/uWoy2Fzwn4=\n\tdep\tgithub.com/go-sql-driver/mysql\tv1.9.3\th1:U/N249h2WzJ3Ukj8SowVFjdtZKfu9vlLZxjPXV1aweo=\n\tdep\tgithub.com/goccy/go-yaml\tv1.18.0\th1:8W7wMFS12Pcas7KU+VVkaiCng+kG8QiFeFwzFb+rwuw=\n\tdep\tgithub.com/google/uuid\tv1.6.0\th1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=\n\tdep\tgithub.com/gorilla/websocket\tv1.5.3\th1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=\n\tdep\tgithub.com/jackc/pgpassfile\tv1.0.0\th1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=\n\tdep\tgithub.com/jackc/pgservicefile\tv0.0.0-20240606120523-5a60cdf6a761\th1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=\n\tdep\tgithub.com/jackc/pgx/v5\tv5.8.0\th1:TYPDoleBBme0xGSAX3/+NujXXtpZn9HBONkQC7IEZSo=\n\tdep\tgithub.com/joho/godotenv\tv1.5.1\th1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=\n\tdep\tgithub.com/leodido/go-urn\tv1.4.0\th1:WT9HwE9SGECu3lg4d/dIA+jxlljEa1/ffXKmRjqdmIQ=\n\tdep\tgithub.com/lib/pq\tv1.10.9\th1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=\n\tdep\tgithub.com/mattn/go-isatty\tv0.0.20\th1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=\n\tdep\tgithub.com/ncruces/go-strftime\tv1.0.0\th1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOFAw7w=\n\tdep\tgithub.com/pelletier/go-toml/v2\tv2.2.4\th1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=\n\tdep\tgithub.com/quic-go/qpack\tv0.5.1\th1:giqksBPnT/HDtZ6VhtFKgoLOWmlyo9Ei6u9PqzIMbhI=\n\tdep\tgithub.com/quic-go/quic-go\tv0.54.0\th1:6s1YB9QotYI6Ospeiguknbp2Znb/jZYjZLRXn9kMQBg=\n\tdep\tgithub.com/remyoudompheng/bigfft\tv0.0.0-20230129092748-24d4a6f8daec\th1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=\n\tdep\tgithub.com/swaggo/files\tv1.0.1\th1:J1bVJ4XHZNq0I46UU90611i9/YzdrF7x92oX1ig5IdE=\n\tdep\tgithub.com/swaggo/gin-swagger\tv1.6.1\th1:Ri06G4gc9N4t4k8hekMigJ9zKTFSlqj/9paAQCQs7cY=\n\tdep\tgithub.com/swaggo/swag\tv1.16.6\th1:qBNcx53ZaX+M5dxVyTrgQ0PJ/ACK+NzhwcbieTt+9yI=\n\tdep\tgithub.com/ugorji/go/codec\tv1.3.0\th1:Qd2W2sQawAfG8XSvzwhBeoGq71zXOC/Q1E9y/wUcsUA=\n\tdep\tgo.bug.st/serial\tv1.6.4\th1:7FmqNPgVp3pu2Jz5PoPtbZ9jJO5gnEnZIvnI1lzve8A=\n\tdep\tgo.yaml.in/yaml/v3\tv3.0.4\th1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=\n\tdep\tgolang.org/x/crypto\tv0.47.0\th1:V6e3FRj+n4dbpw86FJ8Fv7XVOql7TEwpHapKoMJ/GO8=\n\tdep\tgolang.org/x/exp\tv0.0.0-20251023183803-a4bb9ffd2546\th1:mgKeJMpvi0yx/sU5GsxQ7p6s2wtOnGAHZWCHUM4KGzY=\n\tdep\tgolang.org/x/mod\tv0.32.0\th1:9F4d3PHLljb6x//jOyokMv3eX+YDeepZSEo3mFJy93c=\n\tdep\tgolang.org/x/net\tv0.49.0\th1:eeHFmOGUTtaaPSGNmjBKpbng9MulQsJURQUAfUwY++o=\n\tdep\tgolang.org/x/sync\tv0.19.0\th1:vV+1eWNmZ5geRlYjzm2adRgW2/mcpevXNg50YZtPCE4=\n\tdep\tgolang.org/x/sys\tv0.40.0\th1:DBZZqJ2Rkml6QMQsZywtnjnnGvHza6BTfYFWY9kjEWQ=\n\tdep\tgolang.org/x/text\tv0.33.0\th1:B3njUFyqtHDUI5jMn1YIr5B0IE2U0qck04r6d4KPAxE=\n\tdep\tgolang.org/x/tools\tv0.41.0\th1:a9b8iMweWG+S0OBnlU36rzLp20z1Rp10w+IY2czHTQc=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.9\th1:w2gp2mA27hUeUzj9Ex9FBjsBm40zfaDtEWow293U7Iw=\n\tdep\tmodernc.org/libc\tv1.67.6\th1:eVOQvpModVLKOdT+LvBPjdQqfrZq+pC39BygcT+E7OI=\n\tdep\tmodernc.org/mathutil\tv1.7.1\th1:GCZVGXdaN8gTqB1Mf/usp1Y/hSqgI2vAGGP4jZMCxOU=\n\tdep\tmodernc.org/memory\tv1.11.0\th1:o4QC8aMQzmcwCK3t3Ux/ZHmwFPzE6hf2Y5LbkRs+hbI=\n\tdep\tmodernc.org/sqlite\tv1.44.2\th1:EdYqXeBpKFJjg8QYnw6E71MpANkoxyuYi+g68ugOL8g=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tDefaultGODEBUG=cryptocustomrand=1,tlssecpmlkem=0,tracebacklabels=0,urlstrictcolons=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n\tbuild\tvcs=git\n\tbuild\tvcs.revision=9dd92a34a7425764d96b65153d3ab54285913c47\n\tbuild\tvcs.time=2026-10-05T15:03:38Z\n\tbuild\tvcs.modified=true\n"
+      },
+      {
+        "path": "/tmp/go-gateway-mapping-concurrency-bin/f-sim",
+        "sha256": "f651dd52ce81c49d5fa4445411edf99d096cd441a031f7c104b371dcc7f5044e",
+        "build_info": "/tmp/go-gateway-mapping-concurrency-bin/f-sim: go1.27.1\n\tpath\tgo-gateway/cmd/f_modbus_simulator\n\tmod\tgo-gateway\tv0.0.0-20261005150338-9dd92a34a742+dirty\t\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\tDefaultGODEBUG=cryptocustomrand=1,tlssecpmlkem=0,tracebacklabels=0,urlstrictcolons=0,x509sslcertoverrideplatform=0\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=darwin\n\tbuild\tGOARM64=v8.0\n\tbuild\tvcs=git\n\tbuild\tvcs.revision=9dd92a34a7425764d96b65153d3ab54285913c47\n\tbuild\tvcs.time=2026-10-05T15:03:38Z\n\tbuild\tvcs.modified=true\n"
+      }
+    ],
+    "embedded_index_matches_frontend_dist": true,
+    "mapping_ui_result": "mapping-concurrency-20261005b.json",
+    "basic_recovery_status": "passed",
+    "limits": [
+      "process-local rule guards",
+      "preexisting manual mapping disable policy unchanged",
+      "no true PLC/Windows/LAN/soak/production PostgreSQL",
+      "original3222/5173 services unchanged"
+    ],
+    "basic_recovery_result": "mapping-concurrency-20261005-basic.json",
+    "basic_recovery_summary": {
+      "measurement_points_per_device": 8,
+      "three_consecutive_60_second_buckets_per_device": true,
+      "default_mapping_types_untouched": true,
+      "runtime_expected_switch": [
+        "215",
+        "187",
+        "215"
+      ],
+      "missing_table_retry": "sql_committed",
+      "explicit_poison_skip": "operator_skipped",
+      "disabled_group_rows_before": 6,
+      "disabled_group_rows_after": 6,
+      "healthy_group_progressed": true,
+      "page_errors": [],
+      "screenshots": [
+        {
+          "width": 390,
+          "file": "mapping-concurrency-20261005-basic-390.png",
+          "document_horizontal_overflow": false,
+          "basic_panel_visible": true
+        },
+        {
+          "width": 768,
+          "file": "mapping-concurrency-20261005-basic-768.png",
+          "document_horizontal_overflow": false,
+          "basic_panel_visible": true
+        },
+        {
+          "width": 1440,
+          "file": "mapping-concurrency-20261005-basic-1440.png",
+          "document_horizontal_overflow": false,
+          "basic_panel_visible": true
+        }
+      ],
+      "cleanup": {
+        "processes": [
+          {
+            "name": "sim-a",
+            "term_state": "exited",
+            "kill_sent": false,
+            "pid": 3588,
+            "state": "exited",
+            "exit_code": 0,
+            "signal": null
+          },
+          {
+            "name": "sim-b",
+            "term_state": "exited",
+            "kill_sent": false,
+            "pid": 3589,
+            "state": "exited",
+            "exit_code": 0,
+            "signal": null
+          },
+          {
+            "name": "gateway",
+            "term_state": "exited",
+            "kill_sent": false,
+            "pid": 3590,
+            "state": "exited",
+            "exit_code": 0,
+            "signal": null
+          },
+          {
+            "name": "gateway",
+            "term_state": "exited",
+            "kill_sent": false,
+            "pid": 15276,
+            "state": "exited",
+            "exit_code": 0,
+            "signal": null
+          }
+        ],
+        "browser": {
+          "state": "closed"
+        },
+        "namespace": {
+          "path": "/tmp/gw-f-mapping-concurrency-20261005-basic",
+          "absent": true,
+          "state": "removed"
+        }
+      }
+    }
+  },
+  "backend_source_unchanged_from_passed_full_gates": {
+    "tested_commit": "0ba22461397e443d1150d8553151a653a6320179",
+    "paths": [
+      "cmd",
+      "internal",
+      "lib",
+      "go.mod",
+      "go.sum"
+    ],
+    "git_diff_empty": true
+  },
+  "focused_frontend_test_files": 19,
+  "focused_frontend_tests": 109,
+  "bootstrap_observer_red_failures": 6,
+  "original_service_observation": {
+    "prior_pids": [
+      76744,
+      76814
+    ],
+    "prior_pids_present": false,
+    "listeners_3222_5173": false,
+    "task_stopped_or_restarted_original_services": false,
+    "original_head": "d9ba336ecd575ec7f71950677c4ad64af1552ecb",
+    "original_branch": "fix/basic-recording-integrity"
+  },
+  "basic_recovery_result": "mapping-concurrency-20261005-basic2.json",
+  "basic_recovery_summary": {
+    "measurement_points_per_device": 8,
+    "three_consecutive_60_second_buckets_per_device": true,
+    "default_mapping_types_untouched": true,
+    "runtime_expected_switch": [
+      "215",
+      "187",
+      "215"
+    ],
+    "missing_table_retry": "sql_committed",
+    "explicit_poison_skip": "operator_skipped",
+    "disabled_group_rows_before": 6,
+    "disabled_group_rows_after": 6,
+    "healthy_group_progressed": true,
+    "page_errors": [],
+    "screenshots": [
+      {
+        "width": 390,
+        "file": "mapping-concurrency-20261005-basic2-390.png",
+        "document_horizontal_overflow": false,
+        "basic_panel_visible": true
+      },
+      {
+        "width": 768,
+        "file": "mapping-concurrency-20261005-basic2-768.png",
+        "document_horizontal_overflow": false,
+        "basic_panel_visible": true
+      },
+      {
+        "width": 1440,
+        "file": "mapping-concurrency-20261005-basic2-1440.png",
+        "document_horizontal_overflow": false,
+        "basic_panel_visible": true
+      }
+    ],
+    "cleanup": {
+      "processes": [
+        {
+          "name": "sim-a",
+          "term_state": "exited",
+          "kill_sent": false,
+          "pid": 49249,
+          "state": "exited",
+          "exit_code": 0,
+          "signal": null
+        },
+        {
+          "name": "sim-b",
+          "term_state": "exited",
+          "kill_sent": false,
+          "pid": 49250,
+          "state": "exited",
+          "exit_code": 0,
+          "signal": null
+        },
+        {
+          "name": "gateway",
+          "term_state": "exited",
+          "kill_sent": false,
+          "pid": 49251,
+          "state": "exited",
+          "exit_code": 0,
+          "signal": null
+        },
+        {
+          "name": "gateway",
+          "term_state": "exited",
+          "kill_sent": false,
+          "pid": 65789,
+          "state": "exited",
+          "exit_code": 0,
+          "signal": null
+        }
+      ],
+      "browser": {
+        "state": "closed"
+      },
+      "namespace": {
+        "path": "/tmp/gw-f-mapping-concurrency-20261005-basic2",
+        "absent": true,
+        "state": "removed"
+      }
+    }
+  },
+  "source_aggregate_review": {
+    "base": "d9ba336ecd575ec7f71950677c4ad64af1552ecb",
+    "reviewed_source_commit": "2c6919da2ff2d1df1fb7ae757035b81a71f45199",
+    "backend_unresolved_findings": 0,
+    "frontend_unresolved_findings": 0,
+    "exact_final_head_confirmation": "Recorded in final handoff and external /tmp/mapping-final-head-review.json after evidence commit; tested source content must remain identical."
+  },
+  "openspec_checks": {
+    "validate": {
+      "command": "spectra validate fix-mapping-save-concurrency --json",
+      "exit_code": 0,
+      "result": [
+        {
+          "change": "fix-mapping-save-concurrency",
+          "errors": [],
+          "valid": true,
+          "warnings": []
+        }
+      ],
+      "root_limitation": "Owned artifact-only staging in original repo; source review uses isolated Git diff and source manifest."
+    },
+    "analyze": {
+      "command": "spectra analyze fix-mapping-save-concurrency --json",
+      "exit_code": 0,
+      "result": {
+        "change_id": "fix-mapping-save-concurrency",
+        "dimensions": [
+          {
+            "dimension": "Coverage",
+            "status": "Clean",
+            "finding_count": 0
+          },
+          {
+            "dimension": "Consistency",
+            "status": "Clean",
+            "finding_count": 0
+          },
+          {
+            "dimension": "Ambiguity",
+            "status": "Clean",
+            "finding_count": 0
+          },
+          {
+            "dimension": "Gaps",
+            "status": "Clean",
+            "finding_count": 0
+          },
+          {
+            "dimension": "Localization",
+            "status": "Clean",
+            "finding_count": 0
+          }
+        ],
+        "findings": [],
+        "artifacts_analyzed": [
+          "proposal",
+          "specs",
+          "design",
+          "tasks"
+        ],
+        "artifacts_missing": []
+      },
+      "root_limitation": "Owned artifact-only staging in original repo; source review uses isolated Git diff and source manifest."
+    },
+    "status": {
+      "command": "spectra status --change fix-mapping-save-concurrency --json",
+      "exit_code": 0,
+      "result": {
+        "changeName": "fix-mapping-save-concurrency",
+        "schemaName": "spec-driven",
+        "isComplete": true,
+        "applyRequires": [
+          "tasks"
+        ],
+        "artifacts": [
+          {
+            "id": "proposal",
+            "outputPath": "proposal.md",
+            "status": "done"
+          },
+          {
+            "id": "design",
+            "outputPath": "design.md",
+            "status": "done"
+          },
+          {
+            "id": "specs",
+            "outputPath": "specs/**/*.md",
+            "status": "done"
+          },
+          {
+            "id": "tasks",
+            "outputPath": "tasks.md",
+            "status": "done"
+          }
+        ]
+      },
+      "root_limitation": "Owned artifact-only staging in original repo; source review uses isolated Git diff and source manifest."
+    }
+  },
+  "line_checks": {
+    "command": "bash scripts/check_file_lines.sh --base d9ba336ecd575ec7f71950677c4ad64af1552ecb",
+    "exit_code": 0,
+    "scope": "All committed source changes relative to approved base; repeated at final exact HEAD after evidence commit",
+    "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-bootstrap-final-lines-base.log"
+  }
+}

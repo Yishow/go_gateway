@@ -1,0 +1,38 @@
+{
+  "change_id": "fix-mapping-save-concurrency",
+  "dimensions": [
+    {
+      "dimension": "Coverage",
+      "status": "Clean",
+      "finding_count": 0
+    },
+    {
+      "dimension": "Consistency",
+      "status": "Clean",
+      "finding_count": 0
+    },
+    {
+      "dimension": "Ambiguity",
+      "status": "Clean",
+      "finding_count": 0
+    },
+    {
+      "dimension": "Gaps",
+      "status": "Clean",
+      "finding_count": 0
+    },
+    {
+      "dimension": "Localization",
+      "status": "Clean",
+      "finding_count": 0
+    }
+  ],
+  "findings": [],
+  "artifacts_analyzed": [
+    "proposal",
+    "specs",
+    "design",
+    "tasks"
+  ],
+  "artifacts_missing": []
+}

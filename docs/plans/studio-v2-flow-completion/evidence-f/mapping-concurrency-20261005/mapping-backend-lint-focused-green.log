@@ -1,0 +1,1084 @@
+=== RUN   TestWorkspaceMappingEightConcurrentSQLiteSaves
+=== RUN   TestWorkspaceMappingEightConcurrentSQLiteSaves/pool=1
+2026/10/05 22:50:49 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:49 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:49 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:49 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:49 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:49 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:49 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:49 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:49 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:49 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:49 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:49 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:49 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:49 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:49 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:49 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:49 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:49 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:49 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:49 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:49 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:49 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:49 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:49 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:49 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:49 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+    studio_v2_workspace_mappings_concurrency_test.go:114: batch=0 pool=1 statuses=[200 200 200 200 200 200 200 200]
+    studio_v2_workspace_mappings_concurrency_test.go:114: batch=1 pool=1 statuses=[200 200 200 200 200 200 200 200]
+    studio_v2_workspace_mappings_concurrency_test.go:114: batch=2 pool=1 statuses=[200 200 200 200 200 200 200 200]
+    studio_v2_workspace_mappings_concurrency_test.go:114: batch=3 pool=1 statuses=[200 200 200 200 200 200 200 200]
+=== RUN   TestWorkspaceMappingEightConcurrentSQLiteSaves/pool=4
+2026/10/05 22:50:50 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:50 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:50 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:50 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:50 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:50 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:50 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:50 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+    studio_v2_workspace_mappings_concurrency_test.go:114: batch=0 pool=4 statuses=[200 200 200 200 200 200 200 200]
+    studio_v2_workspace_mappings_concurrency_test.go:114: batch=1 pool=4 statuses=[200 200 200 200 200 200 200 200]
+    studio_v2_workspace_mappings_concurrency_test.go:114: batch=2 pool=4 statuses=[200 200 200 200 200 200 200 200]
+    studio_v2_workspace_mappings_concurrency_test.go:114: batch=3 pool=4 statuses=[200 200 200 200 200 200 200 200]
+--- PASS: TestWorkspaceMappingEightConcurrentSQLiteSaves (0.47s)
+    --- PASS: TestWorkspaceMappingEightConcurrentSQLiteSaves/pool=1 (0.23s)
+    --- PASS: TestWorkspaceMappingEightConcurrentSQLiteSaves/pool=4 (0.24s)
+=== RUN   TestWorkspaceMappingReplacementCannotHideAnotherRow
+2026/10/05 22:50:50 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:50 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:50 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:50 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:50 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:50 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:50 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:50 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingReplacementCannotHideAnotherRow (0.08s)
+=== RUN   TestWorkspaceMappingFailedReplacementRestoresAcceptedDraftAndAllowsExplicitRetry
+2026/10/05 22:50:50 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:50 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:50 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:50 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:50 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:50 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:50 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:50 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingFailedReplacementRestoresAcceptedDraftAndAllowsExplicitRetry (0.05s)
+=== RUN   TestStudioV2WorkspaceMappingsHandler_UpdateRejectsOwnershipMismatch
+--- PASS: TestStudioV2WorkspaceMappingsHandler_UpdateRejectsOwnershipMismatch (0.00s)
+=== RUN   TestWorkspaceMappingOtherRuleSaveAndDeleteProgressWhileRuleHeld
+2026/10/05 22:50:50 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:50 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:50 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:50 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:50 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:50 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:50 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:50 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingOtherRuleSaveAndDeleteProgressWhileRuleHeld (0.06s)
+=== RUN   TestWorkspaceMappingSaveCoordinatesSourceMutations
+=== RUN   TestWorkspaceMappingSaveCoordinatesSourceMutations/sync
+2026/10/05 22:50:50 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:50 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:50 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:50 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:50 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:50 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:50 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:50 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+=== RUN   TestWorkspaceMappingSaveCoordinatesSourceMutations/update
+2026/10/05 22:50:50 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:50 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:50 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:50 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:50 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:50 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:50 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:50 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+=== RUN   TestWorkspaceMappingSaveCoordinatesSourceMutations/runtime-update
+2026/10/05 22:50:50 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:50 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:50 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:50 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:50 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:50 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:50 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:50 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+=== RUN   TestWorkspaceMappingSaveCoordinatesSourceMutations/candidate-reapply
+2026/10/05 22:50:50 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:50 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:50 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:50 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:50 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:50 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:50 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:50 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+=== RUN   TestWorkspaceMappingSaveCoordinatesSourceMutations/recompute
+2026/10/05 22:50:50 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:50 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:50 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:50 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:50 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:50 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:50 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:50 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+=== RUN   TestWorkspaceMappingSaveCoordinatesSourceMutations/delete
+2026/10/05 22:50:50 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:50 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:50 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:50 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:50 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:50 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:50 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:50 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:50 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:50 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:50 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+=== RUN   TestWorkspaceMappingSaveCoordinatesSourceMutations/runtime-delete
+2026/10/05 22:50:50 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:50 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:50 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:50 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:50 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:50 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingSaveCoordinatesSourceMutations (0.62s)
+    --- PASS: TestWorkspaceMappingSaveCoordinatesSourceMutations/sync (0.08s)
+    --- PASS: TestWorkspaceMappingSaveCoordinatesSourceMutations/update (0.09s)
+    --- PASS: TestWorkspaceMappingSaveCoordinatesSourceMutations/runtime-update (0.10s)
+    --- PASS: TestWorkspaceMappingSaveCoordinatesSourceMutations/candidate-reapply (0.08s)
+    --- PASS: TestWorkspaceMappingSaveCoordinatesSourceMutations/recompute (0.08s)
+    --- PASS: TestWorkspaceMappingSaveCoordinatesSourceMutations/delete (0.10s)
+    --- PASS: TestWorkspaceMappingSaveCoordinatesSourceMutations/runtime-delete (0.09s)
+=== RUN   TestWorkspaceMappingCreateFailedReplacementExplicitRetryKeepsOneOwnedDraft
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingCreateFailedReplacementExplicitRetryKeepsOneOwnedDraft (0.05s)
+=== RUN   TestWorkspaceMappingLateDirectManualEditPreservesExactCASAndAcceptedHash
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingLateDirectManualEditPreservesExactCASAndAcceptedHash (0.07s)
+=== RUN   TestWorkspaceMappingFailedDeletePreservesMappingAndAllowsExplicitRetry
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingFailedDeletePreservesMappingAndAllowsExplicitRetry (0.05s)
+=== RUN   TestWorkspaceMappingSQLTagRenamePersistsIdentityAndCleansOldTag
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingSQLTagRenamePersistsIdentityAndCleansOldTag (0.05s)
+=== RUN   TestWorkspaceMappingFailedSQLTagRenameRestoresOldOwnershipAndCleansNewOrphan
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingFailedSQLTagRenameRestoresOldOwnershipAndCleansNewOrphan (0.05s)
+=== RUN   TestWorkspaceMappingCannotRebindToAnotherRowsOwnedTag
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingCannotRebindToAnotherRowsOwnedTag (0.05s)
+=== RUN   TestWorkspaceMappingDeleteReportsCleanupFailureAsCompletedDeletion
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingDeleteReportsCleanupFailureAsCompletedDeletion (0.05s)
+=== RUN   TestWorkspaceMappingFailedSaveTagRollbackCannotOverwriteDirectTagEdit
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingFailedSaveTagRollbackCannotOverwriteDirectTagEdit (0.05s)
+=== RUN   TestWorkspaceMappingDeleteFailureRestoresLinksWithoutOverwritingDirectIdentity
+=== RUN   TestWorkspaceMappingDeleteFailureRestoresLinksWithoutOverwritingDirectIdentity/restore
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+=== RUN   TestWorkspaceMappingDeleteFailureRestoresLinksWithoutOverwritingDirectIdentity/direct-edit
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingDeleteFailureRestoresLinksWithoutOverwritingDirectIdentity (0.10s)
+    --- PASS: TestWorkspaceMappingDeleteFailureRestoresLinksWithoutOverwritingDirectIdentity/restore (0.05s)
+    --- PASS: TestWorkspaceMappingDeleteFailureRestoresLinksWithoutOverwritingDirectIdentity/direct-edit (0.05s)
+=== RUN   TestWorkspaceMappingRuntimeReconcileReusesSynchronousRuleGuard
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingRuntimeReconcileReusesSynchronousRuleGuard (0.05s)
+=== RUN   TestWorkspaceMappingAcceptedRenameReportsCleanupFailureAsSuccessfulSave
+=== RUN   TestWorkspaceMappingAcceptedRenameReportsCleanupFailureAsSuccessfulSave/PUT
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+=== RUN   TestWorkspaceMappingAcceptedRenameReportsCleanupFailureAsSuccessfulSave/POST
+2026/10/05 22:50:51 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:50:51 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:50:51 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:50:51 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:50:51 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:50:51 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:50:51 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:50:51 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:50:51 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:50:51 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:50:51 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:50:51 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:50:51 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:50:51 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+--- PASS: TestWorkspaceMappingAcceptedRenameReportsCleanupFailureAsSuccessfulSave (0.11s)
+    --- PASS: TestWorkspaceMappingAcceptedRenameReportsCleanupFailureAsSuccessfulSave/PUT (0.06s)
+    --- PASS: TestWorkspaceMappingAcceptedRenameReportsCleanupFailureAsSuccessfulSave/POST (0.05s)
+PASS
+ok  	go-gateway/internal/api/handlers	2.504s
+=== RUN   TestSQLReplaceLinksFailureRollsBackWholeSetAndReadersNeverSeeDeleteGap
+--- PASS: TestSQLReplaceLinksFailureRollsBackWholeSetAndReadersNeverSeeDeleteGap (0.00s)
+=== RUN   TestSQLReplaceLinksUniqueFailurePreservesExistingLinks
+--- PASS: TestSQLReplaceLinksUniqueFailurePreservesExistingLinks (0.00s)
+=== RUN   TestMemoryReplaceLinksRejectsInvalidSetWithoutChangingOriginal
+--- PASS: TestMemoryReplaceLinksRejectsInvalidSetWithoutChangingOriginal (0.00s)
+=== RUN   TestRuleMutationGuardNestedCallsOtherRuleAndReleasedContext
+--- PASS: TestRuleMutationGuardNestedCallsOtherRuleAndReleasedContext (0.04s)
+PASS
+ok  	go-gateway/internal/datalink/sourcerule	0.384s
+=== RUN   TestMemoryWorkspaceTagRollbackPreservesDirectEditAndRestoresExactOwnedFields
+--- PASS: TestMemoryWorkspaceTagRollbackPreservesDirectEditAndRestoresExactOwnedFields (0.00s)
+PASS
+ok  	go-gateway/internal/datalink/tag	0.298s

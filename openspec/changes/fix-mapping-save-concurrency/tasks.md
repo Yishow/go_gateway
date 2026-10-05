@@ -5,5 +5,5 @@
 
 ## 2. 整合與交接
 
-- [ ] 2.1 [after: 1.1, 1.2] 隔離正常 UI 多列 batch 保存/preview→真 SQLite 持久 readback，保留 exact source/binary/UI 證據並清理 owned 資源，不操作現場3222/5173。
-- [ ] 2.2 [after: 2.1] 完成 review→fix→rereview、scenario coverage、Go/frontend 全 gates、OpenSpec/line checks、本地 commit 與 exact HEAD aggregate review，回報兩樹狀態及現場版本未更新。
+- [x] 2.1 [after: 1.1, 1.2] 隔離正常 UI 多列 batch 保存/preview→真 SQLite 持久 readback，保留 exact source/binary/UI 證據並清理 owned 資源，不操作現場3222/5173。
+- [x] 2.2 [after: 2.1] 完成 review→fix→rereview、scenario coverage、Go/frontend 全 gates、OpenSpec/line checks、本地 commit 與 exact HEAD aggregate review，回報兩樹狀態及現場版本未更新。

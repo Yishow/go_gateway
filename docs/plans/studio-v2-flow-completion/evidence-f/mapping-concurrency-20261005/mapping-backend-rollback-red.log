@@ -1,0 +1,60 @@
+=== RUN   TestWorkspaceMappingFailedReplacementRestoresAcceptedDraftAndAllowsExplicitRetry
+2026/10/05 22:04:19 Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/05 22:04:19 Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/05 22:04:19 Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/05 22:04:19 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/05 22:04:19 Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/05 22:04:19 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/05 22:04:19 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/05 22:04:19 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/05 22:04:19 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/05 22:04:19 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/05 22:04:19 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/05 22:04:19 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/05 22:04:19 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/05 22:04:19 Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/05 22:04:19 Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/05 22:04:19 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/05 22:04:19 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/05 22:04:19 Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/05 22:04:19 Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/05 22:04:19 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/05 22:04:19 Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/05 22:04:19 Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/05 22:04:19 Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/05 22:04:19 Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/05 22:04:19 Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/05 22:04:19 Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+    studio_v2_workspace_mappings_concurrency_test.go:200: 
+        	Error Trace:	/private/tmp/go-gateway-mapping-save-concurrency/internal/api/handlers/studio_v2_workspace_mappings_concurrency_test.go:200
+        	Error:      	Not equal: 
+        	            	expected: &schema.Mapping{ID:"9b178802-8cff-4a3a-9857-ed7e78f66c59", PointID:"8e7eeb41-8bea-4987-96ac-2f0b414ee9a6", TagID:"e79837b5-5b34-485c-9a84-abdf79a5324d", TransformPipeline:"[]", Status:"draft", RuleCandidateID:"mapping:45f7b2f41f1ad21000c706a8bf86a10af0aab2457ddcd6267acd842a1050f7d3", ProposedSignature:"signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d", LastAppliedSignature:"signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d", BlockingReason:"", Enabled:false, CreatedAt:time.Date(2026, time.October, 5, 22, 4, 19, 796117000, time.Local), UpdatedAt:time.Date(2026, time.October, 5, 14, 4, 19, 0, time.UTC)}
+        	            	actual  : &schema.Mapping{ID:"9b178802-8cff-4a3a-9857-ed7e78f66c59", PointID:"8e7eeb41-8bea-4987-96ac-2f0b414ee9a6", TagID:"e79837b5-5b34-485c-9a84-abdf79a5324d", TransformPipeline:"[{\"type\":\"scale\",\"order\":0,\"params\":{\"offset\":0,\"scale\":0.5}},{\"type\":\"cast\",\"order\":1,\"params\":{\"target_type\":\"int16\"}}]", Status:"draft", RuleCandidateID:"mapping:45f7b2f41f1ad21000c706a8bf86a10af0aab2457ddcd6267acd842a1050f7d3", ProposedSignature:"signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d", LastAppliedSignature:"signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d", BlockingReason:"", Enabled:false, CreatedAt:time.Date(2026, time.October, 5, 22, 4, 19, 796117000, time.Local), UpdatedAt:time.Date(2026, time.October, 5, 14, 4, 19, 0, time.UTC)}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -4,3 +4,3 @@
+        	            	  TagID: (string) (len=36) "e79837b5-5b34-485c-9a84-abdf79a5324d",
+        	            	- TransformPipeline: (string) (len=2) "[]",
+        	            	+ TransformPipeline: (string) (len=121) "[{\"type\":\"scale\",\"order\":0,\"params\":{\"offset\":0,\"scale\":0.5}},{\"type\":\"cast\",\"order\":1,\"params\":{\"target_type\":\"int16\"}}]",
+        	            	  Status: (schema.MappingStatus) (len=5) "draft",
+        	Test:       	TestWorkspaceMappingFailedReplacementRestoresAcceptedDraftAndAllowsExplicitRetry
+--- FAIL: TestWorkspaceMappingFailedReplacementRestoresAcceptedDraftAndAllowsExplicitRetry (0.18s)
+FAIL
+FAIL	go-gateway/internal/api/handlers	0.682s
+FAIL

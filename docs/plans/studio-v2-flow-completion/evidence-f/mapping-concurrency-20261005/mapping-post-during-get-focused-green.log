@@ -1,0 +1,42 @@
+npm notice run frontend@0.0.0 test
+npm notice run vitest --run tests/unit/workbench-v2/mapping-autosave-queue tests/unit/workbench-v2/mapping-save-error-ui.test.tsx tests/unit/workbench-v2/mapping-autosave-page tests/unit/workbench-v2/mappingDefaults.test.ts tests/unit/workbench-v2/step3-mapping.test.tsx tests/unit/hooks/useStudioV2Mappings.test.ts tests/unit/utils/typedErrors.test.ts tests/unit/utils/backendErrorCodes.test.ts --maxWorkers=1 --no-file-parallelism
+
+ RUN  v3.2.4 /private/tmp/go-gateway-mapping-save-concurrency/frontend
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-queue.test.tsx (12 tests) 1698ms
+ ✓ tests/unit/workbench-v2/mapping-autosave-queue.lifecycle.test.tsx (12 tests) 1787ms
+   ✓ removes a successful deletion and retains a safe warning when unused-tag cleanup fails  341ms
+ ✓ tests/unit/workbench-v2/mapping-autosave-queue.numeric.test.tsx (2 tests) 750ms
+   ✓ preserves 'uint64' defaults in the saved request and exact server preview  380ms
+   ✓ preserves 'int16' defaults in the saved request and exact server preview  365ms
+ ✓ tests/unit/workbench-v2/mapping-save-error-ui.test.tsx (10 tests) 145ms
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+stderr | tests/unit/workbench-v2/mapping-autosave-page.reconciliation.test.tsx > DatalinkWorkbenchV2Page mapping autosave orchestration > isolates one mapping row save failure without blocking another valid row
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-page.reconciliation.test.tsx (3 tests) 138ms
+stderr | tests/unit/workbench-v2/mapping-autosave-page.validation.test.tsx > DatalinkWorkbenchV2Page mapping autosave orchestration > saves one valid draft mapping row and marks it saved
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-page.validation.test.tsx (2 tests) 72ms
+ ✓ tests/unit/workbench-v2/step3-mapping.test.tsx (6 tests) 63ms
+stderr | tests/unit/workbench-v2/mapping-autosave-page.bulk-toggle.test.tsx > DatalinkWorkbenchV2Page mapping autosave orchestration > autosaves bulk mapping enable toggles for every persisted row
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-page.bulk-toggle.test.tsx (1 test) 72ms
+stderr | tests/unit/workbench-v2/mapping-autosave-page.hydration.test.tsx > DatalinkWorkbenchV2Page mapping autosave orchestration > hydrates persisted mapping rows onto the same rule/address rows on step init
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-page.hydration.test.tsx (1 test) 50ms
+ ✓ tests/unit/hooks/useStudioV2Mappings.test.ts (4 tests) 3ms
+ ✓ tests/unit/utils/backendErrorCodes.test.ts (5 tests) 3ms
+ ✓ tests/unit/utils/typedErrors.test.ts (14 tests) 3ms
+ ✓ tests/unit/workbench-v2/mappingDefaults.test.ts (16 tests) 3ms
+
+ Test Files  13 passed (13)
+      Tests  88 passed (88)
+   Start at  22:47:06
+   Duration  9.71s (transform 376ms, setup 240ms, collect 1.08s, tests 4.79s, environment 2.34s, prepare 304ms)
+

@@ -1,0 +1,173 @@
+npm notice run frontend@0.0.0 test
+npm notice run vitest --run tests/unit/workbench-v2/mapping-autosave-queue.test.tsx tests/unit/workbench-v2/mapping-autosave-queue.lifecycle.test.tsx --maxWorkers=1 --no-file-parallelism
+
+ RUN  v3.2.4 /private/tmp/go-gateway-mapping-save-concurrency/frontend
+
+ ❯ tests/unit/workbench-v2/mapping-autosave-queue.test.tsx (11 tests | 1 failed) 2449ms
+   ✓ mapping rule save queue > serializes eight same-rule rows, deduplicates repeated batches and lets another rule progress 121ms
+   ✓ mapping rule save queue > keeps every newer column draft and continues with its exact request after an old response 113ms
+   ✓ mapping rule save queue > reads the newest transform for queued rows after repeated bulk actions 112ms
+   ✓ mapping failure recovery > retains safe metadata and pauses failed rule until explicit retry (409) 166ms
+   ✓ mapping failure recovery > retains safe metadata and pauses failed rule until explicit retry (404) 161ms
+   ✓ mapping failure recovery > retains safe metadata and pauses failed rule until explicit retry (500) 161ms
+   ✓ never inherits an automatic mutation retry after a mapping failure 109ms
+   ✓ continues the latest draft entered during the final authoritative refetch 112ms
+   ✓ accepts a legitimate tag-only authoritative refetch with the same mapping timestamp 160ms
+   ✓ keeps already confirmed row values visible while later batch invalidations return older snapshots 111ms
+   × continues another rule while a global mapping GET is unresolved 1122ms
+     → expected "spy" to be called with arguments: [ 'mapping-b1', ObjectContaining{…} ]
+
+Received: 
+
+  1st spy call:
+
+  [
+-   "mapping-b1",
+-   ObjectContaining {
+-     "tag_key": "b.next",
++   "mapping-b0",
++   {
++     "address": "40011",
++     "display_name": "Line A Temp",
++     "enabled": true,
++     "offset": 0,
++     "rule_id": "rule-B",
++     "scale": 1,
++     "tag_key": "b.first",
++     "target_type": "int16",
++     "unit": "C",
+    },
+  ]
+
+
+Number of calls: 1
+
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ tests/unit/workbench-v2/mapping-autosave-queue.lifecycle.test.tsx (10 tests | 2 failed) 1543ms
+   ✓ mapping queue lifecycle and defaults > does not resume a removed pending row or overlap its deletion with a save 118ms
+   ✓ mapping queue lifecycle and defaults > does not apply a removed row response to a new row with the same identity 110ms
+   ✓ mapping queue lifecycle and defaults > shows an actionable failed deletion and removes the restored row after explicit retry 162ms
+   ✓ mapping queue lifecycle and defaults > marks a newly edited row in a paused rule actionable and never automatically retries 108ms
+   ✓ mapping queue lifecycle and defaults > stops continuation after unmount 109ms
+   ✓ mapping queue lifecycle and defaults > keeps default uint64 and scaled int16 request types exact through the queue 109ms
+   ✓ removes a successful deletion and retains a safe warning when unused-tag cleanup fails  390ms
+   ✓ does not interpret an unknown cleanup status as a failure or claim cleanup completed 105ms
+   × does not apply an old rule rejection to a replacement row and still pauses its own pending rows 169ms
+     → expected { point_id: 'a0', …(20) } to match object { tag_key: 'new.b', …(2) }
+(36 matching properties omitted from actual)
+   × keeps an old deletion failure actionable without changing its replacement row 162ms
+     → expected { point_id: 'a0', …(20) } to match object { tag_key: 'new.b', …(2) }
+(37 matching properties omitted from actual)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/workbench-v2/mapping-autosave-queue.lifecycle.test.tsx > does not apply an old rule rejection to a replacement row and still pauses its own pending rows
+AssertionError: expected { point_id: 'a0', …(20) } to match object { tag_key: 'new.b', …(2) }
+(36 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "rule_id": "rule-B",
+-   "save_state": "saved",
++   "save_state": "save-error",
+    "tag_key": "new.b",
+  }
+
+ ❯ tests/unit/workbench-v2/mapping-autosave-queue.lifecycle.test.tsx:119:49
+    117|   await waitFor(() => expect(hook.result.current.state.mappings.a0.sav…
+    118|   await act(async () => old.reject({ response: { status: 409, data: { …
+    119|   expect(hook.result.current.state.mappings.a0).toMatchObject({ tag_ke…
+       |                                                 ^
+    120|   expect(hook.result.current.state.mappings.a1.save_state).toBe('save-…
+    121| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/unit/workbench-v2/mapping-autosave-queue.lifecycle.test.tsx > keeps an old deletion failure actionable without changing its replacement row
+AssertionError: expected { point_id: 'a0', …(20) } to match object { tag_key: 'new.b', …(2) }
+(37 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "rule_id": "rule-B",
+-   "save_state": "saved",
++   "save_state": "save-error",
+    "tag_key": "new.b",
+  }
+
+ ❯ tests/unit/workbench-v2/mapping-autosave-queue.lifecycle.test.tsx:134:49
+    132|   await waitFor(() => expect(hook.result.current.state.mappings.a0.sav…
+    133|   await act(async () => removal.reject({ response: { status: 500, data…
+    134|   expect(hook.result.current.state.mappings.a0).toMatchObject({ tag_ke…
+       |                                                 ^
+    135|   const failedRemoval = Object.values(hook.result.current.state.mappin…
+    136|   expect(failedRemoval?.point_id).not.toBe('a0');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/unit/workbench-v2/mapping-autosave-queue.test.tsx > continues another rule while a global mapping GET is unresolved
+AssertionError: expected "spy" to be called with arguments: [ 'mapping-b1', ObjectContaining{…} ]
+
+Received: 
+
+  1st spy call:
+
+  [
+-   "mapping-b1",
+-   ObjectContaining {
+-     "tag_key": "b.next",
++   "mapping-b0",
++   {
++     "address": "40011",
++     "display_name": "Line A Temp",
++     "enabled": true,
++     "offset": 0,
++     "rule_id": "rule-B",
++     "scale": 1,
++     "tag_key": "b.first",
++     "target_type": "int16",
++     "unit": "C",
+    },
+  ]
+
+
+Number of calls: 1
+
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ tests/unit/workbench-v2/mapping-autosave-queue.test.tsx:136:42
+    134|   await waitFor(() => expect(api.list).toHaveBeenCalledTimes(2));
+    135|   hook.send({ type: 'updateMapping', pointId: 'b1', patch: { tag_key: …
+    136|   await waitFor(() => expect(api.update).toHaveBeenCalledWith('mapping…
+       |                                          ^
+    137|   await act(async () => blockedGet.resolve(customRecords));
+    138|   await waitFor(() => expect(hook.result.current.state.mappings.b1.sav…
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  3 failed | 18 passed (21)
+   Start at  22:32:12
+   Duration  5.40s (transform 200ms, setup 95ms, collect 334ms, tests 3.99s, environment 740ms, prepare 65ms)
+

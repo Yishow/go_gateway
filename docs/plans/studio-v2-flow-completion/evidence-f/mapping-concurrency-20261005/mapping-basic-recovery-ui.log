@@ -1,0 +1,10 @@
+F fresh: UI source setup beginning
+F fresh: default mappings persisted; configuring blank SQLite
+F fresh: Basic explicit schema + Start completed for device 1
+F fresh: Basic explicit schema + Start completed for device 2
+F fresh: waiting for three independent 60-second SQL buckets per device
+F integrity: actual runtime A215/B187/A215 switching
+F integrity: owned missing-table fault and Basic retry
+F integrity: owned poison fault and explicit Basic skip
+F integrity: disable, drain, normal gateway restart
+PASS mapping-concurrency-20261005-basic: dual Basic groups with three buckets each

@@ -1,0 +1,56 @@
+ok  	go-gateway/cmd/f_modbus_simulator	(cached)
+?   	go-gateway/cmd/fatek_test	[no test files]
+ok  	go-gateway/cmd/gateway	(cached)
+ok  	go-gateway/cmd/loadtest_modbus	(cached)
+?   	go-gateway/cmd/studio_inventory_changelog	[no test files]
+ok  	go-gateway/cmd/test_all	(cached)
+ok  	go-gateway/cmd/test_ui	9.133s
+?   	go-gateway/docs/swagger	[no test files]
+ok  	go-gateway/internal/api	26.115s
+ok  	go-gateway/internal/api/handlers	14.237s
+ok  	go-gateway/internal/config	(cached)
+ok  	go-gateway/internal/datalink	(cached)
+ok  	go-gateway/internal/datalink/aggregation	(cached)
+ok  	go-gateway/internal/datalink/api	(cached)
+ok  	go-gateway/internal/datalink/audit	(cached)
+ok  	go-gateway/internal/datalink/collector	(cached)
+ok  	go-gateway/internal/datalink/collector/health	(cached)
+ok  	go-gateway/internal/datalink/common	(cached)
+ok  	go-gateway/internal/datalink/connector	(cached)
+ok  	go-gateway/internal/datalink/connector/adapters	(cached)
+ok  	go-gateway/internal/datalink/dbtarget	(cached)
+ok  	go-gateway/internal/datalink/delivery	(cached)
+ok  	go-gateway/internal/datalink/device	(cached)
+ok  	go-gateway/internal/datalink/groupdelivery	(cached)
+ok  	go-gateway/internal/datalink/grouppipeline	(cached)
+ok  	go-gateway/internal/datalink/grouptestwrite	(cached)
+ok  	go-gateway/internal/datalink/history	(cached)
+ok  	go-gateway/internal/datalink/mapping	(cached)
+ok  	go-gateway/internal/datalink/measurement	(cached)
+ok  	go-gateway/internal/datalink/modbusshare	(cached)
+ok  	go-gateway/internal/datalink/optimizer	(cached)
+ok  	go-gateway/internal/datalink/point	(cached)
+ok  	go-gateway/internal/datalink/pollinggroup	(cached)
+ok  	go-gateway/internal/datalink/recordingplan	(cached)
+ok  	go-gateway/internal/datalink/runtime	(cached)
+ok  	go-gateway/internal/datalink/schema	(cached)
+?   	go-gateway/internal/datalink/schema/migrations	[no test files]
+ok  	go-gateway/internal/datalink/settings	(cached)
+ok  	go-gateway/internal/datalink/snapshot	(cached)
+ok  	go-gateway/internal/datalink/sourcerule	0.436s
+ok  	go-gateway/internal/datalink/storage	(cached)
+ok  	go-gateway/internal/datalink/tag	0.133s
+ok  	go-gateway/internal/datalink/workspace	(cached)
+ok  	go-gateway/internal/edge	(cached)
+?   	go-gateway/internal/protocol	[no test files]
+ok  	go-gateway/internal/protocol/fatek	(cached)
+ok  	go-gateway/internal/protocol/mcprotocol	(cached)
+ok  	go-gateway/internal/protocol/modbus	(cached)
+?   	go-gateway/internal/testutil/lostcommit	[no test files]
+ok  	go-gateway/internal/virtual/api	(cached)
+ok  	go-gateway/internal/virtual/memory	(cached)
+ok  	go-gateway/internal/virtual/server/modbus	(cached)
+ok  	go-gateway/internal/virtual/simulation	(cached)
+?   	go-gateway/internal/web	[no test files]
+ok  	go-gateway/lib/algorithms	(cached)
+ok  	go-gateway/lib/hsllogic	(cached)

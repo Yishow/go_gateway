@@ -1,0 +1,29 @@
+npm notice run frontend@0.0.0 test
+npm notice run vitest --run tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx tests/unit/workbench-v2/database-autosave-page.hydration.test.tsx tests/unit/workbench-v2/database-autosave-page.bulk-toggle.test.tsx tests/unit/workbench-v2/step3-components.test.tsx tests/unit/workbench-v2/locale-parity.test.ts --maxWorkers=1 --no-file-parallelism
+
+ RUN  v3.2.4 /private/tmp/go-gateway-mapping-save-concurrency/frontend
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+stderr | tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx > DatalinkWorkbenchV2Page database autosave orchestration > isolates one failing target row from another valid row
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx (3 tests) 476ms
+   ✓ DatalinkWorkbenchV2Page database autosave orchestration > isolates one failing target row from another valid row  384ms
+stderr | tests/unit/workbench-v2/database-autosave-page.hydration.test.tsx > DatalinkWorkbenchV2Page database autosave orchestration > hydrates persisted database config and targets onto the same point rows
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/database-autosave-page.hydration.test.tsx (1 test) 107ms
+stderr | tests/unit/workbench-v2/database-autosave-page.bulk-toggle.test.tsx > DatalinkWorkbenchV2Page database autosave orchestration > autosaves bulk database target enable toggles for every persisted row
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/database-autosave-page.bulk-toggle.test.tsx (1 test) 138ms
+ ✓ tests/unit/workbench-v2/step3-components.test.tsx (6 tests) 52ms
+ ✓ tests/unit/workbench-v2/locale-parity.test.ts (4 tests) 8ms
+
+ Test Files  5 passed (5)
+      Tests  15 passed (15)
+   Start at  22:54:57
+   Duration  2.96s (transform 287ms, setup 136ms, collect 383ms, tests 781ms, environment 1.15s, prepare 140ms)
+

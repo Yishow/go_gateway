@@ -1,0 +1,156 @@
+npm notice run frontend@0.0.0 test
+npm notice run vitest --run tests/unit/workbench-v2/mapping-autosave-queue.test.tsx --maxWorkers=1 --no-file-parallelism
+
+ RUN  v3.2.4 /private/tmp/go-gateway-mapping-save-concurrency/frontend
+
+stderr | tests/unit/workbench-v2/mapping-autosave-queue.test.tsx > mapping rule save queue > serializes eight same-rule rows, deduplicates repeated batches and lets another rule progress
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ❯ tests/unit/workbench-v2/mapping-autosave-queue.test.tsx (6 tests | 6 failed) 4642ms
+   × mapping rule save queue > serializes eight same-rule rows, deduplicates repeated batches and lets another rule progress 122ms
+     → expected [ [ 'mapping-a0', …(1) ], …(14) ] to have a length of 1 but got 15
+   × mapping rule save queue > keeps every newer column draft and continues with its exact request after an old response 114ms
+     → expected { point_id: 'a0', …(19) } to match object { tag_key: 'last', …(2) }
+(30 matching properties omitted from actual)
+   × mapping rule save queue > reads the newest transform for queued rows after repeated bulk actions 1070ms
+     → expected "spy" to be called 1 times, but got 15 times
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+  [36m</body>[39m
+[36m</html>[39m
+   × mapping failure recovery > retains safe metadata and pauses failed rule until explicit retry (409) 1113ms
+     → expected 'saved' to be 'save-error' // Object.is equality
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+  [36m</body>[39m
+[36m</html>[39m
+   × mapping failure recovery > retains safe metadata and pauses failed rule until explicit retry (404) 1112ms
+     → expected 'saved' to be 'save-error' // Object.is equality
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+  [36m</body>[39m
+[36m</html>[39m
+   × mapping failure recovery > retains safe metadata and pauses failed rule until explicit retry (500) 1109ms
+     → expected 'saved' to be 'save-error' // Object.is equality
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/workbench-v2/mapping-autosave-queue.test.tsx > mapping rule save queue > serializes eight same-rule rows, deduplicates repeated batches and lets another rule progress
+AssertionError: expected [ [ 'mapping-a0', …(1) ], …(14) ] to have a length of 1 but got 15
+
+- Expected
++ Received
+
+- 1
++ 15
+
+ ❯ tests/unit/workbench-v2/mapping-autosave-queue.test.tsx:15:73
+     13|     hook.send({ type: 'setAllMappingsEnabled', enabled: true });
+     14|     await waitFor(() => { expect(api.update).toHaveBeenCalledWith('map…
+     15|     expect(api.update.mock.calls.filter(([id]) => id !== 'mapping-b0')…
+       |                                                                         ^
+     16|     await act(async () => first.resolve(response('mapping-a0', api.upd…
+     17|     await waitFor(() => { expect(Object.values(hook.result.current.sta…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/unit/workbench-v2/mapping-autosave-queue.test.tsx > mapping rule save queue > keeps every newer column draft and continues with its exact request after an old response
+AssertionError: expected { point_id: 'a0', …(19) } to match object { tag_key: 'last', …(2) }
+(30 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "persisted_value": {
+-     "tag_key": "first",
++     "tag_key": "tag.a0",
+    },
+    "save_state": "saving",
+-   "tag_key": "last",
++   "tag_key": "first",
+  }
+
+ ❯ tests/unit/workbench-v2/mapping-autosave-queue.test.tsx:30:51
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/unit/workbench-v2/mapping-autosave-queue.test.tsx > mapping rule save queue > reads the newest transform for queued rows after repeated bulk actions
+AssertionError: expected "spy" to be called 1 times, but got 15 times
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ tests/unit/workbench-v2/mapping-autosave-queue.test.tsx:44:44
+     42|     hook.send({ type: 'updateMapping', pointId: 'a0', patch: { scale: …
+     43|     hook.send({ type: 'bulkApplyTransform', fromPointId: 'a0', fields:…
+     44|     await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
+       |                                            ^
+     45|     await act(async () => first.resolve(response('mapping-a0', api.upd…
+     46|     await waitFor(() => expect(hook.result.current.state.mappings.a7.s…
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/unit/workbench-v2/mapping-autosave-queue.test.tsx > mapping failure recovery > retains safe metadata and pauses failed rule until explicit retry (409)
+ FAIL  tests/unit/workbench-v2/mapping-autosave-queue.test.tsx > mapping failure recovery > retains safe metadata and pauses failed rule until explicit retry (404)
+ FAIL  tests/unit/workbench-v2/mapping-autosave-queue.test.tsx > mapping failure recovery > retains safe metadata and pauses failed rule until explicit retry (500)
+AssertionError: expected 'saved' to be 'save-error' // Object.is equality
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+Expected: "save-error"
+Received: "saved"
+
+ ❯ tests/unit/workbench-v2/mapping-autosave-queue.test.tsx:60:82
+     58|     await waitFor(() => expect(api.update).toHaveBeenCalled());
+     59|     await act(async () => failing.reject({ response: { status, data: {…
+     60|     await waitFor(() => expect(hook.result.current.state.mappings.a0.s…
+       |                                                                                  ^
+     61|     expect(api.update).toHaveBeenCalledTimes(1);
+     62|     expect(hook.result.current.state.mappings.a0).toMatchObject({ tag_…
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed (6)
+   Start at  21:59:12
+   Duration  5.41s (transform 73ms, setup 64ms, collect 174ms, tests 4.64s, environment 422ms, prepare 36ms)
+

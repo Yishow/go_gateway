@@ -1,0 +1,8 @@
+[
+  {
+    "change": "fix-mapping-save-concurrency",
+    "errors": [],
+    "valid": true,
+    "warnings": []
+  }
+]

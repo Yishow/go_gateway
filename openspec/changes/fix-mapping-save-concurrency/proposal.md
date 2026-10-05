@@ -18,7 +18,7 @@ Modified Capabilities: datalink-workbench-v2-step3-mapping。
 ## Impact
 
 - Affected code:
-  - Modified: internal/datalink/sourcerule/, internal/api/handlers/studio_v2_workspace_mapping_request.go, internal/api/handlers/studio_v2_workspace_mappings_handler.go, internal/api/handlers/studio_v2_workspace_mappings_recovery.go, internal/api/handlers/studio_v2_workspace_mappings_delete.go, frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts, frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx, frontend/src/utils/backendErrorCodes.ts, frontend/src/i18n/locales/en/workbench-v2.json, frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - New: scoped Go/React regression tests and rule-scoped coordinator/queue helpers.
+  - Modified: internal/datalink/sourcerule/, internal/datalink/mapping/sql_repo.go, internal/datalink/mapping/workspace_save_rollback.go, internal/datalink/tag/workspace_save_rollback.go, internal/api/handlers/studio_v2_workspace_mapping_request.go, internal/api/handlers/studio_v2_workspace_mappings_handler.go, internal/api/handlers/studio_v2_workspace_mappings_recovery.go, internal/api/handlers/studio_v2_workspace_mappings_delete.go, frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts, frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx, frontend/src/utils/backendErrorCodes.ts, frontend state/hooks/services safe error metadata, frontend/src/i18n/config.ts（新增 mapping-errors namespace；不修改歷史超長 workbench-v2.json）
+  - New: scoped Go/React regression tests, rule-scoped coordinator/queue helpers, safe MappingSaveFailure, en/zh-TW mapping-errors.json, and isolated mapping UI regression runner.
   - Removed: none.
 

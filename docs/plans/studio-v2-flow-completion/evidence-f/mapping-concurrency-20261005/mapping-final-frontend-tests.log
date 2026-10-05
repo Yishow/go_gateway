@@ -1,0 +1,378 @@
+npm notice run frontend@0.0.0 test
+npm notice run vitest --run --maxWorkers=1 --no-file-parallelism
+
+ RUN  v3.2.4 /private/tmp/go-gateway-mapping-save-concurrency/frontend
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-queue.lifecycle.test.tsx (12 tests) 1860ms
+   ✓ removes a successful deletion and retains a safe warning when unused-tag cleanup fails  358ms
+ ✓ tests/unit/workbench-v2/mapping-autosave-queue.test.tsx (12 tests) 1732ms
+stderr | tests/unit/workbench-v2/writeGroupLifecycle.test.tsx > RevisionSafeGroupActivationAndTestWrite: test write > drops a reply that arrives after the group changed
+An update to GroupEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/unit/workbench-v2/writeGroupLifecycle.test.tsx > RevisionSafeGroupActivationAndTestWrite: test write > drops a reply for an earlier revision of the same group after it was saved again
+An update to GroupTestWritePanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | tests/unit/workbench-v2/writeGroupLifecycle.test.tsx > save uses the latest workspace revision > keeps the active group draft when a save for a closed editor finishes late
+An update to WriteGroupSection inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/unit/workbench-v2/writeGroupLifecycle.test.tsx (27 tests) 919ms
+ ✓ tests/unit/workbench-v2/mapping-autosave-queue.numeric.test.tsx (2 tests) 753ms
+   ✓ preserves 'uint64' defaults in the saved request and exact server preview  383ms
+   ✓ preserves 'int16' defaults in the saved request and exact server preview  369ms
+ ✓ tests/unit/runtime-dashboard/runtime-dashboard-route.test.tsx (3 tests) 645ms
+   ✓ runtime dashboard route > renders the dedicated runtime dashboard route when device_id is present  327ms
+   ✓ runtime dashboard route > keeps /studio/v2 on the setup flow  306ms
+ ✓ tests/unit/workbench-v2/settings-operations-race.test.tsx (7 tests) 620ms
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+stderr | tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx > DatalinkWorkbenchV2Page database autosave orchestration > isolates one failing target row from another valid row
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx (3 tests) 311ms
+ ✓ tests/unit/workbench-v2/shell.test.tsx (14 tests) 420ms
+ ✓ tests/unit/app-routing-lazy-load.test.tsx (4 tests) 416ms
+   ✓ AppRoutes lazy-load contract > surfaces a rejected lazy import through the existing error boundary  378ms
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > EmptyErrorMismatchPlanRecovery > allows a blank connector table for a managed group and lets the server assign it
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > EmptyErrorMismatchPlanRecovery > shows groups for another destination as a mismatch, not as a match and not as nothing
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > EmptyErrorMismatchPlanRecovery > lists removed groups separately and opens them read-only
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","gone","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > WriteGroupEditorManagedAndCustom > shows the persisted members, destination and revisions of a saved group
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > WriteGroupEditorManagedAndCustom > adopts server-assigned managed table and columns after saving
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > WriteGroupEditorManagedAndCustom > adopts server-assigned managed table and columns after saving
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > WriteGroupEditorManagedAndCustom > switches managed and custom on the same group without asking for manual targets
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > WriteGroupEditorManagedAndCustom > switches managed and custom on the same group without asking for manual targets
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > WriteGroupEditorManagedAndCustom > creates a group from saved Tags with persisted IDs and the revisions it was shown with
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > WriteGroupEditorManagedAndCustom > renames and edits members through an update that carries the group revision
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > WriteGroupEditorManagedAndCustom > renames and edits members through an update that carries the group revision
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > WriteGroupEditorManagedAndCustom > keeps the draft and offers a reload when the saved configuration changed elsewhere
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > WriteGroupEditorManagedAndCustom > does not send a second save while the first is in flight
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > WriteGroupEditorManagedAndCustom > does not send a second save while the first is in flight
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+stderr | tests/unit/workbench-v2/writeGroupSection.test.tsx > WriteGroupEditorManagedAndCustom > blocks every edit and mutation while the session is read-only
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+ ✓ tests/unit/workbench-v2/writeGroupSection.test.tsx (17 tests) 345ms
+ ✓ tests/unit/workbench-v2/settings-save-state-convergence.test.tsx (9 tests) 311ms
+ ✓ tests/unit/workbench-v2/step4-commit.test.tsx (9 tests) 297ms
+ ✓ tests/unit/pages/datalink/quickflow-page.test.tsx (3 tests) 275ms
+ ✓ tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx (18 tests) 277ms
+ ✓ tests/unit/runtime-dashboard/runtime-stream-contract.test.tsx (6 tests) 239ms
+ ✓ tests/unit/workbench-v2/step4-share-activation.test.tsx (8 tests) 241ms
+ ✓ tests/unit/workbench-v2/settings.test.tsx (18 tests) 243ms
+stderr | tests/unit/workbench-v2/writeGroupMembers.test.tsx > RealMetadataAndReviewableAssignment (editor) > marks a saved assignment for repair when its column disappeared instead of rebinding it
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","delivery"]
+
+stderr | tests/unit/workbench-v2/writeGroupMembers.test.tsx > RealMetadataAndReviewableAssignment (editor) > marks a saved assignment for repair when its column disappeared instead of rebinding it
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","delivery"]
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["studio-v2-workspace","write-groups","group-1","readiness"]
+
+ ✓ tests/unit/workbench-v2/writeGroupMembers.test.tsx (13 tests) 232ms
+ ✓ tests/unit/runtime-dashboard/runtime-dashboard-stream-state.test.tsx (4 tests) 232ms
+ ✓ tests/unit/workbench-v2/basic-recording-panel.test.tsx (27 tests) 219ms
+ ✓ tests/unit/workbench-v2/step2-rule.test.tsx (18 tests) 214ms
+ ✓ tests/unit/workbench-v2/step3-live-values.test.tsx (7 tests) 194ms
+ ✓ tests/unit/runtime-dashboard/runtime-dashboard-route-state.test.tsx (6 tests) 200ms
+ ✓ tests/unit/workbench-v2/BackendBackedActivationResults.test.tsx (16 tests) 190ms
+ ✓ tests/unit/workbench-v2/step1.test.tsx (14 tests) 177ms
+ ✓ tests/unit/pages/gateway/GatewayQuickSetupPage.test.tsx (6 tests) 184ms
+ ✓ tests/unit/workbench-v2/basic-recording-panel-regressions.test.tsx (24 tests) 208ms
+ ✓ tests/unit/workbench-v2/step4-evidence-boundaries.test.tsx (6 tests) 173ms
+stderr | tests/unit/workbench-v2/mapping-autosave-page.reconciliation.test.tsx > DatalinkWorkbenchV2Page mapping autosave orchestration > isolates one mapping row save failure without blocking another valid row
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-page.reconciliation.test.tsx (3 tests) 142ms
+ ✓ tests/unit/runtime-dashboard/runtime-dashboard-truth-state.test.tsx (3 tests) 144ms
+ ✓ tests/unit/pages/test-page-rtu-disconnect.test.tsx (1 test) 148ms
+stderr | tests/unit/workbench-v2/database-autosave-page.bulk-toggle.test.tsx > DatalinkWorkbenchV2Page database autosave orchestration > autosaves bulk database target enable toggles for every persisted row
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/database-autosave-page.bulk-toggle.test.tsx (1 test) 107ms
+ ✓ tests/unit/workbench-v2/step4-first-activation.test.tsx (8 tests) 162ms
+ ✓ tests/unit/pages/test-page-rtu-read-dispatch.test.tsx (1 test) 140ms
+ ✓ tests/unit/workbench-v2/shell-readiness.test.tsx (6 tests) 143ms
+ ✓ tests/unit/workbench-v2/step4-database-controls.test.tsx (3 tests) 142ms
+ ✓ tests/unit/workbench-v2/database-save-ordering.test.tsx (6 tests) 132ms
+ ✓ tests/unit/workbench-v2/groupSchemaPanel.test.tsx (14 tests) 138ms
+ ✓ tests/unit/workbench-v2/mapping-save-error-ui.test.tsx (10 tests) 132ms
+stderr | tests/unit/workbench-v2/rule-autosave-page.test.tsx > DatalinkWorkbenchV2Page rule autosave orchestration > hydrates persisted rules under the same owning devices on reload
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/rule-autosave-page.test.tsx (6 tests) 124ms
+ ✓ tests/unit/runtime-dashboard/runtime-dashboard-diagnostics-state.test.tsx (4 tests) 120ms
+ ✓ tests/unit/workbench-v2/settings-backend.test.tsx (3 tests) 131ms
+ ✓ tests/unit/workbench-v2/step4-database.test.tsx (5 tests) 117ms
+stderr | tests/unit/workbench-v2/database-autosave-page.hydration.test.tsx > DatalinkWorkbenchV2Page database autosave orchestration > hydrates persisted database config and targets onto the same point rows
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/database-autosave-page.hydration.test.tsx (1 test) 118ms
+stderr | tests/unit/workbench-v2/database-autosave-page.validation.test.tsx > DatalinkWorkbenchV2Page database autosave orchestration > saves one valid connector edit and keeps invalid edits local
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/database-autosave-page.validation.test.tsx (1 test) 110ms
+ ✓ tests/unit/pages/test-page.test.tsx (3 tests) 128ms
+ ✓ tests/unit/workbench-v2/writeGroupProposal.test.tsx (7 tests) 103ms
+stderr | tests/unit/workbench-v2/workspace-boot.test.tsx > DatalinkWorkbenchV2Page workspace bootstrap > boots from the workspace API on first open
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/workspace-boot.test.tsx (8 tests) 122ms
+ ✓ tests/unit/workbench-v2/rule-tab-rail.test.tsx (10 tests) 130ms
+stderr | tests/unit/workbench-v2/device-autosave-page.draft-validation.test.tsx > DatalinkWorkbenchV2Page device autosave orchestration > saves one valid local device and marks it saved
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/device-autosave-page.draft-validation.test.tsx (5 tests) 121ms
+ ✓ tests/unit/workbench-v2/settings-connectors.test.tsx (6 tests) 106ms
+stderr | tests/unit/workbench-v2/step2-share.test.tsx > ShareSection Component > 當全域未啟用時，應渲染「全域未啟用」標籤
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/step2-share.test.tsx (6 tests) 89ms
+ ✓ tests/unit/workbench-v2/basic-recording-preparation.test.tsx (5 tests) 106ms
+ ✓ tests/unit/components/datalink/QuickActions.test.tsx (2 tests) 74ms
+ ✓ tests/unit/workbench-v2/commit-progress-accessibility.test.tsx (4 tests) 105ms
+ ✓ tests/unit/workbench-v2/step4-database-components.test.tsx (8 tests) 90ms
+stderr | tests/unit/workbench-v2/components.test.tsx > Toggle Component > should render with switch role and correct aria-checked state
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/components.test.tsx (14 tests) 94ms
+ ✓ tests/unit/workbench-v2/SavedConnectorIdentityControls.test.tsx (2 tests) 90ms
+ ✓ tests/unit/pages/test-page-rtu-polling.test.tsx (1 test) 103ms
+ ✓ tests/unit/workbench-v2/shell-redesign.test.tsx (6 tests) 81ms
+stderr | tests/unit/workbench-v2/device-autosave-page.failure-recovery.test.tsx > DatalinkWorkbenchV2Page device autosave orchestration > isolates save failure per device without blocking another valid save
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/device-autosave-page.failure-recovery.test.tsx (3 tests) 88ms
+stderr | tests/unit/workbench-v2/mapping-autosave-page.validation.test.tsx > DatalinkWorkbenchV2Page mapping autosave orchestration > saves one valid draft mapping row and marks it saved
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-page.validation.test.tsx (2 tests) 88ms
+stderr | tests/unit/workbench-v2/schema-operation.test.tsx > schema operation scope and locking > blocks schema and configuration controls while activation is in progress
+An update to Step4DatabaseContent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ tests/unit/workbench-v2/schema-operation.test.tsx (6 tests) 77ms
+stderr | tests/unit/workbench-v2/device-autosave-page.hydration.test.tsx > DatalinkWorkbenchV2Page device autosave orchestration > hydrates persisted devices in backend order on reload
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/device-autosave-page.hydration.test.tsx (7 tests) 74ms
+ ✓ tests/unit/components/ErrorBoundary.test.tsx (4 tests) 74ms
+ ✓ tests/unit/components/datalink/DeviceForm.test.tsx (1 test) 94ms
+ ✓ tests/unit/components/ui/spinner.test.tsx (6 tests) 71ms
+ ✓ tests/unit/pages/gateway/GatewayExpertWorkbenchPage.test.tsx (6 tests) 74ms
+stderr | tests/unit/workbench-v2/mapping-autosave-page.bulk-toggle.test.tsx > DatalinkWorkbenchV2Page mapping autosave orchestration > autosaves bulk mapping enable toggles for every persisted row
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-page.bulk-toggle.test.tsx (1 test) 63ms
+ ✓ tests/unit/hooks/useStudioV2GroupMetadata.test.tsx (2 tests) 65ms
+ ✓ tests/unit/components/datalink/MemoryGrid.test.tsx (14 tests) 49ms
+ ✓ tests/unit/workbench-v2/step3-mapping.test.tsx (6 tests) 69ms
+ ✓ tests/unit/workbench-v2/step3-components.test.tsx (6 tests) 60ms
+stderr | tests/unit/workbench-v2/mapping-autosave-page.hydration.test.tsx > DatalinkWorkbenchV2Page mapping autosave orchestration > hydrates persisted mapping rows onto the same rule/address rows on step init
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-page.hydration.test.tsx (1 test) 52ms
+ ✓ tests/unit/workbench-v2/step4-share-summary.test.tsx (14 tests) 53ms
+ ✓ tests/unit/workbench-v2/step1-capability-and-drafts.test.tsx (11 tests) 49ms
+ ✓ tests/unit/workbench-v2/groupDeliveryRecovery.test.tsx (4 tests) 43ms
+ ✓ tests/unit/workbench-v2/routing.test.tsx (9 tests) 43ms
+stderr | tests/unit/workbench-v2/step3-live-preview.test.tsx > Step 3 live preview cells > sends preview request after debounce and updates the final cell with backend result
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/step3-live-preview.test.tsx (10 tests) 46ms
+stderr | tests/unit/runtime-dashboard/HistoryReportsPanel.test.tsx > HistoryReportsPanel > triggers CSV export when clicking export button
+Not implemented: navigation to another Document
+
+ ✓ tests/unit/runtime-dashboard/HistoryReportsPanel.test.tsx (3 tests) 37ms
+ ✓ tests/unit/workbench-v2/workbench-local-modbus-review-surface.test.tsx (4 tests) 35ms
+stderr | tests/unit/workbench-v2/step3-live-preview-changes.test.tsx > Step 3 live preview semantic changes > ignores stale preview responses after the row mapping changes
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/step3-live-preview-changes.test.tsx (4 tests) 32ms
+stderr | tests/unit/utils/appAgentationRemoval.test.tsx > App agentation removal > renders without loading agentation
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/utils/appAgentationRemoval.test.tsx (1 test) 31ms
+ ✓ tests/unit/components/datalink/DeviceTreeNav.test.tsx (2 tests) 28ms
+ ✓ tests/unit/workbench-v2/address-conflicts.test.ts (9 tests) 36ms
+ ✓ tests/unit/runtime-dashboard/live-point-device-identity.test.tsx (3 tests) 27ms
+ ✓ tests/unit/hooks/usePreviewStream.test.tsx (6 tests) 31ms
+ ✓ tests/unit/workbench-v2/step2-grid.test.tsx (6 tests) 37ms
+stderr | tests/unit/workbench-v2/MeasurementTemplateSelector.test.tsx > MeasurementTemplateSelector Component > keeps measurement semantics collapsed as an optional advanced section
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/MeasurementTemplateSelector.test.tsx (2 tests) 30ms
+ ✓ tests/unit/components/datalink/BatchPointCreator.test.tsx (2 tests) 24ms
+ ✓ tests/unit/components/ui/skeleton.test.tsx (11 tests) 20ms
+ ✓ tests/unit/hooks/useStudioV2WorkspaceRecordingPlans.retry.test.tsx (4 tests) 14ms
+ ✓ tests/unit/workbench-v2/groupDeliveryStrip.test.tsx (4 tests) 27ms
+ ✓ tests/unit/workbench-v2/autosave-settlement-timeout.test.ts (7 tests) 12ms
+ ✓ tests/unit/workbench-v2/step4-delivery-truth.test.tsx (1 test) 20ms
+ ✓ tests/unit/workbench-v2/basic-recording-evidence-regressions.test.tsx (1 test) 18ms
+ ✓ tests/unit/workbench-v2/step1-readiness.test.tsx (3 tests) 19ms
+ ✓ tests/unit/workbench-v2/summary-rail-connection.test.tsx (1 test) 16ms
+ ✓ tests/unit/components/datalink/SlidePanel.test.tsx (2 tests) 17ms
+ ✓ tests/unit/hooks/useSourceRules.test.tsx (2 tests) 14ms
+ ✓ tests/unit/hooks/useHistory.test.ts (17 tests) 24ms
+ ✓ tests/unit/workbench-v2/step4-share.test.tsx (7 tests) 14ms
+ ✓ tests/unit/workbench-v2/step3-live-stream-malformed.test.tsx (2 tests) 15ms
+ ✓ tests/unit/hooks/useKeyboardShortcuts.test.ts (9 tests) 12ms
+ ✓ tests/unit/workbench-v2/step4-i18n-keys.test.ts (4 tests) 12ms
+ ✓ tests/unit/workbench-v2/selectors.test.tsx (6 tests) 11ms
+ ✓ tests/unit/workbench-v2/state.test.ts (6 tests) 10ms
+ ✓ tests/unit/workbench-v2/activation-response-truth.test.tsx (14 tests) 11ms
+ ✓ tests/unit/workbench-v2/deviceColors.test.tsx (2 tests) 10ms
+ ✓ tests/integration/features/flow/flowLifecycle.integration.test.ts (2 tests) 8ms
+ ✓ tests/unit/workbench-v2/writeGroupColumns.test.ts (10 tests) 3ms
+ ✓ tests/unit/workbench-v2/locale-parity.test.ts (4 tests) 10ms
+ ✓ tests/unit/services/studioV2WorkspaceWriteGroups.test.ts (20 tests) 6ms
+ ✓ tests/unit/services/studioV2WriteGroupMigrationRowGroup.test.ts (9 tests) 5ms
+ ✓ tests/unit/services/studioV2WriteGroupMigration.test.ts (21 tests) 6ms
+ ✓ tests/unit/hooks/useStudioV2Mappings.test.ts (4 tests) 3ms
+ ✓ tests/unit/services/studioV2WriteGroupTestWrite.test.ts (11 tests) 5ms
+ ✓ tests/unit/services/studioV2RecordingStart.test.ts (12 tests) 3ms
+ ✓ tests/unit/hooks/useStudioV2Rules.test.ts (3 tests) 3ms
+ ✓ tests/unit/utils/importExport.test.ts (25 tests) 4ms
+ ✓ tests/unit/hooks/useStudioV2WorkspaceDatabase.test.ts (4 tests) 5ms
+ ✓ tests/unit/utils/backendErrorCodes.test.ts (5 tests) 3ms
+ ✓ tests/unit/services/studioV2WorkspaceRecordingPlans.test.ts (13 tests) 3ms
+ ✓ tests/unit/services/studioV2WriteGroupMigrationRecordingPlan.test.ts (9 tests) 4ms
+ ✓ tests/unit/hooks/useStudioV2WorkspaceRecordingPlans.test.ts (5 tests) 4ms
+ ✓ tests/unit/services/studioV2WriteGroupDelivery.test.ts (8 tests) 3ms
+ ✓ tests/unit/hooks/useStudioV2WorkspaceMeasurements.test.ts (5 tests) 3ms
+ ✓ tests/unit/hooks/useStudioV2WorkspaceHistory.test.ts (2 tests) 2ms
+ ✓ tests/unit/hooks/useStudioV2WorkspaceDevices.test.ts (5 tests) 4ms
+ ✓ tests/unit/services/studioV2WorkspaceWriteGroupsLifecycle.test.ts (3 tests) 4ms
+ ✓ tests/unit/workbench-v2/basic-recording-state.test.ts (10 tests) 3ms
+ ✓ tests/unit/workbench-v2/writeGroupDraft.test.ts (10 tests) 3ms
+ ✓ tests/unit/workbench-v2/mappingDefaults.test.ts (16 tests) 3ms
+ ✓ tests/unit/workbench-v2/sourceRule.test.ts (12 tests) 3ms
+ ✓ tests/unit/services/studioV2WorkspaceWriteGroupSchema.test.ts (4 tests) 3ms
+ ✓ tests/unit/workbench-v2/studioV2WorkspaceActivation.test.ts (3 tests) 3ms
+ ✓ tests/unit/utils/safeJson.test.ts (9 tests) 3ms
+ ✓ tests/unit/workbench-v2/reducer-step1.test.ts (12 tests) 3ms
+ ✓ tests/unit/utils/typedErrors.test.ts (14 tests) 3ms
+ ✓ tests/unit/services/studioV2WorkspaceDatabaseMetadata.test.ts (4 tests) 3ms
+ ✓ tests/unit/workbench-v2/sourceRule-readiness.test.ts (7 tests) 2ms
+ ✓ tests/unit/utils/addressParser.test.ts (12 tests) 2ms
+ ✓ tests/unit/workbench-v2/reducer-step3.test.ts (11 tests) 3ms
+ ✓ tests/unit/hooks/useDevices.test.tsx (1 test) 2ms
+ ✓ tests/unit/workbench-v2/protocols.test.ts (8 tests) 3ms
+ ✓ tests/unit/workbench-v2/hydratedProgress.test.ts (2 tests) 1ms
+ ✓ tests/unit/workbench-v2/dbSchemas.test.ts (11 tests) 2ms
+ ✓ tests/unit/workbench-v2/reducer-step4.test.ts (8 tests) 3ms
+ ✓ tests/unit/services/studioV2RecordingSchemaOperation.test.ts (3 tests) 2ms
+ ✓ tests/unit/workbench-v2/reducer-step2.test.ts (12 tests) 3ms
+ ✓ tests/unit/features/datalink/commitAudit.test.ts (1 test) 2ms
+ ✓ tests/unit/workbench-v2/transformPipeline.test.ts (11 tests) 2ms
+ ✓ tests/unit/hooks/useStudioV2WorkspaceAuditHistory.test.ts (1 test) 2ms
+ ✓ tests/unit/hooks/useStudioV2Workspace.test.tsx (1 test) 2ms
+ ✓ tests/unit/workbench-v2/SavedConnectorIdentity.test.ts (6 tests) 2ms
+ ✓ tests/unit/features/gateway/gatewayAdapter.test.ts (12 tests) 2ms
+ ✓ tests/unit/workbench-v2/autoAssignTargets.test.ts (5 tests) 2ms
+ ✓ tests/unit/workbench-v2/workspace-readiness-panel.test.tsx (4 tests) 2ms
+ ✓ tests/unit/utils/recordingSchemaPreviewToken.test.ts (6 tests) 2ms
+ ✓ tests/unit/services/datalinkListTables.test.ts (3 tests) 2ms
+ ✓ tests/unit/services/modbusShare.test.ts (2 tests) 2ms
+ ✓ tests/unit/workbench-v2/settings-backend-mappings.test.ts (4 tests) 2ms
+ ✓ tests/unit/features/datalink/typedOccupancy.test.ts (7 tests) 2ms
+ ✓ tests/unit/features/datalink/commitLifecycle.test.ts (5 tests) 2ms
+ ✓ tests/unit/features/datalink/allocationStrategy.test.ts (4 tests) 2ms
+ ✓ tests/unit/features/datalink/legacyRoutes.test.ts (9 tests) 2ms
+ ✓ tests/unit/workbench-v2/reducer-settings.test.ts (7 tests) 2ms
+ ✓ tests/unit/workbench-v2/studioV2RuleAutosave.test.ts (3 tests) 2ms
+ ✓ tests/unit/workbench-v2/writeGroupManagedStorage.test.ts (3 tests) 2ms
+ ✓ tests/unit/workbench-v2/database-row-groups-autosave.test.ts (5 tests) 1ms
+ ✓ tests/unit/utils/recordingSchemaOperation.test.ts (5 tests) 2ms
+ ✓ tests/unit/workbench-v2/basic-point-tag-to-group.test.ts (4 tests) 2ms
+ ✓ tests/unit/workbench-v2/commitLog.test.ts (2 tests) 2ms
+ ✓ tests/unit/features/datalink/batchNaming.test.ts (3 tests) 2ms
+ ✓ tests/unit/workbench-v2/database-setup-revision.test.ts (3 tests) 2ms
+ ✓ tests/unit/workbench-v2/autosave-barrier.test.ts (2 tests) 1ms
+ ✓ tests/unit/workbench-v2/resolveRuntimeDashboardDevice.test.ts (8 tests) 2ms
+ ✓ tests/unit/features/datalink/tagEditImpact.test.ts (4 tests) 1ms
+ ✓ tests/unit/workbench-v2/settingsDefaults.test.ts (2 tests) 1ms
+ ✓ tests/unit/utils/modbus.test.ts (3 tests) 1ms
+ ✓ tests/unit/workbench-v2/row-group-validation.test.ts (3 tests) 1ms
+ ✓ tests/unit/workbench-v2/step4-target-metadata-parsing.test.ts (3 tests) 1ms
+ ✓ tests/unit/features/datalink/motionGuidance.test.ts (3 tests) 2ms
+ ✓ tests/unit/utils/designSystemForms.test.ts (1 test) 1ms
+ ✓ tests/unit/workbench-v2/database-connector-state.test.ts (2 tests) 2ms
+ ✓ tests/unit/features/datalink/pollingLoadEstimate.test.ts (3 tests) 1ms
+ ✓ tests/unit/features/gateway/dualEntryFlag.test.ts (5 tests) 1ms
+ ✓ tests/unit/workbench-v2/tokens.test.ts (3 tests) 1ms
+ ✓ tests/unit/services/studioV2WriteGroupMigrationReview.test.ts (2 tests) 1ms
+ ✓ tests/unit/features/datalink/validationFlow.test.ts (3 tests) 1ms
+ ✓ tests/unit/features/datalink/globalTagGuardrails.test.ts (2 tests) 1ms
+ ✓ tests/unit/utils/recordingPlanJson.test.ts (2 tests) 1ms
+ ✓ tests/unit/features/flow/stateMachine.test.ts (5 tests) 1ms
+ ✓ tests/unit/features/gateway/uiVersion.test.ts (3 tests) 1ms
+ ✓ tests/unit/components/monitoring/valueParser.test.ts (3 tests) 1ms
+ ✓ tests/unit/workbench-v2/settings-operation-ownership.test.ts (2 tests) 1ms
+ ✓ tests/unit/workbench-v2/step4-row-group-scope.test.ts (2 tests) 1ms
+ ✓ tests/unit/utils/viteConfig.test.ts (4 tests) 4ms
+
+ Test Files  198 passed (198)
+      Tests  1269 passed (1269)
+   Start at  22:56:13
+   Duration  83.74s (transform 1.69s, setup 3.39s, collect 8.87s, tests 18.01s, environment 34.71s, prepare 4.56s)
+

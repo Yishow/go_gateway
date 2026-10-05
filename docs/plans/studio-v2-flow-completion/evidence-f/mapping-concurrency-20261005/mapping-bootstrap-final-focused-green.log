@@ -1,0 +1,57 @@
+npm notice run frontend@0.0.0 test
+npm notice run vitest --run tests/unit/workbench-v2/mapping-autosave-queue tests/unit/workbench-v2/mapping-save-error-ui.test.tsx tests/unit/workbench-v2/mapping-autosave-page tests/unit/workbench-v2/mappingDefaults.test.ts tests/unit/workbench-v2/step3-mapping.test.tsx tests/unit/hooks/useStudioV2Mappings.test.ts tests/unit/utils/typedErrors.test.ts tests/unit/utils/backendErrorCodes.test.ts tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx tests/unit/workbench-v2/database-autosave-page.hydration.test.tsx tests/unit/workbench-v2/database-autosave-page.bulk-toggle.test.tsx tests/unit/workbench-v2/step3-components.test.tsx tests/unit/workbench-v2/locale-parity.test.ts --maxWorkers=1 --no-file-parallelism
+
+ RUN  v3.2.4 /private/tmp/go-gateway-mapping-save-concurrency/frontend
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-queue.bootstrap.test.tsx (6 tests) 1216ms
+ ✓ tests/unit/workbench-v2/mapping-autosave-queue.lifecycle.test.tsx (12 tests) 1838ms
+   ✓ removes a successful deletion and retains a safe warning when unused-tag cleanup fails  350ms
+ ✓ tests/unit/workbench-v2/mapping-autosave-queue.test.tsx (12 tests) 1743ms
+ ✓ tests/unit/workbench-v2/mapping-autosave-queue.numeric.test.tsx (2 tests) 752ms
+   ✓ preserves 'uint64' defaults in the saved request and exact server preview  381ms
+   ✓ preserves 'int16' defaults in the saved request and exact server preview  370ms
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+stderr | tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx > DatalinkWorkbenchV2Page database autosave orchestration > isolates one failing target row from another valid row
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx (3 tests) 267ms
+stderr | tests/unit/workbench-v2/mapping-autosave-page.reconciliation.test.tsx > DatalinkWorkbenchV2Page mapping autosave orchestration > isolates one mapping row save failure without blocking another valid row
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-page.reconciliation.test.tsx (3 tests) 129ms
+ ✓ tests/unit/workbench-v2/mapping-save-error-ui.test.tsx (10 tests) 109ms
+stderr | tests/unit/workbench-v2/database-autosave-page.hydration.test.tsx > DatalinkWorkbenchV2Page database autosave orchestration > hydrates persisted database config and targets onto the same point rows
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/database-autosave-page.hydration.test.tsx (1 test) 86ms
+stderr | tests/unit/workbench-v2/database-autosave-page.bulk-toggle.test.tsx > DatalinkWorkbenchV2Page database autosave orchestration > autosaves bulk database target enable toggles for every persisted row
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/database-autosave-page.bulk-toggle.test.tsx (1 test) 91ms
+stderr | tests/unit/workbench-v2/mapping-autosave-page.validation.test.tsx > DatalinkWorkbenchV2Page mapping autosave orchestration > saves one valid draft mapping row and marks it saved
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-page.validation.test.tsx (2 tests) 64ms
+ ✓ tests/unit/workbench-v2/step3-mapping.test.tsx (6 tests) 53ms
+stderr | tests/unit/workbench-v2/mapping-autosave-page.bulk-toggle.test.tsx > DatalinkWorkbenchV2Page mapping autosave orchestration > autosaves bulk mapping enable toggles for every persisted row
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-page.bulk-toggle.test.tsx (1 test) 57ms
+ ✓ tests/unit/workbench-v2/step3-components.test.tsx (6 tests) 42ms
+stderr | tests/unit/workbench-v2/mapping-autosave-page.hydration.test.tsx > DatalinkWorkbenchV2Page mapping autosave orchestration > hydrates persisted mapping rows onto the same rule/address rows on step init
+react-i18next:: useTranslation: You will need to pass in an i18next instance by using initReactI18next { code: 'NO_I18NEXT_INSTANCE' }
+
+ ✓ tests/unit/workbench-v2/mapping-autosave-page.hydration.test.tsx (1 test) 49ms
+ ✓ tests/unit/workbench-v2/locale-parity.test.ts (4 tests) 7ms
+ ✓ tests/unit/utils/typedErrors.test.ts (14 tests) 3ms
+ ✓ tests/unit/utils/backendErrorCodes.test.ts (5 tests) 3ms
+ ✓ tests/unit/workbench-v2/mappingDefaults.test.ts (16 tests) 2ms
+ ✓ tests/unit/hooks/useStudioV2Mappings.test.ts (4 tests) 3ms
+
+ Test Files  19 passed (19)
+      Tests  109 passed (109)
+   Start at  23:30:36
+   Duration  12.59s (transform 364ms, setup 323ms, collect 1.06s, tests 6.51s, environment 3.00s, prepare 364ms)
+

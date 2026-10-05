@@ -1,0 +1,5421 @@
+{
+  "run_id": "mapping-concurrency-20261005a",
+  "passed": false,
+  "failures": [
+    "UI mapping state did not settle: \"131.50\\nLive preview\""
+  ],
+  "phases": [
+    {
+      "name": "default-int16",
+      "rows": [
+        {
+          "address": "40001",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "mapping_id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:a08ec950d4d10e8bd0b2d313b8775207404a791634744897880df899b801b9e9",
+          "key": "race.1",
+          "display_name": "race.1",
+          "data_type": "int16"
+        },
+        {
+          "address": "40002",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "mapping_id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:cc2a2e0c009072fc166806d49cb46e8f934377dea314d7ada5d3c3be3b1c322d",
+          "key": "race.2",
+          "display_name": "race.2",
+          "data_type": "int16"
+        },
+        {
+          "address": "40003",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "mapping_id": "492198ad-dd53-4525-a770-a43928804446",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:081a191522f378b9f08e8728d09f78a5e2bbe1561b8da34770ddab698b0644d5",
+          "key": "race.3",
+          "display_name": "race.3",
+          "data_type": "int16"
+        },
+        {
+          "address": "40004",
+          "point_id": "8bac38cd-b08a-4353-8ce3-e05fcad22658",
+          "mapping_id": "9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+          "tag_id": "3bfb4563-dcec-4a85-b485-6e880ca92559",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:554ac42f8874b1a1d7823b15610b9cf3467f37eed8f1fc352e37b4e04b699471",
+          "key": "race.4",
+          "display_name": "race.4",
+          "data_type": "int16"
+        },
+        {
+          "address": "40005",
+          "point_id": "757ca27e-9bd3-4832-9581-e0473a662f63",
+          "mapping_id": "c891111d-f990-49c1-a2dc-f79aebce5b6d",
+          "tag_id": "c5c9a41d-4a06-4551-a787-106bb5432fac",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:82d1fe0f0227f6e06e3914c86a7fd1228bbed103158767fe435b2cd3436835ec",
+          "key": "race.5",
+          "display_name": "race.5",
+          "data_type": "int16"
+        },
+        {
+          "address": "40006",
+          "point_id": "708a7049-31af-4661-ba04-cdb457386ace",
+          "mapping_id": "bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+          "tag_id": "1b69c482-14a3-49ae-b9ab-924369ff0e45",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:512bec2d4cf78b6a5b34dec90716d1e61eb6db3ca30cf0366724478d70db849a",
+          "key": "race.6",
+          "display_name": "race.6",
+          "data_type": "int16"
+        },
+        {
+          "address": "40007",
+          "point_id": "83fb371f-3c1e-48f0-a2e1-da64ec40a465",
+          "mapping_id": "89f21ede-f540-4353-93d2-7410edc24eae",
+          "tag_id": "4d192542-43b0-4004-81cc-80e529006fc8",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:78be074fc9a4a423c145072639bd5bd6e950cf17790ec8baf2e5887f24e3fa6e",
+          "key": "race.7",
+          "display_name": "race.7",
+          "data_type": "int16"
+        },
+        {
+          "address": "40008",
+          "point_id": "b4dd4a71-5bea-4551-9655-0cd319deaa6f",
+          "mapping_id": "000980a5-c596-4632-a4f3-b51c82091ace",
+          "tag_id": "09f81753-5c17-4658-a8fc-df3305a95a76",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:b68bd633b2736db8bebbb551be070573ff2567ae7109761b08029259f0c2593c",
+          "key": "race.8",
+          "display_name": "race.8",
+          "data_type": "int16"
+        }
+      ]
+    },
+    {
+      "name": "enable-batch-1",
+      "rows": [
+        {
+          "address": "40001",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "mapping_id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:a08ec950d4d10e8bd0b2d313b8775207404a791634744897880df899b801b9e9",
+          "key": "race.1",
+          "display_name": "race.1",
+          "data_type": "int16"
+        },
+        {
+          "address": "40002",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "mapping_id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:cc2a2e0c009072fc166806d49cb46e8f934377dea314d7ada5d3c3be3b1c322d",
+          "key": "race.2",
+          "display_name": "race.2",
+          "data_type": "int16"
+        },
+        {
+          "address": "40003",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "mapping_id": "492198ad-dd53-4525-a770-a43928804446",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:081a191522f378b9f08e8728d09f78a5e2bbe1561b8da34770ddab698b0644d5",
+          "key": "race.3",
+          "display_name": "race.3",
+          "data_type": "int16"
+        },
+        {
+          "address": "40004",
+          "point_id": "8bac38cd-b08a-4353-8ce3-e05fcad22658",
+          "mapping_id": "9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+          "tag_id": "3bfb4563-dcec-4a85-b485-6e880ca92559",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:554ac42f8874b1a1d7823b15610b9cf3467f37eed8f1fc352e37b4e04b699471",
+          "key": "race.4",
+          "display_name": "race.4",
+          "data_type": "int16"
+        },
+        {
+          "address": "40005",
+          "point_id": "757ca27e-9bd3-4832-9581-e0473a662f63",
+          "mapping_id": "c891111d-f990-49c1-a2dc-f79aebce5b6d",
+          "tag_id": "c5c9a41d-4a06-4551-a787-106bb5432fac",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:82d1fe0f0227f6e06e3914c86a7fd1228bbed103158767fe435b2cd3436835ec",
+          "key": "race.5",
+          "display_name": "race.5",
+          "data_type": "int16"
+        },
+        {
+          "address": "40006",
+          "point_id": "708a7049-31af-4661-ba04-cdb457386ace",
+          "mapping_id": "bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+          "tag_id": "1b69c482-14a3-49ae-b9ab-924369ff0e45",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:512bec2d4cf78b6a5b34dec90716d1e61eb6db3ca30cf0366724478d70db849a",
+          "key": "race.6",
+          "display_name": "race.6",
+          "data_type": "int16"
+        },
+        {
+          "address": "40007",
+          "point_id": "83fb371f-3c1e-48f0-a2e1-da64ec40a465",
+          "mapping_id": "89f21ede-f540-4353-93d2-7410edc24eae",
+          "tag_id": "4d192542-43b0-4004-81cc-80e529006fc8",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:78be074fc9a4a423c145072639bd5bd6e950cf17790ec8baf2e5887f24e3fa6e",
+          "key": "race.7",
+          "display_name": "race.7",
+          "data_type": "int16"
+        },
+        {
+          "address": "40008",
+          "point_id": "b4dd4a71-5bea-4551-9655-0cd319deaa6f",
+          "mapping_id": "000980a5-c596-4632-a4f3-b51c82091ace",
+          "tag_id": "09f81753-5c17-4658-a8fc-df3305a95a76",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:b68bd633b2736db8bebbb551be070573ff2567ae7109761b08029259f0c2593c",
+          "key": "race.8",
+          "display_name": "race.8",
+          "data_type": "int16"
+        }
+      ]
+    },
+    {
+      "name": "enable-batch-2",
+      "rows": [
+        {
+          "address": "40001",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "mapping_id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:a08ec950d4d10e8bd0b2d313b8775207404a791634744897880df899b801b9e9",
+          "key": "race.1",
+          "display_name": "race.1",
+          "data_type": "int16"
+        },
+        {
+          "address": "40002",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "mapping_id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:cc2a2e0c009072fc166806d49cb46e8f934377dea314d7ada5d3c3be3b1c322d",
+          "key": "race.2",
+          "display_name": "race.2",
+          "data_type": "int16"
+        },
+        {
+          "address": "40003",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "mapping_id": "492198ad-dd53-4525-a770-a43928804446",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:081a191522f378b9f08e8728d09f78a5e2bbe1561b8da34770ddab698b0644d5",
+          "key": "race.3",
+          "display_name": "race.3",
+          "data_type": "int16"
+        },
+        {
+          "address": "40004",
+          "point_id": "8bac38cd-b08a-4353-8ce3-e05fcad22658",
+          "mapping_id": "9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+          "tag_id": "3bfb4563-dcec-4a85-b485-6e880ca92559",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:554ac42f8874b1a1d7823b15610b9cf3467f37eed8f1fc352e37b4e04b699471",
+          "key": "race.4",
+          "display_name": "race.4",
+          "data_type": "int16"
+        },
+        {
+          "address": "40005",
+          "point_id": "757ca27e-9bd3-4832-9581-e0473a662f63",
+          "mapping_id": "c891111d-f990-49c1-a2dc-f79aebce5b6d",
+          "tag_id": "c5c9a41d-4a06-4551-a787-106bb5432fac",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:82d1fe0f0227f6e06e3914c86a7fd1228bbed103158767fe435b2cd3436835ec",
+          "key": "race.5",
+          "display_name": "race.5",
+          "data_type": "int16"
+        },
+        {
+          "address": "40006",
+          "point_id": "708a7049-31af-4661-ba04-cdb457386ace",
+          "mapping_id": "bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+          "tag_id": "1b69c482-14a3-49ae-b9ab-924369ff0e45",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:512bec2d4cf78b6a5b34dec90716d1e61eb6db3ca30cf0366724478d70db849a",
+          "key": "race.6",
+          "display_name": "race.6",
+          "data_type": "int16"
+        },
+        {
+          "address": "40007",
+          "point_id": "83fb371f-3c1e-48f0-a2e1-da64ec40a465",
+          "mapping_id": "89f21ede-f540-4353-93d2-7410edc24eae",
+          "tag_id": "4d192542-43b0-4004-81cc-80e529006fc8",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:78be074fc9a4a423c145072639bd5bd6e950cf17790ec8baf2e5887f24e3fa6e",
+          "key": "race.7",
+          "display_name": "race.7",
+          "data_type": "int16"
+        },
+        {
+          "address": "40008",
+          "point_id": "b4dd4a71-5bea-4551-9655-0cd319deaa6f",
+          "mapping_id": "000980a5-c596-4632-a4f3-b51c82091ace",
+          "tag_id": "09f81753-5c17-4658-a8fc-df3305a95a76",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:b68bd633b2736db8bebbb551be070573ff2567ae7109761b08029259f0c2593c",
+          "key": "race.8",
+          "display_name": "race.8",
+          "data_type": "int16"
+        }
+      ]
+    },
+    {
+      "name": "enable-batch-3",
+      "rows": [
+        {
+          "address": "40001",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "mapping_id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:a08ec950d4d10e8bd0b2d313b8775207404a791634744897880df899b801b9e9",
+          "key": "race.1",
+          "display_name": "race.1",
+          "data_type": "int16"
+        },
+        {
+          "address": "40002",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "mapping_id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:cc2a2e0c009072fc166806d49cb46e8f934377dea314d7ada5d3c3be3b1c322d",
+          "key": "race.2",
+          "display_name": "race.2",
+          "data_type": "int16"
+        },
+        {
+          "address": "40003",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "mapping_id": "492198ad-dd53-4525-a770-a43928804446",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:081a191522f378b9f08e8728d09f78a5e2bbe1561b8da34770ddab698b0644d5",
+          "key": "race.3",
+          "display_name": "race.3",
+          "data_type": "int16"
+        },
+        {
+          "address": "40004",
+          "point_id": "8bac38cd-b08a-4353-8ce3-e05fcad22658",
+          "mapping_id": "9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+          "tag_id": "3bfb4563-dcec-4a85-b485-6e880ca92559",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:554ac42f8874b1a1d7823b15610b9cf3467f37eed8f1fc352e37b4e04b699471",
+          "key": "race.4",
+          "display_name": "race.4",
+          "data_type": "int16"
+        },
+        {
+          "address": "40005",
+          "point_id": "757ca27e-9bd3-4832-9581-e0473a662f63",
+          "mapping_id": "c891111d-f990-49c1-a2dc-f79aebce5b6d",
+          "tag_id": "c5c9a41d-4a06-4551-a787-106bb5432fac",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:82d1fe0f0227f6e06e3914c86a7fd1228bbed103158767fe435b2cd3436835ec",
+          "key": "race.5",
+          "display_name": "race.5",
+          "data_type": "int16"
+        },
+        {
+          "address": "40006",
+          "point_id": "708a7049-31af-4661-ba04-cdb457386ace",
+          "mapping_id": "bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+          "tag_id": "1b69c482-14a3-49ae-b9ab-924369ff0e45",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:512bec2d4cf78b6a5b34dec90716d1e61eb6db3ca30cf0366724478d70db849a",
+          "key": "race.6",
+          "display_name": "race.6",
+          "data_type": "int16"
+        },
+        {
+          "address": "40007",
+          "point_id": "83fb371f-3c1e-48f0-a2e1-da64ec40a465",
+          "mapping_id": "89f21ede-f540-4353-93d2-7410edc24eae",
+          "tag_id": "4d192542-43b0-4004-81cc-80e529006fc8",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:78be074fc9a4a423c145072639bd5bd6e950cf17790ec8baf2e5887f24e3fa6e",
+          "key": "race.7",
+          "display_name": "race.7",
+          "data_type": "int16"
+        },
+        {
+          "address": "40008",
+          "point_id": "b4dd4a71-5bea-4551-9655-0cd319deaa6f",
+          "mapping_id": "000980a5-c596-4632-a4f3-b51c82091ace",
+          "tag_id": "09f81753-5c17-4658-a8fc-df3305a95a76",
+          "status": "active",
+          "enabled": 1,
+          "transform_pipeline": "[]",
+          "proposed_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d",
+          "rule_candidate_id": "mapping:b68bd633b2736db8bebbb551be070573ff2567ae7109761b08029259f0c2593c",
+          "key": "race.8",
+          "display_name": "race.8",
+          "data_type": "int16"
+        }
+      ]
+    }
+  ],
+  "cleanup": {
+    "browser": {
+      "state": "closed"
+    },
+    "processes": [
+      {
+        "name": "sim-a",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 96462,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "gateway",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 96463,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      }
+    ],
+    "namespace": {
+      "path": "/tmp/gw-f-mapping-concurrency-20261005a",
+      "absent": true
+    }
+  },
+  "api_traffic": [
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "BLOCK0 (40001)",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "BLOCK0 (40001)",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:37Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "race.1",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "race.1",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:37Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 243,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 243,
+          "final_value": 243,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 243,
+              "output": 243,
+              "input_value": 243,
+              "output_value": 243
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 243,
+              "output": 243,
+              "input_value": 243,
+              "output_value": 243
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 243,
+              "output": 243,
+              "input_value": 243,
+              "output_value": 243
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 3,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 3,
+          "final_value": 3,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 3,
+              "output": 3,
+              "input_value": 3,
+              "output_value": 3
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 3,
+              "output": 3,
+              "input_value": 3,
+              "output_value": 3
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 3,
+              "output": 3,
+              "input_value": 3,
+              "output_value": 3
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 4,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 4,
+          "final_value": 4,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 4,
+              "output": 4,
+              "input_value": 4,
+              "output_value": 4
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 4,
+              "output": 4,
+              "input_value": 4,
+              "output_value": 4
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 4,
+              "output": 4,
+              "input_value": 4,
+              "output_value": 4
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 2,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 2,
+          "final_value": 2,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 2,
+              "output": 2,
+              "input_value": 2,
+              "output_value": 2
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 2,
+              "output": 2,
+              "input_value": 2,
+              "output_value": 2
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 2,
+              "output": 2,
+              "input_value": 2,
+              "output_value": 2
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 6,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 6,
+          "final_value": 6,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 6,
+              "output": 6,
+              "input_value": 6,
+              "output_value": 6
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 6,
+              "output": 6,
+              "input_value": 6,
+              "output_value": 6
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 6,
+              "output": 6,
+              "input_value": 6,
+              "output_value": 6
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 5,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 5,
+          "final_value": 5,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 5,
+              "output": 5,
+              "input_value": 5,
+              "output_value": 5
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 5,
+              "output": 5,
+              "input_value": 5,
+              "output_value": 5
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 5,
+              "output": 5,
+              "input_value": 5,
+              "output_value": 5
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 7,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 7,
+          "final_value": 7,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 7,
+              "output": 7,
+              "input_value": 7,
+              "output_value": 7
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 7,
+              "output": 7,
+              "input_value": 7,
+              "output_value": 7
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 7,
+              "output": 7,
+              "input_value": 7,
+              "output_value": 7
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 8,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 8,
+          "final_value": 8,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 8,
+              "output": 8,
+              "input_value": 8,
+              "output_value": 8
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 8,
+              "output": 8,
+              "input_value": 8,
+              "output_value": 8
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 8,
+              "output": 8,
+              "input_value": 8,
+              "output_value": 8
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40002",
+        "tag_key": "race.2",
+        "display_name": "BLOCK1 (40002)",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40002",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "tag_key": "race.2",
+          "display_name": "BLOCK1 (40002)",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.134936+08:00",
+          "updated_at": "2026-10-05T15:01:38Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40002",
+        "tag_key": "race.2",
+        "display_name": "race.2",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40002",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "tag_key": "race.2",
+          "display_name": "race.2",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.134936+08:00",
+          "updated_at": "2026-10-05T15:01:38Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40003",
+        "tag_key": "race.3",
+        "display_name": "BLOCK2 (40003)",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "492198ad-dd53-4525-a770-a43928804446",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40003",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "tag_key": "race.3",
+          "display_name": "BLOCK2 (40003)",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.502999+08:00",
+          "updated_at": "2026-10-05T15:01:38Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/492198ad-dd53-4525-a770-a43928804446",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40003",
+        "tag_key": "race.3",
+        "display_name": "race.3",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "492198ad-dd53-4525-a770-a43928804446",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40003",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "tag_key": "race.3",
+          "display_name": "race.3",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.502999+08:00",
+          "updated_at": "2026-10-05T15:01:38Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40004",
+        "tag_key": "race.4",
+        "display_name": "BLOCK3 (40004)",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "8bac38cd-b08a-4353-8ce3-e05fcad22658",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40004",
+          "tag_id": "3bfb4563-dcec-4a85-b485-6e880ca92559",
+          "tag_key": "race.4",
+          "display_name": "BLOCK3 (40004)",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.879651+08:00",
+          "updated_at": "2026-10-05T15:01:38Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40004",
+        "tag_key": "race.4",
+        "display_name": "race.4",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "8bac38cd-b08a-4353-8ce3-e05fcad22658",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40004",
+          "tag_id": "3bfb4563-dcec-4a85-b485-6e880ca92559",
+          "tag_key": "race.4",
+          "display_name": "race.4",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.879651+08:00",
+          "updated_at": "2026-10-05T15:01:39Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40005",
+        "tag_key": "race.5",
+        "display_name": "BLOCK4 (40005)",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "c891111d-f990-49c1-a2dc-f79aebce5b6d",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "757ca27e-9bd3-4832-9581-e0473a662f63",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40005",
+          "tag_id": "c5c9a41d-4a06-4551-a787-106bb5432fac",
+          "tag_key": "race.5",
+          "display_name": "BLOCK4 (40005)",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.245376+08:00",
+          "updated_at": "2026-10-05T15:01:39Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/c891111d-f990-49c1-a2dc-f79aebce5b6d",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40005",
+        "tag_key": "race.5",
+        "display_name": "race.5",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "c891111d-f990-49c1-a2dc-f79aebce5b6d",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "757ca27e-9bd3-4832-9581-e0473a662f63",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40005",
+          "tag_id": "c5c9a41d-4a06-4551-a787-106bb5432fac",
+          "tag_key": "race.5",
+          "display_name": "race.5",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.245376+08:00",
+          "updated_at": "2026-10-05T15:01:39Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40006",
+        "tag_key": "race.6",
+        "display_name": "BLOCK5 (40006)",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "708a7049-31af-4661-ba04-cdb457386ace",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40006",
+          "tag_id": "1b69c482-14a3-49ae-b9ab-924369ff0e45",
+          "tag_key": "race.6",
+          "display_name": "BLOCK5 (40006)",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.617006+08:00",
+          "updated_at": "2026-10-05T15:01:39Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40006",
+        "tag_key": "race.6",
+        "display_name": "race.6",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "708a7049-31af-4661-ba04-cdb457386ace",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40006",
+          "tag_id": "1b69c482-14a3-49ae-b9ab-924369ff0e45",
+          "tag_key": "race.6",
+          "display_name": "race.6",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.617006+08:00",
+          "updated_at": "2026-10-05T15:01:39Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40007",
+        "tag_key": "race.7",
+        "display_name": "BLOCK6 (40007)",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "89f21ede-f540-4353-93d2-7410edc24eae",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "83fb371f-3c1e-48f0-a2e1-da64ec40a465",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40007",
+          "tag_id": "4d192542-43b0-4004-81cc-80e529006fc8",
+          "tag_key": "race.7",
+          "display_name": "BLOCK6 (40007)",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.002042+08:00",
+          "updated_at": "2026-10-05T15:01:40Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/89f21ede-f540-4353-93d2-7410edc24eae",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40007",
+        "tag_key": "race.7",
+        "display_name": "race.7",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "89f21ede-f540-4353-93d2-7410edc24eae",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "83fb371f-3c1e-48f0-a2e1-da64ec40a465",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40007",
+          "tag_id": "4d192542-43b0-4004-81cc-80e529006fc8",
+          "tag_key": "race.7",
+          "display_name": "race.7",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.002042+08:00",
+          "updated_at": "2026-10-05T15:01:40Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40008",
+        "tag_key": "race.8",
+        "display_name": "BLOCK7 (40008)",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "000980a5-c596-4632-a4f3-b51c82091ace",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "b4dd4a71-5bea-4551-9655-0cd319deaa6f",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40008",
+          "tag_id": "09f81753-5c17-4658-a8fc-df3305a95a76",
+          "tag_key": "race.8",
+          "display_name": "BLOCK7 (40008)",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.365774+08:00",
+          "updated_at": "2026-10-05T15:01:40Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/000980a5-c596-4632-a4f3-b51c82091ace",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40008",
+        "tag_key": "race.8",
+        "display_name": "race.8",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "000980a5-c596-4632-a4f3-b51c82091ace",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "b4dd4a71-5bea-4551-9655-0cd319deaa6f",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40008",
+          "tag_id": "09f81753-5c17-4658-a8fc-df3305a95a76",
+          "tag_key": "race.8",
+          "display_name": "race.8",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.365774+08:00",
+          "updated_at": "2026-10-05T15:01:40Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "race.1",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "race.1",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40002",
+        "tag_key": "race.2",
+        "display_name": "race.2",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40002",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "tag_key": "race.2",
+          "display_name": "race.2",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.134936+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/492198ad-dd53-4525-a770-a43928804446",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40003",
+        "tag_key": "race.3",
+        "display_name": "race.3",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "492198ad-dd53-4525-a770-a43928804446",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40003",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "tag_key": "race.3",
+          "display_name": "race.3",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.502999+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40004",
+        "tag_key": "race.4",
+        "display_name": "race.4",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "8bac38cd-b08a-4353-8ce3-e05fcad22658",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40004",
+          "tag_id": "3bfb4563-dcec-4a85-b485-6e880ca92559",
+          "tag_key": "race.4",
+          "display_name": "race.4",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.879651+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/c891111d-f990-49c1-a2dc-f79aebce5b6d",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40005",
+        "tag_key": "race.5",
+        "display_name": "race.5",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "c891111d-f990-49c1-a2dc-f79aebce5b6d",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "757ca27e-9bd3-4832-9581-e0473a662f63",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40005",
+          "tag_id": "c5c9a41d-4a06-4551-a787-106bb5432fac",
+          "tag_key": "race.5",
+          "display_name": "race.5",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.245376+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40006",
+        "tag_key": "race.6",
+        "display_name": "race.6",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "708a7049-31af-4661-ba04-cdb457386ace",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40006",
+          "tag_id": "1b69c482-14a3-49ae-b9ab-924369ff0e45",
+          "tag_key": "race.6",
+          "display_name": "race.6",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.617006+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/89f21ede-f540-4353-93d2-7410edc24eae",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40007",
+        "tag_key": "race.7",
+        "display_name": "race.7",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "89f21ede-f540-4353-93d2-7410edc24eae",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "83fb371f-3c1e-48f0-a2e1-da64ec40a465",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40007",
+          "tag_id": "4d192542-43b0-4004-81cc-80e529006fc8",
+          "tag_key": "race.7",
+          "display_name": "race.7",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.002042+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/000980a5-c596-4632-a4f3-b51c82091ace",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40008",
+        "tag_key": "race.8",
+        "display_name": "race.8",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "000980a5-c596-4632-a4f3-b51c82091ace",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "b4dd4a71-5bea-4551-9655-0cd319deaa6f",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40008",
+          "tag_id": "09f81753-5c17-4658-a8fc-df3305a95a76",
+          "tag_key": "race.8",
+          "display_name": "race.8",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.365774+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "race.1",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "race.1",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40002",
+        "tag_key": "race.2",
+        "display_name": "race.2",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40002",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "tag_key": "race.2",
+          "display_name": "race.2",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.134936+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/492198ad-dd53-4525-a770-a43928804446",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40003",
+        "tag_key": "race.3",
+        "display_name": "race.3",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "492198ad-dd53-4525-a770-a43928804446",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40003",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "tag_key": "race.3",
+          "display_name": "race.3",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.502999+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "race.1",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "race.1",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40002",
+        "tag_key": "race.2",
+        "display_name": "race.2",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40002",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "tag_key": "race.2",
+          "display_name": "race.2",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.134936+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/492198ad-dd53-4525-a770-a43928804446",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40003",
+        "tag_key": "race.3",
+        "display_name": "race.3",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "492198ad-dd53-4525-a770-a43928804446",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40003",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "tag_key": "race.3",
+          "display_name": "race.3",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.502999+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40004",
+        "tag_key": "race.4",
+        "display_name": "race.4",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "8bac38cd-b08a-4353-8ce3-e05fcad22658",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40004",
+          "tag_id": "3bfb4563-dcec-4a85-b485-6e880ca92559",
+          "tag_key": "race.4",
+          "display_name": "race.4",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.879651+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/c891111d-f990-49c1-a2dc-f79aebce5b6d",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40005",
+        "tag_key": "race.5",
+        "display_name": "race.5",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "c891111d-f990-49c1-a2dc-f79aebce5b6d",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "757ca27e-9bd3-4832-9581-e0473a662f63",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40005",
+          "tag_id": "c5c9a41d-4a06-4551-a787-106bb5432fac",
+          "tag_key": "race.5",
+          "display_name": "race.5",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.245376+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40006",
+        "tag_key": "race.6",
+        "display_name": "race.6",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "708a7049-31af-4661-ba04-cdb457386ace",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40006",
+          "tag_id": "1b69c482-14a3-49ae-b9ab-924369ff0e45",
+          "tag_key": "race.6",
+          "display_name": "race.6",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.617006+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/89f21ede-f540-4353-93d2-7410edc24eae",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40007",
+        "tag_key": "race.7",
+        "display_name": "race.7",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "89f21ede-f540-4353-93d2-7410edc24eae",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "83fb371f-3c1e-48f0-a2e1-da64ec40a465",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40007",
+          "tag_id": "4d192542-43b0-4004-81cc-80e529006fc8",
+          "tag_key": "race.7",
+          "display_name": "race.7",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.002042+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/000980a5-c596-4632-a4f3-b51c82091ace",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40008",
+        "tag_key": "race.8",
+        "display_name": "race.8",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "000980a5-c596-4632-a4f3-b51c82091ace",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "b4dd4a71-5bea-4551-9655-0cd319deaa6f",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40008",
+          "tag_id": "09f81753-5c17-4658-a8fc-df3305a95a76",
+          "tag_key": "race.8",
+          "display_name": "race.8",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.365774+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "race.1",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "race.1",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 243,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 243,
+          "final_value": 243,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 243,
+              "output": 243,
+              "input_value": 243,
+              "output_value": 243
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 243,
+              "output": 243,
+              "input_value": 243,
+              "output_value": 243
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 243,
+              "output": 243,
+              "input_value": 243,
+              "output_value": 243
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 2,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 2,
+          "final_value": 2,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 2,
+              "output": 2,
+              "input_value": 2,
+              "output_value": 2
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 2,
+              "output": 2,
+              "input_value": 2,
+              "output_value": 2
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 2,
+              "output": 2,
+              "input_value": 2,
+              "output_value": 2
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 3,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 3,
+          "final_value": 3,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 3,
+              "output": 3,
+              "input_value": 3,
+              "output_value": 3
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 3,
+              "output": 3,
+              "input_value": 3,
+              "output_value": 3
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 3,
+              "output": 3,
+              "input_value": 3,
+              "output_value": 3
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 4,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 4,
+          "final_value": 4,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 4,
+              "output": 4,
+              "input_value": 4,
+              "output_value": 4
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 4,
+              "output": 4,
+              "input_value": 4,
+              "output_value": 4
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 4,
+              "output": 4,
+              "input_value": 4,
+              "output_value": 4
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 5,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 5,
+          "final_value": 5,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 5,
+              "output": 5,
+              "input_value": 5,
+              "output_value": 5
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 5,
+              "output": 5,
+              "input_value": 5,
+              "output_value": 5
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 5,
+              "output": 5,
+              "input_value": 5,
+              "output_value": 5
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 6,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 6,
+          "final_value": 6,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 6,
+              "output": 6,
+              "input_value": 6,
+              "output_value": 6
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 6,
+              "output": 6,
+              "input_value": 6,
+              "output_value": 6
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 6,
+              "output": 6,
+              "input_value": 6,
+              "output_value": 6
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 7,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 7,
+          "final_value": 7,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 7,
+              "output": 7,
+              "input_value": 7,
+              "output_value": 7
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 7,
+              "output": 7,
+              "input_value": 7,
+              "output_value": 7
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 7,
+              "output": 7,
+              "input_value": 7,
+              "output_value": 7
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 8,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "int16"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 8,
+          "final_value": 8,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 8,
+              "output": 8,
+              "input_value": 8,
+              "output_value": 8
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 8,
+              "output": 8,
+              "input_value": 8,
+              "output_value": 8
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 8,
+              "output": 8,
+              "input_value": 8,
+              "output_value": 8
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40002",
+        "tag_key": "race.2",
+        "display_name": "race.2",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40002",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "tag_key": "race.2",
+          "display_name": "race.2",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.134936+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "race.1",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "race.1",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40002",
+        "tag_key": "race.2",
+        "display_name": "race.2",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40002",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "tag_key": "race.2",
+          "display_name": "race.2",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.134936+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/492198ad-dd53-4525-a770-a43928804446",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40003",
+        "tag_key": "race.3",
+        "display_name": "race.3",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "492198ad-dd53-4525-a770-a43928804446",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40003",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "tag_key": "race.3",
+          "display_name": "race.3",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.502999+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40004",
+        "tag_key": "race.4",
+        "display_name": "race.4",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "8bac38cd-b08a-4353-8ce3-e05fcad22658",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40004",
+          "tag_id": "3bfb4563-dcec-4a85-b485-6e880ca92559",
+          "tag_key": "race.4",
+          "display_name": "race.4",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.879651+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/c891111d-f990-49c1-a2dc-f79aebce5b6d",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40005",
+        "tag_key": "race.5",
+        "display_name": "race.5",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "c891111d-f990-49c1-a2dc-f79aebce5b6d",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "757ca27e-9bd3-4832-9581-e0473a662f63",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40005",
+          "tag_id": "c5c9a41d-4a06-4551-a787-106bb5432fac",
+          "tag_key": "race.5",
+          "display_name": "race.5",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.245376+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40006",
+        "tag_key": "race.6",
+        "display_name": "race.6",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "708a7049-31af-4661-ba04-cdb457386ace",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40006",
+          "tag_id": "1b69c482-14a3-49ae-b9ab-924369ff0e45",
+          "tag_key": "race.6",
+          "display_name": "race.6",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.617006+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/89f21ede-f540-4353-93d2-7410edc24eae",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40007",
+        "tag_key": "race.7",
+        "display_name": "race.7",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "89f21ede-f540-4353-93d2-7410edc24eae",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "83fb371f-3c1e-48f0-a2e1-da64ec40a465",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40007",
+          "tag_id": "4d192542-43b0-4004-81cc-80e529006fc8",
+          "tag_key": "race.7",
+          "display_name": "race.7",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.002042+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/000980a5-c596-4632-a4f3-b51c82091ace",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40008",
+        "tag_key": "race.8",
+        "display_name": "race.8",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "000980a5-c596-4632-a4f3-b51c82091ace",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "b4dd4a71-5bea-4551-9655-0cd319deaa6f",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40008",
+          "tag_id": "09f81753-5c17-4658-a8fc-df3305a95a76",
+          "tag_key": "race.8",
+          "display_name": "race.8",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.365774+08:00",
+          "updated_at": "2026-10-05T15:01:41Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "race.1",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "race.1",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40002",
+        "tag_key": "race.2",
+        "display_name": "race.2",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40002",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "tag_key": "race.2",
+          "display_name": "race.2",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.134936+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/492198ad-dd53-4525-a770-a43928804446",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40003",
+        "tag_key": "race.3",
+        "display_name": "race.3",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "492198ad-dd53-4525-a770-a43928804446",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40003",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "tag_key": "race.3",
+          "display_name": "race.3",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.502999+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40004",
+        "tag_key": "race.4",
+        "display_name": "race.4",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "8bac38cd-b08a-4353-8ce3-e05fcad22658",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40004",
+          "tag_id": "3bfb4563-dcec-4a85-b485-6e880ca92559",
+          "tag_key": "race.4",
+          "display_name": "race.4",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.879651+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/c891111d-f990-49c1-a2dc-f79aebce5b6d",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40005",
+        "tag_key": "race.5",
+        "display_name": "race.5",
+        "unit": "",
+        "target_type": "int16",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "c891111d-f990-49c1-a2dc-f79aebce5b6d",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "757ca27e-9bd3-4832-9581-e0473a662f63",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40005",
+          "tag_id": "c5c9a41d-4a06-4551-a787-106bb5432fac",
+          "tag_key": "race.5",
+          "display_name": "race.5",
+          "unit": "",
+          "target_type": "int16",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.245376+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "race.1",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "race.1",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "race.1",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "race.1",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40002",
+        "tag_key": "race.2",
+        "display_name": "race.2",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40002",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "tag_key": "race.2",
+          "display_name": "race.2",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.134936+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/492198ad-dd53-4525-a770-a43928804446",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40003",
+        "tag_key": "race.3",
+        "display_name": "race.3",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "492198ad-dd53-4525-a770-a43928804446",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40003",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "tag_key": "race.3",
+          "display_name": "race.3",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.502999+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40004",
+        "tag_key": "race.4",
+        "display_name": "race.4",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "8bac38cd-b08a-4353-8ce3-e05fcad22658",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40004",
+          "tag_id": "3bfb4563-dcec-4a85-b485-6e880ca92559",
+          "tag_key": "race.4",
+          "display_name": "race.4",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.879651+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/c891111d-f990-49c1-a2dc-f79aebce5b6d",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40005",
+        "tag_key": "race.5",
+        "display_name": "race.5",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "c891111d-f990-49c1-a2dc-f79aebce5b6d",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "757ca27e-9bd3-4832-9581-e0473a662f63",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40005",
+          "tag_id": "c5c9a41d-4a06-4551-a787-106bb5432fac",
+          "tag_key": "race.5",
+          "display_name": "race.5",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.245376+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40006",
+        "tag_key": "race.6",
+        "display_name": "race.6",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "708a7049-31af-4661-ba04-cdb457386ace",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40006",
+          "tag_id": "1b69c482-14a3-49ae-b9ab-924369ff0e45",
+          "tag_key": "race.6",
+          "display_name": "race.6",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.617006+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/89f21ede-f540-4353-93d2-7410edc24eae",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40007",
+        "tag_key": "race.7",
+        "display_name": "race.7",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "89f21ede-f540-4353-93d2-7410edc24eae",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "83fb371f-3c1e-48f0-a2e1-da64ec40a465",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40007",
+          "tag_id": "4d192542-43b0-4004-81cc-80e529006fc8",
+          "tag_key": "race.7",
+          "display_name": "race.7",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.002042+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/000980a5-c596-4632-a4f3-b51c82091ace",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40008",
+        "tag_key": "race.8",
+        "display_name": "race.8",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 1,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "000980a5-c596-4632-a4f3-b51c82091ace",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "b4dd4a71-5bea-4551-9655-0cd319deaa6f",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40008",
+          "tag_id": "09f81753-5c17-4658-a8fc-df3305a95a76",
+          "tag_key": "race.8",
+          "display_name": "race.8",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 1,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.365774+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 243,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 243,
+          "final_value": 243,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 243,
+              "output": 243,
+              "input_value": 243,
+              "output_value": 243
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 243,
+              "output": 243,
+              "input_value": 243,
+              "output_value": 243
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 243,
+              "output": 243,
+              "input_value": 243,
+              "output_value": 243
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 2,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 2,
+          "final_value": 2,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 2,
+              "output": 2,
+              "input_value": 2,
+              "output_value": 2
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 2,
+              "output": 2,
+              "input_value": 2,
+              "output_value": 2
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 2,
+              "output": 2,
+              "input_value": 2,
+              "output_value": 2
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 3,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 3,
+          "final_value": 3,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 3,
+              "output": 3,
+              "input_value": 3,
+              "output_value": 3
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 3,
+              "output": 3,
+              "input_value": 3,
+              "output_value": 3
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 3,
+              "output": 3,
+              "input_value": 3,
+              "output_value": 3
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 4,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 4,
+          "final_value": 4,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 4,
+              "output": 4,
+              "input_value": 4,
+              "output_value": 4
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 4,
+              "output": 4,
+              "input_value": 4,
+              "output_value": 4
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 4,
+              "output": 4,
+              "input_value": 4,
+              "output_value": 4
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 5,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 5,
+          "final_value": 5,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 5,
+              "output": 5,
+              "input_value": 5,
+              "output_value": 5
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 5,
+              "output": 5,
+              "input_value": 5,
+              "output_value": 5
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 5,
+              "output": 5,
+              "input_value": 5,
+              "output_value": 5
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 6,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 6,
+          "final_value": 6,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 6,
+              "output": 6,
+              "input_value": 6,
+              "output_value": 6
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 6,
+              "output": 6,
+              "input_value": 6,
+              "output_value": 6
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 6,
+              "output": 6,
+              "input_value": 6,
+              "output_value": 6
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 8,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 8,
+          "final_value": 8,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 8,
+              "output": 8,
+              "input_value": 8,
+              "output_value": 8
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 8,
+              "output": 8,
+              "input_value": 8,
+              "output_value": 8
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 8,
+              "output": 8,
+              "input_value": 8,
+              "output_value": 8
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 7,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 1,
+              "offset": 0
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 7,
+          "final_value": 7,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 7,
+              "output": 7,
+              "input_value": 7,
+              "output_value": 7
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 7,
+              "output": 7,
+              "input_value": 7,
+              "output_value": 7
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 7,
+              "output": 7,
+              "input_value": 7,
+              "output_value": 7
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "race.1",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 0.5,
+        "offset": 0,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "race.1",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 0.5,
+          "offset": 0,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "race.1",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 0.5,
+        "offset": 10,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "race.1",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 0.5,
+          "offset": 10,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "race.1",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 0.5,
+        "offset": 10,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "race.1",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 0.5,
+          "offset": 10,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40002",
+        "tag_key": "race.2",
+        "display_name": "race.2",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 0.5,
+        "offset": 10,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "95543aaf-0b5f-4ff9-b499-f972a4a825b4",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f18e925b-1730-4480-ae12-f57bd88c6167",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40002",
+          "tag_id": "e58031ec-1cc8-478b-a4b0-31a3af8831bb",
+          "tag_key": "race.2",
+          "display_name": "race.2",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 0.5,
+          "offset": 10,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.134936+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/492198ad-dd53-4525-a770-a43928804446",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40003",
+        "tag_key": "race.3",
+        "display_name": "race.3",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 0.5,
+        "offset": 10,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "492198ad-dd53-4525-a770-a43928804446",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "3320376f-dad0-493a-a776-4da436da61f7",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40003",
+          "tag_id": "0447fd39-d3b7-4773-a8ab-92efaa46e4a4",
+          "tag_key": "race.3",
+          "display_name": "race.3",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 0.5,
+          "offset": 10,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.502999+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40004",
+        "tag_key": "race.4",
+        "display_name": "race.4",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 0.5,
+        "offset": 10,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "9257f1ca-7a8a-4f9d-9410-c253ce4ef09b",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "8bac38cd-b08a-4353-8ce3-e05fcad22658",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40004",
+          "tag_id": "3bfb4563-dcec-4a85-b485-6e880ca92559",
+          "tag_key": "race.4",
+          "display_name": "race.4",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 0.5,
+          "offset": 10,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:38.879651+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/c891111d-f990-49c1-a2dc-f79aebce5b6d",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40005",
+        "tag_key": "race.5",
+        "display_name": "race.5",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 0.5,
+        "offset": 10,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "c891111d-f990-49c1-a2dc-f79aebce5b6d",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "757ca27e-9bd3-4832-9581-e0473a662f63",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40005",
+          "tag_id": "c5c9a41d-4a06-4551-a787-106bb5432fac",
+          "tag_key": "race.5",
+          "display_name": "race.5",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 0.5,
+          "offset": 10,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.245376+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40006",
+        "tag_key": "race.6",
+        "display_name": "race.6",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 0.5,
+        "offset": 10,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "bffd3242-ea3d-42fe-a5ac-dae87fece7e6",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "708a7049-31af-4661-ba04-cdb457386ace",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40006",
+          "tag_id": "1b69c482-14a3-49ae-b9ab-924369ff0e45",
+          "tag_key": "race.6",
+          "display_name": "race.6",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 0.5,
+          "offset": 10,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:39.617006+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/89f21ede-f540-4353-93d2-7410edc24eae",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40007",
+        "tag_key": "race.7",
+        "display_name": "race.7",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 0.5,
+        "offset": 10,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "89f21ede-f540-4353-93d2-7410edc24eae",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "83fb371f-3c1e-48f0-a2e1-da64ec40a465",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40007",
+          "tag_id": "4d192542-43b0-4004-81cc-80e529006fc8",
+          "tag_key": "race.7",
+          "display_name": "race.7",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 0.5,
+          "offset": 10,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.002042+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/000980a5-c596-4632-a4f3-b51c82091ace",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40008",
+        "tag_key": "race.8",
+        "display_name": "race.8",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 0.5,
+        "offset": 10,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "000980a5-c596-4632-a4f3-b51c82091ace",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "b4dd4a71-5bea-4551-9655-0cd319deaa6f",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40008",
+          "tag_id": "09f81753-5c17-4658-a8fc-df3305a95a76",
+          "tag_key": "race.8",
+          "display_name": "race.8",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 0.5,
+          "offset": 10,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:40.365774+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 243,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 0.5,
+              "offset": 10
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 243,
+          "final_value": 131.5,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 243,
+              "output": 243,
+              "input_value": 243,
+              "output_value": 243
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 243,
+              "output": 131.5,
+              "input_value": 243,
+              "output_value": 131.5
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 131.5,
+              "output": 131.5,
+              "input_value": 131.5,
+              "output_value": 131.5
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 2,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 0.5,
+              "offset": 10
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 2,
+          "final_value": 11,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 2,
+              "output": 2,
+              "input_value": 2,
+              "output_value": 2
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 2,
+              "output": 11,
+              "input_value": 2,
+              "output_value": 11
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 11,
+              "output": 11,
+              "input_value": 11,
+              "output_value": 11
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 3,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 0.5,
+              "offset": 10
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 3,
+          "final_value": 11.5,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 3,
+              "output": 3,
+              "input_value": 3,
+              "output_value": 3
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 3,
+              "output": 11.5,
+              "input_value": 3,
+              "output_value": 11.5
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 11.5,
+              "output": 11.5,
+              "input_value": 11.5,
+              "output_value": 11.5
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 4,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 0.5,
+              "offset": 10
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 4,
+          "final_value": 12,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 4,
+              "output": 4,
+              "input_value": 4,
+              "output_value": 4
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 4,
+              "output": 12,
+              "input_value": 4,
+              "output_value": 12
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 12,
+              "output": 12,
+              "input_value": 12,
+              "output_value": 12
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 5,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 0.5,
+              "offset": 10
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 5,
+          "final_value": 12.5,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 5,
+              "output": 5,
+              "input_value": 5,
+              "output_value": 5
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 5,
+              "output": 12.5,
+              "input_value": 5,
+              "output_value": 12.5
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 12.5,
+              "output": 12.5,
+              "input_value": 12.5,
+              "output_value": 12.5
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 6,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 0.5,
+              "offset": 10
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 6,
+          "final_value": 13,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 6,
+              "output": 6,
+              "input_value": 6,
+              "output_value": 6
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 6,
+              "output": 13,
+              "input_value": 6,
+              "output_value": 13
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 13,
+              "output": 13,
+              "input_value": 13,
+              "output_value": 13
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 8,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 0.5,
+              "offset": 10
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 8,
+          "final_value": 14,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 8,
+              "output": 8,
+              "input_value": 8,
+              "output_value": 8
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 8,
+              "output": 14,
+              "input_value": 8,
+              "output_value": 14
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 14,
+              "output": 14,
+              "input_value": 14,
+              "output_value": 14
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/mappings/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+        "raw_value": 7,
+        "transform_pipeline": [
+          {
+            "type": "decode",
+            "order": 1,
+            "params": {
+              "data_type": "int16"
+            }
+          },
+          {
+            "type": "scale",
+            "order": 2,
+            "params": {
+              "scale": 0.5,
+              "offset": 10
+            }
+          },
+          {
+            "type": "cast",
+            "order": 3,
+            "params": {
+              "target_type": "float64"
+            }
+          }
+        ]
+      },
+      "response": {
+        "data": {
+          "raw_value": 7,
+          "final_value": 13.5,
+          "step_results": [
+            {
+              "step_index": 0,
+              "step_type": "decode",
+              "input": 7,
+              "output": 7,
+              "input_value": 7,
+              "output_value": 7
+            },
+            {
+              "step_index": 1,
+              "step_type": "scale",
+              "input": 7,
+              "output": 13.5,
+              "input_value": 7,
+              "output_value": 13.5
+            },
+            {
+              "step_index": 2,
+              "step_type": "cast",
+              "input": 13.5,
+              "output": 13.5,
+              "input_value": 13.5,
+              "output_value": 13.5
+            }
+          ]
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "First edit",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 0.5,
+        "offset": 10,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "First edit",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 0.5,
+          "offset": 10,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    },
+    {
+      "path": "/api/v1/datalink/studio-v2/workspace/mappings/edac20d0-631c-4793-b127-7d1d01edcd37",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "rule_id": "rule-1791212494535",
+        "address": "40001",
+        "tag_key": "race.1",
+        "display_name": "Final rapid edit",
+        "unit": "",
+        "target_type": "float64",
+        "scale": 0.5,
+        "offset": 10,
+        "enabled": true
+      },
+      "response": {
+        "data": {
+          "id": "edac20d0-631c-4793-b127-7d1d01edcd37",
+          "workspace_id": "7122275a-7ac4-4410-86d8-8f73604e051d",
+          "point_id": "f46fae42-9722-4116-ab59-be6bffd3be32",
+          "rule_id": "rule-1791212494535",
+          "device_id": "dev-1791212491723-27",
+          "address": "40001",
+          "tag_id": "97898783-5db0-4ed4-afba-9233544476b1",
+          "tag_key": "race.1",
+          "display_name": "Final rapid edit",
+          "unit": "",
+          "target_type": "float64",
+          "scale": 0.5,
+          "offset": 10,
+          "enabled": true,
+          "save_state": "saved",
+          "runtime_apply_status": "not_running",
+          "created_at": "2026-10-05T23:01:37.775411+08:00",
+          "updated_at": "2026-10-05T15:01:42Z"
+        },
+        "success": true
+      }
+    }
+  ]
+}

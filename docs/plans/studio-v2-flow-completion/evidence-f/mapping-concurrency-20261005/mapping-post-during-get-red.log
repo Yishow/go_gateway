@@ -1,0 +1,49 @@
+npm notice run frontend@0.0.0 test
+npm notice run vitest --run tests/unit/workbench-v2/mapping-autosave-queue.test.tsx --maxWorkers=1 --no-file-parallelism
+
+ RUN  v3.2.4 /private/tmp/go-gateway-mapping-save-concurrency/frontend
+
+ ❯ tests/unit/workbench-v2/mapping-autosave-queue.test.tsx (12 tests | 1 failed) 1723ms
+   ✓ mapping rule save queue > serializes eight same-rule rows, deduplicates repeated batches and lets another rule progress 126ms
+   ✓ mapping rule save queue > keeps every newer column draft and continues with its exact request after an old response 110ms
+   ✓ mapping rule save queue > reads the newest transform for queued rows after repeated bulk actions 112ms
+   ✓ mapping failure recovery > retains safe metadata and pauses failed rule until explicit retry (409) 168ms
+   ✓ mapping failure recovery > retains safe metadata and pauses failed rule until explicit retry (404) 163ms
+   ✓ mapping failure recovery > retains safe metadata and pauses failed rule until explicit retry (500) 163ms
+   ✓ never inherits an automatic mutation retry after a mapping failure 109ms
+   ✓ continues the latest draft entered during the final authoritative refetch 163ms
+   ✓ accepts a legitimate tag-only authoritative refetch with the same mapping timestamp 163ms
+   ✓ keeps already confirmed row values visible while later batch invalidations return older snapshots 111ms
+   ✓ continues another rule while a global mapping GET is unresolved 164ms
+   × retains a POST acknowledged after an older GET began until a later authoritative GET completes 171ms
+     → expected undefined to match object { tag_key: 'b.created' }
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/workbench-v2/mapping-autosave-queue.test.tsx > retains a POST acknowledged after an older GET began until a later authoritative GET completes
+AssertionError: expected undefined to match object { tag_key: 'b.created' }
+
+- Expected: 
+{
+  "tag_key": "b.created",
+}
+
++ Received: 
+undefined
+
+ ❯ tests/unit/workbench-v2/mapping-autosave-queue.test.tsx:165:61
+    163|   const cached = () => hook.client.getQueryData<typeof records>(studio…
+    164|   expect(hook.result.current.state.mappings.b0).toMatchObject({ mappin…
+    165|   expect(cached()?.find((record) => record.id === 'new-B')).toMatchObj…
+       |                                                             ^
+    166|   // A later authoritative absence must remain authoritative; acknowle…
+    167|   // that predate that GET cannot keep an externally removed row forev…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 11 passed (12)
+   Start at  22:46:37
+   Duration  2.62s (transform 121ms, setup 71ms, collect 254ms, tests 1.72s, environment 436ms, prepare 38ms)
+

@@ -1,0 +1,2 @@
+npm notice run frontend@0.0.0 npx
+npm notice run 'eslint' src/hooks/datalink/useStudioV2Mappings.ts tests/unit/hooks/useStudioV2Mappings.test.ts tests/unit/workbench-v2/mapping-autosave-queue.bootstrap.test.tsx --max-warnings=0

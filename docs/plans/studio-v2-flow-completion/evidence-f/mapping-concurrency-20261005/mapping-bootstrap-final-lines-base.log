@@ -1,0 +1,21 @@
+[line-limit] checked files: 61
+[line-limit] limits: warn>300, fail>500
+
+[line-limit] WARNING files (> 300 lines):
+  463 frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
+  385 frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts
+  317 frontend/src/utils/safeJson.ts
+  302 frontend/tests/unit/workbench-v2/database-autosave-page.testHarness.tsx
+  331 frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  398 internal/api/handlers/studio_v2_workspace_mappings_handler.go
+  433 internal/api/handlers/studio_v2_workspace_mappings_mutation_race_test.go
+  322 internal/datalink/mapping/sql_repo.go
+  398 internal/datalink/sourcerule/candidate_api.go
+  413 internal/datalink/sourcerule/output_apply_service.go
+  448 internal/datalink/sourcerule/tag_apply_service.go
+
+[line-limit] LEGACY allowed (> 500, not increased):
+  1149 internal/datalink/sourcerule/service.go (legacy 1169 -> 1149)
+  889 internal/datalink/sourcerule/service_test.go (legacy 898 -> 889)
+
+[line-limit] Passed.
