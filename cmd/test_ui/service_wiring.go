@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"log"
 	"os"
 
@@ -26,6 +28,7 @@ import (
 	"go-gateway/internal/datalink/storage"
 	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/datalink/workspace"
+	"go-gateway/internal/diagnostics"
 
 	"github.com/google/uuid"
 )
@@ -55,7 +58,10 @@ type gatewayServices struct {
 	fixture        groupFixtureHooks
 }
 
-func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) gatewayServices {
+func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) (gatewayServices, error) {
+	return wireGatewayServicesContext(context.Background(), db, connMgr, nil)
+}
+func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connector.ConnectionManager, logs *diagnostics.Broker) (gatewayServices, error) {
 	fixture := newGroupFixture()
 	devRepo := device.NewSQLRepository(db)
 	devSvc := device.NewService(devRepo, connMgr)
@@ -71,7 +77,7 @@ func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) gatew
 	settingsRepo := settings.NewSQLRepository(db)
 	settingsSvc := settings.NewService(settingsRepo)
 	modbusShareSvc := modbusshare.NewService(tagSvc, 65536)
-	shareSettingsLoaded := loadPersistedShareSettings(context.Background(), modbusShareSvc, settingsRepo)
+	shareSettingsLoaded := loadPersistedShareSettings(ctx, modbusShareSvc, settingsRepo)
 	workspaceSvc := workspace.NewService(workspace.NewSQLRepository(db))
 	writeGroupsSvc := workspace.NewWriteGroupService(workspaceSvc, workspace.NewSQLWriteGroupRepository(db)).
 		WithBacklogOwnershipGuard(grouppipeline.BacklogGuard{})
@@ -87,25 +93,40 @@ func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) gatew
 	dbTargetConnectorSvc.SetDeleteGuard(writeGroupsSvc)
 	groupStore, err := groupdelivery.NewStore(db).WithQuota(groupDeliveryQuotaConfig())
 	if err != nil {
-		log.Fatalf("建立群組交付容量設定失敗: %v", err)
+		return gatewayServices{}, fmt.Errorf("configure group delivery capacity: %w", err)
+	}
+	pipelineConfig := fixture.pipelineConfig(gatewayNodeID(), uuid.NewString())
+	if logs != nil {
+		previous := pipelineConfig.OnError
+		pipelineConfig.OnError = func(err error) {
+			if err != nil {
+				logs.Emit(diagnostics.Input{Code: "runtime.group_failed"})
+				if previous != nil {
+					previous(err)
+				}
+			}
+		}
 	}
 	groupPipe := grouppipeline.New(grouppipeline.Dependencies{
 		Groups: writeGroupsSvc, Tags: tagSvc, Destinations: dbTargetConnectorSvc,
 		Inspector: dbtarget.NewReadOnlyTableInspector(dbTargetConnectorSvc), Store: groupStore,
-	}, fixture.pipelineConfig(gatewayNodeID(), uuid.NewString()))
+	}, pipelineConfig)
 	sampleSink := fixture.sampleSink(groupPipe)
 	// A canonical group that owns an output replaces the legacy writer for it, so
 	// there is exactly one writer per output.
-	dbTargetWriter := dbtarget.NewWriterWithConfig(dbTargetConnectorRepo, dbTargetMappingRepo, dbtarget.WriterConfig{TagReader: tagSvc, SuppressMapping: groupPipe.Owns})
+	dbTargetWriter := dbtarget.NewWriterWithConfig(dbTargetConnectorRepo, dbTargetMappingRepo, dbtarget.WriterConfig{TagReader: tagSvc, SuppressMapping: groupPipe.Owns}) //nolint:contextcheck // Persistent worker is owned by runtime shutdown.
 	scheduler := collector.NewScheduler(collector.DefaultSchedulerConfig(), connMgr)
-	runtimeWriter := storage.NewBatchWriter(storage.NewSQLiteWriter(db), storage.DefaultBatchWriterConfig())
+	runtimeWriter := storage.NewBatchWriter(storage.NewSQLiteWriter(db), storage.DefaultBatchWriterConfig()) //nolint:contextcheck // Persistent timer is joined by runtime shutdown.
 	runtimeSvc, err := datalinkruntime.NewService(datalinkruntime.DefaultConfig(), datalinkruntime.Dependencies{
 		Scheduler: scheduler, Writer: runtimeWriter, TargetWriter: newProductionTargetWriter(dbTargetWriter, modbusShareSvc),
 		DeviceService: devSvc, PointService: pointSvc, MappingService: mappingSvc, TagService: tagSvc, PollingGroupService: pgSvc,
 		SampleSink: sampleSink,
 	})
 	if err != nil {
-		log.Fatalf("建立 datalink runtime 失敗: %v", err)
+		targetErr := dbTargetWriter.Close(ctx)
+		writerErr := runtimeWriter.CloseContext(ctx)
+		waitErr := runtimeWriter.WaitClosed(context.WithoutCancel(ctx))
+		return gatewayServices{}, fmt.Errorf("create datalink runtime: %w", errors.Join(err, targetErr, writerErr, waitErr))
 	}
 	sourceRuleSvc := sourcerule.NewService(sourceRuleRepo, devSvc, pointSvc, runtimeSvc)
 	sourceRuleSvc.SetTagMappingServices(tagSvc, mappingSvc)
@@ -137,7 +158,7 @@ func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) gatew
 		}
 		return records, nil
 	}))
-	if err := sourceRuleSvc.SyncDerivedPointState(context.Background()); err != nil {
+	if err := sourceRuleSvc.SyncDerivedPointState(ctx); err != nil {
 		log.Printf("同步來源規則衍生點位狀態失敗: %v", err)
 	}
 	// Explicit group test writes share the recording operation ledger and write
@@ -147,7 +168,7 @@ func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) gatew
 		Groups: writeGroupsSvc, Tags: tagSvc, Destinations: dbTargetConnectorSvc,
 		Inspector: dbtarget.NewReadOnlyTableInspector(dbTargetConnectorSvc), Ledger: recordingPlanSvc,
 	}, grouptestwrite.Config{})
-	return gatewayServices{recordingPlan: recordingPlanSvc, groupTestWrite: groupTestWriteSvc, device: devSvc, pollingGroup: pgSvc, point: pointSvc, tag: tagSvc, mapping: mappingSvc, settings: settingsSvc, modbusShare: modbusShareSvc, shareLoaded: shareSettingsLoaded, workspace: workspaceSvc, writeGroups: writeGroupsSvc, groupPipe: groupPipe, audit: auditSvc, dbTarget: dbTargetConnectorSvc, dbMapping: dbTargetMappingSvc, scheduler: scheduler, runtime: runtimeSvc, sourceRule: sourceRuleSvc, fixture: fixture}
+	return gatewayServices{recordingPlan: recordingPlanSvc, groupTestWrite: groupTestWriteSvc, device: devSvc, pollingGroup: pgSvc, point: pointSvc, tag: tagSvc, mapping: mappingSvc, settings: settingsSvc, modbusShare: modbusShareSvc, shareLoaded: shareSettingsLoaded, workspace: workspaceSvc, writeGroups: writeGroupsSvc, groupPipe: groupPipe, audit: auditSvc, dbTarget: dbTargetConnectorSvc, dbMapping: dbTargetMappingSvc, scheduler: scheduler, runtime: runtimeSvc, sourceRule: sourceRuleSvc, fixture: fixture}, nil
 }
 
 // groupDeliveryQuotaBytes caps accepted-but-undelivered group data, matching the

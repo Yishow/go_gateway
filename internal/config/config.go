@@ -2,7 +2,9 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -191,14 +193,7 @@ func parseStringSlice(value string) []string {
 
 // GetServerAddr 取得服務器監聽地址
 func (c *Config) GetServerAddr() string {
-	port := c.Server.Port
-	if !strings.HasPrefix(port, ":") {
-		port = ":" + port
-	}
-	if c.Server.Host != "" {
-		return fmt.Sprintf("%s%s", c.Server.Host, port)
-	}
-	return port
+	return net.JoinHostPort(strings.Trim(c.Server.Host, "[]"), strings.TrimPrefix(c.Server.Port, ":"))
 }
 
 // LoadFromFile 從指定文件載入配置
@@ -211,4 +206,17 @@ func LoadFromFile(path string) (*Config, error) {
 
 	// 使用 Load 函數載入配置（會讀取剛載入的環境變數）
 	return Load()
+}
+
+// LoadFromDirectory never falls back to a shortcut working-directory dotenv.
+func LoadFromDirectory(directory string) (*Config, error) {
+	if err := godotenv.Load(filepath.Join(directory, ".env")); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("load desktop configuration: %w", err)
+	}
+	cfg := newConfigFromEnv()
+	if err := os.Setenv("GIN_MODE", getEnv("GIN_MODE", "release")); err != nil {
+		return nil, fmt.Errorf("set Gin mode: %w", err)
+	}
+	globalConfig = cfg
+	return cfg, nil
 }

@@ -95,3 +95,16 @@ func (w fanoutTargetWriter) WriteTagValueOutcomes(ctx context.Context, tagID str
 	}
 	return results
 }
+
+// Close joins actual target workers before the caller releases configuration storage.
+func (w fanoutTargetWriter) Close(ctx context.Context) error {
+	var failures []error
+	for _, target := range w.targets {
+		if closer, ok := target.(interface{ Close(context.Context) error }); ok {
+			if err := closer.Close(ctx); err != nil {
+				failures = append(failures, err)
+			}
+		}
+	}
+	return errors.Join(failures...)
+}

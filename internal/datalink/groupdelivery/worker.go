@@ -14,9 +14,6 @@ var ErrShutdownForced = errors.New("delivery worker shutdown hit its deadline")
 // ErrWorkerRunning means Start was called on a running worker.
 var ErrWorkerRunning = errors.New("delivery worker already running")
 
-// forcedStopGrace bounds how long Stop waits after canceling in-flight work.
-const forcedStopGrace = 2 * time.Second
-
 // WorkerConfig drives the delivery loop.
 type WorkerConfig struct {
 	// Interval is the pause between delivery cycles.
@@ -41,6 +38,7 @@ type Worker struct {
 
 	mu          sync.Mutex
 	running     bool
+	stopping    bool
 	graceCancel context.CancelFunc
 	workCancel  context.CancelFunc
 	done        chan struct{}
@@ -58,40 +56,62 @@ func NewWorker(store *Store, dispatcher *Dispatcher, config WorkerConfig) *Worke
 // begins delivering. Recovery runs before the first cycle so a restarted
 // gateway never waits on, or races with, a worker that no longer exists.
 func (w *Worker) Start(ctx context.Context) error {
+	return w.StartWithLifetime(ctx, ctx)
+}
+
+// StartWithLifetime uses startup for cancellable recovery and lifetime for the
+// delivery loop. Startup cancellation never starts new delivery after recovery;
+// canceling a completed start request does not end the separately owned loop.
+func (w *Worker) StartWithLifetime(startup, lifetime context.Context) error {
 	w.mu.Lock()
-	defer w.mu.Unlock()
 	if w.running {
+		w.mu.Unlock()
 		return ErrWorkerRunning
 	}
+	graceCtx, graceCancel := context.WithCancel(lifetime)
+	workCtx, workCancel := context.WithCancel(context.WithoutCancel(lifetime))
+	done := make(chan struct{})
+	w.running, w.stopping, w.graceCancel, w.workCancel, w.done = true, false, graceCancel, workCancel, done
+	w.mu.Unlock()
+	recoveryCtx, recoveryCancel := context.WithCancel(startup)
+	stopRecovery := context.AfterFunc(graceCtx, recoveryCancel)
+	defer stopRecovery()
+	defer recoveryCancel()
 	if w.config.NodeID != "" {
-		if _, err := w.store.RecoverStaleClaims(ctx, w.config.NodeID, w.config.Owner, w.dispatcher.config.Now()); err != nil {
+		if _, err := w.store.RecoverStaleClaims(recoveryCtx, w.config.NodeID, w.config.Owner, w.dispatcher.config.Now()); err != nil {
+			graceCancel()
+			w.finish(workCancel, done)
 			return err
 		}
 	}
-	graceCtx, graceCancel := context.WithCancel(ctx)
-	workCtx, workCancel := context.WithCancel(context.WithoutCancel(ctx))
-	done := make(chan struct{})
-	w.running, w.graceCancel, w.workCancel, w.done = true, graceCancel, workCancel, done
+	if err := recoveryCtx.Err(); err != nil {
+		w.finish(workCancel, done)
+		return err
+	}
 	go w.loop(workCtx, graceCtx, workCancel, done)
 	return nil
 }
 
+func (w *Worker) finish(workCancel context.CancelFunc, done chan struct{}) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.done == done {
+		w.graceCancel()
+		w.running = false
+	}
+	workCancel()
+	close(done)
+}
+
 func (w *Worker) loop(workCtx, graceCtx context.Context, workCancel context.CancelFunc, done chan struct{}) {
-	defer func() {
-		// The loop can end without Stop (its start context was canceled); the
-		// worker must then be restartable and its work context released.
-		w.mu.Lock()
-		if w.done == done {
-			w.running = false
-		}
-		w.mu.Unlock()
-		workCancel()
-		close(done)
-	}()
+	defer w.finish(workCancel, done)
 	ticker := time.NewTicker(w.config.Interval)
 	defer ticker.Stop()
 	var lastReclaim time.Time
 	for {
+		if graceCtx.Err() != nil {
+			return
+		}
 		w.sweep(workCtx)
 		if w.config.ReclaimEvery > 0 && w.config.ReclaimRetention > 0 && time.Since(lastReclaim) >= w.config.ReclaimEvery {
 			lastReclaim = time.Now()
@@ -123,33 +143,60 @@ func (w *Worker) sweep(ctx context.Context) {
 	}
 }
 
-// Stop stops starting new rows, waits up to deadline for in-flight deliveries
-// to finish, then cancels them. Rows that were interrupted stay recoverable:
-// they are settled by the next incarnation's startup recovery. Stopping a
-// worker that is not running does nothing.
+// Stop preserves the duration-based API using one total wait budget.
 func (w *Worker) Stop(deadline time.Duration) error {
-	w.mu.Lock()
-	if !w.running {
-		w.mu.Unlock()
-		return nil
-	}
-	graceCancel, workCancel, done := w.graceCancel, w.workCancel, w.done
-	w.running = false
-	w.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), deadline)
+	defer cancel()
+	return w.StopContext(ctx)
+}
 
-	graceCancel()
-	timer := time.NewTimer(deadline)
-	defer timer.Stop()
-	select {
-	case <-done:
-		workCancel()
+// StopContext stops starting rows once, allows in-flight delivery until the
+// original context expires, then cancels it. Returning a timeout does not mean
+// workers finished; callers must observe WaitStopped before closing the store.
+func (w *Worker) StopContext(ctx context.Context) error {
+	w.mu.Lock()
+	done := w.done
+	if w.running && !w.stopping {
+		w.stopping = true
+		w.graceCancel()
+		workCancel := w.workCancel
+		go func() {
+			select {
+			case <-done:
+			case <-ctx.Done():
+				workCancel()
+			}
+		}()
+	}
+	w.mu.Unlock()
+	if err := waitWorker(ctx, done); err != nil {
+		return errors.Join(ErrShutdownForced, err)
+	}
+	return nil
+}
+
+// WaitStopped observes the current worker's completion without initiating or
+// retrying shutdown. It is safe after a StopContext timeout.
+func (w *Worker) WaitStopped(ctx context.Context) error {
+	w.mu.Lock()
+	done := w.done
+	w.mu.Unlock()
+	return waitWorker(ctx, done)
+}
+
+func waitWorker(ctx context.Context, done <-chan struct{}) error {
+	if done == nil {
 		return nil
-	case <-timer.C:
 	}
-	workCancel()
 	select {
 	case <-done:
-	case <-time.After(forcedStopGrace):
+		return nil
+	default:
 	}
-	return ErrShutdownForced
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

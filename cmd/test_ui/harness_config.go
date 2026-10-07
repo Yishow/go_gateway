@@ -1,7 +1,10 @@
 package main
 
 import (
+	"net/url"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"go-gateway/internal/datalink"
@@ -21,5 +24,16 @@ func embeddedSQLiteDSN() string {
 	if path == "" {
 		return datalink.DefaultEmbeddedSQLiteDSN
 	}
-	return strings.Replace(datalink.DefaultEmbeddedSQLiteDSN, "datalink.db", path, 1)
+	return embeddedSQLiteDSNForPath(path)
+}
+
+// embeddedSQLiteDSNForPath opens exactly the literal file whose owner was locked.
+func embeddedSQLiteDSNForPath(path string) string {
+	_, query, _ := strings.Cut(datalink.DefaultEmbeddedSQLiteDSN, "?")
+	literal := filepath.ToSlash(path)
+	if runtime.GOOS == "windows" && filepath.IsAbs(path) && !strings.HasPrefix(literal, "/") {
+		literal = "/" + literal
+	}
+	uri := url.URL{Scheme: "file", Path: literal, RawQuery: query, OmitHost: !filepath.IsAbs(path)}
+	return uri.String()
 }

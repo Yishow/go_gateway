@@ -1,4 +1,9 @@
-# 建置腳本
+# 明確選擇 Windows desktop 或既有 console 開發產物。
+param(
+    [ValidateSet("console", "desktop")][string]$Mode = "console",
+    [ValidatePattern('^[0-9A-Za-z._+-]+$')][string]$Version = "dev",
+    [ValidatePattern('^[0-9A-Za-z._+-]*$')][string]$Commit = ""
+)
 $ErrorActionPreference = "Stop"
 
 function Stop-Build {
@@ -9,6 +14,24 @@ function Stop-Build {
 
     Write-Error $Message -ErrorAction Continue
     exit $ExitCode
+}
+
+Set-Location -LiteralPath (Split-Path -Parent $PSScriptRoot)
+$targetOS = & go env GOOS
+if ($LASTEXITCODE -ne 0) { Stop-Build "Go toolchain is unavailable" }
+if ($Mode -eq "desktop" -and $targetOS -ne "windows") {
+    Stop-Build "desktop requires GOOS=windows"
+}
+if (-not $Commit) {
+    $Commit = "unknown"
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        $gitCommit = & git rev-parse --short=12 HEAD 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $Commit = $gitCommit
+            $gitChanges = & git status --porcelain --untracked-files=normal 2>$null
+            if ($LASTEXITCODE -eq 0 -and $gitChanges) { $Commit += "+dirty" }
+        }
+    }
 }
 
 Write-Host "建置前端..." -ForegroundColor Green
@@ -24,6 +47,11 @@ $distPath = Join-Path (Get-Location) "frontend/dist"
 $staticPath = Join-Path (Get-Location) "cmd/test_ui/static"
 if (-not (Test-Path -LiteralPath $distPath -PathType Container)) {
     Stop-Build "frontend/dist is unavailable; embedded frontend synchronization cannot continue"
+}
+
+$indexPath = Join-Path $distPath "index.html"
+if (-not (Test-Path -LiteralPath $indexPath -PathType Leaf) -or (Get-Item -LiteralPath $indexPath).Length -eq 0) {
+    Stop-Build "frontend index.html is missing or empty; refusing incomplete embedded UI"
 }
 
 Write-Host "複製前端檔案到 embed 目錄..." -ForegroundColor Green
@@ -43,9 +71,16 @@ catch {
 }
 
 Write-Host "建置後端..." -ForegroundColor Green
-# 移除 -H=windowsgui 標誌以顯示控制台窗口，讓用戶可以點擊 X 按鈕
-# -s: 移除符號表，-w: 移除 DWARF 除錯資訊，-trimpath: 移除檔案路徑資訊
-go build -ldflags "-s -w" -trimpath -o bin/test-ui.exe ./cmd/test_ui
+$output = "bin/test-ui.exe"
+$ldflags = "-s -w -X go-gateway/internal/desktop.Version=$Version -X go-gateway/internal/desktop.Commit=$Commit"
+$buildArgs = @()
+if ($Mode -eq "desktop") {
+    $output = "bin/gateway-desktop.exe"
+    $buildArgs += @("-tags", "desktop")
+    $ldflags += " " + "-H=windowsgui"
+}
+$buildArgs += @("-trimpath", "-ldflags", $ldflags, "-o", $output, "./cmd/test_ui")
+& go build @buildArgs
 $backendBuildExitCode = $LASTEXITCODE
 if ($backendBuildExitCode -ne 0) {
     Stop-Build "backend build failed (go build exit code: $backendBuildExitCode)" $backendBuildExitCode

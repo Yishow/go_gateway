@@ -296,7 +296,6 @@ func (s *Service) runtimeBreakerState(deviceID string) string {
 }
 
 func (s *Service) statusLoop() {
-	defer s.wg.Done()
 
 	ticker := time.NewTicker(statusRefreshInterval)
 	defer ticker.Stop()

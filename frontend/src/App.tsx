@@ -13,6 +13,7 @@ import {
 } from './features/datalink/legacyRoutes'
 
 // 路由級代碼分割：各重型頁面改為 lazy chunk，縮小主 bundle 體積
+const RuntimeLogsPage = lazy(() => import('./features/runtime-logs/RuntimeLogsPage'))
 const TestPage = lazy(() => import('./pages/TestPage'))
 const TestPageShell = lazy(() => import('./pages/TestPageShell'))
 const DatalinkWorkbenchV2Page = lazy(
@@ -109,6 +110,7 @@ export function AppRoutes() {
       {/* Studio Main Routes */}
       <Route path="/studio/v2" element={<DatalinkWorkbenchV2Route />} />
       <Route path="/studio/runtime" element={<RuntimeDashboardRoute />} />
+      <Route path="/studio/logs" element={<RuntimeLogsPage />} />
 
       {/* Datalink legacy routes */}
       <Route path="/datalink" element={<GuidedWorkbenchEntryRedirect />} />

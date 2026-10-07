@@ -58,6 +58,10 @@ vi.mock('../../src/features/datalink/runtime-dashboard/RuntimeDashboardRoute', a
   }
 })
 
+vi.mock('../../src/features/runtime-logs/RuntimeLogsPage', () => ({
+  default: () => <div data-testid="runtime-logs-resolved">Runtime logs route</div>,
+}))
+
 function LocationProbe() {
   const location = useLocation()
   return (
@@ -96,6 +100,12 @@ describe('AppRoutes lazy-load contract', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it('resolves the lazy logs route without changing Studio identities', async () => {
+    renderApp('/studio/logs')
+    expect(await screen.findByTestId('runtime-logs-resolved')).toBeInTheDocument()
+    expect(screen.getByTestId('location')).toHaveTextContent('/studio/logs')
   })
 
   it('uses the same generic fallback for /studio and an arbitrary unknown route', async () => {

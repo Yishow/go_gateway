@@ -116,7 +116,8 @@ func reopenLifecycleConfiguration(t *testing.T, env *outageEnv, clock *testClock
 	datalink.ApplySQLitePoolDefaults(db)
 	require.NoError(t, datalink.NewMigrator().Migrate(db))
 	env.db = db
-	env.services = wireGatewayServices(db, connector.NewConnectionManager(connector.ConnectionManagerConfig{}))
+	env.services, err = wireGatewayServices(db, connector.NewConnectionManager(connector.ConnectionManagerConfig{}))
+	require.NoError(t, err)
 	env.services.writeGroups.WithClock(clock.now)
 }
 
@@ -189,7 +190,9 @@ func TestProductionLifecycleCrashChild(t *testing.T) {
 	datalink.ApplySQLitePoolDefaults(db)
 	clock := &testClock{}
 	clock.set(lifecycleBase.Add(2 * time.Second))
-	env := &outageEnv{db: db, services: wireGatewayServices(db, connector.NewConnectionManager(connector.ConnectionManagerConfig{}))}
+	services, err := wireGatewayServices(db, connector.NewConnectionManager(connector.ConnectionManagerConfig{}))
+	require.NoError(t, err)
+	env := &outageEnv{db: db, services: services}
 	env.services.writeGroups.WithClock(clock.now)
 	id := os.Getenv("GW_LIFECYCLE_GROUP")
 	live, err := env.services.writeGroups.Get(t.Context(), id)

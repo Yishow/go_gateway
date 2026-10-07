@@ -28,13 +28,11 @@ func (s *Scheduler) startGroupTicker(group *schema.PollingGroup) {
 
 	s.groupTickers[group.ID] = gt
 
-	s.wg.Add(1)
-	go s.runGroupTicker(gt)
+	s.wg.Go(func() { s.runGroupTicker(gt) })
 }
 
 // runGroupTicker 運行群組 Ticker
 func (s *Scheduler) runGroupTicker(gt *groupTicker) {
-	defer s.wg.Done()
 	defer close(gt.done)
 
 	for {
@@ -68,11 +66,7 @@ func (s *Scheduler) pollGroup(groupID string) {
 	// 各設備並行處理，同一設備內依序執行。
 	var wg sync.WaitGroup
 	for deviceID, points := range devicePoints {
-		wg.Add(1)
-		go func(devID string, pts []pointInfo) {
-			defer wg.Done()
-			s.pollDevicePoints(devID, pts)
-		}(deviceID, points)
+		wg.Go(func() { s.pollDevicePoints(deviceID, points) })
 	}
 	wg.Wait()
 }
@@ -84,6 +78,7 @@ func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
 	lock, exists := s.deviceLocks[deviceID]
 	deviceCfg, cfgExists := s.deviceConfigs[deviceID]
 	breaker := s.deviceBreakers[deviceID]
+	ctx := s.pollCtx
 	s.mu.RUnlock()
 
 	if !exists || !cfgExists {
@@ -119,7 +114,12 @@ func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
 	defer lock.Unlock()
 
 	// 取得或建立連線
-	ctx := context.Background()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if ctx.Err() != nil {
+		return
+	}
 	conn, err := s.connMgr.GetOrCreate(ctx, deviceID, deviceCfg.Protocol, deviceCfg.Config)
 	if err != nil {
 		// 連線失敗，報告給熔斷器
@@ -139,7 +139,10 @@ func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
 
 	// 逐一讀取點位，並報告結果給熔斷器
 	for _, pt := range points {
-		err := s.pollPointWithAcquisition(conn, pt, acquisitionID)
+		if ctx.Err() != nil {
+			return
+		}
+		err := s.pollPointWithAcquisition(ctx, conn, pt, acquisitionID)
 
 		// 報告結果給熔斷器
 		if breaker != nil {

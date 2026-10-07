@@ -116,11 +116,16 @@ type Pipeline struct {
 	boundaries map[string]*managed
 	blocked    map[string]GroupStatus
 
-	lifecycle sync.Mutex
-	started   bool
-	cancel    context.CancelFunc
-	loopDone  chan struct{}
-	worker    *groupdelivery.Worker
+	lifecycle   sync.Mutex
+	started     bool
+	startDone   chan struct{}
+	startCancel context.CancelFunc
+	stopping    bool
+	stopDone    chan struct{}
+	intakeWG    sync.WaitGroup
+	cancel      context.CancelFunc
+	loopDone    chan struct{}
+	worker      *groupdelivery.Worker
 }
 
 // New builds a pipeline. Start must be called before samples are accepted.
@@ -171,24 +176,67 @@ func (p *Pipeline) report(err error) {
 // retried; it never prevents the others from starting.
 func (p *Pipeline) Start(ctx context.Context) error {
 	p.lifecycle.Lock()
-	defer p.lifecycle.Unlock()
 	if p.started {
+		p.lifecycle.Unlock()
 		return errors.New("group pipeline already started")
 	}
-	if err := p.Reconcile(ctx); err != nil {
+	if p.stopping {
+		select {
+		case <-p.stopDone:
+		default:
+			p.lifecycle.Unlock()
+			return errors.New("group pipeline is still stopping")
+		}
+	}
+	p.stopDone, p.stopping, p.started = nil, false, true
+	p.loopDone, p.cancel, p.worker = nil, nil, nil
+	p.startDone = make(chan struct{})
+	startCtx, startCancel := context.WithCancel(ctx)
+	p.startCancel = startCancel
+	p.lifecycle.Unlock()
+	defer startCancel()
+	if err := p.Reconcile(startCtx); err != nil {
 		p.report(err)
+	}
+	if err := startCtx.Err(); err != nil {
+		p.lifecycle.Lock()
+		p.started = false
+		close(p.startDone)
+		p.lifecycle.Unlock()
+		return err
 	}
 	sender := groupdelivery.NewSender(p.deps.Store, destinationResolver{destinations: p.deps.Destinations}, p.senderConfig())
 	dispatcher := groupdelivery.NewDispatcher(p.deps.Store, sender, p.config.Delivery)
-	p.worker = groupdelivery.NewWorker(p.deps.Store, dispatcher, groupdelivery.WorkerConfig{
+	worker := groupdelivery.NewWorker(p.deps.Store, dispatcher, groupdelivery.WorkerConfig{
 		Interval: p.config.WorkerInterval, NodeID: p.config.NodeID, Owner: p.config.Owner, OnError: p.report,
 		ReclaimEvery: p.config.ReclaimEvery, ReclaimRetention: p.config.ReclaimRetention,
 	})
-	if err := p.worker.Start(ctx); err != nil {
+	p.lifecycle.Lock()
+	defer p.lifecycle.Unlock()
+	defer close(p.startDone)
+	if p.stopping {
+		return errors.New("group pipeline stopped during startup")
+	}
+	// Starting the worker's recovery may perform IO; completion remains represented
+	// by startDone while StopContext can still publish the caller's deadline.
+	loopCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	p.cancel, p.worker = cancel, worker
+	p.lifecycle.Unlock()
+	err := worker.StartWithLifetime(startCtx, loopCtx)
+	p.lifecycle.Lock()
+	if err != nil {
+		p.started = false
+		cancel()
 		return err
 	}
-	loopCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	p.cancel, p.loopDone, p.started = cancel, make(chan struct{}), true
+	if err := startCtx.Err(); err != nil {
+		p.beginStopLocked(startCtx)
+		return err
+	}
+	if p.stopping {
+		return errors.New("group pipeline stopped during startup")
+	}
+	p.loopDone = make(chan struct{})
 	go p.loop(loopCtx, p.loopDone)
 	return nil
 }
@@ -239,24 +287,18 @@ func (p *Pipeline) TickAll(ctx context.Context) {
 	p.mu.Unlock()
 }
 
-// Stop ends intake ticking and shuts the delivery worker down within deadline.
-// Accepted data stays durable either way.
-func (p *Pipeline) Stop(deadline time.Duration) error {
-	p.lifecycle.Lock()
-	defer p.lifecycle.Unlock()
-	if !p.started {
-		return nil
-	}
-	p.started = false
-	p.cancel()
-	<-p.loopDone
-	return p.worker.Stop(deadline)
-}
-
 // AcceptSample implements the runtime's typed sample sink. Every boundary sees
 // the sample and ignores what is not its own. Refusals from several groups are
 // joined so a real fault is never hidden behind a benign one.
 func (p *Pipeline) AcceptSample(ctx context.Context, envelope measurement.SampleEnvelope) error {
+	p.lifecycle.Lock()
+	if p.stopping {
+		p.lifecycle.Unlock()
+		return errors.New("group pipeline is stopping")
+	}
+	p.intakeWG.Add(1)
+	p.lifecycle.Unlock()
+	defer p.intakeWG.Done()
 	p.mu.RLock()
 	current := make([]*managed, 0, len(p.boundaries))
 	for _, m := range p.boundaries {

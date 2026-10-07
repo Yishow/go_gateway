@@ -124,10 +124,16 @@ type Service struct {
 	databaseDelivery    map[string]DatabaseDeliveryDiagnostic
 	modbusShareDelivery map[string]ModbusShareDeliveryDiagnostic
 
-	stopCh    chan struct{}
-	wg        sync.WaitGroup
-	running   atomic.Bool
-	startedAt atomic.Int64
+	lifecycle     sync.Mutex
+	startDone     chan struct{}
+	stopDone      chan struct{}
+	stopErr       error
+	consumeCancel context.CancelFunc
+	startCancel   context.CancelFunc
+	stopCh        chan struct{}
+	wg            sync.WaitGroup
+	running       atomic.Bool
+	startedAt     atomic.Int64
 
 	collectedTotal  atomic.Uint64
 	writeSuccess    atomic.Uint64
@@ -191,60 +197,6 @@ func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 	s.scheduler = collector.NewScheduler(collector.DefaultSchedulerConfig(), connMgr)
 
 	return s, nil
-}
-
-// Start 啟動 runtime。
-func (s *Service) Start(ctx context.Context) error {
-	if !s.running.CompareAndSwap(false, true) {
-		return fmt.Errorf("runtime 已在運行")
-	}
-	s.startedAt.Store(time.Now().UnixNano())
-
-	if err := s.bootstrap(ctx); err != nil {
-		s.running.Store(false)
-		s.startedAt.Store(0)
-		return err
-	}
-
-	s.wg.Add(1)
-	go s.consumeLoop(context.WithoutCancel(ctx))
-	s.wg.Add(1)
-	go s.statusLoop() //nolint:contextcheck // Status refresh runs until stopCh closes, independently of the start request.
-	return nil
-}
-
-// Stop 停止 runtime。
-func (s *Service) Stop(ctx context.Context) error {
-	if !s.running.CompareAndSwap(true, false) {
-		return nil
-	}
-	s.startedAt.Store(0)
-
-	close(s.stopCh)
-	schedulerErr := s.scheduler.StopContext(ctx)
-	s.wg.Wait()
-
-	if err := s.writer.Flush(ctx); err != nil {
-		if schedulerErr != nil {
-			return fmt.Errorf("stop scheduler: %w; flush writer: %w", schedulerErr, err)
-		}
-		return err
-	}
-	if closer, ok := s.target.(interface{ Close(context.Context) error }); ok && closer != nil {
-		if err := closer.Close(ctx); err != nil {
-			if schedulerErr != nil {
-				return fmt.Errorf("stop scheduler: %w; close target: %w", schedulerErr, err)
-			}
-			return err
-		}
-	}
-	if err := s.writer.Close(); err != nil {
-		if schedulerErr != nil {
-			return fmt.Errorf("stop scheduler: %w; close writer: %w", schedulerErr, err)
-		}
-		return err
-	}
-	return schedulerErr
 }
 
 // RefreshMappings 重新載入 mapping 快取。
@@ -406,13 +358,14 @@ func (s *Service) bootstrapFromSnapshot(ctx context.Context) error {
 }
 
 func (s *Service) consumeLoop(runtimeCtx context.Context) {
-	defer s.wg.Done()
-
 	for {
 		select {
 		case <-s.stopCh:
 			return
 		case cv := <-s.scheduler.ValueChannel():
+			if runtimeCtx.Err() != nil {
+				return
+			}
 			s.consumeCollectedValue(runtimeCtx, cv)
 		}
 	}

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { RuntimeLogsLink } from '../../../features/runtime-logs/RuntimeLogsLink';
 import { useQueryClient } from '@tanstack/react-query';
 import { WorkbenchV2Shell } from '../../../features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { useActivateStudioV2WorkspaceMutation } from '../../../hooks/datalink/useStudioV2WorkspaceActivation';
@@ -67,6 +68,7 @@ function WorkbenchV2BootstrapState({ status }: WorkbenchV2BootstrapStateProps) {
             {isError ? 'ERR' : 'SYNC'}
           </div>
         </div>
+        <div className="mt-5"><RuntimeLogsLink /></div>
         <div className="mt-8 grid gap-3 sm:grid-cols-3" aria-hidden="true">
           <span className="wbv2-skeleton-line" />
           <span className="wbv2-skeleton-line" />

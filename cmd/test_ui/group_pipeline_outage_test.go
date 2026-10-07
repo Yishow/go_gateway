@@ -90,7 +90,8 @@ func newOutageEnvWith(t *testing.T, setup destinationSetup) *outageEnv {
 		exec(`INSERT INTO database_connectors (id,name,kind,connection_config,identity_revision,status,enabled) VALUES (?, ?, ?, ?, 'connector-1', 'ready', 1)`,
 			"connector-"+name, "Target "+name, kind, configJSON)
 	}
-	env.services = wireGatewayServices(db, connector.NewConnectionManager(connector.ConnectionManagerConfig{}))
+	env.services, err = wireGatewayServices(db, connector.NewConnectionManager(connector.ConnectionManagerConfig{}))
+	require.NoError(t, err)
 	record, err := env.services.workspace.AttachDevice(t.Context(), "device-1")
 	require.NoError(t, err)
 	env.workspID = record.ID

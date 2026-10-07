@@ -3,18 +3,24 @@ package storage
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 // BatchWriter 批次寫入器
 type BatchWriter struct {
-	config     BatchWriterConfig
-	underlying Writer
-	buffer     []TimeSeriesRecord
-	mu         sync.Mutex
-	flushTimer *time.Timer
-	stopCh     chan struct{}
-	wg         sync.WaitGroup
+	config      BatchWriterConfig
+	underlying  Writer
+	buffer      []TimeSeriesRecord
+	mu          sync.Mutex
+	flushTimer  *time.Timer
+	stopCh      chan struct{}
+	wg          sync.WaitGroup
+	lifecycle   sync.Mutex
+	closing     atomic.Bool
+	closeDone   chan struct{}
+	closeErr    error
+	timerCancel context.CancelFunc
 }
 
 // NewBatchWriter 建立新的批次寫入器
@@ -34,8 +40,14 @@ func NewBatchWriter(underlying Writer, config BatchWriterConfig) *BatchWriter {
 
 // Write 寫入單筆記錄
 func (bw *BatchWriter) Write(ctx context.Context, record TimeSeriesRecord) error {
+	if err := bw.checkOpen(); err != nil {
+		return err
+	}
 	bw.mu.Lock()
 	defer bw.mu.Unlock()
+	if err := bw.checkOpen(); err != nil {
+		return err
+	}
 
 	bw.buffer = append(bw.buffer, record)
 
@@ -49,8 +61,14 @@ func (bw *BatchWriter) Write(ctx context.Context, record TimeSeriesRecord) error
 
 // WriteBatch 批次寫入記錄
 func (bw *BatchWriter) WriteBatch(ctx context.Context, records []TimeSeriesRecord) error {
+	if err := bw.checkOpen(); err != nil {
+		return err
+	}
 	bw.mu.Lock()
 	defer bw.mu.Unlock()
+	if err := bw.checkOpen(); err != nil {
+		return err
+	}
 
 	bw.buffer = append(bw.buffer, records...)
 
@@ -64,8 +82,14 @@ func (bw *BatchWriter) WriteBatch(ctx context.Context, records []TimeSeriesRecor
 
 // Flush 強制刷新緩衝區
 func (bw *BatchWriter) Flush(ctx context.Context) error {
+	if err := bw.checkOpen(); err != nil {
+		return err
+	}
 	bw.mu.Lock()
 	defer bw.mu.Unlock()
+	if err := bw.checkOpen(); err != nil {
+		return err
+	}
 
 	return bw.flushLocked(ctx)
 }
@@ -89,37 +113,24 @@ func (bw *BatchWriter) flushLocked(ctx context.Context) error {
 
 // startFlushTimer 啟動定時刷新
 func (bw *BatchWriter) startFlushTimer() {
+	timerCtx, cancel := context.WithCancel(context.Background())
+	bw.timerCancel = cancel
 	bw.flushTimer = time.NewTimer(bw.config.FlushInterval)
 
-	bw.wg.Add(1)
-	go func() {
-		defer bw.wg.Done()
+	bw.wg.Go(func() {
 		for {
 			select {
 			case <-bw.stopCh:
 				bw.flushTimer.Stop()
 				return
 			case <-bw.flushTimer.C:
-				ctx, cancel := context.WithTimeout(context.Background(), bw.config.WriteTimeout)
+				ctx, cancel := context.WithTimeout(timerCtx, bw.config.WriteTimeout)
 				_ = bw.Flush(ctx)
 				cancel()
 				bw.flushTimer.Reset(bw.config.FlushInterval)
 			}
 		}
-	}()
-}
-
-// Close 關閉寫入器
-func (bw *BatchWriter) Close() error {
-	close(bw.stopCh)
-	bw.wg.Wait()
-
-	// 最後刷新
-	ctx, cancel := context.WithTimeout(context.Background(), bw.config.WriteTimeout)
-	defer cancel()
-	_ = bw.Flush(ctx)
-
-	return bw.underlying.Close()
+	})
 }
 
 // BufferSize 取得目前緩衝區大小

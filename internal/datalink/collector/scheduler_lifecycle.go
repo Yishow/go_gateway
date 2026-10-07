@@ -20,6 +20,15 @@ func (s *Scheduler) Start(groups []*schema.PollingGroup) error {
 		return fmt.Errorf("排程器已在運行")
 	}
 
+	if s.stopDone != nil {
+		select {
+		case <-s.stopDone:
+		default:
+			return fmt.Errorf("scheduler is still stopping")
+		}
+	}
+	s.stopDone = nil
+	s.pollCtx, s.pollCancel = context.WithCancel(context.Background())
 	s.ensureDeviceLocks()
 
 	s.running = true
@@ -40,36 +49,56 @@ func (s *Scheduler) Stop() error {
 	return s.StopContext(context.Background())
 }
 
-// StopContext stops polling and waits for ticker workers until ctx expires.
-// A bounded shutdown prevents a stuck protocol read from holding the process
-// open after the HTTP/runtime shutdown deadline.
+// StopContext initiates one shutdown and waits only until ctx expires. A
+// deadline is a notification limit, not proof that protocol workers stopped.
 func (s *Scheduler) StopContext(ctx context.Context) error {
 	s.mu.Lock()
-	if !s.running {
-		s.mu.Unlock()
+	if s.running {
+		s.running = false
+		close(s.stopCh)
+		if s.pollCancel != nil {
+			s.pollCancel()
+		}
+		for _, gt := range s.groupTickers {
+			close(gt.stopCh)
+			gt.ticker.Stop()
+		}
+		s.groupTickers = make(map[string]*groupTicker)
+		done := make(chan struct{})
+		s.stopDone = done
+		go func() {
+			s.wg.Wait()
+			close(done)
+		}()
+	}
+	done := s.stopDone
+	s.mu.Unlock()
+	return waitScheduler(ctx, done)
+}
+
+// WaitStopped observes the original shutdown without initiating it again.
+func (s *Scheduler) WaitStopped(ctx context.Context) error {
+	s.mu.RLock()
+	done := s.stopDone
+	running := s.running
+	s.mu.RUnlock()
+	if running {
+		return fmt.Errorf("scheduler has not been stopped")
+	}
+	return waitScheduler(ctx, done)
+}
+
+func waitScheduler(ctx context.Context, done <-chan struct{}) error {
+	if done == nil {
 		return nil
 	}
-
-	// 關閉停止信號
-	close(s.stopCh)
-
-	// 停止所有群組 Ticker
-	for _, gt := range s.groupTickers {
-		close(gt.stopCh)
-		gt.ticker.Stop()
-	}
-	s.groupTickers = make(map[string]*groupTicker)
-	s.running = false
-	s.mu.Unlock()
-
-	waitDone := make(chan struct{})
-	go func() {
-		// 等待所有 goroutine 結束（避免持有鎖造成死鎖）
-		s.wg.Wait()
-		close(waitDone)
-	}()
 	select {
-	case <-waitDone:
+	case <-done:
+		return nil
+	default:
+	}
+	select {
+	case <-done:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()

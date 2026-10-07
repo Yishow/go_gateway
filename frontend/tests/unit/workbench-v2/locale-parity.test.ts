@@ -3,6 +3,8 @@ import enWorkbench from '../../../src/i18n/locales/en/workbench-v2.json';
 import zhWorkbench from '../../../src/i18n/locales/zh-TW/workbench-v2.json';
 import enRuntime from '../../../src/i18n/locales/en/runtime-dashboard.json';
 import zhRuntime from '../../../src/i18n/locales/zh-TW/runtime-dashboard.json';
+import enLogs from '../../../src/i18n/locales/en/runtime-logs.json';
+import zhLogs from '../../../src/i18n/locales/zh-TW/runtime-logs.json';
 import enMappingErrors from '../../../src/i18n/locales/en/mapping-errors.json';
 import zhMappingErrors from '../../../src/i18n/locales/zh-TW/mapping-errors.json';
 import i18n from '../../../src/i18n/config';
@@ -22,6 +24,12 @@ function getDeepKeys(obj: Record<string, unknown>, prefix = ''): string[] {
 }
 
 describe('i18n Locale Parity and Namespace Coverage', () => {
+  it('registers complete en/zh-TW runtime-logs namespaces', () => {
+    expect(getDeepKeys(enLogs).sort()).toEqual(getDeepKeys(zhLogs).sort());
+    expect(i18n.getResourceBundle('en', 'runtime-logs')).toEqual(enLogs);
+    expect(i18n.getResourceBundle('zh-TW', 'runtime-logs')).toEqual(zhLogs);
+  });
+
   it('ensures workbench-v2 en and zh-TW have identical keys', () => {
     const enKeys = getDeepKeys(enWorkbench).sort();
     const zhKeys = getDeepKeys(zhWorkbench).sort();

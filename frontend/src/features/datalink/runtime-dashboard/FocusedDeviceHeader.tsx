@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { RuntimeLogsLink } from '../../runtime-logs/RuntimeLogsLink';
 import { Cpu, Server } from 'lucide-react';
 import type { StudioV2RuntimeContextDevice } from '../../../types/studioV2RuntimeContext';
 
@@ -83,6 +84,7 @@ export function FocusedDeviceHeader({
           </div>
         </div>
 
+        <RuntimeLogsLink />
         {/* 設備切換按鈕區 */}
         {devices.length > 0 && (
           <div className="flex flex-col gap-1.5">

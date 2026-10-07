@@ -10,7 +10,7 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
-func (s *Scheduler) pollPointWithAcquisition(conn *connector.ManagedConnection, pt pointInfo, acquisitionID string) error {
+func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connector.ManagedConnection, pt pointInfo, acquisitionID string) error {
 	req := connector.ReadRequest{
 		Address:    pt.Address,
 		Function:   pt.Function,
@@ -31,10 +31,19 @@ func (s *Scheduler) pollPointWithAcquisition(conn *connector.ManagedConnection, 
 			if backoff > 30*time.Second {
 				backoff = 30 * time.Second // 最大 30 秒
 			}
-			time.Sleep(backoff)
+			timer := time.NewTimer(backoff)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+			}
 		}
 
-		result, err = conn.Read(context.Background(), req)
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		result, err = conn.Read(ctx, req)
 		if err == nil && result.Quality == schema.QualityGood {
 			break
 		}

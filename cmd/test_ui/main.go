@@ -13,7 +13,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -21,7 +23,7 @@ import (
 	"github.com/google/uuid"
 
 	"go-gateway/internal/api"
-	"go-gateway/internal/config"
+	"go-gateway/internal/apphost"
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/connector"
 	_ "go-gateway/internal/datalink/connector/adapters" // 導入所有適配器以觸發 init() 註冊協議
@@ -29,6 +31,7 @@ import (
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/sourcerule"
+	"go-gateway/internal/desktop"
 	"go-gateway/internal/web"
 )
 
@@ -40,50 +43,70 @@ const (
 	shareOutcomeApplied = "applied"
 )
 
-// 全域變數用於控制伺服器
-var (
-	server     *http.Server
-	serverAddr string
-	shutdownCh chan struct{}
-)
+func main() { os.Exit(runCommand(os.Args[1:])) }
 
-func main() {
-	if err := runGateway(); err != nil {
-		log.Fatal(err)
+func runGateway(launch apphost.Launch) (runErr error) {
+	startupCtx, startupCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer startupCancel()
+	h := newGatewayHost(startupCtx, launch, startupCancel)
+	go func() { <-startupCtx.Done(); h.requestQuit() }() //nolint:contextcheck // Shutdown has an independent shared notification deadline.
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			runErr = apphost.NewFault("startup.failed", fmt.Errorf("gateway panic: %v", recovered))
+		}
+		if errors.Is(runErr, context.Canceled) && startupCtx.Err() != nil {
+			runErr = nil
+		}
+		runErr = finishGatewayResult(runErr, nil)
+		reportErr := errors.Join(runErr, h.shellFailure())
+		dialog := h.reportAsync(reportErr) //nolint:contextcheck // Fatal diagnostics outlive startup cancellation.
+		closeErr := h.close()              //nolint:contextcheck // Cleanup observes its own single deadline.
+		<-dialog
+		runErr = errors.Join(runErr, closeErr, h.shellFailure())
+		if reportErr == nil && runErr != nil && launch.Mode == apphost.Desktop {
+			<-h.reportAsync(apphost.NewFault("shutdown.failed", runErr)) //nolint:contextcheck // Report actual cleanup failure after completion.
+		}
+	}()
+	if err := prepareHost(h); err != nil {
+		return err
 	}
+	if startupCtx.Err() != nil {
+		return nil
+	}
+	return initializeGateway(h)
 }
 
-func runGateway() (runErr error) {
-	// 載入配置（從 .env 文件或環境變數）
-	cfg, err := config.Load()
-	if err != nil {
-		log.Printf("警告: 載入配置失敗，使用預設值: %v", err)
-		cfg = config.Get()
-	}
+func newGatewayHost(ctx context.Context, launch apphost.Launch, cancel context.CancelFunc) *gatewayHost {
+	h := &gatewayHost{launch: launch, startupCtx: ctx, startupCancel: cancel, quit: make(chan struct{}), startupDone: make(chan struct{}), shutdownDone: make(chan struct{}), newShell: desktop.New}
+	h.prepareShutdown()
+	return h
+}
 
-	// 設定日誌
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
+func initializeGateway(h *gatewayHost) (runErr error) {
 	// =========================================================================
 	// Database Setup (SQLite)
 	// =========================================================================
 	if err := preflightGroupFixtureDatabase(); err != nil {
 		return fmt.Errorf("驗收 fixture 資料庫前置檢查失敗: %w", err)
 	}
-	sqliteDSN := embeddedSQLiteDSN()
+	sqliteDSN := embeddedSQLiteDSNForPath(h.owner.Identity().Path)
 	log.Printf("SQLite DSN: %s", sqliteDSN)
 
 	db, err := sql.Open("sqlite", sqliteDSN)
 	if err != nil {
-		return fmt.Errorf("無法開啟資料庫: %w", err)
+		return apphost.NewFault("startup.db_open_failed", err)
 	}
-	defer db.Close()
+	h.db = db
 	datalink.ApplySQLitePoolDefaults(db)
 
-	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	pingCtx, pingCancel := context.WithTimeout(h.startupCtx, 5*time.Second)
 	defer pingCancel()
 	if err := db.PingContext(pingCtx); err != nil {
-		return fmt.Errorf("無法連接資料庫: %w", err)
+		return apphost.NewFault("startup.db_ping_failed", err)
+	}
+
+	if err := verifyOpenedDatabase(h.startupCtx, db, h.owner.Identity()); err != nil {
+		return apphost.NewFault("startup.path_unusable", err)
 	}
 
 	// =========================================================================
@@ -91,18 +114,14 @@ func runGateway() (runErr error) {
 	// =========================================================================
 	migrator := datalink.NewMigrator()           // Remove db arg
 	if err := migrator.Migrate(db); err != nil { // Add db arg
-		return fmt.Errorf("資料庫遷移失敗: %w", err)
+		return apphost.NewFault("startup.migration_failed", err)
 	}
 
 	// =========================================================================
 	// Connector Manager
 	// =========================================================================
 	connMgr := connector.GetConnectionManager()
-	defer func() {
-		if err := connMgr.CloseAll(); err != nil {
-			log.Printf("關閉 ConnectionManager 失敗: %v", err)
-		}
-	}()
+	h.connections = connMgr
 	log.Println("ConnectionManager 已初始化")
 
 	// 輸出已註冊的協議列表
@@ -116,31 +135,29 @@ func runGateway() (runErr error) {
 	// Repository & Service Wiring
 	// =========================================================================
 
-	services := wireGatewayServices(db, connMgr)
-	fixtureCleanup, err := services.fixture.configure(context.Background(), db, &services)
+	services, err := wireGatewayServicesContext(h.startupCtx, db, connMgr, h.logs)
+	if err != nil {
+		return apphost.NewFault("startup.service_failed", err)
+	}
+	h.runtime, h.pipeline, h.share = services.runtime, services.groupPipe, services.modbusShare
+	if h.startupCtx.Err() != nil {
+		return nil
+	}
+	fixtureCleanup, err := services.fixture.configure(h.startupCtx, db, &services)
 	if err != nil {
 		return fmt.Errorf("設定驗收 fixture 失敗: %w", err)
 	}
-	defer func() {
-		if cleanupErr := fixtureCleanup(); cleanupErr != nil {
-			runErr = errors.Join(runErr, fmt.Errorf("清理驗收 fixture 失敗: %w", cleanupErr))
-		}
-	}()
+	h.fixtureCleanup = fixtureCleanup
 	devSvc, pgSvc, pointSvc, tagSvc, mappingSvc := services.device, services.pollingGroup, services.point, services.tag, services.mapping
 	settingsSvc, modbusShareSvc := services.settings, services.modbusShare
 	shareSettingsLoaded, workspaceSvc, auditSvc := services.shareLoaded, services.workspace, services.audit
 	dbTargetConnectorSvc, dbTargetMappingSvc := services.dbTarget, services.dbMapping
 	scheduler, runtimeSvc, sourceRuleSvc := services.scheduler, services.runtime, services.sourceRule
-	defer func() {
-		if err := modbusShareSvc.CloseRuntime(); err != nil {
-			log.Printf("關閉本機 Modbus 分享服務失敗: %v", err)
-		}
-	}()
 
 	revisionStore := modbusshare.NewSQLWorkspaceRevisionStore(db)
 	reconciler := modbusshare.NewReconciler(modbusShareSvc, revisionStore)
 	configureShareRuntimeReconciler(sourceRuleSvc, workspaceSvc, modbusShareSvc, revisionStore, reconciler)
-	workspaceRecord, workspaceErr := workspaceSvc.GetOrCreate(context.Background())
+	workspaceRecord, workspaceErr := workspaceSvc.GetOrCreate(h.startupCtx)
 	//nolint:gocritic // Startup branches preserve the required hydration failure precedence.
 	if !shareSettingsLoaded {
 		modbusShareSvc.SetHydrationState(modbusshare.HydrationState{State: modbusshare.HydrationStateFailed, Readiness: false})
@@ -151,7 +168,7 @@ func runGateway() (runErr error) {
 		reconciler.WithOwnershipValidator(sourcerule.NewShareDesiredMappingOwnershipChecker(workspaceSvc, sourceRuleSvc, tagSvc, modbusShareSvc.Settings, mappingSvc))
 
 		settingsSnapshot := modbusShareSvc.Settings()
-		workspaceRevision, _, revisionErr := revisionStore.GetRevision(context.Background(), workspaceRecord.ID)
+		workspaceRevision, _, revisionErr := revisionStore.GetRevision(h.startupCtx, workspaceRecord.ID)
 		//nolint:gocritic // Revision, empty-state, and enabled-state checks intentionally remain ordered.
 		if revisionErr != nil {
 			log.Printf("讀取 Share workspace revision 失敗，hydration 維持 failed: %v", revisionErr)
@@ -163,7 +180,7 @@ func runGateway() (runErr error) {
 			// Source-rule candidates are the sole restart authority. The durable
 			// mapping snapshot is evidence for reconcile rollback/consistency,
 			// never a competing desired-state source.
-			if out, err := sourceRuleSvc.RestoreLocalModbusProjectionForDevices(context.Background(), workspaceRecord.ID, workspaceRevision, settingsSnapshot, workspaceRecord.OrderedDeviceIDs, reconciler); err != nil || (out.Outcome != shareOutcomeAligned && out.Outcome != shareOutcomeApplied) {
+			if out, err := sourceRuleSvc.RestoreLocalModbusProjectionForDevices(h.startupCtx, workspaceRecord.ID, workspaceRevision, settingsSnapshot, workspaceRecord.OrderedDeviceIDs, reconciler); err != nil || (out.Outcome != shareOutcomeAligned && out.Outcome != shareOutcomeApplied) {
 				if err != nil {
 					log.Printf("本機 Modbus 分享服務 source-rule projection 還原失敗，hydration 維持 failed: %v", err)
 				}
@@ -175,34 +192,31 @@ func runGateway() (runErr error) {
 			modbusShareSvc.SetHydrationState(modbusshare.HydrationState{State: modbusshare.HydrationStateReady, WorkspaceID: workspaceRecord.ID, WorkspaceRevision: workspaceRevision, SettingsRevision: settingsSnapshot.SettingsRevision, Readiness: true, ReadinessToken: uuid.NewString()})
 		}
 	}
-	startConfiguredShareListener(context.Background(), modbusShareSvc)
+	if h.startupCtx.Err() != nil {
+		return nil
+	}
+	startConfiguredShareListener(h.startupCtx, modbusShareSvc)
+	if hydration, err := modbusShareSvc.CheckHydration(h.startupCtx); err != nil || hydration.State != modbusshare.HydrationStateReady {
+		h.emit("runtime.share_degraded", nil)
+	}
 	// Applied groups must be hydrated and their delivery recovered before any
 	// sample can be accepted; running without the pipeline would silently drop
 	// the data of groups that own their outputs, so a failed start is fatal.
-	if err := services.groupPipe.Start(context.Background()); err != nil {
-		return fmt.Errorf("寫入群組 pipeline 啟動失敗: %w", err)
+	if err := services.groupPipe.Start(h.startupCtx); err != nil {
+		return apphost.NewFault("startup.pipeline_failed", err)
 	}
-	defer func() {
-		if err := services.groupPipe.Stop(5 * time.Second); err != nil {
-			log.Printf("關閉寫入群組 pipeline 逾時，未送出的資料會在下次啟動時恢復: %v", err)
-		}
-	}()
-	if err := runtimeSvc.Start(context.Background()); err != nil {
-		log.Printf("datalink runtime 啟動失敗，runtime 功能將不可用: %v", err)
+
+	if h.startupCtx.Err() != nil {
+		return nil
 	}
-	defer func() {
-		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := runtimeSvc.Stop(stopCtx); err != nil {
-			log.Printf("關閉 datalink runtime 失敗: %v", err)
-		}
-	}()
+	h.startAcquisition(h.startupCtx, runtimeSvc)
 
 	measurementSvc := measurement.NewService(measurement.NewSQLRepository(db))
 	recordingPlanSvc := services.recordingPlan
 	historySvc := history.NewService(history.NewMemoryHistoryRepository())
 
 	datalinkServices := &api.DatalinkServices{
+		Diagnostics:                h.logs,
 		Device:                     devSvc,
 		Point:                      pointSvc,
 		Tag:                        tagSvc,
@@ -228,25 +242,12 @@ func runGateway() (runErr error) {
 		RecordingStartShareBarrier: newRecordingStartShareBarrier(sourceRuleSvc, modbusShareSvc),
 	}
 
+	if h.startupCtx.Err() != nil {
+		return nil
+	}
 	router := api.NewRouter(datalinkServices)
 
 	web.SetupStaticFiles(router, staticFiles)
 
-	serverAddr = cfg.GetServerAddr()
-	server = &http.Server{
-		Addr:         serverAddr,
-		Handler:      router,
-		ReadTimeout:  0,                 // SSE 連接需要無讀取超時
-		WriteTimeout: 0,                 // SSE 連接需要無寫入超時
-		IdleTimeout:  120 * time.Second, // 空閒超時設為 120 秒
-	}
-
-	shutdownCh = make(chan struct{})
-
-	go startServer()
-
-	go handleSignals()
-
-	<-shutdownCh
-	return nil
+	return h.serve(router)
 }

@@ -132,8 +132,7 @@ func TestService_StatusEventMatchesAlignedRuntimeSnapshot(t *testing.T) {
 	}
 	svc.running.Store(true)
 
-	svc.wg.Add(1)
-	go svc.statusLoop()
+	svc.wg.Go(svc.statusLoop)
 	t.Cleanup(func() {
 		close(svc.stopCh)
 		svc.wg.Wait()

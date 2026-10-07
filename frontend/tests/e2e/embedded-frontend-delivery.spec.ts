@@ -125,7 +125,7 @@ test.describe('Embedded frontend delivery smoke', () => {
 
     const frontendRoot = join(repoRoot, 'frontend');
     const staticRoot = join(repoRoot, 'cmd', 'test_ui', 'static');
-    await runProcess(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'], { cwd: frontendRoot });
+    await runProcess(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'], { cwd: frontendRoot, env: { VITE_API_BASE_URL: '/api/v1' } });
     await rm(join(staticRoot, 'assets'), { recursive: true, force: true });
     await cp(join(frontendRoot, 'dist'), staticRoot, { recursive: true, force: true });
     await runProcess('go', ['build', '-o', binary, './cmd/test_ui'], { cwd: repoRoot });
@@ -134,6 +134,11 @@ test.describe('Embedded frontend delivery smoke', () => {
       env: {
         ...process.env,
         PORT: String(port),
+        HOST: '127.0.0.1',
+        API_BASE_PATH: '/api/v1',
+        GATEWAY_DB_PATH: join(workDir, 'datalink.db'),
+        LOG_FILE: join(workDir, 'gateway-runtime.jsonl'),
+        LOG_OUTPUT: 'console',
         AUTO_OPEN_BROWSER: 'false',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -214,6 +219,37 @@ test.describe('Embedded frontend delivery smoke', () => {
   test('/studio/runtime keeps the focused monitor route loadable', async ({ page }) => {
     await openRoute(page, '/studio/runtime?device_id=device-A', '[data-testid="runtime-dashboard-route-state"]');
     await expect(page).toHaveURL(/\/studio\/runtime\?device_id=device-A/);
+  });
+
+  test('/studio/logs connects locally and browser controls preserve logging', async ({ page }, testInfo) => {
+    await page.addInitScript(() => localStorage.setItem('i18nextLng', 'en'));
+    const observer = await openRoute(page, '/studio/logs', 'h1');
+    await expect(page.getByRole('heading', { name: 'Runtime logs' })).toBeVisible();
+    await expect(page.getByRole('status')).toHaveText('Connected');
+    expect(assetPaths(observer).some((path) => path.includes('RuntimeLogsPage-'))).toBe(true);
+    await page.getByLabel('Minimum severity').selectOption('warn');
+    await page.getByLabel('Source (exact ID)').selectOption('runtime');
+    await page.getByLabel('Search safe text').fill('no-match-embedded-smoke');
+    await page.getByRole('button', { name: 'Apply filters' }).click();
+    await expect(page.getByRole('status')).toHaveText('Connected');
+    await expect(page.getByText('No matching retained records')).toBeVisible();
+    await page.getByRole('button', { name: 'Pause view' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('status')).toHaveText('Paused');
+    await page.getByRole('button', { name: 'Clear view' }).click();
+    const snapshot = await page.request.get(`${baseURL}/api/v1/system/logs`);
+    expect(snapshot.ok()).toBe(true);
+    expect(Array.isArray((await snapshot.json()).records)).toBe(true);
+    await page.getByRole('button', { name: 'Resume view' }).click();
+    await expect(page.getByRole('status')).toHaveText('Connected');
+    await page.getByLabel('Follow tail').uncheck();
+    await expect(page.getByLabel('Follow tail')).not.toBeChecked();
+    await page.screenshot({ path: testInfo.outputPath('runtime-logs-embedded.png'), fullPage: true });
+    await page.getByRole('link', { name: 'Open runtime monitor' }).click();
+    await expect(page.getByRole('link', { name: 'Runtime logs' })).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole('heading', { name: 'Runtime logs' })).toBeVisible();
+    await expect(page.getByRole('status')).toHaveText('Connected');
   });
 
   test('/test keeps the independent engineering tool loadable', async ({ page }) => {

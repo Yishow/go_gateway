@@ -5,14 +5,14 @@
 
 ## 2. 先安全投影，再加入有限保留
 
-- [ ] 2.1 建立safe event schema與bounded broker，先用secret fixture、未知raw error、8KiB截斷、count/byte双邊界、burst/admission drop、sequence identity並行測試RED，再完成模板／欄位白名單、ring與drop counters的GREEN及race檢查；所有新sink只收safe events
+- [x] 2.1 建立safe event schema與bounded broker，先用secret fixture、未知raw error、8KiB截斷、count/byte双邊界、burst/admission drop、sequence identity並行測試RED，再完成模板／欄位白名單、ring與drop counters的GREEN及race檢查；所有新sink只收safe events
 - [ ] 2.2 [after: 2.1, 1.1] 實作非阻塞bounded diagnostic file sink與3檔15MiB輪替：測同目錄多DB各自namespace、LOG_FILE/backup碰撞與DB/WAL/SHM alias拒絕、symlink/reparse競態、初始無權限、disk full、writer stall、恢復gap及shutdown flush；只輪替owned files，native early error只顯示確實保存的檔案，不影響DB/outbox/receipt
-- [ ] 2.3 [after: 2.2, 1.2] 盤點並接入production standard log／slog／Gin safe access與recovery／HTTP ErrorLog／startup/shutdown必要producer；替必要runtime錯誤提供safe code，禁止raw stdout/stderr tee；測秘密不進任何新sink、log endpoint不自我放大、console formatter及 `/debug/logs` 原契約另行維持，記錄未捕捉範圍
+- [x] 2.3 [after: 2.2, 1.2] 盤點並接入production standard log／slog／Gin safe access與recovery／HTTP ErrorLog／startup/shutdown必要producer；替必要runtime錯誤提供safe code，禁止raw stdout/stderr tee；測秘密不進任何新sink、log endpoint不自我放大、console formatter及 `/debug/logs` 原契約另行維持，記錄未捕捉範圍
 
 ## 3. 有本機門禁的 API 與網頁
 
-- [ ] 3.1 [after: 2.3] 在 `internal/api/router.go` 與新handler加入log-only guard及snapshot；以IPv4/IPv6、無Origin正常GET、同源Origin、Host/port/DNS rebinding、LAN、proxy headers、Sec-Fetch-Site same-site無Origin／重複／malformed與wildcard CORS繞過負測試驗證，再加入bounded filter/search/page/cursor及safe錯誤；其他route政策不變
-- [ ] 3.2 [after: 3.1] 以 Red-Green-Refactor 完成snapshot→bounded replay→live原子邊界與SSE：測同時append、鎖不跨IO、replay大於live queue／replay-limit gap、相同filter語意與無matching時progress、Last-Event-ID衝突、future cursor、retention/restart gap、8-client上限、slow consumer隔離、5秒write deadline及並行cancel/shutdown無洩漏；重連ID採字串不丟JS精度
+- [x] 3.1 [after: 2.3] 在 `internal/api/router.go` 與新handler加入log-only guard及snapshot；以IPv4/IPv6、無Origin正常GET、同源Origin、Host/port/DNS rebinding、LAN、proxy headers、Sec-Fetch-Site same-site無Origin／重複／malformed與wildcard CORS繞過負測試驗證，再加入bounded filter/search/page/cursor及safe錯誤；其他route政策不變
+- [x] 3.2 [after: 3.1] 以 Red-Green-Refactor 完成snapshot→bounded replay→live原子邊界與SSE：測同時append、鎖不跨IO、replay大於live queue／replay-limit gap、相同filter語意與無matching時progress、Last-Event-ID衝突、future cursor、retention/restart gap、8-client上限、slow consumer隔離、5秒write deadline及並行cancel/shutdown無洩漏；重連ID採字串不丟JS精度
 - [ ] 3.3 [after: 3.2] 依UI測試先行新增 `/studio/logs` 的lazy route與Studio/runtime入口，涵蓋level/source/search、pause/resume/tail/clear、browser雙容量界線、A→B遲到回覆、單一reconnect owner、403停止重試、plain-text XSS及en／zh-TW鍵盤可達狀態；執行focused Vitest及embedded Playwright
 
 ## 4. Windows 本機操作與安全退出
@@ -28,4 +28,4 @@
 - [ ] 5.3 [after: 5.2] 在Windows互動桌面驗收portable單exe、無Node/Go環境、無console/閃窗、tray keyboard/overflow、Explorer restart、duplicate launch、DB歧義／只讀路徑、port衝突、startup fatal、離線log與disk fault、正常/逾時退出；另測GUI exe explicit headless在cmd/PowerShell/supervisor的redirect、wait、exit status與AUTO_OPEN_BROWSER override，核對legacy console及Linux/macOS CLI；相同artifact的embedded logs＋durable recovery證據要可追溯
 - [ ] 5.4 [after: 5.3] 更新使用與交接文件：build命令／選單／模式／資料路徑選擇／local-only限制／logging容量與不可捕捉範圍／timeout與rollback；若修改 `docs/technical/studio-surface-inventory/` 則依repo規則同步changelog DB。逐scenario對照證據後才討論archive；缺實機平台、field或正式DB驗證明列NOT RUN，不在本案自行部署
 
-本檔全部為後續實作任務。規格文件完成、CLI artifacts顯示done或通過strict validate，皆不使上述checkbox完成。數值為design的契約上限，非此輪效能測量。
+本輪僅依實際自動化證據勾選 4/15；其餘 11 項保留未完成，逐项原因及 A/B/C 分類見 [實作驗證記錄](../../../docs/technical/windows-tray-runtime-logs-evidence.md)。原始碼重建後重新執行測試，不沿用遺失工作目錄的 PASS。規格文件完成、CLI artifacts 顯示 done 或通過 strict validate，均不代表 Windows／browser 驗收完成。數值為 design 契約上限，非吞吐量承諾。

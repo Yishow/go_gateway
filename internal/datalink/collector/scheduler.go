@@ -5,6 +5,7 @@
 package collector
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -140,8 +141,11 @@ type Scheduler struct {
 	acquisitionID func() string
 
 	// 停止信號
-	stopCh chan struct{}
-	wg     sync.WaitGroup
+	stopCh     chan struct{}
+	stopDone   chan struct{}
+	pollCtx    context.Context
+	pollCancel context.CancelFunc
+	wg         sync.WaitGroup
 }
 
 // groupTicker 輪詢群組 Ticker

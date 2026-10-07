@@ -13,6 +13,8 @@ import zhTWWorkbenchV2Translations from './locales/zh-TW/workbench-v2.json';
 import zhTWRuntimeDashboardTranslations from './locales/zh-TW/runtime-dashboard.json';
 import enMappingErrors from './locales/en/mapping-errors.json';
 import zhTWMappingErrors from './locales/zh-TW/mapping-errors.json';
+import enRuntimeLogs from './locales/en/runtime-logs.json';
+import zhTWRuntimeLogs from './locales/zh-TW/runtime-logs.json';
 import { logger } from '../utils/logger';
 import { mergeTranslations } from './mergeTranslations';
 
@@ -43,6 +45,7 @@ i18n
         'mapping-errors': enMappingErrors,
         'workbench-v2': enWorkbenchV2Translations,
         'runtime-dashboard': enRuntimeDashboardTranslations,
+        'runtime-logs': enRuntimeLogs,
       },
       'zh-TW': {
         translation: mergeTranslations(
@@ -53,6 +56,7 @@ i18n
         'mapping-errors': zhTWMappingErrors,
         'workbench-v2': zhTWWorkbenchV2Translations,
         'runtime-dashboard': zhTWRuntimeDashboardTranslations,
+        'runtime-logs': zhTWRuntimeLogs,
       },
     },
     fallbackLng: 'en', // 預設語言為英文

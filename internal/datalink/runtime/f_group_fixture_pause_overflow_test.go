@@ -55,10 +55,7 @@ func TestPauseFixtureWaitsForInFlightConsumer(t *testing.T) {
 		stop()
 		svc.wg.Wait()
 	})
-	// consumeLoop owns its matching Done call, so it must be paired with Add
-	// rather than WaitGroup.Go (which also calls Done).
-	svc.wg.Add(1)
-	go svc.consumeLoop(context.Background())
+	svc.wg.Go(func() { svc.consumeLoop(t.Context()) })
 
 	value := typedRuntimeValue(binding)
 	if !svc.scheduler.EmitFixtureValue(value) {

@@ -1,5 +1,24 @@
 .PHONY: build-frontend sync-frontend-static build-backend build clean test-ui gen-docs gate-smoke gate-final gate-soak gatev11 gatev12 points-precheck-up points-precheck-down points-migrate-up points-migrate-down longtask-smoke cross-platform-loop check-lines
 
+# Explicit desktop releases; existing console development remains the default.
+BUILD_MODE ?= console
+TARGET_GOOS ?= $(shell go env GOOS)
+BUILD_VERSION ?= dev
+BUILD_COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || printf unknown)$(shell test -z "$$(git status --porcelain --untracked-files=normal 2>/dev/null)" || printf +dirty)
+BUILD_TAGS :=
+BUILD_OUTPUT := bin/test-ui.exe
+BUILD_LDFLAGS := -X go-gateway/internal/desktop.Version=$(BUILD_VERSION) -X go-gateway/internal/desktop.Commit=$(BUILD_COMMIT)
+ifeq ($(BUILD_MODE),desktop)
+ifneq ($(TARGET_GOOS),windows)
+$(error desktop requires TARGET_GOOS=windows)
+endif
+BUILD_TAGS := -tags desktop
+BUILD_OUTPUT := bin/gateway-desktop.exe
+BUILD_LDFLAGS += -H=windowsgui
+else ifneq ($(BUILD_MODE),console)
+$(error BUILD_MODE must be console or desktop)
+endif
+
 GATE_WORKDIR ?= $(CURDIR)
 GATE_SMOKE_DURATION ?= 60s
 GATE_FINAL_DURATION ?= 10m
@@ -18,12 +37,13 @@ build-frontend:
 
 # 同步前端 build 到 embed 目錄
 sync-frontend-static: build-frontend
+	test -s frontend/dist/index.html
 	mkdir -p cmd/test_ui/static
 	cp -R frontend/dist/. cmd/test_ui/static/
 
 # 建置後端（包含前端）
 build-backend: sync-frontend-static
-	go build -o bin/test-ui.exe ./cmd/test_ui
+	GOOS=$(TARGET_GOOS) go build $(BUILD_TAGS) -trimpath -ldflags "$(BUILD_LDFLAGS)" -o $(BUILD_OUTPUT) ./cmd/test_ui
 
 # 建置測試工具
 build: build-backend
@@ -36,7 +56,7 @@ clean:
 
 # 執行測試工具
 test-ui: build
-	./bin/test-ui.exe
+	./$(BUILD_OUTPUT)
 
 # 產生 Swagger API 文檔
 gen-docs:

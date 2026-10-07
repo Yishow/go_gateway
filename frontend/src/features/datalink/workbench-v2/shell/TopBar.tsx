@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
+import { RuntimeLogsLink } from '../../../runtime-logs/RuntimeLogsLink';
 import { Button, Icon } from '../components';
 
 export interface TopBarProps {
@@ -66,6 +67,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* 右側按鈕與排程狀態 */}
         <div className="ml-auto flex items-center gap-2">
+          <RuntimeLogsLink />
           <Button variant="ghost" size="sm" icon={<Icon name="save" className="w-3.5 h-3.5" />} className="hidden sm:inline-flex">
             儲存草稿
           </Button>

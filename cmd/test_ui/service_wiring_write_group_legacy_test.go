@@ -40,7 +40,8 @@ func TestProductionServicesLegacyWriteGuardBeforeRouterCreation(t *testing.T) {
 		(id,name,kind,connection_config,identity_revision,status,enabled)
 		VALUES ('connector-A','Target','sqlite',?,'connector-1','ready',1)`, string(config))
 	require.NoError(t, err)
-	services := wireGatewayServices(db, connector.NewConnectionManager(connector.ConnectionManagerConfig{}))
+	services, err := wireGatewayServices(db, connector.NewConnectionManager(connector.ConnectionManagerConfig{}))
+	require.NoError(t, err)
 	record, err := services.workspace.AttachDevice(t.Context(), "device-A")
 	require.NoError(t, err)
 	group, err := services.writeGroups.Create(t.Context(), workspace.WriteGroupMutation{

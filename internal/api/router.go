@@ -24,6 +24,7 @@ import (
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/datalink/workspace"
+	"go-gateway/internal/diagnostics"
 
 	_ "go-gateway/docs/swagger" // Swagger docs
 
@@ -34,6 +35,7 @@ import (
 
 // DatalinkServices 包含所有 Datalink 相關服務
 type DatalinkServices struct {
+	Diagnostics           *diagnostics.Broker
 	Device                *device.Service
 	Point                 *point.Service
 	Tag                   *tag.Service
@@ -85,11 +87,13 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 
 	// 中間件
 	router.Use(customLoggerMiddleware()) // 使用自定義日誌中間件，過濾頻繁的 debug API 請求
-	router.Use(gin.Recovery())
+	router.Use(managedHTTPMiddleware(datalinkServices.Diagnostics, cfg.API.BasePath))
+	router.Use(managedRecoveryMiddleware(datalinkServices.Diagnostics))
 	router.Use(corsMiddleware(cfg))
 
 	// API 路由群組（使用配置中的路徑）
 	apiV1 := router.Group(cfg.API.BasePath)
+	registerRuntimeLogRoutes(apiV1, datalinkServices.Diagnostics)
 	{
 		// WebSocket 端點（保留用於其他用途）
 		wsHandler := handlers.NewWebSocketHandler()
@@ -394,6 +398,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 
 	// Swagger API 文檔
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	registerManagedHTTPRoutes(router, datalinkServices.Diagnostics)
 
 	return router
 }
@@ -403,6 +408,8 @@ func customLoggerMiddleware() gin.HandlerFunc {
 	// 配置 Logger，跳過頻繁輪詢的 API 路徑
 	// 這些是前端定期輪詢的 API，不需要每次都記錄日誌
 	skipPaths := []string{
+		strings.TrimRight(config.Get().API.BasePath, "/") + "/system/logs",
+		strings.TrimRight(config.Get().API.BasePath, "/") + "/system/logs/stream",
 		"/api/v1/debug/packets",
 		"/api/v1/debug/logs",
 		"/api/v1/test/status", // 狀態檢查也可能頻繁輪詢
@@ -434,6 +441,10 @@ func formatHTTPLog(param gin.LogFormatterParams) string {
 // corsMiddleware 處理 CORS 跨域請求
 func corsMiddleware(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if runtimeLogPath(c.Request.URL.Path, cfg.API.BasePath) {
+			c.Next()
+			return
+		}
 		// 設定允許的來源
 		origin := c.Request.Header.Get("Origin")
 		allowOrigin := "*"
