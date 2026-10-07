@@ -28,4 +28,14 @@
 - [ ] 5.3 [after: 5.2] 在Windows互動桌面驗收portable單exe、無Node/Go環境、無console/閃窗、tray keyboard/overflow、Explorer restart、duplicate launch、DB歧義／只讀路徑、port衝突、startup fatal、離線log與disk fault、正常/逾時退出；另測GUI exe explicit headless在cmd/PowerShell/supervisor的redirect、wait、exit status與AUTO_OPEN_BROWSER override，核對legacy console及Linux/macOS CLI；相同artifact的embedded logs＋durable recovery證據要可追溯
 - [ ] 5.4 [after: 5.3] 更新使用與交接文件：build命令／選單／模式／資料路徑選擇／local-only限制／logging容量與不可捕捉範圍／timeout與rollback；若修改 `docs/technical/studio-surface-inventory/` 則依repo規則同步changelog DB。逐scenario對照證據後才討論archive；缺實機平台、field或正式DB驗證明列NOT RUN，不在本案自行部署
 
+## 6. 程式碼審查修正（`eea0b3e5`～`5cb8b960` diff 審查）
+
+- [x] 6.1 關閉時被取消的timer flush不遺失已接受的time-series：`BatchWriter` 在closing且context結束的寫入失敗時把該批放回buffer，由最後close flush寫入；驗證 `TestBatchWriterShutdownRetainsRecordsFromCanceledTimerFlush`（修正前RED：資料為nil），既有 `TestBatchWriterShutdownTimeoutKeepsTimerStorageOwned` 仍證明Close會取消timer
+- [x] 6.2 [after: 6.1] 呼叫端shutdown deadline只限制等待、不中止最後flush：`BatchWriter` close使用自己的 `WriteTimeout` context，runtime `finishStop` 在scheduler逾時後仍能寫入最後一批；驗證 `TestBatchWriterShutdownFinalFlushOutlivesExpiredCallerContext`（修正前RED：context canceled）及 `internal/datalink/runtime` race tests
+- [x] 6.3 開著WebSocket時關閉不卡在HTTP phase：`/api/v1/ws` echo與monitor stream在server base context取消時關閉hijacked連線，使request gate的 `wait()` 可結束；驗證 `TestWebSocketHandlersCloseWhenServerContextEnds`（修正前RED：兩個handler皆逾時未返回）
+- [x] 6.4 Subscriber overflow只標記發生overflow的stream：broker共用metadata不再放 `subscriber_overflow` gap，overflow的stream在write deadline內送typed gap後斷線，前端snapshot／heartbeat不以共用計數推論gap；驗證 `TestRuntimeLogOverflowGapStaysWithItsOwnStream`（修正前RED）與Vitest `marks a gap only for its own overflow, not another client's shared counter`（修正前RED）
+- [x] 6.5 例行輪詢不擠掉startup/runtime事件：`http.access` 只記mutation、status>=400與耗時>=1秒的請求，快速成功的GET／HEAD／OPTIONS略過；驗證 `TestManagedHTTPAccessSkipsRoutineReads`，既有 `TestManagedHTTPProjectionPreservesTemplatesAndSuppressesSecrets` 仍通過
+
+審查其餘建議（broker鎖內case fold、raw.suppressed遺失錯誤原因、靜態路由缺route欄位、未發送的 `runtime.stopped`／`shutdown.complete` 模板、逐筆fsync吞吐）未納入本組，留待後續評估；未列為完成。6.1–6.5 依2026-10-08本機 `go test -race`（storage、runtime、api、api/handlers）、golangci-lint（storage、api 0 issues）、完整Vitest 1302 passed及修正前RED結果勾選；`internal/diagnostics` 與 `cmd/test_ui` 有5＋1個file sink路徑驗證測試在未修改的HEAD上同樣失敗，與本組無關，仍待處理。
+
 本輪僅依實際自動化證據勾選 4/15；其餘 11 項保留未完成，逐项原因及 A/B/C 分類見 [實作驗證記錄](../../../docs/technical/windows-tray-runtime-logs-evidence.md)。原始碼重建後重新執行測試，不沿用遺失工作目錄的 PASS。規格文件完成、CLI artifacts 顯示 done 或通過 strict validate，均不代表 Windows／browser 驗收完成。數值為 design 契約上限，非吞吐量承諾。

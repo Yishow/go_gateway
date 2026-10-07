@@ -176,3 +176,65 @@ func TestRuntimeLogUnsupportedDeadlineFailsClosed(t *testing.T) {
 		subscriptions = append(subscriptions, sub)
 	}
 }
+
+// blockingLogRecorder stalls the first log frame so the live queue overflows.
+type blockingLogRecorder struct {
+	logDeadlineRecorder
+	entered, release chan struct{}
+	blocked          bool
+}
+
+func (w *blockingLogRecorder) Write(p []byte) (int, error) {
+	if !w.blocked && strings.HasPrefix(string(p), "event: log") {
+		w.blocked = true
+		close(w.entered)
+		<-w.release
+	}
+	return w.logDeadlineRecorder.Write(p)
+}
+
+func TestRuntimeLogOverflowGapStaysWithItsOwnStream(t *testing.T) {
+	b := newRuntimeLogBroker(t)
+	r := gin.New()
+	h := &runtimeLogHandler{broker: b, heartbeat: time.Minute}
+	r.GET("/logs", h.stream)
+	w := &blockingLogRecorder{logDeadlineRecorder: logDeadlineRecorder{ResponseRecorder: httptest.NewRecorder()}, entered: make(chan struct{}), release: make(chan struct{})}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/logs", http.NoBody)
+	done := make(chan struct{})
+	go func() { defer close(done); r.ServeHTTP(w, req) }()
+	b.Emit(diagnostics.Input{Code: "runtime.started"})
+	select {
+	case <-w.entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("stream did not start writing")
+	}
+	for range diagnostics.LiveRecords + 1 {
+		b.Emit(diagnostics.Input{Code: "startup.ready"})
+	}
+	if err := b.Flush(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	close(w.release)
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("overflowed stream did not end")
+	}
+	if !strings.Contains(w.Body.String(), `event: gap`) || !strings.Contains(w.Body.String(), `"reason":"subscriber_overflow"`) {
+		t.Fatalf("overflowed stream got no typed gap:\n%s", w.Body.String())
+	}
+	fresh, err := b.Subscribe(diagnostics.Query{}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fresh.Close()
+	meta := fresh.Metadata()
+	if meta.SubscriberOverflow != 1 {
+		t.Fatalf("overflow counter hidden: %+v", meta)
+	}
+	for _, gap := range meta.Gaps {
+		if gap.Reason == "subscriber_overflow" {
+			t.Fatalf("another client's overflow reported as this stream's gap: %+v", meta.Gaps)
+		}
+	}
+}

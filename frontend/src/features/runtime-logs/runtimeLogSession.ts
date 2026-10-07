@@ -58,8 +58,8 @@ export class RuntimeLogSession {
     } else if (event.type === 'handshake' || event.type === 'heartbeat') {
       const prior = this.state.metadata;
       this.patch({ metadata: event.metadata,
-        gap: this.state.gap || event.metadata.capture_dropped > (prior?.capture_dropped ?? 0) ||
-          (event.metadata.subscriber_overflow ?? 0) > (prior?.subscriber_overflow ?? 0),
+        // subscriber_overflow is shared by all clients; this stream's own overflow arrives as a gap frame.
+        gap: this.state.gap || event.metadata.capture_dropped > (prior?.capture_dropped ?? 0),
         fileGap: this.state.fileGap || (event.metadata.file_dropped ?? 0) > 0 || (event.metadata.file_recovered_gaps ?? 0) > 0 });
       if (event.type === 'handshake') { this.attempt = 0; this.patch({ status: 'connected' }); }
     } else if (event.type === 'reset') {
@@ -80,7 +80,7 @@ export class RuntimeLogSession {
         if (!current()) return;
         this.cursor = result.latest_cursor; this.loaded = true;
         const { records, ...metadata } = result;
-        this.patch({ metadata, records: [], gap: result.capture_dropped > 0 || (result.subscriber_overflow ?? 0) > 0,
+        this.patch({ metadata, records: [], gap: result.capture_dropped > 0,
           fileGap: (result.file_dropped ?? 0) > 0 || (result.file_recovered_gaps ?? 0) > 0, lastUpdate: new Date().toISOString() });
         this.append(records);
       }

@@ -67,9 +67,17 @@ func (h *runtimeLogHandler) stream(c *gin.Context) {
 			nextHeartbeat = time.Now().Add(h.heartbeat)
 			continue
 		}
+		if errors.Is(err, diagnostics.ErrOverflow) {
+			// Overflow belongs to this stream only; the shared counter stays in metadata.
+			// Best effort: a stalled client sees the loss on its next handshake instead.
+			if err := writeRuntimeLogFrame(c.Writer, controller, "gap", "", diagnostics.Gap{Reason: "subscriber_overflow"}); err != nil {
+				return
+			}
+			return
+		}
 		if err != nil {
 			return
-		} // Overflow/cancellation remains visible on reconnect.
+		}
 		if err := writer.losses(sub.Metadata()); err != nil {
 			return
 		}
@@ -102,8 +110,6 @@ func (w *runtimeLogStreamWriter) losses(meta diagnostics.Metadata) error {
 		switch gap.Reason {
 		case "admission":
 			state.counter = meta.CaptureDropped
-		case "subscriber_overflow":
-			state.counter = meta.SubscriberOverflow
 		case "file_loss":
 			state.counter = meta.FileDropped
 			state.recovered = meta.FileRecoveredGaps

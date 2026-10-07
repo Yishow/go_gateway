@@ -78,6 +78,7 @@
 - 進入stopping後停用再次退出操作，拒絕新的mutating HTTP工作並結束log SSE，維持native狀態可見；協調HTTP在途請求、停止runtime/scheduler intake，再停止group pipeline/delivery worker，關Share、connections、DB，最後flush diagnostics、移除tray與釋放owner lock
 - 使用既有context/cancellation seams，保留已接受的durable journal/outbox/receipt與下次recover策略；不清backlog、不把unknown升格committed，也不承諾legacy in-memory資料可恢復
 - 15秒是本案設計的「關閉等待提示期限」，不是已測效能或強制成功期限。各phase共用剩餘deadline，不疊加多個完整budget；需要修正忽略context的等待，不能在worker仍使用DB時先close DB
+- Shutdown deadline只限制呼叫端等待，不得中止已接受資料的最後寫入：time-series batch writer最後flush使用自己的WriteTimeout，被Close取消的timer批次回到buffer由最後flush寫入；`http.Server.Shutdown`不關hijacked連線，WebSocket handler須在server base context取消時自行關閉連線，HTTP phase才可能結束
 - 期限到時記錄phase及safe code，狀態為stop-timeout，native顯示「仍在關閉，尚未確認完成」，繼續觀察原協調器，不再啟第二次Stop。可等待或明確二次確認強制結束；只有這個確認允許process termination，並告知可能有未完成／unknown資料
 - Headless在deadline後記錄非成功關閉狀態，遵循supervisor/OS終止策略，不自動假稱成功；不新增遠端force-exit API
 - 初始fatal與可控panic經同一安全diagnostic sink及native錯誤路徑；native訊息有穩定錯誤碼、下一步及已成功寫入的診斷檔位置。檔案寫入也失敗時明說無保存紀錄。不能承諾攔截每個OS/runtime/third-party crash
@@ -87,7 +88,7 @@
 - 新模組提供 typed event schema：`instance_id`、十進位字串`sequence`、UTC timestamp、level、source、stable code、safe message、allowlisted scalar fields、truncated；instance每次程序新建
 - 接入標準log、slog、Gin safe access/recovery、HTTP server errors及startup/shutdown。逐項盤點production reachable producers，將必要startup/runtime錯誤改用safe code；無法可信分類的legacy/raw事件只輸出固定省略訊息與correlation，不把任意error string當safe
 - 不tee整個stdout/stderr，不複製full Config、DSN、headers/cookies、request/response body、raw SQL/args、packet bytes、endpoint或私人路徑到新sink。診斷檔路徑只在本機native視窗呈現，不進一般operator DOM
-- HTTP safe投影僅method、route template（無query values）、status、duration、opaque request ID；log API、SSE heartbeat不再產生逐筆access logs，避免自我放大
+- HTTP safe投影僅method、route template（無query values）、status、duration、opaque request ID；log API、SSE heartbeat不再產生逐筆access logs，避免自我放大。`http.access`只記mutation（非GET/HEAD/OPTIONS）、status>=400及耗時>=1秒的請求；快速成功的讀取是Studio輪詢，逐筆記錄會在數分鐘內把2000筆ring的startup/runtime事件擠出
 - 原console formatter與既有query測試保持相容，新安全投影使用独立測試；不宣稱舊console/debug歷史已全面安全。所有新sink在儲存前先做模板／欄位白名單，regex僅防禦補強
 - Desktop必有managed memory/file診斷，不建立console；headless保留console/redirect輸出，同時可供本機web讀安全事件。`LOG_LEVEL`控制managed事件入列等級（debug/info/warn/error），預設info；未知legacy訊息不從字串猜severity
 - `LOG_OUTPUT`目前未接production sink；本案只採 `.env.sample` 已列的console/file兩值，不新增both。Desktop固定保留managed file/ring；console只允許mirror已存在的標準handle，不建立視窗；file不mirror。Headless預設console保留原console行為，file可選只有safe events的managed file，不能把legacy raw console轉成新raw file sink；ring皆保留。無效值顯示safe配置錯誤，不宣稱舊版本已有此sink實作
@@ -124,7 +125,7 @@ File與network writer只消費bounded queue，不讓磁碟/網路IO卡住runtime
 - Snapshot參數為level/source/q/limit/before；只搜尋current retained safe records，返回chronological records、instance、oldest/latest cursor、drop/eviction counters與sink health。level是最低severity（debug<info<warn<error），source是穩定source ID完全相等，q是safe message/code/allowlisted string fields上的Unicode case-folded literal substring，不用regex。UI註明搜尋範圍是本次程序的有限紀錄
 - Stream沿用完全相同的level/source/q條件，以`Last-Event-ID`或首次`after`接續，兩者相衝突回400；ID為instance+sequence，sequence字串避免JS精度問題。Snapshot在短鎖內取得一致watermark H；訂閱時在另一個短鎖內取cutoff K、bounded replay副本(H,K]並註冊只收>K的live queue，隨即解鎖。不能跨HTTP請求或在serialization/network write期間持鎖；replay獨立於較小的live queue，先送replay再送live，超過replay上限明示gap/tail
 - 事件ID供dedup；被filter排除的sequence不是遺失。Handshake/heartbeat帶已處理progress watermark，只有該watermark前所有matching records已送出或明示gap後才可前進；沒有matching事件仍能推進cursor，不能跳過未送出的matching queue。Browser保留progress cursor與last matching record為不同欄位
-- 太舊cursor、重啟instance或overflow明示typed gap/reset及可取得tail；slow client已無法寫入時直接斷線，將loss metadata保留在bounded counters／下次handshake，不為送gap無限等待。未知future/malformed cursor400。filter切換建立新snapshot/stream並取消舊request/subscription，遲到回覆不可覆蓋新filter
+- 太舊cursor、重啟instance或overflow明示typed gap/reset及可取得tail；slow client已無法寫入時直接斷線，將loss metadata保留在bounded counters／下次handshake，不為送gap無限等待。Subscriber overflow屬於該stream：overflow的stream在既有5秒write deadline內best-effort送typed `subscriber_overflow` gap後斷線；共用`subscriber_overflow`計數只作metadata觀測，不放入共用gaps，browser也不以計數增加推論自身缺漏，避免他人overflow讓新開的view永遠顯示gap。未知future/malformed cursor400。filter切換建立新snapshot/stream並取消舊request/subscription，遲到回覆不可覆蓋新filter
 - 使用單一reconnect擁有者；backoff為1/2/4/8/16/30秒封頂並jitter，穩定handshake後歸零。403停止自動重試；斷線保持最後畫面及時間，沒有handshake不顯示connected
 - `/studio/logs`為lazy SPA route，Studio主頁與runtime各有入口；view可篩選level/source、safe文字搜尋、pause/resume、tail及clear view。pause只停止該view接收並保留cursor，logging/採集继续；resume若evicted顯示gap。clear只清browser，不刪server檔案或ring
 - 所有內容render為text，不執行HTML。empty/loading/connected/reconnecting/paused/access-denied/error/gap/disk-degraded都有en／zh-TW文案與鍵盤可達操作；沒有接資料不顯示示範log

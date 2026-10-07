@@ -226,9 +226,6 @@ func (b *Broker) metadataLocked() Metadata {
 	if b.dropped > 0 {
 		m.Gaps = append(m.Gaps, Gap{Reason: "admission", From: b.cursor(b.dropFirst), To: b.cursor(b.dropLast)})
 	}
-	if b.overflow > 0 {
-		m.Gaps = append(m.Gaps, Gap{Reason: "subscriber_overflow"})
-	}
 	if b.file != nil {
 		s := b.file.health()
 		m.FileDropped = s.Dropped

@@ -10,9 +10,19 @@ import (
 	"github.com/google/uuid"
 )
 
-const managedRequestID = "managed_diagnostic_request_id"
+const (
+	managedRequestID = "managed_diagnostic_request_id"
+	// managedSlowRequest keeps slow reads visible while routine polling stays out of the ring.
+	managedSlowRequest = time.Second
+)
 
 func managedHTTPMiddleware(broker *diagnostics.Broker, base string) gin.HandlerFunc {
+	return managedAccessMiddleware(broker, base, managedSlowRequest)
+}
+
+// managedAccessMiddleware records mutations, failures and slow requests. Fast
+// successful reads are Studio polling and would evict startup/runtime events.
+func managedAccessMiddleware(broker *diagnostics.Broker, base string, slow time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if broker == nil || runtimeLogPath(c.Request.URL.Path, base) {
 			c.Next()
@@ -21,10 +31,22 @@ func managedHTTPMiddleware(broker *diagnostics.Broker, base string) gin.HandlerF
 		start := time.Now()
 		c.Set(managedRequestID, uuid.NewString())
 		c.Next()
+		elapsed := time.Since(start)
+		if routineRead(c.Request.Method, c.Writer.Status()) && elapsed < slow {
+			return
+		}
 		fields := managedHTTPFields(c)
-		fields["duration_ms"] = float64(time.Since(start)) / float64(time.Millisecond)
+		fields["duration_ms"] = float64(elapsed) / float64(time.Millisecond)
 		broker.Emit(diagnostics.Input{Code: "http.access", Fields: fields})
 	}
+}
+
+func routineRead(method string, status int) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return status < http.StatusBadRequest
+	}
+	return false
 }
 
 func managedRecoveryMiddleware(broker *diagnostics.Broker) gin.HandlerFunc {

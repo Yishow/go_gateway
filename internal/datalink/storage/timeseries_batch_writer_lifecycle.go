@@ -63,8 +63,11 @@ func (bw *BatchWriter) waitClosed(ctx context.Context, done <-chan struct{}) err
 
 func (bw *BatchWriter) finishClose(ctx context.Context, done chan struct{}) {
 	bw.wg.Wait()
+	// The caller's ctx bounds only its wait; the final flush keeps its own budget.
+	flushCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), bw.config.WriteTimeout)
+	defer cancel()
 	bw.mu.Lock()
-	flushErr := bw.flushLocked(ctx)
+	flushErr := bw.flushLocked(flushCtx)
 	bw.mu.Unlock()
 	bw.closeErr = errors.Join(flushErr, bw.underlying.Close())
 	close(done)

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"go-gateway/internal/diagnostics"
 
@@ -62,5 +63,39 @@ func TestManagedHTTPProjectionPreservesTemplatesAndSuppressesSecrets(t *testing.
 	}
 	if access != 3 || recovered != 1 {
 		t.Fatalf("access=%d recovered=%d %s", access, recovered, data)
+	}
+}
+
+func TestManagedHTTPAccessSkipsRoutineReads(t *testing.T) {
+	b := newRuntimeLogBroker(t)
+	r := gin.New()
+	r.Use(managedAccessMiddleware(b, "/api/v1", 20*time.Millisecond))
+	r.GET("/status", func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/slow", func(c *gin.Context) { time.Sleep(30 * time.Millisecond); c.Status(http.StatusOK) })
+	r.POST("/status", func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.HEAD("/status", func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/missing", func(c *gin.Context) { c.Status(http.StatusNotFound) })
+	registerManagedHTTPRoutes(r, b)
+	requests := []struct{ method, path string }{
+		{http.MethodGet, "/status"}, {http.MethodHead, "/status"}, {http.MethodGet, "/status"},
+		{http.MethodGet, "/slow"}, {http.MethodPost, "/status"}, {http.MethodGet, "/missing"},
+	}
+	for _, request := range requests {
+		r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), request.method, request.path, http.NoBody))
+	}
+	if err := b.Flush(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := b.Snapshot(diagnostics.Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, 0, len(snapshot.Records))
+	for _, event := range snapshot.Records {
+		got = append(got, fmt.Sprint(event.Fields["method"], " ", event.Fields["route"]))
+	}
+	want := []string{"GET /slow", "POST /status", "GET /missing"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("access events %v, want %v", got, want)
 	}
 }

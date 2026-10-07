@@ -89,4 +89,14 @@ describe('runtime log connection ownership', () => {
     expect(h.session.getSnapshot()).toMatchObject({ reset: true, gap: true });
     expect(h.session.getSnapshot().records).toHaveLength(1); h.session.stop();
   });
+  it('marks a gap only for its own overflow, not another client\'s shared counter', async () => {
+    const h = harness(); vi.mocked(h.transport.snapshot).mockResolvedValue({ ...snapshot, subscriber_overflow: 3 });
+    h.session.start(); await settle();
+    expect(h.session.getSnapshot().gap).toBe(false);
+    h.emit({ type: 'handshake', metadata: { ...snapshot, subscriber_overflow: 3 }, cursor: 'instance-a:1' });
+    h.emit({ type: 'heartbeat', metadata: { ...snapshot, subscriber_overflow: 4 }, cursor: 'instance-a:1' });
+    expect(h.session.getSnapshot().gap).toBe(false);
+    h.emit({ type: 'gap', reason: 'subscriber_overflow', cursor: '' });
+    expect(h.session.getSnapshot().gap).toBe(true); h.session.stop();
+  });
 });

@@ -108,7 +108,12 @@ func (bw *BatchWriter) flushLocked(ctx context.Context) error {
 	bw.buffer = bw.buffer[:0]
 
 	// 寫入底層
-	return bw.underlying.WriteBatch(ctx, toWrite)
+	err := bw.underlying.WriteBatch(ctx, toWrite)
+	if err != nil && ctx.Err() != nil && bw.closing.Load() {
+		// Close canceled this write; keep the batch for the final close flush.
+		bw.buffer = append(bw.buffer, toWrite...)
+	}
+	return err
 }
 
 // startFlushTimer 啟動定時刷新

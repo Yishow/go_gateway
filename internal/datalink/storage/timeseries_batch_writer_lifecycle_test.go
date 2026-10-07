@@ -99,3 +99,54 @@ func TestBatchWriterShutdownDoesNotCloseUnderSynchronousWrite(t *testing.T) {
 	require.NoError(t, bw.WaitClosed(t.Context()))
 	require.EqualValues(t, 1, underlying.closed.Load())
 }
+
+// ctxRecordingWriter fails like SQLite when its context ends and records what it stored.
+type ctxRecordingWriter struct {
+	Writer
+	block   chan struct{}
+	entered chan struct{}
+	mu      sync.Mutex
+	stored  []string
+}
+
+func (w *ctxRecordingWriter) WriteBatch(ctx context.Context, records []TimeSeriesRecord) error {
+	if w.block != nil {
+		w.entered <- struct{}{}
+		w.block = nil
+		<-ctx.Done()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for _, r := range records {
+		w.stored = append(w.stored, r.TagID)
+	}
+	return nil
+}
+func (w *ctxRecordingWriter) Close() error { return nil }
+
+func TestBatchWriterShutdownRetainsRecordsFromCanceledTimerFlush(t *testing.T) {
+	underlying := &ctxRecordingWriter{block: make(chan struct{}), entered: make(chan struct{}, 1)}
+	bw := NewBatchWriter(underlying, BatchWriterConfig{BatchSize: 10, FlushInterval: time.Millisecond, WriteTimeout: time.Minute})
+	require.NoError(t, bw.Write(t.Context(), TimeSeriesRecord{TagID: "accepted"}))
+	select {
+	case <-underlying.entered:
+	case <-time.After(time.Second):
+		t.Fatal("timer did not enter storage")
+	}
+	require.NoError(t, bw.CloseContext(t.Context()))
+	require.Equal(t, []string{"accepted"}, underlying.stored, "canceled timer batch must reach the final flush")
+}
+
+func TestBatchWriterShutdownFinalFlushOutlivesExpiredCallerContext(t *testing.T) {
+	underlying := &ctxRecordingWriter{}
+	bw := NewBatchWriter(underlying, BatchWriterConfig{BatchSize: 10, FlushInterval: time.Hour, WriteTimeout: time.Second})
+	require.NoError(t, bw.Write(t.Context(), TimeSeriesRecord{TagID: "buffered"}))
+	expired, cancel := context.WithCancel(t.Context())
+	cancel()
+	_ = bw.CloseContext(expired)
+	require.NoError(t, bw.WaitClosed(t.Context()))
+	require.Equal(t, []string{"buffered"}, underlying.stored, "caller wait deadline must not abort the final flush")
+}

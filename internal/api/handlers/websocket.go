@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"sync"
@@ -50,6 +51,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
+	defer closeOnRequestDone(c, conn)()
 
 	// 這裡僅作簡單 Echo 測試，不加入廣播池
 	for {
@@ -71,6 +73,7 @@ func (h *WebSocketHandler) HandleMonitorStream(c *gin.Context) {
 		return
 	}
 	// 不在此處 defer conn.Close()，由連線斷開或錯誤時處理
+	defer closeOnRequestDone(c, conn)()
 
 	h.mu.Lock()
 	h.clients[conn] = true
@@ -89,4 +92,10 @@ func (h *WebSocketHandler) HandleMonitorStream(c *gin.Context) {
 	delete(h.clients, conn)
 	h.mu.Unlock()
 	conn.Close()
+}
+
+// closeOnRequestDone unblocks ReadMessage when the server cancels its base
+// context; http.Server.Shutdown does not close hijacked connections.
+func closeOnRequestDone(c *gin.Context, conn *websocket.Conn) func() bool {
+	return context.AfterFunc(c.Request.Context(), func() { _ = conn.Close() })
 }
