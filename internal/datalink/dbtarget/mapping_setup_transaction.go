@@ -42,10 +42,7 @@ func (s *MappingService) PrepareCreate(ctx context.Context, req CreateTargetMapp
 	if err != nil {
 		return nil, fmt.Errorf("建立資料庫目標映射 ID 失敗: %w", err)
 	}
-	enabled := true
-	if req.Enabled != nil {
-		enabled = *req.Enabled
-	}
+	enabled := common.Deref(req.Enabled, true)
 	writeMode := req.WriteMode
 	if writeMode == "" {
 		writeMode = schema.DatabaseWriteModeInsert

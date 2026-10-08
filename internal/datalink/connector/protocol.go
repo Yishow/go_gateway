@@ -83,7 +83,7 @@ type ReadRequest struct {
 // ReadResult 讀取結果
 type ReadResult struct {
 	// Value 讀取到的值 (已轉換為 Go 原生型別)
-	Value interface{}
+	Value any
 
 	// RawBytes 原始位元組 (用於追溯)
 	RawBytes []byte
@@ -114,7 +114,7 @@ type WriteRequest struct {
 	DataType schema.DataType
 
 	// Value 要寫入的值
-	Value interface{}
+	Value any
 }
 
 // =============================================================================
@@ -180,7 +180,7 @@ type PersistentConnection interface {
 // ConfigParser 連線配置解析器介面
 type ConfigParser interface {
 	// ParseConfig 解析 JSON 配置為協議特定結構
-	ParseConfig(jsonConfig string) (interface{}, error)
+	ParseConfig(jsonConfig string) (any, error)
 
 	// ValidateConfig 驗證配置是否有效
 	ValidateConfig(jsonConfig string) error

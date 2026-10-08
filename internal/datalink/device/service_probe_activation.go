@@ -187,7 +187,7 @@ func buildReadProbeTarget(device *schema.Device) (readProbeTarget, error) {
 }
 
 func extractProbeOverride(config string) (address, function string) {
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := json.Unmarshal([]byte(config), &raw); err != nil {
 		return "", ""
 	}
@@ -196,7 +196,7 @@ func extractProbeOverride(config string) (address, function string) {
 	return address, function
 }
 
-func extractProbeString(value interface{}) string {
+func extractProbeString(value any) string {
 	switch v := value.(type) {
 	case string:
 		return strings.TrimSpace(v)

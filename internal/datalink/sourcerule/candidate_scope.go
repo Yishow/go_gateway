@@ -2,6 +2,7 @@ package sourcerule
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/modbusshare"
@@ -70,13 +71,10 @@ func (s *Service) ValidateCandidateScope(ctx context.Context, ruleID string, req
 	if err != nil {
 		return err
 	}
-	ownedDevice := false
-	for _, deviceID := range deviceIDs {
-		if strings.TrimSpace(deviceID) == strings.TrimSpace(rule.DeviceID) {
-			ownedDevice = true
-			break
-		}
-	}
+	ruleDeviceID := strings.TrimSpace(rule.DeviceID)
+	ownedDevice := slices.ContainsFunc(deviceIDs, func(deviceID string) bool {
+		return strings.TrimSpace(deviceID) == ruleDeviceID
+	})
 	if !ownedDevice {
 		return modbusshare.NewError(modbusshare.ErrCodeWorkspaceScope, "source rule device is outside the requested workspace", false)
 	}

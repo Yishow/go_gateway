@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -61,7 +62,7 @@ func (r *SQLWriteGroupRepository) resolveVersionInTx(ctx context.Context, runner
 	var effectiveAt time.Time
 	var payload string
 	if err := row.Scan(&revision, &effectiveAt, &payload); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("resolve write-group version: %w", ErrWriteGroupAppliedRevisionUnavailable)
 		}
 		return nil, fmt.Errorf("read write-group version: %w", err)
@@ -96,7 +97,7 @@ func (r *SQLWriteGroupRepository) versionByRevisionInTx(ctx context.Context, run
 	var version WriteGroupAppliedSnapshot
 	var payload string
 	if err := row.Scan(&version.GroupRevision, &version.EffectiveAt, &payload); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("read write-group version: %w", ErrWriteGroupAppliedRevisionUnavailable)
 		}
 		return nil, fmt.Errorf("read write-group version: %w", err)

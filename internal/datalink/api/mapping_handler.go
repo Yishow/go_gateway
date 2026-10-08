@@ -140,7 +140,7 @@ func (h *MappingHandler) Delete(w http.ResponseWriter, r *http.Request, id strin
 // PreviewRequest 預覽請求
 type PreviewRequest struct {
 	// RawValue 原始值 (用於測試轉換)
-	RawValue interface{} `json:"raw_value"`
+	RawValue any `json:"raw_value"`
 
 	// PointID 點位 ID (可選，用於取得實際值)
 	PointID string `json:"point_id,omitempty"`
@@ -154,8 +154,8 @@ type PreviewRequest struct {
 
 // PreviewResponse 預覽回應
 type PreviewResponse struct {
-	RawValue    interface{}            `json:"raw_value"`
-	FinalValue  interface{}            `json:"final_value"`
+	RawValue    any                    `json:"raw_value"`
+	FinalValue  any                    `json:"final_value"`
 	StepResults []mapping.StepResult   `json:"step_results"`
 	Pipeline    []schema.TransformStep `json:"pipeline,omitempty"`
 	Error       string                 `json:"error,omitempty"`
@@ -279,7 +279,7 @@ func (h *MappingHandler) ValidatePipeline(w http.ResponseWriter, r *http.Request
 // 輔助函數
 // =============================================================================
 
-func mustMarshalJSON(v interface{}) (string, error) {
+func mustMarshalJSON(v any) (string, error) {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return "", err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -279,11 +280,9 @@ func (p *Pipeline) TickAll(ctx context.Context) {
 		p.report(m.boundary.Tick(ctx, now))
 	}
 	p.mu.Lock()
-	for key, m := range p.boundaries {
-		if m.boundary.Retired() {
-			delete(p.boundaries, key)
-		}
-	}
+	maps.DeleteFunc(p.boundaries, func(_ string, m *managed) bool {
+		return m.boundary.Retired()
+	})
 	p.mu.Unlock()
 }
 

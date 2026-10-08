@@ -1,7 +1,7 @@
 package aggregation
 
 import (
-	"sort"
+	"slices"
 	"time"
 )
 
@@ -30,10 +30,9 @@ func CalculateWindowSummary(
 	}
 
 	// 依時間排序
-	sortedSamples := make([]TelemetrySample, len(samples))
-	copy(sortedSamples, samples)
-	sort.SliceStable(sortedSamples, func(i, j int) bool {
-		return sortedSamples[i].ObservedAt.Before(sortedSamples[j].ObservedAt)
+	sortedSamples := slices.Clone(samples)
+	slices.SortStableFunc(sortedSamples, func(a, b TelemetrySample) int {
+		return a.ObservedAt.Compare(b.ObservedAt)
 	})
 
 	var (

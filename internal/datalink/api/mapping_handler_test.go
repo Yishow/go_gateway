@@ -18,13 +18,13 @@ import (
 func TestMappingHandler_Create_ReturnsValidationErrorWhenResolverMissing(t *testing.T) {
 	handler := NewMappingHandler(mapping.NewService(mapping.NewMemoryRepository()), nil)
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"point_id": "point-1",
 		"tag_id":   "tag-1",
-		"transform_pipeline": []map[string]interface{}{
+		"transform_pipeline": []map[string]any{
 			{
 				"type": "scale",
-				"params": map[string]interface{}{
+				"params": map[string]any{
 					"multiplier": 2,
 				},
 			},
@@ -53,13 +53,13 @@ func TestMappingHandler_Create_SucceedsWhenResolverConfigured(t *testing.T) {
 	})
 	handler := NewMappingHandler(svc, nil)
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"point_id": "point-1",
 		"tag_id":   "tag-1",
-		"transform_pipeline": []map[string]interface{}{
+		"transform_pipeline": []map[string]any{
 			{
 				"type": "scale",
-				"params": map[string]interface{}{
+				"params": map[string]any{
 					"multiplier": 2,
 				},
 			},

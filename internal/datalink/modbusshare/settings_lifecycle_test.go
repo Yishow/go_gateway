@@ -30,7 +30,7 @@ type failingShareSettingsRepository struct{}
 func (failingShareSettingsRepository) Get(context.Context, string) (*datalinksettings.SettingItem, error) {
 	return nil, errors.New("settings unavailable")
 }
-func (failingShareSettingsRepository) Set(context.Context, string, interface{}) error {
+func (failingShareSettingsRepository) Set(context.Context, string, any) error {
 	return errors.New("settings unavailable")
 }
 func (failingShareSettingsRepository) List(context.Context) ([]*datalinksettings.SettingItem, error) {
@@ -39,7 +39,7 @@ func (failingShareSettingsRepository) List(context.Context) ([]*datalinksettings
 
 type failingCASSettingsRepository struct{ failingShareSettingsRepository }
 
-func (failingCASSettingsRepository) SetIfRevision(context.Context, string, string, interface{}) error {
+func (failingCASSettingsRepository) SetIfRevision(context.Context, string, string, any) error {
 	return errors.New("database unavailable")
 }
 

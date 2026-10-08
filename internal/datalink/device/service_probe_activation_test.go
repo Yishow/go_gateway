@@ -24,7 +24,7 @@ func TestService_Activate_WithProbeSuccess(t *testing.T) {
 	require.NoError(t, server.Start(0))
 	defer server.Stop()
 
-	cfg := map[string]interface{}{
+	cfg := map[string]any{
 		"host":     "127.0.0.1",
 		"port":     server.Port(),
 		"slave_id": 1,
@@ -67,7 +67,7 @@ func TestService_Activate_BlockWhenProbeReadFails(t *testing.T) {
 	require.NoError(t, server.Start(0))
 	defer server.Stop()
 
-	cfg := map[string]interface{}{
+	cfg := map[string]any{
 		"host":           "127.0.0.1",
 		"port":           server.Port(),
 		"slave_id":       1,

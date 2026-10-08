@@ -58,7 +58,7 @@ func TestPointHandler_Poll(t *testing.T) {
 	newDevice := device.CreateDeviceRequest{
 		Name:     "測試設備",
 		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     502,
 			"slave_id": 1,
@@ -71,9 +71,9 @@ func TestPointHandler_Poll(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var deviceResp map[string]interface{}
+	var deviceResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &deviceResp)
-	deviceID := deviceResp["data"].(map[string]interface{})["id"].(string)
+	deviceID := deviceResp["data"].(map[string]any)["id"].(string)
 
 	// 建立點位
 	newPoint := point.CreatePointRequest{
@@ -90,9 +90,9 @@ func TestPointHandler_Poll(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var pointResp map[string]interface{}
+	var pointResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &pointResp)
-	pointID := pointResp["data"].(map[string]interface{})["id"].(string)
+	pointID := pointResp["data"].(map[string]any)["id"].(string)
 
 	// 輪詢點位
 	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/points/"+pointID+"/poll", http.NoBody)
@@ -101,11 +101,11 @@ func TestPointHandler_Poll(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.Equal(t, pointID, data["point_id"])
 	assert.Contains(t, data, "timestamp")
 	assert.Contains(t, data, "quality")
@@ -125,7 +125,7 @@ func TestPointHandler_Poll_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response["success"].(bool))
 }
@@ -140,7 +140,7 @@ func TestPointHandler_PollBatch(t *testing.T) {
 	newDevice := device.CreateDeviceRequest{
 		Name:     "批量測試設備",
 		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     502,
 			"slave_id": 1,
@@ -153,9 +153,9 @@ func TestPointHandler_PollBatch(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var deviceResp map[string]interface{}
+	var deviceResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &deviceResp)
-	deviceID := deviceResp["data"].(map[string]interface{})["id"].(string)
+	deviceID := deviceResp["data"].(map[string]any)["id"].(string)
 
 	// 建立多個點位
 	pointIDs := make([]string, 0, 3)
@@ -174,14 +174,14 @@ func TestPointHandler_PollBatch(t *testing.T) {
 		w = httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
-		var pointResp map[string]interface{}
+		var pointResp map[string]any
 		json.Unmarshal(w.Body.Bytes(), &pointResp)
-		pointID := pointResp["data"].(map[string]interface{})["id"].(string)
+		pointID := pointResp["data"].(map[string]any)["id"].(string)
 		pointIDs = append(pointIDs, pointID)
 	}
 
 	// 批量輪詢
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"point_ids": pointIDs,
 	}
 
@@ -193,11 +193,11 @@ func TestPointHandler_PollBatch(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	assert.Equal(t, 3, len(data))
 }
 
@@ -207,7 +207,7 @@ func TestPointHandler_PollBatch(t *testing.T) {
 func TestPointHandler_PollBatch_Empty(t *testing.T) {
 	r := setupPointRouterWithExtended()
 
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"point_ids": []string{},
 	}
 
@@ -219,11 +219,11 @@ func TestPointHandler_PollBatch_Empty(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	assert.Equal(t, 0, len(data))
 }
 
@@ -234,7 +234,7 @@ func TestPointHandler_PollBatch_MissingField(t *testing.T) {
 	r := setupPointRouterWithExtended()
 
 	// 缺少 point_ids 欄位
-	batchReq := map[string]interface{}{}
+	batchReq := map[string]any{}
 
 	body, _ := json.Marshal(batchReq)
 	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/points/poll", bytes.NewBuffer(body))
@@ -244,7 +244,7 @@ func TestPointHandler_PollBatch_MissingField(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response["success"].(bool))
 }
@@ -259,7 +259,7 @@ func TestPointHandler_PollBatch_PartialSuccess(t *testing.T) {
 	newDevice := device.CreateDeviceRequest{
 		Name:     "部分測試設備",
 		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     502,
 			"slave_id": 1,
@@ -272,9 +272,9 @@ func TestPointHandler_PollBatch_PartialSuccess(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var deviceResp map[string]interface{}
+	var deviceResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &deviceResp)
-	deviceID := deviceResp["data"].(map[string]interface{})["id"].(string)
+	deviceID := deviceResp["data"].(map[string]any)["id"].(string)
 
 	newPoint := point.CreatePointRequest{
 		DeviceID: deviceID,
@@ -290,12 +290,12 @@ func TestPointHandler_PollBatch_PartialSuccess(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var pointResp map[string]interface{}
+	var pointResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &pointResp)
-	pointID := pointResp["data"].(map[string]interface{})["id"].(string)
+	pointID := pointResp["data"].(map[string]any)["id"].(string)
 
 	// 批量輪詢（包含不存在的點位）
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"point_ids": []string{pointID, "non-existent-id-1", "non-existent-id-2"},
 	}
 
@@ -307,11 +307,11 @@ func TestPointHandler_PollBatch_PartialSuccess(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	assert.Equal(t, 3, len(data))
 }
 
@@ -325,7 +325,7 @@ func TestPointHandler_PollBatch_LargeList(t *testing.T) {
 	newDevice := device.CreateDeviceRequest{
 		Name:     "大批量測試設備",
 		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     502,
 			"slave_id": 1,
@@ -338,9 +338,9 @@ func TestPointHandler_PollBatch_LargeList(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var deviceResp map[string]interface{}
+	var deviceResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &deviceResp)
-	deviceID := deviceResp["data"].(map[string]interface{})["id"].(string)
+	deviceID := deviceResp["data"].(map[string]any)["id"].(string)
 
 	// 建立 10 個點位
 	pointIDs := make([]string, 0, 10)
@@ -359,14 +359,14 @@ func TestPointHandler_PollBatch_LargeList(t *testing.T) {
 		w = httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
-		var pointResp map[string]interface{}
+		var pointResp map[string]any
 		json.Unmarshal(w.Body.Bytes(), &pointResp)
-		pointID := pointResp["data"].(map[string]interface{})["id"].(string)
+		pointID := pointResp["data"].(map[string]any)["id"].(string)
 		pointIDs = append(pointIDs, pointID)
 	}
 
 	// 批量輪詢
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"point_ids": pointIDs,
 	}
 
@@ -378,11 +378,11 @@ func TestPointHandler_PollBatch_LargeList(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	assert.Equal(t, 10, len(data))
 }
 
@@ -396,7 +396,7 @@ func TestPointHandler_Poll_ResponseStructure(t *testing.T) {
 	newDevice := device.CreateDeviceRequest{
 		Name:     "結構測試設備",
 		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     502,
 			"slave_id": 1,
@@ -409,9 +409,9 @@ func TestPointHandler_Poll_ResponseStructure(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var deviceResp map[string]interface{}
+	var deviceResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &deviceResp)
-	deviceID := deviceResp["data"].(map[string]interface{})["id"].(string)
+	deviceID := deviceResp["data"].(map[string]any)["id"].(string)
 
 	// 建立點位
 	newPoint := point.CreatePointRequest{
@@ -428,20 +428,20 @@ func TestPointHandler_Poll_ResponseStructure(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var pointResp map[string]interface{}
+	var pointResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &pointResp)
-	pointID := pointResp["data"].(map[string]interface{})["id"].(string)
+	pointID := pointResp["data"].(map[string]any)["id"].(string)
 
 	// 輪詢點位
 	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/points/"+pointID+"/poll", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 
 	// 驗證欄位存在
 	assert.Contains(t, data, "point_id")
@@ -462,7 +462,7 @@ func TestPointHandler_Poll_ResponseStructure(t *testing.T) {
 func TestPointHandler_PollBatch_ResponseStructure(t *testing.T) {
 	r := setupPointRouterWithExtended()
 
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"point_ids": []string{},
 	}
 
@@ -472,16 +472,16 @@ func TestPointHandler_PollBatch_ResponseStructure(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
-	assert.IsType(t, []interface{}{}, data)
+	data := response["data"].([]any)
+	assert.IsType(t, []any{}, data)
 
 	// 驗證每個結果的結構
 	for _, item := range data {
-		result := item.(map[string]interface{})
+		result := item.(map[string]any)
 		assert.Contains(t, result, "point_id")
 		assert.Contains(t, result, "value")
 		assert.Contains(t, result, "timestamp")

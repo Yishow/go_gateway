@@ -149,7 +149,7 @@ func validatePointDataType(dataType schema.DataType) error {
 	return pointValidationError("data_type", dataType, "不支援的資料型別")
 }
 
-func pointValidationError(field string, value interface{}, reason string) error {
+func pointValidationError(field string, value any, reason string) error {
 	return fmt.Errorf("point 驗證失敗: field=%s value=%v reason=%s", field, value, reason)
 }
 

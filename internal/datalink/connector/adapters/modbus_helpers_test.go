@@ -28,7 +28,6 @@ func TestParseModbusAddress(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			addr, fn, err := parseModbusAddress(tt.address, tt.function)
 			if tt.expectError {
@@ -46,18 +45,17 @@ func TestParseModbusAddress(t *testing.T) {
 func TestToUint16Slice(t *testing.T) {
 	tests := []struct {
 		name        string
-		input       interface{}
+		input       any
 		want        []uint16
 		expectError bool
 	}{
 		{name: "uint16 slice", input: []uint16{1, 2}, want: []uint16{1, 2}},
 		{name: "int slice", input: []int{3, 4}, want: []uint16{3, 4}},
-		{name: "interface slice", input: []interface{}{float64(5), int(6)}, want: []uint16{5, 6}},
+		{name: "any slice", input: []any{float64(5), int(6)}, want: []uint16{5, 6}},
 		{name: "unsupported type", input: "x", expectError: true},
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := toUint16Slice(tt.input)
 			if tt.expectError {

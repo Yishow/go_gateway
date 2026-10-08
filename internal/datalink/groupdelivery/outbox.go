@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 )
@@ -90,7 +91,7 @@ func (s *Store) GetOutbox(ctx context.Context, effectKey string) (OutboxItem, er
 // ErrNotDeliverable when the item exists but is not in one of the allowed
 // source states, and ErrOutboxItemNotFound when it does not exist.
 func (s *Store) transition(ctx context.Context, effectKey string, from []string, set string, args ...any) error {
-	params := append([]any{}, args...)
+	params := slices.Clone(args)
 	params = append(params, timestamp(s.now()), effectKey)
 	for _, state := range from {
 		params = append(params, state)
@@ -168,7 +169,7 @@ func (s *Store) missingOrNotDeliverable(ctx context.Context, effectKey string) e
 // holder of the current claim. A superseded holder gets ErrFenced and changes
 // nothing, whatever state the item has reached since.
 func (s *Store) transitionClaimed(ctx context.Context, claim Claim, set string, args ...any) error {
-	params := append([]any{}, args...)
+	params := slices.Clone(args)
 	params = append(params, timestamp(s.now()), claim.EffectKey, claim.Owner, claim.Epoch)
 	result, err := s.db.ExecContext(ctx, claimedStatement(set), params...)
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 
 	"github.com/stretchr/testify/assert"
@@ -23,7 +24,7 @@ func TestService_Update_RebindsTagWhenTagIDChanges(t *testing.T) {
 	require.NoError(t, err)
 
 	updated, err := svc.Update(ctx, created.ID, UpdateMappingRequest{
-		TagID:             stringPtr("tag-new"),
+		TagID:             common.Ptr("tag-new"),
 		TransformPipeline: []schema.TransformStep{},
 	})
 	require.NoError(t, err)
@@ -50,14 +51,10 @@ func TestService_Update_ReturnsValidationErrorWhenTagIsAlreadyBound(t *testing.T
 	require.NoError(t, err)
 
 	_, err = svc.Update(ctx, other.ID, UpdateMappingRequest{
-		TagID:             stringPtr("tag-shared"),
+		TagID:             common.Ptr("tag-shared"),
 		TransformPipeline: []schema.TransformStep{},
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrValidation)
 	assert.Contains(t, err.Error(), "已綁定其他 point")
-}
-
-func stringPtr(value string) *string {
-	return &value
 }

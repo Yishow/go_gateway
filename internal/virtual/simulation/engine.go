@@ -111,10 +111,10 @@ func (e *SimulationEngine) Stop() {
 	e.running = false
 	close(e.done)
 
-	for id, ticker := range e.tickers {
+	for _, ticker := range e.tickers {
 		ticker.Stop()
-		delete(e.tickers, id)
 	}
+	clear(e.tickers)
 	e.mu.Unlock()
 
 	e.wg.Wait()

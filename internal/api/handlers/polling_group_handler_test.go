@@ -50,14 +50,14 @@ func TestPollingGroupHandler_List(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	// 新建的記憶體儲存庫應為空陣列
-	assert.IsType(t, []interface{}{}, data)
+	assert.IsType(t, []any{}, data)
 }
 
 /**
@@ -83,9 +83,9 @@ func TestPollingGroupHandler_Get(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &createResp)
-	groupData := createResp["data"].(map[string]interface{})
+	groupData := createResp["data"].(map[string]any)
 	groupID := groupData["id"].(string)
 
 	// 取得群組
@@ -95,11 +95,11 @@ func TestPollingGroupHandler_Get(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var getResp map[string]interface{}
+	var getResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &getResp)
 	assert.True(t, getResp["success"].(bool))
 
-	retrievedData := getResp["data"].(map[string]interface{})
+	retrievedData := getResp["data"].(map[string]any)
 	assert.Equal(t, "測試群組", retrievedData["name"])
 	assert.Equal(t, float64(1000), retrievedData["interval_ms"])
 }
@@ -116,7 +116,7 @@ func TestPollingGroupHandler_Get_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response["success"].(bool))
 }
@@ -144,12 +144,12 @@ func TestPollingGroupHandler_Create(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.Equal(t, "新測試群組", data["name"])
 	assert.Equal(t, float64(2000), data["interval_ms"])
 	assert.Equal(t, float64(150), data["priority"])
@@ -184,9 +184,9 @@ func TestPollingGroupHandler_Update(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &createResp)
-	groupID := createResp["data"].(map[string]interface{})["id"].(string)
+	groupID := createResp["data"].(map[string]any)["id"].(string)
 
 	// 更新群組
 	updatedName := "更新後的群組"
@@ -209,11 +209,11 @@ func TestPollingGroupHandler_Update(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var updateResp map[string]interface{}
+	var updateResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &updateResp)
 	assert.True(t, updateResp["success"].(bool))
 
-	data := updateResp["data"].(map[string]interface{})
+	data := updateResp["data"].(map[string]any)
 	assert.Equal(t, "更新後的群組", data["name"])
 	assert.Equal(t, "這是更新後的描述", data["description"])
 	assert.Equal(t, float64(2000), data["interval_ms"])
@@ -240,9 +240,9 @@ func TestPollingGroupHandler_Delete(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &createResp)
-	groupID := createResp["data"].(map[string]interface{})["id"].(string)
+	groupID := createResp["data"].(map[string]any)["id"].(string)
 
 	// 刪除群組
 	req, _ = http.NewRequestWithContext(t.Context(), "DELETE", "/datalink/polling-groups/"+groupID, http.NoBody)
@@ -251,7 +251,7 @@ func TestPollingGroupHandler_Delete(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var deleteResp map[string]interface{}
+	var deleteResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &deleteResp)
 	assert.True(t, deleteResp["success"].(bool))
 }
@@ -268,7 +268,7 @@ func TestPollingGroupHandler_Delete_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response["success"].(bool))
 }
@@ -296,7 +296,7 @@ func TestPollingGroupHandler_Create_ValidationError(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response["success"].(bool))
 }
@@ -326,7 +326,7 @@ func TestPollingGroupHandler_Update_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response["success"].(bool))
 }
@@ -361,11 +361,11 @@ func TestPollingGroupHandler_List_MultipleGroups(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	assert.GreaterOrEqual(t, len(data), 3)
 }
 
@@ -389,9 +389,9 @@ func TestPollingGroupHandler_Update_EnableDisable(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &createResp)
-	groupID := createResp["data"].(map[string]interface{})["id"].(string)
+	groupID := createResp["data"].(map[string]any)["id"].(string)
 
 	// 停用群組
 	enabledFalse := false
@@ -409,8 +409,8 @@ func TestPollingGroupHandler_Update_EnableDisable(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var updateResp map[string]interface{}
+	var updateResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &updateResp)
-	data := updateResp["data"].(map[string]interface{})
+	data := updateResp["data"].(map[string]any)
 	assert.False(t, data["enabled"].(bool))
 }

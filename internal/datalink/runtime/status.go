@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"go-gateway/internal/datalink/collector/health"
@@ -104,7 +105,7 @@ func (s *Service) listRuntimeStatusDevices(ctx context.Context, deviceID string)
 	}
 
 	if deviceID == "" {
-		return append([]*schema.Device(nil), s.snapshot.Devices...), nil
+		return slices.Clone(s.snapshot.Devices), nil
 	}
 
 	for _, deviceRecord := range s.snapshot.Devices {
@@ -125,7 +126,7 @@ func (s *Service) listRuntimeStatusPoints(ctx context.Context, deviceID string) 
 	}
 
 	if deviceID == "" {
-		return append([]*schema.Point(nil), s.snapshot.Points...), nil
+		return slices.Clone(s.snapshot.Points), nil
 	}
 
 	points := make([]*schema.Point, 0)
@@ -141,7 +142,7 @@ func (s *Service) listRuntimeStatusGroups(ctx context.Context) ([]*schema.Pollin
 	if s.groupSvc != nil {
 		return s.groupSvc.List(ctx)
 	}
-	return append([]*schema.PollingGroup(nil), s.snapshot.PollingGroups...), nil
+	return slices.Clone(s.snapshot.PollingGroups), nil
 }
 
 func (s *Service) deriveDeviceStatuses(

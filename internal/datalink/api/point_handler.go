@@ -167,7 +167,7 @@ func (h *PointHandler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusCreated, map[string]interface{}{
+	writeJSON(w, http.StatusCreated, map[string]any{
 		"success": true,
 		"data":    result,
 	})

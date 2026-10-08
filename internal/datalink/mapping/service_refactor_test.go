@@ -31,7 +31,7 @@ func TestService_CreateAndList(t *testing.T) {
 		TransformPipeline: []schema.TransformStep{
 			{
 				Type: schema.TransformScale,
-				Params: map[string]interface{}{
+				Params: map[string]any{
 					"multiplier": 2.0,
 				},
 			},
@@ -63,7 +63,7 @@ func TestService_Update(t *testing.T) {
 		PointID: "point-2",
 		TagID:   "tag-2",
 		TransformPipeline: []schema.TransformStep{
-			{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 1.0}},
+			{Type: schema.TransformScale, Params: map[string]any{"multiplier": 1.0}},
 		},
 	})
 	require.NoError(t, err)
@@ -72,7 +72,7 @@ func TestService_Update(t *testing.T) {
 	updated, err := svc.Update(ctx, created.ID, UpdateMappingRequest{
 		Enabled: &enabled,
 		TransformPipeline: []schema.TransformStep{
-			{Type: schema.TransformCast, Params: map[string]interface{}{"to_type": "int32"}},
+			{Type: schema.TransformCast, Params: map[string]any{"to_type": "int32"}},
 		},
 	})
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestService_Update(t *testing.T) {
 }
 
 func TestParseConditionalParams(t *testing.T) {
-	op, threshold, err := parseConditionalParams(map[string]interface{}{
+	op, threshold, err := parseConditionalParams(map[string]any{
 		"condition":   "value >= 42",
 		"true_value":  "ok",
 		"false_value": "ng",
@@ -94,7 +94,7 @@ func TestParseConditionalParams(t *testing.T) {
 	assert.Equal(t, ">=", op)
 	assert.Equal(t, 42.0, threshold)
 
-	op, threshold, err = parseConditionalParams(map[string]interface{}{
+	op, threshold, err = parseConditionalParams(map[string]any{
 		"operator":  "lte",
 		"threshold": 8,
 	})
@@ -123,7 +123,7 @@ func TestService_Update_EnableBlockedWhenPreviewExecutionFails(t *testing.T) {
 	_, err = svc.Update(ctx, created.ID, UpdateMappingRequest{
 		Enabled: &enabled,
 		TransformPipeline: []schema.TransformStep{
-			{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 2.0}},
+			{Type: schema.TransformScale, Params: map[string]any{"multiplier": 2.0}},
 		},
 		PreviewRawValue: "abc",
 	})
@@ -179,7 +179,7 @@ func TestService_Create_BlockedWhenPreviewOutputNotCastable(t *testing.T) {
 		PointID: "point-create-cast-fail",
 		TagID:   "tag-create-cast-fail",
 		TransformPipeline: []schema.TransformStep{
-			{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 2.0}},
+			{Type: schema.TransformScale, Params: map[string]any{"multiplier": 2.0}},
 		},
 		PreviewRawValue: 2.0,
 	})
@@ -194,7 +194,7 @@ func TestService_Create_ReturnsErrorWhenResolverMissing(t *testing.T) {
 		PointID: "point-missing-resolver",
 		TagID:   "tag-missing-resolver",
 		TransformPipeline: []schema.TransformStep{
-			{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 1.0}},
+			{Type: schema.TransformScale, Params: map[string]any{"multiplier": 1.0}},
 		},
 	})
 	require.Error(t, err)

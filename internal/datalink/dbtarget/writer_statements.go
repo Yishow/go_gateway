@@ -3,7 +3,8 @@ package dbtarget
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -19,11 +20,7 @@ func buildGroupedWriteStatement(
 		return "", nil, fmt.Errorf("grouped write has no buffered values")
 	}
 
-	columnNames := make([]string, 0, len(values))
-	for columnName := range values {
-		columnNames = append(columnNames, columnName)
-	}
-	sort.Strings(columnNames)
+	columnNames := slices.Sorted(maps.Keys(values))
 
 	columns := make([]string, 0, len(columnNames)+1)
 	args := make([]any, 0, len(columnNames)+1)
@@ -121,7 +118,7 @@ func buildWriteStatement(
 
 func buildPlaceholders(kind schema.DatabaseConnectorKind, count int) []string {
 	placeholders := make([]string, 0, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		switch kind {
 		case schema.DatabaseConnectorKindPostgres:
 			placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))

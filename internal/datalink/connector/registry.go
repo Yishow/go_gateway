@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"sync"
 
 	"go-gateway/internal/datalink/schema"
@@ -120,11 +122,7 @@ func (r *Registry) ListProtocols() []schema.ProtocolType {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	protocols := make([]schema.ProtocolType, 0, len(r.factories))
-	for p := range r.factories {
-		protocols = append(protocols, p)
-	}
-	return protocols
+	return slices.Collect(maps.Keys(r.factories))
 }
 
 // IsRegistered 檢查協議是否已註冊

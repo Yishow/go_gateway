@@ -101,7 +101,7 @@ func effectiveModbusDataFormat(requestFormat, connectionFormat string) string {
 }
 
 // convertModbusValue 將 Modbus 暫存器值轉換為指定型別（依 dataFormat 解多暫存器數值）。
-func convertModbusValue(registers []uint16, dataType schema.DataType, dataFormat string) interface{} {
+func convertModbusValue(registers []uint16, dataType schema.DataType, dataFormat string) any {
 	if len(registers) == 0 {
 		return nil
 	}
@@ -119,7 +119,7 @@ func uint16SliceToBytes(values []uint16) []byte {
 }
 
 // toUint16 將任意值轉換為 uint16
-func toUint16(v interface{}) (uint16, error) {
+func toUint16(v any) (uint16, error) {
 	switch val := v.(type) {
 	case int:
 		if val >= 0 && val <= math.MaxUint16 {
@@ -164,7 +164,7 @@ func toUint16(v interface{}) (uint16, error) {
 }
 
 // toUint16Slice 將任意切片轉換為 uint16 切片
-func toUint16Slice(v interface{}) ([]uint16, error) {
+func toUint16Slice(v any) ([]uint16, error) {
 	switch val := v.(type) {
 	case []uint16:
 		return val, nil
@@ -178,7 +178,7 @@ func toUint16Slice(v interface{}) ([]uint16, error) {
 			result[i] = u
 		}
 		return result, nil
-	case []interface{}:
+	case []any:
 		result := make([]uint16, len(val))
 		for i, n := range val {
 			u, err := toUint16(n)

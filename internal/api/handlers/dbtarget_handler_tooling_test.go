@@ -12,6 +12,7 @@ import (
 	"time"
 
 	datalinkbase "go-gateway/internal/datalink"
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
@@ -241,7 +242,7 @@ func TestDatabaseTargetHandler_ListWriteHistory_ReturnsLatestRecords(t *testing.
 		TableName:       "sensor_values",
 		ColumnName:      "value",
 		WriteMode:       schema.DatabaseWriteModeUpsert,
-		TimestampColumn: stringPtrForDBTarget("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 
@@ -318,7 +319,7 @@ func TestDatabaseTargetHandler_ListWriteHistory_ReturnsGroupedFlushMetadata(t *t
 		ColumnName:      "a1",
 		GroupKey:        &groupKey,
 		WriteMode:       schema.DatabaseWriteModeUpsert,
-		TimestampColumn: stringPtrForDBTarget("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 	_, err = fixture.mappingSvc.Create(ctx, dbtarget.CreateTargetMappingRequest{
@@ -328,7 +329,7 @@ func TestDatabaseTargetHandler_ListWriteHistory_ReturnsGroupedFlushMetadata(t *t
 		ColumnName:      "kw",
 		GroupKey:        &groupKey,
 		WriteMode:       schema.DatabaseWriteModeUpsert,
-		TimestampColumn: stringPtrForDBTarget("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 
@@ -387,8 +388,4 @@ func openMigratedDBTargetMainDB(t *testing.T) *sql.DB {
 	migrator := datalinkbase.NewMigrator()
 	require.NoError(t, migrator.Migrate(db))
 	return db
-}
-
-func stringPtrForDBTarget(value string) *string {
-	return &value
 }

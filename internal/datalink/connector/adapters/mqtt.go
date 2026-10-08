@@ -39,7 +39,7 @@ type MQTTConnector struct {
 
 // cachedValue 快取的值結構
 type cachedValue struct {
-	Value     interface{}
+	Value     any
 	Timestamp time.Time
 	Topic     string
 	RawBytes  []byte

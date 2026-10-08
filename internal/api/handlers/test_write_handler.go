@@ -9,14 +9,14 @@ import (
 
 // WriteRequest 寫入請求
 type WriteRequest struct {
-	ConnectionID string      `json:"connection_id" binding:"required"`
-	Operation    string      `json:"operation" binding:"required"`
-	Address      uint16      `json:"address"`
-	Values       interface{} `json:"values" binding:"required"`
-	Symbol       string      `json:"symbol,omitempty"`  // For Fatek
-	Device       string      `json:"device,omitempty"`  // For MC
-	UnitID       *byte       `json:"unit_id,omitempty"` // For Modbus (可選，覆蓋連線配置的站號)
-	Station      *int        `json:"station,omitempty"` // For Fatek (可選，覆蓋連線配置的站號)
+	ConnectionID string `json:"connection_id" binding:"required"`
+	Operation    string `json:"operation" binding:"required"`
+	Address      uint16 `json:"address"`
+	Values       any    `json:"values" binding:"required"`
+	Symbol       string `json:"symbol,omitempty"`  // For Fatek
+	Device       string `json:"device,omitempty"`  // For MC
+	UnitID       *byte  `json:"unit_id,omitempty"` // For Modbus (可選，覆蓋連線配置的站號)
+	Station      *int   `json:"station,omitempty"` // For Fatek (可選，覆蓋連線配置的站號)
 }
 
 // Write 執行寫入操作
@@ -38,7 +38,7 @@ func (h *TestHandler) Write(c *gin.Context) {
 
 	// 如果請求中指定了站號，創建臨時客戶端
 	clientToUse := state.Client
-	var tempClient interface{}
+	var tempClient any
 	if req.UnitID != nil || req.Station != nil {
 		var err error
 		clientToUse, tempClient, err = h.prepareOverrideClient(state, req.UnitID, req.Station, "_temp")
@@ -55,7 +55,7 @@ func (h *TestHandler) Write(c *gin.Context) {
 		}
 		// 記錄錯誤日誌
 		if h.debugHandler != nil {
-			h.debugHandler.RecordLog("error", fmt.Sprintf("寫入失敗: %s", err.Error()), map[string]interface{}{
+			h.debugHandler.RecordLog("error", fmt.Sprintf("寫入失敗: %s", err.Error()), map[string]any{
 				apiResponseConnectionIDKey: req.ConnectionID,
 				apiResponseOperationKey:    req.Operation,
 				apiResponseAddressKey:      req.Address,
@@ -72,7 +72,7 @@ func (h *TestHandler) Write(c *gin.Context) {
 
 	// 記錄成功日誌
 	if h.debugHandler != nil {
-		h.debugHandler.RecordLog("info", fmt.Sprintf("寫入成功: %s (地址: %d)", req.Operation, req.Address), map[string]interface{}{
+		h.debugHandler.RecordLog("info", fmt.Sprintf("寫入成功: %s (地址: %d)", req.Operation, req.Address), map[string]any{
 			apiResponseConnectionIDKey: req.ConnectionID,
 			apiResponseOperationKey:    req.Operation,
 			apiResponseAddressKey:      req.Address,
@@ -97,9 +97,9 @@ type BatchRequest struct {
 
 // BatchResult 批量測試結果
 type BatchResult struct {
-	Success bool        `json:"success"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
+	Success bool   `json:"success"`
+	Data    any    `json:"data,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // Batch 執行批量測試
@@ -123,8 +123,8 @@ func (h *TestHandler) Batch(c *gin.Context) {
 
 	for i, op := range req.Operations {
 		var err error
-		var data interface{}
-		var tempClient interface{}
+		var data any
+		var tempClient any
 
 		switch op.Type {
 		case "read":

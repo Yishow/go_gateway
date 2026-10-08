@@ -32,7 +32,7 @@ type CollectedValue struct {
 	TagID string
 
 	// Value 收集到的值
-	Value interface{}
+	Value any
 
 	// RawBytes 原始位元組
 	RawBytes []byte

@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -92,10 +93,7 @@ type ReadinessBlockedError struct {
 
 // Error implements the error interface.
 func (e *ReadinessBlockedError) Error() string {
-	operation := strings.TrimSpace(e.Operation)
-	if operation == "" {
-		operation = "operation"
-	}
+	operation := cmp.Or(strings.TrimSpace(e.Operation), "operation")
 	return fmt.Sprintf("workspace readiness blocked %s", operation)
 }
 

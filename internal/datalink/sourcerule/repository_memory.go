@@ -1,9 +1,11 @@
 package sourcerule
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 
@@ -58,11 +60,9 @@ func (r *MemoryRepository) Delete(_ context.Context, id string) error {
 	delete(r.links, id)
 	delete(r.snapshots, id)
 	delete(r.tagReviewDecisions, id)
-	for key := range r.snapshots {
-		if strings.HasPrefix(key, id+":") {
-			delete(r.snapshots, key)
-		}
-	}
+	maps.DeleteFunc(r.snapshots, func(key string, _ []*schema.SourceRuleCandidateSnapshot) bool {
+		return strings.HasPrefix(key, id+":")
+	})
 	return nil
 }
 
@@ -92,11 +92,11 @@ func (r *MemoryRepository) List(_ context.Context, filter ListFilter) ([]*schema
 		items = append(items, cloneRule(rule))
 	}
 
-	sort.Slice(items, func(i, j int) bool {
-		if items[i].CreatedAt.Equal(items[j].CreatedAt) {
-			return items[i].ID < items[j].ID
+	slices.SortFunc(items, func(a, b *schema.SourceRule) int {
+		if c := a.CreatedAt.Compare(b.CreatedAt); c != 0 {
+			return c
 		}
-		return items[i].CreatedAt.Before(items[j].CreatedAt)
+		return cmp.Compare(a.ID, b.ID)
 	})
 
 	return items, nil
@@ -114,8 +114,8 @@ func (r *MemoryRepository) CreateLinks(_ context.Context, links []*schema.Source
 		r.links[link.RuleID] = append(r.links[link.RuleID], cloneLink(link))
 	}
 
-	sort.Slice(r.links[links[0].RuleID], func(i, j int) bool {
-		return r.links[links[0].RuleID][i].Address < r.links[links[0].RuleID][j].Address
+	slices.SortFunc(r.links[links[0].RuleID], func(a, b *schema.SourceRuleLink) int {
+		return cmp.Compare(a.Address, b.Address)
 	})
 	return nil
 }
@@ -163,8 +163,8 @@ func (r *MemoryRepository) replaceCandidateSnapshotsLocked(snapshots []*schema.S
 		cloned = append(cloned, cloneCandidateSnapshot(snapshot))
 	}
 
-	sort.Slice(cloned, func(i, j int) bool {
-		return cloned[i].CandidateType < cloned[j].CandidateType
+	slices.SortFunc(cloned, func(a, b *schema.SourceRuleCandidateSnapshot) int {
+		return cmp.Compare(a.CandidateType, b.CandidateType)
 	})
 	r.snapshots[key] = cloned
 	return nil

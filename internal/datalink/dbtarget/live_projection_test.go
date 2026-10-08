@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 
@@ -46,7 +47,7 @@ func TestMappingService_ValidateIgnoresStaleMissingTagMappings(t *testing.T) {
 		TableName:       "sensor_values",
 		ColumnName:      "value",
 		WriteMode:       schema.DatabaseWriteModeUpsert,
-		TimestampColumn: stringPtr("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 	createStaleTargetMapping(ctx, t, mappingRepo, connector.ID)
@@ -95,7 +96,7 @@ func TestMappingService_DryRunExcludesStaleMissingTagMappingsByDefault(t *testin
 		TableName:       "sensor_values",
 		ColumnName:      "value",
 		WriteMode:       schema.DatabaseWriteModeUpsert,
-		TimestampColumn: stringPtr("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 	createStaleTargetMapping(ctx, t, mappingRepo, connector.ID)

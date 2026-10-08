@@ -40,11 +40,11 @@ func (r *SQLRepository) UpsertTagReviewDecision(ctx context.Context, decision *s
 			updated_at = excluded.updated_at
 	`
 
-	var overrideTagID interface{}
+	var overrideTagID any
 	if decision.OverrideTagID != nil {
 		overrideTagID = *decision.OverrideTagID
 	}
-	var staleAt interface{}
+	var staleAt any
 	if decision.StaleAt != nil {
 		staleAt = decision.StaleAt.UTC().Format(time.RFC3339Nano)
 	}
@@ -139,7 +139,7 @@ func scanTagReviewDecision(scan scanFunc) (*schema.SourceRuleTagReviewDecision, 
 		return nil, err
 	}
 	if overrideTagID.Valid {
-		decision.OverrideTagID = stringPtr(overrideTagID.String)
+		decision.OverrideTagID = common.Ptr(overrideTagID.String)
 	}
 	if staleAt.Valid {
 		parsed, err := common.ParseTimeString(staleAt.String)

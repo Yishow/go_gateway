@@ -17,12 +17,12 @@ type TestHandler struct {
 
 // ConnectionState 連線狀態
 type ConnectionState struct {
-	ID        string                 `json:"id"`
-	Protocol  string                 `json:"protocol"`
-	Config    map[string]interface{} `json:"config"`
-	Connected bool                   `json:"connected"`
-	CreatedAt time.Time              `json:"created_at"`
-	Client    interface{}            `json:"-"` // 協議客戶端實例
+	ID        string         `json:"id"`
+	Protocol  string         `json:"protocol"`
+	Config    map[string]any `json:"config"`
+	Connected bool           `json:"connected"`
+	CreatedAt time.Time      `json:"created_at"`
+	Client    any            `json:"-"` // 協議客戶端實例
 }
 
 // NewTestHandler 建立新的測試處理器

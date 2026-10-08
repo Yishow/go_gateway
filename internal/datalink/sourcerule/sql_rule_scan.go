@@ -11,7 +11,7 @@ import (
 )
 
 type rowScanner interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }
 
 func scanRule(row rowScanner) (*schema.SourceRule, error) {

@@ -1,9 +1,10 @@
 package sourcerule
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/schema"
@@ -37,14 +38,17 @@ func (s *Service) listRestorableLocalModbusMappings(
 	ctx context.Context,
 	rules []*schema.SourceRule,
 ) ([]LocalModbusMappingRecord, error) {
-	sort.Slice(rules, func(i, j int) bool {
-		if rules[i] == nil {
-			return false
+	slices.SortFunc(rules, func(a, b *schema.SourceRule) int {
+		if a == nil && b == nil {
+			return 0
 		}
-		if rules[j] == nil {
-			return true
+		if a == nil {
+			return 1
 		}
-		return rules[i].ID < rules[j].ID
+		if b == nil {
+			return -1
+		}
+		return cmp.Compare(a.ID, b.ID)
 	})
 
 	result := make([]LocalModbusMappingRecord, 0)

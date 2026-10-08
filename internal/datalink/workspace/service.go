@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -112,7 +113,7 @@ func (s *Service) ShareOwnershipSnapshot(ctx context.Context) (workspaceID strin
 	if err != nil {
 		return "", nil, err
 	}
-	return record.ID, append([]string(nil), record.OrderedDeviceIDs...), nil
+	return record.ID, slices.Clone(record.OrderedDeviceIDs), nil
 }
 
 // getOrCreate 為內部使用：必須在 s.mu 已鎖定的情況下呼叫。
@@ -139,7 +140,7 @@ func cloneRecord(record *Record) *Record {
 	}
 
 	cloned := *record
-	cloned.OrderedDeviceIDs = append([]string{}, record.OrderedDeviceIDs...)
+	cloned.OrderedDeviceIDs = slices.Clone(record.OrderedDeviceIDs)
 	cloned.DatabaseRowGroups = cloneDatabaseRowGroups(record.DatabaseRowGroups)
 	cloned.DatabaseTargetRefs = cloneDatabaseTargetRefs(record.DatabaseTargetRefs)
 

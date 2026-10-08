@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
-	"time"
 )
 
 const workspaceMappingCleanupFailedStatus = "failed"
@@ -56,7 +58,7 @@ func (h *StudioV2WorkspaceMappingsHandler) saveExistingWorkspaceMapping(ctx cont
 		saveErr = errors.Join(saveErr, errors.Join(rollbackErrs...))
 	}()
 	draftStatus := schema.MappingStatusDraft
-	lastMapping, err = h.mappingSvc.Update(ctx, record.ID, mapping.UpdateMappingRequest{Enabled: boolPtr(false), Status: &draftStatus})
+	lastMapping, err = h.mappingSvc.Update(ctx, record.ID, mapping.UpdateMappingRequest{Enabled: common.Ptr(false), Status: &draftStatus})
 	if err != nil {
 		return nil, "", err
 	}
@@ -64,7 +66,7 @@ func (h *StudioV2WorkspaceMappingsHandler) saveExistingWorkspaceMapping(ctx cont
 	if err != nil {
 		return nil, "", err
 	}
-	updated, err := h.mappingSvc.Update(ctx, record.ID, mapping.UpdateMappingRequest{TagID: cloneStringPtr(lastTag.ID), Enabled: boolPtr(false), TransformPipeline: buildWorkspaceMappingPipeline(pointRecord.DataType, req.TargetType, req.Scale, req.Offset)})
+	updated, err := h.mappingSvc.Update(ctx, record.ID, mapping.UpdateMappingRequest{TagID: common.Ptr(lastTag.ID), Enabled: common.Ptr(false), TransformPipeline: buildWorkspaceMappingPipeline(pointRecord.DataType, req.TargetType, req.Scale, req.Offset)})
 	if err != nil {
 		return nil, "", err
 	}
@@ -92,10 +94,10 @@ func cloneWorkspaceLinks(links []*schema.SourceRuleLink) []*schema.SourceRuleLin
 	for _, link := range links {
 		clonedLink := *link
 		if link.TagID != nil {
-			clonedLink.TagID = cloneStringPtr(*link.TagID)
+			clonedLink.TagID = common.Ptr(*link.TagID)
 		}
 		if link.MappingID != nil {
-			clonedLink.MappingID = cloneStringPtr(*link.MappingID)
+			clonedLink.MappingID = common.Ptr(*link.MappingID)
 		}
 		result = append(result, &clonedLink)
 	}

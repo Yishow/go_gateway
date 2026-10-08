@@ -1,11 +1,12 @@
 package handlers
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"net/http"
 	"reflect"
-	"sort"
+	"slices"
 
 	"go-gateway/internal/datalink/modbusshare"
 
@@ -90,10 +91,12 @@ func (h *ModbusShareHandler) Reconcile(c *gin.Context) {
 			return
 		}
 	} else {
-		left, right := append([]modbusshare.DesiredMapping(nil), req.DesiredMappings...), append([]modbusshare.DesiredMapping(nil), serverDesired...)
-		sort.Slice(left, func(i, j int) bool { return left[i].TagID < left[j].TagID })
-		sort.Slice(right, func(i, j int) bool { return right[i].TagID < right[j].TagID })
-		if !reflect.DeepEqual(left, right) {
+		left, right := slices.Clone(req.DesiredMappings), slices.Clone(serverDesired)
+		slices.SortFunc(left, func(a, b modbusshare.DesiredMapping) int { return cmp.Compare(a.TagID, b.TagID) })
+		slices.SortFunc(right, func(a, b modbusshare.DesiredMapping) int { return cmp.Compare(a.TagID, b.TagID) })
+		if !slices.EqualFunc(left, right, func(a, b modbusshare.DesiredMapping) bool {
+			return reflect.DeepEqual(a, b)
+		}) {
 			renderSafeError(c, http.StatusUnprocessableEntity, modbusshare.ErrCodeProjectionRequired, false)
 			return
 		}

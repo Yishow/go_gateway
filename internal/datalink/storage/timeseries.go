@@ -21,7 +21,7 @@ type TimeSeriesRecord struct {
 	ValueNum  *float64           `json:"value_num,omitempty"`
 	ValueText *string            `json:"value_text,omitempty"`
 	ValueBool *bool              `json:"value_bool,omitempty"`
-	RawValue  interface{}        `json:"raw_value,omitempty"`
+	RawValue  any                `json:"raw_value,omitempty"`
 	Quality   schema.QualityFlag `json:"quality"`
 }
 

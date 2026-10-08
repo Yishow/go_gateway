@@ -13,10 +13,10 @@ import (
 
 // APIResponse 標準 API 回應結構
 type APIResponse struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
-	Success bool        `json:"success"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   *APIError   `json:"error,omitempty"`
-	Meta    *APIMeta    `json:"meta,omitempty"`
+	Success bool      `json:"success"`
+	Data    any       `json:"data,omitempty"`
+	Error   *APIError `json:"error,omitempty"`
+	Meta    *APIMeta  `json:"meta,omitempty"`
 }
 
 // APIError 錯誤回應結構
@@ -34,7 +34,7 @@ type APIMeta struct { //nolint:revive // Preserve the exported Go name and its e
 }
 
 // writeJSON 寫入 JSON 回應
-func writeJSON(w http.ResponseWriter, status int, data interface{}) {
+func writeJSON(w http.ResponseWriter, status int, data any) {
 	resp := APIResponse{
 		Success: status >= 200 && status < 300,
 		Data:    data,
@@ -125,7 +125,7 @@ func parseIDAndAction(path, prefix string) (id, action string) {
 // =============================================================================
 
 // decodeJSON 解碼 JSON 請求體
-func decodeJSON(r *http.Request, v interface{}) error {
+func decodeJSON(r *http.Request, v any) error {
 	defer r.Body.Close()
 	return json.NewDecoder(r.Body).Decode(v)
 }

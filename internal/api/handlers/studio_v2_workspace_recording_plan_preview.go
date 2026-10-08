@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"net/http"
@@ -160,8 +161,8 @@ func recordingTargetDatabase(connector *schema.DatabaseConnector, dialect string
 	}
 	for _, key := range keys {
 		value := connectorConfigString(connector, key)
-		if index := strings.IndexByte(value, '?'); index >= 0 {
-			value = value[:index]
+		if before, _, found := strings.Cut(value, "?"); found {
+			value = before
 		}
 		if value != "" {
 			if key == "dsn" {
@@ -196,17 +197,14 @@ func sanitizeDSNValue(value string) string {
 // recordingTargetSchema returns the saved schema or the adapter default that
 // table inspection uses when none is configured.
 func recordingTargetSchema(connector *schema.DatabaseConnector, dialect string) string {
-	if value := connectorConfigString(connector, "schema"); value != "" {
-		return value
-	}
+	defaultSchema := ""
 	switch dialect {
 	case recordingDialectSQLite:
-		return "main"
+		defaultSchema = "main"
 	case recordingDialectPostgres:
-		return "public"
-	default:
-		return ""
+		defaultSchema = "public"
 	}
+	return cmp.Or(connectorConfigString(connector, "schema"), defaultSchema)
 }
 
 // recordingTargetInspector reads managed tables through the saved target

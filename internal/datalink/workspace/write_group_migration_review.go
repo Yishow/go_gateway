@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -223,7 +224,7 @@ func prepareWriteGroupMigrationReviewRequest(
 	if err != nil {
 		return WriteGroupMigrationReviewRequest{}, nil, err
 	}
-	request.SourceIDs = append([]string(nil), ids...)
+	request.SourceIDs = slices.Clone(ids)
 	return request, ids, nil
 }
 

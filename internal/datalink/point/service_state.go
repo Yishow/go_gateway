@@ -3,7 +3,7 @@ package point
 import "context"
 
 // UpdateReadResult 更新點位讀取結果
-func (s *Service) UpdateReadResult(ctx context.Context, pointID string, value interface{}, errMsg string) error {
+func (s *Service) UpdateReadResult(ctx context.Context, pointID string, value any, errMsg string) error {
 	return s.repo.UpdateReadResult(ctx, pointID, value, errMsg)
 }
 

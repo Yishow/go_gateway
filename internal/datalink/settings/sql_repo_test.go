@@ -86,7 +86,7 @@ func TestSQLRepository_Set(t *testing.T) {
 	ctx := context.Background()
 
 	// 設定新值
-	value := map[string]interface{}{
+	value := map[string]any{
 		"enabled": true,
 		"count":   10,
 	}
@@ -112,7 +112,7 @@ func TestSQLRepository_Set_Update(t *testing.T) {
 	ctx := context.Background()
 
 	// 建立初始設定
-	initialValue := map[string]interface{}{
+	initialValue := map[string]any{
 		"enabled": true,
 		"count":   10,
 	}
@@ -120,7 +120,7 @@ func TestSQLRepository_Set_Update(t *testing.T) {
 	require.NoError(t, err)
 
 	// 更新設定
-	updatedValue := map[string]interface{}{
+	updatedValue := map[string]any{
 		"enabled": false,
 		"count":   20,
 	}
@@ -147,7 +147,7 @@ func TestSQLRepository_Set_SimpleType(t *testing.T) {
 	// 測試各種簡單類型
 	testCases := []struct {
 		key   string
-		value interface{}
+		value any
 	}{
 		{"string.value", "hello world"},
 		{"int.value", 42},
@@ -176,9 +176,9 @@ func TestSQLRepository_Set_ComplexType(t *testing.T) {
 	ctx := context.Background()
 
 	// 測試複雜類型（陣列、物件）
-	value := map[string]interface{}{
+	value := map[string]any{
 		"array": []int{1, 2, 3, 4, 5},
-		"nested": map[string]interface{}{
+		"nested": map[string]any{
 			"key1": "value1",
 			"key2": 123,
 		},
@@ -209,7 +209,7 @@ func TestSQLRepository_List(t *testing.T) {
 	// 建立多個設定
 	settings := []struct {
 		key   string
-		value interface{}
+		value any
 	}{
 		{"setting.1", "value1"},
 		{"setting.2", 42},

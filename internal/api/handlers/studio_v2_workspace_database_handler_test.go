@@ -14,6 +14,7 @@ import (
 
 	datalinkbase "go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/audit"
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
@@ -402,7 +403,7 @@ func newWorkspaceDatabaseFixture(t *testing.T) workspaceDatabaseFixture {
 		mappingRecord, err := mappingSvc.Create(ctx, mapping.CreateMappingRequest{
 			PointID: link.PointID,
 			TagID:   tagRecord.ID,
-			Enabled: boolPtr(true),
+			Enabled: common.Ptr(true),
 		})
 		require.NoError(t, err)
 		link.TagID = &tagRecord.ID
@@ -481,12 +482,10 @@ func openWorkspaceDatabaseTestDB(t *testing.T) *sql.DB {
 
 func createWorkspaceTargetSQLite(t *testing.T) string {
 	t.Helper()
-
 	dbPath := filepath.Join(t.TempDir(), "target.db")
 	db, err := sql.Open("sqlite", dbPath)
 	require.NoError(t, err)
 	defer db.Close()
-
 	_, err = db.ExecContext(context.Background(), `
 		CREATE TABLE sensor_values (
 			ts DATETIME PRIMARY KEY,
@@ -495,6 +494,5 @@ func createWorkspaceTargetSQLite(t *testing.T) string {
 		)
 	`)
 	require.NoError(t, err)
-
 	return dbPath
 }

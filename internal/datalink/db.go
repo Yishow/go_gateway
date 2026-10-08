@@ -184,17 +184,17 @@ func (m *DBManager) Type() DBType {
 // RepositoryFactory Repository 工廠介面
 type RepositoryFactory interface {
 	// DeviceRepository 取得 Device Repository
-	DeviceRepository() interface{}
+	DeviceRepository() any
 	// PointRepository 取得 Point Repository
-	PointRepository() interface{}
+	PointRepository() any
 	// TagRepository 取得 Tag Repository
-	TagRepository() interface{}
+	TagRepository() any
 	// MappingRepository 取得 Mapping Repository
-	MappingRepository() interface{}
+	MappingRepository() any
 	// PollingGroupRepository 取得 PollingGroup Repository
-	PollingGroupRepository() interface{}
+	PollingGroupRepository() any
 	// SettingsRepository 取得 Settings Repository
-	SettingsRepository() interface{}
+	SettingsRepository() any
 }
 
 // SQLRepositoryFactory SQL Repository 工廠
@@ -215,9 +215,9 @@ func (f *SQLRepositoryFactory) DBManager() *DBManager {
 }
 
 // placeholder 方法，實際實現在各自的 sql_repo.go 中
-func (f *SQLRepositoryFactory) DeviceRepository() interface{}       { return nil }
-func (f *SQLRepositoryFactory) PointRepository() interface{}        { return nil }
-func (f *SQLRepositoryFactory) TagRepository() interface{}          { return nil }
-func (f *SQLRepositoryFactory) MappingRepository() interface{}      { return nil }
-func (f *SQLRepositoryFactory) PollingGroupRepository() interface{} { return nil }
-func (f *SQLRepositoryFactory) SettingsRepository() interface{}     { return nil }
+func (f *SQLRepositoryFactory) DeviceRepository() any       { return nil }
+func (f *SQLRepositoryFactory) PointRepository() any        { return nil }
+func (f *SQLRepositoryFactory) TagRepository() any          { return nil }
+func (f *SQLRepositoryFactory) MappingRepository() any      { return nil }
+func (f *SQLRepositoryFactory) PollingGroupRepository() any { return nil }
+func (f *SQLRepositoryFactory) SettingsRepository() any     { return nil }

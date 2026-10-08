@@ -1,6 +1,7 @@
 package tag
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -57,7 +58,7 @@ func (s *Service) Create(ctx context.Context, req CreateTagRequest) (*schema.Tag
 		ID:          id,
 		Key:         req.Key,
 		KeyLower:    NormalizeTagKey(req.Key),
-		DisplayName: req.DisplayName,
+		DisplayName: cmp.Or(req.DisplayName, req.Key),
 		Description: req.Description,
 		Unit:        req.Unit,
 		DataType:    req.DataType,
@@ -65,11 +66,6 @@ func (s *Service) Create(ctx context.Context, req CreateTagRequest) (*schema.Tag
 		Labels:      labelsJSON,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
-	}
-
-	// 設定預設顯示名稱
-	if tag.DisplayName == "" {
-		tag.DisplayName = req.Key
 	}
 
 	if err := s.repo.Create(ctx, tag); err != nil {
@@ -143,7 +139,7 @@ func (s *Service) BatchCreate(ctx context.Context, reqs []CreateTagRequest) ([]s
 			ID:          id,
 			Key:         req.Key,
 			KeyLower:    NormalizeTagKey(req.Key),
-			DisplayName: req.DisplayName,
+			DisplayName: cmp.Or(req.DisplayName, req.Key),
 			Description: req.Description,
 			Unit:        req.Unit,
 			DataType:    req.DataType,
@@ -151,9 +147,6 @@ func (s *Service) BatchCreate(ctx context.Context, reqs []CreateTagRequest) ([]s
 			Labels:      labelsJSON,
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
-		}
-		if tag.DisplayName == "" {
-			tag.DisplayName = req.Key
 		}
 
 		tags = append(tags, tag)

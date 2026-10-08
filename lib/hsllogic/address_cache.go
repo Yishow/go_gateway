@@ -82,7 +82,7 @@ func (c *AddressCache) Get(protocol ProtocolType, address string) (*ParsedAddres
  * Clear 清空快取
  */
 func (c *AddressCache) Clear() {
-	c.cache.Range(func(key, value interface{}) bool {
+	c.cache.Range(func(key, value any) bool {
 		c.cache.Delete(key)
 		return true
 	})
@@ -118,7 +118,7 @@ func (c *AddressCache) Stats() (hits, misses uint64, hitRate float64) {
  */
 func (c *AddressCache) Size() int {
 	count := 0
-	c.cache.Range(func(_, _ interface{}) bool {
+	c.cache.Range(func(_, _ any) bool {
 		count++
 		return true
 	})

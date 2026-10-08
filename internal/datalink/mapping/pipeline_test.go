@@ -12,9 +12,9 @@ import (
 func TestExecutePipeline_Scale(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    interface{}
+		input    any
 		steps    []schema.TransformStep
-		expected interface{}
+		expected any
 		wantErr  bool
 	}{
 		{
@@ -23,7 +23,7 @@ func TestExecutePipeline_Scale(t *testing.T) {
 			steps: []schema.TransformStep{
 				{
 					Type: schema.TransformScale,
-					Params: map[string]interface{}{
+					Params: map[string]any{
 						"multiplier": 2.0,
 						"offset":     5.0,
 					},
@@ -38,7 +38,7 @@ func TestExecutePipeline_Scale(t *testing.T) {
 			steps: []schema.TransformStep{
 				{
 					Type: schema.TransformScale,
-					Params: map[string]interface{}{
+					Params: map[string]any{
 						"divisor": 10.0,
 					},
 				},
@@ -52,7 +52,7 @@ func TestExecutePipeline_Scale(t *testing.T) {
 			steps: []schema.TransformStep{
 				{
 					Type: schema.TransformScale,
-					Params: map[string]interface{}{
+					Params: map[string]any{
 						"min": 10.0,
 					},
 				},
@@ -79,9 +79,9 @@ func TestExecutePipeline_Scale(t *testing.T) {
 func TestExecutePipeline_Conditional(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    interface{}
+		input    any
 		steps    []schema.TransformStep
-		expected interface{}
+		expected any
 	}{
 		{
 			name:  "Conditional GT",
@@ -89,7 +89,7 @@ func TestExecutePipeline_Conditional(t *testing.T) {
 			steps: []schema.TransformStep{
 				{
 					Type: schema.TransformConditional,
-					Params: map[string]interface{}{
+					Params: map[string]any{
 						"operator":    "gt",
 						"threshold":   40.0,
 						"true_value":  "High",
@@ -105,7 +105,7 @@ func TestExecutePipeline_Conditional(t *testing.T) {
 			steps: []schema.TransformStep{
 				{
 					Type: schema.TransformConditional,
-					Params: map[string]interface{}{
+					Params: map[string]any{
 						"operator":    "lte",
 						"threshold":   40.0,
 						"true_value":  "High",
@@ -130,9 +130,9 @@ func TestExecutePipeline_Conditional(t *testing.T) {
 func TestExecutePipeline_Formula(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    interface{}
+		input    any
 		steps    []schema.TransformStep
-		expected interface{}
+		expected any
 	}{
 		{
 			name:  "Formula Abs",
@@ -140,7 +140,7 @@ func TestExecutePipeline_Formula(t *testing.T) {
 			steps: []schema.TransformStep{
 				{
 					Type: schema.TransformFormula,
-					Params: map[string]interface{}{
+					Params: map[string]any{
 						"expression": "abs(x)",
 					},
 				},
@@ -153,7 +153,7 @@ func TestExecutePipeline_Formula(t *testing.T) {
 			steps: []schema.TransformStep{
 				{
 					Type: schema.TransformFormula,
-					Params: map[string]interface{}{
+					Params: map[string]any{
 						"expression": "sqrt(x)",
 					},
 				},
@@ -179,14 +179,14 @@ func TestExecutePipeline_Chained(t *testing.T) {
 		{
 			Type:  schema.TransformScale,
 			Order: 1,
-			Params: map[string]interface{}{
+			Params: map[string]any{
 				"multiplier": 10.0, // = 100
 			},
 		},
 		{
 			Type:  schema.TransformConditional,
 			Order: 2,
-			Params: map[string]interface{}{
+			Params: map[string]any{
 				"operator":    "gte",
 				"threshold":   100.0,
 				"true_value":  "Max",
@@ -209,14 +209,14 @@ func TestValidateTransformPipeline_Integration(t *testing.T) {
 		{
 			Type:  schema.TransformCast,
 			Order: 0,
-			Params: map[string]interface{}{
+			Params: map[string]any{
 				"target_type": "float64",
 			},
 		},
 		{
 			Type:  schema.TransformScale,
 			Order: 1,
-			Params: map[string]interface{}{
+			Params: map[string]any{
 				"multiplier": 2.5,
 				"offset":     -10.0,
 			},

@@ -190,7 +190,7 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 }
 
 type scannable interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }
 
 func scanMeasurementDefinition(s scannable) (*MeasurementDefinition, error) {

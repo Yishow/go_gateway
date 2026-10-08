@@ -1,8 +1,9 @@
 package runtime
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -125,22 +126,20 @@ func (s *Service) databaseDeliveryDiagnostics(deviceID string) []DatabaseDeliver
 		if filterDeviceID != "" && diagnostic.DeviceID != filterDeviceID {
 			continue
 		}
-		diagnostic.Stages = append([]DatabaseDeliveryStage(nil), diagnostic.Stages...)
+		diagnostic.Stages = slices.Clone(diagnostic.Stages)
 		diagnostic.LastSuccessAt = cloneTimePtr(diagnostic.LastSuccessAt)
 		diagnostic.LastFailureAt = cloneTimePtr(diagnostic.LastFailureAt)
 		diagnostics = append(diagnostics, diagnostic)
 	}
 
-	sort.Slice(diagnostics, func(i, j int) bool {
-		left := diagnostics[i]
-		right := diagnostics[j]
-		if !left.ObservedAt.Equal(right.ObservedAt) {
-			return left.ObservedAt.Before(right.ObservedAt)
+	slices.SortFunc(diagnostics, func(a, b DatabaseDeliveryDiagnostic) int {
+		if c := a.ObservedAt.Compare(b.ObservedAt); c != 0 {
+			return c
 		}
-		if left.PointID != right.PointID {
-			return left.PointID < right.PointID
+		if c := cmp.Compare(a.PointID, b.PointID); c != 0 {
+			return c
 		}
-		return left.TagID < right.TagID
+		return cmp.Compare(a.TagID, b.TagID)
 	})
 	return diagnostics
 }
@@ -161,7 +160,7 @@ func (s *Service) recordDatabaseDeliveryDiagnostic(diagnostic DatabaseDeliveryDi
 		diagnostic.ObservedAt = time.Now()
 	}
 	diagnostic.ObservedAt = diagnostic.ObservedAt.UTC()
-	diagnostic.Stages = append([]DatabaseDeliveryStage(nil), diagnostic.Stages...)
+	diagnostic.Stages = slices.Clone(diagnostic.Stages)
 
 	s.databaseDeliveryMu.Lock()
 	defer s.databaseDeliveryMu.Unlock()

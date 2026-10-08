@@ -44,8 +44,8 @@ type MixedItem struct {
 // DecodedItemResult 混合讀取中單一項目的解碼結果。
 type DecodedItemResult struct {
 	ItemID        string             `json:"item_id"`
-	Value         interface{}        `json:"value"`
-	RawValue      interface{}        `json:"raw_value,omitempty"`
+	Value         any                `json:"value"`
+	RawValue      any                `json:"raw_value,omitempty"`
 	Quality       schema.QualityFlag `json:"quality"`
 	QualityReason string             `json:"quality_reason,omitempty"`
 	Transformed   bool               `json:"transformed"`
@@ -219,7 +219,7 @@ func DecodeMixedRegisters(registers []uint16, items []MixedItem, defaultFormat s
 	return results, nil
 }
 
-func toFloat64(val interface{}) (float64, bool) {
+func toFloat64(val any) (float64, bool) {
 	switch v := val.(type) {
 	case int16:
 		return float64(v), true

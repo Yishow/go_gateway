@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	"slices"
 
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/mapping"
@@ -22,7 +23,7 @@ type runtimeProjectionSummary struct {
 
 func summarizeRuntimeProjection(projection *RuntimeProjection) runtimeProjectionSummary {
 	return runtimeProjectionSummary{
-		DeviceIDs:      append([]string{}, projection.DeviceIDs...),
+		DeviceIDs:      slices.Clone(projection.DeviceIDs),
 		RuleIDs:        sourceRuleIDs(projection.Rules),
 		RuleLinkIDs:    sourceRuleLinkIDs(projection.RuleLinks),
 		PointIDs:       pointIDs(projection.Points),
@@ -33,64 +34,43 @@ func summarizeRuntimeProjection(projection *RuntimeProjection) runtimeProjection
 	}
 }
 
-func stringPtr(value string) *string {
-	return &value
+func idSlice[T any](records []*T, idFn func(*T) string) []string {
+	if records == nil {
+		return []string{}
+	}
+	ids := make([]string, len(records))
+	for i, r := range records {
+		ids[i] = idFn(r)
+	}
+	return ids
 }
 
 func sourceRuleIDs(records []*schema.SourceRule) []string {
-	result := make([]string, 0, len(records))
-	for _, record := range records {
-		result = append(result, record.ID)
-	}
-	return result
+	return idSlice(records, func(r *schema.SourceRule) string { return r.ID })
 }
 
 func sourceRuleLinkIDs(records []*schema.SourceRuleLink) []string {
-	result := make([]string, 0, len(records))
-	for _, record := range records {
-		result = append(result, record.ID)
-	}
-	return result
+	return idSlice(records, func(r *schema.SourceRuleLink) string { return r.ID })
 }
 
 func pointIDs(records []*schema.Point) []string {
-	result := make([]string, 0, len(records))
-	for _, record := range records {
-		result = append(result, record.ID)
-	}
-	return result
+	return idSlice(records, func(r *schema.Point) string { return r.ID })
 }
 
 func mappingIDs(records []*schema.Mapping) []string {
-	result := make([]string, 0, len(records))
-	for _, record := range records {
-		result = append(result, record.ID)
-	}
-	return result
+	return idSlice(records, func(r *schema.Mapping) string { return r.ID })
 }
 
 func tagIDs(records []*schema.Tag) []string {
-	result := make([]string, 0, len(records))
-	for _, record := range records {
-		result = append(result, record.ID)
-	}
-	return result
+	return idSlice(records, func(r *schema.Tag) string { return r.ID })
 }
 
 func databaseTargetIDs(records []*schema.DatabaseTargetMapping) []string {
-	result := make([]string, 0, len(records))
-	for _, record := range records {
-		result = append(result, record.ID)
-	}
-	return result
+	return idSlice(records, func(r *schema.DatabaseTargetMapping) string { return r.ID })
 }
 
 func pollingGroupIDs(records []*schema.PollingGroup) []string {
-	result := make([]string, 0, len(records))
-	for _, record := range records {
-		result = append(result, record.ID)
-	}
-	return result
+	return idSlice(records, func(r *schema.PollingGroup) string { return r.ID })
 }
 
 type runtimeProjectionDeviceStub struct {

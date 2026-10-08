@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
@@ -114,7 +115,7 @@ func TestService_UpsertTagReviewDecision_PersistsAcrossCompatibleRevision(t *tes
 			tc.assertion(t, decision)
 
 			updatedRule, err := svc.Update(ctx, rule.ID, UpdateRuleRequest{
-				ScaleMultiplier:    float64Ptr(2),
+				ScaleMultiplier:    common.Ptr(float64(2)),
 				ScaleMultiplierSet: true,
 			})
 			require.NoError(t, err)

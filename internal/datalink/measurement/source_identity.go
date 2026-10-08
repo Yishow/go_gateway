@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -93,8 +94,5 @@ func StableSampleID(acquisitionID, workspaceID, deviceID, pointID, tagID, source
 }
 
 func pollingGroupID(id *string) string {
-	if id == nil {
-		return ""
-	}
-	return *id
+	return common.DerefOrZero(id)
 }

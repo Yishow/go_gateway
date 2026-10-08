@@ -16,7 +16,7 @@ type PointDetail struct { //nolint:revive // Preserve the exported Go name and i
 }
 
 // ToJSON 將最後讀取值轉換為 JSON
-func (s *Service) GetLastValue(ctx context.Context, pointID string) (interface{}, error) {
+func (s *Service) GetLastValue(ctx context.Context, pointID string) (any, error) {
 	point, err := s.repo.GetByID(ctx, pointID)
 	if err != nil {
 		return nil, err
@@ -26,7 +26,7 @@ func (s *Service) GetLastValue(ctx context.Context, pointID string) (interface{}
 		return nil, nil
 	}
 
-	var value interface{}
+	var value any
 	if err := json.Unmarshal([]byte(*point.LastValue), &value); err != nil {
 		// 非 JSON 格式，直接返回字串
 		return *point.LastValue, nil //nolint:nilerr // Stored values also support plain text; parsing failure selects that representation.

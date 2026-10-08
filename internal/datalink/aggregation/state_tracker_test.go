@@ -3,11 +3,9 @@ package aggregation
 import (
 	"testing"
 	"time"
-)
 
-func strPtr(s string) *string {
-	return &s
-}
+	"go-gateway/internal/datalink/common"
+)
 
 func TestStateTracker_S01_InitialSnapshotAndTransition(t *testing.T) {
 	// S01: 初筆run，30秒後stop，中間有效 -> initial snapshot及轉態，觀察run 30秒；無虛構先前事件
@@ -19,13 +17,13 @@ func TestStateTracker_S01_InitialSnapshotAndTransition(t *testing.T) {
 		{
 			MeasurementID: "meas-state",
 			ObservedAt:    baseTime,
-			ValueString:   strPtr("RUN"),
+			ValueString:   common.Ptr("RUN"),
 			Quality:       QualityGood,
 		},
 		{
 			MeasurementID: "meas-state",
 			ObservedAt:    baseTime.Add(30 * time.Second),
-			ValueString:   strPtr("STOP"),
+			ValueString:   common.Ptr("STOP"),
 			Quality:       QualityGood,
 		},
 	}
@@ -75,7 +73,7 @@ func TestStateTracker_S02_LongDisconnectionBeyondMaxHold(t *testing.T) {
 		{
 			MeasurementID: "meas-state",
 			ObservedAt:    baseTime,
-			ValueString:   strPtr("RUN"),
+			ValueString:   common.Ptr("RUN"),
 			Quality:       QualityGood,
 		},
 	}

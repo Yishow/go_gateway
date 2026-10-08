@@ -2,7 +2,7 @@ package aggregation
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 )
 
@@ -76,8 +76,8 @@ func TrackStateDurations(
 		return result
 	}
 
-	sort.SliceStable(stateSamples, func(i, j int) bool {
-		return stateSamples[i].at.Before(stateSamples[j].at)
+	slices.SortStableFunc(stateSamples, func(a, b stateSample) int {
+		return a.at.Compare(b.at)
 	})
 
 	result.InitialState = stateSamples[0].state
@@ -124,10 +124,7 @@ func TrackStateDurations(
 	}
 
 	result.TransitionsCount = transitions
-	result.UnknownDurationSec = totalSeconds - validTrackedDuration
-	if result.UnknownDurationSec < 0 {
-		result.UnknownDurationSec = 0
-	}
+	result.UnknownDurationSec = max(totalSeconds-validTrackedDuration, 0)
 
 	for st, dur := range durationsMap {
 		result.StateDurations = append(result.StateDurations, StateDuration{

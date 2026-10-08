@@ -13,7 +13,7 @@ import (
  */
 func TestModbusTCPConnector_PersistentMode(t *testing.T) {
 	conn := &ModbusTCPConnector{}
-	pc, ok := interface{}(conn).(connector.PersistentConnection)
+	pc, ok := any(conn).(connector.PersistentConnection)
 	if !ok {
 		t.Fatal("ModbusTCPConnector 應該實作 PersistentConnection 介面")
 	}
@@ -41,7 +41,7 @@ func TestModbusTCPConnector_PersistentMode(t *testing.T) {
  */
 func TestFatekConnector_PersistentMode(t *testing.T) {
 	conn := &FatekConnector{}
-	pc, ok := interface{}(conn).(connector.PersistentConnection)
+	pc, ok := any(conn).(connector.PersistentConnection)
 	if !ok {
 		t.Fatal("FatekConnector 應該實作 PersistentConnection 介面")
 	}
@@ -64,7 +64,7 @@ func TestFatekConnector_PersistentMode(t *testing.T) {
  */
 func TestMC3EConnector_PersistentMode(t *testing.T) {
 	conn := &MC3EConnector{}
-	pc, ok := interface{}(conn).(connector.PersistentConnection)
+	pc, ok := any(conn).(connector.PersistentConnection)
 	if !ok {
 		t.Fatal("MC3EConnector 應該實作 PersistentConnection 介面")
 	}
@@ -120,7 +120,7 @@ func TestPersistentConnection_Reconnect(t *testing.T) {
 		persistentMode: true,
 	}
 
-	pc, ok := interface{}(conn).(connector.PersistentConnection)
+	pc, ok := any(conn).(connector.PersistentConnection)
 	if !ok {
 		t.Fatal("ModbusTCPConnector 應該實作 PersistentConnection 介面")
 	}
@@ -256,7 +256,7 @@ func TestModbusRTU_PersistentConnection(t *testing.T) {
 	conn := &ModbusRTUConnector{}
 
 	// Modbus RTU 也應該支援長連接
-	pc, ok := interface{}(conn).(connector.PersistentConnection)
+	pc, ok := any(conn).(connector.PersistentConnection)
 	if !ok {
 		t.Fatal("ModbusRTUConnector 應該實作 PersistentConnection 介面")
 	}
@@ -276,7 +276,7 @@ func TestModbusUDP_PersistentConnection(t *testing.T) {
 	conn := &ModbusUDPConnector{}
 
 	// Modbus UDP 也應該支援長連接
-	pc, ok := interface{}(conn).(connector.PersistentConnection)
+	pc, ok := any(conn).(connector.PersistentConnection)
 	if !ok {
 		t.Fatal("ModbusUDPConnector 應該實作 PersistentConnection 介面")
 	}

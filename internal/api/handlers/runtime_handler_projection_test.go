@@ -122,7 +122,7 @@ func newRuntimeHandlerProjectionFixture(t *testing.T, attachWorkspaceDevice bool
 		ID:       "dev-A",
 		Name:     "Device A",
 		Protocol: schema.ProtocolModbusTCP,
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     502,
 			"slave_id": 1,

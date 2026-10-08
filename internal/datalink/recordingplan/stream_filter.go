@@ -11,11 +11,11 @@ import (
 )
 
 type streamState struct {
-	lastValue      interface{}
+	lastValue      any
 	lastQuality    schema.QualityFlag
 	lastObservedAt time.Time
 	lastEmittedAt  time.Time
-	lastTriggerVal interface{}
+	lastTriggerVal any
 	hasEmitted     bool
 }
 
@@ -155,7 +155,7 @@ func (f *StreamFilter) EvaluateBatchTrigger(stream PlanStream, triggerSample mea
 	return false
 }
 
-func toNumeric(val interface{}) (float64, bool) {
+func toNumeric(val any) (float64, bool) {
 	switch v := val.(type) {
 	case float64:
 		return v, true
@@ -180,7 +180,7 @@ func toNumeric(val interface{}) (float64, bool) {
 	}
 }
 
-func isTruthy(val interface{}) bool {
+func isTruthy(val any) bool {
 	if val == nil {
 		return false
 	}

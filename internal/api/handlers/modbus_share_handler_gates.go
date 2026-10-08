@@ -28,8 +28,8 @@ type UpsertMirrorMappingRequest struct {
 
 // WriteTagValueRequest is the direct tag write payload.
 type WriteTagValueRequest struct {
-	TagID string      `json:"tag_id" binding:"required"`
-	Value interface{} `json:"value" binding:"required"`
+	TagID string `json:"tag_id" binding:"required"`
+	Value any    `json:"value" binding:"required"`
 }
 
 // StartModbusShareRequest is the Modbus Share start payload.

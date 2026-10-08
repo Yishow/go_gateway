@@ -46,7 +46,7 @@ func (h *TestHandler) Read(c *gin.Context) {
 
 	// 如果請求中指定了站號，創建臨時客戶端
 	clientToUse := state.Client
-	var tempClient interface{}
+	var tempClient any
 	if req.UnitID != nil || req.Station != nil {
 		var err error
 		clientToUse, tempClient, err = h.prepareOverrideClient(state, req.UnitID, req.Station, "_temp")
@@ -65,7 +65,7 @@ func (h *TestHandler) Read(c *gin.Context) {
 	if err != nil {
 		// 記錄錯誤日誌
 		if h.debugHandler != nil {
-			h.debugHandler.RecordLog("error", fmt.Sprintf("讀取失敗: %s", err.Error()), map[string]interface{}{
+			h.debugHandler.RecordLog("error", fmt.Sprintf("讀取失敗: %s", err.Error()), map[string]any{
 				apiResponseConnectionIDKey: req.ConnectionID,
 				apiResponseOperationKey:    req.Operation,
 				apiResponseAddressKey:      req.Address,
@@ -84,7 +84,7 @@ func (h *TestHandler) Read(c *gin.Context) {
 
 	// 記錄成功日誌
 	if h.debugHandler != nil {
-		h.debugHandler.RecordLog("info", fmt.Sprintf("讀取成功: %s (地址: %d, 數量: %d)", req.Operation, req.Address, req.Count), map[string]interface{}{
+		h.debugHandler.RecordLog("info", fmt.Sprintf("讀取成功: %s (地址: %d, 數量: %d)", req.Operation, req.Address, req.Count), map[string]any{
 			apiResponseConnectionIDKey: req.ConnectionID,
 			apiResponseOperationKey:    req.Operation,
 			apiResponseAddressKey:      req.Address,
@@ -100,7 +100,7 @@ func (h *TestHandler) Read(c *gin.Context) {
 }
 
 // resultToString 將結果轉換為字符串數組（用於計算長度）
-func resultToString(v interface{}) []string {
+func resultToString(v any) []string {
 	if v == nil {
 		return []string{}
 	}
@@ -116,7 +116,7 @@ func resultToString(v interface{}) []string {
 	case []int:
 		res := make([]string, len(arr))
 		return res
-	case []interface{}:
+	case []any:
 		res := make([]string, len(arr))
 		return res
 	case []string:

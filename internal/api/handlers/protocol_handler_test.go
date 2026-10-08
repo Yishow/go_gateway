@@ -37,12 +37,12 @@ func TestProtocolHandler_List(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	assert.NotEmpty(t, data)
 }
 
@@ -58,9 +58,9 @@ func TestProtocolHandler_List_Count(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 
 	// 應該有 6 個協議
 	assert.Equal(t, 6, len(data))
@@ -76,7 +76,7 @@ func TestProtocolHandler_List_Structure(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
@@ -85,11 +85,11 @@ func TestProtocolHandler_List_Structure(t *testing.T) {
 	assert.NotNil(t, response["data"])
 
 	// 驗證協議陣列
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	assert.Greater(t, len(data), 0)
 
 	// 驗證第一個協議的結構
-	firstProtocol := data[0].(map[string]interface{})
+	firstProtocol := data[0].(map[string]any)
 	assert.Contains(t, firstProtocol, "type")
 	assert.Contains(t, firstProtocol, "name")
 	assert.Contains(t, firstProtocol, "description")
@@ -106,14 +106,14 @@ func TestProtocolHandler_List_ModbusTCP(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 
 	// 尋找 Modbus TCP 協議
-	var modbusTCP map[string]interface{}
+	var modbusTCP map[string]any
 	for _, item := range data {
-		protocol := item.(map[string]interface{})
+		protocol := item.(map[string]any)
 		if protocol["type"] == "modbus_tcp" {
 			modbusTCP = protocol
 			break
@@ -132,7 +132,7 @@ func TestProtocolHandler_List_ModbusTCP(t *testing.T) {
 	configSchema, ok := modbusTCP["config_schema"].(string)
 	assert.True(t, ok)
 
-	var schema map[string]interface{}
+	var schema map[string]any
 	err := json.Unmarshal([]byte(configSchema), &schema)
 	assert.NoError(t, err)
 	assert.Equal(t, "object", schema["type"])
@@ -150,14 +150,14 @@ func TestProtocolHandler_List_ModbusRTU(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 
 	// 尋找 Modbus RTU 協議
-	var modbusRTU map[string]interface{}
+	var modbusRTU map[string]any
 	for _, item := range data {
-		protocol := item.(map[string]interface{})
+		protocol := item.(map[string]any)
 		if protocol["type"] == "modbus_rtu" {
 			modbusRTU = protocol
 			break
@@ -181,14 +181,14 @@ func TestProtocolHandler_List_ModbusUDP(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 
 	// 尋找 Modbus UDP 協議
-	var modbusUDP map[string]interface{}
+	var modbusUDP map[string]any
 	for _, item := range data {
-		protocol := item.(map[string]interface{})
+		protocol := item.(map[string]any)
 		if protocol["type"] == "modbus_udp" {
 			modbusUDP = protocol
 			break
@@ -212,14 +212,14 @@ func TestProtocolHandler_List_FatekFBs(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 
 	// 尋找 FATEK FBs 協議
-	var fatekFBs map[string]interface{}
+	var fatekFBs map[string]any
 	for _, item := range data {
-		protocol := item.(map[string]interface{})
+		protocol := item.(map[string]any)
 		if protocol["type"] == "fatek_fbs" {
 			fatekFBs = protocol
 			break
@@ -243,14 +243,14 @@ func TestProtocolHandler_List_MC3E(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 
 	// 尋找 MC 3E 協議
-	var mc3e map[string]interface{}
+	var mc3e map[string]any
 	for _, item := range data {
-		protocol := item.(map[string]interface{})
+		protocol := item.(map[string]any)
 		if protocol["type"] == "mc_3e" {
 			mc3e = protocol
 			break
@@ -274,14 +274,14 @@ func TestProtocolHandler_List_MQTT(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 
 	// 尋找 MQTT 協議
-	var mqtt map[string]interface{}
+	var mqtt map[string]any
 	for _, item := range data {
-		protocol := item.(map[string]interface{})
+		protocol := item.(map[string]any)
 		if protocol["type"] == "mqtt" {
 			mqtt = protocol
 			break
@@ -305,14 +305,14 @@ func TestProtocolHandler_List_ConfigSchema_ModbusTCP(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 
 	// 尋找 Modbus TCP 協議
-	var modbusTCP map[string]interface{}
+	var modbusTCP map[string]any
 	for _, item := range data {
-		protocol := item.(map[string]interface{})
+		protocol := item.(map[string]any)
 		if protocol["type"] == "modbus_tcp" {
 			modbusTCP = protocol
 			break
@@ -322,7 +322,7 @@ func TestProtocolHandler_List_ConfigSchema_ModbusTCP(t *testing.T) {
 
 	// 解析 Config Schema
 	configSchema := modbusTCP["config_schema"].(string)
-	var schema map[string]interface{}
+	var schema map[string]any
 	json.Unmarshal([]byte(configSchema), &schema)
 
 	// 驗證結構
@@ -331,30 +331,30 @@ func TestProtocolHandler_List_ConfigSchema_ModbusTCP(t *testing.T) {
 	assert.NotNil(t, schema["required"])
 
 	// 驗證 required 欄位
-	required := schema["required"].([]interface{})
+	required := schema["required"].([]any)
 	assert.Contains(t, required, "host")
 	assert.Contains(t, required, "slave_id")
 
 	// 驗證 properties
-	properties := schema["properties"].(map[string]interface{})
+	properties := schema["properties"].(map[string]any)
 	assert.Contains(t, properties, "host")
 	assert.Contains(t, properties, "port")
 	assert.Contains(t, properties, "slave_id")
 	assert.Contains(t, properties, "timeout")
 
 	// 驗證 host 屬性
-	host := properties["host"].(map[string]interface{})
+	host := properties["host"].(map[string]any)
 	assert.Equal(t, "string", host["type"])
 	assert.Equal(t, "主機位址", host["title"])
 
 	// 驗證 port 屬性
-	port := properties["port"].(map[string]interface{})
+	port := properties["port"].(map[string]any)
 	assert.Equal(t, "integer", port["type"])
 	assert.Equal(t, float64(502), port["default"])
 	assert.Equal(t, "埠號", port["title"])
 
 	// 驗證 slave_id 屬性
-	slaveID := properties["slave_id"].(map[string]interface{})
+	slaveID := properties["slave_id"].(map[string]any)
 	assert.Equal(t, "integer", slaveID["type"])
 	assert.Equal(t, float64(1), slaveID["minimum"])
 	assert.Equal(t, float64(247), slaveID["maximum"])
@@ -371,14 +371,14 @@ func TestProtocolHandler_List_ConfigSchema_FatekFBs(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 
 	// 尋找 FATEK FBs 協議
-	var fatekFBs map[string]interface{}
+	var fatekFBs map[string]any
 	for _, item := range data {
-		protocol := item.(map[string]interface{})
+		protocol := item.(map[string]any)
 		if protocol["type"] == "fatek_fbs" {
 			fatekFBs = protocol
 			break
@@ -388,11 +388,11 @@ func TestProtocolHandler_List_ConfigSchema_FatekFBs(t *testing.T) {
 
 	// 解析 Config Schema
 	configSchema := fatekFBs["config_schema"].(string)
-	var schema map[string]interface{}
+	var schema map[string]any
 	json.Unmarshal([]byte(configSchema), &schema)
 
 	// 驗證 properties
-	properties := schema["properties"].(map[string]interface{})
+	properties := schema["properties"].(map[string]any)
 	assert.Contains(t, properties, "mode")
 	assert.Contains(t, properties, "data_bits")
 	assert.Contains(t, properties, "stop_bits")
@@ -400,9 +400,9 @@ func TestProtocolHandler_List_ConfigSchema_FatekFBs(t *testing.T) {
 	assert.Contains(t, properties, "station_no")
 
 	// 驗證 mode 屬性
-	mode := properties["mode"].(map[string]interface{})
+	mode := properties["mode"].(map[string]any)
 	assert.Equal(t, "string", mode["type"])
-	modeEnum := mode["enum"].([]interface{})
+	modeEnum := mode["enum"].([]any)
 	assert.Contains(t, modeEnum, "tcp")
 	assert.Contains(t, modeEnum, "serial")
 }
@@ -417,13 +417,13 @@ func TestProtocolHandler_List_ConfigSchema_MC3E(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 
-	var mc3e map[string]interface{}
+	var mc3e map[string]any
 	for _, item := range data {
-		protocol := item.(map[string]interface{})
+		protocol := item.(map[string]any)
 		if protocol["type"] == "mc_3e" {
 			mc3e = protocol
 			break
@@ -432,16 +432,16 @@ func TestProtocolHandler_List_ConfigSchema_MC3E(t *testing.T) {
 	require.NotNil(t, mc3e)
 
 	configSchema := mc3e["config_schema"].(string)
-	var schema map[string]interface{}
+	var schema map[string]any
 	json.Unmarshal([]byte(configSchema), &schema)
 
-	properties := schema["properties"].(map[string]interface{})
+	properties := schema["properties"].(map[string]any)
 	dataFormatValue, ok := properties["data_format"]
 	require.True(t, ok, "MC 3E schema should expose data_format")
 
-	dataFormat := dataFormatValue.(map[string]interface{})
+	dataFormat := dataFormatValue.(map[string]any)
 	assert.Equal(t, "string", dataFormat["type"])
-	dataFormatEnum := dataFormat["enum"].([]interface{})
+	dataFormatEnum := dataFormat["enum"].([]any)
 	assert.Contains(t, dataFormatEnum, "ABCD")
 	assert.Contains(t, dataFormatEnum, "BADC")
 	assert.Contains(t, dataFormatEnum, "CDAB")
@@ -458,9 +458,9 @@ func TestProtocolHandler_List_AllProtocolsPresent(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 
 	expectedProtocols := []string{
 		"modbus_tcp",
@@ -474,7 +474,7 @@ func TestProtocolHandler_List_AllProtocolsPresent(t *testing.T) {
 	// 建立實際協議類型列表
 	actualProtocols := make(map[string]bool)
 	for _, item := range data {
-		protocol := item.(map[string]interface{})
+		protocol := item.(map[string]any)
 		protocolType := protocol["type"].(string)
 		actualProtocols[protocolType] = true
 	}
@@ -497,7 +497,7 @@ func TestProtocolHandler_List_JSONValid(t *testing.T) {
 
 	assert.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 
-	var response map[string]interface{}
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.NotNil(t, response["data"])

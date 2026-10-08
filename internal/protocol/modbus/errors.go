@@ -23,7 +23,7 @@ func (e *ProtocolError) Code() byte {
 }
 
 // NewProtocolError 建立新的協議錯誤
-func NewProtocolError(code byte, format string, args ...interface{}) *ProtocolError {
+func NewProtocolError(code byte, format string, args ...any) *ProtocolError {
 	msg := fmt.Sprintf(format, args...)
 	if exceptionMsg, ok := ExceptionMessages[code]; ok {
 		msg = fmt.Sprintf("%s: %s", msg, exceptionMsg)
@@ -44,7 +44,7 @@ func (e *CommunicationError) Error() string {
 }
 
 // NewCommunicationError 建立新的通訊錯誤
-func NewCommunicationError(format string, args ...interface{}) *CommunicationError {
+func NewCommunicationError(format string, args ...any) *CommunicationError {
 	return &CommunicationError{
 		message: fmt.Sprintf(format, args...),
 	}

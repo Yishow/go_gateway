@@ -1,6 +1,7 @@
 package sourcerule
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"strings"
@@ -42,18 +43,9 @@ func contextualRuleValidationError(ruleID, startAddress string, protocol schema.
 		return err
 	}
 
-	id := strings.TrimSpace(ruleID)
-	if id == "" {
-		id = "<new>"
-	}
-	address := strings.TrimSpace(strings.ToUpper(startAddress))
-	if address == "" {
-		address = "<empty>"
-	}
-	protocolName := strings.TrimSpace(strings.ToLower(string(protocol)))
-	if protocolName == "" {
-		protocolName = "<unknown>"
-	}
+	id := cmp.Or(strings.TrimSpace(ruleID), "<new>")
+	address := cmp.Or(strings.TrimSpace(strings.ToUpper(startAddress)), "<empty>")
+	protocolName := cmp.Or(strings.TrimSpace(strings.ToLower(string(protocol))), "<unknown>")
 	return fmt.Errorf("rule_id=%s start_address=%s protocol=%s: %w", id, address, protocolName, err)
 }
 
@@ -63,7 +55,7 @@ func buildPlannedPointAddresses(startAddress string, count int, dataType schema.
 	}
 	span := getDataTypeCellSpan(dataType)
 	addresses := make([]string, 0, count)
-	for index := 0; index < count; index++ {
+	for index := range count {
 		address, err := offsetAddress(startAddress, index*span, protocol)
 		if err != nil {
 			return nil, err
@@ -104,10 +96,7 @@ func offsetAddress(address string, delta int, protocol schema.ProtocolType) (str
 		if !ok {
 			return "", validationError(fmt.Sprintf("invalid modbus address: %s", address))
 		}
-		next := value + delta
-		if next < 1 {
-			next = 1
-		}
+		next := max(value+delta, 1)
 		return fmt.Sprintf("%s%04d", prefix, next), nil
 	case schema.ProtocolFatekFBs, schema.ProtocolMC3E:
 		area, number := splitAlphaNumeric(address)
@@ -122,10 +111,7 @@ func offsetAddress(address string, delta int, protocol schema.ProtocolType) (str
 			if !ok {
 				return "", validationError(fmt.Sprintf("invalid fatek address: %s", address))
 			}
-			next := value + delta
-			if next < 0 {
-				next = 0
-			}
+			next := max(value+delta, 0)
 			return fmt.Sprintf("%s%d", area, next), nil
 		}
 
@@ -134,10 +120,7 @@ func offsetAddress(address string, delta int, protocol schema.ProtocolType) (str
 			if !ok {
 				return "", validationError(fmt.Sprintf("invalid mc3e address: %s", address))
 			}
-			next := value + delta
-			if next < 0 {
-				next = 0
-			}
+			next := max(value+delta, 0)
 			return fmt.Sprintf("%s%X", area, next), nil
 		}
 		if !isMC3EDecimalArea(area) {
@@ -147,10 +130,7 @@ func offsetAddress(address string, delta int, protocol schema.ProtocolType) (str
 		if !ok {
 			return "", validationError(fmt.Sprintf("invalid mc3e address: %s", address))
 		}
-		next := value + delta
-		if next < 0 {
-			next = 0
-		}
+		next := max(value+delta, 0)
 		return fmt.Sprintf("%s%d", area, next), nil
 	default:
 		return "", validationError(fmt.Sprintf("unsupported protocol address: %s", strings.ToLower(string(protocol))))

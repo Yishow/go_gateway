@@ -13,7 +13,7 @@ func (h *TestHandler) ExecuteScript(c *gin.Context) {
 
 // ListScripts 取得測試腳本列表
 func (h *TestHandler) ListScripts(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"scripts": []interface{}{}})
+	c.JSON(http.StatusOK, gin.H{"scripts": []any{}})
 }
 
 // SaveScript 保存測試腳本

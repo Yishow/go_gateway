@@ -44,7 +44,7 @@ func TestDispatcher_ParseBlockData(t *testing.T) {
 	}
 
 	// 驗證值
-	expected := map[string]interface{}{
+	expected := map[string]any{
 		"p1": int16(1),
 		"p2": int16(2),
 		"p3": int16(3),

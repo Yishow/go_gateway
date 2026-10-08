@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/measurement"
@@ -35,7 +36,7 @@ func TestService_SyncDerivedPointState_KeepsMappingActiveForNeutralScaleRule(t *
 	rule, err := svc.Create(ctx, CreateRuleRequest{
 		ID: "rule-neutral-scale", DeviceID: dev.ID, StartAddress: "40001", Count: 1,
 		DataType: schema.DataTypeInt16, NamingPrefix: "MIXER", Enabled: true,
-		ScaleMultiplier: float64Ptr(1), ScaleOffset: float64Ptr(0),
+		ScaleMultiplier: common.Ptr(float64(1)), ScaleOffset: common.Ptr(float64(0)),
 	})
 	require.NoError(t, err)
 	applyRuleManagedLinks(ctx, t, repo, svc, rule.ID)
@@ -60,8 +61,8 @@ func TestService_SyncDerivedPointState_KeepsMappingActiveForNeutralScaleRule(t *
 }
 
 func TestMappingCandidateSignature_TreatsNeutralScaleAsNoStep(t *testing.T) {
-	neutral := []schema.TransformStep{{Type: schema.TransformScale, Order: 0, Params: map[string]interface{}{"scale": 1.0, "offset": 0.0}}}
-	scaled := []schema.TransformStep{{Type: schema.TransformScale, Order: 0, Params: map[string]interface{}{"scale": 2.0, "offset": 0.0}}}
+	neutral := []schema.TransformStep{{Type: schema.TransformScale, Order: 0, Params: map[string]any{"scale": 1.0, "offset": 0.0}}}
+	scaled := []schema.TransformStep{{Type: schema.TransformScale, Order: 0, Params: map[string]any{"scale": 2.0, "offset": 0.0}}}
 
 	none, err := mappingCandidateSignature([]schema.TransformStep{})
 	require.NoError(t, err)
@@ -96,7 +97,7 @@ func TestService_SyncRuleDerivedState_AdoptsWorkspaceMappingSoRestartChangesNoth
 	rule, err := svc.Create(ctx, CreateRuleRequest{
 		ID: "rule-adopt", DeviceID: dev.ID, StartAddress: "40001", Count: 1,
 		DataType: schema.DataTypeInt16, NamingPrefix: "MIXER", Enabled: true,
-		ScaleMultiplier: float64Ptr(1), ScaleOffset: float64Ptr(0),
+		ScaleMultiplier: common.Ptr(float64(1)), ScaleOffset: common.Ptr(float64(0)),
 	})
 	require.NoError(t, err)
 	links, err := svc.ListLinks(ctx, rule.ID)

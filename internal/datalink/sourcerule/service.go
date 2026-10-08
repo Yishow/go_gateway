@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -220,9 +220,8 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 		}
 
 		if !enabled {
-			disabled := false
 			createdPointID := pointRecord.ID
-			pointRecord, createErr = s.pointSvc.Update(ctx, createdPointID, point.UpdatePointRequest{Enabled: &disabled})
+			pointRecord, createErr = s.pointSvc.Update(ctx, createdPointID, point.UpdatePointRequest{Enabled: common.Ptr(false)})
 			if createErr != nil {
 				if rollbackErr := s.rollbackCreatedRule(ctx, rule.ID, rule.RevisionID, append(createdPointIDs, createdPointID), tagMappingSyncResult{}); rollbackErr != nil {
 					return nil, s.dirtyUnknown(ctx)
@@ -840,7 +839,7 @@ func marshalSkippedAddresses(addresses []string) (string, error) {
 		}
 		normalized = append(normalized, address)
 	}
-	sort.Strings(normalized)
+	slices.Sort(normalized)
 	payload, err := json.Marshal(normalized)
 	if err != nil {
 		return "", fmt.Errorf("序列化 skipped addresses 失敗: %w", err)
@@ -905,12 +904,9 @@ func buildPointName(prefix, address string) string {
 
 func containsAddress(addresses []string, target string) bool {
 	target = strings.ToUpper(strings.TrimSpace(target))
-	for _, address := range addresses {
-		if strings.ToUpper(strings.TrimSpace(address)) == target {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(addresses, func(address string) bool {
+		return strings.ToUpper(strings.TrimSpace(address)) == target
+	})
 }
 
 func normalizeAddressKey(address string) string {
@@ -975,19 +971,14 @@ func cloneSourceRuleLinks(links []*schema.SourceRuleLink) []*schema.SourceRuleLi
 		}
 		copyLink := *link
 		if link.TagID != nil {
-			copyLink.TagID = stringPtr(*link.TagID)
+			copyLink.TagID = common.Ptr(*link.TagID)
 		}
 		if link.MappingID != nil {
-			copyLink.MappingID = stringPtr(*link.MappingID)
+			copyLink.MappingID = common.Ptr(*link.MappingID)
 		}
 		cloned = append(cloned, &copyLink)
 	}
 	return cloned
-}
-
-func stringPtr(value string) *string {
-	copyValue := value
-	return &copyValue
 }
 
 func (s *Service) cleanupRuleLinkResources(ctx context.Context, rule *schema.SourceRule, link *schema.SourceRuleLink) error {
@@ -1117,7 +1108,7 @@ func (s *Service) buildRuleTransformPipeline(rule *schema.SourceRule, pointRecor
 		steps = append(steps, schema.TransformStep{
 			Type:  schema.TransformCast,
 			Order: order,
-			Params: map[string]interface{}{
+			Params: map[string]any{
 				"target_type": string(targetDataType),
 			},
 		})
@@ -1138,7 +1129,7 @@ func (s *Service) buildRuleTransformPipeline(rule *schema.SourceRule, pointRecor
 		steps = append(steps, schema.TransformStep{
 			Type:  schema.TransformScale,
 			Order: order,
-			Params: map[string]interface{}{
+			Params: map[string]any{
 				"scale":  scale,
 				"offset": offset,
 			},

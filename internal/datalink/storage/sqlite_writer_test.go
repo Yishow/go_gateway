@@ -41,7 +41,7 @@ func TestSQLiteWriterWrite(t *testing.T) {
 		Timestamp: time.Now(),
 		ValueNum:  &v,
 		Quality:   schema.QualityGood,
-		RawValue:  map[string]interface{}{"src": "test"},
+		RawValue:  map[string]any{"src": "test"},
 	}
 	require.NoError(t, w.Write(context.Background(), r))
 

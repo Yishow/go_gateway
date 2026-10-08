@@ -13,8 +13,8 @@ import (
 // =============================================================================
 
 // ParseConnectionConfig 解析連線配置為具體類型
-func ParseConnectionConfig(device *schema.Device) (interface{}, error) {
-	var config interface{}
+func ParseConnectionConfig(device *schema.Device) (any, error) {
+	var config any
 
 	switch device.Protocol {
 	case schema.ProtocolModbusTCP:

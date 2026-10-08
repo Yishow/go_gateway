@@ -91,7 +91,7 @@ type CreateMappingRequest struct {
 	ProposedSignature    string                 `json:"proposed_signature,omitempty"`
 	LastAppliedSignature string                 `json:"last_applied_signature,omitempty"`
 	BlockingReason       string                 `json:"blocking_reason,omitempty"`
-	PreviewRawValue      interface{}            `json:"preview_raw_value,omitempty"`
+	PreviewRawValue      any                    `json:"preview_raw_value,omitempty"`
 }
 
 // Update 更新映射
@@ -170,7 +170,7 @@ type UpdateMappingRequest struct {
 	ProposedSignature    *string                `json:"proposed_signature,omitempty"`
 	LastAppliedSignature *string                `json:"last_applied_signature,omitempty"`
 	BlockingReason       *string                `json:"blocking_reason,omitempty"`
-	PreviewRawValue      interface{}            `json:"preview_raw_value,omitempty"`
+	PreviewRawValue      any                    `json:"preview_raw_value,omitempty"`
 }
 
 // Delete 刪除映射

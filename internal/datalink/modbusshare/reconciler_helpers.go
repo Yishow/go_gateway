@@ -1,11 +1,12 @@
 package modbusshare
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -91,7 +92,7 @@ func reconcileKey(req ReconcileRequest) (string, error) {
 		}
 		keyed = append(keyed, keyedMapping{mapping: mapping, key: string(encoded)})
 	}
-	sort.Slice(keyed, func(i, j int) bool { return keyed[i].key < keyed[j].key })
+	slices.SortFunc(keyed, func(a, b keyedMapping) int { return cmp.Compare(a.key, b.key) })
 	mappings := make([]DesiredMapping, 0, len(keyed))
 	for _, item := range keyed {
 		mappings = append(mappings, item.mapping)

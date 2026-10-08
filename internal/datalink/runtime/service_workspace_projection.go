@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
@@ -205,9 +206,7 @@ func (s *Service) applyWorkspaceProjectionMappingsForPoints(
 	for pointID := range pointIDs {
 		delete(s.mappingIndex, pointID)
 	}
-	for pointID, bindings := range next {
-		s.mappingIndex[pointID] = bindings
-	}
+	maps.Copy(s.mappingIndex, next)
 	s.mappingMu.Unlock()
 	return nil
 }

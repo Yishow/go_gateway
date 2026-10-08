@@ -45,13 +45,12 @@ func parseModbusAddress(address string) (*ParsedAddress, error) {
 
 	// 解析位元索引
 	bitIndex := -1
-	if dotIdx := strings.Index(addrPart, "."); dotIdx > 0 {
-		bitPart := addrPart[dotIdx+1:]
-		addrPart = addrPart[:dotIdx]
-		bit, err := strconv.Atoi(bitPart)
+	if before, after, found := strings.Cut(addrPart, "."); found && before != "" {
+		bit, err := strconv.Atoi(after)
 		if err != nil || bit < 0 || bit > 15 {
-			return nil, fmt.Errorf("無效的位元索引: %s", bitPart)
+			return nil, fmt.Errorf("無效的位元索引: %s", after)
 		}
+		addrPart = before
 		bitIndex = bit
 	}
 

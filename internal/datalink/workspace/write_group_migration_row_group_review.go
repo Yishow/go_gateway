@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 )
@@ -135,7 +136,7 @@ func (s *WriteGroupService) ReviewRowGroupMigration(
 		candidate.Migration.SourceRevision = entry.item.SourceRevision
 		candidate.Migration.LegacyRowGroupID = entry.item.SourceID
 		candidate.Migration.SourceIDs = slices.Clone(entry.item.CandidateGroup.Migration.SourceIDs)
-		candidate.Migration.TargetMappingPoints = cloneStringMap(entry.item.CandidateGroup.Migration.TargetMappingPoints)
+		candidate.Migration.TargetMappingPoints = maps.Clone(entry.item.CandidateGroup.Migration.TargetMappingPoints)
 		if err := s.repo.CreateInTx(ctx, tx, candidate); err != nil {
 			return nil, normalizeWriteGroupServiceError("save migrated row-group write group", err)
 		}
@@ -230,34 +231,11 @@ func validateReviewedRowGroupMigration(
 		strings.TrimSpace(group.Migration.AdapterVersion) != strings.TrimSpace(migrationMap.AdapterVersion) ||
 		group.Migration.ReviewResult != writeGroupMigrationReviewResultConfirmed ||
 		!slices.Equal(group.Migration.SourceIDs, item.CandidateGroup.Migration.SourceIDs) ||
-		!mapsEqual(group.Migration.TargetMappingPoints, item.CandidateGroup.Migration.TargetMappingPoints) {
+		!maps.Equal(group.Migration.TargetMappingPoints, item.CandidateGroup.Migration.TargetMappingPoints) {
 		return fmt.Errorf("canonical row-group migration identity is incomplete: %w", ErrWriteGroupValidation)
 	}
 	if group.Status == WriteGroupStatusDeleted {
 		return nil
 	}
 	return nil
-}
-
-func cloneStringMap(values map[string]string) map[string]string {
-	if values == nil {
-		return nil
-	}
-	out := make(map[string]string, len(values))
-	for key, value := range values {
-		out[key] = value
-	}
-	return out
-}
-
-func mapsEqual(left, right map[string]string) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for key, leftValue := range left {
-		if right[key] != leftValue {
-			return false
-		}
-	}
-	return true
 }

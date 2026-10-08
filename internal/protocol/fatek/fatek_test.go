@@ -50,8 +50,7 @@ func BenchmarkBuildFrame_Alloc(b *testing.B) {
 	}
 
 	body := "0AF00000" // Example body
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = legacyBuild(1, "44", body)
 	}
 }
@@ -59,8 +58,7 @@ func BenchmarkBuildFrame_Alloc(b *testing.B) {
 // Benchmark the new BuildFrameToBuffer (which uses sync.Pool)
 func BenchmarkBuildFrame_Pool(b *testing.B) {
 	body := "0AF00000"
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		buf := GetBuffer()
 		BuildFrameToBuffer(buf, 1, "44", body)
 		_ = buf.Bytes() // Simulate usage
@@ -77,8 +75,7 @@ func BenchmarkClient_Execute(b *testing.B) {
 	cmd := "44"
 	body := "0A00000"
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// This uses the internal pool logic
 		_, _ = client.execute(cmd, body)
 	}

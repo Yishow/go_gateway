@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/modbusshare"
@@ -29,9 +30,9 @@ func TestBuildDesiredShareMappingsForDevices_UsesEachRuleCandidateRegister(t *te
 	dev, err := seedActiveDevice(ctx, deviceRepo, "device-share-plan")
 	require.NoError(t, err)
 
-	ruleA, err := svc.Create(ctx, CreateRuleRequest{ID: "rule-share-plan-a", DeviceID: dev.ID, StartAddress: "40001", Count: 1, DataType: schema.DataTypeInt16, NamingPrefix: "A", Enabled: true, ShareEnabled: true, ShareStartRegister: intPtr(40001), ShareStride: intPtr(2)})
+	ruleA, err := svc.Create(ctx, CreateRuleRequest{ID: "rule-share-plan-a", DeviceID: dev.ID, StartAddress: "40001", Count: 1, DataType: schema.DataTypeInt16, NamingPrefix: "A", Enabled: true, ShareEnabled: true, ShareStartRegister: common.Ptr(40001), ShareStride: common.Ptr(2)})
 	require.NoError(t, err)
-	ruleB, err := svc.Create(ctx, CreateRuleRequest{ID: "rule-share-plan-b", DeviceID: dev.ID, StartAddress: "40011", Count: 1, DataType: schema.DataTypeInt32, NamingPrefix: "B", Enabled: true, ShareEnabled: true, ShareStartRegister: intPtr(40011), ShareStride: intPtr(3)})
+	ruleB, err := svc.Create(ctx, CreateRuleRequest{ID: "rule-share-plan-b", DeviceID: dev.ID, StartAddress: "40011", Count: 1, DataType: schema.DataTypeInt32, NamingPrefix: "B", Enabled: true, ShareEnabled: true, ShareStartRegister: common.Ptr(40011), ShareStride: common.Ptr(3)})
 	require.NoError(t, err)
 	require.Len(t, applyRuleManagedLinks(ctx, t, repo, svc, ruleA.ID), 1)
 	require.Len(t, applyRuleManagedLinks(ctx, t, repo, svc, ruleB.ID), 1)
@@ -83,7 +84,7 @@ func TestShareDesiredMappingOwnershipCheckerIgnoresCanonicalProofMetadata(t *tes
 	svc.SetTagMappingServices(tagSvc, mappingSvc)
 	dev, err := seedActiveDevice(ctx, deviceRepo, "device-ownership-proof")
 	require.NoError(t, err)
-	rule, err := svc.Create(ctx, CreateRuleRequest{ID: "rule-ownership-proof", DeviceID: dev.ID, StartAddress: "40001", Count: 1, DataType: schema.DataTypeInt16, NamingPrefix: "PROOF", Enabled: true, ShareEnabled: true, ShareStartRegister: intPtr(40001), ShareStride: intPtr(1)})
+	rule, err := svc.Create(ctx, CreateRuleRequest{ID: "rule-ownership-proof", DeviceID: dev.ID, StartAddress: "40001", Count: 1, DataType: schema.DataTypeInt16, NamingPrefix: "PROOF", Enabled: true, ShareEnabled: true, ShareStartRegister: common.Ptr(40001), ShareStride: common.Ptr(1)})
 	require.NoError(t, err)
 	require.Len(t, applyRuleManagedLinks(ctx, t, repo, svc, rule.ID), 1)
 	links, err := svc.ListLinks(ctx, rule.ID)
@@ -135,5 +136,3 @@ func setReadyCandidateSnapshot(t *testing.T, repo *MemoryRepository, rule *schem
 	}
 	t.Fatalf("local modbus snapshot not found for rule %s", rule.ID)
 }
-
-func intPtr(value int) *int { return &value }

@@ -36,10 +36,10 @@ const (
 
 // SettingItem 設定項目
 type SettingItem struct {
-	Key         string      `json:"key"`
-	Value       interface{} `json:"value"`
-	Description string      `json:"description"`
-	UpdatedAt   time.Time   `json:"updated_at"`
+	Key         string    `json:"key"`
+	Value       any       `json:"value"`
+	Description string    `json:"description"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // =============================================================================
@@ -52,7 +52,7 @@ type Repository interface {
 	Get(ctx context.Context, key string) (*SettingItem, error)
 
 	// Set 設定值
-	Set(ctx context.Context, key string, value interface{}) error
+	Set(ctx context.Context, key string, value any) error
 
 	// List 列出所有設定
 	List(ctx context.Context) ([]*SettingItem, error)
@@ -64,7 +64,7 @@ type RevisionCASRepository interface {
 	Repository
 	// SetIfRevision writes value only when the stored revision matches
 	// expectedRevision, or creates a missing key when expectedRevision is empty.
-	SetIfRevision(ctx context.Context, key, expectedRevision string, value interface{}) error
+	SetIfRevision(ctx context.Context, key, expectedRevision string, value any) error
 }
 
 // =============================================================================
@@ -89,7 +89,7 @@ func (s *Service) Get(ctx context.Context, key string) (*SettingItem, error) {
 }
 
 // Set 設定值
-func (s *Service) Set(ctx context.Context, key string, value interface{}) error {
+func (s *Service) Set(ctx context.Context, key string, value any) error {
 	return s.repo.Set(ctx, key, value)
 }
 
@@ -146,7 +146,7 @@ func (r *MemoryRepository) Get(ctx context.Context, key string) (*SettingItem, e
 }
 
 // Set 設定值
-func (r *MemoryRepository) Set(ctx context.Context, key string, value interface{}) error {
+func (r *MemoryRepository) Set(ctx context.Context, key string, value any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -169,7 +169,7 @@ func (r *MemoryRepository) Set(ctx context.Context, key string, value interface{
 
 // SetIfRevision atomically updates an in-memory setting when its revision
 // matches expectedRevision.
-func (r *MemoryRepository) SetIfRevision(ctx context.Context, key, expectedRevision string, value interface{}) error {
+func (r *MemoryRepository) SetIfRevision(ctx context.Context, key, expectedRevision string, value any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	item, exists := r.settings[key]

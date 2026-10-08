@@ -30,7 +30,7 @@ func TestConvertFatekValue(t *testing.T) {
 }
 
 func TestToIntSlice(t *testing.T) {
-	values, err := toIntSlice([]interface{}{1, float64(2)})
+	values, err := toIntSlice([]any{1, float64(2)})
 	require.NoError(t, err)
 	assert.Equal(t, []int{1, 2}, values)
 

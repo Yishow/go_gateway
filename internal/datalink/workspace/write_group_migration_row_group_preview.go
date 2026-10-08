@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"go-gateway/internal/datalink/common"
 )
 
 const writeGroupRowGroupMigrationAdapterVersion = "row-group-v1"
@@ -392,7 +394,7 @@ func rowGroupMigrationCandidate(
 			MappingRevision: mappingRevision,
 			TargetColumn:    target.columnName,
 			Required:        true,
-			MaxAgeSeconds:   intPointer(interval),
+			MaxAgeSeconds:   common.Ptr(interval),
 		}
 		candidate.Members = append(candidate.Members, memberRecord)
 		candidate.Migration.SourceIDs = append(candidate.Migration.SourceIDs, target.id)

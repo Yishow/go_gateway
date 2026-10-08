@@ -30,7 +30,7 @@ func NewWebSocketHandler() *WebSocketHandler {
 }
 
 // Broadcast 向所有連線的客戶端廣播訊息
-func (h *WebSocketHandler) Broadcast(message interface{}) {
+func (h *WebSocketHandler) Broadcast(message any) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 

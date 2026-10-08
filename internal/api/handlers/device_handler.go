@@ -27,8 +27,8 @@ type deviceRuntimeSyncer interface {
 }
 
 type TestDraftConnectionRequest struct {
-	Protocol         schema.ProtocolType    `json:"protocol"`
-	ConnectionConfig map[string]interface{} `json:"connection_config"`
+	Protocol         schema.ProtocolType `json:"protocol"`
+	ConnectionConfig map[string]any      `json:"connection_config"`
 }
 
 func NewDeviceHandler(svc *device.Service, runtimeSync ...deviceRuntimeSyncer) *DeviceHandler {

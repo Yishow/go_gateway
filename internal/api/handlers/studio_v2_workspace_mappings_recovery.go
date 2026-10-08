@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
@@ -106,11 +107,11 @@ func (h *StudioV2WorkspaceMappingsHandler) matchRecoveredWorkspaceLinkMapping(ct
 func syncWorkspaceLinkToMapping(link *schema.SourceRuleLink, mappingRecord *schema.Mapping) bool {
 	changed := false
 	if link.MappingID == nil || *link.MappingID != mappingRecord.ID {
-		link.MappingID = cloneStringPtr(mappingRecord.ID)
+		link.MappingID = common.Ptr(mappingRecord.ID)
 		changed = true
 	}
 	if link.TagID == nil || *link.TagID != mappingRecord.TagID {
-		link.TagID = cloneStringPtr(mappingRecord.TagID)
+		link.TagID = common.Ptr(mappingRecord.TagID)
 		changed = true
 	}
 	if changed {

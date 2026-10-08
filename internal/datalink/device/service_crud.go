@@ -65,11 +65,11 @@ func (s *Service) Create(ctx context.Context, req CreateDeviceRequest) (*schema.
 
 // CreateDeviceRequest 建立設備請求
 type CreateDeviceRequest struct {
-	ID               string                 `json:"id,omitempty"`
-	Name             string                 `json:"name"`
-	Description      string                 `json:"description,omitempty"`
-	Protocol         schema.ProtocolType    `json:"protocol"`
-	ConnectionConfig map[string]interface{} `json:"connection_config"`
+	ID               string              `json:"id,omitempty"`
+	Name             string              `json:"name"`
+	Description      string              `json:"description,omitempty"`
+	Protocol         schema.ProtocolType `json:"protocol"`
+	ConnectionConfig map[string]any      `json:"connection_config"`
 }
 
 // Update 更新設備
@@ -142,10 +142,10 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateDeviceRequest
 
 // UpdateDeviceRequest 更新設備請求
 type UpdateDeviceRequest struct {
-	Name             *string                `json:"name,omitempty"`
-	Description      *string                `json:"description,omitempty"`
-	Protocol         *schema.ProtocolType   `json:"protocol,omitempty"`
-	ConnectionConfig map[string]interface{} `json:"connection_config,omitempty"`
+	Name             *string              `json:"name,omitempty"`
+	Description      *string              `json:"description,omitempty"`
+	Protocol         *schema.ProtocolType `json:"protocol,omitempty"`
+	ConnectionConfig map[string]any       `json:"connection_config,omitempty"`
 }
 
 // Delete 刪除設備

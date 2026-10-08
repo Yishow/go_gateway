@@ -51,11 +51,11 @@ func TestMappingHandler_ValidatePipeline(t *testing.T) {
 
 	// 測試有效的管線
 	validPipeline := []schema.TransformStep{
-		{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 10, "offset": 0}},
-		{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 1, "offset": 5}},
+		{Type: schema.TransformScale, Params: map[string]any{"multiplier": 10, "offset": 0}},
+		{Type: schema.TransformScale, Params: map[string]any{"multiplier": 1, "offset": 5}},
 	}
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"pipeline": validPipeline,
 	}
 
@@ -67,11 +67,11 @@ func TestMappingHandler_ValidatePipeline(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.True(t, data["valid"].(bool))
 }
 
@@ -82,7 +82,7 @@ func TestMappingHandler_ValidatePipeline_Empty(t *testing.T) {
 	r := setupMappingRouterWithExtended()
 
 	// 空管線是有效的
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"pipeline": []schema.TransformStep{},
 	}
 
@@ -94,11 +94,11 @@ func TestMappingHandler_ValidatePipeline_Empty(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.True(t, data["valid"].(bool))
 }
 
@@ -110,10 +110,10 @@ func TestMappingHandler_ValidatePipeline_InvalidType(t *testing.T) {
 
 	// 測試無效的轉換類型
 	invalidPipeline := []schema.TransformStep{
-		{Type: "invalid_type", Params: map[string]interface{}{}},
+		{Type: "invalid_type", Params: map[string]any{}},
 	}
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"pipeline": invalidPipeline,
 	}
 
@@ -125,11 +125,11 @@ func TestMappingHandler_ValidatePipeline_InvalidType(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.False(t, data["valid"].(bool))
 	assert.NotEmpty(t, data["error"])
 }
@@ -145,7 +145,7 @@ func TestMappingHandler_ValidatePipeline_ScaleMissingParams(t *testing.T) {
 		{Type: schema.TransformScale, Params: nil},
 	}
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"pipeline": invalidPipeline,
 	}
 
@@ -157,11 +157,11 @@ func TestMappingHandler_ValidatePipeline_ScaleMissingParams(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.False(t, data["valid"].(bool))
 	assert.Contains(t, data["error"].(string), "缺少 params")
 }
@@ -174,16 +174,16 @@ func TestMappingHandler_ValidatePipeline_MultipleValidTypes(t *testing.T) {
 
 	// 測試所有支持的轉換類型
 	validPipeline := []schema.TransformStep{
-		{Type: schema.TransformDecode, Params: map[string]interface{}{"type": "int16"}},
-		{Type: schema.TransformCast, Params: map[string]interface{}{"type": "float64"}},
-		{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 10, "offset": 0}},
-		{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 1, "offset": 5}},
-		{Type: schema.TransformLookup, Params: map[string]interface{}{"table": "test"}},
-		{Type: schema.TransformConditional, Params: map[string]interface{}{"condition": "x > 0"}},
-		{Type: schema.TransformFormula, Params: map[string]interface{}{"formula": "x * 2"}},
+		{Type: schema.TransformDecode, Params: map[string]any{"type": "int16"}},
+		{Type: schema.TransformCast, Params: map[string]any{"type": "float64"}},
+		{Type: schema.TransformScale, Params: map[string]any{"multiplier": 10, "offset": 0}},
+		{Type: schema.TransformScale, Params: map[string]any{"multiplier": 1, "offset": 5}},
+		{Type: schema.TransformLookup, Params: map[string]any{"table": "test"}},
+		{Type: schema.TransformConditional, Params: map[string]any{"condition": "x > 0"}},
+		{Type: schema.TransformFormula, Params: map[string]any{"formula": "x * 2"}},
 	}
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"pipeline": validPipeline,
 	}
 
@@ -195,11 +195,11 @@ func TestMappingHandler_ValidatePipeline_MultipleValidTypes(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.True(t, data["valid"].(bool))
 }
 
@@ -211,10 +211,10 @@ func TestMappingHandler_Preview(t *testing.T) {
 
 	// 測試預覽
 	pipeline := []schema.TransformStep{
-		{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 10, "offset": 0}},
+		{Type: schema.TransformScale, Params: map[string]any{"multiplier": 10, "offset": 0}},
 	}
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"raw_value":          5,
 		"transform_pipeline": pipeline,
 	}
@@ -227,11 +227,11 @@ func TestMappingHandler_Preview(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.Equal(t, float64(5), data["raw_value"])
 	// 5 * 10 = 50
 	assert.Equal(t, float64(50), data["final_value"])
@@ -246,13 +246,13 @@ func TestMappingHandler_Preview_ComplexPipeline(t *testing.T) {
 
 	// 複雜管線
 	pipeline := []schema.TransformStep{
-		{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 10, "offset": 0}},
-		{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 1, "offset": 5}},
-		{Type: schema.TransformFormula, Params: map[string]interface{}{"formula": "x > 0 ? x : 0"}},
-		{Type: schema.TransformFormula, Params: map[string]interface{}{"formula": "x < 100 ? x : 100"}},
+		{Type: schema.TransformScale, Params: map[string]any{"multiplier": 10, "offset": 0}},
+		{Type: schema.TransformScale, Params: map[string]any{"multiplier": 1, "offset": 5}},
+		{Type: schema.TransformFormula, Params: map[string]any{"formula": "x > 0 ? x : 0"}},
+		{Type: schema.TransformFormula, Params: map[string]any{"formula": "x < 100 ? x : 100"}},
 	}
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"raw_value":          5,
 		"transform_pipeline": pipeline,
 	}
@@ -265,11 +265,11 @@ func TestMappingHandler_Preview_ComplexPipeline(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 
 	// 5 * 10 + 5 = 55, clamp to [0, 100] = 55, round to 2 decimals = 55.00
 	assert.Equal(t, float64(55), data["final_value"])
@@ -284,10 +284,10 @@ func TestMappingHandler_Preview_InvalidPipeline(t *testing.T) {
 
 	// 無效的管線格式
 	invalidPipeline := []schema.TransformStep{
-		{Type: "invalid_type", Params: map[string]interface{}{}},
+		{Type: "invalid_type", Params: map[string]any{}},
 	}
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"raw_value":          5,
 		"transform_pipeline": invalidPipeline,
 	}
@@ -300,10 +300,10 @@ func TestMappingHandler_Preview_InvalidPipeline(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response["success"].(bool))
-	apiError := response["error"].(map[string]interface{})
+	apiError := response["error"].(map[string]any)
 	assert.Equal(t, ErrCodePreviewInvalidRequest, apiError["code"])
 	assert.NotContains(t, w.Body.String(), "invalid_type")
 }
@@ -315,7 +315,7 @@ func TestMappingHandler_Preview_MissingField(t *testing.T) {
 	r := setupMappingRouterWithExtended()
 
 	// 缺少 transform_pipeline
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"raw_value": 5,
 	}
 
@@ -335,7 +335,7 @@ func TestMappingHandler_ValidatePipeline_MissingField(t *testing.T) {
 	r := setupMappingRouterWithExtended()
 
 	// 缺少 pipeline 欄位
-	reqBody := map[string]interface{}{}
+	reqBody := map[string]any{}
 
 	body, _ := json.Marshal(reqBody)
 	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
@@ -353,8 +353,8 @@ func TestMappingHandler_Preview_DifferentValueTypes(t *testing.T) {
 	r := setupMappingRouterWithExtended()
 
 	testCases := []struct {
-		rawValue interface{}
-		expected interface{}
+		rawValue any
+		expected any
 	}{
 		{5, float64(5)},
 		{3.14, float64(3.14)},
@@ -366,11 +366,11 @@ func TestMappingHandler_Preview_DifferentValueTypes(t *testing.T) {
 		pipeline := []schema.TransformStep{}
 		if _, ok := tc.rawValue.(float64); ok {
 			pipeline = []schema.TransformStep{
-				{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 2, "offset": 0}},
+				{Type: schema.TransformScale, Params: map[string]any{"multiplier": 2, "offset": 0}},
 			}
 		}
 
-		reqBody := map[string]interface{}{
+		reqBody := map[string]any{
 			"raw_value":          tc.rawValue,
 			"transform_pipeline": pipeline,
 		}
@@ -383,7 +383,7 @@ func TestMappingHandler_Preview_DifferentValueTypes(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		var response map[string]interface{}
+		var response map[string]any
 		json.Unmarshal(w.Body.Bytes(), &response)
 		assert.True(t, response["success"].(bool))
 	}
@@ -407,17 +407,17 @@ func TestMappingHandler_ValidatePipeline_AllTransformTypes(t *testing.T) {
 
 	for _, transformType := range transformTypes {
 		pipeline := []schema.TransformStep{
-			{Type: transformType, Params: map[string]interface{}{"test": true}},
+			{Type: transformType, Params: map[string]any{"test": true}},
 		}
 
 		// Scale 類型需要特定的參數
 		if transformType == schema.TransformScale {
 			pipeline = []schema.TransformStep{
-				{Type: transformType, Params: map[string]interface{}{"multiplier": 1, "offset": 0}},
+				{Type: transformType, Params: map[string]any{"multiplier": 1, "offset": 0}},
 			}
 		}
 
-		reqBody := map[string]interface{}{
+		reqBody := map[string]any{
 			"pipeline": pipeline,
 		}
 
@@ -429,11 +429,11 @@ func TestMappingHandler_ValidatePipeline_AllTransformTypes(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code, "Transform type %s should be valid", transformType)
 
-		var response map[string]interface{}
+		var response map[string]any
 		json.Unmarshal(w.Body.Bytes(), &response)
 		assert.True(t, response["success"].(bool), "Transform type %s should return success", transformType)
 
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.True(t, data["valid"].(bool), "Transform type %s should be valid", transformType)
 	}
 }
@@ -445,10 +445,10 @@ func TestMappingHandler_Preview_ResponseStructure(t *testing.T) {
 	r := setupMappingRouterWithExtended()
 
 	pipeline := []schema.TransformStep{
-		{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 10, "offset": 0}},
+		{Type: schema.TransformScale, Params: map[string]any{"multiplier": 10, "offset": 0}},
 	}
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"raw_value":          5,
 		"transform_pipeline": pipeline,
 	}
@@ -459,7 +459,7 @@ func TestMappingHandler_Preview_ResponseStructure(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 
 	// 驗證頂層結構
@@ -467,14 +467,14 @@ func TestMappingHandler_Preview_ResponseStructure(t *testing.T) {
 	assert.NotNil(t, response["data"])
 
 	// 驗證 data 結構
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.Contains(t, data, "raw_value")
 	assert.Contains(t, data, "final_value")
 	assert.Contains(t, data, "step_results")
 
 	// 驗證 step_results 結構
-	stepResults := data["step_results"].([]interface{})
-	assert.IsType(t, []interface{}{}, stepResults)
+	stepResults := data["step_results"].([]any)
+	assert.IsType(t, []any{}, stepResults)
 }
 
 /**
@@ -484,10 +484,10 @@ func TestMappingHandler_ValidatePipeline_ResponseStructure(t *testing.T) {
 	r := setupMappingRouterWithExtended()
 
 	pipeline := []schema.TransformStep{
-		{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 10, "offset": 0}},
+		{Type: schema.TransformScale, Params: map[string]any{"multiplier": 10, "offset": 0}},
 	}
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"pipeline": pipeline,
 	}
 
@@ -497,7 +497,7 @@ func TestMappingHandler_ValidatePipeline_ResponseStructure(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 
 	// 驗證頂層結構
@@ -505,7 +505,7 @@ func TestMappingHandler_ValidatePipeline_ResponseStructure(t *testing.T) {
 	assert.NotNil(t, response["data"])
 
 	// 驗證 data 結構
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.Contains(t, data, "valid")
 	assert.Contains(t, data, "error")
 }
@@ -517,11 +517,11 @@ func TestMappingHandler_Preview_WithCast(t *testing.T) {
 	r := setupMappingRouterWithExtended()
 
 	pipeline := []schema.TransformStep{
-		{Type: schema.TransformCast, Params: map[string]interface{}{"target_type": "float64"}},
-		{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 2, "offset": 0}},
+		{Type: schema.TransformCast, Params: map[string]any{"target_type": "float64"}},
+		{Type: schema.TransformScale, Params: map[string]any{"multiplier": 2, "offset": 0}},
 	}
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"raw_value":          5,
 		"transform_pipeline": pipeline,
 	}
@@ -534,10 +534,10 @@ func TestMappingHandler_Preview_WithCast(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.Equal(t, float64(10), data["final_value"])
 }

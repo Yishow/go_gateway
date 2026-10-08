@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 )
@@ -28,8 +29,7 @@ func listLiveTargetProjection(
 	filter TargetMappingListFilter,
 	tagReader ConnectorTagReader,
 ) (*liveTargetProjection, error) {
-	enabled := true
-	filter.Enabled = &enabled
+	filter.Enabled = common.Ptr(true)
 	mappings, err := repo.List(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("列出資料庫目標映射失敗: %w", err)

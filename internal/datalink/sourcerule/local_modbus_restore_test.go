@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/modbusshare"
@@ -177,8 +178,8 @@ func applyRuleManagedLinksWithRepository(
 		tagRecord, mappingRecord, err := svc.ensureRuleTagMapping(ctx, nil, rule, pointRecord, link, rule.Enabled, &result)
 		require.NoError(t, err)
 
-		link.TagID = stringPtr(tagRecord.ID)
-		link.MappingID = stringPtr(mappingRecord.ID)
+		link.TagID = common.Ptr(tagRecord.ID)
+		link.MappingID = common.Ptr(mappingRecord.ID)
 		link.UpdatedAt = time.Now()
 	}
 

@@ -101,7 +101,7 @@ func (h *SSEHandler) HandleMonitorStream(c *gin.Context) {
 }
 
 // Broadcast 向指定連接的客戶端發送訊息
-func (h *SSEHandler) Broadcast(connectionID string, message interface{}) {
+func (h *SSEHandler) Broadcast(connectionID string, message any) {
 	h.mu.RLock()
 	clientChan, exists := h.clients[connectionID]
 	h.mu.RUnlock()

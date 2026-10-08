@@ -188,18 +188,18 @@ func (p *PIDProcessor) Process(ctx context.Context, input []float64) ([]float64,
 
 // RegisterBuiltinProcessors 註冊內建處理器
 func RegisterBuiltinProcessors(registry *ProcessorRegistry) {
-	registry.Register("scale", func(params map[string]interface{}) (Processor, error) {
+	registry.Register("scale", func(params map[string]any) (Processor, error) {
 		factor := getFloat(params, "factor", 1.0)
 		offset := getFloat(params, "offset", 0.0)
 		return NewScaleProcessor(factor, offset), nil
 	})
 
-	registry.Register("filter", func(params map[string]interface{}) (Processor, error) {
+	registry.Register("filter", func(params map[string]any) (Processor, error) {
 		windowSize := getInt(params, "window_size", 5)
 		return NewFilterProcessor(windowSize), nil
 	})
 
-	registry.Register("threshold", func(params map[string]interface{}) (Processor, error) {
+	registry.Register("threshold", func(params map[string]any) (Processor, error) {
 		low := getFloat(params, "low", 0)
 		high := getFloat(params, "high", 100)
 		lowVal := getFloat(params, "low_value", 0)
@@ -207,17 +207,17 @@ func RegisterBuiltinProcessors(registry *ProcessorRegistry) {
 		return NewThresholdProcessor(low, high, lowVal, highVal), nil
 	})
 
-	registry.Register("deadband", func(params map[string]interface{}) (Processor, error) {
+	registry.Register("deadband", func(params map[string]any) (Processor, error) {
 		threshold := getFloat(params, "threshold", 1.0)
 		return NewDeadbandProcessor(threshold), nil
 	})
 
-	registry.Register("fft", func(params map[string]interface{}) (Processor, error) {
+	registry.Register("fft", func(params map[string]any) (Processor, error) {
 		outputType := getString(params, "output", "magnitude")
 		return NewFFTProcessor(outputType), nil
 	})
 
-	registry.Register("pid", func(params map[string]interface{}) (Processor, error) {
+	registry.Register("pid", func(params map[string]any) (Processor, error) {
 		kp := getFloat(params, "kp", 1.0)
 		ki := getFloat(params, "ki", 0.0)
 		kd := getFloat(params, "kd", 0.0)
@@ -227,7 +227,7 @@ func RegisterBuiltinProcessors(registry *ProcessorRegistry) {
 }
 
 // 輔助函數
-func getFloat(params map[string]interface{}, key string, defaultVal float64) float64 {
+func getFloat(params map[string]any, key string, defaultVal float64) float64 {
 	if v, ok := params[key]; ok {
 		switch val := v.(type) {
 		case float64:
@@ -239,7 +239,7 @@ func getFloat(params map[string]interface{}, key string, defaultVal float64) flo
 	return defaultVal
 }
 
-func getInt(params map[string]interface{}, key string, defaultVal int) int {
+func getInt(params map[string]any, key string, defaultVal int) int {
 	if v, ok := params[key]; ok {
 		switch val := v.(type) {
 		case int:
@@ -251,7 +251,7 @@ func getInt(params map[string]interface{}, key string, defaultVal int) int {
 	return defaultVal
 }
 
-func getString(params map[string]interface{}, key, defaultVal string) string {
+func getString(params map[string]any, key, defaultVal string) string {
 	if v, ok := params[key]; ok {
 		if s, ok := v.(string); ok {
 			return s

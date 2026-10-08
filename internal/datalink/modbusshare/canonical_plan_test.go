@@ -33,3 +33,11 @@ func TestCanonicalSharePlanSignatureCoversGeometryAndRuleRevision(t *testing.T) 
 	revised := NewCanonicalSharePlan("workspace-1", "workspace-rev", "settings-rev", []DesiredMapping{changedRevision, second})
 	assert.NotEqual(t, plan.Signature, revised.Signature)
 }
+
+func TestCanonicalSharePlanNormalizesEmptyMappings(t *testing.T) {
+	nilPlan := NewCanonicalSharePlan("ws", "workspace-rev", "settings-rev", nil)
+	emptyPlan := NewCanonicalSharePlan("ws", "workspace-rev", "settings-rev", []DesiredMapping{})
+	assert.Nil(t, emptyPlan.DesiredMappings, "preserve the canonical null representation")
+	assert.Equal(t, nilPlan.Signature, emptyPlan.Signature)
+	assert.True(t, emptyPlan.Matches(nilPlan.Signature))
+}

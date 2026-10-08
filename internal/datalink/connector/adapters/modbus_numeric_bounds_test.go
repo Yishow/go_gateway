@@ -18,7 +18,7 @@ func TestModbusNumericInputBounds(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, uint16(65535), actual)
 	}
-	for _, value := range []any{[]int{1, -1}, []interface{}{1, 65536}} {
+	for _, value := range []any{[]int{1, -1}, []any{1, 65536}} {
 		values, err := toUint16Slice(value)
 		require.Error(t, err)
 		require.Nil(t, values)

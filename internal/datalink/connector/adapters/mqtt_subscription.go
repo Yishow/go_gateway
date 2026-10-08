@@ -2,6 +2,8 @@ package adapters
 
 import (
 	"encoding/json"
+	"maps"
+	"slices"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -19,7 +21,7 @@ func (c *MQTTConnector) handleMessage(topic string, payload []byte) {
 	now := time.Now()
 
 	// 嘗試解析 JSON
-	var value interface{}
+	var value any
 	if err := json.Unmarshal(payload, &value); err != nil {
 		// 非 JSON 格式，直接使用字串
 		value = string(payload)
@@ -86,12 +88,10 @@ func (c *MQTTConnector) Unsubscribe(ch <-chan MQTTMessage) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	for i, sub := range c.subscribers {
-		if sub == ch {
-			c.subscribers = append(c.subscribers[:i], c.subscribers[i+1:]...)
-			close(sub)
-			break
-		}
+	if i := slices.IndexFunc(c.subscribers, func(sub chan MQTTMessage) bool { return sub == ch }); i >= 0 {
+		sub := c.subscribers[i]
+		c.subscribers = slices.Delete(c.subscribers, i, i+1)
+		close(sub)
 	}
 }
 
@@ -100,11 +100,7 @@ func (c *MQTTConnector) GetCachedTopics() []string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	topics := make([]string, 0, len(c.valueCache))
-	for topic := range c.valueCache {
-		topics = append(topics, topic)
-	}
-	return topics
+	return slices.Collect(maps.Keys(c.valueCache))
 }
 
 // GetCachedValue 取得指定主題的快取值

@@ -44,7 +44,7 @@ func (r *SQLRepository) Get(ctx context.Context, key string) (*SettingItem, erro
 	var updatedAt sql.NullString
 
 	err := row.Scan(&item.Key, &valueJSON, &description, &updatedAt)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%w: 設定不存在: %s", ErrSettingNotFound, key)
 	}
 	if err != nil {
@@ -72,7 +72,7 @@ func (r *SQLRepository) Get(ctx context.Context, key string) (*SettingItem, erro
 }
 
 // Set 設定值
-func (r *SQLRepository) Set(ctx context.Context, key string, value interface{}) error {
+func (r *SQLRepository) Set(ctx context.Context, key string, value any) error {
 	if r == nil || r.db == nil {
 		return storageError("set", fmt.Errorf("database is not configured"))
 	}
@@ -106,7 +106,7 @@ func (r *SQLRepository) Set(ctx context.Context, key string, value interface{}) 
 
 // SetIfRevision atomically updates a SQL setting when its revision matches
 // expectedRevision.
-func (r *SQLRepository) SetIfRevision(ctx context.Context, key, expectedRevision string, value interface{}) error {
+func (r *SQLRepository) SetIfRevision(ctx context.Context, key, expectedRevision string, value any) error {
 	if r == nil || r.db == nil {
 		return storageError("set revision", fmt.Errorf("database is not configured"))
 	}
@@ -240,7 +240,7 @@ func (r *SQLRepository) Delete(ctx context.Context, key string) error {
 
 // InitDefaults 初始化預設設定
 func (r *SQLRepository) InitDefaults(ctx context.Context) error {
-	defaults := map[string]interface{}{
+	defaults := map[string]any{
 		KeyWritePrecision:    "millisecond",
 		KeyPartitionInterval: "monthly",
 		KeyBatchSize:         1000,

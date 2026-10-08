@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 )
@@ -66,7 +67,7 @@ func (s *Service) UpsertTagReviewDecision(ctx context.Context, ruleID string, re
 		if err != nil {
 			return nil, fmt.Errorf("取得 override tag 失敗: %w", err)
 		}
-		decision.OverrideTagID = stringPtr(tagRecord.ID)
+		decision.OverrideTagID = common.Ptr(tagRecord.ID)
 		decision.TagKey = tagRecord.Key
 	default:
 		return nil, fmt.Errorf("unsupported tag review decision action: %s", req.Action)

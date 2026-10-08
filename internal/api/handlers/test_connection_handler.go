@@ -10,8 +10,8 @@ import (
 
 // ConnectRequest 連線請求
 type ConnectRequest struct {
-	Protocol string                 `json:"protocol" binding:"required"`
-	Config   map[string]interface{} `json:"config" binding:"required"`
+	Protocol string         `json:"protocol" binding:"required"`
+	Config   map[string]any `json:"config" binding:"required"`
 }
 
 // Connect 建立連線
@@ -82,7 +82,7 @@ func (h *TestHandler) Connect(c *gin.Context) {
 
 	// 記錄連線日誌
 	if h.debugHandler != nil {
-		h.debugHandler.RecordLog("info", fmt.Sprintf("連線建立: %s (%s)", connID, req.Protocol), map[string]interface{}{
+		h.debugHandler.RecordLog("info", fmt.Sprintf("連線建立: %s (%s)", connID, req.Protocol), map[string]any{
 			apiResponseConnectionIDKey: connID,
 			"protocol":                 req.Protocol,
 			"config":                   req.Config,

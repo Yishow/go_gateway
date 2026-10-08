@@ -27,7 +27,7 @@ func TestService_UpdateKeepsDormantDeviceNotRunning(t *testing.T) {
 	name := "Line A Saved"
 	updated, err := svc.Update(context.Background(), "dev-draft", UpdateDeviceRequest{
 		Name: &name,
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "192.168.10.20",
 			"port":     502,
 			"slave_id": 1,
@@ -69,7 +69,7 @@ func TestService_UpdatePersistsProtocolSwitchAndClearsStaleProbe(t *testing.T) {
 	protocol := schema.ProtocolMC3E
 	updated, err := svc.Update(context.Background(), "dev-mc", UpdateDeviceRequest{
 		Protocol: &protocol,
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":       "192.168.10.10",
 			"port":       6000,
 			"station_no": 0,

@@ -34,7 +34,7 @@ func TestRouterHealthEndpoint(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.True(t, body.Success)
 
-	data, ok := body.Data.(map[string]interface{})
+	data, ok := body.Data.(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "ok", data["status"])
 	assert.Equal(t, "datalink", data["service"])

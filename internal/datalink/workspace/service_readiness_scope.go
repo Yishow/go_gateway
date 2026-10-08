@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -116,7 +117,7 @@ func (s *Service) resolveReadinessScope(ctx context.Context, deviceIDs, groupIDs
 	for _, deviceID := range record.OrderedDeviceIDs {
 		ownedDevices[strings.TrimSpace(deviceID)] = true
 	}
-	selectedDevices := append([]string{}, normalizedDevices...)
+	selectedDevices := slices.Clone(normalizedDevices)
 	selectedDeviceSet := make(map[string]bool, len(selectedDevices))
 	for _, deviceID := range selectedDevices {
 		if !ownedDevices[deviceID] {
@@ -271,12 +272,9 @@ func summarizeScopedReadiness(issues []ReadinessIssue) *ReadinessSummary {
 }
 
 func hasScopedReadinessIssue(issues []ReadinessIssue, code, scope string) bool {
-	for _, issue := range issues {
-		if issue.Code == code && issue.Scope == scope {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(issues, func(issue ReadinessIssue) bool {
+		return issue.Code == code && issue.Scope == scope
+	})
 }
 
 func scopeInvalidError(format string, args ...any) error {

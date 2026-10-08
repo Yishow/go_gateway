@@ -103,9 +103,7 @@ type Sender struct {
 
 // NewSender builds a sender.
 func NewSender(store *Store, targets TargetResolver, config SenderConfig) *Sender {
-	if config.MaxRetries < 0 {
-		config.MaxRetries = 0
-	}
+	config.MaxRetries = max(config.MaxRetries, 0)
 	backoff := config.Backoff
 	if backoff == nil {
 		limit := config.MaxRetries

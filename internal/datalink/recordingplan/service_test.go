@@ -51,6 +51,32 @@ func TestRecordingPlanService_CRUD_And_Revision(t *testing.T) {
 	}
 }
 
+func TestRecordingPlanService_CreatePreservesNonemptyRevision(t *testing.T) {
+	for _, test := range []struct {
+		name, revision, want string
+	}{
+		{name: "empty", want: "rev-1"},
+		{name: "whitespace", revision: " \t ", want: "rev-1"},
+		{name: "revision", revision: "rev-2", want: "rev-2"},
+		{name: "padded revision", revision: " rev-2 ", want: " rev-2 "},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			svc := NewService(NewMemoryRepository())
+			plan := &RecordingPlan{ID: "plan-review", WorkspaceID: "ws", Name: "Review", Revision: test.revision}
+			if err := svc.CreatePlan(t.Context(), plan); err != nil {
+				t.Fatal(err)
+			}
+			got, err := svc.GetPlan(t.Context(), plan.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Revision != test.want {
+				t.Fatalf("revision = %q, want %q", got.Revision, test.want)
+			}
+		})
+	}
+}
+
 func TestRecordingPlanService_Capabilities(t *testing.T) {
 	svc := NewService(NewMemoryRepository())
 

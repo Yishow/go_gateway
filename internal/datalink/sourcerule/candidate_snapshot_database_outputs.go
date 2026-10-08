@@ -1,11 +1,13 @@
 package sourcerule
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -95,7 +97,7 @@ func buildDatabaseOutputCandidate(
 	}
 	candidate.GroupKey, candidate.ColumnName = inferDatabaseGroupAndColumn(state.TagKey)
 	if mappingRecord != nil {
-		candidate.MappingID = stringPtr(mappingRecord.ID)
+		candidate.MappingID = common.Ptr(mappingRecord.ID)
 		candidate.ConnectorID = mappingRecord.ConnectorID
 		candidate.TableSchema = mappingRecord.TableSchema
 		candidate.TableName = mappingRecord.TableName
@@ -160,7 +162,7 @@ func inferDatabaseGroupAndColumn(tagKey string) (group *string, column string) {
 	if groupKey == "" || columnName == "" {
 		return nil, ""
 	}
-	return stringPtr(groupKey), columnName
+	return common.Ptr(groupKey), columnName
 }
 
 func normalizeDatabaseCandidateColumnName(value string) string {
@@ -194,22 +196,20 @@ func (s *Service) listDatabaseTargetMappingsByTagID(
 	}
 
 	for tagID := range result {
-		sort.Slice(result[tagID], func(i, j int) bool {
-			left := result[tagID][i]
-			right := result[tagID][j]
-			if left.ConnectorID != right.ConnectorID {
-				return left.ConnectorID < right.ConnectorID
+		slices.SortFunc(result[tagID], func(left, right *schema.DatabaseTargetMapping) int {
+			if c := cmp.Compare(left.ConnectorID, right.ConnectorID); c != 0 {
+				return c
 			}
-			if left.TableSchema != right.TableSchema {
-				return left.TableSchema < right.TableSchema
+			if c := cmp.Compare(left.TableSchema, right.TableSchema); c != 0 {
+				return c
 			}
-			if left.TableName != right.TableName {
-				return left.TableName < right.TableName
+			if c := cmp.Compare(left.TableName, right.TableName); c != 0 {
+				return c
 			}
-			if left.ColumnName != right.ColumnName {
-				return left.ColumnName < right.ColumnName
+			if c := cmp.Compare(left.ColumnName, right.ColumnName); c != 0 {
+				return c
 			}
-			return left.ID < right.ID
+			return cmp.Compare(left.ID, right.ID)
 		})
 	}
 
@@ -299,7 +299,7 @@ func (s *Service) listEffectiveTagReviewStates(
 				if strings.TrimSpace(decision.TagKey) == "" {
 					return nil, fmt.Errorf("override decision for %s is missing tag_key", candidate.ID)
 				}
-				state.TagID = stringPtr(*decision.OverrideTagID)
+				state.TagID = common.Ptr(*decision.OverrideTagID)
 				state.TagKey = decision.TagKey
 			default:
 				return nil, fmt.Errorf("unsupported tag review decision action: %s", decision.Action)

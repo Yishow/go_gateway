@@ -8,7 +8,7 @@ import (
 // WriteProjectedTagValue writes a value from the collector into the already
 // reconciled Share projection. HTTP callers must use the candidate/apply/
 // reconcile seam instead of this internal delivery authority.
-func (s *Service) WriteProjectedTagValue(ctx context.Context, tagID string, value interface{}) error {
+func (s *Service) WriteProjectedTagValue(ctx context.Context, tagID string, value any) error {
 	hydration, hydrationErr := s.CheckHydration(ctx)
 	if hydrationErr != nil {
 		return NewError(ErrCodeHydrationRequired, "workspace Share hydration could not be verified", true)
@@ -58,7 +58,7 @@ func (s *Service) WriteProjectedTagValue(ctx context.Context, tagID string, valu
 
 // WriteTagValue is retained for package callers that have not yet migrated to
 // the explicit projection authority. HTTP handlers never call this method.
-func (s *Service) WriteTagValue(ctx context.Context, tagID string, value interface{}) error {
+func (s *Service) WriteTagValue(ctx context.Context, tagID string, value any) error {
 	return s.WriteProjectedTagValue(ctx, tagID, value)
 }
 

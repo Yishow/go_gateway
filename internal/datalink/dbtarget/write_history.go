@@ -1,7 +1,7 @@
 package dbtarget
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -39,7 +39,7 @@ func recordWriteHistory(connectorID string, record WriteHistoryRecord) {
 
 	records := append(globalWriteHistoryStore.byConnector[key], record)
 	if len(records) > 1000 {
-		records = append([]WriteHistoryRecord(nil), records[len(records)-1000:]...)
+		records = slices.Clone(records[len(records)-1000:])
 	}
 	globalWriteHistoryStore.byConnector[key] = records
 }
@@ -52,9 +52,7 @@ func listWriteHistory(connectorID string, limit int) []WriteHistoryRecord {
 	if limit <= 0 {
 		limit = 20
 	}
-	if limit > 200 {
-		limit = 200
-	}
+	limit = min(limit, 200)
 
 	globalWriteHistoryStore.mu.RLock()
 	defer globalWriteHistoryStore.mu.RUnlock()
@@ -63,16 +61,13 @@ func listWriteHistory(connectorID string, limit int) []WriteHistoryRecord {
 	if len(records) == 0 {
 		return []WriteHistoryRecord{}
 	}
-	copied := append([]WriteHistoryRecord(nil), records...)
-	sort.Slice(copied, func(i, j int) bool {
-		return copied[i].ObservedAt.After(copied[j].ObservedAt)
+	copied := slices.Clone(records)
+	slices.SortFunc(copied, func(a, b WriteHistoryRecord) int {
+		return b.ObservedAt.Compare(a.ObservedAt)
 	})
 
-	result := make([]WriteHistoryRecord, 0, limit)
-	for i := 0; i < len(copied) && len(result) < limit; i++ {
-		result = append(result, copied[i])
-	}
-	return result
+	take := min(limit, len(copied))
+	return slices.Clone(copied[:take])
 }
 
 func resetWriteHistory(connectorID string) {

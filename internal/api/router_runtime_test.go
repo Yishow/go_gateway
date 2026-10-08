@@ -38,7 +38,7 @@ func TestNewRouter_RuntimeStatusEndpoint(t *testing.T) {
 	createdDevice, err := deviceSvc.Create(ctx, device.CreateDeviceRequest{
 		Name:     "Runtime Mixer",
 		Protocol: schema.ProtocolModbusTCP,
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     502,
 			"slave_id": 1,
@@ -56,7 +56,7 @@ func TestNewRouter_RuntimeStatusEndpoint(t *testing.T) {
 	otherDevice, err := deviceSvc.Create(ctx, device.CreateDeviceRequest{
 		Name:     "Runtime Filler",
 		Protocol: schema.ProtocolModbusTCP,
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.2",
 			"port":     502,
 			"slave_id": 1,
@@ -174,7 +174,7 @@ func TestNewRouter_RuntimeStatusIncludesUnavailableCollectorState(t *testing.T) 
 	createdDevice, err := deviceSvc.Create(ctx, device.CreateDeviceRequest{
 		Name:     "Runtime Mixer",
 		Protocol: schema.ProtocolModbusTCP,
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     502,
 			"slave_id": 1,

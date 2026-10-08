@@ -1,6 +1,9 @@
 package fatek
 
-import "time"
+import (
+	"cmp"
+	"time"
+)
 
 // CreateSerialClient 建立配置為串列埠通訊的 FatekClient
 //
@@ -16,9 +19,7 @@ import "time"
 // Returns:
 //   - 配置好的客戶端實例
 func CreateSerialClient(port string, station, baudrate, dataBits, stopBits int, parity string, timeout time.Duration) *FatekClient {
-	if parity == "" {
-		parity = "E"
-	}
+	parity = cmp.Or(parity, "E")
 	transport := NewSerialTransport(port, baudrate, dataBits, stopBits, parity, timeout)
 	return NewClient(transport, station)
 }
@@ -34,9 +35,7 @@ func CreateSerialClient(port string, station, baudrate, dataBits, stopBits int, 
 // Returns:
 //   - 配置好的客戶端實例
 func CreateTCPClient(host string, port, station int, timeout time.Duration) *FatekClient {
-	if port == 0 {
-		port = DefaultTCPPort
-	}
+	port = cmp.Or(port, DefaultTCPPort)
 	transport := NewTCPTransport(host, port)
 	if timeout > 0 {
 		transport.Timeout = timeout

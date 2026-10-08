@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"sort"
+	"slices"
 	"time"
 )
 
@@ -54,6 +54,6 @@ func (s *Service) modbusShareDeliveryDiagnostics(deviceID string) []ModbusShareD
 			out = append(out, d)
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ObservedAt.Before(out[j].ObservedAt) })
+	slices.SortFunc(out, func(a, b ModbusShareDeliveryDiagnostic) int { return a.ObservedAt.Compare(b.ObservedAt) })
 	return out
 }

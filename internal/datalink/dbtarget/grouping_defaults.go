@@ -1,16 +1,14 @@
 package dbtarget
 
+import "go-gateway/internal/datalink/common"
+
 func defaultWriteIntervalSeconds(value *int) int {
-	if value == nil {
-		return 15
-	}
-	return *value
+	return common.Deref(value, 15)
 }
 
 func normalizeOptionalIntPointer(value *int) *int {
 	if value == nil {
 		return nil
 	}
-	normalized := *value
-	return &normalized
+	return common.Ptr(*value)
 }

@@ -128,13 +128,13 @@ func (h *MappingHandler) Delete(c *gin.Context) {
 }
 
 type MappingPreviewRequest struct {
-	RawValue          interface{}             `json:"raw_value"`
+	RawValue          any                     `json:"raw_value"`
 	TransformPipeline *[]schema.TransformStep `json:"transform_pipeline"`
 }
 
 type MappingPreviewResponse struct {
-	RawValue    interface{}          `json:"raw_value"`
-	FinalValue  interface{}          `json:"final_value"`
+	RawValue    any                  `json:"raw_value"`
+	FinalValue  any                  `json:"final_value"`
 	StepResults []mapping.StepResult `json:"step_results"`
 	Error       string               `json:"error,omitempty"`
 }

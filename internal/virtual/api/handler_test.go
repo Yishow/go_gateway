@@ -60,7 +60,7 @@ func TestAPI_WriteAndReadMemory(t *testing.T) {
 	// 寫入數據
 	writeReq := WriteMemoryRequest{
 		Offset: 0,
-		Value:  intPtr(12345),
+		Value:  ptr(12345),
 	}
 	body, _ := json.Marshal(writeReq)
 
@@ -139,7 +139,7 @@ func TestAPI_ServerStartStop(t *testing.T) {
 	req, _ = http.NewRequestWithContext(t.Context(), "GET", "/api/virtual/server/status", http.NoBody)
 	r.ServeHTTP(w, req)
 
-	var status map[string]interface{}
+	var status map[string]any
 	json.Unmarshal(w.Body.Bytes(), &status)
 
 	if status["running"] != true {
@@ -178,7 +178,6 @@ func TestAPI_AddSimulationRule(t *testing.T) {
 	}
 }
 
-// intPtr 建立 int 指標
-func intPtr(i int) *int {
-	return &i
+func ptr[T any](v T) *T {
+	return &v
 }

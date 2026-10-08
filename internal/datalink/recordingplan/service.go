@@ -1,6 +1,7 @@
 package recordingplan
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"fmt"
@@ -124,9 +125,7 @@ func (s *Service) CreatePlan(ctx context.Context, plan *RecordingPlan) error {
 	if strings.TrimSpace(plan.Revision) == "" {
 		plan.Revision = "rev-1"
 	}
-	if plan.Status == "" {
-		plan.Status = PlanStatusDraft
-	}
+	plan.Status = cmp.Or(plan.Status, PlanStatusDraft)
 	if err := plan.Validate(); err != nil {
 		return err
 	}
@@ -194,9 +193,7 @@ func (s *Service) DeletePlanByWorkspace(ctx context.Context, id, workspaceID str
 
 // ExecuteTestWrite 執行帶有 test 標記的一次性試寫與回讀驗證。
 func (s *Service) ExecuteTestWrite(ctx context.Context, targetDB *sql.DB, tablePrefix, planID, streamID, measID string) (*TestWriteResult, error) {
-	if tablePrefix == "" {
-		tablePrefix = defaultManagedTablePrefix
-	}
+	tablePrefix = cmp.Or(tablePrefix, defaultManagedTablePrefix)
 	tableName := tablePrefix + "samples"
 	testRecordID := fmt.Sprintf("test-%d", time.Now().UnixNano())
 	now := time.Now().UTC()

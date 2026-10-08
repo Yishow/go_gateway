@@ -122,7 +122,7 @@ var DefaultPacketLoggerOptions = PacketLoggerOptions{
 
 // packetLogPool PacketLog 物件池，用於減少 GC 壓力
 var packetLogPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &PacketLog{}
 	},
 }

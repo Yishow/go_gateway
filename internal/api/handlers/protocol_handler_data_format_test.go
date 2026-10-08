@@ -21,20 +21,20 @@ func TestProtocolHandler_List_ConfigSchema_ModbusVariantsExposeDataFormat(t *tes
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	expectedTypes := []string{"modbus_tcp", "modbus_rtu", "modbus_udp"}
-	expectedEnum := []interface{}{"ABCD", "BADC", "CDAB", "DCBA"}
+	expectedEnum := []any{"ABCD", "BADC", "CDAB", "DCBA"}
 
 	for _, protocolType := range expectedTypes {
 		t.Run(protocolType, func(t *testing.T) {
 			t.Parallel()
 
-			var protocol map[string]interface{}
+			var protocol map[string]any
 			for _, item := range data {
-				candidate := item.(map[string]interface{})
+				candidate := item.(map[string]any)
 				if candidate["type"] == protocolType {
 					protocol = candidate
 					break
@@ -43,14 +43,14 @@ func TestProtocolHandler_List_ConfigSchema_ModbusVariantsExposeDataFormat(t *tes
 			require.NotNil(t, protocol, "protocol %s not found", protocolType)
 
 			configSchema := protocol["config_schema"].(string)
-			var schema map[string]interface{}
+			var schema map[string]any
 			require.NoError(t, json.Unmarshal([]byte(configSchema), &schema))
 
-			properties := schema["properties"].(map[string]interface{})
+			properties := schema["properties"].(map[string]any)
 			dataFormatValue, ok := properties["data_format"]
 			require.True(t, ok, "%s schema should expose data_format", protocolType)
 
-			dataFormat := dataFormatValue.(map[string]interface{})
+			dataFormat := dataFormatValue.(map[string]any)
 			assert.Equal(t, "string", dataFormat["type"])
 			assert.Equal(t, expectedEnum, dataFormat["enum"])
 			assert.Equal(t, "ABCD", dataFormat["default"])
@@ -69,13 +69,13 @@ func TestProtocolHandler_List_ConfigSchema_MQTTOmitsDataFormat(t *testing.T) {
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 
-	data := response["data"].([]interface{})
-	var mqtt map[string]interface{}
+	data := response["data"].([]any)
+	var mqtt map[string]any
 	for _, item := range data {
-		candidate := item.(map[string]interface{})
+		candidate := item.(map[string]any)
 		if candidate["type"] == "mqtt" {
 			mqtt = candidate
 			break
@@ -84,9 +84,9 @@ func TestProtocolHandler_List_ConfigSchema_MQTTOmitsDataFormat(t *testing.T) {
 	require.NotNil(t, mqtt, "protocol mqtt not found")
 
 	configSchema := mqtt["config_schema"].(string)
-	var schema map[string]interface{}
+	var schema map[string]any
 	require.NoError(t, json.Unmarshal([]byte(configSchema), &schema))
 
-	properties := schema["properties"].(map[string]interface{})
+	properties := schema["properties"].(map[string]any)
 	assert.NotContains(t, properties, "data_format")
 }

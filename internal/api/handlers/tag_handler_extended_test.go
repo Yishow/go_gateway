@@ -72,9 +72,9 @@ func TestTagHandler_Activate(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &createResp)
-	tagID := createResp["data"].(map[string]interface{})["id"].(string)
+	tagID := createResp["data"].(map[string]any)["id"].(string)
 
 	// 啟用標籤
 	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/"+tagID+"/activate", http.NoBody)
@@ -83,11 +83,11 @@ func TestTagHandler_Activate(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var activateResp map[string]interface{}
+	var activateResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &activateResp)
 	assert.True(t, activateResp["success"].(bool))
 
-	data := activateResp["data"].(map[string]interface{})
+	data := activateResp["data"].(map[string]any)
 	assert.Equal(t, "active", data["status"])
 }
 
@@ -103,7 +103,7 @@ func TestTagHandler_Activate_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response["success"].(bool))
 }
@@ -130,9 +130,9 @@ func TestTagHandler_Retire(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &createResp)
-	tagID := createResp["data"].(map[string]interface{})["id"].(string)
+	tagID := createResp["data"].(map[string]any)["id"].(string)
 
 	// 退役標籤
 	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/"+tagID+"/retire", http.NoBody)
@@ -141,11 +141,11 @@ func TestTagHandler_Retire(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var retireResp map[string]interface{}
+	var retireResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &retireResp)
 	assert.True(t, retireResp["success"].(bool))
 
-	data := retireResp["data"].(map[string]interface{})
+	data := retireResp["data"].(map[string]any)
 	assert.Equal(t, "retired", data["status"])
 }
 
@@ -161,7 +161,7 @@ func TestTagHandler_Retire_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response["success"].(bool))
 }
@@ -173,7 +173,7 @@ func TestTagHandler_BatchCreate(t *testing.T) {
 	r := setupTagRouterWithExtended()
 
 	// 準備批量建立請求
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"tags": []tag.CreateTagRequest{
 			{
 				Key:         "batch.tag.1",
@@ -204,15 +204,15 @@ func TestTagHandler_BatchCreate(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
-	created := data["created"].([]interface{})
+	data := response["data"].(map[string]any)
+	created := data["created"].([]any)
 	assert.Equal(t, 3, len(created))
 
-	errors := data["errors"].([]interface{})
+	errors := data["errors"].([]any)
 	assert.Equal(t, 0, len(errors))
 }
 
@@ -237,7 +237,7 @@ func TestTagHandler_BatchCreate_PartialSuccess(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	// 準備批量建立請求（包含重複）
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"tags": []tag.CreateTagRequest{
 			{
 				Key:         "batch.unique.tag",
@@ -262,15 +262,15 @@ func TestTagHandler_BatchCreate_PartialSuccess(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
-	created := data["created"].([]interface{})
+	data := response["data"].(map[string]any)
+	created := data["created"].([]any)
 	assert.Equal(t, 1, len(created))
 
-	errors := data["errors"].([]interface{})
+	errors := data["errors"].([]any)
 	assert.Equal(t, 1, len(errors))
 }
 
@@ -280,7 +280,7 @@ func TestTagHandler_BatchCreate_PartialSuccess(t *testing.T) {
 func TestTagHandler_BatchCreate_Empty(t *testing.T) {
 	r := setupTagRouterWithExtended()
 
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"tags": []tag.CreateTagRequest{},
 	}
 
@@ -292,15 +292,15 @@ func TestTagHandler_BatchCreate_Empty(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
-	created := data["created"].([]interface{})
+	data := response["data"].(map[string]any)
+	created := data["created"].([]any)
 	assert.Equal(t, 0, len(created))
 
-	errors := data["errors"].([]interface{})
+	errors := data["errors"].([]any)
 	assert.Equal(t, 0, len(errors))
 }
 
@@ -311,7 +311,7 @@ func TestTagHandler_ValidateKey(t *testing.T) {
 	r := setupTagRouterWithExtended()
 
 	// 測試有效的標籤鍵
-	validateReq := map[string]interface{}{
+	validateReq := map[string]any{
 		"key": "test.valid.tag",
 	}
 
@@ -323,11 +323,11 @@ func TestTagHandler_ValidateKey(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.True(t, data["valid"].(bool))
 	assert.Equal(t, "test.valid.tag", data["normalized"])
 	assert.False(t, data["exists"].(bool))
@@ -340,7 +340,7 @@ func TestTagHandler_ValidateKey_Invalid(t *testing.T) {
 	r := setupTagRouterWithExtended()
 
 	// 測試無效的標籤鍵（包含非法字元）
-	validateReq := map[string]interface{}{
+	validateReq := map[string]any{
 		"key": "invalid@tag#key",
 	}
 
@@ -352,11 +352,11 @@ func TestTagHandler_ValidateKey_Invalid(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.False(t, data["valid"].(bool))
 	assert.NotEmpty(t, data["error"])
 }
@@ -384,7 +384,7 @@ func TestTagHandler_ValidateKey_Exists(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code)
 
 	// 驗證已存在的標籤鍵
-	validateReq := map[string]interface{}{
+	validateReq := map[string]any{
 		"key": "existing.tag.key",
 	}
 
@@ -396,11 +396,11 @@ func TestTagHandler_ValidateKey_Exists(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.True(t, data["valid"].(bool))
 	assert.Equal(t, "existing.tag.key", data["normalized"])
 	assert.True(t, data["exists"].(bool))
@@ -423,7 +423,7 @@ func TestTagHandler_ValidateKey_Normalization(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		validateReq := map[string]interface{}{
+		validateReq := map[string]any{
 			"key": tc.input,
 		}
 
@@ -435,9 +435,9 @@ func TestTagHandler_ValidateKey_Normalization(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		var response map[string]interface{}
+		var response map[string]any
 		json.Unmarshal(w.Body.Bytes(), &response)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, tc.normalized, data["normalized"], "Input: %s", tc.input)
 	}
 }
@@ -462,18 +462,18 @@ func TestTagHandler_ActivateThenRetire(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &createResp)
-	tagID := createResp["data"].(map[string]interface{})["id"].(string)
+	tagID := createResp["data"].(map[string]any)["id"].(string)
 
 	// 啟用標籤
 	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/"+tagID+"/activate", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var activateResp map[string]interface{}
+	var activateResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &activateResp)
-	data := activateResp["data"].(map[string]interface{})
+	data := activateResp["data"].(map[string]any)
 	assert.Equal(t, "active", data["status"])
 
 	// 退役標籤
@@ -481,9 +481,9 @@ func TestTagHandler_ActivateThenRetire(t *testing.T) {
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var retireResp map[string]interface{}
+	var retireResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &retireResp)
-	data = retireResp["data"].(map[string]interface{})
+	data = retireResp["data"].(map[string]any)
 	assert.Equal(t, "retired", data["status"])
 }
 
@@ -494,7 +494,7 @@ func TestTagHandler_BatchCreate_MissingField(t *testing.T) {
 	r := setupTagRouterWithExtended()
 
 	// 缺少 tags 欄位
-	batchReq := map[string]interface{}{}
+	batchReq := map[string]any{}
 
 	body, _ := json.Marshal(batchReq)
 	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/batch", bytes.NewBuffer(body))
@@ -504,7 +504,7 @@ func TestTagHandler_BatchCreate_MissingField(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response["success"].(bool))
 }
@@ -516,7 +516,7 @@ func TestTagHandler_ValidateKey_MissingField(t *testing.T) {
 	r := setupTagRouterWithExtended()
 
 	// 缺少 key 欄位
-	validateReq := map[string]interface{}{}
+	validateReq := map[string]any{}
 
 	body, _ := json.Marshal(validateReq)
 	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/validate-key", bytes.NewBuffer(body))
@@ -526,7 +526,7 @@ func TestTagHandler_ValidateKey_MissingField(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response["success"].(bool))
 }

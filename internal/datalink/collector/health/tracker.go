@@ -5,6 +5,7 @@
 package health
 
 import (
+	"slices"
 	"sync"
 	"time"
 )
@@ -104,7 +105,7 @@ func (t *Tracker) ErrorRate() float64 {
 	}
 
 	failures := 0
-	for i := 0; i < t.count; i++ {
+	for i := range t.count {
 		if !t.records[i].Success {
 			failures++
 		}
@@ -129,7 +130,7 @@ func (t *Tracker) GetStats() Stats {
 	var totalDuration time.Duration
 	durations := make([]time.Duration, 0, t.count)
 
-	for i := 0; i < t.count; i++ {
+	for i := range t.count {
 		record := t.records[i]
 		if record.Success {
 			stats.SuccessCount++
@@ -148,13 +149,7 @@ func (t *Tracker) GetStats() Stats {
 
 	// 計算 P99 延遲 (簡化版：取最大值)
 	if len(durations) > 0 {
-		maxDuration := durations[0]
-		for _, d := range durations {
-			if d > maxDuration {
-				maxDuration = d
-			}
-		}
-		stats.P99Latency = maxDuration
+		stats.P99Latency = slices.Max(durations)
 	}
 
 	return stats

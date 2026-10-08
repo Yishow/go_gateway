@@ -81,7 +81,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 		FROM points
 		WHERE 1=1
 	`
-	args := []interface{}{}
+	args := []any{}
 
 	if filter.DeviceID != nil {
 		query += ` AND device_id = ?`

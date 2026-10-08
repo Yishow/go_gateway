@@ -8,7 +8,7 @@ import (
 )
 
 // executeConditional 條件轉換
-func executeConditional(input interface{}, params map[string]interface{}) (interface{}, error) {
+func executeConditional(input any, params map[string]any) (any, error) {
 	if params == nil {
 		return input, nil
 	}
@@ -50,7 +50,7 @@ func evaluateCondition(value float64, operator string, threshold float64) bool {
 	}
 }
 
-func parseConditionalParams(params map[string]interface{}) (parsedOperator string, parsedThreshold float64, parseErr error) {
+func parseConditionalParams(params map[string]any) (parsedOperator string, parsedThreshold float64, parseErr error) {
 	if params == nil {
 		return "", 0, fmt.Errorf("缺少參數")
 	}
@@ -128,7 +128,7 @@ func parseConditionString(condition string) (parsedOperator string, parsedThresh
 }
 
 // executeFormula 公式轉換
-func executeFormula(input interface{}, params map[string]interface{}) (interface{}, error) {
+func executeFormula(input any, params map[string]any) (any, error) {
 	if params == nil {
 		return input, nil
 	}

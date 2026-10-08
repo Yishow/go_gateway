@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
@@ -220,7 +221,7 @@ func TestService_CandidateSnapshots_UsesPersistedDatabaseMappingScope(t *testing
 				TableName:       "measurements",
 				ColumnName:      "line_a",
 				WriteMode:       schema.DatabaseWriteModeUpsert,
-				TimestampColumn: stringPtr("ts"),
+				TimestampColumn: common.Ptr("ts"),
 			},
 		}, nil
 	}))

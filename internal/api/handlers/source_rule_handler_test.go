@@ -66,7 +66,7 @@ func TestSourceRuleHandler_CreateAndList(t *testing.T) {
 
 	require.Equal(t, http.StatusCreated, resp.Code)
 
-	var createPayload map[string]interface{}
+	var createPayload map[string]any
 	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &createPayload))
 	assert.True(t, createPayload["success"].(bool))
 
@@ -77,9 +77,9 @@ func TestSourceRuleHandler_CreateAndList(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, listResp.Code)
 
-	var listPayload map[string]interface{}
+	var listPayload map[string]any
 	require.NoError(t, json.Unmarshal(listResp.Body.Bytes(), &listPayload))
-	items := listPayload["data"].([]interface{})
+	items := listPayload["data"].([]any)
 	require.Len(t, items, 1)
 
 	deviceID := "device-1"
@@ -115,9 +115,9 @@ func TestSourceRuleHandler_Disable(t *testing.T) {
 	router.ServeHTTP(disableResp, disableReq)
 	require.Equal(t, http.StatusOK, disableResp.Code)
 
-	var disablePayload map[string]interface{}
+	var disablePayload map[string]any
 	require.NoError(t, json.Unmarshal(disableResp.Body.Bytes(), &disablePayload))
-	ruleData := disablePayload["data"].(map[string]interface{})
+	ruleData := disablePayload["data"].(map[string]any)
 	assert.False(t, ruleData["enabled"].(bool))
 
 	deviceID := "device-1"

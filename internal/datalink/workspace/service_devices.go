@@ -122,7 +122,7 @@ func (s *Service) ReplaceDeviceOrder(ctx context.Context, orderedDeviceIDs []str
 		seen[deviceID] = struct{}{}
 	}
 
-	record.OrderedDeviceIDs = append([]string{}, orderedDeviceIDs...)
+	record.OrderedDeviceIDs = slices.Clone(orderedDeviceIDs)
 	record.Status = workspaceStatusForDevices(record.OrderedDeviceIDs)
 	record.UpdatedAt = s.now()
 	if err := s.repo.Save(ctx, record); err != nil {

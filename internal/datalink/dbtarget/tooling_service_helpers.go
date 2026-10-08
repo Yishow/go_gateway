@@ -1,9 +1,10 @@
 package dbtarget
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/schema"
@@ -127,7 +128,7 @@ func normalizeDryRunCandidateIDs(
 			unknown = append(unknown, normalized)
 		}
 	}
-	sort.Strings(unknown)
+	slices.Sort(unknown)
 	return selected, unknown
 }
 
@@ -147,17 +148,18 @@ func selectMappingsForDryRun(
 		}
 		selected = append(selected, mappingRecord)
 	}
-	sort.Slice(selected, func(i, j int) bool {
-		return selected[i].ID < selected[j].ID
+	slices.SortFunc(selected, func(a, b *schema.DatabaseTargetMapping) int {
+		return cmp.Compare(a.ID, b.ID)
 	})
 	return selected
 }
 
 func firstBlockingIssue(issues []ValidationIssue) (ValidationIssue, bool) {
-	for _, issue := range issues {
-		if strings.TrimSpace(issue.Severity) == validationSeverityError {
-			return issue, true
-		}
+	i := slices.IndexFunc(issues, func(issue ValidationIssue) bool {
+		return strings.TrimSpace(issue.Severity) == validationSeverityError
+	})
+	if i >= 0 {
+		return issues[i], true
 	}
 	return ValidationIssue{}, false
 }
@@ -201,10 +203,7 @@ func dedupeStatements(statements []string) []string {
 }
 
 func sanitizeIndexName(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "idx_generated_unique"
-	}
+	trimmed := cmp.Or(strings.TrimSpace(value), "idx_generated_unique")
 	var builder strings.Builder
 	for _, char := range trimmed {
 		switch {

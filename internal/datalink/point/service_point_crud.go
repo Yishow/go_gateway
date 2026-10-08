@@ -1,6 +1,7 @@
 package point
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -17,12 +18,10 @@ func clonePoint(record *schema.Point) *schema.Point {
 	}
 	copyRecord := *record
 	if record.PollingGroupID != nil {
-		value := *record.PollingGroupID
-		copyRecord.PollingGroupID = &value
+		copyRecord.PollingGroupID = common.Ptr(*record.PollingGroupID)
 	}
 	if record.LastReadAt != nil {
-		value := *record.LastReadAt
-		copyRecord.LastReadAt = &value
+		copyRecord.LastReadAt = common.Ptr(*record.LastReadAt)
 	}
 	if record.LastValue != nil {
 		value := *record.LastValue
@@ -68,16 +67,11 @@ func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.P
 		Function:       normalizedFunction,
 		DataType:       req.DataType,
 		DataFormat:     normalizePointDataFormat(req.DataFormat),
-		Mode:           req.Mode,
+		Mode:           cmp.Or(req.Mode, schema.PointModeReadOnly),
 		PollingGroupID: req.PollingGroupID,
 		Enabled:        true,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
-	}
-
-	// 設定預設模式
-	if point.Mode == "" {
-		point.Mode = schema.PointModeReadOnly
 	}
 
 	if err := s.repo.Create(ctx, point); err != nil {
@@ -140,8 +134,7 @@ func (s *Service) BatchCreate(ctx context.Context, req BatchCreatePointsRequest)
 			PollingGroupID: nil,
 		}
 		if req.PollingGroupID != "" {
-			groupID := req.PollingGroupID
-			createReq.PollingGroupID = &groupID
+			createReq.PollingGroupID = common.Ptr(req.PollingGroupID)
 		}
 
 		point, createErr := s.Create(ctx, createReq)

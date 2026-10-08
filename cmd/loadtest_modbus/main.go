@@ -202,7 +202,7 @@ func run() int {
 			Name:        fmt.Sprintf("bench-dev-%02d", i),
 			Protocol:    srv.protocol,
 			Description: "local benchmark source",
-			ConnectionConfig: map[string]interface{}{
+			ConnectionConfig: map[string]any{
 				"host":     "127.0.0.1",
 				"port":     srv.port,
 				"slave_id": 1,

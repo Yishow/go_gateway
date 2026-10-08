@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -178,11 +179,7 @@ func databaseRowGroupContainsPoint(groups []DatabaseRowGroup, id, pointID string
 }
 
 func defaultScopedValue(value, fallback string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return fallback
-	}
-	return value
+	return cmp.Or(strings.TrimSpace(value), fallback)
 }
 
 func normalizeStringSet(values []string) []string {

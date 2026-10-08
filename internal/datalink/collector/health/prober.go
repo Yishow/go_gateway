@@ -127,11 +127,9 @@ func (p *BackgroundProber) probeDeadDevices() {
 	// 並行探測
 	var wg sync.WaitGroup
 	for _, deviceID := range deadDevices {
-		wg.Add(1)
-		go func(devID string) {
-			defer wg.Done()
-			p.probeDevice(devID)
-		}(deviceID)
+		wg.Go(func() {
+			p.probeDevice(deviceID)
+		})
 	}
 	wg.Wait()
 }

@@ -3,6 +3,7 @@ package sourcerule
 import (
 	"context"
 	"reflect"
+	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/mapping"
@@ -33,7 +34,7 @@ func NewPreviewMappingScopeChecker(workspaceReader interface {
 			return "", modbusshare.NewError(modbusshare.ErrCodeWorkspaceScope, "preview mapping is outside the requested workspace", false)
 		}
 		pointRecord, err := points.GetByID(ctx, record.PointID)
-		if err != nil || pointRecord == nil || !containsString(deviceIDs, pointRecord.DeviceID) {
+		if err != nil || pointRecord == nil || !slices.Contains(deviceIDs, pointRecord.DeviceID) {
 			return "", modbusshare.NewError(modbusshare.ErrCodeWorkspaceScope, "preview point is outside the requested workspace", false)
 		}
 		ruleRecords, err := rules.ListByDeviceIDs(ctx, []string{pointRecord.DeviceID})
@@ -59,15 +60,6 @@ func NewPreviewMappingScopeChecker(workspaceReader interface {
 		}
 		return "", modbusshare.NewError(modbusshare.ErrCodeWorkspaceScope, "preview mapping is not durably owned by this workspace", false)
 	}
-}
-
-func containsString(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
 }
 
 // NewShareDesiredMappingOwnershipChecker proves the complete persisted

@@ -212,7 +212,7 @@ func (o *SQLOutbox) GetMetrics(destinationID string) (DestinationMetrics, error)
 	if oldestObs.Valid && oldestObs.String != "" {
 		t, err := time.Parse(time.RFC3339Nano, oldestObs.String)
 		if err == nil {
-			metrics.OldestPendingAgeSec = time.Now().UTC().Sub(t).Seconds()
+			metrics.OldestPendingAgeSec = time.Since(t).Seconds()
 		}
 	}
 

@@ -3,6 +3,7 @@ package sourcerule
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/schema"
@@ -22,8 +23,10 @@ func applyDatabaseTargetValidation(
 		return
 	}
 
-	issues := append([]DatabaseTargetValidationIssue(nil), validationIndex.connectorIssues[mappingRecord.ConnectorID]...)
-	issues = append(issues, validationIndex.mappingIssues[mappingRecord.ID]...)
+	issues := slices.Concat(
+		validationIndex.connectorIssues[mappingRecord.ConnectorID],
+		validationIndex.mappingIssues[mappingRecord.ID],
+	)
 	if len(issues) == 0 {
 		return
 	}

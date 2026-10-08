@@ -2,7 +2,7 @@ package aggregation
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 )
 
@@ -33,8 +33,8 @@ func CalculateCounterUsage(
 		}
 	}
 
-	sort.SliceStable(validSamples, func(i, j int) bool {
-		return validSamples[i].ObservedAt.Before(validSamples[j].ObservedAt)
+	slices.SortStableFunc(validSamples, func(a, b TelemetrySample) int {
+		return a.ObservedAt.Compare(b.ObservedAt)
 	})
 
 	result := UsageResult{

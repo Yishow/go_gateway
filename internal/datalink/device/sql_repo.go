@@ -3,6 +3,7 @@ package device
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -28,7 +29,7 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 	`
 
 	// 處理可選欄位：將 nil 指針轉換為適當的 SQL 值
-	var lastTestAt interface{}
+	var lastTestAt any
 	if dev.LastTestAt != nil {
 		// SQLite 使用 TEXT 存儲時間，格式為 "2006-01-02 15:04:05"
 		lastTestAt = dev.LastTestAt.Format("2006-01-02 15:04:05")
@@ -36,7 +37,7 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 		lastTestAt = nil
 	}
 
-	var lastTestSuccess interface{}
+	var lastTestSuccess any
 	if dev.LastTestSuccess != nil {
 		// SQLite 使用 INTEGER 存儲布林值 (0 或 1)
 		if *dev.LastTestSuccess {
@@ -48,7 +49,7 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 		lastTestSuccess = nil
 	}
 
-	var lastTestError interface{}
+	var lastTestError any
 	if dev.LastTestError != "" {
 		lastTestError = dev.LastTestError
 	} else {
@@ -109,7 +110,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Device,
 		&updatedAtStr,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("device not found: %w", err)
 		}
 		return nil, fmt.Errorf("failed to get device: %w", err)
@@ -141,7 +142,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 			   last_test_at, last_test_success, last_test_error, readiness_status, created_at, updated_at
 		FROM devices WHERE 1=1
 	`
-	var args []interface{}
+	var args []any
 
 	if filter.Protocol != nil {
 		query += " AND protocol = ?"

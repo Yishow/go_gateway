@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,7 @@ func TestBuildWriteStatement_MySQLUpsertUsesDuplicateKeyUpdate(t *testing.T) {
 		TableName:       "sensor_values",
 		ColumnName:      "value",
 		WriteMode:       schema.DatabaseWriteModeUpsert,
-		TimestampColumn: stringPtr("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	}
 
 	query, args, err := buildWriteStatement(

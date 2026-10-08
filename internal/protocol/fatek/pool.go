@@ -7,7 +7,7 @@ import (
 
 // bufferPool is a pool of bytes.Buffer to reduce memory allocation pressure.
 var bufferPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		// Pre-allocate a buffer of 64 bytes (sufficient for most Fatek ASCII frames)
 		// It will grow automatically if needed.
 		return bytes.NewBuffer(make([]byte, 0, 64))

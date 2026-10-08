@@ -101,7 +101,7 @@ func (d *Dispatcher) runCycle(ctx, grace context.Context) (CycleReport, error) {
 func (d *Dispatcher) deliverPartition(ctx, grace context.Context, head Head) (CycleReport, error) {
 	var report CycleReport
 	effectKey := head.EffectKey
-	for i := 0; i < d.config.BatchSize; i++ {
+	for range d.config.BatchSize {
 		if graceEnded(grace) {
 			return report, nil
 		}

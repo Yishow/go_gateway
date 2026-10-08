@@ -74,10 +74,7 @@ func CalculateBackoff(retryCount, maxRetries int) (OutboxStatus, time.Time) {
 	if maxRetries > 0 && retryCount >= maxRetries {
 		return StatusBlocked, time.Now().UTC()
 	}
-	backoffSec := math.Pow(2, float64(retryCount))
-	if backoffSec > 300 {
-		backoffSec = 300
-	}
+	backoffSec := min(math.Pow(2, float64(retryCount)), 300.0)
 	jitter := 0.0
 	if n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(1000)); err == nil {
 		jitter = (float64(n.Int64()) / 1000.0) * 0.5 * backoffSec

@@ -182,11 +182,11 @@ func shouldRunPipeline(raw string) bool {
 	return true
 }
 
-func buildRawValue(cv collector.CollectedValue) interface{} {
+func buildRawValue(cv collector.CollectedValue) any {
 	if len(cv.RawBytes) == 0 {
 		return cv.Value
 	}
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"value":     cv.Value,
 		"raw_bytes": cv.RawBytes,
 	}

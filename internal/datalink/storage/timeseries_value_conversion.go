@@ -13,7 +13,7 @@ import (
 // =============================================================================
 
 // ValueToRecord 將收集值轉換為時序記錄
-func ValueToRecord(tagID string, value, rawValue interface{}, timestamp time.Time, quality schema.QualityFlag, dataType schema.DataType) TimeSeriesRecord {
+func ValueToRecord(tagID string, value, rawValue any, timestamp time.Time, quality schema.QualityFlag, dataType schema.DataType) TimeSeriesRecord {
 	record := TimeSeriesRecord{
 		TagID:     tagID,
 		Timestamp: timestamp,
@@ -49,7 +49,7 @@ func ValueToRecord(tagID string, value, rawValue interface{}, timestamp time.Tim
 }
 
 // toFloat64 將值轉換為 float64
-func toFloat64(v interface{}) (float64, bool) {
+func toFloat64(v any) (float64, bool) {
 	switch val := v.(type) {
 	case float64:
 		return val, true

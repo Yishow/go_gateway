@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
@@ -100,7 +101,6 @@ func TestService_TagReviewDecisionCarriesForwardAcrossCompatibleRevisions(t *tes
 	}
 
 	for _, testCase := range tests {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -134,7 +134,7 @@ func TestService_TagReviewDecisionCarriesForwardAcrossCompatibleRevisions(t *tes
 			testCase.seedDecision(t, ctx, svc, tagSvc, initialCandidate)
 
 			updatedRule, err := svc.Update(ctx, rule.ID, UpdateRuleRequest{
-				NamingPrefix: stringPtr("ALT"),
+				NamingPrefix: common.Ptr("ALT"),
 			})
 			require.NoError(t, err)
 			assert.NotEqual(t, initialRevision, updatedRule.RevisionID)

@@ -1,11 +1,13 @@
 package sourcerule
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
 )
@@ -48,14 +50,17 @@ func (s *Service) buildDesiredShareMappings(
 		return nil, fmt.Errorf("列出來源規則失敗: %w", err)
 	}
 
-	sort.Slice(rules, func(i, j int) bool {
-		if rules[i] == nil {
-			return false
+	slices.SortFunc(rules, func(a, b *schema.SourceRule) int {
+		if a == nil && b == nil {
+			return 0
 		}
-		if rules[j] == nil {
-			return true
+		if a == nil {
+			return 1
 		}
-		return rules[i].ID < rules[j].ID
+		if b == nil {
+			return -1
+		}
+		return cmp.Compare(a.ID, b.ID)
 	})
 
 	result := make([]modbusshare.DesiredMapping, 0)
@@ -99,35 +104,31 @@ func (s *Service) buildDesiredShareMappings(
 			if c.Status == schema.SourceRuleLocalModbusOutputStatusOutOfSync || strings.TrimSpace(c.BlockingReason) != "" {
 				continue
 			}
+			tagID := strings.TrimSpace(*c.TagID)
 			if c.MappingID == nil {
 				links, linkErr := s.ListLinks(ctx, rule.ID)
 				if linkErr != nil {
 					return nil, linkErr
 				}
-				for _, link := range links {
-					if link != nil && link.TagID != nil && strings.TrimSpace(*link.TagID) == strings.TrimSpace(*c.TagID) && link.MappingID != nil {
-						c.MappingID = stringPtr(strings.TrimSpace(*link.MappingID))
-						break
-					}
+				if idx := slices.IndexFunc(links, func(link *schema.SourceRuleLink) bool {
+					return link != nil && link.TagID != nil && strings.TrimSpace(*link.TagID) == tagID && link.MappingID != nil
+				}); idx >= 0 {
+					c.MappingID = common.Ptr(strings.TrimSpace(*links[idx].MappingID))
 				}
 			}
 			// Candidate payloads are not ownership proof by themselves. Require
 			// both the persisted tag and the rule link before projecting it.
 			if s.tagSvc != nil {
-				if _, err := s.tagSvc.GetByID(ctx, strings.TrimSpace(*c.TagID)); err != nil {
+				if _, err := s.tagSvc.GetByID(ctx, tagID); err != nil {
 					return nil, &modbusshare.Error{Code: modbusshare.ErrCodeWorkspaceScope, Message: "local Modbus candidate tag is not persisted", Retryable: false, Action: "Repair the source-rule candidate and apply it again"}
 				}
 				links, err := s.ListLinks(ctx, rule.ID)
 				if err != nil {
 					return nil, err
 				}
-				linked := false
-				for _, link := range links {
-					if link != nil && link.TagID != nil && strings.TrimSpace(*link.TagID) == strings.TrimSpace(*c.TagID) {
-						linked = true
-						break
-					}
-				}
+				linked := slices.ContainsFunc(links, func(link *schema.SourceRuleLink) bool {
+					return link != nil && link.TagID != nil && strings.TrimSpace(*link.TagID) == tagID
+				})
 				if !linked {
 					return nil, &modbusshare.Error{Code: modbusshare.ErrCodeWorkspaceScope, Message: "local Modbus candidate has no persisted source-rule relationship", Retryable: false, Action: "Apply the source-rule candidate before activation"}
 				}

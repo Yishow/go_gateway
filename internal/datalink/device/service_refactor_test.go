@@ -22,7 +22,7 @@ func TestServiceCreateAndList(t *testing.T) {
 		Name:        "PLC-1",
 		Protocol:    schema.ProtocolModbusTCP,
 		Description: "test device",
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     float64(502),
 			"slave_id": float64(1),
@@ -42,7 +42,7 @@ func TestServiceCreateAndList(t *testing.T) {
 }
 
 func TestValidateConnectionConfigUnknownProtocol(t *testing.T) {
-	err := validateConnectionConfig(schema.ProtocolType("custom"), map[string]interface{}{})
+	err := validateConnectionConfig(schema.ProtocolType("custom"), map[string]any{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "未知的協議類型")
 }

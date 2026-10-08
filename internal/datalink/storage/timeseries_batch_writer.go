@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -101,8 +102,7 @@ func (bw *BatchWriter) flushLocked(ctx context.Context) error {
 	}
 
 	// 複製緩衝區
-	toWrite := make([]TimeSeriesRecord, len(bw.buffer))
-	copy(toWrite, bw.buffer)
+	toWrite := slices.Clone(bw.buffer)
 
 	// 清空緩衝區
 	bw.buffer = bw.buffer[:0]

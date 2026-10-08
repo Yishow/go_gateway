@@ -2,6 +2,7 @@ package edge
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -56,8 +57,7 @@ func (p *Pipeline) Run(ctx context.Context, input []float64) ([]float64, error) 
 	}
 
 	// 複製輸入以避免修改原始數據
-	data := make([]float64, len(input))
-	copy(data, input)
+	data := slices.Clone(input)
 
 	// 依序執行處理器
 	for _, proc := range p.processors {
@@ -89,8 +89,8 @@ type PipelineConfig struct {
 
 // ProcessorConfig 處理器配置
 type ProcessorConfig struct {
-	Type   string                 `yaml:"type"`
-	Params map[string]interface{} `yaml:"params,omitempty"`
+	Type   string         `yaml:"type"`
+	Params map[string]any `yaml:"params,omitempty"`
 }
 
 // ParsePipelineConfig 解析 YAML 配置
@@ -108,7 +108,7 @@ func ParsePipelineConfig(data []byte) (*PipelineConfig, error) {
 // =============================================================================
 
 // ProcessorFactory 處理器工廠函數
-type ProcessorFactory func(params map[string]interface{}) (Processor, error)
+type ProcessorFactory func(params map[string]any) (Processor, error)
 
 // ProcessorRegistry 處理器註冊表
 type ProcessorRegistry struct {
@@ -128,7 +128,7 @@ func (r *ProcessorRegistry) Register(name string, factory ProcessorFactory) {
 }
 
 // Create 建立處理器
-func (r *ProcessorRegistry) Create(name string, params map[string]interface{}) (Processor, error) {
+func (r *ProcessorRegistry) Create(name string, params map[string]any) (Processor, error) {
 	factory, exists := r.factories[name]
 	if !exists {
 		return nil, nil // 或返回錯誤

@@ -1,13 +1,15 @@
 package workspace
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/schema"
 )
@@ -33,20 +35,18 @@ func (s *Service) runtimeProjectionDatabaseTargets(
 		return connector, nil, nil
 	}
 
-	enabled := true
 	targets := make([]*schema.DatabaseTargetMapping, 0)
 	for _, tagRecord := range tags {
-		tagID := tagRecord.ID
 		tagTargets, err := s.projectionTargets.List(ctx, dbtarget.TargetMappingListFilter{
 			ConnectorID: &connectorID,
-			TagID:       &tagID,
-			Enabled:     &enabled,
+			TagID:       common.Ptr(tagRecord.ID),
+			Enabled:     common.Ptr(true),
 		})
 		if err != nil {
-			return nil, nil, fmt.Errorf("read workspace projection database targets %s: %w", tagID, err)
+			return nil, nil, fmt.Errorf("read workspace projection database targets %s: %w", tagRecord.ID, err)
 		}
-		sort.SliceStable(tagTargets, func(i, j int) bool {
-			return tagTargets[i].ID < tagTargets[j].ID
+		slices.SortStableFunc(tagTargets, func(a, b *schema.DatabaseTargetMapping) int {
+			return cmp.Compare(a.ID, b.ID)
 		})
 		targets = append(targets, tagTargets...)
 	}
@@ -75,8 +75,8 @@ func (s *Service) runtimeProjectionPollingGroups(ctx context.Context, points []*
 			filtered = append(filtered, group)
 		}
 	}
-	sort.SliceStable(filtered, func(i, j int) bool {
-		return filtered[i].ID < filtered[j].ID
+	slices.SortStableFunc(filtered, func(a, b *schema.PollingGroup) int {
+		return cmp.Compare(a.ID, b.ID)
 	})
 	return filtered, nil
 }

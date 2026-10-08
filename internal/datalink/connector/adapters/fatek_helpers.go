@@ -42,7 +42,7 @@ func parseFatekAddress(addressStr string) (symbol string, address int, err error
 }
 
 // convertFatekValue 將 FATEK 暫存器值轉換為指定型別
-func convertFatekValue(values []int, dataType schema.DataType, width int) interface{} {
+func convertFatekValue(values []int, dataType schema.DataType, width int) any {
 	if len(values) == 0 {
 		return nil
 	}
@@ -91,7 +91,7 @@ func intSliceToBytes(values []int) []byte {
 }
 
 // toIntSlice 將任意值轉換為 int 切片
-func toIntSlice(v interface{}) ([]int, error) {
+func toIntSlice(v any) ([]int, error) {
 	switch val := v.(type) {
 	case int:
 		return []int{val}, nil
@@ -107,7 +107,7 @@ func toIntSlice(v interface{}) ([]int, error) {
 		return []int{int(val)}, nil
 	case uint32:
 		return []int{int(val)}, nil
-	case []interface{}:
+	case []any:
 		result := make([]int, len(val))
 		for i, n := range val {
 			switch num := n.(type) {

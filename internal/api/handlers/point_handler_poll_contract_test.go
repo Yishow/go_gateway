@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/collector"
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
@@ -58,7 +59,7 @@ type failingPointReadResultRepo struct {
 func (r *failingPointReadResultRepo) UpdateReadResult(
 	ctx context.Context,
 	id string,
-	value interface{},
+	value any,
 	errMsg string,
 ) error {
 	return assert.AnError
@@ -118,7 +119,7 @@ func setupPointPollContractRouter(t *testing.T, poller *stubPointManualPoller) (
 	olderPipeline, err := json.Marshal([]schema.TransformStep{{
 		Type:  schema.TransformScale,
 		Order: 1,
-		Params: map[string]interface{}{
+		Params: map[string]any{
 			"multiplier": 0.1,
 		},
 	}})
@@ -127,7 +128,7 @@ func setupPointPollContractRouter(t *testing.T, poller *stubPointManualPoller) (
 	newerPipeline, err := json.Marshal([]schema.TransformStep{{
 		Type:  schema.TransformScale,
 		Order: 1,
-		Params: map[string]interface{}{
+		Params: map[string]any{
 			"multiplier": 0.2,
 		},
 	}})
@@ -251,7 +252,7 @@ func TestPointHandler_Poll_FallsBackToCachedStateAndComputesStale(t *testing.T) 
 
 	pt, err := pointRepo.GetByID(context.Background(), "point-2")
 	require.NoError(t, err)
-	pt.LastValue = ptrString(string(valueJSON))
+	pt.LastValue = common.Ptr(string(valueJSON))
 	pt.LastReadAt = &readAt
 	require.NoError(t, pointRepo.Update(context.Background(), pt))
 
@@ -281,7 +282,7 @@ func TestPointHandler_Poll_FallbackWithoutLastReadAtIsStale(t *testing.T) {
 
 	pt, err := pointRepo.GetByID(context.Background(), "point-2")
 	require.NoError(t, err)
-	pt.LastValue = ptrString(string(valueJSON))
+	pt.LastValue = common.Ptr(string(valueJSON))
 	pt.LastReadAt = nil
 	require.NoError(t, pointRepo.Update(context.Background(), pt))
 
@@ -368,7 +369,7 @@ func TestPointHandler_PollBatch_UsesManualPollResultsAndKeepsMissingPoints(t *te
 
 	router, _, _ := setupPointPollContractRouter(t, poller)
 
-	body, err := json.Marshal(map[string]interface{}{
+	body, err := json.Marshal(map[string]any{
 		"point_ids": []string{"point-1", "missing-point", "point-2"},
 	})
 	require.NoError(t, err)
@@ -456,8 +457,4 @@ func TestPointHandler_Poll_ReturnsInternalServerErrorForWritebackFailure(t *test
 	router.ServeHTTP(resp, req)
 
 	require.Equal(t, http.StatusInternalServerError, resp.Code)
-}
-
-func ptrString(value string) *string {
-	return &value
 }

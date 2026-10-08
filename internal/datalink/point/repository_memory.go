@@ -159,7 +159,7 @@ func (r *MemoryRepository) List(ctx context.Context, filter ListFilter) ([]*sche
 }
 
 // UpdateReadResult 更新讀取結果
-func (r *MemoryRepository) UpdateReadResult(ctx context.Context, id string, value interface{}, errMsg string) error {
+func (r *MemoryRepository) UpdateReadResult(ctx context.Context, id string, value any, errMsg string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

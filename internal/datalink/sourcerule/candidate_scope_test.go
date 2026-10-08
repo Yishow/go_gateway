@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
 
@@ -73,8 +74,8 @@ func TestCandidateScopeRejectsForeignRuleAndStaleRevision(t *testing.T) {
 
 func TestConfiguredLocalModbusRegisterRejectsShortStride(t *testing.T) {
 	rule := &schema.SourceRule{
-		ShareStartRegister: intPtrForCandidateScopeTest(40001),
-		ShareStride:        intPtrForCandidateScopeTest(1),
+		ShareStartRegister: common.Ptr(40001),
+		ShareStride:        common.Ptr(1),
 	}
 
 	_, err := configuredLocalModbusRegister(rule, "40001", 0, 2)
@@ -82,5 +83,3 @@ func TestConfiguredLocalModbusRegisterRejectsShortStride(t *testing.T) {
 	require.ErrorAs(t, err, &typed)
 	require.Equal(t, modbusshare.ErrCodeInvalidGeometry, typed.Code)
 }
-
-func intPtrForCandidateScopeTest(value int) *int { return &value }

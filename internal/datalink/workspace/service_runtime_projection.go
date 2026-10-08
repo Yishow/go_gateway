@@ -1,11 +1,13 @@
 package workspace
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
@@ -137,7 +139,7 @@ func (s *Service) RuntimeProjection(ctx context.Context) (*RuntimeProjection, er
 	projection := &RuntimeProjection{
 		WorkspaceID:       record.ID,
 		Alignment:         RuntimeProjectionAlignmentAligned,
-		DeviceIDs:         append([]string{}, record.OrderedDeviceIDs...),
+		DeviceIDs:         slices.Clone(record.OrderedDeviceIDs),
 		Devices:           devices,
 		Rules:             rules,
 		RuleLinks:         links,
@@ -188,13 +190,13 @@ func (s *Service) runtimeProjectionRules(
 	if err != nil {
 		return nil, nil, fmt.Errorf("read workspace projection rules: %w", err)
 	}
-	sort.SliceStable(rules, func(i, j int) bool {
-		leftDevice := deviceOrder[rules[i].DeviceID]
-		rightDevice := deviceOrder[rules[j].DeviceID]
+	slices.SortStableFunc(rules, func(a, b *schema.SourceRule) int {
+		leftDevice := deviceOrder[a.DeviceID]
+		rightDevice := deviceOrder[b.DeviceID]
 		if leftDevice != rightDevice {
-			return leftDevice < rightDevice
+			return cmp.Compare(leftDevice, rightDevice)
 		}
-		return rules[i].ID < rules[j].ID
+		return cmp.Compare(a.ID, b.ID)
 	})
 
 	links := make([]*schema.SourceRuleLink, 0)
@@ -203,11 +205,11 @@ func (s *Service) runtimeProjectionRules(
 		if err != nil {
 			return nil, nil, fmt.Errorf("read workspace projection rule links %s: %w", rule.ID, err)
 		}
-		sort.SliceStable(ruleLinks, func(i, j int) bool {
-			if ruleLinks[i].Address != ruleLinks[j].Address {
-				return ruleLinks[i].Address < ruleLinks[j].Address
+		slices.SortStableFunc(ruleLinks, func(a, b *schema.SourceRuleLink) int {
+			if a.Address != b.Address {
+				return cmp.Compare(a.Address, b.Address)
 			}
-			return ruleLinks[i].ID < ruleLinks[j].ID
+			return cmp.Compare(a.ID, b.ID)
 		})
 		links = append(links, ruleLinks...)
 	}
@@ -222,8 +224,8 @@ func (s *Service) runtimeProjectionPoints(ctx context.Context, deviceIDs []strin
 		if err != nil {
 			return nil, fmt.Errorf("read workspace projection points %s: %w", deviceID, err)
 		}
-		sort.SliceStable(devicePoints, func(i, j int) bool {
-			return devicePoints[i].ID < devicePoints[j].ID
+		slices.SortStableFunc(devicePoints, func(a, b *schema.Point) int {
+			return cmp.Compare(a.ID, b.ID)
 		})
 		for _, pointRecord := range devicePoints {
 			if _, live := livePointIDs[pointRecord.ID]; !live {
@@ -236,7 +238,6 @@ func (s *Service) runtimeProjectionPoints(ctx context.Context, deviceIDs []strin
 }
 
 func (s *Service) runtimeProjectionMappings(ctx context.Context, points []*schema.Point, links []*schema.SourceRuleLink) ([]*schema.Mapping, []*schema.Tag, error) {
-	enabled := true
 	liveMappingIDs := runtimeProjectionLinkMappingIDs(links)
 	mappings := make([]*schema.Mapping, 0)
 	tagIDs := make([]string, 0)
@@ -245,14 +246,14 @@ func (s *Service) runtimeProjectionMappings(ctx context.Context, points []*schem
 	for _, pointRecord := range points {
 		pointMappings, err := s.projectionMappings.List(ctx, mapping.ListFilter{
 			PointID: &pointRecord.ID,
-			Enabled: &enabled,
+			Enabled: common.Ptr(true),
 			Limit:   100000,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("read workspace projection mappings %s: %w", pointRecord.ID, err)
 		}
-		sort.SliceStable(pointMappings, func(i, j int) bool {
-			return pointMappings[i].ID < pointMappings[j].ID
+		slices.SortStableFunc(pointMappings, func(a, b *schema.Mapping) int {
+			return cmp.Compare(a.ID, b.ID)
 		})
 		for _, mappingRecord := range pointMappings {
 			if _, live := liveMappingIDs[mappingRecord.ID]; !live {

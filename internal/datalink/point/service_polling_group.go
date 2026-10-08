@@ -1,9 +1,10 @@
 package point
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	"go-gateway/internal/datalink/common"
@@ -47,26 +48,28 @@ func (s *Service) EnsureDefaultPollingGroup(ctx context.Context) (*schema.Pollin
 		return group, nil
 	}
 
-	sort.Slice(groups, func(i, j int) bool {
-		if groups[i].Enabled != groups[j].Enabled {
-			return groups[i].Enabled
+	slices.SortFunc(groups, func(a, b *schema.PollingGroup) int {
+		if a.Enabled != b.Enabled {
+			if a.Enabled {
+				return -1
+			}
+			return 1
 		}
-		if groups[i].Priority != groups[j].Priority {
-			return groups[i].Priority < groups[j].Priority
+		if a.Priority != b.Priority {
+			return cmp.Compare(a.Priority, b.Priority)
 		}
-		if groups[i].IntervalMs != groups[j].IntervalMs {
-			return groups[i].IntervalMs < groups[j].IntervalMs
+		if a.IntervalMs != b.IntervalMs {
+			return cmp.Compare(a.IntervalMs, b.IntervalMs)
 		}
-		return groups[i].ID < groups[j].ID
+		return cmp.Compare(a.ID, b.ID)
 	})
 
 	if groups[0].Enabled {
 		return groups[0], nil
 	}
 
-	enabled := true
 	group, err := s.UpdatePollingGroup(ctx, groups[0].ID, UpdatePollingGroupRequest{
-		Enabled: &enabled,
+		Enabled: common.Ptr(true),
 	})
 	if err != nil {
 		return nil, err

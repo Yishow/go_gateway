@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -72,8 +73,7 @@ func (m *mockTimeSeriesWriter) Write(ctx context.Context, record TimeSeriesRecor
 func (m *mockTimeSeriesWriter) WriteBatch(ctx context.Context, records []TimeSeriesRecord) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	copied := make([]TimeSeriesRecord, len(records))
-	copy(copied, records)
+	copied := slices.Clone(records)
 	m.batches = append(m.batches, copied)
 	return nil
 }

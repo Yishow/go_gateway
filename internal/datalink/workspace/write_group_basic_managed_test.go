@@ -221,7 +221,6 @@ func TestWriteGroupServiceEnsureBasicManagedConcurrentAcrossServicesConverges(t 
 	results := make(chan outcome, 2)
 	var wg sync.WaitGroup
 	for _, service := range []*WriteGroupService{serviceA, serviceB} {
-		service := service
 		wg.Go(func() {
 			result, err := service.EnsureBasicManaged(ctx, fixture.deviceID, mutation)
 			results <- outcome{result: result, err: err}

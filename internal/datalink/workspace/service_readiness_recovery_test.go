@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
@@ -82,7 +83,7 @@ func TestServiceReadinessRecoversLostLinkIDsFromPersistedPointMapping(t *testing
 	_, err = mappingSvc.Create(ctx, mapping.CreateMappingRequest{
 		PointID: links[0].PointID,
 		TagID:   tagRecord.ID,
-		Enabled: boolPtr(true),
+		Enabled: common.Ptr(true),
 	})
 	require.NoError(t, err)
 
@@ -162,7 +163,7 @@ func TestServiceReadinessRejectsMismatchedOwnedPersistedBinding(t *testing.T) {
 	mappingRecord, err := mappingSvc.Create(ctx, mapping.CreateMappingRequest{
 		PointID: links[0].PointID,
 		TagID:   tagRecord.ID,
-		Enabled: boolPtr(true),
+		Enabled: common.Ptr(true),
 	})
 	require.NoError(t, err)
 	links[0].TagID = &tagRecord.ID

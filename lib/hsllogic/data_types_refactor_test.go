@@ -39,7 +39,7 @@ func TestToFloat64AndToInt64(t *testing.T) {
 }
 
 func TestToInt64RejectsOverflowAndNonFiniteValues(t *testing.T) {
-	for _, value := range []interface{}{
+	for _, value := range []any{
 		uint64(math.MaxInt64) + 1,
 		float64(math.MaxInt64),
 		float64(math.MaxInt64) * 2,
@@ -56,7 +56,7 @@ func TestToInt64RejectsOverflowAndNonFiniteValues(t *testing.T) {
 
 func TestToInt64AcceptsSignedRangeBoundaries(t *testing.T) {
 	for _, tt := range []struct {
-		value interface{}
+		value any
 		want  int64
 	}{
 		{value: uint64(math.MaxInt64), want: math.MaxInt64},

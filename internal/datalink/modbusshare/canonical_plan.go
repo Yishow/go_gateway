@@ -1,10 +1,11 @@
 package modbusshare
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"sort"
+	"slices"
 )
 
 // CanonicalSharePlan is the server-owned candidate snapshot used by bootstrap,
@@ -21,12 +22,16 @@ type CanonicalSharePlan struct {
 
 // NewCanonicalSharePlan creates a deterministic server-owned plan snapshot.
 func NewCanonicalSharePlan(workspaceID, workspaceRevision, settingsRevision string, desired []DesiredMapping) CanonicalSharePlan {
-	canonical := append([]DesiredMapping(nil), desired...)
-	sort.SliceStable(canonical, func(i, j int) bool {
-		if canonical[i].TagID != canonical[j].TagID {
-			return canonical[i].TagID < canonical[j].TagID
+	canonical := slices.Clone(desired)
+	if len(canonical) == 0 {
+		// Preserve the canonical null representation and existing signatures.
+		canonical = nil
+	}
+	slices.SortStableFunc(canonical, func(a, b DesiredMapping) int {
+		if c := cmp.Compare(a.TagID, b.TagID); c != 0 {
+			return c
 		}
-		return canonical[i].SourceRuleID < canonical[j].SourceRuleID
+		return cmp.Compare(a.SourceRuleID, b.SourceRuleID)
 	})
 	plan := CanonicalSharePlan{
 		WorkspaceID:       workspaceID,

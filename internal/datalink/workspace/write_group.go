@@ -1,6 +1,12 @@
 package workspace
 
-import "time"
+import (
+	"maps"
+	"slices"
+	"time"
+
+	"go-gateway/internal/datalink/common"
+)
 
 // WriteGroupStatus is the local lifecycle of a persisted Step 4 group.
 type WriteGroupStatus string
@@ -107,25 +113,17 @@ func cloneWriteGroup(group *WriteGroup) *WriteGroup {
 		return nil
 	}
 	cloned := *group
-	cloned.Members = make([]WriteGroupMember, len(group.Members))
-	copy(cloned.Members, group.Members)
+	cloned.Members = slices.Clone(group.Members)
 	for i, member := range group.Members {
 		if member.MeasurementID != nil {
-			measurementID := *member.MeasurementID
-			cloned.Members[i].MeasurementID = &measurementID
+			cloned.Members[i].MeasurementID = common.Ptr(*member.MeasurementID)
 		}
 		if member.MaxAgeSeconds != nil {
-			maxAgeSeconds := *member.MaxAgeSeconds
-			cloned.Members[i].MaxAgeSeconds = &maxAgeSeconds
+			cloned.Members[i].MaxAgeSeconds = common.Ptr(*member.MaxAgeSeconds)
 		}
 	}
-	cloned.Migration.SourceIDs = append([]string(nil), group.Migration.SourceIDs...)
-	if group.Migration.TargetMappingPoints != nil {
-		cloned.Migration.TargetMappingPoints = make(map[string]string, len(group.Migration.TargetMappingPoints))
-		for mappingID, pointID := range group.Migration.TargetMappingPoints {
-			cloned.Migration.TargetMappingPoints[mappingID] = pointID
-		}
-	}
+	cloned.Migration.SourceIDs = slices.Clone(group.Migration.SourceIDs)
+	cloned.Migration.TargetMappingPoints = maps.Clone(group.Migration.TargetMappingPoints)
 	cloned.RowPolicy.GroupKeyColumns = append([]string(nil), group.RowPolicy.GroupKeyColumns...)
 	cloned.RowPolicy.UniqueKeyColumns = append([]string(nil), group.RowPolicy.UniqueKeyColumns...)
 	return &cloned

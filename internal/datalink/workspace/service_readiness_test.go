@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
@@ -170,7 +171,7 @@ func TestService_ReadinessSurfacesMissingDownstreamRelationships(t *testing.T) {
 	mappingRecord, err := mappingSvc.Create(ctx, mapping.CreateMappingRequest{
 		PointID: links[1].PointID,
 		TagID:   tagRecord.ID,
-		Enabled: boolPtr(true),
+		Enabled: common.Ptr(true),
 	})
 	require.NoError(t, err)
 	links[1].TagID = &tagRecord.ID
@@ -287,8 +288,4 @@ func requireReadinessIssue(t *testing.T, summary *ReadinessSummary, expected Rea
 	}
 
 	t.Fatalf("expected readiness issue %+v, got %+v", expected, summary.Issues)
-}
-
-func boolPtr(value bool) *bool {
-	return &value
 }

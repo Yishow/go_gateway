@@ -21,10 +21,10 @@ type SettingsHandler struct {
 
 // SettingItem 設定項目
 type SettingItem struct {
-	Key         string      `json:"key"`
-	Value       interface{} `json:"value"`
-	Description string      `json:"description"`
-	UpdatedAt   time.Time   `json:"updated_at"`
+	Key         string    `json:"key"`
+	Value       any       `json:"value"`
+	Description string    `json:"description"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // NewSettingsHandler 建立新的設定處理器
@@ -121,7 +121,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, _ *http.Request, key string
 
 // UpdateSettingRequest 更新設定請求
 type UpdateSettingRequest struct {
-	Value interface{} `json:"value"`
+	Value any `json:"value"`
 }
 
 // Update 更新設定
@@ -159,7 +159,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request, key str
 // =============================================================================
 
 // validateSetting 驗證設定值
-func (h *SettingsHandler) validateSetting(key string, value interface{}) error {
+func (h *SettingsHandler) validateSetting(key string, value any) error {
 	switch key {
 	case schema.SettingWritePrecision:
 		str, ok := value.(string)
@@ -210,7 +210,7 @@ func (h *SettingsHandler) validateSetting(key string, value interface{}) error {
 }
 
 // toInt 轉換為整數
-func toInt(v interface{}) (int, bool) {
+func toInt(v any) (int, bool) {
 	switch val := v.(type) {
 	case int:
 		return val, true

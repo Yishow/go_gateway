@@ -1,10 +1,13 @@
 package modbus
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
+	"slices"
 	"strconv"
 	"sync"
 
@@ -87,15 +90,11 @@ func (s *Server) StartWithConfig(ctx context.Context, config Config) error {
 		return errors.New("伺服器已在運行中")
 	}
 
-	if config.BindAddress == "" {
-		config.BindAddress = defaultBindAddress
-	}
+	config.BindAddress = cmp.Or(config.BindAddress, defaultBindAddress)
 	if config.Port < 0 || config.Port > 65535 {
 		return fmt.Errorf("invalid port: %d", config.Port)
 	}
-	if config.SlaveID == 0 {
-		config.SlaveID = 1
-	}
+	config.SlaveID = cmp.Or(config.SlaveID, 1)
 	if config.CapacityRegisters <= 0 {
 		config.CapacityRegisters = s.bank.Size() / 2
 	}
@@ -137,10 +136,7 @@ func (s *Server) Stop() error {
 	close(s.done)
 	listener := s.listener
 	s.listener = nil
-	conns := make([]net.Conn, 0, len(s.conns))
-	for conn := range s.conns {
-		conns = append(conns, conn)
-	}
+	conns := slices.Collect(maps.Keys(s.conns))
 	s.port = 0
 	s.mu.Unlock()
 

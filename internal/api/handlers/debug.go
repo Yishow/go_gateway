@@ -19,23 +19,23 @@ type DebugHandler struct {
 
 // PacketRecord 數據包記錄
 type PacketRecord struct {
-	ID           string      `json:"id"`
-	Timestamp    time.Time   `json:"timestamp"`
-	Direction    string      `json:"direction"` // "request" or "response"
-	Protocol     string      `json:"protocol"`
-	RawData      []byte      `json:"raw_data"`
-	HexData      string      `json:"hex_data"`
-	ParsedData   interface{} `json:"parsed_data,omitempty"`
-	ConnectionID string      `json:"connection_id"`
+	ID           string    `json:"id"`
+	Timestamp    time.Time `json:"timestamp"`
+	Direction    string    `json:"direction"` // "request" or "response"
+	Protocol     string    `json:"protocol"`
+	RawData      []byte    `json:"raw_data"`
+	HexData      string    `json:"hex_data"`
+	ParsedData   any       `json:"parsed_data,omitempty"`
+	ConnectionID string    `json:"connection_id"`
 }
 
 // LogRecord 日誌記錄
 type LogRecord struct {
-	ID        string      `json:"id"`
-	Timestamp time.Time   `json:"timestamp"`
-	Level     string      `json:"level"`
-	Message   string      `json:"message"`
-	Details   interface{} `json:"details,omitempty"`
+	ID        string    `json:"id"`
+	Timestamp time.Time `json:"timestamp"`
+	Level     string    `json:"level"`
+	Message   string    `json:"message"`
+	Details   any       `json:"details,omitempty"`
 }
 
 // NewDebugHandler 建立新的 Debug 處理器
@@ -70,7 +70,7 @@ func (h *DebugHandler) RecordPacket(connectionID, protocol, direction string, da
 }
 
 // RecordLog 記錄日誌
-func (h *DebugHandler) RecordLog(level, message string, details interface{}) {
+func (h *DebugHandler) RecordLog(level, message string, details any) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -143,7 +143,7 @@ func (h *DebugHandler) GetLogs(c *gin.Context) {
 	if connectionID != "" {
 		filtered := make([]LogRecord, 0)
 		for _, l := range logs {
-			if details, ok := l.Details.(map[string]interface{}); ok {
+			if details, ok := l.Details.(map[string]any); ok {
 				if cid, ok := details["connection_id"].(string); ok && cid == connectionID {
 					filtered = append(filtered, l)
 				}
@@ -183,7 +183,7 @@ func (h *DebugHandler) ClearData(c *gin.Context) {
 
 		filteredLogs := make([]LogRecord, 0, len(h.logs))
 		for _, l := range h.logs {
-			if details, ok := l.Details.(map[string]interface{}); ok {
+			if details, ok := l.Details.(map[string]any); ok {
 				if cid, ok := details["connection_id"].(string); ok && cid != connectionID {
 					filteredLogs = append(filteredLogs, l)
 				}
@@ -250,7 +250,7 @@ func (h *DebugHandler) AnalyzePacket(c *gin.Context) {
 	// TODO: 實作協議分析邏輯
 	c.JSON(http.StatusOK, gin.H{
 		"packet": packet,
-		"analysis": map[string]interface{}{
+		"analysis": map[string]any{
 			"protocol":  packet.Protocol,
 			"structure": "待實作",
 		},

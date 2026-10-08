@@ -20,7 +20,7 @@ type TelemetrySample struct {
 	SeriesEpoch   int64            `json:"series_epoch"`
 	ObservedAt    time.Time        `json:"observed_at"`
 	ReceivedAt    time.Time        `json:"received_at"`
-	Value         interface{}      `json:"value"`
+	Value         any              `json:"value"`
 	ValueNumeric  *float64         `json:"value_numeric,omitempty"`
 	ValueString   *string          `json:"value_string,omitempty"`
 	ValueBool     *bool            `json:"value_bool,omitempty"`

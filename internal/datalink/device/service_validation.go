@@ -3,6 +3,7 @@ package device
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
@@ -18,7 +19,7 @@ func isValidProtocol(protocol schema.ProtocolType) bool {
 }
 
 // validateConnectionConfig 驗證連線配置
-func validateConnectionConfig(protocol schema.ProtocolType, config map[string]interface{}) error {
+func validateConnectionConfig(protocol schema.ProtocolType, config map[string]any) error {
 	// 取得協議資訊
 	info, ok := connector.GetProtocolInfo(protocol)
 	if !ok {
@@ -26,19 +27,19 @@ func validateConnectionConfig(protocol schema.ProtocolType, config map[string]in
 	}
 
 	// 解析配置 Schema
-	var configSchema map[string]interface{}
+	var configSchema map[string]any
 	if err := json.Unmarshal(info.ConfigSchema, &configSchema); err != nil {
 		return fmt.Errorf("invalid protocol configuration schema: %w", err)
 	}
 
 	// 取得 properties
-	properties, ok := configSchema["properties"].(map[string]interface{})
+	properties, ok := configSchema["properties"].(map[string]any)
 	if !ok {
-		properties = make(map[string]interface{})
+		properties = make(map[string]any)
 	}
 
 	// 檢查必填欄位
-	required, ok := configSchema["required"].([]interface{})
+	required, ok := configSchema["required"].([]any)
 	if ok {
 		for _, field := range required {
 			fieldName, ok := field.(string)
@@ -77,7 +78,7 @@ func validateConnectionConfig(protocol schema.ProtocolType, config map[string]in
 			}
 
 			// 驗證數字範圍和 enum
-			if prop, ok := properties[fieldName].(map[string]interface{}); ok {
+			if prop, ok := properties[fieldName].(map[string]any); ok {
 				// 檢查數字範圍
 				if numValue, ok := value.(float64); ok {
 					if minimum, ok := prop["minimum"].(float64); ok {
@@ -91,14 +92,11 @@ func validateConnectionConfig(protocol schema.ProtocolType, config map[string]in
 						}
 					}
 					// 檢查 enum（對於數字類型）
-					if enum, ok := prop["enum"].([]interface{}); ok {
-						valid := false
-						for _, e := range enum {
-							if eNum, ok := e.(float64); ok && eNum == numValue {
-								valid = true
-								break
-							}
-						}
+					if enum, ok := prop["enum"].([]any); ok {
+						valid := slices.ContainsFunc(enum, func(e any) bool {
+							eNum, ok := e.(float64)
+							return ok && eNum == numValue
+						})
 						if !valid {
 							return fmt.Errorf("欄位 %s 的值 %v 不在允許的選項中", fieldName, numValue)
 						}
@@ -107,14 +105,11 @@ func validateConnectionConfig(protocol schema.ProtocolType, config map[string]in
 
 				// 檢查字串 enum
 				if strValue, ok := value.(string); ok {
-					if enum, ok := prop["enum"].([]interface{}); ok {
-						valid := false
-						for _, e := range enum {
-							if eStr, ok := e.(string); ok && eStr == strValue {
-								valid = true
-								break
-							}
-						}
+					if enum, ok := prop["enum"].([]any); ok {
+						valid := slices.ContainsFunc(enum, func(e any) bool {
+							eStr, ok := e.(string)
+							return ok && eStr == strValue
+						})
 						if !valid {
 							return fmt.Errorf("欄位 %s 的值 %s 不在允許的選項中", fieldName, strValue)
 						}

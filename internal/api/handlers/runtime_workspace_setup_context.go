@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -214,15 +215,11 @@ func (h *RuntimeHandler) mapRuntimeSetupMapping(
 		}
 	}
 	if tagRecord != nil {
-		if response.TagID == "" {
-			response.TagID = tagRecord.ID
-		}
+		response.TagID = cmp.Or(response.TagID, tagRecord.ID)
 		response.TagKey = tagRecord.Key
 		response.DisplayName = tagRecord.DisplayName
 		response.Unit = tagRecord.Unit
-		if response.TargetType == "" {
-			response.TargetType = tagRecord.DataType
-		}
+		response.TargetType = cmp.Or(response.TargetType, tagRecord.DataType)
 	}
 
 	return response, nil

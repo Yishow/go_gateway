@@ -16,20 +16,20 @@ type TemplateHandler struct {
 
 // TestTemplate 測試模板
 type TestTemplate struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Protocol    string                 `json:"protocol"`
-	Config      map[string]interface{} `json:"config"`
-	Operations  []Operation            `json:"operations"`
-	Description string                 `json:"description,omitempty"`
-	CreatedAt   time.Time              `json:"created_at"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Protocol    string         `json:"protocol"`
+	Config      map[string]any `json:"config"`
+	Operations  []Operation    `json:"operations"`
+	Description string         `json:"description,omitempty"`
+	CreatedAt   time.Time      `json:"created_at"`
 }
 
 // Operation 操作定義
 type Operation struct {
-	Type    string                 `json:"type"` // "read", "write", "wait"
-	Params  map[string]interface{} `json:"params"`
-	Comment string                 `json:"comment,omitempty"`
+	Type    string         `json:"type"` // "read", "write", "wait"
+	Params  map[string]any `json:"params"`
+	Comment string         `json:"comment,omitempty"`
 }
 
 // NewTemplateHandler 建立新的模板處理器
@@ -69,11 +69,11 @@ func (h *TemplateHandler) Get(c *gin.Context) {
 
 // SaveTemplateRequest 保存測試模板請求
 type SaveTemplateRequest struct {
-	Name        string                 `json:"name" binding:"required"`
-	Protocol    string                 `json:"protocol" binding:"required"`
-	Config      map[string]interface{} `json:"config" binding:"required"`
-	Operations  []Operation            `json:"operations" binding:"required"`
-	Description string                 `json:"description,omitempty"`
+	Name        string         `json:"name" binding:"required"`
+	Protocol    string         `json:"protocol" binding:"required"`
+	Config      map[string]any `json:"config" binding:"required"`
+	Operations  []Operation    `json:"operations" binding:"required"`
+	Description string         `json:"description,omitempty"`
 }
 
 // Save 保存測試模板

@@ -14,25 +14,25 @@ import (
 
 // TransformContext 轉換上下文
 type TransformContext struct {
-	RawValue     interface{}
-	CurrentValue interface{}
+	RawValue     any
+	CurrentValue any
 	StepResults  []StepResult
 	Error        error
 }
 
 // StepResult 步驟結果
 type StepResult struct {
-	StepIndex   int         `json:"step_index"`
-	StepType    string      `json:"step_type"`
-	Input       interface{} `json:"input"`
-	Output      interface{} `json:"output"`
-	InputValue  interface{} `json:"input_value"`
-	OutputValue interface{} `json:"output_value"`
-	Error       string      `json:"error,omitempty"`
+	StepIndex   int    `json:"step_index"`
+	StepType    string `json:"step_type"`
+	Input       any    `json:"input"`
+	Output      any    `json:"output"`
+	InputValue  any    `json:"input_value"`
+	OutputValue any    `json:"output_value"`
+	Error       string `json:"error,omitempty"`
 }
 
 // ExecutePipeline 執行轉換管線
-func ExecutePipeline(raw interface{}, pipelineJSON string) (*TransformContext, error) {
+func ExecutePipeline(raw any, pipelineJSON string) (*TransformContext, error) {
 	ctx := &TransformContext{
 		RawValue:     raw,
 		CurrentValue: raw,
@@ -72,7 +72,7 @@ func ExecutePipeline(raw interface{}, pipelineJSON string) (*TransformContext, e
 }
 
 // executeStep 執行單一轉換步驟
-func executeStep(input interface{}, step schema.TransformStep) (interface{}, error) {
+func executeStep(input any, step schema.TransformStep) (any, error) {
 	switch step.Type {
 	case schema.TransformDecode:
 		return executeDecode(input, step.Params)
@@ -92,11 +92,11 @@ func executeStep(input interface{}, step schema.TransformStep) (interface{}, err
 }
 
 // =============================================================================
-// 轉換步驟實作 (使用 map[string]interface{} 參數)
+// 轉換步驟實作 (使用 map[string]any 參數)
 // =============================================================================
 
 // executeDecode 解碼轉換
-func executeDecode(input interface{}, params map[string]interface{}) (interface{}, error) {
+func executeDecode(input any, params map[string]any) (any, error) {
 	if params == nil {
 		return input, nil
 	}
@@ -122,7 +122,7 @@ func executeDecode(input interface{}, params map[string]interface{}) (interface{
 }
 
 // executeCast 型別轉換
-func executeCast(input interface{}, params map[string]interface{}) (interface{}, error) {
+func executeCast(input any, params map[string]any) (any, error) {
 	if params == nil {
 		return input, nil
 	}
@@ -146,7 +146,7 @@ func executeCast(input interface{}, params map[string]interface{}) (interface{},
 }
 
 // executeScale 縮放轉換
-func executeScale(input interface{}, params map[string]interface{}) (interface{}, error) {
+func executeScale(input any, params map[string]any) (any, error) {
 	if params == nil {
 		return input, nil
 	}
@@ -209,14 +209,14 @@ func executeScale(input interface{}, params map[string]interface{}) (interface{}
 }
 
 // executeLookup 查表轉換
-func executeLookup(input interface{}, params map[string]interface{}) (interface{}, error) {
+func executeLookup(input any, params map[string]any) (any, error) {
 	if params == nil {
 		return input, nil
 	}
 
-	var table map[string]interface{}
+	var table map[string]any
 	if rawTable, exists := params["table"]; exists {
-		if parsedTable, ok := rawTable.(map[string]interface{}); ok {
+		if parsedTable, ok := rawTable.(map[string]any); ok {
 			table = parsedTable
 		}
 	}

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"slices"
 
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/schema"
@@ -168,10 +169,11 @@ func filterRuntimeApplyIssues(summary *workspace.ReadinessSummary, relevantScope
 }
 
 func firstRuntimeApplyIssueMessage(issues []workspace.ReadinessIssue, fallback string) string {
-	for _, issue := range issues {
-		if issue.Message != "" {
-			return issue.Message
-		}
+	i := slices.IndexFunc(issues, func(issue workspace.ReadinessIssue) bool {
+		return issue.Message != ""
+	})
+	if i >= 0 {
+		return issues[i].Message
 	}
 	return fallback
 }

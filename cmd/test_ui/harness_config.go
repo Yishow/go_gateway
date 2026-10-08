@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -14,13 +15,11 @@ import (
 // the normal embedded default. GATEWAY_DB_PATH is preferred; DB_PATH and
 // SQLITE_PATH are retained as compatibility aliases used by local scripts.
 func embeddedSQLiteDSN() string {
-	path := strings.TrimSpace(os.Getenv("GATEWAY_DB_PATH"))
-	if path == "" {
-		path = strings.TrimSpace(os.Getenv("DB_PATH"))
-	}
-	if path == "" {
-		path = strings.TrimSpace(os.Getenv("SQLITE_PATH"))
-	}
+	path := cmp.Or(
+		strings.TrimSpace(os.Getenv("GATEWAY_DB_PATH")),
+		strings.TrimSpace(os.Getenv("DB_PATH")),
+		strings.TrimSpace(os.Getenv("SQLITE_PATH")),
+	)
 	if path == "" {
 		return datalink.DefaultEmbeddedSQLiteDSN
 	}

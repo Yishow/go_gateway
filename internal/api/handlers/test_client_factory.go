@@ -12,7 +12,7 @@ import (
 // --- Helper Functions ---
 
 // createClientWithDebug 創建帶有數據包記錄功能的客戶端
-func (h *TestHandler) createClientWithDebug(protocol string, config map[string]interface{}, connectionID string) (interface{}, error) {
+func (h *TestHandler) createClientWithDebug(protocol string, config map[string]any, connectionID string) (any, error) {
 	// Helper to safe cast config values
 	getString := func(key string, def string) string {
 		if v, ok := config[key].(string); ok {

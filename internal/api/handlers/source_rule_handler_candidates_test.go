@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
@@ -133,14 +134,10 @@ func seedAppliedRuleManagedLink(t *testing.T, fixture *sourceRuleCandidatesFixtu
 	})
 	require.NoError(t, err)
 
-	links[0].TagID = stringPtr(tagRecord.ID)
-	links[0].MappingID = stringPtr(mappingRecord.ID)
+	links[0].TagID = common.Ptr(tagRecord.ID)
+	links[0].MappingID = common.Ptr(mappingRecord.ID)
 	require.NoError(t, fixture.repo.DeleteLinks(ctx, ruleID))
 	require.NoError(t, fixture.repo.CreateLinks(ctx, links))
-}
-
-func stringPtr(value string) *string {
-	return &value
 }
 
 func TestSourceRuleHandler_Candidates_ReturnsCurrentRevisionSnapshot(t *testing.T) {

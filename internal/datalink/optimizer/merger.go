@@ -5,8 +5,9 @@
 package optimizer
 
 import (
+	"cmp"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -126,8 +127,8 @@ func (m *BlockMerger) mergeGroup(area string, points []parsedPoint) []Block {
 	}
 
 	// 按地址排序
-	sort.Slice(points, func(i, j int) bool {
-		return points[i].address < points[j].address
+	slices.SortFunc(points, func(a, b parsedPoint) int {
+		return cmp.Compare(a.address, b.address)
 	})
 
 	var blocks []Block

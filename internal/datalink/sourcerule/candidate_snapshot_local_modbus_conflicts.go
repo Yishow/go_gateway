@@ -1,9 +1,10 @@
 package sourcerule
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -65,14 +66,17 @@ func (s *Service) listLocalModbusConflictSnapshots(
 	ctx context.Context,
 	rules []*schema.SourceRule,
 ) ([]localModbusConflictSnapshot, error) {
-	sort.Slice(rules, func(i, j int) bool {
-		if rules[i] == nil {
-			return false
+	slices.SortFunc(rules, func(left, right *schema.SourceRule) int {
+		if left == nil {
+			if right == nil {
+				return 0
+			}
+			return 1
 		}
-		if rules[j] == nil {
-			return true
+		if right == nil {
+			return -1
 		}
-		return rules[i].ID < rules[j].ID
+		return cmp.Compare(left.ID, right.ID)
 	})
 
 	result := make([]localModbusConflictSnapshot, 0, len(rules))
@@ -153,8 +157,8 @@ func buildLocalModbusConflictReasons(
 	}
 
 	for key, reasons := range reasonsByCandidate {
-		sort.Strings(reasons)
-		reasonsByCandidate[key] = compactSortedStrings(reasons)
+		slices.Sort(reasons)
+		reasonsByCandidate[key] = slices.Compact(reasons)
 	}
 	return reasonsByCandidate
 }
@@ -228,8 +232,8 @@ func localModbusConflictRange(
 	if left.end < right.start || right.end < left.start {
 		return 0, 0, false
 	}
-	overlapStart := maxInt(left.start, right.start)
-	overlapEnd := minInt(left.end, right.end)
+	overlapStart := max(left.start, right.start)
+	overlapEnd := min(left.end, right.end)
 	return overlapStart, overlapEnd, true
 }
 
@@ -239,32 +243,4 @@ func cloneCandidateSnapshots(snapshots []*schema.SourceRuleCandidateSnapshot) []
 		result = append(result, cloneCandidateSnapshot(snapshot))
 	}
 	return result
-}
-
-func compactSortedStrings(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-	result := []string{values[0]}
-	for _, value := range values[1:] {
-		if value == result[len(result)-1] {
-			continue
-		}
-		result = append(result, value)
-	}
-	return result
-}
-
-func maxInt(left, right int) int {
-	if left > right {
-		return left
-	}
-	return right
-}
-
-func minInt(left, right int) int {
-	if left < right {
-		return left
-	}
-	return right
 }

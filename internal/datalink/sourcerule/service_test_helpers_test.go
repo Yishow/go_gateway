@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/schema"
 
@@ -24,10 +25,6 @@ func seedActivationReadyDevice(ctx context.Context, repo *device.MemoryRepositor
 		return nil, err
 	}
 	return repo.GetByID(ctx, id)
-}
-
-func float64Ptr(value float64) *float64 {
-	return &value
 }
 
 func applyRuleManagedLinks(ctx context.Context, t *testing.T, repo *MemoryRepository, svc *Service, ruleID string) []*schema.SourceRuleLink {
@@ -51,8 +48,8 @@ func applyRuleManagedLinks(ctx context.Context, t *testing.T, repo *MemoryReposi
 		tagRecord, mappingRecord, err := svc.ensureRuleTagMapping(ctx, nil, rule, pointRecord, link, rule.Enabled, &result)
 		require.NoError(t, err)
 
-		link.TagID = stringPtr(tagRecord.ID)
-		link.MappingID = stringPtr(mappingRecord.ID)
+		link.TagID = common.Ptr(tagRecord.ID)
+		link.MappingID = common.Ptr(mappingRecord.ID)
 		link.UpdatedAt = time.Now()
 	}
 

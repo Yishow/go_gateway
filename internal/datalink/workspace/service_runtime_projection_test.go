@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -27,14 +28,14 @@ func TestService_RuntimeProjectionRebuildsSamePersistedWorkspaceForActivationAnd
 			{ID: "rule-Z", DeviceID: "dev-Z", StartAddress: "40100", Count: 1, DataType: schema.DataTypeInt16, Enabled: true},
 		},
 		links: map[string][]*schema.SourceRuleLink{
-			"rule-A": {{ID: "link-A", RuleID: "rule-A", Address: "40001", PointID: "point-A", TagID: stringPtr("tag-A"), MappingID: stringPtr("map-A")}},
-			"rule-B": {{ID: "link-B", RuleID: "rule-B", Address: "40010", PointID: "point-B", TagID: stringPtr("tag-B"), MappingID: stringPtr("map-B")}},
+			"rule-A": {{ID: "link-A", RuleID: "rule-A", Address: "40001", PointID: "point-A", TagID: common.Ptr("tag-A"), MappingID: common.Ptr("map-A")}},
+			"rule-B": {{ID: "link-B", RuleID: "rule-B", Address: "40010", PointID: "point-B", TagID: common.Ptr("tag-B"), MappingID: common.Ptr("map-B")}},
 		},
 	}
 	points := runtimeProjectionPointStub{records: []*schema.Point{
-		{ID: "point-A", DeviceID: "dev-A", Name: "A", Address: "40001", DataType: schema.DataTypeInt16, Enabled: true, PollingGroupID: stringPtr("group-fast")},
-		{ID: "point-B", DeviceID: "dev-B", Name: "B", Address: "40010", DataType: schema.DataTypeInt16, Enabled: true, PollingGroupID: stringPtr("group-fast")},
-		{ID: "point-Z", DeviceID: "dev-Z", Name: "Z", Address: "40100", DataType: schema.DataTypeInt16, Enabled: true, PollingGroupID: stringPtr("group-fast")},
+		{ID: "point-A", DeviceID: "dev-A", Name: "A", Address: "40001", DataType: schema.DataTypeInt16, Enabled: true, PollingGroupID: common.Ptr("group-fast")},
+		{ID: "point-B", DeviceID: "dev-B", Name: "B", Address: "40010", DataType: schema.DataTypeInt16, Enabled: true, PollingGroupID: common.Ptr("group-fast")},
+		{ID: "point-Z", DeviceID: "dev-Z", Name: "Z", Address: "40100", DataType: schema.DataTypeInt16, Enabled: true, PollingGroupID: common.Ptr("group-fast")},
 	}}
 	mappings := runtimeProjectionMappingStub{records: []*schema.Mapping{
 		{ID: "map-A", PointID: "point-A", TagID: "tag-A", Enabled: true},
@@ -119,7 +120,7 @@ func TestService_RuntimeProjectionVersionIgnoresCollectorTelemetry(t *testing.T)
 	rules := runtimeProjectionRuleStub{rules: []*schema.SourceRule{rule}, links: map[string][]*schema.SourceRuleLink{
 		rule.ID: {{ID: "link-telemetry", RuleID: rule.ID, Address: "40001", PointID: "point-telemetry"}},
 	}}
-	pointRecord := &schema.Point{ID: "point-telemetry", DeviceID: deviceRecord.ID, Name: "Point", Address: "40001", DataType: schema.DataTypeInt16, Enabled: true, PollingGroupID: stringPtr("group-telemetry")}
+	pointRecord := &schema.Point{ID: "point-telemetry", DeviceID: deviceRecord.ID, Name: "Point", Address: "40001", DataType: schema.DataTypeInt16, Enabled: true, PollingGroupID: common.Ptr("group-telemetry")}
 	points := runtimeProjectionPointStub{records: []*schema.Point{pointRecord}}
 	groups := runtimeProjectionGroupStub{records: []*schema.PollingGroup{{ID: "group-telemetry", Name: "group", IntervalMs: 1000, Enabled: true}}}
 	workspaceSvc.WithRuntimeProjectionServices(&devices, &rules, &points, &runtimeProjectionMappingStub{}, &runtimeProjectionTagStub{}, nil, &runtimeProjectionTargetStub{}, &groups)
@@ -165,7 +166,7 @@ func TestService_RuntimeProjectionIsolatesOrphanedRuleDerivedDatabaseTargets(t *
 			{ID: "rule-B", DeviceID: "dev-A", StartAddress: "40010", Count: 1, DataType: schema.DataTypeInt16, Enabled: true},
 		},
 		links: map[string][]*schema.SourceRuleLink{
-			"rule-B": {{ID: "link-B", RuleID: "rule-B", Address: "40010", PointID: "point-B", TagID: stringPtr("tag-B"), MappingID: stringPtr("map-B")}},
+			"rule-B": {{ID: "link-B", RuleID: "rule-B", Address: "40010", PointID: "point-B", TagID: common.Ptr("tag-B"), MappingID: common.Ptr("map-B")}},
 		},
 	}
 	points := runtimeProjectionPointStub{records: []*schema.Point{

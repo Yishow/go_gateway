@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
@@ -50,11 +51,11 @@ func TestService_Update_MarksRuleDerivedMappingOutOfSyncWhenSignatureChanges(t *
 	originalSignature := original.ProposedSignature
 
 	updatedRule, err := svc.Update(ctx, rule.ID, UpdateRuleRequest{
-		ScaleMultiplier:    float64Ptr(2),
+		ScaleMultiplier:    common.Ptr(float64(2)),
 		ScaleMultiplierSet: true,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, float64Ptr(2), updatedRule.ScaleMultiplier)
+	assert.Equal(t, common.Ptr(float64(2)), updatedRule.ScaleMultiplier)
 
 	mappings, err = mappingSvc.List(ctx, mapping.ListFilter{})
 	require.NoError(t, err)
@@ -102,7 +103,7 @@ func TestService_Update_ReactivatesOutOfSyncMappingWhenSignatureMatchesApplied(t
 	appliedSignature := mappings[0].ProposedSignature
 
 	_, err = svc.Update(ctx, rule.ID, UpdateRuleRequest{
-		ScaleMultiplier:    float64Ptr(2),
+		ScaleMultiplier:    common.Ptr(float64(2)),
 		ScaleMultiplierSet: true,
 	})
 	require.NoError(t, err)

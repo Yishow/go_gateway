@@ -29,9 +29,7 @@ func BuildFrame(station int, cmd, body string) []byte {
 	BuildFrameToBuffer(buf, station, cmd, body)
 
 	// We must copy the result because the buffer goes back to the pool
-	res := make([]byte, buf.Len())
-	copy(res, buf.Bytes())
-	return res
+	return bytes.Clone(buf.Bytes())
 }
 
 // BuildFrameToBuffer writes the ASCII frame directly into the provided buffer.
@@ -154,12 +152,8 @@ func HexToInt(hexStr string) (int, error) {
 // Returns:
 //   - 大寫十六進位字串，左側補零至指定寬度
 func IntToHex(val, width int) string {
-	// 防護性預設：確保寬度在合理範圍內
-	if width <= 0 {
-		width = 1
-	} else if width > 8 {
-		width = 8
-	}
+	// 防護性預設：確保寬度在合理範圍內 (1-8)
+	width = min(max(width, 1), 8)
 
 	// 使用固定大小陣列避免堆分配（小於 64 bytes 的陣列通常在棧上分配）
 	buf := make([]byte, width)

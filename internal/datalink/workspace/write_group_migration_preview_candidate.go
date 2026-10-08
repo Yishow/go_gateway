@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"go-gateway/internal/datalink/common"
 )
 
 const defaultSingleMappingSnapshotIntervalSeconds = 15
@@ -171,7 +173,7 @@ func migrationPreviewCandidate(
 			MappingRevision: mappingRevision,
 			TargetColumn:    target.columnName,
 			Required:        true,
-			MaxAgeSeconds:   intPointer(interval),
+			MaxAgeSeconds:   common.Ptr(interval),
 		}},
 		Destination: destination,
 		RowPolicy: WriteGroupRowPolicy{
@@ -220,15 +222,8 @@ func migrationPreviewInterval(target writeGroupMigrationTarget, connector writeG
 	return defaultSingleMappingSnapshotIntervalSeconds
 }
 
-func intPointer(value int) *int {
-	return &value
-}
-
 func migrationPreviewOptionalString(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
+	return common.DerefOrZero(value)
 }
 
 func migrationPreviewOptionalInt(value *int) string {
@@ -242,16 +237,14 @@ func cloneOptionalString(value *string) *string {
 	if value == nil {
 		return nil
 	}
-	cloned := *value
-	return &cloned
+	return common.Ptr(*value)
 }
 
 func cloneOptionalInt(value *int) *int {
 	if value == nil {
 		return nil
 	}
-	cloned := *value
-	return &cloned
+	return common.Ptr(*value)
 }
 
 func migrationPreviewDestination(

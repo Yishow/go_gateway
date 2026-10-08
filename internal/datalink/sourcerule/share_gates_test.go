@@ -29,7 +29,7 @@ func TestSourcerule_RuleFlagCannotOverrideDisabledGlobalShare(t *testing.T) {
 	dev, err := deviceSvc.Create(ctx, device.CreateDeviceRequest{
 		Name:     "Test Device",
 		Protocol: schema.ProtocolModbusTCP,
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     502,
 			"slave_id": 1,

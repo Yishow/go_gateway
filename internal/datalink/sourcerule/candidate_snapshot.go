@@ -1,13 +1,15 @@
 package sourcerule
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -185,8 +187,8 @@ func (s *Service) buildTagCandidates(ctx context.Context, rule *schema.SourceRul
 		candidates = append(candidates, candidate)
 	}
 
-	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].Address < candidates[j].Address
+	slices.SortFunc(candidates, func(a, b schema.SourceRuleTagCandidate) int {
+		return cmp.Compare(a.Address, b.Address)
 	})
 	return candidates, nil
 }
@@ -203,7 +205,7 @@ func cloneOptionalString(value *string) *string {
 	if value == nil {
 		return nil
 	}
-	return stringPtr(*value)
+	return common.Ptr(*value)
 }
 
 func cloneOptionalInt(value *int) *int {

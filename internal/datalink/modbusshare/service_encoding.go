@@ -7,7 +7,7 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
-func encodeToWords(dataType schema.DataType, value interface{}) ([]uint16, error) {
+func encodeToWords(dataType schema.DataType, value any) ([]uint16, error) {
 	switch dataType {
 	case schema.DataTypeBool:
 		b, err := toBool(value)
@@ -112,7 +112,7 @@ func encodeToWords(dataType schema.DataType, value interface{}) ([]uint16, error
 	}
 }
 
-func toInt64(v interface{}) (int64, error) {
+func toInt64(v any) (int64, error) {
 	switch n := v.(type) {
 	case int:
 		return int64(n), nil
@@ -155,7 +155,7 @@ func toInt64(v interface{}) (int64, error) {
 	}
 }
 
-func toUint64(v interface{}) (uint64, error) {
+func toUint64(v any) (uint64, error) {
 	switch n := v.(type) {
 	case int:
 		if n < 0 {
@@ -207,7 +207,7 @@ func toUint64(v interface{}) (uint64, error) {
 	}
 }
 
-func toFloat64(v interface{}) (float64, error) {
+func toFloat64(v any) (float64, error) {
 	switch n := v.(type) {
 	case int:
 		return float64(n), nil
@@ -238,7 +238,7 @@ func toFloat64(v interface{}) (float64, error) {
 	}
 }
 
-func toBool(v interface{}) (bool, error) {
+func toBool(v any) (bool, error) {
 	switch b := v.(type) {
 	case bool:
 		return b, nil

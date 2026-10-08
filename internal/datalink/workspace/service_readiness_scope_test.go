@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/schema"
 
@@ -128,8 +129,8 @@ func TestService_ReadinessScopeIgnoresIncompleteUnselectedGroupOnSelectedDevice(
 			"dev-A": {{ID: "rule-A", DeviceID: "dev-A"}, {ID: "rule-B", DeviceID: "dev-A"}},
 		},
 		links: map[string][]*schema.SourceRuleLink{
-			"rule-A": {{RuleID: "rule-A", PointID: "point-A", TagID: stringPtr("tag-A"), MappingID: stringPtr("mapping-A")}},
-			"rule-B": {{RuleID: "rule-B", PointID: "point-B", TagID: stringPtr("tag-B")}},
+			"rule-A": {{RuleID: "rule-A", PointID: "point-A", TagID: common.Ptr("tag-A"), MappingID: common.Ptr("mapping-A")}},
+			"rule-B": {{RuleID: "rule-B", PointID: "point-B", TagID: common.Ptr("tag-B")}},
 		},
 	}
 	workspaceSvc.WithReadinessServices(deviceSvc, rules, nil, nil).WithWriteGroupReadiness(groups)
@@ -198,7 +199,7 @@ func TestService_ReadinessScopeShareOnlyDoesNotReadDatabaseTargets(t *testing.T)
 		devices:   map[string]*schema.Device{"dev-A": {ID: "dev-A", Status: schema.DeviceStatusDraft}},
 		readiness: map[string]*schema.DeviceReadiness{"dev-A": {DeviceID: "dev-A", ActivationAllowed: true}},
 	}
-	workspaceSvc.WithReadinessServices(deviceSvc, scopedReadinessRules{links: []*schema.SourceRuleLink{{RuleID: "rule-A", PointID: "point-A", TagID: stringPtr("tag-A"), MappingID: stringPtr("mapping-A")}}}, nil, panicReadinessTargetService{})
+	workspaceSvc.WithReadinessServices(deviceSvc, scopedReadinessRules{links: []*schema.SourceRuleLink{{RuleID: "rule-A", PointID: "point-A", TagID: common.Ptr("tag-A"), MappingID: common.Ptr("mapping-A")}}}, nil, panicReadinessTargetService{})
 
 	summary, err := workspaceSvc.ReadinessScope(ctx, []string{"dev-A"}, nil)
 	require.NoError(t, err)

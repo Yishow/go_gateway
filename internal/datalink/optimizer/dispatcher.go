@@ -50,14 +50,14 @@ func NewDispatcher(config DispatcherConfig) *Dispatcher {
 
 // Dispatch 分發 Block 的原始數據到各個點位
 // 返回 map[pointID]value
-func (d *Dispatcher) Dispatch(block Block, rawBytes []byte) (map[string]interface{}, error) {
+func (d *Dispatcher) Dispatch(block Block, rawBytes []byte) (map[string]any, error) {
 	// 驗證資料長度
 	expectedLen := block.Length * 2 // 每個暫存器 2 bytes
 	if len(rawBytes) < expectedLen {
 		return nil, fmt.Errorf("資料長度不足: 預期 %d bytes，實際 %d bytes", expectedLen, len(rawBytes))
 	}
 
-	values := make(map[string]interface{})
+	values := make(map[string]any)
 
 	for _, point := range block.Points {
 		offset, exists := block.PointOffsets[point.ID]
@@ -78,7 +78,7 @@ func (d *Dispatcher) Dispatch(block Block, rawBytes []byte) (map[string]interfac
 }
 
 // extractValue 從原始數據中提取指定類型的值
-func (d *Dispatcher) extractValue(data []byte, offset int, dataType schema.DataType) (interface{}, error) {
+func (d *Dispatcher) extractValue(data []byte, offset int, dataType schema.DataType) (any, error) {
 	var order binary.ByteOrder
 	if d.config.ByteOrder == BigEndian {
 		order = binary.BigEndian
@@ -166,8 +166,8 @@ func (d *Dispatcher) extractValue(data []byte, offset int, dataType schema.DataT
 }
 
 // DispatchMultiple 批量分發多個 Block 的數據
-func (d *Dispatcher) DispatchMultiple(blocks []Block, rawDataMap map[int][]byte) (map[string]interface{}, error) {
-	allValues := make(map[string]interface{})
+func (d *Dispatcher) DispatchMultiple(blocks []Block, rawDataMap map[int][]byte) (map[string]any, error) {
+	allValues := make(map[string]any)
 
 	for i, block := range blocks {
 		rawBytes, exists := rawDataMap[i]

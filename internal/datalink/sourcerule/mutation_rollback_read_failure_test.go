@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
@@ -117,7 +118,7 @@ func testUpdateWithRuntimeReconcileReadFailure(t *testing.T, configure func(*rol
 	repo.createLinksCalls = 0
 	repo.deleteLinksCalls = 0
 	configure(repo)
-	_, _, err = svc.UpdateWithRuntimeReconcile(ctx, rule.ID, UpdateRuleRequest{Count: intPtr(2)})
+	_, _, err = svc.UpdateWithRuntimeReconcile(ctx, rule.ID, UpdateRuleRequest{Count: common.Ptr(2)})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "dirty_unknown")
 	assert.Zero(t, repo.createCalls)

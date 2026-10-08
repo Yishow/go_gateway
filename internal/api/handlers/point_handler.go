@@ -132,13 +132,13 @@ func (h *PointHandler) Delete(c *gin.Context) {
 
 // PollResult 輪詢結果
 type PollResult struct {
-	PointID          string      `json:"point_id"`
-	Value            interface{} `json:"value"`
-	TransformedValue interface{} `json:"transformed_value"`
-	Timestamp        string      `json:"timestamp"`
-	Quality          int         `json:"quality"`
-	Stale            bool        `json:"stale"`
-	Error            string      `json:"error"`
+	PointID          string `json:"point_id"`
+	Value            any    `json:"value"`
+	TransformedValue any    `json:"transformed_value"`
+	Timestamp        string `json:"timestamp"`
+	Quality          int    `json:"quality"`
+	Stale            bool   `json:"stale"`
+	Error            string `json:"error"`
 }
 
 // Poll 單點輪詢

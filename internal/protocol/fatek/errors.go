@@ -17,7 +17,7 @@ func (e *FatekError) Error() string {
 }
 
 // NewFatekError 建立新的 FATEK 錯誤
-func NewFatekError(format string, args ...interface{}) *FatekError {
+func NewFatekError(format string, args ...any) *FatekError {
 	return &FatekError{
 		message: fmt.Sprintf(format, args...),
 	}
@@ -35,7 +35,7 @@ type FatekCommunicationError struct { //nolint:revive // Preserve the exported G
 }
 
 // NewFatekCommunicationError 建立新的通訊錯誤
-func NewFatekCommunicationError(format string, args ...interface{}) *FatekCommunicationError {
+func NewFatekCommunicationError(format string, args ...any) *FatekCommunicationError {
 	return &FatekCommunicationError{
 		FatekError: NewFatekError(format, args...),
 	}

@@ -81,7 +81,7 @@ func TestSplitPathSkipsEmptySegment(t *testing.T) {
 }
 
 func TestConvertMQTTValueFallbackToString(t *testing.T) {
-	value := convertMQTTValue(map[string]interface{}{"k": "v"}, schema.DataTypeString)
+	value := convertMQTTValue(map[string]any{"k": "v"}, schema.DataTypeString)
 	strValue, ok := value.(string)
 	if !ok {
 		t.Fatalf("expected string, got %T", value)

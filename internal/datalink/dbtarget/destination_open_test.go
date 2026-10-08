@@ -8,6 +8,7 @@ import (
 	"time"
 
 	datalinkbase "go-gateway/internal/datalink"
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 
@@ -121,7 +122,7 @@ func TestProductionGroupOutageRecoveryLegacyWriterSkipsMappingsOwnedByAGroup(t *
 	require.NoError(t, err)
 	_, err = mappingSvc.Create(ctx, CreateTargetMappingRequest{
 		TagID: tagEntity.ID, ConnectorID: connector.ID, TableName: "sensor_values", ColumnName: "value",
-		WriteMode: schema.DatabaseWriteModeUpsert, TimestampColumn: stringPtr("ts"),
+		WriteMode: schema.DatabaseWriteModeUpsert, TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 
@@ -153,7 +154,7 @@ func TestProductionGroupOutageRecoveryLegacyWriterSkipsMappingsOwnedByAGroup(t *
 	require.NoError(t, err)
 	_, err = mappingSvc.Create(ctx, CreateTargetMappingRequest{
 		TagID: otherTag.ID, ConnectorID: connector.ID, TableName: "sensor_values", ColumnName: "value",
-		WriteMode: schema.DatabaseWriteModeUpsert, TimestampColumn: stringPtr("ts"),
+		WriteMode: schema.DatabaseWriteModeUpsert, TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 	require.NoError(t, writer.WriteTagValue(ctx, otherTag.ID, 9.5, ts.Add(2*time.Minute)))
@@ -176,7 +177,7 @@ func TestRevisionBoundBacklogLegacyWriterReportsOwnedOutputAsNotApplicable(t *te
 	require.NoError(t, err)
 	_, err = mappingSvc.Create(ctx, CreateTargetMappingRequest{
 		TagID: tagEntity.ID, ConnectorID: connector.ID, TableName: "sensor_values", ColumnName: "value",
-		WriteMode: schema.DatabaseWriteModeUpsert, TimestampColumn: stringPtr("ts"),
+		WriteMode: schema.DatabaseWriteModeUpsert, TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 	writer := NewWriterWithConfig(connectorRepo, mappingRepo, WriterConfig{

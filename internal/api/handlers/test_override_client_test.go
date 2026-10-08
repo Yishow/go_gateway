@@ -23,7 +23,7 @@ func (t *modbusOverrideTransport) SendReceive(data []byte) ([]byte, error) {
 	return modbus.BuildRTUFrame(data[0], modbus.FuncReadHoldingRegisters, []byte{2, 0x00, 0x01}), nil
 }
 
-func (t *modbusOverrideTransport) GetOriginalTransport() interface{} {
+func (t *modbusOverrideTransport) GetOriginalTransport() any {
 	return &modbus.RTUTransport{}
 }
 
@@ -33,7 +33,7 @@ func TestPrepareOverrideClient_ReusesModbusTransportForUnitID(t *testing.T) {
 	state := &ConnectionState{
 		ID:       "conn-1",
 		Protocol: "modbus_rtu",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"port": "COM1",
 		},
 		Client: modbus.NewClient(transport, 1),

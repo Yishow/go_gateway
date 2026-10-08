@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -32,7 +33,7 @@ func TestMigrator_SQLiteSourceRuleMigration_PartialSharePresenceTable(t *testing
 			defer db.Close()
 
 			require.NoError(t, createLegacySourceRuleSchema(t.Context(), db, "rule-partial-"+tt.name))
-			for _, column := range append(append([]string{}, tt.shareColumns...), tt.legacyNewColumns...) {
+			for _, column := range slices.Concat(tt.shareColumns, tt.legacyNewColumns) {
 				require.NoError(t, addLegacySourceRuleColumn(t.Context(), db, column))
 				require.NoError(t, setLegacySourceRuleColumnValue(t.Context(), db, column))
 			}
@@ -68,11 +69,11 @@ func TestMigrator_SQLiteSourceRuleMigration_PartialSharePresenceTable(t *testing
 
 			legacyValues := map[string]any{"target_data_type": "float32", "scale_multiplier": 2.5, "scale_offset": -1.5, "data_format": "DCBA", "revision_id": "legacy-revision"}
 			for column, expected := range legacyValues {
-				assertMigratedSourceRuleValue(t, db, id, column, containsString(tt.legacyNewColumns, column), expected)
+				assertMigratedSourceRuleValue(t, db, id, column, slices.Contains(tt.legacyNewColumns, column), expected)
 			}
 			shareValues := map[string]any{"share_enabled": 1, "share_start_register": 40101, "share_stride": 2}
 			for column, expected := range shareValues {
-				assertMigratedSourceRuleValue(t, db, id, column, containsString(tt.shareColumns, column), expected)
+				assertMigratedSourceRuleValue(t, db, id, column, slices.Contains(tt.shareColumns, column), expected)
 			}
 
 			var columnsBefore int
@@ -150,15 +151,6 @@ func setLegacySourceRuleColumnValue(ctx context.Context, db *sql.DB, column stri
 	}
 	_, err := db.ExecContext(ctx, statement, value)
 	return err
-}
-
-func containsString(columns []string, target string) bool {
-	for _, column := range columns {
-		if column == target {
-			return true
-		}
-	}
-	return false
 }
 
 func assertMigratedSourceRuleValue(t *testing.T, db *sql.DB, ruleID, column string, existed bool, expected any) {

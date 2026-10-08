@@ -14,8 +14,7 @@ func BenchmarkMerger_100Points(b *testing.B) {
 	points := generatePoints(100)
 	merger := NewBlockMerger(DefaultMergerConfig())
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		merger.Merge(points)
 	}
 }
@@ -24,8 +23,7 @@ func BenchmarkMerger_1000Points(b *testing.B) {
 	points := generatePoints(1000)
 	merger := NewBlockMerger(DefaultMergerConfig())
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		merger.Merge(points)
 	}
 }
@@ -34,8 +32,7 @@ func BenchmarkMerger_10000Points(b *testing.B) {
 	points := generatePoints(10000)
 	merger := NewBlockMerger(DefaultMergerConfig())
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		merger.Merge(points)
 	}
 }
@@ -58,8 +55,7 @@ func BenchmarkDispatcher_SmallBlock(b *testing.B) {
 	rawBytes := make([]byte, 20) // 10 registers * 2 bytes
 	dispatcher := NewDispatcher(DefaultDispatcherConfig())
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dispatcher.Dispatch(block, rawBytes)
 	}
 }
@@ -82,8 +78,7 @@ func BenchmarkDispatcher_LargeBlock(b *testing.B) {
 	rawBytes := make([]byte, 250) // 125 registers * 2 bytes
 	dispatcher := NewDispatcher(DefaultDispatcherConfig())
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dispatcher.Dispatch(block, rawBytes)
 	}
 }

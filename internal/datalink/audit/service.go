@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -65,14 +66,11 @@ func (s *Service) Record(ctx context.Context, event RecordEvent) error {
 		WorkspaceID: workspaceID,
 		EventType:   event.EventType,
 		Result:      event.Result,
-		Scope:       strings.TrimSpace(event.Scope),
+		Scope:       cmp.Or(strings.TrimSpace(event.Scope), "workspace"),
 		ReferenceID: strings.TrimSpace(event.ReferenceID),
 		Details:     encodeDetails(event.Details),
 		OccurredAt:  occurredAt,
 		CreatedAt:   createdAt,
-	}
-	if entry.Scope == "" {
-		entry.Scope = "workspace"
 	}
 
 	return s.repo.Create(ctx, entry)

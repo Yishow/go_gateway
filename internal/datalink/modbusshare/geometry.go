@@ -1,8 +1,9 @@
 package modbusshare
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"go-gateway/internal/datalink/schema"
 )
@@ -124,8 +125,8 @@ func ValidateDesiredMappings(mappings []DesiredMapping, capacityRegisters int) e
 	}
 
 	// Sort intervals by start register
-	sort.Slice(intervals, func(i, j int) bool {
-		return intervals[i].start < intervals[j].start
+	slices.SortFunc(intervals, func(a, b rangeInterval) int {
+		return cmp.Compare(a.start, b.start)
 	})
 
 	// Pairwise overlap check

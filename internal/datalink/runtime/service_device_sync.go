@@ -3,7 +3,9 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"maps"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 )
@@ -27,11 +29,9 @@ func (s *Service) UpsertDevice(ctx context.Context, device *schema.Device) error
 		return nil
 	}
 
-	enabled := true
-	deviceID := device.ID
 	points, err := s.pointSvc.List(ctx, point.ListFilter{
-		DeviceID: &deviceID,
-		Enabled:  &enabled,
+		DeviceID: common.Ptr(device.ID),
+		Enabled:  common.Ptr(true),
 		Limit:    100000,
 	})
 	if err != nil {
@@ -73,11 +73,9 @@ func (s *Service) removeDevicePointMeta(deviceID string) {
 	s.pointMetaMu.Lock()
 	defer s.pointMetaMu.Unlock()
 
-	for pointID, meta := range s.pointMetaIndex {
-		if meta.DeviceID == deviceID {
-			delete(s.pointMetaIndex, pointID)
-		}
-	}
+	maps.DeleteFunc(s.pointMetaIndex, func(_ string, meta pointMeta) bool {
+		return meta.DeviceID == deviceID
+	})
 }
 
 // ensurePointPollingGroup 為缺少 polling group 的啟用點位補上一個可用的預設群組。

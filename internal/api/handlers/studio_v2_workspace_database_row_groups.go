@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/workspace"
@@ -23,12 +24,9 @@ func workspaceDatabaseRowGroupExists(groups []workspace.DatabaseRowGroup, id str
 	if id == "" {
 		return false
 	}
-	for _, group := range groups {
-		if group.ID == id {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(groups, func(group workspace.DatabaseRowGroup) bool {
+		return group.ID == id
+	})
 }
 
 func workspaceDatabaseRowGroupContainsPoint(groups []workspace.DatabaseRowGroup, id, pointID string) bool {
@@ -38,15 +36,11 @@ func workspaceDatabaseRowGroupContainsPoint(groups []workspace.DatabaseRowGroup,
 		return false
 	}
 	for _, group := range groups {
-		if group.ID != id {
-			continue
+		if group.ID == id {
+			return slices.ContainsFunc(group.MemberPointIDs, func(memberPointID string) bool {
+				return strings.TrimSpace(memberPointID) == pointID
+			})
 		}
-		for _, memberPointID := range group.MemberPointIDs {
-			if strings.TrimSpace(memberPointID) == pointID {
-				return true
-			}
-		}
-		return false
 	}
 	return false
 }

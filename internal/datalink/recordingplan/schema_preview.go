@@ -1,6 +1,7 @@
 package recordingplan
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -9,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -193,9 +195,7 @@ func normalizePreviewScope(scope SchemaPreviewScope) (SchemaPreviewScope, error)
 		scope.TablePrefix = ""
 		return scope, nil
 	}
-	if scope.TablePrefix == "" {
-		scope.TablePrefix = defaultManagedTablePrefix
-	}
+	scope.TablePrefix = cmp.Or(scope.TablePrefix, defaultManagedTablePrefix)
 	if len(scope.TablePrefix) > maxManagedTablePrefixLength || !managedTablePrefixPattern.MatchString(scope.TablePrefix) {
 		return scope, ErrInvalidTablePrefix
 	}
@@ -228,7 +228,7 @@ func inspectManagedTables(ctx context.Context, prefix string, inspect TargetInsp
 		switch state.Status {
 		case inspectionMissing:
 			pending[spec.name] = true
-			tables = append(tables, SchemaPreviewTable{Name: table, Action: SchemaTableActionCreate, Columns: append([]string(nil), spec.columns...)})
+			tables = append(tables, SchemaPreviewTable{Name: table, Action: SchemaTableActionCreate, Columns: slices.Clone(spec.columns)})
 		case inspectionExists:
 			if missing := missingColumns(spec.columns, state.Columns); len(missing) > 0 {
 				return nil, nil, fmt.Errorf("%w: %s lacks %s", ErrIncompatibleExistingTable, table, strings.Join(missing, ", "))

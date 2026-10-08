@@ -41,7 +41,7 @@ func (s *SQLWorkspaceRevisionStore) GetDesiredMappings(ctx context.Context, work
 	}
 	var raw string
 	err := s.db.QueryRowContext(ctx, `SELECT value FROM system_settings WHERE key = ?`, desiredMappingsKey(workspaceID)).Scan(&raw)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
@@ -141,7 +141,7 @@ func (s *SQLWorkspaceRevisionStore) GetRevision(ctx context.Context, workspaceID
 	}
 	var raw string
 	err = s.db.QueryRowContext(ctx, `SELECT value FROM system_settings WHERE key = ?`, workspaceRevisionKey(workspaceID)).Scan(&raw)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return initialRevision, false, nil
 	}
 	if err != nil {
@@ -241,14 +241,14 @@ func (s *SQLWorkspaceRevisionStore) MarkDirty(ctx context.Context, workspaceID s
 			return newStorageError("decode workspace revision", unmarshalErr)
 		}
 		record.Dirty = true
-	} else if err != sql.ErrNoRows {
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		return newStorageError("read workspace revision", err)
 	}
 	payload, marshalErr := json.Marshal(record)
 	if marshalErr != nil {
 		return newStorageError("encode workspace revision", marshalErr)
 	}
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return insertWorkspaceRevision(ctx, s.db, key, record)
 	}
 	result, execErr := s.db.ExecContext(ctx, `UPDATE system_settings SET value = ?, updated_at = ? WHERE key = ?`, string(payload), time.Now().UTC(), key)

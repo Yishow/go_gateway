@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -212,10 +213,5 @@ func recordingPlanSourceIDs(plan *recordingplan.RecordingPlan) []string {
 			seen[id] = struct{}{}
 		}
 	}
-	ids := make([]string, 0, len(seen))
-	for id := range seen {
-		ids = append(ids, id)
-	}
-	slices.Sort(ids)
-	return ids
+	return slices.Sorted(maps.Keys(seen))
 }

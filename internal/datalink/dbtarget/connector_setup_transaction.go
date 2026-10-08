@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -60,10 +61,7 @@ func (s *ConnectorService) PrepareCreate(ctx context.Context, req CreateConnecto
 	if err != nil {
 		return nil, err
 	}
-	enabled := true
-	if req.Enabled != nil {
-		enabled = *req.Enabled
-	}
+	enabled := common.Deref(req.Enabled, true)
 	defaultIntervalSeconds := defaultWriteIntervalSeconds(req.DefaultWriteIntervalSeconds)
 	status, lastCheckAt, lastCheckError := probeConnector(ctx, req.Kind, req.ConnectionConfig)
 	now := time.Now()

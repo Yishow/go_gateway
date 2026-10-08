@@ -10,7 +10,7 @@ import (
 // =============================================================================
 
 // RegistersToValue 將暫存器陣列轉換為指定類型
-func (c *DataConverter) RegistersToValue(registers []uint16, dataType DataType) interface{} {
+func (c *DataConverter) RegistersToValue(registers []uint16, dataType DataType) any {
 	if len(registers) == 0 {
 		return nil
 	}
@@ -74,13 +74,13 @@ func registersToInt64(registers []uint16, format DataFormat) int64 {
 // RegistersToValues 將暫存器陣列轉換為指定類型的值切片
 // 用於批量讀取時，將連續暫存器解析為多個值
 // 例如: 讀取 10 個 Int32，傳入 20 個 uint16 暫存器，返回 10 個 int32 值
-func (c *DataConverter) RegistersToValues(registers []uint16, dataType DataType, count int) []interface{} {
+func (c *DataConverter) RegistersToValues(registers []uint16, dataType DataType, count int) []any {
 	if len(registers) == 0 || count <= 0 {
 		return nil
 	}
 
 	regPerValue := RegisterCountForDataType(dataType)
-	results := make([]interface{}, 0, count)
+	results := make([]any, 0, count)
 
 	for i := 0; i < count && i*regPerValue < len(registers); i++ {
 		startIdx := i * regPerValue

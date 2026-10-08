@@ -15,11 +15,11 @@ type ConfigHandler struct {
 
 // ConfigPreset 配置預設值
 type ConfigPreset struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Protocol    string                 `json:"protocol"`
-	Config      map[string]interface{} `json:"config"`
-	Description string                 `json:"description,omitempty"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Protocol    string         `json:"protocol"`
+	Config      map[string]any `json:"config"`
+	Description string         `json:"description,omitempty"`
 }
 
 // NewConfigHandler 建立新的配置處理器
@@ -47,10 +47,10 @@ func (h *ConfigHandler) GetPresets(c *gin.Context) {
 
 // SavePresetRequest 保存配置預設值請求
 type SavePresetRequest struct {
-	Name        string                 `json:"name" binding:"required"`
-	Protocol    string                 `json:"protocol" binding:"required"`
-	Config      map[string]interface{} `json:"config" binding:"required"`
-	Description string                 `json:"description,omitempty"`
+	Name        string         `json:"name" binding:"required"`
+	Protocol    string         `json:"protocol" binding:"required"`
+	Config      map[string]any `json:"config" binding:"required"`
+	Description string         `json:"description,omitempty"`
 }
 
 // SavePreset 保存配置預設值

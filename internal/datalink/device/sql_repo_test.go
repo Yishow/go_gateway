@@ -32,7 +32,7 @@ func TestSQLRepository_Create(t *testing.T) {
 
 	repo := NewSQLRepository(db)
 
-	configJSON, _ := json.Marshal(map[string]interface{}{
+	configJSON, _ := json.Marshal(map[string]any{
 		"ip":   "127.0.0.1",
 		"port": 502,
 	})
@@ -57,7 +57,7 @@ func TestSQLRepository_CRUD(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. Create
-	configJSON, _ := json.Marshal(map[string]interface{}{
+	configJSON, _ := json.Marshal(map[string]any{
 		"host": "localhost",
 	})
 	newDev := schema.Device{

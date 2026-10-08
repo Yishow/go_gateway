@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -169,7 +170,7 @@ func ensureSQLiteModbusShareSettings(db *sql.DB) error {
 	if err := db.QueryRowContext(context.Background(), `SELECT value FROM system_settings WHERE key = ?`, "modbus_share").Scan(&raw); err != nil {
 		return fmt.Errorf("failed to read %s settings: %w", migrationName, err)
 	}
-	var value map[string]interface{}
+	var value map[string]any
 	if err := json.Unmarshal([]byte(raw), &value); err != nil {
 		return fmt.Errorf("failed to decode %s settings: %w", migrationName, err)
 	}
@@ -480,7 +481,7 @@ func sqliteTableExists(db *sql.DB, tableName string) (bool, error) {
 		FROM sqlite_master
 		WHERE type = 'table' AND name = ?
 	`, tableName).Scan(&name)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {

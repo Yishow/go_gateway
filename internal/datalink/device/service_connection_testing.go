@@ -85,8 +85,8 @@ type TestConnectionResult struct {
 
 // DraftTestConnectionRequest 代表尚未儲存的設備草稿連線測試請求。
 type DraftTestConnectionRequest struct {
-	Protocol         schema.ProtocolType    `json:"protocol"`
-	ConnectionConfig map[string]interface{} `json:"connection_config"`
+	Protocol         schema.ProtocolType `json:"protocol"`
+	ConnectionConfig map[string]any      `json:"connection_config"`
 }
 
 // testConnectionTimeout 連線測試的整體逾時上限

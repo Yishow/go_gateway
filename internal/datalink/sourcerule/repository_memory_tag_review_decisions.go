@@ -1,8 +1,9 @@
 package sourcerule
 
 import (
+	"cmp"
 	"context"
-	"sort"
+	"slices"
 	"time"
 
 	"go-gateway/internal/datalink/schema"
@@ -51,8 +52,8 @@ func (r *MemoryRepository) ListTagReviewDecisions(_ context.Context, ruleID stri
 	for _, decision := range decisions {
 		items = append(items, cloneTagReviewDecision(decision))
 	}
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].CandidateID < items[j].CandidateID
+	slices.SortFunc(items, func(a, b *schema.SourceRuleTagReviewDecision) int {
+		return cmp.Compare(a.CandidateID, b.CandidateID)
 	})
 	return items, nil
 }

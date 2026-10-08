@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/schema"
@@ -54,7 +54,7 @@ func mergeSchemaNames(databaseName string, extraSchemas []string) []string {
 		seen[key] = struct{}{}
 		names = append(names, normalized)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

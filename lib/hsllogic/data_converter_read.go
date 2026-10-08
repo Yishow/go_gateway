@@ -114,7 +114,7 @@ func (c *DataConverter) ReadString(buffer []byte, index, length int) string {
 // =============================================================================
 
 // ReadValue 根據數據類型讀取值
-func (c *DataConverter) ReadValue(buffer []byte, index int, dataType DataType) interface{} {
+func (c *DataConverter) ReadValue(buffer []byte, index int, dataType DataType) any {
 	switch dataType {
 	case DataTypeBool:
 		return c.ReadBool(buffer, index)

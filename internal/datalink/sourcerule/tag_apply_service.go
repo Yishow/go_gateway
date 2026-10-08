@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/schema"
 )
@@ -139,8 +140,8 @@ func (s *Service) ApplyTagCandidates(ctx context.Context, ruleID string, req App
 		}
 
 		mergeTagMappingSyncResult(&result, candidateResult)
-		link.TagID = stringPtr(tagRecord.ID)
-		link.MappingID = stringPtr(mappingRecord.ID)
+		link.TagID = common.Ptr(tagRecord.ID)
+		link.MappingID = common.Ptr(mappingRecord.ID)
 		link.UpdatedAt = time.Now()
 		linksChanged = true
 		response.Results = append(response.Results, ApplyTagCandidateResult{

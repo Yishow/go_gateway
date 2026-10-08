@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 
@@ -80,9 +81,9 @@ func TestSQLTargetMappingRepository_GroupingRoundTrip(t *testing.T) {
 		TableName:            "meter_rows",
 		ColumnName:           "a1",
 		WriteMode:            schema.DatabaseWriteModeUpsert,
-		TimestampColumn:      stringPtr("ts"),
-		GroupKey:             stringPtr("meter"),
-		WriteIntervalSeconds: intPtr(15),
+		TimestampColumn:      common.Ptr("ts"),
+		GroupKey:             common.Ptr("meter"),
+		WriteIntervalSeconds: common.Ptr(15),
 		Enabled:              true,
 		CreatedAt:            now,
 		UpdatedAt:            now,
@@ -120,8 +121,4 @@ func TestSQLTargetMappingRepository_GroupingRoundTrip(t *testing.T) {
 	mappings, err := mappingRepo.List(ctx, TargetMappingListFilter{ConnectorID: &connector.ID})
 	require.NoError(t, err)
 	require.Len(t, mappings, 2)
-}
-
-func intPtr(value int) *int {
-	return &value
 }

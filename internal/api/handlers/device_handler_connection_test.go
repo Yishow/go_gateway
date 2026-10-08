@@ -40,7 +40,7 @@ func TestDeviceHandler_TestConnection_ReturnsPlanningHints(t *testing.T) {
 	createReq := device.CreateDeviceRequest{
 		Name:     "planning-hints",
 		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     server.Port(),
 			"slave_id": 1,
@@ -57,9 +57,9 @@ func TestDeviceHandler_TestConnection_ReturnsPlanningHints(t *testing.T) {
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusCreated, w.Code)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &createResp))
-	deviceID := createResp["data"].(map[string]interface{})["id"].(string)
+	deviceID := createResp["data"].(map[string]any)["id"].(string)
 
 	req, err = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/test", http.NoBody)
 	require.NoError(t, err)
@@ -67,13 +67,13 @@ func TestDeviceHandler_TestConnection_ReturnsPlanningHints(t *testing.T) {
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 	require.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	require.Contains(t, data, "planning_hints")
-	hints := data["planning_hints"].(map[string]interface{})
+	hints := data["planning_hints"].(map[string]any)
 	assert.Equal(t, true, hints["source_rule_planning_supported"])
 	assert.Equal(t, true, hints["probe_supported"])
 	assert.Empty(t, hints["planning_blocked_reason"])

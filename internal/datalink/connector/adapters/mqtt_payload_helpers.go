@@ -25,10 +25,10 @@ type TopicMapping struct {
 }
 
 // ExtractValueFromPayload 從 MQTT payload 擷取值
-func ExtractValueFromPayload(payload []byte, path string, dataType schema.DataType) (interface{}, error) {
+func ExtractValueFromPayload(payload []byte, path string, dataType schema.DataType) (any, error) {
 	// 如果沒有路徑，直接解析整個 payload
 	if path == "" {
-		var value interface{}
+		var value any
 		if err := json.Unmarshal(payload, &value); err != nil {
 			// 非 JSON，嘗試直接解析為字串
 			return string(payload), nil //nolint:nilerr // Plain-text MQTT payloads are supported when no JSON path is requested.
@@ -37,18 +37,18 @@ func ExtractValueFromPayload(payload []byte, path string, dataType schema.DataTy
 	}
 
 	// 解析 JSON 並按路徑擷取
-	var obj map[string]interface{}
+	var obj map[string]any
 	if err := json.Unmarshal(payload, &obj); err != nil {
 		return nil, fmt.Errorf("payload 不是 JSON 物件: %w", err)
 	}
 
 	// 簡單的點號路徑解析
 	parts := splitPath(path)
-	current := interface{}(obj)
+	current := any(obj)
 
 	for _, part := range parts {
 		switch v := current.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			var ok bool
 			current, ok = v[part]
 			if !ok {
@@ -84,7 +84,7 @@ func splitPath(path string) []string {
 }
 
 // convertMQTTValue 將 MQTT 值轉換為指定型別
-func convertMQTTValue(value interface{}, dataType schema.DataType) interface{} {
+func convertMQTTValue(value any, dataType schema.DataType) any {
 	switch dataType {
 	case schema.DataTypeBool:
 		switch v := value.(type) {

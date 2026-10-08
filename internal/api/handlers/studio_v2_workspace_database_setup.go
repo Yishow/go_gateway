@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"strings"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
@@ -73,7 +74,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) prepareWorkspaceConnector(ctx context
 		Name:                        workspaceOptionalString(strings.TrimSpace(req.Name)),
 		Kind:                        &req.Kind,
 		ConnectionConfig:            &connectionConfig,
-		ClearPassword:               boolPtr(clearPassword),
+		ClearPassword:               common.Ptr(clearPassword),
 		DefaultWriteIntervalSeconds: workspaceOptionalInt(req.WriteIntervalSeconds),
 	})
 }

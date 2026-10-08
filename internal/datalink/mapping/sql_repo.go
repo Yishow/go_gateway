@@ -183,7 +183,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 		FROM mappings
 		WHERE 1=1
 	`
-	args := []interface{}{}
+	args := []any{}
 
 	if filter.PointID != nil {
 		query += ` AND point_id = ?`

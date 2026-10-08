@@ -77,10 +77,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*schema.Pollin
 		return nil, fmt.Errorf("建立輪詢群組 ID 失敗: %w", err)
 	}
 
-	enabled := true
-	if req.Enabled != nil {
-		enabled = *req.Enabled
-	}
+	enabled := common.Deref(req.Enabled, true)
 
 	group := &schema.PollingGroup{
 		ID:          id,

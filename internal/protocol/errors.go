@@ -56,7 +56,7 @@ func NewCommunicationError(message string, cause error) *CommunicationError {
 }
 
 // NewCommunicationErrorf 使用格式化字串建立通訊錯誤
-func NewCommunicationErrorf(format string, args ...interface{}) *CommunicationError {
+func NewCommunicationErrorf(format string, args ...any) *CommunicationError {
 	return &CommunicationError{
 		BaseError: BaseError{Message: fmt.Sprintf(format, args...)},
 	}

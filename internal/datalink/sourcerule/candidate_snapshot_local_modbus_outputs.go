@@ -1,14 +1,15 @@
 package sourcerule
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
-	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
@@ -70,10 +71,10 @@ func (s *Service) buildLocalModbusOutputCandidates(
 		if candidate.TagID != nil && strings.TrimSpace(*candidate.TagID) != "" {
 			if mappingRecord, ok := mappingsByTagID[strings.TrimSpace(*candidate.TagID)]; ok {
 				if strings.TrimSpace(mappingRecord.MappingID) != "" {
-					candidate.MappingID = stringPtr(mappingRecord.MappingID)
+					candidate.MappingID = common.Ptr(mappingRecord.MappingID)
 				}
-				candidate.Register = uint16Ptr(mappingRecord.Register)
-				candidate.UpdatedAt = timePtr(mappingRecord.UpdatedAt)
+				candidate.Register = common.Ptr(mappingRecord.Register)
+				candidate.UpdatedAt = common.Ptr(mappingRecord.UpdatedAt)
 				if mappingRecord.DataType != "" {
 					candidate.DataType = mappingRecord.DataType
 					candidate.RegisterCount = localModbusRegisterCount(mappingRecord.DataType)
@@ -103,8 +104,8 @@ func (s *Service) buildLocalModbusOutputCandidates(
 		candidates = append(candidates, candidate)
 	}
 
-	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].Address < candidates[j].Address
+	slices.SortFunc(candidates, func(a, b schema.SourceRuleLocalModbusOutputCandidate) int {
+		return cmp.Compare(a.Address, b.Address)
 	})
 	return candidates, nil
 }
@@ -140,7 +141,7 @@ func configuredLocalModbusRegister(rule *schema.SourceRule, candidateAddress str
 	if zeroBased < 0 || zeroBased > int(modbusshare.MaxRegisterIndex) {
 		return nil, fmt.Errorf("source-rule share register exceeds capacity")
 	}
-	return uint16Ptr(uint16(zeroBased)), nil
+	return common.Ptr(uint16(zeroBased)), nil
 }
 
 func (s *Service) listLocalModbusMappingsByTagID(ctx context.Context) (map[string]LocalModbusMappingRecord, error) {
@@ -173,12 +174,4 @@ func localModbusRegisterCount(dataType schema.DataType) int {
 	default:
 		return 1
 	}
-}
-
-func uint16Ptr(value uint16) *uint16 {
-	return &value
-}
-
-func timePtr(value time.Time) *time.Time {
-	return &value
 }

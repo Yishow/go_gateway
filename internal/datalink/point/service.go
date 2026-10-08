@@ -37,7 +37,7 @@ type Repository interface {
 	List(ctx context.Context, filter ListFilter) ([]*schema.Point, error)
 
 	// UpdateReadResult 更新讀取結果
-	UpdateReadResult(ctx context.Context, id string, value interface{}, errMsg string) error
+	UpdateReadResult(ctx context.Context, id string, value any, errMsg string) error
 
 	// BatchUpdateReadResult 批次更新讀取結果
 	BatchUpdateReadResult(ctx context.Context, results []ReadResultUpdate) error
@@ -56,7 +56,7 @@ type ListFilter struct {
 // ReadResultUpdate 讀取結果更新
 type ReadResultUpdate struct {
 	PointID string
-	Value   interface{}
+	Value   any
 	Error   string
 }
 

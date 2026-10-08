@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -92,8 +93,8 @@ func (s *Service) syncRuleTagMappings(ctx context.Context, oldRule, rule *schema
 			return result, err
 		}
 
-		link.TagID = stringPtr(tagRecord.ID)
-		link.MappingID = stringPtr(mappingRecord.ID)
+		link.TagID = common.Ptr(tagRecord.ID)
+		link.MappingID = common.Ptr(mappingRecord.ID)
 		link.UpdatedAt = time.Now()
 	}
 

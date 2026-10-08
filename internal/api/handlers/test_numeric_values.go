@@ -23,7 +23,7 @@ func testRegisterValue(value any) (uint16, error) {
 	return 0, fmt.Errorf("register value must be an integer between 0 and 65535")
 }
 
-func testModbusUnitID(config map[string]interface{}) (byte, error) {
+func testModbusUnitID(config map[string]any) (byte, error) {
 	value, exists := config["unitID"]
 	if !exists {
 		return 1, nil

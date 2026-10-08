@@ -1,14 +1,16 @@
 package handlers
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
 	"go-gateway/internal/datalink/collector"
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
@@ -223,10 +225,9 @@ func (h *PointHandler) resolveTransformedValue(ctx context.Context, pointID stri
 		return rawValue, ""
 	}
 
-	enabled := true
 	mappings, err := h.mappingLister.List(ctx, mapping.ListFilter{
 		PointID: &pointID,
-		Enabled: &enabled,
+		Enabled: common.Ptr(true),
 		Limit:   1000,
 	})
 	if err != nil {
@@ -236,11 +237,11 @@ func (h *PointHandler) resolveTransformedValue(ctx context.Context, pointID stri
 		return rawValue, ""
 	}
 
-	sort.SliceStable(mappings, func(i, j int) bool {
-		if mappings[i].CreatedAt.Equal(mappings[j].CreatedAt) {
-			return mappings[i].ID > mappings[j].ID
+	slices.SortStableFunc(mappings, func(a, b *schema.Mapping) int {
+		if c := b.CreatedAt.Compare(a.CreatedAt); c != 0 {
+			return c
 		}
-		return mappings[i].CreatedAt.After(mappings[j].CreatedAt)
+		return cmp.Compare(b.ID, a.ID)
 	})
 
 	primary := mappings[0]

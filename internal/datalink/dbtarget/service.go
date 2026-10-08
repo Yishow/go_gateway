@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
 	datalinkbase "go-gateway/internal/datalink"
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 
 	mysqldriver "github.com/go-sql-driver/mysql"
@@ -700,7 +703,7 @@ func validateMappingAgainstTables(
 		if kind == schema.DatabaseConnectorKindMySQL {
 			if valueColumn, ok := findColumn(table.Columns, mapping.ColumnName); ok &&
 				(valueColumn.PrimaryKey || valueColumn.Unique) &&
-				!strings.EqualFold(strings.TrimSpace(mapping.ColumnName), strings.TrimSpace(optionalStringValue(mapping.TimestampColumn))) {
+				!strings.EqualFold(strings.TrimSpace(mapping.ColumnName), strings.TrimSpace(common.DerefOrZero(mapping.TimestampColumn))) {
 				issues = append(issues, ValidationIssue{
 					Severity:  validationSeverityError,
 					MappingID: mapping.ID,
@@ -757,12 +760,9 @@ func isTypeCompatible(dataType schema.DataType, column ColumnInfo) bool {
 }
 
 func containsAny(value string, keywords ...string) bool {
-	for _, keyword := range keywords {
-		if strings.Contains(value, keyword) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(keywords, func(keyword string) bool {
+		return strings.Contains(value, keyword)
+	})
 }
 
 func defaultSchemaForKind(kind schema.DatabaseConnectorKind) string {
@@ -887,11 +887,10 @@ func escapeSQLiteStringLiteral(value string) string {
 }
 
 func cloneConnectionConfig(config ConnectionConfig) ConnectionConfig {
-	cloned := ConnectionConfig{}
-	for key, value := range config {
-		cloned[key] = value
+	if config == nil {
+		return ConnectionConfig{}
 	}
-	return cloned
+	return maps.Clone(config)
 }
 
 func preserveSensitiveConnectionConfigValues(
@@ -900,11 +899,4 @@ func preserveSensitiveConnectionConfigValues(
 	clearPassword bool,
 ) ConnectionConfig {
 	return mergeConnectorConnectionConfig(existing, next, clearPassword)
-}
-
-func optionalStringValue(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
 }

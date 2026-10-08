@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
@@ -99,8 +100,7 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 	}
 
 	stats.TotalPoints = len(points)
-	enabled := true
-	enabledPoints, err := h.pointService.List(ctx, point.ListFilter{Enabled: &enabled})
+	enabledPoints, err := h.pointService.List(ctx, point.ListFilter{Enabled: common.Ptr(true)})
 	if err == nil {
 		stats.EnabledPoints = len(enabledPoints)
 	}

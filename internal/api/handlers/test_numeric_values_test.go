@@ -18,7 +18,7 @@ func TestModbusWriteRejectsTruncatedRegisterValuesBeforeSending(t *testing.T) {
 		for _, operation := range []string{"write_single_register", "write_multiple_registers"} {
 			input := value
 			if operation == "write_multiple_registers" {
-				input = []interface{}{value}
+				input = []any{value}
 			}
 			err := handler.executeWrite(client, "modbus_rtu", WriteRequest{Operation: operation, Values: input})
 			require.Error(t, err, "value=%v operation=%s", value, operation)
@@ -40,16 +40,16 @@ func TestClientFactoryValidatesUnitIDBeforeCreatingTransport(t *testing.T) {
 	handler := NewTestHandler(nil, nil, nil)
 	for _, protocol := range []string{"modbus_tcp", "modbus_udp", "modbus_rtu"} {
 		for _, value := range []any{-1, 256, 1.5, math.NaN(), "7"} {
-			client, err := handler.createClientWithDebug(protocol, map[string]interface{}{"unitID": value}, "unit-validation")
+			client, err := handler.createClientWithDebug(protocol, map[string]any{"unitID": value}, "unit-validation")
 			require.Error(t, err)
 			require.Nil(t, client)
 		}
 	}
 	for _, tc := range []struct {
-		config map[string]interface{}
+		config map[string]any
 		want   byte
 	}{
-		{nil, 1}, {map[string]interface{}{"unitID": 0}, 0}, {map[string]interface{}{"unitID": 255.0}, 255},
+		{nil, 1}, {map[string]any{"unitID": 0}, 0}, {map[string]any{"unitID": 255.0}, 255},
 	} {
 		actual, err := testModbusUnitID(tc.config)
 		require.NoError(t, err)

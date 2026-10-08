@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/schema"
@@ -19,8 +20,7 @@ func deviceReadinessIssue(deviceID string, readiness *schema.DeviceReadiness) (R
 		code = "device-connect-required"
 	}
 
-	messageInputs := append([]string{}, readiness.BlockingReasons...)
-	messageInputs = append(messageInputs, readiness.AvailabilityReason, "device is not ready for activation")
+	messageInputs := append(slices.Clone(readiness.BlockingReasons), readiness.AvailabilityReason, "device is not ready for activation")
 	return ReadinessIssue{
 		Code:     code,
 		Severity: ReadinessSeverityBlocking,

@@ -22,10 +22,9 @@ func BenchmarkPacketLogger_LogWithPool(b *testing.B) {
 
 	testData := []byte{0x01, 0x03, 0x00, 0x64, 0x00, 0x01, 0x84, 0x0A}
 
-	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		logger.LogSend("modbus_tcp", "device_001", testData, "讀取保持暫存器")
 	}
 }
@@ -46,10 +45,9 @@ func BenchmarkPacketLogger_LogTransaction(b *testing.B) {
 	sendData := []byte{0x01, 0x03, 0x00, 0x64, 0x00, 0x01, 0x84, 0x0A}
 	recvData := []byte{0x01, 0x03, 0x02, 0x00, 0x2A, 0xB8, 0x44}
 
-	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		logger.LogTransaction(
 			"modbus_tcp",
 			"device_001",
@@ -95,10 +93,9 @@ func BenchmarkPacketLogger_Concurrent(b *testing.B) {
 func BenchmarkFormatHexBytes(b *testing.B) {
 	testData := []byte{0x01, 0x03, 0x00, 0x64, 0x00, 0x01, 0x84, 0x0A}
 
-	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = formatHexBytes(testData)
 	}
 }
@@ -108,10 +105,9 @@ func BenchmarkFormatHexBytes(b *testing.B) {
  * @param b 基準測試實例
  */
 func BenchmarkAcquireReleasePacketLog(b *testing.B) {
-	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		log := acquirePacketLog()
 		log.Timestamp = time.Now()
 		log.Direction = PacketSend

@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -171,7 +171,7 @@ func (s *Store) readBacklog(ctx context.Context, groupID string, status *GroupSt
 		}
 		if codes != "" {
 			entry.LastErrorCodes = strings.Split(codes, ",")
-			sort.Strings(entry.LastErrorCodes)
+			slices.Sort(entry.LastErrorCodes)
 		}
 		status.Backlog = append(status.Backlog, entry)
 	}

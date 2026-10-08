@@ -8,6 +8,7 @@ import (
 	"time"
 
 	datalinkbase "go-gateway/internal/datalink"
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 
@@ -51,7 +52,7 @@ func TestMappingService_CreateValidateAndWriter(t *testing.T) {
 		TableName:       "sensor_values",
 		ColumnName:      "value",
 		WriteMode:       schema.DatabaseWriteModeUpsert,
-		TimestampColumn: stringPtr("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 	require.Equal(t, "sensor_values", mappingEntity.TableName)
@@ -126,7 +127,7 @@ func TestMappingService_CreateRejectsUpsertWithoutUniqueTimestamp(t *testing.T) 
 		TableName:       "sensor_values",
 		ColumnName:      "value",
 		WriteMode:       schema.DatabaseWriteModeUpsert,
-		TimestampColumn: stringPtr("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "primary key 或 single-column unique")
@@ -193,7 +194,7 @@ func TestWriter_GroupedMappingsFlushOneRowPerBucketOnTimer(t *testing.T) {
 		ColumnName:      "a1",
 		GroupKey:        &groupKey,
 		WriteMode:       schema.DatabaseWriteModeUpsert,
-		TimestampColumn: stringPtr("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 	_, err = mappingSvc.Create(ctx, CreateTargetMappingRequest{
@@ -203,7 +204,7 @@ func TestWriter_GroupedMappingsFlushOneRowPerBucketOnTimer(t *testing.T) {
 		ColumnName:      "kw",
 		GroupKey:        &groupKey,
 		WriteMode:       schema.DatabaseWriteModeUpsert,
-		TimestampColumn: stringPtr("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 
@@ -294,7 +295,7 @@ func TestWriter_CloseFlushesPendingGroupedBuckets(t *testing.T) {
 		ColumnName:      "a1",
 		GroupKey:        &groupKey,
 		WriteMode:       schema.DatabaseWriteModeUpsert,
-		TimestampColumn: stringPtr("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 
@@ -354,7 +355,7 @@ func TestMappingService_UpdateClearsTimestampWhenSwitchingToInsert(t *testing.T)
 		TableName:       "sensor_values",
 		ColumnName:      "value",
 		WriteMode:       schema.DatabaseWriteModeUpsert,
-		TimestampColumn: stringPtr("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, mappingEntity.TimestampColumn)
@@ -379,7 +380,7 @@ func TestBuildWriteStatement_InsertIgnoresTimestampColumn(t *testing.T) {
 		TableName:       "sensor_values",
 		ColumnName:      "value",
 		WriteMode:       schema.DatabaseWriteModeInsert,
-		TimestampColumn: stringPtr("ts"),
+		TimestampColumn: common.Ptr("ts"),
 	}
 
 	query, args, err := buildWriteStatement(
@@ -493,8 +494,4 @@ func createTargetSQLite(t *testing.T) string {
 	require.NoError(t, err)
 
 	return dbPath
-}
-
-func stringPtr(value string) *string {
-	return &value
 }

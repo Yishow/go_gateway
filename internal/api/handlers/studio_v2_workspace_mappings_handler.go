@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
@@ -122,7 +123,7 @@ func (h *StudioV2WorkspaceMappingsHandler) Create(c *gin.Context) {
 	mappingRecord, err := h.mappingSvc.Create(c.Request.Context(), mapping.CreateMappingRequest{
 		PointID:           pointRecord.ID,
 		TagID:             tagRecord.ID,
-		Enabled:           boolPtr(false),
+		Enabled:           common.Ptr(false),
 		TransformPipeline: buildWorkspaceMappingPipeline(pointRecord.DataType, req.TargetType, req.Scale, req.Offset),
 	})
 	if err != nil {
@@ -130,8 +131,8 @@ func (h *StudioV2WorkspaceMappingsHandler) Create(c *gin.Context) {
 		return
 	}
 
-	link.TagID = cloneStringPtr(tagRecord.ID)
-	link.MappingID = cloneStringPtr(mappingRecord.ID)
+	link.TagID = common.Ptr(tagRecord.ID)
+	link.MappingID = common.Ptr(mappingRecord.ID)
 	link.UpdatedAt = time.Now()
 	if err := h.ruleSvc.ReplaceLinks(c.Request.Context(), rule.ID, links); err != nil {
 		renderStudioV2WorkspaceMappingError(c, err)
@@ -253,8 +254,8 @@ func (h *StudioV2WorkspaceMappingsHandler) upsertTag(ctx context.Context, ruleID
 		return nil, fmt.Errorf("%w: workspace mapping tag ownership mismatch", mapping.ErrValidation)
 	}
 	return h.tagSvc.Update(ctx, tagRecord.ID, tag.UpdateTagRequest{
-		DisplayName: cloneStringPtr(req.DisplayName),
-		Unit:        cloneStringPtr(req.Unit),
+		DisplayName: common.Ptr(req.DisplayName),
+		Unit:        common.Ptr(req.Unit),
 		DataType:    &req.TargetType,
 	})
 }
@@ -296,12 +297,12 @@ func buildWorkspaceMappingPipeline(pointType, targetType schema.DataType, scale,
 	steps := make([]schema.TransformStep, 0, 2)
 	scaled := scale != 1 || offset != 0
 	if scaled {
-		steps = append(steps, schema.TransformStep{Type: schema.TransformScale, Order: len(steps), Params: map[string]interface{}{"scale": scale, "offset": offset}})
+		steps = append(steps, schema.TransformStep{Type: schema.TransformScale, Order: len(steps), Params: map[string]any{"scale": scale, "offset": offset}})
 	}
 	// Only newly authored pipelines use this order. ExecutePipeline retains the
 	// stored order of existing pipelines, including historical cast-before-scale.
 	if targetType != pointType || scaled {
-		steps = append(steps, schema.TransformStep{Type: schema.TransformCast, Order: len(steps), Params: map[string]interface{}{"target_type": string(targetType)}})
+		steps = append(steps, schema.TransformStep{Type: schema.TransformCast, Order: len(steps), Params: map[string]any{"target_type": string(targetType)}})
 	}
 	return steps
 }
@@ -385,14 +386,4 @@ func decodeRuleManagedWorkspaceTagLabels(tagRecord *schema.Tag) (map[string]stri
 		return nil, false
 	}
 	return labels, true
-}
-
-func boolPtr(value bool) *bool {
-	copyValue := value
-	return &copyValue
-}
-
-func cloneStringPtr(value string) *string {
-	copyValue := value
-	return &copyValue
 }

@@ -142,7 +142,7 @@ type TransformStep struct {
 	Order int `json:"order"`
 
 	// Params 轉換參數 (依類型不同)
-	Params map[string]interface{} `json:"params"`
+	Params map[string]any `json:"params"`
 }
 
 // TransformParamsScale 線性縮放參數
@@ -162,9 +162,9 @@ type TransformParamsCast struct {
 // TransformParamsLookup 查表參數
 type TransformParamsLookup struct {
 	// Table 對照表 (key-value 映射)
-	Table map[string]interface{} `json:"table"`
+	Table map[string]any `json:"table"`
 	// Default 無匹配時的預設值
-	Default interface{} `json:"default,omitempty"`
+	Default any `json:"default,omitempty"`
 }
 
 // TransformParamsConditional 條件判斷參數
@@ -172,9 +172,9 @@ type TransformParamsConditional struct {
 	// Condition 條件表達式
 	Condition string `json:"condition"`
 	// TrueValue 條件為真時的值或表達式
-	TrueValue interface{} `json:"true_value"`
+	TrueValue any `json:"true_value"`
 	// FalseValue 條件為假時的值或表達式
-	FalseValue interface{} `json:"false_value"`
+	FalseValue any `json:"false_value"`
 }
 
 // TransformParamsFormula 公式表達式參數

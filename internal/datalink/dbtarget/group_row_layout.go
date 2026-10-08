@@ -3,6 +3,7 @@ package dbtarget
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"slices"
 	"strings"
 	"time"
 
@@ -222,12 +223,9 @@ func (l *GroupRowLayout) column(name string) ColumnInfo {
 }
 
 func hasIssue(issues []LayoutIssue, code, column string) bool {
-	for _, issue := range issues {
-		if issue.Code == code && issue.Column == column {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(issues, func(issue LayoutIssue) bool {
+		return issue.Code == code && issue.Column == column
+	})
 }
 
 // Capabilities reports what the inspected table can honestly store; feed it
@@ -244,13 +242,9 @@ type provenanceEntry struct {
 }
 
 func (l *GroupRowLayout) membersForEntity(entityKey string) []GroupRowMember {
-	entityScoped := false
-	for _, member := range l.spec.Members {
-		if member.EntityKey != "" {
-			entityScoped = true
-			break
-		}
-	}
+	entityScoped := slices.ContainsFunc(l.spec.Members, func(member GroupRowMember) bool {
+		return member.EntityKey != ""
+	})
 	if !entityScoped {
 		return l.spec.Members
 	}

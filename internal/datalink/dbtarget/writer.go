@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -365,8 +365,8 @@ func (w *Writer) takeFlushableBuckets(now time.Time, flushAll bool) []*groupedWr
 		buckets = append(buckets, bucket)
 		delete(w.grouped, key)
 	}
-	sort.Slice(buckets, func(i, j int) bool {
-		return buckets[i].Key.BucketStart.Before(buckets[j].Key.BucketStart)
+	slices.SortFunc(buckets, func(a, b *groupedWriteBucket) int {
+		return a.Key.BucketStart.Compare(b.Key.BucketStart)
 	})
 	return buckets
 }

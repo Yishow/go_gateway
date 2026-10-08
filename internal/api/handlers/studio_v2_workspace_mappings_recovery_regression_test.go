@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
@@ -43,7 +44,7 @@ func TestStudioV2WorkspaceMappingsHandlerRecoverWorkspaceLinkMappingRejectsAmbig
 	primaryMapping, err := mappingSvc.Create(ctx, mapping.CreateMappingRequest{
 		PointID:           links[0].PointID,
 		TagID:             primaryTag.ID,
-		Enabled:           boolPtr(true),
+		Enabled:           common.Ptr(true),
 		TransformPipeline: buildWorkspaceMappingPipeline(schema.DataTypeInt16, schema.DataTypeFloat64, 1, 0),
 	})
 	require.NoError(t, err)
@@ -105,7 +106,7 @@ func TestStudioV2WorkspaceMappingsHandlerRecoverWorkspaceLinkMappingRejectsMisma
 	_, err = mappingSvc.Create(ctx, mapping.CreateMappingRequest{
 		PointID:           links[0].PointID,
 		TagID:             tagRecord.ID,
-		Enabled:           boolPtr(true),
+		Enabled:           common.Ptr(true),
 		TransformPipeline: buildWorkspaceMappingPipeline(schema.DataTypeInt16, schema.DataTypeFloat64, 1, 0),
 	})
 	require.NoError(t, err)
@@ -145,7 +146,7 @@ func TestStudioV2WorkspaceMappingsHandlerListSkipsRecoveredMappingWhenTagIsMissi
 	_, err = mappingSvc.Create(ctx, mapping.CreateMappingRequest{
 		PointID:           links[0].PointID,
 		TagID:             tagRecord.ID,
-		Enabled:           boolPtr(true),
+		Enabled:           common.Ptr(true),
 		TransformPipeline: buildWorkspaceMappingPipeline(schema.DataTypeInt16, schema.DataTypeFloat64, 1, 0),
 	})
 	require.NoError(t, err)
@@ -189,7 +190,7 @@ func TestStudioV2WorkspaceMappingsHandlerCreateRepairsRecoveredMappingWhenTagIsM
 	mappingRecord, err := mappingSvc.Create(ctx, mapping.CreateMappingRequest{
 		PointID:           links[0].PointID,
 		TagID:             tagRecord.ID,
-		Enabled:           boolPtr(true),
+		Enabled:           common.Ptr(true),
 		TransformPipeline: buildWorkspaceMappingPipeline(schema.DataTypeInt16, schema.DataTypeFloat64, 1, 0),
 	})
 	require.NoError(t, err)

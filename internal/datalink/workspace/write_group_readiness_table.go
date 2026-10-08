@@ -1,12 +1,13 @@
 package workspace
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"net/url"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/dbtarget"
@@ -124,13 +125,12 @@ func normalizeSQLiteWriteGroupPath(value string) (string, bool) {
 		if decoded, err := url.PathUnescape(value); err == nil {
 			value = decoded
 		}
-	} else if queryIndex := strings.IndexByte(value, '?'); queryIndex >= 0 {
-		query := value[queryIndex+1:]
+	} else if before, query, found := strings.Cut(value, "?"); found {
 		if parsed, err := url.ParseQuery(query); err == nil &&
 			strings.EqualFold(parsed.Get("mode"), "memory") {
 			return "", false
 		}
-		value = value[:queryIndex]
+		value = before
 	}
 	value = strings.TrimSpace(value)
 	if value == "" || strings.EqualFold(value, ":memory:") {
@@ -360,15 +360,15 @@ func digestWriteGroupInspection(group *WriteGroup, inspection *dbtarget.TableIns
 	digest := writeGroupSchemaDigest{
 		GroupID: group.ID, ConnectorID: group.Destination.ConnectorID,
 		Schema: group.Destination.TableSchema, Table: group.Destination.TableName,
-		Columns:  append([]dbtarget.ColumnInfo(nil), inspection.Columns...),
+		Columns:  slices.Clone(inspection.Columns),
 		Bindings: make([]writeGroupSchemaBinding, 0, len(group.Members)),
 	}
-	sort.Slice(digest.Columns, func(i, j int) bool {
-		left, right := strings.ToLower(digest.Columns[i].Name), strings.ToLower(digest.Columns[j].Name)
-		if left == right {
-			return digest.Columns[i].Name < digest.Columns[j].Name
+	slices.SortFunc(digest.Columns, func(a, b dbtarget.ColumnInfo) int {
+		left, right := strings.ToLower(a.Name), strings.ToLower(b.Name)
+		if c := cmp.Compare(left, right); c != 0 {
+			return c
 		}
-		return left < right
+		return cmp.Compare(a.Name, b.Name)
 	})
 	for _, member := range group.Members {
 		digest.Bindings = append(digest.Bindings, writeGroupSchemaBinding{

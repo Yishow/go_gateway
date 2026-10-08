@@ -24,8 +24,8 @@ func ParseTimeString(value string) (time.Time, error) {
 	if value == "" {
 		return time.Time{}, fmt.Errorf("empty time value")
 	}
-	if plusIndex := strings.Index(value, " m="); plusIndex > 0 {
-		value = value[:plusIndex]
+	if before, _, found := strings.Cut(value, " m="); found {
+		value = before
 	}
 	if parsed, err := time.Parse(time.RFC3339Nano, value); err == nil {
 		return parsed, nil

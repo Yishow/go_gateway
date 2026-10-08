@@ -35,7 +35,7 @@ func (s *Service) LoadPersistedSettings(ctx context.Context) error {
 	return nil
 }
 
-func decodeSettings(value interface{}) (Settings, error) {
+func decodeSettings(value any) (Settings, error) {
 	payload, err := json.Marshal(value)
 	if err != nil {
 		return Settings{}, fmt.Errorf("encode persisted modbus share settings: %w", err)

@@ -1,12 +1,13 @@
 package sourcerule
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"go-gateway/internal/datalink/schema"
-	"sort"
+	"slices"
 )
 
 func validateReplacementLinks(ruleID string, links []*schema.SourceRuleLink) error {
@@ -58,7 +59,7 @@ func (r *MemoryRepository) ReplaceLinks(_ context.Context, ruleID string, links 
 		return err
 	}
 	next := cloneSourceRuleLinks(links)
-	sort.Slice(next, func(i, j int) bool { return next[i].Address < next[j].Address })
+	slices.SortFunc(next, func(a, b *schema.SourceRuleLink) int { return cmp.Compare(a.Address, b.Address) })
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for otherRule, existing := range r.links {

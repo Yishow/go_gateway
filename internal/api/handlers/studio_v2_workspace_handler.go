@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"cmp"
 	"net/http"
 
 	"go-gateway/internal/datalink/modbusshare"
@@ -91,10 +92,7 @@ func (h *StudioV2WorkspaceHandler) Get(c *gin.Context) {
 	}
 	if h.modbusShare != nil {
 		hs, hydrationErr := h.modbusShare.CheckHydration(c.Request.Context())
-		shareWorkspaceID := hs.WorkspaceID
-		if shareWorkspaceID == "" {
-			shareWorkspaceID = record.ID
-		}
+		shareWorkspaceID := cmp.Or(hs.WorkspaceID, record.ID)
 		status := h.modbusShare.StatusForWorkspace(shareWorkspaceID)
 		share := &modbusShareBootstrapResponse{
 			HydrationState: hs.State, WorkspaceID: shareWorkspaceID, WorkspaceRevision: hs.WorkspaceRevision,

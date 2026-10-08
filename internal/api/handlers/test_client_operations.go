@@ -8,7 +8,7 @@ import (
 	"go-gateway/internal/protocol/modbus"
 )
 
-func (h *TestHandler) connectClient(client interface{}, _ string) error {
+func (h *TestHandler) connectClient(client any, _ string) error {
 	switch c := client.(type) {
 	case *modbus.ModbusClient:
 		return c.Connect()
@@ -21,7 +21,7 @@ func (h *TestHandler) connectClient(client interface{}, _ string) error {
 	}
 }
 
-func (h *TestHandler) closeClient(client interface{}, _ string) error {
+func (h *TestHandler) closeClient(client any, _ string) error {
 	switch c := client.(type) {
 	case *modbus.ModbusClient:
 		return c.Close()
@@ -34,7 +34,7 @@ func (h *TestHandler) closeClient(client interface{}, _ string) error {
 	}
 }
 
-func (h *TestHandler) executeRead(client interface{}, _ string, req ReadRequest) (interface{}, error) {
+func (h *TestHandler) executeRead(client any, _ string, req ReadRequest) (any, error) {
 	switch c := client.(type) {
 	case *modbus.ModbusClient:
 		switch req.Operation {
@@ -75,12 +75,12 @@ func (h *TestHandler) executeRead(client interface{}, _ string, req ReadRequest)
 	}
 }
 
-func (h *TestHandler) executeWrite(client interface{}, _ string, req WriteRequest) error {
-	// Helper to convert interface{} to []uint16 or []bool
-	// This is tricky because JSON unmarshaling might give []interface{}
+func (h *TestHandler) executeWrite(client any, _ string, req WriteRequest) error {
+	// Helper to convert any to []uint16 or []bool
+	// This is tricky because JSON unmarshaling might give []any
 
-	toUint16Slice := func(v interface{}) ([]uint16, error) {
-		arr, ok := v.([]interface{})
+	toUint16Slice := func(v any) ([]uint16, error) {
+		arr, ok := v.([]any)
 		if !ok {
 			return nil, fmt.Errorf("value is not an array")
 		}
@@ -95,8 +95,8 @@ func (h *TestHandler) executeWrite(client interface{}, _ string, req WriteReques
 		return res, nil
 	}
 
-	toIntSlice := func(v interface{}) ([]int, error) {
-		arr, ok := v.([]interface{})
+	toIntSlice := func(v any) ([]int, error) {
+		arr, ok := v.([]any)
 		if !ok {
 			return nil, fmt.Errorf("value is not an array")
 		}
@@ -116,8 +116,8 @@ func (h *TestHandler) executeWrite(client interface{}, _ string, req WriteReques
 		return res, nil
 	}
 
-	toBoolSlice := func(v interface{}) ([]bool, error) {
-		arr, ok := v.([]interface{})
+	toBoolSlice := func(v any) ([]bool, error) {
+		arr, ok := v.([]any)
 		if !ok {
 			return nil, fmt.Errorf("value is not an array")
 		}
@@ -138,7 +138,7 @@ func (h *TestHandler) executeWrite(client interface{}, _ string, req WriteReques
 		case "write_single_coil":
 			// 支援數組或單個值：如果是數組，取第一個元素
 			var val bool
-			if arr, ok := req.Values.([]interface{}); ok && len(arr) > 0 {
+			if arr, ok := req.Values.([]any); ok && len(arr) > 0 {
 				if b, ok := arr[0].(bool); ok {
 					val = b
 				} else {
@@ -152,7 +152,7 @@ func (h *TestHandler) executeWrite(client interface{}, _ string, req WriteReques
 			return c.WriteSingleCoil(req.Address, val)
 		case "write_single_register":
 			value := req.Values
-			if arr, ok := value.([]interface{}); ok && len(arr) > 0 {
+			if arr, ok := value.([]any); ok && len(arr) > 0 {
 				value = arr[0]
 			}
 			val, err := testRegisterValue(value)

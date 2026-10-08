@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -167,7 +168,7 @@ func TestStudioV2RecordingSwagger(t *testing.T) {
 			}
 			allRequired := append([]string{tc.required}, tc.moreRequired...)
 			for _, field := range allRequired {
-				if !containsRecordingSwaggerField(definition.Required, field) {
+				if !slices.Contains(definition.Required, field) {
 					t.Fatalf("request schema required fields = %v, missing %q", definition.Required, field)
 				}
 				if _, ok := definition.Properties[field]; !ok {
@@ -178,7 +179,7 @@ func TestStudioV2RecordingSwagger(t *testing.T) {
 				if _, ok := definition.Properties[field]; !ok {
 					t.Fatalf("request schema property %q is missing", field)
 				}
-				if containsRecordingSwaggerField(definition.Required, field) {
+				if slices.Contains(definition.Required, field) {
 					t.Fatalf("optional request field %q is marked required", field)
 				}
 			}
@@ -193,13 +194,4 @@ func recordingSwaggerBodyParameter(parameters []recordingSwaggerParameter) *reco
 		}
 	}
 	return nil
-}
-
-func containsRecordingSwaggerField(fields []string, wanted string) bool {
-	for _, field := range fields {
-		if field == wanted {
-			return true
-		}
-	}
-	return false
 }

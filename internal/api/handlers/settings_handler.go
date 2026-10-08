@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -47,8 +48,8 @@ func (h *SettingsHandler) List(c *gin.Context) {
 
 // UpdateRequest 更新設定請求
 type UpdateSettingRequest struct {
-	Value                    interface{} `json:"value"`
-	ExpectedSettingsRevision string      `json:"expected_settings_revision,omitempty"`
+	Value                    any    `json:"value"`
+	ExpectedSettingsRevision string `json:"expected_settings_revision,omitempty"`
 }
 
 // Update 更新設定
@@ -83,10 +84,7 @@ func (h *SettingsHandler) Update(c *gin.Context) {
 			renderSafeError(c, http.StatusBadRequest, ErrCodeSettingsInvalid, false)
 			return
 		}
-		expected := req.ExpectedSettingsRevision
-		if expected == "" {
-			expected = shareSettings.SettingsRevision
-		}
+		expected := cmp.Or(req.ExpectedSettingsRevision, shareSettings.SettingsRevision)
 		if err := h.modbusShare.ApplySettingsCAS(c.Request.Context(), shareSettings, expected); err != nil {
 			var shareErr *modbusshare.Error
 			if errors.As(err, &shareErr) {

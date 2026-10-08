@@ -335,7 +335,7 @@ func (r *SQLRepository) DeletePreviewToken(ctx context.Context, token string) er
 }
 
 type scannable interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }
 
 func scanRecordingPlan(s scannable) (*RecordingPlan, error) {

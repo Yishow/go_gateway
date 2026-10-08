@@ -6,11 +6,13 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"go-gateway/internal/datalink/schema"
 	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"go-gateway/internal/datalink/common"
+	"go-gateway/internal/datalink/schema"
 
 	"github.com/stretchr/testify/require"
 	"modernc.org/sqlite"
@@ -52,7 +54,7 @@ func TestSQLReplaceLinksFailureRollsBackWholeSetAndReadersNeverSeeDeleteGap(t *t
 	_, err = db.ExecContext(t.Context(), `CREATE TRIGGER pause_link_insert BEFORE INSERT ON source_rule_links WHEN NEW.address='40002' BEGIN SELECT `+name+`(); END`)
 	require.NoError(t, err)
 	next := cloneSourceRuleLinks(before)
-	next[0].MappingID = stringPtr("new-mapping")
+	next[0].MappingID = common.Ptr("new-mapping")
 	done := make(chan error, 1)
 	go func() { done <- repo.ReplaceLinks(context.Background(), "rule1", next) }()
 	select {
@@ -110,9 +112,9 @@ func TestMemoryReplaceLinksRejectsInvalidSetWithoutChangingOriginal(t *testing.T
 	require.NoError(t, err)
 	require.Equal(t, before, after)
 	next := cloneSourceRuleLinks(links)
-	next[0].MappingID = stringPtr("mapping-new")
+	next[0].MappingID = common.Ptr("mapping-new")
 	require.NoError(t, repo.ReplaceLinks(t.Context(), "rule1", next))
-	next[0].MappingID = stringPtr("external-edit")
+	next[0].MappingID = common.Ptr("external-edit")
 	after, err = repo.ListLinks(t.Context(), "rule1")
 	require.NoError(t, err)
 	require.Equal(t, "mapping-new", *after[0].MappingID)

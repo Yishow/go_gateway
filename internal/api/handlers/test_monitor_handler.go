@@ -62,7 +62,7 @@ func (h *TestHandler) runMonitorLoop(connID string, state *ConnectionState, item
 			return
 		case <-ticker.C:
 			// 執行讀取
-			results := make(map[string]interface{})
+			results := make(map[string]any)
 			for i, item := range items {
 				res, err := h.executeRead(state.Client, state.Protocol, item)
 				key := fmt.Sprintf("item_%d", i) // 或者使用地址/符號作為 key
@@ -74,7 +74,7 @@ func (h *TestHandler) runMonitorLoop(connID string, state *ConnectionState, item
 			}
 
 			// 推送數據（使用 SSE）
-			msg := map[string]interface{}{
+			msg := map[string]any{
 				"type":                     "monitor_update",
 				apiResponseConnectionIDKey: connID,
 				apiResponseTimestampKey:    time.Now().Format(time.RFC3339Nano),

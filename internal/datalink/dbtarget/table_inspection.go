@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/schema"
@@ -119,7 +120,7 @@ func (r *TableInspection) fromListing(tables []TableInfo, notFound TableInspecti
 		if table.Schema == r.Schema && table.Name == r.Table {
 			r.Status = TableInspectionExists
 			r.Reason = ""
-			r.Columns = append([]ColumnInfo{}, table.Columns...)
+			r.Columns = slices.Clone(table.Columns)
 			return r
 		}
 	}

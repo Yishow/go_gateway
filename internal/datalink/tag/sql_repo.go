@@ -191,7 +191,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 		FROM tags
 		WHERE 1=1
 	`
-	args := []interface{}{}
+	args := []any{}
 
 	if filter.Status != nil {
 		query += ` AND status = ?`

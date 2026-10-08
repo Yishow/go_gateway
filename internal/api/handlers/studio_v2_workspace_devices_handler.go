@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/schema"
@@ -224,10 +225,8 @@ func (h *StudioV2WorkspaceDevicesHandler) requireWorkspaceDevice(c *gin.Context)
 	}
 
 	deviceID := c.Param("id")
-	for _, attachedDeviceID := range record.OrderedDeviceIDs {
-		if attachedDeviceID == deviceID {
-			return true
-		}
+	if slices.Contains(record.OrderedDeviceIDs, deviceID) {
+		return true
 	}
 
 	c.JSON(http.StatusNotFound, gin.H{

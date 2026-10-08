@@ -44,25 +44,22 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 	var wg sync.WaitGroup
 
 	for deviceID, points := range devicePoints {
-		wg.Add(1)
-		go func(devID string, pts []pointInfo) {
-			defer wg.Done()
-
+		wg.Go(func() {
 			s.mu.RLock()
-			lock, exists := s.deviceLocks[devID]
-			deviceCfg, cfgExists := s.deviceConfigs[devID]
-			breaker := s.deviceBreakers[devID]
+			lock, exists := s.deviceLocks[deviceID]
+			deviceCfg, cfgExists := s.deviceConfigs[deviceID]
+			breaker := s.deviceBreakers[deviceID]
 			s.mu.RUnlock()
 
 			if !exists || !cfgExists || breaker == nil {
 				s.mu.Lock()
-				s.ensureDeviceLock(devID)
-				lock = s.deviceLocks[devID]
-				deviceCfg, cfgExists = s.deviceConfigs[devID]
-				if s.deviceBreakers[devID] == nil {
-					s.deviceBreakers[devID] = health.NewCircuitBreaker(s.config.BreakerConfig)
+				s.ensureDeviceLock(deviceID)
+				lock = s.deviceLocks[deviceID]
+				deviceCfg, cfgExists = s.deviceConfigs[deviceID]
+				if s.deviceBreakers[deviceID] == nil {
+					s.deviceBreakers[deviceID] = health.NewCircuitBreaker(s.config.BreakerConfig)
 				}
-				breaker = s.deviceBreakers[devID]
+				breaker = s.deviceBreakers[deviceID]
 				s.mu.Unlock()
 				if !cfgExists {
 					return
@@ -72,7 +69,7 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 			if breaker != nil && !breaker.AllowRequest() {
 				acquisitionID := s.nextAcquisitionID()
 				resultsMu.Lock()
-				for _, pt := range pts {
+				for _, pt := range points {
 					results = append(results, s.collectedValueWithReason(deviceCfg, pt, connector.ReadResult{
 						Quality: schema.QualityBad,
 						Error:   fmt.Sprintf("設備熔斷中 (狀態: %s)", breaker.State()),
@@ -85,7 +82,7 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 			lock.Lock()
 			defer lock.Unlock()
 
-			conn, err := s.connMgr.GetOrCreate(ctx, devID, deviceCfg.Protocol, deviceCfg.Config)
+			conn, err := s.connMgr.GetOrCreate(ctx, deviceID, deviceCfg.Protocol, deviceCfg.Config)
 			if err != nil {
 				if breaker != nil {
 					breaker.ReportResult(err)
@@ -93,7 +90,7 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 
 				acquisitionID := s.nextAcquisitionID()
 				resultsMu.Lock()
-				for _, pt := range pts {
+				for _, pt := range points {
 					results = append(results, s.collectedValueWithReason(deviceCfg, pt, connector.ReadResult{
 						Quality: schema.QualityBad,
 						Error:   fmt.Sprintf("連線失敗: %v", err),
@@ -104,7 +101,7 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 			}
 
 			acquisitionID := s.nextAcquisitionID()
-			for _, pt := range pts {
+			for _, pt := range points {
 				req := connector.ReadRequest{
 					Address:    pt.Address,
 					Function:   pt.Function,
@@ -123,7 +120,7 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 				results = append(results, cv)
 				resultsMu.Unlock()
 			}
-		}(deviceID, points)
+		})
 	}
 
 	wg.Wait()

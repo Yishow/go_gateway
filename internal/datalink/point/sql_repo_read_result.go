@@ -60,7 +60,7 @@ func (r *SQLRepository) BatchUpdateReadResult(ctx context.Context, results []Rea
 }
 
 // UpdateReadResult 更新點位讀取結果
-func (r *SQLRepository) UpdateReadResult(ctx context.Context, pointID string, value interface{}, errMsg string) error {
+func (r *SQLRepository) UpdateReadResult(ctx context.Context, pointID string, value any, errMsg string) error {
 	query := `
 		UPDATE points 
 		SET last_value = ?, last_read_at = ?, last_error = ?, updated_at = ?

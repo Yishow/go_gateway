@@ -168,7 +168,7 @@ func (c *FatekClient) ReadRegisters(symbol string, startAddr, count int) ([]int,
 	}
 
 	result := make([]int, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		valHex := dataStr[i*charsPerVal : (i+1)*charsPerVal]
 		val, err := HexToInt(valHex)
 		if err != nil {
@@ -222,7 +222,7 @@ type RandomReadItem struct {
 }
 
 // ReadRandom (Cmd 48): Mixed Read
-func (c *FatekClient) ReadRandom(items []RandomReadItem) (map[string]interface{}, error) {
+func (c *FatekClient) ReadRandom(items []RandomReadItem) (map[string]any, error) {
 	if len(items) > 64 {
 		return nil, fmt.Errorf("max items is 64")
 	}
@@ -253,7 +253,7 @@ func (c *FatekClient) ReadRandom(items []RandomReadItem) (map[string]interface{}
 	}
 
 	// Parse mixed response
-	results := make(map[string]interface{})
+	results := make(map[string]any)
 	ptr := 0
 
 	for i, item := range items {

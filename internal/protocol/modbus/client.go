@@ -14,7 +14,7 @@ type ModbusClient struct { //nolint:revive // Preserve the exported Go name and 
 }
 
 type transportUnwrapper interface {
-	GetOriginalTransport() interface{}
+	GetOriginalTransport() any
 }
 
 // NewClient 建立新的 Modbus 客戶端

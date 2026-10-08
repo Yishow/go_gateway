@@ -26,7 +26,7 @@ func (w *wrappedRTUTransport) GetNextTransactionID() uint16 {
 	return 0
 }
 
-func (w *wrappedRTUTransport) GetOriginalTransport() interface{} {
+func (w *wrappedRTUTransport) GetOriginalTransport() any {
 	return &RTUTransport{}
 }
 

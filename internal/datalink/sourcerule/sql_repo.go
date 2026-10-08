@@ -29,27 +29,27 @@ func (r *SQLRepository) Create(ctx context.Context, rule *schema.SourceRule) err
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	var targetDataType interface{}
+	var targetDataType any
 	if rule.TargetDataType != nil {
 		targetDataType = *rule.TargetDataType
 	}
 
-	var scaleMultiplier interface{}
+	var scaleMultiplier any
 	if rule.ScaleMultiplier != nil {
 		scaleMultiplier = *rule.ScaleMultiplier
 	}
 
-	var scaleOffset interface{}
+	var scaleOffset any
 	if rule.ScaleOffset != nil {
 		scaleOffset = *rule.ScaleOffset
 	}
 
-	var shareStartRegister interface{}
+	var shareStartRegister any
 	if rule.ShareStartRegister != nil {
 		shareStartRegister = *rule.ShareStartRegister
 	}
 
-	var shareStride interface{}
+	var shareStride any
 	if rule.ShareStride != nil {
 		shareStride = *rule.ShareStride
 	}
@@ -94,27 +94,27 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 		WHERE id = ?
 	`
 
-	var targetDataType interface{}
+	var targetDataType any
 	if rule.TargetDataType != nil {
 		targetDataType = *rule.TargetDataType
 	}
 
-	var scaleMultiplier interface{}
+	var scaleMultiplier any
 	if rule.ScaleMultiplier != nil {
 		scaleMultiplier = *rule.ScaleMultiplier
 	}
 
-	var scaleOffset interface{}
+	var scaleOffset any
 	if rule.ScaleOffset != nil {
 		scaleOffset = *rule.ScaleOffset
 	}
 
-	var shareStartRegister interface{}
+	var shareStartRegister any
 	if rule.ShareStartRegister != nil {
 		shareStartRegister = *rule.ShareStartRegister
 	}
 
-	var shareStride interface{}
+	var shareStride any
 	if rule.ShareStride != nil {
 		shareStride = *rule.ShareStride
 	}
@@ -190,7 +190,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 		FROM source_rules
 		WHERE 1 = 1
 	`
-	args := make([]interface{}, 0, 2)
+	args := make([]any, 0, 2)
 
 	if filter.DeviceID != nil {
 		query += ` AND device_id = ?`

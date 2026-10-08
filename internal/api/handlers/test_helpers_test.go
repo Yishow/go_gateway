@@ -62,7 +62,6 @@ func TestCategorizeError(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got := categorizeError(tt.input)
 			if tt.nilErr {
@@ -78,7 +77,7 @@ func TestCategorizeError(t *testing.T) {
 func TestResultToString(t *testing.T) {
 	tests := []struct {
 		name        string
-		input       interface{}
+		input       any
 		expectedLen int
 		expected    []string
 	}{
@@ -104,7 +103,7 @@ func TestResultToString(t *testing.T) {
 		},
 		{
 			name:        "interface slice",
-			input:       []interface{}{1, "x"},
+			input:       []any{1, "x"},
 			expectedLen: 2,
 		},
 		{
@@ -121,7 +120,6 @@ func TestResultToString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got := resultToString(tt.input)
 			assert.Len(t, got, tt.expectedLen)

@@ -3,7 +3,7 @@ package hsllogic
 import "math"
 
 // ToFloat64 將任意數值轉換為 float64
-func ToFloat64(value interface{}) (float64, bool) {
+func ToFloat64(value any) (float64, bool) {
 	switch v := value.(type) {
 	case bool:
 		if v {
@@ -38,7 +38,7 @@ func ToFloat64(value interface{}) (float64, bool) {
 }
 
 // ToInt64 將任意數值轉換為 int64
-func ToInt64(value interface{}) (int64, bool) {
+func ToInt64(value any) (int64, bool) {
 	switch v := value.(type) {
 	case bool:
 		if v {

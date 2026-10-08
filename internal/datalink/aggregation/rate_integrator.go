@@ -1,7 +1,7 @@
 package aggregation
 
 import (
-	"sort"
+	"slices"
 	"time"
 )
 
@@ -55,8 +55,8 @@ func IntegrateRate(
 		return result
 	}
 
-	sort.SliceStable(validSamples, func(i, j int) bool {
-		return validSamples[i].ObservedAt.Before(validSamples[j].ObservedAt)
+	slices.SortStableFunc(validSamples, func(a, b TelemetrySample) int {
+		return a.ObservedAt.Compare(b.ObservedAt)
 	})
 
 	var totalArea float64

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"go-gateway/internal/datalink/collector"
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
@@ -158,8 +159,7 @@ func isSafeQualityReason(reason string, quality schema.QualityFlag) bool {
 
 func (s *Service) refreshMappings(ctx context.Context) error {
 	if s.mappingSvc != nil {
-		enabled := true
-		mappings, err := s.mappingSvc.List(ctx, mapping.ListFilter{Enabled: &enabled, Limit: 100000})
+		mappings, err := s.mappingSvc.List(ctx, mapping.ListFilter{Enabled: common.Ptr(true), Limit: 100000})
 		if err != nil {
 			return fmt.Errorf("載入 mappings 失敗: %w", err)
 		}

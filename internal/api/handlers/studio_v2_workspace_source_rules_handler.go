@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/device"
@@ -230,12 +231,7 @@ func renderStudioV2WorkspaceSourceRuleError(c *gin.Context, err error) {
 }
 
 func workspaceOwnsDevice(record *workspace.Record, deviceID string) bool {
-	for _, ownedDeviceID := range record.OrderedDeviceIDs {
-		if ownedDeviceID == deviceID {
-			return true
-		}
-	}
-	return false
+	return record != nil && slices.Contains(record.OrderedDeviceIDs, deviceID)
 }
 
 func workspaceRuleApplyScopes(deviceID string, links []*schema.SourceRuleLink) []string {

@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"maps"
 	"sync"
 	"time"
 
@@ -59,11 +60,9 @@ func (s *Scheduler) RemoveDevice(deviceID string) {
 	delete(s.deviceBreakers, deviceID)
 
 	// 移除相關點位
-	for id, info := range s.pointInfos {
-		if info.DeviceID == deviceID {
-			delete(s.pointInfos, id)
-		}
-	}
+	maps.DeleteFunc(s.pointInfos, func(_ string, info pointInfo) bool {
+		return info.DeviceID == deviceID
+	})
 }
 
 // AddPoint 新增點位

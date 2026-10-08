@@ -80,7 +80,7 @@ func (w *SQLiteWriter) Flush(ctx context.Context) error { return nil }
 // Close 無持有獨立資源，為 no-op。
 func (w *SQLiteWriter) Close() error { return nil }
 
-func encodeRawValue(v interface{}) (interface{}, error) {
+func encodeRawValue(v any) (any, error) {
 	if v == nil {
 		return nil, nil
 	}

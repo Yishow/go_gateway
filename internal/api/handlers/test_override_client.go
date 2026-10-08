@@ -6,7 +6,7 @@ import (
 	"go-gateway/internal/protocol/modbus"
 )
 
-func (h *TestHandler) prepareOverrideClient(state *ConnectionState, unitID *byte, station *int, tempSuffix string) (clientToUse, tempClient interface{}, err error) {
+func (h *TestHandler) prepareOverrideClient(state *ConnectionState, unitID *byte, station *int, tempSuffix string) (clientToUse, tempClient any, err error) {
 	clientToUse = state.Client
 
 	if unitID == nil && station == nil {
@@ -19,7 +19,7 @@ func (h *TestHandler) prepareOverrideClient(state *ConnectionState, unitID *byte
 		}
 	}
 
-	tempConfig := make(map[string]interface{})
+	tempConfig := make(map[string]any)
 	for k, v := range state.Config {
 		tempConfig[k] = v
 	}
@@ -44,7 +44,7 @@ func (h *TestHandler) prepareOverrideClient(state *ConnectionState, unitID *byte
 	return tempClient, tempClient, nil
 }
 
-func (h *TestHandler) closeTempClient(client interface{}, protocol string) {
+func (h *TestHandler) closeTempClient(client any, protocol string) {
 	if client == nil {
 		return
 	}

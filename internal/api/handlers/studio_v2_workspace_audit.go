@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"log"
+	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/audit"
@@ -37,7 +38,7 @@ func (h *StudioV2WorkspaceActivationHandler) recordActivationAudit(ctx context.C
 		return
 	}
 
-	results := append([]workspace.ActivationResult(nil), response.Results...)
+	results := slices.Clone(response.Results)
 	if err := h.auditSvc.Record(ctx, audit.RecordEvent{
 		WorkspaceID: response.WorkspaceID,
 		EventType:   audit.EventTypeWorkspaceActivation,

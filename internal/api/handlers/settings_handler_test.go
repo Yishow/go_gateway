@@ -24,7 +24,7 @@ type failingSettingsRepository struct{}
 func (failingSettingsRepository) Get(context.Context, string) (*settings.SettingItem, error) {
 	return nil, errors.New("database secret should not be returned")
 }
-func (failingSettingsRepository) Set(context.Context, string, interface{}) error {
+func (failingSettingsRepository) Set(context.Context, string, any) error {
 	return errors.New("database secret should not be returned")
 }
 func (failingSettingsRepository) List(context.Context) ([]*settings.SettingItem, error) {
@@ -57,7 +57,7 @@ func TestSettingsHandler_List(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.True(t, response["success"].(bool))
@@ -66,7 +66,7 @@ func TestSettingsHandler_List(t *testing.T) {
 func TestSettingsHandler_Update(t *testing.T) {
 	r := setupSettingsRouter()
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"value": "updated_value",
 	}
 	body, _ := json.Marshal(reqBody)
@@ -77,11 +77,11 @@ func TestSettingsHandler_Update(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.Equal(t, "updated_value", data["value"])
 }
 

@@ -39,7 +39,7 @@ func TestDatalinkHealthHandler_Check(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.True(t, response["success"].(bool))
@@ -55,7 +55,7 @@ func TestDatalinkHealthHandler_Check_Structure(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
@@ -64,7 +64,7 @@ func TestDatalinkHealthHandler_Check_Structure(t *testing.T) {
 	assert.NotNil(t, response["data"])
 
 	// 驗證 data 結構
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.Contains(t, data, "status")
 	assert.Contains(t, data, "service")
 	assert.Contains(t, data, "timestamp")
@@ -81,9 +81,9 @@ func TestDatalinkHealthHandler_Check_Status(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 
 	assert.Equal(t, "healthy", data["status"])
 }
@@ -98,9 +98,9 @@ func TestDatalinkHealthHandler_Check_Service(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 
 	assert.Equal(t, "datalink", data["service"])
 }
@@ -115,9 +115,9 @@ func TestDatalinkHealthHandler_Check_Version(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 
 	assert.Equal(t, "1.0.0", data["version"])
 }
@@ -132,9 +132,9 @@ func TestDatalinkHealthHandler_Check_Timestamp(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 
 	// 驗證 timestamp 存在且為字串
 	timestamp, ok := data["timestamp"].(string)
@@ -183,7 +183,7 @@ func TestDatalinkHealthHandler_Check_ResponseTime(t *testing.T) {
 func TestDatalinkHealthHandler_Check_MultipleRequests(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	responses := make([]map[string]interface{}, 0, 5)
+	responses := make([]map[string]any, 0, 5)
 
 	// 發送 5 次請求
 	for i := 0; i < 5; i++ {
@@ -191,7 +191,7 @@ func TestDatalinkHealthHandler_Check_MultipleRequests(t *testing.T) {
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
-		var response map[string]interface{}
+		var response map[string]any
 		json.Unmarshal(w.Body.Bytes(), &response)
 		responses = append(responses, response)
 
@@ -202,7 +202,7 @@ func TestDatalinkHealthHandler_Check_MultipleRequests(t *testing.T) {
 	// 驗證所有回應結構一致
 	for i, response := range responses {
 		assert.True(t, response["success"].(bool), "Request %d should be successful", i)
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		assert.Equal(t, "healthy", data["status"], "Request %d should have healthy status", i)
 		assert.Equal(t, "datalink", data["service"], "Request %d should have correct service name", i)
 		assert.Equal(t, "1.0.0", data["version"], "Request %d should have correct version", i)
@@ -211,7 +211,7 @@ func TestDatalinkHealthHandler_Check_MultipleRequests(t *testing.T) {
 	// 驗證時間戳不同
 	timestamps := make(map[string]bool)
 	for _, response := range responses {
-		data := response["data"].(map[string]interface{})
+		data := response["data"].(map[string]any)
 		timestamp := data["timestamp"].(string)
 		timestamps[timestamp] = true
 	}
@@ -294,17 +294,17 @@ func TestDatalinkHealthHandler_Check_JSONFormat(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	// 驗證可以解析為 JSON
-	var response map[string]interface{}
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err, "Response should be valid JSON")
 
 	// 驗證 JSON 結構
-	assert.IsType(t, map[string]interface{}{}, response)
+	assert.IsType(t, map[string]any{}, response)
 	assert.IsType(t, true, response["success"])
-	assert.IsType(t, map[string]interface{}{}, response["data"])
+	assert.IsType(t, map[string]any{}, response["data"])
 
 	// 驗證 data 內部結構
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.IsType(t, "", data["status"])
 	assert.IsType(t, "", data["service"])
 	assert.IsType(t, "", data["timestamp"])
@@ -327,7 +327,7 @@ func TestDatalinkHealthHandler_Check_ConcurrentRequests(t *testing.T) {
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
-			var response map[string]interface{}
+			var response map[string]any
 			json.Unmarshal(w.Body.Bytes(), &response)
 			success := response["success"].(bool)
 			results <- success
@@ -356,9 +356,9 @@ func TestDatalinkHealthHandler_Check_TimestampPrecision(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	timestampStr := data["timestamp"].(string)
 
 	// 驗證可以解析為 RFC3339（包含秒和毫秒）

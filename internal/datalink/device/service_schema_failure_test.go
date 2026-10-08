@@ -17,7 +17,7 @@ func TestValidateConnectionConfigRejectsBrokenRegisteredSchema(t *testing.T) {
 	original := append([]byte(nil), info.ConfigSchema...)
 	t.Cleanup(func() { copy(info.ConfigSchema, original) })
 	info.ConfigSchema[0] = '!'
-	if err := validateConnectionConfig(schema.ProtocolModbusTCP, map[string]interface{}{}); err == nil {
+	if err := validateConnectionConfig(schema.ProtocolModbusTCP, map[string]any{}); err == nil {
 		t.Fatal("invalid registered schema must not bypass configuration validation")
 	}
 }

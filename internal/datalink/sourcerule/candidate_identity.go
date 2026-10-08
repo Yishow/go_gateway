@@ -1,11 +1,12 @@
 package sourcerule
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"sort"
+	"slices"
 
 	"go-gateway/internal/datalink/schema"
 )
@@ -207,12 +208,12 @@ func normalizedCandidateIdentity(identity schema.SourceRuleCandidateIdentity) sc
 		return normalized
 	}
 
-	scope := append([]schema.SourceRuleCandidateScopeField(nil), identity.TargetBindingScope...)
-	sort.Slice(scope, func(i, j int) bool {
-		if scope[i].Key == scope[j].Key {
-			return scope[i].Value < scope[j].Value
+	scope := slices.Clone(identity.TargetBindingScope)
+	slices.SortFunc(scope, func(a, b schema.SourceRuleCandidateScopeField) int {
+		if c := cmp.Compare(a.Key, b.Key); c != 0 {
+			return c
 		}
-		return scope[i].Key < scope[j].Key
+		return cmp.Compare(a.Value, b.Value)
 	})
 	normalized.TargetBindingScope = scope
 	return normalized

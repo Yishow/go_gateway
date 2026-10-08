@@ -50,8 +50,8 @@ type PreviewEvent struct {
 	Action     string                 `json:"action,omitempty"`
 	RequestID  string                 `json:"request_id,omitempty"`
 	MappingID  string                 `json:"mapping_id,omitempty"`
-	RawValue   interface{}            `json:"raw_value,omitempty"`
-	FinalValue interface{}            `json:"final_value,omitempty"`
+	RawValue   any                    `json:"raw_value,omitempty"`
+	FinalValue any                    `json:"final_value,omitempty"`
 	Steps      []mapping.StepResult   `json:"steps,omitempty"`
 	Quality    int                    `json:"quality,omitempty"`
 	Timestamp  string                 `json:"timestamp"`

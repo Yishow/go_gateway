@@ -9,7 +9,7 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
-func (s *Service) validateMappingPreviewGate(ctx context.Context, tagID, pipelineJSON string, previewRawValue interface{}) error {
+func (s *Service) validateMappingPreviewGate(ctx context.Context, tagID, pipelineJSON string, previewRawValue any) error {
 	normalizedPipeline := normalizePipelineJSON(pipelineJSON)
 
 	var steps []schema.TransformStep
@@ -47,7 +47,7 @@ func normalizePipelineJSON(pipelineJSON string) string {
 	return pipelineJSON
 }
 
-func defaultPreviewSampleValue() interface{} {
+func defaultPreviewSampleValue() any {
 	return float64(1)
 }
 
@@ -72,7 +72,7 @@ func (s *Service) resolveTagDataType(ctx context.Context, tagID string) (schema.
 	return tag.DataType, nil
 }
 
-func ensureCastableToDataType(value interface{}, targetType schema.DataType) error {
+func ensureCastableToDataType(value any, targetType schema.DataType) error {
 	switch targetType {
 	case schema.DataTypeString:
 		return nil
@@ -100,7 +100,7 @@ func ensureCastableToDataType(value interface{}, targetType schema.DataType) err
 	}
 }
 
-func ensureBoolCastable(value interface{}) error {
+func ensureBoolCastable(value any) error {
 	switch v := value.(type) {
 	case bool:
 		return nil
@@ -123,7 +123,7 @@ func ensureBoolCastable(value interface{}) error {
 	}
 }
 
-func ensureIntegerRange(value interface{}, minimum, maximum float64, typeName string) error {
+func ensureIntegerRange(value any, minimum, maximum float64, typeName string) error {
 	f, ok := toFloat64Value(value)
 	if !ok {
 		return fmt.Errorf("值 %v (%T) 不是可轉數值", value, value)
@@ -134,7 +134,7 @@ func ensureIntegerRange(value interface{}, minimum, maximum float64, typeName st
 	return nil
 }
 
-func ensureUnsignedRange(value interface{}, maximum float64, typeName string) error {
+func ensureUnsignedRange(value any, maximum float64, typeName string) error {
 	f, ok := toFloat64Value(value)
 	if !ok {
 		return fmt.Errorf("值 %v (%T) 不是可轉數值", value, value)
@@ -145,14 +145,14 @@ func ensureUnsignedRange(value interface{}, maximum float64, typeName string) er
 	return nil
 }
 
-func ensureNumeric(value interface{}, typeName string) error {
+func ensureNumeric(value any, typeName string) error {
 	if _, ok := toFloat64Value(value); !ok {
 		return fmt.Errorf("值 %v (%T) 不是可轉 %s 的數值", value, value, typeName)
 	}
 	return nil
 }
 
-func ensureNonNegativeNumeric(value interface{}, typeName string) error {
+func ensureNonNegativeNumeric(value any, typeName string) error {
 	f, ok := toFloat64Value(value)
 	if !ok {
 		return fmt.Errorf("值 %v (%T) 不是可轉 %s 的數值", value, value, typeName)

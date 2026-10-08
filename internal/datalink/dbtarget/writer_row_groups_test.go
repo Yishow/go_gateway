@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"path/filepath"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 
@@ -121,7 +121,7 @@ func TestWriter_InsertModeRowGroupsEmitSeparateRowsForSharedColumn(t *testing.T)
 		values = append(values, value)
 	}
 	require.NoError(t, rows.Err())
-	sort.Float64s(values)
+	slices.Sort(values)
 	require.Equal(t, []float64{21.5, 23.75}, values)
 }
 

@@ -65,7 +65,7 @@ func TestDeviceHandler_Activate(t *testing.T) {
 	newDevice := device.CreateDeviceRequest{
 		Name:     "測試啟用設備",
 		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     502,
 			"slave_id": 1,
@@ -80,9 +80,9 @@ func TestDeviceHandler_Activate(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &createResp)
-	deviceID := createResp["data"].(map[string]interface{})["id"].(string)
+	deviceID := createResp["data"].(map[string]any)["id"].(string)
 
 	// 啟用設備
 	req, _ = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/activate", http.NoBody)
@@ -91,7 +91,7 @@ func TestDeviceHandler_Activate(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var activateResp map[string]interface{}
+	var activateResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &activateResp)
 	assert.True(t, activateResp["success"].(bool))
 }
@@ -119,7 +119,7 @@ func TestDeviceHandler_Disable(t *testing.T) {
 	newDevice := device.CreateDeviceRequest{
 		Name:     "測試停用設備",
 		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     502,
 			"slave_id": 1,
@@ -134,9 +134,9 @@ func TestDeviceHandler_Disable(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &createResp)
-	deviceID := createResp["data"].(map[string]interface{})["id"].(string)
+	deviceID := createResp["data"].(map[string]any)["id"].(string)
 
 	// 停用設備
 	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/disable", http.NoBody)
@@ -145,7 +145,7 @@ func TestDeviceHandler_Disable(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var disableResp map[string]interface{}
+	var disableResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &disableResp)
 	assert.True(t, disableResp["success"].(bool))
 }
@@ -174,7 +174,7 @@ func TestDeviceHandler_TestConnectionBatch(t *testing.T) {
 		{
 			Name:     "測試設備 1",
 			Protocol: "modbus_tcp",
-			ConnectionConfig: map[string]interface{}{
+			ConnectionConfig: map[string]any{
 				"host":     "127.0.0.1",
 				"port":     502,
 				"slave_id": 1,
@@ -183,7 +183,7 @@ func TestDeviceHandler_TestConnectionBatch(t *testing.T) {
 		{
 			Name:     "測試設備 2",
 			Protocol: "modbus_tcp",
-			ConnectionConfig: map[string]interface{}{
+			ConnectionConfig: map[string]any{
 				"host":     "127.0.0.2",
 				"port":     502,
 				"slave_id": 2,
@@ -199,14 +199,14 @@ func TestDeviceHandler_TestConnectionBatch(t *testing.T) {
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
-		var createResp map[string]interface{}
+		var createResp map[string]any
 		json.Unmarshal(w.Body.Bytes(), &createResp)
-		deviceID := createResp["data"].(map[string]interface{})["id"].(string)
+		deviceID := createResp["data"].(map[string]any)["id"].(string)
 		deviceIDs = append(deviceIDs, deviceID)
 	}
 
 	// 批量測試連線
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"device_ids": deviceIDs,
 	}
 
@@ -218,16 +218,16 @@ func TestDeviceHandler_TestConnectionBatch(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	assert.Equal(t, 2, len(data))
 
 	// 驗證每個結果都有必要的欄位
 	for _, result := range data {
-		resultMap := result.(map[string]interface{})
+		resultMap := result.(map[string]any)
 		assert.Contains(t, resultMap, "latency_ms")
 		assert.Contains(t, resultMap, "success")
 		assert.Contains(t, resultMap, "timestamp")
@@ -237,7 +237,7 @@ func TestDeviceHandler_TestConnectionBatch(t *testing.T) {
 func TestDeviceHandler_TestConnectionBatch_ResultStructure(t *testing.T) {
 	r := setupDeviceRouterWithExtended()
 
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"device_ids": []string{"non-existent-id"},
 	}
 
@@ -249,14 +249,14 @@ func TestDeviceHandler_TestConnectionBatch_ResultStructure(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	assert.Len(t, data, 1)
 
-	resultMap := data[0].(map[string]interface{})
+	resultMap := data[0].(map[string]any)
 	assert.Contains(t, resultMap, "latency_ms")
 	assert.Contains(t, resultMap, "success")
 	assert.Contains(t, resultMap, "timestamp")
@@ -285,7 +285,7 @@ func TestDeviceHandler_TestConnection_SurfacesConnectAndProbeSuccess(t *testing.
 	createReq := device.CreateDeviceRequest{
 		Name:     "probe-ok",
 		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     server.Port(),
 			"slave_id": 1,
@@ -302,9 +302,9 @@ func TestDeviceHandler_TestConnection_SurfacesConnectAndProbeSuccess(t *testing.
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusCreated, w.Code)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &createResp))
-	deviceID := createResp["data"].(map[string]interface{})["id"].(string)
+	deviceID := createResp["data"].(map[string]any)["id"].(string)
 
 	req, err = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/test", http.NoBody)
 	require.NoError(t, err)
@@ -312,18 +312,18 @@ func TestDeviceHandler_TestConnection_SurfacesConnectAndProbeSuccess(t *testing.
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 	require.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.True(t, data["success"].(bool))
 	assert.Equal(t, true, data["can_activate"])
 	assert.Equal(t, true, data["can_collect"])
 	require.Contains(t, data, "connect")
 	require.Contains(t, data, "probe")
-	assert.Equal(t, "success", data["connect"].(map[string]interface{})["status"])
-	assert.Equal(t, "success", data["probe"].(map[string]interface{})["status"])
+	assert.Equal(t, "success", data["connect"].(map[string]any)["status"])
+	assert.Equal(t, "success", data["probe"].(map[string]any)["status"])
 }
 
 func TestDeviceHandler_TestConnection_SurfacesProbeFailureWhileConnectSucceeds(t *testing.T) {
@@ -347,7 +347,7 @@ func TestDeviceHandler_TestConnection_SurfacesProbeFailureWhileConnectSucceeds(t
 	createReq := device.CreateDeviceRequest{
 		Name:     "probe-failed",
 		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":           "127.0.0.1",
 			"port":           server.Port(),
 			"slave_id":       1,
@@ -366,9 +366,9 @@ func TestDeviceHandler_TestConnection_SurfacesProbeFailureWhileConnectSucceeds(t
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusCreated, w.Code)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &createResp))
-	deviceID := createResp["data"].(map[string]interface{})["id"].(string)
+	deviceID := createResp["data"].(map[string]any)["id"].(string)
 
 	req, err = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/test", http.NoBody)
 	require.NoError(t, err)
@@ -376,11 +376,11 @@ func TestDeviceHandler_TestConnection_SurfacesProbeFailureWhileConnectSucceeds(t
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 	require.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.False(t, data["success"].(bool))
 	assert.Equal(t, false, data["can_activate"])
 	assert.Equal(t, false, data["can_collect"])
@@ -388,9 +388,9 @@ func TestDeviceHandler_TestConnection_SurfacesProbeFailureWhileConnectSucceeds(t
 	assert.Contains(t, data["error"].(string), "讀取探測失敗")
 	require.Contains(t, data, "connect")
 	require.Contains(t, data, "probe")
-	assert.Equal(t, "success", data["connect"].(map[string]interface{})["status"])
-	assert.Equal(t, "failed", data["probe"].(map[string]interface{})["status"])
-	assert.NotEmpty(t, data["probe"].(map[string]interface{})["error"])
+	assert.Equal(t, "success", data["connect"].(map[string]any)["status"])
+	assert.Equal(t, "failed", data["probe"].(map[string]any)["status"])
+	assert.NotEmpty(t, data["probe"].(map[string]any)["error"])
 }
 
 func TestDeviceHandler_TestDraftConnection_AllowsUnsavedPayload(t *testing.T) {
@@ -410,9 +410,9 @@ func TestDeviceHandler_TestDraftConnection_AllowsUnsavedPayload(t *testing.T) {
 	h := NewDeviceHandler(svc)
 	r.POST("/datalink/devices/test-draft", h.TestDraftConnection)
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"protocol": "modbus_tcp",
-		"connection_config": map[string]interface{}{
+		"connection_config": map[string]any{
 			"host":     "127.0.0.1",
 			"port":     server.Port(),
 			"slave_id": 1,
@@ -429,18 +429,18 @@ func TestDeviceHandler_TestDraftConnection_AllowsUnsavedPayload(t *testing.T) {
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 	require.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.True(t, data["success"].(bool))
 	assert.Equal(t, true, data["can_activate"])
 	assert.Equal(t, true, data["can_collect"])
 	require.Contains(t, data, "connect")
 	require.Contains(t, data, "probe")
-	assert.Equal(t, "success", data["connect"].(map[string]interface{})["status"])
-	assert.Equal(t, "success", data["probe"].(map[string]interface{})["status"])
+	assert.Equal(t, "success", data["connect"].(map[string]any)["status"])
+	assert.Equal(t, "success", data["probe"].(map[string]any)["status"])
 }
 
 func TestDeviceHandler_TestDraftConnection_SurfacesConnectFailure(t *testing.T) {
@@ -458,9 +458,9 @@ func TestDeviceHandler_TestDraftConnection_SurfacesConnectFailure(t *testing.T) 
 	h := NewDeviceHandler(svc)
 	r.POST("/datalink/devices/test-draft", h.TestDraftConnection)
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"protocol": "modbus_tcp",
-		"connection_config": map[string]interface{}{
+		"connection_config": map[string]any{
 			"host":     "127.0.0.1",
 			"port":     port,
 			"slave_id": 1,
@@ -477,17 +477,17 @@ func TestDeviceHandler_TestDraftConnection_SurfacesConnectFailure(t *testing.T) 
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 	require.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.False(t, data["success"].(bool))
 	assert.Equal(t, false, data["can_activate"])
 	assert.Equal(t, false, data["can_collect"])
 	assert.NotEmpty(t, data["error"].(string))
-	assert.Equal(t, "failed", data["connect"].(map[string]interface{})["status"])
-	assert.Equal(t, "skipped", data["probe"].(map[string]interface{})["status"])
+	assert.Equal(t, "failed", data["connect"].(map[string]any)["status"])
+	assert.Equal(t, "skipped", data["probe"].(map[string]any)["status"])
 }
 
 func TestDeviceHandler_TestDraftConnection_SurfacesProbeFailure(t *testing.T) {
@@ -507,9 +507,9 @@ func TestDeviceHandler_TestDraftConnection_SurfacesProbeFailure(t *testing.T) {
 	h := NewDeviceHandler(svc)
 	r.POST("/datalink/devices/test-draft", h.TestDraftConnection)
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"protocol": "modbus_tcp",
-		"connection_config": map[string]interface{}{
+		"connection_config": map[string]any{
 			"host":           "127.0.0.1",
 			"port":           server.Port(),
 			"slave_id":       1,
@@ -528,18 +528,18 @@ func TestDeviceHandler_TestDraftConnection_SurfacesProbeFailure(t *testing.T) {
 	r.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 	require.True(t, response["success"].(bool))
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.False(t, data["success"].(bool))
 	assert.Equal(t, false, data["can_activate"])
 	assert.Equal(t, false, data["can_collect"])
 	assert.Contains(t, data["error"].(string), "讀取探測失敗")
-	assert.Equal(t, "success", data["connect"].(map[string]interface{})["status"])
-	assert.Equal(t, "failed", data["probe"].(map[string]interface{})["status"])
-	assert.NotEmpty(t, data["probe"].(map[string]interface{})["error"])
+	assert.Equal(t, "success", data["connect"].(map[string]any)["status"])
+	assert.Equal(t, "failed", data["probe"].(map[string]any)["status"])
+	assert.NotEmpty(t, data["probe"].(map[string]any)["error"])
 }
 
 /**
@@ -548,7 +548,7 @@ func TestDeviceHandler_TestDraftConnection_SurfacesProbeFailure(t *testing.T) {
 func TestDeviceHandler_TestConnectionBatch_Empty(t *testing.T) {
 	r := setupDeviceRouterWithExtended()
 
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"device_ids": []string{},
 	}
 
@@ -560,11 +560,11 @@ func TestDeviceHandler_TestConnectionBatch_Empty(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	assert.Equal(t, 0, len(data))
 }
 
@@ -575,7 +575,7 @@ func TestDeviceHandler_TestConnectionBatch_MissingField(t *testing.T) {
 	r := setupDeviceRouterWithExtended()
 
 	// 缺少 device_ids 欄位
-	batchReq := map[string]interface{}{}
+	batchReq := map[string]any{}
 
 	body, _ := json.Marshal(batchReq)
 	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
@@ -585,7 +585,7 @@ func TestDeviceHandler_TestConnectionBatch_MissingField(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response["success"].(bool))
 }
@@ -596,7 +596,7 @@ func TestDeviceHandler_TestConnectionBatch_MissingField(t *testing.T) {
 func TestDeviceHandler_TestConnectionBatch_InvalidDeviceIDs(t *testing.T) {
 	r := setupDeviceRouterWithExtended()
 
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"device_ids": []string{"non-existent-id-1", "non-existent-id-2"},
 	}
 
@@ -608,16 +608,16 @@ func TestDeviceHandler_TestConnectionBatch_InvalidDeviceIDs(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	assert.Equal(t, 2, len(data))
 
 	// 驗證結果都是失敗的
 	for _, result := range data {
-		resultMap := result.(map[string]interface{})
+		resultMap := result.(map[string]any)
 		assert.False(t, resultMap["success"].(bool))
 		assert.NotEmpty(t, resultMap["error"])
 	}
@@ -636,7 +636,7 @@ func TestDeviceHandler_ActivateThenDisable(t *testing.T) {
 	newDevice := device.CreateDeviceRequest{
 		Name:     "測試循環設備",
 		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]interface{}{
+		ConnectionConfig: map[string]any{
 			"host":     "127.0.0.1",
 			"port":     502,
 			"slave_id": 1,
@@ -649,9 +649,9 @@ func TestDeviceHandler_ActivateThenDisable(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &createResp)
-	deviceID := createResp["data"].(map[string]interface{})["id"].(string)
+	deviceID := createResp["data"].(map[string]any)["id"].(string)
 
 	// 啟用設備
 	req, _ = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/activate", http.NoBody)
@@ -667,7 +667,7 @@ func TestDeviceHandler_ActivateThenDisable(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 }
@@ -684,7 +684,7 @@ func TestDeviceHandler_TestConnectionBatch_LargeList(t *testing.T) {
 		newDevice := device.CreateDeviceRequest{
 			Name:     "批量測試設備 " + string(rune('0'+i)),
 			Protocol: "modbus_tcp",
-			ConnectionConfig: map[string]interface{}{
+			ConnectionConfig: map[string]any{
 				"host":     "127.0.0.1",
 				"port":     502 + i,
 				"slave_id": 1,
@@ -697,14 +697,14 @@ func TestDeviceHandler_TestConnectionBatch_LargeList(t *testing.T) {
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
-		var createResp map[string]interface{}
+		var createResp map[string]any
 		json.Unmarshal(w.Body.Bytes(), &createResp)
-		deviceID := createResp["data"].(map[string]interface{})["id"].(string)
+		deviceID := createResp["data"].(map[string]any)["id"].(string)
 		deviceIDs = append(deviceIDs, deviceID)
 	}
 
 	// 批量測試
-	batchReq := map[string]interface{}{
+	batchReq := map[string]any{
 		"device_ids": deviceIDs,
 	}
 
@@ -716,10 +716,10 @@ func TestDeviceHandler_TestConnectionBatch_LargeList(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response["success"].(bool))
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	assert.Equal(t, 10, len(data))
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/sourcerule"
@@ -188,8 +189,10 @@ func evaluateWorkspaceSchemaReadiness(statementCount int, inspections []*dbtarge
 // instead of the dry-run statement list alone. Disabled mappings are excluded:
 // their tables are never written, so they cannot block activation.
 func (h *StudioV2WorkspaceDatabaseHandler) inspectWorkspaceTargetTables(ctx context.Context, connectorID string) ([]*dbtarget.TableInspection, error) {
-	enabled := true
-	mappings, err := h.mappingSvc.List(ctx, dbtarget.TargetMappingListFilter{ConnectorID: &connectorID, Enabled: &enabled})
+	mappings, err := h.mappingSvc.List(ctx, dbtarget.TargetMappingListFilter{
+		ConnectorID: &connectorID,
+		Enabled:     common.Ptr(true),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +338,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpsertTarget(c *gin.Context) {
 			TimestampColumn:      workspaceOptionalString(connectorConfigString(connector, "timestamp_column")),
 			GroupKey:             workspaceOptionalString(rowGroupTargetKey(rowGroupID, binding.PointID)),
 			WriteIntervalSeconds: workspaceOptionalInt(connector.DefaultWriteIntervalSeconds),
-			Enabled:              boolPtr(req.Enabled),
+			Enabled:              common.Ptr(req.Enabled),
 			// 允許在目標表/欄位尚未建立時先儲存，稍後由建表流程補建。
 			AllowMissingTable: true,
 		})
@@ -348,7 +351,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpsertTarget(c *gin.Context) {
 			TimestampColumn:      workspaceOptionalString(connectorConfigString(connector, "timestamp_column")),
 			GroupKey:             workspaceOptionalString(rowGroupTargetKey(rowGroupID, binding.PointID)),
 			WriteIntervalSeconds: workspaceOptionalInt(connector.DefaultWriteIntervalSeconds),
-			Enabled:              boolPtr(req.Enabled),
+			Enabled:              common.Ptr(req.Enabled),
 			AllowMissingTable:    true,
 		})
 	}

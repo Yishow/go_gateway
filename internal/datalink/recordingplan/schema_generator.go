@@ -1,6 +1,7 @@
 package recordingplan
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"strings"
@@ -20,10 +21,7 @@ const (
 
 // GenerateManagedSchemaDDL 根據目標資料庫種類與表名前綴產生完整的 managed 長表與索引 DDL。
 func GenerateManagedSchemaDDL(dialect, prefix string) ([]string, error) {
-	prefix = strings.TrimSpace(prefix)
-	if prefix == "" {
-		prefix = defaultManagedTablePrefix
-	}
+	prefix = cmp.Or(strings.TrimSpace(prefix), defaultManagedTablePrefix)
 
 	d := strings.ToLower(strings.TrimSpace(dialect))
 	switch d {
