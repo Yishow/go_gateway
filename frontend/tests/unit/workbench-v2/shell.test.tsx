@@ -458,12 +458,15 @@ describe('Workbench V2 Shell & Integration', () => {
     // 設置 tweaks panel 顯示條件
     localStorage.setItem('WBV2_TWEAKS', '1');
 
-    // 模擬 localStorage 讀取異常 (隱私模式)
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => {
+    // 模擬 localStorage 讀取異常 (隱私模式)。spy 實際使用的 storage 實例，
+    // 不依賴 Storage.prototype（測試 shim 的 storage 非原生 Storage 類別，
+    // 且 mock 內委派原實作，避免自我遞迴）。
+    const originalGetItem = localStorage.getItem.bind(localStorage);
+    vi.spyOn(localStorage, 'getItem').mockImplementation((key: string) => {
       if (key === 'wbv2_sidebar_collapsed') {
         throw new Error('SecurityError: The operation is insecure.');
       }
-      return localStorage.getItem(key);
+      return originalGetItem(key);
     });
 
     const consoleWarnSpy = vi.spyOn(console, 'warn');
