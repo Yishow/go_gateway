@@ -146,7 +146,7 @@ func TestStoppingGateAndLateStartupCannotAdmitNewWork(t *testing.T) {
 	gate := &requestGate{next: http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls++ })}
 	gate.stop()
 	recorder := httptest.NewRecorder()
-	gate.ServeHTTP(recorder, httptest.NewRequest("POST", "/api/v1/settings", http.NoBody))
+	gate.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), "POST", "/api/v1/settings", http.NoBody))
 	if recorder.Code != 503 || calls != 0 {
 		t.Fatal("mutation admitted")
 	}
@@ -191,7 +191,10 @@ func TestInitialTrayFailureCleansUpBeforeAcquisition(t *testing.T) {
 	if runtime.GOOS == goosWindows {
 		t.Skip("native owner requires Windows interaction acceptance; Linux injection verifies orchestration")
 	}
-	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("GATEWAY_DB_PATH", filepath.Join(root, "selected.db"))
 	t.Setenv("LOG_FILE", filepath.Join(root, "logs", "runtime.jsonl"))
 	t.Setenv("LOG_OUTPUT", "file")
@@ -200,7 +203,7 @@ func TestInitialTrayFailureCleansUpBeforeAcquisition(t *testing.T) {
 	host := newGatewayHost(ctx, apphost.Launch{Mode: apphost.Desktop}, cancel)
 	tray := &failingTray{}
 	host.newShell = func(desktop.Options) desktop.Shell { return tray }
-	err := prepareHost(host)
+	err = prepareHost(host)
 	if !apphost.IsCode(err, "startup.tray_failed") {
 		t.Fatal(err)
 	}

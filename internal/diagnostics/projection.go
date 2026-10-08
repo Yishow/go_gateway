@@ -11,54 +11,54 @@ import (
 type template struct{ level, source, message string }
 
 var templates = map[string]template{
-	"startup.begin":            {"info", "startup", "Gateway startup has begun."},
-	"startup.ready":            {"info", "startup", "The embedded web service is ready."},
-	"startup.failed":           {"error", "startup", "Gateway startup failed; review the stable diagnostic code."},
-	"startup.config_invalid":   {"error", "startup", "Startup configuration is invalid. Check the configured values."},
-	"startup.path_ambiguous":   {"error", "startup", "The database location is ambiguous. Configure an explicit absolute database path."},
-	"startup.path_unusable":    {"error", "startup", "The selected data location is unavailable. Check access permissions."},
-	"startup.owner_busy":       {"error", "startup", "This database already has an active gateway owner."},
-	"startup.log_unavailable":  {"error", "startup", "Managed diagnostic storage is unavailable. Check its location and permissions."},
-	"startup.tray_failed":      {"error", "startup", "The desktop control icon could not be initialized."},
-	"startup.bind_failed":      {"error", "startup", "The configured listener could not be bound. Check its port."},
-	"startup.assets_missing":   {"error", "startup", "Embedded application assets are missing. Use a complete product build."},
-	"startup.database_linked":  {"error", "startup", "The selected database has multiple hardlinks, so its WAL and SHM locations are ambiguous. Use one canonical database location."},
-	"startup.db_open_failed":   {"error", "startup", "The selected database could not be opened."},
-	"startup.db_ping_failed":   {"error", "startup", "The selected database did not pass its connection check."},
-	"startup.migration_failed": {"error", "startup", "Database initialization failed. Preserve the data and review diagnostics."},
-	"startup.service_failed":   {"error", "startup", "Application services could not be initialized."},
-	"startup.pipeline_failed":  {"error", "startup", "The data pipeline could not be initialized."},
-	"runtime.started":          {"info", "runtime", "Acquisition runtime has started."},
-	"runtime.degraded":         {"warn", "runtime", "Acquisition runtime is degraded. Review runtime status."},
-	"runtime.share_degraded":   {"warn", "runtime", "Local sharing is degraded. Review output status."},
-	"runtime.group_failed":     {"error", "runtime", "A recording group operation failed. Review recording status."},
-	"runtime.stopped":          {"info", "runtime", "Acquisition runtime has stopped."},
-	"shutdown.begin":           {"info", "shutdown", "Gateway shutdown has begun."},
-	"shutdown.finalizing":      {"info", "shutdown", "Finalizing local diagnostics. Delivery completion is not implied."},
-	"shutdown.complete":        {"info", "shutdown", "Gateway shutdown has completed."},
-	"shutdown.timeout":         {"warn", "shutdown", "Shutdown is still in progress; completion has not been confirmed."},
-	"shutdown.failed":          {"error", "shutdown", "A shutdown phase failed; completion has not been confirmed."},
-	"http.access":              {"info", "http", "An HTTP request completed."},
-	"http.request":             {"info", "http", "An HTTP request completed."},
-	"http.recovered":           {"error", "http", "An HTTP application fault was recovered; raw details were suppressed."},
-	"http.recovery":            {"error", "http", "An HTTP application fault was recovered; raw details were suppressed."},
-	"http.server_error":        {"error", "http", "The HTTP server reported an error; raw details were suppressed."},
-	"raw.suppressed":           {"info", "application", "Unclassified diagnostic content was suppressed."},
+	"startup.begin":            {levelInfo, sourceStartup, "Gateway startup has begun."},
+	"startup.ready":            {levelInfo, sourceStartup, "The embedded web service is ready."},
+	"startup.failed":           {levelError, sourceStartup, "Gateway startup failed; review the stable diagnostic code."},
+	"startup.config_invalid":   {levelError, sourceStartup, "Startup configuration is invalid. Check the configured values."},
+	"startup.path_ambiguous":   {levelError, sourceStartup, "The database location is ambiguous. Configure an explicit absolute database path."},
+	"startup.path_unusable":    {levelError, sourceStartup, "The selected data location is unavailable. Check access permissions."},
+	"startup.owner_busy":       {levelError, sourceStartup, "This database already has an active gateway owner."},
+	"startup.log_unavailable":  {levelError, sourceStartup, "Managed diagnostic storage is unavailable. Check its location and permissions."},
+	"startup.tray_failed":      {levelError, sourceStartup, "The desktop control icon could not be initialized."},
+	"startup.bind_failed":      {levelError, sourceStartup, "The configured listener could not be bound. Check its port."},
+	"startup.assets_missing":   {levelError, sourceStartup, "Embedded application assets are missing. Use a complete product build."},
+	"startup.database_linked":  {levelError, sourceStartup, "The selected database has multiple hardlinks, so its WAL and SHM locations are ambiguous. Use one canonical database location."},
+	"startup.db_open_failed":   {levelError, sourceStartup, "The selected database could not be opened."},
+	"startup.db_ping_failed":   {levelError, sourceStartup, "The selected database did not pass its connection check."},
+	"startup.migration_failed": {levelError, sourceStartup, "Database initialization failed. Preserve the data and review diagnostics."},
+	"startup.service_failed":   {levelError, sourceStartup, "Application services could not be initialized."},
+	"startup.pipeline_failed":  {levelError, sourceStartup, "The data pipeline could not be initialized."},
+	"runtime.started":          {levelInfo, sourceRuntime, "Acquisition runtime has started."},
+	"runtime.degraded":         {levelWarn, sourceRuntime, "Acquisition runtime is degraded. Review runtime status."},
+	"runtime.share_degraded":   {levelWarn, sourceRuntime, "Local sharing is degraded. Review output status."},
+	"runtime.group_failed":     {levelError, sourceRuntime, "A recording group operation failed. Review recording status."},
+	"runtime.stopped":          {levelInfo, sourceRuntime, "Acquisition runtime has stopped."},
+	"shutdown.begin":           {levelInfo, sourceShutdown, "Gateway shutdown has begun."},
+	"shutdown.finalizing":      {levelInfo, sourceShutdown, "Finalizing local diagnostics. Delivery completion is not implied."},
+	"shutdown.complete":        {levelInfo, sourceShutdown, "Gateway shutdown has completed."},
+	"shutdown.timeout":         {levelWarn, sourceShutdown, "Shutdown is still in progress; completion has not been confirmed."},
+	"shutdown.failed":          {levelError, sourceShutdown, "A shutdown phase failed; completion has not been confirmed."},
+	"http.access":              {levelInfo, sourceHTTP, "An HTTP request completed."},
+	"http.request":             {levelInfo, sourceHTTP, "An HTTP request completed."},
+	"http.recovered":           {levelError, sourceHTTP, "An HTTP application fault was recovered; raw details were suppressed."},
+	"http.recovery":            {levelError, sourceHTTP, "An HTTP application fault was recovered; raw details were suppressed."},
+	"http.server_error":        {levelError, sourceHTTP, "The HTTP server reported an error; raw details were suppressed."},
+	codeRawSuppressed:          {levelInfo, "application", "Unclassified diagnostic content was suppressed."},
 }
 
 func project(in Input, routes map[string]struct{}) Event {
 	code := in.Code
 	if len(code) > 256 {
-		code = "raw.suppressed"
+		code = codeRawSuppressed
 	}
 	tmpl, ok := templates[code]
 	if !ok {
-		code = "raw.suppressed"
+		code = codeRawSuppressed
 		tmpl = templates[code]
 	}
 	e := Event{Code: strings.Clone(code), Level: tmpl.level, Source: tmpl.source, Message: tmpl.message, Truncated: len(in.Code) > 256}
-	if code == "raw.suppressed" {
-		if source, ok := in.Fields["source"].(string); ok && slices.Contains([]string{"standard", "slog", "http", "runtime"}, source) {
+	if code == codeRawSuppressed {
+		if source, ok := in.Fields["source"].(string); ok && slices.Contains([]string{"standard", "slog", sourceHTTP, sourceRuntime}, source) {
 			e.Source = strings.Clone(source)
 		}
 		return e
@@ -88,7 +88,7 @@ func project(in Input, routes map[string]struct{}) Event {
 		}
 	}
 	if strings.HasPrefix(code, "shutdown.") {
-		if phase, ok := in.Fields["phase"].(string); ok && slices.Contains([]string{"startup", "http", "runtime", "pipeline", "share", "connections", "database", "diagnostics", "tray", "owner"}, phase) {
+		if phase, ok := in.Fields["phase"].(string); ok && slices.Contains([]string{sourceStartup, sourceHTTP, sourceRuntime, "pipeline", "share", "connections", "database", "diagnostics", "tray", "owner"}, phase) {
 			e.Fields["phase"] = strings.Clone(phase)
 		}
 	}
@@ -147,7 +147,7 @@ func boundEvent(e Event) (event Event, size int) {
 	e.Sequence = "18446744073709551615"
 	encoded, err := json.Marshal(e)
 	if err != nil {
-		return boundEvent(Event{Code: "raw.suppressed", Message: templates["raw.suppressed"].message, Truncated: true})
+		return boundEvent(Event{Code: codeRawSuppressed, Message: templates[codeRawSuppressed].message, Truncated: true})
 	}
 	for len(encoded) > MaxEventBytes {
 		e.Truncated = true
@@ -158,7 +158,7 @@ func boundEvent(e Event) (event Event, size int) {
 		}
 		encoded, err = json.Marshal(e)
 		if err != nil {
-			return boundEvent(Event{Code: "raw.suppressed", Message: templates["raw.suppressed"].message, Truncated: true})
+			return boundEvent(Event{Code: codeRawSuppressed, Message: templates[codeRawSuppressed].message, Truncated: true})
 		}
 	}
 	return e, len(encoded)

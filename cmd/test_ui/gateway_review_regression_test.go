@@ -102,13 +102,13 @@ func TestQuitImmediatelyClosesRequestAdmissionAndWaitsInflight(t *testing.T) {
 	gate := &requestGate{stopping: host.quit, next: http.HandlerFunc(func(http.ResponseWriter, *http.Request) { close(entered); <-release })}
 	requestDone := make(chan struct{})
 	go func() {
-		gate.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("POST", "/api/v1/settings", http.NoBody))
+		gate.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), "POST", "/api/v1/settings", http.NoBody))
 		close(requestDone)
 	}()
 	<-entered
 	host.requestQuit()
 	rejected := httptest.NewRecorder()
-	gate.ServeHTTP(rejected, httptest.NewRequest("POST", "/api/v1/settings", http.NoBody))
+	gate.ServeHTTP(rejected, httptest.NewRequestWithContext(t.Context(), "POST", "/api/v1/settings", http.NoBody))
 	if rejected.Code != 503 {
 		t.Fatal("admitted after quit")
 	}

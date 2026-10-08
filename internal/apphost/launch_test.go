@@ -34,7 +34,10 @@ func TestLaunchModesAndExplicitOverride(t *testing.T) {
 }
 
 func TestDataSelectionNeverCreatesOrGuesses(t *testing.T) {
-	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	exe, cwd := filepath.Join(root, "exe"), filepath.Join(root, "cwd")
 	for _, dir := range []string{exe, cwd} {
 		if err := os.Mkdir(dir, 0o700); err != nil {
@@ -74,7 +77,10 @@ func TestDataSelectionNeverCreatesOrGuesses(t *testing.T) {
 }
 
 func TestCLIAndDesktopConfigRootsRemainSeparate(t *testing.T) {
-	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	in := DataInput{Mode: Console, Executable: filepath.Join(root, "gateway"), WorkingDir: root, Environment: map[string]string{}}
 	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("BROKEN='unterminated"), 0o600); err != nil {
 		t.Fatal(err)

@@ -2,6 +2,7 @@ package modbusshare
 
 import (
 	"context"
+	"errors"
 	"math"
 	"net"
 	"strings"
@@ -32,6 +33,36 @@ func setupTagSvc(t *testing.T) *tag.Service {
 		t.Fatalf("create int16 tag failed: %v", err)
 	}
 	return svc
+}
+
+func startServiceOnAvailablePort(t *testing.T, svc *Service) int {
+	t.Helper()
+
+	const maxAttempts = 8
+	var lastErr error
+	for range maxAttempts {
+		ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatalf("reserve test port failed: %v", err)
+		}
+		port := ln.Addr().(*net.TCPAddr).Port
+		if err := ln.Close(); err != nil {
+			t.Fatalf("release reserved test port failed: %v", err)
+		}
+
+		err = svc.Start(port)
+		if err == nil {
+			return port
+		}
+		lastErr = err
+		var lifecycleErr *Error
+		if !errors.As(err, &lifecycleErr) || lifecycleErr.Code != ErrCodeListenerBindFailed {
+			t.Fatalf("start server failed: %v", err)
+		}
+	}
+
+	t.Fatalf("start server failed after %d available-port attempts: %v", maxAttempts, lastErr)
+	return 0
 }
 
 func TestService_WriteTagValue_Float32AndInt16(t *testing.T) {
@@ -163,15 +194,22 @@ func TestService_Status_AfterStartAndStop(t *testing.T) {
 		t.Fatal("expected invalid port error")
 	}
 
-	if err := svc.Start(5020); err != nil {
-		t.Fatalf("start server failed: %v", err)
-	}
+	port := startServiceOnAvailablePort(t, svc)
+	stopped := false
+	t.Cleanup(func() {
+		if stopped {
+			return
+		}
+		if err := svc.Stop(); err != nil {
+			t.Errorf("cleanup server failed: %v", err)
+		}
+	})
 	st := svc.Status()
 	if !st.Enabled {
 		t.Fatal("expected enabled status")
 	}
-	if st.Port != 5020 {
-		t.Fatalf("expected port 5020, got %d", st.Port)
+	if st.Port != port {
+		t.Fatalf("expected port %d, got %d", port, st.Port)
 	}
 
 	floatTag, _ := tagSvc.GetByKey(ctx, "test.temp.float32")
@@ -186,6 +224,7 @@ func TestService_Status_AfterStartAndStop(t *testing.T) {
 	if err := svc.Stop(); err != nil {
 		t.Fatalf("stop server failed: %v", err)
 	}
+	stopped = true
 	st = svc.Status()
 	if st.Enabled {
 		t.Fatal("expected disabled status after stop")

@@ -38,7 +38,7 @@ type Broker struct {
 func New(o Options) (*Broker, error) {
 	level := o.Level
 	if level == "" {
-		level = "info"
+		level = levelInfo
 	}
 	if levelRank(level) < 0 {
 		return nil, ErrInvalidQuery

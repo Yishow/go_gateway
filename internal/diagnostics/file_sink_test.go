@@ -10,7 +10,11 @@ import (
 
 func fileOptions(t *testing.T) FileOptions {
 	t.Helper()
-	root := t.TempDir()
+	// Temporary directories may include system symlinks (for example /var on macOS).
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	db := filepath.Join(root, "datalink.db")
 	if err := os.WriteFile(db, []byte("protected database"), 0o600); err != nil {
 		t.Fatal(err)

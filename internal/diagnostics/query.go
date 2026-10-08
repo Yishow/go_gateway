@@ -64,7 +64,7 @@ func validateQuery(q Query) (Query, error) {
 		return q, ErrInvalidQuery
 	}
 	switch q.Source {
-	case "", "startup", "runtime", "shutdown", "http", "standard", "slog", "application":
+	case "", sourceStartup, sourceRuntime, sourceShutdown, sourceHTTP, "standard", "slog", "application":
 	default:
 		return q, ErrInvalidQuery
 	}
