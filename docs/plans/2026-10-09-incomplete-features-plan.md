@@ -30,7 +30,8 @@ GET `/source-rules/:id/candidates` 不會自動重算（`shouldRecomputeDatabase
 （"database mapping scope is not configured"），必須手動 `POST .../candidates/recompute`。
 修法：ready 快照若解碼出任何候選缺 `mapping_id` 也觸發自動重算
 （`databaseCandidatesMissingMappings`）。TDD：RED（`candidate_api_late_mapping_test.go`
-先證 GET 不補 mapping_id）→ GREEN（141 案 sourcerule 全過＋golangci-lint 乾淨）。
+先證 GET 不補 mapping_id）→ GREEN（sourcerule 141 案＋golangci-lint 乾淨）。
+全套迴歸：**go test 2542/59 packages 全綠**。commit `b517910`（2026-10-09）。
 
 **剩餘（縮小後）**：API 文件把 candidates query scope（workspace_id＋
 expected_workspace_revision＋revision_id）與空字串語意寫進 README/技術文件。
