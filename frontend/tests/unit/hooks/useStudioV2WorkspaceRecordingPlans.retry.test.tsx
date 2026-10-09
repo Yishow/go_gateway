@@ -2,16 +2,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useApplySchemaMutation } from '@/hooks/datalink/useStudioV2WorkspaceRecordingPlans';
 import {
-  useApplySchemaMutation,
-  useTestWritePlanMutation,
-} from '@/hooks/datalink/useStudioV2WorkspaceRecordingPlans';
+  useWriteGroupTestWriteMutation,
+  useWriteGroupTestWritePreviewMutation,
+} from '@/hooks/datalink/useStudioV2WriteGroupTestWrite';
 import { studioV2WorkspaceRecordingPlansAPI } from '@/services/studioV2WorkspaceRecordingPlans';
+import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
 import { RecordingPlanResponseError } from '@/utils/recordingPlanJson';
 
 vi.mock('@/services/studioV2WorkspaceRecordingPlans', () => ({
   studioV2WorkspaceRecordingPlansAPI: {
     schemaApplyConfirmed: vi.fn(),
+  },
+}));
+
+vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({
+  studioV2WorkspaceWriteGroupsAPI: {
+    testWritePreview: vi.fn(),
     testWrite: vi.fn(),
   },
 }));
@@ -22,6 +30,11 @@ const confirmation = {
   expected_workspace_revision: 'setup-1',
   expected_plan_revision: 'rev-1',
   expected_connector_revision: 'identity-1',
+};
+
+const groupConfirmation = {
+  token: 'tok-1',
+  operation_id: 'op-1',
 };
 
 function createWrapper() {
@@ -39,7 +52,8 @@ function createWrapper() {
 describe('recording mutation retry policy', () => {
   beforeEach(() => {
     vi.mocked(studioV2WorkspaceRecordingPlansAPI.schemaApplyConfirmed).mockReset();
-    vi.mocked(studioV2WorkspaceRecordingPlansAPI.testWrite).mockReset();
+    vi.mocked(studioV2WorkspaceWriteGroupsAPI.testWritePreview).mockReset();
+    vi.mocked(studioV2WorkspaceWriteGroupsAPI.testWrite).mockReset();
   });
 
   it('does not retry schema apply after a 501 response', async () => {
@@ -74,35 +88,47 @@ describe('recording mutation retry policy', () => {
     expect(studioV2WorkspaceRecordingPlansAPI.schemaApplyConfirmed).toHaveBeenCalledTimes(1);
   });
 
-  it('does not retry test write after a 501 response', async () => {
-    const failure = new RecordingPlanResponseError('recording test write', {
+  it('does not retry group test write after a typed failure response', async () => {
+    const failure = new RecordingPlanResponseError('write-group test write', {
       success: false,
       error: {
-        code: 'RECORDING_TEST_WRITE_NOT_IMPLEMENTED',
-        action: 'wait_for_supported_operation',
+        code: 'RECORDING_TEST_WRITE_PLAN_UNRESOLVED',
+        action: 'use the write group test write instead',
         retryable: false,
         request_id: 'req-501-write',
       },
     }, 'failed');
-    vi.mocked(studioV2WorkspaceRecordingPlansAPI.testWrite).mockRejectedValueOnce(failure);
-    const { result } = renderHook(() => useTestWritePlanMutation(), { wrapper: createWrapper() });
+    vi.mocked(studioV2WorkspaceWriteGroupsAPI.testWrite).mockRejectedValueOnce(failure);
+    const { result } = renderHook(() => useWriteGroupTestWriteMutation(), { wrapper: createWrapper() });
 
     await act(async () => {
-      await expect(result.current.mutateAsync({ plan_id: 'plan-1' })).rejects.toBe(failure);
+      await expect(result.current.mutateAsync({ groupId: 'group-1', confirmation: groupConfirmation })).rejects.toBe(failure);
     });
 
-    expect(studioV2WorkspaceRecordingPlansAPI.testWrite).toHaveBeenCalledTimes(1);
+    expect(studioV2WorkspaceWriteGroupsAPI.testWrite).toHaveBeenCalledTimes(1);
   });
 
-  it('does not retry test write after transport loss', async () => {
+  it('does not retry group test write after transport loss', async () => {
     const failure = new Error('transport lost');
-    vi.mocked(studioV2WorkspaceRecordingPlansAPI.testWrite).mockRejectedValueOnce(failure);
-    const { result } = renderHook(() => useTestWritePlanMutation(), { wrapper: createWrapper() });
+    vi.mocked(studioV2WorkspaceWriteGroupsAPI.testWrite).mockRejectedValueOnce(failure);
+    const { result } = renderHook(() => useWriteGroupTestWriteMutation(), { wrapper: createWrapper() });
 
     await act(async () => {
-      await expect(result.current.mutateAsync({ plan_id: 'plan-transport' })).rejects.toBe(failure);
+      await expect(result.current.mutateAsync({ groupId: 'group-1', confirmation: groupConfirmation })).rejects.toBe(failure);
     });
 
-    expect(studioV2WorkspaceRecordingPlansAPI.testWrite).toHaveBeenCalledTimes(1);
+    expect(studioV2WorkspaceWriteGroupsAPI.testWrite).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry group test write preview', async () => {
+    const failure = new Error('transport lost');
+    vi.mocked(studioV2WorkspaceWriteGroupsAPI.testWritePreview).mockRejectedValueOnce(failure);
+    const { result } = renderHook(() => useWriteGroupTestWritePreviewMutation(), { wrapper: createWrapper() });
+
+    await act(async () => {
+      await expect(result.current.mutateAsync('group-1')).rejects.toBe(failure);
+    });
+
+    expect(studioV2WorkspaceWriteGroupsAPI.testWritePreview).toHaveBeenCalledTimes(1);
   });
 });

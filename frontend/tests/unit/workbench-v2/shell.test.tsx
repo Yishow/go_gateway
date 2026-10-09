@@ -10,6 +10,7 @@ import { studioV2WorkspaceDevicesAPI } from '../../../src/services/studioV2Works
 import { studioV2RulesAPI } from '../../../src/services/studioV2Rules';
 import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2WorkspaceDatabase';
 import type { StudioV2ActivationResponse } from '../../../src/types/studioV2Activation';
+import { stubLocalStorageGetItemThrows } from './helpers/throwingLocalStorage';
 
 vi.mock('../../../src/hooks/datalink/useStudioV2Workspace', () => ({
   useStudioV2WorkspaceQuery: () => ({
@@ -454,27 +455,26 @@ describe('Workbench V2 Shell & Integration', () => {
   });
 
   // 5.4 TweaksPanel availability & localStorage warning
-  it('warns when localStorage throws security error', () => {
+  it('warns when localStorage throws security error', async () => {
     // 設置 tweaks panel 顯示條件
     localStorage.setItem('WBV2_TWEAKS', '1');
 
-    // 模擬 localStorage 讀取異常 (隱私模式)。spy 實際使用的 storage 實例，
-    // 不依賴 Storage.prototype（測試 shim 的 storage 非原生 Storage 類別，
-    // 且 mock 內委派原實作，避免自我遞迴）。
-    const originalGetItem = localStorage.getItem.bind(localStorage);
-    vi.spyOn(localStorage, 'getItem').mockImplementation((key: string) => {
-      if (key === 'wbv2_sidebar_collapsed') {
-        throw new Error('SecurityError: The operation is insecure.');
-      }
-      return originalGetItem(key);
-    });
-
+    // 模擬 localStorage 讀取異常 (隱私模式)；為何不用 spyOn 見 helper 註解。
+    const restoreStorage = stubLocalStorageGetItemThrows('wbv2_sidebar_collapsed');
     const consoleWarnSpy = vi.spyOn(console, 'warn');
+    try {
+      renderWorkbenchPage();
+      // mount 讀取 wbv2_sidebar_collapsed 拋錯時應捕捉並以 console.warn 回報，而非讓頁面崩潰。
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'localStorage is not available:',
+        expect.objectContaining({ message: expect.stringContaining('SecurityError') }),
+      );
 
-    renderWorkbenchPage();
-
-    // 觸發 mount 的 useEffect 呼叫
-    expect(consoleWarnSpy).toHaveBeenCalled();
+      // 降級後頁面仍應完成 bootstrap 並渲染 TweaksPanel (WBV2_TWEAKS 走委派的 realStorage)。
+      expect(await screen.findByTestId('tweaks-trigger')).toBeInTheDocument();
+    } finally {
+      restoreStorage();
+    }
   });
 
   it('當前步驟為 2 時應渲染 Step2Rule 元件', () => {

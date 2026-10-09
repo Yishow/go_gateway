@@ -25,3 +25,6 @@ docs/plans/studio-v2-flow-completion/evidence-f/basic-integrity-20261005*.json
 
 # Generated JSON from isolated mapping concurrency browser/SQL acceptance
 docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005*.json
+
+# Herdr runtime config/session data (on-site generated, not project source)
+.herdr-web-ui/*

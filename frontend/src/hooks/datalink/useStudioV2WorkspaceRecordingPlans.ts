@@ -4,7 +4,6 @@ import {
   studioV2WorkspaceRecordingPlansAPI,
   type SchemaApplyRequest,
   type SchemaPreviewRequest,
-  type TestWriteRequest,
 } from '../../services/studioV2WorkspaceRecordingPlans';
 import type { RecordingPlan } from '../../types/recordingPlan';
 
@@ -88,12 +87,5 @@ export function useSchemaOperationQuery(operationId: string | undefined) {
     enabled: false,
     retry: false,
     refetchOnWindowFocus: false,
-  });
-}
-
-export function useTestWritePlanMutation() {
-  return useMutation({
-    mutationFn: (req: TestWriteRequest) => studioV2WorkspaceRecordingPlansAPI.testWrite(req),
-    retry: false,
   });
 }

@@ -4,7 +4,6 @@ import type {
   RecordingPlan,
   SchemaOperation,
   SchemaPreviewToken,
-  TestWriteResult,
 } from '../types/recordingPlan';
 import { studioV2DatalinkApi } from './studioV2Workspace';
 import { MAX_SAFE_JSON_ARRAY_LENGTH } from '../utils/safeJson';
@@ -13,7 +12,6 @@ import {
   parseRecordingConnectorCapability,
   parseRecordingSchemaOperation,
   parseRecordingSchemaPreviewToken,
-  parseRecordingTestWriteResult,
 } from '../utils/recordingPlanJson';
 
 export interface SchemaPreviewRequest {
@@ -33,12 +31,6 @@ export interface SchemaApplyRequest {
   expected_workspace_revision: string;
   expected_plan_revision: string;
   expected_connector_revision: string;
-}
-
-export interface TestWriteRequest {
-  plan_id: string;
-  stream_id?: string;
-  table_prefix?: string;
 }
 
 export const studioV2WorkspaceRecordingPlansAPI = {
@@ -120,13 +112,5 @@ export const studioV2WorkspaceRecordingPlansAPI = {
       `/studio-v2/workspace/database-operations/${operationId}`
     );
     return parseRecordingAPIData(res.data, 'recording schema operation', parseRecordingSchemaOperation);
-  },
-
-  async testWrite(request: TestWriteRequest): Promise<TestWriteResult> {
-    const res = await studioV2DatalinkApi.post<APIResponse<TestWriteResult>>(
-      '/studio-v2/workspace/recording-plans/test-write',
-      request
-    );
-    return parseRecordingAPIData(res.data, 'recording test write', parseRecordingTestWriteResult);
   },
 };

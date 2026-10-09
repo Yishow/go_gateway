@@ -129,3 +129,6 @@ scripts/**/*.pyc
 # Playwright generated artifacts
 playwright-report/
 test-results/
+
+# Herdr web UI 現場資料夾
+.herdr-web-ui/

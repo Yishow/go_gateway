@@ -26,83 +26,58 @@ describe('studio V2 recording plan service response validation', () => {
   });
 
   it('accepts only the low-level test-write statuses with bounded evidence', async () => {
+    // The legacy plan-level testWrite service was removed: group test writes go
+    // through studioV2WorkspaceWriteGroupsAPI, so these cases now cover the
+    // shared result parser through the write-group path is out of scope here.
+    // The parser itself is still exercised via parseRecordingTestWriteResult.
+    const { parseRecordingTestWriteResult } = await import('@/utils/recordingPlanJson');
     for (const status of ['written_verified', 'written_unverified', 'failed'] as const) {
-      vi.mocked(studioV2DatalinkApi.post).mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: {
-            status,
-            record_id: 'record-1',
-            table: 'gw_record_samples',
-            observed_at: '2026-09-07T10:00:00Z',
-            delivered_at: '2026-09-07T10:00:00.012Z',
-          },
-        },
-      } as never);
-
-      await expect(studioV2WorkspaceRecordingPlansAPI.testWrite({ plan_id: 'plan-1' })).resolves.toMatchObject({ status });
+      expect(parseRecordingTestWriteResult({
+        status,
+        record_id: 'record-1',
+        table: 'gw_record_samples',
+        observed_at: '2026-09-07T10:00:00Z',
+        delivered_at: '2026-09-07T10:00:00.012Z',
+      })).toMatchObject({ status });
     }
   });
 
   it('rejects unfamiliar or incomplete nominal 200 test-write results as unconfirmed', async () => {
-    vi.mocked(studioV2DatalinkApi.post).mockResolvedValueOnce({
-      data: {
-        success: true,
-        data: { status: 'success', record_id: 'record-1' },
-      },
-    } as never);
-    await expect(studioV2WorkspaceRecordingPlansAPI.testWrite({ plan_id: 'plan-1' })).rejects.toMatchObject({
-      outcome: 'unconfirmed',
-    });
-
-    vi.mocked(studioV2DatalinkApi.post).mockResolvedValueOnce({
-      data: {
-        success: true,
-        data: { operation_id: 'op-malformed-1', status: 'unknown' },
-      },
-    } as never);
-    await expect(studioV2WorkspaceRecordingPlansAPI.testWrite({ plan_id: 'plan-1' })).rejects.toMatchObject({
-      outcome: 'unconfirmed',
-      operation_id: 'op-malformed-1',
-    });
-
-    vi.mocked(studioV2DatalinkApi.post).mockResolvedValueOnce({
-      data: {
-        success: true,
-        data: {
-          status: 'written_verified',
-          record_id: 'record-1',
-          table: 'gw_record_samples',
-          observed_at: '2026-09-07T10:00:00Z',
-        },
-      },
-    } as never);
-    await expect(studioV2WorkspaceRecordingPlansAPI.testWrite({ plan_id: 'plan-1' })).rejects.toMatchObject({
-      outcome: 'unconfirmed',
-    });
+    const { parseRecordingTestWriteResult } = await import('@/utils/recordingPlanJson');
+    expect(parseRecordingTestWriteResult({ status: 'success', record_id: 'record-1' })).toBeNull();
+    expect(parseRecordingTestWriteResult({ operation_id: 'op-malformed-1', status: 'unknown' })).toBeNull();
+    expect(parseRecordingTestWriteResult({
+      status: 'written_verified',
+      record_id: 'record-1',
+      table: 'gw_record_samples',
+      observed_at: '2026-09-07T10:00:00Z',
+    })).toBeNull();
   });
 
   it('keeps typed error metadata from a nominal failure envelope without retaining raw text', async () => {
-    vi.mocked(studioV2DatalinkApi.post).mockResolvedValueOnce({
-      data: {
-        success: false,
-        error: {
-          code: 'RECORDING_TEST_WRITE_NOT_IMPLEMENTED',
-          message: 'raw backend details',
-          retryable: false,
-          action: 'wait_for_supported_operation',
-          request_id: 'req-recording-service',
-        },
+    const failure = {
+      success: false,
+      error: {
+        code: 'RECORDING_TEST_WRITE_PLAN_UNRESOLVED',
+        message: 'raw backend details',
+        retryable: false,
+        action: 'wait_for_supported_operation',
+        request_id: 'req-recording-service',
       },
-    } as never);
-
-    await expect(studioV2WorkspaceRecordingPlansAPI.testWrite({ plan_id: 'plan-1' })).rejects.toMatchObject({
-      code: 'RECORDING_TEST_WRITE_NOT_IMPLEMENTED',
-      action: 'wait_for_supported_operation',
-      retryable: false,
-      request_id: 'req-recording-service',
-      outcome: 'failed',
-    });
+    };
+    const { parseRecordingAPIData } = await import('@/utils/recordingPlanJson');
+    try {
+      parseRecordingAPIData(failure, 'recording test write', () => null);
+      throw new Error('expected parseRecordingAPIData to throw');
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: 'RECORDING_TEST_WRITE_PLAN_UNRESOLVED',
+        action: 'wait_for_supported_operation',
+        retryable: false,
+        request_id: 'req-recording-service',
+        outcome: 'failed',
+      });
+    }
   });
 
   const preview = {

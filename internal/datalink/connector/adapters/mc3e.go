@@ -121,7 +121,7 @@ func (c *MC3EConnector) TestConnection(ctx context.Context) error {
 	defer c.afterOperation()
 
 	// 嘗試讀取 D0 來測試連線（連線類錯誤自動乾淨重連重試）
-	return c.withConnectionRetry(func() error {
+	return c.withConnectionRetry(ctx, func() error {
 		_, err := c.client.BatchReadWord("D", 0, 1)
 		return err
 	})
@@ -139,7 +139,7 @@ func (c *MC3EConnector) Read(ctx context.Context, req connector.ReadRequest) (co
 
 	defer c.afterOperation()
 
-	result, err := c.retryExecuteRead(req)
+	result, err := c.retryExecuteRead(ctx, req)
 	if err != nil {
 		if isConnectionError(err) {
 			err = fmt.Errorf("%w（MC 連線持續被對端關閉：該 port 的 MC 服務可能被其他系統佔用或未啟用，可改用 6000-6003 其他 port）", err)
@@ -243,11 +243,15 @@ const (
 // withConnectionRetry 以乾淨重連重試 op，直到成功或耗盡重試次數。
 // FX5U 系列的 MC 服務在 port 連線額度被佔用時會「接受 TCP 連線後直接關閉」
 // （讀取得到 EOF）；這類瞬時佔用通常在短暫退避後釋放，重連重試即可恢復。
-func (c *MC3EConnector) withConnectionRetry(op func() error) error {
+func (c *MC3EConnector) withConnectionRetry(ctx context.Context, op func() error) error {
 	err := op()
 	for attempt := 0; err != nil && isConnectionError(err) && attempt < mcRetryAttempts; attempt++ {
-		time.Sleep(mcRetryBaseDelay << attempt) // 300ms、600ms、1200ms
-		if rerr := c.Reconnect(context.Background()); rerr != nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(mcRetryBaseDelay << attempt): // 300ms、600ms、1200ms
+		}
+		if rerr := c.Reconnect(ctx); rerr != nil {
 			err = rerr
 			continue
 		}
@@ -257,10 +261,10 @@ func (c *MC3EConnector) withConnectionRetry(op func() error) error {
 }
 
 // retryExecuteRead 以乾淨重連重試 executeRead（首次失敗即進入重連重試）
-func (c *MC3EConnector) retryExecuteRead(req connector.ReadRequest) (connector.ReadResult, error) {
+func (c *MC3EConnector) retryExecuteRead(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
 	var result connector.ReadResult
 	var err error
-	if werr := c.withConnectionRetry(func() error {
+	if werr := c.withConnectionRetry(ctx, func() error {
 		result, err = c.executeRead(req)
 		return err
 	}); werr != nil {

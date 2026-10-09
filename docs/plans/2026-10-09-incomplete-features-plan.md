@@ -2,11 +2,23 @@
 
 依據：README 能力邊界、docs/plans/studio-v2-write-groups（A→F 已歸檔）、
 openspec/changes/add-windows-tray-runtime-logs（規格已提交、部分實作）、
-2026-10-09 現場 5 台 MC 真機 E2E 實測。事實優先，猜測處標注。
+2026-10-09 現場 MC 真機 E2E 實測（先 5 台，後擴展至 7 台＋ET7017）。事實優先，猜測處標注。
 
 ## 現況定位
 
-- 核心「設備→採集→分組寫 DB」已端到端驗證（真機：MC×5、Modbus TCP、FATEK probe×2 → PG 有列有 provenance）。
+- 核心「設備→採集→分組寫 DB」已端到端驗證（真機：MC×7、Modbus TCP、FATEK probe×2 → PG 有列有 provenance）。
+- **2026-10-09 最新實測（現場擴展）**：
+  - 設備：8 台實體設備、共 25 個點位。MC×7＝PLC07 純水、PLC08 蒸氣、PLC09 廢水、PLC10 工水、
+    PLC11 廢水中繼、PLC13 純水、PLC14 蒸氣；另 1 台 Modbus-ET7017。
+  - 入庫：PG 表 `gw_group_mc_live6` 每分鐘連續聚合入庫；25 個點位欄位皆有真實讀值
+    （含整數、負數與 0）；provenance 25/25 為 `status: ok`、`quality: good`。
+  - 唯讀鐵律：實測全程無寫入 PLC 指令。
+  - 品質閘：mc3e adapter 的 contextcheck 缺陷已修（`withConnectionRetry`／`retryExecuteRead`
+    改傳入 ctx，退避由 `time.Sleep` 改為可被 ctx 取消、重連不再用 `context.Background()`）；
+    全庫 golangci-lint 0 issues；`make check-lines` Passed（`shell.test.tsx` 為 656 行的 legacy
+    超限檔，維持 656→656 未增加；尚未拆到 500 行以下）。
+  - 狀態：上述修正（`mc3e.go`、`shell.test.tsx` 等）截至本文更新時**仍在工作樹、尚未提交**，
+    提交後再補 commit hash。
 - A→F 六案 54/54 驗收歸檔（2026-10-03），durable delivery（journal/outbox/sender/restart）已實作。
 - 測試基線：go test 全綠（2522 tests / 59 pkgs）；`internal/diagnostics` 與 `cmd/test_ui`
   tasks.md 提到的 5＋1 個 file-sink 失敗**已不復存在**（52＋95 全過，HEAD 1456c8dc）。

@@ -7,11 +7,10 @@ import {
   usePreviewSchemaMutation,
   useStudioV2ConnectorCapabilitiesQuery,
   useStudioV2WorkspaceRecordingPlansQuery,
-  useTestWritePlanMutation,
   useUpdateRecordingPlanMutation,
 } from '@/hooks/datalink/useStudioV2WorkspaceRecordingPlans';
 import { studioV2WorkspaceRecordingPlansAPI } from '@/services/studioV2WorkspaceRecordingPlans';
-import type { RecordingPlan, SchemaOperation, SchemaPreviewToken, TestWriteResult } from '@/types/recordingPlan';
+import type { RecordingPlan, SchemaOperation, SchemaPreviewToken } from '@/types/recordingPlan';
 
 const useMutationMock = vi.fn();
 const useQueryMock = vi.fn();
@@ -173,23 +172,5 @@ describe('useStudioV2WorkspaceRecordingPlans hooks', () => {
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.recordingPlans(),
     });
-
-    // Test Write
-    useTestWritePlanMutation();
-    const testWriteOptions = useMutationMock.mock.calls.at(-1)?.[0] as {
-      mutationFn: (req: unknown) => Promise<TestWriteResult>;
-      retry: false;
-    };
-    expect(testWriteOptions.retry).toBe(false);
-    const mockTestResult: TestWriteResult = {
-      status: 'written_verified',
-      record_id: 'test-123',
-      table: 'gw_record_samples',
-      observed_at: '2026-09-07T03:50:00Z',
-      delivered_at: '2026-09-07T03:50:00.012Z',
-      message: 'Verified readback',
-    };
-    vi.mocked(studioV2WorkspaceRecordingPlansAPI.testWrite).mockResolvedValueOnce(mockTestResult);
-    await expect(testWriteOptions.mutationFn({ plan_id: 'plan-1' })).resolves.toEqual(mockTestResult);
   });
 });
