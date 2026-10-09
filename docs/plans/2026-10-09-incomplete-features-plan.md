@@ -13,17 +13,28 @@ openspec/changes/add-windows-tray-runtime-logs（規格已提交、部分實作�
 
 ## 缺口清單（依優先序）
 
-### P1 — UI 流程收斂（E 案接手遺留，影響每一個使用者）
-現場實測多設備→單表要 7 個非直覺 API 步驟，UI 無法引導：
-1. config PUT 被 canonical write group 凍結（WRITE_GROUP_LEGACY_WRITE_CONFLICT）
-2. database-target 的 row_group_id 傳值即被擋，須傳空字串
-3. candidates 必須帶 query scope（workspace_id＋expected_workspace_revision＋revision_id）
-4. target 建立後必須手動 candidates/recompute，否則 database_outputs 候選無 mapping_id
-5. write group 加成員要走 PUT 完整 group（members 手組 device/point/tag/column）
-6. 既有 managed 表不可加欄（RECORDING_SCHEMA_INCOMPATIBLE），只能開新表
-7. recording-start 的 request_id 不可重複（RECORDING_START_INTENT_CHANGED）
-目標：UI 四步流程能原生走完上述鏈路；API 文件把必填 scope/空字串語意寫明。
-驗收：新手依 UI 完成 2 設備→新 PG 表，不需看 API。
+### P1 — UI 流程收斂（2026-10-09 開工調查後大幅翻案縮小）
+**調查結論（翻案）**：原列的「7 個非直覺步驟」幾乎全是**進階 legacy API 鏈**的行為；
+UI 基本路徑（Step4 BasicRecordingPanel）本來就走全自動正道：
+`buildBasicManagedDrafts`（members 只帶 device/point/tag，`target_column: ''`、`table_name: ''`）
+→ `POST /write-groups/basic/:deviceId`（ensureBasicManaged，server 派表名 `gw_group_<hash>`）
+→ `POST /recording-start`（帶 draft，server 內部 update→readiness→apply→activate 一條跑完，
+欄位 `v_<hash>` 也是 server 派）。我現場手組的那套（config PUT 加成員、
+database-target 掛 row group、write-group PUT 完整 members、managed 表加欄）
+是不受支援的組合， 卡點屬**設計上的 fail-closed**，不是 UI 缺口。
+
+**真正修掉的缺陷（已修，commit 見 git log）**：
+`database_outputs` 候選快照在 tag 的 database target mapping **晚建立**時，
+GET `/source-rules/:id/candidates` 不會自動重算（`shouldRecomputeDatabaseCandidateView`
+只認 blocked），導致下一次 `database-outputs/apply` 一次就 `schema_missing`
+（"database mapping scope is not configured"），必須手動 `POST .../candidates/recompute`。
+修法：ready 快照若解碼出任何候選缺 `mapping_id` 也觸發自動重算
+（`databaseCandidatesMissingMappings`）。TDD：RED（`candidate_api_late_mapping_test.go`
+先證 GET 不補 mapping_id）→ GREEN（141 案 sourcerule 全過＋golangci-lint 乾淨）。
+
+**剩餘（縮小後）**：API 文件把 candidates query scope（workspace_id＋
+expected_workspace_revision＋revision_id）與空字串語意寫進 README/技術文件。
+驗收不變：新手依 UI 完成 2 設備→新 PG 表，不需看 API。
 
 ### P2 — test-write 契約統一（D 案遺留）
 - `recording-plans/test-write`（legacy plan 路徑）與 `write-groups/:id/test-write`

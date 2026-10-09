@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"go-gateway/internal/datalink/modbusshare"
@@ -195,7 +196,30 @@ func shouldRecomputeDatabaseCandidateView(snapshots []*schema.SourceRuleCandidat
 		if snapshot == nil || snapshot.CandidateType != schema.SourceRuleCandidateTypeDatabaseOutputs {
 			continue
 		}
-		return snapshot.Status == schema.SourceRuleCandidateStatusBlocked
+		if snapshot.Status == schema.SourceRuleCandidateStatusBlocked {
+			return true
+		}
+		// A ready snapshot predating the tag's database target mapping still
+		// lacks mapping_id / destination columns; recomputing lets the next
+		// apply succeed without a manual candidates/recompute round trip.
+		if snapshot.Status == schema.SourceRuleCandidateStatusReady && databaseCandidatesMissingMappings(snapshot.Payload) {
+			return true
+		}
+	}
+	return false
+}
+
+// databaseCandidatesMissingMappings reports whether any decoded candidate has
+// no mapping_id yet, i.e. it was built before the tag's target mapping existed.
+func databaseCandidatesMissingMappings(payload string) bool {
+	candidates, err := decodeCandidatePayload[schema.SourceRuleDatabaseOutputCandidate](payload)
+	if err != nil {
+		return false
+	}
+	for _, candidate := range candidates {
+		if candidate.MappingID == nil || strings.TrimSpace(*candidate.MappingID) == "" {
+			return true
+		}
 	}
 	return false
 }
