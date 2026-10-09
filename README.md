@@ -21,7 +21,7 @@
 - **資料庫寫入**：SQLite／PostgreSQL 的實際 SQL 寫入與 grouped time-bucket buffer 已有實作。buffer 接收成功不等於外部 DB 已提交；目前 grouped buffer 位於記憶體，不能視為耐重啟佇列
 - **已落地的安全設定**：已存 connector identity／revision、真實 schema metadata、preview／confirm／apply 及持久 operation 記錄；設定與啟用沿用 workspace/settings revisions 和 readiness token，不應略過
 - **仍待串接**：recording-plan 設定與 measurement、aggregation、delivery 元件的存在，不代表 production entrypoint 已連成完整的 durable recording 路徑
-- **明確未開放**：recording-plan test-write handler 目前回傳 501 `RECORDING_TEST_WRITE_NOT_IMPLEMENTED`，不能宣稱已有試寫、讀回與清理驗證
+- **試寫**：已由 Write Group test-write 承接，具備真實目的地 preview、token／operation-id confirm、write、readback 與 cleanup 驗證；legacy recording-plan 路徑已對齊同一服務，不再回傳 501。資料表無法辨識測試列的 group 會在 preview 被拒絕，write、readback 與 cleanup 結果須分開判讀
 - **四步流程待收斂**：Step 4 仍同時承載 recording plans、measurement membership、row groups、target mappings 與 Modbus Share。規劃中的單一 write-group authority 尚未實作
 - **協議可用性需逐層核對**：後端已有 Modbus、FATEK、MC 等協議元件；選單列出某協議或依賴中有其套件，不代表 V2 位址解析、採集與輸出皆已貫通
 

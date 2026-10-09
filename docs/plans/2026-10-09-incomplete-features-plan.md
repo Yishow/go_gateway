@@ -49,12 +49,13 @@ GET `/source-rules/:id/candidates` 不會自動重算（`shouldRecomputeDatabase
 expected_workspace_revision＋revision_id）與空字串語意寫進 README/技術文件。
 驗收不變：新手依 UI 完成 2 設備→新 PG 表，不需看 API。
 
-### P2 — test-write 契約統一（D 案遺留）
-- `recording-plans/test-write`（legacy plan 路徑）與 `write-groups/:id/test-write`
-  並存，兩者都要 token＋operation_id；README 明講 plan 路徑仍是 501
-  `RECORDING_TEST_WRITE_NOT_IMPLEMENTED`。group 路徑已實作（grouptestwrite）。
-- 動作：確認 UI 只用 group 路徑後，把 plan 路徑退役或補齊，README 對應更新。
-  驗收：README 能力邊界不再列 501；一次 confirm→write→readback→cleanup 實跑紀錄。
+### P2 — test-write 契約統一（D 案遺留）— 已清理更新
+- 前端已移除 legacy plan testWrite 呼叫，Step 4 只走 `write-groups/:id/test-write`
+  （grouptestwrite）；後端 `recording-plans/test-write(-preview)` 改為解析到同一
+  group 與 service（雙軌對齊），不再有獨立 token／ledger；README 已移除 501 限制。
+- 殘留：前端 `TestWriteResult`／`supports_test_writes` 型別與 501 錯誤碼的 i18n、
+  測試仍在；`openspec/specs/recording-database-setup` 仍描述 501。
+- 未含：confirm→write→readback→cleanup 實跑紀錄未在本次更新補上。
 
 ### P3 — Modbus UDP / RTU / FATEK 採集 E2E（本次只驗到通訊層）
 - UDP：原始封包對 ET-7017 已證真回應，但未跑 gateway 採集→DB。
