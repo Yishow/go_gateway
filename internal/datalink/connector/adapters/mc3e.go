@@ -120,9 +120,11 @@ func (c *MC3EConnector) TestConnection(ctx context.Context) error {
 
 	defer c.afterOperation()
 
-	// 嘗試讀取 D0 來測試連線
-	_, err := c.client.BatchReadWord("D", 0, 1)
-	return err
+	// 嘗試讀取 D0 來測試連線（連線類錯誤自動乾淨重連重試）
+	return c.withConnectionRetry(func() error {
+		_, err := c.client.BatchReadWord("D", 0, 1)
+		return err
+	})
 }
 
 // Read 讀取資料
@@ -137,17 +139,11 @@ func (c *MC3EConnector) Read(ctx context.Context, req connector.ReadRequest) (co
 
 	defer c.afterOperation()
 
-	result, err := c.executeRead(req)
-	if err != nil && c.persistentMode && isConnectionError(err) {
-		c.connected = false
-		if reconnectErr := c.ensureConnection(); reconnectErr == nil {
-			if retryResult, retryErr := c.executeRead(req); retryErr == nil {
-				return retryResult, nil
-			}
-		}
-	}
-
+	result, err := c.retryExecuteRead(req)
 	if err != nil {
+		if isConnectionError(err) {
+			err = fmt.Errorf("%w（MC 連線持續被對端關閉：該 port 的 MC 服務可能被其他系統佔用或未啟用，可改用 6000-6003 其他 port）", err)
+		}
 		result.Quality = schema.QualityBad
 		result.Error = err.Error()
 		return result, err
@@ -237,6 +233,40 @@ func (c *MC3EConnector) afterOperation() {
 		c.client.Close()
 		c.connected = false
 	}
+}
+
+const (
+	mcRetryAttempts  = 3
+	mcRetryBaseDelay = 300 * time.Millisecond
+)
+
+// withConnectionRetry 以乾淨重連重試 op，直到成功或耗盡重試次數。
+// FX5U 系列的 MC 服務在 port 連線額度被佔用時會「接受 TCP 連線後直接關閉」
+// （讀取得到 EOF）；這類瞬時佔用通常在短暫退避後釋放，重連重試即可恢復。
+func (c *MC3EConnector) withConnectionRetry(op func() error) error {
+	err := op()
+	for attempt := 0; err != nil && isConnectionError(err) && attempt < mcRetryAttempts; attempt++ {
+		time.Sleep(mcRetryBaseDelay << attempt) // 300ms、600ms、1200ms
+		if rerr := c.Reconnect(context.Background()); rerr != nil {
+			err = rerr
+			continue
+		}
+		err = op()
+	}
+	return err
+}
+
+// retryExecuteRead 以乾淨重連重試 executeRead（首次失敗即進入重連重試）
+func (c *MC3EConnector) retryExecuteRead(req connector.ReadRequest) (connector.ReadResult, error) {
+	var result connector.ReadResult
+	var err error
+	if werr := c.withConnectionRetry(func() error {
+		result, err = c.executeRead(req)
+		return err
+	}); werr != nil {
+		return result, werr
+	}
+	return result, nil
 }
 
 // 注意: intSliceToBytes 和 toIntSlice 已定義於 fatek.go
