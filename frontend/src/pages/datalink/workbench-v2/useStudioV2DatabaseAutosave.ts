@@ -26,6 +26,7 @@ import type { DbConnector, DbTarget, WorkbenchV2State } from '../../../features/
 import type { StudioV2WorkspaceDatabaseTargetRecord } from '../../../types/datalink';
 import { getSafeErrorStateMessage } from '../../../utils/typedErrors';
 import { createDatabaseSaveQueue, type DatabaseSaveJob, type DatabaseSaveQueue } from './databaseSaveQueue';
+import { hasPendingSave } from './studioV2AutosaveBarrier';
 
 function sameDatabaseTarget(current: DbTarget | undefined, next: DbTarget): boolean {
   return (
@@ -188,6 +189,12 @@ export function useStudioV2DatabaseAutosave(
 
     const nextTargets = buildHydratedTargets(aliases, databaseTargetsQuery.data);
     const currentTargets = stateRef.current.db.targets;
+    // 尚未存檔的本地編輯不得被後端快照覆蓋，否則排隊中的儲存會改送舊值並顯示已儲存。
+    Object.entries(currentTargets).forEach(([pointId, target]) => {
+      if (hasPendingSave(target.save_state, target.persisted)) {
+        nextTargets[pointId] = target;
+      }
+    });
     const hasSameTargets = Object.keys(currentTargets).length === Object.keys(nextTargets).length &&
       Object.entries(nextTargets).every(([pointId, target]) => sameDatabaseTarget(currentTargets[pointId], target));
     if (hasSameTargets) {

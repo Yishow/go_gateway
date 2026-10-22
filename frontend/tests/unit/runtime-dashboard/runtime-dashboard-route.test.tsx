@@ -48,6 +48,9 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+// 路由為 lazy chunk；首次轉譯載入在完整測試負載下可能超過預設 1 秒。
+const lazyRouteWait = { timeout: 5000 };
+
 describe('runtime dashboard route', () => {
   function renderRoutes(initialEntries: string[]) {
     const queryClient = new QueryClient({
@@ -68,7 +71,7 @@ describe('runtime dashboard route', () => {
   it('renders the dedicated runtime dashboard route when device_id is present', async () => {
     renderRoutes(['/studio/runtime?device_id=device-A']);
 
-    expect(await screen.findByTestId('runtime-dashboard-route')).toBeInTheDocument();
+    expect(await screen.findByTestId('runtime-dashboard-route', {}, lazyRouteWait)).toBeInTheDocument();
     expect(screen.getByTestId('runtime-dashboard-route-state')).toHaveTextContent('live');
     expect(screen.queryByTestId('workbench-v2-root')).not.toBeInTheDocument();
   });
@@ -76,14 +79,14 @@ describe('runtime dashboard route', () => {
   it('renders the dedicated runtime dashboard route when device_id is absent', async () => {
     renderRoutes(['/studio/runtime']);
 
-    expect(await screen.findByTestId('runtime-dashboard-route')).toBeInTheDocument();
+    expect(await screen.findByTestId('runtime-dashboard-route', {}, lazyRouteWait)).toBeInTheDocument();
     expect(screen.queryByTestId('workbench-v2-root')).not.toBeInTheDocument();
   });
 
   it('keeps /studio/v2 on the setup flow', async () => {
     renderRoutes(['/studio/v2']);
 
-    expect(await screen.findByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(await screen.findByTestId('workbench-v2-root', {}, lazyRouteWait)).toBeInTheDocument();
     expect(screen.queryByTestId('runtime-dashboard-route')).not.toBeInTheDocument();
   });
 });

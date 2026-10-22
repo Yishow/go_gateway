@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StudioV2WorkspaceDatabaseRowGroupRecord } from '../../../src/types/datalink';
+import { studioV2WorkspaceKeys } from '../../../src/hooks/datalink/keys';
 import {
   dbTargetFixture,
   resetDatabaseAutosaveMocks,
@@ -129,6 +130,81 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
         row_group_id: 'row-group-delayed',
       }));
     });
+  });
+
+  it('keeps queued row-group refs when persisted targets refresh during the row group config save', async () => {
+    let resolveConfigSave: ((value: Awaited<ReturnType<typeof studioV2WorkspaceDatabaseAPI.updateConfig>>) => void) | undefined;
+    const savedConfig = runtimeApplied(sqliteConfigFixture());
+    vi.mocked(studioV2WorkspaceDatabaseAPI.updateConfig).mockImplementation((request) => {
+      if (request.row_groups?.some((group: StudioV2WorkspaceDatabaseRowGroupRecord) => group.id === 'row-group-delayed')) {
+        return new Promise((resolve) => {
+          resolveConfigSave = resolve;
+        });
+      }
+      return Promise.resolve({ ...savedConfig, row_groups: request.row_groups ?? [] });
+    });
+    vi.mocked(studioV2WorkspaceDatabaseAPI.upsertTarget).mockImplementation(async (pointId, request) => runtimeApplied(dbTargetFixture({
+      point_id: pointId,
+      row_group_id: request.row_group_id,
+    })));
+
+    const { default: DatalinkWorkbenchV2Page } = await import(
+      '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page'
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <DatalinkWorkbenchV2Page />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('database-autosave-shell')).toBeInTheDocument();
+      expect(screen.getByTestId('point-count')).toHaveTextContent('2');
+      expect(screen.getByTestId('target-column-point-A')).toHaveTextContent('line_a');
+    });
+    vi.mocked(studioV2WorkspaceDatabaseAPI.upsertTarget).mockClear();
+
+    fireEvent.click(screen.getByTestId('create-row-group'));
+    await waitFor(() => {
+      expect(studioV2WorkspaceDatabaseAPI.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+        row_groups: [expect.objectContaining({ id: 'row-group-delayed' })],
+      }));
+    });
+
+    // 排隊期間其他寫入讓 targets 查詢失效並帶回較新的後端版本，不得覆蓋尚未送出的本地編輯。
+    vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue([
+      dbTargetFixture({ updated_at: '2026-05-30T09:00:00Z' }),
+      dbTargetFixture({ id: 'row-B', point_id: 'persisted-point-B', tag_id: 'tag-B', column_name: 'line_b', updated_at: '2026-05-30T09:00:00Z' }),
+    ]);
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.databaseTargets() });
+    });
+    // 讓重新讀取後的 reconcile effect 在 row group 存檔完成前執行。
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.getByTestId('target-save-state-point-A')).toHaveTextContent('saving');
+    resolveConfigSave?.({
+      ...savedConfig,
+      row_groups: [{
+        id: 'row-group-delayed',
+        connector_id: 'db-1',
+        table_schema: 'main',
+        table_name: 'sensor_values',
+        member_point_ids: ['rule-A-p-0', 'rule-A-p-1'],
+        group_key_columns: ['ts'],
+      }],
+    });
+
+    await waitFor(() => {
+      expect(studioV2WorkspaceDatabaseAPI.upsertTarget).toHaveBeenCalledWith('persisted-point-A', expect.objectContaining({
+        row_group_id: 'row-group-delayed',
+      }));
+    });
+    expect(studioV2WorkspaceDatabaseAPI.upsertTarget).not.toHaveBeenCalledWith('persisted-point-A', expect.objectContaining({
+      row_group_id: undefined,
+    }));
   });
 
   it('clears stale row groups before saving a table change and defers target updates until the connector save completes', async () => {
