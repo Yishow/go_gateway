@@ -19,6 +19,8 @@ import type {
 import type { RuntimeStreamRecovery } from '../../../types/datalink';
 
 const degradedPollingIntervalMs = 5000;
+// SSE 只推送點位數值；collector 健康與累計指標仍須靠 snapshot，live 時以較低頻率更新。
+const liveSnapshotRefreshIntervalMs = 15000;
 
 export type RuntimeDashboardRouteState =
   | 'missing-device-context'
@@ -84,7 +86,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
 
   const snapshotQuery = useRuntimeStatus({
     deviceId: observableDeviceId,
-    pollingIntervalMs: isDegraded ? degradedPollingIntervalMs : false,
+    pollingIntervalMs: isDegraded ? degradedPollingIntervalMs : liveSnapshotRefreshIntervalMs,
   });
   const snapshotError = useMemo(() => {
     const error = runtimeContextQuery.error ?? snapshotQuery.error;

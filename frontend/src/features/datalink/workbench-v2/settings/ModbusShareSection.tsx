@@ -14,6 +14,8 @@ interface ModbusShareSectionProps {
   pending?: boolean;
   persistedBaseRegister?: number | null;
   shareStatus?: ModbusShareStatus | null;
+  /** Start/Stop 結束後通知頁面重新讀取後端 Share 狀態。 */
+  onLifecycleSettled?: () => void;
 }
 
 /**
@@ -26,6 +28,7 @@ export function ModbusShareSection({
   pending = false,
   persistedBaseRegister = null,
   shareStatus = null,
+  onLifecycleSettled,
 }: ModbusShareSectionProps) {
   const { t } = useTranslation('workbench-v2');
   const interactionLockRef = React.useRef(false);
@@ -55,6 +58,7 @@ export function ModbusShareSection({
       setLifecycleError(getSafeErrorMessage(error, (key, options) => t(key, options)));
     } finally {
       setLifecyclePending(false);
+      onLifecycleSettled?.();
     }
   };
 

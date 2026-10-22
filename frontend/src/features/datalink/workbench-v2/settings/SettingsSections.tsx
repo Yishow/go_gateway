@@ -22,6 +22,7 @@ interface SettingsSectionsProps {
   isSaving: boolean;
   persistedBaseRegister: number | null;
   shareStatus?: ModbusShareStatus | null;
+  onShareLifecycleSettled?: () => void;
   onUpdateGeneral: (patch: Partial<GeneralSettings>) => void;
   onUpdateTimeseries: (patch: Partial<TimeseriesSettings>) => void;
   onUpdateScheduler: (patch: Partial<SchedulerSettings>) => void;
@@ -40,6 +41,7 @@ export function SettingsSections({
   isSaving,
   persistedBaseRegister,
   shareStatus,
+  onShareLifecycleSettled,
   onUpdateGeneral,
   onUpdateTimeseries,
   onUpdateScheduler,
@@ -72,6 +74,7 @@ export function SettingsSections({
         pending={pending}
         persistedBaseRegister={persistedBaseRegister}
         shareStatus={shareStatus}
+        onLifecycleSettled={onShareLifecycleSettled}
       />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <UiSection settings={state.settings.general} onChange={onUpdateGeneral} />

@@ -91,7 +91,9 @@ export default function DatalinkWorkbenchV2Page({
 }: DatalinkWorkbenchV2PageProps) {
   const workspaceQuery = useStudioV2WorkspaceQuery();
   const shareStatusQuery = useModbusShareStatusQuery(workspaceQuery.isSuccess);
-  const bootstrapShareStatus = modbusShareStatusFromBootstrap(workspaceQuery.data?.modbus_share);
+  const bootstrapShare = workspaceQuery.data?.modbus_share;
+  // 必須維持穩定引用：設定頁的 Share 區塊以 shareStatus 變更作為同步訊號，每次 render 產生新物件會把 Start/Stop 結果洗回舊快照。
+  const bootstrapShareStatus = React.useMemo(() => modbusShareStatusFromBootstrap(bootstrapShare), [bootstrapShare]);
   const shareStatus = React.useMemo(() => {
     const liveStatus = shareStatusQuery.data;
     if (!bootstrapShareStatus || !liveStatus) {

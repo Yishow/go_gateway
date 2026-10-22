@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { WorkbenchV2State } from '../state/types';
 import type { WorkbenchV2Action } from '../state/useWorkbenchV2State';
 import { useDbTargetConnectorsQuery, useSettingsItemsQuery } from '../../../../hooks/datalink/useSettings';
@@ -7,6 +8,8 @@ import { SettingsBackendStatus, SettingsStatus } from './SettingsStatus';
 import { mapDatabaseConnectorToSettingsConnector, mapSettingItemsToWorkbenchSettings } from './backendMappings';
 import type { ModbusShareStatus } from '../../../../types/modbusShare';
 import { useSettingsOperations } from './useSettingsOperations';
+import { modbusShareStatusKey } from '../../../../hooks/datalink/useModbusShareStatus';
+import { studioV2WorkspaceKeys } from '../../../../hooks/datalink/keys';
 
 interface SettingsPageProps {
   state: WorkbenchV2State;
@@ -20,6 +23,12 @@ export function SettingsPage({ state, dispatch, shareStatus }: SettingsPageProps
   const connectorsQuery = useDbTargetConnectorsQuery();
   const [hydrated, setHydrated] = React.useState(false);
   const operations = useSettingsOperations(state, dispatch);
+  const queryClient = useQueryClient();
+  // Start/Stop 會改變後端 Share 狀態；重新讀取讓 Step 2／Step 4 與啟用前檢查看到同一份事實。
+  const refreshShareStatus = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: modbusShareStatusKey });
+    void queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
+  }, [queryClient]);
   const persistedBaseRegister = state.rules
     .filter((rule) => rule.persisted === true && rule.share_enabled && rule.share_start_register !== null)
     .map((rule) => rule.share_start_register as number)
@@ -49,6 +58,7 @@ export function SettingsPage({ state, dispatch, shareStatus }: SettingsPageProps
         isSaving={operations.isSaving}
         persistedBaseRegister={persistedBaseRegister}
         shareStatus={shareStatus}
+        onShareLifecycleSettled={refreshShareStatus}
         onUpdateGeneral={operations.onUpdateGeneral}
         onUpdateTimeseries={operations.onUpdateTimeseries}
         onUpdateScheduler={operations.onUpdateScheduler}

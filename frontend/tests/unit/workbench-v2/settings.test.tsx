@@ -14,6 +14,7 @@ import { SettingsStatus } from '../../../src/features/datalink/workbench-v2/sett
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { settingsAPI, dbTargetAPI } from '../../../src/services/datalink';
 import { modbusShareAPI } from '../../../src/services/modbusShare';
+import { studioV2WorkspaceKeys } from '../../../src/hooks/datalink/keys';
 
 // 模擬 i18next 避免語系載入錯誤
 vi.mock('react-i18next', () => ({
@@ -199,6 +200,79 @@ describe('Settings Components', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
       await waitFor(() => expect(modbusShareAPI.stop).toHaveBeenCalledWith('settings-9'));
+    });
+
+    it('notifies the page to refresh share status after Start/Stop settles', async () => {
+      vi.mocked(modbusShareAPI.stop).mockResolvedValue({
+        enabled: true,
+        running: false,
+        port: 5020,
+        address: '127.0.0.1',
+        bind_state: 'stopped',
+        mapping_count: 0,
+        settings_revision: 'settings-9',
+      });
+      const onLifecycleSettled = vi.fn();
+      render(
+        <ModbusShareSection
+          settings={{ ...INITIAL_STATE.settings.modbus_share, enabled: true, settings_revision: 'settings-9' }}
+          onChange={vi.fn()}
+          onLifecycleSettled={onLifecycleSettled}
+          shareStatus={{
+            enabled: true,
+            running: true,
+            port: 5020,
+            address: '127.0.0.1',
+            bind_state: 'pass',
+            mapping_count: 0,
+            settings_revision: 'settings-9',
+          }}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+      await waitFor(() => expect(onLifecycleSettled).toHaveBeenCalledTimes(1));
+    });
+
+    it('invalidates page share status and workspace bootstrap from SettingsPage after Stop', async () => {
+      vi.mocked(modbusShareAPI.stop).mockResolvedValue({
+        enabled: true,
+        running: false,
+        port: 5020,
+        address: '127.0.0.1',
+        bind_state: 'stopped',
+        mapping_count: 0,
+        settings_revision: 'settings-9',
+      });
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+      render(
+        <QueryClientProvider client={queryClient}>
+          <SettingsPage
+            state={{
+              ...INITIAL_STATE,
+              settings: {
+                ...INITIAL_STATE.settings,
+                modbus_share: { ...INITIAL_STATE.settings.modbus_share, enabled: true, settings_revision: 'settings-9' },
+              },
+            }}
+            dispatch={vi.fn()}
+            shareStatus={{
+              enabled: true,
+              running: true,
+              port: 5020,
+              address: '127.0.0.1',
+              bind_state: 'pass',
+              mapping_count: 0,
+              settings_revision: 'settings-9',
+            }}
+          />
+        </QueryClientProvider>,
+      );
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Stop' }));
+      await waitFor(() => expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['datalink', 'modbus-share', 'status'] }));
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     });
 
     it('renders a typed 409 conflict safely without backend details', async () => {

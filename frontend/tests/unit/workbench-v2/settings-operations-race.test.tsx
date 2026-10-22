@@ -163,6 +163,29 @@ describe('Settings operations race ownership', () => {
     expect(result.current.state.settings.connectors.map((connector) => connector.id)).not.toContain('conn-a');
   });
 
+  it('sends connector edits for the same connector in order and coalesces edits made while a save is in flight', async () => {
+    vi.mocked(settingsAPI.listItems).mockResolvedValue([]);
+    let resolveFirst!: (value: ReturnType<typeof makeConnector>) => void;
+    function makeConnector(host: string) {
+      return { id: 'conn-prod', name: 'Prod', kind: 'postgres' as const, connection_config: { host }, enabled: true, status: 'ready' as const, last_check_error: '', created_at: '', updated_at: '', default_write_interval_seconds: 5 };
+    }
+    vi.mocked(dbTargetAPI.updateConnector)
+      .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve; }))
+      .mockResolvedValueOnce(makeConnector('host-abc'));
+    const { result } = renderHook(() => useSettingsOperations(INITIAL_STATE, vi.fn()), { wrapper });
+
+    act(() => { result.current.onUpdateConnector('conn-prod', { host: 'host-a' }); });
+    act(() => { result.current.onUpdateConnector('conn-prod', { host: 'host-ab' }); });
+    act(() => { result.current.onUpdateConnector('conn-prod', { host: 'host-abc' }); });
+    await waitFor(() => expect(dbTargetAPI.updateConnector).toHaveBeenCalledTimes(1));
+    expect(dbTargetAPI.updateConnector).toHaveBeenNthCalledWith(1, 'conn-prod', expect.objectContaining({ connection_config: expect.objectContaining({ host: 'host-a' }) }));
+
+    await act(async () => { resolveFirst(makeConnector('host-a')); });
+
+    await waitFor(() => expect(dbTargetAPI.updateConnector).toHaveBeenCalledTimes(2));
+    expect(dbTargetAPI.updateConnector).toHaveBeenNthCalledWith(2, 'conn-prod', expect.objectContaining({ connection_config: expect.objectContaining({ host: 'host-abc' }) }));
+  });
+
   it('merges same-render connector patches into the second request payload', async () => {
     vi.mocked(settingsAPI.listItems).mockResolvedValue([]);
     let resolveFirst!: (value: ReturnType<typeof makeConnector>) => void;
@@ -178,8 +201,12 @@ describe('Settings operations race ownership', () => {
       result.current.onUpdateConnector('conn-prod', { name: 'first' });
       result.current.onUpdateConnector('conn-prod', { host: 'new-host' } as never);
     });
+    await waitFor(() => expect(dbTargetAPI.updateConnector).toHaveBeenCalledTimes(1));
+    await act(async () => { resolveFirst(makeConnector('first')); });
     await waitFor(() => expect(dbTargetAPI.updateConnector).toHaveBeenCalledTimes(2));
-    expect(dbTargetAPI.updateConnector).toHaveBeenNthCalledWith(2, 'conn-prod', expect.objectContaining({ name: 'first' }));
-    resolveFirst(makeConnector('first'));
+    expect(dbTargetAPI.updateConnector).toHaveBeenNthCalledWith(2, 'conn-prod', expect.objectContaining({
+      name: 'first',
+      connection_config: expect.objectContaining({ host: 'new-host' }),
+    }));
   });
 });

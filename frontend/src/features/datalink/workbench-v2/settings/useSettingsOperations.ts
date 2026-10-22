@@ -73,6 +73,8 @@ export function useSettingsOperations(
   const successfulAdds = React.useRef<SettingsConnector[]>([]);
   const deletedConnectorIds = React.useRef(new Set<string>());
   const pendingConnectorDrafts = React.useRef(new Map<string, SettingsConnector>());
+  const connectorUpdatesInFlight = React.useRef(new Set<string>());
+  const latestConnectorUpdates = React.useRef(new Map<string, { token: number; patch: Partial<SettingsConnector> }>());
   const latestState = React.useRef(state);
   latestState.current = state;
   const safeErrorMessage = React.useCallback((error: unknown): SafeErrorMessage => (
@@ -196,6 +198,37 @@ export function useSettingsOperations(
     return run;
   }, [clearOperationError, createConnectorMutation, dispatch, ownership, safeErrorMessage]);
 
+  // 同一個連接器一次只送一筆更新：並行送出時伺服器的寫入順序沒有保證，較舊的值可能最後落地。
+  const sendConnectorUpdates = React.useCallback(async (id: string) => {
+    const scope = `connector:${id}`;
+    connectorUpdatesInFlight.current.add(id);
+    try {
+      for (;;) {
+        const draft = pendingConnectorDrafts.current.get(id);
+        const latest = latestConnectorUpdates.current.get(id);
+        // 期間被刪除或改為測試時草稿已移除，不再送出。
+        if (!draft || !latest) return;
+        try {
+          const saved = await updateConnectorMutation.mutateAsync({ id, data: buildUpdateConnectorRequest(draft) });
+          if (ownership.isCurrent(latest.token, scope)) {
+            pendingConnectorDrafts.current.delete(id);
+            dispatch({ type: 'updateConnector', id, patch: mapDatabaseConnectorToSettingsConnector(saved, draft.password ?? '') });
+            return;
+          }
+        } catch (error) {
+          if (ownership.isCurrent(latest.token, scope)) {
+            setOperationError(safeErrorMessage(error));
+            setRetryOperation({ kind: 'update-connector', id, patch: latest.patch });
+            return;
+          }
+        }
+        // 請求進行中有新的編輯：以累積後的最新草稿接續送出一筆。
+      }
+    } finally {
+      connectorUpdatesInFlight.current.delete(id);
+    }
+  }, [dispatch, ownership, safeErrorMessage, updateConnectorMutation]);
+
   const onUpdateConnector = React.useCallback((id: string, patch: Partial<SettingsConnector>) => {
     const scope = `connector:${id}`;
     const token = ownership.begin(scope);
@@ -205,16 +238,10 @@ export function useSettingsOperations(
     if (!current) return;
     const next = { ...current, ...patch };
     pendingConnectorDrafts.current.set(id, next);
+    latestConnectorUpdates.current.set(id, { token, patch });
     clearOperationError();
-    void updateConnectorMutation.mutateAsync({ id, data: buildUpdateConnectorRequest(next) }).then((saved) => {
-      if (ownership.isCurrent(token, scope)) {
-        pendingConnectorDrafts.current.delete(id);
-        dispatch({ type: 'updateConnector', id, patch: mapDatabaseConnectorToSettingsConnector(saved, next.password ?? '') });
-      }
-    }).catch((error) => {
-      if (ownership.isCurrent(token, scope)) { setOperationError(safeErrorMessage(error)); setRetryOperation({ kind: 'update-connector', id, patch }); }
-    });
-  }, [clearOperationError, dispatch, ownership, safeErrorMessage, updateConnectorMutation]);
+    if (!connectorUpdatesInFlight.current.has(id)) void sendConnectorUpdates(id);
+  }, [clearOperationError, dispatch, ownership, sendConnectorUpdates]);
 
   const onRemoveConnector = React.useCallback((id: string) => {
     const scope = `connector:${id}`;
