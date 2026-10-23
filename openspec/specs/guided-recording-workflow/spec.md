@@ -252,3 +252,65 @@ tests:
   - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
   - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
 -->
+
+---
+### Requirement: Basic missing-value policy reveals required gating
+Basic recording SHALL state that required missing or invalid members still block a partial row, show the effective required state, and provide a narrow entry to existing per-member required controls without silently changing any member.
+
+#### Scenario: Required gap remains blocked
+- **WHEN** a basic group selects partial and a required member is missing or invalid
+- **THEN** the UI SHALL explain that the row is skipped and SHALL expose the existing member settings without changing required automatically.
+
+#### Scenario: Optional gap and recovery
+- **WHEN** an explicitly optional member is missing in a partial-capable destination and subsequently recovers
+- **THEN** the system SHALL preserve NULL and its reason for the partial row and write its actual value after recovery; skip_row and required protection SHALL remain unchanged.
+
+#### Scenario: Edit existing exact managed members
+- **WHEN** an operator opens required settings for saved SQLite managed uint16 or uint32 members in canonical generated TEXT columns
+- **THEN** the editor SHALL retain their exact storage compatibility and require fresh schema confirmation after a group revision change without weakening custom-table checks.
+
+#### Scenario: Confirm unchanged schema after member policy edit
+- **WHEN** a saved managed group changes required or completeness policy without changing its physical columns
+- **THEN** a compatible preview SHALL return an empty statements array, retain its revision-bound token and operation identity, and require explicit confirmation before applying the new group revision.
+
+<!-- @trace
+source: fix-studio-v2-five-review-gaps
+updated: 2026-10-23
+code:
+  - frontend/src/features/datalink/runtime-dashboard/FocusedDeviceHeader.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/BasicRecordingPanel.tsx
+  - docs/releases/2026-10-23-studio-five-review-fixes.md
+  - frontend/src/i18n/locales/en/studio-review.json
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
+  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
+  - internal/datalink/collector/scheduler_polling.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceMeasurements.ts
+  - frontend/src/i18n/config.ts
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection.tsx
+  - docs/releases/evidence/studio-five-review-2026-10-23/manifest.json
+  - internal/datalink/collector/scheduler_manual_poll.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx
+  - internal/datalink/device/service_point_read.go
+  - frontend/src/i18n/locales/en/runtime-dashboard.json
+  - internal/datalink/connector/point_read.go
+  - internal/datalink/recordingplan/schema_preview.go
+  - docs/releases/evidence/studio-five-review-2026-10-23/observations.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupMemberTable.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MeasurementTemplateSelector.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/columns.ts
+  - frontend/src/i18n/locales/zh-TW/studio-review.json
+tests:
+  - frontend/tests/unit/workbench-v2/template-offline.test.tsx
+  - frontend/tests/unit/workbench-v2/occupied-range.test.tsx
+  - internal/datalink/collector/point_count_contract_test.go
+  - frontend/tests/unit/workbench-v2/MeasurementTemplateSelector.test.tsx
+  - frontend/tests/unit/workbench-v2/basic-required-policy.test.tsx
+  - internal/datalink/recordingplan/schema_noop_json_test.go
+  - scripts/tests/f_device_to_sql/five-template-errors.mjs
+  - scripts/tests/f_device_to_sql/five-review-flow.mjs
+  - scripts/tests/f_device_to_sql/mc-fixture.mjs
+  - frontend/tests/unit/workbench-v2/writeGroupColumns.test.ts
+  - frontend/tests/unit/runtime-dashboard/focused-header-evidence.test.tsx
+-->

@@ -6,7 +6,21 @@
     "deviceMetaUnavailable": "目前不可用：runtime 設備脈絡無法使用。",
     "unavailable": "不可用",
     "unavailableAction": "請回到 Studio V2 檢查設備設定後重試。",
-    "deviceMetaEmpty": "請帶入剛完成設定的設備脈絡，以檢查即時運轉健康度。"
+    "deviceMetaEmpty": "請帶入剛完成設定的設備脈絡，以檢查即時運轉健康度。",
+    "streamStates": {
+      "idle": "串流尚未啟動",
+      "connecting": "串流連線中，等待就緒",
+      "connected": "串流通道已連線",
+      "live": "正在接收即時串流",
+      "reconnecting": "串流重新連線中",
+      "degraded": "串流降級",
+      "error": "串流無法使用",
+      "stale": "串流資料已過期",
+      "disconnected": "串流已斷線",
+      "unavailable": "串流無法使用"
+    },
+    "recordingEvidenceNote": "採集與串流狀態不能證明 SQL 已寫入。",
+    "recordingEvidence": "查看記錄寫入證據"
   },
   "empty": {
     "title": "選擇要監看的設備",

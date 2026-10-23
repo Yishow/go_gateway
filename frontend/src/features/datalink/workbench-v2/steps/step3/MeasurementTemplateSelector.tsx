@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   useApplyMeasurementTemplateMutation,
@@ -8,6 +8,7 @@ import {
 } from '@/hooks/datalink/useStudioV2WorkspaceMeasurements';
 import { SafeQueryBoundary } from '@/utils/SafeQueryBoundary';
 import type { TemplateApplyPreview } from '@/types/measurement';
+import { getSafeErrorStateMessage } from '@/utils/typedErrors';
 
 export interface MeasurementTemplateSelectorProps {
   deviceId?: string;
@@ -18,31 +19,50 @@ const MeasurementTemplateSelectorContent: React.FC<MeasurementTemplateSelectorPr
   deviceId,
   onApplied,
 }) => {
-  const { t } = useTranslation('workbench-v2');
-  const { data: templates = [], isLoading } = useStudioV2MeasurementTemplatesQuery(true);
+  const { t } = useTranslation(['workbench-v2', 'studio-review']);
+  const { data: templates = [], isLoading, isError, error: loadError, refetch } = useStudioV2MeasurementTemplatesQuery(true);
   const previewMutation = usePreviewMeasurementTemplateMutation();
   const applyMutation = useApplyMeasurementTemplateMutation();
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [previewData, setPreviewData] = useState<TemplateApplyPreview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const request = useRef(0);
+  const busy = useRef(false);
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const handlePreview = async () => {
-    if (!selectedTemplateId || !deviceId) return;
-    const res = await previewMutation.mutateAsync({
-      template_id: selectedTemplateId,
-      device_id: deviceId,
-    });
-    setPreviewData(res);
+    if (!selectedTemplateId || !deviceId || busy.current) return;
+    const id = ++request.current;
+    busy.current = true;
+    setPreviewData(null);
+    setError(null);
+    try {
+      const res = await previewMutation.mutateAsync({ template_id: selectedTemplateId, device_id: deviceId });
+      if (mounted.current && request.current === id && res.device_id === deviceId && res.template_id === selectedTemplateId) setPreviewData(res);
+    } catch (cause) {
+      if (mounted.current && request.current === id) setError(getSafeErrorStateMessage(cause, t('template.preview_failed', { ns: 'studio-review' })));
+    } finally { busy.current = false; }
   };
 
   const handleApply = async () => {
-    if (!previewData) return;
-    await applyMutation.mutateAsync(previewData);
-    setPreviewData(null);
-    onApplied?.();
+    if (!previewData || previewData.device_id !== deviceId || previewData.template_id !== selectedTemplateId || busy.current) return;
+    const id = ++request.current;
+    busy.current = true;
+    setError(null);
+    try {
+      await applyMutation.mutateAsync({ ...previewData, confirmed: true });
+      if (mounted.current && request.current === id) { setPreviewData(null); onApplied?.(); }
+    } catch (cause) {
+      if (mounted.current && request.current === id) {
+        setPreviewData(null);
+        setError(getSafeErrorStateMessage(cause, t('template.apply_failed', { ns: 'studio-review' })));
+      }
+    } finally { busy.current = false; }
   };
 
-  if (isLoading || templates.length === 0) {
+  if (!isLoading && !isError && templates.length === 0) {
     return null;
   }
 
@@ -52,6 +72,12 @@ const MeasurementTemplateSelectorContent: React.FC<MeasurementTemplateSelectorPr
         {t('step3.advanced_measurement')}
       </summary>
       <div className="mt-2">
+      {isLoading && <p role="status">{t('template.loading', { ns: 'studio-review' })}</p>}
+      {isError && <div role="alert" data-testid="template-load-error" className="text-xs text-amber-300">
+        {getSafeErrorStateMessage(loadError, t('template.load_failed', { ns: 'studio-review' }))}
+        <button type="button" data-testid="template-load-retry" onClick={() => void refetch()}>{t('template.reload', { ns: 'studio-review' })}</button>
+      </div>}
+      {error && <p role="alert" data-testid="template-error" className="text-xs text-amber-300">{error}</p>}
     <div
       className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 space-y-3"
       data-testid="measurement-template-selector"
@@ -73,9 +99,11 @@ const MeasurementTemplateSelectorContent: React.FC<MeasurementTemplateSelectorPr
           value={selectedTemplateId}
           onChange={(e) => {
             setSelectedTemplateId(e.target.value);
+            request.current++;
             setPreviewData(null);
+            setError(null);
           }}
-          disabled={!deviceId}
+          disabled={!deviceId || isLoading || applyMutation.isPending}
           data-testid="template-select"
         >
           <option value="">-- 請選擇標準量測範本 --</option>
@@ -89,7 +117,7 @@ const MeasurementTemplateSelectorContent: React.FC<MeasurementTemplateSelectorPr
         <button
           type="button"
           className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-200 text-xs px-3 py-2 rounded-lg font-medium transition-colors"
-          disabled={!selectedTemplateId || !deviceId || previewMutation.isPending}
+          disabled={!selectedTemplateId || !deviceId || previewMutation.isPending || applyMutation.isPending || isError || isLoading}
           onClick={handlePreview}
           data-testid="preview-template-btn"
         >
@@ -141,7 +169,7 @@ const MeasurementTemplateSelectorContent: React.FC<MeasurementTemplateSelectorPr
 export const MeasurementTemplateSelector: React.FC<MeasurementTemplateSelectorProps> = (props) => {
   return (
     <SafeQueryBoundary>
-      <MeasurementTemplateSelectorContent {...props} />
+      <MeasurementTemplateSelectorContent key={props.deviceId ?? 'none'} {...props} />
     </SafeQueryBoundary>
   );
 };

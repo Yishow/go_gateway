@@ -152,6 +152,7 @@ function Step4DatabaseContent({
   };
   const configurationSaved = saveStates.length > 0 && saveStates.every((saveState) => saveState === 'saved');
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [openGroupRequest, setOpenGroupRequest] = useState<{ id: string }>();
   const [basicOperationActive, setBasicOperationActive] = useState(false);
   const advancedRef = useRef<HTMLDetailsElement>(null);
   const openAdvanced = useCallback(() => {
@@ -181,6 +182,7 @@ function Step4DatabaseContent({
         shareStatus={shareStatus}
         onCommit={onCommit}
         onOpenAdvanced={openAdvanced}
+        onOpenMemberSettings={(id) => { setOpenGroupRequest({ id }); openAdvanced(); }}
         onOperationActiveChange={setBasicOperationActive}
       />
 
@@ -204,6 +206,7 @@ function Step4DatabaseContent({
             workspaceId={workspaceId}
             readonly={isReadonly || basicOperationActive}
             onNavigateStep={onNavigateStep}
+            openGroupRequest={openGroupRequest}
           />
 
           {activation.phase === 'idle' ? (

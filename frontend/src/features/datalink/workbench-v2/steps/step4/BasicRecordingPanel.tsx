@@ -48,6 +48,7 @@ export interface BasicRecordingPanelProps {
   role?: string;
   onCommit?: (confirmedDeviceIds?: string[]) => void;
   onOpenAdvanced?: () => void;
+  onOpenMemberSettings?: (groupId: string) => void;
   onOperationActiveChange?: (active: boolean) => void;
 }
 
@@ -66,9 +67,10 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   role = BASIC_ROLE,
   onCommit,
   onOpenAdvanced,
+  onOpenMemberSettings,
   onOperationActiveChange,
 }) => {
-  const { t } = useTranslation('workbench-v2');
+  const { t } = useTranslation(['workbench-v2', 'studio-review']);
   const queryClient = useQueryClient();
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
   const ensureMutation = useEnsureBasicManagedMutation();
@@ -334,6 +336,14 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
           </select>
         </label>
       </div>
+
+      {!shareOnly && <div className="space-y-1 text-xs text-slate-400" data-testid="basic-required-policy">
+        <p>{t('basic.required_hint', { ns: 'studio-review' })}</p>
+        <p>{t('basic.required_count', { ns: 'studio-review', count: (basicSelectedGroup?.members ?? selectedDraft?.members ?? []).filter(member => member.required).length })}</p>
+        {basicSelectedGroup && onOpenMemberSettings
+          ? <button type="button" disabled={operationActive} className="text-cyan-300 underline" data-testid="basic-member-settings" onClick={() => onOpenMemberSettings(basicSelectedGroup.id)}>{t('basic.member_settings', { ns: 'studio-review' })}</button>
+          : <p>{t('basic.prepare_first', { ns: 'studio-review' })}</p>}
+      </div>}
 
       <p className="text-xs text-slate-400" data-testid="basic-recording-destination">
         {shareOnly

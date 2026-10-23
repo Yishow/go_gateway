@@ -66,9 +66,14 @@ export function columnCompatibility(
   target: TargetType,
   column: DbColumn,
   dialect: WriteGroupSqlDialect = 'portable',
+  managed = false,
 ): ColumnCompatibility {
   const families = columnFamilies(column.type);
   if (!families) return 'unknown';
+  // The server stores all unsigned managed values through the exact uint64 codec.
+  // Limit this exception to generated SQLite member columns; custom checks stay unchanged.
+  if (managed && dialect === 'sqlite' && /^uint(?:16|32)$/.test(target) &&
+      /^v_[a-f0-9]{24}$/.test(column.name) && !column.primary_key && normalizedType(column.type) === 'text') return 'compatible';
   if (target === 'uint64') return exactUint64Column(column.type, dialect) ? 'compatible' : 'incompatible';
   const wanted = familyOf(target);
   if (!families.includes(wanted)) return 'incompatible';
@@ -112,6 +117,7 @@ export function suggestColumns(
   columns: DbColumn[],
   confirmed: Record<string, string>,
   dialect: WriteGroupSqlDialect = 'portable',
+  managed = false,
 ): ColumnSuggestions {
   const assignments: Record<string, ColumnAssignment> = {};
   const used = new Set<string>();
@@ -121,7 +127,7 @@ export function suggestColumns(
     const chosen = confirmed[candidate.key];
     if (!chosen) continue;
     const column = byName.get(chosen);
-    const valid = column !== undefined && columnCompatibility(candidate.target_type, column, dialect) !== 'incompatible';
+    const valid = column !== undefined && columnCompatibility(candidate.target_type, column, dialect, managed) !== 'incompatible';
     assignments[candidate.key] = { column: chosen, status: valid ? 'confirmed' : 'repair' };
     used.add(chosen);
   }
@@ -130,7 +136,7 @@ export function suggestColumns(
     if (assignments[candidate.key]) continue;
     const token = tail(candidate.tag_key);
     const match = columns.find((column) => !column.primary_key && !used.has(column.name) &&
-      nameMatches(column.name, token) && columnCompatibility(candidate.target_type, column, dialect) !== 'incompatible');
+      nameMatches(column.name, token) && columnCompatibility(candidate.target_type, column, dialect, managed) !== 'incompatible');
     if (match) {
       assignments[candidate.key] = { column: match.name, status: 'suggested' };
       used.add(match.name);

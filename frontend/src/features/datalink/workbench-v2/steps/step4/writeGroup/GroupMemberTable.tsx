@@ -19,6 +19,7 @@ export interface GroupMemberTableProps {
   disabled: boolean;
   /** Exact-value SQL dialect used when checking persisted metadata. */
   dialect?: WriteGroupSqlDialect;
+  managed?: boolean;
   onChange: (members: EditorMember[]) => void;
 }
 
@@ -43,7 +44,7 @@ function emptyMember(candidate: GroupCandidate, column: string): EditorMember {
  */
 export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
   candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
-  dialect = 'portable', onChange,
+  dialect = 'portable', managed = false, onChange,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const [query, setQuery] = useState('');
@@ -69,7 +70,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
       const column = columnByName.get(member.target_column);
       if (issuesByMember.has(candidate.key)) problem = 'column-required';
       else if (conflictColumns.has(member.target_column)) problem = 'column-conflict';
-      else if (metadataKnown && column && columnCompatibility(candidate.target_type, column, dialect) === 'incompatible') problem = 'column-incompatible';
+      else if (metadataKnown && column && columnCompatibility(candidate.target_type, column, dialect, managed) === 'incompatible') problem = 'column-incompatible';
       else if (metadataKnown && member.target_column && !column) problem = 'column-missing';
     }
     return { candidate, member, suggestion, problem };

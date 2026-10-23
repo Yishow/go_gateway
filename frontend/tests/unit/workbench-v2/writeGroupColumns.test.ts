@@ -118,3 +118,15 @@ describe('RealMetadataAndReviewableAssignment: column conflicts', () => {
     expect(findColumnConflicts(members(['a', 'Value', 'A'], ['b', 'value', 'B']))).toEqual([]);
   });
 });
+
+
+it('accepts canonical managed unsigned SQLite TEXT while keeping custom validation', () => {
+  const owned = column('v_0123456789abcdef01234567', 'TEXT');
+  expect(columnCompatibility('uint16', owned, 'sqlite', true)).toBe('compatible');
+  expect(columnCompatibility('uint32', owned, 'sqlite', true)).toBe('compatible');
+  expect(columnCompatibility('uint16', owned, 'sqlite')).toBe('incompatible');
+  expect(columnCompatibility('uint32', column('foreign', 'TEXT'), 'sqlite', true)).toBe('incompatible');
+  expect(columnCompatibility('float32', owned, 'sqlite', true)).toBe('incompatible');
+  expect(columnCompatibility('uint32', column(owned.name, 'REAL'), 'sqlite', true)).toBe('incompatible');
+  expect(suggestColumns([candidate('a', 'a', 'uint32')], [owned], { a: owned.name }, 'sqlite', true).assignments.a.status).toBe('confirmed');
+});

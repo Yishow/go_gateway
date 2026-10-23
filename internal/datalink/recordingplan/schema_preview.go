@@ -111,6 +111,12 @@ func (s *Service) PrepareSchemaPreview(ctx context.Context, scope SchemaPreviewS
 		return nil, err
 	}
 
+	// A compatible no-op is still a confirmable preview. Keep the JSON list
+	// contract ([]) so clients can inspect it without accepting malformed DDL.
+	if statements == nil {
+		statements = []string{}
+	}
+
 	tokenID, err := common.NewUUID()
 	if err != nil {
 		return nil, fmt.Errorf("create preview token: %w", err)

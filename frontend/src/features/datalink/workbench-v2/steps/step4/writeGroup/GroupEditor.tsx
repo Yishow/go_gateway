@@ -126,8 +126,8 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
     [draft.members],
   );
   const suggestions = useMemo(
-    () => (editorMetadata.status === 'exists' ? suggestColumns(candidates, editorMetadata.columns, confirmed, dialect) : { assignments: {}, unmatched: candidates.map((c) => c.key) }),
-    [candidates, editorMetadata.columns, editorMetadata.status, confirmed, dialect],
+    () => (editorMetadata.status === 'exists' ? suggestColumns(candidates, editorMetadata.columns, confirmed, dialect, draft.storage_strategy === 'managed') : { assignments: {}, unmatched: candidates.map((c) => c.key) }),
+    [candidates, editorMetadata.columns, editorMetadata.status, confirmed, dialect, draft.storage_strategy],
   );
   const issues = validateDraft(draft, { destinationSaved: saved && destinationMatches, storageStrategy: draft.storage_strategy });
   const readiness = useWriteGroupReadinessQuery(group?.id, Boolean(group) && !dirty);
@@ -281,7 +281,7 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
       </details>
 
       <GroupMemberTable
-        dialect={dialect}
+        managed={draft.storage_strategy === 'managed'} dialect={dialect}
         candidates={candidates} excluded={excluded} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
         suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly}
         onChange={(members) => set({ members })}

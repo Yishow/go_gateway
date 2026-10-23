@@ -1,0 +1,15 @@
+{
+  "template": {
+    "load_failed": "無法載入範本，請重新載入。",
+    "reload": "重新載入範本",
+    "preview_failed": "無法取得預覽，請檢查連線後重新預覽。",
+    "apply_failed": "無法確認範本結果，請重新預覽並檢查後再確認。",
+    "loading": "正在載入範本…"
+  },
+  "basic": {
+    "required_hint": "即使選擇保留缺值快照，必填項缺值或無效仍會略過整列；只有非必填項可保留 NULL 與缺值原因。",
+    "required_count": "目前必填：{{count}} 項。",
+    "member_settings": "檢查必填／非必填項目",
+    "prepare_first": "先準備受管群組，即可檢查各項必填設定。"
+  }
+}

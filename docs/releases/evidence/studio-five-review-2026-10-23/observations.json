@@ -1,0 +1,106 @@
+{
+  "base": "524555f14cad3da9d7c0cd064851f263e148a32b",
+  "platform": "macOS arm64; isolated loopback MC 3E and disposable SQLite",
+  "binary_sha256": "21ee140442ee4bc87017423a1c014a52deaa35a17f020074457442cb26004a60",
+  "template_api": {
+    "preview_confirmed": false,
+    "unconfirmed_status": 422,
+    "confirmed_status": 200
+  },
+  "units": {
+    "D0": "°C",
+    "D1": "bar",
+    "D2": "m3/h",
+    "D3": "m3",
+    "D5": "",
+    "D6": "",
+    "D7": "pcs"
+  },
+  "mc_three_buckets": [
+    {
+      "bucket_start": "2026-10-23T11:47:34Z",
+      "values": {
+        "D0": 25.3,
+        "D1": 12.34,
+        "D2": "55",
+        "D3": "100000",
+        "D5": "1",
+        "D6": 0,
+        "D7": "21"
+      }
+    },
+    {
+      "bucket_start": "2026-10-23T11:47:36Z",
+      "values": {
+        "D0": 25.3,
+        "D1": 12.34,
+        "D2": "55",
+        "D3": "100000",
+        "D5": "1",
+        "D6": 0,
+        "D7": "21"
+      }
+    },
+    {
+      "bucket_start": "2026-10-23T11:47:38Z",
+      "values": {
+        "D0": 25.3,
+        "D1": 12.34,
+        "D2": "55",
+        "D3": "100000",
+        "D5": "1",
+        "D6": 0,
+        "D7": "21"
+      }
+    }
+  ],
+  "required_skip_reasons": [
+    [
+      "skipped",
+      "incomplete-required-member"
+    ]
+  ],
+  "optional_partial": {
+    "bucket_start": "2026-10-23T11:47:54Z",
+    "values": {
+      "D0": 25.3,
+      "D1": 12.34,
+      "D2": "55",
+      "D3": "100000",
+      "D5": "1",
+      "D6": null,
+      "D7": "21"
+    }
+  },
+  "optional_reason": [
+    {
+      "status": "bad",
+      "reason": "mapping-failed"
+    }
+  ],
+  "recovered_row": {
+    "bucket_start": "2026-10-23T11:47:56Z",
+    "values": {
+      "D0": 25.3,
+      "D1": 12.34,
+      "D2": "55",
+      "D3": "100000",
+      "D5": "1",
+      "D6": 0,
+      "D7": "21"
+    }
+  },
+  "evidence_return_step4": true,
+  "browser_failures": [],
+  "page_errors": [],
+  "clean_exit": true,
+  "template_errors": [
+    "load_503_safe_reload",
+    "preview_409_safe_repreview",
+    "preview_500_safe_repreview",
+    "preview_offline_safe_repreview",
+    "apply_409_safe_repreview",
+    "apply_500_safe_repreview",
+    "apply_offline_safe_repreview"
+  ]
+}

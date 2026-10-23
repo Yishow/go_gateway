@@ -41,6 +41,7 @@ export function RuntimeDashboardPage({
   const header = (
     <FocusedDeviceHeader
       selectedDeviceId={selectedDeviceId}
+      streamState={streamState}
       selectedDevice={selectedDevice}
       devices={devices}
       onSelectDevice={onSelectDevice}

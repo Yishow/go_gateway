@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWriteGroupDeliveryQuery, useWriteGroupsQuery } from '../../../../../../hooks/datalink/useStudioV2WriteGroups';
 import type { WriteGroup } from '../../../../../../types/studioV2WriteGroup';
@@ -13,6 +13,7 @@ export interface WriteGroupSectionProps {
   workspaceId?: string;
   readonly: boolean;
   onNavigateStep?: (step: WorkspaceReadinessStepNumber) => void;
+  openGroupRequest?: { id: string };
 }
 
 type Selection = { kind: 'none' } | { kind: 'new' } | { kind: 'edit'; id: string; saved?: WriteGroup };
@@ -48,10 +49,17 @@ function GroupListItem({ group, current, onOpen }: { group: WriteGroup; current:
  * workspace and says what is missing before anything can be created, keeping a
  * failed load, an empty list and groups for another destination apart.
  */
-export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, workspaceId, readonly, onNavigateStep }) => {
+export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, workspaceId, readonly, onNavigateStep, openGroupRequest }) => {
   const { t } = useTranslation('workbench-v2');
   const [selection, setSelection] = useState<Selection>({ kind: 'none' });
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
+  const consumedOpen = useRef<typeof openGroupRequest>(undefined);
+  useEffect(() => {
+    if (openGroupRequest !== consumedOpen.current && openGroupRequest && groupsQuery.data?.groups.some(group => group.id === openGroupRequest.id && group.status !== 'deleted')) {
+      consumedOpen.current = openGroupRequest;
+      setSelection({ kind: 'edit', id: openGroupRequest.id });
+    }
+  }, [openGroupRequest, groupsQuery.data]);
   const { candidates, excluded } = useMemo(() => buildGroupCandidates(state), [state]);
   const connector = state.db.connector;
   const destinationSaved = connector.persisted === true && connector.save_state === 'saved' &&

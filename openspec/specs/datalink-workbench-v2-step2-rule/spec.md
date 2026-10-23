@@ -2035,3 +2035,57 @@ tests:
   - internal/api/handlers/studio_v2_workspace_source_rules_handler_test.go
   - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
 -->
+
+---
+### Requirement: Complete occupied range without changing points
+The rule summary SHALL distinguish item start positions from the complete occupied range using the source stride, datatype span and existing protocol address representation, without changing actual points.
+
+#### Scenario: Multiword occupied end
+- **WHEN** four float32 items start at D0 or 40001 with contiguous two-word stride
+- **THEN** the complete occupied range SHALL end at D7 or 40008 respectively, while still reporting four items and eight words.
+
+#### Scenario: Other widths and address radices
+- **WHEN** 64-bit, single-word or bit values are summarized in decimal or protocol-specific radix areas
+- **THEN** the summary SHALL include the final occupied unit and preserve the parser radix and actual point addresses.
+
+<!-- @trace
+source: fix-studio-v2-five-review-gaps
+updated: 2026-10-23
+code:
+  - frontend/src/features/datalink/runtime-dashboard/FocusedDeviceHeader.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/BasicRecordingPanel.tsx
+  - docs/releases/2026-10-23-studio-five-review-fixes.md
+  - frontend/src/i18n/locales/en/studio-review.json
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
+  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
+  - internal/datalink/collector/scheduler_polling.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceMeasurements.ts
+  - frontend/src/i18n/config.ts
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection.tsx
+  - docs/releases/evidence/studio-five-review-2026-10-23/manifest.json
+  - internal/datalink/collector/scheduler_manual_poll.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx
+  - internal/datalink/device/service_point_read.go
+  - frontend/src/i18n/locales/en/runtime-dashboard.json
+  - internal/datalink/connector/point_read.go
+  - internal/datalink/recordingplan/schema_preview.go
+  - docs/releases/evidence/studio-five-review-2026-10-23/observations.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupMemberTable.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MeasurementTemplateSelector.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/columns.ts
+  - frontend/src/i18n/locales/zh-TW/studio-review.json
+tests:
+  - frontend/tests/unit/workbench-v2/template-offline.test.tsx
+  - frontend/tests/unit/workbench-v2/occupied-range.test.tsx
+  - internal/datalink/collector/point_count_contract_test.go
+  - frontend/tests/unit/workbench-v2/MeasurementTemplateSelector.test.tsx
+  - frontend/tests/unit/workbench-v2/basic-required-policy.test.tsx
+  - internal/datalink/recordingplan/schema_noop_json_test.go
+  - scripts/tests/f_device_to_sql/five-template-errors.mjs
+  - scripts/tests/f_device_to_sql/five-review-flow.mjs
+  - scripts/tests/f_device_to_sql/mc-fixture.mjs
+  - frontend/tests/unit/workbench-v2/writeGroupColumns.test.ts
+  - frontend/tests/unit/runtime-dashboard/focused-header-evidence.test.tsx
+-->

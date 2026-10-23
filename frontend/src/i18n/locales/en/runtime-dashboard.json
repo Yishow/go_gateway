@@ -6,7 +6,21 @@
     "deviceMetaUnavailable": "Unavailable: runtime device context is unavailable.",
     "unavailable": "Unavailable",
     "unavailableAction": "Review the device setup in Studio V2 and retry.",
-    "deviceMetaEmpty": "Use the committed device context to inspect live runtime health."
+    "deviceMetaEmpty": "Use the committed device context to inspect live runtime health.",
+    "streamStates": {
+      "idle": "Stream not started",
+      "connecting": "Connecting stream; waiting for readiness",
+      "connected": "Stream transport connected",
+      "live": "Receiving live stream",
+      "reconnecting": "Reconnecting stream",
+      "degraded": "Stream degraded",
+      "error": "Stream unavailable",
+      "stale": "Stream data stale",
+      "disconnected": "Stream disconnected",
+      "unavailable": "Stream unavailable"
+    },
+    "recordingEvidenceNote": "Collector and stream state do not prove SQL delivery.",
+    "recordingEvidence": "Check recording evidence"
   },
   "empty": {
     "title": "Choose a runtime device",

@@ -1,0 +1,15 @@
+{
+  "template": {
+    "load_failed": "Templates could not be loaded. Reload to try again.",
+    "reload": "Reload templates",
+    "preview_failed": "Preview failed. Check the connection and preview again.",
+    "apply_failed": "The template could not be confirmed. Review a fresh preview before trying again.",
+    "loading": "Loading templates…"
+  },
+  "basic": {
+    "required_hint": "Required values still block the whole snapshot when missing or invalid, even with partial snapshots. Only optional values can be recorded as NULL with a reason.",
+    "required_count": "Currently required: {{count}} value(s).",
+    "member_settings": "Review required / optional values",
+    "prepare_first": "Prepare the managed group first to review required / optional values."
+  }
+}

@@ -37,7 +37,7 @@ func (s *Service) ReadPointNow(
 		DataType:   point.DataType,
 		DataFormat: point.DataFormat,
 	}
-	req.Count = schema.RegisterCountForDataType(point.DataType)
+	req.Count = connector.PointReadCount(conn.ProtocolType, point.DataType)
 
 	result, err := conn.Read(ctx, req)
 	if err != nil {

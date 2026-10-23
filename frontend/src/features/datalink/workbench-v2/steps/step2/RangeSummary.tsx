@@ -23,12 +23,14 @@ export const RangeSummary: React.FC<RangeSummaryProps> = ({
   protocol = 'modbus_tcp',
 }) => {
   const { t } = useTranslation('workbench-v2');
-  const stride = dataTypeWidth(dataType);
+  // Source points are contiguous by datatype width; share_stride belongs to output only.
+  const width = dataTypeWidth(dataType);
+  const stride = width;
   const totalRegisters = count * stride;
   const startAddr = startAddress.trim();
   const isAddressValid = startAddr.length > 0 && addressParser.validate(startAddr, protocol).valid;
   const endAddr = isAddressValid
-    ? addressParser.offset(startAddr, Math.max(0, count - 1) * stride, protocol)
+    ? addressParser.offset(startAddr, Math.max(0, count - 1) * stride + width - 1, protocol)
     : '';
 
   // 推斷功能碼類型與色彩調性

@@ -19,6 +19,7 @@ export function useStudioV2WorkspaceMeasurementsQuery(enabled: boolean, deviceId
 export function useStudioV2MeasurementTemplatesQuery(enabled: boolean) {
   return useQuery({
     queryKey: studioV2WorkspaceKeys.measurementTemplates(),
+    networkMode: 'always',
     queryFn: () => studioV2WorkspaceMeasurementsAPI.listTemplates(),
     enabled,
     retry: false,
@@ -28,6 +29,8 @@ export function useStudioV2MeasurementTemplatesQuery(enabled: boolean) {
 
 export function usePreviewMeasurementTemplateMutation() {
   return useMutation({
+    networkMode: 'always',
+    retry: false,
     mutationFn: (request: PreviewTemplateRequest) =>
       studioV2WorkspaceMeasurementsAPI.previewTemplate(request),
   });
@@ -37,6 +40,8 @@ export function useApplyMeasurementTemplateMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    networkMode: 'always',
+    retry: false,
     mutationFn: (preview: TemplateApplyPreview) =>
       studioV2WorkspaceMeasurementsAPI.applyTemplate(preview),
     onSuccess: async () => {

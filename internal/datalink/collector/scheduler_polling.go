@@ -18,7 +18,7 @@ func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connecto
 		DataFormat: pt.DataFormat,
 	}
 
-	req.Count = schema.RegisterCountForDataType(pt.DataType)
+	req.Count = connector.PointReadCount(conn.ProtocolType, pt.DataType)
 
 	var result connector.ReadResult
 	var err error
