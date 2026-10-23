@@ -21,9 +21,11 @@ Windows 單執行檔部署目前仍以 console 視窗承載日誌與結束入口
 
 ### Modified Capabilities
 
-無。此案新增兩項能力；既有 `embedded-frontend-delivery`、`start-script-contracts`、`runtime-dashboard-truthfulness` 的產品邊界維持不變。既有 `/debug/logs` 仍是工程工具紀錄，不被改成程序日誌；console HTTP formatter 的既有 query 相容測試不代表新安全 sink 可保留 query 值。
+無。
 
 ## Impact
+
+此案新增兩項能力；既有 `embedded-frontend-delivery`、`start-script-contracts`、`runtime-dashboard-truthfulness` 的產品邊界維持不變。既有 `/debug/logs` 仍是工程工具紀錄，不被改成程序日誌；console HTTP formatter 的既有 query 相容測試不代表新安全 sink 可保留 query 值。
 
 - 主程式／建置：`cmd/test_ui/main.go`、`cmd/test_ui/server_runtime.go`、`cmd/test_ui/service_wiring.go`、`cmd/test_ui/harness_config.go`、`Makefile`、`scripts/build.ps1` 及 Windows 啟動腳本的模式選擇
 - 新增平台隔離的 desktop/lifecycle 與安全 logging 模組；以現有 `golang.org/x/sys` 的 Windows API 能力優先評估，不引入 WebView、Electron 或另一套產品 UI

@@ -1,0 +1,268 @@
+{
+  "base_commit": "f21e2a6b4997726011e4e85eba527087b6c9c8c0",
+  "environment": {
+    "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+    "go": "go version go1.27.3 darwin/arm64",
+    "node": "v24.22.1"
+  },
+  "original_files": {
+    "README.md": {
+      "initial_sha256": "1ed679ad9284471666331f3df415466d00defb096d8740ffe60a81f6190cc2b9",
+      "final_sha256": "4562b313411f7e0ab6278ecd3d424d6106e7a0209ba1e8e3bc5199fd77543f16",
+      "initial_status": " M"
+    },
+    "docs/plans/2026-10-09-incomplete-features-plan.md": {
+      "initial_sha256": "08bd7e0607a2f8219a96567d9c10da4cd604e75bc6ff49d3576f9e51c094347d",
+      "final_sha256": "4eeec86af5164ecb1c7e54475427b0dc2db826df6de495cb0ca6b75b9bf3622d",
+      "initial_status": " M"
+    },
+    "docs/technical/windows-tray-runtime-logs-evidence.md": {
+      "initial_sha256": "0f5320e91f3653780a0e101bf2d583ecb8878dc392f801af8489b0676df8252f",
+      "final_sha256": "605fcf17d07085e733e0fe62fcb1d588f8967ae1a2f5c15888dfff8d10923c1f",
+      "initial_status": " M"
+    },
+    "frontend/tests/e2e/embedded-frontend-delivery.spec.ts": {
+      "initial_sha256": "7963beec0bedbae94108b6817c76f384ed89edd0a45b8fba7986628c68ccaebf",
+      "final_sha256": "5b5050aebc034733ac087a1703547203308e9eddf63acb78fa1facf1b64f0acf",
+      "initial_status": " M"
+    },
+    "frontend/tests/unit/runtime-logs/runtimeLogSession.test.ts": {
+      "initial_sha256": "de21017b1bb097bdc10730377d6e1832e3419e0c1fee0b835931680bcfb4e939",
+      "final_sha256": "de21017b1bb097bdc10730377d6e1832e3419e0c1fee0b835931680bcfb4e939",
+      "initial_status": " M"
+    },
+    "internal/datalink/device/service_validation.go": {
+      "initial_sha256": "c582ba5082bfa10f13bc2768b55c35dc167814b595eeeaf62537bd4ae6607b8c",
+      "final_sha256": "1ba67f256a0114890e7dadb8b013466801720ba6bbc0de8384e0082580e454bd",
+      "initial_status": " M"
+    },
+    "openspec/changes/add-windows-tray-runtime-logs/proposal.md": {
+      "initial_sha256": "8a2670b47430d3dfb1f67d7591ab6d6d9dce2cb2fd823c25ccbf2623620348c3",
+      "final_sha256": "8a2670b47430d3dfb1f67d7591ab6d6d9dce2cb2fd823c25ccbf2623620348c3",
+      "initial_status": " M"
+    },
+    "openspec/changes/add-windows-tray-runtime-logs/tasks.md": {
+      "initial_sha256": "08719c7e99847051313e83d227d4741c8ad119c88ddea6c937601f904509e6fe",
+      "final_sha256": "182149865ee11e6a9e1ca81e148c30c1812a6b52747672bd8069e85ce496a2d3",
+      "initial_status": " M"
+    },
+    "cmd/test_ui/gateway_data_selection_test.go": {
+      "initial_sha256": "268545813ef3ed9d3aeda64ed07298f32817963fec43411a552837cc180baae8",
+      "final_sha256": "268545813ef3ed9d3aeda64ed07298f32817963fec43411a552837cc180baae8",
+      "initial_status": "??"
+    },
+    "internal/apphost/data_test.go": {
+      "initial_sha256": "b333889f35101170cf01bcaaeae97fd1ed1ce81e13ebaed2650e1336ed0ea28b",
+      "final_sha256": "b333889f35101170cf01bcaaeae97fd1ed1ce81e13ebaed2650e1336ed0ea28b",
+      "initial_status": "??"
+    },
+    "internal/config/precedence_test.go": {
+      "initial_sha256": "85763e7c47ae5b3a1dc62add204b5321a1d72da9be55cf701d5d45805279a57f",
+      "final_sha256": "85763e7c47ae5b3a1dc62add204b5321a1d72da9be55cf701d5d45805279a57f",
+      "initial_status": "??"
+    },
+    "internal/datalink/device/service_validation_test.go": {
+      "initial_sha256": "04693637cd87d1eec0acf5e07659d3ee6495a9f59f8afda4cae7d6a2d782f54d",
+      "final_sha256": "a708f955bc51323dddd42680c4bfaa9bee2980b7ed57d887520fa6147493ea0c",
+      "initial_status": "??"
+    }
+  },
+  "original_index_was_empty": true,
+  "results": [
+    {
+      "name": "go-tests",
+      "command": "go test -p 1 ./...",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "1a2a2e43d48d40c2491130781f13663b85662e8f62f67c1cb102f05601733a84",
+      "sanitized_log_sha256": "1a2a2e43d48d40c2491130781f13663b85662e8f62f67c1cb102f05601733a84"
+    },
+    {
+      "name": "go-vet",
+      "command": "go vet ./...",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sanitized_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "go-lint",
+      "command": "golangci-lint run ./...",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "sanitized_log_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+    },
+    {
+      "name": "race",
+      "command": "go test -race -p 1 ./internal/apphost ./internal/config ./cmd/test_ui ./internal/diagnostics ./internal/api ./internal/api/handlers ./internal/datalink/device -count=1",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "1d81faea6d95fdd1c48997a08303d067abf53d57af036a91b44bcb0c062243cf",
+      "sanitized_log_sha256": "1d81faea6d95fdd1c48997a08303d067abf53d57af036a91b44bcb0c062243cf"
+    },
+    {
+      "name": "frontend-tests",
+      "command": "npm test -- --run",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "3af8a8c199d0761a2b6bf3cffd07f5bd428e44cd932e4edaec999b6db6fed2da",
+      "sanitized_log_sha256": "0b52dc7338e08513765327f4778c0a9f8d2d7c548bc113a438a511fda973ad93"
+    },
+    {
+      "name": "frontend-lint",
+      "command": "npm run lint",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "ecd5ba9174b3eb645ee6407cf7eda7d1365ebff664e63bca9169a9255d3ea9a2",
+      "sanitized_log_sha256": "ecd5ba9174b3eb645ee6407cf7eda7d1365ebff664e63bca9169a9255d3ea9a2"
+    },
+    {
+      "name": "frontend-build",
+      "command": "npm run build",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "870d8d4614eba7a31a418a49f14e5a505c79b8b9e9fd293e26b58d2a47c6fe3e",
+      "sanitized_log_sha256": "870d8d4614eba7a31a418a49f14e5a505c79b8b9e9fd293e26b58d2a47c6fe3e"
+    },
+    {
+      "name": "playwright",
+      "command": "npm run test:e2e",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "23e7ab3f3a00fed5d52d51cb1720769f5cf729b31221ff748dcaa6f20600eaf9",
+      "sanitized_log_sha256": "23e7ab3f3a00fed5d52d51cb1720769f5cf729b31221ff748dcaa6f20600eaf9"
+    },
+    {
+      "name": "logs-unit",
+      "command": "npx vitest run tests/unit/runtime-logs",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "0ebb3af1a7ac7fe3ad02c56a27ebb53fcea71ec8c956e789e3033962797f9d9a",
+      "sanitized_log_sha256": "dc357f3f8710690c419c983ab53cdc95a05fead55a11cd1c332f7460e6ba0787"
+    },
+    {
+      "name": "embedded-focused",
+      "command": "npx playwright test tests/e2e/embedded-frontend-delivery.spec.ts --workers=1",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "a46eddad7cda7d6ba1e4943604ef81f99c32fe74c783b5435acbfa58ea404a5b",
+      "sanitized_log_sha256": "a46eddad7cda7d6ba1e4943604ef81f99c32fe74c783b5435acbfa58ea404a5b"
+    },
+    {
+      "name": "ipv6",
+      "command": "go test ./internal/api -run ^TestRuntimeLogIPv6Socket$ -v -count=1",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "e07c09c8eaf8b6738a6d8a35352b10abdec17319a5a303dcf9b0e0ef2c273e71",
+      "sanitized_log_sha256": "e07c09c8eaf8b6738a6d8a35352b10abdec17319a5a303dcf9b0e0ef2c273e71"
+    },
+    {
+      "name": "build-contract",
+      "command": "python3 scripts/tests/test_windows_build_contract.py",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "f6533bb4a4a7804f124c09b6b9b57f8a8f44a9dd6c0a089c37b02ed32b5f3993",
+      "sanitized_log_sha256": "f6533bb4a4a7804f124c09b6b9b57f8a8f44a9dd6c0a089c37b02ed32b5f3993"
+    },
+    {
+      "name": "device",
+      "command": "go test ./internal/datalink/device -count=1",
+      "exit_code": 0,
+      "result": "passed-current",
+      "raw_local_log_sha256": "fdd33fc2886ec846d64bfafa14a556dc0fc59ccc76046666ffa81d3bb7f61b3b",
+      "sanitized_log_sha256": "fdd33fc2886ec846d64bfafa14a556dc0fc59ccc76046666ffa81d3bb7f61b3b"
+    },
+    {
+      "name": "required-red",
+      "command": "mixed required before fix",
+      "exit_code": 1,
+      "result": "expected-behavioral-failure",
+      "raw_local_log_sha256": "26f77ff634faef05ebda909f947fb17fb0fa4bc27a3f6b8893e58867bd2aee63",
+      "sanitized_log_sha256": "cb9ed8808ec8cedcdb9754514451f32ce5fa6b3fe9e469d7add3eb28e82c7b3d"
+    },
+    {
+      "name": "required-mutation",
+      "command": "return only first missing/empty; restored",
+      "exit_code": 1,
+      "result": "expected-behavioral-failure",
+      "raw_local_log_sha256": "b82c11d7463776c109a113dea5e8e1a65b5f4dbd21f90057981db145de997038",
+      "sanitized_log_sha256": "d6c047c589bb6d5f65fbda7d30f006ec629a706a6767fe12b99bbba4ca3e816e"
+    },
+    {
+      "name": "jitter-mutation",
+      "command": "remove jitter; restored",
+      "exit_code": 1,
+      "result": "expected-behavioral-failure",
+      "raw_local_log_sha256": "127b24edfd5cc3368171e934202aa9992a13f1daee8b123103b7b706afb49404",
+      "sanitized_log_sha256": "478886a7bcec5691b09c8e87d2ca850febfd7d6aef882df59cdfe9376d958dab"
+    },
+    {
+      "name": "alias-mutation",
+      "command": "reverse alias precedence in Go overlay",
+      "exit_code": 1,
+      "result": "expected-behavioral-failure",
+      "raw_local_log_sha256": "16186010c108a8ef8f54ec3f25695d155638586b9346db6785337fb3f84786d9",
+      "sanitized_log_sha256": "1f83a16c97dffc62e0de9c61dea26e4463a3841cf357904adaf74f7436281ed5"
+    },
+    {
+      "name": "config-mutation",
+      "command": "dotenv overrides process env in Go overlay",
+      "exit_code": 1,
+      "result": "expected-behavioral-failure",
+      "raw_local_log_sha256": "5282ec2155e40f3c598715002bf88f27aea0bf637ce83c8f1ac8c04488347ab8",
+      "sanitized_log_sha256": "5282ec2155e40f3c598715002bf88f27aea0bf637ce83c8f1ac8c04488347ab8"
+    },
+    {
+      "name": "browser-mutation",
+      "command": "omit source parameter; restored",
+      "exit_code": 1,
+      "result": "expected-behavioral-failure",
+      "raw_local_log_sha256": "fd76bd9ea2be6af8294ee3b2fc17ac9b65eb9da629d7706d13f9c3c1779f6251",
+      "sanitized_log_sha256": "6a858987a1043452483835457d1f379c4398dce15c2acc9df77e3fb28e8aae0f"
+    }
+  ],
+  "counts": {
+    "vitest_files": 211,
+    "vitest_tests": 1344,
+    "playwright_full": 18,
+    "embedded_focused": 13,
+    "runtime_logs_unit": 27,
+    "build_contract": 5,
+    "race_packages": 7
+  },
+  "mutations_restored": true,
+  "runtime_logs_production_changed": false,
+  "host_config_production_changed": false,
+  "test_author_failures": [
+    "Chromium offline retains existing SSE; controlled native fetch abort added",
+    "reconnect assertion initially used shortened locale label; corrected exact expected label"
+  ],
+  "sandbox_setup": [
+    "device package loopback blocked initially; escalated final pass",
+    "IPv6 default sandbox Skip excluded; escalated actual ::1 PASS"
+  ],
+  "review": {
+    "windows_snapshot": "243d0b21fb7fbafa26e5bf6cafb2bdf81b374801",
+    "windows_scope": "5 preexisting-dirty test files; current at review; explicit user authorization covers full contents",
+    "findings": 0,
+    "aggregate": "independent source/spec/HTTP envelope review found no confirmed defect"
+  },
+  "log_bundle": {
+    "file": "pending-work-20261023-logs.json.gz",
+    "sha256": "5c6e4b9ca3393356dea4f315f4b8c788c0b91ca2456d7873721477dae2f44fa0"
+  },
+  "screenshot": {
+    "file": "pending-work-20261023-logs-zh-TW.png",
+    "sha256": "7283a6319e793f8e7cf9d684b45e73553cab17968206fd3480db4e3404141c8f"
+  },
+  "not_run": [
+    "Windows native OS owner/ACL/IPC/tray/Explorer/dialogs/GUI-headless/portable",
+    "Linux native",
+    "human novice acceptance",
+    "field PLC",
+    "production database",
+    "deployment"
+  ],
+  "archive_policy": "aggregate change only after verified; Windows change stays active with native gaps"
+}

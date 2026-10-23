@@ -4,7 +4,7 @@ import { RuntimeLogRequestError } from '../../../src/services/runtimeLogs';
 import type { RuntimeLogEvent, RuntimeLogSnapshot, RuntimeLogTransport } from '../../../src/types/runtimeLogs';
 import { filters, record, snapshot } from './fixtures';
 const settle = async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); };
-function harness() {
+function harness(random = 0.5) {
   let emit: (event: RuntimeLogEvent) => void = () => undefined;
   let fail: (error: unknown) => void = () => undefined;
   const transport: RuntimeLogTransport = {
@@ -13,7 +13,7 @@ function harness() {
       emit = callback; return new Promise<void>((_resolve, reject) => { fail = reject; });
     }),
   };
-  return { transport, session: new RuntimeLogSession(filters, transport, () => 0.5),
+  return { transport, session: new RuntimeLogSession(filters, transport, () => random),
     emit: (event: RuntimeLogEvent) => emit(event), drop: (error = new Error('network')) => fail(error) };
 }
 describe('runtime log connection ownership', () => {
@@ -77,6 +77,20 @@ describe('runtime log connection ownership', () => {
       expect(h.transport.stream).toHaveBeenCalledTimes(index + 1); await vi.advanceTimersByTimeAsync(1);
     }
     h.session.stop();
+  });
+  it.each<[number, number[]]>([
+    [0, [800, 1600, 3200, 6400, 12800, 24000, 24000]],
+    [1, [1200, 2400, 4800, 9600, 19200, 30000, 30000]],
+  ])('jitters retries to 0.8x/1.2x (random=%s) and caps the jittered delay at 30 seconds', async (random, delays) => {
+    const h = harness(random); vi.mocked(h.transport.stream).mockRejectedValue(new Error('network'));
+    h.session.start(); await settle();
+    for (const [index, delay] of delays.entries()) {
+      expect(vi.getTimerCount()).toBe(1); await vi.advanceTimersByTimeAsync(delay - 1);
+      expect(h.transport.stream).toHaveBeenCalledTimes(index + 1); await vi.advanceTimersByTimeAsync(1);
+    }
+    await settle(); expect(h.transport.stream).toHaveBeenCalledTimes(delays.length + 1); expect(vi.getTimerCount()).toBe(1);
+    h.session.stop(); expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(30000); expect(h.transport.stream).toHaveBeenCalledTimes(delays.length + 1);
   });
   it('distinguishes file-only loss and process reset without accepting duplicate cleared records', async () => {
     const h = harness(); h.session.start(); await settle(); h.session.clear();

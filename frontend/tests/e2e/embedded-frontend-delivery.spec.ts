@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { expect, test, type Page, type Request } from '@playwright/test';
+import type { RuntimeLogSnapshot } from '../../src/types/runtimeLogs';
 
 const repoRoot = process.cwd().endsWith('frontend') ? resolve(process.cwd(), '..') : process.cwd();
 const embeddedPort = async (): Promise<number> => {
@@ -250,6 +251,148 @@ test.describe('Embedded frontend delivery smoke', () => {
     await page.goBack();
     await expect(page.getByRole('heading', { name: 'Runtime logs' })).toBeVisible();
     await expect(page.getByRole('status')).toHaveText('Connected');
+  });
+
+  // These cases use the owned embedded process and its real retained records;
+  // only the browser network is faulted, without mocking log success responses.
+  test('logs reconnect after an injected transport abort and browser offline/online without replay duplicates', async ({ page, context }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('i18nextLng', 'en');
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = (input, init) => {
+        const url = input instanceof Request ? input.url : String(input);
+        if (!new URL(url, location.href).pathname.endsWith('/system/logs/stream')) return originalFetch(input, init);
+        const fault = new AbortController();
+        (window as Window & { dropLogStream: () => void }).dropLogStream = () => fault.abort();
+        const signals = init?.signal ? [init.signal, fault.signal] : [fault.signal];
+        return originalFetch(input, { ...init, signal: AbortSignal.any(signals) });
+      };
+    });
+    const streams: string[] = [];
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname === '/api/v1/system/logs/stream') streams.push(request.url());
+    });
+    await openRoute(page, '/studio/logs', 'h1');
+    const status = page.getByRole('status');
+    const rows = page.locator('tbody tr');
+    await expect(status).toHaveText('Connected');
+    await expect.poll(() => rows.count()).toBeGreaterThan(0);
+    const before = await rows.allTextContents();
+    const initialStreams = streams.length;
+    try {
+      await context.setOffline(true);
+      // Chromium offline mode blocks new requests but can keep an existing SSE
+      // socket alive; cancel that real fetch to inject the dropped connection.
+      await page.evaluate(() => (window as Window & { dropLogStream: () => void }).dropLogStream());
+      await expect(status).toHaveText('Disconnected · reconnecting');
+      expect(await rows.allTextContents()).toEqual(before);
+    } finally {
+      await context.setOffline(false);
+    }
+    await expect(status).toHaveText('Connected');
+    await expect.poll(() => streams.length).toBeGreaterThan(initialStreams);
+    expect(new URL(streams.at(-1)!).searchParams.get('after')).toMatch(/^[A-Za-z0-9_-]+:[0-9]+$/);
+    expect(await rows.allTextContents()).toEqual(before);
+  });
+
+  test('logs clear affects only browser rows and preserves the server retained identities', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('i18nextLng', 'en'));
+    await openRoute(page, '/studio/logs', 'h1');
+    const status = page.getByRole('status');
+    await expect(status).toHaveText('Connected');
+    await expect.poll(() => page.locator('tbody tr').count()).toBeGreaterThan(0);
+    const beforeResponse = await page.request.get(`${baseURL}/api/v1/system/logs`);
+    expect(beforeResponse.ok()).toBe(true);
+    const before: RuntimeLogSnapshot = await beforeResponse.json();
+    const identities = (snapshot: RuntimeLogSnapshot) => snapshot.records.map((record) => `${record.instance_id}:${record.sequence}`);
+    expect(before.records.length).toBeGreaterThan(0);
+    await page.getByRole('button', { name: 'Pause view' }).click();
+    await expect(status).toHaveText('Paused');
+    await page.getByRole('button', { name: 'Clear view' }).click();
+    await expect(page.locator('tbody tr')).toHaveCount(0);
+    await expect(status).toHaveText('Paused');
+    const afterResponse = await page.request.get(`${baseURL}/api/v1/system/logs`);
+    expect(afterResponse.ok()).toBe(true);
+    const after: RuntimeLogSnapshot = await afterResponse.json();
+    expect(after.instance_id).toBe(before.instance_id);
+    expect(identities(after)).toEqual(expect.arrayContaining(identities(before)));
+    expect(after.capture_dropped).toBe(before.capture_dropped);
+    await page.getByRole('button', { name: 'Resume view' }).click();
+    await expect(status).toHaveText('Connected');
+    await expect(page.locator('tbody tr')).toHaveCount(0);
+  });
+
+  test('logs source and text filters select real retained records and distinguish an empty match', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('i18nextLng', 'en'));
+    const response = await page.request.get(`${baseURL}/api/v1/system/logs`);
+    expect(response.ok()).toBe(true);
+    const snapshot: RuntimeLogSnapshot = await response.json();
+    const retained = snapshot.records.find((record) => record.source === 'startup');
+    expect(retained).toBeDefined();
+    await openRoute(page, '/studio/logs', 'h1');
+    await expect(page.getByRole('status')).toHaveText('Connected');
+    await page.getByLabel('Source (exact ID)').selectOption(retained!.source);
+    await page.getByLabel('Search safe text').fill(retained!.code);
+    const filteredRequest = page.waitForResponse((candidate) => {
+      const url = new URL(candidate.url());
+      return url.pathname === '/api/v1/system/logs' && url.searchParams.get('q') === retained!.code;
+    });
+    await page.getByRole('button', { name: 'Apply filters' }).click();
+    const filtered = await filteredRequest;
+    expect(new URL(filtered.url()).searchParams.get('source')).toBe(retained!.source);
+    expect(filtered.ok()).toBe(true);
+    const matching: RuntimeLogSnapshot = await filtered.json();
+    expect(matching.records.length).toBeGreaterThan(0);
+    expect(matching.records.every((record) => record.source === retained!.source && record.code === retained!.code)).toBe(true);
+    await expect(page.getByRole('status')).toHaveText('Connected');
+    await expect(page.locator('tbody tr')).toHaveCount(matching.records.length);
+    await expect(page.getByText(retained!.message, { exact: true })).toBeVisible();
+    await page.getByLabel('Search safe text').fill('no-match-logs-retained-browser-contract');
+    await page.getByRole('button', { name: 'Apply filters' }).click();
+    await expect(page.getByRole('status')).toHaveText('Connected');
+    await expect(page.getByText('No matching retained records')).toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(0);
+  });
+
+  test('zh-TW keyboard path reaches /studio/logs from Studio v2 and runs real controls', async ({ page }, testInfo) => {
+    await page.addInitScript(() => localStorage.setItem('i18nextLng', 'zh-TW'));
+    await openRoute(page, '/studio/v2', '[data-workbench-v2="true"]');
+    await expect(page.locator('[data-testid="workbench-v2-bootstrap-loading"]')).toBeHidden();
+    const studioEntry = page.getByRole('link', { name: '執行日誌', exact: true });
+    await expect(studioEntry).toHaveAttribute('href', '/studio/logs');
+    await studioEntry.focus();
+    await expect(studioEntry).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/studio\/logs$/);
+    await expect(page.getByRole('heading', { name: '執行日誌' })).toBeVisible();
+    const status = page.getByRole('status');
+    await expect(status).toHaveText('已連線');
+    await page.getByLabel('搜尋安全文字').focus();
+    await page.keyboard.type('no-match-embedded-zh-tw');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: '套用篩選' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('沒有符合條件的保留紀錄')).toBeVisible();
+    await expect(status).toHaveText('已連線');
+    const toggle = page.getByRole('button', { name: '暫停檢視' });
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    await expect(status).toHaveText('已暫停');
+    await expect(page.getByRole('button', { name: '繼續檢視' })).toBeFocused();
+    await page.keyboard.press('Space');
+    await expect(status).toHaveText('已連線');
+    await page.screenshot({ path: testInfo.outputPath('runtime-logs-embedded-zh-TW.png'), fullPage: true });
+    const runtimeEntry = page.getByRole('link', { name: '開啟執行監看', exact: true });
+    await expect(runtimeEntry).toHaveAttribute('href', '/studio/runtime');
+    await runtimeEntry.focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/studio\/runtime(?:[?#]|$)/);
+    const logsEntry = page.getByRole('link', { name: '執行日誌', exact: true });
+    await expect(logsEntry).toHaveAttribute('href', '/studio/logs');
+    await logsEntry.focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/studio\/logs$/);
+    await expect(page.getByRole('status')).toHaveText('已連線');
   });
 
   test('/test keeps the independent engineering tool loadable', async ({ page }) => {

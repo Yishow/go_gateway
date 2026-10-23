@@ -13,7 +13,7 @@
 
 - [x] 3.1 [after: 2.3] 在 `internal/api/router.go` 與新handler加入log-only guard及snapshot；以IPv4/IPv6、無Origin正常GET、同源Origin、Host/port/DNS rebinding、LAN、proxy headers、Sec-Fetch-Site same-site無Origin／重複／malformed與wildcard CORS繞過負測試驗證，再加入bounded filter/search/page/cursor及safe錯誤；其他route政策不變
 - [x] 3.2 [after: 3.1] 以 Red-Green-Refactor 完成snapshot→bounded replay→live原子邊界與SSE：測同時append、鎖不跨IO、replay大於live queue／replay-limit gap、相同filter語意與無matching時progress、Last-Event-ID衝突、future cursor、retention/restart gap、8-client上限、slow consumer隔離、5秒write deadline及並行cancel/shutdown無洩漏；重連ID採字串不丟JS精度
-- [ ] 3.3 [after: 3.2] 依UI測試先行新增 `/studio/logs` 的lazy route與Studio/runtime入口，涵蓋level/source/search、pause/resume/tail/clear、browser雙容量界線、A→B遲到回覆、單一reconnect owner、403停止重試、plain-text XSS及en／zh-TW鍵盤可達狀態；執行focused Vitest及embedded Playwright
+- [x] 3.3 [after: 3.2] 依UI測試先行新增 `/studio/logs` 的lazy route與Studio/runtime入口，涵蓋level/source/search、pause/resume/tail/clear、browser雙容量界線、A→B遲到回覆、單一reconnect owner、403停止重試、plain-text XSS及en／zh-TW鍵盤可達狀態；執行focused Vitest及embedded Playwright
 
 ## 4. Windows 本機操作與安全退出
 
@@ -39,3 +39,10 @@
 審查其餘建議（broker鎖內case fold、raw.suppressed遺失錯誤原因、靜態路由缺route欄位、未發送的 `runtime.stopped`／`shutdown.complete` 模板、逐筆fsync吞吐）未納入本組，留待後續評估；未列為完成。6.1–6.5 依2026-10-08本機 `go test -race`（storage、runtime、api、api/handlers）、golangci-lint（storage、api 0 issues）、完整Vitest 1302 passed及修正前RED結果勾選；`internal/diagnostics` 與 `cmd/test_ui` 有5＋1個file sink路徑驗證測試在未修改的HEAD上同樣失敗，與本組無關，仍待處理。
 
 本輪僅依實際自動化證據勾選 4/15；其餘 11 項保留未完成，逐项原因及 A/B/C 分類見 [實作驗證記錄](../../../docs/technical/windows-tray-runtime-logs-evidence.md)。原始碼重建後重新執行測試，不沿用遺失工作目錄的 PASS。規格文件完成、CLI artifacts 顯示 done 或通過 strict validate，均不代表 Windows／browser 驗收完成。數值為 design 契約上限，非吞吐量承諾。
+
+
+## 7. 2026-10-23 Mac 與未提交工作收尾
+
+- [x] 7.1 審查並重驗既有 resolver／config／gateway 新測試與 jitter 邊界，保留 Windows build-tag／native NOT RUN；用 focused Go/race、runtime logs Vitest 和 mutation 證據驗證，不改為 Windows 原生完成。
+- [x] 7.2 在最終 embedded UI 補 logs 專屬瀏覽器情境：真 browser offline→online 重連保留紀錄、clear不刪伺服器既有ID、source/search正反篩選；保留已存在zh-TW鍵盤流程，區分stub hostile文本與真backend，實跑Playwright並核對SQL/PLC未被使用。
+- [x] 7.3 [after: 7.1, 7.2] 對同一內容完成full前後端gates、review、analyze/validate與line/diff gate，更新本輪可追證據及歷史入口標示，3.3以當次證據核對；其餘Windows pending維持未完成，不archive整個change。
