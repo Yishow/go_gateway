@@ -408,119 +408,50 @@ tests:
 ---
 ### Requirement: Point grid with modifier-key interactions
 
-The current rule's point grid SHALL render the rule's expanded addresses as a 4-column (mobile), 6-column (sm), or 8-column (md+) grid. Each cell MUST display the address (mono) and the point name (smaller mono). Cell interactions MUST follow three modifier-key modes: plain click toggles the cell's skip state; Shift+click toggles a range from `lastClickedIdx` to the current index using the current cell's skip state as the inversion base; Cmd/Ctrl+click toggles the cell's address membership in a per-rule selection set. Switching the selected rule MUST reset the selection set and `lastClickedIdx`.
+The current rule's point grid SHALL display expanded addresses and point names with responsive layout. Plain click SHALL select or inspect one point; Shift+click SHALL select a contiguous range from lastClickedIdx; Cmd/Ctrl+click SHALL toggle membership in a per-rule point-ID selection set. None of these selection gestures SHALL change skipped_addresses. Collection changes SHALL require an explicit collection checkbox or the existing clearly scoped selected-point enable/skip action. Switching the selected rule SHALL reset selection and lastClickedIdx.
 
-#### Scenario: Plain click toggles skip
-
-- **GIVEN** a rule with cells `40001-40008` all enabled
-- **WHEN** the operator clicks the `40003` cell
-- **THEN** `state.rules[i].skipped_addresses` becomes `['40003']`
-- **AND** the cell tone switches to amber
+#### Scenario: Plain click selects without skipping
+- **GIVEN** cells 40001-40008 are collected
+- **WHEN** the operator clicks 40003
+- **THEN** only 40003 is selected and skipped_addresses remains empty.
 
 #### Scenario: Shift+click range
-
-- **GIVEN** a rule with cells all enabled, and `lastClickedIdx` is 0 (40001)
-- **WHEN** the operator Shift+clicks the cell at idx 3 (40004)
-- **THEN** `skipped_addresses` includes `40001`, `40002`, `40003`, `40004`
-- **AND** cells idx 0-3 show amber tone
+- **GIVEN** lastClickedIdx is 0 at 40001
+- **WHEN** the operator Shift+clicks index 3 at 40004
+- **THEN** 40001 through 40004 are selected and collection is unchanged.
 
 #### Scenario: Cmd+click multi-select
+- **WHEN** the operator Cmd/Ctrl+clicks 40002, 40004 and 40006
+- **THEN** those point IDs toggle in the selection set and the selected count is displayed without changing collection.
 
-- **GIVEN** a rule with cells all enabled
-- **WHEN** the operator Cmd+clicks cells `40002`, `40004`, `40006`
-- **THEN** those three addresses appear in the selection set
-- **AND** those three cells show a blue ring border
-- **AND** the chip `已選 3` is rendered in the section header aside
+#### Scenario: Explicit collection change
+- **WHEN** the operator unchecks a point's collection checkbox or explicitly skips the selected points
+- **THEN** only the requested collection scope changes and it can be explicitly enabled again.
 
 #### Scenario: Switching rule resets selection
-
-- **GIVEN** the operator has Cmd+clicked three cells in rule A
-- **WHEN** the operator selects rule B in the tab rail
-- **THEN** the selection set becomes empty
-- **AND** `lastClickedIdx` becomes null
-- **AND** no cell shows a blue ring border in rule B's grid
+- **WHEN** the operator switches from rule A with selected points to rule B
+- **THEN** selection is empty and lastClickedIdx is null without changing either rule's collection configuration.
 
 
 <!-- @trace
-source: datalink-workbench-v2-step2-rule
-updated: 2026-05-29
+source: close-studio-v2-simplification
+updated: 2026-10-23
 code:
-  - frontend/src/features/datalink/workbench-v2/components/SectionCard.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Button.tsx
-  - frontend/src/features/datalink/workbench-v2/components/StatusChip.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGridToolbar.tsx
-  - frontend/src/App.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step1DevicePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/styles/workbench-v2.css
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
-  - frontend/src/features/datalink/workbench-v2/components/inputs.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/StepRail.tsx
-  - frontend/src/main.tsx
-  - frontend/src/features/datalink/workbench-v2/tokens.ts
-  - frontend/src/features/datalink/workbench-v2/components/Icon.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ProtocolSelector.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ShareSection.tsx
-  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
-  - frontend/src/features/datalink/workbench-v2/settings/SettingsPlaceholder.tsx
-  - findings.md
-  - frontend/src/features/datalink/workbench-v2/state/ruleReducer.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/steps/Step4DatabasePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step2RulePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGrid.tsx
-  - frontend/src/features/datalink/workbench-v2/state/types.test-d.ts
-  - frontend/src/features/datalink/workbench-v2/shell/TweaksPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step3MappingPlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Toggle.tsx
-  - .antigravitycli/4252526d-bebd-463d-84e9-9145d2a0eb40.json
-  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
-  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
-  - frontend/package.json
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ScaleSection.tsx
-  - task_plan.md
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
-  - frontend/src/features/datalink/workbench-v2/state/types.ts
-  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
-  - frontend/src/features/datalink/workbench-v2/state/deviceColors.ts
-  - frontend/src/i18n/config.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
-  - progress.md
-  - frontend/src/features/datalink/workbench-v2/shell/TopBar.tsx
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/components/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ReadinessStages.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Field.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/index.ts
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-verification-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-logs-20261023.json.gz
+  - docs/releases/studio-v2-change-closeout-20261023.md
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023-mapping.png
+  - docs/plans/studio-v2-flow-completion/README.md
 tests:
-  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
-  - frontend/tests/unit/workbench-v2/protocols.test.ts
-  - frontend/tests/unit/workbench-v2/step2-grid.test.tsx
-  - frontend/tests/unit/workbench-v2/types-step2.test-d.ts
-  - frontend/tests/unit/workbench-v2/selectors.test.tsx
-  - frontend/tests/unit/workbench-v2/routing.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
-  - frontend/tests/unit/workbench-v2/deviceColors.test.tsx
-  - frontend/tests/unit/workbench-v2/step1-readiness.test.tsx
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - frontend/tests/unit/workbench-v2/components.test.tsx
-  - frontend/tests/unit/workbench-v2/sourceRule.test.ts
-  - frontend/tests/unit/workbench-v2/step2-share.test.tsx
-  - frontend/tests/unit/workbench-v2/tokens.test.ts
-  - frontend/tests/unit/workbench-v2/state.test.ts
-  - frontend/tests/unit/workbench-v2/reducer-step2.test.ts
-  - frontend/tests/unit/workbench-v2/step1.test.tsx
-  - frontend/tests/unit/workbench-v2/types.test-d.ts
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/datalink/recordingplan/schema_group_extend_test.go
+  - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
 -->
 
 ---

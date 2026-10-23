@@ -4,7 +4,9 @@
 
 `bf463e38` 的原始交付為 **OpenSpec 起草＋一次 review**；當時六案共 50 項 tasks 保持未完成，沒有 archive 或產品實作。先前受阻的提交嘗試記錄於 review，並非產品驗證結果；原始交付記錄保留。
 
-2026-10-04 已依後續授權逐案完成 A–E 的 apply、verify、review、archive 與精準提交；F 的 fresh UI／SQL／恢復驗收矩陣已執行完畢，待 verify／review／archive 與提交。以 `6676b2b0` 為程式基準，既有修復不重做；必要修補與原始證據見 [review-repairs.md](review-repairs.md)，各案實際結果見下表。沒有 push 或部署。
+2026-10-04 已依後續授權逐案完成 A–F 的 apply、verify、review、archive 與提交；F 由 `d41638b0` 封存。當日以 `6676b2b0` 為程式基準，必要修補與原始證據見 [review-repairs.md](review-repairs.md)，不重做或改寫歷史驗收。當時的「沒有 push」是歷史交付狀態，並非目前遠端狀態；沒有部署。
+
+2026-10-23 現況：新手操作簡化已於 `b8c55aab` 提交並推送 main，實際驗證與限制見 [簡化驗證](../../releases/studio-v2-simplification-20261023.md)。其後的規格同步、競態修補及 change 收尾見 [收尾盤點](../../releases/studio-v2-change-closeout-20261023.md)。以下原始基準與完成標準保留為歷史計畫；不代表本輪重跑 PostgreSQL、真人或 Windows 驗收。
 
 | 已交付案 | 提交 | 實際驗證 |
 | --- | --- | --- |
@@ -13,11 +15,11 @@
 | C | `b560926c88ce4b477f53ec73e20e5d721964ba81` | [Entity 列](C-entity-verification.md) |
 | D | `38c023e403efefc7601dbf8628d2fd8e8627b86f` | [受管理儲存](D-managed-verification.md) |
 | E | `f8882bb6264302027b9590e6ca1510dcd05dac83` | [四步設定](E-setup-verification.md) |
-| F | 尚未提交 | [空白目的地驗收](F-first-recording-verification.md) |
+| F | `d41638b0` | [空白目的地驗收](F-first-recording-verification.md) |
 
 唯一產品目標：在既有 `/studio/v2`，快速設定設備與資料，透過確認式準備寫入 SQLite／PostgreSQL，看到可靠的真實記錄。不是再建立一個平台。
 
-## 基準與證據等級
+## 原始基準與證據等級（歷史計畫）
 
 - 起點：`d16f1294276e9569dc2dae54575ae89303a54b42`，包含該 commit 的規劃脈絡；其後產品變更以差異及最新 source 檢視。
 - 本輪讀取 main：`d2c22ef625903264ec6d74f6fd4bf76c5a48f916`，與上一輪分析相同；提交前須再查 main，若前進就重新對齊，不 force push。
@@ -34,7 +36,7 @@
 | C | [fix-write-group-entity-row-layout](../../../openspec/changes/archive/2026-10-04-fix-write-group-entity-row-layout/proposal.md) | 同群組多 entity 的欄位、readiness、編碼一致 | 無 |
 | D | [complete-write-group-managed-storage](../../../openspec/changes/archive/2026-10-04-complete-write-group-managed-storage/proposal.md) | canonical group 受控建表、必要身分/時間/品質、既有 receipt | A、B；C 是多 entity 正式驗收前置 |
 | E | [streamline-studio-v2-recording-setup](../../../openspec/changes/archive/2026-10-04-streamline-studio-v2-recording-setup/proposal.md) | 四步基本操作、少輸入、開始記錄協調、交付事實 | D，包含其前置 |
-| F | [validate-studio-v2-first-recording](../../../openspec/changes/validate-studio-v2-first-recording/proposal.md) | 真 UI 空白目的地與完整故障組合驗收 | E，包含其前置 |
+| F | [validate-studio-v2-first-recording](../../../openspec/changes/archive/2026-10-04-validate-studio-v2-first-recording/proposal.md) | 真 UI 空白目的地與完整故障組合驗收 | E，包含其前置 |
 
 先完成 A/B 的必要採集與交付保護，接 D/E 的單設備 SQLite 垂直流程；F 的初步 UI→首列觀察隨此流程進行，不等整批 50 tasks 全完成。C 可獨立修復，與 D 同檔修改按 ownership 整合；多 entity、PostgreSQL 與完整故障矩陣仍在正式 release/archive 前完成。D 不重做 A 的恢復描述，E 不重做 D 的 schema engine，F 不擴充產品功能。每案自己的回歸、文件與 focused tests 隨該案完成。
 
@@ -64,7 +66,7 @@
 
 每台設備一個 managed group 只適用 **新基本設定**。既有 custom、多 entity、跨設備設定不自動拆分、轉換或抹除；C 仍必須修好目前合法的多 entity。原始資料型別、單位與位址不得猜測，未知值不得補 0／good。
 
-受控建表只做明確確認的新 owned 結構或已驗證 no-op；不改使用者既有表、建 PG 帳號/資料庫或搬資料。目的 SQLite 與 gateway 設定/journal DB 分離。custom all-good 表不被強迫新增 metadata/receipt。試寫與清理仍是診斷，不是開始採集的偽成功替代品。
+原始受控建表範圍為明確確認的新 owned 結構或已驗證 no-op。2026-10-23 因已授權的新增點位流程，在同一 token／ledger 路徑加入嚴格 ownership／結構檢查後、明確確認的 nullable managed `add_columns`，保留歷史欄與資料；詳見上述簡化驗證及正式 delta。仍不改 custom／foreign 表、建 PG 帳號/資料庫或搬資料。目的 SQLite 與 gateway 設定/journal DB 分離。custom all-good 表不被強迫新增 metadata/receipt。試寫與清理仍是診斷，不是開始採集的偽成功替代品。
 
 若驗收發現新需求：先確認是否為上述結果不可或缺；範圍內 bug 回唯一 owner，新增能力另行取得授權，不塞進目前 tasks。必要 additive migration 與薄 API 是既定流程的實作細節，不授權一般化擴充。
 

@@ -1,0 +1,99 @@
+{
+  "run_id": "closeout-release-20261023",
+  "passed": true,
+  "checks": {
+    "grid_selection_preserves_collection": true,
+    "review_cancel_and_view_switch_preserve_values": true,
+    "lost_ddl_reply_refresh_queries_original_operation": {
+      "operation_id": "op-f81b5ef5-7a43-4ded-8e97-7c9091d3097c",
+      "apply_count": 1
+    },
+    "signed_int64_sql_precision": {
+      "max": "9223372036854775807",
+      "min": "-9223372036854775808"
+    },
+    "new_point_cas_schema_and_sql": {
+      "group_id": "5ecf4b28-6d36-454b-a1df-3a1368c97624",
+      "before_members": 2,
+      "after_members": 3,
+      "old_rows_retained": 2,
+      "added_value": "777"
+    },
+    "real_retry_and_explicit_skip": [
+      {
+        "resolution": "retry",
+        "decision_id": "eea4307b-5805-426e-9a94-4455142ccfa7",
+        "before": {
+          "effect_key": "6061f42d0b6b63b9de409fe930cd6b0e187a312ac55062b8aa8b301ba4a4f802",
+          "record_id": "be49533d6b1a622998c88aea48f5a99ff53c2ddc66b09814998187dcc23ae231",
+          "payload_digest": "897b440f432ddad567bcd941cdfc2d804053f795cd5480acd10815315aeff4cd",
+          "group_revision": "b964514d-a31b-498c-b195-ca8bc83d0de4",
+          "connector_revision": "c1bc68e0-8d0f-4356-8b6a-91c3351581cb",
+          "state": "quarantined"
+        },
+        "after": {
+          "effect_key": "6061f42d0b6b63b9de409fe930cd6b0e187a312ac55062b8aa8b301ba4a4f802",
+          "record_id": "be49533d6b1a622998c88aea48f5a99ff53c2ddc66b09814998187dcc23ae231",
+          "payload_digest": "897b440f432ddad567bcd941cdfc2d804053f795cd5480acd10815315aeff4cd",
+          "group_revision": "b964514d-a31b-498c-b195-ca8bc83d0de4",
+          "connector_revision": "c1bc68e0-8d0f-4356-8b6a-91c3351581cb",
+          "state": "sql_committed"
+        },
+        "audit_count": 1,
+        "destination_row_count": 1
+      },
+      {
+        "resolution": "skip",
+        "decision_id": "90726310-5791-4f87-b168-7f8a1590716d",
+        "before": {
+          "effect_key": "3b5d0abe6eaf5039ea55c0bbba15802c5f00d28fa64653bf3cc5ac6f8dad516e",
+          "record_id": "c3565186a5622b929fd8f396e69e2ec821c7072d3e2f7dee9dde4b316f4f0c58",
+          "payload_digest": "604dbd38b9dbb86e1d645aeaa8e40bb2b1e6f85a7492baf679add2c5911aff8f",
+          "group_revision": "b964514d-a31b-498c-b195-ca8bc83d0de4",
+          "connector_revision": "c1bc68e0-8d0f-4356-8b6a-91c3351581cb",
+          "state": "quarantined"
+        },
+        "after": {
+          "effect_key": "3b5d0abe6eaf5039ea55c0bbba15802c5f00d28fa64653bf3cc5ac6f8dad516e",
+          "record_id": "c3565186a5622b929fd8f396e69e2ec821c7072d3e2f7dee9dde4b316f4f0c58",
+          "payload_digest": "604dbd38b9dbb86e1d645aeaa8e40bb2b1e6f85a7492baf679add2c5911aff8f",
+          "group_revision": "b964514d-a31b-498c-b195-ca8bc83d0de4",
+          "connector_revision": "c1bc68e0-8d0f-4356-8b6a-91c3351581cb",
+          "state": "operator_skipped"
+        },
+        "audit_count": 1,
+        "destination_row_count": 0
+      }
+    ]
+  },
+  "failures": [],
+  "screenshot": "closeout-release-20261023.png",
+  "binary": {
+    "path": "/tmp/gateway-closeout-ui",
+    "sha256": "7c77de9a0f532cf61a6388030d80b76877dbb91ff60266058eb9c88399339bad"
+  },
+  "page_errors": [],
+  "cleanup": {
+    "processes": [
+      {
+        "name": "sim-a",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 24535,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "gateway",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 24536,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      }
+    ],
+    "namespace_absent": true
+  }
+}

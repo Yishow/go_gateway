@@ -8,148 +8,64 @@ TBD - created by archiving change 'datalink-workbench-v2-step3-mapping'. Update 
 
 ### Requirement: Inline-editable mapping table
 
-The Step 3 mapping table SHALL render one row per enabled point in `state.points`. Each row MUST display the rule color dot (sourced from `useDeviceColor` / rule color cycle), point name (mono), point address (mono blue-200), and seven inline-editable controls: Tag Key text input (28% column width), display name text input, unit text input, target type select (10 options from DATA_TYPES), × Scale number input (step 0.01, width 16), + Offset number input (step 0.01, width 16), and an enabled toggle (size sm). Clicking anywhere outside these inline controls MUST set the row as the current `selectedIdx`; the selected row MUST receive a blue outline and 6% blue background. Clicking, mousedown, or focusing any inline control MUST NOT change `selectedIdx`.
+The Step 3 mapping table SHALL render one row per acquired, non-skipped point. Basic presentation SHALL expose source/address, display name, unit, current final value and mapping enabled state. Advanced presentation SHALL retain Tag Key, target type, scale, offset, intermediate values and API payload inspection. Switching presentation SHALL preserve every mapping draft and its type precision without rebuilding or clearing configuration. Editing or focusing a mapping field SHALL identify that row as the explicit bulk source; checking a bulk target SHALL NOT silently change the source. The mapping enabled control SHALL remain distinct from point acquisition and group recording membership.
 
 #### Scenario: Default row rendering
-
-- **GIVEN** state has 8 enabled points
-- **WHEN** Step 3 mounts
-- **THEN** the mapping table renders exactly 8 rows
-- **AND** each row's Tag Key input value matches the per-index default from `POINT_SEMANTIC` (e.g. row 0: `line01.temp.inlet`)
-- **AND** each row's scale input value equals `state.points[i]._rule_scale`
-- **AND** each row's offset input value equals `state.points[i]._rule_offset`
-- **AND** each row's target type select value is `float64`
+- **GIVEN** eight acquired points with persisted mappings
+- **WHEN** Step 3 mounts in Basic
+- **THEN** eight rows expose the five basic field groups with persisted values and source-aware defaults, without demo-specific names, units or forced float64 conversion.
 
 #### Scenario: Row selection by clicking blank area
+- **WHEN** the operator clicks a row body
+- **THEN** that row becomes the visibly identified source for an explicit bulk action.
 
-- **WHEN** the operator clicks the row body (not on any input/select/toggle)
-- **THEN** `selectedIdx` becomes that row's index
-- **AND** the row gains an outline `outline-1 outline-blue-500/30` and background `bg-blue-500/[0.06]`
+#### Scenario: Editing identifies the actual source
+- **GIVEN** the current source is row 0
+- **WHEN** the operator focuses or edits a mapping input in row 3
+- **THEN** row 3 becomes the source and its edit updates only that mapping draft.
 
-#### Scenario: Clicking inline control does not select row
-
-- **GIVEN** `selectedIdx === 0`
-- **WHEN** the operator clicks (or focuses) the Tag Key input in row 3
-- **THEN** `selectedIdx` remains `0`
-- **AND** the row 3 input gains focus
-- **AND** typing into the input updates `state.mappings[points[3].id].tag_key` on every change
+#### Scenario: Basic and Advanced retain drafts
+- **WHEN** the operator edits Tag Key, target type, scale or offset in Advanced and returns to Basic and back
+- **THEN** the same values and current preview remain intact, including exact int64 and uint64 representations.
 
 #### Scenario: Toggle enabled does not select row
-
-- **GIVEN** `selectedIdx === 0`
-- **WHEN** the operator clicks the enabled toggle in row 2
-- **THEN** `selectedIdx` remains `0`
-- **AND** `state.mappings[points[2].id].enabled` is toggled
+- **GIVEN** the current source is row 0
+- **WHEN** the operator clicks the enabled control or bulk-target checkbox in row 2
+- **THEN** the source remains row 0 and only the explicitly requested enabled or target-selection state changes.
 
 
 <!-- @trace
-source: datalink-workbench-v2-step3-mapping
-updated: 2026-05-29
+source: close-studio-v2-simplification
+updated: 2026-10-23
 code:
-  - frontend/src/features/datalink/workbench-v2/steps/Step3MappingPlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/StepRail.tsx
-  - .antigravitycli/4252526d-bebd-463d-84e9-9145d2a0eb40.json
-  - findings.md
-  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
-  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/index.ts
-  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
-  - frontend/package.json
-  - frontend/src/main.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ScaleSection.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
-  - frontend/src/features/datalink/workbench-v2/tokens.ts
-  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGrid.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ProtocolSelector.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ReadinessStages.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Icon.tsx
-  - frontend/src/features/datalink/workbench-v2/components/StatusChip.tsx
-  - progress.md
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PipelineSteps.tsx
-  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PayloadPreview.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step4DatabasePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/TweaksPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/state/types.ts
-  - frontend/src/features/datalink/workbench-v2/styles/workbench-v2.css
-  - frontend/src/features/datalink/workbench-v2/state/deviceColors.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGridToolbar.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step2RulePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/ruleReducer.ts
-  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/state/types.test-d.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/settings/SettingsPlaceholder.tsx
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/components/Toggle.tsx
-  - frontend/src/features/datalink/workbench-v2/components/inputs.tsx
-  - frontend/src/features/datalink/workbench-v2/components/SectionCard.tsx
-  - frontend/src/features/datalink/workbench-v2/state/transformPipeline.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ShareSection.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/TopBar.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Field.tsx
-  - frontend/src/features/datalink/workbench-v2/components/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/index.ts
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-verification-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts
   - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
-  - frontend/src/i18n/config.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Button.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/TransformPreview.tsx
-  - frontend/src/App.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceEditor.tsx
-  - task_plan.md
-  - frontend/src/features/datalink/workbench-v2/steps/Step1DevicePlaceholder.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-logs-20261023.json.gz
+  - docs/releases/studio-v2-change-closeout-20261023.md
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023-mapping.png
+  - docs/plans/studio-v2-flow-completion/README.md
 tests:
-  - frontend/tests/unit/workbench-v2/state.test.ts
-  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
-  - frontend/tests/unit/workbench-v2/tokens.test.ts
-  - frontend/tests/unit/workbench-v2/types.test-d.ts
-  - frontend/tests/unit/workbench-v2/types-step2.test-d.ts
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step2.test.ts
-  - frontend/tests/unit/workbench-v2/step1.test.tsx
-  - frontend/tests/unit/workbench-v2/mappingDefaults.test.ts
-  - frontend/tests/unit/workbench-v2/components.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-grid.test.tsx
-  - frontend/tests/unit/workbench-v2/protocols.test.ts
-  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
-  - frontend/tests/unit/workbench-v2/routing.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-share.test.tsx
-  - frontend/tests/unit/workbench-v2/transformPipeline.test.ts
-  - frontend/tests/unit/workbench-v2/selectors.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
-  - frontend/tests/unit/workbench-v2/sourceRule.test.ts
-  - frontend/tests/unit/workbench-v2/step1-readiness.test.tsx
-  - frontend/tests/unit/workbench-v2/types-step3.test-d.ts
-  - frontend/tests/unit/workbench-v2/reducer-step3.test.ts
-  - frontend/tests/unit/workbench-v2/deviceColors.test.tsx
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/datalink/recordingplan/schema_group_extend_test.go
+  - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
 -->
 
 ---
 ### Requirement: Automatic mapping initialization
 
-The system SHALL automatically initialize a mapping for every enabled point that does not yet have one. Initialization MUST be triggered by Step 3 mounting or by the set of enabled point IDs changing. For each new mapping, defaults MUST be: `tag_key` from `POINT_SEMANTIC[i % 8].tag_key`, `display_name` from `POINT_SEMANTIC[i % 8].display`, `unit` from `POINT_SEMANTIC[i % 8].unit`, `target_type` = `float64`, `scale` = `point._rule_scale`, `offset` = `point._rule_offset`, `enabled` = `true`. Existing mappings MUST NOT be overwritten. Mappings whose point no longer exists in `state.points` MUST be removed.
+The system SHALL automatically initialize a mapping for every enabled point that does not yet have one. Initialization MUST be triggered by Step 3 mounting or by the set of enabled point IDs changing. For each new mapping, defaults SHALL derive Tag Key from device identity, point name and protocol-aware address; display name SHALL use the source name/display and address; unit SHALL use the source unit or remain empty. Neutral mappings SHALL preserve the supported source type, including int64, uint64 and string. A non-neutral numeric scale or offset SHALL default to float64; bool and string SHALL retain their source types. Scale/offset SHALL retain the point's rule values and enabled SHALL default true. Demo semantic arrays and raw seeds SHALL NOT determine a new persisted mapping. Existing mappings MUST NOT be overwritten. Mappings whose point no longer exists in `state.points` MUST be removed.
 
 #### Scenario: Initialize new mappings on first mount
 
 - **GIVEN** `state.mappings === {}` and `state.points` contains 8 enabled points
 - **WHEN** Step 3 mounts and the `initMappingsForPoints` action runs
 - **THEN** `state.mappings` contains 8 entries keyed by each point's `id`
-- **AND** each mapping's defaults match the table above
+- **AND** each mapping's defaults follow its source identity/type/unit and rule transform, without cycling demo templates
 
 #### Scenario: Preserve existing mappings
 
@@ -166,113 +82,37 @@ The system SHALL automatically initialize a mapping for every enabled point that
 
 
 <!-- @trace
-source: datalink-workbench-v2-step3-mapping
-updated: 2026-05-29
+source: close-studio-v2-simplification
+updated: 2026-10-23
 code:
-  - frontend/src/features/datalink/workbench-v2/steps/Step3MappingPlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/StepRail.tsx
-  - .antigravitycli/4252526d-bebd-463d-84e9-9145d2a0eb40.json
-  - findings.md
-  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
-  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/index.ts
-  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
-  - frontend/package.json
-  - frontend/src/main.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ScaleSection.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
-  - frontend/src/features/datalink/workbench-v2/tokens.ts
-  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGrid.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ProtocolSelector.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ReadinessStages.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Icon.tsx
-  - frontend/src/features/datalink/workbench-v2/components/StatusChip.tsx
-  - progress.md
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PipelineSteps.tsx
-  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PayloadPreview.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step4DatabasePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/TweaksPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/state/types.ts
-  - frontend/src/features/datalink/workbench-v2/styles/workbench-v2.css
-  - frontend/src/features/datalink/workbench-v2/state/deviceColors.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGridToolbar.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step2RulePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/ruleReducer.ts
-  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/state/types.test-d.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/settings/SettingsPlaceholder.tsx
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/components/Toggle.tsx
-  - frontend/src/features/datalink/workbench-v2/components/inputs.tsx
-  - frontend/src/features/datalink/workbench-v2/components/SectionCard.tsx
-  - frontend/src/features/datalink/workbench-v2/state/transformPipeline.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ShareSection.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/TopBar.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Field.tsx
-  - frontend/src/features/datalink/workbench-v2/components/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/index.ts
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-verification-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts
   - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
-  - frontend/src/i18n/config.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Button.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/TransformPreview.tsx
-  - frontend/src/App.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceEditor.tsx
-  - task_plan.md
-  - frontend/src/features/datalink/workbench-v2/steps/Step1DevicePlaceholder.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-logs-20261023.json.gz
+  - docs/releases/studio-v2-change-closeout-20261023.md
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023-mapping.png
+  - docs/plans/studio-v2-flow-completion/README.md
 tests:
-  - frontend/tests/unit/workbench-v2/state.test.ts
-  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
-  - frontend/tests/unit/workbench-v2/tokens.test.ts
-  - frontend/tests/unit/workbench-v2/types.test-d.ts
-  - frontend/tests/unit/workbench-v2/types-step2.test-d.ts
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step2.test.ts
-  - frontend/tests/unit/workbench-v2/step1.test.tsx
-  - frontend/tests/unit/workbench-v2/mappingDefaults.test.ts
-  - frontend/tests/unit/workbench-v2/components.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-grid.test.tsx
-  - frontend/tests/unit/workbench-v2/protocols.test.ts
-  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
-  - frontend/tests/unit/workbench-v2/routing.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-share.test.tsx
-  - frontend/tests/unit/workbench-v2/transformPipeline.test.ts
-  - frontend/tests/unit/workbench-v2/selectors.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
-  - frontend/tests/unit/workbench-v2/sourceRule.test.ts
-  - frontend/tests/unit/workbench-v2/step1-readiness.test.tsx
-  - frontend/tests/unit/workbench-v2/types-step3.test-d.ts
-  - frontend/tests/unit/workbench-v2/reducer-step3.test.ts
-  - frontend/tests/unit/workbench-v2/deviceColors.test.tsx
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/datalink/recordingplan/schema_group_extend_test.go
+  - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
 -->
 
 ---
 ### Requirement: Transform pipeline preview
 
-The right-side preview panel SHALL request backend preview results for the currently selected mapping instead of computing the operator-visible transform steps entirely on the client. The request SHALL use the deterministic raw seed array `[243, 251, 1024, 985, 67, 542, 18, 1450]` indexed by selected row position modulo 8 as `raw_value`, together with the current draft transform pipeline. The panel MUST update reactively whenever the selected row's mapping `scale`, `offset`, or `target_type` changes. The panel MUST render explicit loading, success, and error states.
+The Step 3 mapping preview surfaces SHALL request backend preview results for each displayed mapping instead of computing the operator-visible transform steps entirely on the client. The request SHALL use the actual scoped point sample as raw_value with the current draft transform pipeline, preserving exact integer representations. Missing source values SHALL show waiting/unavailable rather than a seeded success; stale/disconnected values SHALL retain explicit degraded state. Each row preview SHALL update reactively when its mapping scale, offset, target type or actual sample changes. The UI SHALL render explicit loading, success and error states. Basic SHALL expose the final value; Advanced SHALL retain available backend transform intermediates and payload inspection.
 
 #### Scenario: Selected row triggers backend preview request
 
-- **GIVEN** `selectedIdx === 0`, the row 0 mapping has `scale=0.1`, `offset=0`, `target_type='float64'`, and `tag_key='line01.temp.inlet'`
+- **GIVEN** `selectedIdx === 0`, the row 0 mapping has `scale=0.1`, `offset=0`, `target_type='float64'`, and an actual source raw_value of `243`
 - **WHEN** the preview updates
 - **THEN** the system sends `POST /api/v1/datalink/mappings/preview`
-- **AND** the request includes raw seed `243`
+- **AND** the request includes that actual raw_value `243`
 - **AND** the request includes a transform pipeline derived from the current draft mapping values
 
 #### Scenario: Preview loading state
@@ -285,7 +125,7 @@ The right-side preview panel SHALL request backend preview results for the curre
 
 - **GIVEN** backend preview returns successful `step_results` and `final_value`
 - **WHEN** the response is received
-- **THEN** the preview panel renders ordered decode / scale / cast / final steps from that backend result
+- **THEN** the row preview renders the available backend transform intermediates and final value according to Basic/Advanced presentation
 - **AND** the final value shown to the operator comes from backend preview output
 
 #### Scenario: Preview failure remains visible
@@ -304,189 +144,24 @@ The right-side preview panel SHALL request backend preview results for the curre
 
 
 <!-- @trace
-source: wire-studio-v2-step3-live-preview-and-target-type-shortcuts
-updated: 2026-05-31
+source: close-studio-v2-simplification
+updated: 2026-10-23
 code:
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
-  - internal/datalink/device/errors.go
-  - frontend/src/App.tsx
-  - frontend/src/i18n/locales/en/runtime-dashboard.json
-  - frontend/src/hooks/datalink/useStudioV2WorkspaceActivation.ts
-  - internal/api/handlers/studio_v2_runtime_apply.go
-  - frontend/src/services/studioV2WorkspaceActivation.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/useStep3LivePreview.ts
-  - internal/datalink/mapping/service_crud.go
-  - internal/datalink/runtime/status.go
-  - scripts/start-log-utils.sh
-  - internal/datalink/device/service_point_read.go
-  - frontend/src/features/datalink/workbench-v2/state/studioV2MappingAutosave.ts
-  - frontend/src/hooks/datalink/useSettings.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceEditor.tsx
-  - frontend/src/hooks/datalink/useStudioV2Mappings.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitProgress.tsx
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - internal/datalink/sourcerule/service.go
-  - frontend/src/features/datalink/workbench-v2/state/types.ts
-  - internal/api/handlers/point_direct_reader.go
-  - docs/goal.md
-  - internal/api/handlers/studio_v2_workspace_devices_handler.go
-  - frontend/src/services/studioV2Mappings.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ReadinessStages.tsx
-  - task_plan.md
-  - frontend/src/hooks/datalink/useStudioV2Workspace.ts
-  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
-  - frontend/src/hooks/datalink/useStudioV2Rules.ts
-  - frontend/src/features/datalink/workbench-v2/state/settingsDefaults.ts
-  - frontend/src/types/studioV2Activation.ts
-  - internal/datalink/migrator.go
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSummary.tsx
-  - internal/api/handlers/runtime_handler.go
-  - internal/datalink/sourcerule/errors.go
-  - frontend/src/hooks/datalink/useStudioV2WorkspaceDatabase.ts
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - internal/datalink/schema/schema_device_models.go
-  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
-  - internal/datalink/device/service_status.go
-  - internal/datalink/device/service_crud.go
-  - frontend/src/services/studioV2Workspace.ts
-  - frontend/src/features/datalink/workbench-v2/state/types-settings.test-d.ts
-  - scripts/start-process-utils.sh
-  - frontend/src/types/datalink.ts
-  - internal/api/router.go
-  - internal/datalink/workspace/service_devices.go
-  - internal/datalink/db.go
-  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx
-  - internal/datalink/workspace/memory_repository.go
-  - internal/api/handlers/studio_v2_workspace_database_handler_helpers.go
-  - internal/api/handlers/studio_v2_workspace_mappings_handler.go
-  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
-  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - start.ps1
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSuccessCard.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/useStep3LiveValues.ts
-  - docs/superpowers/specs/2026-05-30-v2-step3-live-preview-and-target-type-shortcuts-design.md
-  - frontend/src/types/studioV2Availability.ts
-  - frontend/src/hooks/datalink/useStudioV2WorkspaceDevices.ts
-  - frontend/src/services/studioV2WorkspaceDevices.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
-  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PipelineSteps.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/index.ts
-  - internal/datalink/dbtarget/service.go
-  - frontend/src/features/datalink/workbench-v2/steps/step3/TransformPreview.tsx
-  - go.mod
-  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
-  - frontend/src/services/studioV2Rules.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
-  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
-  - internal/api/handlers/studio_v2_workspace_database_handler.go
-  - docs/superpowers/plans/2026-05-30-v2-step3-live-preview-and-target-type-shortcuts.md
-  - go.sum
-  - frontend/src/features/datalink/runtime-dashboard/useRuntimeDashboardState.ts
-  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
-  - frontend/src/hooks/datalink/useStudioV2RuntimeContext.ts
-  - internal/datalink/workspace/service_database.go
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/TargetTypeQuickActions.tsx
-  - internal/datalink/device/sql_repo.go
-  - frontend/src/hooks/datalink/index.ts
-  - frontend/src/features/datalink/workbench-v2/settings/ConnectorPoolSection.tsx
-  - frontend/src/features/datalink/workbench-v2/settings/backendMappings.ts
-  - internal/datalink/sourcerule/activation_readiness.go
-  - gateway.db
-  - start.sh
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-verification-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts
   - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
-  - internal/datalink/workspace/sql_repository.go
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2RuleAutosave.ts
-  - internal/datalink/device/availability.go
-  - internal/datalink/workspace/service.go
-  - frontend/src/features/datalink/legacyRoutes.ts
-  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
-  - internal/datalink/dbtarget/types.go
-  - internal/api/handlers/point_handler_polling.go
-  - frontend/src/services/studioV2WorkspaceDatabase.ts
-  - frontend/src/hooks/datalink/keys.ts
-  - .air.toml
-  - internal/api/handlers/studio_v2_workspace_source_rules_handler.go
-  - internal/datalink/sourcerule/service_links.go
-  - findings.md
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts
-  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
-  - internal/api/handlers/studio_v2_workspace_activation_handler.go
-  - internal/datalink/workspace/service_activation.go
-  - frontend/src/services/studioV2RuntimeContext.ts
-  - internal/api/handlers/mapping_handler.go
-  - internal/api/handlers/point_handler.go
-  - internal/api/handlers/studio_v2_workspace_handler.go
-  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
-  - frontend/src/features/datalink/runtime-dashboard/FocusedDeviceHeader.tsx
-  - frontend/src/types/studioV2RuntimeApply.ts
-  - internal/datalink/mapping/errors.go
-  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
-  - internal/api/handlers/source_rule_handler.go
-  - progress.md
-  - frontend/src/features/datalink/workbench-v2/state/studioV2RuleAutosave.ts
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-logs-20261023.json.gz
+  - docs/releases/studio-v2-change-closeout-20261023.md
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023-mapping.png
+  - docs/plans/studio-v2-flow-completion/README.md
 tests:
-  - internal/api/handlers/studio_v2_workspace_activation_handler_test.go
-  - frontend/tests/unit/workbench-v2/selectors.test.tsx
-  - internal/api/handlers/studio_v2_workspace_devices_handler_test.go
-  - frontend/tests/unit/hooks/useStudioV2WorkspaceDatabase.test.ts
-  - frontend/tests/unit/workbench-v2/step3-live-preview.test.tsx
-  - internal/api/handlers/device_handler_extended_test.go
-  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - cmd/test_ui/main.go
-  - frontend/tests/unit/workbench-v2/settings-backend-mappings.test.ts
-  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
-  - frontend/tests/unit/hooks/useStudioV2Mappings.test.ts
-  - internal/api/router_logger_test.go
-  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-route.test.tsx
-  - internal/datalink/mapping/service_workspace_scope_test.go
-  - internal/api/router_studio_v2_workspace_mappings_test.go
-  - internal/api/handlers/studio_v2_workspace_handler_test.go
-  - frontend/tests/unit/workbench-v2/database-autosave-page.test.tsx
-  - internal/datalink/dbtarget/service_mysql_test.go
-  - internal/datalink/workspace/service_activation_test.go
-  - frontend/tests/unit/workbench-v2/workspace-boot.test.tsx
-  - internal/api/router_studio_v2_workspace_devices_test.go
-  - frontend/tests/unit/workbench-v2/device-autosave-page.test.tsx
-  - internal/api/handlers/studio_v2_workspace_source_rules_handler_test.go
-  - internal/api/handlers/studio_v2_workspace_database_handler_test.go
-  - internal/api/handlers/runtime_handler_test.go
-  - frontend/tests/unit/workbench-v2/mapping-autosave-page.test.tsx
-  - frontend/tests/unit/hooks/useStudioV2WorkspaceDevices.test.ts
-  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
-  - cmd/test_ui/static/index.html
-  - internal/api/handlers/studio_v2_workspace_mappings_handler_test.go
-  - frontend/tests/unit/workbench-v2/rule-autosave-page.test.tsx
-  - internal/datalink/workspace/service_test.go
-  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
-  - internal/datalink/sourcerule/service_workspace_scope_test.go
-  - frontend/tests/unit/hooks/useStudioV2Rules.test.ts
-  - internal/api/router_studio_v2_workspace_test.go
-  - internal/datalink/device/availability_test.go
-  - internal/api/router_studio_v2_workspace_source_rules_test.go
-  - internal/api/router_runtime_test.go
-  - internal/api/handlers/point_handler_poll_contract_test.go
-  - frontend/tests/unit/workbench-v2/settings.test.tsx
-  - frontend/tests/unit/hooks/useStudioV2Workspace.test.tsx
-  - internal/api/handlers/dbtarget_handler_connectors_test.go
-  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-state.test.tsx
-  - frontend/tests/unit/workbench-v2/step3-live-values.test.tsx
-  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
-  - frontend/tests/unit/workbench-v2/step1.test.tsx
-  - internal/datalink/device/service_crud_test.go
-  - internal/api/router_studio_v2_workspace_activation_test.go
-  - frontend/tests/unit/workbench-v2/routing.test.tsx
-  - frontend/tests/unit/workbench-v2/step3-target-type-shortcuts.test.tsx
-  - internal/datalink/workspace/service_device_order_test.go
-  - frontend/tests/unit/workbench-v2/settings-backend.test.tsx
-  - internal/api/router_studio_v2_runtime_context_test.go
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/datalink/recordingplan/schema_group_extend_test.go
+  - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
 -->
 
 ---
@@ -800,117 +475,45 @@ tests:
 ---
 ### Requirement: Bulk apply transform parameters
 
-The mapping table footer SHALL provide a `將選中列的 Scale / Offset / 型態 套用到全部` (or i18n equivalent) link. Clicking the link MUST copy the selected mapping's `scale`, `offset`, and `target_type` to every mapping in `state.mappings`. The link MUST be a no-op when there is no selected row.
+The mapping table SHALL provide an explicit source row, selectable enabled target rows and a before/after difference preview for bulk unit, scale, offset and target-type application. All enabled targets SHALL remain selectable through an explicitly labelled all-target action; disabled mappings and the source SHALL be excluded. No bulk mutation SHALL occur before review and explicit apply. Changes to source, targets or their relevant values SHALL invalidate an earlier review. Cancelling SHALL preserve all original values. The reducer SHALL require explicit target point IDs and preserve unrelated fields.
 
 #### Scenario: Bulk apply propagates fields
-
-- **GIVEN** `selectedIdx === 0` with row 0 mapping `scale=0.5`, `offset=2`, `target_type='int32'`, and there are 8 total mappings
-- **WHEN** the operator clicks the bulk apply link
-- **THEN** every mapping in `state.mappings` has `scale === 0.5`, `offset === 2`, `target_type === 'int32'`
-- **AND** other fields (tag_key, display_name, unit, enabled) are unchanged
+- **GIVEN** a temperature source with scale 0.5 and offset 2, plus pressure and energy rows
+- **WHEN** the operator selects only the pressure row, reviews its old/new unit and transform, and explicitly applies
+- **THEN** only that target receives the source unit, scale, offset and target type; energy, disabled rows, Tag Keys, display names and enabled states remain unchanged.
 
 #### Scenario: Bulk apply with no selection
+- **WHEN** no source or no target is selected
+- **THEN** no mapping is modified and the UI explains the missing selection.
 
-- **GIVEN** `selectedIdx === null`
-- **WHEN** the operator clicks the bulk apply link
-- **THEN** no mapping is modified
+#### Scenario: Explicit all enabled targets
+- **WHEN** the operator selects all eligible enabled targets
+- **THEN** the review identifies that complete scope and differences before confirmation, without silently adding disabled rows.
+
+#### Scenario: Cancel or stale review
+- **WHEN** the operator cancels review or a relevant source/target value changes before apply
+- **THEN** no stale bulk mutation occurs and another explicit review is required.
 
 
 <!-- @trace
-source: datalink-workbench-v2-step3-mapping
-updated: 2026-05-29
+source: close-studio-v2-simplification
+updated: 2026-10-23
 code:
-  - frontend/src/features/datalink/workbench-v2/steps/Step3MappingPlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/StepRail.tsx
-  - .antigravitycli/4252526d-bebd-463d-84e9-9145d2a0eb40.json
-  - findings.md
-  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
-  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/index.ts
-  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
-  - frontend/package.json
-  - frontend/src/main.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ScaleSection.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
-  - frontend/src/features/datalink/workbench-v2/tokens.ts
-  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGrid.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ProtocolSelector.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ReadinessStages.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Icon.tsx
-  - frontend/src/features/datalink/workbench-v2/components/StatusChip.tsx
-  - progress.md
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PipelineSteps.tsx
-  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PayloadPreview.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step4DatabasePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/TweaksPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/state/types.ts
-  - frontend/src/features/datalink/workbench-v2/styles/workbench-v2.css
-  - frontend/src/features/datalink/workbench-v2/state/deviceColors.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGridToolbar.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step2RulePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/ruleReducer.ts
-  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/state/types.test-d.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/settings/SettingsPlaceholder.tsx
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/components/Toggle.tsx
-  - frontend/src/features/datalink/workbench-v2/components/inputs.tsx
-  - frontend/src/features/datalink/workbench-v2/components/SectionCard.tsx
-  - frontend/src/features/datalink/workbench-v2/state/transformPipeline.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ShareSection.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/TopBar.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Field.tsx
-  - frontend/src/features/datalink/workbench-v2/components/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/index.ts
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-verification-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts
   - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
-  - frontend/src/i18n/config.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Button.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/TransformPreview.tsx
-  - frontend/src/App.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceEditor.tsx
-  - task_plan.md
-  - frontend/src/features/datalink/workbench-v2/steps/Step1DevicePlaceholder.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-logs-20261023.json.gz
+  - docs/releases/studio-v2-change-closeout-20261023.md
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023-mapping.png
+  - docs/plans/studio-v2-flow-completion/README.md
 tests:
-  - frontend/tests/unit/workbench-v2/state.test.ts
-  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
-  - frontend/tests/unit/workbench-v2/tokens.test.ts
-  - frontend/tests/unit/workbench-v2/types.test-d.ts
-  - frontend/tests/unit/workbench-v2/types-step2.test-d.ts
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step2.test.ts
-  - frontend/tests/unit/workbench-v2/step1.test.tsx
-  - frontend/tests/unit/workbench-v2/mappingDefaults.test.ts
-  - frontend/tests/unit/workbench-v2/components.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-grid.test.tsx
-  - frontend/tests/unit/workbench-v2/protocols.test.ts
-  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
-  - frontend/tests/unit/workbench-v2/routing.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-share.test.tsx
-  - frontend/tests/unit/workbench-v2/transformPipeline.test.ts
-  - frontend/tests/unit/workbench-v2/selectors.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
-  - frontend/tests/unit/workbench-v2/sourceRule.test.ts
-  - frontend/tests/unit/workbench-v2/step1-readiness.test.tsx
-  - frontend/tests/unit/workbench-v2/types-step3.test-d.ts
-  - frontend/tests/unit/workbench-v2/reducer-step3.test.ts
-  - frontend/tests/unit/workbench-v2/deviceColors.test.tsx
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/datalink/recordingplan/schema_group_extend_test.go
+  - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
 -->
 
 ---
@@ -1437,212 +1040,42 @@ tests:
 ---
 ### Requirement: Target type quick actions
 
-The Step 3 preview panel SHALL provide quick target type actions for the currently selected mapping and a one-click apply-all action for `target_type` only. The quick actions MUST include at least `bool`, `int16`, `float64`, and `string`.
+Step 3 SHALL retain single-row target type editing through its Advanced target-type control, including bool, int16, float64 and string and all other supported types. Applying only target_type to multiple rows SHALL use the explicit source, selected enabled targets and reviewed confirmation contract of Bulk apply transform parameters; it SHALL NOT immediately update all rows.
 
 #### Scenario: Quick action updates the current row
-
 - **GIVEN** a mapping row is selected
-- **WHEN** the operator clicks one of the target type quick actions
-- **THEN** the selected row's `target_type` is updated to that value
-- **AND** the change flows through the same Step 3 reducer/autosave path as the inline select
+- **WHEN** the operator changes its target type
+- **THEN** only that row changes through the existing reducer/autosave path.
 
-#### Scenario: Apply current target type to all rows
-
-- **GIVEN** `selectedIdx === 0` and the selected row has `target_type='int16'`
-- **WHEN** the operator clicks `套用到全部列`
-- **THEN** every mapping in `state.mappings` has `target_type === 'int16'`
-- **AND** other mapping fields remain unchanged
+#### Scenario: Apply current target type to selected rows
+- **GIVEN** the explicit source has target_type int16 and eligible targets are selected
+- **WHEN** the operator reviews and confirms the target-type-only action
+- **THEN** only those targets receive int16 and all other mapping fields remain unchanged.
 
 #### Scenario: No selected row means no quick target type action
+- **WHEN** no source row is selected
+- **THEN** no bulk type action is active.
 
-- **GIVEN** `selectedIdx === null`
-- **WHEN** the operator views the preview area
-- **THEN** no target type quick action is offered as an active control
 
 <!-- @trace
-source: wire-studio-v2-step3-live-preview-and-target-type-shortcuts
-updated: 2026-05-31
+source: close-studio-v2-simplification
+updated: 2026-10-23
 code:
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
-  - internal/datalink/device/errors.go
-  - frontend/src/App.tsx
-  - frontend/src/i18n/locales/en/runtime-dashboard.json
-  - frontend/src/hooks/datalink/useStudioV2WorkspaceActivation.ts
-  - internal/api/handlers/studio_v2_runtime_apply.go
-  - frontend/src/services/studioV2WorkspaceActivation.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/useStep3LivePreview.ts
-  - internal/datalink/mapping/service_crud.go
-  - internal/datalink/runtime/status.go
-  - scripts/start-log-utils.sh
-  - internal/datalink/device/service_point_read.go
-  - frontend/src/features/datalink/workbench-v2/state/studioV2MappingAutosave.ts
-  - frontend/src/hooks/datalink/useSettings.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceEditor.tsx
-  - frontend/src/hooks/datalink/useStudioV2Mappings.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitProgress.tsx
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - internal/datalink/sourcerule/service.go
-  - frontend/src/features/datalink/workbench-v2/state/types.ts
-  - internal/api/handlers/point_direct_reader.go
-  - docs/goal.md
-  - internal/api/handlers/studio_v2_workspace_devices_handler.go
-  - frontend/src/services/studioV2Mappings.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ReadinessStages.tsx
-  - task_plan.md
-  - frontend/src/hooks/datalink/useStudioV2Workspace.ts
-  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
-  - frontend/src/hooks/datalink/useStudioV2Rules.ts
-  - frontend/src/features/datalink/workbench-v2/state/settingsDefaults.ts
-  - frontend/src/types/studioV2Activation.ts
-  - internal/datalink/migrator.go
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSummary.tsx
-  - internal/api/handlers/runtime_handler.go
-  - internal/datalink/sourcerule/errors.go
-  - frontend/src/hooks/datalink/useStudioV2WorkspaceDatabase.ts
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - internal/datalink/schema/schema_device_models.go
-  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
-  - internal/datalink/device/service_status.go
-  - internal/datalink/device/service_crud.go
-  - frontend/src/services/studioV2Workspace.ts
-  - frontend/src/features/datalink/workbench-v2/state/types-settings.test-d.ts
-  - scripts/start-process-utils.sh
-  - frontend/src/types/datalink.ts
-  - internal/api/router.go
-  - internal/datalink/workspace/service_devices.go
-  - internal/datalink/db.go
-  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx
-  - internal/datalink/workspace/memory_repository.go
-  - internal/api/handlers/studio_v2_workspace_database_handler_helpers.go
-  - internal/api/handlers/studio_v2_workspace_mappings_handler.go
-  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
-  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - start.ps1
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSuccessCard.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/useStep3LiveValues.ts
-  - docs/superpowers/specs/2026-05-30-v2-step3-live-preview-and-target-type-shortcuts-design.md
-  - frontend/src/types/studioV2Availability.ts
-  - frontend/src/hooks/datalink/useStudioV2WorkspaceDevices.ts
-  - frontend/src/services/studioV2WorkspaceDevices.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
-  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PipelineSteps.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/index.ts
-  - internal/datalink/dbtarget/service.go
-  - frontend/src/features/datalink/workbench-v2/steps/step3/TransformPreview.tsx
-  - go.mod
-  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
-  - frontend/src/services/studioV2Rules.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
-  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
-  - internal/api/handlers/studio_v2_workspace_database_handler.go
-  - docs/superpowers/plans/2026-05-30-v2-step3-live-preview-and-target-type-shortcuts.md
-  - go.sum
-  - frontend/src/features/datalink/runtime-dashboard/useRuntimeDashboardState.ts
-  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
-  - frontend/src/hooks/datalink/useStudioV2RuntimeContext.ts
-  - internal/datalink/workspace/service_database.go
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/TargetTypeQuickActions.tsx
-  - internal/datalink/device/sql_repo.go
-  - frontend/src/hooks/datalink/index.ts
-  - frontend/src/features/datalink/workbench-v2/settings/ConnectorPoolSection.tsx
-  - frontend/src/features/datalink/workbench-v2/settings/backendMappings.ts
-  - internal/datalink/sourcerule/activation_readiness.go
-  - gateway.db
-  - start.sh
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-verification-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts
   - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
-  - internal/datalink/workspace/sql_repository.go
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2RuleAutosave.ts
-  - internal/datalink/device/availability.go
-  - internal/datalink/workspace/service.go
-  - frontend/src/features/datalink/legacyRoutes.ts
-  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
-  - internal/datalink/dbtarget/types.go
-  - internal/api/handlers/point_handler_polling.go
-  - frontend/src/services/studioV2WorkspaceDatabase.ts
-  - frontend/src/hooks/datalink/keys.ts
-  - .air.toml
-  - internal/api/handlers/studio_v2_workspace_source_rules_handler.go
-  - internal/datalink/sourcerule/service_links.go
-  - findings.md
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts
-  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
-  - internal/api/handlers/studio_v2_workspace_activation_handler.go
-  - internal/datalink/workspace/service_activation.go
-  - frontend/src/services/studioV2RuntimeContext.ts
-  - internal/api/handlers/mapping_handler.go
-  - internal/api/handlers/point_handler.go
-  - internal/api/handlers/studio_v2_workspace_handler.go
-  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
-  - frontend/src/features/datalink/runtime-dashboard/FocusedDeviceHeader.tsx
-  - frontend/src/types/studioV2RuntimeApply.ts
-  - internal/datalink/mapping/errors.go
-  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
-  - internal/api/handlers/source_rule_handler.go
-  - progress.md
-  - frontend/src/features/datalink/workbench-v2/state/studioV2RuleAutosave.ts
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-logs-20261023.json.gz
+  - docs/releases/studio-v2-change-closeout-20261023.md
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023-mapping.png
+  - docs/plans/studio-v2-flow-completion/README.md
 tests:
-  - internal/api/handlers/studio_v2_workspace_activation_handler_test.go
-  - frontend/tests/unit/workbench-v2/selectors.test.tsx
-  - internal/api/handlers/studio_v2_workspace_devices_handler_test.go
-  - frontend/tests/unit/hooks/useStudioV2WorkspaceDatabase.test.ts
-  - frontend/tests/unit/workbench-v2/step3-live-preview.test.tsx
-  - internal/api/handlers/device_handler_extended_test.go
-  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - cmd/test_ui/main.go
-  - frontend/tests/unit/workbench-v2/settings-backend-mappings.test.ts
-  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
-  - frontend/tests/unit/hooks/useStudioV2Mappings.test.ts
-  - internal/api/router_logger_test.go
-  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-route.test.tsx
-  - internal/datalink/mapping/service_workspace_scope_test.go
-  - internal/api/router_studio_v2_workspace_mappings_test.go
-  - internal/api/handlers/studio_v2_workspace_handler_test.go
-  - frontend/tests/unit/workbench-v2/database-autosave-page.test.tsx
-  - internal/datalink/dbtarget/service_mysql_test.go
-  - internal/datalink/workspace/service_activation_test.go
-  - frontend/tests/unit/workbench-v2/workspace-boot.test.tsx
-  - internal/api/router_studio_v2_workspace_devices_test.go
-  - frontend/tests/unit/workbench-v2/device-autosave-page.test.tsx
-  - internal/api/handlers/studio_v2_workspace_source_rules_handler_test.go
-  - internal/api/handlers/studio_v2_workspace_database_handler_test.go
-  - internal/api/handlers/runtime_handler_test.go
-  - frontend/tests/unit/workbench-v2/mapping-autosave-page.test.tsx
-  - frontend/tests/unit/hooks/useStudioV2WorkspaceDevices.test.ts
-  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
-  - cmd/test_ui/static/index.html
-  - internal/api/handlers/studio_v2_workspace_mappings_handler_test.go
-  - frontend/tests/unit/workbench-v2/rule-autosave-page.test.tsx
-  - internal/datalink/workspace/service_test.go
-  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
-  - internal/datalink/sourcerule/service_workspace_scope_test.go
-  - frontend/tests/unit/hooks/useStudioV2Rules.test.ts
-  - internal/api/router_studio_v2_workspace_test.go
-  - internal/datalink/device/availability_test.go
-  - internal/api/router_studio_v2_workspace_source_rules_test.go
-  - internal/api/router_runtime_test.go
-  - internal/api/handlers/point_handler_poll_contract_test.go
-  - frontend/tests/unit/workbench-v2/settings.test.tsx
-  - frontend/tests/unit/hooks/useStudioV2Workspace.test.tsx
-  - internal/api/handlers/dbtarget_handler_connectors_test.go
-  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-state.test.tsx
-  - frontend/tests/unit/workbench-v2/step3-live-values.test.tsx
-  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
-  - frontend/tests/unit/workbench-v2/step1.test.tsx
-  - internal/datalink/device/service_crud_test.go
-  - internal/api/router_studio_v2_workspace_activation_test.go
-  - frontend/tests/unit/workbench-v2/routing.test.tsx
-  - frontend/tests/unit/workbench-v2/step3-target-type-shortcuts.test.tsx
-  - internal/datalink/workspace/service_device_order_test.go
-  - frontend/tests/unit/workbench-v2/settings-backend.test.tsx
-  - internal/api/router_studio_v2_runtime_context_test.go
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/datalink/recordingplan/schema_group_extend_test.go
+  - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
 -->
 
 ---

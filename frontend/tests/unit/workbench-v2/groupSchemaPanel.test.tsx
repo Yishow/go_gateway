@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { retainSchemaOperation } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery';
+import { readSchemaOperation, retainSchemaOperation } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery';
 import { managedSchemaPreviewToken } from '../../fixtures/managedSchemaPreview';
 import { GroupSchemaPanel } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
+import type { SchemaOperation } from '@/types/recordingPlan';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -53,8 +54,8 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof GroupSchemaP
 beforeEach(() => {
   vi.clearAllMocks();
   window.sessionStorage.clear();
-  retainSchemaOperation('workspace-1', 'group-1');
-  retainSchemaOperation('workspace-1', 'group-2');
+  retainSchemaOperation('workspace-1', 'group-1', undefined, readSchemaOperation('workspace-1', 'group-1') ?? '');
+  retainSchemaOperation('workspace-1', 'group-2', undefined, readSchemaOperation('workspace-1', 'group-2') ?? '');
   api.schemaPreview.mockResolvedValue(token);
   api.schemaApply.mockResolvedValue(succeeded);
 });
@@ -345,4 +346,71 @@ it('permits a new read-only preview after a confirmed rolled-back failure while 
   fireEvent.click(screen.getByTestId('group-schema-preview'));
   await waitFor(() => expect(api.schemaPreview).toHaveBeenCalledTimes(2));
   expect(api.schemaApply).toHaveBeenCalledTimes(1);
+});
+
+it.each(['failed', 'succeeded'] as const)('a delayed %s lookup cannot release a newer unknown operation', async (status) => {
+  const terminal = { ...succeeded, status, reason: status === 'failed' ? 'rolled_back' : undefined };
+  let finishOldLookup: (result: SchemaOperation) => void = () => undefined;
+  api.schemaOperation
+    .mockReturnValueOnce(new Promise(resolve => { finishOldLookup = resolve; }))
+    .mockResolvedValueOnce(terminal);
+  retainSchemaOperation('workspace-1', group.id, 'operation-1');
+  const oldPanel = renderPanel();
+  const resolvingPanel = renderPanel();
+  fireEvent.click(within(oldPanel.container).getByTestId('group-schema-check'));
+  await waitFor(() => expect(api.schemaOperation).toHaveBeenCalledTimes(1));
+  fireEvent.click(within(resolvingPanel.container).getByTestId('group-schema-check'));
+  await waitFor(() => expect(within(resolvingPanel.container).getByTestId('group-schema-operation')).toHaveTextContent(status));
+  expect(readSchemaOperation('workspace-1', group.id)).toBeUndefined();
+
+  api.schemaPreview
+    .mockResolvedValueOnce({ ...token, operation_id: 'operation-2', token: 'token-2' })
+    .mockResolvedValueOnce({ ...token, operation_id: 'operation-3', token: 'token-3' });
+  const newerPanel = renderPanel({ autoPreview: true });
+  const alreadyOpenPanel = renderPanel({ autoPreview: true });
+  await within(newerPanel.container).findByTestId('group-schema-apply');
+  await within(alreadyOpenPanel.container).findByTestId('group-schema-apply');
+  api.schemaApply.mockRejectedValueOnce(new Error('lost newer response'));
+  fireEvent.click(within(newerPanel.container).getByTestId('group-schema-apply'));
+  await within(newerPanel.container).findByTestId('group-schema-check');
+  expect(readSchemaOperation('workspace-1', group.id)).toBe('operation-2');
+
+  await act(async () => { finishOldLookup(terminal); });
+  await waitFor(() => expect(within(oldPanel.container).getByTestId('group-schema-operation')).toHaveTextContent(status));
+  expect(readSchemaOperation('workspace-1', group.id)).toBe('operation-2');
+  fireEvent.click(within(alreadyOpenPanel.container).getByTestId('group-schema-apply'));
+  await within(alreadyOpenPanel.container).findByTestId('group-schema-check');
+  expect(api.schemaApply).toHaveBeenCalledTimes(1);
+  const freshPanel = renderPanel({ autoPreview: true });
+  expect(within(freshPanel.container).getByTestId('group-schema-preview')).toBeDisabled();
+  expect(api.schemaPreview).toHaveBeenCalledTimes(2);
+});
+
+it.each(['failed', 'succeeded'] as const)('a delayed %s apply response cannot release a newer unknown operation', async (status) => {
+  const terminal = { ...succeeded, status, reason: status === 'failed' ? 'rolled_back' : undefined };
+  let finishOldApply: (result: SchemaOperation) => void = () => undefined;
+  api.schemaApply
+    .mockReturnValueOnce(new Promise(resolve => { finishOldApply = resolve; }))
+    .mockRejectedValueOnce(new Error('lost newer response'));
+  api.schemaOperation.mockResolvedValueOnce(terminal);
+  const oldPanel = renderPanel({ autoPreview: true });
+  fireEvent.click(await within(oldPanel.container).findByTestId('group-schema-apply'));
+  await waitFor(() => expect(api.schemaApply).toHaveBeenCalledTimes(1));
+
+  const resolvingPanel = renderPanel();
+  fireEvent.click(within(resolvingPanel.container).getByTestId('group-schema-check'));
+  await waitFor(() => expect(within(resolvingPanel.container).getByTestId('group-schema-operation')).toHaveTextContent(status));
+  expect(readSchemaOperation('workspace-1', group.id)).toBeUndefined();
+
+  api.schemaPreview.mockResolvedValueOnce({ ...token, operation_id: 'operation-2', token: 'token-2' });
+  const newerPanel = renderPanel({ autoPreview: true });
+  fireEvent.click(await within(newerPanel.container).findByTestId('group-schema-apply'));
+  await within(newerPanel.container).findByTestId('group-schema-check');
+  expect(readSchemaOperation('workspace-1', group.id)).toBe('operation-2');
+  await act(async () => { finishOldApply(terminal); });
+  await waitFor(() => expect(within(oldPanel.container).getByTestId('group-schema-operation')).toHaveTextContent(status));
+  expect(readSchemaOperation('workspace-1', group.id)).toBe('operation-2');
+  const freshPanel = renderPanel({ autoPreview: true });
+  expect(within(freshPanel.container).getByTestId('group-schema-preview')).toBeDisabled();
+  expect(api.schemaPreview).toHaveBeenCalledTimes(2);
 });

@@ -265,6 +265,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
           type="checkbox"
           checked={mapping.enabled}
           onChange={() => dispatch({ type: 'toggleMappingEnabled', pointId: point.id })}
+          onFocus={(e) => e.stopPropagation()}
           onClick={preventPropagation}
           onMouseDown={preventPropagation}
           className="h-3.5 w-3.5 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-950 cursor-pointer"

@@ -5,8 +5,10 @@ import { PayloadPreview } from '../../../src/features/datalink/workbench-v2/step
 import { MappingRow } from '../../../src/features/datalink/workbench-v2/steps/step3/MappingRow';
 import { MappingTable } from '../../../src/features/datalink/workbench-v2/steps/step3/MappingTable';
 import { DeviceListContext } from '../../../src/features/datalink/workbench-v2/state/deviceColors';
-import type { Point, Mapping, Device } from '../../../src/features/datalink/workbench-v2/state/types';
+import type { Point, Mapping, Device, WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
 import { pointAPI, mappingAPI } from '../../../src/services/datalink';
+import { INITIAL_STATE, type WorkbenchV2Action } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
+import { mappingReducer } from '../../../src/features/datalink/workbench-v2/state/mappingReducer';
 
 vi.mock('react-i18next', () => ({
   useTranslation: (namespace?: string) => ({
@@ -361,4 +363,45 @@ it('shows five basic columns and keeps editor nodes and values when expanding Ad
   expect(scale).not.toBeVisible();
   expect(screen.getByTestId('input-scale-p-01')).toBe(scale);
   expect(screen.getByTestId('preview-final-p-01')).toBeVisible();
+});
+
+
+it('keeps the explicit bulk source when enabled or target checkboxes receive native focus', () => {
+  const setSelectedIdx = vi.fn();
+  const dispatch = vi.fn();
+  render(<MappingTable points={mockPoints} mappings={mockMappings} selectedIdx={0} setSelectedIdx={setSelectedIdx} devices={[mockDevice]} rawValues={{}} connectionByDevice={{}} dispatch={dispatch} />);
+  screen.getByTestId('input-display-name-p-02').focus();
+  expect(setSelectedIdx).toHaveBeenCalledWith(1);
+  setSelectedIdx.mockClear();
+  screen.getByTestId('bulk-target-p-02').focus();
+  expect(setSelectedIdx).not.toHaveBeenCalled();
+  const enabled = screen.getByTestId('checkbox-enabled-p-02');
+  enabled.focus();
+  expect(setSelectedIdx).not.toHaveBeenCalled();
+  fireEvent.click(enabled);
+  expect(dispatch).toHaveBeenCalledWith({ type: 'toggleMappingEnabled', pointId: 'p-02' });
+  expect(setSelectedIdx).not.toHaveBeenCalled();
+});
+
+it('reviews and confirms target type alone for checked targets without changing other fields', () => {
+  const mappings: Record<string, Mapping> = {
+    ...mockMappings,
+    'p-01': { ...mockMappings['p-01'], target_type: 'int16', unit: '°C', scale: 0.5, offset: 2 },
+    'p-02': { ...mockMappings['p-02'], target_type: 'uint64', unit: 'kWh', scale: 3, offset: 9 },
+  };
+  const original: WorkbenchV2State = { ...INITIAL_STATE, points: mockPoints, mappings };
+  let result = original;
+  const dispatch = vi.fn((action: WorkbenchV2Action) => { result = mappingReducer(result, action); });
+  render(<MappingTable points={mockPoints} mappings={mappings} selectedIdx={0} setSelectedIdx={vi.fn()} devices={[mockDevice]} rawValues={{}} connectionByDevice={{}} dispatch={dispatch} />);
+  fireEvent.click(screen.getByTestId('bulk-target-p-02'));
+  fireEvent.click(screen.getByTestId('btn-bulk-apply-target-type'));
+  expect(dispatch).not.toHaveBeenCalled();
+  expect(screen.getByTestId('bulk-preview')).toHaveTextContent('target_type: uint64 → int16');
+  expect(screen.getByTestId('bulk-preview')).not.toHaveTextContent('unit:');
+  fireEvent.click(screen.getByTestId('bulk-confirm'));
+  expect(dispatch).toHaveBeenCalledExactlyOnceWith({
+    type: 'bulkApplyTransform', fromPointId: 'p-01', toPointIds: ['p-02'], fields: ['target_type'],
+  });
+  expect(result.mappings['p-01']).toBe(original.mappings['p-01']);
+  expect(result.mappings['p-02']).toMatchObject({ ...original.mappings['p-02'], target_type: 'int16' });
 });

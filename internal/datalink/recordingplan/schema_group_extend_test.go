@@ -123,3 +123,29 @@ func TestManagedGroupPostgresExtensionKeepsExactNumericType(t *testing.T) {
 		t.Fatalf("numeric extension: %+v %v", token, err)
 	}
 }
+
+func TestManagedGroupExtensionLostAckRecoversOriginalOperationWithoutReplay(t *testing.T) {
+	repo := &failingFinishRepository{MemoryRepository: NewMemoryRepository()}
+	svc := NewService(repo)
+	scope, target := extensionFixture()
+	token, err := svc.PrepareSchemaPreview(t.Context(), scope, target.inspect)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(token.Tables) == 0 || token.Tables[0].Action != SchemaTableActionAddColumns {
+		t.Fatalf("fixture must exercise additive DDL: %+v", token.Tables)
+	}
+	op, outcome, err := svc.ApplySchemaPreview(t.Context(), token, target.target())
+	if !errors.Is(err, ErrSchemaOperationUnacknowledged) || outcome != ClaimAcquired || op == nil || op.OperationID != token.OperationID || target.executions != 1 {
+		t.Fatalf("lost additive acknowledgement must keep original operation: op=%+v outcome=%q executions=%d err=%v", op, outcome, target.executions, err)
+	}
+	pending, outcome, err := svc.ApplySchemaPreview(t.Context(), token, target.target())
+	if err != nil || outcome != ClaimInProgress || pending == nil || pending.OperationID != token.OperationID || target.executions != 1 {
+		t.Fatalf("active additive retry must not execute again: op=%+v outcome=%q executions=%d err=%v", pending, outcome, target.executions, err)
+	}
+	ageLastSchemaOperation(t, repo.MemoryRepository, token.OperationID)
+	recovered, outcome, err := svc.ApplySchemaPreview(t.Context(), token, target.target())
+	if err != nil || outcome != ClaimCompleted || recovered == nil || recovered.OperationID != token.OperationID || recovered.Status != SchemaOperationSucceeded || recovered.Reason != SchemaReasonRecovered || target.executions != 1 {
+		t.Fatalf("additive recovery must inspect original operation without replay: op=%+v outcome=%q executions=%d err=%v", recovered, outcome, target.executions, err)
+	}
+}

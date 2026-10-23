@@ -7,7 +7,7 @@ TBD - created by archiving change 'redesign-studio-recording-flow'. Update Purpo
 ## Requirements
 
 ### Requirement: Four-step intent-led setup
-Operators MUST be able to save and navigate offline drafts with unresolved probes; draft navigation MUST NOT imply verified readiness, and only dependent reads or activation SHALL be blocked. The existing Studio V2 route SHALL guide device connection, acquisition points, Point-to-Tag mapping and grouped database output in four steps. Basic typed Tag writing MUST remain usable without required reporting, retention setup, aggregation or physical measurement semantics. Explicitly selected derived operations SHALL require their own confirmed semantics. The system MUST retain the Go backend and existing React framework and MUST NOT add a parallel V3 or restore a dedicated legacy /studio route. The basic path SHALL derive and persist routine mappings, show only necessary operator choices and default new recording to one managed group per device without converting existing advanced configurations.
+Operators MUST be able to save and navigate offline drafts with unresolved probes; draft navigation MUST NOT imply verified readiness, and only dependent reads or activation SHALL be blocked. The existing Studio V2 route SHALL guide device connection, acquisition points, Point-to-Tag mapping and grouped database output in four steps labelled 連接設備 → 選要讀的資料 → 命名與換算 → 儲存並開始記錄. Basic/Advanced presentation changes SHALL preserve configuration values and protocol/type capabilities. Basic typed Tag writing MUST remain usable without required reporting, retention setup, aggregation or physical measurement semantics. Explicitly selected derived operations SHALL require their own confirmed semantics. The system MUST retain the Go backend and existing React framework and MUST NOT add a parallel V3 or restore a dedicated legacy /studio route. The basic path SHALL derive and persist routine mappings, show only necessary operator choices and default new recording to one managed group per device without converting existing advanced configurations.
 
 #### Scenario: Mixed sensor configured without SQL
 - **WHEN** an operator maps temperature, pressure, flow and counter source values as basic typed Tags
@@ -47,252 +47,24 @@ Operators MUST be able to save and navigate offline drafts with unresolved probe
 
 
 <!-- @trace
-source: streamline-studio-v2-recording-setup
-updated: 2026-10-04
+source: close-studio-v2-simplification
+updated: 2026-10-23
 code:
-  - internal/datalink/runtime/group_boundary.go
-  - internal/datalink/recordingplan/schema_preview.go
-  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-postgres.png
-  - internal/datalink/runtime/service_workspace_projection.go
-  - internal/datalink/runtime/service_workspace_projection_scope.go
-  - docs/plans/studio-v2-flow-completion/evidence-c/error-1440.png
-  - internal/datalink/workspace/write_group.go
-  - internal/datalink/workspace/write_group_managed.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection.tsx
-  - frontend/src/utils/safeJson.ts
-  - internal/datalink/workspace/write_group_repository_update.go
-  - internal/datalink/grouppipeline/pipeline.go
-  - docs/plans/studio-v2-flow-completion/evidence-e/partial-768.png
-  - frontend/src/features/datalink/workbench-v2/state/writeGroup/draft.ts
-  - internal/datalink/migrator_recording_plans.go
-  - docs/plans/studio-v2-flow-completion/evidence-c/error-390.png
-  - internal/datalink/workspace/write_group_repository.go
-  - frontend/src/types/recordingPlan.ts
-  - internal/datalink/recordingplan/repository_memory.go
-  - internal/datalink/grouppipeline/recovery.go
-  - frontend/src/hooks/datalink/useStudioV2RecordingStart.ts
-  - internal/datalink/dbtarget/group_row_layout.go
-  - internal/datalink/dbtarget/service.go
-  - docs/plans/studio-v2-flow-completion/E-setup-verification.md
-  - internal/datalink/dbtarget/managed_destination.go
-  - internal/datalink/workspace/service_readiness_scope.go
-  - docs/plans/studio-v2-flow-completion/evidence-d/partial-390.png
-  - internal/datalink/modbusshare/service_recording_scope.go
-  - docs/plans/studio-v2-flow-completion/evidence-c/error-768.png
-  - internal/datalink/recordingplan/schema_group.go
-  - internal/datalink/workspace/write_group_readiness.go
-  - internal/datalink/runtime/service_source_rule_reconcile.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleBar.tsx
-  - internal/datalink/groupdelivery/runtime_versions.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/BasicRecordingPanel.tsx
-  - internal/datalink/workspace/write_group_readiness_table.go
-  - internal/datalink/workspace/recording_start_steps.go
-  - frontend/src/types/studioV2WriteGroupDelivery.ts
-  - frontend/src/features/datalink/workbench-v2/state/writeGroup/columns.ts
-  - frontend/src/types/studioV2RecordingStart.ts
-  - docs/plans/studio-v2-flow-completion/review-repairs.md
-  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupColumnProposal.tsx
-  - internal/datalink/workspace/write_group_schema_confirm.go
-  - internal/datalink/workspace/write_group_service.go
-  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-reject-bigint.png
-  - docs/plans/studio-v2-flow-completion/evidence-e/error-1440.png
-  - frontend/src/utils/studioV2RecordingStartJson.ts
-  - internal/datalink/recordingplan/repository_recording_start.go
-  - docs/technical/studio-v2-write-groups.md
-  - frontend/src/features/datalink/workbench-v2/steps/step4/index.ts
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - docs/plans/studio-v2-flow-completion/B-deadline-verification.md
-  - docs/plans/studio-v2-flow-completion/evidence-d/partial-768.png
-  - internal/datalink/workspace/write_group_runtime_layout.go
-  - docs/plans/studio-v2-flow-completion/evidence-e/runtime-handoff-390.png
-  - docs/plans/studio-v2-flow-completion/evidence-d/error-390.png
-  - frontend/src/features/datalink/workbench-v2/shell/resolveRuntimeDashboardDevice.ts
-  - frontend/src/features/datalink/workbench-v2/state/basicRecordingMessages.ts
-  - internal/datalink/migrator_write_groups.go
-  - internal/datalink/dbtarget/table_inspection_readonly.go
-  - frontend/src/hooks/datalink/useStudioV2WriteGroups.ts
-  - internal/datalink/schema/migrations/028_write_group_basic_keys_sqlite.up.sql
-  - frontend/src/hooks/datalink/keys.ts
-  - internal/datalink/workspace/service_activation_scope.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/BasicRecordingEvidence.tsx
-  - internal/datalink/workspace/write_group_schema.go
-  - docs/plans/studio-v2-flow-completion/evidence-c/main-390.png
-  - internal/datalink/workspace/service_readiness_downstream.go
-  - docs/plans/studio-v2-flow-completion/evidence-d/main-768.png
-  - internal/datalink/grouppipeline/delivery_view.go
-  - internal/datalink/grouppipeline/reconcile.go
-  - docs/plans/studio-v2-flow-completion/evidence-d/error-768.png
-  - internal/datalink/dbtarget/postgres_column_inspection.go
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - internal/datalink/runtime/group_boundary_encoding.go
-  - frontend/src/hooks/datalink/useStudioV2WorkspaceDatabase.ts
-  - frontend/src/utils/studioV2WriteGroupJson.ts
-  - internal/api/handlers/studio_v2_workspace_recording_plan_apply.go
-  - internal/api/router_studio_v2_write_group_routes.go
-  - docs/plans/studio-v2-flow-completion/evidence-e/main-1440.png
-  - frontend/src/features/datalink/workbench-v2/state/basicRecording.ts
-  - internal/datalink/workspace/recording_start_types.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/BasicRecordingProgress.tsx
-  - docs/plans/studio-v2-flow-completion/evidence-e/main-768.png
-  - internal/datalink/runtime/group_boundary_layout.go
-  - frontend/src/services/studioV2WorkspaceWriteGroups.ts
-  - internal/datalink/recordingplan/repository.go
-  - internal/datalink/recordingplan/schema_apply.go
-  - docs/plans/studio-v2-flow-completion/evidence-e/partial-1440.png
-  - docs/plans/studio-v2-flow-completion/evidence-c/main-768.png
-  - internal/datalink/workspace/write_group_readiness_partial.go
-  - internal/datalink/groupdelivery/sender.go
-  - docs/plans/studio-v2-flow-completion/evidence-c/partial-1440.png
-  - docs/plans/studio-v2-flow-completion/evidence-c/main-1440.png
-  - docs/plans/studio-v2-flow-completion/D-managed-verification.md
-  - docs/plans/studio-v2-flow-completion/evidence-e/share-only-1440.png
-  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-sqlite.png
-  - internal/api/handlers/studio_v2_recording_start_handler.go
-  - docs/plans/studio-v2-flow-completion/README.md
-  - internal/datalink/recordingplan/repository_preview_token.go
-  - internal/datalink/dbtarget/managed_schema_execution.go
-  - docs/swagger/swagger.json
-  - frontend/src/utils/recordingPlanJson.ts
-  - internal/datalink/schema/migrations/027_write_group_runtime_sqlite.up.sql
-  - docs/plans/studio-v2-flow-completion/evidence-e/share-only-390.png
-  - docs/plans/studio-v2-flow-completion/evidence-d/main-390.png
-  - internal/datalink/workspace/write_group_readiness_eval.go
-  - internal/datalink/workspace/service_readiness_write_groups.go
-  - internal/datalink/workspace/write_group_lifecycle.go
-  - frontend/src/types/studioV2WriteGroup.ts
-  - internal/api/handlers/studio_v2_workspace_database_metadata.go
-  - internal/datalink/collector/scheduler_config_methods.go
-  - docs/plans/studio-v2-flow-completion/evidence-e/offline-neighbor-1440.png
-  - docs/plans/studio-v2-flow-completion/evidence-e/offline-neighbor-step4-1440.png
-  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
-  - docs/plans/studio-v2-flow-completion/evidence-e/main-390.png
-  - docs/plans/studio-v2-flow-completion/C-entity-verification.md
-  - internal/api/router_studio_v2_recording_start.go
-  - docs/plans/studio-v2-flow-completion/evidence-d/error-1440.png
-  - internal/datalink/recordingplan/types.go
-  - frontend/src/utils/studioV2WriteGroupDeliveryJson.ts
-  - frontend/src/services/studioV2RecordingStart.ts
-  - frontend/src/utils/typedErrors.ts
-  - docs/plans/studio-v2-flow-completion/evidence-e/partial-390.png
-  - frontend/src/utils/backendErrorCodes.ts
-  - docs/plans/studio-v2-flow-completion/evidence-e/waiting-1440.png
-  - internal/api/router.go
-  - docs/plans/studio-v2-flow-completion/evidence-c/partial-390.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-verification-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.json
   - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
-  - internal/datalink/groupdelivery/committed_effect.go
-  - docs/plans/studio-v2-flow-completion/evidence-e/error-768.png
-  - docs/plans/studio-v2-flow-completion/evidence-d/main-1440.png
-  - internal/datalink/groupdelivery/status.go
-  - internal/datalink/workspace/recording_start.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns.ts
-  - internal/api/handlers/studio_v2_workspace_write_group_schema_handler.go
-  - docs/plans/studio-v2-flow-completion/evidence-e/error-390.png
-  - docs/plans/studio-v2-flow-completion/evidence-e/share-only-768.png
-  - frontend/src/features/datalink/workbench-v2/steps/step4/BasicRecordingMembers.tsx
-  - internal/api/handlers/studio_v2_workspace_source_rules_handler.go
-  - docs/swagger/swagger.yaml
-  - frontend/src/features/datalink/workbench-v2/state/writeGroup/proposal.ts
-  - frontend/src/services/studioV2WorkspaceDatabase.ts
-  - internal/datalink/dbtarget/schema_execution.go
-  - docs/swagger/docs.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupMemberTable.tsx
-  - docs/plans/studio-v2-flow-completion/A-lifecycle-verification.md
-  - internal/datalink/recordingplan/recording_start_operation.go
-  - internal/datalink/workspace/recording_start_scope.go
-  - docs/plans/studio-v2-flow-completion/evidence-d/partial-1440.png
-  - docs/plans/studio-v2-flow-completion/evidence-e/mapping-1440.png
-  - internal/datalink/workspace/service_database_setup.go
-  - docs/plans/studio-v2-flow-completion/evidence-c/partial-768.png
-  - internal/datalink/workspace/write_group_basic_managed.go
-  - docs/plans/studio-v2-flow-completion/evidence-e/offline-draft-1440.png
-  - internal/api/handlers/studio_v2_workspace_write_groups_handler.go
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-logs-20261023.json.gz
+  - docs/releases/studio-v2-change-closeout-20261023.md
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023-mapping.png
+  - docs/plans/studio-v2-flow-completion/README.md
 tests:
-  - cmd/test_ui/group_pipeline_managed_sql_test.go
-  - internal/datalink/modbusshare/service_recording_scope_test.go
-  - internal/datalink/groupdelivery/sender_postgres_test.go
-  - cmd/test_ui/group_pipeline_lifecycle_test.go
-  - internal/api/router_studio_v2_write_group_schema_conflict_test.go
-  - frontend/tests/unit/hooks/useStudioV2GroupMetadata.test.tsx
-  - frontend/tests/unit/utils/recordingSchemaPreviewToken.test.ts
-  - frontend/tests/unit/workbench-v2/writeGroupManagedStorage.test.ts
-  - internal/datalink/grouppipeline/reconcile_managed_recovery_test.go
-  - internal/datalink/workspace/write_group_managed_schema_guard_test.go
-  - frontend/tests/unit/services/studioV2RecordingStart.test.ts
-  - cmd/test_ui/group_pipeline_managed_test.go
-  - internal/datalink/grouppipeline/reconcile_recovery_test.go
-  - internal/datalink/groupdelivery/sender_deadline_recovery_test.go
-  - internal/datalink/workspace/write_group_runtime_layout_test.go
-  - internal/datalink/runtime/group_boundary_cutoff_test.go
-  - cmd/test_ui/main.go
-  - frontend/tests/unit/workbench-v2/writeGroupSection.test.tsx
-  - frontend/tests/unit/workbench-v2/resolveRuntimeDashboardDevice.test.ts
-  - internal/api/router_studio_v2_recording_start_failures_test.go
-  - frontend/tests/unit/workbench-v2/basic-recording-panel.test.tsx
-  - internal/datalink/dbtarget/group_row_layout_test.go
-  - internal/api/router_studio_v2_write_group_schema_test.go
-  - internal/datalink/workspace/write_group_basic_managed_test.go
-  - internal/api/router_studio_v2_write_group_schema_drift_test.go
-  - internal/datalink/groupdelivery/sender_deadline_test.go
-  - internal/api/router_studio_v2_recording_start_barrier_test.go
-  - cmd/test_ui/group_pipeline_entity_test.go
-  - cmd/test_ui/group_pipeline_lifecycle_crash_test.go
-  - frontend/tests/unit/workbench-v2/writeGroupDraft.test.ts
-  - internal/datalink/workspace/write_group_reenable_test.go
-  - cmd/test_ui/group_pipeline_managed_quality_test.go
-  - internal/api/router_studio_v2_write_group_metadata_readonly_test.go
-  - frontend/tests/unit/services/studioV2WorkspaceWriteGroupSchema.test.ts
-  - internal/datalink/recordingplan/schema_group_numeric_test.go
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/datalink/recordingplan/schema_group_extend_test.go
+  - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
   - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
-  - frontend/tests/unit/utils/backendErrorCodes.test.ts
-  - internal/api/router_studio_v2_delivery_effect_test.go
-  - cmd/test_ui/recording_start_share_test.go
-  - frontend/tests/unit/workbench-v2/writeGroupProposal.test.tsx
-  - internal/datalink/groupdelivery/committed_effect_test.go
-  - internal/api/router_studio_v2_write_group_schema_partial_test.go
-  - frontend/tests/unit/workbench-v2/writeGroupMembers.test.tsx
-  - internal/datalink/recordingplan/recording_start_operation_test.go
-  - cmd/test_ui/group_pipeline_managed_multidevice_test.go
-  - internal/datalink/runtime/group_boundary_entity_test.go
-  - frontend/tests/unit/workbench-v2/basic-recording-panel-regressions.test.tsx
-  - frontend/tests/fixtures/managedSchemaPreview.ts
-  - internal/api/handlers/studio_v2_workspace_database_metadata_readonly_test.go
-  - internal/datalink/recordingplan/schema_group_test.go
-  - frontend/tests/unit/services/studioV2WriteGroupDelivery.test.ts
-  - internal/datalink/workspace/service_readiness_scope_test.go
-  - internal/api/router_studio_v2_write_group_schema_replay_test.go
-  - cmd/test_ui/service_wiring.go
-  - internal/datalink/workspace/service_activation_scope_test.go
-  - frontend/tests/unit/workbench-v2/basic-recording-state.test.ts
-  - internal/datalink/workspace/write_group_readiness_table_test.go
-  - internal/api/handlers/studio_v2_workspace_metadata_scope_test.go
-  - cmd/test_ui/recording_start_share.go
-  - internal/datalink/workspace/write_group_readiness_managed_inspector_test.go
-  - internal/api/handlers/studio_v2_workspace_group_metadata_test.go
-  - internal/datalink/workspace/write_group_lifecycle_test.go
-  - internal/datalink/runtime/group_boundary_durable_test.go
-  - internal/datalink/dbtarget/managed_destination_test.go
-  - internal/api/handlers/studio_v2_workspace_source_rules_handler_share_create_test.go
-  - internal/datalink/dbtarget/postgres_numeric_inspection_test.go
-  - internal/datalink/runtime/service_source_rule_reconcile_test.go
-  - frontend/tests/unit/workbench-v2/writeGroupColumns.test.ts
-  - internal/api/router_studio_v2_recording_start_recovery_test.go
-  - internal/api/router_studio_v2_recording_start_initial_test.go
-  - frontend/tests/unit/services/studioV2WorkspaceWriteGroups.test.ts
-  - frontend/tests/unit/workbench-v2/writeGroupLifecycle.test.tsx
-  - internal/datalink/dbtarget/group_row_entity_test.go
-  - internal/datalink/dbtarget/managed_inspection_scope_test.go
-  - internal/datalink/runtime/service_workspace_projection_scope_test.go
-  - internal/api/router_studio_v2_write_group_schema_scope_test.go
-  - internal/datalink/grouppipeline/reconcile_revision_test.go
-  - frontend/tests/unit/services/studioV2WorkspaceDatabaseMetadata.test.ts
-  - cmd/test_ui/group_pipeline_entity_sql_test.go
-  - internal/datalink/dbtarget/managed_schema_execution_test.go
-  - internal/api/router_studio_v2_recording_start_test.go
-  - internal/datalink/runtime/service_workspace_projection_shared_scope_test.go
-  - internal/datalink/groupdelivery/sender_settlement_test.go
-  - internal/api/router_studio_v2_recording_start_fixture_test.go
-  - internal/api/router_studio_v2_write_group_schema_recovery_test.go
 -->
 
 ---
@@ -346,3 +118,137 @@ Basic setup SHALL complete managed schema preparation without entering Advanced.
 #### Scenario: Inspect effective settings
 - **WHEN** an operator prepares a canonical group
 - **THEN** no competing connector table, INSERT/UPSERT or recording interval control is presented as effective, and technical identifiers remain inspectable through diagnostics.
+
+#### Scenario: Destination before recording choices
+- **WHEN** no database destination is saved and Share is not enabled
+- **THEN** Basic first presents destination setup before recording members, frequency and start; a saved destination is shown as a summary with an edit entry preserving advanced connection and password semantics.
+
+#### Scenario: Prepare action and focused repair
+- **WHEN** Basic preparation is requested or a prepare_schema error needs repair
+- **THEN** one preparation action loads the read-only preview in the Basic schema card, with explicit DDL confirmation still required and no forced switch into all Advanced settings.
+
+
+<!-- @trace
+source: close-studio-v2-simplification
+updated: 2026-10-23
+code:
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-verification-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-logs-20261023.json.gz
+  - docs/releases/studio-v2-change-closeout-20261023.md
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023-mapping.png
+  - docs/plans/studio-v2-flow-completion/README.md
+tests:
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/datalink/recordingplan/schema_group_extend_test.go
+  - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
+-->
+
+---
+### Requirement: Selection is separate from acquisition
+
+Step 2 point click SHALL select or inspect points without changing acquisition. Multi-selection, modifier selection and contiguous range selection SHALL remain available. Acquisition changes SHALL require an explicit collection checkbox or a clearly scoped selected-point enable/skip action. Read range descriptions SHALL distinguish item count from register/bit span, expose required types and offer editable name suggestions.
+
+#### Scenario: Inspect and select a range
+- **WHEN** the operator clicks points and uses Shift or Ctrl to select multiple points
+- **THEN** only selection/detail state changes; collection remains unchanged until an explicit collection action.
+
+#### Scenario: Multiword types are explained
+- **WHEN** a range contains four float32 items
+- **THEN** the read summary identifies four data items occupying eight words and retains the required type control.
+
+
+<!-- @trace
+source: close-studio-v2-simplification
+updated: 2026-10-23
+code:
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-verification-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-logs-20261023.json.gz
+  - docs/releases/studio-v2-change-closeout-20261023.md
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023-mapping.png
+  - docs/plans/studio-v2-flow-completion/README.md
+tests:
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/datalink/recordingplan/schema_group_extend_test.go
+  - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
+-->
+
+---
+### Requirement: Narrow basic managed membership updates
+
+Basic SHALL present a reviewed member-addition/removal difference for eligible canonical managed groups and save it through existing workspace/group/connector version checks. Existing columns, required flags, deduplication, entity/provenance rules, frozen historical data and custom groups SHALL NOT be overwritten. Customized or unsaved-ineligible mappings SHALL be blocked or directed to existing Advanced controls. Required storage changes SHALL use the existing explicit DDL preview rather than an implicit mutation.
+
+#### Scenario: Add a newly mapped point
+- **WHEN** an eligible basic managed group has a newly saved point mapping
+- **THEN** Basic offers the narrow member difference and explicit update, preserves existing group policies/columns, and links to confirmed schema preparation when a column is missing.
+
+#### Scenario: Existing customization or stale version
+- **WHEN** the group has custom columns/entity/deduplication semantics or the expected version is stale
+- **THEN** Basic does not overwrite the configuration; existing advanced editing or version repair remains available.
+
+
+<!-- @trace
+source: close-studio-v2-simplification
+updated: 2026-10-23
+code:
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-verification-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-logs-20261023.json.gz
+  - docs/releases/studio-v2-change-closeout-20261023.md
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023-mapping.png
+  - docs/plans/studio-v2-flow-completion/README.md
+tests:
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/datalink/recordingplan/schema_group_extend_test.go
+  - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
+-->
+
+---
+### Requirement: Recording claims follow committed evidence
+
+Runtime diagnostics with no failure_stage SHALL state only that no error was detected. Acquisition, waiting for the first record and confirmed SQL commit SHALL remain distinguishable. Basic recording success SHALL require the existing workspace/group/applied revision/connector-scoped committed-effect evidence. Share-only success or acquisition alone SHALL NOT claim all points reached a database.
+
+#### Scenario: Collection without SQL evidence
+- **WHEN** reads or Share delivery succeed but no matching committed SQL effect is observed
+- **THEN** diagnostics do not claim database delivery and Basic continues to show the applicable waiting or evidence state.
+
+#### Scenario: Scoped database commit
+- **WHEN** matching committed-effect evidence exists for the effective group and connector
+- **THEN** Basic can show confirmed database writing using that evidence without treating missing errors as proof.
+
+<!-- @trace
+source: close-studio-v2-simplification
+updated: 2026-10-23
+code:
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-verification-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-logs-20261023.json.gz
+  - docs/releases/studio-v2-change-closeout-20261023.md
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023-mapping.png
+  - docs/plans/studio-v2-flow-completion/README.md
+tests:
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/datalink/recordingplan/schema_group_extend_test.go
+  - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
+-->

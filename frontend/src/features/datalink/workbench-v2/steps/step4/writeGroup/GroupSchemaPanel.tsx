@@ -186,8 +186,8 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
         else if (isTerminal(result)) setLastOperation(result);
       }
       if (sameGroup) setNeedsCheck(result.status === 'unknown' || result.status === 'pending' || result.status === 'running');
-      if (result.status === 'failed') retainSchemaOperation(workspaceId, group.id);
-      if (result.status === 'succeeded') { retainSchemaOperation(workspaceId, group.id); onApplied?.(); }
+      if (result.status === 'failed') retainSchemaOperation(workspaceId, group.id, undefined, result.operation_id);
+      if (result.status === 'succeeded') { retainSchemaOperation(workspaceId, group.id, undefined, result.operation_id); onApplied?.(); }
     } catch (cause) {
       // A lost reply never authorizes another DDL batch. Check this same op.
       const sameGroup = scopeGroupId(scopeRef.current) === scopeGroupId(requestedScope);
@@ -215,8 +215,8 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
     operationRef.current = result.data;
     setOperation(result.data);
     setNeedsCheck(false);
-    if (result.data.status === 'failed' && group) retainSchemaOperation(workspaceId, group.id);
-    if (result.data.status === 'succeeded') { if (group) retainSchemaOperation(workspaceId, group.id); onApplied?.(); }
+    if (result.data.status === 'failed' && group) retainSchemaOperation(workspaceId, group.id, undefined, result.data.operation_id);
+    if (result.data.status === 'succeeded') { if (group) retainSchemaOperation(workspaceId, group.id, undefined, result.data.operation_id); onApplied?.(); }
   });
 
   const autoStarted = useRef<number | undefined>(undefined);

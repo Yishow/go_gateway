@@ -1,0 +1,217 @@
+{
+  "baseline_commit": "b8c55aabfa59a89bd0f5206fdfc3b4730b12d006",
+  "change": "close-studio-v2-simplification",
+  "environment": {
+    "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+    "go": "go version go1.27.3 darwin/arm64",
+    "node": "v24.22.1",
+    "browser": "Playwright bundled Chromium; loopback fixtures"
+  },
+  "results": [
+    {
+      "name": "frontend-tests",
+      "command": "cd frontend && npm test -- --run",
+      "exit_code": 0,
+      "result": "passed-current",
+      "local_log_sha256": "74d8f88a6719b93fb203b477747ae0558ee0159aab06de833942d6907b5962b1",
+      "sanitized_log_sha256": "8fe34aa7581f2bea21367f95d5e4ca6c0b8e6d12fc4fa9fbfa8c7d60e01b61f0"
+    },
+    {
+      "name": "frontend-lint",
+      "command": "cd frontend && npm run lint",
+      "exit_code": 0,
+      "result": "passed-current",
+      "local_log_sha256": "ecd5ba9174b3eb645ee6407cf7eda7d1365ebff664e63bca9169a9255d3ea9a2",
+      "sanitized_log_sha256": "ecd5ba9174b3eb645ee6407cf7eda7d1365ebff664e63bca9169a9255d3ea9a2"
+    },
+    {
+      "name": "frontend-build",
+      "command": "cd frontend && npm run build",
+      "exit_code": 0,
+      "result": "passed-current",
+      "local_log_sha256": "fcaaa7a4822c50dfcfc3c1386af734c52138d34f31d2d9f31b22ccfae1e76ec6",
+      "sanitized_log_sha256": "fcaaa7a4822c50dfcfc3c1386af734c52138d34f31d2d9f31b22ccfae1e76ec6"
+    },
+    {
+      "name": "go-tests",
+      "command": "go test -p 1 ./...",
+      "exit_code": 0,
+      "result": "passed-current",
+      "local_log_sha256": "0d53d56ea10f610ef7877f90108dd442371d0a28c6a757611a26859fe2ca6fa7",
+      "sanitized_log_sha256": "0d53d56ea10f610ef7877f90108dd442371d0a28c6a757611a26859fe2ca6fa7"
+    },
+    {
+      "name": "go-vet",
+      "command": "go vet ./...",
+      "exit_code": 0,
+      "result": "passed-current",
+      "local_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sanitized_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "go-lint",
+      "command": "golangci-lint run ./...",
+      "exit_code": 0,
+      "result": "passed-current",
+      "local_log_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+      "sanitized_log_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+    },
+    {
+      "name": "playwright",
+      "command": "cd frontend && npm run test:e2e",
+      "exit_code": 0,
+      "result": "passed-current",
+      "local_log_sha256": "14d3d0be422cab834b84f6807b19dc6ac1b7da0e21cdb990d6bb9cd48e78f639",
+      "sanitized_log_sha256": "14d3d0be422cab834b84f6807b19dc6ac1b7da0e21cdb990d6bb9cd48e78f639"
+    },
+    {
+      "name": "schema",
+      "command": "npx vitest run tests/unit/workbench-v2/groupSchemaPanel.test.tsx tests/unit/workbench-v2/schemaOperationRecovery.test.ts",
+      "exit_code": 0,
+      "result": "passed-current",
+      "local_log_sha256": "eb80827fbc97476125bd0b7a9292eb10de1d06a0ea4457d7f5344ac254f3a83a",
+      "sanitized_log_sha256": "9f81a6cff005b5281a5a8461f78d71aae1ed375a0c65ff80530a4775b73b05ca"
+    },
+    {
+      "name": "mapping",
+      "command": "npx vitest run tests/unit/workbench-v2/step3-components.test.tsx",
+      "exit_code": 0,
+      "result": "passed-current",
+      "local_log_sha256": "f5fd652c434a365620e0638c04cc1cad501924be6043d2a7232110fa0587e176",
+      "sanitized_log_sha256": "250bee9d8372041bd4ea9f831d8612c500459facafe5c25224f912e7aacde555"
+    },
+    {
+      "name": "additive",
+      "command": "go test ./internal/datalink/recordingplan",
+      "exit_code": 0,
+      "result": "passed-current",
+      "local_log_sha256": "39444d3081a18b96369ae4fe4b1d7184476d5542bd8e44e420a67d6070500869",
+      "sanitized_log_sha256": "39444d3081a18b96369ae4fe4b1d7184476d5542bd8e44e420a67d6070500869"
+    },
+    {
+      "name": "quota-red",
+      "command": "focused helper before quota fix",
+      "exit_code": 1,
+      "result": "expected-behavioral-failure",
+      "local_log_sha256": "bd0f244cecf24905a5c3213195b6ad56bad3595123d046c152e5954ddb50510e",
+      "sanitized_log_sha256": "562da34fb70dec861234a73ac90adb62bf2b69f00eaab00bac8541414d120c17"
+    },
+    {
+      "name": "mapping-red",
+      "command": "focused mapping before focus fix",
+      "exit_code": 1,
+      "result": "expected-behavioral-failure",
+      "local_log_sha256": "fb90d42c3de5d890baa29372b1e48b6f64ea62eb2a9309998df1f997172ef006",
+      "sanitized_log_sha256": "c7972869d70528d7d1c087164187104ff28251001783d58c3c1bd0dd09acd9f8"
+    },
+    {
+      "name": "mapping-mutation",
+      "command": "type-only deliberately includes unit; restored",
+      "exit_code": 1,
+      "result": "expected-behavioral-failure",
+      "local_log_sha256": "97d4fc1372c3f3d89dfd6f444a77e00d58aaf4f7c4fd4b6f13defe38374be77d",
+      "sanitized_log_sha256": "142b880c1704fda4ecc9d5f49e360150a5fd7994fc38167f9ec424370ec64372"
+    },
+    {
+      "name": "additive-mutation",
+      "command": "stale recovery deliberately executes DDL; restored",
+      "exit_code": 1,
+      "result": "expected-behavioral-failure",
+      "local_log_sha256": "caac99e37979d4ad783435b8fe491e0b34aff4c3da83ce2427b2309aa23545ec",
+      "sanitized_log_sha256": "caac99e37979d4ad783435b8fe491e0b34aff4c3da83ce2427b2309aa23545ec"
+    }
+  ],
+  "counts": {
+    "vitest_files": 211,
+    "vitest_tests": 1342,
+    "playwright_tests": 14,
+    "schema_focused": 29,
+    "mapping_focused": 10
+  },
+  "prior_source_manifest": "simplify-source-inputs-20261023.json",
+  "prior_files_compared": 55,
+  "prior_files_unchanged": 49,
+  "changed_prior_files": {
+    "frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx": {
+      "prior_sha256": "2dcdd82333f9cb61c7a2d8c2bc01d0454cfeed1b1c4af6a71820388878ce449a",
+      "final_sha256": "181c5b5c7a97399d23016fc20eae5b2f38086446758e1f13409d49613ec3da8e"
+    },
+    "frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx": {
+      "prior_sha256": "7394a22762e13325f7c32c384a65297baf33ed8d52169b2373021e21b6dbfc63",
+      "final_sha256": "c690e5a4e7f1d95725a1b12e822422c7b8c141f708f3fd0f309b7d29617e28e8"
+    },
+    "frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts": {
+      "prior_sha256": "7da5b3c13b0d4885a7c848648be22295ec420b676c3583118d153c33d80054e7",
+      "final_sha256": "c5cd2161c827031b491ff65ba9c6cc3de74275f6c56585db4e7352792ce022fd"
+    },
+    "frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx": {
+      "prior_sha256": "0a2d8a22ae7f353cebe28d0bd2bcdb2331d96c04ec39888b2084a0f79304c44a",
+      "final_sha256": "487324be4445e87ded8ffd0dcd57fbe86a355b69cadd5348fb03f89eda24d745"
+    },
+    "frontend/tests/unit/workbench-v2/step3-components.test.tsx": {
+      "prior_sha256": "34ef40c740e3184d30725f3554dda5cc6ef6724a36faf3757aa3a76f5d42120a",
+      "final_sha256": "16afea9e928fc3be343b3ee6adf55ac6ceeca44973035348eb0aca68329d1b68"
+    },
+    "internal/datalink/recordingplan/schema_group_extend_test.go": {
+      "prior_sha256": "dbd3266d25467939522b9e5b3d2d1b4e47adef0b8ad905dbd43021da1fff8c9a",
+      "final_sha256": "7f4924915ab683c326307ff31b80d24c0cb8c7a9e5017a28d277869413d01044"
+    }
+  },
+  "new_test_sha256": "9c475c40dd1be6b60c7e929fe2ab8a4a9d14c17a2cc434ad7637fb975b94b288",
+  "production_go_changed": false,
+  "lockfile_changed": false,
+  "review": {
+    "snapshot_id": "9ce7fef6b3f233d6cce2392337caabeecca9b3bc",
+    "status": "current at review",
+    "files": 7,
+    "findings": 0,
+    "limitation": "Some schema files were reviewed by their original author; Go test uses stub, not PostgreSQL SQL acceptance."
+  },
+  "witness": {
+    "file": "closeout-release-20261023.json",
+    "sha256": "75a25f2b6f42eea0c36c4448ec2bd2a3966b24bd54ec77f79c24b7d35c515588",
+    "binary_sha256": "7c77de9a0f532cf61a6388030d80b76877dbb91ff60266058eb9c88399339bad",
+    "apply_count": 1,
+    "cleanup": {
+      "processes": [
+        {
+          "name": "sim-a",
+          "term_state": "exited",
+          "kill_sent": false,
+          "pid": 24535,
+          "state": "exited",
+          "exit_code": 0,
+          "signal": null
+        },
+        {
+          "name": "gateway",
+          "term_state": "exited",
+          "kill_sent": false,
+          "pid": 24536,
+          "state": "exited",
+          "exit_code": 0,
+          "signal": null
+        }
+      ],
+      "namespace_absent": true
+    }
+  },
+  "log_bundle": {
+    "file": "closeout-logs-20261023.json.gz",
+    "sha256": "ea0440b89c18bf61f9a4a6180b7310cce066d2e5435ec0455304fdc6fe61bc11"
+  },
+  "retained_prior_evidence": {
+    "dual_device_three_60_second_buckets": "passed-prior; see simplify-summary-20261023.json and source identity comparison",
+    "harness_62": "passed-prior; scripts unchanged"
+  },
+  "not_run": [
+    "human novice acceptance",
+    "field PLC",
+    "production database",
+    "Windows native tray/Explorer/ACL/portable acceptance",
+    "Linux native acceptance",
+    "deployment",
+    "current PostgreSQL browser/SQL additive extension acceptance"
+  ],
+  "original_user_files_preserved": 12
+}

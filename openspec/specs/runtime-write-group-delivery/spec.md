@@ -1656,3 +1656,28 @@ The system SHALL expose safe blocked/quarantined row attention and explicit retr
 #### Scenario: Repeated decision and new blocked attempt
 - **WHEN** a decision reply is uncertain, or that effect is blocked again after a new delivery attempt
 - **THEN** the identical decision ID reads its atomic audit without resending, while a new decision requires the latest state revision and the UI permits a fresh repair note.
+
+#### Scenario: Repair action is primary and Skip impact is explicit
+- **WHEN** a blocked or quarantined row is presented
+- **THEN** retry after repair is the primary action; Skip is secondary and expands to explain that this record will no longer be delivered, require a reason and explicit confirmation, and preserve per-record audit and decision_id.
+
+<!-- @trace
+source: close-studio-v2-simplification
+updated: 2026-10-23
+code:
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-verification-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.png
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-logs-20261023.json.gz
+  - docs/releases/studio-v2-change-closeout-20261023.md
+  - docs/plans/studio-v2-flow-completion/evidence-f/closeout-release-20261023-mapping.png
+  - docs/plans/studio-v2-flow-completion/README.md
+tests:
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/datalink/recordingplan/schema_group_extend_test.go
+  - frontend/tests/unit/workbench-v2/schemaOperationRecovery.test.ts
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
+-->
