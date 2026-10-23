@@ -2,6 +2,7 @@ import * as React from 'react';
 
 interface CollapsibleSupportCardProps {
   title: string;
+  testId?: string;
   subtitle: string;
   collapsedLabel: string;
   expandedLabel: string;
@@ -12,6 +13,7 @@ interface CollapsibleSupportCardProps {
 
 export function CollapsibleSupportCard({
   title,
+  testId,
   subtitle,
   collapsedLabel,
   expandedLabel,
@@ -22,7 +24,7 @@ export function CollapsibleSupportCard({
   const [open, setOpen] = React.useState(defaultOpen);
 
   return (
-    <section className="rounded-2xl border border-gray-800 bg-gray-900/10 p-4 backdrop-blur-sm">
+    <section data-testid={testId} className="rounded-2xl border border-gray-800 bg-gray-900/10 p-4 backdrop-blur-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <h3 className="text-sm font-semibold text-white">{title}</h3>
@@ -35,6 +37,7 @@ export function CollapsibleSupportCard({
         </div>
 
         <button
+          data-testid={testId ? `${testId}-toggle` : undefined}
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
@@ -44,11 +47,9 @@ export function CollapsibleSupportCard({
         </button>
       </div>
 
-      {open ? (
-        <div className="mt-4 border-t border-gray-800/70 pt-4">
+      <div hidden={!open} className="mt-4 border-t border-gray-800/70 pt-4">
           {children}
-        </div>
-      ) : null}
+      </div>
     </section>
   );
 }

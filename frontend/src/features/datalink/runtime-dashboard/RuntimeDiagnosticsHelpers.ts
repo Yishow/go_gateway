@@ -65,11 +65,11 @@ function toDatabaseDiagnostic(item: DatabaseDeliveryDiagnostic): RuntimeFlowDiag
     tag_id: item.tag_id,
     last_success_at: item.last_success_at,
     last_failure_at: item.last_failure_at,
-    latest_successful_stage: failed ? undefined : 'database_delivery',
+    latest_successful_stage: item.status === 'succeeded' && item.last_success_at ? 'database_delivery' : undefined,
     failure_stage: failed ? 'database_delivery' : undefined,
     failure_code: failed ? 'database_delivery' : undefined,
     failure_reason: item.last_failure_reason ?? item.error,
-    stages: item.stages.map((stage) => ({ stage, status: failed ? 'failed' : 'success' })),
+    stages: item.stages.map((stage) => ({ stage, status: failed ? 'failed' : item.status === 'succeeded' ? 'success' : 'unknown' })),
   };
 }
 
@@ -86,7 +86,7 @@ function toModbusShareDiagnostic(item: ModbusShareDeliveryDiagnostic): RuntimeFl
     failure_stage: failed ? 'modbus_share_delivery' : undefined,
     failure_code: failed ? 'modbus_share_delivery' : undefined,
     failure_reason: item.error,
-    stages: [{ stage: 'modbus_share_delivery', status: failed ? 'failed' : 'success' }],
+    stages: [{ stage: 'modbus_share_delivery', status: failed ? 'failed' : item.status === 'succeeded' ? 'success' : 'unknown' }],
   };
 }
 

@@ -13,6 +13,7 @@ const (
 	managedEffectReceiptMarker = "_gw_effect_receipts_v1"
 	managedOwnerDefault        = "gateway"
 	managedTextSQLType         = "TEXT"
+	managedNumericSQLType      = "NUMERIC"
 )
 
 // ManagedEffectReceiptTable is the shared receipt table created by a
@@ -112,7 +113,7 @@ func observedGroupSQLType(raw string) string {
 	case "FLOAT8", "DOUBLE":
 		return "DOUBLE PRECISION"
 	case "DECIMAL":
-		return "NUMERIC"
+		return managedNumericSQLType
 	case "TIMESTAMP WITH TIME ZONE":
 		return "TIMESTAMPTZ"
 	default:
@@ -123,7 +124,7 @@ func observedGroupSQLType(raw string) string {
 func groupSQLTypesCompatible(expected, actual string) bool {
 	expected = normalizeGroupSQLType(expected)
 	actual = observedGroupSQLType(actual)
-	if expected == "NUMERIC(20,0)" && actual == "NUMERIC" {
+	if expected == "NUMERIC(20,0)" && actual == managedNumericSQLType {
 		// Keep PostgreSQL's unconstrained NUMERIC equivalent for the exact-value
 		// codec; bounded precision and scale are preserved by the inspector.
 		return true
@@ -186,22 +187,12 @@ func managedEffectReceiptColumns(dialect string) []GroupSchemaColumn {
 }
 
 func prepareGroupSchemaPreview(ctx context.Context, scope SchemaPreviewScope, inspect TargetInspector) ([]string, []SchemaPreviewTable, error) {
-	statements, err := GenerateGroupSchemaDDL(scope.Dialect, *scope.GroupLayout)
+	_, _, tables, err := inspectGroupManagedTables(ctx, scope.Dialect, *scope.GroupLayout, inspect)
 	if err != nil {
 		return nil, nil, err
 	}
-	groupPending, receiptPending, tables, err := inspectGroupManagedTables(ctx, scope.Dialect, *scope.GroupLayout, inspect)
-	if err != nil {
-		return nil, nil, err
-	}
-	kept := make([]string, 0, 2)
-	if groupPending {
-		kept = append(kept, statements[0])
-	}
-	if receiptPending {
-		kept = append(kept, statements[1])
-	}
-	return kept, tables, nil
+	statements, err := groupSchemaStatements(scope.Dialect, *scope.GroupLayout, tables)
+	return statements, tables, err
 }
 
 func inspectGroupManagedTables(ctx context.Context, dialect string, layout GroupSchemaLayout, inspect TargetInspector) (pendingGroup, pendingReceipt bool, tables []SchemaPreviewTable, err error) {
@@ -209,7 +200,13 @@ func inspectGroupManagedTables(ctx context.Context, dialect string, layout Group
 	if inspectErr != nil {
 		return false, false, nil, fmt.Errorf("%w: %s: %w", ErrTargetInspectionUnconfirmed, layout.TableName, inspectErr)
 	}
-	pendingGroup, inspectErr = inspectGroupTable(layout.TableName, groupState, layout.Columns)
+	var added []GroupSchemaColumn
+	if groupState.Status == inspectionExists {
+		added, inspectErr = inspectGroupExtension(groupState, layout)
+		pendingGroup = len(added) > 0
+	} else {
+		pendingGroup, inspectErr = inspectGroupTable(layout.TableName, groupState, layout.Columns)
+	}
 	if inspectErr != nil {
 		return false, false, nil, inspectErr
 	}
@@ -227,7 +224,9 @@ func inspectGroupManagedTables(ctx context.Context, dialect string, layout Group
 		{Name: layout.TableName, Action: SchemaTableActionUnchanged},
 		{Name: managedEffectReceiptTable, Action: SchemaTableActionUnchanged},
 	}
-	if pendingGroup {
+	if len(added) > 0 {
+		tables[0] = SchemaPreviewTable{Name: layout.TableName, Action: SchemaTableActionAddColumns, Columns: groupColumnNames(added)}
+	} else if pendingGroup {
 		tables[0] = SchemaPreviewTable{Name: layout.TableName, Action: SchemaTableActionCreate, Columns: groupColumnNames(layout.Columns)}
 	}
 	if pendingReceipt {
@@ -294,14 +293,21 @@ func validateGroupInspection(state TargetTableInspection, expected []GroupSchema
 	return nil
 }
 
-// ValidateManagedGroupTableInspection verifies a live table against the exact
-// canonical layout, including the managed owner marker.
+// ValidateManagedGroupTableInspection verifies the canonical layout and owner,
+// permitting retained nullable managed value columns from prior memberships.
 func ValidateManagedGroupTableInspection(layout GroupSchemaLayout, state TargetTableInspection) error {
 	normalized, err := ValidateGroupSchemaLayout(layout)
 	if err != nil {
 		return err
 	}
-	return validateGroupInspection(state, normalized.Columns)
+	missing, err := inspectGroupExtension(state, normalized)
+	if err != nil {
+		return err
+	}
+	if len(missing) > 0 {
+		return ErrIncompatibleExistingTable
+	}
+	return nil
 }
 
 // ValidateManagedReceiptTableInspection verifies the complete shared receipt

@@ -205,6 +205,8 @@ async function waitForMappingFieldSaved(page, base, { pointId, fieldTestId, expe
 }
 
 export async function persistFreshMappings(page, base, { tagPrefix = 'f', targetTypes = {}, targetTypeFor } = {}) {
+  const advancedToggle = page.getByTestId('mapping-advanced-toggle');
+  if (await advancedToggle.count() && await advancedToggle.getAttribute('aria-expanded') === 'false') await advancedToggle.click();
   const rows = page.locator('[data-testid^="mapping-row-"]');
   await rows.first().waitFor({ timeout: 20_000 });
   const count = await rows.count();
@@ -287,6 +289,8 @@ function field(page, english, chinese) {
 
 export async function configureFreshSQLite(page, base, { path }) {
   await page.getByTestId('step-nav-button-4').click();
+  const connectionToggle = page.getByTestId('database-connection-card-toggle');
+  if (await connectionToggle.count() && await connectionToggle.getAttribute('aria-expanded') === 'false') await connectionToggle.click();
   await page.getByRole('button', { name: /^SQLite/i }).click();
   await page.waitForTimeout(800);
   const nameField = field(page, 'Connection Name', '連線名稱');
@@ -355,6 +359,7 @@ export async function prepareFreshBasicGroup(page, base, deviceId) {
   const tStart = monotonicNs();
   await page.getByTestId('basic-recording-prepare').click();
   await page.getByTestId('group-schema-panel').waitFor({ timeout: 30_000 });
+  await page.getByTestId('group-schema-preview-result').waitFor({ timeout: 30_000 });
   const devices = await observeJSON(base, '/studio-v2/workspace/devices');
   const device = (Array.isArray(devices) ? devices : devices.devices ?? []).find((item) => item.id === deviceId) ??
     (Array.isArray(devices) ? devices : devices.devices ?? [])[0];
@@ -365,7 +370,7 @@ export async function prepareFreshBasicGroup(page, base, deviceId) {
 }
 
 export async function previewAndApplyFreshSchema(page, { beforeConfirm } = {}) {
-  await page.getByTestId('group-schema-preview').click();
+  if (!await page.getByTestId('group-schema-preview-result').count()) await page.getByTestId('group-schema-preview').click();
   await page.getByTestId('group-schema-preview-result').waitFor({ timeout: 20_000 });
   const previewText = await page.getByTestId('group-schema-preview-result').innerText();
   if (beforeConfirm) await beforeConfirm();

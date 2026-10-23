@@ -65,7 +65,7 @@ export const BasicRecordingProgress: React.FC<BasicRecordingProgressProps> = ({
       )}
       {operation.next_action === 'prepare_schema' && onOpenAdvanced && (
         <button type="button" onClick={onOpenAdvanced} className="mt-2 rounded border border-amber-700 px-3 py-2 text-xs text-amber-200" data-testid="basic-recording-open-advanced">
-          {t('step4.basic.open_advanced')}
+          {t('step4.basic.prepare_schema')}
         </button>
       )}
     </div>

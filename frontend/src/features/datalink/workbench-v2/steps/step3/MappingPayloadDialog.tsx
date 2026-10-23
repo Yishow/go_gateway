@@ -12,11 +12,13 @@ import { PayloadPreview } from './PayloadPreview';
 
 export interface MappingPayloadDialogProps {
   point: Point;
+  hidden?: boolean;
   mapping: Mapping;
 }
 
 export const MappingPayloadDialog: React.FC<MappingPayloadDialogProps> = ({
   point,
+  hidden = false,
   mapping,
 }) => {
   const [open, setOpen] = React.useState(false);
@@ -25,7 +27,7 @@ export const MappingPayloadDialog: React.FC<MappingPayloadDialogProps> = ({
   };
 
   return (
-    <td className="p-2 text-center">
+    <td hidden={hidden} className="p-2 text-center">
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <button

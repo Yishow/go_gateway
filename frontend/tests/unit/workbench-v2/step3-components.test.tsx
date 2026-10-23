@@ -318,14 +318,47 @@ describe('Step 3 UI components', () => {
       'step3.table.bulkApplyAll_tag_line01.temp.inlet',
     );
 
+    fireEvent.click(screen.getByTestId('bulk-target-p-02'));
     fireEvent.click(screen.getByTestId('btn-bulk-apply-all'));
+    expect(dispatch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('bulk-confirm'));
     expect(dispatch).toHaveBeenCalledWith({
       type: 'bulkApplyTransform',
       fromPointId: 'p-01',
+      toPointIds: ['p-02'],
       fields: ['scale', 'offset', 'target_type', 'unit'],
     });
 
+    fireEvent.click(screen.getByTestId('mapping-advanced-toggle'));
     fireEvent.click(screen.getByTestId('payload-modal-trigger-p-01'));
     expect(await screen.findByTestId('payload-modal-content-p-01')).toBeInTheDocument();
   });
+});
+
+
+it('invalidates a bulk preview after a source edit and allows cancellation without dispatch', () => {
+  const dispatch = vi.fn();
+  const props = { points: mockPoints, mappings: mockMappings, selectedIdx: 0, setSelectedIdx: vi.fn(), devices: [mockDevice], rawValues: {}, connectionByDevice: {}, dispatch };
+  const { rerender } = render(<MappingTable {...props} />);
+  fireEvent.click(screen.getByTestId('bulk-target-p-02'));
+  fireEvent.click(screen.getByTestId('btn-bulk-apply-unit'));
+  expect(screen.getByTestId('bulk-preview')).toHaveTextContent('40002');
+  rerender(<MappingTable {...props} mappings={{ ...mockMappings, 'p-01': { ...mockMappings['p-01'], unit: 'bar' } }} />);
+  expect(screen.queryByTestId('bulk-confirm')).not.toBeInTheDocument();
+  expect(dispatch).not.toHaveBeenCalled();
+});
+
+it('shows five basic columns and keeps editor nodes and values when expanding Advanced', () => {
+  render(<MappingTable points={mockPoints} mappings={mockMappings} selectedIdx={0} setSelectedIdx={vi.fn()} devices={[mockDevice]} rawValues={{}} connectionByDevice={{}} dispatch={vi.fn()} />);
+  expect(screen.getAllByRole('columnheader')).toHaveLength(5);
+  const scale = screen.getByTestId('input-scale-p-01');
+  expect(scale).not.toBeVisible();
+  fireEvent.click(screen.getByTestId('mapping-advanced-toggle'));
+  expect(screen.getAllByRole('columnheader')).toHaveLength(13);
+  expect(scale).toBeVisible();
+  expect(scale).toHaveValue(0.1);
+  fireEvent.click(screen.getByTestId('mapping-advanced-toggle'));
+  expect(scale).not.toBeVisible();
+  expect(screen.getByTestId('input-scale-p-01')).toBe(scale);
+  expect(screen.getByTestId('preview-final-p-01')).toBeVisible();
 });

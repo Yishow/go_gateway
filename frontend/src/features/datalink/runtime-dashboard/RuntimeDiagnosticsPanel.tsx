@@ -97,7 +97,7 @@ export function RuntimeDiagnosticsPanel({
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
             </span>
-            全鏈路管線零異常
+            {t('diagnostics.noErrorDetected')}
             <span className="sr-only" data-testid="runtime-diagnostics-action">
               {failureCopy.action}
             </span>
@@ -125,10 +125,10 @@ export function RuntimeDiagnosticsPanel({
             <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
             <div>
               <h3 className="text-sm font-semibold text-emerald-200">
-                管線資料流運作正常 (Zero Pipeline Errors)
+                {t('diagnostics.noErrorDetected')}
               </h3>
               <p className="mt-0.5 text-xs text-slate-400">
-                所有點位皆已持續對齊並順利交付至資料庫，無任何讀取逾時或寫入失敗。
+                {t('diagnostics.awaitingWriteEvidence')}
               </p>
             </div>
           </div>
@@ -170,7 +170,7 @@ function PipelineStageNode({ name, isError }: { name: string; isError: boolean }
       }`}
     >
       <div className="text-xs font-medium">{name}</div>
-      {isError ? <ShieldAlert className="h-4 w-4 text-rose-400" /> : <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
+      {isError ? <ShieldAlert className="h-4 w-4 text-rose-400" /> : <span className="text-[10px] text-slate-500">—</span>}
     </div>
   );
 }
@@ -189,7 +189,7 @@ function DiagnosticCard({
   const rows = [
     { label: t('diagnostics.scope', 'Scope'), value: diagnostic.scope },
     { label: t('diagnostics.failureStage', 'Failure stage'), value: diagnostic.failure_stage ?? t('diagnostics.noFailureStage', 'No recent failure') },
-    { label: t('diagnostics.failureReason', 'Failure reason'), value: diagnostic.failure_stage ? failureCopy.message : t('diagnostics.deliveryObserved', 'Delivery observed') },
+    { label: t('diagnostics.failureReason', 'Failure reason'), value: diagnostic.failure_stage ? failureCopy.message : t('diagnostics.noErrorDetected') },
     { label: t('diagnostics.lastFailureAt', 'Last failure at'), value: diagnostic.last_failure_at ?? diagnostic.last_success_at ?? t('diagnostics.unavailable', 'Unavailable') },
     { label: t('diagnostics.latestSuccessfulStage', 'Latest successful stage'), value: diagnostic.latest_successful_stage ?? t('diagnostics.unavailable', 'Unavailable') },
   ];
@@ -213,12 +213,12 @@ function DiagnosticCard({
           )}
         </div>
         <div className="flex items-center gap-3 text-slate-400 text-[11px]">
-          <span>{t('diagnostics.latestSuccessfulStage', 'Latest successful stage')}: <strong className="text-emerald-400">{diagnostic.latest_successful_stage ?? 'database_delivery'}</strong></span>
+          <span>{t('diagnostics.latestSuccessfulStage', 'Latest successful stage')}: <strong className="text-emerald-400">{diagnostic.latest_successful_stage ?? t('diagnostics.unavailable', 'Unavailable')}</strong></span>
           <span>{t('diagnostics.lastFailureAt', 'Last failure at')}: {diagnostic.last_failure_at ?? diagnostic.last_success_at ?? t('diagnostics.unavailable', 'Unavailable')}</span>
         </div>
         <div className="sr-only">
           <span>{t('diagnostics.failureStage', 'Failure stage')}: {diagnostic.failure_stage ?? t('diagnostics.noFailureStage', 'No recent failure')}</span>
-          <span>{t('diagnostics.failureReason', 'Failure reason')}: {t('diagnostics.deliveryObserved', 'Delivery observed')}</span>
+          <span>{t('diagnostics.failureReason', 'Failure reason')}: {t('diagnostics.noErrorDetected')}</span>
         </div>
       </div>
     );

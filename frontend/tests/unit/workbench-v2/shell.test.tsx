@@ -306,11 +306,11 @@ describe('Workbench V2 Shell & Integration', () => {
     expect(screen.getByText('Datalink')).toBeInTheDocument();
     expect(screen.getByText('Workbench')).toBeInTheDocument();
     // 透過 getAllByText 來處理畫面上多個「新增裝置」字眼
-    expect(screen.getAllByText('新增裝置').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('連接設備').length).toBeGreaterThanOrEqual(1);
 
     // 驗證左側步驟軌道
     expect(screen.getByText('建置流程')).toBeInTheDocument();
-    expect(screen.getAllByText('Device + Protocol').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('設備與通訊協定').length).toBeGreaterThanOrEqual(1);
 
     // 驗證中央內容
     expect(screen.getByTestId('step1-device-view')).toBeInTheDocument();

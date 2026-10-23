@@ -92,7 +92,7 @@ export interface ConnectorCapability {
   notes?: string;
 }
 
-export type SchemaPreviewTableAction = 'create' | 'unchanged';
+export type SchemaPreviewTableAction = 'create' | 'unchanged' | 'add_columns';
 
 /** One managed table in a preview: created with the listed columns, or already compatible. */
 export interface SchemaPreviewTable {

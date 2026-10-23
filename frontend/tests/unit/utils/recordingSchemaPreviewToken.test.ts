@@ -63,3 +63,12 @@ describe('parseRecordingSchemaPreviewToken', () => {
     expect(parseRecordingSchemaPreviewToken({ ...serverToken, tables: 'gw_record_samples' })).toBeNull();
   });
 });
+
+it('accepts the exact managed column additions and keeps rejecting destructive actions', () => {
+  const parsed = parseRecordingSchemaPreviewToken({ ...serverToken, no_change_reason: undefined,
+    statements: ['ALTER TABLE "gw_group_a" ADD COLUMN "v_aaaaaaaaaaaaaaaaaaaaaaaa" BIGINT;'],
+    tables: [{ name: 'gw_group_a', action: 'add_columns', columns: ['v_aaaaaaaaaaaaaaaaaaaaaaaa'] }],
+    group_layout: { table_name: 'gw_group_a', owner_column: '_gw_owner', columns: [{ name: 'v_aaaaaaaaaaaaaaaaaaaaaaaa', sql_type: 'BIGINT', nullable: true, primary_key: false }] },
+  }, { requireGroupLayout: true });
+  expect(parsed?.tables[0]).toMatchObject({ action: 'add_columns', columns: ['v_aaaaaaaaaaaaaaaaaaaaaaaa'] });
+});

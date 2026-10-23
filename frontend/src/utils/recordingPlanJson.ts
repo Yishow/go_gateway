@@ -149,7 +149,7 @@ export function parseRecordingSchemaOperation(value: unknown): SchemaOperation |
   };
 }
 
-const SCHEMA_PREVIEW_TABLE_ACTIONS = new Set<SchemaPreviewTableAction>(['create', 'unchanged']);
+const SCHEMA_PREVIEW_TABLE_ACTIONS = new Set<SchemaPreviewTableAction>(['create', 'unchanged', 'add_columns']);
 const PREVIEW_SCOPE_TEXT_KEYS = ['action', 'dialect', 'database', 'schema', 'no_change_reason'] as const;
 type PreviewScopeText = Partial<Record<typeof PREVIEW_SCOPE_TEXT_KEYS[number], string>>;
 

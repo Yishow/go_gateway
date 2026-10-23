@@ -19,6 +19,9 @@ it('requires a repair note and explicit skip confirmation, preserving frozen row
  const retry = screen.getByTestId('delivery-retry-effect-old');
  const skip = screen.getByTestId('delivery-skip-effect-old');
  expect(retry).toBeDisabled(); expect(skip).toBeDisabled();
+ expect(skip).not.toBeVisible();
+ fireEvent.click(screen.getByTestId('delivery-skip-details-effect-old'));
+ expect(skip).toBeVisible();
  fireEvent.change(screen.getByTestId('delivery-reason-effect-old'), { target: { value: 'Repaired the missing table' } });
  expect(skip).toBeDisabled();
  fireEvent.click(retry);
@@ -55,4 +58,14 @@ it('a newly blocked attempt permits a fresh decision instead of remaining resolv
  view.rerender(<GroupDeliveryStrip group={savedGroup()} />);
  expect(screen.getByTestId('delivery-reason-effect-old')).not.toBeDisabled();
  expect(screen.queryByText('step4.group.delivery.recovery.saved')).not.toBeInTheDocument();
+});
+
+it('skip requires expanding impact, a reason and explicit confirmation', async () => {
+ render(<GroupDeliveryStrip group={savedGroup()} />);
+ fireEvent.click(screen.getByTestId('delivery-skip-details-effect-old'));
+ fireEvent.change(screen.getByTestId('delivery-reason-effect-old'), { target: { value: 'Unrecoverable row approved for skip' } });
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByTestId('delivery-skip-effect-old'));
+ await waitFor(() => expect(api.resolveDelivery).toHaveBeenCalledTimes(1));
+ expect(api.resolveDelivery.mock.calls[0][1]).toMatchObject({ resolution: 'skip', confirm_skip: true, effect_key: item.effect_key, expected_state_revision: 1, payload_digest: item.payload_digest });
 });

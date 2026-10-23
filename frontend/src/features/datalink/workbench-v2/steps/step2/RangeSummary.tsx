@@ -91,6 +91,7 @@ export const RangeSummary: React.FC<RangeSummaryProps> = ({
     };
   };
 
+  const registerUnit = isAddressValid && addressParser.getAreaInfo(startAddr, protocol).isBit ? 'bits' : 'words';
   const meta = isAddressValid
     ? getFuncMeta(startAddr, protocol)
     : {
@@ -126,8 +127,11 @@ export const RangeSummary: React.FC<RangeSummaryProps> = ({
       {/* 總暫存器數說明 */}
       <span className="text-slate-400 ml-auto sm:ml-0">
         {t('step2.summary.register_count', {
-          defaultValue: `${totalRegisters} registers (length ${stride})`,
+          defaultValue: `${count} ${dataType} items use ${totalRegisters} ${registerUnit} (${stride} per item)`,
           count: totalRegisters,
+          items: count,
+          registerUnit,
+          dataType,
           stride,
         })}
       </span>

@@ -82,7 +82,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
       className="flex flex-col gap-5 p-5 rounded-xl border border-slate-800 bg-slate-900/20"
       data-testid="rule-editor"
     >
-      <h3 className="text-sm font-semibold text-slate-200">接入規則參數配置</h3>
+      <h3 className="text-sm font-semibold text-slate-200">{t('step2.editor.rangeTitle')}</h3>
 
       {hasMissingDevice && (
         <div
@@ -125,13 +125,14 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
         </Field>
 
         {/* 規則名稱 */}
-        <Field label="規則名稱">
+        <Field label={t('step2.editor.rangeName')}>
           <Input
             type="text"
             value={rule.name}
             onChange={(e) => handleTextChange('name', e.target.value)}
             data-testid="rule-name-input"
           />
+          <button type="button" className="text-xs text-blue-300" data-testid="rule-suggest-name" onClick={() => handleTextChange('name', `${owningDevice?.name ?? ''} ${rule.start_address} · ${rule.count} ${rule.data_type}`)}>{t('step2.editor.suggestName')}</button>
         </Field>
       </div>
 
@@ -164,7 +165,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
         </Field>
 
         {/* 點位數量 */}
-        <Field label="點位數量" hint="範圍 1 至 64">
+        <Field label={t('step2.editor.itemCount')} hint="範圍 1 至 64">
           <Input
             type="number"
             min={1}

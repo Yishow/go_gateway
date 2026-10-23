@@ -119,9 +119,9 @@ export function mappingReducer(state: WorkbenchV2State, action: WorkbenchV2Actio
       if (!source) return state;
 
       const nextMappings = { ...state.mappings };
-      Object.keys(nextMappings).forEach((pointId) => {
+      action.toPointIds.forEach((pointId) => {
         const m = nextMappings[pointId];
-        if (!m.enabled) {
+        if (!m?.enabled || pointId === action.fromPointId) {
           return;
         }
         const updated = { ...m };

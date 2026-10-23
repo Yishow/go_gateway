@@ -48,7 +48,7 @@ export type WorkbenchV2Action =
   | { type: 'retryMappingSave'; pointId: string }
   | { type: 'toggleMappingEnabled'; pointId: string }
   | { type: 'setAllMappingsEnabled' | 'setAllDbTargetsEnabled'; enabled: boolean }
-  | { type: 'bulkApplyTransform'; fromPointId: string; fields: ('scale' | 'offset' | 'target_type' | 'unit')[] }
+  | { type: 'bulkApplyTransform'; fromPointId: string; toPointIds: string[]; fields: ('scale' | 'offset' | 'target_type' | 'unit')[] }
   | { type: 'updateDbConnector'; patch: Partial<DbConnector> }
   | { type: 'upsertDbTarget'; pointId: string; target: DbTarget }
   | { type: 'updateDbTarget'; pointId: string; patch: Partial<DbTarget> }

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import type { Point, ShareLayout } from '../../state/types';
+import { useTranslation } from 'react-i18next';
 import { Icon } from '../../components';
 import { pointConflictKey } from '../../state/sourceRule';
 
@@ -19,7 +20,7 @@ export interface PointGridProps {
  * 點位互動網格元件
  * 
  * 落地設計決策：「點位網格互動：點擊 + Shift + Ctrl/⌘ 三模式」與「衝突偵測」
- * 自適應 4/6/8 欄位 Grid。雙向綁定修飾鍵以進行多選或批次略過操作。
+ * 自適應 4/6/8 欄位 Grid。點擊與修飾鍵只選取；明確勾選才修改採集。
  * 視覺上，略過點位呈現半透明，衝突點位標示紅圈與 alert 圖示，轉發點位在右下角標註 Share 地址。
  */
 export const PointGrid: React.FC<PointGridProps> = ({
@@ -30,8 +31,8 @@ export const PointGrid: React.FC<PointGridProps> = ({
   gridSelection,
   setGridSelection,
   onToggleSkipAddress,
-  onBatchToggleSkipAddresses,
 }) => {
+  const { t } = useTranslation('workbench-v2');
   const [lastClickedIdx, setLastClickedIdx] = useState<number | null>(null);
 
   // 切換規則時，重置選取狀態與最後點選索引
@@ -57,14 +58,9 @@ export const PointGrid: React.FC<PointGridProps> = ({
     e.preventDefault();
 
     if (e.shiftKey && lastClickedIdx !== null) {
-      // Shift + Click: 連續區段批次設定略過/啟用
       const start = Math.min(lastClickedIdx, idx);
       const end = Math.max(lastClickedIdx, idx);
-      const targetPoints = points.slice(start, end + 1);
-      const targetAddresses = targetPoints.map((p) => p.address);
-      const shouldSkip = !point.skipped;
-
-      onBatchToggleSkipAddresses(targetAddresses, shouldSkip);
+      setGridSelection(new Set(points.slice(start, end + 1).map(p => p.id)));
       setLastClickedIdx(idx);
     } else if (e.metaKey || e.ctrlKey) {
       // Ctrl/Cmd + Click: 多選 toggle
@@ -77,8 +73,8 @@ export const PointGrid: React.FC<PointGridProps> = ({
       setGridSelection(next);
       setLastClickedIdx(idx);
     } else {
-      // 一般 Click: 切換單一略過狀態
-      onToggleSkipAddress(point.address);
+      // 一般點擊只選取，採集由明確勾選控制。
+      setGridSelection(new Set([point.id]));
       setLastClickedIdx(idx);
     }
   };
@@ -97,6 +93,12 @@ export const PointGrid: React.FC<PointGridProps> = ({
           <div
             key={point.id}
             onClick={(e) => handleCellClick(e, point, idx)}
+            role="button"
+            tabIndex={0}
+            aria-pressed={isSelected}
+            onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault(); setGridSelection(new Set([point.id])); setLastClickedIdx(idx);
+            } }}
             className={`relative flex flex-col justify-between p-2.5 rounded-lg border transition-all select-none h-[72px] cursor-pointer ${
               point.skipped
                 ? 'bg-slate-950/20 border-slate-900 text-slate-600 opacity-40 hover:opacity-60'
@@ -119,6 +121,10 @@ export const PointGrid: React.FC<PointGridProps> = ({
             {/* Top row: Address & Conflict Badge */}
             <div className="flex items-center justify-between">
               <span className="font-mono text-xs font-semibold">{point.address}</span>
+              <label className="flex items-center gap-1 text-[10px]" onClick={e => e.stopPropagation()}>
+                <input type="checkbox" checked={!point.skipped} onChange={() => onToggleSkipAddress(point.address)} data-testid={`collect-${point.id}`} />
+                {t('step2.grid.collect')}
+              </label>
               {isConflict && (
                 <span className="text-red-400" title="此地址與其他規則衝突">
                   <Icon name="alert" className="w-3.5 h-3.5" />

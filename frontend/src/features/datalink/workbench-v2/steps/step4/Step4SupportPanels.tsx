@@ -13,6 +13,7 @@ interface Step4SupportPanelsProps {
   onSelectConnector?: (connector: SettingsConnector) => void;
   tableSetup?: ReactNode;
   disabled?: boolean;
+  destinationReady?: boolean;
 }
 
 export function Step4SupportPanels({
@@ -23,17 +24,19 @@ export function Step4SupportPanels({
   onSelectConnector,
   tableSetup,
   disabled = false,
+  destinationReady = false,
 }: Step4SupportPanelsProps) {
   const { t } = useTranslation('workbench-v2');
 
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       <CollapsibleSupportCard
+        testId="database-connection-card"
         title={t('step4.connector_title')}
         subtitle={t('step4.connector_subtitle')}
         collapsedLabel={t('step4.connector_expand_btn')}
         expandedLabel={t('step4.connector_collapse_btn')}
-        defaultOpen={true}
+        defaultOpen={!destinationReady}
         summary={
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full border border-slate-700 px-2 py-1 font-mono text-[11px] text-slate-200">

@@ -199,6 +199,8 @@ type GroupSchemaColumn struct {
 const (
 	// SchemaTableActionCreate marks a managed table the preview will create.
 	SchemaTableActionCreate = "create"
+	// SchemaTableActionAddColumns marks nullable managed value columns to add.
+	SchemaTableActionAddColumns = "add_columns"
 	// SchemaTableActionUnchanged marks an existing compatible managed table.
 	SchemaTableActionUnchanged = "unchanged"
 )

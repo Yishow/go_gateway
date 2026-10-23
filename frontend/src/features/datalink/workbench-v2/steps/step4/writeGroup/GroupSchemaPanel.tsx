@@ -1,3 +1,4 @@
+import { readSchemaOperation, retainSchemaOperation } from './schemaOperationRecovery';
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +14,8 @@ import { getSafeErrorMessage } from '../../../../../../utils/typedErrors';
 export interface GroupSchemaPanelProps {
   /** Canonical saved group; absent means a new draft which cannot preview yet. */
   group: WriteGroup | undefined;
+  autoPreview?: boolean;
+  previewRequest?: number;
   workspaceId: string;
   workspaceRevision: string;
   /** Whether the draft still points at the current saved connector identity. */
@@ -52,7 +55,7 @@ function operationDetail(
  * identity, and unresolved outcomes are checked through that same operation.
  */
 export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
-  group, workspaceId, workspaceRevision, destinationMatches, dirty, readonly, onApplied,
+  group, workspaceId, workspaceRevision, destinationMatches, dirty, readonly, onApplied, autoPreview = false, previewRequest = 0,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const previewMutation = useWriteGroupSchemaPreviewMutation();
@@ -67,7 +70,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
       workspaceRevision,
     ].join('|')
     : `unsaved|${workspaceId}|${workspaceRevision}`, [group, workspaceId, workspaceRevision]);
-  const operationId = useRef<string | undefined>(undefined);
+  const operationId = useRef<string | undefined>(readSchemaOperation(workspaceId, group?.id));
   const scopeRef = useRef(scopeKey);
   scopeRef.current = scopeKey;
   const previousScopeKey = useRef(scopeKey);
@@ -77,7 +80,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
   const [operation, setOperation] = useState<SchemaOperation | null>(null);
   const [lastOperation, setLastOperation] = useState<SchemaOperation | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const [needsCheck, setNeedsCheck] = useState(false);
+  const [needsCheck, setNeedsCheck] = useState(Boolean(operationId.current));
   const operationQuery = useWriteGroupSchemaOperationQuery(operationId.current);
 
   useEffect(() => {
@@ -93,11 +96,11 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
     setPreview(null);
     setOperation(null);
     operationRef.current = null;
-    if (!sameGroup) operationId.current = undefined;
+    if (!sameGroup) operationId.current = readSchemaOperation(workspaceId, group?.id);
     setError(null);
-    if (!sameGroup) setNeedsCheck(false);
+    if (!sameGroup) setNeedsCheck(Boolean(operationId.current));
     inFlight.current = false;
-  }, [scopeKey]);
+  }, [scopeKey, workspaceId, group?.id]);
 
   const blockedReason = !group
     ? t('step4.group.schema.blocked_unsaved')
@@ -114,8 +117,10 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
   const busy = previewMutation.isPending || applyMutation.isPending || inFlight.current;
   const canApply = enabled && preview !== null && operation === null && !needsCheck;
   const columns = preview?.group_layout?.columns.filter((column) => column.name !== preview.group_layout?.owner_column) ?? [];
+  const addedColumns = new Set(preview?.tables.filter(table => table.action === 'add_columns').flatMap(table => table.columns ?? []) ?? []);
   const effectiveOperation = operation ?? lastOperation;
   const shouldOfferCheck = needsCheck || (effectiveOperation !== null && effectiveOperation.status !== 'succeeded');
+  const blocksNewPreview = needsCheck || ['pending', 'running', 'unknown', 'partial'].includes(effectiveOperation?.status ?? '');
   const detail = effectiveOperation ? operationDetail(effectiveOperation, t) : undefined;
 
   const run = async (action: () => Promise<void>) => {
@@ -133,7 +138,9 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
   };
 
   const handlePreview = () => run(async () => {
-    if (!group || !enabled) return;
+    if (!group || !enabled || blocksNewPreview) return;
+    const retained = readSchemaOperation(workspaceId, group.id);
+    if (retained) { operationId.current = retained; setNeedsCheck(true); return; }
     const requestedScope = scopeRef.current;
     const result = await previewMutation.mutateAsync({
       id: group.id,
@@ -153,8 +160,11 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
   });
 
   const handleApply = () => run(async () => {
-    if (!group || !preview || !enabled) return;
+    if (!group || !preview || !enabled || !canApply) return;
+    const retained = readSchemaOperation(workspaceId, group.id);
+    if (retained) { operationId.current = retained; setNeedsCheck(true); return; }
     const requestedScope = scopeRef.current;
+    retainSchemaOperation(workspaceId, group.id, preview.operation_id);
     try {
       const result = await applyMutation.mutateAsync({
         id: group.id,
@@ -175,8 +185,9 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
         if (sameScope) setOperation(result);
         else if (isTerminal(result)) setLastOperation(result);
       }
-      setNeedsCheck(false);
-      if (result.status === 'succeeded') onApplied?.();
+      if (sameGroup) setNeedsCheck(result.status === 'unknown' || result.status === 'pending' || result.status === 'running');
+      if (result.status === 'failed') retainSchemaOperation(workspaceId, group.id);
+      if (result.status === 'succeeded') { retainSchemaOperation(workspaceId, group.id); onApplied?.(); }
     } catch (cause) {
       // A lost reply never authorizes another DDL batch. Check this same op.
       const sameGroup = scopeGroupId(scopeRef.current) === scopeGroupId(requestedScope);
@@ -204,8 +215,18 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
     operationRef.current = result.data;
     setOperation(result.data);
     setNeedsCheck(false);
-    if (result.data.status === 'succeeded') onApplied?.();
+    if (result.data.status === 'failed' && group) retainSchemaOperation(workspaceId, group.id);
+    if (result.data.status === 'succeeded') { if (group) retainSchemaOperation(workspaceId, group.id); onApplied?.(); }
   });
+
+  const autoStarted = useRef<number | undefined>(undefined);
+  const previewAction = useRef(handlePreview); previewAction.current = handlePreview;
+  useEffect(() => {
+    if (autoPreview && enabled && autoStarted.current !== previewRequest) {
+      autoStarted.current = previewRequest;
+      if (!needsCheck) void previewAction.current();
+    }
+  }, [autoPreview, enabled, needsCheck, previewRequest]);
 
   return (
     <section
@@ -222,7 +243,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
 
       <div className="flex flex-wrap gap-2" role="group" aria-label={t('step4.group.schema.actions')}>
         <button
-          type="button" onClick={handlePreview} disabled={!enabled || busy}
+          type="button" onClick={handlePreview} disabled={!enabled || busy || blocksNewPreview}
           className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-100 disabled:opacity-40"
           data-testid="group-schema-preview"
         >
@@ -261,7 +282,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
                 <tbody className="divide-y divide-slate-800">
                   {columns.map((column) => (
                     <tr key={column.name}>
-                      <td className="p-2 font-mono">{column.name}</td>
+                      <td className="p-2 font-mono">{column.name} {addedColumns.has(column.name) && <span className="text-amber-300">{t('step4.group.schema.added_column')}</span>}</td>
                       <td className="p-2 font-mono">{column.sql_type}</td>
                       <td className="p-2">{column.nullable ? t('step4.group.schema.yes') : t('step4.group.schema.no')}</td>
                       <td className="p-2">{column.primary_key ? t('step4.group.schema.yes') : t('step4.group.schema.no')}</td>

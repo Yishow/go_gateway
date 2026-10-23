@@ -10,6 +10,8 @@ import {
   useStep4Readonly,
 } from './step4DatabaseHelpers';
 import { WriteGroupSection } from './writeGroup/WriteGroupSection';
+import { destinationIsSaved } from './basicRecordingPanelHelpers';
+import { isModbusShareConfiguredEnabled } from '../../../../../types/modbusShare';
 import { BasicRecordingPanel } from './BasicRecordingPanel';
 import { useWriteGroupsQuery } from '../../../../../hooks/datalink/useStudioV2WriteGroups';
 import { SafeQueryBoundary } from '@/utils/SafeQueryBoundary';
@@ -162,6 +164,16 @@ function Step4DatabaseContent({
 
   return (
     <div className="space-y-6">
+      <Step4SupportPanels
+        destinationReady={destinationIsSaved(state)}
+        connector={connector}
+        connectors={state.settings.connectors}
+        onUpdateConnector={handleUpdateConnector}
+        onKindChange={handleKindChange}
+        onSelectConnector={handleSelectConnectorPool}
+        disabled={isReadonly || basicOperationActive}
+      />
+      <div hidden={!destinationIsSaved(state) && !isModbusShareConfiguredEnabled(shareStatus)}>
       <BasicRecordingPanel
         state={state}
         workspaceId={workspaceId}
@@ -172,14 +184,7 @@ function Step4DatabaseContent({
         onOperationActiveChange={setBasicOperationActive}
       />
 
-      <Step4SupportPanels
-        connector={connector}
-        connectors={state.settings.connectors}
-        onUpdateConnector={handleUpdateConnector}
-        onKindChange={handleKindChange}
-        onSelectConnector={handleSelectConnectorPool}
-        disabled={isReadonly || basicOperationActive}
-      />
+      </div>
 
       <ShareOutputSummary state={state} shareStatus={shareStatus} />
 

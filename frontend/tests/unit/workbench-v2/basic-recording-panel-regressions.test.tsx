@@ -32,7 +32,7 @@ const operationQuery = {
 };
 
 vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
-  useWriteGroupsQuery: () => groupsQuery,
+  useUpdateWriteGroupMutation: () => ({ mutateAsync: vi.fn() }), useWriteGroupsQuery: () => groupsQuery,
   useWriteGroupDeliveryQuery: () => deliveryQuery,
 }));
 vi.mock('@/hooks/datalink/useStudioV2RecordingStart', () => ({
@@ -229,7 +229,8 @@ describe('BasicRecordingPanel regressions', () => {
     expect(await screen.findByTestId('basic-recording-blocked')).toHaveTextContent('step4.basic.blocked.members_changed');
     expect(screen.getByTestId('basic-recording-start')).toBeDisabled();
     fireEvent.click(screen.getByTestId('basic-recording-members-review'));
-    expect(onOpenAdvanced).toHaveBeenCalledTimes(1);
+    expect(onOpenAdvanced).not.toHaveBeenCalled();
+    expect(screen.getByTestId('basic-members-confirm')).toBeInTheDocument();
     expect(ensureAsync).not.toHaveBeenCalled();
     expect(startAsync).not.toHaveBeenCalled();
   });

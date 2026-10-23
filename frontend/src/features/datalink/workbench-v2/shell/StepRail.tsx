@@ -10,10 +10,10 @@ export interface Step {
 }
 
 export const STEPS: Step[] = [
-  { id: 1, key: 'device', title: '新增裝置', subtitle: 'Device + Protocol', icon: 'device' },
-  { id: 2, key: 'rule', title: '接入規則', subtitle: 'Source Rules · 多條範圍', icon: 'rule' },
-  { id: 3, key: 'mapping', title: '點位映射', subtitle: 'Point → Tag', icon: 'map' },
-  { id: 4, key: 'database', title: '儲存資料庫', subtitle: 'DB Target · Commit', icon: 'db' },
+  { id: 1, key: 'device', title: '連接設備', subtitle: '設備與通訊協定', icon: 'device' },
+  { id: 2, key: 'rule', title: '選要讀的資料', subtitle: '設定一組或多組讀取範圍', icon: 'rule' },
+  { id: 3, key: 'mapping', title: '命名與換算', subtitle: '名稱、單位與換算結果', icon: 'map' },
+  { id: 4, key: 'database', title: '儲存並開始記錄', subtitle: '選目的地與確認開始', icon: 'db' },
 ];
 
 export interface StepRailProps {

@@ -7,6 +7,7 @@ import { useStep3LivePreview } from './useStep3LivePreview';
 
 export interface MappingPreviewCellsProps {
   point: Point;
+  advanced?: boolean;
   mapping: Mapping;
   rawValue?: unknown;
   connectionState?: RuntimeStreamConnectionState;
@@ -32,6 +33,7 @@ function formatPreviewValue(value: unknown, fallback = '--'): string {
 
 export const MappingPreviewCells: React.FC<MappingPreviewCellsProps> = ({
   point,
+  advanced = true,
   mapping,
   rawValue,
   connectionState = 'connected',
@@ -49,8 +51,8 @@ export const MappingPreviewCells: React.FC<MappingPreviewCellsProps> = ({
   if (rawValue === null || rawValue === undefined) {
     return (
       <>
-        <td className="p-2 text-xs font-mono text-slate-500" data-testid={`preview-scale-${point.id}`}>--</td>
-        <td className="p-2 text-xs font-mono text-slate-500" data-testid={`preview-cast-${point.id}`}>--</td>
+        <td hidden={!advanced} className="p-2 text-xs font-mono text-slate-500" data-testid={`preview-scale-${point.id}`}>--</td>
+        <td hidden={!advanced} className="p-2 text-xs font-mono text-slate-500" data-testid={`preview-cast-${point.id}`}>--</td>
         <td className="p-2 text-xs font-mono text-slate-500" data-testid={`preview-final-${point.id}`}>--</td>
       </>
     );
@@ -72,10 +74,10 @@ export const MappingPreviewCells: React.FC<MappingPreviewCellsProps> = ({
 
   return (
     <>
-      <td className="p-2 text-xs font-mono text-blue-300" data-testid={`preview-scale-${point.id}`} aria-label={stateLabel}>
+      <td hidden={!advanced} className="p-2 text-xs font-mono text-blue-300" data-testid={`preview-scale-${point.id}`} aria-label={stateLabel}>
         {formatPreviewValue(scaled)}
       </td>
-      <td className="p-2 text-xs font-mono text-emerald-300" data-testid={`preview-cast-${point.id}`}>
+      <td hidden={!advanced} className="p-2 text-xs font-mono text-emerald-300" data-testid={`preview-cast-${point.id}`}>
         {casted === null ? '--' : formatFinal(casted, mapping.target_type)}
       </td>
       <td className="p-2 text-xs font-mono text-emerald-200" data-testid={`preview-final-${point.id}`}>

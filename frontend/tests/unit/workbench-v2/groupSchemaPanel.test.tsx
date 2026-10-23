@@ -2,6 +2,7 @@ import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { retainSchemaOperation } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery';
 import { managedSchemaPreviewToken } from '../../fixtures/managedSchemaPreview';
 import { GroupSchemaPanel } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
@@ -51,6 +52,9 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof GroupSchemaP
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.sessionStorage.clear();
+  retainSchemaOperation('workspace-1', 'group-1');
+  retainSchemaOperation('workspace-1', 'group-2');
   api.schemaPreview.mockResolvedValue(token);
   api.schemaApply.mockResolvedValue(succeeded);
 });
@@ -275,4 +279,70 @@ describe('GroupSchemaPanel', () => {
     await waitFor(() => expect(screen.queryByTestId('group-schema-preview-result')).not.toBeInTheDocument());
     expect(api.schemaApply).not.toHaveBeenCalled();
   });
+});
+
+it('automatically performs only the read-only preview and waits for explicit DDL consent', async () => {
+  renderPanel({ autoPreview: true });
+  await screen.findByTestId('group-schema-preview-result');
+  expect(api.schemaPreview).toHaveBeenCalledTimes(1);
+  expect(api.schemaApply).not.toHaveBeenCalled();
+});
+it('recovers an unknown DDL operation after remount without generating a new preview', async () => {
+  api.schemaApply.mockRejectedValueOnce(new Error('lost reply'));
+  api.schemaOperation.mockResolvedValue({ ...succeeded, status: 'unknown' });
+  const first = renderPanel({ autoPreview: true });
+  fireEvent.click(await screen.findByTestId('group-schema-apply'));
+  await screen.findByTestId('group-schema-check');
+  first.unmount();
+  renderPanel({ autoPreview: true });
+  expect(screen.getByTestId('group-schema-preview')).toBeDisabled();
+  fireEvent.click(screen.getByTestId('group-schema-check'));
+  await waitFor(() => expect(api.schemaOperation).toHaveBeenCalledWith('operation-1'));
+  expect(api.schemaPreview).toHaveBeenCalledTimes(1);
+  expect(api.schemaApply).toHaveBeenCalledTimes(1);
+});
+
+it('blocks a second already-open schema editor after another editor has an unknown apply', async () => {
+  api.schemaApply.mockRejectedValueOnce(new Error('lost response'));
+  renderPanel(); renderPanel();
+  const previews = screen.getAllByTestId('group-schema-preview');
+  fireEvent.click(previews[0]); fireEvent.click(previews[1]);
+  await waitFor(() => expect(screen.getAllByTestId('group-schema-apply')).toHaveLength(2));
+  fireEvent.click(screen.getAllByTestId('group-schema-apply')[0]);
+  await screen.findByTestId('group-schema-check');
+  fireEvent.click(screen.getAllByTestId('group-schema-apply')[1]);
+  expect(api.schemaApply).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(screen.getAllByTestId('group-schema-check')).toHaveLength(2));
+});
+it('requests a new read-only preview only after another explicit preparation request', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const props = { group, workspaceId: 'workspace-1', workspaceRevision: 'workspace-rev-1', destinationMatches: true, dirty: false, readonly: false, autoPreview: true, previewRequest: 1 };
+  const view = render(<QueryClientProvider client={client}><GroupSchemaPanel {...props} /></QueryClientProvider>);
+  await screen.findByTestId('group-schema-preview-result');
+  view.rerender(<QueryClientProvider client={client}><GroupSchemaPanel {...props} workspaceRevision="workspace-rev-2" /></QueryClientProvider>);
+  expect(api.schemaPreview).toHaveBeenCalledTimes(1);
+  view.rerender(<QueryClientProvider client={client}><GroupSchemaPanel {...props} workspaceRevision="workspace-rev-2" previewRequest={2} /></QueryClientProvider>);
+  await waitFor(() => expect(api.schemaPreview).toHaveBeenCalledTimes(2));
+  expect(api.schemaApply).not.toHaveBeenCalled();
+});
+
+it('retains a verified recovered operation without an automatic replacement preview', async () => {
+  retainSchemaOperation('workspace-1', group.id, 'operation-1');
+  api.schemaOperation.mockResolvedValue(succeeded);
+  renderPanel({ autoPreview: true });
+  fireEvent.click(screen.getByTestId('group-schema-check'));
+  await waitFor(() => expect(screen.getByTestId('group-schema-operation')).toHaveTextContent('succeeded'));
+  expect(api.schemaPreview).not.toHaveBeenCalled();
+  expect(api.schemaApply).not.toHaveBeenCalled();
+});
+
+it('permits a new read-only preview after a confirmed rolled-back failure while retaining its ledger result', async () => {
+  api.schemaApply.mockResolvedValue({ ...succeeded, status: 'failed', reason: 'rolled_back' });
+  renderPanel({ autoPreview: true });
+  fireEvent.click(await screen.findByTestId('group-schema-apply'));
+  await waitFor(() => expect(screen.getByTestId('group-schema-operation')).toHaveTextContent('failed'));
+  expect(screen.getByTestId('group-schema-preview')).toBeEnabled();
+  fireEvent.click(screen.getByTestId('group-schema-preview'));
+  await waitFor(() => expect(api.schemaPreview).toHaveBeenCalledTimes(2));
+  expect(api.schemaApply).toHaveBeenCalledTimes(1);
 });

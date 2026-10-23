@@ -1,0 +1,99 @@
+{
+  "run_id": "simplify-release-20261023",
+  "passed": true,
+  "checks": {
+    "grid_selection_preserves_collection": true,
+    "review_cancel_and_view_switch_preserve_values": true,
+    "lost_ddl_reply_refresh_queries_original_operation": {
+      "operation_id": "op-78bf296c-4867-496d-9bb0-e8073702e1e8",
+      "apply_count": 1
+    },
+    "signed_int64_sql_precision": {
+      "max": "9223372036854775807",
+      "min": "-9223372036854775808"
+    },
+    "new_point_cas_schema_and_sql": {
+      "group_id": "8dccb891-7ef4-441f-9991-9bfed56f33bb",
+      "before_members": 2,
+      "after_members": 3,
+      "old_rows_retained": 2,
+      "added_value": "777"
+    },
+    "real_retry_and_explicit_skip": [
+      {
+        "resolution": "retry",
+        "decision_id": "001b703e-dd17-4247-a9f2-55b5b01203d0",
+        "before": {
+          "effect_key": "a0c6b55396f3bc81351f51d63e3bc750cf2dd27f37d66b3f821534cd76126ae4",
+          "record_id": "d8d5f6394f0bdef85eca3f618b9467b23b6c9b7b5d0dc5cc01e29518c9828b46",
+          "payload_digest": "4add0ababf8325e600492dded0c48edec2cb250242a1d37c9b701fcf7daa88af",
+          "group_revision": "ad340e90-45a8-415f-a264-08a7e789687a",
+          "connector_revision": "9b5f2b2b-7069-4fb1-8d61-bdb5fabc536e",
+          "state": "quarantined"
+        },
+        "after": {
+          "effect_key": "a0c6b55396f3bc81351f51d63e3bc750cf2dd27f37d66b3f821534cd76126ae4",
+          "record_id": "d8d5f6394f0bdef85eca3f618b9467b23b6c9b7b5d0dc5cc01e29518c9828b46",
+          "payload_digest": "4add0ababf8325e600492dded0c48edec2cb250242a1d37c9b701fcf7daa88af",
+          "group_revision": "ad340e90-45a8-415f-a264-08a7e789687a",
+          "connector_revision": "9b5f2b2b-7069-4fb1-8d61-bdb5fabc536e",
+          "state": "sql_committed"
+        },
+        "audit_count": 1,
+        "destination_row_count": 1
+      },
+      {
+        "resolution": "skip",
+        "decision_id": "aa62a804-cded-48fc-91fd-272e8f67fcc0",
+        "before": {
+          "effect_key": "90accb2aa1498ef189bcfe66ba60ed8d645b0da453046eb0ff331e26a3f279a4",
+          "record_id": "b7899033e21e99ae1b9ab3d94070acb879aed900a5e9b796101a97c02178ca7b",
+          "payload_digest": "6c7ec7648b1f8e4663a7e47bb15fe09894b6bcc71f458e039c14a71d1ac7ffa7",
+          "group_revision": "ad340e90-45a8-415f-a264-08a7e789687a",
+          "connector_revision": "9b5f2b2b-7069-4fb1-8d61-bdb5fabc536e",
+          "state": "quarantined"
+        },
+        "after": {
+          "effect_key": "90accb2aa1498ef189bcfe66ba60ed8d645b0da453046eb0ff331e26a3f279a4",
+          "record_id": "b7899033e21e99ae1b9ab3d94070acb879aed900a5e9b796101a97c02178ca7b",
+          "payload_digest": "6c7ec7648b1f8e4663a7e47bb15fe09894b6bcc71f458e039c14a71d1ac7ffa7",
+          "group_revision": "ad340e90-45a8-415f-a264-08a7e789687a",
+          "connector_revision": "9b5f2b2b-7069-4fb1-8d61-bdb5fabc536e",
+          "state": "operator_skipped"
+        },
+        "audit_count": 1,
+        "destination_row_count": 0
+      }
+    ]
+  },
+  "failures": [],
+  "screenshot": "simplify-release-20261023.png",
+  "binary": {
+    "path": "/tmp/gateway-simplify-ui-release",
+    "sha256": "58d7a2333979abac7bb5652383095b903e3f3f4e2a29c74b0f09187ef09e116d"
+  },
+  "page_errors": [],
+  "cleanup": {
+    "processes": [
+      {
+        "name": "sim-a",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 39275,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "gateway",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 39276,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      }
+    ],
+    "namespace_absent": true
+  }
+}

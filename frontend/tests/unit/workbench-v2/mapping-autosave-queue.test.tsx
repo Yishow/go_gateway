@@ -38,9 +38,9 @@ describe('mapping rule save queue', () => {
     api.update.mockImplementation((id: string, request: StudioV2WorkspaceMappingRequest) => api.update.mock.calls.length === 1 ? first.promise : Promise.resolve(response(id, request)));
     const hook = await mountQueue(points.slice(0, 8), records.slice(0, 8));
     hook.send({ type: 'updateMapping', pointId: 'a0', patch: { scale: 2, offset: 1 } });
-    hook.send({ type: 'bulkApplyTransform', fromPointId: 'a0', fields: ['scale', 'offset', 'target_type', 'unit'] });
+    hook.send({ type: 'bulkApplyTransform', fromPointId: 'a0', toPointIds: points.slice(1, 8).map(p => p.id), fields: ['scale', 'offset', 'target_type', 'unit'] });
     hook.send({ type: 'updateMapping', pointId: 'a0', patch: { scale: 0.5, offset: 10, target_type: 'float64', unit: 'C' } });
-    hook.send({ type: 'bulkApplyTransform', fromPointId: 'a0', fields: ['scale', 'offset', 'target_type', 'unit'] });
+    hook.send({ type: 'bulkApplyTransform', fromPointId: 'a0', toPointIds: points.slice(1, 8).map(p => p.id), fields: ['scale', 'offset', 'target_type', 'unit'] });
     await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
     await act(async () => first.resolve(response('mapping-a0', api.update.mock.calls[0][1])));
     await waitFor(() => expect(hook.result.current.state.mappings.a7.save_state).toBe('saved'));
@@ -113,7 +113,7 @@ it('keeps already confirmed row values visible while later batch invalidations r
   const hook = await mountQueue(points.slice(0, 3), records.slice(0, 3));
   api.list.mockResolvedValue(records.slice(0, 3));
   hook.send({ type: 'updateMapping', pointId: 'a0', patch: { scale: 0.5, offset: 10, target_type: 'float64' } });
-  hook.send({ type: 'bulkApplyTransform', fromPointId: 'a0', fields: ['scale', 'offset', 'target_type'] });
+  hook.send({ type: 'bulkApplyTransform', fromPointId: 'a0', toPointIds: ['a1', 'a2'], fields: ['scale', 'offset', 'target_type'] });
   await waitFor(() => expect(api.update).toHaveBeenCalledWith('mapping-a2', expect.anything()));
   for (const id of ['a0', 'a1']) expect(hook.result.current.state.mappings[id]).toMatchObject({ scale: 0.5, offset: 10, target_type: 'float64', save_state: 'saved' });
   api.list.mockResolvedValue(records.slice(0, 3).map((record) => ({ ...record, scale: 0.5, offset: 10, target_type: 'float64' as const })));

@@ -207,7 +207,7 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
                   當前規則點位網格
                 </h4>
                 <p className="text-[10px] text-slate-500 leading-normal">
-                  單擊網格以略過點位；配合 Shift + 點擊可批次選取區段；配合 Ctrl / ⌘ + 點擊可多選。被略過的點位將不參與後續映射轉發。
+                  單擊只選取；Shift 選取區段，Ctrl / ⌘ 多選。勾選「採集」或使用選取後的批次操作，才會變更採集項目。
                 </p>
               </div>
 

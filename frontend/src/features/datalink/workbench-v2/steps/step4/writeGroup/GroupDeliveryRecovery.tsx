@@ -37,11 +37,15 @@ function DecisionRow({ groupId, item, readonly, onResolved }: { groupId: string;
       <details className="text-[11px] text-slate-500"><summary>{t('step4.group.delivery.recovery.diagnostics')}</summary><p>{item.effect_key}</p><p>{item.group_revision} · {item.connector_id} · {item.connector_revision}</p></details>
       {actionable && <>
         <label className="block text-xs text-slate-400">{t('step4.group.delivery.recovery.reason')}<input maxLength={200} value={reason} disabled={disabled} onChange={(event) => setReason(event.target.value)} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2" data-testid={`delivery-reason-${item.effect_key}`} /></label>
-        <label className="flex items-start gap-2 text-xs text-amber-200"><input type="checkbox" checked={confirmSkip} disabled={disabled} onChange={(event) => setConfirmSkip(event.target.checked)} />{t('step4.group.delivery.recovery.confirm_skip')}</label>
-        <div className="flex gap-2">
-          <button type="button" onClick={() => void decide('retry')} disabled={disabled || !reason.trim()} className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-200 disabled:opacity-40" data-testid={`delivery-retry-${item.effect_key}`}>{t('step4.group.delivery.recovery.retry')}</button>
-          <button type="button" onClick={() => void decide('skip')} disabled={disabled || !reason.trim() || !confirmSkip} className="rounded border border-amber-700 px-3 py-1 text-xs text-amber-200 disabled:opacity-40" data-testid={`delivery-skip-${item.effect_key}`}>{t('step4.group.delivery.recovery.skip')}</button>
-        </div>
+        <button type="button" onClick={() => void decide('retry')} disabled={disabled || !reason.trim()} className="rounded bg-cyan-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40" data-testid={`delivery-retry-${item.effect_key}`}>{t('step4.group.delivery.recovery.retry')}</button>
+        <details onToggle={event => { if (!event.currentTarget.open) setConfirmSkip(false); }}>
+          <summary className="cursor-pointer text-xs text-slate-400" data-testid={`delivery-skip-details-${item.effect_key}`}>{t('step4.group.delivery.recovery.skip')}</summary>
+          <div className="mt-2 space-y-2 rounded border border-amber-900 p-3">
+            <p className="text-xs text-amber-200">{t('step4.group.delivery.recovery.confirm_skip')}</p>
+            <label className="flex items-start gap-2 text-xs text-amber-200"><input type="checkbox" checked={confirmSkip} disabled={disabled} onChange={(event) => setConfirmSkip(event.target.checked)} />{t('step4.group.delivery.recovery.confirm_skip')}</label>
+            <button type="button" onClick={() => void decide('skip')} disabled={disabled || !reason.trim() || !confirmSkip} className="rounded border border-amber-700 px-3 py-1 text-xs text-amber-200 disabled:opacity-40" data-testid={`delivery-skip-${item.effect_key}`}>{t('step4.group.delivery.recovery.skip')}</button>
+          </div>
+        </details>
       </>}
       {busy && <p role="status" className="text-xs text-slate-400">{t('step4.group.delivery.recovery.pending')}</p>}
       {resolved && <p role="status" className="text-xs text-slate-300">{t('step4.group.delivery.recovery.saved')}</p>}

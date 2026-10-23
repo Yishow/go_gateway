@@ -1,4 +1,5 @@
 import { destinationIsSaved, optionalShareRequest, groupMatchesRequest, operationScopeMatchesCurrent, requestMatchesCurrentControls, groupSnapshotMatchesRequest, operationBelongsToGroupId, unresolvedRequestMatchesCurrentScope } from './basicRecordingPanelHelpers';
+import { BasicMemberUpdate } from './BasicMemberUpdate';
 import { BasicSchemaPreparation } from './BasicSchemaPreparation';
 import { GroupDeliveryRecovery } from './writeGroup/GroupDeliveryRecovery';
 import { supportsWriteGroupKind } from './writeGroupCapabilities';
@@ -72,7 +73,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
   const ensureMutation = useEnsureBasicManagedMutation();
   const startMutation = useRecordingStartMutation();
-  const { candidates } = useMemo(() => buildGroupCandidates(state), [state]);
+  const { candidates, excluded } = useMemo(() => buildGroupCandidates(state), [state]);
   const destination = useMemo(() => ({
     connector_id: state.db.connector.connector_id ?? '',
     connector_revision: state.db.connector.identity_revision ?? '',
@@ -150,7 +151,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   useEffect(() => {
     setIntervalSeconds(selectedGroupInterval ?? DEFAULT_INTERVAL_SECONDS);
     setIncompletePolicy(selectedGroupIncompletePolicy === 'partial' ? 'partial' : 'skip_row');
-  }, [selectedGroup?.id, selectedGroup?.revision, selectedGroupIncompletePolicy, selectedGroupInterval]);
+  }, [selectedGroup?.id, selectedGroupIncompletePolicy, selectedGroupInterval]);
 
   const destinationMismatch = Boolean(!shareOnly && selectedGroup && (
     selectedGroup.destination.connector_id !== state.db.connector.connector_id ||
@@ -349,11 +350,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
           <p className="text-xs text-slate-500">{t('step4.basic.members', { count: selectedGroup?.members.length ?? selectedCandidates.length })}</p>
         </>
       )}
-      {membersMismatch && onOpenAdvanced && (
-        <button type="button" onClick={onOpenAdvanced} className="rounded border border-amber-700 px-3 py-2 text-xs text-amber-200" data-testid="basic-recording-members-review">
-          {t('step4.basic.open_advanced')}
-        </button>
-      )}
+      {membersMismatch && basicSelectedGroup && <BasicMemberUpdate group={basicSelectedGroup} deviceId={selectedDeviceId} candidates={selectedCandidates} workspaceRevision={workspaceRevision} onOpenAdvanced={onOpenAdvanced} disabled={excluded.length > 0 || readonly || operationActive || destinationMismatch || !workspaceSnapshotReady || operation?.status === 'unknown' || Boolean(localIntent && !operation)} onUpdated={() => void groupsQuery.refetch()} />}
 
       {!shareOnly && (
         <BasicRecordingEvidence
@@ -365,7 +362,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
         />
       )}
 
-      {!shareOnly && <BasicSchemaPreparation key={`${scopeKey}|${connectorRevision}|${selectedGroupMembersMatch}`} group={basicSelectedGroup} workspaceId={workspaceId ?? ''} workspaceRevision={workspaceRevision} disabled={Boolean(blockReason) || operationActive} readonly={readonly || operationActive} destinationMatches={!destinationMismatch} ensureGroup={ensureGroup} onApplied={() => void groupsQuery.refetch()} />}
+      {!shareOnly && <div id={`basic-schema-${selectedDeviceId}`} tabIndex={-1}><BasicSchemaPreparation key={`${scopeKey}|${connectorRevision}`} group={basicSelectedGroup} workspaceId={workspaceId ?? ''} workspaceRevision={workspaceRevision} disabled={Boolean(blockReason) || operationActive} readonly={readonly || operationActive} destinationMatches={!destinationMismatch} ensureGroup={ensureGroup} onApplied={() => void groupsQuery.refetch()} /></div>}
       {!shareOnly && selectedGroup && !deliveryQuery.isError && deliveryQuery.data?.group_id === selectedGroup.id && <GroupDeliveryRecovery groupId={selectedGroup.id} items={deliveryQuery.data.attention ?? []} readonly={readonly || operationActive} onResolved={() => void deliveryQuery.refetch()} />}
 
       <div className="flex flex-wrap items-center gap-3">
@@ -387,7 +384,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
           statusReason={statusReason}
           nextAction={safeNextAction}
           onCommit={onCommit}
-          onOpenAdvanced={onOpenAdvanced}
+          onOpenAdvanced={() => document.getElementById(`basic-schema-${selectedDeviceId}`)?.focus()}
         />
       )}
       {operationQuery.isError && operationId && <p role="alert" className="text-xs text-amber-300" data-testid="basic-recording-query-error">{t('step4.basic.query_failed')}</p>}

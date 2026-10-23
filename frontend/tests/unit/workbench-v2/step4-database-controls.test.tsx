@@ -70,7 +70,7 @@ describe('Step 4 Database controls', () => {
     expect(screen.queryByLabelText('step4.field_table')).not.toBeInTheDocument();
     expect(screen.getByLabelText('step4.field_database')).toBeInTheDocument();
     expect(screen.getByLabelText('step4.field_host')).toBeInTheDocument();
-    expect(screen.queryByTestId('database-delivery-truth')).not.toBeInTheDocument();
+    expect(screen.getByTestId('database-delivery-truth')).not.toBeVisible();
   });
 
   it('交付狀態卡片展開後才顯示 delivery 細節', () => {

@@ -166,27 +166,17 @@ func confirmPreviewMatchesTarget(ctx context.Context, token *SchemaPreviewToken,
 	var err error
 	var pending int
 	if token.GroupLayout != nil {
-		statements, err = GenerateGroupSchemaDDL(token.Dialect, *token.GroupLayout)
-		if err == nil {
-			groupPending, receiptPending, _, inspectErr := inspectGroupManagedTables(ctx, token.Dialect, *token.GroupLayout, inspect)
-			if inspectErr != nil {
-				return 0, inspectErr
-			}
-			if groupPending {
-				pending++
-			}
-			if receiptPending {
-				pending++
-			}
-			kept := make([]string, 0, 2)
-			if groupPending {
-				kept = append(kept, statements[0])
-			}
-			if receiptPending {
-				kept = append(kept, statements[1])
-			}
-			statements = kept
+		groupPending, receiptPending, tables, inspectErr := inspectGroupManagedTables(ctx, token.Dialect, *token.GroupLayout, inspect)
+		if inspectErr != nil {
+			return 0, inspectErr
 		}
+		if groupPending {
+			pending++
+		}
+		if receiptPending {
+			pending++
+		}
+		statements, err = groupSchemaStatements(token.Dialect, *token.GroupLayout, tables)
 	} else {
 		statements, err = GenerateManagedSchemaDDL(token.Dialect, token.TablePrefix)
 		if err == nil {

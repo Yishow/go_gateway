@@ -115,6 +115,8 @@
     "stale": "stale"
   },
   "diagnostics": {
+    "noErrorDetected": "No error detected",
+    "awaitingWriteEvidence": "Observed collection and delivery stages appear below. Waiting for first SQL write evidence; use verified recording evidence to confirm database writes.",
     "requestId": "Request ID:"
   },
   "logs": {

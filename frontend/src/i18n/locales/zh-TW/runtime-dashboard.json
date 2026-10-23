@@ -115,6 +115,8 @@
     "stale": "stale"
   },
   "diagnostics": {
+    "noErrorDetected": "未偵測到錯誤",
+    "awaitingWriteEvidence": "採集與交付狀態請見下方已觀察階段。等待首筆 SQL 寫入證據；只有基本記錄的已確認寫入證據可證明入庫。",
     "requestId": "請求識別碼："
   },
   "logs": {

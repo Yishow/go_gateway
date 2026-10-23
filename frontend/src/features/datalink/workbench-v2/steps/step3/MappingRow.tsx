@@ -10,8 +10,11 @@ import { MappingPayloadDialog } from './MappingPayloadDialog';
 
 export interface MappingRowProps {
   point: Point;
+  advanced?: boolean;
   mapping: Mapping;
   isSelected: boolean;
+  bulkChecked?: boolean;
+  onBulkToggle?: () => void;
   devices: Device[];
   liveValue?: unknown;
   connectionState?: RuntimeStreamConnectionState;
@@ -39,13 +42,16 @@ function formatDeviceValue(value: unknown): string {
  * 點位映射表的單一資料列元件
  * 
  * 落地設計決策：「行內編輯 + 列選取共存：stopPropagation 策略」
- * 提供完整的行內編輯控件，點擊控件不觸發列選取。
+ * 提供完整行內編輯；聚焦編輯欄位同步來源列，批次對象勾選獨立。
  */
 export const MappingRow: React.FC<MappingRowProps> = ({
   point,
+  advanced = true,
   mapping,
   isSelected,
   devices,
+  bulkChecked = false,
+  onBulkToggle,
   liveValue,
   connectionState = 'disconnected',
   streamRecovery,
@@ -57,7 +63,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
   const devTheme = useDeviceColor(point.device_id);
 
   const devName = devices.find((d) => d.id === point.device_id)?.name || t('step3.unknownDevice');
-  // 阻止事件傳播，避免點擊輸入框時觸發整列選取
+  // 點擊不重複觸發列事件；聚焦編輯欄位仍同步來源。
   const preventPropagation = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
   };
@@ -89,6 +95,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
   return (
     <tr
       onClick={onSelect}
+      onFocus={onSelect}
       className={`transition-all duration-150 cursor-pointer ${
         isSelected
           ? 'bg-blue-500/5 outline outline-1 outline-blue-500/50'
@@ -99,20 +106,22 @@ export const MappingRow: React.FC<MappingRowProps> = ({
       {/* 1. 來源設備 */}
       <td className="p-3 text-xs">
         <div className="flex items-center gap-1.5" title={`${devName} · ${point.rule_name}`}>
+          {onBulkToggle && <input type="checkbox" aria-label={t('step3.bulk.target', { tag: `${devName} ${point.address}` })} checked={bulkChecked} onChange={onBulkToggle} onFocus={e => e.stopPropagation()} onClick={e => e.stopPropagation()} data-testid={`bulk-target-${point.id}`} />}
           <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${devTheme.solid}`} />
           <span className={`font-sans truncate max-w-[80px] ${devTheme.text}`}>
             {devName}
           </span>
         </div>
+        <span hidden={advanced} className="font-mono text-slate-400">{point.address}</span>
       </td>
 
       {/* 2. 暫存器 (只讀) */}
-      <td className="p-3 text-xs font-mono text-slate-400">
+      <td hidden={!advanced} className="p-3 text-xs font-mono text-slate-400">
         {point.address}
       </td>
 
       {/* 3. Tag Key (可編輯) */}
-      <td className="p-2">
+      <td hidden={!advanced} className="p-2">
         <input
           type="text"
           value={mapping.tag_key}
@@ -122,6 +131,21 @@ export const MappingRow: React.FC<MappingRowProps> = ({
           placeholder={t('step3.placeholders.tagKey')}
           className="w-full bg-slate-900/50 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-blue-500 text-xs px-2 py-1 rounded text-slate-200 focus:outline-none transition-all font-mono"
           data-testid={`input-tag-key-${point.id}`}
+        />
+
+      </td>
+
+      {/* 4. 顯示名稱 (可編輯) */}
+      <td className="p-2">
+        <input
+          type="text"
+          value={mapping.display_name}
+          onChange={(e) => handleTextChange('display_name', e.target.value)}
+          onClick={preventPropagation}
+          onMouseDown={preventPropagation}
+          placeholder={t('step3.placeholders.displayName')}
+          className="w-full bg-slate-900/50 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-blue-500 text-xs px-2 py-1 rounded text-slate-200 focus:outline-none transition-all"
+          data-testid={`input-display-name-${point.id}`}
         />
         {mapping.save_state && mapping.save_state !== 'idle' && (
           <div
@@ -142,20 +166,6 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         )}
       </td>
 
-      {/* 4. 顯示名稱 (可編輯) */}
-      <td className="p-2">
-        <input
-          type="text"
-          value={mapping.display_name}
-          onChange={(e) => handleTextChange('display_name', e.target.value)}
-          onClick={preventPropagation}
-          onMouseDown={preventPropagation}
-          placeholder={t('step3.placeholders.displayName')}
-          className="w-full bg-slate-900/50 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-blue-500 text-xs px-2 py-1 rounded text-slate-200 focus:outline-none transition-all"
-          data-testid={`input-display-name-${point.id}`}
-        />
-      </td>
-
       {/* 5. 單位 (可編輯) */}
       <td className="p-2">
         <input
@@ -171,7 +181,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
       </td>
 
       {/* 6. 目標型態 (可編輯) */}
-      <td className="p-2">
+      <td hidden={!advanced} className="p-2">
         <select
           value={mapping.target_type}
           onChange={(e) => handleTextChange('target_type', e.target.value)}
@@ -194,7 +204,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
       </td>
 
       {/* 7. Scale / Offset (可編輯) */}
-      <td className="p-2">
+      <td hidden={!advanced} className="p-2">
         <div className="flex items-center gap-1">
           <input
             type="number"
@@ -221,7 +231,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
       </td>
 
       {/* 8. 讀值 (raw/decode) */}
-      <td className="p-3 text-xs font-mono text-slate-300">
+      <td hidden={!advanced} className="p-3 text-xs font-mono text-slate-300">
         <span data-testid={`device-live-value-${point.id}`}>{deviceValueLabel}</span>
         {streamRecovery && (
           <div className="mt-1 space-y-0.5 font-sans text-[10px] text-amber-300" data-testid={`runtime-recovery-${point.id}`} role="alert">
@@ -239,6 +249,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
       </td>
 
       <MappingPreviewCells
+        advanced={advanced}
         point={point}
         mapping={mapping}
         rawValue={liveValue}
@@ -246,7 +257,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         workspaceId={workspaceId}
       />
 
-      <MappingPayloadDialog point={point} mapping={mapping} />
+      <MappingPayloadDialog hidden={!advanced} point={point} mapping={mapping} />
 
       {/* 9. 啟用 Toggle */}
       <td className="p-3 text-center">

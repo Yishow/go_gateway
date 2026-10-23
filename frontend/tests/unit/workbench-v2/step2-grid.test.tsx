@@ -139,13 +139,16 @@ const PointGridTestWrapper: React.FC<{
 };
 
 describe('PointGrid 元件', () => {
-  it('普通單擊 cell 應呼叫 onToggleSkipAddress', () => {
+  it('普通單擊只選取，不修改採集', () => {
     const onToggle = vi.fn();
     render(<PointGridTestWrapper ruleId="rule-1" points={mockPoints} onToggle={onToggle} />);
 
     const cell0 = screen.getByTestId('point-cell-r1-p-0');
     fireEvent.click(cell0);
 
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(cell0).toHaveAttribute('data-selected', 'true');
+    fireEvent.click(screen.getByTestId('collect-r1-p-0'));
     expect(onToggle).toHaveBeenCalledWith('40001');
   });
 
@@ -164,7 +167,7 @@ describe('PointGrid 元件', () => {
     expect(cell0.getAttribute('data-selected')).toBe('false');
   });
 
-  it('Shift+Click 連續選取應呼叫 onBatchToggleSkipAddresses', () => {
+  it('Shift+Click 只選取連續區段，不批次修改採集', () => {
     const onBatchToggle = vi.fn();
     render(<PointGridTestWrapper ruleId="rule-1" points={mockPoints} onBatchToggle={onBatchToggle} />);
 
@@ -178,7 +181,8 @@ describe('PointGrid 元件', () => {
     fireEvent.click(cell2, { shiftKey: true });
 
     // mockPoints[2] 是 skipped = true，所以對其進行反轉應期望將 0..2 的 address 批次設為啟用 (shouldSkip = false)
-    expect(onBatchToggle).toHaveBeenCalledWith(['40001', '40002', '40003'], false);
+    expect(onBatchToggle).not.toHaveBeenCalled();
+    mockPoints.forEach(p => expect(screen.getByTestId(`point-cell-${p.id}`)).toHaveAttribute('data-selected', 'true'));
   });
 
   it('轉發與衝突狀態渲染', () => {

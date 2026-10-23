@@ -36,7 +36,7 @@ const operationQuery = {
 };
 
 vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
-  useWriteGroupsQuery: () => groupsQuery,
+  useUpdateWriteGroupMutation: () => ({ mutateAsync: vi.fn() }), useWriteGroupsQuery: () => groupsQuery,
   useWriteGroupDeliveryQuery: () => deliveryQuery,
 }));
 vi.mock('@/hooks/datalink/useStudioV2RecordingStart', () => ({
@@ -433,7 +433,8 @@ describe('BasicRecordingPanel', () => {
     expect(await screen.findByTestId('basic-recording-status')).toHaveTextContent('step4.basic.reason.preparation_required');
     expect(screen.getByTestId('basic-recording-status')).toHaveTextContent('step4.basic.action.prepare_schema');
     fireEvent.click(screen.getByTestId('basic-recording-open-advanced'));
-    expect(onOpenAdvanced).toHaveBeenCalledTimes(1);
+    expect(onOpenAdvanced).not.toHaveBeenCalled();
+    expect(document.getElementById('basic-schema-dev-1')).toHaveFocus();
   });
 
   it('maps Share readiness operation guidance without exposing backend text', async () => {

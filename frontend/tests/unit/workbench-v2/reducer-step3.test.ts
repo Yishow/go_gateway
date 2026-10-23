@@ -366,6 +366,7 @@ describe('mappingReducer', () => {
       const nextState = mappingReducer(state, {
         type: 'bulkApplyTransform',
         fromPointId: 'p-01',
+        toPointIds: ['p-02', 'p-03'],
         fields: ['scale', 'offset', 'target_type', 'unit'],
       });
 
@@ -384,7 +385,7 @@ describe('mappingReducer', () => {
       const state = { ...INITIAL_STATE, mappings: {} };
       const nextState = mappingReducer(state, {
         type: 'bulkApplyTransform',
-        fromPointId: 'p-nonexistent',
+        fromPointId: 'p-nonexistent', toPointIds: [],
         fields: ['scale'],
       });
       expect(nextState).toBe(state);
