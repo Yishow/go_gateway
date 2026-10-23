@@ -18,16 +18,16 @@
 下列是依目前 source 核對的能力邊界，不是本次執行的驗收報告：
 
 - **已接 runtime**：collector／scheduler、內部 SQLite storage、dbtarget writer 與 Local Modbus target fan-out，入口見 [service_wiring.go](cmd/test_ui/service_wiring.go) 和 [target_writer.go](cmd/test_ui/target_writer.go)
-- **資料庫寫入**：SQLite／PostgreSQL 的實際 SQL 寫入與 grouped time-bucket buffer 已有實作。buffer 接收成功不等於外部 DB 已提交；目前 grouped buffer 位於記憶體，不能視為耐重啟佇列
+- **資料庫寫入**：SQLite／PostgreSQL 的實際 SQL 寫入已有實作。WriteGroup 路徑在 journal commit 後才確認本地接收，使用 SQLite journal/outbox 保存已接受資料；重啟後按原 scope／revision／ownership 證據恢復。無法證明外部寫入結果時保持 unknown／blocked，不盲目補送。本地接收、SQL commit 與 readback 須分開判讀
 - **已落地的安全設定**：已存 connector identity／revision、真實 schema metadata、preview／confirm／apply 及持久 operation 記錄；設定與啟用沿用 workspace/settings revisions 和 readiness token，不應略過
-- **仍待串接**：recording-plan 設定與 measurement、aggregation、delivery 元件的存在，不代表 production entrypoint 已連成完整的 durable recording 路徑
+- **適用範圍**：上述 durable recording 指正式接線的 WriteGroup 路徑；獨立 recording-plan、measurement 或 aggregation 元件存在，不代表其所有組合均完成整合驗證
 - **試寫**：已由 Write Group test-write 承接，具備真實目的地 preview、token／operation-id confirm、write、readback 與 cleanup 驗證；legacy recording-plan 路徑已對齊同一服務，不再回傳 501。資料表無法辨識測試列的 group 會在 preview 被拒絕，write、readback 與 cleanup 結果須分開判讀
-- **四步流程待收斂**：Step 4 仍同時承載 recording plans、measurement membership、row groups、target mappings 與 Modbus Share。規劃中的單一 write-group authority 尚未實作
+- **四步流程**：Studio V2 基本路徑已由 canonical WriteGroup 統一成員、週期與目的地，基本／進階切換保留設定；Share-only 獨立。完整型別、自訂群組與進階連線仍可操作，見 [最新簡化驗證](docs/releases/studio-v2-simplification-20261023.md)
 - **協議可用性需逐層核對**：後端已有 Modbus、FATEK、MC 等協議元件；選單列出某協議或依賴中有其套件，不代表 V2 位址解析、採集與輸出皆已貫通
 
 基本需求是「所選 Tag 依群組寫到資料庫」。報表、保留政策、聚合、區間電量等衍生運算不是基本寫入的前置條件。設備 running、設定已儲存、buffered、SQL committed、readback verified 與 cleanup completed 應分開理解。
 
-後續實作見 [六份相依提案與驗收計畫](docs/plans/studio-v2-write-groups/README.md)。[原資料庫流程工作](openspec/changes/fix-studio-v2-database-workflow/handoff.md) 的完成證據保留、未完需求已明確移交；文件通過檢查不表示產品已完成。
+後續實作見 [六份相依提案與驗收計畫](docs/plans/studio-v2-write-groups/README.md)。[原資料庫流程工作](openspec/changes/archive/2026-10-03-fix-studio-v2-database-workflow/handoff.md) 的完成證據保留、未完需求已明確移交；文件通過檢查不表示產品已完成。
 
 ## 本機建置與啟動
 
