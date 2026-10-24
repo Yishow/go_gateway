@@ -401,7 +401,7 @@ func inspectSQLiteTables(ctx context.Context, db *sql.DB) ([]TableInfo, error) {
 				DataType:   dataType,
 				Nullable:   notNull == 0,
 				PrimaryKey: primaryKey > 0,
-				Unique:     primaryKey > 0 || uniqueColumns[strings.ToLower(name)],
+				Unique:     primaryKey > 0 || uniqueColumns[strings.ToLower(name)], HasDefault: defaultValue.Valid,
 			})
 		}
 		if err := columnRows.Close(); err != nil {
@@ -543,7 +543,7 @@ func inspectPostgresTables(ctx context.Context, db *sql.DB) ([]TableInfo, error)
 							  AND kcu_count.table_schema = tc.table_schema
 							  AND kcu_count.table_name = tc.table_name
 						  ) = 1
-					) AS is_unique
+					) AS is_unique, (c.column_default IS NOT NULL OR c.is_identity = 'YES' OR c.is_generated = 'ALWAYS') AS has_default
 				FROM information_schema.columns c
 				WHERE c.table_schema = $1
 				  AND c.table_name = $2

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"go-gateway/internal/datalink/aggregation"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/measurement"
@@ -36,6 +37,7 @@ type GroupRowSink interface {
 type GroupBoundaryConfig struct {
 	Group             *workspace.WriteGroup
 	TagTypes          map[string]schema.DataType
+	Counters          map[string]CounterSource // confirmed cumulative semantics by tag id
 	Dialect           dbtarget.SQLDialect
 	Columns           []dbtarget.ColumnInfo
 	RecordKeyColumn   string
@@ -44,6 +46,11 @@ type GroupBoundaryConfig struct {
 	// Until, when set, ends this boundary's responsibility: samples observed at
 	// or after it belong to a newer applied revision and are ignored here.
 	Until time.Time
+	// StartsAt and EndsAt are the exact, immutable instants of a forward
+	// cutover: this revision owns a source's observations from StartsAt on
+	// (FirstBucket is the window containing it) and the one it replaces owns
+	// them before it. Half-open: observed at StartsAt belongs to the new owner.
+	StartsAt, EndsAt time.Time
 	// ReceiptTableReady states that the destination holds a verified effect
 	// receipt table; the receipt dedupe capability requires it.
 	ReceiptTableReady bool
@@ -73,7 +80,7 @@ const (
 	boundaryDedupeUnsupport  = "dedupe-unsupported"
 
 	reasonWorkspaceMismatch = "workspace-mismatch"
-	reasonTypeMismatch      = "type-mismatch"
+	reasonTypeMismatch      = snapshot.ReasonTypeMismatch
 	reasonEncodeBlocked     = "encode-blocked:"
 	reasonJournalFailed     = "journal-failed"
 )
@@ -104,8 +111,9 @@ func (e *GroupSampleError) Error() string { return "group sample refused: " + e.
 func (e *GroupSampleError) Unwrap() error { return e.Cause }
 
 type boundaryMember struct {
-	key  string
-	kind measurement.ExactType
+	key     string
+	kind    measurement.ExactType
+	counter *aggregation.CounterBinding // set for a cumulative member
 }
 
 // GroupBoundary is the opt-in typed-sample consumer for one applied group. It
@@ -119,7 +127,7 @@ type GroupBoundary struct {
 	until       time.Time
 	ledger      GroupLedger
 	destination groupdelivery.FrozenDestination
-	layout      *dbtarget.GroupRowLayout
+	layout      rowEncoder
 	members     map[string]boundaryMember
 	workspaceID string
 	sink        GroupRowSink
@@ -156,6 +164,9 @@ func NewGroupBoundaryContext(ctx context.Context, cfg GroupBoundaryConfig) (*Gro
 	case group.AppliedRevision == "" || group.Revision != group.AppliedRevision:
 		return nil, blocked(boundaryGroupNotApplied)
 	}
+	if group.EffectiveLayoutVersion() == workspace.WriteGroupLayoutManagedLongV1 {
+		return newLongGroupBoundary(ctx, cfg)
+	}
 
 	members := make(map[string]boundaryMember, len(group.Members))
 	layoutMembers := make([]dbtarget.GroupRowMember, 0, len(group.Members))
@@ -190,64 +201,10 @@ func NewGroupBoundaryContext(ctx context.Context, cfg GroupBoundaryConfig) (*Gro
 	if len(issues) > 0 {
 		return nil, blocked(boundaryLayoutBlocked, issues...)
 	}
-	firstBucket := cfg.FirstBucket
-	var restored groupdelivery.Restored
-	if cfg.Ledger != nil {
-		var err error
-		if restored, err = cfg.Ledger.Restore(ctx); err != nil {
-			return nil, &GroupBoundaryError{Code: boundaryRestoreFailed, Cause: err}
-		}
-		if restored.NextClose.After(firstBucket) {
-			firstBucket = restored.NextClose
-		}
-	}
-	scope, err := snapshot.DestinationScope(
-		group.Destination.ConnectorID, group.Destination.ConnectorRevision,
-		group.Destination.Database, group.Destination.TableSchema, group.Destination.TableName,
-	)
-	if err != nil {
-		return nil, blocked(boundaryScopeInvalid)
-	}
-	assembler, err := snapshot.NewAssembler(snapshot.Config{
-		WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: group.Revision, DestinationScope: scope,
-		Interval:         time.Duration(group.RowPolicy.IntervalSeconds) * time.Second,
-		AllowedLateness:  time.Duration(group.RowPolicy.AllowedLatenessSeconds) * time.Second,
-		MaxFutureSkew:    cfg.MaxFutureSkew,
-		FirstBucket:      firstBucket,
-		Until:            cfg.Until,
-		IncompletePolicy: policy,
-		Members:          snapshotMembers,
-		Storage:          layout.Capabilities(),
+	return assembleBoundary(ctx, cfg, boundaryParts{
+		members: members, snapshotMembers: snapshotMembers, encoder: layout,
+		policy: policy, storage: layout.Capabilities(),
 	})
-	if err != nil {
-		return nil, blocked(boundarySnapshotInvalid)
-	}
-	clock := cfg.Clock
-	if clock == nil {
-		clock = time.Now
-	}
-	for _, sample := range restored.Samples {
-		// Replay rebuilds memory only; samples of already closed buckets stay out.
-		assembler.Replay(sample)
-	}
-	dedupe := strings.ToLower(strings.TrimSpace(group.WritePolicy.DedupeCapability))
-	if dedupe == "" {
-		dedupe = groupdelivery.DedupeNone
-	}
-	if !dedupeSupported(dedupe, cfg) {
-		return nil, blocked(boundaryDedupeUnsupport)
-	}
-	return &GroupBoundary{
-		assembler: assembler, interval: time.Duration(group.RowPolicy.IntervalSeconds) * time.Second,
-		notBefore: cfg.FirstBucket, until: cfg.Until,
-		destination: groupdelivery.FrozenDestination{
-			Scope: scope, ConnectorID: group.Destination.ConnectorID, ConnectorRevision: group.Destination.ConnectorRevision,
-			Database: group.Destination.Database, TableSchema: group.Destination.TableSchema,
-			TableName: group.Destination.TableName, DedupeCapability: dedupe,
-		},
-		ledger: cfg.Ledger, layout: layout, members: members, workspaceID: group.WorkspaceID,
-		sink: cfg.Sink, clock: clock, onTickError: cfg.OnTickError,
-	}, nil
 }
 
 // AcceptSample routes a typed sample to its bucket. Samples that do not
@@ -261,19 +218,9 @@ func (b *GroupBoundary) AcceptSample(ctx context.Context, envelope measurement.S
 	if !b.notBefore.IsZero() && envelope.ObservedAt.Before(b.notBefore) {
 		return nil // an earlier applied revision owns this sample
 	}
-	sample := snapshot.Sample{
-		SampleID: envelope.SampleID, MemberKey: member.key, ObservedAt: envelope.ObservedAt,
-		Quality: envelope.Quality, QualityReason: envelope.QualityReason,
-		SourceRevision: envelope.SourceRevision, MappingRevision: envelope.MappingRevision,
-	}
-	if envelope.Quality == schema.QualityGood && envelope.Value != nil {
-		value, err := measurement.ExactFromGo(member.kind, envelope.Value)
-		if err != nil {
-			// A value that cannot be carried exactly is bad, never coerced or zeroed.
-			sample.Quality, sample.QualityReason = schema.QualityBad, reasonTypeMismatch
-		} else {
-			sample.Value = value
-		}
+	sample, err := sampleFrom(member, envelope)
+	if err != nil {
+		return err
 	}
 
 	b.mu.Lock()
@@ -372,7 +319,11 @@ func (b *GroupBoundary) tickDurable(ctx context.Context, now time.Time) error {
 		}
 		buckets = append(buckets, groupdelivery.ClosedBucket{Outcome: outcome, Row: &encoded})
 	}
-	closure := groupdelivery.Closure{Destination: b.destination, NextClose: plan.NextClose(), Buckets: buckets}
+	baselines, err := closureBaselines(plan)
+	if err != nil {
+		return &GroupBoundaryError{Code: boundaryLayoutBlocked, Cause: err}
+	}
+	closure := groupdelivery.Closure{Destination: b.destination, NextClose: plan.NextClose(), Buckets: buckets, Baselines: baselines}
 	if err := b.ledger.CommitClosure(ctx, closure); err != nil {
 		return err
 	}
@@ -457,6 +408,19 @@ func (b *GroupBoundary) SetUntil(until time.Time) {
 		b.until = until
 	}
 	b.assembler.SetUntil(until)
+}
+
+// SetEndsAt hands the source to a newer owner at an exact instant that need not
+// be window-aligned: observations before it stay here, the window containing it
+// closes with its real end, and nothing is extended past an earlier end.
+func (b *GroupBoundary) SetEndsAt(ends time.Time) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	ends = ends.UTC()
+	if b.until.IsZero() || ends.Before(b.until) {
+		b.until = ends
+	}
+	b.assembler.SetEndsAt(ends)
 }
 
 // NextClose is the first bucket that has not closed yet.

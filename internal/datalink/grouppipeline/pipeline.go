@@ -11,6 +11,7 @@ import (
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/measurement"
+	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
@@ -45,6 +46,11 @@ type Dependencies struct {
 	Destinations Destinations
 	Inspector    TableInspector
 	Store        *groupdelivery.Store
+	// Counters confirms the counter semantics of cumulative groups' members.
+	// Without it a cumulative group is not built.
+	Counters CounterSources
+	// Ledger coordinates confirmed managed-storage recovery across scopes.
+	Ledger *recordingplan.Service
 }
 
 // Config bounds the pipeline; zero values take the documented defaults.
@@ -110,8 +116,9 @@ type managed struct {
 
 // Pipeline owns the applied write groups of one gateway.
 type Pipeline struct {
-	deps   Dependencies
-	config Config
+	deps     Dependencies
+	config   Config
+	recovery *StorageRecovery
 
 	mu         sync.RWMutex
 	boundaries map[string]*managed
@@ -158,8 +165,24 @@ func New(deps Dependencies, config Config) *Pipeline {
 	if config.Owner == "" {
 		config.Owner = config.NodeID + "/" + fmt.Sprintf("%d", config.Now().UnixNano())
 	}
+	var recovery *StorageRecovery
+	if deps.Store != nil && deps.Store.DB() != nil {
+		ledger := deps.Ledger
+		if ledger == nil {
+			ledger = recordingplan.NewService(recordingplan.NewSQLRepository(deps.Store.DB()))
+		}
+		recovery = NewStorageRecovery(deps.Store, ledger, deps.Destinations)
+		recovery.report = func(err error) {
+			if err != nil && config.OnError != nil {
+				config.OnError(err)
+			}
+		}
+		if config.Sender.Recovery == nil {
+			config.Sender.Recovery = recovery
+		}
+	}
 	return &Pipeline{
-		deps: deps, config: config,
+		deps: deps, config: config, recovery: recovery,
 		boundaries: make(map[string]*managed),
 		blocked:    make(map[string]GroupStatus),
 	}
@@ -245,6 +268,9 @@ func (p *Pipeline) Start(ctx context.Context) error {
 func (p *Pipeline) senderConfig() groupdelivery.SenderConfig {
 	config := p.config.Sender
 	config.Owner = p.config.Owner
+	if config.Recovery == nil && p.recovery != nil {
+		config.Recovery = p.recovery
+	}
 	return config
 }
 
@@ -254,15 +280,25 @@ func (p *Pipeline) loop(ctx context.Context, done chan struct{}) {
 	defer tick.Stop()
 	reconcile := time.NewTicker(p.config.ReconcileInterval)
 	defer reconcile.Stop()
+	// A restore whose owner never came back is closed from the catalog here, not
+	// in Start: it may wait on the local database and must not delay startup.
+	p.resolveStaleStorage(ctx)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-reconcile.C:
 			p.report(p.Reconcile(ctx))
+			p.resolveStaleStorage(ctx)
 		case <-tick.C:
 			p.TickAll(ctx)
 		}
+	}
+}
+
+func (p *Pipeline) resolveStaleStorage(ctx context.Context) {
+	if p.recovery != nil {
+		p.report(p.recovery.ResolveStale(ctx))
 	}
 }
 

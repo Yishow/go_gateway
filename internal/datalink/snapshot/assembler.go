@@ -2,11 +2,10 @@ package snapshot
 
 import (
 	"cmp"
-	"fmt"
 	"slices"
 	"time"
 
-	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/aggregation"
 )
 
 // ReasonLate marks a sample whose bucket already closed.
@@ -34,6 +33,9 @@ type Assembler struct {
 	late      uint64
 	buckets   map[time.Time]*bucketState
 	nextClose time.Time
+	// counters are the committed cumulative baselines by member key; they move
+	// only through Commit, like nextClose.
+	counters map[string]*aggregation.CounterCheckpoint
 }
 
 // NewAssembler validates the configuration.
@@ -45,7 +47,7 @@ func NewAssembler(config Config) (*Assembler, error) {
 	byEntity := make(map[string][]Member)
 	members := make(map[string]Member, len(config.Members))
 	for _, member := range config.Members {
-		byEntity[member.EntityKey] = append(byEntity[member.EntityKey], member)
+		byEntity[config.entityOf(member)] = append(byEntity[config.entityOf(member)], member)
 		members[member.Key] = member
 	}
 	entities := make([]entityGroup, 0, len(byEntity))
@@ -59,6 +61,7 @@ func NewAssembler(config Config) (*Assembler, error) {
 		members:   members,
 		buckets:   make(map[time.Time]*bucketState),
 		nextClose: config.FirstBucket,
+		counters:  make(map[string]*aggregation.CounterCheckpoint),
 	}, nil
 }
 
@@ -76,10 +79,11 @@ func (a *Assembler) Offer(sample Sample, now time.Time) OfferResult {
 			state = &bucketState{selectors: make(map[string]*Selector)}
 			a.buckets[start] = state
 		}
-		selector, ok := state.selectors[member.EntityKey]
+		entity := a.config.entityOf(member)
+		selector, ok := state.selectors[entity]
 		if !ok {
-			selector = a.newSelector(start, member.EntityKey)
-			state.selectors[member.EntityKey] = selector
+			selector = a.newSelector(start, entity)
+			state.selectors[entity] = selector
 		}
 		selector.apply(sample)
 	}
@@ -87,12 +91,16 @@ func (a *Assembler) Offer(sample Sample, now time.Time) OfferResult {
 }
 
 func (a *Assembler) newSelector(start time.Time, entity string) *Selector {
-	return NewSelector(SelectorConfig{
+	selector := NewSelector(SelectorConfig{
 		Start:         start,
 		Interval:      a.config.Interval,
 		MaxFutureSkew: a.config.MaxFutureSkew,
 		Members:       a.memberKeys(entity),
 	})
+	if a.config.Mode.perMember() {
+		selector.eligible = a.eligibility(start.Add(a.config.Interval))
+	}
+	return selector
 }
 
 // Check reports what Offer would do without changing any state, including the
@@ -113,12 +121,13 @@ func (a *Assembler) Check(sample Sample, now time.Time) OfferResult {
 	if start.Before(a.nextClose) {
 		return OfferResult{Outcome: OfferLate, Reason: ReasonLate}
 	}
+	entity := a.config.entityOf(member)
 	if state, ok := a.buckets[start]; ok {
-		if selector, ok := state.selectors[member.EntityKey]; ok {
+		if selector, ok := state.selectors[entity]; ok {
 			return selector.evaluate(sample, now)
 		}
 	}
-	return a.newSelector(start, member.EntityKey).evaluate(sample, now)
+	return a.newSelector(start, entity).evaluate(sample, now)
 }
 
 // Replay re-offers a sample that was already durably accepted, bypassing the
@@ -138,8 +147,8 @@ func (a *Assembler) Tick(now time.Time) []Outcome {
 
 // Plan computes the closure Tick would perform at now without applying it.
 func (a *Assembler) Plan(now time.Time) Plan {
-	plan := Plan{next: a.nextClose}
-	for len(plan.buckets) < a.config.MaxBucketsPerTick {
+	plan := Plan{next: a.nextClose, counters: make(map[string]*aggregation.CounterCheckpoint)}
+	for limit := a.bucketsPerTick(); len(plan.buckets) < limit; {
 		if !a.config.Until.IsZero() && !plan.next.Before(a.config.Until) {
 			break
 		}
@@ -153,7 +162,8 @@ func (a *Assembler) Plan(now time.Time) Plan {
 			if state != nil {
 				selector = state.selectors[entity.key]
 			}
-			plan.Outcomes = append(plan.Outcomes, a.finalize(entity, plan.next, end, selector))
+			outcome := a.finalize(&plan, entity, plan.next, end, selector)
+			plan.Outcomes = append(plan.Outcomes, a.markTruncation(outcome))
 		}
 		plan.buckets = append(plan.buckets, plan.next)
 		plan.next = end
@@ -169,6 +179,9 @@ func (a *Assembler) Commit(plan Plan) {
 	if !plan.Empty() {
 		a.nextClose = plan.next
 	}
+	for member, checkpoint := range plan.counters {
+		a.counters[member] = checkpoint
+	}
 }
 
 // SetUntil ends this assembler's responsibility at an interval-aligned UTC
@@ -182,6 +195,50 @@ func (a *Assembler) SetUntil(until time.Time) {
 	if a.config.Until.IsZero() || until.Before(a.config.Until) {
 		a.config.Until = until
 	}
+}
+
+// SetEndsAt ends this assembler's responsibility at an exact instant that need
+// not be interval-aligned; the window containing it closes with its real end.
+// It never extends an earlier end.
+func (a *Assembler) SetEndsAt(ends time.Time) {
+	ends = ends.UTC()
+	if !a.config.EndsAt.IsZero() && !ends.Before(a.config.EndsAt) {
+		return
+	}
+	end := BucketStart(ends, a.config.Interval)
+	if !end.Equal(ends) {
+		end = end.Add(a.config.Interval)
+	}
+	if !a.config.Until.IsZero() && end.After(a.config.Until) {
+		return
+	}
+	a.config.EndsAt, a.config.Until = ends, end
+}
+
+// markTruncation records the real bounds of a window that a cutover cut short.
+// What the window would have written is still written, with the cut named: the
+// accepted readings are not dropped, and a cut window is never passed off as a
+// complete one. A window already decided not to be written (an unusable required
+// member, no data) keeps that decision.
+func (a *Assembler) markTruncation(outcome Outcome) Outcome {
+	start, end := outcome.BucketStart, outcome.BucketEnd
+	cut := ""
+	if !a.config.StartsAt.IsZero() && a.config.StartsAt.After(start) {
+		start, cut = a.config.StartsAt, "start"
+	}
+	if !a.config.EndsAt.IsZero() && a.config.EndsAt.Before(end) {
+		end = a.config.EndsAt
+		if cut == "" {
+			cut = "end"
+		} else {
+			cut = "both"
+		}
+	}
+	if cut == "" {
+		return outcome
+	}
+	outcome.WindowStart, outcome.WindowEnd, outcome.Truncated = start, end, cut
+	return outcome
 }
 
 // Done reports whether an Until was configured and every bucket before it has
@@ -209,7 +266,10 @@ func (a *Assembler) memberKeys(entity string) []string {
 	return nil
 }
 
-func (a *Assembler) finalize(entity entityGroup, start, end time.Time, selector *Selector) Outcome {
+func (a *Assembler) finalize(plan *Plan, entity entityGroup, start, end time.Time, selector *Selector) Outcome {
+	if a.config.Mode.perMember() {
+		return a.finalizeProfile(plan, entity.members[0], start, end, selector)
+	}
 	outcome := Outcome{Kind: OutcomeRow, EntityKey: entity.key, BucketStart: start, BucketEnd: end}
 	observed, usable, requiredGap := 0, 0, false
 	for _, member := range entity.members {
@@ -253,26 +313,6 @@ func (a *Assembler) finalize(entity entityGroup, start, end time.Time, selector 
 	return outcome
 }
 
-func evaluateMember(member Member, sample Sample, end time.Time) MemberResult {
-	selected := sample
-	result := MemberResult{MemberKey: member.Key, Sample: &selected}
-	switch {
-	case sample.Quality != schema.QualityGood:
-		result.Status = MemberBad
-		result.Reason = sample.QualityReason
-		if result.Reason == "" {
-			result.Reason = fmt.Sprintf("quality-%s", sample.Quality)
-		}
-	case sample.Value.Type() == "":
-		result.Status, result.Reason = MemberInvalid, "missing-value"
-	case end.Sub(sample.ObservedAt) > member.MaxAge:
-		result.Status, result.Reason = MemberStale, "max-age-exceeded"
-	default:
-		result.Status = MemberOK
-	}
-	return result
-}
-
 // Late is the number of samples refused because their bucket had closed.
 func (a *Assembler) Late() uint64 { return a.late }
 
@@ -283,6 +323,9 @@ type Plan struct {
 	Outcomes []Outcome
 	buckets  []time.Time
 	next     time.Time
+	// counters are the baselines Commit installs: only the members whose
+	// baseline this plan advances.
+	counters map[string]*aggregation.CounterCheckpoint
 }
 
 // NextClose is the checkpoint a committed plan advances to.

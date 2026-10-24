@@ -51,15 +51,15 @@ func openPostgresInspectionStub(t *testing.T, setup ...string) *sql.DB {
 func TestInspectPostgresTablesPreservesNumericPrecisionAndScale(t *testing.T) {
 	db := openPostgresInspectionStub(t,
 		`CREATE TABLE information_schema.tables (table_schema TEXT, table_name TEXT, table_type TEXT)`,
-		`CREATE TABLE information_schema.columns (table_schema TEXT, table_name TEXT, column_name TEXT, data_type TEXT, numeric_precision INTEGER, numeric_scale INTEGER, is_nullable TEXT, ordinal_position INTEGER)`,
+		`CREATE TABLE information_schema.columns (table_schema TEXT, table_name TEXT, column_name TEXT, data_type TEXT, numeric_precision INTEGER, numeric_scale INTEGER, is_nullable TEXT, ordinal_position INTEGER, column_default TEXT, is_identity TEXT, is_generated TEXT)`,
 		`CREATE TABLE information_schema.table_constraints (constraint_name TEXT, table_schema TEXT, table_name TEXT, constraint_type TEXT)`,
 		`CREATE TABLE information_schema.key_column_usage (constraint_name TEXT, table_schema TEXT, table_name TEXT, column_name TEXT)`,
 		`INSERT INTO information_schema.tables VALUES ('public', 'sensor_values', 'BASE TABLE')`,
-		`INSERT INTO information_schema.columns VALUES ('public', 'sensor_values', 'exact_value', 'numeric', 20, 0, 'NO', 1)`,
-		`INSERT INTO information_schema.columns VALUES ('public', 'sensor_values', 'fractional_value', 'numeric', 20, 2, 'YES', 2)`,
-		`INSERT INTO information_schema.columns VALUES ('public', 'sensor_values', 'small_value', 'numeric', 18, 0, 'YES', 3)`,
-		`INSERT INTO information_schema.columns VALUES ('public', 'sensor_values', 'unbounded_value', 'numeric', NULL, NULL, 'YES', 4)`,
-		`INSERT INTO information_schema.columns VALUES ('public', 'sensor_values', 'note', 'text', NULL, NULL, 'YES', 5)`,
+		`INSERT INTO information_schema.columns VALUES ('public', 'sensor_values', 'exact_value', 'numeric', 20, 0, 'NO', 1, NULL, 'NO', 'NEVER')`,
+		`INSERT INTO information_schema.columns VALUES ('public', 'sensor_values', 'fractional_value', 'numeric', 20, 2, 'YES', 2, NULL, 'NO', 'NEVER')`,
+		`INSERT INTO information_schema.columns VALUES ('public', 'sensor_values', 'small_value', 'numeric', 18, 0, 'YES', 3, NULL, 'NO', 'NEVER')`,
+		`INSERT INTO information_schema.columns VALUES ('public', 'sensor_values', 'unbounded_value', 'numeric', NULL, NULL, 'YES', 4, NULL, 'NO', 'NEVER')`,
+		`INSERT INTO information_schema.columns VALUES ('public', 'sensor_values', 'note', 'text', NULL, NULL, 'YES', 5, NULL, 'NO', 'NEVER')`,
 	)
 
 	tables, err := inspectPostgresTables(t.Context(), db)

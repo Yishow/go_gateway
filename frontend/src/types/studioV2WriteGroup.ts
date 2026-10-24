@@ -4,6 +4,28 @@ export type WriteGroupStatus = 'draft' | 'ready' | 'running' | 'disabled' | 'del
 
 export type WriteGroupStorageStrategy = 'managed' | 'custom';
 
+/**
+ * An absent layout always means `managed_wide_v1`. `managed_long_v1` is the
+ * fixed typed table shared by the canonical profile groups of one storage scope.
+ */
+export type WriteGroupLayoutVersion = 'managed_wide_v1' | 'managed_long_v1';
+
+/** How a long layout is stored. Only plain SQL storage exists so far. */
+/** `timescale` is an explicit, separate selection; `plain` is the default. */
+export type WriteGroupStorageMode = 'plain' | 'timescale';
+
+export type WriteGroupProfileKind = 'instantaneous' | 'cumulative';
+
+/** Each kind has one fixed unit: instantaneous in seconds, cumulative in minutes. */
+export type WriteGroupIntervalUnit = 'second' | 'minute';
+
+/** Recording profile of a canonical circuit group; the interval is in `unit`, never in seconds by default. */
+export interface WriteGroupRecordingProfile {
+  kind: WriteGroupProfileKind;
+  interval: number;
+  unit: WriteGroupIntervalUnit;
+}
+
 export interface WriteGroupMember {
   device_id: string;
   point_id: string;
@@ -15,6 +37,9 @@ export interface WriteGroupMember {
   target_column: string;
   required: boolean;
   max_age_seconds?: number;
+  /** Opaque workspace-scoped circuit identity; `circuit_name` is display text only. */
+  circuit_id?: string;
+  circuit_name?: string;
 }
 
 export interface WriteGroupDestination {
@@ -55,6 +80,11 @@ export interface WriteGroupRowPolicy {
 export interface WriteGroupWritePolicy {
   mode?: string;
   dedupe_capability?: string;
+  /**
+   * Managed long storage only. `true` and `false` are decisions made at schema
+   * confirmation; absent means none was ever made and never reads as `true`.
+   */
+  recreate_missing?: boolean;
 }
 
 export interface WriteGroupMigration {
@@ -82,6 +112,11 @@ export interface WriteGroup {
   row_policy: WriteGroupRowPolicy;
   write_policy: WriteGroupWritePolicy;
   migration: WriteGroupMigration;
+  layout_version?: WriteGroupLayoutVersion;
+  /** Absent for every group saved before profiles; `row_policy.interval_seconds` is derived from it. */
+  recording_profile?: WriteGroupRecordingProfile;
+  /** Set by the server on long-layout groups; absent on wide groups. */
+  storage_mode?: WriteGroupStorageMode;
   created_at: string;
   updated_at: string;
 }

@@ -105,9 +105,13 @@
 | API | 主用頁面 | 用途 |
 | --- | --- | --- |
 | `GET/POST /api/v1/datalink/studio-v2/workspace/write-groups`、`GET/PUT/DELETE …/write-groups/:id` | `/studio/v2` Step 4 | list／get／儲存草稿／logical delete；mutation 帶 `workspace_id` 與 expected workspace／group／connector revisions，過期 409 `revision_mismatch` |
+| `POST …/write-groups/circuit-profiles/ensure` | `/studio/v2` Step 4 | 依 circuit identity 與 profile kind (instantaneous/cumulative) 建立或複用 canonical write group，resend 回傳已存群組，同 kind 衝突 409 |
 | `GET …/write-groups/:id/readiness` | `/studio/v2` Step 4 | persisted group 與 destination schema 的唯讀就緒判定；Apply 的依據 |
 | `POST …/write-groups/:id/apply`、`/disable` | `/studio/v2` Step 4 | 套用（排入下一個 UTC bucket，不做 DDL）／停止新 intake；只帶 expected revisions |
-| `GET …/write-groups/:id/delivery` | `/studio/v2` Step 4 | 各階段計數與 backlog；只有 `sql_committed` 是 destination 證據 |
+| `POST …/write-groups/:id/cutover-review`、`/cutover` | `/studio/v2` Step 4 | 唯讀試算前向切換或 rollback 影響範圍、截斷窗邊界（回傳 digest）；CAS 交易套用 cutover 凍結舊 wide 歷史並切換目的地 |
+| `GET …/write-groups/:id/cutovers`、`GET …/cutovers/:cutover_id` | `/studio/v2` Step 4 | 查詢 write group 已套用之 cutover 歷史記錄與詳情 |
+| `GET …/write-groups/:id/delivery` | `/studio/v2` Step 4 | 各階段計數、backlog、`source_evidence` 與 `storage` 復原狀態；只有 `sql_committed` 是 destination 證據 |
+| `POST …/write-groups/:id/schema-preview`、`/schema-apply` | `/studio/v2` Step 4 | 管理 schema 預覽與確認套用；支援 `managed_long_v1` typed 長表布局與 TimescaleDB hypertable 模式 |
 | `POST …/write-groups/:id/test-write-preview`、`/test-write` | `/studio/v2` Step 4 | 確認式試寫：preview 不寫 target，確認後寫入、讀回、只清理自己的 row；結果 `write_outcome` 與 `cleanup_status` 分開；狀態由共用 `GET …/database-operations/:operation_id` 提供 |
 | `POST …/recording-plans/test-write-preview`、`/test-write` | （舊 plan 相容） | 只靠 group provenance 解析到唯一群組，目前一律 422 `RECORDING_TEST_WRITE_PLAN_UNRESOLVED` |
 

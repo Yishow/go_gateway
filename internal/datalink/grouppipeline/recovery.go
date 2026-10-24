@@ -33,7 +33,13 @@ func (p *Pipeline) saveRuntimeSnapshot(ctx context.Context, snap *workspace.Writ
 }
 
 func (p *Pipeline) loadRuntimeSnapshot(ctx context.Context, key groupdelivery.GroupKey) (*workspace.WriteGroupAppliedSnapshot, error) {
-	payload, err := p.deps.Store.RuntimeVersion(ctx, key)
+	return loadFrozenSnapshot(ctx, p.deps.Store, key)
+}
+
+// loadFrozenSnapshot reads and verifies the descriptor frozen when a group
+// revision was applied. Nil without error means a legacy revision with none.
+func loadFrozenSnapshot(ctx context.Context, store *groupdelivery.Store, key groupdelivery.GroupKey) (*workspace.WriteGroupAppliedSnapshot, error) {
+	payload, err := store.RuntimeVersion(ctx, key)
 	if err != nil || payload == nil {
 		return nil, err
 	}
@@ -46,7 +52,15 @@ func (p *Pipeline) loadRuntimeSnapshot(ctx context.Context, key groupdelivery.Gr
 		snap.Group.Revision != key.GroupRevision || snap.Group.AppliedRevision != key.GroupRevision || snap.EffectiveAt.IsZero() {
 		return nil, errors.New("invalid runtime version")
 	}
-	if canonicalManagedGroup(snap.Group) && !validCanonicalManagedRuntimeProof(snap.Group, snap.RuntimeLayout) {
+	// A long group also looks like a canonical managed group, but its columns are
+	// the fixed shared layout, not one column per source: it is judged by its own
+	// proof and never by the wide one.
+	switch {
+	case longGroup(snap.Group):
+		if !validLongRuntimeProof(snap.Group, snap.RuntimeLayout) {
+			return nil, errors.New("invalid long runtime version")
+		}
+	case canonicalManagedGroup(snap.Group) && !validCanonicalManagedRuntimeProof(snap.Group, snap.RuntimeLayout):
 		return nil, errors.New("invalid canonical managed runtime version")
 	}
 	return &snap, nil
@@ -171,6 +185,13 @@ func (p *Pipeline) restoreOpenJournals(ctx context.Context) error {
 				continue
 			}
 			snap = frozen
+		}
+		if source, ok := p.deps.Groups.(interface {
+			RevisionEnd(context.Context, string, string) (time.Time, error)
+		}); ok {
+			if ends, err := source.RevisionEnd(ctx, journal.Key.GroupID, journal.Key.GroupRevision); err == nil {
+				snap.EndsAt = ends
+			}
 		}
 		until := journal.LastBucket.Add(time.Duration(snap.Group.RowPolicy.IntervalSeconds) * time.Second)
 		m, reason := p.buildFrozen(ctx, snap, journal.FirstBucket, until)

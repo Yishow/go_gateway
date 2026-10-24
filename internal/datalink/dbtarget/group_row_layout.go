@@ -232,15 +232,6 @@ func hasIssue(issues []LayoutIssue, code, column string) bool {
 // to the snapshot config so partial rows are only accepted when supported.
 func (l *GroupRowLayout) Capabilities() snapshot.StorageCapabilities { return l.caps }
 
-type provenanceEntry struct {
-	Member     string `json:"member"`
-	Status     string `json:"status"`
-	Reason     string `json:"reason,omitempty"`
-	SampleID   string `json:"sample_id,omitempty"`
-	ObservedAt string `json:"observed_at,omitempty"`
-	Quality    string `json:"quality,omitempty"`
-}
-
 func (l *GroupRowLayout) membersForEntity(entityKey string) []GroupRowMember {
 	entityScoped := slices.ContainsFunc(l.spec.Members, func(member GroupRowMember) bool {
 		return member.EntityKey != ""
@@ -269,7 +260,7 @@ func (l *GroupRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error)
 	}
 	encoded := EncodedRow{
 		RecordID: outcome.RecordID, EffectKey: outcome.EffectKey, EntityKey: outcome.EntityKey,
-		BucketStart: outcome.BucketStart.UTC(), Partial: outcome.Partial,
+		BucketStart: outcome.BucketStart.UTC(), Partial: outcome.Partial || outcome.Truncated != "",
 	}
 	rowMembers := l.membersForEntity(outcome.EntityKey)
 	if len(rowMembers) == 0 {
@@ -333,7 +324,7 @@ func (l *GroupRowLayout) appendIdentityCells(encoded *EncodedRow, outcome snapsh
 		return err
 	}
 	if name := l.spec.BucketStartColumn; name != "" {
-		start := outcome.BucketStart.UTC()
+		start := windowStartOf(outcome)
 		if bucketColumnKind(l.spec.Dialect, l.column(name)) == bucketTimestamp {
 			encoded.Cells = append(encoded.Cells, EncodedCell{Column: name, Value: start})
 		} else if err := text(name, start.Format(time.RFC3339Nano)); err != nil {
@@ -355,23 +346,6 @@ func (l *GroupRowLayout) appendIdentityCells(encoded *EncodedRow, outcome snapsh
 		}
 	}
 	return nil
-}
-
-func provenanceEntries(outcome snapshot.Outcome) []provenanceEntry {
-	entries := make([]provenanceEntry, 0, len(outcome.Members))
-	for _, result := range outcome.Members {
-		entry := provenanceEntry{Member: result.MemberKey, Status: string(result.Status), Reason: result.Reason}
-		if result.Status == snapshot.MemberOK {
-			entry.Reason = ""
-		}
-		if result.Sample != nil {
-			entry.SampleID = result.Sample.SampleID
-			entry.ObservedAt = result.Sample.ObservedAt.UTC().Format(time.RFC3339Nano)
-			entry.Quality = string(result.Sample.Quality)
-		}
-		entries = append(entries, entry)
-	}
-	return entries
 }
 
 type bucketKind int

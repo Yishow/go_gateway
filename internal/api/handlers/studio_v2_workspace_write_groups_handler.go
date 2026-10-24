@@ -253,9 +253,15 @@ func (h *StudioV2WorkspaceWriteGroupsHandler) mutate(c *gin.Context, status int,
 		return
 	}
 	var request WriteGroupMutationRequest
-	create := action == writeGroupCreate
+	// Create and ensure address no existing group, so they carry no group revision.
+	create := action == writeGroupCreate || action == writeGroupEnsureCircuitProfile
 	requireGroup := create || action == writeGroupUpdate
-	if err := c.ShouldBindJSON(&request); err != nil ||
+	bindErr := c.ShouldBindJSON(&request)
+	if errors.Is(bindErr, workspace.ErrWriteGroupProfileIntervalInvalid) {
+		renderWriteGroupError(c, bindErr)
+		return
+	}
+	if bindErr != nil ||
 		strings.TrimSpace(request.WorkspaceID) == "" || request.ExpectedWorkspaceRevision == nil ||
 		request.ExpectedConnectorRevision == nil || strings.TrimSpace(*request.ExpectedConnectorRevision) == "" ||
 		(!create && (request.ExpectedGroupRevision == nil || strings.TrimSpace(*request.ExpectedGroupRevision) == "")) ||
@@ -275,6 +281,8 @@ func (h *StudioV2WorkspaceWriteGroupsHandler) mutate(c *gin.Context, status int,
 	switch action {
 	case writeGroupCreate:
 		result, err = h.groups.Create(c.Request.Context(), mutation)
+	case writeGroupEnsureCircuitProfile:
+		result, err = h.groups.EnsureCircuitProfile(c.Request.Context(), mutation)
 	case writeGroupDelete:
 		result, err = h.groups.Delete(c.Request.Context(), c.Param("id"), mutation)
 	case writeGroupDisable:
@@ -303,32 +311,4 @@ func (h *StudioV2WorkspaceWriteGroupsHandler) available(c *gin.Context) bool {
 	}
 	renderWriteGroupError(c, workspace.ErrDatabaseSetupUnavailable)
 	return false
-}
-
-func renderWriteGroupError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, workspace.ErrWriteGroupNotFound), errors.Is(err, workspace.ErrWriteGroupConnectorNotFound), errors.Is(err, workspace.ErrNotFound):
-		renderWriteGroupTyped(c, http.StatusNotFound, "WRITE_GROUP_NOT_FOUND", "write group or resource is not available", false, "reload")
-	case errors.Is(err, workspace.ErrSetupRevisionConflict), errors.Is(err, workspace.ErrWriteGroupRevisionConflict):
-		renderWriteGroupTyped(c, http.StatusConflict, "revision_mismatch", "saved configuration changed; reload before saving", false, "reload")
-	case errors.Is(err, workspace.ErrWriteGroupBasicManagedConflict):
-		renderWriteGroupTyped(c, http.StatusConflict, "WRITE_GROUP_BASIC_INTENT_CHANGED", "basic recording configuration changed; reload and explicitly update the saved group", false, "review_group")
-	case errors.Is(err, workspace.ErrWriteGroupLifecycleBlocked):
-		renderWriteGroupTyped(c, http.StatusConflict, "WRITE_GROUP_LIFECYCLE_BLOCKED", "write group cannot be deleted while accepted data ownership is unresolved", false, "disable_group")
-	case errors.Is(err, workspace.ErrWriteGroupApplyNotReady):
-		renderWriteGroupTyped(c, http.StatusConflict, "WRITE_GROUP_NOT_READY", "write group is not ready to apply; review its readiness issues", false, "review_group")
-	case errors.Is(err, workspace.ErrWriteGroupValidation):
-		renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "WRITE_GROUP_INVALID", "write-group configuration is invalid", false, "review_group")
-	case errors.Is(err, workspace.ErrDatabaseSetupUnavailable), errors.Is(err, workspace.ErrWriteGroupServiceUnavailable), errors.Is(err, workspace.ErrWriteGroupReadinessUnavailable):
-		renderWriteGroupTyped(c, http.StatusServiceUnavailable, "WRITE_GROUP_UNAVAILABLE", "write-group service is unavailable", true, "retry")
-	default:
-		renderWriteGroupTyped(c, http.StatusInternalServerError, "WRITE_GROUP_UNAVAILABLE", "write group could not be saved or read", true, "reload")
-	}
-}
-
-func renderWriteGroupTyped(c *gin.Context, status int, code, message string, retryable bool, action string) {
-	renderStudioV2WorkspaceDatabaseTyped(c, status, TypedAPIErrorEnvelope{
-		Code: code, Message: message, Retryable: retryable,
-		RequestID: getOrGenerateRequestID(c), Action: action,
-	})
 }

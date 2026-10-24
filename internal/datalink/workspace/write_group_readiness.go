@@ -18,7 +18,16 @@ type WriteGroupTableInspector interface {
 // WriteGroupReadiness is the read-only configuration and schema gate for one
 // canonical write group.
 type WriteGroupReadiness struct {
-	runtimeLayout     *WriteGroupRuntimeLayout
+	runtimeLayout *WriteGroupRuntimeLayout
+	// longRuntimeGate marks a long-layout group whose storage mode or profile the
+	// runtime does not write; it adds a blocking issue without changing config or
+	// schema state. counterGate marks a supported cumulative group that still has
+	// a source without a saved measurement to confirm its counter semantics.
+	longRuntimeGate bool
+	counterGate     bool
+	// counterIssues are the saved-measurement refusals of a cumulative group,
+	// read from the database after the group was loaded.
+	counterIssues     []ReadinessIssue
 	WorkspaceID       string           `json:"workspace_id"`
 	WorkspaceRevision string           `json:"workspace_revision"`
 	GroupID           string           `json:"group_id"`
@@ -43,4 +52,37 @@ func (s *WriteGroupService) WithTableInspector(inspector WriteGroupTableInspecto
 // destination state.
 func (s *WriteGroupService) Readiness(ctx context.Context, id string) (*WriteGroupReadiness, error) {
 	return s.readiness(ctx, id)
+}
+
+func newWriteGroupReadiness(record *Record, group *WriteGroup) *WriteGroupReadiness {
+	return &WriteGroupReadiness{
+		WorkspaceID: record.ID, WorkspaceRevision: record.DatabaseSetupRevision,
+		GroupID: group.ID, GroupRevision: group.Revision, AppliedRevision: group.AppliedRevision,
+		Issues: []ReadinessIssue{}, longRuntimeGate: group.isLongLayout() && !longRuntimeSupported(group),
+		counterGate: longRuntimeSupported(group) && cumulativeWithoutMeasurements(group),
+	}
+}
+
+func (s *WriteGroupService) newSnapshotReadiness(ctx context.Context, snapshot *writeGroupReadinessSnapshot) *WriteGroupReadiness {
+	result := newWriteGroupReadiness(snapshot.record, snapshot.group)
+	result.counterIssues = s.counterMeasurementIssues(ctx, snapshot.group, snapshot.tagTypes)
+	return result
+}
+
+func finalizeWriteGroupReadiness(readiness *WriteGroupReadiness) *WriteGroupReadiness {
+	// Schema confirmation and runtime writability are separate facts: the gate is
+	// added after ConfigReady and SchemaReady were decided, and only blocks Ready.
+	if readiness.longRuntimeGate {
+		readiness.Issues = append(readiness.Issues, longRuntimeUnavailableIssue(readiness.GroupID))
+	}
+	if readiness.counterGate {
+		readiness.Issues = append(readiness.Issues, counterSemanticsRequiredIssue(readiness.GroupID))
+	}
+	readiness.Issues = append(readiness.Issues, readiness.counterIssues...)
+	readiness.Ready = readiness.ConfigReady && readiness.SchemaReady && len(readiness.Issues) == 0
+	return readiness
+}
+
+func writeGroupReadinessResult(readiness *WriteGroupReadiness) (*WriteGroupReadiness, error) {
+	return readiness, nil
 }

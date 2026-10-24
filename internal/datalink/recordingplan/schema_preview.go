@@ -68,15 +68,8 @@ type SchemaPreviewScope struct {
 	SourceDigest   string
 	SchemaRevision string
 	SchemaDigest   string
-}
-
-// TargetTableInspection is the actual state of one managed table.
-type TargetTableInspection struct {
-	Status           string
-	Columns          []string
-	ColumnTypes      map[string]string
-	ColumnNullable   map[string]bool
-	ColumnPrimaryKey map[string]bool
+	// RecreateMissing is the saved recovery policy of a managed long group.
+	RecreateMissing *bool
 }
 
 // TargetInspector reads one managed table from the saved target.
@@ -95,7 +88,11 @@ func (s *Service) PrepareSchemaPreview(ctx context.Context, scope SchemaPreviewS
 	var statements []string
 	var tables []SchemaPreviewTable
 	if scope.GroupLayout != nil {
-		statements, tables, err = prepareGroupSchemaPreview(ctx, scope, inspect)
+		var effective *GroupSchemaLayout
+		statements, tables, effective, err = prepareGroupSchemaPreview(ctx, scope, inspect)
+		if err == nil {
+			scope.GroupLayout = effective
+		}
 	} else {
 		statements, err = GenerateManagedSchemaDDL(scope.Dialect, scope.TablePrefix)
 		if err == nil {
@@ -133,7 +130,8 @@ func (s *Service) PrepareSchemaPreview(ctx context.Context, scope SchemaPreviewS
 		ConnectorID: scope.ConnectorID, ConnectorRevision: scope.ConnectorRevision,
 		Dialect: scope.Dialect, Database: scope.Database, Schema: scope.Schema, TablePrefix: scope.TablePrefix,
 		GroupLayout: scope.GroupLayout, SourceDigest: scope.SourceDigest, SchemaRevision: scope.SchemaRevision, SchemaDigest: scope.SchemaDigest,
-		Statements: statements, Tables: tables, ExpiresAt: now.Add(schemaPreviewTTL), CreatedAt: now,
+		RecreateMissing: scope.RecreateMissing,
+		Statements:      statements, Tables: tables, ExpiresAt: now.Add(schemaPreviewTTL), CreatedAt: now,
 	}
 	if len(statements) == 0 {
 		token.NoChangeReason = NoChangeSchemaCompatible
@@ -319,24 +317,10 @@ func previewScopeMismatch(token *SchemaPreviewToken, current SchemaPreviewScope)
 			return check.field
 		}
 	}
+	if !sameRecreateMissing(token.RecreateMissing, current.RecreateMissing) {
+		return "recovery policy"
+	}
 	return ""
-}
-
-func groupSchemaLayoutsEqual(left, right GroupSchemaLayout) bool {
-	left, leftErr := ValidateGroupSchemaLayout(left)
-	right, rightErr := ValidateGroupSchemaLayout(right)
-	if leftErr != nil || rightErr != nil {
-		return false
-	}
-	if left.TableName != right.TableName || left.OwnerColumn != right.OwnerColumn || len(left.Columns) != len(right.Columns) {
-		return false
-	}
-	for i := range left.Columns {
-		if left.Columns[i] != right.Columns[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // previewDigest binds the confirmed scope, operation, statements and table
@@ -353,10 +337,24 @@ func previewDigest(token *SchemaPreviewToken) (string, error) {
 	if token.GroupLayout != nil || token.SourceDigest != "" || token.SchemaRevision != "" || token.SchemaDigest != "" {
 		parts = append(parts, token.GroupLayout, token.SourceDigest, token.SchemaRevision, token.SchemaDigest)
 	}
+	// The recovery policy extends the digest only when one was issued, so every
+	// token without it keeps the digest it was stored with.
+	if token.RecreateMissing != nil {
+		parts = append(parts, map[string]bool{"recreate_missing": *token.RecreateMissing})
+	}
 	payload, err := json.Marshal(parts)
 	if err != nil {
 		return "", fmt.Errorf("encode preview digest: %w", err)
 	}
 	sum := sha256.Sum256(payload)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// sameRecreateMissing compares the recovery policy tri-state exactly: absent is
+// not the same as off.
+func sameRecreateMissing(left, right *bool) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
 }

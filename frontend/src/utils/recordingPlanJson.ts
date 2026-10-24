@@ -4,10 +4,10 @@ import {
   normalizeTypedEnvelope,
   parseBoundedJson,
 } from './safeJson';
+import { parseGroupSchemaLayout } from './recordingGroupLayoutJson';
+import { readOptionalBoolean } from './studioV2WriteGroupJsonPrimitives';
 import type {
   ConnectorCapability,
-  GroupSchemaColumn,
-  GroupSchemaLayout,
   SchemaOperation,
   SchemaOperationStatus,
   SchemaPreviewTable,
@@ -171,25 +171,6 @@ function parseSchemaPreviewTables(value: unknown): SchemaPreviewTable[] | null {
   return tables;
 }
 
-function parseGroupSchemaLayout(value: unknown): GroupSchemaLayout | undefined | null {
-  if (value === undefined || value === null) return undefined;
-  if (!isRecord(value)) return null;
-  const tableName = boundedString(value.table_name);
-  const ownerColumn = boundedString(value.owner_column);
-  if (!tableName || !ownerColumn || !Array.isArray(value.columns) || value.columns.length > MAX_SAFE_JSON_ARRAY_LENGTH) {
-    return null;
-  }
-  const columns: GroupSchemaColumn[] = [];
-  for (const item of value.columns) {
-    if (!isRecord(item)) return null;
-    const name = boundedString(item.name);
-    const sqlType = boundedString(item.sql_type);
-    if (!name || !sqlType || typeof item.nullable !== 'boolean' || typeof item.primary_key !== 'boolean') return null;
-    columns.push({ name, sql_type: sqlType, nullable: item.nullable, primary_key: item.primary_key });
-  }
-  return { table_name: tableName, columns, owner_column: ownerColumn };
-}
-
 /** Optional preview scope text; an empty value means the server had none to report. */
 function previewScopeText(value: Record<string, unknown>): PreviewScopeText | null {
   const parsed: PreviewScopeText = {};
@@ -230,6 +211,7 @@ export function parseRecordingSchemaPreviewToken(
   const digest = boundedString(value.digest);
   const tables = parseSchemaPreviewTables(value.tables);
   const groupLayout = parseGroupSchemaLayout(value.group_layout);
+  const recreateMissing = readOptionalBoolean(value, 'recreate_missing');
   const sourceDigest = optionalPreviewText(value, 'source_digest');
   const schemaRevision = optionalPreviewText(value, 'schema_revision');
   const schemaDigest = optionalPreviewText(value, 'schema_digest');
@@ -237,7 +219,7 @@ export function parseRecordingSchemaPreviewToken(
   if (!token || !workspaceId || !planId || !planRevision || !connectorId || tablePrefix === undefined ||
     (tablePrefix.length === 0 && groupLayout === undefined) || !expiresAt || !createdAt ||
     !operationId || !workspaceRevision || !digest || !tables || !scopeText || groupLayout === null ||
-    sourceDigest === null || schemaRevision === null || schemaDigest === null ||
+    recreateMissing === null || sourceDigest === null || schemaRevision === null || schemaDigest === null ||
     (options.requireGroupLayout && groupLayout === undefined)) return null;
   let totalLength = 0;
   const statements = value.statements.map((statement) => {
@@ -257,6 +239,7 @@ export function parseRecordingSchemaPreviewToken(
     statements: statements as string[],
     tables,
     ...(groupLayout ? { group_layout: groupLayout } : {}),
+    ...(recreateMissing !== undefined ? { recreate_missing: recreateMissing } : {}),
     ...(sourceDigest ? { source_digest: sourceDigest } : {}),
     ...(schemaRevision ? { schema_revision: schemaRevision } : {}),
     ...(schemaDigest ? { schema_digest: schemaDigest } : {}),

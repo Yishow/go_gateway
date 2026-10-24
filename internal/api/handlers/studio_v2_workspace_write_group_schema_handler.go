@@ -140,12 +140,24 @@ func (h *StudioV2WorkspaceWriteGroupSchemaHandler) Confirm(c *gin.Context) {
 		return
 	}
 	if op != nil && op.Status == recordingplan.SchemaOperationSucceeded {
-		if _, err = h.groups.ConfirmManagedSchema(ctx, id, req.mutation(), op.OperationID, op.VerifiedDigest); err != nil {
+		evidence := &workspace.StorageEvidence{Layout: *token.GroupLayout, CreatedTable: createsTable(token)}
+		if _, err = h.groups.ConfirmManagedSchemaWithStorage(ctx, id, req.mutation(), op.OperationID, op.VerifiedDigest, evidence); err != nil {
 			renderGroupSchemaError(c, err, op)
 			return
 		}
 	}
 	renderSchemaApplyOutcome(c, op, outcome)
+}
+
+// createsTable reports whether the confirmed batch creates the group's own
+// shared table, as opposed to finding it already there.
+func createsTable(token *recordingplan.SchemaPreviewToken) bool {
+	for _, table := range token.Tables {
+		if table.Name == token.GroupLayout.TableName && table.Action == recordingplan.SchemaTableActionCreate {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *StudioV2WorkspaceWriteGroupSchemaHandler) validateCompletedReplay(ctx context.Context, id string, req WriteGroupSchemaRequest, workspaceRevision string, token *recordingplan.SchemaPreviewToken, op *recordingplan.SchemaOperation) error {
@@ -226,8 +238,56 @@ func (h *StudioV2WorkspaceWriteGroupSchemaHandler) targetInspector(id string, re
 			state.ColumnNullable[column.Name] = column.Nullable
 			state.ColumnPrimaryKey[column.Name] = column.PrimaryKey
 		}
+		// A layout that declares indexes (the long table) needs real catalog
+		// evidence of them; wide layouts declare none and never pay for the query.
+		if scope.GroupLayout != nil && len(scope.GroupLayout.Indexes) > 0 && table == scope.GroupLayout.TableName &&
+			result.Status == dbtarget.TableInspectionExists {
+			indexes, err := h.inspector.InspectTableIndexesAtRevision(ctx, scope.ConnectorID, scope.ConnectorRevision, scope.Schema, table)
+			if err != nil {
+				return recordingplan.TargetTableInspection{}, err
+			}
+			state.IndexesInspected = true
+			for _, index := range indexes {
+				state.Indexes = append(state.Indexes, recordingplan.TargetIndexInspection{Name: index.Name, Columns: index.Columns, Unique: index.Unique})
+			}
+		}
+		if scope.GroupLayout != nil && scope.GroupLayout.Partition != nil && table == scope.GroupLayout.TableName {
+			evidence, err := h.timescaleEvidence(ctx, scope, result.Status == dbtarget.TableInspectionExists)
+			if err != nil {
+				return recordingplan.TargetTableInspection{}, err
+			}
+			state.Timescale = evidence
+		}
 		return state, h.checkScope(ctx, id, req, scope)
 	}
+}
+
+// timescaleEvidence reads, without changing anything, whether the destination
+// can prepare a hypertable and, for a table that exists, what the catalog says
+// it is. It is read again at confirmation and after execution, so the evidence
+// the operation records is the destination's, not the preview's.
+func (h *StudioV2WorkspaceWriteGroupSchemaHandler) timescaleEvidence(ctx context.Context, scope recordingplan.SchemaPreviewScope, exists bool) (*recordingplan.TargetTimescaleEvidence, error) {
+	capability, err := h.inspector.ProbeTimescaleAtRevision(ctx, scope.ConnectorID, scope.ConnectorRevision, scope.Schema)
+	if err != nil {
+		return nil, err
+	}
+	evidence := &recordingplan.TargetTimescaleEvidence{
+		Available: capability.Available, Reasons: capability.Reasons, ExtensionSchema: capability.ExtensionSchema, Version: capability.Version,
+	}
+	if !exists {
+		return evidence, nil
+	}
+	hypertable, err := h.inspector.InspectHypertableAtRevision(ctx, scope.ConnectorID, scope.ConnectorRevision, scope.Schema, scope.GroupLayout.TableName)
+	if err != nil {
+		return nil, err
+	}
+	if hypertable != nil {
+		evidence.Hypertable = &recordingplan.TargetHypertable{
+			TimeColumn: hypertable.TimeColumn, ChunkInterval: hypertable.ChunkInterval, Dimensions: hypertable.Dimensions,
+			CompressionEnabled: hypertable.CompressionEnabled, Jobs: hypertable.Jobs,
+		}
+	}
+	return evidence, nil
 }
 
 func renderGroupSchemaError(c *gin.Context, err error, op *recordingplan.SchemaOperation) {
@@ -236,6 +296,8 @@ func renderGroupSchemaError(c *gin.Context, err error, op *recordingplan.SchemaO
 		renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "WRITE_GROUP_INTERNAL_DATABASE", "recording requires a distinct application-owned destination", false, "select_recording_destination")
 	case errors.Is(err, dbtarget.ErrManagedDestinationInvalid):
 		renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "WRITE_GROUP_DESTINATION_INVALID", "the saved recording destination cannot be verified", false, "select_recording_destination")
+	case errors.Is(err, recordingplan.ErrTimescaleUnavailable):
+		renderTimescaleUnavailable(c, err)
 	case errors.Is(err, recordingplan.ErrIncompatibleExistingTable):
 		renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "RECORDING_SCHEMA_INCOMPATIBLE", "an existing managed table is incompatible or has unverified ownership", false, "select_new_managed_table_or_advanced_table")
 	case errors.Is(err, workspace.ErrWriteGroupValidation), errors.Is(err, workspace.ErrWriteGroupNotFound), errors.Is(err, workspace.ErrWriteGroupRevisionConflict), errors.Is(err, workspace.ErrSetupRevisionConflict), errors.Is(err, workspace.ErrWriteGroupSourceRevisionConflict):

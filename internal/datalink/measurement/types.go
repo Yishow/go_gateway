@@ -55,6 +55,13 @@ type CounterPolicy struct {
 	ResetThreshold *float64 `json:"reset_threshold,omitempty"`
 	MaxRollOver    *float64 `json:"max_roll_over,omitempty"`
 	AllowNegative  bool     `json:"allow_negative"`
+	// RolloverModulus and MaxRatePerSecond are the exact, confirmed evidence that
+	// lets a counter's drop be read as one wrap. They are decimal text, never JSON
+	// numbers: a number would pass through a float64 on the way in and lose the
+	// digits this evidence exists to keep. They are independent of the legacy
+	// float MaxRollOver, which is kept as saved and never converted into them.
+	RolloverModulus  string `json:"rollover_modulus,omitempty"`
+	MaxRatePerSecond string `json:"max_rate_per_second,omitempty"`
 }
 
 // MeasurementDefinition 記錄逐項量測的完整物理意義、語意、單位與身份。
@@ -100,7 +107,7 @@ func (m *MeasurementDefinition) Validate() error {
 	if strings.TrimSpace(m.EquipmentID) == "" {
 		m.EquipmentID = m.DeviceID
 	}
-	return nil
+	return m.CounterPolicy.validateExactRollover(m.SemanticKind, m.NumericEncoding)
 }
 
 // SampleEnvelope 採集樣本的統一信封契約。

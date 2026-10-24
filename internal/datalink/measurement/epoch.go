@@ -44,6 +44,12 @@ func CheckEpochTransition(oldDef, newDef MeasurementDefinition) (changed bool, e
 		if !floatPtrEqual(oldDef.CounterPolicy.ResetThreshold, newDef.CounterPolicy.ResetThreshold) {
 			reasons = append(reasons, "counter policy reset_threshold changed")
 		}
+		if !sameExactText(oldDef.CounterPolicy.RolloverModulus, newDef.CounterPolicy.RolloverModulus) {
+			reasons = append(reasons, "counter policy rollover_modulus changed")
+		}
+		if !sameExactText(oldDef.CounterPolicy.MaxRatePerSecond, newDef.CounterPolicy.MaxRatePerSecond) {
+			reasons = append(reasons, "counter policy max_rate_per_second changed")
+		}
 	}
 
 	if len(reasons) == 0 {

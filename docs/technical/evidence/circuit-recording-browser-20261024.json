@@ -1,0 +1,252 @@
+{
+  "change": "add-circuit-recording-profiles",
+  "task": "5.2",
+  "captured_at": "2026-10-24T15:38:23.662969+00:00",
+  "environment": {
+    "source": "real loopback Modbus TCP simulator; mutable uint16 registers",
+    "gateway": "normal cmd/test_ui --headless, dedicated SQLite configuration/journal",
+    "frontend": "Vite dev server and built bundle verified separately",
+    "browser": "dedicated agent-browser Chromium headless shell; isolated session; zh-TW i18next preference",
+    "viewports": [
+      [
+        1600,
+        1000
+      ],
+      [
+        1280,
+        800
+      ]
+    ],
+    "destination": "disposable SQLite file distinct from gateway journal",
+    "network": "127.0.0.1 only"
+  },
+  "ui_pass": [
+    "device test; two rules; eight mappings saved through real UI",
+    "independent instantaneous and cumulative source selection",
+    "zero interval rejected without mutation",
+    "native focused checkbox Space true -> false -> true",
+    "individual explicit schema confirmation; preview left destination without tables",
+    "recording-start succeeded; actual collector -> journal -> outbox -> sender -> SQLite",
+    "only selected circuit B instantaneous period 15 -> 30; all three unselected groups byte-equal",
+    "reload preserved IDs and period 30",
+    "legacy panel prepare-only target; no Start button or direct Apply",
+    "reviewed forward cutover and rollback from actual host",
+    "automatic recreation generation 2 and visible lost-history warning"
+  ],
+  "fixtures_disclosed": {
+    "legacy_wide": "Created, schema-confirmed and started using public APIs solely as an old-configuration prerequisite. Cutover/rollback operated through real browser UI.",
+    "datetime_input": "CLI fill did not populate native segmented datetime field; native HTMLInputElement setter plus input/change events supplied the same UI field; review/confirm used real UI.",
+    "language": "Dedicated browser localStorage preference set to zh-TW; settings dropdown was not treated as proof of i18next switching."
+  },
+  "sql_readback": {
+    "first_baseline": {
+      "group_id": "b5bffe61-6904-4503-9987-35645d2759f9",
+      "group_revision": "10132642-1879-4cb9-8f14-d2b10e3714e7",
+      "record_id": "a11ac993f8c339c13453872daa7bf4f59ccd52d8a967e8c53cdbaa50ab8238fc",
+      "bucket_start": "2026-10-24T15:11:00.000000Z",
+      "bucket_end": "2026-10-24T15:12:00.000000Z",
+      "profile_kind": "cumulative",
+      "status": "baseline",
+      "value_decimal": "9007199254740993",
+      "delta_value": null,
+      "delta_from": null,
+      "delta_to": null,
+      "observed_at": "2026-10-24T15:11:59.478543Z",
+      "provenance": "{\"type\":\"uint64\",\"member\":\"[\\\"dev-1792853097063-259\\\",\\\"f7cf45ad-e62f-4853-90aa-356eef356284\\\",\\\"389d5bb5-195c-4190-85e7-76735db7e7d4\\\"]\",\"reason\":\"first-reading\",\"sample_id\":\"f1d79ceece4e832f4a9cc79ec2787e7dd39d2c9502dbb13f283c36c843dde4a3\",\"source_revision\":\"5fc2681f33912bf0ba44d49d48296533badae2abf81007ec181c75738284c563\",\"mapping_revision\":\"7df4467af5b553e49566c325432ea6800aed304276243a7ea823f6a9ae670375\",\"profile\":{\"kind\":\"cumulative\",\"interval\":1,\"unit\":\"minute\"},\"counter\":{\"kind\":\"counter\",\"definition_revision\":\"rev-1\",\"source_binding_revision\":\"rev-1\",\"profile_revision\":\"10132642-1879-4cb9-8f14-d2b10e3714e7\"}}"
+    },
+    "exact_delta": {
+      "group_id": "b5bffe61-6904-4503-9987-35645d2759f9",
+      "group_revision": "10132642-1879-4cb9-8f14-d2b10e3714e7",
+      "record_id": "e596dbfdd2baf3718be842bf98b486f0987c7c15119475a0e3b1cab8591caa4c",
+      "bucket_start": "2026-10-24T15:12:00.000000Z",
+      "bucket_end": "2026-10-24T15:13:00.000000Z",
+      "profile_kind": "cumulative",
+      "status": "ok",
+      "value_decimal": "9007199254740994",
+      "delta_value": "1",
+      "delta_from": "2026-10-24T15:11:59.478543Z",
+      "delta_to": "2026-10-24T15:12:59.478624Z",
+      "observed_at": "2026-10-24T15:12:59.478624Z",
+      "provenance": "{\"type\":\"uint64\",\"member\":\"[\\\"dev-1792853097063-259\\\",\\\"f7cf45ad-e62f-4853-90aa-356eef356284\\\",\\\"389d5bb5-195c-4190-85e7-76735db7e7d4\\\"]\",\"sample_id\":\"359211051ba93ac01a68d769e9c886622d56591b7fdcf7a7cc6f6735f8215539\",\"source_revision\":\"5fc2681f33912bf0ba44d49d48296533badae2abf81007ec181c75738284c563\",\"mapping_revision\":\"7df4467af5b553e49566c325432ea6800aed304276243a7ea823f6a9ae670375\",\"profile\":{\"kind\":\"cumulative\",\"interval\":1,\"unit\":\"minute\"},\"counter\":{\"kind\":\"counter\",\"basis\":\"exact\",\"baseline_sample_id\":\"f1d79ceece4e832f4a9cc79ec2787e7dd39d2c9502dbb13f283c36c843dde4a3\",\"end_sample_id\":\"359211051ba93ac01a68d769e9c886622d56591b7fdcf7a7cc6f6735f8215539\",\"definition_revision\":\"rev-1\",\"source_binding_revision\":\"rev-1\",\"profile_revision\":\"10132642-1879-4cb9-8f14-d2b10e3714e7\"}}"
+    },
+    "forward_first_window": {
+      "group_id": "5c99573a-418c-4211-ad5e-eb82d8965989",
+      "group_revision": "37476d11-5c40-4976-bd74-acf44bd83887",
+      "record_id": "cd6eaf87526b6693bf42e4cc9fe192a1373b297d1f957eca4d0be056d8523571",
+      "bucket_start": "2026-10-24T15:26:07.000000Z",
+      "bucket_end": "2026-10-24T15:26:15.000000Z",
+      "profile_kind": "instantaneous",
+      "status": "partial",
+      "value_decimal": "32",
+      "delta_value": null,
+      "delta_from": null,
+      "delta_to": null,
+      "observed_at": "2026-10-24T15:26:14.485884Z",
+      "provenance": "{\"type\":\"uint64\",\"member\":\"[\\\"dev-1792853097063-259\\\",\\\"3ede812d-c06a-4ca8-bbb4-72399d81877c\\\",\\\"3e905a6d-511e-4764-bc5f-0bbf8d822cc7\\\"]\",\"sample_id\":\"aaf449e7d7ecf829c55ffc062fbf2c24cba3a21f7fdcb052b3f9a18839d97ca7\",\"source_revision\":\"b8f987345b861ee5f85c9948f8f53f717df315abd7a959794f130bc59ecc353f\",\"mapping_revision\":\"2de800494f843d8d9b08cc6ee275933d957dae894bcde609b55add824efaab70\",\"profile\":{\"kind\":\"instantaneous\",\"interval\":15,\"unit\":\"second\"},\"window\":{\"truncated\":\"start\",\"start\":\"2026-10-24T15:26:07.000000Z\",\"end\":\"2026-10-24T15:26:15.000000Z\",\"nominal_start\":\"2026-10-24T15:26:00.000000Z\",\"nominal_end\":\"2026-10-24T15:26:15.000000Z\"}}"
+    },
+    "rollback_last_long_window": {
+      "group_id": "5c99573a-418c-4211-ad5e-eb82d8965989",
+      "group_revision": "37476d11-5c40-4976-bd74-acf44bd83887",
+      "record_id": "e63f23a11754dce6262fd9e38834a0b210b72056ebbe9cf1de579413cba27465",
+      "bucket_start": "2026-10-24T15:28:00.000000Z",
+      "bucket_end": "2026-10-24T15:28:11.000000Z",
+      "profile_kind": "instantaneous",
+      "status": "partial",
+      "value_decimal": "32",
+      "delta_value": null,
+      "delta_from": null,
+      "delta_to": null,
+      "observed_at": "2026-10-24T15:28:10.486443Z",
+      "provenance": "{\"type\":\"uint64\",\"member\":\"[\\\"dev-1792853097063-259\\\",\\\"3ede812d-c06a-4ca8-bbb4-72399d81877c\\\",\\\"3e905a6d-511e-4764-bc5f-0bbf8d822cc7\\\"]\",\"sample_id\":\"d76e1e3dcf3ca2377c4dc7e816fc9320fde11ee388deca1b28a74a155ff9d700\",\"source_revision\":\"b8f987345b861ee5f85c9948f8f53f717df315abd7a959794f130bc59ecc353f\",\"mapping_revision\":\"2de800494f843d8d9b08cc6ee275933d957dae894bcde609b55add824efaab70\",\"profile\":{\"kind\":\"instantaneous\",\"interval\":15,\"unit\":\"second\"},\"window\":{\"truncated\":\"end\",\"start\":\"2026-10-24T15:28:00.000000Z\",\"end\":\"2026-10-24T15:28:11.000000Z\",\"nominal_start\":\"2026-10-24T15:28:00.000000Z\",\"nominal_end\":\"2026-10-24T15:28:15.000000Z\"}}"
+    },
+    "wide_history_rows_at_rollback": 10,
+    "wide_cut_windows": [
+      {
+        "group_id": "4c1a230a-f3bf-401a-9490-00f9de427dbf",
+        "record_id": "001cf777aee01e8a85e3aea44573c47ad247b3f3a842e04953f6bbc6c34e906b",
+        "bucket_start": "2026-10-24T15:26:00Z",
+        "provenance": "[{\"member\":\"[\\\"dev-1792853097063-259\\\",\\\"3ede812d-c06a-4ca8-bbb4-72399d81877c\\\",\\\"3e905a6d-511e-4764-bc5f-0bbf8d822cc7\\\"]\",\"status\":\"ok\",\"sample_id\":\"ab26ad86caa31a44e305e607cb645a3c5571c2f6502fb7ea7b8f850d30688945\",\"observed_at\":\"2026-10-24T15:26:06.485874Z\",\"quality\":\"good\",\"window\":{\"truncated\":\"end\",\"start\":\"2026-10-24T15:26:00.000000Z\",\"end\":\"2026-10-24T15:26:07.000000Z\",\"nominal_start\":\"2026-10-24T15:26:00.000000Z\",\"nominal_end\":\"2026-10-24T15:26:15.000000Z\"}}]"
+      },
+      {
+        "group_id": "4c1a230a-f3bf-401a-9490-00f9de427dbf",
+        "record_id": "852c651b4a748cc2ea72f28a7c6c9e2866ace10dd70ef4920d907a25e3a4b657",
+        "bucket_start": "2026-10-24T15:28:11Z",
+        "provenance": "[{\"member\":\"[\\\"dev-1792853097063-259\\\",\\\"3ede812d-c06a-4ca8-bbb4-72399d81877c\\\",\\\"3e905a6d-511e-4764-bc5f-0bbf8d822cc7\\\"]\",\"status\":\"ok\",\"sample_id\":\"b251f47e2c8bf0a8c56c793afe8fc9dfb3604746257608db23896783985ea04d\",\"observed_at\":\"2026-10-24T15:28:14.486795Z\",\"quality\":\"good\",\"window\":{\"truncated\":\"start\",\"start\":\"2026-10-24T15:28:11.000000Z\",\"end\":\"2026-10-24T15:28:15.000000Z\",\"nominal_start\":\"2026-10-24T15:28:00.000000Z\",\"nominal_end\":\"2026-10-24T15:28:15.000000Z\"}}]"
+      }
+    ],
+    "post_reconstruction_exact_delta": {
+      "group_id": "b5bffe61-6904-4503-9987-35645d2759f9",
+      "group_revision": "10132642-1879-4cb9-8f14-d2b10e3714e7",
+      "record_id": "aa742bcf3037ae0c60d803d7829606f4507189ddc5279d957190a8116b51e632",
+      "bucket_start": "2026-10-24T15:29:00.000000Z",
+      "bucket_end": "2026-10-24T15:30:00.000000Z",
+      "profile_kind": "cumulative",
+      "status": "ok",
+      "value_decimal": "9007199254740995",
+      "delta_value": "1",
+      "delta_from": "2026-10-24T15:28:59.486705Z",
+      "delta_to": "2026-10-24T15:29:59.487262Z",
+      "observed_at": "2026-10-24T15:29:59.487262Z",
+      "provenance": "{\"type\":\"uint64\",\"member\":\"[\\\"dev-1792853097063-259\\\",\\\"f7cf45ad-e62f-4853-90aa-356eef356284\\\",\\\"389d5bb5-195c-4190-85e7-76735db7e7d4\\\"]\",\"sample_id\":\"5d7ecd60e909d5f3aabfb0327599e8fdf2bafd4fbf59bd1cf4ece2b522933fa9\",\"source_revision\":\"5fc2681f33912bf0ba44d49d48296533badae2abf81007ec181c75738284c563\",\"mapping_revision\":\"7df4467af5b553e49566c325432ea6800aed304276243a7ea823f6a9ae670375\",\"profile\":{\"kind\":\"cumulative\",\"interval\":1,\"unit\":\"minute\"},\"counter\":{\"kind\":\"counter\",\"basis\":\"exact\",\"baseline_sample_id\":\"4c6e27faf1f991d843786b4af9110f93083ee028d1dabad563271aede6062b1f\",\"end_sample_id\":\"5d7ecd60e909d5f3aabfb0327599e8fdf2bafd4fbf59bd1cf4ece2b522933fa9\",\"definition_revision\":\"rev-1\",\"source_binding_revision\":\"rev-1\",\"profile_revision\":\"10132642-1879-4cb9-8f14-d2b10e3714e7\"}}"
+    },
+    "generation": 2,
+    "history_may_be_lost": true,
+    "reconstructions": 1,
+    "receipts_before_removal": 186,
+    "receipts_after_reconstruction": 320
+  },
+  "verification": {
+    "frontend": {
+      "files": 260,
+      "tests_passed": 1812,
+      "failed": 0,
+      "skipped": 0
+    },
+    "go_packages": {
+      "go-gateway/internal/datalink/workspace": {
+        "status": "pass",
+        "seconds": 6.917
+      },
+      "go-gateway/internal/datalink/measurement": {
+        "status": "pass",
+        "seconds": 0.295
+      },
+      "go-gateway/internal/datalink/recordingplan": {
+        "status": "pass",
+        "seconds": 1.047
+      },
+      "go-gateway/internal/datalink/dbtarget": {
+        "status": "pass",
+        "seconds": 13.853
+      },
+      "go-gateway/internal/datalink/runtime": {
+        "status": "pass",
+        "seconds": 22.571
+      },
+      "go-gateway/internal/datalink/grouppipeline": {
+        "status": "pass",
+        "seconds": 8.246
+      },
+      "go-gateway/internal/datalink/groupdelivery": {
+        "status": "pass",
+        "seconds": 24.13
+      },
+      "go-gateway/internal/datalink/snapshot": {
+        "status": "pass",
+        "seconds": 0.269
+      },
+      "go-gateway/internal/datalink/aggregation": {
+        "status": "pass",
+        "seconds": 0.271
+      },
+      "go-gateway/cmd/test_ui": {
+        "status": "pass",
+        "seconds": 20.234
+      },
+      "go-gateway/internal/api": {
+        "status": "pass",
+        "seconds": 295.548
+      }
+    },
+    "go_skips_not_pass": [
+      "go-gateway/internal/datalink/groupdelivery::TestCrashChildProcess",
+      "go-gateway/cmd/test_ui::TestProductionEntityRowsSQLAndFrozenRestart/sqlite/quoted-distinct",
+      "go-gateway/cmd/test_ui::TestProductionLifecycleCrashChild",
+      "go-gateway/internal/api::TestTimescaleUnavailableBlocksWithoutChange"
+    ],
+    "api_baseline_excluded": "TestStudioV2RecordingRoutes_PostgresApplyCreatesAndVerifiesTheManagedSchema",
+    "lint_remaining_unrelated": "internal/api/router_logger.go:109 gocritic ifElseChain",
+    "no_extension_phase": {"environment":{"catalog":[{"container":"gw-root-pg18-52-1e0588","catalog":"18.6|absent|0"},{"container":"gw-ts-6","catalog":"17.11|2.31.0|0"}],"images":[{"image":"timescale/timescaledb:latest-pg17","id":"sha256:b56a3f51991df1f79d0c1a0841cad5c5fa8058fdd6a3ee6886394a6d4c174538","digests":["timescale/timescaledb@sha256:b56a3f51991df1f79d0c1a0841cad5c5fa8058fdd6a3ee6886394a6d4c174538"],"architecture":"arm64"},{"image":"postgres:18-alpine","id":"sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873","digests":["postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873"],"architecture":"arm64"}],"go":"go version go1.27.3 darwin/arm64","pg18_fixture_removed":"gw-root-pg18-52-1e0588"},"cases":[{"Package":"go-gateway/internal/datalink/dbtarget","Test":"TestTimescaleCapabilityGate/a_destination_without_the_extension_is_unavailable_and_nothing_is_installed","Action":"pass"},{"Package":"go-gateway/internal/datalink/dbtarget","Test":"TestTimescaleCapabilityGate/functions_with_the_same_names_are_not_the_extension","Action":"pass"},{"Package":"go-gateway/internal/datalink/dbtarget","Test":"TestTimescaleCapabilityGate/an_installed_extension_with_the_generalized_API_is_capable","Action":"skip"},{"Package":"go-gateway/internal/datalink/dbtarget","Test":"TestTimescaleCapabilityGate/the_extension's_own_schema_is_used,_never_a_same-named_function_elsewhere","Action":"skip"},{"Package":"go-gateway/internal/datalink/dbtarget","Test":"TestTimescaleCapabilityGate/same-named_functions_the_role_cannot_execute_do_not_count_against_the_extension","Action":"skip"},{"Package":"go-gateway/internal/datalink/dbtarget","Test":"TestTimescaleCapabilityGate/a_role_that_can_create_in_the_target_schema_but_not_use_it_is_not_capable","Action":"skip"},{"Package":"go-gateway/internal/datalink/dbtarget","Test":"TestTimescaleCapabilityGate/missing_rights_name_their_reason","Action":"skip"},{"Package":"go-gateway/internal/datalink/dbtarget","Test":"TestTimescaleCapabilityGate","Action":"pass"},{"Package":"go-gateway/internal/api","Test":"TestTimescaleUnavailableBlocksWithoutChange","Action":"pass"}],"leaves":{"pass":3,"fail":0,"skip":5},"all_extension_skips_passed_in_timescale_run":true},
+    "additional_policy_confirmation": {
+      "sqlite": "PASS",
+      "postgres17_plain": "PASS",
+      "test": "TestManagedWidePolicyEditRequiresNoChangeConfirmation"
+    },
+    "index_state": {
+      "root_performed_stage_or_reset": false,
+      "earlier_cached_sha256": "84fdcee5ce0d16cd2753949278021e3fb4d542b98dd41872778f61a47e701f62",
+      "later_observed_cached_sha256": "8759b44c0eb6722f68fbf60a9446380a6c101152da99da0ddde314981cb99679",
+      "action": "preserved later observed staging; no reset"
+    }
+  },
+  "screenshots_sha256": {
+    "docs/technical/evidence/circuit-recording-20261024/final-batch-preview.png": "cb58cb92f4e9087bc7ec06afb4829120e4e857abf7c7a5f310ca69bfcad64f12",
+    "docs/technical/evidence/circuit-recording-20261024/final-cutover-history.png": "afc2da5b16f3d68533e36194b5a975fe6bbac6baf709f50218c3f2fe4ee55cdb",
+    "docs/technical/evidence/circuit-recording-20261024/final-prepare-only.png": "1907f65daf01ab9d8562540984d5a4dca4c73d97a36339da5ceeeaf69b9a00d9",
+    "docs/technical/evidence/circuit-recording-20261024/final-reconstruction-warning.png": "68a78df3b82df09df0edeb4c2ae683dccce3ee1d1977abf3045e20fd5346542a"
+  },
+  "not_run": [
+    "physical PLC / field LAN / production database",
+    "Windows native UI",
+    "browser Timescale destination (Timescale tested through real DB matrix)",
+    "API known baseline was explicitly excluded rather than reported passing"
+  ],
+  "source_sha256": {
+    "frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts": "ba887837a7de43ff4280debb0673a84ad07f526406497bc618f2bc80d94cc288",
+    "frontend/src/features/datalink/workbench-v2/state/circuitProfileBasic.ts": "b199c6f4ac9d18107100c2b17b981534de01d154254e1c0d057f16a3f6052c18",
+    "frontend/src/features/datalink/workbench-v2/steps/step4/CircuitProfileBasicPanel.tsx": "48bed6cabf1632590bd4192487964037e7b91c95eb0ddf93072669d266a9ff4e",
+    "frontend/src/features/datalink/workbench-v2/steps/step4/useCircuitProfileStart.ts": "fe2d3dc70988327de1b5d42160adbd23bd7fa1f5e024eb80c617ae53610475c5",
+    "frontend/src/features/datalink/workbench-v2/steps/step4/CircuitProfileStatusView.tsx": "3d115cf2485649d01c40960b24ea95b82aff7983ed2bb262485bbf30352aad4b",
+    "internal/datalink/workspace/write_group_readiness_partial.go": "dcc8502a558aa01f25522d75538f89b4fea550c293d9dd475f5b352e82d2dc6d"
+  },
+  "cleanup": {
+    "gateway": {
+      "owned_pid": 24012,
+      "sigterm": true
+    },
+    "frontend": {
+      "owned_pid": 24013,
+      "sigterm": true
+    },
+    "owned_ports_closed": [
+      59362,
+      59363,
+      59364
+    ],
+    "fixture_files": "retained privately for readback review",
+    "screenshot_files_retained": 4,
+    "gw_ts_6_preserved_running": true,
+    "leftover_gw_test_schemas": 0
+  },
+  "screenshot_capture_note": "Initial seven screenshots were absent at final link verification. Four current real-UI screenshots were recaptured, independently byte-copied after closing the dedicated browser, and checked again after stopping owned services. The replacement batch screenshot is a read-only 30 -> 45 preview cancelled without mutation; original 15 -> 30 assertions remain in SQL/API readback evidence."
+}

@@ -24,6 +24,13 @@ type writeGroupReadinessSnapshot struct {
 }
 
 func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGroupReadiness, error) {
+	return s.readinessOf(ctx, id, nil)
+}
+
+// readinessOf evaluates a group's readiness. With content set, that content is
+// evaluated instead of the saved row: the group as it would be after a
+// rollback, against the same live sources, tags and destination.
+func (s *WriteGroupService) readinessOf(ctx context.Context, id string, content *WriteGroup) (*WriteGroupReadiness, error) {
 	if err := s.validate(); err != nil {
 		return nil, err
 	}
@@ -31,11 +38,11 @@ func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGro
 	if id == "" {
 		return nil, writeGroupNotFound("read write-group readiness")
 	}
-	snapshot, err := s.readinessSnapshot(ctx, id)
+	snapshot, err := s.readinessSnapshot(ctx, id, content)
 	if err != nil {
 		return nil, err
 	}
-	result := newWriteGroupReadiness(snapshot.record, snapshot.group)
+	result := s.newSnapshotReadiness(ctx, snapshot)
 	if snapshot.validateErr != nil {
 		if issue, ok := writeGroupReadinessValidationIssue(snapshot.validateErr, id); ok {
 			result.Issues = append(result.Issues, issue)
@@ -107,6 +114,13 @@ func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGro
 			snapshot.validated.Destination.TableName,
 		)
 	}
+	if managedCanonical && inspectErr == nil && snapshot.validated.isLongLayout() &&
+		inspection != nil && inspection.Status == dbtarget.TableInspectionExists {
+		inspectErr = s.attachManagedIndexes(ctx, snapshot.validated, inspection)
+		if inspectErr == nil && snapshot.validated.StorageMode == WriteGroupStorageModeTimescale {
+			inspectErr = s.attachManagedHypertable(ctx, snapshot.validated, inspection)
+		}
+	}
 	if managedCanonical && inspectErr == nil {
 		allowed, issue := allowWriteGroupTableInspection(snapshot)
 		if !allowed {
@@ -135,12 +149,12 @@ func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGro
 			) == nil
 		}
 	}
-	postSnapshot, err := s.readinessSnapshot(ctx, id)
+	postSnapshot, err := s.readinessSnapshot(ctx, id, content)
 	if err != nil {
 		return nil, err
 	}
 	if !sameWriteGroupReadinessSnapshot(snapshot, postSnapshot) {
-		result = newWriteGroupReadiness(postSnapshot.record, postSnapshot.group)
+		result = s.newSnapshotReadiness(ctx, postSnapshot)
 		if postSnapshot.validateErr != nil {
 			result.ConfigReady = false
 			result.SchemaReady = false
@@ -188,11 +202,14 @@ func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGro
 			return nil, fmt.Errorf("digest write-group schema readiness: %w", err)
 		}
 		result.runtimeLayout.SchemaDigest = result.SchemaDigest
+		if postSnapshot.validated.StorageMode == WriteGroupStorageModeTimescale {
+			result.runtimeLayout.Hypertable = freezeHypertableEvidence(inspection.Hypertable)
+		}
 	}
 	return finalizeWriteGroupReadiness(result), nil
 }
 
-func (s *WriteGroupService) readinessSnapshot(ctx context.Context, id string) (result *writeGroupReadinessSnapshot, err error) {
+func (s *WriteGroupService) readinessSnapshot(ctx context.Context, id string, content *WriteGroup) (result *writeGroupReadinessSnapshot, err error) {
 	store, ok := s.workspaceSvc.repo.(DatabaseSetupStore)
 	if !ok {
 		return nil, ErrWriteGroupReadinessUnavailable
@@ -218,6 +235,9 @@ func (s *WriteGroupService) readinessSnapshot(ctx context.Context, id string) (r
 	if err != nil {
 		return nil, normalizeWriteGroupServiceError("read write-group readiness", err)
 	}
+	if content != nil {
+		group = cloneWriteGroup(content)
+	}
 	validated := cloneWriteGroup(group)
 	validationErr := s.repo.validate(ctx, setupTx.SQLTx(), validated)
 	tagTypes := map[string]schema.DataType{}
@@ -240,23 +260,6 @@ func (s *WriteGroupService) readinessSnapshot(ctx context.Context, id string) (r
 		tagTypes: tagTypes, connectorKind: connectorKind, connectorConfig: connectorConfig,
 		validateErr: validationErr,
 	}, nil
-}
-
-func newWriteGroupReadiness(record *Record, group *WriteGroup) *WriteGroupReadiness {
-	return &WriteGroupReadiness{
-		WorkspaceID: record.ID, WorkspaceRevision: record.DatabaseSetupRevision,
-		GroupID: group.ID, GroupRevision: group.Revision, AppliedRevision: group.AppliedRevision,
-		Issues: []ReadinessIssue{},
-	}
-}
-
-func finalizeWriteGroupReadiness(readiness *WriteGroupReadiness) *WriteGroupReadiness {
-	readiness.Ready = readiness.ConfigReady && readiness.SchemaReady && len(readiness.Issues) == 0
-	return readiness
-}
-
-func writeGroupReadinessResult(readiness *WriteGroupReadiness) (*WriteGroupReadiness, error) {
-	return readiness, nil
 }
 
 func validateBasicWriteGroupConfig(group *WriteGroup) []ReadinessIssue {

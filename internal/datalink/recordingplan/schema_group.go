@@ -1,7 +1,6 @@
 package recordingplan
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -14,6 +13,12 @@ const (
 	managedOwnerDefault        = "gateway"
 	managedTextSQLType         = "TEXT"
 	managedNumericSQLType      = "NUMERIC"
+
+	sqlTypeInteger         = "INTEGER"
+	sqlTypeBoolean         = "BOOLEAN"
+	sqlTypeBigint          = "BIGINT"
+	sqlTypeDoublePrecision = "DOUBLE PRECISION"
+	sqlTypeTimestamptz     = "TIMESTAMPTZ"
 )
 
 // ManagedEffectReceiptTable is the shared receipt table created by a
@@ -27,14 +32,17 @@ var (
 )
 
 var allowedGroupSQLTypes = map[string]struct{}{
-	managedTextSQLType: {},
-	"INTEGER":          {},
-	"REAL":             {},
-	"BOOLEAN":          {},
-	"BIGINT":           {},
-	"DOUBLE PRECISION": {},
-	"NUMERIC(20,0)":    {},
-	"TIMESTAMPTZ":      {},
+	managedTextSQLType:     {},
+	sqlTypeInteger:         {},
+	"REAL":                 {},
+	sqlTypeBoolean:         {},
+	sqlTypeBigint:          {},
+	sqlTypeDoublePrecision: {},
+	"NUMERIC(20,0)":        {},
+	sqlTypeTimestamptz:     {},
+	// The long layout keeps decimals and deltas unbounded and provenance as JSON.
+	managedNumericSQLType: {},
+	"JSONB":               {},
 }
 
 // ValidateGroupSchemaLayout normalizes and validates the server-provided
@@ -84,7 +92,85 @@ func ValidateGroupSchemaLayout(layout GroupSchemaLayout) (GroupSchemaLayout, err
 		return GroupSchemaLayout{}, fmt.Errorf("%w: owner column is not in columns", ErrInvalidGroupSchemaLayout)
 	}
 	layout.Columns = columns
+	indexes, err := validateGroupSchemaIndexes(layout, seen)
+	if err != nil {
+		return GroupSchemaLayout{}, err
+	}
+	layout.Indexes = indexes
+	if layout.Partition != nil {
+		if err := validateGroupPartition(layout); err != nil {
+			return GroupSchemaLayout{}, err
+		}
+	}
 	return layout, nil
+}
+
+// validateGroupPartition accepts exactly the documented timescale partition: the
+// seven-day interval on the non-null bucket_start primary-key column, so the
+// unique key always includes the dimension TimescaleDB requires. Anything else
+// is a layout nobody confirmed.
+func validateGroupPartition(layout GroupSchemaLayout) error {
+	partition := layout.Partition
+	invalid := func(reason string) error { return fmt.Errorf("%w: partition %s", ErrInvalidGroupSchemaLayout, reason) }
+	if partition.Kind != PartitionKindTimescale {
+		return invalid("kind")
+	}
+	if partition.ChunkInterval != TimescaleChunkInterval {
+		return invalid("chunk interval")
+	}
+	if partition.ExtensionSchema != "" && !validGroupIdentifier(partition.ExtensionSchema) {
+		return invalid("extension schema")
+	}
+	for _, column := range layout.Columns {
+		if column.Name != partition.Column {
+			continue
+		}
+		if partition.Column != TimescalePartitionColumn || column.Nullable || !column.PrimaryKey || column.SQLType != sqlTypeTimestamptz {
+			return invalid("column")
+		}
+		return nil
+	}
+	return invalid("column")
+}
+
+// validateGroupSchemaIndexes normalizes the declared indexes. Names share the
+// table namespace of the target, so they must not collide with a table either.
+func validateGroupSchemaIndexes(layout GroupSchemaLayout, columns map[string]struct{}) ([]GroupSchemaIndex, error) {
+	if len(layout.Indexes) == 0 {
+		return nil, nil
+	}
+	indexes := make([]GroupSchemaIndex, len(layout.Indexes))
+	names := map[string]struct{}{strings.ToLower(layout.TableName): {}, managedEffectReceiptTable: {}}
+	for i, index := range layout.Indexes {
+		index.Name = strings.TrimSpace(index.Name)
+		if !validGroupIdentifier(index.Name) {
+			return nil, fmt.Errorf("%w: index name", ErrInvalidGroupSchemaLayout)
+		}
+		if _, exists := names[strings.ToLower(index.Name)]; exists {
+			return nil, fmt.Errorf("%w: duplicate index name %s", ErrInvalidGroupSchemaLayout, index.Name)
+		}
+		names[strings.ToLower(index.Name)] = struct{}{}
+		if len(index.Columns) == 0 {
+			return nil, fmt.Errorf("%w: index %s has no columns", ErrInvalidGroupSchemaLayout, index.Name)
+		}
+		seen := make(map[string]struct{}, len(index.Columns))
+		normalized := make([]string, len(index.Columns))
+		for j, column := range index.Columns {
+			column = strings.TrimSpace(column)
+			key := strings.ToLower(column)
+			if _, known := columns[key]; !known {
+				return nil, fmt.Errorf("%w: index %s uses an unknown column", ErrInvalidGroupSchemaLayout, index.Name)
+			}
+			if _, duplicate := seen[key]; duplicate {
+				return nil, fmt.Errorf("%w: index %s repeats a column", ErrInvalidGroupSchemaLayout, index.Name)
+			}
+			seen[key] = struct{}{}
+			normalized[j] = column
+		}
+		index.Columns = normalized
+		indexes[i] = index
+	}
+	return indexes, nil
 }
 
 func validGroupIdentifier(value string) bool {
@@ -105,17 +191,17 @@ func observedGroupSQLType(raw string) string {
 	value := normalizeGroupSQLType(raw)
 	switch value {
 	case "BOOL":
-		return "BOOLEAN"
+		return sqlTypeBoolean
 	case "INT", "INT4":
-		return "INTEGER"
+		return sqlTypeInteger
 	case "INT8":
-		return "BIGINT"
+		return sqlTypeBigint
 	case "FLOAT8", "DOUBLE":
-		return "DOUBLE PRECISION"
+		return sqlTypeDoublePrecision
 	case "DECIMAL":
 		return managedNumericSQLType
 	case "TIMESTAMP WITH TIME ZONE":
-		return "TIMESTAMPTZ"
+		return sqlTypeTimestamptz
 	default:
 		return value
 	}
@@ -124,7 +210,7 @@ func observedGroupSQLType(raw string) string {
 func groupSQLTypesCompatible(expected, actual string) bool {
 	expected = normalizeGroupSQLType(expected)
 	actual = observedGroupSQLType(actual)
-	if expected == "NUMERIC(20,0)" && actual == managedNumericSQLType {
+	if (expected == "NUMERIC(20,0)" || expected == managedNumericSQLType) && actual == managedNumericSQLType {
 		// Keep PostgreSQL's unconstrained NUMERIC equivalent for the exact-value
 		// codec; bounded precision and scale are preserved by the inspector.
 		return true
@@ -149,14 +235,31 @@ func GenerateGroupSchemaDDL(dialect string, layout GroupSchemaLayout) ([]string,
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedSchemaDialect, dialect)
 	}
+	if layout.Partition != nil {
+		if normalizePreviewDialect(dialect) != dialectPostgres {
+			return nil, fmt.Errorf("%w: a timescale partition needs PostgreSQL", ErrUnsupportedSchemaDialect)
+		}
+		if layout.Partition.ExtensionSchema == "" {
+			return nil, fmt.Errorf("%w: partition extension schema is unknown", ErrInvalidGroupSchemaLayout)
+		}
+	}
 
-	columnDefinitions := make([]string, 0, len(layout.Columns))
+	// One key column stays inline (the legacy form). Several key columns become a
+	// single table-level composite key; repeating inline PRIMARY KEY is invalid.
+	var keyColumns []string
+	for _, column := range layout.Columns {
+		if column.PrimaryKey {
+			keyColumns = append(keyColumns, quoteGroupIdentifier(column.Name))
+		}
+	}
+	inlineKey := len(keyColumns) == 1
+	columnDefinitions := make([]string, 0, len(layout.Columns)+1)
 	for _, column := range layout.Columns {
 		definition := quoteGroupIdentifier(column.Name) + " " + column.SQLType
 		if !column.Nullable {
 			definition += " NOT NULL"
 		}
-		if column.PrimaryKey {
+		if column.PrimaryKey && inlineKey {
 			definition += " PRIMARY KEY"
 		}
 		if column.Name == layout.OwnerColumn {
@@ -164,16 +267,37 @@ func GenerateGroupSchemaDDL(dialect string, layout GroupSchemaLayout) ([]string,
 		}
 		columnDefinitions = append(columnDefinitions, definition)
 	}
+	if len(keyColumns) > 1 {
+		columnDefinitions = append(columnDefinitions, "PRIMARY KEY ("+strings.Join(keyColumns, ", ")+")")
+	}
 	receiptDefinitions := []string{
 		quoteGroupIdentifier("effect_key") + " " + managedTextSQLType + " PRIMARY KEY",
 		quoteGroupIdentifier("payload_digest") + " " + managedTextSQLType + " NOT NULL",
 		quoteGroupIdentifier("committed_at") + " " + managedTextSQLType + " NOT NULL",
 		quoteGroupIdentifier(managedEffectReceiptMarker) + " " + managedTextSQLType + " NOT NULL DEFAULT '" + managedOwnerDefault + "'",
 	}
-	return []string{
-		"CREATE TABLE " + quoteGroupIdentifier(layout.TableName) + " (" + strings.Join(columnDefinitions, ", ") + ");",
-		"CREATE TABLE " + quoteGroupIdentifier(managedEffectReceiptTable) + " (" + strings.Join(receiptDefinitions, ", ") + ");",
-	}, nil
+	// Order: group table, its indexes, then the shared receipt table. Callers use
+	// the first and last entries and the indexes in between.
+	statements := []string{"CREATE TABLE " + quoteGroupIdentifier(layout.TableName) + " (" + strings.Join(columnDefinitions, ", ") + ");"}
+	if layout.Partition != nil {
+		// The table was created empty in this same batch, so there is nothing to
+		// migrate; if_not_exists is false so an existing hypertable can never turn
+		// into a silent success, and the default indexes are off so the table keeps
+		// exactly the confirmed key and index.
+		schema := quoteGroupIdentifier(layout.Partition.ExtensionSchema)
+		create, byRange := schema+"."+quoteGroupIdentifier("create_hypertable"), schema+"."+quoteGroupIdentifier("by_range")
+		statements = append(statements, "SELECT "+create+"('"+quoteGroupIdentifier(layout.TableName)+"'::regclass, "+
+			byRange+"('"+layout.Partition.Column+"'::name, INTERVAL '"+layout.Partition.ChunkInterval+"'), "+
+			"create_default_indexes => false, if_not_exists => false, migrate_data => false);")
+	}
+	for _, index := range layout.Indexes {
+		quoted := make([]string, len(index.Columns))
+		for i, column := range index.Columns {
+			quoted[i] = quoteGroupIdentifier(column)
+		}
+		statements = append(statements, "CREATE INDEX "+quoteGroupIdentifier(index.Name)+" ON "+quoteGroupIdentifier(layout.TableName)+" ("+strings.Join(quoted, ", ")+");")
+	}
+	return append(statements, "CREATE TABLE "+quoteGroupIdentifier(managedEffectReceiptTable)+" ("+strings.Join(receiptDefinitions, ", ")+");"), nil
 }
 
 func managedEffectReceiptColumns(dialect string) []GroupSchemaColumn {
@@ -184,160 +308,4 @@ func managedEffectReceiptColumns(dialect string) []GroupSchemaColumn {
 		{Name: "committed_at", SQLType: managedTextSQLType, Nullable: false},
 		{Name: managedEffectReceiptMarker, SQLType: managedTextSQLType, Nullable: false},
 	}
-}
-
-func prepareGroupSchemaPreview(ctx context.Context, scope SchemaPreviewScope, inspect TargetInspector) ([]string, []SchemaPreviewTable, error) {
-	_, _, tables, err := inspectGroupManagedTables(ctx, scope.Dialect, *scope.GroupLayout, inspect)
-	if err != nil {
-		return nil, nil, err
-	}
-	statements, err := groupSchemaStatements(scope.Dialect, *scope.GroupLayout, tables)
-	return statements, tables, err
-}
-
-func inspectGroupManagedTables(ctx context.Context, dialect string, layout GroupSchemaLayout, inspect TargetInspector) (pendingGroup, pendingReceipt bool, tables []SchemaPreviewTable, err error) {
-	groupState, inspectErr := inspect(ctx, layout.TableName)
-	if inspectErr != nil {
-		return false, false, nil, fmt.Errorf("%w: %s: %w", ErrTargetInspectionUnconfirmed, layout.TableName, inspectErr)
-	}
-	var added []GroupSchemaColumn
-	if groupState.Status == inspectionExists {
-		added, inspectErr = inspectGroupExtension(groupState, layout)
-		pendingGroup = len(added) > 0
-	} else {
-		pendingGroup, inspectErr = inspectGroupTable(layout.TableName, groupState, layout.Columns)
-	}
-	if inspectErr != nil {
-		return false, false, nil, inspectErr
-	}
-
-	receiptState, inspectErr := inspect(ctx, managedEffectReceiptTable)
-	if inspectErr != nil {
-		return false, false, nil, fmt.Errorf("%w: %s: %w", ErrTargetInspectionUnconfirmed, managedEffectReceiptTable, inspectErr)
-	}
-	pendingReceipt, inspectErr = inspectGroupTable(managedEffectReceiptTable, receiptState, managedEffectReceiptColumns(dialect))
-	if inspectErr != nil {
-		return false, false, nil, inspectErr
-	}
-
-	tables = []SchemaPreviewTable{
-		{Name: layout.TableName, Action: SchemaTableActionUnchanged},
-		{Name: managedEffectReceiptTable, Action: SchemaTableActionUnchanged},
-	}
-	if len(added) > 0 {
-		tables[0] = SchemaPreviewTable{Name: layout.TableName, Action: SchemaTableActionAddColumns, Columns: groupColumnNames(added)}
-	} else if pendingGroup {
-		tables[0] = SchemaPreviewTable{Name: layout.TableName, Action: SchemaTableActionCreate, Columns: groupColumnNames(layout.Columns)}
-	}
-	if pendingReceipt {
-		tables[1] = SchemaPreviewTable{Name: managedEffectReceiptTable, Action: SchemaTableActionCreate, Columns: groupColumnNames(managedEffectReceiptColumns(dialect))}
-	}
-	return pendingGroup, pendingReceipt, tables, nil
-}
-
-func inspectGroupTable(table string, state TargetTableInspection, expected []GroupSchemaColumn) (bool, error) {
-	switch state.Status {
-	case inspectionMissing:
-		return true, nil
-	case inspectionForbidden:
-		return false, fmt.Errorf("%w: %w: %s", ErrTargetInspectionUnconfirmed, ErrTargetPermissionDenied, table)
-	case inspectionExists:
-		if err := validateGroupInspection(state, expected); err != nil {
-			return false, fmt.Errorf("%s: %w", table, err)
-		}
-		return false, nil
-	default:
-		return false, fmt.Errorf("%w: %s is %s", ErrTargetInspectionUnconfirmed, table, state.Status)
-	}
-}
-
-func validateGroupInspection(state TargetTableInspection, expected []GroupSchemaColumn) error {
-	if state.ColumnTypes == nil || state.ColumnNullable == nil || state.ColumnPrimaryKey == nil {
-		return ErrTargetInspectionUnconfirmed
-	}
-	actualNames := make(map[string]struct{}, len(state.Columns))
-	for _, name := range state.Columns {
-		key := strings.ToLower(strings.TrimSpace(name))
-		if key == "" {
-			return ErrIncompatibleExistingTable
-		}
-		if _, exists := actualNames[key]; exists {
-			return ErrIncompatibleExistingTable
-		}
-		actualNames[key] = struct{}{}
-	}
-	if len(actualNames) != len(expected) || len(state.ColumnTypes) != len(expected) || len(state.ColumnNullable) != len(expected) || len(state.ColumnPrimaryKey) != len(expected) {
-		return ErrIncompatibleExistingTable
-	}
-	for _, column := range expected {
-		key := strings.ToLower(column.Name)
-		if _, exists := actualNames[key]; !exists {
-			return ErrIncompatibleExistingTable
-		}
-		actualType, ok := lookupGroupType(state.ColumnTypes, column.Name)
-		if !ok || strings.TrimSpace(actualType) == "" {
-			return ErrTargetInspectionUnconfirmed
-		}
-		if !groupSQLTypesCompatible(column.SQLType, actualType) {
-			return ErrIncompatibleExistingTable
-		}
-		actualNullable, ok := lookupGroupBool(state.ColumnNullable, column.Name)
-		if !ok || actualNullable != column.Nullable {
-			return ErrIncompatibleExistingTable
-		}
-		actualPrimaryKey, ok := lookupGroupBool(state.ColumnPrimaryKey, column.Name)
-		if !ok || actualPrimaryKey != column.PrimaryKey {
-			return ErrIncompatibleExistingTable
-		}
-	}
-	return nil
-}
-
-// ValidateManagedGroupTableInspection verifies the canonical layout and owner,
-// permitting retained nullable managed value columns from prior memberships.
-func ValidateManagedGroupTableInspection(layout GroupSchemaLayout, state TargetTableInspection) error {
-	normalized, err := ValidateGroupSchemaLayout(layout)
-	if err != nil {
-		return err
-	}
-	missing, err := inspectGroupExtension(state, normalized)
-	if err != nil {
-		return err
-	}
-	if len(missing) > 0 {
-		return ErrIncompatibleExistingTable
-	}
-	return nil
-}
-
-// ValidateManagedReceiptTableInspection verifies the complete shared receipt
-// table contract, including its ownership marker.
-func ValidateManagedReceiptTableInspection(dialect string, state TargetTableInspection) error {
-	return validateGroupInspection(state, managedEffectReceiptColumns(dialect))
-}
-
-func lookupGroupType(values map[string]string, name string) (string, bool) {
-	for key, value := range values {
-		if strings.EqualFold(strings.TrimSpace(key), name) {
-			return value, true
-		}
-	}
-	return "", false
-}
-
-func lookupGroupBool(values map[string]bool, name string) (matched, found bool) {
-	for key, value := range values {
-		if strings.EqualFold(strings.TrimSpace(key), name) {
-			return value, true
-		}
-	}
-	return false, false
-}
-
-func groupColumnNames(columns []GroupSchemaColumn) []string {
-	names := make([]string, len(columns))
-	for i, column := range columns {
-		names[i] = column.Name
-	}
-	return names
 }

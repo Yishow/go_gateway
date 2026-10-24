@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 )
 
 const (
@@ -28,21 +27,9 @@ func (s *WriteGroupService) EnsureBasicManaged(ctx context.Context, deviceID str
 	}
 	s.basicManagedMu.Lock()
 	defer s.basicManagedMu.Unlock()
-	for attempt := 0; ; attempt++ {
-		result, err := s.ensureBasicManaged(ctx, deviceID, mutation)
-		if err == nil || !isSQLiteBusyError(err) || attempt == basicManagedRetryAttempts-1 {
-			return result, err
-		}
-		timer := time.NewTimer(10 * time.Millisecond)
-		select {
-		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
-			return nil, ctx.Err()
-		case <-timer.C:
-		}
-	}
+	return retryWhileSQLiteBusy(ctx, func() (*WriteGroupSaveResult, error) {
+		return s.ensureBasicManaged(ctx, deviceID, mutation)
+	})
 }
 
 func (s *WriteGroupService) ensureBasicManaged(ctx context.Context, deviceID string, mutation WriteGroupMutation) (*WriteGroupSaveResult, error) {
@@ -173,14 +160,11 @@ func (s *WriteGroupService) replayBasicManaged(ctx context.Context, workspaceID,
 	if !sameBasicManagedIntent(candidate, group) {
 		return nil, false, ErrWriteGroupBasicManagedConflict
 	}
-	workspace, err := s.workspaceSvc.GetOrCreate(ctx)
+	result, err := s.currentGroupResult(ctx, group, "read basic managed workspace")
 	if err != nil {
-		return nil, false, normalizeWriteGroupServiceError("read basic managed workspace", err)
+		return nil, false, err
 	}
-	if workspace.ID != workspaceID {
-		return nil, false, writeGroupNotFound("read basic managed workspace")
-	}
-	return &WriteGroupSaveResult{WorkspaceRevision: workspace.DatabaseSetupRevision, Group: cloneWriteGroup(group)}, true, nil
+	return result, true, nil
 }
 
 func sameBasicManagedIntent(candidate, existing *WriteGroup) bool {
@@ -206,6 +190,11 @@ func sameBasicManagedIntent(candidate, existing *WriteGroup) bool {
 		return false
 	}
 	comparableCandidate := cloneWriteGroup(candidate)
+	if comparableCandidate.WritePolicy.RecreateMissing == nil {
+		// A request that does not mention the recovery policy accepts the saved
+		// one; only an explicit, different choice is a different intent.
+		comparableCandidate.WritePolicy.RecreateMissing = existing.WritePolicy.RecreateMissing
+	}
 	if comparableCandidate.Destination.Database == "" {
 		comparableCandidate.Destination.Database = existing.Destination.Database
 	}

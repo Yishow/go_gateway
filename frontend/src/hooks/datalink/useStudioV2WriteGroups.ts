@@ -39,6 +39,7 @@ export function useWriteGroupDeliveryQuery(groupId: string | undefined, enabled:
     retry: false,
     refetchOnWindowFocus: false,
     refetchInterval: refetchIntervalMs,
+    staleTime: 3000,
   });
 }
 
@@ -94,6 +95,16 @@ export function useCreateWriteGroupMutation() {
   const invalidate = useInvalidateWriteGroups();
   return useMutation({
     mutationFn: (request: WriteGroupCreateRequest) => studioV2WorkspaceWriteGroupsAPI.create(request),
+    retry: false,
+    onSettled: invalidate,
+  });
+}
+
+export function useEnsureCircuitProfileMutation() {
+  const invalidate = useInvalidateWriteGroups();
+  return useMutation({
+    mutationFn: (variables: { request: WriteGroupCreateRequest } | WriteGroupCreateRequest) =>
+      studioV2WorkspaceWriteGroupsAPI.ensureCircuitProfile('request' in variables ? variables.request : variables),
     retry: false,
     onSettled: invalidate,
   });

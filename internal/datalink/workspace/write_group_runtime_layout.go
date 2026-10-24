@@ -20,6 +20,30 @@ type WriteGroupRuntimeLayout struct {
 	TagTypes          map[string]schema.DataType `json:"tag_types"`
 	ReceiptTableReady bool                       `json:"receipt_table_ready,omitzero"`
 	SchemaDigest      string                     `json:"schema_digest,omitempty"`
+	// Hypertable is the frozen catalog evidence of a timescale group's table. It
+	// is set only for that mode, after the catalog showed the owned hypertable.
+	Hypertable *WriteGroupHypertableEvidence `json:"hypertable,omitempty"`
+}
+
+// WriteGroupHypertableEvidence is what the catalog showed when the layout was
+// verified: the time dimension and chunk interval the group was applied on. The
+// interval is kept in microseconds, the catalog's own unit, so that no coarser
+// unit can hide a difference.
+type WriteGroupHypertableEvidence struct {
+	TimeColumn          string `json:"time_column"`
+	ChunkIntervalMicros int64  `json:"chunk_interval_micros"`
+}
+
+// freezeHypertableEvidence turns the catalog's hypertable into the evidence a
+// runtime layout carries, and only for exactly the confirmed layout: the
+// partition column at precisely the confirmed interval. Anything else yields
+// nil, so a differing hypertable is never recorded as a verified one.
+func freezeHypertableEvidence(info *dbtarget.HypertableInfo) *WriteGroupHypertableEvidence {
+	if info == nil || info.ChunkIntervalUnknown || info.TimeColumn != dbtarget.TimescalePartitionColumn ||
+		info.ChunkInterval != dbtarget.TimescaleChunkInterval {
+		return nil
+	}
+	return &WriteGroupHypertableEvidence{TimeColumn: info.TimeColumn, ChunkIntervalMicros: info.ChunkInterval.Microseconds()}
 }
 
 func (s *WriteGroupService) saveRuntimeVersionInTx(ctx context.Context, tx *sql.Tx, snap *WriteGroupAppliedSnapshot) error {

@@ -42,6 +42,15 @@ type TableInspection struct {
 	Table   string                `json:"table"`
 	Columns []ColumnInfo          `json:"columns"`
 	Reason  string                `json:"reason,omitempty"`
+	// Indexes is filled only by callers that read index evidence (the long
+	// managed layout). IndexesInspected distinguishes an empty answer from none.
+	Indexes          []IndexInfo `json:"indexes,omitempty"`
+	IndexesInspected bool        `json:"-"`
+	// Hypertable is filled only for a table whose layout is partitioned (the
+	// timescale mode). HypertableInspected distinguishes "read the catalog and it
+	// is not a hypertable" (nil) from "not read".
+	Hypertable          *HypertableInfo `json:"hypertable,omitempty"`
+	HypertableInspected bool            `json:"-"`
 }
 
 // InspectTable 查詢已存連線中的單一資料表。連線設定不存在時回錯誤；其餘結果一律

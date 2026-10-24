@@ -21,6 +21,7 @@ import { CommitSuccessCard } from './CommitSuccessCard';
 import { Step4SupportPanels } from './Step4SupportPanels';
 import { ShareOutputSummary } from './ShareOutputSummary';
 import { ActivationNeutralSummary, ActivationRecoveryNotice } from './ActivationNeutralSummary';
+import { WorkspaceScopeNote } from './WorkspaceScopeNote';
 import { getDefaultConnector, getDbKindPatch } from '../../state/dbSchemas';
 import type { WorkbenchV2State, DbConnector, SettingsConnector } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
@@ -181,7 +182,7 @@ function Step4DatabaseContent({
         readonly={isReadonly}
         shareStatus={shareStatus}
         onCommit={onCommit}
-        onOpenAdvanced={openAdvanced}
+        onOpenAdvanced={(groupId) => { if (groupId) setOpenGroupRequest({ id: groupId }); openAdvanced(); }}
         onOpenMemberSettings={(id) => { setOpenGroupRequest({ id }); openAdvanced(); }}
         onOperationActiveChange={setBasicOperationActive}
       />
@@ -209,6 +210,8 @@ function Step4DatabaseContent({
             openGroupRequest={openGroupRequest}
           />
 
+          <div id="step4-workspace-readiness" tabIndex={-1} data-testid="step4-workspace-readiness" className="space-y-4">
+          <WorkspaceScopeNote groupSummary={groupSummary} />
           {activation.phase === 'idle' ? (
             <>
               <ActivationRecoveryNotice
@@ -254,6 +257,7 @@ function Step4DatabaseContent({
               )}
             </>
           )}
+          </div>
         </div>
       </details>
     </div>

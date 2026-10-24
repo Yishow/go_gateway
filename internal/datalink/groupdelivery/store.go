@@ -129,5 +129,11 @@ func (s *Store) Restore(ctx context.Context, key GroupKey) (Restored, error) {
 		}
 		restored.Samples = append(restored.Samples, sample)
 	}
-	return restored, rows.Err()
+	if err := rows.Err(); err != nil {
+		return Restored{}, err
+	}
+	if restored.Baselines, err = s.restoreBaselines(ctx, key, restored.NextClose); err != nil {
+		return Restored{}, err
+	}
+	return restored, nil
 }

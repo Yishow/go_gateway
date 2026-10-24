@@ -33,7 +33,9 @@ func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGrou
 	group.Destination.TableName = strings.TrimSpace(group.Destination.TableName)
 	group.RowPolicy.GroupKeyColumns = normalizeStringSet(group.RowPolicy.GroupKeyColumns)
 	group.RowPolicy.UniqueKeyColumns = normalizeStringSet(group.RowPolicy.UniqueKeyColumns)
-	if group.Destination.TableName == "" {
+	// A long group's table is derived from its storage scope below, so it may
+	// arrive without a name.
+	if group.Destination.TableName == "" && !group.isLongLayout() {
 		return fmt.Errorf("%w: destination table name is required", ErrWriteGroupValidation)
 	}
 	if group.Destination.StorageStrategy == "" {
@@ -41,6 +43,9 @@ func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGrou
 	}
 	if group.Destination.StorageStrategy != WriteGroupStorageStrategyManaged && group.Destination.StorageStrategy != WriteGroupStorageStrategyCustom {
 		return fmt.Errorf("%w: unsupported storage strategy %q", ErrWriteGroupValidation, group.Destination.StorageStrategy)
+	}
+	if err := normalizeWriteGroupProfile(group); err != nil {
+		return err
 	}
 
 	workspaceRecord, err := readWorkspaceScope(ctx, runner, r.query, group.WorkspaceID)
@@ -72,6 +77,15 @@ func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGrou
 	}
 	if err := resolveWriteGroupDestinationScope(connectorKind, connectorConfig, &group.Destination); err != nil {
 		return err
+	}
+	if group.isLongLayout() {
+		// The shared table is named by its storage scope. A caller may echo that
+		// name back, but cannot choose another one.
+		derived := longStorageScopeOf(group).tableName()
+		if group.Destination.TableName != "" && group.Destination.TableName != derived {
+			return fmt.Errorf("%w: a long group's table is chosen by its storage scope", ErrWriteGroupValidation)
+		}
+		group.Destination.TableName = derived
 	}
 
 	seenMembers := make(map[string]struct{}, len(group.Members))
@@ -209,7 +223,7 @@ func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGrou
 		}
 		member.MeasurementID = &measurementID
 	}
-	return nil
+	return r.checkProfileSourceOwnership(ctx, runner, group)
 }
 
 func readWorkspaceScope(ctx context.Context, runner writeGroupSQLRunner, query func(string) string, workspaceID string) (*Record, error) {

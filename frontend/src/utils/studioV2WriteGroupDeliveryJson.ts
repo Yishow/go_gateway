@@ -12,14 +12,16 @@ import type {
   WriteGroupQuotaState,
 } from '../types/studioV2WriteGroupDelivery';
 import { boundedString, MAX_SAFE_JSON_ARRAY_LENGTH } from './safeJson';
+import { parseWriteGroupSourceEvidence } from './studioV2WriteGroupSourceEvidenceJson';
+import { parseWriteGroupStorage } from './studioV2WriteGroupStorageJson';
 
 type JsonRecord = Record<string, unknown>;
 
 const INTAKE_STATES = new Set<WriteGroupIntakeState>(['active', 'retiring', 'blocked', 'not_running']);
 const QUOTA_STATES = new Set<WriteGroupQuotaState>(['unconfigured', 'ok', 'warning', 'hard_limit']);
-const BUCKET_ISSUE_KINDS = new Set<WriteGroupDeliveryBucketIssueKind>(['skipped', 'no_data']);
+const BUCKET_ISSUE_KINDS = new Set<WriteGroupDeliveryBucketIssueKind>(['skipped', 'no_data', 'truncated']);
 const BUCKET_ISSUE_CAUSES = new Set<WriteGroupDeliveryBucketCause>([
-  'missing', 'bad', 'stale', 'invalid', 'no_data', 'unavailable',
+  'missing', 'bad', 'stale', 'invalid', 'no_data', 'unavailable', 'boundary',
 ]);
 const MAX_RECENT_BUCKET_ISSUES = 20;
 const STAGE_KEYS: (keyof WriteGroupDeliveryStages)[] = [
@@ -194,6 +196,10 @@ export function parseWriteGroupDeliveryData(value: unknown): WriteGroupDelivery 
   if (backlog.some((entry) => entry === null)) return null;
   const recentIssues = rawRecentIssues?.map(parseBucketIssue);
   if (recentIssues?.some((entry) => entry === null)) return null;
+  const storage = parseWriteGroupStorage(value.storage);
+  if (storage === null) return null;
+  const evidence = parseWriteGroupSourceEvidence(value.source_evidence);
+  if (!evidence.ok) return null;
   return {
     group_id: groupId,
     ...(rawAttention !== undefined ? { attention } : {}),
@@ -204,5 +210,7 @@ export function parseWriteGroupDeliveryData(value: unknown): WriteGroupDelivery 
     no_data_buckets: noData, skipped_buckets: skipped,
     ...(recentIssues ? { recent_bucket_issues: recentIssues as WriteGroupDeliveryBucketIssue[] } : {}),
     backlog: backlog as WriteGroupDeliveryBacklog[], quota,
+    ...(storage ? { storage } : {}),
+    ...(evidence.value !== undefined ? { source_evidence: evidence.value } : {}),
   };
 }

@@ -10,6 +10,8 @@ import {
 import type { SchemaOperation, SchemaPreviewToken } from '../../../../../../types/recordingPlan';
 import type { WriteGroup } from '../../../../../../types/studioV2WriteGroup';
 import { getSafeErrorMessage } from '../../../../../../utils/typedErrors';
+import { destinationBlockerCode, type DestinationBlockerCode } from '../../../state/circuitProfileBlockers';
+import { isTerminal, operationDetail, operationStatus, schemaIssueCode, scopeGroupId } from './schemaPanelHelpers';
 
 export interface GroupSchemaPanelProps {
   /** Canonical saved group; absent means a new draft which cannot preview yet. */
@@ -24,29 +26,8 @@ export interface GroupSchemaPanelProps {
   readonly: boolean;
   /** Refetch canonical group, metadata and readiness after a verified apply. */
   onApplied?: () => void;
-}
-
-function isTerminal(operation: SchemaOperation | null): boolean {
-  return operation !== null && !['pending', 'running'].includes(operation.status);
-}
-
-function scopeGroupId(scopeKey: string): string {
-  return scopeKey.split('|', 1)[0] ?? '';
-}
-
-function operationStatus(operation: SchemaOperation | null, t: (key: string) => string): string {
-  return operation ? t(`step4.group.schema.operation_status.${operation.status}`) : t('step4.group.schema.operation_unconfirmed');
-}
-
-function operationDetail(
-  operation: SchemaOperation,
-  t: (key: string, options?: Record<string, unknown>) => string,
-): string | undefined {
-  const code = operation.reason === 'permission_denied' ? 'RECORDING_SCHEMA_PERMISSION_DENIED' : operation.reason;
-  const safe = getSafeErrorMessage({ code, action: operation.next_action }, t);
-  if (safe.code) return safe.message;
-  if (safe.action) return safe.action;
-  return operation.status === 'succeeded' ? undefined : t('step4.group.schema.operation_attention');
+  /** Reports a recognised destination cause instead of showing it here, so one cause is explained once by the owner. */
+  onBlocker?: (groupId: string, code: DestinationBlockerCode | undefined) => void;
 }
 
 /**
@@ -55,9 +36,10 @@ function operationDetail(
  * identity, and unresolved outcomes are checked through that same operation.
  */
 export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
-  group, workspaceId, workspaceRevision, destinationMatches, dirty, readonly, onApplied, autoPreview = false, previewRequest = 0,
+  group, workspaceId, workspaceRevision, destinationMatches, dirty, readonly, onApplied, onBlocker, autoPreview = false, previewRequest = 0,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const titleId = React.useId();
   const previewMutation = useWriteGroupSchemaPreviewMutation();
   const applyMutation = useWriteGroupSchemaApplyMutation();
   const scopeKey = useMemo(() => group
@@ -82,7 +64,6 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
   const [error, setError] = useState<unknown>(null);
   const [needsCheck, setNeedsCheck] = useState(Boolean(operationId.current));
   const operationQuery = useWriteGroupSchemaOperationQuery(operationId.current);
-
   useEffect(() => {
     const terminal = operationRef.current;
     const sameGroup = scopeGroupId(previousScopeKey.current) === scopeGroupId(scopeKey);
@@ -122,6 +103,14 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
   const shouldOfferCheck = needsCheck || (effectiveOperation !== null && effectiveOperation.status !== 'succeeded');
   const blocksNewPreview = needsCheck || ['pending', 'running', 'unknown', 'partial'].includes(effectiveOperation?.status ?? '');
   const detail = effectiveOperation ? operationDetail(effectiveOperation, t) : undefined;
+  const blocker = onBlocker ? destinationBlockerCode(schemaIssueCode(error, effectiveOperation, t)) : undefined;
+  const reportBlocker = useRef(onBlocker); reportBlocker.current = onBlocker;
+  const groupId = group?.id;
+  useEffect(() => {
+    if (!groupId) return undefined;
+    reportBlocker.current?.(groupId, blocker);
+    return () => reportBlocker.current?.(groupId, undefined);
+  }, [groupId, blocker]);
 
   const run = async (action: () => Promise<void>) => {
     if (inFlight.current) return;
@@ -230,12 +219,12 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
 
   return (
     <section
-      aria-labelledby="group-schema-title"
+      aria-labelledby={titleId}
       className="space-y-3 rounded-lg border border-slate-800 p-4"
       data-testid="group-schema-panel"
     >
       <div>
-        <h4 id="group-schema-title" className="text-sm font-semibold text-slate-200">{t('step4.group.schema.title')}</h4>
+        <h4 id={titleId} className="text-sm font-semibold text-slate-200">{t('step4.group.schema.title')}</h4>
         <p className="mt-1 text-xs text-slate-400">{t('step4.group.schema.intro')}</p>
       </div>
 
@@ -314,11 +303,11 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
         <div className="space-y-1 text-xs text-slate-300" role="status" data-testid="group-schema-operation">
           <details><summary>{t('step4.basic.diagnostics')}</summary><p>{t('step4.group.schema.operation')}: <span className="font-mono">{effectiveOperation.operation_id}</span></p></details>
           <p>{t('step4.group.schema.status')}: <span className="font-mono">{operationStatus(effectiveOperation, t)}</span></p>
-          {detail && <p>{t('step4.group.schema.reason')}: {detail}</p>}
+          {detail && !blocker && <p>{t('step4.group.schema.reason')}: {detail}</p>}
         </div>
       )}
 
-      {error !== null && (
+      {error !== null && !blocker && (
         <p role="alert" className="text-xs text-red-300" data-testid="group-schema-error">
           {getSafeErrorMessage(error, t).message}
           {needsCheck && <span className="ml-1">{t('step4.group.schema.error_check_same_operation')}</span>}

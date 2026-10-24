@@ -10,7 +10,11 @@ import (
 	"go-gateway/internal/datalink/snapshot"
 )
 
-const noDataBucketKind = string(snapshot.OutcomeNoData)
+const (
+	noDataBucketKind = string(snapshot.OutcomeNoData)
+	// truncatedBucketKind names a written row whose window a cutover cut short.
+	truncatedBucketKind = "truncated"
+)
 
 // BucketIssue is a recent scoped closure that produced no SQL row. Causes
 // deliberately contain only known quality categories, not stored error text.
@@ -24,7 +28,7 @@ type BucketIssue struct {
 func (s *Store) readRecentBucketIssues(ctx context.Context, groupID string, status *GroupStatus) error {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT group_revision, bucket_start, kind, members FROM wg_delivery_buckets
-		WHERE group_id = ? AND kind IN ('skipped', 'no_data')
+		WHERE group_id = ? AND (kind IN ('skipped', 'no_data') OR (kind = 'row' AND reason LIKE 'boundary-truncated:%'))
 		ORDER BY bucket_start DESC, group_revision DESC, entity_key ASC LIMIT 20`, groupID)
 	if err != nil {
 		return fmt.Errorf("read recent bucket issues: %w", err)
@@ -42,6 +46,9 @@ func (s *Store) readRecentBucketIssues(ctx context.Context, groupID string, stat
 			return fmt.Errorf("parse bucket issue timestamp: %w", err)
 		}
 		issue.BucketStart = parsed.UTC()
+		if issue.Kind == string(snapshot.OutcomeRow) {
+			issue.Kind = truncatedBucketKind
+		}
 		issue.Causes = bucketQualityCauses(issue.Kind, members)
 		status.RecentBucketIssues = append(status.RecentBucketIssues, issue)
 	}
@@ -51,6 +58,10 @@ func (s *Store) readRecentBucketIssues(ctx context.Context, groupID string, stat
 func bucketQualityCauses(kind, rawMembers string) []string {
 	if kind == noDataBucketKind {
 		return []string{noDataBucketKind}
+	}
+	if kind == truncatedBucketKind {
+		// A row was written; the window it stands for was cut short.
+		return []string{"boundary"}
 	}
 	var members []memberRecord
 	if err := json.Unmarshal([]byte(rawMembers), &members); err != nil {

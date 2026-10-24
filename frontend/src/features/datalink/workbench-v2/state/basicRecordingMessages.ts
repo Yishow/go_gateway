@@ -9,6 +9,11 @@ const BASIC_REASON_KEYS: Record<string, string> = {
   scope_not_ready: 'step4.basic.reason.scope_not_ready',
   share_not_ready: 'step4.basic.reason.share_not_ready',
   start_failed: 'step4.basic.reason.start_failed',
+  counter_semantics_required: 'step4.basic.errors.counter_semantics_required',
+  timescale_unavailable: 'step4.basic.errors.timescale_unavailable',
+  storage_owner_mismatch: 'step4.basic.errors.storage_owner_mismatch',
+  schema_repair_blocked: 'step4.basic.errors.schema_repair_blocked',
+  profile_interval_invalid: 'step4.basic.errors.profile_interval_invalid',
 };
 
 const BASIC_ACTION_KEYS: Record<string, string> = {
@@ -28,6 +33,14 @@ const BASIC_START_ERROR_KEYS: Record<string, string> = {
   RECORDING_START_BUSY: 'step4.basic.error.start_busy',
   BASIC_INTENT_CHANGED: 'step4.basic.error.basic_intent_changed',
   WRITE_GROUP_BASIC_INTENT_CHANGED: 'step4.basic.error.basic_intent_changed',
+  WRITE_GROUP_CIRCUIT_PROFILE_CONFLICT: 'step4.basic.errors.circuit_profile_conflict',
+  WRITE_GROUP_TIMESCALE_UNAVAILABLE: 'step4.basic.errors.timescale_unavailable',
+  RECORDING_SCHEMA_TIMESCALE_UNAVAILABLE: 'step4.basic.errors.timescale_unavailable',
+  timescale_unavailable: 'step4.basic.errors.timescale_unavailable',
+  counter_semantics_required: 'step4.basic.errors.counter_semantics_required',
+  storage_owner_mismatch: 'step4.basic.errors.storage_owner_mismatch',
+  schema_repair_blocked: 'step4.basic.errors.schema_repair_blocked',
+  profile_interval_invalid: 'step4.basic.errors.profile_interval_invalid',
 };
 
 type SafeRecord = Record<string, unknown>;

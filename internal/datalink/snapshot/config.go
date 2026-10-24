@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"go-gateway/internal/datalink/aggregation"
 )
 
 // IncompletePolicy decides what a bucket does when a member is not usable.
@@ -21,6 +23,26 @@ const (
 // DefaultMaxBucketsPerTick bounds catch-up work after a long pause; the
 // remaining buckets close on the following ticks, in order.
 const DefaultMaxBucketsPerTick = 1000
+
+// Mode selects how a group turns samples into records.
+type Mode string
+
+const (
+	// ModeWide is the default: one row per entity and bucket, governed by the
+	// incomplete-row policy and required members.
+	ModeWide Mode = ""
+	// ModeInstantaneousProfile writes one independent record per member and
+	// window. A member without an eligible reading yields a record with a
+	// reason instead of suppressing anyone else's, and no value is carried over.
+	ModeInstantaneousProfile Mode = "instantaneous_profile"
+	// ModeCumulativeProfile writes the same independent per-member record but
+	// carries the latest eligible raw counter reading together with its exact
+	// difference from the previous window's baseline (see Config.Counters).
+	ModeCumulativeProfile Mode = "cumulative_profile"
+)
+
+// perMember reports whether every member is its own record in each window.
+func (m Mode) perMember() bool { return m == ModeInstantaneousProfile || m == ModeCumulativeProfile }
 
 // StorageCapabilities are facts about the destination, verified by the caller
 // from real table metadata. They gate opt-in modes only: a complete good row
@@ -78,10 +100,22 @@ type Config struct {
 	FirstBucket time.Time
 	// Until, when set, is the first bucket start this assembler no longer
 	// closes: a superseded revision stops here. It must be interval-aligned.
-	Until             time.Time
-	IncompletePolicy  IncompletePolicy
-	Members           []Member
+	Until time.Time
+	// StartsAt and EndsAt are the exact instants (half-open: observed at or
+	// after StartsAt, before EndsAt) at which a forward cutover hands a source
+	// to this revision or takes it away. They need not be interval-aligned: the
+	// window that contains one is closed with its real bounds and marked
+	// truncated. FirstBucket is the window containing StartsAt and Until the
+	// window end at or after EndsAt. Zero means the ordinary aligned lifecycle.
+	StartsAt, EndsAt time.Time
+	IncompletePolicy IncompletePolicy
+	Members          []Member
+	// Mode selects the assembly rules; see ModeInstantaneousProfile.
+	Mode              Mode
 	MaxBucketsPerTick int
+	// Counters is the confirmed counter binding of every member by member key.
+	// It is required by ModeCumulativeProfile and refused otherwise.
+	Counters map[string]aggregation.CounterBinding
 	// Storage describes verified destination capabilities; it is consulted
 	// only for IncompletePartial.
 	Storage StorageCapabilities
@@ -115,6 +149,25 @@ func (c Config) normalized() (Config, error) {
 		}
 		c.Until = c.Until.UTC()
 	}
+	if !c.StartsAt.IsZero() {
+		c.StartsAt = c.StartsAt.UTC()
+		if !BucketStart(c.StartsAt, c.Interval).Equal(c.FirstBucket) {
+			return invalid("starts at must fall inside the first bucket")
+		}
+	}
+	if !c.EndsAt.IsZero() {
+		c.EndsAt = c.EndsAt.UTC()
+		end := BucketStart(c.EndsAt, c.Interval)
+		if !end.Equal(c.EndsAt) {
+			end = end.Add(c.Interval)
+		}
+		if !c.Until.Equal(end) {
+			return invalid("until must be the window end at or after ends at")
+		}
+	}
+	if c.Mode != ModeWide && !c.Mode.perMember() {
+		return invalid("unknown assembly mode")
+	}
 	if c.IncompletePolicy == "" {
 		c.IncompletePolicy = IncompleteSkipRow
 	}
@@ -143,6 +196,18 @@ func (c Config) normalized() (Config, error) {
 		members[i] = member
 	}
 	c.Members = members
+	if reason := c.countersInvalid(); reason != "" {
+		return invalid(reason)
+	}
+	if c.Mode.perMember() {
+		// Every member is its own record; required and entity rules belong to wide rows.
+		for _, member := range c.Members {
+			if member.EntityKey != "" {
+				return invalid("a profile member cannot be entity-keyed")
+			}
+		}
+		return c, nil
+	}
 	switch c.IncompletePolicy {
 	case IncompleteSkipRow:
 		for _, member := range c.Members {

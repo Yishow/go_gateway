@@ -65,6 +65,14 @@ Last updated: `2026-08-25`
    - Reconcile outcome、removed/invalidated spans、safe diagnostics 已接至 Local Modbus review/summary；`dirty_unknown`、`invalidated_unknown` 與 candidate failure 不會顯示為 applied/ready。
    - 三份 generated Swagger artifact 已重新產生並納入 `modbusshare.OwnershipProof`；generated JSON/YAML 與獨立 temporary regeneration byte-for-byte 一致，`internal/api/modbus_share_swagger_contract_test.go` 通過。
    - B10 current pair 為 155805Z/155901Z（13/13、focused Go 22/22、Python 16/16、`py_compile` PASS）；155314Z failure 與更早 pair 僅作歷史對照，且 155314Z witness 已依 retention 刪除。
+9. add-circuit-recording-profiles (task 4.1–5.1) 契約、production wiring 與 API 文件已就位：
+   - 迴路記錄 profile：瞬時 (1–300s, 預設 15s) 與累積 (1–600min, 預設 10min) 獨立週期契約；`EnsureCircuitProfile` 依 circuit identity 與 profile kind 建立或複用 canonical write group，同 kind 同來源衝突 409。
+   - 長表布局與 TimescaleDB：`managed_long_v1` 複合主鍵、typed 長表 storage，支援 TimescaleDB hypertable 唯讀能力探測與 7 日 chunk interval 預覽凍結。
+   - 缺表復原：確認時保存 `recreate_missing` 政策，catalog 證實缺表後僅依已確認 generation/layout 重建並保留 committed receipts。
+   - 前向切換（Cutover）：reviewed/CAS cutover 與 rollback API（`cutover-review` / `cutover` / `cutovers`），邊界截斷窗標 partial，凍結舊 wide 歷史，不雙寫。
+   - 交付狀態真實性：`DeliveryView` 擴充 `source_evidence`（每個來源的窗口結果與 SQL receipt 證據，不含原始數值）與 `storage`（復原政策與事件日誌）。
+   - Production wiring：`cmd/test_ui/service_wiring.go` 已將 `Counters`（`measurement.NewSQLRepository`）與 `Ledger`（`recordingplan.NewService`）完整接上 `grouppipeline.New`。
+   - Generated Swagger：`docs/swagger/` 已由 `make gen-docs` 正式重產，補齊 circuit ensure、cutover-review/apply/cutovers 路由及 `WriteGroupCutover`、`WriteGroupRecordingProfile` 等模型。
 
 ## Read This First Next Time
 

@@ -38,6 +38,38 @@ export interface WriteGroupDeliveryQuota {
   loss_risk_notice?: string;
 }
 
+export type WriteGroupStorageEventKind = 'confirmed' | 'recreated_by_confirmation' | 'reconstructed' | 'repair_blocked';
+
+/** One value-free diagnostic about a managed long table; it never carries SQL, DSNs or driver text. */
+export interface WriteGroupStorageEvent {
+  generation: number;
+  group_id?: string;
+  kind: WriteGroupStorageEventKind;
+  code?: string;
+  reason?: string;
+  operation_id?: string;
+  occurrences: number;
+  occurred_at: string;
+}
+
+/**
+ * Which generation of the shared long table a group writes to, and whether a
+ * rebuilt table means earlier history may be gone. A rebuilt structure is never
+ * evidence that history was restored.
+ */
+export interface WriteGroupStorage {
+  generation: number;
+  history_may_be_lost: boolean;
+  reconstructions: number;
+  last_reconstructed_at?: string;
+  /** Present only while an automatic restore ended in a result nobody can vouch for. */
+  repair_state?: 'blocked';
+  repair_reason?: string;
+  /** Absent when no decision was ever made; never read as on. */
+  recreate_missing?: boolean;
+  events: WriteGroupStorageEvent[];
+}
+
 export interface WriteGroupDelivery {
   attention?: DeliveryAttentionItem[];
   group_id: string;
@@ -55,6 +87,68 @@ export interface WriteGroupDelivery {
   recent_bucket_issues?: WriteGroupDeliveryBucketIssue[];
   backlog: WriteGroupDeliveryBacklog[];
   quota: WriteGroupDeliveryQuota;
+  /** Only for groups on managed long storage. */
+  storage?: WriteGroupStorage;
+  /** Per applied source result of managed long groups; null or absent for every other layout. */
+  source_evidence?: WriteGroupSourceEvidence | null;
+}
+
+/** What one long record stored for its source. Zero and false are values; only NULL is absent. */
+export type WriteGroupSourceStatus = 'ok' | 'partial' | 'baseline' | 'missing' | 'bad' | 'stale' | 'invalid' | 'reset_or_uncertain' | 'gap';
+/** Local delivery stage of a record. Only `sql_committed` with a matching receipt is destination evidence. */
+export type WriteGroupSourceDelivery = 'queued' | 'retrying' | 'blocked' | 'quarantined' | 'unknown' | 'sql_committed' | 'operator_skipped';
+export type WriteGroupSourceUnavailableCause = 'payload_invalid' | 'digest_mismatch' | 'identity_mismatch' | 'status_unknown' | 'window_invalid';
+
+/** A value-free, verified result read from the frozen outbox payload of one source and window. */
+export interface WriteGroupSourceRecord {
+  available: true;
+  group_revision: string;
+  /** The destination revision the record was frozen to; never retargeted. */
+  connector_revision: string;
+  record_id: string;
+  effect_key: string;
+  payload_digest: string;
+  profile_kind: 'instantaneous' | 'cumulative';
+  window_start: string;
+  window_end: string;
+  status: WriteGroupSourceStatus;
+  /** A stable typed code, or `reason_unavailable` when the stored reason is not a known code. */
+  reason?: string;
+  raw_present: boolean;
+  /** Cumulative records only: whether a trustworthy difference was stored. Unknown is not zero. */
+  delta_known?: boolean;
+  delivery: WriteGroupSourceDelivery;
+  /** Present only when the destination receipt matched this payload. */
+  committed_at?: string;
+}
+
+/** A record whose frozen evidence could not be verified; it never counts as written. */
+export interface WriteGroupSourceRecordUnavailable {
+  available: false;
+  cause: WriteGroupSourceUnavailableCause;
+  delivery: WriteGroupSourceDelivery;
+}
+
+export interface WriteGroupSourceEvidenceItem {
+  circuit_id?: string;
+  device_id: string;
+  point_id: string;
+  tag_id: string;
+  latest: WriteGroupSourceRecord | WriteGroupSourceRecordUnavailable | null;
+  last_sql_committed: WriteGroupSourceRecord | WriteGroupSourceRecordUnavailable | null;
+}
+
+export type WriteGroupSourceEvidenceUnavailableReason = 'not_long_layout' | 'applied_snapshot_unavailable' | 'revision_mismatch';
+
+export interface WriteGroupSourceEvidence {
+  state: 'available' | 'unavailable';
+  unavailable_reason?: WriteGroupSourceEvidenceUnavailableReason;
+  /** The applied revision every record below belongs to. */
+  group_revision: string;
+  /** The destination the applied revision froze; every record was written there, whatever the draft says now. */
+  connector_id?: string;
+  connector_revision?: string;
+  sources: WriteGroupSourceEvidenceItem[];
 }
 
 export interface WriteGroupCommittedEffect {
@@ -66,8 +160,9 @@ export interface WriteGroupCommittedEffect {
   committed_at: string;
 }
 
-export type WriteGroupDeliveryBucketIssueKind = 'skipped' | 'no_data';
-export type WriteGroupDeliveryBucketCause = 'missing' | 'bad' | 'stale' | 'invalid' | 'no_data' | 'unavailable';
+/** `truncated` is a row that was written for a window a cutover cut short. */
+export type WriteGroupDeliveryBucketIssueKind = 'skipped' | 'no_data' | 'truncated';
+export type WriteGroupDeliveryBucketCause = 'missing' | 'bad' | 'stale' | 'invalid' | 'no_data' | 'unavailable' | 'boundary';
 
 export interface WriteGroupDeliveryBucketIssue {
   group_revision: string;

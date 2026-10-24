@@ -1,6 +1,7 @@
 import type {
   WriteGroup,
   WriteGroupDestination,
+  WriteGroupLayoutVersion,
   WriteGroupListResponse,
   WriteGroupMember,
   WriteGroupMigration,
@@ -23,55 +24,28 @@ import {
   normalizeTypedEnvelope,
   parseBoundedJson,
 } from './safeJson';
+import {
+  isRecord,
+  type JsonRecord,
+  readOptionalBoolean,
+  readOptionalInteger,
+  readOptionalText,
+  readPresentText,
+  readRequiredInteger,
+  readRequiredText,
+} from './studioV2WriteGroupJsonPrimitives';
+import { parseRecordingProfile, recordingProfileIntervalSeconds } from './studioV2RecordingProfile';
 
 const WRITE_GROUP_STATUSES = new Set<WriteGroupStatus>([
   'draft', 'ready', 'running', 'disabled', 'deleted',
 ]);
 const WRITE_GROUP_STORAGE_STRATEGIES = new Set<WriteGroupStorageStrategy>(['managed', 'custom']);
+const WRITE_GROUP_LAYOUT_VERSIONS = new Set<string>(['managed_wide_v1', 'managed_long_v1']);
 const READINESS_SEVERITIES = new Set<StudioV2WorkspaceReadinessSeverity>(['blocking', 'warning']);
 const READINESS_STEPS = new Set<StudioV2WorkspaceReadinessStep>(['Step 1', 'Step 2', 'Step 3', 'Step 4']);
 const PROTOTYPE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
-type JsonRecord = Record<string, unknown>;
 type ResponseOutcome = 'failed' | 'unconfirmed';
-
-function isRecord(value: unknown): value is JsonRecord {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function readRequiredText(record: JsonRecord, key: string): string | null {
-  return boundedString(record[key]) ?? null;
-}
-
-/** Reads a bounded string while allowing an explicit empty server value. */
-function readPresentText(record: JsonRecord, key: string): string | null | undefined {
-  const value = record[key];
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== 'string' || value.length > 256) return null;
-  return value;
-}
-
-function readOptionalText(record: JsonRecord, key: string): string | undefined | null {
-  const value = readPresentText(record, key);
-  if (value === undefined) return undefined;
-  if (value === null) return null;
-  return boundedString(value) ?? null;
-}
-
-function readRequiredInteger(record: JsonRecord, key: string, minimum = 0): number | null {
-  const value = record[key];
-  return typeof value === 'number' && Number.isInteger(value) && Number.isFinite(value) && value >= minimum
-    ? value
-    : null;
-}
-
-function readOptionalInteger(record: JsonRecord, key: string, minimum = 0): number | undefined | null {
-  const value = record[key];
-  if (value === undefined || value === null) return undefined;
-  return typeof value === 'number' && Number.isInteger(value) && Number.isFinite(value) && value >= minimum
-    ? value
-    : null;
-}
 
 function parseOptionalStringArray(record: JsonRecord, key: string): string[] | undefined | null {
   const value = record[key];
@@ -121,7 +95,9 @@ function parseWriteGroupMember(value: unknown): WriteGroupMember | null {
   if (value.entity_key !== undefined && value.entity_key !== null && !entityKey) return null;
 
   const maxAgeSeconds = readOptionalInteger(value, 'max_age_seconds');
-  if (maxAgeSeconds === null) return null;
+  const circuitId = readOptionalText(value, 'circuit_id');
+  const circuitName = readOptionalText(value, 'circuit_name');
+  if (maxAgeSeconds === null || circuitId === null || circuitName === null || (circuitName && !circuitId)) return null;
 
   return {
     device_id: deviceId,
@@ -134,6 +110,8 @@ function parseWriteGroupMember(value: unknown): WriteGroupMember | null {
     target_column: targetColumn,
     required: value.required,
     ...(maxAgeSeconds !== undefined ? { max_age_seconds: maxAgeSeconds } : {}),
+    ...(circuitId ? { circuit_id: circuitId } : {}),
+    ...(circuitName ? { circuit_name: circuitName } : {}),
   };
 }
 
@@ -198,10 +176,12 @@ function parseWriteGroupWritePolicy(value: unknown): WriteGroupWritePolicy | nul
   if (!isRecord(value)) return null;
   const mode = readOptionalText(value, 'mode');
   const dedupeCapability = readOptionalText(value, 'dedupe_capability');
-  if (mode === null || dedupeCapability === null) return null;
+  const recreateMissing = readOptionalBoolean(value, 'recreate_missing');
+  if (mode === null || dedupeCapability === null || recreateMissing === null) return null;
   return {
     ...(mode ? { mode } : {}),
     ...(dedupeCapability ? { dedupe_capability: dedupeCapability } : {}),
+    ...(recreateMissing !== undefined ? { recreate_missing: recreateMissing } : {}),
   };
 }
 
@@ -257,6 +237,20 @@ export function parseStudioV2WriteGroup(value: unknown): WriteGroup | null {
   const writePolicy = parseWriteGroupWritePolicy(value.write_policy);
   const migration = parseWriteGroupMigration(value.migration);
   if (!destination || !rowPolicy || !writePolicy || !migration) return null;
+  const layoutVersion = readOptionalText(value, 'layout_version');
+  const storageMode = readOptionalText(value, 'storage_mode');
+  const profile = parseRecordingProfile(value.recording_profile);
+  // An unknown layout or mode, or an interval whose unit was misread, must never reach the editor.
+  if (layoutVersion === null || (layoutVersion !== undefined && !WRITE_GROUP_LAYOUT_VERSIONS.has(layoutVersion)) ||
+    storageMode === null || (storageMode !== undefined && storageMode !== 'plain' && storageMode !== 'timescale') ||
+    profile === null || (profile && recordingProfileIntervalSeconds(profile) !== rowPolicy.interval_seconds)) {
+    return null;
+  }
+  // The long table serves profile groups with a mode; a wide group carries neither a mode nor a long layout.
+  if ((layoutVersion === 'managed_long_v1') !== (storageMode !== undefined) ||
+    (layoutVersion === 'managed_long_v1' && !profile)) {
+    return null;
+  }
 
   return {
     id,
@@ -271,6 +265,9 @@ export function parseStudioV2WriteGroup(value: unknown): WriteGroup | null {
     row_policy: rowPolicy,
     write_policy: writePolicy,
     migration,
+    ...(layoutVersion ? { layout_version: layoutVersion as WriteGroupLayoutVersion } : {}),
+    ...(profile ? { recording_profile: profile } : {}),
+    ...(storageMode ? { storage_mode: storageMode } : {}),
     created_at: createdAt,
     updated_at: updatedAt,
   };
@@ -349,11 +346,11 @@ export function parseWriteGroupReadinessData(value: unknown): WriteGroupReadines
   }
   const issues = rawIssues.map(parseWriteGroupReadinessIssue);
   if (issues.some((issue) => issue === null)) return null;
-  if (value.ready !== (value.config_ready && value.schema_ready) ||
+  const hasBlocking = issues.some((issue) => issue?.severity === 'blocking');
+  if (value.ready !== (value.config_ready && value.schema_ready && !hasBlocking) ||
     (value.schema_ready && !value.config_ready) ||
     (value.schema_ready && !schemaDigest) ||
-    (!value.schema_ready && schemaDigest) ||
-    (value.ready && issues.some((issue) => issue?.severity === 'blocking'))) {
+    (!value.schema_ready && schemaDigest)) {
     return null;
   }
   return {

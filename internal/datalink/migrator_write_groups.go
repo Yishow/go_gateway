@@ -26,19 +26,47 @@ func ensureSQLiteWriteGroupsTables(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("failed to inspect sqlite table write_group_migration_maps for migration %s: %w", migrationName, err)
 	}
-	if groupsExists && membersExists && versionsExists && migrationMapsExists {
-		if err := ensureSQLiteWriteGroupMemberEntityKey(db); err != nil {
+	if !groupsExists || !membersExists || !versionsExists || !migrationMapsExists {
+		if err := applySQLiteMigrationOnce(db, migrationName); err != nil {
 			return err
 		}
-		return ensureSQLiteBasicManagedKeysTable(db)
-	}
-	if err := applySQLiteMigrationOnce(db, migrationName); err != nil {
-		return err
 	}
 	if err := ensureSQLiteWriteGroupMemberEntityKey(db); err != nil {
 		return err
 	}
-	return ensureSQLiteBasicManagedKeysTable(db)
+	if err := ensureSQLiteBasicManagedKeysTable(db); err != nil {
+		return err
+	}
+	if err := ensureSQLiteCircuitRecordingProfiles(db); err != nil {
+		return err
+	}
+	return ensureSQLiteWriteGroupCutovers(db)
+}
+
+// ensureSQLiteWriteGroupCutovers adds the forward cutover ledger beside the
+// write-group tables of an installation that already has them.
+func ensureSQLiteWriteGroupCutovers(db *sql.DB) error {
+	const migrationName = "036_write_group_cutovers_sqlite.up.sql"
+	for _, table := range []string{"write_group_cutovers", "write_group_revision_ends"} {
+		exists, err := sqliteTableExists(db, table)
+		if err != nil {
+			return fmt.Errorf("failed to inspect sqlite table %s for migration %s: %w", table, migrationName, err)
+		}
+		if !exists {
+			if err := applySQLiteMigrationOnce(db, migrationName); err != nil {
+				return err
+			}
+			break
+		}
+	}
+	if err := ensureSQLiteAdditiveColumns(db, "037_write_group_cutover_intent_sqlite.up.sql"); err != nil {
+		return err
+	}
+	// A review is applied once: its digest names at most one cutover.
+	if _, err := db.ExecContext(context.Background(), `CREATE UNIQUE INDEX IF NOT EXISTS idx_write_group_cutovers_review ON write_group_cutovers(workspace_id, review_digest)`); err != nil {
+		return fmt.Errorf("failed to index write_group_cutovers review digest: %w", err)
+	}
+	return nil
 }
 
 func ensureSQLiteBasicManagedKeysTable(db *sql.DB) error {

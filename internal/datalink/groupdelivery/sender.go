@@ -44,16 +44,21 @@ const (
 )
 
 const (
-	codeInsertFailed       = "insert-failed"
-	codeCommitAmbiguous    = "commit-ambiguous"
-	codeIdentityConflict   = "destination-identity-conflict"
-	codeUnsupported        = "destination-unsupported"
-	codeTargetBlocked      = "target-blocked"
-	codeRowRejected        = "destination-rejected-row"
-	codeTargetUnusable     = "target-unusable"
-	codeTargetUnavailable  = "target-unavailable"
-	codePayloadMismatch    = "payload-digest-mismatch"
-	codePayloadUndecodable = "payload-undecodable"
+	codeInsertFailed = "insert-failed"
+	// codeStorageRestoring marks a row waiting for another execution that is
+	// restoring its managed table; codeStorageRecoveryUnavailable one whose
+	// recovery could not be decided yet. Both retry.
+	codeStorageRestoring           = "storage-restore-in-progress"
+	codeStorageRecoveryUnavailable = "storage-recovery-unavailable"
+	codeCommitAmbiguous            = "commit-ambiguous"
+	codeIdentityConflict           = "destination-identity-conflict"
+	codeUnsupported                = "destination-unsupported"
+	codeTargetBlocked              = "target-blocked"
+	codeRowRejected                = "destination-rejected-row"
+	codeTargetUnusable             = "target-unusable"
+	codeTargetUnavailable          = "target-unavailable"
+	codePayloadMismatch            = "payload-digest-mismatch"
+	codePayloadUndecodable         = "payload-undecodable"
 )
 
 // SenderConfig bounds retries; Backoff is injectable for tests.
@@ -78,6 +83,9 @@ type SenderConfig struct {
 	// given retry count. Nil uses delivery.CalculateBackoff.
 	Backoff func(retryCount int) (state string, next time.Time)
 	Now     func() time.Time
+	// Recovery restores a confirmed managed table that vanished. Nil keeps the
+	// delivery layer's plain behavior.
+	Recovery StorageRecovery
 }
 
 // DeliveryResult is the state an item ended in.
@@ -160,6 +168,15 @@ func (s *Sender) Deliver(ctx context.Context, effectKey string) (DeliveryResult,
 	if err != nil {
 		return s.block(ctx, effectKey, codePayloadUndecodable)
 	}
+	if s.config.Recovery != nil {
+		code, err := s.config.Recovery.Admit(ctx, item)
+		if err != nil {
+			return DeliveryResult{State: item.State}, fmt.Errorf("admit delivery to managed storage: %w", err)
+		}
+		if code != "" {
+			return s.block(ctx, effectKey, code)
+		}
+	}
 	claim, err := s.store.BeginDelivery(ctx, effectKey, s.owner, s.leaseTTL)
 	if err != nil {
 		return DeliveryResult{State: item.State}, err
@@ -175,21 +192,45 @@ func (s *Sender) Deliver(ctx context.Context, effectKey string) (DeliveryResult,
 		settleCtx, cancelSettle := context.WithTimeout(context.WithoutCancel(ctx), s.settleTimeout)
 		defer cancelSettle()
 		if errors.Is(err, ErrTargetBlocked) {
-			return s.blockClaimed(settleCtx, claim, codeTargetBlocked)
+			code := codeTargetBlocked
+			if s.config.Recovery != nil {
+				if named := s.config.Recovery.BlockedCode(settleCtx, item); named != "" {
+					code = named
+				}
+			}
+			return s.blockClaimed(settleCtx, claim, code)
 		}
 		return s.retry(settleCtx, claim, codeTargetUnavailable)
 	}
 	if target.Close != nil {
 		defer func() { _ = target.Close() }() //nolint:errcheck // releasing a finished connection; nothing to recover
 	}
-	_, err = dbtarget.InsertGroupRow(attemptCtx, target.DB, dbtarget.GroupInsertRequest{
-		Kind: target.Kind, SchemaName: item.Destination.TableSchema, TableName: item.Destination.TableName,
-		Row: row, PayloadDigest: item.PayloadDigest, Strategy: item.Destination.DedupeCapability,
-		RecordKeyColumn: item.Destination.RecordKeyColumn, CommittedAt: timestamp(s.nowValue()),
-	})
+	insert := func() error {
+		_, err := dbtarget.InsertGroupRow(attemptCtx, target.DB, dbtarget.GroupInsertRequest{
+			Kind: target.Kind, SchemaName: item.Destination.TableSchema, TableName: item.Destination.TableName,
+			Row: row, PayloadDigest: item.PayloadDigest, Strategy: item.Destination.DedupeCapability,
+			RecordKeyColumn: item.Destination.RecordKeyColumn, CommittedAt: timestamp(s.nowValue()),
+		})
+		return err
+	}
+	err = insert()
+	// Every external step, including a storage restore and the insert after it,
+	// runs inside the one attempt budget; settlement starts only after all of them.
+	var record settlement
+	if err != nil && s.config.Recovery != nil && dbtarget.IsSchemaShapeError(err) {
+		var tryAgain bool
+		if tryAgain, record = s.recoverStorage(attemptCtx, item, target, claim, err); tryAgain {
+			// The table is back: one more try, never a second restore.
+			err = insert()
+		}
+	}
+	if record == nil {
+		insertErr := err
+		record = func(c context.Context) (DeliveryResult, error) { return s.settle(c, claim, item, insertErr) }
+	}
 	settleCtx, cancelSettle := context.WithTimeout(context.WithoutCancel(ctx), s.settleTimeout)
 	defer cancelSettle()
-	return s.settle(settleCtx, claim, item, err)
+	return record(settleCtx)
 }
 
 func (s *Sender) settle(ctx context.Context, claim Claim, item OutboxItem, insertErr error) (DeliveryResult, error) {

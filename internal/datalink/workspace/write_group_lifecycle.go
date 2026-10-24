@@ -25,13 +25,17 @@ var (
 // WriteGroupAppliedSnapshot is an immutable applied group snapshot selected
 // for one UTC bucket boundary. Group is always returned as a defensive copy.
 type WriteGroupAppliedSnapshot struct {
-	WorkspaceID     string                   `json:"workspace_id"`
-	GroupID         string                   `json:"group_id"`
-	GroupRevision   string                   `json:"group_revision"`
-	AppliedRevision string                   `json:"applied_revision"`
-	EffectiveAt     time.Time                `json:"effective_at"`
-	Group           *WriteGroup              `json:"group"`
-	RuntimeLayout   *WriteGroupRuntimeLayout `json:"runtime_layout,omitempty"`
+	WorkspaceID     string    `json:"workspace_id"`
+	GroupID         string    `json:"group_id"`
+	GroupRevision   string    `json:"group_revision"`
+	AppliedRevision string    `json:"applied_revision"`
+	EffectiveAt     time.Time `json:"effective_at"`
+	// EndsAt is the immutable instant a cutover took the sources away from this
+	// revision; zero while it still owns them. It is read from the cutover
+	// ledger on every resolve and never frozen into a runtime descriptor.
+	EndsAt        time.Time                `json:"-"`
+	Group         *WriteGroup              `json:"group"`
+	RuntimeLayout *WriteGroupRuntimeLayout `json:"runtime_layout,omitempty"`
 }
 
 // WriteGroupIntakeEligibility describes whether new samples may enter the
@@ -168,104 +172,14 @@ func (s *WriteGroupService) applyWithCheckpoint(ctx context.Context, id string, 
 		if err != nil {
 			return err
 		}
-		if existing.Revision != mutation.ExpectedGroupRevision {
-			return writeGroupRevisionConflict("write group revision is stale")
-		}
-		if existing.Status == WriteGroupStatusDeleted {
-			return ErrWriteGroupLifecycleBlocked
-		}
-		if existing.Destination.ConnectorRevision != mutation.ExpectedConnectorRevision {
-			return writeGroupRevisionConflict("write group connector revision is stale")
-		}
-		if err := validateLiveWriteGroupConnector(ctx, tx, s.repo, existing.Destination.ConnectorID, mutation.ExpectedConnectorRevision); err != nil {
+		if err := s.requireNoActiveOwner(ctx, tx, existing); err != nil {
 			return err
 		}
-		candidate := cloneWriteGroup(existing)
-		if err := s.repo.validate(ctx, tx, candidate); err != nil {
-			return err
-		}
-		if readiness.runtimeLayout != nil {
-			currentTypes, err := loadWriteGroupTagTypes(ctx, tx, s.repo.query, candidate)
-			if err != nil {
-				return err
-			}
-			if !reflect.DeepEqual(currentTypes, readiness.runtimeLayout.TagTypes) {
-				return writeGroupRevisionConflict("write group tag types changed during schema verification")
-			}
-		}
-		candidate.Status = WriteGroupStatusReady
-		candidate.UpdatedAt = s.clockNow()
-		activeSnapshot, snapshotErr := s.repo.versionByRevisionInTx(ctx, tx, record.ID, existing.ID, existing.AppliedRevision)
-		if snapshotErr != nil && !errors.Is(snapshotErr, ErrWriteGroupAppliedRevisionUnavailable) {
-			return snapshotErr
-		}
-		if existing.Status != WriteGroupStatusDisabled && activeSnapshot != nil && sameWriteGroupAppliedSemantics(candidate, activeSnapshot.Group) {
-			// A display-only rename must not restart the applied writer or create
-			// a second bucket snapshot. Keep the prior active revision while
-			// explicitly moving the saved draft back to ready. A disabled group
-			// follows the normal new-version path so re-enabling cannot reuse its
-			// retired intake boundary.
-			candidate.AppliedRevision = existing.AppliedRevision
-			activeSnapshot.RuntimeLayout = readiness.runtimeLayout
-			if err := s.saveRuntimeVersionInTx(ctx, tx, activeSnapshot); err != nil {
-				return err
-			}
-			if err := s.repo.setAppliedInTx(ctx, tx, candidate); err != nil {
-				return err
-			}
-			if err := projectWriteGroup(record, candidate); err != nil {
-				return err
-			}
-			saved = cloneWriteGroup(candidate)
-			return nil
-		}
-		if activeSnapshot != nil && activeSnapshot.EffectiveAt.After(candidate.UpdatedAt) {
-			// Keep one pending semantic cutover so an older scheduled snapshot
-			// cannot become effective again after a newer policy was applied.
-			return fmt.Errorf("write-group cutover is still pending: %w", ErrWriteGroupLifecycleBlocked)
-		}
-		candidate.AppliedRevision = candidate.Revision
-		oldIntervalSeconds := 0
-		if activeSnapshot != nil {
-			oldIntervalSeconds = activeSnapshot.Group.RowPolicy.IntervalSeconds
-		}
-		effectiveAt, err := nextWriteGroupCutover(
-			candidate.UpdatedAt,
-			oldIntervalSeconds,
-			candidate.RowPolicy.IntervalSeconds,
-		)
+		applied, err := s.applyGroupInTx(ctx, tx, record, id, mutation, readiness, nextAlignedCutover, false)
 		if err != nil {
-			return fmt.Errorf("schedule write-group cutover: %w", err)
-		}
-		if err := s.repo.insertVersionInTx(ctx, tx, candidate, effectiveAt); err != nil {
 			return err
 		}
-		if err := s.saveRuntimeVersionInTx(ctx, tx, &WriteGroupAppliedSnapshot{
-			WorkspaceID: record.ID, GroupID: candidate.ID, GroupRevision: candidate.Revision,
-			AppliedRevision: candidate.AppliedRevision, EffectiveAt: effectiveAt.UTC(),
-			Group: candidate, RuntimeLayout: readiness.runtimeLayout,
-		}); err != nil {
-			return err
-		}
-		if err := s.repo.setAppliedInTx(ctx, tx, candidate); err != nil {
-			return err
-		}
-		if err := projectWriteGroup(record, candidate); err != nil {
-			return err
-		}
-		if err := s.activateWriterOwnershipInTx(ctx, tx, WriterOwnershipActivationRequest{
-			WorkspaceID:                   record.ID,
-			GroupID:                       candidate.ID,
-			ExpectedDatabaseSetupRevision: mutation.ExpectedWorkspaceRevision,
-			ExpectedGroupRevision:         mutation.ExpectedGroupRevision,
-			ExpectedConnectorRevision:     mutation.ExpectedConnectorRevision,
-			PreviousAppliedRevision:       existing.AppliedRevision,
-			AppliedRevision:               candidate.AppliedRevision,
-			EffectiveAt:                   effectiveAt.UTC(),
-		}); err != nil {
-			return err
-		}
-		saved = cloneWriteGroup(candidate)
+		saved = applied
 		return nil
 	}, checkpoint)
 	if err != nil {
@@ -322,6 +236,9 @@ func (s *WriteGroupService) ResolveAppliedAt(ctx context.Context, id string, at 
 	result.WorkspaceID = record.ID
 	result.GroupID = group.ID
 	result.Group = cloneWriteGroup(result.Group)
+	if result.EndsAt, err = s.repo.revisionEndInTx(ctx, setupTx.SQLTx(), group.ID, result.AppliedRevision); err != nil {
+		return nil, normalizeWriteGroupServiceError("resolve write-group snapshot", err)
+	}
 	return result, nil
 }
 
@@ -386,6 +303,12 @@ func (s *WriteGroupService) IntakeEligibility(ctx context.Context, id string) (r
 		return nil, normalizeWriteGroupServiceError("read write-group intake eligibility", resolveErr)
 	}
 	result.AppliedRevision = snapshot.GroupRevision
+	if ends, err := s.repo.revisionEndInTx(ctx, setupTx.SQLTx(), group.ID, snapshot.AppliedRevision); err != nil {
+		return nil, normalizeWriteGroupServiceError("read write-group intake eligibility", err)
+	} else if !ends.IsZero() && !s.clockNow().Before(ends) {
+		result.Reason = "cutover-ended"
+		return result, nil
+	}
 	result.Accepting = true
 	result.Reason = "applied-snapshot-active"
 	return result, nil

@@ -25,6 +25,9 @@ const (
 	reasonTableUnavailable       = "destination-table-unavailable"
 	reasonTagUnavailable         = "tag-unavailable"
 	reasonIntervalInvalid        = "interval-invalid"
+	// reasonCounterSourcesUnavailable means the saved measurement definitions
+	// could not be read, which is not the same as counter semantics being unconfirmed.
+	reasonCounterSourcesUnavailable = "counter-semantics-unavailable"
 )
 
 // lookaheadFactor looks this many reconcile intervals ahead so a revision that
@@ -72,31 +75,43 @@ func (p *Pipeline) Reconcile(ctx context.Context) error {
 // is recorded as blocked with a safe reason and retried on the next pass.
 func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGroup, now time.Time) {
 	current, err := p.deps.Groups.ResolveAppliedAt(ctx, group.ID, now)
-	if err != nil {
+	var snapshots []*workspace.WriteGroupAppliedSnapshot
+	if err == nil {
+		snapshots = append(snapshots, current)
+	}
+	// A revision that becomes effective soon is built before its first sample.
+	// That includes the first revision of a group a cutover starts at an exact
+	// instant: until then it has no current snapshot to build from.
+	if upcoming, upErr := p.deps.Groups.ResolveAppliedAt(ctx, group.ID, now.Add(lookaheadFactor*p.config.ReconcileInterval)); upErr == nil &&
+		(current == nil || upcoming.AppliedRevision != current.AppliedRevision) {
+		snapshots = append(snapshots, upcoming)
+	}
+	if len(snapshots) == 0 {
 		p.setBlocked(group, reasonSnapshotUnavailable)
 		return
 	}
-	snapshots := []*workspace.WriteGroupAppliedSnapshot{current}
-	if upcoming, err := p.deps.Groups.ResolveAppliedAt(ctx, group.ID, now.Add(lookaheadFactor*p.config.ReconcileInterval)); err == nil &&
-		upcoming.AppliedRevision != current.AppliedRevision {
-		snapshots = append(snapshots, upcoming)
-	}
 	// A reconcile can miss the lookahead window. End every older boundary at
 	// the current snapshot's start even when no future snapshot was observed.
-	p.mu.RLock()
-	for _, previous := range p.boundaries {
-		if previous.groupID == group.ID && previous.effective.Before(current.EffectiveAt) {
-			previous.boundary.SetUntil(alignUp(current.EffectiveAt, previous.interval))
+	if current != nil {
+		p.mu.RLock()
+		for _, previous := range p.boundaries {
+			if previous.groupID == group.ID && previous.effective.Before(current.EffectiveAt) {
+				previous.boundary.SetEndsAt(current.EffectiveAt)
+			}
 		}
+		p.mu.RUnlock()
 	}
-	p.mu.RUnlock()
 	built := false
 	for _, snap := range snapshots {
 		key := boundaryKey(group.ID, snap.AppliedRevision)
 		p.mu.RLock()
-		_, exists := p.boundaries[key]
+		existing := p.boundaries[key]
 		p.mu.RUnlock()
-		if exists {
+		if existing != nil {
+			if !snap.EndsAt.IsZero() {
+				// A cutover took the sources away from this revision at an exact instant.
+				existing.boundary.SetEndsAt(snap.EndsAt)
+			}
 			built = true
 			continue
 		}
@@ -113,13 +128,13 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 	if built {
 		p.clearBlocked(group.ID)
 	}
-	if len(snapshots) == 2 {
+	if current != nil && len(snapshots) == 2 {
 		// The superseded revision owns samples only until the new one is effective.
 		p.mu.RLock()
 		old := p.boundaries[boundaryKey(group.ID, current.AppliedRevision)]
 		p.mu.RUnlock()
 		if old != nil {
-			old.boundary.SetUntil(alignUp(snapshots[1].EffectiveAt, old.interval))
+			old.boundary.SetEndsAt(snapshots[1].EffectiveAt)
 		}
 	}
 }
@@ -150,9 +165,12 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 		if !sameAppliedSnapshot(snap, frozen) || frozen.RuntimeLayout.Dialect != dialect {
 			return nil, reasonSnapshotUnavailable
 		}
+		frozen.EndsAt = snap.EndsAt
 		return p.buildFrozen(ctx, frozen, time.Time{}, time.Time{})
 	}
-	if canonicalManagedGroup(group) {
+	if canonicalManagedGroup(group) || longGroup(group) {
+		// Only the verified snapshot frozen at apply can start these groups; the
+		// inspected table is never used to rebuild one.
 		return nil, reasonSnapshotUnavailable
 	}
 	inspection, err := p.deps.Inspector.InspectTable(ctx, group.Destination.ConnectorID, group.Destination.TableSchema, group.Destination.TableName)
@@ -207,17 +225,37 @@ func (p *Pipeline) buildFrozen(ctx context.Context, snap *workspace.WriteGroupAp
 	if interval < time.Second {
 		return nil, reasonIntervalInvalid
 	}
+	effective := snap.EffectiveAt.UTC()
 	if first.IsZero() {
-		first = alignUp(snap.EffectiveAt, interval)
+		// An ordinary revision takes effect on a window boundary. A cutover revision
+		// takes effect at an exact instant: its first window is the one containing it.
+		first = snapshot.BucketStart(effective, interval)
+	}
+	var startsAt, endsAt time.Time
+	if !effective.Equal(first) && snapshot.BucketStart(effective, interval).Equal(first) {
+		startsAt = effective
+	}
+	if !snap.EndsAt.IsZero() {
+		end := alignUp(snap.EndsAt, interval)
+		if until.IsZero() || until.Equal(end) {
+			until, endsAt = end, snap.EndsAt.UTC()
+		}
 	}
 	members := make([]member, 0, len(group.Members))
 	for _, m := range group.Members {
 		members = append(members, member{tagID: m.TagID, connectorID: group.Destination.ConnectorID})
 	}
 	key := groupdelivery.GroupKey{WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: snap.AppliedRevision}
+	var counters map[string]runtime.CounterSource
+	if longGroup(group) && group.RecordingProfile != nil && group.RecordingProfile.Kind == workspace.WriteGroupProfileCumulative && p.deps.Counters != nil {
+		var err error
+		if counters, err = p.deps.Counters.CounterSources(ctx, group); err != nil {
+			return nil, reasonCounterSourcesUnavailable
+		}
+	}
 	boundary, err := runtime.NewGroupBoundaryContext(ctx, runtime.GroupBoundaryConfig{
-		Group: group, TagTypes: layout.TagTypes, Dialect: layout.Dialect, Columns: layout.Columns,
-		FirstBucket: first, Until: until, MaxFutureSkew: p.config.MaxFutureSkew,
+		Group: group, TagTypes: layout.TagTypes, Counters: counters, Dialect: layout.Dialect, Columns: layout.Columns,
+		FirstBucket: first, Until: until, StartsAt: startsAt, EndsAt: endsAt, MaxFutureSkew: p.config.MaxFutureSkew,
 		Ledger: p.deps.Store.Ledger(key), Clock: p.config.Now, ReceiptTableReady: layout.ReceiptTableReady,
 	})
 	if err != nil {

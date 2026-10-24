@@ -1,13 +1,9 @@
 package workspace
 
 import (
-	"cmp"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"net/url"
 	"os"
-	"slices"
 	"strings"
 
 	"go-gateway/internal/datalink/dbtarget"
@@ -166,6 +162,9 @@ func evaluateWriteGroupInspection(
 			"destination-column-type-unverified", "destination SQL dialect could not be verified", group.ID,
 		)}
 	}
+	if group.isLongLayout() {
+		return evaluateLongGroupInspection(group, tagTypes, inspection, string(dialect))
+	}
 	if group.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && group.RowPolicy.RecordKeyColumn != "" {
 		layout, layoutErr := managedSchemaLayout(group, tagTypes, string(dialect))
 		if layoutErr != nil {
@@ -251,26 +250,6 @@ func evaluateWriteGroupInspection(
 	return len(issues) == 0, issues
 }
 
-func recordingPlanTableInspection(inspection *dbtarget.TableInspection) recordingplan.TargetTableInspection {
-	if inspection == nil {
-		return recordingplan.TargetTableInspection{}
-	}
-	state := recordingplan.TargetTableInspection{
-		Status:           string(inspection.Status),
-		Columns:          make([]string, 0, len(inspection.Columns)),
-		ColumnTypes:      make(map[string]string, len(inspection.Columns)),
-		ColumnNullable:   make(map[string]bool, len(inspection.Columns)),
-		ColumnPrimaryKey: make(map[string]bool, len(inspection.Columns)),
-	}
-	for _, column := range inspection.Columns {
-		state.Columns = append(state.Columns, column.Name)
-		state.ColumnTypes[column.Name] = column.DataType
-		state.ColumnNullable[column.Name] = column.Nullable
-		state.ColumnPrimaryKey[column.Name] = column.PrimaryKey
-	}
-	return state
-}
-
 func writeGroupReadinessDialect(connectorKinds ...string) (dbtarget.SQLDialect, bool) {
 	if len(connectorKinds) == 0 || strings.EqualFold(strings.TrimSpace(connectorKinds[0]), writeGroupConnectorKindSQLite) {
 		return dbtarget.SQLDialectSQLite, true
@@ -338,50 +317,6 @@ func normalizedWriteGroupColumnType(raw string) (string, bool) {
 	default:
 		return "", false
 	}
-}
-
-type writeGroupSchemaDigest struct {
-	GroupID     string                    `json:"group_id"`
-	ConnectorID string                    `json:"connector_id"`
-	Schema      string                    `json:"schema"`
-	Table       string                    `json:"table"`
-	Columns     []dbtarget.ColumnInfo     `json:"columns"`
-	Bindings    []writeGroupSchemaBinding `json:"bindings"`
-}
-
-type writeGroupSchemaBinding struct {
-	DeviceID     string `json:"device_id"`
-	PointID      string `json:"point_id"`
-	TagID        string `json:"tag_id"`
-	TargetColumn string `json:"target_column"`
-}
-
-func digestWriteGroupInspection(group *WriteGroup, inspection *dbtarget.TableInspection) (string, error) {
-	digest := writeGroupSchemaDigest{
-		GroupID: group.ID, ConnectorID: group.Destination.ConnectorID,
-		Schema: group.Destination.TableSchema, Table: group.Destination.TableName,
-		Columns:  slices.Clone(inspection.Columns),
-		Bindings: make([]writeGroupSchemaBinding, 0, len(group.Members)),
-	}
-	slices.SortFunc(digest.Columns, func(a, b dbtarget.ColumnInfo) int {
-		left, right := strings.ToLower(a.Name), strings.ToLower(b.Name)
-		if c := cmp.Compare(left, right); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.Name, b.Name)
-	})
-	for _, member := range group.Members {
-		digest.Bindings = append(digest.Bindings, writeGroupSchemaBinding{
-			DeviceID: member.DeviceID, PointID: member.PointID,
-			TagID: member.TagID, TargetColumn: member.TargetColumn,
-		})
-	}
-	payload, err := json.Marshal(digest)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(payload)
-	return hex.EncodeToString(sum[:]), nil
 }
 
 func groupIDOrEmpty(value any) string {

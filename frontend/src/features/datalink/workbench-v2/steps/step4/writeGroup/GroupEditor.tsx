@@ -14,13 +14,16 @@ import type { ExcludedCandidate, GroupCandidate } from '../../../state/writeGrou
 import { suggestColumns } from '../../../state/writeGroup/columns';
 import {
   draftIsDirty, draftToRequestGroup, groupToDraft, newDraft, validateDraft,
-  type EditorDraft, type IncompletePolicy,
+  type EditorDraft,
 } from '../../../state/writeGroup/draft';
 import { useStep4TargetColumns } from '../useStep4TargetColumns';
 import { GroupColumnProposal } from './GroupColumnProposal';
 import { GroupDeliveryStrip } from './GroupDeliveryStrip';
+import { GroupIdentityFields } from './GroupIdentityFields';
 import { GroupLifecycleBar } from './GroupLifecycleBar';
 import { GroupMemberTable } from './GroupMemberTable';
+import { GroupPolicyFields } from './GroupPolicyFields';
+import { GroupProfileMembers, GroupProfileSummary } from './GroupProfileSummary';
 import { GroupReadinessPanel } from './GroupReadinessPanel';
 import { GroupSchemaPanel } from './GroupSchemaPanel';
 import { GroupTestWritePanel } from './GroupTestWritePanel';
@@ -44,8 +47,6 @@ export interface GroupEditorProps {
    */
   fetchLatest: () => Promise<{ workspace_revision: string; groups: WriteGroup[] } | undefined>;
 }
-
-const FIELD = 'mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100';
 
 function destinationSaved(connector: DbConnector): boolean {
   return connector.persisted === true && connector.save_state === 'saved' &&
@@ -85,6 +86,7 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
     return () => { mountedRef.current = false; };
   }, []);
 
+  const profile = draft.layout_version === 'managed_long_v1' && draft.recording_profile !== undefined;
   const dirty = group ? draftIsDirty(draft, group) : true;
   // Adopt a new server revision only while there is nothing unsaved to lose.
   const revision = group?.revision;
@@ -224,81 +226,35 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-xs text-slate-400">
-          {t('step4.group.editor.name')}
-          <input type="text" value={draft.name} disabled={readonly} onChange={(event) => set({ name: event.target.value })} className={FIELD} data-testid="group-name" />
-        </label>
-        <fieldset className="text-xs text-slate-400">
-          <legend>{t('step4.group.editor.storage')}</legend>
-          {(['custom', 'managed'] as WriteGroupStorageStrategy[]).map((strategy) => (
-            <label key={strategy} className="mr-4 inline-flex items-center gap-1 text-slate-200">
-              <input type="radio" name="group-storage" value={strategy} checked={draft.storage_strategy === strategy} disabled={readonly} onChange={() => changeStorageStrategy(strategy)} data-testid={`group-storage-${strategy}`} />
-              {t(`step4.group.editor.storage_${strategy}`)}
-            </label>
-          ))}
-          <p className="mt-1 text-slate-500" data-testid="group-storage-note">{t(`step4.group.editor.storage_${draft.storage_strategy}_note`)}</p>
-        </fieldset>
-        <label className="text-xs text-slate-400">
-          {t('step4.group.editor.table')}
-          <input type="text" value={draft.table_name} disabled={readonly} onChange={(event) => set({ table_name: event.target.value })} className={FIELD} data-testid="group-table" />
-          {draft.storage_strategy === 'managed' && <span className="mt-1 block text-[11px] text-slate-500">{t('step4.group.editor.table_managed_note')}</span>}
-        </label>
-        <label className="text-xs text-slate-400">
-          {t('step4.group.editor.schema')}
-          <input type="text" value={draft.table_schema} disabled={readonly} onChange={(event) => set({ table_schema: event.target.value })} className={FIELD} data-testid="group-schema" />
-        </label>
-      </div>
+      {profile && <GroupProfileSummary draft={draft} />}
+      <GroupIdentityFields draft={draft} readonly={readonly} locked={profile} onChange={set} onStorageStrategy={changeStorageStrategy} />
 
-      <details className="rounded border border-slate-800 p-3" data-testid="group-advanced">
-        <summary className="cursor-pointer text-xs font-medium text-slate-300">{t('step4.group.editor.advanced')}</summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="text-xs text-slate-400">{t('step4.group.editor.interval')}
-            <input type="number" min={1} value={draft.interval_seconds} disabled={readonly} onChange={(event) => set({ interval_seconds: Number(event.target.value) })} className={FIELD} data-testid="group-interval" />
-          </label>
-          <label className="text-xs text-slate-400">{t('step4.group.editor.lateness')}
-            <input type="number" min={0} value={draft.allowed_lateness_seconds} disabled={readonly} onChange={(event) => set({ allowed_lateness_seconds: Number(event.target.value) })} className={FIELD} data-testid="group-lateness" />
-          </label>
-          <label className="text-xs text-slate-400">{t('step4.group.editor.incomplete')}
-            <select value={draft.incomplete_policy} disabled={readonly} onChange={(event) => set({ incomplete_policy: event.target.value as IncompletePolicy })} className={FIELD} data-testid="group-incomplete">
-              <option value="skip_row">{t('step4.group.editor.incomplete_skip')}</option>
-              <option value="partial">{t('step4.group.editor.incomplete_partial')}</option>
-            </select>
-          </label>
-          <label className="text-xs text-slate-400">{t('step4.group.editor.dedupe')}
-            <select value={draft.storage_strategy === 'managed' ? 'receipt' : draft.dedupe_capability} disabled={readonly || draft.storage_strategy === 'managed'} onChange={(event) => { customDedupeRef.current = event.target.value; set({ dedupe_capability: event.target.value }); }} className={FIELD} data-testid="group-dedupe">
-              {draft.storage_strategy !== 'managed' && <option value="">{t('step4.group.editor.dedupe_none')}</option>}
-              <option value="receipt">{t('step4.group.editor.dedupe_receipt')}</option>
-            </select>
-          </label>
-          <label className="text-xs text-slate-400">{t('step4.group.editor.entity_column')}
-            <input type="text" value={draft.entity_key_column} disabled={readonly} onChange={(event) => set({ entity_key_column: event.target.value })} className={FIELD} data-testid="group-entity-column" />
-          </label>
-          <label className="text-xs text-slate-400">{t('step4.group.editor.provenance_column')}
-            <input type="text" value={draft.provenance_column} disabled={readonly} onChange={(event) => set({ provenance_column: event.target.value })} className={FIELD} data-testid="group-provenance-column" />
-          </label>
-        </div>
-      </details>
+      <GroupPolicyFields draft={draft} readonly={readonly} profile={profile} onChange={set} onDedupe={(capability) => { customDedupeRef.current = capability; set({ dedupe_capability: capability }); }} />
 
-      <GroupMemberTable
-        managed={draft.storage_strategy === 'managed'} dialect={dialect}
-        candidates={candidates} excluded={excluded} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
-        suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly}
-        onChange={(members) => set({ members })}
-      />
-      <GroupColumnProposal
-        dialect={dialect}
-        managed={draft.storage_strategy === 'managed'}
-        existingColumns={editorMetadata.columns.map((column) => column.name)}
-        unmatched={candidates.filter((candidate) => {
-          const member = draft.members.find((entry) => entry.key === candidate.key);
-          if (!member) return false;
-          const column = metadata.columns.find((entry) => entry.name === member.target_column);
-          return editorMetadata.status === 'exists' && (!member.target_column || !column);
-        })}
-      />
-      {editorMetadata.status === 'failed' && (
-        <button type="button" onClick={metadata.refetch} className="text-xs underline" data-testid="group-metadata-retry">{t('step4.group.retry')}</button>
+      {profile ? <GroupProfileMembers draft={draft} candidates={candidates} workspaceId={workspaceId} readonly={readonly} /> : (
+        <>
+        <GroupMemberTable
+          managed={draft.storage_strategy === 'managed'} dialect={dialect}
+          candidates={candidates} excluded={excluded} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
+          suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly}
+          onChange={(members) => set({ members })}
+        />
+        <GroupColumnProposal
+          dialect={dialect}
+          managed={draft.storage_strategy === 'managed'}
+          existingColumns={editorMetadata.columns.map((column) => column.name)}
+          unmatched={candidates.filter((candidate) => {
+            const member = draft.members.find((entry) => entry.key === candidate.key);
+            if (!member) return false;
+            const column = metadata.columns.find((entry) => entry.name === member.target_column);
+            return editorMetadata.status === 'exists' && (!member.target_column || !column);
+          })}
+        />
+        {editorMetadata.status === 'failed' && (
+          <button type="button" onClick={metadata.refetch} className="text-xs underline" data-testid="group-metadata-retry">{t('step4.group.retry')}</button>
+        )}
+
+        </>
       )}
 
       {draft.storage_strategy === 'managed' && (

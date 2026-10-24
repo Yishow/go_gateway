@@ -1,5 +1,7 @@
-import { destinationIsSaved, optionalShareRequest, groupMatchesRequest, operationScopeMatchesCurrent, requestMatchesCurrentControls, groupSnapshotMatchesRequest, operationBelongsToGroupId, unresolvedRequestMatchesCurrentScope } from './basicRecordingPanelHelpers';
+import { destinationIsSaved, groupMatchesRequest, operationScopeMatchesCurrent, requestMatchesCurrentControls, groupSnapshotMatchesRequest, operationBelongsToGroupId, unresolvedRequestMatchesCurrentScope } from './basicRecordingPanelHelpers';
 import { BasicMemberUpdate } from './BasicMemberUpdate';
+import { buildBasicStartRequest } from './basicStartRequest';
+import { LegacyMigrationEntry } from './LegacyMigrationEntry';
 import { BasicSchemaPreparation } from './BasicSchemaPreparation';
 import { GroupDeliveryRecovery } from './writeGroup/GroupDeliveryRecovery';
 import { supportsWriteGroupKind } from './writeGroupCapabilities';
@@ -7,38 +9,21 @@ import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import {
-  useEnsureBasicManagedMutation,
-  useRecordingStartMutation,
-  useRecordingStartOperationQuery,
-} from '../../../../../hooks/datalink/useStudioV2RecordingStart';
+import { useEnsureBasicManagedMutation, useRecordingStartMutation, useRecordingStartOperationQuery } from '../../../../../hooks/datalink/useStudioV2RecordingStart';
+import * as writeGroupHooks from '../../../../../hooks/datalink/useStudioV2WriteGroups';
 import { useWriteGroupDeliveryQuery, useWriteGroupsQuery } from '../../../../../hooks/datalink/useStudioV2WriteGroups';
-import type { RecordingStartOperation, RecordingStartRequest } from '../../../../../types/studioV2RecordingStart';
-import type { WriteGroup, WriteGroupDraft } from '../../../../../types/studioV2WriteGroup';
+import type { RecordingStartOperation } from '../../../../../types/studioV2RecordingStart';
 import type { ModbusShareStatus } from '../../../../../types/modbusShare';
 import { isModbusShareConfiguredEnabled } from '../../../../../types/modbusShare';
 import { studioV2WorkspaceKeys } from '../../../../../hooks/datalink/keys';
 import type { WorkbenchV2State } from '../../state/types';
 import { buildGroupCandidates } from '../../state/writeGroup/candidates';
-import {
-  safeBasicNextAction,
-  safeBasicOperationMessage,
-  safeBasicStartError,
-} from '../../state/basicRecordingMessages';
+import { safeBasicNextAction, safeBasicOperationMessage, safeBasicStartError } from '../../state/basicRecordingMessages';
 import { BasicRecordingEvidence } from './BasicRecordingEvidence';
 import { BasicRecordingMembers } from './BasicRecordingMembers';
 import { BasicRecordingProgress } from './BasicRecordingProgress';
-import {
-  basicManagedGroupDraft,
-  basicRecordingScopeKey,
-  buildBasicManagedDrafts,
-  createBasicRecordingRequestId,
-  isBasicManagedWriteGroup,
-  latestRecordingStartOperation,
-  loadBasicRecordingIntent,
-  saveBasicRecordingIntent,
-  type BasicRecordingIntentRecord,
-} from '../../state/basicRecording';
+import { CircuitProfileBasicPanel } from './CircuitProfileBasicPanel';
+import { basicManagedGroupDraft, basicRecordingScopeKey, buildBasicManagedDrafts, createBasicRecordingRequestId, isBasicManagedWriteGroup, latestRecordingStartOperation, loadBasicRecordingIntent, saveBasicRecordingIntent, type BasicRecordingIntentRecord } from '../../state/basicRecording';
 
 export interface BasicRecordingPanelProps {
   state: WorkbenchV2State;
@@ -47,7 +32,7 @@ export interface BasicRecordingPanelProps {
   shareStatus?: ModbusShareStatus | null;
   role?: string;
   onCommit?: (confirmedDeviceIds?: string[]) => void;
-  onOpenAdvanced?: () => void;
+  onOpenAdvanced?: (groupId?: string) => void;
   onOpenMemberSettings?: (groupId: string) => void;
   onOperationActiveChange?: (active: boolean) => void;
 }
@@ -95,6 +80,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
     [draftByDevice, shareOnly, state.devices],
   );
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
+  const [migrating, setMigrating] = useState(false);
   const [intervalSeconds, setIntervalSeconds] = useState(DEFAULT_INTERVAL_SECONDS);
   const [incompletePolicy, setIncompletePolicy] = useState('skip_row');
   const [localIntent, setLocalIntent] = useState<BasicRecordingIntentRecord | undefined>();
@@ -204,6 +190,14 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
     })();
   }, [groupsQuery, operation, queryClient]);
 
+  const supportsCircuitProfile = 'useEnsureCircuitProfileMutation' in writeGroupHooks;
+  const hasLegacyBasicWide = liveGroups.some((g) => Boolean(g.basic_managed_device_id) && (g.layout_version ?? 'managed_wide_v1') === 'managed_wide_v1');
+  if (supportsCircuitProfile && !shareOnly) {
+    if (groupsQuery.isLoading) return <div data-testid="circuit-profile-groups-loading" className="rounded border border-slate-800 p-4 text-xs text-slate-400">{t('step4.basic.circuit.groups_loading')}</div>;
+    if (groupsQuery.isError) return <div role="alert" data-testid="circuit-profile-groups-error" className="rounded border border-rose-800/70 bg-rose-950/30 p-4 text-xs text-rose-200">{t('step4.basic.circuit.groups_error')}</div>;
+    if (!hasLegacyBasicWide || migrating) return <CircuitProfileBasicPanel prepareOnly={hasLegacyBasicWide} onClose={() => setMigrating(false)} state={state} workspaceId={workspaceId} readonly={readonly} workspaceRevision={workspaceRevision} readinessToken={shareStatus?.readiness_token} settingsRevision={shareStatus?.settings_revision} shareWorkspaceRevision={shareStatus?.workspace_revision} onOpenAdvanced={onOpenAdvanced} onActivated={(ids) => onCommit?.(ids)} onContinueToRuntime={(ids) => onCommit?.(ids)} onOperationActiveChange={onOperationActiveChange} />;
+  }
+
   const blockReason = !workspaceId ? 'workspace'
     : readonly ? 'readonly'
       : !shareOnly && candidates.length === 0 ? 'mapping'
@@ -212,20 +206,6 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
           : !workspaceSnapshotReady || (!shareOnly && !workspaceRevision) ? 'workspace_revision'
             : destinationMismatch ? 'destination_mismatch'
               : membersMismatch ? 'members_changed' : undefined;
-
-  const buildStartRequest = (group: WriteGroup | undefined, expectedWorkspaceRevision: string, requestId: string, draft?: WriteGroupDraft): RecordingStartRequest => ({
-    request_id: requestId,
-    workspace_id: workspaceId ?? group?.workspace_id ?? '',
-    expected_workspace_revision: expectedWorkspaceRevision,
-    device_ids: [selectedDeviceId],
-    groups: group ? [{
-      group_id: group.id,
-      expected_group_revision: group.revision,
-      expected_connector_revision: state.db.connector.identity_revision ?? group.destination.connector_revision,
-      ...(draft ? { draft } : {}),
-    }] : [],
-    ...optionalShareRequest(shareStatus),
-  });
 
   const ensureGroup = async () => {
     if (basicSelectedGroup) return { group: basicSelectedGroup, workspace_revision: workspaceRevision };
@@ -259,7 +239,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
       const draft = changed && group ? basicManagedGroupDraft(group, intervalSeconds, incompletePolicy) : undefined;
       const request = requestCanBeReused && localIntent
         ? localIntent.request
-        : buildStartRequest(group, expectedWorkspaceRevision, createBasicRecordingRequestId(), draft);
+        : buildBasicStartRequest({ workspaceId, deviceId: selectedDeviceId, connectorRevision: state.db.connector.identity_revision, shareStatus }, group, expectedWorkspaceRevision, createBasicRecordingRequestId(), draft);
       const record: BasicRecordingIntentRecord = { scope_key: scopeAtRequest, request };
       saveBasicRecordingIntent(record);
       setLocalIntent(record);
@@ -374,6 +354,8 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
 
       {!shareOnly && <div id={`basic-schema-${selectedDeviceId}`} tabIndex={-1}><BasicSchemaPreparation key={`${scopeKey}|${connectorRevision}`} group={basicSelectedGroup} workspaceId={workspaceId ?? ''} workspaceRevision={workspaceRevision} disabled={Boolean(blockReason) || operationActive} readonly={readonly || operationActive} destinationMatches={!destinationMismatch} ensureGroup={ensureGroup} onApplied={() => void groupsQuery.refetch()} /></div>}
       {!shareOnly && selectedGroup && !deliveryQuery.isError && deliveryQuery.data?.group_id === selectedGroup.id && <GroupDeliveryRecovery groupId={selectedGroup.id} items={deliveryQuery.data.attention ?? []} readonly={readonly || operationActive} onResolved={() => void deliveryQuery.refetch()} />}
+
+      {supportsCircuitProfile && !shareOnly && hasLegacyBasicWide && destinationSaved && <LegacyMigrationEntry disabled={readonly || operationActive} onOpen={() => setMigrating(true)} />}
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" disabled={Boolean(blockReason) || operationActive || groupsQuery.isLoading} onClick={() => void handleStart()} className="rounded bg-cyan-600 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40" data-testid="basic-recording-start">

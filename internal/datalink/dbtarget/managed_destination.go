@@ -88,27 +88,13 @@ func (i *ManagedTableInspector) InspectTable(ctx context.Context, connectorID, s
 }
 
 func (i *ManagedTableInspector) inspectManagedConnectorTable(ctx context.Context, connector *schema.DatabaseConnector, schemaName, tableName string) (*TableInspection, error) {
-
-	switch connector.Kind {
-	case schema.DatabaseConnectorKindSQLite:
-		if strings.TrimSpace(schemaName) != "" && strings.TrimSpace(schemaName) != managedSQLiteSchemaName {
-			return nil, managedDestinationInvalid("managed SQLite schema must be main")
-		}
-		missing, err := i.inspectSQLiteDestination(ctx, connector)
-		if err != nil {
-			return nil, err
-		}
-		if missing {
-			return managedMissingTableInspection(schemaName, tableName), nil
-		}
-	case schema.DatabaseConnectorKindPostgres:
-		if err := validateManagedPostgresConfig(connector); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, managedDestinationInvalid("saved connector kind is unsupported")
+	missing, err := i.guardManagedConnector(ctx, connector, schemaName)
+	if err != nil {
+		return nil, err
 	}
-
+	if missing {
+		return managedMissingTableInspection(schemaName, tableName), nil
+	}
 	return inspectReadOnlySavedConnectorTable(ctx, connector, schemaName, tableName)
 }
 

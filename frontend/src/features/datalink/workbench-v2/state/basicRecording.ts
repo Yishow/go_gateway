@@ -1,5 +1,6 @@
 import type { RecordingStartOperation, RecordingStartRequest } from '../../../../types/studioV2RecordingStart';
 import type { WriteGroup, WriteGroupDestinationDraft, WriteGroupDraft } from '../../../../types/studioV2WriteGroup';
+import { recordingProfileIntervalSeconds } from '../../../../utils/studioV2RecordingProfile';
 import type { GroupCandidate } from './writeGroup/candidates';
 
 export interface BasicManagedDraft {
@@ -91,15 +92,17 @@ function validStoredRequest(value: unknown, workspaceId: string, deviceId: strin
   if (!safeText(request.request_id, 128) || request.workspace_id !== workspaceId ||
     !Array.isArray(request.device_ids) || request.device_ids.length !== 1 ||
     request.device_ids[0] !== deviceId || !Array.isArray(request.groups) ||
-    request.groups.length > 1) return false;
+    request.groups.length > 2) return false;
   if (!safeText(request.expected_workspace_revision, 256) &&
     !(request.expected_workspace_revision === '' && request.groups.length === 0)) return false;
-  if (request.groups.length === 1) {
-    const group = request.groups[0];
+  const seenGroupIds = new Set<string>();
+  for (const group of request.groups) {
     if (!group || typeof group !== 'object' || Array.isArray(group) ||
-      !safeText(group.group_id, 256) || !safeText(group.expected_group_revision, 256) ||
+      !safeText(group.group_id, 256) || seenGroupIds.has(group.group_id) ||
+      !safeText(group.expected_group_revision, 256) ||
       !safeText(group.expected_connector_revision, 256) ||
       (group.draft !== undefined && (!group.draft || typeof group.draft !== 'object' || Array.isArray(group.draft)))) return false;
+    seenGroupIds.add(group.group_id);
   }
   for (const field of ['readiness_token', 'settings_revision', 'workspace_revision'] as const) {
     if (request[field] !== undefined && !safeText(request[field], 256)) return false;
@@ -186,6 +189,8 @@ export function basicManagedGroupDraft(
   intervalSeconds: number,
   incompletePolicy: string,
 ): WriteGroupDraft {
+  // A profile group's interval comes from its profile, never from the basic seconds field.
+  const profileSeconds = group.recording_profile ? recordingProfileIntervalSeconds(group.recording_profile) : null;
   return {
     workspace_id: group.workspace_id,
     name: group.name,
@@ -198,6 +203,8 @@ export function basicManagedGroupDraft(
       target_column: member.target_column,
       required: member.required,
       ...(member.max_age_seconds !== undefined ? { max_age_seconds: member.max_age_seconds } : {}),
+      ...(member.circuit_id ? { circuit_id: member.circuit_id } : {}),
+      ...(member.circuit_name ? { circuit_name: member.circuit_name } : {}),
     })),
     destination: {
       connector_id: group.destination.connector_id,
@@ -208,11 +215,14 @@ export function basicManagedGroupDraft(
     },
     row_policy: {
       ...group.row_policy,
-      interval_seconds: intervalSeconds,
+      interval_seconds: profileSeconds ?? intervalSeconds,
       allowed_lateness_seconds: group.row_policy.allowed_lateness_seconds,
       incomplete_policy: incompletePolicy,
     },
     write_policy: { ...group.write_policy },
+    ...(group.layout_version ? { layout_version: group.layout_version } : {}),
+    ...(group.recording_profile ? { recording_profile: { ...group.recording_profile } } : {}),
+    ...(group.storage_mode ? { storage_mode: group.storage_mode } : {}),
   };
 }
 

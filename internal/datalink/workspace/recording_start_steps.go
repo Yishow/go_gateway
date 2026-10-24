@@ -2,9 +2,7 @@ package workspace
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -176,13 +174,12 @@ func (s *RecordingStartService) recordingStartCheckpoint(op *recordingplan.Schem
 		if err != nil {
 			return err
 		}
-		encoded, err := json.Marshal([]any{group.Members, types})
+		sourceDigest, err := managedSourceDigest(group, types)
 		if err != nil {
 			return fmt.Errorf("encode recording start source scope: %w", err)
 		}
-		digest := sha256.Sum256(encoded)
 		p.Scopes[i] = recordingStartGroupScope{
-			SourceDigest: hex.EncodeToString(digest[:]), SchemaRevision: group.Destination.SchemaRevision,
+			SourceDigest: sourceDigest, SchemaRevision: group.Destination.SchemaRevision,
 			SchemaDigest: group.Destination.SchemaDigest,
 		}
 		p.View.Groups[i].GroupRevision, p.View.Groups[i].Saved = group.Revision, true
@@ -190,7 +187,7 @@ func (s *RecordingStartService) recordingStartCheckpoint(op *recordingplan.Schem
 			p.View.Groups[i].Applied, p.View.Groups[i].AppliedRevision = true, group.AppliedRevision
 		}
 		p.WorkspaceRevision = record.DatabaseSetupRevision
-		encoded, err = json.Marshal(p)
+		encoded, err := json.Marshal(p)
 		if err != nil {
 			return fmt.Errorf("encode recording start transaction progress: %w", err)
 		}

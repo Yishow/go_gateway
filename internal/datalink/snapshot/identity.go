@@ -10,6 +10,7 @@ import (
 
 const (
 	recordIDVersion     = "write-group-record-v1"
+	profileRecordIDVer  = "write-group-profile-record-v1"
 	effectKeyVersion    = "write-group-effect-v1"
 	destinationVersion  = "write-group-destination-v1"
 	fixedGroupScopeMark = "group-scope"
@@ -72,4 +73,29 @@ func EffectKey(destinationScope, recordID string) (string, error) {
 		return "", missingIdentity("record")
 	}
 	return measurement.HashStringTuple(effectKeyVersion, destinationScope, recordID)
+}
+
+// ProfileRecordID derives the identity of one member's record in one window of
+// a recording profile. Unlike RecordID it names the source member, so members
+// of the same window never share or overwrite an identity, and it never uses
+// arrival order or a clock.
+func ProfileRecordID(workspaceID, groupID, groupRevision, memberKey, profileKind string, windowStart time.Time) (string, error) {
+	switch {
+	case strings.TrimSpace(workspaceID) == "":
+		return "", missingIdentity("workspace")
+	case strings.TrimSpace(groupID) == "":
+		return "", missingIdentity("group")
+	case strings.TrimSpace(groupRevision) == "":
+		return "", missingIdentity("group revision")
+	case strings.TrimSpace(memberKey) == "":
+		return "", missingIdentity("member")
+	case strings.TrimSpace(profileKind) == "":
+		return "", missingIdentity("profile")
+	case windowStart.IsZero():
+		return "", missingIdentity("window start")
+	}
+	return measurement.HashStringTuple(
+		profileRecordIDVer, workspaceID, groupID, groupRevision, memberKey, profileKind,
+		windowStart.UTC().Format(time.RFC3339Nano),
+	)
 }

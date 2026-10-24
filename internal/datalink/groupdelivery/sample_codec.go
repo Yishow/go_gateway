@@ -23,8 +23,15 @@ type samplePayload struct {
 	Value           *measurement.ExactValue `json:"value,omitempty"`
 	SourceRevision  string                  `json:"source_revision,omitempty"`
 	MappingRevision string                  `json:"mapping_revision,omitempty"`
+	// ReceivedAt is optional so journals written before it was kept still
+	// decode, as the unknown (zero) time. It is not part of the identity digest.
+	ReceivedAt string `json:"received_at,omitempty"`
 }
 
+// encodeSample returns the journal payload and its identity digest. The digest
+// covers everything but the receive time, so it is unchanged for samples that
+// were journaled before ReceivedAt existed and a resend of a sample never
+// becomes an identity conflict only because its receive time was recorded.
 func encodeSample(sample snapshot.Sample) (payload []byte, digest string, err error) {
 	wire := samplePayload{
 		SampleID:        sample.SampleID,
@@ -39,11 +46,17 @@ func encodeSample(sample snapshot.Sample) (payload []byte, digest string, err er
 		value := sample.Value
 		wire.Value = &value
 	}
-	payload, err = json.Marshal(wire)
+	identity, err := json.Marshal(wire)
 	if err != nil {
 		return nil, "", fmt.Errorf("encode journal sample: %w", err)
 	}
-	sum := sha256.Sum256(payload)
+	if !sample.ReceivedAt.IsZero() {
+		wire.ReceivedAt = sample.ReceivedAt.UTC().Format(time.RFC3339Nano)
+	}
+	if payload, err = json.Marshal(wire); err != nil {
+		return nil, "", fmt.Errorf("encode journal sample: %w", err)
+	}
+	sum := sha256.Sum256(identity)
 	return payload, hex.EncodeToString(sum[:]), nil
 }
 
@@ -67,6 +80,12 @@ func decodeSample(payload []byte) (snapshot.Sample, error) {
 	}
 	if wire.Value != nil {
 		sample.Value = *wire.Value
+	}
+	if wire.ReceivedAt != "" {
+		if sample.ReceivedAt, err = time.Parse(time.RFC3339Nano, wire.ReceivedAt); err != nil {
+			return snapshot.Sample{}, fmt.Errorf("decode journal sample receive time: %w", err)
+		}
+		sample.ReceivedAt = sample.ReceivedAt.UTC()
 	}
 	return sample, nil
 }

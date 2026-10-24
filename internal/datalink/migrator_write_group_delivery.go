@@ -19,8 +19,25 @@ func ensureSQLiteWriteGroupDeliveryTables(db *sql.DB) error {
 			return fmt.Errorf("failed to inspect sqlite table %s for migration %s: %w", table, migrationName, err)
 		}
 		if !exists {
-			return applySQLiteMigrationOnce(db, migrationName)
+			if err := applySQLiteMigrationOnce(db, migrationName); err != nil {
+				return err
+			}
+			break
 		}
 	}
-	return nil
+	return ensureSQLiteCounterBaselineTable(db)
+}
+
+// ensureSQLiteCounterBaselineTable adds the durable counter baseline table
+// beside the delivery tables of an installation that already has them.
+func ensureSQLiteCounterBaselineTable(db *sql.DB) error {
+	const migrationName = "033_write_group_counter_baselines_sqlite.up.sql"
+	exists, err := sqliteTableExists(db, "wg_delivery_counter_baselines")
+	if err != nil {
+		return fmt.Errorf("failed to inspect sqlite table wg_delivery_counter_baselines for migration %s: %w", migrationName, err)
+	}
+	if exists {
+		return nil
+	}
+	return applySQLiteMigrationOnce(db, migrationName)
 }

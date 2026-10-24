@@ -27,6 +27,18 @@ type Restored struct {
 	// Samples are accepted but not yet consumed by a closed bucket, in
 	// acceptance order.
 	Samples []snapshot.Sample
+	// Baselines are the durable cumulative counter baselines of the group, as
+	// committed with the last closure; empty for a group without counters. The
+	// payloads are returned undecoded so the caller can tell a damaged baseline
+	// from a legitimately changed binding.
+	Baselines []CounterBaseline
+}
+
+// CounterBaseline is the serialized cumulative counter checkpoint of one member
+// (aggregation.EncodeCounterCheckpoint). It is stored and restored byte for byte.
+type CounterBaseline struct {
+	MemberKey string
+	Payload   []byte
 }
 
 // ErrSampleConflict marks a resend of an accepted sample ID with different content.
@@ -68,6 +80,10 @@ type Closure struct {
 	Destination FrozenDestination
 	NextClose   time.Time
 	Buckets     []ClosedBucket
+	// Baselines are the counter baselines this closure advances. They commit in
+	// the same transaction as the outbox rows and the checkpoint, so a baseline
+	// moves exactly when the records derived from it become durable.
+	Baselines []CounterBaseline
 }
 
 // ErrEffectConflict marks an effect key that already exists with different content.
@@ -75,3 +91,11 @@ var ErrEffectConflict = errors.New("durable effect identity conflict")
 
 // ErrInvalidClosure marks a closure that cannot be persisted faithfully.
 var ErrInvalidClosure = errors.New("durable closure invalid")
+
+// ErrBaselineConflict marks a second, different baseline for a window that
+// already has one: the committed baseline is never overwritten.
+var ErrBaselineConflict = errors.New("durable counter baseline conflict")
+
+// ErrBaselineCorrupt marks a stored baseline whose bytes no longer match the
+// digest committed with them.
+var ErrBaselineCorrupt = errors.New("durable counter baseline corrupt")

@@ -14,6 +14,15 @@ export interface CounterPolicy {
   reset_threshold?: number;
   max_roll_over?: number;
   allow_negative: boolean;
+  /**
+   * Exact rollover evidence as decimal text. They are strings on purpose: a JSON
+   * number would pass through a float and lose digits above 2^53, and the server
+   * refuses a number here. The legacy float `max_roll_over` is a separate field
+   * and is never converted into these. Editing them in the UI belongs to a later
+   * task; this only keeps a saved definition's values intact on a round trip.
+   */
+  rollover_modulus?: string;
+  max_rate_per_second?: string;
 }
 
 export interface MeasurementDefinition {

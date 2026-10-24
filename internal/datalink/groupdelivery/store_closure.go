@@ -19,6 +19,15 @@ type memberRecord struct {
 	ObservedAt string `json:"observed_at,omitempty"`
 }
 
+// bucketReason is the reason stored beside a closed bucket. A written row has
+// none of its own, so a row a cutover cut short carries that fact instead.
+func bucketReason(outcome snapshot.Outcome) string {
+	if outcome.Reason == "" && outcome.Kind == snapshot.OutcomeRow && outcome.Truncated != "" {
+		return snapshot.ReasonBoundaryTruncated + ":" + outcome.Truncated
+	}
+	return outcome.Reason
+}
+
 func memberRecords(outcome snapshot.Outcome) string {
 	records := make([]memberRecord, 0, len(outcome.Members))
 	for _, member := range outcome.Members {
@@ -37,28 +46,28 @@ func memberRecords(outcome snapshot.Outcome) string {
 	return string(encoded)
 }
 
-func validateClosure(key GroupKey, closure Closure) error {
+func validateClosure(key GroupKey, closure Closure) ([]decodedBaseline, error) {
 	if !key.Valid() {
-		return ErrInvalidGroupKey
+		return nil, ErrInvalidGroupKey
 	}
 	d := closure.Destination
 	if closure.NextClose.IsZero() || d.Scope == "" || d.ConnectorID == "" || d.ConnectorRevision == "" || d.TableName == "" {
-		return fmt.Errorf("%w: next close and a frozen destination are required", ErrInvalidClosure)
+		return nil, fmt.Errorf("%w: next close and a frozen destination are required", ErrInvalidClosure)
 	}
 	for _, bucket := range closure.Buckets {
 		outcome := bucket.Outcome
 		if outcome.BucketStart.IsZero() {
-			return fmt.Errorf("%w: bucket start is required", ErrInvalidClosure)
+			return nil, fmt.Errorf("%w: bucket start is required", ErrInvalidClosure)
 		}
 		isRow := outcome.Kind == snapshot.OutcomeRow
 		if isRow != (bucket.Row != nil) {
-			return fmt.Errorf("%w: only row outcomes carry encoded values", ErrInvalidClosure)
+			return nil, fmt.Errorf("%w: only row outcomes carry encoded values", ErrInvalidClosure)
 		}
 		if isRow && (outcome.EffectKey == "" || bucket.Row.EffectKey != outcome.EffectKey || bucket.Row.RecordID != outcome.RecordID) {
-			return fmt.Errorf("%w: row identity does not match its outcome", ErrInvalidClosure)
+			return nil, fmt.Errorf("%w: row identity does not match its outcome", ErrInvalidClosure)
 		}
 	}
-	return nil
+	return validateBaselines(key, closure.NextClose, closure.Baselines)
 }
 
 // CommitClosure persists closed buckets and advances the checkpoint in one
@@ -66,11 +75,15 @@ func validateClosure(key GroupKey, closure Closure) error {
 // all commit together or not at all. Repeating a committed closure is a no-op;
 // an existing effect key with different content is ErrEffectConflict.
 func (s *Store) CommitClosure(ctx context.Context, key GroupKey, closure Closure) error {
-	if err := validateClosure(key, closure); err != nil {
+	baselines, err := validateClosure(key, closure)
+	if err != nil {
 		return err
 	}
-	err := s.inTx(ctx, "closure", func(tx *sql.Tx) error {
+	err = s.inTx(ctx, "closure", func(tx *sql.Tx) error {
 		now := timestamp(s.now())
+		if err := storeBaselines(ctx, tx, key, baselines, now); err != nil {
+			return err
+		}
 		for _, bucket := range closure.Buckets {
 			outcome := bucket.Outcome
 			if _, err := tx.ExecContext(ctx, `
@@ -78,7 +91,7 @@ func (s *Store) CommitClosure(ctx context.Context, key GroupKey, closure Closure
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT (group_id, group_revision, entity_key, bucket_start) DO NOTHING`,
 				key.GroupID, key.GroupRevision, outcome.EntityKey, timestamp(outcome.BucketStart), string(outcome.Kind),
-				outcome.Reason, outcome.RecordID, memberRecords(outcome), now,
+				bucketReason(outcome), outcome.RecordID, memberRecords(outcome), now,
 			); err != nil {
 				return fmt.Errorf("record bucket outcome: %w", err)
 			}

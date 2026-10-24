@@ -114,6 +114,99 @@ definitions:
       used_bytes:
         type: integer
     type: object
+  groupdelivery.SourceDelivery:
+    enum:
+    - queued
+    - retrying
+    - blocked
+    - quarantined
+    - unknown
+    - sql_committed
+    - operator_skipped
+    type: string
+    x-enum-varnames:
+    - SourceDeliveryQueued
+    - SourceDeliveryRetrying
+    - SourceDeliveryBlocked
+    - SourceDeliveryQuarantined
+    - SourceDeliveryUnknown
+    - SourceDeliveryCommitted
+    - SourceDeliverySkipped
+  groupdelivery.SourceRecord:
+    properties:
+      available:
+        type: boolean
+      cause:
+        $ref: '#/definitions/groupdelivery.SourceUnavailableCause'
+      committed_at:
+        description: CommittedAt is set only when the destination receipt matched
+          this payload.
+        type: string
+      connector_revision:
+        type: string
+      delivery:
+        $ref: '#/definitions/groupdelivery.SourceDelivery'
+      delta_known:
+        description: DeltaKnown is set for cumulative records only; false is an unknown
+          difference, never zero.
+        type: boolean
+      effect_key:
+        type: string
+      group_revision:
+        type: string
+      payload_digest:
+        type: string
+      profile_kind:
+        type: string
+      raw_present:
+        type: boolean
+      reason:
+        type: string
+      record_id:
+        type: string
+      status:
+        $ref: '#/definitions/groupdelivery.SourceStatus'
+      window_end:
+        type: string
+      window_start:
+        type: string
+    type: object
+  groupdelivery.SourceStatus:
+    enum:
+    - ok
+    - partial
+    - baseline
+    - missing
+    - bad
+    - stale
+    - invalid
+    - reset_or_uncertain
+    - gap
+    type: string
+    x-enum-varnames:
+    - SourceStatusOK
+    - SourceStatusPartial
+    - SourceStatusBaseline
+    - SourceStatusMissing
+    - SourceStatusBad
+    - SourceStatusStale
+    - SourceStatusInvalid
+    - SourceStatusUncertain
+    - SourceStatusGap
+  groupdelivery.SourceUnavailableCause:
+    enum:
+    - payload_invalid
+    - digest_mismatch
+    - identity_mismatch
+    - status_unknown
+    - window_invalid
+    type: string
+    x-enum-varnames:
+    - SourceCausePayloadInvalid
+    - SourceCauseDigestMismatch
+    - SourceCauseIdentityMismatch
+    - SourceCauseStatusUnknown
+    - SourceCauseWindowInvalid
   grouppipeline.BacklogView:
     properties:
       connector_id:
@@ -165,8 +258,15 @@ definitions:
         $ref: '#/definitions/grouppipeline.RevisionStagesView'
       skipped_buckets:
         type: integer
+      source_evidence:
+        allOf:
+        - $ref: '#/definitions/grouppipeline.SourceEvidenceView'
+        description: SourceEvidence is the per source result of the applied revision;
+          absent for wide, custom and unapplied groups.
       stages:
         $ref: '#/definitions/grouppipeline.StagesView'
+      storage:
+        $ref: '#/definitions/grouppipeline.StorageView'
     type: object
   grouppipeline.IntakeView:
     properties:
@@ -181,6 +281,41 @@ definitions:
         type: string
       stages:
         $ref: '#/definitions/grouppipeline.StagesView'
+    type: object
+  grouppipeline.SourceEvidenceItem:
+    properties:
+      circuit_id:
+        type: string
+      device_id:
+        type: string
+      last_sql_committed:
+        $ref: '#/definitions/groupdelivery.SourceRecord'
+      latest:
+        $ref: '#/definitions/groupdelivery.SourceRecord'
+      point_id:
+        type: string
+      tag_id:
+        type: string
+    type: object
+  grouppipeline.SourceEvidenceView:
+    properties:
+      connector_id:
+        description: |-
+          ConnectorID and ConnectorRevision are the destination the applied revision froze, which is where every
+          record below was written. They are never the editable draft's destination.
+        type: string
+      connector_revision:
+        type: string
+      group_revision:
+        type: string
+      sources:
+        items:
+          $ref: '#/definitions/grouppipeline.SourceEvidenceItem'
+        type: array
+      state:
+        type: string
+      unavailable_reason:
+        type: string
     type: object
   grouppipeline.StagesView:
     properties:
@@ -200,6 +335,27 @@ definitions:
         type: integer
       unknown:
         type: integer
+    type: object
+  grouppipeline.StorageView:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/recordingplan.StorageEvent'
+        type: array
+      generation:
+        type: integer
+      history_may_be_lost:
+        type: boolean
+      last_reconstructed_at:
+        type: string
+      reconstructions:
+        type: integer
+      recreate_missing:
+        type: boolean
+      repair_reason:
+        type: string
+      repair_state:
+        type: string
     type: object
   grouptestwrite.Preview:
     properties:
@@ -381,6 +537,29 @@ definitions:
         type: integer
     required:
     - register
+    type: object
+  handlers.WriteGroupCutoverListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupCutover'
+        type: array
+      success:
+        type: boolean
+    type: object
+  handlers.WriteGroupCutoverResponse:
+    properties:
+      data:
+        $ref: '#/definitions/workspace.WriteGroupCutover'
+      success:
+        type: boolean
+    type: object
+  handlers.WriteGroupCutoverReviewResponse:
+    properties:
+      data:
+        $ref: '#/definitions/workspace.CutoverReview'
+      success:
+        type: boolean
     type: object
   handlers.WriteGroupDeliveryResponse:
     properties:
@@ -1002,6 +1181,25 @@ definitions:
     - PlanStatusPartial
     - PlanStatusBlocked
     - PlanStatusPaused
+  recordingplan.StorageEvent:
+    properties:
+      code:
+        type: string
+      generation:
+        type: integer
+      group_id:
+        type: string
+      kind:
+        type: string
+      occurred_at:
+        type: string
+      occurrences:
+        type: integer
+      operation_id:
+        type: string
+      reason:
+        type: string
+    type: object
   recordingplan.StreamMode:
     enum:
     - raw_history
@@ -1096,7 +1294,7 @@ definitions:
         description: Order 執行順序 (從小到大)
         type: integer
       params:
-        additionalProperties: true
+        additionalProperties: {}
         description: Params 轉換參數 (依類型不同)
         type: object
       type:
@@ -1120,6 +1318,130 @@ definitions:
     - TransformLookup
     - TransformConditional
     - TransformFormula
+  workspace.CutoverEnd:
+    properties:
+      group_id:
+        type: string
+      revision:
+        type: string
+    type: object
+  workspace.CutoverGroupView:
+    properties:
+      connector_id:
+        type: string
+      group_id:
+        type: string
+      interval_seconds:
+        type: integer
+      layout:
+        type: string
+      member_count:
+        type: integer
+      name:
+        type: string
+      profile_kind:
+        type: string
+      revision:
+        type: string
+      schema_confirmed:
+        type: boolean
+      storage_mode:
+        type: string
+      table_name:
+        type: string
+      table_schema:
+        type: string
+    type: object
+  workspace.CutoverMemberRef:
+    properties:
+      device_id:
+        type: string
+      point_id:
+        type: string
+      tag_id:
+        type: string
+    type: object
+  workspace.CutoverRequest:
+    properties:
+      boundary:
+        description: |-
+          Boundary is the exact instant the sources change hands. Zero asks the
+          review to propose one; apply requires the reviewed value.
+        type: string
+      cutover_id:
+        description: CutoverID names the forward cutover a rollback reverses.
+        type: string
+      expected_connector_revision:
+        type: string
+      expected_source_revision:
+        type: string
+      expected_workspace_revision:
+        type: string
+      kind:
+        type: string
+      review_digest:
+        type: string
+      source_group_id:
+        type: string
+      targets:
+        items:
+          $ref: '#/definitions/workspace.CutoverTargetRef'
+        type: array
+      workspace_id:
+        type: string
+    type: object
+  workspace.CutoverReview:
+    properties:
+      applicable:
+        type: boolean
+      boundary:
+        type: string
+      digest:
+        type: string
+      issues:
+        items:
+          type: string
+        type: array
+      kind:
+        type: string
+      moved:
+        items:
+          $ref: '#/definitions/workspace.CutoverMemberRef'
+        type: array
+      remaining:
+        description: |-
+          Remaining are the sources of the saved draft that keeps recording in the
+          wide group; it must name exactly the unselected ones.
+        items:
+          $ref: '#/definitions/workspace.CutoverMemberRef'
+        type: array
+      source:
+        $ref: '#/definitions/workspace.CutoverGroupView'
+      targets:
+        items:
+          $ref: '#/definitions/workspace.CutoverGroupView'
+        type: array
+      unselected:
+        description: Unselected are the sources of the applied group that no target
+          takes.
+        items:
+          $ref: '#/definitions/workspace.CutoverMemberRef'
+        type: array
+    type: object
+  workspace.CutoverStart:
+    properties:
+      group_id:
+        type: string
+      revision:
+        type: string
+    type: object
+  workspace.CutoverTargetRef:
+    properties:
+      expected_revision:
+        type: string
+      group_id:
+        type: string
+    type: object
   workspace.DatabaseRowGroup:
     properties:
       connector_id:
@@ -1298,6 +1620,12 @@ definitions:
         $ref: '#/definitions/workspace.WriteGroupDestination'
       id:
         type: string
+      layout_version:
+        allOf:
+        - $ref: '#/definitions/workspace.WriteGroupLayoutVersion'
+        description: |-
+          LayoutVersion is empty for groups saved before layout versions existed;
+          read it through EffectiveLayoutVersion so absence stays managed_wide_v1.
       members:
         items:
           $ref: '#/definitions/workspace.WriteGroupMember'
@@ -1306,18 +1634,58 @@ definitions:
         $ref: '#/definitions/workspace.WriteGroupMigration'
       name:
         type: string
+      recording_profile:
+        allOf:
+        - $ref: '#/definitions/workspace.WriteGroupRecordingProfile'
+        description: RecordingProfile is nil for every pre-profile group.
       revision:
         type: string
       row_policy:
         $ref: '#/definitions/workspace.WriteGroupRowPolicy'
       status:
         $ref: '#/definitions/workspace.WriteGroupStatus'
+      storage_mode:
+        allOf:
+        - $ref: '#/definitions/workspace.WriteGroupStorageMode'
+        description: StorageMode is set only on managed_long_v1 groups (plain for
+          now).
       updated_at:
         type: string
       workspace_id:
         type: string
       write_policy:
         $ref: '#/definitions/workspace.WriteGroupWritePolicy'
+    type: object
+  workspace.WriteGroupCutover:
+    properties:
+      boundary:
+        type: string
+      created_at:
+        type: string
+      ended:
+        items:
+          $ref: '#/definitions/workspace.CutoverEnd'
+        type: array
+      id:
+        type: string
+      kind:
+        type: string
+      moved:
+        items:
+          $ref: '#/definitions/workspace.CutoverMemberRef'
+        type: array
+      prior_cutover_id:
+        type: string
+      review_digest:
+        type: string
+      source_group_id:
+        type: string
+      started:
+        items:
+          $ref: '#/definitions/workspace.CutoverStart'
+        type: array
+      workspace_id:
+        type: string
     type: object
   workspace.WriteGroupDestination:
     properties:
@@ -1338,6 +1706,22 @@ definitions:
       table_schema:
         type: string
     type: object
+  workspace.WriteGroupIntervalUnit:
+    enum:
+    - second
+    - minute
+    type: string
+    x-enum-varnames:
+    - WriteGroupIntervalUnitSecond
+    - WriteGroupIntervalUnitMinute
+  workspace.WriteGroupLayoutVersion:
+    enum:
+    - managed_wide_v1
+    - managed_long_v1
+    type: string
+    x-enum-varnames:
+    - WriteGroupLayoutManagedWideV1
+    - WriteGroupLayoutManagedLongV1
   workspace.WriteGroupListResult:
     properties:
       groups:
@@ -1351,6 +1735,13 @@ definitions:
     type: object
   workspace.WriteGroupMember:
     properties:
+      circuit_id:
+        description: |-
+          CircuitID is the opaque workspace-scoped circuit identity. It is never
+          derived from names or addresses; CircuitName is display text only.
+        type: string
+      circuit_name:
+        type: string
       device_id:
         type: string
       entity_key:
@@ -1495,6 +1886,14 @@ definitions:
       workspace_revision:
         type: string
     type: object
+  workspace.WriteGroupProfileKind:
+    enum:
+    - instantaneous
+    - cumulative
+    type: string
+    x-enum-varnames:
+    - WriteGroupProfileInstantaneous
+    - WriteGroupProfileCumulative
   workspace.WriteGroupReadiness:
     properties:
       applied_revision:
@@ -1553,6 +1952,15 @@ definitions:
         type: string
       tag_id:
         type: string
+    type: object
+  workspace.WriteGroupRecordingProfile:
+    properties:
+      interval:
+        type: integer
+      kind:
+        $ref: '#/definitions/workspace.WriteGroupProfileKind'
+      unit:
+        $ref: '#/definitions/workspace.WriteGroupIntervalUnit'
     type: object
   workspace.WriteGroupRowGroupMigrationIntent:
     properties:
@@ -1623,6 +2031,14 @@ definitions:
     - WriteGroupStatusRunning
     - WriteGroupStatusDisabled
     - WriteGroupStatusDeleted
+  workspace.WriteGroupStorageMode:
+    enum:
+    - plain
+    - timescale
+    type: string
+    x-enum-varnames:
+    - WriteGroupStorageModePlain
+    - WriteGroupStorageModeTimescale
   workspace.WriteGroupStorageStrategy:
     enum:
     - managed
@@ -1637,6 +2053,13 @@ definitions:
         type: string
       mode:
         type: string
+      recreate_missing:
+        description: |-
+          RecreateMissing is the confirmed recovery policy of managed long storage:
+          true lets delivery restore the confirmed table when the catalog proves it
+          is gone. Nil means no policy was ever confirmed and never authorizes
+          recovery; it is set only on managed long groups.
+        type: boolean
     type: object
 host: localhost:8080
 info:
@@ -2490,6 +2913,171 @@ paths:
       summary: Apply a canonical write group
       tags:
       - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/cutover:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Source write group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reviewed cutover request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/workspace.CutoverRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupCutoverResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Apply a reviewed forward cutover or rollback
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/cutover-review:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Source write group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Cutover request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/workspace.CutoverRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupCutoverReviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Review a forward cutover or rollback
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/cutovers:
+    get:
+      parameters:
+      - description: Source write group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupCutoverListResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: List recorded cutovers
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/cutovers/{cutover_id}:
+    get:
+      parameters:
+      - description: Source write group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Cutover ID
+        in: path
+        name: cutover_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupCutoverResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Read a recorded cutover
+      tags:
+      - Studio V2 Write Groups
   /datalink/studio-v2/workspace/write-groups/{id}/delivery:
     get:
       parameters:
@@ -2890,6 +3478,51 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponse'
       summary: Save or reuse one device's basic managed group
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/circuit-profiles/ensure:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Profile group and expected revisions
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMutationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupSaveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Ensure the canonical group of a circuit recording profile
       tags:
       - Studio V2 Write Groups
   /datalink/studio-v2/workspace/write-groups/migrations/recording-plans/preview:

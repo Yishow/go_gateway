@@ -109,11 +109,19 @@ export interface GroupSchemaColumn {
   primary_key: boolean;
 }
 
+/** One ordered, non-unique index that is created with and verified on the managed table. */
+export interface GroupSchemaIndex {
+  name: string;
+  columns: string[];
+}
+
 export interface GroupSchemaLayout {
   table_name: string;
   columns: GroupSchemaColumn[];
   /** Internal ownership marker; UI may use it to hide implementation detail. */
   owner_column: string;
+  /** Present for the long layout; wide layouts declare no indexes. */
+  indexes?: GroupSchemaIndex[];
 }
 
 /** Server-issued preview bound to the saved workspace, plan and connector revisions. */
@@ -135,6 +143,8 @@ export interface SchemaPreviewToken {
   statements: string[];
   tables: SchemaPreviewTable[];
   group_layout?: GroupSchemaLayout;
+  /** The recovery policy this confirmation shows and freezes; absent when none applies or none was decided. */
+  recreate_missing?: boolean;
   source_digest?: string;
   schema_revision?: string;
   schema_digest?: string;

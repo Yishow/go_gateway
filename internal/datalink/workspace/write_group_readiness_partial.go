@@ -11,6 +11,11 @@ import (
 // Partial readiness uses the same inspected row layout as the production
 // boundary. A saved opt-in alone never proves nullable or provenance storage.
 func evaluateWriteGroupPartialInspection(group *WriteGroup, tagTypes map[string]schema.DataType, inspection *dbtarget.TableInspection, connectorKind string) []ReadinessIssue {
+	// The fixed long layout is checked by evaluateLongGroupInspection; its
+	// sources occupy rows rather than the wide layout's per-member columns.
+	if managedLongGroup(group) {
+		return nil
+	}
 	if strings.ToLower(strings.TrimSpace(group.RowPolicy.IncompletePolicy)) != "partial" || inspection == nil || inspection.Status != dbtarget.TableInspectionExists {
 		return nil
 	}

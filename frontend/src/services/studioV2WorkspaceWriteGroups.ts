@@ -33,6 +33,8 @@ import {
   parseRecordingSchemaOperation,
   parseRecordingSchemaPreviewToken,
 } from '../utils/recordingPlanJson';
+import type { WriteGroupCutover, WriteGroupCutoverRequest, WriteGroupCutoverReview } from '../types/studioV2WriteGroupCutover';
+import { cutoverBody, parseWriteGroupCutover, parseWriteGroupCutoverList, parseWriteGroupCutoverReview } from '../utils/studioV2WriteGroupCutoverJson';
 import { studioV2DatalinkApi } from './studioV2Workspace';
 
 function cloneWriteGroupDraft(draft: WriteGroupDraft): WriteGroupDraft {
@@ -50,6 +52,8 @@ function cloneWriteGroupDraft(draft: WriteGroupDraft): WriteGroupDraft {
       target_column: member.target_column?.trim() ?? '',
       required: member.required,
       ...(member.max_age_seconds !== undefined ? { max_age_seconds: member.max_age_seconds } : {}),
+      ...(member.circuit_id ? { circuit_id: member.circuit_id } : {}),
+      ...(member.circuit_name ? { circuit_name: member.circuit_name } : {}),
     })),
     destination: {
       connector_id: draft.destination.connector_id,
@@ -76,7 +80,11 @@ function cloneWriteGroupDraft(draft: WriteGroupDraft): WriteGroupDraft {
     write_policy: {
       ...(draft.write_policy.mode ? { mode: draft.write_policy.mode } : {}),
       ...(draft.write_policy.dedupe_capability ? { dedupe_capability: draft.write_policy.dedupe_capability } : {}),
+      ...(draft.write_policy.recreate_missing !== undefined ? { recreate_missing: draft.write_policy.recreate_missing } : {}),
     },
+    ...(draft.layout_version ? { layout_version: draft.layout_version } : {}),
+    ...(draft.recording_profile ? { recording_profile: { ...draft.recording_profile } } : {}),
+    ...(draft.storage_mode ? { storage_mode: draft.storage_mode } : {}),
   };
 }
 
@@ -152,6 +160,41 @@ export const studioV2WorkspaceWriteGroupsAPI = {
     return parseRecordingAPIData(res.data, 'write-group schema operation', parseRecordingSchemaOperation);
   },
 
+  /** Read-only difference of a forward cutover (or its rollback) at an exact instant. */
+  async reviewCutover(sourceId: string, request: WriteGroupCutoverRequest): Promise<WriteGroupCutoverReview> {
+    const res = await studioV2DatalinkApi.post<unknown>(
+      `/studio-v2/workspace/write-groups/${encodeURIComponent(sourceId)}/cutover-review`,
+      cutoverBody(request),
+    );
+    return parseWriteGroupAPIData(res.data, 'write-group cutover review', parseWriteGroupCutoverReview);
+  },
+
+  /** Applies exactly what was reviewed: the reviewed instant and digest are required. */
+  async applyCutover(sourceId: string, request: WriteGroupCutoverRequest): Promise<WriteGroupCutover> {
+    if (!request.boundary || !request.review_digest) {
+      throw new Error('A cutover is applied only with the reviewed boundary and review digest.');
+    }
+    const res = await studioV2DatalinkApi.post<unknown>(
+      `/studio-v2/workspace/write-groups/${encodeURIComponent(sourceId)}/cutover`,
+      cutoverBody(request),
+    );
+    return parseWriteGroupAPIData(res.data, 'write-group cutover', parseWriteGroupCutover);
+  },
+
+  /** Reads one recorded cutover, so an operator whose answer was lost can see that it happened. */
+  async getCutover(sourceId: string, cutoverId: string): Promise<WriteGroupCutover> {
+    const res = await studioV2DatalinkApi.get<unknown>(
+      `/studio-v2/workspace/write-groups/${encodeURIComponent(sourceId)}/cutovers/${encodeURIComponent(cutoverId)}`,
+    );
+    return parseWriteGroupAPIData(res.data, 'write-group cutover', parseWriteGroupCutover);
+  },
+
+  /** Lists the cutovers and rollbacks recorded for a source group. */
+  async listCutovers(sourceId: string): Promise<WriteGroupCutover[]> {
+    const res = await studioV2DatalinkApi.get<unknown>(`/studio-v2/workspace/write-groups/${encodeURIComponent(sourceId)}/cutovers`);
+    return parseWriteGroupAPIData(res.data, 'write-group cutovers', parseWriteGroupCutoverList);
+  },
+
   /** Durable delivery truth: only `sql_committed` rows were confirmed by the destination. */
   async delivery(id: string): Promise<WriteGroupDelivery> {
     const res = await studioV2DatalinkApi.get<unknown>(
@@ -205,6 +248,15 @@ export const studioV2WorkspaceWriteGroupsAPI = {
       cloneCreateRequest(request),
     );
     return parseWriteGroupAPIData(res.data, 'write-group create', parseWriteGroupMutationData);
+  },
+
+  /** Creates or reuses the canonical group of one circuit profile; a resend returns the saved group. */
+  async ensureCircuitProfile(request: WriteGroupCreateRequest): Promise<WriteGroupMutationResponse> {
+    const res = await studioV2DatalinkApi.post<unknown>(
+      '/studio-v2/workspace/write-groups/circuit-profiles/ensure',
+      cloneCreateRequest(request),
+    );
+    return parseWriteGroupAPIData(res.data, 'write-group circuit profile', parseWriteGroupMutationData);
   },
 
   async update(id: string, request: WriteGroupUpdateRequest): Promise<WriteGroupMutationResponse> {

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/groupdelivery"
+	"go-gateway/internal/datalink/workspace"
 )
 
 // DeliveryView is the API-safe delivery truth of one group: its intake state,
@@ -25,6 +26,9 @@ type DeliveryView struct {
 	RecentBucketIssues     []groupdelivery.BucketIssue    `json:"recent_bucket_issues"`
 	Backlog                []BacklogView                  `json:"backlog"`
 	Quota                  groupdelivery.QuotaStatusView  `json:"quota"`
+	Storage                *StorageView                   `json:"storage,omitempty"`
+	// SourceEvidence is the per source result of the applied revision; absent for wide, custom and unapplied groups.
+	SourceEvidence *SourceEvidenceView `json:"source_evidence,omitempty"`
 }
 
 // RevisionStagesView reports acceptance and delivery for one applied revision.
@@ -116,7 +120,41 @@ func (p *Pipeline) Delivery(ctx context.Context, groupID string) (*DeliveryView,
 			view.Intake = IntakeView{State: intake.State, Reason: intake.Reason}
 		}
 	}
+	if p.recovery != nil {
+		if group := p.groupForView(ctx, groupID); group != nil {
+			storage, err := p.recovery.View(ctx, group)
+			if err != nil {
+				return nil, err
+			}
+			view.Storage = storage
+		}
+	}
 	return view, nil
+}
+
+func (p *Pipeline) groupForView(ctx context.Context, groupID string) *workspace.WriteGroup {
+	if p.deps.Groups == nil {
+		return nil
+	}
+	if getter, ok := p.deps.Groups.(interface {
+		Get(context.Context, string) (*workspace.WriteGroupSaveResult, error)
+	}); ok {
+		saved, err := getter.Get(ctx, groupID)
+		if err == nil && saved != nil {
+			return saved.Group
+		}
+		return nil
+	}
+	list, err := p.deps.Groups.List(ctx)
+	if err != nil || list == nil {
+		return nil
+	}
+	for _, group := range list.Groups {
+		if group != nil && group.ID == groupID {
+			return group
+		}
+	}
+	return nil
 }
 
 // DeliveryForRevision adds actual receipt identity for the current applied
@@ -141,6 +179,9 @@ func (p *Pipeline) DeliveryForRevision(ctx context.Context, groupID, appliedRevi
 	}
 	if stages.SQLCommitted > 0 {
 		view.LastSQLCommittedEffect = effect
+	}
+	if view.SourceEvidence, err = p.sourceEvidence(ctx, groupID, appliedRevision); err != nil {
+		return nil, err
 	}
 	return view, nil
 }

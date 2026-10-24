@@ -9,9 +9,13 @@ import (
 
 // Sample is the typed observation a member contributes to a bucket.
 type Sample struct {
-	SampleID      string
-	MemberKey     string
-	ObservedAt    time.Time
+	SampleID   string
+	MemberKey  string
+	ObservedAt time.Time
+	// ReceivedAt is when the gateway received the observation. The zero time
+	// means unknown (for instance a sample journaled before it was kept); it is
+	// never replaced by a restart or tick time and takes no part in identity.
+	ReceivedAt    time.Time
 	Quality       schema.QualityFlag
 	QualityReason string
 	Value         measurement.ExactValue
@@ -67,6 +71,11 @@ type Selector struct {
 	members map[string]struct{}
 	chosen  map[string]Sample
 	seen    map[string]Sample
+	// eligible, when set, ranks an eligible sample above any ineligible one, so
+	// the chosen sample is the newest eligible reading and falls back to the
+	// newest of the rest only to explain why nothing was eligible. Nil keeps the
+	// wide rule above.
+	eligible func(Sample) bool
 }
 
 // BucketStart returns the UTC start of the half-open bucket containing t, or
@@ -133,7 +142,7 @@ func (s *Selector) evaluate(sample Sample, now time.Time) OfferResult {
 	}
 	if current, ok := s.chosen[sample.MemberKey]; ok {
 		sample.ObservedAt = observed
-		if !supersedes(sample, current) {
+		if !s.supersedes(sample, current) {
 			return OfferResult{Outcome: OfferNotSelected}
 		}
 	}
@@ -144,7 +153,7 @@ func (s *Selector) evaluate(sample Sample, now time.Time) OfferResult {
 func (s *Selector) apply(sample Sample) {
 	sample.ObservedAt = sample.ObservedAt.UTC()
 	s.seen[sample.SampleID] = sample
-	if current, ok := s.chosen[sample.MemberKey]; !ok || supersedes(sample, current) {
+	if current, ok := s.chosen[sample.MemberKey]; !ok || s.supersedes(sample, current) {
 		s.chosen[sample.MemberKey] = sample
 	}
 }
@@ -153,6 +162,15 @@ func (s *Selector) apply(sample Sample) {
 func (s *Selector) Selected(member string) (Sample, bool) {
 	sample, ok := s.chosen[member]
 	return sample, ok
+}
+
+func (s *Selector) supersedes(candidate, current Sample) bool {
+	if s.eligible != nil {
+		if candidateOK, currentOK := s.eligible(candidate), s.eligible(current); candidateOK != currentOK {
+			return candidateOK
+		}
+	}
+	return supersedes(candidate, current)
 }
 
 func supersedes(candidate, current Sample) bool {

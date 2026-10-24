@@ -14,15 +14,18 @@ type persistedPreviewTables struct {
 	SourceDigest   string               `json:"source_digest,omitempty"`
 	SchemaRevision string               `json:"schema_revision,omitempty"`
 	SchemaDigest   string               `json:"schema_digest,omitempty"`
+	// RecreateMissing is the recovery policy the preview showed; stored with the
+	// token so the digest the user confirmed still verifies after a reload.
+	RecreateMissing *bool `json:"recreate_missing,omitempty"`
 }
 
 func encodePreviewTables(token *SchemaPreviewToken) ([]byte, error) {
-	if token.GroupLayout == nil && token.SourceDigest == "" && token.SchemaRevision == "" && token.SchemaDigest == "" {
+	if token.GroupLayout == nil && token.SourceDigest == "" && token.SchemaRevision == "" && token.SchemaDigest == "" && token.RecreateMissing == nil {
 		return json.Marshal(token.Tables)
 	}
 	return json.Marshal(persistedPreviewTables{
 		Tables: token.Tables, GroupLayout: token.GroupLayout, SourceDigest: token.SourceDigest,
-		SchemaRevision: token.SchemaRevision, SchemaDigest: token.SchemaDigest,
+		SchemaRevision: token.SchemaRevision, SchemaDigest: token.SchemaDigest, RecreateMissing: token.RecreateMissing,
 	})
 }
 
@@ -48,5 +51,6 @@ func decodePreviewTables(raw string, token *SchemaPreviewToken) error {
 	token.SourceDigest = envelope.SourceDigest
 	token.SchemaRevision = envelope.SchemaRevision
 	token.SchemaDigest = envelope.SchemaDigest
+	token.RecreateMissing = envelope.RecreateMissing
 	return nil
 }

@@ -27,15 +27,28 @@ func (r *SQLWriteGroupRepository) updateInTx(ctx context.Context, tx *sql.Tx, gr
 	// Basic ownership is read-only metadata; it has no write-group column and
 	// must never be accepted from an update payload.
 	candidate.BasicManagedDeviceID = ""
+	if candidate.WritePolicy.RecreateMissing == nil {
+		// An edit that does not mention the policy keeps what was saved; it
+		// never creates one that was not confirmed before.
+		candidate.WritePolicy.RecreateMissing = existing.WritePolicy.RecreateMissing
+	}
 	if validate {
-		if candidate.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && candidate.RowPolicy.RecordKeyColumn != "" && strings.TrimSpace(candidate.Destination.TableName) == "" {
+		if candidate.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && candidate.RowPolicy.RecordKeyColumn != "" && strings.TrimSpace(candidate.Destination.TableName) == "" && !candidate.isLongLayout() {
 			candidate.Destination.TableName = managedGroupTableName(existing.ID)
 		}
 		if err := r.validate(ctx, tx, candidate); err != nil {
 			return err
 		}
+		if err := r.checkProfileUpdateIdentity(ctx, tx, candidate, existing); err != nil {
+			return err
+		}
 	}
 	mergeWriteGroupServerFields(candidate, existing, r)
+	if validate {
+		if err := r.ensureStorageScopeInTx(ctx, tx, candidate); err != nil {
+			return err
+		}
+	}
 	if err := r.updateGroup(ctx, tx, candidate); err != nil {
 		return err
 	}
@@ -81,6 +94,15 @@ func sameWriteGroupSchema(candidate, existing *WriteGroup) bool {
 		candidate.RowPolicy.ProvenanceColumn != existing.RowPolicy.ProvenanceColumn {
 		return false
 	}
+	// A profile edit changes the derived interval; stale schema evidence must go.
+	if !sameRecordingProfile(candidate.RecordingProfile, existing.RecordingProfile) {
+		return false
+	}
+	// The recovery policy is part of what a confirmation shows, so changing it
+	// asks for a fresh confirmation.
+	if !sameRecreateMissing(candidate.WritePolicy.RecreateMissing, existing.WritePolicy.RecreateMissing) {
+		return false
+	}
 	if candidate.RowPolicy.RecordKeyColumn != existing.RowPolicy.RecordKeyColumn ||
 		candidate.RowPolicy.BucketStartColumn != existing.RowPolicy.BucketStartColumn ||
 		candidate.RowPolicy.GroupIDColumn != existing.RowPolicy.GroupIDColumn ||
@@ -118,6 +140,7 @@ func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, g
 	if err != nil {
 		return fmt.Errorf("encode write-group migration: %w", err)
 	}
+	layoutVersion, profileKind, profileInterval, profileUnit, storageMode := profileColumnValues(group)
 	result, err := tx.ExecContext(ctx, r.query(`
 		UPDATE write_groups SET
 			revision = $1, applied_revision = $2, name = $3, status = $4,
@@ -125,13 +148,15 @@ func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, g
 			destination_database = $7, destination_table_schema = $8, destination_table_name = $9,
 			destination_storage_strategy = $10, destination_schema_revision = $11,
 			destination_schema_digest = $12, row_policy = $13, write_policy = $14,
-			migration = $15, updated_at = $16
-		WHERE workspace_id = $17 AND id = $18
+			migration = $15, updated_at = $16,
+			layout_version = $17, profile_kind = $18, profile_interval = $19, profile_unit = $20, storage_mode = $21
+		WHERE workspace_id = $22 AND id = $23
 	`), group.Revision, group.AppliedRevision, group.Name, group.Status,
 		group.Destination.ConnectorID, group.Destination.ConnectorRevision,
 		group.Destination.Database, group.Destination.TableSchema, group.Destination.TableName,
 		group.Destination.StorageStrategy, group.Destination.SchemaRevision, group.Destination.SchemaDigest,
 		string(rowPolicy), string(writePolicy), string(migration), group.UpdatedAt,
+		layoutVersion, profileKind, profileInterval, profileUnit, storageMode,
 		group.WorkspaceID, group.ID)
 	if err != nil {
 		return fmt.Errorf("update write group: %w", err)
@@ -153,11 +178,11 @@ func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, g
 			INSERT INTO write_group_members (
 				group_id, member_index, device_id, point_id, tag_id,
 				entity_key, source_revision, mapping_revision, measurement_id, target_column,
-				required, max_age_seconds
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+				required, max_age_seconds, circuit_id, circuit_name
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		`), group.ID, index, member.DeviceID, member.PointID, member.TagID,
 			member.EntityKey, member.SourceRevision, member.MappingRevision, measurementID, member.TargetColumn,
-			member.Required, member.MaxAgeSeconds); err != nil {
+			member.Required, member.MaxAgeSeconds, nullableText(member.CircuitID), nullableText(member.CircuitName)); err != nil {
 			return fmt.Errorf("replace write-group member %d: %w", index, err)
 		}
 	}

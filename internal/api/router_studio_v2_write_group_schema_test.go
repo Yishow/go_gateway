@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/dbtarget"
+	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/workspace"
@@ -30,7 +31,30 @@ type managedGroupFixture struct {
 
 func newManagedGroupFixture(t *testing.T, kind string, tagTypes ...string) managedGroupFixture {
 	t.Helper()
-	f := managedGroupFixture{writeGroupRouterFixture: newWriteGroupRouterFixture(t), namespace: "main"}
+	f := newManagedDestinationFixture(t, kind, tagTypes...)
+	request := f.createRequest()
+	g := request["group"].(map[string]any)
+	g["destination"].(map[string]any)["storage_strategy"] = "managed"
+	g["destination"].(map[string]any)["table_schema"] = f.namespace
+	created := performJSONRequest(t, f.router, http.MethodPost, writeGroupsPath, request)
+	require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
+	f.data, f.group = groupSaveData(t, decodeJSONBody(t, created))
+	return f
+}
+
+// newManagedDestinationFixture binds the saved connector to a real SQLite file
+// or a scoped PostgreSQL schema and wires the production services, without
+// saving any group.
+func newManagedDestinationFixture(t *testing.T, kind string, tagTypes ...string) managedGroupFixture {
+	t.Helper()
+	return newManagedDestinationFixtureOn(t, kind, newWriteGroupRouterFixture(t), tagTypes...)
+}
+
+// newManagedDestinationFixtureOn binds the destination to a router fixture the
+// caller already built, for example on a local database with injected faults.
+func newManagedDestinationFixtureOn(t *testing.T, kind string, base writeGroupRouterFixture, tagTypes ...string) managedGroupFixture {
+	t.Helper()
+	f := managedGroupFixture{writeGroupRouterFixture: base, namespace: "main"}
 	config := map[string]string{}
 	if kind == "sqlite" {
 		f.file = filepath.Join(t.TempDir(), "managed.db")
@@ -84,16 +108,10 @@ func newManagedGroupFixture(t *testing.T, kind string, tagTypes ...string) manag
 		RecordingPlan: recordingplan.NewService(recordingplan.NewSQLRepository(f.db)),
 		// Metadata registration shares these services with database setup; GET
 		// metadata itself uses only the saved workspace, group and connector.
-		DBMapping:  dbtarget.NewMappingService(dbtarget.NewSQLTargetMappingRepository(f.db), dbtarget.NewSQLConnectorRepository(f.db), nil),
-		SourceRule: sourcerule.NewService(sourcerule.NewSQLRepository(f.db), nil, nil, nil),
+		DBMapping:   dbtarget.NewMappingService(dbtarget.NewSQLTargetMappingRepository(f.db), dbtarget.NewSQLConnectorRepository(f.db), nil),
+		SourceRule:  sourcerule.NewService(sourcerule.NewSQLRepository(f.db), nil, nil, nil),
+		Measurement: measurement.NewService(measurement.NewSQLRepository(f.db)),
 	})
-	request := f.createRequest()
-	g := request["group"].(map[string]any)
-	g["destination"].(map[string]any)["storage_strategy"] = "managed"
-	g["destination"].(map[string]any)["table_schema"] = f.namespace
-	created := performJSONRequest(t, f.router, http.MethodPost, writeGroupsPath, request)
-	require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
-	f.data, f.group = groupSaveData(t, decodeJSONBody(t, created))
 	return f
 }
 

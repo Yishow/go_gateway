@@ -60,11 +60,13 @@ func groupSchemaStatements(dialect string, layout GroupSchemaLayout, tables []Sc
 	if err != nil {
 		return nil, err
 	}
+	// create is the group table, then its indexes, then the shared receipt table.
+	receipt := create[len(create)-1]
 	var statements []string
 	for _, table := range tables {
 		switch {
 		case table.Name == layout.TableName && table.Action == SchemaTableActionCreate:
-			statements = append(statements, create[0])
+			statements = append(statements, create[:len(create)-1]...)
 		case table.Name == layout.TableName && table.Action == SchemaTableActionAddColumns:
 			for _, name := range table.Columns {
 				found := false
@@ -84,7 +86,7 @@ func groupSchemaStatements(dialect string, layout GroupSchemaLayout, tables []Sc
 				}
 			}
 		case table.Name == managedEffectReceiptTable && table.Action == SchemaTableActionCreate:
-			statements = append(statements, create[1])
+			statements = append(statements, receipt)
 		}
 	}
 	return statements, nil

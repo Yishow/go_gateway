@@ -17,6 +17,11 @@ type Ledger struct {
 // Ledger binds the store to a group key.
 func (s *Store) Ledger(key GroupKey) *Ledger { return &Ledger{store: s, key: key} }
 
+// PersistsCounterBaselines states that CommitClosure stores a closure's counter
+// baselines in the closure transaction and Restore returns them, which a
+// cumulative profile requires of any durable ledger.
+func (l *Ledger) PersistsCounterBaselines() bool { return true }
+
 // AppendSample journals a sample; nil means it is committed.
 func (l *Ledger) AppendSample(ctx context.Context, bucketStart time.Time, sample snapshot.Sample) error {
 	return l.store.AppendSample(ctx, l.key, bucketStart, sample)

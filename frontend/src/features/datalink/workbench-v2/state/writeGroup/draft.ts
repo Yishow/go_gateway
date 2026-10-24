@@ -1,4 +1,12 @@
-import type { WriteGroup, WriteGroupDraft, WriteGroupStorageStrategy } from '../../../../../types/studioV2WriteGroup';
+import type {
+  WriteGroup,
+  WriteGroupDraft,
+  WriteGroupLayoutVersion,
+  WriteGroupRecordingProfile,
+  WriteGroupStorageMode,
+  WriteGroupStorageStrategy,
+} from '../../../../../types/studioV2WriteGroup';
+import { isValidRecordingProfile, recordingProfileIntervalSeconds } from '../../../../../utils/studioV2RecordingProfile';
 import { findColumnConflicts } from './columns';
 
 export type IncompletePolicy = 'skip_row' | 'partial';
@@ -15,6 +23,9 @@ export interface EditorMember {
   target_column: string;
   required: boolean;
   max_age_seconds?: number;
+  /** Persisted circuit identity of a profile group; the editor carries it unchanged. */
+  circuit_id?: string;
+  circuit_name?: string;
 }
 
 export interface EditorDraft {
@@ -30,6 +41,8 @@ export interface EditorDraft {
   entity_key_column: string;
   provenance_column: string;
   dedupe_capability: string;
+  /** Persisted recovery decision of managed long storage; the editor only carries it, never decides it. */
+  recreate_missing?: boolean;
   /** Persisted row-group contract fields without editor controls. */
   group_key_columns?: string[];
   unique_key_columns?: string[];
@@ -40,6 +53,10 @@ export interface EditorDraft {
   bucket_start_column?: string;
   group_id_column?: string;
   device_id_column?: string;
+  /** Persisted profile contract. When present, the profile alone decides `interval_seconds`. */
+  layout_version?: WriteGroupLayoutVersion;
+  recording_profile?: WriteGroupRecordingProfile;
+  storage_mode?: WriteGroupStorageMode;
   members: EditorMember[];
 }
 
@@ -72,13 +89,19 @@ export function groupToDraft(group: WriteGroup): EditorDraft {
     entity_key_column: group.row_policy.entity_key_column ?? '',
     provenance_column: group.row_policy.provenance_column ?? '',
     dedupe_capability: group.write_policy.dedupe_capability ?? '',
+    ...(group.write_policy.recreate_missing !== undefined ? { recreate_missing: group.write_policy.recreate_missing } : {}),
     members: group.members.map((member) => ({
       key: memberKey(member.point_id, member.tag_id),
       device_id: member.device_id, point_id: member.point_id, tag_id: member.tag_id,
       ...(member.measurement_id !== undefined ? { measurement_id: member.measurement_id } : {}),
       entity_key: member.entity_key ?? '', target_column: member.target_column, required: member.required,
       ...(member.max_age_seconds !== undefined ? { max_age_seconds: member.max_age_seconds } : {}),
+      ...(member.circuit_id !== undefined ? { circuit_id: member.circuit_id } : {}),
+      ...(member.circuit_name !== undefined ? { circuit_name: member.circuit_name } : {}),
     })),
+    ...(group.layout_version !== undefined ? { layout_version: group.layout_version } : {}),
+    ...(group.recording_profile !== undefined ? { recording_profile: { ...group.recording_profile } } : {}),
+    ...(group.storage_mode !== undefined ? { storage_mode: group.storage_mode } : {}),
     ...(group.row_policy.group_key_columns !== undefined ? { group_key_columns: [...group.row_policy.group_key_columns] } : {}),
     ...(group.row_policy.unique_key_columns !== undefined ? { unique_key_columns: [...group.row_policy.unique_key_columns] } : {}),
     ...(group.row_policy.value_column !== undefined ? { value_column: group.row_policy.value_column } : {}),
@@ -92,6 +115,9 @@ export function groupToDraft(group: WriteGroup): EditorDraft {
 
 /** The editable payload. Source and mapping revisions are not sent: the server pins the current ones. */
 export function draftToRequestGroup(draft: EditorDraft, workspaceId: string): WriteGroupDraft {
+  // The profile is the only authority for the row interval; the editable seconds
+  // field can never contradict it, and an invalid profile is blocked by validateDraft.
+  const profileSeconds = draft.recording_profile ? recordingProfileIntervalSeconds(draft.recording_profile) : null;
   return {
     workspace_id: workspaceId,
     name: draft.name.trim(),
@@ -101,13 +127,15 @@ export function draftToRequestGroup(draft: EditorDraft, workspaceId: string): Wr
       ...(member.entity_key.trim() ? { entity_key: member.entity_key.trim() } : {}),
       target_column: member.target_column.trim(), required: member.required,
       ...(member.max_age_seconds !== undefined ? { max_age_seconds: member.max_age_seconds } : {}),
+      ...(member.circuit_id !== undefined ? { circuit_id: member.circuit_id } : {}),
+      ...(member.circuit_name !== undefined ? { circuit_name: member.circuit_name } : {}),
     })),
     destination: {
       connector_id: draft.connector_id, connector_revision: draft.connector_revision,
       table_schema: draft.table_schema, table_name: draft.table_name.trim(), storage_strategy: draft.storage_strategy,
     },
     row_policy: {
-      interval_seconds: draft.interval_seconds, allowed_lateness_seconds: draft.allowed_lateness_seconds,
+      interval_seconds: profileSeconds ?? draft.interval_seconds, allowed_lateness_seconds: draft.allowed_lateness_seconds,
       incomplete_policy: draft.incomplete_policy,
       ...(draft.entity_key_column.trim() ? { entity_key_column: draft.entity_key_column.trim() } : {}),
       ...(draft.group_key_columns !== undefined ? { group_key_columns: [...draft.group_key_columns] } : {}),
@@ -120,7 +148,13 @@ export function draftToRequestGroup(draft: EditorDraft, workspaceId: string): Wr
       ...(draft.group_id_column?.trim() ? { group_id_column: draft.group_id_column.trim() } : {}),
       ...(draft.device_id_column?.trim() ? { device_id_column: draft.device_id_column.trim() } : {}),
     },
-    write_policy: { ...(draft.dedupe_capability ? { dedupe_capability: draft.dedupe_capability } : {}) },
+    write_policy: {
+      ...(draft.dedupe_capability ? { dedupe_capability: draft.dedupe_capability } : {}),
+      ...(draft.recreate_missing !== undefined ? { recreate_missing: draft.recreate_missing } : {}),
+    },
+    ...(draft.layout_version !== undefined ? { layout_version: draft.layout_version } : {}),
+    ...(draft.recording_profile !== undefined ? { recording_profile: { ...draft.recording_profile } } : {}),
+    ...(draft.storage_mode !== undefined ? { storage_mode: draft.storage_mode } : {}),
   };
 }
 
@@ -135,7 +169,7 @@ export function draftIsDirty(draft: EditorDraft, saved: WriteGroup): boolean {
 
 export type DraftIssueCode =
   | 'name-required' | 'members-required' | 'destination-unsaved' | 'table-required' | 'column-required'
-  | 'column-conflict' | 'interval-invalid' | 'lateness-invalid' | 'partial-needs-provenance' | 'entity-column-required';
+  | 'column-conflict' | 'interval-invalid' | 'profile-interval-invalid' | 'lateness-invalid' | 'partial-needs-provenance' | 'entity-column-required';
 
 export interface DraftIssue {
   code: DraftIssueCode;
@@ -166,7 +200,11 @@ export function validateDraft(draft: EditorDraft, context: DraftValidationContex
       issues.push({ code: 'column-conflict', column: conflict.column });
     }
   }
-  if (!Number.isFinite(draft.interval_seconds) || draft.interval_seconds < 1) issues.push({ code: 'interval-invalid' });
+  if (draft.recording_profile) {
+    if (!isValidRecordingProfile(draft.recording_profile)) issues.push({ code: 'profile-interval-invalid' });
+  } else if (!Number.isFinite(draft.interval_seconds) || draft.interval_seconds < 1) {
+    issues.push({ code: 'interval-invalid' });
+  }
   if (!Number.isFinite(draft.allowed_lateness_seconds) || draft.allowed_lateness_seconds < 0) issues.push({ code: 'lateness-invalid' });
   if (!managed && draft.incomplete_policy === 'partial' && !draft.provenance_column.trim()) issues.push({ code: 'partial-needs-provenance' });
   if (!managed && draft.members.some((member) => member.entity_key.trim()) && !draft.entity_key_column.trim()) {

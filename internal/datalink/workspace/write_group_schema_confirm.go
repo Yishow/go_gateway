@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"go-gateway/internal/datalink/dbtarget"
+	"go-gateway/internal/datalink/recordingplan"
 )
 
 // ManagedTableInspector protects managed schema preparation from opening the
@@ -20,6 +21,27 @@ func (s *WriteGroupService) ManagedTableInspector(targets *dbtarget.ConnectorSer
 // ConfirmManagedSchema records only the verified result of the existing
 // schema ledger. It does not Apply the group or change an accepted snapshot.
 func (s *WriteGroupService) ConfirmManagedSchema(ctx context.Context, id string, mutation WriteGroupMutation, operationID, digest string) (*WriteGroupSaveResult, error) {
+	return s.ConfirmManagedSchemaWithStorage(ctx, id, mutation, operationID, digest, nil)
+}
+
+// StorageEvidence is what a verified confirmation of managed long storage
+// proves about the shared table, recorded with the group's own confirmation.
+type StorageEvidence struct {
+	// Layout is the layout the operation verified, including the extension
+	// schema of a hypertable.
+	Layout recordingplan.GroupSchemaLayout
+	// CreatedTable is true when the confirmed batch created the shared table.
+	CreatedTable bool
+}
+
+// ConfirmManagedSchemaWithStorage records the verified result and, for a
+// managed long group, freezes the storage lineage in the same local
+// transaction: the verified layout, the connector revision and the operation
+// that proved them. A table created again after an earlier confirmation starts
+// the next generation and marks earlier history as possibly lost. The group's
+// own confirmation is separate from every other group's: this never confirms
+// anything on another group's behalf.
+func (s *WriteGroupService) ConfirmManagedSchemaWithStorage(ctx context.Context, id string, mutation WriteGroupMutation, operationID, digest string, storage *StorageEvidence) (*WriteGroupSaveResult, error) {
 	if operationID == "" || len(digest) != 64 {
 		return nil, fmt.Errorf("managed schema proof is incomplete: %w", ErrWriteGroupValidation)
 	}
@@ -56,6 +78,15 @@ func (s *WriteGroupService) ConfirmManagedSchema(ctx context.Context, id string,
 		group.UpdatedAt = s.clockNow()
 		if err := s.repo.updateGroup(ctx, tx, group); err != nil {
 			return err
+		}
+		if storage != nil && managedLongGroup(group) {
+			err := recordingplan.RecordStorageConfirmation(ctx, tx, StorageScopeOf(group), recordingplan.StorageConfirmation{
+				Layout: storage.Layout, ConnectorRevision: group.Destination.ConnectorRevision, OperationID: operationID,
+				VerifiedDigest: digest, CreatedTable: storage.CreatedTable, GroupID: group.ID,
+			}, s.clockNow())
+			if err != nil {
+				return fmt.Errorf("record storage lineage: %w", err)
+			}
 		}
 		saved = cloneWriteGroup(group)
 		return nil

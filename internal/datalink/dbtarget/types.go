@@ -87,6 +87,9 @@ type ColumnInfo struct {
 	Nullable   bool   `json:"nullable"`
 	PrimaryKey bool   `json:"primary_key"`
 	Unique     bool   `json:"unique"`
+	// HasDefault is true when the column fills itself when an insert omits it:
+	// a default, an identity or a generated column. NOT NULL without it cannot be omitted.
+	HasDefault bool `json:"has_default,omitempty"`
 }
 
 type TableInfo struct {

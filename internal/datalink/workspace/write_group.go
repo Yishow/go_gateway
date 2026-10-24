@@ -42,8 +42,15 @@ type WriteGroup struct {
 	RowPolicy            WriteGroupRowPolicy   `json:"row_policy"`
 	WritePolicy          WriteGroupWritePolicy `json:"write_policy"`
 	Migration            WriteGroupMigration   `json:"migration"`
-	CreatedAt            time.Time             `json:"created_at"`
-	UpdatedAt            time.Time             `json:"updated_at"`
+	// LayoutVersion is empty for groups saved before layout versions existed;
+	// read it through EffectiveLayoutVersion so absence stays managed_wide_v1.
+	LayoutVersion WriteGroupLayoutVersion `json:"layout_version,omitempty"`
+	// RecordingProfile is nil for every pre-profile group.
+	RecordingProfile *WriteGroupRecordingProfile `json:"recording_profile,omitempty"`
+	// StorageMode is set only on managed_long_v1 groups (plain for now).
+	StorageMode WriteGroupStorageMode `json:"storage_mode,omitempty"`
+	CreatedAt   time.Time             `json:"created_at"`
+	UpdatedAt   time.Time             `json:"updated_at"`
 }
 
 // WriteGroupMember stores persisted source and mapping identities.
@@ -60,6 +67,10 @@ type WriteGroupMember struct {
 	TargetColumn    string  `json:"target_column"`
 	Required        bool    `json:"required"`
 	MaxAgeSeconds   *int    `json:"max_age_seconds,omitempty"`
+	// CircuitID is the opaque workspace-scoped circuit identity. It is never
+	// derived from names or addresses; CircuitName is display text only.
+	CircuitID   string `json:"circuit_id,omitempty"`
+	CircuitName string `json:"circuit_name,omitempty"`
 }
 
 // WriteGroupDestination binds one group to a saved connector identity.
@@ -95,6 +106,11 @@ type WriteGroupRowPolicy struct {
 type WriteGroupWritePolicy struct {
 	Mode             string `json:"mode,omitempty"`
 	DedupeCapability string `json:"dedupe_capability,omitempty"`
+	// RecreateMissing is the confirmed recovery policy of managed long storage:
+	// true lets delivery restore the confirmed table when the catalog proves it
+	// is gone. Nil means no policy was ever confirmed and never authorizes
+	// recovery; it is set only on managed long groups.
+	RecreateMissing *bool `json:"recreate_missing,omitempty"`
 }
 
 // WriteGroupMigration records compatibility provenance without activating it.
@@ -121,6 +137,12 @@ func cloneWriteGroup(group *WriteGroup) *WriteGroup {
 		if member.MaxAgeSeconds != nil {
 			cloned.Members[i].MaxAgeSeconds = common.Ptr(*member.MaxAgeSeconds)
 		}
+	}
+	if group.RecordingProfile != nil {
+		cloned.RecordingProfile = common.Ptr(*group.RecordingProfile)
+	}
+	if group.WritePolicy.RecreateMissing != nil {
+		cloned.WritePolicy.RecreateMissing = common.Ptr(*group.WritePolicy.RecreateMissing)
 	}
 	cloned.Migration.SourceIDs = slices.Clone(group.Migration.SourceIDs)
 	cloned.Migration.TargetMappingPoints = maps.Clone(group.Migration.TargetMappingPoints)

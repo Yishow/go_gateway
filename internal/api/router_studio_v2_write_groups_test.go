@@ -26,8 +26,19 @@ type writeGroupRouterFixture struct {
 
 func newWriteGroupRouterFixture(t *testing.T) writeGroupRouterFixture {
 	t.Helper()
-	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "configuration.db"))
-	require.NoError(t, err)
+	return newWriteGroupRouterFixtureOn(t, func(path string) *sql.DB {
+		db, err := sql.Open("sqlite", path)
+		require.NoError(t, err)
+		return db
+	})
+}
+
+// newWriteGroupRouterFixtureOn builds the fixture on the local database open
+// returns, so a test can give it a database that fails the way a lost response does.
+func newWriteGroupRouterFixtureOn(t *testing.T, open func(path string) *sql.DB) writeGroupRouterFixture {
+	t.Helper()
+	db := open(filepath.Join(t.TempDir(), "configuration.db"))
+	var err error
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	require.NoError(t, datalink.NewMigrator().Migrate(db))

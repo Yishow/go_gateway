@@ -17,6 +17,7 @@ import (
 	"go-gateway/internal/datalink/grouppipeline"
 	"go-gateway/internal/datalink/grouptestwrite"
 	"go-gateway/internal/datalink/mapping"
+	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
@@ -107,9 +108,15 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 			}
 		}
 	}
+	// Explicit group test writes and managed-storage recovery share the recording
+	// operation ledger; test writes never mix with the delivery outbox.
+	recordingPlanSvc := recordingplan.NewService(recordingplan.NewSQLRepository(db))
 	groupPipe := grouppipeline.New(grouppipeline.Dependencies{
 		Groups: writeGroupsSvc, Tags: tagSvc, Destinations: dbTargetConnectorSvc,
 		Inspector: dbtarget.NewReadOnlyTableInspector(dbTargetConnectorSvc), Store: groupStore,
+		// Cumulative groups count only from saved measurements that confirm counter semantics.
+		Counters: grouppipeline.NewMeasurementCounterSources(measurement.NewSQLRepository(db)),
+		Ledger:   recordingPlanSvc,
 	}, pipelineConfig)
 	sampleSink := fixture.sampleSink(groupPipe)
 	// A canonical group that owns an output replaces the legacy writer for it, so
@@ -161,9 +168,6 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 	if err := sourceRuleSvc.SyncDerivedPointState(ctx); err != nil {
 		log.Printf("同步來源規則衍生點位狀態失敗: %v", err)
 	}
-	// Explicit group test writes share the recording operation ledger and write
-	// through the production row codec; they never mix with the delivery outbox.
-	recordingPlanSvc := recordingplan.NewService(recordingplan.NewSQLRepository(db))
 	groupTestWriteSvc := grouptestwrite.New(grouptestwrite.Dependencies{
 		Groups: writeGroupsSvc, Tags: tagSvc, Destinations: dbTargetConnectorSvc,
 		Inspector: dbtarget.NewReadOnlyTableInspector(dbTargetConnectorSvc), Ledger: recordingPlanSvc,

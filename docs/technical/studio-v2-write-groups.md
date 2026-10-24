@@ -2,6 +2,8 @@
 
 本文件對應 A `unify-studio-v2-write-group-contract`，並在「Durable 交付（C）」「確認試寫（D）」說明 C `wire-durable-write-group-delivery`、D `implement-confirmed-write-group-test-write` 的運行行為。A–F 已完成實作、驗證與歸檔；真 UI→SQLite／PostgreSQL、故障與 Linux container 實測、最後獨立審查與舊案移交核對見 [最後驗收報告](../plans/studio-v2-write-groups/final-verification.md)。完成設定或 domain Apply 不表示 SQL committed／readback verified。
 
+迴路的瞬時／累積 profile、共用長表（`managed_long_v1`）、準備長表目標、已審核的切換與回復，見 [studio-v2-circuit-recording.md](studio-v2-circuit-recording.md)。
+
 ## 本地資料結構
 
 `internal/datalink/schema/migrations/024_write_groups_sqlite.up.sql` 擴充 gateway 的 SQLite 設定資料庫，與 destination SQLite／PostgreSQL 是不同資料庫。

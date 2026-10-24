@@ -19,6 +19,7 @@ func scanPostgresColumn(rows *sql.Rows, column *ColumnInfo) error {
 		&column.Nullable,
 		&column.PrimaryKey,
 		&column.Unique,
+		&column.HasDefault,
 	); err != nil {
 		return err
 	}

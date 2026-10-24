@@ -6,6 +6,7 @@ import type { WriteGroup } from '../../../../../../types/studioV2WriteGroup';
 import type { WorkbenchV2State } from '../../../state/types';
 import { buildGroupCandidates } from '../../../state/writeGroup/candidates';
 import type { WorkspaceReadinessStepNumber } from '../../../components/WorkspaceReadinessPanel';
+import { CutoverPanel } from './CutoverPanel';
 import { GroupEditor } from './GroupEditor';
 
 export interface WriteGroupSectionProps {
@@ -123,6 +124,11 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, wor
           )}
           {live.length > 0 && !live.some(matches) && destinationSaved && (
             <p className="text-xs text-amber-300" role="status" data-testid="group-none-match">{t('step4.group.list.none_match')}</p>
+          )}
+          {groupsQuery.data && live.length > 0 && (
+            <CutoverPanel groups={live} workspaceId={groupsQuery.data.workspace_id} workspaceRevision={groupsQuery.data.workspace_revision}
+              connectorRevision={connector.identity_revision ?? ''} readonly={readonly || !destinationSaved} onOpenGroup={(id) => setSelection({ kind: 'edit', id })}
+              candidates={candidates} />
           )}
           <button
             type="button" disabled={readonly || prerequisite !== null || !groupsQuery.data}

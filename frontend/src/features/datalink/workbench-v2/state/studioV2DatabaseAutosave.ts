@@ -103,7 +103,8 @@ export function mergeSavedStudioV2DatabaseConnector(
   record: StudioV2WorkspaceDatabaseConfigWithDelivery,
 ): DbConnector {
   const hydrated = hydrateStudioV2DatabaseConnector(record, submitted);
-  if ((current.connector_id ?? '') !== (submitted.connector_id ?? '')) {
+  const responseAlreadyHydrated = Boolean(record.identity_revision) && current.connector_id === record.id && current.identity_revision === record.identity_revision;
+  if ((current.connector_id ?? '') !== (submitted.connector_id ?? '') && !responseAlreadyHydrated) {
     return { ...current, setup_revision: hydrated.setup_revision, save_state: 'saving', save_error: null };
   }
   if (sameFields(current, submitted, CONNECTOR_EDIT_FIELDS)) return hydrated;

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -173,10 +174,15 @@ type SchemaPreviewToken struct {
 	SourceDigest   string             `json:"source_digest,omitempty"`
 	SchemaRevision string             `json:"schema_revision,omitempty"`
 	SchemaDigest   string             `json:"schema_digest,omitempty"`
-	NoChangeReason string             `json:"no_change_reason,omitempty"`
-	Digest         string             `json:"digest"`
-	ExpiresAt      time.Time          `json:"expires_at"`
-	CreatedAt      time.Time          `json:"created_at"`
+	// RecreateMissing is the recovery policy this confirmation shows and
+	// freezes for managed long storage: whether delivery may restore the
+	// confirmed table if the catalog later proves it gone. Nil for layouts that
+	// have no such policy, which keeps their stored digests unchanged.
+	RecreateMissing *bool     `json:"recreate_missing,omitempty"`
+	NoChangeReason  string    `json:"no_change_reason,omitempty"`
+	Digest          string    `json:"digest"`
+	ExpiresAt       time.Time `json:"expires_at"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 // GroupSchemaLayout is the server-resolved, persisted layout for a canonical
@@ -186,6 +192,51 @@ type GroupSchemaLayout struct {
 	TableName   string              `json:"table_name"`
 	Columns     []GroupSchemaColumn `json:"columns"`
 	OwnerColumn string              `json:"owner_column"`
+	// Indexes are created with the table and verified against the real catalog.
+	// Absent for legacy wide layouts, so their stored digests stay unchanged.
+	Indexes []GroupSchemaIndex `json:"indexes,omitempty"`
+	// Partition, when set, makes the new table an owned TimescaleDB hypertable.
+	// Absent for plain and wide layouts, so their stored digests stay unchanged.
+	Partition *GroupSchemaPartition `json:"partition,omitempty"`
+}
+
+const (
+	// PartitionKindTimescale is the only partitioning a layout can ask for.
+	PartitionKindTimescale = "timescale"
+	// TimescaleChunkInterval is the previewed and frozen chunk interval. It is a
+	// design default, not a throughput or storage promise.
+	TimescaleChunkInterval = "7 days"
+	// TimescalePartitionColumn is the non-null time column the table is cut on.
+	TimescalePartitionColumn = "bucket_start"
+)
+
+// GroupSchemaPartition is the frozen time partitioning of a timescale layout.
+// ExtensionSchema is where the destination's extension functions live; it is
+// filled from the read-only probe at preview time and is part of the digest.
+type GroupSchemaPartition struct {
+	Kind            string `json:"kind"`
+	Column          string `json:"column"`
+	ChunkInterval   string `json:"chunk_interval"`
+	ExtensionSchema string `json:"extension_schema,omitempty"`
+}
+
+// ErrTimescaleUnavailable is the stable timescale_unavailable class: the
+// selected timescale mode cannot be prepared on this destination. The selection
+// is never rewritten to plain storage.
+var ErrTimescaleUnavailable = errors.New("timescale_unavailable")
+
+// TimescaleUnavailableError carries the stable reasons behind it.
+type TimescaleUnavailableError struct{ Reasons []string }
+
+func (e *TimescaleUnavailableError) Error() string { return "timescale_unavailable" }
+
+// Is makes the error match ErrTimescaleUnavailable.
+func (e *TimescaleUnavailableError) Is(target error) bool { return target == ErrTimescaleUnavailable }
+
+// GroupSchemaIndex is one ordered, non-unique index of a managed group table.
+type GroupSchemaIndex struct {
+	Name    string   `json:"name"`
+	Columns []string `json:"columns"`
 }
 
 // GroupSchemaColumn describes one exact managed column.
@@ -210,6 +261,9 @@ type SchemaPreviewTable struct {
 	Name    string   `json:"name"`
 	Action  string   `json:"action"`
 	Columns []string `json:"columns,omitempty"`
+	// Partition shows, and binds into the operation's evidence, the time
+	// partitioning of a timescale table.
+	Partition *GroupSchemaPartition `json:"partition,omitempty"`
 }
 
 // IsExpired 檢查 token 是否過期。
