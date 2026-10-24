@@ -5,7 +5,7 @@ import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import { useDeviceColor } from '../../state/deviceColors';
 import type { RuntimeStreamConnectionState, RuntimeStreamRecovery } from '../../../../../types/datalink';
 import { MappingPreviewCells } from './MappingPreviewCells';
-import { MappingSaveFailure } from './MappingSaveFailure';
+import { MappingSaveInfo } from './MappingSaveInfo';
 import { MappingPayloadDialog } from './MappingPayloadDialog';
 
 export interface MappingRowProps {
@@ -122,33 +122,19 @@ export const MappingRow: React.FC<MappingRowProps> = ({
 
       {/* 4. 顯示名稱 (可編輯) */}
       <td className="min-w-48 p-2">
-        <input
-          type="text"
-          value={mapping.display_name}
-          onChange={(e) => handleTextChange('display_name', e.target.value)}
-          onClick={preventPropagation}
-          onMouseDown={preventPropagation}
-          placeholder={t('step3.placeholders.displayName')}
-          className="w-full bg-slate-900/50 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-blue-500 text-xs px-2 py-1 rounded text-slate-200 focus:outline-none transition-all"
-          data-testid={`input-display-name-${point.id}`}
-        />
-        {mapping.save_state && mapping.save_state !== 'idle' && (
-          <div
-            className={`mt-1 text-[10px] ${
-              mapping.save_state === 'save-error'
-                ? 'text-rose-400'
-                : mapping.save_state === 'saving'
-                  ? 'text-amber-400'
-                  : mapping.save_state === 'draft-invalid'
-                    ? 'text-amber-300'
-                    : 'text-emerald-400'
-            }`}
-            data-testid={`mapping-save-state-${point.id}`}
-          >
-            {t(`step3.saveStates.${mapping.save_state}`)}
-            {mapping.save_state === 'save-error' && <MappingSaveFailure pointId={point.id} mapping={mapping} dispatch={dispatch} />}
-          </div>
-        )}
+        <div className="flex items-center gap-1">
+          <input
+            type="text"
+            value={mapping.display_name}
+            onChange={(e) => handleTextChange('display_name', e.target.value)}
+            onClick={preventPropagation}
+            onMouseDown={preventPropagation}
+            placeholder={t('step3.placeholders.displayName')}
+            className="min-w-40 w-full bg-slate-900/50 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-blue-500 text-xs px-2 py-1 rounded text-slate-200 focus:outline-none transition-all"
+            data-testid={`input-display-name-${point.id}`}
+          />
+          <MappingSaveInfo pointId={point.id} mapping={mapping} dispatch={dispatch} />
+        </div>
       </td>
 
       {/* 5. 單位 (可編輯) */}

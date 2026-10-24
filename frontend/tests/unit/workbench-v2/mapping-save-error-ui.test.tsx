@@ -19,6 +19,7 @@ describe('safe actionable mapping failures', () => {
     const point = mappingPoints[0];
     const mapping = { ...hydrateStudioV2Mapping(point, mappingFixture()), save_state: 'save-error' as const, save_error: 'SQL password https://private', save_error_detail: { code, status, action, requestId: 'req_safe_42' } };
     render(<table><tbody><MappingRow point={point} mapping={mapping} devices={[]} isSelected={false} onSelect={vi.fn()} dispatch={dispatch} /></tbody></table>);
+    fireEvent.click(screen.getByTestId(`mapping-save-info-${point.id}`));
     const alert = screen.getByTestId(`mapping-save-state-${point.id}`);
     expect(alert).toHaveTextContent(String(status));
     expect(alert).toHaveTextContent(code);

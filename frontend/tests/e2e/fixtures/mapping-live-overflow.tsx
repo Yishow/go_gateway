@@ -5,11 +5,12 @@ import { initReactI18next } from 'react-i18next';
 import '../../../src/index.css';
 import '../../../src/features/datalink/workbench-v2/styles/workbench-v2.css';
 import zh from '../../../src/i18n/locales/zh-TW/workbench-v2.json';
+import mappingErrors from '../../../src/i18n/locales/zh-TW/mapping-errors.json';
 import { MappingTable } from '../../../src/features/datalink/workbench-v2/steps/step3/MappingTable';
 import type { Device, Mapping, Point } from '../../../src/features/datalink/workbench-v2/state/types';
 
 await i18n.use(initReactI18next).init({
-  lng: 'zh-TW', resources: { 'zh-TW': { 'workbench-v2': zh } },
+  lng: 'zh-TW', resources: { 'zh-TW': { 'workbench-v2': zh, 'mapping-errors': mappingErrors } },
 });
 const devices: Device[] = [{ id: 'plc', name: '測試設備', description: '', protocol: 'modbus_tcp', config: {}, status: 'draft', test: null }];
 const points: Point[] = Array.from({ length: 48 }, (_, index) => ({
@@ -20,6 +21,8 @@ const points: Point[] = Array.from({ length: 48 }, (_, index) => ({
 const mappings: Record<string, Mapping> = Object.fromEntries(points.map(point => [point.id, {
   point_id: point.id, tag_key: point.name, display_name: point.name,
   unit: '', target_type: 'int16', scale: 1, offset: 0, enabled: true,
+  save_state: point.id === 'point-1' ? 'save-error' : 'saved',
+  ...(point.id === 'point-1' ? { save_error_detail: { code: 'workspace_mapping_save_failed', status: 500, requestId: 'test-request' } } : {}),
 }]));
 const rawValues = Object.fromEntries(points.map((point, index) => [point.id, index + 1]));
 

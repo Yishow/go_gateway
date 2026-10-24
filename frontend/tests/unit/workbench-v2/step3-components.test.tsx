@@ -273,7 +273,7 @@ describe('Step 3 UI components', () => {
     expect(screen.queryByPlaceholderText('step3.placeholders.tagKey')).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText('step3.placeholders.displayName')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('step3.placeholders.unit')).toBeInTheDocument();
-    expect(screen.getByTestId('mapping-save-state-p-01')).toHaveTextContent('step3.saveStates.save-error');
+    fireEvent.click(screen.getByTestId('mapping-save-info-p-01')); expect(screen.getByTestId('mapping-save-state-p-01')).toHaveTextContent('step3.saveStates.save-error');
     expect(screen.getByTestId('mapping-save-state-p-01')).toHaveTextContent('mapping-errors:generic');
     expect(screen.getByTestId('mapping-save-state-p-01')).not.toHaveTextContent('secret backend details');
   });
