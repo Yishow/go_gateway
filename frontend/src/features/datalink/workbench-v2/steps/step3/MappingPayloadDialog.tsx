@@ -48,9 +48,9 @@ export const MappingPayloadDialog: React.FC<MappingPayloadDialogProps> = ({
           data-testid={`payload-modal-content-${point.id}`}
         >
           <DialogHeader>
-            <DialogTitle className="text-slate-100">{mapping.tag_key || point.name}</DialogTitle>
+            <DialogTitle className="text-slate-100">{mapping.display_name.trim() || point.address}</DialogTitle>
             <DialogDescription className="text-slate-400">
-              {point.name} @ {point.address}
+              {point.address}
             </DialogDescription>
           </DialogHeader>
           <PayloadPreview point={point} mapping={mapping} />

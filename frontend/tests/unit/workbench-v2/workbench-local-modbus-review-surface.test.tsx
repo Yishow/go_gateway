@@ -39,7 +39,7 @@ describe('Local Modbus review surface', () => {
     render(<ShareOutputSummary state={mcShareState()} shareStatus={status} />);
 
     const row = screen.getByTestId('step4-share-output-row-tag-i64');
-    expect(row).toHaveTextContent('mc.i64');
+    expect(row).toHaveTextContent('I64 value');
     expect(row).toHaveTextContent('int64');
     expect(row).toHaveTextContent('40010');
     expect(row).toHaveTextContent('40013');

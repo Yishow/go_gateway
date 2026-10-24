@@ -109,7 +109,7 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                       type="checkbox"
                       checked={instChecked || cumChecked}
                       disabled={readonly}
-                      aria-label={candidate.tag_key}
+                      aria-label={candidate.label}
                       onChange={(event) => {
                         const checked = event.target.checked;
                         updateLocalDraft((prev) => {
@@ -123,7 +123,7 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                         });
                       }}
                     />
-                    <span className="font-medium">{candidate.tag_key}</span>
+                    <span className="font-medium">{candidate.label}</span>
                   </label>
                   <span className="text-[11px] text-slate-500">({candidate.address} · {candidate.target_type})</span>
                 </div>
@@ -134,7 +134,7 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                       data-testid={`circuit-profile-member-inst-${candidate.tag_id}`}
                       checked={instChecked}
                       disabled={readonly}
-                      aria-label={`${candidate.tag_key} ${t('step4.basic.circuit.instantaneous_label')}`}
+                      aria-label={`${candidate.label} ${t('step4.basic.circuit.instantaneous_label')}`}
                       onChange={(event) => {
                         const checked = event.target.checked;
                         updateLocalDraft((prev) => {
@@ -151,7 +151,7 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                       data-testid={`circuit-profile-member-cum-${candidate.tag_id}`}
                       checked={cumChecked}
                       disabled={readonly}
-                      aria-label={`${candidate.tag_key} ${t('step4.basic.circuit.cumulative_label')}`}
+                      aria-label={`${candidate.label} ${t('step4.basic.circuit.cumulative_label')}`}
                       onChange={(event) => {
                         const checked = event.target.checked;
                         updateLocalDraft((prev) => {

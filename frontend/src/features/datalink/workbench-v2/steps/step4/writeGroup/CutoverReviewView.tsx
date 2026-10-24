@@ -7,8 +7,8 @@ import type { GroupCandidate } from '../../../state/writeGroup/candidates';
 
 function formatMemberRef(ref: { point_id: string; tag_id: string; device_id?: string }, candidates?: GroupCandidate[], source?: WriteGroup): string {
   const candidate = candidates?.find((c) => (ref.point_id && c.point_id === ref.point_id) || (ref.tag_id && c.tag_id === ref.tag_id));
-  if (candidate?.tag_key) return candidate.tag_key;
-  if (candidate?.label) return candidate.label;
+  if (candidate?.label.trim()) return candidate.label.trim();
+  if (candidate?.address) return candidate.address;
   const member = source?.members.find((m) => (ref.point_id && m.point_id === ref.point_id) || (ref.tag_id && m.tag_id === ref.tag_id));
   if (member?.target_column) return member.target_column;
   return ref.tag_id || ref.point_id || 'unavailable';

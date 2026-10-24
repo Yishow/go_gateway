@@ -25,7 +25,6 @@ export function MappingBulkApply({ points, mappings, devices, source, targets, s
   const validPreview = preview?.signature === signature ? preview : null;
   const label = (p: Point) => `${devices.find(d => d.id === p.device_id)?.name ?? p.device_id} · ${p.address} · ${mappings[p.id]?.display_name}`;
   const startPreview = (fields: Field[]) => setPreview({ fields, signature });
-  const tag = sourceMapping?.tag_key ?? '';
   return <div className="space-y-3 border-t border-slate-800 p-3 text-xs">
     <p>{t('step3.bulk.explanation')}</p>
     <button type="button" onClick={() => { setTargets(new Set(points.filter(p => mappings[p.id]?.enabled && p.id !== source?.id).map(p => p.id))); setPreview(null); }} data-testid="bulk-select-all">{t('step3.bulk.selectAll')}</button>
@@ -33,7 +32,7 @@ export function MappingBulkApply({ points, mappings, devices, source, targets, s
     {source && sourceMapping ? <>
       <p data-testid="bulk-source">{t('step3.table.bulkApplySource', { tag: label(source) })}</p>
       <div className="flex flex-wrap gap-3">
-        <button type="button" data-testid="btn-bulk-apply-all" disabled={!targetPoints.length} onClick={() => startPreview(['scale', 'offset', 'target_type', 'unit'])}>{t('step3.table.bulkApplyAll', { tag })}</button>
+        <button type="button" data-testid="btn-bulk-apply-all" disabled={!targetPoints.length} onClick={() => startPreview(['scale', 'offset', 'target_type', 'unit'])}>{t('step3.table.bulkApplyAll')}</button>
         {(['scale', 'offset', 'target_type', 'unit'] as Field[]).map(field => <button type="button" key={field} disabled={!targetPoints.length} data-testid={`btn-bulk-apply-${field === 'target_type' ? 'target-type' : field}`} onClick={() => startPreview([field])}>{t(`step3.bulk.${field}`)}</button>)}
       </div>
     </> : <p data-testid="btn-bulk-apply-all-disabled">{t('step3.table.bulkApplyPlaceholder')}</p>}

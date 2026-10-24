@@ -199,16 +199,16 @@ describe('Step 3 UI components', () => {
     expect(screen.getByTestId('preview-scale-p-01')).toHaveTextContent('--');
     expect(screen.getByTestId('preview-cast-p-01')).toHaveTextContent('--');
     expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('--');
-
-    const inputTagKey = screen.getByTestId('input-tag-key-p-01');
-    fireEvent.click(inputTagKey);
+    expect(screen.queryByTestId('input-tag-key-p-01')).not.toBeInTheDocument();
+    const inputDisplayName = screen.getByTestId('input-display-name-p-01');
+    fireEvent.click(inputDisplayName);
     expect(onSelect).not.toHaveBeenCalled();
 
-    fireEvent.change(inputTagKey, { target: { value: 'new.tag' } });
+    fireEvent.change(inputDisplayName, { target: { value: '新的顯示名稱' } });
     expect(dispatch).toHaveBeenCalledWith({
       type: 'updateMapping',
       pointId: 'p-01',
-      patch: { tag_key: 'new.tag' },
+      patch: { display_name: '新的顯示名稱' },
     });
 
     fireEvent.click(screen.getByTestId('mapping-row-p-01'));
@@ -270,7 +270,7 @@ describe('Step 3 UI components', () => {
     );
 
     expect(screen.getByText('step3.unknownDevice')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('step3.placeholders.tagKey')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('step3.placeholders.tagKey')).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText('step3.placeholders.displayName')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('step3.placeholders.unit')).toBeInTheDocument();
     expect(screen.getByTestId('mapping-save-state-p-01')).toHaveTextContent('step3.saveStates.save-error');
@@ -317,7 +317,7 @@ describe('Step 3 UI components', () => {
     );
 
     expect(screen.getByTestId('btn-bulk-apply-all')).toHaveTextContent(
-      'step3.table.bulkApplyAll_tag_line01.temp.inlet',
+      'step3.table.bulkApplyAll',
     );
 
     fireEvent.click(screen.getByTestId('bulk-target-p-02'));
@@ -356,7 +356,7 @@ it('shows five basic columns and keeps editor nodes and values when expanding Ad
   const scale = screen.getByTestId('input-scale-p-01');
   expect(scale).not.toBeVisible();
   fireEvent.click(screen.getByTestId('mapping-advanced-toggle'));
-  expect(screen.getAllByRole('columnheader')).toHaveLength(13);
+  expect(screen.getAllByRole('columnheader')).toHaveLength(12);
   expect(scale).toBeVisible();
   expect(scale).toHaveValue(0.1);
   fireEvent.click(screen.getByTestId('mapping-advanced-toggle'));

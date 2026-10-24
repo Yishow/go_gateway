@@ -28,7 +28,7 @@ export function allocationRowsFromCanonicalMappings(
       const rule = state.rules.find((candidate) => candidate.id === mapping.source_rule_id);
       return {
         id: mapping.tag_id,
-        sourceLabel: point?.address ?? mapping.tag_key ?? mapping.display_name ?? rule?.name ?? mapping.tag_id,
+        sourceLabel: mapping.display_name?.trim() || point?.address || rule?.name || mapping.tag_id,
         mapping,
       };
     });

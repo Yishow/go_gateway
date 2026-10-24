@@ -89,7 +89,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
       )}
       {Object.entries(state.mappings).filter(([pointId, mapping]) => mapping.save_state === 'save-error' && !enabledPoints.some((point) => point.id === pointId)).map(([pointId, mapping]) => (
         <div key={pointId} role="alert" className="text-xs text-rose-400" data-testid={`mapping-save-state-${pointId}`}>
-          {mapping.display_name || mapping.tag_key}
+          {mapping.display_name.trim() || state.points.find((point) => point.id === pointId)?.address || pointId}
           <MappingSaveFailure pointId={pointId} mapping={mapping} dispatch={dispatch} />
         </div>
       ))}
@@ -126,7 +126,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
             >
               <span>⚠</span>
               {t('step3.footer.emptyTagWarning', {
-                defaultValue: '{{count}} 個 Tag Key 留空',
+                defaultValue: '{{count}} 個來源識別尚未就緒，請返回上一步確認來源後再試',
                 count: emptyTagCount,
               })}
             </div>

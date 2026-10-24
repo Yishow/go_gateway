@@ -50,7 +50,7 @@ function rowsFromCanonicalMappings(
         ? state.points.find((candidate) => candidate.id === browserMapping.point_id)
         : undefined;
       const rule = state.rules.find((candidate) => candidate.id === mapping.source_rule_id);
-      return point?.address ?? mapping.tag_key ?? mapping.display_name ?? rule?.name ?? mapping.tag_id;
+      return mapping.display_name?.trim() || point?.address || rule?.name || mapping.tag_id;
     });
     const outputStart = sorted[0].share_start_register;
     const outputEnd = Math.max(...sorted.map((mapping) => mapping.share_start_register + mapping.span_registers - 1));

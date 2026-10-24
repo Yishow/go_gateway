@@ -84,10 +84,7 @@ export const MappingTable: React.FC<MappingTableProps> = ({
               <th hidden={!advanced} className="p-3 text-xs font-semibold text-slate-400 font-sans w-20">
                 {t('step3.columns.register', { defaultValue: '暫存器' })}
               </th>
-              <th hidden={!advanced} className="p-3 text-xs font-semibold text-slate-400 font-sans">
-                {t('step3.columns.tagKey', { defaultValue: 'Tag Key' })}
-              </th>
-              <th className="p-3 text-xs font-semibold text-slate-400 font-sans">
+              <th className="min-w-48 p-3 text-xs font-semibold text-slate-400 font-sans">
                 {t('step3.columns.displayName', { defaultValue: '顯示名稱' })}
               </th>
               <th className={`p-3 text-xs font-semibold text-slate-400 font-sans ${advanced ? 'w-16' : ''}`}>
@@ -122,7 +119,7 @@ export const MappingTable: React.FC<MappingTableProps> = ({
           <tbody className="divide-y divide-slate-800/60 text-slate-300">
             {points.length === 0 ? (
               <tr>
-                <td colSpan={13} className="p-8 text-center text-slate-500 text-xs">
+                <td colSpan={12} className="p-8 text-center text-slate-500 text-xs">
                   {t('step3.table.noPoints', { defaultValue: '無啟用的點位，請回上一步新增或啟用規則。' })}
                 </td>
               </tr>

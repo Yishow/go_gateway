@@ -29,11 +29,11 @@ function CounterSourceConfirmation({ status, workspaceId, workspaceRevision, cir
   const inFlight = React.useRef(false);
   const canSubmit = !readonly && !isSubmitting && Boolean(workspaceId && workspaceRevision && unit.trim() && (saved || circuitId));
   if (status.issueCode === 'counter-type-unsupported') {
-    return <p role="status">{status.candidate.tag_key} · {t('workspace_readiness.issue_labels.counter-type-unsupported')}</p>;
+    return <p role="status">{status.candidate.label.trim() || status.candidate.address} · {t('workspace_readiness.issue_labels.counter-type-unsupported')}</p>;
   }
   if (saved && ![saved.id, saved.definition_revision, saved.source_binding_revision, saved.series_epoch].every((part) => part?.trim())) {
     return <div role="status" data-testid="circuit-counter-binding-unconfirmed" className="space-y-2">
-      <p>{status.candidate.tag_key} · {t('step4.basic.circuit.binding_unconfirmed')}</p>
+      <p>{status.candidate.label.trim() || status.candidate.address} · {t('step4.basic.circuit.binding_unconfirmed')}</p>
       <button type="button" data-testid="circuit-counter-reload-source" disabled={readonly} onClick={() => void onConfirmed()}>{t('step4.group.editor.reload')}</button>
     </div>;
   }
@@ -71,7 +71,7 @@ function CounterSourceConfirmation({ status, workspaceId, workspaceRevision, cir
 
   return (
     <fieldset data-testid={`circuit-counter-confirmation-source-${status.candidate.tag_id}`} disabled={readonly || isSubmitting} className="space-y-2 rounded border border-amber-700/50 p-3">
-      <legend className="px-1 font-medium">{status.candidate.tag_key}</legend>
+      <legend className="px-1 font-medium">{status.candidate.label.trim() || status.candidate.address}</legend>
       <p>{t(`workspace_readiness.issue_labels.${status.issueCode ?? 'counter-semantics-required'}`)}</p>
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="block">

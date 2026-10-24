@@ -17,6 +17,8 @@ for (const advanced of [false, true]) {
       await expect(statuses).toHaveCount(0);
       await expect.poll(pageOverflow).toBeLessThanOrEqual(1);
       if (advanced) await page.getByTestId('mapping-advanced-toggle').click();
+      expect(await page.getByTestId('input-display-name-point-0').evaluate(element => element.getBoundingClientRect().width))
+        .toBeGreaterThanOrEqual(160);
 
       // Non-empty values mount the real absolute sr-only live status in every row.
       await page.getByTestId('load-live-values').click();

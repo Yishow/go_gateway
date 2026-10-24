@@ -26,8 +26,8 @@ export interface GroupCandidates {
   excluded: ExcludedCandidate[];
 }
 
-function pointLabel(point: Point, tagKey: string): string {
-  return tagKey || point.name || point.address;
+function pointLabel(point: Point, displayName: string): string {
+  return displayName.trim() || point.address;
 }
 
 /**
@@ -43,7 +43,7 @@ export function buildGroupCandidates(state: WorkbenchV2State): GroupCandidates {
     const rule = state.rules.find((candidate) => candidate.id === point.rule_id);
     const mapping = state.mappings[point.id];
     if (rule?.enabled === false || mapping?.enabled === false) continue;
-    const label = pointLabel(point, mapping?.tag_key ?? '');
+    const label = pointLabel(point, mapping?.display_name ?? '');
     const device = state.devices.find((candidate) => candidate.id === point.device_id);
     if (!device?.persisted || device.save_state !== 'saved') {
       excluded.push({ label, reason: 'device-not-saved' });

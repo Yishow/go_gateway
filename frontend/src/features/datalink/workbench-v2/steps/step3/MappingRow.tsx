@@ -120,23 +120,8 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         {point.address}
       </td>
 
-      {/* 3. Tag Key (可編輯) */}
-      <td hidden={!advanced} className="p-2">
-        <input
-          type="text"
-          value={mapping.tag_key}
-          onChange={(e) => handleTextChange('tag_key', e.target.value)}
-          onClick={preventPropagation}
-          onMouseDown={preventPropagation}
-          placeholder={t('step3.placeholders.tagKey')}
-          className="w-full bg-slate-900/50 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-blue-500 text-xs px-2 py-1 rounded text-slate-200 focus:outline-none transition-all font-mono"
-          data-testid={`input-tag-key-${point.id}`}
-        />
-
-      </td>
-
       {/* 4. 顯示名稱 (可編輯) */}
-      <td className="p-2">
+      <td className="min-w-48 p-2">
         <input
           type="text"
           value={mapping.display_name}

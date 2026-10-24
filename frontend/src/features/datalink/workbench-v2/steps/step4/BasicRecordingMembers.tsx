@@ -27,7 +27,7 @@ export const BasicRecordingMembers: React.FC<BasicRecordingMembersProps> = ({ ca
           <li key={row.key} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             {row.candidate ? (
               <>
-                <span className="font-medium">{row.candidate.label || row.candidate.tag_key}</span>
+                <span className="font-medium">{row.candidate.label.trim() || row.candidate.address}</span>
                 <span className="text-slate-500">{row.candidate.device_name} · {row.candidate.address} · {row.candidate.target_type}</span>
               </>
             ) : (

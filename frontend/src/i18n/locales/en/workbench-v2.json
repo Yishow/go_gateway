@@ -220,7 +220,7 @@
     },
     "footer": {
       "noEnabled": "No enabled points",
-      "emptyTagWarning": "{{count}} empty Tag Keys",
+      "emptyTagWarning": "{{count}} source identities are not ready. Go back and check the sources, then try again.",
       "success": "{{enabled}}/{{total}} points enabled",
       "back": "Back",
       "continue": "Configure Database Write"

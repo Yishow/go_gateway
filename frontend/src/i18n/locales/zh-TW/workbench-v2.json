@@ -220,7 +220,7 @@
     },
     "footer": {
       "noEnabled": "無啟用點位",
-      "emptyTagWarning": "{{count}} 個 Tag Key 留空",
+      "emptyTagWarning": "{{count}} 個來源識別尚未就緒，請返回上一步確認來源後再試",
       "success": "{{enabled}}/{{total}} 個點位已啟用",
       "back": "上一步",
       "continue": "設定資料庫寫入"

@@ -101,8 +101,8 @@ export const PipelineSteps: React.FC<PipelineStepsProps> = ({
           <div className="text-2xl font-bold text-emerald-200 tracking-tight font-mono">
             {finalVal}
           </div>
-          <div className="text-xs text-slate-500 font-mono truncate max-w-[200px]" title={`tag.${mapping.tag_key}`}>
-            → tag.{mapping.tag_key || '(未設定)'}
+          <div className="text-xs text-slate-500 truncate max-w-[200px]" title={mapping.display_name.trim() || point.address}>
+            → {mapping.display_name.trim() || point.address}
           </div>
         </div>
       </div>
