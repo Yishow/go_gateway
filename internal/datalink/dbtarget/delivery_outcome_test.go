@@ -128,6 +128,9 @@ func TestWriter_RecordsLastWriteFailureOutcome(t *testing.T) {
 
 	targetDB, err := sql.Open("sqlite", targetDSN)
 	require.NoError(t, err)
+	// An existing incompatible table must still report a failed delivery.
+	_, err = targetDB.ExecContext(ctx, `CREATE TABLE missing_measurements (other_value REAL)`)
+	require.NoError(t, err)
 	require.NoError(t, targetDB.Close())
 
 	tagSvc := tag.NewService(tag.NewSQLRepository(mainDB))
@@ -191,6 +194,8 @@ func TestWriter_RecordsLastFlushFailureOutcome(t *testing.T) {
 	targetDSN := filepath.Join(t.TempDir(), "flush-outcome.db")
 
 	targetDB, err := sql.Open("sqlite", targetDSN)
+	require.NoError(t, err)
+	_, err = targetDB.ExecContext(ctx, `CREATE TABLE missing_grouped_measurements (other_value REAL)`)
 	require.NoError(t, err)
 	require.NoError(t, targetDB.Close())
 

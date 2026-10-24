@@ -25,6 +25,7 @@ type Writer struct {
 	closeOnce     sync.Once
 	wg            sync.WaitGroup
 	mu            sync.Mutex
+	recoveryMu    sync.Mutex
 	grouped       map[groupedWriteKey]*groupedWriteBucket
 }
 
@@ -194,7 +195,7 @@ func (w *Writer) writeMapping(
 	value any,
 	observedAt time.Time,
 ) error {
-	connectionConfig, err := parseConnectionConfig(connector.ConnectionConfig)
+	connectionConfig, err := writerConnectionConfig(connector)
 	if err != nil {
 		return err
 	}
@@ -212,7 +213,7 @@ func (w *Writer) writeMapping(
 		return err
 	}
 
-	if _, err := manager.DB().ExecContext(ctx, query, args...); err != nil {
+	if err := w.executeWithTableRecovery(ctx, manager.DB(), connector, mapping.TableSchema, mapping.TableName, query, args); err != nil {
 		return fmt.Errorf("執行資料庫寫入失敗: %w", err)
 	}
 
@@ -372,7 +373,7 @@ func (w *Writer) takeFlushableBuckets(now time.Time, flushAll bool) []*groupedWr
 }
 
 func (w *Writer) flushGroupedBucket(ctx context.Context, bucket *groupedWriteBucket) error {
-	connectionConfig, err := parseConnectionConfig(bucket.Connector.ConnectionConfig)
+	connectionConfig, err := writerConnectionConfig(bucket.Connector)
 	if err != nil {
 		return err
 	}
@@ -388,7 +389,7 @@ func (w *Writer) flushGroupedBucket(ctx context.Context, bucket *groupedWriteBuc
 	if err != nil {
 		return err
 	}
-	if _, err := manager.DB().ExecContext(ctx, query, args...); err != nil {
+	if err := w.executeWithTableRecovery(ctx, manager.DB(), bucket.Connector, bucket.Key.SchemaName, bucket.Key.TableName, query, args); err != nil {
 		return fmt.Errorf("執行資料庫分組寫入失敗: %w", err)
 	}
 	return nil
