@@ -246,7 +246,7 @@ export function computeShareLayout(rules: Rule[], baseRegister: number): Record<
     const enabledCount = rule.count - (rule.skipped_addresses?.length ?? 0);
 
     let start: number;
-    let isAuto = true;
+    let isAuto: boolean;
 
     if (rule.share_start_register != null) {
       start = rule.share_start_register;

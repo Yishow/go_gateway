@@ -33,19 +33,7 @@ describe('Step 4 first activation flow integration', () => {
     activateWorkspace,
   }: {
     state: WorkbenchV2State;
-    actions: {
-      state: WorkbenchV2State;
-      setView: ReturnType<typeof vi.fn>;
-      setCurrent: ReturnType<typeof vi.fn>;
-      completeStep: ReturnType<typeof vi.fn>;
-      toggleSidebar: ReturnType<typeof vi.fn>;
-      toggleSummaryRail: ReturnType<typeof vi.fn>;
-      setSidebarCollapsed: ReturnType<typeof vi.fn>;
-      setShowSummaryRail: ReturnType<typeof vi.fn>;
-      resetFlow: ReturnType<typeof vi.fn>;
-      selectRule: ReturnType<typeof vi.fn>;
-      dispatch: ReturnType<typeof vi.fn>;
-    };
+    actions: WorkbenchV2ShellProps['actions'];
     activateWorkspace?: WorkbenchV2ShellProps['activateWorkspace'];
   }) {
     const navigate = useNavigate();

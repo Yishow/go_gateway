@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         react: "react",
         "react-dom": "react-dom",
-        "@": path.resolve(__dirname, "./src"),
+        "@": path.resolve(import.meta.dirname, "./src"),
       },
     },
     build: {

@@ -9,7 +9,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { ConfigEnv, UserConfig } from "vite";
+import type { ConfigEnv } from "vite";
+import type { ViteUserConfig as UserConfig } from "vitest/config";
 import viteConfig from "../../../vite.config";
 
 const buildConfig = viteConfig as (env: ConfigEnv) => UserConfig;

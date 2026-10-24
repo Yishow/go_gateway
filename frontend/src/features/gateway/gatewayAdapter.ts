@@ -59,8 +59,8 @@ export const gatewayAdapter = {
         if (typeof parsedConfig !== 'object' || Array.isArray(parsedConfig) || parsedConfig === null) {
            throw new Error('Config must be a JSON object');
         }
-      } catch (_error) {
-        throw new Error('Invalid JSON config format');
+      } catch (error) {
+        throw new Error('Invalid JSON config format', { cause: error });
       }
     }
 

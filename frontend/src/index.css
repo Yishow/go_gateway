@@ -1,10 +1,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@config '../tailwind.config.cjs';
+
+/* Preserve the existing v3 visual scale while using the v4 compiler. */
+@theme {
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --blur-sm: 4px;
+  --radius-sm: 0.125rem;
+}
+
+@utility outline-none {
+  /* Keep the old high-contrast focus indicator for existing outline-none uses. */
+  @media (forced-colors: active) {
+    outline: 2px solid transparent !important;
+    outline-offset: 2px;
+  }
+}
 
 @layer base {
+  *, ::before, ::after, ::backdrop, ::file-selector-button {
+    border-color: theme('colors.gray.200', currentColor);
+  }
+
   /* Set standard color scheme properties for system UI elements */
   html.dark {
     color-scheme: dark;

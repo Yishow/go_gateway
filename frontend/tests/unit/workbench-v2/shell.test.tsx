@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
-import { WorkbenchV2Shell } from '../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
+import { WorkbenchV2Shell, type WorkbenchV2ShellProps } from '../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { studioV2MappingsAPI } from '../../../src/services/studioV2Mappings';
 import { studioV2WorkspaceDevicesAPI } from '../../../src/services/studioV2WorkspaceDevices';
@@ -168,19 +168,7 @@ describe('Workbench V2 Shell & Integration', () => {
 
   function renderShell(
     state: typeof INITIAL_STATE,
-    actions: {
-      state: typeof INITIAL_STATE;
-      setView: ReturnType<typeof vi.fn>;
-      setCurrent: ReturnType<typeof vi.fn>;
-      completeStep: ReturnType<typeof vi.fn>;
-      toggleSidebar: ReturnType<typeof vi.fn>;
-      toggleSummaryRail: ReturnType<typeof vi.fn>;
-      setSidebarCollapsed: ReturnType<typeof vi.fn>;
-      setShowSummaryRail: ReturnType<typeof vi.fn>;
-      resetFlow: ReturnType<typeof vi.fn>;
-      selectRule: ReturnType<typeof vi.fn>;
-      dispatch: ReturnType<typeof vi.fn>;
-    },
+    actions: WorkbenchV2ShellProps['actions'],
   ) {
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -208,19 +196,7 @@ describe('Workbench V2 Shell & Integration', () => {
     activateWorkspace,
   }: {
     state: typeof INITIAL_STATE;
-    actions: {
-      state: typeof INITIAL_STATE;
-      setView: ReturnType<typeof vi.fn>;
-      setCurrent: ReturnType<typeof vi.fn>;
-      completeStep: ReturnType<typeof vi.fn>;
-      toggleSidebar: ReturnType<typeof vi.fn>;
-      toggleSummaryRail: ReturnType<typeof vi.fn>;
-      setSidebarCollapsed: ReturnType<typeof vi.fn>;
-      setShowSummaryRail: ReturnType<typeof vi.fn>;
-      resetFlow: ReturnType<typeof vi.fn>;
-      selectRule: ReturnType<typeof vi.fn>;
-      dispatch: ReturnType<typeof vi.fn>;
-    };
+    actions: WorkbenchV2ShellProps['actions'];
     activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
   }) {
     const navigate = useNavigate();

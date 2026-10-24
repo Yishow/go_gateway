@@ -263,7 +263,7 @@ export function MemoryGrid({
   const allAddresses = useMemo(() => cells.map((c) => c.address), [cells]);
 
   const handleUnitClick = (unit: DisplayUnit, e: React.MouseEvent) => {
-    let newSelection: string[] = [];
+    let newSelection: string[];
 
     if (e.ctrlKey || e.metaKey) {
       const allInSelection = unit.addresses.every((a) => selectedAddresses.includes(a));

@@ -264,7 +264,7 @@ export function confirmGatewayExpertDowngradeToQuick(): boolean {
       };
     }
 
-    let nextQuickDraft = { ...current.quickDraft };
+    let nextQuickDraft: QuickDraft;
     try {
       const payload = gatewayAdapter.expertToPayload(current.expertDraft);
       const config = payload.config as Record<string, unknown>;

@@ -136,7 +136,7 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupI
       )}
 
       {operation && (
-        <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-xs text-slate-300" data-testid="group-test-write-result">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-slate-300" data-testid="group-test-write-result">
           <dt>{t('step4.group.test_write.operation')}</dt><dd className="font-mono">{operation.operation_id}</dd>
           {!finished ? (
             <><dt>{t('step4.group.test_write.status')}</dt><dd data-testid="group-test-write-running">{t('step4.group.test_write.running')}</dd></>

@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 
 // Node 22+ ships an experimental global `localStorage` that is undefined unless
 // the process is started with `--localstorage-file`. During jsdom global

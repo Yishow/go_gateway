@@ -657,7 +657,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
                     <div className="font-mono break-all space-y-1">
                       {Object.entries(entry.data || {}).map(([key, val]) => {
                         // 格式化顯示數據
-                        let displayValue = ''
+                        let displayValue: string
                         if (val && typeof val === 'object') {
                           const monitorValue = val as { error?: string; values?: unknown[]; count?: number }
                           if (monitorValue.error) {

@@ -36,9 +36,9 @@ export const ReadinessStages: React.FC<ReadinessStagesProps> = ({ stages }) => {
    * 渲染單一診斷步驟
    */
   const renderStageItem = (stage: ReadinessStage) => {
-    let iconNode: React.ReactNode = null;
-    let circleClass = 'border-slate-800 bg-slate-900/50 text-slate-600';
-    let textClass = 'text-slate-500';
+    let iconNode: React.ReactNode;
+    let circleClass: string;
+    let textClass: string;
 
     if (stage.status === 'success') {
       circleClass = 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400';
