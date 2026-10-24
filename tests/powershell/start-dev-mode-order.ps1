@@ -16,9 +16,9 @@ function Record-Step { param([string]$Name) $script:order += $Name }
 # 覆寫 orchestration 依賴（語意同 shell 測試的 stub 模式）
 function Sync-EmbeddedFrontendIfRequested { Record-Step "sync" }
 function Request-OpenBrowser { }
-function Clear-PortForService { Record-Step "clear-backend"; return $true }
+function Clear-PortForService { param([int]$Port); Record-Step "clear-backend"; return $true }
 function Start-BackendProcess { Record-Step "start-backend" }
-function Wait-PortReady { Record-Step "wait-backend"; return $true }
+function Wait-PortReady { param([int]$TargetPort, [string]$Label, [int]$Attempts, [object]$Process); Record-Step "wait-backend"; return $true }
 function Start-FrontendDevServer {
     Record-Step "start-frontend"
     return [PSCustomObject]@{ Id = 43210 }

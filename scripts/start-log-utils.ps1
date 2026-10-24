@@ -21,7 +21,7 @@ function Get-LogNoiseCategory {
     if ($Line -match "CMD will not recognize non \.exe file for execution") { return "air-warning" }
     if ($Line -match "^watching\b|^building\.\.\.|^!exclude\b|^\s*/|^v\d+\.\d+\.\d+") { return "air-watcher" }
     if ($Line -match "/api/v1/datalink/modbus-share/status") { return "status-polling" }
-    if ($Line -match ("\] ::1 GET /api/v1/datalink/(" + $script:DatalinkDashboardEntities + ")\b")) { return "dashboard-refresh" }
+    if ($Line -match ("\] ::1 GET /api/v1/datalink/(" + $script:DatalinkDashboardEntities + ")\b") -or $Line -match "GET /api/v1/datalink/studio-v2/workspace/write-groups/[^/]+/delivery") { return "dashboard-refresh" }
     if ($Line -match "資料庫路徑|Executing SQLite migration|ConnectionManager 已初始化|已註冊的協議") { return "startup-detail" }
     return $null
 }
@@ -37,16 +37,17 @@ function Write-RuntimeLogLine {
         $latency = $Matches.latency
         $tsRaw = $Matches.ts
         $timePart = if ($tsRaw -match "(?<hh>\d{2}:\d{2}:\d{2})$") { $Matches.hh } else { "--:--:--" }
-        $category = if ($method -eq "GET" -and $status -eq 200 -and $path -match ("^/api/v1/datalink/(" + $script:DatalinkDashboardEntities + "|modbus-share/status)$")) { "dashboard-refresh" } else { $null }
+        $category = if ($method -eq "GET" -and $status -eq 200 -and ($path -match ("^/api/v1/datalink/(" + $script:DatalinkDashboardEntities + "|modbus-share/status)$") -or $path -match "^/api/v1/datalink/studio-v2/workspace/write-groups/[^/]+/delivery$")) { "dashboard-refresh" } else { $null }
         if ($category -and -not $Verbose) {
             if (-not $script:LogNoiseCounters.ContainsKey($category)) { $script:LogNoiseCounters[$category] = 0 }
             $script:LogNoiseCounters[$category]++
             return
         }
-        $methodCol = Format-FixedColumn -Text $method -Width 6
+        $methodCol = Format-FixedColumn -Text $method -Width 7
+        $pathCol = Format-FixedColumn -Text $path -Width 60
         $statusCol = ("{0,3}" -f $status)
-        $latencyCol = ("{0,9}" -f $latency)
-        $formatted = "[HTTP] $timePart  $methodCol $path $statusCol $latencyCol"
+        $latencyCol = ("{0,7}" -f $latency)
+        $formatted = "[HTTP] $timePart  $methodCol  $pathCol  $statusCol  $latencyCol"
         $color = if ($status -ge 500) { "Red" } elseif ($status -ge 400) { "Yellow" } else { "DarkGray" }
         Write-ColorOutput $formatted $color
         return

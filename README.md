@@ -29,44 +29,51 @@
 
 後續實作見 [六份相依提案與驗收計畫](docs/plans/studio-v2-write-groups/README.md)。[原資料庫流程工作](openspec/changes/archive/2026-10-03-fix-studio-v2-database-workflow/handoff.md) 的完成證據保留、未完需求已明確移交；文件通過檢查不表示產品已完成。
 
-## 本機建置與啟動
+## 本機開發與單檔打包
 
-需要 Go 1.25.5 或符合 go.mod 的工具鏈、Node.js／npm，以及 Linux/macOS 的 make 與 shell，或 Windows PowerShell。前端依賴的 Node engine 範圍以 lockfile 為準；建議使用 Node 22.14 以上的 22.x 或相容更新版。
+需要符合 go.mod 的 Go 工具鏈與 Node.js／npm；macOS／Linux 使用 Bash，Windows 使用 PowerShell。兩支啟動腳本皆可從其他工作目錄執行，不帶參數會顯示兩個選項。
 
-### Linux／macOS
+直接執行 `./start.sh` 或 `.\start.ps1`，選 `1` 開發熱重載、`2` 單檔打包、`0` 離開。啟動開發模式時會詢問「是否開啟瀏覽器？[y/N]」；直接按 Enter 預設不開，輸入 `y` 才會在前後端就緒後開啟 Vite 頁面，後續熱重載不會重複開啟。
+
+### 1. 開發：前後端自動重載
 
 ```sh
-make build
-HOST=127.0.0.1 PORT=8080 ./bin/test-ui.exe
+./start.sh --dev
+# 可指定 API port：./start.sh --dev --port 8081
 ```
-
-開啟 `http://127.0.0.1:8080/studio/v2`。Makefile 依序安裝前端依賴、build、複製 static、build Go；`.exe` 是固定檔名，不代表在 Linux/macOS 產生 Windows binary。
-
-### Windows
 
 ```powershell
-Push-Location frontend
-npm ci
-Pop-Location
-powershell -File scripts/build.ps1
-$env:HOST = "127.0.0.1"
-$env:PORT = "8080"
-.\bin\test-ui.exe
+.\start.ps1 -Dev
+# 可指定 API port：.\start.ps1 -Dev -Port 8081
 ```
 
-請確認 npm ci 成功後再建置，建置成功後再執行。開啟 `http://127.0.0.1:8080/studio/v2`；腳本細節見 [scripts/build.ps1](scripts/build.ps1)。
+開啟 `http://localhost:5173/studio/v2`。前端修改由 Vite 熱更新；Go、lib、SQL migration、go.mod／go.sum 修改由 Air 自動重編並重啟後端，無須手動重跑腳本。Go 重啟時記憶體狀態與進行中的連線會重新建立；編譯失敗會顯示錯誤，修正並儲存後會再次編譯。
 
-### 前端開發
+首次啟動缺少依賴時會執行 `npm ci`，並將固定版本的 Air 安裝到 `bin/tools`。fresh clone 缺少 embedded 首頁時會先建置一次前端供後端啟動檢查；後續修改仍由 Vite 即時提供，不必反覆打包。使用 Ctrl+C 停止前後端。占用中的連接埠會阻止啟動，請先停止既有服務或換埠。`--dev-mode`／`--air-mode` 與 `-DevMode`／`-AirMode` 保留為開發模式別名。
+
+預設 API 為 8080、前端為 5173。可用 `PORT`、`FRONTEND_DEV_PORT`／`VITE_DEV_PORT`、`FRONTEND_DEV_HOST` 調整。請使用 Vite 網址開發；API port 上的 embedded 頁面是先前打包的快照。
+
+### 2. 打包：包含前後端的單一執行檔
 
 ```sh
-cd frontend
-npm ci
-npm run dev
+./start.sh --build-single --os windows --arch amd64
+./start.sh --build-single --os mac --arch arm64
+./start.sh --build-single --os linux --arch amd64
 ```
 
-API backend 需另啟動；Vite 預設為 5173，API proxy 預設指向 `http://127.0.0.1:8080`。可用 `VITE_DEV_PORT`、`VITE_API_PROXY_TARGET` 或 `PORT` 調整，詳見 [vite.config.ts](frontend/vite.config.ts)。
+```powershell
+.\start.ps1 -BuildSingle -OS windows -Arch amd64
+.\start.ps1 -BuildSingle -OS mac -Arch arm64
+.\start.ps1 -BuildSingle -OS linux -Arch amd64
+```
 
-fresh clone 只保留 embed placeholder。單獨 go build 能編譯，不代表已包含可用前端；請用完整建置流程同步 `cmd/test_ui/static`。
+也可從選單選擇目標平台及 `amd64`／`arm64`；命令列省略平台或架構時採本機值。Intel／一般 x64 電腦選 `amd64`，Apple Silicon 選 `arm64`，Windows／Linux ARM 電腦選 `arm64`。
+
+兩支腳本共用 [build-single.mjs](scripts/build-single.mjs)，依序建置前端、清除過期 static 並同步完整資產，再以 `CGO_ENABLED=0` 編譯 Go。產物為 `bin/gateway-windows-amd64.exe`、`bin/gateway-darwin-arm64` 等對應名稱。編譯失敗不會覆蓋上一份成功的執行檔。
+
+將對應平台的執行檔帶到目標電腦後即可執行，不需要 Node.js、Go 或額外的前端目錄。執行時仍會建立 SQLite、log 等資料檔；如需沿用既有資料／設定，另行攜帶並指定。這是 console 版；Windows tray／desktop 的既有建置入口仍為 `scripts/build.ps1 -Mode desktop`。
+
+例如在 Apple Silicon macOS 執行 `HOST=127.0.0.1 PORT=8080 ./bin/gateway-darwin-arm64`，再開啟 `http://127.0.0.1:8080/studio/v2`。交叉編譯成功僅證明產物可產生，目標平台的實際執行需另外驗證。
 
 ## 設定與資料
 

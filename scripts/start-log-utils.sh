@@ -13,7 +13,7 @@ get_log_noise_category() {
     printf "status-polling"
     return
   fi
-  if [[ "$line" =~ /api/v1/datalink/(${DATALINK_DASHBOARD_ENTITIES}) ]]; then
+  if [[ "$line" =~ /api/v1/datalink/(${DATALINK_DASHBOARD_ENTITIES}) || "$line" =~ /api/v1/datalink/studio-v2/workspace/write-groups/[^/]+/delivery ]]; then
     printf "dashboard-refresh"
     return
   fi
@@ -41,7 +41,7 @@ runtime_log_line() {
       time_part="--:--:--"
     fi
 
-    if [[ "$method" == "GET" && "$status" == "200" && "$path" =~ ^/api/v1/datalink/(${DATALINK_DASHBOARD_ENTITIES}|modbus-share/status)$ ]]; then
+    if [[ "$method" == "GET" && "$status" == "200" && ( "$path" =~ ^/api/v1/datalink/(${DATALINK_DASHBOARD_ENTITIES}|modbus-share/status)$ || "$path" =~ ^/api/v1/datalink/studio-v2/workspace/write-groups/[^/]+/delivery$ ) ]]; then
       if [[ "$VERBOSE" != true ]]; then
         LOG_NOISE_COUNTERS["dashboard-refresh"]=$(( ${LOG_NOISE_COUNTERS["dashboard-refresh"]:-0} + 1 ))
         return
@@ -49,7 +49,7 @@ runtime_log_line() {
     fi
 
     local formatted
-    formatted=$(printf "[HTTP] %s  %-6s %s %3s %9s" "$time_part" "$method" "$path" "$status" "$latency")
+    formatted=$(printf "[HTTP] %s  %-7s  %-60s  %3s  %7s" "$time_part" "$method" "$path" "$status" "$latency")
     if (( status >= 500 )); then
       printf "\033[31m%s\033[0m\n" "$formatted"
     elif (( status >= 400 )); then

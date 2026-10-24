@@ -2,925 +2,466 @@
 
 set -euo pipefail
 
-load_env_script="$(dirname "${BASH_SOURCE[0]}")/scripts/load-env.sh"
-if [[ -f "$load_env_script" ]]; then
-  source "$load_env_script"
-elif [[ -f ".env" ]]; then
+# Resolve the project from this file so the launcher also works when invoked
+# from another directory. load-env.sh intentionally runs after this cd.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+ROOT_DIR="$SCRIPT_DIR"
+export REPO_ROOT="$ROOT_DIR"
+cd "$ROOT_DIR"
+
+ENV_PORT_SET="${PORT+x}"
+ENV_PORT_VALUE="${PORT-}"
+ENV_FRONTEND_HOST_SET="${FRONTEND_DEV_HOST+x}"
+ENV_FRONTEND_HOST_VALUE="${FRONTEND_DEV_HOST-}"
+ENV_FRONTEND_PORT_SET="${FRONTEND_DEV_PORT+x}"
+ENV_FRONTEND_PORT_VALUE="${FRONTEND_DEV_PORT-}"
+ENV_VITE_PORT_SET="${VITE_DEV_PORT+x}"
+ENV_VITE_PORT_VALUE="${VITE_DEV_PORT-}"
+if [[ -f "$ROOT_DIR/scripts/load-env.sh" ]]; then
+  # shellcheck disable=SC1091
+  source "$ROOT_DIR/scripts/load-env.sh"
+elif [[ -f "$ROOT_DIR/.env" ]]; then
   set -a
   # shellcheck disable=SC1091
-  source ".env"
+  source "$ROOT_DIR/.env"
   set +a
 fi
+# A caller supplied environment value takes precedence over the optional file.
+[[ "$ENV_PORT_SET" == x ]] && PORT="$ENV_PORT_VALUE"
+[[ "$ENV_FRONTEND_HOST_SET" == x ]] && FRONTEND_DEV_HOST="$ENV_FRONTEND_HOST_VALUE"
+[[ "$ENV_FRONTEND_PORT_SET" == x ]] && FRONTEND_DEV_PORT="$ENV_FRONTEND_PORT_VALUE"
+if [[ "$ENV_FRONTEND_PORT_SET" != x && "$ENV_VITE_PORT_SET" == x ]]; then
+  FRONTEND_DEV_PORT="$ENV_VITE_PORT_VALUE"
+fi
+[[ "$ENV_VITE_PORT_SET" == x ]] && VITE_DEV_PORT="$ENV_VITE_PORT_VALUE"
 
-APP_NAME="gateway"
-APP_PATH="cmd/test_ui"
-BUILD_DIR="bin"
 FRONTEND_DIR="frontend"
+BUILD_HELPER="scripts/build-single.mjs"
+TOOLS_DIR="$ROOT_DIR/bin/tools"
+TMP_DIR="$ROOT_DIR/bin/tmp"
+AIR_CONFIG="$ROOT_DIR/.air.toml"
+PORT="${PORT:-8080}"
 FRONTEND_DEV_HOST="${FRONTEND_DEV_HOST:-0.0.0.0}"
 FRONTEND_DEV_PORT="${FRONTEND_DEV_PORT:-${VITE_DEV_PORT:-5173}}"
-VITE_DEV_PORT="${VITE_DEV_PORT:-$FRONTEND_DEV_PORT}"
-PORT="${PORT:-8080}"
-LOG_DIR="bin/logs"
-TMP_DIR="bin/tmp"
-AIR_BIN="$TMP_DIR/gateway-air.exe"
-MODBUS_SHARE_PORT="${MODBUS_SHARE_PORT:-5020}"
-AUTO_KILL_PORT=false
-SKIP_BUILD=false
-SKIP_LINT=false
-SKIP_TEST=false
-SKIP_QUALITY=false
-SYNC_EMBED=false
-START=false
-DEV_MODE=false
-AIR_MODE=false
-QUICK_START=false
-CHECK_ENV=false
-HEALTH_CHECK=false
-BUILD_SINGLE=false
-LIST_PROCESSES=false
-STOP_ALL=false
-DIAGNOSE=false
-COVERAGE=false
-VERBOSE=false
-HAS_ANY_PARAM=false
+VITE_DEV_PORT="$FRONTEND_DEV_PORT"
+READY_TIMEOUT="${START_READY_TIMEOUT:-120}"
+
+HOST_GOOS=""
+HOST_GOARCH=""
+AIR_BIN="$TOOLS_DIR/air"
 FRONTEND_PID=""
 BACKEND_PID=""
-BACKEND_LOG_PID=""
-BACKEND_LOG_FILE=""
 RUN_LOCK_DIR=""
+CLEANING_UP=false
+MODE=""
+BUILD_OS=""
+BUILD_ARCH=""
 
-# 日誌噪音計數器（關聯陣列）
-# 在 bash 5.3 + set -u 下，僅 declare 而未初始化的空關聯陣列
-# 於 `${#array[@]}` 存取時會觸發 unbound variable。
-declare -A LOG_NOISE_COUNTERS=()
-
-info() { printf "\033[36m[INFO]\033[0m %s\n" "$*"; }
-success() { printf "\033[32m[OK]\033[0m %s\n" "$*"; }
-warn() { printf "\033[33m[WARN]\033[0m %s\n" "$*"; }
-err() { printf "\033[31m[ERR]\033[0m %s\n" "$*"; }
+has_cmd() { command -v "$1" >/dev/null 2>&1; }
+info() { printf '[INFO] %s\n' "$*"; }
+success() { printf '[OK] %s\n' "$*"; }
+warn() { printf '[WARN] %s\n' "$*" >&2; }
+err() { printf '[ERR] %s\n' "$*" >&2; }
 
 # shellcheck disable=SC1091
-source "$(dirname "${BASH_SOURCE[0]}")/scripts/start-log-utils.sh"
-# shellcheck disable=SC1091
-source "$(dirname "${BASH_SOURCE[0]}")/scripts/start-process-utils.sh"
+source "$ROOT_DIR/scripts/start-process-utils.sh"
 
-show_frontend_host_hint() {
-  if [[ "$FRONTEND_DEV_HOST" == "0.0.0.0" || "$FRONTEND_DEV_HOST" == "::" ]]; then
-    info "💡 前端開發伺服器已監聽所有介面，區網請使用本機 LAN IP 存取（port ${FRONTEND_DEV_PORT}）"
+usage() {
+  cat <<'USAGE'
+Go Gateway 啟動器
+
+用法:
+  ./start.sh                         顯示選單
+  ./start.sh --dev [--port PORT]     Air + Vite 熱重載開發
+  ./start.sh --build-single [選項]   建置前後端單一執行檔
+
+選項:
+  --dev, --dev-mode, --air-mode      開發模式別名
+  --build-single                     單一執行檔建置
+  --os OS                            windows、mac/darwin 或 linux
+  --arch ARCH                        amd64 或 arm64
+  --port PORT                        後端埠（預設 8080）
+  -h, --help                         顯示說明
+
+開發模式需要 Go、Node.js、npm、lsof、pgrep；前端第一次啟動若找不到
+frontend/node_modules/vite/bin/vite.js，才會執行 npm ci。
+USAGE
+}
+
+validate_port() {
+  local name="$1"
+  local value="$2"
+  if [[ ! "$value" =~ ^[0-9]+$ ]] || (( 10#$value < 1 || 10#$value > 65535 )); then
+    err "${name} 必須是 1 到 65535 的整數：${value}"
+    return 1
+  fi
+}
+
+canonical_port() { printf '%s\n' "$((10#$1))"; }
+
+validate_dev_ports() {
+  validate_port "後端 PORT" "$PORT" || return 1
+  validate_port "前端開發埠" "$FRONTEND_DEV_PORT" || return 1
+  if [[ "$(canonical_port "$PORT")" == "$(canonical_port "$FRONTEND_DEV_PORT")" ]]; then
+    err "後端 PORT 與前端開發埠不可相同：${PORT}"
+    return 1
+  fi
+}
+
+pid_on_port() {
+  lsof -tiTCP:"$1" -sTCP:LISTEN 2>/dev/null | head -n 1 || true
+}
+
+assert_ports_free() {
+  local backend_pid frontend_pid
+  backend_pid="$(pid_on_port "$PORT")"
+  frontend_pid="$(pid_on_port "$FRONTEND_DEV_PORT")"
+  if [[ -n "$backend_pid" ]]; then
+    err "後端埠 ${PORT} 已被 PID ${backend_pid} 佔用；請先停止該服務"
+    return 1
+  fi
+  if [[ -n "$frontend_pid" ]]; then
+    err "前端開發埠 ${FRONTEND_DEV_PORT} 已被 PID ${frontend_pid} 佔用；請先停止該服務"
+    return 1
+  fi
+}
+
+validate_dev_environment() {
+  local command_name missing=0
+  for command_name in go node npm lsof pgrep; do
+    if ! has_cmd "$command_name"; then
+      err "找不到必要工具：${command_name}"
+      missing=1
+    fi
+  done
+  [[ -f "$ROOT_DIR/go.mod" ]] || { err "找不到 go.mod：${ROOT_DIR}"; missing=1; }
+  [[ -f "$ROOT_DIR/.air.toml" ]] || { err "找不到 Air 設定：${AIR_CONFIG}"; missing=1; }
+  [[ -f "$ROOT_DIR/frontend/package.json" ]] || { err "找不到前端 package.json"; missing=1; }
+  validate_dev_ports || missing=1
+  if ! [[ "$READY_TIMEOUT" =~ ^[0-9]+$ ]] || (( 10#$READY_TIMEOUT < 120 )); then
+    err "START_READY_TIMEOUT 必須是至少 120 秒的整數：${READY_TIMEOUT}"
+    missing=1
+  fi
+  (( missing == 0 ))
+}
+
+ensure_air() {
+  if ! HOST_GOOS="$(go env GOHOSTOS 2>/dev/null)" || ! HOST_GOARCH="$(go env GOHOSTARCH 2>/dev/null)"; then
+    err "無法讀取 Go 主機 GOOS/GOARCH"
+    return 1
+  fi
+  [[ -n "$HOST_GOOS" && -n "$HOST_GOARCH" ]] || {
+    err "Go 未回傳有效的主機 GOOS/GOARCH"
+    return 1
+  }
+
+  if [[ "$HOST_GOOS" == "windows" ]]; then
+    AIR_BIN="$TOOLS_DIR/air.exe"
   else
-    info "💡 前端開發伺服器通常運行在 http://$FRONTEND_DEV_HOST:${FRONTEND_DEV_PORT}"
+    AIR_BIN="$TOOLS_DIR/air"
   fi
-}
-
-show_embedded_frontend_hint() {
-  if [[ "$SYNC_EMBED" == true ]]; then
-    info "💡 :$PORT 會使用本次啟動前同步好的 embedded 前端快照"
-    info "💡 前端在啟動後若還有新修改，:${FRONTEND_DEV_PORT} 會即時更新；:$PORT 需重新執行 start.sh --sync-embed 才會刷新"
-    return
+  if [[ ! -x "$AIR_BIN" ]]; then
+    info "安裝 Air v1.63.0 至 ${TOOLS_DIR}"
+    mkdir -p "$TOOLS_DIR"
+    if ! GOBIN="$TOOLS_DIR" GOOS="$HOST_GOOS" GOARCH="$HOST_GOARCH" CGO_ENABLED=0 GOTOOLCHAIN=local \
+      go install github.com/air-verse/air@v1.63.0; then
+      err "Air 安裝失敗"
+      return 1
+    fi
   fi
-
-  info "💡 開發模式預設不重建 embedded 前端；即時開發請使用 :${FRONTEND_DEV_PORT}"
-  info "💡 若需要刷新 :$PORT 的 embedded 前端，重新執行時加上 --sync-embed"
-}
-
-frontend_proxy_target() {
-  printf "http://127.0.0.1:%s" "$PORT"
+  if [[ ! -x "$AIR_BIN" ]]; then
+    err "找不到可執行的 Air：${AIR_BIN}"
+    return 1
+  fi
 }
 
 ensure_frontend_dependencies() {
-  if [[ ! -d "$FRONTEND_DIR" ]]; then
-    return 0
-  fi
+  local vite_entry="$ROOT_DIR/$FRONTEND_DIR/node_modules/vite/bin/vite.js"
+  [[ -f "$vite_entry" ]] && return 0
 
-  if [[ -x "$FRONTEND_DIR/node_modules/.bin/vite" ]]; then
-    return 0
-  fi
-
-  info "安裝前端依賴..."
-  pushd "$FRONTEND_DIR" >/dev/null
-  if ! pnpm install; then
-    popd >/dev/null
-    err "前端依賴安裝失敗，請檢查網路連線或 frontend/package.json"
+  info "找不到本機 Vite，執行 npm ci"
+  if ! (cd "$ROOT_DIR/$FRONTEND_DIR" && npm ci); then
+    err "npm ci 失敗，無法啟動前端"
     return 1
   fi
-  popd >/dev/null
-
-  if [[ ! -x "$FRONTEND_DIR/node_modules/.bin/vite" ]]; then
-    err "前端依賴安裝後仍找不到 vite，請檢查 frontend/package.json"
+  [[ -f "$vite_entry" ]] || {
+    err "npm ci 完成後仍找不到 Vite：${vite_entry}"
     return 1
-  fi
+  }
 }
 
-start_frontend_dev_server() {
-  local proxy_target
-  local node_options
-  proxy_target="$(frontend_proxy_target)"
-  node_options="${NODE_OPTIONS:---max-old-space-size=4096}"
-
-  ensure_frontend_dependencies || return 1
-  clear_frontend_port true
-
-  (
-    cd "$FRONTEND_DIR"
-    export NODE_OPTIONS="$node_options"
-    export PORT="$PORT"
-    export VITE_API_PROXY_TARGET="$proxy_target"
-    export VITE_DEV_PORT="$FRONTEND_DEV_PORT"
-    exec pnpm exec vite --host "$FRONTEND_DEV_HOST" --port "$FRONTEND_DEV_PORT" --strictPort
-  ) &
-  FRONTEND_PID=$!
-
-  local i
-  for ((i = 0; i < 100; i++)); do
-    if [[ -n "$(pid_on_port "$FRONTEND_DEV_PORT")" ]]; then
-      return 0
-    fi
-    if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
-      FRONTEND_PID=""
-      err "前端開發伺服器未成功啟動（port ${FRONTEND_DEV_PORT}）"
-      return 1
-    fi
-    sleep 0.1
-  done
-
-  stop_process_tree "$FRONTEND_PID" "前端開發伺服器"
-  wait "$FRONTEND_PID" 2>/dev/null || true
-  FRONTEND_PID=""
-  err "前端開發伺服器未成功啟動（port ${FRONTEND_DEV_PORT}）"
-  return 1
+ensure_embedded_frontend_snapshot() {
+  local index="$ROOT_DIR/cmd/test_ui/static/index.html"
+  [[ -s "$index" ]] && return 0
+  info "找不到 embedded 前端快照，先準備開發啟動資產"
+  if ! node "$ROOT_DIR/$BUILD_HELPER" --prepare-dev; then
+    err "無法準備 embedded 前端快照"
+    return 1
+  fi
+  [[ -s "$index" ]] || {
+    err "開發資產準備後仍找不到：${index}"
+    return 1
+  }
 }
 
 start_backend_process() {
-  local command="$1"
-
-  mkdir -p "$TMP_DIR"
-  BACKEND_LOG_FILE="$(mktemp "$TMP_DIR/backend.XXXXXX")"
-
-  tail -n +1 -F "$BACKEND_LOG_FILE" 2>/dev/null | while IFS= read -r line; do
-    runtime_log_line "$line"
-  done &
-  BACKEND_LOG_PID=$!
-
-  bash -c "$command" >>"$BACKEND_LOG_FILE" 2>&1 &
+  (
+    export PORT="$PORT"
+    export AUTO_OPEN_BROWSER=false
+    export GOOS="$HOST_GOOS" GOARCH="$HOST_GOARCH" CGO_ENABLED=0 GOTOOLCHAIN=local
+    exec "$AIR_BIN" -c "$AIR_CONFIG"
+  ) &
   BACKEND_PID=$!
 }
 
-wait_for_port_ready() {
-  local port="$1"
-  local label="${2:-端口}"
-  local attempts="${3:-100}"
-  local i
-
-  for ((i = 0; i < attempts; i++)); do
-    if [[ -n "$(pid_on_port "$port")" ]]; then
-      return 0
-    fi
-    if [[ -n "$BACKEND_PID" ]] && ! kill -0 "$BACKEND_PID" 2>/dev/null; then
-      err "$label $port 未成功啟動"
-      return 1
-    fi
-    sleep 0.1
-  done
-
-  err "$label $port 在預期時間內未成功啟動"
-  return 1
+start_frontend_dev_server() {
+  local vite_entry="$ROOT_DIR/$FRONTEND_DIR/node_modules/vite/bin/vite.js"
+  (
+    cd "$ROOT_DIR/$FRONTEND_DIR"
+    export PORT="$PORT"
+    export VITE_DEV_PORT="$FRONTEND_DEV_PORT"
+    export VITE_API_PROXY_TARGET="http://127.0.0.1:$PORT"
+    export BROWSERSLIST_IGNORE_OLD_DATA=true
+    exec node "$vite_entry" --host "$FRONTEND_DEV_HOST" --port "$FRONTEND_DEV_PORT" --strictPort
+  ) &
+  FRONTEND_PID=$!
 }
 
-wait_for_backend_exit() {
-  local exit_code=0
-  local pid="$BACKEND_PID"
-
-  if [[ -z "$pid" ]]; then
-    return 0
-  fi
-
-  wait "$pid" || exit_code=$?
-  BACKEND_PID=""
-  cleanup_all
-  clear_cleanup_traps
-  return "$exit_code"
-}
-
-# 清理前端開發伺服器及其子進程
 cleanup_frontend() {
   if [[ -n "$FRONTEND_PID" ]]; then
     stop_process_tree "$FRONTEND_PID" "前端開發伺服器"
     wait "$FRONTEND_PID" 2>/dev/null || true
     FRONTEND_PID=""
-    success "前端開發伺服器已停止"
   fi
 }
 
 cleanup_backend() {
   if [[ -n "$BACKEND_PID" ]]; then
-    stop_process_tree "$BACKEND_PID" "後端服務"
+    stop_process_tree "$BACKEND_PID" "後端 Air"
     wait "$BACKEND_PID" 2>/dev/null || true
     BACKEND_PID=""
-    success "後端服務已停止"
-  fi
-
-  if [[ -n "$BACKEND_LOG_PID" ]]; then
-    kill_process_tree "$BACKEND_LOG_PID" TERM
-    BACKEND_LOG_PID=""
-  fi
-
-  if [[ -n "$BACKEND_LOG_FILE" && -f "$BACKEND_LOG_FILE" ]]; then
-    rm -f "$BACKEND_LOG_FILE"
-    BACKEND_LOG_FILE=""
   fi
 }
 
-# 清理所有子進程
 cleanup_all() {
+  [[ "$CLEANING_UP" == true ]] && return 0
+  CLEANING_UP=true
   cleanup_frontend
   cleanup_backend
   release_run_lock
-  show_log_noise_summary
 }
 
-usage() {
-  cat <<USAGE
-Go Gateway mac 啟動腳本
-
-用法:
-  ./start.sh [選項]
-
-選項:
-  --dev-mode           開發模式 (go run)
-  --air-mode           熱重載模式 (air)
-  --quick-start        一鍵啟動 (lint + sync frontend + build + start)
-  --start              建置後啟動服務
-  --skip-build         跳過一般建置（若需刷新 embedded 前端會自動補建）
-  --skip-lint          跳過 golangci-lint
-  --skip-test          跳過測試
-  --skip-quality       跳過代碼質量檢查
-  --sync-embed         開發/熱重載啟動前同步 embedded 前端快照
-  --coverage           輸出詳細覆蓋率與 coverage 報告
-  --verbose            顯示詳細輸出
-  --port <port>        指定端口 (預設: 8080)
-  --auto-kill-port     自動清理佔用端口
-  --check-env          檢查環境
-  --health-check       健康檢查
-  --list-processes     列出運行中的服務進程
-  --stop-all           停止所有運行中的服務
-  --diagnose           快速診斷常見問題
-  --build-single       建置單一執行檔 (embed)
-  -h, --help           顯示說明
-USAGE
+install_cleanup_traps() {
+  trap cleanup_all EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
 }
 
-has_cmd() { command -v "$1" >/dev/null 2>&1; }
-
-find_air_cmd() {
-  if has_cmd air; then
-    command -v air
-    return 0
-  fi
-
-  local gobin gopath
-  gobin="$(go env GOBIN 2>/dev/null || true)"
-  if [[ -n "$gobin" && -x "$gobin/air" ]]; then
-    printf "%s\n" "$gobin/air"
-    return 0
-  fi
-
-  gopath="$(go env GOPATH 2>/dev/null || true)"
-  if [[ -n "$gopath" && -x "$gopath/bin/air" ]]; then
-    printf "%s\n" "$gopath/bin/air"
-    return 0
-  fi
-
-  if [[ -x "$HOME/go/bin/air" ]]; then
-    printf "%s\n" "$HOME/go/bin/air"
-    return 0
-  fi
-
-  return 1
-}
-
-show_main_menu() {
-  cat <<MENU
-
-============================================
-   Go Gateway 啟動選單 (mac)
-============================================
-  1) 開發模式 (go run)
-  2) 熱重載模式 (air)
-  3) 一鍵啟動 (lint + sync frontend + build + start)
-  4) 完整流程 (lint + build + quality + test)
-  5) 僅建置 (sync frontend + build)
-  6) 快速啟動 (sync frontend + build + start，跳過 lint/test/quality)
- 7) 僅測試
- 8) 檢查環境
- 9) 健康檢查
- A) 列出運行中的服務
- B) 停止所有服務
- C) 快速診斷
- D) 建置單一執行檔 (embed)
- 0) 退出
-============================================
-MENU
-}
-
-check_env() {
-  info "檢查環境..."
-  local ok=true
-  for c in go node pnpm; do
-    if has_cmd "$c"; then
-      success "$c: $($c --version 2>/dev/null | head -n1 || true)"
-    else
-      warn "$c 未安裝"
-      [[ "$c" == "go" ]] && ok=false
+monitor_processes() {
+  local backend_code frontend_code
+  while :; do
+    if [[ -z "$BACKEND_PID" ]] || ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+      backend_code=1
+      if [[ -n "$BACKEND_PID" ]]; then
+        if wait "$BACKEND_PID"; then backend_code=0; else backend_code=$?; fi
+        BACKEND_PID=""
+      fi
+      err "後端 Air 已停止（exit ${backend_code}）"
+      cleanup_frontend
+      (( backend_code == 0 )) && return 1
+      return "$backend_code"
     fi
-  done
-  if has_cmd golangci-lint; then
-    success "golangci-lint: $(golangci-lint version 2>/dev/null | head -n1 || true)"
-  else
-    warn "golangci-lint 未安裝"
-  fi
-  local air_cmd
-  if air_cmd="$(find_air_cmd)"; then
-    success "air: $("$air_cmd" -v 2>/dev/null | head -n1 || true)"
-  else
-    warn "air 未安裝"
-  fi
-  [[ "$ok" == true ]]
-}
-
-pid_on_port() {
-  lsof -tiTCP:"$1" -sTCP:LISTEN 2>/dev/null | head -n1 || true
-}
-
-managed_ports() {
-  local port
-  declare -A seen=()
-
-  for port in "$PORT" "$FRONTEND_DEV_PORT" "$VITE_DEV_PORT" "$MODBUS_SHARE_PORT"; do
-    if [[ "$port" =~ ^[0-9]+$ && -z "${seen[$port]+x}" ]]; then
-      seen["$port"]=1
-      printf "%s\n" "$port"
-    fi
-  done
-
-  for port in {8080..8090}; do
-    if [[ -z "${seen[$port]+x}" ]]; then
-      seen["$port"]=1
-      printf "%s\n" "$port"
-    fi
-  done
-}
-
-clear_listen_port() {
-  local port="$1"
-  local label="${2:-端口}"
-  local force_cleanup="${3:-false}"
-  local pid
-  pid="$(pid_on_port "$port")"
-  if [[ -z "$pid" ]]; then
-    info "$label $port 可用"
-    return 0
-  fi
-
-  if [[ "$AUTO_KILL_PORT" == true || "$force_cleanup" == true ]]; then
-    warn "$label $port 被 PID $pid 佔用，將先清理再啟動"
-    stop_process_tree "$pid" "$label 佔用進程"
-  else
-    warn "$label $port 被 PID $pid 佔用"
-    read -r -p "是否終止 $label ${port} 的進程? (y/N): " ans
-    if [[ "$ans" =~ ^[Yy]$ ]]; then
-      stop_process_tree "$pid" "$label 佔用進程"
-    else
+    if [[ -z "$FRONTEND_PID" ]] || ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
+      frontend_code=1
+      if [[ -n "$FRONTEND_PID" ]]; then
+        if wait "$FRONTEND_PID"; then frontend_code=0; else frontend_code=$?; fi
+        FRONTEND_PID=""
+      fi
+      err "前端開發伺服器已停止（exit ${frontend_code}），將停止後端"
+      cleanup_backend
       return 1
     fi
-  fi
+    sleep 0.25
+  done
+}
 
-  if [[ -n "$(pid_on_port "$port")" ]]; then
-    err "$label $port 清理失敗"
+# Kept as descriptive compatibility names for focused shell tests.
+wait_for_backend_exit() { monitor_processes; }
+clear_port() { assert_ports_free; }
+clear_frontend_port() { assert_ports_free; }
+
+start_dev_mode() {
+  validate_dev_environment || return 1
+  PORT="$(canonical_port "$PORT")"
+  FRONTEND_DEV_PORT="$(canonical_port "$FRONTEND_DEV_PORT")"
+  VITE_DEV_PORT="$FRONTEND_DEV_PORT"
+  READY_TIMEOUT="$((10#$READY_TIMEOUT))"
+  # Refuse an occupied listener before installing anything or starting a
+  # child. A launcher must never guess whether that process is safe to kill.
+  assert_ports_free || return 1
+  request_open_browser
+  ensure_embedded_frontend_snapshot || return 1
+  ensure_air || return 1
+  ensure_frontend_dependencies || return 1
+  assert_ports_free || return 1
+
+  install_cleanup_traps
+  acquire_run_lock || return 1
+  info "啟動 Air 後端（GOOS=${HOST_GOOS} GOARCH=${HOST_GOARCH} CGO_ENABLED=0）"
+  start_backend_process
+  if ! wait_for_port_ready "$PORT" "後端" "$BACKEND_PID" "$READY_TIMEOUT"; then
     return 1
   fi
-  success "$label $port 已清理"
-}
+  success "後端已就緒：http://127.0.0.1:${PORT}"
 
-clear_port() {
-  clear_listen_port "$PORT" "後端端口" "${1:-false}"
-}
-
-clear_frontend_port() {
-  clear_listen_port "$FRONTEND_DEV_PORT" "前端端口" "${1:-false}"
-}
-
-build_frontend() {
-  if [[ ! -d "$FRONTEND_DIR" || ! -f "$FRONTEND_DIR/package.json" ]]; then
-    err "找不到 frontend source 或 package.json"
+  info "啟動 Vite 前端（host=${FRONTEND_DEV_HOST} port=${FRONTEND_DEV_PORT}）"
+  start_frontend_dev_server
+  if ! wait_for_port_ready "$FRONTEND_DEV_PORT" "前端" "$FRONTEND_PID" "$READY_TIMEOUT"; then
     return 1
   fi
-
-  pushd "$FRONTEND_DIR" >/dev/null
-  if [[ ! -d node_modules ]]; then
-    info "安裝前端依賴..."
-    pnpm install
-  fi
-  info "建置前端..."
-  pnpm run build
-  popd >/dev/null
-
-  mkdir -p "$APP_PATH/static"
-  find "$APP_PATH/static" -mindepth 1 -maxdepth 1 ! -name 'embed-placeholder.txt' -exec rm -rf {} +
-  cp -R "$FRONTEND_DIR/dist/." "$APP_PATH/static/"
-  success "前端建置完成"
+  success "前端已就緒：${FRONTEND_DEV_PORT}"
+  info "開發入口：http://127.0.0.1:${FRONTEND_DEV_PORT}/studio/v2"
+  info "後端 API：http://127.0.0.1:${PORT}"
+  info "修改 Go 或前端程式碼後會自動重建／更新；按 Ctrl+C 停止"
+  open_dev_browser
+  wait_for_backend_exit
 }
 
-sync_embedded_frontend_if_requested() {
-  if [[ "$SYNC_EMBED" != true ]]; then
-    info "略過 embedded 前端同步（開發模式預設使用 Vite 即時伺服器）"
-    return 0
-  fi
-
-  info "📦 同步 embedded 前端資產..."
-  build_frontend
+normalise_build_os() {
+  case "$1" in
+    windows|darwin|linux) printf '%s\n' "$1" ;;
+    mac) printf 'darwin\n' ;;
+    *) err "--os 必須是 windows、mac/darwin 或 linux：${1}"; return 1 ;;
+  esac
 }
 
-build_app() {
-  build_frontend || return 1
-  mkdir -p "$BUILD_DIR"
-  info "建置後端..."
-  go build -ldflags "-s -w" -trimpath -o "$BUILD_DIR/$APP_NAME" "./$APP_PATH"
-  success "建置完成: $BUILD_DIR/$APP_NAME"
+validate_build_target() {
+  if [[ -n "$BUILD_OS" ]]; then BUILD_OS="$(normalise_build_os "$BUILD_OS")" || return 1; fi
+  if [[ -n "$BUILD_ARCH" && "$BUILD_ARCH" != "amd64" && "$BUILD_ARCH" != "arm64" ]]; then
+    err "--arch 必須是 amd64 或 arm64：${BUILD_ARCH}"
+    return 1
+  fi
 }
 
 build_single() {
-  build_frontend || return 1
-  mkdir -p "$BUILD_DIR"
-  info "建置單一執行檔 (embed)..."
-  go build -tags embed -ldflags "-s -w" -trimpath -o "$BUILD_DIR/$APP_NAME" "./$APP_PATH"
-  success "單一執行檔完成: $BUILD_DIR/$APP_NAME"
-}
-
-start_app() {
-  local exe="$BUILD_DIR/$APP_NAME"
-  [[ -x "$exe" ]] || { err "找不到可執行檔: $exe"; return 1; }
-  clear_port true
-  info "啟動服務於 :$PORT"
-  PORT="$PORT" "$exe"
-}
-
-health_check() {
-  info "健康檢查 http://localhost:$PORT/api/v1/test/status"
-  if curl -fsS "http://localhost:$PORT/api/v1/test/status" >/dev/null 2>&1; then
-    success "服務正常"
-  else
-    err "服務不可用"
-    return 1
-  fi
-}
-
-list_processes() {
-  info "列出運行中的服務..."
-  local found=false
-  local pids
-
-  pids="$(related_process_pids | sort -u || true)"
-  if [[ -n "$pids" ]]; then
-    found=true
-    info "相關進程:"
-    while IFS= read -r pid; do
-      [[ -z "$pid" ]] && continue
-      ps -p "$pid" -o pid,ppid,etime,rss,command 2>/dev/null || true
-    done <<<"$pids"
-  fi
-
-  info "端口佔用情況:"
-  local p pid
-  while IFS= read -r p; do
-    pid="$(pid_on_port "$p")"
-    if [[ -n "$pid" ]]; then
-      found=true
-      printf "  %s -> PID %s\n" "$p" "$pid"
-    fi
-  done < <(managed_ports)
-
-  [[ "$found" == true ]] || info "未發現運行中的服務"
-}
-
-stop_all_services() {
-  info "停止所有運行中的服務..."
-  local stopped=0
-  local pids pid
-  pids="$(related_process_pids | sort -u || true)"
-
-  if [[ -n "$pids" ]]; then
-    while IFS= read -r pid; do
-      [[ -z "$pid" ]] && continue
-      [[ "$pid" == "$$" || "$pid" == "$BASHPID" ]] && continue
-      stop_process_tree "$pid" "服務進程"
-      stopped=$((stopped + 1))
-    done <<<"$pids"
-  fi
-
-  local p
-  while IFS= read -r p; do
-    pid="$(pid_on_port "$p")"
-    if [[ -n "$pid" ]] && is_managed_pid "$pid"; then
-      stop_process_tree "$pid" "端口 $p 進程"
-      stopped=$((stopped + 1))
-    fi
-  done < <(managed_ports)
-
-  if [[ -d "$TMP_DIR" ]]; then
-    find "$TMP_DIR" -maxdepth 1 -type d -name 'start-*.lock' -exec rm -rf {} + 2>/dev/null || true
-  fi
-
-  if [[ "$stopped" -eq 0 ]]; then
-    info "未發現需要停止的服務"
-  else
-    success "已停止 $stopped 個服務/進程"
-  fi
-}
-
-diagnose() {
-  info "快速診斷..."
-  local issues=0
-
-  info "1) 檢查開發環境"
-  if ! has_cmd go; then err "Go 未安裝"; issues=$((issues + 1)); fi
-  if ! has_cmd node; then warn "Node.js 未安裝（前端功能可能無法使用）"; issues=$((issues + 1)); fi
-  if ! has_cmd pnpm; then warn "pnpm 未安裝（前端功能可能無法使用）"; issues=$((issues + 1)); fi
-
-  info "2) 檢查專案結構"
-  [[ -f go.mod ]] || { err "go.mod 不存在，可能不在專案根目錄"; issues=$((issues + 1)); }
-  [[ -d "$APP_PATH" ]] || { err "應用程式目錄不存在: $APP_PATH"; issues=$((issues + 1)); }
-
-  info "3) 檢查端口狀態"
-  local pid p
-  while IFS= read -r p; do
-    pid="$(pid_on_port "$p")"
-    if [[ -n "$pid" ]]; then
-      warn "端口 $p 被 PID $pid 佔用"
-      ps -p "$pid" -o pid,ppid,etime,rss,command 2>/dev/null || true
-    else
-      success "端口 $p 可用"
-    fi
-  done < <(managed_ports)
-
-  info "4) 檢查前端"
-  if [[ -d "$FRONTEND_DIR" && ! -d "$FRONTEND_DIR/node_modules" ]]; then
-    warn "前端依賴未安裝，建議執行: cd frontend && pnpm install"
-    issues=$((issues + 1))
-  fi
-
-  info "5) 檢查構建產物"
-  if [[ -x "$BUILD_DIR/$APP_NAME" ]]; then
-    success "已存在可執行檔: $BUILD_DIR/$APP_NAME"
-  else
-    warn "尚未發現可執行檔: ${BUILD_DIR}/${APP_NAME}（若尚未建置屬正常）"
-  fi
-
-  info "6) 檢查相關進程與記憶體"
-  local pids
-  pids="$(related_process_pids | sort -u || true)"
-  if [[ -n "$pids" ]]; then
-    while IFS= read -r pid; do
-      [[ -z "$pid" ]] && continue
-      ps -p "$pid" -o pid,ppid,etime,rss,command 2>/dev/null || true
-    done <<<"$pids"
-  else
-    success "未發現相關長駐進程"
-  fi
-
-  if [[ "$issues" -eq 0 ]]; then
-    success "診斷完成，未發現阻塞問題"
-  else
-    warn "診斷完成，發現 $issues 個潛在問題"
-  fi
-}
-
-start_dev_mode() {
-  info "🚀 開發模式（無需編譯）"
-  info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後需要手動重新運行"
-  info "💡 將同時啟動前端開發伺服器和後端服務"
-
-  install_cleanup_traps
-  acquire_run_lock || {
-    clear_cleanup_traps
+  has_cmd node || { err "找不到必要工具：node"; return 1; }
+  [[ -f "$ROOT_DIR/$BUILD_HELPER" ]] || {
+    err "找不到單檔建置 helper：${ROOT_DIR}/${BUILD_HELPER}"
     return 1
   }
-  sync_embedded_frontend_if_requested
-
-  clear_port true
-  info "▶️  啟動後端應用程式（使用 go run）..."
-
-  # 重置噪音計數器
-  LOG_NOISE_COUNTERS=()
-  start_backend_process "cd '$APP_PATH' && PORT='$PORT' exec go run ."
-  wait_for_port_ready "$PORT" "後端端口" 300 || {
-    cleanup_all
-    clear_cleanup_traps
-    return 1
-  }
-
-  if [[ -d "$FRONTEND_DIR" ]]; then
-    info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
-    # 顯式傳遞 backend PORT / proxy target，避免 dev server 代理到錯的埠。
-    start_frontend_dev_server || return 1
-    success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
-    show_frontend_host_hint
-    show_embedded_frontend_hint
-  fi
-
-  wait_for_backend_exit
-}
-
-start_air_mode() {
-  info "🔥 熱重載模式（Air）"
-  info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後會自動重新運行"
-  info "💡 將同時啟動前端開發伺服器和後端服務"
-
-  install_cleanup_traps
-  acquire_run_lock || {
-    clear_cleanup_traps
-    return 1
-  }
-  sync_embedded_frontend_if_requested
-
-  # 檢查 Air 是否安裝，若無則自動安裝
-  local air_cmd
-  if ! air_cmd="$(find_air_cmd)"; then
-    warn "Air 工具未安裝，正在嘗試安裝..."
-    if has_cmd go; then
-      go install github.com/air-verse/air@latest
-      if air_cmd="$(find_air_cmd)"; then
-        success "Air 安裝成功"
-      else
-        err "無法安裝 Air，請手動安裝："
-        info "  go install github.com/air-verse/air@latest"
-        info "💡 建議: 使用選項 1 開發模式（go run）作為替代方案"
-        return 1
-      fi
-    else
-      err "未安裝 go，無法自動安裝 air"
-      return 1
-    fi
-  fi
-
-  if [[ ! -f ".air.toml" ]]; then
-    warn ".air.toml 配置檔案不存在，Air 將使用預設配置"
-  fi
-
-  clear_port true
-
-  info "▶️  啟動 Air 熱重載... ($air_cmd)"
-  info "💡 修改程式碼後，Air 會自動編譯 $AIR_BIN 並重新啟動"
-
-  # 重置噪音計數器
-  LOG_NOISE_COUNTERS=()
-  start_backend_process "PORT='$PORT' exec '$air_cmd'"
-  wait_for_port_ready "$PORT" "後端端口" 300 || {
-    cleanup_all
-    clear_cleanup_traps
-    return 1
-  }
-
-  # 啟動前端開發伺服器
-  if [[ -d "$FRONTEND_DIR" ]]; then
-    info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
-    start_frontend_dev_server || return 1
-    success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
-    show_frontend_host_hint
-    show_embedded_frontend_hint
-    info "💡 前端修改會自動熱重載"
-  fi
-
-  wait_for_backend_exit
-}
-
-run_lint() {
-  has_cmd golangci-lint || {
-    warn "golangci-lint 未安裝，略過"
-    return 0
-  }
-  info "執行 golangci-lint..."
-  if [[ "$VERBOSE" == true ]]; then
-    golangci-lint run ./...
+  validate_build_target || return 1
+  if [[ -n "$BUILD_OS" && -n "$BUILD_ARCH" ]]; then
+    info "建置單一執行檔（OS=${BUILD_OS} ARCH=${BUILD_ARCH}）"
+  elif [[ -n "$BUILD_OS" ]]; then
+    info "建置單一執行檔（OS=${BUILD_OS}）"
+  elif [[ -n "$BUILD_ARCH" ]]; then
+    info "建置單一執行檔（ARCH=${BUILD_ARCH}）"
   else
-    local out
-    out="$(golangci-lint run ./... 2>&1)" || {
-      printf "%s\n" "$out"
-      return 1
-    }
+    info "建置單一執行檔"
   fi
-  success "lint 完成"
-}
-
-run_quality() {
-  info "執行代碼質量檢查..."
-
-  if has_cmd deadcode; then
-    local deadcode_out
-    deadcode_out="$(deadcode ./... 2>&1)" || true
-    if [[ -n "$deadcode_out" ]]; then
-      warn "發現可能未使用代碼（非阻塞）"
-      [[ "$VERBOSE" == true ]] && printf "%s\n" "$deadcode_out"
-    else
-      success "未發現未使用代碼"
-    fi
+  if [[ -n "$BUILD_OS" && -n "$BUILD_ARCH" ]]; then
+    node "$ROOT_DIR/$BUILD_HELPER" --os "$BUILD_OS" --arch "$BUILD_ARCH"
+  elif [[ -n "$BUILD_OS" ]]; then
+    node "$ROOT_DIR/$BUILD_HELPER" --os "$BUILD_OS"
+  elif [[ -n "$BUILD_ARCH" ]]; then
+    node "$ROOT_DIR/$BUILD_HELPER" --arch "$BUILD_ARCH"
   else
-    warn "deadcode 未安裝，略過未使用代碼檢查"
-  fi
-
-  local fmt_out
-  fmt_out="$(go fmt ./... 2>&1)" || {
-    err "go fmt 檢查失敗"
-    [[ -n "$fmt_out" ]] && printf "%s\n" "$fmt_out"
-    return 1
-  }
-  if [[ -n "$fmt_out" ]]; then
-    warn "go fmt 已自動修正部分檔案"
-    [[ "$VERBOSE" == true ]] && printf "%s\n" "$fmt_out"
-  else
-    success "代碼格式正確"
+    node "$ROOT_DIR/$BUILD_HELPER"
   fi
 }
 
-run_test() {
-  info "執行測試..."
-  mkdir -p "$BUILD_DIR"
-  if [[ "$COVERAGE" == true ]]; then
-    go test -v -coverprofile="$BUILD_DIR/coverage.out" -covermode=atomic ./internal/protocol/...
-    if [[ -f "$BUILD_DIR/coverage.out" ]]; then
-      go tool cover -html="$BUILD_DIR/coverage.out" -o "$BUILD_DIR/coverage.html"
-      success "覆蓋率報告已生成: $BUILD_DIR/coverage.html"
-    fi
-  else
-    go test -cover ./internal/protocol/...
+show_main_menu() {
+  cat <<'MENU'
+
+Go Gateway
+  1) 開發模式（Air + Vite 熱重載）
+  2) 建置單一執行檔
+  0) 離開
+MENU
+}
+
+select_build_target() {
+  printf '%s\n' '選擇目標作業系統：' '  1) windows' '  2) mac (darwin)' '  3) linux' '  0) 取消'
+  local os_choice arch_choice
+  IFS= read -r os_choice || return 1
+  case "$os_choice" in
+    1) BUILD_OS=windows ;;
+    2) BUILD_OS=darwin ;;
+    3) BUILD_OS=linux ;;
+    0) return 2 ;;
+    *) err "無效的作業系統選項"; return 1 ;;
+  esac
+  printf '%s\n' '選擇目標架構：' '  1) amd64' '  2) arm64' '  0) 取消'
+  IFS= read -r arch_choice || return 1
+  case "$arch_choice" in
+    1) BUILD_ARCH=amd64 ;;
+    2) BUILD_ARCH=arm64 ;;
+    0) return 2 ;;
+    *) err "無效的架構選項"; return 1 ;;
+  esac
+}
+
+main() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dev|--dev-mode|--air-mode)
+        [[ -z "$MODE" || "$MODE" == dev ]] || { err "--dev 與 --build-single 不可同時使用"; return 1; }
+        MODE=dev
+        ;;
+      --build-single)
+        [[ -z "$MODE" || "$MODE" == build ]] || { err "--dev 與 --build-single 不可同時使用"; return 1; }
+        MODE=build
+        ;;
+      --os|--arch|--port)
+        [[ $# -ge 2 && -n "$2" ]] || { err "${1} 需要非空值"; return 1; }
+        case "$1" in
+          --os) BUILD_OS="$2" ;;
+          --arch) BUILD_ARCH="$2" ;;
+          --port) PORT="$2" ;;
+        esac
+        shift
+        ;;
+      --os=*) BUILD_OS="${1#*=}"; [[ -n "$BUILD_OS" ]] || { err "--os 需要非空值"; return 1; } ;;
+      --arch=*) BUILD_ARCH="${1#*=}"; [[ -n "$BUILD_ARCH" ]] || { err "--arch 需要非空值"; return 1; } ;;
+      --port=*) PORT="${1#*=}"; [[ -n "$PORT" ]] || { err "--port 需要非空值"; return 1; } ;;
+      -h|--help) usage; return 0 ;;
+      *) err "未知參數：${1}"; usage >&2; return 1 ;;
+    esac
+    shift
+  done
+
+  if [[ -z "$MODE" ]]; then
+    show_main_menu
+    local menu_choice
+    IFS= read -r menu_choice || return 0
+    case "$menu_choice" in
+      1) MODE=dev ;;
+      2)
+        MODE=build
+        select_build_target || {
+          local selection_status=$?
+          (( selection_status == 2 )) && return 0
+          return "$selection_status"
+        }
+        ;;
+      0) return 0 ;;
+      *) err "無效的選項"; return 1 ;;
+    esac
   fi
-  success "測試完成"
+
+  case "$MODE" in
+    dev)
+      [[ -z "$BUILD_OS" && -z "$BUILD_ARCH" ]] || { err "--os/--arch 只能搭配 --build-single"; return 1; }
+      start_dev_mode
+      ;;
+    build)
+      build_single
+      ;;
+  esac
 }
 
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
   return 0
 fi
 
-while [[ $# -gt 0 ]]; do
-  HAS_ANY_PARAM=true
-  case "$1" in
-    --dev-mode) DEV_MODE=true ;;
-    --air-mode) AIR_MODE=true ;;
-    --quick-start) QUICK_START=true ;;
-    --start) START=true ;;
-    --skip-build) SKIP_BUILD=true ;;
-    --skip-lint) SKIP_LINT=true ;;
-    --skip-test) SKIP_TEST=true ;;
-    --skip-quality) SKIP_QUALITY=true ;;
-    --sync-embed) SYNC_EMBED=true ;;
-    --coverage) COVERAGE=true ;;
-    --verbose) VERBOSE=true ;;
-    --auto-kill-port) AUTO_KILL_PORT=true ;;
-    --check-env) CHECK_ENV=true ;;
-    --health-check) HEALTH_CHECK=true ;;
-    --list-processes) LIST_PROCESSES=true ;;
-    --stop-all) STOP_ALL=true ;;
-    --diagnose) DIAGNOSE=true ;;
-    --build-single) BUILD_SINGLE=true ;;
-    --port)
-      shift
-      PORT="${1:-}"
-      [[ -n "$PORT" ]] || { err "--port 需要數值"; exit 1; }
-      ;;
-    -h|--help) usage; exit 0 ;;
-    *) err "未知參數: $1"; usage; exit 1 ;;
-  esac
-  shift
-done
-
-if [[ "$HAS_ANY_PARAM" != true ]]; then
-  show_main_menu
-  read -r -p "請輸入選項 (0-9, A-D): " menu_selection
-  case "$menu_selection" in
-    1)
-      DEV_MODE=true
-      ;;
-    2)
-      AIR_MODE=true
-      ;;
-    3)
-      QUICK_START=true
-      ;;
-    4)
-      ;;
-    5)
-      SKIP_LINT=true
-      SKIP_TEST=true
-      SKIP_QUALITY=true
-      ;;
-    6)
-      SKIP_LINT=true
-      SKIP_TEST=true
-      SKIP_QUALITY=true
-      START=true
-      ;;
-    7)
-      SKIP_LINT=true
-      SKIP_BUILD=true
-      SKIP_QUALITY=true
-      ;;
-    8)
-      CHECK_ENV=true
-      ;;
-    9)
-      HEALTH_CHECK=true
-      ;;
-    A|a)
-      LIST_PROCESSES=true
-      ;;
-    B|b)
-      STOP_ALL=true
-      ;;
-    C|c)
-      DIAGNOSE=true
-      ;;
-    D|d)
-      BUILD_SINGLE=true
-      ;;
-    0)
-      info "退出"
-      exit 0
-      ;;
-    *)
-      err "無效的選項"
-      exit 1
-      ;;
-  esac
-fi
-
-if [[ "$CHECK_ENV" == true ]]; then
-  check_env
-  exit $?
-fi
-
-if [[ "$HEALTH_CHECK" == true ]]; then
-  health_check
-  exit $?
-fi
-
-if [[ "$LIST_PROCESSES" == true ]]; then
-  list_processes
-  exit $?
-fi
-
-if [[ "$STOP_ALL" == true ]]; then
-  stop_all_services
-  exit $?
-fi
-
-if [[ "$DIAGNOSE" == true ]]; then
-  diagnose
-  exit $?
-fi
-
-if [[ "$DEV_MODE" == true ]]; then
-  start_dev_mode
-  exit $?
-fi
-
-if [[ "$AIR_MODE" == true ]]; then
-  start_air_mode
-  exit $?
-fi
-
-if [[ "$BUILD_SINGLE" == true ]]; then
-  build_single
-  exit $?
-fi
-
-if [[ "$QUICK_START" == true ]]; then
-  run_lint
-  build_app
-  start_app
-  exit $?
-fi
-
-if [[ "$SKIP_LINT" != true ]]; then
-  run_lint
-fi
-
-if [[ "$SKIP_BUILD" != true ]]; then
-  build_app
-fi
-
-if [[ "$START" == true ]]; then
-  if [[ "$SKIP_BUILD" == true ]]; then
-    warn "偵測到 --start --skip-build。為避免 8080 使用過期 embedded 前端，將自動重新建置。"
-    build_app
-  fi
-  start_app
-fi
-
-if [[ "$SKIP_QUALITY" != true ]]; then
-  run_quality
-fi
-
-if [[ "$SKIP_TEST" != true ]]; then
-  run_test
-fi
-
-success "完成"
+main "$@"
