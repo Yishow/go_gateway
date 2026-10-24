@@ -2,9 +2,7 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"strings"
 
 	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/config"
@@ -401,41 +399,6 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 	registerManagedHTTPRoutes(router, datalinkServices.Diagnostics)
 
 	return router
-}
-
-// customLoggerMiddleware 自定義日誌中間件，過濾頻繁的 debug API 輪詢請求
-func customLoggerMiddleware() gin.HandlerFunc {
-	// 配置 Logger，跳過頻繁輪詢的 API 路徑
-	// 這些是前端定期輪詢的 API，不需要每次都記錄日誌
-	skipPaths := []string{
-		strings.TrimRight(config.Get().API.BasePath, "/") + "/system/logs",
-		strings.TrimRight(config.Get().API.BasePath, "/") + "/system/logs/stream",
-		"/api/v1/debug/packets",
-		"/api/v1/debug/logs",
-		"/api/v1/test/status", // 狀態檢查也可能頻繁輪詢
-	}
-
-	return gin.LoggerWithConfig(gin.LoggerConfig{
-		SkipPaths: skipPaths,
-		// 確保所有請求都被記錄（包括 /test/connect）
-		Formatter: formatHTTPLog,
-	})
-}
-
-func formatHTTPLog(param gin.LogFormatterParams) string {
-	errorMessage := strings.TrimSpace(param.ErrorMessage)
-	if errorMessage != "" {
-		errorMessage = " " + errorMessage
-	}
-
-	return fmt.Sprintf("[HTTP] %s %-6s %s %3d %s%s\n",
-		param.TimeStamp.Format("15:04:05"),
-		param.Method,
-		param.Path,
-		param.StatusCode,
-		param.Latency,
-		errorMessage,
-	)
 }
 
 // corsMiddleware 處理 CORS 跨域請求

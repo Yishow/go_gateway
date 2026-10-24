@@ -13,6 +13,7 @@ export function useStudioV2DatabaseConfigQuery(enabled: boolean) {
     enabled,
     retry: false,
     refetchOnWindowFocus: false,
+    staleTime: 5000,
   });
 }
 
@@ -23,6 +24,7 @@ export function useStudioV2DatabaseTargetsQuery(enabled: boolean) {
     enabled,
     retry: false,
     refetchOnWindowFocus: false,
+    staleTime: 5000,
   });
 }
 

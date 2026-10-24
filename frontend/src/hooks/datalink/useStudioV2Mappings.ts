@@ -12,6 +12,7 @@ export function useStudioV2MappingsQuery(enabled: boolean) {
     enabled,
     retry: false,
     refetchOnWindowFocus: false,
+    staleTime: 5000,
   });
 }
 

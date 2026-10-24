@@ -10,6 +10,7 @@ export function useStudioV2RulesQuery(enabled: boolean) {
     enabled,
     retry: false,
     refetchOnWindowFocus: false,
+    staleTime: 5000,
   });
 }
 

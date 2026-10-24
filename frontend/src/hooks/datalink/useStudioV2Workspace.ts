@@ -8,5 +8,6 @@ export function useStudioV2WorkspaceQuery() {
     queryFn: () => studioV2WorkspaceAPI.get(),
     retry: false,
     refetchOnWindowFocus: false,
+    staleTime: 5000,
   });
 }

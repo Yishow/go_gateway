@@ -12,6 +12,7 @@ export function useStudioV2WorkspaceDevicesQuery(enabled: boolean) {
     enabled,
     retry: false,
     refetchOnWindowFocus: false,
+    staleTime: 5000,
   });
 }
 
