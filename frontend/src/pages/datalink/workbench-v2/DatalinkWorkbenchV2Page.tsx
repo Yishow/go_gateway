@@ -244,7 +244,7 @@ export default function DatalinkWorkbenchV2Page({
     (workspaceQuery.isSuccess && !workspaceQuery.data) ||
     autosave.devicesQuery.isError ||
     autosave.rulesQuery.isError ||
-    autosave.mappingsQuery.isError ||
+    autosave.mappingsQuery.isLoadingError ||
     autosave.databaseConfigQuery.isError ||
     autosave.databaseTargetsQuery.isError
   ) {

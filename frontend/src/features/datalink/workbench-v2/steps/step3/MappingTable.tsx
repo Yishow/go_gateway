@@ -44,16 +44,16 @@ export const MappingTable: React.FC<MappingTableProps> = ({
   const [targets, setTargets] = React.useState(new Set<string>());
 
   return (
-    <div className="flex flex-col h-full bg-slate-950/40 border border-slate-900 rounded-lg overflow-hidden" data-testid="mapping-table-wrapper">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-900 bg-slate-950/40 px-3 py-2">
-        <div className="text-[11px] text-slate-500">
+    <div className="flex flex-col gap-4 p-5 rounded-xl border border-slate-800 bg-slate-900/20" data-testid="mapping-table-wrapper">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-xs text-slate-500">
           {t('step3.table.enabledSummary', {
             defaultValue: '已載入 {{count}} 個映射點位',
             count: points.length,
           })}
         </div>
-        <div className="flex items-center gap-2">
-          <button type="button" aria-expanded={advanced} data-testid="mapping-advanced-toggle" onClick={() => setAdvanced(value => !value)}>{t(advanced ? 'step3.bulk.basic' : 'step3.bulk.advanced')}</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className="rounded-md border border-slate-800 px-2.5 py-1 text-[11px] text-slate-300 transition-colors hover:bg-slate-900" aria-expanded={advanced} data-testid="mapping-advanced-toggle" onClick={() => setAdvanced(value => !value)}>{t(advanced ? 'step3.bulk.basic' : 'step3.bulk.advanced')}</button>
           <button
             type="button"
             onClick={() => dispatch({ type: 'setAllMappingsEnabled', enabled: false })}
@@ -74,11 +74,11 @@ export const MappingTable: React.FC<MappingTableProps> = ({
           </button>
         </div>
       </div>
-      <div className="flex-1 overflow-auto max-h-[520px] scrollbar-thin">
-        <table className="w-full border-collapse text-left">
-          <thead>
-            <tr className="border-b border-slate-900 bg-slate-950/60 sticky top-0 z-10">
-              <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-24">
+      <div className="relative max-h-[520px] overflow-auto overscroll-y-contain border border-slate-800 rounded-lg bg-slate-950/40">
+        <table className="w-full table-auto text-left border-collapse text-xs">
+          <thead className="sticky top-0 bg-slate-900/90 backdrop-blur-sm z-10 border-b border-slate-800 text-slate-400 font-medium">
+            <tr>
+              <th className={`p-3 text-xs font-semibold text-slate-400 font-sans ${advanced ? 'w-24' : ''}`}>
                 {t('step3.columns.source', { defaultValue: '來源' })}
               </th>
               <th hidden={!advanced} className="p-3 text-xs font-semibold text-slate-400 font-sans w-20">
@@ -90,7 +90,7 @@ export const MappingTable: React.FC<MappingTableProps> = ({
               <th className="p-3 text-xs font-semibold text-slate-400 font-sans">
                 {t('step3.columns.displayName', { defaultValue: '顯示名稱' })}
               </th>
-              <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-16">
+              <th className={`p-3 text-xs font-semibold text-slate-400 font-sans ${advanced ? 'w-16' : ''}`}>
                 {t('step3.columns.unit', { defaultValue: '單位' })}
               </th>
               <th hidden={!advanced} className="p-3 text-xs font-semibold text-slate-400 font-sans w-28">
@@ -108,18 +108,18 @@ export const MappingTable: React.FC<MappingTableProps> = ({
               <th hidden={!advanced} className="p-3 text-xs font-semibold text-slate-400 font-sans w-24">
                 {t('step3.columns.castResult', { defaultValue: '轉型值' })}
               </th>
-              <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-24">
+              <th className={`p-3 text-xs font-semibold text-slate-400 font-sans ${advanced ? 'w-24' : ''}`}>
                 {t('step3.columns.finalResult', { defaultValue: '最終值' })}
               </th>
               <th hidden={!advanced} className="p-3 text-xs font-semibold text-slate-400 font-sans w-20 text-center">
                 {t('step3.columns.payload', { defaultValue: 'API payload' })}
               </th>
-              <th className="p-3 text-xs font-semibold text-slate-400 font-sans text-center w-14">
+              <th className={`p-3 text-xs font-semibold text-slate-400 font-sans text-center ${advanced ? 'w-14' : ''}`}>
                 {t('step3.columns.enabled', { defaultValue: '啟用' })}
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-800/60 text-slate-300">
             {points.length === 0 ? (
               <tr>
                 <td colSpan={13} className="p-8 text-center text-slate-500 text-xs">

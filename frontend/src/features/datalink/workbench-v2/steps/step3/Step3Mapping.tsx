@@ -68,7 +68,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   const activeDeviceId = enabledPoints[selectedIdx ?? 0]?.device_id ?? state.devices[0]?.id;
 
   return (
-    <div className="space-y-6" data-testid="step3-mapping-container">
+    <div className="flex flex-col gap-6" data-testid="step3-mapping-container">
       {/* 標頭 */}
       <div>
         <h2 className="text-lg font-semibold text-slate-200">

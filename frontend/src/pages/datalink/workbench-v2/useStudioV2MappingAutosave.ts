@@ -331,6 +331,38 @@ export function useStudioV2MappingAutosave(
     }
   }, [applyMappingPatch, flushRule, ruleQueue, stateRef]);
 
+  const retryMappingSave = React.useCallback(async (point: Point) => {
+    const queue = ruleQueue(point.rule_id);
+    if (queue.running) return;
+    if (!queue.deletions.size) queue.pending.set(point.id, generations.current.get(point.id) ?? 0);
+    if (!queue.deletions.size && queue.failure?.save_error_detail?.code === 'workspace_mapping_not_found') {
+      // A retry must resolve the current owned row before reusing its identity.
+      // Keep the rule paused during GET so edits remain drafts and retries coalesce.
+      queue.running = true;
+      try {
+        const fresh = await mappingsQuery.refetch();
+        if (!mounted.current || fresh.isError || !fresh.data) return;
+        for (const [pointId, generation] of queue.pending) {
+          const currentPoint = stateRef.current.points.find((item) => item.id === pointId);
+          const current = stateRef.current.mappings[pointId];
+          if (!current || currentPoint?.rule_id !== point.rule_id || generation !== (generations.current.get(pointId) ?? 0)) continue;
+          const record = fresh.data.find((item) => item.rule_id === currentPoint.rule_id && item.device_id === currentPoint.device_id && item.address === currentPoint.address);
+          if (current.mapping_id) confirmedRecords.current.delete(current.mapping_id);
+          applyMappingPatch(pointId, record ? hydrateStudioV2Mapping(currentPoint, record, current) : {
+            mapping_id: undefined, tag_id: undefined, persisted_point_id: undefined,
+            persisted: false, persisted_value: undefined,
+          });
+        }
+      } finally {
+        queue.running = false;
+      }
+    }
+    if (!mounted.current) return;
+    queue.paused = false;
+    queue.failure = undefined;
+    void flushRule(point.rule_id);
+  }, [applyMappingPatch, flushRule, mappingsQuery, ruleQueue, stateRef]);
+
   const afterMappingAction = React.useCallback((previousState: WorkbenchV2State, action: WorkbenchV2Action, nextState: WorkbenchV2State) => {
     switch (action.type) {
       case 'initMappingsForPoints': {
@@ -351,12 +383,7 @@ export function useStudioV2MappingAutosave(
       }
       case 'retryMappingSave': {
         const point = stateRef.current.points.find((item) => item.id === action.pointId);
-        if (point) {
-          const queue = ruleQueue(point.rule_id);
-          queue.paused = false;
-          if (!queue.deletions.size) queue.pending.set(action.pointId, generations.current.get(action.pointId) ?? 0);
-          void flushRule(point.rule_id);
-        }
+        if (point) void retryMappingSave(point);
         break;
       }
       case 'updateMapping':
@@ -376,7 +403,7 @@ export function useStudioV2MappingAutosave(
       default:
         break;
     }
-  }, [flushRule, queueMappingSave, reconcilePersistedMappings, ruleQueue, stateRef]);
+  }, [flushRule, queueMappingSave, reconcilePersistedMappings, retryMappingSave, ruleQueue, stateRef]);
 
   return {
     afterMappingAction,

@@ -108,7 +108,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         <div className="flex items-center gap-1.5" title={`${devName} · ${point.rule_name}`}>
           {onBulkToggle && <input type="checkbox" aria-label={t('step3.bulk.target', { tag: `${devName} ${point.address}` })} checked={bulkChecked} onChange={onBulkToggle} onFocus={e => e.stopPropagation()} onClick={e => e.stopPropagation()} data-testid={`bulk-target-${point.id}`} />}
           <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${devTheme.solid}`} />
-          <span className={`font-sans truncate max-w-[80px] ${devTheme.text}`}>
+          <span className={`font-sans truncate ${advanced ? 'max-w-[80px]' : 'max-w-[30vw]'} ${devTheme.text}`}>
             {devName}
           </span>
         </div>
@@ -175,7 +175,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
           onClick={preventPropagation}
           onMouseDown={preventPropagation}
           placeholder={t('step3.placeholders.unit')}
-          className="w-14 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-blue-500 text-xs px-2 py-1 rounded text-slate-200 focus:outline-none transition-all"
+          className={`${advanced ? 'w-14' : 'w-full min-w-14'} bg-slate-900/50 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-blue-500 text-xs px-2 py-1 rounded text-slate-200 focus:outline-none transition-all`}
           data-testid={`input-unit-${point.id}`}
         />
       </td>

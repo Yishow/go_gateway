@@ -85,6 +85,7 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
           patch: { tag_key: 'line.a.broken' },
         })}
       />
+      <button type="button" data-testid="retry-rule-A" onClick={() => actions.dispatch({ type: 'retryMappingSave', pointId: 'rule-A-p-0' })} />
       <button
         type="button"
         data-testid="make-rule-B-valid"
@@ -151,6 +152,29 @@ vi.mock('../../../src/services/studioV2WorkspaceDatabase', async () => {
 registerMappingAutosaveFixtures();
 
 describe('DatalinkWorkbenchV2Page mapping autosave orchestration', () => {
+  it('keeps the draft and retry action visible when reloading a missing mapping fails', async () => {
+    vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([mappingFixture()]);
+    vi.mocked(studioV2MappingsAPI.update).mockRejectedValueOnce({ response: { status: 404, data: { error: { code: 'workspace_mapping_not_found', action: 'reload' } } } });
+    renderPage();
+    await screen.findByTestId('workbench-v2-root');
+    fireEvent.click(screen.getByTestId('prime-mappings'));
+    await waitFor(() => expect(screen.getByTestId('mapping-tag-key-rule-A-p-0')).toHaveTextContent('line.a.persisted'));
+    fireEvent.click(screen.getByTestId('make-rule-A-fail'));
+    await waitFor(() => expect(screen.getByTestId('mapping-save-state-rule-A-p-0')).toHaveTextContent('save-error'));
+    vi.mocked(studioV2MappingsAPI.list).mockRejectedValueOnce(new Error('reload unavailable'));
+    fireEvent.click(screen.getByTestId('retry-rule-A'));
+    await waitFor(() => expect(studioV2MappingsAPI.list).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByTestId('mapping-save-state-rule-A-p-0')).toHaveTextContent('save-error'));
+    expect(screen.getByTestId('mapping-tag-key-rule-A-p-0')).toHaveTextContent('line.a.broken');
+    expect(screen.getByTestId('retry-rule-A')).toBeInTheDocument();
+    expect(studioV2MappingsAPI.update).toHaveBeenCalledTimes(1);
+    vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]);
+    vi.mocked(studioV2MappingsAPI.create).mockResolvedValueOnce(runtimeApplied(mappingFixture({ id: 'recovered', tag_key: 'line.a.broken' })));
+    fireEvent.click(screen.getByTestId('retry-rule-A'));
+    await waitFor(() => expect(screen.getByTestId('mapping-save-state-rule-A-p-0')).toHaveTextContent('saved'));
+    expect(studioV2MappingsAPI.create).toHaveBeenCalledWith(expect.objectContaining({ rule_id: 'rule-A', address: '40001', tag_key: 'line.a.broken' }));
+  });
+
   it('isolates one mapping row save failure without blocking another valid row', async () => {
     vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([
       mappingFixture(),
