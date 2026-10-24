@@ -47,7 +47,7 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 ## 專案與產品邊界
 
 - 工業資料採集閘道：設備連線 → 採集點位 → Point-to-Tag 映射 → 輸出。保留 Go + Gin 後端與 React + TypeScript 前端，在現有架構內改進。
-- 版本來源：`go.mod` 的 Go 1.25.5、`frontend/package.json`／lockfile 的 React 19、TypeScript 5、Vite 7。不要從舊規劃文件推定版本。
+- 版本來源：`go.mod` 的 Go 1.25.5、`frontend/package.json`／lockfile 的 React 19、TypeScript 7、Vite 8；TypeScript 6 alias 僅供 lint API 使用。不要從舊規劃文件推定版本。
 - 主程式 `cmd/test_ui` 提供 API 及嵌入式 SPA；`cmd/test_ui/main.go` 宣告 embed，`internal/web/embed.go` 提供靜態服務。
 - `/studio/v2` 是使用者 setup 主線；`/studio/runtime` 是 setup 後的 focused monitor；`/test` 為工程工具；`/gateway/*` 為 experimental。
 - 不建立平行 V3／完整重寫，不恢復 `/studio` 專用 route、handler、tombstone 或 special redirect。其他未知路由依現有 generic policy 處理。
@@ -82,7 +82,7 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 - 先核對 active、parked、archived changes 與相關 specs；處理重疊時留下唯一負責 change、依賴與移交原因，保留原有完成證據。
 - 不直接改寫既有規格語意而不留 delta／衝突說明。擴充採 expand → migrate → contract，每批可建置與驗證。
 - 路徑為 repo-relative；工作項目需寫明可觀察行為和驗收，不能只有「修改某檔」。數字區分測量、設計條件與估算。
-- 文件任務至少執行 `git diff --check` 與 `make check-lines`；規格任務另依 skill 執行 analyze／validate，明列未執行或失敗的檢查。
+- 規格任務另依 skill 執行 analyze／validate，明列未執行或失敗的檢查。
 - 修改 `docs/technical/studio-surface-inventory/` 內文件時，必須以 `go run ./cmd/studio_inventory_changelog ...` 同步其 `changelog.sqlite`，至少記錄 summary、surface、files、reason。
 
 ## 建置與開發
@@ -95,18 +95,10 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 - 設定讀取以 `internal/config/config.go` 的環境變數／dotenv 為準，不把其他入口的 Viper/YAML 說成主要 server 的設定方式。
 - fresh clone 只有 embed placeholder；需要可用 UI 時先完成前端 build 和 static sync，不能只 go build 就宣稱已有網頁。
 
-## 驗證
+## 驗證（按需載入）
 
-- 後端行為變更最低基準：`go test ./...`、`go vet ./...`、`golangci-lint run ./...`。
-- 前端行為變更最低基準：`cd frontend && npm run lint && npm test -- --run && npm run build`。
-- 前端 UI／UX 採測試先行；至少涵蓋受影響的 Studio 主流程與 TestPage 互動。協議、映射、排程、lifecycle、output binding 都需相應回歸。
-- Go 測試維持與 package 相鄰；前端分為 `frontend/tests/unit/`、`integration/`、`e2e/`。
-- `cd frontend && npm run test:e2e`：Playwright；gateway 專用 `test:gateway:unit`、`test:gateway:e2e`、`test:gateway:gate` 不代替產品主線驗收。
-- `make cross-platform-loop`：repo 的跨平台契約序列；名稱不能代替實際執行平台證據。
-- `make gate-smoke`、`gate-final`、`gate-soak`、`gatev11`、`gatev12`：Modbus gate／soak，執行前檢查腳本的 target 與測試環境。
-- `make points-precheck-up/down`、`points-migrate-up/down`：資料 migration；先檢查目標、備份、衝突與 down 策略，禁止拿正式資料試跑。
-- `make longtask-smoke`：長任務提醒機制檢查，不是資料採集驗收。
-- 不宣稱「全通過」而只執行 focused suite；明列命令、結果、環境、未執行項目與對應風險。歷史測試數不能作為此次結果。
+- 修改程式、設定、測試或文件前，或任務要求驗證、合併／發布檢查時，先讀 [測試與驗證指引](docs/testing.md)，依任務選用對應章節。
+- 純問答與唯讀檢視不必載入；只有選測或查證測試結果需要時才讀取。
 
 ## 程式碼與安全
 
