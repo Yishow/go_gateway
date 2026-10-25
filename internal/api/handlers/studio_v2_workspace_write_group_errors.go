@@ -33,6 +33,8 @@ func renderWriteGroupError(c *gin.Context, err error) {
 		renderWriteGroupTyped(c, http.StatusConflict, "WRITE_GROUP_NOT_READY", "write group is not ready to apply; review its readiness issues", false, "review_group")
 	case errors.Is(err, workspace.ErrWriteGroupProfileIntervalInvalid):
 		renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "profile_interval_invalid", "recording interval must be a whole number within its profile range and unit", false, "review_group")
+	case errors.Is(err, workspace.ErrWriteGroupMemberMetadataInvalid):
+		renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "member_metadata_invalid", "member recording metadata must use the known roles and types", false, "review_group")
 	case errors.Is(err, recordingplan.ErrTimescaleUnavailable):
 		renderTimescaleUnavailable(c, err)
 	case errors.Is(err, workspace.ErrWriteGroupValidation):

@@ -1,14 +1,16 @@
 import type { StudioV2WorkspaceReadinessIssue } from './studioV2WorkspaceReadiness';
+import type { DataType } from './datalink';
 
 export type WriteGroupStatus = 'draft' | 'ready' | 'running' | 'disabled' | 'deleted';
 
 export type WriteGroupStorageStrategy = 'managed' | 'custom';
 
 /**
- * An absent layout always means `managed_wide_v1`. `managed_long_v1` is the
- * fixed typed table shared by the canonical profile groups of one storage scope.
+ * An absent layout always means `managed_wide_v1`. `managed_wide_profile_v1` is the
+ * reduction-aware managed wide profile table; `managed_long_v1` is the fixed typed
+ * table shared by the canonical profile groups of one storage scope.
  */
-export type WriteGroupLayoutVersion = 'managed_wide_v1' | 'managed_long_v1';
+export type WriteGroupLayoutVersion = 'managed_wide_v1' | 'managed_wide_profile_v1' | 'managed_long_v1';
 
 /** How a long layout is stored. Only plain SQL storage exists so far. */
 /** `timescale` is an explicit, separate selection; `plain` is the default. */
@@ -19,11 +21,22 @@ export type WriteGroupProfileKind = 'instantaneous' | 'cumulative';
 /** Each kind has one fixed unit: instantaneous in seconds, cumulative in minutes. */
 export type WriteGroupIntervalUnit = 'second' | 'minute';
 
+/** How a profile's samples are reduced; absent means `latest` for every legacy group. */
+export type WriteGroupSampleReduction = 'latest' | 'mean';
+
+/** Persisted role of one member's value inside a profile group; absent on groups saved before roles. */
+export type WriteGroupValueRole = 'gauge' | 'counter_raw' | 'state';
+
+/** Stored result type, independent of the source Tag type. */
+export type WriteGroupResultValueType = 'bool' | 'text' | 'int64' | 'uint64' | 'decimal' | 'float64';
+
 /** Recording profile of a canonical circuit group; the interval is in `unit`, never in seconds by default. */
 export interface WriteGroupRecordingProfile {
   kind: WriteGroupProfileKind;
   interval: number;
   unit: WriteGroupIntervalUnit;
+  /** Explicit reduction, carried unchanged; absent decodes as `latest` and is never rewritten as a choice. */
+  sample_reduction?: WriteGroupSampleReduction;
 }
 
 export interface WriteGroupMember {
@@ -40,6 +53,12 @@ export interface WriteGroupMember {
   /** Opaque workspace-scoped circuit identity; `circuit_name` is display text only. */
   circuit_id?: string;
   circuit_name?: string;
+  /** Persisted role of this value; absent on groups saved before roles. */
+  value_role?: WriteGroupValueRole;
+  /** The Tag's own `schema.DataType` at save time; the Tag type itself is never changed. */
+  source_value_type?: DataType;
+  /** Stored result type of this member, independent of `source_value_type`. */
+  result_value_type?: WriteGroupResultValueType;
 }
 
 export interface WriteGroupDestination {

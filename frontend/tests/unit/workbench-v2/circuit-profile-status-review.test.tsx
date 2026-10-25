@@ -4,6 +4,7 @@ import type { WriteGroupDelivery } from '@/types/studioV2WriteGroupDelivery';
 import { parseWriteGroupSourceEvidence } from '@/utils/studioV2WriteGroupSourceEvidenceJson';
 import { CircuitProfileStatusView } from '@/features/datalink/workbench-v2/steps/step4/CircuitProfileStatusView';
 import { longProfileGroup } from '../../fixtures/circuitBatchPanel';
+import { expandStatus } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
@@ -41,6 +42,7 @@ describe('Source evidence preserves the applied destination and exact partial wi
 
   it('shows the true partial window precision instead of two identical second-rounded times', () => {
     render(<CircuitProfileStatusView group={group()} delivery={delivery(evidence('2026-10-24T10:00:00Z', '2026-10-24T10:00:00.000001Z'))} />);
+    expandStatus('grp-i');
     expect(screen.getByTestId('circuit-status-record-latest-tag-0')).toHaveTextContent('10:00:00.000001');
   });
 
@@ -48,6 +50,7 @@ describe('Source evidence preserves the applied destination and exact partial wi
     const applied = group();
     const draft = { ...applied, revision: 'draft-2', destination: { ...applied.destination, connector_id: 'draft-connector', connector_revision: 'draft-crev' } };
     render(<CircuitProfileStatusView group={draft} delivery={delivery()} />);
+    expandStatus('grp-i');
     const latest = screen.getByTestId('circuit-status-record-latest-tag-0');
     expect(latest).toHaveTextContent('step4.basic.status.receipt_confirmed');
     expect(latest).toHaveTextContent('step4.basic.status.raw_recorded');

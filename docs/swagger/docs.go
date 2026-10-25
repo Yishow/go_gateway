@@ -2996,6 +2996,38 @@ const docTemplate = `{
                 }
             }
         },
+        "groupdelivery.SourceAggregation": {
+            "type": "object",
+            "properties": {
+                "basis": {
+                    "type": "string"
+                },
+                "coverage": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "rejected_count": {
+                    "type": "integer"
+                },
+                "result_type": {
+                    "type": "string"
+                },
+                "source_type": {
+                    "type": "string"
+                },
+                "valid_count": {
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
         "groupdelivery.SourceDelivery": {
             "type": "string",
             "enum": [
@@ -3020,6 +3052,14 @@ const docTemplate = `{
         "groupdelivery.SourceRecord": {
             "type": "object",
             "properties": {
+                "aggregation": {
+                    "description": "Aggregation is the verified evidence of a mean window: method, counts and coverage, never a value.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/groupdelivery.SourceAggregation"
+                        }
+                    ]
+                },
                 "available": {
                     "type": "boolean"
                 },
@@ -4234,6 +4274,25 @@ const docTemplate = `{
                 }
             }
         },
+        "measurement.ExactType": {
+            "type": "string",
+            "enum": [
+                "bool",
+                "text",
+                "int64",
+                "uint64",
+                "decimal",
+                "float64"
+            ],
+            "x-enum-varnames": [
+                "ExactBool",
+                "ExactText",
+                "ExactInt64",
+                "ExactUint64",
+                "ExactDecimal",
+                "ExactFloat64"
+            ]
+        },
         "modbusshare.DesiredMapping": {
             "type": "object",
             "properties": {
@@ -5343,11 +5402,13 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "managed_wide_v1",
-                "managed_long_v1"
+                "managed_long_v1",
+                "managed_wide_profile_v1"
             ],
             "x-enum-varnames": [
                 "WriteGroupLayoutManagedWideV1",
-                "WriteGroupLayoutManagedLongV1"
+                "WriteGroupLayoutManagedLongV1",
+                "WriteGroupLayoutManagedWideProfileV1"
             ]
         },
         "workspace.WriteGroupListResult": {
@@ -5399,14 +5460,33 @@ const docTemplate = `{
                 "required": {
                     "type": "boolean"
                 },
+                "result_value_type": {
+                    "$ref": "#/definitions/measurement.ExactType"
+                },
                 "source_revision": {
                     "type": "string"
+                },
+                "source_value_type": {
+                    "description": "SourceValueType records the tag's own data type and ResultValueType the\nreduction result type the runtime must write. Both are saved only for a\nnew recording shape, verified against the real tag, and never change it.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.DataType"
+                        }
+                    ]
                 },
                 "tag_id": {
                     "type": "string"
                 },
                 "target_column": {
                     "type": "string"
+                },
+                "value_role": {
+                    "description": "ValueRole is explicit on new instantaneous recording shapes. Legacy\nmembers and cumulative profiles may omit it; absence never means gauge.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/workspace.WriteGroupValueRole"
+                        }
+                    ]
                 }
             }
         },
@@ -5703,6 +5783,14 @@ const docTemplate = `{
                 "kind": {
                     "$ref": "#/definitions/workspace.WriteGroupProfileKind"
                 },
+                "sample_reduction": {
+                    "description": "SampleReduction is empty for every profile saved before reductions\nexisted; read it through EffectiveSampleReduction so absence stays latest\nand a legacy profile never grows the key on the wire.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/workspace.WriteGroupSampleReduction"
+                        }
+                    ]
+                },
                 "unit": {
                     "$ref": "#/definitions/workspace.WriteGroupIntervalUnit"
                 }
@@ -5781,6 +5869,17 @@ const docTemplate = `{
                 }
             }
         },
+        "workspace.WriteGroupSampleReduction": {
+            "type": "string",
+            "enum": [
+                "latest",
+                "mean"
+            ],
+            "x-enum-varnames": [
+                "WriteGroupSampleReductionLatest",
+                "WriteGroupSampleReductionMean"
+            ]
+        },
         "workspace.WriteGroupSaveResult": {
             "type": "object",
             "properties": {
@@ -5829,6 +5928,19 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "WriteGroupStorageStrategyManaged",
                 "WriteGroupStorageStrategyCustom"
+            ]
+        },
+        "workspace.WriteGroupValueRole": {
+            "type": "string",
+            "enum": [
+                "gauge",
+                "counter_raw",
+                "state"
+            ],
+            "x-enum-varnames": [
+                "WriteGroupValueRoleGauge",
+                "WriteGroupValueRoleCounterRaw",
+                "WriteGroupValueRoleState"
             ]
         },
         "workspace.WriteGroupWritePolicy": {

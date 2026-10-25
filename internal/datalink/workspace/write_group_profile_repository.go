@@ -15,20 +15,31 @@ func nullableText(value string) any {
 	return value
 }
 
+// profileColumns holds the nullable profile and storage columns of one group,
+// each bound as a SQL parameter exactly as stored (nil is NULL).
+type profileColumns struct {
+	layout, kind, interval, unit, mode, reduction any
+}
+
 // profileColumnValues maps a group to its nullable profile and storage columns.
-func profileColumnValues(group *WriteGroup) (layout, kind, interval, unit, mode any) {
-	layout = nullableText(string(group.LayoutVersion))
-	mode = nullableText(string(group.StorageMode))
-	if group.RecordingProfile != nil {
-		kind, interval, unit = string(group.RecordingProfile.Kind), group.RecordingProfile.Interval, string(group.RecordingProfile.Unit)
+func profileColumnValues(group *WriteGroup) profileColumns {
+	columns := profileColumns{
+		layout: nullableText(string(group.LayoutVersion)),
+		mode:   nullableText(string(group.StorageMode)),
 	}
-	return layout, kind, interval, unit, mode
+	if group.RecordingProfile != nil {
+		columns.kind, columns.interval, columns.unit = string(group.RecordingProfile.Kind), group.RecordingProfile.Interval, string(group.RecordingProfile.Unit)
+		columns.reduction = nullableText(string(group.RecordingProfile.SampleReduction))
+	}
+	return columns
 }
 
 // applyProfileColumns decodes the nullable profile columns. All-NULL columns
 // are a pre-profile group; a partially written profile is corrupt and fails
-// loudly instead of being read as wide.
-func applyProfileColumns(group *WriteGroup, layout, kind, unit, mode sql.NullString, interval sql.NullInt64) error {
+// loudly instead of being read as wide. An omitted reduction stays empty and
+// reads as latest through EffectiveSampleReduction; it is never backfilled, and
+// a stored unknown value fails instead of degrading to latest.
+func applyProfileColumns(group *WriteGroup, layout, kind, unit, mode sql.NullString, interval sql.NullInt64, reduction sql.NullString) error {
 	group.LayoutVersion = WriteGroupLayoutVersion(layout.String)
 	group.StorageMode = WriteGroupStorageMode(mode.String)
 	if !supportedLayoutVersion(group.LayoutVersion) {
@@ -38,6 +49,9 @@ func applyProfileColumns(group *WriteGroup, layout, kind, unit, mode sql.NullStr
 		return fmt.Errorf("decode write-group storage mode %q: %w", mode.String, ErrWriteGroupValidation)
 	}
 	if !kind.Valid && !interval.Valid && !unit.Valid {
+		if reduction.Valid && reduction.String != "" {
+			return fmt.Errorf("decode write-group sample reduction %q without a recording profile: %w", reduction.String, ErrWriteGroupValidation)
+		}
 		group.RecordingProfile = nil
 		return nil
 	}
@@ -46,6 +60,17 @@ func applyProfileColumns(group *WriteGroup, layout, kind, unit, mode sql.NullStr
 	}
 	group.RecordingProfile = &WriteGroupRecordingProfile{
 		Kind: WriteGroupProfileKind(kind.String), Interval: int(interval.Int64), Unit: WriteGroupIntervalUnit(unit.String),
+	}
+	if reduction.Valid {
+		if reduction.String == "" {
+			return fmt.Errorf("decode write-group sample reduction: %w", ErrWriteGroupValidation)
+		}
+		switch parsed := WriteGroupSampleReduction(reduction.String); parsed {
+		case WriteGroupSampleReductionLatest, WriteGroupSampleReductionMean:
+			group.RecordingProfile.SampleReduction = parsed
+		default:
+			return fmt.Errorf("decode write-group sample reduction %q: %w", reduction.String, ErrWriteGroupValidation)
+		}
 	}
 	return nil
 }

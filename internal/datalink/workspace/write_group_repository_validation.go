@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"go-gateway/internal/datalink/measurement"
+	"go-gateway/internal/datalink/schema"
 )
 
 func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup) error {
@@ -197,6 +198,10 @@ func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGrou
 		}
 		member.SourceRevision = sourceRevision
 
+		if err := applyRecordingMetadata(group, member, i, schema.DataType(source.TagDataType)); err != nil {
+			return err
+		}
+
 		if member.MeasurementID == nil {
 			continue
 		}
@@ -222,8 +227,87 @@ func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGrou
 			return fmt.Errorf("%w: %w", ErrWriteGroupNotFound, ErrNotFound)
 		}
 		member.MeasurementID = &measurementID
+		if member.ValueRole == WriteGroupValueRoleCounterRaw {
+			if err := r.confirmCounterBinding(ctx, runner, *member.MeasurementID); err != nil {
+				return fmt.Errorf("member %d: %w", i, err)
+			}
+		}
 	}
 	return r.checkProfileSourceOwnership(ctx, runner, group)
+}
+
+// applyRecordingMetadata verifies and derives the member recording metadata of
+// a new recording shape: a mean reduction, the new wide profile layout, or a
+// member that explicitly carries metadata. Legacy members are never touched
+// and never backfilled. The source type is the tag's own data type; a caller
+// type that differs from it is refused instead of silently saved.
+func applyRecordingMetadata(group *WriteGroup, member *WriteGroupMember, index int, tagType schema.DataType) error {
+	newShape := group.RecordingProfile.EffectiveSampleReduction() == WriteGroupSampleReductionMean ||
+		group.EffectiveLayoutVersion() == WriteGroupLayoutManagedWideProfileV1 ||
+		memberMetadataUnsupported(member)
+	if !newShape {
+		return nil
+	}
+	role := member.ValueRole
+	if role == "" {
+		// Only an instantaneous shape declares roles; a cumulative profile
+		// counts and never averages, so its members keep the raw mapping
+		// without one.
+		if group.RecordingProfile.Kind == WriteGroupProfileInstantaneous {
+			return fmt.Errorf("%w: member %d needs an explicit value role for this recording shape", ErrWriteGroupValidation, index)
+		}
+	}
+	if member.SourceValueType != "" && member.SourceValueType != tagType {
+		return fmt.Errorf("%w: member %d source type %q does not match the tag's %q",
+			ErrWriteGroupValidation, index, member.SourceValueType, tagType)
+	}
+	result, err := deriveMemberResultType(group.RecordingProfile.EffectiveSampleReduction(), role, tagType)
+	if err != nil {
+		return fmt.Errorf("member %d: %w", index, err)
+	}
+	if member.ResultValueType != "" && member.ResultValueType != result {
+		return fmt.Errorf("%w: member %d result type %q does not match the derived %q",
+			ErrWriteGroupValidation, index, member.ResultValueType, result)
+	}
+	member.SourceValueType = tagType
+	member.ResultValueType = result
+	if role == WriteGroupValueRoleCounterRaw {
+		if member.MeasurementID == nil || strings.TrimSpace(*member.MeasurementID) == "" {
+			return fmt.Errorf("%w: member %d needs the confirmed counter binding for counter_raw", ErrWriteGroupValidation, index)
+		}
+		// The saved counter evidence never turns a bool or text tag into a
+		// counter: only a numeric source can feed one, as the cumulative gate
+		// already requires.
+		if exact, ok := measurement.ExactTypeForTag(tagType); !ok || exact == measurement.ExactBool || exact == measurement.ExactText {
+			return fmt.Errorf("%w: member %d counter_raw requires a numeric source tag, not %q",
+				ErrWriteGroupValidation, index, tagType)
+		}
+	}
+	return nil
+}
+
+// confirmCounterBinding reuses the existing confirmed counter evidence: the
+// saved definition must itself confirm counter semantics on the same local
+// transaction, never a guess from a name or a unit.
+func (r *SQLWriteGroupRepository) confirmCounterBinding(ctx context.Context, runner writeGroupSQLRunner, measurementID string) error {
+	tx, ok := runner.(*sql.Tx)
+	if !ok {
+		// An internal capability gap of the caller, never an operator mistake.
+		return fmt.Errorf("confirm write-group counter binding: the validation runner is not a transaction")
+	}
+	def, err := measurement.NewSQLRepository(r.db).GetByIDInTx(ctx, tx, measurementID)
+	if err != nil {
+		// Keep the existing read-measurement semantics: an unreadable saved
+		// definition is an availability failure that preserves the cause.
+		return fmt.Errorf("read write-group measurement: %w", err)
+	}
+	if def == nil {
+		return fmt.Errorf("read write-group measurement: the counter binding is unavailable")
+	}
+	if confirmation := measurement.ConfirmCounter(*def); confirmation != measurement.CounterConfirmed {
+		return fmt.Errorf("%w: the counter binding is not confirmed (%s)", ErrWriteGroupValidation, confirmation)
+	}
+	return nil
 }
 
 func readWorkspaceScope(ctx context.Context, runner writeGroupSQLRunner, query func(string) string, workspaceID string) (*Record, error) {

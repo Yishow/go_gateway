@@ -16,7 +16,14 @@ export function profileSettings(kind: WriteGroupProfileKind, interval: number) {
 /** Body of the PUT for a saved profile: only the reviewed period changes, everything else is carried over. */
 export function existingProfileUpdateGroup(existing: WriteGroup, kind: WriteGroupProfileKind, interval: number): WriteGroup {
   const settings = profileSettings(kind, interval);
-  return { ...existing, recording_profile: settings.recording_profile, row_policy: { ...existing.row_policy, interval_seconds: settings.intervalSeconds } };
+  const saved = existing.recording_profile;
+  // The saved reduction is carried with the period; a profile saved without one stays without one.
+  const reduction = saved?.kind === kind ? saved.sample_reduction : undefined;
+  return {
+    ...existing,
+    recording_profile: { ...settings.recording_profile, ...(reduction !== undefined ? { sample_reduction: reduction } : {}) },
+    row_policy: { ...existing.row_policy, interval_seconds: settings.intervalSeconds },
+  };
 }
 
 /** Body of the ensure request for a profile the circuit does not have yet. */
@@ -45,7 +52,13 @@ function comparableIntent(group: WriteGroup | WriteGroupDraft, withTableName: bo
     workspace_id: group.workspace_id,
     layout_version: group.layout_version ?? 'managed_wide_v1',
     storage_mode: group.storage_mode ?? 'plain',
-    recording_profile: group.recording_profile ?? null,
+    // An omitted reduction is the stored form of latest; mean stays a different configuration.
+    recording_profile: group.recording_profile ? {
+      kind: group.recording_profile.kind,
+      interval: group.recording_profile.interval,
+      unit: group.recording_profile.unit,
+      sample_reduction: group.recording_profile.sample_reduction ?? 'latest',
+    } : null,
     destination: {
       connector_id: group.destination.connector_id, connector_revision: group.destination.connector_revision,
       table_schema: group.destination.table_schema, storage_strategy: group.destination.storage_strategy,
@@ -59,6 +72,8 @@ function comparableIntent(group: WriteGroup | WriteGroupDraft, withTableName: bo
     members: group.members.map((member) => ({
       device_id: member.device_id, point_id: member.point_id, tag_id: member.tag_id, measurement_id: member.measurement_id ?? '',
       circuit_id: member.circuit_id ?? '', circuit_name: member.circuit_name ?? '', required: member.required,
+      // An omitted role or type stays omitted; no legacy member becomes a gauge.
+      value_role: member.value_role ?? '', source_value_type: member.source_value_type ?? '', result_value_type: member.result_value_type ?? '',
     })).sort((a, b) => `${a.device_id}\0${a.point_id}\0${a.tag_id}`.localeCompare(`${b.device_id}\0${b.point_id}\0${b.tag_id}`)),
   };
 }

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { CircuitProfileStatusView } from '@/features/datalink/workbench-v2/steps/step4/CircuitProfileStatusView';
 import type { WriteGroupDelivery, WriteGroupSourceEvidence, WriteGroupSourceRecord } from '@/types/studioV2WriteGroupDelivery';
 import { longProfileGroup } from '../../fixtures/circuitBatchPanel';
+import { expandStatus } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
@@ -29,6 +30,7 @@ const withDraftDestination = (connector_id: string, connector_revision: string) 
 describe('Receipts are judged against the frozen applied destination, not the draft', () => {
   it('keeps the applied receipt and says the new destination draft has not taken effect', () => {
     render(<CircuitProfileStatusView group={withDraftDestination('draft-connector', 'draft-crev')} delivery={delivery()} />);
+    expandStatus('grp-i');
     expect(screen.getByTestId('circuit-status-record-latest-tag-0')).toHaveTextContent('step4.basic.status.receipt_confirmed');
     expect(screen.getByTestId('circuit-status-applied-destination-note')).toHaveTextContent('step4.basic.status.applied_destination_note');
   });
@@ -41,6 +43,7 @@ describe('Receipts are judged against the frozen applied destination, not the dr
   it('never lets an old receipt count for the new destination draft', () => {
     const data = delivery({ sources: [{ device_id: 'dev-1', point_id: 'pt-0', tag_id: 'tag-0', latest: record({ connector_revision: 'draft-crev' }), last_sql_committed: null }] });
     render(<CircuitProfileStatusView group={withDraftDestination('conn-1', 'draft-crev')} delivery={data} />);
+    expandStatus('grp-i');
     const latest = screen.getByTestId('circuit-status-record-latest-tag-0');
     expect(latest).toHaveTextContent('step4.basic.status.destination_changed');
     expect(latest).not.toHaveTextContent('receipt_confirmed');
@@ -48,6 +51,7 @@ describe('Receipts are judged against the frozen applied destination, not the dr
 
   it('gives no receipt credit when the answer does not name the frozen destination', () => {
     render(<CircuitProfileStatusView group={applied()} delivery={delivery({ connector_id: undefined, connector_revision: undefined })} />);
+    expandStatus('grp-i');
     const latest = screen.getByTestId('circuit-status-record-latest-tag-0');
     expect(latest).not.toHaveTextContent('receipt_confirmed');
     expect(latest).toHaveTextContent('step4.basic.status.destination_changed');
@@ -63,6 +67,7 @@ describe('Window times keep the precision the record has', () => {
     ['an unaligned cutover start', '2026-10-24T10:00:07.5Z', '2026-10-24T10:00:15Z', '2026-10-24 10:00:07.5 → 2026-10-24 10:00:15 UTC'],
   ])('shows %s', (_name, start, end, shown) => {
     render(<CircuitProfileStatusView group={applied()} delivery={windowed(start, end)} />);
+    expandStatus('grp-i');
     expect(screen.getByTestId('circuit-status-record-latest-tag-0')).toHaveTextContent(shown);
   });
 });

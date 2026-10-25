@@ -85,8 +85,7 @@ describe('Step 4 Database UI Components & Integration', () => {
   });
 
   describe('CommitSummary', () => {
-    it('Commit 只依後端 readiness：無阻擋時啟用，有阻擋時 disabled，且不以舊 target 數量當門檻', () => {
-      const onActivate = vi.fn();
+    it('只呈現後端 readiness 狀態與阻擋原因，不提供任何啟動入口，也不以舊 target 數量當門檻', () => {
       const { rerender } = render(
         <CommitSummary
           deviceCount={2}
@@ -95,14 +94,12 @@ describe('Step 4 Database UI Components & Integration', () => {
           mappingCount={8}
           connector={mockConnector}
           groupSummary={{ state: 'ready', total: 1, applied: 0 }}
-          onActivate={onActivate}
         />
       );
 
-      const btn = screen.getByRole('button', { name: /step4\.activate_btn/ });
-      expect(btn).not.toBeDisabled();
-      fireEvent.click(btn);
-      expect(onActivate).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('step4-group-summary-note')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /step4\.activate_btn/ })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('step4-blocker-resolution')).not.toBeInTheDocument();
 
       // 當有衝突時
       rerender(
@@ -114,11 +111,11 @@ describe('Step 4 Database UI Components & Integration', () => {
           connector={mockConnector}
           groupSummary={{ state: 'ready', total: 0, applied: 0 }}
           readinessSummary={{ ready: false, blocking_count: 1, warning_count: 0, issues: [{ code: 'x', severity: 'blocking', step: 'Step 4', scope: 's', message: 'm' }] }}
-          onActivate={onActivate}
         />
       );
 
-      expect(screen.getByRole('button', { name: /step4\.activate_btn/ })).toBeDisabled();
+      expect(screen.getByTestId('step4-blocker-resolution')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /step4\.activate_btn/ })).not.toBeInTheDocument();
     });
   });
 

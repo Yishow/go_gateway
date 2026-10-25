@@ -15,7 +15,12 @@ import {
   validateDraft,
 } from '@/features/datalink/workbench-v2/state/writeGroup/draft';
 import { basicManagedGroupDraft } from '@/features/datalink/workbench-v2/state/basicRecording';
-import type { WriteGroup, WriteGroupCreateRequest, WriteGroupDraft } from '@/types/studioV2WriteGroup';
+import type {
+  WriteGroup,
+  WriteGroupCreateRequest,
+  WriteGroupDraft,
+  WriteGroupRecordingProfile,
+} from '@/types/studioV2WriteGroup';
 
 vi.mock('@/services/studioV2Workspace', () => ({
   studioV2DatalinkApi: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -241,5 +246,112 @@ describe('recording profile in the editor draft', () => {
     // Without a profile the explicit seconds argument still applies.
     expect(basicManagedGroupDraft(legacyGroup, 45, 'skip_row').row_policy.interval_seconds).toBe(45);
     expect(basicManagedGroupDraft(legacyGroup, 45, 'skip_row')).not.toHaveProperty('recording_profile');
+  });
+});
+
+describe('an explicit sample reduction is carried, never invented', () => {
+  // Raw wire payload with the contract's literal reduction values, never a production helper's output.
+  const payload = (kind: 'instantaneous' | 'cumulative', reduction?: string | null) => {
+    const profile: Record<string, unknown> = kind === 'instantaneous'
+      ? { kind: 'instantaneous', interval: 15, unit: 'second' }
+      : { kind: 'cumulative', interval: 10, unit: 'minute' };
+    if (reduction !== undefined) profile.sample_reduction = reduction;
+    return {
+      ...profileGroup(),
+      row_policy: { interval_seconds: kind === 'instantaneous' ? 15 : 600, allowed_lateness_seconds: 0 },
+      recording_profile: profile,
+    };
+  };
+  const meanGroup = () => parseStudioV2WriteGroup(payload('instantaneous', 'mean'));
+
+  it('hydrates an explicit mean and an explicit latest unchanged', () => {
+    expect(parseStudioV2WriteGroup(payload('instantaneous', 'mean'))?.recording_profile?.sample_reduction).toBe('mean');
+    expect(parseStudioV2WriteGroup(payload('instantaneous', 'latest'))?.recording_profile?.sample_reduction).toBe('latest');
+    expect(parseStudioV2WriteGroup(payload('cumulative', 'latest'))?.recording_profile?.sample_reduction).toBe('latest');
+  });
+
+  it('never invents latest for a group saved without a reduction', () => {
+    const parsed = parseStudioV2WriteGroup(payload('instantaneous'));
+    expect(parsed).not.toBeNull();
+    expect(parsed?.recording_profile).not.toHaveProperty('sample_reduction');
+    expect(parsed?.recording_profile).toEqual({ kind: 'instantaneous', interval: 15, unit: 'second' });
+    expect(parsed?.row_policy.interval_seconds).toBe(15);
+  });
+
+  it.each(['median', 'average', 'MEAN', ''])('rejects the unknown reduction %j', (reduction) => {
+    expect(parseStudioV2WriteGroup(payload('instantaneous', reduction))).toBeNull();
+  });
+
+  it('rejects a null or non-string reduction', () => {
+    expect(parseStudioV2WriteGroup(payload('instantaneous', null))).toBeNull();
+    expect(parseStudioV2WriteGroup({
+      ...payload('instantaneous'), recording_profile: { kind: 'instantaneous', interval: 15, unit: 'second', sample_reduction: 1 },
+    })).toBeNull();
+  });
+
+  it('rejects mean on a cumulative profile', () => {
+    expect(parseStudioV2WriteGroup(payload('cumulative', 'mean'))).toBeNull();
+  });
+
+  it('carries mean through the editor draft and the create request without a phantom diff', () => {
+    const group = meanGroup()!;
+    const draft = groupToDraft(group);
+    expect(draft.recording_profile?.sample_reduction).toBe('mean');
+    const request = draftToRequestGroup(draft, 'ws-1');
+    expect(request.recording_profile?.sample_reduction).toBe('mean');
+    expect(request.recording_profile).toMatchObject({ kind: 'instantaneous', interval: 15, unit: 'second' });
+    expect(request.row_policy.interval_seconds).toBe(15);
+    expect(draftIsDirty(draft, group)).toBe(false);
+    expect(validateDraft(draft, { destinationSaved: true }).map((issue) => issue.code))
+      .not.toContain('profile-interval-invalid');
+    expect(basicManagedGroupDraft(group, 60, 'skip_row').recording_profile?.sample_reduction).toBe('mean');
+  });
+
+  it('keeps a legacy group without a reduction through the same draft copy', () => {
+    const group = parseStudioV2WriteGroup(payload('instantaneous'))!;
+    const draft = groupToDraft(group);
+    expect(draft.recording_profile).not.toHaveProperty('sample_reduction');
+    expect(draftToRequestGroup(draft, 'ws-1').recording_profile).not.toHaveProperty('sample_reduction');
+    expect(draftIsDirty(draft, group)).toBe(false);
+  });
+
+  it('rejects mean for a cumulative profile or an unknown reduction in the editor before Apply', () => {
+    const draft = groupToDraft(meanGroup()!);
+    draft.recording_profile = { kind: 'cumulative', interval: 10, unit: 'minute', sample_reduction: 'mean' };
+    expect(validateDraft(draft, { destinationSaved: true }).map((issue) => issue.code)).toContain('profile-interval-invalid');
+    draft.recording_profile = { kind: 'instantaneous', interval: 15, unit: 'second', sample_reduction: 'median' } as unknown as WriteGroupRecordingProfile;
+    expect(validateDraft(draft, { destinationSaved: true }).map((issue) => issue.code)).toContain('profile-interval-invalid');
+    draft.recording_profile = { kind: 'instantaneous', interval: 15, unit: 'second', sample_reduction: 'mean' };
+    expect(validateDraft(draft, { destinationSaved: true }).map((issue) => issue.code)).not.toContain('profile-interval-invalid');
+  });
+
+  it('sends and re-reads mean on create, ensure and update', async () => {
+    vi.mocked(studioV2DatalinkApi.post).mockReset();
+    vi.mocked(studioV2DatalinkApi.put).mockReset();
+    const response = { workspace_revision: 'w2', group: payload('instantaneous', 'mean') };
+    for (const mock of [vi.mocked(studioV2DatalinkApi.post), vi.mocked(studioV2DatalinkApi.put)]) {
+      mock.mockResolvedValue({ data: { success: true, data: response } } as never);
+    }
+    const request: WriteGroupCreateRequest = {
+      workspace_id: 'ws-1', expected_workspace_revision: 'w1', expected_connector_revision: 'crev-1',
+      group: draftToRequestGroup(groupToDraft(meanGroup()!), 'ws-1'),
+    };
+    const created = await studioV2WorkspaceWriteGroupsAPI.create(request);
+    const ensured = await studioV2WorkspaceWriteGroupsAPI.ensureCircuitProfile(request);
+    const updated = await studioV2WorkspaceWriteGroupsAPI.update('profile-mean', { ...request, expected_group_revision: 'rev-1' });
+
+    const [createCall, ensureCall] = vi.mocked(studioV2DatalinkApi.post).mock.calls;
+    for (const body of [
+      (createCall[1] as WriteGroupCreateRequest).group,
+      (ensureCall[1] as WriteGroupCreateRequest).group,
+      (vi.mocked(studioV2DatalinkApi.put).mock.calls[0][1] as WriteGroupCreateRequest).group,
+    ]) {
+      expect(body.recording_profile?.sample_reduction).toBe('mean');
+    }
+    // A reloaded response keeps the explicit choice instead of downgrading it to latest.
+    for (const result of [created, ensured, updated]) {
+      expect(result.group.recording_profile?.sample_reduction).toBe('mean');
+      expect(result.group.row_policy.interval_seconds).toBe(15);
+    }
   });
 });

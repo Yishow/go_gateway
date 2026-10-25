@@ -6,6 +6,7 @@ import type { MeasurementDefinition } from '@/types/measurement';
 import type { RecordingStartOperation } from '@/types/studioV2RecordingStart';
 import type { WriteGroup, WriteGroupProfileKind } from '@/types/studioV2WriteGroup';
 import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
+import { expandSources } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -177,6 +178,7 @@ describe('CircuitProfile Independent Sources per Profile (Slice A)', () => {
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Main Feeder 1' } });
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
 
+    expandSources();
     // tag-0: select for instantaneous ONLY (uncheck cumulative)
     // tag-1: select for cumulative ONLY (uncheck instantaneous)
     // tag-2: uncheck both
@@ -236,6 +238,7 @@ describe('CircuitProfile Independent Sources per Profile (Slice A)', () => {
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Main Feeder 1' } });
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
 
+    expandSources();
     const cumTag0 = screen.getByTestId('circuit-profile-member-cum-tag-0');
     const instTag1 = screen.getByTestId('circuit-profile-member-inst-tag-1');
     if ((cumTag0 as HTMLInputElement).checked) fireEvent.click(cumTag0);
@@ -244,6 +247,7 @@ describe('CircuitProfile Independent Sources per Profile (Slice A)', () => {
     first.unmount();
 
     renderPanel();
+    expandSources();
     expect((screen.getByTestId('circuit-profile-member-inst-tag-0') as HTMLInputElement).checked).toBe(true);
     expect((screen.getByTestId('circuit-profile-member-cum-tag-0') as HTMLInputElement).checked).toBe(false);
     expect((screen.getByTestId('circuit-profile-member-inst-tag-1') as HTMLInputElement).checked).toBe(false);
@@ -262,6 +266,7 @@ describe('CircuitProfile Independent Sources per Profile (Slice A)', () => {
       }),
     );
     renderPanel();
+    expandSources();
     expect((screen.getByTestId('circuit-profile-member-inst-tag-0') as HTMLInputElement).checked).toBe(true);
     expect((screen.getByTestId('circuit-profile-member-cum-tag-0') as HTMLInputElement).checked).toBe(true);
     expect((screen.getByTestId('circuit-profile-member-inst-tag-1') as HTMLInputElement).checked).toBe(false);

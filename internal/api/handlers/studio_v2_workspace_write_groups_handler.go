@@ -257,7 +257,7 @@ func (h *StudioV2WorkspaceWriteGroupsHandler) mutate(c *gin.Context, status int,
 	create := action == writeGroupCreate || action == writeGroupEnsureCircuitProfile
 	requireGroup := create || action == writeGroupUpdate
 	bindErr := c.ShouldBindJSON(&request)
-	if errors.Is(bindErr, workspace.ErrWriteGroupProfileIntervalInvalid) {
+	if errors.Is(bindErr, workspace.ErrWriteGroupProfileIntervalInvalid) || errors.Is(bindErr, workspace.ErrWriteGroupMemberMetadataInvalid) {
 		renderWriteGroupError(c, bindErr)
 		return
 	}

@@ -189,6 +189,11 @@ func (r *SQLWriteGroupRepository) activeOverlapInTx(ctx context.Context, runner 
 		if err != nil {
 			return nil, err
 		}
+		if candidate.isWideProfile() && version.Group.isWideProfile() && profileKindOf(version.Group) != profileKindOf(candidate) {
+			// The instantaneous and the cumulative profile of one source are two groups of different kinds,
+			// not two writers; a group of the same kind, like a legacy wide or custom group, still owns it.
+			continue
+		}
 		for _, m := range version.Group.Members {
 			if _, ok := wanted[memberRefOf(m)]; ok {
 				overlap = append(overlap, memberRefOf(m))

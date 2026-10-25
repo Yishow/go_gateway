@@ -62,3 +62,35 @@ func (m *MeasurementCounterSources) CounterSources(ctx context.Context, group *w
 	}
 	return sources, nil
 }
+
+// needsCounterSources reports a group whose members count from confirmed
+// counters: a cumulative long or wide profile group, or an instantaneous long or
+// wide profile group with a counter_raw member. Only they read the counter provider.
+func needsCounterSources(group *workspace.WriteGroup) bool {
+	if group == nil || group.RecordingProfile == nil {
+		return false
+	}
+	switch group.EffectiveLayoutVersion() {
+	case workspace.WriteGroupLayoutManagedLongV1:
+		return group.RecordingProfile.Kind == workspace.WriteGroupProfileCumulative || hasCounterRawMember(group)
+	case workspace.WriteGroupLayoutManagedWideProfileV1:
+		return group.RecordingProfile.Kind == workspace.WriteGroupProfileCumulative || hasCounterRawMember(group)
+	}
+	return false
+}
+
+// hasCounterRawMember reports a long group with an instantaneous counter_raw
+// member. Its confirmed counter meaning is resolved through the same provider
+// the cumulative path uses, so the latest raw value never runs on an unconfirmed
+// binding.
+func hasCounterRawMember(group *workspace.WriteGroup) bool {
+	if group == nil || group.RecordingProfile == nil || group.RecordingProfile.Kind != workspace.WriteGroupProfileInstantaneous {
+		return false
+	}
+	for _, member := range group.Members {
+		if member.ValueRole == workspace.WriteGroupValueRoleCounterRaw {
+			return true
+		}
+	}
+	return false
+}

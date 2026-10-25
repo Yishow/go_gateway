@@ -69,15 +69,17 @@ describe('Fewer columns than points / new table proposal', () => {
 });
 
 describe('Share only', () => {
-  const props = { deviceCount: 1, ruleCount: 1, pointCount: 2, mappingCount: 2, connector: savedGroupState().db.connector, onActivate: vi.fn() };
-  it('activates with no database output at all when nothing blocks', () => {
+  const props = { deviceCount: 1, ruleCount: 1, pointCount: 2, mappingCount: 2, connector: savedGroupState().db.connector };
+  it('reports no database output and offers no activation of its own when nothing blocks', () => {
     render(<CommitSummary {...props} groupSummary={{ state: 'ready', total: 0, applied: 0 }} readinessSummary={{ ready: true, blocking_count: 0, warning_count: 0, issues: [] }} />);
-    expect(screen.getByRole('button', { name: /step4.activate_btn/ })).not.toBeDisabled();
+    expect(screen.queryByRole('button', { name: /step4.activate_btn/ })).not.toBeInTheDocument();
     expect(screen.getByTestId('step4-group-summary-note')).toHaveTextContent('summary.none');
   });
-  it('still stops on a Share readiness blocker', () => {
+  it('still shows a Share readiness blocker as status, with no activation action', () => {
     render(<CommitSummary {...props} groupSummary={{ state: 'ready', total: 0, applied: 0 }}
       readinessSummary={{ ready: false, blocking_count: 1, warning_count: 0, issues: [{ code: 'modbus-share-hydration-required', severity: 'blocking', step: 'Step 4', scope: 'share', message: 'Share is not hydrated' }] }} />);
-    expect(screen.getByRole('button', { name: /step4.activate_btn/ })).toBeDisabled();
+    expect(screen.getByTestId('step4-blocker-resolution')).toHaveTextContent('step4.blocker_resolution_title');
+    expect(screen.getByTestId('step4-blocker-action-modbus-share-hydration-required')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /step4.activate_btn/ })).not.toBeInTheDocument();
   });
 });

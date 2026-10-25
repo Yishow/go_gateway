@@ -8,6 +8,7 @@ import { CircuitProfileBasicPanel } from '@/features/datalink/workbench-v2/steps
 import type { RecordingStartOperation } from '@/types/studioV2RecordingStart';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import { batchPanelState, httpFailure, longProfileGroup } from '../../fixtures/circuitBatchPanel';
+import { expandSources } from '../../fixtures/sourceReview';
 
 const { query, measurements, ensure, update, start, operationQuery } = vi.hoisted(() => ({
   query: { data: { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] as WriteGroup[] }, isLoading: false, isError: false, refetch: vi.fn() },
@@ -118,6 +119,7 @@ describe('A batch response belongs to the scope that launched it', () => {
     await waitFor(() => expect(query.refetch).toHaveBeenCalled());
 
     expect(screen.getByTestId('circuit-profile-interval-instantaneous')).toHaveValue('60');
+    expandSources();
     expect(screen.getByTestId('circuit-profile-member-inst-tag-2')).toBeChecked();
     expect(screen.getByTestId('circuit-profile-member-inst-tag-3')).toBeChecked();
     expect(screen.getByTestId('circuit-profile-member-inst-tag-0')).not.toBeChecked();
@@ -251,6 +253,7 @@ describe('A batch edits the period and leaves the operator source choices alone'
   it('keeps a source the operator unchecked after the period was saved', async () => {
     const held = holdFirstUpdate();
     render(panel());
+    expandSources();
     uncheckOneSourceOfCircuitA();
     confirmBatch();
     await waitFor(() => expect(held.started()).toBe(1));
@@ -265,6 +268,7 @@ describe('A batch edits the period and leaves the operator source choices alone'
   it('keeps that choice when an unknown save is later proven by the reloaded group', async () => {
     update.mockRejectedValueOnce(new Error('socket hang up'));
     const view = render(panel());
+    expandSources();
     uncheckOneSourceOfCircuitA();
     confirmBatch();
     await screen.findByTestId('circuit-profile-batch-unknown-note');

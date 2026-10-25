@@ -6,6 +6,7 @@ import { studioV2RecordingStartAPI as startAPI } from '@/services/studioV2Record
 import { studioV2WorkspaceWriteGroupsAPI as api } from '@/services/studioV2WorkspaceWriteGroups';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import { savedGroup, savedGroupState, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
+import { expandSources } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns', () => ({
@@ -83,6 +84,7 @@ describe('prepareOnly migration mode surfaces Timescale unavailability truthfull
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Timescale Cutover Target' } });
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-instantaneous'));
     fireEvent.change(screen.getByTestId('circuit-profile-interval-instantaneous'), { target: { value: '30' } });
+    expandSources();
     fireEvent.click(screen.getByTestId('circuit-profile-member-inst-tag-0'));
 
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));

@@ -9,6 +9,7 @@ import type { ModbusShareStatus } from '@/types/modbusShare';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import { batchPanelState, longProfileGroup } from '../../fixtures/circuitBatchPanel';
 import { savedGroup, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
+import { expandSources } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, options?: unknown) => (options && typeof options === 'object' && 'count' in options ? `${key}:${(options as { count: number }).count}` : key) }),
@@ -112,6 +113,7 @@ describe('Basic, Advanced and Basic again show one setting and write nothing', (
       sources: screen.getAllByTestId(/^circuit-profile-member-(inst|cum)-/).map((el) => `${el.getAttribute('data-testid')}:${(el as HTMLInputElement).checked}`),
       mode: (screen.getByTestId('circuit-profile-storage-plain') as HTMLInputElement).checked,
     });
+    expandSources();
     const before = snapshot();
 
     fireEvent.click(screen.getByTestId('circuit-status-open-advanced-instantaneous'));
@@ -122,6 +124,7 @@ describe('Basic, Advanced and Basic again show one setting and write nothing', (
 
     view.reload();
     await screen.findByTestId('circuit-profile-basic-panel');
+    expandSources();
     expect(snapshot()).toEqual(before);
     expectNoWrites();
   });

@@ -97,7 +97,7 @@ func (a *Assembler) newSelector(start time.Time, entity string) *Selector {
 		MaxFutureSkew: a.config.MaxFutureSkew,
 		Members:       a.memberKeys(entity),
 	})
-	if a.config.Mode.perMember() {
+	if a.config.Mode.perMember() || a.config.Mode.wide() {
 		selector.eligible = a.eligibility(start.Add(a.config.Interval))
 	}
 	return selector
@@ -221,19 +221,7 @@ func (a *Assembler) SetEndsAt(ends time.Time) {
 // complete one. A window already decided not to be written (an unusable required
 // member, no data) keeps that decision.
 func (a *Assembler) markTruncation(outcome Outcome) Outcome {
-	start, end := outcome.BucketStart, outcome.BucketEnd
-	cut := ""
-	if !a.config.StartsAt.IsZero() && a.config.StartsAt.After(start) {
-		start, cut = a.config.StartsAt, "start"
-	}
-	if !a.config.EndsAt.IsZero() && a.config.EndsAt.Before(end) {
-		end = a.config.EndsAt
-		if cut == "" {
-			cut = "end"
-		} else {
-			cut = "both"
-		}
-	}
+	start, end, cut := a.windowBounds(outcome.BucketStart, outcome.BucketEnd)
 	if cut == "" {
 		return outcome
 	}
@@ -269,6 +257,9 @@ func (a *Assembler) memberKeys(entity string) []string {
 func (a *Assembler) finalize(plan *Plan, entity entityGroup, start, end time.Time, selector *Selector) Outcome {
 	if a.config.Mode.perMember() {
 		return a.finalizeProfile(plan, entity.members[0], start, end, selector)
+	}
+	if a.config.Mode.wide() {
+		return a.finalizeWideProfile(plan, entity, start, end, selector)
 	}
 	outcome := Outcome{Kind: OutcomeRow, EntityKey: entity.key, BucketStart: start, BucketEnd: end}
 	observed, usable, requiredGap := 0, 0, false

@@ -44,7 +44,7 @@ export const CircuitProfileStatus: React.FC<CircuitProfileStatusProps> = ({ grou
         </div>
       )}
       {applied && query.isError && <p role="status" className="text-xs text-amber-300">{t('step4.basic.status.query_failed')}</p>}
-      {applied && !query.isError && <CircuitProfileStatusView group={group} delivery={query.data} sourceLabels={sourceLabels} />}
+      {applied && !query.isError && <CircuitProfileStatusView group={group} delivery={query.data} sourceLabels={sourceLabels} onOpenAdvanced={onOpenAdvanced} />}
     </section>
   );
 };

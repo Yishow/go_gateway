@@ -2,27 +2,32 @@ import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WriteGroup } from '../../../../../types/studioV2WriteGroup';
 import type { GroupCandidate } from '../../state/writeGroup/candidates';
+import { SourceReview } from './SourceReview';
 
 interface BasicRecordingMembersProps {
   candidates: GroupCandidate[];
   group?: WriteGroup;
+  /** Opens the saved group in Advanced, where a member that no current source matches is repaired. */
+  onRepair?: (groupId: string) => void;
 }
 
 function memberKey(pointId: string, tagId: string): string {
   return `${pointId}|${tagId}`;
 }
 
-export const BasicRecordingMembers: React.FC<BasicRecordingMembersProps> = ({ candidates, group }) => {
+export const BasicRecordingMembers: React.FC<BasicRecordingMembersProps> = ({ candidates, group, onRepair }) => {
   const { t } = useTranslation('workbench-v2');
   const candidateByMember = new Map(candidates.map((candidate) => [memberKey(candidate.point_id, candidate.tag_id), candidate]));
   const rows = group
     ? group.members.map((member) => ({ key: memberKey(member.point_id, member.tag_id), candidate: candidateByMember.get(memberKey(member.point_id, member.tag_id)) }))
     : candidates.map((candidate) => ({ key: candidate.key, candidate }));
 
+  const unavailable = rows.filter((row) => !row.candidate).length;
   return (
     <section className="space-y-2 rounded border border-slate-800/80 bg-slate-950/20 p-3" aria-label={t('step4.basic.selected_data')} data-testid="basic-recording-selected-members">
       <h4 className="text-xs font-semibold text-slate-200">{t('step4.basic.selected_data')}</h4>
-      <ul className="space-y-1 text-[11px] text-slate-300">
+      <SourceReview prefix="basic-recording-sources" count={rows.length} unavailable={unavailable} onRepair={group && onRepair ? () => onRepair(group.id) : undefined}>
+      <ul className="max-h-72 space-y-1 overflow-y-auto text-[11px] text-slate-300">
         {rows.map((row) => (
           <li key={row.key} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             {row.candidate ? (
@@ -39,6 +44,7 @@ export const BasicRecordingMembers: React.FC<BasicRecordingMembersProps> = ({ ca
           </li>
         ))}
       </ul>
+      </SourceReview>
     </section>
   );
 };

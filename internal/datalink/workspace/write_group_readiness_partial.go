@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"go-gateway/internal/datalink/dbtarget"
-	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -27,7 +26,7 @@ func evaluateWriteGroupPartialInspection(group *WriteGroup, tagTypes map[string]
 	entityKeyed := false
 	for _, member := range group.Members {
 		entityKeyed = entityKeyed || member.EntityKey != ""
-		kind, _ := measurement.ExactTypeForTag(tagTypes[member.TagID])
+		kind, _ := memberExactType(group, member, tagTypes)
 		members = append(members, dbtarget.GroupRowMember{
 			MemberKey: member.TagID, EntityKey: member.EntityKey, Column: member.TargetColumn,
 			Type: kind, Required: member.Required,

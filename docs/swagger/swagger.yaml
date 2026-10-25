@@ -114,6 +114,27 @@ definitions:
       used_bytes:
         type: integer
     type: object
+  groupdelivery.SourceAggregation:
+    properties:
+      basis:
+        type: string
+      coverage:
+        type: string
+      method:
+        type: string
+      reason:
+        type: string
+      rejected_count:
+        type: integer
+      result_type:
+        type: string
+      source_type:
+        type: string
+      valid_count:
+        type: integer
+      version:
+        type: string
+    type: object
   groupdelivery.SourceDelivery:
     enum:
     - queued
@@ -134,6 +155,11 @@ definitions:
     - SourceDeliverySkipped
   groupdelivery.SourceRecord:
     properties:
+      aggregation:
+        allOf:
+        - $ref: '#/definitions/groupdelivery.SourceAggregation'
+        description: 'Aggregation is the verified evidence of a mean window: method,
+          counts and coverage, never a value.'
       available:
         type: boolean
       cause:
@@ -947,6 +973,22 @@ definitions:
       step_type:
         type: string
     type: object
+  measurement.ExactType:
+    enum:
+    - bool
+    - text
+    - int64
+    - uint64
+    - decimal
+    - float64
+    type: string
+    x-enum-varnames:
+    - ExactBool
+    - ExactText
+    - ExactInt64
+    - ExactUint64
+    - ExactDecimal
+    - ExactFloat64
   modbusshare.DesiredMapping:
     properties:
       capacity_registers:
@@ -1718,10 +1760,12 @@ definitions:
     enum:
     - managed_wide_v1
     - managed_long_v1
+    - managed_wide_profile_v1
     type: string
     x-enum-varnames:
     - WriteGroupLayoutManagedWideV1
     - WriteGroupLayoutManagedLongV1
+    - WriteGroupLayoutManagedWideProfileV1
   workspace.WriteGroupListResult:
     properties:
       groups:
@@ -1759,12 +1803,27 @@ definitions:
         type: string
       required:
         type: boolean
+      result_value_type:
+        $ref: '#/definitions/measurement.ExactType'
       source_revision:
         type: string
+      source_value_type:
+        allOf:
+        - $ref: '#/definitions/schema.DataType'
+        description: |-
+          SourceValueType records the tag's own data type and ResultValueType the
+          reduction result type the runtime must write. Both are saved only for a
+          new recording shape, verified against the real tag, and never change it.
       tag_id:
         type: string
       target_column:
         type: string
+      value_role:
+        allOf:
+        - $ref: '#/definitions/workspace.WriteGroupValueRole'
+        description: |-
+          ValueRole is explicit on new instantaneous recording shapes. Legacy
+          members and cumulative profiles may omit it; absence never means gauge.
     type: object
   workspace.WriteGroupMigration:
     properties:
@@ -1959,6 +2018,13 @@ definitions:
         type: integer
       kind:
         $ref: '#/definitions/workspace.WriteGroupProfileKind'
+      sample_reduction:
+        allOf:
+        - $ref: '#/definitions/workspace.WriteGroupSampleReduction'
+        description: |-
+          SampleReduction is empty for every profile saved before reductions
+          existed; read it through EffectiveSampleReduction so absence stays latest
+          and a legacy profile never grows the key on the wire.
       unit:
         $ref: '#/definitions/workspace.WriteGroupIntervalUnit'
     type: object
@@ -2010,6 +2076,14 @@ definitions:
       value_column:
         type: string
     type: object
+  workspace.WriteGroupSampleReduction:
+    enum:
+    - latest
+    - mean
+    type: string
+    x-enum-varnames:
+    - WriteGroupSampleReductionLatest
+    - WriteGroupSampleReductionMean
   workspace.WriteGroupSaveResult:
     properties:
       group:
@@ -2047,6 +2121,16 @@ definitions:
     x-enum-varnames:
     - WriteGroupStorageStrategyManaged
     - WriteGroupStorageStrategyCustom
+  workspace.WriteGroupValueRole:
+    enum:
+    - gauge
+    - counter_raw
+    - state
+    type: string
+    x-enum-varnames:
+    - WriteGroupValueRoleGauge
+    - WriteGroupValueRoleCounterRaw
+    - WriteGroupValueRoleState
   workspace.WriteGroupWritePolicy:
     properties:
       dedupe_capability:

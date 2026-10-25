@@ -15,6 +15,8 @@ export interface WriteGroupSectionProps {
   readonly: boolean;
   onNavigateStep?: (step: WorkspaceReadinessStepNumber) => void;
   openGroupRequest?: { id: string };
+  /** The host's reviewed scoped start: a managed profile group's effective action goes there instead of applying on its own. */
+  onReviewScopedStart?: (group: WriteGroup) => void;
 }
 
 type Selection = { kind: 'none' } | { kind: 'new' } | { kind: 'edit'; id: string; saved?: WriteGroup };
@@ -50,7 +52,7 @@ function GroupListItem({ group, current, onOpen }: { group: WriteGroup; current:
  * workspace and says what is missing before anything can be created, keeping a
  * failed load, an empty list and groups for another destination apart.
  */
-export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, workspaceId, readonly, onNavigateStep, openGroupRequest }) => {
+export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, workspaceId, readonly, onNavigateStep, openGroupRequest, onReviewScopedStart }) => {
   const { t } = useTranslation('workbench-v2');
   const [selection, setSelection] = useState<Selection>({ kind: 'none' });
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
@@ -157,6 +159,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, wor
           onSaved={(group) => setSelection({ kind: 'edit', id: group.id, saved: group })}
           onReload={() => void groupsQuery.refetch()}
           fetchLatest={async () => (await groupsQuery.refetch()).data}
+          onReviewScopedStart={onReviewScopedStart}
         />
       )}
     </section>

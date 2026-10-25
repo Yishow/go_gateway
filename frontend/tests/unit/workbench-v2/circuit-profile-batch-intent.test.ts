@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { defaultCircuitProfileLocalDraft } from '@/features/datalink/workbench-v2/state/circuitProfileBasic';
 import { applyUpdatedGroupsToActiveDraft } from '@/features/datalink/workbench-v2/state/circuitProfileBatch';
-import { existingProfileUpdateGroup } from '@/features/datalink/workbench-v2/state/circuitProfileBatchIntent';
+import { existingProfileUpdateGroup, profileMatchesIntent } from '@/features/datalink/workbench-v2/state/circuitProfileBatchIntent';
 import { reconcileBatchResults, type BatchTargetExecutionResult } from '@/features/datalink/workbench-v2/state/circuitProfileBatchOutcome';
 import { buildGroupCandidates } from '@/features/datalink/workbench-v2/state/writeGroup/candidates';
-import type { WriteGroup, WriteGroupProfileKind } from '@/types/studioV2WriteGroup';
+import type { WriteGroup, WriteGroupMember, WriteGroupProfileKind } from '@/types/studioV2WriteGroup';
 import { longProfileGroup } from '../../fixtures/circuitBatchPanel';
 import { savedGroupState } from '../../fixtures/writeGroupState';
 
@@ -48,6 +48,55 @@ describe('An existing profile is proven only by the reviewed update', () => {
 
   it('keeps unknown while the revision has not moved', () => {
     expect(proofOf([{ ...committed(), revision: reviewedInst().revision }]).proven).toEqual([]);
+  });
+
+  it('carries an explicit reduction when only the period of a saved profile changes', () => {
+    const saved: WriteGroup = {
+      ...reviewedInst(),
+      recording_profile: { kind: 'instantaneous', interval: 30, unit: 'second', sample_reduction: 'mean' },
+      row_policy: { ...reviewedInst().row_policy, interval_seconds: 30 },
+    };
+    const next = existingProfileUpdateGroup(saved, 'instantaneous', 45);
+    expect(next.recording_profile?.interval).toBe(45);
+    expect(next.row_policy.interval_seconds).toBe(45);
+    expect(next.recording_profile?.sample_reduction).toBe('mean');
+  });
+
+  it('does not invent a reduction for a saved profile that never had one', () => {
+    const next = existingProfileUpdateGroup(reviewedInst(), 'instantaneous', 45);
+    expect(next.recording_profile).not.toHaveProperty('sample_reduction');
+  });
+});
+
+type MemberMetadata = Pick<WriteGroupMember, 'value_role' | 'source_value_type' | 'result_value_type'>;
+// Literal persisted member metadata; the helper keeps it explicit that absence is not a role.
+const gaugeMetadata: MemberMetadata = { value_role: 'gauge', source_value_type: 'int16', result_value_type: 'decimal' };
+
+function withMemberMetadata(metadata: Partial<MemberMetadata>): WriteGroup {
+  const base = reviewedInst();
+  return { ...base, members: base.members.map((item, index) => (index === 0 ? { ...item, ...metadata } : item)) };
+}
+
+describe('A reviewed intent distinguishes member roles and value types', () => {
+  it('matches an identical role and value-type set', () => {
+    expect(profileMatchesIntent(withMemberMetadata(gaugeMetadata), withMemberMetadata(gaugeMetadata))).toBe(true);
+  });
+
+  it.each([
+    ['the value role', { value_role: 'counter_raw' }],
+    ['the source type', { source_value_type: 'int32' }],
+    ['the result type', { result_value_type: 'float64' }],
+  ] as Array<[string, Partial<MemberMetadata>]>)('keeps unknown when %s of a member differs', (_name, change) => {
+    expect(profileMatchesIntent(withMemberMetadata(gaugeMetadata), withMemberMetadata({ ...gaugeMetadata, ...change }))).toBe(false);
+  });
+
+  it('separates an explicit role from a legacy member without one', () => {
+    expect(profileMatchesIntent(withMemberMetadata(gaugeMetadata), withMemberMetadata({}))).toBe(false);
+    expect(profileMatchesIntent(withMemberMetadata({}), withMemberMetadata(gaugeMetadata))).toBe(false);
+  });
+
+  it('keeps two legacy members without metadata equivalent', () => {
+    expect(profileMatchesIntent(withMemberMetadata({}), withMemberMetadata({}))).toBe(true);
   });
 });
 

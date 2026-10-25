@@ -12,6 +12,7 @@ import (
 
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
+	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
 )
 
@@ -71,7 +72,45 @@ func canonicalManagedGroup(group *workspace.WriteGroup) bool {
 		strings.TrimSpace(group.RowPolicy.RecordKeyColumn) != ""
 }
 
+// recordingReductionUnsupported reports a frozen group whose recording shape
+// no runtime writer can serve yet: an explicit mean, the new wide profile
+// layout, or member recording metadata. Such a descriptor must never restore
+// a writer: recovery keeps it blocked instead of degrading it to the legacy
+// latest behavior.
+func recordingReductionUnsupported(group *workspace.WriteGroup, tagTypes map[string]schema.DataType) bool {
+	if group == nil {
+		return false
+	}
+	switch group.EffectiveLayoutVersion() {
+	case workspace.WriteGroupLayoutManagedWideProfileV1:
+		// Served only when every frozen fact is complete and verified; a cumulative
+		// wide profile and any partial or contradictory descriptor stay blocked.
+		return !workspace.WideProfileShapeSupported(group, tagTypes)
+	case workspace.WriteGroupLayoutManagedLongV1:
+		return !workspace.LongRecordingShapeSupported(group, tagTypes)
+	}
+	if group.RecordingProfile != nil && group.RecordingProfile.EffectiveSampleReduction() == workspace.WriteGroupSampleReductionMean {
+		return true
+	}
+	for i := range group.Members {
+		if group.Members[i].ValueRole != "" || group.Members[i].SourceValueType != "" || group.Members[i].ResultValueType != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func validCanonicalManagedRuntimeProof(group *workspace.WriteGroup, layout *workspace.WriteGroupRuntimeLayout) bool {
+	if recordingReductionUnsupported(group, layout.TagTypes) {
+		return false
+	}
+	// Only the legacy wide layout and the verified wide profile layout have a
+	// proven wide writer; any unknown layout must never start as one.
+	version := group.EffectiveLayoutVersion()
+	if version != workspace.WriteGroupLayoutManagedWideV1 && version != workspace.WriteGroupLayoutManagedWideProfileV1 {
+		return false
+	}
+	wideProfile := version == workspace.WriteGroupLayoutManagedWideProfileV1
 	if !canonicalManagedGroup(group) || layout == nil || len(group.Members) == 0 || len(layout.Columns) == 0 ||
 		layout.Dialect != dbtarget.SQLDialectSQLite && layout.Dialect != dbtarget.SQLDialectPostgres {
 		return false
@@ -130,7 +169,10 @@ func validCanonicalManagedRuntimeProof(group *workspace.WriteGroup, layout *work
 		if strings.TrimSpace(member.TargetColumn) == "" {
 			return false
 		}
-		if _, exists := columns[strings.ToLower(strings.TrimSpace(member.TargetColumn))]; !exists {
+		memberColumn, exists := columns[strings.ToLower(strings.TrimSpace(member.TargetColumn))]
+		if !exists || (wideProfile && !memberColumn.Nullable) {
+			// A wide profile window may carry NULL for a member, so its column must
+			// be nullable; the frozen catalog columns prove it.
 			return false
 		}
 		tagType, exists := layout.TagTypes[member.TagID]

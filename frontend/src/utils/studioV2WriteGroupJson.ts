@@ -7,11 +7,14 @@ import type {
   WriteGroupMigration,
   WriteGroupMutationResponse,
   WriteGroupReadiness,
+  WriteGroupResultValueType,
   WriteGroupRowPolicy,
   WriteGroupStatus,
   WriteGroupStorageStrategy,
+  WriteGroupValueRole,
   WriteGroupWritePolicy,
 } from '../types/studioV2WriteGroup';
+import { DATALINK_DATA_TYPES, type DataType } from '../types/datalink';
 import type {
   StudioV2WorkspaceReadinessIssue,
   StudioV2WorkspaceReadinessSeverity,
@@ -20,6 +23,7 @@ import type {
 import {
   boundedString,
   MAX_SAFE_JSON_ARRAY_LENGTH,
+  MAX_SAFE_JSON_DEPTH,
   MAX_SAFE_JSON_OBJECT_KEYS,
   normalizeTypedEnvelope,
   parseBoundedJson,
@@ -40,7 +44,12 @@ const WRITE_GROUP_STATUSES = new Set<WriteGroupStatus>([
   'draft', 'ready', 'running', 'disabled', 'deleted',
 ]);
 const WRITE_GROUP_STORAGE_STRATEGIES = new Set<WriteGroupStorageStrategy>(['managed', 'custom']);
-const WRITE_GROUP_LAYOUT_VERSIONS = new Set<string>(['managed_wide_v1', 'managed_long_v1']);
+const WRITE_GROUP_LAYOUT_VERSIONS = new Set<string>(['managed_wide_v1', 'managed_wide_profile_v1', 'managed_long_v1']);
+const WRITE_GROUP_VALUE_ROLES = new Set<WriteGroupValueRole>(['gauge', 'counter_raw', 'state']);
+const WRITE_GROUP_SOURCE_VALUE_TYPES = new Set<DataType>(DATALINK_DATA_TYPES);
+const WRITE_GROUP_RESULT_VALUE_TYPES = new Set<WriteGroupResultValueType>([
+  'bool', 'text', 'int64', 'uint64', 'decimal', 'float64',
+]);
 const READINESS_SEVERITIES = new Set<StudioV2WorkspaceReadinessSeverity>(['blocking', 'warning']);
 const READINESS_STEPS = new Set<StudioV2WorkspaceReadinessStep>(['Step 1', 'Step 2', 'Step 3', 'Step 4']);
 const PROTOTYPE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
@@ -71,6 +80,21 @@ function parseOptionalStringMap(record: JsonRecord, key: string): Record<string,
   return Object.fromEntries(parsed);
 }
 
+/**
+ * Reads an optional enum member: absent stays absent, and a present value must be
+ * one of the allowed strings. `null`, a non-string or an unknown value is rejected
+ * rather than silently dropped.
+ */
+function readOptionalEnum<T extends string>(
+  record: JsonRecord,
+  key: string,
+  allowed: ReadonlySet<T>,
+): T | undefined | null {
+  const value = record[key];
+  if (value === undefined) return undefined;
+  return typeof value === 'string' && allowed.has(value as T) ? value as T : null;
+}
+
 function parseWriteGroupMember(value: unknown): WriteGroupMember | null {
   if (!isRecord(value)) return null;
   const deviceId = readRequiredText(value, 'device_id');
@@ -97,7 +121,11 @@ function parseWriteGroupMember(value: unknown): WriteGroupMember | null {
   const maxAgeSeconds = readOptionalInteger(value, 'max_age_seconds');
   const circuitId = readOptionalText(value, 'circuit_id');
   const circuitName = readOptionalText(value, 'circuit_name');
-  if (maxAgeSeconds === null || circuitId === null || circuitName === null || (circuitName && !circuitId)) return null;
+  const valueRole = readOptionalEnum(value, 'value_role', WRITE_GROUP_VALUE_ROLES);
+  const sourceValueType = readOptionalEnum(value, 'source_value_type', WRITE_GROUP_SOURCE_VALUE_TYPES);
+  const resultValueType = readOptionalEnum(value, 'result_value_type', WRITE_GROUP_RESULT_VALUE_TYPES);
+  if (maxAgeSeconds === null || circuitId === null || circuitName === null || (circuitName && !circuitId) ||
+    valueRole === null || sourceValueType === null || resultValueType === null) return null;
 
   return {
     device_id: deviceId,
@@ -112,6 +140,9 @@ function parseWriteGroupMember(value: unknown): WriteGroupMember | null {
     ...(maxAgeSeconds !== undefined ? { max_age_seconds: maxAgeSeconds } : {}),
     ...(circuitId ? { circuit_id: circuitId } : {}),
     ...(circuitName ? { circuit_name: circuitName } : {}),
+    ...(valueRole !== undefined ? { value_role: valueRole } : {}),
+    ...(sourceValueType !== undefined ? { source_value_type: sourceValueType } : {}),
+    ...(resultValueType !== undefined ? { result_value_type: resultValueType } : {}),
   };
 }
 
@@ -247,8 +278,10 @@ export function parseStudioV2WriteGroup(value: unknown): WriteGroup | null {
     return null;
   }
   // The long table serves profile groups with a mode; a wide group carries neither a mode nor a long layout.
+  // The reduction-aware wide profile layout exists only as a managed profile table, never with a storage mode.
   if ((layoutVersion === 'managed_long_v1') !== (storageMode !== undefined) ||
-    (layoutVersion === 'managed_long_v1' && !profile)) {
+    (layoutVersion === 'managed_long_v1' && !profile) ||
+    (layoutVersion === 'managed_wide_profile_v1' && (!profile || destination.storage_strategy !== 'managed'))) {
     return null;
   }
 
@@ -387,8 +420,10 @@ export class WriteGroupResponseError extends Error {
   }
 }
 
-export function parseWriteGroupAPIData<T>(value: unknown, operation: string, parseData: (data: unknown) => T | null): T {
-  const bounded = parseBoundedJson(value);
+export function parseWriteGroupAPIData<T>(
+  value: unknown, operation: string, parseData: (data: unknown) => T | null, maxDepth: number = MAX_SAFE_JSON_DEPTH,
+): T {
+  const bounded = parseBoundedJson(value, maxDepth);
   if (!isRecord(bounded) || typeof bounded.success !== 'boolean') {
     throw new WriteGroupResponseError(operation, bounded);
   }

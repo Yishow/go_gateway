@@ -265,3 +265,182 @@ func TestStudioV2WriteGroupsProfileConflictAndLegacyCompatibility(t *testing.T) 
 		assertWriteGroupError(t, decodeJSONBody(t, other), "WRITE_GROUP_CIRCUIT_PROFILE_CONFLICT")
 	})
 }
+
+// TestStudioV2WriteGroupsMeanReductionRoundTrip pins the API mean contract: an
+// explicit sample_reduction=mean is saved and reloaded unchanged, a resend
+// replays the same single group, readiness names the missing mean proof, and
+// apply is refused without changing the applied revision.
+func TestStudioV2WriteGroupsMeanReductionRoundTrip(t *testing.T) {
+	f := newWriteGroupRouterFixture(t)
+
+	request := profileRequest(t, f, "instantaneous", 15, "second", "mean-c", "")
+	group := request["group"].(map[string]any)
+	group["recording_profile"].(map[string]any)["sample_reduction"] = "mean"
+	// Raw enum member field: carried verbatim today; the typed member contract
+	// decodes and verifies it in its own slice.
+	group["members"].([]map[string]any)[0]["value_role"] = "gauge"
+
+	created := performJSONRequest(t, f.router, http.MethodPost, ensureCircuitProfilePath, request)
+	require.Equal(t, http.StatusOK, created.Code, created.Body.String())
+	_, meanGroup := groupSaveData(t, decodeJSONBody(t, created))
+	require.Equal(t, "mean", meanGroup["recording_profile"].(map[string]any)["sample_reduction"],
+		"an explicit mean must survive the API round trip, not be silently dropped")
+	id := meanGroup["id"].(string)
+
+	t.Run("a reload and a resent ensure keep the saved mean", func(t *testing.T) {
+		got := performJSONRequest(t, f.router, http.MethodGet, writeGroupsPath+"/"+id, nil)
+		require.Equal(t, http.StatusOK, got.Code, got.Body.String())
+		_, reloaded := groupSaveData(t, decodeJSONBody(t, got))
+		require.Equal(t, "mean", reloaded["recording_profile"].(map[string]any)["sample_reduction"])
+
+		resent := profileRequest(t, f, "instantaneous", 15, "second", "mean-c", "")
+		resent["group"].(map[string]any)["recording_profile"].(map[string]any)["sample_reduction"] = "mean"
+		resent["group"].(map[string]any)["members"].([]map[string]any)[0]["value_role"] = "gauge"
+		response := performJSONRequest(t, f.router, http.MethodPost, ensureCircuitProfilePath, resent)
+		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+		_, again := groupSaveData(t, decodeJSONBody(t, response))
+		require.Equal(t, id, again["id"], "a reload or resend resolves to the saved group")
+		listed := performJSONRequest(t, f.router, http.MethodGet, writeGroupsPath, nil)
+		require.Len(t, decodeJSONBody(t, listed)["data"].(map[string]any)["groups"].([]any), 1)
+	})
+
+	t.Run("readiness names the missing mean proof", func(t *testing.T) {
+		readiness := performJSONRequest(t, f.router, http.MethodGet, writeGroupsPath+"/"+id+"/readiness", nil)
+		require.Equal(t, http.StatusOK, readiness.Code, readiness.Body.String())
+		data := decodeJSONBody(t, readiness)["data"].(map[string]any)
+		require.Equal(t, false, data["ready"])
+		codes := make([]any, 0, len(data["issues"].([]any)))
+		for _, issue := range data["issues"].([]any) {
+			codes = append(codes, issue.(map[string]any)["code"])
+		}
+		require.Contains(t, codes, "recording-reduction-unavailable",
+			"the refusal must name the mean gate, not an unrelated not-ready reason")
+	})
+
+	t.Run("apply is refused and the applied revision stays unchanged", func(t *testing.T) {
+		got := performJSONRequest(t, f.router, http.MethodGet, writeGroupsPath+"/"+id, nil)
+		data, saved := groupSaveData(t, decodeJSONBody(t, got))
+		applyRequest := groupEditRequest(f, data, saved)
+		delete(applyRequest, "group")
+		applied := performJSONRequest(t, f.router, http.MethodPost, writeGroupsPath+"/"+id+"/apply", applyRequest)
+		require.Equal(t, http.StatusConflict, applied.Code, applied.Body.String())
+		assertWriteGroupError(t, decodeJSONBody(t, applied), "WRITE_GROUP_NOT_READY")
+		_, after := groupSaveData(t, decodeJSONBody(t, performJSONRequest(t, f.router, http.MethodGet, writeGroupsPath+"/"+id, nil)))
+		require.Equal(t, saved["applied_revision"], after["applied_revision"])
+	})
+}
+
+// seedBoolSource seeds one mapped bool point and tag on device-A.
+func seedBoolSource(t *testing.T, f writeGroupRouterFixture) (pointID, tagID string) {
+	t.Helper()
+	ctx := t.Context()
+	_, err := f.db.ExecContext(ctx, `INSERT INTO points (id,device_id,name,address,function,data_type,mode,enabled)
+		VALUES (?,'device-A','state-bit',43001,'FC03','bool','read',1)`, "point-state")
+	require.NoError(t, err)
+	_, err = f.db.ExecContext(ctx, `INSERT INTO tags (id,key,key_lower,display_name,data_type,status,labels)
+		VALUES ('tag-state','state-bit','state-bit','state-bit','bool','active','{}')`)
+	require.NoError(t, err)
+	_, err = f.db.ExecContext(ctx, `INSERT INTO mappings (id,point_id,tag_id,transform_pipeline,status,enabled)
+		VALUES ('mapping-state','point-state','tag-state','[]','active',1)`)
+	require.NoError(t, err)
+	return "point-state", "tag-state"
+}
+
+// meanRequest builds a mean instantaneous ensure request over one source.
+func meanRequest(t *testing.T, f writeGroupRouterFixture, circuitID, role string, extraMember map[string]any) map[string]any {
+	request := profileRequest(t, f, "instantaneous", 15, "second", circuitID, "")
+	member := request["group"].(map[string]any)["members"].([]map[string]any)[0]
+	member["value_role"] = role
+	for key, value := range extraMember {
+		member[key] = value
+	}
+	request["group"].(map[string]any)["recording_profile"].(map[string]any)["sample_reduction"] = "mean"
+	return request
+}
+
+// countProfileGroups counts the persisted write-group rows of the fixture DB.
+func countProfileGroups(t *testing.T, f writeGroupRouterFixture) int {
+	t.Helper()
+	var count int
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM write_groups`).Scan(&count))
+	return count
+}
+
+// TestStudioV2WriteGroupsMemberMetadataMismatchValidation pins the typed API
+// rejections: unknown or malformed member metadata fails at decode, and the
+// contradictory explicit semantics (bool gauge mean, counter_raw without a
+// confirmed binding, a source type that differs from the real tag) fail before
+// anything is saved.
+func TestStudioV2WriteGroupsMemberMetadataMismatchValidation(t *testing.T) {
+	f := newWriteGroupRouterFixture(t)
+
+	for name, request := range map[string]map[string]any{
+		"unknown role": meanRequest(t, f, "circuit-x", "average", nil),
+		"null role":    meanRequest(t, f, "circuit-x", "gauge", map[string]any{"value_role": nil}),
+	} {
+		response := performJSONRequest(t, f.router, http.MethodPost, ensureCircuitProfilePath, request)
+		require.Equal(t, http.StatusUnprocessableEntity, response.Code, name)
+		assertWriteGroupError(t, decodeJSONBody(t, response), "member_metadata_invalid")
+		require.Zero(t, countProfileGroups(t, f), name)
+	}
+
+	statePoint, stateTag := seedBoolSource(t, f)
+	require.NotEqual(t, statePoint, stateTag)
+	boolGauge := profileRequest(t, f, "instantaneous", 15, "second", "circuit-bool", "")
+	boolGauge["group"].(map[string]any)["members"].([]map[string]any)[0] = map[string]any{
+		"device_id": "device-A", "point_id": "point-state", "tag_id": "tag-state", "required": true,
+		"circuit_id": "circuit-bool", "circuit_name": "Circuit bool", "value_role": "gauge",
+	}
+	boolGauge["group"].(map[string]any)["recording_profile"].(map[string]any)["sample_reduction"] = "mean"
+	response := performJSONRequest(t, f.router, http.MethodPost, ensureCircuitProfilePath, boolGauge)
+	require.Equal(t, http.StatusUnprocessableEntity, response.Code, "a bool gauge cannot average")
+	assertWriteGroupError(t, decodeJSONBody(t, response), "WRITE_GROUP_INVALID")
+	require.Zero(t, countProfileGroups(t, f))
+
+	unbound := meanRequest(t, f, "circuit-counter", "counter_raw", nil)
+	response = performJSONRequest(t, f.router, http.MethodPost, ensureCircuitProfilePath, unbound)
+	require.Equal(t, http.StatusUnprocessableEntity, response.Code, "counter_raw without a binding is not a counter")
+	assertWriteGroupError(t, decodeJSONBody(t, response), "WRITE_GROUP_INVALID")
+
+	wrongType := meanRequest(t, f, "circuit-type", "gauge", map[string]any{"source_value_type": "int16"})
+	response = performJSONRequest(t, f.router, http.MethodPost, ensureCircuitProfilePath, wrongType)
+	require.Equal(t, http.StatusUnprocessableEntity, response.Code, "the source type must match the real tag")
+	assertWriteGroupError(t, decodeJSONBody(t, response), "WRITE_GROUP_INVALID")
+
+	cumulativeMean := profileRequest(t, f, "cumulative", 10, "minute", "circuit-cum", "energy")
+	cumulativeMean["group"].(map[string]any)["recording_profile"].(map[string]any)["sample_reduction"] = "mean"
+	response = performJSONRequest(t, f.router, http.MethodPost, ensureCircuitProfilePath, cumulativeMean)
+	require.Equal(t, http.StatusUnprocessableEntity, response.Code, "a cumulative profile counts and never averages")
+	assertWriteGroupError(t, decodeJSONBody(t, response), "WRITE_GROUP_INVALID")
+}
+
+// TestRecordingCounterBindingAvailabilityAPI pins the API mapping: a broken
+// saved definition answers the retryable unavailable code, not a validation
+// refusal, while a genuinely unconfirmed counter stays a typed 422.
+func TestRecordingCounterBindingAvailabilityAPI(t *testing.T) {
+	f := newWriteGroupRouterFixture(t)
+	seedConfirmedCounterAPI(t, f)
+	request := meanRequest(t, f, "circuit-broken", "counter_raw", map[string]any{"measurement_id": "measurement-broken"})
+	response := performJSONRequest(t, f.router, http.MethodPost, ensureCircuitProfilePath, request)
+	require.Equal(t, http.StatusInternalServerError, response.Code, response.Body.String())
+	assertWriteGroupError(t, decodeJSONBody(t, response), "WRITE_GROUP_UNAVAILABLE")
+
+	unconfirmed := meanRequest(t, f, "circuit-unconfirmed", "counter_raw", nil)
+	response = performJSONRequest(t, f.router, http.MethodPost, ensureCircuitProfilePath, unconfirmed)
+	require.Equal(t, http.StatusUnprocessableEntity, response.Code, response.Body.String())
+	assertWriteGroupError(t, decodeJSONBody(t, response), "WRITE_GROUP_INVALID")
+}
+
+// seedConfirmedCounterAPI seeds one broken-policy counter definition the
+// counter_raw source names.
+func seedConfirmedCounterAPI(t *testing.T, f writeGroupRouterFixture) {
+	t.Helper()
+	_, err := f.db.ExecContext(t.Context(), `INSERT INTO measurement_definitions (
+		id, workspace_id, device_id, point_id, tag_id, equipment_id,
+		definition_revision, source_binding_revision, series_epoch,
+		name, quantity, unit, semantic_kind, numeric_encoding, counter_policy
+	) VALUES ('measurement-broken', ?, 'device-A', 'point-A', 'tag-A', 'device-A',
+		'definition-1', 'source-1', 'epoch-1', 'Energy', 'energy', 'kWh', 'counter', 'uint32', 'not-json')`,
+		f.record.ID)
+	require.NoError(t, err)
+}

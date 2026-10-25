@@ -8,8 +8,13 @@ import (
 
 	"go-gateway/internal/datalink/aggregation"
 	"go-gateway/internal/datalink/measurement"
+	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/snapshot"
 )
+
+// longReductionMean is the frozen reduction name of a mean member; it is the
+// snapshot's own sample reduction constant, not a second spelling.
+const longReductionMean = string(snapshot.SampleReductionMean)
 
 // LongRowMember is one source of a long-layout group.
 type LongRowMember struct {
@@ -18,6 +23,14 @@ type LongRowMember struct {
 	// CircuitID and MeasurementID are written only when known; empty is NULL.
 	CircuitID, MeasurementID string
 	Type                     measurement.ExactType
+	// Reduction is the frozen sample reduction of this member ("mean" or empty
+	// for the legacy latest rule). A mean member stores the reduction value in
+	// the slot of Type, never the raw sample value.
+	Reduction string
+	// ValueRole and SourceValueType are the frozen recording metadata written to
+	// provenance; empty means the legacy shape never provided them.
+	ValueRole       string
+	SourceValueType schema.DataType
 	// Counter is the confirmed counter binding of a cumulative member. It
 	// supplies the series epoch and unit written on every record of the member.
 	Counter *aggregation.CounterBinding
@@ -46,8 +59,37 @@ type LongRowLayout struct {
 	owner   string
 }
 
+// longMeanProvenance is the value-free evidence of a mean window. It is present
+// only for a mean member; legacy latest and counter records keep the original
+// payload shape.
+type longMeanProvenance struct {
+	Reduction       string   `json:"reduction"`
+	Role            string   `json:"role,omitempty"`
+	SourceType      string   `json:"source_type,omitempty"`
+	ResultType      string   `json:"result_type,omitempty"`
+	Version         string   `json:"version,omitempty"`
+	Method          string   `json:"method,omitempty"`
+	Basis           string   `json:"basis,omitempty"`
+	ValidCount      int64    `json:"valid_count"`
+	RejectedCount   int64    `json:"rejected_count"`
+	FirstObservedAt string   `json:"first_observed_at,omitempty"`
+	LastObservedAt  string   `json:"last_observed_at,omitempty"`
+	Coverage        string   `json:"coverage,omitempty"`
+	Reason          string   `json:"reason,omitempty"`
+	Reasons         []string `json:"reasons,omitempty"`
+	Sum             string   `json:"sum,omitempty"`
+	Scale           int      `json:"scale"`
+	Rounding        string   `json:"rounding,omitempty"`
+}
+
 type longProvenance struct {
-	Type            string `json:"type"`
+	Type string `json:"type"`
+	// SourceType/ResultType/Role are the frozen recording metadata of a latest
+	// state or counter_raw member. They stay omitted for the legacy shape and
+	// for mean members, whose mean block already names them.
+	SourceType      string `json:"source_type,omitempty"`
+	ResultType      string `json:"result_type,omitempty"`
+	Role            string `json:"role,omitempty"`
 	Member          string `json:"member"`
 	Reason          string `json:"reason,omitempty"`
 	SampleID        string `json:"sample_id,omitempty"`
@@ -59,6 +101,7 @@ type longProvenance struct {
 		Unit     string `json:"unit"`
 	} `json:"profile"`
 	Counter *longCounterProvenance `json:"counter,omitempty"`
+	Mean    *longMeanProvenance    `json:"mean,omitempty"`
 	// Window is present only for a window a forward cutover cut short: which
 	// side was cut and the real and nominal bounds.
 	Window *longWindowProvenance `json:"window,omitempty"`
@@ -148,11 +191,15 @@ func (l *LongRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error) 
 	}
 	values := map[string]driver.Value{}
 	if result.Usable() {
-		if result.Sample == nil || result.Sample.Value.Type() != member.Type {
+		value, err := windowValue(member, result)
+		if err != nil {
+			return EncodedRow{}, err
+		}
+		if value.Type() != member.Type {
 			return EncodedRow{}, &GroupRowError{Code: rowErrTypeMismatch, Column: longColValueInt}
 		}
 		slot := longSlotFor(member.Type)
-		bound, err := EncodeExactValue(l.spec.Dialect, l.columns[slot].DataType, result.Sample.Value)
+		bound, err := EncodeExactValue(l.spec.Dialect, l.columns[slot].DataType, value)
 		if err != nil {
 			return EncodedRow{}, &GroupRowError{Code: rowErrSQLValueBlock, Column: slot}
 		}
@@ -244,6 +291,26 @@ func longStatus(result snapshot.MemberResult, truncated bool) string {
 	return status
 }
 
+// windowValue returns the value a long record stores: the reduction value for a
+// mean member and the newest eligible reading for every other member. A mean
+// without its reduction result, or a raw reading that would stand in for it, is
+// refused instead of silently degrading to latest.
+func windowValue(member LongRowMember, result snapshot.MemberResult) (measurement.ExactValue, error) {
+	if member.Reduction == longReductionMean {
+		if result.Reduction == nil {
+			return measurement.ExactValue{}, &GroupRowError{Code: rowErrTypeMismatch, Column: longColValueDecimal}
+		}
+		return result.Reduction.Value, nil
+	}
+	if result.Reduction != nil {
+		return measurement.ExactValue{}, &GroupRowError{Code: rowErrTypeMismatch, Column: longColValueInt}
+	}
+	if result.Sample == nil {
+		return measurement.ExactValue{}, &GroupRowError{Code: rowErrTypeMismatch, Column: longColValueInt}
+	}
+	return result.Sample.Value, nil
+}
+
 func (l *LongRowLayout) provenance(member LongRowMember, result snapshot.MemberResult, outcome snapshot.Outcome) (driver.Value, error) {
 	entry := longProvenance{Type: string(member.Type), Member: member.MemberKey}
 	entry.Profile.Kind, entry.Profile.Interval, entry.Profile.Unit = l.spec.ProfileKind, l.spec.ProfileInterval, l.spec.ProfileUnit
@@ -252,11 +319,16 @@ func (l *LongRowLayout) provenance(member LongRowMember, result snapshot.MemberR
 	}
 	if result.Counter != nil {
 		entry.Reason = result.Counter.Reason
-		entry.Counter = counterProvenance(member, result.Counter)
+		entry.Counter = counterProvenance(member.Counter, result.Counter)
 	}
 	if result.Sample != nil {
 		entry.SampleID = result.Sample.SampleID
 		entry.SourceRevision, entry.MappingRevision = result.Sample.SourceRevision, result.Sample.MappingRevision
+	}
+	if member.Reduction == longReductionMean {
+		entry.Mean = meanProvenance(member.ValueRole, member.SourceValueType, member.Type, result)
+	} else if member.SourceValueType != "" || member.ValueRole != "" {
+		entry.SourceType, entry.ResultType, entry.Role = string(member.SourceValueType), string(member.Type), member.ValueRole
 	}
 	if outcome.Truncated != "" {
 		start, end := outcome.Window()
@@ -270,4 +342,35 @@ func (l *LongRowLayout) provenance(member LongRowMember, result snapshot.MemberR
 		return nil, err
 	}
 	return string(payload), nil
+}
+
+// meanProvenance renders the frozen mean contract and the window evidence. It
+// never fabricates an expected count or a percentage.
+func meanProvenance(role string, source schema.DataType, resultType measurement.ExactType, result snapshot.MemberResult) *longMeanProvenance {
+	entry := &longMeanProvenance{
+		Reduction: longReductionMean, Role: role, SourceType: string(source), ResultType: string(resultType),
+	}
+	if evidence := result.Evidence; evidence != nil {
+		entry.Version, entry.Method, entry.Basis = evidence.Version, evidence.Method, string(evidence.Basis)
+		entry.ValidCount, entry.RejectedCount = evidence.ValidCount, evidence.RejectedCount
+		entry.FirstObservedAt = longObservedText(evidence.FirstObservedAt)
+		entry.LastObservedAt = longObservedText(evidence.LastObservedAt)
+		entry.Coverage, entry.Reason = string(evidence.Coverage), evidence.Reason
+		entry.Reasons = evidence.RejectionReasons
+	}
+	if reduction := result.Reduction; reduction != nil {
+		entry.Version, entry.Method, entry.Basis = reduction.Version, reduction.Method, string(reduction.Basis)
+		if digits, ok := reduction.Sum.DecimalDigits(); ok {
+			entry.Sum = digits
+		}
+		entry.Scale, entry.Rounding = reduction.Scale, reduction.Rounding
+	}
+	return entry
+}
+
+func longObservedText(at time.Time) string {
+	if at.IsZero() {
+		return ""
+	}
+	return at.UTC().Format(longTimeText)
 }

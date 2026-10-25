@@ -1,6 +1,8 @@
 package snapshot
 
 import (
+	"cmp"
+	"slices"
 	"time"
 
 	"go-gateway/internal/datalink/measurement"
@@ -162,6 +164,26 @@ func (s *Selector) apply(sample Sample) {
 func (s *Selector) Selected(member string) (Sample, bool) {
 	sample, ok := s.chosen[member]
 	return sample, ok
+}
+
+// Accepted returns every accepted sample of a member in ascending (observed_at,
+// sample_id) order. The accepted set is unique by SampleID: a duplicate was
+// stored once and a conflicting identity was refused. Samples that did not win
+// the newest selection are retained, so a reducer can weigh them equally.
+func (s *Selector) Accepted(member string) []Sample {
+	samples := make([]Sample, 0, len(s.seen))
+	for _, sample := range s.seen {
+		if sample.MemberKey == member {
+			samples = append(samples, sample)
+		}
+	}
+	slices.SortFunc(samples, func(a, b Sample) int {
+		if order := a.ObservedAt.Compare(b.ObservedAt); order != 0 {
+			return order
+		}
+		return cmp.Compare(a.SampleID, b.SampleID)
+	})
+	return samples
 }
 
 func (s *Selector) supersedes(candidate, current Sample) bool {

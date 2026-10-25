@@ -247,7 +247,7 @@ func (p *Pipeline) buildFrozen(ctx context.Context, snap *workspace.WriteGroupAp
 	}
 	key := groupdelivery.GroupKey{WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: snap.AppliedRevision}
 	var counters map[string]runtime.CounterSource
-	if longGroup(group) && group.RecordingProfile != nil && group.RecordingProfile.Kind == workspace.WriteGroupProfileCumulative && p.deps.Counters != nil {
+	if needsCounterSources(group) && p.deps.Counters != nil {
 		var err error
 		if counters, err = p.deps.Counters.CounterSources(ctx, group); err != nil {
 			return nil, reasonCounterSourcesUnavailable

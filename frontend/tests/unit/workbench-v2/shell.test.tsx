@@ -12,6 +12,15 @@ import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2Work
 import type { StudioV2ActivationResponse } from '../../../src/types/studioV2Activation';
 import { stubLocalStorageGetItemThrows } from './helpers/throwingLocalStorage';
 
+// The runtime handoff is now reached from the device card after a scoped start; this stub stands in for that card's
+// "continue to runtime" action, whose own wiring is covered by the Basic panel tests.
+const mockBasicHandoff = vi.hoisted(() => ({ confirmedIds: [] as string[] }));
+vi.mock('../../../src/features/datalink/workbench-v2/steps/step4/BasicRecordingPanel', () => ({
+  BasicRecordingPanel: ({ onCommit }: { onCommit?: (confirmedDeviceIds?: string[]) => void }) => (
+    <button type="button" data-testid="basic-continue-stub" onClick={() => onCommit?.(mockBasicHandoff.confirmedIds)}>continue</button>
+  ),
+}));
+
 vi.mock('../../../src/hooks/datalink/useStudioV2Workspace', () => ({
   useStudioV2WorkspaceQuery: () => ({
     data: {
@@ -525,7 +534,7 @@ describe('Workbench V2 Shell & Integration', () => {
   });
 
   describe('Runtime dashboard handoff', () => {
-    it('falls back to /studio/runtime when activation only succeeds on local draft ids', async () => {
+    it('falls back to /studio/runtime when the confirmed start only names local draft ids', async () => {
       const mockState = buildStep4ReadyState();
       const mockActions = {
         state: mockState,
@@ -540,31 +549,23 @@ describe('Workbench V2 Shell & Integration', () => {
         selectRule: vi.fn(),
         dispatch: vi.fn(),
       };
-      const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>().mockResolvedValue({
-        workspace_id: 'workspace-1',
-        results: [{ device_id: 'dev-01', status: 'success', message: 'activated' }],
-      });
+      mockBasicHandoff.confirmedIds = ['dev-01'];
 
       render(
         <MemoryRouter initialEntries={['/studio/v2']}>
           <ShellRouterHarness
             state={mockState}
             actions={mockActions}
-            activateWorkspace={activateWorkspace}
           />
         </MemoryRouter>,
       );
 
-      fireEvent.click(screen.getByText('step4.activate_btn'));
-      await waitFor(() => {
-        expect(screen.getByText('step4.go_to_dashboard_btn')).toBeInTheDocument();
-      });
-      fireEvent.click(screen.getByText('step4.go_to_dashboard_btn'));
+      fireEvent.click(screen.getByTestId('basic-continue-stub'));
 
       expect(screen.getByTestId('shell-location')).toHaveTextContent('/studio/runtime');
     });
 
-    it('navigates to the resolved runtime dashboard device route when one activation succeeds on a persisted backend device id', async () => {
+    it('navigates to the resolved runtime dashboard device route when the confirmed start names a persisted backend device id', async () => {
       const mockState = {
         ...buildStep4ReadyState(),
         devices: [
@@ -599,30 +600,18 @@ describe('Workbench V2 Shell & Integration', () => {
         selectRule: vi.fn(),
         dispatch: vi.fn(),
       };
-      const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>().mockResolvedValue({
-        workspace_id: 'workspace-1',
-        results: [{
-          device_id: '550e8400-e29b-41d4-a716-446655440000',
-          status: 'success',
-          message: 'activated',
-        }],
-      });
+      mockBasicHandoff.confirmedIds = ['550e8400-e29b-41d4-a716-446655440000'];
 
       render(
         <MemoryRouter initialEntries={['/studio/v2']}>
           <ShellRouterHarness
             state={mockState}
             actions={mockActions}
-            activateWorkspace={activateWorkspace}
           />
         </MemoryRouter>,
       );
 
-      fireEvent.click(screen.getByText('step4.activate_btn'));
-      await waitFor(() => {
-        expect(screen.getByText('step4.go_to_dashboard_btn')).toBeInTheDocument();
-      });
-      fireEvent.click(screen.getByText('step4.go_to_dashboard_btn'));
+      fireEvent.click(screen.getByTestId('basic-continue-stub'));
 
       expect(screen.getByTestId('shell-location')).toHaveTextContent(
         '/studio/runtime?device_id=550e8400-e29b-41d4-a716-446655440000',

@@ -33,8 +33,41 @@ type provenanceEntry struct {
 	SampleID   string `json:"sample_id,omitempty"`
 	ObservedAt string `json:"observed_at,omitempty"`
 	Quality    string `json:"quality,omitempty"`
+	// Role, SourceType and ResultType are the frozen recording metadata of a
+	// latest state or counter_raw member of a wide profile; Mean is the evidence of
+	// a mean member. All stay absent for a legacy member, so its entry keeps
+	// exactly the JSON it had.
+	Role       string              `json:"role,omitempty"`
+	SourceType string              `json:"source_type,omitempty"`
+	ResultType string              `json:"result_type,omitempty"`
+	Mean       *longMeanProvenance `json:"mean,omitempty"`
+	// Counter is the cumulative evidence of a cumulative member: status, typed
+	// exact difference, actual bounds and the policy it rests on.
+	Counter *longCounterProvenance `json:"counter,omitempty"`
 	// Window is set only on the entries of a row whose window a cutover cut short.
 	Window *longWindowProvenance `json:"window,omitempty"`
+}
+
+// provenanceEntries is the member-level evidence of one row. A member that
+// carries frozen recording metadata adds its role, types or mean evidence; every
+// other member is described exactly as before.
+func (l *GroupRowLayout) provenanceEntries(outcome snapshot.Outcome) []provenanceEntry {
+	entries := provenanceEntries(outcome)
+	for i := range entries {
+		member, ok := l.members[entries[i].Member]
+		if !ok {
+			continue
+		}
+		if member.Counter != nil {
+			entries[i].Counter = wideCounterProvenance(member.Counter, outcome.Members[i].Counter)
+		}
+		if member.Reduction == longReductionMean {
+			entries[i].Mean = meanProvenance(member.ValueRole, member.SourceValueType, member.Type, outcome.Members[i])
+		} else if member.SourceValueType != "" || member.ValueRole != "" {
+			entries[i].Role, entries[i].SourceType, entries[i].ResultType = member.ValueRole, string(member.SourceValueType), string(member.Type)
+		}
+	}
+	return entries
 }
 
 func provenanceEntries(outcome snapshot.Outcome) []provenanceEntry {

@@ -40,6 +40,9 @@ func ensureSQLiteWriteGroupsTables(db *sql.DB) error {
 	if err := ensureSQLiteCircuitRecordingProfiles(db); err != nil {
 		return err
 	}
+	if err := ensureSQLiteAdditiveColumns(db, "038_write_group_recording_reduction_sqlite.up.sql"); err != nil {
+		return err
+	}
 	return ensureSQLiteWriteGroupCutovers(db)
 }
 

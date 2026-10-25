@@ -81,10 +81,16 @@ func TestRecordingProfileIntervalBounds(t *testing.T) {
 func TestRecordingProfileDefaults(t *testing.T) {
 	instantaneous, err := DefaultWriteGroupRecordingProfile(WriteGroupProfileInstantaneous)
 	require.NoError(t, err)
-	require.Equal(t, WriteGroupRecordingProfile{Kind: WriteGroupProfileInstantaneous, Interval: 15, Unit: WriteGroupIntervalUnitSecond}, instantaneous)
+	require.Equal(t, WriteGroupRecordingProfile{
+		Kind: WriteGroupProfileInstantaneous, Interval: 15, Unit: WriteGroupIntervalUnitSecond,
+		SampleReduction: WriteGroupSampleReductionMean,
+	}, instantaneous, "a new instantaneous recording defaults to a mean with the 15-second interval")
 	cumulative, err := DefaultWriteGroupRecordingProfile(WriteGroupProfileCumulative)
 	require.NoError(t, err)
-	require.Equal(t, WriteGroupRecordingProfile{Kind: WriteGroupProfileCumulative, Interval: 10, Unit: WriteGroupIntervalUnitMinute}, cumulative)
+	require.Equal(t, WriteGroupRecordingProfile{
+		Kind: WriteGroupProfileCumulative, Interval: 10, Unit: WriteGroupIntervalUnitMinute,
+		SampleReduction: WriteGroupSampleReductionLatest,
+	}, cumulative, "a cumulative profile counts and never averages")
 	_, err = DefaultWriteGroupRecordingProfile("average")
 	require.ErrorIs(t, err, ErrWriteGroupValidation)
 }

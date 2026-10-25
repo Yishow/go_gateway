@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"sync"
 	"testing"
 
@@ -19,17 +20,25 @@ type recordingStartActivationOutcome struct {
 	err      error
 }
 
+// recordingStartActivationScope is the exact device and group set one
+// ActivateScope call received, so a test can prove which resources were targeted.
+type recordingStartActivationScope struct {
+	DeviceIDs, GroupIDs []string
+}
+
 type recordingStartActivationStub struct {
 	mu        sync.Mutex
 	workspace string
 	outcomes  []recordingStartActivationOutcome
 	calls     int
+	scopes    []recordingStartActivationScope
 }
 
-func (s *recordingStartActivationStub) ActivateScope(_ context.Context, deviceIDs, _ []string) (*workspace.ActivationResponse, error) {
+func (s *recordingStartActivationStub) ActivateScope(_ context.Context, deviceIDs, groupIDs []string) (*workspace.ActivationResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.calls++
+	s.scopes = append(s.scopes, recordingStartActivationScope{DeviceIDs: slices.Clone(deviceIDs), GroupIDs: slices.Clone(groupIDs)})
 	index := s.calls - 1
 	if len(s.outcomes) > 0 {
 		if index >= len(s.outcomes) {
@@ -55,6 +64,13 @@ func (s *recordingStartActivationStub) ActivateScope(_ context.Context, deviceID
 		})
 	}
 	return response, nil
+}
+
+// Scopes returns a copy of every scope the stub was asked to activate, in call order.
+func (s *recordingStartActivationStub) Scopes() []recordingStartActivationScope {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.scopes)
 }
 
 func (s *recordingStartActivationStub) Calls() int {

@@ -7,6 +7,7 @@ import type { RecordingStartOperation } from '@/types/studioV2RecordingStart';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
 import { saveBasicRecordingIntent } from '@/features/datalink/workbench-v2/state/basicRecording';
+import { expandSources } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -223,6 +224,7 @@ describe('BasicRecordingPanel regressions', () => {
     const onOpenAdvanced = vi.fn();
     renderPanel({ onOpenAdvanced });
     const members = await screen.findByTestId('basic-recording-selected-members');
+    expandSources('basic-recording-sources');
     expect(members).toHaveTextContent('line.temperature');
     expect(members).toHaveTextContent('line.pressure');
     expect(members).not.toHaveTextContent('line.batch');

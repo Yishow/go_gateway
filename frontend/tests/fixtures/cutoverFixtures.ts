@@ -13,6 +13,17 @@ export const wide = (over: Partial<WriteGroup> = {}): WriteGroup => savedGroup({
   row_policy: { interval_seconds: 60, allowed_lateness_seconds: 0, incomplete_policy: 'skip_row' }, ...over,
 });
 export const target = (over: Partial<WriteGroup> = {}): WriteGroup => ({ ...longProfileGroup({ id: 'tgt-1', circuitId: 'c1', circuitName: 'Feeder', interval: 30, points: [0, 1] }), status: 'draft', applied_revision: '', ...over });
+/** A prepared new wide mean target: a saved managed_wide_profile_v1 group with an explicit mean that has not been applied yet. */
+export const wideMeanTarget = (over: Partial<WriteGroup> = {}): WriteGroup => savedGroup({
+  id: 'tgt-w', revision: 'rev-tgt-w-1', name: 'Feeder (instantaneous)', status: 'draft', applied_revision: '', layout_version: 'managed_wide_profile_v1',
+  recording_profile: { kind: 'instantaneous', interval: 15, unit: 'second', sample_reduction: 'mean' },
+  destination: { connector_id: 'conn-1', connector_revision: 'crev-1', database: '/d.db', table_schema: '', table_name: 'gw_wide_profile_c1', storage_strategy: 'managed' },
+  members: [0, 1].map((index) => ({
+    device_id: 'dev-1', point_id: `pt-${index}`, tag_id: `tag-${index}`, source_revision: `s${index}`, mapping_revision: `m${index}`, target_column: `col_${index}`,
+    required: false, circuit_id: 'c1', circuit_name: 'Feeder', value_role: 'gauge' as const, source_value_type: 'float64' as const, result_value_type: 'float64' as const,
+  })),
+  row_policy: { interval_seconds: 15, allowed_lateness_seconds: 0, incomplete_policy: 'partial' }, write_policy: { mode: 'append', dedupe_capability: 'receipt' }, ...over,
+});
 export const view = (group: WriteGroup, over: Partial<CutoverGroupView> = {}): CutoverGroupView => ({
   group_id: group.id, name: group.name, revision: group.revision, layout: group.layout_version ?? 'managed_wide_v1', interval_seconds: group.row_policy.interval_seconds,
   connector_id: 'conn-1', table_schema: '', table_name: group.destination.table_name, member_count: group.members.length, schema_confirmed: true, ...over,

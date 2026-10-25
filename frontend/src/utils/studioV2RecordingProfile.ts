@@ -2,6 +2,7 @@ import type {
   WriteGroupIntervalUnit,
   WriteGroupProfileKind,
   WriteGroupRecordingProfile,
+  WriteGroupSampleReduction,
 } from '../types/studioV2WriteGroup';
 
 interface IntervalBounds {
@@ -32,11 +33,18 @@ function isProfileKind(value: unknown): value is WriteGroupProfileKind {
   return value === 'instantaneous' || value === 'cumulative';
 }
 
+function isSampleReduction(value: unknown): value is WriteGroupSampleReduction {
+  return value === 'latest' || value === 'mean';
+}
+
 /** True only for a whole-number interval inside its kind's bounds and in that kind's own unit. */
 export function isValidRecordingProfile(value: unknown): value is WriteGroupRecordingProfile {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const { kind, interval, unit } = value as Record<string, unknown>;
+  const { kind, interval, unit, sample_reduction } = value as Record<string, unknown>;
   if (!isProfileKind(kind)) return false;
+  // An unknown reduction and mean on cumulative totals are both rejected, never coerced to latest.
+  if (sample_reduction !== undefined && !isSampleReduction(sample_reduction)) return false;
+  if (kind === 'cumulative' && sample_reduction === 'mean') return false;
   const bounds = RECORDING_PROFILE_BOUNDS[kind];
   return unit === bounds.unit && typeof interval === 'number' && Number.isInteger(interval) &&
     interval >= bounds.min && interval <= bounds.max;
@@ -49,8 +57,17 @@ export function recordingProfileIntervalSeconds(profile: WriteGroupRecordingProf
     : null;
 }
 
-/** Absent stays undefined, a valid profile is copied, and anything else is rejected with null. */
+/**
+ * Absent stays undefined, a valid profile is copied, and anything else is rejected with null.
+ * A missing reduction is copied as missing: it decodes as latest and is never rewritten as a choice.
+ */
 export function parseRecordingProfile(value: unknown): WriteGroupRecordingProfile | undefined | null {
   if (value === undefined || value === null) return undefined;
-  return isValidRecordingProfile(value) ? { kind: value.kind, interval: value.interval, unit: value.unit } : null;
+  if (!isValidRecordingProfile(value)) return null;
+  return {
+    kind: value.kind,
+    interval: value.interval,
+    unit: value.unit,
+    ...(value.sample_reduction !== undefined ? { sample_reduction: value.sample_reduction } : {}),
+  };
 }

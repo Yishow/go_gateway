@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Step4Database } from '../../../src/features/datalink/workbench-v2/steps/step4/Step4Database';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
@@ -96,7 +96,7 @@ describe('Step 4 Database controls', () => {
     expect(screen.getByTestId('database-delivery-truth')).toBeInTheDocument();
   });
 
-  it('啟動成功後應將 Step 4 控制項切成唯讀，reset 後再恢復可編輯', async () => {
+  it('Step 4 不再有工作區層級啟動，因此控制項不會被它切成唯讀', async () => {
     const activateWorkspace = vi.fn().mockResolvedValue({
       workspace_id: 'ws-1',
       results: [
@@ -143,21 +143,9 @@ describe('Step 4 Database controls', () => {
     const hostInput = screen.getByLabelText('step4.field_host');
 
     expect(hostInput).not.toBeDisabled();
-
-    fireEvent.click(screen.getByText('step4.activate_btn'));
-
-    await waitFor(() => {
-      expect(screen.getByText('step4.go_to_dashboard_btn')).toBeInTheDocument();
-    });
-
-    expect(screen.getByLabelText('step4.field_host')).toBeDisabled();
-
-    fireEvent.click(screen.getByText('step4.reset_activation_btn'));
-
-    await waitFor(() => {
-      expect(screen.queryByText('step4.go_to_dashboard_btn')).not.toBeInTheDocument();
-    });
-
+    // This page starts no workspace-wide activation, so nothing here switches the controls to read-only.
+    expect(screen.queryByText('step4.activate_btn')).not.toBeInTheDocument();
+    expect(activateWorkspace).not.toHaveBeenCalled();
     expect(screen.getByLabelText('step4.field_host')).not.toBeDisabled();
   });
 });

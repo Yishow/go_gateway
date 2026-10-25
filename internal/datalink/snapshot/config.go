@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/aggregation"
+	"go-gateway/internal/datalink/measurement"
+	"go-gateway/internal/datalink/schema"
 )
 
 // IncompletePolicy decides what a bucket does when a member is not usable.
@@ -39,10 +41,27 @@ const (
 	// carries the latest eligible raw counter reading together with its exact
 	// difference from the previous window's baseline (see Config.Counters).
 	ModeCumulativeProfile Mode = "cumulative_profile"
+	// ModeWideProfile writes one record per window with one value per member:
+	// each member keeps its own role and reduction (a numeric mean or the newest
+	// eligible reading), an optional member without a usable value is NULL with its
+	// reason, and only a required member that is unusable skips the row. The window
+	// is always one fixed UTC window, even when no member has a sample.
+	ModeWideProfile Mode = "wide_profile"
+	// ModeWideCumulative is ModeWideProfile for cumulative members: the same one
+	// record per window, but every member keeps its latest eligible raw reading and
+	// is closed against its own confirmed counter baseline (see Config.Counters), so
+	// the typed difference rides beside the raw value. A mean is never a baseline.
+	ModeWideCumulative Mode = "wide_cumulative"
 )
 
 // perMember reports whether every member is its own record in each window.
 func (m Mode) perMember() bool { return m == ModeInstantaneousProfile || m == ModeCumulativeProfile }
+
+// wide reports whether one record per window carries a value for every member.
+func (m Mode) wide() bool { return m == ModeWideProfile || m == ModeWideCumulative }
+
+// Cumulative reports whether members are closed against counter baselines.
+func (m Mode) Cumulative() bool { return m == ModeCumulativeProfile || m == ModeWideCumulative }
 
 // StorageCapabilities are facts about the destination, verified by the caller
 // from real table metadata. They gate opt-in modes only: a complete good row
@@ -64,6 +83,18 @@ var ErrPartialUnsupported = errors.New("partial policy needs nullable storage an
 // ErrInvalidConfig marks a group configuration the assembler cannot honor.
 var ErrInvalidConfig = errors.New("snapshot config invalid")
 
+// SampleReduction is how a profile member turns one window's observations into a
+// value. The zero value keeps the existing rule: the newest eligible reading.
+type SampleReduction string
+
+const (
+	// SampleReductionLatest keeps the newest eligible reading.
+	SampleReductionLatest SampleReduction = ""
+	// SampleReductionMean carries the arithmetic mean of the window's eligible
+	// observations instead of one reading.
+	SampleReductionMean SampleReduction = "mean"
+)
+
 // Member is one value contributing to a row.
 type Member struct {
 	// Key identifies the member; samples carry it as MemberKey.
@@ -71,6 +102,14 @@ type Member struct {
 	// EntityKey partitions rows. Empty means the fixed group scope.
 	EntityKey string
 	Required  bool
+	// SampleReduction is how this member's window value is reduced. Mean is
+	// accepted only in ModeInstantaneousProfile and ModeWideProfile; the zero
+	// value keeps the existing newest-eligible-reading rule.
+	SampleReduction SampleReduction
+	// SourceValueType is the frozen schema.DataType of the Tag this member reads.
+	// It is supplied by the caller (the runtime mapping lands in 2.1); empty
+	// means the frozen fact was not provided and is reported as unavailable.
+	SourceValueType schema.DataType
 	// MaxAge is the freshness limit measured from bucket end. Zero means the
 	// bucket interval, so nothing from another bucket is ever carried over.
 	MaxAge time.Duration
@@ -114,7 +153,7 @@ type Config struct {
 	Mode              Mode
 	MaxBucketsPerTick int
 	// Counters is the confirmed counter binding of every member by member key.
-	// It is required by ModeCumulativeProfile and refused otherwise.
+	// It is required by the cumulative modes and refused otherwise.
 	Counters map[string]aggregation.CounterBinding
 	// Storage describes verified destination capabilities; it is consulted
 	// only for IncompletePartial.
@@ -165,7 +204,7 @@ func (c Config) normalized() (Config, error) {
 			return invalid("until must be the window end at or after ends at")
 		}
 	}
-	if c.Mode != ModeWide && !c.Mode.perMember() {
+	if c.Mode != ModeWide && !c.Mode.wide() && !c.Mode.perMember() {
 		return invalid("unknown assembly mode")
 	}
 	if c.IncompletePolicy == "" {
@@ -193,11 +232,37 @@ func (c Config) normalized() (Config, error) {
 		if member.MaxAge == 0 {
 			member.MaxAge = c.Interval
 		}
+		if member.SampleReduction != SampleReductionLatest && member.SampleReduction != SampleReductionMean {
+			return invalid("unknown sample reduction")
+		}
+		if member.SampleReduction == SampleReductionMean && c.Mode != ModeInstantaneousProfile && c.Mode != ModeWideProfile {
+			return invalid("mean sample reduction belongs to the instantaneous profile only")
+		}
+		if member.SourceValueType != "" {
+			if _, ok := measurement.ExactTypeForTag(member.SourceValueType); !ok {
+				return invalid("unknown frozen source value type")
+			}
+		}
 		members[i] = member
 	}
 	c.Members = members
 	if reason := c.countersInvalid(); reason != "" {
 		return invalid(reason)
+	}
+	if c.Mode.wide() {
+		// Optional members and required-skip are the only rules of this mode: it
+		// always writes partial rows, so the storage must hold NULL and member
+		// provenance, and its members are never entity-keyed.
+		c.IncompletePolicy = IncompletePartial
+		if !c.Storage.SupportsPartial() {
+			return Config{}, fmt.Errorf("%w: %w", ErrInvalidConfig, ErrPartialUnsupported)
+		}
+		for _, member := range c.Members {
+			if member.EntityKey != "" {
+				return invalid("a wide profile member cannot be entity-keyed")
+			}
+		}
+		return c, nil
 	}
 	if c.Mode.perMember() {
 		// Every member is its own record; required and entity rules belong to wide rows.

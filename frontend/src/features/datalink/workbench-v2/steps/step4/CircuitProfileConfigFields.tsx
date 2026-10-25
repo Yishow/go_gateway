@@ -1,15 +1,21 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { WriteGroupStorageMode } from '../../../../../types/studioV2WriteGroup';
+import type { WriteGroupSampleReduction, WriteGroupStorageMode, WriteGroupValueRole } from '../../../../../types/studioV2WriteGroup';
 import {
   candidateKey,
   type CandidateCounterStatus,
   type CircuitProfileLocalDraft,
+  type CircuitPurpose,
+  defaultMemberRole,
   deriveCircuitId,
   type ParsedProfileInterval,
 } from '../../state/circuitProfileBasic';
 import type { GroupCandidate } from '../../state/writeGroup/candidates';
 import { CircuitCounterConfirmation } from './CircuitCounterConfirmation';
+import { CircuitPurposeFields } from './CircuitPurposeFields';
+import { CircuitRequiredPolicy } from './CircuitRequiredPolicy';
+import { DeviceScopeTiles } from './DeviceScopeTiles';
+import { SourceReview } from './SourceReview';
 
 export interface CircuitProfileConfigFieldsProps {
   workspaceId?: string;
@@ -33,13 +39,33 @@ export interface CircuitProfileConfigFieldsProps {
   savedCircuits?: Array<{ circuit_id: string; circuit_name: string }>;
   onSelectCircuit?: (circuitId: string) => void;
   onOpenBatch?: () => void;
+  /** The layout this circuit records into, and whether a saved group already fixes it. */
+  purpose?: CircuitPurpose;
+  purposeLocked?: boolean;
+  /** A reviewed cutover prepares long targets only, so it offers no purpose to choose. */
+  showPurpose?: boolean;
+  /** `mean` for a new instantaneous profile; a saved profile shows the reduction it has (`latest` when none). */
+  instantaneousReduction?: WriteGroupSampleReduction;
+  /** Sources a saved instantaneous group already holds: their role is the saved one. */
+  savedRoleKeys?: ReadonlySet<string>;
+  memberRole?: (candidate: GroupCandidate) => WriteGroupValueRole;
+  /** Saved members of this circuit that no current source matches, and the saved group that holds them. */
+  unavailableSources?: { count: number; groupId?: string };
+  /** The saved wide group's required sources; shown for a wide circuit only. */
+  requiredPolicy?: { count: number; groupId: string };
+  /** Opens one saved group in Advanced, the existing editor of its members and repairs. */
+  onOpenAdvanced?: (groupId: string) => void;
 }
+
+const NO_SAVED_ROLES: ReadonlySet<string> = new Set();
 
 export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProps> = ({
   workspaceId, workspaceRevision, readonly, savedDevices, activeDeviceId, onSelectDevice,
   deviceCandidates, localDraft, updateLocalDraft, instParsed, cumParsed, isPostgres,
   storageLocked, effectiveStorageMode, cumulativeCircuitMissing, circuitId,
   unconfirmedCounterStatuses, onCounterConfirmed, savedCircuits = [], onSelectCircuit, onOpenBatch,
+  purpose = 'long', purposeLocked = false, showPurpose = true, instantaneousReduction = 'latest', savedRoleKeys = NO_SAVED_ROLES, memberRole = defaultMemberRole,
+  unavailableSources = { count: 0 }, requiredPolicy, onOpenAdvanced,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const instantaneousSourcesMissing = localDraft.instantaneous_enabled &&
@@ -60,13 +86,13 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
           )}
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <label className="block text-xs text-slate-300">
+          <div className="block text-xs text-slate-300">
             <span>{t('step4.basic.device')}</span>
-            <select data-testid="basic-recording-device" value={activeDeviceId} disabled={readonly || savedDevices.length <= 1}
-              onChange={(e) => onSelectDevice(e.target.value)} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100">
-              {savedDevices.map((d) => (<option key={d.id} value={d.id}>{d.name || d.id}</option>))}
-            </select>
-          </label>
+            <div className="mt-1">
+              {/* Choosing a tile only changes the viewed scope, so a pending request or a read-only role never locks it. */}
+              <DeviceScopeTiles devices={savedDevices} selectedId={activeDeviceId} onSelect={onSelectDevice} label={t('step4.basic.device')} />
+            </div>
+          </div>
           <label className="block text-xs text-slate-300">
             <span>{t('step4.basic.circuit.circuit_chooser_label') || '迴路選取'}</span>
             <select data-testid="circuit-profile-circuit-chooser" value={circuitId} disabled={readonly}
@@ -90,13 +116,17 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
               className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100" />
           </label>
         </div>
+        {showPurpose && <CircuitPurposeFields purpose={purpose} locked={purposeLocked} readonly={readonly}
+          onChange={(next) => updateLocalDraft((prev) => ({ ...prev, purpose: next }))} />}
         <p className="text-[11px] text-slate-400">{t('step4.basic.circuit.unassigned_note')}</p>
         {cumulativeCircuitMissing && (
           <p role="alert" data-testid="circuit-profile-circuit-required-error" className="text-xs text-amber-300">
             {t('step4.basic.circuit.cumulative_circuit_required')}
           </p>
         )}
-        <ul data-testid="circuit-profile-member-list" className="space-y-1.5 text-xs text-slate-300">
+        <SourceReview prefix="circuit-profile-sources" count={deviceCandidates.length + unavailableSources.count} unavailable={unavailableSources.count}
+          onRepair={unavailableSources.groupId && onOpenAdvanced ? () => onOpenAdvanced(unavailableSources.groupId as string) : undefined}>
+        <ul data-testid="circuit-profile-member-list" className="max-h-72 space-y-1.5 overflow-y-auto text-xs text-slate-300">
           {deviceCandidates.map((candidate) => {
             const key = candidateKey(candidate);
             const instChecked = localDraft.instantaneous_keys.includes(key);
@@ -145,6 +175,23 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                     />
                     <span>{t('step4.basic.circuit.instantaneous_label')}</span>
                   </label>
+                  {instChecked && instantaneousReduction === 'mean' && (
+                    <select
+                      data-testid={`circuit-profile-role-${candidate.tag_id}`}
+                      aria-label={`${candidate.label} ${t('step4.basic.circuit.role_label')}`}
+                      value={memberRole(candidate)}
+                      disabled={readonly || savedRoleKeys.has(key)}
+                      onChange={(event) => updateLocalDraft((prev) => ({ ...prev, member_roles: { ...prev.member_roles, [key]: event.target.value as WriteGroupValueRole } }))}
+                      className="rounded border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-[11px] text-slate-200"
+                    >
+                      {defaultMemberRole(candidate) === 'gauge' ? (
+                        <>
+                          <option value="gauge">{t('step4.basic.circuit.role_gauge')}</option>
+                          <option value="counter_raw">{t('step4.basic.circuit.role_counter_raw')}</option>
+                        </>
+                      ) : <option value="state">{t('step4.basic.circuit.role_state')}</option>}
+                    </select>
+                  )}
                   <label className="flex items-center gap-1 text-[11px] text-slate-400">
                     <input
                       type="checkbox"
@@ -167,6 +214,7 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
             );
           })}
         </ul>
+        </SourceReview>
       </div>
       <div
         data-testid="circuit-profile-profiles-section"
@@ -189,6 +237,13 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                 onChange={(e) => updateLocalDraft((prev) => ({ ...prev, instantaneous_interval_input: e.target.value }))}
                 className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100" />
             </label>
+            {instantaneousReduction === 'latest' || (localDraft.instantaneous_enabled && instParsed.valid) ? (
+              <p data-testid="circuit-profile-reduction-instantaneous" className="text-[11px] text-slate-400">
+                {instantaneousReduction === 'mean'
+                  ? t('step4.basic.circuit.reduction_mean', { count: instParsed.intervalValue })
+                  : t('step4.basic.circuit.reduction_latest')}
+              </p>
+            ) : null}
             {localDraft.instantaneous_enabled && !instParsed.valid && (
               <p id="circuit-profile-interval-instantaneous-err" role="alert" data-testid="circuit-profile-interval-instantaneous-error" className="text-xs text-rose-300">
                 {t('step4.basic.errors.profile_interval_invalid')}
@@ -215,6 +270,7 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                 onChange={(e) => updateLocalDraft((prev) => ({ ...prev, cumulative_interval_input: e.target.value }))}
                 className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100" />
             </label>
+            <p data-testid="circuit-profile-reduction-cumulative" className="text-[11px] text-slate-400">{t('step4.basic.circuit.reduction_counter')}</p>
             {localDraft.cumulative_enabled && !cumParsed.valid && (
               <p id="circuit-profile-interval-cumulative-err" role="alert" data-testid="circuit-profile-interval-cumulative-error" className="text-xs text-rose-300">
                 {t('step4.basic.errors.profile_interval_invalid')}
@@ -227,6 +283,16 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
             )}
           </div>
         </div>
+        {localDraft.instantaneous_enabled && localDraft.cumulative_enabled && (
+          <div data-testid="circuit-profile-interval-explainer" className="space-y-0.5 text-[11px] text-slate-400">
+            <p>{t('step4.basic.circuit.interval_explainer')}</p>
+            <p>{t('step4.basic.circuit.interval_not_report')}</p>
+          </div>
+        )}
+        {requiredPolicy && purpose === 'wide' && (
+          <CircuitRequiredPolicy count={requiredPolicy.count} onOpen={onOpenAdvanced ? () => onOpenAdvanced(requiredPolicy.groupId) : undefined} />
+        )}
+        {purpose !== 'wide' && (<>
         <fieldset data-testid="circuit-profile-storage-mode" className="space-y-1.5 text-xs text-slate-300">
           <legend className="font-medium text-slate-200">{t('step4.basic.circuit.storage_mode_label')}</legend>
           <div className="flex flex-wrap gap-4">
@@ -250,7 +316,8 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
             disabled={readonly} onChange={(e) => updateLocalDraft((prev) => ({ ...prev, recreate_missing: e.target.checked }))} />
           <span>{t('step4.basic.circuit.recreate_missing_label')}</span>
         </label>
-        {localDraft.cumulative_enabled && unconfirmedCounterStatuses.length > 0 && (
+        </>)}
+        {unconfirmedCounterStatuses.length > 0 && (
           <CircuitCounterConfirmation
             workspaceId={workspaceId ?? ''}
             workspaceRevision={workspaceRevision}

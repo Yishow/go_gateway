@@ -10,6 +10,7 @@ import { studioV2WorkspaceWriteGroupsAPI as api } from '@/services/studioV2Works
 import type { SchemaOperation, SchemaPreviewToken } from '@/types/recordingPlan';
 import type { WriteGroup, WriteGroupCreateRequest } from '@/types/studioV2WriteGroup';
 import { savedGroup, savedGroupState, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
+import { expandSources } from '../../fixtures/sourceReview';
 
 // Real hooks, the real Step 4 host and the real schema panel; only the service boundary is simulated (frontend
 // evidence, not SQL). The backend keeps its own groups so that what Basic shows after a save is what was saved.
@@ -138,6 +139,7 @@ describe('A saved legacy wide group offers an explicit way to prepare long targe
     expect(screen.getByTestId('circuit-profile-toggle-cumulative')).not.toBeChecked();
     expect(screen.getByTestId('circuit-profile-interval-instantaneous')).toHaveValue('');
     expect(screen.getByTestId('circuit-profile-interval-cumulative')).toHaveValue('');
+    expandSources();
     for (const box of screen.getAllByRole('checkbox', { name: /^line\./ })) expect(box).not.toBeChecked();
     expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
     expect(api.ensureCircuitProfile).not.toHaveBeenCalled();
@@ -147,6 +149,7 @@ describe('A saved legacy wide group offers an explicit way to prepare long targe
     const seeded = structuredClone(backend.groups[0]);
     renderHost();
     await openPrepare();
+    expandSources();
     await chooseExplicitly();
     await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
@@ -154,7 +157,7 @@ describe('A saved legacy wide group offers an explicit way to prepare long targe
 
     expect(api.ensureCircuitProfile).toHaveBeenCalledTimes(1);
     const sent = vi.mocked(api.ensureCircuitProfile).mock.calls[0][0].group;
-    expect(sent.recording_profile).toEqual({ kind: 'instantaneous', interval: 30, unit: 'second' });
+    expect(sent.recording_profile).toEqual({ kind: 'instantaneous', interval: 30, unit: 'second', sample_reduction: 'mean' });
     expect(sent.row_policy.interval_seconds).toBe(30);
     expect(sent.members.map((member) => member.tag_id)).toEqual(['tag-0']);
     expect(sent.layout_version).toBe('managed_long_v1');
@@ -174,6 +177,7 @@ describe('A saved legacy wide group offers an explicit way to prepare long targe
   it('returns to the unchanged legacy panel on close, keeps the saved targets as drafts and writes nothing', async () => {
     renderHost();
     await openPrepare();
+    expandSources();
     await chooseExplicitly();
     await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
@@ -191,10 +195,37 @@ describe('A saved legacy wide group offers an explicit way to prepare long targe
   });
 });
 
+describe('The prepare context can also prepare a new wide mean target', () => {
+  it('offers the purpose choice and saves a managed_wide_profile_v1 group with an explicit mean, still starting and applying nothing', async () => {
+    const seeded = structuredClone(backend.groups[0]);
+    renderHost();
+    await openPrepare();
+    expect(screen.getByTestId('circuit-profile-purpose-wide'), 'the one purpose choice is the same as outside the prepare context').toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('circuit-profile-purpose-wide'));
+    expandSources();
+    await chooseExplicitly();
+    await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
+    await screen.findByTestId('circuit-prepared-group-instantaneous');
+
+    expect(api.ensureCircuitProfile).toHaveBeenCalledTimes(1);
+    const sent = vi.mocked(api.ensureCircuitProfile).mock.calls[0][0].group;
+    expect(sent.layout_version).toBe('managed_wide_profile_v1');
+    expect(sent.recording_profile).toEqual({ kind: 'instantaneous', interval: 30, unit: 'second', sample_reduction: 'mean' });
+    expect(sent.members.map((member) => [member.tag_id, member.value_role])).toEqual([['tag-0', 'gauge']]);
+    expect(sent).not.toHaveProperty('basic_managed_device_id');
+    expectNoWriterWrites();
+    expect(startAPI.operation).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('circuit-profile-start')).not.toBeInTheDocument();
+    expect(backend.groups.find((group) => group.id === 'wide-1')).toEqual(seeded);
+  });
+});
+
 describe('Reloading or choosing a cumulative profile cannot change the old writer or invent a counter', () => {
   it('returns to the unchanged legacy panel after a reload and keeps the prepared target as a draft', async () => {
     const host = renderHost();
     await openPrepare();
+    expandSources();
     await chooseExplicitly();
     await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
@@ -215,6 +246,7 @@ describe('Reloading or choosing a cumulative profile cannot change the old write
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: '累積迴路' } });
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
     fireEvent.change(screen.getByTestId('circuit-profile-interval-cumulative'), { target: { value: '10' } });
+    expandSources();
     fireEvent.click(screen.getByTestId('circuit-profile-member-cum-tag-0'));
     await waitFor(() => expect(screen.getByTestId('circuit-profile-interval-cumulative')).toHaveValue('10'));
     expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
@@ -236,6 +268,7 @@ describe('The prepare context never restores or resends a recording start', () =
     saveBasicRecordingIntent({ scope_key: basicRecordingScopeKey('ws-1', 'dev-1', 'managed-recording'), request: stale, operation_id: 'op-stale' });
     renderHost();
     await openPrepare();
+    expandSources();
     await chooseExplicitly(circuitId);
     await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));

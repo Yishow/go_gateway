@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"go-gateway/internal/datalink/measurement"
+	"go-gateway/internal/datalink/schema"
 )
 
 func (r *SQLWriteGroupRepository) loadBasicManagedDeviceID(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup) error {
@@ -32,7 +35,8 @@ func (r *SQLWriteGroupRepository) loadBasicManagedDeviceID(ctx context.Context, 
 func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup) error {
 	rows, err := runner.QueryContext(ctx, r.query(`
 		SELECT device_id, point_id, tag_id, entity_key, source_revision, mapping_revision,
-			measurement_id, target_column, required, max_age_seconds, circuit_id, circuit_name
+			measurement_id, target_column, required, max_age_seconds, circuit_id, circuit_name,
+			value_role, source_value_type, result_value_type
 		FROM write_group_members
 		WHERE group_id = $1
 		ORDER BY member_index ASC
@@ -46,9 +50,10 @@ func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeG
 		var measurementID sql.NullString
 		var maxAgeSeconds sql.NullInt64
 		var entityKey, circuitID, circuitName sql.NullString
+		var valueRole, sourceValueType, resultValueType sql.NullString
 		if err := rows.Scan(&member.DeviceID, &member.PointID, &member.TagID, &entityKey, &member.SourceRevision,
 			&member.MappingRevision, &measurementID, &member.TargetColumn, &member.Required, &maxAgeSeconds,
-			&circuitID, &circuitName); err != nil {
+			&circuitID, &circuitName, &valueRole, &sourceValueType, &resultValueType); err != nil {
 			_ = rows.Close()
 			return fmt.Errorf("scan write-group member: %w", err)
 		}
@@ -56,6 +61,42 @@ func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeG
 			member.EntityKey = entityKey.String
 		}
 		member.CircuitID, member.CircuitName = circuitID.String, circuitName.String
+		role, err := storedMemberEnum(valueRole, func(value string) error {
+			switch WriteGroupValueRole(value) {
+			case WriteGroupValueRoleGauge, WriteGroupValueRoleCounterRaw, WriteGroupValueRoleState:
+				return nil
+			}
+			return fmt.Errorf("unsupported value role %q", value)
+		})
+		if err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("decode write-group member: %w", err)
+		}
+		member.ValueRole = WriteGroupValueRole(role)
+		sourceType, err := storedMemberEnum(sourceValueType, func(value string) error {
+			if !schema.DataType(value).IsValid() {
+				return fmt.Errorf("unsupported source value type %q", value)
+			}
+			return nil
+		})
+		if err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("decode write-group member: %w", err)
+		}
+		member.SourceValueType = schema.DataType(sourceType)
+		resultType, err := storedMemberEnum(resultValueType, func(value string) error {
+			switch measurement.ExactType(value) {
+			case measurement.ExactBool, measurement.ExactText, measurement.ExactInt64,
+				measurement.ExactUint64, measurement.ExactDecimal, measurement.ExactFloat64:
+				return nil
+			}
+			return fmt.Errorf("unsupported result value type %q", value)
+		})
+		if err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("decode write-group member: %w", err)
+		}
+		member.ResultValueType = measurement.ExactType(resultType)
 		if measurementID.Valid && strings.TrimSpace(measurementID.String) != "" {
 			value := measurementID.String
 			member.MeasurementID = &value

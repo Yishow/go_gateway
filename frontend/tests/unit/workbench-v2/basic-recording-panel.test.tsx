@@ -8,6 +8,7 @@ import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import type { WriteGroupDelivery } from '@/types/studioV2WriteGroupDelivery';
 import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
 import { saveBasicRecordingIntent } from '@/features/datalink/workbench-v2/state/basicRecording';
+import { expandSources } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -124,6 +125,8 @@ describe('BasicRecordingPanel', () => {
   it('ensures a server-owned managed group, then starts one selected device', async () => {
     renderPanel();
 
+    await screen.findByTestId('basic-recording-selected-members');
+    expandSources('basic-recording-sources');
     expect(await screen.findByTestId('basic-recording-selected-members')).toHaveTextContent('line.temperature');
     expect(screen.getByTestId('basic-recording-selected-members')).toHaveTextContent('40001');
 
@@ -259,11 +262,17 @@ describe('BasicRecordingPanel', () => {
     let release: (value: { workspace_revision: string; group: WriteGroup }) => void = () => undefined;
     ensureAsync.mockReturnValue(new Promise((resolve) => { release = resolve; }));
     renderPanel({ state: twoDeviceState() });
-    const select = await screen.findByTestId('basic-recording-device');
+    const tiles = await screen.findAllByTestId('basic-recording-device-tile');
     fireEvent.click(screen.getByTestId('basic-recording-start'));
     await waitFor(() => expect(ensureAsync).toHaveBeenCalledTimes(1));
-    fireEvent.change(select, { target: { value: 'dev-2' } });
-    await waitFor(() => expect(select).toHaveValue('dev-2'));
+    const other = tiles.find((tile) => tile.getAttribute('data-device-id') === 'dev-2');
+    expect(other).toBeDefined();
+    fireEvent.click(other!);
+    await waitFor(() => {
+      const pressed = screen.getAllByTestId('basic-recording-device-tile')
+        .find((tile) => tile.getAttribute('data-device-id') === 'dev-2');
+      expect(pressed).toHaveAttribute('aria-pressed', 'true');
+    });
     release({ workspace_revision: 'wrev-2', group: canonicalManaged });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(startAsync).not.toHaveBeenCalled();

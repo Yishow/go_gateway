@@ -175,26 +175,19 @@ describe('schema operation scope and locking', () => {
     await waitFor(() => expect(screen.queryByTestId('schema-operation-pending')).not.toBeInTheDocument());
   });
 
-  it('blocks schema and configuration controls while activation is in progress', async () => {
-    const activation = deferred<{ workspace_id: string; results: Array<{ device_id: string; status: 'success'; message: string }> }>();
-    const activateWorkspace = vi.fn(() => activation.promise);
-    const dispatch = vi.fn();
+  it('does not lock schema and configuration controls for a workspace-wide activation this page no longer starts', () => {
+    const activateWorkspace = vi.fn();
     render(
       <Step4Database
         state={step4State()}
-        dispatch={dispatch}
+        dispatch={vi.fn()}
         activateWorkspace={activateWorkspace}
       />,
     );
 
-    fireEvent.click(screen.getByText('step4.activate_btn'));
-    await waitFor(() => expect(screen.getByTestId('basic-recording-prepare')).toBeDisabled());
-
-    expect(screen.getByLabelText('step4.field_host')).toBeDisabled();
-    // The write group editor is the only database output control left; it is read-only too.
-    expect(screen.getByTestId('group-create')).toBeDisabled();
-
-    activation.resolve({ workspace_id: 'workspace-step4', results: [{ device_id: 'device-1', status: 'success', message: 'activated' }] });
+    expect(screen.queryByText('step4.activate_btn')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('step4.field_host')).not.toBeDisabled();
+    expect(activateWorkspace).not.toHaveBeenCalled();
   });
 
   it('reports that creating tables needs a confirmed preview instead of claiming success', async () => {

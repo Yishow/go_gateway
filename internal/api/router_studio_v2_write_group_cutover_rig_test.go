@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -84,6 +85,14 @@ type cutoverOptions struct {
 	// lostCommit opens the local database so a commit can be made to succeed for
 	// real and still report failure (rig.faults.Lose).
 	lostCommit bool
+	// wideSeconds is the saved interval of the wide group; zero keeps the 15 s default.
+	wideSeconds int
+	// wideTarget makes every target a managed_wide_profile_v1 group instead of a long
+	// one: an explicit 15 s mean for the instantaneous profile, and the one-minute
+	// counter profile for the cumulative one.
+	wideTarget bool
+	// unconfirmedTarget leaves the targets saved without the explicit schema confirmation.
+	unconfirmedTarget bool
 }
 
 func newCutoverRigWith(t *testing.T, kind string, o cutoverOptions) *cutoverRig {
@@ -129,7 +138,7 @@ func newCutoverRigWith(t *testing.T, kind string, o cutoverOptions) *cutoverRig 
 	group := request["group"].(map[string]any)
 	group["destination"].(map[string]any)["storage_strategy"] = "managed"
 	group["destination"].(map[string]any)["table_schema"] = f.namespace
-	group["row_policy"] = map[string]any{"interval_seconds": cutoverWideSeconds}
+	group["row_policy"] = map[string]any{"interval_seconds": cmp.Or(o.wideSeconds, cutoverWideSeconds)}
 	r.custom = o.custom
 	if o.custom != "" {
 		r.createCustomTable(o.custom)
@@ -173,17 +182,29 @@ func newCutoverRigWith(t *testing.T, kind string, o cutoverOptions) *cutoverRig 
 			long["group"].(map[string]any)["members"].([]map[string]any)[0]["measurement_id"] = "meas-energy"
 		}
 		longGroup := long["group"].(map[string]any)
-		longGroup["layout_version"] = "managed_long_v1"
-		longGroup["storage_mode"] = "plain"
-		if kind == "timescale" {
-			longGroup["storage_mode"] = "timescale"
+		if o.wideTarget {
+			longGroup["layout_version"] = "managed_wide_profile_v1"
+			member := longGroup["members"].([]map[string]any)[0]
+			member["required"] = false
+			if profile == "instantaneous" {
+				longGroup["recording_profile"] = map[string]any{"kind": "instantaneous", "interval": cutoverWideSeconds, "unit": "second", "sample_reduction": "mean"}
+				member["value_role"] = "gauge"
+			}
+		} else {
+			longGroup["layout_version"] = "managed_long_v1"
+			longGroup["storage_mode"] = "plain"
+			if kind == "timescale" {
+				longGroup["storage_mode"] = "timescale"
+			}
 		}
 		longGroup["destination"].(map[string]any)["table_schema"] = f.namespace
 		response := performJSONRequest(t, f.router, http.MethodPost, ensureCircuitProfilePath, long)
 		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 		_, saved := groupSaveData(t, decodeJSONBody(t, response))
 		longID := saved["id"].(string)
-		require.Equal(t, recordingplan.SchemaOperationSucceeded, confirmLong(t, f, longID, previewLong(t, f, longID)).Status)
+		if !o.unconfirmedTarget {
+			require.Equal(t, recordingplan.SchemaOperationSucceeded, confirmLong(t, f, longID, previewLong(t, f, longID)).Status)
+		}
 		r.targets = append(r.targets, saved)
 	}
 	r.long = r.targets[0]

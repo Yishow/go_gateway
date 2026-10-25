@@ -6,7 +6,7 @@ import type { MeasurementDefinition } from '../../../../../types/measurement';
 import type { WriteGroup, WriteGroupProfileKind } from '../../../../../types/studioV2WriteGroup';
 import { basicRecordingScopeKey, createBasicRecordingRequestId } from '../../state/basicRecording';
 import { safeBasicStartError } from '../../state/basicRecordingMessages';
-import { buildCircuitProfileGroupDraft, candidateKey, canonicalProfileGroupMatchesDraft, defaultCircuitProfileLocalDraft, deriveCircuitId, evaluateCandidateCounterConfirmation, groupCircuitId, isManagedLongProfileGroupForDevice, loadCircuitProfileLocalDraft, parseStrictProfileIntervalInput, saveCircuitProfileLocalDraft } from '../../state/circuitProfileBasic';
+import { buildCircuitProfileGroupDraft, candidateKey, canonicalProfileGroupMatchesDraft, defaultCircuitProfileLocalDraft, defaultMemberRole, deriveCircuitId, evaluateCandidateCounterConfirmation, groupCircuitId, groupProfileKind, isManagedProfileGroupForDevice, loadCircuitProfileLocalDraft, parseStrictProfileIntervalInput, purposeOfLayout, saveCircuitProfileLocalDraft } from '../../state/circuitProfileBasic';
 import type { WorkbenchV2State } from '../../state/types';
 import { buildGroupCandidates } from '../../state/writeGroup/candidates';
 import { CircuitProfileBasicActions, CircuitProfileStartStatus } from './CircuitProfileBasicActions';
@@ -23,6 +23,7 @@ import { CircuitProfileRoles } from './CircuitProfileRoles';
 import { focusDestinationSettings } from './step4FocusTargets';
 import { useCircuitProfileBatchHost } from './useCircuitProfileBatchHost';
 import { useReportOperationActive } from './useReportOperationActive';
+import { loadSelectedDeviceId, saveSelectedDeviceId } from '../../state/deviceScopeSelection';
 import { useCircuitProfileStart } from './useCircuitProfileStart';
 
 function readMeasurementsList(data: unknown): MeasurementDefinition[] {
@@ -32,14 +33,23 @@ function readMeasurementsList(data: unknown): MeasurementDefinition[] {
 export interface CircuitProfileBasicPanelProps {
   state: WorkbenchV2State; workspaceId?: string; readonly: boolean; readinessToken?: string;
   settingsRevision?: string; shareWorkspaceRevision?: string; workspaceRevision?: string; onActivated?: (deviceIds: string[]) => Promise<void> | void;
+  /** The parent's viewed device. A controlled value keeps the legacy and new branches on one authority. */
+  deviceId?: string; onSelectDevice?: (deviceId: string) => void;
   onOperationActiveChange?: (active: boolean) => void; onContinueToRuntime?: (deviceIds: string[]) => void; onOpenAdvanced?: (groupId?: string) => void;
   /** Target preparation for a reviewed cutover: no recording start, apply or stop is offered or restored here. */
   prepareOnly?: boolean; onClose?: () => void;
+  /**
+   * Shows one saved circuit of its workspace and device, exactly as choosing it would; it starts and saves nothing.
+   * The parent owns the request and drops it when this panel reports it done.
+   */
+  circuitRequest?: { workspaceId: string; deviceId: string; circuitId: string };
+  onCircuitRequestDone?: () => void;
 }
 
 export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> = ({
   state, workspaceId, readonly, readinessToken, settingsRevision, shareWorkspaceRevision, workspaceRevision: propWorkspaceRevision,
   onActivated, onContinueToRuntime, onOpenAdvanced, onOperationActiveChange, prepareOnly = false, onClose,
+  deviceId, onSelectDevice, circuitRequest, onCircuitRequestDone,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
@@ -51,8 +61,17 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
     () => state.devices.filter((d) => Boolean(d.persisted && d.save_state !== 'saving' && d.save_state !== 'save-error')),
     [state.devices],
   );
-  const [selectedDeviceId, setSelectedDeviceId] = React.useState(() => savedDevices[0]?.id ?? '');
+  const [ownDeviceId, setOwnDeviceId] = React.useState(() => {
+    const ids = savedDevices.map((device) => device.id);
+    return loadSelectedDeviceId(workspaceId ?? '', ids) ?? ids[0] ?? '';
+  });
+  const selectedDeviceId = deviceId ?? ownDeviceId;
   const activeDeviceId = savedDevices.some((d) => d.id === selectedDeviceId) ? selectedDeviceId : (savedDevices[0]?.id ?? '');
+  const selectDevice = React.useCallback((nextDeviceId: string) => {
+    saveSelectedDeviceId(workspaceId ?? '', nextDeviceId);
+    setOwnDeviceId(nextDeviceId);
+    onSelectDevice?.(nextDeviceId);
+  }, [onSelectDevice, workspaceId]);
   const activeDevice = savedDevices.find((d) => d.id === activeDeviceId);
   const destination = React.useMemo(() => (
     destinationIsSaved(state) ? {
@@ -67,10 +86,14 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
   const { candidates: allCandidates } = React.useMemo(() => buildGroupCandidates(state), [state]);
   const deviceCandidates = React.useMemo(() => allCandidates.filter((c) => c.device_id === activeDeviceId), [allCandidates, activeDeviceId]);
   const liveGroups = React.useMemo(() => (groupsQuery.data?.groups ?? []).filter((g) => g.status !== 'deleted'), [groupsQuery.data?.groups]);
-  const savedLongGroups = React.useMemo(() => liveGroups.filter((g) => isManagedLongProfileGroupForDevice(g, activeDeviceId)), [liveGroups, activeDeviceId]);
-  const advancedGroups = React.useMemo(() => liveGroups.filter((g) => !isManagedLongProfileGroupForDevice(g, activeDeviceId)), [liveGroups, activeDeviceId]);
+  const savedLongGroups = React.useMemo(() => liveGroups.filter((g) => isManagedProfileGroupForDevice(g, activeDeviceId)), [liveGroups, activeDeviceId]);
+  const advancedGroups = React.useMemo(() => liveGroups.filter((g) => !isManagedProfileGroupForDevice(g, activeDeviceId)), [liveGroups, activeDeviceId]);
 
   const savedCircuits = React.useMemo(() => extractDeviceCircuits(savedLongGroups), [savedLongGroups]);
+  // The batch tools write long-layout groups only. A wide profile circuit is prepared one circuit at a time, so it is
+  // neither offered to nor reachable from a batch.
+  const batchGroups = React.useMemo(() => savedLongGroups.filter((group) => group.layout_version === 'managed_long_v1'), [savedLongGroups]);
+  const batchCircuits = React.useMemo(() => extractDeviceCircuits(batchGroups), [batchGroups]);
   const [selectedCircuitId, setSelectedCircuitId] = React.useState<string | undefined>(() => {
     if (!workspaceId || !activeDeviceId) return undefined;
     return loadActiveCircuitId(workspaceId, activeDeviceId);
@@ -95,6 +118,7 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
   }, [workspaceId, activeDeviceId, deviceCandidates, savedLongGroups, activeCircuitId, prepareOnly]);
 
   const handleSelectCircuit = (targetId: string) => {
+    onCircuitRequestDone?.(); // choosing a circuit by hand retires a pending routing request
     if (targetId === '__new__') {
       const newId = `cir-${createBasicRecordingRequestId()}`;
       setSelectedCircuitId(newId);
@@ -107,6 +131,13 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
       if (workspaceId && activeDeviceId) saveActiveCircuitId(workspaceId, activeDeviceId, targetId);
     }
   };
+
+  React.useEffect(() => {
+    if (!circuitRequest || !workspaceId || circuitRequest.workspaceId !== workspaceId || circuitRequest.deviceId !== activeDeviceId) return;
+    setSelectedCircuitId(circuitRequest.circuitId);
+    saveActiveCircuitId(workspaceId, activeDeviceId, circuitRequest.circuitId);
+    onCircuitRequestDone?.();
+  }, [circuitRequest, workspaceId, activeDeviceId, onCircuitRequestDone]);
 
   const updateLocalDraft = React.useCallback(
     (updater: (prev: typeof localDraft) => typeof localDraft) => {
@@ -137,13 +168,6 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
   }, [deviceCandidates, localDraft.cumulative_keys, localDraft.selected_keys]);
 
   const measurements = React.useMemo(() => readMeasurementsList(measurementsQuery.data), [measurementsQuery.data]);
-  const counterStatuses = React.useMemo(() => cumulativeCandidates.map((c) => evaluateCandidateCounterConfirmation(workspaceId ?? '', c, measurements)), [workspaceId, cumulativeCandidates, measurements]);
-  const unconfirmedCounterStatuses = React.useMemo(() => counterStatuses.filter((s) => !s.confirmed), [counterStatuses]);
-  const confirmedMeasurementsByPointKey = React.useMemo(() => {
-    const map = new Map<string, MeasurementDefinition>();
-    for (const status of counterStatuses) if (status.confirmed && status.measurement) map.set(candidateKey(status.candidate), status.measurement);
-    return map;
-  }, [counterStatuses]);
 
   const instParsed = parseStrictProfileIntervalInput('instantaneous', localDraft.instantaneous_interval_input);
   const cumParsed = parseStrictProfileIntervalInput('cumulative', localDraft.cumulative_interval_input);
@@ -151,6 +175,51 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
   const currentGroups = savedLongGroups.filter((group) => groupCircuitId(group) === circuitId);
   const storageLocked = currentGroups.length > 0;
   const effectiveStorageMode = storageLocked ? (currentGroups[0]?.storage_mode === 'timescale' ? 'timescale' : 'plain') : (isPostgres ? localDraft.storage_mode : 'plain');
+  // A saved circuit keeps the layout it was created with; only a new one lets the operator choose the purpose.
+  const savedPurpose = purposeOfLayout(currentGroups[0]?.layout_version);
+  const purpose = savedPurpose ?? localDraft.purpose;
+  // A saved member that no current source matches is an exception to repair in its group, never to hide or drop.
+  const lostSources = new Map<string, string>();
+  const availableSources = new Set(deviceCandidates.map((c) => `${c.device_id}\0${c.point_id}\0${c.tag_id}`));
+  for (const group of currentGroups) {
+    for (const member of group.members) {
+      const key = `${member.device_id}\0${member.point_id}\0${member.tag_id}`;
+      if (!availableSources.has(key) && !lostSources.has(key)) lostSources.set(key, group.id);
+    }
+  }
+  const unavailableSources = { count: lostSources.size, groupId: lostSources.values().next().value as string | undefined };
+  // A wide circuit states how its rows treat a missing source; the saved required flags are read, never rewritten.
+  const wideGroups = currentGroups.filter((group) => purposeOfLayout(group.layout_version) === 'wide');
+  const requiredPolicy = wideGroups.length > 0
+    ? {
+        count: wideGroups.reduce((total, group) => total + group.members.filter((member) => member.required).length, 0),
+        groupId: (wideGroups.find((group) => group.members.some((member) => member.required)) ?? wideGroups[0]).id,
+      }
+    : undefined;
+  const savedInstantaneous = currentGroups.find((group) => groupProfileKind(group) === 'instantaneous');
+  // A new instantaneous profile is an explicit mean; a saved one keeps the reduction it already has (none = latest).
+  const instantaneousReduction = savedInstantaneous ? (savedInstantaneous.recording_profile?.sample_reduction ?? 'latest') : 'mean';
+  const savedRoleKeys = React.useMemo(
+    () => new Set((savedInstantaneous?.members ?? []).map((m) => `${m.device_id}\0${m.point_id}\0${m.tag_id}`)),
+    [savedInstantaneous],
+  );
+  const roleOf = React.useCallback((candidate: typeof deviceCandidates[number]) => localDraft.member_roles[candidateKey(candidate)] ?? defaultMemberRole(candidate), [localDraft.member_roles]);
+  // A counter is whatever a saved, confirmed definition says: cumulative sources and counter_raw roles are checked alike.
+  const counterTargets = React.useMemo(() => {
+    const targets = new Map<string, typeof deviceCandidates[number]>();
+    if (localDraft.cumulative_enabled) for (const c of cumulativeCandidates) targets.set(candidateKey(c), c);
+    if (localDraft.instantaneous_enabled && instantaneousReduction === 'mean') {
+      for (const c of instantaneousCandidates) if (roleOf(c) === 'counter_raw') targets.set(candidateKey(c), c);
+    }
+    return [...targets.values()];
+  }, [localDraft.cumulative_enabled, localDraft.instantaneous_enabled, cumulativeCandidates, instantaneousCandidates, instantaneousReduction, roleOf]);
+  const counterStatuses = React.useMemo(() => counterTargets.map((c) => evaluateCandidateCounterConfirmation(workspaceId ?? '', c, measurements)), [workspaceId, counterTargets, measurements]);
+  const unconfirmedCounterStatuses = React.useMemo(() => counterStatuses.filter((s) => !s.confirmed), [counterStatuses]);
+  const confirmedMeasurementsByPointKey = React.useMemo(() => {
+    const map = new Map<string, MeasurementDefinition>();
+    for (const status of counterStatuses) if (status.confirmed && status.measurement) map.set(candidateKey(status.candidate), status.measurement);
+    return map;
+  }, [counterStatuses]);
 
   const enabledProfiles = React.useMemo(() => {
     const list: Array<{ profile: WriteGroupProfileKind; intervalValue: number; intervalSeconds: number; candidates: typeof deviceCandidates }> = [];
@@ -167,7 +236,7 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
     encodeURIComponent(JSON.stringify([circuitId, destination?.connector_id, destination?.connector_revision, destination?.table_schema, ...(prepareOnly ? ['cutover-prepare'] : [])]))) : '';
   const activeScope = React.useRef(scopeKey);
   activeScope.current = scopeKey;
-  const batch = useCircuitProfileBatchHost({ scopeKey, workspaceId, deviceId: activeDeviceId, candidates: deviceCandidates, savedLongGroups,
+  const batch = useCircuitProfileBatchHost({ scopeKey, workspaceId, deviceId: activeDeviceId, candidates: deviceCandidates, savedLongGroups: batchGroups,
     activeCircuitId, queriedRevision, refetchGroups: groupsQuery.refetch, setRevisionOverride, setLocalDraft });
   const batchBusy = batch.busy;
   React.useEffect(() => { setPreparedGroups([]); setRevisionOverride(undefined); setErrorMessage(undefined); setBatchOpen(false); }, [scopeKey]);
@@ -176,7 +245,7 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
   const cumulativeSourcesMissing = localDraft.cumulative_enabled && cumulativeCandidates.length === 0;
   const hasValidIntervals = (!localDraft.instantaneous_enabled || instParsed.valid) && (!localDraft.cumulative_enabled || cumParsed.valid);
   const cumulativeCircuitMissing = localDraft.cumulative_enabled && !circuitId;
-  const cumulativeCounterBlocked = localDraft.cumulative_enabled && (!counterDefinitionsReady || unconfirmedCounterStatuses.length > 0);
+  const cumulativeCounterBlocked = counterTargets.length > 0 && (!counterDefinitionsReady || unconfirmedCounterStatuses.length > 0);
   const canPrepareOrStart = !readonly && !batchBusy && !batchOpen &&
     Boolean(workspaceId && effectiveWorkspaceRevision && activeDeviceId && destination && connectorKindSupported) &&
     enabledProfiles.length > 0 && hasValidIntervals && !instantaneousSourcesMissing && !cumulativeSourcesMissing &&
@@ -189,7 +258,7 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
     try {
       const result = await ensureOrUpdateCircuitProfileGroups({
         workspaceId, initialWorkspaceRevision: effectiveWorkspaceRevision, deviceName: activeDevice?.name ?? activeDeviceId,
-        enabledProfiles, storageMode: effectiveStorageMode, recreateMissing: localDraft.recreate_missing,
+        enabledProfiles, storageMode: effectiveStorageMode, recreateMissing: localDraft.recreate_missing, purpose, memberRoles: localDraft.member_roles, newReduction: instantaneousReduction,
         circuitId, circuitName: localDraft.circuit_name, destination, connectorKind: state.db.connector.kind,
         measurementsByPointKey: confirmedMeasurementsByPointKey, savedLongGroups, preparedGroups,
         ensureCircuitProfile: (vars) => ensureProfile.mutateAsync(vars), updateWriteGroup: (vars) => updateGroup.mutateAsync(vars),
@@ -217,7 +286,8 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
     const draft = buildCircuitProfileGroupDraft({ workspaceId: workspaceId ?? '', deviceName: activeDevice?.name ?? activeDeviceId,
       profile: profile.profile, intervalValue: profile.intervalValue, intervalSeconds: profile.intervalSeconds,
       storageMode: effectiveStorageMode, recreateMissing: localDraft.recreate_missing, circuitId, circuitName: localDraft.circuit_name,
-      destination, selectedCandidates: profile.candidates, measurementsByPointKey: confirmedMeasurementsByPointKey });
+      destination, selectedCandidates: profile.candidates, measurementsByPointKey: confirmedMeasurementsByPointKey,
+      purpose: purposeOfLayout(group.layout_version) ?? purpose, reduction: group.recording_profile?.sample_reduction ?? 'latest', memberRoles: localDraft.member_roles });
     return !canonicalProfileGroupMatchesDraft(group, draft, state.db.connector.kind);
   }).map((group) => group.id));
   const refreshSchema = async () => {
@@ -240,17 +310,18 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
       </div>
       <CircuitProfileConfigFields
         workspaceId={workspaceId} workspaceRevision={effectiveWorkspaceRevision} readonly={isEffectiveLocked}
-        savedDevices={savedDevices} activeDeviceId={activeDeviceId} onSelectDevice={setSelectedDeviceId}
+        savedDevices={savedDevices} activeDeviceId={activeDeviceId} onSelectDevice={selectDevice}
         deviceCandidates={deviceCandidates} localDraft={localDraft} updateLocalDraft={updateLocalDraft}
         instParsed={instParsed} cumParsed={cumParsed} isPostgres={isPostgres} storageLocked={storageLocked}
         effectiveStorageMode={effectiveStorageMode} cumulativeCircuitMissing={cumulativeCircuitMissing} circuitId={circuitId}
         unconfirmedCounterStatuses={counterDefinitionsReady ? unconfirmedCounterStatuses : []} onCounterConfirmed={async () => { await measurementsQuery.refetch(); }}
-        savedCircuits={savedCircuits} onSelectCircuit={handleSelectCircuit} onOpenBatch={() => setBatchOpen(true)}
+        purpose={purpose} purposeLocked={Boolean(savedPurpose)} showPurpose={true} unavailableSources={unavailableSources} requiredPolicy={requiredPolicy} onOpenAdvanced={onOpenAdvanced} instantaneousReduction={instantaneousReduction} savedRoleKeys={savedRoleKeys} memberRole={roleOf}
+        savedCircuits={savedCircuits} onSelectCircuit={handleSelectCircuit} onOpenBatch={batchCircuits.length > 1 && purpose !== 'wide' ? () => setBatchOpen(true) : undefined}
       />
       {batchOpen && (
         <CircuitProfileBatchEditor
           workspaceId={workspaceId ?? ''} workspaceRevision={effectiveWorkspaceRevision} scopeKey={scopeKey}
-          connectorRevision={destination?.connector_revision} savedLongGroups={savedLongGroups}
+          connectorRevision={destination?.connector_revision} savedLongGroups={batchGroups}
           readonly={isEffectiveLocked} onClose={() => setBatchOpen(false)}
           onSuccess={batch.onSaved} onVerify={batch.reload}
           updateWriteGroup={(vars) => updateGroup.mutateAsync(vars)}

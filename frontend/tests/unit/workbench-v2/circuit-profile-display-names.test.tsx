@@ -4,6 +4,7 @@ import { CircuitProfileConfigFields, type CircuitProfileConfigFieldsProps } from
 import { candidateKey, defaultCircuitProfileLocalDraft } from '@/features/datalink/workbench-v2/state/circuitProfileBasic';
 import { buildGroupCandidates } from '@/features/datalink/workbench-v2/state/writeGroup/candidates';
 import { savedGroupState } from '../../fixtures/writeGroupState';
+import { expandSources } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -55,6 +56,7 @@ describe('Circuit profile source display names', () => {
     // Exercise the renderer separately from the candidate builder.
     props.deviceCandidates[0].label = '主迴路有功功率';
     render(<CircuitProfileConfigFields {...props} />);
+    expandSources();
     const sources = within(screen.getByTestId('circuit-profile-member-list'));
     expect(sources.getByText('主迴路有功功率')).toBeVisible();
     expect(sources.queryByText('dev.1780862010602.842.tag.0.rd0')).not.toBeInTheDocument();

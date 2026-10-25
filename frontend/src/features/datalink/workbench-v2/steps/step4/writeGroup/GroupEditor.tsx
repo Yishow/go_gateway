@@ -46,6 +46,8 @@ export interface GroupEditorProps {
    * touching this group, so a stale copy would be refused for no real conflict.
    */
   fetchLatest: () => Promise<{ workspace_revision: string; groups: WriteGroup[] } | undefined>;
+  /** Sends a managed profile group's effective action to the host's reviewed scoped start. */
+  onReviewScopedStart?: (group: WriteGroup) => void;
 }
 
 function destinationSaved(connector: DbConnector): boolean {
@@ -60,7 +62,7 @@ function destinationSaved(connector: DbConnector): boolean {
  * revision and never the local checks alone.
  */
 export const GroupEditor: React.FC<GroupEditorProps> = ({
-  group: propGroup, workspaceId, workspaceRevision, connector, candidates, excluded, readonly, onClose, onSaved, onReload, fetchLatest,
+  group: propGroup, workspaceId, workspaceRevision, connector, candidates, excluded, readonly, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const saved = destinationSaved(connector);
@@ -86,7 +88,9 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
     return () => { mountedRef.current = false; };
   }, []);
 
-  const profile = draft.layout_version === 'managed_long_v1' && draft.recording_profile !== undefined;
+  // A profile group, on either new layout, takes its period and reduction from the saved profile alone; any other layout
+  // (legacy wide, custom, unknown) keeps its own controls and is never read as a profile.
+  const profile = (draft.layout_version === 'managed_long_v1' || draft.layout_version === 'managed_wide_profile_v1') && draft.recording_profile !== undefined;
   const dirty = group ? draftIsDirty(draft, group) : true;
   // Adopt a new server revision only while there is nothing unsaved to lose.
   const revision = group?.revision;
@@ -309,7 +313,7 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
           <GroupLifecycleBar
             group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision}
             canApply={canApply} applyBlockedReason={applyBlocked} readonly={readonly}
-            onChanged={onSaved} onConflict={() => setConflict(true)}
+            onChanged={onSaved} onConflict={() => setConflict(true)} onReviewScopedStart={onReviewScopedStart}
           />
           <GroupTestWritePanel
             groupId={group.id} scopeKey={`${group.id}|${group.revision}|${workspaceRevision}`}

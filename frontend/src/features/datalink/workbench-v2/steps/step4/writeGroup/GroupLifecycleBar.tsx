@@ -5,6 +5,7 @@ import { useWriteGroupLifecycleMutation, useWriteGroupDeliveryQuery } from '../.
 import type { WriteGroup } from '../../../../../../types/studioV2WriteGroup';
 import { normalizeTypedEnvelope } from '../../../../../../utils/safeJson';
 import { getSafeErrorMessage } from '../../../../../../utils/typedErrors';
+import { managedProfileDeviceId } from '../../../state/circuitProfileBasic';
 
 export interface GroupLifecycleBarProps {
   group: WriteGroup;
@@ -17,6 +18,11 @@ export interface GroupLifecycleBarProps {
   /** Called with the group a lifecycle action returned, so the editor adopts the new revision. */
   onChanged: (group: WriteGroup) => void;
   onConflict: () => void;
+  /**
+   * Hosts that own the reviewed scoped start supply this. A managed profile group is then taken live only there:
+   * its effective action goes to that start instead of applying on its own, and nothing starts until the operator does.
+   */
+  onReviewScopedStart?: (group: WriteGroup) => void;
 }
 
 /**
@@ -25,7 +31,7 @@ export interface GroupLifecycleBarProps {
  * server returned; deleting first shows what stays behind.
  */
 export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
-  group, workspaceId, workspaceRevision, canApply, applyBlockedReason, readonly, onChanged, onConflict,
+  group, workspaceId, workspaceRevision, canApply, applyBlockedReason, readonly, onChanged, onConflict, onReviewScopedStart,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const apply = useWriteGroupLifecycleMutation('apply');
@@ -45,6 +51,7 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   const delivery = useWriteGroupDeliveryQuery(group.id, confirmingDelete);
   const deleted = group.status === 'deleted';
   const busy = apply.isPending || disable.isPending || remove.isPending;
+  const routed = onReviewScopedStart !== undefined && managedProfileDeviceId(group) !== undefined;
 
   const run = async (mutation: typeof apply) => {
     if (busyRef.current) return;
@@ -82,10 +89,10 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
     <div className="space-y-3" data-testid="group-lifecycle">
       <div className="flex flex-wrap gap-2">
         <button
-          type="button" onClick={() => void run(apply)} disabled={readonly || busy || deleted || !canApply}
+          type="button" onClick={() => (routed ? onReviewScopedStart(group) : void run(apply))} disabled={readonly || busy || deleted || !canApply}
           className="rounded bg-emerald-600 px-3 py-1 text-xs text-white disabled:opacity-40" data-testid="group-apply"
         >
-          {t('step4.group.lifecycle.apply')}
+          {t(routed ? 'step4.group.lifecycle.review_start' : 'step4.group.lifecycle.apply')}
         </button>
         <button
           type="button" onClick={() => void run(disable)} disabled={readonly || busy || deleted || group.status === 'disabled'}
@@ -103,7 +110,7 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
       {!canApply && !deleted && applyBlockedReason && (
         <p className="text-xs text-amber-300" data-testid="group-apply-blocked">{applyBlockedReason}</p>
       )}
-      <p className="text-xs text-slate-500">{t('step4.group.lifecycle.apply_note')}</p>
+      <p className="text-xs text-slate-500" data-testid="group-apply-note">{t(routed ? 'step4.group.lifecycle.review_start_note' : 'step4.group.lifecycle.apply_note')}</p>
 
       {confirmingDelete && !deleted && (
         <div role="alertdialog" aria-label={t('step4.group.lifecycle.delete_title')} className="space-y-2 rounded border border-red-800 p-3 text-xs text-slate-200" data-testid="group-delete-confirm">

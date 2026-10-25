@@ -20,8 +20,8 @@ const SAFE_ERROR_ACTIONS = new Set([
 function byteLength(value: string): number {
   return typeof TextEncoder === 'undefined' ? value.length : new TextEncoder().encode(value).byteLength;
 }
-function cloneBoundedJson(value: unknown, depth: number): unknown | null {
-  if (depth > MAX_SAFE_JSON_DEPTH) return null;
+function cloneBoundedJson(value: unknown, depth: number, maxDepth: number): unknown | null {
+  if (depth > maxDepth) return null;
   if (value === null || typeof value === 'boolean') return value;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value === 'string') return value.length <= MAX_SAFE_JSON_STRING_LENGTH ? value : null;
@@ -29,7 +29,7 @@ function cloneBoundedJson(value: unknown, depth: number): unknown | null {
     if (value.length > MAX_SAFE_JSON_ARRAY_LENGTH) return null;
     const result: unknown[] = [];
     for (const item of value) {
-      const cloned = cloneBoundedJson(item, depth + 1);
+      const cloned = cloneBoundedJson(item, depth + 1, maxDepth);
       if (cloned === null && item !== null) return null;
       result.push(cloned);
     }
@@ -41,14 +41,14 @@ function cloneBoundedJson(value: unknown, depth: number): unknown | null {
   const result: Record<string, unknown> = {};
   for (const [key, item] of entries) {
     if (key.length > MAX_SAFE_JSON_STRING_LENGTH) return null;
-    const cloned = cloneBoundedJson(item, depth + 1);
+    const cloned = cloneBoundedJson(item, depth + 1, maxDepth);
     if (cloned === null && item !== null) return null;
     result[key] = cloned;
   }
   return result;
 }
 /** Parse untrusted JSON into a bounded, detached JSON value without throwing. */
-export function parseBoundedJson(value: unknown): unknown | null {
+export function parseBoundedJson(value: unknown, maxDepth: number = MAX_SAFE_JSON_DEPTH): unknown | null {
   if (typeof value === 'string' && byteLength(value) > MAX_SAFE_JSON_BYTES) return null;
   let parsed = value;
   if (typeof value === 'string') {
@@ -58,7 +58,7 @@ export function parseBoundedJson(value: unknown): unknown | null {
       return null;
     }
   }
-  return cloneBoundedJson(parsed, 0);
+  return cloneBoundedJson(parsed, 0, maxDepth);
 }
 /** Parse untrusted JSON input into a bounded plain object without throwing. */
 export function parseJsonRecord(value: unknown): Record<string, unknown> | null {

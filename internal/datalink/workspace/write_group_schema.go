@@ -14,6 +14,10 @@ import (
 
 const managedSQLiteSchemaName = "main"
 
+// managedTextColumnType is the exact-text column type: text itself, a SQLite
+// decimal and a SQLite unsigned 64-bit integer, none of which pass through a float.
+const managedTextColumnType = "TEXT"
+
 // ManagedSchemaScope resolves a preview entirely from the canonical saved
 // group and live source revisions. It performs no destination inspection.
 func (s *WriteGroupService) ManagedSchemaScope(ctx context.Context, id string, mutation WriteGroupMutation) (recordingplan.SchemaPreviewScope, error) {
@@ -71,8 +75,13 @@ func (s *WriteGroupService) ManagedSchemaScope(ctx context.Context, id string, m
 // start records the same digest at each checkpoint, so both must come from here.
 func managedSourceDigest(group *WriteGroup, tagTypes map[string]schema.DataType) (string, error) {
 	sources := []any{group.Members, tagTypes}
-	if group.isLongLayout() {
-		sources = append(sources, group.RecordingProfile, group.LayoutVersion, group.StorageMode)
+	switch group.EffectiveLayoutVersion() {
+	case WriteGroupLayoutManagedLongV1:
+		sources = append(sources, canonicalDigestProfile(group.RecordingProfile), group.LayoutVersion, group.StorageMode)
+	case WriteGroupLayoutManagedWideProfileV1:
+		// The new wide profile binds its profile and layout beside the member
+		// metadata; the legacy wide digest never carried them.
+		sources = append(sources, canonicalDigestProfile(group.RecordingProfile), group.LayoutVersion)
 	}
 	encoded, err := json.Marshal(sources)
 	if err != nil {
@@ -82,7 +91,29 @@ func managedSourceDigest(group *WriteGroup, tagTypes map[string]schema.DataType)
 	return hex.EncodeToString(digest[:]), nil
 }
 
+// canonicalDigestProfile pins the digest to the effective reduction: an
+// omitted reduction and an explicitly pinned latest are the same confirmed
+// scope, so both marshal without the key and a no-op edit never invalidates a
+// confirmation. A mean keeps the key and forces a fresh confirmation.
+func canonicalDigestProfile(profile *WriteGroupRecordingProfile) *WriteGroupRecordingProfile {
+	if profile == nil {
+		return nil
+	}
+	canonical := *profile
+	if canonical.EffectiveSampleReduction() == WriteGroupSampleReductionLatest {
+		canonical.SampleReduction = ""
+	}
+	return &canonical
+}
+
 func managedSchemaLayout(group *WriteGroup, types map[string]schema.DataType, dialect string) (*recordingplan.GroupSchemaLayout, error) {
+	if group.isWideProfile() && !WideProfileShapeSupported(group, types) {
+		// The wide profile layout is prepared only from frozen result types that
+		// are complete and verified; anything else is never given the legacy wide
+		// DDL as a stand-in.
+		return nil, fmt.Errorf("%w: the %s layout needs complete, verified recording facts",
+			ErrWriteGroupValidation, WriteGroupLayoutManagedWideProfileV1)
+	}
 	if group.isLongLayout() {
 		for _, member := range group.Members {
 			if _, ok := measurement.ExactTypeForTag(types[member.TagID]); !ok {
@@ -106,7 +137,11 @@ func managedSchemaLayout(group *WriteGroup, types map[string]schema.DataType, di
 	add(group.RowPolicy.EntityKeyColumn, "TEXT", false, false)
 	add(layout.OwnerColumn, "TEXT", false, false)
 	for _, member := range group.Members {
-		sqlType, ok := managedSQLType(types[member.TagID], dialect)
+		exact, ok := memberExactType(group, member, types)
+		if !ok {
+			return nil, fmt.Errorf("managed exact type is unsupported: %w", ErrWriteGroupValidation)
+		}
+		sqlType, ok := managedSQLType(exact, dialect)
 		if !ok {
 			return nil, fmt.Errorf("managed exact type is unsupported: %w", ErrWriteGroupValidation)
 		}
@@ -115,15 +150,19 @@ func managedSchemaLayout(group *WriteGroup, types map[string]schema.DataType, di
 	return layout, nil
 }
 
-func managedSQLType(typ schema.DataType, dialect string) (string, bool) {
-	exact, ok := measurement.ExactTypeForTag(typ)
-	if !ok {
-		return "", false
-	}
+// managedSQLType maps the exact type a column holds to its managed SQL type. A
+// decimal is exact text on SQLite and an unbounded NUMERIC on PostgreSQL, so a
+// mean never passes through a float column.
+func managedSQLType(exact measurement.ExactType, dialect string) (string, bool) {
 	postgres := dialect == writeGroupConnectorKindPostgres
 	switch exact {
+	case measurement.ExactDecimal:
+		if postgres {
+			return "NUMERIC", true
+		}
+		return managedTextColumnType, true
 	case measurement.ExactText:
-		return "TEXT", true
+		return managedTextColumnType, true
 	case measurement.ExactBool:
 		if postgres {
 			return "BOOLEAN", true
@@ -138,7 +177,7 @@ func managedSQLType(typ schema.DataType, dialect string) (string, bool) {
 		if postgres {
 			return "NUMERIC(20,0)", true
 		}
-		return "TEXT", true
+		return managedTextColumnType, true
 	case measurement.ExactFloat64:
 		if postgres {
 			return "DOUBLE PRECISION", true

@@ -1,22 +1,24 @@
-# Studio V2 迴路記錄：瞬時／累積 profile、長表與已審核的切換
+# Studio V2 迴路記錄：設備快照、量測長表與已審核的切換
 
-本文件說明 OpenSpec `add-circuit-recording-profiles` 在 Step 4 提供的操作與資料契約，供操作者與維護者對照。群組的 API、revision 與回復背景見 [studio-v2-write-groups.md](studio-v2-write-groups.md)；規格以 `openspec/changes/add-circuit-recording-profiles/specs/` 為準。
+本文件說明 `unify-device-recording-workflow` 在 Step 4 的操作與資料契約。群組的 API、revision 與回復背景見 [studio-v2-write-groups.md](studio-v2-write-groups.md)；規格以 `openspec/specs/` 中的 window-average-recording、write-group-row-semantics、guided-recording-workflow 及 datalink-workbench-v2-step4-database 為準。
 
 ## 範圍與限制
 
-- 目前資料庫支援 SQLite、PostgreSQL，以及只限 PostgreSQL 的明確 TimescaleDB 模式。MySQL／MariaDB／SQL Server 屬另外的待辦變更，這裡不涵蓋。
-- 本文件描述產品行為與資料契約，不含效能數字，也不代表 Windows、真實 PLC、瀏覽器 E2E 或完整資料庫矩陣已通過。這些是 OpenSpec 任務 5.1／5.2 的驗證範圍，驗證完成前不可引用為已通過。
-- 前端流程目前的證據是以 service 邊界模擬的元件測試；切換的 SQL 語意由後端 cutover 測試（SQLite 與 PostgreSQL）證明，兩者不可互相代替。
+- 本案涵蓋 SQLite、PostgreSQL plain，以及長表專用的 PostgreSQL TimescaleDB 模式；新寬表不支援 TimescaleDB。MySQL／MariaDB／SQL Server 由其他變更處理，不在本文件的寫入支援範圍。
+- 下方本機 SQL 與真瀏覽器證據，不代表 Windows、真 PLC、LAN 或正式資料庫驗收，也不提供效能保證。
+- service 模擬元件測試、正常 server 入口的真瀏覽器、SQL readback 與現場驗收是不同證據，不互相代替。
 
-## 為什麼新增長表：寬表與長表的差別
+## 先選用途，再設定型態與週期
 
-| | 既有寬表（`managed_wide_v1`） | 新長表（`managed_long_v1`） |
+| | 整台設備／迴路快照（`managed_wide_profile_v1`） | 指定量測項目（`managed_long_v1`） |
 | --- | --- | --- |
 | 資料表名 | `gw_group_` + 群組 ID 的雜湊 | `gw_long_` + 16 位十六進位，由 workspace、連線、資料庫、schema 與儲存模式的雜湊決定 |
 | 欄位 | 每個點位一個欄位，名稱為 `v_` + 裝置、點位、Tag 身分的雜湊；點位增加就增加欄位 | 固定 29 欄（28 個欄位 + 1 個擁有權標記欄 `_gw_owner_…`），與點位數量無關 |
 | 一列代表 | 一個群組在一個週期的一列 | 一個來源在一個記錄窗口的一列 |
 | 增加點位 | 需要結構變更 | 只增加列，不增加欄位、不為迴路另建表 |
 | 共用 | 一個群組一張表 | 同一 scope 的所有迴路與型態共用一張表 |
+
+兩種用途共用相同的瞬時／累積語意、來源角色及版本規則。既有 `managed_wide_v1` 與 custom 保留原布局、週期和缺值規則，不會因檢視或切換用途而自動遷移。
 
 長表的資料表名來自 scope，不是群組名稱，也不是點位數量。主鍵是 `(bucket_start, record_id)`，並有 `idx_<資料表名>_src_time`（`workspace_id, tag_id, bucket_start`）支援依來源與時間查詢。每列帶有 workspace、群組、版本、迴路、裝置、點位、Tag 身分、型態、窗口起迄、實際取樣時間、品質、狀態與 provenance；有效數值只填入對應的型別欄位（整數、decimal、float、bool、text），其他型別欄位為 NULL。
 
@@ -29,17 +31,35 @@
 
 API 必須帶型態對應的單位；缺少或不符的單位、小數、非有限值與超出範圍的值都會被拒絕（`profile_interval_invalid`）。已儲存的舊週期不會被改動。記錄週期獨立於設備採集與傳輸寫入頻率：採集比記錄週期慢時，沒有樣本的窗口會顯示為缺值，不會重複寫入舊讀值。
 
+## 算術平均與既有 latest
+
+新建瞬時記錄預設每 15 秒取算術平均，包括切換流程中準備的新目標。只有數值型 gauge 參與平均：同一窗口的 10、20、30 得到 20；同一 SampleID 重送不重複計數，壞值、過期、窗外與已閉窗後的晚到資料不進分母。不插值、不補零、不沿用上一窗口的值，也不改採集頻率。窗口採 UTC 半開區間，邊界樣本歸下一窗；已審核切換使用實際截斷範圍。
+
+整數來源的平均結果是獨立的 decimal，不改 Tag 型別。`9007199254740992` 與 `9007199254740993` 的平均是精確文字 `9007199254740992.5`。循環小數最多保留 18 位，以 half-even 捨入；provenance 保留 exact sum、count、scale 和 rounding。float 平均明示 `basis=float64`，不宣稱任意精確。不相容的整數結果欄位會被阻擋，不會截去小數。
+
+既有未保存 `sample_reduction` 的群組仍讀為 `latest`。重新載入、切換設備或 Basic／Advanced 不會改成平均；改 mean 必須明確建立相容的新 revision，重新確認並套用。
+
+## 缺值與覆蓋率
+
+- 沒有可用觀測時保存 NULL／missing，不表示零，也不能直接推論斷線。
+- 有可用值但伴隨已知失敗或截斷時，保留結果並顯示 partial 與實際原因。
+- 有樣本與筆數、沒有整窗完整性證據時，覆蓋率是 unknown；不能由「沒有錯誤」推論 complete 或 100%。
+- 新寬表預設來源為 optional、採 partial：部分或全部缺值均可保存支援的 NULL 欄及逐來源證據。明設 required 的來源缺值時，仍依整列規則跳列並留下原因；長表則每個來源各自記錄。
+- 狀態畫面的唯讀來源證據，從同一已套用版本的凍結 layout、payload 與匹配 receipt 投影方法、筆數、型別與覆蓋率。證據缺失或不符時顯示不可用，不回傳歷史數值。
+
 ## 來源選擇
 
 - 瞬時與累積各自獨立選來源，同一迴路的兩個型態可以使用不同來源。
 - 系統不會用名稱或單位猜測來源身分，也不會把 raw Tag 自動當成計量值。未指派迴路的 raw Tag 仍可選，不會被賦予迴路或量測身分。
 - 累積型態需要已確認的計量語意（counter）。Signed 與 rollover 政策在進階的來源設定確認，未確認時不會產生負差或補償圈數。
+- numeric gauge 取平均；bool／text 的 state 取最新可用值；已確認的 counter_raw 也保留最新原值，不參與平均。同一計數器可同時加入瞬時與累積，各用自己的週期與基準。
+- 來源預設顯示數量摘要，展開後在清單內捲動；收合不會隱藏失聯身分、來源修復或 counter 確認阻擋。
 
 ## 原始值、差值、首筆未知、重置與缺窗
 
-每一筆累積記錄保留最新可用的原始讀值，並附上 `delta_value`、實際的 `delta_from`／`delta_to`、取樣 provenance 與計算狀態。
+累積記錄保留最新可用的原始讀值。長表使用 `delta_value`、`delta_from`／`delta_to`；新寬表的值欄保存 raw，每個來源的 `provenance.counter` 保存精確文字 `delta`、實際 `delta_from`／`delta_to`、status 與政策。兩者重用既有 counter 計算與同交易 checkpoint，不另寫差值公式。
 
-- **首筆**：第一個可用窗口只存原始值，差值為 NULL，狀態為 baseline；它的最後可靠讀值成為下一窗口的基準。
+- **首筆**：第一個可用窗口只存原始值，狀態為 baseline；長表差值為 NULL，寬表 counter 不帶可計算的 delta。最後可靠讀值成為下一窗口基準，未知差值不能讀成零。
 - **重置或不確定**：非 signed 計數器的無法解釋下降，差值為 NULL（`reset_or_uncertain`），原始值與事件仍保留。例：窗口內讀到 100、10、110，保留 110，差值為 NULL。
 - **Signed**：只有明確確認為 signed 的計數器才接受負差。
 - **Rollover**：需要設定模數、有效範圍與足以排除多次回繞的速率／時間上限，才會補償；證據不足時差值為 NULL。
@@ -49,18 +69,19 @@ API 必須帶型態對應的單位；缺少或不符的單位、小數、非有�
 
 ## 進階與工作區的角色
 
-- **基本設定**：選型態、來源與週期、準備資料表並開始記錄；連線設定只管連線身分，不是另一個週期或寫入模式的來源。
+- **基本設定**：用設備 ID 綁定的方塊選設備，再選用途、型態、來源與週期、準備資料表並開始記錄。同名或同位址仍是不同設備；Tab、Space、Enter 可操作。切換只換檢視範圍，不建立、套用或啟停群組。草稿與未明結果依 workspace／device 隔離，可在重新載入後恢復；連線設定不是另一個週期入口。
 - **進階**：編輯同一份已儲存 profile 的 canonical 來源對應、custom 版面，以及已確認的 signed／rollover 政策。它不是另一種資料表格式，也沒有獨立的記錄週期。
-- **工作區**：集中檢視已儲存群組的整體 readiness 與啟動範圍。
+- **工作區**：唯讀檢視已儲存群組的整體 readiness 與套用狀態，沒有另一個全域啟用入口。適用受管群組的 Advanced 生效動作回到同一個 Basic 設備／群組審核入口；custom 與既有工程生命週期 API 保留。
 - 儲存設定不等於套用，也不等於開始記錄；已套用的版本持續寫入，直到套用新版本。取消勾選基本設定中的 profile 只改變草稿，已套用的寫入器要在進階的群組生命週期停用（依已儲存的版本檢查）。
 
 ## 準備、確認、開始與狀態
 
 1. **準備**：預覽是唯讀的，顯示將建立的資料表與索引。
 2. **確認**：每個群組各自做明確的資料表結構確認，綁定當下的 workspace、群組與連線版本。共用長表中新增來源的群組，即使預覽沒有任何 DDL，也要有自己的新確認；其他群組的確認與套用快照不受影響。
-3. **開始**：確認後才套用並啟動。
+3. **開始**：確認後，只套用並啟動目前審核的設備與群組。A 成功不要求未準備的 B 一起完成，也不會啟停未選取的 B；採集已在運作仍不等於資料庫記錄已開始。
+4. **回應遺失**：保留原 request ID 與群組意圖。切換設備或重新載入不會將它套到其他設備；查詢原操作或明確重送同一要求，不另建啟動意圖或版本。
 
-狀態分開呈現：已儲存、已套用、收集中、本機已持久化、SQL 已提交、讀回已驗證。SQL 寫入成功不保證差值已可計算。
+狀態分開呈現：已儲存、已套用、採集中、本機已持久化、SQL 已提交。SQL receipt 不會自動變成「已做外部 SQL 讀回驗證」，也不保證 counter 差值已可計算。SQL 重送沿用凍結 payload digest 與 effect，不重新計算平均或推進 counter 基準。
 
 ## 儲存模式與缺表重建
 
@@ -70,14 +91,14 @@ API 必須帶型態對應的單位；缺少或不符的單位、小數、非有�
 
 ## 與既有寫入器共存
 
-既有的 wide 與 custom 群組保留原本的身分、版面、週期、完整性政策與執行方式，直到明確的已審核切換；Basic 與 Advanced 的切換、重新載入或檢視都不會新增或改寫任何設定。長表群組若要記錄一個仍由執行中群組負責的來源，一般「套用」會被拒絕（`cutover_required`，HTTP 409），必須走下面的切換。
+既有的 wide 與 custom 群組保留原本的身分、版面、週期、完整性政策與執行方式，直到明確的已審核切換；Basic 與 Advanced 的切換、重新載入或檢視都不會新增或改寫任何設定。新長表或新寬表型態若要接手仍由執行中群組負責的同型態來源，一般「套用」會被拒絕（`cutover_required`，HTTP 409），必須走下面的切換；換 ID 或重送 Ensure 不能繞過既有 owner。
 
-## 準備長表目標與已審核的切換
+## 準備目標與已審核的切換
 
 整個流程中，目前的寫入器持續運作，直到邊界時間。
 
-1. **準備目標**：在基本設定的舊面板選「為已審核的切換準備長表目標」。這是只準備的情境：自己選型態、來源與週期，不會複製舊群組的任何設定；不會套用、啟動、停止或移除任何群組。確認資料表結構是明確的資料庫步驟，與套用群組不同。按「回到目前的記錄」會回到原面板，已儲存的目標保留為草稿。
-2. **選擇與審核**：在進階的群組區塊找到「把來源切換到長表」，選擇目前的群組、已準備的長表目標與未來的邊界時間，按「審核差異」。審核是唯讀的，顯示名稱、版面、儲存、週期、目的地資料表、結構是否已確認、來源清單與移動／保留的來源。
+1. **準備目標**：在基本設定的舊面板選「為已審核的切換準備記錄目標」。這是只準備的情境：自己選寬表／長表用途、型態、來源與週期，不會複製舊群組的任何設定；不會套用、啟動、停止或移除任何群組。新瞬時目標預設 mean，舊 writer 不變。確認資料表結構是明確的資料庫步驟，與套用群組不同。關閉後目標保留為草稿。
+2. **選擇與審核**：在進階的群組區塊找到「把來源切換到已準備的目標」，選擇目前的群組、已準備的受管 profile 目標與未來邊界時間，按「審核差異」。審核是唯讀的，顯示名稱、布局、儲存、週期、目的地資料表、結構確認狀態、來源清單與移動／保留的來源；新寬表目標仍須有完整的型別、來源與目的地 proof。
 3. **確認**：確認時送出的是審核回傳的邊界文字（保留微秒）與審核摘要，以及審核當下的 workspace、來源、目標與連線版本。選取項目、邊界或任一已儲存群組在審核後改變，審核即過期，必須重新審核；確認鈕不會用舊的審核摘要搭配新的版本。
 4. **部分來源**：未被目標涵蓋的來源不會被悄悄移走。後端要求目前群組已儲存、且恰好保留這些來源的草稿；請先在群組編輯器中自行編輯，面板只提供開啟該群組的入口，並不修改成員或政策。
 5. **邊界語意**：邊界時間是不可變的。目前群組的窗口在邊界截斷並標為 partial；新窗口從邊界開始，到下一個對齊窗界，同樣標為 partial。同一來源的同一時間只屬於一個生效版本。目前群組已接受的資料依原目的地送完；新的累積型態從邊界後第一窗重新建立 baseline。
@@ -86,7 +107,7 @@ API 必須帶型態對應的單位；缺少或不符的單位、小數、非有�
 
 ## 回復
 
-在同一個面板選「回復一次切換」，選擇一筆已記錄且尚未回復的切換，輸入新的未來邊界，審核後確認。回復使用新的邊界與新的審核摘要，不重用舊的；不刪除或改寫歷史、不補寫舊資料表、不刪除長表；已被長表接受的資料仍寫入它自己的資料表；兩邊的歷史都保留。被恢復的群組是否就緒，由後端判斷（restored_group_not_ready）。
+在同一個面板選「回復一次切換」，選擇一筆已記錄且尚未回復的切換，輸入新的未來邊界，審核後確認。回復使用新的邊界與新的審核摘要，不重用舊的；不刪除或改寫歷史、不補寫舊資料表、不刪除目標表。目標已接受的資料仍寫入原目的地，兩邊歷史都保留。被恢復的群組是否就緒，由後端判斷（restored_group_not_ready）。
 
 ## 查詢範例
 
@@ -103,8 +124,25 @@ ORDER BY bucket_start;
 
 uint64 與 decimal 請以資料庫的精確型別或文字讀出（例如 `value_int::text`），不要在 JavaScript 以 Number 轉換；那會失去精確度。
 
+新寬表的每個來源各占一個 provenance 元素。以下是 SQLite 的唯讀範例；baseline 的 delta 路徑不存在時回傳 NULL，不能補成零：
+
+```sql
+SELECT g.record_id, g.bucket_start,
+       json_extract(m.value, '$.member') AS source_identity,
+       json_extract(m.value, '$.mean.coverage') AS mean_coverage,
+       json_extract(m.value, '$.counter.status') AS counter_status,
+       json_extract(m.value, '$.counter.delta') AS exact_delta,
+       json_extract(m.value, '$.counter.delta_from') AS delta_from,
+       json_extract(m.value, '$.counter.delta_to') AS delta_to
+FROM "<wide_table>" AS g, json_each(g.provenance) AS m
+WHERE g.group_id = '<group-id>'
+ORDER BY g.bucket_start;
+```
+
 ## 驗證證據與限制
 
-- 前端：元件測試覆蓋入口、準備情境、審核／過期／確認、拒絕、回應遺失與回復的送出內容（`circuit-profile-migration-prepare.test.tsx`、`circuit-profile-cutover.test.tsx`、`circuit-profile-compatibility.test.tsx`），使用模擬的 service，不是真實 SQL。
-- 後端：`TestProfileLegacyCoexistence` 與既有 cutover 測試在可丟棄的 SQLite 與 PostgreSQL 上驗證共存、`cutover_required`、共用長表的個別確認與 stale 版本。
-- 尚未完成：真實瀏覽器驗證（5.2）、SQLite／plain PostgreSQL／TimescaleDB 的整合矩陣（5.1）、Windows 與設備環境。
+- SQL：`TestDeviceRecordingIntegration` 已實跑新 wide/plain SQLite、PostgreSQL，新 mean long/plain SQLite、PostgreSQL，以及既有 long Timescale。核對 20／1.5／9007199254740992.5、NULL／partial／unknown、counter baseline／delta／reset／gap、匹配 receipt、凍結 effect 與 cleanup；Timescale 另查實際 hypertable、時間維度及 chunks，沒有新增 wide Timescale。
+- 耐久與歷史：`TestAverageCommitAckLost`、`TestProfileCommitAckLost`、`TestReviewedWideMeanTransition` 與 `TestWideToLongCutover` 提供實際重送及歷史目的地證據。這些是分開的代表案例，不宣稱每種故障與每個 SQL 模式都做了全組合測試。
+- 真瀏覽器：`frontend/tests/e2e/device-recording-workflow.spec.ts` 使用正常 server、loopback 模擬設備及自有 SQLite。已實跑 1024×720／1600×1000 的原生鍵盤、同名設備草稿／迴路隔離、32 來源收合／內捲動、counter 確認、兩用途、明確 DDL 確認及單一 scoped 開始。後端真提交後只中斷 HTTP 回應，切 B／reload 後重送原 request，核對同一操作／版本；三群組的 SQL、outbox、receipt 對同一 applied revision，並產出兩尺寸截圖。
+- 重跑 E2E 必須明確提供 `DEVICE_RECORDING_E2E_FIXTURE`：manifest 指定全新、自有、預先由正式 Step 1–3 API 設定的 workspace、兩設備、來源、SQLite 連線與資料庫路徑。初始記錄群組必須為空；未提供 fixture 會標示 NOT RUN，不會重設現有資料。不得指向正式 DB／設備。
+- 未完成的環境驗收：Windows、真 PLC、LAN 與正式資料庫。元件測試不替代真瀏覽器，SQL receipt 不替代外部 readback，以上也不代表現場驗收。

@@ -54,6 +54,9 @@ function cloneWriteGroupDraft(draft: WriteGroupDraft): WriteGroupDraft {
       ...(member.max_age_seconds !== undefined ? { max_age_seconds: member.max_age_seconds } : {}),
       ...(member.circuit_id ? { circuit_id: member.circuit_id } : {}),
       ...(member.circuit_name ? { circuit_name: member.circuit_name } : {}),
+      ...(member.value_role !== undefined ? { value_role: member.value_role } : {}),
+      ...(member.source_value_type !== undefined ? { source_value_type: member.source_value_type } : {}),
+      ...(member.result_value_type !== undefined ? { result_value_type: member.result_value_type } : {}),
     })),
     destination: {
       connector_id: draft.destination.connector_id,
@@ -200,7 +203,7 @@ export const studioV2WorkspaceWriteGroupsAPI = {
     const res = await studioV2DatalinkApi.get<unknown>(
       `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}/delivery`,
     );
-    return parseWriteGroupAPIData(res.data, 'write-group delivery', parseWriteGroupDeliveryData);
+    return parseWriteGroupAPIData(res.data, 'write-group delivery', parseWriteGroupDeliveryData, 7);
   },
 
   async resolveDelivery(id: string, request: DeliveryDecision): Promise<DeliveryDecisionResult> {

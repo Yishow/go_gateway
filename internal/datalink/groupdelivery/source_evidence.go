@@ -73,14 +73,27 @@ type SourceScope struct {
 	// this destination; an editable draft's destination is never consulted.
 	ConnectorID       string
 	ConnectorRevision string
+	// Wide marks a managed_wide_profile_v1 group, whose one row per window carries every source. The columns and
+	// the window length are the ones the applied layout froze, so the payload is read the way it was written.
+	Wide                                                                bool
+	IntervalSeconds                                                     int
+	RecordKeyColumn, GroupIDColumn, BucketStartColumn, ProvenanceColumn string
 }
 
-// SourceRef is one applied source of a long group.
+// SourceRef is one applied source of a managed group with what the applied layout froze about it. The recording
+// facts are what a record's own evidence is checked against: a record that merely agrees with itself proves nothing.
 type SourceRef struct {
 	CircuitID string
 	DeviceID  string
 	PointID   string
 	TagID     string
+	// Column is the wide column that holds the source; Reduction, Role, SourceType and ResultType are the frozen
+	// recording facts (empty for a group saved before they existed).
+	Column     string
+	Reduction  string
+	Role       string
+	SourceType string
+	ResultType string
 }
 
 // VerifiedSourceRecord holds the value-free result of a record whose frozen payload was verified.
@@ -96,6 +109,8 @@ type VerifiedSourceRecord struct {
 	Status            SourceStatus `json:"status"`
 	Reason            string       `json:"reason,omitempty"`
 	RawPresent        bool         `json:"raw_present"`
+	// Aggregation is the verified evidence of a mean window: method, counts and coverage, never a value.
+	Aggregation *SourceAggregation `json:"aggregation,omitempty"`
 	// DeltaKnown is set for cumulative records only; false is an unknown difference, never zero.
 	DeltaKnown *bool `json:"delta_known,omitzero"`
 	// CommittedAt is set only when the destination receipt matched this payload.
@@ -138,7 +153,12 @@ func (s *Store) SourceRecords(ctx context.Context, scope SourceScope, ref Source
 	if scope.WorkspaceID == "" || scope.GroupID == "" || scope.GroupRevision == "" || scope.ConnectorID == "" || scope.ConnectorRevision == "" {
 		return out, ErrInvalidGroupKey
 	}
-	partition := partitionKey(GroupKey{GroupID: scope.GroupID}, SourceEntityKey(ref.DeviceID, ref.PointID, ref.TagID))
+	// A long source has its own partition; a wide group has one row per window and so one partition.
+	entity := SourceEntityKey(ref.DeviceID, ref.PointID, ref.TagID)
+	if scope.Wide {
+		entity = ""
+	}
+	partition := partitionKey(GroupKey{GroupID: scope.GroupID}, entity)
 	latest, err := s.sourceRows(ctx, scope, partition, "", 1)
 	if err != nil {
 		return out, err

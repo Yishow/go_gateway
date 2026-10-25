@@ -3,9 +3,12 @@ import type {
   WriteGroupDraft,
   WriteGroupLayoutVersion,
   WriteGroupRecordingProfile,
+  WriteGroupResultValueType,
   WriteGroupStorageMode,
   WriteGroupStorageStrategy,
+  WriteGroupValueRole,
 } from '../../../../../types/studioV2WriteGroup';
+import type { DataType } from '../../../../../types/datalink';
 import { isValidRecordingProfile, recordingProfileIntervalSeconds } from '../../../../../utils/studioV2RecordingProfile';
 import { findColumnConflicts } from './columns';
 
@@ -26,6 +29,10 @@ export interface EditorMember {
   /** Persisted circuit identity of a profile group; the editor carries it unchanged. */
   circuit_id?: string;
   circuit_name?: string;
+  /** Persisted member role and value types of a profile group; carried unchanged, never decided here. */
+  value_role?: WriteGroupValueRole;
+  source_value_type?: DataType;
+  result_value_type?: WriteGroupResultValueType;
 }
 
 export interface EditorDraft {
@@ -98,6 +105,9 @@ export function groupToDraft(group: WriteGroup): EditorDraft {
       ...(member.max_age_seconds !== undefined ? { max_age_seconds: member.max_age_seconds } : {}),
       ...(member.circuit_id !== undefined ? { circuit_id: member.circuit_id } : {}),
       ...(member.circuit_name !== undefined ? { circuit_name: member.circuit_name } : {}),
+      ...(member.value_role !== undefined ? { value_role: member.value_role } : {}),
+      ...(member.source_value_type !== undefined ? { source_value_type: member.source_value_type } : {}),
+      ...(member.result_value_type !== undefined ? { result_value_type: member.result_value_type } : {}),
     })),
     ...(group.layout_version !== undefined ? { layout_version: group.layout_version } : {}),
     ...(group.recording_profile !== undefined ? { recording_profile: { ...group.recording_profile } } : {}),
@@ -129,6 +139,9 @@ export function draftToRequestGroup(draft: EditorDraft, workspaceId: string): Wr
       ...(member.max_age_seconds !== undefined ? { max_age_seconds: member.max_age_seconds } : {}),
       ...(member.circuit_id !== undefined ? { circuit_id: member.circuit_id } : {}),
       ...(member.circuit_name !== undefined ? { circuit_name: member.circuit_name } : {}),
+      ...(member.value_role !== undefined ? { value_role: member.value_role } : {}),
+      ...(member.source_value_type !== undefined ? { source_value_type: member.source_value_type } : {}),
+      ...(member.result_value_type !== undefined ? { result_value_type: member.result_value_type } : {}),
     })),
     destination: {
       connector_id: draft.connector_id, connector_revision: draft.connector_revision,

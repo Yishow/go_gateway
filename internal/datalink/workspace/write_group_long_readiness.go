@@ -134,6 +134,46 @@ func longRuntimeUnavailableIssue(groupID string) ReadinessIssue {
 	)
 }
 
+// recordingReductionUnsupported reports a group whose saved recording shape
+// the runtime cannot serve yet: an explicit mean, the new wide profile layout,
+// or any member recording metadata has no averaging or typed writer proof, so
+// the saved group stays draft and no writer may start from it. An omitted or
+// latest reduction without new metadata keeps the existing writable path.
+func recordingReductionUnsupported(group *WriteGroup, tagTypes map[string]schema.DataType) bool {
+	if group.isWideProfile() {
+		// The wide profile is served only when its frozen facts are verified; a
+		// cumulative wide profile and any partial or contradictory shape stay closed.
+		return !WideProfileShapeSupported(group, tagTypes)
+	}
+	if !group.isLongLayout() {
+		if group.RecordingProfile != nil && group.RecordingProfile.EffectiveSampleReduction() == WriteGroupSampleReductionMean {
+			return true
+		}
+		for i := range group.Members {
+			if memberMetadataUnsupported(&group.Members[i]) {
+				return true
+			}
+		}
+		return false
+	}
+	// A long shape is writable only when its frozen recording metadata is fully
+	// verified against the real tag types; anything partial fails closed.
+	return !LongRecordingShapeSupported(group, tagTypes)
+}
+
+// recordingReductionUnavailableIssue keeps a saved recording shape from being
+// read as a ready writer when its reduction, member recording metadata or
+// layout is not supported or cannot be verified. A verified mean long shape is
+// supported; the same issue also appears beside the other issues of a group
+// whose validation failed, because its frozen facts cannot be verified then.
+func recordingReductionUnavailableIssue(groupID string) ReadinessIssue {
+	return writeGroupReadinessIssue(
+		"recording-reduction-unavailable",
+		"the recording reduction, member recording metadata or layout is not supported or cannot be verified; the saved group cannot start a writer",
+		groupID,
+	)
+}
+
 // counterSemanticsRequiredIssue blocks a cumulative group whose source has no
 // saved measurement to confirm that it is a counter.
 func counterSemanticsRequiredIssue(groupID string) ReadinessIssue {

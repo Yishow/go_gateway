@@ -37,6 +37,20 @@ type longCounterProvenance struct {
 	// EventsOmitted counts the ones the bound dropped.
 	Events        []longCounterEvent `json:"events,omitempty"`
 	EventsOmitted int                `json:"events_omitted,omitempty"`
+
+	// The fields below are set only by a wide row, which has no delta, status,
+	// unit or series columns of its own: its provenance keeps the window's status,
+	// the typed exact difference with the actual readings it spans, and the
+	// measurement evidence they rest on. A long record leaves them empty and keeps
+	// those facts in its columns, so its JSON is unchanged.
+	Status        string `json:"status,omitempty"`
+	Reason        string `json:"reason,omitempty"`
+	Delta         string `json:"delta,omitempty"`
+	DeltaFrom     string `json:"delta_from,omitempty"`
+	DeltaTo       string `json:"delta_to,omitempty"`
+	Unit          string `json:"unit,omitempty"`
+	SeriesEpoch   string `json:"series_epoch,omitempty"`
+	MeasurementID string `json:"measurement_id,omitempty"`
 }
 
 // longCounterEvent is one aggregation.CounterEvent with its exact readings as
@@ -93,13 +107,13 @@ func deltaDecimal(value measurement.ExactValue) (measurement.ExactValue, error) 
 	return value, nil
 }
 
-func counterProvenance(member LongRowMember, counter *aggregation.CounterWindowResult) *longCounterProvenance {
-	if member.Counter == nil {
+func counterProvenance(binding *aggregation.CounterBinding, counter *aggregation.CounterWindowResult) *longCounterProvenance {
+	if binding == nil {
 		return nil
 	}
 	entry := &longCounterProvenance{
-		Kind: string(member.Counter.Kind), DefinitionRevision: member.Counter.DefinitionRevision,
-		SourceBindingRevision: member.Counter.SourceBindingRevision, ProfileRevision: member.Counter.ProfileRevision,
+		Kind: string(binding.Kind), DefinitionRevision: binding.DefinitionRevision,
+		SourceBindingRevision: binding.SourceBindingRevision, ProfileRevision: binding.ProfileRevision,
 	}
 	if counter.Raw != nil && counter.Raw.Value.Type() == measurement.ExactDecimal {
 		entry.RawText, _ = counter.Raw.Value.DecimalDigits()
@@ -109,11 +123,11 @@ func counterProvenance(member LongRowMember, counter *aggregation.CounterWindowR
 		entry.BaselineSampleID, entry.EndSampleID = counter.Delta.BaselineSampleID, counter.Delta.EndSampleID
 		entry.SpanTotal = counter.Delta.Span
 	}
-	if member.Counter.RolloverModulus != nil {
-		entry.RolloverModulus, _ = member.Counter.RolloverModulus.CanonicalDigits()
+	if binding.RolloverModulus != nil {
+		entry.RolloverModulus, _ = binding.RolloverModulus.CanonicalDigits()
 	}
-	if member.Counter.MaxRatePerSecond != nil {
-		entry.MaxRatePerSecond, _ = member.Counter.MaxRatePerSecond.CanonicalDigits()
+	if binding.MaxRatePerSecond != nil {
+		entry.MaxRatePerSecond, _ = binding.MaxRatePerSecond.CanonicalDigits()
 	}
 	for _, event := range counter.Events {
 		entry.Events = append(entry.Events, longCounterEvent{
@@ -123,6 +137,30 @@ func counterProvenance(member LongRowMember, counter *aggregation.CounterWindowR
 		})
 	}
 	entry.EventsOmitted = counter.EventsOmitted
+	return entry
+}
+
+// wideCounterProvenance is the counter object of one member of a wide row: the
+// shared cumulative evidence of counterProvenance plus the status, the typed exact
+// difference as digits, its actual bounds and the measurement evidence. A window
+// without a trustworthy difference leaves the delta and its bounds out; it never
+// writes a zero.
+func wideCounterProvenance(binding *aggregation.CounterBinding, counter *aggregation.CounterWindowResult) *longCounterProvenance {
+	if counter == nil {
+		return nil
+	}
+	entry := counterProvenance(binding, counter)
+	if entry == nil {
+		return nil
+	}
+	entry.Status, entry.Reason = string(counter.Status), counter.Reason
+	entry.Unit, entry.SeriesEpoch, entry.MeasurementID = binding.Unit, binding.SeriesEpoch, binding.MeasurementID
+	if counter.Delta != nil {
+		if digits, err := deltaDecimal(counter.Delta.Value); err == nil {
+			entry.Delta, _ = digits.DecimalDigits()
+			entry.DeltaFrom, entry.DeltaTo = eventTime(counter.Delta.From), eventTime(counter.Delta.To)
+		}
+	}
 	return entry
 }
 

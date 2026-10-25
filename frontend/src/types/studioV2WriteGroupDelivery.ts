@@ -99,6 +99,24 @@ export type WriteGroupSourceStatus = 'ok' | 'partial' | 'baseline' | 'missing' |
 export type WriteGroupSourceDelivery = 'queued' | 'retrying' | 'blocked' | 'quarantined' | 'unknown' | 'sql_committed' | 'operator_skipped';
 export type WriteGroupSourceUnavailableCause = 'payload_invalid' | 'digest_mismatch' | 'identity_mismatch' | 'status_unknown' | 'window_invalid';
 
+/**
+ * Value-free evidence of a mean window, verified against what the applied layout froze for the source: the method, the
+ * actual counts and the coverage. Coverage is never complete (no stored proof can back it) and never a percentage.
+ */
+export interface WriteGroupSourceAggregation {
+  method: 'arithmetic-mean';
+  version: string;
+  basis: 'exact' | 'float64';
+  /** The Tag's own type and the type the mean is stored as are separate facts. */
+  source_type: string;
+  result_type: string;
+  valid_count: number;
+  rejected_count: number;
+  coverage: 'partial' | 'unknown' | 'missing';
+  /** A stable typed code, or `reason_unavailable` when the stored reason is not a known code. */
+  reason?: string;
+}
+
 /** A value-free, verified result read from the frozen outbox payload of one source and window. */
 export interface WriteGroupSourceRecord {
   available: true;
@@ -115,6 +133,8 @@ export interface WriteGroupSourceRecord {
   /** A stable typed code, or `reason_unavailable` when the stored reason is not a known code. */
   reason?: string;
   raw_present: boolean;
+  /** Present on the window of a mean source only. */
+  aggregation?: WriteGroupSourceAggregation;
   /** Cumulative records only: whether a trustworthy difference was stored. Unknown is not zero. */
   delta_known?: boolean;
   delivery: WriteGroupSourceDelivery;

@@ -28,13 +28,12 @@ interface CommitSummaryProps {
   groupSummary: { state: 'loading' | 'error' | 'ready'; total: number; applied: number };
   readinessSummary?: StudioV2WorkspaceReadinessSummary | null;
   configurationSaved?: boolean;
-  onActivate: () => void;
   onNavigateStep?: (step: WorkspaceReadinessStepNumber) => void;
 }
 
 /**
- * 提交前設定摘要與啟動按鈕元件
- * 落地需求：「Commit sequence and animation」之觸發與摘要區塊
+ * 設定與 readiness 的狀態總覽。它不提供任何啟動入口：錄製只從已審核的設備範圍開始，
+ * 全域啟動 API 只留給明確呼叫它的舊呼叫端。
  */
 export function CommitSummary({
   deviceCount,
@@ -45,7 +44,6 @@ export function CommitSummary({
   groupSummary,
   readinessSummary,
   configurationSaved = false,
-  onActivate,
   onNavigateStep,
 }: CommitSummaryProps) {
   const { t } = useTranslation('workbench-v2');
@@ -63,7 +61,6 @@ export function CommitSummary({
   const blockingIssues = groupWorkspaceReadinessIssues(readinessSummary?.issues ?? [])
     .filter((group) => group.issue.severity === 'blocking')
     .slice(0, 3);
-  const isSubmitDisabled = hasReadinessBlocker;
 
   return (
     <div className="bg-gray-900/10 border border-gray-800 rounded-2xl p-6 flex flex-col justify-between h-full backdrop-blur-sm">
@@ -148,27 +145,6 @@ export function CommitSummary({
                 : groupSummary.applied === 0
                   ? t('step4.group.summary.saved_not_applied', { count: groupSummary.total })
                   : t('step4.group.summary.applied', { applied: groupSummary.applied, total: groupSummary.total })}
-        </p>
-
-        {/* 寬版啟動按鈕 */}
-        <button
-          type="button"
-          disabled={isSubmitDisabled}
-          onClick={onActivate}
-          className={`
-            w-full py-3 px-4 rounded-xl font-medium text-sm text-center transition-all duration-200 flex items-center justify-center gap-2
-            ${isSubmitDisabled
-              ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-800/20'
-              : 'bg-blue-600 hover:bg-blue-500 text-white cursor-pointer shadow-lg shadow-blue-600/10 hover:shadow-blue-500/20 active:scale-[0.98]'
-            }
-          `}
-        >
-          <span>🚀</span>
-          {t('step4.activate_btn')}
-        </button>
-
-        <p className="text-[10px] text-gray-500 text-center leading-normal select-none">
-          {t('step4.activate_info')}
         </p>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Step4Database } from '../../../src/features/datalink/workbench-v2/steps/step4/Step4Database';
 import { useStep4Activation } from '../../../src/features/datalink/workbench-v2/steps/step4/useStep4Activation';
@@ -128,46 +128,19 @@ describe('Step 4 evidence boundaries', () => {
     expect(screen.queryByTestId('activation-delivery-status')).not.toBeInTheDocument();
   });
 
-  it('keeps an earlier active device navigable without confirming an empty new attempt', async () => {
-    const onCommit = vi.fn();
-    const activate = vi.fn().mockResolvedValue({ workspace_id: 'workspace-1', results: [] });
-    const state = { ...savedState, devices: savedState.devices.map((device) => ({ ...device, running: true })) };
-    render(<Step4Database state={state} dispatch={vi.fn()} activateWorkspace={activate} onCommit={onCommit} />);
-    fireEvent.click(screen.getByText('step4.activate_btn'));
-    expect(await screen.findByTestId('activation-empty-message')).toHaveAttribute('data-outcome', 'unconfirmed');
-    expect(screen.getByTestId('activation-delivery-status')).toHaveTextContent('step4.activation_delivery_unconfirmed');
-    expect(screen.queryByTestId('activation-results-card')).not.toBeInTheDocument();
-    const handoff = screen.getByText('step4.go_to_dashboard_btn');
-    fireEvent.click(handoff);
-    fireEvent.click(handoff);
-    expect(onCommit).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps delivery unconfirmed after an acknowledgement and does not rewrite saved device status', async () => {
+  it('shows an earlier activation only as read-back status and never starts a new attempt from this page', async () => {
+    const activate = vi.fn().mockResolvedValue({ workspace_id: 'workspace-1', results: [{ device_id: 'd-1', status: 'success' }] });
+    const recover = vi.fn().mockResolvedValue({
+      workspace_id: 'workspace-1', devices: [{ device_id: 'd-1', running: true }], operation_id: 'op-existing',
+    });
     const dispatch = vi.fn();
-    const activate = vi.fn().mockResolvedValue({
-      workspace_id: 'workspace-1', results: [{ device_id: 'd-1', status: 'success' }],
-    });
-    render(<Step4Database state={savedState} dispatch={dispatch} activateWorkspace={activate} />);
-    dispatch.mockClear();
-    fireEvent.click(screen.getByText('step4.activate_btn'));
-    expect(await screen.findByTestId('activation-results-card')).toHaveAttribute('data-outcome', 'confirmed');
-    expect(screen.getByTestId('activation-delivery-status')).toHaveTextContent('step4.activation_delivery_unconfirmed');
-    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'updateDevice' }));
-  });
-
-  it('retains each rejection when all devices fail and offers no success handoff', async () => {
-    const activate = vi.fn().mockResolvedValue({
-      workspace_id: 'workspace-1', results: [
-        { device_id: 'd-1', status: 'failed' }, { device_id: 'd-2', status: 'failed' },
-      ],
-    });
-    render(<Step4Database state={savedState} dispatch={vi.fn()} activateWorkspace={activate} onCommit={vi.fn()} />);
-    fireEvent.click(screen.getByText('step4.activate_btn'));
-    expect(await screen.findByTestId('activation-empty-message')).toHaveAttribute('data-outcome', 'failed');
-    expect(screen.getByTestId('activation-neutral-result-d-1')).toHaveTextContent('step4.result_status.failed');
-    expect(screen.getByTestId('activation-neutral-result-d-2')).toHaveTextContent('step4.result_status.failed');
+    render(<Step4Database state={savedState} dispatch={dispatch} workspaceId="workspace-1" activateWorkspace={activate} recoverActivationStatus={recover} onCommit={vi.fn()} />);
+    expect(await screen.findByTestId('activation-recovery-status')).toHaveTextContent('op-existing');
+    expect(screen.queryByText('step4.activate_btn')).not.toBeInTheDocument();
     expect(screen.queryByTestId('activation-results-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('activation-empty-message')).not.toBeInTheDocument();
     expect(screen.queryByText('step4.go_to_dashboard_btn')).not.toBeInTheDocument();
+    expect(activate, 'reading status back is not an activation').not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'updateDevice' }));
   });
 });

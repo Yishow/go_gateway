@@ -5,6 +5,7 @@ import { BasicRecordingPanel } from '@/features/datalink/workbench-v2/steps/step
 import type { MeasurementDefinition } from '@/types/measurement';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import { savedGroupState } from '../../fixtures/writeGroupState';
+import { expandSources } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -89,6 +90,7 @@ describe('CircuitProfile a11y labels and empty source protection', () => {
     renderPanel();
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
 
+    expandSources();
     const instCheckbox = screen.getByRole('checkbox', {
       name: `line.temperature step4.basic.circuit.instantaneous_label`,
     });
@@ -122,6 +124,7 @@ describe('CircuitProfile a11y labels and empty source protection', () => {
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Feeder A' } });
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
 
+    expandSources();
     // Select tag-1 for cumulative only; uncheck all instantaneous sources
     const instTag0 = screen.getByTestId('circuit-profile-member-inst-tag-0');
     const instTag1 = screen.getByTestId('circuit-profile-member-inst-tag-1');
@@ -141,6 +144,7 @@ describe('CircuitProfile a11y labels and empty source protection', () => {
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Feeder B' } });
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
 
+    expandSources();
     // Uncheck all cumulative sources
     const cumTag0 = screen.getByTestId('circuit-profile-member-cum-tag-0');
     const cumTag1 = screen.getByTestId('circuit-profile-member-cum-tag-1');

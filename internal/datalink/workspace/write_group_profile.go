@@ -23,6 +23,10 @@ const (
 	// WriteGroupLayoutManagedLongV1 is the fixed typed long table shared by the
 	// canonical profile groups of one storage scope. Any other value is unknown.
 	WriteGroupLayoutManagedLongV1 WriteGroupLayoutVersion = "managed_long_v1"
+	// WriteGroupLayoutManagedWideProfileV1 is the per-source wide layout that
+	// carries recording profiles and member metadata. It is savable, but no
+	// runtime proof serves it yet, so it never starts or restores a writer.
+	WriteGroupLayoutManagedWideProfileV1 WriteGroupLayoutVersion = "managed_wide_profile_v1"
 )
 
 // WriteGroupStorageMode selects how a long layout is stored.
@@ -50,12 +54,41 @@ const (
 	WriteGroupIntervalUnitMinute WriteGroupIntervalUnit = "minute"
 )
 
+// WriteGroupSampleReduction names how a profile reduces its samples for
+// storage. It is an explicit operator selection: nothing infers it from names,
+// units or tag types.
+type WriteGroupSampleReduction string
+
+const (
+	// WriteGroupSampleReductionLatest keeps the newest eligible sample and is
+	// also the semantics of every profile saved before reductions existed.
+	WriteGroupSampleReductionLatest WriteGroupSampleReduction = "latest"
+	// WriteGroupSampleReductionMean averages samples over the interval. Only a
+	// numeric instantaneous gauge may use it, and no runtime proof exists yet,
+	// so readiness keeps such a group unwritable.
+	WriteGroupSampleReductionMean WriteGroupSampleReduction = "mean"
+)
+
 // WriteGroupRecordingProfile is the recording profile of one canonical group.
 // Interval is expressed in Unit; see write_group_profile_interval.go.
 type WriteGroupRecordingProfile struct {
 	Kind     WriteGroupProfileKind  `json:"kind"`
 	Interval int                    `json:"interval"`
 	Unit     WriteGroupIntervalUnit `json:"unit"`
+	// SampleReduction is empty for every profile saved before reductions
+	// existed; read it through EffectiveSampleReduction so absence stays latest
+	// and a legacy profile never grows the key on the wire.
+	SampleReduction WriteGroupSampleReduction `json:"sample_reduction,omitempty"`
+}
+
+// EffectiveSampleReduction returns the stored reduction, or latest for the
+// profiles saved before reductions existed. A missing profile is latest too:
+// it never invents a mean.
+func (p *WriteGroupRecordingProfile) EffectiveSampleReduction() WriteGroupSampleReduction {
+	if p == nil || p.SampleReduction == "" {
+		return WriteGroupSampleReductionLatest
+	}
+	return p.SampleReduction
 }
 
 const (
@@ -121,6 +154,11 @@ func normalizeWriteGroupProfile(group *WriteGroup) error {
 	if err := normalizeWriteGroupStorageMode(group); err != nil {
 		return err
 	}
+	// The new wide profile layout serves canonical profile groups only; the
+	// existing profile rules already require a managed destination for it.
+	if group.EffectiveLayoutVersion() == WriteGroupLayoutManagedWideProfileV1 && group.RecordingProfile == nil {
+		return fmt.Errorf("%w: the %s layout serves recording profile groups only", ErrWriteGroupValidation, WriteGroupLayoutManagedWideProfileV1)
+	}
 	if group.WritePolicy.RecreateMissing != nil && !managedLongGroup(group) {
 		return fmt.Errorf("%w: recreate_missing only governs managed long storage", ErrWriteGroupValidation)
 	}
@@ -137,6 +175,16 @@ func normalizeWriteGroupProfile(group *WriteGroup) error {
 		}
 		if group.RecordingProfile == nil && member.CircuitID != "" {
 			return fmt.Errorf("%w: member %d circuit identity requires a recording profile", ErrWriteGroupValidation, i)
+		}
+	}
+	// The shape guard runs before the profile check so a role can never hide
+	// in a group that has no recording profile.
+	if err := validateMemberMetadataShape(group); err != nil {
+		return err
+	}
+	if group.isWideProfile() {
+		if err := normalizeWideProfilePolicy(group); err != nil {
+			return err
 		}
 	}
 	profile := group.RecordingProfile
@@ -159,7 +207,8 @@ func normalizeWriteGroupProfile(group *WriteGroup) error {
 }
 
 func supportedLayoutVersion(version WriteGroupLayoutVersion) bool {
-	return version == "" || version == WriteGroupLayoutManagedWideV1 || version == WriteGroupLayoutManagedLongV1
+	return version == "" || version == WriteGroupLayoutManagedWideV1 ||
+		version == WriteGroupLayoutManagedLongV1 || version == WriteGroupLayoutManagedWideProfileV1
 }
 
 // isLongLayout reports whether the group uses the shared typed long table.
@@ -176,7 +225,11 @@ func sameRecordingProfile(left, right *WriteGroupRecordingProfile) bool {
 	if left == nil || right == nil {
 		return left == nil && right == nil
 	}
-	return *left == *right
+	// The reduction compares through its effective value: a profile that omits
+	// the field and one that explicitly pins latest are the same intent, so a
+	// no-op resend replays the saved group instead of conflicting.
+	return left.Kind == right.Kind && left.Interval == right.Interval && left.Unit == right.Unit &&
+		left.EffectiveSampleReduction() == right.EffectiveSampleReduction()
 }
 
 // normalizeWriteGroupStorageMode keeps the long layout and its mode together:
@@ -207,6 +260,14 @@ func normalizeWriteGroupStorageMode(group *WriteGroup) error {
 // confirmed layout.
 func managedLongGroup(group *WriteGroup) bool {
 	return group.isLongLayout() && group.Destination.StorageStrategy == WriteGroupStorageStrategyManaged
+}
+
+// managedCutoverTarget reports whether the group is a layout a reviewed cutover may
+// start: the long layout or the known managed wide profile layout. It only names the
+// layouts; a target still has to pass the full readiness and runtime proof of its own
+// layout, and any other layout stays refused.
+func managedCutoverTarget(group *WriteGroup) bool {
+	return managedLongGroup(group) || (group.isWideProfile() && group.Destination.StorageStrategy == WriteGroupStorageStrategyManaged)
 }
 
 // defaultRecreateMissing saves the design default, recovery on, as an explicit

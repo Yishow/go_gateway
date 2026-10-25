@@ -117,3 +117,48 @@ func TestCircuitRecordingProfileKeysRejectAmbiguousScope(t *testing.T) {
 	require.Error(t, insert("", "device", "cumulative", "unassigned"), "unassigned scope records only instantaneous")
 	require.NoError(t, insert("", "device", "instantaneous", "unassigned"))
 }
+
+// TestRecordingReductionMigrationKeepsLegacyRowsNullable pins the 038 columns:
+// the reduction and the member role/type columns exist after a migrate, are
+// created again for a member table the 024 repair path recreated, stay NULL
+// for legacy rows, and re-running the migrator is idempotent.
+func TestRecordingReductionMigrationKeepsLegacyRowsNullable(t *testing.T) {
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "recording-reduction.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := t.Context()
+	migrator := NewMigrator()
+	require.NoError(t, migrator.Migrate(db))
+
+	groupColumns := []string{"sample_reduction"}
+	memberColumns := []string{"value_role", "source_value_type", "result_value_type"}
+	require.Equal(t, len(groupColumns), sqliteColumnCount(t, db, "write_groups", groupColumns...))
+	require.Equal(t, len(memberColumns), sqliteColumnCount(t, db, "write_group_members", memberColumns...))
+
+	_, err = db.ExecContext(ctx, `INSERT INTO write_groups
+		(id,workspace_id,revision,name,destination_connector_id,destination_connector_revision,destination_table_name,row_policy)
+		VALUES ('legacy-group','workspace','revision','Legacy','connector','connector-revision','values','{"interval_seconds":60}')`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `INSERT INTO write_group_members
+		(group_id,member_index,device_id,point_id,tag_id,target_column)
+		VALUES ('legacy-group',0,'device','point','tag','value')`)
+	require.NoError(t, err)
+
+	require.NoError(t, migrator.Migrate(db), "re-running must be idempotent")
+	var sampleReduction sql.NullString
+	require.NoError(t, db.QueryRowContext(ctx,
+		`SELECT sample_reduction FROM write_groups WHERE id = 'legacy-group'`).Scan(&sampleReduction))
+	require.False(t, sampleReduction.Valid, "a legacy group's reduction stays NULL")
+	var valueRole, sourceType, resultType sql.NullString
+	require.NoError(t, db.QueryRowContext(ctx,
+		`SELECT value_role, source_value_type, result_value_type FROM write_group_members WHERE group_id = 'legacy-group'`).
+		Scan(&valueRole, &sourceType, &resultType))
+	require.False(t, valueRole.Valid || sourceType.Valid || resultType.Valid, "legacy member columns stay NULL")
+
+	// A member table the 024 repair path recreated must be completed with the
+	// role and type columns again.
+	_, err = db.ExecContext(ctx, `DROP TABLE write_group_members`)
+	require.NoError(t, err)
+	require.NoError(t, migrator.Migrate(db))
+	require.Equal(t, len(memberColumns), sqliteColumnCount(t, db, "write_group_members", memberColumns...))
+}

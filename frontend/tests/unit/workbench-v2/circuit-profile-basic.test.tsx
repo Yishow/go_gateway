@@ -9,6 +9,7 @@ import type { RecordingStartOperation } from '@/types/studioV2RecordingStart';
 import type { WriteGroup, WriteGroupProfileKind } from '@/types/studioV2WriteGroup';
 import type { WriteGroupDelivery } from '@/types/studioV2WriteGroupDelivery';
 import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
+import { expandSources } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, options?: Record<string, unknown>) => options && 'count' in options ? `${key}:${options.count}` : key }),
@@ -150,6 +151,7 @@ describe('CircuitProfileBasicPanel (Task 4.1)', () => {
     measurementsQuery.data = [0, 1, 2].map((i) => makeConfirmedCounterMeasurement(i));
     renderPanel();
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Main Circuit A' } });
+    expandSources();
     fireEvent.click(screen.getByLabelText('line.batch'));
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
 
@@ -174,6 +176,7 @@ describe('CircuitProfileBasicPanel (Task 4.1)', () => {
     measurementsQuery.data = [0, 1, 2].map((i) => makeConfirmedCounterMeasurement(i));
     renderPanel();
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Main Circuit A' } });
+    expandSources();
     fireEvent.click(screen.getByLabelText('line.batch'));
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
@@ -221,6 +224,7 @@ describe('CircuitProfileBasicPanel (Task 4.1)', () => {
   it('preserves cumulative selection across Next/Back/reload when counter semantics are unconfirmed and allows narrow confirmation via measurement API', async () => {
     const firstRender = renderPanel();
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Main Circuit A' } });
+    expandSources();
     fireEvent.click(screen.getByLabelText('line.batch'));
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
     expect(await screen.findByTestId('circuit-counter-confirmation')).toBeInTheDocument();
@@ -262,6 +266,7 @@ describe('CircuitProfileBasicPanel (Task 4.1)', () => {
     measurementsQuery.data = [0, 1, 2].map((i) => makeConfirmedCounterMeasurement(i));
     renderPanel();
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Main Circuit A' } });
+    expandSources();
     fireEvent.click(screen.getByLabelText('line.batch'));
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
 

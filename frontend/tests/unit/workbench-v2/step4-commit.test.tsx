@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { Step4Database } from '../../../src/features/datalink/workbench-v2/steps/step4/Step4Database';
-import { WorkbenchV2Shell, type WorkbenchV2ShellProps } from '../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
-import { INITIAL_STATE, workbenchV2Reducer } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
+import { CommitProgress } from '../../../src/features/datalink/workbench-v2/steps/step4/CommitProgress';
+import { useStep4Activation } from '../../../src/features/datalink/workbench-v2/steps/step4/useStep4Activation';
+import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
-import type { WorkbenchV2Action } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { StudioV2ActivationResponse } from '../../../src/types/studioV2Activation';
 import type { StudioV2WorkspaceReadinessSummary } from '../../../src/types/studioV2WorkspaceReadiness';
 
@@ -21,36 +20,7 @@ vi.mock('react-i18next', () => ({
   })
 }));
 
-describe('Step 4 first activation flow integration', () => {
-  function LocationProbe() {
-    const location = useLocation();
-    return <div data-testid="step4-shell-location">{`${location.pathname}${location.search}`}</div>;
-  }
-
-  function ShellRouterHarness({
-    state,
-    actions,
-    activateWorkspace,
-  }: {
-    state: WorkbenchV2State;
-    actions: WorkbenchV2ShellProps['actions'];
-    activateWorkspace?: WorkbenchV2ShellProps['activateWorkspace'];
-  }) {
-    const navigate = useNavigate();
-
-    return (
-      <>
-        <WorkbenchV2Shell
-          state={state}
-          actions={actions}
-          navigateTo={navigate}
-          activateWorkspace={activateWorkspace}
-        />
-        <LocationProbe />
-      </>
-    );
-  }
-
+describe('Step 4 overview and explicit legacy activation', () => {
   const mockState: WorkbenchV2State = {
     view: 'flow',
     current: 4,
@@ -97,261 +67,83 @@ describe('Step 4 first activation flow integration', () => {
     vi.clearAllMocks();
   });
 
-  it('activates all eligible devices and shows per-device partial success results', async () => {
-    let state = { ...mockState };
-    const dispatch = vi.fn((action: WorkbenchV2Action) => {
-      state = workbenchV2Reducer(state, action);
-    });
-    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>().mockResolvedValue({
-      workspace_id: 'workspace-1',
-      results: [
-        { device_id: 'd-1', status: 'success', message: 'activated' },
-        { device_id: 'd-2', status: 'failed', message: 'activation timeout' },
-      ],
-    });
-
-    const { rerender } = render(
+  it('keeps the overview free of any workspace-wide activation, even with several unstarted devices', () => {
+    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>();
+    render(
       <Step4Database
         state={{
-          ...state,
+          ...mockState,
           devices: [
-            ...state.devices,
+            ...mockState.devices,
             { id: 'd-2', name: 'PLC-2', description: '', protocol: 'modbus_tcp', config: {}, status: 'draft', test: null, running: false },
           ],
         }}
-        dispatch={dispatch}
-        onCommit={() => {}}
-        activateWorkspace={activateWorkspace}
-      />
-    );
-
-    fireEvent.click(screen.getByText('step4.activate_btn'));
-
-    await waitFor(() => {
-      expect(activateWorkspace).toHaveBeenCalledTimes(1);
-    });
-
-    rerender(
-      <Step4Database
-        state={state}
-        dispatch={dispatch}
-        onCommit={() => {}}
-        activateWorkspace={activateWorkspace}
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('activation-result-d-1')).toHaveTextContent('success');
-      expect(screen.getByTestId('activation-result-d-2')).toHaveTextContent('failed');
-      expect(screen.getByText('step4.go_to_dashboard_btn')).toBeInTheDocument();
-    });
-  });
-
-  it('shows an actionable empty result when no devices are eligible', async () => {
-    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>().mockResolvedValue({
-      workspace_id: 'workspace-1',
-      results: [],
-      message: '目前沒有可啟動設備',
-    });
-
-    render(
-      <Step4Database
-        state={mockState}
         dispatch={() => { }}
         activateWorkspace={activateWorkspace}
       />
     );
 
-    fireEvent.click(screen.getByText('step4.activate_btn'));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('activation-empty-message')).toHaveTextContent('step4.activation_unconfirmed');
-      expect(screen.getByTestId('activation-delivery-status')).toHaveTextContent('step4.activation_delivery_unconfirmed');
-      expect(screen.getByText('step4.reset_activation_btn')).toBeInTheDocument();
-    });
-  });
-
-  it('renders a typed activation barrier error in CommitProgress without raw details', async () => {
-    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>()
-      .mockRejectedValue({
-        code: 'modbus_share_revision_conflict',
-        action: 'hydrate again with server state',
-        request_id: 'req-activation-7',
-        retryable: true,
-        message: 'raw backend revision details',
-      });
-
-    render(
-      <Step4Database
-        state={mockState}
-        dispatch={() => { }}
-        activateWorkspace={activateWorkspace}
-      />,
-    );
-
-    fireEvent.click(screen.getByText('step4.activate_btn'));
-
-    const failedRow = await screen.findByTestId('commit-log-row-0');
-    expect(failedRow).toHaveAttribute('data-status', 'failed');
-    expect(failedRow).toHaveTextContent('errors.modbus_share_revision_conflict');
-    expect(failedRow).toHaveTextContent('req-activation-7');
-    expect(failedRow).not.toHaveTextContent('raw backend revision details');
-    expect(failedRow).not.toHaveTextContent('hydrate again with server state');
-  });
-
-  it('keeps activation acknowledgement out of the draft device reducer path', async () => {
-    const dispatch = vi.fn();
-    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>().mockResolvedValue({
-      workspace_id: 'workspace-1',
-      results: [{ device_id: 'd-1', status: 'success' }],
-    });
-
-    render(
-      <Step4Database
-        state={mockState}
-        dispatch={dispatch}
-        onCommit={() => {}}
-        activateWorkspace={activateWorkspace}
-      />,
-    );
-    dispatch.mockClear();
-
-    fireEvent.click(screen.getByText('step4.activate_btn'));
-    await waitFor(() => expect(screen.getByTestId('activation-results-card')).toBeInTheDocument());
-
-    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'updateDevice' }));
-  });
-
-  it('wires the localized failed-row retry to the Step 4 activation callback', async () => {
-    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>()
-      .mockResolvedValueOnce({
-        workspace_id: 'workspace-1',
-        results: [{ device_id: 'd-1', status: 'failed', message: 'activation failed', retryable: true }],
-      })
-      .mockResolvedValueOnce({
-        workspace_id: 'workspace-1',
-        results: [{ device_id: 'd-1', status: 'success', message: 'activated' }],
-      });
-
-    render(
-      <Step4Database
-        state={mockState}
-        dispatch={() => { }}
-        activateWorkspace={activateWorkspace}
-      />,
-    );
-
-    fireEvent.click(screen.getByText('step4.activate_btn'));
-    const retry = await screen.findByRole('button', { name: 'step4.retry_action' });
-    fireEvent.click(retry);
-
-    await waitFor(() => expect(activateWorkspace).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId('step4-group-summary-note')).toBeInTheDocument();
+    expect(screen.queryByText('step4.activate_btn')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'step4.retry_action' })).not.toBeInTheDocument();
+    expect(activateWorkspace).not.toHaveBeenCalled();
   });
 
-  it('allows runtime navigation after partial activation failure when at least one device succeeds', async () => {
-    const onCommit = vi.fn();
-    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>().mockResolvedValue({
-      workspace_id: 'workspace-1',
-      results: [
-        { device_id: 'd-1', status: 'success', message: 'activated' },
-        { device_id: 'd-2', status: 'failed', message: 'activation timeout' },
-      ],
-    });
-    let state: WorkbenchV2State = {
-      ...mockState,
-      devices: [
-        { id: 'd-1', name: 'PLC-1', description: '', protocol: 'modbus_tcp', config: {}, status: 'draft', test: null, running: false },
-        { id: 'd-2', name: 'PLC-2', description: '', protocol: 'modbus_tcp', config: {}, status: 'draft', test: null, running: false },
-      ],
-    };
-    const actions = {
-      state,
-      setView: vi.fn(),
-      setCurrent: vi.fn(),
-      completeStep: vi.fn(),
-      toggleSidebar: vi.fn(),
-      toggleSummaryRail: vi.fn(),
-      setSidebarCollapsed: vi.fn(),
-      setShowSummaryRail: vi.fn(),
-      resetFlow: vi.fn(),
-      selectRule: vi.fn(),
-      dispatch: vi.fn((action: WorkbenchV2Action) => {
-        state = workbenchV2Reducer(state, action);
-        actions.state = state;
-      }),
-    };
+  // The activation hook and its progress rows stay compatible for an explicit legacy caller of the global API.
+  describe('explicit legacy activation pieces', () => {
+    function LegacyCaller({ activate }: { activate: () => Promise<StudioV2ActivationResponse> }) {
+      const activation = useStep4Activation(activate);
+      return (
+        <>
+          <button type="button" data-testid="legacy-activate" onClick={() => void activation.start()}>go</button>
+          <CommitProgress logs={activation.logs} status="failed" onRetry={activation.start} />
+        </>
+      );
+    }
 
-    render(
-      <MemoryRouter initialEntries={['/studio/v2']}>
-        <ShellRouterHarness
-          state={state}
-          actions={actions}
-          activateWorkspace={activateWorkspace}
-        />
-      </MemoryRouter>,
-    );
+    it('renders a typed activation barrier error in CommitProgress without raw details', async () => {
+      const activate = vi.fn<() => Promise<StudioV2ActivationResponse>>()
+        .mockRejectedValue({
+          code: 'modbus_share_revision_conflict',
+          action: 'hydrate again with server state',
+          request_id: 'req-activation-7',
+          retryable: true,
+          message: 'raw backend revision details',
+        });
+      render(<LegacyCaller activate={activate} />);
 
-    fireEvent.click(screen.getByText('step4.activate_btn'));
+      fireEvent.click(screen.getByTestId('legacy-activate'));
 
-    await waitFor(() => {
-      expect(screen.getByText('step4.go_to_dashboard_btn')).toBeInTheDocument();
+      const failedRow = await screen.findByTestId('commit-log-row-0');
+      expect(failedRow).toHaveAttribute('data-status', 'failed');
+      expect(failedRow).toHaveTextContent('errors.modbus_share_revision_conflict');
+      expect(failedRow).toHaveTextContent('req-activation-7');
+      expect(failedRow).not.toHaveTextContent('raw backend revision details');
+      expect(failedRow).not.toHaveTextContent('hydrate again with server state');
     });
 
-    fireEvent.click(screen.getByText('step4.go_to_dashboard_btn'));
+    it('wires the localized failed-row retry to the explicit activation callback', async () => {
+      const activate = vi.fn<() => Promise<StudioV2ActivationResponse>>()
+        .mockResolvedValueOnce({
+          workspace_id: 'workspace-1',
+          results: [{ device_id: 'd-1', status: 'failed', message: 'activation failed', retryable: true }],
+        })
+        .mockResolvedValueOnce({
+          workspace_id: 'workspace-1',
+          results: [{ device_id: 'd-1', status: 'success', message: 'activated' }],
+        });
+      render(<LegacyCaller activate={activate} />);
 
-    expect(screen.getByTestId('step4-shell-location')).toHaveTextContent('/studio/runtime');
-    expect(onCommit).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByTestId('legacy-activate'));
+      const retry = await screen.findByRole('button', { name: 'step4.retry_action' });
+      fireEvent.click(retry);
+
+      await waitFor(() => expect(activate).toHaveBeenCalledTimes(2));
+      expect(screen.queryByRole('button', { name: 'step4.retry_action' })).not.toBeInTheDocument();
+    });
   });
 
-  it('hands off once to the confirmed backend device route', async () => {
-    const confirmedDeviceId = '550e8400-e29b-41d4-a716-446655440010';
-    const navigateTo = vi.fn();
-    const state: WorkbenchV2State = {
-      ...mockState,
-      devices: [{ ...mockState.devices[0], id: confirmedDeviceId }],
-      rules: [{ ...mockState.rules[0], device_id: confirmedDeviceId }],
-      points: [{ ...mockState.points[0], device_id: confirmedDeviceId }],
-    };
-    const actions = {
-      state,
-      setView: vi.fn(),
-      setCurrent: vi.fn(),
-      completeStep: vi.fn(),
-      toggleSidebar: vi.fn(),
-      toggleSummaryRail: vi.fn(),
-      setSidebarCollapsed: vi.fn(),
-      setShowSummaryRail: vi.fn(),
-      resetFlow: vi.fn(),
-      selectRule: vi.fn(),
-      dispatch: vi.fn(),
-    };
-    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>().mockResolvedValue({
-      workspace_id: 'workspace-1',
-      results: [{ device_id: confirmedDeviceId, status: 'success' }],
-    });
-
-    render(
-      <MemoryRouter initialEntries={['/studio/v2']}>
-        <WorkbenchV2Shell
-          state={state}
-          actions={actions}
-          navigateTo={navigateTo}
-          activateWorkspace={activateWorkspace}
-        />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByText('step4.activate_btn'));
-    const handoff = await screen.findByText('step4.go_to_dashboard_btn');
-    fireEvent.click(handoff);
-    fireEvent.click(handoff);
-
-    expect(navigateTo).toHaveBeenCalledTimes(1);
-    expect(navigateTo).toHaveBeenCalledWith(`/studio/runtime?device_id=${confirmedDeviceId}`);
-  });
-
-  it('shows readiness blockers and disables activation before start', () => {
+  it('shows readiness blockers as status with a way to fix them, and no activation action', () => {
     const readinessSummary: StudioV2WorkspaceReadinessSummary = {
       ready: false,
       blocking_count: 1,
@@ -379,17 +171,15 @@ describe('Step 4 first activation flow integration', () => {
       />,
     );
 
-    const activateButton = screen.getByText('step4.activate_btn').closest('button');
     expect(screen.getByTestId('step4-readiness-panel')).toHaveTextContent('device-probe-required');
     expect(screen.getByTestId('step4-blocker-resolution')).toHaveTextContent('step4.blocker_resolution_title');
     fireEvent.click(screen.getByTestId('step4-blocker-action-device-probe-required'));
     expect(onNavigateStep).toHaveBeenCalledWith(1);
-    expect(activateButton).toBeDisabled();
-    fireEvent.click(screen.getByText('step4.activate_btn'));
+    expect(screen.queryByText('step4.activate_btn')).not.toBeInTheDocument();
     expect(activateWorkspace).not.toHaveBeenCalled();
   });
 
-  it('shows readiness warnings but keeps activation enabled', () => {
+  it('shows readiness warnings as status and no activation action', () => {
     const readinessSummary: StudioV2WorkspaceReadinessSummary = {
       ready: true,
       blocking_count: 0,
@@ -413,8 +203,8 @@ describe('Step 4 first activation flow integration', () => {
       />,
     );
 
-    const activateButton = screen.getByText('step4.activate_btn').closest('button');
     expect(screen.getByTestId('step4-readiness-panel')).toHaveTextContent('database-connector-unreachable');
-    expect(activateButton).not.toBeDisabled();
+    expect(screen.queryByTestId('step4-blocker-resolution')).not.toBeInTheDocument();
+    expect(screen.queryByText('step4.activate_btn')).not.toBeInTheDocument();
   });
 });

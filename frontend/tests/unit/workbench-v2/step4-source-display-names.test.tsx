@@ -10,6 +10,7 @@ import type { ModbusShareDesiredMapping } from '@/types/modbusShare';
 import { longProfileGroup } from '../../fixtures/circuitBatchPanel';
 import { reviewOf, wide } from '../../fixtures/cutoverFixtures';
 import { savedGroup } from '../../fixtures/writeGroupState';
+import { expandSources } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@/hooks/datalink/useStudioV2WorkspaceMeasurements', () => ({
@@ -39,6 +40,7 @@ describe('Step 4 source names', () => {
 
   it('uses a human source name in selected members and an address when the name is absent', () => {
     render(<BasicRecordingMembers candidates={[candidate(), candidate({ key: 'pt-2|tag-2', point_id: 'pt-2', tag_id: 'tag-2', label: '', tag_key: 'internal.tag.2', address: '40003' })]} />);
+    expandSources('basic-recording-sources');
     expect(screen.getByText('進水溫度')).toBeInTheDocument();
     expect(screen.getByTestId('basic-recording-selected-members')).toHaveTextContent('40003');
     expect(screen.queryByText('internal.tag.1')).not.toBeInTheDocument();

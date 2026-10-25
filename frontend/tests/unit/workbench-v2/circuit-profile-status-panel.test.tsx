@@ -5,6 +5,7 @@ import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import type { WriteGroupDelivery } from '@/types/studioV2WriteGroupDelivery';
 import { parseWriteGroupDeliveryData } from '@/utils/studioV2WriteGroupDeliveryJson';
 import { batchPanelState, longProfileGroup } from '../../fixtures/circuitBatchPanel';
+import { expandStatus } from '../../fixtures/sourceReview';
 
 const { query, deliveryFor, deliveries } = vi.hoisted(() => ({
   query: { data: { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] as WriteGroup[] }, isLoading: false, isError: false, refetch: vi.fn() },
@@ -68,6 +69,7 @@ describe('Basic shows the status of the selected circuit canonical group only', 
   it('renders the per source status under the active circuit, named from the mapped Tag', () => {
     render(panel());
     expect(screen.getByTestId('circuit-status-instantaneous')).toBeInTheDocument();
+    expandStatus('grp-a');
     expect(screen.getByTestId('circuit-status-source-tag-0')).toHaveTextContent('sensor.0');
     expect(screen.queryByTestId('circuit-status-source-tag-2')).not.toBeInTheDocument();
     expect(deliveryFor).toHaveBeenCalledWith('grp-a', true);
@@ -77,6 +79,7 @@ describe('Basic shows the status of the selected circuit canonical group only', 
   it('follows the circuit chooser instead of mixing another circuit evidence in', () => {
     render(panel());
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-chooser'), { target: { value: 'cir-b' } });
+    expandStatus('grp-b');
     expect(screen.getByTestId('circuit-status-source-tag-2')).toHaveTextContent('sensor.2');
     expect(screen.queryByTestId('circuit-status-source-tag-0')).not.toBeInTheDocument();
   });
@@ -85,6 +88,7 @@ describe('Basic shows the status of the selected circuit canonical group only', 
     deliveries['grp-a'] = apiAnswer('grp-a', 'tag-0', {}, 'older-applied');
     render(panel());
     expect(screen.queryByTestId('circuit-status-source-tag-0')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('circuit-status-sources-grp-a-toggle')).not.toBeInTheDocument();
     expect(screen.getByTestId('circuit-status-evidence-note')).toHaveTextContent('step4.basic.status.evidence_not_current');
   });
 

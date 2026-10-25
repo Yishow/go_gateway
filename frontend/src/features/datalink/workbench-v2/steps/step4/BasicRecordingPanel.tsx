@@ -6,7 +6,7 @@ import { BasicSchemaPreparation } from './BasicSchemaPreparation';
 import { GroupDeliveryRecovery } from './writeGroup/GroupDeliveryRecovery';
 import { supportsWriteGroupKind } from './writeGroupCapabilities';
 import * as React from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useEnsureBasicManagedMutation, useRecordingStartMutation, useRecordingStartOperationQuery } from '../../../../../hooks/datalink/useStudioV2RecordingStart';
@@ -23,6 +23,10 @@ import { BasicRecordingEvidence } from './BasicRecordingEvidence';
 import { BasicRecordingMembers } from './BasicRecordingMembers';
 import { BasicRecordingProgress } from './BasicRecordingProgress';
 import { CircuitProfileBasicPanel } from './CircuitProfileBasicPanel';
+import { DeviceScopeTiles } from './DeviceScopeTiles';
+import { loadSelectedDeviceId, saveSelectedDeviceId } from '../../state/deviceScopeSelection';
+import { groupCircuitId, managedProfileDeviceId } from '../../state/circuitProfileBasic';
+import { clearBasicLegacyDraft, loadBasicLegacyDraft, saveBasicLegacyDraft } from '../../state/basicLegacyDraft';
 import { basicManagedGroupDraft, basicRecordingScopeKey, buildBasicManagedDrafts, createBasicRecordingRequestId, isBasicManagedWriteGroup, latestRecordingStartOperation, loadBasicRecordingIntent, saveBasicRecordingIntent, type BasicRecordingIntentRecord } from '../../state/basicRecording';
 
 export interface BasicRecordingPanelProps {
@@ -35,6 +39,11 @@ export interface BasicRecordingPanelProps {
   onOpenAdvanced?: (groupId?: string) => void;
   onOpenMemberSettings?: (groupId: string) => void;
   onOperationActiveChange?: (active: boolean) => void;
+  /**
+   * Shows a managed profile group's own device and circuit here for review. It belongs to one workspace, is shown once,
+   * lapses when the operator chooses a device or circuit themselves, and never saves, applies or starts anything.
+   */
+  reviewRequest?: { workspaceId: string; groupId: string };
 }
 
 const DEFAULT_INTERVAL_SECONDS = 60;
@@ -54,6 +63,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   onOpenAdvanced,
   onOpenMemberSettings,
   onOperationActiveChange,
+  reviewRequest,
 }) => {
   const { t } = useTranslation(['workbench-v2', 'studio-review']);
   const queryClient = useQueryClient();
@@ -73,13 +83,48 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
     [candidates, destination, role, workspaceId],
   );
   const shareOnly = isModbusShareConfiguredEnabled(shareStatus) && !destinationIsSaved(state);
-  const deviceIds = useMemo(
-    () => shareOnly
-      ? state.devices.filter((device) => device.persisted === true && device.save_state === 'saved').map((device) => device.id)
-      : draftByDevice.map((item) => item.device_id),
-    [draftByDevice, shareOnly, state.devices],
-  );
-  const [selectedDeviceId, setSelectedDeviceId] = useState('');
+  // Every persisted device is a legal view, whether or not it has sources to record
+  // yet; a device without sources shows its own blocked state instead of being
+  // replaced by another one. The Circuit subtree lists the same devices.
+  const deviceIds = useMemo(() => {
+    if (shareOnly) return state.devices.filter((device) => device.persisted === true && device.save_state === 'saved').map((device) => device.id);
+    const recordable = new Set(draftByDevice.map((item) => item.device_id));
+    return state.devices
+      .filter((device) => recordable.has(device.id) || Boolean(device.persisted && device.save_state !== 'saving' && device.save_state !== 'save-error'))
+      .map((device) => device.id);
+  }, [draftByDevice, shareOnly, state.devices]);
+  // The viewed device is derived, never copied once: an explicit choice of this
+  // workspace wins while it is still legal, otherwise the saved selection of the
+  // current workspace, otherwise the first device. A workspace or device list that
+  // arrives after the first render therefore restores the saved selection too.
+  const [choice, setChoice] = useState<{ workspaceId: string; deviceId: string }>();
+  const restoredDeviceId = useMemo(() => loadSelectedDeviceId(workspaceId ?? '', deviceIds), [workspaceId, deviceIds]);
+  const selectedDeviceId = choice && choice.workspaceId === (workspaceId ?? '') && deviceIds.includes(choice.deviceId)
+    ? choice.deviceId
+    : restoredDeviceId ?? deviceIds[0] ?? '';
+  const selectDevice = useCallback((deviceId: string) => {
+    saveSelectedDeviceId(workspaceId ?? '', deviceId);
+    setChoice({ workspaceId: workspaceId ?? '', deviceId });
+  }, [workspaceId]);
+  // A routed group is shown once, on its own device and circuit, the same way choosing them by hand would.
+  const [circuitRequest, setCircuitRequest] = useState<{ workspaceId: string; deviceId: string; circuitId: string }>();
+  const consumedReview = useRef<typeof reviewRequest>(undefined);
+  const reviewGroups = groupsQuery.data?.groups;
+  const clearCircuitRequest = useCallback(() => setCircuitRequest(undefined), []);
+  const selectByOperator = useCallback((deviceId: string) => {
+    consumedReview.current = reviewRequest;
+    setCircuitRequest(undefined);
+    selectDevice(deviceId);
+  }, [reviewRequest, selectDevice]);
+  useEffect(() => {
+    if (!reviewRequest || reviewRequest === consumedReview.current || reviewRequest.workspaceId !== (workspaceId ?? '')) return;
+    const group = reviewGroups?.find((candidate) => candidate.id === reviewRequest.groupId && candidate.status !== 'deleted');
+    const reviewDeviceId = group ? managedProfileDeviceId(group) : undefined;
+    if (!group || !reviewDeviceId || !deviceIds.includes(reviewDeviceId)) return;
+    consumedReview.current = reviewRequest;
+    selectDevice(reviewDeviceId);
+    setCircuitRequest({ workspaceId: reviewRequest.workspaceId, deviceId: reviewDeviceId, circuitId: groupCircuitId(group) });
+  }, [reviewRequest, reviewGroups, deviceIds, selectDevice, workspaceId]);
   const [migrating, setMigrating] = useState(false);
   const [intervalSeconds, setIntervalSeconds] = useState(DEFAULT_INTERVAL_SECONDS);
   const [incompletePolicy, setIncompletePolicy] = useState('skip_row');
@@ -90,10 +135,6 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   const actionBusyRef = useRef(false);
   const activeSelectionRef = useRef('');
   const refreshedOperationRef = useRef('');
-
-  useEffect(() => {
-    if (!deviceIds.includes(selectedDeviceId)) setSelectedDeviceId(deviceIds[0] ?? '');
-  }, [deviceIds, selectedDeviceId]);
 
   const selectedDraft = draftByDevice.find((item) => item.device_id === selectedDeviceId)?.draft;
   const selectedCandidates = candidates.filter((candidate) => candidate.device_id === selectedDeviceId);
@@ -136,10 +177,17 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
     setLocalIntent(groupSnapshotMatchesRequest(stored, selectedGroupId, selectedGroupRevision, connectorRevision) || keepTerminalEvidence || keepUnresolvedRequest ? stored : undefined);
   }, [scopeKey, selectedGroupId, selectedGroupRevision, selectedGroupAppliedRevision, connectorRevision]);
 
+  // The unsaved view draft belongs to this workspace, device and purpose; once the
+  // saved group holds exactly what it said, it has nothing left to remember.
+  const hasSelectedGroup = Boolean(selectedGroup);
   useEffect(() => {
-    setIntervalSeconds(selectedGroupInterval ?? DEFAULT_INTERVAL_SECONDS);
-    setIncompletePolicy(selectedGroupIncompletePolicy === 'partial' ? 'partial' : 'skip_row');
-  }, [selectedGroup?.id, selectedGroupIncompletePolicy, selectedGroupInterval]);
+    const draft = scopeKey ? loadBasicLegacyDraft(scopeKey) : undefined;
+    const savedPolicy = selectedGroupIncompletePolicy === 'partial' ? 'partial' : 'skip_row';
+    if (draft && hasSelectedGroup && (draft.intervalSeconds === undefined || draft.intervalSeconds === selectedGroupInterval) &&
+      (draft.incompletePolicy === undefined || draft.incompletePolicy === savedPolicy)) clearBasicLegacyDraft(scopeKey);
+    setIntervalSeconds(draft?.intervalSeconds ?? selectedGroupInterval ?? DEFAULT_INTERVAL_SECONDS);
+    setIncompletePolicy(draft?.incompletePolicy ?? savedPolicy);
+  }, [scopeKey, selectedGroup?.id, hasSelectedGroup, selectedGroupIncompletePolicy, selectedGroupInterval]);
 
   const destinationMismatch = Boolean(!shareOnly && selectedGroup && (
     selectedGroup.destination.connector_id !== state.db.connector.connector_id ||
@@ -191,11 +239,14 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   }, [groupsQuery, operation, queryClient]);
 
   const supportsCircuitProfile = 'useEnsureCircuitProfileMutation' in writeGroupHooks;
-  const hasLegacyBasicWide = liveGroups.some((g) => Boolean(g.basic_managed_device_id) && (g.layout_version ?? 'managed_wide_v1') === 'managed_wide_v1');
+  const legacyBasicWideDeviceIds = new Set(liveGroups
+    .filter((g) => Boolean(g.basic_managed_device_id) && (g.layout_version ?? 'managed_wide_v1') === 'managed_wide_v1')
+    .map((g) => g.basic_managed_device_id as string));
+  const hasLegacyBasicWide = legacyBasicWideDeviceIds.has(selectedDeviceId);
   if (supportsCircuitProfile && !shareOnly) {
     if (groupsQuery.isLoading) return <div data-testid="circuit-profile-groups-loading" className="rounded border border-slate-800 p-4 text-xs text-slate-400">{t('step4.basic.circuit.groups_loading')}</div>;
     if (groupsQuery.isError) return <div role="alert" data-testid="circuit-profile-groups-error" className="rounded border border-rose-800/70 bg-rose-950/30 p-4 text-xs text-rose-200">{t('step4.basic.circuit.groups_error')}</div>;
-    if (!hasLegacyBasicWide || migrating) return <CircuitProfileBasicPanel prepareOnly={hasLegacyBasicWide} onClose={() => setMigrating(false)} state={state} workspaceId={workspaceId} readonly={readonly} workspaceRevision={workspaceRevision} readinessToken={shareStatus?.readiness_token} settingsRevision={shareStatus?.settings_revision} shareWorkspaceRevision={shareStatus?.workspace_revision} onOpenAdvanced={onOpenAdvanced} onActivated={(ids) => onCommit?.(ids)} onContinueToRuntime={(ids) => onCommit?.(ids)} onOperationActiveChange={onOperationActiveChange} />;
+    if (!hasLegacyBasicWide || migrating) return <CircuitProfileBasicPanel key={JSON.stringify([workspaceId, selectedDeviceId])} prepareOnly={hasLegacyBasicWide} onClose={() => setMigrating(false)} deviceId={selectedDeviceId} onSelectDevice={selectByOperator} state={state} workspaceId={workspaceId} readonly={readonly} workspaceRevision={workspaceRevision} readinessToken={shareStatus?.readiness_token} settingsRevision={shareStatus?.settings_revision} shareWorkspaceRevision={shareStatus?.workspace_revision} onOpenAdvanced={onOpenAdvanced} onActivated={(ids) => onCommit?.(ids)} onContinueToRuntime={(ids) => onCommit?.(ids)} onOperationActiveChange={onOperationActiveChange} circuitRequest={circuitRequest} onCircuitRequestDone={clearCircuitRequest} />;
   }
 
   const blockReason = !workspaceId ? 'workspace'
@@ -295,22 +346,37 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
       </div>
 
       {deviceIds.length > 0 && (
-        <label className="block text-xs text-slate-300">
+        <div className="block text-xs text-slate-300">
           <span>{t('step4.basic.device')}</span>
-          <select value={selectedDeviceId} onChange={(event) => setSelectedDeviceId(event.target.value)} disabled={operationActive} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" data-testid="basic-recording-device">
-            {deviceIds.map((deviceId) => <option key={deviceId} value={deviceId}>{state.devices.find((device) => device.id === deviceId)?.name || deviceId}</option>)}
-          </select>
-        </label>
+          <div className="mt-1">
+            <DeviceScopeTiles
+              devices={deviceIds.map((deviceId) => {
+                const device = state.devices.find((item) => item.id === deviceId);
+                return { id: deviceId, name: device?.name };
+              })}
+              selectedId={selectedDeviceId}
+              onSelect={selectByOperator}
+              label={t('step4.basic.device')}
+            />
+          </div>
+        </div>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-xs text-slate-300">
           <span>{t('step4.basic.interval')}</span>
-          <input type="number" min={1} value={intervalSeconds} disabled={operationActive || readonly} onChange={(event) => setIntervalSeconds(Math.max(1, Number(event.target.value) || 1))} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" data-testid="basic-recording-interval" />
+          <input type="number" min={1} value={intervalSeconds} disabled={operationActive || readonly} onChange={(event) => {
+            const next = Math.max(1, Number(event.target.value) || 1);
+            saveBasicLegacyDraft(scopeKey, { intervalSeconds: next });
+            setIntervalSeconds(next);
+          }} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" data-testid="basic-recording-interval" />
         </label>
         <label className="block text-xs text-slate-300">
           <span>{t('step4.basic.completeness')}</span>
-          <select value={incompletePolicy} disabled={operationActive || readonly} onChange={(event) => setIncompletePolicy(event.target.value)} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" data-testid="basic-recording-completeness">
+          <select value={incompletePolicy} disabled={operationActive || readonly} onChange={(event) => {
+            saveBasicLegacyDraft(scopeKey, { incompletePolicy: event.target.value });
+            setIncompletePolicy(event.target.value);
+          }} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" data-testid="basic-recording-completeness">
             <option value="skip_row">{t('step4.basic.skip_row')}</option>
             <option value="partial">{t('step4.basic.partial_row')}</option>
           </select>
@@ -336,7 +402,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
       {advancedGroups.length > 0 && <p className="text-xs text-slate-500" data-testid="basic-recording-advanced-note">{t('step4.basic.advanced_note', { count: advancedGroups.length })}</p>}
       {!shareOnly && (selectedGroup?.members.length ?? selectedCandidates.length) > 0 && (
         <>
-          <BasicRecordingMembers candidates={selectedCandidates} group={selectedGroup} />
+          <BasicRecordingMembers candidates={selectedCandidates} group={selectedGroup} onRepair={onOpenAdvanced} />
           <p className="text-xs text-slate-500">{t('step4.basic.members', { count: selectedGroup?.members.length ?? selectedCandidates.length })}</p>
         </>
       )}

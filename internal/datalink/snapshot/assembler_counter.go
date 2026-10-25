@@ -15,7 +15,7 @@ const ReasonCounterUnavailable = "counter-unavailable"
 // countersInvalid reports why the counter bindings do not fit the configured
 // mode and members, or the empty string.
 func (c Config) countersInvalid() string {
-	if c.Mode != ModeCumulativeProfile {
+	if !c.Mode.Cumulative() {
 		if len(c.Counters) > 0 {
 			return "counter bindings belong to the cumulative profile only"
 		}
@@ -98,7 +98,7 @@ func (a *Assembler) CounterCheckpoints() map[string]aggregation.CounterCheckpoin
 // longer matches the member is legitimate: the calculation starts a new baseline
 // from it instead of subtracting across bindings.
 func (a *Assembler) RestoreCounterCheckpoints(checkpoints map[string]aggregation.CounterCheckpoint) error {
-	if a.config.Mode != ModeCumulativeProfile {
+	if !a.config.Mode.Cumulative() {
 		return fmt.Errorf("%w: counter baselines belong to the cumulative profile only", ErrInvalidConfig)
 	}
 	restored := make(map[string]*aggregation.CounterCheckpoint, len(checkpoints))

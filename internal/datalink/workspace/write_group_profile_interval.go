@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 // Interval bounds of the two profile kinds, in each kind's own public unit.
@@ -39,19 +40,29 @@ func (p WriteGroupRecordingProfile) IntervalSeconds() int {
 
 // DefaultWriteGroupRecordingProfile returns the default of a new profile
 // draft. It is a constructor default only: a request that omits or zeroes an
-// interval is rejected, never completed from these values.
+// interval is rejected, never completed from these values. A new instantaneous
+// recording defaults to a mean over the 15-second interval; a cumulative
+// profile counts and never averages.
 func DefaultWriteGroupRecordingProfile(kind WriteGroupProfileKind) (WriteGroupRecordingProfile, error) {
 	switch kind {
 	case WriteGroupProfileInstantaneous:
-		return WriteGroupRecordingProfile{Kind: kind, Interval: instantaneousIntervalDefault, Unit: WriteGroupIntervalUnitSecond}, nil
+		return WriteGroupRecordingProfile{
+			Kind: kind, Interval: instantaneousIntervalDefault, Unit: WriteGroupIntervalUnitSecond,
+			SampleReduction: WriteGroupSampleReductionMean,
+		}, nil
 	case WriteGroupProfileCumulative:
-		return WriteGroupRecordingProfile{Kind: kind, Interval: cumulativeIntervalDefault, Unit: WriteGroupIntervalUnitMinute}, nil
+		return WriteGroupRecordingProfile{
+			Kind: kind, Interval: cumulativeIntervalDefault, Unit: WriteGroupIntervalUnitMinute,
+			SampleReduction: WriteGroupSampleReductionLatest,
+		}, nil
 	default:
 		return WriteGroupRecordingProfile{}, fmt.Errorf("%w: unsupported profile kind %q", ErrWriteGroupValidation, kind)
 	}
 }
 
-// validate checks the kind, its fixed unit and the integer interval bounds.
+// validate checks the kind, its fixed unit, the integer interval bounds and
+// the sample reduction: an unknown value is never read as latest, and a mean
+// cumulative profile is rejected before anything can be saved.
 func (p WriteGroupRecordingProfile) validate() error {
 	var unit WriteGroupIntervalUnit
 	var minimum, maximum int
@@ -63,6 +74,14 @@ func (p WriteGroupRecordingProfile) validate() error {
 	default:
 		return fmt.Errorf("%w: unsupported profile kind %q", ErrWriteGroupValidation, p.Kind)
 	}
+	switch p.SampleReduction {
+	case "", WriteGroupSampleReductionLatest, WriteGroupSampleReductionMean:
+	default:
+		return fmt.Errorf("%w: unsupported sample reduction %q", ErrWriteGroupValidation, p.SampleReduction)
+	}
+	if p.SampleReduction == WriteGroupSampleReductionMean && p.Kind != WriteGroupProfileInstantaneous {
+		return fmt.Errorf("%w: mean reduction requires an instantaneous profile, not %q", ErrWriteGroupValidation, p.Kind)
+	}
 	if p.Unit != unit || p.Interval < minimum || p.Interval > maximum {
 		return fmt.Errorf("%w: a %s profile needs an integer interval of %d to %d %ss",
 			ErrWriteGroupProfileIntervalInvalid, p.Kind, minimum, maximum, unit)
@@ -70,17 +89,20 @@ func (p WriteGroupRecordingProfile) validate() error {
 	return nil
 }
 
-// UnmarshalJSON accepts only a JSON integer literal for the interval. A
-// fraction, exponent, string, null or missing interval is rejected instead of
-// being rounded, truncated or replaced by a default.
+// UnmarshalJSON accepts only a JSON integer literal for the interval and only
+// a known sample reduction. A fraction, exponent, string, null or missing
+// interval is rejected instead of being rounded, truncated or replaced by a
+// default, and an absent reduction stays latest while an explicit empty,
+// null or non-string one is rejected instead of degrading silently.
 func (p *WriteGroupRecordingProfile) UnmarshalJSON(data []byte) error {
 	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
 		return nil
 	}
 	var raw struct {
-		Kind     WriteGroupProfileKind  `json:"kind"`
-		Interval json.RawMessage        `json:"interval"`
-		Unit     WriteGroupIntervalUnit `json:"unit"`
+		Kind            WriteGroupProfileKind  `json:"kind"`
+		Interval        json.RawMessage        `json:"interval"`
+		Unit            WriteGroupIntervalUnit `json:"unit"`
+		SampleReduction json.RawMessage        `json:"sample_reduction"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -93,6 +115,25 @@ func (p *WriteGroupRecordingProfile) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("%w: the interval is out of range", ErrWriteGroupProfileIntervalInvalid)
 	}
-	*p = WriteGroupRecordingProfile{Kind: raw.Kind, Interval: interval, Unit: raw.Unit}
+	reduction := WriteGroupSampleReduction("")
+	if raw.SampleReduction != nil {
+		wire := string(bytes.TrimSpace(raw.SampleReduction))
+		if wire == "null" || !strings.HasPrefix(wire, `"`) {
+			return fmt.Errorf("%w: the sample reduction must be the JSON strings %q or %q",
+				ErrWriteGroupValidation, WriteGroupSampleReductionLatest, WriteGroupSampleReductionMean)
+		}
+		var parsed WriteGroupSampleReduction
+		if err := json.Unmarshal(raw.SampleReduction, &parsed); err != nil {
+			return fmt.Errorf("%w: the sample reduction must be the JSON strings %q or %q",
+				ErrWriteGroupValidation, WriteGroupSampleReductionLatest, WriteGroupSampleReductionMean)
+		}
+		switch parsed {
+		case WriteGroupSampleReductionLatest, WriteGroupSampleReductionMean:
+			reduction = parsed
+		default:
+			return fmt.Errorf("%w: unsupported sample reduction %q", ErrWriteGroupValidation, parsed)
+		}
+	}
+	*p = WriteGroupRecordingProfile{Kind: raw.Kind, Interval: interval, Unit: raw.Unit, SampleReduction: reduction}
 	return nil
 }

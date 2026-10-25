@@ -6,6 +6,7 @@ import type { Mapping, Point, WorkbenchV2State } from '@/features/datalink/workb
 import type { MeasurementDefinition } from '@/types/measurement';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
+import { expandSources } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -215,6 +216,7 @@ describe('Root review: batch scope and effective selection', () => {
     await waitFor(() => expect(ensureCircuitProfileAsync).toHaveBeenCalledTimes(3));
     await waitFor(() => expect(screen.queryByTestId('circuit-profile-batch-editor')).not.toBeInTheDocument());
     expect(screen.getByTestId('circuit-profile-toggle-cumulative')).toBeChecked();
+    expandSources();
     expect(screen.getByTestId('circuit-profile-member-cum-tag-0')).toBeChecked();
     expect(screen.getByTestId('circuit-profile-member-cum-tag-1')).toBeChecked();
     expect(screen.getByTestId('circuit-profile-member-cum-tag-2')).not.toBeChecked();

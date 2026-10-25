@@ -1,6 +1,8 @@
 package grouppipeline
 
 import (
+	"encoding/json"
+	"go-gateway/internal/datalink/groupdelivery"
 	"testing"
 
 	"go-gateway/internal/datalink/workspace"
@@ -85,5 +87,76 @@ func TestSourceEvidenceSaysUnavailableWhenTheAppliedRevisionCannotBeProven(t *te
 		view, err := deliveryPipeline(t, f).DeliveryForRevision(t.Context(), "group-G", "")
 		require.NoError(t, err)
 		require.Nil(t, view.SourceEvidence)
+	})
+}
+
+// TestSourceEvidenceUsesTheFrozenRuntimeVersion pins that the applied evidence
+// is proven by the runtime version Apply froze, not only by the saved revision
+// ResolveAppliedAt returns (which never carries the layout). A missing, corrupt
+// or mismatched frozen version must stay unavailable and never be completed from
+// the current draft.
+func TestSourceEvidenceUsesTheFrozenRuntimeVersion(t *testing.T) {
+	prepared := func(t *testing.T) (*fixture, *workspace.WriteGroup, *workspace.WriteGroupRuntimeLayout) {
+		t.Helper()
+		f := newFixture(t)
+		applied, layout := longProof(t, workspace.WriteGroupStorageModePlain, meanLongShape(nil))
+		f.groups.groups = []*workspace.WriteGroup{liveGroup(applied, workspace.WriteGroupStatusReady)}
+		f.groups.snapshots = map[string][]*workspace.WriteGroupAppliedSnapshot{applied.ID: {snapshotOf(applied, at(0))}}
+		return f, applied, layout
+	}
+	save := func(t *testing.T, f *fixture, snap *workspace.WriteGroupAppliedSnapshot) {
+		t.Helper()
+		payload, err := json.Marshal(snap)
+		require.NoError(t, err)
+		require.NoError(t, f.store.SaveRuntimeVersion(t.Context(), groupdelivery.GroupKey{
+			WorkspaceID: snap.WorkspaceID, GroupID: snap.GroupID, GroupRevision: snap.AppliedRevision,
+		}, payload))
+	}
+	view := func(t *testing.T, f *fixture, group *workspace.WriteGroup) *SourceEvidenceView {
+		t.Helper()
+		got, err := deliveryPipeline(t, f).DeliveryForRevision(t.Context(), group.ID, group.AppliedRevision)
+		require.NoError(t, err)
+		return got.SourceEvidence
+	}
+
+	t.Run("a verified frozen runtime version proves the applied snapshot", func(t *testing.T) {
+		f, applied, layout := prepared(t)
+		frozen := snapshotOf(applied, at(0))
+		frozen.RuntimeLayout = layout
+		save(t, f, frozen)
+
+		evidence := view(t, f, applied)
+		require.NotNil(t, evidence)
+		require.Equal(t, SourceEvidenceAvailable, evidence.State,
+			"the layout Apply froze, not the draft or a probe, is the proof")
+	})
+
+	t.Run("a missing frozen version stays unavailable", func(t *testing.T) {
+		f, applied, _ := prepared(t)
+		evidence := view(t, f, applied)
+		require.Equal(t, SourceEvidenceUnavailable, evidence.State)
+		require.Equal(t, SourceEvidenceNoSnapshot, evidence.UnavailableReason)
+		require.Empty(t, evidence.Sources)
+	})
+
+	t.Run("a corrupt frozen version is not repaired from the draft", func(t *testing.T) {
+		f, applied, _ := prepared(t)
+		require.NoError(t, f.store.SaveRuntimeVersion(t.Context(), groupdelivery.GroupKey{
+			WorkspaceID: applied.WorkspaceID, GroupID: applied.ID, GroupRevision: applied.AppliedRevision,
+		}, []byte("{")))
+		evidence := view(t, f, applied)
+		require.Equal(t, SourceEvidenceUnavailable, evidence.State)
+		require.Equal(t, SourceEvidenceNoSnapshot, evidence.UnavailableReason)
+	})
+
+	t.Run("a frozen version of another revision is not borrowed", func(t *testing.T) {
+		f, applied, layout := prepared(t)
+		frozen := snapshotOf(applied, at(0))
+		frozen.RuntimeLayout = layout
+		frozen.GroupRevision, frozen.AppliedRevision = "rev-other", "rev-other"
+		save(t, f, frozen)
+		evidence := view(t, f, applied)
+		require.Equal(t, SourceEvidenceUnavailable, evidence.State)
+		require.Equal(t, SourceEvidenceNoSnapshot, evidence.UnavailableReason)
 	})
 }

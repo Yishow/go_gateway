@@ -118,7 +118,10 @@ func sameWriteGroupSchema(candidate, existing *WriteGroup) bool {
 				member.PointID == existingMember.PointID &&
 				member.TagID == existingMember.TagID &&
 				member.TargetColumn == existingMember.TargetColumn &&
-				member.EntityKey == existingMember.EntityKey
+				member.EntityKey == existingMember.EntityKey &&
+				member.ValueRole == existingMember.ValueRole &&
+				sameStoredMetadata(string(member.SourceValueType), string(existingMember.SourceValueType)) &&
+				sameStoredMetadata(string(member.ResultValueType), string(existingMember.ResultValueType))
 		})
 		if !matched {
 			return false
@@ -140,7 +143,7 @@ func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, g
 	if err != nil {
 		return fmt.Errorf("encode write-group migration: %w", err)
 	}
-	layoutVersion, profileKind, profileInterval, profileUnit, storageMode := profileColumnValues(group)
+	profile := profileColumnValues(group)
 	result, err := tx.ExecContext(ctx, r.query(`
 		UPDATE write_groups SET
 			revision = $1, applied_revision = $2, name = $3, status = $4,
@@ -149,14 +152,15 @@ func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, g
 			destination_storage_strategy = $10, destination_schema_revision = $11,
 			destination_schema_digest = $12, row_policy = $13, write_policy = $14,
 			migration = $15, updated_at = $16,
-			layout_version = $17, profile_kind = $18, profile_interval = $19, profile_unit = $20, storage_mode = $21
-		WHERE workspace_id = $22 AND id = $23
+			layout_version = $17, profile_kind = $18, profile_interval = $19, profile_unit = $20, storage_mode = $21,
+			sample_reduction = $22
+		WHERE workspace_id = $23 AND id = $24
 	`), group.Revision, group.AppliedRevision, group.Name, group.Status,
 		group.Destination.ConnectorID, group.Destination.ConnectorRevision,
 		group.Destination.Database, group.Destination.TableSchema, group.Destination.TableName,
 		group.Destination.StorageStrategy, group.Destination.SchemaRevision, group.Destination.SchemaDigest,
 		string(rowPolicy), string(writePolicy), string(migration), group.UpdatedAt,
-		layoutVersion, profileKind, profileInterval, profileUnit, storageMode,
+		profile.layout, profile.kind, profile.interval, profile.unit, profile.mode, profile.reduction,
 		group.WorkspaceID, group.ID)
 	if err != nil {
 		return fmt.Errorf("update write group: %w", err)
@@ -178,11 +182,13 @@ func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, g
 			INSERT INTO write_group_members (
 				group_id, member_index, device_id, point_id, tag_id,
 				entity_key, source_revision, mapping_revision, measurement_id, target_column,
-				required, max_age_seconds, circuit_id, circuit_name
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+				required, max_age_seconds, circuit_id, circuit_name,
+				value_role, source_value_type, result_value_type
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		`), group.ID, index, member.DeviceID, member.PointID, member.TagID,
 			member.EntityKey, member.SourceRevision, member.MappingRevision, measurementID, member.TargetColumn,
-			member.Required, member.MaxAgeSeconds, nullableText(member.CircuitID), nullableText(member.CircuitName)); err != nil {
+			member.Required, member.MaxAgeSeconds, nullableText(member.CircuitID), nullableText(member.CircuitName),
+			nullableText(string(member.ValueRole)), nullableText(string(member.SourceValueType)), nullableText(string(member.ResultValueType))); err != nil {
 			return fmt.Errorf("replace write-group member %d: %w", index, err)
 		}
 	}

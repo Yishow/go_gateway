@@ -247,11 +247,11 @@ func (s *WriteGroupService) restoreSourceAt(ctx context.Context, tx *sql.Tx, rec
 	return nil
 }
 
-// requireNoActiveOwner refuses an ordinary Apply of a long group whose sources an
-// active wide or custom group still owns: two writers would record the same
-// observation. Only a reviewed cutover may hand them over.
+// requireNoActiveOwner refuses an ordinary Apply of a long or wide profile group
+// whose sources an active wide or custom group still owns: two writers would record
+// the same observation. Only a reviewed cutover may hand them over.
 func (s *WriteGroupService) requireNoActiveOwner(ctx context.Context, tx *sql.Tx, candidate *WriteGroup) error {
-	if !candidate.isLongLayout() {
+	if !candidate.isLongLayout() && !candidate.isWideProfile() {
 		return nil
 	}
 	overlap, err := s.repo.activeOverlapInTx(ctx, tx, candidate)

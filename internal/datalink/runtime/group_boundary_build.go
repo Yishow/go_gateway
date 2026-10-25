@@ -83,7 +83,7 @@ func assembleBoundary(ctx context.Context, cfg GroupBoundaryConfig, parts bounda
 	if clock == nil {
 		clock = time.Now
 	}
-	if parts.mode == snapshot.ModeCumulativeProfile {
+	if parts.mode.Cumulative() {
 		if code := restoreCounterBaselines(assembler, restored); code != "" {
 			return nil, blocked(code)
 		}

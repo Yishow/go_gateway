@@ -7,7 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"go-gateway/internal/datalink/aggregation"
 	"go-gateway/internal/datalink/measurement"
+	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/snapshot"
 )
 
@@ -20,6 +22,17 @@ type GroupRowMember struct {
 	Column    string
 	Type      measurement.ExactType
 	Required  bool
+	// Reduction is the frozen sample reduction ("mean" or empty for the legacy
+	// latest rule). A mean member stores the reduction value, never a raw sample.
+	Reduction string
+	// ValueRole and SourceValueType are the frozen recording metadata written to
+	// provenance; empty means the legacy shape never provided them.
+	ValueRole       string
+	SourceValueType schema.DataType
+	// Counter is the confirmed counter binding of a cumulative member. Its value
+	// column keeps the raw reading; the typed difference, bounds and status go to
+	// the member's provenance.counter.
+	Counter *aggregation.CounterBinding
 }
 
 // GroupRowSpec describes how snapshot rows map onto one inspected table. The
@@ -75,6 +88,7 @@ type GroupRowLayout struct {
 	spec         GroupRowSpec
 	columns      map[string]ColumnInfo
 	exactColumns map[string]ColumnInfo
+	members      map[string]GroupRowMember
 	caps         snapshot.StorageCapabilities
 }
 
@@ -207,10 +221,15 @@ func NewGroupRowLayout(spec GroupRowSpec) (*GroupRowLayout, []LayoutIssue) {
 	if len(issues) > 0 {
 		return nil, issues
 	}
+	byKey := make(map[string]GroupRowMember, len(spec.Members))
+	for _, member := range spec.Members {
+		byKey[member.MemberKey] = member
+	}
 	return &GroupRowLayout{
 		spec:         spec,
 		columns:      columns,
 		exactColumns: exactColumns,
+		members:      byKey,
 		caps:         snapshot.StorageCapabilities{NullableValues: nullableOptional, MemberQuality: provenanceOK},
 	}, nil
 }
@@ -271,6 +290,10 @@ func (l *GroupRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error)
 		if !ok {
 			return EncodedRow{}, &GroupRowError{Code: rowErrMemberMissing, Column: member.Column}
 		}
+		if result.Counter != nil && member.Counter == nil {
+			// A cumulative result must never lose its delta to a member without a binding.
+			return EncodedRow{}, &GroupRowError{Code: rowErrCounterUnbound, Column: member.Column}
+		}
 		if !result.Usable() {
 			if !l.spec.Partial {
 				return EncodedRow{}, &GroupRowError{Code: rowErrUnexpectedNull, Column: member.Column}
@@ -278,14 +301,15 @@ func (l *GroupRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error)
 			encoded.Cells = append(encoded.Cells, EncodedCell{Column: member.Column})
 			continue
 		}
-		if result.Sample == nil {
-			return EncodedRow{}, &GroupRowError{Code: rowErrMemberMissing, Column: member.Column}
+		value, err := rowMemberValue(member, result)
+		if err != nil {
+			return EncodedRow{}, err
 		}
-		if result.Sample.Value.Type() != member.Type {
+		if value.Type() != member.Type {
 			return EncodedRow{}, &GroupRowError{Code: rowErrTypeMismatch, Column: member.Column}
 		}
 		column := l.column(member.Column)
-		bound, err := EncodeExactValue(l.spec.Dialect, column.DataType, result.Sample.Value)
+		bound, err := EncodeExactValue(l.spec.Dialect, column.DataType, value)
 		if err != nil {
 			return EncodedRow{}, &GroupRowError{Code: rowErrSQLValueBlock, Column: member.Column}
 		}
@@ -300,6 +324,26 @@ func (l *GroupRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error)
 		encoded.Cells[i].Column = l.column(encoded.Cells[i].Column).Name
 	}
 	return encoded, nil
+}
+
+// rowMemberValue returns the value a wide record stores for a usable member: the
+// reduction value for a mean member and the newest eligible reading for every
+// other member. A mean without its reduction result, or a raw reading that would
+// stand in for it, is refused instead of silently degrading to latest.
+func rowMemberValue(member GroupRowMember, result snapshot.MemberResult) (measurement.ExactValue, error) {
+	if member.Reduction == longReductionMean {
+		if result.Reduction == nil {
+			return measurement.ExactValue{}, &GroupRowError{Code: rowErrTypeMismatch, Column: member.Column}
+		}
+		return result.Reduction.Value, nil
+	}
+	if result.Reduction != nil {
+		return measurement.ExactValue{}, &GroupRowError{Code: rowErrTypeMismatch, Column: member.Column}
+	}
+	if result.Sample == nil {
+		return measurement.ExactValue{}, &GroupRowError{Code: rowErrMemberMissing, Column: member.Column}
+	}
+	return result.Sample.Value, nil
 }
 
 func (l *GroupRowLayout) appendIdentityCells(encoded *EncodedRow, outcome snapshot.Outcome) error {
@@ -335,7 +379,7 @@ func (l *GroupRowLayout) appendIdentityCells(encoded *EncodedRow, outcome snapsh
 		return err
 	}
 	if name := l.spec.ProvenanceColumn; name != "" {
-		payload, err := json.Marshal(provenanceEntries(outcome))
+		payload, err := json.Marshal(l.provenanceEntries(outcome))
 		if err != nil {
 			return &GroupRowError{Code: rowErrSQLValueBlock, Column: name}
 		}

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"go-gateway/internal/datalink/dbtarget"
-	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/schema"
 )
@@ -211,7 +210,7 @@ func evaluateWriteGroupInspection(
 			))
 			continue
 		}
-		kind, ok := measurement.ExactTypeForTag(dataType)
+		kind, ok := memberExactType(group, member, tagTypes)
 		if !ok {
 			issues = append(issues, writeGroupReadinessIssue(
 				"tag-type-unverified", "a source tag type could not be verified", group.ID,

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/aggregation"
+	"go-gateway/internal/datalink/measurement"
 )
 
 // OutcomeKind is the result of closing one entity's bucket.
@@ -30,6 +31,9 @@ const (
 	// ReasonTypeMismatch marks a reading whose value cannot be carried as the
 	// member's declared exact type.
 	ReasonTypeMismatch = "type-mismatch"
+	// ReasonMeanInvalid marks a mean window whose observations cannot produce a
+	// typed arithmetic mean; the member carries no Reduction value then.
+	ReasonMeanInvalid = "mean-invalid"
 )
 
 // MemberStatus explains why a member is or is not usable.
@@ -54,6 +58,15 @@ type MemberResult struct {
 	// ModeCumulativeProfile for a member with an eligible reading; Sample is then
 	// the raw reading it reports.
 	Counter *aggregation.CounterWindowResult
+	// Reduction is the typed arithmetic mean of the window's eligible
+	// observations. It is set only for a SampleReductionMean member; Sample stays
+	// the newest eligible reading of the same real window and is never replaced
+	// by the mean.
+	Reduction *measurement.MeanResult
+	// Evidence is the value-free evidence of a mean window: aggregation
+	// metadata, actual counts and observed bounds, coverage and stable reasons.
+	// It is set only for a SampleReductionMean member.
+	Evidence *MeanEvidence
 }
 
 // Outcome is emitted exactly once per entity and bucket.

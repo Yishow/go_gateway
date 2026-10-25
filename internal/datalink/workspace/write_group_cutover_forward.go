@@ -191,7 +191,7 @@ func (s *WriteGroupService) planForward(ctx context.Context, req CutoverRequest)
 		switch {
 		case seen[target.ID]:
 			issues = append(issues, CutoverIssueTargetsOverlap)
-		case !managedLongGroup(target):
+		case !managedCutoverTarget(target):
 			issues = append(issues, CutoverIssueTargetNotLong)
 		case target.AppliedRevision == target.Revision:
 			issues = append(issues, CutoverIssueTargetActive)

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useMemo, useCallback, useEffect, useRef, useState } from 'react';
+import { useMemo, useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useStep4Activation } from './useStep4Activation';
 import {
@@ -16,15 +16,14 @@ import { BasicRecordingPanel } from './BasicRecordingPanel';
 import { useWriteGroupsQuery } from '../../../../../hooks/datalink/useStudioV2WriteGroups';
 import { SafeQueryBoundary } from '@/utils/SafeQueryBoundary';
 import { CommitSummary } from './CommitSummary';
-import { CommitProgress } from './CommitProgress';
-import { CommitSuccessCard } from './CommitSuccessCard';
 import { Step4SupportPanels } from './Step4SupportPanels';
 import { ShareOutputSummary } from './ShareOutputSummary';
-import { ActivationNeutralSummary, ActivationRecoveryNotice } from './ActivationNeutralSummary';
+import { ActivationRecoveryNotice } from './ActivationNeutralSummary';
 import { WorkspaceScopeNote } from './WorkspaceScopeNote';
 import { getDefaultConnector, getDbKindPatch } from '../../state/dbSchemas';
 import type { WorkbenchV2State, DbConnector, SettingsConnector } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
+import type { WriteGroup } from '../../../../../types/studioV2WriteGroup';
 import type {
   StudioV2ActivationRecovery,
   StudioV2ActivationResponse,
@@ -38,6 +37,10 @@ interface Step4DatabaseProps {
   dispatch: React.Dispatch<WorkbenchV2Action>;
   workspaceId?: string;
   onCommit?: (confirmedDeviceIds?: string[]) => void;
+  /**
+   * The explicit workspace-wide activation of legacy callers. This page never starts it: recording starts only from
+   * the reviewed device scope, and the overview below reports status.
+   */
   activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
   recoverActivationStatus?: () => Promise<StudioV2ActivationRecovery>;
   workspaceReadiness?: StudioV2WorkspaceReadinessSummary | null;
@@ -56,20 +59,14 @@ function Step4DatabaseContent({
   dispatch,
   workspaceId,
   onCommit,
-  activateWorkspace,
   recoverActivationStatus,
   workspaceReadiness,
   shareStatus,
   onNavigateStep,
 }: Step4DatabaseProps) {
   const { t } = useTranslation('workbench-v2');
-  const activation = useStep4Activation(
-    activateWorkspace,
-    recoverActivationStatus,
-    workspaceId,
-  );
-
-  const isReadonly = useStep4Readonly(activation.phase);
+  // Only the read-back of an earlier activation is shown; no workspace-wide start is wired to this page.
+  const activation = useStep4Activation(undefined, recoverActivationStatus, workspaceId);
   const { connector, targets } = state.db;
   const rowGroups = useMemo(() => state.db.row_groups ?? [], [state.db.row_groups]);
   const enabledPoints = useMemo(() => state.points.filter(p => p.enabled), [state.points]);
@@ -133,10 +130,6 @@ function Step4DatabaseContent({
     dispatch({ type: 'updateDbConnector', patch: nextPatch });
   }, [clearRowGroupScope, connector, dispatch]);
 
-  const hasActiveDevice = state.devices.some((d) => d.status === 'active' || d.running) ||
-    Boolean(activation.recovery?.devices.some((device) => device.running));
-  const canContinueToRuntime = activation.canContinue || hasActiveDevice;
-  const hasActivationSuccess = activation.canContinue;
   const saveStates = [
     ...state.devices.map((device) => device.save_state),
     ...state.rules.map((rule) => rule.save_state),
@@ -154,15 +147,19 @@ function Step4DatabaseContent({
   const configurationSaved = saveStates.length > 0 && saveStates.every((saveState) => saveState === 'saved');
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [openGroupRequest, setOpenGroupRequest] = useState<{ id: string }>();
+  const [reviewRequest, setReviewRequest] = useState<{ workspaceId: string; groupId: string }>();
   const [basicOperationActive, setBasicOperationActive] = useState(false);
   const advancedRef = useRef<HTMLDetailsElement>(null);
+  const basicRef = useRef<HTMLDivElement>(null);
   const openAdvanced = useCallback(() => {
     setAdvancedOpen(true);
     advancedRef.current?.focus();
   }, []);
-  useEffect(() => {
-    if (activation.phase !== 'idle') setAdvancedOpen(true);
-  }, [activation.phase]);
+  // A managed profile group's effective action returns to the reviewed start of its own device; it starts nothing.
+  const reviewScopedStart = useCallback((group: WriteGroup) => {
+    setReviewRequest({ workspaceId: workspaceId ?? '', groupId: group.id });
+    basicRef.current?.focus();
+  }, [workspaceId]);
 
   return (
     <div className="space-y-6">
@@ -173,13 +170,14 @@ function Step4DatabaseContent({
         onUpdateConnector={handleUpdateConnector}
         onKindChange={handleKindChange}
         onSelectConnector={handleSelectConnectorPool}
-        disabled={isReadonly || basicOperationActive}
+        disabled={basicOperationActive}
       />
-      <div hidden={!destinationIsSaved(state) && !isModbusShareConfiguredEnabled(shareStatus)}>
+      <div ref={basicRef} tabIndex={-1} data-testid="step4-basic-recording" hidden={!destinationIsSaved(state) && !isModbusShareConfiguredEnabled(shareStatus)}>
       <BasicRecordingPanel
         state={state}
         workspaceId={workspaceId}
-        readonly={isReadonly}
+        readonly={false}
+        reviewRequest={reviewRequest}
         shareStatus={shareStatus}
         onCommit={onCommit}
         onOpenAdvanced={(groupId) => { if (groupId) setOpenGroupRequest({ id: groupId }); openAdvanced(); }}
@@ -205,58 +203,29 @@ function Step4DatabaseContent({
           <WriteGroupSection
             state={state}
             workspaceId={workspaceId}
-            readonly={isReadonly || basicOperationActive}
+            readonly={basicOperationActive}
             onNavigateStep={onNavigateStep}
             openGroupRequest={openGroupRequest}
+            onReviewScopedStart={reviewScopedStart}
           />
 
           <div id="step4-workspace-readiness" tabIndex={-1} data-testid="step4-workspace-readiness" className="space-y-4">
           <WorkspaceScopeNote groupSummary={groupSummary} />
-          {activation.phase === 'idle' ? (
-            <>
-              <ActivationRecoveryNotice
-                recovery={activation.recovery}
-                recoveryUnavailable={activation.recoveryUnavailable}
-              />
-              <CommitSummary
-                deviceCount={state.devices.length}
-                ruleCount={state.rules.filter(r => r.enabled).length}
-                pointCount={enabledPoints.length}
-                mappingCount={Object.values(state.mappings).filter(m => m.enabled).length}
-                connector={connector}
-                groupSummary={groupSummary}
-                readinessSummary={workspaceReadiness}
-                configurationSaved={configurationSaved}
-                onActivate={activation.start}
-                onNavigateStep={onNavigateStep}
-              />
-            </>
-          ) : activation.phase === 'activating' ? (
-            <CommitProgress logs={activation.logs} status="committing" />
-          ) : (
-            <>
-              {activation.logs.some((log) => log.status === 'failed') && (
-                <CommitProgress logs={activation.logs} status="failed" onRetry={activation.start} />
-              )}
-              {hasActivationSuccess ? (
-                <CommitSuccessCard
-                  response={activation.response ?? { workspace_id: '', results: [] }}
-                  canContinue={canContinueToRuntime}
-                  onCommit={onCommit}
-                  onReset={activation.reset}
-                />
-              ) : (
-                <ActivationNeutralSummary
-                  canContinue={canContinueToRuntime}
-                  onCommit={onCommit}
-                  response={activation.response}
-                  recovery={activation.recovery}
-                  recoveryUnavailable={activation.recoveryUnavailable}
-                  onReset={activation.reset}
-                />
-              )}
-            </>
-          )}
+          <ActivationRecoveryNotice
+            recovery={activation.recovery}
+            recoveryUnavailable={activation.recoveryUnavailable}
+          />
+          <CommitSummary
+            deviceCount={state.devices.length}
+            ruleCount={state.rules.filter(r => r.enabled).length}
+            pointCount={enabledPoints.length}
+            mappingCount={Object.values(state.mappings).filter(m => m.enabled).length}
+            connector={connector}
+            groupSummary={groupSummary}
+            readinessSummary={workspaceReadiness}
+            configurationSaved={configurationSaved}
+            onNavigateStep={onNavigateStep}
+          />
           </div>
         </div>
       </details>

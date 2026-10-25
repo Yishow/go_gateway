@@ -25,6 +25,9 @@ type WriteGroupReadiness struct {
 	// a source without a saved measurement to confirm its counter semantics.
 	longRuntimeGate bool
 	counterGate     bool
+	// reductionGate marks a group whose saved sample reduction the runtime
+	// cannot serve yet: the profile stays savable, but no writer may start.
+	reductionGate bool
 	// counterIssues are the saved-measurement refusals of a cumulative group,
 	// read from the database after the group was loaded.
 	counterIssues     []ReadinessIssue
@@ -59,12 +62,14 @@ func newWriteGroupReadiness(record *Record, group *WriteGroup) *WriteGroupReadin
 		WorkspaceID: record.ID, WorkspaceRevision: record.DatabaseSetupRevision,
 		GroupID: group.ID, GroupRevision: group.Revision, AppliedRevision: group.AppliedRevision,
 		Issues: []ReadinessIssue{}, longRuntimeGate: group.isLongLayout() && !longRuntimeSupported(group),
-		counterGate: longRuntimeSupported(group) && cumulativeWithoutMeasurements(group),
+		counterGate:   (longRuntimeSupported(group) || group.isWideProfile()) && cumulativeWithoutMeasurements(group),
+		reductionGate: recordingReductionUnsupported(group, nil),
 	}
 }
 
 func (s *WriteGroupService) newSnapshotReadiness(ctx context.Context, snapshot *writeGroupReadinessSnapshot) *WriteGroupReadiness {
 	result := newWriteGroupReadiness(snapshot.record, snapshot.group)
+	result.reductionGate = recordingReductionUnsupported(snapshot.group, snapshot.tagTypes)
 	result.counterIssues = s.counterMeasurementIssues(ctx, snapshot.group, snapshot.tagTypes)
 	return result
 }
@@ -77,6 +82,9 @@ func finalizeWriteGroupReadiness(readiness *WriteGroupReadiness) *WriteGroupRead
 	}
 	if readiness.counterGate {
 		readiness.Issues = append(readiness.Issues, counterSemanticsRequiredIssue(readiness.GroupID))
+	}
+	if readiness.reductionGate {
+		readiness.Issues = append(readiness.Issues, recordingReductionUnavailableIssue(readiness.GroupID))
 	}
 	readiness.Issues = append(readiness.Issues, readiness.counterIssues...)
 	readiness.Ready = readiness.ConfigReady && readiness.SchemaReady && len(readiness.Issues) == 0

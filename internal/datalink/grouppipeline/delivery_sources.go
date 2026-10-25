@@ -17,7 +17,7 @@ const (
 	SourceEvidenceRevisionMismatch = "revision_mismatch"
 )
 
-// SourceEvidenceView is the per source result of the applied revision of a managed long group.
+// SourceEvidenceView is the per source result of the applied revision of a managed long or wide profile group.
 type SourceEvidenceView struct {
 	State             string `json:"state"`
 	UnavailableReason string `json:"unavailable_reason,omitempty"`
@@ -40,7 +40,10 @@ type SourceEvidenceItem struct {
 }
 
 // sourceEvidence reads the applied sources from the group's immutable applied snapshot, never from the editable
-// draft, and asks the durable store for each source's newest record. Wide, custom and unapplied groups have none.
+// draft, and asks the durable store for each source's newest record. Managed long and managed wide profile groups
+// have evidence; legacy wide, custom and unapplied groups have none. A mean or a wide profile is trusted only when the
+// frozen applied layout it was written under still proves out, and what each record says is checked against what that
+// layout froze for the source.
 func (p *Pipeline) sourceEvidence(ctx context.Context, groupID, appliedRevision string) (*SourceEvidenceView, error) {
 	if appliedRevision == "" || p.deps.Groups == nil {
 		return nil, nil
@@ -53,7 +56,9 @@ func (p *Pipeline) sourceEvidence(ctx context.Context, groupID, appliedRevision 
 		return unavailable(SourceEvidenceNoSnapshot), nil
 	}
 	group := snapshot.Group
-	if group.EffectiveLayoutVersion() != workspace.WriteGroupLayoutManagedLongV1 || group.RecordingProfile == nil {
+	layout := group.EffectiveLayoutVersion()
+	wide := layout == workspace.WriteGroupLayoutManagedWideProfileV1
+	if (layout != workspace.WriteGroupLayoutManagedLongV1 && !wide) || group.RecordingProfile == nil {
 		return nil, nil
 	}
 	if snapshot.AppliedRevision != appliedRevision {
@@ -62,9 +67,24 @@ func (p *Pipeline) sourceEvidence(ctx context.Context, groupID, appliedRevision 
 	if group.Destination.ConnectorID == "" || group.Destination.ConnectorRevision == "" {
 		return unavailable(SourceEvidenceNoSnapshot), nil
 	}
+	reduction := ""
+	if group.RecordingProfile.Kind == workspace.WriteGroupProfileInstantaneous {
+		reduction = string(group.RecordingProfile.EffectiveSampleReduction())
+	}
+	// A wide profile and a mean read frozen recording facts, so the applied proof that froze them must still be valid.
+	// A long group without a mean keeps the evidence it always had.
+	if (wide || reduction == string(workspace.WriteGroupSampleReductionMean)) && !appliedProofValid(snapshot, wide) {
+		return unavailable(SourceEvidenceNoSnapshot), nil
+	}
 	scope := groupdelivery.SourceScope{
 		WorkspaceID: snapshot.WorkspaceID, GroupID: groupID, GroupRevision: appliedRevision, ProfileKind: string(group.RecordingProfile.Kind),
 		ConnectorID: group.Destination.ConnectorID, ConnectorRevision: group.Destination.ConnectorRevision,
+	}
+	if wide {
+		policy := group.RowPolicy
+		scope.Wide, scope.IntervalSeconds = true, group.RecordingProfile.IntervalSeconds()
+		scope.RecordKeyColumn, scope.GroupIDColumn, scope.BucketStartColumn, scope.ProvenanceColumn =
+			policy.RecordKeyColumn, policy.GroupIDColumn, policy.BucketStartColumn, policy.ProvenanceColumn
 	}
 	view := &SourceEvidenceView{
 		State: SourceEvidenceAvailable, GroupRevision: appliedRevision, ConnectorID: scope.ConnectorID, ConnectorRevision: scope.ConnectorRevision,
@@ -73,6 +93,8 @@ func (p *Pipeline) sourceEvidence(ctx context.Context, groupID, appliedRevision 
 	for _, member := range group.Members {
 		records, err := p.deps.Store.SourceRecords(ctx, scope, groupdelivery.SourceRef{
 			CircuitID: member.CircuitID, DeviceID: member.DeviceID, PointID: member.PointID, TagID: member.TagID,
+			Column: member.TargetColumn, Reduction: reduction, Role: string(member.ValueRole),
+			SourceType: string(member.SourceValueType), ResultType: string(member.ResultValueType),
 		})
 		if err != nil {
 			return nil, err
@@ -85,11 +107,41 @@ func (p *Pipeline) sourceEvidence(ctx context.Context, groupID, appliedRevision 
 	return view, nil
 }
 
+// appliedProofValid is the very proof the pipeline builds a writer from: the applied snapshot carries the frozen
+// runtime layout and it still proves the recording shape. Anything less cannot support per source evidence.
+func appliedProofValid(snapshot *workspace.WriteGroupAppliedSnapshot, wide bool) bool {
+	if snapshot.RuntimeLayout == nil {
+		return false
+	}
+	if wide {
+		return validCanonicalManagedRuntimeProof(snapshot.Group, snapshot.RuntimeLayout)
+	}
+	return validLongRuntimeProof(snapshot.Group, snapshot.RuntimeLayout)
+}
+
 // appliedSnapshot is the immutable applied snapshot in force now, or nil when it cannot be resolved.
 func (p *Pipeline) appliedSnapshot(ctx context.Context, groupID string) *workspace.WriteGroupAppliedSnapshot {
 	snapshot, err := p.deps.Groups.ResolveAppliedAt(ctx, groupID, p.config.Now())
 	if err != nil || snapshot == nil || snapshot.Group == nil {
 		return nil
 	}
+	// The saved revision never carries the runtime layout. Prefer the verified
+	// runtime version Apply froze for exactly this workspace, group and applied
+	// revision; an invalid or missing one is never trusted and the caller then
+	// fails closed on the layout-less resolved snapshot.
+	key := groupdelivery.GroupKey{
+		WorkspaceID: snapshot.WorkspaceID, GroupID: snapshot.GroupID, GroupRevision: snapshot.AppliedRevision,
+	}
+	frozen, loadErr := p.loadRuntimeSnapshot(ctx, key)
+	if loadErr != nil {
+		// A stored version that cannot be verified (malformed, mismatched key or a
+		// failed proof) must never be replaced by the layout-less saved revision.
+		return nil
+	}
+	if frozen != nil {
+		return frozen
+	}
+	// No frozen runtime version at all: a legacy revision keeps the resolved
+	// snapshot, while a new shape has no layout there and fails closed.
 	return snapshot
 }

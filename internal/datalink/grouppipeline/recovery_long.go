@@ -7,7 +7,6 @@ import (
 
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
-	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/workspace"
 )
 
@@ -22,6 +21,9 @@ func longGroup(group *workspace.WriteGroup) bool {
 // fixed column layout, an exact type for every source and a receipt table when
 // the group dedupes by receipt. It never trusts a caller-supplied applied flag.
 func validLongRuntimeProof(group *workspace.WriteGroup, layout *workspace.WriteGroupRuntimeLayout) bool {
+	if recordingReductionUnsupported(group, layout.TagTypes) {
+		return false
+	}
 	table, owner, ok := workspace.LongStorageIdentity(group)
 	if !ok || layout == nil || len(group.Members) == 0 || len(layout.Columns) == 0 ||
 		layout.Dialect != dbtarget.SQLDialectSQLite && layout.Dialect != dbtarget.SQLDialectPostgres {
@@ -50,15 +52,21 @@ func validLongRuntimeProof(group *workspace.WriteGroup, layout *workspace.WriteG
 	if !ownerColumn {
 		return false
 	}
+	reduction := profile.EffectiveSampleReduction()
 	members := make([]dbtarget.LongRowMember, 0, len(group.Members))
 	for _, member := range group.Members {
-		kind, exact := measurement.ExactTypeForTag(layout.TagTypes[member.TagID])
+		tagType, exact := layout.TagTypes[member.TagID]
 		if !exact {
+			return false
+		}
+		stored, ok := workspace.LongMemberStoredType(reduction, member.ValueRole, tagType)
+		if !ok {
 			return false
 		}
 		members = append(members, dbtarget.LongRowMember{
 			MemberKey: member.DeviceID + "/" + member.PointID + "/" + member.TagID,
-			DeviceID:  member.DeviceID, PointID: member.PointID, TagID: member.TagID, Type: kind,
+			DeviceID:  member.DeviceID, PointID: member.PointID, TagID: member.TagID, Type: stored,
+			Reduction: string(reduction), ValueRole: string(member.ValueRole), SourceValueType: member.SourceValueType,
 		})
 	}
 	if _, issues := dbtarget.NewLongRowLayout(dbtarget.LongRowSpec{

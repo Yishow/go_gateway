@@ -93,6 +93,12 @@ func (h *circuitProfileHarness) draft(kind WriteGroupProfileKind, circuitID, cir
 	}
 	profile, err := DefaultWriteGroupRecordingProfile(kind)
 	require.NoError(h.t, err)
+	// The shared fixture pins the legacy latest semantics explicitly so every
+	// test built on it keeps protecting the latest path; the mean default has
+	// its own compatibility tests.
+	if kind == WriteGroupProfileInstantaneous {
+		profile.SampleReduction = WriteGroupSampleReductionLatest
+	}
 	group.RecordingProfile = &profile
 	return group
 }

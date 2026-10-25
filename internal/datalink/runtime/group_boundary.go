@@ -167,6 +167,9 @@ func NewGroupBoundaryContext(ctx context.Context, cfg GroupBoundaryConfig) (*Gro
 	if group.EffectiveLayoutVersion() == workspace.WriteGroupLayoutManagedLongV1 {
 		return newLongGroupBoundary(ctx, cfg)
 	}
+	if group.EffectiveLayoutVersion() == workspace.WriteGroupLayoutManagedWideProfileV1 {
+		return newWideProfileGroupBoundary(ctx, cfg)
+	}
 
 	members := make(map[string]boundaryMember, len(group.Members))
 	layoutMembers := make([]dbtarget.GroupRowMember, 0, len(group.Members))

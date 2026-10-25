@@ -8,6 +8,7 @@ import type { SchemaOperation, SchemaPreviewToken } from '@/types/recordingPlan'
 import type { WriteGroup, WriteGroupCreateRequest, WriteGroupSchemaApplyRequest, WriteGroupSchemaPreviewRequest } from '@/types/studioV2WriteGroup';
 import type { RecordingStartOperation, RecordingStartRequest } from '@/types/studioV2RecordingStart';
 import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
+import { expandSources } from '../../fixtures/sourceReview';
 
 // Real React Query hooks and the real schema panel; only the service boundary
 // is simulated. Server/SQL coverage remains a separate API integration gate.
@@ -97,6 +98,7 @@ async function prepare(both = false) {
   render(<QueryClientProvider client={client}><CircuitProfileBasicPanel state={savedGroupState()} workspaceId="ws-1" readonly={false} /></QueryClientProvider>);
   await waitFor(() => expect(groupsAPI.list).toHaveBeenCalled());
   fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: '水量迴路' } });
+  expandSources();
   fireEvent.click(screen.getByLabelText('line.pressure')); fireEvent.click(screen.getByLabelText('line.batch'));
   if (both) fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
   await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());

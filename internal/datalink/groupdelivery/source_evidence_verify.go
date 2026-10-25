@@ -29,6 +29,8 @@ var sourceReasons = map[string]bool{
 	snapshot.ReasonNoSamples: true, snapshot.ReasonTypeMismatch: true, snapshot.ReasonCounterUnavailable: true,
 	"missing-value": true, "max-age-exceeded": true, "mapping-failed": true,
 	"quality-bad": true, "quality-missing": true, "quality-stale": true, "quality-invalid": true, "quality-uncertain": true,
+	snapshot.ReasonCoverageUnverified: true, snapshot.MeanReasonBad: true, snapshot.MeanReasonInvalid: true,
+	snapshot.MeanReasonStale: true, snapshot.MeanReasonNonNumeric: true,
 	aggregation.ReasonFirstReading: true, aggregation.ReasonBindingChanged: true, aggregation.ReasonNoEligibleReading: true,
 	aggregation.ReasonDecreaseUnproven: true, aggregation.ReasonContradictory: true, aggregation.ReasonNonMonotonicTime: true,
 	aggregation.ReasonMixedBasis: true, aggregation.ReasonRolloverEvidence: true, aggregation.ReasonRolloverRange: true,
@@ -124,6 +126,29 @@ func timeCell(cells map[string]any, column string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
+// openFrozenRow checks what every managed record must satisfy before anything in it is read: the payload still has
+// the digest the outbox froze, it decodes, and its identity, applied revision and destination are the scope's.
+func openFrozenRow(scope SourceScope, row sourceRow) (dbtarget.EncodedRow, map[string]any, SourceUnavailableCause, bool) {
+	sum := sha256.Sum256([]byte(row.payload))
+	if hex.EncodeToString(sum[:]) != row.digest {
+		return dbtarget.EncodedRow{}, nil, SourceCauseDigestMismatch, false
+	}
+	encoded, readable := decodeSourcePayload(row.payload)
+	if !readable {
+		return dbtarget.EncodedRow{}, nil, SourceCausePayloadInvalid, false
+	}
+	if encoded.RecordID != row.recordID || encoded.EffectKey != row.effectKey || encoded.EntityKey != row.entityKey ||
+		row.workspaceID != scope.WorkspaceID || row.groupID != scope.GroupID || row.groupRevision != scope.GroupRevision ||
+		row.connectorID != scope.ConnectorID || row.connectorRevision != scope.ConnectorRevision {
+		return dbtarget.EncodedRow{}, nil, SourceCauseIdentityMismatch, false
+	}
+	cells := make(map[string]any, len(encoded.Cells))
+	for _, cell := range encoded.Cells {
+		cells[strings.ToLower(cell.Column)] = cell.Value
+	}
+	return encoded, cells, "", true
+}
+
 // verifySource decodes one frozen payload and keeps only what it proves about the source. Nothing about a record
 // that fails any check is reported, and a committed row needs a receipt that matches its payload.
 func (s *Store) verifySource(ctx context.Context, scope SourceScope, ref SourceRef, row sourceRow) (SourceRecord, error) {
@@ -132,22 +157,12 @@ func (s *Store) verifySource(ctx context.Context, scope SourceScope, ref SourceR
 		return SourceRecord{}, err
 	}
 	delivery := sourceDelivery(row.state, matched)
-	sum := sha256.Sum256([]byte(row.payload))
-	if hex.EncodeToString(sum[:]) != row.digest {
-		return unavailable(delivery, SourceCauseDigestMismatch), nil
+	encoded, cells, cause, opened := openFrozenRow(scope, row)
+	if !opened {
+		return unavailable(delivery, cause), nil
 	}
-	encoded, readable := decodeSourcePayload(row.payload)
-	if !readable {
-		return unavailable(delivery, SourceCausePayloadInvalid), nil
-	}
-	if encoded.RecordID != row.recordID || encoded.EffectKey != row.effectKey || encoded.EntityKey != row.entityKey ||
-		row.workspaceID != scope.WorkspaceID || row.groupID != scope.GroupID || row.groupRevision != scope.GroupRevision ||
-		row.connectorID != scope.ConnectorID || row.connectorRevision != scope.ConnectorRevision {
-		return unavailable(delivery, SourceCauseIdentityMismatch), nil
-	}
-	cells := make(map[string]any, len(encoded.Cells))
-	for _, cell := range encoded.Cells {
-		cells[strings.ToLower(cell.Column)] = cell.Value
+	if scope.Wide {
+		return verifyWideRecord(scope, ref, row, encoded, cells, delivery), nil
 	}
 	if cellText(cells, "record_id") != row.recordID || cellText(cells, "workspace_id") != scope.WorkspaceID ||
 		cellText(cells, "group_id") != scope.GroupID || cellText(cells, "group_revision") != scope.GroupRevision ||
@@ -176,10 +191,14 @@ func (s *Store) verifySource(ctx context.Context, scope SourceScope, ref SourceR
 	if !consistent {
 		return unavailable(delivery, cause), nil
 	}
+	evidence, verified := verifySourceAggregation(ref, status, provenance.Mean)
+	if !verified {
+		return unavailable(delivery, SourceCausePayloadInvalid), nil
+	}
 	record := &VerifiedSourceRecord{
 		GroupRevision: row.groupRevision, ConnectorRevision: row.connectorRevision, RecordID: row.recordID, EffectKey: row.effectKey,
 		PayloadDigest: row.digest, ProfileKind: scope.ProfileKind, WindowStart: start, WindowEnd: end, Status: status,
-		Reason: sourceReason(provenance.Reason), RawPresent: rawPresent,
+		Reason: sourceReason(provenance.Reason), RawPresent: rawPresent, Aggregation: evidence,
 	}
 	if scope.ProfileKind == sourceProfileCumulative {
 		record.DeltaKnown = &deltaKnown

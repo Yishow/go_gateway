@@ -218,6 +218,9 @@ func sameBasicManagedIntent(candidate, existing *WriteGroup) bool {
 				member.EntityKey == existingMember.EntityKey &&
 				member.TargetColumn == existingMember.TargetColumn &&
 				member.Required == existingMember.Required &&
+				member.ValueRole == existingMember.ValueRole &&
+				sameStoredMetadata(string(member.SourceValueType), string(existingMember.SourceValueType)) &&
+				sameStoredMetadata(string(member.ResultValueType), string(existingMember.ResultValueType)) &&
 				sameOptionalString(member.MeasurementID, existingMember.MeasurementID) &&
 				((member.MaxAgeSeconds == nil && existingMember.MaxAgeSeconds == nil) ||
 					(member.MaxAgeSeconds != nil && existingMember.MaxAgeSeconds != nil && *member.MaxAgeSeconds == *existingMember.MaxAgeSeconds))

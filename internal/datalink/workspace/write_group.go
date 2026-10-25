@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/common"
+	"go-gateway/internal/datalink/measurement"
+	"go-gateway/internal/datalink/schema"
 )
 
 // WriteGroupStatus is the local lifecycle of a persisted Step 4 group.
@@ -71,6 +73,14 @@ type WriteGroupMember struct {
 	// derived from names or addresses; CircuitName is display text only.
 	CircuitID   string `json:"circuit_id,omitempty"`
 	CircuitName string `json:"circuit_name,omitempty"`
+	// ValueRole is explicit on new instantaneous recording shapes. Legacy
+	// members and cumulative profiles may omit it; absence never means gauge.
+	ValueRole WriteGroupValueRole `json:"value_role,omitempty"`
+	// SourceValueType records the tag's own data type and ResultValueType the
+	// reduction result type the runtime must write. Both are saved only for a
+	// new recording shape, verified against the real tag, and never change it.
+	SourceValueType schema.DataType       `json:"source_value_type,omitempty"`
+	ResultValueType measurement.ExactType `json:"result_value_type,omitempty"`
 }
 
 // WriteGroupDestination binds one group to a saved connector identity.

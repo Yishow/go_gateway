@@ -7,7 +7,7 @@ import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWri
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import type { WriteGroupCutover } from '@/types/studioV2WriteGroupCutover';
 import { httpFailure } from '../../fixtures/circuitBatchPanel';
-import { DIGEST, member, quietDelivery, recordOf, REVIEWED_BOUNDARY, reviewOf, target, view, wide } from '../../fixtures/cutoverFixtures';
+import { DIGEST, member, quietDelivery, recordOf, REVIEWED_BOUNDARY, reviewOf, target, view, wide, wideMeanTarget } from '../../fixtures/cutoverFixtures';
 import { savedGroupState, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
 
 // Real hooks, the real Step 4 host and the real Advanced group section; only the service boundary is simulated. This is
@@ -270,5 +270,24 @@ describe('A rollback is a new reviewed boundary, never the old one', () => {
     fireEvent.click(screen.getByTestId('cutover-mode-rollback'));
     expect(screen.queryByTestId('cutover-review')).not.toBeInTheDocument();
     expect(api.applyCutover).not.toHaveBeenCalled();
+  });
+});
+
+describe('A prepared new wide mean target is chosen and reviewed like any other target', () => {
+  it('offers the saved unapplied wide mean group, names it in the reviewed request and labels it as a wide layout', async () => {
+    groups = [wide(), wideMeanTarget()];
+    api.reviewCutover.mockResolvedValue(reviewOf({ targets: [view(wideMeanTarget(), { profile_kind: 'instantaneous' })] }));
+    renderHost();
+    await screen.findByTestId('cutover-panel');
+    fireEvent.click(await screen.findByTestId('cutover-target-tgt-w'));
+    fireEvent.change(screen.getByTestId('cutover-boundary'), { target: { value: BOUNDARY_LOCAL } });
+    fireEvent.click(screen.getByTestId('cutover-review-button'));
+    await screen.findByTestId('cutover-review');
+
+    expect(api.reviewCutover).toHaveBeenCalledTimes(1);
+    expect(api.reviewCutover.mock.calls[0][1]).toMatchObject({ kind: 'forward', targets: [{ group_id: 'tgt-w', expected_revision: 'rev-tgt-w-1' }], boundary: new Date(BOUNDARY_LOCAL).toISOString() });
+    expect(within(screen.getByTestId('cutover-review')).getByTestId('cutover-review-target-tgt-w')).toHaveTextContent('step4.cutover.layout_wide');
+    expect(api.applyCutover).not.toHaveBeenCalled();
+    expectNoOtherWrites();
   });
 });
