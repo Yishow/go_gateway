@@ -11,6 +11,7 @@ import type { WorkbenchV2State } from '../../state/types';
 import { buildGroupCandidates } from '../../state/writeGroup/candidates';
 import { CircuitProfileBasicActions, CircuitProfileStartStatus } from './CircuitProfileBasicActions';
 import { CircuitProfileBasicHeader } from './CircuitProfileBasicHeader';
+import { ExistingDeviceRecording } from './ExistingDeviceRecording';
 import { destinationIsSaved } from './basicRecordingPanelHelpers';
 import { ensureOrUpdateCircuitProfileGroups } from './circuitProfileActions';
 import { CircuitProfileBatchEditor } from './CircuitProfileBatchEditor';
@@ -31,6 +32,7 @@ function readMeasurementsList(data: unknown): MeasurementDefinition[] {
 }
 
 export interface CircuitProfileBasicPanelProps {
+  legacyGroup?: WriteGroup; onEditLegacy?: () => void;
   state: WorkbenchV2State; workspaceId?: string; readonly: boolean; readinessToken?: string;
   settingsRevision?: string; shareWorkspaceRevision?: string; workspaceRevision?: string; onActivated?: (deviceIds: string[]) => Promise<void> | void;
   /** The parent's viewed device. A controlled value keeps the legacy and new branches on one authority. */
@@ -48,7 +50,7 @@ export interface CircuitProfileBasicPanelProps {
 
 export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> = ({
   state, workspaceId, readonly, readinessToken, settingsRevision, shareWorkspaceRevision, workspaceRevision: propWorkspaceRevision,
-  onActivated, onContinueToRuntime, onOpenAdvanced, onOperationActiveChange, prepareOnly = false, onClose,
+  onActivated, onContinueToRuntime, onOpenAdvanced, onOperationActiveChange, prepareOnly = false, onClose, legacyGroup, onEditLegacy,
   deviceId, onSelectDevice, circuitRequest, onCircuitRequestDone,
 }) => {
   const { t } = useTranslation('workbench-v2');
@@ -304,6 +306,7 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
   return (
     <section data-testid="circuit-profile-basic-panel" aria-labelledby="circuit-profile-basic-title" className="space-y-4 rounded-xl border border-cyan-900/70 bg-slate-950/40 p-5">
       <CircuitProfileBasicHeader prepareOnly={prepareOnly} />
+      {!prepareOnly && legacyGroup && <ExistingDeviceRecording group={legacyGroup} disabled={flow.busy || flow.unresolved || batchBusy} onEdit={onEditLegacy} onOpenAdvanced={onOpenAdvanced} />}
       <div data-testid="circuit-profile-destination-summary" className="rounded border border-slate-800/80 bg-slate-950/30 p-3 text-xs text-slate-300">
         <p className="font-semibold text-slate-200">{t('step4.basic.circuit.step_destination')}</p>
         <p className="mt-1 text-slate-400">{t('step4.basic.destination', { name: state.db.connector.name || state.db.connector.kind })} · {state.db.connector.name || state.db.connector.kind} ({state.db.connector.kind})</p>

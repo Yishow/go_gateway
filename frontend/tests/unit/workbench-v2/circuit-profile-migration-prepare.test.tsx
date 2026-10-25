@@ -99,7 +99,12 @@ function renderHost(over: { readonly?: boolean } = {}) {
   const view = render(element);
   return { ...view, reload: () => { view.unmount(); return render(element); } };
 }
+const openExisting = async () => {
+  fireEvent.click(await screen.findByTestId('device-recording-edit-existing'));
+  return screen.findByTestId('basic-recording-panel');
+};
 const openPrepare = async () => {
+  if (!screen.queryByTestId('basic-recording-panel')) await openExisting();
   fireEvent.click(await screen.findByTestId('legacy-migration-open'));
   return screen.findByTestId('circuit-profile-basic-panel');
 };
@@ -111,8 +116,10 @@ const chooseExplicitly = async (name = '遷移迴路') => {
 };
 
 describe('A saved legacy wide group offers an explicit way to prepare long targets', () => {
-  it('shows the entry only inside the legacy panel, and opens the same profile panel in a prepare-only context', async () => {
+  it('offers explicit legacy editing from shared setup, then opens the existing prepare-only context', async () => {
     renderHost();
+    expect(await screen.findByTestId('circuit-profile-basic-panel')).toBeInTheDocument();
+    await openExisting();
     expect(await screen.findByTestId('basic-recording-panel')).toBeInTheDocument();
     expect(screen.getByTestId('basic-recording-interval')).toHaveValue(60);
     expect(screen.queryByTestId('circuit-profile-basic-panel')).not.toBeInTheDocument();
@@ -232,6 +239,8 @@ describe('Reloading or choosing a cumulative profile cannot change the old write
     await screen.findByTestId('circuit-prepared-group-instantaneous');
 
     host.reload();
+    expect(await screen.findByTestId('circuit-profile-basic-panel')).toBeInTheDocument();
+    await openExisting();
     expect(await screen.findByTestId('basic-recording-panel')).toBeInTheDocument();
     expect(screen.queryByTestId('circuit-profile-basic-panel')).not.toBeInTheDocument();
     expect(screen.getByTestId('basic-recording-interval')).toHaveValue(60);
@@ -256,7 +265,9 @@ describe('Reloading or choosing a cumulative profile cannot change the old write
 });
 
 describe('The prepare context never restores or resends a recording start', () => {
-  it('ignores an unresolved start intent left by an earlier session and still lets the operator prepare', async () => {
+  it('does not restore a start intent saved before entering the explicit prepare-only context', async () => {
+    renderHost();
+    await openExisting();
     const circuitId = '遷移迴路';
     const stale = {
       request_id: 'req-stale', workspace_id: 'ws-1', expected_workspace_revision: 'workspace-0', device_ids: ['dev-1'],
@@ -266,14 +277,14 @@ describe('The prepare context never restores or resends a recording start', () =
       saveBasicRecordingIntent({ scope_key: basicRecordingScopeKey('ws-1', 'dev-1', encodeURIComponent(JSON.stringify([scope, 'conn-1', 'crev-1', '']))), request: stale, operation_id: 'op-stale' });
     }
     saveBasicRecordingIntent({ scope_key: basicRecordingScopeKey('ws-1', 'dev-1', 'managed-recording'), request: stale, operation_id: 'op-stale' });
-    renderHost();
     await openPrepare();
+    const operationReadsBeforePreparation = vi.mocked(startAPI.operation).mock.calls.length;
     expandSources();
     await chooseExplicitly(circuitId);
     await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
     await screen.findByTestId('circuit-prepared-group-instantaneous');
-    expect(startAPI.operation).not.toHaveBeenCalled();
+    expect(startAPI.operation).toHaveBeenCalledTimes(operationReadsBeforePreparation);
     expect(screen.queryByTestId('basic-recording-retry')).not.toBeInTheDocument();
     expect(screen.queryByTestId('basic-recording-check')).not.toBeInTheDocument();
     expectNoWriterWrites();
@@ -306,6 +317,7 @@ describe('The prepare context never restores or resends a recording start', () =
 describe('The entry respects the same locks as the legacy panel', () => {
   it('is disabled while the page is read-only', async () => {
     renderHost({ readonly: true });
+    await openExisting();
     expect(await screen.findByTestId('legacy-migration-open')).toBeDisabled();
   });
 
@@ -321,6 +333,7 @@ describe('The entry respects the same locks as the legacy panel', () => {
         <BasicRecordingPanel state={unsaved} workspaceId="ws-1" readonly={false} shareStatus={shareStatus} />
       </QueryClientProvider>,
     );
+    if (!shareStatus) await openExisting();
     expect(await screen.findByTestId('basic-recording-panel')).toBeInTheDocument();
     // The saved wide group must actually have arrived, otherwise "absent" proves nothing.
     await waitFor(() => expect(api.list).toHaveBeenCalled());

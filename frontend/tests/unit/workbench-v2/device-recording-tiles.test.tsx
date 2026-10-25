@@ -101,13 +101,66 @@ describe('device recording tiles', () => {
     expect(tiles[1]).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('keeps the legacy completeness select on the legacy device only', () => {
+  it('opens the same recording setup for legacy A and new B without changing the old group', () => {
+    const legacy = savedGroup({
+      id: 'legacy-wide-a', name: 'Legacy A', status: 'draft', applied_revision: '',
+      basic_managed_device_id: 'dev-1', layout_version: 'managed_wide_v1',
+    });
+    groupsQuery.data.groups = [legacy];
+    const before = structuredClone(legacy);
+    renderPanel();
+
+    expect(screen.getByTestId('circuit-profile-basic-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('circuit-profile-purpose-wide')).toBeInTheDocument();
+    expect(screen.getByTestId('circuit-profile-purpose-long')).toBeInTheDocument();
+    expect(screen.getByTestId('device-recording-existing')).toHaveTextContent('Legacy A');
+    expect(screen.getByTestId('device-recording-existing-draft')).toBeInTheDocument();
+    expect(screen.getByTestId('circuit-profile-start')).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId('circuit-profile-interval-instantaneous'), { target: { value: '47' } });
+    fireEvent.click(screen.getAllByTestId('basic-recording-device-tile')[1]);
+    expect(screen.getByTestId('circuit-profile-basic-panel')).toBeInTheDocument();
+    expect(screen.queryByTestId('device-recording-existing')).not.toBeInTheDocument();
+    expect(screen.getByTestId('circuit-profile-interval-instantaneous')).not.toHaveValue('47');
+    fireEvent.click(screen.getAllByTestId('basic-recording-device-tile')[0]);
+    expect(screen.getByTestId('circuit-profile-interval-instantaneous')).toHaveValue('47');
+    expect(groupsQuery.data.groups[0]).toEqual(before);
+    expect(ensureAsync).not.toHaveBeenCalled();
+    expect(ensureCircuitAsync).not.toHaveBeenCalled();
+    expect(updateAsync).not.toHaveBeenCalled();
+    expect(startAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps an applied legacy group explicit and edits its saved settings only on request', () => {
+    groupsQuery.data.groups = [savedGroup({
+      id: 'legacy-wide-a', name: 'Legacy A', status: 'running', applied_revision: 'legacy-applied',
+      basic_managed_device_id: 'dev-1', layout_version: 'managed_wide_v1',
+    })];
+    renderPanel();
+    expect(screen.getByTestId('circuit-profile-basic-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('device-recording-existing-applied')).toBeInTheDocument();
+    expect(screen.getByTestId('device-recording-edit-existing')).toBeEnabled();
+    expect(screen.queryByTestId('circuit-profile-prepare-only')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
+    expect(screen.getByTestId('basic-recording-interval')).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId('basic-recording-interval'), { target: { value: '73' } });
+    fireEvent.click(screen.getByTestId('device-recording-back-setup'));
+    expect(screen.getByTestId('circuit-profile-basic-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('circuit-profile-interval-instantaneous')).not.toHaveValue('73');
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
+    expect(screen.getByTestId('basic-recording-interval')).toHaveValue(73);
+    expect(startAsync).not.toHaveBeenCalled();
+    expect(updateAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps the legacy completeness select inside explicit legacy editing only', () => {
     groupsQuery.data.groups = [savedGroup({
       id: 'legacy-wide-a', name: 'Legacy A', status: 'ready',
       basic_managed_device_id: 'dev-1', layout_version: 'managed_wide_v1',
     })];
     renderPanel();
 
+    expect(screen.queryByTestId('basic-recording-completeness')).toBeNull();
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
     expect(screen.queryByTestId('basic-recording-device')).toBeNull();
     expect(screen.getAllByTestId('basic-recording-device-tile')).toHaveLength(2);
     expect(screen.getByTestId('basic-recording-completeness').tagName).toBe('SELECT');
@@ -126,12 +179,13 @@ describe('device recording tiles', () => {
     expect(screen.getByTestId('circuit-profile-source-section')).toBeTruthy();
   });
 
-  it('round-trips legacy A to new B and back to A with A\'s branch restored', () => {
+  it('round-trips legacy A through shared setup and new B without losing its explicit edit draft', () => {
     groupsQuery.data.groups = [savedGroup({
       id: 'legacy-wide-a', name: 'Legacy A', status: 'ready',
       basic_managed_device_id: 'dev-1', layout_version: 'managed_wide_v1',
     })];
     renderPanel();
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
     fireEvent.change(screen.getByTestId('basic-recording-interval'), { target: { value: '47' } });
     const tileB = () => screen.getAllByTestId('basic-recording-device-tile')[1];
     fireEvent.click(tileB());
@@ -142,6 +196,8 @@ describe('device recording tiles', () => {
     expect(screen.getByTestId('circuit-profile-interval-instantaneous')).not.toHaveValue('47');
 
     fireEvent.click(screen.getAllByTestId('basic-recording-device-tile')[0]);
+    expect(screen.getByTestId('circuit-profile-basic-panel')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
     expect(screen.getByTestId('basic-recording-completeness').tagName).toBe('SELECT');
     expect(screen.getByTestId('basic-recording-interval')).toHaveValue(47);
     expect(screen.getAllByTestId('basic-recording-device-tile')[0]).toHaveAttribute('aria-pressed', 'true');
@@ -154,10 +210,12 @@ describe('device recording tiles', () => {
       basic_managed_device_id: 'dev-1', layout_version: 'managed_wide_v1',
     })];
     const first = renderPanel();
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
     fireEvent.change(screen.getByTestId('basic-recording-interval'), { target: { value: '47' } });
     first.unmount();
 
     renderPanel();
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
     expect(screen.getByTestId('basic-recording-interval')).toHaveValue(47);
   });
 
@@ -167,6 +225,7 @@ describe('device recording tiles', () => {
       basic_managed_device_id: 'dev-1', layout_version: 'managed_wide_v1',
     })];
     const view = renderPanel();
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
     fireEvent.change(screen.getByTestId('basic-recording-interval'), { target: { value: '47' } });
 
     view.rerender(
@@ -174,6 +233,7 @@ describe('device recording tiles', () => {
         <BasicRecordingPanel state={twoSharingDevices()} workspaceId="ws-2" readonly={false} />
       </QueryClientProvider>,
     );
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
     expect(screen.getByTestId('basic-recording-interval')).not.toHaveValue(47);
   });
 
@@ -255,10 +315,12 @@ describe('device recording tiles', () => {
       basic_managed_device_id: 'dev-1', layout_version: 'managed_wide_v1',
     })];
     const first = renderPanel();
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
     fireEvent.change(screen.getByTestId('basic-recording-completeness'), { target: { value: 'partial' } });
     first.unmount();
 
     renderPanel();
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
     expect(screen.getByTestId('basic-recording-completeness')).toHaveValue('partial');
     expect(ensureAsync).not.toHaveBeenCalled();
   });

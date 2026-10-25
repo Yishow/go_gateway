@@ -1928,7 +1928,7 @@ tests:
 ---
 ### Requirement: Purpose-led layout with one advanced authority
 
-The system SHALL label the two new managed paths as whole-device snapshot (wide) and selected measurements (long), explain their row granularity, and allow instantaneous and cumulative roles in either layout. Advanced SHALL open the same saved group with the same profile/reduction/interval and explicit saved-versus-applied state. It SHALL not expose a competing interval or start authority. Legacy wide/custom settings SHALL remain editable under their own label without silent conversion; layout changes SHALL use reviewed version/ownership transitions instead of changing IDs or deleting groups.
+The system SHALL label the two new managed paths as whole-device snapshot (wide) and selected measurements (long), explain their row granularity, and allow instantaneous and cumulative roles in either layout. Advanced SHALL open the same saved group with the same profile/reduction/interval and explicit saved-versus-applied state. It SHALL not expose a competing interval or start authority. Every database device SHALL enter this shared recording setup by default, including a device with a saved legacy managed wide group. The presence of that group SHALL NOT automatically replace the shared setup with its legacy editor or block configuration of a new recording profile. Legacy wide/custom settings SHALL remain editable under their own label without silent conversion; the legacy managed editor SHALL require an explicit operator action and SHALL retain its saved values and scoped drafts independently of new profile drafts. A legacy applied revision SHALL be described as saved applied settings rather than proof of current collection. New starts SHALL use the existing scoped request and server ownership checks; layout changes and takeover of still-owned sources SHALL use reviewed version/ownership transitions instead of changing IDs, deleting groups or disabling an existing writer automatically. The existing explicit preparation-only context SHALL remain unable to restore or send a recording start.
 
 #### Scenario: Full meter and mixed selected sources
 - **WHEN** one device selects full voltage/current/power/counter snapshots and another selects temperature plus water/gas/electric counters
@@ -1938,183 +1938,43 @@ The system SHALL label the two new managed paths as whole-device snapshot (wide)
 - **WHEN** an operator opens a profile from Basic in Advanced and returns without saving
 - **THEN** group ID, reduction, interval, members and destination remain identical and no mutation or additional start occurs.
 
+#### Scenario: Legacy and new devices share the default setup
+- **WHEN** A has a saved legacy managed wide group and B has none, and the operator switches between them
+- **THEN** both devices show the shared purpose and instantaneous/cumulative setup, their new drafts remain distinct, and viewing either device changes no saved group or writer.
+
+#### Scenario: Explicit legacy editing preserves independent drafts
+- **WHEN** the operator opens legacy editing on A, changes its 60-second draft to 73 seconds, returns to the new setup with a 47-second draft, or reloads
+- **THEN** the corresponding draft is restored only in its own scope and editor, and neither value is automatically saved or copied to the other draft or device.
+
+#### Scenario: Never-applied legacy draft does not join a new start
+- **WHEN** A retains a never-applied legacy draft and the operator starts an already prepared new profile
+- **THEN** the existing scoped request includes only A and its reviewed profile groups; the legacy draft is not updated, applied, disabled or deleted.
+
+#### Scenario: Applied legacy ownership remains authoritative
+- **WHEN** a device has an applied legacy revision and the server refuses a new start that would take over its owned sources
+- **THEN** the UI exposes the refusal with the existing settings and a review-cutover entry, preserves the old group, and does not bypass ownership through a second Apply or workspace activation; explicit preparation-only mode still performs no recording start.
+
 
 <!-- @trace
-source: unify-device-recording-workflow
+source: fix-device-recording-shared-entry
 updated: 2026-10-25
 code:
-  - internal/datalink/workspace/write_group_long_recording_shape.go
-  - internal/datalink/workspace/write_group_member_metadata.go
-  - internal/datalink/workspace/write_group_readiness_partial.go
-  - frontend/src/utils/studioV2WriteGroupSourceEvidenceJson.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/BasicRecordingMembers.tsx
-  - frontend/src/features/datalink/workbench-v2/state/basicLegacyDraft.ts
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - docs/technical/studio-v2-circuit-recording.md
-  - internal/datalink/grouppipeline/delivery_sources.go
-  - internal/datalink/groupdelivery/source_evidence_wide.go
-  - internal/datalink/workspace/write_group_cutover_repository.go
-  - internal/datalink/measurement/mean.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ExistingDeviceRecording.tsx
   - frontend/src/features/datalink/workbench-v2/steps/step4/CircuitProfileBasicPanel.tsx
-  - internal/datalink/dbtarget/group_long_row.go
-  - internal/datalink/grouppipeline/counter_sources.go
-  - internal/datalink/workspace/write_group_repository.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CircuitProfileStatusView.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CircuitPurposeFields.tsx
-  - internal/datalink/workspace/write_group_schema.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSummary.tsx
-  - internal/datalink/workspace/write_group_cutover_forward.go
-  - internal/datalink/workspace/write_group_wide_profile_shape.go
-  - internal/datalink/dbtarget/group_long_row_counter.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CircuitRequiredPolicy.tsx
-  - internal/datalink/workspace/write_group_repository_members.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CircuitProfileConfigFields.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/circuitProfileActions.ts
-  - docs/swagger/docs.go
-  - internal/datalink/workspace/write_group_profile.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleBar.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
-  - internal/datalink/workspace/write_group_repository_validation.go
-  - frontend/src/features/datalink/workbench-v2/state/deviceScopeSelection.ts
-  - frontend/src/features/datalink/workbench-v2/state/basicRecording.ts
-  - internal/datalink/runtime/group_boundary_wide_profile.go
-  - internal/datalink/groupdelivery/source_evidence_aggregation.go
-  - internal/datalink/snapshot/config.go
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - frontend/src/services/studioV2WorkspaceWriteGroups.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection.tsx
-  - internal/datalink/runtime/group_boundary_build.go
-  - internal/datalink/snapshot/selector.go
-  - internal/datalink/groupdelivery/source_evidence.go
-  - docs/swagger/swagger.json
-  - internal/datalink/grouppipeline/recovery_long.go
-  - internal/datalink/workspace/write_group_readiness.go
-  - internal/datalink/snapshot/assembler_profile.go
-  - internal/datalink/snapshot/outcome.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupProfileSummary.tsx
-  - internal/api/handlers/studio_v2_workspace_write_group_errors.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/SourceReview.tsx
-  - internal/api/handlers/studio_v2_workspace_write_groups_handler.go
-  - internal/datalink/groupdelivery/source_evidence_consistency.go
-  - frontend/src/features/datalink/workbench-v2/state/circuitProfileBatchIntent.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CircuitProfileStatus.tsx
-  - internal/datalink/grouppipeline/reconcile.go
-  - frontend/src/types/studioV2WriteGroup.ts
-  - internal/datalink/dbtarget/group_row_layout.go
-  - internal/datalink/workspace/write_group.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
   - frontend/src/features/datalink/workbench-v2/steps/step4/BasicRecordingPanel.tsx
-  - internal/datalink/workspace/write_group_repository_update.go
-  - internal/datalink/runtime/group_boundary.go
-  - internal/datalink/schema/migrations/038_write_group_recording_reduction_sqlite.up.sql
-  - internal/datalink/snapshot/assembler_counter.go
-  - frontend/src/utils/studioV2RecordingProfile.ts
-  - internal/datalink/snapshot/assembler_mean.go
-  - internal/datalink/snapshot/mean_evidence.go
-  - internal/datalink/workspace/write_group_basic_managed.go
-  - internal/datalink/workspace/write_group_counter_readiness.go
-  - internal/datalink/workspace/write_group_long_readiness.go
-  - internal/datalink/workspace/write_group_profile_interval.go
-  - docs/swagger/swagger.yaml
-  - frontend/src/features/datalink/workbench-v2/state/writeGroup/draft.ts
-  - internal/datalink/grouppipeline/recovery.go
-  - frontend/src/features/datalink/workbench-v2/state/circuitProfileBasic.ts
-  - internal/datalink/snapshot/assembler_wide_profile.go
-  - internal/datalink/runtime/group_boundary_long.go
-  - internal/datalink/dbtarget/group_row_layout_provenance.go
-  - frontend/src/utils/safeJson.ts
-  - internal/datalink/migrator_write_groups.go
-  - internal/datalink/snapshot/assembler.go
-  - internal/datalink/workspace/write_group_cutover_apply.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/DeviceScopeTiles.tsx
-  - frontend/src/types/studioV2WriteGroupDelivery.ts
-  - internal/datalink/groupdelivery/source_evidence_verify.go
-  - internal/datalink/workspace/write_group_profile_repository.go
-  - internal/datalink/workspace/write_group_readiness_table.go
-  - frontend/src/utils/studioV2WriteGroupJson.ts
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - docs/technical/studio-v2-circuit-recording.md
 tests:
-  - internal/datalink/grouppipeline/mean_result_type_proof_test.go
-  - frontend/tests/unit/workbench-v2/circuit-profile-cutover.test.tsx
-  - internal/api/router_studio_v2_reviewed_wide_mean_transition_test.go
-  - internal/datalink/snapshot/mean_test.go
-  - internal/api/router_studio_v2_write_group_profile_test.go
-  - internal/api/router_studio_v2_wide_profile_guard_test.go
-  - frontend/tests/unit/workbench-v2/circuit-profile-status-review.test.tsx
-  - frontend/tests/unit/workbench-v2/circuit-profile-status-scope.test.tsx
-  - internal/api/router_studio_v2_recording_start_scope_test.go
-  - internal/api/router_studio_v2_wide_profile_runtime_test.go
-  - frontend/tests/unit/workbench-v2/write-group-aggregation-evidence.test.ts
-  - internal/datalink/dbtarget/group_long_row_mean_test.go
-  - internal/datalink/dbtarget/group_row_layout_wide_profile_test.go
-  - internal/datalink/grouppipeline/average_recovery_test.go
-  - internal/datalink/grouppipeline/recovery_reduction_test.go
-  - internal/datalink/runtime/group_boundary_wide_counter_test.go
+  - frontend/tests/e2e/fixtures/device-recording-entry.tsx
   - frontend/tests/unit/workbench-v2/circuit-profile-basic.test.tsx
-  - frontend/tests/unit/workbench-v2/step4-evidence-boundaries.test.tsx
-  - internal/datalink/grouppipeline/wide_profile_result_type_proof_test.go
-  - internal/datalink/workspace/write_group_member_recording_shapes_test.go
-  - frontend/tests/unit/workbench-v2/circuit-profile-compatibility.test.tsx
-  - frontend/tests/unit/workbench-v2/device-recording-purpose-advanced.test.tsx
-  - frontend/tests/unit/workbench-v2/device-recording-tiles.test.tsx
-  - frontend/tests/unit/workbench-v2/wide-profile-member-metadata.test.ts
-  - frontend/tests/e2e/fixtures/device-recording-workflow.ts
-  - frontend/tests/unit/services/studioV2WriteGroupDeliveryEnvelope.test.ts
-  - frontend/tests/unit/workbench-v2/circuit-profile-status.test.tsx
-  - frontend/tests/unit/workbench-v2/device-recording-purpose.test.tsx
-  - internal/datalink/grouppipeline/delivery_sources_test.go
-  - internal/datalink/runtime/group_boundary_long_reduction_test.go
-  - frontend/tests/unit/workbench-v2/basic-recording-panel.test.tsx
-  - frontend/tests/unit/workbench-v2/circuit-profile-batch-intent.test.ts
-  - internal/datalink/runtime/group_boundary_long_counter_raw_test.go
-  - internal/datalink/workspace/write_group_recording_profile_test.go
-  - frontend/tests/e2e/device-recording-workflow.spec.ts
-  - internal/api/router_studio_v2_recording_workflow_coexistence_test.go
-  - internal/datalink/snapshot/assembler_wide_cumulative_test.go
-  - internal/datalink/workspace/write_group_circuit_profile_fixture_test.go
-  - internal/datalink/dbtarget/group_long_row_legacy_provenance_test.go
-  - internal/datalink/migrator_circuit_recording_profiles_test.go
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - frontend/tests/unit/workbench-v2/basic-recording-panel-regressions.test.tsx
-  - frontend/tests/unit/workbench-v2/circuit-profile-actions-reduction.test.ts
-  - frontend/tests/unit/workbench-v2/circuit-profile-status-panel.test.tsx
-  - frontend/tests/unit/workbench-v2/circuit-profile-batch-stale.test.tsx
-  - internal/datalink/grouppipeline/average_fixture_test.go
-  - frontend/tests/unit/workbench-v2/step4-source-display-names.test.tsx
-  - internal/datalink/grouppipeline/average_delivery_evidence_test.go
-  - frontend/tests/unit/workbench-v2/circuit-profile-batch-scope.test.tsx
-  - frontend/tests/unit/workbench-v2/circuit-profile-migration-prepare.test.tsx
-  - internal/datalink/snapshot/assembler_wide_profile_test.go
-  - frontend/tests/unit/workbench-v2/circuit-profile-mixed-sources.test.tsx
-  - internal/datalink/workspace/write_group_member_metadata_test.go
-  - frontend/tests/unit/workbench-v2/profile-reduction-equivalence.test.ts
-  - frontend/tests/unit/workbench-v2/profile-boundaries.test.ts
-  - frontend/tests/unit/workbench-v2/recording-workflow-unified.test.tsx
-  - frontend/tests/unit/workbench-v2/circuit-profile-display-names.test.tsx
-  - internal/datalink/workspace/write_group_recording_reduction_test.go
-  - frontend/tests/unit/workbench-v2/device-recording-summary.test.tsx
-  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
-  - internal/api/router_studio_v2_wide_counter_parity_test.go
-  - frontend/tests/unit/workbench-v2/step4-database-controls.test.tsx
   - frontend/tests/unit/workbench-v2/circuit-profile-migration-timescale.test.tsx
-  - internal/datalink/grouppipeline/average_unrelated_test.go
-  - internal/datalink/groupdelivery/source_evidence_wide_test.go
-  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
-  - internal/api/router_studio_v2_recording_start_fixture_test.go
-  - frontend/tests/fixtures/cutoverFixtures.ts
-  - frontend/tests/unit/workbench-v2/circuit-profile-preparation.test.tsx
-  - internal/datalink/dbtarget/group_row_layout_wide_counter_test.go
-  - internal/api/router_studio_v2_write_group_cutover_rig_test.go
-  - internal/datalink/measurement/mean_test.go
-  - internal/api/router_studio_v2_mean_long_runtime_test.go
-  - internal/datalink/workspace/write_group_wide_cumulative_shape_test.go
-  - frontend/tests/unit/workbench-v2/writeGroupProposal.test.tsx
-  - internal/datalink/runtime/group_boundary_wide_profile_test.go
-  - internal/datalink/snapshot/mean_evidence_test.go
-  - frontend/tests/unit/workbench-v2/device-recording-purpose-flow.test.tsx
-  - internal/api/device_recording_integration_test.go
-  - frontend/tests/fixtures/sourceReview.ts
-  - frontend/tests/unit/workbench-v2/schema-operation.test.tsx
-  - frontend/tests/unit/workbench-v2/circuit-profile-sources-a11y.test.tsx
+  - frontend/tests/unit/workbench-v2/circuit-profile-migration-prepare.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-workflow-unified.test.tsx
+  - frontend/tests/unit/workbench-v2/device-recording-summary.test.tsx
+  - frontend/tests/unit/workbench-v2/device-recording-tiles.test.tsx
+  - frontend/tests/unit/workbench-v2/circuit-profile-compatibility.test.tsx
+  - frontend/tests/e2e/fixtures/device-recording-entry.html
 -->
 
 ---

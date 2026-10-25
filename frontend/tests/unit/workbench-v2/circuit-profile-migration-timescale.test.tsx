@@ -72,6 +72,7 @@ describe('prepareOnly migration mode surfaces Timescale unavailability truthfull
       </QueryClientProvider>,
     );
 
+    fireEvent.click(await screen.findByTestId('device-recording-edit-existing'));
     fireEvent.click(await screen.findByTestId('legacy-migration-open'));
     expect(await screen.findByTestId('circuit-profile-basic-panel')).toBeInTheDocument();
     expect(screen.getByTestId('circuit-profile-prepare-only')).toBeInTheDocument();

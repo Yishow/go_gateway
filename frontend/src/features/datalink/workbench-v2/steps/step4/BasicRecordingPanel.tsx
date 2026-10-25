@@ -98,6 +98,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   // current workspace, otherwise the first device. A workspace or device list that
   // arrives after the first render therefore restores the saved selection too.
   const [choice, setChoice] = useState<{ workspaceId: string; deviceId: string }>();
+  const [legacyView, setLegacyView] = useState<{ scope: string; mode: 'edit' | 'prepare' }>();
   const restoredDeviceId = useMemo(() => loadSelectedDeviceId(workspaceId ?? '', deviceIds), [workspaceId, deviceIds]);
   const selectedDeviceId = choice && choice.workspaceId === (workspaceId ?? '') && deviceIds.includes(choice.deviceId)
     ? choice.deviceId
@@ -114,6 +115,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   const selectByOperator = useCallback((deviceId: string) => {
     consumedReview.current = reviewRequest;
     setCircuitRequest(undefined);
+    setLegacyView(undefined);
     selectDevice(deviceId);
   }, [reviewRequest, selectDevice]);
   useEffect(() => {
@@ -122,10 +124,10 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
     const reviewDeviceId = group ? managedProfileDeviceId(group) : undefined;
     if (!group || !reviewDeviceId || !deviceIds.includes(reviewDeviceId)) return;
     consumedReview.current = reviewRequest;
+    setLegacyView(undefined);
     selectDevice(reviewDeviceId);
     setCircuitRequest({ workspaceId: reviewRequest.workspaceId, deviceId: reviewDeviceId, circuitId: groupCircuitId(group) });
   }, [reviewRequest, reviewGroups, deviceIds, selectDevice, workspaceId]);
-  const [migrating, setMigrating] = useState(false);
   const [intervalSeconds, setIntervalSeconds] = useState(DEFAULT_INTERVAL_SECONDS);
   const [incompletePolicy, setIncompletePolicy] = useState('skip_row');
   const [localIntent, setLocalIntent] = useState<BasicRecordingIntentRecord | undefined>();
@@ -239,14 +241,14 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   }, [groupsQuery, operation, queryClient]);
 
   const supportsCircuitProfile = 'useEnsureCircuitProfileMutation' in writeGroupHooks;
-  const legacyBasicWideDeviceIds = new Set(liveGroups
-    .filter((g) => Boolean(g.basic_managed_device_id) && (g.layout_version ?? 'managed_wide_v1') === 'managed_wide_v1')
-    .map((g) => g.basic_managed_device_id as string));
-  const hasLegacyBasicWide = legacyBasicWideDeviceIds.has(selectedDeviceId);
+  const legacyGroup = liveGroups.find((g) => g.basic_managed_device_id === selectedDeviceId && (g.layout_version ?? 'managed_wide_v1') === 'managed_wide_v1');
+  const hasLegacyBasicWide = Boolean(legacyGroup);
+  const legacyScope = JSON.stringify([workspaceId, selectedDeviceId]);
+  const legacyMode = legacyView?.scope === legacyScope ? legacyView.mode : undefined;
   if (supportsCircuitProfile && !shareOnly) {
     if (groupsQuery.isLoading) return <div data-testid="circuit-profile-groups-loading" className="rounded border border-slate-800 p-4 text-xs text-slate-400">{t('step4.basic.circuit.groups_loading')}</div>;
     if (groupsQuery.isError) return <div role="alert" data-testid="circuit-profile-groups-error" className="rounded border border-rose-800/70 bg-rose-950/30 p-4 text-xs text-rose-200">{t('step4.basic.circuit.groups_error')}</div>;
-    if (!hasLegacyBasicWide || migrating) return <CircuitProfileBasicPanel key={JSON.stringify([workspaceId, selectedDeviceId])} prepareOnly={hasLegacyBasicWide} onClose={() => setMigrating(false)} deviceId={selectedDeviceId} onSelectDevice={selectByOperator} state={state} workspaceId={workspaceId} readonly={readonly} workspaceRevision={workspaceRevision} readinessToken={shareStatus?.readiness_token} settingsRevision={shareStatus?.settings_revision} shareWorkspaceRevision={shareStatus?.workspace_revision} onOpenAdvanced={onOpenAdvanced} onActivated={(ids) => onCommit?.(ids)} onContinueToRuntime={(ids) => onCommit?.(ids)} onOperationActiveChange={onOperationActiveChange} circuitRequest={circuitRequest} onCircuitRequestDone={clearCircuitRequest} />;
+    if (!hasLegacyBasicWide || legacyMode !== 'edit') return <CircuitProfileBasicPanel key={JSON.stringify([workspaceId, selectedDeviceId, legacyMode])} prepareOnly={legacyMode === 'prepare'} onClose={() => setLegacyView({ scope: legacyScope, mode: 'edit' })} legacyGroup={legacyGroup} onEditLegacy={() => setLegacyView({ scope: legacyScope, mode: 'edit' })} deviceId={selectedDeviceId} onSelectDevice={selectByOperator} state={state} workspaceId={workspaceId} readonly={readonly} workspaceRevision={workspaceRevision} readinessToken={shareStatus?.readiness_token} settingsRevision={shareStatus?.settings_revision} shareWorkspaceRevision={shareStatus?.workspace_revision} onOpenAdvanced={onOpenAdvanced} onActivated={(ids) => onCommit?.(ids)} onContinueToRuntime={(ids) => onCommit?.(ids)} onOperationActiveChange={onOperationActiveChange} circuitRequest={circuitRequest} onCircuitRequestDone={clearCircuitRequest} />;
   }
 
   const blockReason = !workspaceId ? 'workspace'
@@ -343,6 +345,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
       <div>
         <h3 id="basic-recording-title" className="text-sm font-semibold text-slate-100">{t('step4.basic.title')}</h3>
         <p className="mt-1 text-xs leading-5 text-slate-400">{t('step4.basic.subtitle')}</p>
+        {supportsCircuitProfile && !shareOnly && <button type="button" data-testid="device-recording-back-setup" disabled={operationActive} onClick={() => setLegacyView(undefined)} className="mt-2 text-xs text-cyan-300 underline disabled:opacity-40">{t('step4.basic.existing.back')}</button>}
       </div>
 
       {deviceIds.length > 0 && (
@@ -421,7 +424,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
       {!shareOnly && <div id={`basic-schema-${selectedDeviceId}`} tabIndex={-1}><BasicSchemaPreparation key={`${scopeKey}|${connectorRevision}`} group={basicSelectedGroup} workspaceId={workspaceId ?? ''} workspaceRevision={workspaceRevision} disabled={Boolean(blockReason) || operationActive} readonly={readonly || operationActive} destinationMatches={!destinationMismatch} ensureGroup={ensureGroup} onApplied={() => void groupsQuery.refetch()} /></div>}
       {!shareOnly && selectedGroup && !deliveryQuery.isError && deliveryQuery.data?.group_id === selectedGroup.id && <GroupDeliveryRecovery groupId={selectedGroup.id} items={deliveryQuery.data.attention ?? []} readonly={readonly || operationActive} onResolved={() => void deliveryQuery.refetch()} />}
 
-      {supportsCircuitProfile && !shareOnly && hasLegacyBasicWide && destinationSaved && <LegacyMigrationEntry disabled={readonly || operationActive} onOpen={() => setMigrating(true)} />}
+      {supportsCircuitProfile && !shareOnly && hasLegacyBasicWide && destinationSaved && <LegacyMigrationEntry disabled={readonly || operationActive} onOpen={() => setLegacyView({ scope: legacyScope, mode: 'prepare' })} />}
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" disabled={Boolean(blockReason) || operationActive || groupsQuery.isLoading} onClick={() => void handleStart()} className="rounded bg-cyan-600 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40" data-testid="basic-recording-start">

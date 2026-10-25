@@ -216,6 +216,7 @@ describe('the legacy wide source list', () => {
   it('keeps the saved members behind an explicit expand, with the unavailable one summarized and repairable', () => {
     groupsQuery.data = { ...groupsQuery.data, groups: [legacyWide(31)] };
     renderPanel(sourcesState(31));
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
 
     expect(screen.getByTestId('basic-recording-sources-summary')).toHaveTextContent('step4.basic.sources.count:32');
     expect(screen.getByTestId('basic-recording-sources-exceptions')).toHaveTextContent('step4.basic.sources.unavailable:1');

@@ -75,7 +75,7 @@ const longB2 = (): WriteGroup => ({
   ...longProfileGroup({ id: 'grp-b2', circuitId: 'cir-b2', circuitName: 'Feeder B2', interval: 15, points: [0, 1] }),
   members: [memberOf('dev-2', 'pt-b0', 'tag-b0', 'cir-b2', 'Feeder B2'), memberOf('dev-2', 'pt-b1', 'tag-b1', 'cir-b2', 'Feeder B2')],
 });
-/** Device A's group from the earlier Basic wide layout: its device shows the legacy panel instead of the circuit panel. */
+/** Device A's saved legacy wide group remains accessible from the shared recording setup. */
 const legacyA = (): WriteGroup => savedGroup({
   id: 'grp-legacy', revision: 'rev-grp-legacy-1', name: 'PLC A', status: 'ready', basic_managed_device_id: 'dev-1',
   destination: { ...savedGroup().destination, storage_strategy: 'managed', table_name: 'gw_group_legacy', database: '/recording.db' },
@@ -147,6 +147,35 @@ const startButton = () => screen.findByTestId('circuit-profile-start');
 const startedRequests = () => startApi.start.mock.calls.map(([request]) => request);
 
 describe('One primary scoped start', () => {
+  it('starts only the reviewed profile while preserving a never-applied legacy draft on the same device', async () => {
+    const legacy = legacyA();
+    const before = structuredClone(legacy);
+    renderHost([legacy, groupA(), groupB()]);
+    expect(await screen.findByTestId('device-recording-existing-draft')).toBeInTheDocument();
+    fireEvent.click(await startButton());
+    await waitFor(() => expect(startApi.start).toHaveBeenCalledTimes(1));
+    expect(startedRequests()[0].device_ids).toEqual(['dev-1']);
+    expect(startedRequests()[0].groups.map((group) => group.group_id)).toEqual(['grp-a']);
+    expect(groups.find((group) => group.id === legacy.id)).toEqual(before);
+    for (const call of [api.create, api.update, api.disable, api.remove, api.apply, startApi.ensureBasic, activateWorkspace]) expect(call).not.toHaveBeenCalled();
+  });
+
+  it('keeps an applied legacy owner intact when the server refuses an overlapping new start', async () => {
+    const legacy = { ...legacyA(), applied_revision: 'legacy-applied', status: 'running' as const };
+    const before = structuredClone(legacy);
+    startApi.start.mockRejectedValueOnce(Object.assign(new Error('private backend diagnostic'), {
+      response: { status: 409, data: { error: { code: 'WRITE_GROUP_CUTOVER_REQUIRED' } } },
+    }));
+    renderHost([legacy, groupA()]);
+    expect(await screen.findByTestId('device-recording-existing-applied')).toBeInTheDocument();
+    expect(screen.getByTestId('device-recording-review-cutover')).toBeInTheDocument();
+    fireEvent.click(await startButton());
+    expect(await screen.findByTestId('circuit-profile-error')).not.toHaveTextContent('private backend diagnostic');
+    expect(startedRequests()[0].groups.map((group) => group.group_id)).toEqual(['grp-a']);
+    expect(groups.find((group) => group.id === legacy.id)).toEqual(before);
+    for (const call of [api.update, api.disable, api.remove, api.apply, activateWorkspace]) expect(call).not.toHaveBeenCalled();
+  });
+
   it('offers the reviewed start and no second workspace-wide activation from the overview', async () => {
     renderHost([groupA(), groupB()]);
     expect(await startButton()).toBeInTheDocument();
@@ -398,31 +427,36 @@ describe('Routing from Advanced keeps the operator\'s work', () => {
     await waitFor(() => expect(instantaneousInterval()).toBeEnabled());
     fireEvent.change(instantaneousInterval(), { target: { value: '20' } });
     fireEvent.click(tile('dev-1'));
-    await waitFor(() => expect(screen.queryByTestId('circuit-profile-circuit-chooser')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('device-recording-existing')).toBeInTheDocument());
+    expect(chooser().value).not.toBe('cir-b2');
     fireEvent.click(tile('dev-2'));
     await waitFor(() => expect(chooser()).toBeInTheDocument());
     expect(chooser().value, 'the old request must not choose the circuit again').toBe('cir-b2');
     expect(instantaneousInterval().value, 'the operator\'s unsaved draft is not replaced').toBe('20');
   });
 
-  it('drops a routing request the operator has moved away from before it could be shown', async () => {
+  it('does not reapply a routing request after the operator chooses another circuit and device', async () => {
     const circuitA2 = (): WriteGroup => ({
       ...longProfileGroup({ id: 'grp-a2', circuitId: 'cir-a2', circuitName: 'Feeder A2', interval: 15, points: [2, 3] }),
     });
     renderHost([legacyA(), circuitA2(), groupA(), longB2()]);
     await screen.findAllByTestId('basic-recording-device-tile');
-    expect(await screen.findByTestId('legacy-migration-entry'), 'device A still shows its earlier layout').toBeInTheDocument();
+    expect(await screen.findByTestId('device-recording-existing'), 'device A keeps its earlier settings accessible in shared setup').toBeInTheDocument();
     fireEvent.click(await screen.findByTestId('group-open-grp-a'));
     await screen.findByTestId('group-editor');
     await waitFor(() => expect(screen.getByTestId('group-apply')).toBeEnabled());
     fireEvent.click(screen.getByTestId('group-apply'));
+    await waitFor(() => expect(chooser().value).toBe('cir-a'));
+    fireEvent.change(chooser(), { target: { value: 'cir-a2' } });
+    await waitFor(() => expect(instantaneousInterval()).toBeEnabled());
+    fireEvent.change(instantaneousInterval(), { target: { value: '24' } });
 
     fireEvent.click(tile('dev-2'));
     await waitFor(() => expect(chooser()).toBeInTheDocument());
     fireEvent.click(tile('dev-1'));
-    fireEvent.click(await screen.findByTestId('legacy-migration-open'));
     await waitFor(() => expect(chooser()).toBeInTheDocument());
     expect(chooser().value, 'the request was left behind by the operator\'s own choices').toBe('cir-a2');
+    expect(instantaneousInterval()).toHaveValue('24');
     expect(startApi.start).not.toHaveBeenCalled();
     expect(api.apply).not.toHaveBeenCalled();
   });

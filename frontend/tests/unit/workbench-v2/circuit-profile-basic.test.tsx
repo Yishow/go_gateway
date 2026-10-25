@@ -291,7 +291,7 @@ describe('CircuitProfileBasicPanel (Task 4.1)', () => {
     expect(parsedReadiness?.ready).toBe(false);
   });
 
-  it('retains existing wide basic_managed_device_id groups on the legacy wide branch and blocks safely when groupsQuery is loading or errored', async () => {
+  it('offers legacy editing explicitly from shared setup and blocks safely when groupsQuery is loading or errored', async () => {
     groupsQuery.isLoading = true;
     const loadingView = renderPanel();
     expect(screen.getByTestId('circuit-profile-groups-loading')).toBeInTheDocument();
@@ -306,6 +306,8 @@ describe('CircuitProfileBasicPanel (Task 4.1)', () => {
     groupsQuery.isError = false;
     groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [savedGroup({ basic_managed_device_id: 'dev-1', layout_version: 'managed_wide_v1' })] };
     renderPanel();
+    expect(await screen.findByTestId('circuit-profile-basic-panel')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
     expect(await screen.findByTestId('basic-recording-completeness')).toBeInTheDocument();
     expect(screen.queryByTestId('circuit-profile-basic-panel')).not.toBeInTheDocument();
   });

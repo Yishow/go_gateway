@@ -131,8 +131,11 @@ describe('Basic, Advanced and Basic again show one setting and write nothing', (
 });
 
 describe('Existing wide, custom and share-only setups keep their own editing and runtime', () => {
-  it('leaves a legacy 60 second Basic group on the legacy panel, converts nothing and keeps its settings', async () => {
+  it('opens shared setup first and keeps the legacy 60 second group unchanged in explicit editing', async () => {
     renderHost([legacyWide()]);
+    expect(await screen.findByTestId('circuit-profile-basic-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('device-recording-existing-applied')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
     expect(await screen.findByTestId('basic-recording-panel')).toBeInTheDocument();
     expect(screen.queryByTestId('circuit-profile-basic-panel')).not.toBeInTheDocument();
     expect(screen.getByTestId('basic-recording-interval')).toHaveValue(60);
@@ -143,6 +146,7 @@ describe('Existing wide, custom and share-only setups keep their own editing and
 
   it('keeps a legacy period that the new instantaneous bounds would reject', async () => {
     renderHost([legacyWide(900)]);
+    fireEvent.click(await screen.findByTestId('device-recording-edit-existing'));
     expect(await screen.findByTestId('basic-recording-panel')).toBeInTheDocument();
     fireEvent.click(await screen.findByTestId('basic-member-settings'));
     expect(await screen.findByTestId('group-interval')).toHaveValue(900);
@@ -152,8 +156,10 @@ describe('Existing wide, custom and share-only setups keep their own editing and
     expectNoWrites();
   });
 
-  it('keeps the legacy panel and its 60 second settings when prepared long targets already exist beside it', async () => {
+  it('shows prepared targets in shared setup and keeps the legacy settings accessible beside them', async () => {
     renderHost([legacyWide(), power({ applied_revision: '', status: 'draft' })]);
+    expect(await screen.findByTestId('circuit-profile-interval-instantaneous')).toHaveValue('45');
+    fireEvent.click(screen.getByTestId('device-recording-edit-existing'));
     expect(await screen.findByTestId('basic-recording-panel')).toBeInTheDocument();
     expect(screen.queryByTestId('circuit-profile-basic-panel')).not.toBeInTheDocument();
     expect(screen.getByTestId('basic-recording-interval')).toHaveValue(60);
@@ -163,6 +169,7 @@ describe('Existing wide, custom and share-only setups keep their own editing and
 
   it('opens the legacy wide group in the original editor with seconds, completeness, required and column controls', async () => {
     renderHost([legacyWide()]);
+    fireEvent.click(await screen.findByTestId('device-recording-edit-existing'));
     fireEvent.click(await screen.findByTestId('basic-member-settings'));
     await screen.findByTestId('group-editor');
     expect(screen.getByTestId('group-name')).toHaveValue('PLC A raw');
