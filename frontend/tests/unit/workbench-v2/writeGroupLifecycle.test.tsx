@@ -275,6 +275,15 @@ describe('RevisionSafeGroupActivationAndTestWrite: test write', () => {
     expect(api.testWrite).toHaveBeenCalledWith('group-1', { token: 'tok-1', operation_id: 'op-1' });
   });
 
+  it('reports all long-table test rows while labeling the first row as an example', async () => {
+    api.testWritePreview.mockResolvedValue({ ...preview, record_ids: ['a'.repeat(64), 'b'.repeat(64), 'c'.repeat(64)] });
+    mount();
+    await openSaved();
+    fireEvent.click(screen.getByTestId('group-test-write-preview'));
+    expect(await screen.findByTestId('group-test-write-row-count')).toHaveTextContent('long_preview_count:3');
+    expect(api.testWrite).not.toHaveBeenCalled();
+  });
+
   it('confirms once on a double click', async () => {
     api.testWritePreview.mockResolvedValue(preview);
     let release: (value: unknown) => void = () => undefined;

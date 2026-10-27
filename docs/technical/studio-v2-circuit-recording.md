@@ -187,3 +187,12 @@ ORDER BY g.bucket_start;
 - 前端完整回應現在保留 backend 確認的精確來源 proof，包含可省略的 counter policy；試寫預覽僅對 `values[].value` 沿用 1024 字元上限，以容納實際 provenance，其餘欄位與通用 JSON 預設界線不變。
 - 受驗證的兩個完整 family／版本配對才開放 managed long、native partition、group test-write 與 missing repair；仍需實際連線、metadata、InnoDB 與目標 scope 查證。未知 patch／發行版與未確認 scope 保持拒絕；舊 custom／wide 能力契約不因新增 long 支援而放寬。
 - 本批最後檢查：受影響 12 個 Go packages tests／vet／lint、來源與分區 migration focused tests、前端 lint／280 檔 2057 tests／build 通過。前端 lint 有兩個既有 E2E console warning，build 保留 chunk size 提醒；其他資料庫 fixture 與實體平台未執行項目分列，未以 skip 當通過。
+
+### 2026-10-27 review 修復驗證
+
+- 本輪只修復權限閘門、長時間 DDL 租約續期，以及試寫回應遺失後被 capability／workspace 更新清掉的操作狀態；未擴充其他資料庫或功能。
+- 唯讀權限 probe 按各操作所需的直接授權分開判定；作用中角色未驗證、權限查詢不明及部分撤權維持拒絕。兩家 fixture 實際撤銷 DELETE／INDEX／ALTER 的結果與恢復後 revision 均已核對，完整授權仍相容既有 v1 確認。
+- DDL 執行期間定期更新原 operation owner 的租約；續期失敗會取消 executor，仍依真實 catalog 判斷已完成步驟。虛擬時間跨越十分鐘的 service 回歸測試與 race 檢查通過，不宣稱曾對真資料庫持鎖十分鐘。
+- 修復後以正常程式重跑兩家真 SQL 矩陣：12 個 Go packages 通過，4,308 個 test/subtest pass events；257 個其他 fixture／條件 skip 不列為驗收通過。前端 287 檔、2,112 tests、Go vet／lint、前端 lint／typecheck／build 均通過；保留兩個既有 console warning 與 chunk size 提醒。
+- 新增瀏覽器回歸驗證使用 MySQL plain 與 MariaDB native_monthly：真實試寫完成後只丟失 HTTP 回應，capability refetch 後仍可 GET 原操作，每家只有一次 confirm POST，結果皆為 written_verified／cleaned。1024×720／1600×1000 畫面已逐張檢視。這不是重跑上節所有歷史瀏覽器組合的聲明。
+- 本輪已去識別連線資訊的測試結果、修復前失敗／修復後通過紀錄、SQL receipt 對照及截圖見 [review 修復證據](evidence/mysql-mariadb-review-fix-20261027/README.md)。Windows、真 PLC、LAN 與正式資料庫仍為 NOT_RUN。

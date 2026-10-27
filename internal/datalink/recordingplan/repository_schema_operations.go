@@ -41,6 +41,15 @@ const (
 	takeOverSchemaOperationQuery = `UPDATE managed_schema_operations
 		SET owner = $1, updated_at = $2
 		WHERE operation_id = $3 AND status IN ('pending', 'running') AND updated_at < $4`
+	reclaimMySQLSchemaApplyOperationQuery = `UPDATE managed_schema_operations
+		SET status = 'running', owner = $1, updated_at = $2, completed_at = NULL, reason = '', next_action = ''
+		WHERE operation_id = $3 AND workspace_id = $4 AND token = $5 AND scope_key = $6
+			AND action = 'schema_apply' AND status IN ('partial', 'unknown') AND detail = $7
+			AND NOT EXISTS (
+				SELECT 1 FROM managed_schema_operations active
+				WHERE active.workspace_id = $8 AND active.scope_key = $9
+					AND active.operation_id <> $10 AND active.status IN ('pending', 'running')
+			)`
 )
 
 // ClaimSchemaOperation records op as the owner of its scope unless the same
@@ -211,6 +220,60 @@ func (r *SQLRepository) TakeOverSchemaOperation(ctx context.Context, operationID
 		return nil, nil
 	}
 	return r.querySchemaOperation(ctx, schemaOperationByIDQuery, operationID)
+}
+
+// ReclaimMySQLSchemaApplyOperation reacquires only a matching partial or unknown
+// MySQL schema apply. The conditional update and active-scope predicate prevent
+// a second operation from changing the same target concurrently.
+func (r *SQLRepository) ReclaimMySQLSchemaApplyOperation(ctx context.Context, operationID, workspaceID, token, scopeKey, expectedDetail, newOwner string) (*SchemaOperation, ClaimOutcome, error) {
+	if operationID == "" || workspaceID == "" || token == "" || scopeKey == "" || expectedDetail == "" || newOwner == "" {
+		return nil, "", ErrSchemaOperationMismatch
+	}
+	res, err := r.db.ExecContext(ctx, adaptPlaceholders(reclaimMySQLSchemaApplyOperationQuery),
+		newOwner, time.Now().UTC(), operationID, workspaceID, token, scopeKey, expectedDetail,
+		workspaceID, scopeKey, operationID)
+	if err != nil {
+		active, activeErr := r.FindActiveSchemaOperation(ctx, workspaceID, scopeKey)
+		if activeErr == nil {
+			if active.OperationID == operationID {
+				return withoutOwner(*active), ClaimInProgress, nil
+			}
+			return withoutOwner(*active), ClaimScopeBusy, nil
+		}
+		if !errors.Is(activeErr, ErrSchemaOperationNotFound) {
+			return nil, "", fmt.Errorf("inspect active MySQL schema operation: %w", activeErr)
+		}
+		return nil, "", fmt.Errorf("reclaim MySQL schema operation: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return nil, "", fmt.Errorf("read reclaimed MySQL schema operation: %w", err)
+	}
+	if affected == 1 {
+		reclaimed, err := r.querySchemaOperation(ctx, schemaOperationByIDQuery, operationID)
+		if err != nil {
+			return nil, "", err
+		}
+		return reclaimed, ClaimAcquired, nil
+	}
+	current, err := r.querySchemaOperation(ctx, schemaOperationByWorkspaceQuery, operationID, workspaceID)
+	if err != nil {
+		return nil, "", err
+	}
+	if current.Token != token || current.ScopeKey != scopeKey || current.Action != SchemaApplyAction {
+		return nil, "", ErrSchemaOperationMismatch
+	}
+	if current.Status.IsActive() {
+		return withoutOwner(*current), ClaimInProgress, nil
+	}
+	active, err := r.FindActiveSchemaOperation(ctx, workspaceID, scopeKey)
+	if err == nil {
+		return withoutOwner(*active), ClaimScopeBusy, nil
+	}
+	if !errors.Is(err, ErrSchemaOperationNotFound) {
+		return nil, "", err
+	}
+	return withoutOwner(*current), ClaimCompleted, nil
 }
 
 // SaveSchemaOperationProgress stores detail for the owner of an active operation.

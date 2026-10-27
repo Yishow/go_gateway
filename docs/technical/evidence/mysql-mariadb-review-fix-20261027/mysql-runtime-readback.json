@@ -1,0 +1,97 @@
+{
+  "family": "mysql",
+  "workspace_id": "97b614f0-49bb-4995-b1da-e56d6a66c567",
+  "version": "8.4.13",
+  "groups": [
+    {
+      "applied_revision": "d6471b20-b67c-43d8-aa3e-5c2801b4dc7e",
+      "counts": [
+        {
+          "baseline_null_delta": "0",
+          "delta_after": null,
+          "raw_after": "0",
+          "raw_initial": "0",
+          "total_rows": 204
+        }
+      ],
+      "id": "68e3d633-8ebb-4780-92cc-f78ec3d78693",
+      "matched": {
+        "outbox": {
+          "connector_id": "93c5c8ec-7f1c-4872-851c-8feb810adecd",
+          "connector_revision": "b1defa64-d6c8-45b5-b532-d9b882554e90",
+          "effect_key": "f478786941de526811afa189b91ebb1f4612330f1df5dc06427b19945480fc46",
+          "payload_digest": "7f3dcff2c0d2d7192ebb3ea069d7c19cd18dd459df162d13ab68498a7b756334",
+          "record_id": "2378550d60b81fac027169fc7a25eadd0cca34dfee816328bed4dcdf06dda04b",
+          "table_name": "gw_long_114c631dda0570a0"
+        },
+        "receipt_digest": "7f3dcff2c0d2d7192ebb3ea069d7c19cd18dd459df162d13ab68498a7b756334",
+        "runtime_revision": "d6471b20-b67c-43d8-aa3e-5c2801b4dc7e",
+        "target_row": {
+          "bucket_end": "2026-10-27T04:11:05Z",
+          "bucket_start": "2026-10-27T04:11:04Z",
+          "delta_value": null,
+          "group_id": "68e3d633-8ebb-4780-92cc-f78ec3d78693",
+          "group_revision": "d6471b20-b67c-43d8-aa3e-5c2801b4dc7e",
+          "observed_at": "2026-10-27T04:11:04.680211Z",
+          "record_id": "2378550d60b81fac027169fc7a25eadd0cca34dfee816328bed4dcdf06dda04b",
+          "status": "ok",
+          "value_decimal": "120004.000000000000000000000000000000"
+        }
+      },
+      "mode": "plain",
+      "partitions": [
+        {
+          "PARTITION_DESCRIPTION": null,
+          "PARTITION_NAME": null
+        }
+      ],
+      "profile": "instantaneous",
+      "table": "gw_long_114c631dda0570a0"
+    },
+    {
+      "applied_revision": "d56f43a3-b376-4f2a-a57b-6121bf07594c",
+      "counts": [
+        {
+          "baseline_null_delta": "1",
+          "delta_after": "1",
+          "raw_after": "2",
+          "raw_initial": "1",
+          "total_rows": 3
+        }
+      ],
+      "id": "dd0f8634-8b03-4977-9fbb-49579612b770",
+      "matched": {
+        "outbox": {
+          "connector_id": "93c5c8ec-7f1c-4872-851c-8feb810adecd",
+          "connector_revision": "b1defa64-d6c8-45b5-b532-d9b882554e90",
+          "effect_key": "b900515ba521effc5f69e02fe96230b9a18a992d8beecb52031ea250fd7229f0",
+          "payload_digest": "b768efa854fbf9e564add93ee98c413c7a9f5deb03e1a6a8b15fbec29b89a416",
+          "record_id": "2f9e3edc7ec85e2b4bcb2d0598df17fc18c700812573bee93f22e6a5f6a6bc0d",
+          "table_name": "gw_long_114c631dda0570a0"
+        },
+        "receipt_digest": "b768efa854fbf9e564add93ee98c413c7a9f5deb03e1a6a8b15fbec29b89a416",
+        "runtime_revision": "d56f43a3-b376-4f2a-a57b-6121bf07594c",
+        "target_row": {
+          "bucket_end": "2026-10-27T04:11:00Z",
+          "bucket_start": "2026-10-27T04:10:00Z",
+          "delta_value": "0.000000000000000000000000000000",
+          "group_id": "dd0f8634-8b03-4977-9fbb-49579612b770",
+          "group_revision": "d56f43a3-b376-4f2a-a57b-6121bf07594c",
+          "observed_at": "2026-10-27T04:10:59.679032Z",
+          "record_id": "2f9e3edc7ec85e2b4bcb2d0598df17fc18c700812573bee93f22e6a5f6a6bc0d",
+          "status": "ok",
+          "value_decimal": "12000.400000000000000000000000000000"
+        }
+      },
+      "mode": "plain",
+      "partitions": [
+        {
+          "PARTITION_DESCRIPTION": null,
+          "PARTITION_NAME": null
+        }
+      ],
+      "profile": "cumulative",
+      "table": "gw_long_114c631dda0570a0"
+    }
+  ]
+}

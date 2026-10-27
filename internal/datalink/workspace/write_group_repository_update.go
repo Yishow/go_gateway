@@ -121,7 +121,8 @@ func sameWriteGroupSchema(candidate, existing *WriteGroup) bool {
 				member.EntityKey == existingMember.EntityKey &&
 				member.ValueRole == existingMember.ValueRole &&
 				sameStoredMetadata(string(member.SourceValueType), string(existingMember.SourceValueType)) &&
-				sameStoredMetadata(string(member.ResultValueType), string(existingMember.ResultValueType))
+				sameStoredMetadata(string(member.ResultValueType), string(existingMember.ResultValueType)) &&
+				sameExactRecordingSource(member.ExactRecordingSource, existingMember.ExactRecordingSource)
 		})
 		if !matched {
 			return false
@@ -178,17 +179,26 @@ func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, g
 		if member.MeasurementID != nil {
 			measurementID = *member.MeasurementID
 		}
+		var exactRecordingSource any
+		if member.ExactRecordingSource != nil {
+			payload, err := json.Marshal(member.ExactRecordingSource)
+			if err != nil {
+				return fmt.Errorf("encode exact recording source member %d: %w", index, err)
+			}
+			exactRecordingSource = string(payload)
+		}
 		if _, err := tx.ExecContext(ctx, r.query(`
 			INSERT INTO write_group_members (
 				group_id, member_index, device_id, point_id, tag_id,
 				entity_key, source_revision, mapping_revision, measurement_id, target_column,
 				required, max_age_seconds, circuit_id, circuit_name,
-				value_role, source_value_type, result_value_type
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+				value_role, source_value_type, result_value_type, exact_recording_source
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 		`), group.ID, index, member.DeviceID, member.PointID, member.TagID,
 			member.EntityKey, member.SourceRevision, member.MappingRevision, measurementID, member.TargetColumn,
 			member.Required, member.MaxAgeSeconds, nullableText(member.CircuitID), nullableText(member.CircuitName),
-			nullableText(string(member.ValueRole)), nullableText(string(member.SourceValueType)), nullableText(string(member.ResultValueType))); err != nil {
+			nullableText(string(member.ValueRole)), nullableText(string(member.SourceValueType)), nullableText(string(member.ResultValueType)),
+			exactRecordingSource); err != nil {
 			return fmt.Errorf("replace write-group member %d: %w", index, err)
 		}
 	}

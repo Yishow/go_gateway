@@ -252,8 +252,20 @@ func (s *Service) runMySQLSchemaApply(ctx context.Context, token *SchemaPreviewT
 		if err := s.requireMySQLSchemaOperationOwner(ctx, op); err != nil {
 			return withoutOwner(*op), ClaimAcquired, err
 		}
+		progressRepo, ok := s.repo.(operationExecutionRepository)
+		if !ok {
+			return withoutOwner(*op), ClaimAcquired, ErrSchemaOperationUnacknowledged
+		}
 		statement := token.Statements[index]
-		_, execErr := runSchemaStatements(ctx, target.Execute, []string{statement})
+		execErr, heartbeatErr := runMySQLDDLWithHeartbeat(ctx, SchemaOperationLease/3,
+			func(heartbeatCtx context.Context) error {
+				return progressRepo.SaveSchemaOperationProgress(heartbeatCtx, op.OperationID, op.Owner, op.Detail)
+			},
+			func(executorCtx context.Context) error {
+				_, err := runSchemaStatements(executorCtx, target.Execute, []string{statement})
+				return err
+			})
+		execErr = errors.Join(execErr, heartbeatErr)
 
 		after, inspectErr := inspectMySQLApplyStep(ctx, token, *token.GroupLayout, mysqlApplyStepRef{
 			Kind: step.Kind, Name: step.Name, SQLHash: step.SQLHash,

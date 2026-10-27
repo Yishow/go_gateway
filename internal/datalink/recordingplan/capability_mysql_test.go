@@ -22,6 +22,9 @@ func TestGetConnectorCapability_MySQLKeepsCustomTableWhileManagedSchemaIsUnverif
 	if !capability.SupportsTransactions || !capability.SupportsReceipts {
 		t.Fatalf("mysql must keep its existing transaction and receipt support: %+v", capability)
 	}
+	if capability.SupportsGroupTestWrites {
+		t.Fatalf("the schema apply path must not open MySQL group test writes: %+v", capability)
+	}
 	if len(capability.SupportedModes) != 2 || capability.SupportedModes[1] != customTableMode {
 		t.Fatalf("mysql must keep its custom table mode: %+v", capability)
 	}

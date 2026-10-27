@@ -1,0 +1,177 @@
+{
+  "change": "add-mysql-mariadb-circuit-recording",
+  "date": "2026-10-27",
+  "head_revision": "170ba47aa0a9ee8b517f11fdb15bbbb8c058dd79",
+  "source_identity_file": "checked-content-sha256.json",
+  "toolchain": {
+    "go": "go1.27.3 darwin/arm64",
+    "module_go": "1.25.5",
+    "node": "v24.22.1"
+  },
+  "go": {
+    "state": "passed-current",
+    "packages": [
+      "go-gateway/internal/datalink/measurement",
+      "go-gateway/internal/datalink/aggregation",
+      "go-gateway/internal/datalink/runtime",
+      "go-gateway/internal/datalink/dbtarget",
+      "go-gateway/internal/datalink/recordingplan",
+      "go-gateway/internal/datalink/workspace",
+      "go-gateway/internal/datalink/groupdelivery",
+      "go-gateway/internal/datalink/grouppipeline",
+      "go-gateway/internal/datalink/grouptestwrite",
+      "go-gateway/internal/api/handlers",
+      "go-gateway/internal/api",
+      "go-gateway/cmd/test_ui"
+    ],
+    "pass_events": 4308,
+    "skip_events": 257,
+    "failure_events": 0,
+    "command": "GW_CIRCUIT_MYSQL_FIXTURE_FILE=<private-packet> GW_CIRCUIT_MARIADB_FIXTURE_FILE=<private-packet> go test -p 1 -json ./internal/datalink/measurement ./internal/datalink/aggregation ./internal/datalink/runtime ./internal/datalink/dbtarget ./internal/datalink/recordingplan ./internal/datalink/workspace ./internal/datalink/groupdelivery ./internal/datalink/grouppipeline ./internal/datalink/grouptestwrite ./internal/api/handlers ./internal/api ./cmd/test_ui",
+    "result_log_sha256": "8dd73084bfc563857191228e4d378c8a280540ad656c501da4e341e9577d2daa",
+    "selected_case_results": "real-sql-case-results.json"
+  },
+  "frontend": {
+    "state": "passed-current",
+    "test_files": 287,
+    "tests": 2112,
+    "command": "cd frontend && npm test -- --run",
+    "lint": "PASS; 2 existing E2E console warnings",
+    "typecheck": "PASS",
+    "build": "PASS; existing chunk size warning"
+  },
+  "static_checks": {
+    "go_vet": "PASS; same 12 packages",
+    "go_lint": "PASS; same 12 packages",
+    "backend_build": "PASS; unmodified normal entrypoint"
+  },
+  "regressions": {
+    "permission_gate": {
+      "red": "isolated-baseline-red.txt",
+      "green": "isolated-final-green.txt",
+      "baseline": "git archive HEAD; unchanged product bytes",
+      "same_test_sha256": "0e125ed2f4cac07d33509a30ba833d212f7c4f432d5d63303b3a88235efc9378"
+    },
+    "ddl_lease": {
+      "red": "mysql-service-red.txt",
+      "green": "mysql-lease-focused-final.txt",
+      "race": "mysql-lease-focused-race-final.txt",
+      "virtual_time": "past real ten-minute lease; same owner and single executor"
+    },
+    "unknown_test_write": {
+      "red": "ui-red.txt",
+      "green": "ui-final-focused.txt",
+      "browser": [
+        "mysql-browser-recovery.json",
+        "mariadb-browser-recovery.json"
+      ]
+    }
+  },
+  "real_permissions": [
+    "mysql-permissions-real.json",
+    "mariadb-permissions-real.json"
+  ],
+  "fixtures": [
+    {
+      "family": "mysql",
+      "container": "gw-mysql-repair-mysql-602e89",
+      "image_id": "sha256:76f0358884cb92d9a086d24e5671c38048d3fef40f2588703d73eb55392d6b69",
+      "repo_digests": [
+        "mysql@sha256:76f0358884cb92d9a086d24e5671c38048d3fef40f2588703d73eb55392d6b69"
+      ],
+      "tls_verified": true,
+      "plaintext_rejected": true,
+      "metadata": "8.4.13\tInnoDB\tONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION\nSsl_cipher\tTLS_AES_128_GCM_SHA256\ngw_circuit_test"
+    },
+    {
+      "family": "mariadb",
+      "container": "gw-mysql-repair-mariadb-2706ee",
+      "image_id": "sha256:250e1609e93c0e6aecf64bfbab2d84d5e89d2481540fe77447ff6c855c3b1873",
+      "repo_digests": [
+        "mariadb@sha256:250e1609e93c0e6aecf64bfbab2d84d5e89d2481540fe77447ff6c855c3b1873"
+      ],
+      "tls_verified": true,
+      "plaintext_rejected": true,
+      "metadata": "11.4.13-MariaDB-ubu2404\tInnoDB\tSTRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION\nSsl_cipher\tTLS_AES_256_GCM_SHA384\ngw_circuit_test"
+    }
+  ],
+  "excluded_environment_acceptance": {
+    "Windows": "NOT_RUN",
+    "real_PLC": "NOT_RUN",
+    "LAN": "NOT_RUN",
+    "production_database": "NOT_RUN"
+  },
+  "prior_browser_scope": "Original plain/native_monthly x both families acceptance is documented in studio-v2-circuit-recording.md. This repair adds real response-loss browser checks for MySQL plain and MariaDB native_monthly; it does not claim a fresh repeat of every historical browser combination.",
+  "migrations": {
+    "state": "passed-current",
+    "package": "./internal/datalink",
+    "tests": [
+      "TestExactRecordingSourceMigration",
+      "TestExactRecordingScaleMigration",
+      "TestMySQLPartitionMaintenanceMigration"
+    ],
+    "command": "go test ./internal/datalink -run \"Test(ExactRecordingScaleMigration|ExactRecordingSourceMigration|MySQLPartitionMaintenanceMigration)$\" -count=1",
+    "content_sha256": {
+      "internal/datalink/migrator.go": "0866579a4ac26ee94de89c44cc92d78fadad87543f71e8993283c65d5a395202",
+      "internal/datalink/migrator_circuit_recording_profiles.go": "e9ab374434879661ce1ebd23b5ccff936f10fc2d3902d8dd6898a0051779ab92",
+      "internal/datalink/migrator_circuit_recording_profiles_test.go": "d5a5b5582c309e5bed018b9b4552eee530b942cb533e35a794436b5bb57a59cd",
+      "internal/datalink/migrator_database_connector_identity.go": "e0dd846ff2813cd03cba8ad0a8d8afa77dac6483aec9d8dbc8f505546784f7c3",
+      "internal/datalink/migrator_database_connector_identity_test.go": "dddba072d3ff40e036090cf8fee921dae9e581dd0e85ac69974b8c3edce4c124",
+      "internal/datalink/migrator_database_delivery_outcomes.go": "689089bcc08ec4d836e200da0ebfcc031708248b865b54f205083c3f2b965e45",
+      "internal/datalink/migrator_database_target_mysql_schema.go": "a10a5c2c7e00cd74cf03f2b5803bc65d8b37607d8efabc23330d88a9c1a43b57",
+      "internal/datalink/migrator_database_target_mysql_schema_test.go": "04a5aa2f78267381b4b8b43691cb0cb51d34c012e3c614250d1b62afd32f6f2a",
+      "internal/datalink/migrator_exact_recording_source_test.go": "89db5352bfa00927beb4747afd29e58b6ef31d3bd2d0bef304162a09898c6f24",
+      "internal/datalink/migrator_mapping_lifecycle.go": "b6ca1ef66ea57544de44a9b2130a5a33bb7b4ceaaf2909a2e78c041207246fe6",
+      "internal/datalink/migrator_measurement_scale_test.go": "3a71681ba994f4fa4a4c31763f1affa69eb552c1fd69a57e73c19ede195fa399",
+      "internal/datalink/migrator_measurement_semantics.go": "3fe109c34e2655897aa2736927e9c82bd5b79feba8465e5a637341dce5c4e8a0",
+      "internal/datalink/migrator_mysql_partition.go": "f2d27b80f2fd1267ae621389339f900e03f1e45f3d4b6cf4b6bf7390fff057ab",
+      "internal/datalink/migrator_mysql_partition_test.go": "f86b15efcd09c2afabe23f0ab670e546a5c942fdb27cb0c717d826572db69804",
+      "internal/datalink/migrator_operation_test_write.go": "43a91ca90164d9c439b2aeb9ac4092d2e8aaeca6235cce51ca0f1a03cc5299be",
+      "internal/datalink/migrator_recording_plans.go": "d4bc4a4d3a307175b3d4171aef39855a22017ea5c2f9f611ad1ed105eeb749f9",
+      "internal/datalink/migrator_schema_operations_test.go": "b6ab71b390a18ba2a42b518d052b3f7373abc9b7b7ee6ae43c20ae9802242981",
+      "internal/datalink/migrator_schema_preview_scope_test.go": "e4db8eddddaa63685c4a9a0db8f5a07e724ee91f9a474005b0db53130b2daf41",
+      "internal/datalink/migrator_source_rule_partial_test.go": "da5ab34d34183230cb8a6e1e55d6d01c43316f54493c1e92c827e06905c6d05b",
+      "internal/datalink/migrator_source_rule_recovery_test.go": "732374d2c7191265638a2fa7e9cc81ff8c339ca6a6a0ba6f741f149bb2f35da7",
+      "internal/datalink/migrator_source_rule_tag_review_decision_stale.go": "993f435e45169b051b126977200dd74e68d08d9bc0b20122371a64f1a61d7d05",
+      "internal/datalink/migrator_source_rule_tag_review_decisions.go": "ae213bcaa6f3a32fe6e6a20b9859751605081a2d286fa651ee5ded3fad0e1a71",
+      "internal/datalink/migrator_sqlserver_partition.go": "9e293f8adab593a9c765322fef2e6266d8f3bc7e18dbb492bf33a6e38514844f",
+      "internal/datalink/migrator_sqlserver_partition_test.go": "99540b187a3faa2564271852b3f1b33c10aaa511b9b39d70945385a914b780bb",
+      "internal/datalink/migrator_test.go": "8b105faaeee430651cf5611082fa6a1f4e5f546e442d0c2a18101694b4f5de40",
+      "internal/datalink/migrator_write_group_delivery.go": "5c9d17416db722f2aca3b6c45116d3b798a8c4a908a9ce02aecba396dc8e2232",
+      "internal/datalink/migrator_write_groups.go": "eb1df10f91c5b55db5ac51e3a671a7d9e51539307eee4a032c1eebb6193cd1b1",
+      "internal/datalink/migrator_write_groups_test.go": "a13855fe852f8f2f9d48af0ebe5a09d76963b253fb3d68894352f7d1b7f62629"
+    }
+  },
+  "task_completion": {
+    "original_tasks": 14,
+    "review_fix_records": 3,
+    "completed": 17,
+    "total": 17
+  },
+  "cleanup": [
+    {
+      "name": "simulator",
+      "stopped": true
+    },
+    {
+      "name": "fault-proxy",
+      "stopped": true
+    },
+    {
+      "name": "vite",
+      "stopped": true
+    },
+    {
+      "name": "backend-mariadb",
+      "stopped": true
+    },
+    {
+      "fixture": "mysql",
+      "owned_container_and_anonymous_volume_removed": true
+    },
+    {
+      "fixture": "mariadb",
+      "owned_container_and_anonymous_volume_removed": true
+    }
+  ]
+}

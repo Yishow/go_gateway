@@ -1,0 +1,24 @@
+{
+  "family": "mariadb",
+  "storage_mode": "native_monthly",
+  "operation_id": "op-4b527e95-c320-4b2c-92aa-d0a2eef59d14",
+  "backend_completed_before_response_drop": true,
+  "backend_status": 200,
+  "write_outcome": "written_verified",
+  "cleanup_status": "cleaned",
+  "confirm_post_count": 1,
+  "same_operation_get_count": 1,
+  "capability_refetch_count_before_recovery": 1,
+  "ui_outcome": "Written and read back correctly",
+  "ui_cleanup": "Test row removed",
+  "viewports": [
+    [
+      1024,
+      720
+    ],
+    [
+      1600,
+      1000
+    ]
+  ]
+}

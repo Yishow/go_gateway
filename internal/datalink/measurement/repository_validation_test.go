@@ -19,12 +19,17 @@ func measurementRepositoryDB(t *testing.T) *sql.DB {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	ddl, err := os.ReadFile("../schema/migrations/018_measurement_semantics_sqlite.up.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(t.Context(), string(ddl)); err != nil {
-		t.Fatal(err)
+	for _, migration := range []string{
+		"../schema/migrations/018_measurement_semantics_sqlite.up.sql",
+		"../schema/migrations/039_measurement_exact_recording_scale_sqlite.up.sql",
+	} {
+		ddl, err := os.ReadFile(migration)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.ExecContext(t.Context(), string(ddl)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return db
 }

@@ -1,0 +1,58 @@
+{
+  "success": true,
+  "data": {
+    "token": "tok-preview-fixture",
+    "operation_id": "op-preview-fixture",
+    "action": "test_write",
+    "group_id": "11111111-1111-4111-8111-111111111111",
+    "group_revision": "22222222-2222-4222-8222-222222222222",
+    "expires_at": "2026-10-25T16:46:32Z",
+    "target": {
+      "connector_id": "33333333-3333-4333-8333-333333333333",
+      "dialect": "mysql",
+      "database": "gw_circuit_test",
+      "schema": "gw_circuit_test",
+      "table": "gw_long_fixture"
+    },
+    "owner_column": "_gw_owner_fixture",
+    "owner_value": "gateway",
+    "dedupe": "receipt",
+    "values": [
+      { "column": "bucket_start", "type": "datetime(6)", "value": "2026-10-25T16:36:32Z" },
+      { "column": "bucket_end", "type": "datetime(6)", "value": "2026-10-25T16:36:32Z" },
+      { "column": "record_id", "type": "char(64)", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+      { "column": "workspace_id", "type": "varchar(191)", "value": "44444444-4444-4444-8444-444444444444" },
+      { "column": "group_id", "type": "varchar(191)", "value": "11111111-1111-4111-8111-111111111111" },
+      { "column": "group_revision", "type": "varchar(191)", "value": "22222222-2222-4222-8222-222222222222" },
+      { "column": "circuit_id", "type": "varchar(191)", "value": "cir-fixture-0000" },
+      { "column": "device_id", "type": "varchar(191)", "value": "device-fixture" },
+      { "column": "point_id", "type": "varchar(191)", "value": "55555555-5555-4555-8555-555555555555" },
+      { "column": "tag_id", "type": "varchar(191)", "value": "66666666-6666-4666-8666-666666666666" },
+      { "column": "measurement_id", "type": "varchar(191)", "value": "measurement-fixture" },
+      { "column": "series_epoch", "type": "varchar(191)", "value": "NULL" },
+      { "column": "profile_kind", "type": "varchar(191)", "value": "instantaneous" },
+      { "column": "value_type", "type": "varchar(191)", "value": "decimal" },
+      { "column": "unit", "type": "varchar(191)", "value": "NULL" },
+      { "column": "status", "type": "varchar(191)", "value": "ok" },
+      { "column": "quality", "type": "varchar(191)", "value": "good" },
+      { "column": "observed_at", "type": "datetime(6)", "value": "2026-10-25T16:36:32Z" },
+      { "column": "received_at", "type": "datetime(6)", "value": "2026-10-25T16:36:32Z" },
+      { "column": "value_int", "type": "bigint", "value": "NULL" },
+      { "column": "value_decimal", "type": "decimal(65,30)", "value": "12000.4" },
+      { "column": "value_float", "type": "double", "value": "NULL" },
+      { "column": "value_bool", "type": "tinyint(1)", "value": "NULL" },
+      { "column": "value_text", "type": "longtext", "value": "NULL" },
+      { "column": "delta_value", "type": "decimal(65,30)", "value": "NULL" },
+      { "column": "delta_from", "type": "datetime(6)", "value": "NULL" },
+      { "column": "delta_to", "type": "datetime(6)", "value": "NULL" },
+      {
+        "column": "provenance",
+        "type": "json",
+        "value": "{\"type\":\"decimal\",\"member\":\"[\\\"device-fixture\\\",\\\"55555555-5555-4555-8555-555555555555\\\",\\\"66666666-6666-4666-8666-666666666666\\\"]\",\"sample_id\":\"gw-test-00000000-0000-4000-8000-000000000001-0\",\"profile\":{\"kind\":\"instantaneous\",\"interval\":1,\"unit\":\"second\"},\"mean\":{\"reduction\":\"mean\",\"role\":\"counter_raw\",\"source_type\":\"uint64\",\"result_type\":\"decimal\",\"version\":\"arithmetic-mean-v1\",\"method\":\"arithmetic-mean\",\"basis\":\"exact\",\"valid_count\":0,\"rejected_count\":0,\"sum\":\"12000.4\",\"scale\":1,\"rounding\":\"half-even\"}}"
+      },
+      { "column": "_gw_owner_fixture", "type": "varchar(64)", "value": "gateway" }
+    ],
+    "record_ids": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+    "cleanup": "remove only the previewed record IDs and their matching receipts; retain all other rows"
+  }
+}

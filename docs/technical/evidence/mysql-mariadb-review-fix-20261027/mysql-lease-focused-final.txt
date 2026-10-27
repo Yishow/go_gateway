@@ -1,0 +1,1 @@
+ok  	go-gateway/internal/datalink/recordingplan	1.582s

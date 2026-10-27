@@ -215,7 +215,6 @@ function renderPreparedSchema(options: {
         onApplied={() => undefined}
         isSQLServer={options.isSQLServer ?? true}
         sqlserverTestWriteAvailable={options.sqlserverTestWriteAvailable ?? false}
-        sqlserverTestWriteCapabilityRevision="sql-cap-rev-1"
       />
     </QueryClientProvider>,
   );

@@ -1,0 +1,137 @@
+{
+  "family": "mariadb",
+  "workspace_id": "4a44048b-54c9-4433-8730-2cd9f3dc344f",
+  "version": "11.4.13-MariaDB-ubu2404",
+  "groups": [
+    {
+      "applied_revision": "c8cd0009-9608-406a-b5fb-75440de19104",
+      "counts": [
+        {
+          "baseline_null_delta": "0",
+          "delta_after": null,
+          "raw_after": "0",
+          "raw_initial": "107",
+          "total_rows": 111
+        }
+      ],
+      "id": "3bf1f74f-bc7c-4be7-aa87-7ea8b1107de1",
+      "matched": {
+        "outbox": {
+          "connector_id": "69046101-955f-4c74-b965-a44855816bc7",
+          "connector_revision": "0bfadbc7-7ad2-4372-b85e-a5135cb5938b",
+          "effect_key": "ffc00c6bddbf1dc63ce17786e886c42dede74dfe0b48bb2538b2d62324f13fa9",
+          "payload_digest": "7e2eed025d4f97883bae2ace4c32804db74a054152f7d6c8d35536137a81c303",
+          "record_id": "7e4d77509a3e55d12c2839dec1052b78dcac0cee0edf2b6b55ce273fd4780277",
+          "table_name": "gw_long_5f8d351ef9a517fb"
+        },
+        "receipt_digest": "7e2eed025d4f97883bae2ace4c32804db74a054152f7d6c8d35536137a81c303",
+        "runtime_revision": "c8cd0009-9608-406a-b5fb-75440de19104",
+        "target_row": {
+          "bucket_end": "2026-10-27T04:15:10Z",
+          "bucket_start": "2026-10-27T04:15:09Z",
+          "delta_value": null,
+          "group_id": "3bf1f74f-bc7c-4be7-aa87-7ea8b1107de1",
+          "group_revision": "c8cd0009-9608-406a-b5fb-75440de19104",
+          "observed_at": "2026-10-27T04:15:09.013698Z",
+          "record_id": "7e4d77509a3e55d12c2839dec1052b78dcac0cee0edf2b6b55ce273fd4780277",
+          "status": "ok",
+          "value_decimal": "12000.000000000000000000000000000000"
+        }
+      },
+      "mode": "native_monthly",
+      "partitions": [
+        {
+          "PARTITION_DESCRIPTION": "'2026-10-01 00:00:00'",
+          "PARTITION_NAME": "p_past"
+        },
+        {
+          "PARTITION_DESCRIPTION": "'2026-11-01 00:00:00'",
+          "PARTITION_NAME": "p_202610"
+        },
+        {
+          "PARTITION_DESCRIPTION": "'2026-12-01 00:00:00'",
+          "PARTITION_NAME": "p_202611"
+        },
+        {
+          "PARTITION_DESCRIPTION": "'2027-01-01 00:00:00'",
+          "PARTITION_NAME": "p_202612"
+        },
+        {
+          "PARTITION_DESCRIPTION": "'2027-02-01 00:00:00'",
+          "PARTITION_NAME": "p_202701"
+        },
+        {
+          "PARTITION_DESCRIPTION": "MAXVALUE",
+          "PARTITION_NAME": "p_future"
+        }
+      ],
+      "profile": "instantaneous",
+      "table": "gw_long_5f8d351ef9a517fb"
+    },
+    {
+      "applied_revision": "174d6480-e3ca-41ee-8685-a101a1a4289f",
+      "counts": [
+        {
+          "baseline_null_delta": "1",
+          "delta_after": null,
+          "raw_after": "0",
+          "raw_initial": "1",
+          "total_rows": 1
+        }
+      ],
+      "id": "1ddf5061-054c-4a8d-b0e7-86adfd7cb3a7",
+      "matched": {
+        "outbox": {
+          "connector_id": "69046101-955f-4c74-b965-a44855816bc7",
+          "connector_revision": "0bfadbc7-7ad2-4372-b85e-a5135cb5938b",
+          "effect_key": "79e2b49109158e47d2deff9fd3797ea745aa61381419361aaa77be0dc19d8632",
+          "payload_digest": "676214dad36e3af3db01e64f7b4c0c1d41ddf74e1ec662602def1628516467ed",
+          "record_id": "2ee74abe8726fb21945a9f4d990e5131b0e49edd971dd276ccd5d99f9c70e8ad",
+          "table_name": "gw_long_5f8d351ef9a517fb"
+        },
+        "receipt_digest": "676214dad36e3af3db01e64f7b4c0c1d41ddf74e1ec662602def1628516467ed",
+        "runtime_revision": "174d6480-e3ca-41ee-8685-a101a1a4289f",
+        "target_row": {
+          "bucket_end": "2026-10-27T04:15:00Z",
+          "bucket_start": "2026-10-27T04:14:00Z",
+          "delta_value": null,
+          "group_id": "1ddf5061-054c-4a8d-b0e7-86adfd7cb3a7",
+          "group_revision": "174d6480-e3ca-41ee-8685-a101a1a4289f",
+          "observed_at": "2026-10-27T04:14:59.013625Z",
+          "record_id": "2ee74abe8726fb21945a9f4d990e5131b0e49edd971dd276ccd5d99f9c70e8ad",
+          "status": "baseline",
+          "value_decimal": "12000.000000000000000000000000000000"
+        }
+      },
+      "mode": "native_monthly",
+      "partitions": [
+        {
+          "PARTITION_DESCRIPTION": "'2026-10-01 00:00:00'",
+          "PARTITION_NAME": "p_past"
+        },
+        {
+          "PARTITION_DESCRIPTION": "'2026-11-01 00:00:00'",
+          "PARTITION_NAME": "p_202610"
+        },
+        {
+          "PARTITION_DESCRIPTION": "'2026-12-01 00:00:00'",
+          "PARTITION_NAME": "p_202611"
+        },
+        {
+          "PARTITION_DESCRIPTION": "'2027-01-01 00:00:00'",
+          "PARTITION_NAME": "p_202612"
+        },
+        {
+          "PARTITION_DESCRIPTION": "'2027-02-01 00:00:00'",
+          "PARTITION_NAME": "p_202701"
+        },
+        {
+          "PARTITION_DESCRIPTION": "MAXVALUE",
+          "PARTITION_NAME": "p_future"
+        }
+      ],
+      "profile": "cumulative",
+      "table": "gw_long_5f8d351ef9a517fb"
+    }
+  ]
+}

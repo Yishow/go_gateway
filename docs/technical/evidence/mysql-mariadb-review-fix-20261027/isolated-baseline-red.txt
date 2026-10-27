@@ -1,0 +1,8 @@
+--- FAIL: TestMySQLRecordingPermissionEvidenceClosesOperations (0.00s)
+    mysql_permission_evidence_red_test.go:22: 
+        	Error Trace:	<temporary-evidence>/isolated-baseline/internal/datalink/dbtarget/mysql_permission_evidence_red_test.go:22
+        	Error:      	Should be false
+        	Test:       	TestMySQLRecordingPermissionEvidenceClosesOperations
+FAIL
+FAIL	go-gateway/internal/datalink/dbtarget	0.326s
+FAIL

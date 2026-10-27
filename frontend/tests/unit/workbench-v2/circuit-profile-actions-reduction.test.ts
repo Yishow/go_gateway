@@ -10,6 +10,12 @@ import type {
 } from '@/types/studioV2WriteGroup';
 import { batchPanelState, longProfileGroup } from '../../fixtures/circuitBatchPanel';
 
+const exactCounterSource = {
+  measurement_id: 'meas-kwh', definition_revision: 'rev-1', source_binding_revision: 'rev-1',
+  series_epoch: 'epoch-1', original_data_type: 'uint64' as const, scale: '0.1', unit: 'kWh',
+  semantic_kind: 'counter' as const,
+};
+
 const allCandidates = buildGroupCandidates(batchPanelState()).candidates;
 
 // The two sources the saved profile already holds; the prepare action reuses that writer.
@@ -39,7 +45,7 @@ function typedSavedGroup(): WriteGroup {
     recording_profile: { kind: 'instantaneous', interval: 15, unit: 'second', sample_reduction: 'mean' },
     members: [
       { ...base.members[0], value_role: 'gauge', source_value_type: 'int16', result_value_type: 'decimal' },
-      { ...base.members[1], value_role: 'counter_raw', source_value_type: 'int32', result_value_type: 'int64', measurement_id: 'meas-kwh' },
+      { ...base.members[1], value_role: 'counter_raw', source_value_type: 'uint64', result_value_type: 'decimal', measurement_id: 'meas-kwh', exact_recording_source: exactCounterSource },
       {
         device_id: 'dev-1', point_id: 'pt-2', tag_id: 'tag-2', source_revision: 's2', mapping_revision: 'm2',
         target_column: '', required: false, circuit_id: 'cir-a', circuit_name: 'Feeder A',
@@ -133,9 +139,35 @@ describe('the prepare action keeps a saved reduction when only the period change
       result: member.result_value_type, measurement: member.measurement_id,
     }))).toEqual([
       { point: 'pt-0', role: 'gauge', source: 'int16', result: 'decimal', measurement: '' },
-      { point: 'pt-1', role: 'counter_raw', source: 'int32', result: 'int64', measurement: 'meas-kwh' },
+      { point: 'pt-1', role: 'counter_raw', source: 'uint64', result: 'decimal', measurement: 'meas-kwh' },
       { point: 'pt-2', role: 'state', source: 'string', result: 'text', measurement: '' },
     ]);
+    expect(group.members[1].exact_recording_source).toEqual(exactCounterSource);
+  });
+
+  it('carries an exact source proof through a cumulative profile period update', async () => {
+    const base = longProfileGroup({ id: 'cum-a', circuitId: 'cir-a', circuitName: 'Feeder A', interval: 10, points: [0, 1] });
+    const saved: WriteGroup = {
+      ...base,
+      row_policy: { ...base.row_policy, interval_seconds: 600 },
+      recording_profile: { kind: 'cumulative', interval: 10, unit: 'minute' },
+      members: [{
+        ...base.members[0], measurement_id: 'meas-kwh', source_value_type: 'uint64',
+        result_value_type: 'decimal', exact_recording_source: exactCounterSource,
+      }],
+    };
+    const profileCandidates = candidatesFor(['pt-0']);
+    const context = prepareInput([saved], profileCandidates);
+    await ensureOrUpdateCircuitProfileGroups({
+      ...context,
+      enabledProfiles: [{ profile: 'cumulative', intervalValue: 20, intervalSeconds: 1200, candidates: profileCandidates }],
+    });
+
+    expect(context.updateWriteGroup).toHaveBeenCalledTimes(1);
+    const member = context.updateWriteGroup.mock.calls[0][0].request.group.members[0];
+    expect(member.value_role).toBeUndefined();
+    expect(member.measurement_id).toBe('meas-kwh');
+    expect(member.exact_recording_source).toEqual(exactCounterSource);
   });
 
   it('gives a newly added source the role its type shows, and no value type or counter binding', async () => {

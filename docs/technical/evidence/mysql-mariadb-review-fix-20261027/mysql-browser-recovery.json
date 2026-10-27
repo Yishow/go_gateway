@@ -1,0 +1,24 @@
+{
+  "family": "mysql",
+  "storage_mode": "plain",
+  "operation_id": "op-c9dbc63a-78e7-4e48-b7c2-84d6210b037e",
+  "backend_completed_before_response_drop": true,
+  "backend_status": 200,
+  "write_outcome": "written_verified",
+  "cleanup_status": "cleaned",
+  "confirm_post_count": 1,
+  "same_operation_get_count": 1,
+  "capability_refetch_count_before_recovery": 3,
+  "ui_outcome": "Written and read back correctly",
+  "ui_cleanup": "Test row removed",
+  "viewports": [
+    [
+      1024,
+      720
+    ],
+    [
+      1600,
+      1000
+    ]
+  ]
+}

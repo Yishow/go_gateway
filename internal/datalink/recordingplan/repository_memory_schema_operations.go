@@ -110,6 +110,37 @@ func (r *MemoryRepository) TakeOverSchemaOperation(_ context.Context, operationI
 	return &op, nil
 }
 
+// ReclaimMySQLSchemaApplyOperation reacquires only a matching partial or unknown
+// schema apply when no other active operation owns the same scope.
+func (r *MemoryRepository) ReclaimMySQLSchemaApplyOperation(_ context.Context, operationID, workspaceID, token, scopeKey, expectedDetail, newOwner string) (*SchemaOperation, ClaimOutcome, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	op, ok := r.operations[operationID]
+	if !ok || op.WorkspaceID != workspaceID {
+		return nil, "", ErrSchemaOperationNotFound
+	}
+	if op.Token != token || op.ScopeKey != scopeKey || op.Action != SchemaApplyAction {
+		return nil, "", ErrSchemaOperationMismatch
+	}
+	if op.Detail != expectedDetail || (op.Status != SchemaOperationPartial && op.Status != SchemaOperationUnknown) {
+		return withoutOwner(op), ClaimCompleted, nil
+	}
+	for _, other := range r.operations {
+		if other.OperationID != operationID && other.WorkspaceID == workspaceID && other.ScopeKey == scopeKey && other.Status.IsActive() {
+			return withoutOwner(other), ClaimScopeBusy, nil
+		}
+	}
+	if newOwner == "" {
+		return nil, "", ErrSchemaOperationMismatch
+	}
+	now := time.Now().UTC()
+	op.Owner, op.Status, op.UpdatedAt = newOwner, SchemaOperationRunning, now
+	op.CompletedAt, op.Reason, op.NextAction = nil, "", ""
+	r.operations[operationID] = op
+	return &op, ClaimAcquired, nil
+}
+
 // SaveSchemaOperationProgress stores detail for the owner of an active operation.
 func (r *MemoryRepository) SaveSchemaOperationProgress(_ context.Context, operationID, owner, detail string) error {
 	r.mu.Lock()

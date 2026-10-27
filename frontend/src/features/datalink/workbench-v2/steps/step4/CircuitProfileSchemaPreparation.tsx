@@ -25,10 +25,8 @@ export interface CircuitProfileSchemaPreparationProps {
   /** The shared test-write surface is shown for a saved MySQL group; the backend flag alone opens the action. */
   isMySQL?: boolean;
   mysqlTestWriteAvailable?: boolean;
-  mysqlTestWriteCapabilityRevision?: string;
   isSQLServer?: boolean;
   sqlserverTestWriteAvailable?: boolean;
-  sqlserverTestWriteCapabilityRevision?: string;
 }
 
 interface PreparedGroupProps {
@@ -40,27 +38,22 @@ interface PreparedGroupProps {
   destinationMatches: boolean;
   isMySQL: boolean;
   mysqlTestWriteAvailable: boolean;
-  mysqlTestWriteCapabilityRevision?: string;
   isSQLServer?: boolean;
   sqlserverTestWriteAvailable?: boolean;
-  sqlserverTestWriteCapabilityRevision?: string;
   onApplied: () => void;
   onBlocker: (groupId: string, code: DestinationBlockerCode | undefined) => void;
 }
 
 interface PreparedGroupTestWriteProps {
   group: WriteGroup;
-  workspaceRevision: string;
   dirty: boolean;
   readonly: boolean;
   destinationMatches: boolean;
   testWriteAvailable: boolean;
-  testWriteCapabilityRevision?: string;
 }
 
 const PreparedGroupTestWrite: React.FC<PreparedGroupTestWriteProps> = ({
-  group, workspaceRevision, dirty, readonly, destinationMatches, testWriteAvailable,
-  testWriteCapabilityRevision,
+  group, dirty, readonly, destinationMatches, testWriteAvailable,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const readiness = useWriteGroupReadinessQuery(group.id, !dirty);
@@ -79,7 +72,9 @@ const PreparedGroupTestWrite: React.FC<PreparedGroupTestWriteProps> = ({
 
   return <GroupTestWritePanel
     groupId={group.id}
-    scopeKey={`${group.id}|${group.revision}|${workspaceRevision}|${testWriteCapabilityRevision ?? 'unavailable'}|${testWriteAvailable ? 'supported' : 'unavailable'}`}
+    // Capabilities gate new writes; querying an existing operation remains valid
+    // while they refresh or an unrelated setup save moves the workspace revision.
+    scopeKey={`${group.id}|${group.revision}`}
     enabled={canTestWrite}
     disabledReason={blockedReason}
   />;
@@ -87,8 +82,7 @@ const PreparedGroupTestWrite: React.FC<PreparedGroupTestWriteProps> = ({
 
 const PreparedGroup: React.FC<PreparedGroupProps> = ({
   group, workspaceId, workspaceRevision, dirty, readonly, destinationMatches, isMySQL,
-  mysqlTestWriteAvailable, mysqlTestWriteCapabilityRevision, isSQLServer, sqlserverTestWriteAvailable,
-  sqlserverTestWriteCapabilityRevision, onApplied, onBlocker,
+  mysqlTestWriteAvailable, isSQLServer, sqlserverTestWriteAvailable, onApplied, onBlocker,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const [readinessRefreshKey, setReadinessRefreshKey] = React.useState(0);
@@ -103,6 +97,7 @@ const PreparedGroup: React.FC<PreparedGroupProps> = ({
         {group.name} ({t(`step4.basic.circuit.${groupProfileKind(group) ?? 'instantaneous'}_label`)})
       </p>
       <GroupSchemaPanel
+        key={`${group.id}:${group.revision}:${workspaceRevision}`}
         autoPreview
         group={group}
         workspaceId={workspaceId}
@@ -116,22 +111,18 @@ const PreparedGroup: React.FC<PreparedGroupProps> = ({
       {isMySQL && <PreparedGroupTestWrite
         key={`mysql-${readinessRefreshKey}`}
         group={group}
-        workspaceRevision={workspaceRevision}
         dirty={dirty}
         readonly={readonly}
         destinationMatches={destinationMatches}
         testWriteAvailable={mysqlTestWriteAvailable}
-        testWriteCapabilityRevision={mysqlTestWriteCapabilityRevision}
       />}
       {isSQLServer && <PreparedGroupTestWrite
         key={`sqlserver-${readinessRefreshKey}`}
         group={group}
-        workspaceRevision={workspaceRevision}
         dirty={dirty}
         readonly={readonly}
         destinationMatches={destinationMatches}
         testWriteAvailable={Boolean(sqlserverTestWriteAvailable)}
-        testWriteCapabilityRevision={sqlserverTestWriteCapabilityRevision}
       />}
     </div>
   );
@@ -152,10 +143,8 @@ export const CircuitProfileSchemaPreparation: React.FC<CircuitProfileSchemaPrepa
   onOpenAdvanced,
   isMySQL = false,
   mysqlTestWriteAvailable = false,
-  mysqlTestWriteCapabilityRevision,
   isSQLServer = false,
   sqlserverTestWriteAvailable = false,
-  sqlserverTestWriteCapabilityRevision,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const [reports, setReports] = React.useState<Record<string, DestinationBlockerCode | undefined>>({});
@@ -192,7 +181,7 @@ export const CircuitProfileSchemaPreparation: React.FC<CircuitProfileSchemaPrepa
       <CircuitProfileBlockers blockers={aggregateDestinationBlockers(preparedGroups, reports)} onRepairDestination={onRepairDestination} onOpenAdvanced={onOpenAdvanced} />
       {preparedGroups.map((group) => (
           <PreparedGroup
-            key={`${group.id}:${group.revision}:${workspaceRevision}`}
+            key={`${group.id}:${group.revision}`}
             group={group}
             workspaceId={workspaceId ?? group.workspace_id}
             workspaceRevision={workspaceRevision}
@@ -201,10 +190,8 @@ export const CircuitProfileSchemaPreparation: React.FC<CircuitProfileSchemaPrepa
             destinationMatches={destinationMatches}
             isMySQL={isMySQL}
             mysqlTestWriteAvailable={mysqlTestWriteAvailable}
-            mysqlTestWriteCapabilityRevision={mysqlTestWriteCapabilityRevision}
             isSQLServer={isSQLServer}
             sqlserverTestWriteAvailable={sqlserverTestWriteAvailable}
-            sqlserverTestWriteCapabilityRevision={sqlserverTestWriteCapabilityRevision}
             onApplied={onApplied}
             onBlocker={report}
           />

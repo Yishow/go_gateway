@@ -1,0 +1,13 @@
+
+> frontend@0.0.0 test
+> vitest --run tests/unit/workbench-v2/mysql-test-write-operation-recovery.test.tsx tests/unit/workbench-v2/circuit-profile-preparation.test.tsx
+
+
+ RUN  v5.0.5 <repo>/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  5 passed (5)
+   Start at  11:53:55
+   Duration  567ms (environment 48%, tests 22%, import 13%, setup 10%, transform 7%, worker 1%)
+

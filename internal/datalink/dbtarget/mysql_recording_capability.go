@@ -17,6 +17,7 @@ import (
 
 const (
 	mysqlRecordingCapabilityProjectionVersion = "mysql-recording-capability-v1"
+	mysqlRecordingPermissionProjectionVersion = "mysql-recording-capability-v2"
 	mysqlRecordingMetadataVerified            = "verified"
 	mysqlRecordingMetadataForbidden           = "forbidden"
 	mysqlRecordingMetadataUnconfirmed         = "unconfirmed"
@@ -27,20 +28,21 @@ const (
 // MySQLRecordingCapability is the backend-derived capability projection for a
 // saved MySQL-kind connector. Unverified operations remain unavailable.
 type MySQLRecordingCapability struct {
-	ConnectorID             string   `json:"connector_id"`
-	ConnectorRevision       string   `json:"connector_revision"`
-	Database                string   `json:"database"`
-	ServerFamily            string   `json:"server_family"`
-	ServerVersion           string   `json:"server_version"`
-	CapabilityRevision      string   `json:"capability_revision"`
-	Connected               bool     `json:"connected"`
-	MetadataStatus          string   `json:"metadata_status"`
-	TransactionalEngine     bool     `json:"transactional_engine"`
-	SupportsManagedLong     bool     `json:"supports_managed_long"`
-	SupportsNativePartition bool     `json:"supports_native_partition"`
-	SupportsGroupTestWrite  bool     `json:"supports_group_test_write"`
-	SupportsMissingRepair   bool     `json:"supports_missing_repair"`
-	Reasons                 []string `json:"reasons"`
+	ConnectorID             string                    `json:"connector_id"`
+	ConnectorRevision       string                    `json:"connector_revision"`
+	Database                string                    `json:"database"`
+	ServerFamily            string                    `json:"server_family"`
+	ServerVersion           string                    `json:"server_version"`
+	CapabilityRevision      string                    `json:"capability_revision"`
+	Connected               bool                      `json:"connected"`
+	MetadataStatus          string                    `json:"metadata_status"`
+	TransactionalEngine     bool                      `json:"transactional_engine"`
+	Permissions             MySQLRecordingPermissions `json:"permissions"`
+	SupportsManagedLong     bool                      `json:"supports_managed_long"`
+	SupportsNativePartition bool                      `json:"supports_native_partition"`
+	SupportsGroupTestWrite  bool                      `json:"supports_group_test_write"`
+	SupportsMissingRepair   bool                      `json:"supports_missing_repair"`
+	Reasons                 []string                  `json:"reasons"`
 }
 
 type mysqlRecordingMetadata struct {
@@ -50,6 +52,7 @@ type mysqlRecordingMetadata struct {
 	actualDatabase      string
 	metadataStatus      string
 	transactionalEngine bool
+	permissions         MySQLRecordingPermissions
 	reasons             []string
 }
 
@@ -198,6 +201,11 @@ func inspectMySQLRecordingMetadata(ctx context.Context, db *sql.DB, expectedData
 	metadata.transactionalEngine = err == nil &&
 		(engineSupport == "YES" || engineSupport == "DEFAULT") && engineTransactions == "YES"
 	metadata.metadataStatus = mysqlRecordingMetadataVerified
+	var permissionReason string
+	metadata.permissions, permissionReason = inspectMySQLRecordingPermissions(ctx, tx, expectedDatabase, metadata.serverFamily)
+	if permissionReason != "" {
+		metadata.reasons = appendMySQLRecordingReason(metadata.reasons, permissionReason)
+	}
 
 	if err := tx.Commit(); err != nil {
 		setMySQLRecordingMetadataFailure(&metadata, err)
@@ -218,8 +226,8 @@ func setMySQLRecordingMetadataFailure(metadata *mysqlRecordingMetadata, err erro
 func mysqlRecordingServerFamily(version, versionComment string) string {
 	serverIdentity := strings.ToLower(version + " " + versionComment)
 	switch {
-	case strings.Contains(serverIdentity, "mariadb"):
-		return "mariadb"
+	case strings.Contains(serverIdentity, mysqlManagedFamilyMariaDB):
+		return mysqlManagedFamilyMariaDB
 	case strings.Contains(strings.ToLower(versionComment), "mysql"):
 		return "mysql"
 	default:
@@ -239,6 +247,7 @@ func projectMySQLRecordingCapability(
 		Connected:           connected,
 		MetadataStatus:      metadata.metadataStatus,
 		TransactionalEngine: metadata.transactionalEngine,
+		Permissions:         metadata.permissions,
 		Reasons:             []string{},
 	}
 	if connector != nil {
@@ -260,15 +269,38 @@ func projectMySQLRecordingCapability(
 	if !mysqlRecordingInitialBaseline(metadata.serverFamily, metadata.serverVersion) {
 		capability.Reasons = appendMySQLRecordingReason(capability.Reasons, "server_version_unverified")
 	}
-	if mysqlRecordingOperationsVerified(metadata, capability) {
-		capability.SupportsManagedLong = true
-		capability.SupportsNativePartition = true
-		capability.SupportsGroupTestWrite = true
-		capability.SupportsMissingRepair = true
+	factsVerified := mysqlRecordingOperationsVerified(metadata, capability)
+	if factsVerified && metadata.permissions.Verified {
+		capability.SupportsManagedLong = mysqlRecordingPermissionsAllowManagedLong(metadata.permissions)
+		capability.SupportsNativePartition = mysqlRecordingPermissionsAllowNativePartition(metadata.permissions)
+		capability.SupportsGroupTestWrite = mysqlRecordingPermissionsAllowGroupTestWrite(metadata.permissions)
+		capability.SupportsMissingRepair = mysqlRecordingPermissionsAllowMissingRepair(metadata.permissions)
+		if !capability.SupportsManagedLong || !capability.SupportsNativePartition ||
+			!capability.SupportsGroupTestWrite || !capability.SupportsMissingRepair {
+			capability.Reasons = appendMySQLRecordingReason(capability.Reasons, mysqlRecordingPermissionDeniedReason)
+		}
+		if !capability.SupportsManagedLong {
+			capability.Reasons = appendMySQLRecordingReason(capability.Reasons, "managed_long_permissions_denied")
+		}
+		if !capability.SupportsNativePartition {
+			capability.Reasons = appendMySQLRecordingReason(capability.Reasons, "native_partition_permissions_denied")
+		}
+		if !capability.SupportsGroupTestWrite {
+			capability.Reasons = appendMySQLRecordingReason(capability.Reasons, "group_test_write_permissions_denied")
+		}
+		if !capability.SupportsMissingRepair {
+			capability.Reasons = appendMySQLRecordingReason(capability.Reasons, "missing_repair_permissions_denied")
+		}
 	} else {
+		if factsVerified && !metadata.permissions.Verified && !slices.Contains(capability.Reasons, mysqlRecordingPermissionUnknownReason) &&
+			!slices.Contains(capability.Reasons, "operation_permissions_forbidden") &&
+			!slices.Contains(capability.Reasons, mysqlRecordingPartialRevokeReason) &&
+			!slices.Contains(capability.Reasons, mysqlRecordingRoleUnknownReason) {
+			capability.Reasons = appendMySQLRecordingReason(capability.Reasons, mysqlRecordingPermissionUnknownReason)
+		}
 		// Client values, driver presence, a major/minor match, or a saved
 		// capability revision cannot open an operation gate without the exact
-		// verified server pair and complete backend facts.
+		// verified server pair, complete backend facts, and effective grants.
 		capability.Reasons = appendMySQLRecordingReason(capability.Reasons,
 			"adapter_unverified",
 			"managed_long_unverified",
@@ -296,7 +328,7 @@ func mysqlRecordingInitialBaseline(family, version string) bool {
 	switch family {
 	case "mysql":
 		return parts[0] == "8" && parts[1] == "4"
-	case "mariadb":
+	case mysqlManagedFamilyMariaDB:
 		return parts[0] == "11" && parts[1] == "4"
 	default:
 		return false
@@ -314,9 +346,79 @@ func mysqlRecordingCapabilityRevision(
 		connectorID = connector.ID
 		connectorRevision = connector.IdentityRevision
 	}
-	// Operation rollout availability is not a physical destination fact. Keep
-	// the four legacy false slots for byte compatibility with already prepared
-	// schemas, while connector/server/metadata changes still invalidate proof.
+	if mysqlRecordingPermissionsComplete(metadata.permissions) {
+		return mysqlRecordingLegacyCapabilityRevision(
+			connectorID, connectorRevision, metadata, capability,
+		)
+	}
+	projection := struct {
+		ProjectionVersion   string
+		ConnectorID         string
+		ConnectorRevision   string
+		ServerFamily        string
+		ServerVersion       string
+		Database            string
+		ActualDatabase      string
+		MetadataStatus      string
+		TransactionalEngine bool
+		Connected           bool
+		PermissionsVerified bool
+		CreateTable         bool
+		AlterSchema         bool
+		IndexSchema         bool
+		SelectSchema        bool
+		InsertSchema        bool
+		DeleteSchema        bool
+	}{
+		ProjectionVersion:   mysqlRecordingPermissionProjectionVersion,
+		ConnectorID:         connectorID,
+		ConnectorRevision:   connectorRevision,
+		ServerFamily:        metadata.serverFamily,
+		ServerVersion:       metadata.serverVersion,
+		Database:            metadata.database,
+		ActualDatabase:      metadata.actualDatabase,
+		MetadataStatus:      metadata.metadataStatus,
+		TransactionalEngine: capability.TransactionalEngine,
+		Connected:           capability.Connected,
+		PermissionsVerified: metadata.permissions.Verified,
+		CreateTable:         metadata.permissions.CreateTable,
+		AlterSchema:         metadata.permissions.AlterSchema,
+		IndexSchema:         metadata.permissions.IndexSchema,
+		SelectSchema:        metadata.permissions.SelectSchema,
+		InsertSchema:        metadata.permissions.InsertSchema,
+		DeleteSchema:        metadata.permissions.DeleteSchema,
+	}
+	// Quoted strings, fixed separators, and boolean literals form a stable,
+	// unambiguous encoding without a serialization error path.
+	canonical := fmt.Appendf(nil,
+		"%q|%q|%q|%q|%q|%q|%q|%q|%t|%t|%t|%t|%t|%t|%t|%t|%t",
+		projection.ProjectionVersion,
+		projection.ConnectorID,
+		projection.ConnectorRevision,
+		projection.ServerFamily,
+		projection.ServerVersion,
+		projection.Database,
+		projection.ActualDatabase,
+		projection.MetadataStatus,
+		projection.TransactionalEngine,
+		projection.Connected,
+		projection.PermissionsVerified,
+		projection.CreateTable,
+		projection.AlterSchema,
+		projection.IndexSchema,
+		projection.SelectSchema,
+		projection.InsertSchema,
+		projection.DeleteSchema,
+	)
+	digest := sha256.Sum256(canonical)
+	return "mysqlcap-v2-" + hex.EncodeToString(digest[:])
+}
+
+func mysqlRecordingLegacyCapabilityRevision(
+	connectorID, connectorRevision string,
+	metadata mysqlRecordingMetadata,
+	capability *MySQLRecordingCapability,
+) string {
 	projection := struct {
 		ProjectionVersion     string
 		ConnectorID           string
@@ -348,8 +450,6 @@ func mysqlRecordingCapabilityRevision(
 		SupportsGroupWrite:    false,
 		SupportsMissingRepair: false,
 	}
-	// Quoted strings, fixed separators, and boolean literals form a stable,
-	// unambiguous encoding without a serialization error path.
 	canonical := fmt.Appendf(nil,
 		"%q|%q|%q|%q|%q|%q|%q|%q|%t|%t|%t|%t|%t|%t",
 		projection.ProjectionVersion,

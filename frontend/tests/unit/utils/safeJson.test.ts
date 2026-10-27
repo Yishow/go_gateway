@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_SAFE_JSON_BYTES,
+  MAX_SAFE_JSON_STRING_LENGTH,
   parseBoundedJson,
   parseMessageEventRecord,
   parseRuntimeValueRecord,
@@ -11,6 +12,11 @@ import {
 describe('bounded external JSON parser', () => {
   it('rejects oversized payloads before parsing', () => {
     expect(parseBoundedJson('x'.repeat(MAX_SAFE_JSON_BYTES + 1))).toBeNull();
+  });
+
+  it('keeps the generic string limit at 256 characters', () => {
+    expect(parseBoundedJson({ value: 'x'.repeat(MAX_SAFE_JSON_STRING_LENGTH) })).not.toBeNull();
+    expect(parseBoundedJson({ value: 'x'.repeat(MAX_SAFE_JSON_STRING_LENGTH + 1) })).toBeNull();
   });
 
   it('rejects deep, oversized-array, and non-finite JSON values', () => {

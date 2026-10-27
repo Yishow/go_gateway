@@ -36,7 +36,7 @@ const (
 // metadata. No runtime proof serves these shapes yet, so such a group stays
 // savable but never starts or restores a writer.
 func memberMetadataUnsupported(member *WriteGroupMember) bool {
-	return member != nil && (member.ValueRole != "" || member.SourceValueType != "" || member.ResultValueType != "")
+	return member != nil && (member.ValueRole != "" || member.SourceValueType != "" || member.ResultValueType != "" || member.ExactRecordingSource != nil)
 }
 
 // UnmarshalJSON decodes a member and validates only its three recording

@@ -7,6 +7,7 @@ import {
   parseWriteGroupTestWritePreview,
 } from '@/utils/studioV2WriteGroupTestWriteJson';
 import { BACKEND_ERROR_CODES } from '@/utils/backendErrorCodes';
+import longProvenancePreviewResponse from '../../fixtures/testWritePreviewLongProvenance.json';
 
 vi.mock('@/services/studioV2Workspace', () => ({
   studioV2DatalinkApi: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -46,6 +47,49 @@ describe('write group test write contract', () => {
     expect(studioV2DatalinkApi.post).toHaveBeenCalledWith('/studio-v2/workspace/write-groups/group%2Fwith%20space/test-write-preview');
     expect(result.owner_value).toBe(OWNER);
     expect(result.values.map((entry) => entry.column)).toEqual(['temperature', 'entity']);
+  });
+
+  it('parses the complete MySQL preview envelope with bounded long provenance JSON', async () => {
+    const response = longProvenancePreviewResponse as unknown as {
+      success: boolean;
+      data: { values: Array<{ column: string; value: string }> };
+    };
+    const provenance = response.data.values.find((entry) => entry.column === 'provenance')?.value;
+    expect(provenance?.length).toBeGreaterThan(256);
+    expect(provenance?.length).toBeLessThanOrEqual(1024);
+
+    vi.mocked(studioV2DatalinkApi.post).mockResolvedValueOnce({ data: response } as never);
+    const result = await studioV2WorkspaceWriteGroupsAPI.testWritePreview('group-1');
+    expect(result.values.find((entry) => entry.column === 'provenance')?.value).toBe(provenance);
+  });
+
+  it('keeps the provenance value limit at exactly 1024 characters', async () => {
+    const withValueLength = (length: number) => {
+      const response = JSON.parse(JSON.stringify(longProvenancePreviewResponse)) as {
+        data: { values: Array<{ column: string; value: string }> };
+      };
+      const provenance = response.data.values.find((entry) => entry.column === 'provenance');
+      if (!provenance) throw new Error('fixture provenance value is missing');
+      provenance.value = 'x'.repeat(length);
+      return response;
+    };
+    vi.mocked(studioV2DatalinkApi.post)
+      .mockResolvedValueOnce({ data: withValueLength(1024) } as never)
+      .mockResolvedValueOnce({ data: withValueLength(1025) } as never);
+
+    const accepted = await studioV2WorkspaceWriteGroupsAPI.testWritePreview('group-1');
+    expect(accepted.values.find((entry) => entry.column === 'provenance')?.value).toHaveLength(1024);
+    await expect(studioV2WorkspaceWriteGroupsAPI.testWritePreview('group-1')).rejects.toThrow();
+  });
+
+  it('still rejects overlong non-value response fields', async () => {
+    const response = JSON.parse(JSON.stringify(longProvenancePreviewResponse)) as {
+      success: boolean;
+      data: { cleanup: string };
+    };
+    response.data.cleanup = 'x'.repeat(257);
+    vi.mocked(studioV2DatalinkApi.post).mockResolvedValueOnce({ data: response } as never);
+    await expect(studioV2WorkspaceWriteGroupsAPI.testWritePreview('group-1')).rejects.toThrow();
   });
 
   it('accepts the production cleanup description with a complete owner UUID', async () => {

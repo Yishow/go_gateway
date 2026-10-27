@@ -458,9 +458,7 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
         disabled={!canPrepareOrStart || flow.unresolved} readonly={isEffectiveLocked} isPreparing={flow.busy || batchBusy || ensureProfile.isPending || updateGroup.isPending}
         destinationMatches={Boolean(destination)} onPrepare={() => void flow.prepare()} onApplied={() => void refreshSchema()} onRepairDestination={focusDestinationSettings} onOpenAdvanced={onOpenAdvanced}
         isMySQL={isMySQL && !prepareOnly} mysqlTestWriteAvailable={mysqlTestWriteAvailable}
-        mysqlTestWriteCapabilityRevision={mysqlCapability?.capability_revision}
         isSQLServer={isSQLServer && !prepareOnly} sqlserverTestWriteAvailable={sqlserverTestWriteAvailable}
-        sqlserverTestWriteCapabilityRevision={sqlserverCapability?.capability_revision}
       />
       {advancedGroups.length > 0 && <p data-testid="basic-recording-advanced-note" className="text-xs text-slate-400">{t('step4.basic.advanced_note', { count: advancedGroups.length })}</p>}
       {(errorMessage || flow.error) && <p role="alert" data-testid="circuit-profile-error" className="text-xs text-rose-300">{errorMessage || flow.error}</p>}

@@ -1,0 +1,11 @@
+--- FAIL: TestMySQLSchemaApplyHeartbeatKeepsLeaseDuringBlockedDDL (0.01s)
+    mysql_ddl_lease_regression_test.go:79: 
+        	Error Trace:	<repo>/internal/datalink/recordingplan/mysql_ddl_lease_regression_test.go:79
+        	Error:      	Not equal: 
+        	            	expected: 1
+        	            	actual  : 2
+        	Test:       	TestMySQLSchemaApplyHeartbeatKeepsLeaseDuringBlockedDDL
+        	Messages:   	a live DDL heartbeat must prevent a second service executor
+FAIL
+FAIL	go-gateway/internal/datalink/recordingplan	0.369s
+FAIL

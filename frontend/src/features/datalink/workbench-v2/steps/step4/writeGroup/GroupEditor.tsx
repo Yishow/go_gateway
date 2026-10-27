@@ -387,11 +387,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
           />
           <GroupTestWritePanel
             groupId={group.id}
-            scopeKey={isMySQL
-              ? `${group.id}|${group.revision}|${workspaceRevision}|${mysqlCapability?.capability_revision ?? 'unavailable'}`
-              : isSQLServer
-                ? `${group.id}|${group.revision}|${workspaceRevision}|${sqlserverCapability?.capability_revision ?? 'unavailable'}`
-                : `${group.id}|${group.revision}|${workspaceRevision}`}
+            scopeKey={`${group.id}|${group.revision}`}
             enabled={testWriteEnabled}
             disabledReason={readonly ? t('step4.group.test_write.blocked_readonly') : testBlocked}
           />

@@ -9,6 +9,9 @@ func ensureSQLiteTelemetryRecordingMigrations(db *sql.DB) error {
 	if err := ensureSQLiteMeasurementSemanticsTable(db); err != nil {
 		return err
 	}
+	if err := ensureSQLiteAdditiveColumns(db, "039_measurement_exact_recording_scale_sqlite.up.sql"); err != nil {
+		return err
+	}
 	if err := ensureSQLiteSourceRuleMixedLayoutColumns(db); err != nil {
 		return err
 	}

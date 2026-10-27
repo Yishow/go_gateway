@@ -119,9 +119,21 @@ func (s *Service) executeMySQLStorageRepair(ctx context.Context, req StorageRest
 		if err := s.requireMySQLSchemaOperationOwner(ctx, op); err != nil {
 			return SchemaExecution{Committed: verified}, err
 		}
+		progressRepo, ok := s.repo.(operationExecutionRepository)
+		if !ok {
+			return SchemaExecution{Committed: verified}, ErrSchemaOperationUnacknowledged
+		}
 		// There is one DDL call, outside the row transaction. Its response alone
 		// cannot prove application or rollback; the catalog below decides.
-		_, execErr := runSchemaStatements(ctx, target.Execute, []string{statements[i]})
+		execErr, heartbeatErr := runMySQLDDLWithHeartbeat(ctx, SchemaOperationLease/3,
+			func(heartbeatCtx context.Context) error {
+				return progressRepo.SaveSchemaOperationProgress(heartbeatCtx, op.OperationID, op.Owner, op.Detail)
+			},
+			func(executorCtx context.Context) error {
+				_, err := runSchemaStatements(executorCtx, target.Execute, []string{statements[i]})
+				return err
+			})
+		execErr = errors.Join(execErr, heartbeatErr)
 		after, inspectErr := inspectMySQLApplyStep(ctx, token, layout,
 			mysqlApplyStepRef{Kind: step.Kind, Name: step.Name, SQLHash: step.SQLHash}, target.Inspect)
 		if inspectErr != nil {

@@ -1,0 +1,78 @@
+{
+  "family": "mariadb",
+  "version": "11.4.13-MariaDB-ubu2404",
+  "cases": [
+    {
+      "revoked": "DELETE",
+      "permissions": {
+        "verified": true,
+        "create_table": true,
+        "alter_schema": true,
+        "index_schema": true,
+        "select_schema": true,
+        "insert_schema": true,
+        "delete_schema": false
+      },
+      "flags": {
+        "supports_managed_long": true,
+        "supports_native_partition": true,
+        "supports_group_test_write": false,
+        "supports_missing_repair": true
+      },
+      "reasons": [
+        "operation_permissions_denied",
+        "group_test_write_permissions_denied"
+      ],
+      "revision_invalidated": true
+    },
+    {
+      "revoked": "INDEX",
+      "permissions": {
+        "verified": true,
+        "create_table": true,
+        "alter_schema": true,
+        "index_schema": false,
+        "select_schema": true,
+        "insert_schema": true,
+        "delete_schema": true
+      },
+      "flags": {
+        "supports_managed_long": false,
+        "supports_native_partition": false,
+        "supports_group_test_write": true,
+        "supports_missing_repair": false
+      },
+      "reasons": [
+        "operation_permissions_denied",
+        "managed_long_permissions_denied",
+        "native_partition_permissions_denied",
+        "missing_repair_permissions_denied"
+      ],
+      "revision_invalidated": true
+    },
+    {
+      "revoked": "ALTER",
+      "permissions": {
+        "verified": true,
+        "create_table": true,
+        "alter_schema": false,
+        "index_schema": true,
+        "select_schema": true,
+        "insert_schema": true,
+        "delete_schema": true
+      },
+      "flags": {
+        "supports_managed_long": true,
+        "supports_native_partition": false,
+        "supports_group_test_write": true,
+        "supports_missing_repair": true
+      },
+      "reasons": [
+        "operation_permissions_denied",
+        "native_partition_permissions_denied"
+      ],
+      "revision_invalidated": true
+    }
+  ],
+  "full_grants_restore_legacy_revision": true
+}
