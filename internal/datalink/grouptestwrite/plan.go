@@ -32,6 +32,8 @@ const (
 	ReasonTagTypeUnsupported  = "tag-type-unsupported"
 	ReasonSQLValueBlocked     = "test-value-blocked"
 	ReasonGroupNotTestable    = "group-not-testable"
+	ReasonUnknownAction       = "unknown-test-write-action"
+	ReasonProofMalformed      = "test-proof-malformed"
 )
 
 // UnsupportedError says why a group cannot be test-written, without mutating
@@ -71,6 +73,8 @@ type plan struct {
 	strategy    string
 	digest      string
 	scope       string
+	mysql       *mysqlTestPlan
+	sqlserver   *sqlServerTestPlan
 }
 
 // fixtureValue is a fixed, recognizable value per exact type. It deliberately
@@ -87,6 +91,8 @@ func fixtureValue(kind measurement.ExactType) (measurement.ExactValue, error) {
 		return measurement.NewUint64(9007199254740993), nil
 	case measurement.ExactFloat64:
 		return measurement.NewFloat64(1.5)
+	case measurement.ExactDecimal:
+		return measurement.NewDecimal("12000.4")
 	}
 	return measurement.ExactValue{}, fmt.Errorf("%w: unsupported type", measurement.ErrExactValueInvalid)
 }
@@ -137,6 +143,12 @@ func (s *Service) buildPlan(ctx context.Context, groupID string) (*plan, error) 
 		return nil, fmt.Errorf("read destination connector: %w", err)
 	case connector.IdentityRevision != group.Destination.ConnectorRevision:
 		return nil, fmt.Errorf("%w: connector identity changed", ErrDestinationChanged)
+	}
+	if connector.Kind == schema.DatabaseConnectorKindMySQL {
+		return s.buildMySQLTestPlan(ctx, group, connector)
+	}
+	if connector.Kind == schema.DatabaseConnectorKindSQLServer {
+		return s.buildSQLServerTestPlan(ctx, group, connector)
 	}
 	dialect, ok := dialectFor(connector.Kind)
 	if !ok {
@@ -223,6 +235,8 @@ func dialectFor(kind schema.DatabaseConnectorKind) (dbtarget.SQLDialect, bool) {
 		return dbtarget.SQLDialectSQLite, true
 	case schema.DatabaseConnectorKindPostgres:
 		return dbtarget.SQLDialectPostgres, true
+	case schema.DatabaseConnectorKindMySQL:
+		return dbtarget.SQLDialectMySQL, true
 	}
 	return "", false
 }
@@ -268,6 +282,14 @@ func (p *plan) contentDigest() (string, error) {
 		parts = append(parts, identity)
 	}
 	parts = append(parts, list)
+	if p.mysql != nil {
+		parts = append(parts, "mysql-test-write-v1", p.mysql.schemaDigest, p.mysql.proof.ConnectorID, p.mysql.proof.ConnectorRevision)
+	}
+	if p.sqlserver != nil {
+		parts = append(parts, "sqlserver-test-write-v1", p.sqlserver.schemaDigest,
+			p.sqlserver.proof.ConnectorID, p.sqlserver.proof.ConnectorRevision,
+			p.sqlserver.proof.Group.Evidence.CapabilityRevision)
+	}
 	payload, err := json.Marshal(parts)
 	if err != nil {
 		return "", fmt.Errorf("encode test content: %w", err)

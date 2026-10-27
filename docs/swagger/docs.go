@@ -3411,6 +3411,13 @@ const docTemplate = `{
                 "owner_value": {
                     "type": "string"
                 },
+                "record_ids": {
+                    "description": "RecordIDs lists every exact record the confirmation will write. It is\npresent for managed-long MySQL test writes; cleanup uses these IDs.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "target": {
                     "$ref": "#/definitions/grouptestwrite.PreviewTarget"
                 },
@@ -3856,6 +3863,9 @@ const docTemplate = `{
                 "token"
             ],
             "properties": {
+                "action": {
+                    "type": "string"
+                },
                 "operation_id": {
                     "type": "string"
                 },
@@ -4274,6 +4284,27 @@ const docTemplate = `{
                 }
             }
         },
+        "measurement.CounterPolicy": {
+            "type": "object",
+            "properties": {
+                "allow_negative": {
+                    "type": "boolean"
+                },
+                "max_rate_per_second": {
+                    "type": "string"
+                },
+                "max_roll_over": {
+                    "type": "number"
+                },
+                "reset_threshold": {
+                    "type": "number"
+                },
+                "rollover_modulus": {
+                    "description": "RolloverModulus and MaxRatePerSecond are the exact, confirmed evidence that\nlets a counter's drop be read as one wrap. They are decimal text, never JSON\nnumbers: a number would pass through a float64 on the way in and lose the\ndigits this evidence exists to keep. They are independent of the legacy\nfloat MaxRollOver, which is kept as saved and never converted into them.",
+                    "type": "string"
+                }
+            }
+        },
         "measurement.ExactType": {
             "type": "string",
             "enum": [
@@ -4291,6 +4322,29 @@ const docTemplate = `{
                 "ExactUint64",
                 "ExactDecimal",
                 "ExactFloat64"
+            ]
+        },
+        "measurement.SemanticKind": {
+            "type": "string",
+            "enum": [
+                "gauge",
+                "rate",
+                "counter",
+                "signed_counter",
+                "delta",
+                "state",
+                "event",
+                "text"
+            ],
+            "x-enum-varnames": [
+                "SemanticKindGauge",
+                "SemanticKindRate",
+                "SemanticKindCounter",
+                "SemanticKindSignedCounter",
+                "SemanticKindDelta",
+                "SemanticKindState",
+                "SemanticKindEvent",
+                "SemanticKindText"
             ]
         },
         "modbusshare.DesiredMapping": {
@@ -4359,6 +4413,37 @@ const docTemplate = `{
                 },
                 "workspace_id": {
                     "type": "string"
+                }
+            }
+        },
+        "recordingplan.MySQLPartitionBoundary": {
+            "type": "object",
+            "properties": {
+                "less_than": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ordinal": {
+                    "type": "integer"
+                }
+            }
+        },
+        "recordingplan.MySQLPartitionEvidence": {
+            "type": "object",
+            "properties": {
+                "expression": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "partitions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/recordingplan.MySQLPartitionBoundary"
+                    }
                 }
             }
         },
@@ -4543,6 +4628,46 @@ const docTemplate = `{
                 },
                 "summary_days": {
                     "type": "integer"
+                }
+            }
+        },
+        "recordingplan.SQLServerPartitionBoundary": {
+            "type": "object",
+            "properties": {
+                "less_than": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "ordinal": {
+                    "type": "integer"
+                }
+            }
+        },
+        "recordingplan.SQLServerPartitionEvidence": {
+            "type": "object",
+            "properties": {
+                "column": {
+                    "type": "string"
+                },
+                "filegroup": {
+                    "type": "string"
+                },
+                "function_name": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "partitions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/recordingplan.SQLServerPartitionBoundary"
+                    }
+                },
+                "scheme_name": {
+                    "type": "string"
                 }
             }
         },
@@ -5025,6 +5150,38 @@ const docTemplate = `{
                 }
             }
         },
+        "workspace.ExactRecordingSource": {
+            "type": "object",
+            "properties": {
+                "counter_policy": {
+                    "$ref": "#/definitions/measurement.CounterPolicy"
+                },
+                "definition_revision": {
+                    "type": "string"
+                },
+                "measurement_id": {
+                    "type": "string"
+                },
+                "original_data_type": {
+                    "$ref": "#/definitions/schema.DataType"
+                },
+                "scale": {
+                    "type": "string"
+                },
+                "semantic_kind": {
+                    "$ref": "#/definitions/measurement.SemanticKind"
+                },
+                "series_epoch": {
+                    "type": "string"
+                },
+                "source_binding_revision": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
         "workspace.ReadinessIssue": {
             "type": "object",
             "properties": {
@@ -5445,6 +5602,14 @@ const docTemplate = `{
                     "description": "EntityKey is the raw legacy group key used only to partition buffered\nrows. It is deliberately not interpreted as a destination SQL value.",
                     "type": "string"
                 },
+                "exact_recording_source": {
+                    "description": "ExactRecordingSource freezes confirmed counter scale, revisions, and\nrollover policy for scaled integer long members. Legacy and unscaled\nmembers leave it nil.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/workspace.ExactRecordingSource"
+                        }
+                    ]
+                },
                 "mapping_revision": {
                     "type": "string"
                 },
@@ -5673,6 +5838,26 @@ const docTemplate = `{
                 }
             }
         },
+        "workspace.WriteGroupPartitionMaintenanceReadiness": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "current": {
+                    "$ref": "#/definitions/recordingplan.MySQLPartitionEvidence"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "workspace.WriteGroupProfileKind": {
             "type": "string",
             "enum": [
@@ -5705,6 +5890,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/workspace.ReadinessIssue"
                     }
                 },
+                "partition_maintenance": {
+                    "$ref": "#/definitions/workspace.WriteGroupPartitionMaintenanceReadiness"
+                },
                 "ready": {
                     "type": "boolean"
                 },
@@ -5713,6 +5901,9 @@ const docTemplate = `{
                 },
                 "schema_ready": {
                     "type": "boolean"
+                },
+                "sqlserver_current": {
+                    "$ref": "#/definitions/recordingplan.SQLServerPartitionEvidence"
                 },
                 "workspace_id": {
                     "type": "string"
@@ -5912,11 +6103,13 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "plain",
-                "timescale"
+                "timescale",
+                "native_monthly"
             ],
             "x-enum-varnames": [
                 "WriteGroupStorageModePlain",
-                "WriteGroupStorageModeTimescale"
+                "WriteGroupStorageModeTimescale",
+                "WriteGroupStorageModeNativeMonthly"
             ]
         },
         "workspace.WriteGroupStorageStrategy": {

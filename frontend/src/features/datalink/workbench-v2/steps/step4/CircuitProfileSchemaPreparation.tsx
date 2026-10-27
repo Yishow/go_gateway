@@ -4,7 +4,9 @@ import type { WriteGroup } from '../../../../../types/studioV2WriteGroup';
 import { groupProfileKind } from '../../state/circuitProfileBasic';
 import { aggregateDestinationBlockers, type DestinationBlockerCode } from '../../state/circuitProfileBlockers';
 import { CircuitProfileBlockers } from './CircuitProfileBlockers';
+import { useWriteGroupReadinessQuery } from '../../../../../hooks/datalink/useStudioV2WriteGroups';
 import { GroupSchemaPanel } from './writeGroup/GroupSchemaPanel';
+import { GroupTestWritePanel } from './writeGroup/GroupTestWritePanel';
 
 export interface CircuitProfileSchemaPreparationProps {
   workspaceId?: string;
@@ -20,7 +22,120 @@ export interface CircuitProfileSchemaPreparationProps {
   /** Where the operator fixes a destination cause: the destination settings, or one exact saved group in Advanced. */
   onRepairDestination?: () => void;
   onOpenAdvanced?: (groupId: string) => void;
+  /** The shared test-write surface is shown for a saved MySQL group; the backend flag alone opens the action. */
+  isMySQL?: boolean;
+  mysqlTestWriteAvailable?: boolean;
+  mysqlTestWriteCapabilityRevision?: string;
+  isSQLServer?: boolean;
+  sqlserverTestWriteAvailable?: boolean;
+  sqlserverTestWriteCapabilityRevision?: string;
 }
+
+interface PreparedGroupProps {
+  group: WriteGroup;
+  workspaceId: string;
+  workspaceRevision: string;
+  dirty: boolean;
+  readonly: boolean;
+  destinationMatches: boolean;
+  isMySQL: boolean;
+  mysqlTestWriteAvailable: boolean;
+  mysqlTestWriteCapabilityRevision?: string;
+  isSQLServer?: boolean;
+  sqlserverTestWriteAvailable?: boolean;
+  sqlserverTestWriteCapabilityRevision?: string;
+  onApplied: () => void;
+  onBlocker: (groupId: string, code: DestinationBlockerCode | undefined) => void;
+}
+
+interface PreparedGroupTestWriteProps {
+  group: WriteGroup;
+  workspaceRevision: string;
+  dirty: boolean;
+  readonly: boolean;
+  destinationMatches: boolean;
+  testWriteAvailable: boolean;
+  testWriteCapabilityRevision?: string;
+}
+
+const PreparedGroupTestWrite: React.FC<PreparedGroupTestWriteProps> = ({
+  group, workspaceRevision, dirty, readonly, destinationMatches, testWriteAvailable,
+  testWriteCapabilityRevision,
+}) => {
+  const { t } = useTranslation('workbench-v2');
+  const readiness = useWriteGroupReadinessQuery(group.id, !dirty);
+  const readinessIsCurrent = readiness.data?.group_revision === group.revision && !readiness.isFetching && !readiness.isError;
+  const schemaReady = Boolean(readinessIsCurrent && readiness.data?.schema_ready);
+  const canTestWrite = !readonly && !dirty && destinationMatches && group.status !== 'deleted' &&
+    testWriteAvailable && schemaReady;
+  const blockedReason = readonly ? t('step4.group.test_write.blocked_readonly')
+    : dirty ? t('step4.group.test_write.blocked_dirty')
+      : !destinationMatches ? t('step4.group.test_write.blocked_destination')
+        : readiness.isError ? t('step4.group.test_write.blocked_readiness_unknown')
+          : !readinessIsCurrent || readiness.isLoading || readiness.isFetching ? t('step4.group.test_write.blocked_readiness_loading')
+            : !schemaReady ? t('step4.group.test_write.blocked_schema_not_ready')
+              : !testWriteAvailable ? t('step4.group.test_write.blocked_capability')
+                : group.status === 'deleted' ? t('step4.group.test_write.blocked_deleted') : undefined;
+
+  return <GroupTestWritePanel
+    groupId={group.id}
+    scopeKey={`${group.id}|${group.revision}|${workspaceRevision}|${testWriteCapabilityRevision ?? 'unavailable'}|${testWriteAvailable ? 'supported' : 'unavailable'}`}
+    enabled={canTestWrite}
+    disabledReason={blockedReason}
+  />;
+};
+
+const PreparedGroup: React.FC<PreparedGroupProps> = ({
+  group, workspaceId, workspaceRevision, dirty, readonly, destinationMatches, isMySQL,
+  mysqlTestWriteAvailable, mysqlTestWriteCapabilityRevision, isSQLServer, sqlserverTestWriteAvailable,
+  sqlserverTestWriteCapabilityRevision, onApplied, onBlocker,
+}) => {
+  const { t } = useTranslation('workbench-v2');
+  const [readinessRefreshKey, setReadinessRefreshKey] = React.useState(0);
+  const handleApplied = () => {
+    setReadinessRefreshKey((current) => current + 1);
+    onApplied();
+  };
+
+  return (
+    <div data-testid={`circuit-prepared-group-${groupProfileKind(group) ?? 'instantaneous'}`} className="space-y-2 rounded border border-slate-800/80 bg-slate-950/30 p-3">
+      <p className="text-xs font-medium text-slate-300">
+        {group.name} ({t(`step4.basic.circuit.${groupProfileKind(group) ?? 'instantaneous'}_label`)})
+      </p>
+      <GroupSchemaPanel
+        autoPreview
+        group={group}
+        workspaceId={workspaceId}
+        workspaceRevision={workspaceRevision}
+        dirty={dirty}
+        destinationMatches={destinationMatches}
+        readonly={readonly}
+        onApplied={handleApplied}
+        onBlocker={onBlocker}
+      />
+      {isMySQL && <PreparedGroupTestWrite
+        key={`mysql-${readinessRefreshKey}`}
+        group={group}
+        workspaceRevision={workspaceRevision}
+        dirty={dirty}
+        readonly={readonly}
+        destinationMatches={destinationMatches}
+        testWriteAvailable={mysqlTestWriteAvailable}
+        testWriteCapabilityRevision={mysqlTestWriteCapabilityRevision}
+      />}
+      {isSQLServer && <PreparedGroupTestWrite
+        key={`sqlserver-${readinessRefreshKey}`}
+        group={group}
+        workspaceRevision={workspaceRevision}
+        dirty={dirty}
+        readonly={readonly}
+        destinationMatches={destinationMatches}
+        testWriteAvailable={Boolean(sqlserverTestWriteAvailable)}
+        testWriteCapabilityRevision={sqlserverTestWriteCapabilityRevision}
+      />}
+    </div>
+  );
+};
 
 export const CircuitProfileSchemaPreparation: React.FC<CircuitProfileSchemaPreparationProps> = ({
   workspaceId,
@@ -35,6 +150,12 @@ export const CircuitProfileSchemaPreparation: React.FC<CircuitProfileSchemaPrepa
   onApplied,
   onRepairDestination,
   onOpenAdvanced,
+  isMySQL = false,
+  mysqlTestWriteAvailable = false,
+  mysqlTestWriteCapabilityRevision,
+  isSQLServer = false,
+  sqlserverTestWriteAvailable = false,
+  sqlserverTestWriteCapabilityRevision,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const [reports, setReports] = React.useState<Record<string, DestinationBlockerCode | undefined>>({});
@@ -69,31 +190,25 @@ export const CircuitProfileSchemaPreparation: React.FC<CircuitProfileSchemaPrepa
         />
       </div>
       <CircuitProfileBlockers blockers={aggregateDestinationBlockers(preparedGroups, reports)} onRepairDestination={onRepairDestination} onOpenAdvanced={onOpenAdvanced} />
-      {preparedGroups.map((group) => {
-        const kind = groupProfileKind(group) ?? 'instantaneous';
-        return (
-          <div
+      {preparedGroups.map((group) => (
+          <PreparedGroup
             key={`${group.id}:${group.revision}:${workspaceRevision}`}
-            data-testid={`circuit-prepared-group-${kind}`}
-            className="space-y-2 rounded border border-slate-800/80 bg-slate-950/30 p-3"
-          >
-            <p className="text-xs font-medium text-slate-300">
-              {group.name} ({t(`step4.basic.circuit.${kind}_label`)})
-            </p>
-            <GroupSchemaPanel
-              autoPreview
-              group={group}
-              workspaceId={workspaceId ?? group.workspace_id}
-              workspaceRevision={workspaceRevision}
-              dirty={dirtyGroupIds?.has(group.id) ?? false}
-              destinationMatches={destinationMatches}
-              readonly={readonly}
-              onApplied={onApplied}
-              onBlocker={report}
-            />
-          </div>
-        );
-      })}
+            group={group}
+            workspaceId={workspaceId ?? group.workspace_id}
+            workspaceRevision={workspaceRevision}
+            dirty={dirtyGroupIds?.has(group.id) ?? false}
+            readonly={readonly}
+            destinationMatches={destinationMatches}
+            isMySQL={isMySQL}
+            mysqlTestWriteAvailable={mysqlTestWriteAvailable}
+            mysqlTestWriteCapabilityRevision={mysqlTestWriteCapabilityRevision}
+            isSQLServer={isSQLServer}
+            sqlserverTestWriteAvailable={sqlserverTestWriteAvailable}
+            sqlserverTestWriteCapabilityRevision={sqlserverTestWriteCapabilityRevision}
+            onApplied={onApplied}
+            onBlocker={report}
+          />
+      ))}
     </section>
   );
 };

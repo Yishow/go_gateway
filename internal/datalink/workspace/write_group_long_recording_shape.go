@@ -63,20 +63,32 @@ func recordingShapeSupported(group *WriteGroup, tagTypes map[string]schema.DataT
 		if !ok {
 			return false
 		}
-		switch member.ValueRole {
-		case WriteGroupValueRoleGauge, WriteGroupValueRoleCounterRaw, WriteGroupValueRoleState:
-		default:
-			return false
-		}
-		if group.RecordingProfile.Kind != WriteGroupProfileInstantaneous {
-			return false
+		if member.ExactRecordingSource != nil {
+			if !group.isLongLayout() || group.Destination.StorageStrategy != WriteGroupStorageStrategyManaged ||
+				ValidateExactRecordingSource(*member, tagType) != nil {
+				return false
+			}
+			cumulative := group.RecordingProfile.Kind == WriteGroupProfileCumulative && member.ValueRole == ""
+			counterRaw := group.RecordingProfile.Kind == WriteGroupProfileInstantaneous && member.ValueRole == WriteGroupValueRoleCounterRaw
+			if !cumulative && !counterRaw {
+				return false
+			}
+		} else {
+			switch member.ValueRole {
+			case WriteGroupValueRoleGauge, WriteGroupValueRoleCounterRaw, WriteGroupValueRoleState:
+			default:
+				return false
+			}
+			if group.RecordingProfile.Kind != WriteGroupProfileInstantaneous {
+				return false
+			}
 		}
 		// A new shape proves its frozen facts explicitly; an omitted type is not
 		// guessed from the tag at runtime.
 		if member.SourceValueType == "" || member.SourceValueType != tagType {
 			return false
 		}
-		stored, ok := LongMemberStoredType(reduction, member.ValueRole, tagType)
+		stored, ok := LongMemberStoredTypeForMember(reduction, *member, tagType)
 		if !ok || member.ResultValueType == "" || member.ResultValueType != stored {
 			return false
 		}

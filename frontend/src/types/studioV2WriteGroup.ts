@@ -1,5 +1,6 @@
 import type { StudioV2WorkspaceReadinessIssue } from './studioV2WorkspaceReadiness';
 import type { DataType } from './datalink';
+import type { CounterPolicy } from './measurement';
 
 export type WriteGroupStatus = 'draft' | 'ready' | 'running' | 'disabled' | 'deleted';
 
@@ -12,9 +13,8 @@ export type WriteGroupStorageStrategy = 'managed' | 'custom';
  */
 export type WriteGroupLayoutVersion = 'managed_wide_v1' | 'managed_wide_profile_v1' | 'managed_long_v1';
 
-/** How a long layout is stored. Only plain SQL storage exists so far. */
-/** `timescale` is an explicit, separate selection; `plain` is the default. */
-export type WriteGroupStorageMode = 'plain' | 'timescale';
+/** How a long layout is stored. Each non-default strategy is explicit and capability-gated. */
+export type WriteGroupStorageMode = 'plain' | 'timescale' | 'native_monthly';
 
 export type WriteGroupProfileKind = 'instantaneous' | 'cumulative';
 
@@ -29,6 +29,19 @@ export type WriteGroupValueRole = 'gauge' | 'counter_raw' | 'state';
 
 /** Stored result type, independent of the source Tag type. */
 export type WriteGroupResultValueType = 'bool' | 'text' | 'int64' | 'uint64' | 'decimal' | 'float64';
+
+/** Backend-owned confirmation that an integer counter has an exact decimal source scale. */
+export interface WriteGroupExactRecordingSource {
+  measurement_id: string;
+  definition_revision: string;
+  source_binding_revision: string;
+  series_epoch: string;
+  original_data_type: DataType;
+  scale: string;
+  unit: string;
+  semantic_kind: 'counter' | 'signed_counter';
+  counter_policy?: CounterPolicy;
+}
 
 /** Recording profile of a canonical circuit group; the interval is in `unit`, never in seconds by default. */
 export interface WriteGroupRecordingProfile {
@@ -59,6 +72,8 @@ export interface WriteGroupMember {
   source_value_type?: DataType;
   /** Stored result type of this member, independent of `source_value_type`. */
   result_value_type?: WriteGroupResultValueType;
+  /** Backend-owned source proof for confirmed exact decimal integer counters. */
+  exact_recording_source?: WriteGroupExactRecordingSource;
 }
 
 export interface WriteGroupDestination {

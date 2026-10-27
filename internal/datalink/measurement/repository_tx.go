@@ -15,7 +15,7 @@ func (r *SQLRepository) GetByIDInTx(ctx context.Context, tx *sql.Tx, id string) 
 	query := adaptPlaceholders(`
 		SELECT id, workspace_id, device_id, point_id, tag_id, equipment_id,
 			definition_revision, source_binding_revision, series_epoch,
-			name, quantity, unit, semantic_kind, numeric_encoding,
+			name, quantity, unit, semantic_kind, numeric_encoding, exact_recording_scale,
 			counter_policy, state_map, bitmask_labels, created_at, updated_at
 		FROM measurement_definitions
 		WHERE id = $1

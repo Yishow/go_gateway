@@ -44,9 +44,29 @@ func (s *WriteGroupService) ManagedSchemaScope(ctx context.Context, id string, m
 	if snapshot.connectorKind == writeGroupConnectorKindSQLite && group.Destination.TableSchema != managedSQLiteSchemaName {
 		return recordingplan.SchemaPreviewScope{}, fmt.Errorf("managed SQLite schema must be main: %w", ErrWriteGroupValidation)
 	}
-	layout, err := managedSchemaLayout(group, snapshot.tagTypes, snapshot.connectorKind)
-	if err != nil {
-		return recordingplan.SchemaPreviewScope{}, err
+	var layout *recordingplan.GroupSchemaLayout
+	switch snapshot.connectorKind {
+	case writeGroupConnectorKindSQLServer:
+		var err error
+		layout, err = s.managedSQLServerSchemaLayout(ctx, group)
+		if err != nil {
+			return recordingplan.SchemaPreviewScope{}, err
+		}
+	case writeGroupConnectorKindMySQL:
+		if !group.isLongLayout() || group.StorageMode != WriteGroupStorageModePlain && group.StorageMode != WriteGroupStorageModeNativeMonthly {
+			return recordingplan.SchemaPreviewScope{}, fmt.Errorf("%w: mysql requires plain or native monthly managed long schema", ErrWriteGroupValidation)
+		}
+		var err error
+		layout, err = s.managedMySQLSchemaLayout(ctx, group)
+		if err != nil {
+			return recordingplan.SchemaPreviewScope{}, err
+		}
+	default:
+		var err error
+		layout, err = managedSchemaLayout(group, snapshot.tagTypes, snapshot.connectorKind)
+		if err != nil {
+			return recordingplan.SchemaPreviewScope{}, err
+		}
 	}
 	sourceDigest, err := managedSourceDigest(group, snapshot.tagTypes)
 	if err != nil {

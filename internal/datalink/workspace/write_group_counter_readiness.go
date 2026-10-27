@@ -74,6 +74,18 @@ func (s *WriteGroupService) counterMeasurementIssues(ctx context.Context, group 
 			case measurement.CounterUnconfirmed:
 				reasons[counterMeasurementUnconfirmed] = true
 			}
+			if member.ExactRecordingSource != nil {
+				proof := member.ExactRecordingSource
+				if def.ExactRecordingScale != proof.Scale ||
+					def.DefinitionRevision != proof.DefinitionRevision ||
+					def.SourceBindingRevision != proof.SourceBindingRevision ||
+					def.SeriesEpoch != proof.SeriesEpoch ||
+					strings.TrimSpace(def.Unit) != proof.Unit {
+					reasons[counterMeasurementUnconfirmed] = true
+				}
+			} else if strings.TrimSpace(def.ExactRecordingScale) != "" && group.isLongLayout() && group.Destination.StorageStrategy == WriteGroupStorageStrategyManaged {
+				reasons[counterMeasurementUnconfirmed] = true
+			}
 		}
 	}
 	var issues []ReadinessIssue

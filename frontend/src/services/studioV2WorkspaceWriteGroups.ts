@@ -25,9 +25,10 @@ import type {
 } from '../types/studioV2WriteGroupTestWrite';
 import {
   parseWriteGroupTestWriteOperation,
-  parseWriteGroupTestWritePreview,
+  parseWriteGroupTestWritePreviewAPIData,
 } from '../utils/studioV2WriteGroupTestWriteJson';
 import { parseWriteGroupDeliveryData } from '../utils/studioV2WriteGroupDeliveryJson';
+import { cloneWriteGroupExactRecordingSource } from '../utils/studioV2ExactRecordingSourceJson';
 import {
   parseRecordingAPIData,
   parseRecordingSchemaOperation,
@@ -36,6 +37,8 @@ import {
 import type { WriteGroupCutover, WriteGroupCutoverRequest, WriteGroupCutoverReview } from '../types/studioV2WriteGroupCutover';
 import { cutoverBody, parseWriteGroupCutover, parseWriteGroupCutoverList, parseWriteGroupCutoverReview } from '../utils/studioV2WriteGroupCutoverJson';
 import { studioV2DatalinkApi } from './studioV2Workspace';
+
+const WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH = 8;
 
 function cloneWriteGroupDraft(draft: WriteGroupDraft): WriteGroupDraft {
   return {
@@ -57,6 +60,7 @@ function cloneWriteGroupDraft(draft: WriteGroupDraft): WriteGroupDraft {
       ...(member.value_role !== undefined ? { value_role: member.value_role } : {}),
       ...(member.source_value_type !== undefined ? { source_value_type: member.source_value_type } : {}),
       ...(member.result_value_type !== undefined ? { result_value_type: member.result_value_type } : {}),
+      ...(member.exact_recording_source !== undefined ? { exact_recording_source: cloneWriteGroupExactRecordingSource(member.exact_recording_source) } : {}),
     })),
     destination: {
       connector_id: draft.destination.connector_id,
@@ -102,14 +106,14 @@ function cloneUpdateRequest(request: WriteGroupUpdateRequest): WriteGroupUpdateR
 export const studioV2WorkspaceWriteGroupsAPI = {
   async list(): Promise<WriteGroupListResponse> {
     const res = await studioV2DatalinkApi.get<unknown>('/studio-v2/workspace/write-groups');
-    return parseWriteGroupAPIData(res.data, 'write-group list', parseWriteGroupListData);
+    return parseWriteGroupAPIData(res.data, 'write-group list', parseWriteGroupListData, WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH);
   },
 
   async get(id: string): Promise<WriteGroupMutationResponse> {
     const res = await studioV2DatalinkApi.get<unknown>(
       `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}`,
     );
-    return parseWriteGroupAPIData(res.data, 'write-group get', parseWriteGroupMutationData);
+    return parseWriteGroupAPIData(res.data, 'write-group get', parseWriteGroupMutationData, WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH);
   },
 
   async readiness(id: string): Promise<WriteGroupReadiness> {
@@ -222,7 +226,7 @@ export const studioV2WorkspaceWriteGroupsAPI = {
     const res = await studioV2DatalinkApi.post<unknown>(
       `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}/test-write-preview`,
     );
-    return parseWriteGroupAPIData(res.data, 'write-group test write preview', parseWriteGroupTestWritePreview);
+    return parseWriteGroupTestWritePreviewAPIData(res.data);
   },
 
   /**
@@ -232,7 +236,7 @@ export const studioV2WorkspaceWriteGroupsAPI = {
   async testWrite(id: string, request: WriteGroupTestWriteConfirmation): Promise<WriteGroupTestWriteOperation> {
     const res = await studioV2DatalinkApi.post<unknown>(
       `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}/test-write`,
-      { token: request.token, operation_id: request.operation_id },
+      { token: request.token, operation_id: request.operation_id, action: request.action },
     );
     return parseWriteGroupAPIData(res.data, 'write-group test write', parseWriteGroupTestWriteOperation);
   },
@@ -250,7 +254,7 @@ export const studioV2WorkspaceWriteGroupsAPI = {
       '/studio-v2/workspace/write-groups',
       cloneCreateRequest(request),
     );
-    return parseWriteGroupAPIData(res.data, 'write-group create', parseWriteGroupMutationData);
+    return parseWriteGroupAPIData(res.data, 'write-group create', parseWriteGroupMutationData, WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH);
   },
 
   /** Creates or reuses the canonical group of one circuit profile; a resend returns the saved group. */
@@ -259,7 +263,7 @@ export const studioV2WorkspaceWriteGroupsAPI = {
       '/studio-v2/workspace/write-groups/circuit-profiles/ensure',
       cloneCreateRequest(request),
     );
-    return parseWriteGroupAPIData(res.data, 'write-group circuit profile', parseWriteGroupMutationData);
+    return parseWriteGroupAPIData(res.data, 'write-group circuit profile', parseWriteGroupMutationData, WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH);
   },
 
   async update(id: string, request: WriteGroupUpdateRequest): Promise<WriteGroupMutationResponse> {
@@ -267,7 +271,7 @@ export const studioV2WorkspaceWriteGroupsAPI = {
       `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}`,
       cloneUpdateRequest(request),
     );
-    return parseWriteGroupAPIData(res.data, 'write-group update', parseWriteGroupMutationData);
+    return parseWriteGroupAPIData(res.data, 'write-group update', parseWriteGroupMutationData, WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH);
   },
 
   async remove(id: string, request: WriteGroupDeleteRequest): Promise<WriteGroupMutationResponse> {
@@ -275,7 +279,7 @@ export const studioV2WorkspaceWriteGroupsAPI = {
       `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}`,
       { data: { ...request } },
     );
-    return parseWriteGroupAPIData(res.data, 'write-group delete', parseWriteGroupMutationData);
+    return parseWriteGroupAPIData(res.data, 'write-group delete', parseWriteGroupMutationData, WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH);
   },
 
   async disable(id: string, request: WriteGroupDeleteRequest): Promise<WriteGroupMutationResponse> {
@@ -289,7 +293,7 @@ export const studioV2WorkspaceWriteGroupsAPI = {
       `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}/disable`,
       payload,
     );
-    return parseWriteGroupAPIData(res.data, 'write-group disable', parseWriteGroupMutationData);
+    return parseWriteGroupAPIData(res.data, 'write-group disable', parseWriteGroupMutationData, WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH);
   },
 
   /**
@@ -307,6 +311,6 @@ export const studioV2WorkspaceWriteGroupsAPI = {
       `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}/apply`,
       payload,
     );
-    return parseWriteGroupAPIData(res.data, 'write-group apply', parseWriteGroupMutationData);
+    return parseWriteGroupAPIData(res.data, 'write-group apply', parseWriteGroupMutationData, WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH);
   },
 };

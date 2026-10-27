@@ -8,8 +8,10 @@ import zhTWTranslations from './locales/zh-TW/common.json';
 import zhTWDatabaseOutputTranslations from './locales/zh-TW/database-output.json';
 import zhTWTagReviewTranslations from './locales/zh-TW/tag-review.json';
 import enWorkbenchV2Translations from './locales/en/workbench-v2.json';
+import enWorkbenchV2CircuitSQLServer from './locales/en/workbench-v2-circuit-sqlserver.json';
 import enRuntimeDashboardTranslations from './locales/en/runtime-dashboard.json';
 import zhTWWorkbenchV2Translations from './locales/zh-TW/workbench-v2.json';
+import zhTWWorkbenchV2CircuitSQLServer from './locales/zh-TW/workbench-v2-circuit-sqlserver.json';
 import zhTWRuntimeDashboardTranslations from './locales/zh-TW/runtime-dashboard.json';
 import enMappingErrors from './locales/en/mapping-errors.json';
 import zhTWMappingErrors from './locales/zh-TW/mapping-errors.json';
@@ -45,7 +47,10 @@ i18n
           enDatabaseOutputTranslations,
         ),
         'mapping-errors': enMappingErrors,
-        'workbench-v2': enWorkbenchV2Translations,
+        'workbench-v2': mergeTranslations(
+          enWorkbenchV2Translations,
+          enWorkbenchV2CircuitSQLServer,
+        ),
         'runtime-dashboard': enRuntimeDashboardTranslations,
         'runtime-logs': enRuntimeLogs,
         'studio-review': enStudioReview,
@@ -57,7 +62,10 @@ i18n
           zhTWDatabaseOutputTranslations,
         ),
         'mapping-errors': zhTWMappingErrors,
-        'workbench-v2': zhTWWorkbenchV2Translations,
+        'workbench-v2': mergeTranslations(
+          zhTWWorkbenchV2Translations,
+          zhTWWorkbenchV2CircuitSQLServer,
+        ),
         'runtime-dashboard': zhTWRuntimeDashboardTranslations,
         'runtime-logs': zhTWRuntimeLogs,
         'studio-review': zhTWStudioReview,

@@ -105,6 +105,10 @@ func newLongGroupBoundary(ctx context.Context, cfg GroupBoundaryConfig) (*GroupB
 			counters[key] = binding
 			entry.counter, layoutMember.Counter, layoutMember.MeasurementID = &binding, &binding, binding.MeasurementID
 		}
+		if member.ExactRecordingSource != nil {
+			entry.exactScale = member.ExactRecordingSource.Scale
+			entry.sourceRevision, entry.mappingRevision = member.SourceRevision, member.MappingRevision
+		}
 		members[key] = entry
 		layoutMembers = append(layoutMembers, layoutMember)
 		var maxAge time.Duration
@@ -147,6 +151,12 @@ func longMemberShape(
 	reduction workspace.WriteGroupSampleReduction, member workspace.WriteGroupMember,
 	tagType schema.DataType, source measurement.ExactType,
 ) (measurement.ExactType, snapshot.SampleReduction, string) {
+	if member.ExactRecordingSource != nil {
+		if workspace.ValidateExactRecordingSource(member, tagType) != nil {
+			return "", snapshot.SampleReductionLatest, boundaryMemberMetadata
+		}
+		return measurement.ExactDecimal, snapshot.SampleReductionLatest, ""
+	}
 	newShape := reduction == workspace.WriteGroupSampleReductionMean ||
 		member.ValueRole != "" || member.SourceValueType != "" || member.ResultValueType != ""
 	if !newShape {

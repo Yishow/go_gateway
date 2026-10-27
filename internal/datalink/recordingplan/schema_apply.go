@@ -71,6 +71,13 @@ func ManagedSchemaExecutionVerified(dialect string) bool {
 // operation whose claim lease has run out is resolved from the target instead
 // of answering 202 forever.
 func (s *Service) ApplySchemaPreview(ctx context.Context, token *SchemaPreviewToken, target SchemaApplyTarget) (*SchemaOperation, ClaimOutcome, error) {
+	return s.applySchemaPreview(ctx, token, target, false)
+}
+
+func (s *Service) applySchemaPreview(ctx context.Context, token *SchemaPreviewToken, target SchemaApplyTarget, allowSQLServer bool) (*SchemaOperation, ClaimOutcome, error) {
+	if token != nil && token.GroupLayout != nil && token.GroupLayout.MySQL != nil {
+		return s.applyMySQLSchemaPreview(ctx, token, target)
+	}
 	if token == nil || isLegacyPreviewToken(token) {
 		return nil, "", ErrPreviewTokenLegacy
 	}
@@ -89,7 +96,11 @@ func (s *Service) ApplySchemaPreview(ctx context.Context, token *SchemaPreviewTo
 	if !errors.Is(err, ErrSchemaOperationNotFound) {
 		return nil, "", err
 	}
-	if !ManagedSchemaExecutionVerified(token.Dialect) {
+	if token.GroupLayout != nil && token.GroupLayout.SQLServer != nil {
+		if !allowSQLServer || token.Dialect != dialectSQLServer {
+			return nil, "", ErrSchemaAdapterUnverified
+		}
+	} else if !ManagedSchemaExecutionVerified(token.Dialect) {
 		return nil, "", ErrSchemaAdapterUnverified
 	}
 	if token.IsExpired() {
@@ -163,20 +174,36 @@ func confirmPreviewMatchesTarget(ctx context.Context, token *SchemaPreviewToken,
 		return 0, fmt.Errorf("%w: no target inspector", ErrTargetInspectionUnconfirmed)
 	}
 	var statements []string
+	var inspectedTables []SchemaPreviewTable
 	var err error
 	var pending int
 	if token.GroupLayout != nil {
-		groupPending, receiptPending, tables, inspectErr := inspectGroupManagedTables(ctx, token.Dialect, *token.GroupLayout, inspect)
-		if inspectErr != nil {
-			return 0, inspectErr
+		if token.GroupLayout.MySQL != nil {
+			found, inspectErr := inspectMySQLGroupTables(ctx, *token.GroupLayout, token.Database, inspect)
+			if inspectErr != nil {
+				return 0, inspectErr
+			}
+			if found.pendingGroup {
+				pending++
+			}
+			if found.pendingReceipt {
+				pending++
+			}
+			statements, err = groupSchemaStatements(token.Dialect, *token.GroupLayout, found.tables)
+		} else {
+			groupPending, receiptPending, tables, inspectErr := inspectGroupManagedTables(ctx, token.Dialect, *token.GroupLayout, inspect)
+			if inspectErr != nil {
+				return 0, inspectErr
+			}
+			if groupPending {
+				pending++
+			}
+			if receiptPending {
+				pending++
+			}
+			inspectedTables = tables
+			statements, err = groupSchemaStatements(token.Dialect, *token.GroupLayout, tables)
 		}
-		if groupPending {
-			pending++
-		}
-		if receiptPending {
-			pending++
-		}
-		statements, err = groupSchemaStatements(token.Dialect, *token.GroupLayout, tables)
 	} else {
 		statements, err = GenerateManagedSchemaDDL(token.Dialect, token.TablePrefix)
 		if err == nil {
@@ -190,6 +217,10 @@ func confirmPreviewMatchesTarget(ctx context.Context, token *SchemaPreviewToken,
 	}
 	if err != nil {
 		return 0, err
+	}
+	if token.GroupLayout != nil && token.GroupLayout.SQLServer != nil &&
+		schemaTablesDigest(inspectedTables) != schemaTablesDigest(token.Tables) {
+		return 0, fmt.Errorf("%w: %w", ErrPreviewTokenStale, ErrSchemaTargetChanged)
 	}
 	if !slices.Equal(statements, token.Statements) {
 		return 0, fmt.Errorf("%w: %w", ErrPreviewTokenStale, ErrSchemaTargetChanged)
@@ -273,6 +304,17 @@ func verifyAppliedSchema(ctx context.Context, token *SchemaPreviewToken, inspect
 
 func inspectTokenManagedTables(ctx context.Context, token *SchemaPreviewToken, inspect TargetInspector) (int, []SchemaPreviewTable, error) {
 	if token.GroupLayout != nil {
+		if token.GroupLayout.MySQL != nil {
+			found, err := inspectMySQLGroupTables(ctx, *token.GroupLayout, token.Database, inspect)
+			pending := 0
+			if found.pendingGroup {
+				pending++
+			}
+			if found.pendingReceipt {
+				pending++
+			}
+			return pending, found.tables, err
+		}
 		groupPending, receiptPending, tables, err := inspectGroupManagedTables(ctx, token.Dialect, *token.GroupLayout, inspect)
 		pending := 0
 		if groupPending {
@@ -280,6 +322,9 @@ func inspectTokenManagedTables(ctx context.Context, token *SchemaPreviewToken, i
 		}
 		if receiptPending {
 			pending++
+		}
+		if err == nil && token.GroupLayout.SQLServer != nil {
+			err = checkPreservedSQLServerCatalog(token.Tables, tables)
 		}
 		return pending, tables, err
 	}

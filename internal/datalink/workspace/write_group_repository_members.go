@@ -36,7 +36,7 @@ func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeG
 	rows, err := runner.QueryContext(ctx, r.query(`
 		SELECT device_id, point_id, tag_id, entity_key, source_revision, mapping_revision,
 			measurement_id, target_column, required, max_age_seconds, circuit_id, circuit_name,
-			value_role, source_value_type, result_value_type
+			value_role, source_value_type, result_value_type, exact_recording_source
 		FROM write_group_members
 		WHERE group_id = $1
 		ORDER BY member_index ASC
@@ -50,10 +50,10 @@ func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeG
 		var measurementID sql.NullString
 		var maxAgeSeconds sql.NullInt64
 		var entityKey, circuitID, circuitName sql.NullString
-		var valueRole, sourceValueType, resultValueType sql.NullString
+		var valueRole, sourceValueType, resultValueType, exactRecordingSource sql.NullString
 		if err := rows.Scan(&member.DeviceID, &member.PointID, &member.TagID, &entityKey, &member.SourceRevision,
 			&member.MappingRevision, &measurementID, &member.TargetColumn, &member.Required, &maxAgeSeconds,
-			&circuitID, &circuitName, &valueRole, &sourceValueType, &resultValueType); err != nil {
+			&circuitID, &circuitName, &valueRole, &sourceValueType, &resultValueType, &exactRecordingSource); err != nil {
 			_ = rows.Close()
 			return fmt.Errorf("scan write-group member: %w", err)
 		}
@@ -97,6 +97,12 @@ func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeG
 			return fmt.Errorf("decode write-group member: %w", err)
 		}
 		member.ResultValueType = measurement.ExactType(resultType)
+		sourceProof, err := storedExactRecordingSource(exactRecordingSource)
+		if err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("decode write-group member: %w", err)
+		}
+		member.ExactRecordingSource = sourceProof
 		if measurementID.Valid && strings.TrimSpace(measurementID.String) != "" {
 			value := measurementID.String
 			member.MeasurementID = &value
@@ -104,6 +110,12 @@ func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeG
 		if maxAgeSeconds.Valid {
 			value := int(maxAgeSeconds.Int64)
 			member.MaxAgeSeconds = &value
+		}
+		if member.ExactRecordingSource != nil {
+			if err := ValidateExactRecordingSource(member, member.SourceValueType); err != nil {
+				_ = rows.Close()
+				return fmt.Errorf("decode write-group member: %w", err)
+			}
 		}
 		group.Members = append(group.Members, member)
 	}

@@ -281,6 +281,8 @@ func buildExternalDBConfig(kind schema.DatabaseConnectorKind, config ConnectionC
 			MaxOpenConns: 3,
 			MaxIdleConns: 1,
 		}, nil
+	case schema.DatabaseConnectorKindSQLServer:
+		return buildSQLServerDBConfig(config)
 	case schema.DatabaseConnectorKindMySQL:
 		dsn := strings.TrimSpace(stringConfigValue(config, "dsn"))
 		if dsn == "" {
@@ -295,9 +297,7 @@ func buildExternalDBConfig(kind schema.DatabaseConnectorKind, config ConnectionC
 			if user == "" || databaseName == "" {
 				return datalinkbase.DBConfig{}, fmt.Errorf("mysql 連接設定缺少 user/database")
 			}
-
 			mysqlConfig := newMySQLDriverConfig(config, databaseName)
-
 			if timeout := strings.TrimSpace(stringConfigValue(config, "timeout")); timeout != "" {
 				duration, err := time.ParseDuration(timeout)
 				if err != nil {
@@ -321,7 +321,7 @@ func buildExternalDBConfig(kind schema.DatabaseConnectorKind, config ConnectionC
 	}
 }
 
-func classifyConnectorError(err error) schema.DatabaseConnectorStatus {
+func classifyOtherConnectorError(err error) schema.DatabaseConnectorStatus {
 	message := strings.ToLower(err.Error())
 	switch {
 	case strings.Contains(message, "authentication") ||
@@ -335,7 +335,7 @@ func classifyConnectorError(err error) schema.DatabaseConnectorStatus {
 	}
 }
 
-func connectorErrorMessage(kind schema.DatabaseConnectorKind, err error) string {
+func otherConnectorErrorMessage(kind schema.DatabaseConnectorKind, err error) string {
 	if kind == schema.DatabaseConnectorKindMySQL && errors.Is(err, mysqldriver.ErrUnknownPlugin) {
 		return "資料庫連接測試失敗: 伺服器要求未支援的 MySQL/MariaDB 驗證插件；若為 MariaDB PAM / dialog，請在伺服器啟用 pam_use_cleartext_plugin，或改用 mysql_native_password / mysql_clear_password 帳號"
 	}

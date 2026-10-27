@@ -60,6 +60,12 @@ func groupSchemaStatements(dialect string, layout GroupSchemaLayout, tables []Sc
 	if err != nil {
 		return nil, err
 	}
+	if layout.MySQL != nil {
+		return mysqlPendingSchemaStatements(layout, tables, create)
+	}
+	if layout.SQLServer != nil {
+		return sqlserverPendingSchemaStatements(layout, tables, create)
+	}
 	// create is the group table, then its indexes, then the shared receipt table.
 	receipt := create[len(create)-1]
 	var statements []string

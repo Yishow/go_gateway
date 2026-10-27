@@ -21,12 +21,13 @@ func longGroup(group *workspace.WriteGroup) bool {
 // fixed column layout, an exact type for every source and a receipt table when
 // the group dedupes by receipt. It never trusts a caller-supplied applied flag.
 func validLongRuntimeProof(group *workspace.WriteGroup, layout *workspace.WriteGroupRuntimeLayout) bool {
-	if recordingReductionUnsupported(group, layout.TagTypes) {
+	if group == nil || layout == nil || recordingReductionUnsupported(group, layout.TagTypes) {
 		return false
 	}
 	table, owner, ok := workspace.LongStorageIdentity(group)
-	if !ok || layout == nil || len(group.Members) == 0 || len(layout.Columns) == 0 ||
-		layout.Dialect != dbtarget.SQLDialectSQLite && layout.Dialect != dbtarget.SQLDialectPostgres {
+	if !ok || len(group.Members) == 0 || len(layout.Columns) == 0 ||
+		layout.Dialect != dbtarget.SQLDialectSQLite && layout.Dialect != dbtarget.SQLDialectPostgres &&
+			layout.Dialect != dbtarget.SQLDialectMySQL && layout.Dialect != dbtarget.SQLDialectSQLServer {
 		return false
 	}
 	profile := group.RecordingProfile
@@ -59,7 +60,7 @@ func validLongRuntimeProof(group *workspace.WriteGroup, layout *workspace.WriteG
 		if !exact {
 			return false
 		}
-		stored, ok := workspace.LongMemberStoredType(reduction, member.ValueRole, tagType)
+		stored, ok := workspace.LongMemberStoredTypeForMember(reduction, member, tagType)
 		if !ok {
 			return false
 		}
@@ -76,6 +77,12 @@ func validLongRuntimeProof(group *workspace.WriteGroup, layout *workspace.WriteG
 	}); len(issues) > 0 {
 		return false
 	}
+	if layout.Dialect == dbtarget.SQLDialectMySQL {
+		return workspace.ValidateMySQLRuntimeLayout(group, layout) == nil
+	}
+	if layout.Dialect == dbtarget.SQLDialectSQLServer {
+		return workspace.ValidateSQLServerRuntimeLayout(group, layout) == nil
+	}
 	return !strings.EqualFold(strings.TrimSpace(group.WritePolicy.DedupeCapability), groupdelivery.DedupeReceipt) || layout.ReceiptTableReady
 }
 
@@ -88,7 +95,12 @@ func validLongRuntimeProof(group *workspace.WriteGroup, layout *workspace.WriteG
 func validStorageModeProof(group *workspace.WriteGroup, layout *workspace.WriteGroupRuntimeLayout) bool {
 	switch group.StorageMode {
 	case workspace.WriteGroupStorageModePlain:
-		return layout.Hypertable == nil
+		return layout.Hypertable == nil && !mysqlPartitionEvidencePresent(layout)
+	case workspace.WriteGroupStorageModeNativeMonthly:
+		if layout.Dialect == dbtarget.SQLDialectSQLServer {
+			return workspace.ValidateSQLServerRuntimeLayout(group, layout) == nil
+		}
+		return mysqlNativeMonthlyProof(layout)
 	case workspace.WriteGroupStorageModeTimescale:
 		hypertable := layout.Hypertable
 		return layout.Dialect == dbtarget.SQLDialectPostgres && hypertable != nil &&
@@ -96,4 +108,38 @@ func validStorageModeProof(group *workspace.WriteGroup, layout *workspace.WriteG
 			hypertable.ChunkIntervalMicros == dbtarget.TimescaleChunkInterval.Microseconds()
 	}
 	return false
+}
+
+// mysqlPartitionEvidencePresent reports whether any frozen MySQL managed table
+// in the layout carries native partition evidence. Plain storage, on every
+// dialect, must never carry it.
+func mysqlPartitionEvidencePresent(layout *workspace.WriteGroupRuntimeLayout) bool {
+	if layout.MySQL == nil {
+		return false
+	}
+	for _, physical := range []*dbtarget.MySQLManagedInspection{layout.MySQL.Group, layout.MySQL.Receipt} {
+		if physical != nil && physical.Evidence != nil && physical.Evidence.Partitions != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// mysqlNativeMonthlyProof checks the frozen native_monthly evidence: MySQL
+// only, no hypertable claim, non-nil partition evidence on the group table and
+// a receipt table that stays unpartitioned. The canonical workspace validator
+// remains the authority; this is the pipeline's own depth check.
+func mysqlNativeMonthlyProof(layout *workspace.WriteGroupRuntimeLayout) bool {
+	if layout == nil || layout.Dialect != dbtarget.SQLDialectMySQL || layout.Hypertable != nil || layout.MySQL == nil {
+		return false
+	}
+	var groupPartitions *dbtarget.MySQLPartitionEvidence
+	if layout.MySQL.Group != nil && layout.MySQL.Group.Evidence != nil {
+		groupPartitions = layout.MySQL.Group.Evidence.Partitions
+	}
+	if groupPartitions == nil {
+		return false
+	}
+	return layout.MySQL.Receipt != nil && layout.MySQL.Receipt.Evidence != nil &&
+		layout.MySQL.Receipt.Evidence.Partitions == nil
 }

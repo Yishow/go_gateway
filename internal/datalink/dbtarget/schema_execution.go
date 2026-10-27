@@ -67,6 +67,29 @@ func schemaExecutionVerifiedKind(kind schema.DatabaseConnectorKind) bool {
 // commit fails the applied state is unknown, so it is not reported as rolled
 // back and the caller must verify the actual schema.
 func executeSchemaBatch(ctx context.Context, db *sql.DB, kind schema.DatabaseConnectorKind, schemaName string, statements []string) (*SchemaStatementExecution, error) {
+	return executeSchemaBatchWithFinish(ctx, db, kind, schemaName, statements, nil)
+}
+
+func executeSchemaBatchWithFinish(
+	ctx context.Context,
+	db *sql.DB,
+	kind schema.DatabaseConnectorKind,
+	schemaName string,
+	statements []string,
+	finish func(context.Context, *sql.Tx) error,
+) (*SchemaStatementExecution, error) {
+	return executeSchemaBatchWithHooks(ctx, db, kind, schemaName, statements, nil, finish)
+}
+
+func executeSchemaBatchWithHooks(
+	ctx context.Context,
+	db *sql.DB,
+	kind schema.DatabaseConnectorKind,
+	schemaName string,
+	statements []string,
+	before func(context.Context, *sql.Tx) (bool, error),
+	finish func(context.Context, *sql.Tx) error,
+) (*SchemaStatementExecution, error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return &SchemaStatementExecution{RolledBack: true}, fmt.Errorf("begin schema transaction: %w", err)
@@ -74,15 +97,34 @@ func executeSchemaBatch(ctx context.Context, db *sql.DB, kind schema.DatabaseCon
 	if err := bindSchemaSearchPath(ctx, tx, kind, schemaName); err != nil {
 		return rollbackSchemaBatch(tx, err)
 	}
-	for _, statement := range statements {
-		if _, err := tx.ExecContext(ctx, statement); err != nil {
-			return rollbackSchemaBatch(tx, fmt.Errorf("execute schema statement: %w", err))
+	executeStatements := true
+	if before != nil {
+		var err error
+		executeStatements, err = before(ctx, tx)
+		if err != nil {
+			return rollbackSchemaBatch(tx, fmt.Errorf("preflight schema statement batch: %w", err))
+		}
+	}
+	if executeStatements {
+		for _, statement := range statements {
+			if _, err := tx.ExecContext(ctx, statement); err != nil {
+				return rollbackSchemaBatch(tx, fmt.Errorf("execute schema statement: %w", err))
+			}
+		}
+	}
+	if finish != nil {
+		if err := finish(ctx, tx); err != nil {
+			return rollbackSchemaBatch(tx, fmt.Errorf("finish schema statement batch: %w", err))
 		}
 	}
 	if err := tx.Commit(); err != nil {
 		return &SchemaStatementExecution{}, fmt.Errorf("commit schema transaction: %w", err)
 	}
-	return &SchemaStatementExecution{Committed: len(statements)}, nil
+	committed := 0
+	if executeStatements {
+		committed = len(statements)
+	}
+	return &SchemaStatementExecution{Committed: committed}, nil
 }
 
 // bindSchemaSearchPath keeps unqualified PostgreSQL DDL in the confirmed

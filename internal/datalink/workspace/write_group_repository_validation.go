@@ -73,8 +73,14 @@ func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGrou
 		return fmt.Errorf("%w: %w: connector identity revision is stale", ErrWriteGroupConnectorRevisionConflict, ErrSetupRevisionConflict)
 	}
 	connectorKind = strings.ToLower(strings.TrimSpace(connectorKind))
+	if group.StorageMode == WriteGroupStorageModeNativeMonthly && connectorKind != writeGroupConnectorKindMySQL && connectorKind != writeGroupConnectorKindSQLServer {
+		return fmt.Errorf("%w: native monthly partitioning requires a verified MySQL-family or SQL Server destination", ErrWriteGroupValidation)
+	}
 	if connectorKind != writeGroupConnectorKindSQLite && connectorKind != writeGroupConnectorKindPostgres {
-		return fmt.Errorf("%w: %w: %s", ErrWriteGroupUnsupportedConnectorKind, ErrWriteGroupValidation, connectorKind)
+		if connectorKind != writeGroupConnectorKindMySQL && connectorKind != writeGroupConnectorKindSQLServer || !group.isLongLayout() ||
+			group.StorageMode != WriteGroupStorageModePlain && group.StorageMode != WriteGroupStorageModeNativeMonthly {
+			return fmt.Errorf("%w: %w: %s", ErrWriteGroupUnsupportedConnectorKind, ErrWriteGroupValidation, connectorKind)
+		}
 	}
 	if err := resolveWriteGroupDestinationScope(connectorKind, connectorConfig, &group.Destination); err != nil {
 		return err
@@ -198,18 +204,17 @@ func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGrou
 		}
 		member.SourceRevision = sourceRevision
 
-		if err := applyRecordingMetadata(group, member, i, schema.DataType(source.TagDataType)); err != nil {
-			return err
-		}
-
-		if member.MeasurementID == nil {
+		if member.MeasurementID == nil || strings.TrimSpace(*member.MeasurementID) == "" {
+			if member.ExactRecordingSource != nil {
+				return fmt.Errorf("%w: member %d carries exact recording source without measurement_id", ErrWriteGroupValidation, i)
+			}
+			member.MeasurementID = nil
+			if err := applyRecordingMetadata(group, member, i, schema.DataType(source.TagDataType)); err != nil {
+				return err
+			}
 			continue
 		}
 		measurementID := strings.TrimSpace(*member.MeasurementID)
-		if measurementID == "" {
-			member.MeasurementID = nil
-			continue
-		}
 		var measurementDeviceID, measurementPointID string
 		var measurementTagID sql.NullString
 		err = runner.QueryRowContext(ctx, r.query(`
@@ -227,6 +232,12 @@ func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGrou
 			return fmt.Errorf("%w: %w", ErrWriteGroupNotFound, ErrNotFound)
 		}
 		member.MeasurementID = &measurementID
+		if err := r.deriveAndValidateExactRecordingSourceInTx(ctx, runner, group, member, i, schema.DataType(source.TagDataType)); err != nil {
+			return err
+		}
+		if err := applyRecordingMetadata(group, member, i, schema.DataType(source.TagDataType)); err != nil {
+			return err
+		}
 		if member.ValueRole == WriteGroupValueRoleCounterRaw {
 			if err := r.confirmCounterBinding(ctx, runner, *member.MeasurementID); err != nil {
 				return fmt.Errorf("member %d: %w", i, err)
@@ -265,12 +276,16 @@ func applyRecordingMetadata(group *WriteGroup, member *WriteGroupMember, index i
 	if err != nil {
 		return fmt.Errorf("member %d: %w", index, err)
 	}
-	if member.ResultValueType != "" && member.ResultValueType != result {
+	expectedResult := result
+	if member.ExactRecordingSource != nil {
+		expectedResult = measurement.ExactDecimal
+	}
+	if member.ResultValueType != "" && member.ResultValueType != expectedResult {
 		return fmt.Errorf("%w: member %d result type %q does not match the derived %q",
-			ErrWriteGroupValidation, index, member.ResultValueType, result)
+			ErrWriteGroupValidation, index, member.ResultValueType, expectedResult)
 	}
 	member.SourceValueType = tagType
-	member.ResultValueType = result
+	member.ResultValueType = expectedResult
 	if role == WriteGroupValueRoleCounterRaw {
 		if member.MeasurementID == nil || strings.TrimSpace(*member.MeasurementID) == "" {
 			return fmt.Errorf("%w: member %d needs the confirmed counter binding for counter_raw", ErrWriteGroupValidation, index)

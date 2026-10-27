@@ -222,6 +222,7 @@ func sameBasicManagedIntent(candidate, existing *WriteGroup) bool {
 				sameStoredMetadata(string(member.SourceValueType), string(existingMember.SourceValueType)) &&
 				sameStoredMetadata(string(member.ResultValueType), string(existingMember.ResultValueType)) &&
 				sameOptionalString(member.MeasurementID, existingMember.MeasurementID) &&
+				sameExactRecordingSource(member.ExactRecordingSource, existingMember.ExactRecordingSource) &&
 				((member.MaxAgeSeconds == nil && existingMember.MaxAgeSeconds == nil) ||
 					(member.MaxAgeSeconds != nil && existingMember.MaxAgeSeconds != nil && *member.MaxAgeSeconds == *existingMember.MaxAgeSeconds))
 		}) {

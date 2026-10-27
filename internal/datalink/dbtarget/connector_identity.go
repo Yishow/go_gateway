@@ -91,6 +91,11 @@ func connectorIdentityChanged(
 	if previousKind != nextKind {
 		return true
 	}
+	if nextKind == schema.DatabaseConnectorKindSQLServer &&
+		(stringConfigValue(previousConfig, "schema") != stringConfigValue(nextConfig, "schema") ||
+			stringConfigValue(previousConfig, "table_schema") != stringConfigValue(nextConfig, "table_schema")) {
+		return true
+	}
 
 	previousJSON, previousErr := json.Marshal(identityConnectionConfig(previousConfig))
 	nextJSON, nextErr := json.Marshal(identityConnectionConfig(nextConfig))

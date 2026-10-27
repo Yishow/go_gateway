@@ -30,6 +30,9 @@ export interface CircuitProfileConfigFieldsProps {
   instParsed: ParsedProfileInterval;
   cumParsed: ParsedProfileInterval;
   isPostgres: boolean;
+  isMySQL?: boolean;
+  isSQLServer?: boolean;
+  nativeMonthlyAvailable?: boolean;
   storageLocked: boolean;
   effectiveStorageMode: WriteGroupStorageMode;
   cumulativeCircuitMissing: boolean;
@@ -61,7 +64,7 @@ const NO_SAVED_ROLES: ReadonlySet<string> = new Set();
 
 export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProps> = ({
   workspaceId, workspaceRevision, readonly, savedDevices, activeDeviceId, onSelectDevice,
-  deviceCandidates, localDraft, updateLocalDraft, instParsed, cumParsed, isPostgres,
+  deviceCandidates, localDraft, updateLocalDraft, instParsed, cumParsed, isPostgres, isMySQL = false, isSQLServer = false, nativeMonthlyAvailable = false,
   storageLocked, effectiveStorageMode, cumulativeCircuitMissing, circuitId,
   unconfirmedCounterStatuses, onCounterConfirmed, savedCircuits = [], onSelectCircuit, onOpenBatch,
   purpose = 'long', purposeLocked = false, showPurpose = true, instantaneousReduction = 'latest', savedRoleKeys = NO_SAVED_ROLES, memberRole = defaultMemberRole,
@@ -302,12 +305,25 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                 onChange={() => updateLocalDraft((prev) => ({ ...prev, storage_mode: 'plain' }))} />
               <span>{t('step4.basic.circuit.storage_plain')}</span>
             </label>
-            <label className="flex items-center gap-2">
-              <input type="radio" name="circuit-storage-mode" data-testid="circuit-profile-storage-timescale"
-                checked={effectiveStorageMode === 'timescale'} disabled={readonly || !isPostgres || storageLocked}
-                onChange={() => updateLocalDraft((prev) => ({ ...prev, storage_mode: 'timescale' }))} />
-              <span>{t('step4.basic.circuit.storage_timescale')}</span>
-            </label>
+            {(isMySQL || isSQLServer) ? (
+              <label className="flex items-center gap-2">
+                <input type="radio" name="circuit-storage-mode" data-testid="circuit-profile-storage-native-monthly"
+                  checked={effectiveStorageMode === 'native_monthly'} disabled={readonly || storageLocked || !nativeMonthlyAvailable}
+                  onChange={() => updateLocalDraft((prev) => ({ ...prev, storage_mode: 'native_monthly' }))} />
+                <span>
+                  {isSQLServer
+                    ? t('step4.basic.circuit.storage_native_monthly_sqlserver')
+                    : t('step4.basic.circuit.storage_native_monthly')}
+                </span>
+              </label>
+            ) : (
+              <label className="flex items-center gap-2">
+                <input type="radio" name="circuit-storage-mode" data-testid="circuit-profile-storage-timescale"
+                  checked={effectiveStorageMode === 'timescale'} disabled={readonly || !isPostgres || storageLocked}
+                  onChange={() => updateLocalDraft((prev) => ({ ...prev, storage_mode: 'timescale' }))} />
+                <span>{t('step4.basic.circuit.storage_timescale')}</span>
+              </label>
+            )}
           </div>
           {storageLocked && <p data-testid="circuit-profile-storage-locked" className="text-[11px] text-slate-400">{t('step4.basic.circuit.storage_locked')}</p>}
         </fieldset>

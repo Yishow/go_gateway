@@ -7,6 +7,7 @@ import type {
   WriteGroupMigration,
   WriteGroupMutationResponse,
   WriteGroupReadiness,
+  WriteGroupProfileKind,
   WriteGroupResultValueType,
   WriteGroupRowPolicy,
   WriteGroupStatus,
@@ -39,6 +40,7 @@ import {
   readRequiredText,
 } from './studioV2WriteGroupJsonPrimitives';
 import { parseRecordingProfile, recordingProfileIntervalSeconds } from './studioV2RecordingProfile';
+import { parseWriteGroupExactRecordingSource } from './studioV2ExactRecordingSourceJson';
 
 const WRITE_GROUP_STATUSES = new Set<WriteGroupStatus>([
   'draft', 'ready', 'running', 'disabled', 'deleted',
@@ -95,7 +97,7 @@ function readOptionalEnum<T extends string>(
   return typeof value === 'string' && allowed.has(value as T) ? value as T : null;
 }
 
-function parseWriteGroupMember(value: unknown): WriteGroupMember | null {
+function parseWriteGroupMember(value: unknown, profileKind?: WriteGroupProfileKind): WriteGroupMember | null {
   if (!isRecord(value)) return null;
   const deviceId = readRequiredText(value, 'device_id');
   const pointId = readRequiredText(value, 'point_id');
@@ -121,11 +123,17 @@ function parseWriteGroupMember(value: unknown): WriteGroupMember | null {
   const maxAgeSeconds = readOptionalInteger(value, 'max_age_seconds');
   const circuitId = readOptionalText(value, 'circuit_id');
   const circuitName = readOptionalText(value, 'circuit_name');
-  const valueRole = readOptionalEnum(value, 'value_role', WRITE_GROUP_VALUE_ROLES);
+  const valueRole = profileKind === 'cumulative' && value.value_role === ''
+    ? undefined : readOptionalEnum(value, 'value_role', WRITE_GROUP_VALUE_ROLES);
   const sourceValueType = readOptionalEnum(value, 'source_value_type', WRITE_GROUP_SOURCE_VALUE_TYPES);
   const resultValueType = readOptionalEnum(value, 'result_value_type', WRITE_GROUP_RESULT_VALUE_TYPES);
+  const exactSource = value.exact_recording_source === undefined
+    ? undefined : parseWriteGroupExactRecordingSource(value.exact_recording_source);
   if (maxAgeSeconds === null || circuitId === null || circuitName === null || (circuitName && !circuitId) ||
-    valueRole === null || sourceValueType === null || resultValueType === null) return null;
+    valueRole === null || sourceValueType === null || resultValueType === null ||
+    (value.exact_recording_source !== undefined && !exactSource) ||
+    (exactSource && (exactSource.measurement_id !== measurementId || exactSource.original_data_type !== sourceValueType ||
+      (valueRole !== undefined && valueRole !== 'counter_raw') || resultValueType !== 'decimal'))) return null;
 
   return {
     device_id: deviceId,
@@ -143,6 +151,7 @@ function parseWriteGroupMember(value: unknown): WriteGroupMember | null {
     ...(valueRole !== undefined ? { value_role: valueRole } : {}),
     ...(sourceValueType !== undefined ? { source_value_type: sourceValueType } : {}),
     ...(resultValueType !== undefined ? { result_value_type: resultValueType } : {}),
+    ...(exactSource ? { exact_recording_source: exactSource } : {}),
   };
 }
 
@@ -261,7 +270,9 @@ export function parseStudioV2WriteGroup(value: unknown): WriteGroup | null {
     return null;
   }
 
-  const members = rawMembers.map(parseWriteGroupMember);
+  const profile = parseRecordingProfile(value.recording_profile);
+  const profileKind = profile?.kind;
+  const members = rawMembers.map((member) => parseWriteGroupMember(member, profileKind));
   if (members.some((member) => member === null)) return null;
   const destination = parseWriteGroupDestination(value.destination);
   const rowPolicy = parseWriteGroupRowPolicy(value.row_policy, status as WriteGroupStatus);
@@ -270,10 +281,9 @@ export function parseStudioV2WriteGroup(value: unknown): WriteGroup | null {
   if (!destination || !rowPolicy || !writePolicy || !migration) return null;
   const layoutVersion = readOptionalText(value, 'layout_version');
   const storageMode = readOptionalText(value, 'storage_mode');
-  const profile = parseRecordingProfile(value.recording_profile);
   // An unknown layout or mode, or an interval whose unit was misread, must never reach the editor.
   if (layoutVersion === null || (layoutVersion !== undefined && !WRITE_GROUP_LAYOUT_VERSIONS.has(layoutVersion)) ||
-    storageMode === null || (storageMode !== undefined && storageMode !== 'plain' && storageMode !== 'timescale') ||
+    storageMode === null || (storageMode !== undefined && storageMode !== 'plain' && storageMode !== 'timescale' && storageMode !== 'native_monthly') ||
     profile === null || (profile && recordingProfileIntervalSeconds(profile) !== rowPolicy.interval_seconds)) {
     return null;
   }
@@ -284,6 +294,18 @@ export function parseStudioV2WriteGroup(value: unknown): WriteGroup | null {
     (layoutVersion === 'managed_wide_profile_v1' && (!profile || destination.storage_strategy !== 'managed'))) {
     return null;
   }
+  const parsedMembers = members as WriteGroupMember[];
+  if (parsedMembers.some((member) => member.exact_recording_source !== undefined) &&
+    (layoutVersion !== 'managed_long_v1' || destination.storage_strategy !== 'managed')) return null;
+  if (profile?.kind === 'cumulative' && parsedMembers.some((member) => member.value_role === 'counter_raw')) return null;
+  if (parsedMembers.some((member) => member.exact_recording_source !== undefined &&
+    (profile?.kind === 'instantaneous' ? member.value_role !== 'counter_raw' :
+      profile?.kind === 'cumulative' ? member.value_role !== undefined : true))) return null;
+  if (layoutVersion === 'managed_long_v1' && parsedMembers.some((member) =>
+    member.result_value_type === 'decimal' && member.source_value_type !== 'float32' &&
+    member.source_value_type !== 'float64' && member.exact_recording_source === undefined &&
+    ((profile?.kind === 'cumulative' && member.value_role === undefined) ||
+      (profile?.kind === 'instantaneous' && member.value_role === 'counter_raw')))) return null;
 
   return {
     id,

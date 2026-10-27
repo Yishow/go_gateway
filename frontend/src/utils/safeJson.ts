@@ -15,21 +15,31 @@ const SAFE_ERROR_ACTIONS = new Set([
   'retry the preview stream', 'retry preview', 'wait_for_supported_operation',
   'review_source', 'open_write_groups', 'review_request', 'review_group', 'disable_group',
   'select_recording_destination', 'select_new_managed_table_or_advanced_table',
+  'select_plain_storage',
 ]);
 
 function byteLength(value: string): number {
   return typeof TextEncoder === 'undefined' ? value.length : new TextEncoder().encode(value).byteLength;
 }
-function cloneBoundedJson(value: unknown, depth: number, maxDepth: number): unknown | null {
+export type BoundedJsonStringLengthLimit = (path: readonly (string | number)[]) => number | undefined;
+
+function cloneBoundedJson(
+  value: unknown, depth: number, maxDepth: number, path: readonly (string | number)[],
+  stringLengthLimitForPath?: BoundedJsonStringLengthLimit,
+): unknown | null {
   if (depth > maxDepth) return null;
   if (value === null || typeof value === 'boolean') return value;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value === 'string') return value.length <= MAX_SAFE_JSON_STRING_LENGTH ? value : null;
+  if (typeof value === 'string') {
+    const stringLimit = stringLengthLimitForPath?.(path) ?? MAX_SAFE_JSON_STRING_LENGTH;
+    return value.length <= stringLimit ? value : null;
+  }
   if (Array.isArray(value)) {
     if (value.length > MAX_SAFE_JSON_ARRAY_LENGTH) return null;
     const result: unknown[] = [];
     for (const item of value) {
-      const cloned = cloneBoundedJson(item, depth + 1, maxDepth);
+      const itemPath = stringLengthLimitForPath ? [...path, result.length] : path;
+      const cloned = cloneBoundedJson(item, depth + 1, maxDepth, itemPath, stringLengthLimitForPath);
       if (cloned === null && item !== null) return null;
       result.push(cloned);
     }
@@ -41,14 +51,18 @@ function cloneBoundedJson(value: unknown, depth: number, maxDepth: number): unkn
   const result: Record<string, unknown> = {};
   for (const [key, item] of entries) {
     if (key.length > MAX_SAFE_JSON_STRING_LENGTH) return null;
-    const cloned = cloneBoundedJson(item, depth + 1, maxDepth);
+    const itemPath = stringLengthLimitForPath ? [...path, key] : path;
+    const cloned = cloneBoundedJson(item, depth + 1, maxDepth, itemPath, stringLengthLimitForPath);
     if (cloned === null && item !== null) return null;
     result[key] = cloned;
   }
   return result;
 }
 /** Parse untrusted JSON into a bounded, detached JSON value without throwing. */
-export function parseBoundedJson(value: unknown, maxDepth: number = MAX_SAFE_JSON_DEPTH): unknown | null {
+export function parseBoundedJson(
+  value: unknown, maxDepth: number = MAX_SAFE_JSON_DEPTH,
+  stringLengthLimitForPath?: BoundedJsonStringLengthLimit,
+): unknown | null {
   if (typeof value === 'string' && byteLength(value) > MAX_SAFE_JSON_BYTES) return null;
   let parsed = value;
   if (typeof value === 'string') {
@@ -58,7 +72,7 @@ export function parseBoundedJson(value: unknown, maxDepth: number = MAX_SAFE_JSO
       return null;
     }
   }
-  return cloneBoundedJson(parsed, 0, maxDepth);
+  return cloneBoundedJson(parsed, 0, maxDepth, [], stringLengthLimitForPath);
 }
 /** Parse untrusted JSON input into a bounded plain object without throwing. */
 export function parseJsonRecord(value: unknown): Record<string, unknown> | null {

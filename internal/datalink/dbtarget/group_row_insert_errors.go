@@ -40,7 +40,7 @@ const (
 )
 
 // ClassifyInsertError classifies a failed InsertGroupRow error. It relies on
-// driver error codes (PostgreSQL SQLSTATE, SQLite result codes), never on
+// driver error codes (PostgreSQL SQLSTATE, SQLite and SQL Server codes), never on
 // message text, so classification cannot leak or depend on row contents.
 func ClassifyInsertError(err error) InsertErrorClass {
 	if err == nil {
@@ -51,6 +51,9 @@ func ClassifyInsertError(err error) InsertErrorClass {
 	}
 	if errors.Is(err, ErrGroupInsertUnsupported) {
 		return InsertErrorTarget
+	}
+	if class, sqlServer := classifySQLServerInsertError(err); sqlServer {
+		return class
 	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {

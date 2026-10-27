@@ -1,0 +1,1 @@
+ALTER TABLE measurement_definitions DROP COLUMN exact_recording_scale;

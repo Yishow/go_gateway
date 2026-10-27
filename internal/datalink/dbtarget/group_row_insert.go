@@ -50,6 +50,11 @@ type GroupInsertRequest struct {
 	RecordKeyColumn string
 	// CommittedAt is written into the destination receipt.
 	CommittedAt string
+	// MySQL is the frozen managed-row proof. It is required for MySQL and
+	// ignored by the legacy SQLite/PostgreSQL strategies.
+	MySQL *MySQLManagedRowProof
+	// SQLServer is the frozen physical proof of an owned SQL Server long row.
+	SQLServer *SQLServerManagedRowProof
 }
 
 // GroupInsertResult reports what the destination did.
@@ -126,7 +131,10 @@ func validateGroupInsert(db *sql.DB, req GroupInsertRequest) error {
 	switch {
 	case db == nil:
 		return unsupported("no destination connection")
-	case req.Kind != schema.DatabaseConnectorKindSQLite && req.Kind != schema.DatabaseConnectorKindPostgres:
+	case req.Kind != schema.DatabaseConnectorKindSQLite &&
+		req.Kind != schema.DatabaseConnectorKindPostgres &&
+		req.Kind != schema.DatabaseConnectorKindMySQL &&
+		req.Kind != schema.DatabaseConnectorKindSQLServer:
 		return unsupported("destination kind")
 	case strings.TrimSpace(req.TableName) == "":
 		return unsupported("table is required")
@@ -151,10 +159,26 @@ func validateGroupInsert(db *sql.DB, req GroupInsertRequest) error {
 	default:
 		return unsupported("effect strategy")
 	}
+	if req.Kind == schema.DatabaseConnectorKindMySQL {
+		if err := validateMySQLManagedRowProof(req); err != nil {
+			return err
+		}
+	}
+	if req.Kind == schema.DatabaseConnectorKindSQLServer {
+		if err := validateSQLServerManagedRowProof(req); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func insertInTx(ctx context.Context, tx *sql.Tx, req GroupInsertRequest) (GroupInsertResult, error) {
+	if req.Kind == schema.DatabaseConnectorKindSQLServer {
+		return insertSQLServerGroupRowInTx(ctx, tx, req)
+	}
+	if req.Kind == schema.DatabaseConnectorKindMySQL {
+		return insertMySQLGroupRowInTx(ctx, tx, req)
+	}
 	table := qualifiedTableName(req.Kind, req.SchemaName, req.TableName)
 	if req.Strategy == GroupEffectReceipt {
 		receipts := qualifiedTableName(req.Kind, req.SchemaName, EffectReceiptTable)

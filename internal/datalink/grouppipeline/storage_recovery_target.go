@@ -14,6 +14,12 @@ import (
 
 // restoreTarget adapts the destination delivery opened to the restore engine.
 func restoreTarget(target groupdelivery.Target, schemaName string, hypertable bool) recordingplan.StorageRestoreTarget {
+	if target.Kind == schema.DatabaseConnectorKindSQLServer {
+		return sqlServerStorageRestoreTarget(target, schemaName)
+	}
+	if target.Kind == schema.DatabaseConnectorKindMySQL {
+		return mysqlStorageRestoreTarget(target, schemaName)
+	}
 	return recordingplan.StorageRestoreTarget{
 		Inspect: func(ctx context.Context, table string) (recordingplan.TargetTableInspection, error) {
 			return inspectOpenTarget(ctx, target, schemaName, table, hypertable)
@@ -127,7 +133,7 @@ func (r *StorageRecovery) resolveStaleOperation(ctx context.Context, operation r
 		return nil
 	}
 	opened, err := r.destinations.OpenDestination(ctx, request.Scope.ConnectorID, request.ConnectorRevision)
-	if err != nil {
+	if err != nil || opened == nil {
 		// An unreachable or blocked destination keeps the operation as it is.
 		return nil
 	}
@@ -140,10 +146,35 @@ func (r *StorageRecovery) resolveStaleOperation(ctx context.Context, operation r
 	if !ok {
 		return nil
 	}
+	if request.Dialect == string(dbtarget.SQLDialectSQLServer) {
+		if opened.Kind != schema.DatabaseConnectorKindSQLServer || request.SQLServer == nil ||
+			!sqlServerCapabilityMatchesDestination(opened.SQLServer, groupdelivery.FrozenDestination{
+				ConnectorID: request.Scope.ConnectorID, ConnectorRevision: request.ConnectorRevision,
+				Database: request.Scope.Database, TableSchema: request.Scope.TableSchema,
+			}) || !sqlServerCapabilityMatchesLayout(opened.SQLServer, lineage.Layout) {
+			return nil
+		}
+	} else if opened.Kind == schema.DatabaseConnectorKindSQLServer {
+		return nil
+	}
+	if request.Dialect == "mysql" {
+		if opened.Kind != schema.DatabaseConnectorKindMySQL ||
+			!mysqlCapabilityMatchesDestination(opened.MySQL, groupdelivery.FrozenDestination{
+				ConnectorID: request.Scope.ConnectorID, ConnectorRevision: request.ConnectorRevision, Database: request.Scope.Database,
+			}) || !mysqlCapabilityMatchesLayout(opened.MySQL, lineage.Layout, request.Scope.Database) {
+			return nil
+		}
+	} else if opened.Kind == schema.DatabaseConnectorKindMySQL {
+		return nil
+	}
 	request.Dialect = dialect
-	target := groupdelivery.Target{DB: opened.DB, Kind: opened.Kind}
+	target := groupdelivery.Target{DB: opened.DB, Kind: opened.Kind, MySQLCapability: opened.MySQL, SQLServerCapability: opened.SQLServer}
 	release := r.lock(request.Scope)
 	defer release()
-	_, err = r.ledger.ResolveStaleStorageRepair(ctx, request, restoreTarget(target, request.Scope.TableSchema, lineage.Layout.Partition != nil))
+	storageTarget := restoreTarget(target, request.Scope.TableSchema, lineage.Layout.Partition != nil)
+	if opened.Kind == schema.DatabaseConnectorKindSQLServer {
+		storageTarget = r.sqlServerRestoreTarget(target, request.Scope.TableSchema)
+	}
+	_, err = r.ledger.ResolveStaleStorageRepair(ctx, request, storageTarget)
 	return err
 }

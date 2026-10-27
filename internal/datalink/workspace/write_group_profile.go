@@ -38,6 +38,9 @@ const WriteGroupStorageModePlain WriteGroupStorageMode = "plain"
 // WriteGroupStorageModeTimescale is the explicit TimescaleDB hypertable mode.
 const WriteGroupStorageModeTimescale WriteGroupStorageMode = "timescale"
 
+// WriteGroupStorageModeNativeMonthly selects MySQL-family native UTC month partitions.
+const WriteGroupStorageModeNativeMonthly WriteGroupStorageMode = "native_monthly"
+
 // WriteGroupProfileKind separates the two independent recording profiles.
 type WriteGroupProfileKind string
 
@@ -233,8 +236,9 @@ func sameRecordingProfile(left, right *WriteGroupRecordingProfile) bool {
 }
 
 // normalizeWriteGroupStorageMode keeps the long layout and its mode together:
-// the long table only serves canonical profile groups, plain is its only mode,
-// and a wide group never carries a mode.
+// the long table only serves canonical profile groups with explicitly selected
+// storage, and a wide group never carries a mode. Connector validation checks
+// the dialect-specific modes separately.
 func normalizeWriteGroupStorageMode(group *WriteGroup) error {
 	if !group.isLongLayout() {
 		if group.StorageMode != "" {
@@ -248,7 +252,7 @@ func normalizeWriteGroupStorageMode(group *WriteGroup) error {
 	switch group.StorageMode {
 	case "":
 		group.StorageMode = WriteGroupStorageModePlain
-	case WriteGroupStorageModePlain, WriteGroupStorageModeTimescale:
+	case WriteGroupStorageModePlain, WriteGroupStorageModeTimescale, WriteGroupStorageModeNativeMonthly:
 	default:
 		return fmt.Errorf("%w: unsupported storage mode %q", ErrWriteGroupValidation, group.StorageMode)
 	}

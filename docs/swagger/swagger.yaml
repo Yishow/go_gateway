@@ -404,6 +404,13 @@ definitions:
         type: string
       owner_value:
         type: string
+      record_ids:
+        description: |-
+          RecordIDs lists every exact record the confirmation will write. It is
+          present for managed-long MySQL test writes; cleanup uses these IDs.
+        items:
+          type: string
+        type: array
       target:
         $ref: '#/definitions/grouptestwrite.PreviewTarget'
       token:
@@ -692,6 +699,8 @@ definitions:
     type: object
   handlers.WriteGroupTestWriteConfirmRequest:
     properties:
+      action:
+        type: string
       operation_id:
         type: string
       token:
@@ -973,6 +982,25 @@ definitions:
       step_type:
         type: string
     type: object
+  measurement.CounterPolicy:
+    properties:
+      allow_negative:
+        type: boolean
+      max_rate_per_second:
+        type: string
+      max_roll_over:
+        type: number
+      reset_threshold:
+        type: number
+      rollover_modulus:
+        description: |-
+          RolloverModulus and MaxRatePerSecond are the exact, confirmed evidence that
+          lets a counter's drop be read as one wrap. They are decimal text, never JSON
+          numbers: a number would pass through a float64 on the way in and lose the
+          digits this evidence exists to keep. They are independent of the legacy
+          float MaxRollOver, which is kept as saved and never converted into them.
+        type: string
+    type: object
   measurement.ExactType:
     enum:
     - bool
@@ -989,6 +1017,26 @@ definitions:
     - ExactUint64
     - ExactDecimal
     - ExactFloat64
+  measurement.SemanticKind:
+    enum:
+    - gauge
+    - rate
+    - counter
+    - signed_counter
+    - delta
+    - state
+    - event
+    - text
+    type: string
+    x-enum-varnames:
+    - SemanticKindGauge
+    - SemanticKindRate
+    - SemanticKindCounter
+    - SemanticKindSignedCounter
+    - SemanticKindDelta
+    - SemanticKindState
+    - SemanticKindEvent
+    - SemanticKindText
   modbusshare.DesiredMapping:
     properties:
       capacity_registers:
@@ -1034,6 +1082,26 @@ definitions:
         type: boolean
       workspace_id:
         type: string
+    type: object
+  recordingplan.MySQLPartitionBoundary:
+    properties:
+      less_than:
+        type: string
+      name:
+        type: string
+      ordinal:
+        type: integer
+    type: object
+  recordingplan.MySQLPartitionEvidence:
+    properties:
+      expression:
+        type: string
+      method:
+        type: string
+      partitions:
+        items:
+          $ref: '#/definitions/recordingplan.MySQLPartitionBoundary'
+        type: array
     type: object
   recordingplan.PlanDestination:
     properties:
@@ -1156,6 +1224,32 @@ definitions:
         type: integer
       summary_days:
         type: integer
+    type: object
+  recordingplan.SQLServerPartitionBoundary:
+    properties:
+      less_than:
+        type: string
+      name:
+        type: string
+      ordinal:
+        type: integer
+    type: object
+  recordingplan.SQLServerPartitionEvidence:
+    properties:
+      column:
+        type: string
+      filegroup:
+        type: string
+      function_name:
+        type: string
+      method:
+        type: string
+      partitions:
+        items:
+          $ref: '#/definitions/recordingplan.SQLServerPartitionBoundary'
+        type: array
+      scheme_name:
+        type: string
     type: object
   recordingplan.SchemaOperation:
     properties:
@@ -1507,6 +1601,27 @@ definitions:
           type: string
         type: array
     type: object
+  workspace.ExactRecordingSource:
+    properties:
+      counter_policy:
+        $ref: '#/definitions/measurement.CounterPolicy'
+      definition_revision:
+        type: string
+      measurement_id:
+        type: string
+      original_data_type:
+        $ref: '#/definitions/schema.DataType'
+      scale:
+        type: string
+      semantic_kind:
+        $ref: '#/definitions/measurement.SemanticKind'
+      series_epoch:
+        type: string
+      source_binding_revision:
+        type: string
+      unit:
+        type: string
+    type: object
   workspace.ReadinessIssue:
     properties:
       code:
@@ -1793,6 +1908,13 @@ definitions:
           EntityKey is the raw legacy group key used only to partition buffered
           rows. It is deliberately not interpreted as a destination SQL value.
         type: string
+      exact_recording_source:
+        allOf:
+        - $ref: '#/definitions/workspace.ExactRecordingSource'
+        description: |-
+          ExactRecordingSource freezes confirmed counter scale, revisions, and
+          rollover policy for scaled integer long members. Legacy and unscaled
+          members leave it nil.
       mapping_revision:
         type: string
       max_age_seconds:
@@ -1945,6 +2067,19 @@ definitions:
       workspace_revision:
         type: string
     type: object
+  workspace.WriteGroupPartitionMaintenanceReadiness:
+    properties:
+      code:
+        type: string
+      current:
+        $ref: '#/definitions/recordingplan.MySQLPartitionEvidence'
+      reason:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
   workspace.WriteGroupProfileKind:
     enum:
     - instantaneous
@@ -1967,12 +2102,16 @@ definitions:
         items:
           $ref: '#/definitions/workspace.ReadinessIssue'
         type: array
+      partition_maintenance:
+        $ref: '#/definitions/workspace.WriteGroupPartitionMaintenanceReadiness'
       ready:
         type: boolean
       schema_digest:
         type: string
       schema_ready:
         type: boolean
+      sqlserver_current:
+        $ref: '#/definitions/recordingplan.SQLServerPartitionEvidence'
       workspace_id:
         type: string
       workspace_revision:
@@ -2109,10 +2248,12 @@ definitions:
     enum:
     - plain
     - timescale
+    - native_monthly
     type: string
     x-enum-varnames:
     - WriteGroupStorageModePlain
     - WriteGroupStorageModeTimescale
+    - WriteGroupStorageModeNativeMonthly
   workspace.WriteGroupStorageStrategy:
     enum:
     - managed

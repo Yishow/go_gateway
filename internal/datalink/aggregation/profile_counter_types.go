@@ -91,6 +91,7 @@ type CounterBinding struct {
 	SeriesEpoch           string      `json:"series_epoch"`
 	Kind                  CounterKind `json:"kind"`
 	Unit                  string      `json:"unit"`
+	ExactRecordingScale   string      `json:"exact_recording_scale,omitempty"`
 	// RolloverModulus and MaxRatePerSecond are the confirmed rollover evidence of
 	// a monotonic counter. They are exact values, never floats, and part of the
 	// identity: changing either starts a new baseline. A modulus alone is allowed
@@ -99,7 +100,10 @@ type CounterBinding struct {
 	MaxRatePerSecond *measurement.ExactValue `json:"max_rate_per_second,omitempty"`
 }
 
-const counterBaselineKeyVersion = "profile-counter-baseline-v2"
+const (
+	counterBaselineKeyVersion = "profile-counter-baseline-v2"
+	counterScaleKeyMarker     = "exact-recording-scale-v1"
+)
 
 // Validate reports the first missing identity part.
 func (b CounterBinding) Validate() error {
@@ -115,6 +119,11 @@ func (b CounterBinding) Validate() error {
 	}
 	if !b.Kind.Valid() {
 		return fmt.Errorf("%w: counter semantics must be confirmed as counter or signed_counter", ErrCounterBindingIncomplete)
+	}
+	if b.ExactRecordingScale != "" {
+		if _, err := measurement.ScaleExactInteger(measurement.NewInt64(1), b.ExactRecordingScale); err != nil {
+			return err
+		}
 	}
 	return b.validatePolicy()
 }
@@ -162,10 +171,22 @@ func (b CounterBinding) Key() (string, error) {
 		return "", err
 	}
 	modulus, maxRate := b.policyIdentity()
-	return measurement.HashStringTuple(
+	parts := []string{
 		counterBaselineKeyVersion, b.WorkspaceID, b.GroupID, b.ProfileRevision, b.MemberKey, b.MeasurementID,
 		b.DefinitionRevision, b.SourceBindingRevision, b.SeriesEpoch, string(b.Kind), b.Unit, modulus, maxRate,
-	)
+	}
+	if b.ExactRecordingScale != "" {
+		scale, err := measurement.ScaleExactInteger(measurement.NewInt64(1), b.ExactRecordingScale)
+		if err != nil {
+			return "", err
+		}
+		digits, ok := scale.CanonicalDigits()
+		if !ok {
+			return "", fmt.Errorf("%w: exact recording scale cannot be represented", ErrCounterBindingIncomplete)
+		}
+		parts = append(parts, counterScaleKeyMarker, digits)
+	}
+	return measurement.HashStringTuple(parts...)
 }
 
 // CounterReading is one accepted, eligible source reading. Value keeps its

@@ -15,6 +15,11 @@ import (
 )
 
 func writerConnectionConfig(connector *schema.DatabaseConnector) (ConnectionConfig, error) {
+	// Registering a read-only SQL Server connection must not release the
+	// legacy mapping writer outside the managed recording capability gates.
+	if connector.Kind == schema.DatabaseConnectorKindSQLServer {
+		return nil, managedDestinationInvalid("sqlserver legacy writes are unsupported")
+	}
 	config, err := parseConnectionConfig(connector.ConnectionConfig)
 	if err != nil {
 		return nil, err

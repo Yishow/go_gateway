@@ -103,6 +103,10 @@ export const studioV2WorkspaceKeys = {
   databaseTargets: () => [...studioV2WorkspaceKeys.all, 'database-targets'] as const,
   databaseMetadata: (connectorId: string, connectorRevision: string, database: string, schema: string, table: string, groupId = '', groupRevision = '') =>
     [...studioV2WorkspaceKeys.all, 'database-metadata', connectorId, connectorRevision, database, schema, table, groupId, groupRevision] as const,
+  mysqlRecordingCapability: (connectorId: string, connectorRevision: string) =>
+    [...studioV2WorkspaceKeys.all, 'mysql-recording-capability', connectorId, connectorRevision] as const,
+  sqlserverRecordingCapability: (connectorId: string, connectorRevision: string) =>
+    [...studioV2WorkspaceKeys.all, 'sqlserver-recording-capability', connectorId, connectorRevision] as const,
   measurements: (deviceId?: string) => [...studioV2WorkspaceKeys.all, 'measurements', deviceId ?? 'all'] as const,
   measurementTemplates: () => [...studioV2WorkspaceKeys.all, 'measurement-templates'] as const,
   recordingPlans: (deviceId?: string) => [...studioV2WorkspaceKeys.all, 'recording-plans', deviceId ?? 'all'] as const,

@@ -70,6 +70,8 @@ const (
 type StorageRestoreTarget struct {
 	Inspect TargetInspector
 	Execute SchemaExecutor
+	// ExecuteSQLServerRepair runs SQL Server repair DDL bound to an operation ID and table name.
+	ExecuteSQLServerRepair func(ctx context.Context, tableName string, operationID string, statements []string) (SchemaExecution, error)
 	// CanCreate checks, without changing anything, that the connected role may
 	// create the table. Nil means the statement itself is the check.
 	CanCreate func(ctx context.Context) (bool, error)
@@ -97,6 +99,8 @@ type StorageRestoreRequest struct {
 	// look at the catalog when no confirmation froze a layout; it never
 	// authorizes a restore.
 	FallbackLayout *GroupSchemaLayout
+	// SQLServer holds the original frozen confirmed physical inspections for SQL Server.
+	SQLServer *SQLServerStorageRestoreEvidence
 }
 
 // StorageRestoreResult is the outcome of a restore attempt.
@@ -108,15 +112,18 @@ type StorageRestoreResult struct {
 }
 
 type storageRepairDetail struct {
-	Kind         string       `json:"kind"`
-	Generation   int          `json:"generation"`
-	ToGeneration int          `json:"to_generation"`
-	GroupID      string       `json:"group_id,omitempty"`
-	ConnectorID  string       `json:"connector_id"`
-	Table        string       `json:"table"`
-	Scope        StorageScope `json:"scope"`
-	Dialect      string       `json:"dialect"`
-	OwnerColumn  string       `json:"owner_column"`
+	Kind             string                           `json:"kind"`
+	Generation       int                              `json:"generation"`
+	ToGeneration     int                              `json:"to_generation"`
+	GroupID          string                           `json:"group_id,omitempty"`
+	ConnectorID      string                           `json:"connector_id"`
+	Table            string                           `json:"table"`
+	Scope            StorageScope                     `json:"scope"`
+	Dialect          string                           `json:"dialect"`
+	OwnerColumn      string                           `json:"owner_column"`
+	MySQLSteps       []mysqlSchemaApplyStep           `json:"mysql_steps,omitempty"`
+	SQLServer        *SQLServerStorageRestoreEvidence `json:"sqlserver,omitempty"`
+	SQLServerStarted bool                             `json:"sqlserver_started,omitzero"`
 }
 
 // RestoreManagedStorage restores the confirmed shared table of a scope when,
@@ -158,7 +165,16 @@ func (s *Service) RestoreManagedStorage(ctx context.Context, req StorageRestoreR
 		if layout == nil {
 			return s.refuse(ctx, repo, req, lineage, StorageCodeOwnerMismatch, StorageReasonConfirmationMissing)
 		}
-		inspected, refusal, err := inspectForRestore(ctx, req.Dialect, *layout, target)
+		if req.Dialect == dialectMySQL || layout.MySQL != nil {
+			if refusal := mysqlStorageLineageRefusal(lineage, req); refusal != nil {
+				return s.refuse(ctx, repo, req, lineage, refusal.code, refusal.reason)
+			}
+		} else if req.Dialect == dialectSQLServer || layout.SQLServer != nil {
+			if refusal := sqlServerStorageLineageRefusal(lineage, req); refusal != nil {
+				return s.refuse(ctx, repo, req, lineage, refusal.code, refusal.reason)
+			}
+		}
+		inspected, refusal, err := inspectStorageForRestore(ctx, req, *layout, target, false)
 		if err != nil {
 			return StorageRestoreResult{}, err
 		}
@@ -166,6 +182,15 @@ func (s *Service) RestoreManagedStorage(ctx context.Context, req StorageRestoreR
 			return s.refuse(ctx, repo, req, lineage, refusal.code, refusal.reason)
 		}
 		if !inspected.pendingGroup {
+			if layout.SQLServer != nil {
+				currentDigest := schemaTablesDigest(inspected.tables)
+				if currentDigest != lineage.ConfirmedDigest {
+					authorizedDigest, authErr := s.authorizedSQLServerDigest(ctx, req.Scope, lineage)
+					if authErr != nil || currentDigest != authorizedDigest {
+						return s.refuse(ctx, repo, req, lineage, StorageCodeOwnerMismatch, StorageReasonTableOccupied)
+					}
+				}
+			}
 			return StorageRestoreResult{Outcome: StorageNotMissing}, nil
 		}
 		if req.Deny != nil {

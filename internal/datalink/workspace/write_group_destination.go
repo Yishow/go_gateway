@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	"go-gateway/internal/datalink/dbtarget"
 )
 
 const (
-	writeGroupConnectorKindSQLite   = "sqlite"
-	writeGroupConnectorKindPostgres = "postgres"
+	writeGroupConnectorKindSQLite    = "sqlite"
+	writeGroupConnectorKindPostgres  = "postgres"
+	writeGroupConnectorKindMySQL     = "mysql"
+	writeGroupConnectorKindSQLServer = "sqlserver"
 )
 
 // resolveWriteGroupDestinationScope derives the saved database scope from the
@@ -17,6 +21,21 @@ const (
 // a group to another database; an opaque connector DSN simply leaves the
 // database name unresolved for a later server-side scope resolution.
 func resolveWriteGroupDestinationScope(kind, rawConfig string, destination *WriteGroupDestination) error {
+	if kind == writeGroupConnectorKindMySQL {
+		database, err := dbtarget.MySQLRecordingDatabaseScope(rawConfig)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrWriteGroupValidation, err)
+		}
+		if destination.Database != "" && destination.Database != database {
+			return fmt.Errorf("%w: mysql destination database mismatch: caller=%s resolved=%s", ErrWriteGroupValidation, destination.Database, database)
+		}
+		if destination.TableSchema != "" && destination.TableSchema != database {
+			return fmt.Errorf("%w: mysql destination schema mismatch: caller=%s resolved=%s", ErrWriteGroupValidation, destination.TableSchema, database)
+		}
+		destination.Database = database
+		destination.TableSchema = database
+		return nil
+	}
 	config := make(map[string]json.RawMessage)
 	if strings.TrimSpace(rawConfig) != "" {
 		if err := json.Unmarshal([]byte(rawConfig), &config); err != nil {
@@ -40,6 +59,9 @@ func resolveWriteGroupDestinationScope(kind, rawConfig string, destination *Writ
 		schema = "main"
 		if kind == writeGroupConnectorKindPostgres {
 			schema = "public"
+		}
+		if kind == writeGroupConnectorKindSQLServer {
+			schema = "dbo"
 		}
 	}
 

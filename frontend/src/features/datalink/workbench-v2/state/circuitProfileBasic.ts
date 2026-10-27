@@ -145,7 +145,7 @@ export function defaultCircuitProfileLocalDraft(
     instantaneous_enabled: !blank && (circuitGroups.length > 0 ? Boolean(instGroup) : true),
     instantaneous_interval_input: blank ? '' : String(instSeconds),
     cumulative_enabled: Boolean(cumGroup), cumulative_interval_input: blank ? '' : String(cumMinutes),
-    storage_mode: anyGroup?.storage_mode === 'timescale' ? 'timescale' : 'plain',
+    storage_mode: anyGroup?.storage_mode ?? 'plain',
     recreate_missing: anyGroup?.write_policy.recreate_missing ?? true,
   };
 }
@@ -187,7 +187,8 @@ export function loadCircuitProfileLocalDraft(
       ? parsed.cumulative_keys.filter((k): k is string => typeof k === 'string' && validKeys.has(k))
       : (legacySelected ?? fallback.cumulative_keys);
     const circuitName = typeof parsed.circuit_name === 'string' ? parsed.circuit_name : fallback.circuit_name;
-    const savedPurpose = purposeOfLayout(savedLongGroups.find((group) => groupCircuitId(group) === (targetCircuitId ?? groupCircuitId(savedLongGroups[0])))?.layout_version);
+    const savedCircuit = savedLongGroups.find((group) => groupCircuitId(group) === (targetCircuitId ?? groupCircuitId(savedLongGroups[0])));
+    const savedPurpose = purposeOfLayout(savedCircuit?.layout_version);
     const roles: Record<string, WriteGroupValueRole> = {};
     if (parsed.member_roles && typeof parsed.member_roles === 'object' && !Array.isArray(parsed.member_roles)) {
       for (const [key, role] of Object.entries(parsed.member_roles)) {
@@ -208,7 +209,8 @@ export function loadCircuitProfileLocalDraft(
       instantaneous_interval_input: typeof parsed.instantaneous_interval_input === 'string' ? parsed.instantaneous_interval_input : fallback.instantaneous_interval_input,
       cumulative_enabled: typeof parsed.cumulative_enabled === 'boolean' ? parsed.cumulative_enabled : fallback.cumulative_enabled,
       cumulative_interval_input: typeof parsed.cumulative_interval_input === 'string' ? parsed.cumulative_interval_input : fallback.cumulative_interval_input,
-      storage_mode: parsed.storage_mode === 'timescale' ? 'timescale' : 'plain',
+      storage_mode: savedCircuit?.storage_mode ?? (parsed.storage_mode === 'plain' || parsed.storage_mode === 'timescale' || parsed.storage_mode === 'native_monthly'
+        ? parsed.storage_mode : fallback.storage_mode),
       recreate_missing: typeof parsed.recreate_missing === 'boolean' ? parsed.recreate_missing : fallback.recreate_missing,
     };
   } catch {

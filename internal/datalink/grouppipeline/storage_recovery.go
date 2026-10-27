@@ -30,6 +30,7 @@ type StorageRecovery struct {
 	ledger       *recordingplan.Service
 	destinations Destinations
 	report       func(error)
+	sqlServerOps *sqlServerStorageRestoreTargetOps
 
 	snapshots sync.Map // groupdelivery.GroupKey -> *workspace.WriteGroupAppliedSnapshot (immutable per revision)
 
@@ -115,6 +116,9 @@ func (r *StorageRecovery) Restore(ctx context.Context, item groupdelivery.Outbox
 	if snap == nil {
 		return groupdelivery.RestoreDecision{}, nil
 	}
+	if target.Kind == schema.DatabaseConnectorKindSQLServer {
+		return r.restoreSQLServer(ctx, item, target, cause, snap)
+	}
 	group := snap.Group
 	dialect, ok := dialectName(target.Kind)
 	if !ok {
@@ -124,15 +128,36 @@ func (r *StorageRecovery) Restore(ctx context.Context, item groupdelivery.Outbox
 	if !ok {
 		return groupdelivery.RestoreDecision{}, nil
 	}
-	layout, err := workspace.LongStorageLayout(group, dialect)
-	if err != nil {
-		// The group's own mode cannot exist on this kind of destination.
-		return groupdelivery.RestoreDecision{Action: groupdelivery.RestoreBlock, Code: recordingplan.StorageCodeOwnerMismatch}, nil
+	scope := workspace.StorageScopeOf(group)
+	var layout *recordingplan.GroupSchemaLayout
+	var lineage *recordingplan.StorageLineage
+	var err error
+	if target.Kind == schema.DatabaseConnectorKindMySQL {
+		if target.DB == nil || !mysqlFrozenScopeMatches(item, snap) ||
+			!mysqlCapabilityMatchesDestination(target.MySQLCapability, item.Destination) ||
+			!mysqlCapabilityMatchesProof(target.MySQLCapability, snap.RuntimeLayout.MySQL) {
+			return groupdelivery.RestoreDecision{Action: groupdelivery.RestoreBlock, Code: recordingplan.StorageCodeRepairBlocked}, nil
+		}
+		layout, lineage, err = r.mysqlConfirmedFallbackLayout(ctx, scope, table, owner)
+		if err != nil {
+			return groupdelivery.RestoreDecision{}, err
+		}
+	} else {
+		resolved, layoutErr := workspace.LongStorageLayout(group, dialect)
+		if layoutErr != nil {
+			// The group's own mode cannot exist on this kind of destination.
+			return groupdelivery.RestoreDecision{Action: groupdelivery.RestoreBlock, Code: recordingplan.StorageCodeOwnerMismatch}, nil
+		}
+		layout = resolved
+	}
+	denial := r.denial(ctx, snap, item, table, dialect)
+	if lineage != nil && lineage.Confirmed() && lineage.ConfirmedDigest != group.Destination.SchemaDigest {
+		denial = &recordingplan.StorageDenial{Code: recordingplan.StorageCodeOwnerMismatch, Reason: recordingplan.StorageReasonConfirmationMissing}
 	}
 	request := recordingplan.StorageRestoreRequest{
-		Scope: workspace.StorageScopeOf(group), Dialect: dialect, ConnectorRevision: item.Destination.ConnectorRevision,
+		Scope: scope, Dialect: dialect, ConnectorRevision: item.Destination.ConnectorRevision,
 		TableName: table, OwnerColumn: owner, GroupID: group.ID, FallbackLayout: layout,
-		Deny: r.denial(ctx, snap, item, table, dialect),
+		Deny: denial,
 	}
 	release := r.lock(request.Scope)
 	defer release()
@@ -222,6 +247,10 @@ func dialectName(kind schema.DatabaseConnectorKind) (string, bool) {
 		return "sqlite", true
 	case schema.DatabaseConnectorKindPostgres:
 		return "postgres", true
+	case schema.DatabaseConnectorKindMySQL:
+		return "mysql", true
+	case schema.DatabaseConnectorKindSQLServer:
+		return string(dbtarget.SQLDialectSQLServer), true
 	}
 	return "", false
 }

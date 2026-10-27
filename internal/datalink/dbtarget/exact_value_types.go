@@ -11,10 +11,13 @@ import (
 
 // exactStrategy is how a declared SQL column stores one exact value type.
 type exactStrategy struct {
-	kind      exactStorage
-	precision int  // numeric precision; 0 with !bounded means unconstrained
-	scale     int  // numeric scale
-	bounded   bool // numeric(p,s) or varchar(n) declared with a limit
+	kind                      exactStorage
+	precision                 int  // numeric precision; 0 with !bounded means unconstrained
+	scale                     int  // numeric scale
+	bounded                   bool // numeric(p,s) or varchar(n) declared with a limit
+	mysql                     bool // MySQL maps declared-range failures to exact_value_unrepresentable
+	rangeErrorUnrepresentable bool // this dialect exposes declared-range failures as exact_value_unrepresentable
+	sqlServerHashID           bool // SQL Server CHAR(64) stores lowercase hexadecimal stable hash IDs only
 }
 
 type exactStorage int
@@ -72,6 +75,9 @@ func parseDeclaredType(declared string) (declaredType, error) {
 }
 
 func exactStrategyFor(dialect SQLDialect, declared string, typ measurement.ExactType) (exactStrategy, error) {
+	if dialect == SQLDialectSQLServer && typ == measurement.ExactText && sqlServerNvarcharMaxPattern.MatchString(strings.TrimSpace(declared)) {
+		return exactStrategy{kind: storageText, rangeErrorUnrepresentable: true}, nil
+	}
 	parsed, err := parseDeclaredType(declared)
 	if err != nil {
 		return exactStrategy{}, err
@@ -81,6 +87,10 @@ func exactStrategyFor(dialect SQLDialect, declared string, typ measurement.Exact
 		return sqliteStrategy(parsed, typ)
 	case SQLDialectPostgres:
 		return postgresStrategy(parsed, typ)
+	case SQLDialectMySQL:
+		return mysqlStrategy(parsed, typ)
+	case SQLDialectSQLServer:
+		return sqlServerStrategy(parsed, typ)
 	}
 	return exactStrategy{}, blockedf("unsupported SQL dialect")
 }

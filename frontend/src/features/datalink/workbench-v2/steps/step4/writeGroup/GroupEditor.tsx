@@ -6,6 +6,11 @@ import {
   useUpdateWriteGroupMutation,
   useWriteGroupReadinessQuery,
 } from '../../../../../../hooks/datalink/useStudioV2WriteGroups';
+import {
+  useStudioV2MySQLRecordingCapabilityQuery, useStudioV2SQLServerRecordingCapabilityQuery,
+} from '../../../../../../hooks/datalink/useStudioV2WorkspaceDatabase';
+import type { StudioV2MySQLRecordingCapability } from '../../../../../../types/studioV2MySQLRecordingCapability';
+import type { StudioV2SQLServerRecordingCapability } from '../../../../../../types/studioV2SQLServerRecordingCapability';
 import type { WriteGroup, WriteGroupStorageStrategy } from '../../../../../../types/studioV2WriteGroup';
 import { normalizeTypedEnvelope } from '../../../../../../utils/safeJson';
 import { getSafeErrorMessage } from '../../../../../../utils/typedErrors';
@@ -61,11 +66,58 @@ function destinationSaved(connector: DbConnector): boolean {
  * authority for readiness, so Apply follows the server's answer for the saved
  * revision and never the local checks alone.
  */
-export const GroupEditor: React.FC<GroupEditorProps> = ({
-  group: propGroup, workspaceId, workspaceRevision, connector, candidates, excluded, readonly, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart,
+export const GroupEditor: React.FC<GroupEditorProps> = (props) => {
+  const { connector } = props;
+  const kind = String(connector.kind).toLowerCase();
+  if (kind === 'mysql' && destinationSaved(connector)) {
+    return <SavedMySQLGroupEditor {...props} />;
+  }
+  if (kind === 'sqlserver' && destinationSaved(connector)) {
+    return <SavedSQLServerGroupEditor {...props} />;
+  }
+  return <GroupEditorContent {...props} />;
+};
+
+const SavedMySQLGroupEditor: React.FC<GroupEditorProps> = (props) => {
+  const { connector } = props;
+  const query = useStudioV2MySQLRecordingCapabilityQuery(
+    connector.connector_id ?? '', connector.identity_revision ?? '', true,
+  );
+  const capability = query.isError || query.isFetching ? undefined : query.data;
+  return <GroupEditorContent {...props} mysqlCapability={capability} />;
+};
+
+const SavedSQLServerGroupEditor: React.FC<GroupEditorProps> = (props) => {
+  const { connector } = props;
+  const query = useStudioV2SQLServerRecordingCapabilityQuery(
+    connector.connector_id ?? '', connector.identity_revision ?? '', true,
+  );
+  const capability = query.isError || query.isFetching ? undefined : query.data;
+  return <GroupEditorContent {...props} sqlserverCapability={capability} />;
+};
+
+type GroupEditorContentProps = GroupEditorProps & {
+  mysqlCapability?: StudioV2MySQLRecordingCapability;
+  sqlserverCapability?: StudioV2SQLServerRecordingCapability;
+};
+
+const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
+  group: propGroup, workspaceId, workspaceRevision, connector, candidates, excluded, readonly, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const saved = destinationSaved(connector);
+  const isMySQL = String(connector.kind).toLowerCase() === 'mysql';
+  const mysqlConnectorId = connector.connector_id ?? '';
+  const mysqlConnectorRevision = connector.identity_revision ?? '';
+  const mysqlTestWriteAvailable = !isMySQL || Boolean(saved && mysqlCapability &&
+    mysqlCapability.connector_id === mysqlConnectorId && mysqlCapability.connector_revision === mysqlConnectorRevision &&
+    mysqlCapability.connected && mysqlCapability.metadata_status === 'verified' && mysqlCapability.supports_group_test_write);
+  const isSQLServer = String(connector.kind).toLowerCase() === 'sqlserver';
+  const sqlserverConnectorId = connector.connector_id ?? '';
+  const sqlserverConnectorRevision = connector.identity_revision ?? '';
+  const sqlserverTestWriteAvailable = !isSQLServer || Boolean(saved && sqlserverCapability &&
+    sqlserverCapability.connector_id === sqlserverConnectorId && sqlserverCapability.connector_revision === sqlserverConnectorRevision &&
+    sqlserverCapability.connected && sqlserverCapability.metadata_status === 'verified' && sqlserverCapability.supports_group_test_write);
   // Keep the just-returned canonical group visible while the list query is
   // refetching. This prevents stale list data from making server-assigned
   // managed table/columns look dirty again.
@@ -196,9 +248,23 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
       : readiness.isLoading ? t('step4.group.apply_blocked_loading')
         : readiness.isError ? t('step4.group.apply_blocked_unknown')
           : readiness.data && !readiness.data.ready ? t('step4.group.apply_blocked_not_ready') : undefined;
+  const mysqlSchemaReady = !isMySQL || Boolean(group && readiness.data?.group_revision === group.revision &&
+    readiness.data.schema_ready && !readiness.isFetching && !readiness.isError);
+  const sqlserverSchemaReady = !isSQLServer || Boolean(group && readiness.data?.group_revision === group.revision &&
+    readiness.data.schema_ready && !readiness.isFetching && !readiness.isError);
+  const testWriteEnabled = Boolean(group) && !readonly && !dirty && destinationMatches && group?.status !== 'deleted' &&
+    mysqlTestWriteAvailable && mysqlSchemaReady && sqlserverTestWriteAvailable && sqlserverSchemaReady;
   const testBlocked = !group ? t('step4.group.test_write.blocked_unsaved')
     : dirty ? t('step4.group.test_write.blocked_dirty')
-      : !destinationMatches ? t('step4.group.test_write.blocked_destination') : undefined;
+      : !destinationMatches ? t('step4.group.test_write.blocked_destination')
+        : isMySQL && !mysqlTestWriteAvailable ? t('step4.group.test_write.blocked_capability')
+          : isMySQL && readiness.isError ? t('step4.group.test_write.blocked_readiness_unknown')
+            : isMySQL && (readiness.isLoading || readiness.isFetching) ? t('step4.group.test_write.blocked_readiness_loading')
+              : isMySQL && !mysqlSchemaReady ? t('step4.group.test_write.blocked_schema_not_ready')
+                : isSQLServer && !sqlserverTestWriteAvailable ? t('step4.group.test_write.blocked_sqlserver_capability')
+                  : isSQLServer && readiness.isError ? t('step4.group.test_write.blocked_readiness_unknown')
+                    : isSQLServer && (readiness.isLoading || readiness.isFetching) ? t('step4.group.test_write.blocked_readiness_loading')
+                      : isSQLServer && !sqlserverSchemaReady ? t('step4.group.test_write.blocked_schema_not_ready') : undefined;
 
   return (
     <div className="space-y-5 rounded-xl border border-slate-800 p-5" data-testid="group-editor">
@@ -222,7 +288,11 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
           {saved && !readonly && (
             <button
               type="button" className="underline" data-testid="group-use-current-destination"
-              onClick={() => set({ connector_id: connector.connector_id ?? '', connector_revision: connector.identity_revision ?? '', table_schema: connector.schema ?? '', table_name: connector.table ?? '' })}
+              onClick={() => set({
+                connector_id: connector.connector_id ?? '', connector_revision: connector.identity_revision ?? '',
+                table_schema: connector.schema ?? '',
+                table_name: group?.layout_version === 'managed_long_v1' && draft.storage_strategy === 'managed' ? '' : connector.table ?? '',
+              })}
             >
               {t('step4.group.editor.use_current_destination')}
             </button>
@@ -316,8 +386,14 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
             onChanged={onSaved} onConflict={() => setConflict(true)} onReviewScopedStart={onReviewScopedStart}
           />
           <GroupTestWritePanel
-            groupId={group.id} scopeKey={`${group.id}|${group.revision}|${workspaceRevision}`}
-            enabled={!readonly && !dirty && destinationMatches && group.status !== 'deleted'} disabledReason={readonly ? t('step4.group.test_write.blocked_readonly') : testBlocked}
+            groupId={group.id}
+            scopeKey={isMySQL
+              ? `${group.id}|${group.revision}|${workspaceRevision}|${mysqlCapability?.capability_revision ?? 'unavailable'}`
+              : isSQLServer
+                ? `${group.id}|${group.revision}|${workspaceRevision}|${sqlserverCapability?.capability_revision ?? 'unavailable'}`
+                : `${group.id}|${group.revision}|${workspaceRevision}`}
+            enabled={testWriteEnabled}
+            disabledReason={readonly ? t('step4.group.test_write.blocked_readonly') : testBlocked}
           />
         </>
       )}

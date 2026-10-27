@@ -198,6 +198,13 @@ type GroupSchemaLayout struct {
 	// Partition, when set, makes the new table an owned TimescaleDB hypertable.
 	// Absent for plain and wide layouts, so their stored digests stay unchanged.
 	Partition *GroupSchemaPartition `json:"partition,omitempty"`
+	// MySQL, when set, binds the layout to one backend-resolved MySQL family
+	// and version plus the storage engine and case-exact collation. It is nil
+	// for SQLite and PostgreSQL layouts, so their JSON and digests are unchanged.
+	MySQL *MySQLGroupSchemaOptions `json:"mysql,omitempty"`
+	// SQLServer, when set, binds the layout to SQL Server specific parameters
+	// including the explicit schema and case-exact collation.
+	SQLServer *SQLServerGroupSchemaOptions `json:"sqlserver,omitempty"`
 }
 
 const (
@@ -254,6 +261,8 @@ const (
 	SchemaTableActionAddColumns = "add_columns"
 	// SchemaTableActionUnchanged marks an existing compatible managed table.
 	SchemaTableActionUnchanged = "unchanged"
+	// SchemaTableActionCreateIndexes resumes a compatible MySQL table's indexes.
+	SchemaTableActionCreateIndexes = "create_indexes"
 )
 
 // SchemaPreviewTable summarizes what a preview will do to one managed table.
@@ -261,9 +270,16 @@ type SchemaPreviewTable struct {
 	Name    string   `json:"name"`
 	Action  string   `json:"action"`
 	Columns []string `json:"columns,omitempty"`
+	// Indexes bind independently applied MySQL steps. CatalogDigest also binds
+	// SQL Server's inspected object identity so a replacement invalidates confirmation.
+	Indexes       []GroupSchemaIndex `json:"indexes,omitempty"`
+	CatalogDigest string             `json:"catalog_digest,omitempty"`
 	// Partition shows, and binds into the operation's evidence, the time
 	// partitioning of a timescale table.
 	Partition *GroupSchemaPartition `json:"partition,omitempty"`
+	// SQLServerPartition shows optional native_monthly partition objects and
+	// their initial UTC boundaries.
+	SQLServerPartition *SQLServerPartitionPreview `json:"sqlserver_partition,omitempty"`
 }
 
 // IsExpired 檢查 token 是否過期。
@@ -279,6 +295,21 @@ func (t *SchemaPreviewToken) ScopeKey() string {
 		t.WorkspaceID, t.ConnectorID, t.Database, t.Schema, t.TablePrefix,
 	}
 	if t.GroupLayout != nil {
+		if t.GroupLayout.SQLServer != nil {
+			// Capability facts stay in the token digest; the lease continues to
+			// protect the same physical table when those facts change.
+			parts = append(parts, "sqlserver-managed-long-v1", t.GroupLayout.TableName, t.GroupLayout.OwnerColumn)
+			sum := sha256.Sum256([]byte(strings.Join(parts, "\x1f")))
+			return hex.EncodeToString(sum[:])
+		}
+		if t.GroupLayout.MySQL != nil {
+			// Capability facts remain bound by the token digest and manifest.
+			// The DDL lease must keep protecting the same physical target when
+			// those facts change, so it carries only the owned table identity.
+			parts = append(parts, "mysql-managed-long-v1", t.GroupLayout.TableName, t.GroupLayout.OwnerColumn)
+			sum := sha256.Sum256([]byte(strings.Join(parts, "\x1f")))
+			return hex.EncodeToString(sum[:])
+		}
 		// Group operations also include their exact target layout in the scope
 		// identity. Keep the legacy five-field key unchanged for old tokens.
 		layout, err := json.Marshal(t.GroupLayout)

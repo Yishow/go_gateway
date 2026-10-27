@@ -20,6 +20,7 @@ import {
   type CircuitPurpose,
 } from '../../state/circuitProfileBasic';
 import type { GroupCandidate } from '../../state/writeGroup/candidates';
+import { cloneWriteGroupExactRecordingSource } from '../../../../../utils/studioV2ExactRecordingSourceJson';
 
 export interface EnsureOrUpdateCircuitProfilesInput {
   workspaceId: string;
@@ -86,16 +87,19 @@ function carrySavedMemberMetadata(draft: WriteGroupDraft, existing: WriteGroup):
     members: draft.members.map((member) => {
       const saved = savedBySource.get(`${member.device_id}\0${member.point_id}\0${member.tag_id}`);
       if (!saved) return member;
-      if (saved.value_role === undefined && saved.source_value_type === undefined && saved.result_value_type === undefined) {
+      if (saved.value_role === undefined && saved.source_value_type === undefined && saved.result_value_type === undefined &&
+        saved.exact_recording_source === undefined) {
         return member;
       }
+      const savedMeasurementId = saved.exact_recording_source?.measurement_id ??
+        (instantaneous && saved.value_role === 'counter_raw' ? saved.measurement_id : undefined);
       return {
         ...member,
         ...(saved.value_role !== undefined ? { value_role: saved.value_role } : {}),
         ...(saved.source_value_type !== undefined ? { source_value_type: saved.source_value_type } : {}),
         ...(saved.result_value_type !== undefined ? { result_value_type: saved.result_value_type } : {}),
-        ...(instantaneous && saved.value_role === 'counter_raw' && saved.measurement_id !== undefined
-          ? { measurement_id: saved.measurement_id } : {}),
+        ...(savedMeasurementId !== undefined ? { measurement_id: savedMeasurementId } : {}),
+        ...(saved.exact_recording_source !== undefined ? { exact_recording_source: cloneWriteGroupExactRecordingSource(saved.exact_recording_source) } : {}),
       };
     }),
   };

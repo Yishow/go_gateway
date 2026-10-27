@@ -6,6 +6,8 @@ import type {
 } from '../types/datalink';
 import type { StudioV2RuntimeAppliedRecord } from '../types/studioV2RuntimeApply';
 import type { StudioV2DatabaseMetadata, StudioV2TableInspectionStatus } from '../types/studioV2DatabaseMetadata';
+import type { StudioV2MySQLRecordingCapability } from '../types/studioV2MySQLRecordingCapability';
+import type { StudioV2SQLServerRecordingCapability } from '../types/studioV2SQLServerRecordingCapability';
 import { studioV2DatalinkApi } from './studioV2Workspace';
 
 export interface StudioV2WorkspaceDatabaseConfigRequest {
@@ -40,6 +42,135 @@ export interface StudioV2WorkspaceSchemaGenerateResult {
   dry_run: boolean;
   statements: string[];
   executed: number;
+}
+
+function capabilityText(record: Record<string, unknown>, key: string): string {
+  const value = record[key];
+  if (typeof value !== 'string' || value.length > 512) throw new Error('MySQL capability response is malformed');
+  return value;
+}
+
+/** Parses the server projection and rejects any success bound to another saved connector revision. */
+export function parseStudioV2MySQLRecordingCapability(
+  value: unknown,
+  expectedConnectorId: string,
+  expectedConnectorRevision: string,
+): StudioV2MySQLRecordingCapability {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('MySQL capability response is malformed');
+  const record = value as Record<string, unknown>;
+  const connectorId = capabilityText(record, 'connector_id');
+  const connectorRevision = capabilityText(record, 'connector_revision');
+  const database = capabilityText(record, 'database');
+  const serverFamily = capabilityText(record, 'server_family');
+  const serverVersion = capabilityText(record, 'server_version');
+  const capabilityRevision = capabilityText(record, 'capability_revision');
+  const metadataStatus = capabilityText(record, 'metadata_status');
+  const booleanFields = [
+    'connected', 'transactional_engine', 'supports_managed_long', 'supports_native_partition',
+    'supports_group_test_write', 'supports_missing_repair',
+  ] as const;
+  if (connectorId !== expectedConnectorId || connectorRevision !== expectedConnectorRevision ||
+    !connectorId || !connectorRevision || !capabilityRevision ||
+    booleanFields.some((field) => typeof record[field] !== 'boolean') ||
+    !Array.isArray(record.reasons) || record.reasons.length > 64 ||
+    record.reasons.some((reason) => typeof reason !== 'string' || !reason || reason.length > 128)) {
+    throw new Error('MySQL capability response does not match the saved connector');
+  }
+  return {
+    connector_id: connectorId,
+    connector_revision: connectorRevision,
+    database,
+    server_family: serverFamily,
+    server_version: serverVersion,
+    capability_revision: capabilityRevision,
+    connected: record.connected as boolean,
+    metadata_status: metadataStatus,
+    transactional_engine: record.transactional_engine as boolean,
+    supports_managed_long: record.supports_managed_long as boolean,
+    supports_native_partition: record.supports_native_partition as boolean,
+    supports_group_test_write: record.supports_group_test_write as boolean,
+    supports_missing_repair: record.supports_missing_repair as boolean,
+    reasons: record.reasons as string[],
+  };
+}
+
+const SQLSERVER_PERMISSION_FIELDS = [
+  'verified', 'database_view_definition', 'schema_view_definition',
+  'create_table', 'alter_schema', 'select_schema', 'insert_schema', 'delete_schema', 'alter_any_dataspace',
+] as const;
+
+/** Parses the server projection for SQL Server and rejects any success bound to another saved connector revision. */
+export function parseStudioV2SQLServerRecordingCapability(
+  value: unknown,
+  expectedConnectorId: string,
+  expectedConnectorRevision: string,
+): StudioV2SQLServerRecordingCapability {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('SQL Server capability response is malformed');
+  const record = value as Record<string, unknown>;
+  const connectorId = capabilityText(record, 'connector_id');
+  const connectorRevision = capabilityText(record, 'connector_revision');
+  const database = capabilityText(record, 'database');
+  const schema = capabilityText(record, 'schema');
+  const serverVersion = capabilityText(record, 'server_version');
+  const serverEdition = capabilityText(record, 'server_edition');
+  const capabilityRevision = capabilityText(record, 'capability_revision');
+  const metadataStatus = capabilityText(record, 'metadata_status');
+
+  const engineEdition = record.engine_edition;
+  const compatibilityLevel = record.compatibility_level;
+  if (typeof engineEdition !== 'number' || !Number.isInteger(engineEdition) ||
+      typeof compatibilityLevel !== 'number' || !Number.isInteger(compatibilityLevel)) {
+    throw new Error('SQL Server capability response is malformed');
+  }
+
+  const booleanFields = [
+    'connected', 'supports_managed_long', 'supports_native_partition',
+    'supports_group_test_write', 'supports_missing_repair',
+  ] as const;
+
+  const permissions = record.permissions as Record<string, unknown> | undefined;
+  if (!permissions || typeof permissions !== 'object' || Array.isArray(permissions)) {
+    throw new Error('SQL Server capability response is malformed');
+  }
+
+  if (connectorId !== expectedConnectorId || connectorRevision !== expectedConnectorRevision ||
+    !connectorId || !connectorRevision || !capabilityRevision ||
+    booleanFields.some((field) => typeof record[field] !== 'boolean') ||
+    SQLSERVER_PERMISSION_FIELDS.some((field) => typeof permissions[field] !== 'boolean') ||
+    !Array.isArray(record.reasons) || record.reasons.length > 64 ||
+    record.reasons.some((reason) => typeof reason !== 'string' || !reason || reason.length > 128)) {
+    throw new Error('SQL Server capability response does not match the saved connector');
+  }
+
+  return {
+    connector_id: connectorId,
+    connector_revision: connectorRevision,
+    database,
+    schema,
+    server_version: serverVersion,
+    server_edition: serverEdition,
+    engine_edition: engineEdition,
+    compatibility_level: compatibilityLevel,
+    connected: record.connected as boolean,
+    metadata_status: metadataStatus,
+    permissions: {
+      verified: permissions.verified as boolean,
+      database_view_definition: permissions.database_view_definition as boolean,
+      schema_view_definition: permissions.schema_view_definition as boolean,
+      create_table: permissions.create_table as boolean,
+      alter_schema: permissions.alter_schema as boolean,
+      select_schema: permissions.select_schema as boolean,
+      insert_schema: permissions.insert_schema as boolean,
+      delete_schema: permissions.delete_schema as boolean,
+      alter_any_dataspace: permissions.alter_any_dataspace as boolean,
+    },
+    supports_managed_long: record.supports_managed_long as boolean,
+    supports_native_partition: record.supports_native_partition as boolean,
+    supports_group_test_write: record.supports_group_test_write as boolean,
+    supports_missing_repair: record.supports_missing_repair as boolean,
+    capability_revision: capabilityRevision,
+    reasons: record.reasons as string[],
+  };
 }
 
 const INSPECTION_STATUSES: ReadonlySet<string> = new Set(['exists', 'missing', 'forbidden', 'failed']);
@@ -99,6 +230,20 @@ export const studioV2WorkspaceDatabaseAPI = {
   async upsertTarget(pointId: string, request: StudioV2WorkspaceDatabaseTargetRequest): Promise<StudioV2RuntimeAppliedRecord<StudioV2WorkspaceDatabaseTargetRecord>> {
     const res = await studioV2DatalinkApi.put<APIResponse<StudioV2RuntimeAppliedRecord<StudioV2WorkspaceDatabaseTargetRecord>>>(`/studio-v2/workspace/database-targets/${pointId}`, request);
     return res.data.data!;
+  },
+
+  async getMySQLRecordingCapability(connectorId: string, expectedConnectorRevision: string): Promise<StudioV2MySQLRecordingCapability> {
+    const res = await studioV2DatalinkApi.get<APIResponse<unknown>>('/studio-v2/workspace/recording-plans/capabilities', {
+      params: { kind: 'mysql', connector_id: connectorId, expected_connector_revision: expectedConnectorRevision },
+    });
+    return parseStudioV2MySQLRecordingCapability(res.data.data, connectorId, expectedConnectorRevision);
+  },
+
+  async getSQLServerRecordingCapability(connectorId: string, expectedConnectorRevision: string): Promise<StudioV2SQLServerRecordingCapability> {
+    const res = await studioV2DatalinkApi.get<APIResponse<unknown>>('/studio-v2/workspace/recording-plans/capabilities', {
+      params: { kind: 'sqlserver', connector_id: connectorId, expected_connector_revision: expectedConnectorRevision },
+    });
+    return parseStudioV2SQLServerRecordingCapability(res.data.data, connectorId, expectedConnectorRevision);
   },
 
   async getMetadata(expectedConnectorRevision: string, groupScope?: { groupId: string; groupRevision: string }): Promise<StudioV2DatabaseMetadata> {

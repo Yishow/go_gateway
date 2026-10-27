@@ -113,6 +113,9 @@ func (h *StudioV2WorkspaceWriteGroupSchemaHandler) Confirm(c *gin.Context) {
 		return
 	}
 	op, outcome, err := h.ledger.ResolveSchemaApplyReplay(ctx, req.WorkspaceID, req.Token, req.OperationID)
+	if err == nil && mysqlSchemaResumeRequired(token, op) {
+		outcome = recordingplan.ClaimInProgress
+	}
 	if err == nil && outcome == recordingplan.ClaimCompleted {
 		err = h.validateCompletedReplay(ctx, id, req, saved.WorkspaceRevision, token, op)
 	}
@@ -123,16 +126,21 @@ func (h *StudioV2WorkspaceWriteGroupSchemaHandler) Confirm(c *gin.Context) {
 			token, err = h.ledger.ValidatePreviewTokenForApply(ctx, req.Token, scope)
 		}
 		if err == nil {
-			op, outcome, err = h.ledger.ApplySchemaPreview(ctx, token, recordingplan.SchemaApplyTarget{
-				Inspect: h.targetInspector(id, req, scope),
-				Execute: func(ctx context.Context, statements []string) (recordingplan.SchemaExecution, error) {
-					if err := h.checkScope(ctx, id, req, scope); err != nil {
-						return recordingplan.SchemaExecution{RolledBack: true}, err
-					}
-					execution, err := h.inspector.ExecuteSchemaStatements(ctx, scope.ConnectorID, scope.ConnectorRevision, scope.Schema, statements)
-					return recordingSchemaExecution(execution, err)
-				},
-			})
+			if token.GroupLayout != nil && token.GroupLayout.SQLServer != nil {
+				op, outcome, err = h.ledger.ApplySQLServerSchemaPreview(ctx, token, recordingplan.SQLServerSchemaApplyTarget{
+					Inspect: h.targetInspector(id, req, scope),
+					Execute: func(ctx context.Context, token *recordingplan.SchemaPreviewToken, statements []string) (recordingplan.SchemaExecution, error) {
+						return h.executeSQLServerGroupSchemaStatements(ctx, id, req, scope, token, statements)
+					},
+				})
+			} else {
+				op, outcome, err = h.ledger.ApplySchemaPreview(ctx, token, recordingplan.SchemaApplyTarget{
+					Inspect: h.targetInspector(id, req, scope),
+					Execute: func(ctx context.Context, statements []string) (recordingplan.SchemaExecution, error) {
+						return h.executeGroupSchemaStatements(ctx, id, req, scope, statements)
+					},
+				})
+			}
 		}
 	}
 	if err != nil {
@@ -204,6 +212,16 @@ func (h *StudioV2WorkspaceWriteGroupSchemaHandler) scope(ctx context.Context, id
 	if err != nil {
 		return scope, err
 	}
+	if scope.GroupLayout != nil && scope.GroupLayout.MySQL != nil {
+		// ManagedSchemaScope already resolved the saved revision through the
+		// readonly MySQL probe; the narrow inspector rechecks that binding.
+		return scope, nil
+	}
+	if scope.GroupLayout != nil && scope.GroupLayout.SQLServer != nil {
+		// ManagedSchemaScope resolved the saved SQL Server revision through
+		// the readonly capability probe.
+		return scope, nil
+	}
 	_, err = h.inspector.ValidateDestination(ctx, scope.ConnectorID, scope.ConnectorRevision)
 	return scope, err
 }
@@ -220,6 +238,12 @@ func (h *StudioV2WorkspaceWriteGroupSchemaHandler) checkScope(ctx context.Contex
 }
 
 func (h *StudioV2WorkspaceWriteGroupSchemaHandler) targetInspector(id string, req WriteGroupSchemaRequest, scope recordingplan.SchemaPreviewScope) recordingplan.TargetInspector {
+	if scope.GroupLayout != nil && scope.GroupLayout.MySQL != nil {
+		return h.mysqlGroupTargetInspector(id, req, scope)
+	}
+	if scope.GroupLayout != nil && scope.GroupLayout.SQLServer != nil {
+		return h.sqlServerGroupTargetInspector(id, req, scope)
+	}
 	return func(ctx context.Context, table string) (recordingplan.TargetTableInspection, error) {
 		if err := h.checkScope(ctx, id, req, scope); err != nil {
 			return recordingplan.TargetTableInspection{}, err
@@ -298,6 +322,8 @@ func renderGroupSchemaError(c *gin.Context, err error, op *recordingplan.SchemaO
 		renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "WRITE_GROUP_DESTINATION_INVALID", "the saved recording destination cannot be verified", false, "select_recording_destination")
 	case errors.Is(err, recordingplan.ErrTimescaleUnavailable):
 		renderTimescaleUnavailable(c, err)
+	case errors.Is(err, recordingplan.ErrSQLServerPartitionUnavailable):
+		renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "partition_unavailable", "native_monthly partition objects are unavailable; choose plain storage", false, "select_plain_storage")
 	case errors.Is(err, recordingplan.ErrIncompatibleExistingTable):
 		renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "RECORDING_SCHEMA_INCOMPATIBLE", "an existing managed table is incompatible or has unverified ownership", false, "select_new_managed_table_or_advanced_table")
 	case errors.Is(err, workspace.ErrWriteGroupValidation), errors.Is(err, workspace.ErrWriteGroupNotFound), errors.Is(err, workspace.ErrWriteGroupRevisionConflict), errors.Is(err, workspace.ErrSetupRevisionConflict), errors.Is(err, workspace.ErrWriteGroupSourceRevisionConflict):

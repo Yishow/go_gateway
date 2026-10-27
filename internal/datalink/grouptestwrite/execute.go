@@ -24,15 +24,24 @@ const (
 // progress is the service-owned detail saved in the operation ledger. It holds
 // only identifiers and safe codes.
 type progress struct {
-	Phase        string `json:"phase"`
-	Schema       string `json:"schema"`
-	OwnerColumn  string `json:"owner_column"`
-	OwnerValue   string `json:"owner_value"`
-	Table        string `json:"table"`
-	Strategy     string `json:"strategy"`
-	EffectKey    string `json:"effect_key"`
-	WriteOutcome string `json:"write_outcome,omitempty"`
-	WriteReason  string `json:"write_reason,omitempty"`
+	Phase            string            `json:"phase"`
+	Schema           string            `json:"schema"`
+	Table            string            `json:"table"`
+	OwnerColumn      string            `json:"owner_column"`
+	OwnerValue       string            `json:"owner_value"`
+	TableOwnerValue  string            `json:"table_owner_value,omitempty"`
+	ProvenanceColumn string            `json:"provenance_column,omitempty"`
+	WorkspaceID      string            `json:"workspace_id,omitempty"`
+	GroupID          string            `json:"group_id,omitempty"`
+	GroupRevision    string            `json:"group_revision,omitempty"`
+	SampleIDs        []string          `json:"sample_ids,omitempty"`
+	Strategy         string            `json:"strategy"`
+	EffectKey        string            `json:"effect_key"`
+	EffectKeys       []string          `json:"effect_keys,omitempty"`
+	EffectDigests    map[string]string `json:"effect_digests,omitempty"`
+	RecordIDs        []string          `json:"record_ids,omitempty"`
+	WriteOutcome     string            `json:"write_outcome,omitempty"`
+	WriteReason      string            `json:"write_reason,omitempty"`
 }
 
 func decodeProgress(detail string) progress {
@@ -175,6 +184,12 @@ func (s *Service) saveProgress(ctx context.Context, op *recordingplan.SchemaOper
 // returns the write outcome, or a complete terminal result when the operation
 // must end here (nothing was written, or the target state cannot be known).
 func (s *Service) writePhase(ctx context.Context, op *recordingplan.SchemaOperation, p *plan, at time.Time, dest *dbtarget.OpenedDestination, state *progress) (stepResult, *recordingplan.SchemaOperationResult, error) {
+	if p != nil && p.mysql != nil {
+		return s.writeMySQLPhase(ctx, op, p, at, dest, state)
+	}
+	if p != nil && p.sqlserver != nil {
+		return s.writeSQLServerPhase(ctx, op, p, at, dest, state)
+	}
 	owner := state.OwnerValue
 	if p == nil {
 		// Degraded reconciliation: the group changed after the preview, so the
@@ -372,6 +387,19 @@ func (s *Service) degradedWrite(ctx context.Context, op *recordingplan.SchemaOpe
 			CleanupStatus: CleanupNotAttempted, PayloadDigest: op.PayloadDigest, Detail: state.encode(),
 		}, nil
 	}
+	if len(state.RecordIDs) > 0 {
+		ref := mysqlLongTestRowRef(dest.Kind, *state)
+		stepCtx, cancel := s.stepContext(ctx)
+		rows, err := dbtarget.ReadGroupLongTestRows(stepCtx, dest.DB, ref, []string{mysqlTestRecordColumn})
+		cancel()
+		if err != nil || len(rows) == 0 {
+			return stepResult{}, &recordingplan.SchemaOperationResult{
+				Status: recordingplan.SchemaOperationUnknown, WriteOutcome: WriteUnknown, Reason: reasonWriteUnconfirmed,
+				CleanupStatus: CleanupNotAttempted, PayloadDigest: op.PayloadDigest, Detail: state.encode(),
+			}, nil
+		}
+		return stepResult{outcome: WriteUnverified, reason: reasonGroupChanged}, nil, nil
+	}
 	if state.OwnerColumn == "" {
 		return stepResult{}, &recordingplan.SchemaOperationResult{
 			Status: recordingplan.SchemaOperationUnknown, WriteOutcome: WriteUnknown, Reason: reasonWriteUnconfirmed,
@@ -397,6 +425,31 @@ func (s *Service) cleanupPhase(ctx context.Context, op *recordingplan.SchemaOper
 	state.Phase = phaseCleaning
 	if err := s.saveProgress(ctx, op, *state); err != nil {
 		return cleanupResult{status: CleanupUnknown, reason: reasonCleanupFailed}
+	}
+	if len(state.RecordIDs) > 0 {
+		ref := mysqlLongTestRowRef(dest.Kind, *state)
+		stepCtx, cancel := s.stepContext(ctx)
+		_, err := dbtarget.RemoveGroupLongTestRows(stepCtx, dest.DB, ref)
+		cancel()
+		switch {
+		case err == nil:
+		case errors.Is(err, dbtarget.ErrOwnedCleanupAmbiguous):
+			return cleanupResult{status: CleanupUnknown, reason: reasonCleanupAmbiguous}
+		case dbtarget.ClassifyInsertError(err) == dbtarget.InsertErrorTarget:
+			return cleanupResult{status: CleanupFailed, reason: reasonCleanupDenied}
+		default:
+			return cleanupResult{status: CleanupFailed, reason: reasonCleanupFailed}
+		}
+		checkCtx, cancelCheck := s.stepContext(ctx)
+		remaining, readErr := dbtarget.ReadGroupLongTestRows(checkCtx, dest.DB, ref, []string{mysqlTestRecordColumn})
+		cancelCheck()
+		if readErr != nil {
+			return cleanupResult{status: CleanupUnknown, reason: reasonReadbackFailed}
+		}
+		if len(remaining) > 0 {
+			return cleanupResult{status: CleanupFailed, reason: reasonCleanupRemaining}
+		}
+		return cleanupResult{status: CleanupCleaned}
 	}
 	ref := dbtarget.OwnedRowRef{
 		Kind: dest.Kind, SchemaName: state.Schema, TableName: state.Table, OwnerColumn: state.OwnerColumn, OwnerValue: state.OwnerValue,

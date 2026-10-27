@@ -111,9 +111,11 @@ func (e *GroupSampleError) Error() string { return "group sample refused: " + e.
 func (e *GroupSampleError) Unwrap() error { return e.Cause }
 
 type boundaryMember struct {
-	key     string
-	kind    measurement.ExactType
-	counter *aggregation.CounterBinding // set for a cumulative member
+	key                             string
+	kind                            measurement.ExactType
+	counter                         *aggregation.CounterBinding // set for a cumulative member
+	exactScale                      string                      // set only from the immutable exact recording source proof
+	sourceRevision, mappingRevision string                      // required frozen identities for a scaled source
 }
 
 // GroupBoundary is the opt-in typed-sample consumer for one applied group. It
@@ -163,6 +165,14 @@ func NewGroupBoundaryContext(ctx context.Context, cfg GroupBoundaryConfig) (*Gro
 		return nil, blocked(boundarySinkMissing)
 	case group.AppliedRevision == "" || group.Revision != group.AppliedRevision:
 		return nil, blocked(boundaryGroupNotApplied)
+	case group.StorageMode == workspace.WriteGroupStorageModeNativeMonthly &&
+		((cfg.Dialect != dbtarget.SQLDialectMySQL && cfg.Dialect != dbtarget.SQLDialectSQLServer) || group.EffectiveLayoutVersion() != workspace.WriteGroupLayoutManagedLongV1):
+		return nil, blocked(boundaryProfileUnsupported)
+	}
+	for _, member := range group.Members {
+		if member.ExactRecordingSource != nil && group.EffectiveLayoutVersion() != workspace.WriteGroupLayoutManagedLongV1 {
+			return nil, blocked(boundaryMemberMetadata)
+		}
 	}
 	if group.EffectiveLayoutVersion() == workspace.WriteGroupLayoutManagedLongV1 {
 		return newLongGroupBoundary(ctx, cfg)
@@ -245,6 +255,9 @@ func (b *GroupBoundary) AcceptSample(ctx context.Context, envelope measurement.S
 			b.assembler.Offer(sample, now) // counts the late sample; no state changes
 		}
 		return &GroupSampleError{Outcome: result.Outcome, Reason: result.Reason}
+	}
+	if err := b.validateDestinationSample(sample); err != nil {
+		return err
 	}
 	if b.ledger != nil {
 		// The ACK is the commit: refuse, and leave memory untouched, if it fails.

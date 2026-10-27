@@ -57,6 +57,7 @@ func NewStudioV2WorkspaceWriteGroupTestWriteHandler(workspaceSvc *workspace.Serv
 type WriteGroupTestWriteConfirmRequest struct {
 	Token       string `json:"token" binding:"required"`
 	OperationID string `json:"operation_id" binding:"required"`
+	Action      string `json:"action,omitempty"`
 }
 
 // WriteGroupTestWritePreviewResponse is the mutation-free preview.
@@ -152,11 +153,11 @@ func (h *StudioV2WorkspaceWriteGroupTestWriteHandler) Confirm(c *gin.Context) {
 		renderStudioV2WorkspaceValidationError(c, err)
 		return
 	}
-	h.confirm(c, c.Param("id"), req.Token, req.OperationID)
+	h.confirm(c, c.Param("id"), req.Token, req.OperationID, req.Action)
 }
 
-func (h *StudioV2WorkspaceWriteGroupTestWriteHandler) confirm(c *gin.Context, groupID, token, operationID string) {
-	token, operationID = strings.TrimSpace(token), strings.TrimSpace(operationID)
+func (h *StudioV2WorkspaceWriteGroupTestWriteHandler) confirm(c *gin.Context, groupID, token, operationID, action string) {
+	token, operationID, action = strings.TrimSpace(token), strings.TrimSpace(operationID), strings.TrimSpace(action)
 	if token == "" || operationID == "" {
 		renderStudioV2WorkspaceValidationError(c, errors.New("token and operation_id are required"))
 		return
@@ -165,7 +166,7 @@ func (h *StudioV2WorkspaceWriteGroupTestWriteHandler) confirm(c *gin.Context, gr
 	if !ok {
 		return
 	}
-	outcome, err := h.testWriter.Confirm(c.Request.Context(), ws, grouptestwrite.Confirmation{Token: token, OperationID: operationID, GroupID: groupID})
+	outcome, err := h.testWriter.Confirm(c.Request.Context(), ws, grouptestwrite.Confirmation{Token: token, OperationID: operationID, GroupID: groupID, Action: action})
 	if err != nil {
 		var op *recordingplan.SchemaOperation
 		if outcome != nil {
@@ -239,7 +240,7 @@ func (h *StudioV2WorkspaceWriteGroupTestWriteHandler) LegacyConfirm(c *gin.Conte
 		}
 		groupID = resolved
 	}
-	h.confirm(c, groupID, req.Token, req.OperationID)
+	h.confirm(c, groupID, req.Token, req.OperationID, "")
 }
 
 func (h *StudioV2WorkspaceWriteGroupTestWriteHandler) resolvePlan(c *gin.Context, planID string) (string, bool) {

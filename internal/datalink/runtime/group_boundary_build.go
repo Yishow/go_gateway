@@ -106,13 +106,17 @@ func assembleBoundary(ctx context.Context, cfg GroupBoundaryConfig, parts bounda
 	if !dedupeSupported(dedupe, cfg) {
 		return nil, blocked(boundaryDedupeUnsupport)
 	}
+	var recordKeyColumn string
+	if cfg.Dialect == dbtarget.SQLDialectMySQL || cfg.Dialect == dbtarget.SQLDialectSQLServer {
+		recordKeyColumn = group.RowPolicy.RecordKeyColumn
+	}
 	return &GroupBoundary{
 		assembler: assembler, interval: time.Duration(group.RowPolicy.IntervalSeconds) * time.Second,
 		notBefore: notBefore, until: until,
 		destination: groupdelivery.FrozenDestination{
 			Scope: scope, ConnectorID: group.Destination.ConnectorID, ConnectorRevision: group.Destination.ConnectorRevision,
 			Database: group.Destination.Database, TableSchema: group.Destination.TableSchema,
-			TableName: group.Destination.TableName, DedupeCapability: dedupe,
+			TableName: group.Destination.TableName, DedupeCapability: dedupe, RecordKeyColumn: recordKeyColumn,
 		},
 		ledger: cfg.Ledger, layout: parts.encoder, members: parts.members, workspaceID: group.WorkspaceID,
 		sink: cfg.Sink, clock: clock, onTickError: cfg.OnTickError,

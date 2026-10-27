@@ -92,6 +92,22 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupI
     }
   });
 
+  const handleRepairCleanup = () => run(async () => {
+    if (!preview || !operation) return;
+    const scope = scopeRef.current;
+    try {
+      const result = await confirmMutation.mutateAsync({
+        groupId,
+        confirmation: { token: preview.token, operation_id: preview.operation_id, action: 'cleanup_repair' },
+      });
+      if (scopeRef.current !== scope) return;
+      setOperation(result);
+    } catch (cause) {
+      if (scopeRef.current === scope && isUnconfirmed(cause)) setUnconfirmed(true);
+      throw cause;
+    }
+  });
+
   const handleCheck = () => run(async () => {
     const scope = scopeRef.current;
     const result = await operationQuery.refetch();
@@ -104,6 +120,13 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupI
 
   const busy = previewMutation.isPending || confirmMutation.isPending;
   const finished = operation !== null && operation.status !== 'pending' && operation.status !== 'running';
+  const canRepairCleanup =
+    finished &&
+    operation !== null &&
+    operation.write_outcome === 'written_verified' &&
+    (operation.cleanup_status === 'failed' || operation.cleanup_status === 'unknown') &&
+    preview !== null &&
+    preview.target.dialect === 'sqlserver';
 
   return (
     <section className="space-y-3 rounded-lg border border-slate-800 p-4" aria-labelledby={`group-test-write-${groupId}`} data-testid="group-test-write">
@@ -122,10 +145,11 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupI
       {preview && !operation && (
         <div className="space-y-2 text-xs text-slate-300" data-testid="group-test-write-preview-card">
           <p>{t('step4.group.test_write.target', { table: preview.target.table })}</p>
+          {preview.record_ids && <p data-testid="group-test-write-row-count">{t('step4.group.test_write.long_preview_count', { count: preview.record_ids.length })}</p>}
           <ul className="list-disc pl-5">
             {preview.values.map((entry) => <li key={entry.column}><span className="font-mono">{entry.column}</span> = {entry.value}</li>)}
           </ul>
-          <p>{t('step4.group.test_write.cleanup_note')}</p>
+          <p>{t(preview.record_ids ? 'step4.group.test_write.long_cleanup_note' : 'step4.group.test_write.cleanup_note')}</p>
           <button
             type="button" onClick={handleConfirm} disabled={!enabled || busy || unconfirmed}
             className="rounded bg-blue-600 px-3 py-1 text-xs text-white disabled:opacity-40" data-testid="group-test-write-confirm"
@@ -149,6 +173,14 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupI
             </>
           )}
         </dl>
+      )}
+      {canRepairCleanup && (
+        <button
+          type="button" onClick={handleRepairCleanup} disabled={!enabled || busy || unconfirmed}
+          className="rounded border border-amber-600 px-3 py-1 text-xs text-amber-200 hover:bg-amber-950/40 disabled:opacity-40" data-testid="group-test-write-cleanup-repair"
+        >
+          {t('step4.group.test_write.cleanup_repair')}
+        </button>
       )}
       {operation && !finished && (
         <button type="button" onClick={handleCheck} className="text-xs underline" data-testid="group-test-write-check">{t('step4.group.test_write.check')}</button>

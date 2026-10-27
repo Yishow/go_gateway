@@ -1,5 +1,6 @@
 import type { RecordingStartOperation, RecordingStartRequest } from '../../../../types/studioV2RecordingStart';
 import type { WriteGroup, WriteGroupDestinationDraft, WriteGroupDraft } from '../../../../types/studioV2WriteGroup';
+import { cloneWriteGroupExactRecordingSource } from '../../../../utils/studioV2ExactRecordingSourceJson';
 import { recordingProfileIntervalSeconds } from '../../../../utils/studioV2RecordingProfile';
 import type { GroupCandidate } from './writeGroup/candidates';
 
@@ -208,6 +209,7 @@ export function basicManagedGroupDraft(
       ...(member.value_role !== undefined ? { value_role: member.value_role } : {}),
       ...(member.source_value_type !== undefined ? { source_value_type: member.source_value_type } : {}),
       ...(member.result_value_type !== undefined ? { result_value_type: member.result_value_type } : {}),
+      ...(member.exact_recording_source !== undefined ? { exact_recording_source: cloneWriteGroupExactRecordingSource(member.exact_recording_source) } : {}),
     })),
     destination: {
       connector_id: group.destination.connector_id,

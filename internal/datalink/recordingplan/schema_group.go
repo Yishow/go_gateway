@@ -59,6 +59,32 @@ func ValidateGroupSchemaLayout(layout GroupSchemaLayout) (GroupSchemaLayout, err
 	if len(layout.Columns) == 0 {
 		return GroupSchemaLayout{}, fmt.Errorf("%w: no columns", ErrInvalidGroupSchemaLayout)
 	}
+	if layout.MySQL != nil && layout.SQLServer != nil {
+		return GroupSchemaLayout{}, fmt.Errorf("%w: layout cannot specify both mysql and sqlserver options", ErrInvalidGroupSchemaLayout)
+	}
+	if layout.MySQL != nil {
+		options, err := validateMySQLGroupSchemaOptions(*layout.MySQL)
+		if err != nil {
+			return GroupSchemaLayout{}, err
+		}
+		layout.MySQL = &options
+		if layout.Partition != nil {
+			return GroupSchemaLayout{}, fmt.Errorf("%w: mysql layouts require native_monthly evidence, not generic partition metadata", ErrInvalidGroupSchemaLayout)
+		}
+	}
+	if layout.SQLServer != nil {
+		options, err := validateSQLServerGroupSchemaOptions(*layout.SQLServer)
+		if err != nil {
+			return GroupSchemaLayout{}, err
+		}
+		if err := validateSQLServerPartitionEvidence(options.NativeMonthly, layout.TableName); err != nil {
+			return GroupSchemaLayout{}, err
+		}
+		layout.SQLServer = &options
+		if layout.Partition != nil {
+			return GroupSchemaLayout{}, fmt.Errorf("%w: sqlserver plain layout does not support generic partition metadata", ErrInvalidGroupSchemaLayout)
+		}
+	}
 
 	columns := make([]GroupSchemaColumn, len(layout.Columns))
 	seen := make(map[string]struct{}, len(layout.Columns))
@@ -74,7 +100,13 @@ func ValidateGroupSchemaLayout(layout GroupSchemaLayout) (GroupSchemaLayout, err
 			return GroupSchemaLayout{}, fmt.Errorf("%w: duplicate column %s", ErrInvalidGroupSchemaLayout, column.Name)
 		}
 		seen[key] = struct{}{}
-		if _, ok := allowedGroupSQLTypes[column.SQLType]; !ok {
+		allowedTypes := allowedGroupSQLTypes
+		if layout.MySQL != nil {
+			allowedTypes = allowedMySQLGroupSQLTypes
+		} else if layout.SQLServer != nil {
+			allowedTypes = allowedSQLServerGroupSQLTypes
+		}
+		if _, ok := allowedTypes[column.SQLType]; !ok {
 			return GroupSchemaLayout{}, fmt.Errorf("%w: unsupported SQL type %s", ErrInvalidGroupSchemaLayout, column.SQLType)
 		}
 		if column.PrimaryKey && column.Nullable {
@@ -82,8 +114,14 @@ func ValidateGroupSchemaLayout(layout GroupSchemaLayout) (GroupSchemaLayout, err
 		}
 		if column.Name == layout.OwnerColumn {
 			ownerFound = true
-			if column.SQLType != managedTextSQLType || column.Nullable || column.PrimaryKey {
-				return GroupSchemaLayout{}, fmt.Errorf("%w: owner column must be non-null TEXT", ErrInvalidGroupSchemaLayout)
+			ownerType := managedTextSQLType
+			if layout.MySQL != nil {
+				ownerType = mysqlOwnerSQLType
+			} else if layout.SQLServer != nil {
+				ownerType = sqlserverOwnerSQLType
+			}
+			if column.SQLType != ownerType || column.Nullable || column.PrimaryKey {
+				return GroupSchemaLayout{}, fmt.Errorf("%w: owner column must be non-null %s", ErrInvalidGroupSchemaLayout, ownerType)
 			}
 		}
 		columns[i] = column
@@ -92,6 +130,16 @@ func ValidateGroupSchemaLayout(layout GroupSchemaLayout) (GroupSchemaLayout, err
 		return GroupSchemaLayout{}, fmt.Errorf("%w: owner column is not in columns", ErrInvalidGroupSchemaLayout)
 	}
 	layout.Columns = columns
+	if layout.MySQL != nil && layout.MySQL.NativeMonthly != nil {
+		if err := validateMySQLNativeMonthlyGroupColumns(layout.Columns); err != nil {
+			return GroupSchemaLayout{}, err
+		}
+	}
+	if layout.SQLServer != nil && layout.SQLServer.NativeMonthly != nil {
+		if err := validateSQLServerNativeMonthlyGroupKey(layout.Columns); err != nil {
+			return GroupSchemaLayout{}, err
+		}
+	}
 	indexes, err := validateGroupSchemaIndexes(layout, seen)
 	if err != nil {
 		return GroupSchemaLayout{}, err
@@ -229,6 +277,18 @@ func GenerateGroupSchemaDDL(dialect string, layout GroupSchemaLayout) ([]string,
 	layout, err := ValidateGroupSchemaLayout(layout)
 	if err != nil {
 		return nil, err
+	}
+	if layout.MySQL != nil {
+		if normalizePreviewDialect(dialect) != dialectMySQL {
+			return nil, fmt.Errorf("%w: a mysql layout needs the mysql dialect", ErrUnsupportedSchemaDialect)
+		}
+		return generateMySQLGroupDDL(layout)
+	}
+	if layout.SQLServer != nil {
+		if normalizePreviewDialect(dialect) != dialectSQLServer {
+			return nil, fmt.Errorf("%w: a sqlserver layout needs the sqlserver dialect", ErrUnsupportedSchemaDialect)
+		}
+		return generateSQLServerGroupDDL(layout)
 	}
 	switch normalizePreviewDialect(dialect) {
 	case dialectSQLite, dialectPostgres:

@@ -45,7 +45,8 @@ func applyProfileColumns(group *WriteGroup, layout, kind, unit, mode sql.NullStr
 	if !supportedLayoutVersion(group.LayoutVersion) {
 		return fmt.Errorf("decode write-group layout version %q: %w", layout.String, ErrWriteGroupValidation)
 	}
-	if group.StorageMode != "" && group.StorageMode != WriteGroupStorageModePlain && group.StorageMode != WriteGroupStorageModeTimescale {
+	if group.StorageMode != "" && group.StorageMode != WriteGroupStorageModePlain &&
+		group.StorageMode != WriteGroupStorageModeTimescale && group.StorageMode != WriteGroupStorageModeNativeMonthly {
 		return fmt.Errorf("decode write-group storage mode %q: %w", mode.String, ErrWriteGroupValidation)
 	}
 	if !kind.Valid && !interval.Valid && !unit.Valid {

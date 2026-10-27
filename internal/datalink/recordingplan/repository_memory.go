@@ -172,10 +172,29 @@ func clonePreviewToken(token SchemaPreviewToken) SchemaPreviewToken {
 	token.Tables = slices.Clone(token.Tables)
 	for i := range token.Tables {
 		token.Tables[i].Columns = slices.Clone(token.Tables[i].Columns)
+		if token.Tables[i].SQLServerPartition != nil {
+			partition := *token.Tables[i].SQLServerPartition
+			partition.Partitions = slices.Clone(partition.Partitions)
+			token.Tables[i].SQLServerPartition = &partition
+		}
+		token.Tables[i].Indexes = slices.Clone(token.Tables[i].Indexes)
+		for j := range token.Tables[i].Indexes {
+			token.Tables[i].Indexes[j].Columns = slices.Clone(token.Tables[i].Indexes[j].Columns)
+		}
 	}
 	if token.GroupLayout != nil {
 		layout := *token.GroupLayout
 		layout.Columns = slices.Clone(layout.Columns)
+		if layout.MySQL != nil {
+			options := *layout.MySQL
+			options.NativeMonthly = cloneMySQLPartitionEvidence(options.NativeMonthly)
+			layout.MySQL = &options
+		}
+		if layout.SQLServer != nil {
+			options := *layout.SQLServer
+			options.NativeMonthly = cloneSQLServerPartitionEvidence(options.NativeMonthly)
+			layout.SQLServer = &options
+		}
 		token.GroupLayout = &layout
 	}
 	return token

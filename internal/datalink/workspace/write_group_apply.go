@@ -53,6 +53,11 @@ func (s *WriteGroupService) applyGroupInTx(ctx context.Context, tx *sql.Tx, reco
 	if err := s.repo.validate(ctx, tx, candidate); err != nil {
 		return nil, err
 	}
+	for i := range candidate.Members {
+		if !sameExactRecordingSource(candidate.Members[i].ExactRecordingSource, existing.Members[i].ExactRecordingSource) {
+			return nil, writeGroupRevisionConflict("write group exact recording source changed during verification")
+		}
+	}
 	if readiness.runtimeLayout != nil {
 		currentTypes, err := loadWriteGroupTagTypes(ctx, tx, s.repo.query, candidate)
 		if err != nil {

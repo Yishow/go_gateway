@@ -99,7 +99,7 @@ func (c *lostConn) ExecContext(ctx context.Context, query string, args []driver.
 	}
 	exec, ok := c.Conn.(driver.ExecerContext)
 	if !ok {
-		return nil, errors.New("inner connection cannot exec")
+		return nil, driver.ErrSkip
 	}
 	return exec.ExecContext(ctx, query, args)
 }
@@ -110,9 +110,26 @@ func (c *lostConn) QueryContext(ctx context.Context, query string, args []driver
 	}
 	queryer, ok := c.Conn.(driver.QueryerContext)
 	if !ok {
-		return nil, errors.New("inner connection cannot query")
+		return nil, driver.ErrSkip
 	}
 	return queryer.QueryContext(ctx, query, args)
+}
+
+func (c *lostConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+	if err := c.faults.rejected(query); err != nil {
+		return nil, err
+	}
+	if preparer, ok := c.Conn.(driver.ConnPrepareContext); ok {
+		return preparer.PrepareContext(ctx, query)
+	}
+	return c.Conn.Prepare(query)
+}
+
+func (c *lostConn) Prepare(query string) (driver.Stmt, error) {
+	if err := c.faults.rejected(query); err != nil {
+		return nil, err
+	}
+	return c.Conn.Prepare(query)
 }
 
 func (f *Faults) rejected(query string) error {

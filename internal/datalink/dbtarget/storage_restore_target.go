@@ -19,12 +19,22 @@ import (
 // missing or a column's type is not the expected one. Only such an error can
 // start a look at the destination catalog for managed storage. A refused
 // credential, a missing privilege, a violated constraint, a lock or a lost
-// connection never can. PostgreSQL is told apart by SQLSTATE; SQLite reports
-// all of these as its generic error code, so only there the statement error
-// text is read, and only to decide whether to look, never to decide a repair.
+// connection never can. SQL Server uses typed engine error numbers, PostgreSQL
+// uses SQLSTATE; SQLite reports all of these as its generic error code, so only
+// there the statement error text is read, and only to decide whether to look,
+// never to decide a repair.
 func IsSchemaShapeError(err error) bool {
 	if err == nil {
 		return false
+	}
+	if errors.Is(err, ErrMySQLManagedPhysicalMismatch) || errors.Is(err, ErrSQLServerManagedPhysicalMismatch) {
+		return true
+	}
+	if isSQLServerSchemaShapeError(err) {
+		return true
+	}
+	if number, ok := mysqlErrorNumber(err); ok {
+		return number == 1146 || number == 1054
 	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
@@ -49,6 +59,12 @@ func IsSchemaShapeError(err error) bool {
 func IsMissingRelationError(err error) bool {
 	if err == nil {
 		return false
+	}
+	if isSQLServerMissingRelationError(err) {
+		return true
+	}
+	if number, ok := mysqlErrorNumber(err); ok {
+		return number == 1146
 	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {

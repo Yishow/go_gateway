@@ -81,6 +81,7 @@ type MeasurementDefinition struct { //nolint:revive // Preserve the exported Go 
 	SemanticKind          SemanticKind      `json:"semantic_kind" db:"semantic_kind"`
 	NumericEncoding       string            `json:"numeric_encoding,omitempty" db:"numeric_encoding"`
 	CounterPolicy         *CounterPolicy    `json:"counter_policy,omitempty" db:"counter_policy"`
+	ExactRecordingScale   string            `json:"exact_recording_scale,omitempty" db:"exact_recording_scale"`
 	StateMap              map[string]string `json:"state_map,omitempty" db:"state_map"`
 	BitmaskLabels         map[int]string    `json:"bitmask_labels,omitempty" db:"bitmask_labels"`
 	CreatedAt             time.Time         `json:"created_at" db:"created_at"`
@@ -107,7 +108,10 @@ func (m *MeasurementDefinition) Validate() error {
 	if strings.TrimSpace(m.EquipmentID) == "" {
 		m.EquipmentID = m.DeviceID
 	}
-	return m.CounterPolicy.validateExactRollover(m.SemanticKind, m.NumericEncoding)
+	if err := m.CounterPolicy.validateExactRollover(m.SemanticKind, m.NumericEncoding); err != nil {
+		return err
+	}
+	return m.validateExactRecordingScale()
 }
 
 // SampleEnvelope 採集樣本的統一信封契約。

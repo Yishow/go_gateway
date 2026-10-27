@@ -81,6 +81,10 @@ type WriteGroupMember struct {
 	// new recording shape, verified against the real tag, and never change it.
 	SourceValueType schema.DataType       `json:"source_value_type,omitempty"`
 	ResultValueType measurement.ExactType `json:"result_value_type,omitempty"`
+	// ExactRecordingSource freezes confirmed counter scale, revisions, and
+	// rollover policy for scaled integer long members. Legacy and unscaled
+	// members leave it nil.
+	ExactRecordingSource *ExactRecordingSource `json:"exact_recording_source,omitempty"`
 }
 
 // WriteGroupDestination binds one group to a saved connector identity.
@@ -146,6 +150,9 @@ func cloneWriteGroup(group *WriteGroup) *WriteGroup {
 		}
 		if member.MaxAgeSeconds != nil {
 			cloned.Members[i].MaxAgeSeconds = common.Ptr(*member.MaxAgeSeconds)
+		}
+		if member.ExactRecordingSource != nil {
+			cloned.Members[i].ExactRecordingSource = cloneExactRecordingSource(member.ExactRecordingSource)
 		}
 	}
 	if group.RecordingProfile != nil {

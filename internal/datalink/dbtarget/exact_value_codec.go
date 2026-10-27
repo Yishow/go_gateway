@@ -15,8 +15,10 @@ import (
 type SQLDialect string
 
 const (
-	SQLDialectSQLite   SQLDialect = "sqlite"
-	SQLDialectPostgres SQLDialect = "postgres"
+	SQLDialectSQLite    SQLDialect = "sqlite"
+	SQLDialectPostgres  SQLDialect = "postgres"
+	SQLDialectMySQL     SQLDialect = "mysql"
+	SQLDialectSQLServer SQLDialect = "sqlserver"
 )
 
 // ErrExactSQLBlocked marks a value/type combination that cannot store the value exactly.
@@ -36,7 +38,7 @@ func EncodeExactValue(dialect SQLDialect, declared string, value measurement.Exa
 	}
 	switch v := value.Value().(type) {
 	case bool:
-		if dialect == SQLDialectPostgres {
+		if dialect == SQLDialectPostgres || dialect == SQLDialectSQLServer {
 			return v, nil
 		}
 		if v {
@@ -44,8 +46,18 @@ func EncodeExactValue(dialect SQLDialect, declared string, value measurement.Exa
 		}
 		return int64(0), nil
 	case string:
-		if strategy.bounded && utf8.RuneCountInString(v) > strategy.precision {
-			return nil, blockedf("text exceeds the declared column length")
+		if dialect == SQLDialectSQLServer && !utf8.ValidString(v) {
+			return nil, exactRangeBlocked(strategy, "text is not valid UTF-8")
+		}
+		if strategy.sqlServerHashID && !sqlServerStableHashID(v) {
+			return nil, exactRangeBlocked(strategy, "text is not a lowercase hexadecimal stable hash")
+		}
+		length := utf8.RuneCountInString(v)
+		if dialect == SQLDialectSQLServer {
+			length = sqlServerTextLength(v)
+		}
+		if strategy.bounded && length > strategy.precision {
+			return nil, exactRangeBlocked(strategy, "text exceeds the declared column length")
 		}
 		return v, nil
 	case int64:
@@ -67,7 +79,7 @@ func encodeUint64(strategy exactStrategy, v uint64) (driver.Value, error) {
 	switch strategy.kind {
 	case storageInteger:
 		if v > math.MaxInt64 {
-			return nil, blockedf("uint64 value exceeds the signed 64-bit column range")
+			return nil, exactRangeBlocked(strategy, "uint64 value exceeds the signed 64-bit column range")
 		}
 		return int64(v), nil
 	case storageNumeric:
@@ -84,10 +96,10 @@ func encodeDecimal(strategy exactStrategy, digits string) (driver.Value, error) 
 			return nil, err
 		}
 		if fractionDigits > strategy.scale {
-			return nil, blockedf("decimal would be rounded by the column scale")
+			return nil, exactRangeBlocked(strategy, "decimal would be rounded by the column scale")
 		}
 		if integerDigits > strategy.precision-strategy.scale {
-			return nil, blockedf("decimal exceeds the column precision")
+			return nil, exactRangeBlocked(strategy, "decimal exceeds the column precision")
 		}
 	}
 	return digits, nil
@@ -96,7 +108,8 @@ func encodeDecimal(strategy exactStrategy, digits string) (driver.Value, error) 
 // DecodeExactValue converts a database/sql readback value to the expected
 // exact type, rejecting shapes that could hide a lossy conversion.
 func DecodeExactValue(dialect SQLDialect, declared string, expected measurement.ExactType, raw any) (measurement.ExactValue, error) {
-	if _, err := exactStrategyFor(dialect, declared, expected); err != nil {
+	strategy, err := exactStrategyFor(dialect, declared, expected)
+	if err != nil {
 		return measurement.ExactValue{}, err
 	}
 	mismatch := func() (measurement.ExactValue, error) {
@@ -114,6 +127,10 @@ func DecodeExactValue(dialect SQLDialect, declared string, expected measurement.
 		}
 	case measurement.ExactText:
 		if s, ok := readbackString(raw); ok {
+			if (dialect == SQLDialectSQLServer && !utf8.ValidString(s)) ||
+				(strategy.sqlServerHashID && !sqlServerStableHashID(s)) {
+				return mismatch()
+			}
 			return measurement.NewText(s), nil
 		}
 	case measurement.ExactInt64:
@@ -125,7 +142,15 @@ func DecodeExactValue(dialect SQLDialect, declared string, expected measurement.
 			return measurement.NewUint64(uint64(v)), nil
 		}
 		if s, ok := readbackString(raw); ok {
-			if n, err := strconv.ParseUint(s, 10, 64); err == nil {
+			if dialect == SQLDialectMySQL {
+				if n, ok := mysqlUint64Readback(s); ok {
+					return measurement.NewUint64(n), nil
+				}
+			} else if dialect == SQLDialectSQLServer {
+				if n, ok := sqlServerUint64Readback(s); ok {
+					return measurement.NewUint64(n), nil
+				}
+			} else if n, err := strconv.ParseUint(s, 10, 64); err == nil {
 				return measurement.NewUint64(n), nil
 			}
 		}

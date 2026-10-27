@@ -196,17 +196,26 @@ func (r *SQLWriteGroupRepository) insertGroup(ctx context.Context, runner writeG
 		if member.MeasurementID != nil {
 			measurementID = *member.MeasurementID
 		}
+		var exactRecordingSource any
+		if member.ExactRecordingSource != nil {
+			payload, err := json.Marshal(member.ExactRecordingSource)
+			if err != nil {
+				return fmt.Errorf("encode exact recording source member %d: %w", memberIndex, err)
+			}
+			exactRecordingSource = string(payload)
+		}
 		_, err = runner.ExecContext(ctx, r.query(`
 			INSERT INTO write_group_members (
 				group_id, member_index, device_id, point_id, tag_id,
 				entity_key, source_revision, mapping_revision, measurement_id, target_column,
 				required, max_age_seconds, circuit_id, circuit_name,
-				value_role, source_value_type, result_value_type
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+				value_role, source_value_type, result_value_type, exact_recording_source
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 		`), group.ID, memberIndex, member.DeviceID, member.PointID, member.TagID,
 			member.EntityKey, member.SourceRevision, member.MappingRevision, measurementID, member.TargetColumn,
 			member.Required, member.MaxAgeSeconds, nullableText(member.CircuitID), nullableText(member.CircuitName),
-			nullableText(string(member.ValueRole)), nullableText(string(member.SourceValueType)), nullableText(string(member.ResultValueType)))
+			nullableText(string(member.ValueRole)), nullableText(string(member.SourceValueType)), nullableText(string(member.ResultValueType)),
+			exactRecordingSource)
 		if err != nil {
 			return fmt.Errorf("insert write-group member %d: %w", memberIndex, err)
 		}

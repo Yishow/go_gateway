@@ -101,6 +101,9 @@ var longColumnRoles = []struct {
 }
 
 func longColumnUsable(dialect SQLDialect, column ColumnInfo, role longColumnRole) bool {
+	if dialect == SQLDialectSQLServer {
+		return sqlServerLongColumnUsable(column, role)
+	}
 	exact := func(types ...measurement.ExactType) bool {
 		for _, typ := range types {
 			if _, err := exactStrategyFor(dialect, column.DataType, typ); err != nil {
@@ -113,8 +116,14 @@ func longColumnUsable(dialect SQLDialect, column ColumnInfo, role longColumnRole
 	case longText:
 		return isTextColumn(dialect, column)
 	case longTime:
+		if dialect == SQLDialectMySQL {
+			return mysqlLongDatetime6Column(column)
+		}
 		return bucketColumnKind(dialect, column) != bucketUnsupported
 	case longProvenanceRole:
+		if dialect == SQLDialectMySQL {
+			return mysqlLongProvenanceColumn(column)
+		}
 		return isProvenanceColumn(dialect, column)
 	case longSlotInt:
 		return exact(measurement.ExactInt64)
@@ -130,6 +139,16 @@ func longColumnUsable(dialect SQLDialect, column ColumnInfo, role longColumnRole
 		return exact(measurement.ExactDecimal)
 	}
 	return false
+}
+
+func mysqlLongDatetime6Column(column ColumnInfo) bool {
+	declared, err := parseDeclaredType(column.DataType)
+	return err == nil && declared.base == mysqlTypeDatetime && declared.hasP && declared.p == 6 && !declared.hasS
+}
+
+func mysqlLongProvenanceColumn(column ColumnInfo) bool {
+	declared, err := parseDeclaredType(column.DataType)
+	return err == nil && (declared.base == "JSON" || declared.base == "LONGTEXT")
 }
 
 // longSlotFor names the one value column an exact type is stored in ("" when none). uint64 and

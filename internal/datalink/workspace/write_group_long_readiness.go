@@ -94,14 +94,14 @@ func evaluateLongGroupInspection(group *WriteGroup, tagTypes map[string]schema.D
 }
 
 // longRuntimeSupported reports whether the runtime really writes this long
-// group: plain or explicitly selected timescale storage (the same typed table
-// and writer; a timescale table is only a hypertable) with an instantaneous or
+// group: plain, explicitly selected timescale, or native monthly storage (the
+// same typed table and writer) with an instantaneous or
 // cumulative profile, through the durable closure that also carries cumulative
 // baselines. Any other storage mode or profile stays blocked, so an unsupported
 // group never looks writable just because its schema was confirmed.
 func longRuntimeSupported(group *WriteGroup) bool {
 	if !group.isLongLayout() || group.RecordingProfile == nil ||
-		group.StorageMode != WriteGroupStorageModePlain && group.StorageMode != WriteGroupStorageModeTimescale {
+		group.StorageMode != WriteGroupStorageModePlain && group.StorageMode != WriteGroupStorageModeTimescale && group.StorageMode != WriteGroupStorageModeNativeMonthly {
 		return false
 	}
 	kind := group.RecordingProfile.Kind

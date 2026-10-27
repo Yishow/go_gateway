@@ -99,6 +99,12 @@ func (s *WriteGroupService) readinessOf(ctx context.Context, id string, content 
 		}
 	}
 	var inspection *dbtarget.TableInspection
+	if managedCanonical && snapshot.connectorKind == writeGroupConnectorKindMySQL {
+		return s.mysqlReadiness(ctx, id, content, snapshot, result)
+	}
+	if managedCanonical && snapshot.connectorKind == writeGroupConnectorKindSQLServer {
+		return s.sqlServerReadiness(ctx, id, content, snapshot, result)
+	}
 	var inspectErr error
 	if managedCanonical {
 		inspection, inspectErr = s.managedTableInspector.InspectTableAtRevision(ctx,

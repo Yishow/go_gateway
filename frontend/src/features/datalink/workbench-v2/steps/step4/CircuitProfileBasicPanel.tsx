@@ -1,8 +1,11 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useStudioV2WorkspaceMeasurementsQuery } from '../../../../../hooks/datalink/useStudioV2WorkspaceMeasurements';
+import { useStudioV2MySQLRecordingCapabilityQuery, useStudioV2SQLServerRecordingCapabilityQuery } from '../../../../../hooks/datalink/useStudioV2WorkspaceDatabase';
 import { useEnsureCircuitProfileMutation, useUpdateWriteGroupMutation, useWriteGroupsQuery } from '../../../../../hooks/datalink/useStudioV2WriteGroups';
 import type { MeasurementDefinition } from '../../../../../types/measurement';
+import type { StudioV2MySQLRecordingCapability } from '../../../../../types/studioV2MySQLRecordingCapability';
+import type { StudioV2SQLServerRecordingCapability } from '../../../../../types/studioV2SQLServerRecordingCapability';
 import type { WriteGroup, WriteGroupProfileKind } from '../../../../../types/studioV2WriteGroup';
 import { basicRecordingScopeKey, createBasicRecordingRequestId } from '../../state/basicRecording';
 import { safeBasicStartError } from '../../state/basicRecordingMessages';
@@ -16,6 +19,8 @@ import { destinationIsSaved } from './basicRecordingPanelHelpers';
 import { ensureOrUpdateCircuitProfileGroups } from './circuitProfileActions';
 import { CircuitProfileBatchEditor } from './CircuitProfileBatchEditor';
 import { CircuitProfileConfigFields } from './CircuitProfileConfigFields';
+import { MySQLRecordingCapabilityPanel } from './MySQLRecordingCapabilityPanel';
+import { SQLServerRecordingCapabilityPanel } from './SQLServerRecordingCapabilityPanel';
 import { CircuitProfileSchemaPreparation } from './CircuitProfileSchemaPreparation';
 import { extractDeviceCircuits, loadActiveCircuitId, saveActiveCircuitId } from '../../state/circuitProfileBatch';
 import { supportsWriteGroupKind } from './writeGroupCapabilities';
@@ -48,10 +53,79 @@ export interface CircuitProfileBasicPanelProps {
   onCircuitRequestDone?: () => void;
 }
 
-export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> = ({
+interface MySQLCapabilityQueryState {
+  data?: StudioV2MySQLRecordingCapability;
+  isLoading: boolean;
+  isFetching: boolean;
+  isError: boolean;
+  refetch: () => Promise<unknown>;
+}
+
+const EMPTY_MYSQL_CAPABILITY_QUERY: MySQLCapabilityQueryState = {
+  data: undefined, isLoading: false, isFetching: false, isError: false, refetch: async () => undefined,
+};
+
+interface SQLServerCapabilityQueryState {
+  data?: StudioV2SQLServerRecordingCapability;
+  isLoading: boolean;
+  isFetching: boolean;
+  isError: boolean;
+  refetch: () => Promise<unknown>;
+}
+
+const EMPTY_SQLSERVER_CAPABILITY_QUERY: SQLServerCapabilityQueryState = {
+  data: undefined, isLoading: false, isFetching: false, isError: false, refetch: async () => undefined,
+};
+
+export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> = (props) => {
+  const connector = props.state.db.connector;
+  const kind = String(connector.kind).toLowerCase();
+  if (kind === 'mysql' && destinationIsSaved(props.state)) {
+    return <SavedMySQLCircuitProfileBasicPanel {...props} />;
+  }
+  if (kind === 'sqlserver' && destinationIsSaved(props.state)) {
+    return <SavedSQLServerCircuitProfileBasicPanel {...props} />;
+  }
+  return <CircuitProfileBasicPanelContent
+    {...props}
+    mysqlCapabilityQuery={EMPTY_MYSQL_CAPABILITY_QUERY}
+    sqlserverCapabilityQuery={EMPTY_SQLSERVER_CAPABILITY_QUERY}
+  />;
+};
+
+const SavedMySQLCircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> = (props) => {
+  const connector = props.state.db.connector;
+  const capabilityQuery = useStudioV2MySQLRecordingCapabilityQuery(
+    connector.connector_id ?? '', connector.identity_revision ?? '', true,
+  );
+  return <CircuitProfileBasicPanelContent
+    {...props}
+    mysqlCapabilityQuery={capabilityQuery}
+    sqlserverCapabilityQuery={EMPTY_SQLSERVER_CAPABILITY_QUERY}
+  />;
+};
+
+const SavedSQLServerCircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> = (props) => {
+  const connector = props.state.db.connector;
+  const capabilityQuery = useStudioV2SQLServerRecordingCapabilityQuery(
+    connector.connector_id ?? '', connector.identity_revision ?? '', true,
+  );
+  return <CircuitProfileBasicPanelContent
+    {...props}
+    mysqlCapabilityQuery={EMPTY_MYSQL_CAPABILITY_QUERY}
+    sqlserverCapabilityQuery={capabilityQuery}
+  />;
+};
+
+type CircuitProfileBasicPanelContentProps = CircuitProfileBasicPanelProps & {
+  mysqlCapabilityQuery: MySQLCapabilityQueryState;
+  sqlserverCapabilityQuery: SQLServerCapabilityQueryState;
+};
+
+const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentProps> = ({
   state, workspaceId, readonly, readinessToken, settingsRevision, shareWorkspaceRevision, workspaceRevision: propWorkspaceRevision,
   onActivated, onContinueToRuntime, onOpenAdvanced, onOperationActiveChange, prepareOnly = false, onClose, legacyGroup, onEditLegacy,
-  deviceId, onSelectDevice, circuitRequest, onCircuitRequestDone,
+  deviceId, onSelectDevice, circuitRequest, onCircuitRequestDone, mysqlCapabilityQuery, sqlserverCapabilityQuery,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
@@ -81,9 +155,38 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
       table_schema: state.db.connector.schema ?? '', table_name: '', storage_strategy: 'managed' as const,
     } : undefined
   ), [state]);
-  const kindStr = String(state.db.connector.kind);
+  const kindStr = String(state.db.connector.kind).toLowerCase();
   const isPostgres = kindStr === 'postgres' || kindStr === 'postgresql';
-  const connectorKindSupported = supportsWriteGroupKind(state.db.connector.kind) || isPostgres;
+  const isMySQL = kindStr === 'mysql';
+  const isSQLServer = kindStr === 'sqlserver';
+  const mysqlConnectorId = state.db.connector.connector_id ?? '';
+  const mysqlConnectorRevision = state.db.connector.identity_revision ?? '';
+  const mysqlCapability = !destination || mysqlCapabilityQuery.isError || mysqlCapabilityQuery.isFetching
+    ? undefined : mysqlCapabilityQuery.data;
+  const mysqlCapabilityScopeMatches = Boolean(mysqlCapability && mysqlCapability.connector_id === mysqlConnectorId &&
+    mysqlCapability.connector_revision === mysqlConnectorRevision);
+  const mysqlMetadataVerified = Boolean(mysqlCapabilityScopeMatches && mysqlCapability?.connected &&
+    mysqlCapability.metadata_status === 'verified');
+  const mysqlServerVerified = Boolean(mysqlMetadataVerified && mysqlCapability?.transactional_engine);
+  const mysqlManagedLongAvailable = Boolean(mysqlServerVerified && mysqlCapability?.supports_managed_long);
+  const mysqlNativeMonthlyAvailable = Boolean(mysqlManagedLongAvailable && mysqlCapability?.supports_native_partition);
+  const mysqlTestWriteAvailable = Boolean(mysqlMetadataVerified && mysqlCapability?.supports_group_test_write);
+
+  const sqlserverConnectorId = state.db.connector.connector_id ?? '';
+  const sqlserverConnectorRevision = state.db.connector.identity_revision ?? '';
+  const sqlserverCapability = !destination || sqlserverCapabilityQuery.isError || sqlserverCapabilityQuery.isFetching
+    ? undefined : sqlserverCapabilityQuery.data;
+  const sqlserverCapabilityScopeMatches = Boolean(sqlserverCapability && sqlserverCapability.connector_id === sqlserverConnectorId &&
+    sqlserverCapability.connector_revision === sqlserverConnectorRevision);
+  const sqlserverMetadataVerified = Boolean(sqlserverCapabilityScopeMatches && sqlserverCapability?.connected &&
+    sqlserverCapability.metadata_status === 'verified');
+  const sqlserverManagedLongAvailable = Boolean(sqlserverMetadataVerified && sqlserverCapability?.supports_managed_long);
+  const sqlserverNativeMonthlyAvailable = Boolean(sqlserverManagedLongAvailable && sqlserverCapability?.supports_native_partition);
+  const sqlserverTestWriteAvailable = Boolean(sqlserverMetadataVerified && sqlserverCapability?.supports_group_test_write);
+
+  const nativeMonthlyAvailable = (isMySQL && mysqlNativeMonthlyAvailable) || (isSQLServer && sqlserverNativeMonthlyAvailable);
+  const connectorKindSupported = supportsWriteGroupKind(state.db.connector.kind) || isPostgres ||
+    (isMySQL && mysqlManagedLongAvailable) || (isSQLServer && sqlserverManagedLongAvailable);
 
   const { candidates: allCandidates } = React.useMemo(() => buildGroupCandidates(state), [state]);
   const deviceCandidates = React.useMemo(() => allCandidates.filter((c) => c.device_id === activeDeviceId), [allCandidates, activeDeviceId]);
@@ -176,7 +279,7 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
   const circuitId = deriveCircuitId(localDraft.circuit_name, localDraft.circuit_id);
   const currentGroups = savedLongGroups.filter((group) => groupCircuitId(group) === circuitId);
   const storageLocked = currentGroups.length > 0;
-  const effectiveStorageMode = storageLocked ? (currentGroups[0]?.storage_mode === 'timescale' ? 'timescale' : 'plain') : (isPostgres ? localDraft.storage_mode : 'plain');
+  const effectiveStorageMode = storageLocked ? (currentGroups[0]?.storage_mode ?? 'plain') : (isPostgres || isMySQL || isSQLServer ? localDraft.storage_mode : 'plain');
   // A saved circuit keeps the layout it was created with; only a new one lets the operator choose the purpose.
   const savedPurpose = purposeOfLayout(currentGroups[0]?.layout_version);
   const purpose = savedPurpose ?? localDraft.purpose;
@@ -311,11 +414,24 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
         <p className="font-semibold text-slate-200">{t('step4.basic.circuit.step_destination')}</p>
         <p className="mt-1 text-slate-400">{t('step4.basic.destination', { name: state.db.connector.name || state.db.connector.kind })} · {state.db.connector.name || state.db.connector.kind} ({state.db.connector.kind})</p>
       </div>
+      {isMySQL && <MySQLRecordingCapabilityPanel
+        capability={mysqlCapability}
+        isLoading={mysqlCapabilityQuery.isLoading || mysqlCapabilityQuery.isFetching}
+        isError={mysqlCapabilityQuery.isError}
+        onRetry={() => void mysqlCapabilityQuery.refetch()}
+      />}
+      {isSQLServer && <SQLServerRecordingCapabilityPanel
+        capability={sqlserverCapability}
+        isLoading={sqlserverCapabilityQuery.isLoading || sqlserverCapabilityQuery.isFetching}
+        isError={sqlserverCapabilityQuery.isError}
+        onRetry={() => void sqlserverCapabilityQuery.refetch()}
+      />}
       <CircuitProfileConfigFields
         workspaceId={workspaceId} workspaceRevision={effectiveWorkspaceRevision} readonly={isEffectiveLocked}
         savedDevices={savedDevices} activeDeviceId={activeDeviceId} onSelectDevice={selectDevice}
         deviceCandidates={deviceCandidates} localDraft={localDraft} updateLocalDraft={updateLocalDraft}
-        instParsed={instParsed} cumParsed={cumParsed} isPostgres={isPostgres} storageLocked={storageLocked}
+        instParsed={instParsed} cumParsed={cumParsed} isPostgres={isPostgres} isMySQL={isMySQL} isSQLServer={isSQLServer}
+        nativeMonthlyAvailable={nativeMonthlyAvailable} storageLocked={storageLocked}
         effectiveStorageMode={effectiveStorageMode} cumulativeCircuitMissing={cumulativeCircuitMissing} circuitId={circuitId}
         unconfirmedCounterStatuses={counterDefinitionsReady ? unconfirmedCounterStatuses : []} onCounterConfirmed={async () => { await measurementsQuery.refetch(); }}
         purpose={purpose} purposeLocked={Boolean(savedPurpose)} showPurpose={true} unavailableSources={unavailableSources} requiredPolicy={requiredPolicy} onOpenAdvanced={onOpenAdvanced} instantaneousReduction={instantaneousReduction} savedRoleKeys={savedRoleKeys} memberRole={roleOf}
@@ -341,6 +457,10 @@ export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> =
         preparedGroups={schemaGroups} dirtyGroupIds={dirtyGroupIds}
         disabled={!canPrepareOrStart || flow.unresolved} readonly={isEffectiveLocked} isPreparing={flow.busy || batchBusy || ensureProfile.isPending || updateGroup.isPending}
         destinationMatches={Boolean(destination)} onPrepare={() => void flow.prepare()} onApplied={() => void refreshSchema()} onRepairDestination={focusDestinationSettings} onOpenAdvanced={onOpenAdvanced}
+        isMySQL={isMySQL && !prepareOnly} mysqlTestWriteAvailable={mysqlTestWriteAvailable}
+        mysqlTestWriteCapabilityRevision={mysqlCapability?.capability_revision}
+        isSQLServer={isSQLServer && !prepareOnly} sqlserverTestWriteAvailable={sqlserverTestWriteAvailable}
+        sqlserverTestWriteCapabilityRevision={sqlserverCapability?.capability_revision}
       />
       {advancedGroups.length > 0 && <p data-testid="basic-recording-advanced-note" className="text-xs text-slate-400">{t('step4.basic.advanced_note', { count: advancedGroups.length })}</p>}
       {(errorMessage || flow.error) && <p role="alert" data-testid="circuit-profile-error" className="text-xs text-rose-300">{errorMessage || flow.error}</p>}

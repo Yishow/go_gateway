@@ -194,6 +194,16 @@ func normalizePreviewScope(scope SchemaPreviewScope) (SchemaPreviewScope, error)
 			return scope, err
 		}
 		scope.GroupLayout = &layout
+		if layout.MySQL != nil {
+			if err := validateMySQLPreviewScope(scope.Database, scope.Schema, scope.Dialect); err != nil {
+				return scope, err
+			}
+		}
+		if layout.SQLServer != nil {
+			if err := validateSQLServerPreviewScope(scope.Database, scope.Schema, scope.Dialect, *layout.SQLServer); err != nil {
+				return scope, err
+			}
+		}
 		// A group target owns its exact table name; the legacy prefix must not
 		// accidentally influence its statements or operation scope.
 		scope.TablePrefix = ""

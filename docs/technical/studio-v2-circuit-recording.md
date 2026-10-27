@@ -1,10 +1,11 @@
 # Studio V2 迴路記錄：設備快照、量測長表與已審核的切換
 
-本文件說明 `unify-device-recording-workflow` 在 Step 4 的操作與資料契約。群組的 API、revision 與回復背景見 [studio-v2-write-groups.md](studio-v2-write-groups.md)；規格以 `openspec/specs/` 中的 window-average-recording、write-group-row-semantics、guided-recording-workflow 及 datalink-workbench-v2-step4-database 為準。
+本文件說明 Step 4 的共同操作與資料契約，包含 `unify-device-recording-workflow` 與 `add-mysql-mariadb-circuit-recording` 的長表擴充。SQL Server 的長表實作、條件閘門與驗收證據見 [SQL Server 長表說明](studio-v2-sqlserver-circuit-recording.md)。群組的 API、revision 與回復背景見 [studio-v2-write-groups.md](studio-v2-write-groups.md)；規格以 `openspec/specs/` 中的 window-average-recording、write-group-row-semantics、guided-recording-workflow 及 datalink-workbench-v2-step4-database 為準。
 
 ## 範圍與限制
 
-- 本案涵蓋 SQLite、PostgreSQL plain，以及長表專用的 PostgreSQL TimescaleDB 模式；新寬表不支援 TimescaleDB。MySQL／MariaDB／SQL Server 由其他變更處理，不在本文件的寫入支援範圍。
+- 共同用途支援 SQLite、PostgreSQL plain，以及長表專用的 PostgreSQL TimescaleDB；新寬表不支援 TimescaleDB。MySQL／MariaDB 僅延伸受管長表，不新增其受管寬表；SQL Server 長表已完成 17.0.5035.5／compat 170（ARM 模擬環境）實測驗收，並依 16.x／160 與 17.x／170 條件判定能力閘門，未知或不符版本與未驗證 scope 維持關閉。
+- MySQL／MariaDB 已完成各別的本機 SQL、相容性與真瀏覽器驗收，受管長表僅對本批實測的完整版本配對開放。連線成功、driver 存在或其中一家通過，都不能替代另一家及各項操作的驗證。
 - 下方本機 SQL 與真瀏覽器證據，不代表 Windows、真 PLC、LAN 或正式資料庫驗收，也不提供效能保證。
 - service 模擬元件測試、正常 server 入口的真瀏覽器、SQL readback 與現場驗收是不同證據，不互相代替。
 
@@ -90,6 +91,31 @@ API 必須帶型態對應的單位；缺少或不符的單位、小數、非有�
 - **timescale**：只有 PostgreSQL 且必須明確選擇。後端先唯讀探測擴充、`by_range`／`create_hypertable` 功能與權限；準備時建立以非空 `bucket_start` 分區、含 `bucket_start` 與 `record_id` 複合唯一鍵的空 hypertable，預覽中顯示 7 天 chunk 間隔。它不會啟用或安裝擴充、不轉換已有資料或外來的表、不加入保留或壓縮工作，也不會悄悄退回 plain。能力不足時回傳 `timescale_unavailable` 並附修復動作；SQLite 會拒絕 timescale。
 - **recreate_missing**：確認資料表結構時顯示。啟用時，只在原本已確認的受管資料表被刪除時，用先前確認的版面重建，並以冪等方式重送尚未提交的效果。只重建結構與尚未提交的資料；已儲存的歷史不保證能恢復。一般 SQL 失敗、連線版本改變、沒有確認、外來或不相容的同名表、缺少擁有權證據或 Timescale 不可用時都不會重建（`schema_repair_blocked`、`storage_owner_mismatch`）。
 
+## MySQL／MariaDB 長表與明確試寫
+
+沿用 `mysql` 連線種類；Step 4 的家族、版本與各項可用操作，來自後端依已儲存連線及 revision 唯讀探測的結果。修改目的地後須等待新 scope 的結果；舊回應不能替新連線放行。未驗證、metadata 禁止或能力不可用時，依畫面說明修復，不會建立資料庫或降級 TLS。
+
+- **plain**：預設為普通 InnoDB 長表，與 SQLite／PostgreSQL 的共同 profile、窗口及 receipt 語意一致。
+- **native_monthly**：只有實際 capability 可用時才可明選。UTC `RANGE COLUMNS(bucket_start)` 初始保留當月及後續三個月，另有過去與 `MAXVALUE` 未來 catch-all；receipt 仍是普通表。已儲存的模式不因重新載入或能力暫時失效而退回 plain。
+- **有限維護**：只擴充有限未來窗；長期停機不逐月無界補齊，也不自動 DROP、TRUNCATE、MERGE 或實施歷史保留政策。維護失敗顯示 `partition_maintenance_blocked`；只有已驗證 catch-all 仍可安全接收時才繼續交付。
+- **部分 DDL**：逐步保存並查證實際 table／index／receipt；部分成功不表示整批 rollback。保留原 operation_id 查詢或恢復，外來同名物件不會被刪改。
+- **試寫**：先預覽，再明確確認 token 與 operation_id。長表按來源產生有界的測試列，預覽顯示筆數及第一筆範例；後端保存本次精確 record IDs、來源與 receipt digest，讀回後只清除此操作的資料及收據。表的 `gateway` 擁有權標記不會改成測試標記，也不能單獨當刪除條件。
+- **結果**：`written_verified` 只代表試寫及實際讀回相符，還要分別查看 cleanup。部分來源已提交時保留 partial／unknown 與清理結果；確認尚未寫入的失敗為 failed／not_attempted。完成操作重送回傳原結果，不重寫測試列。
+- **相容轉接**：legacy `recording-plans/test-write` 沿用目前共同安全流程；裸 plan_id、不完整確認、過期或其他 scope 的 token 都不會授權寫入。
+
+MySQL 的數值槽使用精確 `DECIMAL(65,30)`，時間為 UTC `DATETIME(6)`；來源識別大小寫必須保持。已確認整數 counter 若保存 `exact_recording_scale` 十進位文字，例如 `120000 → 120004` 配 `0.1`，只在 journal 前縮放一次，得到 raw `12000.0 → 12000.4` 及差值 `0.4`。SQL 可補足小數位，讀回比較保持精確數值，不經 float64；超出可表示範圍於接受前拒絕。更改 scale 開新 epoch，舊 outbox 不重算。
+
+MySQL／MariaDB 的唯讀查詢使用反引號及各自 SQL client 的參數綁定，例如：
+
+```sql
+SELECT bucket_start, record_id, status,
+       CAST(value_decimal AS CHAR) AS exact_raw,
+       CAST(delta_value AS CHAR) AS exact_delta
+FROM `<database>`.`<long_table>`
+WHERE workspace_id = ? AND tag_id = ?
+ORDER BY bucket_start;
+```
+
 ## 與既有寫入器共存
 
 既有的 wide 與 custom 群組保留原本的身分、版面、週期、完整性政策與執行方式，直到明確的已審核切換；Basic 與 Advanced 的切換、重新載入或檢視都不會新增或改寫任何設定。新長表或新寬表型態若要接手仍由執行中群組負責的同型態來源，一般「套用」會被拒絕（`cutover_required`，HTTP 409），必須走下面的切換；換 ID 或重送 Ensure 不能繞過既有 owner。
@@ -147,3 +173,17 @@ ORDER BY g.bucket_start;
 - 真瀏覽器：`frontend/tests/e2e/device-recording-workflow.spec.ts` 使用正常 server、loopback 模擬設備及自有 SQLite。已實跑 1024×720／1600×1000 的原生鍵盤、同名設備草稿／迴路隔離、32 來源收合／內捲動、counter 確認、兩用途、明確 DDL 確認及單一 scoped 開始。後端真提交後只中斷 HTTP 回應，切 B／reload 後重送原 request，核對同一操作／版本；三群組的 SQL、outbox、receipt 對同一 applied revision，並產出兩尺寸截圖。
 - 重跑 E2E 必須明確提供 `DEVICE_RECORDING_E2E_FIXTURE`：manifest 指定全新、自有、預先由正式 Step 1–3 API 設定的 workspace、兩設備、來源、SQLite 連線與資料庫路徑。初始記錄群組必須為空；未提供 fixture 會標示 NOT RUN，不會重設現有資料。不得指向正式 DB／設備。
 - 未完成的環境驗收：Windows、真 PLC、LAN 與正式資料庫。元件測試不替代真瀏覽器，SQL receipt 不替代外部 readback，以上也不代表現場驗收。
+
+### MySQL／MariaDB 本批證據
+
+- 受管 SQL 操作只接受本批實測的完整版本字串：MySQL `8.4.13`、MariaDB `11.4.13-MariaDB-ubu2404`。其他 patch／發行版後綴仍可顯示唯讀版本資訊，但不得以主次版號相同授權建表、試寫、恢復或交付。
+- `TestMariaDBCircuitIntegration` 獨立驗證普通表、精確 decimal、跨月分區、長期停機及故障注入；MySQL 的結果不替代 MariaDB。
+- `TestMySQLGroupProbeLifecycle` 已在 MySQL 8.4.13、MariaDB 11.4.13 的專用可丟棄 fixture，各自實跑 plain／native_monthly。經共同 API 預覽、確認、實際寫入、讀回及清理，核對原有 SQL 資料與 receipt 未改動；完成後重送沿用原操作結果。
+- `TestMySQLNativeExplicitReconfirmationAfterConnectorRevision` 已在兩家 fixture 驗證：連線 identity revision 改變後，以新能力 proof 明確重新確認，保留已授權的 7 個分區與 generation；舊自動恢復 proof 拒絕，已接受 outbox 不重算。單純開放已驗證操作不改變實體能力 hash，既有結構確認不因此失效。
+- 分區試寫在有限維護擴充後使用目前授權的實體布局，原確認的分區邊界與已接受 payload 不變。權限拒絕的部分案例使用真實 catalog 加故障注入，未宣稱已實測受限角色。
+- `TestMySQLDestinationCutover` 已在兩家 fixture 經真實 Update／Apply 與 SQL 讀回驗證：過期 CAS 拒絕，舊 outbox 的 payload bytes 與目的地欄位不變且排入原表，新版本只寫新表，累積 profile 保持原目的地。task 4.2 初驗使用僅移除開放閘門的 Go overlay；task 4.3 已以正常產品程式、無 overlay，在兩家 fixture 重跑通過。
+- 本批真瀏覽器已分別使用正常 macOS 後端、獨立設定資料庫、loopback Modbus 模擬器及兩家真實 SQL fixture，完成 plain／native_monthly 的明確建表、雙 profile 開始記錄及四組試寫。每家均讀回精確 raw `12000.0 → 12000.4`、首筆 baseline／NULL delta 與後續 delta `0.4`，並對上同一 applied revision 的 outbox、receipt 及實際 SQL 列；原生表各有 6 個預覽分區。這些是本機模擬來源與真實 SQL 證據，不代表 PLC／Windows／LAN／正式資料庫驗收。
+- 兩家各四次瀏覽器試寫均為 `written_verified`＋`cleaned`，與正常記錄列分開；schema 確認後若顯示結果待確認，使用「查詢操作狀態」查同一筆 operation，不重送建表。1024×720／1600×1000 截圖與 WebM 錄影已保存於本輪本機驗收附件。上方 unify 的 SQLite 瀏覽器證據不替代本批驗收。
+- 前端完整回應現在保留 backend 確認的精確來源 proof，包含可省略的 counter policy；試寫預覽僅對 `values[].value` 沿用 1024 字元上限，以容納實際 provenance，其餘欄位與通用 JSON 預設界線不變。
+- 受驗證的兩個完整 family／版本配對才開放 managed long、native partition、group test-write 與 missing repair；仍需實際連線、metadata、InnoDB 與目標 scope 查證。未知 patch／發行版與未確認 scope 保持拒絕；舊 custom／wide 能力契約不因新增 long 支援而放寬。
+- 本批最後檢查：受影響 12 個 Go packages tests／vet／lint、來源與分區 migration focused tests、前端 lint／280 檔 2057 tests／build 通過。前端 lint 有兩個既有 E2E console warning，build 保留 chunk size 提醒；其他資料庫 fixture 與實體平台未執行項目分列，未以 skip 當通過。

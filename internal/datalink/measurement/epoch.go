@@ -29,6 +29,9 @@ func CheckEpochTransition(oldDef, newDef MeasurementDefinition) (changed bool, e
 	if oldDef.SemanticKind != newDef.SemanticKind && oldDef.SemanticKind != "" && newDef.SemanticKind != "" {
 		reasons = append(reasons, fmt.Sprintf("semantic_kind changed from %s to %s", oldDef.SemanticKind, newDef.SemanticKind))
 	}
+	if !sameExactRecordingScale(oldDef.ExactRecordingScale, newDef.ExactRecordingScale) {
+		reasons = append(reasons, "exact recording scale changed")
+	}
 
 	// 檢查 CounterPolicy 變更
 	if (oldDef.CounterPolicy == nil && newDef.CounterPolicy != nil) ||

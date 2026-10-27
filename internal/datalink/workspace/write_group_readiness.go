@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"go-gateway/internal/datalink/dbtarget"
+	"go-gateway/internal/datalink/recordingplan"
 )
 
 var ErrWriteGroupReadinessUnavailable = errors.New("write group readiness unavailable")
@@ -30,17 +31,19 @@ type WriteGroupReadiness struct {
 	reductionGate bool
 	// counterIssues are the saved-measurement refusals of a cumulative group,
 	// read from the database after the group was loaded.
-	counterIssues     []ReadinessIssue
-	WorkspaceID       string           `json:"workspace_id"`
-	WorkspaceRevision string           `json:"workspace_revision"`
-	GroupID           string           `json:"group_id"`
-	GroupRevision     string           `json:"group_revision"`
-	AppliedRevision   string           `json:"applied_revision"`
-	ConfigReady       bool             `json:"config_ready"`
-	SchemaReady       bool             `json:"schema_ready"`
-	Ready             bool             `json:"ready"`
-	SchemaDigest      string           `json:"schema_digest,omitempty"`
-	Issues            []ReadinessIssue `json:"issues"`
+	counterIssues        []ReadinessIssue
+	WorkspaceID          string                                    `json:"workspace_id"`
+	WorkspaceRevision    string                                    `json:"workspace_revision"`
+	GroupID              string                                    `json:"group_id"`
+	GroupRevision        string                                    `json:"group_revision"`
+	AppliedRevision      string                                    `json:"applied_revision"`
+	ConfigReady          bool                                      `json:"config_ready"`
+	SchemaReady          bool                                      `json:"schema_ready"`
+	Ready                bool                                      `json:"ready"`
+	SchemaDigest         string                                    `json:"schema_digest,omitempty"`
+	PartitionMaintenance *WriteGroupPartitionMaintenanceReadiness  `json:"partition_maintenance,omitempty"`
+	SQLServerCurrent     *recordingplan.SQLServerPartitionEvidence `json:"sqlserver_current,omitempty"`
+	Issues               []ReadinessIssue                          `json:"issues"`
 }
 
 // WithTableInspector wires an optional read-only destination metadata reader.
@@ -71,6 +74,7 @@ func (s *WriteGroupService) newSnapshotReadiness(ctx context.Context, snapshot *
 	result := newWriteGroupReadiness(snapshot.record, snapshot.group)
 	result.reductionGate = recordingReductionUnsupported(snapshot.group, snapshot.tagTypes)
 	result.counterIssues = s.counterMeasurementIssues(ctx, snapshot.group, snapshot.tagTypes)
+	s.populateSQLServerPartitionMaintenanceReadiness(ctx, snapshot.connectorKind, snapshot.group, result)
 	return result
 }
 

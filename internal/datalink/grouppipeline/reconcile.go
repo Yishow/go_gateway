@@ -154,7 +154,8 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 		return nil, reasonDestinationRevision
 	}
 	dialect, ok := dialectFor(connector.Kind)
-	if !ok {
+	managedLongOnly := connector.Kind == schema.DatabaseConnectorKindMySQL || connector.Kind == schema.DatabaseConnectorKindSQLServer
+	if !ok || managedLongOnly && !longGroup(group) {
 		return nil, reasonDestinationUnsupported
 	}
 	frozen, err := p.loadRuntimeSnapshot(ctx, groupKey(snap))
@@ -162,7 +163,8 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 		return nil, reasonSnapshotUnavailable
 	}
 	if frozen != nil {
-		if !sameAppliedSnapshot(snap, frozen) || frozen.RuntimeLayout.Dialect != dialect {
+		if !sameAppliedSnapshot(snap, frozen) || frozen.RuntimeLayout == nil || frozen.RuntimeLayout.Dialect != dialect ||
+			managedLongOnly && !validLongRuntimeProof(group, frozen.RuntimeLayout) {
 			return nil, reasonSnapshotUnavailable
 		}
 		frozen.EndsAt = snap.EndsAt
@@ -248,9 +250,20 @@ func (p *Pipeline) buildFrozen(ctx context.Context, snap *workspace.WriteGroupAp
 	key := groupdelivery.GroupKey{WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: snap.AppliedRevision}
 	var counters map[string]runtime.CounterSource
 	if needsCounterSources(group) && p.deps.Counters != nil {
-		var err error
-		if counters, err = p.deps.Counters.CounterSources(ctx, group); err != nil {
-			return nil, reasonCounterSourcesUnavailable
+		// A scaled member carries its immutable counter proof in the applied
+		// group. Only legacy members consult editable definition repositories.
+		legacy := *group
+		legacy.Members = nil
+		for _, member := range group.Members {
+			if member.ExactRecordingSource == nil {
+				legacy.Members = append(legacy.Members, member)
+			}
+		}
+		if len(legacy.Members) > 0 {
+			var err error
+			if counters, err = p.deps.Counters.CounterSources(ctx, &legacy); err != nil {
+				return nil, reasonCounterSourcesUnavailable
+			}
 		}
 	}
 	boundary, err := runtime.NewGroupBoundaryContext(ctx, runtime.GroupBoundaryConfig{
@@ -277,6 +290,10 @@ func dialectFor(kind schema.DatabaseConnectorKind) (dbtarget.SQLDialect, bool) {
 		return dbtarget.SQLDialectSQLite, true
 	case schema.DatabaseConnectorKindPostgres:
 		return dbtarget.SQLDialectPostgres, true
+	case schema.DatabaseConnectorKindMySQL:
+		return dbtarget.SQLDialectMySQL, true
+	case schema.DatabaseConnectorKindSQLServer:
+		return dbtarget.SQLDialectSQLServer, true
 	}
 	return "", false
 }

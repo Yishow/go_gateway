@@ -6,13 +6,21 @@ import type {
   WriteGroupTestWriteStatus,
   WriteGroupTestWriteValue,
 } from '../types/studioV2WriteGroupTestWrite';
-import { boundedString, MAX_SAFE_JSON_ARRAY_LENGTH, MAX_SAFE_JSON_STRING_LENGTH } from './safeJson';
+import {
+  boundedString,
+  MAX_SAFE_JSON_ARRAY_LENGTH,
+  MAX_SAFE_JSON_DEPTH,
+  MAX_SAFE_JSON_STRING_LENGTH,
+  parseBoundedJson,
+} from './safeJson';
+import { WriteGroupResponseError } from './studioV2WriteGroupJson';
 
 type JsonRecord = Record<string, unknown>;
 
 const OUTCOMES = new Set<WriteGroupTestWriteOutcome>(['written_verified', 'written_unverified', 'failed', 'unknown']);
 const CLEANUPS = new Set<WriteGroupTestCleanupStatus>(['not_attempted', 'cleaned', 'failed', 'unknown']);
 const STATUSES = new Set<WriteGroupTestWriteStatus>(['pending', 'running', 'succeeded', 'partial', 'failed', 'unknown']);
+const MAX_TEST_WRITE_VALUE_LENGTH = 1024;
 
 /** The operation status a write outcome is allowed to end in. */
 const STATUS_FOR_OUTCOME: Record<WriteGroupTestWriteOutcome, WriteGroupTestWriteStatus> = {
@@ -33,7 +41,7 @@ function parseValues(value: unknown): WriteGroupTestWriteValue[] | null {
     if (!isRecord(item)) return null;
     const column = boundedString(item.column);
     const type = boundedString(item.type);
-    if (!column || !type || typeof item.value !== 'string' || item.value.length > 1024) return null;
+    if (!column || !type || typeof item.value !== 'string' || item.value.length > MAX_TEST_WRITE_VALUE_LENGTH) return null;
     values.push({ column, type, value: item.value });
   }
   return values;
@@ -62,14 +70,48 @@ export function parseWriteGroupTestWritePreview(value: unknown): WriteGroupTestW
     typeof value.dedupe !== 'string' || typeof value.target.database !== 'string' || typeof value.target.schema !== 'string') {
     return null;
   }
-  // The owner marker is the only thing cleanup may match, so it must be what the preview lists for that column.
+  let recordIds: string[] | undefined;
+  if (value.record_ids !== undefined) {
+    if (!Array.isArray(value.record_ids) || value.record_ids.length === 0 || value.record_ids.length > MAX_SAFE_JSON_ARRAY_LENGTH ||
+      !value.record_ids.every((id: unknown): id is string => typeof id === 'string' && /^[0-9a-f]{64}$/.test(id)) ||
+      new Set(value.record_ids).size !== value.record_ids.length) return null;
+    recordIds = value.record_ids;
+  }
+  const firstRecordId = recordIds?.[0];
+  if (dialect === 'mysql' && (!recordIds || !values.some((entry) => entry.column === 'record_id' && entry.value === firstRecordId))) return null;
+  // The marker must match the actual listed row. Long-table cleanup is bound
+  // separately to exact operation record IDs, never to the table owner alone.
   if (!values.some((entry) => entry.column === ownerColumn && entry.value === ownerValue)) return null;
   return {
     token, operation_id: operationId, action: 'test_write', group_id: groupId, group_revision: groupRevision,
     expires_at: expiresAt,
     target: { connector_id: connectorId, dialect, database: value.target.database, schema: value.target.schema, table },
     owner_column: ownerColumn, owner_value: ownerValue, dedupe: value.dedupe, values, cleanup,
+    ...(recordIds ? { record_ids: recordIds } : {}),
   };
+}
+
+function testWritePreviewStringLengthLimit(path: readonly (string | number)[]): number | undefined {
+  return path.length === 4 && path[0] === 'data' && path[1] === 'values' &&
+    typeof path[2] === 'number' && path[3] === 'value'
+    ? MAX_TEST_WRITE_VALUE_LENGTH : undefined;
+}
+
+/** Parses the preview envelope with its one existing larger string bound kept path-specific. */
+export function parseWriteGroupTestWritePreviewAPIData(value: unknown): WriteGroupTestWritePreview {
+  const bounded = parseBoundedJson(value, MAX_SAFE_JSON_DEPTH, testWritePreviewStringLengthLimit);
+  if (!isRecord(bounded) || typeof bounded.success !== 'boolean') {
+    throw new WriteGroupResponseError('write-group test write preview', bounded);
+  }
+  if (!bounded.success) {
+    throw new WriteGroupResponseError('write-group test write preview', bounded, 'failed');
+  }
+  if (!Object.prototype.hasOwnProperty.call(bounded, 'data')) {
+    throw new WriteGroupResponseError('write-group test write preview', bounded);
+  }
+  const parsed = parseWriteGroupTestWritePreview(bounded.data);
+  if (parsed === null) throw new WriteGroupResponseError('write-group test write preview', bounded);
+  return parsed;
 }
 
 function optionalCode(value: JsonRecord, key: string): string | undefined | null {

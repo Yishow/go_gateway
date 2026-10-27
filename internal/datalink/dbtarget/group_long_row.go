@@ -119,14 +119,15 @@ type longWindowProvenance struct {
 // and each member's exact type against its value slot, returning all blocking
 // issues at once.
 func NewLongRowLayout(spec LongRowSpec) (*LongRowLayout, []LayoutIssue) {
-	if spec.Dialect != SQLDialectSQLite && spec.Dialect != SQLDialectPostgres {
+	if spec.Dialect != SQLDialectSQLite && spec.Dialect != SQLDialectPostgres && spec.Dialect != SQLDialectMySQL && spec.Dialect != SQLDialectSQLServer {
 		return nil, []LayoutIssue{{Code: issueUnsupportedDialect}}
 	}
 	columns := make(map[string]ColumnInfo, len(spec.Columns))
 	for _, column := range spec.Columns {
 		columns[strings.ToLower(column.Name)] = column
 	}
-	var issues []LayoutIssue
+	issues := validateMySQLLongIdentity(spec)
+	issues = append(issues, validateSQLServerLongIdentity(spec)...)
 	for _, want := range longColumnRoles {
 		column, ok := columns[want.name]
 		if !ok {
@@ -175,6 +176,9 @@ func (l *LongRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error) 
 	if len(outcome.Members) != 1 {
 		return EncodedRow{}, &GroupRowError{Code: rowErrMemberMissing}
 	}
+	if l.spec.Dialect == SQLDialectSQLServer && !outcome.BucketStart.Equal(outcome.BucketStart.Truncate(time.Microsecond)) {
+		return EncodedRow{}, &GroupRowError{Code: rowErrSQLValueBlock, Column: longColBucketStart}
+	}
 	result := outcome.Members[0]
 	member, ok := l.members[result.MemberKey]
 	if !ok {
@@ -188,6 +192,9 @@ func (l *LongRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error) 
 	encoded := EncodedRow{
 		RecordID: outcome.RecordID, EffectKey: outcome.EffectKey, EntityKey: outcome.EntityKey,
 		BucketStart: windowStart.UTC(),
+	}
+	if l.spec.Dialect == SQLDialectSQLServer {
+		encoded.BucketStart = encoded.BucketStart.Truncate(time.Microsecond)
 	}
 	values := map[string]driver.Value{}
 	if result.Usable() {
@@ -255,7 +262,7 @@ func (l *LongRowLayout) instant(column string, at time.Time) driver.Value {
 		return nil
 	}
 	at = at.UTC().Truncate(time.Microsecond)
-	if bucketColumnKind(l.spec.Dialect, l.columns[column]) == bucketTimestamp {
+	if l.spec.Dialect == SQLDialectMySQL || l.spec.Dialect == SQLDialectSQLServer || bucketColumnKind(l.spec.Dialect, l.columns[column]) == bucketTimestamp {
 		return at
 	}
 	return at.Format(longTimeText)

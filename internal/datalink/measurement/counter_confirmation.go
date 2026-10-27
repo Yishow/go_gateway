@@ -42,6 +42,9 @@ func ConfirmCounter(def MeasurementDefinition) CounterConfirmation {
 	if def.CounterPolicy.validateExactRollover(def.SemanticKind, def.NumericEncoding) != nil {
 		return CounterUnconfirmed
 	}
+	if def.validateExactRecordingScale() != nil {
+		return CounterUnconfirmed
+	}
 	for _, part := range []string{def.ID, def.DefinitionRevision, def.SourceBindingRevision, def.SeriesEpoch, def.Unit} {
 		if strings.TrimSpace(part) == "" {
 			return CounterUnconfirmed

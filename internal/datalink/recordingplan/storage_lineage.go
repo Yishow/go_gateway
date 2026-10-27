@@ -149,6 +149,16 @@ type StorageConfirmation struct {
 // confirmation clears a blocked repair state, because the table was just
 // checked against the layout again.
 func RecordStorageConfirmation(ctx context.Context, q DBTX, scope StorageScope, c StorageConfirmation, now time.Time) error {
+	if c.Layout.MySQL != nil {
+		return recordMySQLStorageConfirmation(ctx, q, scope, c, now)
+	}
+	if c.Layout.SQLServer != nil {
+		return recordSQLServerStorageConfirmation(ctx, q, scope, c, now)
+	}
+	return recordStorageConfirmation(ctx, q, scope, c, now)
+}
+
+func recordStorageConfirmation(ctx context.Context, q DBTX, scope StorageScope, c StorageConfirmation, now time.Time) error {
 	layout, err := ValidateGroupSchemaLayout(c.Layout)
 	if err != nil {
 		return err
@@ -172,13 +182,25 @@ func RecordStorageConfirmation(ctx context.Context, q DBTX, scope StorageScope, 
 			append(scopeArgs(scope), string(encoded), c.ConnectorRevision, c.OperationID, c.VerifiedDigest, current.Generation)...); err != nil {
 			return fmt.Errorf("record recreated storage: %w", err)
 		}
-		return recordStorageEvent(ctx, q, scope, current.Generation+1, c.GroupID, StorageEventRecreatedByConfirm, "", "table-created-again", c.OperationID, timestamp)
+		if err := recordStorageEvent(ctx, q, scope, current.Generation+1, c.GroupID, StorageEventRecreatedByConfirm, "", "table-created-again", c.OperationID, timestamp); err != nil {
+			return err
+		}
+		if layout.MySQL != nil && layout.MySQL.NativeMonthly != nil {
+			return resetMySQLNativePartitionSidecar(ctx, q, scope, *current.Layout, layout, current.ConnectorRevision, c.ConnectorRevision, current.Generation, current.Generation+1, c.OperationID, now)
+		}
+		return nil
 	}
 	if _, err := q.ExecContext(ctx, numberedPlaceholders(`UPDATE write_group_storage_scopes SET confirmed_layout = $7,
 		confirmed_connector_revision = $8, confirmed_operation_id = $9, confirmed_digest = $10, repair_state = '', repair_reason = ''
 		WHERE `+storageScopeWhere),
 		append(scopeArgs(scope), string(encoded), c.ConnectorRevision, c.OperationID, c.VerifiedDigest)...); err != nil {
 		return fmt.Errorf("record storage confirmation: %w", err)
+	}
+	if current.Confirmed() && layout.MySQL != nil && layout.MySQL.NativeMonthly != nil {
+		if err := rebindMySQLNativePartitionSidecar(ctx, q, scope, *current.Layout, layout,
+			current.ConnectorRevision, c.ConnectorRevision, current.Generation, c.OperationID, now); err != nil {
+			return err
+		}
 	}
 	return recordStorageEvent(ctx, q, scope, current.Generation, c.GroupID, StorageEventConfirmed, "", "", c.OperationID, timestamp)
 }
@@ -188,6 +210,35 @@ func RecordStorageConfirmation(ctx context.Context, q DBTX, scope StorageScope, 
 // generation, so a repeat of the same completion is harmless. The returned
 // bool says whether this call applied it.
 func RecordStorageReconstruction(ctx context.Context, q DBTX, scope StorageScope, fromGeneration int, operationID, groupID string, now time.Time) (bool, error) {
+	if db, ok := q.(*sql.DB); ok && scope.StorageMode == mysqlPartitionStorageMode {
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			return false, fmt.Errorf("begin mysql storage reconstruction: %w", err)
+		}
+		changed, err := recordStorageReconstruction(ctx, tx, scope, fromGeneration, operationID, groupID, now)
+		if err != nil || !changed {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				err = errors.Join(err, fmt.Errorf("rollback mysql storage reconstruction: %w", rollbackErr))
+			}
+			return changed, err
+		}
+		if err := tx.Commit(); err != nil {
+			return false, fmt.Errorf("commit mysql storage reconstruction: %w", err)
+		}
+		return true, nil
+	}
+	return recordStorageReconstruction(ctx, q, scope, fromGeneration, operationID, groupID, now)
+}
+
+func recordStorageReconstruction(ctx context.Context, q DBTX, scope StorageScope, fromGeneration int, operationID, groupID string, now time.Time) (bool, error) {
+	var lineage *StorageLineage
+	if scope.StorageMode == mysqlPartitionStorageMode {
+		var err error
+		lineage, err = ReadStorageLineage(ctx, q, scope)
+		if err != nil {
+			return false, fmt.Errorf("read storage lineage for reconstruction: %w", err)
+		}
+	}
 	timestamp := now.UTC().Format(storageLineageTimeLayout)
 	result, err := q.ExecContext(ctx, numberedPlaceholders(`UPDATE write_group_storage_scopes SET generation = generation + 1,
 		history_may_be_lost = 1, reconstruction_count = reconstruction_count + 1, last_reconstructed_at = $7,
@@ -203,7 +254,29 @@ func RecordStorageReconstruction(ctx context.Context, q DBTX, scope StorageScope
 	if affected != 1 {
 		return false, nil
 	}
-	return true, recordStorageEvent(ctx, q, scope, fromGeneration+1, groupID, StorageEventReconstructed, "", "table-rebuilt", operationID, timestamp)
+	eventErr := recordStorageEvent(ctx, q, scope, fromGeneration+1, groupID, StorageEventReconstructed, "", "table-rebuilt", operationID, timestamp)
+	if lineage == nil {
+		return true, eventErr
+	}
+	if eventErr != nil {
+		return false, eventErr
+	}
+	if lineage.Layout != nil && lineage.Layout.SQLServer != nil {
+		if lineage.Layout.SQLServer.NativeMonthly == nil {
+			return false, ErrSQLServerPartitionMaintenanceStateMismatch
+		}
+		if err := advanceSQLServerPartitionStateAfterReconstruction(ctx, q, scope, lineage, fromGeneration, operationID, now); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	if lineage.Layout == nil || lineage.Layout.MySQL == nil || lineage.Layout.MySQL.NativeMonthly == nil {
+		return false, ErrMySQLPartitionMaintenanceStateMismatch
+	}
+	if err := resetMySQLNativePartitionSidecar(ctx, q, scope, *lineage.Layout, *lineage.Layout, lineage.ConnectorRevision, lineage.ConnectorRevision, fromGeneration, fromGeneration+1, operationID, now); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // BlockStorageRepair records that an automatic restore ended in a result

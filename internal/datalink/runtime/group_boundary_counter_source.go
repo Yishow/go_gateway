@@ -20,6 +20,12 @@ import (
 // does not parse, or contradicts the definition, fails closed as unconfirmed. A
 // decrease without evidence stays unknown.
 func CounterSourceFromDefinition(def measurement.MeasurementDefinition) (CounterSource, bool) {
+	// A scaled source needs the immutable recording proof as well as its saved
+	// definition. The legacy provider must never silently use its raw integer
+	// as the engineering value while that proof is absent.
+	if def.ExactRecordingScale != "" {
+		return CounterSource{}, false
+	}
 	if measurement.ConfirmCounter(def) != measurement.CounterConfirmed {
 		return CounterSource{}, false
 	}

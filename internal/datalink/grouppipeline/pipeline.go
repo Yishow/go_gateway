@@ -51,6 +51,10 @@ type Dependencies struct {
 	Counters CounterSources
 	// Ledger coordinates confirmed managed-storage recovery across scopes.
 	Ledger *recordingplan.Service
+	// SQLServerSplit is the typed dbtarget native partition executor. It is
+	// wired from the root integration path; nil keeps SQL Server maintenance
+	// unavailable without changing other dialects.
+	SQLServerSplit SQLServerNativeSplit
 }
 
 // Config bounds the pipeline; zero values take the documented defaults.
@@ -65,6 +69,8 @@ type Config struct {
 	Delivery          groupdelivery.DispatcherConfig
 	Sender            groupdelivery.SenderConfig
 	WorkerInterval    time.Duration
+	// PartitionMaintenanceInterval is a background cadence, not a row interval.
+	PartitionMaintenanceInterval time.Duration
 	// ReclaimEvery and ReclaimRetention bound how long finished data (committed
 	// rows, consumed samples, bucket status) stays in the local database.
 	ReclaimEvery     time.Duration
@@ -116,9 +122,11 @@ type managed struct {
 
 // Pipeline owns the applied write groups of one gateway.
 type Pipeline struct {
-	deps     Dependencies
-	config   Config
-	recovery *StorageRecovery
+	deps           Dependencies
+	config         Config
+	recovery       *StorageRecovery
+	partitionMu    sync.Mutex
+	sqlServerSplit SQLServerNativeSplit
 
 	mu         sync.RWMutex
 	boundaries map[string]*managed
@@ -143,6 +151,9 @@ func New(deps Dependencies, config Config) *Pipeline {
 	}
 	if config.ReconcileInterval <= 0 {
 		config.ReconcileInterval = defaultReconcileInterval
+	}
+	if config.PartitionMaintenanceInterval <= 0 {
+		config.PartitionMaintenanceInterval = time.Minute
 	}
 	if config.MaxFutureSkew <= 0 {
 		config.MaxFutureSkew = defaultMaxFutureSkew
@@ -181,10 +192,15 @@ func New(deps Dependencies, config Config) *Pipeline {
 			config.Sender.Recovery = recovery
 		}
 	}
+	sqlServerSplit := deps.SQLServerSplit
+	if sqlServerSplit == nil {
+		sqlServerSplit = dbtarget.SplitOpenSQLServerNativeMonthly
+	}
 	return &Pipeline{
 		deps: deps, config: config, recovery: recovery,
-		boundaries: make(map[string]*managed),
-		blocked:    make(map[string]GroupStatus),
+		boundaries:     make(map[string]*managed),
+		blocked:        make(map[string]GroupStatus),
+		sqlServerSplit: sqlServerSplit,
 	}
 }
 
@@ -229,7 +245,11 @@ func (p *Pipeline) Start(ctx context.Context) error {
 		p.lifecycle.Unlock()
 		return err
 	}
-	sender := groupdelivery.NewSender(p.deps.Store, destinationResolver{destinations: p.deps.Destinations}, p.senderConfig())
+	sender := groupdelivery.NewSender(p.deps.Store, destinationResolver{
+		destinations: p.deps.Destinations, loadRuntimeSnapshot: p.loadRuntimeSnapshot,
+		loadMySQLProof:     p.mysqlDeliveryProof,
+		loadSQLServerProof: p.sqlServerDeliveryProof,
+	}, p.senderConfig())
 	dispatcher := groupdelivery.NewDispatcher(p.deps.Store, sender, p.config.Delivery)
 	worker := groupdelivery.NewWorker(p.deps.Store, dispatcher, groupdelivery.WorkerConfig{
 		Interval: p.config.WorkerInterval, NodeID: p.config.NodeID, Owner: p.config.Owner, OnError: p.report,
@@ -280,9 +300,33 @@ func (p *Pipeline) loop(ctx context.Context, done chan struct{}) {
 	defer tick.Stop()
 	reconcile := time.NewTicker(p.config.ReconcileInterval)
 	defer reconcile.Stop()
+	maintenance := time.NewTicker(p.config.PartitionMaintenanceInterval)
+	defer maintenance.Stop()
+	var flight chan struct{}
+	startMaintenance := func() {
+		if flight != nil {
+			select {
+			case <-flight:
+			default:
+				return
+			}
+		}
+		flight = make(chan struct{})
+		go func(done chan struct{}) {
+			defer close(done)
+			p.report(p.MaintainMySQLPartitions(ctx))
+			p.report(p.MaintainSQLServerPartitions(ctx))
+		}(flight)
+	}
+	defer func() {
+		if flight != nil {
+			<-flight
+		}
+	}()
 	// A restore whose owner never came back is closed from the catalog here, not
 	// in Start: it may wait on the local database and must not delay startup.
 	p.resolveStaleStorage(ctx)
+	startMaintenance()
 	for {
 		select {
 		case <-ctx.Done():
@@ -292,6 +336,8 @@ func (p *Pipeline) loop(ctx context.Context, done chan struct{}) {
 			p.resolveStaleStorage(ctx)
 		case <-tick.C:
 			p.TickAll(ctx)
+		case <-maintenance.C:
+			startMaintenance()
 		}
 	}
 }
@@ -410,19 +456,11 @@ func (p *Pipeline) Status() []GroupStatus {
 	return statuses
 }
 
-// destinationResolver opens the frozen destination of an outbox row and maps a
-// blocked destination to the delivery layer's blocked error.
-type destinationResolver struct{ destinations Destinations }
-
-func (r destinationResolver) Resolve(ctx context.Context, item groupdelivery.OutboxItem) (groupdelivery.Target, error) {
-	opened, err := r.destinations.OpenDestination(ctx, item.Destination.ConnectorID, item.Destination.ConnectorRevision)
-	if err != nil {
-		if errors.Is(err, dbtarget.ErrDestinationBlocked) {
-			return groupdelivery.Target{}, fmt.Errorf("%w: %w", groupdelivery.ErrTargetBlocked, err)
-		}
-		return groupdelivery.Target{}, err
-	}
-	return groupdelivery.Target{DB: opened.DB, Kind: opened.Kind, Close: opened.Close}, nil
+type destinationResolver struct {
+	destinations        Destinations
+	loadRuntimeSnapshot func(context.Context, groupdelivery.GroupKey) (*workspace.WriteGroupAppliedSnapshot, error)
+	loadMySQLProof      func(context.Context, *workspace.WriteGroupAppliedSnapshot) (*dbtarget.MySQLManagedRowProof, error)
+	loadSQLServerProof  func(context.Context, *workspace.WriteGroupAppliedSnapshot, *dbtarget.OpenedDestination) (*dbtarget.SQLServerManagedRowProof, error)
 }
 
 var (

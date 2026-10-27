@@ -1,0 +1,80 @@
+{
+  "step4": {
+    "basic": {
+      "circuit": {
+        "storage_native_monthly_sqlserver": "Native monthly partitions (SQL Server)",
+        "sqlserver_capability": {
+          "title": "SQL Server Recording Capability",
+          "database": "Database",
+          "schema": "Schema",
+          "server_version": "Server Version",
+          "server_edition": "Server Edition",
+          "compatibility_level": "Compatibility Level",
+          "connection": "Connection",
+          "metadata": "Metadata Inspection",
+          "schema_view_definition": "Schema View Definition",
+          "operations": "Recording Capabilities",
+          "managed_long": "Managed Long Table",
+          "native_partitions": "Native Monthly Partitions",
+          "test_write": "Test-Write, Readback & Cleanup",
+          "missing_repair": "Missing Table Repair",
+          "available": "Available",
+          "unavailable": "Unavailable",
+          "unknown": "Unknown",
+          "not_available": "No saved SQL Server destination scope is available for inspection.",
+          "loading": "Inspecting SQL Server capabilities…",
+          "load_error": "Could not check SQL Server capabilities. Try again.",
+          "retry": "Retry Inspection",
+          "reasons_title": "Server Reported Reasons",
+          "metadata_status": {
+            "verified": "Verified",
+            "forbidden": "Access denied",
+            "unconfirmed": "Unconfirmed",
+            "missing": "Missing",
+            "unknown": "Unavailable"
+          },
+          "reason": {
+            "connection_settings_unverified": "Connection settings unverified.",
+            "connection_failed": "Could not connect using saved credentials.",
+            "metadata_unconfirmed": "Could not confirm server metadata.",
+            "destination_scope_unconfirmed": "Could not confirm destination scope.",
+            "database_scope_unconfirmed": "Could not confirm database scope.",
+            "database_scope_mismatch": "Connected database does not match saved scope.",
+            "server_metadata_unconfirmed": "Could not verify server version or edition.",
+            "schema_missing": "Configured schema does not exist in database.",
+            "schema_visibility_unconfirmed": "Could not confirm schema visibility.",
+            "schema_scope_mismatch": "Schema does not match saved scope.",
+            "metadata_forbidden": "Account does not have VIEW DEFINITION permissions.",
+            "operation_permissions_unconfirmed": "Could not verify table or schema permissions.",
+            "operation_permissions_denied": "Account missing required DDL or DML permissions.",
+            "native_partition_permissions_denied": "Account missing ALTER ANY DATASPACE permission.",
+            "server_version_unverified": "SQL Server version not verified for production release.",
+            "server_edition_unverified": "SQL Server edition not verified for production release.",
+            "compatibility_unverified": "Database compatibility level not verified.",
+            "adapter_unverified": "SQL Server recording adapter unverified.",
+            "managed_long_unverified": "Managed long-table recording unverified.",
+            "native_partition_unverified": "Native monthly partitioning unverified.",
+            "group_test_write_unverified": "Group test-write unverified.",
+            "missing_repair_unverified": "Missing table repair unverified.",
+            "generic": "Operation unverified on server."
+          }
+        }
+      }
+    },
+    "group": {
+      "test_write": {
+        "blocked_sqlserver_capability": "The saved SQL Server has not verified test-write support.",
+        "cleanup_repair": "Repair Cleanup",
+        "repairing": "Repairing cleanup…"
+      }
+    }
+  },
+  "errors": {
+    "partition_unavailable": "Native monthly partition objects are unavailable; choose plain storage.",
+    "select_plain_storage": "Choose plain storage",
+    "adapter_unverified": "The SQL Server recording adapter is unverified for this operation.",
+    "exact_value_unrepresentable": "The source value cannot be represented in the configured destination format.",
+    "schema_operation_partial": "The schema operation partially succeeded; verify the database catalog.",
+    "partition_maintenance_blocked": "Partition maintenance is blocked. Check partition function and scheme configuration."
+  }
+}

@@ -43,6 +43,15 @@ func ensureSQLiteWriteGroupsTables(db *sql.DB) error {
 	if err := ensureSQLiteAdditiveColumns(db, "038_write_group_recording_reduction_sqlite.up.sql"); err != nil {
 		return err
 	}
+	if err := ensureSQLiteAdditiveColumns(db, "040_write_group_exact_recording_source_sqlite.up.sql"); err != nil {
+		return err
+	}
+	if err := ensureSQLiteMySQLPartitionMaintenance(db); err != nil {
+		return err
+	}
+	if err := ensureSQLiteSQLServerPartitionMaintenance(db); err != nil {
+		return err
+	}
 	return ensureSQLiteWriteGroupCutovers(db)
 }
 

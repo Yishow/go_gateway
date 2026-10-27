@@ -47,16 +47,16 @@ func (r *SQLRepository) Create(ctx context.Context, def *MeasurementDefinition) 
 		INSERT INTO measurement_definitions (
 			id, workspace_id, device_id, point_id, tag_id, equipment_id,
 			definition_revision, source_binding_revision, series_epoch,
-			name, quantity, unit, semantic_kind, numeric_encoding,
+			name, quantity, unit, semantic_kind, numeric_encoding, exact_recording_scale,
 			counter_policy, state_map, bitmask_labels, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 	`
 	query = adaptPlaceholders(query)
 
 	_, err = r.db.ExecContext(ctx, query,
 		def.ID, def.WorkspaceID, def.DeviceID, def.PointID, def.TagID, def.EquipmentID,
 		def.DefinitionRevision, def.SourceBindingRevision, def.SeriesEpoch,
-		def.Name, def.Quantity, def.Unit, string(def.SemanticKind), def.NumericEncoding,
+		def.Name, def.Quantity, def.Unit, string(def.SemanticKind), def.NumericEncoding, def.ExactRecordingScale,
 		string(encoded.counterPolicy), string(encoded.stateMap), string(encoded.bitmaskLabels),
 		def.CreatedAt, def.UpdatedAt,
 	)
@@ -80,15 +80,15 @@ func (r *SQLRepository) Update(ctx context.Context, def *MeasurementDefinition) 
 			workspace_id = $1, device_id = $2, point_id = $3, tag_id = $4, equipment_id = $5,
 			definition_revision = $6, source_binding_revision = $7, series_epoch = $8,
 			name = $9, quantity = $10, unit = $11, semantic_kind = $12, numeric_encoding = $13,
-			counter_policy = $14, state_map = $15, bitmask_labels = $16, updated_at = $17
-		WHERE id = $18
+			exact_recording_scale = $14, counter_policy = $15, state_map = $16, bitmask_labels = $17, updated_at = $18
+		WHERE id = $19
 	`
 	query = adaptPlaceholders(query)
 
 	res, err := r.db.ExecContext(ctx, query,
 		def.WorkspaceID, def.DeviceID, def.PointID, def.TagID, def.EquipmentID,
 		def.DefinitionRevision, def.SourceBindingRevision, def.SeriesEpoch,
-		def.Name, def.Quantity, def.Unit, string(def.SemanticKind), def.NumericEncoding,
+		def.Name, def.Quantity, def.Unit, string(def.SemanticKind), def.NumericEncoding, def.ExactRecordingScale,
 		string(encoded.counterPolicy), string(encoded.stateMap), string(encoded.bitmaskLabels), def.UpdatedAt,
 		def.ID,
 	)
@@ -110,7 +110,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*MeasurementDef
 	query := `
 		SELECT id, workspace_id, device_id, point_id, tag_id, equipment_id,
 			definition_revision, source_binding_revision, series_epoch,
-			name, quantity, unit, semantic_kind, numeric_encoding,
+			name, quantity, unit, semantic_kind, numeric_encoding, exact_recording_scale,
 			counter_policy, state_map, bitmask_labels, created_at, updated_at
 		FROM measurement_definitions
 		WHERE id = $1
@@ -126,7 +126,7 @@ func (r *SQLRepository) ListByWorkspace(ctx context.Context, workspaceID string)
 	query := `
 		SELECT id, workspace_id, device_id, point_id, tag_id, equipment_id,
 			definition_revision, source_binding_revision, series_epoch,
-			name, quantity, unit, semantic_kind, numeric_encoding,
+			name, quantity, unit, semantic_kind, numeric_encoding, exact_recording_scale,
 			counter_policy, state_map, bitmask_labels, created_at, updated_at
 		FROM measurement_definitions
 		WHERE workspace_id = $1
@@ -156,7 +156,7 @@ func (r *SQLRepository) ListByDevice(ctx context.Context, workspaceID, deviceID 
 	query := `
 		SELECT id, workspace_id, device_id, point_id, tag_id, equipment_id,
 			definition_revision, source_binding_revision, series_epoch,
-			name, quantity, unit, semantic_kind, numeric_encoding,
+			name, quantity, unit, semantic_kind, numeric_encoding, exact_recording_scale,
 			counter_policy, state_map, bitmask_labels, created_at, updated_at
 		FROM measurement_definitions
 		WHERE workspace_id = $1 AND device_id = $2
@@ -198,6 +198,7 @@ func scanMeasurementDefinition(s scannable) (*MeasurementDefinition, error) {
 	var tagID sql.NullString
 	var unit sql.NullString
 	var numericEncoding sql.NullString
+	var exactRecordingScale sql.NullString
 	var counterPolicyStr sql.NullString
 	var stateMapStr sql.NullString
 	var bitmaskLabelsStr sql.NullString
@@ -206,7 +207,7 @@ func scanMeasurementDefinition(s scannable) (*MeasurementDefinition, error) {
 	err := s.Scan(
 		&def.ID, &def.WorkspaceID, &def.DeviceID, &def.PointID, &tagID, &def.EquipmentID,
 		&def.DefinitionRevision, &def.SourceBindingRevision, &def.SeriesEpoch,
-		&def.Name, &def.Quantity, &unit, &semanticKindStr, &numericEncoding,
+		&def.Name, &def.Quantity, &unit, &semanticKindStr, &numericEncoding, &exactRecordingScale,
 		&counterPolicyStr, &stateMapStr, &bitmaskLabelsStr, &def.CreatedAt, &def.UpdatedAt,
 	)
 	if err != nil {
@@ -221,6 +222,9 @@ func scanMeasurementDefinition(s scannable) (*MeasurementDefinition, error) {
 	}
 	if numericEncoding.Valid {
 		def.NumericEncoding = numericEncoding.String
+	}
+	if exactRecordingScale.Valid {
+		def.ExactRecordingScale = exactRecordingScale.String
 	}
 	def.SemanticKind = SemanticKind(semanticKindStr)
 

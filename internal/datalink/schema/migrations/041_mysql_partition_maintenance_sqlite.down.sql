@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS write_group_mysql_partition_maintenance;

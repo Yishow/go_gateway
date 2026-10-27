@@ -103,6 +103,9 @@ type CounterSource struct {
 // one, is never bridged by a guess.
 func counterBindingFor(group *workspace.WriteGroup, member workspace.WriteGroupMember, key string, kind measurement.ExactType, sources map[string]CounterSource) (bound aggregation.CounterBinding, code string) {
 	source, ok := sources[member.TagID]
+	if member.ExactRecordingSource != nil {
+		source, ok = frozenExactCounterSource(group, member, kind)
+	}
 	if !ok || !source.Kind.Valid() {
 		return aggregation.CounterBinding{}, boundaryCounterSemantics
 	}
@@ -119,6 +122,9 @@ func counterBindingFor(group *workspace.WriteGroup, member workspace.WriteGroupM
 		MeasurementID: source.MeasurementID, DefinitionRevision: source.DefinitionRevision,
 		SourceBindingRevision: source.SourceBindingRevision, SeriesEpoch: source.SeriesEpoch,
 		Kind: source.Kind, Unit: source.Unit, RolloverModulus: source.RolloverModulus, MaxRatePerSecond: source.MaxRatePerSecond,
+	}
+	if member.ExactRecordingSource != nil {
+		binding.ExactRecordingScale = member.ExactRecordingSource.Scale
 	}
 	if err := binding.Validate(); err != nil {
 		if errors.Is(err, aggregation.ErrCounterPolicyInvalid) {

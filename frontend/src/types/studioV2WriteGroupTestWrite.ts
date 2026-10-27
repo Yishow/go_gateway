@@ -21,17 +21,20 @@ export interface WriteGroupTestWritePreview {
   group_revision: string;
   expires_at: string;
   target: { connector_id: string; dialect: string; database: string; schema: string; table: string };
-  /** The column whose operation-owned value identifies the only row cleanup may remove. */
+  /** The table owner marker for long storage, or the operation-owned column for legacy wide storage. */
   owner_column: string;
   owner_value: string;
   dedupe: string;
   values: WriteGroupTestWriteValue[];
+  /** Exact operation record IDs for managed MySQL long storage. */
+  record_ids?: string[];
   cleanup: string;
 }
 
 export interface WriteGroupTestWriteConfirmation {
   token: string;
   operation_id: string;
+  action?: 'cleanup_repair';
 }
 
 export interface WriteGroupTestWriteOperation {

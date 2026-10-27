@@ -199,6 +199,17 @@ func (h *StudioV2WorkspaceRecordingPlansHandler) Delete(c *gin.Context) {
 }
 
 func (h *StudioV2WorkspaceRecordingPlansHandler) Capabilities(c *gin.Context) {
+	// A saved-scope SQL Server query names kind=sqlserver explicitly; the
+	// predicate gates on that kind itself, so the MySQL saved-scope branch
+	// below keeps every MySQL query.
+	if sqlserverRecordingScopeRequested(c) {
+		h.sqlserverRecordingCapabilities(c)
+		return
+	}
+	if mysqlRecordingScopeRequested(c) {
+		h.mysqlRecordingCapabilities(c)
+		return
+	}
 	kind := c.Query("kind")
 	if kind != "" {
 		capResult := h.planSvc.GetConnectorCapability(kind)

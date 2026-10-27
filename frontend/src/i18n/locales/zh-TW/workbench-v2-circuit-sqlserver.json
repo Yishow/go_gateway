@@ -1,0 +1,80 @@
+{
+  "step4": {
+    "basic": {
+      "circuit": {
+        "storage_native_monthly_sqlserver": "原生月分割區（SQL Server）",
+        "sqlserver_capability": {
+          "title": "已儲存的 SQL Server 伺服器能力",
+          "database": "資料庫",
+          "schema": "結構描述",
+          "server_version": "伺服器版本",
+          "server_edition": "伺服器版本系列",
+          "compatibility_level": "相容性層級",
+          "connection": "連線狀態",
+          "metadata": "中繼資料檢查",
+          "schema_view_definition": "結構描述檢視權限",
+          "operations": "記錄操作能力",
+          "managed_long": "受管長表記錄",
+          "native_partitions": "原生月分割區",
+          "test_write": "試寫、讀回與清理",
+          "missing_repair": "缺失資料表修復",
+          "available": "可用",
+          "unavailable": "不可用",
+          "unknown": "未知",
+          "not_available": "目前沒有可供唯讀檢查的已儲存 SQL Server 連線範圍。",
+          "loading": "正在檢查 SQL Server 提供之能力…",
+          "load_error": "無法檢查已儲存的連線。能力目前不可用，請重試唯讀檢查。",
+          "retry": "重試檢查",
+          "reasons_title": "伺服器回報原因",
+          "metadata_status": {
+            "verified": "已驗證",
+            "forbidden": "沒有存取權限",
+            "unconfirmed": "尚未驗證",
+            "missing": "物件不存在",
+            "unknown": "不可用"
+          },
+          "reason": {
+            "connection_settings_unverified": "尚未驗證連線設定。",
+            "connection_failed": "無法使用已儲存的連線設定建立連線。",
+            "metadata_unconfirmed": "無法驗證伺服器中繼資料。",
+            "destination_scope_unconfirmed": "無法驗證目的地範圍。",
+            "database_scope_unconfirmed": "無法驗證設定的資料庫範圍。",
+            "database_scope_mismatch": "伺服器資料庫與已儲存範圍不符。",
+            "server_metadata_unconfirmed": "無法驗證伺服器版本或版本系列。",
+            "schema_missing": "設定的結構描述不存在於資料庫。",
+            "schema_visibility_unconfirmed": "無法確認結構描述可見性。",
+            "schema_scope_mismatch": "結構描述與已儲存範圍不符。",
+            "metadata_forbidden": "已儲存帳號缺少 VIEW DEFINITION 檢視權限。",
+            "operation_permissions_unconfirmed": "無法驗證資料表或結構描述操作權限。",
+            "operation_permissions_denied": "已儲存帳號缺少必要之 DDL 或 DML 權限。",
+            "native_partition_permissions_denied": "已儲存帳號缺少 ALTER ANY DATASPACE 分割區權限。",
+            "server_version_unverified": "此 SQL Server 版本尚未通過發布驗證。",
+            "server_edition_unverified": "此 SQL Server 版本系列尚未通過發布驗證。",
+            "compatibility_unverified": "資料庫相容性層級尚未通過驗證。",
+            "adapter_unverified": "記錄介面尚未通過驗收。",
+            "managed_long_unverified": "受管長表記錄尚未通過驗收。",
+            "native_partition_unverified": "原生月分割區尚未通過驗收。",
+            "group_test_write_unverified": "群組試寫、讀回與清理尚未通過驗收。",
+            "missing_repair_unverified": "缺失資料表修復尚未通過驗收。",
+            "generic": "伺服器尚未驗證此能力。"
+          }
+        }
+      }
+    },
+    "group": {
+      "test_write": {
+        "blocked_sqlserver_capability": "已儲存的 SQL Server 伺服器尚未驗證試寫能力。",
+        "cleanup_repair": "修復清理",
+        "repairing": "修復清理中…"
+      }
+    }
+  },
+  "errors": {
+    "partition_unavailable": "原生月分割區物件不可用；請改選一般儲存模式。",
+    "select_plain_storage": "改選一般儲存模式",
+    "adapter_unverified": "SQL Server 記錄介面尚未通過此操作驗證。",
+    "exact_value_unrepresentable": "來源數值超出目的地設定的精確表示範圍。",
+    "schema_operation_partial": "結構描述操作僅部分完成；請檢查資料庫目錄狀態。",
+    "partition_maintenance_blocked": "分割區維護受阻，請檢查分割區函數與結構設定。"
+  }
+}

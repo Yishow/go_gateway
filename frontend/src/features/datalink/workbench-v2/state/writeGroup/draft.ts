@@ -6,10 +6,12 @@ import type {
   WriteGroupResultValueType,
   WriteGroupStorageMode,
   WriteGroupStorageStrategy,
+  WriteGroupExactRecordingSource,
   WriteGroupValueRole,
 } from '../../../../../types/studioV2WriteGroup';
 import type { DataType } from '../../../../../types/datalink';
 import { isValidRecordingProfile, recordingProfileIntervalSeconds } from '../../../../../utils/studioV2RecordingProfile';
+import { cloneWriteGroupExactRecordingSource } from '../../../../../utils/studioV2ExactRecordingSourceJson';
 import { findColumnConflicts } from './columns';
 
 export type IncompletePolicy = 'skip_row' | 'partial';
@@ -33,6 +35,7 @@ export interface EditorMember {
   value_role?: WriteGroupValueRole;
   source_value_type?: DataType;
   result_value_type?: WriteGroupResultValueType;
+  exact_recording_source?: WriteGroupExactRecordingSource;
 }
 
 export interface EditorDraft {
@@ -108,6 +111,7 @@ export function groupToDraft(group: WriteGroup): EditorDraft {
       ...(member.value_role !== undefined ? { value_role: member.value_role } : {}),
       ...(member.source_value_type !== undefined ? { source_value_type: member.source_value_type } : {}),
       ...(member.result_value_type !== undefined ? { result_value_type: member.result_value_type } : {}),
+      ...(member.exact_recording_source !== undefined ? { exact_recording_source: cloneWriteGroupExactRecordingSource(member.exact_recording_source) } : {}),
     })),
     ...(group.layout_version !== undefined ? { layout_version: group.layout_version } : {}),
     ...(group.recording_profile !== undefined ? { recording_profile: { ...group.recording_profile } } : {}),
@@ -142,6 +146,7 @@ export function draftToRequestGroup(draft: EditorDraft, workspaceId: string): Wr
       ...(member.value_role !== undefined ? { value_role: member.value_role } : {}),
       ...(member.source_value_type !== undefined ? { source_value_type: member.source_value_type } : {}),
       ...(member.result_value_type !== undefined ? { result_value_type: member.result_value_type } : {}),
+      ...(member.exact_recording_source !== undefined ? { exact_recording_source: cloneWriteGroupExactRecordingSource(member.exact_recording_source) } : {}),
     })),
     destination: {
       connector_id: draft.connector_id, connector_revision: draft.connector_revision,

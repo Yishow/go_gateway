@@ -48,6 +48,9 @@ function localizeAction(
   if (action === 'select_new_managed_table_or_advanced_table') {
     return t('errors.select_new_managed_table_or_advanced_table');
   }
+  if (action === 'select_plain_storage') {
+    return t('errors.select_plain_storage');
+  }
   if (action === 'review_request' || action === 'review_group' || action === 'disable_group') {
     return t(`errors.${action}`);
   }

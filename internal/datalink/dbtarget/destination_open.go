@@ -35,6 +35,11 @@ type OpenedDestination struct {
 	DB    *sql.DB
 	Kind  schema.DatabaseConnectorKind
 	Close func() error
+	// MySQL is the actual server/metadata projection for a MySQL destination.
+	// It stays nil for SQLite/PostgreSQL and is never client-supplied.
+	MySQL *MySQLRecordingCapability
+	// SQLServer is the backend-derived projection for a SQL Server connection.
+	SQLServer *SQLServerRecordingCapability
 }
 
 // OpenDestination opens the saved connector for delivery, but only while its
@@ -56,17 +61,27 @@ func (s *ConnectorService) OpenDestination(ctx context.Context, connectorID, exp
 	if !connector.Enabled {
 		return nil, fmt.Errorf("%w: connector is disabled", ErrDestinationBlocked)
 	}
-	if connector.Kind != schema.DatabaseConnectorKindSQLite && connector.Kind != schema.DatabaseConnectorKindPostgres {
+	if connector.Kind != schema.DatabaseConnectorKindSQLite &&
+		connector.Kind != schema.DatabaseConnectorKindPostgres &&
+		connector.Kind != schema.DatabaseConnectorKindMySQL && connector.Kind != schema.DatabaseConnectorKindSQLServer {
 		return nil, fmt.Errorf("%w: connector kind is not supported for group delivery", ErrDestinationBlocked)
 	}
 	config, err := parseConnectionConfig(connector.ConnectionConfig)
 	if err != nil {
 		return nil, fmt.Errorf("%w: connector configuration is invalid", ErrDestinationBlocked)
 	}
+	if connector.Kind == schema.DatabaseConnectorKindSQLServer {
+		return openSQLServerDeliveryDestination(ctx, connector, config)
+	}
 	if connector.Kind == schema.DatabaseConnectorKindSQLite {
 		config, err = prepareSQLiteDeliveryConfig(config)
 		if err != nil {
 			return nil, fmt.Errorf("%w: connector configuration is invalid", ErrDestinationBlocked)
+		}
+	}
+	if connector.Kind == schema.DatabaseConnectorKindMySQL {
+		if _, err := mysqlDeliveryDatabase(config); err != nil {
+			return nil, fmt.Errorf("%w: mysql delivery configuration is not verified", ErrDestinationBlocked)
 		}
 	}
 	manager, err := openExternalDBManagerFunc(connector.Kind, config)
@@ -82,9 +97,28 @@ func (s *ConnectorService) OpenDestination(ctx context.Context, connectorID, exp
 		return nil, fmt.Errorf("%w: fixture destination unavailable", ErrDestinationUnreachable)
 	}
 	if fixtureDB != nil {
-		return &OpenedDestination{DB: fixtureDB, Kind: connector.Kind, Close: fixtureClose}, nil
+		opened := &OpenedDestination{DB: fixtureDB, Kind: connector.Kind, Close: fixtureClose}
+		if connector.Kind == schema.DatabaseConnectorKindMySQL {
+			capability, err := mysqlDeliveryCapability(ctx, connector, fixtureDB, config)
+			if err != nil {
+				_ = fixtureClose() //nolint:errcheck // releasing a rejected fixture connection; metadata refusal is the actionable error
+				_ = manager.Close()
+				return nil, fmt.Errorf("%w: mysql metadata is not verified", ErrDestinationBlocked)
+			}
+			opened.MySQL = capability
+		}
+		return opened, nil
 	}
-	return &OpenedDestination{DB: manager.DB(), Kind: connector.Kind, Close: manager.Close}, nil
+	opened := &OpenedDestination{DB: manager.DB(), Kind: connector.Kind, Close: manager.Close}
+	if connector.Kind == schema.DatabaseConnectorKindMySQL {
+		capability, err := mysqlDeliveryCapability(ctx, connector, manager.DB(), config)
+		if err != nil {
+			_ = manager.Close()
+			return nil, fmt.Errorf("%w: mysql metadata is not verified", ErrDestinationBlocked)
+		}
+		opened.MySQL = capability
+	}
+	return opened, nil
 }
 
 // prepareSQLiteDeliveryConfig changes only the delivery DSN. The SQLite rw

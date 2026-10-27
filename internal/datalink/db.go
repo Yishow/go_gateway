@@ -1,6 +1,6 @@
 // Package datalink 提供 Datalink 系統的資料庫連接管理。
 //
-// 本套件實作統一的資料庫連接工廠，支援 SQLite、PostgreSQL 和 MySQL。
+// 本套件實作統一的資料庫連接工廠，支援 SQLite、PostgreSQL、MySQL 與 SQL Server 連線。
 package datalink
 
 import (
@@ -10,9 +10,10 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql" // MySQL driver
-	_ "github.com/lib/pq"              // PostgreSQL driver
-	_ "modernc.org/sqlite"             // SQLite driver (pure Go)
+	_ "github.com/go-sql-driver/mysql"  // MySQL driver
+	_ "github.com/lib/pq"               // PostgreSQL driver
+	_ "github.com/microsoft/go-mssqldb" // SQL Server driver
+	_ "modernc.org/sqlite"              // SQLite driver (pure Go)
 )
 
 // =============================================================================
@@ -29,6 +30,8 @@ const (
 	DBTypePostgres DBType = "postgres"
 	// DBTypeMySQL MySQL 資料庫
 	DBTypeMySQL DBType = "mysql"
+	// DBTypeSQLServer is a SQL-authenticated SQL Server connection.
+	DBTypeSQLServer DBType = "sqlserver"
 )
 
 // =============================================================================
@@ -122,6 +125,8 @@ func (m *DBManager) Connect() error {
 		driverName = "postgres"
 	case DBTypeMySQL:
 		driverName = "mysql"
+	case DBTypeSQLServer:
+		driverName = "sqlserver"
 	default:
 		return fmt.Errorf("不支援的資料庫類型: %s", m.config.Type)
 	}

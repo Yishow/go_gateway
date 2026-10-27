@@ -18,6 +18,14 @@ import (
 type Target struct {
 	DB   *sql.DB
 	Kind schema.DatabaseConnectorKind
+	// MySQL is the frozen managed-layout proof required by the MySQL row adapter.
+	MySQL *dbtarget.MySQLManagedRowProof
+	// MySQLCapability is the actual capability read by the opener for recovery catalog access.
+	MySQLCapability *dbtarget.MySQLRecordingCapability
+	// SQLServer is the frozen managed-layout proof required by the SQL Server row adapter.
+	SQLServer *dbtarget.SQLServerManagedRowProof
+	// SQLServerCapability is the actual capability read by the opener for recovery catalog access.
+	SQLServerCapability *dbtarget.SQLServerRecordingCapability
 	// Close releases the connection once the attempt is finished; optional.
 	Close func() error
 }
@@ -42,6 +50,8 @@ const (
 	defaultSettleTimeout   = 5 * time.Second
 	defaultLeaseMargin     = 30 * time.Second
 )
+
+const mysqlReceiptTimeLayout = "2006-01-02T15:04:05.000000Z"
 
 const (
 	codeInsertFailed = "insert-failed"
@@ -206,10 +216,16 @@ func (s *Sender) Deliver(ctx context.Context, effectKey string) (DeliveryResult,
 		defer func() { _ = target.Close() }() //nolint:errcheck // releasing a finished connection; nothing to recover
 	}
 	insert := func() error {
+		committedAt := s.nowValue()
+		committedAtText := timestamp(committedAt)
+		if target.Kind == schema.DatabaseConnectorKindMySQL || target.Kind == schema.DatabaseConnectorKindSQLServer {
+			committedAtText = committedAt.UTC().Truncate(time.Microsecond).Format(mysqlReceiptTimeLayout)
+		}
 		_, err := dbtarget.InsertGroupRow(attemptCtx, target.DB, dbtarget.GroupInsertRequest{
 			Kind: target.Kind, SchemaName: item.Destination.TableSchema, TableName: item.Destination.TableName,
 			Row: row, PayloadDigest: item.PayloadDigest, Strategy: item.Destination.DedupeCapability,
-			RecordKeyColumn: item.Destination.RecordKeyColumn, CommittedAt: timestamp(s.nowValue()),
+			RecordKeyColumn: item.Destination.RecordKeyColumn, CommittedAt: committedAtText, MySQL: target.MySQL,
+			SQLServer: target.SQLServer,
 		})
 		return err
 	}

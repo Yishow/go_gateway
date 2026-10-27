@@ -17,6 +17,28 @@ export function useStudioV2DatabaseConfigQuery(enabled: boolean) {
   });
 }
 
+export function useStudioV2MySQLRecordingCapabilityQuery(connectorId: string, connectorRevision: string, enabled: boolean) {
+  return useQuery({
+    queryKey: studioV2WorkspaceKeys.mysqlRecordingCapability(connectorId, connectorRevision),
+    queryFn: () => studioV2WorkspaceDatabaseAPI.getMySQLRecordingCapability(connectorId, connectorRevision),
+    enabled: enabled && Boolean(connectorId && connectorRevision),
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
+  });
+}
+
+export function useStudioV2SQLServerRecordingCapabilityQuery(connectorId: string, connectorRevision: string, enabled: boolean) {
+  return useQuery({
+    queryKey: studioV2WorkspaceKeys.sqlserverRecordingCapability(connectorId, connectorRevision),
+    queryFn: () => studioV2WorkspaceDatabaseAPI.getSQLServerRecordingCapability(connectorId, connectorRevision),
+    enabled: enabled && Boolean(connectorId && connectorRevision),
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
+  });
+}
+
 export function useStudioV2DatabaseTargetsQuery(enabled: boolean) {
   return useQuery({
     queryKey: studioV2WorkspaceKeys.databaseTargets(),

@@ -122,6 +122,8 @@ func buildPlaceholders(kind schema.DatabaseConnectorKind, count int) []string {
 		switch kind {
 		case schema.DatabaseConnectorKindPostgres:
 			placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
+		case schema.DatabaseConnectorKindSQLServer:
+			placeholders = append(placeholders, fmt.Sprintf("@p%d", i+1))
 		default:
 			placeholders = append(placeholders, "?")
 		}
@@ -130,6 +132,9 @@ func buildPlaceholders(kind schema.DatabaseConnectorKind, count int) []string {
 }
 
 func quoteIdentifier(kind schema.DatabaseConnectorKind, name string) string {
+	if kind == schema.DatabaseConnectorKindSQLServer {
+		return "[" + strings.ReplaceAll(name, "]", "]]") + "]"
+	}
 	if kind == schema.DatabaseConnectorKindMySQL {
 		escaped := strings.ReplaceAll(strings.TrimSpace(name), "`", "``")
 		return "`" + escaped + "`"

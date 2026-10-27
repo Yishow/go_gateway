@@ -23,6 +23,11 @@ type WriteGroupRuntimeLayout struct {
 	// Hypertable is the frozen catalog evidence of a timescale group's table. It
 	// is set only for that mode, after the catalog showed the owned hypertable.
 	Hypertable *WriteGroupHypertableEvidence `json:"hypertable,omitempty"`
+	// MySQL freezes the complete verified physical group/receipt catalog under
+	// the saved connector identity. Other dialects keep their previous bytes.
+	MySQL *dbtarget.MySQLManagedRowProof `json:"mysql,omitempty"`
+	// SQLServer freezes owned physical catalog facts without changing other dialects' bytes.
+	SQLServer *dbtarget.SQLServerManagedRowProof `json:"sqlserver,omitempty"`
 }
 
 // WriteGroupHypertableEvidence is what the catalog showed when the layout was

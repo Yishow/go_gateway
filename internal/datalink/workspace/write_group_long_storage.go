@@ -45,6 +45,9 @@ func (s longStorageScope) tableName() string { return "gw_long_" + s.digest("tab
 func (s longStorageScope) ownerColumn() string { return "_gw_owner_" + s.digest("owner")[:24] }
 
 func (s longStorageScope) layout(dialect string) (*recordingplan.GroupSchemaLayout, error) {
+	if s.Mode == WriteGroupStorageModeNativeMonthly {
+		return nil, fmt.Errorf("%w: native monthly requires a verified MySQL layout", ErrWriteGroupValidation)
+	}
 	if s.Mode == WriteGroupStorageModeTimescale {
 		if dialect != writeGroupConnectorKindPostgres {
 			// Only PostgreSQL has hypertables. The selection is refused, never
@@ -76,8 +79,15 @@ func (r *SQLWriteGroupRepository) ensureStorageScopeInTx(ctx context.Context, tx
 		group.Destination.ConnectorID).Scan(&kind); err != nil {
 		return fmt.Errorf("read storage scope connector: %w", err)
 	}
+	kind = strings.ToLower(strings.TrimSpace(kind))
+	if kind == writeGroupConnectorKindMySQL {
+		return r.ensureMySQLStorageScopeInTx(ctx, tx, group)
+	}
+	if kind == writeGroupConnectorKindSQLServer {
+		return r.ensureSQLServerStorageScopeInTx(ctx, tx, group)
+	}
 	scope := longStorageScopeOf(group)
-	layout, err := scope.layout(strings.ToLower(strings.TrimSpace(kind)))
+	layout, err := scope.layout(kind)
 	if err != nil {
 		return err
 	}

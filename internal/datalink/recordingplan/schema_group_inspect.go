@@ -2,6 +2,7 @@ package recordingplan
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -24,6 +25,10 @@ type TargetTableInspection struct {
 	// Timescale is the read-only capability and hypertable evidence of the
 	// group table. It is read only for a layout that asks for a partition.
 	Timescale *TargetTimescaleEvidence
+	// MySQL includes precision, engine, collation and ownership catalog facts.
+	MySQL *TargetMySQLTableEvidence
+	// SQLServer includes SQL Server engine edition, compatibility, collation and metadata evidence.
+	SQLServer *TargetSQLServerTableEvidence `json:",omitempty"`
 }
 
 // TargetTimescaleEvidence is what the destination's catalog says about
@@ -60,7 +65,9 @@ func groupSchemaLayoutsEqual(left, right GroupSchemaLayout) bool {
 	if leftErr != nil || rightErr != nil {
 		return false
 	}
-	if !samePartition(left.Partition, right.Partition) ||
+	if !sameMySQLGroupSchemaOptions(left.MySQL, right.MySQL) ||
+		!sameSQLServerGroupSchemaOptions(left.SQLServer, right.SQLServer) ||
+		!samePartition(left.Partition, right.Partition) ||
 		left.TableName != right.TableName || left.OwnerColumn != right.OwnerColumn || len(left.Columns) != len(right.Columns) ||
 		!slices.EqualFunc(left.Indexes, right.Indexes, func(a, b GroupSchemaIndex) bool {
 			return a.Name == b.Name && slices.Equal(a.Columns, b.Columns)
@@ -73,6 +80,16 @@ func groupSchemaLayoutsEqual(left, right GroupSchemaLayout) bool {
 		}
 	}
 	return true
+}
+
+func sameSQLServerGroupSchemaOptions(left, right *SQLServerGroupSchemaOptions) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return left.Database == right.Database && left.Schema == right.Schema && left.Collation == right.Collation &&
+		left.ServerVersion == right.ServerVersion && left.ServerEdition == right.ServerEdition &&
+		left.CapabilityRevision == right.CapabilityRevision && left.EngineEdition == right.EngineEdition &&
+		left.CompatibilityLevel == right.CompatibilityLevel && sameSQLServerPartitionEvidence(left.NativeMonthly, right.NativeMonthly)
 }
 
 // samePartition compares what is partitioned and how, not where the extension
@@ -89,6 +106,25 @@ func samePartition(left, right *GroupSchemaPartition) bool {
 // read-only probe found, so the confirmed statements and digest carry it.
 func prepareGroupSchemaPreview(ctx context.Context, scope SchemaPreviewScope, inspect TargetInspector) ([]string, []SchemaPreviewTable, *GroupSchemaLayout, error) {
 	layout := *scope.GroupLayout
+	if layout.MySQL != nil {
+		found, err := inspectMySQLGroupTables(ctx, layout, scope.Database, inspect)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		statements, err := groupSchemaStatements(scope.Dialect, layout, found.tables)
+		return statements, found.tables, &layout, err
+	}
+	if layout.SQLServer != nil {
+		found, err := inspectSQLServerGroupTables(ctx, layout, scope.Database, inspect)
+		if err != nil {
+			if layout.SQLServer.NativeMonthly != nil && errors.Is(err, ErrTargetPermissionDenied) {
+				return nil, nil, nil, sqlServerPartitionUnavailable("partition metadata permission denied")
+			}
+			return nil, nil, nil, err
+		}
+		statements, err := groupSchemaStatements(scope.Dialect, layout, found.tables)
+		return statements, found.tables, &layout, err
+	}
 	inspected, err := inspectGroupTables(ctx, scope.Dialect, layout, inspect)
 	if err != nil {
 		return nil, nil, nil, err
@@ -156,6 +192,15 @@ func hypertableMatches(partition *GroupSchemaPartition, hypertable *TargetHypert
 }
 
 func inspectGroupTables(ctx context.Context, dialect string, layout GroupSchemaLayout, inspect TargetInspector) (groupInspection, error) {
+	if layout.SQLServer != nil {
+		if normalizePreviewDialect(dialect) != dialectSQLServer {
+			return groupInspection{}, fmt.Errorf("%w: a sqlserver layout needs the sqlserver dialect", ErrUnsupportedSchemaDialect)
+		}
+		if layout.SQLServer.Database == "" {
+			return groupInspection{}, fmt.Errorf("%w: sqlserver database is required in frozen layout", ErrInvalidGroupSchemaLayout)
+		}
+		return inspectSQLServerGroupTables(ctx, layout, layout.SQLServer.Database, inspect)
+	}
 	var found groupInspection
 	groupState, inspectErr := inspect(ctx, layout.TableName)
 	if inspectErr != nil {

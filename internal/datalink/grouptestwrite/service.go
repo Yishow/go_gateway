@@ -2,6 +2,7 @@ package grouptestwrite
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -93,6 +94,8 @@ const defaultStepTimeout = 20 * time.Second
 type Service struct {
 	deps Dependencies
 	cfg  Config
+	// insertRow is a test seam; production uses dbtarget.InsertGroupRow.
+	insertRow func(context.Context, *sql.DB, dbtarget.GroupInsertRequest) (dbtarget.GroupInsertResult, error)
 }
 
 // New builds a Service.
@@ -103,7 +106,7 @@ func New(deps Dependencies, cfg Config) *Service {
 	if cfg.Now == nil {
 		cfg.Now = func() time.Time { return time.Now().UTC() }
 	}
-	return &Service{deps: deps, cfg: cfg}
+	return &Service{deps: deps, cfg: cfg, insertRow: dbtarget.InsertGroupRow}
 }
 
 // Workspace is the caller's server-resolved workspace identity.
@@ -141,6 +144,9 @@ type Preview struct {
 	OwnerValue    string         `json:"owner_value"`
 	Dedupe        string         `json:"dedupe"`
 	Values        []PreviewValue `json:"values"`
+	// RecordIDs lists every exact record the confirmation will write. It is
+	// present for managed-long MySQL test writes; cleanup uses these IDs.
+	RecordIDs []string `json:"record_ids,omitempty"`
 	// Cleanup describes the only rows the operation removes afterwards.
 	Cleanup string `json:"cleanup"`
 }
@@ -152,6 +158,8 @@ type Confirmation struct {
 	// GroupID is the group the caller addressed. When set it must be the group
 	// the preview was issued for; the token alone never retargets a request.
 	GroupID string
+	// Action specifies an explicit sub-action, such as "cleanup_repair".
+	Action string
 }
 
 // ErrGroupMismatch means the confirmation addresses a different group than the
@@ -186,19 +194,39 @@ func (s *Service) Preview(ctx context.Context, ws Workspace, groupID string) (*P
 		return nil, fmt.Errorf("prepare test write preview: %w", err)
 	}
 	owner := ownerValue(token.OperationID)
+	d := p.group.Destination
+	preview := &Preview{
+		Token: token.Token, OperationID: token.OperationID, Action: recordingplan.TestWriteAction,
+		GroupID: p.group.ID, GroupRevision: p.group.Revision, ExpiresAt: token.ExpiresAt,
+		Target: PreviewTarget{ConnectorID: d.ConnectorID, Dialect: string(p.dialect), Database: d.Database, Schema: d.TableSchema, Table: d.TableName},
+		Dedupe: p.strategy,
+	}
+	if p.mysql != nil {
+		values, recordIDs, cleanup, err := mysqlPreview(p, owner, token.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		preview.OwnerColumn, preview.OwnerValue = p.ownerColumn, "gateway"
+		preview.Values, preview.RecordIDs, preview.Cleanup = values, recordIDs, cleanup
+		return preview, nil
+	}
+	if p.sqlserver != nil {
+		values, recordIDs, cleanup, err := sqlServerPreview(p, owner, token.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		preview.OwnerColumn, preview.OwnerValue = p.ownerColumn, sqlServerTestTableOwner
+		preview.Values, preview.RecordIDs, preview.Cleanup = values, recordIDs, cleanup
+		return preview, nil
+	}
 	values := make([]PreviewValue, 0, len(p.members)+1)
 	for _, m := range p.members {
 		values = append(values, PreviewValue{Column: m.column, Type: string(m.kind), Value: fmt.Sprint(m.value.Value())})
 	}
 	values = append(values, PreviewValue{Column: p.ownerColumn, Type: "text", Value: owner})
-	d := p.group.Destination
-	return &Preview{
-		Token: token.Token, OperationID: token.OperationID, Action: recordingplan.TestWriteAction,
-		GroupID: p.group.ID, GroupRevision: p.group.Revision, ExpiresAt: token.ExpiresAt,
-		Target:      PreviewTarget{ConnectorID: d.ConnectorID, Dialect: string(p.dialect), Database: d.Database, Schema: d.TableSchema, Table: d.TableName},
-		OwnerColumn: p.ownerColumn, OwnerValue: owner, Dedupe: p.strategy, Values: values,
-		Cleanup: fmt.Sprintf("remove only rows where %s = %q, and the receipt of this test when one is written", p.ownerColumn, owner),
-	}, nil
+	preview.OwnerColumn, preview.OwnerValue, preview.Values = p.ownerColumn, owner, values
+	preview.Cleanup = fmt.Sprintf("remove only rows where %s = %q, and the receipt of this test when one is written", p.ownerColumn, owner)
+	return preview, nil
 }
 
 // Confirm runs a previewed test write once. A repeat of a running operation
@@ -207,6 +235,12 @@ func (s *Service) Preview(ctx context.Context, ws Workspace, groupID string) (*P
 // whose owner vanished is adopted and reconciled from target evidence rather
 // than written again.
 func (s *Service) Confirm(ctx context.Context, ws Workspace, req Confirmation) (*Outcome, error) {
+	if req.Action != "" && req.Action != "cleanup_repair" {
+		return nil, unsupported(ReasonUnknownAction)
+	}
+	if req.Action == "cleanup_repair" {
+		return s.repairCleanup(ctx, ws, req)
+	}
 	ledger := s.deps.Ledger
 	op, claim, err := ledger.ResolveTestWriteReplay(ctx, ws.ID, req.Token, req.OperationID)
 	if err != nil {
