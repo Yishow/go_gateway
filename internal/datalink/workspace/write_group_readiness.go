@@ -19,7 +19,8 @@ type WriteGroupTableInspector interface {
 // WriteGroupReadiness is the read-only configuration and schema gate for one
 // canonical write group.
 type WriteGroupReadiness struct {
-	runtimeLayout *WriteGroupRuntimeLayout
+	runtimeLayout   *WriteGroupRuntimeLayout
+	counterBindings CounterBindingProofs
 	// longRuntimeGate marks a long-layout group whose storage mode or profile the
 	// runtime does not write; it adds a blocking issue without changing config or
 	// schema state. counterGate marks a supported cumulative group that still has
@@ -73,7 +74,8 @@ func newWriteGroupReadiness(record *Record, group *WriteGroup) *WriteGroupReadin
 func (s *WriteGroupService) newSnapshotReadiness(ctx context.Context, snapshot *writeGroupReadinessSnapshot) *WriteGroupReadiness {
 	result := newWriteGroupReadiness(snapshot.record, snapshot.group)
 	result.reductionGate = recordingReductionUnsupported(snapshot.group, snapshot.tagTypes)
-	result.counterIssues = s.counterMeasurementIssues(ctx, snapshot.group, snapshot.tagTypes)
+	result.counterIssues = snapshot.counterIssues
+	result.counterBindings = snapshot.counterBindings
 	s.populateSQLServerPartitionMaintenanceReadiness(ctx, snapshot.connectorKind, snapshot.group, result)
 	return result
 }

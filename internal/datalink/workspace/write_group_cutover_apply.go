@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"go-gateway/internal/datalink/measurement"
 )
 
 // RevisionEnd returns the immutable instant a cutover took the sources away
@@ -212,8 +214,20 @@ func (s *WriteGroupService) restoreSourceAt(ctx context.Context, tx *sql.Tx, rec
 		}
 	}
 	restored := cloneWriteGroup(ended.Group)
+	definitions := make(map[string]*measurement.MeasurementDefinition)
+	if err := s.repo.validateWithMeasurements(ctx, tx, restored, definitions); err != nil {
+		return err
+	}
+	proofs, err := s.verifyCounterBindingsInTx(ctx, tx, restored, plan.readiness[source.ID], definitions)
+	if err != nil {
+		return err
+	}
 	restored.Revision = s.repo.newID()
 	restored.AppliedRevision = restored.Revision
+	proofs, err = rekeyCounterBindings(proofs, restored.AppliedRevision)
+	if err != nil {
+		return err
+	}
 	restored.Status = WriteGroupStatusReady
 	restored.UpdatedAt = s.clockNow()
 	if err := s.repo.updateGroup(ctx, tx, restored); err != nil {
@@ -225,7 +239,7 @@ func (s *WriteGroupService) restoreSourceAt(ctx context.Context, tx *sql.Tx, rec
 	}
 	if err := s.saveRuntimeVersionInTx(ctx, tx, &WriteGroupAppliedSnapshot{
 		WorkspaceID: record.ID, GroupID: restored.ID, GroupRevision: restored.Revision, AppliedRevision: restored.AppliedRevision,
-		EffectiveAt: boundary.UTC(), Group: restored, RuntimeLayout: plan.readiness[source.ID].runtimeLayout,
+		EffectiveAt: boundary.UTC(), Group: restored, RuntimeLayout: plan.readiness[source.ID].runtimeLayout, CounterBindings: proofs,
 	}); err != nil {
 		return err
 	}

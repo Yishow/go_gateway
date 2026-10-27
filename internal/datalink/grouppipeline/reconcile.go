@@ -117,12 +117,10 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 		}
 		m, reason := p.build(ctx, snap)
 		if reason != "" {
-			p.setBlocked(group, reason)
+			p.setBlocked(snap.Group, reason)
 			continue
 		}
-		p.mu.Lock()
-		p.boundaries[key] = m
-		p.mu.Unlock()
+		p.installManaged(m)
 		built = true
 	}
 	if built {
@@ -160,7 +158,7 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 	}
 	frozen, err := p.loadRuntimeSnapshot(ctx, groupKey(snap))
 	if err != nil {
-		return nil, reasonSnapshotUnavailable
+		return nil, frozenFailureReason(err)
 	}
 	if frozen != nil {
 		if !sameAppliedSnapshot(snap, frozen) || frozen.RuntimeLayout == nil || frozen.RuntimeLayout.Dialect != dialect ||
@@ -169,6 +167,9 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 		}
 		frozen.EndsAt = snap.EndsAt
 		return p.buildFrozen(ctx, frozen, time.Time{}, time.Time{})
+	}
+	if needsCounterSources(group) {
+		return nil, "counter-replay-proof-missing"
 	}
 	if canonicalManagedGroup(group) || longGroup(group) {
 		// Only the verified snapshot frozen at apply can start these groups; the
@@ -221,11 +222,18 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 	return built, ""
 }
 
-func (p *Pipeline) buildFrozen(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot, first, until time.Time) (built *managed, blockedReason string) {
+func (p *Pipeline) buildFrozen(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot, first, until time.Time) (*managed, string) {
+	built, reason, _ := p.buildFrozenWithCause(ctx, snap, first, until)
+	return built, reason
+}
+
+// buildFrozenWithCause preserves activation causes for durable recovery without
+// exposing them through the safe blocked reason or changing layout refusals.
+func (p *Pipeline) buildFrozenWithCause(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot, first, until time.Time) (built *managed, blockedReason string, cause error) {
 	group, layout := snap.Group, snap.RuntimeLayout
 	interval := time.Duration(group.RowPolicy.IntervalSeconds) * time.Second
 	if interval < time.Second {
-		return nil, reasonIntervalInvalid
+		return nil, reasonIntervalInvalid, nil
 	}
 	effective := snap.EffectiveAt.UTC()
 	if first.IsZero() {
@@ -248,40 +256,25 @@ func (p *Pipeline) buildFrozen(ctx context.Context, snap *workspace.WriteGroupAp
 		members = append(members, member{tagID: m.TagID, connectorID: group.Destination.ConnectorID})
 	}
 	key := groupdelivery.GroupKey{WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: snap.AppliedRevision}
-	var counters map[string]runtime.CounterSource
-	if needsCounterSources(group) && p.deps.Counters != nil {
-		// A scaled member carries its immutable counter proof in the applied
-		// group. Only legacy members consult editable definition repositories.
-		legacy := *group
-		legacy.Members = nil
-		for _, member := range group.Members {
-			if member.ExactRecordingSource == nil {
-				legacy.Members = append(legacy.Members, member)
-			}
-		}
-		if len(legacy.Members) > 0 {
-			var err error
-			if counters, err = p.deps.Counters.CounterSources(ctx, &legacy); err != nil {
-				return nil, reasonCounterSourcesUnavailable
-			}
-		}
-	}
 	boundary, err := runtime.NewGroupBoundaryContext(ctx, runtime.GroupBoundaryConfig{
-		Group: group, TagTypes: layout.TagTypes, Counters: counters, Dialect: layout.Dialect, Columns: layout.Columns,
+		Group: group, TagTypes: layout.TagTypes, CounterBindings: snap.CounterBindings, Dialect: layout.Dialect, Columns: layout.Columns,
 		FirstBucket: first, Until: until, StartsAt: startsAt, EndsAt: endsAt, MaxFutureSkew: p.config.MaxFutureSkew,
 		Ledger: p.deps.Store.Ledger(key), Clock: p.config.Now, ReceiptTableReady: layout.ReceiptTableReady,
 	})
 	if err != nil {
 		var blocked *runtime.GroupBoundaryError
 		if errors.As(err, &blocked) {
-			return nil, blocked.Code
+			if blocked.Cause != nil {
+				return nil, blocked.Code, err
+			}
+			return nil, blocked.Code, nil
 		}
-		return nil, reasonDestinationUnavailable
+		return nil, reasonDestinationUnavailable, err
 	}
 	return &managed{
-		groupID: group.ID, revision: snap.AppliedRevision, boundary: boundary, members: members,
+		workspaceID: group.WorkspaceID, groupID: group.ID, revision: snap.AppliedRevision, boundary: boundary, members: members,
 		connector: group.Destination.ConnectorID, interval: interval, effective: snap.EffectiveAt,
-	}, ""
+	}, "", nil
 }
 
 func dialectFor(kind schema.DatabaseConnectorKind) (dbtarget.SQLDialect, bool) {
@@ -314,6 +307,9 @@ func (p *Pipeline) retireGroup(groupID string, now time.Time) {
 }
 
 func (p *Pipeline) setBlocked(group *workspace.WriteGroup, reason string) {
+	if p.setCounterQuarantine(groupdelivery.GroupKey{WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: group.AppliedRevision}, reason) {
+		return
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.blocked[group.ID] = GroupStatus{GroupID: group.ID, Revision: group.AppliedRevision, State: StateBlocked, Reason: reason}

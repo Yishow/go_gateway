@@ -14,6 +14,10 @@ import (
 )
 
 func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup) error {
+	return r.validateWithMeasurements(ctx, runner, group, make(map[string]*measurement.MeasurementDefinition))
+}
+
+func (r *SQLWriteGroupRepository) validateWithMeasurements(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup, definitions map[string]*measurement.MeasurementDefinition) error {
 	if strings.TrimSpace(group.WorkspaceID) == "" {
 		return fmt.Errorf("%w: workspace id is required", ErrWriteGroupValidation)
 	}
@@ -232,14 +236,14 @@ func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGrou
 			return fmt.Errorf("%w: %w", ErrWriteGroupNotFound, ErrNotFound)
 		}
 		member.MeasurementID = &measurementID
-		if err := r.deriveAndValidateExactRecordingSourceInTx(ctx, runner, group, member, i, schema.DataType(source.TagDataType)); err != nil {
+		if err := r.deriveAndValidateExactRecordingSourceInTx(ctx, runner, group, member, i, schema.DataType(source.TagDataType), definitions); err != nil {
 			return err
 		}
 		if err := applyRecordingMetadata(group, member, i, schema.DataType(source.TagDataType)); err != nil {
 			return err
 		}
 		if member.ValueRole == WriteGroupValueRoleCounterRaw {
-			if err := r.confirmCounterBinding(ctx, runner, *member.MeasurementID); err != nil {
+			if err := confirmCounterBinding(definitions[*member.MeasurementID]); err != nil {
 				return fmt.Errorf("member %d: %w", i, err)
 			}
 		}
@@ -304,18 +308,7 @@ func applyRecordingMetadata(group *WriteGroup, member *WriteGroupMember, index i
 // confirmCounterBinding reuses the existing confirmed counter evidence: the
 // saved definition must itself confirm counter semantics on the same local
 // transaction, never a guess from a name or a unit.
-func (r *SQLWriteGroupRepository) confirmCounterBinding(ctx context.Context, runner writeGroupSQLRunner, measurementID string) error {
-	tx, ok := runner.(*sql.Tx)
-	if !ok {
-		// An internal capability gap of the caller, never an operator mistake.
-		return fmt.Errorf("confirm write-group counter binding: the validation runner is not a transaction")
-	}
-	def, err := measurement.NewSQLRepository(r.db).GetByIDInTx(ctx, tx, measurementID)
-	if err != nil {
-		// Keep the existing read-measurement semantics: an unreadable saved
-		// definition is an availability failure that preserves the cause.
-		return fmt.Errorf("read write-group measurement: %w", err)
-	}
+func confirmCounterBinding(def *measurement.MeasurementDefinition) error {
 	if def == nil {
 		return fmt.Errorf("read write-group measurement: the counter binding is unavailable")
 	}

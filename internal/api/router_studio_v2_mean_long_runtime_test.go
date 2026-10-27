@@ -244,21 +244,25 @@ func TestMeanLongRecording(t *testing.T) {
 	var clock atomic.Int64
 	clock.Store(snapshot.EffectiveAt.Add(time.Second).UnixNano())
 
-	// A confirmed counter_raw needs the production counter provider: without it,
-	// or once its measurement no longer confirms counter semantics, the group is
-	// never built, and a non-empty measurement id alone proves nothing.
+	// Apply proved this counter_raw. Neither a missing current provider nor a
+	// later invalid editable definition may replace that original evidence.
+	// The before-Apply refusals above remain required.
+	key := groupdelivery.GroupKey{WorkspaceID: snapshot.WorkspaceID, GroupID: groupID, GroupRevision: snapshot.AppliedRevision}
+	original, originalBytes := counterReplayAPISnapshot(t, groupdelivery.NewStore(f.db), key)
+	for _, proof := range original.CounterBindings {
+		require.Equal(t, "epoch-1", proof.SeriesEpoch)
+		require.Equal(t, "def-1", proof.DefinitionRevision)
+	}
 	missing := newMeanPipeline(t, f, &clock, "node/no-provider", false)
-	require.Equal(t, [2]string{grouppipeline.StateBlocked, "counter-semantics-required"},
-		[2]string{pipeStatus(missing, groupID).State, pipeStatus(missing, groupID).Reason}, "%+v", missing.Status())
+	require.Equal(t, grouppipeline.StateActive, pipeStatus(missing, groupID).State, "%+v", missing.Status())
 	require.NoError(t, missing.Stop(time.Second))
 	_, err = f.db.ExecContext(ctx, `UPDATE measurement_definitions SET series_epoch='' WHERE id='meas-raw'`)
 	require.NoError(t, err)
 	downgraded := newMeanPipeline(t, f, &clock, "node/downgraded", true)
-	require.Equal(t, [2]string{grouppipeline.StateBlocked, "counter-semantics-required"},
-		[2]string{pipeStatus(downgraded, groupID).State, pipeStatus(downgraded, groupID).Reason}, "%+v", downgraded.Status())
+	require.Equal(t, grouppipeline.StateActive, pipeStatus(downgraded, groupID).State, "%+v", downgraded.Status())
 	require.NoError(t, downgraded.Stop(time.Second))
-	_, err = f.db.ExecContext(ctx, `UPDATE measurement_definitions SET series_epoch='epoch-1' WHERE id='meas-raw'`)
-	require.NoError(t, err)
+	// Keep the editable definition invalid through intake, restart and SQL
+	// readback below: success must come from the original applied proof.
 
 	pipe := newMeanPipeline(t, f, &clock, "node/test", true)
 	require.Equal(t, grouppipeline.StateActive, pipeStatus(pipe, groupID).State, "%+v", pipe.Status())
@@ -266,7 +270,7 @@ func TestMeanLongRecording(t *testing.T) {
 		WorkspaceID: snapshot.WorkspaceID, GroupID: groupID, GroupRevision: snapshot.AppliedRevision,
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, frozenLayout, "Apply froze the verified layout the pipeline built from")
+	require.Equal(t, originalBytes, frozenLayout, "current edits cannot rewrite the applied descriptor")
 
 	effective := snapshot.EffectiveAt
 	envelopeFor := func(source, id string, offset time.Duration, value any, quality schema.QualityFlag) measurement.SampleEnvelope {

@@ -13,20 +13,21 @@ import (
 // is built from the durable store, never from buffers or ACKs, and contains no
 // values, DSNs or driver text.
 type DeliveryView struct {
-	Attention              []groupdelivery.AttentionItem  `json:"attention"`
-	GroupID                string                         `json:"group_id"`
-	Intake                 IntakeView                     `json:"intake"`
-	Stages                 StagesView                     `json:"stages"`
-	LastSQLCommittedAt     *time.Time                     `json:"last_sql_committed_at"`
-	LastSQLCommittedEffect *groupdelivery.CommittedEffect `json:"last_sql_committed_effect"`
-	RevisionStages         *RevisionStagesView            `json:"revision_stages"`
-	OldestPendingSeconds   float64                        `json:"oldest_pending_seconds"`
-	NoDataBuckets          int                            `json:"no_data_buckets"`
-	SkippedBuckets         int                            `json:"skipped_buckets"`
-	RecentBucketIssues     []groupdelivery.BucketIssue    `json:"recent_bucket_issues"`
-	Backlog                []BacklogView                  `json:"backlog"`
-	Quota                  groupdelivery.QuotaStatusView  `json:"quota"`
-	Storage                *StorageView                   `json:"storage,omitempty"`
+	CounterReplayQuarantines []CounterReplayQuarantine      `json:"counter_replay_quarantines"`
+	Attention                []groupdelivery.AttentionItem  `json:"attention"`
+	GroupID                  string                         `json:"group_id"`
+	Intake                   IntakeView                     `json:"intake"`
+	Stages                   StagesView                     `json:"stages"`
+	LastSQLCommittedAt       *time.Time                     `json:"last_sql_committed_at"`
+	LastSQLCommittedEffect   *groupdelivery.CommittedEffect `json:"last_sql_committed_effect"`
+	RevisionStages           *RevisionStagesView            `json:"revision_stages"`
+	OldestPendingSeconds     float64                        `json:"oldest_pending_seconds"`
+	NoDataBuckets            int                            `json:"no_data_buckets"`
+	SkippedBuckets           int                            `json:"skipped_buckets"`
+	RecentBucketIssues       []groupdelivery.BucketIssue    `json:"recent_bucket_issues"`
+	Backlog                  []BacklogView                  `json:"backlog"`
+	Quota                    groupdelivery.QuotaStatusView  `json:"quota"`
+	Storage                  *StorageView                   `json:"storage,omitempty"`
 	// SourceEvidence is the per source result of the applied revision; absent for wide, custom and unapplied groups.
 	SourceEvidence *SourceEvidenceView `json:"source_evidence,omitempty"`
 }
@@ -100,6 +101,10 @@ func (p *Pipeline) Delivery(ctx context.Context, groupID string) (*DeliveryView,
 		NoDataBuckets: status.NoDataBuckets, SkippedBuckets: status.SkippedBuckets,
 		RecentBucketIssues: status.RecentBucketIssues,
 		Backlog:            make([]BacklogView, 0, len(status.Backlog)), Quota: quota.View(),
+	}
+	view.CounterReplayQuarantines, err = p.CounterReplayQuarantines(ctx, groupID)
+	if err != nil {
+		return nil, err
 	}
 	for _, entry := range status.Backlog {
 		codes := entry.LastErrorCodes

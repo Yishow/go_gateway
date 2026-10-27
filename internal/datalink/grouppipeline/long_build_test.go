@@ -59,7 +59,7 @@ func TestLongGroupIsBuiltOnlyFromItsVerifiedFrozenProof(t *testing.T) {
 		require.NoError(t, err)
 		status := f.reconcileStatus()
 		require.Equal(t, StateBlocked, status.State)
-		require.Equal(t, reasonSnapshotUnavailable, status.Reason)
+		require.Equal(t, "counter-replay-proof-missing", status.Reason)
 		require.False(t, f.pipe.Owns("connector-1", longKwhFirst))
 	})
 
@@ -104,7 +104,11 @@ func TestLongGroupIsBuiltOnlyFromItsVerifiedFrozenProof(t *testing.T) {
 			f.saveSnapshot(mutate)
 			status := f.reconcileStatus()
 			require.Equal(t, StateBlocked, status.State)
-			require.Equal(t, reasonSnapshotUnavailable, status.Reason)
+			want := reasonSnapshotUnavailable
+			if name == "a source type without an exact form" {
+				want = "counter-replay-proof-conflict"
+			}
+			require.Equal(t, want, status.Reason)
 			require.False(t, f.pipe.Owns("connector-1", longKwhFirst), "a group that cannot run owns nothing")
 		})
 	}
@@ -116,33 +120,29 @@ func (failingDefinitions) GetByID(context.Context, string) (*measurement.Measure
 	return nil, errors.New("measurement store offline")
 }
 
-func TestCumulativeLongGroupNeedsConfirmedCounterSources(t *testing.T) {
-	t.Run("an unconfirmed source blocks with the actionable code", func(t *testing.T) {
+func TestCumulativeLongGroupNeedsOriginalCounterProof(t *testing.T) {
+	t.Run("missing original proof refuses rather than fetching current definitions", func(t *testing.T) {
 		f := newLongPipeline(t)
-		delete(f.counters.sources, longKwhSecond)
+		f.saveSnapshot(func(s *workspace.WriteGroupAppliedSnapshot) { s.CounterBindings = nil })
 		status := f.reconcileStatus()
 		require.Equal(t, StateBlocked, status.State)
-		require.Equal(t, "counter-semantics-required", status.Reason)
+		require.Equal(t, "counter-replay-proof-missing", status.Reason)
 		require.False(t, f.pipe.Owns("connector-1", longKwhFirst))
 	})
-
-	t.Run("without a counter dependency a cumulative group is not built", func(t *testing.T) {
-		f := newLongPipeline(t)
-		f.counters = confirmedCounters{}
-		status := f.reconcileStatus()
-		require.Equal(t, "counter-semantics-required", status.Reason)
-	})
-
-	t.Run("an unreadable measurement store is not the same as an unconfirmed counter", func(t *testing.T) {
-		f := newLongPipeline(t)
-		pipe := New(Dependencies{
-			Groups: f.groups, Tags: fakeTags{missing: map[string]bool{}}, Destinations: f.dest, Inspector: &fakeInspector{},
-			Store: f.store, Counters: NewMeasurementCounterSources(failingDefinitions{}),
-		}, Config{NodeID: "node-1", Owner: "node-1/x", Now: func() time.Time { return f.clock }})
-		require.NoError(t, pipe.Reconcile(t.Context()))
-		f.pipe = pipe
-		require.Equal(t, reasonCounterSourcesUnavailable, f.statusOf().Reason)
-	})
+	for _, change := range []string{"deleted", "nil", "outage"} {
+		t.Run("valid frozen proof survives provider "+change, func(t *testing.T) {
+			f := newLongPipeline(t)
+			var provider CounterSources
+			if change == "deleted" {
+				provider = confirmedCounters{}
+			} else if change == "outage" {
+				provider = NewMeasurementCounterSources(failingDefinitions{})
+			}
+			f.pipe = New(Dependencies{Groups: f.groups, Destinations: f.dest, Store: f.store, Counters: provider}, Config{Now: func() time.Time { return f.clock }})
+			require.NoError(t, f.pipe.Reconcile(t.Context()))
+			require.Equal(t, StateActive, f.statusOf().State)
+		})
+	}
 }
 
 type memoryDefinitions map[string]*measurement.MeasurementDefinition

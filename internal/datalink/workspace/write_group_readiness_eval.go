@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"go-gateway/internal/datalink/dbtarget"
+	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/schema"
 )
@@ -21,6 +22,8 @@ type writeGroupReadinessSnapshot struct {
 	connectorKind   string
 	connectorConfig string
 	validateErr     error
+	counterBindings CounterBindingProofs
+	counterIssues   []ReadinessIssue
 }
 
 func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGroupReadiness, error) {
@@ -245,7 +248,8 @@ func (s *WriteGroupService) readinessSnapshot(ctx context.Context, id string, co
 		group = cloneWriteGroup(content)
 	}
 	validated := cloneWriteGroup(group)
-	validationErr := s.repo.validate(ctx, setupTx.SQLTx(), validated)
+	definitions := make(map[string]*measurement.MeasurementDefinition)
+	validationErr := s.repo.validateWithMeasurements(ctx, setupTx.SQLTx(), validated, definitions)
 	tagTypes := map[string]schema.DataType{}
 	var connectorKind, connectorConfig string
 	connectorErr := setupTx.SQLTx().QueryRowContext(ctx, s.repo.query(
@@ -261,10 +265,12 @@ func (s *WriteGroupService) readinessSnapshot(ctx context.Context, id string, co
 			validationErr = err
 		}
 	}
+	proofs, issues := s.counterBindingEvidenceInTx(ctx, setupTx.SQLTx(), group, tagTypes, definitions)
 	return &writeGroupReadinessSnapshot{
 		record: record, group: group, validated: validated,
 		tagTypes: tagTypes, connectorKind: connectorKind, connectorConfig: connectorConfig,
-		validateErr: validationErr,
+		validateErr:     validationErr,
+		counterBindings: proofs, counterIssues: issues,
 	}, nil
 }
 
@@ -370,7 +376,9 @@ func sameWriteGroupReadinessSnapshot(left, right *writeGroupReadinessSnapshot) b
 	}
 	return reflect.DeepEqual(left.group, right.group) &&
 		reflect.DeepEqual(left.validated, right.validated) &&
-		reflect.DeepEqual(left.tagTypes, right.tagTypes)
+		reflect.DeepEqual(left.tagTypes, right.tagTypes) &&
+		reflect.DeepEqual(left.counterBindings, right.counterBindings) &&
+		reflect.DeepEqual(left.counterIssues, right.counterIssues)
 }
 
 func loadWriteGroupTagTypes(

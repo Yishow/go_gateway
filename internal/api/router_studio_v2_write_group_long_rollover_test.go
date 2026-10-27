@@ -124,8 +124,8 @@ func (s *rolloverStack) closeWindow(window int) {
 }
 
 type rolloverRow struct {
-	status, provenance string
-	raw, delta         sql.NullString
+	status, provenance, epoch string
+	raw, delta                sql.NullString
 }
 
 // rows waits until the shared long table holds n records and returns them in
@@ -137,13 +137,13 @@ func (s *rolloverStack) rows(n int) []rolloverRow {
 		var count int
 		return s.target.QueryRowContext(s.t.Context(), `SELECT COUNT(*) FROM `+from).Scan(&count) == nil && count == n
 	}, 15*time.Second, 50*time.Millisecond, "the closed windows reach the shared long table")
-	result, err := s.target.QueryContext(s.t.Context(), `SELECT status, CAST(value_decimal AS TEXT), CAST(delta_value AS TEXT), CAST(provenance AS TEXT) FROM `+from+` ORDER BY bucket_start`)
+	result, err := s.target.QueryContext(s.t.Context(), `SELECT status, CAST(value_decimal AS TEXT), CAST(delta_value AS TEXT), CAST(provenance AS TEXT), series_epoch FROM `+from+` ORDER BY bucket_start`)
 	require.NoError(s.t, err)
 	defer result.Close()
 	var rows []rolloverRow
 	for result.Next() {
 		var row rolloverRow
-		require.NoError(s.t, result.Scan(&row.status, &row.raw, &row.delta, &row.provenance))
+		require.NoError(s.t, result.Scan(&row.status, &row.raw, &row.delta, &row.provenance, &row.epoch))
 		// PostgreSQL renders JSONB with spaces; compare the document, not its layout.
 		var document any
 		require.NoError(s.t, json.Unmarshal([]byte(row.provenance), &document))
@@ -157,9 +157,9 @@ func (s *rolloverStack) rows(n int) []rolloverRow {
 }
 
 // TestCumulativeLongGroupRolloverFromSavedPolicy proves the production path of
-// the rollover evidence: saved through the measurement service, confirmed at
-// pipeline start, applied by the 2.3 engine and read back from a real
-// destination, with a changed policy starting a new baseline.
+// the rollover evidence: saved through the measurement service, frozen at
+// Apply and read back from a real destination. Editing current policy without
+// a new Apply cannot reset the original applied epoch.
 func TestCumulativeLongGroupRolloverFromSavedPolicy(t *testing.T) {
 	for _, kind := range []string{"sqlite", "postgres"} {
 		t.Run(kind, func(t *testing.T) {
@@ -204,32 +204,54 @@ func TestCumulativeLongGroupRolloverFromSavedPolicy(t *testing.T) {
 				})
 			}
 
-			t.Run("a changed policy starts a new baseline after the restart", func(t *testing.T) {
+			t.Run("a current policy edit cannot reset the applied baseline after restart", func(t *testing.T) {
 				s := newRolloverStack(t, kind, &measurement.CounterPolicy{RolloverModulus: "65536", MaxRatePerSecond: "100"})
+				key := groupdelivery.GroupKey{WorkspaceID: s.f.record.ID, GroupID: s.groupID, GroupRevision: appliedRevisionOf(t, s.f, s.groupID)}
+				store := groupdelivery.NewStore(s.f.db)
+				original, originalBytes := counterReplayAPISnapshot(t, store, key)
+				var originalEpoch string
+				for _, proof := range original.CounterBindings {
+					originalEpoch = proof.SeriesEpoch
+					require.Equal(t, "100", proof.CounterPolicy.MaxRatePerSecond)
+				}
 				s.start()
 				s.accept("energy-1", 0, 65530)
 				s.closeWindow(0)
 				s.accept("energy-2", 1, 4)
 				s.closeWindow(1)
-				require.Equal(t, "10", s.rows(2)[1].delta.String)
+				oldRows := s.rows(2)
+				require.Equal(t, "10", oldRows[1].delta.String)
 				s.stop()
+				oldEffects := counterReplayAPIEffects(t, s.f.db, key.GroupRevision)
 
 				definition, err := s.definitions.GetMeasurement(t.Context(), s.definitionID)
 				require.NoError(t, err)
 				definition.CounterPolicy = &measurement.CounterPolicy{RolloverModulus: "65536", MaxRatePerSecond: "50"}
 				moved, err := s.definitions.UpdateMeasurement(t.Context(), definition)
 				require.NoError(t, err)
-				require.True(t, moved, "a changed rate bound is a new series epoch")
+				require.True(t, moved, "a changed rate bound is a new editable series epoch")
+				current, err := s.definitions.GetMeasurement(t.Context(), s.definitionID)
+				require.NoError(t, err)
+				require.NotEqual(t, originalEpoch, current.SeriesEpoch)
+				require.Equal(t, "50", current.CounterPolicy.MaxRatePerSecond)
+				require.Equal(t, key.GroupRevision, appliedRevisionOf(t, s.f, s.groupID))
 
 				s.start()
 				require.Equal(t, grouppipeline.StateActive, s.status().State, "%+v", s.pipe.Status())
 				s.accept("energy-3", 2, 9)
 				s.closeWindow(2)
 				rows := s.rows(3)
-				require.Equal(t, "baseline", rows[2].status, "the first window of the revised evidence is only a baseline")
-				require.False(t, rows[2].delta.Valid, "9 is never subtracted from a reading taken under other evidence")
-				require.Contains(t, rows[2].provenance, `"reason":"binding-changed"`)
-				require.Equal(t, "10", rows[1].delta.String, "the closed record keeps its frozen result")
+				require.Equal(t, "ok", rows[2].status)
+				require.True(t, rows[2].delta.Valid)
+				require.Equal(t, "5", rows[2].delta.String, "9 - 4 still belongs to the original applied proof")
+				require.Equal(t, originalEpoch, rows[2].epoch)
+				require.Equal(t, oldRows, rows[:2], "closed results are immutable")
+				_, retained := counterReplayAPISnapshot(t, store, key)
+				require.Equal(t, originalBytes, retained)
+				require.Equal(t, oldEffects, counterReplayAPIEffects(t, s.f.db, key.GroupRevision)[:2])
+				// Explicit NEW applied-owner NULL baseline remains covered by
+				// TestStudioV2CounterReplayPublicMeasurementEditPreservesAcceptedEpoch
+				// and TestCounterEpochReplayKeepsOldBacklogAndNewOwnerIndependent.
 			})
 		})
 	}

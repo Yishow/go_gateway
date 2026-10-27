@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"reflect"
 	"time"
+
+	"go-gateway/internal/datalink/measurement"
 )
 
 // applySchedule picks the instant a newly applied revision takes effect.
@@ -50,7 +51,8 @@ func (s *WriteGroupService) applyGroupInTx(ctx context.Context, tx *sql.Tx, reco
 		return nil, err
 	}
 	candidate := cloneWriteGroup(existing)
-	if err := s.repo.validate(ctx, tx, candidate); err != nil {
+	definitions := make(map[string]*measurement.MeasurementDefinition)
+	if err := s.repo.validateWithMeasurements(ctx, tx, candidate, definitions); err != nil {
 		return nil, err
 	}
 	for i := range candidate.Members {
@@ -58,14 +60,9 @@ func (s *WriteGroupService) applyGroupInTx(ctx context.Context, tx *sql.Tx, reco
 			return nil, writeGroupRevisionConflict("write group exact recording source changed during verification")
 		}
 	}
-	if readiness.runtimeLayout != nil {
-		currentTypes, err := loadWriteGroupTagTypes(ctx, tx, s.repo.query, candidate)
-		if err != nil {
-			return nil, err
-		}
-		if !reflect.DeepEqual(currentTypes, readiness.runtimeLayout.TagTypes) {
-			return nil, writeGroupRevisionConflict("write group tag types changed during schema verification")
-		}
+	proofs, err := s.verifyCounterBindingsInTx(ctx, tx, candidate, readiness, definitions)
+	if err != nil {
+		return nil, err
 	}
 	candidate.Status = WriteGroupStatusReady
 	candidate.UpdatedAt = s.clockNow()
@@ -73,7 +70,22 @@ func (s *WriteGroupService) applyGroupInTx(ctx context.Context, tx *sql.Tx, reco
 	if snapshotErr != nil && !errors.Is(snapshotErr, ErrWriteGroupAppliedRevisionUnavailable) {
 		return nil, snapshotErr
 	}
-	if existing.Status != WriteGroupStatusDisabled && activeSnapshot != nil && sameWriteGroupAppliedSemantics(candidate, activeSnapshot.Group) {
+	reuseApplied := existing.Status != WriteGroupStatusDisabled && activeSnapshot != nil && sameWriteGroupAppliedSemantics(candidate, activeSnapshot.Group)
+	if reuseApplied {
+		reuseApplied, err = s.sameAppliedCounterMeaningInTx(ctx, tx, activeSnapshot, proofs)
+		if err != nil {
+			var proof *CounterBindingProofError
+			if !errors.As(err, &proof) {
+				return nil, err
+			}
+			if candidate.Revision == activeSnapshot.AppliedRevision {
+				return nil, errors.Join(ErrWriteGroupApplyNotReady, err)
+			}
+			// A distinct reviewed owner does not repair or reinterpret unproven history.
+			reuseApplied = false
+		}
+	}
+	if reuseApplied {
 		// A display-only rename must not restart the applied writer or create
 		// a second bucket snapshot. Keep the prior active revision while
 		// explicitly moving the saved draft back to ready. A disabled group
@@ -81,7 +93,7 @@ func (s *WriteGroupService) applyGroupInTx(ctx context.Context, tx *sql.Tx, reco
 		// retired intake boundary.
 		candidate.AppliedRevision = existing.AppliedRevision
 		activeSnapshot.RuntimeLayout = readiness.runtimeLayout
-		if err := s.saveRuntimeVersionInTx(ctx, tx, activeSnapshot); err != nil {
+		if err := s.saveHistoricalRuntimeVersionInTx(ctx, tx, activeSnapshot); err != nil {
 			return nil, err
 		}
 		if err := s.repo.setAppliedInTx(ctx, tx, candidate); err != nil {
@@ -91,6 +103,9 @@ func (s *WriteGroupService) applyGroupInTx(ctx context.Context, tx *sql.Tx, reco
 			return nil, err
 		}
 		return cloneWriteGroup(candidate), nil
+	}
+	if activeSnapshot != nil && candidate.Revision == activeSnapshot.AppliedRevision {
+		return nil, writeGroupRevisionConflict("changed counter meaning requires a fresh saved write-group revision")
 	}
 	if !laterThanActive && activeSnapshot != nil && activeSnapshot.EffectiveAt.After(candidate.UpdatedAt) {
 		// Keep one pending semantic cutover so an older scheduled snapshot
@@ -108,7 +123,7 @@ func (s *WriteGroupService) applyGroupInTx(ctx context.Context, tx *sql.Tx, reco
 	if err := s.saveRuntimeVersionInTx(ctx, tx, &WriteGroupAppliedSnapshot{
 		WorkspaceID: record.ID, GroupID: candidate.ID, GroupRevision: candidate.Revision,
 		AppliedRevision: candidate.AppliedRevision, EffectiveAt: effectiveAt.UTC(),
-		Group: candidate, RuntimeLayout: readiness.runtimeLayout,
+		Group: candidate, RuntimeLayout: readiness.runtimeLayout, CounterBindings: proofs,
 	}); err != nil {
 		return nil, err
 	}

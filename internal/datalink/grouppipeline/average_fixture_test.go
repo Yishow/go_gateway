@@ -220,6 +220,9 @@ func newAveragePipeline(t *testing.T, shape averageShape) *longPipeline {
 		groups:    []*workspace.WriteGroup{liveGroup(f.group, workspace.WriteGroupStatusReady)},
 		snapshots: map[string][]*workspace.WriteGroupAppliedSnapshot{f.group.ID: {f.snapshot}},
 	}
+	if shape.cumulative() {
+		freezeFixtureCounters(t, &frozen, f.counters.sources)
+	}
 	f.openLocal(&frozen)
 	return f
 }

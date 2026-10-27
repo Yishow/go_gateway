@@ -25,7 +25,10 @@ func ensureSQLiteWriteGroupDeliveryTables(db *sql.DB) error {
 			break
 		}
 	}
-	return ensureSQLiteCounterBaselineTable(db)
+	if err := ensureSQLiteCounterBaselineTable(db); err != nil {
+		return err
+	}
+	return ensureSQLiteCounterProofAssociations(db)
 }
 
 // ensureSQLiteCounterBaselineTable adds the durable counter baseline table
@@ -40,4 +43,16 @@ func ensureSQLiteCounterBaselineTable(db *sql.DB) error {
 		return nil
 	}
 	return applySQLiteMigrationOnce(db, migrationName)
+}
+
+// ensureSQLiteCounterProofAssociations adds audit metadata without rewriting history.
+func ensureSQLiteCounterProofAssociations(db *sql.DB) error {
+	exists, err := sqliteTableExists(db, "wg_counter_proof_associations")
+	if err != nil {
+		return fmt.Errorf("inspect counter proof associations: %w", err)
+	}
+	if exists {
+		return nil
+	}
+	return applySQLiteMigrationOnce(db, "043_counter_proof_associations_sqlite.up.sql")
 }

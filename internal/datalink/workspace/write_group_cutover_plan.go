@@ -76,7 +76,13 @@ func uniqueSorted(values []string) []string {
 func (p *cutoverPlan) finish(boundary time.Time, issues []string, source CutoverGroupView, targets []CutoverGroupView, unselected []CutoverMemberRef) (*cutoverPlan, error) {
 	req := p.req
 	req.Boundary = boundary
-	digest, err := cutoverDigest(req, p.moved, p.remaining, p.facts, boundary)
+	facts := slices.Clone(p.facts)
+	for _, ready := range p.readiness {
+		for _, proof := range ready.counterBindings {
+			facts = append(facts, "counter-proof:"+proof.Digest)
+		}
+	}
+	digest, err := cutoverDigest(req, p.moved, p.remaining, facts, boundary)
 	if err != nil {
 		return nil, err
 	}

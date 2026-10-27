@@ -12,9 +12,10 @@ import (
 )
 
 func longLedger(db *sql.DB) GroupLedger {
-	return groupdelivery.NewStore(db).Ledger(groupdelivery.GroupKey{
+	store := groupdelivery.NewStore(db)
+	return &frozenFixtureLedger{store: store, Ledger: store.Ledger(groupdelivery.GroupKey{
 		WorkspaceID: "workspace-A", GroupID: "group-L", GroupRevision: "rev-1",
-	})
+	})}
 }
 
 // outboxRows decodes every closed long record from the durable outbox by tag.

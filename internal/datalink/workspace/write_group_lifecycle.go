@@ -33,9 +33,10 @@ type WriteGroupAppliedSnapshot struct {
 	// EndsAt is the immutable instant a cutover took the sources away from this
 	// revision; zero while it still owns them. It is read from the cutover
 	// ledger on every resolve and never frozen into a runtime descriptor.
-	EndsAt        time.Time                `json:"-"`
-	Group         *WriteGroup              `json:"group"`
-	RuntimeLayout *WriteGroupRuntimeLayout `json:"runtime_layout,omitempty"`
+	EndsAt          time.Time                `json:"-"`
+	Group           *WriteGroup              `json:"group"`
+	RuntimeLayout   *WriteGroupRuntimeLayout `json:"runtime_layout,omitempty"`
+	CounterBindings CounterBindingProofs     `json:"counter_bindings,omitempty"`
 }
 
 // WriteGroupIntakeEligibility describes whether new samples may enter the

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/aggregation"
+	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/measurement"
@@ -35,9 +36,12 @@ type GroupRowSink interface {
 // applied immutable version, not a draft, and Columns must come from real
 // table inspection.
 type GroupBoundaryConfig struct {
-	Group             *workspace.WriteGroup
-	TagTypes          map[string]schema.DataType
-	Counters          map[string]CounterSource // confirmed cumulative semantics by tag id
+	Group    *workspace.WriteGroup
+	TagTypes map[string]schema.DataType
+	Counters map[string]CounterSource // confirmed cumulative semantics by tag id
+	// CounterBindings freezes durable counter meaning; legacy exact descriptors
+	// are the only supported fallback, never current measurement definitions.
+	CounterBindings   workspace.CounterBindingProofs
 	Dialect           dbtarget.SQLDialect
 	Columns           []dbtarget.ColumnInfo
 	RecordKeyColumn   string
@@ -114,8 +118,10 @@ type boundaryMember struct {
 	key                             string
 	kind                            measurement.ExactType
 	counter                         *aggregation.CounterBinding // set for a cumulative member
-	exactScale                      string                      // set only from the immutable exact recording source proof
-	sourceRevision, mappingRevision string                      // required frozen identities for a scaled source
+	counterProof                    counterproof.CounterBindingReference
+	counterClaims                   counterClaimIdentity
+	exactScale                      string // set only from the immutable exact recording source proof
+	sourceRevision, mappingRevision string // required frozen identities for a scaled source
 }
 
 // GroupBoundary is the opt-in typed-sample consumer for one applied group. It
@@ -168,6 +174,11 @@ func NewGroupBoundaryContext(ctx context.Context, cfg GroupBoundaryConfig) (*Gro
 	case group.StorageMode == workspace.WriteGroupStorageModeNativeMonthly &&
 		((cfg.Dialect != dbtarget.SQLDialectMySQL && cfg.Dialect != dbtarget.SQLDialectSQLServer) || group.EffectiveLayoutVersion() != workspace.WriteGroupLayoutManagedLongV1):
 		return nil, blocked(boundaryProfileUnsupported)
+	}
+	var proofErr error
+	cfg, proofErr = resolveBoundaryCounters(cfg)
+	if proofErr != nil {
+		return nil, counterProofBoundaryError(proofErr)
 	}
 	for _, member := range group.Members {
 		if member.ExactRecordingSource != nil && group.EffectiveLayoutVersion() != workspace.WriteGroupLayoutManagedLongV1 {

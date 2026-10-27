@@ -10,11 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
 )
+
+var errRuntimeSnapshotInvalid = errors.New("invalid runtime snapshot")
 
 func groupKey(snap *workspace.WriteGroupAppliedSnapshot) groupdelivery.GroupKey {
 	return groupdelivery.GroupKey{WorkspaceID: snap.WorkspaceID, GroupID: snap.GroupID, GroupRevision: snap.AppliedRevision}
@@ -44,14 +47,21 @@ func loadFrozenSnapshot(ctx context.Context, store *groupdelivery.Store, key gro
 	if err != nil || payload == nil {
 		return nil, err
 	}
+	if _, err := counterproof.ResolveSnapshot(payload, counterproof.SnapshotScope{WorkspaceID: key.WorkspaceID, GroupID: key.GroupID, AppliedRevision: key.GroupRevision}); err != nil {
+		return nil, err
+	}
+	return decodeFrozenStorageSnapshot(payload, key)
+}
+
+func decodeFrozenStorageSnapshot(payload []byte, key groupdelivery.GroupKey) (*workspace.WriteGroupAppliedSnapshot, error) {
 	var snap workspace.WriteGroupAppliedSnapshot
 	if err := json.Unmarshal(payload, &snap); err != nil {
-		return nil, err
+		return nil, errRuntimeSnapshotInvalid
 	}
 	if groupKey(&snap) != key || snap.Group == nil || snap.RuntimeLayout == nil ||
 		snap.Group.ID != key.GroupID || snap.Group.WorkspaceID != key.WorkspaceID ||
 		snap.Group.Revision != key.GroupRevision || snap.Group.AppliedRevision != key.GroupRevision || snap.EffectiveAt.IsZero() {
-		return nil, errors.New("invalid runtime version")
+		return nil, errRuntimeSnapshotInvalid
 	}
 	// A long group also looks like a canonical managed group, but its columns are
 	// the fixed shared layout, not one column per source: it is judged by its own
@@ -59,10 +69,10 @@ func loadFrozenSnapshot(ctx context.Context, store *groupdelivery.Store, key gro
 	switch {
 	case longGroup(snap.Group):
 		if !validLongRuntimeProof(snap.Group, snap.RuntimeLayout) {
-			return nil, errors.New("invalid long runtime version")
+			return nil, errRuntimeSnapshotInvalid
 		}
 	case canonicalManagedGroup(snap.Group) && !validCanonicalManagedRuntimeProof(snap.Group, snap.RuntimeLayout):
-		return nil, errors.New("invalid canonical managed runtime version")
+		return nil, errRuntimeSnapshotInvalid
 	}
 	return &snap, nil
 }
@@ -195,6 +205,7 @@ func (p *Pipeline) restoreOpenJournals(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	var recoveryErrors []error
 	for _, journal := range journals {
 		key := boundaryKey(journal.Key.GroupID, journal.Key.GroupRevision)
 		p.mu.RLock()
@@ -205,7 +216,10 @@ func (p *Pipeline) restoreOpenJournals(ctx context.Context) error {
 		}
 		snap, err := p.loadRuntimeSnapshot(ctx, journal.Key)
 		if err != nil {
-			p.setBlocked(&workspace.WriteGroup{ID: journal.Key.GroupID, AppliedRevision: journal.Key.GroupRevision}, reasonSnapshotUnavailable)
+			p.setBlocked(&workspace.WriteGroup{WorkspaceID: journal.Key.WorkspaceID, ID: journal.Key.GroupID, AppliedRevision: journal.Key.GroupRevision}, frozenFailureReason(err))
+			if !isCounterProofReason(frozenFailureReason(err)) && !errors.Is(err, errRuntimeSnapshotInvalid) {
+				recoveryErrors = append(recoveryErrors, err)
+			}
 			continue
 		}
 		if snap == nil {
@@ -213,7 +227,7 @@ func (p *Pipeline) restoreOpenJournals(ctx context.Context) error {
 			// revision and verified destination, never through the current draft.
 			snap, err = p.deps.Groups.ResolveAppliedAt(ctx, journal.Key.GroupID, journal.FirstBucket)
 			if err != nil || snap == nil || groupKey(snap) != journal.Key {
-				p.setBlocked(&workspace.WriteGroup{ID: journal.Key.GroupID, AppliedRevision: journal.Key.GroupRevision}, reasonSnapshotUnavailable)
+				p.setBlocked(&workspace.WriteGroup{WorkspaceID: journal.Key.WorkspaceID, ID: journal.Key.GroupID, AppliedRevision: journal.Key.GroupRevision}, reasonSnapshotUnavailable)
 				continue
 			}
 			_, reason := p.build(ctx, snap)
@@ -236,15 +250,24 @@ func (p *Pipeline) restoreOpenJournals(ctx context.Context) error {
 			}
 		}
 		until := journal.LastBucket.Add(time.Duration(snap.Group.RowPolicy.IntervalSeconds) * time.Second)
-		m, reason := p.buildFrozen(ctx, snap, journal.FirstBucket, until)
+		m, reason, buildErr := p.buildFrozenWithCause(ctx, snap, journal.FirstBucket, until)
 		if reason != "" {
 			p.setBlocked(snap.Group, reason)
+			if buildErr != nil && !isCounterProofReason(reason) && !errors.Is(buildErr, groupdelivery.ErrBaselineCorrupt) {
+				recoveryErrors = append(recoveryErrors, buildErr)
+			}
 			continue
 		}
 		m.drainOnly = true
-		p.mu.Lock()
-		p.boundaries[key] = m
-		p.mu.Unlock()
+		p.installManaged(m)
 	}
-	return nil
+	return errors.Join(recoveryErrors...)
+}
+
+func frozenFailureReason(err error) string {
+	var proof *counterproof.CounterBindingProofError
+	if errors.As(err, &proof) {
+		return proof.Reason.Error()
+	}
+	return reasonSnapshotUnavailable
 }

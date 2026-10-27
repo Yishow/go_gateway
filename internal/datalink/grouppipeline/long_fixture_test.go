@@ -157,7 +157,7 @@ func newLongPipelinePostgresMode(t *testing.T, timescale bool) *longPipeline {
 	return newLongPipelineOn(t, &longPostgres{dsn: dsn, schema: name, admin: admin, timescale: timescale})
 }
 
-func newLongPipelineOn(t *testing.T, pg *longPostgres) *longPipeline {
+func newLongPipelineOn(t *testing.T, pg *longPostgres, scaled ...bool) *longPipeline {
 	t.Helper()
 	f := &longPipeline{t: t, localPath: filepath.Join(t.TempDir(), "gateway.db"), clock: at(1), postgres: pg}
 	f.localFault = &lostcommit.Faults{Lose: &atomic.Bool{}}
@@ -256,6 +256,10 @@ func newLongPipelineOn(t *testing.T, pg *longPostgres) *longPipeline {
 		groups:    []*workspace.WriteGroup{liveGroup(f.group, workspace.WriteGroupStatusReady)},
 		snapshots: map[string][]*workspace.WriteGroupAppliedSnapshot{f.group.ID: {f.snapshot}},
 	}
+	if len(scaled) > 0 && scaled[0] {
+		scaleFrozenFixture(&frozen)
+	}
+	freezeFixtureCounters(t, &frozen, f.counters.sources)
 	f.openLocal(&frozen)
 	return f
 }

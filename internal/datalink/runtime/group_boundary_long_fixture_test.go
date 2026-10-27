@@ -106,6 +106,7 @@ func sqliteColumns(t *testing.T, db *sql.DB, table string) []dbtarget.ColumnInfo
 
 func (f *longFixture) build(t *testing.T) *GroupBoundary {
 	t.Helper()
+	freezeDurableFixture(t, f)
 	boundary, err := NewGroupBoundary(f.config)
 	require.NoError(t, err)
 	return boundary

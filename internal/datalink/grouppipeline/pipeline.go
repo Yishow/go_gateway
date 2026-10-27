@@ -110,14 +110,18 @@ type GroupStatus struct {
 type member struct{ tagID, connectorID string }
 
 type managed struct {
-	groupID   string
-	revision  string
-	boundary  *runtime.GroupBoundary
-	members   []member
-	connector string
-	interval  time.Duration
-	effective time.Time
-	drainOnly bool
+	// proofGate precedes Pipeline.mu; never wait for it while holding Pipeline.mu.
+	proofGate        sync.Mutex
+	proofQuarantined bool
+	workspaceID      string
+	groupID          string
+	revision         string
+	boundary         *runtime.GroupBoundary
+	members          []member
+	connector        string
+	interval         time.Duration
+	effective        time.Time
+	drainOnly        bool
 }
 
 // Pipeline owns the applied write groups of one gateway.
@@ -128,9 +132,10 @@ type Pipeline struct {
 	partitionMu    sync.Mutex
 	sqlServerSplit SQLServerNativeSplit
 
-	mu         sync.RWMutex
-	boundaries map[string]*managed
-	blocked    map[string]GroupStatus
+	mu          sync.RWMutex
+	boundaries  map[string]*managed
+	blocked     map[string]GroupStatus
+	quarantines map[groupdelivery.GroupKey]CounterReplayQuarantine
 
 	lifecycle   sync.Mutex
 	started     bool
@@ -200,6 +205,7 @@ func New(deps Dependencies, config Config) *Pipeline {
 		deps: deps, config: config, recovery: recovery,
 		boundaries:     make(map[string]*managed),
 		blocked:        make(map[string]GroupStatus),
+		quarantines:    make(map[groupdelivery.GroupKey]CounterReplayQuarantine),
 		sqlServerSplit: sqlServerSplit,
 	}
 }
@@ -246,7 +252,7 @@ func (p *Pipeline) Start(ctx context.Context) error {
 		return err
 	}
 	sender := groupdelivery.NewSender(p.deps.Store, destinationResolver{
-		destinations: p.deps.Destinations, loadRuntimeSnapshot: p.loadRuntimeSnapshot,
+		destinations: p.deps.Destinations, loadRuntimeSnapshot: p.loadFinalizedSnapshot,
 		loadMySQLProof:     p.mysqlDeliveryProof,
 		loadSQLServerProof: p.sqlServerDeliveryProof,
 	}, p.senderConfig())
@@ -359,7 +365,8 @@ func (p *Pipeline) TickAll(ctx context.Context) {
 	p.mu.RUnlock()
 	now := p.config.Now()
 	for _, m := range current {
-		p.report(m.boundary.Tick(ctx, now))
+		err := p.withCounterProofGate(m, func() error { return m.boundary.Tick(ctx, now) })
+		p.report(err)
 	}
 	p.mu.Lock()
 	maps.DeleteFunc(p.boundaries, func(_ string, m *managed) bool {
@@ -388,10 +395,10 @@ func (p *Pipeline) AcceptSample(ctx context.Context, envelope measurement.Sample
 	p.mu.RUnlock()
 	var errs []error
 	for _, m := range current {
-		if m.drainOnly {
+		if m.drainOnly || !m.boundary.Wants(envelope.DeviceID, envelope.PointID, envelope.TagID) {
 			continue
 		}
-		if err := m.boundary.AcceptSample(ctx, envelope); err != nil {
+		if err := p.withCounterProofGate(m, func() error { return m.boundary.AcceptSample(ctx, envelope) }); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -452,6 +459,9 @@ func (p *Pipeline) Status() []GroupStatus {
 	}
 	for _, status := range p.blocked {
 		statuses = append(statuses, status)
+	}
+	for _, entry := range p.quarantines {
+		statuses = append(statuses, GroupStatus{GroupID: entry.GroupID, Revision: entry.GroupRevision, State: StateBlocked, Reason: entry.Reason})
 	}
 	return statuses
 }

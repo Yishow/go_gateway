@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/snapshot"
 )
 
@@ -46,17 +47,28 @@ func (s *Store) AppendSample(ctx context.Context, key GroupKey, bucketStart time
 		return err
 	}
 	err = s.inTx(ctx, "journal", func(tx *sql.Tx) error {
-		var existing string
+		var existing, storedPayload, workspaceID string
 		err := tx.QueryRowContext(ctx,
-			`SELECT payload_digest FROM wg_delivery_samples WHERE group_id = ? AND group_revision = ? AND sample_id = ?`,
-			key.GroupID, key.GroupRevision, sample.SampleID).Scan(&existing)
+			`SELECT payload_digest, payload, workspace_id FROM wg_delivery_samples WHERE group_id = ? AND group_revision = ? AND sample_id = ?`,
+			key.GroupID, key.GroupRevision, sample.SampleID).Scan(&existing, &storedPayload, &workspaceID)
 		switch {
-		case err == nil && existing == digest:
-			return nil
 		case err == nil:
+			if workspaceID != key.WorkspaceID {
+				return sampleProofError(counterproof.ErrCounterBindingProofConflict)
+			}
+			previous, err := decodeVerifiedSample(storedPayload, existing)
+			if err != nil {
+				return err
+			}
+			if existing == digest || sameLegacySample(previous, sample, existing) {
+				return verifySampleProof(ctx, tx, key, sample, false)
+			}
 			return ErrSampleConflict
 		case !errors.Is(err, sql.ErrNoRows):
 			return fmt.Errorf("check journal sample: %w", err)
+		}
+		if err := verifySampleProof(ctx, tx, key, sample, true); err != nil {
+			return err
 		}
 		if err := s.checkQuota(ctx, tx, key); err != nil {
 			return err
@@ -111,7 +123,7 @@ func (s *Store) Restore(ctx context.Context, key GroupKey) (Restored, error) {
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT payload FROM wg_delivery_samples
+		SELECT payload, payload_digest, workspace_id FROM wg_delivery_samples
 		WHERE group_id = ? AND group_revision = ? AND consumed = 0
 		ORDER BY seq ASC`, key.GroupID, key.GroupRevision)
 	if err != nil {
@@ -119,11 +131,14 @@ func (s *Store) Restore(ctx context.Context, key GroupKey) (Restored, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var payload string
-		if err := rows.Scan(&payload); err != nil {
+		var payload, digest, workspaceID string
+		if err := rows.Scan(&payload, &digest, &workspaceID); err != nil {
 			return Restored{}, fmt.Errorf("scan journal sample: %w", err)
 		}
-		sample, err := decodeSample([]byte(payload))
+		if workspaceID != key.WorkspaceID {
+			return Restored{}, sampleProofError(counterproof.ErrCounterBindingProofConflict)
+		}
+		sample, err := decodeVerifiedSample(payload, digest)
 		if err != nil {
 			return Restored{}, err
 		}
@@ -131,6 +146,14 @@ func (s *Store) Restore(ctx context.Context, key GroupKey) (Restored, error) {
 	}
 	if err := rows.Err(); err != nil {
 		return Restored{}, err
+	}
+	if err := rows.Close(); err != nil {
+		return Restored{}, err
+	}
+	for _, sample := range restored.Samples {
+		if err := verifySampleProof(ctx, s.db, key, sample, false); err != nil {
+			return Restored{}, err
+		}
 	}
 	if restored.Baselines, err = s.restoreBaselines(ctx, key, restored.NextClose); err != nil {
 		return Restored{}, err

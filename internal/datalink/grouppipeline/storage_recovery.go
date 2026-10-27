@@ -52,35 +52,43 @@ func NewStorageRecovery(store *groupdelivery.Store, ledger *recordingplan.Servic
 var _ groupdelivery.StorageRecovery = (*StorageRecovery)(nil)
 
 // snapshot returns the verified frozen snapshot of the item's group revision,
-// or nil when the item does not belong to managed long storage. A descriptor
-// that cannot be read or fails its proof is not a managed long group this
-// recovery can vouch for; the ordinary delivery path decides what to do with it,
-// and the next attempt looks again.
-func (r *StorageRecovery) snapshot(ctx context.Context, key groupdelivery.GroupKey) *workspace.WriteGroupAppliedSnapshot {
+// or nil when the item does not belong to managed long storage. Counter replay
+// proof is independent of finalized delivery. Invalid storage facts and read
+// failures remain refusals, never permission to bypass lineage or ownership.
+func (r *StorageRecovery) snapshot(ctx context.Context, key groupdelivery.GroupKey) (*workspace.WriteGroupAppliedSnapshot, error) {
 	if cached, ok := r.snapshots.Load(key); ok {
 		if snap, ok := cached.(*workspace.WriteGroupAppliedSnapshot); ok {
-			return snap
+			return snap, nil
 		}
-		return nil
+		return nil, nil
 	}
-	snap, err := loadFrozenSnapshot(ctx, r.store, key)
+	snap, err := loadFinalizedStorageSnapshot(ctx, r.store, key)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	if snap == nil || !longGroup(snap.Group) || snap.Group.Destination.StorageStrategy != workspace.WriteGroupStorageStrategyManaged {
 		r.snapshots.Store(key, (*workspace.WriteGroupAppliedSnapshot)(nil))
-		return nil
+		return nil, nil
 	}
 	r.snapshots.Store(key, snap)
-	return snap
+	return snap, nil
 }
 
 // Admit blocks delivery to a scope whose last automatic restore ended in a
 // result nobody can vouch for, until an explicit confirmation checks it again.
 func (r *StorageRecovery) Admit(ctx context.Context, item groupdelivery.OutboxItem) (string, error) {
-	snap := r.snapshot(ctx, item.Key)
+	snap, err := r.snapshot(ctx, item.Key)
+	if errors.Is(err, errRuntimeSnapshotInvalid) {
+		return recordingplan.StorageCodeOwnerMismatch, nil
+	}
+	if err != nil {
+		return "", err
+	}
 	if snap == nil {
 		return "", nil
+	}
+	if !finalizedDestinationMatches(snap, item) {
+		return recordingplan.StorageCodeOwnerMismatch, nil
 	}
 	lineage, err := recordingplan.ReadStorageLineage(ctx, r.store.DB(), workspace.StorageScopeOf(snap.Group))
 	if errors.Is(err, recordingplan.ErrStorageLineageNotFound) {
@@ -98,7 +106,10 @@ func (r *StorageRecovery) Admit(ctx context.Context, item groupdelivery.OutboxIt
 // BlockedCode names the stable code of managed long storage whose confirmed
 // destination identity can no longer be opened.
 func (r *StorageRecovery) BlockedCode(ctx context.Context, item groupdelivery.OutboxItem) string {
-	snap := r.snapshot(ctx, item.Key)
+	snap, err := r.snapshot(ctx, item.Key)
+	if err != nil {
+		return recordingplan.StorageCodeRepairBlocked
+	}
 	if snap == nil {
 		return ""
 	}
@@ -112,7 +123,13 @@ func (r *StorageRecovery) BlockedCode(ctx context.Context, item groupdelivery.Ou
 // schema-shaped error. The error only starts the look; the catalog and the
 // local evidence decide.
 func (r *StorageRecovery) Restore(ctx context.Context, item groupdelivery.OutboxItem, target groupdelivery.Target, cause error) (groupdelivery.RestoreDecision, error) {
-	snap := r.snapshot(ctx, item.Key)
+	snap, err := r.snapshot(ctx, item.Key)
+	if errors.Is(err, errRuntimeSnapshotInvalid) {
+		return groupdelivery.RestoreDecision{Action: groupdelivery.RestoreBlock, Code: recordingplan.StorageCodeOwnerMismatch}, nil
+	}
+	if err != nil {
+		return groupdelivery.RestoreDecision{}, err
+	}
 	if snap == nil {
 		return groupdelivery.RestoreDecision{}, nil
 	}
@@ -131,7 +148,6 @@ func (r *StorageRecovery) Restore(ctx context.Context, item groupdelivery.Outbox
 	scope := workspace.StorageScopeOf(group)
 	var layout *recordingplan.GroupSchemaLayout
 	var lineage *recordingplan.StorageLineage
-	var err error
 	if target.Kind == schema.DatabaseConnectorKindMySQL {
 		if target.DB == nil || !mysqlFrozenScopeMatches(item, snap) ||
 			!mysqlCapabilityMatchesDestination(target.MySQLCapability, item.Destination) ||

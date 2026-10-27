@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/snapshot"
 )
 
@@ -35,4 +36,9 @@ func (l *Ledger) Restore(ctx context.Context) (Restored, error) {
 // CommitClosure persists a closure for the bound group.
 func (l *Ledger) CommitClosure(ctx context.Context, closure Closure) error {
 	return l.store.CommitClosure(ctx, l.key, closure)
+}
+
+// PrepareCounterReplay audits legacy counter associations before rebuilding memory.
+func (l *Ledger) PrepareCounterReplay(ctx context.Context, expected []counterproof.CounterBindingReference) error {
+	return l.store.AssociateLegacyCounterProofs(ctx, l.key, expected)
 }

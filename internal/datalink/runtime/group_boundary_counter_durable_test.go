@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/snapshot"
@@ -97,12 +98,14 @@ func (l ledgerWithoutBaselines) CommitClosure(ctx context.Context, closure group
 func TestCumulativeProfileNeedsALedgerThatPersistsBaselines(t *testing.T) {
 	f := newCounterFixture(t)
 	f.config.Ledger = ledgerWithoutBaselines{inner: longLedger(openDurableDB(t, filepath.Join(t.TempDir(), "gateway.db")))}
+	freezeDurableFixture(t, f)
 	_, err := NewGroupBoundary(f.config)
 	var blocked *GroupBoundaryError
 	require.ErrorAs(t, err, &blocked)
 	require.Equal(t, "counter-baseline-not-durable", blocked.Code, "a closure that cannot carry the baseline would restart from nothing")
 
 	f.config.Ledger = longLedger(openDurableDB(t, filepath.Join(t.TempDir(), "gateway.db")))
+	freezeDurableFixture(t, f)
 	_, err = NewGroupBoundary(f.config)
 	require.NoError(t, err)
 }
@@ -133,6 +136,7 @@ func TestCumulativeProfileTellsDamagedBaselinesFromRevisedBindings(t *testing.T)
 		if mutate != nil {
 			mutate(f)
 		}
+		freezeDurableFixture(t, f)
 		boundary, err := NewGroupBoundary(f.config)
 		return boundary, f, err
 	}
@@ -175,22 +179,21 @@ func TestCumulativeProfileTellsDamagedBaselinesFromRevisedBindings(t *testing.T)
 		require.Equal(t, "counter-baseline-version-unsupported", code(t, err))
 	})
 
-	t.Run("a revised binding is a legitimate new baseline, not damage", func(t *testing.T) {
+	t.Run("a same-revision epoch replacement is refused without resetting the baseline", func(t *testing.T) {
 		db := openDurableDB(t, filepath.Join(t.TempDir(), "gateway.db"))
 		seedBaseline(t, db, func(p string) string { return p })
-		boundary, f, err := activate(t, db, func(f *longFixture) {
+		before, err := longLedger(db).Restore(t.Context())
+		require.NoError(t, err)
+		boundary, _, err := activate(t, db, func(f *longFixture) {
 			source := f.config.Counters["tag-uint"]
-			source.SeriesEpoch = "epoch-2" // the meter was replaced
+			source.SeriesEpoch = "epoch-2"
 			f.config.Counters["tag-uint"] = source
 		})
+		require.Nil(t, boundary)
+		require.ErrorIs(t, err, counterproof.ErrCounterBindingProofConflict)
+		after, err := longLedger(db).Restore(t.Context())
 		require.NoError(t, err)
-		f.clock = at(2 * counterWindow)
-		f.accept(t, boundary, f.envelope(1, "uint-1", at(2*counterWindow-time.Minute), uint64(105)))
-		require.NoError(t, boundary.Tick(t.Context(), f.clock))
-		record := outboxCell(t, db, counterWindow)
-		require.Equal(t, "baseline", record["status"])
-		require.Nil(t, record["delta_value"], "105 is never subtracted from a reading of the replaced meter")
-		require.Contains(t, record["provenance"], `"reason":"binding-changed"`)
+		require.Equal(t, before, after)
 	})
 
 	t.Run("an intact baseline restores", func(t *testing.T) {
@@ -225,9 +228,8 @@ func (l duplicatingLedger) Restore(ctx context.Context) (groupdelivery.Restored,
 // TestCumulativeProfileBaselineScopeIsTheGroupsOwn pins that the workspace,
 // group and profile revision of a restored checkpoint are the boundary's fixed
 // scope: a valid checkpoint of another scope, an ambiguous restore and a
-// baseline ahead of the closed cursor are damaged state, while a revised
-// measurement (definition, source binding, unit, policy) is a legitimate new
-// baseline.
+// baseline ahead of the closed cursor are damaged state. Changed measurement
+// semantics cannot replace the facts of the same immutable revision.
 func TestCumulativeProfileBaselineScopeIsTheGroupsOwn(t *testing.T) {
 	blockedCode := func(t *testing.T, config GroupBoundaryConfig) string {
 		t.Helper()
@@ -242,6 +244,7 @@ func TestCumulativeProfileBaselineScopeIsTheGroupsOwn(t *testing.T) {
 		seedBaseline(t, db, rewrite)
 		f := newCounterFixture(t)
 		f.config.Ledger = longLedger(db)
+		freezeDurableFixture(t, f)
 		return db, f
 	}
 
@@ -275,20 +278,19 @@ func TestCumulativeProfileBaselineScopeIsTheGroupsOwn(t *testing.T) {
 			s.RolloverModulus, s.MaxRatePerSecond = &modulus, &rate
 		},
 	} {
-		t.Run("a revised "+name+" is a legitimate new baseline", func(t *testing.T) {
+		t.Run("same-revision "+name+" replacement is refused", func(t *testing.T) {
 			db, f := seeded(t, func(payload string) string { return payload })
+			before, err := longLedger(db).Restore(t.Context())
+			require.NoError(t, err)
 			source := f.config.Counters["tag-uint"]
 			mutate(&source)
 			f.config.Counters["tag-uint"] = source
 			boundary, err := NewGroupBoundary(f.config)
+			require.Nil(t, boundary)
+			require.ErrorIs(t, err, counterproof.ErrCounterBindingProofConflict)
+			after, err := longLedger(db).Restore(t.Context())
 			require.NoError(t, err)
-			f.clock = at(2 * counterWindow)
-			f.accept(t, boundary, f.envelope(1, "uint-1", at(2*counterWindow-time.Minute), uint64(105)))
-			require.NoError(t, boundary.Tick(t.Context(), f.clock))
-			record := outboxCell(t, db, counterWindow)
-			require.Equal(t, "baseline", record["status"])
-			require.Nil(t, record["delta_value"])
-			require.Contains(t, record["provenance"], `"reason":"binding-changed"`)
+			require.Equal(t, before, after)
 		})
 	}
 }

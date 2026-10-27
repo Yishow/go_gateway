@@ -35,6 +35,9 @@ type boundaryParts struct {
 func assembleBoundary(ctx context.Context, cfg GroupBoundaryConfig, parts boundaryParts) (*GroupBoundary, error) {
 	blocked := func(code string) error { return &GroupBoundaryError{Code: code} }
 	group := cfg.Group
+	if err := installCounterProofReferences(cfg, parts.members); err != nil {
+		return nil, &GroupBoundaryError{Code: err.Error(), Cause: err}
+	}
 	firstBucket := cfg.FirstBucket
 	var restored groupdelivery.Restored
 	if cfg.Ledger != nil {
@@ -43,11 +46,15 @@ func assembleBoundary(ctx context.Context, cfg GroupBoundaryConfig, parts bounda
 			if errors.Is(err, groupdelivery.ErrBaselineCorrupt) {
 				return nil, &GroupBoundaryError{Code: boundaryCounterBaselineInvalid, Cause: err}
 			}
-			return nil, &GroupBoundaryError{Code: boundaryRestoreFailed, Cause: err}
+			return nil, counterProofBoundaryError(err)
 		}
 		if restored.NextClose.After(firstBucket) {
 			firstBucket = restored.NextClose
 		}
+	}
+	legacyAssociated, err := prepareCounterAssociations(ctx, cfg, restored)
+	if err != nil {
+		return nil, counterProofBoundaryError(err)
 	}
 	scope, err := snapshot.DestinationScope(
 		group.Destination.ConnectorID, group.Destination.ConnectorRevision,
@@ -88,9 +95,15 @@ func assembleBoundary(ctx context.Context, cfg GroupBoundaryConfig, parts bounda
 			return nil, blocked(code)
 		}
 	}
+	if err := validateCounterReplay(parts.members, restored, legacyAssociated); err != nil {
+		return nil, counterProofBoundaryError(err)
+	}
 	for _, sample := range restored.Samples {
 		// Replay rebuilds memory only; samples of already closed buckets stay out.
-		assembler.Replay(sample)
+		result := assembler.Replay(sample)
+		if result.Outcome != snapshot.OfferSelected && result.Outcome != snapshot.OfferNotSelected && result.Outcome != snapshot.OfferDuplicate && result.Outcome != snapshot.OfferLate {
+			return nil, blocked(boundaryRestoreFailed)
+		}
 	}
 	notBefore, until := cfg.FirstBucket, cfg.Until
 	if !cfg.StartsAt.IsZero() {

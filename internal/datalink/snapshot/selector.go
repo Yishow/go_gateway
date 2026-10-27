@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 )
@@ -25,6 +26,8 @@ type Sample struct {
 	// produced the value; they take part in duplicate detection.
 	SourceRevision  string
 	MappingRevision string
+	// CounterProof is a value reference; zero denotes the original journal format.
+	CounterProof counterproof.CounterBindingReference
 }
 
 // OfferOutcome describes what the selector did with one sample.
@@ -203,6 +206,11 @@ func supersedes(candidate, current Sample) bool {
 }
 
 func samePayload(a, b Sample) bool {
+	// A legacy accepted sample remains a duplicate after format expansion; this
+	// does not relabel its stored bytes. A versioned identity never downgrades.
+	if !a.CounterProof.IsZero() && a.CounterProof != b.CounterProof {
+		return false
+	}
 	if a.MemberKey != b.MemberKey || !a.ObservedAt.Equal(b.ObservedAt) ||
 		a.Quality != b.Quality || a.QualityReason != b.QualityReason ||
 		a.SourceRevision != b.SourceRevision || a.MappingRevision != b.MappingRevision {
