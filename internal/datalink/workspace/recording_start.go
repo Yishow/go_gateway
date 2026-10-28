@@ -122,6 +122,9 @@ func (s *RecordingStartService) Start(ctx context.Context, request RecordingStar
 		if err := s.validateRecordingStart(ctx, p, recordingStartNeedsInitialization(p)); err != nil {
 			view := recordingStartView(op, p)
 			view.Reason, view.NextAction = "stale_intent", "revalidate"
+			if isSuccessorReservedError(err) {
+				view.Reason, view.NextAction = "successor_reserved", "review_selection"
+			}
 			return view, nil //nolint:nilerr // A stale replay returns persisted progress and an explicit revalidation action.
 		}
 		op, outcome, err = s.ledger.ResumeRecordingStart(ctx, request.WorkspaceID, op.OperationID, digest)
@@ -227,6 +230,8 @@ func (s *RecordingStartService) finishRecordingStart(ctx context.Context, op *re
 			}
 		}
 		switch {
+		case isSuccessorReservedError(cause):
+			reason, action = "successor_reserved", "review_selection"
 		case errors.Is(cause, ErrWriteGroupApplyNotReady):
 			reason, action = "preparation_required", "prepare_schema"
 		case errors.Is(cause, ErrSetupRevisionConflict), errors.Is(cause, ErrWriteGroupRevisionConflict):

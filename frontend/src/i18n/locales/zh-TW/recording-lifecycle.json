@@ -1,0 +1,72 @@
+{
+  "action": {
+    "edit": "編輯已保存設定",
+    "stop": "停止新記錄",
+    "remove": "移除設定",
+    "recreate": "重新建立記錄",
+    "transition": "變更格式或目的地"
+  },
+  "reason": {
+    "successor_reserved": "已有一項記錄變更保留中。",
+    "recording_removed": "這份設定已移除。",
+    "already_stopped": "已停止接收新記錄。",
+    "connector_identity_stale": "原先保存的目的地連線已變更。",
+    "connector_unavailable": "目前無法取得目的地連線。",
+    "ownership_unavailable": "尚無法確認已接收資料的歸屬。",
+    "successor_unavailable": "目前無法重建或變更這份記錄。",
+    "source_basis_unavailable": "尚無法確認原始記錄規則。",
+    "successor_source_unavailable": "目前無法取得原始記錄規則。",
+    "lifecycle_unavailable": "尚未確認目前可用的操作。",
+    "source_not_canonical": "這份記錄需使用既有的轉移流程。",
+    "source_not_current": "這是舊世代，不是目前的記錄。",
+    "successor_requires_applied": "請先準備並套用記錄，再進行變更。",
+    "successor_requires_removed": "請先移除舊設定，再重新建立。",
+    "stale_scope": "設定或可用操作已變更，請重新讀取後再檢視。",
+    "canonical_required": "這份記錄需使用既有轉移流程。",
+    "historical_generation": "這是舊世代，請檢視目前世代。",
+    "active_basic_unsupported": "這份使用中的記錄需使用既有轉移流程。",
+    "source_definition_unavailable": "目前無法取得原始不可變記錄規則。",
+    "recording_not_removed": "請先移除舊設定，再重新建立。",
+    "source_draft_not_active": "已保存草稿與使用中的記錄不同，請先檢視原先已套用的規則。"
+  },
+  "next": {
+    "review_lifecycle": "請檢視既有變更，或重新查詢操作狀態。",
+    "review_connector": "請到目的地設定檢查已保存的連線。",
+    "inspect_ownership": "請先檢查待送資料的歸屬。",
+    "stop": "調查期間仍可先停止新記錄。",
+    "reload": "請重新讀取已保存記錄後再試。",
+    "review_successor": "請檢視這次記錄變更的影響。",
+    "recreate": "請依已移除設定檢視新的記錄。"
+  },
+  "history": {
+    "unavailable": "尚未確認歷史與待送數量，請重新讀取後再繼續。",
+    "kept": "已接收的資料仍寫入原目的地；SQL 資料表、歷史與回執均保留。以下單位不同，請勿加總。",
+    "generation": "第 {{number}} 世代",
+    "revision": "已套用版本",
+    "no_applied": "此世代尚無已套用版本。",
+    "samples": "待處理樣本數",
+    "outbox": "待交付資料列數",
+    "blocked": "受阻資料列數",
+    "unknown": "結果未知資料列數",
+    "quarantined": "隔離資料列數",
+    "saved_destination": "已保存連線",
+    "original_destination": "原始連線",
+    "handoff": "已交接樣本數：{{count}}"
+  },
+  "remove": {
+    "title": "要移除這份已保存的記錄設定嗎？",
+    "keeps": "這會停止新記錄，並只移除現行設定。已接收的待送資料仍寫入原目的地；SQL 資料表、歷史資料及交付回執都會保留。",
+    "confirm": "移除設定並保留歷史"
+  },
+  "stop": {
+    "keeps": "停止後不再接收新記錄；已接收的待送資料仍會寫入原目的地，SQL 資料表、歷史與回執不會刪除。"
+  },
+  "removed": {
+    "title": "已移除的記錄（{{count}}）",
+    "note": "在這裡管理或重建已移除設定；不會把它們當成一般新增記錄。",
+    "manage": "檢視已移除記錄"
+  },
+  "cancel": "取消",
+  "refresh": "重新讀取可用操作",
+  "review_required": "先檢視影響"
+}

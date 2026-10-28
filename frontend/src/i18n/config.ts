@@ -19,6 +19,10 @@ import enRuntimeLogs from './locales/en/runtime-logs.json';
 import enStudioReview from './locales/en/studio-review.json';
 import zhTWStudioReview from './locales/zh-TW/studio-review.json';
 import zhTWRuntimeLogs from './locales/zh-TW/runtime-logs.json';
+import enRecordingLifecycleDialog from './locales/en/recording-lifecycle-dialog.json';
+import zhTWRecordingLifecycleDialog from './locales/zh-TW/recording-lifecycle-dialog.json';
+import enRecordingLifecycle from './locales/en/recording-lifecycle.json';
+import zhTWRecordingLifecycle from './locales/zh-TW/recording-lifecycle.json';
 import { logger } from '../utils/logger';
 import { mergeTranslations } from './mergeTranslations';
 
@@ -54,6 +58,7 @@ i18n
         'runtime-dashboard': enRuntimeDashboardTranslations,
         'runtime-logs': enRuntimeLogs,
         'studio-review': enStudioReview,
+        'recording-lifecycle': mergeTranslations(enRecordingLifecycle, enRecordingLifecycleDialog),
       },
       'zh-TW': {
         translation: mergeTranslations(
@@ -69,6 +74,7 @@ i18n
         'runtime-dashboard': zhTWRuntimeDashboardTranslations,
         'runtime-logs': zhTWRuntimeLogs,
         'studio-review': zhTWStudioReview,
+        'recording-lifecycle': mergeTranslations(zhTWRecordingLifecycle, zhTWRecordingLifecycleDialog),
       },
     },
     fallbackLng: 'en', // 預設語言為英文

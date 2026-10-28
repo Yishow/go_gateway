@@ -1,3 +1,4 @@
+import type { SavedRecordingActionHost } from './writeGroup/lifecycle/SavedRecordingActions';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useStudioV2WorkspaceMeasurementsQuery } from '../../../../../hooks/datalink/useStudioV2WorkspaceMeasurements';
@@ -37,6 +38,7 @@ function readMeasurementsList(data: unknown): MeasurementDefinition[] {
 }
 
 export interface CircuitProfileBasicPanelProps {
+  lifecycleHost?: SavedRecordingActionHost;
   legacyGroup?: WriteGroup; onEditLegacy?: () => void;
   state: WorkbenchV2State; workspaceId?: string; readonly: boolean; readinessToken?: string;
   settingsRevision?: string; shareWorkspaceRevision?: string; workspaceRevision?: string; onActivated?: (deviceIds: string[]) => Promise<void> | void;
@@ -123,7 +125,7 @@ type CircuitProfileBasicPanelContentProps = CircuitProfileBasicPanelProps & {
 };
 
 const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentProps> = ({
-  state, workspaceId, readonly, readinessToken, settingsRevision, shareWorkspaceRevision, workspaceRevision: propWorkspaceRevision,
+  state, workspaceId, readonly, lifecycleHost, readinessToken, settingsRevision, shareWorkspaceRevision, workspaceRevision: propWorkspaceRevision,
   onActivated, onContinueToRuntime, onOpenAdvanced, onOperationActiveChange, prepareOnly = false, onClose, legacyGroup, onEditLegacy,
   deviceId, onSelectDevice, circuitRequest, onCircuitRequestDone, mysqlCapabilityQuery, sqlserverCapabilityQuery,
 }) => {
@@ -409,7 +411,7 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
   return (
     <section data-testid="circuit-profile-basic-panel" aria-labelledby="circuit-profile-basic-title" className="space-y-4 rounded-xl border border-cyan-900/70 bg-slate-950/40 p-5">
       <CircuitProfileBasicHeader prepareOnly={prepareOnly} />
-      {!prepareOnly && legacyGroup && <ExistingDeviceRecording group={legacyGroup} disabled={flow.busy || flow.unresolved || batchBusy} onEdit={onEditLegacy} onOpenAdvanced={onOpenAdvanced} />}
+      {!prepareOnly && legacyGroup && <ExistingDeviceRecording lifecycle={{ workspaceId, workspaceRevision: effectiveWorkspaceRevision, lifecycleHost, readonly }} group={legacyGroup} disabled={flow.busy || flow.unresolved || batchBusy} onEdit={onEditLegacy} onOpenAdvanced={onOpenAdvanced} />}
       <div data-testid="circuit-profile-destination-summary" className="rounded border border-slate-800/80 bg-slate-950/30 p-3 text-xs text-slate-300">
         <p className="font-semibold text-slate-200">{t('step4.basic.circuit.step_destination')}</p>
         <p className="mt-1 text-slate-400">{t('step4.basic.destination', { name: state.db.connector.name || state.db.connector.kind })} · {state.db.connector.name || state.db.connector.kind} ({state.db.connector.kind})</p>
@@ -463,7 +465,7 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
       {advancedGroups.length > 0 && <p data-testid="basic-recording-advanced-note" className="text-xs text-slate-400">{t('step4.basic.advanced_note', { count: advancedGroups.length })}</p>}
       {(errorMessage || flow.error) && <p role="alert" data-testid="circuit-profile-error" className="text-xs text-rose-300">{errorMessage || flow.error}</p>}
       <CircuitProfileStartStatus flow={flow} />
-      <CircuitProfileStatusList groups={currentGroups} candidates={deviceCandidates} onOpenAdvanced={onOpenAdvanced} draftEnabled={{ instantaneous: localDraft.instantaneous_enabled, cumulative: localDraft.cumulative_enabled }} /><CircuitProfileRoles onOpenAdvanced={onOpenAdvanced} />
+      <CircuitProfileStatusList lifecycle={{ workspaceId, workspaceRevision: effectiveWorkspaceRevision, lifecycleHost, readonly: isEffectiveLocked }} groups={currentGroups} candidates={deviceCandidates} onOpenAdvanced={onOpenAdvanced} draftEnabled={{ instantaneous: localDraft.instantaneous_enabled, cumulative: localDraft.cumulative_enabled }} /><CircuitProfileRoles onOpenAdvanced={onOpenAdvanced} />
       <CircuitProfileBasicActions flow={flow} canStart={canPrepareOrStart} readonly={readonly} batchBusy={batchBusy} prepareOnly={prepareOnly} onClose={onClose} onContinueToRuntime={onContinueToRuntime} onOpenAdvanced={onOpenAdvanced} />
     </section>
   );

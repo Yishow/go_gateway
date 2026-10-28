@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	"reflect"
 	"strings"
 
 	"go-gateway/internal/datalink/dbtarget"
@@ -12,10 +13,13 @@ type managedMySQLRuntimeInspector interface {
 	InspectMySQLManagedTableAtRevision(context.Context, string, string, string, string, string) (*dbtarget.MySQLManagedInspection, error)
 }
 
-func (s *WriteGroupService) mysqlReadiness(ctx context.Context, id string, content *WriteGroup, before *writeGroupReadinessSnapshot, result *WriteGroupReadiness) (*WriteGroupReadiness, error) {
+func (s *WriteGroupService) mysqlReadiness(ctx context.Context, id string, before *writeGroupReadinessSnapshot, result *WriteGroupReadiness, reload func(context.Context) (*writeGroupReadinessSnapshot, error)) (*WriteGroupReadiness, error) {
+	if reload == nil {
+		return nil, ErrWriteGroupReadinessUnavailable
+	}
 	s.populateMySQLPartitionMaintenanceReadiness(ctx, before.validated, result)
 	frozen, capability, inspectErr := s.readMySQLRuntimeLayoutWithCapability(ctx, before)
-	after, err := s.readinessSnapshot(ctx, id, content)
+	after, err := reload(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +63,9 @@ func (s *WriteGroupService) readMySQLRuntimeLayoutWithCapability(ctx context.Con
 	layout, capability, err := s.managedMySQLSchemaLayoutWithCapability(ctx, snapshot.validated)
 	if err != nil {
 		return nil, nil, err
+	}
+	if snapshot.confirmedMySQLLayout != nil && !reflect.DeepEqual(layout, snapshot.confirmedMySQLLayout) {
+		return nil, nil, ErrWriteGroupValidation
 	}
 	reader, ok := s.managedTableInspector.(managedMySQLRuntimeInspector)
 	if !ok {

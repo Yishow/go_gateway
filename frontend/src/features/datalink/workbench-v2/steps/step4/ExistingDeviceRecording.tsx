@@ -1,3 +1,4 @@
+import { SavedRecordingManagement, type SavedRecordingManagementProps } from './SavedRecordingManagement';
 import type { FC } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WriteGroup } from '../../../../../types/studioV2WriteGroup';
@@ -5,10 +6,11 @@ import type { WriteGroup } from '../../../../../types/studioV2WriteGroup';
 /** A saved legacy group remains editable; its presence never selects a different setup workflow. */
 export const ExistingDeviceRecording: FC<{
   group: WriteGroup;
+  lifecycle?: Omit<SavedRecordingManagementProps, 'group'>;
   disabled?: boolean;
   onEdit?: () => void;
   onOpenAdvanced?: (groupId: string) => void;
-}> = ({ group, disabled = false, onEdit, onOpenAdvanced }) => {
+}> = ({ group, disabled = false, onEdit, onOpenAdvanced, lifecycle }) => {
   const { t } = useTranslation('workbench-v2');
   const applied = Boolean(group.applied_revision) && group.status !== 'disabled';
   return (
@@ -22,6 +24,7 @@ export const ExistingDeviceRecording: FC<{
         {onEdit && <button type="button" data-testid="device-recording-edit-existing" disabled={disabled} onClick={onEdit} className="text-cyan-300 underline disabled:opacity-40">{t('step4.basic.existing.edit')}</button>}
         {applied && onOpenAdvanced && <button type="button" data-testid="device-recording-review-cutover" disabled={disabled} onClick={() => onOpenAdvanced(group.id)} className="text-cyan-300 underline disabled:opacity-40">{t('step4.basic.existing.review')}</button>}
       </div>
+      {lifecycle?.lifecycleHost && <SavedRecordingManagement {...lifecycle} group={group} readonly={disabled || lifecycle.readonly} />}
     </aside>
   );
 };

@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
+	"go-gateway/internal/datalink/groupdelivery"
+	"go-gateway/internal/datalink/snapshot"
 	"go-gateway/internal/datalink/workspace"
 )
 
@@ -25,71 +28,91 @@ var _ workspace.WriteGroupBacklogOwnershipGuard = BacklogGuard{}
 
 // CheckWriteGroupBacklog reads only through tx.
 func (BacklogGuard) CheckWriteGroupBacklog(ctx context.Context, tx *sql.Tx, group *workspace.WriteGroup) error {
-	if tx == nil || group == nil || group.ID == "" {
+	if tx == nil || group == nil || group.ID == "" || group.WorkspaceID == "" {
 		return ErrBacklogOwnershipUnproven
 	}
 	rows, err := tx.QueryContext(ctx, `
-		SELECT DISTINCT group_revision, connector_id, connector_revision, table_name
+		SELECT DISTINCT workspace_id, group_revision, connector_id, connector_revision,
+		 database_name, table_schema, table_name, destination_scope, dedupe_capability
 		FROM wg_delivery_outbox
 		WHERE group_id = ? AND state NOT IN ('sql_committed', 'operator_skipped')`, group.ID)
 	if err != nil {
 		return fmt.Errorf("read undelivered rows: %w", err)
 	}
-	type owner struct{ revision, connector, connectorRevision, table string }
+	type owner struct{ workspace, revision, connector, connectorRevision, database, schema, table, scope, dedupe string }
 	var owners []owner
 	for rows.Next() {
 		var o owner
-		if err := rows.Scan(&o.revision, &o.connector, &o.connectorRevision, &o.table); err != nil {
+		if err := rows.Scan(&o.workspace, &o.revision, &o.connector, &o.connectorRevision, &o.database, &o.schema, &o.table, &o.scope, &o.dedupe); err != nil {
 			_ = rows.Close()
 			return fmt.Errorf("scan undelivered row: %w", err)
 		}
 		owners = append(owners, o)
 	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return fmt.Errorf("iterate undelivered rows: %w", err)
+	}
 	if err := rows.Close(); err != nil {
 		return err
 	}
 	for _, o := range owners {
-		if o.revision == "" || o.connector == "" || o.connectorRevision == "" || o.table == "" {
-			return ErrBacklogOwnershipUnproven
-		}
-		if err := requireVersion(ctx, tx, group.ID, o.revision); err != nil {
+		version, err := requireVersion(ctx, tx, group, o.workspace, o.revision)
+		if err != nil {
 			return err
+		}
+		d := version.Destination
+		scope, err := snapshot.DestinationScope(d.ConnectorID, d.ConnectorRevision, d.Database, d.TableSchema, d.TableName)
+		dedupe := strings.ToLower(strings.TrimSpace(version.WritePolicy.DedupeCapability))
+		if dedupe == "" {
+			dedupe = groupdelivery.DedupeNone
+		}
+		if err != nil || o.connector != d.ConnectorID || o.connectorRevision != d.ConnectorRevision ||
+			o.database != d.Database || o.schema != d.TableSchema || o.table != d.TableName || o.scope != scope || o.dedupe != dedupe {
+			return ErrBacklogOwnershipUnproven
 		}
 	}
 	revisions, err := tx.QueryContext(ctx,
-		`SELECT DISTINCT group_revision FROM wg_delivery_samples WHERE group_id = ? AND consumed = 0`, group.ID)
+		`SELECT DISTINCT workspace_id, group_revision FROM wg_delivery_samples WHERE group_id = ? AND consumed = 0`, group.ID)
 	if err != nil {
 		return fmt.Errorf("read uncollected samples: %w", err)
 	}
-	var pending []string
+	type pendingOwner struct{ workspace, revision string }
+	var pending []pendingOwner
 	for revisions.Next() {
-		var revision string
-		if err := revisions.Scan(&revision); err != nil {
+		var owner pendingOwner
+		if err := revisions.Scan(&owner.workspace, &owner.revision); err != nil {
 			_ = revisions.Close()
 			return fmt.Errorf("scan uncollected sample: %w", err)
 		}
-		pending = append(pending, revision)
+		pending = append(pending, owner)
+	}
+	if err := revisions.Err(); err != nil {
+		_ = revisions.Close()
+		return fmt.Errorf("iterate uncollected samples: %w", err)
 	}
 	if err := revisions.Close(); err != nil {
 		return err
 	}
-	for _, revision := range pending {
-		if err := requireVersion(ctx, tx, group.ID, revision); err != nil {
+	for _, owner := range pending {
+		if _, err := requireVersion(ctx, tx, group, owner.workspace, owner.revision); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func requireVersion(ctx context.Context, tx *sql.Tx, groupID, revision string) error {
-	var found int
-	err := tx.QueryRowContext(ctx,
-		`SELECT 1 FROM write_group_versions WHERE group_id = ? AND group_revision = ?`, groupID, revision).Scan(&found)
-	if errors.Is(err, sql.ErrNoRows) {
-		return ErrBacklogOwnershipUnproven
+func requireVersion(ctx context.Context, tx *sql.Tx, group *workspace.WriteGroup, workspaceID, revision string) (*workspace.WriteGroup, error) {
+	if workspaceID != group.WorkspaceID {
+		return nil, ErrBacklogOwnershipUnproven
 	}
+	version, err := workspace.NewSQLWriteGroupRepository(nil).VersionByRevisionInTx(ctx, tx, workspaceID, group.ID, revision)
 	if err != nil {
-		return fmt.Errorf("read immutable group version: %w", err)
+		return nil, errors.Join(ErrBacklogOwnershipUnproven, err)
 	}
-	return nil
+	d := version.Group.Destination
+	if _, err := snapshot.DestinationScope(d.ConnectorID, d.ConnectorRevision, d.Database, d.TableSchema, d.TableName); err != nil {
+		return nil, ErrBacklogOwnershipUnproven
+	}
+	return version.Group, nil
 }

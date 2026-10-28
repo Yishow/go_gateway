@@ -62,6 +62,60 @@ definitions:
       state:
         type: string
     type: object
+  groupdelivery.GroupKey:
+    properties:
+      groupID:
+        type: string
+      groupRevision:
+        type: string
+      workspaceID:
+        type: string
+    type: object
+  groupdelivery.LifecycleHandoff:
+    properties:
+      origin:
+        $ref: '#/definitions/groupdelivery.GroupKey'
+      samples:
+        type: integer
+      source:
+        $ref: '#/definitions/groupdelivery.GroupKey'
+      state:
+        type: string
+      target:
+        $ref: '#/definitions/groupdelivery.GroupKey'
+    type: object
+  groupdelivery.LifecycleOutboxCounts:
+    properties:
+      blocked:
+        type: integer
+      outstanding:
+        type: integer
+      quarantined:
+        type: integer
+      queued:
+        type: integer
+      retrying:
+        type: integer
+      skipped:
+        type: integer
+      sql_committed:
+        type: integer
+      total:
+        type: integer
+      unknown:
+        type: integer
+    type: object
+  groupdelivery.LifecyclePending:
+    properties:
+      handoffs:
+        items:
+          $ref: '#/definitions/groupdelivery.LifecycleHandoff'
+        type: array
+      outbox:
+        $ref: '#/definitions/groupdelivery.LifecycleOutboxCounts'
+      samples:
+        type: integer
+    type: object
   groupdelivery.OperatorDecision:
     properties:
       confirm_skip:
@@ -252,6 +306,21 @@ definitions:
       table_schema:
         type: string
     type: object
+  grouppipeline.CounterReplayQuarantine:
+    properties:
+      action:
+        type: string
+      group_id:
+        type: string
+      group_revision:
+        type: string
+      pending_samples:
+        type: integer
+      reason:
+        type: string
+      workspace_id:
+        type: string
+    type: object
   grouppipeline.DeliveryView:
     properties:
       attention:
@@ -261,6 +330,10 @@ definitions:
       backlog:
         items:
           $ref: '#/definitions/grouppipeline.BacklogView'
+        type: array
+      counter_replay_quarantines:
+        items:
+          $ref: '#/definitions/grouppipeline.CounterReplayQuarantine'
         type: array
       group_id:
         type: string
@@ -601,6 +674,13 @@ definitions:
       success:
         type: boolean
     type: object
+  handlers.WriteGroupLifecycleResponse:
+    properties:
+      data:
+        $ref: '#/definitions/workspace.WriteGroupLifecycle'
+      success:
+        type: boolean
+    type: object
   handlers.WriteGroupListResponse:
     properties:
       data:
@@ -696,6 +776,320 @@ definitions:
         type: string
       workspace_id:
         type: string
+    type: object
+  handlers.WriteGroupSuccessorAction:
+    description: Swagger 2 cannot express this action-dependent union. Select exactly
+      one full request from the operation's x-action-contracts; fields from other
+      actions are rejected. Sending only action is invalid.
+    properties:
+      action:
+        enum:
+        - reserve
+        - schema-preview
+        - schema-confirm
+        - activation-review
+        - activation-readiness
+        - activation-confirm
+        - first-start-confirm
+        - operation-status
+        type: string
+    required:
+    - action
+    type: object
+  handlers.WriteGroupSuccessorActivationReviewRequest:
+    description: activation-review is local read only after schema preparation, using
+      original stage envelope plus current CAS and an explicit future boundary B.
+      The returned activation_kind selects cutover versus first_start; it grants no
+      activation permission.
+    properties:
+      action:
+        enum:
+        - activation-review
+        type: string
+      boundary:
+        type: string
+      stage:
+        $ref: '#/definitions/handlers.WriteGroupSuccessorStageRequest'
+    required:
+    - action
+    - boundary
+    - stage
+    type: object
+  handlers.WriteGroupSuccessorConfirmRequest:
+    description: schema-confirm requires the preview's token, 64-character digest
+      and schema_operation_id, plus original envelope and current CAS. Only the server-stored
+      plan can execute DDL. Exact confirmation replay keeps its recorded operation.
+      HTTP 200 is a recorded stage result, not necessarily succeeded; HTTP 202 means
+      in progress. Never substitute schema_operation_id for the root operation ID.
+    properties:
+      action:
+        enum:
+        - schema-confirm
+        type: string
+      current:
+        $ref: '#/definitions/handlers.WriteGroupSuccessorCurrentCAS'
+      digest:
+        maxLength: 64
+        minLength: 64
+        type: string
+      envelope:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorEnvelope'
+      review_digest:
+        type: string
+      schema_operation_id:
+        type: string
+      token:
+        type: string
+    required:
+    - action
+    - current
+    - digest
+    - envelope
+    - review_digest
+    - schema_operation_id
+    - token
+    type: object
+  handlers.WriteGroupSuccessorCurrentCAS:
+    description: Current CAS is refreshed for a new stage; it never replaces the original
+      immutable envelope or root operation ID. group_id/group_revision name reserved
+      G2, predecessor_revision names path G1. An immutable reserve result is not current
+      CAS.
+    properties:
+      group_id:
+        type: string
+      group_revision:
+        type: string
+      lineage_revision:
+        minimum: 1
+        type: integer
+      predecessor_connector_revision:
+        type: string
+      predecessor_revision:
+        type: string
+      target_connector_revision:
+        type: string
+      workspace_revision:
+        type: string
+    required:
+    - group_id
+    - group_revision
+    - lineage_revision
+    - predecessor_connector_revision
+    - predecessor_revision
+    - target_connector_revision
+    - workspace_revision
+    type: object
+  handlers.WriteGroupSuccessorCutoverConfirmRequest:
+    description: activation-confirm requires the unchanged activation envelope, review_digest
+      and readiness_digest; it rechecks future B, scope/CAS, schema and live readiness.
+      activation_kind must be cutover; only a valid legacy v1 envelope may omit it.
+      first_start envelopes are rejected. Success preserves the existing WriteGroupCutover
+      response, not proof of runtime or target writes.
+    properties:
+      action:
+        enum:
+        - activation-confirm
+        type: string
+      envelope:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorActivationEnvelope'
+      readiness_digest:
+        maxLength: 64
+        minLength: 64
+        type: string
+      review_digest:
+        maxLength: 64
+        minLength: 64
+        type: string
+    required:
+    - action
+    - envelope
+    - readiness_digest
+    - review_digest
+    type: object
+  handlers.WriteGroupSuccessorFirstStartConfirmRequest:
+    description: first-start-confirm requires activation_kind=first_start in the unchanged
+      activation envelope and both digests. It rechecks whole-lineage absence of applied/intake/history
+      evidence, current CAS, schema/readiness and explicit future B. It returns WriteGroupSuccessorFirstStartResult,
+      never an invented predecessor end/cutover/fence. Cutover envelopes are rejected.
+    properties:
+      action:
+        enum:
+        - first-start-confirm
+        type: string
+      envelope:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorActivationEnvelope'
+      readiness_digest:
+        maxLength: 64
+        minLength: 64
+        type: string
+      review_digest:
+        maxLength: 64
+        minLength: 64
+        type: string
+    required:
+    - action
+    - envelope
+    - readiness_digest
+    - review_digest
+    type: object
+  handlers.WriteGroupSuccessorPreviewRequest:
+    description: schema-preview may perform external read-only target probes and stores
+      a preview token locally; it never executes DDL or activates intake. The returned
+      operation_id is a schema operation ID, not the original root ID.
+    properties:
+      action:
+        enum:
+        - schema-preview
+        type: string
+      current:
+        $ref: '#/definitions/handlers.WriteGroupSuccessorCurrentCAS'
+      envelope:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorEnvelope'
+      review_digest:
+        type: string
+    required:
+    - action
+    - current
+    - envelope
+    - review_digest
+    type: object
+  handlers.WriteGroupSuccessorReadinessRequest:
+    description: activation-readiness requires the exact activation-review envelope/digest,
+      including its stage current CAS and future B. It may inspect the target but
+      performs no DDL or activation; readiness_digest is evidence, not a persisted
+      grant.
+    properties:
+      action:
+        enum:
+        - activation-readiness
+        type: string
+      envelope:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorActivationEnvelope'
+      review_digest:
+        maxLength: 64
+        minLength: 64
+        type: string
+    required:
+    - action
+    - envelope
+    - review_digest
+    type: object
+  handlers.WriteGroupSuccessorReserveRequest:
+    description: reserve revalidates original envelope scope/CAS and may probe required
+      source/target capabilities. Exact replay returns the immutable original reservation
+      even after head/revisions advance; changed intent under the same root conflicts.
+      It does not run DDL or activate intake.
+    properties:
+      action:
+        enum:
+        - reserve
+        type: string
+      envelope:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorEnvelope'
+      review_digest:
+        type: string
+    required:
+    - action
+    - envelope
+    - review_digest
+    type: object
+  handlers.WriteGroupSuccessorResponse:
+    description: data is exactly the selected action's response_data schema in x-action-contracts,
+      not an arbitrary combination. A recorded stage success is not runtime running
+      and not SQL committed.
+    properties:
+      data:
+        additionalProperties: {}
+        type: object
+      success:
+        example: true
+        type: boolean
+    type: object
+  handlers.WriteGroupSuccessorReviewRequest:
+    description: All scope and original CAS fields are required. Path id is G1. operation_id
+      is the original root request ID, never a schema operation or first-start result
+      ID. group is a candidate, not authority; boundary is an explicit timestamp,
+      not permission to activate.
+    properties:
+      boundary:
+        type: string
+      expected_lineage_revision:
+        minimum: 1
+        type: integer
+      expected_predecessor_connector_revision:
+        type: string
+      expected_predecessor_revision:
+        type: string
+      expected_target_connector_revision:
+        type: string
+      expected_workspace_revision:
+        type: string
+      group:
+        $ref: '#/definitions/workspace.WriteGroup'
+      lineage_id:
+        type: string
+      operation_id:
+        type: string
+      workspace_id:
+        type: string
+    required:
+    - boundary
+    - expected_lineage_revision
+    - expected_predecessor_connector_revision
+    - expected_predecessor_revision
+    - expected_target_connector_revision
+    - expected_workspace_revision
+    - group
+    - lineage_id
+    - operation_id
+    - workspace_id
+    type: object
+  handlers.WriteGroupSuccessorSchemaResponse:
+    properties:
+      data:
+        $ref: '#/definitions/recordingplan.SchemaOperation'
+      success:
+        example: true
+        type: boolean
+    type: object
+  handlers.WriteGroupSuccessorStageRequest:
+    description: Return the complete original server envelope and review_digest unchanged,
+      plus separately refreshed current CAS. Path id must match envelope.predecessor_group_id;
+      workspace and lineage remain the original scope.
+    properties:
+      current:
+        $ref: '#/definitions/handlers.WriteGroupSuccessorCurrentCAS'
+      envelope:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorEnvelope'
+      review_digest:
+        type: string
+    required:
+    - current
+    - envelope
+    - review_digest
+    type: object
+  handlers.WriteGroupSuccessorStatusRequest:
+    description: operation-status is a coherent local read with exact workspace_id,
+      lineage_id and original request operation_id; path id is original G1. No current
+      revision, envelope, target probe or token is required or accepted. Schema/first-start
+      result IDs, current head and latest preview cannot replace the root. Response
+      contains all related schema outcomes, not just the latest.
+    properties:
+      action:
+        enum:
+        - operation-status
+        type: string
+      lineage_id:
+        type: string
+      operation_id:
+        type: string
+      workspace_id:
+        type: string
+    required:
+    - action
+    - lineage_id
+    - operation_id
+    - workspace_id
     type: object
   handlers.WriteGroupTestWriteConfirmRequest:
     properties:
@@ -1083,6 +1477,91 @@ definitions:
       workspace_id:
         type: string
     type: object
+  recordingplan.GroupSchemaColumn:
+    properties:
+      name:
+        type: string
+      nullable:
+        type: boolean
+      primary_key:
+        type: boolean
+      sql_type:
+        type: string
+    type: object
+  recordingplan.GroupSchemaIndex:
+    properties:
+      columns:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+    type: object
+  recordingplan.GroupSchemaLayout:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/recordingplan.GroupSchemaColumn'
+        type: array
+      indexes:
+        description: |-
+          Indexes are created with the table and verified against the real catalog.
+          Absent for legacy wide layouts, so their stored digests stay unchanged.
+        items:
+          $ref: '#/definitions/recordingplan.GroupSchemaIndex'
+        type: array
+      mysql:
+        allOf:
+        - $ref: '#/definitions/recordingplan.MySQLGroupSchemaOptions'
+        description: |-
+          MySQL, when set, binds the layout to one backend-resolved MySQL family
+          and version plus the storage engine and case-exact collation. It is nil
+          for SQLite and PostgreSQL layouts, so their JSON and digests are unchanged.
+      owner_column:
+        type: string
+      partition:
+        allOf:
+        - $ref: '#/definitions/recordingplan.GroupSchemaPartition'
+        description: |-
+          Partition, when set, makes the new table an owned TimescaleDB hypertable.
+          Absent for plain and wide layouts, so their stored digests stay unchanged.
+      sqlserver:
+        allOf:
+        - $ref: '#/definitions/recordingplan.SQLServerGroupSchemaOptions'
+        description: |-
+          SQLServer, when set, binds the layout to SQL Server specific parameters
+          including the explicit schema and case-exact collation.
+      table_name:
+        type: string
+    type: object
+  recordingplan.GroupSchemaPartition:
+    properties:
+      chunk_interval:
+        type: string
+      column:
+        type: string
+      extension_schema:
+        type: string
+      kind:
+        type: string
+    type: object
+  recordingplan.MySQLGroupSchemaOptions:
+    properties:
+      capability_revision:
+        type: string
+      charset:
+        type: string
+      collation:
+        type: string
+      engine:
+        type: string
+      native_monthly:
+        $ref: '#/definitions/recordingplan.MySQLPartitionEvidence'
+      server_family:
+        type: string
+      server_version:
+        type: string
+    type: object
   recordingplan.MySQLPartitionBoundary:
     properties:
       less_than:
@@ -1225,6 +1704,31 @@ definitions:
       summary_days:
         type: integer
     type: object
+  recordingplan.SQLServerGroupSchemaOptions:
+    properties:
+      capability_revision:
+        type: string
+      collation:
+        type: string
+      compatibility_level:
+        type: integer
+      database:
+        type: string
+      engine_edition:
+        type: integer
+      native_monthly:
+        allOf:
+        - $ref: '#/definitions/recordingplan.SQLServerPartitionEvidence'
+        description: |-
+          NativeMonthly freezes the initial owned SQL Server partition layout.
+          Nil preserves the plain SQL Server layout and its existing JSON bytes.
+      schema:
+        type: string
+      server_edition:
+        type: string
+      server_version:
+        type: string
+    type: object
   recordingplan.SQLServerPartitionBoundary:
     properties:
       less_than:
@@ -1243,6 +1747,21 @@ definitions:
       function_name:
         type: string
       method:
+        type: string
+      partitions:
+        items:
+          $ref: '#/definitions/recordingplan.SQLServerPartitionBoundary'
+        type: array
+      scheme_name:
+        type: string
+    type: object
+  recordingplan.SQLServerPartitionPreview:
+    properties:
+      action:
+        type: string
+      filegroup:
+        type: string
+      function_name:
         type: string
       partitions:
         items:
@@ -1299,6 +1818,103 @@ definitions:
     - SchemaOperationPartial
     - SchemaOperationFailed
     - SchemaOperationUnknown
+  recordingplan.SchemaPreviewTable:
+    properties:
+      action:
+        type: string
+      catalog_digest:
+        type: string
+      columns:
+        items:
+          type: string
+        type: array
+      indexes:
+        description: |-
+          Indexes bind independently applied MySQL steps. CatalogDigest also binds
+          SQL Server's inspected object identity so a replacement invalidates confirmation.
+        items:
+          $ref: '#/definitions/recordingplan.GroupSchemaIndex'
+        type: array
+      name:
+        type: string
+      partition:
+        allOf:
+        - $ref: '#/definitions/recordingplan.GroupSchemaPartition'
+        description: |-
+          Partition shows, and binds into the operation's evidence, the time
+          partitioning of a timescale table.
+      sqlserver_partition:
+        allOf:
+        - $ref: '#/definitions/recordingplan.SQLServerPartitionPreview'
+        description: |-
+          SQLServerPartition shows optional native_monthly partition objects and
+          their initial UTC boundaries.
+    type: object
+  recordingplan.SchemaPreviewToken:
+    properties:
+      action:
+        type: string
+      connector_id:
+        type: string
+      connector_revision:
+        type: string
+      created_at:
+        type: string
+      database:
+        type: string
+      dialect:
+        type: string
+      digest:
+        type: string
+      expires_at:
+        type: string
+      group_layout:
+        allOf:
+        - $ref: '#/definitions/recordingplan.GroupSchemaLayout'
+        description: |-
+          GroupLayout is set only for canonical WriteGroup managed preparation.
+          Legacy recording-plan previews leave it nil so their digest and storage
+          format remain compatible with tokens issued before group preparation.
+      no_change_reason:
+        type: string
+      operation_id:
+        type: string
+      plan_id:
+        type: string
+      plan_revision:
+        type: string
+      recreate_missing:
+        description: |-
+          RecreateMissing is the recovery policy this confirmation shows and
+          freezes for managed long storage: whether delivery may restore the
+          confirmed table if the catalog later proves it gone. Nil for layouts that
+          have no such policy, which keeps their stored digests unchanged.
+        type: boolean
+      schema:
+        type: string
+      schema_digest:
+        type: string
+      schema_revision:
+        type: string
+      source_digest:
+        type: string
+      statements:
+        items:
+          type: string
+        type: array
+      table_prefix:
+        type: string
+      tables:
+        items:
+          $ref: '#/definitions/recordingplan.SchemaPreviewTable'
+        type: array
+      token:
+        type: string
+      workspace_id:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
   recordingplan.Status:
     enum:
     - draft
@@ -1831,6 +2447,11 @@ definitions:
         items:
           $ref: '#/definitions/workspace.CutoverMemberRef'
         type: array
+      ownership_fence_revision:
+        description: |-
+          OwnershipFenceRevision is an opaque persisted CAS identity. Empty means
+          legacy/unknown ownership evidence, not permission to accept or close.
+        type: string
       prior_cutover_id:
         type: string
       review_digest:
@@ -1881,6 +2502,114 @@ definitions:
     - WriteGroupLayoutManagedWideV1
     - WriteGroupLayoutManagedLongV1
     - WriteGroupLayoutManagedWideProfileV1
+  workspace.WriteGroupLifecycle:
+    properties:
+      actions:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupLifecycleAction'
+        type: array
+      applied_revision:
+        type: string
+      connector_id:
+        type: string
+      connector_revision:
+        type: string
+      group_id:
+        type: string
+      group_revision:
+        type: string
+      history:
+        $ref: '#/definitions/workspace.WriteGroupLifecycleHistory'
+      status:
+        $ref: '#/definitions/workspace.WriteGroupStatus'
+      successor_seed:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorSeed'
+      workspace_id:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
+  workspace.WriteGroupLifecycleAction:
+    properties:
+      action:
+        type: string
+      allowed:
+        type: boolean
+      next_action:
+        type: string
+      reason_code:
+        type: string
+      requires_review:
+        type: boolean
+    type: object
+  workspace.WriteGroupLifecycleDestination:
+    properties:
+      connector_id:
+        type: string
+      connector_revision:
+        type: string
+      destination_scope:
+        type: string
+    type: object
+  workspace.WriteGroupLifecycleGeneration:
+    properties:
+      applied_revision:
+        type: string
+      current:
+        type: boolean
+      generation:
+        type: integer
+      group_id:
+        type: string
+      group_revision:
+        type: string
+      predecessor_group_id:
+        type: string
+      reserved:
+        type: boolean
+      revisions:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupLifecycleRevision'
+        type: array
+      saved_destination:
+        $ref: '#/definitions/workspace.WriteGroupLifecycleDestination'
+      status:
+        $ref: '#/definitions/workspace.WriteGroupStatus'
+    type: object
+  workspace.WriteGroupLifecycleHistory:
+    properties:
+      canonical:
+        type: boolean
+      current_group_id:
+        type: string
+      generations:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupLifecycleGeneration'
+        type: array
+      lineage_id:
+        type: string
+      lineage_revision:
+        type: integer
+      reserved_group_id:
+        type: string
+    type: object
+  workspace.WriteGroupLifecycleRevision:
+    properties:
+      destination:
+        $ref: '#/definitions/workspace.WriteGroupLifecycleDestination'
+      effective_at:
+        type: string
+      ends_at:
+        type: string
+      group_revision:
+        type: string
+      pending:
+        $ref: '#/definitions/groupdelivery.LifecyclePending'
+      sources:
+        items:
+          $ref: '#/definitions/workspace.CutoverMemberRef'
+        type: array
+    type: object
   workspace.WriteGroupListResult:
     properties:
       groups:
@@ -2262,6 +2991,252 @@ definitions:
     x-enum-varnames:
     - WriteGroupStorageStrategyManaged
     - WriteGroupStorageStrategyCustom
+  workspace.WriteGroupSuccessorActivationEnvelope:
+    properties:
+      activation_kind:
+        type: string
+      counter_proof_digest:
+        type: string
+      request:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorActivationRequest'
+      schema_digest:
+        type: string
+      schema_revision:
+        type: string
+      source_applied_revision:
+        type: string
+      source_definition_digest:
+        type: string
+      target_definition_digest:
+        type: string
+      version:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorActivationReadiness:
+    properties:
+      readiness:
+        $ref: '#/definitions/workspace.WriteGroupReadiness'
+      readiness_digest:
+        type: string
+      review:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorActivationReview'
+    type: object
+  workspace.WriteGroupSuccessorActivationRequest:
+    properties:
+      boundary:
+        type: string
+      stage:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorStageRequest'
+    type: object
+  workspace.WriteGroupSuccessorActivationReview:
+    properties:
+      blockers:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupSuccessorBlocker'
+        type: array
+      envelope:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorActivationEnvelope'
+      history:
+        $ref: '#/definitions/workspace.WriteGroupLifecycleHistory'
+      review_digest:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorBlocker:
+    properties:
+      next_action:
+        type: string
+      reason_code:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorCurrentCAS:
+    properties:
+      group_id:
+        type: string
+      group_revision:
+        type: string
+      lineage_revision:
+        type: integer
+      predecessor_connector_revision:
+        type: string
+      predecessor_revision:
+        type: string
+      target_connector_revision:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorCutoverStatus:
+    properties:
+      result:
+        $ref: '#/definitions/workspace.WriteGroupCutover'
+      status:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorEnvelope:
+    properties:
+      generation:
+        type: integer
+      predecessor_group_id:
+        type: string
+      request:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorReviewRequest'
+      source_applied_revision:
+        type: string
+      source_definition_digest:
+        type: string
+      version:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorFirstStartResult:
+    properties:
+      applied_revision:
+        type: string
+      boundary:
+        type: string
+      generation:
+        type: integer
+      group_id:
+        type: string
+      lineage_id:
+        type: string
+      lineage_revision:
+        type: integer
+      operation_id:
+        type: string
+      predecessor_group_id:
+        type: string
+      root_operation_id:
+        type: string
+      status:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorFirstStartStatus:
+    properties:
+      result:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorFirstStartResult'
+      status:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorOperationStatus:
+    properties:
+      cutover:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorCutoverStatus'
+      first_start:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorFirstStartStatus'
+      lineage_id:
+        type: string
+      operation_id:
+        type: string
+      predecessor_group_id:
+        type: string
+      reserve:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorReserveStatus'
+      schema_operations:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupSuccessorSchemaStatus'
+        type: array
+      workspace_id:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorPreparation:
+    properties:
+      generation:
+        type: integer
+      group:
+        $ref: '#/definitions/workspace.WriteGroup'
+      intent_digest:
+        type: string
+      lineage_id:
+        type: string
+      lineage_revision:
+        type: integer
+      operation_id:
+        type: string
+      predecessor_group_id:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorReserveStatus:
+    properties:
+      result:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorPreparation'
+      status:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorReview:
+    properties:
+      blockers:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupSuccessorBlocker'
+        type: array
+      envelope:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorEnvelope'
+      history:
+        $ref: '#/definitions/workspace.WriteGroupLifecycleHistory'
+      required_checks:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupSuccessorBlocker'
+        type: array
+      review_digest:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorReviewRequest:
+    properties:
+      boundary:
+        type: string
+      expected_lineage_revision:
+        type: integer
+      expected_predecessor_connector_revision:
+        type: string
+      expected_predecessor_revision:
+        type: string
+      expected_target_connector_revision:
+        type: string
+      expected_workspace_revision:
+        type: string
+      group:
+        $ref: '#/definitions/workspace.WriteGroup'
+      lineage_id:
+        type: string
+      operation_id:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorSchemaStatus:
+    properties:
+      next_action:
+        type: string
+      operation_id:
+        type: string
+      reason_code:
+        type: string
+      status:
+        type: string
+    type: object
+  workspace.WriteGroupSuccessorSeed:
+    properties:
+      basis_digest:
+        type: string
+      basis_kind:
+        type: string
+      basis_revision:
+        type: string
+      group:
+        $ref: '#/definitions/workspace.WriteGroup'
+    type: object
+  workspace.WriteGroupSuccessorStageRequest:
+    properties:
+      current:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorCurrentCAS'
+      envelope:
+        $ref: '#/definitions/workspace.WriteGroupSuccessorEnvelope'
+      review_digest:
+        type: string
+    type: object
   workspace.WriteGroupValueRole:
     enum:
     - gauge
@@ -4160,4 +5135,240 @@ paths:
       summary: Preview a test write through a legacy recording plan
       tags:
       - Studio V2 Recording Plans
+  /v1/datalink/studio-v2/workspace/write-groups/{id}/lifecycle:
+    get:
+      description: 'Local read only: saved status/actions, immutable per-generation
+        history and sanitized successor_seed. Actions and seed are advisory, never
+        mutation authority. Saved configuration, runtime health and delivery outcomes
+        remain distinct; samples, outbox and unknown counts use separate units.'
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupLifecycleResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Read saved recording lifecycle actions
+      tags:
+      - Studio V2 Write Groups
+  /v1/datalink/studio-v2/workspace/write-groups/{id}/successor:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Swagger 2 cannot express this action-dependent request/response union. The body schema is ONLY a discriminator, not a complete payload: select exactly one complete request and response_data model from x-action-contracts below. Unknown fields and fields from other actions are rejected; there are no per-stage URLs. Every successful response wraps the selected response_data as {success:true,data:...}.
+        Scope: path id is original G1. Preserve the immutable original envelope and envelope.request.operation_id (root) for reserve/schema/activation; refreshed current CAS belongs in current for schema actions or stage.current for activation-review (then inside the activation envelope), never rebased into the original envelope. The immutable reserve result is not current CAS. A preview's operation_id is used as schema_operation_id for schema-confirm, never as the root; first-start result operation_id is also distinct from root_operation_id.
+        reserve requires action/envelope/review_digest and records only a reserved draft; required capability checks may probe. schema-preview requires action/envelope/review_digest/current, may perform external read-only probes and save a local token, but never DDL. schema-confirm additionally requires token/digest/schema_operation_id and explicit permission for the stored server plan; inspect returned SchemaOperation.status even on HTTP 200, or 202 while in progress.
+        activation-review requires action/stage/boundary and is local read only with explicit future B. activation-readiness requires action/activation envelope/review_digest and may inspect the target without DDL or activation. activation-confirm and first-start-confirm both additionally require readiness_digest and recheck scope/CAS/schema/readiness/future B. activation-confirm returns the existing WriteGroupCutover for cutover (valid old v1 may omit activation_kind); first-start-confirm requires first_start and returns WriteGroupSuccessorFirstStartResult, never a fake cutover. The two confirmations are not interchangeable.
+        operation-status requires only action/workspace_id/lineage_id/original operation_id and path G1, no current CAS or target access. It is a coherent local read of immutable reserve, all related schema operations, cutover and first-start outcomes. A succeeded stage is not runtime running and not SQL committed. On unknown transport/outcome, retain the original request and query status before any permitted exact retry; do not switch intent/root or assume rollback. No general rebase/cancel endpoint exists.
+      parameters:
+      - description: Original predecessor group ID (G1), not reserved G2 or current
+          head
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Discriminator only; use exactly one complete request from x-action-contracts
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupSuccessorAction'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success=true; data is exactly the selected x-action-contracts
+            response_data model; schema status may be succeeded, failed, partial or
+            unknown
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupSuccessorResponse'
+        "202":
+          description: 'schema-confirm only: schema operation is still in progress,
+            not confirmed success'
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupSuccessorSchemaResponse'
+        "400":
+          description: 'WRITE_GROUP_INVALID_REQUEST: unknown/mixed action fields,
+            missing scope/confirmation, malformed JSON or wrong activation kind'
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: 'WRITE_GROUP_NOT_FOUND or RECORDING_SCHEMA_PREVIEW_NOT_FOUND:
+            original scoped resource missing'
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: revision_mismatch, lifecycle/ownership conflict, stale/expired
+            preview, operation mismatch or busy; preserve original root and inspect
+            typed code/action
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Invalid/unsupported transition, boundary, capability, schema,
+            permission or connector; no implicit fallback
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Typed local service failure; do not infer that a timed-out
+            mutation rolled back
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "501":
+          description: 'RECORDING_SCHEMA_NOT_IMPLEMENTED: schema-confirm adapter has
+            no verified execution'
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service/target/ownership unavailable or RECORDING_SCHEMA_OPERATION_UNKNOWN;
+            error.operation_id, when present, identifies the schema operation, not
+            the root
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Execute one explicit successor action or read its original operation
+        status
+      tags:
+      - Studio V2 Write Groups
+      x-action-contracts:
+        activation-confirm:
+          error: '#/definitions/handlers.APIErrorResponse'
+          request: '#/definitions/handlers.WriteGroupSuccessorCutoverConfirmRequest'
+          response_data: '#/definitions/workspace.WriteGroupCutover'
+          success_statuses:
+          - 200
+        activation-readiness:
+          error: '#/definitions/handlers.APIErrorResponse'
+          request: '#/definitions/handlers.WriteGroupSuccessorReadinessRequest'
+          response_data: '#/definitions/workspace.WriteGroupSuccessorActivationReadiness'
+          success_statuses:
+          - 200
+        activation-review:
+          error: '#/definitions/handlers.APIErrorResponse'
+          request: '#/definitions/handlers.WriteGroupSuccessorActivationReviewRequest'
+          response_data: '#/definitions/workspace.WriteGroupSuccessorActivationReview'
+          success_statuses:
+          - 200
+        first-start-confirm:
+          error: '#/definitions/handlers.APIErrorResponse'
+          request: '#/definitions/handlers.WriteGroupSuccessorFirstStartConfirmRequest'
+          response_data: '#/definitions/workspace.WriteGroupSuccessorFirstStartResult'
+          success_statuses:
+          - 200
+        operation-status:
+          error: '#/definitions/handlers.APIErrorResponse'
+          request: '#/definitions/handlers.WriteGroupSuccessorStatusRequest'
+          response_data: '#/definitions/workspace.WriteGroupSuccessorOperationStatus'
+          success_statuses:
+          - 200
+        reserve:
+          error: '#/definitions/handlers.APIErrorResponse'
+          request: '#/definitions/handlers.WriteGroupSuccessorReserveRequest'
+          response_data: '#/definitions/workspace.WriteGroupSuccessorPreparation'
+          success_statuses:
+          - 200
+        schema-confirm:
+          error: '#/definitions/handlers.APIErrorResponse'
+          request: '#/definitions/handlers.WriteGroupSuccessorConfirmRequest'
+          response_data: '#/definitions/recordingplan.SchemaOperation'
+          success_statuses:
+          - 200
+          - 202
+        schema-preview:
+          error: '#/definitions/handlers.APIErrorResponse'
+          request: '#/definitions/handlers.WriteGroupSuccessorPreviewRequest'
+          response_data: '#/definitions/recordingplan.SchemaPreviewToken'
+          success_statuses:
+          - 200
+  /v1/datalink/studio-v2/workspace/write-groups/{id}/successor-review:
+    post:
+      consumes:
+      - application/json
+      description: Local read only. Requires original workspace/lineage/G1/connector
+        CAS, candidate group, original operation_id and explicit boundary. Returns
+        a frozen envelope and review_digest, advisory history/blockers/required_checks;
+        no reservation, preview token, external probe, DDL or activation. Later actions
+        must preserve the original envelope and revalidate current scope.
+      parameters:
+      - description: Original predecessor group ID (G1)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Complete local review intent; not mutation authority
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupSuccessorReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handlers.WriteGroupSuccessorResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/workspace.WriteGroupSuccessorReview'
+              type: object
+        "400":
+          description: 'WRITE_GROUP_INVALID_REQUEST: malformed, unknown or missing
+            request fields'
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Typed scope/CAS, lifecycle, definition or availability error;
+            inspect code, action, retryable and request_id
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Typed scope/CAS, lifecycle, definition or availability error;
+            inspect code, action, retryable and request_id
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Typed scope/CAS, lifecycle, definition or availability error;
+            inspect code, action, retryable and request_id
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Typed scope/CAS, lifecycle, definition or availability error;
+            inspect code, action, retryable and request_id
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Typed scope/CAS, lifecycle, definition or availability error;
+            inspect code, action, retryable and request_id
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Review a saved recording successor
+      tags:
+      - Studio V2 Write Groups
 swagger: "2.0"

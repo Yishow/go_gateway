@@ -18,6 +18,16 @@ func (r *SQLWriteGroupRepository) validate(ctx context.Context, runner writeGrou
 }
 
 func (r *SQLWriteGroupRepository) validateWithMeasurements(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup, definitions map[string]*measurement.MeasurementDefinition) error {
+	if err := r.validateDefinitionWithMeasurements(ctx, runner, group, definitions); err != nil {
+		return err
+	}
+	return r.checkProfileSourceOwnership(ctx, runner, group)
+}
+
+// validateDefinitionWithMeasurements validates every non-ownership property.
+// Ordinary callers always use validateWithMeasurements above. The successor
+// preparation path separately proves its exact predecessor-only overlap.
+func (r *SQLWriteGroupRepository) validateDefinitionWithMeasurements(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup, definitions map[string]*measurement.MeasurementDefinition) error {
 	if strings.TrimSpace(group.WorkspaceID) == "" {
 		return fmt.Errorf("%w: workspace id is required", ErrWriteGroupValidation)
 	}
@@ -248,7 +258,7 @@ func (r *SQLWriteGroupRepository) validateWithMeasurements(ctx context.Context, 
 			}
 		}
 	}
-	return r.checkProfileSourceOwnership(ctx, runner, group)
+	return nil
 }
 
 // applyRecordingMetadata verifies and derives the member recording metadata of

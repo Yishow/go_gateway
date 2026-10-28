@@ -1,3 +1,5 @@
+import { RemovedRecordingManagement, SavedRecordingManagement } from './SavedRecordingManagement';
+import type { SavedRecordingActionHost } from './writeGroup/lifecycle/SavedRecordingActions';
 import { destinationIsSaved, groupMatchesRequest, operationScopeMatchesCurrent, requestMatchesCurrentControls, groupSnapshotMatchesRequest, operationBelongsToGroupId, unresolvedRequestMatchesCurrentScope } from './basicRecordingPanelHelpers';
 import { BasicMemberUpdate } from './BasicMemberUpdate';
 import { buildBasicStartRequest } from './basicStartRequest';
@@ -33,6 +35,7 @@ export interface BasicRecordingPanelProps {
   state: WorkbenchV2State;
   workspaceId?: string;
   readonly: boolean;
+  lifecycleHost?: SavedRecordingActionHost;
   shareStatus?: ModbusShareStatus | null;
   role?: string;
   onCommit?: (confirmedDeviceIds?: string[]) => void;
@@ -57,6 +60,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   state,
   workspaceId,
   readonly,
+  lifecycleHost,
   shareStatus,
   role = BASIC_ROLE,
   onCommit,
@@ -248,7 +252,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   if (supportsCircuitProfile && !shareOnly) {
     if (groupsQuery.isLoading) return <div data-testid="circuit-profile-groups-loading" className="rounded border border-slate-800 p-4 text-xs text-slate-400">{t('step4.basic.circuit.groups_loading')}</div>;
     if (groupsQuery.isError) return <div role="alert" data-testid="circuit-profile-groups-error" className="rounded border border-rose-800/70 bg-rose-950/30 p-4 text-xs text-rose-200">{t('step4.basic.circuit.groups_error')}</div>;
-    if (!hasLegacyBasicWide || legacyMode !== 'edit') return <CircuitProfileBasicPanel key={JSON.stringify([workspaceId, selectedDeviceId, legacyMode])} prepareOnly={legacyMode === 'prepare'} onClose={() => setLegacyView({ scope: legacyScope, mode: 'edit' })} legacyGroup={legacyGroup} onEditLegacy={() => setLegacyView({ scope: legacyScope, mode: 'edit' })} deviceId={selectedDeviceId} onSelectDevice={selectByOperator} state={state} workspaceId={workspaceId} readonly={readonly} workspaceRevision={workspaceRevision} readinessToken={shareStatus?.readiness_token} settingsRevision={shareStatus?.settings_revision} shareWorkspaceRevision={shareStatus?.workspace_revision} onOpenAdvanced={onOpenAdvanced} onActivated={(ids) => onCommit?.(ids)} onContinueToRuntime={(ids) => onCommit?.(ids)} onOperationActiveChange={onOperationActiveChange} circuitRequest={circuitRequest} onCircuitRequestDone={clearCircuitRequest} />;
+    if (!hasLegacyBasicWide || legacyMode !== 'edit') return <><CircuitProfileBasicPanel lifecycleHost={lifecycleHost} key={JSON.stringify([workspaceId, selectedDeviceId, legacyMode])} prepareOnly={legacyMode === 'prepare'} onClose={() => setLegacyView({ scope: legacyScope, mode: 'edit' })} legacyGroup={legacyGroup} onEditLegacy={() => setLegacyView({ scope: legacyScope, mode: 'edit' })} deviceId={selectedDeviceId} onSelectDevice={selectByOperator} state={state} workspaceId={workspaceId} readonly={readonly} workspaceRevision={workspaceRevision} readinessToken={shareStatus?.readiness_token} settingsRevision={shareStatus?.settings_revision} shareWorkspaceRevision={shareStatus?.workspace_revision} onOpenAdvanced={onOpenAdvanced} onActivated={(ids) => onCommit?.(ids)} onContinueToRuntime={(ids) => onCommit?.(ids)} onOperationActiveChange={onOperationActiveChange} circuitRequest={circuitRequest} onCircuitRequestDone={clearCircuitRequest} /><RemovedRecordingManagement groups={groups} deviceId={selectedDeviceId} workspaceId={workspaceId} workspaceRevision={workspaceRevision} readonly={readonly} lifecycleHost={lifecycleHost} onOpenAdvanced={onOpenAdvanced} /></>;
   }
 
   const blockReason = !workspaceId ? 'workspace'
@@ -424,6 +428,8 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
       {!shareOnly && <div id={`basic-schema-${selectedDeviceId}`} tabIndex={-1}><BasicSchemaPreparation key={`${scopeKey}|${connectorRevision}`} group={basicSelectedGroup} workspaceId={workspaceId ?? ''} workspaceRevision={workspaceRevision} disabled={Boolean(blockReason) || operationActive} readonly={readonly || operationActive} destinationMatches={!destinationMismatch} ensureGroup={ensureGroup} onApplied={() => void groupsQuery.refetch()} /></div>}
       {!shareOnly && selectedGroup && !deliveryQuery.isError && deliveryQuery.data?.group_id === selectedGroup.id && <GroupDeliveryRecovery groupId={selectedGroup.id} items={deliveryQuery.data.attention ?? []} readonly={readonly || operationActive} onResolved={() => void deliveryQuery.refetch()} />}
 
+      {!shareOnly && basicSelectedGroup && lifecycleHost && <SavedRecordingManagement group={basicSelectedGroup} workspaceId={workspaceId} workspaceRevision={workspaceRevision} readonly={readonly || operationActive} lifecycleHost={lifecycleHost} />}
+      {!shareOnly && <RemovedRecordingManagement groups={groups} deviceId={selectedDeviceId} workspaceId={workspaceId} workspaceRevision={workspaceRevision} readonly={readonly} lifecycleHost={lifecycleHost} onOpenAdvanced={onOpenAdvanced} />}
       {supportsCircuitProfile && !shareOnly && hasLegacyBasicWide && destinationSaved && <LegacyMigrationEntry disabled={readonly || operationActive} onOpen={() => setLegacyView({ scope: legacyScope, mode: 'prepare' })} />}
 
       <div className="flex flex-wrap items-center gap-3">

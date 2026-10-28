@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -19,16 +20,16 @@ import {
 } from '../../e2e/fixtures/sqlserver-circuit-recording';
 
 describe('SQL Server browser acceptance fixture contract and guards', () => {
-  const tmpDir = path.join('/private/tmp/circuit-sql-work', 'fixture-test-' + Date.now());
+  let tmpDir = '';
 
   beforeEach(() => {
-    fs.mkdirSync(tmpDir, { recursive: true });
+    tmpDir = fs.mkdtempSync(path.join(tmpdir(), 'circuit-sql-fixture-'));
     delete process.env[SQLSERVER_FIXTURE_ENV];
   });
 
   afterEach(() => {
     delete process.env[SQLSERVER_FIXTURE_ENV];
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
   function validManifest(overrides: Partial<SQLServerFixtureManifest> = {}): SQLServerFixtureManifest {

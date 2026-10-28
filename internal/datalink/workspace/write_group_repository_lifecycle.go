@@ -84,6 +84,22 @@ func (r *SQLWriteGroupRepository) resolveVersionInTx(ctx context.Context, runner
 	}, nil
 }
 
+// VersionByRevisionInTx reads an immutable applied owner through the caller's
+// transaction. It never substitutes the current draft or opens a connection.
+func (r *SQLWriteGroupRepository) VersionByRevisionInTx(ctx context.Context, tx *sql.Tx, workspaceID, groupID, revision string) (*WriteGroupAppliedSnapshot, error) {
+	if r == nil || tx == nil || workspaceID == "" || groupID == "" {
+		return nil, fmt.Errorf("read immutable write-group owner: %w", ErrWriteGroupValidation)
+	}
+	version, err := r.versionByRevisionInTx(ctx, tx, workspaceID, groupID, revision)
+	if err != nil {
+		return nil, err
+	}
+	if version.GroupRevision != revision || version.AppliedRevision != revision {
+		return nil, fmt.Errorf("read immutable write-group owner: %w", ErrWriteGroupValidation)
+	}
+	return version, nil
+}
+
 func (r *SQLWriteGroupRepository) versionByRevisionInTx(ctx context.Context, runner writeGroupSQLRunner, workspaceID, groupID, revision string) (*WriteGroupAppliedSnapshot, error) {
 	if revision == "" {
 		return nil, fmt.Errorf("read write-group version: %w", ErrWriteGroupAppliedRevisionUnavailable)

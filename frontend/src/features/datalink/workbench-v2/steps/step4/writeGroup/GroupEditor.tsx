@@ -26,6 +26,7 @@ import { GroupColumnProposal } from './GroupColumnProposal';
 import { GroupDeliveryStrip } from './GroupDeliveryStrip';
 import { GroupIdentityFields } from './GroupIdentityFields';
 import { GroupLifecycleBar } from './GroupLifecycleBar';
+import type { SavedRecordingActionHost } from './lifecycle/SavedRecordingActions';
 import { GroupMemberTable } from './GroupMemberTable';
 import { GroupPolicyFields } from './GroupPolicyFields';
 import { GroupProfileMembers, GroupProfileSummary } from './GroupProfileSummary';
@@ -42,6 +43,9 @@ export interface GroupEditorProps {
   candidates: GroupCandidate[];
   excluded: ExcludedCandidate[];
   readonly: boolean;
+  /** Tombstone fields are immutable, but lifecycle review remains available. */
+  editorReadonly?: boolean;
+  lifecycleHost?: SavedRecordingActionHost;
   onClose: () => void;
   onSaved: (group: WriteGroup) => void;
   onReload: () => void;
@@ -102,9 +106,10 @@ type GroupEditorContentProps = GroupEditorProps & {
 };
 
 const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
-  group: propGroup, workspaceId, workspaceRevision, connector, candidates, excluded, readonly, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability,
+  group: propGroup, workspaceId, workspaceRevision, connector, candidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const readonly = operatorReadonly || editorReadonly || propGroup?.status === 'deleted';
   const saved = destinationSaved(connector);
   const isMySQL = String(connector.kind).toLowerCase() === 'mysql';
   const mysqlConnectorId = connector.connector_id ?? '';
@@ -382,7 +387,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
           <GroupDeliveryStrip group={group} readonly={readonly} />
           <GroupLifecycleBar
             group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision}
-            canApply={canApply} applyBlockedReason={applyBlocked} readonly={readonly}
+            canApply={canApply} applyBlockedReason={applyBlocked} readonly={operatorReadonly} lifecycleHost={lifecycleHost}
             onChanged={onSaved} onConflict={() => setConflict(true)} onReviewScopedStart={onReviewScopedStart}
           />
           <GroupTestWritePanel

@@ -192,7 +192,7 @@ func (s *WriteGroupService) updateWithCheckpoint(ctx context.Context, id string,
 	return &WriteGroupSaveResult{WorkspaceRevision: updated.DatabaseSetupRevision, Group: saved}, nil
 }
 
-// Delete tombstones one un-applied write group while retaining its identity.
+// Delete tombstones a write group while retaining its identity and accepted data.
 func (s *WriteGroupService) Delete(ctx context.Context, id string, mutation WriteGroupMutation) (*WriteGroupSaveResult, error) {
 	if err := s.validate(); err != nil {
 		return nil, err
@@ -222,17 +222,24 @@ func (s *WriteGroupService) Delete(ctx context.Context, id string, mutation Writ
 		}
 		if existing.AppliedRevision != "" {
 			if s.backlogGuard == nil {
-				return ErrWriteGroupLifecycleBlocked
+				return writeGroupRemoveActionError(existing, "ownership_unavailable", ErrWriteGroupLifecycleBlocked)
 			}
 			if err := s.backlogGuard.CheckWriteGroupBacklog(ctx, tx, existing); err != nil {
-				return errors.Join(ErrWriteGroupLifecycleBlocked, err)
+				return writeGroupRemoveActionError(existing, "ownership_unavailable", errors.Join(ErrWriteGroupLifecycleBlocked, err))
 			}
 		}
 		if existing.Destination.ConnectorRevision != mutation.ExpectedConnectorRevision {
 			return writeGroupRevisionConflict("write group connector revision is stale")
 		}
-		if err := validateLiveWriteGroupConnector(ctx, tx, s.repo, existing.Destination.ConnectorID, mutation.ExpectedConnectorRevision); err != nil {
+		if err := s.repo.requireUnreservedWriteGroupInTx(ctx, tx, record.ID, id); err != nil {
 			return err
+		}
+		if err := validateLiveWriteGroupConnector(ctx, tx, s.repo, existing.Destination.ConnectorID, mutation.ExpectedConnectorRevision); err != nil {
+			reason := "connector_unavailable"
+			if errors.Is(err, ErrWriteGroupConnectorRevisionConflict) {
+				reason = "connector_identity_stale"
+			}
+			return writeGroupRemoveActionError(existing, reason, err)
 		}
 		candidate := cloneWriteGroup(existing)
 		candidate.Status = WriteGroupStatusDeleted

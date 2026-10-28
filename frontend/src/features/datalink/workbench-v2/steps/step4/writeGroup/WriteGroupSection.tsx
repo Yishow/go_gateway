@@ -8,11 +8,13 @@ import { buildGroupCandidates } from '../../../state/writeGroup/candidates';
 import type { WorkspaceReadinessStepNumber } from '../../../components/WorkspaceReadinessPanel';
 import { CutoverPanel } from './CutoverPanel';
 import { GroupEditor } from './GroupEditor';
+import type { SavedRecordingActionHost } from './lifecycle/SavedRecordingActions';
 
 export interface WriteGroupSectionProps {
   state: WorkbenchV2State;
   workspaceId?: string;
   readonly: boolean;
+  lifecycleHost?: SavedRecordingActionHost;
   onNavigateStep?: (step: WorkspaceReadinessStepNumber) => void;
   openGroupRequest?: { id: string };
   /** The host's reviewed scoped start: a managed profile group's effective action goes there instead of applying on its own. */
@@ -52,13 +54,13 @@ function GroupListItem({ group, current, onOpen }: { group: WriteGroup; current:
  * workspace and says what is missing before anything can be created, keeping a
  * failed load, an empty list and groups for another destination apart.
  */
-export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, workspaceId, readonly, onNavigateStep, openGroupRequest, onReviewScopedStart }) => {
+export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, workspaceId, readonly, onNavigateStep, openGroupRequest, onReviewScopedStart, lifecycleHost }) => {
   const { t } = useTranslation('workbench-v2');
   const [selection, setSelection] = useState<Selection>({ kind: 'none' });
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
   const consumedOpen = useRef<typeof openGroupRequest>(undefined);
   useEffect(() => {
-    if (openGroupRequest !== consumedOpen.current && openGroupRequest && groupsQuery.data?.groups.some(group => group.id === openGroupRequest.id && group.status !== 'deleted')) {
+    if (openGroupRequest !== consumedOpen.current && openGroupRequest && groupsQuery.data?.groups.some(group => group.id === openGroupRequest.id)) {
       consumedOpen.current = openGroupRequest;
       setSelection({ kind: 'edit', id: openGroupRequest.id });
     }
@@ -154,12 +156,12 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, wor
         <GroupEditor
           key={selection.kind === 'edit' ? selection.id : 'new'}
           group={selected} workspaceId={groupsQuery.data.workspace_id} workspaceRevision={groupsQuery.data.workspace_revision}
-          connector={connector} candidates={candidates} excluded={excluded} readonly={readonly || selected?.status === 'deleted'}
+          connector={connector} candidates={candidates} excluded={excluded} readonly={readonly} editorReadonly={selected?.status === 'deleted'}
           onClose={() => setSelection({ kind: 'none' })}
           onSaved={(group) => setSelection({ kind: 'edit', id: group.id, saved: group })}
           onReload={() => void groupsQuery.refetch()}
           fetchLatest={async () => (await groupsQuery.refetch()).data}
-          onReviewScopedStart={onReviewScopedStart}
+          onReviewScopedStart={onReviewScopedStart} lifecycleHost={lifecycleHost}
         />
       )}
     </section>

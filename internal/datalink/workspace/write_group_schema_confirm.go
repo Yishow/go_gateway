@@ -52,6 +52,9 @@ func (s *WriteGroupService) ConfirmManagedSchemaWithStorage(ctx context.Context,
 	if current.Group.WorkspaceID != mutation.WorkspaceID {
 		return nil, writeGroupNotFound("confirm group schema")
 	}
+	if err := s.requireUnreservedWriteGroup(ctx, mutation.WorkspaceID, id); err != nil {
+		return nil, err
+	}
 	if current.Group.Destination.SchemaRevision == operationID && current.Group.Destination.SchemaDigest == digest {
 		return current, nil
 	}
@@ -62,6 +65,9 @@ func (s *WriteGroupService) ConfirmManagedSchemaWithStorage(ctx context.Context,
 		}
 		group, err := s.repo.GetInTx(ctx, tx, record.ID, id)
 		if err != nil {
+			return err
+		}
+		if err := s.repo.requireUnreservedWriteGroupInTx(ctx, tx, record.ID, id); err != nil {
 			return err
 		}
 		if group.Revision != mutation.ExpectedGroupRevision || group.Destination.ConnectorRevision != mutation.ExpectedConnectorRevision {

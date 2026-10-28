@@ -240,46 +240,43 @@ func sameOptionalString(left, right *string) bool {
 }
 
 func (r *SQLWriteGroupRepository) findBasicManaged(ctx context.Context, workspaceID, deviceID string) (*WriteGroup, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("find basic managed group: %w", ErrWriteGroupNotFound)
-	}
-	var groupID string
-	err := r.db.QueryRowContext(ctx, r.query(`
-		SELECT group_id
+	return r.findCanonicalGroup(ctx, workspaceID, `
+		SELECT group_id, lineage_id
 		FROM write_group_basic_keys
 		WHERE workspace_id = $1 AND device_id = $2 AND canonical_role = $3
-	`), workspaceID, deviceID, basicManagedCanonicalRole).Scan(&groupID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("basic managed key not found: %w", ErrWriteGroupNotFound)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("read basic managed key: %w", err)
-	}
-	return r.Get(ctx, workspaceID, groupID)
+	`, workspaceID, deviceID, basicManagedCanonicalRole)
 }
 
 func (r *SQLWriteGroupRepository) insertBasicManagedKeyInTx(ctx context.Context, tx *sql.Tx, workspaceID, deviceID, groupID string) error {
 	if tx == nil || strings.TrimSpace(workspaceID) == "" || strings.TrimSpace(deviceID) == "" || strings.TrimSpace(groupID) == "" {
 		return fmt.Errorf("insert basic managed key: %w", ErrWriteGroupValidation)
 	}
-	_, err := tx.ExecContext(ctx, r.query(`
-		INSERT INTO write_group_basic_keys (workspace_id, device_id, canonical_role, group_id)
-		VALUES ($1, $2, $3, $4)
+	lineageID, err := r.initializeCanonicalLineageInTx(ctx, tx, workspaceID, groupID)
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, r.query(`
+		INSERT INTO write_group_basic_keys (workspace_id, device_id, canonical_role, group_id, lineage_id)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (workspace_id, device_id, canonical_role) DO NOTHING
-	`), workspaceID, deviceID, basicManagedCanonicalRole, groupID)
+	`), workspaceID, deviceID, basicManagedCanonicalRole, groupID, lineageID)
 	if err != nil {
 		return fmt.Errorf("insert basic managed key: %w", err)
 	}
 	var storedGroupID string
+	var storedLineageID sql.NullString
 	if err := tx.QueryRowContext(ctx, r.query(`
-		SELECT group_id
+		SELECT group_id, lineage_id
 		FROM write_group_basic_keys
 		WHERE workspace_id = $1 AND device_id = $2 AND canonical_role = $3
-	`), workspaceID, deviceID, basicManagedCanonicalRole).Scan(&storedGroupID); err != nil {
+	`), workspaceID, deviceID, basicManagedCanonicalRole).Scan(&storedGroupID, &storedLineageID); err != nil {
 		return fmt.Errorf("confirm basic managed key: %w", err)
 	}
 	if storedGroupID != groupID {
 		return fmt.Errorf("basic managed key already belongs to another group: %w", ErrWriteGroupBasicManagedConflict)
+	}
+	if !storedLineageID.Valid || storedLineageID.String != lineageID {
+		return lineageCorrupt("basic managed key reference changed during insertion")
 	}
 	return nil
 }

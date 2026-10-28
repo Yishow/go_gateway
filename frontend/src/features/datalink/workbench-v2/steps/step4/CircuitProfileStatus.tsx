@@ -1,3 +1,4 @@
+import { SavedRecordingManagement, type SavedRecordingManagementProps } from './SavedRecordingManagement';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWriteGroupDeliveryQuery } from '../../../../../hooks/datalink/useStudioV2WriteGroups';
@@ -6,6 +7,7 @@ import { CircuitProfileStatusView } from './CircuitProfileStatusView';
 
 export interface CircuitProfileStatusProps {
   group: WriteGroup;
+  lifecycle?: Omit<SavedRecordingManagementProps, 'group'>;
   sourceLabels?: Record<string, string>;
   /** Opens this exact saved group in Advanced. */
   onOpenAdvanced?: (groupId: string) => void;
@@ -16,7 +18,7 @@ export interface CircuitProfileStatusProps {
 const REFRESH_MS = 5000;
 
 /** Reads the real delivery answer of one canonical profile group; an unapplied group is not queried. */
-export const CircuitProfileStatus: React.FC<CircuitProfileStatusProps> = ({ group, sourceLabels, onOpenAdvanced, draftOff = false }) => {
+export const CircuitProfileStatus: React.FC<CircuitProfileStatusProps> = ({ group, sourceLabels, onOpenAdvanced, draftOff = false, lifecycle }) => {
   const { t } = useTranslation('workbench-v2');
   const kind = group.recording_profile?.kind ?? 'instantaneous';
   const applied = group.applied_revision !== '';
@@ -45,6 +47,7 @@ export const CircuitProfileStatus: React.FC<CircuitProfileStatusProps> = ({ grou
       )}
       {applied && query.isError && <p role="status" className="text-xs text-amber-300">{t('step4.basic.status.query_failed')}</p>}
       {applied && !query.isError && <CircuitProfileStatusView group={group} delivery={query.data} sourceLabels={sourceLabels} onOpenAdvanced={onOpenAdvanced} />}
+      {lifecycle?.lifecycleHost && <SavedRecordingManagement {...lifecycle} group={group} />}
     </section>
   );
 };

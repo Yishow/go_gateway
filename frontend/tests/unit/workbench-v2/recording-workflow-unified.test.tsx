@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Step4Database } from '@/features/datalink/workbench-v2/steps/step4/Step4Database';
 import type { WorkbenchV2State } from '@/features/datalink/workbench-v2/state/types';
@@ -10,7 +10,10 @@ import type { RecordingStartOperation, RecordingStartRequest } from '@/types/stu
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import { batchPanelState, longProfileGroup } from '../../fixtures/circuitBatchPanel';
 import { savedGroup, savedGroupState, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
+import { studioV2WriteGroupLifecycleAPI } from '@/services/studioV2WriteGroupLifecycle';
+import { savedLifecycle } from '../../fixtures/writeGroupLifecycle';
 
+vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn() } }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, options?: unknown) => (options && typeof options === 'object' && 'count' in options ? `${key}:${(options as { count: number }).count}` : key) }),
 }));
@@ -112,6 +115,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.sessionStorage.clear();
   groups = [];
+  vi.mocked(studioV2WriteGroupLifecycleAPI.lifecycle).mockImplementation(async (id) => {
+    const group = groups.find((item) => item.id === id);
+    if (!group) throw new Error('Lifecycle fixture group missing');
+    return savedLifecycle(group, 'wrev-1');
+  });
   measurementApi.list.mockResolvedValue([]);
   api.list.mockImplementation(async () => ({ workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups }));
   api.delivery.mockResolvedValue(emptyDelivery as never);
@@ -364,7 +372,9 @@ describe('Advanced recording effectiveness', () => {
     renderHost([groupA(), wideB()]);
     api.disable.mockImplementation(async (id: string) => ({ workspace_revision: 'wrev-3', group: { ...(groups.find((group) => group.id === id) as WriteGroup), status: 'disabled' } }) as never);
     await openWide();
-    fireEvent.click(screen.getByTestId('group-disable'));
+    const stop = within(screen.getByTestId('group-editor')).getByTestId('group-disable');
+    await waitFor(() => expect(stop).toBeEnabled());
+    fireEvent.click(stop);
     await waitFor(() => expect(api.disable).toHaveBeenCalledTimes(1));
     expect(api.disable.mock.calls[0][0]).toBe('grp-w');
     expect(api.disable.mock.calls[0][1]).toMatchObject({ expected_group_revision: 'rev-grp-w-1' });

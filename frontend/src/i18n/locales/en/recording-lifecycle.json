@@ -1,0 +1,72 @@
+{
+  "action": {
+    "edit": "Edit saved settings",
+    "stop": "Stop new recording",
+    "remove": "Remove settings",
+    "recreate": "Recreate recording",
+    "transition": "Change layout or destination"
+  },
+  "reason": {
+    "successor_reserved": "A recording change is already reserved.",
+    "recording_removed": "These settings have been removed.",
+    "already_stopped": "New recording is already stopped.",
+    "connector_identity_stale": "The saved destination connection has changed.",
+    "connector_unavailable": "The destination connection is unavailable.",
+    "ownership_unavailable": "Ownership of accepted records could not be verified.",
+    "successor_unavailable": "This recording cannot currently be recreated or changed.",
+    "source_basis_unavailable": "The original saved recording rules could not be verified.",
+    "successor_source_unavailable": "The original recording rules are unavailable.",
+    "lifecycle_unavailable": "Current action availability is not confirmed.",
+    "source_not_canonical": "This recording needs its existing migration workflow.",
+    "source_not_current": "This is an older generation, not the current recording.",
+    "successor_requires_applied": "Prepare and apply the recording before changing it.",
+    "successor_requires_removed": "Remove the old settings before recreating them.",
+    "stale_scope": "These settings or available actions changed. Refresh and review again.",
+    "canonical_required": "This recording uses the existing migration workflow.",
+    "historical_generation": "This is an older generation; review the current generation.",
+    "active_basic_unsupported": "This active recording needs its existing migration workflow.",
+    "source_definition_unavailable": "The original immutable recording rules are unavailable.",
+    "recording_not_removed": "Remove the old settings before recreating them.",
+    "source_draft_not_active": "The saved draft differs from the active recording. Review the original applied rules before continuing."
+  },
+  "next": {
+    "review_lifecycle": "Review the existing recording change or refresh its status.",
+    "review_connector": "Check the saved connection in destination settings.",
+    "inspect_ownership": "Review delivery ownership before continuing.",
+    "stop": "You can stop new recording while investigating.",
+    "reload": "Refresh the saved recording and try again.",
+    "review_successor": "Review the proposed recording change.",
+    "recreate": "Review a new recording based on the removed settings."
+  },
+  "history": {
+    "unavailable": "History and pending counts are not confirmed. Refresh before continuing.",
+    "kept": "Accepted records keep their original destination. SQL tables, history and receipts remain. Counts below use separate units; do not add them together.",
+    "generation": "Generation {{number}}",
+    "revision": "Applied revision",
+    "no_applied": "No applied revision is recorded for this generation.",
+    "samples": "Pending samples",
+    "outbox": "Outstanding delivery rows",
+    "blocked": "Blocked delivery rows",
+    "unknown": "Unknown delivery rows",
+    "quarantined": "Quarantined delivery rows",
+    "saved_destination": "Saved connection",
+    "original_destination": "Original connection",
+    "handoff": "Handed-off samples: {{count}}"
+  },
+  "remove": {
+    "title": "Remove these saved recording settings?",
+    "keeps": "This stops new recording and removes only the active settings. Accepted backlog continues to its original destination. SQL tables, recorded history and delivery receipts are kept.",
+    "confirm": "Remove settings; keep history"
+  },
+  "stop": {
+    "keeps": "Stopping prevents new records. Already accepted backlog still goes to its original destination; SQL tables, history and receipts stay intact."
+  },
+  "removed": {
+    "title": "Removed recordings ({{count}})",
+    "note": "Manage or recreate removed settings here. These are not new ordinary recordings.",
+    "manage": "View removed recording"
+  },
+  "cancel": "Cancel",
+  "refresh": "Refresh saved actions",
+  "review_required": "Review first"
+}

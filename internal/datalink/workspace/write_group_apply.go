@@ -38,6 +38,12 @@ func (s *WriteGroupService) applyGroupInTx(ctx context.Context, tx *sql.Tx, reco
 	if err != nil {
 		return nil, err
 	}
+	if err := s.repo.requireUnreservedWriteGroupInTx(ctx, tx, record.ID, id); err != nil {
+		return nil, err
+	}
+	if err := s.repo.requireCurrentCanonicalOwnerInTx(ctx, tx, record.ID, id); err != nil {
+		return nil, err
+	}
 	if existing.Revision != mutation.ExpectedGroupRevision {
 		return nil, writeGroupRevisionConflict("write group revision is stale")
 	}
@@ -60,6 +66,12 @@ func (s *WriteGroupService) applyGroupInTx(ctx context.Context, tx *sql.Tx, reco
 			return nil, writeGroupRevisionConflict("write group exact recording source changed during verification")
 		}
 	}
+	return s.applyValidatedGroupInTx(ctx, tx, record, existing, candidate, mutation, readiness, definitions, schedule, laterThanActive)
+}
+
+// applyValidatedGroupInTx is shared only by ordinary validation and the private
+// successor transaction after exact reservation/source/owner validation.
+func (s *WriteGroupService) applyValidatedGroupInTx(ctx context.Context, tx *sql.Tx, record *Record, existing, candidate *WriteGroup, mutation WriteGroupMutation, readiness *WriteGroupReadiness, definitions map[string]*measurement.MeasurementDefinition, schedule applySchedule, laterThanActive bool) (*WriteGroup, error) {
 	proofs, err := s.verifyCounterBindingsInTx(ctx, tx, candidate, readiness, definitions)
 	if err != nil {
 		return nil, err

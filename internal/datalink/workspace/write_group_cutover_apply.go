@@ -130,6 +130,9 @@ func (s *WriteGroupService) applyCutoverInTx(ctx context.Context, tx *sql.Tx, re
 	if source.Revision != plan.source.Revision || source.AppliedRevision != plan.source.AppliedRevision {
 		return nil, writeGroupRevisionConflict("write group revision is stale")
 	}
+	if err := s.checkLegacyCutoverInTx(ctx, tx, record.ID, req); err != nil {
+		return nil, err
+	}
 	if err := requireNoFinalizedOverlap(ctx, tx, plan); err != nil {
 		return nil, err
 	}

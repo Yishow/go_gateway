@@ -1,3 +1,5 @@
+import { studioV2WriteGroupLifecycleAPI } from '@/services/studioV2WriteGroupLifecycle';
+import { savedLifecycle } from '../../fixtures/writeGroupLifecycle';
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,6 +10,7 @@ import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWri
 import type { WriteGroup, WriteGroupReadiness } from '@/types/studioV2WriteGroup';
 import { savedGroup, savedGroupState, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
 
+vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn() } }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, options?: Record<string, unknown>) => (options && 'count' in options ? `${key}:${options.count}` : key) }),
 }));
@@ -43,6 +46,7 @@ async function openSaved() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(studioV2WriteGroupLifecycleAPI.lifecycle).mockImplementation(async (id) => savedLifecycle(savedGroup({ id })));
   api.list.mockResolvedValue(list([savedGroup()]));
   api.readiness.mockResolvedValue(readiness());
   api.delivery.mockResolvedValue({
@@ -154,6 +158,7 @@ describe('RevisionSafeGroupActivation: Apply', () => {
         />
       </QueryClientProvider>,
     );
+    await waitFor(() => expect(screen.getByTestId('group-disable')).not.toBeDisabled());
     fireEvent.click(screen.getByTestId('group-disable'));
     await waitFor(() => expect(api.disable).toHaveBeenCalledTimes(1));
     view.rerender(
@@ -221,20 +226,21 @@ describe('GroupLifecycleWithBacklog', () => {
     api.remove.mockResolvedValue({ workspace_revision: 'wrev-2', group: savedGroup({ status: 'deleted' }) });
     mount();
     await openSaved();
+    await waitFor(() => expect(screen.getByTestId('group-delete')).not.toBeDisabled());
     fireEvent.click(screen.getByTestId('group-delete'));
-    expect(await screen.findByTestId('group-delete-impact')).toHaveTextContent('delete_impact:3');
+    expect(await screen.findByTestId('lifecycle-pending-samples')).toHaveTextContent('1');
+    expect(screen.getByTestId('lifecycle-pending-outbox')).toHaveTextContent('2');
     expect(api.remove).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId('group-delete-confirm-button'));
     await waitFor(() => expect(api.remove).toHaveBeenCalledWith('group-1', expect.objectContaining({ expected_group_revision: 'rev-1' })));
   });
 
-  it('says so when the backlog cannot be read, and still lets the operator cancel', async () => {
-    api.delivery.mockRejectedValue(new Error('down'));
+  it('keeps removal unavailable when lifecycle ownership cannot be read, and offers a safe refresh', async () => {
+    vi.mocked(studioV2WriteGroupLifecycleAPI.lifecycle).mockRejectedValue(new Error('down'));
     mount();
     await openSaved();
-    fireEvent.click(screen.getByTestId('group-delete'));
-    expect(await screen.findByTestId('group-delete-impact')).toHaveTextContent('delete_impact_unknown');
-    fireEvent.click(screen.getByTestId('group-delete-cancel'));
+    expect(await screen.findByTestId('saved-recording-refresh')).toBeInTheDocument();
+    expect(screen.getByTestId('group-delete')).toBeDisabled();
     expect(screen.queryByTestId('group-delete-confirm')).not.toBeInTheDocument();
     expect(api.remove).not.toHaveBeenCalled();
   });
@@ -243,6 +249,7 @@ describe('GroupLifecycleWithBacklog', () => {
     api.disable.mockResolvedValue({ workspace_revision: 'wrev-2', group: savedGroup({ status: 'disabled' }) });
     mount();
     await openSaved();
+    await waitFor(() => expect(screen.getByTestId('group-disable')).not.toBeDisabled());
     fireEvent.click(screen.getByTestId('group-disable'));
     await waitFor(() => expect(api.disable).toHaveBeenCalledWith('group-1', expect.objectContaining({ expected_group_revision: 'rev-1', expected_connector_revision: 'crev-1' })));
   });

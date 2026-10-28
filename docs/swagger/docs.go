@@ -2821,6 +2821,310 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/v1/datalink/studio-v2/workspace/write-groups/{id}/lifecycle": {
+            "get": {
+                "description": "Local read only: saved status/actions, immutable per-generation history and sanitized successor_seed. Actions and seed are advisory, never mutation authority. Saved configuration, runtime health and delivery outcomes remain distinct; samples, outbox and unknown counts use separate units.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Read saved recording lifecycle actions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupLifecycleResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/datalink/studio-v2/workspace/write-groups/{id}/successor": {
+            "post": {
+                "description": "Swagger 2 cannot express this action-dependent request/response union. The body schema is ONLY a discriminator, not a complete payload: select exactly one complete request and response_data model from x-action-contracts below. Unknown fields and fields from other actions are rejected; there are no per-stage URLs. Every successful response wraps the selected response_data as {success:true,data:...}.\nScope: path id is original G1. Preserve the immutable original envelope and envelope.request.operation_id (root) for reserve/schema/activation; refreshed current CAS belongs in current for schema actions or stage.current for activation-review (then inside the activation envelope), never rebased into the original envelope. The immutable reserve result is not current CAS. A preview's operation_id is used as schema_operation_id for schema-confirm, never as the root; first-start result operation_id is also distinct from root_operation_id.\nreserve requires action/envelope/review_digest and records only a reserved draft; required capability checks may probe. schema-preview requires action/envelope/review_digest/current, may perform external read-only probes and save a local token, but never DDL. schema-confirm additionally requires token/digest/schema_operation_id and explicit permission for the stored server plan; inspect returned SchemaOperation.status even on HTTP 200, or 202 while in progress.\nactivation-review requires action/stage/boundary and is local read only with explicit future B. activation-readiness requires action/activation envelope/review_digest and may inspect the target without DDL or activation. activation-confirm and first-start-confirm both additionally require readiness_digest and recheck scope/CAS/schema/readiness/future B. activation-confirm returns the existing WriteGroupCutover for cutover (valid old v1 may omit activation_kind); first-start-confirm requires first_start and returns WriteGroupSuccessorFirstStartResult, never a fake cutover. The two confirmations are not interchangeable.\noperation-status requires only action/workspace_id/lineage_id/original operation_id and path G1, no current CAS or target access. It is a coherent local read of immutable reserve, all related schema operations, cutover and first-start outcomes. A succeeded stage is not runtime running and not SQL committed. On unknown transport/outcome, retain the original request and query status before any permitted exact retry; do not switch intent/root or assume rollback. No general rebase/cancel endpoint exists.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Execute one explicit successor action or read its original operation status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Original predecessor group ID (G1), not reserved G2 or current head",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Discriminator only; use exactly one complete request from x-action-contracts",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupSuccessorAction"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success=true; data is exactly the selected x-action-contracts response_data model; schema status may be succeeded, failed, partial or unknown",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupSuccessorResponse"
+                        }
+                    },
+                    "202": {
+                        "description": "schema-confirm only: schema operation is still in progress, not confirmed success",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupSuccessorSchemaResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "WRITE_GROUP_INVALID_REQUEST: unknown/mixed action fields, missing scope/confirmation, malformed JSON or wrong activation kind",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "WRITE_GROUP_NOT_FOUND or RECORDING_SCHEMA_PREVIEW_NOT_FOUND: original scoped resource missing",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "revision_mismatch, lifecycle/ownership conflict, stale/expired preview, operation mismatch or busy; preserve original root and inspect typed code/action",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid/unsupported transition, boundary, capability, schema, permission or connector; no implicit fallback",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Typed local service failure; do not infer that a timed-out mutation rolled back",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "RECORDING_SCHEMA_NOT_IMPLEMENTED: schema-confirm adapter has no verified execution",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service/target/ownership unavailable or RECORDING_SCHEMA_OPERATION_UNKNOWN; error.operation_id, when present, identifies the schema operation, not the root",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                },
+                "x-action-contracts": {
+                    "activation-confirm": {
+                        "error": "#/definitions/handlers.APIErrorResponse",
+                        "request": "#/definitions/handlers.WriteGroupSuccessorCutoverConfirmRequest",
+                        "response_data": "#/definitions/workspace.WriteGroupCutover",
+                        "success_statuses": [
+                            200
+                        ]
+                    },
+                    "activation-readiness": {
+                        "error": "#/definitions/handlers.APIErrorResponse",
+                        "request": "#/definitions/handlers.WriteGroupSuccessorReadinessRequest",
+                        "response_data": "#/definitions/workspace.WriteGroupSuccessorActivationReadiness",
+                        "success_statuses": [
+                            200
+                        ]
+                    },
+                    "activation-review": {
+                        "error": "#/definitions/handlers.APIErrorResponse",
+                        "request": "#/definitions/handlers.WriteGroupSuccessorActivationReviewRequest",
+                        "response_data": "#/definitions/workspace.WriteGroupSuccessorActivationReview",
+                        "success_statuses": [
+                            200
+                        ]
+                    },
+                    "first-start-confirm": {
+                        "error": "#/definitions/handlers.APIErrorResponse",
+                        "request": "#/definitions/handlers.WriteGroupSuccessorFirstStartConfirmRequest",
+                        "response_data": "#/definitions/workspace.WriteGroupSuccessorFirstStartResult",
+                        "success_statuses": [
+                            200
+                        ]
+                    },
+                    "operation-status": {
+                        "error": "#/definitions/handlers.APIErrorResponse",
+                        "request": "#/definitions/handlers.WriteGroupSuccessorStatusRequest",
+                        "response_data": "#/definitions/workspace.WriteGroupSuccessorOperationStatus",
+                        "success_statuses": [
+                            200
+                        ]
+                    },
+                    "reserve": {
+                        "error": "#/definitions/handlers.APIErrorResponse",
+                        "request": "#/definitions/handlers.WriteGroupSuccessorReserveRequest",
+                        "response_data": "#/definitions/workspace.WriteGroupSuccessorPreparation",
+                        "success_statuses": [
+                            200
+                        ]
+                    },
+                    "schema-confirm": {
+                        "error": "#/definitions/handlers.APIErrorResponse",
+                        "request": "#/definitions/handlers.WriteGroupSuccessorConfirmRequest",
+                        "response_data": "#/definitions/recordingplan.SchemaOperation",
+                        "success_statuses": [
+                            200,
+                            202
+                        ]
+                    },
+                    "schema-preview": {
+                        "error": "#/definitions/handlers.APIErrorResponse",
+                        "request": "#/definitions/handlers.WriteGroupSuccessorPreviewRequest",
+                        "response_data": "#/definitions/recordingplan.SchemaPreviewToken",
+                        "success_statuses": [
+                            200
+                        ]
+                    }
+                }
+            }
+        },
+        "/v1/datalink/studio-v2/workspace/write-groups/{id}/successor-review": {
+            "post": {
+                "description": "Local read only. Requires original workspace/lineage/G1/connector CAS, candidate group, original operation_id and explicit boundary. Returns a frozen envelope and review_digest, advisory history/blockers/required_checks; no reservation, preview token, external probe, DDL or activation. Later actions must preserve the original envelope and revalidate current scope.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Review a saved recording successor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Original predecessor group ID (G1)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Complete local review intent; not mutation authority",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupSuccessorReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handlers.WriteGroupSuccessorResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/workspace.WriteGroupSuccessorReview"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "WRITE_GROUP_INVALID_REQUEST: malformed, unknown or missing request fields",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Typed scope/CAS, lifecycle, definition or availability error; inspect code, action, retryable and request_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Typed scope/CAS, lifecycle, definition or availability error; inspect code, action, retryable and request_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Typed scope/CAS, lifecycle, definition or availability error; inspect code, action, retryable and request_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Typed scope/CAS, lifecycle, definition or availability error; inspect code, action, retryable and request_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Typed scope/CAS, lifecycle, definition or availability error; inspect code, action, retryable and request_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -2916,6 +3220,89 @@ const docTemplate = `{
                 },
                 "state": {
                     "type": "string"
+                }
+            }
+        },
+        "groupdelivery.GroupKey": {
+            "type": "object",
+            "properties": {
+                "groupID": {
+                    "type": "string"
+                },
+                "groupRevision": {
+                    "type": "string"
+                },
+                "workspaceID": {
+                    "type": "string"
+                }
+            }
+        },
+        "groupdelivery.LifecycleHandoff": {
+            "type": "object",
+            "properties": {
+                "origin": {
+                    "$ref": "#/definitions/groupdelivery.GroupKey"
+                },
+                "samples": {
+                    "type": "integer"
+                },
+                "source": {
+                    "$ref": "#/definitions/groupdelivery.GroupKey"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "target": {
+                    "$ref": "#/definitions/groupdelivery.GroupKey"
+                }
+            }
+        },
+        "groupdelivery.LifecycleOutboxCounts": {
+            "type": "object",
+            "properties": {
+                "blocked": {
+                    "type": "integer"
+                },
+                "outstanding": {
+                    "type": "integer"
+                },
+                "quarantined": {
+                    "type": "integer"
+                },
+                "queued": {
+                    "type": "integer"
+                },
+                "retrying": {
+                    "type": "integer"
+                },
+                "skipped": {
+                    "type": "integer"
+                },
+                "sql_committed": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "unknown": {
+                    "type": "integer"
+                }
+            }
+        },
+        "groupdelivery.LifecyclePending": {
+            "type": "object",
+            "properties": {
+                "handoffs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/groupdelivery.LifecycleHandoff"
+                    }
+                },
+                "outbox": {
+                    "$ref": "#/definitions/groupdelivery.LifecycleOutboxCounts"
+                },
+                "samples": {
+                    "type": "integer"
                 }
             }
         },
@@ -3183,6 +3570,29 @@ const docTemplate = `{
                 }
             }
         },
+        "grouppipeline.CounterReplayQuarantine": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "pending_samples": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
         "grouppipeline.DeliveryView": {
             "type": "object",
             "properties": {
@@ -3196,6 +3606,12 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/grouppipeline.BacklogView"
+                    }
+                },
+                "counter_replay_quarantines": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/grouppipeline.CounterReplayQuarantine"
                     }
                 },
                 "group_id": {
@@ -3707,6 +4123,17 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.WriteGroupLifecycleResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/workspace.WriteGroupLifecycle"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.WriteGroupListResponse": {
             "type": "object",
             "properties": {
@@ -3849,6 +4276,388 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "token": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorAction": {
+            "description": "Swagger 2 cannot express this action-dependent union. Select exactly one full request from the operation's x-action-contracts; fields from other actions are rejected. Sending only action is invalid.",
+            "type": "object",
+            "required": [
+                "action"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "reserve",
+                        "schema-preview",
+                        "schema-confirm",
+                        "activation-review",
+                        "activation-readiness",
+                        "activation-confirm",
+                        "first-start-confirm",
+                        "operation-status"
+                    ]
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorActivationReviewRequest": {
+            "description": "activation-review is local read only after schema preparation, using original stage envelope plus current CAS and an explicit future boundary B. The returned activation_kind selects cutover versus first_start; it grants no activation permission.",
+            "type": "object",
+            "required": [
+                "action",
+                "boundary",
+                "stage"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "activation-review"
+                    ]
+                },
+                "boundary": {
+                    "type": "string"
+                },
+                "stage": {
+                    "$ref": "#/definitions/handlers.WriteGroupSuccessorStageRequest"
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorConfirmRequest": {
+            "description": "schema-confirm requires the preview's token, 64-character digest and schema_operation_id, plus original envelope and current CAS. Only the server-stored plan can execute DDL. Exact confirmation replay keeps its recorded operation. HTTP 200 is a recorded stage result, not necessarily succeeded; HTTP 202 means in progress. Never substitute schema_operation_id for the root operation ID.",
+            "type": "object",
+            "required": [
+                "action",
+                "current",
+                "digest",
+                "envelope",
+                "review_digest",
+                "schema_operation_id",
+                "token"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "schema-confirm"
+                    ]
+                },
+                "current": {
+                    "$ref": "#/definitions/handlers.WriteGroupSuccessorCurrentCAS"
+                },
+                "digest": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 64
+                },
+                "envelope": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorEnvelope"
+                },
+                "review_digest": {
+                    "type": "string"
+                },
+                "schema_operation_id": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorCurrentCAS": {
+            "description": "Current CAS is refreshed for a new stage; it never replaces the original immutable envelope or root operation ID. group_id/group_revision name reserved G2, predecessor_revision names path G1. An immutable reserve result is not current CAS.",
+            "type": "object",
+            "required": [
+                "group_id",
+                "group_revision",
+                "lineage_revision",
+                "predecessor_connector_revision",
+                "predecessor_revision",
+                "target_connector_revision",
+                "workspace_revision"
+            ],
+            "properties": {
+                "group_id": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "lineage_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "predecessor_connector_revision": {
+                    "type": "string"
+                },
+                "predecessor_revision": {
+                    "type": "string"
+                },
+                "target_connector_revision": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorCutoverConfirmRequest": {
+            "description": "activation-confirm requires the unchanged activation envelope, review_digest and readiness_digest; it rechecks future B, scope/CAS, schema and live readiness. activation_kind must be cutover; only a valid legacy v1 envelope may omit it. first_start envelopes are rejected. Success preserves the existing WriteGroupCutover response, not proof of runtime or target writes.",
+            "type": "object",
+            "required": [
+                "action",
+                "envelope",
+                "readiness_digest",
+                "review_digest"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "activation-confirm"
+                    ]
+                },
+                "envelope": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorActivationEnvelope"
+                },
+                "readiness_digest": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 64
+                },
+                "review_digest": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 64
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorFirstStartConfirmRequest": {
+            "description": "first-start-confirm requires activation_kind=first_start in the unchanged activation envelope and both digests. It rechecks whole-lineage absence of applied/intake/history evidence, current CAS, schema/readiness and explicit future B. It returns WriteGroupSuccessorFirstStartResult, never an invented predecessor end/cutover/fence. Cutover envelopes are rejected.",
+            "type": "object",
+            "required": [
+                "action",
+                "envelope",
+                "readiness_digest",
+                "review_digest"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "first-start-confirm"
+                    ]
+                },
+                "envelope": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorActivationEnvelope"
+                },
+                "readiness_digest": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 64
+                },
+                "review_digest": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 64
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorPreviewRequest": {
+            "description": "schema-preview may perform external read-only target probes and stores a preview token locally; it never executes DDL or activates intake. The returned operation_id is a schema operation ID, not the original root ID.",
+            "type": "object",
+            "required": [
+                "action",
+                "current",
+                "envelope",
+                "review_digest"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "schema-preview"
+                    ]
+                },
+                "current": {
+                    "$ref": "#/definitions/handlers.WriteGroupSuccessorCurrentCAS"
+                },
+                "envelope": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorEnvelope"
+                },
+                "review_digest": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorReadinessRequest": {
+            "description": "activation-readiness requires the exact activation-review envelope/digest, including its stage current CAS and future B. It may inspect the target but performs no DDL or activation; readiness_digest is evidence, not a persisted grant.",
+            "type": "object",
+            "required": [
+                "action",
+                "envelope",
+                "review_digest"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "activation-readiness"
+                    ]
+                },
+                "envelope": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorActivationEnvelope"
+                },
+                "review_digest": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 64
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorReserveRequest": {
+            "description": "reserve revalidates original envelope scope/CAS and may probe required source/target capabilities. Exact replay returns the immutable original reservation even after head/revisions advance; changed intent under the same root conflicts. It does not run DDL or activate intake.",
+            "type": "object",
+            "required": [
+                "action",
+                "envelope",
+                "review_digest"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "reserve"
+                    ]
+                },
+                "envelope": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorEnvelope"
+                },
+                "review_digest": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorResponse": {
+            "description": "data is exactly the selected action's response_data schema in x-action-contracts, not an arbitrary combination. A recorded stage success is not runtime running and not SQL committed.",
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorReviewRequest": {
+            "description": "All scope and original CAS fields are required. Path id is G1. operation_id is the original root request ID, never a schema operation or first-start result ID. group is a candidate, not authority; boundary is an explicit timestamp, not permission to activate.",
+            "type": "object",
+            "required": [
+                "boundary",
+                "expected_lineage_revision",
+                "expected_predecessor_connector_revision",
+                "expected_predecessor_revision",
+                "expected_target_connector_revision",
+                "expected_workspace_revision",
+                "group",
+                "lineage_id",
+                "operation_id",
+                "workspace_id"
+            ],
+            "properties": {
+                "boundary": {
+                    "type": "string"
+                },
+                "expected_lineage_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "expected_predecessor_connector_revision": {
+                    "type": "string"
+                },
+                "expected_predecessor_revision": {
+                    "type": "string"
+                },
+                "expected_target_connector_revision": {
+                    "type": "string"
+                },
+                "expected_workspace_revision": {
+                    "type": "string"
+                },
+                "group": {
+                    "$ref": "#/definitions/workspace.WriteGroup"
+                },
+                "lineage_id": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorSchemaResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/recordingplan.SchemaOperation"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorStageRequest": {
+            "description": "Return the complete original server envelope and review_digest unchanged, plus separately refreshed current CAS. Path id must match envelope.predecessor_group_id; workspace and lineage remain the original scope.",
+            "type": "object",
+            "required": [
+                "current",
+                "envelope",
+                "review_digest"
+            ],
+            "properties": {
+                "current": {
+                    "$ref": "#/definitions/handlers.WriteGroupSuccessorCurrentCAS"
+                },
+                "envelope": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorEnvelope"
+                },
+                "review_digest": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.WriteGroupSuccessorStatusRequest": {
+            "description": "operation-status is a coherent local read with exact workspace_id, lineage_id and original request operation_id; path id is original G1. No current revision, envelope, target probe or token is required or accepted. Schema/first-start result IDs, current head and latest preview cannot replace the root. Response contains all related schema outcomes, not just the latest.",
+            "type": "object",
+            "required": [
+                "action",
+                "lineage_id",
+                "operation_id",
+                "workspace_id"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "operation-status"
+                    ]
+                },
+                "lineage_id": {
+                    "type": "string"
+                },
+                "operation_id": {
                     "type": "string"
                 },
                 "workspace_id": {
@@ -4416,6 +5225,128 @@ const docTemplate = `{
                 }
             }
         },
+        "recordingplan.GroupSchemaColumn": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "nullable": {
+                    "type": "boolean"
+                },
+                "primary_key": {
+                    "type": "boolean"
+                },
+                "sql_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "recordingplan.GroupSchemaIndex": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "recordingplan.GroupSchemaLayout": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/recordingplan.GroupSchemaColumn"
+                    }
+                },
+                "indexes": {
+                    "description": "Indexes are created with the table and verified against the real catalog.\nAbsent for legacy wide layouts, so their stored digests stay unchanged.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/recordingplan.GroupSchemaIndex"
+                    }
+                },
+                "mysql": {
+                    "description": "MySQL, when set, binds the layout to one backend-resolved MySQL family\nand version plus the storage engine and case-exact collation. It is nil\nfor SQLite and PostgreSQL layouts, so their JSON and digests are unchanged.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/recordingplan.MySQLGroupSchemaOptions"
+                        }
+                    ]
+                },
+                "owner_column": {
+                    "type": "string"
+                },
+                "partition": {
+                    "description": "Partition, when set, makes the new table an owned TimescaleDB hypertable.\nAbsent for plain and wide layouts, so their stored digests stay unchanged.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/recordingplan.GroupSchemaPartition"
+                        }
+                    ]
+                },
+                "sqlserver": {
+                    "description": "SQLServer, when set, binds the layout to SQL Server specific parameters\nincluding the explicit schema and case-exact collation.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/recordingplan.SQLServerGroupSchemaOptions"
+                        }
+                    ]
+                },
+                "table_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "recordingplan.GroupSchemaPartition": {
+            "type": "object",
+            "properties": {
+                "chunk_interval": {
+                    "type": "string"
+                },
+                "column": {
+                    "type": "string"
+                },
+                "extension_schema": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                }
+            }
+        },
+        "recordingplan.MySQLGroupSchemaOptions": {
+            "type": "object",
+            "properties": {
+                "capability_revision": {
+                    "type": "string"
+                },
+                "charset": {
+                    "type": "string"
+                },
+                "collation": {
+                    "type": "string"
+                },
+                "engine": {
+                    "type": "string"
+                },
+                "native_monthly": {
+                    "$ref": "#/definitions/recordingplan.MySQLPartitionEvidence"
+                },
+                "server_family": {
+                    "type": "string"
+                },
+                "server_version": {
+                    "type": "string"
+                }
+            }
+        },
         "recordingplan.MySQLPartitionBoundary": {
             "type": "object",
             "properties": {
@@ -4631,6 +5562,43 @@ const docTemplate = `{
                 }
             }
         },
+        "recordingplan.SQLServerGroupSchemaOptions": {
+            "type": "object",
+            "properties": {
+                "capability_revision": {
+                    "type": "string"
+                },
+                "collation": {
+                    "type": "string"
+                },
+                "compatibility_level": {
+                    "type": "integer"
+                },
+                "database": {
+                    "type": "string"
+                },
+                "engine_edition": {
+                    "type": "integer"
+                },
+                "native_monthly": {
+                    "description": "NativeMonthly freezes the initial owned SQL Server partition layout.\nNil preserves the plain SQL Server layout and its existing JSON bytes.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/recordingplan.SQLServerPartitionEvidence"
+                        }
+                    ]
+                },
+                "schema": {
+                    "type": "string"
+                },
+                "server_edition": {
+                    "type": "string"
+                },
+                "server_version": {
+                    "type": "string"
+                }
+            }
+        },
         "recordingplan.SQLServerPartitionBoundary": {
             "type": "object",
             "properties": {
@@ -4658,6 +5626,29 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "method": {
+                    "type": "string"
+                },
+                "partitions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/recordingplan.SQLServerPartitionBoundary"
+                    }
+                },
+                "scheme_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "recordingplan.SQLServerPartitionPreview": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "filegroup": {
+                    "type": "string"
+                },
+                "function_name": {
                     "type": "string"
                 },
                 "partitions": {
@@ -4737,6 +5728,138 @@ const docTemplate = `{
                 "SchemaOperationFailed",
                 "SchemaOperationUnknown"
             ]
+        },
+        "recordingplan.SchemaPreviewTable": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "catalog_digest": {
+                    "type": "string"
+                },
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "indexes": {
+                    "description": "Indexes bind independently applied MySQL steps. CatalogDigest also binds\nSQL Server's inspected object identity so a replacement invalidates confirmation.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/recordingplan.GroupSchemaIndex"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "partition": {
+                    "description": "Partition shows, and binds into the operation's evidence, the time\npartitioning of a timescale table.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/recordingplan.GroupSchemaPartition"
+                        }
+                    ]
+                },
+                "sqlserver_partition": {
+                    "description": "SQLServerPartition shows optional native_monthly partition objects and\ntheir initial UTC boundaries.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/recordingplan.SQLServerPartitionPreview"
+                        }
+                    ]
+                }
+            }
+        },
+        "recordingplan.SchemaPreviewToken": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "database": {
+                    "type": "string"
+                },
+                "dialect": {
+                    "type": "string"
+                },
+                "digest": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "group_layout": {
+                    "description": "GroupLayout is set only for canonical WriteGroup managed preparation.\nLegacy recording-plan previews leave it nil so their digest and storage\nformat remain compatible with tokens issued before group preparation.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/recordingplan.GroupSchemaLayout"
+                        }
+                    ]
+                },
+                "no_change_reason": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "plan_id": {
+                    "type": "string"
+                },
+                "plan_revision": {
+                    "type": "string"
+                },
+                "recreate_missing": {
+                    "description": "RecreateMissing is the recovery policy this confirmation shows and\nfreezes for managed long storage: whether delivery may restore the\nconfirmed table if the catalog later proves it gone. Nil for layouts that\nhave no such policy, which keeps their stored digests unchanged.",
+                    "type": "boolean"
+                },
+                "schema": {
+                    "type": "string"
+                },
+                "schema_digest": {
+                    "type": "string"
+                },
+                "schema_revision": {
+                    "type": "string"
+                },
+                "source_digest": {
+                    "type": "string"
+                },
+                "statements": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "table_prefix": {
+                    "type": "string"
+                },
+                "tables": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/recordingplan.SchemaPreviewTable"
+                    }
+                },
+                "token": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
         },
         "recordingplan.Status": {
             "type": "string",
@@ -5495,6 +6618,10 @@ const docTemplate = `{
                         "$ref": "#/definitions/workspace.CutoverMemberRef"
                     }
                 },
+                "ownership_fence_revision": {
+                    "description": "OwnershipFenceRevision is an opaque persisted CAS identity. Empty means\nlegacy/unknown ownership evidence, not permission to accept or close.",
+                    "type": "string"
+                },
                 "prior_cutover_id": {
                     "type": "string"
                 },
@@ -5567,6 +6694,171 @@ const docTemplate = `{
                 "WriteGroupLayoutManagedLongV1",
                 "WriteGroupLayoutManagedWideProfileV1"
             ]
+        },
+        "workspace.WriteGroupLifecycle": {
+            "type": "object",
+            "properties": {
+                "actions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupLifecycleAction"
+                    }
+                },
+                "applied_revision": {
+                    "type": "string"
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "history": {
+                    "$ref": "#/definitions/workspace.WriteGroupLifecycleHistory"
+                },
+                "status": {
+                    "$ref": "#/definitions/workspace.WriteGroupStatus"
+                },
+                "successor_seed": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorSeed"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupLifecycleAction": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "allowed": {
+                    "type": "boolean"
+                },
+                "next_action": {
+                    "type": "string"
+                },
+                "reason_code": {
+                    "type": "string"
+                },
+                "requires_review": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "workspace.WriteGroupLifecycleDestination": {
+            "type": "object",
+            "properties": {
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "destination_scope": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupLifecycleGeneration": {
+            "type": "object",
+            "properties": {
+                "applied_revision": {
+                    "type": "string"
+                },
+                "current": {
+                    "type": "boolean"
+                },
+                "generation": {
+                    "type": "integer"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "predecessor_group_id": {
+                    "type": "string"
+                },
+                "reserved": {
+                    "type": "boolean"
+                },
+                "revisions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupLifecycleRevision"
+                    }
+                },
+                "saved_destination": {
+                    "$ref": "#/definitions/workspace.WriteGroupLifecycleDestination"
+                },
+                "status": {
+                    "$ref": "#/definitions/workspace.WriteGroupStatus"
+                }
+            }
+        },
+        "workspace.WriteGroupLifecycleHistory": {
+            "type": "object",
+            "properties": {
+                "canonical": {
+                    "type": "boolean"
+                },
+                "current_group_id": {
+                    "type": "string"
+                },
+                "generations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupLifecycleGeneration"
+                    }
+                },
+                "lineage_id": {
+                    "type": "string"
+                },
+                "lineage_revision": {
+                    "type": "integer"
+                },
+                "reserved_group_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupLifecycleRevision": {
+            "type": "object",
+            "properties": {
+                "destination": {
+                    "$ref": "#/definitions/workspace.WriteGroupLifecycleDestination"
+                },
+                "effective_at": {
+                    "type": "string"
+                },
+                "ends_at": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "pending": {
+                    "$ref": "#/definitions/groupdelivery.LifecyclePending"
+                },
+                "sources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.CutoverMemberRef"
+                    }
+                }
+            }
         },
         "workspace.WriteGroupListResult": {
             "type": "object",
@@ -6122,6 +7414,384 @@ const docTemplate = `{
                 "WriteGroupStorageStrategyManaged",
                 "WriteGroupStorageStrategyCustom"
             ]
+        },
+        "workspace.WriteGroupSuccessorActivationEnvelope": {
+            "type": "object",
+            "properties": {
+                "activation_kind": {
+                    "type": "string"
+                },
+                "counter_proof_digest": {
+                    "type": "string"
+                },
+                "request": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorActivationRequest"
+                },
+                "schema_digest": {
+                    "type": "string"
+                },
+                "schema_revision": {
+                    "type": "string"
+                },
+                "source_applied_revision": {
+                    "type": "string"
+                },
+                "source_definition_digest": {
+                    "type": "string"
+                },
+                "target_definition_digest": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorActivationReadiness": {
+            "type": "object",
+            "properties": {
+                "readiness": {
+                    "$ref": "#/definitions/workspace.WriteGroupReadiness"
+                },
+                "readiness_digest": {
+                    "type": "string"
+                },
+                "review": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorActivationReview"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorActivationRequest": {
+            "type": "object",
+            "properties": {
+                "boundary": {
+                    "type": "string"
+                },
+                "stage": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorStageRequest"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorActivationReview": {
+            "type": "object",
+            "properties": {
+                "blockers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupSuccessorBlocker"
+                    }
+                },
+                "envelope": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorActivationEnvelope"
+                },
+                "history": {
+                    "$ref": "#/definitions/workspace.WriteGroupLifecycleHistory"
+                },
+                "review_digest": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorBlocker": {
+            "type": "object",
+            "properties": {
+                "next_action": {
+                    "type": "string"
+                },
+                "reason_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorCurrentCAS": {
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "lineage_revision": {
+                    "type": "integer"
+                },
+                "predecessor_connector_revision": {
+                    "type": "string"
+                },
+                "predecessor_revision": {
+                    "type": "string"
+                },
+                "target_connector_revision": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorCutoverStatus": {
+            "type": "object",
+            "properties": {
+                "result": {
+                    "$ref": "#/definitions/workspace.WriteGroupCutover"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorEnvelope": {
+            "type": "object",
+            "properties": {
+                "generation": {
+                    "type": "integer"
+                },
+                "predecessor_group_id": {
+                    "type": "string"
+                },
+                "request": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorReviewRequest"
+                },
+                "source_applied_revision": {
+                    "type": "string"
+                },
+                "source_definition_digest": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorFirstStartResult": {
+            "type": "object",
+            "properties": {
+                "applied_revision": {
+                    "type": "string"
+                },
+                "boundary": {
+                    "type": "string"
+                },
+                "generation": {
+                    "type": "integer"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "lineage_id": {
+                    "type": "string"
+                },
+                "lineage_revision": {
+                    "type": "integer"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "predecessor_group_id": {
+                    "type": "string"
+                },
+                "root_operation_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorFirstStartStatus": {
+            "type": "object",
+            "properties": {
+                "result": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorFirstStartResult"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorOperationStatus": {
+            "type": "object",
+            "properties": {
+                "cutover": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorCutoverStatus"
+                },
+                "first_start": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorFirstStartStatus"
+                },
+                "lineage_id": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "predecessor_group_id": {
+                    "type": "string"
+                },
+                "reserve": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorReserveStatus"
+                },
+                "schema_operations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupSuccessorSchemaStatus"
+                    }
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorPreparation": {
+            "type": "object",
+            "properties": {
+                "generation": {
+                    "type": "integer"
+                },
+                "group": {
+                    "$ref": "#/definitions/workspace.WriteGroup"
+                },
+                "intent_digest": {
+                    "type": "string"
+                },
+                "lineage_id": {
+                    "type": "string"
+                },
+                "lineage_revision": {
+                    "type": "integer"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "predecessor_group_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorReserveStatus": {
+            "type": "object",
+            "properties": {
+                "result": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorPreparation"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorReview": {
+            "type": "object",
+            "properties": {
+                "blockers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupSuccessorBlocker"
+                    }
+                },
+                "envelope": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorEnvelope"
+                },
+                "history": {
+                    "$ref": "#/definitions/workspace.WriteGroupLifecycleHistory"
+                },
+                "required_checks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupSuccessorBlocker"
+                    }
+                },
+                "review_digest": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorReviewRequest": {
+            "type": "object",
+            "properties": {
+                "boundary": {
+                    "type": "string"
+                },
+                "expected_lineage_revision": {
+                    "type": "integer"
+                },
+                "expected_predecessor_connector_revision": {
+                    "type": "string"
+                },
+                "expected_predecessor_revision": {
+                    "type": "string"
+                },
+                "expected_target_connector_revision": {
+                    "type": "string"
+                },
+                "expected_workspace_revision": {
+                    "type": "string"
+                },
+                "group": {
+                    "$ref": "#/definitions/workspace.WriteGroup"
+                },
+                "lineage_id": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorSchemaStatus": {
+            "type": "object",
+            "properties": {
+                "next_action": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "reason_code": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorSeed": {
+            "type": "object",
+            "properties": {
+                "basis_digest": {
+                    "type": "string"
+                },
+                "basis_kind": {
+                    "type": "string"
+                },
+                "basis_revision": {
+                    "type": "string"
+                },
+                "group": {
+                    "$ref": "#/definitions/workspace.WriteGroup"
+                }
+            }
+        },
+        "workspace.WriteGroupSuccessorStageRequest": {
+            "type": "object",
+            "properties": {
+                "current": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorCurrentCAS"
+                },
+                "envelope": {
+                    "$ref": "#/definitions/workspace.WriteGroupSuccessorEnvelope"
+                },
+                "review_digest": {
+                    "type": "string"
+                }
+            }
         },
         "workspace.WriteGroupValueRole": {
             "type": "string",

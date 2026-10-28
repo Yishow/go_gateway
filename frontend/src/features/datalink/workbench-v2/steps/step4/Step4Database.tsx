@@ -1,3 +1,6 @@
+import { useRecordingChangeController } from './writeGroup/lifecycle/useRecordingChangeController';
+import { RecordingChangeDialog } from './writeGroup/lifecycle/RecordingChangeDialog';
+import type { SavedRecordingActionHost } from './writeGroup/lifecycle/SavedRecordingActions';
 import * as React from 'react';
 import { useMemo, useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -149,6 +152,8 @@ function Step4DatabaseContent({
   const [openGroupRequest, setOpenGroupRequest] = useState<{ id: string }>();
   const [reviewRequest, setReviewRequest] = useState<{ workspaceId: string; groupId: string }>();
   const [basicOperationActive, setBasicOperationActive] = useState(false);
+  const [savedOperationActive, setSavedOperationActive] = useState(false);
+  const savedOperationLock = useRef(false);
   const advancedRef = useRef<HTMLDetailsElement>(null);
   const basicRef = useRef<HTMLDivElement>(null);
   const openAdvanced = useCallback(() => {
@@ -161,8 +166,34 @@ function Step4DatabaseContent({
     basicRef.current?.focus();
   }, [workspaceId]);
 
+  const recordingChange = useRecordingChangeController({
+    workspaceId: workspaceId ?? '', readonly: basicOperationActive || savedOperationActive,
+    onChanged: (group) => { setOpenGroupRequest({ id: group.id }); void groupsQuery.refetch(); },
+  });
+  const lifecycleLocked = recordingChange.isOpen || recordingChange.busy || recordingChange.unresolved;
+  const actionHost: SavedRecordingActionHost = {
+    tryAcquire: () => {
+      if (savedOperationLock.current || basicOperationActive || lifecycleLocked) return false;
+      savedOperationLock.current = true; return true;
+    },
+    onBusyChange: (active) => { savedOperationLock.current = active; setSavedOperationActive(active); },
+    onReviewScopedStart: reviewScopedStart,
+    onAction: (intent) => {
+      if (savedOperationLock.current || basicOperationActive || lifecycleLocked || intent.workspaceId !== workspaceId) return;
+      if (intent.action === 'edit') { setOpenGroupRequest({ id: intent.groupId }); openAdvanced(); return; }
+      if (intent.action === 'recreate' || intent.action === 'transition') {
+        savedOperationLock.current = true;
+        void recordingChange.requestAction(intent).finally(() => { savedOperationLock.current = false; });
+      }
+    },
+  };
+  const savedActionsLocked = savedOperationActive || lifecycleLocked;
+  const destinations = state.settings.connectors.filter((item) => item.enabled && item.id && item.identity_revision)
+    .map((item) => ({ id: item.id, name: item.name, revision: item.identity_revision! }));
+
   return (
     <div className="space-y-6">
+      <RecordingChangeDialog controller={recordingChange} destinations={destinations} />
       <Step4SupportPanels
         destinationReady={destinationIsSaved(state)}
         connector={connector}
@@ -170,13 +201,14 @@ function Step4DatabaseContent({
         onUpdateConnector={handleUpdateConnector}
         onKindChange={handleKindChange}
         onSelectConnector={handleSelectConnectorPool}
-        disabled={basicOperationActive}
+        disabled={basicOperationActive || savedActionsLocked}
       />
       <div ref={basicRef} tabIndex={-1} data-testid="step4-basic-recording" hidden={!destinationIsSaved(state) && !isModbusShareConfiguredEnabled(shareStatus)}>
       <BasicRecordingPanel
         state={state}
         workspaceId={workspaceId}
-        readonly={false}
+        readonly={savedActionsLocked}
+        lifecycleHost={actionHost}
         reviewRequest={reviewRequest}
         shareStatus={shareStatus}
         onCommit={onCommit}
@@ -203,7 +235,8 @@ function Step4DatabaseContent({
           <WriteGroupSection
             state={state}
             workspaceId={workspaceId}
-            readonly={basicOperationActive}
+            readonly={basicOperationActive || savedActionsLocked}
+            lifecycleHost={actionHost}
             onNavigateStep={onNavigateStep}
             openGroupRequest={openGroupRequest}
             onReviewScopedStart={reviewScopedStart}

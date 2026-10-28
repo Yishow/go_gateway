@@ -83,12 +83,16 @@ func (r *SQLWriteGroupRepository) insertProfileKeyInTx(ctx context.Context, tx *
 	if err != nil {
 		return err
 	}
+	lineageID, err := r.initializeCanonicalLineageInTx(ctx, tx, key.WorkspaceID, group.ID)
+	if err != nil {
+		return err
+	}
 	result, err := tx.ExecContext(ctx, r.query(`
 		INSERT INTO write_group_profile_keys (
-			workspace_id, circuit_id, selection_scope, profile_kind, canonical_role, group_id
-		) VALUES ($1, $2, $3, $4, $5, $6)
+			workspace_id, circuit_id, selection_scope, profile_kind, canonical_role, group_id, lineage_id
+		) VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (workspace_id, circuit_id, selection_scope, profile_kind, canonical_role) DO NOTHING
-	`), key.WorkspaceID, key.CircuitID, key.SelectionScope, string(key.Kind), key.Role, group.ID)
+	`), key.WorkspaceID, key.CircuitID, key.SelectionScope, string(key.Kind), key.Role, group.ID, lineageID)
 	if err != nil {
 		return fmt.Errorf("insert circuit profile key: %w", err)
 	}
@@ -103,35 +107,28 @@ func (r *SQLWriteGroupRepository) insertProfileKeyInTx(ctx context.Context, tx *
 }
 
 func (r *SQLWriteGroupRepository) findProfileGroup(ctx context.Context, key circuitProfileKey) (*WriteGroup, error) {
-	if r == nil || r.db == nil {
-		return nil, fmt.Errorf("find circuit profile group: %w", ErrWriteGroupNotFound)
-	}
-	var groupID string
-	err := r.db.QueryRowContext(ctx, r.query(`
-		SELECT group_id
+	return r.findCanonicalGroup(ctx, key.WorkspaceID, `
+		SELECT group_id, lineage_id
 		FROM write_group_profile_keys
 		WHERE workspace_id = $1 AND circuit_id = $2 AND selection_scope = $3
 			AND profile_kind = $4 AND canonical_role = $5
-	`), key.WorkspaceID, key.CircuitID, key.SelectionScope, string(key.Kind), key.Role).Scan(&groupID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("circuit profile key not found: %w", ErrWriteGroupNotFound)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("read circuit profile key: %w", err)
-	}
-	return r.Get(ctx, key.WorkspaceID, groupID)
+	`, key.WorkspaceID, key.CircuitID, key.SelectionScope, string(key.Kind), key.Role)
 }
 
 // loadProfileKey returns the key held by a group; found is false for a group
 // created without a profile.
 func (r *SQLWriteGroupRepository) loadProfileKey(ctx context.Context, runner writeGroupSQLRunner, workspaceID, groupID string) (key circuitProfileKey, found bool, err error) {
+	metadata, found, err := r.loadWriteGroupLineage(ctx, runner, workspaceID, groupID)
+	if err != nil || !found {
+		return circuitProfileKey{}, false, err
+	}
 	key = circuitProfileKey{WorkspaceID: workspaceID}
 	var kind string
 	err = runner.QueryRowContext(ctx, r.query(`
 		SELECT circuit_id, selection_scope, profile_kind, canonical_role
 		FROM write_group_profile_keys
 		WHERE workspace_id = $1 AND group_id = $2
-	`), workspaceID, groupID).Scan(&key.CircuitID, &key.SelectionScope, &kind, &key.Role)
+	`), workspaceID, metadata.GenesisGroupID).Scan(&key.CircuitID, &key.SelectionScope, &kind, &key.Role)
 	if errors.Is(err, sql.ErrNoRows) {
 		return circuitProfileKey{}, false, nil
 	}

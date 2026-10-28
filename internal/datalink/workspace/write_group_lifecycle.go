@@ -156,6 +156,9 @@ func (s *WriteGroupService) applyWithCheckpoint(ctx context.Context, id string, 
 	if mutation.Group != nil {
 		return nil, fmt.Errorf("apply write group payload must be omitted: %w", ErrWriteGroupValidation)
 	}
+	if err := s.requireUnreservedWriteGroup(ctx, mutation.WorkspaceID, id); err != nil {
+		return nil, err
+	}
 	readiness, err := s.Readiness(ctx, id)
 	if err != nil {
 		return nil, err

@@ -13,13 +13,15 @@ import (
 
 // Store is the local SQLite-backed durable state for write groups.
 type Store struct {
-	db    *sql.DB
-	now   func() time.Time
-	quota *QuotaConfig
-	usage *usageCache
+	db              *sql.DB
+	now             func() time.Time
+	quota           *QuotaConfig
+	usage           *usageCache
+	canonicalIntake bool
 }
 
-// NewStore wraps a migrated local database handle.
+// NewStore wraps a migrated local database handle for standalone ledger users.
+// Production canonical write-group intake must opt into WithCanonicalIntake.
 func NewStore(db *sql.DB) *Store {
 	return &Store{db: db, now: func() time.Time { return time.Now().UTC() }, usage: newUsageCache()}
 }
@@ -87,6 +89,9 @@ func (s *Store) AppendSample(ctx context.Context, key GroupKey, bucketStart time
 			return fmt.Errorf("check journal sample: %w", err)
 		}
 		if err := verifySampleProof(ctx, tx, key, sample, true); err != nil {
+			return err
+		}
+		if err := s.validateLifecycleIntake(ctx, tx, key, sample.ObservedAt); err != nil {
 			return err
 		}
 		if err := s.checkQuota(ctx, tx, key); err != nil {
