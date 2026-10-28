@@ -13,6 +13,11 @@ import (
 
 func counterCutoverFixture(t *testing.T) (counterApplyFixture, *WriteGroup, CutoverRequest) {
 	t.Helper()
+	return counterCutoverFixtureWithTarget(t, WriteGroupLayoutManagedLongV1)
+}
+
+func counterCutoverFixtureWithTarget(t *testing.T, targetLayout WriteGroupLayoutVersion) (counterApplyFixture, *WriteGroup, CutoverRequest) {
+	t.Helper()
 	f := newCounterApplyFixture(t, WriteGroupLayoutManagedWideProfileV1, WriteGroupProfileCumulative, schema.DataTypeInt64)
 	source, err := f.service.Apply(t.Context(), f.group.ID, f.mutation)
 	require.NoError(t, err)
@@ -20,6 +25,10 @@ func counterCutoverFixture(t *testing.T) (counterApplyFixture, *WriteGroup, Cuto
 	draft := cloneWriteGroup(f.group)
 	draft.Name, draft.LayoutVersion, draft.StorageMode = "counter_raw target", WriteGroupLayoutManagedLongV1, WriteGroupStorageModePlain
 	draft.Destination.TableName = ""
+	if targetLayout == WriteGroupLayoutManagedWideProfileV1 {
+		draft.LayoutVersion, draft.StorageMode = targetLayout, ""
+		draft.Destination.TableName = "counter_instantaneous_wide"
+	}
 	draft.RecordingProfile.Kind, draft.RecordingProfile.Interval, draft.RecordingProfile.Unit = WriteGroupProfileInstantaneous, 15, WriteGroupIntervalUnitSecond
 	draft.RowPolicy.IntervalSeconds = 15
 	draft.Members[0].ValueRole = WriteGroupValueRoleCounterRaw

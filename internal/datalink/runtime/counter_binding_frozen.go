@@ -66,16 +66,20 @@ func validateCounterReplay(members map[string]boundaryMember, restored groupdeli
 		if !ok {
 			return conflict()
 		}
+		if !restored.ValidateHandoffOrigin(sample, member.counterProof) {
+			return conflict()
+		}
 		if member.counter == nil {
 			if !sample.CounterProof.IsZero() {
 				return conflict()
 			}
 			continue
 		}
-		if member.counterProof.IsZero() || (sample.CounterProof.IsZero() && !legacyAssociated) {
+		authorized := !member.counterProof.IsZero() && restored.AuthorizesHandoff(sample, member.counterProof)
+		if member.counterProof.IsZero() || (sample.CounterProof.IsZero() && !legacyAssociated && !authorized) {
 			return &counterproof.CounterBindingProofError{Reason: counterproof.ErrCounterBindingProofMissing}
 		}
-		if !sample.CounterProof.IsZero() && sample.CounterProof != member.counterProof {
+		if !sample.CounterProof.IsZero() && sample.CounterProof != member.counterProof && !authorized {
 			return conflict()
 		}
 		if sample.SourceRevision != member.sourceRevision || sample.MappingRevision != member.mappingRevision {

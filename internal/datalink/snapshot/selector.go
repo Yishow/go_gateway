@@ -10,11 +10,20 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
+// AcceptanceOrigin identifies the original durable acceptance scope of a
+// verified handoff. Zero denotes native input in the current assembler scope.
+// It is an in-memory identity annotation, never proof or append authority.
+type AcceptanceOrigin struct {
+	WorkspaceID, GroupID, GroupRevision string
+}
+
 // Sample is the typed observation a member contributes to a bucket.
 type Sample struct {
-	SampleID   string
-	MemberKey  string
-	ObservedAt time.Time
+	// Only verified durable replay supplies this annotation; it is not payload.
+	AcceptanceOrigin AcceptanceOrigin `json:"-"`
+	SampleID         string
+	MemberKey        string
+	ObservedAt       time.Time
 	// ReceivedAt is when the gateway received the observation. The zero time
 	// means unknown (for instance a sample journaled before it was kept); it is
 	// never replaced by a restart or tick time and takes no part in identity.
@@ -65,6 +74,15 @@ type SelectorConfig struct {
 	Members       []string
 }
 
+type acceptedIdentity struct {
+	origin   AcceptanceOrigin
+	sampleID string
+}
+
+func acceptanceIdentity(sample Sample) acceptedIdentity {
+	return acceptedIdentity{sample.AcceptanceOrigin, sample.SampleID}
+}
+
 // Selector keeps, per member, the sample with the greatest observed_at in one
 // bucket; the greatest sample_id breaks an observed_at tie. Arrival order never
 // changes the result. The newest observation wins even when it is bad, so an
@@ -75,7 +93,7 @@ type Selector struct {
 	skew    time.Duration
 	members map[string]struct{}
 	chosen  map[string]Sample
-	seen    map[string]Sample
+	seen    map[acceptedIdentity]Sample
 	// eligible, when set, ranks an eligible sample above any ineligible one, so
 	// the chosen sample is the newest eligible reading and falls back to the
 	// newest of the rest only to explain why nothing was eligible. Nil keeps the
@@ -111,7 +129,7 @@ func NewSelector(config SelectorConfig) *Selector {
 		skew:    config.MaxFutureSkew,
 		members: members,
 		chosen:  make(map[string]Sample, len(members)),
-		seen:    make(map[string]Sample),
+		seen:    make(map[acceptedIdentity]Sample),
 	}
 }
 
@@ -129,7 +147,7 @@ func (s *Selector) evaluate(sample Sample, now time.Time) OfferResult {
 	if sample.SampleID == "" || sample.MemberKey == "" || sample.ObservedAt.IsZero() {
 		return OfferResult{Outcome: OfferRejected, Reason: ReasonMissingIdentity}
 	}
-	if previous, ok := s.seen[sample.SampleID]; ok {
+	if previous, ok := s.seen[acceptanceIdentity(sample)]; ok {
 		if samePayload(previous, sample) {
 			return OfferResult{Outcome: OfferDuplicate}
 		}
@@ -157,7 +175,7 @@ func (s *Selector) evaluate(sample Sample, now time.Time) OfferResult {
 // apply stores a sample that evaluate accepted.
 func (s *Selector) apply(sample Sample) {
 	sample.ObservedAt = sample.ObservedAt.UTC()
-	s.seen[sample.SampleID] = sample
+	s.seen[acceptanceIdentity(sample)] = sample
 	if current, ok := s.chosen[sample.MemberKey]; !ok || s.supersedes(sample, current) {
 		s.chosen[sample.MemberKey] = sample
 	}
@@ -170,7 +188,7 @@ func (s *Selector) Selected(member string) (Sample, bool) {
 }
 
 // Accepted returns every accepted sample of a member in ascending (observed_at,
-// sample_id) order. The accepted set is unique by SampleID: a duplicate was
+// sample_id) order. The accepted set is unique by original scope and SampleID: a duplicate was
 // stored once and a conflicting identity was refused. Samples that did not win
 // the newest selection are retained, so a reducer can weigh them equally.
 func (s *Selector) Accepted(member string) []Sample {

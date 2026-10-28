@@ -129,7 +129,10 @@ func (s *Store) AssociateLegacyCounterProofs(ctx context.Context, key GroupKey, 
 }
 
 func readLegacyAcceptedSet(ctx context.Context, tx *sql.Tx, key GroupKey) ([]legacyAcceptedSample, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT seq,workspace_id,sample_id,member_key,observed_at,payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=? AND group_revision=? AND consumed=0 ORDER BY seq`, key.GroupID, key.GroupRevision)
+	if err := validateHandoffScope(ctx, tx, key.GroupID, key.GroupRevision); err != nil {
+		return nil, err
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT seq,workspace_id,COALESCE(NULLIF(origin_sample_id,''),sample_id),member_key,observed_at,payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=? AND group_revision=? AND consumed=0 AND NOT EXISTS(SELECT 1 FROM wg_delivery_sample_handoffs h WHERE h.source_seq=wg_delivery_samples.seq OR h.target_seq=wg_delivery_samples.seq) ORDER BY seq`, key.GroupID, key.GroupRevision)
 	if err != nil {
 		return nil, err
 	}

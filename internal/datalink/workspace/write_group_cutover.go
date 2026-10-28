@@ -150,6 +150,10 @@ type WriteGroupCutover struct {
 	Started        []CutoverStart     `json:"started"`
 	Moved          []CutoverMemberRef `json:"moved"`
 	CreatedAt      time.Time          `json:"created_at"`
+
+	// OwnershipFenceRevision is an opaque persisted CAS identity. Empty means
+	// legacy/unknown ownership evidence, not permission to accept or close.
+	OwnershipFenceRevision string `json:"ownership_fence_revision,omitempty"`
 	// intent is the whole request this cutover answered; it is what a replay is
 	// compared with and is not part of the public record.
 	intent string

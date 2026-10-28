@@ -15,14 +15,25 @@ type counterReplayPreparer interface {
 func prepareCounterAssociations(ctx context.Context, cfg GroupBoundaryConfig, restored groupdelivery.Restored) (bool, error) {
 	needsLegacy := false
 	for _, sample := range restored.Samples {
-		if !sample.CounterProof.IsZero() {
-			continue
-		}
+		var ref counterproof.CounterBindingReference
 		for _, proof := range cfg.CounterBindings {
 			if proof.Member.SampleMemberKey() == sample.MemberKey {
-				needsLegacy = true
+				var err error
+				ref, err = proof.Reference()
+				if err != nil {
+					return false, err
+				}
 				break
 			}
+		}
+		// A global legacy association result cannot authorize a modified or
+		// erased per-sample transfer origin, including non-counter inputs.
+		if !restored.ValidateHandoffOrigin(sample, ref) {
+			return false, &counterproof.CounterBindingProofError{Reason: counterproof.ErrCounterBindingProofConflict}
+		}
+		if sample.CounterProof.IsZero() && !ref.IsZero() {
+			// Incoming legacy bytes retain their original source association.
+			needsLegacy = needsLegacy || !restored.AuthorizesHandoff(sample, ref)
 		}
 	}
 	if !needsLegacy {

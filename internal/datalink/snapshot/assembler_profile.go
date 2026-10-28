@@ -54,13 +54,14 @@ func (a *Assembler) eligibility(end time.Time) func(Sample) bool {
 // reading that cannot supply a value is never replaced by zero, by an older
 // window's value, or by an invented time.
 func (a *Assembler) finalizeProfile(plan *Plan, member Member, start, end time.Time, selector *Selector) Outcome {
+	_, actualEnd, _ := a.windowBounds(start, end)
 	var result MemberResult
 	if member.SampleReduction == SampleReductionMean {
 		// A mean window is judged only by the observations inside the real window;
 		// the aligned bucket's newest reading never supplies its status or sample.
 		result = a.meanMemberResult(member, selector, start, end)
 	} else {
-		result = latestWindowResult(member, selector, end)
+		result = latestWindowResult(member, selector, actualEnd)
 		if a.config.Mode == ModeCumulativeProfile && result.Usable() {
 			a.applyCounter(plan, member, start, end, selector, &result)
 		}

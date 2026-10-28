@@ -32,7 +32,7 @@ func TestCounterReplayRestoreInfrastructureFailuresRemainErrorsAndRecoverOtherSc
 			calls := 0
 			reject := func(query string) error {
 				matches := stage == "checkpoint" && strings.Contains(query, "SELECT next_close FROM wg_delivery_checkpoints") ||
-					stage == "journal" && strings.Contains(query, "SELECT payload, payload_digest, workspace_id FROM wg_delivery_samples") ||
+					stage == "journal" && strings.Contains(query, "SELECT seq,workspace_id,group_id,group_revision,COALESCE(NULLIF(origin_sample_id,''),sample_id),member_key,observed_at,bucket_start,payload,payload_digest,created_at,consumed,acceptance_kind,handoff_id,sample_id,origin_workspace_id,origin_group_id,origin_revision FROM wg_delivery_samples") ||
 					stage == "association" && strings.Contains(query, "INSERT INTO wg_counter_proof_associations")
 				if matches && calls == 0 {
 					calls++

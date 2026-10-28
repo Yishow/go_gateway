@@ -80,6 +80,12 @@ func (s *Store) CommitClosure(ctx context.Context, key GroupKey, closure Closure
 		return err
 	}
 	err = s.inTx(ctx, "closure", func(tx *sql.Tx) error {
+		if err := validateOwnershipClosure(ctx, tx, key, closure); err != nil {
+			return err
+		}
+		if err := validateHandoffClosure(ctx, tx, key, closure); err != nil {
+			return err
+		}
 		now := timestamp(s.now())
 		if err := storeBaselines(ctx, tx, key, baselines, now); err != nil {
 			return err
@@ -104,7 +110,7 @@ func (s *Store) CommitClosure(ctx context.Context, key GroupKey, closure Closure
 		}
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE wg_delivery_samples SET consumed = 1
-			WHERE group_id = ? AND group_revision = ? AND consumed = 0 AND bucket_start < ?`,
+			WHERE group_id = ? AND group_revision = ? AND consumed = 0 AND bucket_start < ? AND NOT EXISTS(SELECT 1 FROM wg_delivery_sample_handoffs h WHERE h.source_seq=wg_delivery_samples.seq)`,
 			key.GroupID, key.GroupRevision, timestamp(closure.NextClose),
 		); err != nil {
 			return fmt.Errorf("consume closed samples: %w", err)

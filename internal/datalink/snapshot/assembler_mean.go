@@ -161,7 +161,7 @@ func (a *Assembler) meanMemberResult(member Member, selector *Selector, start, e
 		}
 		evidence.LastObservedAt = observed
 		newestActual = index
-		reason, eligible := meanObservation(member, accepted[index], end)
+		reason, eligible := meanObservation(member, accepted[index], windowEnd)
 		if !eligible {
 			evidence.RejectedCount++
 			rejections[reason] = struct{}{}

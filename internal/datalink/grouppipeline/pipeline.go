@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"sync"
 	"time"
 
@@ -113,6 +112,7 @@ type managed struct {
 	// proofGate precedes Pipeline.mu; never wait for it while holding Pipeline.mu.
 	proofGate        sync.Mutex
 	proofQuarantined bool
+	superseded       bool // protected by proofGate; captured old workers must not run after replacement
 	workspaceID      string
 	groupID          string
 	revision         string
@@ -126,6 +126,8 @@ type managed struct {
 
 // Pipeline owns the applied write groups of one gateway.
 type Pipeline struct {
+	// Serializes cache reconciliation, never sample/closure SQL authority.
+	reconcileMu    sync.Mutex
 	deps           Dependencies
 	config         Config
 	recovery       *StorageRecovery
@@ -368,16 +370,28 @@ func (p *Pipeline) TickAll(ctx context.Context) {
 		err := p.withCounterProofGate(m, func() error { return m.boundary.Tick(ctx, now) })
 		p.report(err)
 	}
-	p.mu.Lock()
-	maps.DeleteFunc(p.boundaries, func(_ string, m *managed) bool {
-		return m.boundary.Retired()
-	})
-	p.mu.Unlock()
+	p.pruneRetired(current)
 }
 
-// AcceptSample implements the runtime's typed sample sink. Every boundary sees
-// the sample and ignores what is not its own. Refusals from several groups are
-// joined so a real fault is never hidden behind a benign one.
+func (p *Pipeline) pruneRetired(current []*managed) {
+	for _, m := range current {
+		// Retired can wait for a boundary's SQL-backed Tick; never keep the
+		// global map locked while an unrelated worker needs it for intake.
+		if !m.boundary.Retired() {
+			continue
+		}
+		p.mu.Lock()
+		key := boundaryKey(m.groupID, m.revision)
+		if p.boundaries[key] == m {
+			delete(p.boundaries, key)
+		}
+		p.mu.Unlock()
+	}
+}
+
+// AcceptSample implements the runtime's typed sample sink. Committed cutover
+// authority chooses affected owners independently of reconciliation. Refusals
+// are joined while unaffected scopes continue their existing intake contract.
 func (p *Pipeline) AcceptSample(ctx context.Context, envelope measurement.SampleEnvelope) error {
 	p.lifecycle.Lock()
 	if p.stopping {
@@ -393,29 +407,21 @@ func (p *Pipeline) AcceptSample(ctx context.Context, envelope measurement.Sample
 		current = append(current, m)
 	}
 	p.mu.RUnlock()
-	var errs []error
-	for _, m := range current {
-		if m.drainOnly || !m.boundary.Wants(envelope.DeviceID, envelope.PointID, envelope.TagID) {
-			continue
-		}
-		if err := p.withCounterProofGate(m, func() error { return m.boundary.AcceptSample(ctx, envelope) }); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	return errors.Join(errs...)
+	return p.acceptWithOwnership(ctx, envelope, current)
 }
 
-// WantsSample reports whether any running group consumes this source, so the
-// runtime builds typed envelopes only for tags a group actually owns.
+// WantsSample retains typed transport interest for committed cutover sources
+// even while their worker is absent. Interest never authorizes acceptance.
 func (p *Pipeline) WantsSample(deviceID, pointID, tagID string) bool {
 	p.mu.RLock()
-	defer p.mu.RUnlock()
 	for _, m := range p.boundaries {
 		if !m.drainOnly && m.boundary.Wants(deviceID, pointID, tagID) {
+			p.mu.RUnlock()
 			return true
 		}
 	}
-	return false
+	p.mu.RUnlock()
+	return p.wantsCutoverSample(deviceID, pointID, tagID)
 }
 
 // Owns includes durable successful Apply history, independent of active

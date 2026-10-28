@@ -61,6 +61,7 @@ func (a *Assembler) applyCounter(plan *Plan, member Member, start, end time.Time
 	if !ok {
 		prev = a.counters[member.Key]
 	}
+	start, end, _ = a.windowBounds(start, end)
 	counter, next, err := aggregation.CloseCounterWindow(
 		prev, a.config.Counters[member.Key], aggregation.CounterWindow{Start: start, End: end}, selector.counterReadings(member.Key),
 	)

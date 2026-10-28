@@ -81,6 +81,9 @@ func (p *Pipeline) recordCounterQuarantineLocked(key groupdelivery.GroupKey, rea
 func (p *Pipeline) withCounterProofGate(m *managed, operation func() error) error {
 	m.proofGate.Lock()
 	defer m.proofGate.Unlock()
+	if m.superseded {
+		return groupdelivery.ErrOwnershipUnavailable
+	}
 	if m.proofQuarantined {
 		return nil
 	}

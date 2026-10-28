@@ -78,7 +78,7 @@ func ensureSQLiteWriteGroupCutovers(db *sql.DB) error {
 	if _, err := db.ExecContext(context.Background(), `CREATE UNIQUE INDEX IF NOT EXISTS idx_write_group_cutovers_review ON write_group_cutovers(workspace_id, review_digest)`); err != nil {
 		return fmt.Errorf("failed to index write_group_cutovers review digest: %w", err)
 	}
-	return nil
+	return applySQLiteMigrationOnce(db, "044_write_group_ownership_fences_sqlite.up.sql")
 }
 
 func ensureSQLiteBasicManagedKeysTable(db *sql.DB) error {

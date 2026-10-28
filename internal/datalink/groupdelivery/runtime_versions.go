@@ -47,11 +47,18 @@ type OpenJournal struct {
 
 // OpenJournals discovers historical revisions independently of the live groups.
 func (s *Store) OpenJournals(ctx context.Context) ([]OpenJournal, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT workspace_id, group_id, group_revision,
+	// Receipt validation performs nested ownership reads. Keep discovery and
+	// exclusions in one snapshot and on one connection, even with a pool of one.
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, &handoffStorageError{cause: err}
+	}
+	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, `SELECT workspace_id, group_id, group_revision,
 		MIN(bucket_start), MAX(bucket_start) FROM wg_delivery_samples WHERE consumed = 0
 		GROUP BY workspace_id, group_id, group_revision`)
 	if err != nil {
-		return nil, fmt.Errorf("read open journals: %w", err)
+		return nil, &handoffStorageError{cause: err}
 	}
 	defer rows.Close()
 	var journals []OpenJournal
@@ -71,5 +78,49 @@ func (s *Store) OpenJournals(ctx context.Context) ([]OpenJournal, error) {
 		}
 		journals = append(journals, journal)
 	}
-	return journals, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, &handoffStorageError{cause: err}
+	}
+	if err := rows.Close(); err != nil {
+		return nil, &handoffStorageError{cause: err}
+	}
+	var active []OpenJournal
+	for _, journal := range journals {
+		observed := &handoffReadObserver{ownershipQuery: tx}
+		_, _, validationErr := handoffView(ctx, observed, journal.Key)
+		if observed.failure != nil {
+			return nil, &handoffStorageError{cause: observed.failure}
+		}
+		var storage *handoffStorageError
+		if errors.As(validationErr, &storage) {
+			return nil, validationErr
+		}
+		if validationErr != nil {
+			// Discovery does not authorize exclusion. Keep a damaged scope so
+			// its decisive Restore can quarantine it without hiding healthy ones.
+			active = append(active, journal)
+			continue
+		}
+		var first, last sql.NullString
+		err := tx.QueryRowContext(ctx, `SELECT MIN(bucket_start),MAX(bucket_start) FROM wg_delivery_samples WHERE workspace_id=? AND group_id=? AND group_revision=? AND consumed=0 AND NOT EXISTS(SELECT 1 FROM wg_delivery_sample_handoffs h WHERE h.source_seq=wg_delivery_samples.seq)`, journal.Key.WorkspaceID, journal.Key.GroupID, journal.Key.GroupRevision).Scan(&first, &last)
+		if err != nil {
+			return nil, &handoffStorageError{cause: err}
+		}
+		if !first.Valid {
+			continue
+		}
+		journal.FirstBucket, err = time.Parse(time.RFC3339Nano, first.String)
+		if err != nil {
+			return nil, ErrOwnershipUnavailable
+		}
+		journal.LastBucket, err = time.Parse(time.RFC3339Nano, last.String)
+		if err != nil {
+			return nil, ErrOwnershipUnavailable
+		}
+		active = append(active, journal)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, &handoffStorageError{cause: err}
+	}
+	return active, nil
 }

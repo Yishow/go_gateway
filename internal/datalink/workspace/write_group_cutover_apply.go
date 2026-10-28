@@ -130,9 +130,12 @@ func (s *WriteGroupService) applyCutoverInTx(ctx context.Context, tx *sql.Tx, re
 	if source.Revision != plan.source.Revision || source.AppliedRevision != plan.source.AppliedRevision {
 		return nil, writeGroupRevisionConflict("write group revision is stale")
 	}
+	if err := requireNoFinalizedOverlap(ctx, tx, plan); err != nil {
+		return nil, err
+	}
 	id := s.repo.newID()
 	cutover := &WriteGroupCutover{
-		ID: id, WorkspaceID: record.ID, Kind: req.Kind, SourceGroupID: source.ID, Boundary: req.Boundary,
+		ID: id, OwnershipFenceRevision: id, WorkspaceID: record.ID, Kind: req.Kind, SourceGroupID: source.ID, Boundary: req.Boundary,
 		ReviewDigest: req.ReviewDigest, Moved: plan.moved, CreatedAt: now,
 	}
 	if plan.prior != nil {
@@ -155,6 +158,9 @@ func (s *WriteGroupService) applyCutoverInTx(ctx context.Context, tx *sql.Tx, re
 		}
 	}
 	if err := s.repo.insertCutoverInTx(ctx, tx, cutover); err != nil {
+		return nil, err
+	}
+	if err := s.repo.insertOwnershipFenceInTx(ctx, tx, cutover); err != nil {
 		return nil, err
 	}
 	return cutover, nil

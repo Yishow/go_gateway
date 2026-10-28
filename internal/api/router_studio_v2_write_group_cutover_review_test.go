@@ -83,13 +83,33 @@ func TestDualProfileCutover(t *testing.T) {
 			require.Equal(t, [3]string{"ok", "9007199254740995", "2"}, [3]string{cumulative[1].Status, cumulative[1].Raw, cumulative[1].Delta})
 			require.Len(t, r.wideRowsInOrder(), 1, "the wide group wrote only the window the boundary cut, nothing at or after it")
 
+			// Both independent profiles already finalized through second 120.
+			// An earlier rollback must preserve all frozen effects and authority.
 			rollback := r.at(82*time.Second + 500*time.Millisecond)
+			before := finalizedAPIState(t, r)
+			wideHistory, longHistory, receipts := r.wideRowsInOrder(), r.longRecords(), r.receipts()
+			review = r.rollbackReview(cut["id"].(string), rollback)
+			code, body = r.post(writeGroupsPath+"/"+r.wide["id"].(string)+"/cutover",
+				r.rollbackBody(cut["id"].(string), rollback, map[string]any{"review_digest": review["digest"]}))
+			require.Equal(t, http.StatusConflict, code, "%v", body)
+			require.Equal(t, "recording-cutover-finalized-overlap", errorOf(t, body)["code"])
+			require.Equal(t, before, finalizedAPIState(t, r))
+			require.Equal(t, wideHistory, r.wideRowsInOrder())
+			require.Equal(t, longHistory, r.longRecords())
+			require.Equal(t, receipts, r.receipts())
+
+			// A fresh review beyond finalized history still permits the same
+			// supported rollback and ends both independent profile revisions.
+			rollback = r.at(142*time.Second + 500*time.Millisecond)
 			review = r.rollbackReview(cut["id"].(string), rollback)
 			require.Equal(t, true, review["applicable"], "%v", review["issues"])
 			code, body = r.post(writeGroupsPath+"/"+r.wide["id"].(string)+"/cutover",
 				r.rollbackBody(cut["id"].(string), rollback, map[string]any{"review_digest": review["digest"]}))
 			require.Equal(t, http.StatusOK, code, "%v", body)
 			require.Len(t, body["data"].(map[string]any)["ended"], 2, "a rollback ends both profiles")
+			require.Equal(t, wideHistory, r.wideRowsInOrder())
+			require.Equal(t, longHistory, r.longRecords())
+			require.Equal(t, receipts, r.receipts())
 		})
 	}
 }

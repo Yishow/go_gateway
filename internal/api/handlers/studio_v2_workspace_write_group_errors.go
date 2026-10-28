@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"go-gateway/internal/datalink/dbtarget"
+	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/workspace"
 
@@ -25,6 +26,10 @@ func renderWriteGroupError(c *gin.Context, err error) {
 		renderWriteGroupTyped(c, http.StatusConflict, "WRITE_GROUP_CIRCUIT_PROFILE_CONFLICT", "circuit recording profile already exists with a different configuration or source ownership; reload and update the saved group", false, "review_group")
 	case errors.Is(err, workspace.ErrWriteGroupLifecycleBlocked):
 		renderWriteGroupTyped(c, http.StatusConflict, "WRITE_GROUP_LIFECYCLE_BLOCKED", "write group cannot be deleted while accepted data ownership is unresolved", false, "disable_group")
+	case errors.Is(err, workspace.ErrCutoverFinalizedOverlap):
+		renderWriteGroupTyped(c, http.StatusConflict, "recording-cutover-finalized-overlap", "finalized recording history overlaps this boundary; review a new cutover boundary", false, "review_cutover")
+	case errors.Is(err, groupdelivery.ErrOwnershipUnavailable):
+		renderWriteGroupTyped(c, http.StatusServiceUnavailable, "recording-ownership-unavailable", "recording ownership cannot be verified; review the cutover when its history is available", false, "review_cutover")
 	case errors.Is(err, workspace.ErrCutoverNotApplicable):
 		renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "cutover_not_applicable", "the reviewed cutover cannot be applied; review its issues", false, "review_cutover")
 	case errors.Is(err, workspace.ErrWriteGroupCutoverRequired):

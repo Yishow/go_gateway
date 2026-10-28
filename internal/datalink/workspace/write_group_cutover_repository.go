@@ -15,10 +15,12 @@ type cutoverDetail struct {
 	Ended   []CutoverEnd       `json:"ended"`
 	Started []CutoverStart     `json:"started"`
 	Moved   []CutoverMemberRef `json:"moved"`
+
+	OwnershipFenceRevision string `json:"ownership_fence_revision,omitempty"`
 }
 
 func (r *SQLWriteGroupRepository) insertCutoverInTx(ctx context.Context, tx *sql.Tx, c *WriteGroupCutover) error {
-	detail, err := json.Marshal(cutoverDetail{Ended: c.Ended, Started: c.Started, Moved: c.Moved})
+	detail, err := json.Marshal(cutoverDetail{Ended: c.Ended, Started: c.Started, Moved: c.Moved, OwnershipFenceRevision: c.OwnershipFenceRevision})
 	if err != nil {
 		return fmt.Errorf("encode cutover detail: %w", err)
 	}
@@ -88,6 +90,7 @@ func scanCutover(row cutoverScanner) (*WriteGroupCutover, error) {
 		return nil, fmt.Errorf("decode cutover detail: %w", err)
 	}
 	c.Ended, c.Started, c.Moved = decoded.Ended, decoded.Started, decoded.Moved
+	c.OwnershipFenceRevision = decoded.OwnershipFenceRevision
 	return &c, nil
 }
 

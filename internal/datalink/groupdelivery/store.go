@@ -24,6 +24,15 @@ func NewStore(db *sql.DB) *Store {
 	return &Store{db: db, now: func() time.Time { return time.Now().UTC() }, usage: newUsageCache()}
 }
 
+// WithClock returns a clone using a deterministic clock without mutating s.
+func (s *Store) WithClock(now func() time.Time) *Store {
+	clone := *s
+	if now != nil {
+		clone.now = now
+	}
+	return &clone
+}
+
 // timestampLayout is fixed-width UTC so text columns sort chronologically.
 const timestampLayout = "2006-01-02T15:04:05.000000000Z"
 
@@ -39,6 +48,9 @@ func (s *Store) AppendSample(ctx context.Context, key GroupKey, bucketStart time
 	if !key.Valid() {
 		return ErrInvalidGroupKey
 	}
+	if sample.AcceptanceOrigin != (snapshot.AcceptanceOrigin{}) {
+		return ErrOwnershipConflict
+	}
 	if sample.SampleID == "" || sample.MemberKey == "" || sample.ObservedAt.IsZero() || bucketStart.IsZero() {
 		return ErrInvalidSample
 	}
@@ -46,10 +58,17 @@ func (s *Store) AppendSample(ctx context.Context, key GroupKey, bucketStart time
 	if err != nil {
 		return err
 	}
+	inserted := false
 	err = s.inTx(ctx, "journal", func(tx *sql.Tx) error {
+		if err := refuseOrdinaryHandoffAppend(ctx, tx, key, sample); err != nil {
+			return err
+		}
+		if err := validateCutoverAcceptance(ctx, tx, key, sample); err != nil {
+			return err
+		}
 		var existing, storedPayload, workspaceID string
 		err := tx.QueryRowContext(ctx,
-			`SELECT payload_digest, payload, workspace_id FROM wg_delivery_samples WHERE group_id = ? AND group_revision = ? AND sample_id = ?`,
+			`SELECT payload_digest, payload, workspace_id FROM wg_delivery_samples WHERE group_id = ? AND group_revision = ? AND acceptance_kind='native' AND COALESCE(NULLIF(origin_sample_id,''),sample_id) = ?`,
 			key.GroupID, key.GroupRevision, sample.SampleID).Scan(&existing, &storedPayload, &workspaceID)
 		switch {
 		case err == nil:
@@ -73,19 +92,24 @@ func (s *Store) AppendSample(ctx context.Context, key GroupKey, bucketStart time
 		if err := s.checkQuota(ctx, tx, key); err != nil {
 			return err
 		}
+		address, err := allocateJournalAddress(ctx, tx, key, sample.SampleID)
+		if err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO wg_delivery_samples (
 				workspace_id, group_id, group_revision, sample_id, member_key,
-				observed_at, bucket_start, payload, payload_digest, consumed, created_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-			key.WorkspaceID, key.GroupID, key.GroupRevision, sample.SampleID, sample.MemberKey,
-			timestamp(sample.ObservedAt), timestamp(bucketStart), string(payload), digest, timestamp(s.now()),
+				observed_at, bucket_start, payload, payload_digest, consumed, created_at,origin_workspace_id,origin_group_id,origin_revision,origin_sample_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+			key.WorkspaceID, key.GroupID, key.GroupRevision, address, sample.MemberKey,
+			timestamp(sample.ObservedAt), timestamp(bucketStart), string(payload), digest, timestamp(s.now()), key.WorkspaceID, key.GroupID, key.GroupRevision, sample.SampleID,
 		); err != nil {
 			return fmt.Errorf("append journal sample: %w", err)
 		}
+		inserted = true
 		return nil
 	})
-	if err == nil {
+	if err == nil && inserted {
 		s.usage.add(key.GroupID, int64(len(payload)))
 	}
 	return s.capacityError(ctx, err)
@@ -103,60 +127,5 @@ func (s *Store) capacityError(ctx context.Context, err error) error {
 
 // Restore returns the closure checkpoint and every unconsumed sample.
 func (s *Store) Restore(ctx context.Context, key GroupKey) (Restored, error) {
-	if !key.Valid() {
-		return Restored{}, ErrInvalidGroupKey
-	}
-	var restored Restored
-	var next string
-	err := s.db.QueryRowContext(ctx,
-		`SELECT next_close FROM wg_delivery_checkpoints WHERE group_id = ? AND group_revision = ?`,
-		key.GroupID, key.GroupRevision).Scan(&next)
-	switch {
-	case err == nil:
-		parsed, perr := time.Parse(time.RFC3339Nano, next)
-		if perr != nil {
-			return Restored{}, fmt.Errorf("parse checkpoint: %w", perr)
-		}
-		restored.NextClose = parsed.UTC()
-	case !errors.Is(err, sql.ErrNoRows):
-		return Restored{}, fmt.Errorf("read checkpoint: %w", err)
-	}
-
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT payload, payload_digest, workspace_id FROM wg_delivery_samples
-		WHERE group_id = ? AND group_revision = ? AND consumed = 0
-		ORDER BY seq ASC`, key.GroupID, key.GroupRevision)
-	if err != nil {
-		return Restored{}, fmt.Errorf("read journal samples: %w", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var payload, digest, workspaceID string
-		if err := rows.Scan(&payload, &digest, &workspaceID); err != nil {
-			return Restored{}, fmt.Errorf("scan journal sample: %w", err)
-		}
-		if workspaceID != key.WorkspaceID {
-			return Restored{}, sampleProofError(counterproof.ErrCounterBindingProofConflict)
-		}
-		sample, err := decodeVerifiedSample(payload, digest)
-		if err != nil {
-			return Restored{}, err
-		}
-		restored.Samples = append(restored.Samples, sample)
-	}
-	if err := rows.Err(); err != nil {
-		return Restored{}, err
-	}
-	if err := rows.Close(); err != nil {
-		return Restored{}, err
-	}
-	for _, sample := range restored.Samples {
-		if err := verifySampleProof(ctx, s.db, key, sample, false); err != nil {
-			return Restored{}, err
-		}
-	}
-	if restored.Baselines, err = s.restoreBaselines(ctx, key, restored.NextClose); err != nil {
-		return Restored{}, err
-	}
-	return restored, nil
+	return s.restoreHandoffView(ctx, key)
 }

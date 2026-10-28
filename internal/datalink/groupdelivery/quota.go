@@ -115,7 +115,7 @@ func usageStatement(perGroup bool) string {
 		samples, outbox = " AND group_id = ?", " AND group_id = ?"
 	}
 	return `SELECT
-		(SELECT COALESCE(SUM(LENGTH(CAST(payload AS BLOB))), 0) FROM wg_delivery_samples WHERE consumed = 0` + samples + `) +
+		(SELECT COALESCE(SUM(LENGTH(CAST(payload AS BLOB))), 0) FROM wg_delivery_samples WHERE consumed = 0 AND NOT EXISTS(SELECT 1 FROM wg_delivery_sample_handoffs h WHERE h.source_seq=wg_delivery_samples.seq AND h.state IN ('accepted','finalized') AND NOT EXISTS(SELECT 1 FROM wg_delivery_sample_handoffs p WHERE p.source_seq=wg_delivery_samples.seq AND p.state IN ('pending','quarantined')))` + samples + `) +
 		(SELECT COALESCE(SUM(LENGTH(CAST(payload AS BLOB))), 0) FROM wg_delivery_outbox WHERE state != 'sql_committed'` + outbox + `)`
 }
 
@@ -241,7 +241,10 @@ func (s *Store) Reclaim(ctx context.Context, retention time.Duration) (int64, er
 	cutoff := timestamp(s.now().Add(-retention))
 	var removed int64
 	err := s.inTx(ctx, "reclaim", func(tx *sql.Tx) error {
-		samples, err := tx.ExecContext(ctx, `DELETE FROM wg_delivery_samples WHERE consumed = 1`)
+		if err := compactHandoffs(ctx, tx); err != nil {
+			return err
+		}
+		samples, err := tx.ExecContext(ctx, handoffReclaimSamplesSQL)
 		if err != nil {
 			return fmt.Errorf("reclaim consumed samples: %w", err)
 		}
@@ -359,4 +362,45 @@ func (s *Store) cachedUsage(ctx context.Context, q queryer, groupID string) (int
 	s.usage.measurements.Add(1)
 	s.usage.put(groupID, used, now)
 	return used, nil
+}
+
+// Handoff quota checks measure net changes in the same transaction. Moving
+// already accepted bytes at a full global quota is not additional intake.
+func (s *Store) handoffQuotaBefore(ctx context.Context, q queryer, targets []GroupKey) (map[string]int64, error) {
+	before := map[string]int64{}
+	if s.quota == nil {
+		return before, nil
+	}
+	if s.quota.GlobalMaxBytes > 0 {
+		before[""] = 0
+	}
+	if s.quota.GroupMaxBytes > 0 {
+		for _, target := range targets {
+			before[target.GroupID] = 0
+		}
+	}
+	for group := range before {
+		used, err := measureUsage(ctx, q, group)
+		if err != nil {
+			return nil, err
+		}
+		before[group] = used
+	}
+	return before, nil
+}
+func (s *Store) checkHandoffQuota(ctx context.Context, q queryer, before map[string]int64) error {
+	for group, old := range before {
+		used, err := measureUsage(ctx, q, group)
+		if err != nil {
+			return err
+		}
+		max, scope := s.quota.GroupMaxBytes, QuotaScopeGroup
+		if group == "" {
+			max, scope = s.quota.GlobalMaxBytes, QuotaScopeGlobal
+		}
+		if used > old && s.quota.scopeState(old, max) == QuotaHard {
+			return &QuotaError{Reason: ReasonQuotaHardLimit, Scope: scope, GroupID: group, UsedBytes: old, MaxBytes: max}
+		}
+	}
+	return nil
 }

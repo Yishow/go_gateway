@@ -32,6 +32,7 @@ func latestWindowResult(member Member, selector *Selector, end time.Time) Member
 // the same engine as the per-member profile, so the raw reading and its typed
 // difference are exactly what a long record would hold.
 func (a *Assembler) finalizeWideProfile(plan *Plan, entity entityGroup, start, end time.Time, selector *Selector) Outcome {
+	_, actualEnd, _ := a.windowBounds(start, end)
 	outcome := Outcome{Kind: OutcomeRow, EntityKey: entity.key, BucketStart: start, BucketEnd: end}
 	usable, requiredGap := 0, false
 	for _, member := range entity.members {
@@ -39,7 +40,7 @@ func (a *Assembler) finalizeWideProfile(plan *Plan, entity entityGroup, start, e
 		if member.SampleReduction == SampleReductionMean {
 			result = a.meanMemberResult(member, selector, start, end)
 		} else {
-			result = latestWindowResult(member, selector, end)
+			result = latestWindowResult(member, selector, actualEnd)
 			if a.config.Mode == ModeWideCumulative && result.Usable() {
 				a.applyCounter(plan, member, start, end, selector, &result)
 			}

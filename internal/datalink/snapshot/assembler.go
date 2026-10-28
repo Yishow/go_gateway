@@ -98,7 +98,8 @@ func (a *Assembler) newSelector(start time.Time, entity string) *Selector {
 		Members:       a.memberKeys(entity),
 	})
 	if a.config.Mode.perMember() || a.config.Mode.wide() {
-		selector.eligible = a.eligibility(start.Add(a.config.Interval))
+		_, actualEnd, _ := a.windowBounds(start, start.Add(a.config.Interval))
+		selector.eligible = a.eligibility(actualEnd)
 	}
 	return selector
 }
@@ -162,6 +163,7 @@ func (a *Assembler) Plan(now time.Time) Plan {
 			if state != nil {
 				selector = state.selectors[entity.key]
 			}
+			selector = a.selectorWithinActualBounds(plan.next, entity.key, selector)
 			outcome := a.finalize(&plan, entity, plan.next, end, selector)
 			plan.Outcomes = append(plan.Outcomes, a.markTruncation(outcome))
 		}
@@ -213,12 +215,12 @@ func (a *Assembler) SetEndsAt(ends time.Time) {
 		return
 	}
 	a.config.EndsAt, a.config.Until = ends, end
+	a.rebuildActualBounds()
 }
 
 // markTruncation records the real bounds of a window that a cutover cut short.
-// What the window would have written is still written, with the cut named: the
-// accepted readings are not dropped, and a cut window is never passed off as a
-// complete one. A window already decided not to be written (an unusable required
+// Only the rebuilt eligible set contributes; a cut window is never passed off
+// as a complete one. A window already decided not to be written (an unusable required
 // member, no data) keeps that decision.
 func (a *Assembler) markTruncation(outcome Outcome) Outcome {
 	start, end, cut := a.windowBounds(outcome.BucketStart, outcome.BucketEnd)
@@ -262,13 +264,14 @@ func (a *Assembler) finalize(plan *Plan, entity entityGroup, start, end time.Tim
 		return a.finalizeWideProfile(plan, entity, start, end, selector)
 	}
 	outcome := Outcome{Kind: OutcomeRow, EntityKey: entity.key, BucketStart: start, BucketEnd: end}
+	_, actualEnd, _ := a.windowBounds(start, end)
 	observed, usable, requiredGap := 0, 0, false
 	for _, member := range entity.members {
 		result := MemberResult{MemberKey: member.Key, Status: MemberMissing, Reason: ReasonNoSamples}
 		if selector != nil {
 			if sample, ok := selector.Selected(member.Key); ok {
 				observed++
-				result = evaluateMember(member, sample, end)
+				result = evaluateMember(member, sample, actualEnd)
 			}
 		}
 		if result.Usable() {
