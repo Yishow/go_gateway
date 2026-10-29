@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/snapshot"
 )
@@ -84,6 +85,8 @@ type Closure struct {
 	// the same transaction as the outbox rows and the checkpoint, so a baseline
 	// moves exactly when the records derived from it become durable.
 	Baselines []CounterBaseline
+	// CounterProofs identify the frozen counter meaning required by this tick.
+	CounterProofs []counterproof.CounterBindingReference
 }
 
 // ErrEffectConflict marks an effect key that already exists with different content.

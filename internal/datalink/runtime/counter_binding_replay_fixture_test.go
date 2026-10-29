@@ -13,7 +13,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func counterClaimsFixture(t *testing.T, cumulative, scaled bool) (*longFixture, *groupdelivery.Store, groupdelivery.GroupKey, *GroupBoundary, time.Duration, workspace.CounterBindingProof) {
+type counterClaimsFixtureResult struct {
+	f        *longFixture
+	store    *groupdelivery.Store
+	key      groupdelivery.GroupKey
+	boundary *GroupBoundary
+	interval time.Duration
+	proof    workspace.CounterBindingProof
+}
+
+func counterClaimsFixture(t *testing.T, cumulative, scaled bool) counterClaimsFixtureResult {
 	t.Helper()
 	f, store, key, _ := counterAcceptanceFixture(t)
 	interval := counterWindow
@@ -47,7 +56,7 @@ func counterClaimsFixture(t *testing.T, cumulative, scaled bool) (*longFixture, 
 	require.NoError(t, boundary.AcceptSample(t.Context(), f.envelope(0, "baseline-1", at(time.Second), int64(120000))))
 	require.NoError(t, boundary.Tick(t.Context(), at(interval)))
 	f.clock = at(2 * interval)
-	return f, store, key, boundary, interval, proof
+	return counterClaimsFixtureResult{f: f, store: store, key: key, boundary: boundary, interval: interval, proof: proof}
 }
 
 func matchingCounterClaims(e *measurement.SampleEnvelope) {

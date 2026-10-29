@@ -25,14 +25,28 @@ type CounterReplayQuarantine struct {
 const CounterReplayRepairAction = "preserve-inputs-and-restore-original-revision-evidence-or-contact-maintenance"
 
 func isCounterProofReason(reason string) bool {
-	return reason == counterproof.ErrCounterBindingProofMissing.Error() || reason == counterproof.ErrCounterBindingProofConflict.Error() || reason == counterproof.ErrCounterBindingProofUnsupported.Error()
+	return counterProofReason(reason) != nil
+}
+
+func counterProofReason(reason string) error {
+	switch reason {
+	case counterproof.ErrCounterBindingProofMissing.Error():
+		return counterproof.ErrCounterBindingProofMissing
+	case counterproof.ErrCounterBindingProofConflict.Error():
+		return counterproof.ErrCounterBindingProofConflict
+	case counterproof.ErrCounterBindingProofUnsupported.Error():
+		return counterproof.ErrCounterBindingProofUnsupported
+	default:
+		return nil
+	}
 }
 
 // setCounterQuarantine records only a classified proof fault. State is derived
 // from durable evidence on restart and cleared only after this original scope
 // successfully validates and rebuilds; a draft or another revision cannot clear it.
 func (p *Pipeline) setCounterQuarantine(key groupdelivery.GroupKey, reason string) bool {
-	if !key.Valid() || !isCounterProofReason(reason) {
+	proofReason := counterProofReason(reason)
+	if !key.Valid() || proofReason == nil {
 		return false
 	}
 	boundaryID := boundaryKey(key.GroupID, key.GroupRevision)
@@ -55,7 +69,7 @@ func (p *Pipeline) setCounterQuarantine(key groupdelivery.GroupKey, reason strin
 			continue
 		}
 		if matches {
-			active.proofQuarantined = true
+			active.proofQuarantined = proofReason
 		}
 		p.recordCounterQuarantineLocked(key, reason)
 		p.mu.Unlock()
@@ -81,13 +95,13 @@ func (p *Pipeline) recordCounterQuarantineLocked(key groupdelivery.GroupKey, rea
 func (p *Pipeline) withCounterProofGate(m *managed, operation func() error) error {
 	m.proofGate.Lock()
 	defer m.proofGate.Unlock()
-	if m.proofQuarantined {
-		return nil
+	if m.proofQuarantined != nil {
+		return &counterproof.CounterBindingProofError{Reason: m.proofQuarantined}
 	}
 	err := operation()
 	var proof *counterproof.CounterBindingProofError
 	if errors.As(err, &proof) && proof.Reason != nil && isCounterProofReason(proof.Reason.Error()) {
-		m.proofQuarantined = true
+		m.proofQuarantined = proof.Reason
 		p.mu.Lock()
 		// A stale managed instance cannot re-quarantine a newly validated instance.
 		if p.boundaries[boundaryKey(m.groupID, m.revision)] == m {

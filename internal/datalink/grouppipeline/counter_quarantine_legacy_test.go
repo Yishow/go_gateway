@@ -24,7 +24,7 @@ func legacyQuarantineFixture(t *testing.T) *longPipeline {
 	snap.CounterBindings = nil
 	legacy, err := json.Marshal(snap)
 	require.NoError(t, err)
-	_, err = f.local.Exec(`DELETE FROM wg_runtime_versions`)
+	_, err = f.local.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions`)
 	require.NoError(t, err)
 	value, err := measurement.NewDecimal("100.0")
 	require.NoError(t, err)
@@ -39,7 +39,7 @@ func TestCounterReplayQuarantinePreservesOriginalLegacyJournalAndAssociationAudi
 	f.reconcileStatus()
 	require.Equal(t, 1, f.count(f.local, `SELECT COUNT(*) FROM wg_counter_proof_associations`))
 	// A conflicting persisted audit is evidence, not a reason to replace or delete it.
-	_, err := f.local.Exec(`UPDATE wg_counter_proof_associations SET proof_digest='conflicting-original-evidence'`)
+	_, err := f.local.ExecContext(t.Context(), `UPDATE wg_counter_proof_associations SET proof_digest='conflicting-original-evidence'`)
 	require.NoError(t, err)
 	before := counterDurableState(t, f.store)
 	reader := &unavailableExactCounterReader{}

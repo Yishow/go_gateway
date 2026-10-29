@@ -17,7 +17,8 @@ func TestCounterBindingClaimsRefuseWithoutAdvancingAcceptedState(t *testing.T) {
 	for _, cumulative := range []bool{true, false} {
 		for _, scaled := range []bool{false, true} {
 			t.Run(fmt.Sprintf("cumulative=%t/scaled=%t", cumulative, scaled), func(t *testing.T) {
-				f, store, key, boundary, interval, proof := counterClaimsFixture(t, cumulative, scaled)
+				fixture := counterClaimsFixture(t, cumulative, scaled)
+				f, store, key, boundary, interval, proof := fixture.f, fixture.store, fixture.key, fixture.boundary, fixture.interval, fixture.proof
 				initial, err := store.Restore(t.Context(), key)
 				require.NoError(t, err)
 				require.Equal(t, at(interval), initial.NextClose)

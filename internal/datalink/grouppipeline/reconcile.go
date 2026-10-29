@@ -25,9 +25,6 @@ const (
 	reasonTableUnavailable       = "destination-table-unavailable"
 	reasonTagUnavailable         = "tag-unavailable"
 	reasonIntervalInvalid        = "interval-invalid"
-	// reasonCounterSourcesUnavailable means the saved measurement definitions
-	// could not be read, which is not the same as counter semantics being unconfirmed.
-	reasonCounterSourcesUnavailable = "counter-semantics-unavailable"
 )
 
 // lookaheadFactor looks this many reconcile intervals ahead so a revision that
@@ -166,7 +163,7 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 			return nil, reasonSnapshotUnavailable
 		}
 		frozen.EndsAt = snap.EndsAt
-		return p.buildFrozen(ctx, frozen, time.Time{}, time.Time{})
+		return p.buildFrozen(ctx, frozen, time.Time{})
 	}
 	if needsCounterSources(group) {
 		return nil, "counter-replay-proof-missing"
@@ -212,7 +209,7 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 	verified.RuntimeLayout = &workspace.WriteGroupRuntimeLayout{
 		Dialect: dialect, Columns: inspection.Columns, TagTypes: tagTypes, ReceiptTableReady: receiptReady,
 	}
-	built, blockedReason = p.buildFrozen(ctx, &verified, time.Time{}, time.Time{})
+	built, blockedReason = p.buildFrozen(ctx, &verified, time.Time{})
 	if blockedReason != "" {
 		return nil, blockedReason
 	}
@@ -222,8 +219,11 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 	return built, ""
 }
 
-func (p *Pipeline) buildFrozen(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot, first, until time.Time) (*managed, string) {
-	built, reason, _ := p.buildFrozenWithCause(ctx, snap, first, until)
+func (p *Pipeline) buildFrozen(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot, first time.Time) (built *managed, reason string) {
+	built, reason, err := p.buildFrozenWithCause(ctx, snap, first, time.Time{})
+	if err != nil {
+		return nil, reason
+	}
 	return built, reason
 }
 

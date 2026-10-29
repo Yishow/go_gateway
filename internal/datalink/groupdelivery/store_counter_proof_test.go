@@ -89,11 +89,11 @@ func TestCounterProofJournalLegacyResendKeepsOriginalBytes(t *testing.T) {
 	legacy.CounterProof = counterproof.CounterBindingReference{}
 	require.NoError(t, store.AppendSample(t.Context(), testKey, t0, legacy))
 	var before, digest string
-	require.NoError(t, db.QueryRow(`SELECT payload, payload_digest FROM wg_delivery_samples`).Scan(&before, &digest))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload, payload_digest FROM wg_delivery_samples`).Scan(&before, &digest))
 	require.NoError(t, store.SaveRuntimeVersion(t.Context(), testKey, runtimePayload))
 	require.NoError(t, store.AppendSample(t.Context(), testKey, t0, sample), "a duplicate does not migrate or relabel legacy history")
 	var after, afterDigest string
-	require.NoError(t, db.QueryRow(`SELECT payload, payload_digest FROM wg_delivery_samples`).Scan(&after, &afterDigest))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload, payload_digest FROM wg_delivery_samples`).Scan(&after, &afterDigest))
 	require.Equal(t, before, after)
 	require.Equal(t, digest, afterDigest)
 	require.Equal(t, 1, countRows(t, db, "wg_delivery_samples"))
@@ -106,7 +106,7 @@ func TestCounterProofJournalRestoreRejectsChangedPayloadOrDigest(t *testing.T) {
 			_, sample, payload := journalProofFixture(t)
 			require.NoError(t, store.SaveRuntimeVersion(t.Context(), testKey, payload))
 			require.NoError(t, store.AppendSample(t.Context(), testKey, t0, sample))
-			_, err := db.Exec(`UPDATE wg_delivery_samples SET ` + change)
+			_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_samples SET `+change)
 			require.NoError(t, err)
 			_, err = store.Restore(t.Context(), testKey)
 			require.ErrorIs(t, err, counterproof.ErrCounterBindingProofConflict)
@@ -139,7 +139,7 @@ func TestCounterProofJournalRestoreRequiresOriginalReferenceEvidence(t *testing.
 	_, sample, payload := journalProofFixture(t)
 	require.NoError(t, store.SaveRuntimeVersion(t.Context(), testKey, payload))
 	require.NoError(t, store.AppendSample(t.Context(), testKey, t0, sample))
-	_, err := db.Exec(`DELETE FROM wg_runtime_versions`)
+	_, err := db.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions`)
 	require.NoError(t, err)
 	_, err = store.Restore(t.Context(), testKey)
 	require.ErrorIs(t, err, counterproof.ErrCounterBindingProofMissing)

@@ -14,7 +14,7 @@ import (
 func firstCounterEffect(t *testing.T, f *longPipeline) groupdelivery.OutboxItem {
 	t.Helper()
 	var effect string
-	require.NoError(t, f.local.QueryRow(`SELECT effect_key FROM wg_delivery_outbox WHERE group_id=? AND entity_key=? ORDER BY bucket_start LIMIT 1`, f.group.ID, `["device-1","point-1","tag-kwh-1"]`).Scan(&effect))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox WHERE group_id=? AND entity_key=? ORDER BY bucket_start LIMIT 1`, f.group.ID, `["device-1","point-1","tag-kwh-1"]`).Scan(&effect))
 	item, err := f.store.GetOutbox(t.Context(), effect)
 	require.NoError(t, err)
 	return item
@@ -63,13 +63,13 @@ func TestCounterFinalizedDeliveryRetainsMixedBacklogAndIndependentReceipts(t *te
 			require.Equal(t, original.PayloadDigest, after.PayloadDigest)
 			require.Equal(t, original.Destination, after.Destination)
 			var raw, unit, epoch string
-			require.NoError(t, f.plainTarget().QueryRow(`SELECT CAST(value_decimal AS TEXT),unit,series_epoch FROM `+f.table+` WHERE record_id=?`, original.RecordID).Scan(&raw, &unit, &epoch))
+			require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT CAST(value_decimal AS TEXT),unit,series_epoch FROM `+f.table+` WHERE record_id=?`, original.RecordID).Scan(&raw, &unit, &epoch))
 			require.Equal(t, []string{"100", "kWh", "epoch-1"}, []string{raw, unit, epoch})
 			require.Equal(t, 1, f.count(f.plainTarget(), `SELECT COUNT(*) FROM `+f.table))
 			var receipts int
-			require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_receipts WHERE effect_key=? AND payload_digest=?`, original.EffectKey, original.PayloadDigest).Scan(&receipts))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_receipts WHERE effect_key=? AND payload_digest=?`, original.EffectKey, original.PayloadDigest).Scan(&receipts))
 			require.Equal(t, 1, receipts)
-			require.NoError(t, f.plainTarget().QueryRow(`SELECT COUNT(*) FROM gw_effect_receipts WHERE effect_key=? AND payload_digest=?`, original.EffectKey, original.PayloadDigest).Scan(&receipts))
+			require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM gw_effect_receipts WHERE effect_key=? AND payload_digest=?`, original.EffectKey, original.PayloadDigest).Scan(&receipts))
 			require.Equal(t, 1, receipts, "lost ACK retry retains exactly one matching destination receipt")
 			current := counterDurableState(t, f.store)
 			for _, table := range []string{"wg_delivery_samples", "wg_delivery_checkpoints", "wg_delivery_counter_baselines", "wg_runtime_versions", "wg_counter_proof_associations"} {
@@ -79,7 +79,7 @@ func TestCounterFinalizedDeliveryRetainsMixedBacklogAndIndependentReceipts(t *te
 			f.closeUntil(at(1200))
 			f.deliver()
 			var healthyRows int
-			require.NoError(t, f.plainTarget().QueryRow(`SELECT COUNT(*) FROM `+f.table+` WHERE group_id='healthy-group' AND tag_id='healthy-tag' AND CAST(value_decimal AS TEXT)='7' AND unit='kWh' AND series_epoch='epoch-1'`).Scan(&healthyRows))
+			require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+f.table+` WHERE group_id='healthy-group' AND tag_id='healthy-tag' AND CAST(value_decimal AS TEXT)='7' AND unit='kWh' AND series_epoch='epoch-1'`).Scan(&healthyRows))
 			require.Equal(t, 1, healthyRows)
 			view, err := f.pipe.Delivery(t.Context(), f.group.ID)
 			require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestCounterFinalizedDeliveryRetainsMixedBacklogAndIndependentReceipts(t *te
 			require.Equal(t, baselineEnd, finalEnd)
 			require.Equal(t, baselinePayload, finalBaseline)
 			var nextClose string
-			require.NoError(t, f.local.QueryRow(`SELECT next_close FROM wg_delivery_checkpoints WHERE group_id='group-C' AND group_revision='rev-1'`).Scan(&nextClose))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT next_close FROM wg_delivery_checkpoints WHERE group_id='group-C' AND group_revision='rev-1'`).Scan(&nextClose))
 			require.Equal(t, "2026-01-01T00:10:00.000000000Z", nextClose, "healthy closure and finalized delivery cannot advance quarantined inputs")
 			require.Zero(t, reader.calls)
 		})
@@ -108,7 +108,7 @@ func TestCounterFinalizedProofDamageDoesNotBypassStorageRepairGate(t *testing.T)
 			f.closeUntil(at(600))
 			original := firstCounterEffect(t, f)
 			scope := workspace.StorageScopeOf(f.group)
-			_, err := f.local.Exec(`INSERT INTO write_group_storage_scopes (workspace_id,connector_id,database_name,table_schema,storage_mode,layout_version,table_name,owner_column,layout_digest,repair_state) VALUES (?,?,?,?,?,?,?,?,?,?)`, scope.WorkspaceID, scope.ConnectorID, scope.Database, scope.TableSchema, scope.StorageMode, scope.LayoutVersion, f.table, "owner", "original-layout", recordingplan.StorageRepairStateBlocked)
+			_, err := f.local.ExecContext(t.Context(), `INSERT INTO write_group_storage_scopes (workspace_id,connector_id,database_name,table_schema,storage_mode,layout_version,table_name,owner_column,layout_digest,repair_state) VALUES (?,?,?,?,?,?,?,?,?,?)`, scope.WorkspaceID, scope.ConnectorID, scope.Database, scope.TableSchema, scope.StorageMode, scope.LayoutVersion, f.table, "owner", "original-layout", recordingplan.StorageRepairStateBlocked)
 			require.NoError(t, err)
 			damageCounterProof(t, f, reason)
 			result, err := counterFinalizedSender(f).Deliver(t.Context(), original.EffectKey)

@@ -1,10 +1,12 @@
 package workspace
 
 import (
-	"github.com/stretchr/testify/require"
+	"testing"
+
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
-	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Validation deliberately leaves tagTypes empty after rejecting the original

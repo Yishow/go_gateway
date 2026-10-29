@@ -72,7 +72,7 @@ func TestCounterEpochReplayKeepsOldBacklogAndNewOwnerIndependent(t *testing.T) {
 					original, err := json.Marshal(old)
 					require.NoError(t, err)
 					// Fixture construction only: no samples, checkpoints or effects exist yet.
-					_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_revision='rev-1'`, string(original))
+					_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_revision='rev-1'`, string(original))
 					require.NoError(t, err)
 					f.group, f.snapshot = old.Group, old
 					f.groups.groups, f.groups.snapshots = []*workspace.WriteGroup{old.Group}, map[string][]*workspace.WriteGroupAppliedSnapshot{old.GroupID: {old}}
@@ -134,7 +134,7 @@ func TestCounterEpochReplayKeepsOldBacklogAndNewOwnerIndependent(t *testing.T) {
 					var unit *string
 					var raw string
 					var delta *string
-					require.NoError(t, f.plainTarget().QueryRow(`SELECT unit, CAST(value_decimal AS TEXT), CAST(delta_value AS TEXT) FROM `+f.table+` WHERE group_revision='rev-2' AND tag_id=?`, longKwhFirst).Scan(&unit, &raw, &delta))
+					require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT unit, CAST(value_decimal AS TEXT), CAST(delta_value AS TEXT) FROM `+f.table+` WHERE group_revision='rev-2' AND tag_id=?`, longKwhFirst).Scan(&unit, &raw, &delta))
 					if newRaw {
 						require.Nil(t, unit)
 					} else {
@@ -148,7 +148,7 @@ func TestCounterEpochReplayKeepsOldBacklogAndNewOwnerIndependent(t *testing.T) {
 					}
 					require.Equal(t, want, raw)
 					var oldUnit, oldEpoch, oldDelta *string
-					require.NoError(t, f.plainTarget().QueryRow(`SELECT unit,series_epoch,CAST(delta_value AS TEXT) FROM `+f.table+` WHERE group_revision='rev-1' AND tag_id=? AND bucket_start=?`, longKwhFirst, at(600).Format(longTime)).Scan(&oldUnit, &oldEpoch, &oldDelta))
+					require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT unit,series_epoch,CAST(delta_value AS TEXT) FROM `+f.table+` WHERE group_revision='rev-1' AND tag_id=? AND bucket_start=?`, longKwhFirst, at(600).Format(longTime)).Scan(&oldUnit, &oldEpoch, &oldDelta))
 					if oldRaw {
 						require.Nil(t, oldUnit)
 						require.Nil(t, oldEpoch)
@@ -191,7 +191,7 @@ func TestCounterEpochReplayKeepsOldBacklogAndNewOwnerIndependent(t *testing.T) {
 
 func assertEpochReplayRows(t *testing.T, f *longPipeline, oldRaw, newRaw, scaled bool) {
 	t.Helper()
-	rows, err := f.local.Query(`SELECT group_revision,payload FROM wg_delivery_outbox ORDER BY group_revision,bucket_start`)
+	rows, err := f.local.QueryContext(t.Context(), `SELECT group_revision,payload FROM wg_delivery_outbox ORDER BY group_revision,bucket_start`)
 	require.NoError(t, err)
 	defer rows.Close()
 	got := map[string][]map[string]any{}
@@ -246,7 +246,7 @@ func assertEpochReplayRows(t *testing.T, f *longPipeline, oldRaw, newRaw, scaled
 	}
 	for revision, raw := range map[string]bool{"rev-1": oldRaw, "rev-2": newRaw} {
 		var count int
-		require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_counter_baselines WHERE group_revision=?`, revision).Scan(&count))
+		require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_counter_baselines WHERE group_revision=?`, revision).Scan(&count))
 		want := 1
 		if raw {
 			want = 0

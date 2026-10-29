@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func legacyAssociationFixture(t *testing.T) (*Store, string, []byte, []counterproof.CounterBindingReference) {
+func legacyAssociationFixture(t *testing.T) (store *Store, path string, descriptorBytes []byte, refs []counterproof.CounterBindingReference) {
 	t.Helper()
-	store, _, path := newTestStore(t)
+	store, _, path = newTestStore(t)
 	store.now = func() time.Time { return at(100) }
 	for i, digits := range []string{"12000.0", "12000.4"} {
 		value, err := measurement.NewDecimal(digits)
@@ -29,7 +29,7 @@ func legacyAssociationFixture(t *testing.T) (*Store, string, []byte, []counterpr
 	require.NoError(t, store.SaveRuntimeVersion(t.Context(), testKey, []byte(descriptor)))
 	proofs, err := counterproof.ResolveSnapshot([]byte(descriptor), counterproof.SnapshotScope{WorkspaceID: "workspace-A", GroupID: "group-G", AppliedRevision: "rev-1"})
 	require.NoError(t, err)
-	refs := []counterproof.CounterBindingReference{}
+	refs = make([]counterproof.CounterBindingReference, 0, len(proofs))
 	for _, proof := range proofs {
 		ref, err := proof.Reference()
 		require.NoError(t, err)
@@ -40,7 +40,7 @@ func legacyAssociationFixture(t *testing.T) (*Store, string, []byte, []counterpr
 
 func associationJournal(t *testing.T, store *Store) []string {
 	t.Helper()
-	rows, err := store.DB().Query(`SELECT sample_id || '|' || payload || '|' || payload_digest || '|' || consumed || '|' || created_at FROM wg_delivery_samples ORDER BY seq`)
+	rows, err := store.DB().QueryContext(t.Context(), `SELECT sample_id || '|' || payload || '|' || payload_digest || '|' || consumed || '|' || created_at FROM wg_delivery_samples ORDER BY seq`)
 	require.NoError(t, err)
 	defer rows.Close()
 	var values []string
@@ -58,7 +58,7 @@ func TestLegacyCounterProofAssociationKeepsOriginalAcceptance(t *testing.T) {
 	before := associationJournal(t, store)
 	const original = `{"sample_id":"c-1","member_key":"[\"device-1\",\"point-1\",\"tag-1\"]","observed_at":"2026-01-01T00:00:02Z","quality":"good","value":{"type":"decimal","encoding":"decimal-string","value":"12000.0"},"source_revision":"src-1","mapping_revision":"map-1"}`
 	var payload, digest string
-	require.NoError(t, store.DB().QueryRow(`SELECT payload,payload_digest FROM wg_delivery_samples WHERE sample_id='c-1'`).Scan(&payload, &digest))
+	require.NoError(t, store.DB().QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_samples WHERE sample_id='c-1'`).Scan(&payload, &digest))
 	require.Equal(t, original, payload)
 	sum := sha256.Sum256([]byte(original))
 	require.Equal(t, hex.EncodeToString(sum[:]), digest)
@@ -71,7 +71,7 @@ func TestLegacyCounterProofAssociationKeepsOriginalAcceptance(t *testing.T) {
 	require.Equal(t, descriptor, stored)
 	var member, proofDigest, evidence, accepted string
 	var version, associationVersion, seq int
-	require.NoError(t, store.DB().QueryRow(`SELECT proof_member_key,proof_version,proof_digest,evidence_kind,accepted_at,association_version,sample_seq FROM wg_counter_proof_associations WHERE sample_id='c-1'`).Scan(&member, &version, &proofDigest, &evidence, &accepted, &associationVersion, &seq))
+	require.NoError(t, store.DB().QueryRowContext(t.Context(), `SELECT proof_member_key,proof_version,proof_digest,evidence_kind,accepted_at,association_version,sample_seq FROM wg_counter_proof_associations WHERE sample_id='c-1'`).Scan(&member, &version, &proofDigest, &evidence, &accepted, &associationVersion, &seq))
 	require.Equal(t, `["workspace-A","group-G","rev-1","device-1","point-1","tag-1"]`, member)
 	require.Equal(t, 1, version)
 	require.Equal(t, 1, associationVersion)
@@ -80,7 +80,7 @@ func TestLegacyCounterProofAssociationKeepsOriginalAcceptance(t *testing.T) {
 	require.Equal(t, 1, seq)
 	require.Equal(t, "e8eba372c5147ae6486978cbd7771c47d4592216525ed0adce5d10b39a552551", proofDigest)
 	var runtimeDigest, sampleDigest, associatedAt string
-	require.NoError(t, store.DB().QueryRow(`SELECT runtime_digest,sample_digest,associated_at FROM wg_counter_proof_associations WHERE sample_id='c-1'`).Scan(&runtimeDigest, &sampleDigest, &associatedAt))
+	require.NoError(t, store.DB().QueryRowContext(t.Context(), `SELECT runtime_digest,sample_digest,associated_at FROM wg_counter_proof_associations WHERE sample_id='c-1'`).Scan(&runtimeDigest, &sampleDigest, &associatedAt))
 	evidenceSum := sha256.Sum256(descriptor)
 	require.Equal(t, hex.EncodeToString(evidenceSum[:]), runtimeDigest)
 	require.Equal(t, digest, sampleDigest)
@@ -107,7 +107,7 @@ func TestLegacyCounterProofAssociationKeepsOriginalAcceptance(t *testing.T) {
 
 func associationAudit(t *testing.T, store *Store) []string {
 	t.Helper()
-	rows, err := store.DB().Query(`SELECT workspace_id || '|' || group_id || '|' || group_revision || '|' || sample_id || '|' || sample_seq || '|' || sample_digest || '|' || accepted_at || '|' || member_key || '|' || proof_member_key || '|' || proof_version || '|' || proof_digest || '|' || runtime_digest || '|' || evidence_kind || '|' || association_version || '|' || associated_at FROM wg_counter_proof_associations ORDER BY sample_seq`)
+	rows, err := store.DB().QueryContext(t.Context(), `SELECT workspace_id || '|' || group_id || '|' || group_revision || '|' || sample_id || '|' || sample_seq || '|' || sample_digest || '|' || accepted_at || '|' || member_key || '|' || proof_member_key || '|' || proof_version || '|' || proof_digest || '|' || runtime_digest || '|' || evidence_kind || '|' || association_version || '|' || associated_at FROM wg_counter_proof_associations ORDER BY sample_seq`)
 	require.NoError(t, err)
 	defer rows.Close()
 	var values []string

@@ -112,6 +112,6 @@ func TestCounterReplayQuarantineGateDoesNotSerializeUnrelatedIntake(t *testing.T
 	}
 	// A previously captured operation cannot execute after the gate is closed.
 	called := false
-	require.NoError(t, f.pipe.withCounterProofGate(old, func() error { called = true; return nil }))
+	require.ErrorIs(t, f.pipe.withCounterProofGate(old, func() error { called = true; return nil }), counterproof.ErrCounterBindingProofMissing)
 	require.False(t, called)
 }

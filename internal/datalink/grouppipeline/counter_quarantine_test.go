@@ -17,7 +17,7 @@ func counterDurableState(t *testing.T, store *groupdelivery.Store) map[string][]
 	t.Helper()
 	state := map[string][]string{}
 	for _, table := range []string{"wg_delivery_samples", "wg_delivery_checkpoints", "wg_delivery_counter_baselines", "wg_delivery_outbox", "wg_runtime_versions", "wg_counter_proof_associations"} {
-		rows, err := store.DB().Query(`SELECT * FROM ` + table + ` ORDER BY rowid`)
+		rows, err := store.DB().QueryContext(t.Context(), `SELECT * FROM `+table+` ORDER BY rowid`)
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)
@@ -58,7 +58,7 @@ func damageCounterProof(t *testing.T, f *longPipeline, reason string) {
 	}
 	corrupted, err := json.Marshal(descriptor)
 	require.NoError(t, err)
-	_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(corrupted), f.group.ID, f.group.Revision)
+	_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(corrupted), f.group.ID, f.group.Revision)
 	require.NoError(t, err)
 }
 

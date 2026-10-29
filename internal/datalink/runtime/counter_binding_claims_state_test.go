@@ -18,7 +18,8 @@ func TestCounterBindingClaimsRequireCompleteFrozenIdentity(t *testing.T) {
 		"epoch":       func(c *counterClaimIdentity) { c.seriesEpoch = "" },
 	} {
 		t.Run(name, func(t *testing.T) {
-			f, store, key, boundary, interval, proof := counterClaimsFixture(t, true, false)
+			fixture := counterClaimsFixture(t, true, false)
+			f, store, key, boundary, interval, proof := fixture.f, fixture.store, fixture.key, fixture.boundary, fixture.interval, fixture.proof
 			memberKey := proof.Member.SampleMemberKey()
 			member := boundary.members[memberKey]
 			remove(&member.counterClaims)
@@ -36,7 +37,8 @@ func TestCounterBindingClaimsRequireCompleteFrozenIdentity(t *testing.T) {
 }
 
 func TestCounterBindingClaimsCopyAppliedIdentityNotCallerConfig(t *testing.T) {
-	f, store, key, boundary, interval, original := counterClaimsFixture(t, true, false)
+	fixture := counterClaimsFixture(t, true, false)
+	f, store, key, boundary, interval, original := fixture.f, fixture.store, fixture.key, fixture.boundary, fixture.interval, fixture.proof
 	facts := original.CounterBindingFacts
 	facts.DefinitionRevision, facts.SeriesEpoch = "def-2", "epoch-2"
 	changed, err := workspace.NewCounterBindingProof(facts)

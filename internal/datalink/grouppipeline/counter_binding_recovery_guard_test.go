@@ -55,9 +55,9 @@ func TestCounterBindingRecoveryRefusesUntrustedProofWithoutConsuming(t *testing.
 			require.Len(t, before.Samples, 1)
 			require.Len(t, before.Baselines, 1)
 			var sample, digest, baseline, checkpoint string
-			require.NoError(t, f.local.QueryRow(`SELECT payload,payload_digest FROM wg_delivery_samples WHERE consumed=0`).Scan(&sample, &digest))
-			require.NoError(t, f.local.QueryRow(`SELECT payload FROM wg_delivery_counter_baselines`).Scan(&baseline))
-			require.NoError(t, f.local.QueryRow(`SELECT next_close FROM wg_delivery_checkpoints`).Scan(&checkpoint))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_samples WHERE consumed=0`).Scan(&sample, &digest))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload FROM wg_delivery_counter_baselines`).Scan(&baseline))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT next_close FROM wg_delivery_checkpoints`).Scan(&checkpoint))
 			payload, err := f.store.RuntimeVersion(t.Context(), key)
 			require.NoError(t, err)
 			var fields map[string]any
@@ -65,16 +65,16 @@ func TestCounterBindingRecoveryRefusesUntrustedProofWithoutConsuming(t *testing.
 			tc.mutate(fields)
 			corrupted, err := json.Marshal(fields)
 			require.NoError(t, err)
-			_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=?`, string(corrupted))
+			_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=?`, string(corrupted))
 			require.NoError(t, err)
 			status := f.reconcileStatus()
 			require.Equal(t, StateBlocked, status.State)
 			require.Equal(t, tc.reason, status.Reason)
 			f.closeUntil(at(1200))
 			var afterSample, afterDigest, afterBaseline, afterCheckpoint string
-			require.NoError(t, f.local.QueryRow(`SELECT payload,payload_digest FROM wg_delivery_samples WHERE consumed=0`).Scan(&afterSample, &afterDigest))
-			require.NoError(t, f.local.QueryRow(`SELECT payload FROM wg_delivery_counter_baselines`).Scan(&afterBaseline))
-			require.NoError(t, f.local.QueryRow(`SELECT next_close FROM wg_delivery_checkpoints`).Scan(&afterCheckpoint))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_samples WHERE consumed=0`).Scan(&afterSample, &afterDigest))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload FROM wg_delivery_counter_baselines`).Scan(&afterBaseline))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT next_close FROM wg_delivery_checkpoints`).Scan(&afterCheckpoint))
 			require.Equal(t, sample, afterSample)
 			require.Equal(t, digest, afterDigest)
 			require.Equal(t, baseline, afterBaseline)
@@ -98,7 +98,7 @@ func TestCounterBindingLegacyExactJournalUsesOriginalBytes(t *testing.T) {
 	require.NoError(t, err)
 	// Seed an actual pre-format journal while its legacy descriptor is absent.
 	// The complete original exact descriptor is then restored, never current defs.
-	_, err = f.local.Exec(`DELETE FROM wg_runtime_versions`)
+	_, err = f.local.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions`)
 	require.NoError(t, err)
 	value, err := measurement.NewDecimal("100.0")
 	require.NoError(t, err)
@@ -106,7 +106,7 @@ func TestCounterBindingLegacyExactJournalUsesOriginalBytes(t *testing.T) {
 	require.NoError(t, f.store.AppendSample(t.Context(), key, at(0), sample))
 	require.NoError(t, f.store.SaveRuntimeVersion(t.Context(), key, legacy))
 	var original, digest string
-	require.NoError(t, f.local.QueryRow(`SELECT payload,payload_digest FROM wg_delivery_samples`).Scan(&original, &digest))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_samples`).Scan(&original, &digest))
 	require.NotContains(t, original, "counter_proof")
 	require.NotContains(t, original, `"version"`)
 	reader := &unavailableExactCounterReader{}
@@ -114,21 +114,21 @@ func TestCounterBindingLegacyExactJournalUsesOriginalBytes(t *testing.T) {
 	f.pipe.boundaries = map[string]*managed{}
 	require.NoError(t, f.pipe.Reconcile(t.Context()))
 	var associations int
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_counter_proof_associations`).Scan(&associations))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_counter_proof_associations`).Scan(&associations))
 	require.Equal(t, 1, associations, "legacy activation must durably associate before duplicate ACK")
 	require.Equal(t, StateActive, f.statusOf().State)
 	require.NoError(t, f.reading(0, "legacy-c-1", at(1), 1000), "identical resend is not a new association or rewritten identity")
 	f.closeUntil(at(600))
 	require.Zero(t, reader.calls)
 	var after, afterDigest string
-	require.NoError(t, f.local.QueryRow(`SELECT payload,payload_digest FROM wg_delivery_samples`).Scan(&after, &afterDigest))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_samples`).Scan(&after, &afterDigest))
 	require.Equal(t, original, after)
 	require.Equal(t, digest, afterDigest)
 	persisted, err := f.store.RuntimeVersion(t.Context(), key)
 	require.NoError(t, err)
 	require.Equal(t, legacy, persisted)
 	var output string
-	require.NoError(t, f.local.QueryRow(`SELECT payload FROM wg_delivery_outbox WHERE payload LIKE '%legacy-c-1%'`).Scan(&output))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload FROM wg_delivery_outbox WHERE payload LIKE '%legacy-c-1%'`).Scan(&output))
 	row, err := groupdelivery.DecodeRowPayload([]byte(output))
 	require.NoError(t, err)
 	cells := map[string]any{}
@@ -151,13 +151,13 @@ func TestCounterBindingLegacyUnscaledJournalCannotBorrowCurrentDefinition(t *tes
 	snap.CounterBindings = nil
 	legacy, err := json.Marshal(snap)
 	require.NoError(t, err)
-	_, err = f.local.Exec(`DELETE FROM wg_runtime_versions`)
+	_, err = f.local.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions`)
 	require.NoError(t, err)
 	sample := snapshot.Sample{SampleID: "legacy-c-1", MemberKey: `["device-1","point-1","tag-kwh-1"]`, ObservedAt: at(1), Quality: schema.QualityGood, Value: measurement.NewUint64(100), SourceRevision: "src-1", MappingRevision: "map-1"}
 	require.NoError(t, f.store.AppendSample(t.Context(), key, at(0), sample))
 	require.NoError(t, f.store.SaveRuntimeVersion(t.Context(), key, legacy))
 	var payload, digest string
-	require.NoError(t, f.local.QueryRow(`SELECT payload,payload_digest FROM wg_delivery_samples`).Scan(&payload, &digest))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_samples`).Scan(&payload, &digest))
 	// Current editable def-2 is not evidence for this original legacy input.
 	current := f.counters.sources[longKwhFirst]
 	current.DefinitionRevision = "def-2"
@@ -171,7 +171,7 @@ func TestCounterBindingLegacyUnscaledJournalCannotBorrowCurrentDefinition(t *tes
 	require.Zero(t, reader.calls)
 	require.False(t, f.pipe.WantsSample("device-1", "point-1", longKwhFirst), "there is no assembler whose duplicate path could ACK unproven history")
 	var after, afterDigest string
-	require.NoError(t, f.local.QueryRow(`SELECT payload,payload_digest FROM wg_delivery_samples WHERE consumed=0`).Scan(&after, &afterDigest))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_samples WHERE consumed=0`).Scan(&after, &afterDigest))
 	require.Equal(t, payload, after)
 	require.Equal(t, digest, afterDigest)
 	require.Zero(t, f.count(f.local, `SELECT COUNT(*) FROM wg_delivery_checkpoints`))

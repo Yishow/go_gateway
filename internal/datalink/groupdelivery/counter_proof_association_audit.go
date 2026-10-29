@@ -19,10 +19,10 @@ type legacyProofAssociation struct {
 	AssociatedAt                                        string
 }
 
-func insertLegacyAssociation(ctx context.Context, tx *sql.Tx, want legacyProofAssociation) error {
+func validateLegacyAssociation(ctx context.Context, tx *sql.Tx, want legacyProofAssociation) (bool, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT workspace_id,group_id,group_revision,sample_id,sample_seq,sample_digest,accepted_at,member_key,proof_member_key,proof_version,proof_digest,runtime_digest,evidence_kind,association_version,associated_at FROM wg_counter_proof_associations WHERE sample_seq=? OR (workspace_id=? AND group_id=? AND group_revision=? AND sample_id=?)`, want.SampleSeq, want.WorkspaceID, want.GroupID, want.GroupRevision, want.SampleID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	exists := false
 	for rows.Next() {
@@ -46,6 +46,14 @@ func insertLegacyAssociation(ctx context.Context, tx *sql.Tx, want legacyProofAs
 		exists = true
 	}
 	err = errors.Join(err, rows.Err(), rows.Close())
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func insertLegacyAssociation(ctx context.Context, tx *sql.Tx, want legacyProofAssociation) error {
+	exists, err := validateLegacyAssociation(ctx, tx, want)
 	if err != nil {
 		return err
 	}

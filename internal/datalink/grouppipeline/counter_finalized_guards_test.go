@@ -56,13 +56,13 @@ func TestCounterFinalizedDamagedProofDoesNotAuthorizeInvalidOutputOrStorage(t *t
 			case "payload digest":
 				tampered := strings.ReplaceAll(string(original.Payload), `"kWh"`, `"MWh"`)
 				require.NotEqual(t, string(original.Payload), tampered)
-				_, err := f.local.Exec(`UPDATE wg_delivery_outbox SET payload=? WHERE effect_key=?`, tampered, original.EffectKey)
+				_, err := f.local.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET payload=? WHERE effect_key=?`, tampered, original.EffectKey)
 				require.NoError(t, err)
 				code = "payload-digest-mismatch"
 			case "destination":
-				_, err := f.dest.target.Exec(`CREATE TABLE forged_sink AS SELECT * FROM ` + f.table + ` WHERE 0`)
+				_, err := f.dest.target.ExecContext(t.Context(), `CREATE TABLE forged_sink AS SELECT * FROM `+f.table+` WHERE 0`)
 				require.NoError(t, err)
-				_, err = f.local.Exec(`UPDATE wg_delivery_outbox SET table_name='forged_sink' WHERE effect_key=?`, original.EffectKey)
+				_, err = f.local.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET table_name='forged_sink' WHERE effect_key=?`, original.EffectKey)
 				require.NoError(t, err)
 			case "owner marker":
 				raw, err := f.store.RuntimeVersion(t.Context(), groupKey(f.snapshot))
@@ -79,13 +79,13 @@ func TestCounterFinalizedDamagedProofDoesNotAuthorizeInvalidOutputOrStorage(t *t
 				}
 				raw, err = json.Marshal(snap)
 				require.NoError(t, err)
-				_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=?`, string(raw))
+				_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=?`, string(raw))
 				require.NoError(t, err)
 			case "scope alias":
 				raw, err := f.store.RuntimeVersion(t.Context(), groupKey(f.snapshot))
 				require.NoError(t, err)
 				raw = append(raw[:len(raw)-1], []byte(`,"Workspace_ID":"foreign"}`)...)
-				_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=?`, string(raw))
+				_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=?`, string(raw))
 				require.NoError(t, err)
 			}
 			result, err := counterFinalizedSender(f).Deliver(t.Context(), original.EffectKey)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/snapshot"
@@ -11,6 +12,58 @@ import (
 
 func sampleProofError(reason error) error {
 	return &counterproof.CounterBindingProofError{Reason: reason}
+}
+
+func verifyExistingSample(ctx context.Context, tx *sql.Tx, key GroupKey, sample snapshot.Sample, digest string) (snapshot.Sample, bool, error) {
+	var existing, payload, workspaceID string
+	err := tx.QueryRowContext(ctx,
+		`SELECT payload_digest, payload, workspace_id FROM wg_delivery_samples WHERE group_id = ? AND group_revision = ? AND sample_id = ?`,
+		key.GroupID, key.GroupRevision, sample.SampleID).Scan(&existing, &payload, &workspaceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return snapshot.Sample{}, false, nil
+	}
+	if err != nil {
+		return snapshot.Sample{}, false, fmt.Errorf("check journal sample: %w", err)
+	}
+	if workspaceID != key.WorkspaceID {
+		return snapshot.Sample{}, true, sampleProofError(counterproof.ErrCounterBindingProofConflict)
+	}
+	previous, err := decodeVerifiedSample(payload, existing)
+	if err != nil {
+		return snapshot.Sample{}, true, err
+	}
+	if existing != digest && !sameLegacySample(previous, sample, existing) {
+		return snapshot.Sample{}, true, ErrSampleConflict
+	}
+	return previous, true, verifySampleProof(ctx, tx, key, sample, false)
+}
+
+// VerifyCounterDuplicate checks an already accepted sample without recreating
+// a missing journal entry or changing its original bytes.
+func (s *Store) VerifyCounterDuplicate(ctx context.Context, key GroupKey, sample snapshot.Sample) error {
+	if !key.Valid() {
+		return ErrInvalidGroupKey
+	}
+	if sample.CounterProof.IsZero() {
+		return sampleProofError(counterproof.ErrCounterBindingProofMissing)
+	}
+	_, digest, err := encodeSample(sample)
+	if err != nil {
+		return err
+	}
+	return s.inTx(ctx, "counter duplicate", func(tx *sql.Tx) error {
+		previous, found, err := verifyExistingSample(ctx, tx, key, sample, digest)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return sampleProofError(counterproof.ErrCounterBindingProofMissing)
+		}
+		if previous.CounterProof.IsZero() {
+			return verifyLegacyDuplicateAssociation(ctx, tx, key, sample)
+		}
+		return nil
+	})
 }
 
 type proofQuery interface {

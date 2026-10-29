@@ -47,25 +47,9 @@ func (s *Store) AppendSample(ctx context.Context, key GroupKey, bucketStart time
 		return err
 	}
 	err = s.inTx(ctx, "journal", func(tx *sql.Tx) error {
-		var existing, storedPayload, workspaceID string
-		err := tx.QueryRowContext(ctx,
-			`SELECT payload_digest, payload, workspace_id FROM wg_delivery_samples WHERE group_id = ? AND group_revision = ? AND sample_id = ?`,
-			key.GroupID, key.GroupRevision, sample.SampleID).Scan(&existing, &storedPayload, &workspaceID)
-		switch {
-		case err == nil:
-			if workspaceID != key.WorkspaceID {
-				return sampleProofError(counterproof.ErrCounterBindingProofConflict)
-			}
-			previous, err := decodeVerifiedSample(storedPayload, existing)
-			if err != nil {
-				return err
-			}
-			if existing == digest || sameLegacySample(previous, sample, existing) {
-				return verifySampleProof(ctx, tx, key, sample, false)
-			}
-			return ErrSampleConflict
-		case !errors.Is(err, sql.ErrNoRows):
-			return fmt.Errorf("check journal sample: %w", err)
+		_, found, err := verifyExistingSample(ctx, tx, key, sample, digest)
+		if err != nil || found {
+			return err
 		}
 		if err := verifySampleProof(ctx, tx, key, sample, true); err != nil {
 			return err

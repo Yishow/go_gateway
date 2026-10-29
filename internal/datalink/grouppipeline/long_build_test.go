@@ -133,9 +133,10 @@ func TestCumulativeLongGroupNeedsOriginalCounterProof(t *testing.T) {
 		t.Run("valid frozen proof survives provider "+change, func(t *testing.T) {
 			f := newLongPipeline(t)
 			var provider CounterSources
-			if change == "deleted" {
+			switch change {
+			case "deleted":
 				provider = confirmedCounters{}
-			} else if change == "outage" {
+			case "outage":
 				provider = NewMeasurementCounterSources(failingDefinitions{})
 			}
 			f.pipe = New(Dependencies{Groups: f.groups, Destinations: f.dest, Store: f.store, Counters: provider}, Config{Now: func() time.Time { return f.clock }})

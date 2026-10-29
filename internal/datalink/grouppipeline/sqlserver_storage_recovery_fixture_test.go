@@ -90,7 +90,7 @@ func newSQLServerRepairFixtureWith(t *testing.T, edit func(*workspace.WriteGroup
 		Status: recordingplan.SchemaOperationSucceeded, VerifiedDigest: snap.Group.Destination.SchemaDigest,
 	})
 	require.NoError(t, err)
-	built, reason := pipeline.buildFrozen(t.Context(), snap, at(0), time.Time{})
+	built, reason := pipeline.buildFrozen(t.Context(), snap, at(0))
 	require.Empty(t, reason)
 	require.NoError(t, built.boundary.AcceptSample(t.Context(), envelope(snap.Group, "sample", at(1), 21.5)))
 	require.NoError(t, built.boundary.Tick(t.Context(), at(15)))

@@ -129,7 +129,17 @@ func (s *Store) AssociateLegacyCounterProofs(ctx context.Context, key GroupKey, 
 }
 
 func readLegacyAcceptedSet(ctx context.Context, tx *sql.Tx, key GroupKey) ([]legacyAcceptedSample, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT seq,workspace_id,sample_id,member_key,observed_at,payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=? AND group_revision=? AND consumed=0 ORDER BY seq`, key.GroupID, key.GroupRevision)
+	return readAcceptedSet(ctx, tx, key, time.Time{})
+}
+
+func readAcceptedSet(ctx context.Context, tx *sql.Tx, key GroupKey, before time.Time) ([]legacyAcceptedSample, error) {
+	query := `SELECT seq,workspace_id,sample_id,member_key,observed_at,payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=? AND group_revision=? AND consumed=0`
+	args := []any{key.GroupID, key.GroupRevision}
+	if !before.IsZero() {
+		query += ` AND bucket_start<?`
+		args = append(args, timestamp(before))
+	}
+	rows, err := tx.QueryContext(ctx, query+` ORDER BY seq`, args...)
 	if err != nil {
 		return nil, err
 	}

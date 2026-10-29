@@ -10,15 +10,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/workspace"
 	"go-gateway/internal/testutil/lostcommit"
+
+	"github.com/stretchr/testify/require"
 )
 
 func crashCounterJournal(t *testing.T, f *longPipeline) [][3]string {
 	t.Helper()
-	rows, err := f.local.Query(`SELECT sample_id,payload,payload_digest FROM wg_delivery_samples ORDER BY seq`)
+	rows, err := f.local.QueryContext(t.Context(), `SELECT sample_id,payload,payload_digest FROM wg_delivery_samples ORDER BY seq`)
 	require.NoError(t, err)
 	defer rows.Close()
 	var result [][3]string
@@ -51,7 +52,7 @@ func TestCounterBindingCrashResendAcrossJournalFormats(t *testing.T) {
 					old.CounterBindings = nil
 					descriptor, err = json.Marshal(old)
 					require.NoError(t, err)
-					_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_revision='rev-1'`, string(descriptor))
+					_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_revision='rev-1'`, string(descriptor))
 					require.NoError(t, err)
 				}
 				reader := &unavailableExactCounterReader{}
@@ -188,7 +189,7 @@ func TestCounterBindingCrashResendAcrossJournalFormats(t *testing.T) {
 				require.Equal(t, wantDelta, row.delta.String)
 				require.Contains(t, row.provenance.String, `"definition_revision":"def-1"`)
 				var unit, epoch string
-				require.NoError(t, f.plainTarget().QueryRow(`SELECT unit,series_epoch FROM `+f.table+` WHERE tag_id=? AND bucket_start=?`, longKwhFirst, at(600).Format(longTime)).Scan(&unit, &epoch))
+				require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT unit,series_epoch FROM `+f.table+` WHERE tag_id=? AND bucket_start=?`, longKwhFirst, at(600).Format(longTime)).Scan(&unit, &epoch))
 				require.Equal(t, "kWh", unit)
 				require.Equal(t, "epoch-1", epoch)
 				restart()
@@ -214,7 +215,7 @@ func appendPreUpgradeCounterFixture(t *testing.T, f *longPipeline, id string, ob
 	if id == "c-2" {
 		digits = "105.0"
 	}
-	payload := fmt.Sprintf(`{"sample_id":"%s","member_key":"[\"device-1\",\"point-1\",\"tag-kwh-1\"]","observed_at":"%s","quality":"good","value":{"type":"decimal","encoding":"decimal-string","value":"%s"},"source_revision":"src-1","mapping_revision":"map-1"}`, id, observed.Format(time.RFC3339Nano), digits)
+	payload := fmt.Sprintf(`{"sample_id":%q,"member_key":"[\"device-1\",\"point-1\",\"tag-kwh-1\"]","observed_at":%q,"quality":"good","value":{"type":"decimal","encoding":"decimal-string","value":%q},"source_revision":"src-1","mapping_revision":"map-1"}`, id, observed.Format(time.RFC3339Nano), digits)
 	sum := sha256.Sum256([]byte(payload))
 	tx, err := f.local.BeginTx(t.Context(), nil)
 	if err != nil {

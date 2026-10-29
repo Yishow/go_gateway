@@ -5,9 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/testutil/lostcommit"
+
+	"github.com/stretchr/testify/require"
 )
 
 var errCounterBeforeCommit = errors.New("injected before local proof commit")

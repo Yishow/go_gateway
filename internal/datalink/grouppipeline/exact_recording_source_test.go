@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/runtime"
@@ -66,7 +65,7 @@ func testFrozenExactRecordingSource(t *testing.T, withBinding bool, tagType sche
 	require.NoError(t, pipeline.saveRuntimeSnapshot(t.Context(), snap))
 	frozen, err := pipeline.loadRuntimeSnapshot(t.Context(), groupKey(snap))
 	require.NoError(t, err)
-	built, reason := pipeline.buildFrozen(t.Context(), frozen, at(0), time.Time{})
+	built, reason := pipeline.buildFrozen(t.Context(), frozen, at(0))
 	require.Empty(t, reason)
 	require.NotNil(t, built)
 	require.Zero(t, reader.calls, "accepted source facts survive a definition outage or edit")

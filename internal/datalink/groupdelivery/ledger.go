@@ -28,6 +28,11 @@ func (l *Ledger) AppendSample(ctx context.Context, bucketStart time.Time, sample
 	return l.store.AppendSample(ctx, l.key, bucketStart, sample)
 }
 
+// VerifyCounterDuplicate rechecks a previously accepted sample and its proof.
+func (l *Ledger) VerifyCounterDuplicate(ctx context.Context, sample snapshot.Sample) error {
+	return l.store.VerifyCounterDuplicate(ctx, l.key, sample)
+}
+
 // Restore returns the checkpoint and unconsumed samples of the bound group.
 func (l *Ledger) Restore(ctx context.Context) (Restored, error) {
 	return l.store.Restore(ctx, l.key)

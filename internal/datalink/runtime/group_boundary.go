@@ -259,7 +259,7 @@ func (b *GroupBoundary) AcceptSample(ctx context.Context, envelope measurement.S
 	result := b.assembler.Check(sample, now)
 	switch result.Outcome {
 	case snapshot.OfferDuplicate:
-		return nil
+		return b.verifyCounterDuplicate(ctx, sample)
 	case snapshot.OfferSelected, snapshot.OfferNotSelected:
 	default:
 		if result.Outcome == snapshot.OfferLate {
@@ -350,7 +350,7 @@ func (b *GroupBoundary) tickDurable(ctx context.Context, now time.Time) error {
 	if err != nil {
 		return &GroupBoundaryError{Code: boundaryLayoutBlocked, Cause: err}
 	}
-	closure := groupdelivery.Closure{Destination: b.destination, NextClose: plan.NextClose(), Buckets: buckets, Baselines: baselines}
+	closure := groupdelivery.Closure{Destination: b.destination, NextClose: plan.NextClose(), Buckets: buckets, Baselines: baselines, CounterProofs: b.counterClosureProofs()}
 	if err := b.ledger.CommitClosure(ctx, closure); err != nil {
 		return err
 	}

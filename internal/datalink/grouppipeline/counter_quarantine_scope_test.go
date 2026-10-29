@@ -62,7 +62,7 @@ func TestCounterReplayQuarantineDoesNotBlockHealthyScopeOrClearOnCurrentChanges(
 			require.NoError(t, f.pipe.Reconcile(t.Context()))
 			require.NoError(t, f.pipe.AcceptSample(t.Context(), envelope(healthy.Group, "healthy-1", at(2), uint64(7))))
 			var healthyInputs int
-			require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=? AND group_revision=?`, groupID, "healthy-revision").Scan(&healthyInputs))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=? AND group_revision=?`, groupID, "healthy-revision").Scan(&healthyInputs))
 			require.Equal(t, 1, healthyInputs)
 			for range 2 {
 				entries, err := f.pipe.CounterReplayQuarantines(t.Context(), f.group.ID)
@@ -76,7 +76,7 @@ func TestCounterReplayQuarantineDoesNotBlockHealthyScopeOrClearOnCurrentChanges(
 				require.Zero(t, reader.calls)
 			}
 			// Fixture-only restoration of the exact trusted bytes is not a repair API.
-			_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision='rev-1'`, string(original), f.group.ID)
+			_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision='rev-1'`, string(original), f.group.ID)
 			require.NoError(t, err)
 			require.NoError(t, f.pipe.Reconcile(t.Context()))
 			entries, err := f.pipe.CounterReplayQuarantines(t.Context(), f.group.ID)

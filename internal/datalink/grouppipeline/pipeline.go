@@ -112,7 +112,7 @@ type member struct{ tagID, connectorID string }
 type managed struct {
 	// proofGate precedes Pipeline.mu; never wait for it while holding Pipeline.mu.
 	proofGate        sync.Mutex
-	proofQuarantined bool
+	proofQuarantined error
 	workspaceID      string
 	groupID          string
 	revision         string

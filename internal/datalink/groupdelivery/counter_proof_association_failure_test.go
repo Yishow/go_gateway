@@ -17,13 +17,13 @@ import (
 func replaceLegacySample(t *testing.T, store *Store, change func(*snapshot.Sample)) {
 	t.Helper()
 	var payload, digest string
-	require.NoError(t, store.DB().QueryRow(`SELECT payload,payload_digest FROM wg_delivery_samples WHERE sample_id='c-2'`).Scan(&payload, &digest))
+	require.NoError(t, store.DB().QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_samples WHERE sample_id='c-2'`).Scan(&payload, &digest))
 	sample, err := decodeVerifiedSample(payload, digest)
 	require.NoError(t, err)
 	change(&sample)
 	wire, nextDigest, err := encodeSample(sample)
 	require.NoError(t, err)
-	_, err = store.DB().Exec(`UPDATE wg_delivery_samples SET payload=?,payload_digest=?,member_key=? WHERE sample_id='c-2'`, string(wire), nextDigest, sample.MemberKey)
+	_, err = store.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET payload=?,payload_digest=?,member_key=? WHERE sample_id='c-2'`, string(wire), nextDigest, sample.MemberKey)
 	require.NoError(t, err)
 }
 
@@ -42,23 +42,23 @@ func TestLegacyCounterProofAssociationChecksEveryOriginalSample(t *testing.T) {
 			replaceLegacySample(t, s, func(v *snapshot.Sample) { v.MemberKey = `["device-1","point-2","tag-2"]` })
 		},
 		"corrupt digest": func(t *testing.T, s *Store) {
-			_, err := s.DB().Exec(`UPDATE wg_delivery_samples SET payload_digest='wrong' WHERE sample_id='c-2'`)
+			_, err := s.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET payload_digest='wrong' WHERE sample_id='c-2'`)
 			require.NoError(t, err)
 		},
 		"foreign workspace": func(t *testing.T, s *Store) {
-			_, err := s.DB().Exec(`UPDATE wg_delivery_samples SET workspace_id='other' WHERE sample_id='c-2'`)
+			_, err := s.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET workspace_id='other' WHERE sample_id='c-2'`)
 			require.NoError(t, err)
 		},
 		"row member disagrees": func(t *testing.T, s *Store) {
-			_, err := s.DB().Exec(`UPDATE wg_delivery_samples SET member_key='other' WHERE sample_id='c-2'`)
+			_, err := s.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET member_key='other' WHERE sample_id='c-2'`)
 			require.NoError(t, err)
 		},
 		"row sample identity disagrees": func(t *testing.T, s *Store) {
-			_, err := s.DB().Exec(`UPDATE wg_delivery_samples SET sample_id='other' WHERE sample_id='c-2'`)
+			_, err := s.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET sample_id='other' WHERE sample_id='c-2'`)
 			require.NoError(t, err)
 		},
 		"accepted timestamp corrupt": func(t *testing.T, s *Store) {
-			_, err := s.DB().Exec(`UPDATE wg_delivery_samples SET created_at='not-a-time' WHERE sample_id='c-2'`)
+			_, err := s.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET created_at='not-a-time' WHERE sample_id='c-2'`)
 			require.NoError(t, err)
 		},
 	} {
@@ -84,7 +84,7 @@ func TestLegacyCounterProofAssociationRequiresActualImmutableEvidence(t *testing
 			raw := string(descriptor)
 			switch change {
 			case "missing":
-				_, err := store.DB().Exec(`DELETE FROM wg_runtime_versions`)
+				_, err := store.DB().ExecContext(t.Context(), `DELETE FROM wg_runtime_versions`)
 				require.NoError(t, err)
 			case "incomplete exact":
 				raw = strings.Replace(raw, `"source_binding_revision":"binding-1"`, `"source_binding_revision":""`, 1)
@@ -96,7 +96,7 @@ func TestLegacyCounterProofAssociationRequiresActualImmutableEvidence(t *testing
 				refs[0].Version = 77
 			}
 			if change != "missing" {
-				_, err := store.DB().Exec(`UPDATE wg_runtime_versions SET payload=?`, raw)
+				_, err := store.DB().ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=?`, raw)
 				require.NoError(t, err)
 			}
 			before := associationJournal(t, store)
@@ -110,27 +110,27 @@ func TestLegacyCounterProofAssociationRequiresActualImmutableEvidence(t *testing
 }
 
 func TestLegacyCounterProofAssociationPublicationIsAtomic(t *testing.T) {
-	for _, failure := range []string{"second audit insert", "cancelled", "conflicting prior association", "unknown association version"} {
+	for _, failure := range []string{"second audit insert", "canceled", "conflicting prior association", "unknown association version"} {
 		t.Run(failure, func(t *testing.T) {
 			store, _, _, refs := legacyAssociationFixture(t)
 			before := associationJournal(t, store)
 			ctx := t.Context()
 			if failure == "conflicting prior association" || failure == "unknown association version" {
 				require.NoError(t, store.AssociateLegacyCounterProofs(ctx, testKey, refs))
-				_, err := store.DB().Exec(`DELETE FROM wg_counter_proof_associations WHERE sample_id='c-1'`)
+				_, err := store.DB().ExecContext(t.Context(), `DELETE FROM wg_counter_proof_associations WHERE sample_id='c-1'`)
 				require.NoError(t, err)
 				column := "proof_digest='conflicting'"
 				if failure == "unknown association version" {
 					column = "association_version=77"
 				}
-				_, err = store.DB().Exec(`UPDATE wg_counter_proof_associations SET ` + column + ` WHERE sample_id='c-2'`)
+				_, err = store.DB().ExecContext(t.Context(), `UPDATE wg_counter_proof_associations SET `+column+` WHERE sample_id='c-2'`)
 				require.NoError(t, err)
 			}
 			if failure == "second audit insert" {
-				_, err := store.DB().Exec(`CREATE TRIGGER refuse_second_association BEFORE INSERT ON wg_counter_proof_associations WHEN NEW.sample_id='c-2' BEGIN SELECT RAISE(ABORT,'injected association failure'); END`)
+				_, err := store.DB().ExecContext(t.Context(), `CREATE TRIGGER refuse_second_association BEFORE INSERT ON wg_counter_proof_associations WHEN NEW.sample_id='c-2' BEGIN SELECT RAISE(ABORT,'injected association failure'); END`)
 				require.NoError(t, err)
 			}
-			if failure == "cancelled" {
+			if failure == "canceled" {
 				var cancel context.CancelFunc
 				ctx, cancel = context.WithCancel(ctx)
 				cancel()
@@ -179,7 +179,7 @@ func TestLegacyCounterProofAssociationSkipsNewAndFinalizedInputs(t *testing.T) {
 	})
 	t.Run("finalized input", func(t *testing.T) {
 		store, _, _, refs := legacyAssociationFixture(t)
-		_, err := store.DB().Exec(`UPDATE wg_delivery_samples SET consumed=1`)
+		_, err := store.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET consumed=1`)
 		require.NoError(t, err)
 		before := associationJournal(t, store)
 		require.NoError(t, store.AssociateLegacyCounterProofs(t.Context(), testKey, refs))
@@ -189,7 +189,7 @@ func TestLegacyCounterProofAssociationSkipsNewAndFinalizedInputs(t *testing.T) {
 	t.Run("ordinary noncounter is not assigned counter meaning", func(t *testing.T) {
 		store, _, _, refs := legacyAssociationFixture(t)
 		var raw string
-		require.NoError(t, store.DB().QueryRow(`SELECT payload FROM wg_runtime_versions`).Scan(&raw))
+		require.NoError(t, store.DB().QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions`).Scan(&raw))
 		var descriptor map[string]any
 		require.NoError(t, json.Unmarshal([]byte(raw), &descriptor))
 		group := descriptor["group"].(map[string]any)
@@ -199,7 +199,7 @@ func TestLegacyCounterProofAssociationSkipsNewAndFinalizedInputs(t *testing.T) {
 		group["members"] = append(members, map[string]any{"device_id": "device-2", "point_id": "point-2", "tag_id": "tag-2", "value_role": "gauge"})
 		payload, err := json.Marshal(descriptor)
 		require.NoError(t, err)
-		_, err = store.DB().Exec(`UPDATE wg_runtime_versions SET payload=?`, string(payload))
+		_, err = store.DB().ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=?`, string(payload))
 		require.NoError(t, err)
 		ordinary := sampleAt("gauge-1", `["device-2","point-2","tag-2"]`, 5, 30)
 		require.NoError(t, store.AppendSample(t.Context(), testKey, t0, ordinary))

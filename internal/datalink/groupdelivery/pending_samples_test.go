@@ -12,7 +12,7 @@ func TestPendingSampleCountUsesFullScopeAndExcludesConsumedInputs(t *testing.T) 
 	for i, key := range keys {
 		require.NoError(t, store.AppendSample(t.Context(), key, t0, sampleAt(string(rune('a'+i)), "member", i+1, 1)))
 	}
-	_, err := db.Exec(`UPDATE wg_delivery_samples SET consumed=1 WHERE sample_id='a'`)
+	_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_samples SET consumed=1 WHERE sample_id='a'`)
 	require.NoError(t, err)
 	count, err := store.PendingSampleCount(t.Context(), testKey)
 	require.NoError(t, err)

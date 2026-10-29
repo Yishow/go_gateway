@@ -23,8 +23,8 @@ func TestCounterBindingAssociationFailureBlocksReplayBeforeDuplicateACK(t *testi
 	before, err := store.Restore(t.Context(), key)
 	require.NoError(t, err)
 	var payload, digest string
-	require.NoError(t, store.DB().QueryRow(`SELECT payload,payload_digest FROM wg_delivery_samples`).Scan(&payload, &digest))
-	_, err = store.DB().Exec(`CREATE TRIGGER fail_association BEFORE INSERT ON wg_counter_proof_associations BEGIN SELECT RAISE(ABORT,'injected association failure'); END`)
+	require.NoError(t, store.DB().QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_samples`).Scan(&payload, &digest))
+	_, err = store.DB().ExecContext(t.Context(), `CREATE TRIGGER fail_association BEFORE INSERT ON wg_counter_proof_associations BEGIN SELECT RAISE(ABORT,'injected association failure'); END`)
 	require.NoError(t, err)
 	boundary, err := NewGroupBoundary(f.config)
 	require.Nil(t, boundary, "no memory or duplicate ACK path is exposed after failed publication")
@@ -35,7 +35,7 @@ func TestCounterBindingAssociationFailureBlocksReplayBeforeDuplicateACK(t *testi
 	after, err := store.Restore(t.Context(), key)
 	require.NoError(t, err)
 	require.Equal(t, before, after)
-	_, err = store.DB().Exec(`DROP TRIGGER fail_association`)
+	_, err = store.DB().ExecContext(t.Context(), `DROP TRIGGER fail_association`)
 	require.NoError(t, err)
 	boundary, err = NewGroupBoundary(f.config)
 	require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestCounterBindingAssociationFailureBlocksReplayBeforeDuplicateACK(t *testi
 	require.NoError(t, boundary.AcceptSample(t.Context(), f.envelope(0, "legacy-1", at(time.Second), int64(100))))
 	require.Equal(t, 1, countJournal(t, store.DB()))
 	var original, originalDigest string
-	require.NoError(t, store.DB().QueryRow(`SELECT payload,payload_digest FROM wg_delivery_samples`).Scan(&original, &originalDigest))
+	require.NoError(t, store.DB().QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_samples`).Scan(&original, &originalDigest))
 	require.Equal(t, payload, original)
 	require.Equal(t, digest, originalDigest)
 }

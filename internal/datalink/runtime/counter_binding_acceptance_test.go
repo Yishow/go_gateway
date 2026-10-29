@@ -43,7 +43,7 @@ func TestCounterProofAcceptanceFailureLeavesMemoryAndBaselineUntouched(t *testin
 			f, store, key, payload := counterAcceptanceFixture(t)
 			if failure == "journal failure" {
 				require.NoError(t, store.SaveRuntimeVersion(t.Context(), key, payload))
-				_, err := store.DB().Exec(`CREATE TRIGGER fail_counter BEFORE INSERT ON wg_delivery_samples BEGIN SELECT RAISE(ABORT, 'injected journal failure'); END`)
+				_, err := store.DB().ExecContext(t.Context(), `CREATE TRIGGER fail_counter BEFORE INSERT ON wg_delivery_samples BEGIN SELECT RAISE(ABORT, 'injected journal failure'); END`)
 				require.NoError(t, err)
 			}
 			boundary := f.build(t)
@@ -59,7 +59,7 @@ func TestCounterProofAcceptanceFailureLeavesMemoryAndBaselineUntouched(t *testin
 			require.Equal(t, before, boundary.NextClose())
 			require.Zero(t, countJournal(t, store.DB()))
 			if failure == "journal failure" {
-				_, err = store.DB().Exec(`DROP TRIGGER fail_counter`)
+				_, err = store.DB().ExecContext(t.Context(), `DROP TRIGGER fail_counter`)
 				require.NoError(t, err)
 			} else {
 				require.NoError(t, store.SaveRuntimeVersion(t.Context(), key, payload))

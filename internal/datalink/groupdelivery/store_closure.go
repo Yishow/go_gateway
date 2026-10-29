@@ -80,6 +80,9 @@ func (s *Store) CommitClosure(ctx context.Context, key GroupKey, closure Closure
 		return err
 	}
 	err = s.inTx(ctx, "closure", func(tx *sql.Tx) error {
+		if err := verifyClosureCounterProofs(ctx, tx, key, closure.CounterProofs, closure.NextClose); err != nil {
+			return err
+		}
 		now := timestamp(s.now())
 		if err := storeBaselines(ctx, tx, key, baselines, now); err != nil {
 			return err
