@@ -23,6 +23,10 @@ func (k GroupKey) Valid() bool {
 
 // Restored is what a restarted boundary needs to rebuild open buckets.
 type Restored struct {
+	handoffObservations map[handoffObservationKey]bool
+	HandoffView         HandoffView
+	OwnershipView       OwnershipView
+	handoffs            map[handoffAuthorizationKey]handoffAuthorization
 	// NextClose is the checkpoint; zero when the group never closed a bucket.
 	NextClose time.Time
 	// Samples are accepted but not yet consumed by a closed bucket, in
@@ -78,9 +82,11 @@ type ClosedBucket struct {
 // Closure is everything one Tick closes, committed atomically with the
 // checkpoint that moves past it.
 type Closure struct {
-	Destination FrozenDestination
-	NextClose   time.Time
-	Buckets     []ClosedBucket
+	HandoffView   HandoffView
+	OwnershipView OwnershipView
+	Destination   FrozenDestination
+	NextClose     time.Time
+	Buckets       []ClosedBucket
 	// Baselines are the counter baselines this closure advances. They commit in
 	// the same transaction as the outbox rows and the checkpoint, so a baseline
 	// moves exactly when the records derived from it become durable.

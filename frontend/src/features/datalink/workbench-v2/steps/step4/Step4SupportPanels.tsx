@@ -1,3 +1,4 @@
+import { safeRuntimeLabel } from '../../../../../utils/runtimeOperatorSafety';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConnectorSection } from './ConnectorSection';
@@ -27,6 +28,7 @@ export function Step4SupportPanels({
   destinationReady = false,
 }: Step4SupportPanelsProps) {
   const { t } = useTranslation('workbench-v2');
+  const destinationAlias = safeRuntimeLabel(connector.name) || t('step4.connector_title');
 
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -43,7 +45,7 @@ export function Step4SupportPanels({
               {connector.kind}
             </span>
             <span className="rounded-full border border-slate-700 px-2 py-1 font-mono text-[11px] text-slate-200">
-              {connector.database}
+              {destinationAlias}
             </span>
 
           </div>

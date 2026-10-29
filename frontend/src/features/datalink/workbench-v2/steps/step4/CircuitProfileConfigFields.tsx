@@ -10,9 +10,11 @@ import {
   deriveCircuitId,
   type ParsedProfileInterval,
 } from '../../state/circuitProfileBasic';
+import type { CircuitLayoutBlockReason, CircuitLayoutOptions } from '../../state/circuitProfileCapabilities';
 import type { GroupCandidate } from '../../state/writeGroup/candidates';
 import { CircuitCounterConfirmation } from './CircuitCounterConfirmation';
 import { CircuitPurposeFields } from './CircuitPurposeFields';
+import { CircuitProfileRoleOptions } from './CircuitProfileRoleOptions';
 import { CircuitRequiredPolicy } from './CircuitRequiredPolicy';
 import { DeviceScopeTiles } from './DeviceScopeTiles';
 import { SourceReview } from './SourceReview';
@@ -21,6 +23,8 @@ export interface CircuitProfileConfigFieldsProps {
   workspaceId?: string;
   workspaceRevision: string;
   readonly: boolean;
+  newOperationBlocked?: boolean;
+  isNewOperationBlocked?: () => boolean;
   savedDevices: Array<{ id: string; name?: string }>;
   activeDeviceId: string;
   onSelectDevice: (deviceId: string) => void;
@@ -36,6 +40,8 @@ export interface CircuitProfileConfigFieldsProps {
   storageLocked: boolean;
   effectiveStorageMode: WriteGroupStorageMode;
   cumulativeCircuitMissing: boolean;
+  /** A new counter definition needs a meaningful circuit label, not just a draft ID. */
+  counterNameMissing?: boolean;
   circuitId: string;
   unconfirmedCounterStatuses: CandidateCounterStatus[];
   onCounterConfirmed: (nextWorkspaceRev?: string) => Promise<void> | void;
@@ -45,6 +51,8 @@ export interface CircuitProfileConfigFieldsProps {
   /** The layout this circuit records into, and whether a saved group already fixes it. */
   purpose?: CircuitPurpose;
   purposeLocked?: boolean;
+  layoutOptions?: CircuitLayoutOptions;
+  layoutBlockedReason?: CircuitLayoutBlockReason;
   /** A reviewed cutover prepares long targets only, so it offers no purpose to choose. */
   showPurpose?: boolean;
   /** `mean` for a new instantaneous profile; a saved profile shows the reduction it has (`latest` when none). */
@@ -63,18 +71,22 @@ export interface CircuitProfileConfigFieldsProps {
 const NO_SAVED_ROLES: ReadonlySet<string> = new Set();
 
 export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProps> = ({
-  workspaceId, workspaceRevision, readonly, savedDevices, activeDeviceId, onSelectDevice,
+  workspaceId, workspaceRevision, readonly, newOperationBlocked, isNewOperationBlocked, savedDevices, activeDeviceId, onSelectDevice,
   deviceCandidates, localDraft, updateLocalDraft, instParsed, cumParsed, isPostgres, isMySQL = false, isSQLServer = false, nativeMonthlyAvailable = false,
-  storageLocked, effectiveStorageMode, cumulativeCircuitMissing, circuitId,
+  storageLocked, effectiveStorageMode, cumulativeCircuitMissing, counterNameMissing = false, circuitId,
   unconfirmedCounterStatuses, onCounterConfirmed, savedCircuits = [], onSelectCircuit, onOpenBatch,
-  purpose = 'long', purposeLocked = false, showPurpose = true, instantaneousReduction = 'latest', savedRoleKeys = NO_SAVED_ROLES, memberRole = defaultMemberRole,
+  purpose = 'long', purposeLocked = false, layoutOptions, layoutBlockedReason, showPurpose = true, instantaneousReduction = 'latest', savedRoleKeys = NO_SAVED_ROLES, memberRole = defaultMemberRole,
   unavailableSources = { count: 0 }, requiredPolicy, onOpenAdvanced,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const circuitNameRef = React.useRef<HTMLInputElement>(null);
+  const circuitNameErrorId = React.useId();
+  const circuitNameMissing = cumulativeCircuitMissing || counterNameMissing;
+  const [sourceExpandRequest, setSourceExpandRequest] = React.useState(0);
   const instantaneousSourcesMissing = localDraft.instantaneous_enabled &&
     !deviceCandidates.some((c) => localDraft.instantaneous_keys.includes(candidateKey(c)));
-  const cumulativeSourcesMissing = localDraft.cumulative_enabled &&
-    !deviceCandidates.some((c) => localDraft.cumulative_keys.includes(candidateKey(c)));
+  const cumulativeSelectedCount = deviceCandidates.filter((c) => localDraft.cumulative_keys.includes(candidateKey(c))).length;
+  const cumulativeSourcesMissing = localDraft.cumulative_enabled && cumulativeSelectedCount === 0;
 
   return (
     <>
@@ -112,22 +124,26 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
             </select>
           </label>
           <label className="block text-xs text-slate-300">
-            <span>{t('step4.basic.circuit.circuit_name_label')}</span>
-            <input type="text" data-testid="circuit-profile-circuit-name" value={localDraft.circuit_name} disabled={readonly}
+            <span id={`${circuitNameErrorId}-label`}>{t('step4.basic.circuit.circuit_name_label')}</span>
+            <input ref={circuitNameRef} type="text" data-testid="circuit-profile-circuit-name" value={localDraft.circuit_name} disabled={readonly}
+              aria-labelledby={`${circuitNameErrorId}-label`}
+              aria-required={circuitNameMissing} aria-invalid={circuitNameMissing}
+              aria-describedby={circuitNameMissing ? circuitNameErrorId : undefined}
               placeholder={t('step4.basic.circuit.circuit_name_placeholder')}
               onChange={(e) => updateLocalDraft((prev) => ({ ...prev, circuit_name: e.target.value, circuit_id: deriveCircuitId(e.target.value, prev.circuit_id) }))}
               className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100" />
+            {circuitNameMissing && (
+              <span id={circuitNameErrorId} role="alert" data-testid="circuit-profile-circuit-required-error" className="mt-1 block text-xs text-amber-300">
+                {t(counterNameMissing ? 'step4.basic.circuit.counter_circuit_required' : 'step4.basic.circuit.cumulative_circuit_required')}
+              </span>
+            )}
           </label>
         </div>
         {showPurpose && <CircuitPurposeFields purpose={purpose} locked={purposeLocked} readonly={readonly}
+          layoutOptions={layoutOptions} blockedReason={layoutBlockedReason}
           onChange={(next) => updateLocalDraft((prev) => ({ ...prev, purpose: next }))} />}
         <p className="text-[11px] text-slate-400">{t('step4.basic.circuit.unassigned_note')}</p>
-        {cumulativeCircuitMissing && (
-          <p role="alert" data-testid="circuit-profile-circuit-required-error" className="text-xs text-amber-300">
-            {t('step4.basic.circuit.cumulative_circuit_required')}
-          </p>
-        )}
-        <SourceReview prefix="circuit-profile-sources" count={deviceCandidates.length + unavailableSources.count} unavailable={unavailableSources.count}
+        <SourceReview prefix="circuit-profile-sources" count={deviceCandidates.length + unavailableSources.count} unavailable={unavailableSources.count} expandRequest={sourceExpandRequest}
           onRepair={unavailableSources.groupId && onOpenAdvanced ? () => onOpenAdvanced(unavailableSources.groupId as string) : undefined}>
         <ul data-testid="circuit-profile-member-list" className="max-h-72 space-y-1.5 overflow-y-auto text-xs text-slate-300">
           {deviceCandidates.map((candidate) => {
@@ -179,21 +195,15 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                     <span>{t('step4.basic.circuit.instantaneous_label')}</span>
                   </label>
                   {instChecked && instantaneousReduction === 'mean' && (
-                    <select
-                      data-testid={`circuit-profile-role-${candidate.tag_id}`}
-                      aria-label={`${candidate.label} ${t('step4.basic.circuit.role_label')}`}
+                    <CircuitProfileRoleOptions
+                      testId={`circuit-profile-role-${candidate.tag_id}`}
+                      label={candidate.label}
                       value={memberRole(candidate)}
-                      disabled={readonly || savedRoleKeys.has(key)}
-                      onChange={(event) => updateLocalDraft((prev) => ({ ...prev, member_roles: { ...prev.member_roles, [key]: event.target.value as WriteGroupValueRole } }))}
-                      className="rounded border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-[11px] text-slate-200"
-                    >
-                      {defaultMemberRole(candidate) === 'gauge' ? (
-                        <>
-                          <option value="gauge">{t('step4.basic.circuit.role_gauge')}</option>
-                          <option value="counter_raw">{t('step4.basic.circuit.role_counter_raw')}</option>
-                        </>
-                      ) : <option value="state">{t('step4.basic.circuit.role_state')}</option>}
-                    </select>
+                      numeric={defaultMemberRole(candidate) === 'gauge'}
+                      readonly={readonly}
+                      saved={savedRoleKeys.has(key)}
+                      onChange={(role) => updateLocalDraft((prev) => ({ ...prev, member_roles: { ...prev.member_roles, [key]: role } }))}
+                    />
                   )}
                   <label className="flex items-center gap-1 text-[11px] text-slate-400">
                     <input
@@ -261,7 +271,11 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
           <div className="space-y-2 rounded border border-slate-800 p-2.5">
             <label className="flex items-center gap-2 text-xs font-medium text-slate-200">
               <input type="checkbox" data-testid="circuit-profile-toggle-cumulative" checked={localDraft.cumulative_enabled}
-                disabled={readonly} onChange={(e) => updateLocalDraft((prev) => ({ ...prev, cumulative_enabled: e.target.checked }))} />
+                disabled={readonly} onChange={(e) => {
+                  const enabled = e.target.checked;
+                  updateLocalDraft((prev) => ({ ...prev, cumulative_enabled: enabled }));
+                  if (enabled) setSourceExpandRequest((request) => request + 1);
+                }} />
               <span>{t('step4.basic.circuit.cumulative_label')}</span>
             </label>
             <label className="block text-xs text-slate-300">
@@ -274,6 +288,9 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                 className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100" />
             </label>
             <p data-testid="circuit-profile-reduction-cumulative" className="text-[11px] text-slate-400">{t('step4.basic.circuit.reduction_counter')}</p>
+            {localDraft.cumulative_enabled && <p data-testid="circuit-profile-cumulative-selected" className="text-xs text-slate-300">
+              {t('step4.basic.circuit.cumulative_selected', { count: cumulativeSelectedCount })}
+            </p>}
             {localDraft.cumulative_enabled && !cumParsed.valid && (
               <p id="circuit-profile-interval-cumulative-err" role="alert" data-testid="circuit-profile-interval-cumulative-error" className="text-xs text-rose-300">
                 {t('step4.basic.errors.profile_interval_invalid')}
@@ -282,6 +299,8 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
             {localDraft.cumulative_enabled && cumParsed.valid && cumulativeSourcesMissing && (
               <p role="alert" data-testid="circuit-profile-cumulative-sources-error" className="text-xs text-amber-300">
                 {t('step4.basic.circuit.cumulative_sources_required')}
+                <button type="button" data-testid="circuit-profile-cumulative-choose-sources" onClick={() => setSourceExpandRequest((request) => request + 1)}
+                  className="ml-2 underline">{t('step4.basic.circuit.cumulative_choose_sources')}</button>
               </p>
             )}
           </div>
@@ -340,7 +359,9 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
             circuitId={circuitId}
             unconfirmedStatuses={unconfirmedCounterStatuses}
             readonly={readonly}
+            newOperationBlocked={newOperationBlocked} isNewOperationBlocked={isNewOperationBlocked}
             onConfirmed={onCounterConfirmed}
+            namePrerequisite={counterNameMissing ? { descriptionId: circuitNameErrorId, onFocus: () => circuitNameRef.current?.focus() } : undefined}
           />
         )}
       </div>

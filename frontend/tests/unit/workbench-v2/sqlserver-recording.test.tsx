@@ -1,3 +1,4 @@
+vi.mock('@/hooks/datalink/useRecordingTestWriteRecovery', () => ({ useRecordingTestWriteRecovery: () => ({ available: true, isFetching: false, refetch: vi.fn() }) }));
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,13 +7,15 @@ import { CircuitProfileSchemaPreparation } from '@/features/datalink/workbench-v
 import { defaultCircuitProfileLocalDraft } from '@/features/datalink/workbench-v2/state/circuitProfileBasic';
 import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
 import type { WorkbenchV2State } from '@/features/datalink/workbench-v2/state/types';
-import type { WriteGroup } from '@/types/studioV2WriteGroup';
+import type { WriteGroup, WriteGroupCreateRequest } from '@/types/studioV2WriteGroup';
 import { studioV2DatalinkApi } from '@/services/studioV2Workspace';
 import { parseStudioV2WriteGroup } from '@/utils/studioV2WriteGroupJson';
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { guidedLifecycle } from '../../fixtures/guidedRecordingPreparation';
 
 const mocks = vi.hoisted(() => ({
   groupsQuery: {
-    data: { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] as unknown[] },
+    data: { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] as WriteGroup[] },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -180,8 +183,12 @@ function sqlserverState(connectorId = 'sqlserver-1', connectorRevision = 'sqlser
   };
 }
 
+const clients = new Set<QueryClient>();
+function syncGroups() { clients.forEach(client => client.setQueryData(studioV2WorkspaceKeys.writeGroups(), mocks.groupsQuery.data)); }
+
 function renderPanel(state: WorkbenchV2State) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, structuralSharing: false }, mutations: { retry: false } } });
+  clients.add(client); syncGroups();
   const view = render(
     <QueryClientProvider client={client}>
       <CircuitProfileBasicPanel state={state} workspaceId="ws-1" readonly={false} />
@@ -225,23 +232,27 @@ function apiResponse(value: SQLServerCapabilityFixture) {
 }
 
 beforeEach(() => {
-  window.sessionStorage.clear();
+  window.sessionStorage.clear(); clients.clear();
   mocks.groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] };
   mocks.groupsQuery.isLoading = false;
   mocks.groupsQuery.isError = false;
-  mocks.groupsQuery.refetch.mockImplementation(async () => ({ data: mocks.groupsQuery.data }));
+  mocks.groupsQuery.refetch.mockImplementation(async () => { syncGroups(); return { data: mocks.groupsQuery.data }; });
   mocks.measurementsQuery.data = [];
   mocks.measurementsQuery.isLoading = false;
   mocks.measurementsQuery.isError = false;
   mocks.measurementsQuery.refetch.mockImplementation(async () => ({ data: mocks.measurementsQuery.data }));
-  mocks.ensureCircuitProfile.mockResolvedValue({
-    workspace_revision: 'wrev-2',
-    group: savedGroup({
-      id: 'new-profile', status: 'ready', layout_version: 'managed_long_v1',
-      recording_profile: { kind: 'instantaneous', interval: 15, unit: 'second' }, storage_mode: 'plain',
-      destination: { ...savedGroup().destination, storage_strategy: 'managed' },
-      row_policy: { interval_seconds: 15, allowed_lateness_seconds: 0, incomplete_policy: 'partial' },
-    }),
+  mocks.ensureCircuitProfile.mockImplementation(async ({ request }: { request: WriteGroupCreateRequest }) => {
+    expect(request.expected_workspace_revision).toBe(mocks.groupsQuery.data.workspace_revision);
+    const group = savedGroup({ ...request.group, id: 'new-profile', revision: 'new-profile-rev-1', workspace_id: request.workspace_id,
+      members: request.group.members.map((member, index) => ({ ...member, source_revision: member.source_revision ?? `s${index}`, mapping_revision: member.mapping_revision ?? `m${index}` })),
+      destination: { ...savedGroup().destination, ...request.group.destination } });
+    mocks.groupsQuery.data = { workspace_id: request.workspace_id, workspace_revision: 'wrev-2', groups: [group] };
+    syncGroups(); return { workspace_revision: 'wrev-2', group };
+  });
+  vi.spyOn(studioV2DatalinkApi, 'get').mockImplementation(async path => {
+    const group = mocks.groupsQuery.data.groups.find(value => path === `/studio-v2/workspace/write-groups/${encodeURIComponent(value.id)}/lifecycle`);
+    if (!group) throw new Error(`Unexpected fixture GET: ${path}`);
+    return { data: { success: true, data: guidedLifecycle(group, mocks.groupsQuery.data.workspace_revision) } } as never;
   });
   mocks.updateGroup.mockReset();
   mocks.start.mockReset();
@@ -289,7 +300,9 @@ describe('saved SQL Server circuit recording', () => {
       supports_managed_long: true,
       supports_native_partition: true,
     })));
-    renderPanel(sqlserverState());
+    const { client } = renderPanel(sqlserverState());
+    expect(client.getQueryState(studioV2WorkspaceKeys.writeGroups())).toMatchObject({ status: 'success', fetchStatus: 'idle' });
+    expect(client.getQueryData(studioV2WorkspaceKeys.writeGroups())).toBe(mocks.groupsQuery.data);
     const nativeMode = await screen.findByTestId('circuit-profile-storage-native-monthly');
     expect(nativeMode.parentElement).toHaveTextContent('Native monthly partitions (SQL Server)');
     expect(nativeMode.parentElement).not.toHaveTextContent('MySQL');
@@ -300,6 +313,11 @@ describe('saved SQL Server circuit recording', () => {
     await waitFor(() => expect(mocks.ensureCircuitProfile).toHaveBeenCalledTimes(1));
     const request = mocks.ensureCircuitProfile.mock.calls[0][0] as { request: { group: { storage_mode?: string } } };
     expect(request.request.group.storage_mode).toBe('native_monthly');
+    expect(mocks.ensureCircuitProfile.mock.calls[0][0].request).toMatchObject({ workspace_id: 'ws-1', expected_workspace_revision: 'wrev-1', expected_connector_revision: 'sqlserver-rev-1' });
+    expect(client.getQueryData(studioV2WorkspaceKeys.writeGroups())).toBe(mocks.groupsQuery.data);
+    expect(mocks.groupsQuery.data).toMatchObject({ workspace_revision: 'wrev-2', groups: [{ id: 'new-profile', storage_mode: 'native_monthly',
+      destination: { connector_id: 'sqlserver-1', connector_revision: 'sqlserver-rev-1' } }] });
+    expect(mocks.updateGroup).not.toHaveBeenCalled(); expect(mocks.start).not.toHaveBeenCalled();
   });
 
   it('keeps plain selectable and reports native, test-write, and repair unavailable when operation gates are false', async () => {

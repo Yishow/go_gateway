@@ -47,10 +47,14 @@ func (h *PointHandler) List(c *gin.Context) {
 
 	points, err := h.svc.List(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
+		renderRuntimeHandlerError(c, http.StatusServiceUnavailable, ErrCodeRuntimeSnapshotUnavailable, true)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: points})
+	safePoints := make([]runtimePointReadResponse, 0, len(points))
+	for _, record := range points {
+		safePoints = append(safePoints, safeRuntimePointRead(record))
+	}
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: safePoints})
 }
 
 func (h *PointHandler) Get(c *gin.Context) {
@@ -60,7 +64,7 @@ func (h *PointHandler) Get(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: pointNotFoundMessage}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: p})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: safeRuntimePointRead(p)})
 }
 
 func (h *PointHandler) Create(c *gin.Context) {

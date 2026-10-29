@@ -1,22 +1,24 @@
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BasicRecordingPanel } from '@/features/datalink/workbench-v2/steps/step4/BasicRecordingPanel';
 import type { RecordingStartOperation } from '@/types/studioV2RecordingStart';
+import { parseRecordingStartOperation } from '@/utils/studioV2RecordingStartJson';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import type { WriteGroupDelivery } from '@/types/studioV2WriteGroupDelivery';
 import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
-import { saveBasicRecordingIntent } from '@/features/datalink/workbench-v2/state/basicRecording';
+import { loadBasicRecordingIntent, saveBasicRecordingIntent } from '@/features/datalink/workbench-v2/state/basicRecording';
 import { expandSources } from '../../fixtures/sourceReview';
-
+import { confirmPreparedStart, guidedLifecycle, guidedPreview, guidedReadiness, startGuided } from '../../fixtures/guidedRecordingPreparation';
+import type { WriteGroupMutationResponse } from '@/types/studioV2WriteGroup';
+vi.mock('@/features/datalink/workbench-v2/steps/step4/useRecordingWorkspaceGuard', () => ({ useRecordingWorkspaceGuard: () => () => false }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown>) =>
       options && 'count' in options ? `${key}:${options.count}` : key,
   }),
 }));
-
 const groupsQuery = {
   data: { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] as WriteGroup[] },
   isLoading: false,
@@ -28,24 +30,51 @@ const deliveryQuery = {
   isError: false,
 };
 const ensureAsync = vi.fn();
-const startAsync = vi.fn();
+const startAsync = vi.fn(), updateAsync = vi.fn();
+const groupListeners = new Set<() => void>();
+const publishGroups = () => groupListeners.forEach(listener => listener());
+function useFixtureGroups() {
+  const [, refresh] = React.useReducer(value => value + 1, 0);
+  React.useEffect(() => { const notify = () => refresh(); groupListeners.add(notify); return () => { groupListeners.delete(notify); }; }, []);
+  return groupsQuery;
+}
+function canonical(id: string) { const group = groupsQuery.data.groups.find(item => item.id === id); if (!group) throw new Error("Missing canonical fixture group"); return group; }
+function saved(result: WriteGroupMutationResponse) {
+  groupsQuery.data = { workspace_id: result.group.workspace_id, workspace_revision: result.workspace_revision, groups: [...groupsQuery.data.groups.filter(group => group.id !== result.group.id), structuredClone(result.group)] };
+  publishGroups(); return result;
+}
 const operationQuery = {
   data: undefined as RecordingStartOperation | undefined,
   isLoading: false,
   isError: false,
   refetch: vi.fn(),
 };
-
-vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
-  useUpdateWriteGroupMutation: () => ({ mutateAsync: vi.fn() }), useWriteGroupsQuery: () => groupsQuery,
-  useWriteGroupDeliveryQuery: () => deliveryQuery,
-}));
+vi.mock('@/hooks/datalink/useStudioV2WriteGroups', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/hooks/datalink/useStudioV2WriteGroups')>();
+  return { useWriteGroupReadinessQuery: actual.useWriteGroupReadinessQuery, useWriteGroupSchemaPreviewMutation: actual.useWriteGroupSchemaPreviewMutation,
+    useWriteGroupSchemaApplyMutation: actual.useWriteGroupSchemaApplyMutation, useWriteGroupSchemaOperationQuery: actual.useWriteGroupSchemaOperationQuery,
+    useUpdateWriteGroupMutation: () => ({ mutateAsync: async (input: unknown) => saved(await updateAsync(input)) }),
+    useWriteGroupsQuery: useFixtureGroups, useWriteGroupDeliveryQuery: () => deliveryQuery };
+});
+vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn(async (id: string) => guidedLifecycle(canonical(id), groupsQuery.data.workspace_revision)) } }));
+vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: {
+  readiness: vi.fn(async (id: string) => guidedReadiness(canonical(id), groupsQuery.data.workspace_revision)),
+  schemaPreview: vi.fn(async (id: string, request: { expected_workspace_revision: string; expected_group_revision: string }) => {
+    expect(request.expected_workspace_revision).toBe(groupsQuery.data.workspace_revision); expect(request.expected_group_revision).toBe(canonical(id).revision);
+    return guidedPreview(canonical(id), groupsQuery.data.workspace_revision);
+  }),
+  schemaApply: vi.fn(async (id: string, request: { token: string; operation_id: string; expected_workspace_revision: string }) => {
+    const group = canonical(id), preview = guidedPreview(group, groupsQuery.data.workspace_revision);
+    expect(request.token).toBe(preview.token); expect(request.expected_workspace_revision).toBe(groupsQuery.data.workspace_revision);
+    saved({ workspace_revision: `${groupsQuery.data.workspace_revision}-schema`, group: { ...group, destination: { ...group.destination, schema_revision: group.revision, schema_digest: 'schema-proof' } } });
+    return { operation_id: request.operation_id, status: 'succeeded', executed_statements: 1, created_at: '', updated_at: '' };
+  }), schemaOperation: vi.fn(),
+} }));
 vi.mock('@/hooks/datalink/useStudioV2RecordingStart', () => ({
-  useEnsureBasicManagedMutation: () => ({ mutateAsync: ensureAsync, isPending: false }),
+  useEnsureBasicManagedMutation: () => ({ mutateAsync: async (input: unknown) => saved(await ensureAsync(input)), isPending: false }),
   useRecordingStartMutation: () => ({ mutateAsync: startAsync, isPending: false }),
   useRecordingStartOperationQuery: () => operationQuery,
 }));
-
 function renderPanel(props: Partial<React.ComponentProps<typeof BasicRecordingPanel>> = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
@@ -54,7 +83,6 @@ function renderPanel(props: Partial<React.ComponentProps<typeof BasicRecordingPa
     </QueryClientProvider>,
   );
 }
-
 const canonicalManaged = savedGroup({
   basic_managed_device_id: 'dev-1',
   destination: {
@@ -68,7 +96,6 @@ const canonicalManaged = savedGroup({
   row_policy: { interval_seconds: 60, allowed_lateness_seconds: 0 },
   write_policy: { mode: 'append', dedupe_capability: 'receipt' },
 });
-
 function operation(overrides: Partial<RecordingStartOperation> = {}): RecordingStartOperation {
   return {
     operation_id: 'operation-1', action: 'recording_start', status: 'succeeded', stage: 'complete',
@@ -78,7 +105,6 @@ function operation(overrides: Partial<RecordingStartOperation> = {}): RecordingS
     created_at: '2026-10-04T00:00:00Z', updated_at: '2026-10-04T00:00:01Z', ...overrides,
   };
 }
-
 function deliveryEvidence(overrides: Partial<WriteGroupDelivery> = {}): WriteGroupDelivery {
   return {
     group_id: canonicalManaged.id,
@@ -93,19 +119,19 @@ function deliveryEvidence(overrides: Partial<WriteGroupDelivery> = {}): WriteGro
     ...overrides,
   };
 }
-
 beforeEach(() => {
   vi.clearAllMocks();
   window.sessionStorage.clear();
   groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] };
-  groupsQuery.refetch.mockResolvedValue({ data: groupsQuery.data });
+  groupsQuery.refetch.mockImplementation(async () => { publishGroups(); return { data: groupsQuery.data }; });
+  updateAsync.mockImplementation(async ({ id, request }) => ({ workspace_revision: `${groupsQuery.data.workspace_revision}-saved`,
+    group: { ...canonical(id), ...request.group, revision: `${canonical(id).revision}-saved`, destination: { ...canonical(id).destination, ...request.group.destination } } }));
   deliveryQuery.data = undefined;
   deliveryQuery.isError = false;
   ensureAsync.mockResolvedValue({ workspace_revision: 'wrev-2', group: canonicalManaged });
   startAsync.mockResolvedValue(operation({ status: 'pending', stage: 'save' }));
-  operationQuery.data = undefined;
+  operationQuery.data = undefined; operationQuery.refetch.mockImplementation(async () => ({ data: operationQuery.data }));
 });
-
 function twoDeviceState() {
   const state = savedGroupState();
   const device = { ...state.devices[0], id: 'dev-2', name: 'PLC B' };
@@ -120,18 +146,14 @@ function twoDeviceState() {
     mappings: { ...state.mappings, [point.id]: mapping },
   };
 }
-
 describe('BasicRecordingPanel', () => {
   it('ensures a server-owned managed group, then starts one selected device', async () => {
     renderPanel();
-
     await screen.findByTestId('basic-recording-selected-members');
     expandSources('basic-recording-sources');
     expect(await screen.findByTestId('basic-recording-selected-members')).toHaveTextContent('line.temperature');
     expect(screen.getByTestId('basic-recording-selected-members')).toHaveTextContent('40001');
-
-    fireEvent.click(await screen.findByTestId('basic-recording-start'));
-
+    await startGuided('basic-recording');
     await waitFor(() => expect(ensureAsync).toHaveBeenCalledTimes(1));
     expect(ensureAsync.mock.calls[0][0]).toMatchObject({ deviceId: 'dev-1' });
     expect(ensureAsync.mock.calls[0][0].request).toMatchObject({
@@ -140,22 +162,20 @@ describe('BasicRecordingPanel', () => {
     });
     await waitFor(() => expect(startAsync).toHaveBeenCalledTimes(1));
     expect(startAsync.mock.calls[0][0]).toMatchObject({
-      request_id: expect.any(String), workspace_id: 'ws-1', expected_workspace_revision: 'wrev-2',
+      request_id: expect.any(String), workspace_id: 'ws-1', expected_workspace_revision: 'wrev-2-schema',
       device_ids: ['dev-1'], groups: [{ group_id: canonicalManaged.id, expected_group_revision: canonicalManaged.revision }],
     });
     expect(screen.getByTestId('basic-recording-status')).toHaveTextContent('step4.basic.operation.pending');
-    expect(screen.getByTestId('basic-recording-retry')).toBeInTheDocument();
+    expect(screen.getByTestId('basic-recording-check')).toBeInTheDocument();
   });
-
   it('keeps existing custom groups out of the basic start request', async () => {
     groupsQuery.data = { ...groupsQuery.data, groups: [savedGroup()] };
     renderPanel();
     expect(await screen.findByTestId('basic-recording-advanced-note')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('basic-recording-start'));
+    await startGuided('basic-recording');
     await waitFor(() => expect(ensureAsync).toHaveBeenCalledTimes(1));
     expect(ensureAsync.mock.calls[0][0].request.group.destination.storage_strategy).toBe('managed');
   });
-
   it('blocks a missing destination without calling ensure or start', async () => {
     const state = savedGroupState({ db: {
       ...savedGroupState().db,
@@ -163,11 +183,10 @@ describe('BasicRecordingPanel', () => {
     } });
     renderPanel({ state });
     expect(await screen.findByTestId('basic-recording-blocked')).toHaveTextContent('step4.basic.blocked.destination');
-    expect(screen.getByTestId('basic-recording-start')).toBeDisabled();
+    expect(document.querySelector('button[data-primary="true"]')).toBeDisabled();
     expect(ensureAsync).not.toHaveBeenCalled();
     expect(startAsync).not.toHaveBeenCalled();
   });
-
   it('blocks a saved managed group pointing at another connector revision', async () => {
     groupsQuery.data = {
       ...groupsQuery.data,
@@ -175,12 +194,11 @@ describe('BasicRecordingPanel', () => {
     };
     renderPanel();
     expect(await screen.findByTestId('basic-recording-blocked')).toHaveTextContent('step4.basic.blocked.destination_mismatch');
-    expect(screen.getByTestId('basic-recording-start')).toBeDisabled();
+    expect(document.querySelector('button[data-primary="true"]')).toBeDisabled();
     expect(ensureAsync).not.toHaveBeenCalled();
     expect(startAsync).not.toHaveBeenCalled();
   });
-
-  it('reports partial progress and leaves retry explicit', async () => {
+  it('reports partial progress and offers only query when the server requires review_request', async () => {
     groupsQuery.data = { ...groupsQuery.data, groups: [canonicalManaged] };
     saveBasicRecordingIntent({
       scope_key: 'ws-1/dev-1/managed-recording',
@@ -193,10 +211,9 @@ describe('BasicRecordingPanel', () => {
     operationQuery.data = operation({ status: 'partial', stage: 'activation', reason: 'activation_failed', next_action: 'review_request' });
     renderPanel();
     expect(await screen.findByTestId('basic-recording-status')).toHaveTextContent('step4.basic.operation.partial');
-    expect(screen.getByTestId('basic-recording-retry')).toBeInTheDocument();
+    expect(screen.queryByTestId('basic-recording-retry')).not.toBeInTheDocument(); expect(screen.getByTestId('basic-recording-check')).toBeInTheDocument();
     expect(startAsync).not.toHaveBeenCalled();
   });
-
   it('keeps retry available when the completed operation moved the group revision', async () => {
     const current = { ...canonicalManaged, revision: 'rev-applied', applied_revision: 'applied-1' };
     groupsQuery.data = { ...groupsQuery.data, groups: [current] };
@@ -209,7 +226,7 @@ describe('BasicRecordingPanel', () => {
       }, operation_id: 'operation-1',
     });
     operationQuery.data = operation({
-      status: 'partial', stage: 'activation',
+      status: 'partial', stage: 'activation', next_action: 'retry_same_request',
       groups: [{ group_id: current.id, group_revision: 'rev-applied', applied_revision: 'applied-1', saved: true, ready: true, applied: true }],
     });
     renderPanel();
@@ -220,7 +237,6 @@ describe('BasicRecordingPanel', () => {
     expect(startAsync.mock.calls[0][0].request_id).toBe('44444444-4444-4444-8444-444444444444');
     expect(startAsync.mock.calls[0][0].groups[0].expected_group_revision).toBe('rev-before');
   });
-
   it('does not confirm an older operation after the same group scope changes', async () => {
     const current = { ...canonicalManaged, revision: 'rev-new', applied_revision: 'applied-new' };
     groupsQuery.data = { ...groupsQuery.data, groups: [current] };
@@ -244,26 +260,25 @@ describe('BasicRecordingPanel', () => {
     expect(screen.queryByTestId('basic-recording-continue-runtime')).not.toBeInTheDocument();
     expect(onCommit).not.toHaveBeenCalled();
   });
-
   it('single-flights the ensure and start path on a double click', async () => {
     let release: (value: { workspace_revision: string; group: WriteGroup }) => void = () => undefined;
     ensureAsync.mockReturnValue(new Promise((resolve) => { release = resolve; }));
     renderPanel();
-    const button = await screen.findByTestId('basic-recording-start');
+    const button = await screen.findByTestId('basic-recording-prepare');
     fireEvent.click(button);
     fireEvent.click(button);
     await waitFor(() => expect(ensureAsync).toHaveBeenCalledTimes(1));
     expect(startAsync).not.toHaveBeenCalled();
     release({ workspace_revision: 'wrev-2', group: canonicalManaged });
+    await confirmPreparedStart('basic-recording');
     await waitFor(() => expect(startAsync).toHaveBeenCalledTimes(1));
   });
-
   it('drops a late ensure response after switching to another device', async () => {
     let release: (value: { workspace_revision: string; group: WriteGroup }) => void = () => undefined;
     ensureAsync.mockReturnValue(new Promise((resolve) => { release = resolve; }));
     renderPanel({ state: twoDeviceState() });
     const tiles = await screen.findAllByTestId('basic-recording-device-tile');
-    fireEvent.click(screen.getByTestId('basic-recording-start'));
+    fireEvent.click(screen.getByTestId('basic-recording-prepare'));
     await waitFor(() => expect(ensureAsync).toHaveBeenCalledTimes(1));
     const other = tiles.find((tile) => tile.getAttribute('data-device-id') === 'dev-2');
     expect(other).toBeDefined();
@@ -273,15 +288,13 @@ describe('BasicRecordingPanel', () => {
         .find((tile) => tile.getAttribute('data-device-id') === 'dev-2');
       expect(pressed).toHaveAttribute('aria-pressed', 'true');
     });
-    release({ workspace_revision: 'wrev-2', group: canonicalManaged });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(async () => release({ workspace_revision: 'wrev-2', group: canonicalManaged }));
     expect(startAsync).not.toHaveBeenCalled();
     expect(screen.queryByTestId('basic-recording-status')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('basic-recording-start'));
+    await waitFor(() => expect(screen.getByTestId('basic-recording-prepare')).toBeEnabled()); fireEvent.click(screen.getByTestId('basic-recording-prepare'));
     await waitFor(() => expect(ensureAsync).toHaveBeenCalledTimes(2));
   });
-
-  it('reuses the persisted request identity after a lost response', async () => {
+  it('retains a persisted lost-response request without inventing operation identity or resending', async () => {
     groupsQuery.data = { ...groupsQuery.data, groups: [canonicalManaged] };
     const request = {
       request_id: '11111111-1111-4111-8111-111111111111', workspace_id: 'ws-1',
@@ -289,16 +302,14 @@ describe('BasicRecordingPanel', () => {
       groups: [{ group_id: canonicalManaged.id, expected_group_revision: canonicalManaged.revision, expected_connector_revision: 'crev-1' }],
     };
     saveBasicRecordingIntent({ scope_key: 'ws-1/dev-1/managed-recording', request });
-    startAsync.mockRejectedValueOnce(new Error('lost response'));
     renderPanel();
-    fireEvent.click(await screen.findByTestId('basic-recording-start'));
-    await waitFor(() => expect(startAsync).toHaveBeenCalledTimes(1));
-    expect(startAsync.mock.calls[0][0].request_id).toBe(request.request_id);
-    expect(ensureAsync).not.toHaveBeenCalled();
-    expect(screen.getByTestId('basic-recording-error')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('recording-next-action')).toHaveTextContent('next.actions.recover_operation'));
+    fireEvent.click(screen.getByTestId('recording-next-action'));
+    expect(startAsync).not.toHaveBeenCalled(); expect(ensureAsync).not.toHaveBeenCalled();
+    expect(loadBasicRecordingIntent('ws-1/dev-1/managed-recording')?.request).toEqual(request);
+    expect(screen.queryByTestId('basic-recording-retry')).not.toBeInTheDocument();
   });
-
-  it('resends the original request after a lost response even if the query revision advances', async () => {
+  it('retains the original request without resend after a lost response even if the query revision advances', async () => {
     groupsQuery.data = { ...groupsQuery.data, groups: [canonicalManaged] };
     const request = {
       request_id: '55555555-5555-4555-8555-555555555555', workspace_id: 'ws-1',
@@ -306,20 +317,14 @@ describe('BasicRecordingPanel', () => {
       groups: [{ group_id: canonicalManaged.id, expected_group_revision: canonicalManaged.revision, expected_connector_revision: 'crev-1' }],
     };
     saveBasicRecordingIntent({ scope_key: 'ws-1/dev-1/managed-recording', request });
-    startAsync.mockImplementationOnce(async () => {
-      groupsQuery.data = { ...groupsQuery.data, workspace_revision: 'wrev-new' };
-      throw new Error('lost response');
-    }).mockResolvedValueOnce(operation({ status: 'pending', stage: 'save' }));
+    groupsQuery.data = { ...groupsQuery.data, workspace_revision: 'wrev-new' };
     renderPanel();
-    const start = await screen.findByTestId('basic-recording-start');
-    fireEvent.click(start);
-    await waitFor(() => expect(startAsync).toHaveBeenCalledTimes(1));
-    fireEvent.click(start);
-    await waitFor(() => expect(startAsync).toHaveBeenCalledTimes(2));
-    expect(startAsync.mock.calls[1][0]).toEqual(startAsync.mock.calls[0][0]);
+    await waitFor(() => expect(screen.getByTestId('recording-next-action')).toHaveTextContent('next.actions.recover_operation'));
+    fireEvent.click(screen.getByTestId('recording-next-action'));
+    expect(startAsync).not.toHaveBeenCalled(); expect(ensureAsync).not.toHaveBeenCalled();
+    expect(loadBasicRecordingIntent('ws-1/dev-1/managed-recording')?.request).toEqual(request);
   });
-
-  it('reuses an unresolved request persisted before the group revision advanced', async () => {
+  it('retains an unresolved no-ID request persisted before the group revision advanced', async () => {
     const old = { ...canonicalManaged, revision: 'rev-old' };
     groupsQuery.data = { ...groupsQuery.data, groups: [canonicalManaged] };
     saveBasicRecordingIntent({
@@ -331,11 +336,10 @@ describe('BasicRecordingPanel', () => {
       },
     });
     renderPanel();
-    fireEvent.click(await screen.findByTestId('basic-recording-start'));
-    await waitFor(() => expect(startAsync).toHaveBeenCalledTimes(1));
-    expect(startAsync.mock.calls[0][0].request_id).toBe('22222222-2222-4222-8222-222222222222');
+    await waitFor(() => expect(screen.getByTestId('recording-next-action')).toHaveTextContent('next.actions.recover_operation'));
+    expect(startAsync).not.toHaveBeenCalled(); expect(ensureAsync).not.toHaveBeenCalled();
+    expect(loadBasicRecordingIntent('ws-1/dev-1/managed-recording')?.request).toMatchObject({ request_id: '22222222-2222-4222-8222-222222222222', expected_workspace_revision: 'wrev-old', groups: [{ expected_group_revision: 'rev-old' }] });
   });
-
   it('sends basic interval/completeness changes as an explicit group draft', async () => {
     groupsQuery.data = { ...groupsQuery.data, groups: [canonicalManaged] };
     renderPanel({
@@ -346,13 +350,13 @@ describe('BasicRecordingPanel', () => {
     });
     fireEvent.change(await screen.findByTestId('basic-recording-interval'), { target: { value: '30' } });
     fireEvent.change(screen.getByTestId('basic-recording-completeness'), { target: { value: 'partial' } });
-    fireEvent.click(screen.getByTestId('basic-recording-start'));
+    await startGuided('basic-recording');
     await waitFor(() => expect(startAsync).toHaveBeenCalledTimes(1));
     expect(ensureAsync).not.toHaveBeenCalled();
     expect(startAsync.mock.calls[0][0]).toMatchObject({ readiness_token: 'share-token', settings_revision: 'settings-1' });
-    expect(startAsync.mock.calls[0][0].groups[0].draft.row_policy).toMatchObject({ interval_seconds: 30, incomplete_policy: 'partial' });
+    expect(updateAsync.mock.calls[0][0].request.group.row_policy).toMatchObject({ interval_seconds: 30, incomplete_policy: 'partial' });
+    expect(startAsync.mock.calls[0][0].groups[0].draft).toBeUndefined();
   });
-
   it('does not call a historical committed count current SQL evidence without a matching effect', async () => {
     const applied = { ...canonicalManaged, applied_revision: 'applied-1' };
     groupsQuery.data = { ...groupsQuery.data, groups: [applied] };
@@ -362,7 +366,6 @@ describe('BasicRecordingPanel', () => {
     expect(evidence).toHaveTextContent('step4.basic.unconfirmed');
     expect(screen.queryByTestId('basic-recording-committed-effect')).not.toBeInTheDocument();
   });
-
   it('shows only a receipt effect bound to the current applied revision', async () => {
     const applied = { ...canonicalManaged, applied_revision: 'applied-1' };
     groupsQuery.data = { ...groupsQuery.data, groups: [applied] };
@@ -384,7 +387,6 @@ describe('BasicRecordingPanel', () => {
     expect(screen.getByTestId('basic-recording-evidence')).toHaveTextContent('step4.basic.committed_verified');
     expect(screen.getByTestId('basic-recording-evidence')).toHaveTextContent('4');
   });
-
   it('does not use a receipt returned for another group', async () => {
     const applied = { ...canonicalManaged, applied_revision: 'applied-1' };
     groupsQuery.data = { ...groupsQuery.data, groups: [applied] };
@@ -399,7 +401,6 @@ describe('BasicRecordingPanel', () => {
     expect(await screen.findByTestId('basic-recording-evidence')).toHaveTextContent('step4.basic.unconfirmed');
     expect(screen.queryByTestId('basic-recording-committed-effect')).not.toBeInTheDocument();
   });
-
   it('keeps a receipt from an older applied revision unconfirmed', async () => {
     const applied = { ...canonicalManaged, applied_revision: 'applied-2' };
     groupsQuery.data = { ...groupsQuery.data, groups: [applied] };
@@ -414,18 +415,18 @@ describe('BasicRecordingPanel', () => {
     expect(await screen.findByTestId('basic-recording-evidence')).toHaveTextContent('step4.basic.unconfirmed');
     expect(screen.queryByTestId('basic-recording-committed-effect')).not.toBeInTheDocument();
   });
-
   it('offers the existing Runtime handoff only after the selected device is activated', async () => {
     groupsQuery.data = { ...groupsQuery.data, groups: [canonicalManaged] };
-    startAsync.mockResolvedValueOnce(operation({ status: 'succeeded', stage: 'complete' }));
+    const succeeded = operation({ groups: operation().groups.map(group => ({ ...group, applied_revision: group.group_revision })) });
+    expect(parseRecordingStartOperation(succeeded)).toEqual(succeeded);
+    startAsync.mockResolvedValueOnce(succeeded);
     const onCommit = vi.fn();
     renderPanel({ onCommit });
-    fireEvent.click(await screen.findByTestId('basic-recording-start'));
+    await startGuided('basic-recording');
     const continueButton = await screen.findByTestId('basic-recording-continue-runtime');
     fireEvent.click(continueButton);
     expect(onCommit).toHaveBeenCalledWith(['dev-1']);
   });
-
   it('maps preparation reasons and actions to safe repair guidance', async () => {
     groupsQuery.data = { ...groupsQuery.data, groups: [canonicalManaged] };
     saveBasicRecordingIntent({
@@ -445,7 +446,6 @@ describe('BasicRecordingPanel', () => {
     expect(onOpenAdvanced).not.toHaveBeenCalled();
     expect(document.getElementById('basic-schema-dev-1')).toHaveFocus();
   });
-
   it('maps Share readiness operation guidance without exposing backend text', async () => {
     groupsQuery.data = { ...groupsQuery.data, groups: [canonicalManaged] };
     saveBasicRecordingIntent({
@@ -462,7 +462,6 @@ describe('BasicRecordingPanel', () => {
     expect(status).toHaveTextContent('step4.basic.reason.share_not_ready');
     expect(status).toHaveTextContent('step4.basic.action.refresh_share');
   });
-
   it.each([
     ['RECORDING_START_INVALID', 'step4.basic.error.start_invalid'],
     ['RECORDING_START_INTENT_CHANGED', 'step4.basic.error.start_intent_changed'],
@@ -474,19 +473,19 @@ describe('BasicRecordingPanel', () => {
     groupsQuery.data = { ...groupsQuery.data, groups: [canonicalManaged] };
     startAsync.mockRejectedValueOnce({ response: { data: { error: { code, message: 'private backend detail' } } } });
     renderPanel();
-    fireEvent.click(await screen.findByTestId('basic-recording-start'));
+    await startGuided('basic-recording');
     const error = await screen.findByTestId('basic-recording-error');
     expect(error).toHaveTextContent(messageKey);
     expect(error).not.toHaveTextContent('private backend detail');
   });
-
   it('refreshes canonical groups and readiness evidence after a succeeded operation', async () => {
     groupsQuery.data = { ...groupsQuery.data, groups: [canonicalManaged] };
-    startAsync.mockResolvedValueOnce(operation({ status: 'succeeded', stage: 'complete' }));
+    const succeeded = operation({ groups: operation().groups.map(group => ({ ...group, applied_revision: group.group_revision })) });
+    expect(parseRecordingStartOperation(succeeded)).toEqual(succeeded);
+    startAsync.mockResolvedValueOnce(succeeded);
     renderPanel();
-    fireEvent.click(await screen.findByTestId('basic-recording-start'));
+    await startGuided('basic-recording');
     await waitFor(() => expect(screen.getByTestId('basic-recording-status')).toHaveTextContent('step4.basic.operation.succeeded'));
     await waitFor(() => expect(groupsQuery.refetch).toHaveBeenCalled());
   });
-
 });

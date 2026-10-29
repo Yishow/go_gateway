@@ -146,6 +146,9 @@ func (s *WriteGroupService) planForward(ctx context.Context, req CutoverRequest)
 	if source.Destination.ConnectorRevision != req.ExpectedConnectorRevision {
 		return nil, writeGroupRevisionConflict("write group connector revision is stale")
 	}
+	if err := s.checkLegacyCutoverOwner(ctx, req.WorkspaceID, source.ID); err != nil {
+		return nil, err
+	}
 	plan := &cutoverPlan{req: req, source: source, readiness: map[string]*WriteGroupReadiness{}}
 	issues, activeFrom, err := s.reviewForwardSource(ctx, plan)
 	if err != nil {
@@ -178,6 +181,9 @@ func (s *WriteGroupService) planForward(ctx context.Context, req CutoverRequest)
 		}
 		if target.Revision != ref.ExpectedRevision {
 			return nil, writeGroupRevisionConflict("write group revision is stale")
+		}
+		if err := s.checkLegacyCutoverOwner(ctx, req.WorkspaceID, target.ID); err != nil {
+			return nil, err
 		}
 		ready, err := s.Readiness(ctx, target.ID)
 		if err != nil {

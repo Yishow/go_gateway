@@ -13,7 +13,7 @@ import {
   buildBatchPreview,
   hasPlanGroupRevisionDrift,
 } from '../../state/circuitProfileBatch';
-import type { FrozenBatchPlan } from './circuitProfileBatchExecutor';
+import { batchLayoutBlockReason, type ExecuteBatchPlanInput, type FrozenBatchPlan } from './circuitProfileBatchExecutor';
 import { CircuitProfileBatchPreview } from './CircuitProfileBatchPreview';
 import { useCircuitProfileBatchRun } from './useCircuitProfileBatchRun';
 
@@ -21,6 +21,7 @@ export interface CircuitProfileBatchEditorProps {
   workspaceId: string;
   workspaceRevision: string;
   connectorRevision?: string;
+  capabilityContext?: ExecuteBatchPlanInput['capabilityContext'];
   /** Identity of the Basic scope that owns this editor; a reviewed plan is void once it changes. */
   scopeKey?: string;
   savedLongGroups: WriteGroup[];
@@ -37,7 +38,7 @@ export interface CircuitProfileBatchEditorProps {
 }
 
 export const CircuitProfileBatchEditor: React.FC<CircuitProfileBatchEditorProps> = ({
-  workspaceId, workspaceRevision, connectorRevision, scopeKey, savedLongGroups, readonly,
+  workspaceId, workspaceRevision, connectorRevision, capabilityContext, scopeKey, savedLongGroups, readonly,
   onClose, onSuccess, onVerify, updateWriteGroup, ensureCircuitProfile, onOperationActiveChange, onBusyChange,
 }) => {
   const { t } = useTranslation('workbench-v2');
@@ -63,8 +64,14 @@ export const CircuitProfileBatchEditor: React.FC<CircuitProfileBatchEditorProps>
       hasGroupRevisionDrift
     ),
   );
+  const selectedTargets = circuits.filter((c) => selectedCircuitIds.has(c.circuit_id)).map((c) => ({
+    circuit_id: c.circuit_id, circuit_name: c.circuit_name, instantaneousGroup: c.instantaneousGroup,
+    cumulativeGroup: c.cumulativeGroup, anyGroup: (c.instantaneousGroup ?? c.cumulativeGroup)!,
+  }));
+  const selection = { connectorRevision, applyInst, applyCum, targets: selectedTargets };
+  const layoutBlockedReason = batchLayoutBlockReason(showPreview && frozenPlan ? frozenPlan : selection, capabilityContext, connectorRevision);
   const run = useCircuitProfileBatchRun({
-    plan: frozenPlan, stale: isPlanStale, readonly, connectorRevision, workspaceRevision, savedLongGroups,
+    plan: frozenPlan, stale: isPlanStale, readonly: readonly || Boolean(layoutBlockedReason), connectorRevision, capabilityContext, workspaceRevision, savedLongGroups,
     updateWriteGroup, ensureCircuitProfile, onSuccess, onClose, onVerify, onBusyChange, onOperationActiveChange,
   });
 
@@ -81,7 +88,7 @@ export const CircuitProfileBatchEditor: React.FC<CircuitProfileBatchEditorProps>
   const cumValidation = parseStrictProfileIntervalInput('cumulative', cumIntervalInput);
   const instError = applyInst && !instValidation.valid ? t('step4.basic.errors.profile_interval_invalid') : undefined;
   const cumError = applyCum && !cumValidation.valid ? t('step4.basic.errors.profile_interval_invalid') : undefined;
-  const canPreview = !readonly && !run.saving && selectedCircuitIds.size > 0 && (applyInst || applyCum) && (!applyInst || instValidation.valid) && (!applyCum || cumValidation.valid);
+  const canPreview = layoutBlockedReason !== 'capability_unavailable' && !readonly && !run.saving && selectedCircuitIds.size > 0 && (applyInst || applyCum) && (!applyInst || instValidation.valid) && (!applyCum || cumValidation.valid);
 
   const handleOpenPreview = () => {
     if (!canPreview) return;
@@ -113,6 +120,9 @@ export const CircuitProfileBatchEditor: React.FC<CircuitProfileBatchEditorProps>
           onClick={onClose} disabled={run.saving} className="text-xs text-slate-400 hover:text-slate-200">✕</button>
       </div>
 
+      {layoutBlockedReason && <p role="status" data-testid="circuit-profile-batch-layout-blocked" className="text-xs text-amber-300">
+        {t(`step4.basic.circuit.${layoutBlockedReason}`)}
+      </p>}
       {!showPreview ? (
         <div className="space-y-3 text-xs text-slate-300">
           <p className="text-[11px] text-slate-400">{t('step4.basic.circuit.batch_desc')}</p>
@@ -189,7 +199,7 @@ export const CircuitProfileBatchEditor: React.FC<CircuitProfileBatchEditorProps>
               onClick={() => { run.reset(); setShowPreview(false); }} className="rounded border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-40">
               {t('step4.basic.circuit.batch_cancel')}
             </button>
-            <button type="button" data-testid="circuit-profile-batch-confirm" disabled={readonly || run.saving || run.finished || isPlanStale}
+            <button type="button" data-testid="circuit-profile-batch-confirm" disabled={readonly || Boolean(layoutBlockedReason) || run.saving || run.finished || isPlanStale}
               onClick={() => void run.confirm()} className="rounded bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-40">
               {run.saving ? t('step4.basic.circuit.batch_saving') : t('step4.basic.circuit.batch_confirm')}
             </button>

@@ -30,7 +30,7 @@ func TestSQLServerDestinationCutover(t *testing.T) {
 	require.NoError(t, pipeline.saveRuntimeSnapshot(t.Context(), old))
 	oldBoundarySnapshot := *old
 	oldBoundarySnapshot.EndsAt = at(20)
-	oldBoundary, reason := pipeline.buildFrozen(t.Context(), &oldBoundarySnapshot, time.Time{})
+	oldBoundary, reason := pipeline.buildFrozen(t.Context(), &oldBoundarySnapshot, time.Time{}, time.Time{})
 	require.Empty(t, reason)
 	require.NotNil(t, oldBoundary)
 	fixture.clock = at(25)
@@ -41,7 +41,7 @@ func TestSQLServerDestinationCutover(t *testing.T) {
 
 	next := sqlServerCutoverSnapshot(t, base, "sqlserver-rev-b", "connector-b", "crev-b", at(20))
 	require.NoError(t, pipeline.saveRuntimeSnapshot(t.Context(), next))
-	nextBoundary, reason := pipeline.buildFrozen(t.Context(), next, time.Time{})
+	nextBoundary, reason := pipeline.buildFrozen(t.Context(), next, time.Time{}, time.Time{})
 	require.Empty(t, reason)
 	require.NotNil(t, nextBoundary)
 	require.NoError(t, nextBoundary.boundary.AcceptSample(t.Context(), envelope(next.Group, "at-cutover", at(20), 20.5)))

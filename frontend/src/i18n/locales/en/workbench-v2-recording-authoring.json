@@ -1,0 +1,46 @@
+{
+  "step4": {
+    "basic": {
+      "circuit": {
+        "saved_role_unsupported": "Saved source roles cannot currently be changed. Layout or destination review preserves this role and its frozen binding.",
+        "circuit_name_label": "Circuit name",
+        "circuit_name_placeholder": "e.g. Main Circuit A (optional unless requested below)",
+        "counter_circuit_required": "Enter a circuit name before confirming these counter sources.",
+        "counter_name_action": "Enter circuit name",
+        "cumulative_selected": "Selected cumulative sources: {{count}}",
+        "cumulative_sources_required": "Choose the counters to record from the source list, then confirm their meaning.",
+        "cumulative_choose_sources": "Choose counter sources",
+        "measurements_error": "Counter definitions could not be read. Retry before confirming or recording these counters. Your draft is preserved.",
+        "measurements_loading": "Checking counter definitions. Confirmation and recording for these counters are temporarily blocked; your draft is preserved.",
+        "layout_unsupported": "This destination supports selected-measurement recording only; wide tables are unavailable.",
+        "capability_unavailable": "Current destination capabilities are unverified. Save or recheck this connection before preparing recording.",
+        "storage_unsupported": "The selected storage mode is unavailable for this layout or destination. Review the settings; no saved mode has been changed.",
+        "layout_not_readiness": "An available layout does not mean the connection, schema, or recording is ready.",
+        "batch_layout_unsupported": "Batch changes support selected-measurement (long) profiles only. Review other layouts separately."
+      }
+    },
+    "group": {
+      "test_write": {
+        "recovery_pending": "Unresolved test writes. Check the original operation before starting another test for this group.",
+        "recovery_storage_error": "Recovery references could not be saved or read. No new test write is allowed. Check existing operations; missing local references do not prove that nothing was written.",
+        "recovery_list_unavailable": "The workspace test-write ledger is not confirmed. Retry this read before creating another preview or write; missing results do not prove nothing was written.",
+        "recorded_outcome": "Recorded outcome",
+        "write_committed": "Write committed",
+        "write_not_written": "Not written",
+        "write_unconfirmed": "Write not confirmed",
+        "readback": "Readback",
+        "readback_verified": "Readback verified",
+        "readback_unverified": "Written, but readback not verified",
+        "readback_not_attempted": "Not attempted: no write",
+        "readback_unconfirmed": "Readback not confirmed",
+        "cleanup_unconfirmed": "Cleanup not confirmed",
+        "cleanup_repair_running": "Cleanup repair running; removal not yet confirmed",
+        "prior_cleanup": "Prior cleanup evidence",
+        "recovery_manual_guidance": "Status checks remain available. This view cannot authorize cleanup repair without the original supported confirmation. Keep this operation ID and ask an administrator to inspect only its owned test rows; do not insert another test row to clean them up.",
+        "last_checked_result": "Last checked result (not a new write)",
+        "recovery_results_title": "Test-write recovery and last checked results",
+        "operation_status_unconfirmed": "The latest operation status is unconfirmed. Previously recorded phase facts are historical; query this original operation before another action."
+      }
+    }
+  }
+}

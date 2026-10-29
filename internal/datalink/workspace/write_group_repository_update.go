@@ -23,6 +23,9 @@ func (r *SQLWriteGroupRepository) updateInTx(ctx context.Context, tx *sql.Tx, gr
 	if err != nil {
 		return err
 	}
+	if err := r.requireUnreservedWriteGroupInTx(ctx, tx, group.WorkspaceID, group.ID); err != nil {
+		return err
+	}
 	candidate := cloneWriteGroup(group)
 	// Basic ownership is read-only metadata; it has no write-group column and
 	// must never be accepted from an update payload.

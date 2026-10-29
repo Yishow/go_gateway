@@ -1,0 +1,46 @@
+{
+  "step4": {
+    "basic": {
+      "circuit": {
+        "saved_role_unsupported": "目前不支援變更已儲存的來源角色。布局或目的地審查會保留此角色與凍結綁定。",
+        "circuit_name_label": "迴路名稱",
+        "circuit_name_placeholder": "例如：主迴路 A（除非下方提示必填，否則可留白）",
+        "counter_circuit_required": "確認這些計數來源前，請先輸入迴路名稱。",
+        "counter_name_action": "輸入迴路名稱",
+        "cumulative_selected": "已選累積來源：{{count}}",
+        "cumulative_sources_required": "請從來源清單選擇要記錄的計數器，再確認其計數語意。",
+        "cumulative_choose_sources": "選擇計數來源",
+        "measurements_error": "無法讀取計數定義。請重試後再確認或記錄這些計數來源；你的草稿已保留。",
+        "measurements_loading": "正在確認計數定義。這些計數來源暫時無法確認或開始記錄；你的草稿已保留。",
+        "layout_unsupported": "此目的地僅支援所選量測記錄，不支援寬表。",
+        "capability_unavailable": "目前目的地能力尚未確認。請先儲存或重新確認此連線，再準備記錄。",
+        "storage_unsupported": "此布局或目的地不支援所選儲存模式。請檢查設定；已保存模式並未變更。",
+        "layout_not_readiness": "布局可用不代表連線、資料表結構或記錄已準備完成。",
+        "batch_layout_unsupported": "批次變更僅支援所選量測（長表）設定；請個別檢視其他布局。"
+      }
+    },
+    "group": {
+      "test_write": {
+        "recovery_pending": "待釐清試寫。請先查詢原操作，再對同群組開始新的試寫。",
+        "recovery_storage_error": "無法儲存或讀取復原參照，已停止新的試寫。請查詢既有操作；本機參照遺失不代表沒有寫入。",
+        "recovery_list_unavailable": "尚未確認工作區試寫紀錄。請重試查詢後再新增預覽或試寫；缺少結果不代表沒有寫入。",
+        "recorded_outcome": "已記錄的結果",
+        "write_committed": "已提交寫入",
+        "write_not_written": "未寫入",
+        "write_unconfirmed": "尚未確認寫入",
+        "readback": "讀回驗證",
+        "readback_verified": "讀回驗證通過",
+        "readback_unverified": "已寫入，但讀回尚未驗證通過",
+        "readback_not_attempted": "未執行：沒有寫入",
+        "readback_unconfirmed": "尚未確認讀回",
+        "cleanup_unconfirmed": "尚未確認清理",
+        "cleanup_repair_running": "正在修復清理；尚未確認移除",
+        "prior_cleanup": "先前清理證據",
+        "recovery_manual_guidance": "仍可查詢狀態。沒有原始且支援的確認資訊時，此處無法授權清理修復。請保留操作識別碼，由管理員檢查僅屬於此操作的測試列；不要再插入測試列來清理。",
+        "last_checked_result": "上次查詢結果（不是新的寫入）",
+        "recovery_results_title": "試寫復原與上次查詢結果",
+        "operation_status_unconfirmed": "尚未確認最新操作狀態。先前記錄的各階段事實是歷史證據；再次操作前請查詢原操作。"
+      }
+    }
+  }
+}

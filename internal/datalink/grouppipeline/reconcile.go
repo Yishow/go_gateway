@@ -39,6 +39,8 @@ func boundaryKey(groupID, revision string) string { return groupID + "@" + revis
 // effective boundary, and ends disabled or deleted groups at the next bucket
 // boundary. Accepted buckets always keep closing and delivering.
 func (p *Pipeline) Reconcile(ctx context.Context) error {
+	p.reconcileMu.Lock()
+	defer p.reconcileMu.Unlock()
 	list, err := p.deps.Groups.List(ctx)
 	if err != nil {
 		return err
@@ -65,7 +67,8 @@ func (p *Pipeline) Reconcile(ctx context.Context) error {
 	for _, m := range gone {
 		m.boundary.SetUntil(nextBoundary(now, m.interval))
 	}
-	return p.restoreOpenJournals(ctx)
+	handoffErr := p.reconcileHandoffs(ctx, list)
+	return errors.Join(handoffErr, p.restoreOpenJournals(ctx))
 }
 
 // reconcileGroup never fails the whole reconcile: a group that cannot be built
@@ -91,12 +94,16 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 	// the current snapshot's start even when no future snapshot was observed.
 	if current != nil {
 		p.mu.RLock()
+		var previousRevisions []*managed
 		for _, previous := range p.boundaries {
 			if previous.groupID == group.ID && previous.effective.Before(current.EffectiveAt) {
-				previous.boundary.SetEndsAt(current.EffectiveAt)
+				previousRevisions = append(previousRevisions, previous)
 			}
 		}
 		p.mu.RUnlock()
+		for _, previous := range previousRevisions {
+			previous.boundary.SetEndsAt(current.EffectiveAt)
+		}
 	}
 	built := false
 	for _, snap := range snapshots {
@@ -136,7 +143,11 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 
 // build creates the boundary for one applied snapshot from real destination
 // metadata, or returns the safe reason it cannot be built yet.
-func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot) (built *managed, blockedReason string) {
+func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot) (*managed, string) {
+	return p.buildAt(ctx, snap, time.Time{}, time.Time{})
+}
+
+func (p *Pipeline) buildAt(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot, first, until time.Time) (built *managed, blockedReason string) {
 	group := snap.Group
 	connector, err := p.deps.Destinations.GetByID(ctx, group.Destination.ConnectorID)
 	if errors.Is(err, dbtarget.ErrConnectorNotFound) {
@@ -163,7 +174,7 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 			return nil, reasonSnapshotUnavailable
 		}
 		frozen.EndsAt = snap.EndsAt
-		return p.buildFrozen(ctx, frozen, time.Time{})
+		return p.buildFrozen(ctx, frozen, first, until)
 	}
 	if needsCounterSources(group) {
 		return nil, "counter-replay-proof-missing"
@@ -209,7 +220,7 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 	verified.RuntimeLayout = &workspace.WriteGroupRuntimeLayout{
 		Dialect: dialect, Columns: inspection.Columns, TagTypes: tagTypes, ReceiptTableReady: receiptReady,
 	}
-	built, blockedReason = p.buildFrozen(ctx, &verified, time.Time{})
+	built, blockedReason = p.buildFrozen(ctx, &verified, first, until)
 	if blockedReason != "" {
 		return nil, blockedReason
 	}
@@ -219,8 +230,8 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 	return built, ""
 }
 
-func (p *Pipeline) buildFrozen(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot, first time.Time) (built *managed, reason string) {
-	built, reason, err := p.buildFrozenWithCause(ctx, snap, first, time.Time{})
+func (p *Pipeline) buildFrozen(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot, first, until time.Time) (built *managed, reason string) {
+	built, reason, err := p.buildFrozenWithCause(ctx, snap, first, until)
 	if err != nil {
 		return nil, reason
 	}

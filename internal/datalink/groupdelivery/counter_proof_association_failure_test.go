@@ -46,7 +46,7 @@ func TestLegacyCounterProofAssociationChecksEveryOriginalSample(t *testing.T) {
 			require.NoError(t, err)
 		},
 		"foreign workspace": func(t *testing.T, s *Store) {
-			_, err := s.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET workspace_id='other' WHERE sample_id='c-2'`)
+			_, err := s.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET workspace_id='other',origin_workspace_id='other' WHERE sample_id='c-2'`)
 			require.NoError(t, err)
 		},
 		"row member disagrees": func(t *testing.T, s *Store) {
@@ -54,7 +54,7 @@ func TestLegacyCounterProofAssociationChecksEveryOriginalSample(t *testing.T) {
 			require.NoError(t, err)
 		},
 		"row sample identity disagrees": func(t *testing.T, s *Store) {
-			_, err := s.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET sample_id='other' WHERE sample_id='c-2'`)
+			_, err := s.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET origin_sample_id='other' WHERE sample_id='c-2'`)
 			require.NoError(t, err)
 		},
 		"accepted timestamp corrupt": func(t *testing.T, s *Store) {

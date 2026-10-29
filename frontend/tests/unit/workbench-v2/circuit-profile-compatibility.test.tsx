@@ -217,7 +217,7 @@ describe('Unchecking a profile in Basic changes the draft, never a running write
     expectNoWrites();
     fireEvent.click(within(note).getByTestId('circuit-profile-draft-lifecycle-instantaneous'));
     expect(await screen.findByTestId('group-name')).toHaveValue('Feeder A (instantaneous)');
-    expect(screen.getByTestId('group-disable')).toBeInTheDocument();
+    expect(within(screen.getByTestId('group-editor')).getByTestId('group-disable')).toBeInTheDocument();
     expectNoWrites();
   });
 

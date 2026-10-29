@@ -12,6 +12,8 @@ export interface SourceReviewProps {
   exceptionKey?: string;
   /** Opens the saved group that holds them; the summary never edits anything itself. */
   onRepair?: () => void;
+  /** A new explicit request reveals and focuses the picker without changing its selection. */
+  expandRequest?: number;
   /** The rows. They are rendered only while expanded. */
   children: React.ReactNode;
 }
@@ -20,15 +22,22 @@ export interface SourceReviewProps {
  * A source list that starts as its count and its exceptions. The unavailable sources and their repair stay visible
  * while collapsed; expanding only reveals the rows and changes nothing. The expanded list scrolls inside itself.
  */
-export const SourceReview: React.FC<SourceReviewProps> = ({ prefix, count, unavailable, exceptionKey = 'step4.basic.sources.unavailable', onRepair, children }) => {
+export const SourceReview: React.FC<SourceReviewProps> = ({ prefix, count, unavailable, exceptionKey = 'step4.basic.sources.unavailable', onRepair, expandRequest = 0, children }) => {
   const { t } = useTranslation('workbench-v2');
   const [expanded, setExpanded] = React.useState(false);
+  const toggleRef = React.useRef<HTMLButtonElement>(null);
+  React.useEffect(() => {
+    if (expandRequest > 0) {
+      setExpanded(true);
+      toggleRef.current?.focus();
+    }
+  }, [expandRequest]);
   const listId = `${prefix}-list`;
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300">
         <p data-testid={`${prefix}-summary`}>{t('step4.basic.sources.count', { count })}</p>
-        <button type="button" data-testid={`${prefix}-toggle`} aria-expanded={expanded} aria-controls={listId} onClick={() => setExpanded((open) => !open)}
+        <button ref={toggleRef} type="button" data-testid={`${prefix}-toggle`} aria-expanded={expanded} aria-controls={listId} onClick={() => setExpanded((open) => !open)}
           className="rounded border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800">
           {t(`step4.basic.sources.${expanded ? 'hide' : 'show'}`)}
         </button>

@@ -75,6 +75,9 @@ func (r *coexistRig) fresh(request map[string]any) map[string]any {
 func newCoexistRig(t *testing.T, kind string) *coexistRig {
 	t.Helper()
 	f := newManagedDestinationFixture(t, kind)
+	// Keep 60-second and 15-second activation boundaries deliberately distinct.
+	fixtureNow := time.Now().UTC().Truncate(time.Minute).Add(time.Second)
+	f.groups.WithClock(func() time.Time { return fixtureNow })
 	for _, name := range []string{"custom", "energy", "voltage", "extra"} {
 		seedProfileSource(t, f.writeGroupRouterFixture, name)
 	}
@@ -132,27 +135,30 @@ func (r *coexistRig) holdPendingRows() {
 		Groups: r.f.groups, Tags: tag.NewService(tag.NewSQLRepository(r.f.db)), Destinations: targets,
 		Inspector: dbtarget.NewReadOnlyTableInspector(targets), Store: groupdelivery.NewStore(r.f.db),
 	}, grouppipeline.Config{
-		NodeID: "node", Owner: "node/test", Now: func() time.Time { return time.Unix(0, clock.Load()).UTC() },
+		NodeID: "node", Owner: "node/test", OnError: func(err error) { require.NoError(r.t, err) }, Now: func() time.Time { return time.Unix(0, clock.Load()).UTC() },
 		TickInterval: 20 * time.Millisecond, WorkerInterval: time.Hour, ReconcileInterval: time.Hour, MaxFutureSkew: time.Minute,
 	})
 	latest := time.Time{}
-	effective := map[string]time.Time{}
-	for name, id := range r.groups {
+	for _, id := range r.groups {
 		snapshot, err := r.f.groups.ResolveAppliedAt(r.t.Context(), id, time.Now().Add(time.Hour))
 		require.NoError(r.t, err)
-		effective[name] = snapshot.EffectiveAt
 		if snapshot.EffectiveAt.After(latest) {
 			latest = snapshot.EffectiveAt
 		}
 	}
 	clock.Store(latest.Add(5 * time.Second).UnixNano())
-	require.NoError(r.t, pipe.Start(r.t.Context()))
+	// Reconcile and tick explicitly: no sender or background IO races schema probes.
+	require.NoError(r.t, pipe.Reconcile(r.t.Context()))
 	r.t.Cleanup(func() { _ = pipe.Stop(time.Second) })
+	// The background loop may tick before intake; deliberately exercise that order.
+	pipe.TickAll(r.t.Context())
 	for name, id := range r.groups {
 		snapshot, err := r.f.groups.ResolveAppliedAt(r.t.Context(), id, time.Now().Add(time.Hour))
 		require.NoError(r.t, err)
 		member := snapshot.Group.Members[0]
-		observed := effective[name].Add(2 * time.Second)
+		// All writers observe the same currently open interval, not an older
+		// profile window that legitimately closed before the last writer activated.
+		observed := latest.Add(2 * time.Second)
 		require.NoError(r.t, pipe.AcceptSample(r.t.Context(), measurement.SampleEnvelope{
 			SampleID: "coexist-" + name, WorkspaceID: r.f.record.ID, DeviceID: member.DeviceID, PointID: member.PointID, TagID: member.TagID,
 			SourceRevision: member.SourceRevision, MappingRevision: member.MappingRevision, ObservedAt: observed, ReceivedAt: observed.Add(30 * time.Millisecond),
@@ -160,8 +166,13 @@ func (r *coexistRig) holdPendingRows() {
 		}))
 	}
 	clock.Store(latest.Add(5 * time.Minute).UnixNano())
-	require.Eventually(r.t, func() bool { return r.pendingRows() >= len(r.groups) }, 15*time.Second, 50*time.Millisecond, "every group closed a window into its pending outbox")
-	time.Sleep(200 * time.Millisecond) // the closed windows are all in; nothing closes after the clock stops
+	pipe.TickAll(r.t.Context())
+	require.GreaterOrEqual(r.t, r.pendingRows(), len(r.groups), "every group closed a window into its pending outbox")
+	for name, id := range r.groups {
+		var consumed int
+		require.NoError(r.t, r.f.db.QueryRowContext(r.t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=? AND sample_id=? AND consumed=1`, id, "coexist-"+name).Scan(&consumed))
+		require.Equal(r.t, 1, consumed, "%s consumed its actual observation, not just an empty earlier window", name)
+	}
 }
 
 func (r *coexistRig) pendingRows() int {

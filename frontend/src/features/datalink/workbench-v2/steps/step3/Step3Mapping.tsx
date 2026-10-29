@@ -1,3 +1,4 @@
+import type { StudioSelectionResult } from '../../state/studioSelection';
 import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +11,7 @@ import { MeasurementTemplateSelector } from './MeasurementTemplateSelector';
 import { useStep3LiveValues } from './useStep3LiveValues';
 
 export interface Step3MappingProps {
+  locatorSelection?: Extract<StudioSelectionResult, { state: 'selected' }>;
   state: WorkbenchV2State;
   workspaceId?: string;
   dispatch: React.Dispatch<WorkbenchV2Action>;
@@ -28,7 +30,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   workspaceId,
   dispatch,
   onContinue,
-  onBack,
+  onBack, locatorSelection,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: mappingErrorText } = useTranslation('mapping-errors');
@@ -36,7 +38,11 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   // 1. 取得設備協議對照表與點位與啟用點位列表
   const deviceProtocolMap = useDeviceProtocolMap(state.devices);
   const allPoints = useAllPoints(state.rules, deviceProtocolMap);
-  const enabledPoints = useMemo(() => allPoints.filter((p) => p.enabled && !p.skipped), [allPoints]);
+  const selectedMapping = locatorSelection ? Object.values(state.mappings).find(mapping =>
+    mapping.mapping_id === locatorSelection.target.mappingId && mapping.device_id === locatorSelection.target.deviceId &&
+    mapping.rule_id === locatorSelection.target.ruleId && mapping.workspace_id === locatorSelection.target.workspaceId) : undefined;
+  const enabledPoints = useMemo(() => locatorSelection ? state.points.filter(point => point.id === selectedMapping?.point_id && Boolean(selectedMapping.persisted_point_id)) : allPoints.filter((p) => p.enabled && !p.skipped),
+  [allPoints, locatorSelection, selectedMapping, state.points]);
 
   const enabledPointsIdentityStr = enabledPoints
     .map((p) => `${p.id}:${p.device_id}:${p.rule_id}:${p.address.trim().toUpperCase()}:${p.data_type}:${p.width}`)
@@ -44,9 +50,9 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
 
   // 2. 自動 mapping 初始化效應
   useEffect(() => {
-    dispatch({ type: 'initMappingsForPoints', points: enabledPoints });
+    if (!locatorSelection) dispatch({ type: 'initMappingsForPoints', points: enabledPoints });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabledPointsIdentityStr]);
+  }, [enabledPointsIdentityStr, locatorSelection]);
 
   // 3. 選取列管理
   const [selectedIdx, setSelectedIdx] = useState<number | null>(
@@ -57,7 +63,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   useEffect(() => {
     setSelectedIdx(enabledPoints.length > 0 ? 0 : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabledPointsIdentityStr]);
+  }, [enabledPointsIdentityStr, locatorSelection]);
 
   // 4. 衍生 validation 與表格即時值
   const { canContinue, emptyTagCount, enabledCount, totalCount } = useMappingValidation(
@@ -65,7 +71,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   );
 
   const liveValues = useStep3LiveValues(enabledPoints, state.mappings);
-  const activeDeviceId = enabledPoints[selectedIdx ?? 0]?.device_id ?? state.devices[0]?.id;
+  const activeDeviceId = enabledPoints[selectedIdx ?? 0]?.device_id ?? (locatorSelection ? undefined : state.devices[0]?.id);
 
   return (
     <div className="flex flex-col gap-6" data-testid="step3-mapping-container">

@@ -104,30 +104,10 @@ func (r *SQLWriteGroupRepository) List(ctx context.Context, workspaceID string) 
 // commits, or rolls back tx, allowing workspace CAS saves to share one local
 // transaction and connection.
 func (r *SQLWriteGroupRepository) CreateInTx(ctx context.Context, tx *sql.Tx, group *WriteGroup) error {
-	if tx == nil {
-		return fmt.Errorf("create write group in transaction: %w", ErrWriteGroupValidation)
-	}
-	if group == nil {
-		return fmt.Errorf("create write group: %w: group is nil", ErrWriteGroupValidation)
-	}
-	candidate := cloneWriteGroup(group)
-	// This field is derived from the persistent basic-managed key. Never let a
-	// caller turn an ordinary group into a basic owner through the payload.
-	candidate.BasicManagedDeviceID = ""
-	candidate.ID = r.newID()
-	defaultRecreateMissing(candidate)
-	if candidate.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && candidate.RowPolicy.RecordKeyColumn != "" && strings.TrimSpace(candidate.Destination.TableName) == "" && !candidate.isLongLayout() {
-		candidate.Destination.TableName = managedGroupTableName(candidate.ID)
-	}
-	if err := r.validate(ctx, tx, candidate); err != nil {
+	candidate, err := r.prepareNewWriteGroupDraftInTx(ctx, tx, group)
+	if err != nil {
 		return err
 	}
-	now := r.now()
-	candidate.Revision = r.newID()
-	candidate.AppliedRevision = ""
-	candidate.Status = WriteGroupStatusDraft
-	candidate.CreatedAt = now
-	candidate.UpdatedAt = now
 	if err := r.insertGroup(ctx, tx, candidate); err != nil {
 		return err
 	}

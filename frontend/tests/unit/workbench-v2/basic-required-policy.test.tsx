@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { guidedReadiness, guidedLifecycle } from '../../fixtures/guidedRecordingPreparation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -9,14 +12,18 @@ const managed = savedGroup({ basic_managed_device_id: 'dev-1', destination: { ..
 const query = { data: { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [managed] }, isLoading: false, isError: false };
 const mutate = vi.fn();
 vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
+  useWriteGroupReadinessQuery: (id?: string) => { const group = query.data.groups.find(g => g.id === id), revision = query.data.workspace_revision; return { data: useMemo(() => group ? guidedReadiness(group, revision) : undefined, [group, revision]) };  },
+  useWriteGroupSchemaPreviewMutation: () => ({ mutateAsync: mutate }), useWriteGroupSchemaApplyMutation: () => ({ mutateAsync: mutate }), useWriteGroupSchemaOperationQuery: () => ({}),
   useWriteGroupsQuery: () => query, useWriteGroupDeliveryQuery: () => ({}), useUpdateWriteGroupMutation: () => ({ mutateAsync: mutate }),
 }));
+vi.mock('@/hooks/datalink/useStudioV2WriteGroupLifecycle', () => ({ useWriteGroupLifecycleQuery: (_ws?: string, id?: string) => { const revision = query.data.workspace_revision; return { data: useMemo(() => id === managed.id ? guidedLifecycle(managed, revision) : undefined, [id, revision]) }; } }));
 vi.mock('@/hooks/datalink/useStudioV2RecordingStart', () => ({
   useEnsureBasicManagedMutation: () => ({ mutateAsync: mutate }), useRecordingStartMutation: () => ({ mutateAsync: mutate }), useRecordingStartOperationQuery: () => ({}),
 }));
 beforeEach(() => { vi.clearAllMocks(); query.data.groups = [managed]; sessionStorage.clear(); });
 function panel(onOpenMemberSettings = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(studioV2WorkspaceKeys.writeGroups(), query.data);
   render(<QueryClientProvider client={client}><BasicRecordingPanel state={state} workspaceId="ws-1" readonly={false} {...{onOpenMemberSettings}} /></QueryClientProvider>);
   return onOpenMemberSettings;
 }

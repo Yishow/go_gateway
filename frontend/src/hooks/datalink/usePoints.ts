@@ -36,10 +36,11 @@ export interface PointListFilters {
  * @param filters - 可選的篩選條件
  * @returns Query 結果
  */
-export function usePointsQuery(filters?: PointListFilters) {
+export function usePointsQuery(filters?: PointListFilters, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: pointKeys.list(filters),
     queryFn: () => pointAPI.list(filters),
+    enabled: options.enabled ?? true,
   });
 }
 

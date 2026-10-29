@@ -1,5 +1,6 @@
+import { studioV2RuntimeContextAPI } from '../../../src/services/studioV2RuntimeContext';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockEventSources, mockRuntimeContext, mockRuntimeStatus, resetRuntimeDashboardFixture, renderRoute } from './runtime-dashboard-state.fixture';
 
 describe('runtime dashboard route state', () => {
@@ -15,14 +16,22 @@ describe('runtime dashboard route state', () => {
   });
 
   it('passes configured setup context from runtime context to the dashboard', async () => {
+    const observed = Object.assign(mockRuntimeContext, { workspace_revision: 'W1' as string | undefined });
+    const reader = vi.spyOn(studioV2RuntimeContextAPI, 'getSourcePage').mockImplementation(async (scope, request) => ({ ok: true, value: {
+      contract_version: 1, ...scope, kind: request.kind, query: '', limit: 50, list_revision: 'L1', next_cursor: null,
+      rules: request.kind === 'rules' ? mockRuntimeContext.setup!.source_rules.map((row) => ({ ...row, revision_id: row.revision_id! })) : [],
+      mappings: request.kind === 'mappings' ? mockRuntimeContext.setup!.mappings.map((row) => ({ ...row, rule_revision: 'rule-v1' })) : [],
+    } }));
     renderRoute('/studio/runtime?device_id=device-A');
     await waitFor(() => expect(mockRuntimeStatus).toHaveBeenCalledWith('device-A'));
     act(() => mockEventSources[0].open());
     const panel = await screen.findByTestId('runtime-dashboard-setup-context');
+    await waitFor(() => expect(panel).toHaveTextContent('line01.temp.inlet'));
     expect(panel).toHaveTextContent('database-target-missing');
     expect(panel).toHaveTextContent('40001'); expect(panel).toHaveTextContent('line01.temp.inlet');
     expect(panel).toHaveTextContent('入口溫度'); expect(panel).toHaveTextContent('PostgreSQL Connector');
-    expect(panel).toHaveTextContent('gateway_metrics');
+    expect(panel).not.toHaveTextContent('gateway_metrics');
+    reader.mockRestore(); observed.workspace_revision = undefined;
   });
 
   it('updates query state when switching device', async () => {

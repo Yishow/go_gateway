@@ -12,7 +12,11 @@ import (
 	"go-gateway/internal/datalink/snapshot"
 )
 
-const legacyAssociationVersion = 1
+const (
+	legacyAssociationVersion      = 1
+	runtimeCounterEvidenceKind    = "runtime-counter-bindings-v1"
+	legacyExactSourceEvidenceKind = "legacy-exact-source-v1"
+)
 
 type legacyAcceptedSample struct {
 	seq                                                                       int64
@@ -87,9 +91,9 @@ func (s *Store) AssociateLegacyCounterProofs(ctx context.Context, key GroupKey, 
 		}
 		sum := sha256.Sum256([]byte(raw))
 		runtimeDigest := hex.EncodeToString(sum[:])
-		evidenceKind := "runtime-counter-bindings-v1"
+		evidenceKind := runtimeCounterEvidenceKind
 		if evidence.LegacyExact {
-			evidenceKind = "legacy-exact-source-v1"
+			evidenceKind = legacyExactSourceEvidenceKind
 		}
 		var associations []legacyProofAssociation
 		// Validate the entire applicable accepted set before publishing any audit.
@@ -133,7 +137,12 @@ func readLegacyAcceptedSet(ctx context.Context, tx *sql.Tx, key GroupKey) ([]leg
 }
 
 func readAcceptedSet(ctx context.Context, tx *sql.Tx, key GroupKey, before time.Time) ([]legacyAcceptedSample, error) {
-	query := `SELECT seq,workspace_id,sample_id,member_key,observed_at,payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=? AND group_revision=? AND consumed=0`
+	if err := validateHandoffScope(ctx, tx, key.GroupID, key.GroupRevision); err != nil {
+		return nil, err
+	}
+	// Handoff receipts validate transferred samples and preserve their original
+	// proof identity; they cannot be reassociated as native inputs.
+	query := `SELECT seq,workspace_id,COALESCE(NULLIF(origin_sample_id,''),sample_id),member_key,observed_at,payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=? AND group_revision=? AND consumed=0 AND NOT EXISTS(SELECT 1 FROM wg_delivery_sample_handoffs h WHERE h.source_seq=wg_delivery_samples.seq OR h.target_seq=wg_delivery_samples.seq)`
 	args := []any{key.GroupID, key.GroupRevision}
 	if !before.IsZero() {
 		query += ` AND bucket_start<?`

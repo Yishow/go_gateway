@@ -121,7 +121,8 @@ function optionalCode(value: JsonRecord, key: string): string | undefined | null
 
 /**
  * Parses a test-write operation. Contradictions are rejected rather than shown:
- * a running operation cannot already carry a result, a verified write cannot
+ * an initial running operation cannot carry a result; the existing cleanup claim
+ * retains its verified write and previous completion. A verified write cannot
  * claim its cleanup was never attempted, and a write that failed wrote nothing
  * to clean.
  */
@@ -144,7 +145,11 @@ export function parseWriteGroupTestWriteOperation(value: unknown): WriteGroupTes
   }
   const active = status === 'pending' || status === 'running';
   if (active) {
-    if (outcome !== undefined || cleanup !== undefined || completedAt !== undefined) return null;
+    const cleanupClaim = status === 'running' && outcome === 'written_verified' &&
+      (cleanup === 'failed' || cleanup === 'unknown') && completedAt !== undefined &&
+      Number.isFinite(Date.parse(completedAt)) && Date.parse(completedAt) >= Date.parse(createdAt) &&
+      Date.parse(completedAt) <= Date.parse(updatedAt);
+    if (!cleanupClaim && (outcome !== undefined || cleanup !== undefined || completedAt !== undefined)) return null;
   } else {
     if (outcome === undefined || cleanup === undefined || completedAt === undefined) return null;
     if (STATUS_FOR_OUTCOME[outcome as WriteGroupTestWriteOutcome] !== status) return null;

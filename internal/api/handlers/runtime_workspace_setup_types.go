@@ -6,7 +6,6 @@ import (
 	"go-gateway/internal/datalink/dbtarget"
 	mappingpkg "go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/schema"
-	"go-gateway/internal/datalink/workspace"
 )
 
 type runtimeWorkspaceSourceRuleReader interface {
@@ -32,10 +31,11 @@ type runtimeWorkspaceDatabaseTargetReader interface {
 }
 
 type runtimeWorkspaceSetupContextResponse struct {
-	ReadinessSummary *workspace.ReadinessSummary                  `json:"readiness_summary,omitempty"`
+	EvidenceState    string                                       `json:"evidence_state"`
+	ReadinessSummary *runtimeReadinessSummary                     `json:"readiness_summary,omitempty"`
 	SourceRules      []runtimeWorkspaceSetupSourceRuleResponse    `json:"source_rules"`
 	Mappings         []runtimeWorkspaceSetupMappingResponse       `json:"mappings"`
-	DatabaseConfig   *studioV2WorkspaceDatabaseConfigResponse     `json:"database_config,omitempty"`
+	DatabaseConfig   *runtimeWorkspaceDatabaseConfig              `json:"database_config,omitempty"`
 	DatabaseTargets  []runtimeWorkspaceSetupDatabaseTargetMapping `json:"database_targets"`
 }
 
@@ -52,18 +52,19 @@ type runtimeWorkspaceSetupSourceRuleResponse struct {
 }
 
 type runtimeWorkspaceSetupMappingResponse struct {
-	ID          string               `json:"id,omitempty"`
-	RuleID      string               `json:"rule_id"`
-	DeviceID    string               `json:"device_id"`
-	PointID     string               `json:"point_id"`
-	Address     string               `json:"address"`
-	TagID       string               `json:"tag_id,omitempty"`
-	TagKey      string               `json:"tag_key,omitempty"`
-	DisplayName string               `json:"display_name,omitempty"`
-	Unit        string               `json:"unit,omitempty"`
-	TargetType  schema.DataType      `json:"target_type,omitempty"`
-	Enabled     bool                 `json:"enabled"`
-	Status      schema.MappingStatus `json:"status,omitempty"`
+	RuleRevision string               `json:"rule_revision,omitempty"`
+	ID           string               `json:"id,omitempty"`
+	RuleID       string               `json:"rule_id"`
+	DeviceID     string               `json:"device_id"`
+	PointID      string               `json:"point_id"`
+	Address      string               `json:"address"`
+	TagID        string               `json:"tag_id,omitempty"`
+	TagKey       string               `json:"tag_key,omitempty"`
+	DisplayName  string               `json:"display_name,omitempty"`
+	Unit         string               `json:"unit,omitempty"`
+	TargetType   schema.DataType      `json:"target_type,omitempty"`
+	Enabled      bool                 `json:"enabled"`
+	Status       schema.MappingStatus `json:"status,omitempty"`
 }
 
 type runtimeWorkspaceSetupDatabaseTargetMapping struct {

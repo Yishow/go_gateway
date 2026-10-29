@@ -17,10 +17,10 @@ export function resolveRuntimeDashboardDevice(
   state: RuntimeDashboardDeviceState,
   confirmedDeviceIds?: readonly string[],
 ): string | null {
-  if (confirmedDeviceIds && confirmedDeviceIds.length > 0) {
-    const uniqueConfirmedDeviceIds = Array.from(new Set(confirmedDeviceIds));
-    const [confirmedDeviceId] = uniqueConfirmedDeviceIds;
-    return uniqueConfirmedDeviceIds.length === 1 && isPersistedBackendDeviceID(state, confirmedDeviceId)
+  if (confirmedDeviceIds !== undefined) {
+    const [confirmedDeviceId] = confirmedDeviceIds;
+    return confirmedDeviceIds.length === 1 && state.devices.some(device => device.id === confirmedDeviceId) &&
+      isPersistedBackendDeviceID(state, confirmedDeviceId)
       ? confirmedDeviceId
       : null;
   }

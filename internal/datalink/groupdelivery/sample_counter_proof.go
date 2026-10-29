@@ -17,7 +17,7 @@ func sampleProofError(reason error) error {
 func verifyExistingSample(ctx context.Context, tx *sql.Tx, key GroupKey, sample snapshot.Sample, digest string) (snapshot.Sample, bool, error) {
 	var existing, payload, workspaceID string
 	err := tx.QueryRowContext(ctx,
-		`SELECT payload_digest, payload, workspace_id FROM wg_delivery_samples WHERE group_id = ? AND group_revision = ? AND sample_id = ?`,
+		`SELECT payload_digest, payload, workspace_id FROM wg_delivery_samples WHERE group_id = ? AND group_revision = ? AND acceptance_kind='native' AND COALESCE(NULLIF(origin_sample_id,''),sample_id) = ?`,
 		key.GroupID, key.GroupRevision, sample.SampleID).Scan(&existing, &payload, &workspaceID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return snapshot.Sample{}, false, nil
@@ -52,6 +52,12 @@ func (s *Store) VerifyCounterDuplicate(ctx context.Context, key GroupKey, sample
 		return err
 	}
 	return s.inTx(ctx, "counter duplicate", func(tx *sql.Tx) error {
+		if err := refuseOrdinaryHandoffAppend(ctx, tx, key, sample); err != nil {
+			return err
+		}
+		if err := validateCutoverAcceptance(ctx, tx, key, sample); err != nil {
+			return err
+		}
 		previous, found, err := verifyExistingSample(ctx, tx, key, sample, digest)
 		if err != nil {
 			return err

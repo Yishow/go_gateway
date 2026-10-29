@@ -48,6 +48,12 @@ func assembleBoundary(ctx context.Context, cfg GroupBoundaryConfig, parts bounda
 			}
 			return nil, counterProofBoundaryError(err)
 		}
+		// A fresh Restore must not authorize bounds read before a concurrent
+		// cutover. Validate the original plan config before applying its cursor.
+		key := groupdelivery.GroupKey{WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: group.AppliedRevision}
+		if err := restored.OwnershipView.ValidateBounds(key, cfg.FirstBucket, cfg.StartsAt, cfg.Until, cfg.EndsAt, time.Duration(group.RowPolicy.IntervalSeconds)*time.Second); err != nil {
+			return nil, &GroupBoundaryError{Code: groupdelivery.ErrOwnershipConflict.Error(), Cause: err}
+		}
 		if restored.NextClose.After(firstBucket) {
 			firstBucket = restored.NextClose
 		}
@@ -99,6 +105,17 @@ func assembleBoundary(ctx context.Context, cfg GroupBoundaryConfig, parts bounda
 		return nil, counterProofBoundaryError(err)
 	}
 	for _, sample := range restored.Samples {
+		// All original proofs were checked above, even for excluded inputs.
+		// Filtering memory never deletes or relabels the durable accepted set.
+		if !assembler.WithinActualBounds(sample.ObservedAt) {
+			// Preserve the structural/revision checks that Replay performed
+			// before bounds filtering existed; no memory is mutated here.
+			checked := assembler.Check(sample, sample.ObservedAt)
+			if checked.Outcome != snapshot.OfferSelected && checked.Outcome != snapshot.OfferNotSelected && checked.Outcome != snapshot.OfferDuplicate && checked.Outcome != snapshot.OfferLate {
+				return nil, blocked(boundaryRestoreFailed)
+			}
+			continue
+		}
 		// Replay rebuilds memory only; samples of already closed buckets stay out.
 		result := assembler.Replay(sample)
 		if result.Outcome != snapshot.OfferSelected && result.Outcome != snapshot.OfferNotSelected && result.Outcome != snapshot.OfferDuplicate && result.Outcome != snapshot.OfferLate {
@@ -131,7 +148,7 @@ func assembleBoundary(ctx context.Context, cfg GroupBoundaryConfig, parts bounda
 			Database: group.Destination.Database, TableSchema: group.Destination.TableSchema,
 			TableName: group.Destination.TableName, DedupeCapability: dedupe, RecordKeyColumn: recordKeyColumn,
 		},
-		ledger: cfg.Ledger, layout: parts.encoder, members: parts.members, workspaceID: group.WorkspaceID,
+		ledger: cfg.Ledger, ownershipView: restored.OwnershipView, handoffView: restored.HandoffView, layout: parts.encoder, members: parts.members, workspaceID: group.WorkspaceID,
 		sink: cfg.Sink, clock: clock, onTickError: cfg.OnTickError,
 	}, nil
 }

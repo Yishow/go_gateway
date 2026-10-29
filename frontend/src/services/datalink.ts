@@ -1,3 +1,4 @@
+import { projectRuntimeStatus } from './runtimeStatusProjection';
 /**
  * Datalink API 服務層
  *
@@ -599,18 +600,7 @@ export const runtimeAPI = {
     const res = await api.get<APIResponse<RuntimeStatus>>('/runtime/status', {
       params: deviceId ? { device_id: deviceId } : undefined,
     });
-    return res.data.data ?? {
-      running: false,
-      uptime_seconds: 0,
-      metrics: {
-        collected_total: 0,
-        write_success_total: 0,
-        write_error_total: 0,
-        mapping_error_total: 0,
-        point_state_error_total: 0,
-      },
-      collectors: [],
-    };
+    return projectRuntimeStatus(res.data.data);
   },
 
   getStreamUrl(deviceId: string, pointIds?: string[]): string {

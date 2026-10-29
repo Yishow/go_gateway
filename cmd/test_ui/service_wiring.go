@@ -92,7 +92,7 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 	dbTargetMappingSvc := dbtarget.NewMappingService(dbTargetMappingRepo, dbTargetConnectorRepo, tagSvc)
 	dbtarget.WithLegacyWriteCoordinator(dbTargetMappingSvc, writeGroupsSvc)
 	dbTargetConnectorSvc.SetDeleteGuard(writeGroupsSvc)
-	groupStore, err := groupdelivery.NewStore(db).WithQuota(groupDeliveryQuotaConfig())
+	groupStore, err := groupdelivery.NewStore(db).WithCanonicalIntake().WithQuota(groupDeliveryQuotaConfig())
 	if err != nil {
 		return gatewayServices{}, fmt.Errorf("configure group delivery capacity: %w", err)
 	}

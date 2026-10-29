@@ -6,13 +6,14 @@ import {
   type BatchTargetExecutionResult,
   reconcileBatchResults,
 } from '../../state/circuitProfileBatchOutcome';
-import { BatchPlanError, executeBatchPlan, type ExecuteBatchPlanInput, type FrozenBatchPlan } from './circuitProfileBatchExecutor';
+import { BatchLayoutError, BatchPlanError, executeBatchPlan, type ExecuteBatchPlanInput, type FrozenBatchPlan } from './circuitProfileBatchExecutor';
 
 interface BatchRunInput {
   plan: FrozenBatchPlan | null;
   stale: boolean;
   readonly: boolean;
   connectorRevision?: string;
+  capabilityContext?: ExecuteBatchPlanInput['capabilityContext'];
   workspaceRevision: string;
   savedLongGroups: WriteGroup[];
   updateWriteGroup: ExecuteBatchPlanInput['updateWriteGroup'];
@@ -71,7 +72,7 @@ export function useCircuitProfileBatchRun(input: BatchRunInput) {
     let outcome: { updatedGroups: WriteGroup[]; workspaceRevision: string; targetResults: Record<string, BatchTargetExecutionResult> };
     let failure: string | undefined;
     try {
-      outcome = await executeBatchPlan({ plan, connectorRevision: input.connectorRevision, updateWriteGroup: input.updateWriteGroup, ensureCircuitProfile: input.ensureCircuitProfile });
+      outcome = await executeBatchPlan({ plan, capabilityContext: input.capabilityContext, connectorRevision: input.connectorRevision, updateWriteGroup: input.updateWriteGroup, ensureCircuitProfile: input.ensureCircuitProfile });
     } catch (error: unknown) {
       if (error instanceof BatchPlanError) {
         outcome = error;
@@ -79,7 +80,7 @@ export function useCircuitProfileBatchRun(input: BatchRunInput) {
         if (failed) failure = safeBasicStartError(failed.cause, t) || t('errors.internal');
       } else {
         outcome = { updatedGroups: [], workspaceRevision: plan.workspaceRevision, targetResults: {} };
-        failure = t('errors.internal');
+        failure = error instanceof BatchLayoutError ? t(`step4.basic.circuit.${error.reason}`) : t('errors.internal');
       }
     }
     let reloaded = true;

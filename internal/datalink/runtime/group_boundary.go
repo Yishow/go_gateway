@@ -128,19 +128,21 @@ type boundaryMember struct {
 // keeps open buckets in memory only: they are lost on restart until the
 // delivery change journals them, so it must not be described as durable.
 type GroupBoundary struct {
-	mu          sync.Mutex
-	assembler   *snapshot.Assembler
-	interval    time.Duration
-	notBefore   time.Time
-	until       time.Time
-	ledger      GroupLedger
-	destination groupdelivery.FrozenDestination
-	layout      rowEncoder
-	members     map[string]boundaryMember
-	workspaceID string
-	sink        GroupRowSink
-	clock       func() time.Time
-	onTickError func(error)
+	mu            sync.Mutex
+	assembler     *snapshot.Assembler
+	interval      time.Duration
+	notBefore     time.Time
+	until         time.Time
+	ledger        GroupLedger
+	handoffView   groupdelivery.HandoffView
+	ownershipView groupdelivery.OwnershipView
+	destination   groupdelivery.FrozenDestination
+	layout        rowEncoder
+	members       map[string]boundaryMember
+	workspaceID   string
+	sink          GroupRowSink
+	clock         func() time.Time
+	onTickError   func(error)
 }
 
 func memberKey(deviceID, pointID, tagID string) string {
@@ -231,66 +233,6 @@ func NewGroupBoundaryContext(ctx context.Context, cfg GroupBoundaryConfig) (*Gro
 	})
 }
 
-// AcceptSample routes a typed sample to its bucket. Samples that do not
-// belong to this group are ignored, not errors. Refusals (foreign workspace,
-// stale revision, late, identity conflict) return a GroupSampleError.
-func (b *GroupBoundary) AcceptSample(ctx context.Context, envelope measurement.SampleEnvelope) error {
-	member, ok := b.members[memberKey(envelope.DeviceID, envelope.PointID, envelope.TagID)]
-	if !ok {
-		return nil
-	}
-	if !b.notBefore.IsZero() && envelope.ObservedAt.Before(b.notBefore) {
-		return nil // an earlier applied revision owns this sample
-	}
-	sample, err := sampleFrom(member, envelope)
-	if err != nil {
-		return err
-	}
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if !b.until.IsZero() && !envelope.ObservedAt.Before(b.until) {
-		return nil // a newer applied revision owns this sample
-	}
-	if envelope.WorkspaceID != b.workspaceID {
-		return &GroupSampleError{Outcome: snapshot.OfferRejected, Reason: reasonWorkspaceMismatch}
-	}
-	now := b.clock()
-	result := b.assembler.Check(sample, now)
-	switch result.Outcome {
-	case snapshot.OfferDuplicate:
-		return b.verifyCounterDuplicate(ctx, sample)
-	case snapshot.OfferSelected, snapshot.OfferNotSelected:
-	default:
-		if result.Outcome == snapshot.OfferLate {
-			b.assembler.Offer(sample, now) // counts the late sample; no state changes
-		}
-		return &GroupSampleError{Outcome: result.Outcome, Reason: result.Reason}
-	}
-	if err := b.validateDestinationSample(sample); err != nil {
-		return err
-	}
-	if b.ledger != nil {
-		// The ACK is the commit: refuse, and leave memory untouched, if it fails.
-		start := snapshot.BucketStart(sample.ObservedAt, b.interval)
-		if err := b.ledger.AppendSample(ctx, start, sample); err != nil {
-			reason := reasonJournalFailed
-			outcome := snapshot.OfferRejected
-			var quotaErr *groupdelivery.QuotaError
-			switch {
-			case errors.Is(err, groupdelivery.ErrSampleConflict):
-				reason, outcome = snapshot.ReasonIdentityConflict, snapshot.OfferConflict
-			case errors.As(err, &quotaErr):
-				// Capacity refusals keep their exact reason and scope in Cause.
-				reason = quotaErr.Reason
-			}
-			return &GroupSampleError{Outcome: outcome, Reason: reason, Cause: err}
-		}
-	}
-	b.assembler.Offer(sample, now)
-	return nil
-}
-
 // Tick closes every due bucket (including silent ones). Without a ledger the
 // results go to the sink and are not durable. With a ledger the closure is
 // committed atomically first and memory advances only after that commit, so a
@@ -350,7 +292,7 @@ func (b *GroupBoundary) tickDurable(ctx context.Context, now time.Time) error {
 	if err != nil {
 		return &GroupBoundaryError{Code: boundaryLayoutBlocked, Cause: err}
 	}
-	closure := groupdelivery.Closure{Destination: b.destination, NextClose: plan.NextClose(), Buckets: buckets, Baselines: baselines, CounterProofs: b.counterClosureProofs()}
+	closure := groupdelivery.Closure{OwnershipView: b.ownershipView, HandoffView: b.handoffView, Destination: b.destination, NextClose: plan.NextClose(), Buckets: buckets, Baselines: baselines, CounterProofs: b.counterClosureProofs()}
 	if err := b.ledger.CommitClosure(ctx, closure); err != nil {
 		return err
 	}

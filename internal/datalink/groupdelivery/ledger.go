@@ -47,3 +47,8 @@ func (l *Ledger) CommitClosure(ctx context.Context, closure Closure) error {
 func (l *Ledger) PrepareCounterReplay(ctx context.Context, expected []counterproof.CounterBindingReference) error {
 	return l.store.AssociateLegacyCounterProofs(ctx, l.key, expected)
 }
+
+// RecognizeTransferredSample reads durable transfer authority, never appending.
+func (l *Ledger) RecognizeTransferredSample(ctx context.Context, incoming snapshot.Sample) (HandoffRecognition, error) {
+	return l.store.RecognizeTransferredSample(ctx, l.key, incoming)
+}

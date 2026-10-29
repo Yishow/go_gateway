@@ -1,3 +1,4 @@
+import type { StudioV2LocatorReadScope } from '../../../../../../services/studioV2WorkspaceDatabase';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useStudioV2WorkspaceMeasurementsQuery, useUpdateStudioV2MeasurementMutation } from '../../../../../../hooks/datalink/useStudioV2WorkspaceMeasurements';
@@ -12,6 +13,7 @@ import {
 export type CounterPolicySource = PolicyMember;
 
 export interface CounterPolicyEditorProps {
+  locatorScope?: StudioV2LocatorReadScope;
   workspaceId: string;
   members: CounterPolicySource[];
   /** Display names by tag ID. */
@@ -102,9 +104,9 @@ function SourcePolicy({ def, confirmed, label, readonly, outcome, onSaved }: {
  * definition API. It never creates a definition, never guesses a unit or equipment, and sends the full saved
  * definition with only the reviewed policy changed; the server stays the authority and its revision is shown back.
  */
-export const CounterPolicyEditor: React.FC<CounterPolicyEditorProps> = ({ workspaceId, members, labels = {}, readonly }) => {
+export const CounterPolicyEditor: React.FC<CounterPolicyEditorProps> = ({ workspaceId, members, labels = {}, readonly, locatorScope }) => {
   const { t } = useTranslation('workbench-v2');
-  const query = useStudioV2WorkspaceMeasurementsQuery(Boolean(workspaceId));
+  const query = useStudioV2WorkspaceMeasurementsQuery(Boolean(workspaceId), undefined, undefined, locatorScope);
   // Results are kept per workspace and definition, so a late answer can never be shown for another scope.
   const [outcomes, setOutcomes] = React.useState<Record<string, Outcome>>({});
   const [notOnScreen, setNotOnScreen] = React.useState<Record<string, boolean>>({});

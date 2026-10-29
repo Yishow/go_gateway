@@ -46,6 +46,7 @@ func NewRuntimeStreamHandler(source runtimeValueStreamSource) *RuntimeStreamHand
 // @Failure 503 {object} APIErrorResponse "Runtime stream unavailable"
 // @Router /datalink/runtime/stream [get]
 func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
+	ensureRuntimeRequestID(c)
 	if h.source == nil {
 		renderTypedAPIErrorWithData(c, http.StatusServiceUnavailable, ErrCodeRuntimeStreamUnavailable, true, runtimeStreamUnavailableResponse("", "runtime stream unavailable"))
 		return
@@ -155,7 +156,7 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 
 func runtimeStreamUnavailableResponse(deviceID, reason string) runtimeStreamStateResponse {
 	return runtimeStreamStateResponse{
-		DeviceID:    strings.TrimSpace(deviceID),
+		DeviceID:    runtimeSafeID(strings.TrimSpace(deviceID)),
 		StreamState: datalinkruntime.RuntimeUnavailableTruthState(reason),
 	}
 }
@@ -178,6 +179,20 @@ func parseRuntimePointIDs(raw string) []string {
 }
 
 func writeRuntimeSSE(w http.ResponseWriter, flusher http.Flusher, event string, payload any) error {
+	switch typed := payload.(type) {
+	case datalinkruntime.RuntimeStreamStateEvent:
+		typed.DeviceID = runtimeSafeID(typed.DeviceID)
+		typed.RequestID = runtimeSafeID(typed.RequestID)
+		payload = typed
+	case datalinkruntime.DeviceStatusEvent:
+		payload = safeRuntimeStatusEvent(typed)
+	case datalinkruntime.ValueEvent:
+		projected, err := safeRuntimeValueEvent(typed)
+		if err != nil {
+			return err
+		}
+		payload = projected
+	}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return err

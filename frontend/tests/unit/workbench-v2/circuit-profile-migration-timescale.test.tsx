@@ -6,6 +6,7 @@ import { studioV2RecordingStartAPI as startAPI } from '@/services/studioV2Record
 import { studioV2WorkspaceWriteGroupsAPI as api } from '@/services/studioV2WorkspaceWriteGroups';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import { savedGroup, savedGroupState, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
+import { clickEnabled, guidedLifecycle, guidedReadiness } from '../../fixtures/guidedRecordingPreparation';
 import { expandSources } from '../../fixtures/sourceReview';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
@@ -32,6 +33,9 @@ const legacyWide = (): WriteGroup => savedGroup({
   row_policy: { interval_seconds: 60, allowed_lateness_seconds: 0, incomplete_policy: 'skip_row' },
 });
 
+let groups: WriteGroup[] = [], workspaceRevision = 'wrev-1';
+function canonical(id: string) { const group = groups.find(item => item.id === id); if (!group) throw new Error('Missing canonical group'); return group; }
+vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn(async (id: string) => guidedLifecycle(canonical(id), workspaceRevision)) } }));
 const WRITES = [api.create, api.update, api.apply, api.disable, api.remove, startAPI.start, startAPI.ensureBasic];
 const expectNoWriterWrites = () => WRITES.forEach((write) => expect(write).not.toHaveBeenCalled());
 const typed = (code: string) => Object.assign(new Error(`Request failed with status code 422: ${code}`), { response: { status: 422, data: { error: { code } } } });
@@ -39,8 +43,9 @@ const typed = (code: string) => Object.assign(new Error(`Request failed with sta
 beforeEach(() => {
   vi.clearAllMocks();
   window.sessionStorage.clear();
-  vi.mocked(api.list).mockResolvedValue({ workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [legacyWide()] });
-  vi.mocked(api.readiness).mockResolvedValue({ workspace_id: 'ws-1', group_id: 'x', group_revision: 'r', applied_revision: '', config_ready: true, schema_ready: true, ready: true, issues: [] } as never);
+  groups = [legacyWide()]; workspaceRevision = 'wrev-1';
+  vi.mocked(api.list).mockImplementation(async () => ({ workspace_id: 'ws-1', workspace_revision: workspaceRevision, groups }));
+  vi.mocked(api.readiness).mockImplementation(async id => guidedReadiness(canonical(id), workspaceRevision));
   vi.mocked(api.delivery).mockResolvedValue({
     group_id: 'wide-1', intake: { state: 'active' }, stages: { collecting: 0, queued: 0, retrying: 0, blocked: 0, quarantined: 0, unknown: 0, sql_committed: 0, skipped: 0 },
     last_sql_committed_at: null, oldest_pending_seconds: 0, no_data_buckets: 0, skipped_buckets: 0, backlog: [],
@@ -61,7 +66,8 @@ describe('prepareOnly migration mode surfaces Timescale unavailability truthfull
         members: request.group.members.map((member) => ({ ...member, source_revision: 's0', mapping_revision: 'm0' })),
         destination: { ...request.group.destination, database: 'prod_db', table_name: 'gw_long_fixture' },
       });
-      return { workspace_revision: 'wrev-2', group };
+      groups = [...groups, group]; workspaceRevision = 'wrev-2';
+      return { workspace_revision: workspaceRevision, group };
     });
     vi.mocked(api.schemaPreview).mockRejectedValue(typed('timescale_unavailable'));
 
@@ -90,6 +96,9 @@ describe('prepareOnly migration mode surfaces Timescale unavailability truthfull
 
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
 
+    // Guide contract: preview is an explicit command, separate from save and DDL.
+    expect(api.schemaPreview).not.toHaveBeenCalled();
+    await clickEnabled('group-schema-preview');
     expect(await screen.findByTestId('circuit-blocker-timescale_unavailable-0')).toBeInTheDocument();
     expect((screen.getByTestId('circuit-profile-storage-timescale') as HTMLInputElement).checked).toBe(true);
     expect(vi.mocked(api.ensureCircuitProfile).mock.calls[0][0].group.storage_mode).toBe('timescale');

@@ -39,6 +39,7 @@ func registerStudioV2RecordingRoutes(datalinkGroup *gin.RouterGroup, datalinkSer
 		datalinkGroup.POST("/studio-v2/workspace/recording-plans/schema-apply", planHandler.SchemaApply)
 
 		operationsHandler := handlers.NewStudioV2WorkspaceDatabaseOperationsHandler(datalinkServices.Workspace, datalinkServices.RecordingPlan)
+		datalinkGroup.GET("/studio-v2/workspace/database-operations/test-writes", operationsHandler.ListTestWrites)
 		datalinkGroup.GET("/studio-v2/workspace/database-operations/:operation_id", operationsHandler.Get)
 	}
 

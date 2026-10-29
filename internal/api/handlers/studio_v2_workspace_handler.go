@@ -18,6 +18,7 @@ type studioV2WorkspaceBootstrapResponse struct {
 	CreatedAt        any                           `json:"created_at"`
 	UpdatedAt        any                           `json:"updated_at"`
 	ReadinessSummary *workspace.ReadinessSummary   `json:"readiness_summary"`
+	LocatorEntry     *studioLocatorEntry           `json:"locator_entry,omitempty"`
 	ModbusShare      *modbusShareBootstrapResponse `json:"modbus_share,omitempty"`
 }
 
@@ -37,6 +38,7 @@ type modbusShareBootstrapResponse struct {
 // StudioV2WorkspaceHandler serves the Studio v2 workspace bootstrap payload.
 type StudioV2WorkspaceHandler struct {
 	svc            *workspace.Service
+	locatorReaders StudioV2LocatorReaders
 	modbusShare    *modbusshare.Service
 	reconciler     *modbusshare.Reconciler
 	desiredBuilder DesiredMappingBuilder
@@ -70,7 +72,31 @@ func (h *StudioV2WorkspaceHandler) WithCanonicalPlanBuilder(builder DesiredMappi
 
 // Get returns the workspace record, readiness summary, and Share hydration
 // state used to bootstrap Studio v2.
+// @Summary Read Studio v2 workspace or an exact read-only locator entry
+// @Tags Datalink Studio v2
+// @Produce json
+// @Param entry query string false "locator enables strict read-only entry; ordinary no-query bootstrap is unchanged" Enums(locator)
+// @Param workspace_id query string false "Required for locator entry"
+// @Param step query int false "Locator step 1-4" minimum(1) maximum(4)
+// @Param device_id query string false "Required steps 1-3; optional group context at step 4"
+// @Param rule_id query string false "Required only step 2"
+// @Param mapping_id query string false "Required only step 3; parent rule is independently resolved"
+// @Param group_id query string false "Required only step 4"
+// @Param group_revision query string false "Optional historical hint only; never current proof"
+// @Param editor query string false "API-only explicit step 4 Open/Edit hydration" Enums(1)
+// @Param expected_workspace_revision query string false "Required presence with editor; exact observed workspace revision including legacy empty"
+// @Param expected_group_revision query string false "Required with editor; exact observed current group revision"
+// @Success 200 {object} studioV2WorkspaceBootstrapResponse
+// @Failure 400 {object} APIErrorResponse
+// @Failure 403 {object} APIErrorResponse
+// @Failure 409 {object} APIErrorResponse
+// @Failure 500 {object} APIErrorResponse
+// @Failure 503 {object} APIErrorResponse
+// @Router /v1/datalink/studio-v2/workspace [get]
 func (h *StudioV2WorkspaceHandler) Get(c *gin.Context) {
+	if h.locatorEntry(c) {
+		return
+	}
 	record, err := h.svc.GetOrCreate(c.Request.Context())
 	if err != nil {
 		renderStudioV2WorkspaceBootstrapError(c)

@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	"reflect"
 
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/recordingplan"
@@ -11,12 +12,18 @@ type managedSQLServerRuntimeInspector interface {
 	InspectSQLServerManagedTableAtRevision(context.Context, string, string, string, string, string, string) (*dbtarget.SQLServerManagedInspection, error)
 }
 
-func (s *WriteGroupService) sqlServerReadiness(ctx context.Context, id string, content *WriteGroup, before *writeGroupReadinessSnapshot, result *WriteGroupReadiness) (*WriteGroupReadiness, error) {
+func (s *WriteGroupService) sqlServerReadiness(ctx context.Context, id string, before *writeGroupReadinessSnapshot, result *WriteGroupReadiness, reload func(context.Context) (*writeGroupReadinessSnapshot, error)) (*WriteGroupReadiness, error) {
+	if before == nil || result == nil || reload == nil {
+		return nil, ErrWriteGroupReadinessUnavailable
+	}
 	s.populateSQLServerPartitionMaintenanceReadiness(ctx, before.connectorKind, before.validated, result)
 	frozen, inspectErr := s.readSQLServerRuntimeLayout(ctx, before)
-	after, err := s.readinessSnapshot(ctx, id, content)
+	after, err := reload(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if after == nil || after.record == nil || after.group == nil || after.validated == nil {
+		return nil, ErrWriteGroupReadinessUnavailable
 	}
 	if !sameWriteGroupReadinessSnapshot(before, after) || after.validateErr != nil {
 		result = s.newSnapshotReadiness(ctx, after)
@@ -35,6 +42,9 @@ func (s *WriteGroupService) readSQLServerRuntimeLayout(ctx context.Context, snap
 	layout, err := s.managedSQLServerSchemaLayout(ctx, snapshot.validated)
 	if err != nil {
 		return nil, err
+	}
+	if snapshot.confirmedSQLServerLayout != nil && !reflect.DeepEqual(layout, snapshot.confirmedSQLServerLayout) {
+		return nil, ErrWriteGroupValidation
 	}
 	reader, ok := s.managedTableInspector.(managedSQLServerRuntimeInspector)
 	if !ok {

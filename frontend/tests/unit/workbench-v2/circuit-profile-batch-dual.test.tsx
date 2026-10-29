@@ -22,6 +22,7 @@ let onClose: Mock<Props['onClose']>;
 function editor(groups: WriteGroup[], workspaceRevision = 'wrev-1', extra: Record<string, unknown> = {}) {
   return (
     <CircuitProfileBatchEditor
+      capabilityContext={{ connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }}
       workspaceId="ws-1" workspaceRevision={workspaceRevision} connectorRevision="crev-1" savedLongGroups={groups} readonly={false}
       onClose={onClose} onSuccess={onSuccess} updateWriteGroup={updateWriteGroup} {...extra}
     />

@@ -9,6 +9,7 @@ import (
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
 	datalinkruntime "go-gateway/internal/datalink/runtime"
+	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
 
@@ -28,6 +29,10 @@ type RuntimeHandler struct {
 	mappingReader     runtimeWorkspaceMappingReader
 	dbConnectorReader runtimeWorkspaceDatabaseConnectorReader
 	dbTargetReader    runtimeWorkspaceDatabaseTargetReader
+	ruleGroups        RuntimeRecordingGroupReader
+	ruleApplied       RuntimeAppliedConfigurationReader
+	ruleDelivery      RuntimeRevisionDeliveryReader
+	ruleEvidenceNow   func() time.Time
 }
 
 type runtimeStatusResponse struct {
@@ -64,10 +69,13 @@ type runtimeCollectorResponse struct {
 }
 
 type runtimeWorkspaceContextResponse struct {
-	WorkspaceID     string                               `json:"workspace_id"`
-	Devices         []runtimeWorkspaceContextDeviceEntry `json:"devices"`
-	DefaultDeviceID *string                              `json:"default_device_id"`
-	Setup           runtimeWorkspaceSetupContextResponse `json:"setup"`
+	WorkspaceRevision string                                `json:"workspace_revision,omitempty"`
+	WorkspaceID       string                                `json:"workspace_id"`
+	Devices           []runtimeWorkspaceContextDeviceEntry  `json:"devices"`
+	DefaultDeviceID   *string                               `json:"default_device_id"`
+	Setup             *runtimeWorkspaceSetupContextResponse `json:"setup"`
+	RuleEvidence      *runtimeview.RuleEvidenceView         `json:"rule_evidence,omitempty"`
+	SourcePage        *runtimeSourcePageResponse            `json:"source_page,omitempty"`
 }
 
 type runtimeWorkspaceContextDeviceEntry struct {
@@ -85,6 +93,7 @@ type runtimeWorkspaceContextDeviceEntry struct {
 }
 
 func renderRuntimeHandlerError(c *gin.Context, status int, code string, retryable bool) {
+	ensureRuntimeRequestID(c)
 	renderTypedAPIError(c, status, code, retryable)
 }
 
@@ -108,14 +117,43 @@ func NewRuntimeHandler(
 
 // WorkspaceContext returns the persisted workspace context used by the runtime monitor.
 // @Summary Get runtime workspace context
-// @Description Returns persisted devices and setup context for the runtime monitor.
+// @Description Returns legacy setup context when unscoped; all three scope parameters request read-only rule_evidence. Source details additionally require rule_id, rule_revision and point_id; mapping_id is optional. Partial, duplicate or malformed selections are rejected.
 // @Tags datalink
 // @Produce json
+// @Param workspace_id query string false "Workspace ID; required together with workspace_revision and device_id for rule evidence"
+// @Param workspace_revision query string false "Expected workspace revision; required with workspace_id and device_id"
+// @Param device_id query string false "Selected workspace device; required with workspace_id and workspace_revision"
+// @Param source_list query string false "Bounded source list: rules or mappings; requires full scope and excludes detail selectors"
+// @Param q query string false "Safe source-list search, at most 128 Unicode characters"
+// @Param limit query int false "Source-list page size, default 50 and maximum 100"
+// @Param cursor query string false "Opaque revision-bound source-list continuation"
+// @Param rule_id query string false "Selected detail rule or paired mappings-list filter; requires rule_revision"
+// @Param rule_revision query string false "Expected saved source rule revision"
+// @Param point_id query string false "Exact source point; requires rule_id and rule_revision"
+// @Param mapping_id query string false "Optional exact selected mapping; omitted means point-only details"
 // @Success 200 {object} runtimeWorkspaceContextResponse
+// @Failure 400 {object} APIErrorResponse "Malformed or incomplete scope"
+// @Failure 403 {object} APIErrorResponse "Foreign or unavailable selected scope"
 // @Failure 404 {object} APIErrorResponse "Runtime device not found"
+// @Failure 409 {object} APIErrorResponse "Stale workspace, source or recording evidence"
 // @Failure 503 {object} APIErrorResponse "Workspace or runtime snapshot unavailable"
-// @Router /datalink/studio-v2/workspace/runtime-context [get]
+// @Router /v1/datalink/studio-v2/workspace/runtime-context [get]
 func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
+	scope, valid := runtimeEvidenceRequestScope(c)
+	if !valid {
+		return
+	}
+	if h.tryRuntimeSourcePage(c, scope) {
+		return
+	}
+	selection, valid := runtimeSourceRequestSelection(c, scope)
+	if !valid {
+		return
+	}
+	if scope != nil {
+		h.scopedRuntimeRuleEvidence(c, *scope, selection)
+		return
+	}
 	if h.workspaceSvc == nil || h.deviceSvc == nil {
 		renderRuntimeHandlerError(c, http.StatusServiceUnavailable, ErrCodeWorkspaceNotReady, true)
 		return
@@ -140,15 +178,20 @@ func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
 	}
 
 	response := runtimeWorkspaceContextResponse{
-		WorkspaceID: record.ID,
-		Devices:     make([]runtimeWorkspaceContextDeviceEntry, 0, len(record.OrderedDeviceIDs)),
+		WorkspaceID:       runtimeSafeID(record.ID),
+		WorkspaceRevision: runtimeSafeID(record.DatabaseSetupRevision),
+		Devices:           make([]runtimeWorkspaceContextDeviceEntry, 0, len(record.OrderedDeviceIDs)),
 	}
 	setup, err := h.buildWorkspaceSetupContext(c.Request.Context(), record)
 	if err != nil {
+		if err == errRuntimeStaleReference {
+			renderRuntimeHandlerError(c, http.StatusConflict, "stale-reference", true)
+			return
+		}
 		renderRuntimeHandlerError(c, http.StatusServiceUnavailable, ErrCodeWorkspaceNotReady, true)
 		return
 	}
-	response.Setup = setup
+	response.Setup = &setup
 	for _, deviceID := range record.OrderedDeviceIDs {
 		savedDevice, err := h.deviceSvc.GetByID(c.Request.Context(), deviceID)
 		if err != nil {
@@ -158,7 +201,7 @@ func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
 
 		deviceResponse := mapRuntimeWorkspaceContextDevice(savedDevice, statusByDeviceID[deviceID])
 		response.Devices = append(response.Devices, deviceResponse)
-		if response.DefaultDeviceID == nil && deviceResponse.AvailabilityStatus != device.AvailabilityStatusUnavailable {
+		if response.DefaultDeviceID == nil && deviceResponse.DeviceID != "" && deviceResponse.AvailabilityStatus == device.AvailabilityStatusAvailable {
 			id := deviceResponse.DeviceID
 			response.DefaultDeviceID = &id
 		}
@@ -350,28 +393,38 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 
 func mapRuntimeWorkspaceContextDevice(savedDevice *schema.Device, runtimeStatus datalinkruntime.DeviceRuntimeStatus) runtimeWorkspaceContextDeviceEntry {
 	response := runtimeWorkspaceContextDeviceEntry{
-		DeviceID:           savedDevice.ID,
-		Name:               savedDevice.Name,
-		Protocol:           string(savedDevice.Protocol),
+		DeviceID:           runtimeSafeID(savedDevice.ID),
+		Name:               runtimeSafeLabel(savedDevice.Name),
+		Protocol:           runtimeSafeStatusChoice(string(savedDevice.Protocol), "modbus_tcp", "modbus_rtu", "modbus_udp", "fatek_fbs", "mc_3e", "mqtt"),
 		Running:            isWorkspaceDeviceRunning(savedDevice),
-		AvailabilityStatus: availabilityStatusOf(savedDevice),
+		AvailabilityStatus: runtimeSavedDeviceAvailability(savedDevice),
 	}
 	if reason := availabilityReasonOf(savedDevice); reason != "" {
-		response.AvailabilityReason = &reason
+		response.AvailabilityReason = runtimeSafeAvailabilityReason(&reason)
 	}
 
+	if response.AvailabilityStatus != "available" || response.Protocol == "unavailable" || response.DeviceID == "" {
+		response.Running = false
+		response.AvailabilityStatus = "unavailable"
+	}
 	if runtimeStatus.DeviceID == "" {
 		return response
 	}
 
 	response.Running = runtimeStatus.Running
-	response.AvailabilityStatus = runtimeStatus.AvailabilityStatus
-	response.AvailabilityReason = runtimeStatus.AvailabilityReason
-	response.ProjectionAlignment = runtimeStatus.ProjectionAlignment
-	response.RuntimeProjectionVersion = runtimeStatus.RuntimeProjectionVersion
-	response.WorkspaceProjectionVersion = runtimeStatus.WorkspaceProjectionVersion
-	response.ProjectionMessage = runtimeStatus.ProjectionMessage
-	response.ProjectionCode = runtimeStatus.ProjectionCode
+	response.AvailabilityStatus = runtimeSafeStatusChoice(runtimeStatus.AvailabilityStatus, "available", "unavailable")
+	response.AvailabilityReason = runtimeSafeAvailabilityReason(runtimeStatus.AvailabilityReason)
+	response.ProjectionAlignment = runtimeSafeStatusChoice(runtimeStatus.ProjectionAlignment, "aligned", "deferred", "restart-required", "restart_required", "stale", "degraded")
+	response.RuntimeProjectionVersion = runtimeSafeID(runtimeStatus.RuntimeProjectionVersion)
+	response.WorkspaceProjectionVersion = runtimeSafeID(runtimeStatus.WorkspaceProjectionVersion)
+	response.ProjectionMessage = runtimeSafeDiagnostic(runtimeStatus.ProjectionMessage)
+	response.ProjectionCode = runtimeSafeID(runtimeStatus.ProjectionCode)
+	if response.Protocol == "unavailable" || response.DeviceID == "" || runtimeSavedDeviceAvailability(savedDevice) != "available" {
+		response.AvailabilityStatus = "unavailable"
+	}
+	if response.AvailabilityStatus != "available" || response.ProjectionAlignment == "unavailable" {
+		response.Running = false
+	}
 	return response
 }
 

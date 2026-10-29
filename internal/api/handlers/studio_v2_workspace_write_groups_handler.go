@@ -140,6 +140,7 @@ func (h *StudioV2WorkspaceWriteGroupsHandler) Readiness(c *gin.Context) {
 // @Failure 404,500,503 {object} APIErrorResponse
 // @Router /datalink/studio-v2/workspace/write-groups/{id}/delivery [get]
 func (h *StudioV2WorkspaceWriteGroupsHandler) Delivery(c *gin.Context) {
+	ensureRuntimeRequestID(c)
 	if !h.available(c) {
 		return
 	}
@@ -160,6 +161,11 @@ func (h *StudioV2WorkspaceWriteGroupsHandler) Delivery(c *gin.Context) {
 	} else {
 		view, err = h.delivery.Delivery(c.Request.Context(), group.Group.ID)
 	}
+	if err != nil {
+		renderWriteGroupError(c, workspace.ErrWriteGroupServiceUnavailable)
+		return
+	}
+	view, err = projectLegacyRuntimeDelivery(view, group.Group.ID)
 	if err != nil {
 		renderWriteGroupError(c, workspace.ErrWriteGroupServiceUnavailable)
 		return

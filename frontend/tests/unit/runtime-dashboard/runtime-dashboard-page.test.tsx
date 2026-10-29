@@ -1,4 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { studioV2RuntimeContextAPI } from '../../../src/services/studioV2RuntimeContext';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { RuntimeDashboardPage } from '../../../src/features/datalink/runtime-dashboard/RuntimeDashboardPage';
 import { createRuntimeSetupFixture } from './runtimeSetupFixture';
@@ -77,6 +79,14 @@ const baseState = {
 };
 
 describe('RuntimeDashboardPage', () => {
+  it('does not render unsafe legacy database fields even from an older caller', () => {
+    const setupContext = createRuntimeSetupFixture();
+    Object.assign(setupContext.database_config!, { database: '/private/tenant/database.sqlite', host: '10.20.30.40', port: 5432, username: 'secret-user' });
+    const { container } = render(<RuntimeDashboardPage {...baseState} setupContext={setupContext} />);
+    expect(container.innerHTML).not.toMatch(/private|10\.20\.30\.40|5432|secret-user/);
+    expect(container).toHaveTextContent('sensor_readings');
+    expect(container).toHaveTextContent('40001');
+  });
   it('renders the focused runtime dashboard surface for the selected device', () => {
     render(<RuntimeDashboardPage {...baseState} />);
 
@@ -87,20 +97,29 @@ describe('RuntimeDashboardPage', () => {
     expect(screen.getByTestId('runtime-dashboard-live-points-table')).toBeInTheDocument();
   });
 
-  it('shows configured workspace setup even when runtime data is only live counters', () => {
-    render(
+  it('shows configured workspace setup even when runtime data is only live counters', async () => {
+    const scope = { workspace_id: 'W', workspace_revision: 'W1', device_id: 'device-A' };
+    const reader = vi.spyOn(studioV2RuntimeContextAPI, 'getSourcePage').mockImplementation(async (_scope, request) => ({ ok: true, value: {
+      contract_version: 1, ...scope, kind: request.kind, query: '', limit: 50, list_revision: 'L1', next_cursor: null,
+      rules: request.kind === 'rules' ? baseState.setupContext.source_rules.map((row) => ({ ...row, revision_id: row.revision_id! })) : [],
+      mappings: request.kind === 'mappings' ? baseState.setupContext.mappings.map((row) => ({ ...row, rule_revision: 'rule-v1' })) : [],
+    } }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}>
       <RuntimeDashboardPage
         {...baseState}
+        sourceEvidenceScope={scope}
         selectedDevice={{
           ...baseState.selectedDevice,
           projection_alignment: 'stale',
           runtime_projection_version: 'projection-v12',
           workspace_projection_version: 'projection-v13',
         }}
-      />,
+      /></QueryClientProvider>,
     );
 
     const panel = screen.getByTestId('runtime-dashboard-setup-context');
+    await waitFor(() => expect(panel).toHaveTextContent('line01.temp.inlet'));
     expect(panel).toHaveTextContent('Workspace readiness');
     expect(panel).toHaveTextContent('2 blockers');
     expect(panel).toHaveTextContent('Step 4');
@@ -110,11 +129,12 @@ describe('RuntimeDashboardPage', () => {
     expect(panel).toHaveTextContent('line01.temp.inlet');
     expect(panel).toHaveTextContent('入口溫度');
     expect(panel).toHaveTextContent('PostgreSQL Connector');
-    expect(panel).toHaveTextContent('gateway_metrics');
+    expect(panel).not.toHaveTextContent('gateway_metrics');
     expect(panel).toHaveTextContent('sensor_readings');
     expect(panel).toHaveTextContent('Projection stale');
     expect(panel).toHaveTextContent('projection-v12');
     expect(panel).toHaveTextContent('projection-v13');
+    reader.mockRestore(); client.clear();
   });
 
   it('links readiness blockers back to their Studio V2 owner step', () => {
@@ -279,7 +299,7 @@ describe('RuntimeDashboardPage', () => {
       />,
     );
 
-    expect(screen.getByTestId('runtime-dashboard-live-state-banner')).toHaveTextContent('Live stream degraded');
+    expect(screen.getByTestId('runtime-dashboard-live-state-banner')).toHaveTextContent('Monitoring degraded');
     expect(screen.getByTestId('runtime-dashboard-header')).toHaveTextContent('Mixer PLC');
     expect(screen.getByText('2026-05-29T10:00:05Z')).toBeInTheDocument();
   });

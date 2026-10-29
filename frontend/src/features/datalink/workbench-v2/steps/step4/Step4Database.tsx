@@ -1,3 +1,11 @@
+import type { StudioLocatorEntryRead } from '../../../../../types/studioV2LocatorEntry';
+import { useRuntimeRuleEvidence } from '../../../../../hooks/datalink/useRuntimeRuleEvidence';
+import { RecordingScopeSummary } from './RecordingScopeSummary';
+import type { RecordingViewedDevice } from './recordingScopeModel';
+import { RecordingTestWriteRecoveryPanel } from './RecordingTestWriteRecoveryPanel';
+import { useRecordingChangeController } from './writeGroup/lifecycle/useRecordingChangeController';
+import { RecordingChangeDialog } from './writeGroup/lifecycle/RecordingChangeDialog';
+import type { SavedRecordingActionHost } from './writeGroup/lifecycle/SavedRecordingActions';
 import * as React from 'react';
 import { useMemo, useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -33,6 +41,10 @@ import type { WorkspaceReadinessStepNumber } from '../../components/WorkspaceRea
 import type { ModbusShareStatus } from '../../../../../types/modbusShare';
 
 interface Step4DatabaseProps {
+  locatorEntry?: StudioLocatorEntryRead;
+  locatorOnly?: boolean;
+  locatorSuspended?: boolean;
+  onLocatorEditorMountedChange?: (mounted: boolean) => void;
   state: WorkbenchV2State;
   dispatch: React.Dispatch<WorkbenchV2Action>;
   workspaceId?: string;
@@ -62,9 +74,9 @@ function Step4DatabaseContent({
   recoverActivationStatus,
   workspaceReadiness,
   shareStatus,
-  onNavigateStep,
+  onNavigateStep, locatorEntry, locatorSuspended, onLocatorEditorMountedChange,
 }: Step4DatabaseProps) {
-  const { t } = useTranslation('workbench-v2');
+  const { t: guidedT } = useTranslation('workbench-v2-recording-guided');
   // Only the read-back of an earlier activation is shown; no workspace-wide start is wired to this page.
   const activation = useStep4Activation(undefined, recoverActivationStatus, workspaceId);
   const { connector, targets } = state.db;
@@ -138,6 +150,15 @@ function Step4DatabaseContent({
     ...Object.values(targets).map((target) => target.save_state),
   ];
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
+  // Stable across Basic/legacy/circuit/disclosure remounts; one read for the viewed device and canonical revision.
+  const [viewedDevice, setViewedDevice] = useState<RecordingViewedDevice>();
+  const configurationState = groupsQuery.isError ? 'error' : groupsQuery.isLoading ? 'loading'
+    : groupsQuery.data && groupsQuery.data.workspace_id === workspaceId && groupsQuery.data.workspace_revision ? 'ready' : 'unknown';
+  const evidenceScope = workspaceId && groupsQuery.data && configurationState === 'ready' &&
+    viewedDevice && viewedDevice.workspaceId === workspaceId &&
+    state.devices.some(device => device.id === viewedDevice.deviceId && device.persisted && device.save_state === 'saved')
+    ? { workspace_id: workspaceId, workspace_revision: groupsQuery.data.workspace_revision, device_id: viewedDevice.deviceId } : null;
+  const recordingEvidence = useRuntimeRuleEvidence(evidenceScope);
   const liveGroups = (groupsQuery.data?.groups ?? []).filter((group) => group.status !== 'deleted');
   const groupSummary = {
     state: groupsQuery.isError ? 'error' as const : groupsQuery.isLoading ? 'loading' as const : 'ready' as const,
@@ -146,9 +167,12 @@ function Step4DatabaseContent({
   };
   const configurationSaved = saveStates.length > 0 && saveStates.every((saveState) => saveState === 'saved');
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  React.useLayoutEffect(() => { if (locatorEntry?.selection.state === 'selected') setAdvancedOpen(true); }, [locatorEntry]);
   const [openGroupRequest, setOpenGroupRequest] = useState<{ id: string }>();
   const [reviewRequest, setReviewRequest] = useState<{ workspaceId: string; groupId: string }>();
   const [basicOperationActive, setBasicOperationActive] = useState(false);
+  const [savedOperationActive, setSavedOperationActive] = useState(false);
+  const savedOperationLock = useRef(false);
   const advancedRef = useRef<HTMLDetailsElement>(null);
   const basicRef = useRef<HTMLDivElement>(null);
   const openAdvanced = useCallback(() => {
@@ -161,8 +185,35 @@ function Step4DatabaseContent({
     basicRef.current?.focus();
   }, [workspaceId]);
 
+  const recordingChange = useRecordingChangeController({
+    workspaceId: workspaceId ?? '', readonly: basicOperationActive || savedOperationActive,
+    onChanged: (group) => { setOpenGroupRequest({ id: group.id }); void groupsQuery.refetch(); },
+  });
+  const lifecycleLocked = recordingChange.isOpen || recordingChange.busy || recordingChange.unresolved;
+  const actionHost: SavedRecordingActionHost = {
+    tryAcquire: () => {
+      if (savedOperationLock.current || basicOperationActive || lifecycleLocked) return false;
+      savedOperationLock.current = true; return true;
+    },
+    onBusyChange: (active) => { savedOperationLock.current = active; setSavedOperationActive(active); },
+    onReviewScopedStart: reviewScopedStart,
+    onAction: (intent) => {
+      if (savedOperationLock.current || basicOperationActive || lifecycleLocked || intent.workspaceId !== workspaceId) return;
+      if (intent.action === 'edit') { setOpenGroupRequest({ id: intent.groupId }); openAdvanced(); return; }
+      if (intent.action === 'recreate' || intent.action === 'transition') {
+        savedOperationLock.current = true;
+        void recordingChange.requestAction(intent).finally(() => { savedOperationLock.current = false; });
+      }
+    },
+  };
+  const savedActionsLocked = savedOperationActive || lifecycleLocked;
+  const destinations = state.settings.connectors.filter((item) => item.enabled && item.id && item.identity_revision)
+    .map((item) => ({ id: item.id, name: item.name, revision: item.identity_revision! }));
+
   return (
     <div className="space-y-6">
+      {workspaceId && <RecordingTestWriteRecoveryPanel workspaceId={workspaceId} />}
+      <RecordingChangeDialog controller={recordingChange} destinations={destinations} />
       <Step4SupportPanels
         destinationReady={destinationIsSaved(state)}
         connector={connector}
@@ -170,19 +221,25 @@ function Step4DatabaseContent({
         onUpdateConnector={handleUpdateConnector}
         onKindChange={handleKindChange}
         onSelectConnector={handleSelectConnectorPool}
-        disabled={basicOperationActive}
+        disabled={basicOperationActive || savedActionsLocked}
       />
       <div ref={basicRef} tabIndex={-1} data-testid="step4-basic-recording" hidden={!destinationIsSaved(state) && !isModbusShareConfiguredEnabled(shareStatus)}>
       <BasicRecordingPanel
         state={state}
         workspaceId={workspaceId}
-        readonly={false}
+        readonly={savedActionsLocked}
+        lifecycleHost={actionHost}
         reviewRequest={reviewRequest}
         shareStatus={shareStatus}
         onCommit={onCommit}
         onOpenAdvanced={(groupId) => { if (groupId) setOpenGroupRequest({ id: groupId }); openAdvanced(); }}
         onOpenMemberSettings={(id) => { setOpenGroupRequest({ id }); openAdvanced(); }}
         onOperationActiveChange={setBasicOperationActive}
+        onViewedDeviceChange={setViewedDevice}
+        renderScopeSummary={(scope) => <RecordingScopeSummary scope={scope} state={state}
+          groups={groupsQuery.data?.groups ?? []} evidence={recordingEvidence}
+          configurationState={configurationState === 'ready' && (scope.workspaceId !== workspaceId ||
+            scope.workspaceRevision !== groupsQuery.data?.workspace_revision) ? 'unknown' : configurationState} />}
       />
 
       </div>
@@ -198,12 +255,15 @@ function Step4DatabaseContent({
         className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/20 p-4"
         data-testid="step4-advanced-recording"
       >
-        <summary className="cursor-pointer text-sm font-semibold text-slate-200">{t('step4.basic.advanced_title')}</summary>
+        <summary className="cursor-pointer text-sm font-semibold text-slate-200">{guidedT('management.advancedTitle')}</summary>
         <div className="space-y-6 pt-2">
+          <p data-testid="recording-workspace-status-note" className="text-xs text-slate-400">{guidedT('management.workspaceStatus')}</p>
           <WriteGroupSection
+            locatorEntry={locatorEntry} locatorSuspended={locatorSuspended} onEditorMountedChange={onLocatorEditorMountedChange}
             state={state}
             workspaceId={workspaceId}
-            readonly={basicOperationActive}
+            readonly={basicOperationActive || savedActionsLocked}
+            lifecycleHost={actionHost}
             onNavigateStep={onNavigateStep}
             openGroupRequest={openGroupRequest}
             onReviewScopedStart={reviewScopedStart}
@@ -235,5 +295,8 @@ function Step4DatabaseContent({
 
 /** Step 4 以 React Query 讀取實際欄位；沒有 QueryClient 的嵌入情境使用備援 client。 */
 export function Step4Database(props: Step4DatabaseProps) {
-  return <SafeQueryBoundary><Step4DatabaseContent {...props} /></SafeQueryBoundary>;
+  return <SafeQueryBoundary>{props.locatorOnly && props.locatorEntry
+    ? <WriteGroupSection state={props.state} workspaceId={props.workspaceId} readonly={false}
+        locatorEntry={props.locatorEntry} locatorSuspended={props.locatorSuspended} onEditorMountedChange={props.onLocatorEditorMountedChange} locatorOnly />
+    : <Step4DatabaseContent {...props} />}</SafeQueryBoundary>;
 }

@@ -3,6 +3,7 @@ package grouppipeline
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/snapshot"
 	"go-gateway/internal/datalink/workspace"
 
 	"github.com/stretchr/testify/require"
@@ -287,7 +289,7 @@ func TestProductionGroupOutageRecoveryBacklogGuardRefusesWhenOwnershipCannotBePr
 	f := newFixture(t)
 	db := f.store.DB()
 	ctx := t.Context()
-	group := &workspace.WriteGroup{ID: "group-G"}
+	group := groupAt("rev-1")
 	check := func() error {
 		tx, err := db.BeginTx(ctx, nil)
 		require.NoError(t, err)
@@ -299,13 +301,17 @@ func TestProductionGroupOutageRecoveryBacklogGuardRefusesWhenOwnershipCannotBePr
 	_, err := db.ExecContext(ctx, `INSERT INTO write_groups (id, workspace_id, revision, name, destination_connector_id, destination_connector_revision, destination_table_name)
 		VALUES ('group-G', 'workspace-A', 'rev-1', 'g', 'connector-1', 'crev-1', 'readings')`)
 	require.NoError(t, err)
-	_, err = db.ExecContext(ctx, `INSERT INTO write_group_versions (group_id, group_revision, effective_at, payload) VALUES ('group-G', 'rev-1', '2026-01-01T00:00:00Z', '{}')`)
+	payload, err := json.Marshal(group)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `INSERT INTO write_group_versions (group_id, group_revision, effective_at, payload) VALUES ('group-G', 'rev-1', '2026-01-01T00:00:00Z', ?)`, string(payload))
+	require.NoError(t, err)
+	scope, err := snapshot.DestinationScope("connector-1", "crev-1", "", "main", "readings")
 	require.NoError(t, err)
 	insertRow := func(effect, revision, connectorRevision, state string) {
 		_, err := db.ExecContext(ctx, `INSERT INTO wg_delivery_outbox (effect_key, record_id, workspace_id, group_id, group_revision, bucket_start, partition_key,
-			destination_scope, connector_id, connector_revision, table_name, payload, payload_digest, state, next_retry_at, created_at, updated_at)
-			VALUES (?, 'r', 'workspace-A', 'group-G', ?, '2026-01-01T00:00:00Z', 'p', 's', 'connector-1', ?, 'readings', '{}', 'd', ?, 'x', 'x', 'x')`,
-			effect, revision, connectorRevision, state)
+			destination_scope, connector_id, connector_revision, table_schema, table_name, payload, payload_digest, state, next_retry_at, created_at, updated_at)
+			VALUES (?, 'r', 'workspace-A', 'group-G', ?, '2026-01-01T00:00:00Z', 'p', ?, 'connector-1', ?, 'main', 'readings', '{}', 'd', ?, 'x', 'x', 'x')`,
+			effect, revision, scope, connectorRevision, state)
 		require.NoError(t, err)
 	}
 	insertRow("e1", "rev-1", "crev-1", "pending")

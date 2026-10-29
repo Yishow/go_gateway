@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CircuitProfileBasicPanel } from '@/features/datalink/workbench-v2/steps/step4/CircuitProfileBasicPanel';
 import { studioV2WorkspaceWriteGroupsAPI as groupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
+import { studioV2WriteGroupLifecycleAPI as lifecycleAPI } from '@/services/studioV2WriteGroupLifecycle';
 import { studioV2RecordingStartAPI as startAPI } from '@/services/studioV2RecordingStart';
 import type { SchemaOperation, SchemaPreviewToken } from '@/types/recordingPlan';
 import type { WriteGroup, WriteGroupCreateRequest, WriteGroupSchemaApplyRequest, WriteGroupSchemaPreviewRequest } from '@/types/studioV2WriteGroup';
@@ -16,8 +17,9 @@ const backend = vi.hoisted(() => ({ revision: 1, groups: [] as WriteGroup[], tab
   tokens: new Map<string, SchemaPreviewToken>(), operations: new Map<string, SchemaOperation>() }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: {
-  list: vi.fn(), ensureCircuitProfile: vi.fn(), update: vi.fn(), schemaPreview: vi.fn(), schemaApply: vi.fn(), schemaOperation: vi.fn(),
+  list: vi.fn(), readiness: vi.fn(), ensureCircuitProfile: vi.fn(), update: vi.fn(), schemaPreview: vi.fn(), schemaApply: vi.fn(), schemaOperation: vi.fn(),
 } }));
+vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn() } }));
 vi.mock('@/services/studioV2RecordingStart', () => ({ studioV2RecordingStartAPI: { start: vi.fn(), operation: vi.fn() } }));
 vi.mock('@/services/studioV2WorkspaceMeasurements', () => ({ studioV2WorkspaceMeasurementsAPI: {
   list: vi.fn(async () => [{ id: 'measurement-0', workspace_id: 'ws-1', device_id: 'dev-1', point_id: 'pt-0', tag_id: 'tag-0',
@@ -26,12 +28,14 @@ vi.mock('@/services/studioV2WorkspaceMeasurements', () => ({ studioV2WorkspaceMe
 } }));
 
 const revision = () => `workspace-${backend.revision}`;
-const now = '2026-10-24T00:00:00Z';
+const now = new Date().toISOString();
 function currentGroup(id: string, request: WriteGroupSchemaPreviewRequest) {
+  expect(request.workspace_id).toBe('ws-1');
   expect(request.expected_workspace_revision).toBe(revision());
   const group = backend.groups.find((item) => item.id === id);
   expect(group?.revision).toBe(request.expected_group_revision);
   if (!group) throw new Error('missing test group');
+  expect(request.expected_connector_revision).toBe(group.destination.connector_revision);
   return group;
 }
 
@@ -48,13 +52,30 @@ beforeEach(() => {
     backend.groups.push(group); backend.revision += 1;
     return { workspace_revision: revision(), group: structuredClone(group) };
   });
+  vi.mocked(groupsAPI.readiness).mockImplementation(async id => {
+    const group = backend.groups.find(value => value.id === id);
+    if (!group) throw new Error('missing readiness group');
+    const ready = group.destination.schema_revision === group.revision;
+    return { workspace_id: 'ws-1', workspace_revision: revision(), group_id: id, group_revision: group.revision,
+      applied_revision: group.applied_revision, config_ready: true, schema_ready: ready, ready,
+      issues: ready ? [] : [{ code: 'schema-confirmation-required', severity: 'blocking', step: 'Step 4', scope: id, message: 'Confirm schema' }] };
+  });
+  vi.mocked(lifecycleAPI.lifecycle).mockImplementation(async id => {
+    const group = backend.groups.find(value => value.id === id);
+    if (!group) throw new Error('missing lifecycle group');
+    return { workspace_id: 'ws-1', workspace_revision: revision(), group_id: id, group_revision: group.revision,
+      applied_revision: group.applied_revision, status: group.status, connector_id: group.destination.connector_id,
+      connector_revision: group.destination.connector_revision,
+      actions: [{ action: 'edit', allowed: true, reason_code: '', next_action: '', requires_review: false }],
+      history: { canonical: true, current_group_id: id, generations: [] } };
+  });
   vi.mocked(groupsAPI.schemaPreview).mockImplementation(async (id, request) => {
     const group = currentGroup(id, request);
     const operationId = `schema-${id}-${backend.tokens.size}`;
     const preview: SchemaPreviewToken = {
       token: operationId, operation_id: operationId, workspace_id: 'ws-1', workspace_revision: revision(), plan_id: id, plan_revision: group.revision,
       connector_id: 'conn-1', table_prefix: 'gw_long_fixture', statements: backend.tableExists ? [] : ['CREATE TABLE fixture (...)'], tables: [],
-      digest: 'a'.repeat(64), created_at: now, expires_at: '2026-10-25T00:00:00Z', recreate_missing: true,
+      digest: 'a'.repeat(64), created_at: now, expires_at: new Date(Date.now() + 600000).toISOString(), recreate_missing: true,
       ...(backend.tableExists ? { no_change_reason: 'schema_already_compatible' } : {}),
     };
     backend.tokens.set(operationId, preview);
@@ -64,6 +85,7 @@ beforeEach(() => {
     const group = currentGroup(id, request);
     const token = backend.tokens.get(request.token);
     expect(token?.workspace_revision).toBe(revision());
+    expect(token?.operation_id).toBe(request.operation_id); expect(token?.plan_id).toBe(id); expect(token?.plan_revision).toBe(group.revision);
     backend.tableExists = true;
     group.destination.schema_revision = group.revision;
     group.destination.schema_digest = 'a'.repeat(64);
@@ -100,42 +122,62 @@ async function prepare(both = false) {
   fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: '水量迴路' } });
   expandSources();
   fireEvent.click(screen.getByLabelText('line.pressure')); fireEvent.click(screen.getByLabelText('line.batch'));
-  if (both) fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
+  if (both) {
+    fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
+    fireEvent.click(screen.getByTestId('circuit-profile-member-cum-tag-0'));
+  }
   await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
   fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
   await screen.findByTestId('circuit-prepared-group-instantaneous');
-  await waitFor(() => expect(groupsAPI.schemaPreview).toHaveBeenCalled());
+  expect(groupsAPI.schemaPreview).not.toHaveBeenCalled();
+  const preview = await screen.findByTestId('group-schema-preview');
+  await waitFor(() => expect(preview).toBeEnabled()); fireEvent.click(preview);
+  await waitFor(() => expect(groupsAPI.schemaPreview).toHaveBeenCalledOnce());
 }
+afterEach(() => cleanup());
 
 it('confirms both profiles explicitly, refreshes the empty-DDL preview, then starts with the current revisions', async () => {
   await prepare(true);
   expect(groupsAPI.schemaApply).not.toHaveBeenCalled();
   expect(backend.tableExists).toBe(false);
-  const inst = within(screen.getByTestId('circuit-prepared-group-instantaneous'));
-  fireEvent.click(await inst.findByTestId('group-schema-apply'));
+  expect(vi.mocked(groupsAPI.schemaPreview).mock.calls[0][0]).toBe('group-instantaneous');
+  fireEvent.click(await screen.findByTestId('group-schema-apply'));
   await waitFor(() => expect(backend.revision).toBe(4));
+  expect(groupsAPI.schemaPreview).toHaveBeenCalledOnce();
+  const preview = await screen.findByTestId('group-schema-preview');
+  await waitFor(() => expect(preview).toBeEnabled()); fireEvent.click(preview);
   await waitFor(() => expect(vi.mocked(groupsAPI.schemaPreview).mock.calls.some(([id, req]) => id === 'group-cumulative' && req.expected_workspace_revision === 'workspace-4')).toBe(true));
   const cum = within(screen.getByTestId('circuit-prepared-group-cumulative'));
-  await waitFor(() => expect(cum.getByTestId('group-schema-apply')).toBeEnabled());
+  await waitFor(() => expect(screen.getByTestId('group-schema-apply')).toBeEnabled());
   expect(cum.getByTestId('group-schema-preview-table')).toHaveTextContent('step4.group.schema.no_change');
-  fireEvent.click(cum.getByTestId('group-schema-apply'));
+  fireEvent.click(screen.getByTestId('group-schema-apply'));
   await waitFor(() => expect(backend.revision).toBe(5));
   await waitFor(() => expect(screen.getByTestId('circuit-profile-start')).toBeEnabled());
   fireEvent.click(screen.getByTestId('circuit-profile-start'));
+  expect(startAPI.start).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByTestId('recording-start-confirm'));
   await waitFor(() => expect(startAPI.start).toHaveBeenCalledOnce());
-  expect(vi.mocked(startAPI.start).mock.calls[0][0].groups).toHaveLength(2);
+  const start = vi.mocked(startAPI.start).mock.calls[0][0];
+  expect(start.groups).toHaveLength(2);
+  expect(start.groups.map(group => group.group_id).sort()).toEqual(['group-cumulative', 'group-instantaneous']);
+  expect(start.device_ids).toEqual(['dev-1']);
   expect(groupsAPI.schemaApply).toHaveBeenCalledTimes(2);
 });
 
 it('keeps a confirmation reply loss fenced to the same operation until readback succeeds', async () => {
   await prepare(); backend.loseConfirmReply = true;
   fireEvent.click(await screen.findByTestId('group-schema-apply'));
-  const check = await screen.findByTestId('group-schema-check');
+  const check = await screen.findByTestId('basic-recording-check');
   expect(groupsAPI.schemaApply).toHaveBeenCalledOnce();
-  fireEvent.click(check);
+  await waitFor(() => expect(check).toBeEnabled()); fireEvent.click(check);
   await waitFor(() => expect(groupsAPI.schemaOperation).toHaveBeenCalledOnce());
-  await waitFor(() => expect(queryRevisionShown()).toBe(revision()));
+  expect(groupsAPI.schemaOperation).toHaveBeenCalledWith('schema-group-instantaneous-0');
+  await waitFor(() => expect(screen.getByTestId('circuit-profile-start')).toBeEnabled());
+  const currentReadiness = await vi.mocked(groupsAPI.readiness).mock.results.at(-1)?.value;
+  expect(currentReadiness?.workspace_revision).toBe(revision());
+  expect(groupsAPI.schemaPreview).toHaveBeenCalledOnce();
   expect(groupsAPI.schemaApply).toHaveBeenCalledOnce();
+  expect(startAPI.start).not.toHaveBeenCalled();
 });
 
 it('gives the two schema regions distinct accessible heading identities', async () => {
@@ -144,7 +186,3 @@ it('gives the two schema regions distinct accessible heading identities', async 
   expect(headings).toHaveLength(2);
   expect(new Set(headings.map((heading) => heading.id)).size).toBe(2);
 });
-
-function queryRevisionShown() {
-  return vi.mocked(groupsAPI.schemaPreview).mock.lastCall?.[1].expected_workspace_revision;
-}

@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { guidedReadiness } from '../../fixtures/guidedRecordingPreparation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -33,6 +36,7 @@ const openAdvanced = vi.fn();
 
 vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
   useWriteGroupsQuery: () => groupsQuery,
+  useWriteGroupReadinessQuery: (id?: string) => { const group = groupsQuery.data.groups.find(g => g.id === id), revision = groupsQuery.data.workspace_revision; return { data: useMemo(() => group ? guidedReadiness(group, revision) : undefined, [group, revision]), refetch: groupsQuery.refetch };  },
   useWriteGroupDeliveryQuery: (groupId?: string) => ({ data: deliveryFor.get(groupId ?? '') ?? deliveryQuery.data, isError: deliveryQuery.isError }),
   useUpdateWriteGroupMutation: () => ({ mutateAsync: updateGroupAsync, isPending: false }),
   useEnsureCircuitProfileMutation: () => ({ mutateAsync: ensureCircuitAsync, isPending: false }),
@@ -95,6 +99,7 @@ function profileGroup(layout: 'managed_long_v1' | 'managed_wide_profile_v1', poi
 
 function renderPanel(state: WorkbenchV2State) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  client.setQueryData(studioV2WorkspaceKeys.writeGroups(), groupsQuery.data);
   return render(
     <QueryClientProvider client={client}>
       <BasicRecordingPanel state={state} workspaceId="ws-1" readonly={false} onOpenAdvanced={openAdvanced} />

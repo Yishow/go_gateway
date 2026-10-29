@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CircuitProfileSchemaPreparation } from '@/features/datalink/workbench-v2/steps/step4/CircuitProfileSchemaPreparation';
+import { clickEnabled, guidedLifecycle, guidedReadiness } from '../../fixtures/guidedRecordingPreparation';
 import { Step4Database } from '@/features/datalink/workbench-v2/steps/step4/Step4Database';
 import { WriteGroupSection } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection';
 import { studioV2WorkspaceMeasurementsAPI } from '@/services/studioV2WorkspaceMeasurements';
@@ -30,7 +32,10 @@ const api = vi.mocked(studioV2WorkspaceWriteGroupsAPI);
 const measurementApi = vi.mocked(studioV2WorkspaceMeasurementsAPI);
 const longGroup = (over: Partial<WriteGroup> = {}): WriteGroup => ({ ...longProfileGroup({ id: 'grp-a', circuitId: 'cir-a', circuitName: 'Feeder A', interval: 15, points: [0, 1] }), ...over });
 const cumulativeGroup = (storage_mode: WriteGroup['storage_mode'] = 'plain'): WriteGroup => ({ ...longProfileGroup({ id: 'grp-c', circuitId: 'cir-a', circuitName: 'Feeder A', interval: 10, points: [0, 1], kind: 'cumulative' }), storage_mode });
-const list = (groups: WriteGroup[]) => ({ workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups });
+let canonicalGroups: WriteGroup[] = [];
+function canonical(id: string) { const group = canonicalGroups.find(item => item.id === id); if (!group) throw new Error('Missing canonical group'); return group; }
+const list = (groups: WriteGroup[]) => { canonicalGroups = groups; return { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups }; };
+vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn(async (id: string) => guidedLifecycle(canonical(id), 'wrev-1')) } }));
 const emptyDelivery = {
   group_id: 'x', intake: { state: 'not_running' }, stages: { collecting: 0, queued: 0, retrying: 0, blocked: 0, quarantined: 0, unknown: 0, sql_committed: 0, skipped: 0 },
   last_sql_committed_at: null, oldest_pending_seconds: 0, no_data_buckets: 0, skipped_buckets: 0, backlog: [],
@@ -48,10 +53,10 @@ function renderSection(groups: WriteGroup[], openId: string | undefined, props: 
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.clearAllMocks(); window.sessionStorage.clear(); canonicalGroups = [];
   measurementApi.list.mockResolvedValue([]);
   api.delivery.mockResolvedValue(emptyDelivery as never);
-  api.readiness.mockResolvedValue({ workspace_id: 'ws-1', group_id: 'grp-a', group_revision: 'rev-grp-a-1', applied_revision: '', config_ready: true, schema_ready: true, ready: true, issues: [] } as never);
+  api.readiness.mockImplementation(async id => guidedReadiness(canonical(id), 'wrev-1'));
 });
 
 describe('Advanced shows the same canonical profile and offers no second period or completeness setting', () => {
@@ -190,16 +195,32 @@ describe('Basic opens Advanced on the same saved profile group through the real 
 
   it('explains a destination cause once in Basic and moves focus to the destination settings from there', async () => {
     api.schemaPreview.mockRejectedValue(typed('timescale_unavailable'));
-    renderHost([longGroup(), cumulativeGroup()]);
+    renderHost([longGroup()]);
+    expect(api.schemaPreview).not.toHaveBeenCalled();
+    await clickEnabled('group-schema-preview');
     const card = await screen.findByTestId('circuit-blocker-timescale_unavailable-0');
     expect(screen.getAllByTestId(/^circuit-blocker-timescale_unavailable-/)).toHaveLength(1);
     expect(card).toHaveTextContent('Feeder A (instantaneous)');
-    expect(card).toHaveTextContent('Feeder A (cumulative)');
+    expect(api.schemaPreview).toHaveBeenCalledTimes(1);
     const toggle = screen.getByTestId('database-connection-card-toggle');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(within(card).getByTestId('circuit-blocker-repair-destination'));
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(toggle).toHaveFocus();
+  });
+
+  it('retains both affected groups in the existing standalone destination blocker aggregation', async () => {
+    // Guided commands are serialized; verify aggregation independently without bypassing its sibling-error fence.
+    api.schemaPreview.mockRejectedValue(typed('timescale_unavailable'));
+    canonicalGroups = [longGroup(), cumulativeGroup()];
+    render(<QueryClientProvider client={client()}><CircuitProfileSchemaPreparation workspaceId="ws-1" workspaceRevision="wrev-1"
+      preparedGroups={canonicalGroups} disabled={false} readonly={false} isPreparing={false} destinationMatches
+      onPrepare={vi.fn()} onApplied={vi.fn()} /></QueryClientProvider>);
+    await waitFor(() => expect(api.schemaPreview).toHaveBeenCalledTimes(2));
+    const card = await screen.findByTestId('circuit-blocker-timescale_unavailable-0');
+    await waitFor(() => expect(card).toHaveTextContent('Feeder A (cumulative)'));
+    expect(card).toHaveTextContent('Feeder A (instantaneous)');
+    expect(screen.getAllByTestId(/^circuit-blocker-timescale_unavailable-/)).toHaveLength(1);
   });
 
   it('sends the operator to the counter confirmation of exactly the source that lacks one', async () => {
@@ -214,7 +235,15 @@ describe('Basic opens Advanced on the same saved profile group through the real 
 
   it('opens the exact blocked group in Advanced from its repair entry', async () => {
     api.schemaPreview.mockRejectedValue(typed('schema_repair_blocked'));
-    renderHost([longGroup(), cumulativeGroup()]);
+    const group = cumulativeGroup();
+    measurementApi.list.mockResolvedValue(group.members.map((member, index) => ({
+      id: `meas-${index}`, workspace_id: 'ws-1', definition_revision: 'mrev-1', equipment_id: 'eq-A', name: `Energy ${index}`,
+      device_id: member.device_id, point_id: member.point_id, tag_id: member.tag_id, source_binding_revision: member.source_revision,
+      quantity: 'energy', semantic_kind: 'counter', unit: 'kWh', series_epoch: '1', counter_policy: { allow_negative: false },
+      created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z',
+    })));
+    renderHost([{ ...group, members: group.members.map((member, index) => ({ ...member, measurement_id: `meas-${index}` })) }]);
+    await clickEnabled('group-schema-preview');
     fireEvent.click(await screen.findByTestId('circuit-blocker-repair-group-grp-c'));
     expect(await screen.findByTestId('group-editor')).toBeInTheDocument();
     expect(screen.getByTestId('group-name')).toHaveValue('Feeder A (cumulative)');

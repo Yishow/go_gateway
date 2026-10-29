@@ -1,3 +1,4 @@
+import type { StudioSelectionResult } from '../../state/studioSelection';
 import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +14,7 @@ import { Icon } from '../../components/Icon';
 import { Button } from '../../components/Button';
 
 export interface Step1DeviceProps {
+  locatorSelection?: Extract<StudioSelectionResult, { state: 'selected' }>;
   /** Workbench V2 全域狀態 */
   state: WorkbenchV2State;
   /** Dispatch 函數 */
@@ -28,7 +30,7 @@ export interface Step1DeviceProps {
  * 實作需求 **Multi-device tab management**、**Readiness check with explicit connect / probe separation**、**Continue gate**。
  * 容納多裝置列表、設備參數編輯、連線測試進度以及流轉控制 footer。
  */
-export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onContinue }) => {
+export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onContinue, locatorSelection }) => {
   const { t } = useTranslation('workbench-v2');
   const queryClient = useQueryClient();
   const testDraftConnectionMutation = useTestDraftConnectionMutation();
@@ -36,20 +38,22 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
 
   // 1. 本地所選設備狀態
   const [selectedId, setSelectedId] = React.useState<string>(() => {
-    return state.devices[0]?.id || '';
+    return locatorSelection ? locatorSelection.target.deviceId ?? '' : state.devices[0]?.id || '';
   });
+
+  React.useEffect(() => { if (locatorSelection) setSelectedId(locatorSelection.target.deviceId ?? ''); }, [locatorSelection]);
 
   // 當設備刪除時，自動修正選中狀態
   React.useEffect(() => {
     if (state.devices.length > 0) {
       const exists = state.devices.some((d) => d.id === selectedId);
       if (!exists) {
-        setSelectedId(state.devices[0].id);
+        setSelectedId(locatorSelection ? '' : state.devices[0].id);
       }
     } else {
       setSelectedId('');
     }
-  }, [state.devices, selectedId]);
+  }, [state.devices, selectedId, locatorSelection]);
 
   // 當前選中的設備
   const activeDevice = React.useMemo(() => {

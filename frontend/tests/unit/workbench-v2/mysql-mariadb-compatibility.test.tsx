@@ -1,3 +1,8 @@
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { studioV2WriteGroupLifecycleAPI } from '@/services/studioV2WriteGroupLifecycle';
+import { savedLifecycle } from '../../fixtures/writeGroupLifecycle';
+import { listRecordingTestWriteRecovery } from '@/services/recordingTestWriteRecovery';
+import { recordingTestWriteRecovery } from '@/features/datalink/workbench-v2/state/recordingTestWriteRecovery';
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -13,7 +18,7 @@ import { savedGroup, savedGroupState, TABLE_COLUMNS } from '../../fixtures/write
 
 const mocks = vi.hoisted(() => ({
   groupsQuery: {
-    data: { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] as unknown[] },
+    data: { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] as WriteGroup[] },
     isLoading: false, isError: false, refetch: vi.fn(),
   },
   deliveryQuery: { data: undefined as unknown, isLoading: false, isError: false },
@@ -28,6 +33,8 @@ const mocks = vi.hoisted(() => ({
   testWriteOperationQuery: { data: undefined as unknown, isLoading: false, isError: false, refetch: vi.fn() },
 }));
 
+vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn() } }));
+vi.mock('@/services/recordingTestWriteRecovery', () => ({ listRecordingTestWriteRecovery: vi.fn() }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, options?: Record<string, unknown>) => ({
     'step4.basic.circuit.mysql_capability.family.mysql': 'MySQL',
@@ -149,13 +156,29 @@ function editorProps(group: WriteGroup, state: WorkbenchV2State, connector = sta
 }
 
 function queryProvider(children: React.ReactNode, client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })) {
+  client.setQueryData(studioV2WorkspaceKeys.writeGroups(), mocks.groupsQuery.data);
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
+  // Independent test worlds must explicitly retire retained locators; clearing storage alone cannot erase O1.
+  for (const ref of recordingTestWriteRecovery.read().references) recordingTestWriteRecovery.resolve({
+    operation_id: ref.operation_id, action: 'test_write', status: 'failed', write_outcome: 'failed', cleanup_status: 'not_attempted', created_at: '', updated_at: '',
+  }, ref.workspace_id);
+  vi.mocked(listRecordingTestWriteRecovery).mockImplementation(async workspaceId => {
+    if (workspaceId !== 'ws-1') throw new Error('foreign fixture workspace');
+    return { workspace_id: workspaceId, complete: true, operations: [] };
+  });
   window.sessionStorage.clear();
   mocks.groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] };
+  vi.mocked(studioV2WriteGroupLifecycleAPI.lifecycle).mockImplementation(async id => {
+    const group = mocks.groupsQuery.data.groups.find(value => value.id === id);
+    if (!group) throw new Error('foreign fixture group');
+    const lifecycle = savedLifecycle(group, mocks.groupsQuery.data.workspace_revision);
+    return { ...lifecycle, actions: lifecycle.actions.map(action => ({ ...action, reason_code: action.allowed ? '' : 'recording_not_removed' })) };
+  });
   mocks.groupsQuery.isLoading = false;
   mocks.groupsQuery.isError = false;
   mocks.groupsQuery.refetch.mockImplementation(async () => ({ data: mocks.groupsQuery.data }));
@@ -186,11 +209,11 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('MySQL/MariaDB legacy compatibility', () => {
-  it.each(['sqlite', 'postgres'] as const)('%s keeps the existing Basic setup without a QueryClient or MySQL capability probe', async (kind) => {
+  it.each(['sqlite', 'postgres'] as const)('%s keeps the existing Basic setup without an unexpected MySQL capability probe', async (kind) => {
     const get = vi.spyOn(studioV2DatalinkApi, 'get').mockRejectedValue(new Error('unexpected database probe'));
     const state = stateForConnector(kind);
 
-    render(<CircuitProfileBasicPanel state={state} workspaceId="ws-1" readonly={false} />);
+    render(queryProvider(<CircuitProfileBasicPanel state={state} workspaceId="ws-1" readonly={false} />));
 
     expect(await screen.findByTestId('circuit-profile-basic-panel')).toBeInTheDocument();
     expect(screen.getByTestId('circuit-profile-storage-timescale')).toBeInTheDocument();
@@ -204,7 +227,7 @@ describe('MySQL/MariaDB legacy compatibility', () => {
     mocks.readinessQuery.data = { ...mocks.readinessQuery.data, group_id: group.id, group_revision: group.revision };
     mocks.testWritePreview.mockResolvedValue(testWritePreview(group));
 
-    render(<GroupEditor {...editorProps(group, state)} />);
+    render(queryProvider(<GroupEditor {...editorProps(group, state)} />));
 
     expect(screen.getByTestId('group-storage-custom')).toBeChecked();
     expect(screen.getByTestId('group-table')).toHaveValue('legacy_rows');
@@ -213,7 +236,7 @@ describe('MySQL/MariaDB legacy compatibility', () => {
     expect(screen.getByTestId('group-entity-column')).toHaveValue('entity');
     expect(screen.getByTestId('group-provenance-column')).toHaveValue('source');
     const preview = screen.getByTestId('group-test-write-preview');
-    expect(preview).toBeEnabled();
+    await waitFor(() => expect(preview).toBeEnabled());
     fireEvent.click(preview);
     await waitFor(() => expect(mocks.testWritePreview).toHaveBeenCalledWith(group.id));
     expect(await screen.findByTestId('group-test-write-preview-card')).toBeInTheDocument();
@@ -325,7 +348,7 @@ describe('MySQL/MariaDB legacy compatibility', () => {
     expect(get).not.toHaveBeenCalled();
   });
 
-  it('keeps a saved native-monthly group locked and blocks every operation when capability evidence is unverified', async () => {
+  it('keeps a saved native-monthly group locked and blocks new database commands while preserving inspection when capability evidence is unverified', async () => {
     const group = nativeMonthlyGroup();
     const state = stateForConnector('mysql', {
       name: 'Saved MySQL', connector_id: 'mysql-1', identity_revision: 'mysql-rev-1',
@@ -346,7 +369,13 @@ describe('MySQL/MariaDB legacy compatibility', () => {
       'circuit-profile-mysql-capability-managed-long', 'circuit-profile-mysql-capability-native-partitions',
       'circuit-profile-mysql-capability-test-write', 'circuit-profile-mysql-capability-missing-repair',
     ]) expect(screen.getByTestId(id)).toHaveTextContent('Unavailable');
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    // The mocked schema owner reports no proof: recovery guidance is navigation, never a new command.
+    expect(screen.queryByTestId('circuit-profile-prepare')).not.toBeInTheDocument();
+    expect(screen.getByTestId('recording-next-action')).toHaveTextContent('next.actions.recover_operation');
+    fireEvent.click(screen.getByTestId('recording-next-action'));
+    expect(mocks.ensureProfile).not.toHaveBeenCalled();
+    expect(mocks.updateGroup).not.toHaveBeenCalled();
+    expect(mocks.start).not.toHaveBeenCalled();
     expect(screen.getByTestId('group-test-write-preview')).toBeDisabled();
     expect(mocks.testWritePreview).not.toHaveBeenCalled();
     expect(get).toHaveBeenCalledTimes(1);

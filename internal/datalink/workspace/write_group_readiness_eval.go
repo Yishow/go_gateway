@@ -15,15 +15,17 @@ import (
 )
 
 type writeGroupReadinessSnapshot struct {
-	record          *Record
-	group           *WriteGroup
-	validated       *WriteGroup
-	tagTypes        map[string]schema.DataType
-	connectorKind   string
-	connectorConfig string
-	validateErr     error
-	counterBindings CounterBindingProofs
-	counterIssues   []ReadinessIssue
+	record                   *Record
+	group                    *WriteGroup
+	validated                *WriteGroup
+	tagTypes                 map[string]schema.DataType
+	connectorKind            string
+	connectorConfig          string
+	validateErr              error
+	counterBindings          CounterBindingProofs
+	counterIssues            []ReadinessIssue
+	confirmedMySQLLayout     *recordingplan.GroupSchemaLayout
+	confirmedSQLServerLayout *recordingplan.GroupSchemaLayout
 }
 
 func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGroupReadiness, error) {
@@ -44,6 +46,22 @@ func (s *WriteGroupService) readinessOf(ctx context.Context, id string, content 
 	snapshot, err := s.readinessSnapshot(ctx, id, content)
 	if err != nil {
 		return nil, err
+	}
+	if isSuccessorReservedError(snapshot.validateErr) {
+		result := newWriteGroupReadiness(snapshot.record, snapshot.group)
+		result.Issues = append(result.Issues, writeGroupReadinessIssue("successor_reserved", "reserved successor is unavailable until reviewed activation", id))
+		return result, nil
+	}
+	return s.evaluateReadinessSnapshot(ctx, id, content, snapshot, func(ctx context.Context) (*writeGroupReadinessSnapshot, error) {
+		return s.readinessSnapshot(ctx, id, content)
+	})
+}
+
+// evaluateReadinessSnapshot shares schema evaluation, never ownership authority.
+// Every caller must supply its own mandatory, guarded coherent reloader.
+func (s *WriteGroupService) evaluateReadinessSnapshot(ctx context.Context, id string, content *WriteGroup, snapshot *writeGroupReadinessSnapshot, reload func(context.Context) (*writeGroupReadinessSnapshot, error)) (*WriteGroupReadiness, error) {
+	if snapshot == nil || reload == nil {
+		return nil, ErrWriteGroupReadinessUnavailable
 	}
 	result := s.newSnapshotReadiness(ctx, snapshot)
 	if snapshot.validateErr != nil {
@@ -103,10 +121,10 @@ func (s *WriteGroupService) readinessOf(ctx context.Context, id string, content 
 	}
 	var inspection *dbtarget.TableInspection
 	if managedCanonical && snapshot.connectorKind == writeGroupConnectorKindMySQL {
-		return s.mysqlReadiness(ctx, id, content, snapshot, result)
+		return s.mysqlReadiness(ctx, id, snapshot, result, reload)
 	}
 	if managedCanonical && snapshot.connectorKind == writeGroupConnectorKindSQLServer {
-		return s.sqlServerReadiness(ctx, id, content, snapshot, result)
+		return s.sqlServerReadiness(ctx, id, snapshot, result, reload)
 	}
 	var inspectErr error
 	if managedCanonical {
@@ -158,7 +176,7 @@ func (s *WriteGroupService) readinessOf(ctx context.Context, id string, content 
 			) == nil
 		}
 	}
-	postSnapshot, err := s.readinessSnapshot(ctx, id, content)
+	postSnapshot, err := reload(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -243,6 +261,12 @@ func (s *WriteGroupService) readinessSnapshot(ctx context.Context, id string, co
 	group, err := s.repo.GetInTx(ctx, setupTx.SQLTx(), record.ID, id)
 	if err != nil {
 		return nil, normalizeWriteGroupServiceError("read write-group readiness", err)
+	}
+	if guardErr := s.repo.requireUnreservedWriteGroupInTx(ctx, setupTx.SQLTx(), record.ID, id); guardErr != nil {
+		if !isSuccessorReservedError(guardErr) {
+			return nil, guardErr
+		}
+		return &writeGroupReadinessSnapshot{record: record, group: group, validated: cloneWriteGroup(group), validateErr: guardErr}, nil
 	}
 	if content != nil {
 		group = cloneWriteGroup(content)
@@ -329,6 +353,8 @@ func validateBasicWriteGroupConfig(group *WriteGroup) []ReadinessIssue {
 
 func writeGroupReadinessValidationIssue(err error, scope string) (ReadinessIssue, bool) {
 	switch {
+	case isSuccessorReservedError(err):
+		return writeGroupReadinessIssue("successor_reserved", "reserved successor is unavailable until reviewed activation", scope), true
 	case errors.Is(err, ErrWriteGroupConnectorRevisionConflict):
 		return writeGroupReadinessIssue("connector-revision-stale", "saved connector identity revision is stale", scope), true
 	case errors.Is(err, ErrWriteGroupSourceRevisionConflict):
@@ -378,7 +404,9 @@ func sameWriteGroupReadinessSnapshot(left, right *writeGroupReadinessSnapshot) b
 		reflect.DeepEqual(left.validated, right.validated) &&
 		reflect.DeepEqual(left.tagTypes, right.tagTypes) &&
 		reflect.DeepEqual(left.counterBindings, right.counterBindings) &&
-		reflect.DeepEqual(left.counterIssues, right.counterIssues)
+		reflect.DeepEqual(left.counterIssues, right.counterIssues) &&
+		reflect.DeepEqual(left.confirmedMySQLLayout, right.confirmedMySQLLayout) &&
+		reflect.DeepEqual(left.confirmedSQLServerLayout, right.confirmedSQLServerLayout)
 }
 
 func loadWriteGroupTagTypes(

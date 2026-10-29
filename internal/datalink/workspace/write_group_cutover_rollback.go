@@ -21,8 +21,14 @@ func (s *WriteGroupService) planRollback(ctx context.Context, req CutoverRequest
 	if source.Destination.ConnectorRevision != req.ExpectedConnectorRevision {
 		return nil, writeGroupRevisionConflict("write group connector revision is stale")
 	}
+	if err := s.checkLegacyCutoverOwner(ctx, req.WorkspaceID, source.ID); err != nil {
+		return nil, err
+	}
 	prior, rolledBack, err := s.loadCutover(ctx, req.WorkspaceID, req.CutoverID)
 	if err != nil {
+		return nil, err
+	}
+	if err := rejectSuccessorLegacyRollback(prior); err != nil {
 		return nil, err
 	}
 	plan := &cutoverPlan{req: req, source: source, prior: prior, readiness: map[string]*WriteGroupReadiness{}, moved: prior.Moved}
@@ -34,6 +40,9 @@ func (s *WriteGroupService) planRollback(ctx context.Context, req CutoverRequest
 	for _, start := range prior.Started {
 		holder, err := s.Get(ctx, start.GroupID)
 		if err != nil {
+			return nil, err
+		}
+		if err := s.checkLegacyCutoverOwner(ctx, req.WorkspaceID, holder.Group.ID); err != nil {
 			return nil, err
 		}
 		ended, err := s.repo.revisionEndInTx(ctx, s.repo.db, start.GroupID, start.Revision)

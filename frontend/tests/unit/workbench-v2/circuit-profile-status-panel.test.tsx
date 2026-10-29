@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CircuitProfileBasicPanel } from '@/features/datalink/workbench-v2/steps/step4/CircuitProfileBasicPanel';
@@ -13,7 +14,8 @@ const { query, deliveryFor, deliveries } = vi.hoisted(() => ({
   deliveries: {} as Record<string, unknown>,
 }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
+vi.mock('@/hooks/datalink/useStudioV2WriteGroups', async importOriginal => ({
+  ...await importOriginal<typeof import('@/hooks/datalink/useStudioV2WriteGroups')>(),
   useWriteGroupsQuery: () => query,
   useWriteGroupDeliveryQuery: (id: string, enabled: boolean) => { deliveryFor(id, enabled); return { data: enabled ? deliveries[id] : undefined, isError: false, isLoading: false }; },
   useEnsureCircuitProfileMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -53,7 +55,7 @@ function apiAnswer(groupId: string, tag: string, over: Record<string, unknown> =
   if (!parsed) throw new Error('the API shaped answer must parse');
   return parsed;
 }
-const panel = () => <CircuitProfileBasicPanel state={state} workspaceId="ws-1" readonly={false} />;
+const panel = () => <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><CircuitProfileBasicPanel state={state} workspaceId="ws-1" readonly={false} /></QueryClientProvider>;
 
 beforeEach(() => {
   vi.clearAllMocks();

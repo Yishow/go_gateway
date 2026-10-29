@@ -1,3 +1,4 @@
+import { isSafeRuntimeSensorText, safeRuntimeIdentity, safeRuntimeAddress } from './runtimeOperatorSafety';
 import type { MappingPreviewResponse, RuntimeDeviceStatusEvent, RuntimeStreamStateEvent, RuntimeValueEvent } from '../types/datalink';
 import type { RuntimeTruthState } from '../types/runtimeTruth';
 import type { StudioV2ActivationResponse } from '../types/studioV2Activation';
@@ -244,18 +245,31 @@ export function parseStudioV2ActivationResponse(value: unknown): StudioV2Activat
   };
 }
 
+// Runtime-only scalar guard; shared preview/activation parsers retain their own contracts.
+function safeRuntimeScalar(value: unknown): unknown | undefined {
+  const scalar = boundedRuntimeValue(value);
+  if (typeof scalar !== 'string') return scalar;
+  if (!isSafeRuntimeSensorText(scalar)) return undefined;
+  return scalar;
+}
+const runtimeIdentity = (value: unknown): string | undefined => safeRuntimeIdentity(value) || undefined;
+
+const runtimeTimestamp = (value: unknown): string | undefined =>
+  typeof value === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(value) && Number.isFinite(Date.parse(value)) ? value : undefined;
+
 /** Rebuilds the allowlisted runtime value event shape from bounded JSON. */
 export function parseRuntimeValueRecord(value: unknown): RuntimeValueEvent | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
-  const deviceId = boundedString(record.device_id);
-  const pointId = boundedString(record.point_id);
-  const address = boundedString(record.address);
-  const timestamp = boundedString(record.timestamp);
-  const rawValue = boundedRuntimeValue(record.raw_value);
-  const transformedValue = boundedRuntimeValue(record.transformed_value);
+  const deviceId = runtimeIdentity(record.device_id);
+  const pointId = runtimeIdentity(record.point_id);
+  const address = safeRuntimeAddress(record.address);
+  const timestamp = runtimeTimestamp(record.timestamp);
+  const rawValue = safeRuntimeScalar(record.raw_value);
+  const transformedValue = safeRuntimeScalar(record.transformed_value);
   if (!deviceId || !pointId || !address || !timestamp || rawValue === undefined || transformedValue === undefined) return null;
-  if (record.quality !== 'good' && record.quality !== 'bad' && record.quality !== 'uncertain') return null;
+  if (!['good', 'bad', 'uncertain', 'missing', 'stale', 'invalid'].includes(String(record.quality))) return null;
+  if (record.value_state !== undefined && record.value_state !== 'unsupported') return null;
   if (typeof record.stale !== 'boolean') return null;
   return {
     device_id: deviceId,
@@ -263,7 +277,8 @@ export function parseRuntimeValueRecord(value: unknown): RuntimeValueEvent | nul
     address,
     raw_value: rawValue,
     transformed_value: transformedValue,
-    quality: record.quality,
+    quality: record.quality as RuntimeValueEvent['quality'],
+    ...(record.value_state === 'unsupported' ? { value_state: 'unsupported' as const } : {}),
     stale: record.stale,
     timestamp,
   };
@@ -273,17 +288,18 @@ export function parseRuntimeValueRecord(value: unknown): RuntimeValueEvent | nul
 export function parseRuntimeStatusRecord(value: unknown): RuntimeDeviceStatusEvent | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
-  const deviceId = boundedString(record.device_id);
+  const deviceId = runtimeIdentity(record.device_id);
   const status = boundedString(record.status);
   const breakerState = boundedString(record.breaker_state);
   if (!deviceId || !status || !breakerState ||
     !['idle', 'running', 'warning', 'error'].includes(status) ||
+    !['closed', 'open', 'half-open'].includes(breakerState) ||
     ![record.points_total, record.points_healthy, record.points_stale, record.points_error].every(
       (item) => typeof item === 'number' && Number.isFinite(item),
     )) return null;
   const lastReadAt = record.last_read_at;
   const lastError = record.last_error;
-  if (lastReadAt !== undefined && lastReadAt !== null && !boundedString(lastReadAt)) return null;
+  if (lastReadAt !== undefined && lastReadAt !== null && !runtimeTimestamp(lastReadAt)) return null;
   if (lastError !== undefined && lastError !== null && !boundedString(lastError)) return null;
   return {
     device_id: deviceId,
@@ -293,8 +309,8 @@ export function parseRuntimeStatusRecord(value: unknown): RuntimeDeviceStatusEve
     points_stale: record.points_stale as number,
     points_error: record.points_error as number,
     breaker_state: breakerState,
-    last_read_at: lastReadAt === null ? null : boundedString(lastReadAt),
-    last_error: lastError === null ? null : boundedString(lastError),
+    last_read_at: lastReadAt === null ? null : runtimeTimestamp(lastReadAt),
+    last_error: lastError ? 'runtime-error' : null,
   };
 }
 
@@ -306,19 +322,20 @@ export function parseRuntimeStreamStateRecord(value: unknown): (RuntimeStreamSta
   if (typeof stateValue !== 'object' || stateValue === null || Array.isArray(stateValue)) return null;
   const state = stateValue as Record<string, unknown>;
   const stateName = boundedString(state.state);
-  if (!stateName || typeof state.empty !== 'boolean' || typeof state.degraded !== 'boolean' ||
+  if (!stateName || !['ready', 'empty', 'degraded', 'unavailable', 'stale'].includes(stateName) || typeof state.empty !== 'boolean' || typeof state.degraded !== 'boolean' ||
     typeof state.unavailable !== 'boolean' || typeof state.stale !== 'boolean') return null;
-  const reason = state.reason === undefined ? undefined : boundedString(state.reason);
+  const reason = state.reason === undefined ? undefined :
+    typeof state.reason === 'string' && SAFE_ERROR_CODES.has(state.reason) ? state.reason : 'unavailable';
   if (state.reason !== undefined && !reason) return null;
-  const deviceId = record.device_id === undefined ? undefined : boundedString(record.device_id);
-  const timestamp = record.timestamp === undefined ? undefined : boundedString(record.timestamp);
+  const deviceId = record.device_id === undefined ? undefined : runtimeIdentity(record.device_id);
+  const timestamp = record.timestamp === undefined ? undefined : runtimeTimestamp(record.timestamp);
   if (record.device_id !== undefined && !deviceId) return null;
   if (record.timestamp !== undefined && !timestamp) return null;
   const envelope = normalizeTypedEnvelope(record);
   return {
     ...(deviceId ? { device_id: deviceId } : {}),
     ...(timestamp ? { timestamp } : {}),
-    ...envelopeFields(envelope),
+    ...envelopeFields({ ...envelope, requestId: runtimeIdentity(envelope.requestId), operationId: runtimeIdentity(envelope.operationId) }),
     stream_state: {
       state: stateName,
       empty: state.empty,

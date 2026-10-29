@@ -20,7 +20,7 @@ func (b *GroupBoundary) verifyCounterDuplicate(ctx context.Context, sample snaps
 		return &GroupSampleError{Outcome: snapshot.OfferRejected, Reason: reasonJournalFailed, Cause: &counterproof.CounterBindingProofError{Reason: counterproof.ErrCounterBindingProofMissing}}
 	}
 	if err := verifier.VerifyCounterDuplicate(ctx, sample); err != nil {
-		return &GroupSampleError{Outcome: snapshot.OfferRejected, Reason: reasonJournalFailed, Cause: err}
+		return groupSamplePersistenceError(err)
 	}
 	return nil
 }

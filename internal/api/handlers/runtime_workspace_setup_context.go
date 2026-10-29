@@ -42,8 +42,9 @@ func (h *RuntimeHandler) WithSetupContextServices(
 	return h
 }
 
-func (h *RuntimeHandler) buildWorkspaceSetupContext(ctx context.Context, record *workspace.Record) (runtimeWorkspaceSetupContextResponse, error) {
-	response := runtimeWorkspaceSetupContextResponse{
+func (h *RuntimeHandler) buildWorkspaceSetupContext(ctx context.Context, record *workspace.Record) (response runtimeWorkspaceSetupContextResponse, resultErr error) {
+	response = runtimeWorkspaceSetupContextResponse{
+		EvidenceState:   "saved-only",
 		SourceRules:     []runtimeWorkspaceSetupSourceRuleResponse{},
 		Mappings:        []runtimeWorkspaceSetupMappingResponse{},
 		DatabaseTargets: []runtimeWorkspaceSetupDatabaseTargetMapping{},
@@ -51,7 +52,7 @@ func (h *RuntimeHandler) buildWorkspaceSetupContext(ctx context.Context, record 
 
 	readiness, err := h.workspaceSvc.Readiness(ctx)
 	if err == nil {
-		response.ReadinessSummary = readiness
+		response.ReadinessSummary = projectRuntimeReadiness(readiness)
 	} else if !errors.Is(err, workspace.ErrReadinessUnavailable) {
 		return response, fmt.Errorf("load readiness summary: %w", err)
 	}
@@ -60,6 +61,12 @@ func (h *RuntimeHandler) buildWorkspaceSetupContext(ctx context.Context, record 
 	if err != nil {
 		return response, err
 	}
+	ruleSnapshot := runtimeRuleSnapshot(rules)
+	defer func() {
+		if resultErr == nil {
+			resultErr = h.checkRuntimeSavedSnapshot(ctx, record, ruleSnapshot)
+		}
+	}()
 	response.SourceRules = make([]runtimeWorkspaceSetupSourceRuleResponse, 0, len(rules))
 	ruleByID := make(map[string]*schema.SourceRule, len(rules))
 	for _, rule := range rules {
@@ -99,7 +106,13 @@ func (h *RuntimeHandler) buildWorkspaceSetupContext(ctx context.Context, record 
 				return response, fmt.Errorf("load workspace database connector %s: %w", connectorID, err)
 			}
 		} else {
-			config := buildWorkspaceDatabaseConfigResponse(record.ID, connector, record.DatabaseRowGroups)
+			connectorSnapshot := *connector
+			defer func() {
+				if resultErr == nil {
+					resultErr = h.checkRuntimeConnectorSnapshot(ctx, &connectorSnapshot)
+				}
+			}()
+			config := buildRuntimeDatabaseConfig(record.ID, connector)
 			response.DatabaseConfig = &config
 		}
 	}
@@ -184,17 +197,17 @@ func (h *RuntimeHandler) mapRuntimeSetupMapping(
 ) (runtimeWorkspaceSetupMappingResponse, error) {
 	rule := ruleByID[link.RuleID]
 	response := runtimeWorkspaceSetupMappingResponse{
-		RuleID:  link.RuleID,
-		PointID: link.PointID,
-		Address: link.Address,
+		RuleID:  runtimeSafeID(link.RuleID),
+		PointID: runtimeSafeID(link.PointID),
+		Address: runtimeSafeAddress(link.Address),
 		Enabled: true,
 	}
 	if rule != nil {
-		response.DeviceID = rule.DeviceID
-		response.TargetType = rule.DataType
+		response.DeviceID = runtimeSafeID(rule.DeviceID)
+		response.TargetType = runtimeSafeDataType(rule.DataType)
 		response.Enabled = rule.Enabled
 		if rule.TargetDataType != nil {
-			response.TargetType = *rule.TargetDataType
+			response.TargetType = runtimeSafeDataType(*rule.TargetDataType)
 		}
 	}
 
@@ -203,10 +216,10 @@ func (h *RuntimeHandler) mapRuntimeSetupMapping(
 		return response, err
 	}
 	if mappingRecord != nil {
-		response.ID = mappingRecord.ID
-		response.TagID = mappingRecord.TagID
+		response.ID = runtimeSafeID(mappingRecord.ID)
+		response.TagID = runtimeSafeID(mappingRecord.TagID)
 		response.Enabled = mappingRecord.Enabled
-		response.Status = mappingRecord.Status
+		response.Status = runtimeSafeMappingStatus(mappingRecord.Status)
 	}
 	if tagRecord == nil {
 		tagRecord, err = h.resolveRuntimeSetupDirectTag(ctx, link)
@@ -215,11 +228,11 @@ func (h *RuntimeHandler) mapRuntimeSetupMapping(
 		}
 	}
 	if tagRecord != nil {
-		response.TagID = cmp.Or(response.TagID, tagRecord.ID)
-		response.TagKey = tagRecord.Key
-		response.DisplayName = tagRecord.DisplayName
-		response.Unit = tagRecord.Unit
-		response.TargetType = cmp.Or(response.TargetType, tagRecord.DataType)
+		response.TagID = cmp.Or(response.TagID, runtimeSafeID(tagRecord.ID))
+		response.TagKey = runtimeSafeTagKey(tagRecord.Key)
+		response.DisplayName = runtimeSafeLabel(tagRecord.DisplayName)
+		response.Unit = runtimeSafeUnit(tagRecord.Unit)
+		response.TargetType = cmp.Or(response.TargetType, runtimeSafeDataType(tagRecord.DataType))
 	}
 
 	return response, nil
@@ -342,29 +355,29 @@ func (h *RuntimeHandler) loadRuntimeSetupTag(ctx context.Context, id string) (*s
 
 func mapRuntimeSetupSourceRule(rule *schema.SourceRule) runtimeWorkspaceSetupSourceRuleResponse {
 	return runtimeWorkspaceSetupSourceRuleResponse{
-		ID:             rule.ID,
-		DeviceID:       rule.DeviceID,
-		StartAddress:   rule.StartAddress,
+		ID:             runtimeSafeID(rule.ID),
+		DeviceID:       runtimeSafeID(rule.DeviceID),
+		StartAddress:   runtimeSafeAddress(rule.StartAddress),
 		Count:          rule.Count,
-		DataType:       rule.DataType,
-		NamingPrefix:   rule.NamingPrefix,
+		DataType:       runtimeSafeDataType(rule.DataType),
+		NamingPrefix:   runtimeSafeLabel(rule.NamingPrefix),
 		Enabled:        rule.Enabled,
-		RevisionID:     rule.RevisionID,
-		TargetDataType: rule.TargetDataType,
+		RevisionID:     runtimeSafeID(rule.RevisionID),
+		TargetDataType: runtimeSafeDataTypePointer(rule.TargetDataType),
 	}
 }
 
 func mapRuntimeSetupDatabaseTarget(target *schema.DatabaseTargetMapping) runtimeWorkspaceSetupDatabaseTargetMapping {
 	return runtimeWorkspaceSetupDatabaseTargetMapping{
-		ID:                   target.ID,
-		TagID:                target.TagID,
-		ConnectorID:          target.ConnectorID,
-		TableSchema:          target.TableSchema,
-		TableName:            target.TableName,
-		ColumnName:           target.ColumnName,
-		WriteMode:            target.WriteMode,
-		TimestampColumn:      target.TimestampColumn,
-		GroupKey:             target.GroupKey,
+		ID:                   runtimeSafeID(target.ID),
+		TagID:                runtimeSafeID(target.TagID),
+		ConnectorID:          runtimeSafeID(target.ConnectorID),
+		TableSchema:          runtimeSafeLabel(target.TableSchema),
+		TableName:            runtimeSafeLabel(target.TableName),
+		ColumnName:           runtimeSafeLabel(target.ColumnName),
+		WriteMode:            schema.DatabaseWriteMode(runtimeSafeEnum(string(target.WriteMode), "insert", "upsert")),
+		TimestampColumn:      runtimeSafeLabelPointer(target.TimestampColumn),
+		GroupKey:             runtimeSafeLabelPointer(target.GroupKey),
 		WriteIntervalSeconds: target.WriteIntervalSeconds,
 		Enabled:              target.Enabled,
 	}

@@ -294,36 +294,7 @@ func (r *SQLRepository) SavePreviewToken(ctx context.Context, token *SchemaPrevi
 
 // GetPreviewToken 取得預覽 Token。
 func (r *SQLRepository) GetPreviewToken(ctx context.Context, token string) (*SchemaPreviewToken, error) {
-	query := `
-		SELECT token, workspace_id, plan_id, plan_revision, connector_id, table_prefix,
-			statements, expires_at, created_at, operation_id, action, workspace_revision,
-			connector_revision, dialect, database_name, schema_name, no_change_reason, digest, tables
-		FROM managed_schema_preview_tokens
-		WHERE token = $1
-	`
-	query = adaptPlaceholders(query)
-
-	var t SchemaPreviewToken
-	var stmtsStr, tablesStr string
-	err := r.db.QueryRowContext(ctx, query, token).Scan(
-		&t.Token, &t.WorkspaceID, &t.PlanID, &t.PlanRevision,
-		&t.ConnectorID, &t.TablePrefix, &stmtsStr, &t.ExpiresAt, &t.CreatedAt,
-		&t.OperationID, &t.Action, &t.WorkspaceRevision, &t.ConnectorRevision, &t.Dialect,
-		&t.Database, &t.Schema, &t.NoChangeReason, &t.Digest, &tablesStr,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("%w: %s", ErrPreviewTokenNotFound, token)
-	}
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal([]byte(stmtsStr), &t.Statements); err != nil {
-		return nil, fmt.Errorf("decode preview statements: %w", err)
-	}
-	if err := decodePreviewTables(tablesStr, &t); err != nil {
-		return nil, err
-	}
-	return &t, nil
+	return readSchemaPreviewToken(ctx, r.db, token)
 }
 
 // DeletePreviewToken 刪除預覽 Token。

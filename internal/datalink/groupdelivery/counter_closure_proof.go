@@ -89,9 +89,9 @@ func verifyClosureAcceptedSet(ctx context.Context, tx *sql.Tx, key GroupKey, bef
 
 func requireLegacyAssociation(ctx context.Context, tx *sql.Tx, key GroupKey, accepted legacyAcceptedSample, payload string, evidence counterproof.SnapshotEvidence, proof counterproof.CounterBindingProof) error {
 	sum := sha256.Sum256([]byte(payload))
-	evidenceKind := "runtime-counter-bindings-v1"
+	evidenceKind := runtimeCounterEvidenceKind
 	if evidence.LegacyExact {
-		evidenceKind = "legacy-exact-source-v1"
+		evidenceKind = legacyExactSourceEvidenceKind
 	}
 	association := legacyProofAssociation{
 		WorkspaceID: key.WorkspaceID, GroupID: key.GroupID, GroupRevision: key.GroupRevision, SampleID: accepted.sample.SampleID, SampleSeq: accepted.seq, SampleDigest: accepted.digest, AcceptedAt: accepted.acceptedAt,
@@ -109,7 +109,7 @@ func requireLegacyAssociation(ctx context.Context, tx *sql.Tx, key GroupKey, acc
 
 func verifyLegacyDuplicateAssociation(ctx context.Context, tx *sql.Tx, key GroupKey, sample snapshot.Sample) error {
 	accepted := legacyAcceptedSample{sample: sample}
-	err := tx.QueryRowContext(ctx, `SELECT seq,payload_digest,created_at FROM wg_delivery_samples WHERE workspace_id=? AND group_id=? AND group_revision=? AND sample_id=? AND consumed=0`, key.WorkspaceID, key.GroupID, key.GroupRevision, sample.SampleID).Scan(&accepted.seq, &accepted.digest, &accepted.acceptedAt)
+	err := tx.QueryRowContext(ctx, `SELECT seq,payload_digest,created_at FROM wg_delivery_samples WHERE workspace_id=? AND group_id=? AND group_revision=? AND acceptance_kind='native' AND COALESCE(NULLIF(origin_sample_id,''),sample_id)=? AND consumed=0`, key.WorkspaceID, key.GroupID, key.GroupRevision, sample.SampleID).Scan(&accepted.seq, &accepted.digest, &accepted.acceptedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return sampleProofError(counterproof.ErrCounterBindingProofMissing)
 	}

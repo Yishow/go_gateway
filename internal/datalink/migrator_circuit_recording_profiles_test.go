@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"go-gateway/internal/datalink/schema/migrations"
+
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 )
@@ -28,26 +30,19 @@ func TestCircuitRecordingProfilesMigrationKeepsLegacyRowsNullable(t *testing.T) 
 	t.Cleanup(func() { _ = db.Close() })
 	ctx := t.Context()
 	migrator := NewMigrator()
-	require.NoError(t, migrator.Migrate(db))
+	// Build a genuine pre-029/pre-047 database. Dropping a key table after the
+	// latest migration would be lineage corruption, not a historical schema.
+	for _, name := range []string{"024_write_groups_sqlite.up.sql", "028_write_group_basic_keys_sqlite.up.sql"} {
+		raw, err := migrations.FS.ReadFile(name)
+		require.NoError(t, err)
+		_, err = db.ExecContext(ctx, string(raw))
+		require.NoError(t, err)
+	}
 
 	groupColumns := []string{"layout_version", "profile_kind", "profile_interval", "profile_unit", "storage_mode"}
 	memberColumns := []string{"circuit_id", "circuit_name"}
-	require.Equal(t, len(groupColumns), sqliteColumnCount(t, db, "write_groups", groupColumns...))
-	require.Equal(t, len(memberColumns), sqliteColumnCount(t, db, "write_group_members", memberColumns...))
-
-	// Model a database created before 029/030: remove only what they added.
-	_, err = db.ExecContext(ctx, `DROP TABLE write_group_profile_keys`)
-	require.NoError(t, err)
-	_, err = db.ExecContext(ctx, `DROP TABLE write_group_storage_scopes`)
-	require.NoError(t, err)
-	for _, column := range groupColumns {
-		_, err = db.ExecContext(ctx, `ALTER TABLE write_groups DROP COLUMN `+column)
-		require.NoError(t, err)
-	}
-	for _, column := range memberColumns {
-		_, err = db.ExecContext(ctx, `ALTER TABLE write_group_members DROP COLUMN `+column)
-		require.NoError(t, err)
-	}
+	require.Zero(t, sqliteColumnCount(t, db, "write_groups", groupColumns...))
+	require.Zero(t, sqliteColumnCount(t, db, "write_group_members", memberColumns...))
 	_, err = db.ExecContext(ctx, `INSERT INTO write_groups
 		(id,workspace_id,revision,name,destination_connector_id,destination_connector_revision,destination_table_name,row_policy)
 		VALUES ('legacy-group','workspace','revision','Legacy','connector','connector-revision','values','{"interval_seconds":60}')`)

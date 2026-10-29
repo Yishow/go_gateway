@@ -7,6 +7,7 @@ import (
 
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/measurement"
+	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/datalink/workspace"
 
 	"github.com/gin-gonic/gin"
@@ -30,14 +31,32 @@ func NewStudioV2WorkspaceMeasurementsHandler(
 	}
 }
 
+// List returns saved measurement definitions without changing their revisions.
+// @Summary Read workspace measurements
+// @Tags Studio V2 Recording Plans
+// @Produce json
+// @Param device_id query string false "Optional owned device filter"
+// @Param locator_workspace_id query string false "Locator-origin workspace identity; requires revision pair"
+// @Param locator_workspace_revision query string false "Exact observed revision; present empty only matches legacy empty"
+// @Success 200 {array} measurement.MeasurementDefinition
+// @Failure 400 {object} APIErrorResponse
+// @Failure 403 {object} APIErrorResponse
+// @Failure 409 {object} APIErrorResponse
+// @Failure 500 {object} APIErrorResponse
+// @Failure 503 {object} APIErrorResponse
+// @Router /v1/datalink/studio-v2/workspace/measurements [get]
 func (h *StudioV2WorkspaceMeasurementsHandler) List(c *gin.Context) {
-	record, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
-	if err != nil {
-		renderStudioV2WorkspaceBootstrapError(c)
+	record, locatorScope, ok := beginStudioLocatorNativeRead(c, h.workspaceSvc, func() { renderStudioV2WorkspaceBootstrapError(c) })
+	if !ok {
 		return
 	}
+	var err error
 
 	deviceID := c.Query("device_id")
+	if locatorScope != nil && deviceID != "" && (!runtimeDeliveryIDs(deviceID) || !workspaceOwnsDevice(record, deviceID)) {
+		renderRuntimeEvidenceError(c, runtimeEvidenceError(runtimeview.ReasonForeign))
+		return
+	}
 	var list []measurement.MeasurementDefinition
 	if deviceID != "" {
 		list, err = h.measurementSvc.ListByDevice(c.Request.Context(), record.ID, deviceID)
@@ -45,6 +64,13 @@ func (h *StudioV2WorkspaceMeasurementsHandler) List(c *gin.Context) {
 		list, err = h.measurementSvc.ListByWorkspace(c.Request.Context(), record.ID)
 	}
 
+	if !finishStudioLocatorNativeRead(c, h.workspaceSvc, locatorScope) {
+		return
+	}
+	if err != nil && locatorScope != nil {
+		renderRuntimeEvidenceError(c, runtimeEvidenceError(runtimeview.ReasonUnavailable))
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			apiResponseSuccessKey: false,
@@ -56,6 +82,14 @@ func (h *StudioV2WorkspaceMeasurementsHandler) List(c *gin.Context) {
 		return
 	}
 
+	if locatorScope != nil {
+		for _, definition := range list {
+			if definition.WorkspaceID != record.ID || (deviceID != "" && definition.DeviceID != deviceID) {
+				renderRuntimeEvidenceError(c, runtimeEvidenceError(runtimeview.ReasonForeign))
+				return
+			}
+		}
+	}
 	c.JSON(http.StatusOK, gin.H{
 		apiResponseSuccessKey: true,
 		apiResponseDataKey:    list,

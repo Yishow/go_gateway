@@ -3,7 +3,8 @@ import { render } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { vi } from 'vitest';
 import { RuntimeDashboardRoute } from '../../../src/features/datalink/runtime-dashboard/RuntimeDashboardRoute';
-import type { Point, RuntimeStatus } from '../../../src/types/datalink';
+import type { Point } from '../../../src/types/datalink';
+import type { RuntimeStatusWithDiagnostics } from '../../../src/types/runtimeDiagnostics';
 import type { StudioV2RuntimeSetupContext } from '../../../src/types/studioV2RuntimeContext';
 import { createRuntimeSetupFixture } from './runtimeSetupFixture';
 
@@ -15,7 +16,7 @@ const fixture = vi.hoisted(() => ({
     setup: null as StudioV2RuntimeSetupContext | null,
   },
   mockPoints: [] as Point[],
-  mockRuntimeStatus: vi.fn<() => Promise<RuntimeStatus>>(),
+  mockRuntimeStatus: vi.fn<() => Promise<RuntimeStatusWithDiagnostics>>(),
   mockEventSources: [] as MockEventSource[],
 }));
 export const { mockRuntimeContext, mockPoints, mockRuntimeStatus, mockEventSources } = fixture;
@@ -40,7 +41,7 @@ export class MockEventSource {
   fail() { this.onerror?.(new Event('error')); }
   open() {
     this.onopen?.(new Event('open'));
-    this.emit('stream_state', { stream_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false } });
+    this.emit('stream_state', { device_id: new URL(this.url, 'http://runtime.test').searchParams.get('device_id'), stream_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false } });
   }
 }
 
@@ -77,5 +78,5 @@ export function resetRuntimeDashboardFixture() {
   } as Point, {
     id: 'point-2', device_id: 'device-B', name: 'Level', description: '', address: '40002', data_type: 'float32', enabled: true, polling_group_id: 'group-B', created_at: '2026-05-29T00:00:00Z', updated_at: '2026-05-29T00:00:00Z', last_read_at: '', last_value: null, last_error: '', error_count: 0,
   } as Point);
-  mockRuntimeStatus.mockImplementation(async (deviceId?: string) => ({ running: deviceId !== 'device-B', uptime_seconds: 12, metrics: { collected_total: 10, write_success_total: 8, write_error_total: 0, mapping_error_total: 0, point_state_error_total: 0 }, collectors: [{ device_id: deviceId ?? 'device-A', device_name: deviceId === 'device-B' ? 'Filler PLC' : 'Mixer PLC', protocol: 'modbus_tcp', status: deviceId === 'device-B' ? 'idle' : 'running', availability_status: deviceId === 'device-B' ? 'unavailable' : 'available', availability_reason: deviceId === 'device-B' ? 'invalid Step 1 configuration' : null, running: deviceId !== 'device-B', points_total: 1, points_healthy: deviceId === 'device-B' ? 0 : 1, points_stale: 0, points_error: 0, last_read_at: '2026-05-29T00:00:00Z', last_error: null, breaker_state: 'closed' }] }));
+  mockRuntimeStatus.mockImplementation(async (deviceId?: string) => ({ snapshot_state: { state: deviceId === 'device-B' ? 'unavailable' : 'ready', empty: false, degraded: false, unavailable: deviceId === 'device-B', stale: false }, running: deviceId !== 'device-B', uptime_seconds: 12, metrics: { collected_total: 10, write_success_total: 8, write_error_total: 0, mapping_error_total: 0, point_state_error_total: 0 }, collectors: [{ device_id: deviceId ?? 'device-A', device_name: deviceId === 'device-B' ? 'Filler PLC' : 'Mixer PLC', protocol: 'modbus_tcp', status: deviceId === 'device-B' ? 'idle' : 'running', availability_status: deviceId === 'device-B' ? 'unavailable' : 'available', availability_reason: deviceId === 'device-B' ? 'invalid Step 1 configuration' : null, running: deviceId !== 'device-B', points_total: 1, points_healthy: deviceId === 'device-B' ? 0 : 1, points_stale: 0, points_error: 0, last_read_at: '2026-05-29T00:00:00Z', last_error: null, breaker_state: 'closed' }] }));
 }

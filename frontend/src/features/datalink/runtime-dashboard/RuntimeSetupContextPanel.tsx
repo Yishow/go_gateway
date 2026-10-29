@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { RuntimeSettingsLink } from './RuntimeSettingsLink';
+import type { RuntimeSourceSelection } from '../../../types/studioV2RuntimeContext';
+import type { EvidenceScope } from '../../../types/runtimeRuleEvidence';
+import { safeRuntimeIdentity } from '../../../utils/runtimeOperatorSafety';
+import { RuntimeSourceRuleList } from './RuntimeSourceRuleList';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronUp, ExternalLink, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { ExternalLink, ShieldCheck, AlertTriangle } from 'lucide-react';
 import type {
   StudioV2RuntimeContextDevice,
   StudioV2RuntimeSetupContext,
-  StudioV2RuntimeSetupMapping,
-  StudioV2RuntimeSetupSourceRule,
 } from '../../../types/studioV2RuntimeContext';
 import {
   buildStudioV2FocusTarget,
@@ -13,7 +15,6 @@ import {
   readinessStepLabel,
   readinessActionFor,
   fixInStudioLabel,
-  compactIdentifier,
   handleStudioTargetClick,
   RuntimeSetupFact,
 } from './RuntimeSetupHelpers';
@@ -22,15 +23,23 @@ interface RuntimeSetupContextPanelProps {
   setupContext: StudioV2RuntimeSetupContext | null;
   selectedDevice: StudioV2RuntimeContextDevice | null;
   navigateTo?: (target: string) => void;
+  evidenceScope?: EvidenceScope | null;
+  sourceSelection?: RuntimeSourceSelection | null;
+  onSourceSelection?: (selection: RuntimeSourceSelection | null) => void;
 }
 
 export function RuntimeSetupContextPanel({
   setupContext,
   selectedDevice,
   navigateTo,
+  evidenceScope = null,
+  sourceSelection = null,
+  onSourceSelection,
 }: RuntimeSetupContextPanelProps) {
   const { t } = useTranslation('runtime-dashboard');
-  const [isExpanded, setIsExpanded] = useState(false);
+  const scope = evidenceScope && evidenceScope.device_id === selectedDevice?.device_id &&
+    Object.values(evidenceScope).every((id) => Boolean(id) && safeRuntimeIdentity(id) === id) ? evidenceScope : null;
+  const scopeKey = scope ? JSON.stringify([scope.workspace_id, scope.workspace_revision, scope.device_id]) : '';
 
   if (!setupContext) {
     return null;
@@ -43,8 +52,6 @@ export function RuntimeSetupContextPanel({
     readiness?.issues[0] ??
     null;
   const studioReturnTarget = buildStudioV2FocusTarget(primaryIssue);
-  const rules = setupContext.source_rules.slice(0, 4);
-  const mappings = setupContext.mappings.slice(0, 6);
   const databaseConfig = setupContext.database_config;
   const databaseTargets = setupContext.database_targets;
   const projectionIsStale =
@@ -73,6 +80,7 @@ export function RuntimeSetupContextPanel({
           </div>
           <div>
             <div className="flex items-center gap-2.5">
+          {scope && <RuntimeSettingsLink locator={{ step: 1, workspace_id: scope.workspace_id, device_id: scope.device_id, rule_id: null, mapping_id: null, group_id: null, group_revision: null }} navigateTo={navigateTo}>{t('settingsLink.device')}</RuntimeSettingsLink>}
               <h2 className="text-base font-semibold text-slate-100">
                 {t('setup.title', 'Workspace readiness')}
               </h2>
@@ -96,23 +104,6 @@ export function RuntimeSetupContextPanel({
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setIsExpanded((prev) => !prev)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
-          >
-            {isExpanded ? (
-              <>
-                <span>收合配置詳情</span>
-                <ChevronUp className="h-3.5 w-3.5" />
-              </>
-            ) : (
-              <>
-                <span>展開配置詳情</span>
-                <ChevronDown className="h-3.5 w-3.5" />
-              </>
-            )}
-          </button>
           <a
             href={studioReturnTarget}
             data-testid="runtime-dashboard-setup-return-link"
@@ -125,7 +116,7 @@ export function RuntimeSetupContextPanel({
         </div>
       </div>
 
-      <div className={`mt-5 grid gap-4 xl:grid-cols-[0.95fr_1.05fr] ${isExpanded ? 'block' : 'block'}`}>
+      <div className="mt-5 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <div className="space-y-4">
           <div className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
@@ -189,8 +180,7 @@ export function RuntimeSetupContextPanel({
         </div>
 
         <div className="space-y-4">
-          <RuntimeSetupRules rules={rules} total={setupContext.source_rules.length} />
-          <RuntimeSetupMappings mappings={mappings} total={setupContext.mappings.length} />
+          {scope ? <RuntimeSourceRuleList key={scopeKey} scope={scope} navigateTo={navigateTo} initialSelection={sourceSelection} onSelection={onSourceSelection} /> : <p role="status" className="text-xs text-amber-100">{t('sourceDetail.scopeUnavailable')}</p>}
           <RuntimeSetupDatabase
             databaseConfig={databaseConfig}
             databaseTargetsCount={databaseTargets.length}
@@ -198,66 +188,6 @@ export function RuntimeSetupContextPanel({
         </div>
       </div>
     </section>
-  );
-}
-
-function RuntimeSetupRules({ rules, total }: { rules: StudioV2RuntimeSetupSourceRule[]; total: number }) {
-  const { t } = useTranslation('runtime-dashboard');
-  return (
-    <div className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-        {t('setup.rules.title', 'Configured source rules')}
-      </h3>
-      {rules.length > 0 ? (
-        <ul className="mt-2.5 space-y-1.5">
-          {rules.map((rule) => (
-            <li key={rule.id} className="text-xs text-slate-300">
-              <span className="font-mono text-cyan-200">{rule.start_address}</span>
-              <span className="mx-2 text-slate-600">/</span>
-              <span>{`${rule.count} ${t('setup.rules.pointUnit', 'points')}`}</span>
-              <span className="mx-2 text-slate-600">/</span>
-              <span>{rule.target_data_type ?? rule.data_type}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-xs text-slate-400">{t('setup.rules.empty', 'No persisted source rules.')}</p>
-      )}
-      {total > rules.length && (
-        <p className="mt-2 text-xs text-slate-500">{`+${total - rules.length} ${t('setup.moreSuffix', 'more')}`}</p>
-      )}
-    </div>
-  );
-}
-
-function RuntimeSetupMappings({ mappings, total }: { mappings: StudioV2RuntimeSetupMapping[]; total: number }) {
-  const { t } = useTranslation('runtime-dashboard');
-  return (
-    <div className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-        {t('setup.mappings.title', 'Configured mappings')}
-      </h3>
-      {mappings.length > 0 ? (
-        <ul className="mt-2.5 grid gap-2 sm:grid-cols-2">
-          {mappings.map((mapping) => {
-            const title = mapping.display_name || mapping.tag_key || t('setup.mappings.unbound', 'unbound tag');
-            const subtitle = mapping.tag_key || (mapping.tag_id ? compactIdentifier(mapping.tag_id) : '');
-            return (
-              <li key={`${mapping.rule_id}-${mapping.point_id}`} className="rounded-lg bg-slate-900/60 p-2 text-xs text-slate-300">
-                <div className="font-mono text-[11px] text-cyan-300">{mapping.address}</div>
-                <div className="font-medium text-slate-100">{title}</div>
-                {subtitle && <div className="text-[11px] text-slate-400">{subtitle}{mapping.unit ? ` / ${mapping.unit}` : ''}</div>}
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="mt-2 text-xs text-slate-400">{t('setup.mappings.empty', 'No persisted mappings.')}</p>
-      )}
-      {total > mappings.length && (
-        <p className="mt-2 text-xs text-slate-500">{`+${total - mappings.length} ${t('setup.moreSuffix', 'more')}`}</p>
-      )}
-    </div>
   );
 }
 
@@ -277,8 +207,6 @@ function RuntimeSetupDatabase({
       {databaseConfig ? (
         <dl className="mt-2.5 grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
           <RuntimeSetupFact label={t('setup.database.connector', 'Connector')} value={`${databaseConfig.name}${databaseConfig.kind ? ` (${databaseConfig.kind.toUpperCase()})` : ''}`} />
-          <RuntimeSetupFact label={t('setup.database.host', 'Host / Port')} value={databaseConfig.host ? `${databaseConfig.host}:${databaseConfig.port ?? ''}` : '-'} />
-          <RuntimeSetupFact label={t('setup.database.database', 'Database')} value={databaseConfig.database} />
           <RuntimeSetupFact label={t('setup.database.table', 'Table')} value={databaseConfig.table} />
           <RuntimeSetupFact label={t('setup.database.targets', 'Targets')} value={databaseTargetsCount ? String(databaseTargetsCount) : t('setup.database.noTargets', 'No database targets')} />
         </dl>

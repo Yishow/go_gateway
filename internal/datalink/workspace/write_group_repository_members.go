@@ -16,12 +16,16 @@ func (r *SQLWriteGroupRepository) loadBasicManagedDeviceID(ctx context.Context, 
 	if group.Destination.StorageStrategy != WriteGroupStorageStrategyManaged {
 		return nil
 	}
+	metadata, found, err := r.loadWriteGroupLineage(ctx, runner, group.WorkspaceID, group.ID)
+	if err != nil || !found {
+		return err
+	}
 	var deviceID string
-	err := runner.QueryRowContext(ctx, r.query(`
+	err = runner.QueryRowContext(ctx, r.query(`
 		SELECT device_id
 		FROM write_group_basic_keys
 		WHERE workspace_id = $1 AND group_id = $2 AND canonical_role = $3
-	`), group.WorkspaceID, group.ID, basicManagedCanonicalRole).Scan(&deviceID)
+	`), group.WorkspaceID, metadata.GenesisGroupID, basicManagedCanonicalRole).Scan(&deviceID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}

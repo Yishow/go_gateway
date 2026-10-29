@@ -1,6 +1,9 @@
 import { defaultCircuitProfileLocalDraft, loadCircuitProfileLocalDraft, saveCircuitProfileLocalDraft } from '@/features/datalink/workbench-v2/state/circuitProfileBasic';
 import { buildGroupCandidates } from '@/features/datalink/workbench-v2/state/writeGroup/candidates';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as React from 'react';
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { guidedLifecycle, guidedReadiness } from '../../fixtures/guidedRecordingPreparation';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BasicRecordingPanel } from '@/features/datalink/workbench-v2/steps/step4/BasicRecordingPanel';
@@ -32,13 +35,29 @@ const ensureCircuitProfileAsync = vi.fn();
 const updateGroupAsync = vi.fn();
 const startAsync = vi.fn();
 
-vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
-  useWriteGroupsQuery: () => groupsQuery,
+const clients = new Set<QueryClient>(), listeners = new Set<() => void>();
+function publishGroups() { for (const client of clients) client.setQueryData(studioV2WorkspaceKeys.writeGroups(), groupsQuery.data); for (const listener of listeners) listener(); }
+function useCanonicalGroups() {
+  const client = useQueryClient(), [, refresh] = React.useReducer(value => value + 1, 0);
+  React.useLayoutEffect(() => { clients.add(client); client.setQueryData(studioV2WorkspaceKeys.writeGroups(), groupsQuery.data); return () => { clients.delete(client); }; }, [client]);
+  React.useEffect(() => { const listener = () => refresh(); listeners.add(listener); return () => { listeners.delete(listener); }; }, []);
+  return groupsQuery;
+}
+function canonical(id: string) { const group = groupsQuery.data.groups.find(item => item.id === id); if (!group) throw new Error('Missing canonical group'); return group; }
+async function nativeSave(run: () => Promise<unknown>) {
+  const result = await run();
+  // Existing native mutations invalidate/read the canonical list before resolving; model that publication, not a false guard.
+  groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: currentWsRev, groups: [...serverGroups] }; publishGroups();
+  return result;
+}
+vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn(async (id: string) => guidedLifecycle(canonical(id), groupsQuery.data.workspace_revision)) } }));
+vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: { readiness: vi.fn(async (id: string) => guidedReadiness(canonical(id), groupsQuery.data.workspace_revision)), schemaPreview: vi.fn(), schemaApply: vi.fn(), schemaOperation: vi.fn() } }));
+vi.mock('@/hooks/datalink/useStudioV2WriteGroups', async importOriginal => ({
+  ...await importOriginal<typeof import('@/hooks/datalink/useStudioV2WriteGroups')>(),
+  useWriteGroupsQuery: useCanonicalGroups,
   useWriteGroupDeliveryQuery: () => ({ data: undefined, isError: false }),
-  useUpdateWriteGroupMutation: () => ({ mutateAsync: updateGroupAsync, isPending: false }),
-  useEnsureCircuitProfileMutation: () => ({ mutateAsync: ensureCircuitProfileAsync, isPending: false }),
-  useWriteGroupSchemaPreviewMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useWriteGroupSchemaApplyMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateWriteGroupMutation: () => ({ mutateAsync: (input: unknown) => nativeSave(() => updateGroupAsync(input)), isPending: false }),
+  useEnsureCircuitProfileMutation: () => ({ mutateAsync: (input: unknown) => nativeSave(() => ensureCircuitProfileAsync(input)), isPending: false }),
 }));
 vi.mock('@/hooks/datalink/useStudioV2RecordingStart', () => ({
   useEnsureBasicManagedMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -49,14 +68,6 @@ vi.mock('@/hooks/datalink/useStudioV2WorkspaceMeasurements', () => ({
   useStudioV2WorkspaceMeasurementsQuery: () => measurementsQuery,
   useCreateStudioV2MeasurementMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateStudioV2MeasurementMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
-}));
-vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel', () => ({
-  GroupSchemaPanel: (props: { group: WriteGroup; onApplied?: () => void }) => (
-    <div data-testid={`circuit-schema-panel-${props.group.recording_profile?.kind ?? 'wide'}`}>
-      <span>{props.group.id}</span>
-      <button type="button" onClick={() => props.onApplied?.()}>Confirm</button>
-    </div>
-  ),
 }));
 
 function makeBatchState(): WorkbenchV2State {
@@ -106,7 +117,7 @@ function makeCircuitGroup(circuitId: string, circuitName: string, intervalSecond
 }
 
 function renderPanel(state = makeBatchState()) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, structuralSharing: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <BasicRecordingPanel state={state} workspaceId="ws-1" readonly={false} />
@@ -126,10 +137,10 @@ beforeEach(() => {
     makeCircuitGroup('cir-b', 'Feeder B', 60, 'grp-b', [2, 3]),
     makeCircuitGroup('cir-c', 'Feeder C', 15, 'grp-c', [4, 5]),
   ];
-  groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: currentWsRev, groups: serverGroups };
+  groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: currentWsRev, groups: [...serverGroups] };
   groupsQuery.refetch.mockImplementation(async () => {
-    groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: currentWsRev, groups: serverGroups };
-    return { data: groupsQuery.data };
+    groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: currentWsRev, groups: [...serverGroups] };
+    publishGroups(); return { data: groupsQuery.data };
   });
   measurementsQuery.data = [];
   measurementsQuery.refetch.mockImplementation(async () => ({ data: measurementsQuery.data }));

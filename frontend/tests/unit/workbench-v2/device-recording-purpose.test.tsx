@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { guidedReadiness, guidedLifecycle } from '../../fixtures/guidedRecordingPreparation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,11 +32,13 @@ const createMeasurementAsync = vi.fn();
 
 vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
   useWriteGroupsQuery: () => groupsQuery,
+  useWriteGroupReadinessQuery: (id?: string) => { const group = groupsQuery.data.groups.find(g => g.id === id), revision = groupsQuery.data.workspace_revision; return { data: useMemo(() => group ? guidedReadiness(group, revision) : undefined, [group, revision]), refetch: groupsQuery.refetch };  },
   useWriteGroupDeliveryQuery: () => ({ data: undefined, isError: false }),
   useUpdateWriteGroupMutation: () => ({ mutateAsync: updateGroupAsync, isPending: false }),
   useEnsureCircuitProfileMutation: () => ({ mutateAsync: ensureCircuitAsync, isPending: false }),
   useWriteGroupSchemaPreviewMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useWriteGroupSchemaApplyMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useWriteGroupSchemaOperationQuery: () => ({ data: undefined }),
 }));
 vi.mock('@/hooks/datalink/useStudioV2RecordingStart', () => ({
   useEnsureBasicManagedMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -45,9 +50,7 @@ vi.mock('@/hooks/datalink/useStudioV2WorkspaceMeasurements', () => ({
   useCreateStudioV2MeasurementMutation: () => ({ mutateAsync: createMeasurementAsync, isPending: false }),
   useUpdateStudioV2MeasurementMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
-vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel', () => ({
-  GroupSchemaPanel: (props: { group: WriteGroup }) => <div data-testid="circuit-schema-panel">{props.group.id}</div>,
-}));
+vi.mock('@/hooks/datalink/useStudioV2WriteGroupLifecycle', () => ({ useWriteGroupLifecycleQuery: (_ws?: string, id?: string) => { const group = groupsQuery.data.groups.find(g => g.id === id), revision = groupsQuery.data.workspace_revision; return { data: useMemo(() => group ? guidedLifecycle(group, revision) : undefined, [group, revision]), refetch: groupsQuery.refetch }; } }));
 
 type SourceSpec = { name: string; type: Mapping['target_type']; unit?: string };
 
@@ -91,6 +94,7 @@ function confirmedCounter(index: number): MeasurementDefinition {
 
 function renderPanel(state: WorkbenchV2State) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  client.setQueryData(studioV2WorkspaceKeys.writeGroups(), groupsQuery.data);
   return render(
     <QueryClientProvider client={client}>
       <BasicRecordingPanel state={state} workspaceId="ws-1" readonly={false} />
@@ -214,7 +218,7 @@ describe('device recording purposes', () => {
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-instantaneous'));
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
     expandSources();
-    for (const index of [0, 1, 2, 4]) fireEvent.click(screen.getByTestId(`circuit-profile-member-cum-tag-${index}`));
+    for (const index of [3, 5, 6]) fireEvent.click(screen.getByTestId(`circuit-profile-member-cum-tag-${index}`));
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
     await waitFor(() => expect(ensureCircuitAsync).toHaveBeenCalledTimes(1));
 
@@ -255,7 +259,7 @@ describe('saved groups keep their meaning and their layout', () => {
 
     expect(screen.getByTestId('circuit-profile-reduction-instantaneous')).toHaveTextContent('step4.basic.circuit.reduction_latest');
     expect(screen.queryByTestId('circuit-profile-role-tag-0')).toBeNull();
-    fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
+    // An unchanged saved group is inspected without a save/preview command (guide 2.3).
     await waitFor(() => expect(screen.getByTestId('circuit-prepared-group-instantaneous')).toBeInTheDocument());
     expect(ensureCircuitAsync).not.toHaveBeenCalled();
     expect(updateGroupAsync).not.toHaveBeenCalled();
@@ -305,9 +309,13 @@ describe('both purposes share the same confirmations and bounds', () => {
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Utilities' } });
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-instantaneous'));
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
+    fireEvent.click(screen.getByTestId('circuit-profile-member-cum-tag-3'));
 
     expect(screen.getByTestId('circuit-counter-confirmation')).toBeInTheDocument();
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    const repair = screen.getByRole('button', { name: 'next.actions.resolve_semantics' });
+    fireEvent.click(repair); // Pure repair navigation, never inferred counter confirmation.
+    expect(screen.queryByTestId('circuit-profile-prepare')).not.toBeInTheDocument();
+    expect(startAsync).not.toHaveBeenCalled();
     expect(ensureCircuitAsync).not.toHaveBeenCalled();
   });
 
@@ -318,7 +326,10 @@ describe('both purposes share the same confirmations and bounds', () => {
     fireEvent.change(screen.getByTestId('circuit-profile-role-tag-3'), { target: { value: 'counter_raw' } });
 
     expect(screen.getByTestId('circuit-counter-confirmation')).toBeInTheDocument();
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    const repair = screen.getByRole('button', { name: 'next.actions.resolve_semantics' });
+    fireEvent.click(repair); // Pure repair navigation, never inferred counter confirmation.
+    expect(screen.queryByTestId('circuit-profile-prepare')).not.toBeInTheDocument();
+    expect(startAsync).not.toHaveBeenCalled();
     expect(ensureCircuitAsync).not.toHaveBeenCalled();
   });
 

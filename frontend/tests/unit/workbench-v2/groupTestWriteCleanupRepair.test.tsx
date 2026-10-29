@@ -1,3 +1,5 @@
+import { recordingTestWriteRecovery } from '@/features/datalink/workbench-v2/state/recordingTestWriteRecovery';
+vi.mock('@/hooks/datalink/useRecordingTestWriteRecovery', () => ({ useRecordingTestWriteRecovery: () => ({ available: true, isFetching: false, refetch: vi.fn() }) }));
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
@@ -27,7 +29,7 @@ function mountPanel() {
   });
   return render(
     <QueryClientProvider client={client}>
-      <GroupTestWritePanel
+      <GroupTestWritePanel workspaceId="W1"
         groupId="group-1"
         scopeKey="group-1|rev-1|ws-1|cap-1"
         enabled={true}
@@ -52,8 +54,18 @@ describe('GroupTestWritePanel - Cleanup Repair Behavioral Regression', () => {
     values: [{ column: 'temp', type: 'float', value: '25.0' }],
   };
 
-  beforeEach(() => {
-    vi.clearAllMocks();
+
+/** Dispose independent test fixtures explicitly: storage deletion is no longer resolution. */
+function resetRecoveryFixture() {
+  localStorage.clear();
+  for (const ref of recordingTestWriteRecovery.read().references) recordingTestWriteRecovery.resolve({
+    operation_id: ref.operation_id, action: 'test_write', status: 'succeeded', write_outcome: 'written_verified',
+    cleanup_status: 'cleaned', created_at: '', updated_at: '',
+  }, ref.workspace_id);
+}
+
+beforeEach(() => {
+    vi.clearAllMocks(); resetRecoveryFixture();
   });
 
   it('renders cleanup repair button and triggers cleanup repair when write succeeded but cleanup failed', async () => {
@@ -135,6 +147,7 @@ describe('GroupTestWritePanel - Cleanup Repair Behavioral Regression', () => {
 
   it('does not offer cleanup repair for non-sqlserver dialects (e.g. mysql or sqlite)', async () => {
     for (const dialect of ['mysql', 'sqlite']) {
+      resetRecoveryFixture();
       api.testWritePreview.mockResolvedValueOnce({
         ...preview,
         target: { ...preview.target, dialect },

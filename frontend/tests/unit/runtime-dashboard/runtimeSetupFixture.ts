@@ -48,7 +48,6 @@ export function createRuntimeSetupFixture(): StudioV2RuntimeSetupContext {
       id: 'db-1',
       name: 'PostgreSQL Connector',
       kind: 'postgres',
-      database: 'gateway_metrics',
       schema: 'public',
       table: 'sensor_readings',
       write_mode: 'insert',

@@ -59,9 +59,12 @@ type GroupStatus struct {
 
 // GroupStatus reads the stage counts and revision-bound backlog of a group.
 func (s *Store) GroupStatus(ctx context.Context, groupID string) (GroupStatus, error) {
+	if err := validateHandoffScope(ctx, s.db, groupID, ""); err != nil {
+		return GroupStatus{}, err
+	}
 	status := GroupStatus{GroupID: groupID}
 	if err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id = ? AND consumed = 0`, groupID).Scan(&status.Stages.Collecting); err != nil {
+		`SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id = ? AND consumed = 0 AND NOT EXISTS(SELECT 1 FROM wg_delivery_sample_handoffs h WHERE h.source_seq=wg_delivery_samples.seq)`, groupID).Scan(&status.Stages.Collecting); err != nil {
 		return GroupStatus{}, fmt.Errorf("count collecting samples: %w", err)
 	}
 	if err := s.readStageCounts(ctx, groupID, &status); err != nil {

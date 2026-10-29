@@ -1,3 +1,5 @@
+import type { StudioV2LocatorReadScope } from '../types/studioV2LocatorEntry';
+import { captureStudioLocatorReadScope, studioLocatorReadParams, assertStudioLocatorWorkspaceBinding, throwStudioLocatorReadError } from './studioEntityLocator';
 import type { DeliveryDecision, DeliveryDecisionResult } from '../types/studioV2WriteGroupDelivery';
 import type {
   WriteGroupCreateRequest,
@@ -242,11 +244,16 @@ export const studioV2WorkspaceWriteGroupsAPI = {
   },
 
   /** Reads a test-write operation from the shared workspace operation endpoint. */
-  async testWriteOperation(operationId: string): Promise<WriteGroupTestWriteOperation> {
-    const res = await studioV2DatalinkApi.get<unknown>(
-      `/studio-v2/workspace/database-operations/${encodeURIComponent(operationId)}`,
-    );
-    return parseWriteGroupAPIData(res.data, 'write-group test write operation', parseWriteGroupTestWriteOperation);
+  async testWriteOperation(operationId: string, locatorScope?: StudioV2LocatorReadScope): Promise<WriteGroupTestWriteOperation> {
+    const selected = captureStudioLocatorReadScope(locatorScope);
+    const url = `/studio-v2/workspace/database-operations/${encodeURIComponent(operationId)}`;
+    const res = await (selected ? studioV2DatalinkApi.get<unknown>(url, { params: studioLocatorReadParams(selected) }) : studioV2DatalinkApi.get<unknown>(url))
+      .catch(error => throwStudioLocatorReadError(error, selected));
+    const operation = parseWriteGroupAPIData(res.data, 'write-group test write operation', value => {
+      assertStudioLocatorWorkspaceBinding(value, selected); return parseWriteGroupTestWriteOperation(value);
+    });
+    if (selected && operation.operation_id !== operationId) throw new Error('Scoped settings read unavailable.');
+    return operation;
   },
 
   async create(request: WriteGroupCreateRequest): Promise<WriteGroupMutationResponse> {

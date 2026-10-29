@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WriteGroup, WriteGroupMutationResponse } from '../../../../../types/studioV2WriteGroup';
+import type { RecordingPreparationBridge } from './recordingPreparationPresentation';
+import type { SchemaPreparationPresentation } from './writeGroup/schemaPreparationPresentation';
 import { GroupSchemaPanel } from './writeGroup/GroupSchemaPanel';
 
 /** Ensuring a draft changes local configuration only. DDL remains exclusively
  * behind the existing preview token, explicit confirmation and operation ledger. */
-export function BasicSchemaPreparation({ group, workspaceId, workspaceRevision, disabled, readonly, destinationMatches, ensureGroup, onApplied }: {
+export function BasicSchemaPreparation({ group, workspaceId, workspaceRevision, disabled, readonly, destinationMatches, ensureGroup, onApplied, guided, dirty = false }: {
+  guided?: RecordingPreparationBridge; dirty?: boolean;
   group?: WriteGroup; workspaceId: string; workspaceRevision: string; disabled: boolean;
   readonly: boolean; destinationMatches: boolean;
   ensureGroup: () => Promise<WriteGroupMutationResponse>; onApplied: () => void;
@@ -30,9 +33,14 @@ export function BasicSchemaPreparation({ group, workspaceId, workspaceRevision, 
   };
   const savedGroup = group ?? prepared?.group;
   const revision = group ? workspaceRevision : prepared?.workspace_revision ?? workspaceRevision;
+  const report = guided?.onPresentation;
+  const groupId = savedGroup?.id;
+  const onPresentation = useCallback((value: SchemaPreparationPresentation | null) => { if (groupId) report?.(groupId, value); }, [groupId, report]);
   return <section className="space-y-3">
-    <button type="button" disabled={disabled || readonly || busy} onClick={() => void prepare()} className="rounded border border-slate-600 px-3 py-2 text-xs text-slate-200 disabled:opacity-40" data-testid="basic-recording-prepare">{t('step4.basic.prepare_schema')}</button>
+    {!guided && <button type="button" disabled={disabled || readonly || busy} onClick={() => void prepare()} className="rounded border border-slate-600 px-3 py-2 text-xs text-slate-200 disabled:opacity-40" data-testid="basic-recording-prepare">{t('step4.basic.prepare_schema')}</button>}
     {failed && <p role="alert" className="text-xs text-amber-300">{t('step4.basic.prepare_failed')}</p>}
-    {open && <GroupSchemaPanel autoPreview previewRequest={previewRequest} group={savedGroup} workspaceId={workspaceId} workspaceRevision={revision} destinationMatches={destinationMatches} dirty={false} readonly={readonly || busy} onApplied={onApplied} />}
+    {(guided ? Boolean(savedGroup) : open) && <GroupSchemaPanel autoPreview={!guided} guided={guided ? { online: guided.online, consentEpoch: guided.consentEpoch, suppressDefaultActions: true, onPresentation,
+      newOperationBlocked: guided.newCommandsBlocked, isNewOperationBlocked: () => guided.isNewOperationBlocked?.() ?? true,
+      isPreviewRetryBlocked: () => !savedGroup || (guided.isSchemaPreviewRetryBlocked?.(savedGroup.id) ?? true) } : undefined} previewRequest={previewRequest} group={savedGroup} workspaceId={workspaceId} workspaceRevision={revision} destinationMatches={destinationMatches} dirty={dirty} readonly={readonly || busy} onApplied={onApplied} />}
   </section>;
 }

@@ -1,3 +1,4 @@
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -8,18 +9,20 @@ import { BasicRecordingEvidence } from '@/features/datalink/workbench-v2/steps/s
 import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
 const mocks = vi.hoisted(() => ({ ensure: vi.fn(), start: vi.fn(), refetch: vi.fn(), schema: vi.fn() }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({ useUpdateWriteGroupMutation: () => ({ mutateAsync: vi.fn() }), useWriteGroupsQuery: () => ({ data: { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] }, refetch: mocks.refetch }), useWriteGroupDeliveryQuery: () => ({ data: undefined }) }));
+vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({ useUpdateWriteGroupMutation: () => ({ mutateAsync: vi.fn() }), useWriteGroupsQuery: () => query, useWriteGroupReadinessQuery: () => ({ data: undefined }), useWriteGroupDeliveryQuery: () => ({ data: undefined }) }));
 vi.mock('@/hooks/datalink/useStudioV2RecordingStart', () => ({ useEnsureBasicManagedMutation: () => ({ mutateAsync: mocks.ensure }), useRecordingStartMutation: () => ({ mutateAsync: mocks.start }), useRecordingStartOperationQuery: () => ({ data: undefined }) }));
 vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel', () => ({ GroupSchemaPanel: (props: unknown) => { mocks.schema(props); return <div data-testid="reused-group-schema">Existing token/confirm panel</div>; } }));
+const query = { data: { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] as ReturnType<typeof savedGroup>[] }, refetch: mocks.refetch };
+let currentClient: QueryClient;
 const managed = savedGroup({ basic_managed_device_id: 'dev-1', destination: { ...savedGroup().destination, storage_strategy: 'managed' } });
-beforeEach(() => { vi.clearAllMocks(); window.sessionStorage.clear(); mocks.ensure.mockResolvedValue({ group: managed, workspace_revision: 'wrev-2' }); });
-function panel(readonly = false) { const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); return render(<QueryClientProvider client={client}><BasicRecordingPanel state={savedGroupState()} workspaceId="ws-1" readonly={readonly} /></QueryClientProvider>); }
-it('prepares a local managed group in Basic and reuses the schema-token panel without starting or DDL on render', async () => {
+beforeEach(() => { vi.clearAllMocks(); window.sessionStorage.clear(); query.data = { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] }; mocks.ensure.mockImplementation(async () => { query.data = { workspace_id: 'ws-1', workspace_revision: 'wrev-2', groups: [managed] }; currentClient.setQueryData(studioV2WorkspaceKeys.writeGroups(), query.data); return { group: managed, workspace_revision: 'wrev-2' }; }); mocks.refetch.mockImplementation(async () => ({ data: query.data })); });
+function panel(readonly = false) { const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); currentClient = client; client.setQueryData(studioV2WorkspaceKeys.writeGroups(), query.data); return render(<QueryClientProvider client={client}><BasicRecordingPanel state={savedGroupState()} workspaceId="ws-1" readonly={readonly} /></QueryClientProvider>); }
+it('explicitly saves a local managed group in Basic and reuses the schema-token panel without starting or DDL on render', async () => {
  panel(); expect(mocks.ensure).not.toHaveBeenCalled(); expect(mocks.start).not.toHaveBeenCalled(); expect(mocks.schema).not.toHaveBeenCalled();
  fireEvent.click(screen.getByTestId('basic-recording-prepare'));
  await screen.findByTestId('reused-group-schema');
  expect(mocks.ensure).toHaveBeenCalledTimes(1); expect(mocks.start).not.toHaveBeenCalled();
- expect(mocks.schema.mock.calls.at(-1)?.[0]).toMatchObject({ autoPreview: true, group: managed, workspaceId: 'ws-1', workspaceRevision: 'wrev-2', destinationMatches: true, readonly: false });
+ expect(mocks.schema.mock.calls.at(-1)?.[0]).toMatchObject({ autoPreview: false, group: managed, workspaceId: 'ws-1', workspaceRevision: 'wrev-2', destinationMatches: true, readonly: false });
  expect(screen.queryByTestId('step4-advanced-recording')).not.toBeInTheDocument();
 });
 it('preparation respects readonly and never ensures a group', () => { panel(true); expect(screen.getByTestId('basic-recording-prepare')).toBeDisabled(); expect(mocks.ensure).not.toHaveBeenCalled(); });

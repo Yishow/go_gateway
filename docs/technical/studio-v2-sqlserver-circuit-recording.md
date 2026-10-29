@@ -1,8 +1,16 @@
 # Studio V2 SQL Server 迴路長表
 
-SQL Server 的受管長表、耐久交付、原生月分區、群組試寫及 Studio V2 操作已完成本案功能驗收。2026-10-27 在真實 SQL Server 執行普通表、分區、故障恢復與 plain／native 瀏覽器流程，均通過。`supports_managed_long`、`supports_native_partition`、`supports_group_test_write`、`supports_missing_repair` 依實際版本、scope、metadata 與各項權限分別判定，不再固定關閉；唯讀連線成功不代表可以寫入或建表。
+SQL Server 的受管長表、耐久交付、原生月分區、群組試寫及 Studio V2 操作，已在先前 `add-sqlserver-circuit-recording` 案完成下述功能驗收。2026-10-27 在真實 SQL Server 執行普通表、分區、故障恢復與 plain／native 瀏覽器流程，均通過。`supports_managed_long`、`supports_native_partition`、`supports_group_test_write`、`supports_missing_repair` 依實際版本、scope、metadata 與各項權限分別判定，不再固定關閉；唯讀連線成功不代表可以寫入或建表。
 
-共同操作、profile、來源語意與已審核切換見 [迴路記錄說明](studio-v2-circuit-recording.md)。本案規格與未完成任務見 [add-sqlserver-circuit-recording](../../openspec/changes/add-sqlserver-circuit-recording/tasks.md)。本文件不更改 SQLite、PostgreSQL、TimescaleDB、MySQL／MariaDB 或既有 custom 群組的支援範圍。
+共同操作、profile、來源語意與已審核切換見 [迴路記錄說明](studio-v2-circuit-recording.md)。先前功能案的規格與任務紀錄見 [add-sqlserver-circuit-recording](../../openspec/changes/archive/2026-10-27-add-sqlserver-circuit-recording/tasks.md)。本文件不更改 SQLite、PostgreSQL、TimescaleDB、MySQL／MariaDB 或既有 custom 群組的支援範圍。
+
+## 本次已保存記錄管理與驗收界線
+
+Basic／Advanced 的停止、移除、重建、三步確認與原操作復原，見 [已保存記錄操作說明](studio-v2-recording-lifecycle.md)。SQL Server successor 僅沿用受管長表、同引擎及同儲存模式的允許矩陣；不開放 wide、跨模式或跨引擎，也不搬移舊 SQL 歷史。能力與 schema proof 必須屬於此次精確目標，不能借用原目的地確認。
+
+以下 2026-10-27 的 SQL 與瀏覽器 PASS 保留為先前功能證據，**不代表本次 `manage-recording-lifecycle-safely` 的 successor lifecycle 已通過實機驗收**。本次實際 SQL 寫入／讀回／cleanup 為 **NOT RUN**：依 2026-10-28 使用者「同意，若無法就跳過」的同機驗收例外，同機原生 private-prefix preflight 未建立官方文件支持的 workspace-only 完整 config/system root，因此安全停止，沒有下載、安裝或啟動 engine；這不是已證明 runtime 啟動失敗。
+
+本次本地 adapter／proof／recovery 的實作與測試不得替代真實 SQL 驗收；產品 capability、TLS、schema 與 ownership 保護不變。正式 successor browser tests／截圖另屬 task 4.3，此次文件更新時尚未執行。完整例外與進度見 [lifecycle 設計](../../openspec/changes/manage-recording-lifecycle-safely/design.md)及[任務紀錄](../../openspec/changes/manage-recording-lifecycle-safely/tasks.md)。
 
 ## 已儲存的目的地與能力
 
@@ -79,7 +87,7 @@ Step 4 試寫沿用「預覽 → 明確確認 token/operation_id → 寫入 → 
 
 已接受的 outbox 保存原 connector ID/revision、database/schema/table、payload 與 digest，依原目的地排送。修改連線或重試不能將舊效果改送新目標，也不重新計算平均或 counter。回復使用新的前向邊界，保留兩邊歷史與各自 pending effects，不刪除表或歷史。
 
-## 驗證狀態與後續門檻
+## 2026-10-27 先前功能驗證與 fixture 門檻
 
 單元測試使用 scripted SQL/catalog 與可丟棄 SQLite 設定庫，與真實 SQL Server 驗收分列。此次真實實例為 SQL Server 2025 `17.0.5035.5`、Enterprise Developer Edition、engine edition 3、compatibility level 170；Docker 主機為 ARM，執行 amd64 image。TLS 驗證專用測試 CA，沒有停用加密或憑證驗證。
 

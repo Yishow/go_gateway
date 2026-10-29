@@ -1,3 +1,6 @@
+import type { StudioEntityLocatorIntent } from '../../../services/studioEntityLocator';
+import { useStudioLocatorEntry } from '../../../hooks/datalink/useStudioLocatorEntry';
+import { StudioLocatorEntryNotice, type StudioLocatorNoticeReason } from '../../../features/datalink/workbench-v2/shell/StudioLocatorEntryNotice';
 import * as React from 'react';
 import { RuntimeLogsLink } from '../../../features/runtime-logs/RuntimeLogsLink';
 import { useQueryClient } from '@tanstack/react-query';
@@ -28,6 +31,7 @@ import '../../../features/datalink/workbench-v2/styles/workbench-v2.css';
 
 interface DatalinkWorkbenchV2PageProps {
   navigateTo?: (target: string) => void;
+  locatorIntent?: StudioEntityLocatorIntent;
   runtimeReturnFocus?: WorkbenchV2RuntimeReturnFocus | null;
 }
 
@@ -87,10 +91,22 @@ function WorkbenchV2BootstrapState({ status }: WorkbenchV2BootstrapStateProps) {
  */
 export default function DatalinkWorkbenchV2Page({
   navigateTo,
-  runtimeReturnFocus,
+  runtimeReturnFocus, locatorIntent,
 }: DatalinkWorkbenchV2PageProps) {
-  const workspaceQuery = useStudioV2WorkspaceQuery();
-  const shareStatusQuery = useModbusShareStatusQuery(workspaceQuery.isSuccess);
+  const locatorMode = locatorIntent !== undefined && locatorIntent.kind !== 'absent';
+  const locatorQuery = useStudioLocatorEntry(locatorIntent?.kind === 'locator' ? locatorIntent.locator : null);
+  const locatorEntry = locatorMode && !locatorQuery.isFetching && !locatorQuery.isError && locatorQuery.data?.ok ? locatorQuery.data.value : undefined;
+  const [locatorEditorMounted, setLocatorEditorMounted] = React.useState(false);
+  const editorMountedRef = React.useRef(false), locatorPending = React.useRef(false);
+  const { refetch: revalidateLocator } = locatorQuery;
+  const retainLocatorEditor = React.useCallback((mounted: boolean) => {
+    if (editorMountedRef.current === mounted) return;
+    editorMountedRef.current = mounted; setLocatorEditorMounted(mounted);
+    // Close resolves only the retention denial; a pending navigation still requires a fresh read.
+    if (!mounted && locatorPending.current) void revalidateLocator();
+  }, [revalidateLocator]);
+  const workspaceQuery = useStudioV2WorkspaceQuery(!locatorMode);
+  const shareStatusQuery = useModbusShareStatusQuery(!locatorMode && workspaceQuery.isSuccess);
   const bootstrapShare = workspaceQuery.data?.modbus_share;
   // 必須維持穩定引用：設定頁的 Share 區塊以 shareStatus 變更作為同步訊號，每次 render 產生新物件會把 Start/Stop 結果洗回舊快照。
   const bootstrapShareStatus = React.useMemo(() => modbusShareStatusFromBootstrap(bootstrapShare), [bootstrapShare]);
@@ -115,8 +131,8 @@ export default function DatalinkWorkbenchV2Page({
       configured_enabled: configuredEnabled ?? liveStatus.configured_enabled ?? bootstrapShareStatus.configured_enabled,
     };
   }, [bootstrapShareStatus, shareStatusQuery.data]);
-  const auditHistoryQuery = useStudioV2WorkspaceAuditHistoryQuery(workspaceQuery.isSuccess);
-  const autosave = useStudioV2AutosaveState(workspaceQuery.isSuccess);
+  const auditHistoryQuery = useStudioV2WorkspaceAuditHistoryQuery(!locatorMode && workspaceQuery.isSuccess);
+  const autosave = useStudioV2AutosaveState(!locatorMode && workspaceQuery.isSuccess, locatorEntry, locatorEditorMounted);
   const waitForAutosaveSettlement = useStudioV2AutosaveSettlement(autosave.state);
   const activationMutation = useActivateStudioV2WorkspaceMutation();
   const activationInFlight = React.useRef(false);
@@ -239,7 +255,18 @@ export default function DatalinkWorkbenchV2Page({
     }
   };
 
-  if (
+  locatorPending.current = locatorMode && !autosave.locatorHydration.ready;
+  const locatorReason: StudioLocatorNoticeReason = locatorIntent?.kind === 'invalid' ? 'invalid'
+    : autosave.locatorHydration.blocked ? 'draftBlocked'
+    : locatorEntry?.entry.write_groups?.groups.some(group => group.id === locatorEntry.locator.group_id && group.status === 'deleted') ? 'removed'
+    : locatorEntry?.selection.state === 'unavailable' ? 'unavailable'
+    : locatorQuery.data && !locatorQuery.data.ok ? locatorQuery.data.reason === 'foreign-scope' ? 'foreign'
+      : locatorQuery.data.reason === 'stale-reference' ? 'stale' : 'unavailable'
+    : locatorQuery.isError ? 'unavailable' : 'loading';
+  const locatorNotice = <StudioLocatorEntryNotice reason={locatorReason} entry={locatorEntry} navigateTo={navigateTo} />;
+  if (locatorMode && !autosave.locatorHydration.ready && !autosave.workspaceHydrated && !autosave.locatorHydration.lastEntry) return locatorNotice;
+
+  if (!locatorMode && (
     workspaceQuery.isError ||
     (workspaceQuery.isSuccess && !workspaceQuery.data) ||
     autosave.devicesQuery.isError ||
@@ -247,11 +274,11 @@ export default function DatalinkWorkbenchV2Page({
     autosave.mappingsQuery.isLoadingError ||
     autosave.databaseConfigQuery.isError ||
     autosave.databaseTargetsQuery.isError
-  ) {
+  )) {
     return <WorkbenchV2BootstrapState status="error" />;
   }
 
-  if (
+  if (!locatorMode && (
     workspaceQuery.isLoading ||
     (workspaceQuery.isSuccess && !autosave.workspaceHydrated) ||
     autosave.devicesQuery.isLoading ||
@@ -259,11 +286,12 @@ export default function DatalinkWorkbenchV2Page({
     autosave.mappingsQuery.isLoading ||
     autosave.databaseConfigQuery.isLoading ||
     autosave.databaseTargetsQuery.isLoading
-  ) {
+  )) {
     return <WorkbenchV2BootstrapState status="loading" />;
   }
 
-  const workspace = workspaceQuery.data!;
+  const shownEntry = autosave.locatorHydration.ready ? locatorEntry : autosave.locatorHydration.lastEntry;
+  const workspace = locatorMode ? shownEntry?.workspace ?? workspaceQuery.data! : workspaceQuery.data!;
 
   return (
     <div
@@ -273,6 +301,8 @@ export default function DatalinkWorkbenchV2Page({
       data-workspace-status={workspace.status}
       className="bg-canvas min-h-screen font-sans text-slate-100 antialiased"
     >
+      {locatorMode && !autosave.locatorHydration.ready && locatorNotice}
+      <div hidden={locatorMode && !autosave.locatorHydration.ready && !locatorEditorMounted}>
       {autosave.draftLossWarning && (
         <div
           data-testid="workbench-v2-draft-loss-warning"
@@ -293,8 +323,13 @@ export default function DatalinkWorkbenchV2Page({
         workspaceAuditHistory={auditHistoryQuery.data?.entries ?? []}
         workspaceAuditUnavailable={auditHistoryQuery.isError}
         shareStatus={shareStatus}
-        runtimeReturnFocus={runtimeReturnFocus}
+        runtimeReturnFocus={locatorMode ? undefined : runtimeReturnFocus}
+        locatorEntry={locatorMode ? shownEntry : undefined}
+        locatorSuspended={locatorMode && !autosave.locatorHydration.ready}
+        locatorOnly={locatorMode && !autosave.workspaceHydrated}
+        onLocatorEditorMountedChange={retainLocatorEditor}
       />
+      </div>
     </div>
   );
 }

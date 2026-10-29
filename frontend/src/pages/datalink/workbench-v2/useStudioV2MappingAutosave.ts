@@ -169,8 +169,8 @@ export function useStudioV2MappingAutosave(
   }, [applyMappingPatch, mappingsQuery.data, mappingsQuery.isSuccess, stateRef]);
 
   React.useEffect(() => {
-    reconcilePersistedMappings(stateRef.current.points);
-  }, [reconcilePersistedMappings, stateRef]);
+    if (enabled) reconcilePersistedMappings(stateRef.current.points);
+  }, [enabled, reconcilePersistedMappings, stateRef]);
 
   const refreshAuthority = React.useCallback(function refreshAuthority() {
     if (!mounted.current) return;

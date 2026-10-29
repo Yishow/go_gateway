@@ -2,6 +2,7 @@ package grouppipeline
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -11,7 +12,7 @@ func TestMySQLBoundaryOutboxMatchesFrozenProof(t *testing.T) {
 	pipeline := fixture.pipeline()
 	snap := mysqlRuntimeSnapshot(t)
 	require.NoError(t, pipeline.saveRuntimeSnapshot(t.Context(), snap))
-	built, reason := pipeline.buildFrozen(t.Context(), snap, at(0))
+	built, reason := pipeline.buildFrozen(t.Context(), snap, at(0), time.Time{})
 	require.Empty(t, reason)
 	require.NotNil(t, built)
 	require.NoError(t, built.boundary.AcceptSample(t.Context(), envelope(snap.Group, "sample", at(1), 21.5)))

@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { safeRuntimeIdentity } from '../../../utils/runtimeOperatorSafety';
+import { parseRuntimeDeviceSelection } from './runtimeDeviceSelection';
 import { useStudioV2RuntimeContextQuery } from '../../../hooks/datalink/useStudioV2RuntimeContext';
 import { usePointsQuery } from '../../../hooks/datalink/usePoints';
 import type { RuntimeValueEvent } from '../../../types/datalink';
@@ -8,6 +10,7 @@ import type {
   StudioV2RuntimeContextDevice,
   StudioV2RuntimeSetupContext,
 } from '../../../types/studioV2RuntimeContext';
+import type { EvidenceScope } from '../../../types/runtimeRuleEvidence';
 import type { RuntimeStatusWithDiagnostics } from '../../../types/runtimeDiagnostics';
 import { getSafeErrorMessage, type SafeErrorMessage } from '../../../utils/typedErrors';
 import { useRuntimeStatus } from './useRuntimeStatus';
@@ -37,7 +40,10 @@ export interface RuntimeDashboardState {
   selectedDevice: StudioV2RuntimeContextDevice | null;
   devices: StudioV2RuntimeContextDevice[];
   setupContext: StudioV2RuntimeSetupContext | null;
+  sourceEvidenceScope?: EvidenceScope | null;
   snapshot: RuntimeStatusWithDiagnostics | null;
+  snapshotReceivedAt?: number | null;
+  snapshotStale?: boolean;
   snapshotError: SafeErrorMessage | null;
   liveValues: Record<string, RuntimeValueEvent>;
   streamState: RuntimeDashboardStreamConnectionState;
@@ -51,37 +57,36 @@ export interface RuntimeDashboardState {
 export function useRuntimeDashboardState(): RuntimeDashboardState {
   const { t: translateError } = useTranslation('workbench-v2');
   const [searchParams, setSearchParams] = useSearchParams();
-  const queryDeviceId = searchParams.get('device_id');
-  const [lastSnapshot, setLastSnapshot] = useState<RuntimeStatusWithDiagnostics | null>(null);
+  const { search } = useLocation();
+  const deviceSelection = useMemo(() => parseRuntimeDeviceSelection(search), [search]);
   const [isDegraded, setIsDegraded] = useState(false);
 
   const runtimeContextQuery = useStudioV2RuntimeContextQuery();
   const devices = useMemo(
-    () => runtimeContextQuery.data?.devices ?? [],
+    () => (runtimeContextQuery.data?.devices ?? []).filter((device) => Boolean(safeRuntimeIdentity(device.device_id))),
     [runtimeContextQuery.data],
   );
   const setupContext = runtimeContextQuery.data?.setup ?? null;
-  const selectedDeviceId = useMemo(() => {
-    if (queryDeviceId) {
-      return queryDeviceId;
-    }
-    return runtimeContextQuery.data?.default_device_id ?? null;
-  }, [queryDeviceId, runtimeContextQuery.data]);
+  const requestedDeviceId = deviceSelection.kind === 'valid' ? deviceSelection.deviceId
+    : deviceSelection.kind === 'absent' ? safeRuntimeIdentity(runtimeContextQuery.data?.default_device_id) || null : null;
   const selectedDevice = useMemo(
-    () => devices.find((device) => device.device_id === selectedDeviceId) ?? null,
-    [devices, selectedDeviceId],
+    () => devices.find((device) => device.device_id === requestedDeviceId) ?? null,
+    [devices, requestedDeviceId],
   );
-  const selectedDeviceContextMissing = Boolean(
-    runtimeContextQuery.data && selectedDeviceId && !selectedDevice,
+  // A syntactically safe selector still is not an observed workspace device.
+  const selectedDeviceId = selectedDevice?.device_id ?? null;
+  const selectedDeviceContextMissing = deviceSelection.kind === 'invalid' || Boolean(
+    runtimeContextQuery.data && requestedDeviceId && !selectedDevice,
   );
-  const observableDeviceId = selectedDeviceContextMissing ? null : selectedDeviceId;
+  const observableDeviceId = selectedDeviceId;
 
   const pointsQuery = usePointsQuery(
     observableDeviceId ? { device_id: observableDeviceId } : undefined,
+    { enabled: Boolean(observableDeviceId) },
   );
   const pointIds = useMemo(
-    () => (pointsQuery.data ?? []).map((point) => point.id),
-    [pointsQuery.data],
+    () => observableDeviceId ? (pointsQuery.data ?? []).map((point) => point.id) : [],
+    [observableDeviceId, pointsQuery.data],
   );
 
   const snapshotQuery = useRuntimeStatus({
@@ -98,37 +103,33 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     pointIds,
   });
 
-  useEffect(() => {
-    setLastSnapshot(null);
-    setIsDegraded(false);
-  }, [selectedDeviceId]);
-
-  useEffect(() => {
-    if (snapshotQuery.data) {
-      setLastSnapshot(snapshotQuery.data as RuntimeStatusWithDiagnostics);
-    }
-  }, [snapshotQuery.data]);
-
-  useEffect(() => {
-    if (stream.connectionState === 'connected') {
-      setIsDegraded(false);
-      return;
-    }
-
-    if (
-      (stream.connectionState === 'error' ||
-        stream.connectionState === 'degraded' ||
-        stream.connectionState === 'unavailable' ||
-        stream.connectionState === 'reconnecting') &&
-      lastSnapshot
-    ) {
-      setIsDegraded(true);
-    }
-  }, [lastSnapshot, stream.connectionState]);
-
-  const currentSnapshot =
-    lastSnapshot ?? (snapshotQuery.data as RuntimeStatusWithDiagnostics | undefined) ?? null;
+  // React Query retains the last successful data and its original receipt on a
+  // failed refetch. Its device-keyed observer supplies an exact synchronous pair;
+  // do not copy an unkeyed previous snapshot through a device-switch effect.
+  const candidate = snapshotQuery.data as RuntimeStatusWithDiagnostics | undefined;
+  const ownedSnapshot = candidate && candidate.collectors.every((collector) => collector.device_id === observableDeviceId);
+  const currentSnapshot = observableDeviceId && ownedSnapshot ? candidate : null;
+  const snapshotReceivedAt = currentSnapshot && Number.isFinite(snapshotQuery.dataUpdatedAt) && snapshotQuery.dataUpdatedAt > 0
+    ? snapshotQuery.dataUpdatedAt : null;
+  const failure = useRef({ deviceId: observableDeviceId, stream: stream.failureVersion, error: 0, receiptFloor: null as number | null });
+  if (failure.current.deviceId !== observableDeviceId) {
+    failure.current = { deviceId: observableDeviceId, stream: stream.failureVersion, error: 0, receiptFloor: null };
+  }
+  if (failure.current.stream !== stream.failureVersion ||
+    (snapshotQuery.isError && failure.current.error !== snapshotQuery.errorUpdatedAt)) {
+    failure.current = { deviceId: observableDeviceId, stream: stream.failureVersion,
+      error: snapshotQuery.errorUpdatedAt, receiptFloor: snapshotQuery.dataUpdatedAt };
+  }
   const snapshotState = currentSnapshot?.snapshot_state;
+  const snapshotReady = Boolean(currentSnapshot?.collectors.length) && snapshotState?.state === 'ready' && snapshotState.empty === false &&
+    snapshotState.degraded === false && snapshotState.unavailable === false && snapshotState.stale === false;
+  // Same-millisecond receipts are not unique request IDs: conservatively require
+  // a later successful receipt after failure, without inventing elapsed-age TTLs.
+  const retainedAfterFailure = failure.current.receiptFloor !== null &&
+    (snapshotReceivedAt === null || snapshotReceivedAt <= failure.current.receiptFloor);
+  const snapshotStale = Boolean(currentSnapshot) && (!snapshotQuery.isFetchedAfterMount || snapshotReceivedAt === null || !snapshotReady || !stream.serverReady ||
+    snapshotQuery.isError || retainedAfterFailure);
+  useEffect(() => { setIsDegraded(snapshotStale); }, [snapshotStale]);
 
   const routeState = useMemo<RuntimeDashboardRouteState>(() => {
     if (!runtimeContextQuery.data && (runtimeContextQuery.isLoading || runtimeContextQuery.isFetching)) {
@@ -139,19 +140,21 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
       return 'error';
     }
 
-    if (!selectedDeviceId) {
-      return 'empty-workspace';
-    }
-
     if (selectedDeviceContextMissing) {
       return 'missing-device-context';
     }
 
-    if (!lastSnapshot && snapshotError?.code === 'runtime_device_not_found') {
+    if (!selectedDeviceId) {
+      return 'empty-workspace';
+    }
+
+    if (!currentSnapshot && snapshotError?.code === 'runtime_device_not_found') {
       return 'missing-device-context';
     }
 
-    if (!lastSnapshot && snapshotQuery.isError) {
+    if (candidate && !ownedSnapshot && !snapshotQuery.isFetching) return 'error';
+
+    if (!currentSnapshot && snapshotQuery.isError) {
       return 'error';
     }
 
@@ -159,7 +162,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
       return 'empty';
     }
 
-    if (!lastSnapshot && (snapshotQuery.isLoading || snapshotQuery.isFetching)) {
+    if (!currentSnapshot && (snapshotQuery.isLoading || snapshotQuery.isFetching)) {
       return 'loading';
     }
 
@@ -167,7 +170,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
       snapshotState?.degraded ||
       snapshotState?.unavailable ||
       snapshotState?.stale ||
-      isDegraded ||
+      snapshotStale ||
       stream.connectionState === 'unavailable' ||
       stream.connectionState === 'degraded' ||
       stream.connectionState === 'error'
@@ -175,14 +178,19 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
       return 'degraded';
     }
 
-    if (stream.connectionState === 'connected') {
+    if (stream.serverReady && snapshotReady && snapshotReceivedAt !== null && !snapshotStale) {
       return 'live';
     }
 
     return 'loading';
   }, [
-    isDegraded,
-    lastSnapshot,
+    candidate,
+    ownedSnapshot,
+    currentSnapshot,
+    snapshotReady,
+    snapshotReceivedAt,
+    snapshotStale,
+    stream.serverReady,
     runtimeContextQuery.data,
     runtimeContextQuery.isError,
     runtimeContextQuery.isFetching,
@@ -206,18 +214,26 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     selectedDevice,
     devices,
     setupContext,
+    sourceEvidenceScope: runtimeContextQuery.data?.workspace_revision && observableDeviceId ? {
+      workspace_id: runtimeContextQuery.data.workspace_id,
+      workspace_revision: runtimeContextQuery.data.workspace_revision,
+      device_id: observableDeviceId,
+    } : null,
     snapshot: currentSnapshot,
+    snapshotReceivedAt,
+    snapshotStale,
     snapshotError,
     liveValues: stream.liveValues,
     streamState: stream.connectionState,
     logs: stream.logs,
     streamRecovery: stream.streamRecovery,
     onSelectDevice: (deviceId: string) => {
+      if (!safeRuntimeIdentity(deviceId) || !devices.some((device) => device.device_id === deviceId)) return;
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set('device_id', deviceId);
       setSearchParams(nextParams);
     },
-    onRetrySnapshot: () => snapshotQuery.refetch(),
-    onReconnectStream: stream.reconnect,
+    onRetrySnapshot: () => observableDeviceId ? snapshotQuery.refetch() : Promise.resolve(undefined),
+    onReconnectStream: () => { if (observableDeviceId) stream.reconnect(); },
   };
 }

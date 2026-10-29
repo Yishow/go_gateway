@@ -9,6 +9,10 @@ import (
 
 func ensureSQLiteWriteGroupsTables(db *sql.DB) error {
 	const migrationName = "024_write_groups_sqlite.up.sql"
+	// Check markers before legacy helpers could recreate a missing key table.
+	if _, err := sqliteWriteGroupLineageState(context.Background(), db); err != nil {
+		return err
+	}
 
 	groupsExists, err := sqliteTableExists(db, "write_groups")
 	if err != nil {
@@ -52,7 +56,10 @@ func ensureSQLiteWriteGroupsTables(db *sql.DB) error {
 	if err := ensureSQLiteSQLServerPartitionMaintenance(db); err != nil {
 		return err
 	}
-	return ensureSQLiteWriteGroupCutovers(db)
+	if err := ensureSQLiteWriteGroupCutovers(db); err != nil {
+		return err
+	}
+	return ensureSQLiteWriteGroupLineages(db)
 }
 
 // ensureSQLiteWriteGroupCutovers adds the forward cutover ledger beside the
@@ -78,7 +85,7 @@ func ensureSQLiteWriteGroupCutovers(db *sql.DB) error {
 	if _, err := db.ExecContext(context.Background(), `CREATE UNIQUE INDEX IF NOT EXISTS idx_write_group_cutovers_review ON write_group_cutovers(workspace_id, review_digest)`); err != nil {
 		return fmt.Errorf("failed to index write_group_cutovers review digest: %w", err)
 	}
-	return nil
+	return applySQLiteMigrationOnce(db, "044_write_group_ownership_fences_sqlite.up.sql")
 }
 
 func ensureSQLiteBasicManagedKeysTable(db *sql.DB) error {

@@ -128,7 +128,7 @@ export function defaultCircuitProfileLocalDraft(
   const instSaved = new Set((instGroup?.members ?? []).map((m) => `${m.device_id}\0${m.point_id}\0${m.tag_id}`));
   const cumSaved = new Set((cumGroup?.members ?? []).map((m) => `${m.device_id}\0${m.point_id}\0${m.tag_id}`));
   const instKeys = instGroup ? allCandidateKeys.filter((k) => instSaved.has(k)) : (savedLongGroups.length === 0 && !targetCircuitId ? allCandidateKeys : []);
-  const cumKeys = cumGroup ? allCandidateKeys.filter((k) => cumSaved.has(k)) : (savedLongGroups.length === 0 && !targetCircuitId ? allCandidateKeys : []);
+  const cumKeys = cumGroup ? allCandidateKeys.filter((k) => cumSaved.has(k)) : [];
   const instSeconds = instGroup?.recording_profile?.interval ?? instGroup?.row_policy.interval_seconds ?? 15;
   const cumMinutes = cumGroup?.recording_profile?.interval ?? (cumGroup ? Math.max(1, Math.round(cumGroup.row_policy.interval_seconds / 60)) : 10);
   const circuitName = groupCircuitName(anyGroup);
@@ -183,9 +183,10 @@ export function loadCircuitProfileLocalDraft(
     const instKeys = Array.isArray(parsed.instantaneous_keys)
       ? parsed.instantaneous_keys.filter((k): k is string => typeof k === 'string' && validKeys.has(k))
       : (legacySelected ?? fallback.instantaneous_keys);
+    // Shared legacy keys do not prove cumulative intent; use an explicit array or the saved group's membership.
     const cumKeys = Array.isArray(parsed.cumulative_keys)
       ? parsed.cumulative_keys.filter((k): k is string => typeof k === 'string' && validKeys.has(k))
-      : (legacySelected ?? fallback.cumulative_keys);
+      : fallback.cumulative_keys;
     const circuitName = typeof parsed.circuit_name === 'string' ? parsed.circuit_name : fallback.circuit_name;
     const savedCircuit = savedLongGroups.find((group) => groupCircuitId(group) === (targetCircuitId ?? groupCircuitId(savedLongGroups[0])));
     const savedPurpose = purposeOfLayout(savedCircuit?.layout_version);

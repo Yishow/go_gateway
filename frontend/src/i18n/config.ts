@@ -9,9 +9,13 @@ import zhTWDatabaseOutputTranslations from './locales/zh-TW/database-output.json
 import zhTWTagReviewTranslations from './locales/zh-TW/tag-review.json';
 import enWorkbenchV2Translations from './locales/en/workbench-v2.json';
 import enWorkbenchV2CircuitSQLServer from './locales/en/workbench-v2-circuit-sqlserver.json';
+import enWorkbenchV2RecordingAuthoring from './locales/en/workbench-v2-recording-authoring.json';
+import enWorkbenchV2RecordingGuided from './locales/en/workbench-v2-recording-guided.json';
 import enRuntimeDashboardTranslations from './locales/en/runtime-dashboard.json';
 import zhTWWorkbenchV2Translations from './locales/zh-TW/workbench-v2.json';
 import zhTWWorkbenchV2CircuitSQLServer from './locales/zh-TW/workbench-v2-circuit-sqlserver.json';
+import zhTWWorkbenchV2RecordingAuthoring from './locales/zh-TW/workbench-v2-recording-authoring.json';
+import zhTWWorkbenchV2RecordingGuided from './locales/zh-TW/workbench-v2-recording-guided.json';
 import zhTWRuntimeDashboardTranslations from './locales/zh-TW/runtime-dashboard.json';
 import enMappingErrors from './locales/en/mapping-errors.json';
 import zhTWMappingErrors from './locales/zh-TW/mapping-errors.json';
@@ -19,6 +23,10 @@ import enRuntimeLogs from './locales/en/runtime-logs.json';
 import enStudioReview from './locales/en/studio-review.json';
 import zhTWStudioReview from './locales/zh-TW/studio-review.json';
 import zhTWRuntimeLogs from './locales/zh-TW/runtime-logs.json';
+import enRecordingLifecycleDialog from './locales/en/recording-lifecycle-dialog.json';
+import zhTWRecordingLifecycleDialog from './locales/zh-TW/recording-lifecycle-dialog.json';
+import enRecordingLifecycle from './locales/en/recording-lifecycle.json';
+import zhTWRecordingLifecycle from './locales/zh-TW/recording-lifecycle.json';
 import { logger } from '../utils/logger';
 import { mergeTranslations } from './mergeTranslations';
 
@@ -50,10 +58,13 @@ i18n
         'workbench-v2': mergeTranslations(
           enWorkbenchV2Translations,
           enWorkbenchV2CircuitSQLServer,
+          enWorkbenchV2RecordingAuthoring,
         ),
+        'workbench-v2-recording-guided': enWorkbenchV2RecordingGuided,
         'runtime-dashboard': enRuntimeDashboardTranslations,
         'runtime-logs': enRuntimeLogs,
         'studio-review': enStudioReview,
+        'recording-lifecycle': mergeTranslations(enRecordingLifecycle, enRecordingLifecycleDialog),
       },
       'zh-TW': {
         translation: mergeTranslations(
@@ -65,10 +76,13 @@ i18n
         'workbench-v2': mergeTranslations(
           zhTWWorkbenchV2Translations,
           zhTWWorkbenchV2CircuitSQLServer,
+          zhTWWorkbenchV2RecordingAuthoring,
         ),
+        'workbench-v2-recording-guided': zhTWWorkbenchV2RecordingGuided,
         'runtime-dashboard': zhTWRuntimeDashboardTranslations,
         'runtime-logs': zhTWRuntimeLogs,
         'studio-review': zhTWStudioReview,
+        'recording-lifecycle': mergeTranslations(zhTWRecordingLifecycle, zhTWRecordingLifecycleDialog),
       },
     },
     fallbackLng: 'en', // 預設語言為英文

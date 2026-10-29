@@ -1,3 +1,4 @@
+import type { StudioV2LocatorReadScope } from '../../../../../../services/studioV2WorkspaceDatabase';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GroupCandidate } from '../../../state/writeGroup/candidates';
@@ -41,7 +42,7 @@ export const GroupProfileSummary: React.FC<{ draft: EditorDraft }> = ({ draft })
 };
 
 /** The sources of a profile group. Their columns are fixed by the shared long layout, so there is nothing to map or require. */
-export const GroupProfileMembers: React.FC<{ draft: EditorDraft; candidates: GroupCandidate[]; workspaceId: string; readonly: boolean }> = ({ draft, candidates, workspaceId, readonly }) => {
+export const GroupProfileMembers: React.FC<{ draft: EditorDraft; candidates: GroupCandidate[]; workspaceId: string; readonly: boolean; locatorScope?: StudioV2LocatorReadScope }> = ({ draft, candidates, workspaceId, readonly, locatorScope }) => {
   const { t } = useTranslation('workbench-v2');
   const labels = new Map(candidates.map((candidate) => [candidate.key, candidate.label]));
   return (
@@ -60,7 +61,7 @@ export const GroupProfileMembers: React.FC<{ draft: EditorDraft; candidates: Gro
         ? <p className="text-slate-500">{t('step4.group.profile.members_note_wide')}</p>
         : <p className="text-slate-500">{t('step4.group.profile.members_note')}</p>}
       {draft.recording_profile?.kind === 'cumulative' && (
-        <CounterPolicyEditor workspaceId={workspaceId} members={draft.members} labels={Object.fromEntries(draft.members.map((m) => [m.tag_id, labels.get(memberKey(m.point_id, m.tag_id)) ?? m.tag_id]))} readonly={readonly} />
+        <CounterPolicyEditor locatorScope={locatorScope} workspaceId={workspaceId} members={draft.members} labels={Object.fromEntries(draft.members.map((m) => [m.tag_id, labels.get(memberKey(m.point_id, m.tag_id)) ?? m.tag_id]))} readonly={readonly} />
       )}
     </section>
   );

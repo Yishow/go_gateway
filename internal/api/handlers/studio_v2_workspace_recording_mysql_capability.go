@@ -25,6 +25,9 @@ const (
 // matrix; the presence of either saved-scope key commits the caller to the
 // probe branch, even when its value is empty or whitespace.
 func mysqlRecordingScopeRequested(c *gin.Context) bool {
+	if studioLocatorNativeRequested(c) {
+		return true
+	}
 	query := c.Request.URL.Query()
 	for _, key := range []string{"connector_id", "expected_connector_revision"} {
 		if _, present := query[key]; present {
@@ -39,6 +42,9 @@ func mysqlRecordingScopeRequested(c *gin.Context) bool {
 // revision; every capability fact comes from the server-side readonly probe, so
 // a client cannot declare its own family, version or verified operations.
 func (h *StudioV2WorkspaceRecordingPlansHandler) mysqlRecordingCapabilities(c *gin.Context) {
+	if !validateStudioLocatorNativeQuery(c) {
+		return
+	}
 	kind := strings.TrimSpace(c.Query("kind"))
 	connectorID := strings.TrimSpace(c.Query("connector_id"))
 	expectedRevision := strings.TrimSpace(c.Query("expected_connector_revision"))
@@ -54,11 +60,11 @@ func (h *StudioV2WorkspaceRecordingPlansHandler) mysqlRecordingCapabilities(c *g
 		return
 	}
 
-	record, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
-	if err != nil {
-		renderStudioV2WorkspaceBootstrapError(c)
+	record, locatorScope, ok := beginStudioLocatorNativeRead(c, h.workspaceSvc, func() { renderStudioV2WorkspaceBootstrapError(c) })
+	if !ok {
 		return
 	}
+	var err error
 	if record == nil || strings.TrimSpace(record.DatabaseConnectorID) == "" {
 		renderRecordingPlanTargetError(c, errRecordingPlanConnectorUnavailable)
 		return
@@ -101,6 +107,9 @@ func (h *StudioV2WorkspaceRecordingPlansHandler) mysqlRecordingCapabilities(c *g
 		return
 	}
 	capability, err := probe.ProbeMySQLRecordingAtRevision(c.Request.Context(), connectorID, expectedRevision)
+	if !finishStudioLocatorNativeRead(c, h.workspaceSvc, locatorScope) {
+		return
+	}
 	if err != nil {
 		renderRecordingPlanTargetError(c, err)
 		return

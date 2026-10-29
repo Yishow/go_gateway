@@ -222,8 +222,8 @@ export function useStudioV2DatabaseAutosave(
   }, [actions, databaseTargetsQuery.data, databaseTargetsQuery.isSuccess, stateRef]);
 
   React.useEffect(() => {
-    reconcilePersistedTargets();
-  }, [reconcilePersistedTargets]);
+    if (enabled) reconcilePersistedTargets();
+  }, [enabled, reconcilePersistedTargets]);
 
   const runConnectorSave = React.useCallback(async (snapshot: WorkbenchV2State): Promise<boolean> => {
     // 以執行當下的設定與連線身分版本送出：排隊期間前一筆回覆已更新版本，快照裡的版本可能過期。

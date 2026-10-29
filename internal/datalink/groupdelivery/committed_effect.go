@@ -24,9 +24,12 @@ func (s *Store) RevisionStageCounts(ctx context.Context, groupID, revision strin
 	if revision == "" {
 		return StageCounts{}, nil
 	}
+	if err := validateHandoffScope(ctx, s.db, groupID, revision); err != nil {
+		return StageCounts{}, err
+	}
 	status := GroupStatus{GroupID: groupID}
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM wg_delivery_samples
-		WHERE group_id = ? AND group_revision = ? AND consumed = 0`, groupID, revision).Scan(&status.Stages.Collecting); err != nil {
+		WHERE group_id = ? AND group_revision = ? AND consumed = 0 AND NOT EXISTS(SELECT 1 FROM wg_delivery_sample_handoffs h WHERE h.source_seq=wg_delivery_samples.seq)`, groupID, revision).Scan(&status.Stages.Collecting); err != nil {
 		return StageCounts{}, fmt.Errorf("count revision collecting samples: %w", err)
 	}
 	if err := s.readRevisionStageCounts(ctx, groupID, revision, &status); err != nil {

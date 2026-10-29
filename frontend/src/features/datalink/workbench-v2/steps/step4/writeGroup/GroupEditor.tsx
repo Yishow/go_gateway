@@ -1,3 +1,4 @@
+import type { StudioV2LocatorReadScope } from '../../../../../../services/studioV2WorkspaceDatabase';
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +27,7 @@ import { GroupColumnProposal } from './GroupColumnProposal';
 import { GroupDeliveryStrip } from './GroupDeliveryStrip';
 import { GroupIdentityFields } from './GroupIdentityFields';
 import { GroupLifecycleBar } from './GroupLifecycleBar';
+import type { SavedRecordingActionHost } from './lifecycle/SavedRecordingActions';
 import { GroupMemberTable } from './GroupMemberTable';
 import { GroupPolicyFields } from './GroupPolicyFields';
 import { GroupProfileMembers, GroupProfileSummary } from './GroupProfileSummary';
@@ -34,6 +36,9 @@ import { GroupSchemaPanel } from './GroupSchemaPanel';
 import { GroupTestWritePanel } from './GroupTestWritePanel';
 
 export interface GroupEditorProps {
+  locatorScope?: StudioV2LocatorReadScope;
+  /** Denial-only incoming navigation fence; never a read scope or write permission. */
+  locatorGuard?: boolean;
   /** Undefined creates a new group. */
   group: WriteGroup | undefined;
   workspaceId: string;
@@ -42,6 +47,9 @@ export interface GroupEditorProps {
   candidates: GroupCandidate[];
   excluded: ExcludedCandidate[];
   readonly: boolean;
+  /** Tombstone fields are immutable, but lifecycle review remains available. */
+  editorReadonly?: boolean;
+  lifecycleHost?: SavedRecordingActionHost;
   onClose: () => void;
   onSaved: (group: WriteGroup) => void;
   onReload: () => void;
@@ -81,7 +89,7 @@ export const GroupEditor: React.FC<GroupEditorProps> = (props) => {
 const SavedMySQLGroupEditor: React.FC<GroupEditorProps> = (props) => {
   const { connector } = props;
   const query = useStudioV2MySQLRecordingCapabilityQuery(
-    connector.connector_id ?? '', connector.identity_revision ?? '', true,
+    connector.connector_id ?? '', connector.identity_revision ?? '', true, props.locatorScope,
   );
   const capability = query.isError || query.isFetching ? undefined : query.data;
   return <GroupEditorContent {...props} mysqlCapability={capability} />;
@@ -90,7 +98,7 @@ const SavedMySQLGroupEditor: React.FC<GroupEditorProps> = (props) => {
 const SavedSQLServerGroupEditor: React.FC<GroupEditorProps> = (props) => {
   const { connector } = props;
   const query = useStudioV2SQLServerRecordingCapabilityQuery(
-    connector.connector_id ?? '', connector.identity_revision ?? '', true,
+    connector.connector_id ?? '', connector.identity_revision ?? '', true, props.locatorScope,
   );
   const capability = query.isError || query.isFetching ? undefined : query.data;
   return <GroupEditorContent {...props} sqlserverCapability={capability} />;
@@ -102,9 +110,10 @@ type GroupEditorContentProps = GroupEditorProps & {
 };
 
 const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
-  group: propGroup, workspaceId, workspaceRevision, connector, candidates, excluded, readonly, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability,
+  group: propGroup, workspaceId, workspaceRevision, connector, candidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const readonly = operatorReadonly || editorReadonly || propGroup?.status === 'deleted';
   const saved = destinationSaved(connector);
   const isMySQL = String(connector.kind).toLowerCase() === 'mysql';
   const mysqlConnectorId = connector.connector_id ?? '';
@@ -172,7 +181,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
     ? draft.table_name === group.destination.table_name && draft.table_schema === group.destination.table_schema
     : draft.table_name === connector.table && draft.table_schema === connector.schema;
   const metadata = useStep4TargetColumns(destinationMatches && tableSaved && (draft.storage_strategy === 'custom' || Boolean(group)) ? scopedConnector : { ...scopedConnector, persisted: false },
-    group ? { groupId: group.id, groupRevision: group.revision } : undefined);
+    group ? { groupId: group.id, groupRevision: group.revision } : undefined, locatorScope);
   // A new managed group has no target table to inspect. Present an empty
   // server-owned column view so the editor never asks for manual assignments.
   const editorMetadata = draft.storage_strategy === 'managed' && !group
@@ -199,13 +208,23 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
     return { ...current, storage_strategy, dedupe_capability: customDedupeRef.current };
   });
 
+  // A locator read grants no enduring command lease. Suspension or owner changes cannot be undone by returning to A.
+  const locatorLeaseKey = locatorScope || locatorGuard ? JSON.stringify([locatorScope?.workspaceId, locatorScope?.workspaceRevision, workspaceId,
+    workspaceRevision, group?.id, group?.revision, readonly]) : null;
+  const locatorLease = useRef({ key: locatorLeaseKey, blocked: readonly });
+  if (locatorLease.current.key !== locatorLeaseKey) locatorLease.current = { key: locatorLeaseKey, blocked: readonly };
+  const renderLocatorLease = locatorLease.current;
+
   const handleSave = async () => {
-    if (savingRef.current || issues.length > 0 || readonly) return;
+    if (savingRef.current || issues.length > 0 || readonly || locatorLease.current !== renderLocatorLease || renderLocatorLease.key !== null &&
+      (!mountedRef.current || locatorLease.current.blocked)) return;
     savingRef.current = true;
+    const requestLease = renderLocatorLease;
     setSaveError(null);
     try {
       const body = draftToRequestGroup(draft, workspaceId);
       const latest = await fetchLatest();
+      if (locatorLease.current !== requestLease || requestLease.key !== null && (!mountedRef.current || locatorLease.current.blocked)) return;
       const freshRevision = latest?.workspace_revision ?? workspaceRevision;
       if (group) {
         const current = latest?.groups.find((entry) => entry.id === group.id);
@@ -284,7 +303,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
 
       {!destinationMatches && (
         <div role="alert" className="space-y-1 text-xs text-amber-300" data-testid="group-destination-mismatch">
-          <p>{t('step4.group.editor.destination_mismatch')}</p>
+          <p>{locatorScope && !saved ? t('runtime-dashboard:locatorEntry.destinationUnknown') : t('step4.group.editor.destination_mismatch')}</p>
           {saved && !readonly && (
             <button
               type="button" className="underline" data-testid="group-use-current-destination"
@@ -305,7 +324,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
 
       <GroupPolicyFields draft={draft} readonly={readonly} profile={profile} onChange={set} onDedupe={(capability) => { customDedupeRef.current = capability; set({ dedupe_capability: capability }); }} />
 
-      {profile ? <GroupProfileMembers draft={draft} candidates={candidates} workspaceId={workspaceId} readonly={readonly} /> : (
+      {profile ? <GroupProfileMembers draft={draft} candidates={candidates} locatorScope={locatorScope} workspaceId={workspaceId} readonly={readonly} /> : (
         <>
         <GroupMemberTable
           managed={draft.storage_strategy === 'managed'} dialect={dialect}
@@ -381,11 +400,14 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
           </section>
           <GroupDeliveryStrip group={group} readonly={readonly} />
           <GroupLifecycleBar
+            locatorScope={locatorScope} locatorGuard={locatorGuard}
             group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision}
-            canApply={canApply} applyBlockedReason={applyBlocked} readonly={readonly}
+            canApply={canApply} applyBlockedReason={applyBlocked} readonly={operatorReadonly} lifecycleHost={lifecycleHost}
             onChanged={onSaved} onConflict={() => setConflict(true)} onReviewScopedStart={onReviewScopedStart}
           />
           <GroupTestWritePanel
+            locatorScope={locatorScope}
+            workspaceId={workspaceId}
             groupId={group.id}
             scopeKey={`${group.id}|${group.revision}`}
             enabled={testWriteEnabled}

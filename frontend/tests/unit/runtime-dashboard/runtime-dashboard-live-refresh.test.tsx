@@ -1,11 +1,12 @@
-import type { RuntimeCollectorStatus, RuntimeStatus } from '../../../src/types/datalink';
+import type { RuntimeCollectorStatus } from '../../../src/types/datalink';
+import type { RuntimeStatusWithDiagnostics } from '../../../src/types/runtimeDiagnostics';
 import { act, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockEventSources, mockRuntimeStatus, resetRuntimeDashboardFixture, renderRoute } from './runtime-dashboard-state.fixture';
 
-function snapshotWithHealthy(pointsHealthy: number): RuntimeStatus {
+function snapshotWithHealthy(pointsHealthy: number): RuntimeStatusWithDiagnostics {
   const collector: RuntimeCollectorStatus = { device_id: 'device-A', device_name: 'Mixer PLC', protocol: 'modbus_tcp', status: 'running', availability_status: 'available', availability_reason: null, running: true, points_total: 2, points_healthy: pointsHealthy, points_stale: 0, points_error: 0, last_read_at: '2026-05-29T00:00:00Z', last_error: null, breaker_state: 'closed' };
-  return { running: true, uptime_seconds: 12, collectors: [collector] };
+  return { snapshot_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false }, running: true, uptime_seconds: 12, collectors: [collector] };
 }
 
 describe('runtime dashboard live snapshot refresh', () => {

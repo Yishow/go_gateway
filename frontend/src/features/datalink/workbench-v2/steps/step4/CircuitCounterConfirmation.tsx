@@ -12,11 +12,14 @@ export interface CircuitCounterConfirmationProps {
   circuitId: string;
   unconfirmedStatuses: CandidateCounterStatus[];
   readonly: boolean;
+  newOperationBlocked?: boolean;
+  isNewOperationBlocked?: () => boolean;
   onConfirmed: () => Promise<void> | void;
+  namePrerequisite?: { descriptionId: string; onFocus: () => void };
 }
 
 // Each source owns its unit and exact policy; repairing one must preserve others.
-function CounterSourceConfirmation({ status, workspaceId, workspaceRevision, circuitId, readonly, onConfirmed }:
+function CounterSourceConfirmation({ status, workspaceId, workspaceRevision, circuitId, readonly, onConfirmed, namePrerequisite, newOperationBlocked = false, isNewOperationBlocked }:
   Omit<CircuitCounterConfirmationProps, 'unconfirmedStatuses'> & { status: CandidateCounterStatus }) {
   const { t } = useTranslation('workbench-v2');
   const createMutation = useCreateStudioV2MeasurementMutation();
@@ -27,7 +30,8 @@ function CounterSourceConfirmation({ status, workspaceId, workspaceRevision, cir
   const [errorMessage, setErrorMessage] = React.useState<string>();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const inFlight = React.useRef(false);
-  const canSubmit = !readonly && !isSubmitting && Boolean(workspaceId && workspaceRevision && unit.trim() && (saved || circuitId));
+  const needsName = !saved && namePrerequisite !== undefined;
+  const canSubmit = !needsName && !readonly && !newOperationBlocked && !isSubmitting && Boolean(workspaceId && workspaceRevision && unit.trim() && (saved || circuitId));
   if (status.issueCode === 'counter-type-unsupported') {
     return <p role="status">{status.candidate.label.trim() || status.candidate.address} · {t('workspace_readiness.issue_labels.counter-type-unsupported')}</p>;
   }
@@ -40,6 +44,7 @@ function CounterSourceConfirmation({ status, workspaceId, workspaceRevision, cir
 
   const handleConfirm = async () => {
     if (!canSubmit || inFlight.current) return;
+    try { if (isNewOperationBlocked?.()) return; } catch { return; }
     inFlight.current = true;
     setErrorMessage(undefined);
     setIsSubmitting(true);
@@ -90,7 +95,10 @@ function CounterSourceConfirmation({ status, workspaceId, workspaceRevision, cir
         </label>
       </div>
       {errorMessage && <p role="alert" data-testid="circuit-confirm-counter-error" className="text-rose-300">{errorMessage}</p>}
+      {needsName && <button type="button" data-testid="circuit-confirm-counter-name-focus" onClick={namePrerequisite.onFocus}
+        className="block underline">{t('step4.basic.circuit.counter_name_action')}</button>}
       <button type="button" data-testid="circuit-confirm-counter-submit" disabled={!canSubmit} onClick={() => void handleConfirm()}
+        aria-describedby={needsName ? namePrerequisite.descriptionId : undefined}
         className="rounded border border-amber-500/60 bg-amber-900/40 px-3 py-1.5 disabled:opacity-40">
         {isSubmitting ? t('step4.basic.circuit.counter_confirming') : t('step4.basic.circuit.counter_confirm_action')}
       </button>
