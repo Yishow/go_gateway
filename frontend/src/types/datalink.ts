@@ -508,7 +508,7 @@ export interface RuntimeCollectorStatus {
   device_id: string;
   device_name: string;
   protocol: ProtocolType | string;
-  status: 'idle' | 'running' | 'warning' | 'error';
+  status: 'idle' | 'running' | 'warning' | 'error' | 'unavailable';
   availability_status: StudioV2Availability['availability_status'];
   availability_reason?: string | null;
   running: boolean;
@@ -537,14 +537,14 @@ export interface RuntimeStatus {
   database_delivery?: import('./runtimeDiagnostics').DatabaseDeliveryDiagnostic[];
   modbus_share_delivery?: import('./runtimeDiagnostics').ModbusShareDeliveryDiagnostic[];
 }
-
 export interface RuntimeValueEvent {
   device_id: string;
   point_id: string;
   address: string;
   raw_value: unknown;
   transformed_value: unknown;
-  quality: 'good' | 'bad' | 'uncertain';
+  quality: 'good' | 'bad' | 'uncertain' | 'missing' | 'stale' | 'invalid';
+  value_state?: 'unsupported';
   stale: boolean;
   timestamp: string;
 }

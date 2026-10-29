@@ -298,7 +298,7 @@ func TestRuntimeHandler_WorkspaceContextReturnsSetupConditions(t *testing.T) {
 	if len(body.Data.Setup.Mappings) != 1 || body.Data.Setup.Mappings[0].TagKey != "line01.temp.inlet" || body.Data.Setup.Mappings[0].DisplayName != "入口溫度" {
 		t.Fatalf("expected mapping summary with tag display data, got %+v", body.Data.Setup.Mappings)
 	}
-	if body.Data.Setup.DatabaseConfig == nil || body.Data.Setup.DatabaseConfig.Name != "PostgreSQL Connector" || body.Data.Setup.DatabaseConfig.Database != "gateway_metrics" {
+	if body.Data.Setup.DatabaseConfig == nil || body.Data.Setup.DatabaseConfig.Name != "PostgreSQL Connector" || body.Data.Setup.DatabaseConfig.Database != "" {
 		t.Fatalf("expected database config summary, got %+v", body.Data.Setup.DatabaseConfig)
 	}
 	if len(body.Data.Setup.DatabaseTargets) != 1 || body.Data.Setup.DatabaseTargets[0].ColumnName != "value" {

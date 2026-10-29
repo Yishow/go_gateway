@@ -22,7 +22,7 @@ describe('runtime dashboard route state', () => {
     expect(panel).toHaveTextContent('database-target-missing');
     expect(panel).toHaveTextContent('40001'); expect(panel).toHaveTextContent('line01.temp.inlet');
     expect(panel).toHaveTextContent('入口溫度'); expect(panel).toHaveTextContent('PostgreSQL Connector');
-    expect(panel).toHaveTextContent('gateway_metrics');
+    expect(panel).not.toHaveTextContent('gateway_metrics');
   });
 
   it('updates query state when switching device', async () => {

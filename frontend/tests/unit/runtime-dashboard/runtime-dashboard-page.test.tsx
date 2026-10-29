@@ -77,6 +77,14 @@ const baseState = {
 };
 
 describe('RuntimeDashboardPage', () => {
+  it('does not render unsafe legacy database fields even from an older caller', () => {
+    const setupContext = createRuntimeSetupFixture();
+    Object.assign(setupContext.database_config!, { database: '/private/tenant/database.sqlite', host: '10.20.30.40', port: 5432, username: 'secret-user' });
+    const { container } = render(<RuntimeDashboardPage {...baseState} setupContext={setupContext} />);
+    expect(container.innerHTML).not.toMatch(/private|10\.20\.30\.40|5432|secret-user/);
+    expect(container).toHaveTextContent('sensor_readings');
+    expect(container).toHaveTextContent('40001');
+  });
   it('renders the focused runtime dashboard surface for the selected device', () => {
     render(<RuntimeDashboardPage {...baseState} />);
 
@@ -110,7 +118,7 @@ describe('RuntimeDashboardPage', () => {
     expect(panel).toHaveTextContent('line01.temp.inlet');
     expect(panel).toHaveTextContent('入口溫度');
     expect(panel).toHaveTextContent('PostgreSQL Connector');
-    expect(panel).toHaveTextContent('gateway_metrics');
+    expect(panel).not.toHaveTextContent('gateway_metrics');
     expect(panel).toHaveTextContent('sensor_readings');
     expect(panel).toHaveTextContent('Projection stale');
     expect(panel).toHaveTextContent('projection-v12');

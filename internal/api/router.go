@@ -175,6 +175,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.GET("/dashboard/stats", dashboardHandler.GetStats)
 			datalinkGroup.GET("/dashboard/device-statuses", dashboardHandler.GetDeviceStatuses)
 
+			runtimeAppliedReader, _ := datalinkServices.WriteGroupDelivery.(handlers.RuntimeAppliedConfigurationReader)
 			runtimeHandler := handlers.NewRuntimeHandler(
 				datalinkServices.Device,
 				datalinkServices.Point,
@@ -182,7 +183,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				datalinkServices.Scheduler,
 				datalinkServices.Runtime,
 				datalinkServices.Workspace,
-			).WithSetupContextServices(
+			).WithRuleEvidenceServices(datalinkServices.WriteGroups, runtimeAppliedReader).WithSetupContextServices(
 				datalinkServices.SourceRule,
 				datalinkServices.Tag,
 				datalinkServices.Mapping,

@@ -6,7 +6,6 @@ import (
 	"go-gateway/internal/datalink/dbtarget"
 	mappingpkg "go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/schema"
-	"go-gateway/internal/datalink/workspace"
 )
 
 type runtimeWorkspaceSourceRuleReader interface {
@@ -32,10 +31,11 @@ type runtimeWorkspaceDatabaseTargetReader interface {
 }
 
 type runtimeWorkspaceSetupContextResponse struct {
-	ReadinessSummary *workspace.ReadinessSummary                  `json:"readiness_summary,omitempty"`
+	EvidenceState    string                                       `json:"evidence_state"`
+	ReadinessSummary *runtimeReadinessSummary                     `json:"readiness_summary,omitempty"`
 	SourceRules      []runtimeWorkspaceSetupSourceRuleResponse    `json:"source_rules"`
 	Mappings         []runtimeWorkspaceSetupMappingResponse       `json:"mappings"`
-	DatabaseConfig   *studioV2WorkspaceDatabaseConfigResponse     `json:"database_config,omitempty"`
+	DatabaseConfig   *runtimeWorkspaceDatabaseConfig              `json:"database_config,omitempty"`
 	DatabaseTargets  []runtimeWorkspaceSetupDatabaseTargetMapping `json:"database_targets"`
 }
 

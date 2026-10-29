@@ -1,3 +1,4 @@
+import type { RuleEvidenceView } from './runtimeRuleEvidence';
 import type {
   DataType,
   ProtocolType,
@@ -23,11 +24,11 @@ export interface StudioV2RuntimeSetupSourceRule {
   device_id: string;
   start_address: string;
   count: number;
-  data_type: DataType;
+  data_type: DataType | '';
   naming_prefix: string;
   enabled: boolean;
   revision_id?: string;
-  target_data_type?: DataType | null;
+  target_data_type?: DataType | '' | null;
 }
 
 export interface StudioV2RuntimeSetupMapping {
@@ -40,7 +41,7 @@ export interface StudioV2RuntimeSetupMapping {
   tag_key?: string;
   display_name?: string;
   unit?: string;
-  target_type?: DataType;
+  target_type?: DataType | '';
   enabled: boolean;
   status?: string;
 }
@@ -48,15 +49,11 @@ export interface StudioV2RuntimeSetupMapping {
 export interface StudioV2RuntimeSetupDatabaseConfig {
   id: string;
   workspace_id?: string;
-  kind: 'sqlite' | 'postgres' | 'mysql' | 'sqlserver';
+  kind: 'sqlite' | 'postgres' | 'mysql' | 'sqlserver' | 'unavailable';
   name: string;
-  host?: string;
-  port?: number;
-  database: string;
-  username?: string;
   schema?: string;
   table: string;
-  write_mode: 'insert' | 'upsert';
+  write_mode: 'insert' | 'upsert' | 'unavailable';
   write_interval_seconds: number;
   timestamp_column?: string;
   status?: string;
@@ -69,7 +66,7 @@ export interface StudioV2RuntimeSetupDatabaseTarget {
   table_schema: string;
   table_name: string;
   column_name: string;
-  write_mode: 'insert' | 'upsert';
+  write_mode: 'insert' | 'upsert' | 'unavailable';
   timestamp_column?: string | null;
   group_key?: string | null;
   write_interval_seconds?: number | null;
@@ -77,6 +74,7 @@ export interface StudioV2RuntimeSetupDatabaseTarget {
 }
 
 export interface StudioV2RuntimeSetupContext {
+  evidence_state?: 'saved-only' | 'unavailable';
   readiness_summary?: StudioV2WorkspaceReadinessSummary | null;
   source_rules: StudioV2RuntimeSetupSourceRule[];
   mappings: StudioV2RuntimeSetupMapping[];
@@ -85,6 +83,8 @@ export interface StudioV2RuntimeSetupContext {
 }
 
 export interface StudioV2RuntimeContext {
+  /** Only supplied for an explicit scoped read; the shared service validates it before use. */
+  rule_evidence?: RuleEvidenceView | null;
   workspace_id: string;
   devices: StudioV2RuntimeContextDevice[];
   default_device_id: string | null;

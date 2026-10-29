@@ -885,38 +885,6 @@
                 }
             }
         },
-        "/datalink/studio-v2/workspace/runtime-context": {
-            "get": {
-                "description": "Returns persisted devices and setup context for the runtime monitor.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "datalink"
-                ],
-                "summary": "Get runtime workspace context",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.runtimeWorkspaceContextResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Runtime device not found",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.APIErrorResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "Workspace or runtime snapshot unavailable",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.APIErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/datalink/studio-v2/workspace/write-groups": {
             "get": {
                 "produces": [
@@ -2809,6 +2777,76 @@
                     },
                     "422": {
                         "description": "code=RECORDING_TEST_WRITE_PLAN_UNRESOLVED or WRITE_GROUP_TEST_WRITE_UNSUPPORTED",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/datalink/studio-v2/workspace/runtime-context": {
+            "get": {
+                "description": "Returns legacy setup context when unscoped; all three scope parameters request read-only rule_evidence. Partial, duplicate or malformed scope is rejected.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Get runtime workspace context",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID; required together with workspace_revision and device_id for rule evidence",
+                        "name": "workspace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Expected workspace revision; required with workspace_id and device_id",
+                        "name": "workspace_revision",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Selected workspace device; required with workspace_id and workspace_revision",
+                        "name": "device_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.runtimeWorkspaceContextResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Malformed or incomplete scope",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Foreign or unavailable selected scope",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Runtime device not found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Stale workspace or recording evidence",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Workspace or runtime snapshot unavailable",
                         "schema": {
                             "$ref": "#/definitions/handlers.APIErrorResponse"
                         }
@@ -4741,6 +4779,46 @@
                 }
             }
         },
+        "handlers.runtimeReadinessIssue": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string"
+                },
+                "step": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.runtimeReadinessSummary": {
+            "type": "object",
+            "properties": {
+                "blocking_count": {
+                    "type": "integer"
+                },
+                "issues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.runtimeReadinessIssue"
+                    }
+                },
+                "ready": {
+                    "type": "boolean"
+                },
+                "warning_count": {
+                    "type": "integer"
+                }
+            }
+        },
         "handlers.runtimeWorkspaceContextDeviceEntry": {
             "type": "object",
             "properties": {
@@ -4791,6 +4869,9 @@
                         "$ref": "#/definitions/handlers.runtimeWorkspaceContextDeviceEntry"
                     }
                 },
+                "rule_evidence": {
+                    "$ref": "#/definitions/runtimeview.RuleEvidenceView"
+                },
                 "setup": {
                     "$ref": "#/definitions/handlers.runtimeWorkspaceSetupContextResponse"
                 },
@@ -4799,17 +4880,55 @@
                 }
             }
         },
+        "handlers.runtimeWorkspaceDatabaseConfig": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "schema": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "table": {
+                    "type": "string"
+                },
+                "timestamp_column": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "write_interval_seconds": {
+                    "type": "integer"
+                },
+                "write_mode": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.runtimeWorkspaceSetupContextResponse": {
             "type": "object",
             "properties": {
                 "database_config": {
-                    "$ref": "#/definitions/handlers.studioV2WorkspaceDatabaseConfigResponse"
+                    "$ref": "#/definitions/handlers.runtimeWorkspaceDatabaseConfig"
                 },
                 "database_targets": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/handlers.runtimeWorkspaceSetupDatabaseTargetMapping"
                     }
+                },
+                "evidence_state": {
+                    "type": "string"
                 },
                 "mappings": {
                     "type": "array",
@@ -4818,7 +4937,7 @@
                     }
                 },
                 "readiness_summary": {
-                    "$ref": "#/definitions/workspace.ReadinessSummary"
+                    "$ref": "#/definitions/handlers.runtimeReadinessSummary"
                 },
                 "source_rules": {
                     "type": "array",
@@ -4963,109 +5082,6 @@
                 },
                 "token": {
                     "type": "string"
-                }
-            }
-        },
-        "handlers.studioV2WorkspaceDatabaseConfigResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {},
-                "database": {
-                    "type": "string"
-                },
-                "host": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "identity_revision": {
-                    "type": "string"
-                },
-                "kind": {
-                    "$ref": "#/definitions/schema.DatabaseConnectorKind"
-                },
-                "last_flush_at": {
-                    "type": "string"
-                },
-                "last_flush_error": {
-                    "type": "string"
-                },
-                "last_flush_status": {
-                    "type": "string"
-                },
-                "last_schema_ensure_at": {
-                    "type": "string"
-                },
-                "last_schema_ensure_error": {
-                    "type": "string"
-                },
-                "last_schema_ensure_status": {
-                    "type": "string"
-                },
-                "last_write_at": {
-                    "type": "string"
-                },
-                "last_write_error": {
-                    "type": "string"
-                },
-                "last_write_status": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "port": {
-                    "type": "integer"
-                },
-                "row_groups": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/workspace.DatabaseRowGroup"
-                    }
-                },
-                "runtime_apply_issues": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/workspace.ReadinessIssue"
-                    }
-                },
-                "runtime_apply_message": {
-                    "type": "string"
-                },
-                "runtime_apply_status": {
-                    "type": "string"
-                },
-                "save_state": {
-                    "type": "string"
-                },
-                "schema": {
-                    "type": "string"
-                },
-                "setup_revision": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/schema.DatabaseConnectorStatus"
-                },
-                "table": {
-                    "type": "string"
-                },
-                "timestamp_column": {
-                    "type": "string"
-                },
-                "updated_at": {},
-                "username": {
-                    "type": "string"
-                },
-                "workspace_id": {
-                    "type": "string"
-                },
-                "write_interval_seconds": {
-                    "type": "integer"
-                },
-                "write_mode": {
-                    "$ref": "#/definitions/schema.DatabaseWriteMode"
                 }
             }
         },
@@ -5926,6 +5942,694 @@
                 "StreamModeLatestOnly"
             ]
         },
+        "runtimeview.Backlog": {
+            "type": "object",
+            "properties": {
+                "binding": {
+                    "$ref": "#/definitions/runtimeview.Binding"
+                },
+                "destination": {
+                    "$ref": "#/definitions/runtimeview.Destination"
+                },
+                "pending": {
+                    "type": "integer"
+                },
+                "reasons": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runtimeview.Reason"
+                    }
+                }
+            }
+        },
+        "runtimeview.Binding": {
+            "type": "object",
+            "properties": {
+                "entity_revision": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.CounterReplayQuarantine": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "pending_samples": {
+                    "type": "integer"
+                },
+                "reason": {
+                    "$ref": "#/definitions/runtimeview.Reason"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.CurrentDelivery": {
+            "type": "object",
+            "properties": {
+                "attempt_duration_ms": {
+                    "type": "number"
+                },
+                "binding": {
+                    "$ref": "#/definitions/runtimeview.Binding"
+                },
+                "intake": {
+                    "$ref": "#/definitions/runtimeview.IntakeEvidence"
+                },
+                "last_commit": {
+                    "$ref": "#/definitions/runtimeview.Receipt"
+                },
+                "next_due_at": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "next_retry_at": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "quota": {
+                    "$ref": "#/definitions/runtimeview.QuotaEvidence"
+                },
+                "shared": {
+                    "type": "boolean"
+                },
+                "source_state": {
+                    "type": "string"
+                },
+                "sources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runtimeview.SourceEvidence"
+                    }
+                },
+                "stages": {
+                    "$ref": "#/definitions/runtimeview.StageCounts"
+                },
+                "storage": {
+                    "$ref": "#/definitions/runtimeview.StorageEvidence"
+                },
+                "totals_scope": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.DeliveryEvidence": {
+            "type": "object",
+            "properties": {
+                "backlog": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runtimeview.Backlog"
+                    }
+                },
+                "counter_replay_quarantines": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runtimeview.CounterReplayQuarantine"
+                    }
+                },
+                "current": {
+                    "$ref": "#/definitions/runtimeview.CurrentDelivery"
+                },
+                "oldest_pending_scope": {
+                    "type": "string"
+                },
+                "oldest_pending_seconds": {
+                    "type": "number"
+                },
+                "test_write": {
+                    "$ref": "#/definitions/runtimeview.TestWriteEvidence"
+                }
+            }
+        },
+        "runtimeview.Destination": {
+            "type": "object",
+            "properties": {
+                "alias": {
+                    "type": "string",
+                    "format": "label"
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "schema": {
+                    "type": "string"
+                },
+                "table": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.EntityLocator": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "mapping_id": {
+                    "type": "string"
+                },
+                "rule_id": {
+                    "type": "string"
+                },
+                "step": {
+                    "type": "integer"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.GroupFacts": {
+            "type": "object",
+            "properties": {
+                "allowed_lateness_seconds": {
+                    "type": "integer"
+                },
+                "binding": {
+                    "$ref": "#/definitions/runtimeview.Binding"
+                },
+                "destination": {
+                    "$ref": "#/definitions/runtimeview.Destination"
+                },
+                "effective_at": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "ends_at": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "incomplete_policy": {
+                    "type": "string"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "layout": {
+                    "type": "string"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runtimeview.Member"
+                    }
+                },
+                "recording_profile": {
+                    "$ref": "#/definitions/runtimeview.RecordingProfile"
+                },
+                "reduction": {
+                    "type": "string"
+                },
+                "storage_mode": {
+                    "type": "string"
+                },
+                "write_mode": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.GroupView": {
+            "type": "object",
+            "properties": {
+                "applied_effective_at": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "applied_revision": {
+                    "type": "string"
+                },
+                "as_of": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "delivery": {
+                    "$ref": "#/definitions/runtimeview.DeliveryEvidence"
+                },
+                "effective": {
+                    "$ref": "#/definitions/runtimeview.GroupFacts"
+                },
+                "effective_revision": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "proof": {
+                    "type": "string"
+                },
+                "saved": {
+                    "$ref": "#/definitions/runtimeview.GroupFacts"
+                },
+                "saved_revision": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.IntakeEvidence": {
+            "type": "object",
+            "properties": {
+                "group_revision": {
+                    "type": "string"
+                },
+                "reason": {
+                    "$ref": "#/definitions/runtimeview.Reason"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.Member": {
+            "type": "object",
+            "properties": {
+                "circuit_id": {
+                    "description": "CircuitID is persisted WriteGroupMember.CircuitID from THIS snapshot, never a column/name.\nMissing legacy evidence stays null; adapters normalize absent source identity, not infer it.",
+                    "type": "string"
+                },
+                "column": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "source_value_type": {
+                    "description": "SourceValueType comes from this persisted member/verified frozen source, never current Tag.",
+                    "type": "string"
+                },
+                "tag_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.PollingEvidence": {
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "string"
+                },
+                "interval_ms": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.QuotaEvidence": {
+            "type": "object",
+            "properties": {
+                "intake_refused": {
+                    "type": "boolean"
+                },
+                "max_bytes": {
+                    "type": "integer"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "used_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "runtimeview.Reason": {
+            "type": "string",
+            "enum": [
+                "none",
+                "unavailable",
+                "stale-reference",
+                "foreign-scope",
+                "deleted",
+                "unsupported",
+                "effective-proof-missing",
+                "counter-replay-proof-missing",
+                "counter-replay-proof-conflict",
+                "counter-replay-proof-unsupported",
+                "recording-ownership-unavailable",
+                "recording-ownership-conflict",
+                "recording-handoff-proof-conflict",
+                "recording-cutover-finalized-overlap"
+            ],
+            "x-enum-varnames": [
+                "ReasonNone",
+                "ReasonUnavailable",
+                "ReasonStale",
+                "ReasonForeign",
+                "ReasonDeleted",
+                "ReasonUnsupported",
+                "ReasonMissingProof",
+                "ReasonCounterMissing",
+                "ReasonCounterConflict",
+                "ReasonCounterUnsupported",
+                "ReasonOwnershipUnavailable",
+                "ReasonOwnershipConflict",
+                "ReasonHandoffConflict",
+                "ReasonFinalizedOverlap"
+            ]
+        },
+        "runtimeview.Receipt": {
+            "type": "object",
+            "properties": {
+                "committed_at": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "effect_key": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "payload_digest": {
+                    "type": "string"
+                },
+                "provenance": {
+                    "type": "string"
+                },
+                "record_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.RecordingProfile": {
+            "type": "object",
+            "properties": {
+                "interval": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.RuleEvidenceView": {
+            "type": "object",
+            "properties": {
+                "contract_version": {
+                    "type": "integer"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "freshness": {
+                    "type": "string"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runtimeview.GroupView"
+                    }
+                },
+                "locator": {
+                    "$ref": "#/definitions/runtimeview.EntityLocator"
+                },
+                "observed_at": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "source": {
+                    "$ref": "#/definitions/runtimeview.SourceView"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.SourceEvidence": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "type": "string"
+                },
+                "last_committed": {
+                    "$ref": "#/definitions/runtimeview.SourceResult"
+                },
+                "latest": {
+                    "$ref": "#/definitions/runtimeview.SourceResult"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "tag_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.SourceFacts": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "binding": {
+                    "$ref": "#/definitions/runtimeview.Binding"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "mapping_revision": {
+                    "type": "string"
+                },
+                "polling": {
+                    "$ref": "#/definitions/runtimeview.PollingEvidence"
+                },
+                "protocol_function": {
+                    "type": "string"
+                },
+                "read_type": {
+                    "type": "string"
+                },
+                "result_type": {
+                    "type": "string"
+                },
+                "transforms": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runtimeview.TransformStep"
+                    }
+                }
+            }
+        },
+        "runtimeview.SourceResult": {
+            "type": "object",
+            "properties": {
+                "coverage": {
+                    "type": "string"
+                },
+                "delta_known": {
+                    "type": "boolean"
+                },
+                "receipt": {
+                    "$ref": "#/definitions/runtimeview.Receipt"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "window_end": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "window_start": {
+                    "type": "string",
+                    "format": "time"
+                }
+            }
+        },
+        "runtimeview.SourceView": {
+            "type": "object",
+            "properties": {
+                "effective": {
+                    "$ref": "#/definitions/runtimeview.SourceFacts"
+                },
+                "effective_revision": {
+                    "type": "string"
+                },
+                "mapping_id": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "proof": {
+                    "type": "string"
+                },
+                "rule_id": {
+                    "type": "string"
+                },
+                "saved": {
+                    "$ref": "#/definitions/runtimeview.SourceFacts"
+                },
+                "saved_revision": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "tag_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.StageCounts": {
+            "type": "object",
+            "properties": {
+                "blocked": {
+                    "type": "integer"
+                },
+                "collecting": {
+                    "type": "integer"
+                },
+                "quarantined": {
+                    "type": "integer"
+                },
+                "queued": {
+                    "type": "integer"
+                },
+                "retrying": {
+                    "type": "integer"
+                },
+                "skipped": {
+                    "type": "integer"
+                },
+                "sql_committed": {
+                    "type": "integer"
+                },
+                "unknown": {
+                    "type": "integer"
+                }
+            }
+        },
+        "runtimeview.StorageEvent": {
+            "type": "object",
+            "properties": {
+                "at": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "kind": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.StorageEvidence": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runtimeview.StorageEvent"
+                    }
+                },
+                "generation": {
+                    "type": "integer"
+                },
+                "history_may_be_lost": {
+                    "type": "boolean"
+                },
+                "last_reconstructed_at": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "reconstructions": {
+                    "type": "integer"
+                },
+                "repair_state": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.TestWriteEvidence": {
+            "type": "object",
+            "properties": {
+                "cleanup_at": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "provenance": {
+                    "type": "string"
+                },
+                "readback_at": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "written_at": {
+                    "type": "string",
+                    "format": "time"
+                }
+            }
+        },
+        "runtimeview.TransformStep": {
+            "type": "object",
+            "properties": {
+                "kind": {
+                    "type": "string"
+                },
+                "multiplier": {
+                    "type": "number"
+                },
+                "offset": {
+                    "type": "number"
+                },
+                "order": {
+                    "type": "string"
+                },
+                "target_type": {
+                    "type": "string"
+                }
+            }
+        },
         "schema.DataType": {
             "type": "string",
             "enum": [
@@ -5951,36 +6655,6 @@
                 "DataTypeFloat32",
                 "DataTypeFloat64",
                 "DataTypeString"
-            ]
-        },
-        "schema.DatabaseConnectorKind": {
-            "type": "string",
-            "enum": [
-                "sqlite",
-                "postgres",
-                "mysql",
-                "sqlserver"
-            ],
-            "x-enum-varnames": [
-                "DatabaseConnectorKindSQLite",
-                "DatabaseConnectorKindPostgres",
-                "DatabaseConnectorKindMySQL",
-                "DatabaseConnectorKindSQLServer"
-            ]
-        },
-        "schema.DatabaseConnectorStatus": {
-            "type": "string",
-            "enum": [
-                "ready",
-                "unreachable",
-                "auth_failed",
-                "error"
-            ],
-            "x-enum-varnames": [
-                "DatabaseConnectorStatusReady",
-                "DatabaseConnectorStatusUnreachable",
-                "DatabaseConnectorStatusAuthFailed",
-                "DatabaseConnectorStatusError"
             ]
         },
         "schema.DatabaseWriteMode": {
@@ -6344,26 +7018,6 @@
                 "ReadinessStep3",
                 "ReadinessStep4"
             ]
-        },
-        "workspace.ReadinessSummary": {
-            "type": "object",
-            "properties": {
-                "blocking_count": {
-                    "type": "integer"
-                },
-                "issues": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/workspace.ReadinessIssue"
-                    }
-                },
-                "ready": {
-                    "type": "boolean"
-                },
-                "warning_count": {
-                    "type": "integer"
-                }
-            }
         },
         "workspace.RecordingStartDeviceProgress": {
             "type": "object",
