@@ -16,11 +16,19 @@ describe('closed bounded source page parser', () => {
     if (!result.ok) throw new Error('expected safe page');
     expect(result.value.rules[0].revision_id).toBe('R6');
   });
+  it.each(['D0000000', 'W000000001A', '00040001', '0x000000FFFF', 'D1000000', 'D16777215', 'M1000000'])('preserves a saved register address: %s', (address) => {
+    const input = { ...page(), rules: [{ ...rule(), start_address: address }] };
+    expect(parseRuntimeSourcePage(input, scope, request)).toEqual({ ok: true, value: input });
+  });
   it('supports exact-filter mapping rows without joining another rule page', () => {
     const input = { ...page(), kind: 'mappings', rules: [], mappings: [mapping()] };
     expect(parseRuntimeSourcePage(input, scope, { kind: 'mappings', rule_id: 'A6', rule_revision: 'R6' })).toEqual({ ok: true, value: input });
     input.mappings[0].rule_revision = 'R7';
     expect(parseRuntimeSourcePage(input, scope, { kind: 'mappings', rule_id: 'A6', rule_revision: 'R6' })).toEqual(stale);
+  });
+  it('preserves a mapped point address with leading zeroes', () => {
+    const input = { ...page(), kind: 'mappings', rules: [], mappings: [{ ...mapping(), address: 'D0000000' }] };
+    expect(parseRuntimeSourcePage(input, scope, { kind: 'mappings' })).toEqual({ ok: true, value: input });
   });
   it('allows absent optional mapping fields for an unbound point', () => {
     const input = { ...page(), kind: 'mappings', rules: [], mappings: [{ rule_id: 'A6', rule_revision: 'R6', device_id: 'A', point_id: 'P', address: '40001', enabled: false }] };

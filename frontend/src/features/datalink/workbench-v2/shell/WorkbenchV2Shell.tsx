@@ -279,11 +279,10 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
         scheduler={state.devices.some((device) => device.running) ? 'running' : 'idle'}
       />}
       {/* 主體區域 */}
-      <div className="wbv2-workspace flex-1 flex gap-5 px-4 sm:px-5 lg:px-7 py-5">
+      <div className="wbv2-workspace flex-1 flex flex-col gap-4 px-3 sm:flex-row sm:gap-5 sm:px-5 lg:px-7 py-5">
         {/* 2. 左側步驟導航列 */}
         <aside
-          className="min-w-0 overflow-hidden transition-all duration-200"
-          style={{ flex: `0 0 ${sidebarCollapsed ? 64 : 232}px`, width: sidebarCollapsed ? 64 : 232 }}
+          className="wbv2-sidebar-rail min-w-0 overflow-hidden transition-all duration-200"
           data-testid="sidebar-rail-aside"
           data-collapsed={sidebarCollapsed}
           aria-expanded={!sidebarCollapsed}

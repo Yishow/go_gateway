@@ -28,12 +28,23 @@ export function safeRuntimeIdentity(value: unknown): string {
 export function safeRuntimeLabel(value: unknown): string {
   return typeof value === 'string' && /^[\p{L}\p{M}\p{N}_ .(),°%+·（）[\]［］-]{1,128}$/u.test(value) && isSafeRuntimeSensorText(value) ? value : '';
 }
+function isRuntimeRegister(value: string): boolean {
+  const mcDecimal = /^(?:ZR|SD|SM|CC|TC|ST|D|M|L|S|T|C|R|F)([0-9]{7,8})$/i.exec(value);
+  if (mcDecimal) return Number(mcDecimal[1]) <= 0xffffff;
+  const mc = /^(?:SW|SB|W|B)([0-9a-f]+)$/i.exec(value);
+  if (mc) return mc[1].length <= 8 && Number.parseInt(mc[1], 16) <= 0x7fffffff;
+  return /^(?:[0-9]{1,6}|0x[0-9a-f]{1,8}|[a-z]{1,4}[0-9]{1,6}(?:\.[0-9]{1,2})?)$/i.test(value);
+}
 /** Register syntax includes existing decimal, FATEK and MC hex-addressed devices. */
 export function safeRuntimeAddress(value: unknown): string {
-  if (typeof value !== 'string') return '';
-  const mc = /^(?:SW|SB|W|B)([0-9a-f]+)$/i.exec(value);
-  if (mc) return mc[1].length <= 8 && Number.parseInt(mc[1], 16) <= 0x7fffffff ? value : '';
-  return /^(?:[0-9]{1,6}|0x[0-9a-f]{1,8}|[a-z]{1,4}[0-9]{1,6}(?:\.[0-9]{1,2})?)$/i.test(value) ? value : '';
+  if (typeof value !== 'string' || value.length > 128) return '';
+  if (isRuntimeRegister(value)) return value;
+  // Validate redundant leading zeroes without changing the stored address.
+  const padded = /^((?:sw|sb|w|b)|0x)(0+[0-9a-f]*)(\.[0-9]{1,2})?$/i.exec(value)
+    ?? /^([a-z]{0,4})(0+[0-9]*)(\.[0-9]{1,2})?$/i.exec(value);
+  if (!padded) return '';
+  const digits = padded[2].replace(/^0+/, '') || '0';
+  return isRuntimeRegister(`${padded[1]}${digits}${padded[3] ?? ''}`) ? value : '';
 }
 /** Semantic tag keys follow tag/service.go, not opaque identity or DNS syntax.
  * Dotted/slashed keys may resemble hostnames; only recognizable private syntax is rejected.

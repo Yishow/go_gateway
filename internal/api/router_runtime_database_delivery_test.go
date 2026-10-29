@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -177,6 +178,9 @@ func TestNewRouter_RuntimeStatusIncludesDatabaseDeliveryFailureStages(t *testing
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d body=%s", resp.Code, resp.Body.String())
 	}
+	if strings.Contains(resp.Body.String(), "permission denied") {
+		t.Fatalf("database delivery diagnostic leaked raw error: %s", resp.Body.String())
+	}
 
 	var body struct {
 		Success bool `json:"success"`
@@ -217,11 +221,12 @@ func TestNewRouter_RuntimeStatusIncludesDatabaseDeliveryFailureStages(t *testing
 		t.Fatalf("expected one database delivery diagnostic, got %s", resp.Body.String())
 	}
 
+	const expectedSafeDiagnostic = "runtime diagnostic unavailable; inspect settings"
 	diagnostic := body.Data.DatabaseDelivery[0]
 	if diagnostic.DeviceID != deviceRecord.ID || diagnostic.PointID != pointRecord.ID || diagnostic.TagID != tagRecord.ID {
 		t.Fatalf("unexpected database delivery scope: %+v", diagnostic)
 	}
-	if diagnostic.Status != "failed" || diagnostic.FailedStage != "db_write" || diagnostic.Error != "permission denied" {
+	if diagnostic.Status != "failed" || diagnostic.FailedStage != "db_write" || diagnostic.Error != expectedSafeDiagnostic {
 		t.Fatalf("unexpected database delivery failure: %+v", diagnostic)
 	}
 	expectedStages := []string{"collected", "mapped", "db_write_failed"}
@@ -246,7 +251,7 @@ func TestNewRouter_RuntimeStatusIncludesDatabaseDeliveryFailureStages(t *testing
 	}
 	if flowDiagnostic.LatestSuccessfulStage != "runtime_projection" ||
 		flowDiagnostic.FailureStage != "database_delivery" ||
-		flowDiagnostic.FailureReason != "permission denied" ||
+		flowDiagnostic.FailureReason != expectedSafeDiagnostic ||
 		flowDiagnostic.LastFailureAt == "" {
 		t.Fatalf("unexpected flow diagnostic failure context: %+v", flowDiagnostic)
 	}
@@ -255,7 +260,7 @@ func TestNewRouter_RuntimeStatusIncludesDatabaseDeliveryFailureStages(t *testing
 	}
 	if flowDiagnostic.Stages[3].Stage != "database_delivery" ||
 		flowDiagnostic.Stages[3].Status != "failed" ||
-		flowDiagnostic.Stages[3].Reason != "permission denied" {
+		flowDiagnostic.Stages[3].Reason != expectedSafeDiagnostic {
 		t.Fatalf("unexpected flow diagnostic failed stage: %+v", flowDiagnostic.Stages)
 	}
 }

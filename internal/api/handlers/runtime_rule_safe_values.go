@@ -12,7 +12,10 @@ import (
 var runtimeSafeIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$`)
 var runtimeSafeLabelPattern = regexp.MustCompile(`^[\p{L}\p{M}\p{N}_ .,()\[\]·（）°%+-]{1,128}$`)
 var runtimeRegisterPattern = regexp.MustCompile(`^(?:[0-9]{1,6}|0[xX][0-9a-fA-F]{1,8}|(?:[sS]?[wWbB])[0-9a-fA-F]{1,8}|[A-Za-z]{1,4}[0-9]{1,6}(?:\.[0-9]{1,2})?)$`)
+var runtimePaddedRegisterPattern = regexp.MustCompile(`^([A-Za-z]{0,4})(0+\d*)(\.\d{1,2})?$`)
+var runtimePaddedHexRegisterPattern = regexp.MustCompile(`(?i)^((?:sw|sb|w|b)|0x)(0+[0-9a-f]*)(\.\d{1,2})?$`)
 var runtimeMCHexPattern = regexp.MustCompile(`(?i)^(?:S?[WB])([0-9A-F]{1,8})$`)
+var runtimeMCLongDecimalPattern = regexp.MustCompile(`^(?:[zZ][rR]|[sS][dD]|[sS][mM]|[cC][cC]|[tT][cC]|[sS][tT]|[dDmMlLsStTcCrRfF])(\d{7,8})$`)
 var runtimeNetworkPattern = regexp.MustCompile(`(?i)(?:[a-z0-9-]+\.)+[a-z]{2,}`)
 var runtimeIPv4Pattern = regexp.MustCompile(`(?:[0-9]{1,3}\.){3}[0-9]{1,3}`)
 var runtimeSQLPattern = regexp.MustCompile(`(?i)\b(?:select\s+.+\s+from|insert\s+into|update\s+.+\s+set|delete\s+from|drop\s+table|alter\s+table|create\s+table|grant\s+.+\s+on)\b`)
@@ -37,16 +40,46 @@ func runtimeSafeLabel(value string) string {
 }
 
 func runtimeSafeAddress(value string) string {
-	if !runtimeRegisterPattern.MatchString(value) {
+	if len(value) > 128 {
 		return ""
+	}
+	if runtimeValidRegister(value) {
+		return value
+	}
+	// Validate redundant leading zeroes without changing the stored address.
+	parts := runtimePaddedHexRegisterPattern.FindStringSubmatch(value)
+	if parts == nil {
+		parts = runtimePaddedRegisterPattern.FindStringSubmatch(value)
+	}
+	if parts == nil {
+		return ""
+	}
+	digits := strings.TrimLeft(parts[2], "0")
+	if digits == "" {
+		digits = "0"
+	}
+	if runtimeValidRegister(parts[1] + digits + parts[3]) {
+		return value
+	}
+	return ""
+}
+
+func runtimeValidRegister(value string) bool {
+	if parts := runtimeMCLongDecimalPattern.FindStringSubmatch(value); parts != nil {
+		// MC device addresses are encoded in 24 bits.
+		_, err := strconv.ParseUint(parts[1], 10, 24)
+		return err == nil
+	}
+	if !runtimeRegisterPattern.MatchString(value) {
+		return false
 	}
 	if parts := runtimeMCHexPattern.FindStringSubmatch(value); parts != nil {
 		// Match hsllogic MC parser's signed 32-bit hex address bound.
 		if _, err := strconv.ParseUint(parts[1], 16, 31); err != nil {
-			return ""
+			return false
 		}
 	}
-	return value
+	return true
 }
 
 // Normal scalar text is retained; this rejects identifiable unsafe syntax, not words

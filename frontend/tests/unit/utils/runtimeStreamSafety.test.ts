@@ -27,10 +27,10 @@ describe('remote runtime stream safe projections', () => {
   it.each(['SELECT', 'OK', 'NG', '2026-10-28', 'm/s', '40001/16', '9007199254740993', 'C temperature', 'C: temperature', 'OK/NG', 'Pump A (°C)', 'Reading [A]', 'Rate=12 m/s', '23.5 °C', '(normal reading)', '[normal]', '\\\\sensor'])('preserves ordinary scalar %s', (scalar) => {
     expect(parseRuntimeValueRecord({ ...value, raw_value: scalar })?.raw_value).toBe(scalar);
   });
-  it.each(['D0100', '0xFFFF', '400001', 'R100.2', 'BFF', 'SB1A', 'W1A', 'W7FFFFFFF'])('preserves validated source register %s', (address) => {
+  it.each(['D0100', '0xFFFF', '400001', 'R100.2', 'BFF', 'SB1A', 'W1A', 'W7FFFFFFF', 'D0000000', 'W000000001A', '00040001', '0x000000FFFF', 'D1000000', 'D16777215', 'M1000000'])('preserves validated source register %s', (address) => {
     expect(parseRuntimeValueRecord({ ...value, address })?.address).toBe(address);
   });
-  it.each(['W80000000', 'WFFFFFFFF'])('rejects out-of-range MC register %s', (address) => {
+  it.each(['W80000000', 'WFFFFFFFF', 'W00080000000', 'SB000FFFFFFFF', 'D16777216', 'HOST1000000', 'ſ1000000', 'D0000000:502', `D${'0'.repeat(128)}`])('rejects out-of-range or unsafe register %s', (address) => {
     expect(parseRuntimeValueRecord({ ...value, address })).toBeNull();
   });
   it('retains an honest unsupported event with invalid quality and no fabricated scalar', () => {

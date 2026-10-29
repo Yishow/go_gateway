@@ -26,10 +26,13 @@ export const TopBar: React.FC<TopBarProps> = ({
 }) => {
   const { t } = useTranslation('workbench-v2');
   const isRunning = scheduler === 'running';
+  const statusLabel = isRunning
+    ? t('step4.scheduler_running', 'scheduler running')
+    : t('step4.scheduler_idle', 'scheduler idle');
 
   return (
     <header className="wbv2-topbar border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-30">
-      <div className="px-4 sm:px-5 lg:px-7 py-3 flex items-center gap-3 lg:gap-4">
+      <div className="wbv2-topbar-inner min-w-0 px-4 sm:px-5 lg:px-7 py-3 flex flex-wrap items-center gap-3 lg:gap-4">
         {/* 收合按鈕 */}
         <button
           onClick={onToggleSidebar}
@@ -44,13 +47,13 @@ export const TopBar: React.FC<TopBarProps> = ({
         </button>
 
         {/* 品牌標識 */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-2.5">
           <div className="wbv2-brand-mark grid place-items-center w-9 h-9 rounded-lg border border-cyan-300/30">
             <Icon name="bolt" className="w-4 h-4 text-cyan-200" />
           </div>
-          <div>
-            <div className="text-sm font-semibold tracking-tight text-slate-100 leading-tight">Datalink Workbench</div>
-            <div className="text-[10px] text-slate-500 leading-tight">go_gateway · v1 接入點位設定流程</div>
+          <div className="wbv2-brand-copy min-w-0">
+            <div className="truncate text-sm font-semibold tracking-tight text-slate-100 leading-tight">Datalink Workbench</div>
+            <div className="wbv2-brand-subtitle text-[10px] text-slate-500 leading-tight">go_gateway · v1 接入點位設定流程</div>
           </div>
         </div>
 
@@ -66,7 +69,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         </nav>
 
         {/* 右側按鈕與排程狀態 */}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="wbv2-topbar-actions ml-auto flex min-w-0 items-center gap-2">
           <RuntimeLogsLink />
           <Button variant="ghost" size="sm" icon={<Icon name="save" className="w-3.5 h-3.5" />} className="hidden sm:inline-flex">
             儲存草稿
@@ -75,7 +78,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             取消
           </Button>
           <div className="hidden sm:block h-6 w-px bg-slate-700/60 mx-1" />
-          <div className="wbv2-status-pill flex items-center gap-1.5 text-xs text-slate-400">
+          <div className="wbv2-status-pill flex items-center gap-1.5 text-xs text-slate-400" aria-label={statusLabel} title={statusLabel}>
             <span
               className={`w-1.5 h-1.5 rounded-full ${
                 isRunning 
@@ -83,12 +86,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                   : 'bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
               }`}
             />
-            <span>
-              {isRunning 
-                ? t('step4.scheduler_running', 'scheduler running') 
-                : t('step4.scheduler_idle', 'scheduler idle')
-              }
-            </span>
+            <span className="wbv2-status-label">{statusLabel}</span>
           </div>
         </div>
       </div>

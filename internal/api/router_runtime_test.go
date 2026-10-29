@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -205,6 +206,9 @@ func TestNewRouter_RuntimeStatusIncludesUnavailableCollectorState(t *testing.T) 
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d body=%s", resp.Code, resp.Body.String())
 	}
+	if strings.Contains(resp.Body.String(), "device form is invalid") {
+		t.Fatalf("collector diagnostic leaked raw reason: %s", resp.Body.String())
+	}
 
 	var body struct {
 		Success bool `json:"success"`
@@ -226,7 +230,8 @@ func TestNewRouter_RuntimeStatusIncludesUnavailableCollectorState(t *testing.T) 
 	if body.Data.Collectors[0].AvailabilityStatus != "unavailable" {
 		t.Fatalf("expected availability_status=unavailable, got %+v", body.Data.Collectors[0])
 	}
-	if body.Data.Collectors[0].AvailabilityReason == nil || *body.Data.Collectors[0].AvailabilityReason != "device form is invalid" {
+	const expectedSafeDiagnostic = "runtime diagnostic unavailable; inspect settings"
+	if body.Data.Collectors[0].AvailabilityReason == nil || *body.Data.Collectors[0].AvailabilityReason != expectedSafeDiagnostic {
 		t.Fatalf("expected availability_reason to be populated, got %+v", body.Data.Collectors[0])
 	}
 	if body.Data.Collectors[0].Running {

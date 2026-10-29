@@ -62,6 +62,8 @@
 
   & .wbv2-shell {
     isolation: isolate;
+    min-width: 0;
+    width: 100%;
   }
 
   & .wbv2-topbar {
@@ -90,6 +92,17 @@
   & .wbv2-workspace {
     position: relative;
     z-index: 1;
+    min-width: 0;
+  }
+
+  & .wbv2-sidebar-rail {
+    flex: 0 0 232px;
+    width: 232px;
+  }
+
+  & .wbv2-sidebar-rail[data-collapsed='true'] {
+    flex-basis: 64px;
+    width: 64px;
   }
 
   & .wbv2-flow-note,
@@ -262,6 +275,50 @@
   & .mem-cell .meta {
     opacity: 0.7;
     font-size: 9px;
+  }
+}
+
+@media (max-width: 639px) {
+  [data-workbench-v2] {
+    & .wbv2-topbar-inner {
+      gap: 0.5rem;
+      padding-inline: 0.75rem;
+    }
+
+    & .wbv2-brand-copy {
+      flex: 1 1 auto;
+    }
+
+    & .wbv2-brand-subtitle {
+      display: none;
+    }
+
+    & .wbv2-topbar-actions {
+      flex-basis: 100%;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      margin-left: 0;
+    }
+
+    & .wbv2-topbar-actions > * {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    & .wbv2-status-pill {
+      padding-inline: 0.5rem;
+    }
+
+    & .wbv2-sidebar-rail,
+    & .wbv2-sidebar-rail[data-collapsed='true'] {
+      flex: 0 0 auto;
+      width: 100%;
+    }
+
+    & .wbv2-sidebar-rail > .sticky {
+      position: static;
+    }
   }
 }
 
