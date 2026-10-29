@@ -1,3 +1,5 @@
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { guidedReadiness, guidedLifecycle } from '../../fixtures/guidedRecordingPreparation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createInstance } from 'i18next';
@@ -28,7 +30,25 @@ const previewSchema = vi.fn();
 const createMeasurement = vi.fn();
 const updateMeasurement = vi.fn();
 
+let canonicalClient: QueryClient;
+const evidenceRefetch = vi.fn();
+const evidence = new Map<string, { readiness: ReturnType<typeof guidedReadiness>; lifecycle: ReturnType<typeof guidedLifecycle> }>();
+function currentEvidence(id: string) {
+  const group = groupsQuery.data.groups.find(value => value.id === id);
+  if (!group) return undefined;
+  const key = JSON.stringify([groupsQuery.data.workspace_revision, group]);
+  if (!evidence.has(key)) evidence.set(key, { readiness: guidedReadiness(group, groupsQuery.data.workspace_revision), lifecycle: guidedLifecycle(group, groupsQuery.data.workspace_revision) });
+  return evidence.get(key)!;
+}
+function publishGroups() {
+  canonicalClient?.setQueryData(studioV2WorkspaceKeys.writeGroups(), groupsQuery.data);
+  return { data: groupsQuery.data };
+}
+vi.mock('@/hooks/datalink/useStudioV2WriteGroupLifecycle', () => ({
+  useWriteGroupLifecycleQuery: (_workspace: string, id: string) => ({ data: currentEvidence(id)?.lifecycle, isLoading: false, isFetching: false, isError: false, refetch: evidenceRefetch }),
+}));
 vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
+  useWriteGroupReadinessQuery: (id: string) => ({ data: currentEvidence(id)?.readiness, isLoading: false, isFetching: false, isError: false, refetch: evidenceRefetch }),
   useWriteGroupsQuery: () => groupsQuery,
   useWriteGroupDeliveryQuery: () => ({ data: undefined, isError: false }),
   useUpdateWriteGroupMutation: () => ({ mutateAsync: updateGroup, isPending: false }),
@@ -52,11 +72,12 @@ async function show(state = mixedState(), readonly = false, lng = 'en') {
   const i18n = createInstance();
   await i18n.init({ lng, resources: productionI18n.options.resources });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  canonicalClient = client; client.setQueryDefaults(studioV2WorkspaceKeys.writeGroups(), { structuralSharing: false }); publishGroups();
   const panel = () => <I18nextProvider i18n={i18n}><QueryClientProvider client={client}>
     <BasicRecordingPanel state={state} workspaceId="ws-1" readonly={readonly} />
   </QueryClientProvider></I18nextProvider>;
   const view = render(panel());
-  return { ...view, refresh: () => view.rerender(panel()) };
+  return { ...view, refresh: () => { publishGroups(); view.rerender(panel()); } };
 }
 
 function setCumulative(tagId: string, checked: boolean) {
@@ -70,11 +91,26 @@ function expectNoWrites() {
   }
 }
 
+// Guide design: one primary; semantic/source repair is local NAV, not a second disabled Start.
+function expectPreparationBlocked() {
+  const mutations = [ensureProfile, updateGroup, start, ensureManaged, applySchema, previewSchema, createMeasurement, updateMeasurement]; const counts = mutations.map(fn => fn.mock.calls.length);
+  const prepare = screen.queryByTestId('circuit-profile-prepare');
+  if (prepare) expect(prepare).toBeDisabled();
+  expect(screen.queryByTestId('circuit-profile-start')).not.toBeInTheDocument();
+  const next = screen.queryByTestId('recording-next-action');
+  if (next) {
+    expect(next).toHaveTextContent(/Review counter definitions|Choose sources|Inspect this scope|Refresh preparation status|確認計數器定義|選擇資料來源|檢視此範圍|重新查詢準備狀態/);
+    fireEvent.click(next);
+  }
+  expect(screen.getByTestId('recording-guided-preparation').querySelectorAll('button[data-primary="true"]')).toHaveLength(1);
+  mutations.forEach((fn, index) => expect(fn).toHaveBeenCalledTimes(counts[index]));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   window.sessionStorage.clear();
   groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] };
-  groupsQuery.refetch.mockImplementation(async () => ({ data: groupsQuery.data }));
+  groupsQuery.refetch.mockImplementation(async () => publishGroups());
   measurementsQuery.data = [];
   measurementsQuery.isLoading = false;
   measurementsQuery.isError = false;
@@ -142,7 +178,7 @@ describe('explicit cumulative source selection', () => {
     await show();
     expect(screen.getByTestId('circuit-profile-cumulative-selected')).toHaveTextContent('Selected cumulative sources: 0');
     expect(screen.getByTestId('circuit-profile-cumulative-sources-error')).toBeVisible();
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     expectNoWrites();
   });
 
@@ -203,7 +239,7 @@ describe('explicit cumulative source selection', () => {
     await show();
     expandSources();
     expect(screen.getByTestId('circuit-profile-member-cum-tag-3')).not.toBeChecked();
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     expectNoWrites();
   });
 
@@ -288,8 +324,7 @@ describe('explicit cumulative source selection', () => {
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
     setCumulative(tag, true);
     expect(screen.getByTestId('circuit-profile-cumulative-selected')).toHaveTextContent('Selected cumulative sources: 1');
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
-    expect(screen.getByTestId('circuit-profile-start')).toBeDisabled();
+    expectPreparationBlocked();
     expect(screen.getByTestId('circuit-counter-confirmation')).toBeVisible();
     expectNoWrites();
   });

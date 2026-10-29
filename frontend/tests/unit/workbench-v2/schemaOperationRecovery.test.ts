@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readSchemaOperation, retainSchemaOperation } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery';
+import { inspectSchemaOperation, readSchemaOperation, retainSchemaOperation } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery';
 
 beforeEach(() => {
   vi.unstubAllGlobals();
@@ -56,4 +56,30 @@ it('keeps the newer memory fence when storage reads work but a quota error rejec
   expect(readSchemaOperation('workspace-1', groupId)).toBe('operation-B');
   retainSchemaOperation('workspace-1', groupId, undefined, 'operation-B');
   expect(readSchemaOperation('workspace-1', groupId)).toBeUndefined();
+});
+
+
+describe('read-only owner-local schema inspection', () => {
+  it('distinguishes readable empty, missing scope, and storage failure without changing the compatible reader', () => {
+    expect(inspectSchemaOperation('workspace-1', 'inspection-empty')).toEqual({ state: 'empty' });
+    expect(inspectSchemaOperation('', 'inspection-empty')).toEqual({ state: 'unavailable', reason: 'missing_scope' });
+    expect(inspectSchemaOperation('workspace-1')).toEqual({ state: 'unavailable', reason: 'missing_scope' });
+    vi.stubGlobal('sessionStorage', { getItem: () => { throw new Error('private storage error'); } });
+    expect(inspectSchemaOperation('workspace-1', 'inspection-empty')).toEqual({ state: 'unavailable', reason: 'unreadable' });
+    expect(readSchemaOperation('workspace-1', 'inspection-empty')).toBeUndefined();
+  });
+  it.each(['opaque-O1', '   ', '{not-json}', 'https://untrusted.example/op/1'])('retains every nonempty stored opaque identity unchanged: %s', (operationId) => {
+    const groupId = 'inspection-opaque';
+    sessionStorage.setItem(`wbv2.schema-operation.${JSON.stringify(['workspace-1', groupId])}`, operationId);
+    expect(inspectSchemaOperation('workspace-1', groupId)).toEqual({ state: 'retained', operationId });
+    expect(sessionStorage.getItem(sessionStorage.key(0)!)).toBe(operationId);
+  });
+  it.each(['empty', 'error'])('keeps the live memory fence ahead of %s storage', (storage) => {
+    const groupId = `inspection-memory-${storage}`;
+    retainSchemaOperation('workspace-1', groupId, 'O1');
+    vi.stubGlobal('sessionStorage', { getItem: () => { if (storage === 'error') throw new Error('unavailable'); return null; },
+      setItem: vi.fn(), removeItem: vi.fn() });
+    expect(inspectSchemaOperation('workspace-1', groupId)).toEqual({ state: 'retained', operationId: 'O1' });
+    retainSchemaOperation('workspace-1', groupId, undefined, 'O1');
+  });
 });

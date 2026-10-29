@@ -1,3 +1,5 @@
+import { listRecordingTestWriteRecovery } from '@/services/recordingTestWriteRecovery';
+import { recordingTestWriteRecovery } from '@/features/datalink/workbench-v2/state/recordingTestWriteRecovery';
 import { studioV2WriteGroupLifecycleAPI } from '@/services/studioV2WriteGroupLifecycle';
 import { savedLifecycle } from '../../fixtures/writeGroupLifecycle';
 import * as React from 'react';
@@ -11,6 +13,7 @@ import type { WriteGroup, WriteGroupReadiness } from '@/types/studioV2WriteGroup
 import { savedGroup, savedGroupState, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
 
 vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn() } }));
+vi.mock('@/services/recordingTestWriteRecovery', () => ({ listRecordingTestWriteRecovery: vi.fn() }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, options?: Record<string, unknown>) => (options && 'count' in options ? `${key}:${options.count}` : key) }),
 }));
@@ -45,10 +48,20 @@ async function openSaved() {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  localStorage.clear();
+  // Independent test worlds must explicitly retire retained locators; clearing storage alone cannot erase O1.
+  for (const ref of recordingTestWriteRecovery.read().references) recordingTestWriteRecovery.resolve({
+    operation_id: ref.operation_id, action: 'test_write', status: 'failed', write_outcome: 'failed', cleanup_status: 'not_attempted', created_at: '', updated_at: '',
+  }, ref.workspace_id);
+  vi.mocked(listRecordingTestWriteRecovery).mockImplementation(async workspaceId => {
+    if (workspaceId !== 'ws-1') throw new Error('foreign fixture workspace');
+    return { workspace_id: workspaceId, complete: true, operations: [] };
+  });
   vi.mocked(studioV2WriteGroupLifecycleAPI.lifecycle).mockImplementation(async (id) => savedLifecycle(savedGroup({ id })));
   api.list.mockResolvedValue(list([savedGroup()]));
   api.readiness.mockResolvedValue(readiness());
+  api.testWriteOperation.mockRejectedValue(new Error('No operation result in this independent fixture'));
   api.delivery.mockResolvedValue({
     group_id: 'group-1', intake: { state: 'active' },
     stages: { collecting: 1, queued: 2, retrying: 0, blocked: 0, quarantined: 0, unknown: 0, sql_committed: 4, skipped: 0 },
@@ -272,12 +285,15 @@ describe('RevisionSafeGroupActivationAndTestWrite: test write', () => {
     api.testWrite.mockResolvedValue(operation({ status: 'partial', write_outcome: 'written_unverified', reason: 'readback-denied', cleanup_status: 'failed', cleanup_reason: 'cleanup-denied' }));
     mount();
     await openSaved();
+    await waitFor(() => expect(screen.getByTestId('group-test-write-preview')).toBeEnabled());
     fireEvent.click(screen.getByTestId('group-test-write-preview'));
     expect(await screen.findByTestId('group-test-write-preview-card')).toHaveTextContent('gw-test-1');
     expect(api.testWrite).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId('group-test-write-confirm'));
     expect(await screen.findByTestId('group-test-write-outcome')).toHaveTextContent('outcome_written_unverified');
-    expect(screen.getByTestId('group-test-write-outcome')).toHaveTextContent('readback-denied');
+    expect(screen.getByTestId('group-test-write-write-phase')).toHaveTextContent('write_committed');
+    expect(screen.getByTestId('group-test-write-readback')).toHaveTextContent('readback_unverified');
+    expect(screen.getByTestId('group-test-write-result')).not.toHaveTextContent(/readback-denied|cleanup-denied/);
     expect(screen.getByTestId('group-test-write-cleanup')).toHaveTextContent('cleanup_failed');
     expect(api.testWrite).toHaveBeenCalledWith('group-1', { token: 'tok-1', operation_id: 'op-1' });
   });
@@ -286,6 +302,7 @@ describe('RevisionSafeGroupActivationAndTestWrite: test write', () => {
     api.testWritePreview.mockResolvedValue({ ...preview, record_ids: ['a'.repeat(64), 'b'.repeat(64), 'c'.repeat(64)] });
     mount();
     await openSaved();
+    await waitFor(() => expect(screen.getByTestId('group-test-write-preview')).toBeEnabled());
     fireEvent.click(screen.getByTestId('group-test-write-preview'));
     expect(await screen.findByTestId('group-test-write-row-count')).toHaveTextContent('long_preview_count:3');
     expect(api.testWrite).not.toHaveBeenCalled();
@@ -297,6 +314,7 @@ describe('RevisionSafeGroupActivationAndTestWrite: test write', () => {
     api.testWrite.mockReturnValue(new Promise((resolve) => { release = resolve; }) as never);
     mount();
     await openSaved();
+    await waitFor(() => expect(screen.getByTestId('group-test-write-preview')).toBeEnabled());
     fireEvent.click(screen.getByTestId('group-test-write-preview'));
     const confirm = await screen.findByTestId('group-test-write-confirm');
     fireEvent.click(confirm);
@@ -313,6 +331,7 @@ describe('RevisionSafeGroupActivationAndTestWrite: test write', () => {
     api.testWriteOperation.mockResolvedValue(operation());
     mount();
     await openSaved();
+    await waitFor(() => expect(screen.getByTestId('group-test-write-preview')).toBeEnabled());
     fireEvent.click(screen.getByTestId('group-test-write-preview'));
     fireEvent.click(await screen.findByTestId('group-test-write-confirm'));
     expect(await screen.findByTestId('group-test-write-unconfirmed')).toBeInTheDocument();
@@ -323,15 +342,24 @@ describe('RevisionSafeGroupActivationAndTestWrite: test write', () => {
     expect(api.testWriteOperation).toHaveBeenCalledWith('op-1');
   });
 
-  it('treats a typed refusal as a definite failure, not as an unconfirmed write', async () => {
+  it('retains the original operation after a typed POST refusal until its ledger confirms no write', async () => {
     api.testWritePreview.mockResolvedValue(preview);
     api.testWrite.mockRejectedValue(typedError('WRITE_GROUP_TEST_WRITE_PREVIEW_STALE'));
+    api.testWriteOperation.mockResolvedValue(operation({ status: 'failed', write_outcome: 'failed', cleanup_status: 'not_attempted' }));
     mount();
     await openSaved();
+    await waitFor(() => expect(screen.getByTestId('group-test-write-preview')).toBeEnabled());
     fireEvent.click(screen.getByTestId('group-test-write-preview'));
     fireEvent.click(await screen.findByTestId('group-test-write-confirm'));
-    expect(await screen.findByTestId('group-test-write-error')).toBeInTheDocument();
-    expect(screen.queryByTestId('group-test-write-unconfirmed')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('group-test-write-unconfirmed')).toBeInTheDocument();
+    expect(screen.queryByTestId('group-test-write-error')).not.toBeInTheDocument();
+    expect(screen.getByTestId('group-test-write-confirm')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('group-test-write-check-unconfirmed'));
+    expect(await screen.findByTestId('group-test-write-write-phase')).toHaveTextContent('write_not_written');
+    expect(screen.getByTestId('group-test-write-readback')).toHaveTextContent('readback_not_attempted');
+    expect(api.testWriteOperation).toHaveBeenCalledWith('op-1');
+    expect(api.testWrite).toHaveBeenCalledTimes(1);
+    expect(api.testWritePreview).toHaveBeenCalledTimes(1);
   });
 
   it('is unavailable while the group has unsaved edits', async () => {
@@ -347,6 +375,7 @@ describe('RevisionSafeGroupActivationAndTestWrite: test write', () => {
     api.testWrite.mockResolvedValue({ operation_id: 'op-1', action: 'test_write', status: 'running', created_at: 'a', updated_at: 'b' });
     mount();
     await openSaved();
+    await waitFor(() => expect(screen.getByTestId('group-test-write-preview')).toBeEnabled());
     fireEvent.click(screen.getByTestId('group-test-write-preview'));
     fireEvent.click(await screen.findByTestId('group-test-write-confirm'));
     expect(await screen.findByTestId('group-test-write-running')).toBeInTheDocument();
@@ -360,6 +389,7 @@ describe('RevisionSafeGroupActivationAndTestWrite: test write', () => {
     api.testWrite.mockReturnValue(new Promise((resolve) => { release = resolve; }) as never);
     mount();
     await openSaved();
+    await waitFor(() => expect(screen.getByTestId('group-test-write-preview')).toBeEnabled());
     fireEvent.click(screen.getByTestId('group-test-write-preview'));
     fireEvent.click(await screen.findByTestId('group-test-write-confirm'));
     await waitFor(() => expect(api.testWrite).toHaveBeenCalledTimes(1));
@@ -378,6 +408,7 @@ describe('RevisionSafeGroupActivationAndTestWrite: test write', () => {
     api.update.mockResolvedValue({ workspace_revision: 'wrev-2', group: savedGroup({ revision: 'rev-2', name: 'Edited' }) });
     mount();
     await openSaved();
+    await waitFor(() => expect(screen.getByTestId('group-test-write-preview')).toBeEnabled());
     fireEvent.click(screen.getByTestId('group-test-write-preview'));
     fireEvent.click(await screen.findByTestId('group-test-write-confirm'));
     await waitFor(() => expect(api.testWrite).toHaveBeenCalledTimes(1));

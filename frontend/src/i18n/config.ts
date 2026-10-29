@@ -10,10 +10,12 @@ import zhTWTagReviewTranslations from './locales/zh-TW/tag-review.json';
 import enWorkbenchV2Translations from './locales/en/workbench-v2.json';
 import enWorkbenchV2CircuitSQLServer from './locales/en/workbench-v2-circuit-sqlserver.json';
 import enWorkbenchV2RecordingAuthoring from './locales/en/workbench-v2-recording-authoring.json';
+import enWorkbenchV2RecordingGuided from './locales/en/workbench-v2-recording-guided.json';
 import enRuntimeDashboardTranslations from './locales/en/runtime-dashboard.json';
 import zhTWWorkbenchV2Translations from './locales/zh-TW/workbench-v2.json';
 import zhTWWorkbenchV2CircuitSQLServer from './locales/zh-TW/workbench-v2-circuit-sqlserver.json';
 import zhTWWorkbenchV2RecordingAuthoring from './locales/zh-TW/workbench-v2-recording-authoring.json';
+import zhTWWorkbenchV2RecordingGuided from './locales/zh-TW/workbench-v2-recording-guided.json';
 import zhTWRuntimeDashboardTranslations from './locales/zh-TW/runtime-dashboard.json';
 import enMappingErrors from './locales/en/mapping-errors.json';
 import zhTWMappingErrors from './locales/zh-TW/mapping-errors.json';
@@ -58,6 +60,7 @@ i18n
           enWorkbenchV2CircuitSQLServer,
           enWorkbenchV2RecordingAuthoring,
         ),
+        'workbench-v2-recording-guided': enWorkbenchV2RecordingGuided,
         'runtime-dashboard': enRuntimeDashboardTranslations,
         'runtime-logs': enRuntimeLogs,
         'studio-review': enStudioReview,
@@ -75,6 +78,7 @@ i18n
           zhTWWorkbenchV2CircuitSQLServer,
           zhTWWorkbenchV2RecordingAuthoring,
         ),
+        'workbench-v2-recording-guided': zhTWWorkbenchV2RecordingGuided,
         'runtime-dashboard': zhTWRuntimeDashboardTranslations,
         'runtime-logs': zhTWRuntimeLogs,
         'studio-review': zhTWStudioReview,

@@ -10,6 +10,7 @@ import { studioV2WorkspaceWriteGroupsAPI as api } from '@/services/studioV2Works
 import type { SchemaOperation, SchemaPreviewToken } from '@/types/recordingPlan';
 import type { WriteGroup, WriteGroupCreateRequest } from '@/types/studioV2WriteGroup';
 import { savedGroup, savedGroupState, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
+import { clickEnabled, guidedLifecycle, guidedPreview, guidedReadiness } from '../../fixtures/guidedRecordingPreparation';
 import { expandSources } from '../../fixtures/sourceReview';
 
 // Real hooks, the real Step 4 host and the real schema panel; only the service boundary is simulated (frontend
@@ -28,6 +29,8 @@ vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({
 vi.mock('@/services/studioV2WorkspaceMeasurements', () => ({ studioV2WorkspaceMeasurementsAPI: { list: vi.fn(async () => []) } }));
 vi.mock('@/services/studioV2RecordingStart', () => ({ studioV2RecordingStartAPI: { start: vi.fn(), operation: vi.fn(), ensureBasic: vi.fn() } }));
 
+vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn(async (id: string) => guidedLifecycle(canonical(id), revision())) } }));
+function canonical(id: string) { const group = backend.groups.find(item => item.id === id); if (!group) throw new Error('Missing canonical group'); return group; }
 const now = '2026-10-24T00:00:00Z';
 const revision = () => `workspace-${backend.revision}`;
 /** Every call that would change the running writer, apply a group or start recording. Schema calls are checked on their own. */
@@ -56,7 +59,7 @@ beforeEach(() => {
   backend.revision = 1; backend.groups = [legacyWide()]; backend.tokens.clear();
   vi.mocked(api.list).mockImplementation(async () => ({ workspace_id: 'ws-1', workspace_revision: revision(), groups: structuredClone(backend.groups) }));
   vi.mocked(api.delivery).mockResolvedValue(quietDelivery as never);
-  vi.mocked(api.readiness).mockResolvedValue({ workspace_id: 'ws-1', group_id: 'x', group_revision: 'r', applied_revision: '', config_ready: true, schema_ready: true, ready: true, issues: [] } as never);
+  vi.mocked(api.readiness).mockImplementation(async id => guidedReadiness(canonical(id), revision()));
   vi.mocked(api.ensureCircuitProfile).mockImplementation(async (request: WriteGroupCreateRequest) => {
     expect(request.expected_workspace_revision).toBe(revision());
     const kind = request.group.recording_profile?.kind;
@@ -71,11 +74,8 @@ beforeEach(() => {
   vi.mocked(api.schemaPreview).mockImplementation(async (id, request) => {
     const group = backend.groups.find((item) => item.id === id);
     if (!group) throw new Error('missing fixture group');
-    const token: SchemaPreviewToken = {
-      token: `tok-${id}`, operation_id: `op-${id}`, workspace_id: 'ws-1', workspace_revision: request.expected_workspace_revision, plan_id: id, plan_revision: group.revision,
-      connector_id: 'conn-1', table_prefix: 'gw_long_fixture', statements: ['CREATE TABLE fixture (...)'], tables: [], digest: 'a'.repeat(64), created_at: now,
-      expires_at: '2026-10-25T00:00:00Z', recreate_missing: true,
-    };
+    expect(request.expected_workspace_revision).toBe(revision());
+    const token = guidedPreview(group, revision());
     backend.tokens.set(token.token, token);
     return token;
   });
@@ -148,7 +148,11 @@ describe('A saved legacy wide group offers an explicit way to prepare long targe
     expect(screen.getByTestId('circuit-profile-interval-cumulative')).toHaveValue('');
     expandSources();
     for (const box of screen.getAllByRole('checkbox', { name: /^line\./ })) expect(box).not.toBeChecked();
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    // Guide contract: repair is the sole primary; no disabled duplicate save command.
+    expect(screen.queryByTestId('circuit-profile-prepare')).not.toBeInTheDocument();
+    const repair = within(screen.getByTestId('recording-guided-preparation')).getByRole('button', { name: 'next.actions.inspect' });
+    expect(repair).toHaveAttribute('data-primary', 'true'); expect(repair).toBeEnabled();
+    fireEvent.click(repair);
     expect(api.ensureCircuitProfile).not.toHaveBeenCalled();
   });
 
@@ -160,7 +164,7 @@ describe('A saved legacy wide group offers an explicit way to prepare long targe
     await chooseExplicitly();
     await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
-    const prepared = within(await screen.findByTestId('circuit-prepared-group-instantaneous'));
+    await screen.findByTestId('circuit-prepared-group-instantaneous');
 
     expect(api.ensureCircuitProfile).toHaveBeenCalledTimes(1);
     const sent = vi.mocked(api.ensureCircuitProfile).mock.calls[0][0].group;
@@ -172,7 +176,11 @@ describe('A saved legacy wide group offers an explicit way to prepare long targe
     expect(sent.destination).toMatchObject({ connector_id: 'conn-1', connector_revision: 'crev-1', storage_strategy: 'managed' });
     expect(api.schemaApply).not.toHaveBeenCalled();
 
-    fireEvent.click(await prepared.findByTestId('group-schema-apply'));
+    // Saving never auto-previews or consents to DDL in guided mode.
+    expect(api.schemaPreview).not.toHaveBeenCalled();
+    await clickEnabled('group-schema-preview');
+    await screen.findByTestId('group-schema-preview-result');
+    await clickEnabled('group-schema-apply');
     await waitFor(() => expect(api.schemaApply).toHaveBeenCalledTimes(1));
     expect(vi.mocked(api.schemaApply).mock.calls[0][0]).toBe('group-instantaneous');
     expect(vi.mocked(api.schemaPreview).mock.calls.every(([id]) => id !== 'wide-1')).toBe(true);
@@ -190,7 +198,7 @@ describe('A saved legacy wide group offers an explicit way to prepare long targe
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
     await screen.findByTestId('circuit-prepared-group-instantaneous');
 
-    fireEvent.click(screen.getByTestId('circuit-profile-prepare-close'));
+    await clickEnabled('circuit-profile-prepare-close');
     expect(await screen.findByTestId('basic-recording-panel')).toBeInTheDocument();
     expect(screen.queryByTestId('circuit-profile-basic-panel')).not.toBeInTheDocument();
     expect(screen.getByTestId('basic-recording-interval')).toHaveValue(60);
@@ -258,7 +266,9 @@ describe('Reloading or choosing a cumulative profile cannot change the old write
     expandSources();
     fireEvent.click(screen.getByTestId('circuit-profile-member-cum-tag-0'));
     await waitFor(() => expect(screen.getByTestId('circuit-profile-interval-cumulative')).toHaveValue('10'));
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    // Guide contract: repair is the sole primary; no disabled duplicate save command.
+    expect(screen.queryByTestId('circuit-profile-prepare')).not.toBeInTheDocument();
+    expect(screen.getByTestId('recording-next-action')).toBeEnabled();
     expect(api.ensureCircuitProfile).not.toHaveBeenCalled();
     expectNoWriterWrites();
   });

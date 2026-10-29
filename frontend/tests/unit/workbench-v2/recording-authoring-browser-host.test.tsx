@@ -58,6 +58,15 @@ function assertRequests(mock: Mock, mutations: string[] = [], errors: string[] =
   expect(mock.ledger.filter(entry => entry.status >= 400 && !errors.includes(entry.action))).toEqual([]);
   expect(mock.ledger.filter(entry => entry.mutation && !mutations.includes(entry.action))).toEqual([]);
 }
+async function previewPreparedSchema(mock: Mock) {
+  expect(calls(mock, 'schema-preview')).toHaveLength(0);
+  const preview = await screen.findByTestId('group-schema-preview');
+  await waitFor(() => expect(preview).toBeEnabled()); fireEvent.click(preview);
+  await screen.findByTestId('group-schema-preview-result');
+  expect(calls(mock, 'schema-preview')).toHaveLength(1);
+  expect(calls(mock, 'schema-apply')).toHaveLength(0);
+  expect(calls(mock, 'recording-start')).toHaveLength(0);
+}
 async function advancedPanel() {
   const advanced = screen.getByTestId('step4-advanced-recording');
   fireEvent.click(advanced.querySelector('summary')!);
@@ -91,7 +100,7 @@ it.each(['sqlite', 'postgres', 'mysql', 'mariadb', 'sqlserver'] as const)('real 
   fireEvent.click(screen.getByTestId('circuit-profile-purpose-long'));
   await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
   fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
-  await screen.findByTestId('group-schema-preview-result');
+  await previewPreparedSchema(mock);
   expect(calls(mock, 'ensure')).toHaveLength(1); expect(calls(mock, 'ensure')[0].status).toBe(200);
   expect(mock.snapshot().groups[0].layout_version).toBe('managed_long_v1');
   assertRequests(mock, ['ensure', 'schema-preview']);
@@ -101,7 +110,7 @@ it('real numeric role control authors state with no required counter name and pr
   fireEvent.change(screen.getByTestId('circuit-profile-role-tag-0'), { target: { value: 'state' } });
   expect(screen.getByTestId('circuit-profile-circuit-name')).toHaveAttribute('aria-required', 'false');
   fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
-  await screen.findByTestId('group-schema-preview-result');
+  await previewPreparedSchema(mock);
   expect(mock.snapshot().groups[0].members.map(member => member.value_role)).toEqual(['state', 'gauge', 'state']);
   assertRequests(mock, ['ensure', 'schema-preview']);
 });
@@ -111,7 +120,10 @@ it('instant-only counter gives a required-name reason and does not save or start
   expect(screen.getByTestId('circuit-profile-circuit-name')).toHaveAttribute('aria-required', 'true');
   expect(screen.getByTestId('circuit-confirm-counter-submit')).toBeDisabled();
   fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Counter A' } });
-  expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled(); assertRequests(mock);
+  const next = screen.getByTestId('recording-next-action');
+  expect(next).toHaveTextContent('Review counter definitions'); fireEvent.click(next);
+  expect(screen.queryByTestId('circuit-profile-prepare')).not.toBeInTheDocument();
+  expect(calls(mock, 'ensure')).toHaveLength(0); assertRequests(mock);
 });
 it('new cumulative source selection starts empty and persists a deliberate selection on remount', async () => {
   const { mock, view } = await open(); fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));

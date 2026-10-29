@@ -11,8 +11,9 @@ import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import { batchPanelState, longProfileGroup } from '../../fixtures/circuitBatchPanel';
 import { savedGroup, savedGroupState, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
 import { studioV2WriteGroupLifecycleAPI } from '@/services/studioV2WriteGroupLifecycle';
+import { clickEnabled, guidedReadiness } from '../../fixtures/guidedRecordingPreparation';
+import { parseRecordingStartOperation } from '@/utils/studioV2RecordingStartJson';
 import { savedLifecycle } from '../../fixtures/writeGroupLifecycle';
-
 vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn() } }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, options?: unknown) => (options && typeof options === 'object' && 'count' in options ? `${key}:${(options as { count: number }).count}` : key) }),
@@ -28,12 +29,10 @@ vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({
 }));
 vi.mock('@/services/studioV2WorkspaceMeasurements', () => ({ studioV2WorkspaceMeasurementsAPI: { list: vi.fn(async () => []) } }));
 vi.mock('@/services/studioV2RecordingStart', () => ({ studioV2RecordingStartAPI: { start: vi.fn(), operation: vi.fn(), ensureBasic: vi.fn() } }));
-
 const api = vi.mocked(studioV2WorkspaceWriteGroupsAPI);
 const startApi = vi.mocked(studioV2RecordingStartAPI);
 const measurementApi = vi.mocked(studioV2WorkspaceMeasurementsAPI);
 const activateWorkspace = vi.fn();
-
 /** Two saved devices: dev-1 (PLC A, six float sources from the shared fixture) and dev-2 (PLC B, two float sources). */
 function twoDeviceState(): WorkbenchV2State {
   const base = batchPanelState();
@@ -50,20 +49,20 @@ function twoDeviceState(): WorkbenchV2State {
     mappings: { ...base.mappings, ...mappings },
   };
 }
-
 const memberOf = (deviceId: string, point: string, tag: string, circuitId: string, circuitName: string) => ({
   device_id: deviceId, point_id: point, tag_id: tag, source_revision: `s-${point}`, mapping_revision: `m-${point}`, target_column: '',
   required: false, circuit_id: circuitId, circuit_name: circuitName,
 });
 /** Device A's saved managed long group, ready to record. */
-const groupA = (): WriteGroup => longProfileGroup({ id: 'grp-a', circuitId: 'cir-a', circuitName: 'Feeder A', interval: 15, points: [0, 1] });
+const withSchema = (group: WriteGroup): WriteGroup => ({ ...group, destination: { ...group.destination, schema_revision: group.revision, schema_digest: 'fixture-proof' } });
+const groupA = (): WriteGroup => withSchema(longProfileGroup({ id: 'grp-a', circuitId: 'cir-a', circuitName: 'Feeder A', interval: 15, points: [0, 1] }));
 /** Device B's saved managed long group that was never prepared: not ready, not applied. */
 const groupB = (): WriteGroup => ({
   ...longProfileGroup({ id: 'grp-b', circuitId: 'cir-b', circuitName: 'Feeder B', interval: 15, points: [0, 1] }),
   members: [memberOf('dev-2', 'pt-b0', 'tag-b0', 'cir-b', 'Feeder B'), memberOf('dev-2', 'pt-b1', 'tag-b1', 'cir-b', 'Feeder B')],
 });
 /** A new wide profile group of device B, saved and not yet applied. */
-const wideB = (): WriteGroup => savedGroup({
+const wideB = (): WriteGroup => withSchema(savedGroup({
   id: 'grp-w', revision: 'rev-grp-w-1', name: 'Feeder W (instantaneous)', status: 'ready', layout_version: 'managed_wide_profile_v1',
   recording_profile: { kind: 'instantaneous', interval: 15, unit: 'second', sample_reduction: 'mean' },
   destination: { ...savedGroup().destination, storage_strategy: 'managed', table_name: 'gw_wide_fixture' },
@@ -71,8 +70,7 @@ const wideB = (): WriteGroup => savedGroup({
     .map((member) => ({ ...member, target_column: `col_${member.point_id}`, value_role: 'gauge' as const, source_value_type: 'float64' as const, result_value_type: 'float64' as const })),
   row_policy: { interval_seconds: 15, allowed_lateness_seconds: 0, incomplete_policy: 'partial' },
   write_policy: { mode: 'append', dedupe_capability: 'receipt' },
-});
-
+}));
 /** Device B's second saved managed long circuit, so the same device has two circuits to choose between. */
 const longB2 = (): WriteGroup => ({
   ...longProfileGroup({ id: 'grp-b2', circuitId: 'cir-b2', circuitName: 'Feeder B2', interval: 15, points: [0, 1] }),
@@ -85,17 +83,17 @@ const legacyA = (): WriteGroup => savedGroup({
   members: ['pt-0', 'pt-1'].map((point, i) => ({ ...memberOf('dev-1', point, `tag-${i}`, '', ''), target_column: '' })),
   row_policy: { interval_seconds: 60, allowed_lateness_seconds: 0 },
 });
-
 function operationFor(request: RecordingStartRequest, status: RecordingStartOperation['status'] = 'succeeded'): RecordingStartOperation {
   const done = status === 'succeeded';
-  return {
+  const parsed = parseRecordingStartOperation({
     operation_id: `op-${request.request_id}`, action: 'recording_start', status, stage: done ? 'complete' : 'save',
     intent_digest: 'c'.repeat(64), workspace_id: request.workspace_id, setup_revision: request.expected_workspace_revision,
     device_ids: request.device_ids,
-    groups: request.groups.map((group) => ({ group_id: group.group_id, group_revision: group.expected_group_revision, saved: true, ready: done, applied: done })),
+    groups: request.groups.map((group) => ({ group_id: group.group_id, group_revision: group.expected_group_revision, saved: true, ready: done, applied: done, ...(done ? { applied_revision: group.expected_group_revision } : {}) })),
     devices: request.device_ids.map((deviceId) => ({ device_id: deviceId, activated: done })),
     created_at: '2026-10-25T00:00:00Z', updated_at: '2026-10-25T00:00:01Z',
-  };
+  });
+  if (!parsed) throw new Error('Invalid operation fixture (studioV2RecordingStartJson)'); return parsed;
 }
 const lostResponse = () => Object.assign(new Error('network lost'), { outcome: 'unconfirmed' });
 const deferred = <T,>() => {
@@ -103,14 +101,12 @@ const deferred = <T,>() => {
   const promise = new Promise<T>((done) => { resolve = done; });
   return { promise, resolve };
 };
-
 const emptyDelivery = {
   group_id: 'x', intake: { state: 'not_running' }, stages: { collecting: 0, queued: 0, retrying: 0, blocked: 0, quarantined: 0, unknown: 0, sql_committed: 0, skipped: 0 },
   last_sql_committed_at: null, oldest_pending_seconds: 0, no_data_buckets: 0, skipped_buckets: 0, backlog: [],
   quota: { configured: false, state: 'unconfigured', scope: '', used_bytes: 0, max_bytes: 0, intake_refused: false },
 };
 let groups: WriteGroup[] = [];
-
 beforeEach(() => {
   vi.clearAllMocks();
   window.sessionStorage.clear();
@@ -123,13 +119,10 @@ beforeEach(() => {
   measurementApi.list.mockResolvedValue([]);
   api.list.mockImplementation(async () => ({ workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups }));
   api.delivery.mockResolvedValue(emptyDelivery as never);
-  api.readiness.mockImplementation(async (id: string) => {
-    const saved = groups.find((group) => group.id === id);
-    return {
-      workspace_id: 'ws-1', workspace_revision: 'wrev-1', group_id: id, group_revision: saved?.revision ?? '', applied_revision: '',
-      config_ready: id !== 'grp-b', schema_ready: id !== 'grp-b', ready: id !== 'grp-b',
-      issues: id === 'grp-b' ? [{ code: 'table-missing', severity: 'blocking', step: 'Step 4', scope: id, message: 'The table is missing' }] : [],
-    } as never;
+  api.readiness.mockImplementation(async id => {
+    const group = groups.find(item => item.id === id); if (!group) throw new Error('Missing canonical group');
+    const proof = guidedReadiness(group, 'wrev-1');
+    return id === 'grp-b' ? { ...proof, config_ready: false, issues: [{ code: 'table-missing', severity: 'blocking', step: 'Step 4', scope: id, message: 'The table is missing' }] } : proof;
   });
   api.apply.mockImplementation(async (id: string) => {
     const saved = groups.find((group) => group.id === id) as WriteGroup;
@@ -141,7 +134,6 @@ beforeEach(() => {
     groups: [{ group_id: 'grp-a', expected_group_revision: 'rev-grp-a-1', expected_connector_revision: 'crev-1' }],
   }));
 });
-
 function renderHost(saved: WriteGroup[], state: WorkbenchV2State = twoDeviceState()) {
   groups = saved;
   return render(
@@ -153,21 +145,21 @@ function renderHost(saved: WriteGroup[], state: WorkbenchV2State = twoDeviceStat
 const tile = (deviceId: string) => screen.getAllByTestId('basic-recording-device-tile').find((el) => el.getAttribute('data-device-id') === deviceId) as HTMLElement;
 const startButton = () => screen.findByTestId('circuit-profile-start');
 const startedRequests = () => startApi.start.mock.calls.map(([request]) => request);
-
+// Saved proof is already current: wait for this scope's primary, never click the open Advanced editor's preview.
+const confirmScopedStart = async () => { await clickEnabled('circuit-profile-start'); await clickEnabled('recording-start-confirm'); };
 describe('One primary scoped start', () => {
   it('starts only the reviewed profile while preserving a never-applied legacy draft on the same device', async () => {
     const legacy = legacyA();
     const before = structuredClone(legacy);
     renderHost([legacy, groupA(), groupB()]);
     expect(await screen.findByTestId('device-recording-existing-draft')).toBeInTheDocument();
-    fireEvent.click(await startButton());
+    await confirmScopedStart();
     await waitFor(() => expect(startApi.start).toHaveBeenCalledTimes(1));
     expect(startedRequests()[0].device_ids).toEqual(['dev-1']);
     expect(startedRequests()[0].groups.map((group) => group.group_id)).toEqual(['grp-a']);
     expect(groups.find((group) => group.id === legacy.id)).toEqual(before);
     for (const call of [api.create, api.update, api.disable, api.remove, api.apply, startApi.ensureBasic, activateWorkspace]) expect(call).not.toHaveBeenCalled();
   });
-
   it('keeps an applied legacy owner intact when the server refuses an overlapping new start', async () => {
     const legacy = { ...legacyA(), applied_revision: 'legacy-applied', status: 'running' as const };
     const before = structuredClone(legacy);
@@ -177,13 +169,12 @@ describe('One primary scoped start', () => {
     renderHost([legacy, groupA()]);
     expect(await screen.findByTestId('device-recording-existing-applied')).toBeInTheDocument();
     expect(screen.getByTestId('device-recording-review-cutover')).toBeInTheDocument();
-    fireEvent.click(await startButton());
+    await confirmScopedStart();
     expect(await screen.findByTestId('circuit-profile-error')).not.toHaveTextContent('private backend diagnostic');
     expect(startedRequests()[0].groups.map((group) => group.group_id)).toEqual(['grp-a']);
     expect(groups.find((group) => group.id === legacy.id)).toEqual(before);
     for (const call of [api.update, api.disable, api.remove, api.apply, activateWorkspace]) expect(call).not.toHaveBeenCalled();
   });
-
   it('offers the reviewed start and no second workspace-wide activation from the overview', async () => {
     renderHost([groupA(), groupB()]);
     expect(await startButton()).toBeInTheDocument();
@@ -192,10 +183,9 @@ describe('One primary scoped start', () => {
     expect(screen.queryByText('step4.activate_btn'), 'the overview must not present a second activation action').not.toBeInTheDocument();
     expect(activateWorkspace).not.toHaveBeenCalled();
   });
-
   it('starts only the viewed device and its frozen groups while another device is incomplete', async () => {
     renderHost([groupA(), groupB()]);
-    fireEvent.click(await startButton());
+    await confirmScopedStart();
     await waitFor(() => expect(startApi.start).toHaveBeenCalledTimes(1));
     const [request] = startedRequests();
     expect(request).toMatchObject({ workspace_id: 'ws-1', device_ids: ['dev-1'] });
@@ -209,7 +199,6 @@ describe('One primary scoped start', () => {
     expect(api.disable).not.toHaveBeenCalled();
     expect(activateWorkspace).not.toHaveBeenCalled();
   });
-
   it('keeps the same primary entry for Share-only without any database group or writer', async () => {
     const state = savedGroupState();
     const shareOnly: WorkbenchV2State = {
@@ -235,43 +224,43 @@ describe('One primary scoped start', () => {
     expect(activateWorkspace).not.toHaveBeenCalled();
   });
 });
-
 describe('A lost start response while switching devices', () => {
   const startA = async () => {
     startApi.start.mockRejectedValueOnce(lostResponse());
-    fireEvent.click(await startButton());
+    await confirmScopedStart();
     await waitFor(() => expect(startApi.start).toHaveBeenCalledTimes(1));
-    await screen.findByTestId('basic-recording-retry');
+    await waitFor(() => expect(screen.getByTestId('recording-next-action')).toHaveTextContent('next.actions.recover_operation'));
   };
-
-  it('keeps A recoverable, shows B nothing of it, and retries A with the original request', async () => {
-    renderHost([groupA(), groupB()]);
+  it('keeps an unidentified lost ACK scoped to A across navigation and reload without inventing a query or resend', async () => {
+    const first = renderHost([groupA(), groupB()]);
     await startA();
     const original = startedRequests()[0];
     expect(original.device_ids).toEqual(['dev-1']);
-
     fireEvent.click(tile('dev-2'));
     await waitFor(() => expect(tile('dev-2')).toHaveAttribute('aria-pressed', 'true'));
     expect(screen.queryByTestId('basic-recording-retry'), 'B does not inherit A\'s retry').not.toBeInTheDocument();
     expect(screen.queryByTestId('basic-recording-check')).not.toBeInTheDocument();
     expect(screen.queryByTestId('basic-recording-status')).not.toBeInTheDocument();
     expect(screen.queryByTestId('circuit-profile-error')).not.toBeInTheDocument();
-
     fireEvent.click(tile('dev-1'));
-    fireEvent.click(await screen.findByTestId('basic-recording-retry'));
-    await waitFor(() => expect(startApi.start).toHaveBeenCalledTimes(2));
-    expect(startedRequests()[1], 'the retry reuses the request identity, device, groups and revisions').toEqual(original);
-    expect(startApi.start).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(screen.getByTestId('recording-next-action')).toHaveTextContent('next.actions.recover_operation'));
+    fireEvent.click(screen.getByTestId('recording-next-action'));
+    // Approved recovery contract: absent O1 permits local guidance, never a fabricated GET or POST retry.
+    expect(screen.queryByTestId('basic-recording-retry')).not.toBeInTheDocument();
+    expect(startApi.operation).not.toHaveBeenCalled(); expect(startApi.start).toHaveBeenCalledTimes(1);
+    expect(startedRequests()[0]).toEqual(original);
+    first.unmount(); renderHost([groupA(), groupB()]);
+    await waitFor(() => expect(screen.getByTestId('recording-next-action')).toHaveTextContent('next.actions.recover_operation'));
+    expect(screen.queryByTestId('basic-recording-retry')).not.toBeInTheDocument();
+    expect(startApi.operation).not.toHaveBeenCalled(); expect(startApi.start).toHaveBeenCalledTimes(1);
   });
-
   it('does not credit A\'s late success to B and shows it again on A', async () => {
     const reply = deferred<RecordingStartOperation>();
     startApi.start.mockImplementationOnce(() => reply.promise);
     renderHost([groupA(), groupB()]);
-    fireEvent.click(await startButton());
+    await confirmScopedStart();
     await waitFor(() => expect(startApi.start).toHaveBeenCalledTimes(1));
     const original = startedRequests()[0];
-
     fireEvent.click(tile('dev-2'));
     await waitFor(() => expect(tile('dev-2')).toHaveAttribute('aria-pressed', 'true'));
     await act(async () => { reply.resolve(operationFor(original)); await reply.promise; });
@@ -279,33 +268,33 @@ describe('A lost start response while switching devices', () => {
     expect(screen.queryByTestId('basic-recording-continue-runtime')).not.toBeInTheDocument();
     expect(screen.queryByTestId('basic-recording-retry')).not.toBeInTheDocument();
     expect(startApi.start).toHaveBeenCalledTimes(1);
-
     fireEvent.click(tile('dev-1'));
     await waitFor(() => expect(screen.getByTestId('basic-recording-status')).toHaveTextContent('step4.basic.operation.succeeded'));
     expect(startApi.start, 'returning to A never posts a new start').toHaveBeenCalledTimes(1);
   });
-
   it('restores A\'s unresolved request after a reload and retries it unchanged', async () => {
     const first = renderHost([groupA(), groupB()]);
-    await startA();
+    // A typed partial O1 with retry_same_request, not an unidentified lost ACK, authorizes original-request recovery.
+    startApi.start.mockImplementationOnce(async request => ({ ...operationFor(request, 'partial'), next_action: 'retry_same_request' }));
+    startApi.operation.mockImplementation(async () => ({ ...operationFor(startedRequests()[0], 'partial'), next_action: 'retry_same_request' }));
+    await confirmScopedStart();
+    await screen.findByTestId('basic-recording-retry');
     const original = startedRequests()[0];
     first.unmount();
-
     renderHost([groupA(), groupB()]);
-    fireEvent.click(await screen.findByTestId('basic-recording-retry'));
+    await clickEnabled('basic-recording-retry');
     await waitFor(() => expect(startApi.start).toHaveBeenCalledTimes(2));
     expect(startedRequests()[1]).toEqual(original);
+    expect(startApi.operation).toHaveBeenCalledWith(`op-${original.request_id}`);
     expect(screen.queryByTestId('circuit-profile-error')).not.toBeInTheDocument();
   });
 });
-
 describe('Advanced recording effectiveness', () => {
   const openWide = async () => {
     fireEvent.click(await screen.findByTestId('group-open-grp-w'));
     await screen.findByTestId('group-editor');
     await waitFor(() => expect(screen.getByTestId('group-apply')).toBeEnabled());
   };
-
   it('does not apply a managed profile group on its own authority', async () => {
     renderHost([groupA(), wideB()]);
     await openWide();
@@ -314,7 +303,6 @@ describe('Advanced recording effectiveness', () => {
     expect(api.apply, 'Apply of a managed profile belongs to the reviewed scoped start').not.toHaveBeenCalled();
     expect(activateWorkspace).not.toHaveBeenCalled();
   });
-
   it('routes the managed profile group back to its own device in the shared start, without starting it', async () => {
     renderHost([groupA(), wideB()]);
     await screen.findAllByTestId('basic-recording-device-tile');
@@ -322,16 +310,15 @@ describe('Advanced recording effectiveness', () => {
     await openWide();
     fireEvent.click(screen.getByTestId('group-apply'));
     await waitFor(() => expect(tile('dev-2')).toHaveAttribute('aria-pressed', 'true'));
-    expect(screen.getAllByTestId('circuit-profile-start')).toHaveLength(1);
+    await waitFor(() => expect(screen.getAllByTestId('circuit-profile-start')).toHaveLength(1));
     expect(startApi.start, 'nothing is started before the operator reviews and starts').not.toHaveBeenCalled();
   });
-
   it('freezes the routed group set under a new request identity when the operator starts it', async () => {
     renderHost([groupA(), wideB()]);
     await openWide();
     fireEvent.click(screen.getByTestId('group-apply'));
     await waitFor(() => expect(tile('dev-2')).toHaveAttribute('aria-pressed', 'true'));
-    fireEvent.click(await startButton());
+    await confirmScopedStart();
     await waitFor(() => expect(startApi.start).toHaveBeenCalledTimes(1));
     const [request] = startedRequests();
     expect(request).toMatchObject({ workspace_id: 'ws-1', device_ids: ['dev-2'] });
@@ -340,12 +327,11 @@ describe('Advanced recording effectiveness', () => {
     expect(api.apply).not.toHaveBeenCalled();
     expect(activateWorkspace).not.toHaveBeenCalled();
   });
-
   it('cannot apply on its own while a scoped start of that device is unresolved', async () => {
     renderHost([groupA(), groupB()]);
     startApi.start.mockRejectedValueOnce(lostResponse());
-    fireEvent.click(await startButton());
-    await screen.findByTestId('basic-recording-retry');
+    await confirmScopedStart();
+    await waitFor(() => expect(screen.getByTestId('recording-next-action')).toHaveTextContent('next.actions.recover_operation'));
     fireEvent.click(await screen.findByTestId('group-open-grp-a'));
     await screen.findByTestId('group-editor');
     expect(screen.getByTestId('group-apply')).toBeDisabled();
@@ -354,9 +340,8 @@ describe('Advanced recording effectiveness', () => {
     expect(api.apply).not.toHaveBeenCalled();
     expect(startApi.start, 'only the operator retry may reuse the pending request').toHaveBeenCalledTimes(1);
   });
-
   it('keeps the engineering Apply of a custom group', async () => {
-    renderHost([groupA(), savedGroup({ id: 'grp-c', revision: 'rev-grp-c-1', name: 'Raw tags' })]);
+    renderHost([groupA(), withSchema(savedGroup({ id: 'grp-c', revision: 'rev-grp-c-1', name: 'Raw tags' }))]);
     fireEvent.click(await screen.findByTestId('group-open-grp-c'));
     await screen.findByTestId('group-editor');
     await waitFor(() => expect(screen.getByTestId('group-apply')).toBeEnabled());
@@ -367,7 +352,6 @@ describe('Advanced recording effectiveness', () => {
     expect(startApi.start).not.toHaveBeenCalled();
     expect(activateWorkspace).not.toHaveBeenCalled();
   });
-
   it('keeps the explicit disable of a managed profile group', async () => {
     renderHost([groupA(), wideB()]);
     api.disable.mockImplementation(async (id: string) => ({ workspace_revision: 'wrev-3', group: { ...(groups.find((group) => group.id === id) as WriteGroup), status: 'disabled' } }) as never);
@@ -382,7 +366,6 @@ describe('Advanced recording effectiveness', () => {
     expect(activateWorkspace).not.toHaveBeenCalled();
   });
 });
-
 describe('Routing from Advanced keeps the operator\'s work', () => {
   const chooser = () => screen.getByTestId('circuit-profile-circuit-chooser') as HTMLSelectElement;
   const instantaneousInterval = () => screen.getByTestId('circuit-profile-interval-instantaneous') as HTMLInputElement;
@@ -391,7 +374,6 @@ describe('Routing from Advanced keeps the operator\'s work', () => {
     await screen.findByTestId('group-editor');
     await waitFor(() => expect(screen.getByTestId('group-apply')).toBeEnabled());
   };
-
   it('shows the routed circuit of the same device and leaves another circuit\'s unsaved draft intact', async () => {
     renderHost([groupA(), wideB(), longB2()]);
     fireEvent.click(await screen.findByRole('button', { name: /PLC B/ }));
@@ -399,17 +381,14 @@ describe('Routing from Advanced keeps the operator\'s work', () => {
     fireEvent.change(chooser(), { target: { value: 'cir-b2' } });
     await waitFor(() => expect(instantaneousInterval()).toBeEnabled());
     fireEvent.change(instantaneousInterval(), { target: { value: '20' } });
-
     await openWide();
     fireEvent.click(screen.getByTestId('group-apply'));
     await waitFor(() => expect(chooser().value).toBe('cir-w'));
     expect(startApi.start).not.toHaveBeenCalled();
     expect(api.apply).not.toHaveBeenCalled();
-
     fireEvent.change(chooser(), { target: { value: 'cir-b2' } });
     await waitFor(() => expect(instantaneousInterval().value, 'the unsaved draft of the other circuit is still there').toBe('20'));
   });
-
   it('does not route while the Advanced editor holds an unsaved draft, and keeps that draft', async () => {
     renderHost([groupA(), wideB()]);
     await openWide();
@@ -422,7 +401,6 @@ describe('Routing from Advanced keeps the operator\'s work', () => {
     expect(screen.getByTestId('group-name')).toHaveValue('Renamed but not saved');
     expect(api.apply).not.toHaveBeenCalled();
   });
-
   it('applies a routing request once: a later remount of the circuit view keeps the operator\'s own circuit', async () => {
     renderHost([legacyA(), wideB(), longB2()]);
     await screen.findAllByTestId('basic-recording-device-tile');
@@ -431,7 +409,6 @@ describe('Routing from Advanced keeps the operator\'s work', () => {
     await openWide();
     fireEvent.click(screen.getByTestId('group-apply'));
     await waitFor(() => expect(chooser().value).toBe('cir-w'));
-
     fireEvent.change(chooser(), { target: { value: 'cir-b2' } });
     await waitFor(() => expect(chooser().value).toBe('cir-b2'));
     await waitFor(() => expect(instantaneousInterval()).toBeEnabled());
@@ -444,7 +421,6 @@ describe('Routing from Advanced keeps the operator\'s work', () => {
     expect(chooser().value, 'the old request must not choose the circuit again').toBe('cir-b2');
     expect(instantaneousInterval().value, 'the operator\'s unsaved draft is not replaced').toBe('20');
   });
-
   it('does not reapply a routing request after the operator chooses another circuit and device', async () => {
     const circuitA2 = (): WriteGroup => ({
       ...longProfileGroup({ id: 'grp-a2', circuitId: 'cir-a2', circuitName: 'Feeder A2', interval: 15, points: [2, 3] }),
@@ -460,7 +436,6 @@ describe('Routing from Advanced keeps the operator\'s work', () => {
     fireEvent.change(chooser(), { target: { value: 'cir-a2' } });
     await waitFor(() => expect(instantaneousInterval()).toBeEnabled());
     fireEvent.change(instantaneousInterval(), { target: { value: '24' } });
-
     fireEvent.click(tile('dev-2'));
     await waitFor(() => expect(chooser()).toBeInTheDocument());
     fireEvent.click(tile('dev-1'));
@@ -471,4 +446,3 @@ describe('Routing from Advanced keeps the operator\'s work', () => {
     expect(api.apply).not.toHaveBeenCalled();
   });
 });
-

@@ -7,7 +7,8 @@ import type { useCircuitProfileStart } from './useCircuitProfileStart';
 type StartFlow = ReturnType<typeof useCircuitProfileStart>;
 
 /** The recording-start progress of the profile panel; a prepare-only context has none. */
-export const CircuitProfileStartStatus: React.FC<{ flow: StartFlow }> = ({ flow }) => {
+export const CircuitProfileStartStatus: React.FC<{ flow: StartFlow; primary?: boolean; onContinueToRuntime?: (deviceIds: string[]) => void;
+  deviceNames?: Record<string, string>; groupNames?: Record<string, string> }> = ({ flow, primary, onContinueToRuntime, deviceNames, groupNames }) => {
   const { t } = useTranslation('workbench-v2');
   const { operation, status, queryFailed } = flow;
   if (!status) return null;
@@ -18,7 +19,7 @@ export const CircuitProfileStartStatus: React.FC<{ flow: StartFlow }> = ({ flow 
       {operation && (
         <BasicRecordingProgress
           operation={operation} intentMatchesCurrent={true}
-          activatedDeviceIds={operation.devices.filter((d) => d.activated).map((d) => d.device_id)}
+          completion={flow.completion} primary={primary} onCommit={onContinueToRuntime} deviceNames={deviceNames} groupNames={groupNames}
           statusReason={safeBasicOperationMessage(operation, t)} nextAction={safeBasicNextAction(operation, t)}
         />
       )}
@@ -27,15 +28,16 @@ export const CircuitProfileStartStatus: React.FC<{ flow: StartFlow }> = ({ flow 
 };
 
 export interface CircuitProfileBasicActionsProps {
+  guided?: boolean;
   flow: StartFlow; canStart: boolean; readonly: boolean; batchBusy: boolean;
   /** Target preparation only: the only action is to go back; nothing here starts, applies or stops a writer. */
   prepareOnly: boolean; onClose?: () => void;
   onContinueToRuntime?: (deviceIds: string[]) => void; onOpenAdvanced?: (groupId?: string) => void;
 }
 
-export const CircuitProfileBasicActions: React.FC<CircuitProfileBasicActionsProps> = ({ flow, canStart, readonly, batchBusy, prepareOnly, onClose, onContinueToRuntime, onOpenAdvanced }) => {
+export const CircuitProfileBasicActions: React.FC<CircuitProfileBasicActionsProps> = ({ flow, canStart, readonly, batchBusy, prepareOnly, onClose, onContinueToRuntime, onOpenAdvanced, guided }) => {
   const { t } = useTranslation('workbench-v2');
-  const { operation, operationId } = flow;
+  const { operationId } = flow;
   if (prepareOnly) {
     return (
       <div className="flex flex-wrap items-center gap-3">
@@ -45,12 +47,12 @@ export const CircuitProfileBasicActions: React.FC<CircuitProfileBasicActionsProp
   }
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button type="button" data-testid="circuit-profile-start" disabled={!canStart || flow.busy || flow.unresolved || batchBusy} onClick={() => void flow.start(false)} className="rounded bg-cyan-600 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
+      {!guided && <button type="button" data-testid="circuit-profile-start" disabled={!canStart || flow.busy || flow.unresolved || batchBusy} onClick={() => void flow.start(false)} className="rounded bg-cyan-600 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
         {flow.busy ? t('step4.basic.starting') : t('step4.basic.start')}
-      </button>
+      </button>}
       {flow.canRetrySameRequest && <button type="button" data-testid="basic-recording-retry" disabled={readonly || flow.busy || batchBusy} onClick={() => void flow.start(true)} className="rounded border border-cyan-700 px-3 py-2 text-xs text-cyan-200 disabled:opacity-40">{t('step4.basic.retry')}</button>}
-      {operationId && <button type="button" data-testid="basic-recording-check" disabled={flow.busy || batchBusy} onClick={() => void flow.check()} className="rounded border border-slate-700 px-3 py-2 text-xs text-slate-200">{t('step4.basic.check')}</button>}
-      {onContinueToRuntime && operation?.devices.some((d) => d.activated) && <button type="button" data-testid="basic-recording-continue-runtime" onClick={() => onContinueToRuntime(operation.devices.filter((device) => device.activated).map((device) => device.device_id))} className="rounded border border-emerald-700 px-3 py-2 text-xs text-emerald-200">{t('step4.basic.continue_runtime')}</button>}
+      {!guided && operationId && <button type="button" data-testid="basic-recording-check" disabled={flow.busy || batchBusy} onClick={() => void flow.check()} className="rounded border border-slate-700 px-3 py-2 text-xs text-slate-200">{t('step4.basic.check')}</button>}
+      {!guided && onContinueToRuntime && flow.completion.state === 'available' && flow.completion.handoffDeviceId && <button type="button" data-testid="basic-recording-continue-runtime" onClick={() => { if (flow.completion.state === 'available' && flow.completion.handoffDeviceId) onContinueToRuntime([flow.completion.handoffDeviceId]); }} className="rounded border border-emerald-700 px-3 py-2 text-xs text-emerald-200">{t('step4.basic.continue_runtime')}</button>}
       {onOpenAdvanced && <button type="button" data-testid="basic-recording-open-advanced" onClick={() => onOpenAdvanced()} className="rounded border border-slate-700 px-3 py-2 text-xs text-slate-300">{t('step4.basic.open_advanced')}</button>}
     </div>
   );

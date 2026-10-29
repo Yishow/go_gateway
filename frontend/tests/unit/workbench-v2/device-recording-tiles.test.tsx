@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { guidedReadiness } from '../../fixtures/guidedRecordingPreparation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -27,6 +30,7 @@ vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
   useUpdateWriteGroupMutation: () => ({ mutateAsync: updateAsync, isPending: false }),
   useEnsureCircuitProfileMutation: () => ({ mutateAsync: ensureCircuitAsync, isPending: false }),
   useWriteGroupsQuery: () => groupsQuery,
+  useWriteGroupReadinessQuery: (id?: string) => { const group = groupsQuery.data.groups.find(g => g.id === id), revision = groupsQuery.data.workspace_revision; return { data: useMemo(() => group ? guidedReadiness(group, revision) : undefined, [group, revision]), refetch: groupsQuery.refetch };  },
   useWriteGroupDeliveryQuery: () => ({ data: undefined, isError: false }),
   useWriteGroupSchemaPreviewMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useWriteGroupSchemaApplyMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -65,6 +69,7 @@ function twoSharingDevices() {
 
 function renderPanel(state = twoSharingDevices()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  client.setQueryData(studioV2WorkspaceKeys.writeGroups(), groupsQuery.data);
   return render(
     <QueryClientProvider client={client}>
       <BasicRecordingPanel state={state} workspaceId="ws-1" readonly={false} />
@@ -115,7 +120,8 @@ describe('device recording tiles', () => {
     expect(screen.getByTestId('circuit-profile-purpose-long')).toBeInTheDocument();
     expect(screen.getByTestId('device-recording-existing')).toHaveTextContent('Legacy A');
     expect(screen.getByTestId('device-recording-existing-draft')).toBeInTheDocument();
-    expect(screen.getByTestId('circuit-profile-start')).toBeInTheDocument();
+    expect(screen.getByTestId('circuit-profile-prepare')).toBeInTheDocument();
+    expect(startAsync).not.toHaveBeenCalled();
     fireEvent.change(screen.getByTestId('circuit-profile-interval-instantaneous'), { target: { value: '47' } });
     fireEvent.click(screen.getAllByTestId('basic-recording-device-tile')[1]);
     expect(screen.getByTestId('circuit-profile-basic-panel')).toBeInTheDocument();
@@ -404,7 +410,9 @@ describe('device recording tiles', () => {
       expect(tiles.map((tile) => tile.getAttribute('data-device-id'))).toEqual(['dev-1', 'dev-B']);
       fireEvent.click(tiles[1]);
       expect(pressed()).toEqual(['dev-B']);
-      expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+      const inspect = screen.getByRole('button', { name: 'next.actions.inspect' });
+      fireEvent.click(inspect); // Empty selected device remains viewable, never a start authorization.
+      expect(screen.queryByTestId('circuit-profile-prepare')).not.toBeInTheDocument();
       noMutation();
     });
   });

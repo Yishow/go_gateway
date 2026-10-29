@@ -1,3 +1,5 @@
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { guidedReadiness, guidedLifecycle } from '../../fixtures/guidedRecordingPreparation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createInstance } from 'i18next';
@@ -22,7 +24,25 @@ const start = vi.fn();
 const applySchema = vi.fn();
 const previewSchema = vi.fn();
 
+let canonicalClient: QueryClient;
+const evidenceRefetch = vi.fn();
+const evidence = new Map<string, { readiness: ReturnType<typeof guidedReadiness>; lifecycle: ReturnType<typeof guidedLifecycle> }>();
+function currentEvidence(id: string) {
+  const group = groupsQuery.data.groups.find(value => value.id === id);
+  if (!group) return undefined;
+  const key = JSON.stringify([groupsQuery.data.workspace_revision, group]);
+  if (!evidence.has(key)) evidence.set(key, { readiness: guidedReadiness(group, groupsQuery.data.workspace_revision), lifecycle: guidedLifecycle(group, groupsQuery.data.workspace_revision) });
+  return evidence.get(key)!;
+}
+function publishGroups() {
+  canonicalClient?.setQueryData(studioV2WorkspaceKeys.writeGroups(), groupsQuery.data);
+  return { data: groupsQuery.data };
+}
+vi.mock('@/hooks/datalink/useStudioV2WriteGroupLifecycle', () => ({
+  useWriteGroupLifecycleQuery: (_workspace: string, id: string) => ({ data: currentEvidence(id)?.lifecycle, isLoading: false, isFetching: false, isError: false, refetch: evidenceRefetch }),
+}));
 vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
+  useWriteGroupReadinessQuery: (id: string) => ({ data: currentEvidence(id)?.readiness, isLoading: false, isFetching: false, isError: false, refetch: evidenceRefetch }),
   useWriteGroupsQuery: () => groupsQuery,
   useWriteGroupDeliveryQuery: () => ({ data: undefined, isError: false }),
   useUpdateWriteGroupMutation: () => ({ mutateAsync: updateGroup, isPending: false }),
@@ -52,13 +72,14 @@ async function show(lng = 'en', readonly = false, state = savedGroupState()) {
   const i18n = createInstance();
   await i18n.init({ lng, resources: productionI18n.options.resources });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } } });
+  canonicalClient = client; client.setQueryDefaults(studioV2WorkspaceKeys.writeGroups(), { structuralSharing: false }); publishGroups();
   const panel = (workspaceId = 'ws-1') => <I18nextProvider i18n={i18n}><QueryClientProvider client={client}>
     <CircuitProfileBasicPanel state={state} workspaceId={workspaceId} readonly={readonly} />
   </QueryClientProvider></I18nextProvider>;
   const view = render(panel());
   return { ...view, client, changeScope: (workspaceId: string, revision: string) => {
     groupsQuery.data = { ...groupsQuery.data, workspace_id: workspaceId, workspace_revision: revision };
-    view.rerender(panel(workspaceId));
+    publishGroups(); view.rerender(panel(workspaceId));
   } };
 }
 
@@ -83,11 +104,26 @@ function expectNoWrites() {
   }
 }
 
+// Guide design: one primary; semantic/source repair is local NAV, not a second disabled Start.
+function expectPreparationBlocked() {
+  const mutations = [ensureProfile, updateGroup, start, applySchema, previewSchema, vi.mocked(measurementsAPI.create), vi.mocked(measurementsAPI.update)]; const counts = mutations.map(fn => fn.mock.calls.length);
+  const prepare = screen.queryByTestId('circuit-profile-prepare');
+  if (prepare) expect(prepare).toBeDisabled();
+  expect(screen.queryByTestId('circuit-profile-start')).not.toBeInTheDocument();
+  const next = screen.queryByTestId('recording-next-action');
+  if (next) {
+    expect(next).toHaveTextContent(/Review counter definitions|Choose sources|Inspect this scope|Refresh preparation status|確認計數器定義|選擇資料來源|檢視此範圍|重新查詢準備狀態/);
+    fireEvent.click(next);
+  }
+  expect(screen.getByTestId('recording-guided-preparation').querySelectorAll('button[data-primary="true"]')).toHaveLength(1);
+  mutations.forEach((fn, index) => expect(fn).toHaveBeenCalledTimes(counts[index]));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   window.sessionStorage.clear();
   groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] };
-  groupsQuery.refetch.mockImplementation(async () => ({ data: groupsQuery.data }));
+  groupsQuery.refetch.mockImplementation(async () => publishGroups());
   vi.mocked(measurementsAPI.list).mockReset().mockRejectedValue(new Error('postgres://root:secret@private-db/production'));
   seedDraft();
 });
@@ -103,10 +139,7 @@ describe('scoped counter definition read recovery', () => {
     expect(screen.getByTestId('circuit-profile-interval-instantaneous')).toHaveValue('37');
     expandSources();
     expect(screen.getByTestId('circuit-profile-role-tag-0')).toHaveValue('counter_raw');
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
-    expect(screen.getByTestId('circuit-profile-start')).toBeDisabled();
-    fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
-    fireEvent.click(screen.getByTestId('circuit-profile-start'));
+    expectPreparationBlocked();
     expect(document.body).not.toHaveTextContent('private-db');
     expect(document.body).not.toHaveTextContent('secret');
     expectNoWrites();
@@ -117,7 +150,7 @@ describe('scoped counter definition read recovery', () => {
     vi.mocked(measurementsAPI.list).mockImplementationOnce(() => first.promise).mockImplementationOnce(() => retry.promise);
     await show();
     expect(await screen.findByTestId('circuit-profile-measurements-loading')).toHaveTextContent('Checking counter definitions.');
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     await act(async () => first.reject(new Error('private-password')));
     await screen.findByTestId('circuit-profile-measurements-error');
     const button = screen.getByRole('button', { name: 'Retry' });
@@ -125,7 +158,7 @@ describe('scoped counter definition read recovery', () => {
     fireEvent.click(button);
     await waitFor(() => expect(measurementsAPI.list).toHaveBeenCalledTimes(2));
     expect(measurementsAPI.list).toHaveBeenNthCalledWith(2, 'dev-1');
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     expect(screen.getByTestId('circuit-profile-circuit-name')).toHaveValue('Draft A');
     await act(async () => retry.resolve([confirmedCounter()]));
     await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
@@ -173,11 +206,11 @@ describe('scoped counter definition read recovery', () => {
     view.changeScope('ws-1', 'wrev-2');
     await waitFor(() => expect(measurementsAPI.list).toHaveBeenCalledTimes(3));
     await act(async () => oldRetry.resolve([confirmedCounter()]));
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     expect(screen.getByTestId('circuit-profile-circuit-name')).toHaveValue('Draft A');
     await act(async () => freshRead.reject(new Error('new revision read failed')));
     expect(await screen.findByTestId('circuit-profile-measurements-error')).toBeVisible();
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     expectNoWrites();
   });
 
@@ -189,15 +222,15 @@ describe('scoped counter definition read recovery', () => {
     await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
     act(() => { void view.client.invalidateQueries({ queryKey: ['studio-v2-workspace', 'measurements'] }); });
     await waitFor(() => expect(measurementsAPI.list).toHaveBeenCalledTimes(2));
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     expect(screen.getByTestId('circuit-profile-measurements-loading')).toBeVisible();
     await act(async () => refresh.reject(new Error('stale cache cannot prove readiness')));
     await screen.findByTestId('circuit-profile-measurements-error');
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     const button = screen.getByRole('button', { name: 'Retry' });
     act(() => { fireEvent.click(button); fireEvent.click(button); });
     await waitFor(() => expect(measurementsAPI.list).toHaveBeenCalledTimes(3));
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Edited during retry' } });
     fireEvent.change(screen.getByTestId('circuit-profile-interval-instantaneous'), { target: { value: '51' } });
     await act(async () => retry.resolve([confirmedCounter()]));
@@ -222,11 +255,11 @@ describe('scoped counter definition read recovery', () => {
     view.changeScope('ws-2', 'wrev-1');
     await waitFor(() => expect(measurementsAPI.list).toHaveBeenCalledTimes(3));
     await act(async () => oldRead.resolve([confirmedCounter()]));
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     await act(async () => newRead.resolve([confirmedCounter('ws-1')]));
     expect(await screen.findByTestId('circuit-profile-measurements-error')).toBeVisible();
     expect(screen.getByTestId('circuit-profile-circuit-name')).toHaveValue('Workspace 2 draft');
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     vi.mocked(measurementsAPI.list).mockResolvedValueOnce([confirmedCounter('ws-2')]);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
@@ -241,7 +274,7 @@ describe('scoped counter definition read recovery', () => {
     vi.mocked(measurementsAPI.list).mockResolvedValueOnce([confirmedCounter()]);
     fireEvent.click(retry);
     await waitFor(() => expect(screen.queryByTestId('circuit-profile-measurements-error')).not.toBeInTheDocument());
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     expect(screen.getByTestId('circuit-profile-circuit-name')).toHaveValue('Draft A');
     expectNoWrites();
   });
@@ -266,7 +299,7 @@ describe('scoped counter definition read recovery', () => {
     const original = structuredClone(group);
     await show();
     expect(await screen.findByTestId('circuit-profile-measurements-error')).toBeVisible();
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
     expect(group).toEqual(original);
     expectNoWrites();
@@ -282,7 +315,7 @@ describe('scoped counter definition read recovery', () => {
     fireEvent.click(screen.getByTestId('circuit-profile-member-cum-tag-0'));
     expect(screen.getByTestId('circuit-profile-measurements-error')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     expectNoWrites();
   });
 
@@ -295,11 +328,11 @@ describe('scoped counter definition read recovery', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(measurementsAPI.list).toHaveBeenCalledTimes(2));
     await screen.findByTestId('circuit-profile-measurements-error');
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     vi.mocked(measurementsAPI.list).mockResolvedValueOnce([]);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByTestId('circuit-counter-confirmation')).toBeVisible();
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     expect(screen.getByTestId('circuit-profile-member-cum-tag-0')).toBeChecked();
     expect(screen.getByTestId('circuit-profile-member-inst-tag-0')).toBeChecked();
     expect(screen.getByTestId('circuit-profile-interval-instantaneous')).toHaveValue('37');

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render as mount, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Step4Database } from '../../../src/features/datalink/workbench-v2/steps/step4/Step4Database';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
@@ -23,8 +24,11 @@ vi.mock('../../../src/hooks/datalink/useStudioV2WriteGroups', () => ({
     isLoading: false,
     refetch: vi.fn(),
   }),
+  useUpdateWriteGroupMutation: () => ({ mutateAsync: vi.fn() }),
   useWriteGroupDeliveryQuery: () => ({ data: undefined }),
 }));
+
+function render(node: React.ReactNode) { const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); return mount(<QueryClientProvider client={client}>{node}</QueryClientProvider>); }
 
 describe('Step 4 Database controls', () => {
   const points: Point[] = [

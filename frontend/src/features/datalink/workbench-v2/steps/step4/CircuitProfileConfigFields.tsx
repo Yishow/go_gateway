@@ -23,6 +23,8 @@ export interface CircuitProfileConfigFieldsProps {
   workspaceId?: string;
   workspaceRevision: string;
   readonly: boolean;
+  newOperationBlocked?: boolean;
+  isNewOperationBlocked?: () => boolean;
   savedDevices: Array<{ id: string; name?: string }>;
   activeDeviceId: string;
   onSelectDevice: (deviceId: string) => void;
@@ -69,7 +71,7 @@ export interface CircuitProfileConfigFieldsProps {
 const NO_SAVED_ROLES: ReadonlySet<string> = new Set();
 
 export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProps> = ({
-  workspaceId, workspaceRevision, readonly, savedDevices, activeDeviceId, onSelectDevice,
+  workspaceId, workspaceRevision, readonly, newOperationBlocked, isNewOperationBlocked, savedDevices, activeDeviceId, onSelectDevice,
   deviceCandidates, localDraft, updateLocalDraft, instParsed, cumParsed, isPostgres, isMySQL = false, isSQLServer = false, nativeMonthlyAvailable = false,
   storageLocked, effectiveStorageMode, cumulativeCircuitMissing, counterNameMissing = false, circuitId,
   unconfirmedCounterStatuses, onCounterConfirmed, savedCircuits = [], onSelectCircuit, onOpenBatch,
@@ -357,6 +359,7 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
             circuitId={circuitId}
             unconfirmedStatuses={unconfirmedCounterStatuses}
             readonly={readonly}
+            newOperationBlocked={newOperationBlocked} isNewOperationBlocked={isNewOperationBlocked}
             onConfirmed={onCounterConfirmed}
             namePrerequisite={counterNameMissing ? { descriptionId: circuitNameErrorId, onFocus: () => circuitNameRef.current?.focus() } : undefined}
           />

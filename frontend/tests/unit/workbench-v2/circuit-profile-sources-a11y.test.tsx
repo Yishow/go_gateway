@@ -6,6 +6,7 @@ import type { MeasurementDefinition } from '@/types/measurement';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import { savedGroupState } from '../../fixtures/writeGroupState';
 import { expandSources } from '../../fixtures/sourceReview';
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -69,6 +70,7 @@ function makeConfirmedCounterMeasurement(pointId: string, tagId: string): Measur
 
 function renderPanel() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  client.setQueryData(studioV2WorkspaceKeys.writeGroups(), groupsQuery.data);
   return render(
     <QueryClientProvider client={client}>
       <BasicRecordingPanel state={savedGroupState()} workspaceId="ws-1" readonly={false} />
@@ -139,7 +141,12 @@ describe('CircuitProfile a11y labels and empty source protection', () => {
     // Instantaneous interval is valid (15s), but has 0 sources selected
     expect(screen.getByText('step4.basic.circuit.instantaneous_sources_required')).toBeInTheDocument();
     expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
-    expect(screen.getByTestId('circuit-profile-start')).toBeDisabled();
+    expect(screen.queryByTestId('circuit-profile-start')).not.toBeInTheDocument();
+    expect(screen.getByTestId('circuit-profile-prepare')).toHaveAttribute('data-primary', 'true');
+    const repair = screen.getByRole('button', { name: 'next.repair' });
+    expect(repair).toBeEnabled(); fireEvent.click(repair);
+    expect(screen.getByTestId('circuit-profile-interval-instantaneous')).toHaveFocus();
+    expect(ensureCircuitProfileAsync).not.toHaveBeenCalled(); expect(startAsync).not.toHaveBeenCalled();
   });
 
   it('displays actionable error and blocks prepare/start when cumulative is enabled but has 0 sources', async () => {
@@ -159,6 +166,11 @@ describe('CircuitProfile a11y labels and empty source protection', () => {
     // Cumulative interval is valid (10m), but has 0 sources selected
     expect(screen.getByText('step4.basic.circuit.cumulative_sources_required')).toBeInTheDocument();
     expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
-    expect(screen.getByTestId('circuit-profile-start')).toBeDisabled();
+    expect(screen.queryByTestId('circuit-profile-start')).not.toBeInTheDocument();
+    expect(screen.getByTestId('circuit-profile-prepare')).toHaveAttribute('data-primary', 'true');
+    const repair = screen.getByRole('button', { name: 'next.repair' });
+    expect(repair).toBeEnabled(); fireEvent.click(repair);
+    expect(screen.getByTestId('circuit-profile-interval-instantaneous')).toHaveFocus();
+    expect(ensureCircuitProfileAsync).not.toHaveBeenCalled(); expect(startAsync).not.toHaveBeenCalled();
   });
 });

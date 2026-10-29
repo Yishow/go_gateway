@@ -534,7 +534,7 @@ describe('Workbench V2 Shell & Integration', () => {
   });
 
   describe('Runtime dashboard handoff', () => {
-    it('falls back to /studio/runtime when the confirmed start only names local draft ids', async () => {
+    it('refuses runtime navigation when the confirmed start only names local draft ids', async () => {
       const mockState = buildStep4ReadyState();
       const mockActions = {
         state: mockState,
@@ -562,7 +562,7 @@ describe('Workbench V2 Shell & Integration', () => {
 
       fireEvent.click(screen.getByTestId('basic-continue-stub'));
 
-      expect(screen.getByTestId('shell-location')).toHaveTextContent('/studio/runtime');
+      expect(screen.getByTestId('shell-location')).toHaveTextContent(/^\/studio\/v2$/); expect(studioV2WorkspaceDevicesAPI.update).not.toHaveBeenCalled();
     });
 
     it('navigates to the resolved runtime dashboard device route when the confirmed start names a persisted backend device id', async () => {

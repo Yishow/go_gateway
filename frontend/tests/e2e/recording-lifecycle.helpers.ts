@@ -37,17 +37,17 @@ export async function openFixture(page: Page, scenario: LifecycleScenario, gate?
   await expect(basicFor(page).getByTestId('saved-recording-actions').first()).toBeAttached();
   const prepared = basicFor(page).getByTestId('circuit-prepared-group-instantaneous');
   if (await prepared.count()) {
-    // Existing Basic host may automatically preview G1, independently of successor review.
-    // Preserve this token issuance in the ledger; wait for its actual result or explicit dirty blocker.
-    await expect(prepared.getByTestId('group-schema-preview-result').or(prepared.getByTestId('group-schema-blocked'))).toBeAttached();
+    // Guided mount is navigation; only an explicit preview command may create a ledger/token.
+    await expect(prepared.getByTestId('group-schema-preview-result')).toHaveCount(0);
     await expect(prepared.getByTestId('group-schema-error')).toHaveCount(0);
   }
+  expect(mock.ledger.filter(entry => entry.mutation)).toEqual([]);
   return Object.assign(mock, { initialMutations: structuredClone(mock.ledger.filter(entry => entry.mutation)) });
 }
 
 export function assertNoNewEffects(mock: LifecycleMock) {
   expect(mock.ledger.filter(entry => entry.mutation)).toEqual(mock.initialMutations);
-  expect(mock.initialMutations.every(entry => entry.action === 'ordinary-schema-preview')).toBe(true);
+  expect(mock.initialMutations).toEqual([]);
 }
 
 export async function showBasicActions(page: Page, removed = false) {

@@ -7,8 +7,10 @@ import { CircuitProfileBlockers } from './CircuitProfileBlockers';
 import { useWriteGroupReadinessQuery } from '../../../../../hooks/datalink/useStudioV2WriteGroups';
 import { GroupSchemaPanel } from './writeGroup/GroupSchemaPanel';
 import { GroupTestWritePanel } from './writeGroup/GroupTestWritePanel';
+import type { RecordingPreparationBridge } from './recordingPreparationPresentation';
 
 export interface CircuitProfileSchemaPreparationProps {
+  guided?: RecordingPreparationBridge;
   workspaceId?: string;
   workspaceRevision: string;
   preparedGroups: WriteGroup[];
@@ -30,6 +32,7 @@ export interface CircuitProfileSchemaPreparationProps {
 }
 
 interface PreparedGroupProps {
+  guided?: RecordingPreparationBridge;
   group: WriteGroup;
   workspaceId: string;
   workspaceRevision: string;
@@ -45,6 +48,8 @@ interface PreparedGroupProps {
 }
 
 interface PreparedGroupTestWriteProps {
+  newOperationBlocked?: boolean;
+  isNewOperationBlocked?: () => boolean;
   group: WriteGroup;
   dirty: boolean;
   readonly: boolean;
@@ -53,7 +58,7 @@ interface PreparedGroupTestWriteProps {
 }
 
 const PreparedGroupTestWrite: React.FC<PreparedGroupTestWriteProps> = ({
-  group, dirty, readonly, destinationMatches, testWriteAvailable,
+  group, dirty, readonly, destinationMatches, testWriteAvailable, newOperationBlocked, isNewOperationBlocked,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const readiness = useWriteGroupReadinessQuery(group.id, !dirty);
@@ -77,16 +82,21 @@ const PreparedGroupTestWrite: React.FC<PreparedGroupTestWriteProps> = ({
     // while they refresh or an unrelated setup save moves the workspace revision.
     scopeKey={`${group.id}|${group.revision}`}
     enabled={canTestWrite}
+    newOperationBlocked={newOperationBlocked}
+    isNewOperationBlocked={isNewOperationBlocked}
     disabledReason={blockedReason}
   />;
 };
 
 const PreparedGroup: React.FC<PreparedGroupProps> = ({
   group, workspaceId, workspaceRevision, dirty, readonly, destinationMatches, isMySQL,
-  mysqlTestWriteAvailable, isSQLServer, sqlserverTestWriteAvailable, onApplied, onBlocker,
+  mysqlTestWriteAvailable, isSQLServer, sqlserverTestWriteAvailable, onApplied, onBlocker, guided,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const [readinessRefreshKey, setReadinessRefreshKey] = React.useState(0);
+  const report = guided?.onPresentation;
+  const onPresentation = React.useCallback((value: import('./writeGroup/schemaPreparationPresentation').SchemaPreparationPresentation | null) =>
+    report?.(group.id, value), [report, group.id]);
   const handleApplied = () => {
     setReadinessRefreshKey((current) => current + 1);
     onApplied();
@@ -99,7 +109,10 @@ const PreparedGroup: React.FC<PreparedGroupProps> = ({
       </p>
       <GroupSchemaPanel
         key={`${group.id}:${group.revision}:${workspaceRevision}`}
-        autoPreview
+        autoPreview={!guided}
+        guided={guided ? { online: guided.online, consentEpoch: guided.consentEpoch, suppressDefaultActions: true, onPresentation,
+          newOperationBlocked: guided.newCommandsBlocked, isNewOperationBlocked: () => guided.isNewOperationBlocked?.() ?? true,
+          isPreviewRetryBlocked: () => guided.isSchemaPreviewRetryBlocked?.(group.id) ?? true } : undefined}
         group={group}
         workspaceId={workspaceId}
         workspaceRevision={workspaceRevision}
@@ -113,7 +126,9 @@ const PreparedGroup: React.FC<PreparedGroupProps> = ({
         key={`mysql-${readinessRefreshKey}`}
         group={group}
         dirty={dirty}
-        readonly={readonly}
+        readonly={readonly || Boolean(guided?.otherOwnerBlockedGroupIds?.has(group.id))}
+        newOperationBlocked={guided?.newCommandsBlocked}
+        isNewOperationBlocked={() => guided?.isNewOperationBlocked?.() ?? false}
         destinationMatches={destinationMatches}
         testWriteAvailable={mysqlTestWriteAvailable}
       />}
@@ -121,7 +136,9 @@ const PreparedGroup: React.FC<PreparedGroupProps> = ({
         key={`sqlserver-${readinessRefreshKey}`}
         group={group}
         dirty={dirty}
-        readonly={readonly}
+        readonly={readonly || Boolean(guided?.otherOwnerBlockedGroupIds?.has(group.id))}
+        newOperationBlocked={guided?.newCommandsBlocked}
+        isNewOperationBlocked={() => guided?.isNewOperationBlocked?.() ?? false}
         destinationMatches={destinationMatches}
         testWriteAvailable={Boolean(sqlserverTestWriteAvailable)}
       />}
@@ -146,6 +163,7 @@ export const CircuitProfileSchemaPreparation: React.FC<CircuitProfileSchemaPrepa
   mysqlTestWriteAvailable = false,
   isSQLServer = false,
   sqlserverTestWriteAvailable = false,
+  guided,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const [reports, setReports] = React.useState<Record<string, DestinationBlockerCode | undefined>>({});
@@ -161,7 +179,7 @@ export const CircuitProfileSchemaPreparation: React.FC<CircuitProfileSchemaPrepa
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-xs font-semibold text-slate-200">{t('step4.basic.circuit.step_schema')}</h4>
-        <button
+        {!guided && <button
           type="button"
           data-testid="circuit-profile-prepare"
           disabled={disabled || readonly || isPreparing}
@@ -169,20 +187,21 @@ export const CircuitProfileSchemaPreparation: React.FC<CircuitProfileSchemaPrepa
           className="rounded border border-slate-600 px-3 py-2 text-xs text-slate-200 disabled:opacity-40"
         >
           {t('step4.basic.prepare_schema')}
-        </button>
-        <button
+        </button>}
+        {!guided && <button
           type="button"
           data-testid="basic-recording-prepare"
           disabled={disabled || readonly || isPreparing}
           className="hidden"
           aria-hidden="true"
           tabIndex={-1}
-        />
+        />}
       </div>
       <CircuitProfileBlockers blockers={aggregateDestinationBlockers(preparedGroups, reports)} onRepairDestination={onRepairDestination} onOpenAdvanced={onOpenAdvanced} />
       {preparedGroups.map((group) => (
           <PreparedGroup
             key={`${group.id}:${group.revision}`}
+            guided={guided}
             group={group}
             workspaceId={workspaceId ?? group.workspace_id}
             workspaceRevision={workspaceRevision}

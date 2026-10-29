@@ -28,10 +28,11 @@ function mount(scenario: LifecycleScenario, mock: RecordingLifecycleMock = creat
   return mock;
 }
 describe('real Step4Database host with browser fixture mock contracts (jsdom only)', () => {
-  it.each(['applied-wide', 'draft-wide', 'disabled-wide', 'blocked-wide', 'review-blocked-wide', 'stale-wide'] as const)('%s exposes its existing ordinary-preview baseline before lifecycle interaction', async scenario => {
+  it.each(['applied-wide', 'draft-wide', 'disabled-wide', 'blocked-wide', 'review-blocked-wide', 'stale-wide'] as const)('%s mounts guided preparation without implicitly previewing or mutating', async scenario => {
     const mock = mount(scenario);
-    expect(await within(screen.getByTestId('step4-basic-recording')).findByTestId('group-schema-preview-result')).toBeInTheDocument();
-    expect(mock.ledger.filter(call => call.mutation)).toMatchObject([{ action: 'ordinary-schema-preview', status: 200 }]);
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+    expect(within(screen.getByTestId('step4-basic-recording')).queryByTestId('group-schema-preview-result')).not.toBeInTheDocument();
+    expect(mock.ledger.filter(call => call.mutation)).toEqual([]);
     expect(mock.ledger.filter(call => call.status !== 200)).toEqual([]);
     expect(mock.snapshot().status).toBeUndefined();
   });
@@ -42,8 +43,8 @@ describe('real Step4Database host with browser fixture mock contracts (jsdom onl
     const action = await basic.findByTestId(scenario.startsWith('deleted') ? 'saved-recording-recreate' : 'saved-recording-transition');
     await waitFor(() => expect(action).not.toBeDisabled());
     await waitFor(() => expect(client.isMutating()).toBe(0));
-    // The existing Basic wide host may automatically read the ORIGINAL group's schema before dialog use.
-    expect(mock.ledger.filter(call => call.mutation).every(call => call.action === 'ordinary-schema-preview')).toBe(true);
+    // Guided mount and opening lifecycle review are navigation, not a token-creating preview.
+    expect(mock.ledger.filter(call => call.mutation)).toEqual([]);
     const baseline = mock.ledger.length;
     fireEvent.click(action);
     const dialog = await screen.findByRole('dialog');
@@ -68,7 +69,7 @@ describe('real Step4Database host with browser fixture mock contracts (jsdom onl
   it('terminal real-host remount restores the recorded root with no unsupported owned-group requests', async () => {
     const mock = mount('applied-wide');
     const basic = within(screen.getByTestId('step4-basic-recording'));
-    await basic.findByTestId('group-schema-preview-result');
+    expect(basic.queryByTestId('group-schema-preview-result')).not.toBeInTheDocument();
     const transition = await basic.findByTestId('saved-recording-transition');
     await waitFor(() => expect(transition).not.toBeDisabled()); fireEvent.click(transition);
     const dialog = await screen.findByRole('dialog');

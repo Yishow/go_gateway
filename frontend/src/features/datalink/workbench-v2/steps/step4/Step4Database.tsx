@@ -1,3 +1,6 @@
+import { useRuntimeRuleEvidence } from '../../../../../hooks/datalink/useRuntimeRuleEvidence';
+import { RecordingScopeSummary } from './RecordingScopeSummary';
+import type { RecordingViewedDevice } from './recordingScopeSummary';
 import { RecordingTestWriteRecoveryPanel } from './RecordingTestWriteRecoveryPanel';
 import { useRecordingChangeController } from './writeGroup/lifecycle/useRecordingChangeController';
 import { RecordingChangeDialog } from './writeGroup/lifecycle/RecordingChangeDialog';
@@ -68,7 +71,7 @@ function Step4DatabaseContent({
   shareStatus,
   onNavigateStep,
 }: Step4DatabaseProps) {
-  const { t } = useTranslation('workbench-v2');
+  const { t: guidedT } = useTranslation('workbench-v2-recording-guided');
   // Only the read-back of an earlier activation is shown; no workspace-wide start is wired to this page.
   const activation = useStep4Activation(undefined, recoverActivationStatus, workspaceId);
   const { connector, targets } = state.db;
@@ -142,6 +145,15 @@ function Step4DatabaseContent({
     ...Object.values(targets).map((target) => target.save_state),
   ];
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
+  // Stable across Basic/legacy/circuit/disclosure remounts; one read for the viewed device and canonical revision.
+  const [viewedDevice, setViewedDevice] = useState<RecordingViewedDevice>();
+  const configurationState = groupsQuery.isError ? 'error' : groupsQuery.isLoading ? 'loading'
+    : groupsQuery.data && groupsQuery.data.workspace_id === workspaceId && groupsQuery.data.workspace_revision ? 'ready' : 'unknown';
+  const evidenceScope = workspaceId && groupsQuery.data && configurationState === 'ready' &&
+    viewedDevice && viewedDevice.workspaceId === workspaceId &&
+    state.devices.some(device => device.id === viewedDevice.deviceId && device.persisted && device.save_state === 'saved')
+    ? { workspace_id: workspaceId, workspace_revision: groupsQuery.data.workspace_revision, device_id: viewedDevice.deviceId } : null;
+  const recordingEvidence = useRuntimeRuleEvidence(evidenceScope);
   const liveGroups = (groupsQuery.data?.groups ?? []).filter((group) => group.status !== 'deleted');
   const groupSummary = {
     state: groupsQuery.isError ? 'error' as const : groupsQuery.isLoading ? 'loading' as const : 'ready' as const,
@@ -217,6 +229,11 @@ function Step4DatabaseContent({
         onOpenAdvanced={(groupId) => { if (groupId) setOpenGroupRequest({ id: groupId }); openAdvanced(); }}
         onOpenMemberSettings={(id) => { setOpenGroupRequest({ id }); openAdvanced(); }}
         onOperationActiveChange={setBasicOperationActive}
+        onViewedDeviceChange={setViewedDevice}
+        renderScopeSummary={(scope) => <RecordingScopeSummary scope={scope} state={state}
+          groups={groupsQuery.data?.groups ?? []} evidence={recordingEvidence}
+          configurationState={configurationState === 'ready' && (scope.workspaceId !== workspaceId ||
+            scope.workspaceRevision !== groupsQuery.data?.workspace_revision) ? 'unknown' : configurationState} />}
       />
 
       </div>
@@ -232,8 +249,9 @@ function Step4DatabaseContent({
         className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/20 p-4"
         data-testid="step4-advanced-recording"
       >
-        <summary className="cursor-pointer text-sm font-semibold text-slate-200">{t('step4.basic.advanced_title')}</summary>
+        <summary className="cursor-pointer text-sm font-semibold text-slate-200">{guidedT('management.advancedTitle')}</summary>
         <div className="space-y-6 pt-2">
+          <p data-testid="recording-workspace-status-note" className="text-xs text-slate-400">{guidedT('management.workspaceStatus')}</p>
           <WriteGroupSection
             state={state}
             workspaceId={workspaceId}

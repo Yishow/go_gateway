@@ -1,3 +1,5 @@
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { guidedReadiness, guidedLifecycle, guidedPreview, startGuided } from '../../fixtures/guidedRecordingPreparation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createInstance } from 'i18next';
@@ -14,7 +16,6 @@ import type { WriteGroup, WriteGroupCreateRequest, WriteGroupUpdateRequest } fro
 import productionI18n from '@/i18n/config';
 import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
 import { longProfileGroup } from '../../fixtures/circuitBatchPanel';
-
 const groupsQuery = {
   data: { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] as WriteGroup[] },
   isLoading: false, isError: false, refetch: vi.fn(),
@@ -23,10 +24,30 @@ const ensure = vi.fn();
 const update = vi.fn();
 const start = vi.fn();
 const applySchema = vi.fn();
+const previewSchema = vi.fn();
+let canonicalClient: QueryClient;
+const evidenceRefetch = vi.fn();
+const evidence = new Map<string, { readiness: ReturnType<typeof guidedReadiness>; lifecycle: ReturnType<typeof guidedLifecycle> }>();
+function currentEvidence(id: string) {
+  const group = groupsQuery.data.groups.find(value => value.id === id);
+  if (!group) return undefined;
+  const key = JSON.stringify([groupsQuery.data.workspace_revision, group]);
+  if (!evidence.has(key)) evidence.set(key, { readiness: guidedReadiness(group, groupsQuery.data.workspace_revision), lifecycle: guidedLifecycle(group, groupsQuery.data.workspace_revision) });
+  return evidence.get(key)!;
+}
+function publishGroups() {
+  canonicalClient?.setQueryData(studioV2WorkspaceKeys.writeGroups(), groupsQuery.data);
+  return { data: groupsQuery.data };
+}
+vi.mock('@/hooks/datalink/useStudioV2WriteGroupLifecycle', () => ({
+  useWriteGroupLifecycleQuery: (_workspace: string, id: string) => ({ data: currentEvidence(id)?.lifecycle, isLoading: false, isFetching: false, isError: false, refetch: evidenceRefetch }),
+}));
 vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
   useWriteGroupsQuery: () => groupsQuery,
   useWriteGroupDeliveryQuery: () => ({ data: undefined, isError: false }),
-  useWriteGroupReadinessQuery: () => ({ data: undefined, isLoading: false, isFetching: false, isError: false }),
+  useWriteGroupReadinessQuery: (id: string) => ({ data: currentEvidence(id)?.readiness, isLoading: false, isFetching: false, isError: false, refetch: evidenceRefetch }),
+  useWriteGroupSchemaPreviewMutation: () => ({ mutateAsync: previewSchema, isPending: false }),
+  useWriteGroupSchemaOperationQuery: () => ({ data: undefined, isError: false, refetch: evidenceRefetch }),
   useEnsureCircuitProfileMutation: () => ({ mutateAsync: ensure, isPending: false }),
   useUpdateWriteGroupMutation: () => ({ mutateAsync: update, isPending: false }),
   useWriteGroupSchemaApplyMutation: () => ({ mutateAsync: applySchema, isPending: false }),
@@ -38,11 +59,6 @@ vi.mock('@/hooks/datalink/useStudioV2RecordingStart', () => ({
   useRecordingStartMutation: () => ({ mutateAsync: start, isPending: false }),
   useRecordingStartOperationQuery: () => ({ data: undefined, isLoading: false, isError: false }),
 }));
-vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel', () => ({
-  GroupSchemaPanel: ({ readonly }: { readonly: boolean }) =>
-    <button data-testid="schema-mutation" disabled={readonly} onClick={applySchema}>Apply schema</button>,
-}));
-
 function mysqlCapability(family = 'mysql'): StudioV2MySQLRecordingCapability {
   return {
     connector_id: 'conn-1', connector_revision: 'crev-1', database: 'recording_test',
@@ -73,6 +89,7 @@ async function show(state = stateFor('mysql'), readonly = false, lng = 'en') {
   const i18n = createInstance();
   await i18n.init({ lng, resources: productionI18n.options.resources });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  canonicalClient = client; client.setQueryDefaults(studioV2WorkspaceKeys.writeGroups(), { structuralSharing: false }); publishGroups();
   const panel = (next = state) => <I18nextProvider i18n={i18n}><QueryClientProvider client={client}>
     <CircuitProfileBasicPanel state={next} workspaceId="ws-1" readonly={readonly} />
   </QueryClientProvider></I18nextProvider>;
@@ -125,21 +142,27 @@ function mockCapabilityRefresh(refresh: ReturnType<typeof deferred>) {
   });
 }
 function noWrites() {
-  for (const fn of [ensure, update, start, applySchema]) expect(fn).not.toHaveBeenCalled();
+  for (const fn of [ensure, update, start, applySchema, previewSchema]) expect(fn).not.toHaveBeenCalled();
 }
 beforeEach(() => {
   vi.clearAllMocks();
   window.sessionStorage.clear();
   groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] };
-  groupsQuery.refetch.mockImplementation(async () => ({ data: groupsQuery.data }));
-  ensure.mockImplementation(async ({ request }: { request: WriteGroupCreateRequest }) => ({
+  groupsQuery.refetch.mockImplementation(async () => publishGroups());
+  ensure.mockImplementation(async ({ request }: { request: WriteGroupCreateRequest }) => { const result = {
     workspace_revision: 'wrev-2', group: savedGroup({ ...request.group, id: 'new-profile', revision: 'new-revision',
       destination: { ...request.group.destination, database: 'recording_test' },
       members: request.group.members.map((member) => ({ ...member, source_revision: 's1', mapping_revision: 'm1' })) }),
-  }));
+  }; groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: result.workspace_revision, groups: [result.group] }; publishGroups(); return result; });
+  previewSchema.mockImplementation(async ({ id }) => guidedPreview(groupsQuery.data.groups.find(group => group.id === id)!, groupsQuery.data.workspace_revision));
+  applySchema.mockImplementation(async ({ id, request }) => {
+    const group = groupsQuery.data.groups.find(value => value.id === id)!; const preview = guidedPreview(group, groupsQuery.data.workspace_revision);
+    expect(request).toMatchObject({ expected_workspace_revision: groupsQuery.data.workspace_revision, expected_group_revision: group.revision, expected_connector_revision: group.destination.connector_revision, token: preview.token, operation_id: preview.operation_id });
+    groupsQuery.data = { ...groupsQuery.data, groups: groupsQuery.data.groups.map(value => value.id === id ? { ...value, destination: { ...value.destination, schema_revision: value.revision, schema_digest: 'a'.repeat(64) } } : value) }; publishGroups();
+    return { operation_id: request.operation_id, status: 'succeeded', executed_statements: 1, created_at: '', updated_at: '' };
+  });
 });
 afterEach(() => vi.restoreAllMocks());
-
 describe('destination layout choices use the saved connector capability', () => {
   it.each(['mysql', 'mariadb', 'sqlserver'] as const)('does not offer executable wide for verified %s managed-long support', async (family) => {
     vi.spyOn(studioV2DatalinkApi, 'get').mockResolvedValue({ data: { data: family === 'sqlserver' ? sqlserverCapability() : mysqlCapability(family) } });
@@ -153,13 +176,11 @@ describe('destination layout choices use the saved connector capability', () => 
     expect(screen.getByTestId('circuit-profile-purpose-reason-wide')).toHaveTextContent('This destination supports selected-measurement recording only; wide tables are unavailable.');
     noWrites();
   });
-
   it.each(['mysql', 'sqlserver'])('rejects a programmatic %s wide prepare before any mutation', async (kind) => {
     await expect(ensureOrUpdateCircuitProfileGroups({ ...actionInput(kind), capabilities: capabilitiesFor(kind) }))
       .rejects.toThrow('Recording layout is unavailable for this destination.');
     noWrites();
   });
-
   it.each(['mysql', 'mariadb', 'sqlserver'] as const)('prepares only the explicit supported long draft for %s, without starting or applying schema', async (family) => {
     const kind = family === 'sqlserver' ? 'sqlserver' : 'mysql';
     vi.spyOn(studioV2DatalinkApi, 'get').mockResolvedValue({ data: { data: kind === 'sqlserver' ? sqlserverCapability() : mysqlCapability(family) } });
@@ -173,7 +194,6 @@ describe('destination layout choices use the saved connector capability', () => 
     } });
     expect(start).not.toHaveBeenCalled(); expect(applySchema).not.toHaveBeenCalled();
   });
-
   it.each(['draft', 'saved'] as const)('keeps an unsupported %s wide purpose visible and unchanged with an actionable explanation', async (origin) => {
     seedDraft('wide');
     const group = longProfileGroup({ id: 'saved-wide', circuitId: 'cir-a', circuitName: 'Draft A', interval: 37, points: [0, 1] });
@@ -188,19 +208,17 @@ describe('destination layout choices use the saved connector capability', () => 
     expect(screen.getByTestId('circuit-profile-layout-blocked')).toHaveTextContent('wide tables are unavailable');
     expect(screen.getByRole('button', { name: 'Open destination settings' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Open destination settings' }));
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
-    expect(screen.getByTestId('circuit-profile-start')).toBeDisabled();
-    if (origin === 'saved') {
-      expect(screen.getByTestId('schema-mutation')).toBeDisabled();
-      fireEvent.click(screen.getByTestId('schema-mutation'));
-    }
+    // One guided primary: unavailable scope may be inspected, never apply or start.
+    expect(screen.queryByTestId('circuit-profile-start')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('group-schema-apply')).not.toBeInTheDocument();
+    const prepare = screen.queryByTestId('circuit-profile-prepare'); if (prepare) expect(prepare).toBeDisabled();
+    const inspect = screen.queryByTestId('recording-next-action'); if (inspect) { expect(inspect).toHaveTextContent('Inspect this scope'); fireEvent.click(inspect); }
     expect(screen.getByTestId('circuit-profile-circuit-name')).toHaveValue('Draft A');
     expect(screen.getByTestId('circuit-profile-interval-instantaneous')).toHaveValue('37');
     expect(group).toEqual(original);
     expect(JSON.parse(window.sessionStorage.getItem('wbv2.circuit-profile-draft.ws-1%2Fdev-1')!).purpose).toBe('wide');
     noWrites();
   });
-
   it.each(['id', 'revision'] as const)('ignores a late old capability after the connector %s changes', async (change) => {
     const old = deferred(), current = deferred();
     const get = vi.spyOn(studioV2DatalinkApi, 'get').mockImplementationOnce(() => old.promise).mockImplementationOnce(() => current.promise);
@@ -221,7 +239,6 @@ describe('destination layout choices use the saved connector capability', () => 
     expect(screen.getByTestId('circuit-profile-interval-instantaneous')).toHaveValue('37');
     noWrites();
   });
-
   it('blocks cached capabilities during refetch and error, then recovers by read only', async () => {
     const refresh = deferred();
     const get = vi.spyOn(studioV2DatalinkApi, 'get').mockResolvedValueOnce({ data: { data: mysqlCapability() } }).mockImplementationOnce(() => refresh.promise);
@@ -241,7 +258,6 @@ describe('destination layout choices use the saved connector capability', () => 
     expect(screen.getByTestId('circuit-profile-circuit-name')).toHaveValue('Draft A');
     noWrites();
   });
-
   it.each(['mysql', 'sqlserver'] as const)('does not downgrade a cached native mode when %s native capability is unavailable', async (kind) => {
     seedDraft('long', 'native_monthly');
     const capability = kind === 'mysql' ? mysqlCapability() : sqlserverCapability();
@@ -255,7 +271,6 @@ describe('destination layout choices use the saved connector capability', () => 
     expect(JSON.parse(window.sessionStorage.getItem('wbv2.circuit-profile-draft.ws-1%2Fdev-1')!).storage_mode).toBe('native_monthly');
     noWrites();
   });
-
   it('keeps PostgreSQL Timescale long-only without declaring its backend extension ready', async () => {
     seedDraft('long', 'timescale');
     await show(stateFor('postgres'));
@@ -266,7 +281,6 @@ describe('destination layout choices use the saved connector capability', () => 
     expect(ensure.mock.calls[0][0].request.group).toMatchObject({ layout_version: 'managed_long_v1', storage_mode: 'timescale' });
     expect(start).not.toHaveBeenCalled(); expect(applySchema).not.toHaveBeenCalled();
   });
-
   it('keeps unsupported settings readable in readonly Traditional Chinese without mutations', async () => {
     seedDraft('wide');
     vi.spyOn(studioV2DatalinkApi, 'get').mockResolvedValue({ data: { data: mysqlCapability() } });
@@ -277,7 +291,6 @@ describe('destination layout choices use the saved connector capability', () => 
     expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
     noWrites();
   });
-
   it.each(['mysql', 'sqlserver'] as const)('rejects every unverified %s capability snapshot at the action boundary', async (kind) => {
     for (const condition of ['missing', 'loading', 'fetching', 'error', 'id', 'revision', 'capability-revision', 'metadata', 'disconnected', 'unsupported'] as const) {
       const capabilities = capabilitiesFor(kind);
@@ -299,7 +312,6 @@ describe('destination layout choices use the saved connector capability', () => 
       noWrites();
     }
   });
-
   it.each([
     ['sqlite', 'wide', 'plain', 'managed_wide_profile_v1'], ['postgres', 'wide', 'plain', 'managed_wide_profile_v1'],
     ['sqlite', 'long', 'plain', 'managed_long_v1'], ['postgres', 'long', 'timescale', 'managed_long_v1'],
@@ -312,7 +324,6 @@ describe('destination layout choices use the saved connector capability', () => 
     else expect(ensure.mock.calls[0][0].request.group.storage_mode).toBe(storageMode);
     expect(start).not.toHaveBeenCalled(); expect(applySchema).not.toHaveBeenCalled();
   });
-
   it.each([
     ['postgres', 'wide', 'timescale'], ['sqlite', 'long', 'timescale'], ['sqlite', 'long', 'native_monthly'],
     ['postgres', 'long', 'native_monthly'], ['mysql', 'long', 'timescale'], ['unknown', 'long', 'plain'],
@@ -321,7 +332,6 @@ describe('destination layout choices use the saved connector capability', () => 
       .rejects.toThrow('Recording layout is unavailable for this destination.');
     noWrites();
   });
-
   it('validates all saved profile layouts before any earlier compatible profile can mutate', async () => {
     const saved = longProfileGroup({ id: 'saved-cumulative', circuitId: 'cir-a', circuitName: 'Draft A', interval: 10, points: [0, 1], kind: 'cumulative' });
     saved.layout_version = 'managed_wide_profile_v1';
@@ -331,8 +341,6 @@ describe('destination layout choices use the saved connector capability', () => 
     })).rejects.toThrow('Recording layout is unavailable for this destination.');
     noWrites();
   });
-
-
   it.each(['missing-kind', 'missing-id', 'missing-revision', 'missing-snapshot', 'nontransactional', 'native-unsupported'] as const)(
     'rejects the %s default/error path without inventing destination authority', async (condition) => {
       const input = { ...actionInput('mysql'), purpose: 'long' as const, capabilities: capabilitiesFor('mysql') };
@@ -349,8 +357,6 @@ describe('destination layout choices use the saved connector capability', () => 
       noWrites();
     },
   );
-
-
   it('allows batch inspection and close but not batch preparation while capability is unknown', async () => {
     groupsQuery.data.groups = ['a', 'b'].map((id) => longProfileGroup({
       id: `group-${id}`, circuitId: `cir-${id}`, circuitName: `Circuit ${id}`, interval: 15, points: [0, 1],
@@ -365,27 +371,28 @@ describe('destination layout choices use the saved connector capability', () => 
     expect(screen.queryByTestId('circuit-profile-batch-editor')).not.toBeInTheDocument();
     noWrites();
   });
-
   it('does not expose an executable start retry while destination capability refreshes', async () => {
     const refresh = deferred();
     mockCapabilityRefresh(refresh);
     start.mockRejectedValueOnce(new TypeError('Failed to fetch'));
     const view = await show();
-    await waitFor(() => expect(screen.getByTestId('circuit-profile-start')).toBeEnabled());
-    fireEvent.click(screen.getByTestId('circuit-profile-start'));
+    await startGuided('circuit-profile');
     await waitFor(() => expect(start).toHaveBeenCalledOnce());
-    const retry = await screen.findByTestId('basic-recording-retry');
-    await waitFor(() => expect(retry).toBeEnabled());
+    const original = structuredClone(start.mock.calls[0][0]);
+    // Lost ACK without O1 permits manual inspection, never a fabricated retry identity.
+    await waitFor(() => expect(screen.getByTestId('recording-next-action')).toHaveTextContent('Inspect operation recovery'));
+    expect(screen.queryByTestId('basic-recording-retry')).not.toBeInTheDocument();
     act(() => { void view.client.invalidateQueries({ queryKey: ['studio-v2-workspace', 'mysql-recording-capability'] }); });
-    await waitFor(() => expect(retry).toBeDisabled());
-    fireEvent.click(retry);
+    await waitFor(() => expect(view.client.isFetching()).toBeGreaterThan(0));
+    fireEvent.click(screen.getByTestId('recording-next-action'));
     expect(start).toHaveBeenCalledOnce();
     expect(ensure).toHaveBeenCalledOnce();
-    expect(update).not.toHaveBeenCalled(); expect(applySchema).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled(); expect(applySchema).toHaveBeenCalledOnce(); expect(previewSchema).toHaveBeenCalledOnce();
     await act(async () => refresh.resolve({ data: { data: mysqlCapability() } }));
-    await waitFor(() => expect(retry).toBeEnabled());
+    await waitFor(() => expect(view.client.isFetching()).toBe(0));
+    expect(screen.queryByTestId('basic-recording-retry')).not.toBeInTheDocument();
+    expect(start).toHaveBeenCalledOnce(); expect(start.mock.calls[0][0]).toEqual(original);
   });
-
   it('blocks the whole selected batch when inactive circuit B has unsupported native storage', async () => {
     const a = longProfileGroup({ id: 'group-a', circuitId: 'cir-a', circuitName: 'A', interval: 15, points: [0, 1] });
     const b = longProfileGroup({ id: 'group-b', circuitId: 'cir-b', circuitName: 'B', interval: 15, points: [0, 1] });
@@ -416,7 +423,6 @@ describe('destination layout choices use the saved connector capability', () => 
     expect(b.storage_mode).toBe('native_monthly');
     expect(ensure).not.toHaveBeenCalled(); expect(start).not.toHaveBeenCalled(); expect(applySchema).not.toHaveBeenCalled();
   });
-
   it('rechecks all frozen batch targets against current capability after a preview', async () => {
     const a = longProfileGroup({ id: 'group-a', circuitId: 'cir-a', circuitName: 'A', interval: 15, points: [0, 1] });
     const b = longProfileGroup({ id: 'group-b', circuitId: 'cir-b', circuitName: 'B', interval: 15, points: [0, 1] });
@@ -440,8 +446,6 @@ describe('destination layout choices use the saved connector capability', () => 
     expect(b.storage_mode).toBe('native_monthly');
     noWrites();
   });
-
-
   it('lets the operator exclude the unsupported active circuit and prepare only a compatible circuit', async () => {
     const a = longProfileGroup({ id: 'group-a', circuitId: 'cir-a', circuitName: 'A', interval: 15, points: [0, 1] });
     const b = longProfileGroup({ id: 'group-b', circuitId: 'cir-b', circuitName: 'B', interval: 15, points: [0, 1] });
@@ -466,5 +470,4 @@ describe('destination layout choices use the saved connector capability', () => 
     expect(a.storage_mode).toBe('native_monthly');
     expect(ensure).not.toHaveBeenCalled(); expect(start).not.toHaveBeenCalled(); expect(applySchema).not.toHaveBeenCalled();
   });
-
 });

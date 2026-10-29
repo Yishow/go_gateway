@@ -1,3 +1,5 @@
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { guidedReadiness, guidedLifecycle } from '../../fixtures/guidedRecordingPreparation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createInstance } from 'i18next';
@@ -7,8 +9,7 @@ import { BasicRecordingPanel } from '@/features/datalink/workbench-v2/steps/step
 import type { Mapping, WorkbenchV2State } from '@/features/datalink/workbench-v2/state/types';
 import type { MeasurementDefinition } from '@/types/measurement';
 import type { WriteGroup, WriteGroupCreateRequest, WriteGroupValueRole } from '@/types/studioV2WriteGroup';
-import en from '@/i18n/locales/en/workbench-v2.json';
-import zh from '@/i18n/locales/zh-TW/workbench-v2.json';
+import productionI18n from '@/i18n/config';
 import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
 import { longProfileGroup } from '../../fixtures/circuitBatchPanel';
 import { expandSources } from '../../fixtures/sourceReview';
@@ -29,7 +30,25 @@ const previewSchema = vi.fn();
 const createMeasurement = vi.fn();
 const updateMeasurement = vi.fn();
 
+let canonicalClient: QueryClient;
+const evidenceRefetch = vi.fn();
+const evidence = new Map<string, { readiness: ReturnType<typeof guidedReadiness>; lifecycle: ReturnType<typeof guidedLifecycle> }>();
+function currentEvidence(id: string) {
+  const group = groupsQuery.data.groups.find(value => value.id === id);
+  if (!group) return undefined;
+  const key = JSON.stringify([groupsQuery.data.workspace_revision, group]);
+  if (!evidence.has(key)) evidence.set(key, { readiness: guidedReadiness(group, groupsQuery.data.workspace_revision), lifecycle: guidedLifecycle(group, groupsQuery.data.workspace_revision) });
+  return evidence.get(key)!;
+}
+function publishGroups() {
+  canonicalClient?.setQueryData(studioV2WorkspaceKeys.writeGroups(), groupsQuery.data);
+  return { data: groupsQuery.data };
+}
+vi.mock('@/hooks/datalink/useStudioV2WriteGroupLifecycle', () => ({
+  useWriteGroupLifecycleQuery: (_workspace: string, id: string) => ({ data: currentEvidence(id)?.lifecycle, isLoading: false, isFetching: false, isError: false, refetch: evidenceRefetch }),
+}));
 vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
+  useWriteGroupReadinessQuery: (id: string) => ({ data: currentEvidence(id)?.readiness, isLoading: false, isFetching: false, isError: false, refetch: evidenceRefetch }),
   useWriteGroupsQuery: () => groupsQuery,
   useWriteGroupDeliveryQuery: () => ({ data: undefined, isError: false }),
   useUpdateWriteGroupMutation: () => ({ mutateAsync: updateGroup, isPending: false }),
@@ -79,13 +98,14 @@ function savedNumericGroup(role: WriteGroupValueRole): WriteGroup {
 
 async function show(state = sourceState(), readonly = false, lng = 'en') {
   const i18n = createInstance();
-  await i18n.init({ lng, resources: { en: { 'workbench-v2': en }, 'zh-TW': { 'workbench-v2': zh } } });
+  await i18n.init({ lng, resources: productionI18n.options.resources });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  canonicalClient = client; client.setQueryDefaults(studioV2WorkspaceKeys.writeGroups(), { structuralSharing: false }); publishGroups();
   const panel = () => <I18nextProvider i18n={i18n}><QueryClientProvider client={client}>
     <BasicRecordingPanel state={state} workspaceId="ws-1" readonly={readonly} />
   </QueryClientProvider></I18nextProvider>;
   const view = render(panel());
-  return { ...view, refresh: () => view.rerender(panel()) };
+  return { ...view, refresh: () => { publishGroups(); view.rerender(panel()); } };
 }
 
 function roleSelect(tagId = 'tag-0'): HTMLSelectElement {
@@ -98,11 +118,26 @@ function expectNoWrites() {
   }
 }
 
+// Guide design: one primary; semantic/source repair is local NAV, not a second disabled Start.
+function expectPreparationBlocked() {
+  const mutations = [ensureProfile, updateGroup, start, ensureManaged, applySchema, previewSchema, createMeasurement, updateMeasurement]; const counts = mutations.map(fn => fn.mock.calls.length);
+  const prepare = screen.queryByTestId('circuit-profile-prepare');
+  if (prepare) expect(prepare).toBeDisabled();
+  expect(screen.queryByTestId('circuit-profile-start')).not.toBeInTheDocument();
+  const next = screen.queryByTestId('recording-next-action');
+  if (next) {
+    expect(next).toHaveTextContent(/Review counter definitions|Choose sources|Inspect this scope|Refresh preparation status|確認計數器定義|選擇資料來源|檢視此範圍|重新查詢準備狀態/);
+    fireEvent.click(next);
+  }
+  expect(screen.getByTestId('recording-guided-preparation').querySelectorAll('button[data-primary="true"]')).toHaveLength(1);
+  mutations.forEach((fn, index) => expect(fn).toHaveBeenCalledTimes(counts[index]));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   window.sessionStorage.clear();
   groupsQuery.data = { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] };
-  groupsQuery.refetch.mockImplementation(async () => ({ data: groupsQuery.data }));
+  groupsQuery.refetch.mockImplementation(async () => publishGroups());
   measurementsQuery.data = [];
   measurementsQuery.isLoading = false;
   measurementsQuery.isError = false;
@@ -189,10 +224,7 @@ describe('numeric state authoring uses the existing latest-value role', () => {
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Machine' } });
     fireEvent.change(roleSelect(), { target: { value: 'counter_raw' } });
     expect(roleSelect()).toHaveValue('counter_raw');
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
-    expect(screen.getByTestId('circuit-profile-start')).toBeDisabled();
-    fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
-    fireEvent.click(screen.getByTestId('circuit-profile-start'));
+    expectPreparationBlocked();
     expectNoWrites();
     fireEvent.change(roleSelect(), { target: { value: 'state' } });
     expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled();
@@ -209,7 +241,7 @@ describe('numeric state authoring uses the existing latest-value role', () => {
     expandSources();
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Machine' } });
     fireEvent.change(roleSelect(), { target: { value: 'counter_raw' } });
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     fireEvent.change(screen.getByTestId('circuit-confirm-counter-unit'), { target: { value: 'count' } });
     expectNoWrites();
     fireEvent.click(screen.getByTestId('circuit-confirm-counter-submit'));
@@ -278,8 +310,7 @@ describe('numeric state authoring uses the existing latest-value role', () => {
     await show(sourceState(), true);
     expandSources();
     expect(roleSelect()).toBeDisabled();
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
-    expect(screen.getByTestId('circuit-profile-start')).toBeDisabled();
+    expectPreparationBlocked();
     expectNoWrites();
   });
 
@@ -304,7 +335,7 @@ describe('numeric state authoring uses the existing latest-value role', () => {
     fireEvent.click(screen.getByTestId('circuit-confirm-counter-submit'));
     expect(await screen.findByTestId('circuit-confirm-counter-error')).not.toHaveTextContent('private-endpoint-secret');
     expect(roleSelect()).toHaveValue('counter_raw');
-    expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
+    expectPreparationBlocked();
     expect(ensureProfile).not.toHaveBeenCalled();
     expect(start).not.toHaveBeenCalled();
     expect(applySchema).not.toHaveBeenCalled();

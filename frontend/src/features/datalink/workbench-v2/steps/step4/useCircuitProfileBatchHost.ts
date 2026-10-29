@@ -1,12 +1,16 @@
 import * as React from 'react';
 import type { WriteGroup } from '../../../../../types/studioV2WriteGroup';
-import type { CircuitProfileLocalDraft } from '../../state/circuitProfileBasic';
+import { groupCircuitId, type CircuitProfileLocalDraft } from '../../state/circuitProfileBasic';
 import { applyUpdatedGroupsToActiveDraft, syncBatchDraftsAfterSave } from '../../state/circuitProfileBatch';
 import type { GroupCandidate } from '../../state/writeGroup/candidates';
 
 interface BatchHostInput {
   /** Identity of the Basic scope rendering this host (workspace, device, circuit and destination). */
   scopeKey: string;
+  /** Current native controls only; used to avoid replacing later operator edits at settlement. */
+  nativeConsent?: string;
+  /** Component-local versions incremented only by the native edit handler, never by hydration/navigation. */
+  nativeEdits?: ReadonlyMap<string, number>;
   workspaceId?: string;
   deviceId: string;
   candidates: GroupCandidate[];
@@ -27,6 +31,10 @@ export function useCircuitProfileBatchHost(input: BatchHostInput) {
   const mounted = React.useRef(true);
   const latestScope = React.useRef(input.scopeKey);
   latestScope.current = input.scopeKey;
+  const consentKey = JSON.stringify([input.scopeKey, input.nativeConsent]);
+  const consent = React.useRef({ key: consentKey, epoch: 0 });
+  if (consent.current.key !== consentKey) consent.current = { key: consentKey, epoch: consent.current.epoch + 1 };
+  const latestNativeEdits = React.useRef(input.nativeEdits); latestNativeEdits.current = input.nativeEdits;
   React.useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   // Every run holds the lock once and releases it once, so an old run never unlocks a newer one.
   const holds = React.useRef(0);
@@ -41,14 +49,25 @@ export function useCircuitProfileBatchHost(input: BatchHostInput) {
   };
 
   const launchScope = input.scopeKey;
+  const launchConsentEpoch = consent.current.epoch;
+  const launchNativeEdits = new Map(input.nativeEdits);
+  const unchangedConsent = () => input.nativeConsent === undefined || consent.current.epoch === launchConsentEpoch;
+  const unchangedDraft = (circuitId = '') => {
+    if (!input.nativeEdits) return true; // Existing standalone callers retain their native behavior.
+    const key = JSON.stringify([input.workspaceId ?? '', input.deviceId, circuitId]);
+    return latestNativeEdits.current !== undefined && (latestNativeEdits.current.get(key) ?? 0) === (launchNativeEdits.get(key) ?? 0);
+  };
   const onSaved = async (updated: WriteGroup[], nextRevision: string) => {
-    if (input.workspaceId && input.deviceId && updated.length > 0) {
-      // The launch scope owns the storage it saved into, even if the screen has moved on.
-      syncBatchDraftsAfterSave(input.workspaceId, input.deviceId, input.candidates, input.savedLongGroups, updated);
+    if (input.workspaceId && input.deviceId && updated.length > 0 && (!input.nativeEdits || mounted.current)) {
+      // An unmounted guided owner cannot verify a newer instance's edits; canonical acceptance/reload still proceed.
+      // A mounted launch scope owns its storage even if the screen has moved on.
+      // Protect every actually edited target, including another viewed circuit; untouched accepted targets still sync.
+      const toSync = updated.filter(group => unchangedDraft(groupCircuitId(group)));
+      syncBatchDraftsAfterSave(input.workspaceId, input.deviceId, input.candidates, input.savedLongGroups, toSync);
     }
     if (mounted.current && latestScope.current === launchScope) {
       input.setRevisionOverride({ base: input.queriedRevision, revision: nextRevision });
-      input.setLocalDraft((prev) => applyUpdatedGroupsToActiveDraft(prev, input.activeCircuitId, updated, input.savedLongGroups));
+      input.setLocalDraft((prev) => unchangedConsent() && unchangedDraft(input.activeCircuitId) ? applyUpdatedGroupsToActiveDraft(prev, input.activeCircuitId, updated, input.savedLongGroups) : prev);
     }
     await reload();
   };

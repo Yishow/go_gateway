@@ -1,3 +1,5 @@
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { guidedReadiness, guidedLifecycle } from '../../fixtures/guidedRecordingPreparation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { createInstance } from 'i18next';
@@ -5,17 +7,31 @@ import { I18nextProvider } from 'react-i18next';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { BasicRecordingPanel } from '@/features/datalink/workbench-v2/steps/step4/BasicRecordingPanel';
 import type { WriteGroup, WriteGroupValueRole } from '@/types/studioV2WriteGroup';
-import { mergeTranslations } from '@/i18n/mergeTranslations';
-import en from '@/i18n/locales/en/workbench-v2.json';
-import zh from '@/i18n/locales/zh-TW/workbench-v2.json';
-import enAuthoring from '@/i18n/locales/en/workbench-v2-recording-authoring.json';
-import zhAuthoring from '@/i18n/locales/zh-TW/workbench-v2-recording-authoring.json';
+import productionI18n from '@/i18n/config';
 import { savedGroupState } from '../../fixtures/writeGroupState';
 import { longProfileGroup } from '../../fixtures/circuitBatchPanel';
 import { expandSources } from '../../fixtures/sourceReview';
 const groupsQuery = { data: { workspace_id: 'ws-1', workspace_revision: 'wrev-1', groups: [] as WriteGroup[] }, isLoading: false, isError: false, refetch: vi.fn() };
 const mutations = { ensure: vi.fn(), update: vi.fn(), start: vi.fn(), ensureLegacy: vi.fn(), schema: vi.fn(), measurement: vi.fn() };
+let canonicalClient: QueryClient;
+const evidenceRefetch = vi.fn();
+const evidence = new Map<string, { readiness: ReturnType<typeof guidedReadiness>; lifecycle: ReturnType<typeof guidedLifecycle> }>();
+function currentEvidence(id: string) {
+  const group = groupsQuery.data.groups.find(value => value.id === id);
+  if (!group) return undefined;
+  const key = JSON.stringify([groupsQuery.data.workspace_revision, group]);
+  if (!evidence.has(key)) evidence.set(key, { readiness: guidedReadiness(group, groupsQuery.data.workspace_revision), lifecycle: guidedLifecycle(group, groupsQuery.data.workspace_revision) });
+  return evidence.get(key)!;
+}
+function publishGroups() {
+  canonicalClient?.setQueryData(studioV2WorkspaceKeys.writeGroups(), groupsQuery.data);
+  return { data: groupsQuery.data };
+}
+vi.mock('@/hooks/datalink/useStudioV2WriteGroupLifecycle', () => ({
+  useWriteGroupLifecycleQuery: (_workspace: string, id: string) => ({ data: currentEvidence(id)?.lifecycle, isLoading: false, isFetching: false, isError: false, refetch: evidenceRefetch }),
+}));
 vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({
+  useWriteGroupReadinessQuery: (id: string) => ({ data: currentEvidence(id)?.readiness, isLoading: false, isFetching: false, isError: false, refetch: evidenceRefetch }),
   useWriteGroupsQuery: () => groupsQuery, useWriteGroupDeliveryQuery: () => ({ data: undefined }),
   useUpdateWriteGroupMutation: () => ({ mutateAsync: mutations.update, isPending: false }),
   useEnsureCircuitProfileMutation: () => ({ mutateAsync: mutations.ensure, isPending: false }),
@@ -43,14 +59,15 @@ async function mount(lng = 'en', readonly = false) {
   const state = savedGroupState();
   state.devices.push({ ...state.devices[0], id: 'dev-2', name: 'PLC B' });
   const i18n = createInstance();
-  await i18n.init({ lng, resources: { en: { 'workbench-v2': mergeTranslations(en, enAuthoring) }, 'zh-TW': { 'workbench-v2': mergeTranslations(zh, zhAuthoring) } } });
+  await i18n.init({ lng, resources: productionI18n.options.resources });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  canonicalClient = client; client.setQueryDefaults(studioV2WorkspaceKeys.writeGroups(), { structuralSharing: false }); publishGroups();
   const onOpenAdvanced = vi.fn();
   const content = () => <I18nextProvider i18n={i18n}><QueryClientProvider client={client}><BasicRecordingPanel state={state} workspaceId="ws-1" readonly={readonly} onOpenAdvanced={onOpenAdvanced} /></QueryClientProvider></I18nextProvider>;
   return { ...render(content()), content, onOpenAdvanced };
 }
 function noMutation() { Object.values(mutations).forEach((mutation) => expect(mutation).not.toHaveBeenCalled()); }
-beforeEach(() => { vi.clearAllMocks(); sessionStorage.clear(); groupsQuery.data.groups = []; groupsQuery.refetch.mockResolvedValue({ data: groupsQuery.data }); });
+beforeEach(() => { vi.clearAllMocks(); sessionStorage.clear(); groupsQuery.data.groups = []; groupsQuery.refetch.mockImplementation(async () => publishGroups()); });
 it.each([['en', english], ['zh-TW', chinese]])('explains saved-role unsupported status accessibly in %s', async (lng, description) => {
   groupsQuery.data.groups = [saved('gauge')]; await mount(lng); expandSources();
   const role = screen.getByTestId('circuit-profile-role-tag-0');

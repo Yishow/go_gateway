@@ -1,13 +1,14 @@
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWriteGroupDeliveryQuery, useWriteGroupsQuery } from '../../../../../../hooks/datalink/useStudioV2WriteGroups';
+import { useWriteGroupsQuery } from '../../../../../../hooks/datalink/useStudioV2WriteGroups';
 import type { WriteGroup } from '../../../../../../types/studioV2WriteGroup';
 import type { WorkbenchV2State } from '../../../state/types';
 import { buildGroupCandidates } from '../../../state/writeGroup/candidates';
 import type { WorkspaceReadinessStepNumber } from '../../../components/WorkspaceReadinessPanel';
 import { CutoverPanel } from './CutoverPanel';
 import { GroupEditor } from './GroupEditor';
+import { SavedRecordingCard } from '../SavedRecordingCard';
 import type { SavedRecordingActionHost } from './lifecycle/SavedRecordingActions';
 
 export interface WriteGroupSectionProps {
@@ -24,30 +25,6 @@ export interface WriteGroupSectionProps {
 type Selection = { kind: 'none' } | { kind: 'new' } | { kind: 'edit'; id: string; saved?: WriteGroup };
 
 type Prerequisite = 'device' | 'tags' | 'destination' | null;
-
-function GroupListItem({ group, current, onOpen }: { group: WriteGroup; current: boolean; onOpen: () => void }) {
-  const { t } = useTranslation('workbench-v2');
-  const delivery = useWriteGroupDeliveryQuery(group.id, true);
-  return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-800 p-3 text-xs text-slate-300" data-testid={`group-list-item-${group.id}`}>
-      <div>
-        <div className="text-sm font-medium text-slate-100">{group.name}</div>
-        <div className="text-slate-500">
-          {group.destination.table_name} · {t(`step4.group.status.${group.status}`)} · {group.members.length} {t('step4.group.list.members')}
-          {!current && <span className="ml-2 text-amber-300" data-testid={`group-list-mismatch-${group.id}`}>{t('step4.group.list.other_destination')}</span>}
-        </div>
-        {delivery.data && (
-          <div className="text-slate-500" data-testid={`group-list-delivery-${group.id}`}>
-            {t('step4.group.list.delivery', { committed: delivery.data.stages.sql_committed, waiting: delivery.data.stages.queued + delivery.data.stages.retrying })}
-          </div>
-        )}
-      </div>
-      <button type="button" onClick={onOpen} className="rounded border border-slate-600 px-3 py-1 text-slate-100" data-testid={`group-open-${group.id}`}>
-        {group.status === 'deleted' ? t('step4.group.list.view') : t('step4.group.list.edit')}
-      </button>
-    </li>
-  );
-}
 
 /**
  * The only database output editor of Step 4. It reads the saved groups of the
@@ -79,6 +56,9 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, wor
   const removed = groups.filter((group) => group.status === 'deleted');
   // Right after a save the refetched list may not carry the group yet; the returned group bridges that gap.
   const selected = selection.kind === 'edit' ? groups.find((group) => group.id === selection.id) ?? selection.saved : undefined;
+  const management = { workspaceId, workspaceRevision: groupsQuery.data?.workspace_revision ?? '', lifecycleHost,
+    readonly: readonly || !workspaceId || groupsQuery.data?.workspace_id !== workspaceId || !groupsQuery.data?.workspace_revision || groupsQuery.isFetching,
+    onReload: () => { void groupsQuery.refetch(); } };
   const matches = (group: WriteGroup) => group.destination.connector_id === connector.connector_id &&
     group.destination.connector_revision === connector.identity_revision;
 
@@ -123,7 +103,8 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, wor
             <p className="text-xs text-slate-400" data-testid="group-empty">{t('step4.group.list.empty')}</p>
           ) : (
             <ul className="space-y-2" data-testid="group-list">
-              {live.map((group) => <GroupListItem key={group.id} group={group} current={matches(group)} onOpen={() => setSelection({ kind: 'edit', id: group.id })} />)}
+              {live.map((group) => <SavedRecordingCard key={group.id} group={group} current={matches(group)} onOpen={() => setSelection({ kind: 'edit', id: group.id })}
+                management={{ ...management, readonly: management.readonly || group.workspace_id !== workspaceId }} />)}
             </ul>
           )}
           {live.length > 0 && !live.some(matches) && destinationSaved && (
@@ -145,7 +126,8 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, wor
             <details data-testid="group-removed">
               <summary className="cursor-pointer text-xs text-slate-400">{t('step4.group.list.removed', { count: removed.length })}</summary>
               <ul className="mt-2 space-y-2">
-                {removed.map((group) => <GroupListItem key={group.id} group={group} current={matches(group)} onOpen={() => setSelection({ kind: 'edit', id: group.id })} />)}
+                {removed.map((group) => <SavedRecordingCard key={group.id} group={group} current={matches(group)} onOpen={() => setSelection({ kind: 'edit', id: group.id })}
+                management={{ ...management, readonly: management.readonly || group.workspace_id !== workspaceId }} />)}
               </ul>
             </details>
           )}

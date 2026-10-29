@@ -10,14 +10,17 @@ export interface SavedRecordingManagementProps {
   workspaceRevision?: string;
   readonly?: boolean;
   lifecycleHost?: SavedRecordingActionHost;
+  /** An existing canonical list owner may supply its reload instead of another enabled list observer. */
+  onReload?: () => void;
 }
 
 /** Saved controls do not call ordinary ensure/create and never consume an edited Basic draft. */
-export function SavedRecordingManagement({ group, workspaceId, workspaceRevision, readonly = false, lifecycleHost }: SavedRecordingManagementProps) {
-  const groups = useWriteGroupsQuery(Boolean(workspaceId));
+export function SavedRecordingManagement({ group, workspaceId, workspaceRevision, readonly = false, lifecycleHost, onReload }: SavedRecordingManagementProps) {
+  const groups = useWriteGroupsQuery(Boolean(workspaceId) && !onReload);
+  const reload = onReload ?? (() => { void groups.refetch(); });
   return <GroupLifecycleBar group={group} workspaceId={workspaceId ?? ''} workspaceRevision={workspaceRevision ?? ''}
     canApply={false} hideApply readonly={readonly} lifecycleHost={lifecycleHost}
-    onChanged={() => void groups.refetch()} onConflict={() => void groups.refetch()} />;
+    onChanged={reload} onConflict={reload} />;
 }
 
 /** Tombstones are management-only; they never re-enter Basic's ordinary creation candidate list. */

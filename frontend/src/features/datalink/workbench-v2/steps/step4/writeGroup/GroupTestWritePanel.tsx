@@ -24,6 +24,10 @@ export interface GroupTestWritePanelProps {
   /** False while the group has unsaved edits, an unsaved destination or a read-only session. */
   enabled: boolean;
   disabledReason?: string;
+  /** Denial-only guided-owner fence for NEW operations; existing same-operation repair is separate. */
+  newOperationBlocked?: boolean;
+  /** Recheck current owner recovery at dispatch. False never replaces this panel's own guards. */
+  isNewOperationBlocked?: () => boolean;
 }
 
 /**
@@ -31,7 +35,8 @@ export interface GroupTestWritePanelProps {
  * verification and cleanup are separate facts, an unconfirmed result is
  * checked rather than repeated, and nothing is inferred from a missing field.
  */
-export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ workspaceId, groupId, scopeKey, enabled, disabledReason }) => {
+export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ workspaceId, groupId, scopeKey, enabled, disabledReason,
+  newOperationBlocked = false, isNewOperationBlocked }) => {
   const { t } = useTranslation('workbench-v2');
   const recoveryList = useRecordingTestWriteRecovery(workspaceId);
   const previewMutation = useWriteGroupTestWritePreviewMutation();
@@ -57,6 +62,13 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
     return () => window.removeEventListener('storage', refreshRecovery);
   }, []);
   const inFlight = useRef(false);
+  const newOperationFence = useRef({ newOperationBlocked, isNewOperationBlocked });
+  newOperationFence.current = { newOperationBlocked, isNewOperationBlocked };
+  const newOperationDenied = () => {
+    const fence = newOperationFence.current;
+    if (fence.newOperationBlocked) return true;
+    try { return fence.isNewOperationBlocked?.() === true; } catch { return true; }
+  };
   const operationQuery = useWriteGroupTestWriteOperationQuery(reference?.operation_id ?? operation?.operation_id ?? preview?.operation_id, workspaceId);
 
   // A reply for an earlier group or revision must never land on the current one.
@@ -96,7 +108,7 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
   };
 
   const handlePreview = () => run(async () => {
-    if (!enabled || reference || recovery.unavailable || !recoveryList.available) return;
+    if (!enabled || reference || recovery.unavailable || !recoveryList.available || newOperationDenied()) return;
     const scope = scopeRef.current;
     const result = await previewMutation.mutateAsync(groupId);
     if (scopeRef.current !== scope) return;
@@ -108,7 +120,7 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
   });
 
   const handleConfirm = () => run(async () => {
-    if (!preview || reference || !enabled || !recoveryList.available) return;
+    if (!preview || reference || !enabled || !recoveryList.available || newOperationDenied()) return;
     const scope = scopeRef.current;
     const retained = recordingTestWriteRecovery.retain({
       workspace_id: workspaceId, group_id: groupId, group_revision: preview.group_revision,
@@ -183,10 +195,10 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
       <h4 id={`group-test-write-${groupId}`} className="text-sm font-semibold text-slate-200">{t('step4.group.test_write.title')}</h4>
       <p className="text-xs text-slate-400">{t('step4.group.test_write.intro')}</p>
 
-      {!enabled && disabledReason && <p className="text-xs text-amber-300" data-testid="group-test-write-blocked">{disabledReason}</p>}
+      {(!enabled || newOperationBlocked) && disabledReason && <p className="text-xs text-amber-300" data-testid="group-test-write-blocked">{disabledReason}</p>}
 
       <button
-        type="button" onClick={handlePreview} disabled={!enabled || busy || Boolean(reference) || recovery.unavailable || !recoveryList.available}
+        type="button" onClick={handlePreview} disabled={!enabled || newOperationBlocked || busy || Boolean(reference) || recovery.unavailable || !recoveryList.available}
         className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-100 disabled:opacity-40" data-testid="group-test-write-preview"
       >
         {t('step4.group.test_write.preview')}
@@ -209,7 +221,7 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
           </ul>
           <p>{t(preview.record_ids ? 'step4.group.test_write.long_cleanup_note' : 'step4.group.test_write.cleanup_note')}</p>
           <button
-            type="button" onClick={handleConfirm} disabled={!enabled || busy || unconfirmed || !recoveryList.available}
+            type="button" onClick={handleConfirm} disabled={!enabled || newOperationBlocked || busy || unconfirmed || !recoveryList.available}
             className="rounded bg-blue-600 px-3 py-1 text-xs text-white disabled:opacity-40" data-testid="group-test-write-confirm"
           >
             {t('step4.group.test_write.confirm')}

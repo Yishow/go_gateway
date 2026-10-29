@@ -97,6 +97,17 @@ export function createRecordingAuthoringMock(scenario: AuthoringScenario = 'new-
     const { pathname: path, searchParams: params } = url;
     if (!path.startsWith(`${PATH}/`)) return reject();
     if (request.method === 'GET') {
+      if (path === `${PATH}/runtime-context`) {
+        const keys = [...params.keys()];
+        if (keys.length !== 3 || keys.some(key => !['workspace_id', 'workspace_revision', 'device_id'].includes(key))) return reject('MOCK_RUNTIME_SCOPE', 400);
+        if (params.get('workspace_id') !== 'ws-1' || !['dev-1', 'dev-2'].includes(params.get('device_id') ?? '')) return reject('foreign-scope', 403);
+        if (params.get('workspace_revision') !== workspaceRevision) return reject('stale-reference', 409);
+        // Authoring fixtures prove no runtime facts. Keep a valid, explicitly unavailable read model, never clone saved groups.
+        return { workspace_id: 'ws-1', devices: [], default_device_id: null, setup: null, rule_evidence: {
+          contract_version: 1, workspace_id: 'ws-1', workspace_revision: workspaceRevision, device_id: params.get('device_id'),
+          observed_at: null, freshness: 'unavailable', source: null, groups: [], locator: null,
+        } };
+      }
       if (path === `${PATH}/write-groups`) return { workspace_id: 'ws-1', workspace_revision: workspaceRevision, groups };
       if (path === `${PATH}/measurements`) {
         const device = params.get('device_id');

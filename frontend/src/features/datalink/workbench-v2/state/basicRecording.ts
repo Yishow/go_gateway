@@ -75,9 +75,30 @@ function storage(): Storage | undefined {
   }
 }
 
+const BASIC_INTENT_UPDATED = 'wbv2-basic-recording-intent-updated';
+
+/** A scope-only wake-up, not a second request store or permission to execute anything. */
+export function subscribeBasicRecordingIntent(scopeKey: string, notify: () => void): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  const listener = (event: Event) => { if ((event as CustomEvent<unknown>).detail === scopeKey) notify(); };
+  window.addEventListener(BASIC_INTENT_UPDATED, listener);
+  return () => window.removeEventListener(BASIC_INTENT_UPDATED, listener);
+}
+function publishBasicRecordingIntent(scopeKey: string): void {
+  window.dispatchEvent(new CustomEvent(BASIC_INTENT_UPDATED, { detail: scopeKey }));
+}
+
+/** Full original serialized payload, including original revisions/draft/tokens; no rebuilt request. */
+export function sameBasicRecordingIntent(left: BasicRecordingIntentRecord | undefined, right: BasicRecordingIntentRecord | undefined): boolean {
+  return Boolean(left && right && left.scope_key === right.scope_key && JSON.stringify(left.request) === JSON.stringify(right.request));
+}
+
 export function saveBasicRecordingIntent(record: BasicRecordingIntentRecord): void {
   try {
-    storage()?.setItem(basicRecordingIntentKey(record.scope_key), JSON.stringify({ ...record, version: 1 }));
+    const source = storage();
+    if (!source) return;
+    source.setItem(basicRecordingIntentKey(record.scope_key), JSON.stringify({ ...record, version: 1 }));
+    publishBasicRecordingIntent(record.scope_key);
   } catch {
     // Offline recovery is best effort; the request still remains in component state.
   }
@@ -111,10 +132,7 @@ function validStoredRequest(value: unknown, workspaceId: string, deviceId: strin
   return true;
 }
 
-export function loadBasicRecordingIntent(scopeKey: string): BasicRecordingIntentRecord | undefined {
-  try {
-    const raw = storage()?.getItem(basicRecordingIntentKey(scopeKey));
-    if (!raw) return undefined;
+function decodeBasicRecordingIntent(raw: string, scopeKey: string): BasicRecordingIntentRecord | undefined {
     const value: unknown = JSON.parse(raw);
     if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
     const record = value as Partial<BasicRecordingIntentRecord>;
@@ -123,9 +141,74 @@ export function loadBasicRecordingIntent(scopeKey: string): BasicRecordingIntent
       record.scope_key !== scopeKey || !validStoredRequest(record.request, scopeParts[0], scopeParts[1]) ||
       (record.operation_id !== undefined && !safeText(record.operation_id, 256))) return undefined;
     return { version: 1, scope_key: scopeKey, request: record.request, ...(record.operation_id ? { operation_id: record.operation_id } : {}) };
+}
+
+/** Late replies may complete only their original retained intent, never overwrite a newer O2. */
+export function completeBasicRecordingIntent(record: BasicRecordingIntentRecord, operationId: string): 'saved' | 'superseded' | 'unavailable' {
+  try {
+    const source = storage();
+    if (!source || !safeText(operationId, 256)) return 'unavailable';
+    const raw = source.getItem(basicRecordingIntentKey(record.scope_key));
+    if (!raw) return 'superseded';
+    const current = decodeBasicRecordingIntent(raw, record.scope_key);
+    if (!current) return 'unavailable';
+    if (!sameBasicRecordingIntent(record, current) || current.operation_id && current.operation_id !== operationId ||
+      record.operation_id && record.operation_id !== operationId) return 'superseded';
+    source.setItem(basicRecordingIntentKey(record.scope_key), JSON.stringify({ ...record, version: 1, operation_id: operationId }));
+    publishBasicRecordingIntent(record.scope_key);
+    return 'saved';
+  } catch { return 'unavailable'; }
+}
+
+/** A late definitive rejection cannot clear another request, or a subsequently learned operation. */
+export function clearBasicRecordingIntentIfCurrent(record: BasicRecordingIntentRecord): void {
+  try {
+    const source = storage(); const raw = source?.getItem(basicRecordingIntentKey(record.scope_key));
+    const current = raw ? decodeBasicRecordingIntent(raw, record.scope_key) : undefined;
+    if (current && sameBasicRecordingIntent(record, current) && current.operation_id === record.operation_id) {
+      source?.removeItem(basicRecordingIntentKey(record.scope_key));
+      publishBasicRecordingIntent(record.scope_key);
+    }
+  } catch { /* Unreadable recovery remains unavailable; do not discard it. */ }
+}
+
+export function loadBasicRecordingIntent(scopeKey: string): BasicRecordingIntentRecord | undefined {
+  try {
+    const raw = storage()?.getItem(basicRecordingIntentKey(scopeKey));
+    return raw ? decodeBasicRecordingIntent(raw, scopeKey) : undefined;
   } catch {
     return undefined;
   }
+}
+
+export type BasicRecordingIntentInspection = { readonly state: 'empty' }
+  | { readonly state: 'retained'; readonly operationId?: string }
+  | { readonly state: 'unavailable'; readonly reason: 'unreadable' | 'invalid_record' | 'scope_mismatch' };
+
+/** Owner-local inspection only. The original request and tokens never leave the existing owner. */
+export function inspectBasicRecordingIntent(scopeKey: string): BasicRecordingIntentInspection {
+  const parts = scopeKey.split('/');
+  if (parts.length !== 3 || !safeText(parts[0], 256) || !safeText(parts[1], 256) || !parts[2]) return { state: 'unavailable', reason: 'scope_mismatch' };
+  let raw: string | null;
+  try {
+    const source = storage();
+    if (!source) return { state: 'unavailable', reason: 'unreadable' };
+    raw = source.getItem(basicRecordingIntentKey(scopeKey));
+  } catch { return { state: 'unavailable', reason: 'unreadable' }; }
+  if (!raw) return { state: 'empty' };
+  try {
+    const record = decodeBasicRecordingIntent(raw, scopeKey);
+    if (record) return { state: 'retained', ...(record.operation_id ? { operationId: record.operation_id } : {}) };
+    const value: unknown = JSON.parse(raw);
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const stored = value as Partial<BasicRecordingIntentRecord>;
+      if (stored.scope_key !== scopeKey || (stored.request && (stored.request.workspace_id !== parts[0] ||
+        Array.isArray(stored.request.device_ids) && (stored.request.device_ids.length !== 1 || stored.request.device_ids[0] !== parts[1])))) {
+        return { state: 'unavailable', reason: 'scope_mismatch' };
+      }
+    }
+  } catch { /* Invalid data is unavailable, never an empty owner. */ }
+  return { state: 'unavailable', reason: 'invalid_record' };
 }
 
 export function createBasicRecordingRequestId(): string {

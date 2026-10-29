@@ -36,6 +36,22 @@ export function createRecordingLifecycleMock(scenario: LifecycleScenario = 'appl
     const { pathname: path, searchParams: params } = url;
     if (!path.startsWith(`${FIXTURE_PATH}/`)) return reject('MOCK_UNSUPPORTED_ROUTE', 404);
     if (request.method === 'GET') {
+      if (path === `${FIXTURE_PATH}/runtime-context`) {
+        const keys = ['workspace_id', 'workspace_revision', 'device_id'];
+        if (request.body !== undefined || [...params.keys()].some(key => !keys.includes(key)) ||
+          keys.some(key => params.getAll(key).length !== 1)) return reject('MOCK_INVALID_REQUEST', 400);
+        if (params.get('workspace_id') !== 'ws-1' || params.get('device_id') !== 'dev-1') return reject('foreign-scope');
+        if (params.get('workspace_revision') !== state.workspaceRevision) return reject('stale-reference');
+        // This lifecycle simulator owns no verified runtime evidence; saved groups are not effective proof.
+        return { workspace_id: 'ws-1', devices: [], default_device_id: null, setup: null,
+          rule_evidence: { contract_version: 1, workspace_id: 'ws-1', workspace_revision: state.workspaceRevision,
+            device_id: 'dev-1', observed_at: null, freshness: 'unavailable', source: null, groups: [], locator: null } };
+      }
+      if (path === `${FIXTURE_PATH}/database-operations/test-writes`) {
+        // The workspace comes from this mock server session; the real list service sends no query/body.
+        if (request.body !== undefined || params.size !== 0) return reject('MOCK_INVALID_REQUEST', 400);
+        return { workspace_id: 'ws-1', complete: true, operations: [] };
+      }
       if (path === `${FIXTURE_PATH}/write-groups`) return { workspace_id: 'ws-1', workspace_revision: state.workspaceRevision, groups: [state.source, ...(state.target ? [state.target] : [])] };
       if (path === `${FIXTURE_PATH}/measurements` && (!params.has('device_id') || params.get('device_id') === 'dev-1')) return [];
       if (path === `${FIXTURE_PATH}/database-metadata`) {
@@ -66,7 +82,7 @@ export function createRecordingLifecycleMock(scenario: LifecycleScenario = 'appl
     }
     const ordinary = path.slice(FIXTURE_PATH.length).match(/^\/write-groups\/(G1|G2)\/schema-preview$/);
     if (request.method === 'POST' && ordinary) {
-      // Existing Basic host autoPreview is distinct from the successor dialog. Record it, never hide it.
+      // Explicit ordinary preview and standalone autoPreview create tokens; record both as mutations.
       const body = request.body, source = group(ordinary[1]);
       if (source.id === 'G2' && state.status?.cutover.status !== 'succeeded' && state.status?.first_start.status !== 'succeeded') return reject('WRITE_GROUP_LIFECYCLE_BLOCKED');
       if (!isRecord(body) || Object.keys(body).some(key => !['workspace_id', 'expected_workspace_revision', 'expected_group_revision', 'expected_connector_revision'].includes(key))) return reject('WRITE_GROUP_INVALID_REQUEST', 400);

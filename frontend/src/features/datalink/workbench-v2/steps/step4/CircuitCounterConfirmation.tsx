@@ -12,12 +12,14 @@ export interface CircuitCounterConfirmationProps {
   circuitId: string;
   unconfirmedStatuses: CandidateCounterStatus[];
   readonly: boolean;
+  newOperationBlocked?: boolean;
+  isNewOperationBlocked?: () => boolean;
   onConfirmed: () => Promise<void> | void;
   namePrerequisite?: { descriptionId: string; onFocus: () => void };
 }
 
 // Each source owns its unit and exact policy; repairing one must preserve others.
-function CounterSourceConfirmation({ status, workspaceId, workspaceRevision, circuitId, readonly, onConfirmed, namePrerequisite }:
+function CounterSourceConfirmation({ status, workspaceId, workspaceRevision, circuitId, readonly, onConfirmed, namePrerequisite, newOperationBlocked = false, isNewOperationBlocked }:
   Omit<CircuitCounterConfirmationProps, 'unconfirmedStatuses'> & { status: CandidateCounterStatus }) {
   const { t } = useTranslation('workbench-v2');
   const createMutation = useCreateStudioV2MeasurementMutation();
@@ -29,7 +31,7 @@ function CounterSourceConfirmation({ status, workspaceId, workspaceRevision, cir
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const inFlight = React.useRef(false);
   const needsName = !saved && namePrerequisite !== undefined;
-  const canSubmit = !needsName && !readonly && !isSubmitting && Boolean(workspaceId && workspaceRevision && unit.trim() && (saved || circuitId));
+  const canSubmit = !needsName && !readonly && !newOperationBlocked && !isSubmitting && Boolean(workspaceId && workspaceRevision && unit.trim() && (saved || circuitId));
   if (status.issueCode === 'counter-type-unsupported') {
     return <p role="status">{status.candidate.label.trim() || status.candidate.address} · {t('workspace_readiness.issue_labels.counter-type-unsupported')}</p>;
   }
@@ -42,6 +44,7 @@ function CounterSourceConfirmation({ status, workspaceId, workspaceRevision, cir
 
   const handleConfirm = async () => {
     if (!canSubmit || inFlight.current) return;
+    try { if (isNewOperationBlocked?.()) return; } catch { return; }
     inFlight.current = true;
     setErrorMessage(undefined);
     setIsSubmitting(true);

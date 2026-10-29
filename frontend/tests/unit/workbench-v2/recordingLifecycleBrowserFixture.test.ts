@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { AxiosError, type AxiosResponse } from 'axios';
+import { studioV2RuntimeContextAPI } from '@/services/studioV2RuntimeContext';
+import { listRecordingTestWriteRecovery } from '@/services/recordingTestWriteRecovery';
 import { studioV2DatalinkApi } from '@/services/studioV2Workspace';
 import { studioV2WriteGroupLifecycleAPI as lifecycleAPI } from '@/services/studioV2WriteGroupLifecycle';
 import { studioV2WriteGroupSuccessorAPI as api } from '@/services/studioV2WriteGroupSuccessor';
@@ -58,6 +60,39 @@ async function ready(scenario: LifecycleScenario) {
 function direct(mock: RecordingLifecycleMock, action: string, body: object) { return mock.handle({ method: 'POST', url: path, body: { ...body, action } }); }
 
 describe('test-only real-host browser fixture: strict API contracts, NOT browser acceptance', () => {
+  it('serves exact scoped unavailable runtime evidence and a complete empty recovery list without mutation', async () => {
+    const mock = createRecordingLifecycleMock(); connect(mock);
+    expect(await studioV2RuntimeContextAPI.getRuleEvidence({ workspace_id: 'ws-1', workspace_revision: 'W1', device_id: 'dev-1' }))
+      .toMatchObject({ ok: true, value: { freshness: 'unavailable', observed_at: null, source: null, groups: [], locator: null } });
+    expect(await listRecordingTestWriteRecovery('ws-1')).toEqual({ workspace_id: 'ws-1', complete: true, operations: [] });
+    expect(mock.ledger).toHaveLength(2);
+    expect(mock.ledger.every(call => !call.mutation && call.status === 200)).toBe(true);
+    await expect(listRecordingTestWriteRecovery('foreign')).rejects.toThrow();
+    expect(mock.snapshot().status).toBeUndefined();
+  });
+  it.each([
+    'workspace_id=OTHER&workspace_revision=W1&device_id=dev-1',
+    'workspace_id=ws-1&workspace_revision=OLD&device_id=dev-1',
+    'workspace_id=ws-1&workspace_revision=W1&device_id=OTHER',
+    'workspace_id=ws-1&device_id=dev-1',
+    'workspace_id=ws-1&workspace_revision=W1&device_id=dev-1&device_id=dev-1',
+    'workspace_id=ws-1&workspace_revision=W1&device_id=dev-1&extra=yes',
+  ])('rejects malformed/foreign/stale runtime scope %s', query => {
+    const mock = createRecordingLifecycleMock();
+    expect(mock.handle({ method: 'GET', url: `${FIXTURE_PATH}/runtime-context?${query}` }).status).not.toBe(200);
+    expect(mock.ledger.every(call => !call.mutation)).toBe(true);
+  });
+  it('rejects bodies or unsupported recovery-list query scopes instead of silently accepting them', () => {
+    const mock = createRecordingLifecycleMock();
+    for (const query of ['?workspace_id=OTHER', '?workspace_revision=OLD', '?group_id=G1', '?workspace_id=ws-1&workspace_id=ws-1']) {
+      expect(mock.handle({ method: 'GET', url: `${FIXTURE_PATH}/database-operations/test-writes${query}` }).status).toBe(400);
+    }
+    for (const url of [`${FIXTURE_PATH}/database-operations/test-writes`, `${FIXTURE_PATH}/runtime-context?workspace_id=ws-1&workspace_revision=W1&device_id=dev-1`]) {
+      expect(mock.handle({ method: 'GET', url, body: {} }).status).toBe(400);
+      expect(mock.handle({ method: 'POST', url }).status).toBe(404);
+    }
+    expect(mock.ledger.filter(call => call.mutation)).toHaveLength(2);
+  });
   it.each(lifecycleScenarios)('%s emits list/lifecycle/readiness accepted by real production parsers', async scenario => {
     const mock = createRecordingLifecycleMock(scenario); connect(mock);
     expect(await groupsAPI.list()).toMatchObject({ workspace_id: 'ws-1', groups: [{ id: 'G1' }] });

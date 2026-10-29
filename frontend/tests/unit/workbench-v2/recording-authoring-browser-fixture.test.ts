@@ -1,3 +1,4 @@
+import { studioV2RuntimeContextAPI } from '@/services/studioV2RuntimeContext';
 import { AxiosError, type AxiosAdapter } from 'axios';
 import { afterEach, describe, expect, it } from 'vitest';
 import { studioV2DatalinkApi } from '@/services/studioV2Workspace';
@@ -222,4 +223,32 @@ describe('authoring test-write mock recovery contract', () => {
     await expect(groups.testWrite('G1', { ...confirmation(preview), action: 'cleanup_repair' })).rejects.toBeInstanceOf(AxiosError);
     expect(mock.snapshot()).toMatchObject({ insertCount: 1, repairCount: 0 });
   });
+});
+
+describe('guided summary read in the authoring fixture', () => {
+  it('returns explicit unavailable evidence only for the exact current workspace/revision/device without changing saved configuration', async () => {
+    const mock = connect('saved-state'), before = mock.snapshot();
+    const scope = { workspace_id: 'ws-1', workspace_revision: 'W1', device_id: 'dev-1' };
+    expect(await studioV2RuntimeContextAPI.getRuleEvidence(scope)).toEqual({ ok: true, value: {
+      contract_version: 1, ...scope, observed_at: null, freshness: 'unavailable', source: null, groups: [], locator: null,
+    } });
+    expect(mock.ledger).toHaveLength(1);
+    expect(mock.ledger[0]).toMatchObject({ method: 'GET', action: 'runtime-context', status: 200, mutation: false });
+    expect(mock.snapshot()).toEqual(before);
+  });
+  it.each(['workspace', 'revision', 'device', 'missing', 'extra', 'duplicate'] as const)(
+    'refuses %s runtime scope without a new proof or mutation', async kind => {
+      const mock = connect('saved-state');
+      const params = new URLSearchParams({ workspace_id: 'ws-1', workspace_revision: 'W1', device_id: 'dev-1' });
+      if (kind === 'workspace') params.set('workspace_id', 'foreign');
+      if (kind === 'revision') params.set('workspace_revision', 'old');
+      if (kind === 'device') params.set('device_id', 'foreign');
+      if (kind === 'missing') params.delete('device_id');
+      if (kind === 'extra') params.set('extra', 'unsafe');
+      if (kind === 'duplicate') params.append('device_id', 'dev-2');
+      const reply = mock.handle({ method: 'GET', url: `${PATH}/runtime-context?${params}` });
+      expect(reply.status).toBeGreaterThanOrEqual(400);
+      expect(mock.ledger[0]).toMatchObject({ action: 'runtime-context', mutation: false });
+      expect(mock.snapshot().groups).toEqual(mock.snapshot().frozenGroups);
+    });
 });

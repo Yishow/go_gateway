@@ -192,7 +192,9 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   };
 
   const handleRuntimeDashboardHandoff = React.useCallback((confirmedDeviceIds?: string[]) => {
-    const target = buildRuntimeDashboardTarget(resolveRuntimeDashboardDevice(state, confirmedDeviceIds));
+    const deviceId = resolveRuntimeDashboardDevice(state, confirmedDeviceIds);
+    if (confirmedDeviceIds !== undefined && !deviceId) return;
+    const target = buildRuntimeDashboardTarget(deviceId);
     navigateTo?.(target);
   }, [navigateTo, state]);
 
@@ -447,7 +449,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
                 workspaceReadiness={workspaceReadiness}
                 workspaceAuditHistory={workspaceAuditHistory}
                 workspaceAuditUnavailable={workspaceAuditUnavailable}
-                onOpenRuntime={navigateTo ? handleRuntimeDashboardHandoff : undefined}
+                onOpenRuntime={navigateTo ? () => handleRuntimeDashboardHandoff() : undefined}
               />
             </div>
           </aside>
