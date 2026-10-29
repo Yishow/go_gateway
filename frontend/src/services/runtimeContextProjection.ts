@@ -83,7 +83,7 @@ export function projectRuntimeContext(value: unknown): StudioV2RuntimeContext {
   if (!id(v.workspace_id)) throw new Error('runtime-context-unavailable');
   const devices = list(v.devices).map(device);
   const defaultDevice = devices.find((item) => item.device_id && item.device_id === id(v.default_device_id) && item.availability_status === 'available' && item.protocol !== 'unavailable');
-  return { workspace_id: id(v.workspace_id), devices,
+  return { workspace_id: id(v.workspace_id), ...(id(v.workspace_revision) ? { workspace_revision: id(v.workspace_revision) } : {}), devices,
     default_device_id: defaultDevice?.device_id ?? null, setup: setup(v.setup) };
 }
 

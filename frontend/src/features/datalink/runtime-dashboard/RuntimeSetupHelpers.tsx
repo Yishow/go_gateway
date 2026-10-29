@@ -1,10 +1,6 @@
 import type { MouseEvent } from 'react';
 import type { StudioV2WorkspaceReadinessIssue } from '../../../types/studioV2WorkspaceReadiness';
 
-export function compactIdentifier(value: string): string {
-  return value.length > 18 ? `${value.slice(0, 8)}...${value.slice(-4)}` : value;
-}
-
 export function buildStudioV2FocusTarget(issue: StudioV2WorkspaceReadinessIssue | null): string {
   if (!issue) {
     return '/studio/v2';

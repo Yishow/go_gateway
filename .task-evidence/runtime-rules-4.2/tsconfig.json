@@ -1,0 +1,13 @@
+{
+  "extends": "../../frontend/tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "node"],
+    "typeRoots": ["../../frontend/node_modules", "../../frontend/node_modules/@types"]
+  },
+  "include": [
+    "../../frontend/tests/e2e/runtime-recording-*.spec.ts",
+    "../../frontend/tests/e2e/runtime-recording.helpers.ts",
+    "../../frontend/tests/e2e/fixtures/runtime-recording-*.ts",
+    "../../frontend/tests/e2e/fixtures/runtime-recording-*.tsx"
+  ]
+}

@@ -1,3 +1,5 @@
+import type { StudioV2LocatorReadScope } from '../types/studioV2LocatorEntry';
+import { captureStudioLocatorReadScope, studioLocatorReadParams, assertStudioLocatorWorkspaceBinding, throwStudioLocatorReadError } from './studioEntityLocator';
 import type { APIResponse } from '../types/datalink';
 import type {
   MeasurementDefinition,
@@ -19,13 +21,21 @@ export interface UpdateMeasurementResponse {
 }
 
 export const studioV2WorkspaceMeasurementsAPI = {
-  async list(deviceId?: string): Promise<MeasurementDefinition[]> {
-    const params = deviceId ? { device_id: deviceId } : undefined;
+  async list(deviceId?: string, locatorScope?: StudioV2LocatorReadScope): Promise<MeasurementDefinition[]> {
+    const selected = captureStudioLocatorReadScope(locatorScope);
+    const params = selected ? { ...(deviceId ? { device_id: deviceId } : {}), ...studioLocatorReadParams(selected) } : deviceId ? { device_id: deviceId } : undefined;
     const res = await studioV2DatalinkApi.get<APIResponse<MeasurementDefinition[]>>(
       '/studio-v2/workspace/measurements',
       { params }
-    );
-    return res.data.data ?? [];
+    ).catch(error => throwStudioLocatorReadError(error, selected));
+    if (selected && (res.data.success !== true || !Array.isArray(res.data.data))) throw new Error('Scoped settings read unavailable.');
+    const definitions = res.data.data ?? [];
+    if (selected) {
+      if (!Array.isArray(definitions)) throw new Error('Scoped settings read unavailable.');
+      for (const definition of definitions) { assertStudioLocatorWorkspaceBinding(definition, selected);
+        if (!definition || definition.workspace_id !== selected.workspaceId || (deviceId !== undefined && definition.device_id !== deviceId)) throw new Error('Scoped settings read unavailable.'); }
+    }
+    return definitions;
   },
 
   async listTemplates(): Promise<MeasurementTemplate[]> {

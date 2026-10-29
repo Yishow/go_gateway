@@ -176,6 +176,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.GET("/dashboard/device-statuses", dashboardHandler.GetDeviceStatuses)
 
 			runtimeAppliedReader, _ := datalinkServices.WriteGroupDelivery.(handlers.RuntimeAppliedConfigurationReader)
+			runtimeDeliveryReader, _ := datalinkServices.WriteGroupDelivery.(handlers.RuntimeRevisionDeliveryReader)
 			runtimeHandler := handlers.NewRuntimeHandler(
 				datalinkServices.Device,
 				datalinkServices.Point,
@@ -183,7 +184,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				datalinkServices.Scheduler,
 				datalinkServices.Runtime,
 				datalinkServices.Workspace,
-			).WithRuleEvidenceServices(datalinkServices.WriteGroups, runtimeAppliedReader).WithSetupContextServices(
+			).WithRuleEvidenceServices(datalinkServices.WriteGroups, runtimeAppliedReader).WithRuleDeliveryServices(runtimeDeliveryReader).WithSetupContextServices(
 				datalinkServices.SourceRule,
 				datalinkServices.Tag,
 				datalinkServices.Mapping,
@@ -305,6 +306,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 
 			if datalinkServices.Workspace != nil {
 				workspaceHandler := handlers.NewStudioV2WorkspaceHandler(datalinkServices.Workspace).WithModbusShare(datalinkServices.ModbusShare).WithModbusShareReconciler(datalinkServices.ModbusShareReconciler)
+				workspaceHandler.WithLocatorEntryServices(handlers.StudioV2LocatorReaders{Connectors: datalinkServices.DBTarget, Targets: datalinkServices.DBMapping, Devices: datalinkServices.Device, Rules: datalinkServices.SourceRule, Points: datalinkServices.Point, Mappings: datalinkServices.Mapping, Tags: datalinkServices.Tag, Groups: datalinkServices.WriteGroups})
 				if builder := canonicalShareDesiredMappingBuilder(datalinkServices); builder != nil {
 					workspaceHandler.WithCanonicalPlanBuilder(builder)
 				}

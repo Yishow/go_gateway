@@ -1,3 +1,5 @@
+import type { StudioV2LocatorReadScope } from '../../types/studioV2LocatorEntry';
+import { studioLocatorReadKey } from '../../services/studioEntityLocator';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { studioV2WorkspaceKeys } from './keys';
 import {
@@ -14,13 +16,14 @@ interface MeasurementQueryScope {
 }
 
 export function useStudioV2WorkspaceMeasurementsQuery(
-  enabled: boolean, deviceId?: string, scope?: MeasurementQueryScope,
+  enabled: boolean, deviceId?: string, scope?: MeasurementQueryScope, locatorScope?: StudioV2LocatorReadScope,
 ) {
+  const selectedLocatorScope = locatorScope === undefined ? undefined : { workspaceId: locatorScope.workspaceId, workspaceRevision: locatorScope.workspaceRevision };
   return useQuery({
     // This fences late reads in the cache; only server mutation CAS can prove a current revision.
-    queryKey: [...studioV2WorkspaceKeys.measurements(deviceId), ...(scope ? [scope.workspaceId, scope.workspaceRevision] : [])],
+    queryKey: [...studioV2WorkspaceKeys.measurements(deviceId), ...(scope ? [scope.workspaceId, scope.workspaceRevision] : []), ...studioLocatorReadKey(selectedLocatorScope)],
     queryFn: async () => {
-      const definitions = await studioV2WorkspaceMeasurementsAPI.list(deviceId);
+      const definitions = await (selectedLocatorScope ? studioV2WorkspaceMeasurementsAPI.list(deviceId, selectedLocatorScope) : studioV2WorkspaceMeasurementsAPI.list(deviceId));
       const hasForeignScope = scope && definitions.some((definition) => definition.workspace_id !== scope.workspaceId ||
         (deviceId !== undefined && definition.device_id !== deviceId));
       if (hasForeignScope) {

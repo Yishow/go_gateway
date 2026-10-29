@@ -98,10 +98,10 @@ describe('write group delivery status', () => {
     const hard = parseWriteGroupDeliveryData(delivery({
       quota: {
         configured: true, state: 'hard_limit', scope: 'group', used_bytes: 95, max_bytes: 100,
-        intake_refused: true, loss_risk_notice: 'new readings are not recorded',
+        intake_refused: true, loss_risk_notice: 'new readings for this scope are not recorded until space is available; already accepted data is kept',
       },
     }));
-    expect(hard?.quota.loss_risk_notice).toBe('new readings are not recorded');
+    expect(hard?.quota.loss_risk_notice).toBe('new readings for this scope are not recorded until space is available; already accepted data is kept');
     expect(parseWriteGroupDeliveryData({
       ...delivery({ intake: { state: 'not_running' }, last_sql_committed_at: null, backlog: [] }),
       stages: { collecting: 0, queued: 0, retrying: 0, blocked: 0, quarantined: 0, unknown: 0, sql_committed: 0, skipped: 0 },

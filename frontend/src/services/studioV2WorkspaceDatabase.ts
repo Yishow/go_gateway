@@ -1,3 +1,6 @@
+import type { StudioV2LocatorReadScope } from '../types/studioV2LocatorEntry';
+export type { StudioV2LocatorReadScope } from '../types/studioV2LocatorEntry';
+import { captureStudioLocatorReadScope, studioLocatorReadParams, assertStudioLocatorWorkspaceBinding, throwStudioLocatorReadError } from './studioEntityLocator';
 import type {
   APIResponse,
   StudioV2WorkspaceDatabaseConfigRecord,
@@ -232,27 +235,37 @@ export const studioV2WorkspaceDatabaseAPI = {
     return res.data.data!;
   },
 
-  async getMySQLRecordingCapability(connectorId: string, expectedConnectorRevision: string): Promise<StudioV2MySQLRecordingCapability> {
+  async getMySQLRecordingCapability(connectorId: string, expectedConnectorRevision: string, locatorScope?: StudioV2LocatorReadScope): Promise<StudioV2MySQLRecordingCapability> {
+    const selected = captureStudioLocatorReadScope(locatorScope);
     const res = await studioV2DatalinkApi.get<APIResponse<unknown>>('/studio-v2/workspace/recording-plans/capabilities', {
-      params: { kind: 'mysql', connector_id: connectorId, expected_connector_revision: expectedConnectorRevision },
-    });
+      params: { kind: 'mysql', connector_id: connectorId, expected_connector_revision: expectedConnectorRevision, ...studioLocatorReadParams(selected) },
+    }).catch(error => throwStudioLocatorReadError(error, selected));
+    if (selected && res.data.success !== true) throw new Error('Scoped settings read unavailable.');
+    assertStudioLocatorWorkspaceBinding(res.data.data, selected);
     return parseStudioV2MySQLRecordingCapability(res.data.data, connectorId, expectedConnectorRevision);
   },
 
-  async getSQLServerRecordingCapability(connectorId: string, expectedConnectorRevision: string): Promise<StudioV2SQLServerRecordingCapability> {
+  async getSQLServerRecordingCapability(connectorId: string, expectedConnectorRevision: string, locatorScope?: StudioV2LocatorReadScope): Promise<StudioV2SQLServerRecordingCapability> {
+    const selected = captureStudioLocatorReadScope(locatorScope);
     const res = await studioV2DatalinkApi.get<APIResponse<unknown>>('/studio-v2/workspace/recording-plans/capabilities', {
-      params: { kind: 'sqlserver', connector_id: connectorId, expected_connector_revision: expectedConnectorRevision },
-    });
+      params: { kind: 'sqlserver', connector_id: connectorId, expected_connector_revision: expectedConnectorRevision, ...studioLocatorReadParams(selected) },
+    }).catch(error => throwStudioLocatorReadError(error, selected));
+    if (selected && res.data.success !== true) throw new Error('Scoped settings read unavailable.');
+    assertStudioLocatorWorkspaceBinding(res.data.data, selected);
     return parseStudioV2SQLServerRecordingCapability(res.data.data, connectorId, expectedConnectorRevision);
   },
 
-  async getMetadata(expectedConnectorRevision: string, groupScope?: { groupId: string; groupRevision: string }): Promise<StudioV2DatabaseMetadata> {
+  async getMetadata(expectedConnectorRevision: string, groupScope?: { groupId: string; groupRevision: string }, locatorScope?: StudioV2LocatorReadScope): Promise<StudioV2DatabaseMetadata> {
+    const selected = captureStudioLocatorReadScope(locatorScope);
     const res = await studioV2DatalinkApi.get<APIResponse<unknown>>('/studio-v2/workspace/database-metadata', {
       params: {
         expected_connector_revision: expectedConnectorRevision,
+        ...studioLocatorReadParams(selected),
         ...(groupScope ? { group_id: groupScope.groupId, expected_group_revision: groupScope.groupRevision } : {}),
       },
-    });
+    }).catch(error => throwStudioLocatorReadError(error, selected));
+    if (selected && res.data.success !== true) throw new Error('Scoped settings read unavailable.');
+    assertStudioLocatorWorkspaceBinding(res.data.data, selected);
     return parseStudioV2DatabaseMetadata(res.data.data);
   },
 

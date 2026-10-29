@@ -522,11 +522,11 @@ export interface RuntimeCollectorStatus {
 }
 
 export interface RuntimeMetrics {
-  collected_total: number;
-  write_success_total: number;
-  write_error_total: number;
-  mapping_error_total: number;
-  point_state_error_total: number;
+  collected_total?: number;
+  write_success_total?: number;
+  write_error_total?: number;
+  mapping_error_total?: number;
+  point_state_error_total?: number;
 }
 
 export interface RuntimeStatus {

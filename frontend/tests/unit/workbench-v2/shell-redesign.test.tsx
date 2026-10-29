@@ -28,6 +28,7 @@ vi.mock('../../../src/hooks/datalink/useStudioV2WorkspaceAuditHistory', () => ({
 vi.mock('../../../src/pages/datalink/workbench-v2/useStudioV2AutosaveState', () => ({
   useStudioV2AutosaveState: () => ({
     workspaceHydrated: false,
+    locatorHydration: { lastEntry: undefined, ready: false, blocked: false },
     devicesQuery: { isLoading: false, isError: false },
     rulesQuery: { isLoading: false, isError: false },
     mappingsQuery: { isLoading: false, isError: false },

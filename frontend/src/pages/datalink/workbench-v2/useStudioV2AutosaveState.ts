@@ -1,3 +1,5 @@
+import type { StudioLocatorEntryRead } from '../../../types/studioV2LocatorEntry';
+import { useStudioV2LocatorHydration } from './studioV2LocatorHydration';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCreateStudioV2WorkspaceDeviceMutation, useDeleteStudioV2WorkspaceDeviceMutation, useStudioV2WorkspaceDevicesQuery, useUpdateStudioV2WorkspaceDeviceAvailabilityMutation, useUpdateStudioV2WorkspaceDeviceMutation } from '../../../hooks/datalink/useStudioV2WorkspaceDevices';
@@ -154,7 +156,7 @@ function isSetupMutationAction(action: WorkbenchV2Action): boolean {
   }
 }
 
-export function useStudioV2AutosaveState(enabled: boolean) {
+export function useStudioV2AutosaveState(enabled: boolean, locatorEntry?: StudioLocatorEntryRead, locatorEditorMounted = false) {
   const { t } = useTranslation('workbench-v2');
   const actions = useWorkbenchV2State();
   const devicesQuery = useStudioV2WorkspaceDevicesQuery(enabled);
@@ -169,6 +171,7 @@ export function useStudioV2AutosaveState(enabled: boolean) {
   const [workspaceHydrated, setWorkspaceHydrated] = React.useState(false);
   const [draftLossWarning, setDraftLossWarning] = React.useState<string | null>(null);
   const saveMetaRef = React.useRef<Record<string, SaveMeta>>({});
+  const locatorHydration = useStudioV2LocatorHydration(actions, stateRef, workspaceHydrated, locatorEntry, locatorEditorMounted);
   const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef);
   const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled);
   const databaseAutosave = useStudioV2DatabaseAutosave(actions, stateRef, enabled);
@@ -483,6 +486,6 @@ export function useStudioV2AutosaveState(enabled: boolean) {
     rulesQuery,
     state: actions.state,
     workspaceHydrated,
-    autosaveBarrier: getStudioV2AutosaveBarrier(actions.state),
+    autosaveBarrier: getStudioV2AutosaveBarrier(actions.state), locatorHydration,
   };
 }

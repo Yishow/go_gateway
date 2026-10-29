@@ -5,6 +5,7 @@ type RecordValue = Record<string, unknown>;
 const record = (value: unknown): RecordValue => value && typeof value === 'object' && !Array.isArray(value) ? value as RecordValue : {};
 const list = (value: unknown): RecordValue[] => Array.isArray(value) ? value.map(record) : [];
 const numeric = (value: unknown): number => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
+const observedMetric = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
 const choice = <T extends string>(value: unknown, allowed: readonly T[], fallback: T): T => allowed.find((item) => item === value) ?? fallback;
 const timestamp = (value: unknown): string | null => typeof value === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(value) && Number.isFinite(Date.parse(value)) ? value : null;
 const stages = ['collector', 'mapping', 'runtime_projection', 'database_delivery', 'modbus_share_delivery', 'collected', 'mapped', 'db_write', 'db_write_failed', 'db_write_succeeded', 'accepted', 'queued', 'sql-committed', 'unknown'] as const;
@@ -24,8 +25,8 @@ export function projectRuntimeStatus(value: unknown): RuntimeStatusWithDiagnosti
   return {
     running: v.running === true, uptime_seconds: numeric(v.uptime_seconds),
     snapshot_state: { state, empty: truth.empty === true, degraded: truth.degraded === true, unavailable: state === 'unavailable' || truth.unavailable === true, stale: truth.stale === true },
-    metrics: { collected_total: numeric(metrics.collected_total), write_success_total: numeric(metrics.write_success_total),
-      write_error_total: numeric(metrics.write_error_total), mapping_error_total: numeric(metrics.mapping_error_total), point_state_error_total: numeric(metrics.point_state_error_total) },
+    metrics: { collected_total: observedMetric(metrics.collected_total), write_success_total: observedMetric(metrics.write_success_total),
+      write_error_total: observedMetric(metrics.write_error_total), mapping_error_total: observedMetric(metrics.mapping_error_total), point_state_error_total: observedMetric(metrics.point_state_error_total) },
     collectors: list(v.collectors).map((c) => ({
       device_id: id(c.device_id), device_name: label(c.device_name), protocol: safeRuntimeProtocol(c.protocol),
       status: choice(c.status, ['idle', 'running', 'warning', 'error', 'unavailable'], 'unavailable'), running: c.running === true && Boolean(id(c.device_id)) && c.availability_status === 'available' && ['idle', 'running', 'warning', 'error'].includes(String(c.status)) && safeRuntimeProtocol(c.protocol) !== 'unavailable',

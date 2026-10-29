@@ -1,3 +1,5 @@
+import type { StudioLocatorEntryRead } from '../../../../types/studioV2LocatorEntry';
+import { StudioLocatorEntryNotice } from './StudioLocatorEntryNotice';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -26,10 +28,8 @@ import {
   WorkspaceReadinessPanel,
   type WorkspaceReadinessStepNumber,
 } from '../components/WorkspaceReadinessPanel';
-
 // 導入真實的步驟元件與設定頁面
 import { SettingsPage } from '../settings';
-
 // 導入真實的步驟元件
 import { Step1Device } from '../steps/step1';
 import { Step2Rule } from '../steps/step2';
@@ -37,9 +37,12 @@ import { Step3Mapping } from '../steps/step3';
 import { Step4Database } from '../steps/step4';
 import { isStep2Ready } from '../state/sourceRule';
 import type { ModbusShareStatus } from '../../../../types/modbusShare';
-
 export interface WorkbenchV2ShellProps {
   state: WorkbenchV2State;
+  locatorEntry?: StudioLocatorEntryRead;
+  locatorOnly?: boolean;
+  locatorSuspended?: boolean;
+  onLocatorEditorMountedChange?: (mounted: boolean) => void;
   workspaceId?: string;
   actions: ReturnType<typeof useWorkbenchV2State>;
   navigateTo?: (target: string) => void;
@@ -51,12 +54,10 @@ export interface WorkbenchV2ShellProps {
   shareStatus?: ModbusShareStatus | null;
   runtimeReturnFocus?: WorkbenchV2RuntimeReturnFocus | null;
 }
-
 export interface WorkbenchV2RuntimeReturnFocus {
   step: WorkspaceReadinessStepNumber;
   issueCode?: string | null;
 }
-
 /**
  * Workbench V2 主 Shell 佈局元件
  * 
@@ -74,9 +75,12 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   workspaceAuditHistory,
   workspaceAuditUnavailable,
   shareStatus,
-  runtimeReturnFocus,
+  runtimeReturnFocus, locatorEntry, locatorOnly, locatorSuspended, onLocatorEditorMountedChange,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const { t: runtime } = useTranslation('runtime-dashboard');
+  const locatorSelection = locatorEntry?.selection.state === 'selected' ? locatorEntry.selection : undefined;
+
   const {
     view,
     current,
@@ -86,22 +90,24 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   } = state;
   const deviceProtocolMap = Object.fromEntries(state.devices.map((device) => [device.id, device.protocol]));
   const step2Ready = isStep2Ready(state.rules, deviceProtocolMap);
-
   const {
     setView,
     setCurrent,
     toggleSidebar,
     toggleSummaryRail,
     resetFlow,
-    completeStep,
+    completeStep, selectRule,
   } = actions;
-
+  React.useLayoutEffect(() => {
+    if (!locatorSelection) return;
+    setView('flow'); setCurrent(locatorSelection.target.step);
+    if (locatorSelection.target.ruleId) selectRule(locatorSelection.target.ruleId);
+  }, [locatorSelection, setView, setCurrent, selectRule]);
   // 快捷鍵監聽 ⌘B / Ctrl+B
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isB = e.key === 'b' || e.key === 'B';
       const isMetaOrCtrl = e.metaKey || e.ctrlKey;
-
       if (isMetaOrCtrl && isB) {
         // 早退判斷：如果 focus 在 input, textarea, select 或 contenteditable 元素中，不觸發快捷鍵
         const target = e.target as HTMLElement;
@@ -114,10 +120,8 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
         ) {
           return;
         }
-
         e.preventDefault();
         toggleSidebar();
-
         // 寫入 localStorage 持久化
         try {
           if (typeof window !== 'undefined' && window.localStorage) {
@@ -128,13 +132,11 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
         }
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [sidebarCollapsed, toggleSidebar]);
-
   const stepMeta = STEPS.find((s) => s.id === current);
   const runtimeFocusStep = runtimeReturnFocus?.step;
   const runtimeFocusIssueCode = runtimeReturnFocus?.issueCode ?? null;
@@ -142,46 +144,38 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     if (!runtimeFocusStep) {
       return null;
     }
-
     const issues = workspaceReadiness?.issues ?? [];
     const exactIssue = runtimeFocusIssueCode
       ? issues.find((issue) => issue.code === runtimeFocusIssueCode)
       : null;
-
     return exactIssue ?? issues.find((issue) => readinessStepNumber(issue.step) === runtimeFocusStep) ?? null;
   }, [runtimeFocusIssueCode, runtimeFocusStep, workspaceReadiness?.issues]);
   const runtimeFocusGuidance = runtimeFocusedIssue
     ? runtimeReturnGuidanceFor(runtimeFocusedIssue, t)
     : null;
   const runtimeFocusScope = runtimeFocusedIssue?.scope.trim();
-
   React.useEffect(() => {
     if (!runtimeFocusStep) {
       return;
     }
-
     setView('flow');
     setCurrent(runtimeFocusStep);
     document.getElementById('step-content')?.scrollTo?.({ top: 0, behavior: 'smooth' });
   }, [runtimeFocusStep, runtimeFocusIssueCode, setCurrent, setView]);
-
   const goBack = () => {
     if (current > 1) {
       setCurrent((current - 1) as 1 | 2 | 3 | 4);
       document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
-
   const handleReset = () => {
     resetFlow();
   };
-
   const handleContinueStep1 = () => {
     completeStep(1);
     setCurrent(2);
     document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
   const handleContinueStep2 = () => {
     if (!step2Ready) {
       return;
@@ -190,21 +184,20 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     setCurrent(3);
     document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
   const handleRuntimeDashboardHandoff = React.useCallback((confirmedDeviceIds?: string[]) => {
     const deviceId = resolveRuntimeDashboardDevice(state, confirmedDeviceIds);
     if (confirmedDeviceIds !== undefined && !deviceId) return;
     const target = buildRuntimeDashboardTarget(deviceId);
     navigateTo?.(target);
   }, [navigateTo, state]);
-
   const handleNavigateStep = React.useCallback((step: WorkspaceReadinessStepNumber) => {
     setCurrent(step);
     document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [setCurrent]);
-
   // 渲染中央步驟內容
   const renderContent = () => {
+    if (locatorOnly && (view !== 'flow' || current !== locatorSelection?.target.step))
+      return <StudioLocatorEntryNotice reason="unrequested" entry={locatorEntry} navigateTo={navigateTo} />;
     if (view === 'settings') {
       return (
         <SettingsPage
@@ -214,11 +207,11 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
         />
       );
     }
-
     switch (current) {
       case 1:
         return (
           <Step1Device
+            locatorSelection={locatorSelection}
             state={state}
             dispatch={actions.dispatch}
             onContinue={handleContinueStep1}
@@ -227,6 +220,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
       case 2:
         return (
           <Step2Rule
+            locatorSelection={locatorSelection}
             state={state}
             dispatch={actions.dispatch}
             onContinue={handleContinueStep2}
@@ -236,6 +230,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
       case 3:
         return (
           <Step3Mapping
+            locatorSelection={locatorSelection}
             state={state}
             workspaceId={workspaceId}
             dispatch={actions.dispatch}
@@ -250,6 +245,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
       case 4:
         return (
           <Step4Database
+            locatorEntry={locatorEntry} locatorOnly={locatorOnly} locatorSuspended={locatorSuspended} onLocatorEditorMountedChange={onLocatorEditorMountedChange}
             state={state}
             dispatch={actions.dispatch}
             workspaceId={workspaceId}
@@ -264,6 +260,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
       default:
         return (
           <Step1Device
+            locatorSelection={locatorSelection}
             state={state}
             dispatch={actions.dispatch}
             onContinue={handleContinueStep1}
@@ -271,18 +268,16 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
         );
     }
   };
-
   return (
     <div className="wbv2-shell min-h-screen flex flex-col" data-testid="workbench-v2-shell">
       {/* 1. 頂部列 */}
-      <TopBar
+      {locatorOnly ? <header className="p-4"><strong>Studio V2</strong><p role="status">{runtime('locatorEntry.unrequested')}</p></header> : <TopBar
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={toggleSidebar}
         view={view}
         stepTitle={stepMeta?.title}
         scheduler={state.devices.some((device) => device.running) ? 'running' : 'idle'}
-      />
-
+      />}
       {/* 主體區域 */}
       <div className="wbv2-workspace flex-1 flex gap-5 px-4 sm:px-5 lg:px-7 py-5">
         {/* 2. 左側步驟導航列 */}
@@ -303,7 +298,6 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
               onJump={setCurrent}
               onSwitchView={setView}
             />
-
             {!sidebarCollapsed && view === 'flow' && (
               <div className="wbv2-flow-note rounded-xl border border-slate-700/40 bg-slate-900/30 p-3 sweep-in">
                 <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">
@@ -316,7 +310,6 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
             )}
           </div>
         </aside>
-
         {/* 3. 中央主內容區 */}
         <main id="step-content" className="flex-1 min-w-0">
           {view === 'flow' ? (
@@ -335,7 +328,6 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
                     {stepMeta?.title}
                   </h2>
                 </div>
-
                 <div className="hidden sm:flex items-center gap-1.5">
                   {STEPS.map((s) => (
                     <span
@@ -351,16 +343,14 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
                   ))}
                 </div>
               </div>
-
               <div className="mb-4">
                 <WorkspaceReadinessPanel
-                  summary={workspaceReadiness}
+                  summary={locatorOnly ? undefined : workspaceReadiness}
                   dataTestId="workbench-v2-readiness-banner"
                   compact
                   maxIssues={2}
                 />
               </div>
-
               {runtimeFocusStep ? (
                 <section
                   data-testid="workbench-v2-runtime-return-focus"
@@ -406,10 +396,8 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
                   </div>
                 </section>
               ) : null}
-
               {/* 步驟元件 */}
               {renderContent()}
-
               {/* 底部導航欄 */}
               <div className="mt-6 flex items-center justify-between pt-4 border-t border-slate-800/80">
                 <Button
@@ -436,9 +424,8 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
             renderContent()
           )}
         </main>
-
         {/* 4. 右側即時設定摘要欄 */}
-        {showSummaryRail && view === 'flow' && (
+        {!locatorOnly && showSummaryRail && view === 'flow' && (
           <aside className="hidden xl:block flex-shrink-0 w-[260px]">
             <div className="sticky top-[68px]">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2 px-1">
@@ -455,7 +442,6 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
           </aside>
         )}
       </div>
-
       {/* 5. 浮動 Tweaks 面板 */}
       <TweaksPanel
         sidebarCollapsed={sidebarCollapsed}
@@ -467,7 +453,6 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     </div>
   );
 };
-
 function runtimeReturnGuidanceFor(
   issue: StudioV2WorkspaceReadinessIssue,
   t: TFunction<'workbench-v2'>,
@@ -479,5 +464,4 @@ function runtimeReturnGuidanceFor(
       return null;
   }
 }
-
 export default WorkbenchV2Shell;

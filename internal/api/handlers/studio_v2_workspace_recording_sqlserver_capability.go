@@ -31,6 +31,9 @@ func sqlserverRecordingScopeRequested(c *gin.Context) bool {
 	if canonicalRecordingDialect(strings.TrimSpace(c.Query("kind"))) != string(schema.DatabaseConnectorKindSQLServer) {
 		return false
 	}
+	if studioLocatorNativeRequested(c) {
+		return true
+	}
 	query := c.Request.URL.Query()
 	for _, key := range []string{sqlServerConnectorIDQueryKey, "expected_connector_revision"} {
 		if _, present := query[key]; present {
@@ -47,6 +50,9 @@ func sqlserverRecordingScopeRequested(c *gin.Context) bool {
 // verified operations. A connected, metadata-verified probe still reports
 // every operation flag false until the real acceptance matrix verifies them.
 func (h *StudioV2WorkspaceRecordingPlansHandler) sqlserverRecordingCapabilities(c *gin.Context) {
+	if !validateStudioLocatorNativeQuery(c) {
+		return
+	}
 	kind := strings.TrimSpace(c.Query("kind"))
 	connectorID := strings.TrimSpace(c.Query("connector_id"))
 	expectedRevision := strings.TrimSpace(c.Query("expected_connector_revision"))
@@ -62,11 +68,11 @@ func (h *StudioV2WorkspaceRecordingPlansHandler) sqlserverRecordingCapabilities(
 		return
 	}
 
-	record, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
-	if err != nil {
-		renderStudioV2WorkspaceBootstrapError(c)
+	record, locatorScope, ok := beginStudioLocatorNativeRead(c, h.workspaceSvc, func() { renderStudioV2WorkspaceBootstrapError(c) })
+	if !ok {
 		return
 	}
+	var err error
 	if record == nil || strings.TrimSpace(record.DatabaseConnectorID) == "" {
 		renderRecordingPlanTargetError(c, errRecordingPlanConnectorUnavailable)
 		return
@@ -109,6 +115,9 @@ func (h *StudioV2WorkspaceRecordingPlansHandler) sqlserverRecordingCapabilities(
 		return
 	}
 	capability, err := probe.ProbeSQLServerRecordingAtRevision(c.Request.Context(), connectorID, expectedRevision)
+	if !finishStudioLocatorNativeRead(c, h.workspaceSvc, locatorScope) {
+		return
+	}
 	if err != nil {
 		// Raw database and TLS failures render as a typed, generic unavailable;
 		// the operator response never carries the driver's error text.

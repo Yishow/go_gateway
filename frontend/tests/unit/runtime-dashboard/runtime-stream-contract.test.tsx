@@ -61,7 +61,7 @@ describe('useRuntimeDashboardStream SSE contract', () => {
       source.onopen?.();
       source.emit('value', '{"raw":"not an object"}');
       source.emit('status', 'bad status');
-      source.emit('stream_state', { stream_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false } });
+      source.emit('stream_state', { device_id: 'device-1', stream_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false } });
       source.emit('value', {
         device_id: 'device-1',
         point_id: 'point-1',
@@ -126,7 +126,7 @@ describe('useRuntimeDashboardStream SSE contract', () => {
     expect(source.closed).toBe(true);
     act(() => {
       source.onopen?.();
-      source.emit('stream_state', { stream_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false } });
+      source.emit('stream_state', { device_id: 'device-1', stream_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false } });
     });
     expect(result.current.connectionState).toBe('connecting');
   });

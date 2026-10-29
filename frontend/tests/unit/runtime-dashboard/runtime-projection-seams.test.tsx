@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { runtimeAPI } from '@/services/datalink';
 import { api } from '@/services/datalinkClient';
@@ -42,9 +43,24 @@ describe('real runtime service projection to operator UI seams', () => {
     vi.mocked(studioV2DatalinkApi.get).mockResolvedValueOnce({ data: { success: true, data: { workspace_id: 'ws-1', devices: [], setup } } });
     const context = await studioV2RuntimeContextAPI.get();
     expect(context.setup?.database_config).toMatchObject({ schema: '廠區', table: '電力資料（A）_Café', timestamp_column: '記錄時間' });
-    render(<RuntimeSetupContextPanel setupContext={context.setup!} selectedDevice={null} />);
+    const scope = { workspace_id: 'ws-1', workspace_revision: 'W1', device_id: 'device-A' };
+    vi.mocked(studioV2DatalinkApi.get).mockImplementation(async (_url, config) => {
+      const params = config?.params;
+      if (typeof params !== 'object' || params === null || !('source_list' in params)
+        || (params.source_list !== 'rules' && params.source_list !== 'mappings')) throw new Error('Expected source page request');
+      const kind = params.source_list;
+      return { data: { success: true, data: { workspace_id: 'ws-1', source_page: {
+        contract_version: 1, ...scope, kind, query: '', limit: 50, list_revision: 'L1', next_cursor: null,
+        rules: kind === 'rules' ? context.setup!.source_rules : [],
+        mappings: kind === 'mappings' ? context.setup!.mappings.map((row) => ({ ...row, rule_revision: 'rule-v1' })) : [],
+      } } } };
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><RuntimeSetupContextPanel setupContext={context.setup!} evidenceScope={scope} selectedDevice={{ device_id: 'device-A', name: 'Meter', protocol: 'modbus_tcp', running: false, availability_status: 'available' }} /></QueryClientProvider>);
+    await waitFor(() => expect(screen.getByTestId('runtime-dashboard-setup-context')).toHaveTextContent(address));
     expect(screen.getByTestId('runtime-dashboard-setup-context')).toHaveTextContent(address);
     expect(screen.getByTestId('runtime-dashboard-setup-context')).toHaveTextContent('泵浦 A (°C)');
     expect(screen.getByTestId('runtime-dashboard-setup-context')).toHaveTextContent('電力資料（A）_Café');
+    client.clear(); vi.mocked(studioV2DatalinkApi.get).mockReset();
   });
 });

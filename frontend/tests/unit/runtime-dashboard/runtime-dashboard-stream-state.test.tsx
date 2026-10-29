@@ -8,10 +8,10 @@ describe('runtime dashboard stream state', () => {
 
   it('surfaces projection drift from the runtime snapshot', async () => {
     const staleCollector: RuntimeCollectorStatus & { projection_alignment: string; runtime_projection_version: string; workspace_projection_version: string } = { device_id: 'device-A', device_name: 'Mixer PLC', protocol: 'modbus_tcp', status: 'running', availability_status: 'available', availability_reason: null, running: true, points_total: 1, points_healthy: 1, points_stale: 0, points_error: 0, last_read_at: '2026-05-29T00:00:00Z', last_error: null, breaker_state: 'closed', projection_alignment: 'stale', runtime_projection_version: 'projection-v12', workspace_projection_version: 'projection-v13' };
-    mockRuntimeStatus.mockResolvedValueOnce({ running: true, uptime_seconds: 12, collectors: [staleCollector] });
+    mockRuntimeStatus.mockResolvedValueOnce({ snapshot_state: { state: 'stale', empty: false, degraded: false, unavailable: false, stale: true }, running: true, uptime_seconds: 12, collectors: [staleCollector] });
     renderRoute('/studio/runtime?device_id=device-A');
     await waitFor(() => expect(mockRuntimeStatus).toHaveBeenCalledWith('device-A')); act(() => mockEventSources[0].open());
-    await waitFor(() => expect(screen.getByTestId('runtime-dashboard-route-state')).toHaveTextContent('live'));
+    await waitFor(() => expect(screen.getByTestId('runtime-dashboard-route-state')).toHaveTextContent('degraded'));
     expect(screen.getByTestId('runtime-dashboard-health-panel')).toHaveTextContent('stale');
     expect(screen.getByTestId('runtime-dashboard-health-panel')).toHaveTextContent('projection-v12');
     expect(screen.getByTestId('runtime-dashboard-health-panel')).toHaveTextContent('projection-v13');
@@ -26,7 +26,7 @@ describe('runtime dashboard stream state', () => {
   });
 
   it('surfaces a recoverable error state when the snapshot load fails', async () => {
-    mockRuntimeStatus.mockReset(); mockRuntimeStatus.mockRejectedValueOnce(new Error('snapshot failed')); mockRuntimeStatus.mockResolvedValueOnce({ running: true, uptime_seconds: 20, metrics: { collected_total: 12, write_success_total: 9, write_error_total: 0, mapping_error_total: 0, point_state_error_total: 0 }, collectors: [{ device_id: 'device-A', device_name: 'Mixer PLC', protocol: 'modbus_tcp', status: 'running', availability_status: 'available', availability_reason: null, running: true, points_total: 1, points_healthy: 1, points_stale: 0, points_error: 0, last_read_at: '2026-05-29T00:01:00Z', last_error: null, breaker_state: 'closed' }] });
+    mockRuntimeStatus.mockReset(); mockRuntimeStatus.mockRejectedValueOnce(new Error('snapshot failed')); mockRuntimeStatus.mockResolvedValueOnce({ snapshot_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false }, running: true, uptime_seconds: 20, metrics: { collected_total: 12, write_success_total: 9, write_error_total: 0, mapping_error_total: 0, point_state_error_total: 0 }, collectors: [{ device_id: 'device-A', device_name: 'Mixer PLC', protocol: 'modbus_tcp', status: 'running', availability_status: 'available', availability_reason: null, running: true, points_total: 1, points_healthy: 1, points_stale: 0, points_error: 0, last_read_at: '2026-05-29T00:01:00Z', last_error: null, breaker_state: 'closed' }] });
     renderRoute('/studio/runtime?device_id=device-A'); await waitFor(() => expect(screen.getByTestId('runtime-dashboard-route-state')).toHaveTextContent('error'));
     fireEvent.click(screen.getByRole('button', { name: 'Retry snapshot' })); await waitFor(() => expect(mockRuntimeStatus).toHaveBeenCalledTimes(2));
   });

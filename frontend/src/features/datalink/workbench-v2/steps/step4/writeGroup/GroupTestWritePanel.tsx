@@ -1,3 +1,4 @@
+import type { StudioV2LocatorReadScope } from '../../../../../../services/studioV2WorkspaceDatabase';
 import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +18,7 @@ import { RecoveryEntries } from '../RecordingTestWriteRecoveryPanel';
 import { getSafeErrorMessage } from '../../../../../../utils/typedErrors';
 
 export interface GroupTestWritePanelProps {
+  locatorScope?: StudioV2LocatorReadScope;
   workspaceId: string;
   groupId: string;
   /** Changes whenever the saved group does; an earlier preview is dropped, but recovery is retained. */
@@ -36,9 +38,9 @@ export interface GroupTestWritePanelProps {
  * checked rather than repeated, and nothing is inferred from a missing field.
  */
 export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ workspaceId, groupId, scopeKey, enabled, disabledReason,
-  newOperationBlocked = false, isNewOperationBlocked }) => {
+  newOperationBlocked = false, isNewOperationBlocked, locatorScope }) => {
   const { t } = useTranslation('workbench-v2');
-  const recoveryList = useRecordingTestWriteRecovery(workspaceId);
+  const recoveryList = useRecordingTestWriteRecovery(workspaceId, locatorScope);
   const previewMutation = useWriteGroupTestWritePreviewMutation();
   const confirmMutation = useWriteGroupTestWriteMutation();
   const [preview, setPreview] = useState<WriteGroupTestWritePreview | null>(null);
@@ -69,7 +71,7 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
     if (fence.newOperationBlocked) return true;
     try { return fence.isNewOperationBlocked?.() === true; } catch { return true; }
   };
-  const operationQuery = useWriteGroupTestWriteOperationQuery(reference?.operation_id ?? operation?.operation_id ?? preview?.operation_id, workspaceId);
+  const operationQuery = useWriteGroupTestWriteOperationQuery(reference?.operation_id ?? operation?.operation_id ?? preview?.operation_id, workspaceId, locatorScope);
 
   // A reply for an earlier group or revision must never land on the current one.
   useEffect(() => {

@@ -1,3 +1,5 @@
+import type { StudioV2LocatorReadScope } from '../../types/studioV2LocatorEntry';
+import { studioLocatorReadKey } from '../../services/studioEntityLocator';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { studioV2WorkspaceWriteGroupsAPI } from '../../services/studioV2WorkspaceWriteGroups';
 import type { WriteGroupTestWriteConfirmation } from '../../types/studioV2WriteGroupTestWrite';
@@ -24,10 +26,14 @@ export function useWriteGroupTestWriteMutation() {
 }
 
 /** Reads one test-write operation on demand, e.g. to resolve an unconfirmed result. */
-export function useWriteGroupTestWriteOperationQuery(operationId: string | undefined, workspaceId?: string) {
+export function useWriteGroupTestWriteOperationQuery(operationId: string | undefined, workspaceId?: string, locatorScope?: StudioV2LocatorReadScope) {
+  const selectedLocatorScope = locatorScope === undefined ? undefined : { workspaceId: locatorScope.workspaceId, workspaceRevision: locatorScope.workspaceRevision };
   return useQuery({
-    queryKey: [...studioV2WorkspaceKeys.writeGroupTestWriteOperation(operationId ?? ''), workspaceId ?? ''],
-    queryFn: () => studioV2WorkspaceWriteGroupsAPI.testWriteOperation(operationId as string),
+    queryKey: [...studioV2WorkspaceKeys.writeGroupTestWriteOperation(operationId ?? ''), workspaceId ?? '', ...studioLocatorReadKey(selectedLocatorScope)],
+    queryFn: () => {
+      if (selectedLocatorScope && workspaceId && selectedLocatorScope.workspaceId !== workspaceId) throw new Error('Scoped settings read unavailable.');
+      return selectedLocatorScope ? studioV2WorkspaceWriteGroupsAPI.testWriteOperation(operationId as string, selectedLocatorScope) : studioV2WorkspaceWriteGroupsAPI.testWriteOperation(operationId as string);
+    },
     enabled: false,
     retry: false,
     refetchOnWindowFocus: false,

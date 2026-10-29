@@ -3,9 +3,22 @@ const network = /(?:[a-z0-9-]+\.)+[a-z]{2,}|(?:[0-9]{1,3}\.){3}[0-9]{1,3}/i;
 // Delimited absolute/relative prefixes are private syntax; UNC needs server and share.
 const privatePath = /(?:^|[\s=:'"()[\]{},;\x60])(?:\/|(?:~|\.\.?)[\\/]|[a-z]:[\\/]|\\\\[^\\/\s]+[\\/][^\\/\s]+)/i;
 const unsafeText = /(?:[a-z]+:\/\/|\bfile:|\b(?:password|passwd|pwd|uid|token|secret|dsn|username)\s*[=:]|\b(?:SELECT\s+.+\s+FROM|INSERT\s+INTO|UPDATE\s+\S+\s+SET|DELETE\s+FROM|(?:DROP|ALTER|CREATE)\s+TABLE|GRANT\s+.+\s+ON)\b)/i;
+// Numeric bracketed IPv6 is transport syntax, unlike timestamps or register notation.
+function numericIpv6(value: string): boolean {
+  return [...value.matchAll(/\[([0-9a-f:.]+)(?:%([a-z0-9_.~-]+))?\]/gi)].some(([, address]) => {
+    // URL validates only the numeric address; a bounded interface zone is not a host lookup.
+    try { return new URL(`http://[${address}]`).hostname.startsWith('['); } catch { return false; }
+  });
+}
+function pairedDsn(value: string): boolean {
+  const fields = [...value.matchAll(/(?:^|[;\s])([a-z]+(?:\s+(?:source|address|catalog|security|id))?|trusted_connection)\s*=\s*[^;\s]+/gi)]
+    .map((match) => match[1].toLowerCase().replace(/\s+/g, ' '));
+  const known = new Set(fields.filter((key) => /^(?:server|host|data source|network address|address|addr|driver|database|dbname|initial catalog|port|integrated security|trusted_connection|user id)$/.test(key)));
+  return known.size >= 2 && [...known].some((key) => /^(?:server|host|data source|network address|address|addr|driver)$/.test(key));
+}
 /** Reject recognizable private syntax, not ordinary scalar words or precise integer strings. */
 export function isSafeRuntimeSensorText(value: string): boolean {
-  return value.length <= 256 && !network.test(value) && !privatePath.test(value) && !unsafeText.test(value) && !/\p{Cc}/u.test(value);
+  return value.length <= 256 && !network.test(value) && !numericIpv6(value) && !pairedDsn(value) && !privatePath.test(value) && !unsafeText.test(value) && !/\p{Cc}/u.test(value);
 }
 /** IDs are opaque references, never transport endpoints. */
 export function safeRuntimeIdentity(value: unknown): string {

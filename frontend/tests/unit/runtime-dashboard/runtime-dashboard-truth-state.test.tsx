@@ -3,7 +3,9 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RuntimeDashboardRoute } from '../../../src/features/datalink/runtime-dashboard/RuntimeDashboardRoute';
-import type { Point, RuntimeStatus } from '../../../src/types/datalink';
+import type { Point } from '../../../src/types/datalink';
+
+import type { RuntimeStatusWithDiagnostics } from '../../../src/types/runtimeDiagnostics';
 
 const {
   mockRuntimeContext,
@@ -24,7 +26,7 @@ const {
     default_device_id: null as string | null,
   },
   mockPoints: [] as Point[],
-  mockRuntimeStatus: vi.fn<() => Promise<RuntimeStatus>>(),
+  mockRuntimeStatus: vi.fn<() => Promise<RuntimeStatusWithDiagnostics>>(),
   mockEventSources: [] as MockEventSource[],
 }));
 
@@ -59,6 +61,7 @@ class MockEventSource {
   open() {
     this.onopen?.(new Event('open'));
     this.emit('stream_state', {
+      device_id: 'device-A',
       stream_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false },
     });
   }
@@ -146,6 +149,7 @@ describe('runtime dashboard truth states', () => {
       error_count: 0,
     } as Point);
     mockRuntimeStatus.mockResolvedValue({
+      snapshot_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false },
       running: true,
       uptime_seconds: 12,
       collectors: [{
@@ -180,7 +184,7 @@ describe('runtime dashboard truth states', () => {
         reason: 'selected device has no runtime snapshot',
       },
       collectors: [],
-    } as RuntimeStatus);
+    });
 
     renderRoute('/studio/runtime?device_id=device-A');
 
@@ -197,7 +201,7 @@ describe('runtime dashboard truth states', () => {
     await waitFor(() => {
       expect(screen.getByTestId('runtime-dashboard-missing-device-context')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('runtime-dashboard-selected-device')).toHaveTextContent('device-Z');
+    expect(screen.getByTestId('runtime-dashboard-selected-device')).toBeEmptyDOMElement();
     expect(mockRuntimeStatus).not.toHaveBeenCalledWith('device-A');
   });
 

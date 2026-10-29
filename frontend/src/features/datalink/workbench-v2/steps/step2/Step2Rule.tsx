@@ -1,3 +1,4 @@
+import type { StudioSelectionResult } from '../../state/studioSelection';
 import * as React from 'react';
 import { useState } from 'react';
 import type { WorkbenchV2State } from '../../state/types';
@@ -19,6 +20,7 @@ import type { ModbusShareStatus } from '../../../../../types/modbusShare';
 import { isModbusShareConfiguredEnabled } from '../../../../../types/modbusShare';
 
 export interface Step2RuleProps {
+  locatorSelection?: Extract<StudioSelectionResult, { state: 'selected' }>;
   state: WorkbenchV2State;
   dispatch: React.Dispatch<WorkbenchV2Action>;
   onContinue: () => void;
@@ -38,7 +40,7 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
   state,
   dispatch,
   onContinue,
-  shareStatus,
+  shareStatus, locatorSelection,
 }) => {
   const { rules, devices, selectedRuleId, settings } = state;
   const [gridSelection, setGridSelection] = useState<Set<string>>(new Set());
@@ -60,7 +62,7 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
   );
 
   // 3. 取得當前選中規則及相關點位衍生狀態
-  const currentRule = rules.find((r) => r.id === selectedRuleId) || rules[0];
+  const currentRule = rules.find((r) => r.id === selectedRuleId) || (locatorSelection ? undefined : rules[0]);
   const currentDevice = devices.find((d) => d.id === currentRule?.device_id);
   const skippedSet = new Set(currentRule?.skipped_addresses || []);
   const currentRulePoints = useRulePoints(
@@ -69,7 +71,7 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
     skippedSet,
     currentDevice?.protocol,
   );
-  const currentShareLayout = shareLayouts[currentRule?.id] || null;
+  const currentShareLayout = currentRule ? shareLayouts[currentRule.id] || null : null;
 
   // 4. 點位略過/啟用批次修改 Callback
   const handleBatchToggleSkip = (addresses: string[], shouldSkip: boolean) => {

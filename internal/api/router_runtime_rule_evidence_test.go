@@ -191,7 +191,22 @@ func TestRuntimeRuleEvidenceProductionRouteUsesAppliedProof(t *testing.T) {
 	group := groups[0].(map[string]any)
 	require.Equal(t, "effective", group["state"])
 	require.Equal(t, r.f.group["applied_revision"], group["effective_revision"])
-	require.Nil(t, group["delivery"], "configuration proof is not delivery or intake evidence")
+	delivery, ok := group["delivery"].(map[string]any)
+	require.True(t, ok)
+	current, ok := delivery["current"].(map[string]any)
+	require.True(t, ok)
+	binding := current["binding"].(map[string]any)
+	require.Equal(t, r.f.record.ID, binding["workspace_id"])
+	require.Equal(t, evidence["workspace_revision"], binding["workspace_revision"])
+	require.Equal(t, group["effective_revision"], binding["entity_revision"])
+	require.Equal(t, "group", current["totals_scope"])
+	require.Equal(t, map[string]any{
+		"collecting": float64(0), "queued": float64(0), "retrying": float64(0), "blocked": float64(0),
+		"quarantined": float64(0), "unknown": float64(0), "sql_committed": float64(0), "skipped": float64(0),
+	}, current["stages"])
+	require.Nil(t, current["last_commit"], "observed empty delivery is not a commit")
+	require.Nil(t, current["intake"], "configuration proof is not revision-bound intake permission")
+	require.Empty(t, delivery["backlog"])
 	require.Equal(t, before, lifecycleAPIState(t, r.f.db))
 }
 

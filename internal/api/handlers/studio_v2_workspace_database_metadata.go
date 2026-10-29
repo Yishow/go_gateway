@@ -30,12 +30,29 @@ type studioV2WorkspaceDatabaseMetadataResponse struct {
 // Only the persisted connector, database, schema and table are inspected, and
 // the caller must present the connector identity revision it is displaying.
 // Missing, forbidden and failed outcomes stay distinct and never carry columns.
+// @Summary Read saved workspace or group table metadata
+// @Tags Studio V2 Recording Plans
+// @Produce json
+// @Param expected_connector_revision query string true "Current saved connector revision"
+// @Param group_id query string false "Exact saved group identity"
+// @Param expected_group_revision query string false "Required with group_id; current group revision"
+// @Param locator_workspace_id query string false "Locator-origin workspace identity; requires revision pair"
+// @Param locator_workspace_revision query string false "Exact observed revision; present empty only matches legacy empty"
+// @Success 200 {object} studioV2WorkspaceDatabaseMetadataResponse
+// @Failure 400 {object} APIErrorResponse
+// @Failure 403 {object} APIErrorResponse
+// @Failure 404 {object} APIErrorResponse
+// @Failure 409 {object} APIErrorResponse
+// @Failure 422 {object} APIErrorResponse
+// @Failure 500 {object} APIErrorResponse
+// @Failure 503 {object} APIErrorResponse
+// @Router /v1/datalink/studio-v2/workspace/database-metadata [get]
 func (h *StudioV2WorkspaceDatabaseHandler) GetMetadata(c *gin.Context) {
-	record, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
-	if err != nil {
-		renderStudioV2WorkspaceBootstrapError(c)
+	record, locatorScope, ok := beginStudioLocatorNativeRead(c, h.workspaceSvc, func() { renderStudioV2WorkspaceBootstrapError(c) })
+	if !ok {
 		return
 	}
+	var err error
 	if strings.TrimSpace(record.DatabaseConnectorID) == "" {
 		renderStudioV2WorkspaceDatabaseError(c, dbtarget.ErrConnectorNotFound)
 		return
@@ -55,6 +72,9 @@ func (h *StudioV2WorkspaceDatabaseHandler) GetMetadata(c *gin.Context) {
 		}
 		group, err = h.metadataGroup(c, record.ID, groupID, expectedRevision)
 		if err != nil {
+			if !finishStudioLocatorNativeRead(c, h.workspaceSvc, locatorScope) || renderStudioLocatorNativeProviderError(c, locatorScope, err) {
+				return
+			}
 			renderWriteGroupError(c, err)
 			return
 		}
@@ -65,6 +85,9 @@ func (h *StudioV2WorkspaceDatabaseHandler) GetMetadata(c *gin.Context) {
 	}
 	connector, err := h.connectorSvc.ResolveSavedTarget(c.Request.Context(), connectorID, expectedRevision)
 	if err != nil {
+		if !finishStudioLocatorNativeRead(c, h.workspaceSvc, locatorScope) || renderStudioLocatorNativeProviderError(c, locatorScope, err) {
+			return
+		}
 		renderStudioV2WorkspaceDatabaseError(c, err)
 		return
 	}
@@ -77,6 +100,9 @@ func (h *StudioV2WorkspaceDatabaseHandler) GetMetadata(c *gin.Context) {
 		schemaName, tableName = group.Destination.TableSchema, group.Destination.TableName
 	}
 	inspection, err := h.inspectMetadataTable(c.Request.Context(), connector.ID, expectedRevision, schemaName, tableName, group)
+	if !finishStudioLocatorNativeRead(c, h.workspaceSvc, locatorScope) {
+		return
+	}
 	if err != nil {
 		if errors.Is(err, dbtarget.ErrManagedDestinationInternal) {
 			renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "WRITE_GROUP_INTERNAL_DATABASE", "recording requires a distinct application-owned destination", false, "select_recording_destination")
@@ -86,29 +112,42 @@ func (h *StudioV2WorkspaceDatabaseHandler) GetMetadata(c *gin.Context) {
 			renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "WRITE_GROUP_DESTINATION_INVALID", "the saved recording destination cannot be verified", false, "select_recording_destination")
 			return
 		}
+		if !finishStudioLocatorNativeRead(c, h.workspaceSvc, locatorScope) || renderStudioLocatorNativeProviderError(c, locatorScope, err) {
+			return
+		}
 		renderStudioV2WorkspaceDatabaseError(c, err)
 		return
 	}
 	if _, err := h.connectorSvc.ResolveSavedTarget(c.Request.Context(), connector.ID, expectedRevision); err != nil {
+		if !finishStudioLocatorNativeRead(c, h.workspaceSvc, locatorScope) || renderStudioLocatorNativeProviderError(c, locatorScope, err) {
+			return
+		}
 		renderStudioV2WorkspaceDatabaseError(c, err)
 		return
 	}
 	if group != nil {
 		if _, err := h.metadataGroup(c, record.ID, group.ID, expectedRevision); err != nil {
+			if !finishStudioLocatorNativeRead(c, h.workspaceSvc, locatorScope) || renderStudioLocatorNativeProviderError(c, locatorScope, err) {
+				return
+			}
 			renderWriteGroupError(c, err)
 			return
 		}
-		current, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
-		if err != nil {
-			renderStudioV2WorkspaceBootstrapError(c)
-			return
-		}
-		if current.ID != record.ID || current.DatabaseSetupRevision != record.DatabaseSetupRevision {
-			renderWriteGroupError(c, workspace.ErrSetupRevisionConflict)
-			return
+		if locatorScope == nil {
+			current, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
+			if err != nil {
+				renderStudioV2WorkspaceBootstrapError(c)
+				return
+			}
+			if current.ID != record.ID || current.DatabaseSetupRevision != record.DatabaseSetupRevision {
+				renderWriteGroupError(c, workspace.ErrSetupRevisionConflict)
+				return
+			}
 		}
 	}
-
+	if !finishStudioLocatorNativeRead(c, h.workspaceSvc, locatorScope) {
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: studioV2WorkspaceDatabaseMetadataResponse{
 		WorkspaceID:       record.ID,
 		ConnectorID:       connector.ID,

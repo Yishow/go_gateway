@@ -1,12 +1,15 @@
+import type { StudioV2LocatorReadScope } from '../../types/studioV2LocatorEntry';
+import { studioLocatorReadKey } from '../../services/studioEntityLocator';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listRecordingTestWriteRecovery } from '../../services/recordingTestWriteRecovery';
 import { recordingTestWriteRecovery } from '../../features/datalink/workbench-v2/state/recordingTestWriteRecovery';
 /** Listing discovers locators, but its absence never resolves a previously known write. */
-export function useRecordingTestWriteRecovery(workspaceId: string) {
+export function useRecordingTestWriteRecovery(workspaceId: string, locatorScope?: StudioV2LocatorReadScope) {
+  const selectedLocatorScope = locatorScope === undefined ? undefined : { workspaceId: locatorScope.workspaceId, workspaceRevision: locatorScope.workspaceRevision };
   const query = useQuery({
-    queryKey: ['studio-v2-workspace', 'test-write-recovery-list', workspaceId],
-    queryFn: () => listRecordingTestWriteRecovery(workspaceId), enabled: Boolean(workspaceId),
+    queryKey: ['studio-v2-workspace', 'test-write-recovery-list', workspaceId, ...studioLocatorReadKey(selectedLocatorScope)],
+    queryFn: () => selectedLocatorScope ? listRecordingTestWriteRecovery(workspaceId, selectedLocatorScope) : listRecordingTestWriteRecovery(workspaceId), enabled: Boolean(workspaceId),
     retry: false, refetchOnMount: 'always', refetchOnWindowFocus: false,
   });
   const bindings = useRef(new Map<string, string>());

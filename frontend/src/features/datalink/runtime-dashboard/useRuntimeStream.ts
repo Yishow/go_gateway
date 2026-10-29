@@ -30,6 +30,8 @@ export type RuntimeDashboardStreamConnectionState =
   | 'unavailable';
 
 interface UseRuntimeStreamResult {
+  serverReady: boolean;
+  failureVersion: number;
   connectionState: RuntimeDashboardStreamConnectionState;
   liveValues: Record<string, RuntimeValueEvent>;
   latestStatus: RuntimeDeviceStatusEvent | null;
@@ -55,6 +57,10 @@ export function useRuntimeDashboardStream({
   const [logs, setLogs] = useState<RuntimeDashboardLog[]>([]);
   const [streamRecovery, setStreamRecovery] = useState<RuntimeStreamRecovery | null>(null);
   const [reconnectVersion, setReconnectVersion] = useState(0);
+  const [readyScope, setReadyScope] = useState<string | null>(null);
+  const [activeScope, setActiveScope] = useState<string | null>(null);
+  const [logDeviceId, setLogDeviceId] = useState<string | null>(deviceId);
+  const [failureVersion, setFailureVersion] = useState(0);
   const reconnect = useCallback(() => {
     setReconnectVersion((current) => current + 1);
   }, []);
@@ -72,16 +78,29 @@ export function useRuntimeDashboardStream({
     [pointIdsKey],
   );
 
+  const streamScope = JSON.stringify([deviceId, pointIdsKey, reconnectVersion]);
+  useEffect(() => {
+    if (logDeviceId !== deviceId) { setLogs([]); setLogDeviceId(deviceId); }
+  }, [deviceId, logDeviceId]);
+
   useEffect(() => {
     let active = true;
     const generation = streamGenerationRef.current + 1;
     streamGenerationRef.current = generation;
     bufferRef.current = {};
+    setReadyScope(null);
+    setActiveScope(streamScope);
     setLiveValues({});
     setLatestStatus(null);
     setStreamRecovery(null);
     lastErrorRef.current = null;
     pointStaleStatesRef.current = {};
+
+    const fail = (state: RuntimeDashboardStreamConnectionState) => {
+      setReadyScope(null);
+      setFailureVersion((version) => version + 1);
+      setConnectionState(state);
+    };
 
     if (!deviceId) {
       setConnectionState('disconnected');
@@ -89,7 +108,7 @@ export function useRuntimeDashboardStream({
     }
 
     if (typeof EventSource === 'undefined') {
-      setConnectionState('error');
+      fail('error');
       setLogs((current) => [
         ...current.slice(-99),
         {
@@ -122,10 +141,10 @@ export function useRuntimeDashboardStream({
       const value = parseRuntimeValueRecord(payload);
       if (!active || streamGenerationRef.current !== generation) return;
       if (!value) {
-        setConnectionState('degraded');
+        fail('degraded');
         return;
       }
-      setConnectionState('connected');
+      if (value.device_id !== deviceId) return;
       bufferRef.current[value.point_id] = value;
 
       // 避免重複或高頻的 stale 警報，只在點位 stale 狀態改變時寫入日誌，並記錄恢復狀態
@@ -153,10 +172,10 @@ export function useRuntimeDashboardStream({
       const payload = parseRuntimeStatusRecord(rawPayload);
       if (!active || streamGenerationRef.current !== generation) return;
       if (!payload) {
-        setConnectionState('degraded');
+        fail('degraded');
         return;
       }
-      setConnectionState('connected');
+      if (payload.device_id !== deviceId) return;
       const { last_error: _lastError, ...safeStatus } = payload;
       setLatestStatus(safeStatus);
 
@@ -189,10 +208,10 @@ export function useRuntimeDashboardStream({
       const payload = parseRuntimeStreamStateRecord(rawPayload);
       if (!active || streamGenerationRef.current !== generation) return;
       if (!payload) {
-        setConnectionState('degraded');
+        fail('degraded');
         return;
       }
-      if (payload.device_id && payload.device_id !== deviceId) {
+      if (payload.device_id !== deviceId) {
         return;
       }
 
@@ -201,12 +220,14 @@ export function useRuntimeDashboardStream({
         return;
       }
 
-      if (streamTruth.state === 'ready') {
+      if (streamTruth.state === 'ready' && !streamTruth.empty && !streamTruth.stale && !streamTruth.degraded && !streamTruth.unavailable) {
+        setReadyScope(streamScope);
         setStreamRecovery(null);
         setConnectionState('connected');
         return;
       }
 
+      fail(streamTruth.unavailable || streamTruth.state === 'unavailable' ? 'unavailable' : 'degraded');
       setStreamRecovery({
         code: payload.code,
         action: payload.action,
@@ -232,6 +253,7 @@ export function useRuntimeDashboardStream({
 
     eventSource.onopen = () => {
       if (!active || streamGenerationRef.current !== generation) return;
+      setReadyScope(null);
       setConnectionState('connecting');
       setLogs((current) => [
         ...current.slice(-99),
@@ -245,7 +267,7 @@ export function useRuntimeDashboardStream({
 
     eventSource.onerror = () => {
       if (!active || streamGenerationRef.current !== generation) return;
-      setConnectionState('error');
+      fail('error');
       setLogs((current) => [
         ...current.slice(-99),
         {
@@ -282,14 +304,16 @@ export function useRuntimeDashboardStream({
       eventSource.close();
       setConnectionState('disconnected');
     };
-  }, [deviceId, normalizedPointIds, pointIdsKey, reconnectVersion]);
+  }, [deviceId, normalizedPointIds, pointIdsKey, reconnectVersion, streamScope]);
 
   return {
-    connectionState,
-    liveValues,
-    latestStatus,
-    logs,
-    streamRecovery,
+    serverReady: Boolean(deviceId) && readyScope === streamScope,
+    failureVersion,
+    connectionState: activeScope === streamScope ? connectionState : deviceId ? 'connecting' : 'disconnected',
+    liveValues: activeScope === streamScope ? liveValues : {},
+    latestStatus: activeScope === streamScope ? latestStatus : null,
+    logs: logDeviceId === deviceId ? logs : [],
+    streamRecovery: activeScope === streamScope ? streamRecovery : null,
     reconnect,
   };
 }

@@ -52,18 +52,19 @@ type runtimeWorkspaceSetupSourceRuleResponse struct {
 }
 
 type runtimeWorkspaceSetupMappingResponse struct {
-	ID          string               `json:"id,omitempty"`
-	RuleID      string               `json:"rule_id"`
-	DeviceID    string               `json:"device_id"`
-	PointID     string               `json:"point_id"`
-	Address     string               `json:"address"`
-	TagID       string               `json:"tag_id,omitempty"`
-	TagKey      string               `json:"tag_key,omitempty"`
-	DisplayName string               `json:"display_name,omitempty"`
-	Unit        string               `json:"unit,omitempty"`
-	TargetType  schema.DataType      `json:"target_type,omitempty"`
-	Enabled     bool                 `json:"enabled"`
-	Status      schema.MappingStatus `json:"status,omitempty"`
+	RuleRevision string               `json:"rule_revision,omitempty"`
+	ID           string               `json:"id,omitempty"`
+	RuleID       string               `json:"rule_id"`
+	DeviceID     string               `json:"device_id"`
+	PointID      string               `json:"point_id"`
+	Address      string               `json:"address"`
+	TagID        string               `json:"tag_id,omitempty"`
+	TagKey       string               `json:"tag_key,omitempty"`
+	DisplayName  string               `json:"display_name,omitempty"`
+	Unit         string               `json:"unit,omitempty"`
+	TargetType   schema.DataType      `json:"target_type,omitempty"`
+	Enabled      bool                 `json:"enabled"`
+	Status       schema.MappingStatus `json:"status,omitempty"`
 }
 
 type runtimeWorkspaceSetupDatabaseTargetMapping struct {

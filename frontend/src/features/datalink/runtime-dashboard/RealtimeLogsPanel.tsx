@@ -2,12 +2,14 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Terminal } from 'lucide-react';
 import type { RuntimeDashboardLog } from './useRuntimeStream';
+import type { RuntimeDashboardRouteState } from './useRuntimeDashboardState';
 
 interface RealtimeLogsPanelProps {
   logs?: RuntimeDashboardLog[];
+  routeState?: RuntimeDashboardRouteState;
 }
 
-export function RealtimeLogsPanel({ logs = [] }: RealtimeLogsPanelProps) {
+export function RealtimeLogsPanel({ logs = [], routeState = 'degraded' }: RealtimeLogsPanelProps) {
   const { t } = useTranslation('runtime-dashboard');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -50,16 +52,16 @@ export function RealtimeLogsPanel({ logs = [] }: RealtimeLogsPanelProps) {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-slate-100">
-              {t('logs.title', 'Diagnostic logs')}
+              {t('logs.title', 'Connection events')}
             </h2>
             <p className="text-[11px] text-slate-400">
-              {t('logs.description', 'Real-time diagnostic events and state transition history.')}
+              {t('logs.description', 'Browser transport and point-state notifications, not SQL delivery receipts or process logs.')}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-400">
-          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>LIVE</span>
+          <span className={`h-2 w-2 rounded-full ${routeState === 'live' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+          <span>{routeState === 'live' ? t('logs.live', 'LIVE') : t('logs.notLive', 'Not live')}</span>
         </div>
       </div>
 
@@ -69,7 +71,7 @@ export function RealtimeLogsPanel({ logs = [] }: RealtimeLogsPanelProps) {
       >
         {logs.length === 0 ? (
           <div className="flex h-full items-center justify-center text-xs text-slate-500 italic select-none">
-            {t('logs.empty', 'No diagnostic logs emitted yet.')}
+            {t('logs.empty', 'No connection events yet.')}
           </div>
         ) : (
           <div className="space-y-2">

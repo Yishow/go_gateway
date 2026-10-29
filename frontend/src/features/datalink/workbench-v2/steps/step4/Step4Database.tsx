@@ -1,3 +1,4 @@
+import type { StudioLocatorEntryRead } from '../../../../../types/studioV2LocatorEntry';
 import { useRuntimeRuleEvidence } from '../../../../../hooks/datalink/useRuntimeRuleEvidence';
 import { RecordingScopeSummary } from './RecordingScopeSummary';
 import type { RecordingViewedDevice } from './recordingScopeSummary';
@@ -40,6 +41,10 @@ import type { WorkspaceReadinessStepNumber } from '../../components/WorkspaceRea
 import type { ModbusShareStatus } from '../../../../../types/modbusShare';
 
 interface Step4DatabaseProps {
+  locatorEntry?: StudioLocatorEntryRead;
+  locatorOnly?: boolean;
+  locatorSuspended?: boolean;
+  onLocatorEditorMountedChange?: (mounted: boolean) => void;
   state: WorkbenchV2State;
   dispatch: React.Dispatch<WorkbenchV2Action>;
   workspaceId?: string;
@@ -69,7 +74,7 @@ function Step4DatabaseContent({
   recoverActivationStatus,
   workspaceReadiness,
   shareStatus,
-  onNavigateStep,
+  onNavigateStep, locatorEntry, locatorSuspended, onLocatorEditorMountedChange,
 }: Step4DatabaseProps) {
   const { t: guidedT } = useTranslation('workbench-v2-recording-guided');
   // Only the read-back of an earlier activation is shown; no workspace-wide start is wired to this page.
@@ -162,6 +167,7 @@ function Step4DatabaseContent({
   };
   const configurationSaved = saveStates.length > 0 && saveStates.every((saveState) => saveState === 'saved');
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  React.useLayoutEffect(() => { if (locatorEntry?.selection.state === 'selected') setAdvancedOpen(true); }, [locatorEntry]);
   const [openGroupRequest, setOpenGroupRequest] = useState<{ id: string }>();
   const [reviewRequest, setReviewRequest] = useState<{ workspaceId: string; groupId: string }>();
   const [basicOperationActive, setBasicOperationActive] = useState(false);
@@ -253,6 +259,7 @@ function Step4DatabaseContent({
         <div className="space-y-6 pt-2">
           <p data-testid="recording-workspace-status-note" className="text-xs text-slate-400">{guidedT('management.workspaceStatus')}</p>
           <WriteGroupSection
+            locatorEntry={locatorEntry} locatorSuspended={locatorSuspended} onEditorMountedChange={onLocatorEditorMountedChange}
             state={state}
             workspaceId={workspaceId}
             readonly={basicOperationActive || savedActionsLocked}
@@ -288,5 +295,8 @@ function Step4DatabaseContent({
 
 /** Step 4 以 React Query 讀取實際欄位；沒有 QueryClient 的嵌入情境使用備援 client。 */
 export function Step4Database(props: Step4DatabaseProps) {
-  return <SafeQueryBoundary><Step4DatabaseContent {...props} /></SafeQueryBoundary>;
+  return <SafeQueryBoundary>{props.locatorOnly && props.locatorEntry
+    ? <WriteGroupSection state={props.state} workspaceId={props.workspaceId} readonly={false}
+        locatorEntry={props.locatorEntry} locatorSuspended={props.locatorSuspended} onEditorMountedChange={props.onLocatorEditorMountedChange} locatorOnly />
+    : <Step4DatabaseContent {...props} />}</SafeQueryBoundary>;
 }

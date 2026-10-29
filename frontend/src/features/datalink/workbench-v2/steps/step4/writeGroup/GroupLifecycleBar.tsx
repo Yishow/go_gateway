@@ -1,3 +1,4 @@
+import type { StudioV2LocatorReadScope } from '../../../../../../services/studioV2WorkspaceDatabase';
 import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +13,9 @@ import { lifecycleMatches, SavedRecordingActions, type SavedRecordingActionHost 
 import { SavedRecordingRemoveDialog } from './lifecycle/SavedRecordingRemoveDialog';
 
 export interface GroupLifecycleBarProps {
+  locatorScope?: StudioV2LocatorReadScope;
+  /** Denial-only incoming navigation fence; never a read scope or write permission. */
+  locatorGuard?: boolean;
   group: WriteGroup;
   workspaceId: string;
   workspaceRevision: string;
@@ -30,7 +34,7 @@ export interface GroupLifecycleBarProps {
 /** One action surface in Basic and Advanced, with server authority refreshed before ordinary mutations. */
 export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   group, workspaceId, workspaceRevision, canApply, applyBlockedReason, readonly, onChanged, onConflict,
-  onReviewScopedStart, lifecycleHost, hideApply = false,
+  onReviewScopedStart, lifecycleHost, hideApply = false, locatorScope, locatorGuard,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: lifecycleT } = useTranslation('recording-lifecycle');
@@ -48,6 +52,11 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   const scope = `${group.id}|${group.revision}|${workspaceId}|${workspaceRevision}`;
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
+  // This transient denial lease cannot be revived by an A -> B -> A navigation.
+  const locatorLeaseKey = locatorScope || locatorGuard ? JSON.stringify([scope, locatorScope?.workspaceId, locatorScope?.workspaceRevision, readonly]) : null;
+  const locatorLease = useRef({ key: locatorLeaseKey, blocked: readonly });
+  if (locatorLease.current.key !== locatorLeaseKey) locatorLease.current = { key: locatorLeaseKey, blocked: readonly };
+  const renderLocatorLease = locatorLease.current;
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
@@ -60,17 +69,20 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   const routed = reviewStart !== undefined && managedProfileDeviceId(group) !== undefined;
 
   const run = async (action: 'apply' | 'stop' | 'remove', confirm = false) => {
-    if (readonly || busyRef.current || (action === 'apply' && (!canApply || deleted))) return;
+    if (readonly || busyRef.current || (action === 'apply' && (!canApply || deleted)) || locatorLease.current !== renderLocatorLease || renderLocatorLease.key !== null &&
+      (!mountedRef.current || locatorLease.current.blocked)) return;
     if (lifecycleHost?.tryAcquire && !lifecycleHost.tryAcquire()) return;
     busyRef.current = true;
     lifecycleHost?.onBusyChange?.(true);
     const requestScope = scopeRef.current;
+    const requestLease = renderLocatorLease;
     setError(null); setRefreshBlocked(false); setChecking(true);
     try {
       if (action !== 'apply') {
         const refreshed = await lifecycle.refetch();
         const fresh = refreshed.isError || refreshed.error ? undefined : refreshed.data;
-        if (!mountedRef.current || scopeRef.current !== requestScope) return;
+        if (!mountedRef.current || scopeRef.current !== requestScope ||
+          locatorLease.current !== requestLease || requestLease.key !== null && locatorLease.current.blocked) return;
         if (!lifecycleMatches(fresh, intentScope) || !fresh.actions.some((entry) => entry.action === action && entry.allowed)) {
           setRefreshBlocked(true); onConflict(); return;
         }

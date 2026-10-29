@@ -89,7 +89,7 @@ func renderRuntimeEvidenceError(c *gin.Context, err error) {
 
 // Scoped reads bypass the legacy setup/readiness chain, which can bootstrap a
 // workspace. Empty compatibility fields are not synthetic saved/effective data.
-func (h *RuntimeHandler) scopedRuntimeRuleEvidence(c *gin.Context, scope runtimeview.Scope) {
+func (h *RuntimeHandler) scopedRuntimeRuleEvidence(c *gin.Context, scope runtimeview.Scope, selection *runtimeSourceSelection) {
 	if h.workspaceSvc == nil || h.deviceSvc == nil {
 		renderRuntimeEvidenceError(c, runtimeEvidenceError(runtimeview.ReasonUnavailable))
 		return
@@ -107,17 +107,17 @@ func (h *RuntimeHandler) scopedRuntimeRuleEvidence(c *gin.Context, scope runtime
 		renderRuntimeEvidenceError(c, runtimeEvidenceError(runtimeview.ReasonForeign))
 		return
 	}
-	evidence, err := h.readRuntimeRuleEvidence(c.Request.Context(), record, scope)
+	evidence, err := h.readRuntimeRuleEvidence(c.Request.Context(), record, scope, selection)
 	if err != nil {
 		renderRuntimeEvidenceError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: runtimeWorkspaceContextResponse{
-		WorkspaceID: scope.WorkspaceID, Devices: []runtimeWorkspaceContextDeviceEntry{}, RuleEvidence: evidence,
+		WorkspaceID: scope.WorkspaceID, WorkspaceRevision: scope.WorkspaceRevision, Devices: []runtimeWorkspaceContextDeviceEntry{}, RuleEvidence: evidence,
 	}})
 }
 
-func (h *RuntimeHandler) readRuntimeRuleEvidence(ctx context.Context, record *workspace.Record, scope runtimeview.Scope) (*runtimeview.RuleEvidenceView, error) {
+func (h *RuntimeHandler) readRuntimeRuleEvidence(ctx context.Context, record *workspace.Record, scope runtimeview.Scope, selection *runtimeSourceSelection) (*runtimeview.RuleEvidenceView, error) {
 	if h.ruleGroups == nil || h.ruleApplied == nil {
 		return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 	}
@@ -131,6 +131,14 @@ func (h *RuntimeHandler) readRuntimeRuleEvidence(ctx context.Context, record *wo
 	if asOf.IsZero() {
 		return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 	}
+	var sourceBefore *runtimeSourceRecords
+	if selection != nil {
+		var err error
+		sourceBefore, err = h.readRuntimeSourceRecords(ctx, scope, *selection)
+		if err != nil {
+			return nil, err
+		}
+	}
 	before, err := h.ruleGroups.List(ctx)
 	if err != nil || before == nil {
 		return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
@@ -142,6 +150,12 @@ func (h *RuntimeHandler) readRuntimeRuleEvidence(ctx context.Context, record *wo
 	view := runtimeview.RuleEvidenceView{ContractVersion: 1, WorkspaceID: scope.WorkspaceID,
 		WorkspaceRevision: scope.WorkspaceRevision, DeviceID: scope.DeviceID,
 		ObservedAt: &observed, Freshness: "fresh", Groups: []runtimeview.GroupView{}}
+	if sourceBefore != nil {
+		view.Source, err = projectRuntimeSource(sourceBefore, scope)
+		if err != nil {
+			return nil, err
+		}
+	}
 	snapshots := make(map[string]*workspace.WriteGroupAppliedSnapshot, len(before.Groups))
 	seen := make(map[string]bool, len(before.Groups))
 	for _, group := range before.Groups {
@@ -161,6 +175,10 @@ func (h *RuntimeHandler) readRuntimeRuleEvidence(ctx context.Context, record *wo
 		if err != nil {
 			return nil, err
 		}
+		projected.Delivery, err = h.readRuntimeRuleDelivery(ctx, group, snapshot, scope, asOf)
+		if err != nil {
+			return nil, err
+		}
 		view.Groups = append(view.Groups, projected)
 	}
 	// Check immutable evidence again at the SAME time, including dynamic revision ends.
@@ -177,6 +195,15 @@ func (h *RuntimeHandler) readRuntimeRuleEvidence(ctx context.Context, record *wo
 	}
 	if !reflect.DeepEqual(before, after) {
 		return nil, runtimeEvidenceError(runtimeview.ReasonStale)
+	}
+	if selection != nil {
+		sourceAfter, err := h.readRuntimeSourceRecords(ctx, scope, *selection)
+		if err != nil {
+			return nil, err
+		}
+		if !reflect.DeepEqual(sourceBefore, sourceAfter) {
+			return nil, runtimeEvidenceError(runtimeview.ReasonStale)
+		}
 	}
 	afterRecord, err := h.workspaceSvc.ReadSnapshot(ctx)
 	if err != nil {

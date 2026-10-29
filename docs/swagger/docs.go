@@ -2568,6 +2568,225 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/datalink/studio-v2/workspace": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datalink Studio v2"
+                ],
+                "summary": "Read Studio v2 workspace or an exact read-only locator entry",
+                "parameters": [
+                    {
+                        "enum": [
+                            "locator"
+                        ],
+                        "type": "string",
+                        "description": "locator enables strict read-only entry; ordinary no-query bootstrap is unchanged",
+                        "name": "entry",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Required for locator entry",
+                        "name": "workspace_id",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 4,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Locator step 1-4",
+                        "name": "step",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Required steps 1-3; optional group context at step 4",
+                        "name": "device_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Required only step 2",
+                        "name": "rule_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Required only step 3; parent rule is independently resolved",
+                        "name": "mapping_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Required only step 4",
+                        "name": "group_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional historical hint only; never current proof",
+                        "name": "group_revision",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "1"
+                        ],
+                        "type": "string",
+                        "description": "API-only explicit step 4 Open/Edit hydration",
+                        "name": "editor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Required presence with editor; exact observed workspace revision including legacy empty",
+                        "name": "expected_workspace_revision",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Required with editor; exact observed current group revision",
+                        "name": "expected_group_revision",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.studioV2WorkspaceBootstrapResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/datalink/studio-v2/workspace/database-metadata": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Recording Plans"
+                ],
+                "summary": "Read saved workspace or group table metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Current saved connector revision",
+                        "name": "expected_connector_revision",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact saved group identity",
+                        "name": "group_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Required with group_id; current group revision",
+                        "name": "expected_group_revision",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Locator-origin workspace identity; requires revision pair",
+                        "name": "locator_workspace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact observed revision; present empty only matches legacy empty",
+                        "name": "locator_workspace_revision",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.studioV2WorkspaceDatabaseMetadataResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/datalink/studio-v2/workspace/database-operations/test-writes": {
             "get": {
                 "description": "Read-only ledger recovery independent of browser references. Complete empty results do not authorize replay of an unknown write. Query failures never return a partial list. Tokens and destination details are not exposed.",
@@ -2578,11 +2797,43 @@ const docTemplate = `{
                     "Studio V2 Recording Plans"
                 ],
                 "summary": "Recover unresolved test writes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Locator-origin workspace identity; requires revision pair",
+                        "name": "locator_workspace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact observed workspace revision; present empty only matches legacy empty",
+                        "name": "locator_workspace_revision",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handlers.TestWriteRecoveryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
                         }
                     },
                     "503": {
@@ -2611,6 +2862,18 @@ const docTemplate = `{
                         "name": "operation_id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Locator-origin workspace identity; requires revision pair",
+                        "name": "locator_workspace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact observed workspace revision; present empty only matches legacy empty",
+                        "name": "locator_workspace_revision",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2621,14 +2884,186 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "success=false; code=RECORDING_OPERATION_NOT_FOUND; unknown or foreign operation",
                         "schema": {
                             "$ref": "#/definitions/handlers.APIErrorResponse"
                         }
                     },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
                     "503": {
                         "description": "success=false; code=RECORDING_PLAN_UNAVAILABLE; retryable=true",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/datalink/studio-v2/workspace/measurements": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Recording Plans"
+                ],
+                "summary": "Read workspace measurements",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Optional owned device filter",
+                        "name": "device_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Locator-origin workspace identity; requires revision pair",
+                        "name": "locator_workspace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact observed revision; present empty only matches legacy empty",
+                        "name": "locator_workspace_revision",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/measurement.MeasurementDefinition"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/datalink/studio-v2/workspace/recording-plans/capabilities": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Read recording connector capabilities",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Connector kind; required for a saved-connector probe",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Saved connector identity; paired with expected_connector_revision",
+                        "name": "connector_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Expected saved connector revision",
+                        "name": "expected_connector_revision",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional locator workspace identity; paired with locator_workspace_revision",
+                        "name": "locator_workspace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Observed locator workspace revision; explicit empty is valid only for matching legacy-empty setup",
+                        "name": "locator_workspace_revision",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success envelope with a capability object or the static capability list",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
                         "schema": {
                             "$ref": "#/definitions/handlers.APIErrorResponse"
                         }
@@ -2818,7 +3253,7 @@ const docTemplate = `{
         },
         "/v1/datalink/studio-v2/workspace/runtime-context": {
             "get": {
-                "description": "Returns legacy setup context when unscoped; all three scope parameters request read-only rule_evidence. Partial, duplicate or malformed scope is rejected.",
+                "description": "Returns legacy setup context when unscoped; all three scope parameters request read-only rule_evidence. Source details additionally require rule_id, rule_revision and point_id; mapping_id is optional. Partial, duplicate or malformed selections are rejected.",
                 "produces": [
                     "application/json"
                 ],
@@ -2843,6 +3278,54 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Selected workspace device; required with workspace_id and workspace_revision",
                         "name": "device_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bounded source list: rules or mappings; requires full scope and excludes detail selectors",
+                        "name": "source_list",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Safe source-list search, at most 128 Unicode characters",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Source-list page size, default 50 and maximum 100",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Opaque revision-bound source-list continuation",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Selected detail rule or paired mappings-list filter; requires rule_revision",
+                        "name": "rule_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Expected saved source rule revision",
+                        "name": "rule_revision",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact source point; requires rule_id and rule_revision",
+                        "name": "point_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional exact selected mapping; omitted means point-only details",
+                        "name": "mapping_id",
                         "in": "query"
                     }
                 ],
@@ -2872,7 +3355,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Stale workspace or recording evidence",
+                        "description": "Stale workspace, source or recording evidence",
                         "schema": {
                             "$ref": "#/definitions/handlers.APIErrorResponse"
                         }
@@ -3192,6 +3675,45 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "dbtarget.ColumnInfo": {
+            "type": "object",
+            "properties": {
+                "data_type": {
+                    "type": "string"
+                },
+                "has_default": {
+                    "description": "HasDefault is true when the column fills itself when an insert omits it:\na default, an identity or a generated column. NOT NULL without it cannot be omitted.",
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nullable": {
+                    "type": "boolean"
+                },
+                "primary_key": {
+                    "type": "boolean"
+                },
+                "unique": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dbtarget.TableInspectionStatus": {
+            "type": "string",
+            "enum": [
+                "exists",
+                "missing",
+                "forbidden",
+                "failed"
+            ],
+            "x-enum-varnames": [
+                "TableInspectionExists",
+                "TableInspectionMissing",
+                "TableInspectionForbidden",
+                "TableInspectionFailed"
+            ]
+        },
         "groupdelivery.AttentionItem": {
             "type": "object",
             "properties": {
@@ -4822,6 +5344,44 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.modbusShareBootstrapResponse": {
+            "type": "object",
+            "properties": {
+                "canonical_desired_mappings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/modbusshare.DesiredMapping"
+                    }
+                },
+                "canonical_plan": {
+                    "$ref": "#/definitions/modbusshare.CanonicalSharePlan"
+                },
+                "error": {
+                    "$ref": "#/definitions/handlers.TypedAPIErrorEnvelope"
+                },
+                "hydration_state": {
+                    "type": "string"
+                },
+                "readiness": {
+                    "type": "boolean"
+                },
+                "readiness_token": {
+                    "type": "string"
+                },
+                "settings_revision": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/modbusshare.Status"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.runtimeReadinessIssue": {
             "type": "object",
             "properties": {
@@ -4859,6 +5419,50 @@ const docTemplate = `{
                 },
                 "warning_count": {
                     "type": "integer"
+                }
+            }
+        },
+        "handlers.runtimeSourcePageResponse": {
+            "type": "object",
+            "properties": {
+                "contract_version": {
+                    "type": "integer"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "list_revision": {
+                    "type": "string"
+                },
+                "mappings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.runtimeWorkspaceSetupMappingResponse"
+                    }
+                },
+                "next_cursor": {
+                    "type": "string"
+                },
+                "query": {
+                    "type": "string"
+                },
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.runtimeWorkspaceSetupSourceRuleResponse"
+                    }
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
                 }
             }
         },
@@ -4918,7 +5522,13 @@ const docTemplate = `{
                 "setup": {
                     "$ref": "#/definitions/handlers.runtimeWorkspaceSetupContextResponse"
                 },
+                "source_page": {
+                    "$ref": "#/definitions/handlers.runtimeSourcePageResponse"
+                },
                 "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
                     "type": "string"
                 }
             }
@@ -5052,6 +5662,9 @@ const docTemplate = `{
                 "rule_id": {
                     "type": "string"
                 },
+                "rule_revision": {
+                    "type": "string"
+                },
                 "status": {
                     "$ref": "#/definitions/schema.MappingStatus"
                 },
@@ -5128,6 +5741,532 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.sourceRuleResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "data_format": {
+                    "description": "DataFormat 字節序格式（可空）",
+                    "type": "string"
+                },
+                "data_type": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "locked": {
+                    "type": "boolean"
+                },
+                "naming_prefix": {
+                    "type": "string"
+                },
+                "origin": {
+                    "type": "string"
+                },
+                "revision_id": {
+                    "type": "string"
+                },
+                "runtime_apply_issues": {
+                    "description": "RuntimeApplyIssues carries normalized readiness issues when live apply is deferred or warned.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.ReadinessIssue"
+                    }
+                },
+                "runtime_apply_message": {
+                    "description": "RuntimeApplyMessage 只在 apply_failed 時帶出錯誤說明。",
+                    "type": "string"
+                },
+                "runtime_apply_status": {
+                    "description": "RuntimeApplyStatus V2 autosave 成功後的 runtime 套用狀態。",
+                    "type": "string"
+                },
+                "save_state": {
+                    "type": "string"
+                },
+                "scale_multiplier": {
+                    "description": "ScaleMultiplier 縮放倍率（可空）",
+                    "type": "number"
+                },
+                "scale_offset": {
+                    "description": "ScaleOffset 偏移量（可空）",
+                    "type": "number"
+                },
+                "share_enabled": {
+                    "type": "boolean"
+                },
+                "share_start_register": {
+                    "type": "integer"
+                },
+                "share_stride": {
+                    "type": "integer"
+                },
+                "skipped_addresses": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "start_address": {
+                    "type": "string"
+                },
+                "target_data_type": {
+                    "description": "TargetDataType 目標資料型態（可空）",
+                    "type": "string"
+                },
+                "template_name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.studioLocatorEntry": {
+            "type": "object",
+            "properties": {
+                "database_config": {
+                    "$ref": "#/definitions/handlers.studioV2WorkspaceDatabaseConfigResponse"
+                },
+                "database_targets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.studioV2WorkspaceDatabaseTargetResponse"
+                    }
+                },
+                "devices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.studioV2WorkspaceDeviceResponse"
+                    }
+                },
+                "editor_hydrated": {
+                    "type": "boolean"
+                },
+                "group_heads": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "hydration_scope": {
+                    "$ref": "#/definitions/handlers.studioLocatorHydrationScope"
+                },
+                "mappings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.studioV2WorkspaceMappingResponse"
+                    }
+                },
+                "revalidated_mapping_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "rule_heads": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "source_rules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.sourceRuleResponse"
+                    }
+                },
+                "workspace_revision": {
+                    "type": "string"
+                },
+                "write_groups": {
+                    "$ref": "#/definitions/workspace.WriteGroupListResult"
+                }
+            }
+        },
+        "handlers.studioLocatorHydrationScope": {
+            "type": "object",
+            "properties": {
+                "complete_workspace": {
+                    "type": "boolean"
+                },
+                "device_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "group_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "mapping_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "rule_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handlers.studioV2WorkspaceBootstrapResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {},
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "$ref": "#/definitions/workspace.Kind"
+                },
+                "locator_entry": {
+                    "$ref": "#/definitions/handlers.studioLocatorEntry"
+                },
+                "modbus_share": {
+                    "$ref": "#/definitions/handlers.modbusShareBootstrapResponse"
+                },
+                "ordered_device_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "readiness_summary": {
+                    "$ref": "#/definitions/workspace.ReadinessSummary"
+                },
+                "status": {
+                    "$ref": "#/definitions/workspace.Status"
+                },
+                "updated_at": {}
+            }
+        },
+        "handlers.studioV2WorkspaceDatabaseConfigResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {},
+                "database": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "identity_revision": {
+                    "type": "string"
+                },
+                "kind": {
+                    "$ref": "#/definitions/schema.DatabaseConnectorKind"
+                },
+                "last_flush_at": {
+                    "type": "string"
+                },
+                "last_flush_error": {
+                    "type": "string"
+                },
+                "last_flush_status": {
+                    "type": "string"
+                },
+                "last_schema_ensure_at": {
+                    "type": "string"
+                },
+                "last_schema_ensure_error": {
+                    "type": "string"
+                },
+                "last_schema_ensure_status": {
+                    "type": "string"
+                },
+                "last_write_at": {
+                    "type": "string"
+                },
+                "last_write_error": {
+                    "type": "string"
+                },
+                "last_write_status": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "row_groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.DatabaseRowGroup"
+                    }
+                },
+                "runtime_apply_issues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.ReadinessIssue"
+                    }
+                },
+                "runtime_apply_message": {
+                    "type": "string"
+                },
+                "runtime_apply_status": {
+                    "type": "string"
+                },
+                "save_state": {
+                    "type": "string"
+                },
+                "schema": {
+                    "type": "string"
+                },
+                "setup_revision": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/schema.DatabaseConnectorStatus"
+                },
+                "table": {
+                    "type": "string"
+                },
+                "timestamp_column": {
+                    "type": "string"
+                },
+                "updated_at": {},
+                "username": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "write_interval_seconds": {
+                    "type": "integer"
+                },
+                "write_mode": {
+                    "$ref": "#/definitions/schema.DatabaseWriteMode"
+                }
+            }
+        },
+        "handlers.studioV2WorkspaceDatabaseMetadataResponse": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dbtarget.ColumnInfo"
+                    }
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "database": {
+                    "type": "string"
+                },
+                "inspection_status": {
+                    "$ref": "#/definitions/dbtarget.TableInspectionStatus"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "schema": {
+                    "type": "string"
+                },
+                "table": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.studioV2WorkspaceDatabaseTargetResponse": {
+            "type": "object",
+            "properties": {
+                "canonical_group": {
+                    "$ref": "#/definitions/workspace.WriteGroup"
+                },
+                "column_name": {
+                    "type": "string"
+                },
+                "created_at": {},
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "row_group_id": {
+                    "type": "string"
+                },
+                "runtime_apply_issues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.ReadinessIssue"
+                    }
+                },
+                "runtime_apply_message": {
+                    "type": "string"
+                },
+                "runtime_apply_status": {
+                    "type": "string"
+                },
+                "save_state": {
+                    "type": "string"
+                },
+                "setup_revision": {
+                    "type": "string"
+                },
+                "tag_id": {
+                    "type": "string"
+                },
+                "updated_at": {},
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.studioV2WorkspaceDeviceResponse": {
+            "type": "object",
+            "properties": {
+                "availability_reason": {
+                    "type": "string"
+                },
+                "availability_status": {
+                    "type": "string"
+                },
+                "connection_config": {
+                    "type": "string"
+                },
+                "created_at": {},
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_test_at": {},
+                "last_test_error": {
+                    "type": "string"
+                },
+                "last_test_success": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "$ref": "#/definitions/schema.ProtocolType"
+                },
+                "running": {
+                    "type": "boolean"
+                },
+                "runtime_apply_message": {
+                    "type": "string"
+                },
+                "runtime_apply_status": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/schema.DeviceStatus"
+                },
+                "updated_at": {}
+            }
+        },
+        "handlers.studioV2WorkspaceMappingResponse": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "cleanup_status": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "offset": {
+                    "type": "number"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "rule_id": {
+                    "type": "string"
+                },
+                "runtime_apply_issues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.ReadinessIssue"
+                    }
+                },
+                "runtime_apply_message": {
+                    "type": "string"
+                },
+                "runtime_apply_status": {
+                    "type": "string"
+                },
+                "save_state": {
+                    "type": "string"
+                },
+                "scale": {
+                    "type": "number"
+                },
+                "tag_id": {
+                    "type": "string"
+                },
+                "tag_key": {
+                    "type": "string"
+                },
+                "target_type": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
         "mapping.StepResult": {
             "type": "object",
             "properties": {
@@ -5186,6 +6325,77 @@ const docTemplate = `{
                 "ExactFloat64"
             ]
         },
+        "measurement.MeasurementDefinition": {
+            "type": "object",
+            "properties": {
+                "bitmask_labels": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "counter_policy": {
+                    "$ref": "#/definitions/measurement.CounterPolicy"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "definition_revision": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "equipment_id": {
+                    "type": "string"
+                },
+                "exact_recording_scale": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "numeric_encoding": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "string"
+                },
+                "semantic_kind": {
+                    "$ref": "#/definitions/measurement.SemanticKind"
+                },
+                "series_epoch": {
+                    "type": "string"
+                },
+                "source_binding_revision": {
+                    "type": "string"
+                },
+                "state_map": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "tag_id": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
         "measurement.SemanticKind": {
             "type": "string",
             "enum": [
@@ -5208,6 +6418,29 @@ const docTemplate = `{
                 "SemanticKindEvent",
                 "SemanticKindText"
             ]
+        },
+        "modbusshare.CanonicalSharePlan": {
+            "type": "object",
+            "properties": {
+                "desired_mappings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/modbusshare.DesiredMapping"
+                    }
+                },
+                "settings_revision": {
+                    "type": "string"
+                },
+                "signature": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
         },
         "modbusshare.DesiredMapping": {
             "type": "object",
@@ -5258,6 +6491,33 @@ const docTemplate = `{
                 }
             }
         },
+        "modbusshare.Diagnostic": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "retryable": {
+                    "type": "boolean"
+                },
+                "rule_id": {
+                    "type": "string"
+                },
+                "severity": {
+                    "description": "\"info\", \"warning\", \"error\"",
+                    "type": "string"
+                },
+                "tag_id": {
+                    "type": "string"
+                }
+            }
+        },
         "modbusshare.OwnershipProof": {
             "type": "object",
             "properties": {
@@ -5274,6 +6534,97 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "modbusshare.RecoveryStatus": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "retryable": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "modbusshare.Status": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "bind_address": {
+                    "type": "string"
+                },
+                "bind_state": {
+                    "type": "string"
+                },
+                "canonical_desired_mappings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/modbusshare.DesiredMapping"
+                    }
+                },
+                "canonical_plan": {
+                    "$ref": "#/definitions/modbusshare.CanonicalSharePlan"
+                },
+                "capacity_registers": {
+                    "type": "integer"
+                },
+                "configured_enabled": {
+                    "type": "boolean"
+                },
+                "dirty_state": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "hydration_state": {
+                    "type": "string"
+                },
+                "last_failure": {
+                    "$ref": "#/definitions/modbusshare.Diagnostic"
+                },
+                "lifecycle_state": {
+                    "type": "string"
+                },
+                "listener_state": {
+                    "type": "string"
+                },
+                "mapping_count": {
+                    "type": "integer"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "readiness": {
+                    "type": "boolean"
+                },
+                "readiness_token": {
+                    "type": "string"
+                },
+                "recovery": {
+                    "$ref": "#/definitions/modbusshare.RecoveryStatus"
+                },
+                "settings_revision": {
+                    "type": "string"
+                },
+                "slave_id": {
+                    "type": "integer"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
                     "type": "string"
                 }
             }
@@ -6767,6 +8118,36 @@ const docTemplate = `{
                 "DataTypeString"
             ]
         },
+        "schema.DatabaseConnectorKind": {
+            "type": "string",
+            "enum": [
+                "sqlite",
+                "postgres",
+                "mysql",
+                "sqlserver"
+            ],
+            "x-enum-varnames": [
+                "DatabaseConnectorKindSQLite",
+                "DatabaseConnectorKindPostgres",
+                "DatabaseConnectorKindMySQL",
+                "DatabaseConnectorKindSQLServer"
+            ]
+        },
+        "schema.DatabaseConnectorStatus": {
+            "type": "string",
+            "enum": [
+                "ready",
+                "unreachable",
+                "auth_failed",
+                "error"
+            ],
+            "x-enum-varnames": [
+                "DatabaseConnectorStatusReady",
+                "DatabaseConnectorStatusUnreachable",
+                "DatabaseConnectorStatusAuthFailed",
+                "DatabaseConnectorStatusError"
+            ]
+        },
         "schema.DatabaseWriteMode": {
             "type": "string",
             "enum": [
@@ -6776,6 +8157,19 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "DatabaseWriteModeInsert",
                 "DatabaseWriteModeUpsert"
+            ]
+        },
+        "schema.DeviceStatus": {
+            "type": "string",
+            "enum": [
+                "draft",
+                "active",
+                "disabled"
+            ],
+            "x-enum-varnames": [
+                "DeviceStatusDraft",
+                "DeviceStatusActive",
+                "DeviceStatusDisabled"
             ]
         },
         "schema.MappingStatus": {
@@ -6793,6 +8187,25 @@ const docTemplate = `{
                 "MappingStatusActive",
                 "MappingStatusOutOfSync",
                 "MappingStatusError"
+            ]
+        },
+        "schema.ProtocolType": {
+            "type": "string",
+            "enum": [
+                "modbus_tcp",
+                "modbus_rtu",
+                "modbus_udp",
+                "fatek_fbs",
+                "mc_3e",
+                "mqtt"
+            ],
+            "x-enum-varnames": [
+                "ProtocolModbusTCP",
+                "ProtocolModbusRTU",
+                "ProtocolModbusUDP",
+                "ProtocolFatekFBs",
+                "ProtocolMC3E",
+                "ProtocolMQTT"
             ]
         },
         "schema.TransformStep": {
@@ -7083,6 +8496,15 @@ const docTemplate = `{
                 }
             }
         },
+        "workspace.Kind": {
+            "type": "string",
+            "enum": [
+                "single"
+            ],
+            "x-enum-varnames": [
+                "WorkspaceKindSingle"
+            ]
+        },
         "workspace.ReadinessIssue": {
             "type": "object",
             "properties": {
@@ -7128,6 +8550,26 @@ const docTemplate = `{
                 "ReadinessStep3",
                 "ReadinessStep4"
             ]
+        },
+        "workspace.ReadinessSummary": {
+            "type": "object",
+            "properties": {
+                "blocking_count": {
+                    "type": "integer"
+                },
+                "issues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.ReadinessIssue"
+                    }
+                },
+                "ready": {
+                    "type": "boolean"
+                },
+                "warning_count": {
+                    "type": "integer"
+                }
+            }
         },
         "workspace.RecordingStartDeviceProgress": {
             "type": "object",
@@ -7273,6 +8715,17 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "workspace.Status": {
+            "type": "string",
+            "enum": [
+                "empty",
+                "ready"
+            ],
+            "x-enum-varnames": [
+                "WorkspaceStatusEmpty",
+                "WorkspaceStatusReady"
+            ]
         },
         "workspace.WriteGroup": {
             "type": "object",

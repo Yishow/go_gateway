@@ -198,6 +198,22 @@ func (h *StudioV2WorkspaceRecordingPlansHandler) Delete(c *gin.Context) {
 	})
 }
 
+// Capabilities returns static capabilities or a read-only saved-connector probe.
+// @Summary Read recording connector capabilities
+// @Tags datalink
+// @Produce json
+// @Param kind query string false "Connector kind; required for a saved-connector probe"
+// @Param connector_id query string false "Saved connector identity; paired with expected_connector_revision"
+// @Param expected_connector_revision query string false "Expected saved connector revision"
+// @Param locator_workspace_id query string false "Optional locator workspace identity; paired with locator_workspace_revision"
+// @Param locator_workspace_revision query string false "Observed locator workspace revision; explicit empty is valid only for matching legacy-empty setup"
+// @Success 200 {object} map[string]interface{} "Success envelope with a capability object or the static capability list"
+// @Failure 400 {object} APIErrorResponse
+// @Failure 403 {object} APIErrorResponse
+// @Failure 409 {object} APIErrorResponse
+// @Failure 422 {object} APIErrorResponse
+// @Failure 503 {object} APIErrorResponse
+// @Router /v1/datalink/studio-v2/workspace/recording-plans/capabilities [get]
 func (h *StudioV2WorkspaceRecordingPlansHandler) Capabilities(c *gin.Context) {
 	// A saved-scope SQL Server query names kind=sqlserver explicitly; the
 	// predicate gates on that kind itself, so the MySQL saved-scope branch

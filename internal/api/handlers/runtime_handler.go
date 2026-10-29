@@ -31,6 +31,7 @@ type RuntimeHandler struct {
 	dbTargetReader    runtimeWorkspaceDatabaseTargetReader
 	ruleGroups        RuntimeRecordingGroupReader
 	ruleApplied       RuntimeAppliedConfigurationReader
+	ruleDelivery      RuntimeRevisionDeliveryReader
 	ruleEvidenceNow   func() time.Time
 }
 
@@ -68,11 +69,13 @@ type runtimeCollectorResponse struct {
 }
 
 type runtimeWorkspaceContextResponse struct {
-	WorkspaceID     string                                `json:"workspace_id"`
-	Devices         []runtimeWorkspaceContextDeviceEntry  `json:"devices"`
-	DefaultDeviceID *string                               `json:"default_device_id"`
-	Setup           *runtimeWorkspaceSetupContextResponse `json:"setup"`
-	RuleEvidence    *runtimeview.RuleEvidenceView         `json:"rule_evidence,omitempty"`
+	WorkspaceRevision string                                `json:"workspace_revision,omitempty"`
+	WorkspaceID       string                                `json:"workspace_id"`
+	Devices           []runtimeWorkspaceContextDeviceEntry  `json:"devices"`
+	DefaultDeviceID   *string                               `json:"default_device_id"`
+	Setup             *runtimeWorkspaceSetupContextResponse `json:"setup"`
+	RuleEvidence      *runtimeview.RuleEvidenceView         `json:"rule_evidence,omitempty"`
+	SourcePage        *runtimeSourcePageResponse            `json:"source_page,omitempty"`
 }
 
 type runtimeWorkspaceContextDeviceEntry struct {
@@ -114,17 +117,25 @@ func NewRuntimeHandler(
 
 // WorkspaceContext returns the persisted workspace context used by the runtime monitor.
 // @Summary Get runtime workspace context
-// @Description Returns legacy setup context when unscoped; all three scope parameters request read-only rule_evidence. Partial, duplicate or malformed scope is rejected.
+// @Description Returns legacy setup context when unscoped; all three scope parameters request read-only rule_evidence. Source details additionally require rule_id, rule_revision and point_id; mapping_id is optional. Partial, duplicate or malformed selections are rejected.
 // @Tags datalink
 // @Produce json
 // @Param workspace_id query string false "Workspace ID; required together with workspace_revision and device_id for rule evidence"
 // @Param workspace_revision query string false "Expected workspace revision; required with workspace_id and device_id"
 // @Param device_id query string false "Selected workspace device; required with workspace_id and workspace_revision"
+// @Param source_list query string false "Bounded source list: rules or mappings; requires full scope and excludes detail selectors"
+// @Param q query string false "Safe source-list search, at most 128 Unicode characters"
+// @Param limit query int false "Source-list page size, default 50 and maximum 100"
+// @Param cursor query string false "Opaque revision-bound source-list continuation"
+// @Param rule_id query string false "Selected detail rule or paired mappings-list filter; requires rule_revision"
+// @Param rule_revision query string false "Expected saved source rule revision"
+// @Param point_id query string false "Exact source point; requires rule_id and rule_revision"
+// @Param mapping_id query string false "Optional exact selected mapping; omitted means point-only details"
 // @Success 200 {object} runtimeWorkspaceContextResponse
 // @Failure 400 {object} APIErrorResponse "Malformed or incomplete scope"
 // @Failure 403 {object} APIErrorResponse "Foreign or unavailable selected scope"
 // @Failure 404 {object} APIErrorResponse "Runtime device not found"
-// @Failure 409 {object} APIErrorResponse "Stale workspace or recording evidence"
+// @Failure 409 {object} APIErrorResponse "Stale workspace, source or recording evidence"
 // @Failure 503 {object} APIErrorResponse "Workspace or runtime snapshot unavailable"
 // @Router /v1/datalink/studio-v2/workspace/runtime-context [get]
 func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
@@ -132,8 +143,15 @@ func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
 	if !valid {
 		return
 	}
+	if h.tryRuntimeSourcePage(c, scope) {
+		return
+	}
+	selection, valid := runtimeSourceRequestSelection(c, scope)
+	if !valid {
+		return
+	}
 	if scope != nil {
-		h.scopedRuntimeRuleEvidence(c, *scope)
+		h.scopedRuntimeRuleEvidence(c, *scope, selection)
 		return
 	}
 	if h.workspaceSvc == nil || h.deviceSvc == nil {
@@ -160,8 +178,9 @@ func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
 	}
 
 	response := runtimeWorkspaceContextResponse{
-		WorkspaceID: runtimeSafeID(record.ID),
-		Devices:     make([]runtimeWorkspaceContextDeviceEntry, 0, len(record.OrderedDeviceIDs)),
+		WorkspaceID:       runtimeSafeID(record.ID),
+		WorkspaceRevision: runtimeSafeID(record.DatabaseSetupRevision),
+		Devices:           make([]runtimeWorkspaceContextDeviceEntry, 0, len(record.OrderedDeviceIDs)),
 	}
 	setup, err := h.buildWorkspaceSetupContext(c.Request.Context(), record)
 	if err != nil {

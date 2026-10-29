@@ -32,6 +32,8 @@ export interface StudioV2RuntimeSetupSourceRule {
 }
 
 export interface StudioV2RuntimeSetupMapping {
+  /** Required on bounded source-page rows; absent legacy rows remain compatible. */
+  rule_revision?: string;
   id?: string;
   rule_id: string;
   device_id: string;
@@ -82,11 +84,46 @@ export interface StudioV2RuntimeSetupContext {
   database_targets: StudioV2RuntimeSetupDatabaseTarget[];
 }
 
+/** Explicit read selection, not an editing locator or mutation permission. */
+export interface RuntimeSourceSelection {
+  rule_id: string;
+  rule_revision: string;
+  point_id: string;
+  mapping_id?: string;
+}
+
 export interface StudioV2RuntimeContext {
+  /** Safe revision of the same observed workspace; absent legacy evidence stays unknown. */
+  workspace_revision?: string;
   /** Only supplied for an explicit scoped read; the shared service validates it before use. */
   rule_evidence?: RuleEvidenceView | null;
   workspace_id: string;
   devices: StudioV2RuntimeContextDevice[];
   default_device_id: string | null;
   setup?: StudioV2RuntimeSetupContext | null;
+}
+
+/** Read-only page selection; no locator or mutation capability. */
+export interface RuntimeSourcePageRequest {
+  kind: 'rules' | 'mappings';
+  query?: string;
+  limit?: number;
+  cursor?: string;
+  rule_id?: string;
+  rule_revision?: string;
+}
+
+/** Bounded safe saved summaries, not another source-facts or execution authority. */
+export interface RuntimeSourcePage {
+  contract_version: 1;
+  workspace_id: string;
+  workspace_revision: string;
+  device_id: string;
+  kind: 'rules' | 'mappings';
+  query: string;
+  limit: number;
+  list_revision: string;
+  rules: (StudioV2RuntimeSetupSourceRule & { revision_id: string })[];
+  mappings: (StudioV2RuntimeSetupMapping & { rule_revision: string })[];
+  next_cursor: string | null;
 }
