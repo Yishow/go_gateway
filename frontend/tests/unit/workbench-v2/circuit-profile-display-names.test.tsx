@@ -23,7 +23,7 @@ function configProps(): CircuitProfileConfigFieldsProps {
     workspaceId: 'ws-1', workspaceRevision: 'wrev-1', readonly: false,
     savedDevices: [{ id: 'dev-1', name: 'PLC A' }], activeDeviceId: 'dev-1',
     onSelectDevice: vi.fn(), deviceCandidates: candidates,
-    localDraft: defaultCircuitProfileLocalDraft(candidates, []), updateLocalDraft: vi.fn(),
+    localDraft: { ...defaultCircuitProfileLocalDraft(candidates, []), cumulative_keys: [candidateKey(candidates[0])] }, updateLocalDraft: vi.fn(),
     instParsed: { valid: true }, cumParsed: { valid: true },
     isPostgres: true, storageLocked: false, effectiveStorageMode: 'plain',
     cumulativeCircuitMissing: false, circuitId: '',

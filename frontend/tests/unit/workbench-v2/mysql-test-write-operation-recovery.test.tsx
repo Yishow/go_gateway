@@ -1,3 +1,5 @@
+import { recordingTestWriteRecovery } from '@/features/datalink/workbench-v2/state/recordingTestWriteRecovery';
+vi.mock('@/hooks/datalink/useRecordingTestWriteRecovery', () => ({ useRecordingTestWriteRecovery: () => ({ available: true, isFetching: false, refetch: vi.fn() }) }));
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -60,8 +62,18 @@ async function confirmWithLostReply() {
   expect(await screen.findByTestId('group-test-write-unconfirmed')).toBeInTheDocument();
 }
 
+
+/** Dispose independent test fixtures explicitly: storage deletion is no longer resolution. */
+function resetRecoveryFixture() {
+  localStorage.clear();
+  for (const ref of recordingTestWriteRecovery.read().references) recordingTestWriteRecovery.resolve({
+    operation_id: ref.operation_id, action: 'test_write', status: 'succeeded', write_outcome: 'written_verified',
+    cleanup_status: 'cleaned', created_at: '', updated_at: '',
+  }, ref.workspace_id);
+}
+
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.clearAllMocks(); resetRecoveryFixture();
   api.testWritePreview.mockResolvedValue(preview);
   api.testWrite.mockRejectedValue(new Error('lost acknowledgement'));
   api.testWriteOperation.mockResolvedValue(operation);

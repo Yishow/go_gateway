@@ -19,6 +19,7 @@ import {
   purposeOfLayout,
   type CircuitPurpose,
 } from '../../state/circuitProfileBasic';
+import { circuitProfileLayoutBlockReason, type CircuitProfileCapabilities } from '../../state/circuitProfileCapabilities';
 import type { GroupCandidate } from '../../state/writeGroup/candidates';
 import { cloneWriteGroupExactRecordingSource } from '../../../../../utils/studioV2ExactRecordingSourceJson';
 
@@ -44,6 +45,7 @@ export interface EnsureOrUpdateCircuitProfilesInput {
   circuitName: string;
   destination: WriteGroupDestinationDraft;
   connectorKind?: string;
+  capabilities?: CircuitProfileCapabilities;
   selectedCandidates?: GroupCandidate[];
   measurementsByPointKey: Map<string, MeasurementDefinition>;
   savedLongGroups: WriteGroup[];
@@ -126,16 +128,25 @@ export async function ensureOrUpdateCircuitProfileGroups(
     updateWriteGroup,
   } = input;
 
+  const findExisting = (profile: WriteGroupProfileKind, profileCandidates: GroupCandidate[]) =>
+    [...preparedGroups, ...savedLongGroups].find((group) => group.workspace_id === workspaceId &&
+      groupProfileKind(group) === profile && groupCircuitId(group) === circuitId &&
+      group.members.every((member) => profileCandidates.some((candidate) => candidate.device_id === member.device_id)));
+  // Preflight every profile before the first mutation, including saved layouts and storage modes.
+  for (const { profile, candidates } of enabledProfiles) {
+    const existing = findExisting(profile, candidates ?? selectedCandidates ?? []);
+    const purpose = (existing && purposeOfLayout(existing.layout_version)) || input.purpose || 'long';
+    if (circuitProfileLayoutBlockReason(input, purpose, existing?.storage_mode ?? storageMode)) {
+      throw new Error('Recording layout is unavailable for this destination.');
+    }
+  }
+
   let currentWorkspaceRevision = initialWorkspaceRevision;
   const resolvedGroups: WriteGroup[] = [];
 
   for (const { profile, intervalValue, intervalSeconds, candidates } of enabledProfiles) {
     const profileCandidates = candidates ?? selectedCandidates ?? [];
-    const existing = [...preparedGroups, ...savedLongGroups].find((group) =>
-      group.workspace_id === workspaceId && groupProfileKind(group) === profile &&
-      groupCircuitId(group) === circuitId &&
-      group.members.every((member) => profileCandidates.some((candidate) => candidate.device_id === member.device_id)),
-    );
+    const existing = findExisting(profile, profileCandidates);
 
     const effectiveStorageMode: WriteGroupStorageMode = existing?.storage_mode ?? storageMode;
     // A saved profile keeps its layout and what it already says about its values: a latest profile stays latest, and

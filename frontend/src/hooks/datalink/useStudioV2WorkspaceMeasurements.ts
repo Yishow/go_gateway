@@ -6,10 +6,28 @@ import {
 } from '../../services/studioV2WorkspaceMeasurements';
 import type { MeasurementDefinition, TemplateApplyPreview } from '../../types/measurement';
 
-export function useStudioV2WorkspaceMeasurementsQuery(enabled: boolean, deviceId?: string) {
+const measurementFamilyKey = [...studioV2WorkspaceKeys.all, 'measurements'] as const;
+
+interface MeasurementQueryScope {
+  workspaceId: string;
+  workspaceRevision: string;
+}
+
+export function useStudioV2WorkspaceMeasurementsQuery(
+  enabled: boolean, deviceId?: string, scope?: MeasurementQueryScope,
+) {
   return useQuery({
-    queryKey: studioV2WorkspaceKeys.measurements(deviceId),
-    queryFn: () => studioV2WorkspaceMeasurementsAPI.list(deviceId),
+    // This fences late reads in the cache; only server mutation CAS can prove a current revision.
+    queryKey: [...studioV2WorkspaceKeys.measurements(deviceId), ...(scope ? [scope.workspaceId, scope.workspaceRevision] : [])],
+    queryFn: async () => {
+      const definitions = await studioV2WorkspaceMeasurementsAPI.list(deviceId);
+      const hasForeignScope = scope && definitions.some((definition) => definition.workspace_id !== scope.workspaceId ||
+        (deviceId !== undefined && definition.device_id !== deviceId));
+      if (hasForeignScope) {
+        throw new Error('Measurement definitions did not match the requested scope.');
+      }
+      return definitions;
+    },
     enabled,
     retry: false,
     refetchOnWindowFocus: false,
@@ -45,7 +63,7 @@ export function useApplyMeasurementTemplateMutation() {
     mutationFn: (preview: TemplateApplyPreview) =>
       studioV2WorkspaceMeasurementsAPI.applyTemplate(preview),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.measurements() });
+      await queryClient.invalidateQueries({ queryKey: measurementFamilyKey });
     },
   });
 }
@@ -57,7 +75,7 @@ export function useCreateStudioV2MeasurementMutation() {
     mutationFn: (def: Partial<MeasurementDefinition>) =>
       studioV2WorkspaceMeasurementsAPI.create(def),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.measurements() });
+      await queryClient.invalidateQueries({ queryKey: measurementFamilyKey });
     },
   });
 }
@@ -69,7 +87,7 @@ export function useUpdateStudioV2MeasurementMutation() {
     mutationFn: ({ id, def }: { id: string; def: Partial<MeasurementDefinition> }) =>
       studioV2WorkspaceMeasurementsAPI.update(id, def),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.measurements() });
+      await queryClient.invalidateQueries({ queryKey: measurementFamilyKey });
     },
   });
 }
@@ -80,7 +98,7 @@ export function useDeleteStudioV2MeasurementMutation() {
   return useMutation({
     mutationFn: (id: string) => studioV2WorkspaceMeasurementsAPI.remove(id),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.measurements() });
+      await queryClient.invalidateQueries({ queryKey: measurementFamilyKey });
     },
   });
 }

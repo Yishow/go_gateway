@@ -2568,6 +2568,32 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/datalink/studio-v2/workspace/database-operations/test-writes": {
+            "get": {
+                "description": "Read-only ledger recovery independent of browser references. Complete empty results do not authorize replay of an unknown write. Query failures never return a partial list. Tokens and destination details are not exposed.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Recording Plans"
+                ],
+                "summary": "Recover unresolved test writes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TestWriteRecoveryResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "success=false; code=RECORDING_PLAN_UNAVAILABLE; retryable=true; recovery could not be established",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/datalink/studio-v2/workspace/database-operations/{operation_id}": {
             "get": {
                 "description": "Returns the durable state of a schema operation issued by a preview of the current workspace.",
@@ -4059,6 +4085,17 @@ const docTemplate = `{
             "properties": {
                 "expected_settings_revision": {
                     "type": "string"
+                }
+            }
+        },
+        "handlers.TestWriteRecoveryResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/recordingplan.TestWriteRecoveryList"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },
@@ -5947,6 +5984,73 @@ const docTemplate = `{
                 "StreamModeBatchSnapshot",
                 "StreamModeLatestOnly"
             ]
+        },
+        "recordingplan.TestWriteRecoveryList": {
+            "type": "object",
+            "properties": {
+                "complete": {
+                    "type": "boolean"
+                },
+                "operations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/recordingplan.TestWriteRecoveryOperation"
+                    }
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "recordingplan.TestWriteRecoveryOperation": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "cleanup_status": {
+                    "type": "string"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/recordingplan.SchemaOperationStatus"
+                },
+                "target_fingerprint": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                },
+                "write_outcome": {
+                    "type": "string"
+                }
+            }
         },
         "runtimeview.Backlog": {
             "type": "object",

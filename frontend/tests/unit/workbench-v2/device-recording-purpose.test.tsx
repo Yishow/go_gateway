@@ -214,7 +214,7 @@ describe('device recording purposes', () => {
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-instantaneous'));
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
     expandSources();
-    for (const index of [0, 1, 2, 4]) fireEvent.click(screen.getByTestId(`circuit-profile-member-cum-tag-${index}`));
+    for (const index of [3, 5, 6]) fireEvent.click(screen.getByTestId(`circuit-profile-member-cum-tag-${index}`));
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
     await waitFor(() => expect(ensureCircuitAsync).toHaveBeenCalledTimes(1));
 
@@ -305,6 +305,7 @@ describe('both purposes share the same confirmations and bounds', () => {
     fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: 'Utilities' } });
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-instantaneous'));
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
+    fireEvent.click(screen.getByTestId('circuit-profile-member-cum-tag-3'));
 
     expect(screen.getByTestId('circuit-counter-confirmation')).toBeInTheDocument();
     expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();

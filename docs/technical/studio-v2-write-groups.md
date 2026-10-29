@@ -81,7 +81,7 @@ single/row reviewed migration 保存 durable ID map。相同 source revision 重
 
 讀取：`GET .../write-groups/:id/delivery` 回傳各階段計數、最舊未完成年齡、按 group revision × destination 分組的 backlog（含該 backlog 被接受時的 connector revision 與安全 error code）、intake 狀態與配額。E 的 Step 4 UI 使用此來源，分開顯示等待、已提交與需處理狀態。
 
-**dedupe 能力與限制（沒有 universal exactly-once）**：群組的 `write_policy.dedupe_capability` 決定 commit 結果不確定時能否安全重試——`receipt`：destination 同交易寫入 `gw_effect_receipts`（需存在，由 managed schema 流程或操作者建立；sender 不執行 DDL），重試先查 receipt，相同 digest 視為已 commit、不同 digest 阻擋且不覆蓋；`unique_key`：需要 inspection 確認為 UNIQUE／PK 的 record key 欄位（目前 canonical row policy 沒有此欄位設定，F 明列 production 正向路徑未驗，不新增產品設定）；`none`（custom 表預設）：只有單純 insert，commit 後回應遺失即 `unknown`，**不會自動重插**。MySQL 目前沒有群組交付策略（回明確不支援）。PostgreSQL 16 與 SQLite 已有真實驗證。
+**dedupe 能力與限制（沒有 universal exactly-once）**：群組的 `write_policy.dedupe_capability` 決定 commit 結果不確定時能否安全重試——`receipt`：destination 同交易寫入 `gw_effect_receipts`（需存在，由 managed schema 流程或操作者建立；sender 不執行 DDL），重試先查 receipt，相同 digest 視為已 commit、不同 digest 阻擋且不覆蓋；`unique_key`：需要 inspection 確認為 UNIQUE／PK 的 record key 欄位（目前 canonical row policy 沒有此欄位設定，F 明列 production 正向路徑未驗，不新增產品設定）；`none`（custom 表預設）：只有單純 insert，commit 後回應遺失即 `unknown`，**不會自動重插**。此段 C 階段最初未提供 MySQL 群組交付；後續 MySQL／MariaDB 受管長表契約見 [迴路記錄說明](studio-v2-circuit-recording.md#mysqlmariadb-長表與明確試寫)，不擴大舊 custom／wide 策略。PostgreSQL 16 與 SQLite 的既有驗證屬歷史證據。
 
 運行界限（都是設定值而非效能保證）：每個 partition 每輪最多 50 筆、最多 4 個 partition 並行；單次 destination 嘗試 30 秒、寫回本地狀態 5 秒；lease 至少涵蓋一次嘗試；關閉時先停新 row、等在途交付到 deadline，逾時才取消，被中斷的 row 由下次啟動恢復；累積未交付資料上限預設 500 MiB（量測 payload 位元組），達上限只拒絕新的 ACK、不刪已接受資料，並顯示範圍與 loss-risk。
 
@@ -97,6 +97,7 @@ single/row reviewed migration 保存 durable ID map。相同 source revision 重
 | `POST …/write-groups/:id/test-write` | 帶 `token`、`operation_id`；原子 claim 一次後寫入、讀回、清理。 |
 | `POST …/recording-plans/test-write-preview`、`…/test-write` | 舊 plan 路由，只靠 group 的 migration provenance 解析到**唯一**群組，解析不到 422 `RECORDING_TEST_WRITE_PLAN_UNRESOLVED`，不猜第一筆；確認一樣必須帶 token 與 operation_id，裸 `plan_id` 回 400。目前沒有任何 production 流程寫入這種 provenance（recording plan 的 migration review 仍是 blocked），所以今天這兩條實際上都會回 422。 |
 | `GET …/database-operations/:operation_id` | 沿用的共用狀態端點，也服務 test_write。 |
+| `GET …/database-operations/test-writes` | 工作區範圍的未決試寫 listing（完整路徑 `/api/v1/datalink/studio-v2/workspace/database-operations/test-writes`）；回傳非機密定位與階段事實，不授權重送或修復。 |
 
 狀態碼：running 重送 202；已保存結果 200（token 之後過期也一樣，不再執行）；同表另一個 operation 佔用、stale、首次 claim 已過期 409；缺欄 400；未知／他人的 token 404；他種 action 的 token（例如建表 token）或不支援的目標 422；結果無法保存 503 `WRITE_GROUP_TEST_WRITE_RESULT_UNKNOWN`（附 operation_id，重送會接手並從 target 證據收尾，不是重寫）。
 
@@ -112,7 +113,13 @@ single/row reviewed migration 保存 durable ID map。相同 source revision 重
 
 重啟：每一步的副作用前先保存進度（`claimed`／`writing`／`cleaning`）。lease（3 分鐘）過期後，重送同一 operation 會由新 owner 接手：`writing` 階段若 target 已有擁有者 row 就直接讀回、清理；沒有時只有 `receipt` dedupe 會用同一 effect key 重試，其他一律 `unknown`（可能已 commit，不重插）；`cleaning` 階段只完成清理，不會因為 row 已消失而重寫。group 在試寫後被編輯則無法重建預期 row，擁有者 row 只回報 `written_unverified`（`group-changed-after-write`）並清理。
 
-E 已整合 Step 4 群組 preview／明確 confirm／write 與 cleanup 分別顯示，以及 retained operation 查詢。`supports_group_test_writes`（SQLite／PostgreSQL 為 true）表示群組後端能力，個別 group 仍可能在 preview 被拒；舊 `supports_test_writes` 不代表 advanced recording-plan 路徑可執行。MySQL 沒有群組試寫。
+E 已整合 Step 4 群組 preview／明確 confirm／write 與 cleanup 分別顯示，以及 retained operation 查詢。`supports_group_test_writes`（SQLite／PostgreSQL 為 true）表示群組後端能力，個別 group 仍可能在 preview 被拒；舊 `supports_test_writes` 不代表 advanced recording-plan 路徑可執行。這是早期 E 階段的能力範圍；目前 MySQL／MariaDB 與 SQL Server 另有受管長表試寫路徑，仍須相符版本、capability、schema／ownership proof 與當前 group revision，不表示 custom／wide 或 lifecycle successor 全面支援。
+
+### 未決試寫的目前操作指引
+
+本機參照遺失可由上述 workspace listing 重新發現原 operation；列表不完整、綁定損壞或超過 1000 個未決候選時回 retryable 503 `RECORDING_PLAN_UNAVAILABLE`，不回部分成功資料。無結果或讀取失敗不證明在途請求未寫入，亦不清掉已知本機未決參照。確切狀態仍查原 operation。
+
+前述 lease／重送描述是後端處理同一確認的契約，不是 UI 可以自動重送未知 insert 的指引。現在 UI 保留未決證據、阻擋同群組新 preview；write commitment、readback、cleanup 分開顯示。只有原 token 仍存在、相同 scope 且後端授權的 SQL Server 操作可明確要求 `cleanup_repair`，此動作不 insert；其他引擎或重載後缺 token 時只能查詢／診斷，不提供通用修復。詳見 [試寫復原操作步驟](studio-v2-circuit-recording.md#試寫回應不明時查原操作不另寫一筆)。此復原不刪歷史表，也不改 lifecycle 的保留／重建／切換契約。
 
 ## 備份與回復邊界
 

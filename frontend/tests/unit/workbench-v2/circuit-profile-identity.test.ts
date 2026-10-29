@@ -92,7 +92,7 @@ async function saveCircuit(circuitId: string, existing: WriteGroup[], circuitNam
   const ensure = vi.fn(async () => ({ group: profileGroup(circuitId), workspace_revision: 'ws-new' }));
   const update = vi.fn(async () => ({ group: profileGroup(circuitId), workspace_revision: 'ws-new' }));
   await ensureOrUpdateCircuitProfileGroups({
-    workspaceId: 'ws-1', initialWorkspaceRevision: 'ws-old', deviceName: 'Device',
+    workspaceId: 'ws-1', initialWorkspaceRevision: 'ws-old', deviceName: 'Device', connectorKind: 'sqlite',
     enabledProfiles: [{ profile: 'instantaneous', intervalValue: 15, intervalSeconds: 15 }],
     storageMode: 'plain', recreateMissing: true, circuitId, circuitName,
     destination: savedGroup().destination, selectedCandidates: [candidates[0]], measurementsByPointKey: new Map(),

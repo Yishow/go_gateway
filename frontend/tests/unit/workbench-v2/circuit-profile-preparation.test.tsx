@@ -100,7 +100,10 @@ async function prepare(both = false) {
   fireEvent.change(screen.getByTestId('circuit-profile-circuit-name'), { target: { value: '水量迴路' } });
   expandSources();
   fireEvent.click(screen.getByLabelText('line.pressure')); fireEvent.click(screen.getByLabelText('line.batch'));
-  if (both) fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
+  if (both) {
+    fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
+    fireEvent.click(screen.getByTestId('circuit-profile-member-cum-tag-0'));
+  }
   await waitFor(() => expect(screen.getByTestId('circuit-profile-prepare')).toBeEnabled());
   fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
   await screen.findByTestId('circuit-prepared-group-instantaneous');

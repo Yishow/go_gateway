@@ -13,7 +13,8 @@ function plan(): FrozenBatchPlan {
     members: savedGroup().members.map((member) => ({ ...member, circuit_id: 'cir-a', circuit_name: 'Circuit A' })),
   });
   return {
-    workspaceId: 'ws-1', workspaceRevision: 'w-1', connectorRevision: 'c-1',
+    // This reviewed revision matches the saved destination in these SQLite fixtures.
+    workspaceId: 'ws-1', workspaceRevision: 'w-1', connectorRevision: 'crev-1',
     applyInst: true, instInterval: 30, applyCum: false, cumInterval: 10,
     targets: [{ circuit_id: 'cir-a', circuit_name: 'Circuit A', instantaneousGroup: group, anyGroup: group }],
   };
@@ -21,7 +22,7 @@ function plan(): FrozenBatchPlan {
 
 describe('Batch outcome reflects the evidence actually available', () => {
   it('keeps a lost mutation response unknown instead of asserting that saving failed', async () => {
-    const error = await executeBatchPlan({
+    const error = await executeBatchPlan({ capabilityContext: { connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } },
       plan: plan(), updateWriteGroup: vi.fn().mockRejectedValue(new Error('response lost after server commit')),
     }).catch((cause: unknown) => cause);
     expect(error).toEqual(expect.objectContaining({
@@ -31,7 +32,7 @@ describe('Batch outcome reflects the evidence actually available', () => {
 });
 
 async function outcomeOf(rejection: unknown) {
-  const error = await executeBatchPlan({ plan: plan(), updateWriteGroup: vi.fn().mockRejectedValue(rejection) })
+  const error = await executeBatchPlan({ capabilityContext: { connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }, plan: plan(), updateWriteGroup: vi.fn().mockRejectedValue(rejection) })
     .then(() => undefined, (cause: unknown) => cause) as { targetResults: Record<string, { status: string; profiles: Record<string, { status: string; cause?: unknown }> }> };
   return error.targetResults['cir-a'];
 }

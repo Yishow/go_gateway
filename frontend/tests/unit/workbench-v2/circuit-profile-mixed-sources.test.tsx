@@ -243,6 +243,7 @@ describe('CircuitProfile Independent Sources per Profile (Slice A)', () => {
     const instTag1 = screen.getByTestId('circuit-profile-member-inst-tag-1');
     if ((cumTag0 as HTMLInputElement).checked) fireEvent.click(cumTag0);
     if ((instTag1 as HTMLInputElement).checked) fireEvent.click(instTag1);
+    fireEvent.click(screen.getByTestId('circuit-profile-member-cum-tag-1'));
 
     first.unmount();
 
@@ -254,7 +255,7 @@ describe('CircuitProfile Independent Sources per Profile (Slice A)', () => {
     expect((screen.getByTestId('circuit-profile-member-cum-tag-1') as HTMLInputElement).checked).toBe(true);
   });
 
-  it('hydrates legacy local draft where only selected_keys was stored, populating both profiles for backward compatibility', async () => {
+  it('hydrates legacy instantaneous selection without inventing cumulative intent from shared selected_keys', async () => {
     window.sessionStorage.setItem(
       'wbv2.circuit-profile-draft.ws-1%2Fdev-1',
       JSON.stringify({
@@ -268,7 +269,8 @@ describe('CircuitProfile Independent Sources per Profile (Slice A)', () => {
     renderPanel();
     expandSources();
     expect((screen.getByTestId('circuit-profile-member-inst-tag-0') as HTMLInputElement).checked).toBe(true);
-    expect((screen.getByTestId('circuit-profile-member-cum-tag-0') as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByTestId('circuit-profile-member-cum-tag-0') as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByTestId('circuit-profile-cumulative-sources-error')).toBeVisible();
     expect((screen.getByTestId('circuit-profile-member-inst-tag-1') as HTMLInputElement).checked).toBe(false);
     expect((screen.getByTestId('circuit-profile-member-cum-tag-1') as HTMLInputElement).checked).toBe(false);
   });

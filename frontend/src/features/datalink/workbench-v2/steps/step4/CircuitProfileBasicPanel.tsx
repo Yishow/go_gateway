@@ -11,6 +11,7 @@ import type { WriteGroup, WriteGroupProfileKind } from '../../../../../types/stu
 import { basicRecordingScopeKey, createBasicRecordingRequestId } from '../../state/basicRecording';
 import { safeBasicStartError } from '../../state/basicRecordingMessages';
 import { buildCircuitProfileGroupDraft, candidateKey, canonicalProfileGroupMatchesDraft, defaultCircuitProfileLocalDraft, defaultMemberRole, deriveCircuitId, evaluateCandidateCounterConfirmation, groupCircuitId, groupProfileKind, isManagedProfileGroupForDevice, loadCircuitProfileLocalDraft, parseStrictProfileIntervalInput, purposeOfLayout, saveCircuitProfileLocalDraft } from '../../state/circuitProfileBasic';
+import { circuitProfileLayoutBlockReason } from '../../state/circuitProfileCapabilities';
 import type { WorkbenchV2State } from '../../state/types';
 import { buildGroupCandidates } from '../../state/writeGroup/candidates';
 import { CircuitProfileBasicActions, CircuitProfileStartStatus } from './CircuitProfileBasicActions';
@@ -24,7 +25,6 @@ import { MySQLRecordingCapabilityPanel } from './MySQLRecordingCapabilityPanel';
 import { SQLServerRecordingCapabilityPanel } from './SQLServerRecordingCapabilityPanel';
 import { CircuitProfileSchemaPreparation } from './CircuitProfileSchemaPreparation';
 import { extractDeviceCircuits, loadActiveCircuitId, saveActiveCircuitId } from '../../state/circuitProfileBatch';
-import { supportsWriteGroupKind } from './writeGroupCapabilities';
 import { CircuitProfileStatusList } from './CircuitProfileStatusList';
 import { CircuitProfileRoles } from './CircuitProfileRoles';
 import { focusDestinationSettings } from './step4FocusTargets';
@@ -131,7 +131,7 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
 }) => {
   const { t } = useTranslation('workbench-v2');
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
-  const measurementsQuery = useStudioV2WorkspaceMeasurementsQuery(Boolean(workspaceId));
+  const queriedRevision = groupsQuery.data?.workspace_revision || propWorkspaceRevision || '';
   const ensureProfile = useEnsureCircuitProfileMutation();
   const updateGroup = useUpdateWriteGroupMutation();
 
@@ -145,6 +145,8 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
   });
   const selectedDeviceId = deviceId ?? ownDeviceId;
   const activeDeviceId = savedDevices.some((d) => d.id === selectedDeviceId) ? selectedDeviceId : (savedDevices[0]?.id ?? '');
+  const measurementsQuery = useStudioV2WorkspaceMeasurementsQuery(Boolean(workspaceId && activeDeviceId && queriedRevision), activeDeviceId,
+    { workspaceId: workspaceId ?? '', workspaceRevision: queriedRevision });
   const selectDevice = React.useCallback((nextDeviceId: string) => {
     saveSelectedDeviceId(workspaceId ?? '', nextDeviceId);
     setOwnDeviceId(nextDeviceId);
@@ -187,8 +189,6 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
   const sqlserverTestWriteAvailable = Boolean(sqlserverMetadataVerified && sqlserverCapability?.supports_group_test_write);
 
   const nativeMonthlyAvailable = (isMySQL && mysqlNativeMonthlyAvailable) || (isSQLServer && sqlserverNativeMonthlyAvailable);
-  const connectorKindSupported = supportsWriteGroupKind(state.db.connector.kind) || isPostgres ||
-    (isMySQL && mysqlManagedLongAvailable) || (isSQLServer && sqlserverManagedLongAvailable);
 
   const { candidates: allCandidates } = React.useMemo(() => buildGroupCandidates(state), [state]);
   const deviceCandidates = React.useMemo(() => allCandidates.filter((c) => c.device_id === activeDeviceId), [allCandidates, activeDeviceId]);
@@ -261,7 +261,6 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
     [workspaceId, activeDeviceId],
   );
 
-  const queriedRevision = groupsQuery.data?.workspace_revision || propWorkspaceRevision || '';
   const effectiveWorkspaceRevision = revisionOverride?.base === queriedRevision ? revisionOverride.revision : queriedRevision;
 
   const instantaneousCandidates = React.useMemo(() => {
@@ -281,10 +280,17 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
   const circuitId = deriveCircuitId(localDraft.circuit_name, localDraft.circuit_id);
   const currentGroups = savedLongGroups.filter((group) => groupCircuitId(group) === circuitId);
   const storageLocked = currentGroups.length > 0;
-  const effectiveStorageMode = storageLocked ? (currentGroups[0]?.storage_mode ?? 'plain') : (isPostgres || isMySQL || isSQLServer ? localDraft.storage_mode : 'plain');
+  const effectiveStorageMode = storageLocked ? (currentGroups[0]?.storage_mode ?? 'plain') : localDraft.storage_mode;
   // A saved circuit keeps the layout it was created with; only a new one lets the operator choose the purpose.
   const savedPurpose = purposeOfLayout(currentGroups[0]?.layout_version);
   const purpose = savedPurpose ?? localDraft.purpose;
+  const capabilities = { mysql: mysqlCapabilityQuery, sqlserver: sqlserverCapabilityQuery };
+  const capabilityContext = { connectorKind: kindStr, destination, capabilities };
+  const layoutBlockedReason = circuitProfileLayoutBlockReason(capabilityContext, purpose, effectiveStorageMode);
+  const layoutOptions = {
+    wide: circuitProfileLayoutBlockReason(capabilityContext, 'wide', effectiveStorageMode),
+    long: circuitProfileLayoutBlockReason(capabilityContext, 'long', 'plain'),
+  };
   // A saved member that no current source matches is an exception to repair in its group, never to hide or drop.
   const lostSources = new Map<string, string>();
   const availableSources = new Set(deviceCandidates.map((c) => `${c.device_id}\0${c.point_id}\0${c.tag_id}`));
@@ -315,11 +321,11 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
   const counterTargets = React.useMemo(() => {
     const targets = new Map<string, typeof deviceCandidates[number]>();
     if (localDraft.cumulative_enabled) for (const c of cumulativeCandidates) targets.set(candidateKey(c), c);
-    if (localDraft.instantaneous_enabled && instantaneousReduction === 'mean') {
+    if (localDraft.instantaneous_enabled) {
       for (const c of instantaneousCandidates) if (roleOf(c) === 'counter_raw') targets.set(candidateKey(c), c);
     }
     return [...targets.values()];
-  }, [localDraft.cumulative_enabled, localDraft.instantaneous_enabled, cumulativeCandidates, instantaneousCandidates, instantaneousReduction, roleOf]);
+  }, [localDraft.cumulative_enabled, localDraft.instantaneous_enabled, cumulativeCandidates, instantaneousCandidates, roleOf]);
   const counterStatuses = React.useMemo(() => counterTargets.map((c) => evaluateCandidateCounterConfirmation(workspaceId ?? '', c, measurements)), [workspaceId, counterTargets, measurements]);
   const unconfirmedCounterStatuses = React.useMemo(() => counterStatuses.filter((s) => !s.confirmed), [counterStatuses]);
   const confirmedMeasurementsByPointKey = React.useMemo(() => {
@@ -347,16 +353,19 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
     activeCircuitId, queriedRevision, refetchGroups: groupsQuery.refetch, setRevisionOverride, setLocalDraft });
   const batchBusy = batch.busy;
   React.useEffect(() => { setPreparedGroups([]); setRevisionOverride(undefined); setErrorMessage(undefined); setBatchOpen(false); }, [scopeKey]);
-  const counterDefinitionsReady = !measurementsQuery.isLoading && !measurementsQuery.isError && Array.isArray(measurementsQuery.data);
+  const counterDefinitionsReady = !measurementsQuery.isLoading && !measurementsQuery.isFetching && !measurementsQuery.isError && Array.isArray(measurementsQuery.data);
+  const requiresCounterConfirmation = counterTargets.length > 0;
+  const counterNameMissing = counterDefinitionsReady && requiresCounterConfirmation && !localDraft.circuit_name.trim() &&
+    unconfirmedCounterStatuses.some((status) => !status.measurement && status.issueCode !== 'counter-type-unsupported');
   const instantaneousSourcesMissing = localDraft.instantaneous_enabled && instantaneousCandidates.length === 0;
   const cumulativeSourcesMissing = localDraft.cumulative_enabled && cumulativeCandidates.length === 0;
   const hasValidIntervals = (!localDraft.instantaneous_enabled || instParsed.valid) && (!localDraft.cumulative_enabled || cumParsed.valid);
   const cumulativeCircuitMissing = localDraft.cumulative_enabled && !circuitId;
-  const cumulativeCounterBlocked = counterTargets.length > 0 && (!counterDefinitionsReady || unconfirmedCounterStatuses.length > 0);
+  const counterConfirmationBlocked = requiresCounterConfirmation && (!counterDefinitionsReady || unconfirmedCounterStatuses.length > 0);
   const canPrepareOrStart = !readonly && !batchBusy && !batchOpen &&
-    Boolean(workspaceId && effectiveWorkspaceRevision && activeDeviceId && destination && connectorKindSupported) &&
+    Boolean(workspaceId && effectiveWorkspaceRevision && activeDeviceId && destination) &&
     enabledProfiles.length > 0 && hasValidIntervals && !instantaneousSourcesMissing && !cumulativeSourcesMissing &&
-    !cumulativeCircuitMissing && !cumulativeCounterBlocked;
+    !cumulativeCircuitMissing && !counterNameMissing && !counterConfirmationBlocked && !layoutBlockedReason;
 
   const ensureCurrentGroups = async (): Promise<{ groups: WriteGroup[]; workspaceRevision: string } | undefined> => {
     if (!canPrepareOrStart || !workspaceId || !destination) return undefined;
@@ -366,7 +375,7 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
       const result = await ensureOrUpdateCircuitProfileGroups({
         workspaceId, initialWorkspaceRevision: effectiveWorkspaceRevision, deviceName: activeDevice?.name ?? activeDeviceId,
         enabledProfiles, storageMode: effectiveStorageMode, recreateMissing: localDraft.recreate_missing, purpose, memberRoles: localDraft.member_roles, newReduction: instantaneousReduction,
-        circuitId, circuitName: localDraft.circuit_name, destination, connectorKind: state.db.connector.kind,
+        circuitId, circuitName: localDraft.circuit_name, destination, connectorKind: state.db.connector.kind, capabilities,
         measurementsByPointKey: confirmedMeasurementsByPointKey, savedLongGroups, preparedGroups,
         ensureCircuitProfile: (vars) => ensureProfile.mutateAsync(vars), updateWriteGroup: (vars) => updateGroup.mutateAsync(vars),
       });
@@ -434,15 +443,15 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
         deviceCandidates={deviceCandidates} localDraft={localDraft} updateLocalDraft={updateLocalDraft}
         instParsed={instParsed} cumParsed={cumParsed} isPostgres={isPostgres} isMySQL={isMySQL} isSQLServer={isSQLServer}
         nativeMonthlyAvailable={nativeMonthlyAvailable} storageLocked={storageLocked}
-        effectiveStorageMode={effectiveStorageMode} cumulativeCircuitMissing={cumulativeCircuitMissing} circuitId={circuitId}
+        effectiveStorageMode={effectiveStorageMode} cumulativeCircuitMissing={cumulativeCircuitMissing} counterNameMissing={counterNameMissing} circuitId={circuitId}
         unconfirmedCounterStatuses={counterDefinitionsReady ? unconfirmedCounterStatuses : []} onCounterConfirmed={async () => { await measurementsQuery.refetch(); }}
-        purpose={purpose} purposeLocked={Boolean(savedPurpose)} showPurpose={true} unavailableSources={unavailableSources} requiredPolicy={requiredPolicy} onOpenAdvanced={onOpenAdvanced} instantaneousReduction={instantaneousReduction} savedRoleKeys={savedRoleKeys} memberRole={roleOf}
+        purpose={purpose} purposeLocked={Boolean(savedPurpose)} layoutOptions={layoutOptions} layoutBlockedReason={layoutBlockedReason} showPurpose={true} unavailableSources={unavailableSources} requiredPolicy={requiredPolicy} onOpenAdvanced={onOpenAdvanced} instantaneousReduction={instantaneousReduction} savedRoleKeys={savedRoleKeys} memberRole={roleOf}
         savedCircuits={savedCircuits} onSelectCircuit={handleSelectCircuit} onOpenBatch={batchCircuits.length > 1 && purpose !== 'wide' ? () => setBatchOpen(true) : undefined}
       />
       {batchOpen && (
         <CircuitProfileBatchEditor
           workspaceId={workspaceId ?? ''} workspaceRevision={effectiveWorkspaceRevision} scopeKey={scopeKey}
-          connectorRevision={destination?.connector_revision} savedLongGroups={batchGroups}
+          connectorRevision={destination?.connector_revision} capabilityContext={capabilityContext} savedLongGroups={batchGroups}
           readonly={isEffectiveLocked} onClose={() => setBatchOpen(false)}
           onSuccess={batch.onSaved} onVerify={batch.reload}
           updateWriteGroup={(vars) => updateGroup.mutateAsync(vars)}
@@ -450,14 +459,15 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
           onBusyChange={batch.setHeld}
         />
       )}
-      {localDraft.cumulative_enabled && !counterDefinitionsReady && <p role="status" data-testid={measurementsQuery.isError ? 'circuit-profile-measurements-error' : 'circuit-profile-measurements-loading'} className="text-xs text-amber-300">
+      {requiresCounterConfirmation && !counterDefinitionsReady && <p role="status" data-testid={measurementsQuery.isError ? 'circuit-profile-measurements-error' : 'circuit-profile-measurements-loading'} className="text-xs text-amber-300">
         {t(measurementsQuery.isError ? 'step4.basic.circuit.measurements_error' : 'step4.basic.circuit.measurements_loading')}
-        {measurementsQuery.isError && <button type="button" onClick={() => void measurementsQuery.refetch()}>{t('step4.group.retry')}</button>}
+        {measurementsQuery.isError && <button type="button" disabled={measurementsQuery.isFetching}
+          onClick={() => void measurementsQuery.refetch({ cancelRefetch: false })}>{t('step4.group.retry')}</button>}
       </p>}
       <CircuitProfileSchemaPreparation
         workspaceId={workspaceId} workspaceRevision={effectiveWorkspaceRevision}
         preparedGroups={schemaGroups} dirtyGroupIds={dirtyGroupIds}
-        disabled={!canPrepareOrStart || flow.unresolved} readonly={isEffectiveLocked} isPreparing={flow.busy || batchBusy || ensureProfile.isPending || updateGroup.isPending}
+        disabled={!canPrepareOrStart || flow.unresolved} readonly={isEffectiveLocked || Boolean(layoutBlockedReason)} isPreparing={flow.busy || batchBusy || ensureProfile.isPending || updateGroup.isPending}
         destinationMatches={Boolean(destination)} onPrepare={() => void flow.prepare()} onApplied={() => void refreshSchema()} onRepairDestination={focusDestinationSettings} onOpenAdvanced={onOpenAdvanced}
         isMySQL={isMySQL && !prepareOnly} mysqlTestWriteAvailable={mysqlTestWriteAvailable}
         isSQLServer={isSQLServer && !prepareOnly} sqlserverTestWriteAvailable={sqlserverTestWriteAvailable}
@@ -466,7 +476,7 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
       {(errorMessage || flow.error) && <p role="alert" data-testid="circuit-profile-error" className="text-xs text-rose-300">{errorMessage || flow.error}</p>}
       <CircuitProfileStartStatus flow={flow} />
       <CircuitProfileStatusList lifecycle={{ workspaceId, workspaceRevision: effectiveWorkspaceRevision, lifecycleHost, readonly: isEffectiveLocked }} groups={currentGroups} candidates={deviceCandidates} onOpenAdvanced={onOpenAdvanced} draftEnabled={{ instantaneous: localDraft.instantaneous_enabled, cumulative: localDraft.cumulative_enabled }} /><CircuitProfileRoles onOpenAdvanced={onOpenAdvanced} />
-      <CircuitProfileBasicActions flow={flow} canStart={canPrepareOrStart} readonly={readonly} batchBusy={batchBusy} prepareOnly={prepareOnly} onClose={onClose} onContinueToRuntime={onContinueToRuntime} onOpenAdvanced={onOpenAdvanced} />
+      <CircuitProfileBasicActions flow={flow} canStart={canPrepareOrStart} readonly={readonly || Boolean(layoutBlockedReason)} batchBusy={batchBusy} prepareOnly={prepareOnly} onClose={onClose} onContinueToRuntime={onContinueToRuntime} onOpenAdvanced={onOpenAdvanced} />
     </section>
   );
 };

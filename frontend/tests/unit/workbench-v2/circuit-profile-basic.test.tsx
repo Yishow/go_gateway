@@ -154,6 +154,7 @@ describe('CircuitProfileBasicPanel (Task 4.1)', () => {
     expandSources();
     fireEvent.click(screen.getByLabelText('line.batch'));
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
+    for (const tag of ['tag-0', 'tag-1']) fireEvent.click(screen.getByTestId(`circuit-profile-member-cum-${tag}`));
 
     const instInterval = screen.getByTestId('circuit-profile-interval-instantaneous');
     const cumInterval = screen.getByTestId('circuit-profile-interval-cumulative');
@@ -179,6 +180,7 @@ describe('CircuitProfileBasicPanel (Task 4.1)', () => {
     expandSources();
     fireEvent.click(screen.getByLabelText('line.batch'));
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
+    for (const tag of ['tag-0', 'tag-1']) fireEvent.click(screen.getByTestId(`circuit-profile-member-cum-${tag}`));
     fireEvent.click(screen.getByTestId('circuit-profile-prepare'));
     await waitFor(() => expect(ensureCircuitProfileAsync).toHaveBeenCalledTimes(2));
 
@@ -227,6 +229,7 @@ describe('CircuitProfileBasicPanel (Task 4.1)', () => {
     expandSources();
     fireEvent.click(screen.getByLabelText('line.batch'));
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
+    for (const tag of ['tag-0', 'tag-1']) fireEvent.click(screen.getByTestId(`circuit-profile-member-cum-${tag}`));
     expect(await screen.findByTestId('circuit-counter-confirmation')).toBeInTheDocument();
     expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();
 
@@ -269,6 +272,7 @@ describe('CircuitProfileBasicPanel (Task 4.1)', () => {
     expandSources();
     fireEvent.click(screen.getByLabelText('line.batch'));
     fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
+    for (const tag of ['tag-0', 'tag-1']) fireEvent.click(screen.getByTestId(`circuit-profile-member-cum-${tag}`));
 
     startAsync.mockRejectedValueOnce(new TypeError('Failed to fetch'));
     fireEvent.click(screen.getByTestId('circuit-profile-start'));

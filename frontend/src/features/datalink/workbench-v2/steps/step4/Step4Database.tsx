@@ -1,3 +1,4 @@
+import { RecordingTestWriteRecoveryPanel } from './RecordingTestWriteRecoveryPanel';
 import { useRecordingChangeController } from './writeGroup/lifecycle/useRecordingChangeController';
 import { RecordingChangeDialog } from './writeGroup/lifecycle/RecordingChangeDialog';
 import type { SavedRecordingActionHost } from './writeGroup/lifecycle/SavedRecordingActions';
@@ -193,6 +194,7 @@ function Step4DatabaseContent({
 
   return (
     <div className="space-y-6">
+      {workspaceId && <RecordingTestWriteRecoveryPanel workspaceId={workspaceId} />}
       <RecordingChangeDialog controller={recordingChange} destinations={destinations} />
       <Step4SupportPanels
         destinationReady={destinationIsSaved(state)}

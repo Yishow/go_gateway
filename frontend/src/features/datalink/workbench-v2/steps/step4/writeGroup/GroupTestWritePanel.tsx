@@ -10,18 +10,16 @@ import type {
   WriteGroupTestWriteOperation,
   WriteGroupTestWritePreview,
 } from '../../../../../../types/studioV2WriteGroupTestWrite';
-import { normalizeTypedEnvelope } from '../../../../../../utils/safeJson';
+import { recordingTestWriteRecovery } from '../../../state/recordingTestWriteRecovery';
+import { useRecordingTestWriteRecovery } from '../../../../../../hooks/datalink/useRecordingTestWriteRecovery';
+import { RecordingTestWriteOperationResult } from '../RecordingTestWriteOperationResult';
+import { RecoveryEntries } from '../RecordingTestWriteRecoveryPanel';
 import { getSafeErrorMessage } from '../../../../../../utils/typedErrors';
 
-/** Only a typed answer other than "result unknown" proves nothing was written; anything else must be checked. */
-function isUnconfirmed(error: unknown): boolean {
-  const code = normalizeTypedEnvelope(error).code;
-  return !code || code === 'WRITE_GROUP_TEST_WRITE_RESULT_UNKNOWN';
-}
-
 export interface GroupTestWritePanelProps {
+  workspaceId: string;
   groupId: string;
-  /** Changes whenever the saved group does; an earlier preview or result is dropped with it. */
+  /** Changes whenever the saved group does; an earlier preview is dropped, but recovery is retained. */
   scopeKey: string;
   /** False while the group has unsaved edits, an unsaved destination or a read-only session. */
   enabled: boolean;
@@ -33,27 +31,55 @@ export interface GroupTestWritePanelProps {
  * verification and cleanup are separate facts, an unconfirmed result is
  * checked rather than repeated, and nothing is inferred from a missing field.
  */
-export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupId, scopeKey, enabled, disabledReason }) => {
+export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ workspaceId, groupId, scopeKey, enabled, disabledReason }) => {
   const { t } = useTranslation('workbench-v2');
+  const recoveryList = useRecordingTestWriteRecovery(workspaceId);
   const previewMutation = useWriteGroupTestWritePreviewMutation();
   const confirmMutation = useWriteGroupTestWriteMutation();
   const [preview, setPreview] = useState<WriteGroupTestWritePreview | null>(null);
   const [operation, setOperation] = useState<WriteGroupTestWriteOperation | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [unconfirmed, setUnconfirmed] = useState(false);
-  const scopeRef = useRef(scopeKey);
+  const identity = `${workspaceId}|${groupId}|${scopeKey}`;
+  const scopeRef = useRef({ identity, epoch: 0 });
+  if (scopeRef.current.identity !== identity) scopeRef.current = { identity, epoch: scopeRef.current.epoch + 1 };
+  const previewScope = useRef<typeof scopeRef.current | null>(null);
+  const [recovery, setRecovery] = useState(() => recordingTestWriteRecovery.read());
+  const references = recovery.references.filter((ref) => ref.workspace_id === workspaceId);
+  const reference = references.find((ref) => ref.group_id === groupId);
+  const refreshRecovery = () => setRecovery(recordingTestWriteRecovery.read());
+  useEffect(() => {
+    refreshRecovery();
+    return recordingTestWriteRecovery.subscribe(refreshRecovery);
+  }, []);
+  useEffect(() => {
+    window.addEventListener('storage', refreshRecovery);
+    return () => window.removeEventListener('storage', refreshRecovery);
+  }, []);
   const inFlight = useRef(false);
-  const operationQuery = useWriteGroupTestWriteOperationQuery(operation?.operation_id ?? preview?.operation_id);
+  const operationQuery = useWriteGroupTestWriteOperationQuery(reference?.operation_id ?? operation?.operation_id ?? preview?.operation_id, workspaceId);
 
   // A reply for an earlier group or revision must never land on the current one.
   useEffect(() => {
-    scopeRef.current = scopeKey;
     setPreview(null);
+    previewScope.current = null;
     setOperation(null);
     setError(null);
-    setUnconfirmed(false);
+    setUnconfirmed(Boolean(reference));
     inFlight.current = false;
-  }, [scopeKey]);
+    // Recover on entry/reload only; retaining an operation before dispatch must not trigger a racing read.
+    if (reference) {
+      const scope = scopeRef.current;
+      void operationQuery.refetch().then((result) => {
+        if (scopeRef.current !== scope || result.isError || result.data?.operation_id !== reference.operation_id) return;
+        setOperation(result.data);
+        setUnconfirmed(false);
+        recordingTestWriteRecovery.resolve(result.data, workspaceId);
+      });
+    }
+    // The editor identity, not query state, defines entry into a recovery scope.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identity]);
 
   const run = async (action: () => Promise<void>) => {
     if (inFlight.current) return;
@@ -70,40 +96,56 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupI
   };
 
   const handlePreview = () => run(async () => {
+    if (!enabled || reference || recovery.unavailable || !recoveryList.available) return;
     const scope = scopeRef.current;
     const result = await previewMutation.mutateAsync(groupId);
     if (scopeRef.current !== scope) return;
+    if (result.group_id !== groupId) throw new Error('Test-write preview identity was not confirmed.');
+    previewScope.current = scope;
     setPreview(result);
     setOperation(null);
     setUnconfirmed(false);
   });
 
   const handleConfirm = () => run(async () => {
-    if (!preview) return;
+    if (!preview || reference || !enabled || !recoveryList.available) return;
     const scope = scopeRef.current;
+    const retained = recordingTestWriteRecovery.retain({
+      workspace_id: workspaceId, group_id: groupId, group_revision: preview.group_revision,
+      operation_id: preview.operation_id, operation_kind: 'test_write', created_at: new Date().toISOString(),
+    });
+    setUnconfirmed(true);
+    if (!retained) return;
     try {
       const result = await confirmMutation.mutateAsync({ groupId, confirmation: { token: preview.token, operation_id: preview.operation_id } });
+      if (result.operation_id !== preview.operation_id) return;
+      recordingTestWriteRecovery.resolve(result, workspaceId);
       if (scopeRef.current !== scope) return;
       setOperation(result);
+      setUnconfirmed(false);
     } catch (cause) {
       // A lost or untyped reply may hide a write that did happen: check the operation, never resend blindly.
-      if (scopeRef.current === scope && isUnconfirmed(cause)) setUnconfirmed(true);
+      if (scopeRef.current === scope) setUnconfirmed(true);
       throw cause;
     }
   });
 
   const handleRepairCleanup = () => run(async () => {
-    if (!preview || !operation) return;
+    if (!preview || !operation || !canRepairCleanup || !enabled || unconfirmed) return;
     const scope = scopeRef.current;
+    setUnconfirmed(true);
     try {
       const result = await confirmMutation.mutateAsync({
         groupId,
         confirmation: { token: preview.token, operation_id: preview.operation_id, action: 'cleanup_repair' },
       });
+      if (result.operation_id !== preview.operation_id) return;
+      recordingTestWriteRecovery.resolve(result, workspaceId);
       if (scopeRef.current !== scope) return;
       setOperation(result);
+      setUnconfirmed(false);
     } catch (cause) {
-      if (scopeRef.current === scope && isUnconfirmed(cause)) setUnconfirmed(true);
+      if (scopeRef.current === scope) setUnconfirmed(true);
       throw cause;
     }
   });
@@ -112,7 +154,12 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupI
     const scope = scopeRef.current;
     const result = await operationQuery.refetch();
     if (scopeRef.current !== scope) return;
-    if (result.data) {
+    if (result.isError || !result.data) {
+      setUnconfirmed(true);
+      return;
+    }
+    if (result.data.operation_id === (reference?.operation_id ?? operation?.operation_id ?? preview?.operation_id)) {
+      recordingTestWriteRecovery.resolve(result.data, workspaceId);
       setOperation(result.data);
       setUnconfirmed(false);
     }
@@ -126,6 +173,9 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupI
     operation.write_outcome === 'written_verified' &&
     (operation.cleanup_status === 'failed' || operation.cleanup_status === 'unknown') &&
     preview !== null &&
+    preview.group_id === groupId &&
+    preview.operation_id === operation.operation_id &&
+    previewScope.current === scopeRef.current &&
     preview.target.dialect === 'sqlserver';
 
   return (
@@ -136,12 +186,20 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupI
       {!enabled && disabledReason && <p className="text-xs text-amber-300" data-testid="group-test-write-blocked">{disabledReason}</p>}
 
       <button
-        type="button" onClick={handlePreview} disabled={!enabled || busy}
+        type="button" onClick={handlePreview} disabled={!enabled || busy || Boolean(reference) || recovery.unavailable || !recoveryList.available}
         className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-100 disabled:opacity-40" data-testid="group-test-write-preview"
       >
         {t('step4.group.test_write.preview')}
       </button>
 
+      {!recoveryList.available && <div role="alert" data-testid="group-test-write-list-unavailable">
+        {t('step4.group.test_write.recovery_list_unavailable')}
+        <button type="button" disabled={recoveryList.isFetching} onClick={() => void recoveryList.refetch()} data-testid="group-test-write-list-retry">
+          {t('step4.group.test_write.check')}
+        </button>
+      </div>}
+      {recovery.unavailable && <p role="alert" data-testid="group-test-write-storage-error">{t('step4.group.test_write.recovery_storage_error')}</p>}
+      <RecoveryEntries scopeKey={identity} references={references} />
       {preview && !operation && (
         <div className="space-y-2 text-xs text-slate-300" data-testid="group-test-write-preview-card">
           <p>{t('step4.group.test_write.target', { table: preview.target.table })}</p>
@@ -151,7 +209,7 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupI
           </ul>
           <p>{t(preview.record_ids ? 'step4.group.test_write.long_cleanup_note' : 'step4.group.test_write.cleanup_note')}</p>
           <button
-            type="button" onClick={handleConfirm} disabled={!enabled || busy || unconfirmed}
+            type="button" onClick={handleConfirm} disabled={!enabled || busy || unconfirmed || !recoveryList.available}
             className="rounded bg-blue-600 px-3 py-1 text-xs text-white disabled:opacity-40" data-testid="group-test-write-confirm"
           >
             {t('step4.group.test_write.confirm')}
@@ -159,21 +217,8 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupI
         </div>
       )}
 
-      {operation && (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-slate-300" data-testid="group-test-write-result">
-          <dt>{t('step4.group.test_write.operation')}</dt><dd className="font-mono">{operation.operation_id}</dd>
-          {!finished ? (
-            <><dt>{t('step4.group.test_write.status')}</dt><dd data-testid="group-test-write-running">{t('step4.group.test_write.running')}</dd></>
-          ) : (
-            <>
-              <dt>{t('step4.group.test_write.write_outcome')}</dt>
-              <dd data-testid="group-test-write-outcome">{t(`step4.group.test_write.outcome_${operation.write_outcome}`)}{operation.reason ? ` (${operation.reason})` : ''}</dd>
-              <dt>{t('step4.group.test_write.cleanup_status')}</dt>
-              <dd data-testid="group-test-write-cleanup">{t(`step4.group.test_write.cleanup_${operation.cleanup_status}`)}{operation.cleanup_reason ? ` (${operation.cleanup_reason})` : ''}</dd>
-            </>
-          )}
-        </dl>
-      )}
+      {operation && <RecordingTestWriteOperationResult operation={operation}
+        manualGuidance={finished && !canRepairCleanup && (operation.cleanup_status === 'failed' || operation.cleanup_status === 'unknown')} />}
       {canRepairCleanup && (
         <button
           type="button" onClick={handleRepairCleanup} disabled={!enabled || busy || unconfirmed}
@@ -182,14 +227,14 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ groupI
           {t('step4.group.test_write.cleanup_repair')}
         </button>
       )}
-      {operation && !finished && (
+      {operation && reference && (
         <button type="button" onClick={handleCheck} className="text-xs underline" data-testid="group-test-write-check">{t('step4.group.test_write.check')}</button>
       )}
 
       {unconfirmed && (
         <div role="alert" className="text-xs text-amber-300" data-testid="group-test-write-unconfirmed">
-          {t('step4.group.test_write.unconfirmed')}
-          <button type="button" onClick={handleCheck} disabled={!preview && !operation} className="ml-2 underline" data-testid="group-test-write-check-unconfirmed">{t('step4.group.test_write.check')}</button>
+          {t(operation ? 'step4.group.test_write.operation_status_unconfirmed' : 'step4.group.test_write.unconfirmed')}
+          <button type="button" onClick={handleCheck} disabled={!reference && !preview && !operation} className="ml-2 underline" data-testid="group-test-write-check-unconfirmed">{t('step4.group.test_write.check')}</button>
         </div>
       )}
       {error !== null && !unconfirmed && (

@@ -30,6 +30,7 @@ const trackUnhandled = (reason: unknown) => { unhandled.push(reason); };
 function editor(extra: Record<string, unknown> = {}, overrides: Partial<Props> = {}) {
   return (
     <CircuitProfileBatchEditor
+      capabilityContext={{ connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }}
       workspaceId="ws-1" workspaceRevision="wrev-1" connectorRevision="crev-1" savedLongGroups={groups()} readonly={false}
       onClose={onClose} onSuccess={onSuccess} updateWriteGroup={updateWriteGroup} onBusyChange={onBusyChange}
       {...overrides} {...extra}

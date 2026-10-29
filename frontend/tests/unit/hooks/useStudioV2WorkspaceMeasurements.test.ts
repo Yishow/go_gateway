@@ -60,6 +60,54 @@ describe('useStudioV2WorkspaceMeasurements hooks', () => {
     );
   });
 
+  it('fences optional workspace/revision scopes without changing the device-filtered API request', async () => {
+    useStudioV2WorkspaceMeasurementsQuery(true, 'dev-1', { workspaceId: 'ws-1', workspaceRevision: 'revision-2' });
+    const options = useQueryMock.mock.calls[0][0] as { queryKey: string[]; queryFn: () => Promise<MeasurementDefinition[]> };
+    expect(options.queryKey).toEqual(['studio-v2-workspace', 'measurements', 'dev-1', 'ws-1', 'revision-2']);
+    vi.mocked(studioV2WorkspaceMeasurementsAPI.list).mockResolvedValueOnce([]);
+    await expect(options.queryFn()).resolves.toEqual([]);
+    expect(studioV2WorkspaceMeasurementsAPI.list).toHaveBeenCalledWith('dev-1');
+  });
+
+  it.each([
+    { workspace_id: 'foreign-workspace', device_id: 'dev-1' },
+    { workspace_id: 'ws-1', device_id: 'foreign-device' },
+  ])('rejects a mixed response containing a foreign scope %j', async (foreign) => {
+    useStudioV2WorkspaceMeasurementsQuery(true, 'dev-1', { workspaceId: 'ws-1', workspaceRevision: 'revision-2' });
+    const options = useQueryMock.mock.calls[0][0] as { queryFn: () => Promise<MeasurementDefinition[]> };
+    const definition: MeasurementDefinition = {
+      id: 'measurement-1', workspace_id: 'ws-1', device_id: 'dev-1', point_id: 'pt-0', tag_id: 'tag-0',
+      name: 'Counter', equipment_id: 'cir-1', definition_revision: 'definition-1', source_binding_revision: 'binding-1',
+      series_epoch: 'epoch-1', quantity: '', unit: 'count', semantic_kind: 'counter',
+    };
+    vi.mocked(studioV2WorkspaceMeasurementsAPI.list).mockResolvedValueOnce([definition, { ...definition, ...foreign }]);
+    await expect(options.queryFn()).rejects.toThrow('Measurement definitions did not match the requested scope.');
+  });
+
+  it('keeps legacy unscoped queries compatible with workspace-wide results', async () => {
+    useStudioV2WorkspaceMeasurementsQuery(true);
+    const options = useQueryMock.mock.calls[0][0] as { queryKey: string[]; queryFn: () => Promise<MeasurementDefinition[]> };
+    expect(options.queryKey).toEqual(['studio-v2-workspace', 'measurements', 'all']);
+    vi.mocked(studioV2WorkspaceMeasurementsAPI.list).mockResolvedValueOnce([]);
+    await expect(options.queryFn()).resolves.toEqual([]);
+    expect(studioV2WorkspaceMeasurementsAPI.list).toHaveBeenCalledWith(undefined);
+  });
+
+  it('allows a workspace-scoped read without a device filter and preserves disabled queries', async () => {
+    useStudioV2WorkspaceMeasurementsQuery(false, undefined, { workspaceId: 'ws-1', workspaceRevision: 'revision-2' });
+    const options = useQueryMock.mock.calls[0][0] as { enabled: boolean; queryFn: () => Promise<MeasurementDefinition[]> };
+    expect(options.enabled).toBe(false);
+    const definition: MeasurementDefinition = {
+      id: 'measurement-1', workspace_id: 'ws-1', device_id: 'dev-2', point_id: 'pt-0', tag_id: 'tag-0',
+      name: 'Counter', equipment_id: 'cir-1', definition_revision: 'definition-1', source_binding_revision: 'binding-1',
+      series_epoch: 'epoch-1', quantity: '', unit: 'count', semantic_kind: 'counter',
+    };
+    vi.mocked(studioV2WorkspaceMeasurementsAPI.list).mockResolvedValueOnce([definition]);
+    const result = await options.queryFn();
+    expect(result[0].workspace_id).toBe('ws-1');
+    expect(result[0].device_id).toBe('dev-2');
+  });
+
   it('queries templates with dedicated key', async () => {
     useQueryMock.mockReturnValue({ data: [] });
     useStudioV2MeasurementTemplatesQuery(true);
@@ -108,7 +156,7 @@ describe('useStudioV2WorkspaceMeasurements hooks', () => {
 
     await applyOptions.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.measurements(),
+      queryKey: ['studio-v2-workspace', 'measurements'],
     });
   });
 
@@ -127,7 +175,7 @@ describe('useStudioV2WorkspaceMeasurements hooks', () => {
 
     await createOptions.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.measurements(),
+      queryKey: ['studio-v2-workspace', 'measurements'],
     });
 
     useUpdateStudioV2MeasurementMutation();
@@ -147,7 +195,7 @@ describe('useStudioV2WorkspaceMeasurements hooks', () => {
 
     await updateOptions.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.measurements(),
+      queryKey: ['studio-v2-workspace', 'measurements'],
     });
   });
 
@@ -165,7 +213,7 @@ describe('useStudioV2WorkspaceMeasurements hooks', () => {
 
     await deleteOptions.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.measurements(),
+      queryKey: ['studio-v2-workspace', 'measurements'],
     });
   });
 });

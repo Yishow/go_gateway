@@ -134,6 +134,7 @@ it.each(['loading', 'error'])('does not offer measurement creation while definit
   measurements.data = undefined;
   measurements.isLoading = status === 'loading'; measurements.isError = status === 'error';
   render(panel()); fireEvent.click(screen.getByTestId('circuit-profile-toggle-cumulative'));
+  fireEvent.click(screen.getByTestId('circuit-profile-member-cum-tag-0'));
   expect(screen.queryByTestId('circuit-counter-confirmation')).not.toBeInTheDocument();
   expect(screen.getByTestId(`circuit-profile-measurements-${status}`)).toBeInTheDocument();
   expect(screen.getByTestId('circuit-profile-prepare')).toBeDisabled();

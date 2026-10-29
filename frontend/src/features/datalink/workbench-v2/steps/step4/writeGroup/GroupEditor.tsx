@@ -391,6 +391,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
             onChanged={onSaved} onConflict={() => setConflict(true)} onReviewScopedStart={onReviewScopedStart}
           />
           <GroupTestWritePanel
+            workspaceId={workspaceId}
             groupId={group.id}
             scopeKey={`${group.id}|${group.revision}`}
             enabled={testWriteEnabled}

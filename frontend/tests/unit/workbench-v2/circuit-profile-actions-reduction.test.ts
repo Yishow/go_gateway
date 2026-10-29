@@ -68,7 +68,7 @@ function prepareInput(savedLongGroups: WriteGroup[], profileCandidates: GroupCan
     workspace_revision: 'w-2', group: { ...(request.group as WriteGroup), id: 'inst-new', revision: 'rev-new' },
   }));
   return {
-    workspaceId: 'ws-1', initialWorkspaceRevision: 'w-1', deviceName: 'Meter A',
+    workspaceId: 'ws-1', initialWorkspaceRevision: 'w-1', deviceName: 'Meter A', connectorKind: 'sqlite',
     enabledProfiles: [{ profile: 'instantaneous' as const, intervalValue: 30, intervalSeconds: 30, candidates: profileCandidates }],
     storageMode: 'plain' as const, recreateMissing: true,
     circuitId: 'cir-a', circuitName: 'Feeder A',
@@ -218,5 +218,31 @@ describe('the prepare action keeps a saved reduction when only the period change
     const group = context.ensureCircuitProfile.mock.calls[0][0].request.group;
     expect(group.recording_profile).toEqual({ kind: 'instantaneous', interval: 30, unit: 'second' });
     expect(group.members.every((member) => member.value_role === undefined)).toBe(true);
+  });
+
+  it.each(['int16', 'float64'] as const)('authors an explicitly selected numeric %s state without changing the profile reduction', async (type) => {
+    const context = prepareInput([], [{ ...candidates[0], target_type: type }]);
+    await ensureOrUpdateCircuitProfileGroups({ ...context, memberRoles: { 'dev-1\0pt-0\0tag-0': 'state' } });
+
+    expect(context.ensureCircuitProfile).toHaveBeenCalledTimes(1);
+    const group = context.ensureCircuitProfile.mock.calls[0][0].request.group;
+    expect(group.recording_profile).toEqual({ kind: 'instantaneous', interval: 30, unit: 'second', sample_reduction: 'mean' });
+    expect(group.members).toHaveLength(1);
+    expect(group.members[0]).toMatchObject({ point_id: 'pt-0', value_role: 'state', measurement_id: '' });
+    expect(context.updateWriteGroup).not.toHaveBeenCalled();
+  });
+
+  it('preserves saved numeric state over a contradictory draft during a period-only update', async () => {
+    const saved = typedSavedGroup();
+    saved.members[0] = { ...saved.members[0], value_role: 'state', result_value_type: 'int64' };
+    const context = prepareInput([saved], candidatesFor(['pt-0', 'pt-1', 'pt-2']));
+    await ensureOrUpdateCircuitProfileGroups({ ...context, memberRoles: { 'dev-1\0pt-0\0tag-0': 'gauge' } });
+
+    expect(context.updateWriteGroup).toHaveBeenCalledTimes(1);
+    expect(context.updateWriteGroup.mock.calls[0][0].request.group.members[0]).toMatchObject({
+      value_role: 'state', source_value_type: 'int16', result_value_type: 'int64', measurement_id: '',
+    });
+    expect(saved.members[0].value_role).toBe('state');
+    expect(context.ensureCircuitProfile).not.toHaveBeenCalled();
   });
 });

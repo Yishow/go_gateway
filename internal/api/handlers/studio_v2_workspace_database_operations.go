@@ -54,3 +54,44 @@ func (h *StudioV2WorkspaceDatabaseOperationsHandler) Get(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: op})
 	}
 }
+
+// TestWriteRecoveryResponse carries a complete recovery observation. An error
+// never carries a partial list and must not be treated as proof of no write.
+type TestWriteRecoveryResponse struct {
+	Success bool                                 `json:"success"`
+	Data    *recordingplan.TestWriteRecoveryList `json:"data"`
+}
+
+type testWriteRecoveryReader interface {
+	ListUnresolvedTestWrites(context.Context, string) (*recordingplan.TestWriteRecoveryList, error)
+}
+
+// ListTestWrites reports unresolved test writes of the server's current workspace.
+// @Summary Recover unresolved test writes
+// @Description Read-only ledger recovery independent of browser references. Complete empty results do not authorize replay of an unknown write. Query failures never return a partial list. Tokens and destination details are not exposed.
+// @Tags Studio V2 Recording Plans
+// @Produce json
+// @Success 200 {object} TestWriteRecoveryResponse
+// @Failure 503 {object} APIErrorResponse "success=false; code=RECORDING_PLAN_UNAVAILABLE; retryable=true; recovery could not be established"
+// @Router /v1/datalink/studio-v2/workspace/database-operations/test-writes [get]
+func (h *StudioV2WorkspaceDatabaseOperationsHandler) ListTestWrites(c *gin.Context) {
+	unavailable := func() {
+		renderRecordingPlanError(c, http.StatusServiceUnavailable, recordingPlanUnavailableCode, recordingPlanUnavailableMessage, true, "retry reading test write recovery")
+	}
+	reader, ok := h.operations.(testWriteRecoveryReader)
+	if !ok || h.workspaceSvc == nil {
+		unavailable()
+		return
+	}
+	record, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
+	if err != nil {
+		unavailable()
+		return
+	}
+	result, err := reader.ListUnresolvedTestWrites(c.Request.Context(), record.ID)
+	if err != nil || result == nil || !result.Complete || result.WorkspaceID != record.ID {
+		unavailable()
+		return
+	}
+	c.JSON(http.StatusOK, TestWriteRecoveryResponse{Success: true, Data: result})
+}

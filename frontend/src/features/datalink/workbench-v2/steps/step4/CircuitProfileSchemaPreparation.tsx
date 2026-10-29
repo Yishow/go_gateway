@@ -71,6 +71,7 @@ const PreparedGroupTestWrite: React.FC<PreparedGroupTestWriteProps> = ({
                 : group.status === 'deleted' ? t('step4.group.test_write.blocked_deleted') : undefined;
 
   return <GroupTestWritePanel
+    workspaceId={group.workspace_id}
     groupId={group.id}
     // Capabilities gate new writes; querying an existing operation remains valid
     // while they refresh or an unrelated setup save moves the workspace revision.

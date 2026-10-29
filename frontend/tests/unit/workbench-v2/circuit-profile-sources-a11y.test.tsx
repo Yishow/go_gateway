@@ -101,6 +101,8 @@ describe('CircuitProfile a11y labels and empty source protection', () => {
     expect(instCheckbox).toBeInTheDocument();
     expect(cumCheckbox).toBeInTheDocument();
     expect(instCheckbox).toBeChecked();
+    expect(cumCheckbox).not.toBeChecked();
+    fireEvent.click(cumCheckbox);
     expect(cumCheckbox).toBeChecked();
 
     // Verify focus accessibility
@@ -126,6 +128,7 @@ describe('CircuitProfile a11y labels and empty source protection', () => {
 
     expandSources();
     // Select tag-1 for cumulative only; uncheck all instantaneous sources
+    fireEvent.click(screen.getByTestId('circuit-profile-member-cum-tag-1'));
     const instTag0 = screen.getByTestId('circuit-profile-member-inst-tag-0');
     const instTag1 = screen.getByTestId('circuit-profile-member-inst-tag-1');
     const instTag2 = screen.getByTestId('circuit-profile-member-inst-tag-2');

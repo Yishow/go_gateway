@@ -60,6 +60,7 @@ describe('CircuitProfileBatchEditor boundary guards and partial failures', () =>
   it('detects external workspaceRevision drift and blocks confirm with stale notice', () => {
     const { rerender } = render(
       <CircuitProfileBatchEditor
+        capabilityContext={{ connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }}
         workspaceId="ws-1"
         workspaceRevision="wrev-1"
         savedLongGroups={savedLongGroups}
@@ -78,6 +79,7 @@ describe('CircuitProfileBatchEditor boundary guards and partial failures', () =>
     // External change occurs: workspaceRevision bumps to wrev-2
     rerender(
       <CircuitProfileBatchEditor
+        capabilityContext={{ connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }}
         workspaceId="ws-1"
         workspaceRevision="wrev-2"
         savedLongGroups={savedLongGroups}
@@ -106,6 +108,7 @@ describe('CircuitProfileBatchEditor boundary guards and partial failures', () =>
 
     render(
       <CircuitProfileBatchEditor
+        capabilityContext={{ connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }}
         workspaceId="ws-1"
         workspaceRevision="wrev-1"
         savedLongGroups={savedLongGroups}
@@ -145,6 +148,7 @@ describe('CircuitProfileBatchEditor boundary guards and partial failures', () =>
 
     render(
       <CircuitProfileBatchEditor
+        capabilityContext={{ connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }}
         workspaceId="ws-1"
         workspaceRevision="wrev-1"
         savedLongGroups={savedLongGroups}
@@ -177,6 +181,7 @@ describe('CircuitProfileBatchEditor boundary guards and partial failures', () =>
   it('disables preview and confirm when readonly is true', () => {
     render(
       <CircuitProfileBatchEditor
+        capabilityContext={{ connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }}
         workspaceId="ws-1"
         workspaceRevision="wrev-1"
         savedLongGroups={savedLongGroups}

@@ -13,7 +13,8 @@ function target(id: string, withCumulative: boolean): FrozenBatchTarget & { inst
 
 function plan(targets: FrozenBatchTarget[], apply: { inst?: boolean; cum?: boolean } = { inst: true, cum: true }): FrozenBatchPlan {
   return {
-    workspaceId: 'ws-1', workspaceRevision: 'w-1', connectorRevision: 'c-1',
+    // This reviewed revision matches the saved destination in these SQLite fixtures.
+    workspaceId: 'ws-1', workspaceRevision: 'w-1', connectorRevision: 'crev-1',
     applyInst: Boolean(apply.inst), instInterval: 30, applyCum: Boolean(apply.cum), cumInterval: 20, targets,
   };
 }
@@ -38,7 +39,7 @@ describe('Dual-profile batch results are recorded per circuit and profile', () =
     const update = vi.fn()
       .mockImplementationOnce(savedUpdate('w-2'))
       .mockRejectedValueOnce(httpFailure(409, 'WRITE_GROUP_CIRCUIT_PROFILE_CONFLICT'));
-    const failure = await halted(executeBatchPlan({ plan: plan([t]), updateWriteGroup: update }));
+    const failure = await halted(executeBatchPlan({ capabilityContext: { connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }, plan: plan([t]), updateWriteGroup: update }));
 
     expect(update).toHaveBeenCalledTimes(2);
     expect(update.mock.calls[1][0].request.expected_workspace_revision).toBe('w-2');
@@ -54,7 +55,7 @@ describe('Dual-profile batch results are recorded per circuit and profile', () =
     const update = vi.fn()
       .mockImplementationOnce(savedUpdate('w-2'))
       .mockRejectedValueOnce(new Error('socket hang up'));
-    const failure = await halted(executeBatchPlan({ plan: plan([t]), updateWriteGroup: update }));
+    const failure = await halted(executeBatchPlan({ capabilityContext: { connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }, plan: plan([t]), updateWriteGroup: update }));
 
     expect(failure.targetResults['cir-a'].profiles.instantaneous?.status).toBe('saved');
     expect(failure.targetResults['cir-a'].profiles.cumulative?.status).toBe('unknown');
@@ -65,7 +66,7 @@ describe('Dual-profile batch results are recorded per circuit and profile', () =
     const a = target('cir-a', true);
     const b = target('cir-b', true);
     const update = vi.fn().mockRejectedValueOnce(httpFailure(409, 'WRITE_GROUP_CIRCUIT_PROFILE_CONFLICT'));
-    const failure = await halted(executeBatchPlan({ plan: plan([a, b]), updateWriteGroup: update }));
+    const failure = await halted(executeBatchPlan({ capabilityContext: { connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }, plan: plan([a, b]), updateWriteGroup: update }));
 
     expect(update).toHaveBeenCalledTimes(1);
     expect(failure.targetResults['cir-a'].profiles.instantaneous?.status).toBe('failed');
@@ -80,7 +81,7 @@ describe('Dual-profile batch results are recorded per circuit and profile', () =
     const update = vi.fn()
       .mockImplementationOnce(savedUpdate('w-2'))
       .mockRejectedValueOnce(httpFailure(422, 'profile_interval_invalid'));
-    const failure = await halted(executeBatchPlan({ plan: plan([a, b, c], { inst: true }), updateWriteGroup: update }));
+    const failure = await halted(executeBatchPlan({ capabilityContext: { connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }, plan: plan([a, b, c], { inst: true }), updateWriteGroup: update }));
 
     expect(failure.targetResults['cir-a'].status).toBe('saved');
     expect(failure.targetResults['cir-b'].status).toBe('failed');
@@ -93,7 +94,7 @@ describe('Dual-profile batch results are recorded per circuit and profile', () =
     const t = target('cir-a', true);
     t.instantaneousGroup = { ...t.inst, recording_profile: { kind: 'instantaneous', interval: 30, unit: 'second' }, row_policy: { ...t.inst.row_policy, interval_seconds: 30 } };
     const update = vi.fn().mockImplementation(savedUpdate('w-2'));
-    const result = await executeBatchPlan({ plan: plan([t]), updateWriteGroup: update });
+    const result = await executeBatchPlan({ capabilityContext: { connectorKind: 'sqlite', destination: { connector_id: 'conn-1', connector_revision: 'crev-1' } }, plan: plan([t]), updateWriteGroup: update });
 
     expect(update).toHaveBeenCalledTimes(1);
     expect(update.mock.calls[0][0].id).toBe('cum-cir-a');

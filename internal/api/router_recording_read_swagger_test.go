@@ -12,11 +12,11 @@ import (
 )
 
 // These read contracts must document the actual mounted URLs, not a second API.
-func TestRuntimeRuleEvidenceSwagger(t *testing.T) {
+func TestRecordingRecoveryAndRuleEvidenceSwagger(t *testing.T) {
 	doc := readSuccessorSwagger(t)
 	router := api.NewRouter(&api.DatalinkServices{Workspace: workspace.NewService(nil), RecordingPlan: recordingplan.NewService(nil)})
 	root := "/v1/datalink/studio-v2/workspace/"
-	for _, suffix := range []string{"runtime-context"} {
+	for _, suffix := range []string{"database-operations/test-writes", "runtime-context"} {
 		t.Run(suffix, func(t *testing.T) {
 			path := root + suffix
 			op, ok := doc.Paths[path]["get"]
@@ -30,6 +30,12 @@ func TestRuntimeRuleEvidenceSwagger(t *testing.T) {
 			}
 			if op.Responses["503"].Schema.Ref != "#/definitions/handlers.APIErrorResponse" {
 				t.Error("read failure must document typed unavailable response")
+			}
+			if suffix != "runtime-context" {
+				if op.Responses["200"].Schema.Ref != "#/definitions/handlers.TestWriteRecoveryResponse" {
+					t.Error("recovery response contract missing")
+				}
+				return
 			}
 			for _, name := range []string{"workspace_id", "workspace_revision", "device_id"} {
 				if !slices.ContainsFunc(op.Parameters, func(p recordingSwaggerParameter) bool {

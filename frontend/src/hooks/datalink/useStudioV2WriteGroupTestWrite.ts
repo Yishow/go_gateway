@@ -24,9 +24,9 @@ export function useWriteGroupTestWriteMutation() {
 }
 
 /** Reads one test-write operation on demand, e.g. to resolve an unconfirmed result. */
-export function useWriteGroupTestWriteOperationQuery(operationId: string | undefined) {
+export function useWriteGroupTestWriteOperationQuery(operationId: string | undefined, workspaceId?: string) {
   return useQuery({
-    queryKey: studioV2WorkspaceKeys.writeGroupTestWriteOperation(operationId ?? ''),
+    queryKey: [...studioV2WorkspaceKeys.writeGroupTestWriteOperation(operationId ?? ''), workspaceId ?? ''],
     queryFn: () => studioV2WorkspaceWriteGroupsAPI.testWriteOperation(operationId as string),
     enabled: false,
     retry: false,
