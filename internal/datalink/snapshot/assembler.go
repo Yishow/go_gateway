@@ -27,12 +27,14 @@ type bucketState struct {
 // revision. State lives in memory only: it is not durable and is lost on
 // restart until the delivery change journals it.
 type Assembler struct {
-	config    Config
-	entities  []entityGroup
-	members   map[string]Member
-	late      uint64
-	buckets   map[time.Time]*bucketState
-	nextClose time.Time
+	mixedNext    map[string]time.Time
+	mixedThrough time.Time
+	config       Config
+	entities     []entityGroup
+	members      map[string]Member
+	late         uint64
+	buckets      map[time.Time]*bucketState
+	nextClose    time.Time
 	// counters are the committed cumulative baselines by member key; they move
 	// only through Commit, like nextClose.
 	counters map[string]*aggregation.CounterCheckpoint
@@ -55,18 +57,25 @@ func NewAssembler(config Config) (*Assembler, error) {
 		entities = append(entities, entityGroup{key: key, members: members})
 	}
 	slices.SortFunc(entities, func(a, b entityGroup) int { return cmp.Compare(a.key, b.key) })
-	return &Assembler{
+	a := &Assembler{
 		config:    config,
 		entities:  entities,
 		members:   members,
 		buckets:   make(map[time.Time]*bucketState),
 		nextClose: config.FirstBucket,
 		counters:  make(map[string]*aggregation.CounterCheckpoint),
-	}, nil
+	}
+	if config.Mode.mixed() {
+		a.initializeMixed()
+	}
+	return a, nil
 }
 
 // Offer routes a sample to its bucket at gateway time now.
 func (a *Assembler) Offer(sample Sample, now time.Time) OfferResult {
+	if a.config.Mode.mixed() {
+		return a.offerMixed(sample, now)
+	}
 	result := a.Check(sample, now)
 	switch result.Outcome {
 	case OfferLate:
@@ -107,6 +116,9 @@ func (a *Assembler) newSelector(start time.Time, entity string) *Selector {
 // Check reports what Offer would do without changing any state, including the
 // late counter, so a caller can persist a sample before accepting it.
 func (a *Assembler) Check(sample Sample, now time.Time) OfferResult {
+	if a.config.Mode.mixed() {
+		return a.checkMixed(sample, now)
+	}
 	if sample.SampleID == "" || sample.MemberKey == "" || sample.ObservedAt.IsZero() {
 		return OfferResult{Outcome: OfferRejected, Reason: ReasonMissingIdentity}
 	}
@@ -140,6 +152,8 @@ func (a *Assembler) Replay(sample Sample) OfferResult {
 // Tick closes every bucket whose end plus allowed lateness has passed,
 // including buckets that never received a sample. At most MaxBucketsPerTick
 // buckets close per call; the rest follow on later ticks, in order.
+// Mixed integrations must use Plan and inspect Plan.Err before durable closure;
+// this legacy convenience signature cannot report arithmetic failures.
 func (a *Assembler) Tick(now time.Time) []Outcome {
 	plan := a.Plan(now)
 	a.Commit(plan)
@@ -148,6 +162,9 @@ func (a *Assembler) Tick(now time.Time) []Outcome {
 
 // Plan computes the closure Tick would perform at now without applying it.
 func (a *Assembler) Plan(now time.Time) Plan {
+	if a.config.Mode.mixed() {
+		return a.planMixed(now)
+	}
 	plan := Plan{next: a.nextClose, counters: make(map[string]*aggregation.CounterCheckpoint)}
 	for limit := a.bucketsPerTick(); len(plan.buckets) < limit; {
 		if !a.config.Until.IsZero() && !plan.next.Before(a.config.Until) {
@@ -175,6 +192,10 @@ func (a *Assembler) Plan(now time.Time) Plan {
 
 // Commit applies a plan produced by Plan on the same assembler state.
 func (a *Assembler) Commit(plan Plan) {
+	if a.config.Mode.mixed() {
+		a.commitMixed(plan)
+		return
+	}
 	for _, bucket := range plan.buckets {
 		delete(a.buckets, bucket)
 	}
@@ -188,8 +209,12 @@ func (a *Assembler) Commit(plan Plan) {
 
 // SetUntil ends this assembler's responsibility at an interval-aligned UTC
 // boundary (a superseding revision's effective time, or a disable). It never
-// extends a boundary that was already set earlier.
+// extends a boundary that was already set earlier. Mixed modes have no common
+// Until and use the error-returning SetMixedEndsAt instead.
 func (a *Assembler) SetUntil(until time.Time) {
+	if a.config.Mode.mixed() {
+		return
+	}
 	until = until.UTC()
 	if !BucketStart(until, a.config.Interval).Equal(until) {
 		return
@@ -203,6 +228,10 @@ func (a *Assembler) SetUntil(until time.Time) {
 // not be interval-aligned; the window containing it closes with its real end.
 // It never extends an earlier end.
 func (a *Assembler) SetEndsAt(ends time.Time) {
+	if a.config.Mode.mixed() {
+		_ = a.SetMixedEndsAt(ends)
+		return
+	}
 	ends = ends.UTC()
 	if !a.config.EndsAt.IsZero() && !ends.Before(a.config.EndsAt) {
 		return
@@ -234,10 +263,14 @@ func (a *Assembler) markTruncation(outcome Outcome) Outcome {
 // Done reports whether an Until was configured and every bucket before it has
 // closed.
 func (a *Assembler) Done() bool {
+	if a.config.Mode.mixed() {
+		return a.mixedDone(a.mixedNext)
+	}
 	return !a.config.Until.IsZero() && !a.nextClose.Before(a.config.Until)
 }
 
-// NextClose is the start of the next bucket that has not closed.
+// NextClose is the start of the next legacy bucket that has not closed.
+// Mixed modes return zero and expose typed MixedProgress instead.
 func (a *Assembler) NextClose() time.Time { return a.nextClose }
 
 // OpenBuckets is the number of buckets currently holding samples.
@@ -314,16 +347,23 @@ func (a *Assembler) Late() uint64 { return a.late }
 // the assembler. A caller that must persist closure first applies it with
 // Commit only after the durable write succeeded.
 type Plan struct {
-	Outcomes []Outcome
-	buckets  []time.Time
-	next     time.Time
+	// Err is a fail-closed mixed arithmetic/configuration failure; Commit ignores it.
+	Err           error
+	mixedBase     time.Time
+	mixedClosures []mixedClosure
+	mixedProgress *DispatchWatermark
+	mixedNext     map[string]time.Time
+	Outcomes      []Outcome
+	buckets       []time.Time
+	next          time.Time
 	// counters are the baselines Commit installs: only the members whose
 	// baseline this plan advances.
 	counters map[string]*aggregation.CounterCheckpoint
 }
 
-// NextClose is the checkpoint a committed plan advances to.
+// NextClose is the legacy checkpoint a committed plan advances to.
+// Mixed plans use MixedProgress and return zero here.
 func (p Plan) NextClose() time.Time { return p.next }
 
 // Empty reports whether the plan closes nothing.
-func (p Plan) Empty() bool { return len(p.buckets) == 0 }
+func (p Plan) Empty() bool { return len(p.buckets) == 0 && len(p.mixedClosures) == 0 }

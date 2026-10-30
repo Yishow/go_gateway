@@ -97,6 +97,9 @@ const (
 
 // Member is one value contributing to a row.
 type Member struct {
+	// Calculation and Interval are required only by mixed modes.
+	Calculation Calculation   `json:",omitempty"`
+	Interval    time.Duration `json:",omitempty"`
 	// Key identifies the member; samples carry it as MemberKey.
 	Key string
 	// EntityKey partitions rows. Empty means the fixed group scope.
@@ -161,6 +164,9 @@ type Config struct {
 }
 
 func (c Config) normalized() (Config, error) {
+	if c.Mode.mixed() {
+		return c.normalizedMixed()
+	}
 	invalid := func(reason string) (Config, error) {
 		return Config{}, fmt.Errorf("%w: %s", ErrInvalidConfig, reason)
 	}

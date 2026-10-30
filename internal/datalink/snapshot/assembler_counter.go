@@ -62,18 +62,22 @@ func (a *Assembler) applyCounter(plan *Plan, member Member, start, end time.Time
 		prev = a.counters[member.Key]
 	}
 	start, end, _ = a.windowBounds(start, end)
+	readings := selector.counterReadings(member.Key)
 	counter, next, err := aggregation.CloseCounterWindow(
-		prev, a.config.Counters[member.Key], aggregation.CounterWindow{Start: start, End: end}, selector.counterReadings(member.Key),
+		prev, a.config.Counters[member.Key], aggregation.CounterWindow{Start: start, End: end}, readings,
 	)
 	if err != nil {
 		// A broken contract is never turned into a value or a delta.
 		result.Status, result.Reason = MemberInvalid, ReasonCounterUnavailable
 		return
 	}
-	result.Counter = &counter
 	if counter.Status == aggregation.CounterInvalid {
 		result.Status, result.Reason = MemberInvalid, counter.Reason
 	}
+	if a.config.Mode.mixed() {
+		next = a.enforceMixedCounterType(member, readings, &counter, next, prev, result)
+	}
+	result.Counter = &counter
 	if next != prev {
 		plan.counters[member.Key] = next
 	}
@@ -99,13 +103,16 @@ func (a *Assembler) CounterCheckpoints() map[string]aggregation.CounterCheckpoin
 // longer matches the member is legitimate: the calculation starts a new baseline
 // from it instead of subtracting across bindings.
 func (a *Assembler) RestoreCounterCheckpoints(checkpoints map[string]aggregation.CounterCheckpoint) error {
-	if !a.config.Mode.Cumulative() {
+	if !a.config.Mode.Cumulative() && !a.config.Mode.mixed() {
 		return fmt.Errorf("%w: counter baselines belong to the cumulative profile only", ErrInvalidConfig)
 	}
 	restored := make(map[string]*aggregation.CounterCheckpoint, len(checkpoints))
 	for member, checkpoint := range checkpoints {
-		if _, known := a.members[member]; !known {
+		if m, known := a.members[member]; !known || (a.config.Mode.mixed() && m.Calculation != CalculationDelta) {
 			return fmt.Errorf("%w: baseline for unknown member", ErrInvalidConfig)
+		}
+		if a.config.Mode.mixed() && !meanValueMatchesSource(a.members[member].SourceValueType, checkpoint.Reading.Value) {
+			return fmt.Errorf("%w: baseline does not match frozen source type", aggregation.ErrCounterCheckpointInvalid)
 		}
 		if _, err := checkpoint.Binding.Key(); err != nil {
 			return fmt.Errorf("%w: %w", aggregation.ErrCounterCheckpointInvalid, err)

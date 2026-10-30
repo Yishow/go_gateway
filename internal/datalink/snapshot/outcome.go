@@ -50,6 +50,8 @@ const (
 // MemberResult is one member's evaluation. Sample is the selected sample and
 // is nil only when nothing was observed for the member in the bucket.
 type MemberResult struct {
+	// Window is populated only for mixed results.
+	Window    *MemberWindow `json:",omitempty"`
 	MemberKey string
 	Status    MemberStatus
 	Reason    string
@@ -71,6 +73,8 @@ type MemberResult struct {
 
 // Outcome is emitted exactly once per entity and bucket.
 type Outcome struct {
+	// DueAt is the mixed dispatch boundary, not a shared data window.
+	DueAt     time.Time `json:",omitzero"`
 	Kind      OutcomeKind
 	EntityKey string
 	// RecordID identifies the row (or the skipped/no-data bucket) stably.
@@ -91,7 +95,8 @@ type Outcome struct {
 	Truncated              string
 }
 
-// Window returns the real bounds of the window the outcome covers.
+// Window returns the real bounds of the window the outcome covers. Mixed wide
+// has no shared window: use DueAt and each MemberResult.Window instead.
 func (o Outcome) Window() (start, end time.Time) {
 	if o.Truncated == "" {
 		return o.BucketStart, o.BucketEnd
