@@ -36,7 +36,7 @@ function harness(selected = scope, legacyRows = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }); clients.push(client);
   const props = (current: EvidenceScope) => ({ evidenceScope: current, selectedDevice: { device_id: current.device_id, name: current.device_id, protocol: 'modbus_tcp', running: false, availability_status: 'available' as const }, setupContext: { source_rules: legacyRows ? rules(current.device_id) : [], mappings: legacyRows ? mappings(current.device_id) : [], database_targets: [] } });
   const view = render(<QueryClientProvider client={client}><RuntimeSetupContextPanel {...props(selected)} /></QueryClientProvider>);
-  return { ...view, switchTo(next: EvidenceScope) { view.rerender(<QueryClientProvider client={client}><RuntimeSetupContextPanel {...props(next)} /></QueryClientProvider>); } };
+  return { ...view, client, switchTo(next: EvidenceScope) { view.rerender(<QueryClientProvider client={client}><RuntimeSetupContextPanel {...props(next)} /></QueryClientProvider>); } };
 }
 const calls = () => vi.mocked(studioV2DatalinkApi.get).mock.calls;
 beforeEach(async () => {
@@ -112,6 +112,71 @@ describe('bounded runtime source lists', () => {
     await within(list).findByRole('button', { name: 'Show mappings for A2' });
     expect(calls().at(-1)?.[1]?.params).not.toHaveProperty('cursor');
     expect(within(list).getByText('Page 1')).toBeInTheDocument();
+  });
+  it('keeps selected source details while the same mapping page revalidates', async () => {
+    const view = harness();
+    const mappingList = await screen.findByRole('region', { name: 'Source mappings' });
+    fireEvent.click(await within(mappingList).findByRole('button', { name: 'Inspect source 40001' }));
+    const details = await screen.findByRole('region', { name: 'Source rule details' });
+    await within(details).findByText('Saved-only configuration');
+
+    let resolveMappings!: (result: ReturnType<typeof page>) => void;
+    let mappingRequest: Record<string, unknown> | null = null;
+    const pendingMappings = new Promise<ReturnType<typeof page>>((resolve) => { resolveMappings = resolve; });
+    vi.mocked(studioV2DatalinkApi.get).mockImplementation(async (_url, config) => {
+      const params = requestParams(config?.params);
+      if (params.source_list === 'mappings') {
+        mappingRequest = params;
+        return pendingMappings;
+      }
+      return params.source_list ? page(params) : response({ workspace_id: 'W', rule_evidence: detail(String(params.device_id), Number(String(params.point_id).slice(1))) });
+    });
+    let invalidation: Promise<void> | undefined;
+    act(() => {
+      invalidation = view.client.invalidateQueries({ predicate: (query) => query.queryKey.includes('source-page') });
+    });
+    await within(mappingList).findByRole('status');
+    expect(screen.getByRole('region', { name: 'Source rule details' })).toBeInTheDocument();
+
+    await act(async () => {
+      resolveMappings(page(mappingRequest ?? { ...scope, source_list: 'mappings' }));
+      await invalidation;
+    });
+    await within(mappingList).findByRole('button', { name: 'Inspect source 40001' });
+    expect(screen.getByRole('region', { name: 'Source rule details' })).toBeInTheDocument();
+  });
+  it('clears selected source details after a settled page omits the selected mapping', async () => {
+    const view = harness();
+    const mappingList = await screen.findByRole('region', { name: 'Source mappings' });
+    fireEvent.click(await within(mappingList).findByRole('button', { name: 'Inspect source 40001' }));
+    const details = await screen.findByRole('region', { name: 'Source rule details' });
+    await within(details).findByText('Saved-only configuration');
+
+    let resolveMappings!: (result: ReturnType<typeof page>) => void;
+    let mappingRequest: Record<string, unknown> | null = null;
+    const pendingMappings = new Promise<ReturnType<typeof page>>((resolve) => { resolveMappings = resolve; });
+    vi.mocked(studioV2DatalinkApi.get).mockImplementation(async (_url, config) => {
+      const params = requestParams(config?.params);
+      if (params.source_list === 'mappings') {
+        mappingRequest = params;
+        return pendingMappings;
+      }
+      return params.source_list ? page(params) : response({ workspace_id: 'W', rule_evidence: detail(String(params.device_id), Number(String(params.point_id).slice(1))) });
+    });
+    let invalidation: Promise<void> | undefined;
+    act(() => {
+      invalidation = view.client.invalidateQueries({ predicate: (query) => query.queryKey.includes('source-page') });
+    });
+    await within(mappingList).findByRole('status');
+    expect(screen.getByRole('region', { name: 'Source rule details' })).toBeInTheDocument();
+
+    await act(async () => {
+      const removedPage = page(mappingRequest ?? { ...scope, source_list: 'mappings' });
+      removedPage.data.data.source_page.mappings = removedPage.data.data.source_page.mappings.filter((row) => row.point_id !== 'P1');
+      resolveMappings(removedPage);
+      await invalidation;
+    });
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Source rule details' })).not.toBeInTheDocument());
   });
   it('clears A6 detail on device switch and never replaces B1 with late A6', async () => {
     let finishA!: (result: ReturnType<typeof response>) => void;

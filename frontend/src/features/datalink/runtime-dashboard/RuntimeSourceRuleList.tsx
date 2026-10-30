@@ -27,8 +27,13 @@ export function RuntimeSourceRuleList({ scope, navigateTo, initialSelection = nu
   const mappingQuery = useRuntimeSourcePage(scope, { ...request('mappings', mappingPaging), ...filter });
   const rulePage = !ruleQuery.isFetching && ruleQuery.data?.ok ? ruleQuery.data.value : null;
   const mappingPage = !mappingQuery.isFetching && mappingQuery.data?.ok ? mappingQuery.data.value : null;
-  const selectedExists = selection && mappingPage?.mappings.some((row) => row.rule_id === selection.rule_id && row.rule_revision === selection.rule_revision && row.point_id === selection.point_id && (row.id || undefined) === selection.mapping_id);
-  const removed = Boolean(selection && !restored && !selectedExists);
+  // Keep a selected detail alive while its list is being revalidated. A missing
+  // page during isFetching is a transient transport state, not proof that the
+  // selected source was removed. Once the request settles, a missing row or a
+  // typed page failure is allowed to clear the stale selection.
+  const mappingPageSettled = !mappingQuery.isFetching && (mappingQuery.data !== undefined || mappingQuery.isError);
+  const selectedExists = mappingPage?.mappings.some((row) => row.rule_id === selection?.rule_id && row.rule_revision === selection?.rule_revision && row.point_id === selection?.point_id && (row.id || undefined) === selection?.mapping_id);
+  const removed = Boolean(selection && !restored && mappingPageSettled && !selectedExists);
   useEffect(() => { if (removed) { setSelection(null); onSelection?.(null); } }, [removed, onSelection]);
   // A restored explicit selection may be outside the current page. The detail reader revalidates it.
   const select = (value: RuntimeSourceSelection | null) => { setRestored(false); setSelection(value); onSelection?.(value); };
