@@ -14,7 +14,7 @@
 - [x] 2.5 [after: 2.4] 實作 Theme preference resolves without inventing persisted intent，依「系統主題與單一語意 tokens」與 UI / API / Diagnostics options 連接現有provider及settings adapter；測試raw key有無、legacy相容、OS live change、override、回system、失敗fallback、late hydration與backend context切換／workspace不重設，theme-only updateKey只寫theme且modbus_share/default_interval零write。
 - [x] 2.6 [after: 2.5] 實作 Semantic design tokens govern affected surfaces、Design tokens scope 與 New configuration popups are centered viewport-sized modals，依 DESIGN.md 對新 surfaces／重用modal／portal導入單一CSS semantic tokens與TS aliases；檢查light/dark/focus/disabled/status對比、reduced-motion與viewport75% modal，不改未觸及舊頁。
 
-- [ ] 2.7 [after: 2.6] 依「已選 modal 與返回引導契約」實作 Classified modals and contextual return state preserve safety；測一般75%／手機近滿版／小確認尺寸、固定header/footer與body捲動、help不藏risk、同scope返回搜尋/篩選/scroll/focus及scope/revision變更不復活舊項目。
+- [x] 2.7 [after: 2.6] 依「已選 modal 與返回引導契約」實作 Classified modals and contextual return state preserve safety；測一般75%／手機近滿版／小確認尺寸、固定header/footer與body捲動、help不藏risk、同scope返回搜尋/篩選/scroll/focus及scope/revision變更不復活舊項目。
 
 - [ ] 2.8 [after: 2.7] 實作 Development style preview is isolated from operator navigation 與「開發驗收樣式頁不成為第三主流程」；以actualcomponents/tokens展示狀態，驗證dev/test入口可達、主選單無項目、production build不bundle且零資料寫入/啟用/credential。
 

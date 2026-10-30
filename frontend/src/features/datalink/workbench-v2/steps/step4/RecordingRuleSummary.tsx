@@ -1,3 +1,6 @@
+import '@/styles/semantic-modal.css';
+import { useRef } from 'react';
+import { captureReturnFocus, restoreReturnFocus, type ReturnFocusTicket } from '@/utils/returnFocus';
 import type { ReactNode } from 'react';
 import { safeRuntimeLabel } from '../../../../../utils/runtimeOperatorSafety';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -111,8 +114,10 @@ const scopeFields = ['workspaceId', 'deviceId', 'circuitId', 'groupId', 'workspa
  * query, save, apply, start, or persist selection.
  */
 export function RecordingRuleSummary({ view, scopeLabel, labels, details, sourceLabels }: RecordingRuleSummaryProps) {
+  const heading = useRef<HTMLHeadingElement>(null), trigger = useRef<HTMLButtonElement>(null), ticket = useRef<ReturnFocusTicket | null>(null);
+  const currentScope = useRef(''); currentScope.current = view.state === 'available' ? JSON.stringify(scopeFields.map(key => view.scope[key])) : '';
   if (view.state !== 'available') return <section aria-label={labels.heading} className="space-y-3">
-    <h3 className="text-sm font-medium text-slate-100">{labels.heading}</h3>
+    <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-slate-100">{labels.heading}</h3>
     <p role="status" className="text-sm text-slate-300">{labels.reasons[view.reason]}</p>
   </section>;
   const runtime = view.runtime.state === 'available' ? view.runtime.value : null;
@@ -127,7 +132,7 @@ export function RecordingRuleSummary({ view, scopeLabel, labels, details, source
   const scopeKey = JSON.stringify(scopeFields.map(key => view.scope[key]));
   return <Dialog.Root key={scopeKey}>
     <section aria-label={labels.heading} className="min-w-0 space-y-3">
-      <h3 className="text-sm font-medium text-slate-100">{labels.heading}</h3>
+      <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-slate-100">{labels.heading}</h3>
       <p className="break-words text-sm text-slate-300">{scopeLabel}</p>
       <div className="grid min-w-0 gap-3 sm:grid-cols-2">
         <VersionCard title={labels.saved} description={labels.savedDescription} facts={runtime?.saved ?? null}
@@ -137,14 +142,17 @@ export function RecordingRuleSummary({ view, scopeLabel, labels, details, source
       </div>
       {effectiveRevision !== null && runtime?.applied_revision && runtime.applied_revision !== effectiveRevision &&
         <p role="status" className="text-sm text-slate-300">{labels.requestedNotEffective}</p>}
-      <Dialog.Trigger type="button" className="rounded border border-slate-600 px-3 py-2 text-sm text-slate-100">{labels.details}</Dialog.Trigger>
+      <Dialog.Trigger ref={trigger} type="button" className="rounded border border-slate-600 px-3 py-2 text-sm text-slate-100">{labels.details}</Dialog.Trigger>
     </section>
     <Dialog.Portal>
-      <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
-      <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl space-y-4 overflow-y-auto border-l border-slate-700 bg-slate-950 p-4 text-slate-100">
+      <Dialog.Overlay className="gw-modal-overlay" />
+      <Dialog.Content className="gw-modal" data-size="form"
+        onOpenAutoFocus={() => { ticket.current = captureReturnFocus(scopeKey, trigger.current); }}
+        onCloseAutoFocus={event => { event.preventDefault(); if (ticket.current?.owner === scopeKey) restoreReturnFocus(ticket.current, currentScope.current, heading.current); }}>
+        <header className="gw-modal-header">
         <Dialog.Title className="text-lg font-medium">{labels.detailsTitle}</Dialog.Title>
-        <Dialog.Description className="text-sm text-slate-300">{labels.detailsDescription}</Dialog.Description>
-        <Dialog.Close type="button" className="rounded border border-slate-600 px-3 py-2 text-sm">{labels.close}</Dialog.Close>
+        <Dialog.Description className="gw-muted">{labels.detailsDescription}</Dialog.Description></header>
+        <div className="gw-modal-body space-y-4 gw-evidence">
         <p className="break-words text-sm">{scopeLabel}</p>
         <dl className="grid min-w-0 gap-3 sm:grid-cols-2">
           <Field label={labels.fields.workspace}>{view.scope.workspaceId}</Field>
@@ -159,6 +167,7 @@ export function RecordingRuleSummary({ view, scopeLabel, labels, details, source
           <Field label={labels.fields.endsAt}>{effective?.facts.ends_at ?? labels.unavailable}</Field>
         </dl>
         {matchingDetails ? details.content : <p role="status">{labels.detailsUnavailable}</p>}
+        </div><footer className="gw-modal-footer"><Dialog.Close type="button">{labels.close}</Dialog.Close></footer>
       </Dialog.Content>
     </Dialog.Portal>
   </Dialog.Root>;

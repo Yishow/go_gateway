@@ -41,3 +41,16 @@ describe('Radix saved recording change dialog', () => {
     expect(screen.getByTestId('lifecycle-pending-samples')).toHaveTextContent('3'); expect(screen.getByTestId('lifecycle-pending-outbox')).toHaveTextContent('7'); expect(screen.getByTestId('lifecycle-pending-unknown')).toHaveTextContent('1');
   });
 });
+
+it('collapsed optional prior-preview help never hides required risk, schema impact or the current unknown result', async () => {
+  const { controller, unmount } = setup(); fireEvent.click(screen.getByText('Open change'));
+  fireEvent.click(await screen.findByTestId('recording-change-review')); fireEvent.click(await screen.findByTestId('recording-change-reserve_preview'));
+  await screen.findByText('dialog.reserved');
+  const state = { ...controller.snapshot(), recovery: { ...controller.snapshot().recovery!, priorPreviewIds: ['older-preview'] }, unknown: true, error: 'unknown' as const };
+  unmount(); render(<RecordingChangeDialog controller={{ ...state, state, controller, requestAction: controller.requestAction, dismiss: controller.dismiss, unresolved: true }} />);
+  const dialog = screen.getByRole('dialog'); const help = within(dialog).getByText('dialog.previous_previews').closest('details')!;
+  expect(help).not.toHaveAttribute('open');
+  for (const key of ['dialog.history_kept', 'dialog.schema_confirmation_required', 'dialog.unknown_no_replacement', 'dialog.errors.unknown']) {
+    const message = within(dialog).getByText(key); expect(message).toBeVisible(); expect(help).not.toContainElement(message);
+  }
+});

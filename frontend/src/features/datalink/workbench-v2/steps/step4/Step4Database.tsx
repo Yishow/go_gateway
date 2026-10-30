@@ -1,3 +1,4 @@
+import { markReturnRegion } from '@/utils/returnFocus';
 import type { StudioLocatorEntryRead } from '../../../../../types/studioV2LocatorEntry';
 import { useRuntimeRuleEvidence } from '../../../../../hooks/datalink/useRuntimeRuleEvidence';
 import { RecordingScopeSummary } from './RecordingScopeSummary';
@@ -77,6 +78,7 @@ function Step4DatabaseContent({
   onNavigateStep, locatorEntry, locatorSuspended, onLocatorEditorMountedChange,
 }: Step4DatabaseProps) {
   const { t: guidedT } = useTranslation('workbench-v2-recording-guided');
+  const { t } = useTranslation('workbench-v2');
   // Only the read-back of an earlier activation is shown; no workspace-wide start is wired to this page.
   const activation = useStep4Activation(undefined, recoverActivationStatus, workspaceId);
   const { connector, targets } = state.db;
@@ -173,6 +175,7 @@ function Step4DatabaseContent({
   const [basicOperationActive, setBasicOperationActive] = useState(false);
   const [savedOperationActive, setSavedOperationActive] = useState(false);
   const savedOperationLock = useRef(false);
+  const returnHeading = useRef<HTMLHeadingElement>(null);
   const advancedRef = useRef<HTMLDetailsElement>(null);
   const basicRef = useRef<HTMLDivElement>(null);
   const openAdvanced = useCallback(() => {
@@ -211,9 +214,10 @@ function Step4DatabaseContent({
     .map((item) => ({ id: item.id, name: item.name, revision: item.identity_revision! }));
 
   return (
-    <div className="space-y-6">
+    <div ref={node => markReturnRegion(node, recordingChange.controller)} className="space-y-6" data-focus-return-region={JSON.stringify([workspaceId, 'step4'])}>
+      <h2 data-focus-return-heading ref={returnHeading} tabIndex={-1} className="sr-only focus:not-sr-only">{t('step4.overview_title')}</h2>
       {workspaceId && <RecordingTestWriteRecoveryPanel workspaceId={workspaceId} />}
-      <RecordingChangeDialog controller={recordingChange} destinations={destinations} />
+      <RecordingChangeDialog controller={recordingChange} destinations={destinations} fallbackFocus={() => returnHeading.current} />
       <Step4SupportPanels
         destinationReady={destinationIsSaved(state)}
         connector={connector}

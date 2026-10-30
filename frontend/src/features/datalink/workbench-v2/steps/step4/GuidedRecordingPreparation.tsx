@@ -1,3 +1,5 @@
+import '@/styles/semantic-modal.css';
+import { eligibleFocusTarget } from '@/utils/returnFocus';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -261,28 +263,32 @@ export function GuidedRecordingPreparation(props: GuidedRecordingPreparationProp
     {[...checkedReferences.current.references.values()].map(reference => <TestWriteOwner key={JSON.stringify([queryIdentity, reference])}
       reference={reference} identity={queryIdentity} report={reportTestWriteQuery} />)}
     <Dialog.Root open={open} onOpenChange={value => { if (!value) setReviewEpoch(undefined); }}>
-      <Dialog.Portal><Dialog.Overlay className="fixed inset-0 z-40 bg-black/70" />
+      <Dialog.Portal><Dialog.Overlay className="gw-modal-overlay" />
         <Dialog.Content onEscapeKeyDown={() => { if (focusReturn) focusReturn.dismissed = true; }}
           onCloseAutoFocus={event => {
             event.preventDefault();
             if (reviewFocus.current === focusReturn) reviewFocus.current = undefined;
             // The primary unmounts during review; restore only its current same-owner replacement, never an old DOM node.
             const target = region.current?.querySelector<HTMLButtonElement>('button[data-primary="true"]');
-            if (focusReturn?.dismissed && mounted.current && current.current.owner.isCurrent(focusReturn.epoch) &&
-              target?.isConnected && !target.disabled && target.dataset.testid === focusReturn.testId) target.focus();
-          }} className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[min(94vw,48rem)] -translate-x-1/2 -translate-y-1/2 space-y-4 overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 p-5 text-slate-100">
-          <Dialog.Title>{t('next.startTitle')}</Dialog.Title><Dialog.Description>{t('next.startDescription')}</Dialog.Description>
+            if (focusReturn?.dismissed && mounted.current && current.current.owner.isCurrent(focusReturn.epoch)) {
+              if (eligibleFocusTarget(target) && target.dataset.testid === focusReturn.testId) target.focus();
+              else if (eligibleFocusTarget(region.current)) region.current.focus();
+            }
+          }} className="gw-modal" data-size="form">
+          <header className="gw-modal-header"><Dialog.Title>{t('next.startTitle')}</Dialog.Title><Dialog.Description>{t('next.startDescription')}</Dialog.Description></header>
+          <div className="gw-modal-body space-y-4 gw-evidence">
           {props.summary?.(scope)}
-          <p role="status">{t('next.deliverySeparate')}</p>
+          <p role="status">{t('next.deliverySeparate')}</p></div>
+          <footer className="gw-modal-footer">
           <button type="button" data-primary="true" data-testid="recording-start-confirm"
             disabled={!allReady || !props.canPrepare || locked || !owner.online || props.prepareOnly}
-            className="rounded bg-blue-600 px-3 py-2 disabled:opacity-50" onClick={() => {
+            className="gw-primary" onClick={() => {
               const consent = reviewEpoch;
               if (consent === undefined || !owner.isCurrent(consent) || !current.current.allReady || current.current.locked || !current.current.props.canPrepare) return;
               setReviewEpoch(undefined); void run(start.start, consent);
             }}>{t('next.confirmStart')}</button>
           <Dialog.Close asChild><button type="button" data-testid="recording-start-cancel" onClick={() => { if (focusReturn) focusReturn.dismissed = true; }}
-            className="ml-2 rounded border border-slate-600 px-3 py-2">{t('next.cancel')}</button></Dialog.Close>
+            className="gw-secondary">{t('next.cancel')}</button></Dialog.Close></footer>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

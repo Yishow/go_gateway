@@ -1,3 +1,4 @@
+import { captureReturnFocus, restoreReturnFocus, type ReturnFocusTicket } from '@/utils/returnFocus';
 import '@/styles/semantic-modal.css';
 import { semanticTokens } from '../../../../tokens';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -11,14 +12,17 @@ import { activationAction, changeTargetLayout } from './recordingChangeHelpers';
 const field = 'mt-1';
 const secondary = 'gw-secondary';
 const primary = 'gw-primary';
-export function RecordingChangeDialog({ controller: view, destinations = [] }: {
+export function RecordingChangeDialog({ controller: view, destinations = [], fallbackFocus }: {
   controller: RecordingChangeControllerView;
   destinations?: RecordingDestinationChoice[];
+  fallbackFocus?: () => HTMLElement | null;
 }) {
   const { t } = useTranslation('recording-lifecycle');
   const { state, controller } = view;
   const { phase, target, review, recovery, activation } = state;
-  const returnFocus = React.useRef<HTMLElement | null>(null);
+  const returnFocus = React.useRef<ReturnFocusTicket | null>(null);
+  const focusOwner = React.useMemo(() => ({ controller, intent: state.intent }), [controller, state.intent]);
+  const currentOwner = React.useRef(focusOwner); currentOwner.current = focusOwner;
   const step = phase === 'choose' ? 1 : ['impact', 'reserved', 'schema-plan'].includes(phase) ? 2 : 3;
   const locked = state.busy || controller.readonly || state.unknown;
   const title = t('dialog.title');
@@ -42,8 +46,8 @@ export function RecordingChangeDialog({ controller: view, destinations = [] }: {
       <Dialog.Portal>
         <Dialog.Overlay className="gw-modal-overlay" />
         <Dialog.Content className="gw-modal" data-size="form" style={{ color: semanticTokens.colors.text, backgroundColor: semanticTokens.colors.raised }}
-          onOpenAutoFocus={() => { returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; }}
-          onCloseAutoFocus={(event) => { event.preventDefault(); returnFocus.current?.focus(); }}>
+          onOpenAutoFocus={() => { returnFocus.current = captureReturnFocus(focusOwner, document.activeElement instanceof HTMLElement ? document.activeElement : null); }}
+          onCloseAutoFocus={(event) => { event.preventDefault(); if (returnFocus.current?.owner === focusOwner) restoreReturnFocus(returnFocus.current, currentOwner.current, fallbackFocus?.()); }}>
           <header className="gw-modal-header">
             <Dialog.Title className="text-xl font-semibold">{title}</Dialog.Title>
             <Dialog.Description className="mt-1 gw-muted">{t('dialog.description')}</Dialog.Description>

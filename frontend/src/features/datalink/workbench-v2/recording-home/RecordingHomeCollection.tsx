@@ -1,3 +1,4 @@
+import { eligibleFocusTarget } from '@/utils/returnFocus';
 import { RecordingHomeResultFacts } from './RecordingHomeResultFacts';
 import type { recordingHomeResultSummary } from './recordingHomeResultSummary';
 import { useLayoutEffect, useRef } from 'react';
@@ -25,7 +26,7 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, summ
     if (panel.current) {
       panel.current.scrollTop = Math.min(restored.scrollTop, Math.max(0, panel.current.scrollHeight - panel.current.clientHeight));
       const target = [...(root.current?.querySelectorAll<HTMLButtonElement>('[data-home-focus]') ?? [])].find(node => node.dataset.homeFocus === restored.focusId);
-      if (restored.focusId) (target ?? heading.current)?.focus({ preventScroll: true });
+      if (restored.focusId) (eligibleFocusTarget(target) ? target : eligibleFocusTarget(heading.current) ? heading.current : null)?.focus({ preventScroll: true });
     }
   }, [sourcesAvailable, restored]);
   const patch = (update: Partial<RecordingCollectionState>) => onChange({ ...state, ...update, page: 1 });

@@ -253,6 +253,7 @@ describe('same-scope read-only detail slot', () => {
     const selected = { ...scope, circuitId: undefined, appliedRevision: '' };
     render(<RecordingRuleSummary view={view(proof, selected, { ...saved(), applied_revision: '' })} scopeLabel="Device A" labels={labels} />);
     fireEvent.click(screen.getByRole('button', { name: labels.details })); const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveClass('gw-modal'); expect(dialog).toHaveAttribute('data-size', 'form');
     expect(field(dialog, 'Selected circuit')).toHaveTextContent('Unavailable'); expect(field(dialog, 'Requested revision')).toHaveTextContent('Unavailable');
     expect(field(dialog, 'Ends at')).toHaveTextContent('2026-10-02T00:00:00Z'); expect(field(dialog, 'Effective revision')).toHaveTextContent('R1');
   });

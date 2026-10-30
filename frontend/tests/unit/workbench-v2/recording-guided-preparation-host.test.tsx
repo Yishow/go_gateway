@@ -195,6 +195,9 @@ it('starts once only after explicit confirmation, and never calls a workspace-wi
   await readyForReview();
   fireEvent.click(screen.getByTestId('circuit-profile-start'));
   const confirm = screen.getByTestId('recording-start-confirm');
+  const review = screen.getByRole('dialog'); expect(review).toHaveAttribute('data-size', 'form');
+  expect(review.querySelector('.gw-modal-header')).toBeInTheDocument(); expect(review.querySelector('.gw-modal-body')).toHaveTextContent('next.deliverySeparate');
+  expect(review.querySelector('.gw-modal-footer')).toContainElement(confirm);
   expect(document.querySelectorAll('button[data-primary="true"]')).toHaveLength(1);
   fireEvent.click(confirm); fireEvent.click(confirm);
   await waitFor(() => expect(startAPI.start).toHaveBeenCalledOnce());
