@@ -1,3 +1,4 @@
+import { recordingReadKey, validRecordingReadScope, type StudioV2RecordingReadScope } from './studioV2RecordingReadScope';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { studioV2WorkspaceWriteGroupsAPI } from '../../services/studioV2WorkspaceWriteGroups';
 import type {
@@ -9,11 +10,11 @@ import type {
 } from '../../types/studioV2WriteGroup';
 import { studioV2WorkspaceKeys } from './keys';
 
-export function useWriteGroupsQuery(enabled: boolean) {
+export function useWriteGroupsQuery(enabled: boolean, scope?: StudioV2RecordingReadScope) {
   return useQuery({
-    queryKey: studioV2WorkspaceKeys.writeGroups(),
+    queryKey: recordingReadKey(studioV2WorkspaceKeys.writeGroups(), scope),
     queryFn: () => studioV2WorkspaceWriteGroupsAPI.list(),
-    enabled,
+    enabled: enabled && (!scope || validRecordingReadScope(scope)),
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -31,16 +32,16 @@ export function useWriteGroupReadinessQuery(groupId: string | undefined, enabled
 }
 
 /** Where the group's accepted rows stand; only `sql_committed` is destination evidence. */
-export function useWriteGroupDeliveryQuery(groupId: string | undefined, enabled: boolean, refetchIntervalMs?: number) {
-  return useQuery({
-    queryKey: studioV2WorkspaceKeys.writeGroupDelivery(groupId ?? ''),
+export function writeGroupDeliveryQueryOptions(groupId: string | undefined, enabled: boolean, refetchIntervalMs?: number, scope?: StudioV2RecordingReadScope) {
+  return {
+    queryKey: recordingReadKey(studioV2WorkspaceKeys.writeGroupDelivery(groupId ?? ''), scope),
     queryFn: () => studioV2WorkspaceWriteGroupsAPI.delivery(groupId as string),
-    enabled: enabled && Boolean(groupId),
-    retry: false,
-    refetchOnWindowFocus: false,
-    refetchInterval: refetchIntervalMs,
-    staleTime: 3000,
-  });
+    enabled: enabled && Boolean(groupId) && (!scope || validRecordingReadScope(scope)),
+    retry: false, refetchOnWindowFocus: false, refetchInterval: refetchIntervalMs, staleTime: 3000,
+  };
+}
+export function useWriteGroupDeliveryQuery(groupId: string | undefined, enabled: boolean, refetchIntervalMs?: number, scope?: StudioV2RecordingReadScope) {
+  return useQuery(writeGroupDeliveryQueryOptions(groupId, enabled, refetchIntervalMs, scope));
 }
 
 function useInvalidateWriteGroups() {

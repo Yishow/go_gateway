@@ -61,7 +61,8 @@ function snapshot<T>(value: T): RecordingReadonly<T> {
 }
 function invalidScope(scope: RecordingHomeScope): RecordingUnavailableReason | undefined {
   if (!scope.workspaceId) return 'scope_mismatch';
-  if (!scope.workspaceRevision) return 'revision_mismatch';
+  // Explicit empty is a valid fresh/legacy DatabaseSetupRevision; absence is not.
+  if (typeof scope.workspaceRevision !== 'string') return 'revision_mismatch';
   if (!Number.isSafeInteger(scope.epoch) || scope.epoch < 0) return 'invalid_evidence';
 }
 function mismatch(actual: RecordingHomeScope, expected: RecordingHomeScope): RecordingUnavailableReason | undefined {

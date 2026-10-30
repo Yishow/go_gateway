@@ -62,7 +62,7 @@ describe('scope rejection and unavailable evidence', () => {
   });
   it.each([
     [{ workspaceId: '' }, 'scope_mismatch'],
-    [{ workspaceRevision: '' }, 'revision_mismatch'],
+    [{ workspaceRevision: undefined as unknown as string }, 'revision_mismatch'],
     [{ epoch: -1 }, 'invalid_evidence'],
     [{ epoch: NaN }, 'invalid_evidence'],
     [{ epoch: 0.5 }, 'invalid_evidence'],

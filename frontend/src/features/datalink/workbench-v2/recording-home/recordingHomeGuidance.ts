@@ -55,7 +55,7 @@ function resolveGuidance(input: RecordingHomeGuidanceInput): RecordingHomeGuidan
   const base = { availability: { state: 'available' as const }, attentionItems, draftItems, recordingItems };
   const unavailable = [evidence.workspace, evidence.sources, evidence.groups].find(item => item.state === 'unavailable');
   if (unavailable?.state === 'unavailable') return { ...base, availability: unavailable, reason: 'evidence_unavailable',
-    primaryAction: scope.workspaceId && scope.workspaceRevision && Number.isSafeInteger(scope.epoch) && scope.epoch >= 0
+    primaryAction: scope.workspaceId && typeof scope.workspaceRevision === 'string' && Number.isSafeInteger(scope.epoch) && scope.epoch >= 0
       ? { kind: 'navigate', scope, target: 'evidence' } : null };
   const workspaceDevices = evidence.workspace.state === 'available' ? evidence.workspace.value.ordered_device_ids : [];
   const sourceCandidates = evidence.sources.state === 'available' ? evidence.sources.value.candidates : [];
