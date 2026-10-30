@@ -17,7 +17,7 @@
 
 - Affected specs: simple-recording-home (new); datalink-workbench-v2-shell (modified); datalink-workbench-v2-settings (modified)
 - Affected code:
-  - Modified: frontend/src/services/studioEntityLocator.ts; frontend/src/App.tsx; frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx; frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
+  - Modified: `frontend/src/services/studioEntityLocator.ts`; `frontend/src/App.tsx`; `frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx`; `frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx`
   - New: frontend/src/features/datalink/workbench-v2/recording-home/; frontend/tests/unit/workbench-v2/recording-home.test.tsx
   - Removed: none
 - 依賴已完成 guide-step4-recording-workflow、expose-runtime-recording-rules、make-runtime-logs-actionable 的現行契約。後續 streamline-recording-task-editor、simplify-recording-lifecycle-recovery、adopt-simple-recording-entry 接續；不改寫舊完成證據。

@@ -1,7 +1,7 @@
 ## 1. 首頁證據與導引
 
-- [ ] 1.1 在共同owner demo確認gate完成後，以 Red-Green-Refactor 建立 Home guidance projects canonical scoped evidence 純投影；驗證 opening 零 mutation、舊 scope 回覆不覆蓋，執行 recording-home projection 單元測試。
-- [ ] 1.2 [after: 1.1] 實作 Guidance states coexist with deterministic priority 的「首頁優先序與同時存在的狀態」，涵蓋空白、有設備無點、有點無規則、草稿、正常、異常與混合；以相同 resolver fixtures 回歸測試驗證不遮蔽其他項目。
+- [x] 1.1 在共同owner demo確認gate完成後，以 Red-Green-Refactor 建立 Home guidance projects canonical scoped evidence 純投影；驗證 opening 零 mutation、舊 scope 回覆不覆蓋，執行 recording-home projection 單元測試。
+- [x] 1.2 [after: 1.1] 實作 Guidance states coexist with deterministic priority 的「首頁優先序與同時存在的狀態」，涵蓋空白、有設備無點、有點無規則、草稿、正常、異常與混合；以相同 resolver fixtures 回歸測試驗證不遮蔽其他項目。
 - [ ] 1.3 [after: 1.2] 串接首頁唯讀 hooks 與 safe error state；驗證 loading/error/unprovable-scope 不偽裝空白，切換 workspace 後過期回覆不啟用命令。
 
 ## 2. 同路由與結果呈現
