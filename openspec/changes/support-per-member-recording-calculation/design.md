@@ -1,0 +1,73 @@
+## Context
+
+基準6f4a5fc。已核對WriteGroupMember無計算欄位、WriteGroupRecordingProfile僅group reduction，runtime/group_boundary_wide_profile及long依group Kind決定cumulative；snapshot/assembler_counter要求全group counter或無counter。mean profile雖可gauge平均＋counter_raw/state最新值，但counter_raw不做delta。group_row_layout_wide_counter_test確認舊wide欄位存raw、delta在provenance，不能改下拉就說能mean/mean/delta同列。
+
+## Goals / Non-Goals
+
+**Goals:** 同record group的各member選latest/mean/delta，各自使用對齊member時間窗，wide同一列各欄是真正選定結果；不確定delta有NULL原因／required skip與原子baseline進展。提供editor consumer契約。
+
+**Non-Goals:** 不把計算寫入global Point、不新增採集／任意公式／觸發引擎、不新增DB dialect或protocol、不遷移歷史SQL值、不自動拆成多record、不放寬ownership，不直接改四案UI。新mixed shape涵蓋既有managed wide及long布局；long一列一個到期member，不假裝一列包含全部members。native-monthly/legacy custom保原功能，未具新shape證明的組合明確受阻。
+
+## Decisions
+
+### Member意圖與新mixed形狀獨立於來源
+
+新增WriteGroupMember.calculation=latest|mean|delta，僅在顯式versioned mixed profile使用；API讀回configured method、effective method、source/result type、applicability、member identity及group/source/mapping/measurement revisions。canonical group member/mapping是authority，Point／Tag只提供來源與型別，沒有global method。新member初始化latest；群組預設只是建立新member的UI捷徑，既有explicit不被批次默覆。相同source可在不同record使用不同method與獨立baseline。
+
+新增profile.kind=mixed與result shape member-calculation-v1，不借舊instantaneous/cumulative假裝支援；member method必需，unknown/omitted混合member拒絕。既有profile不因reload/upgrade增欄或改method。既有profile/sample_reduction與role投影只供legacy摘要：mean gauge平均、counter_raw/state最新，cumulative維持原raw column＋delta provenance。明確轉mixed先產生新candidate/revision，必要時走既有successor/schema流程，不in-place重寫已寫入資料。
+
+### 每member對齊時間窗與結果
+
+每member保存自己的interval/unit與alignment basis，明確支援15秒mean、60秒delta及10分鐘等需求；原「mixed單一1–300秒上限／同窗」已被新需求取代，不當新契約上限。沿既有snapshot selector的UTC epoch anchored half-open windows，啟用時刻不能改phase；15秒對齊00/15/30/45、5秒00/05…55、600秒於使用者UTC+8顯示分鐘00/10…50。member interval為正整數second/minute，正規化為精確duration並檢查overflow；必須支援5s/15s/60s/600s驗收值。其餘可選值以backend明示且經資源限制驗證的bounded capability為準，不臆定新的通用最大值、不用UI任意unit繞過validator；既有legacy bounds不變。此處不新增cron／日曆／DST引擎，顯示alignment basis與實際next-boundary，不能宣稱任何timezone都自動有相同local minute phase。latest用既有eligible latest，mean用既有等權arithmetic mean且numeric gauge才可選；bool/text只latest。delta須已確認counter binding/policy，不能按name/unit猜counter。新mixed不以sample_reduction決定所有member；若同時送衝突舊group reduction則拒絕，不忽略。
+
+派送重用snapshot selectors、measurement.Mean、aggregation.CloseCounterWindow，只有delta members有counterbinding；mean/latest不能偷偷產生baseline。scope/CAS、型別、scale、source-boundproof均保留。完整wide result欄存每member結果：Amean、Bmean、Cdelta。delta raw、from/to、sample IDs、counter status/policy與coverage存既有可擴充provenance；不能以raw覆蓋delta欄。exact integer/decimal結果沿既有typed SQL encoding，不經float64或JSONnumber損精度。
+
+### 缺值與baseline進展明確
+
+每member required沿既有配置。missing/invalid/stale、無有效mean、delta首窗無baseline／不確定reset／無法解釋下降皆沒有可用結果。optional寫NULL＋具體原因，僅fresh schema證明nullable與quality/provenance支援才允許partial；任何到期required沒有結果則wide整個row skipped（long只跳過該member列）；未到期required不造成skip，不製造0、不退回raw、不拆成兩筆mean row。當首窗因required delta跳過row，baseline與skip closure仍原子保存，下一窗才能算，不能永遠首窗。
+
+counter的signed、rollover、reset證據沿既有確認policy與可靠tail規則；不發明所有負差invalid。missing window不advancebaseline，後續可能計算跨窗span total；新mixed同窗delta欄只接受屬於該member當窗的可靠增量，CounterGap/Span結果寫NULL或required skip並在provenance保留真實from/to/span與reason，不把跨窗total冒稱當窗用量。此是新resultshape明確政策，不改legacy span記錄語意。
+
+### 版本與durable closure不能分離
+
+member method、resultshape/type、window、required、counterbinding/epoch/policy納入managed digest、candidate、source/mapping associations、readiness、frozen runtime descriptor、schema proof與CAS。method改變使舊readiness/consent失效，舊snapshot/sample proof不能被新method重解。counterbaseline以workspace/group revision/member/measurement binding隔離；新method或binding revision透過既有受審migration/handoff，無可證明相容baseline則新baseline，不跨record借用。
+
+單一closure transaction保存所有member計算證據、counter checkpoints、bucket進度與row/skip outbox；提交失敗不得只advancebaseline。重啟replay沿immutable runtimeversion與stableeffect id，不重算已接受舊output成新method；SQL response lost使用既有receipt查證，unknown不重建另一row。copy新record不複製baseline/readiness/proof。
+
+### 已確認不同週期輸出與邊界
+
+採UTC epoch對齊，member僅當邊界T是其interval整數倍才到期，計算半開窗[T-interval,T)；恰在T的觀測屬下一窗，delta baseline沿既有可靠前窗tail而非強行用T的值。於T加既有allowed lateness後才可closure，實際SQL commit可更晚。wide以各member到期邊界聯集產一列；未到期欄NULL＋not_due，不carry舊delta、不補0、不advance其baseline。15秒mean＋60秒delta在:15/:30/:45僅mean有值，:00使用各自前15秒／前60秒結果同列。long每個到期member各一列，未到期不新增列；到期失敗沿required skip／optional NULL及具體reason，不混成not_due。fresh schema必須證明wide非同頻欄位可nullable並保留not_due品質，即使該member在到期時為required。
+
+每個到期結果保留member identity、method、interval、aligned window start/end、actual coverage、quality/reason及provenance；not_due不偽造已計算window或sample，保留其設定與next due。wide列的T是共同到期標記，不代表全部欄同長window。first partial沿snapshot.windowBounds及markTruncation：aligned identity不改，實際起點max(window start, StartsAt)，可用latest/mean保留boundary-truncated與partial coverage，不捏造啟用前樣本；無baseline delta仍不可用，required skip／optional NULL，baseline與skip原子保存。不把partial mean冒稱完整15秒，無可靠單窗delta不可冒稱60秒用量。
+
+### 分期擴展與consumer交接
+
+expand新增optional persistence字段／版本讀取，legacy不變；migrate明確mixed候選走fresh安全gate；contract只在runtime/encoder/readiness/proof全部支援時開capability。不刪舊profile。新shape需要schema preview確認result欄型別與nullable，已有raw wide table轉delta結果語意不能默認相容，優先既有新表successor，歷史留存。
+
+editor每已選member顯示「存最後讀值／平均／增加量」與例子，不讓操作員以為與ABCD字序是同一設定；同source不同record不互改。此案不實作頁面，streamline-recording-task-editor依本案完成後接API；adopt-simple-recording-entry加同row mean/mean/delta驗收。owner仍需新版demo確認，proposal不授權apply。
+
+## Implementation Contract
+
+- 本案獨立於preserve-per-point-word-order的decoder能力；兩者都會影響source/runtimeproof時不得平行修改重疊檔，整合重驗revision與samplebinding。
+- 與integrate-protocol-aware-acquisition-batching僅共享觀測輸入契約：batch大小／協議分段不得更改observed_at、sample identity、quality或source revision，不以read batch重定記錄window；不新增硬性先後依賴，重疊runtime/proof檔需序列整合重驗。
+- 實作選測workspace/snapshot/aggregation/runtime/dbtarget/groupdelivery與scoped API，每個垂直批次可build；完整功能最後跑相關側完整tests/vet/lint與前端總驗收。
+- 同機可丟棄SQLite為必要local durable＋SQLreadback證據；既有其他SQL dialect僅在受影響capability範圍測。fake transport，不連PLC／正式DB、不新增環境。
+- 真驗收fixture：同bucket A=[20,22,24]→22、B=[10,14]→12、C可靠baseline1000→1008→8，SQL一列三欄；另驗firstbaseline、requiredskip/optionalNULL、gapspan、policy/reset/rollover、CAS、crash/replay、lostreceipt與legacy無變。
+
+## Risks / Trade-offs
+
+- 混合欄位被舊raw encoder誤寫 → versioned resultshape與真SQLreadback斷言。
+- 首窗skip卡死baseline → skipclosure同tx持久化checkpoint並restart測試。
+- group defaults覆蓋明確member → 只新member初始化，immutable intent與CAS。
+- 相同來源不同record共享baseline → group/member/binding/revision隔離＋雙recordfixture。
+- 以15個task硬塞大改 → 每task是單一可驗證垂直契約；實作若超出一context或發現新backend外延，停下修規格，不省略gate。
+
+## 最新需求取代共同窗口，儲存語意已確認
+
+**Supersedes**: support-per-member-recording-calculation / 單一時間窗與每member結果
+
+2026-10-30使用者要求同record內15秒平均＋1分鐘delta，以及多record的5秒／10分鐘整齊對齊。共同window限制與mixed 300秒上限撤回；原pending task1.3/2.1改為各member cadence，未標完成。interval合法值由上述backend bounded capability與驗收值約束，不沿用任意demo範圍。
+
+**Supersedes**: 前版必要storage決策blocker由2026-10-30 16:50 UTC使用者「這個決策依你說的避免記錯意思下去做」解除，確認寬表未到期留空、長表不新增未到期列、不補0、不沿用增加量，到期失敗另記原因且每筆保留自身區間。這只確認計算／儲存語意，不是新版demo核准或apply授權。
+
+**已確定時間事實:** selector.go按UTC UnixNano/interval定位半開窗；Plan等window end+allowedlateness後閉窗；現pipeline/worker tick與SQL重試造成實際commit時間延遲。畫面分「資料窗口／到期時間」與「實際SQL寫入時間」，不能保證00整秒落盤；delay/restart不得把補寫時間當資料時間。採集ticker與記錄對齊是不同層，不改採集protocol週期。
