@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
+
+	"go-gateway/internal/datalink/sqltx"
 )
 
 // EnsureCircuitProfile creates or reuses the canonical managed group of one
@@ -58,6 +61,10 @@ func (s *WriteGroupService) ensureCircuitProfile(ctx context.Context, mutation W
 		return &WriteGroupSaveResult{WorkspaceRevision: updated.DatabaseSetupRevision, Group: saved}, nil
 	}
 
+	if errors.Is(err, sqltx.ErrCommitOutcomeUnknown) || errors.Is(err, sqltx.ErrConnectionUnusable) {
+		return nil, normalizeWriteGroupServiceError("ensure circuit profile", err)
+	}
+
 	// A competing save may have won the key after the optimistic workspace
 	// check. Resolve the committed identity before reporting a stale revision
 	// so a lost response stays idempotent.
@@ -73,6 +80,9 @@ func (s *WriteGroupService) ensureCircuitProfile(ctx context.Context, mutation W
 // payload and derives the canonical key it would occupy.
 func circuitProfileCandidate(mutation WriteGroupMutation) (*WriteGroup, circuitProfileKey, error) {
 	candidate := cloneWriteGroup(mutation.Group)
+	if isMixedWriteGroup(candidate) && candidate.Destination.StorageStrategy != WriteGroupStorageStrategyManaged {
+		return nil, circuitProfileKey{}, fmt.Errorf("%w: mixed records require explicit managed storage", ErrWriteGroupValidation)
+	}
 	candidate.ID = ""
 	candidate.Revision = ""
 	candidate.AppliedRevision = ""
@@ -111,6 +121,10 @@ func circuitProfileCandidate(mutation WriteGroupMutation) (*WriteGroup, circuitP
 
 func (s *WriteGroupService) replayCircuitProfile(ctx context.Context, key circuitProfileKey, candidate *WriteGroup) (*WriteGroupSaveResult, bool, error) {
 	group, err := s.repo.findProfileGroup(ctx, key)
+	// A missing key does not erase a failure to clean its read transaction.
+	if errors.Is(err, sqltx.ErrCommitOutcomeUnknown) || errors.Is(err, sqltx.ErrConnectionUnusable) {
+		return nil, false, normalizeWriteGroupServiceError("find circuit profile group", err)
+	}
 	if errors.Is(err, ErrWriteGroupNotFound) || errors.Is(err, ErrNotFound) {
 		return nil, false, nil
 	}
@@ -134,6 +148,9 @@ func (s *WriteGroupService) replayCircuitProfile(ctx context.Context, key circui
 // Group and circuit display names are deliberately ignored: renaming never
 // changes identity.
 func sameCircuitProfileIntent(candidate, existing *WriteGroup) bool {
+	if isMixedWriteGroup(candidate) && !sameMixedMemberRevisions(candidate, existing) {
+		return false
+	}
 	if candidate.isLongLayout() && existing.isLongLayout() && candidate.Destination.TableName == "" {
 		// A long group's table is server-derived from its scope, not from its ID.
 		candidate = cloneWriteGroup(candidate)

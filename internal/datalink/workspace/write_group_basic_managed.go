@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"go-gateway/internal/datalink/sqltx"
 )
 
 const (
@@ -84,6 +86,10 @@ func (s *WriteGroupService) ensureBasicManaged(ctx context.Context, deviceID str
 		return &WriteGroupSaveResult{WorkspaceRevision: updated.DatabaseSetupRevision, Group: saved}, nil
 	}
 
+	if errors.Is(err, sqltx.ErrCommitOutcomeUnknown) || errors.Is(err, sqltx.ErrConnectionUnusable) {
+		return nil, err
+	}
+
 	// A competing save may have won the persistent key after the optimistic
 	// workspace check. Resolve the already-committed identity before returning
 	// a stale-revision error so a lost response remains idempotent.
@@ -148,6 +154,10 @@ func basicManagedCandidate(mutation WriteGroupMutation, deviceID string) (*Write
 
 func (s *WriteGroupService) replayBasicManaged(ctx context.Context, workspaceID, deviceID string, candidate *WriteGroup) (*WriteGroupSaveResult, bool, error) {
 	group, err := s.repo.findBasicManaged(ctx, workspaceID, deviceID)
+	// A missing key does not erase a failure to clean its read transaction.
+	if errors.Is(err, sqltx.ErrCommitOutcomeUnknown) || errors.Is(err, sqltx.ErrConnectionUnusable) {
+		return nil, false, normalizeWriteGroupServiceError("find basic managed", err)
+	}
 	if errors.Is(err, ErrWriteGroupNotFound) || errors.Is(err, ErrNotFound) {
 		return nil, false, nil
 	}

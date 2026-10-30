@@ -143,7 +143,7 @@ func (r *SQLWriteGroupRepository) insertGroup(ctx context.Context, runner writeG
 	if err := ValidateMemberCalculationIntent(group); err != nil {
 		return err
 	}
-	rowPolicy, err := json.Marshal(group.RowPolicy)
+	rowPolicy, err := marshalWriteGroupRowPolicy(group)
 	if err != nil {
 		return fmt.Errorf("encode write-group row policy: %w", err)
 	}
@@ -175,6 +175,10 @@ func (r *SQLWriteGroupRepository) insertGroup(ctx context.Context, runner writeG
 		return fmt.Errorf("insert write group: %w", err)
 	}
 	for memberIndex, member := range group.Members {
+		cadence, err := memberCadenceStorage(member.Cadence)
+		if err != nil {
+			return err
+		}
 		var measurementID any
 		if member.MeasurementID != nil {
 			measurementID = *member.MeasurementID
@@ -192,13 +196,13 @@ func (r *SQLWriteGroupRepository) insertGroup(ctx context.Context, runner writeG
 				group_id, member_index, device_id, point_id, tag_id,
 				entity_key, source_revision, mapping_revision, measurement_id, target_column,
 				required, max_age_seconds, circuit_id, circuit_name,
-				value_role, source_value_type, result_value_type, exact_recording_source, calculation
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+				value_role, source_value_type, result_value_type, exact_recording_source, calculation, cadence
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 		`), group.ID, memberIndex, member.DeviceID, member.PointID, member.TagID,
 			member.EntityKey, member.SourceRevision, member.MappingRevision, measurementID, member.TargetColumn,
 			member.Required, member.MaxAgeSeconds, nullableText(member.CircuitID), nullableText(member.CircuitName),
 			nullableText(string(member.ValueRole)), nullableText(string(member.SourceValueType)), nullableText(string(member.ResultValueType)),
-			exactRecordingSource, nullableText(string(member.Calculation)))
+			exactRecordingSource, nullableText(string(member.Calculation)), cadence)
 		if err != nil {
 			return fmt.Errorf("insert write-group member %d: %w", memberIndex, err)
 		}

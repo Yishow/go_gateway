@@ -2,7 +2,7 @@
 
 - [x] 1.1 共同新版demo owner確認後，以Red-Green-Refactor實作 Recording members own calculation intent 與「Member意圖與新mixed形狀獨立於來源」的typed member method/profile/resultshape；測unknown/omitted拒絕、同source不同record不互改、groupdefault不覆explicit與legacy未改。
 - [x] 1.2 [after: 1.1] 以Red-Green-Refactor交付「儲存擴展與草稿能力分期」的nullable member/resultshape與內部mixed snapshot寫入／scoped readback，實作 Legacy profiles keep their original meaning 與 Persisted reduction and independent value roles；安全擴展write_groups CHECK，測可丟棄SQLite migration/reload/restart、rollback／repair重入、legacy完整列與既有CRUD/CAS不變、foreign identity拒絕。正常mixed mutation／activation保持受阻，不虛構group interval。
-- [ ] 1.3 [after: 1.2] 實作 Member windows align independently of activation 與「每member對齊時間窗與結果」的member cadence驗證（使用backend bounded capability，不新增任意上限）與member適用性；測15秒／5秒整秒phase、60秒／10分鐘整分phase、非邊界啟用與restart不漂移、fraction/unknownunit、bool/text mean、未確認counter delta與衝突group reduction失敗；接通正常mixed草稿scoped CRUD／CAS及「來源共享與記錄身份隔離」，以record-scoped canonical identity支援同DB不同table的同source獨立method／cadence，測重送同record不重建、foreign scope／stale拒絕、同target衝突及legacy create-once不變；runtime／proof gates未完成仍不得activation。
+- [x] 1.3 [after: 1.2] 實作 Member windows align independently of activation 與「每member對齊時間窗與結果」的member cadence驗證（使用backend bounded capability，不新增任意上限）與member適用性；測15秒／5秒整秒phase、60秒／10分鐘整分phase、非邊界啟用與restart不漂移、fraction/unknownunit、bool/text mean、未確認counter delta與衝突group reduction失敗；接通正常mixed草稿scoped CRUD／CAS及「來源共享與記錄身份隔離」，以record-scoped canonical identity支援同DB不同table的同source獨立method／cadence，測重送同record不重建、foreign scope／stale拒絕、同target衝突及legacy create-once不變；runtime／proof gates未完成仍不得activation。
 
 ## 2. 窗口派送與正確結果
 

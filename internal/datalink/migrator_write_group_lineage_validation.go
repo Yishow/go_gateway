@@ -29,9 +29,9 @@ func validateSQLiteLineageKeyScopes(ctx context.Context, reader sqliteLineageRea
 		{"basic key shape", `SELECT 1 FROM write_group_basic_keys
 			WHERE TRIM(device_id)='' OR canonical_role<>'basic'`},
 		{"profile key shape", `SELECT 1 FROM write_group_profile_keys
-			WHERE profile_kind NOT IN ('instantaneous','cumulative') OR NOT (
-			(canonical_role='circuit' AND TRIM(circuit_id)<>'' AND selection_scope='') OR
-			(canonical_role='unassigned' AND circuit_id='' AND TRIM(selection_scope)<>'' AND profile_kind='instantaneous'))`},
+			WHERE NOT (
+			(canonical_role='circuit' AND TRIM(circuit_id)<>'' AND selection_scope='' AND profile_kind IN ('instantaneous','cumulative')) OR
+			(canonical_role='unassigned' AND circuit_id='' AND TRIM(selection_scope)<>'' AND profile_kind='instantaneous') OR ` + recordProfileTupleCheck + `)`},
 	}
 	for _, check := range checks {
 		if err := rejectSQLiteLineageRows(ctx, reader, check.reason, check.query); err != nil {

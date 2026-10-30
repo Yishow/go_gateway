@@ -123,6 +123,8 @@ func sameWriteGroupSchema(candidate, existing *WriteGroup) bool {
 				member.TargetColumn == existingMember.TargetColumn &&
 				member.EntityKey == existingMember.EntityKey &&
 				member.ValueRole == existingMember.ValueRole &&
+				member.Calculation == existingMember.Calculation &&
+				sameMemberCadence(member.Cadence, existingMember.Cadence) &&
 				sameStoredMetadata(string(member.SourceValueType), string(existingMember.SourceValueType)) &&
 				sameStoredMetadata(string(member.ResultValueType), string(existingMember.ResultValueType)) &&
 				sameExactRecordingSource(member.ExactRecordingSource, existingMember.ExactRecordingSource)
@@ -138,7 +140,7 @@ func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, g
 	if err := ValidateMemberCalculationIntent(group); err != nil {
 		return err
 	}
-	rowPolicy, err := json.Marshal(group.RowPolicy)
+	rowPolicy, err := marshalWriteGroupRowPolicy(group)
 	if err != nil {
 		return fmt.Errorf("encode write-group row policy: %w", err)
 	}
@@ -181,6 +183,10 @@ func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, g
 		return fmt.Errorf("replace write-group members: %w", err)
 	}
 	for index, member := range group.Members {
+		cadence, err := memberCadenceStorage(member.Cadence)
+		if err != nil {
+			return err
+		}
 		var measurementID any
 		if member.MeasurementID != nil {
 			measurementID = *member.MeasurementID
@@ -198,13 +204,13 @@ func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, g
 				group_id, member_index, device_id, point_id, tag_id,
 				entity_key, source_revision, mapping_revision, measurement_id, target_column,
 				required, max_age_seconds, circuit_id, circuit_name,
-				value_role, source_value_type, result_value_type, exact_recording_source, calculation
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+				value_role, source_value_type, result_value_type, exact_recording_source, calculation, cadence
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 		`), group.ID, index, member.DeviceID, member.PointID, member.TagID,
 			member.EntityKey, member.SourceRevision, member.MappingRevision, measurementID, member.TargetColumn,
 			member.Required, member.MaxAgeSeconds, nullableText(member.CircuitID), nullableText(member.CircuitName),
 			nullableText(string(member.ValueRole)), nullableText(string(member.SourceValueType)), nullableText(string(member.ResultValueType)),
-			exactRecordingSource, nullableText(string(member.Calculation))); err != nil {
+			exactRecordingSource, nullableText(string(member.Calculation)), cadence); err != nil {
 			return fmt.Errorf("replace write-group member %d: %w", index, err)
 		}
 	}

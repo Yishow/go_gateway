@@ -7,11 +7,24 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"go-gateway/internal/datalink/sqltx"
 )
 
 // expandSQLiteMixedProfile preserves the canonical table and all references.
 // The dedicated connection never returns to the pool with altered pragmas.
-func expandSQLiteMixedProfile(db *sql.DB, checkpoint func(string) error) (err error) {
+func expandSQLiteMixedProfile(db *sql.DB, checkpoint func(string) error) error {
+	return runSQLiteConfigurationExpansion(db, func(ctx context.Context, tx *sql.Tx) error {
+		if err := addSQLiteMemberCalculationColumns(ctx, tx); err != nil {
+			return err
+		}
+		return rebuildMixedProfileTable(ctx, tx, checkpoint)
+	})
+}
+
+// runSQLiteConfigurationExpansion gives additive/rebuild migrations the same
+// exclusive transaction, FK restoration and empty-temp cleanup safeguards.
+func runSQLiteConfigurationExpansion(db *sql.DB, migrate func(context.Context, *sql.Tx) error) (err error) {
 	ctx := context.Background()
 	conn, err := db.Conn(ctx)
 	if err != nil {
@@ -34,6 +47,11 @@ func expandSQLiteMixedProfile(db *sql.DB, checkpoint func(string) error) (err er
 		return err
 	}
 	defer func() {
+		// Cleanup already discarded this exact connection. Never restore pragmas
+		// on a replacement pool connection or report an unavailable DB as repaired.
+		if errors.Is(err, sqltx.ErrConnectionUnusable) {
+			return
+		}
 		tempErr := restoreSQLiteMigrationTemp(ctx, conn, hadTemp, tempStore)
 		restore := restoreSQLiteMigrationPragmas(
 			[]sqliteMigrationPragma{{"legacy_alter_table", legacyAlter}, {"foreign_keys", foreignKeys}},
@@ -60,28 +78,27 @@ func expandSQLiteMixedProfile(db *sql.DB, checkpoint func(string) error) (err er
 	if err != nil {
 		return err
 	}
-	committed := false
+	terminal := false
 	defer func() {
-		if !committed {
-			if e := tx.Rollback(); e != nil && !errors.Is(e, sql.ErrTxDone) {
-				err = errors.Join(err, e)
+		if !terminal {
+			if e := tx.Rollback(); e != nil {
+				cleanupErr := sqltx.RollbackSQLite(conn)
+				if !errors.Is(e, sql.ErrTxDone) {
+					err = errors.Join(err, e)
+				}
+				err = errors.Join(err, cleanupErr)
 			}
 		}
 	}()
 	if _, err = tx.ExecContext(ctx, "UPDATE write_groups SET id=id WHERE 0"); err != nil {
 		return err
 	}
-	if err = addSQLiteMemberCalculationColumns(ctx, tx); err != nil {
+	if err = migrate(ctx, tx); err != nil {
 		return err
 	}
-	if err = rebuildMixedProfileTable(ctx, tx, checkpoint); err != nil {
-		return err
-	}
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-	committed = true
-	return nil
+	commitErr := tx.Commit()
+	terminal = true
+	return sqltx.FinishSQLiteCommit(conn, commitErr)
 }
 
 func rebuildMixedProfileTable(ctx context.Context, tx *sql.Tx, checkpoint func(string) error) error {

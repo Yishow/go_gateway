@@ -81,10 +81,15 @@ func ValidateMemberCalculationIntent(group *WriteGroup) error {
 	}
 	for i, member := range group.Members {
 		if !mixed {
-			if member.Calculation != "" {
+			if member.Calculation != "" || member.Cadence != nil {
 				return fmt.Errorf("%w: member %d calculation requires mixed profile", ErrWriteGroupValidation, i)
 			}
 			continue
+		}
+		if member.Cadence != nil {
+			if _, err := member.Cadence.Duration(); err != nil {
+				return err
+			}
 		}
 		if err := member.Calculation.validate(); err != nil {
 			return fmt.Errorf("member %d: %w", i, err)

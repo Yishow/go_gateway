@@ -2,7 +2,10 @@ package workspace
 
 import (
 	"context"
+	"errors"
 	"time"
+
+	"go-gateway/internal/datalink/sqltx"
 )
 
 // retryWhileSQLiteBusy repeats a create-once operation while SQLite reports a
@@ -10,7 +13,7 @@ import (
 func retryWhileSQLiteBusy(ctx context.Context, operation func() (*WriteGroupSaveResult, error)) (*WriteGroupSaveResult, error) {
 	for attempt := 0; ; attempt++ {
 		result, err := operation()
-		if err == nil || !isSQLiteBusyError(err) || attempt == basicManagedRetryAttempts-1 {
+		if err == nil || errors.Is(err, sqltx.ErrCommitOutcomeUnknown) || errors.Is(err, sqltx.ErrConnectionUnusable) || !isSQLiteBusyError(err) || attempt == basicManagedRetryAttempts-1 {
 			return result, err
 		}
 		timer := time.NewTimer(10 * time.Millisecond)

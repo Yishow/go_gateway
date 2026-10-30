@@ -129,6 +129,9 @@ func circuitProfileKeyOf(group *WriteGroup) (circuitProfileKey, error) {
 	if group.RecordingProfile == nil || len(group.Members) == 0 {
 		return circuitProfileKey{}, fmt.Errorf("%w: a recording profile and members are required", ErrWriteGroupValidation)
 	}
+	if isMixedWriteGroup(group) {
+		return mixedRecordProfileKey(group)
+	}
 	key := circuitProfileKey{WorkspaceID: group.WorkspaceID, Kind: group.RecordingProfile.Kind}
 	circuitID := group.Members[0].CircuitID
 	deviceID := group.Members[0].DeviceID
@@ -193,6 +196,19 @@ func normalizeWriteGroupProfile(group *WriteGroup) error {
 			return err
 		}
 	}
+	if isMixedWriteGroup(group) {
+		if group.Destination.StorageStrategy != WriteGroupStorageStrategyManaged {
+			return fmt.Errorf("%w: mixed records require managed storage", ErrWriteGroupValidation)
+		}
+		if group.RowPolicy.IntervalSeconds != 0 {
+			return fmt.Errorf("%w: mixed records cannot carry a group interval", ErrWriteGroupValidation)
+		}
+		if group.StorageMode != "" && group.StorageMode != WriteGroupStorageModePlain {
+			return fmt.Errorf("%w: mixed storage mode is not supported", ErrWriteGroupValidation)
+		}
+		_, err := mixedRecordProfileKey(group)
+		return err
+	}
 	profile := group.RecordingProfile
 	if profile == nil {
 		return nil
@@ -234,7 +250,7 @@ func sameRecordingProfile(left, right *WriteGroupRecordingProfile) bool {
 	// The reduction compares through its effective value: a profile that omits
 	// the field and one that explicitly pins latest are the same intent, so a
 	// no-op resend replays the saved group instead of conflicting.
-	return left.Kind == right.Kind && left.Interval == right.Interval && left.Unit == right.Unit &&
+	return left.ResultShape == right.ResultShape && left.Kind == right.Kind && left.Interval == right.Interval && left.Unit == right.Unit &&
 		left.EffectiveSampleReduction() == right.EffectiveSampleReduction()
 }
 

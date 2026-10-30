@@ -252,7 +252,13 @@ func (r *SQLWriteGroupRepository) validateDefinitionWithMeasurements(ctx context
 		if err := applyRecordingMetadata(group, member, i, schema.DataType(source.TagDataType)); err != nil {
 			return err
 		}
-		if member.ValueRole == WriteGroupValueRoleCounterRaw {
+		if member.Calculation == WriteGroupMemberCalculationMean {
+			def := definitions[*member.MeasurementID]
+			if def == nil || def.SemanticKind != measurement.SemanticKindGauge {
+				return fmt.Errorf("%w: member %d mean requires gauge measurement semantics", ErrWriteGroupValidation, i)
+			}
+		}
+		if member.ValueRole == WriteGroupValueRoleCounterRaw || member.Calculation == WriteGroupMemberCalculationDelta {
 			if err := confirmCounterBinding(definitions[*member.MeasurementID]); err != nil {
 				return fmt.Errorf("member %d: %w", i, err)
 			}
@@ -267,6 +273,9 @@ func (r *SQLWriteGroupRepository) validateDefinitionWithMeasurements(ctx context
 // and never backfilled. The source type is the tag's own data type; a caller
 // type that differs from it is refused instead of silently saved.
 func applyRecordingMetadata(group *WriteGroup, member *WriteGroupMember, index int, tagType schema.DataType) error {
+	if isMixedWriteGroup(group) {
+		return applyMixedRecordingMetadata(member, index, tagType)
+	}
 	newShape := group.RecordingProfile.EffectiveSampleReduction() == WriteGroupSampleReductionMean ||
 		group.EffectiveLayoutVersion() == WriteGroupLayoutManagedWideProfileV1 ||
 		memberMetadataUnsupported(member)

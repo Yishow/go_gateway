@@ -95,6 +95,9 @@ func NewWriteGroupService(workspaceSvc *Service, repo *SQLWriteGroupRepository, 
 
 // Create persists a server-owned draft write group.
 func (s *WriteGroupService) Create(ctx context.Context, mutation WriteGroupMutation) (*WriteGroupSaveResult, error) {
+	if isMixedWriteGroup(mutation.Group) {
+		return s.EnsureCircuitProfile(ctx, mutation)
+	}
 	if err := s.validate(); err != nil {
 		return nil, err
 	}

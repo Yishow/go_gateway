@@ -191,6 +191,13 @@ func (r *SQLWriteGroupRepository) checkProfileUpdateIdentity(ctx context.Context
 // group of the same profile kind and destination. The same source in the
 // other profile kind is a distinct output and stays allowed.
 func (r *SQLWriteGroupRepository) checkProfileSourceOwnership(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup) error {
+	if err := r.checkMixedTargetOwnership(ctx, runner, group); err != nil {
+		return err
+	}
+	if isMixedWriteGroup(group) {
+		_, err := mixedRecordProfileKey(group)
+		return err
+	}
 	if group.RecordingProfile == nil {
 		return nil
 	}

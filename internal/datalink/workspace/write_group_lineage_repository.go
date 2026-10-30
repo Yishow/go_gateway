@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"go-gateway/internal/datalink/common"
+	"go-gateway/internal/datalink/sqltx"
 )
 
 // ErrWriteGroupLineageCorrupt identifies incomplete or contradictory canonical
@@ -118,15 +119,20 @@ func (r *SQLWriteGroupRepository) validateUnkeyedLegacyGroup(ctx context.Context
 
 // findCanonicalGroup reads the real key before any metadata joins. A key that
 // exists cannot degrade to NotFound and accidentally enter ordinary creation.
-func (r *SQLWriteGroupRepository) findCanonicalGroup(ctx context.Context, workspaceID, keyQuery string, args ...any) (*WriteGroup, error) {
+func (r *SQLWriteGroupRepository) findCanonicalGroup(ctx context.Context, workspaceID, keyQuery string, args ...any) (result *WriteGroup, err error) {
 	if r == nil || r.db == nil {
 		return nil, lineageCorrupt("canonical repository unavailable")
 	}
-	tx, err := r.db.BeginTx(ctx, nil)
+	owned, err := sqltx.Begin(ctx, r.db, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin canonical read: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if rollbackErr := owned.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			err = errors.Join(err, rollbackErr)
+		}
+	}()
+	tx := owned.Tx
 	var genesisGroupID string
 	var lineageID sql.NullString
 	err = tx.QueryRowContext(ctx, r.query(keyQuery), args...).Scan(&genesisGroupID, &lineageID)
@@ -150,7 +156,7 @@ func (r *SQLWriteGroupRepository) findCanonicalGroup(ctx context.Context, worksp
 	if err != nil {
 		return nil, lineageCorrupt("read canonical head: %v", err)
 	}
-	if err := tx.Commit(); err != nil {
+	if err := owned.Commit(); err != nil {
 		return nil, fmt.Errorf("complete canonical read: %w", err)
 	}
 	return group, nil

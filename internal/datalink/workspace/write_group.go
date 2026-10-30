@@ -31,7 +31,9 @@ const (
 
 // WriteGroup is the persisted authority for one database output group.
 type WriteGroup struct {
-	ID              string `json:"id"`
+	ID string `json:"id"`
+	// RecordID is mixed canonical-key scope; persisted only in profile_keys.
+	RecordID        string `json:"record_id,omitempty"`
 	WorkspaceID     string `json:"workspace_id"`
 	Revision        string `json:"revision"`
 	AppliedRevision string `json:"applied_revision"`
@@ -59,6 +61,7 @@ type WriteGroup struct {
 type WriteGroupMember struct {
 	// Calculation belongs to this recording member, never to its source.
 	// Absence preserves legacy profiles; mixed submissions must set it.
+	Cadence     *WriteGroupMemberCadence    `json:"cadence,omitempty"`
 	Calculation WriteGroupMemberCalculation `json:"calculation,omitempty"`
 	DeviceID    string                      `json:"device_id"`
 	PointID     string                      `json:"point_id"`
@@ -148,6 +151,9 @@ func cloneWriteGroup(group *WriteGroup) *WriteGroup {
 	cloned := *group
 	cloned.Members = slices.Clone(group.Members)
 	for i, member := range group.Members {
+		if member.Cadence != nil {
+			cloned.Members[i].Cadence = common.Ptr(*member.Cadence)
+		}
 		if member.MeasurementID != nil {
 			cloned.Members[i].MeasurementID = common.Ptr(*member.MeasurementID)
 		}

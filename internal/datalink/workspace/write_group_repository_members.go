@@ -3,6 +3,7 @@ package workspace
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,6 +13,9 @@ import (
 )
 
 func (r *SQLWriteGroupRepository) loadBasicManagedDeviceID(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup) error {
+	if err := r.loadMixedRecordID(ctx, runner, group); err != nil {
+		return err
+	}
 	group.BasicManagedDeviceID = ""
 	if group.Destination.StorageStrategy != WriteGroupStorageStrategyManaged {
 		return nil
@@ -40,7 +44,7 @@ func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeG
 	rows, err := runner.QueryContext(ctx, r.query(`
 		SELECT device_id, point_id, tag_id, entity_key, source_revision, mapping_revision,
 			measurement_id, target_column, required, max_age_seconds, circuit_id, circuit_name,
-			value_role, source_value_type, result_value_type, exact_recording_source, calculation
+			value_role, source_value_type, result_value_type, exact_recording_source, calculation, cadence
 		FROM write_group_members
 		WHERE group_id = $1
 		ORDER BY member_index ASC
@@ -54,10 +58,10 @@ func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeG
 		var measurementID sql.NullString
 		var maxAgeSeconds sql.NullInt64
 		var entityKey, circuitID, circuitName sql.NullString
-		var valueRole, sourceValueType, resultValueType, exactRecordingSource, calculation sql.NullString
+		var valueRole, sourceValueType, resultValueType, exactRecordingSource, calculation, cadence sql.NullString
 		if err := rows.Scan(&member.DeviceID, &member.PointID, &member.TagID, &entityKey, &member.SourceRevision,
 			&member.MappingRevision, &measurementID, &member.TargetColumn, &member.Required, &maxAgeSeconds,
-			&circuitID, &circuitName, &valueRole, &sourceValueType, &resultValueType, &exactRecordingSource, &calculation); err != nil {
+			&circuitID, &circuitName, &valueRole, &sourceValueType, &resultValueType, &exactRecordingSource, &calculation, &cadence); err != nil {
 			_ = rows.Close()
 			return fmt.Errorf("scan write-group member: %w", err)
 		}
@@ -67,6 +71,14 @@ func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeG
 			return fmt.Errorf("decode member calculation: %w", err)
 		}
 		member.Calculation = WriteGroupMemberCalculation(method)
+		if cadence.Valid {
+			var parsed WriteGroupMemberCadence
+			if err := json.Unmarshal([]byte(cadence.String), &parsed); err != nil {
+				rows.Close()
+				return fmt.Errorf("decode member cadence: %w", err)
+			}
+			member.Cadence = &parsed
+		}
 		if entityKey.Valid {
 			member.EntityKey = entityKey.String
 		}

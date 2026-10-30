@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"go-gateway/internal/datalink/sqltx"
 )
 
 const storageKey = "studio_v2_workspace"
@@ -35,15 +37,16 @@ func (r *SQLRepository) Save(ctx context.Context, record *Record) error {
 
 // BeginDatabaseSetup opens the local transaction used by UpdateDatabaseSetup.
 func (r *SQLRepository) BeginDatabaseSetup(ctx context.Context) (DatabaseSetupTx, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := sqltx.Begin(ctx, r.db, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin studio v2 workspace transaction: %w", err)
 	}
-	return &sqlDatabaseSetupTx{tx: tx}, nil
+	return &sqlDatabaseSetupTx{tx: tx.Tx, owned: tx}, nil
 }
 
 type sqlDatabaseSetupTx struct {
-	tx *sql.Tx
+	owned *sqltx.Transaction
+	tx    *sql.Tx
 }
 
 func (t *sqlDatabaseSetupTx) SQLTx() *sql.Tx {
@@ -59,11 +62,11 @@ func (t *sqlDatabaseSetupTx) Save(ctx context.Context, record *Record) error {
 }
 
 func (t *sqlDatabaseSetupTx) Commit() error {
-	return t.tx.Commit()
+	return t.owned.Commit()
 }
 
 func (t *sqlDatabaseSetupTx) Rollback() error {
-	return t.tx.Rollback()
+	return t.owned.Rollback()
 }
 
 func readWorkspaceRecord(ctx context.Context, runner workspaceSQLRunner) (*Record, error) {

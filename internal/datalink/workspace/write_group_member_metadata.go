@@ -36,7 +36,7 @@ const (
 // metadata. No runtime proof serves these shapes yet, so such a group stays
 // savable but never starts or restores a writer.
 func memberMetadataUnsupported(member *WriteGroupMember) bool {
-	return member != nil && (member.Calculation != "" || member.ValueRole != "" || member.SourceValueType != "" || member.ResultValueType != "" || member.ExactRecordingSource != nil)
+	return member != nil && (member.Cadence != nil || member.Calculation != "" || member.ValueRole != "" || member.SourceValueType != "" || member.ResultValueType != "" || member.ExactRecordingSource != nil)
 }
 
 // UnmarshalJSON decodes a member and validates its calculation and recording
@@ -46,6 +46,7 @@ func memberMetadataUnsupported(member *WriteGroupMember) bool {
 func (m *WriteGroupMember) UnmarshalJSON(data []byte) error {
 	type memberAlias WriteGroupMember
 	var raw struct {
+		Cadence         json.RawMessage `json:"cadence"`
 		Calculation     json.RawMessage `json:"calculation"`
 		ValueRole       json.RawMessage `json:"value_role"`
 		SourceValueType json.RawMessage `json:"source_value_type"`
@@ -53,6 +54,9 @@ func (m *WriteGroupMember) UnmarshalJSON(data []byte) error {
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
+	}
+	if bytes.Equal(bytes.TrimSpace(raw.Cadence), []byte("null")) {
+		return fmt.Errorf("%w: member cadence cannot be null", ErrWriteGroupValidation)
 	}
 	_, err := decodeMemberEnum(raw.Calculation, func(value string) error {
 		return WriteGroupMemberCalculation(value).validate()
@@ -132,6 +136,18 @@ func decodeMemberEnum(raw json.RawMessage, known func(string) error) (*string, e
 // canonical meaning: roles exist only for instantaneous recording profiles.
 // It runs before the database is touched and never infers a role.
 func validateMemberMetadataShape(group *WriteGroup) error {
+	if isMixedWriteGroup(group) {
+		if err := ValidateMemberCalculationIntent(group); err != nil {
+			return err
+		}
+		return validateMixedMemberCadences(group)
+	}
+	if group.RecordID != "" {
+		return fmt.Errorf("%w: record_id requires mixed profile", ErrWriteGroupValidation)
+	}
+	if err := validateMixedMemberCadences(group); err != nil {
+		return err
+	}
 	if err := validateCalculationProfileShape(group.RecordingProfile); err != nil {
 		return err
 	}
