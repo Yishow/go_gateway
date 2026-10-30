@@ -97,7 +97,7 @@ func TestAcquisitionPlanCompatibilityIsolation(t *testing.T) {
 		func(s *AcquisitionSource) { s.Identity.ConnectionRevision = "conn2" },
 		func(s *AcquisitionSource) { s.Identity.Cadence = 2 * time.Second },
 		func(s *AcquisitionSource) { s.Identity.PollingGroup = "slow" },
-		func(s *AcquisitionSource) { s.Points[0].Function = "other-function" },
+		func(s *AcquisitionSource) { s.Points[0].Address = "0"; s.Points[0].Function = "04" },
 		func(s *AcquisitionSource) { s.Points[0].Address = "IR0" },
 		func(s *AcquisitionSource) { s.Capability.Revision = "cap2" },
 		func(s *AcquisitionSource) { s.Identity.Frame = "rtu" },

@@ -47,7 +47,7 @@ func TestAcquisitionPlanFrameSizesAgainstSerializers(t *testing.T) {
 			s.Identity.Frame = c.frame
 			s.Points = nil
 			for n := 0; n < 3; n++ {
-				s.Points = append(s.Points, EffectivePoint{ID: fmt.Sprint(n), Address: fmt.Sprintf("%s%d", c.area, n), DataType: c.dt, NativeWidth: 1})
+				s.Points = append(s.Points, EffectivePoint{ID: fmt.Sprint(n), Address: fixtureNativeAddress(c.protocol, c.area, n), DataType: c.dt, NativeWidth: 1})
 			}
 			p := BuildAcquisitionPlan(in)
 			r := p.Requests()
@@ -140,7 +140,7 @@ func TestAcquisitionPlanEncodedResponseBudgetRegression(t *testing.T) {
 			s.Points = nil
 			s.Capability.ClientFrameBudget.ResponseBytes = c.budget
 			for n := 0; n < 3; n++ {
-				s.Points = append(s.Points, EffectivePoint{ID: fmt.Sprint(n), Address: fmt.Sprintf("%s%d", c.area, n), DataType: c.dt, NativeWidth: 1})
+				s.Points = append(s.Points, EffectivePoint{ID: fmt.Sprint(n), Address: fixtureNativeAddress(c.protocol, c.area, n), DataType: c.dt, NativeWidth: 1})
 			}
 			p := BuildAcquisitionPlan(in)
 			r := p.Requests()

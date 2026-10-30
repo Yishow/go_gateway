@@ -19,7 +19,7 @@ import (
 // native limits remain hard boundaries. No runtime I/O or mutable connection state is used.
 func BuildAcquisitionPlan(input AcquisitionInput) AcquisitionPlan {
 	canonical := canonicalAcquisitionInput(input)
-	digest := sha256.Sum256([]byte("acquisition-plan-v3\n" + canonicalJSON(canonical)))
+	digest := sha256.Sum256([]byte("acquisition-plan-v4\n" + canonicalJSON(canonical)))
 	plan := AcquisitionPlan{fingerprint: hex.EncodeToString(digest[:])}
 	groups := make(map[string]*contiguousCandidates)
 	for _, source := range canonical.Sources {
@@ -99,7 +99,7 @@ func canonicalRanges(ranges []NativeRange) []NativeRange {
 }
 
 func planScalar(source AcquisitionSource, point EffectivePoint) (AcquisitionRequest, string) {
-	area, start, nativeBits, bitIndex, code := nativeAddress(source.Identity.Protocol, point.Address)
+	area, start, nativeBits, bitIndex, function, code := pointNativeAddress(source.Identity.Protocol, point)
 	if code != "" {
 		return AcquisitionRequest{}, code
 	}
@@ -149,7 +149,7 @@ func planScalar(source AcquisitionSource, point EffectivePoint) (AcquisitionRequ
 		reason = "random-capability-unknown"
 	}
 	return AcquisitionRequest{
-		Group: AcquisitionGroup{Identity: source.Identity, CapabilityRevision: cap.Revision, CoverageRevision: source.Coverage.Revision, Function: point.Function, Area: area},
+		Group: AcquisitionGroup{Identity: source.Identity, CapabilityRevision: cap.Revision, CoverageRevision: source.Coverage.Revision, Function: function, Area: area},
 		Kind:  "contiguous", Start: start, Length: width, Limit: limit, FallbackReason: reason,
 		FrameBytes: frameBytes, FrameCostKnown: frameKnown,
 		Points: []PointSlice{{Point: point, Offset: 0, Length: width, NativeBits: nativeBits, BitIndex: bitIndex}},

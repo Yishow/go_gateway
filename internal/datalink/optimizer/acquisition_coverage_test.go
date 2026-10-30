@@ -114,7 +114,7 @@ func TestAcquisitionPlanHardNativeLimits(t *testing.T) {
 			s.Capability.ProtocolLimit = 10000
 			s.Points = nil
 			for n := 0; n <= c.limit; n++ {
-				s.Points = append(s.Points, EffectivePoint{ID: fmt.Sprint(n), Address: fmt.Sprintf("%s%d", c.area, n), DataType: c.dt, NativeWidth: 1})
+				s.Points = append(s.Points, EffectivePoint{ID: fmt.Sprint(n), Address: fixtureNativeAddress(c.protocol, c.area, n), DataType: c.dt, NativeWidth: 1})
 			}
 			p := BuildAcquisitionPlan(in)
 			r := p.Requests()

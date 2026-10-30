@@ -88,8 +88,8 @@ func TestAcquisitionPlanRejectsUnsafeScalar(t *testing.T) {
 			s.Points[0].DataType = schema.DataTypeFloat32
 			s.Points[0].NativeWidth = 2
 		}, "scalar-exceeds-limit"},
-		{"bit-numeric", func(s *AcquisitionSource) { s.Points[0].Address = "COIL0" }, "unsupported-type"},
-		{"bit-index-numeric", func(s *AcquisitionSource) { s.Points[0].Address = "HR0.5" }, "unsupported-type"},
+		{"bit-numeric", func(s *AcquisitionSource) { s.Points[0].Address = "CO0" }, "unsupported-type"},
+		{"bit-index-numeric", func(s *AcquisitionSource) { s.Points[0].Address = "HR0.5" }, "invalid-address"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestAcquisitionPlanBitAndNormalizedOffsets(t *testing.T) {
 		address          string
 		dt               schema.DataType
 		start, bits, bit int
-	}{{"40100", schema.DataTypeInt16, 100, 16, -1}, {"COIL7", schema.DataTypeBool, 7, 1, -1}, {"HR8.5", schema.DataTypeBool, 8, 16, 5}} {
+	}{{"40100", schema.DataTypeInt16, 99, 16, -1}, {"CO7", schema.DataTypeBool, 7, 1, -1}, {"DI8", schema.DataTypeBool, 8, 1, -1}} {
 		in := acquisitionInput()
 		s := &in.Sources[0]
 		s.Points[0].Address = c.address
@@ -157,7 +157,7 @@ func TestAcquisitionPlanRejectsBitIndexOnNativeBitArea(t *testing.T) {
 			}
 		})
 	}
-	for _, address := range []string{"COIL7", "DI7"} {
+	for _, address := range []string{"CO7", "DI7"} {
 		t.Run(address, func(t *testing.T) {
 			in := acquisitionInput()
 			in.Sources[0].Points[0].Address = address
