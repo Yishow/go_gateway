@@ -28,21 +28,39 @@ func (cm *ConnectionManager) HealthCheck(ctx context.Context, deviceID string) e
 
 // CleanupIdle 清理閒置連線
 func (cm *ConnectionManager) CleanupIdle() int {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-
+	cm.mu.RLock()
+	snapshot := make(map[string]*ManagedConnection, len(cm.connections))
+	for id, conn := range cm.connections {
+		snapshot[id] = conn
+	}
+	cm.mu.RUnlock()
 	now := time.Now()
 	cleaned := 0
-
-	for deviceID, conn := range cm.connections {
+	for id, conn := range snapshot {
 		conn.mu.Lock()
-		idle := now.Sub(conn.LastUsed)
-		inUse := conn.inUse
+		if conn.inUse || now.Sub(conn.LastUsed) <= cm.config.IdleTimeout {
+			conn.mu.Unlock()
+			continue
+		}
+		cm.mu.Lock()
+		if cm.connections[id] != conn {
+			cm.mu.Unlock()
+			conn.mu.Unlock()
+			continue
+		}
+		entry := cm.entries[id]
+		delete(cm.connections, id)
+		delete(cm.entries, id)
+		cm.nextGeneration++
+		cm.versions[id] = cm.nextGeneration
+		cm.mu.Unlock()
 		conn.mu.Unlock()
-
-		if !inUse && idle > cm.config.IdleTimeout {
-			_ = conn.Protocol.Close()
-			delete(cm.connections, deviceID)
+		if entry != nil {
+			entry.cancel()
+			if cm.cleanupEntry(entry) == nil {
+				cleaned++
+			}
+		} else if closeManaged(conn) == nil {
 			cleaned++
 		}
 	}

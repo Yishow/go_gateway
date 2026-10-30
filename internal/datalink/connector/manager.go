@@ -13,9 +13,14 @@ import (
 
 // ConnectionManager 管理協議連線的生命週期和連線池
 type ConnectionManager struct {
-	mu          sync.RWMutex
-	connections map[string]*ManagedConnection
-	config      ConnectionManagerConfig
+	mu             sync.RWMutex
+	connections    map[string]*ManagedConnection
+	config         ConnectionManagerConfig
+	entries        map[string]*connectionEntry
+	serialOwners   map[string]*connectionEntry
+	nextGeneration uint64
+	versions       map[string]uint64
+	cleanup        map[*connectionEntry]*ManagedConnection
 }
 
 // ConnectionManagerConfig 連線管理器配置
@@ -81,8 +86,12 @@ type ManagedConnection struct {
 // NewConnectionManager 建立新的連線管理器
 func NewConnectionManager(config ConnectionManagerConfig) *ConnectionManager {
 	cm := &ConnectionManager{
-		connections: make(map[string]*ManagedConnection),
-		config:      config,
+		connections:  make(map[string]*ManagedConnection),
+		entries:      make(map[string]*connectionEntry),
+		serialOwners: make(map[string]*connectionEntry),
+		versions:     make(map[string]uint64),
+		cleanup:      make(map[*connectionEntry]*ManagedConnection),
+		config:       config,
 	}
 	return cm
 }

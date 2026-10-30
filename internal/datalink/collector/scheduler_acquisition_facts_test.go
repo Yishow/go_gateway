@@ -16,10 +16,11 @@ import (
 )
 
 type acquisitionFactsProtocol struct {
-	timeOrigin string
-	quality    schema.QualityFlag
-	readErr    error
-	resultErr  string
+	connectedConfig func(string)
+	timeOrigin      string
+	quality         schema.QualityFlag
+	readErr         error
+	resultErr       string
 }
 
 type retryFactsProtocol struct {
@@ -40,11 +41,16 @@ func (p *retryFactsProtocol) Read(context.Context, connector.ReadRequest) (conne
 	return connector.ReadResult{Value: uint64(9007199254740993), Quality: schema.QualityGood}, nil
 }
 
-func (acquisitionFactsProtocol) Connect(context.Context, string) error { return nil }
-func (acquisitionFactsProtocol) Close() error                          { return nil }
-func (acquisitionFactsProtocol) IsConnected() bool                     { return true }
-func (acquisitionFactsProtocol) ProtocolType() schema.ProtocolType     { return "acquisition-facts-test" }
-func (acquisitionFactsProtocol) TestConnection(context.Context) error  { return nil }
+func (p acquisitionFactsProtocol) Connect(_ context.Context, config string) error {
+	if p.connectedConfig != nil {
+		p.connectedConfig(config)
+	}
+	return nil
+}
+func (acquisitionFactsProtocol) Close() error                         { return nil }
+func (acquisitionFactsProtocol) IsConnected() bool                    { return true }
+func (acquisitionFactsProtocol) ProtocolType() schema.ProtocolType    { return "acquisition-facts-test" }
+func (acquisitionFactsProtocol) TestConnection(context.Context) error { return nil }
 func (acquisitionFactsProtocol) Write(context.Context, connector.WriteRequest) error {
 	return nil
 }
@@ -95,7 +101,10 @@ func TestSchedulerPollNowPreservesTypedAcquisitionFacts(t *testing.T) {
 
 func TestSchedulerUsesManagedConnectionConfigurationForFingerprint(t *testing.T) {
 	protocolType := schema.ProtocolType("acquisition-facts-managed-config-test")
-	connector.Register(protocolType, func() connector.Protocol { return acquisitionFactsProtocol{} })
+	var connectedConfigs []string
+	connector.Register(protocolType, func() connector.Protocol {
+		return acquisitionFactsProtocol{connectedConfig: func(config string) { connectedConfigs = append(connectedConfigs, config) }}
+	})
 	defer connector.Unregister(protocolType)
 
 	manager := connector.NewConnectionManager(connector.DefaultConnectionManagerConfig())
@@ -115,20 +124,22 @@ func TestSchedulerUsesManagedConnectionConfigurationForFingerprint(t *testing.T)
 	second := scheduler.PollNowContext(t.Context(), []string{point.ID})
 	require.Len(t, second, 1)
 
+	require.Equal(t, []string{oldConfig, newConfig}, connectedConfigs)
 	oldFingerprint, err := measurement.AcquisitionConfigFingerprint(schema.Device{
 		ID:               "device-managed",
 		Protocol:         protocolType,
-		ConnectionConfig: oldConfig,
+		ConnectionConfig: connectedConfigs[0],
 	}, *point)
 	require.NoError(t, err)
 	newFingerprint, err := measurement.AcquisitionConfigFingerprint(schema.Device{
 		ID:               "device-managed",
 		Protocol:         protocolType,
-		ConnectionConfig: newConfig,
+		ConnectionConfig: connectedConfigs[1],
 	}, *point)
 	require.NoError(t, err)
 	require.NotEqual(t, oldFingerprint, newFingerprint)
-	require.Equal(t, oldFingerprint, second[0].ConfigFingerprint)
+	require.Equal(t, oldFingerprint, first[0].ConfigFingerprint)
+	require.Equal(t, newFingerprint, second[0].ConfigFingerprint)
 }
 
 func TestSchedulerUsesGatewayCompletionForUntrustedSourceTimestamp(t *testing.T) {

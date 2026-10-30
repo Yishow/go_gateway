@@ -164,7 +164,11 @@ func TestOtherProtocolPointWordCountsRemainUnchanged(t *testing.T) {
 			})
 			manager := connector.NewConnectionManager(connector.DefaultConnectionManagerConfig())
 			t.Cleanup(func() { manager.CloseAll() })
-			dev := &schema.Device{ID: "device", Protocol: typ, ConnectionConfig: "{}"}
+			config := "{}"
+			if typ == schema.ProtocolModbusRTU {
+				config = `{"serial_port":"synthetic-point-count-port"}`
+			}
+			dev := &schema.Device{ID: "device", Protocol: typ, ConnectionConfig: config}
 			address := "40001"
 			if typ == schema.ProtocolFatekFBs {
 				address = "D0"
@@ -175,7 +179,7 @@ func TestOtherProtocolPointWordCountsRemainUnchanged(t *testing.T) {
 			s.AddPoint(point)
 			require.Len(t, s.PollNowContext(t.Context(), []string{point.ID}), 1)
 			require.Equal(t, 4, protocol.count)
-			conn, err := manager.GetOrCreate(t.Context(), dev.ID, typ, "{}")
+			conn, err := manager.GetOrCreate(t.Context(), dev.ID, typ, config)
 			require.NoError(t, err)
 			require.NoError(t, s.pollPointWithAcquisition(t.Context(), conn, s.pointInfos[point.ID], "periodic"))
 			require.Equal(t, 4, protocol.count)
