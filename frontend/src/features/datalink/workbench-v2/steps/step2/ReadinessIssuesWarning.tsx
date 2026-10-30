@@ -20,6 +20,18 @@ const fallbackCopy: Record<RuleReadinessReason, { title: string; action: string 
     title: '位址不符合所選協議格式。',
     action: '請修正該規則的協議位址後再繼續。',
   },
+  mc_points_checking: {
+    title: '正在確認已保存的 MC 點位。',
+    action: '請等待相同工作區與規則版本的點位證據完成。',
+  },
+  mc_points_conflict: {
+    title: '已保存的 MC 點位與目前規劃不一致。',
+    action: '請檢視已保存位址；系統不會自動重建或轉換。',
+  },
+  mc_points_unavailable: {
+    title: '目前無法確認已保存的 MC 點位。',
+    action: '請重新載入相同範圍的點位證據後再繼續。',
+  },
 };
 
 function identityLabel(value: string, fallback: string): string {
@@ -32,7 +44,13 @@ export const ReadinessIssuesWarning: React.FC<ReadinessIssuesWarningProps> = ({ 
     return null;
   }
 
-  const groups: RuleReadinessReason[] = [...missingReasons, 'invalid_address'];
+  const groups: RuleReadinessReason[] = [
+    ...missingReasons,
+    'invalid_address',
+    'mc_points_checking',
+    'mc_points_conflict',
+    'mc_points_unavailable',
+  ];
   return (
     <div
       className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200"
@@ -68,7 +86,9 @@ export const ReadinessIssuesWarning: React.FC<ReadinessIssuesWarningProps> = ({ 
                     key={issue.ruleId}
                     data-testid={reason === 'invalid_address'
                       ? `readiness-issue-invalid-address-${issue.ruleId}`
-                      : `readiness-issue-missing-device-${issue.ruleId}`}
+                      : reason === 'unknown_device' || reason === 'deleted_device'
+                      ? `readiness-issue-missing-device-${issue.ruleId}`
+                      : `readiness-issue-${reason}-${issue.ruleId}`}
                     data-readiness-reason={issue.reason}
                   >
                     <span data-testid={`readiness-issue-${issue.reason}-${issue.ruleId}`}>

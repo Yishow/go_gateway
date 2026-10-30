@@ -401,11 +401,10 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		return nil, contextualRuleValidationError(id, next.StartAddress, deviceRecord.Protocol, err)
 	}
 
-	links, err := s.repo.ListLinks(ctx, id)
+	links, err := s.listAndValidatePersistedMCLinks(ctx, rule, deviceRecord.Protocol)
 	if err != nil {
-		return nil, fmt.Errorf("取得來源規則連結失敗: %w", err)
+		return nil, err
 	}
-
 	desiredAddresses, err := buildPlannedPointAddresses(next.StartAddress, next.Count, next.DataType, deviceRecord.Protocol)
 	if err != nil {
 		return nil, contextualRuleValidationError(id, next.StartAddress, deviceRecord.Protocol, err)

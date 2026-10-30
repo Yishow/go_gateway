@@ -1,5 +1,6 @@
 import type { StudioV2AvailabilityStatus } from '../../../../types/studioV2Availability';
 import type { StudioV2RuntimeApplyStatus } from '../../../../types/studioV2RuntimeApply';
+import type { PersistedMCRuleState } from './mcPersistedPoints';
 import type {
   CommitState,
   DbConnector,
@@ -94,6 +95,7 @@ export interface Rule {
   share_start_register: number | null;
   share_stride: number | null;
   persisted?: boolean;
+  mc_persisted_points?: PersistedMCRuleState;
   save_state?: RuleSaveState;
   save_error?: string | null;
 }

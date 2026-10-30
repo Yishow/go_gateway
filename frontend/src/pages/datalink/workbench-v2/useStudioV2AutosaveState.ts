@@ -5,17 +5,18 @@ import { useTranslation } from 'react-i18next';
 import { useCreateStudioV2WorkspaceDeviceMutation, useDeleteStudioV2WorkspaceDeviceMutation, useStudioV2WorkspaceDevicesQuery, useUpdateStudioV2WorkspaceDeviceAvailabilityMutation, useUpdateStudioV2WorkspaceDeviceMutation } from '../../../hooks/datalink/useStudioV2WorkspaceDevices';
 import { hydrateStudioV2Device, isStudioV2DeviceValid, toStudioV2DeviceCreateRequest, toStudioV2DeviceUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2DeviceAutosave';
 import { canHydrateStudioV2Rule, hydrateStudioV2Rule } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
-import { hydrateStudioV2Mapping } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
-import type { DbTarget, Device, Mapping, Point, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
+import type { Device, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
 import { useWorkbenchV2State, workbenchV2Reducer, type WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { useStudioV2RulesQuery } from '../../../hooks/datalink/useStudioV2Rules';
 import { useStudioV2RuleAutosave } from './useStudioV2RuleAutosave';
 import { useStudioV2MappingAutosave } from './useStudioV2MappingAutosave';
 import { useStudioV2DatabaseAutosave } from './useStudioV2DatabaseAutosave';
-import { hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseRowGroups, hydrateStudioV2DatabaseTarget } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
+import { hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseRowGroups } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
 import { deriveAllPoints } from '../../../features/datalink/workbench-v2/state/sourceRule';
+import { isPersistedMCRule, mergePersistedMCState, withPersistedMCEvidence } from '../../../features/datalink/workbench-v2/state/mcPersistedPoints';
+import { useStudioV2PersistedMCPoints, type PersistedMCWorkspaceScope } from './useStudioV2PersistedMCPoints';
 import { inferHydratedProgress } from './hydratedProgress';
-import type { StudioV2WorkspaceMappingRecord, StudioV2WorkspaceDatabaseTargetRecord, ProtocolType } from '../../../types/datalink';
+import type { ProtocolType } from '../../../types/datalink';
 import { getStudioV2AutosaveBarrier, hasPendingSave, isUnpersistedNonIdle } from './studioV2AutosaveBarrier';
 import { getSafeErrorStateMessage } from '../../../utils/typedErrors';
 
@@ -38,65 +39,6 @@ function errorMessageOf(error: unknown, fallback: string): string {
 }
 
 const invalidDeviceAvailabilityReason = 'device form is invalid';
-
-function mappingRowKey(ruleId: string, address: string): string {
-  return `${ruleId}::${address}`;
-}
-
-function buildPersistedPointAliases(mappings: Record<string, Mapping>): Map<string, string> {
-  const aliases = new Map<string, string>();
-  Object.values(mappings).forEach((mapping) => {
-    aliases.set(mapping.point_id, mapping.point_id);
-    if (mapping.persisted_point_id) {
-      aliases.set(mapping.persisted_point_id, mapping.point_id);
-    }
-  });
-  return aliases;
-}
-
-function buildBootstrapMappings(
-  baseState: WorkbenchV2State,
-  points: Point[],
-  records: StudioV2WorkspaceMappingRecord[] | undefined,
-): { mappings: Record<string, Mapping>; persistedPointAliases: Map<string, string> } {
-  const recordByKey = new Map((records ?? []).map((record) => [mappingRowKey(record.rule_id, record.address), record]));
-  const nextState = workbenchV2Reducer(baseState, {
-    type: 'initMappingsForPoints',
-    points,
-  });
-
-  const hydratedMappings = { ...nextState.mappings };
-  points.forEach((point) => {
-    const record = recordByKey.get(mappingRowKey(point.rule_id, point.address));
-    const current = hydratedMappings[point.id];
-    if (!record || !current) {
-      return;
-    }
-    hydratedMappings[point.id] = hydrateStudioV2Mapping(point, record, current);
-  });
-
-  return {
-    mappings: hydratedMappings,
-    persistedPointAliases: buildPersistedPointAliases(hydratedMappings),
-  };
-}
-
-function buildBootstrapTargets(
-  persistedPointAliases: Map<string, string>,
-  records: StudioV2WorkspaceDatabaseTargetRecord[] | undefined,
-): Record<string, DbTarget> {
-  return (records ?? []).reduce<Record<string, DbTarget>>((accumulator, record) => {
-    const currentPointId = persistedPointAliases.get(record.point_id);
-    if (!currentPointId) {
-      return accumulator;
-    }
-    accumulator[currentPointId] = hydrateStudioV2DatabaseTarget(
-      { ...record, point_id: currentPointId },
-      accumulator[currentPointId],
-    );
-    return accumulator;
-  }, {});
-}
 
 function isDraftPending(saveState?: string): boolean {
   return saveState === 'saving' || saveState === 'save-error' || saveState === 'draft-invalid';
@@ -156,7 +98,12 @@ function isSetupMutationAction(action: WorkbenchV2Action): boolean {
   }
 }
 
-export function useStudioV2AutosaveState(enabled: boolean, locatorEntry?: StudioLocatorEntryRead, locatorEditorMounted = false) {
+export function useStudioV2AutosaveState(
+  enabled: boolean,
+  locatorEntry?: StudioLocatorEntryRead,
+  locatorEditorMounted = false,
+  persistedMCWorkspaceScope?: PersistedMCWorkspaceScope,
+) {
   const { t } = useTranslation('workbench-v2');
   const actions = useWorkbenchV2State();
   const devicesQuery = useStudioV2WorkspaceDevicesQuery(enabled);
@@ -171,10 +118,23 @@ export function useStudioV2AutosaveState(enabled: boolean, locatorEntry?: Studio
   const [workspaceHydrated, setWorkspaceHydrated] = React.useState(false);
   const [draftLossWarning, setDraftLossWarning] = React.useState<string | null>(null);
   const saveMetaRef = React.useRef<Record<string, SaveMeta>>({});
+  const appliedMCPersistedSignatureRef = React.useRef<string | null>(null);
   const locatorHydration = useStudioV2LocatorHydration(actions, stateRef, workspaceHydrated, locatorEntry, locatorEditorMounted);
-  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef);
-  const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled);
-  const databaseAutosave = useStudioV2DatabaseAutosave(actions, stateRef, enabled);
+  const persistedMCPoints = useStudioV2PersistedMCPoints(enabled, rulesQuery.data, devicesQuery.data, persistedMCWorkspaceScope, actions.state.rules);
+  const persistedMCCanMutateRule = persistedMCPoints.canMutateRule;
+  const canMutateRule = React.useCallback((ruleID: string): boolean => {
+    const localRule = stateRef.current.rules.find((rule) => rule.id === ruleID);
+    if (localRule && isPersistedMCRule(localRule, stateRef.current.devices)) {
+      return persistedMCCanMutateRule(ruleID, localRule.revision_id);
+    }
+    const localDevice = stateRef.current.devices.find((device) => device.id === localRule?.device_id);
+    if (localRule?.persisted && localRule.mc_persisted_points && (!localDevice || localDevice.protocol === 'mc_3e')) return false;
+    if (localRule) return true;
+    return persistedMCCanMutateRule(ruleID);
+  }, [persistedMCCanMutateRule]);
+  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule);
+  const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled, canMutateRule);
+  const databaseAutosave = useStudioV2DatabaseAutosave(actions, stateRef, enabled, canMutateRule);
 
   React.useEffect(() => {
     stateRef.current = actions.state;
@@ -195,9 +155,9 @@ export function useStudioV2AutosaveState(enabled: boolean, locatorEntry?: Studio
 
     hydratedRef.current = true;
     const hydratedDevices = devicesQuery.data.map(hydrateStudioV2Device);
-    const hydratedRules = rulesQuery.data
+    const hydratedRules = withPersistedMCEvidence(rulesQuery.data
       .filter(canHydrateStudioV2Rule)
-      .map(hydrateStudioV2Rule);
+      .map(hydrateStudioV2Rule), persistedMCPoints.evidenceByRule);
     const deviceProtocolMap: Record<string, ProtocolType> = Object.fromEntries(hydratedDevices.map((d) => [d.id, d.protocol]));
     const enabledPoints = deriveAllPoints(hydratedRules, deviceProtocolMap).filter((point) => point.enabled && !point.skipped);
     const hydratedConnector = databaseAutosave.databaseConfigQuery.data
@@ -223,39 +183,32 @@ export function useStudioV2AutosaveState(enabled: boolean, locatorEntry?: Studio
       },
     });
 
-    const { mappings: hydratedMappings, persistedPointAliases } = buildBootstrapMappings(baseState, enabledPoints, mappingAutosave.mappingsQuery.data);
-    const hydratedTargets = buildBootstrapTargets(persistedPointAliases, databaseAutosave.databaseTargetsQuery.data);
-    const hydratedProgress = inferHydratedProgress(hydratedDevices, hydratedRules, hydratedMappings);
+    const hydratedMCState = mergePersistedMCState(
+      { ...baseState, points: enabledPoints },
+      persistedMCPoints.evidenceByRule,
+      mappingAutosave.mappingsQuery.data,
+      databaseAutosave.databaseTargetsQuery.data,
+    );
+    const hydratedProgress = inferHydratedProgress(hydratedDevices, hydratedMCState.rules, hydratedMCState.mappings);
+    const hydratedPayload = {
+      ...hydratedProgress,
+      devices: hydratedDevices,
+      rules: hydratedMCState.rules,
+      selectedRuleId: hydratedRules[0]?.id ?? null,
+      points: hydratedMCState.points,
+      mappings: hydratedMCState.mappings,
+      db: hydratedMCState.db,
+    };
     const nextState = workbenchV2Reducer(baseState, {
       type: 'SET_STATE',
-      payload: {
-        ...hydratedProgress,
-        points: enabledPoints,
-        mappings: hydratedMappings,
-        db: {
-          connector: hydratedConnector,
-          row_groups: hydratedRowGroups,
-          targets: hydratedTargets,
-        },
-      },
+      payload: hydratedPayload,
     });
+    appliedMCPersistedSignatureRef.current = persistedMCPoints.signature;
 
     stateRef.current = nextState;
     actions.dispatch({
       type: 'SET_STATE',
-      payload: {
-        ...hydratedProgress,
-        devices: hydratedDevices,
-        rules: hydratedRules,
-        selectedRuleId: hydratedRules[0]?.id ?? null,
-        points: enabledPoints,
-        mappings: hydratedMappings,
-        db: {
-          connector: hydratedConnector,
-          row_groups: hydratedRowGroups,
-          targets: hydratedTargets,
-        },
-      },
+      payload: hydratedPayload,
     });
 
     try {
@@ -281,6 +234,32 @@ export function useStudioV2AutosaveState(enabled: boolean, locatorEntry?: Studio
     mappingAutosave.mappingsQuery.isSuccess,
     rulesQuery.data,
     rulesQuery.isSuccess,
+    persistedMCPoints.evidenceByRule,
+    persistedMCPoints.signature,
+  ]);
+
+  React.useEffect(() => {
+    if (!workspaceHydrated || !hydratedRef.current || appliedMCPersistedSignatureRef.current === persistedMCPoints.signature) {
+      return;
+    }
+    const merged = mergePersistedMCState(
+      stateRef.current,
+      persistedMCPoints.evidenceByRule,
+      mappingAutosave.mappingsQuery.data,
+      databaseAutosave.databaseTargetsQuery.data,
+    );
+    appliedMCPersistedSignatureRef.current = persistedMCPoints.signature;
+    const payload = { rules: merged.rules, points: merged.points, mappings: merged.mappings, db: merged.db };
+    stateRef.current = workbenchV2Reducer(stateRef.current, { type: 'SET_STATE', payload });
+    actions.dispatch({ type: 'SET_STATE', payload });
+  }, [
+    actions,
+    databaseAutosave.databaseTargetsQuery.data,
+    mappingAutosave.mappingsQuery.data,
+    persistedMCPoints.evidenceByRule,
+    persistedMCPoints.signature,
+    stateRef,
+    workspaceHydrated,
   ]);
 
   React.useEffect(() => {

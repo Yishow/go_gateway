@@ -1,0 +1,441 @@
+{
+  "change": "fix-plc-read-decoding-and-address-consistency",
+  "base_revision": "76a853d71fda23ee3a1d3cf9bf801e45f85f24f2",
+  "scope_source": "touched_tracking",
+  "source_file_count": 66,
+  "source_sha256": {
+    "frontend/src/features/datalink/workbench-v2/state/mcPersistedPoints.ts": "d7cc2e3d85a6bc519d8507e4cad467117a769ccac135d7b3932b37239cd0d011",
+    "frontend/src/features/datalink/workbench-v2/state/nextFreeStartAddress.ts": "91c670be9cc1ebb21d5bd9229dfea467b46f326501b38f8222e37132180b95f3",
+    "frontend/src/features/datalink/workbench-v2/state/sourceRule.ts": "a7b86fd67c9aaaf7b51bbf20a9afb7f7deaceb9067f551ce720c613c2d698131",
+    "frontend/src/features/datalink/workbench-v2/state/types.ts": "99d3f1bd2565f70bb966d71895c0d7ae05c3708b17b855719800913959ed5552",
+    "frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx": "4142f9c34671b3b35b7b4bd3821581b8523b2500fa395a3484a0d6ab3ccdd08c",
+    "frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx": "b394ccb50299c73e33636813ea9f2f1f1f0824de041174e6137dbbecb894ee60",
+    "frontend/src/features/datalink/workbench-v2/steps/step2/ReadinessIssuesWarning.tsx": "8d5ca7cbcc3b037479b1a05f5363f37b32e1b235f849fd16eb968636b8c1ae8f",
+    "frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx": "4e15f3e13847f43ef7b92a5a31d7c5f18c6d489bc75427617137d913a9431041",
+    "frontend/src/i18n/config.ts": "96b1791b05ef552c24c920b2a70db662572f0bea9a248984a7b21fbdb8ea2535",
+    "frontend/src/i18n/locales/en/workbench-v2-plc.json": "4f8cbb40812f1f03fd04f55f57b7a8144d78011bc9d6ae732c0dd2b5ba6164d1",
+    "frontend/src/i18n/locales/zh-TW/workbench-v2-plc.json": "5d266ee2084993ab4d0ae1b5d94e20fddc725e47b96537819ecf34950c42240a",
+    "frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx": "c36259b94a5a1289494f3e842ca5a64af6e0088fb412083a37fa7fc724e2f908",
+    "frontend/src/pages/datalink/workbench-v2/studioV2LocatorHydration.ts": "d29a437ef8b782af4cb70c5c6353c2735975757eff14686f5edccef9b14f5ee8",
+    "frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts": "54c354cd33c13a2da81b6a28960154b2d7191cb9d03898bf7fa5776af5a18c0e",
+    "frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts": "8f0ce066c5c1674132da36f25a9e00354d2f72605fcc7e96b1d86da97c1dbaad",
+    "frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts": "4954b4015a3e1c796a66dc3a48543ab08423c2ef5bba0846013eeb3fe7b69b22",
+    "frontend/src/pages/datalink/workbench-v2/useStudioV2PersistedMCPoints.ts": "db854543468dd72227d2772b476573202536b5870561094f56d61ca4057dae96",
+    "frontend/src/pages/datalink/workbench-v2/useStudioV2RuleAutosave.ts": "7f5ed239761baac149cfcc1d0fc33915313958422c99026c797994749269fb1a",
+    "frontend/src/utils/addressParser.ts": "5451533107e88173a0217c461b3ead068c55416d04230983cff9368ea7d7e94b",
+    "frontend/tests/unit/utils/addressParser.test.ts": "e799cd6c6ec0d73bd659ea036535a582c0cf735ce8fa497b439ebf5d1d2b5c58",
+    "frontend/tests/unit/workbench-v2/mc-address-bounds.test.tsx": "ab17705272377fb75392050052645c57ee2b04ebb9fa1a2b7f97944aedd1a0f1",
+    "frontend/tests/unit/workbench-v2/mc-next-free-address.test.ts": "2bcb42d50e2041cbc17517d555656d7432d73e53de45d985d29e08ae66b0b8bc",
+    "frontend/tests/unit/workbench-v2/mc-persisted-draft-preservation.test.ts": "543a612a650a008faed143f48731a6e99e21de614f9567763407cc0a04fdc318",
+    "frontend/tests/unit/workbench-v2/mc-persisted-hydration.fixtures.ts": "28d287116c254edb0f02d55ba8b2942134b7215c480d0074f113a55cca65b9c7",
+    "frontend/tests/unit/workbench-v2/mc-persisted-hydration.test.tsx": "6e9932001a708ce257253ceff4d17e5f337170111f8e66166d35b260ad1e9700",
+    "frontend/tests/unit/workbench-v2/mc-persisted-mapping-queue.test.tsx": "3c10d01f88bf6b969dc6f60daf1e5c7fca68008bfcf17ce08b817b905dd21549",
+    "frontend/tests/unit/workbench-v2/mc-persisted-readiness-regression.test.ts": "cffe864572aee6a52ca4f338c8a7a6a268f736f1cd6026f565121d647d01c378",
+    "frontend/tests/unit/workbench-v2/mc-persisted-view.test.tsx": "508bf887885e2d80ff443063e0dd4ecaf1e991cb9f1f536f3b38aa8576411fb5",
+    "frontend/tests/unit/workbench-v2/occupied-range.test.tsx": "4fbd2f5aef35b756d9610988d6e835d4fdae7727241a0fc38a79cb0fc53cc547",
+    "frontend/tests/unit/workbench-v2/sourceRule.test.ts": "c0d1826e5631b742ac8d6c3e2f994e8ec9f6cc83c03e42dd4a46ccac6c7d392c",
+    "frontend/tests/unit/workbench-v2/studio-locator-mc-hydration.test.tsx": "964199c4b344b6955a3ae84287512d50e3e5dfecc1fabfb6d64d8fcb15f243f4",
+    "internal/datalink/collector/fatek_point_count_contract_test.go": "b6db8c6e816036f502be1f44196d95072dfd299460c57517f41ec670c4cdb118",
+    "internal/datalink/collector/fatek_status_acquisition_test.go": "c64e753173efe81e2fed4b4b34192e84f76ac70a18d43219872fba2254f5a9fb",
+    "internal/datalink/collector/point_count_contract_test.go": "b5b3304c9bfe10330642e385f100bbac8e4ffea7cacf981c4bcf06023c0ebc07",
+    "internal/datalink/collector/scheduler_manual_poll.go": "b03bc3cf9715e76d915f4897c72a4dabbfd6b1d9cd360e906e011efb8352d262",
+    "internal/datalink/collector/scheduler_polling.go": "d8ddf52634750b7377274838143b99c36cda3aa10505e5095de40e78a35bc252",
+    "internal/datalink/connector/adapters/fatek_helpers.go": "2b8473a070c191c39cb19265995895856a0f278fc763e37c973b589ce98b20ef",
+    "internal/datalink/connector/adapters/fatek_operations.go": "613b65f72aba35ff86bfbae2f33b73d9a3e649a604462b7c831a41770bf06846",
+    "internal/datalink/connector/adapters/fatek_refactor_test.go": "456dc463f65c1c380bdbe5ec7970772886f2f482288d9903e5258647091b6975",
+    "internal/datalink/connector/adapters/modbus_numeric_bounds_test.go": "2b7457ae75d3cfc6aac7f200a3ef476b64b958ebe5914685dfa6192129353eec",
+    "internal/datalink/connector/adapters/modbus_parse_helpers.go": "8c80caac6a17d9d5d48020938f60204a0b90fae5aefaa384093f3d4dff55b122",
+    "internal/datalink/connector/adapters/plc_fatek_decoding_regression_test.go": "b0bfc497093de82b521a27aae6c90f8fcb268fa8f5eda68a61b1a4e4b31ff87a",
+    "internal/datalink/connector/adapters/plc_fatek_status_regression_test.go": "9d1871d23d27b48bbf777faaaa9b19c112e282fafa9c5a89df2728a150f41a5c",
+    "internal/datalink/connector/adapters/plc_modbus_address_regression_test.go": "1b88eb7ea2192f2a8604f1b82a205ca51a895a5317b9775c2225ca16e06e847e",
+    "internal/datalink/connector/adapters/plc_read_decoding_regression_test.go": "63a4b329a03a83bac17d7e69b5b2291ddef135c1277294f416f24ef45d5e48f2",
+    "internal/datalink/connector/point_read.go": "bc738905801d91a882f8dda6f6be3ae55d61b0c93b44353240dbb490a9b52272",
+    "internal/datalink/connector/point_read_test.go": "f06a7870cfba37ff4d9a24a470e06fc19ec30e82e5ac286a5ec2d285a4822c97",
+    "internal/datalink/device/service_point_read.go": "056c82a54d069ee9e6ab77cdd86e50f395a065cbe06c66de19b02eaa7a0689d3",
+    "internal/datalink/point/mc_hex_address_test.go": "b403dd42a582441ce46895d6c8e4928a9a79f8933cd8dc5a3744e67ce0cac435",
+    "internal/datalink/point/service_batch_validation.go": "159f1ce9bc18737954359c711dc26cc70d75c3375b481d8aa40ed1c5626ba2d4",
+    "internal/datalink/sourcerule/mc_address_bounds_test.go": "b3688255dfa0321cc6826bbc59a6fc2aa227f1ab257af24a51d0120f03f0ecc4",
+    "internal/datalink/sourcerule/mc_address_plan.go": "fcb88193b15b436b1f86aa5b7b8b5bce28443c848d1fcbfc81f1d1810443aa3f",
+    "internal/datalink/sourcerule/mc_address_planner_regression_test.go": "35ca1649fe5e34e387fae569788d5bf14c94e3d2078b99c3abc250370f024df6",
+    "internal/datalink/sourcerule/mc_radix_compatibility_test.go": "d0f7b200b50d0c34e21ed863eaeb89c656fd91fd8d0c320121eb30a5208c515b",
+    "internal/datalink/sourcerule/mc_radix_runtime_reconcile_test.go": "79544698660e797695194452b13a9215273ed331a65e6fe9d8c2a8cd127e15c4",
+    "internal/datalink/sourcerule/mc_validation_boundary_test.go": "49e4a26c34b77d4d1f854057fb7e9c9347ad9c6ad3dbc4b7c92dee651fa30bf7",
+    "internal/datalink/sourcerule/protocol_address_planner.go": "96e915ea35ae18225ab40271da58fd303faedf5023e8541dd49f377049f7bbff",
+    "internal/datalink/sourcerule/protocol_address_test.go": "3a775d2bce94ef2fcce5e5f06e6fc07e3ceeaf1f217c52ae0048d0e842ca4dc7",
+    "internal/datalink/sourcerule/runtime_reconcile.go": "d1f05161db694c5f1472e8bc94a9b9e1f2dc667e0f981d99f3afec96fbc45e27",
+    "internal/datalink/sourcerule/service.go": "b384def67c6e0d205670566ca45028d3972947728c8ec7c6ba72a0bae5bf3517",
+    "internal/protocol/fatek/address_parse.go": "c9d27928b65087c6f4f94ee3b0b3d0919d1638946c4bcb1cf51f1e62f8bd74a8",
+    "internal/protocol/fatek/client.go": "db6c21c14e9d3581eef1a1df7a6188b4758d9123a5e9bfd092c583083abaed96",
+    "internal/protocol/fatek/status_payload_test.go": "ca127aeeaea5e6b06549fdff0cc43d5f9f888cc2bfa38c0e46b19def1ef7ddbf",
+    "lib/hsllogic/bytetransform.go": "d57d44d1705cbad6eeff73d9fa3e592763727f282c1b28c6299d83001ae41e78",
+    "lib/hsllogic/plc_byte_order_regression_test.go": "6c0ac817988c352d6dbd03b1889186e34becac9752764420062db5065a41e61e",
+    "lib/hsllogic/register_conversion.go": "9af21d6cb8567767d1a66c7e16695e32f943ef0d076d6adc5d0665a78d0d52ef"
+  },
+  "review": {
+    "dimensions": [
+      "correctness",
+      "efficiency",
+      "simplification and reuse",
+      "convention"
+    ],
+    "active_findings": [],
+    "resolved": [
+      "R1",
+      "R2",
+      "R3",
+      "R4",
+      "R5",
+      "MC hexadecimal suffix area label",
+      "invalid draft masked by compatible persisted evidence"
+    ],
+    "source_files_reviewed": [
+      "frontend/src/features/datalink/workbench-v2/state/mcPersistedPoints.ts",
+      "frontend/src/features/datalink/workbench-v2/state/nextFreeStartAddress.ts",
+      "frontend/src/features/datalink/workbench-v2/state/sourceRule.ts",
+      "frontend/src/features/datalink/workbench-v2/state/types.ts",
+      "frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx",
+      "frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx",
+      "frontend/src/features/datalink/workbench-v2/steps/step2/ReadinessIssuesWarning.tsx",
+      "frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx",
+      "frontend/src/i18n/config.ts",
+      "frontend/src/i18n/locales/en/workbench-v2-plc.json",
+      "frontend/src/i18n/locales/zh-TW/workbench-v2-plc.json",
+      "frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx",
+      "frontend/src/pages/datalink/workbench-v2/studioV2LocatorHydration.ts",
+      "frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts",
+      "frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts",
+      "frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts",
+      "frontend/src/pages/datalink/workbench-v2/useStudioV2PersistedMCPoints.ts",
+      "frontend/src/pages/datalink/workbench-v2/useStudioV2RuleAutosave.ts",
+      "frontend/src/utils/addressParser.ts",
+      "frontend/tests/unit/utils/addressParser.test.ts",
+      "frontend/tests/unit/workbench-v2/mc-address-bounds.test.tsx",
+      "frontend/tests/unit/workbench-v2/mc-next-free-address.test.ts",
+      "frontend/tests/unit/workbench-v2/mc-persisted-draft-preservation.test.ts",
+      "frontend/tests/unit/workbench-v2/mc-persisted-hydration.fixtures.ts",
+      "frontend/tests/unit/workbench-v2/mc-persisted-hydration.test.tsx",
+      "frontend/tests/unit/workbench-v2/mc-persisted-mapping-queue.test.tsx",
+      "frontend/tests/unit/workbench-v2/mc-persisted-readiness-regression.test.ts",
+      "frontend/tests/unit/workbench-v2/mc-persisted-view.test.tsx",
+      "frontend/tests/unit/workbench-v2/occupied-range.test.tsx",
+      "frontend/tests/unit/workbench-v2/sourceRule.test.ts",
+      "frontend/tests/unit/workbench-v2/studio-locator-mc-hydration.test.tsx",
+      "internal/datalink/collector/fatek_point_count_contract_test.go",
+      "internal/datalink/collector/fatek_status_acquisition_test.go",
+      "internal/datalink/collector/point_count_contract_test.go",
+      "internal/datalink/collector/scheduler_manual_poll.go",
+      "internal/datalink/collector/scheduler_polling.go",
+      "internal/datalink/connector/adapters/fatek_helpers.go",
+      "internal/datalink/connector/adapters/fatek_operations.go",
+      "internal/datalink/connector/adapters/fatek_refactor_test.go",
+      "internal/datalink/connector/adapters/modbus_numeric_bounds_test.go",
+      "internal/datalink/connector/adapters/modbus_parse_helpers.go",
+      "internal/datalink/connector/adapters/plc_fatek_decoding_regression_test.go",
+      "internal/datalink/connector/adapters/plc_fatek_status_regression_test.go",
+      "internal/datalink/connector/adapters/plc_modbus_address_regression_test.go",
+      "internal/datalink/connector/adapters/plc_read_decoding_regression_test.go",
+      "internal/datalink/connector/point_read.go",
+      "internal/datalink/connector/point_read_test.go",
+      "internal/datalink/device/service_point_read.go",
+      "internal/datalink/point/mc_hex_address_test.go",
+      "internal/datalink/point/service_batch_validation.go",
+      "internal/datalink/sourcerule/mc_address_bounds_test.go",
+      "internal/datalink/sourcerule/mc_address_plan.go",
+      "internal/datalink/sourcerule/mc_address_planner_regression_test.go",
+      "internal/datalink/sourcerule/mc_radix_compatibility_test.go",
+      "internal/datalink/sourcerule/mc_radix_runtime_reconcile_test.go",
+      "internal/datalink/sourcerule/mc_validation_boundary_test.go",
+      "internal/datalink/sourcerule/protocol_address_planner.go",
+      "internal/datalink/sourcerule/protocol_address_test.go",
+      "internal/datalink/sourcerule/runtime_reconcile.go",
+      "internal/datalink/sourcerule/service.go",
+      "internal/protocol/fatek/address_parse.go",
+      "internal/protocol/fatek/client.go",
+      "internal/protocol/fatek/status_payload_test.go",
+      "lib/hsllogic/bytetransform.go",
+      "lib/hsllogic/plc_byte_order_regression_test.go",
+      "lib/hsllogic/register_conversion.go"
+    ]
+  },
+  "verify": {
+    "requirements": [
+      {
+        "name": "Protocol-aware point address derivation",
+        "implementation": [
+          "frontend/src/features/datalink/workbench-v2/state/sourceRule.ts",
+          "internal/datalink/sourcerule/protocol_address_planner.go"
+        ],
+        "scenarios": [
+          "Derive points for MC 3E device",
+          "Backend address offset matches protocol radix",
+          "Backend rejects invalid protocol address"
+        ],
+        "tests": [
+          "sourceRule.test.ts",
+          "mc_address_planner_regression_test.go",
+          "mc_address_bounds_test.go",
+          "mc_validation_boundary_test.go"
+        ],
+        "coverage": "covered_by_test"
+      },
+      {
+        "name": "Protocol-radix source address validation and expansion",
+        "implementation": [
+          "frontend/src/utils/addressParser.ts",
+          "internal/datalink/sourcerule/mc_address_plan.go"
+        ],
+        "scenarios": [
+          "MC 3E hexadecimal offset crosses a digit boundary",
+          "Invalid protocol address fails closed",
+          "Hexadecimal suffixes survive point creation"
+        ],
+        "tests": [
+          "addressParser.test.ts",
+          "mc-address-bounds.test.tsx",
+          "mc_address_planner_regression_test.go",
+          "mc_address_bounds_test.go"
+        ],
+        "coverage": "covered_by_test"
+      },
+      {
+        "name": "MC persisted source identities survive radix correction",
+        "implementation": [
+          "internal/datalink/sourcerule/mc_address_plan.go",
+          "internal/datalink/sourcerule/runtime_reconcile.go"
+        ],
+        "scenarios": [
+          "Metadata update cannot recreate legacy points",
+          "A range patch does not authorize legacy migration",
+          "Startup uses persisted points",
+          "Compatible rules retain normal updates"
+        ],
+        "tests": [
+          "mc_radix_compatibility_test.go",
+          "mc_radix_runtime_reconcile_test.go",
+          "mc_validation_boundary_test.go"
+        ],
+        "coverage": "covered_by_test"
+      },
+      {
+        "name": "Persisted MC points remain authoritative in Step 2",
+        "implementation": [
+          "frontend/src/features/datalink/workbench-v2/state/mcPersistedPoints.ts",
+          "frontend/src/pages/datalink/workbench-v2/useStudioV2PersistedMCPoints.ts",
+          "frontend/src/pages/datalink/workbench-v2/studioV2LocatorHydration.ts",
+          "frontend/src/features/datalink/workbench-v2/state/nextFreeStartAddress.ts"
+        ],
+        "scenarios": [
+          "Reload does not reinterpret legacy addresses",
+          "Unavailable or stale evidence blocks synthetic success",
+          "Summaries do not assert a fabricated continuous range",
+          "Scope changes revoke writable evidence"
+        ],
+        "tests": [
+          "mc-persisted-hydration.test.tsx",
+          "mc-persisted-view.test.tsx",
+          "mc-persisted-draft-preservation.test.ts",
+          "studio-locator-mc-hydration.test.tsx",
+          "mc-next-free-address.test.ts"
+        ],
+        "coverage": "covered_by_test"
+      },
+      {
+        "name": "Scalar point reads preserve protocol count units",
+        "implementation": [
+          "internal/datalink/connector/point_read.go",
+          "internal/datalink/collector/scheduler_polling.go",
+          "internal/datalink/collector/scheduler_manual_poll.go",
+          "internal/datalink/device/service_point_read.go"
+        ],
+        "scenarios": [
+          "Multiword MC point across entrypoints",
+          "Direct batch and other protocols remain unchanged",
+          "FATEK scalar count follows native width across entrypoints",
+          "Invalid FATEK scalar address does not produce a request"
+        ],
+        "tests": [
+          "point_count_contract_test.go",
+          "fatek_point_count_contract_test.go",
+          "point_read_test.go",
+          "plc_read_decoding_regression_test.go"
+        ],
+        "coverage": "covered_by_test"
+      },
+      {
+        "name": "Multiword numeric decoding follows all configured byte orders",
+        "implementation": [
+          "lib/hsllogic/bytetransform.go",
+          "lib/hsllogic/register_conversion.go"
+        ],
+        "scenarios": [
+          "Four byte orders decode the same float32",
+          "Four byte orders preserve a complete uint64",
+          "Signed and float64 values retain bits"
+        ],
+        "examples": [
+          "Float32 word sequences",
+          "Uint64 word sequences"
+        ],
+        "tests": [
+          "plc_byte_order_regression_test.go",
+          "plc_read_decoding_regression_test.go"
+        ],
+        "coverage": "covered_by_test"
+      },
+      {
+        "name": "FATEK typed register decoding preserves complete values",
+        "implementation": [
+          "internal/datalink/connector/adapters/fatek_helpers.go",
+          "internal/datalink/connector/adapters/fatek_operations.go"
+        ],
+        "scenarios": [
+          "Float32 has the same bits in word and doubleword areas",
+          "Complete 64-bit values in both native widths",
+          "A typed scalar cannot be completed"
+        ],
+        "tests": [
+          "plc_fatek_decoding_regression_test.go",
+          "fatek_refactor_test.go"
+        ],
+        "coverage": "covered_by_test"
+      },
+      {
+        "name": "Explicit raw Modbus addresses preserve requested function",
+        "implementation": [
+          "internal/datalink/connector/adapters/modbus_parse_helpers.go"
+        ],
+        "scenarios": [
+          "Explicit raw holding-register request stays a holding-register request",
+          "Raw boundary offsets are preserved",
+          "Traditional and alias addresses retain prefix semantics",
+          "No-function fallback remains compatible",
+          "Persisted short numeric points expose the corrected precedence"
+        ],
+        "examples": [
+          "Preserved prefixed addresses (8 rows)"
+        ],
+        "tests": [
+          "plc_modbus_address_regression_test.go",
+          "modbus_numeric_bounds_test.go"
+        ],
+        "coverage": "covered_by_test"
+      },
+      {
+        "name": "FATEK discrete payloads are validated before success",
+        "implementation": [
+          "internal/protocol/fatek/client.go",
+          "internal/datalink/connector/adapters/plc_fatek_status_regression_test.go"
+        ],
+        "scenarios": [
+          "Malformed discrete data is rejected",
+          "Valid scalar and batch responses remain supported",
+          "Malformed payload cannot become a valid acquisition sample"
+        ],
+        "tests": [
+          "status_payload_test.go",
+          "plc_fatek_status_regression_test.go",
+          "fatek_status_acquisition_test.go"
+        ],
+        "coverage": "covered_by_test"
+      }
+    ],
+    "scenarios_covered": 32,
+    "examples_covered": 5,
+    "example_rows_covered": 33,
+    "excluded": [],
+    "uncovered_gaps": [],
+    "execution_state": "passed-current",
+    "execution_evidence": {
+      "backend": {
+        "state": "passed-current",
+        "package_count": 8,
+        "test_pass_entries": 835,
+        "skip_entries": 0,
+        "fail_entries": 0
+      },
+      "api": {
+        "state": "passed-current",
+        "package_count": 2,
+        "test_pass_entries": 49,
+        "skip_entries": 0,
+        "fail_entries": 0
+      },
+      "frontend": {
+        "state": "passed-current",
+        "files": 29,
+        "tests": 209,
+        "command": [
+          "npx",
+          "vitest",
+          "run",
+          "tests/unit/utils/addressParser.test.ts",
+          "tests/unit/workbench-v2/mc-persisted-hydration.test.tsx",
+          "tests/unit/workbench-v2/mc-persisted-mapping-queue.test.tsx",
+          "tests/unit/workbench-v2/mc-persisted-view.test.tsx",
+          "tests/unit/workbench-v2/step2-rule.test.tsx",
+          "tests/unit/workbench-v2/step2-grid.test.tsx",
+          "tests/unit/workbench-v2/occupied-range.test.tsx",
+          "tests/unit/workbench-v2/rule-autosave-page.test.tsx",
+          "tests/unit/workbench-v2/mapping-autosave-queue.test.tsx",
+          "tests/unit/workbench-v2/mapping-autosave-queue.bootstrap.test.tsx",
+          "tests/unit/workbench-v2/mapping-autosave-queue.lifecycle.test.tsx",
+          "tests/unit/workbench-v2/mapping-autosave-queue.missing.test.tsx",
+          "tests/unit/workbench-v2/mapping-autosave-queue.numeric.test.tsx",
+          "tests/unit/workbench-v2/mapping-autosave-page.hydration.test.tsx",
+          "tests/unit/workbench-v2/mapping-autosave-page.reconciliation.test.tsx",
+          "tests/unit/workbench-v2/mapping-autosave-page.validation.test.tsx",
+          "tests/unit/workbench-v2/mapping-autosave-page.bulk-toggle.test.tsx",
+          "tests/unit/workbench-v2/workspace-boot.test.tsx",
+          "tests/unit/workbench-v2/step3-mapping.test.tsx",
+          "tests/unit/workbench-v2/sourceRule.test.ts",
+          "tests/unit/workbench-v2/sourceRule-readiness.test.ts",
+          "tests/unit/workbench-v2/selectors.test.ts",
+          "tests/unit/workbench-v2/studio-locator-hydration.test.tsx",
+          "tests/unit/workbench-v2/mc-persisted-draft-preservation.test.ts",
+          "tests/unit/workbench-v2/studio-locator-mc-hydration.test.tsx",
+          "tests/unit/workbench-v2/mc-next-free-address.test.ts",
+          "tests/unit/workbench-v2/mc-address-bounds.test.tsx",
+          "tests/unit/workbench-v2/rule-tab-rail.test.tsx",
+          "tests/unit/workbench-v2/mc-persisted-readiness-regression.test.ts",
+          "--config",
+          "/private/tmp/gw-plc-followup-1mfxdsab/vitest-final.config.mts",
+          "--configLoader",
+          "runner",
+          "--no-cache",
+          "--fsModuleCachePath",
+          "/private/tmp/gw-plc-followup-1mfxdsab/vitest-fs-cache"
+        ]
+      },
+      "static": {
+        "state": "passed-current",
+        "eslint_files": 29,
+        "typecheck": "npx tsc --noEmit --incremental false",
+        "vet": "affected 8 packages",
+        "lint": "affected 8 packages; 0 issues",
+        "race": "sourcerule MC bounds/runtime reconciliation",
+        "build": "frontend production build and Go embedded entrypoint"
+      }
+    },
+    "tasks": {
+      "completed": 21,
+      "total": 21
+    }
+  },
+  "not_run": [
+    "real PLC",
+    "production database",
+    "Windows",
+    "field acceptance"
+  ],
+  "snapshot_id": "ba6b3dc67d66e0a3cb3f4ad84a21761cb013ad90",
+  "snapshot_check": {
+    "snapshot_id": "ba6b3dc67d66e0a3cb3f4ad84a21761cb013ad90",
+    "status": "current"
+  },
+  "environment": {
+    "go_compiler": "go version go1.27.3 darwin/arm64",
+    "module_target": "go 1.25.5",
+    "node": "v24.22.1",
+    "vitest": "5.0.5"
+  }
+}

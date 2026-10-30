@@ -197,30 +197,34 @@ func (t *ByteTransform) Float32ToBytes(value float32) []byte {
 // Registers (uint16 陣列) 轉換
 // =============================================================================
 
+func registersToBytes(registers []uint16, count int) []byte {
+	if len(registers) < count {
+		return nil
+	}
+
+	buffer := make([]byte, count*2)
+	for i := range count {
+		binary.BigEndian.PutUint16(buffer[i*2:], registers[i])
+	}
+	return buffer
+}
+
 // RegistersToInt32 將 2 個暫存器轉換為 int32
 func (t *ByteTransform) RegistersToInt32(registers []uint16) int32 {
-	if len(registers) < 2 {
+	buffer := registersToBytes(registers, 2)
+	if buffer == nil {
 		return 0
 	}
-	switch t.Format {
-	case DataFormatCDAB, DataFormatDCBA:
-		return int32(uint32(registers[1])<<16 | uint32(registers[0])) // #nosec G115 -- reinterpret assembled 32-bit register bits as signed.
-	default:
-		return int32(uint32(registers[0])<<16 | uint32(registers[1])) // #nosec G115 -- reinterpret assembled 32-bit register bits as signed.
-	}
+	return int32(t.TransformUint32(buffer, 0)) // #nosec G115 -- reinterpret transformed 32-bit register bits as signed.
 }
 
 // RegistersToUint32 將 2 個暫存器轉換為 uint32
 func (t *ByteTransform) RegistersToUint32(registers []uint16) uint32 {
-	if len(registers) < 2 {
+	buffer := registersToBytes(registers, 2)
+	if buffer == nil {
 		return 0
 	}
-	switch t.Format {
-	case DataFormatCDAB, DataFormatDCBA:
-		return uint32(registers[1])<<16 | uint32(registers[0])
-	default:
-		return uint32(registers[0])<<16 | uint32(registers[1])
-	}
+	return t.TransformUint32(buffer, 0)
 }
 
 // RegistersToFloat32 將 2 個暫存器轉換為 float32

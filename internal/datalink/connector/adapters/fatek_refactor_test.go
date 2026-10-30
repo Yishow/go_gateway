@@ -22,10 +22,12 @@ func TestParseFatekAddress(t *testing.T) {
 }
 
 func TestConvertFatekValue(t *testing.T) {
-	value := convertFatekValue([]int{1, 2}, schema.DataTypeUint32, 16)
+	value, err := convertFatekValue([]int{1, 2}, schema.DataTypeUint32, 16)
+	require.NoError(t, err)
 	assert.Equal(t, uint32(1)<<16|uint32(2), value)
 
-	value = convertFatekValue([]int{123}, schema.DataTypeBool, 16)
+	value, err = convertFatekValue([]int{123}, schema.DataTypeBool, 16)
+	require.NoError(t, err)
 	assert.Equal(t, true, value)
 }
 

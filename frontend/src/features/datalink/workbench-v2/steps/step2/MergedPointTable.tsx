@@ -160,6 +160,19 @@ export const MergedPointTable: React.FC<MergedPointTableProps> = ({
   const deviceName = (id: string) => devices.find((device) => device.id === id)?.name ?? id;
   // 1. 計算啟用點位總數
   const totalEnabled = points.filter((p) => !p.skipped && p.enabled).length;
+  const hasBlockedPersistedMCEvidence = rules.some((rule) => {
+    const device = devices.find((candidate) => candidate.id === rule.device_id);
+    if (rule.persisted !== true || device?.protocol !== 'mc_3e') {
+      return false;
+    }
+    const evidence = rule.mc_persisted_points;
+    return evidence?.status !== 'compatible' || evidence.points.length === 0;
+  });
+  const hasBlockedMCEvidence = hasBlockedPersistedMCEvidence || readinessIssues.some((issue) => (
+    issue.reason === 'mc_points_checking' ||
+    issue.reason === 'mc_points_conflict' ||
+    issue.reason === 'mc_points_unavailable'
+  ));
 
   // 2. 計算全體點位在 Modbus Share 中的轉發地址
   const shareAddresses: Record<string, number> = {};
@@ -183,8 +196,10 @@ export const MergedPointTable: React.FC<MergedPointTableProps> = ({
         <h3 className="text-sm font-semibold text-slate-200">
           全域合併點位總覽 (共 {points.length} 點)
         </h3>
-        <span className="text-xs text-slate-500 font-mono">
-          已啟用 {totalEnabled} · 已略過 {points.length - totalEnabled} · 衝突 {conflictAddrs.size}
+        <span className="text-xs text-slate-500 font-mono" data-testid="point-table-summary">
+          {hasBlockedMCEvidence
+            ? t('step2.summary.mc_points_blocked_summary', 'Saved MC point evidence requires review.')
+            : `已啟用 ${totalEnabled} · 已略過 ${points.length - totalEnabled} · 衝突 ${conflictAddrs.size}`}
         </span>
       </div>
 
@@ -244,7 +259,11 @@ export const MergedPointTable: React.FC<MergedPointTableProps> = ({
       {/* 表尾與繼續按鈕 */}
       <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 mt-2">
         <div className="text-xs text-slate-400">
-          {conflictAddrs.size > 0 ? (
+          {hasBlockedMCEvidence ? (
+            <span className="text-amber-300" data-testid="point-table-blocked-footer">
+              {t('step2.summary.mc_points_blocked_footer', 'Saved MC points are retained for review; resolve the evidence before continuing.')}
+            </span>
+          ) : conflictAddrs.size > 0 ? (
             <span className="text-red-400 flex items-center gap-1">
               <Icon name="alert" className="w-4 h-4" />
               位址存在衝突，請先排除衝突才能繼續。

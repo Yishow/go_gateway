@@ -131,8 +131,14 @@ export default function DatalinkWorkbenchV2Page({
       configured_enabled: configuredEnabled ?? liveStatus.configured_enabled ?? bootstrapShareStatus.configured_enabled,
     };
   }, [bootstrapShareStatus, shareStatusQuery.data]);
+  const persistedMCWorkspaceScope = React.useMemo(() => {
+    const workspaceId = workspaceQuery.data?.id;
+    const workspaceRevision = shareStatus?.workspace_revision;
+    if (!workspaceId || shareStatus?.workspace_id !== workspaceId || !workspaceRevision) return undefined;
+    return { workspace_id: workspaceId, workspace_revision: workspaceRevision };
+  }, [shareStatus?.workspace_id, shareStatus?.workspace_revision, workspaceQuery.data?.id]);
   const auditHistoryQuery = useStudioV2WorkspaceAuditHistoryQuery(!locatorMode && workspaceQuery.isSuccess);
-  const autosave = useStudioV2AutosaveState(!locatorMode && workspaceQuery.isSuccess, locatorEntry, locatorEditorMounted);
+  const autosave = useStudioV2AutosaveState(!locatorMode && workspaceQuery.isSuccess, locatorEntry, locatorEditorMounted, persistedMCWorkspaceScope);
   const waitForAutosaveSettlement = useStudioV2AutosaveSettlement(autosave.state);
   const activationMutation = useActivateStudioV2WorkspaceMutation();
   const activationInFlight = React.useRef(false);

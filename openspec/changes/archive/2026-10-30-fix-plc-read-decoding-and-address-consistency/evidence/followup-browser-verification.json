@@ -1,0 +1,92 @@
+{
+  "scope": "Owned loopback MC simulator, actual headless Chromium and final embedded gateway, disposable SQLite only",
+  "result": "passed-current",
+  "checks": {
+    "x0_count8_next_default": "X10",
+    "w0_count17_next_default": "W11",
+    "hex_word_labels": [
+      {
+        "id": "72b4e89d-91e4-4707-a30c-5a649ccb10f5",
+        "address": "WA",
+        "function": "W (Word)"
+      },
+      {
+        "id": "b1e5593d-b018-487a-93c7-2dcc18302fe5",
+        "address": "WB",
+        "function": "W (Word)"
+      },
+      {
+        "id": "456b348f-04ae-4114-9807-54e69678b02b",
+        "address": "WC",
+        "function": "W (Word)"
+      },
+      {
+        "id": "c6e3d953-d866-4429-bd6b-6aa9703dfbae",
+        "address": "WD",
+        "function": "W (Word)"
+      },
+      {
+        "id": "b8d8ccd4-dc2c-40a8-95aa-cc6bfee62782",
+        "address": "WE",
+        "function": "W (Word)"
+      },
+      {
+        "id": "e1d676b1-c41c-4316-8c82-7876c93874e6",
+        "address": "WF",
+        "function": "W (Word)"
+      }
+    ],
+    "out_of_range_start": {
+      "input": "WFFFFFFFF",
+      "editor_survived": true,
+      "continue_disabled": true,
+      "saved_rules_unchanged": true
+    },
+    "range_overflow": {
+      "start": "WFFFFFF",
+      "count": "8",
+      "ruleEditorPresent": true,
+      "continueDisabled": true,
+      "errorVisible": true
+    }
+  },
+  "network": {
+    "total_har_requests": 61,
+    "api_requests": 59,
+    "invalid_source_requests": [
+      {
+        "method": "PUT",
+        "path": "/api/v1/datalink/studio-v2/workspace/source-rules/rule-1793304680721",
+        "status": 400,
+        "scoped_candidate": null
+      },
+      {
+        "method": "PUT",
+        "path": "/api/v1/datalink/studio-v2/workspace/source-rules/rule-1793304680721",
+        "status": 400,
+        "scoped_candidate": null
+      },
+      {
+        "method": "PUT",
+        "path": "/api/v1/datalink/studio-v2/workspace/source-rules/rule-1793304680721",
+        "status": 400,
+        "scoped_candidate": null
+      }
+    ],
+    "unscoped_candidates": 0,
+    "candidate_recompute_or_apply": 0
+  },
+  "cleanup": {
+    "browser_closed": true,
+    "ports_closed": {
+      "gateway_port": true,
+      "simulator_port": true
+    }
+  },
+  "not_run": [
+    "real PLC",
+    "production database",
+    "Windows",
+    "field acceptance"
+  ]
+}

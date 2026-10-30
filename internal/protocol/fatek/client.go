@@ -84,10 +84,20 @@ func (c *FatekClient) ReadStatus(symbol string, startAddr, count int) ([]bool, e
 	if err != nil {
 		return nil, err
 	}
+	if len(dataStr) != count {
+		return nil, fmt.Errorf("response length mismatch for %s: expected %d status bytes, got %d", symbol, count, len(dataStr))
+	}
 
-	result := make([]bool, len(dataStr))
-	for i, char := range dataStr {
-		result[i] = (char == '1')
+	result := make([]bool, count)
+	for i := range len(dataStr) {
+		switch dataStr[i] {
+		case '0':
+			result[i] = false
+		case '1':
+			result[i] = true
+		default:
+			return nil, fmt.Errorf("invalid status payload byte at index %d", i)
+		}
 	}
 	return result, nil
 }

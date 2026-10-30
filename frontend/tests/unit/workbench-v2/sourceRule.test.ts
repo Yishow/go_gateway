@@ -130,16 +130,24 @@ describe('SourceRule State Pure Helpers', () => {
       expect(points[0].function).toBe('X (Bit)');
     });
 
-    it('應正確處理 MC 3E 十六進位接點跨位與進位步進 (XF -> X10 -> X11)', () => {
-      const mcRuleXF: Rule = {
+    it('應正確處理 MC 3E 八進位接點跨位與進位步進 (X7 -> X10 -> X11)', () => {
+      const mcRuleX7: Rule = {
         ...mockRule,
-        start_address: 'XF',
+        start_address: 'X7',
         count: 3,
         data_type: 'bool',
       };
-      const points = derivePoints(mcRuleXF, 'dev-mc', new Set(), 'mc_3e');
-      expect(points.map((p) => p.address)).toEqual(['XF', 'X10', 'X11']);
+      const points = derivePoints(mcRuleX7, 'dev-mc', new Set(), 'mc_3e');
+      expect(points.map((p) => p.address)).toEqual(['X7', 'X10', 'X11']);
       expect(points[0].function).toBe('X (Bit)');
+    });
+
+    it.each([
+      { protocol: 'modbus_tcp' as const, start: '40001', expected: ['40001', '40003', '40005'] },
+      { protocol: 'mc_3e' as const, start: 'D0', expected: ['D0', 'D2', 'D4'] },
+    ])('依規格保留 $protocol float32 的來源位址步距', ({ protocol, start, expected }) => {
+      const rule: Rule = { ...mockRule, start_address: start, count: 3, data_type: 'float32' };
+      expect(derivePoints(rule, 'dev-source', new Set(), protocol).map((point) => point.address)).toEqual(expected);
     });
 
     it('應正確衍生 FATEK FBs 設備位址 (R0 與 D100)', () => {

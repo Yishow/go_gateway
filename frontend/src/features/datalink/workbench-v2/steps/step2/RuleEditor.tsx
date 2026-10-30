@@ -57,7 +57,11 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
   const hasMissingDevice = readinessReason === 'unknown_device' || readinessReason === 'deleted_device';
   const missingDeviceKey = readinessReason === 'deleted_device' ? 'deleted_device' : 'unknown_device';
   const hasInvalidAddress = readinessReason === 'invalid_address';
-  const hasValidAddress = readinessReason === null;
+  const hasValidAddress = !hasMissingDevice && !hasInvalidAddress;
+  const protocol = owningDevice?.protocol;
+  const isPersistedMC = rule.persisted === true && protocol === 'mc_3e';
+  const persistedMCStatus = rule.mc_persisted_points?.status ?? 'unavailable';
+  const hasPersistedMCBlock = isPersistedMC && persistedMCStatus !== 'compatible';
   const missingDeviceFallback = readinessReason === 'deleted_device'
     ? {
       title: '此規則所屬設備已被刪除。',
@@ -69,7 +73,6 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
       action: '請先選擇目前設備，再保存此規則。',
       option: '沒有目前設備，請選擇設備',
     };
-  const protocol = owningDevice?.protocol;
   const isModbus = protocol?.startsWith('modbus') ?? false;
   const addressErrorId = `rule-start-error-${rule.id}`;
   const addrHint = isModbus
@@ -96,6 +99,22 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
           </div>
           <div className="mt-1">
             {t(`step2.editor.${missingDeviceKey}_action`, missingDeviceFallback.action)}
+          </div>
+        </div>
+      )}
+
+      {hasPersistedMCBlock && (
+        <div
+          className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
+          role="alert"
+          data-testid="rule-mc-persisted-status"
+          data-status={persistedMCStatus}
+        >
+          <div className="font-semibold">
+            {t(`step2.editor.mc_points_${persistedMCStatus}`, 'Saved MC point evidence is not ready.')}
+          </div>
+          <div className="mt-1">
+            {t(`step2.editor.mc_points_${persistedMCStatus}_action`, 'Wait for matching saved point evidence before editing this rule.')}
           </div>
         </div>
       )}
@@ -214,6 +233,8 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
           count={rule.count}
           dataType={rule.data_type}
           protocol={owningDevice.protocol}
+          isPersistedMC={isPersistedMC}
+          persistedMCPoints={rule.mc_persisted_points}
         />
       ) : (
         <div

@@ -2,10 +2,10 @@ package adapters
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
+	"math"
 
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/protocol/fatek"
 )
 
 // =============================================================================
@@ -15,67 +15,79 @@ import (
 // parseFatekAddress 解析 FATEK 地址字串
 // 格式: "D0100", "R0", "M100", "X0", "Y0", "D100", etc.
 func parseFatekAddress(addressStr string) (symbol string, address int, err error) {
-	addressStr = strings.TrimSpace(strings.ToUpper(addressStr))
-	if len(addressStr) < 2 {
-		return "", 0, fmt.Errorf("無效的 FATEK 地址: %s", addressStr)
-	}
-
-	// 支援的元件符號
-	symbols := []string{
-		"DR", "DD", "DWM", "DWS", "DWX", "DWY", // 32 位元
-		"D", "R", "WM", "WS", "WX", "WY", // 16 位元
-		"M", "S", "T", "C", "X", "Y", // 位元
-	}
-
-	for _, s := range symbols {
-		if strings.HasPrefix(addressStr, s) {
-			addrPart := addressStr[len(s):]
-			addr, err := strconv.Atoi(addrPart)
-			if err != nil {
-				return "", 0, fmt.Errorf("無效的 FATEK 地址數字: %s", addrPart)
-			}
-			return s, addr, nil
-		}
-	}
-
-	return "", 0, fmt.Errorf("無法識別的 FATEK 元件符號: %s", addressStr)
+	return fatek.ParseComponentAddress(addressStr)
 }
 
 // convertFatekValue 將 FATEK 暫存器值轉換為指定型別
-func convertFatekValue(values []int, dataType schema.DataType, width int) any {
+func convertFatekValue(values []int, dataType schema.DataType, width int) (any, error) {
 	if len(values) == 0 {
-		return nil
+		return nil, fmt.Errorf("FATEK conversion requires at least one component")
 	}
 
 	switch dataType {
 	case schema.DataTypeBool:
-		return values[0] != 0
+		return values[0] != 0, nil
 	case schema.DataTypeInt16:
-		return int16(values[0]) // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
+		return int16(values[0]), nil // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
 	case schema.DataTypeUint16:
-		return uint16(values[0]) // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
+		return uint16(values[0]), nil // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
 	case schema.DataTypeInt32:
-		if len(values) >= 1 && width == 32 {
-			return int32(values[0]) // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
-		} else if len(values) >= 2 {
-			return int32(values[0])<<16 | int32(values[1]) // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
+		bits, err := assembleFatekBits(values, dataType, width, 32)
+		if err != nil {
+			return nil, err
 		}
+		return int32(uint32(bits)), nil // #nosec G115 -- Reinterpret the assembled 32-bit FATEK bits as signed.
 	case schema.DataTypeUint32:
-		if len(values) >= 1 && width == 32 {
-			return uint32(values[0]) // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
-		} else if len(values) >= 2 {
-			return uint32(values[0])<<16 | uint32(values[1]) // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
+		bits, err := assembleFatekBits(values, dataType, width, 32)
+		if err != nil {
+			return nil, err
 		}
+		return uint32(bits), nil // #nosec G115 -- assembleFatekBits with targetBits 32 produces at most 32 bits.
 	case schema.DataTypeFloat32:
-		if len(values) >= 1 && width == 32 {
-			// FATEK 32 位元暫存器可能已經包含完整的 float
-			// 這裡需要根據實際 PLC 配置處理
-			return float32(values[0])
+		bits, err := assembleFatekBits(values, dataType, width, 32)
+		if err != nil {
+			return nil, err
 		}
+		return math.Float32frombits(uint32(bits)), nil // #nosec G115 -- assembleFatekBits with targetBits 32 produces at most 32 bits.
+	case schema.DataTypeInt64:
+		bits, err := assembleFatekBits(values, dataType, width, 64)
+		if err != nil {
+			return nil, err
+		}
+		return int64(bits), nil // #nosec G115 -- Reinterpret the assembled 64-bit FATEK bits as signed.
+	case schema.DataTypeUint64:
+		bits, err := assembleFatekBits(values, dataType, width, 64)
+		if err != nil {
+			return nil, err
+		}
+		return bits, nil
+	case schema.DataTypeFloat64:
+		bits, err := assembleFatekBits(values, dataType, width, 64)
+		if err != nil {
+			return nil, err
+		}
+		return math.Float64frombits(bits), nil
 	}
 
-	// 預設返回第一個值
-	return values[0]
+	return nil, fmt.Errorf("unsupported FATEK data type: %s", dataType)
+}
+
+func assembleFatekBits(values []int, dataType schema.DataType, width, targetBits int) (uint64, error) {
+	if width != 16 && width != 32 {
+		return 0, fmt.Errorf("unsupported FATEK component width %d for %s", width, dataType)
+	}
+	required := targetBits / width
+	if len(values) < required {
+		return 0, fmt.Errorf("insufficient FATEK components for %s: need %d, got %d", dataType, required, len(values))
+	}
+
+	mask := (uint64(1) << uint(width)) - 1
+	var bits uint64
+	for i := range required {
+		component := uint64(values[i]) & mask // #nosec G115 -- Preserve the fixed-width FATEK component bits.
+		bits = bits<<uint(width) | component
+	}
+	return bits, nil
 }
 
 // intSliceToBytes 將 int 切片轉換為位元組切片

@@ -98,7 +98,13 @@ func (c *FatekConnector) Read(ctx context.Context, req connector.ReadRequest) (c
 			return result, err
 		}
 		result.RawBytes = intSliceToBytes(values)
-		result.Value = convertFatekValue(values, req.DataType, comp.Width)
+		value, err := convertFatekValue(values, req.DataType, comp.Width)
+		if err != nil {
+			result.Quality = schema.QualityBad
+			result.Error = err.Error()
+			return result, err
+		}
+		result.Value = value
 	}
 
 	return result, nil

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { dataTypeWidth } from '../../state/sourceRule';
+import { dataTypeWidth, sortPersistedMCAddresses } from '../../state/sourceRule';
+import type { PersistedMCRuleState } from '../../state/mcPersistedPoints';
 import { addressParser } from '../../../../../utils/addressParser';
 import type { ProtocolType } from '../../../../../types/datalink';
 
@@ -9,6 +10,8 @@ export interface RangeSummaryProps {
   count: number;
   dataType: string;
   protocol?: ProtocolType;
+  isPersistedMC?: boolean;
+  persistedMCPoints?: PersistedMCRuleState;
 }
 
 /**
@@ -21,6 +24,8 @@ export const RangeSummary: React.FC<RangeSummaryProps> = ({
   count,
   dataType,
   protocol = 'modbus_tcp',
+  isPersistedMC = false,
+  persistedMCPoints,
 }) => {
   const { t } = useTranslation('workbench-v2');
   // Source points are contiguous by datatype width; share_stride belongs to output only.
@@ -28,10 +33,25 @@ export const RangeSummary: React.FC<RangeSummaryProps> = ({
   const stride = width;
   const totalRegisters = count * stride;
   const startAddr = startAddress.trim();
-  const isAddressValid = startAddr.length > 0 && addressParser.validate(startAddr, protocol).valid;
-  const endAddr = isAddressValid
-    ? addressParser.offset(startAddr, Math.max(0, count - 1) * stride + width - 1, protocol)
-    : '';
+  const persistedAddresses = isPersistedMC
+    ? sortPersistedMCAddresses((persistedMCPoints?.points ?? []).map((point) => point.address))
+    : [];
+  const hasPersistedAddresses = persistedAddresses.length > 0;
+  const persistedStatus = persistedMCPoints?.status ?? 'unavailable';
+  let plannerAddressValid = startAddr.length > 0 && addressParser.validate(startAddr, protocol).valid;
+  let endAddr = '';
+  if (plannerAddressValid) {
+    try {
+      endAddr = addressParser.offset(
+        startAddr,
+        Math.max(0, count - 1) * stride + width - 1,
+        protocol,
+      );
+    } catch {
+      plannerAddressValid = false;
+    }
+  }
+  const isAddressValid = isPersistedMC ? hasPersistedAddresses : plannerAddressValid;
 
   // 推斷功能碼類型與色彩調性
   const getFuncMeta = (addr: string, proto: ProtocolType) => {
@@ -93,8 +113,18 @@ export const RangeSummary: React.FC<RangeSummaryProps> = ({
     };
   };
 
-  const registerUnit = isAddressValid && addressParser.getAreaInfo(startAddr, protocol).isBit ? 'bits' : 'words';
-  const meta = isAddressValid
+  const areaInfo = plannerAddressValid
+    ? addressParser.getAreaInfo(startAddr, protocol)
+    : null;
+  const registerUnit = areaInfo?.isBit ? 'bits' : 'words';
+  const meta = isPersistedMC && persistedStatus !== 'compatible'
+    ? {
+        label: t(`step2.summary.mc_points_${persistedStatus}`, 'Saved point evidence is blocked.'),
+        bg: 'bg-amber-500/10',
+        border: 'border-amber-500/20',
+        text: 'text-amber-300',
+      }
+    : isAddressValid && plannerAddressValid
     ? getFuncMeta(startAddr, protocol)
     : {
         label: t('step2.summary.invalid_address', '位址不符合所選協議格式。'),
@@ -112,10 +142,14 @@ export const RangeSummary: React.FC<RangeSummaryProps> = ({
     >
       {/* 範圍標籤 */}
       <span className="font-semibold text-slate-400">
-        {t('step2.summary.range_label', 'Address range:')}
+        {isPersistedMC
+          ? t('step2.summary.persisted_addresses_label', 'Saved point addresses:')
+          : t('step2.summary.range_label', 'Address range:')}
       </span>
       <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-100">
-        {startAddr || '—'} ~ {endAddr || '—'}
+        {isPersistedMC
+          ? (hasPersistedAddresses ? persistedAddresses.join(', ') : '—')
+          : `${startAddr || '—'} ~ ${endAddr || '—'}`}
       </span>
 
       {/* 功能碼標籤 */}
@@ -127,18 +161,25 @@ export const RangeSummary: React.FC<RangeSummaryProps> = ({
       </span>
 
       {/* 總暫存器數說明 */}
-      <span className="text-slate-400 ml-auto sm:ml-0">
-        {t('step2.summary.register_count', {
-          defaultValue: `${count} ${dataType} items use ${totalRegisters} ${registerUnit} (${stride} per item)`,
-          count: totalRegisters,
-          items: count,
-          registerUnit,
-          dataType,
-          stride,
-        })}
-      </span>
+      {(!isPersistedMC || hasPersistedAddresses) && (
+        <span className="text-slate-400 ml-auto sm:ml-0">
+          {t('step2.summary.register_count', {
+            defaultValue: `${count} ${dataType} items use ${totalRegisters} ${registerUnit} (${stride} per item)`,
+            count: isPersistedMC ? persistedAddresses.length * stride : totalRegisters,
+            items: isPersistedMC ? persistedAddresses.length : count,
+            registerUnit,
+            dataType,
+            stride,
+          })}
+        </span>
+      )}
 
-      {!isAddressValid && (
+      {isPersistedMC && persistedStatus !== 'compatible' && (
+        <span className="basis-full text-amber-300" data-testid="persisted-mc-summary-status">
+          {t(`step2.summary.mc_points_${persistedStatus}_action`, 'Review saved point evidence before continuing.')}
+        </span>
+      )}
+      {!isPersistedMC && !isAddressValid && (
         <span className="basis-full text-red-300" data-testid="range-summary-error">
           {t('step2.summary.invalid_address', '位址不符合所選協議格式。')}
         </span>

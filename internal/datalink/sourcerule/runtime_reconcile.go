@@ -200,8 +200,11 @@ func (s *Service) UpdateWithRuntimeReconcile(
 	}
 	rule, err := s.Update(ctx, id, req)
 	if err != nil {
-		if rollbackErr := s.restoreRuleSnapshot(ctx, snapshot); rollbackErr != nil {
-			return nil, RuntimeReconcileOutcome{}, s.dirtyUnknown(ctx)
+		var validationErr *mcPreMutationValidationError
+		if !errors.Is(err, errMCAddressPlanConflict) && !errors.As(err, &validationErr) {
+			if rollbackErr := s.restoreRuleSnapshot(ctx, snapshot); rollbackErr != nil {
+				return nil, RuntimeReconcileOutcome{}, s.dirtyUnknown(ctx)
+			}
 		}
 		return nil, RuntimeReconcileOutcome{}, err
 	}

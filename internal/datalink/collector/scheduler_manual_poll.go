@@ -108,7 +108,18 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 					DataType:   pt.DataType,
 					DataFormat: pt.DataFormat,
 				}
-				req.Count = connector.PointReadCount(conn.ProtocolType, pt.DataType)
+				count, countErr := connector.PointReadCountForAddress(conn.ProtocolType, pt.Address, pt.DataType)
+				if countErr != nil {
+					cv := s.collectedValue(managedConfig(conn), pt, connector.ReadResult{
+						Quality: schema.QualityBad,
+						Error:   countErr.Error(),
+					}, countErr, acquisitionID, s.now())
+					resultsMu.Lock()
+					results = append(results, cv)
+					resultsMu.Unlock()
+					continue
+				}
+				req.Count = count
 
 				result, readErr := conn.Read(ctx, req)
 				if breaker != nil {

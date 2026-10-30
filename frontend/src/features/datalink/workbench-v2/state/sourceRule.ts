@@ -3,7 +3,13 @@ import { addressParser } from '../../../../utils/addressParser';
 import type { ProtocolType } from '../../../../types/datalink';
 
 /** 可阻擋規則衍生或 Step 2 繼續的穩定原因碼。 */
-export type RuleReadinessReason = 'unknown_device' | 'deleted_device' | 'invalid_address';
+export type RuleReadinessReason =
+  | 'unknown_device'
+  | 'deleted_device'
+  | 'invalid_address'
+  | 'mc_points_checking'
+  | 'mc_points_conflict'
+  | 'mc_points_unavailable';
 /** 以規則、設備與位址 identity 攜帶的 readiness 問題。 */
 export interface RuleReadinessIssue {
   rule: Rule;
@@ -48,6 +54,62 @@ function getPointFunctionType(addr: string, protocol: ProtocolType = 'modbus_tcp
   return addressParser.getAreaInfo(addr, protocol).typeLabel;
 }
 
+export interface PersistedMCPointLike {
+  point_id: string;
+  address: string;
+}
+
+function persistedAddressOrder(address: string): { area: string; offset: number } | null {
+  try {
+    const parsed = addressParser.parse(address.trim().toUpperCase(), 'mc_3e');
+    return { area: parsed.area, offset: parsed.startNumber };
+  } catch {
+    return null;
+  }
+}
+
+export function sortPersistedMCAddresses(addresses: readonly string[]): string[] {
+  return addresses
+    .map((address, index) => ({ address, index, parsed: persistedAddressOrder(address) }))
+    .sort((left, right) => {
+      if (!left.parsed || !right.parsed) return left.index - right.index;
+      return left.parsed.area.localeCompare(right.parsed.area) || left.parsed.offset - right.parsed.offset || left.index - right.index;
+    })
+    .map(({ address }) => address);
+}
+
+export function projectPersistedMCPoint(
+  rule: Rule,
+  identity: PersistedMCPointLike,
+  skippedSet: ReadonlySet<string> = new Set(),
+): Point {
+  const address = identity.address.trim().toUpperCase();
+  const area = address.slice(0, 1);
+  const isWord = area === 'W' || area === 'D';
+  const skipped = new Set([...skippedSet].map((value) => value.trim().toUpperCase()));
+  return {
+    id: identity.point_id,
+    device_id: rule.device_id,
+    rule_id: rule.id,
+    rule_name: rule.name,
+    name: `${rule.naming_prefix}${address}`,
+    address,
+    data_type: rule.data_type,
+    function: `${area} (${isWord ? 'Word' : 'Bit'})`,
+    width: dataTypeWidth(rule.data_type),
+    enabled: rule.enabled && !skipped.has(address),
+    skipped: skipped.has(address),
+    _rule_scale: rule.scale_multiplier,
+    _rule_offset: rule.scale_offset,
+  };
+}
+
+export function projectPersistedMCPoints(rule: Rule, skippedSet: ReadonlySet<string> = new Set()): Point[] {
+  const identities = rule.mc_persisted_points?.points ?? [];
+  const byAddress = new Map(identities.map((identity) => [identity.address, identity]));
+  return sortPersistedMCAddresses([...byAddress.keys()]).map((address) => projectPersistedMCPoint(rule, byAddress.get(address)!, skippedSet));
+}
+
 /**
  * 根據位址字串與協議推斷功能碼或暫存器型態標籤 (相容別名)
  */
@@ -82,9 +144,23 @@ export function getRuleReadinessReason(
     return rule.persisted ? 'deleted_device' : 'unknown_device';
   }
 
-  return addressParser.validate(rule.start_address, protocol).valid
-    ? null
-    : 'invalid_address';
+  if (rule.persisted === true && protocol === 'mc_3e') {
+    const evidence = rule.mc_persisted_points;
+    if (evidence?.status === 'conflict') return 'mc_points_conflict';
+    if (evidence?.status === 'checking') return 'mc_points_checking';
+    if (evidence?.status !== 'compatible' || evidence.points.length === 0) return 'mc_points_unavailable';
+  }
+
+  if (!addressParser.validate(rule.start_address, protocol).valid) return 'invalid_address';
+  if (protocol === 'mc_3e') {
+    try {
+      const width = dataTypeWidth(rule.data_type);
+      addressParser.offset(rule.start_address, Math.max(0, rule.count - 1) * width + width - 1, protocol);
+    } catch {
+      return 'invalid_address';
+    }
+  }
+  return null;
 }
 /**
  * 集中取得所有啟用規則的 readiness 問題，供 Step 2 的衍生與 UI gate 共用。
@@ -151,6 +227,10 @@ export function derivePoints(
   skippedSet: Set<string>,
   protocol: ProtocolType = 'modbus_tcp',
 ): Point[] {
+  if (rule.persisted === true && protocol === 'mc_3e') {
+    return projectPersistedMCPoints(rule, skippedSet).map((point) => ({ ...point, device_id: deviceId }));
+  }
+
   const points: Point[] = [];
   const startAddr = rule.start_address?.trim() || '';
   if (!startAddr || !addressParser.validate(startAddr, protocol).valid) {
@@ -210,13 +290,14 @@ export function deriveAllPoints(
       continue;
     }
 
+    const protocol = deviceProtocolMap[devId];
     const readinessReason = getRuleReadinessReason(rule, deviceProtocolMap);
-    if (readinessReason) {
+    const canProjectPersistedMC = protocol === 'mc_3e' && rule.persisted === true && Boolean(rule.mc_persisted_points?.points.length);
+    if (readinessReason && !canProjectPersistedMC) {
       continue;
     }
 
     const skippedSet = new Set(rule.skipped_addresses || []);
-    const protocol = deviceProtocolMap[devId];
     const points = derivePoints(rule, devId, skippedSet, protocol);
     allPoints.push(...points);
   }
@@ -392,28 +473,4 @@ export function describeAddressConflicts(allPoints: Point[], protocols?: Protoco
   return [...described.values()].map((entry) => ({ ...entry, rule_names: [...entry.rule_names].sort() }));
 }
 
-const REGISTERS_PER_VALUE: Record<Rule['data_type'], number> = {
-  bool: 1, int16: 1, uint16: 1, int32: 2, uint32: 2, float32: 2, int64: 4, uint64: 4, float64: 4, string: 1,
-};
-
-/**
- * The first address on a device that no existing rule covers, so a newly added
- * rule does not start on top of another rule's points. It falls back to the
- * protocol default when there is no rule yet or an address cannot be read.
- */
-export function nextFreeStartAddress(deviceRules: Rule[], protocol: ProtocolType, fallback: string): string {
-  let best: { end: number; prefix: string; width: number } | null = null;
-  for (const rule of deviceRules) {
-    const text = rule.start_address.trim().toUpperCase();
-    const span = Math.max(1, rule.count) * (REGISTERS_PER_VALUE[rule.data_type] ?? 1);
-    // Modbus keeps its leading area digit (4xxxx), letter protocols their area letters (D100).
-    const modbus = /^([0134])(\d{4,5})$/.exec(text);
-    const lettered = /^([A-Z]+)(\d+)$/.exec(text);
-    const match = protocol.startsWith('modbus') ? modbus : lettered;
-    if (!match) return fallback;
-    const end = parseInt(match[2], 10) + span;
-    if (!best || end > best.end) best = { end, prefix: match[1], width: match[2].length };
-  }
-  if (!best) return fallback;
-  return `${best.prefix}${String(best.end).padStart(best.width, '0')}`;
-}
+export { nextFreeStartAddress } from './nextFreeStartAddress';

@@ -1,0 +1,83 @@
+{
+  "binary_sha256": "e12871981e8b876a8f9a0ed491a8251d8c4638a1a86d39e4c91a50e079830e1f",
+  "ui_checks": {
+    "new_rules_created_via_browser": 2,
+    "new_points_retained_on_reload": 34,
+    "new_rule_revisions_unchanged_on_reload": true,
+    "new_w0_addresses": [
+      "W0",
+      "W1",
+      "W2",
+      "W3",
+      "W4",
+      "W5",
+      "W6",
+      "W7",
+      "W8",
+      "W9",
+      "WA",
+      "WB",
+      "WC",
+      "WD",
+      "WE",
+      "WF",
+      "W10"
+    ],
+    "new_x0_addresses": [
+      "X0",
+      "X1",
+      "X2",
+      "X3",
+      "X4",
+      "X5",
+      "X6",
+      "X7",
+      "X10",
+      "X11",
+      "X12",
+      "X13",
+      "X14",
+      "X15",
+      "X16",
+      "X17",
+      "X20"
+    ],
+    "legacy_points_retained": 17,
+    "legacy_existing_mappings_retained": 1,
+    "legacy_local_prefix_edit_not_saved": true,
+    "legacy_rule_revision_unchanged": true,
+    "legacy_identities_unchanged": true,
+    "legacy_conflict_status": "conflict",
+    "legacy_unknown_summary": "\u5df2\u4fdd\u5b58\u7684 MC \u9ede\u4f4d\u8b49\u64da\u9700\u5148\u78ba\u8a8d\u3002",
+    "legacy_continue_disabled": true
+  },
+  "identity_digests": {
+    "new_before_and_after": "989d22d9d5426a9cca40825234fd9c86a8d94a4ce221bda26ad91edee1cd64d0",
+    "legacy_before_and_after": "f564f8d3c5544f50e342a412d8792333159a667fa72f6c49a0ee5bc52e296b2e"
+  },
+  "network_checks": {
+    "legacy_mutation_requests": 0,
+    "unscoped_candidate_gets": 0,
+    "candidate_recompute_or_apply_posts": 0,
+    "api_requests": 124,
+    "legacy_get_requests": 36
+  },
+  "simulator": {
+    "interface": "127.0.0.1",
+    "wire_requests": 2,
+    "device_probe_passed": true,
+    "acceptance": "device probe and saved UI plans; no claim of running collection or output commits"
+  },
+  "not_run": [
+    "real PLC",
+    "production database",
+    "Windows",
+    "field acceptance"
+  ],
+  "cleanup": {
+    "gateway_new_stopped": true,
+    "gateway_legacy_stopped": true,
+    "simulator_stopped": true,
+    "all_owned_ports_closed": true
+  }
+}

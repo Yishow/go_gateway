@@ -165,7 +165,11 @@ func TestOtherProtocolPointWordCountsRemainUnchanged(t *testing.T) {
 			manager := connector.NewConnectionManager(connector.DefaultConnectionManagerConfig())
 			t.Cleanup(func() { manager.CloseAll() })
 			dev := &schema.Device{ID: "device", Protocol: typ, ConnectionConfig: "{}"}
-			point := &schema.Point{ID: "point", DeviceID: dev.ID, Address: "40001", DataType: schema.DataTypeUint64}
+			address := "40001"
+			if typ == schema.ProtocolFatekFBs {
+				address = "D0"
+			}
+			point := &schema.Point{ID: "point", DeviceID: dev.ID, Address: address, DataType: schema.DataTypeUint64}
 			s := NewScheduler(DefaultSchedulerConfig(), manager)
 			s.AddDevice(dev)
 			s.AddPoint(point)

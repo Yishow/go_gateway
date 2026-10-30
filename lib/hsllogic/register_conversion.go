@@ -53,18 +53,11 @@ func (c *DataConverter) RegistersToValue(registers []uint16, dataType DataType) 
 
 // registersToInt64 將 4 個暫存器轉換為 int64
 func registersToInt64(registers []uint16, format DataFormat) int64 {
-	if len(registers) < 4 {
+	buffer := registersToBytes(registers, 4)
+	if buffer == nil {
 		return 0
 	}
-
-	switch format {
-	case DataFormatCDAB, DataFormatDCBA:
-		return int64(uint64(registers[3])<<48 | uint64(registers[2])<<32 |
-			uint64(registers[1])<<16 | uint64(registers[0])) // #nosec G115 -- reinterpret assembled 64-bit register bits as signed.
-	default: // ABCD, BADC
-		return int64(uint64(registers[0])<<48 | uint64(registers[1])<<32 |
-			uint64(registers[2])<<16 | uint64(registers[3])) // #nosec G115 -- reinterpret assembled 64-bit register bits as signed.
-	}
+	return int64(NewByteTransform(format).TransformUint64(buffer, 0)) // #nosec G115 -- reinterpret transformed 64-bit register bits as signed.
 }
 
 // =============================================================================

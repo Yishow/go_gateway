@@ -14,7 +14,7 @@ import (
 func TestOffsetAddress_MC3EHexContactUsesHexadecimalRadix(t *testing.T) {
 	got, err := offsetAddress("X0", 16, schema.ProtocolMC3E)
 	require.NoError(t, err)
-	require.Equal(t, "X10", got)
+	require.Equal(t, "X20", got)
 }
 
 func TestOffsetAddress_ProtocolRadixBoundarySpecTable(t *testing.T) {
@@ -24,7 +24,7 @@ func TestOffsetAddress_ProtocolRadixBoundarySpecTable(t *testing.T) {
 		offset   int
 		expected string
 	}{
-		{protocol: schema.ProtocolMC3E, start: "X0", offset: 16, expected: "X10"},
+		{protocol: schema.ProtocolMC3E, start: "X0", offset: 16, expected: "X20"},
 		{protocol: schema.ProtocolMC3E, start: "D0", offset: 16, expected: "D16"},
 		{protocol: schema.ProtocolFatekFBs, start: "R0", offset: 16, expected: "R16"},
 		{protocol: schema.ProtocolModbusTCP, start: "40001", offset: 2, expected: "40003"},

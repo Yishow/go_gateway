@@ -18,7 +18,14 @@ func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connecto
 		DataFormat: pt.DataFormat,
 	}
 
-	req.Count = connector.PointReadCount(conn.ProtocolType, pt.DataType)
+	count, countErr := connector.PointReadCountForAddress(conn.ProtocolType, pt.Address, pt.DataType)
+	if countErr != nil {
+		result := connector.ReadResult{Quality: schema.QualityBad, Error: countErr.Error()}
+		cv := s.collectedValue(managedConfig(conn), pt, result, countErr, acquisitionID, s.now())
+		s.emitValue(cv)
+		return countErr
+	}
+	req.Count = count
 
 	var result connector.ReadResult
 	var err error

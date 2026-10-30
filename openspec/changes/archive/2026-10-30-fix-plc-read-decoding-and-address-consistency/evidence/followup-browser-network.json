@@ -1,0 +1,356 @@
+[
+  {
+    "method": "POST",
+    "path": "/api/v1/datalink/studio-v2/workspace/devices",
+    "status": 201,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/devices",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/modbus-share/status",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/datalink/studio-v2/workspace/devices/dev-1793304643888-972",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/devices",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/modbus-share/status",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/datalink/studio-v2/workspace/devices/dev-1793304643888-972",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/devices",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/modbus-share/status",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/datalink/studio-v2/workspace/devices/dev-1793304643888-972",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/devices",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/modbus-share/status",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/datalink/studio-v2/workspace/devices/dev-1793304643888-972",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/devices",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/modbus-share/status",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/datalink/devices/test-draft",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/datalink/devices/dev-1793304643888-972/test",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/devices",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules",
+    "status": 201,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/source-rules/rule-1793304645240/candidates",
+    "status": 200,
+    "scoped_candidate": true
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules/rule-1793304645240",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/source-rules/rule-1793304645240/candidates",
+    "status": 200,
+    "scoped_candidate": true
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules/rule-1793304645240",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/source-rules/rule-1793304645240/candidates",
+    "status": 200,
+    "scoped_candidate": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules",
+    "status": 201,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/source-rules/rule-1793304679489/candidates",
+    "status": 200,
+    "scoped_candidate": true
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules/rule-1793304679489",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/source-rules/rule-1793304679489/candidates",
+    "status": 200,
+    "scoped_candidate": true
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules/rule-1793304679489",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/source-rules/rule-1793304679489/candidates",
+    "status": 200,
+    "scoped_candidate": true
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules/rule-1793304679489",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/source-rules/rule-1793304679489/candidates",
+    "status": 200,
+    "scoped_candidate": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules",
+    "status": 201,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/studio-v2/workspace",
+    "status": 200,
+    "scoped_candidate": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/datalink/source-rules/rule-1793304680721/candidates",
+    "status": 200,
+    "scoped_candidate": true
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules/rule-1793304680721",
+    "status": 400,
+    "scoped_candidate": null
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules/rule-1793304680721",
+    "status": 400,
+    "scoped_candidate": null
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/datalink/studio-v2/workspace/source-rules/rule-1793304680721",
+    "status": 400,
+    "scoped_candidate": null
+  }
+]

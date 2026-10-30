@@ -1,6 +1,8 @@
 
 import type { ProtocolType } from '../types/datalink';
 
+const MC3E_MAX_OFFSET = 0xffffff;
+
 export interface ParsedAddress {
   protocol: ProtocolType;
   area: string;
@@ -96,33 +98,52 @@ export class AddressParser {
   }
 
   private parseMC3E(address: string, protocol: ProtocolType): ParsedAddress {
-    // 1. 接點 X, Y, B 恆為十六進位 (Hex) 接點
-    const hexMatch = address.match(/^([XYB])([0-9A-F]+)$/);
-    if (hexMatch) {
+    // MC X/Y contacts use strict octal suffixes.
+    const octalMatch = address.match(/^([XY])([0-7]+)$/);
+    if (octalMatch) {
       return {
         protocol,
-        area: hexMatch[1],
-        startNumber: parseInt(hexMatch[2], 16),
+        area: octalMatch[1],
+        startNumber: this.parseBoundedMC3EOffset(octalMatch[2], 8, address),
         raw: address,
         type: 'bit',
       };
     }
 
-    // 2. 暫存器 D, W 與接點 M 採十進位 (Dec)
-    const decMatch = address.match(/^([DWM])(\d+)$/);
+    // MC W/B areas use hexadecimal suffixes.
+    const hexMatch = address.match(/^([WB])([0-9A-F]+)$/);
+    if (hexMatch) {
+      return {
+        protocol,
+        area: hexMatch[1],
+        startNumber: this.parseBoundedMC3EOffset(hexMatch[2], 16, address),
+        raw: address,
+        type: hexMatch[1] === 'W' ? 'word' : 'bit',
+      };
+    }
+
+    // MC D/M areas use decimal suffixes.
+    const decMatch = address.match(/^([DM])(\d+)$/);
     if (decMatch) {
       const area = decMatch[1];
-      const isBit = area === 'M';
       return {
         protocol,
         area,
-        startNumber: parseInt(decMatch[2], 10),
+        startNumber: this.parseBoundedMC3EOffset(decMatch[2], 10, address),
         raw: address,
-        type: isBit ? 'bit' : 'word',
+        type: area === 'M' ? 'bit' : 'word',
       };
     }
 
     throw new Error(`Invalid MC3E address: ${address}`);
+  }
+
+  private parseBoundedMC3EOffset(raw: string, radix: number, address: string): number {
+    const value = parseInt(raw, radix);
+    if (!Number.isSafeInteger(value) || value < 0 || value > MC3E_MAX_OFFSET) {
+      throw new Error(`Invalid MC3E address: ${address} (offset must be 0-${MC3E_MAX_OFFSET})`);
+    }
+    return value;
   }
 
   /**
@@ -135,6 +156,12 @@ export class AddressParser {
       
       for (let i = 0; i < count; i++) {
         const currentNumber = parsed.startNumber + i;
+        if (
+          protocol === 'mc_3e' &&
+          (!Number.isSafeInteger(currentNumber) || currentNumber > MC3E_MAX_OFFSET)
+        ) {
+          return [];
+        }
         result.push(this.format(parsed.area, currentNumber, protocol, parsed.raw));
       }
       return result;
@@ -159,14 +186,11 @@ export class AddressParser {
       // Simple padding:
       return `${prefix}${number.toString().padStart(4, '0')}`;
     } else if (protocol === 'fatek_fbs' || protocol === 'mc_3e') {
-        // Just Area + Number
-        // For MC3E X/Y/B, format as Hex? 
-        // If the parsed raw input was Hex, we should output Hex.
-        // We can check if area is X/Y/B
-        if (protocol === 'mc_3e' && ['X', 'Y', 'B'].includes(area)) {
-             return `${area}${number.toString(16).toUpperCase()}`;
-        }
-        return `${area}${number}`;
+      if (protocol === 'mc_3e') {
+        const radix = ['X', 'Y'].includes(area) ? 8 : ['W', 'B'].includes(area) ? 16 : 10;
+        return `${area}${number.toString(radix).toUpperCase()}`;
+      }
+      return `${area}${number}`;
     }
     return `${area}${number}`;
   }
@@ -181,7 +205,16 @@ export class AddressParser {
       protocol === 'fatek_fbs' || protocol === 'mc_3e'
         ? 0
         : 1;
-    const newNumber = Math.max(minNumber, parsed.startNumber + delta);
+    const nextNumber = parsed.startNumber + delta;
+    if (
+      protocol === 'mc_3e' &&
+      (!Number.isSafeInteger(delta) ||
+        !Number.isSafeInteger(nextNumber) ||
+        nextNumber > MC3E_MAX_OFFSET)
+    ) {
+      throw new Error(`MC3E address offset out of range: ${address} + ${delta}`);
+    }
+    const newNumber = Math.max(minNumber, nextNumber);
     return this.format(parsed.area, newNumber, protocol, parsed.raw);
   }
 

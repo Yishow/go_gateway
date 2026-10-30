@@ -38,6 +38,13 @@ func wrapSourceRuleDeviceError(deviceID string, err error) error {
 	})
 }
 
+// mcPreMutationValidationError identifies MC input rejection before Update changes resources.
+// Later validation errors retain runtime snapshot compensation.
+type mcPreMutationValidationError struct{ cause error }
+
+func (e *mcPreMutationValidationError) Error() string { return e.cause.Error() }
+func (e *mcPreMutationValidationError) Unwrap() error { return e.cause }
+
 func contextualRuleValidationError(ruleID, startAddress string, protocol schema.ProtocolType, err error) error {
 	if err == nil || !errors.Is(err, ErrValidation) {
 		return err
@@ -46,7 +53,11 @@ func contextualRuleValidationError(ruleID, startAddress string, protocol schema.
 	id := cmp.Or(strings.TrimSpace(ruleID), "<new>")
 	address := cmp.Or(strings.TrimSpace(strings.ToUpper(startAddress)), "<empty>")
 	protocolName := cmp.Or(strings.TrimSpace(strings.ToLower(string(protocol))), "<unknown>")
-	return fmt.Errorf("rule_id=%s start_address=%s protocol=%s: %w", id, address, protocolName, err)
+	contextual := fmt.Errorf("rule_id=%s start_address=%s protocol=%s: %w", id, address, protocolName, err)
+	if protocol == schema.ProtocolMC3E {
+		return &mcPreMutationValidationError{cause: contextual}
+	}
+	return contextual
 }
 
 func buildPlannedPointAddresses(startAddress string, count int, dataType schema.DataType, protocol schema.ProtocolType) ([]string, error) {
@@ -98,40 +109,22 @@ func offsetAddress(address string, delta int, protocol schema.ProtocolType) (str
 		}
 		next := max(value+delta, 1)
 		return fmt.Sprintf("%s%04d", prefix, next), nil
-	case schema.ProtocolFatekFBs, schema.ProtocolMC3E:
+	case schema.ProtocolFatekFBs:
 		area, number := splitAlphaNumeric(address)
 		if area == "" || number == "" {
 			return "", validationError(fmt.Sprintf("invalid %s address: %s", strings.ToLower(string(protocol)), address))
 		}
-		if protocol == schema.ProtocolFatekFBs {
-			if !isFatekArea(area) {
-				return "", validationError(fmt.Sprintf("invalid fatek address: %s", address))
-			}
-			value, ok := parseDecimal(number)
-			if !ok {
-				return "", validationError(fmt.Sprintf("invalid fatek address: %s", address))
-			}
-			next := max(value+delta, 0)
-			return fmt.Sprintf("%s%d", area, next), nil
-		}
-
-		if isMC3EHexArea(area) {
-			value, ok := parseHex(number)
-			if !ok {
-				return "", validationError(fmt.Sprintf("invalid mc3e address: %s", address))
-			}
-			next := max(value+delta, 0)
-			return fmt.Sprintf("%s%X", area, next), nil
-		}
-		if !isMC3EDecimalArea(area) {
-			return "", validationError(fmt.Sprintf("invalid mc3e address: %s", address))
+		if !isFatekArea(area) {
+			return "", validationError(fmt.Sprintf("invalid fatek address: %s", address))
 		}
 		value, ok := parseDecimal(number)
 		if !ok {
-			return "", validationError(fmt.Sprintf("invalid mc3e address: %s", address))
+			return "", validationError(fmt.Sprintf("invalid fatek address: %s", address))
 		}
 		next := max(value+delta, 0)
 		return fmt.Sprintf("%s%d", area, next), nil
+	case schema.ProtocolMC3E:
+		return correctedMCOffsetAddress(address, delta)
 	default:
 		return "", validationError(fmt.Sprintf("unsupported protocol address: %s", strings.ToLower(string(protocol))))
 	}
@@ -151,26 +144,6 @@ func parseDecimal(raw string) (int, bool) {
 	return value, true
 }
 
-func parseHex(raw string) (int, bool) {
-	if raw == "" {
-		return 0, false
-	}
-	value := 0
-	for _, ch := range raw {
-		var digit int
-		switch {
-		case ch >= '0' && ch <= '9':
-			digit = int(ch - '0')
-		case ch >= 'A' && ch <= 'F':
-			digit = int(ch-'A') + 10
-		default:
-			return 0, false
-		}
-		value = value*16 + digit
-	}
-	return value, true
-}
-
 func isFatekArea(area string) bool {
 	switch area {
 	case "X", "Y", "M", "S", "T", "C", "D", "R":
@@ -178,14 +151,6 @@ func isFatekArea(area string) bool {
 	default:
 		return false
 	}
-}
-
-func isMC3EHexArea(area string) bool {
-	return area == "X" || area == "Y" || area == "B"
-}
-
-func isMC3EDecimalArea(area string) bool {
-	return area == "D" || area == "W" || area == "M"
 }
 
 func splitAlphaNumeric(input string) (letters, digits string) {

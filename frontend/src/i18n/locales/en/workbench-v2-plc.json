@@ -1,0 +1,23 @@
+{
+  "step2": {
+    "editor": {
+      "mc_points_checking": "Saved MC point evidence is being checked.",
+      "mc_points_checking_action": "Wait for matching workspace and rule revision evidence before editing.",
+      "mc_points_conflict": "Saved MC point addresses differ from the current plan.",
+      "mc_points_conflict_action": "Review the saved addresses; the system will not rebuild or migrate them automatically.",
+      "mc_points_unavailable": "Saved MC point evidence is unavailable.",
+      "mc_points_unavailable_action": "Reload matching point evidence before editing this rule."
+    },
+    "summary": {
+      "persisted_addresses_label": "Saved point addresses:",
+      "mc_points_blocked_summary": "Saved MC point evidence requires review.",
+      "mc_points_blocked_footer": "Saved MC points are retained for review; resolve the evidence before continuing.",
+      "mc_points_checking": "Checking saved MC point evidence",
+      "mc_points_checking_action": "Wait for matching saved point evidence before continuing.",
+      "mc_points_conflict": "Saved MC point plan conflict",
+      "mc_points_conflict_action": "The saved addresses are retained; review the conversion before continuing.",
+      "mc_points_unavailable": "Saved MC point evidence unavailable",
+      "mc_points_unavailable_action": "The saved addresses cannot be confirmed; reload before continuing."
+    }
+  }
+}

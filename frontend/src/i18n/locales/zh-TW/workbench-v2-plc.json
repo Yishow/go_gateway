@@ -1,0 +1,23 @@
+{
+  "step2": {
+    "editor": {
+      "mc_points_checking": "正在確認已保存的 MC 點位證據。",
+      "mc_points_checking_action": "請等待相同工作區與規則版本的證據完成後再編輯。",
+      "mc_points_conflict": "已保存的 MC 點位位址與目前規劃不一致。",
+      "mc_points_conflict_action": "請檢視已保存位址；系統不會自動重建或轉換。",
+      "mc_points_unavailable": "目前無法取得已保存的 MC 點位證據。",
+      "mc_points_unavailable_action": "請重新載入相同範圍的點位證據後再編輯。"
+    },
+    "summary": {
+      "persisted_addresses_label": "已保存點位位址：",
+      "mc_points_blocked_summary": "已保存的 MC 點位證據需先確認。",
+      "mc_points_blocked_footer": "已保存 MC 點位僅供檢視；完成證據確認後才能繼續。",
+      "mc_points_checking": "正在確認已保存的 MC 點位證據",
+      "mc_points_checking_action": "請等待相同範圍的點位證據完成後再繼續。",
+      "mc_points_conflict": "已保存的 MC 點位規劃衝突",
+      "mc_points_conflict_action": "保留已保存位址；請先檢視轉換內容再繼續。",
+      "mc_points_unavailable": "已保存的 MC 點位證據無法使用",
+      "mc_points_unavailable_action": "目前無法確認已保存位址，請重新載入後再繼續。"
+    }
+  }
+}

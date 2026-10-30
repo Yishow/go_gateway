@@ -1820,179 +1820,227 @@ tests:
 ---
 ### Requirement: Protocol-aware point address derivation
 
-The system SHALL derive point addresses by taking the rule's `start_address`, `count`, `data_type` (width stride), and owning device's `protocol`. The address calculation MUST preserve alphanumeric register area prefixes (such as `D`, `M`, `W`, `X`, `Y` for Mitsubishi/FATEK) and correctly advance address offsets without stripping characters or falling back to Modbus defaults.
+The system SHALL derive planned point addresses by taking the rule's `start_address`, `count`, `data_type` (width stride), and owning device's `protocol`. The address calculation MUST preserve alphanumeric register area prefixes and advance offsets without stripping characters or falling back to Modbus defaults. Persisted MC point identities and addresses SHALL remain authoritative for an existing rule; derivation SHALL NOT silently replace them.
 
 #### Scenario: Derive points for MC 3E device
-- **WHEN** a rule for an MC 3E device is defined with start address `D100`, count `4`, and data type `int16` (width `1`)
-- **THEN** the system derives 4 points with addresses `D100`, `D101`, `D102`, and `D103`
-- **AND** no Modbus `40001` fallback is applied
+
+- **WHEN** a new rule for an MC 3E device is defined with start address `D100`, count `4`, and data type `int16` (width `1`)
+- **THEN** the system SHALL derive 4 points with addresses `D100`, `D101`, `D102`, and `D103`
+- **AND** no Modbus `40001` fallback SHALL be applied.
 
 ##### Example: Multi-protocol point derivation
+
 | Protocol | Start Address | Count | Data Type | Expected Addresses |
 | --- | --- | --- | --- | --- |
 | `modbus_tcp` | `40001` | `3` | `int16` | `40001, 40002, 40003` |
+| `modbus_tcp` | `40001` | `3` | `float32` | `40001, 40003, 40005` |
 | `mc_3e` | `D0` | `4` | `int16` | `D0, D1, D2, D3` |
 | `mc_3e` | `D100` | `2` | `int32` | `D100, D102` |
+| `mc_3e` | `D0` | `3` | `float32` | `D0, D2, D4` |
 | `mc_3e` | `X0` | `3` | `bool` | `X0, X1, X2` |
 | `fatek_fbs` | `R0` | `3` | `int16` | `R0, R1, R2` |
 
 #### Scenario: Backend address offset matches protocol radix
+
 - **WHEN** the source-rule service offsets MC 3E address `X0` by `16`
-- **THEN** it returns `X10`
-- **AND** MC 3E areas `X`, `Y`, and `B` use hexadecimal suffixes while supported decimal areas retain decimal suffixes
+- **THEN** it SHALL return `X20`
+- **AND** MC 3E X/Y SHALL use octal suffixes, W/B SHALL use hexadecimal suffixes, and D/M SHALL retain decimal suffixes.
 
 #### Scenario: Backend rejects invalid protocol address
+
 - **WHEN** source-rule validation or address offset receives an address invalid for the selected protocol
-- **THEN** the operation returns an explicit validation error
-- **AND** it does not return the original input as a successful derived address
+- **THEN** the operation SHALL return an explicit validation error
+- **AND** it SHALL NOT return the original input as a successful derived address.
+
 
 <!-- @trace
-source: fix-protocol-address-adaptation-v2
-updated: 2026-08-24
+source: fix-plc-read-decoding-and-address-consistency
+updated: 2026-10-30
 code:
-  - .github/workflows/backend-ci.yml
-  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
-  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
-  - .github/prompts/spectra-commit.prompt.md
-  - frontend/src/features/datalink/workbench-v2/state/types.ts
-  - .github/prompts/spectra-discuss.prompt.md
-  - .github/instructions/go.instructions.md
-  - .github/skills/spectra-audit/SKILL.md
-  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
-  - internal/datalink/sourcerule/repository_memory.go
-  - .github/skills/openspec-apply-change/SKILL.md
-  - internal/datalink/migrator.go
-  - .github/prompts/spectra-audit.prompt.md
-  - internal/datalink/sourcerule/service.go
-  - frontend/src/features/datalink/workbench-v2/steps/step4/ShareOutputSummary.tsx
-  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
-  - .github/workflows/frontend-ci.yml
-  - frontend/src/features/datalink/workbench-v2/state/defaults.ts
-  - .github/skills/openspec-propose/SKILL.md
-  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - .github/skills/spectra-drift/SKILL.md
+  - lib/hsllogic/register_conversion.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts
   - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
-  - frontend/src/features/datalink/workbench-v2/state/studioV2ShareActivation.ts
-  - frontend/src/types/datalink.ts
-  - .github/prompts/spectra-apply.prompt.md
-  - .github/skills/spectra-archive/SKILL.md
-  - internal/api/handlers/source_rule_handler.go
-  - internal/datalink/schema/schema_source_rule_models.go
-  - internal/datalink/sourcerule/sql_rule_scan.go
-  - .github/prompts/spectra-archive.prompt.md
-  - .github/skills/spectra-propose/SKILL.md
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleTabRail.tsx
-  - internal/datalink/schema/migrations/017_source_rule_modbus_share.down.sql
-  - .github/skills/openspec-archive-change/SKILL.md
-  - .github/prompts/spectra-ingest.prompt.md
-  - internal/datalink/schema/migrations/017_source_rule_modbus_share_sqlite.up.sql
-  - internal/datalink/sourcerule/protocol_address_planner.go
-  - .github/workflows/file-line-limit.yml
-  - .github/pull_request_template.md
-  - .github/skills/openspec-explore/SKILL.md
-  - frontend/src/features/datalink/workbench-v2/state/studioV2RuleAutosave.ts
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - internal/datalink/device/service_point_read.go
+  - frontend/src/i18n/locales/en/workbench-v2-plc.json
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2PersistedMCPoints.ts
+  - lib/hsllogic/bytetransform.go
+  - internal/datalink/collector/scheduler_polling.go
+  - internal/datalink/sourcerule/service.go
+  - internal/datalink/sourcerule/runtime_reconcile.go
+  - frontend/src/features/datalink/workbench-v2/steps/step2/ReadinessIssuesWarning.tsx
+  - internal/datalink/sourcerule/mc_address_plan.go
+  - internal/datalink/collector/scheduler_manual_poll.go
+  - internal/datalink/connector/adapters/fatek_helpers.go
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
   - frontend/src/pages/datalink/workbench-v2/useStudioV2RuleAutosave.ts
-  - internal/api/handlers/studio_v2_workspace_source_rules_handler.go
-  - .github/skills/spectra-ask/SKILL.md
-  - .github/prompts/spectra-propose.prompt.md
-  - frontend/src/features/datalink/workbench-v2/state/autoAssignTargets.ts
-  - .github/skills/spectra-commit/SKILL.md
-  - frontend/src/services/studioV2Rules.ts
-  - internal/datalink/sourcerule/sql_repo.go
-  - .github/instructions/typescript-5-es2022.instructions.md
-  - frontend/src/features/datalink/workbench-v2/state/deviceState.ts
-  - .github/prompts/opsx-explore.prompt.md
-  - .github/skills/spectra-discuss/SKILL.md
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - .github/prompts/spectra-debug.prompt.md
-  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
-  - .github/skills/spectra-debug/SKILL.md
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
-  - .antigravitycli/fd0ca231-1a9a-4e65-8569-14c49e7cfa1d.json
-  - .github/skills/spectra-ingest/SKILL.md
-  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
-  - .github/skills/spectra-apply/SKILL.md
-  - frontend/src/utils/addressParser.ts
-  - .github/prompts/spectra-ask.prompt.md
-  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
-  - .github/instructions/reactjs.instructions.md
-  - .github/prompts/spectra-drift.prompt.md
-  - internal/datalink/schema/migrations/017_source_rule_modbus_share.up.sql
-  - internal/datalink/sourcerule/validation.go
+  - frontend/src/pages/datalink/workbench-v2/studioV2LocatorHydration.ts
+  - frontend/src/features/datalink/workbench-v2/state/nextFreeStartAddress.ts
   - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
+  - internal/datalink/point/service_batch_validation.go
+  - frontend/src/i18n/locales/zh-TW/workbench-v2-plc.json
+  - internal/datalink/connector/point_read.go
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/features/datalink/workbench-v2/state/mcPersistedPoints.ts
+  - internal/datalink/connector/adapters/fatek_operations.go
+  - internal/datalink/sourcerule/protocol_address_planner.go
+  - frontend/src/i18n/config.ts
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
+  - internal/protocol/fatek/client.go
+  - frontend/src/utils/addressParser.ts
+  - internal/datalink/connector/adapters/modbus_parse_helpers.go
+  - internal/protocol/fatek/address_parse.go
+  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
 tests:
-  - frontend/tests/unit/workbench-v2/autoAssignTargets.test.ts
-  - frontend/tests/unit/workbench-v2/database-autosave-page.validation.test.tsx
-  - frontend/tests/unit/utils/addressParser.test.ts
-  - frontend/tests/unit/workbench-v2/database-autosave-page.bulk-toggle.test.tsx
-  - frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx
-  - frontend/tests/unit/workbench-v2/step4-share-activation.test.tsx
-  - frontend/tests/unit/workbench-v2/step4-share.test.tsx
-  - internal/api/handlers/source_rule_handler_share_test.go
-  - internal/api/handlers/studio_v2_workspace_source_rules_handler_share_test.go
-  - frontend/tests/unit/workbench-v2/database-autosave-page.hydration.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step3.test.ts
-  - internal/datalink/sourcerule/protocol_address_test.go
-  - frontend/tests/unit/workbench-v2/mappingDefaults.test.ts
-  - frontend/tests/unit/workbench-v2/studioV2RuleAutosave.test.ts
-  - internal/datalink/migrator_test.go
-  - frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourceStep.planning.test.tsx
-  - frontend/tests/unit/workbench-v2/rule-autosave-page.test.tsx
-  - frontend/tests/unit/workbench-v2/selectors.test.tsx
+  - internal/datalink/sourcerule/mc_validation_boundary_test.go
+  - internal/datalink/sourcerule/mc_address_planner_regression_test.go
+  - internal/protocol/fatek/status_payload_test.go
+  - internal/datalink/collector/point_count_contract_test.go
+  - internal/datalink/connector/adapters/fatek_refactor_test.go
+  - internal/datalink/connector/adapters/modbus_numeric_bounds_test.go
   - frontend/tests/unit/workbench-v2/sourceRule.test.ts
-  - frontend/tests/unit/workbench-v2/rule-tab-rail.test.tsx
-  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
-  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
-  - internal/datalink/sourcerule/share_persistence_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-draft-preservation.test.ts
+  - frontend/tests/unit/workbench-v2/mc-persisted-hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/studio-locator-mc-hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/mc-address-bounds.test.tsx
+  - internal/datalink/collector/fatek_status_acquisition_test.go
+  - frontend/tests/unit/utils/addressParser.test.ts
+  - frontend/tests/unit/workbench-v2/mc-next-free-address.test.ts
+  - frontend/tests/unit/workbench-v2/mc-persisted-hydration.fixtures.ts
+  - frontend/tests/unit/workbench-v2/occupied-range.test.tsx
+  - internal/datalink/sourcerule/protocol_address_test.go
+  - internal/datalink/connector/adapters/plc_fatek_decoding_regression_test.go
+  - internal/datalink/collector/fatek_point_count_contract_test.go
+  - internal/datalink/sourcerule/mc_address_bounds_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-view.test.tsx
+  - internal/datalink/connector/adapters/plc_fatek_status_regression_test.go
+  - internal/datalink/connector/adapters/plc_modbus_address_regression_test.go
+  - internal/datalink/sourcerule/mc_radix_compatibility_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-mapping-queue.test.tsx
+  - internal/datalink/connector/point_read_test.go
+  - internal/datalink/point/mc_hex_address_test.go
+  - internal/datalink/sourcerule/mc_radix_runtime_reconcile_test.go
+  - internal/datalink/connector/adapters/plc_read_decoding_regression_test.go
+  - lib/hsllogic/plc_byte_order_regression_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-readiness-regression.test.ts
 -->
 
 ---
 ### Requirement: Protocol-radix source address validation and expansion
 
-The Step 2 source-rule planner SHALL validate and expand an address using the owning device protocol at both frontend and backend boundaries. MC 3E `X`, `Y`, and `B` areas SHALL use hexadecimal suffixes, MC 3E `D`, `W`, and `M` areas SHALL use decimal suffixes, and invalid input SHALL produce an explicit rule-scoped error. Invalid input SHALL NOT produce derived points and SHALL NOT return the original raw address as a successful result.
+The Step 2 source-rule planner SHALL validate and expand an address using the owning device protocol at both frontend and backend boundaries. For new MC 3E plans, X/Y SHALL use strictly octal suffixes, W/B SHALL use hexadecimal suffixes, and D/M SHALL use decimal suffixes. The supported planner area set SHALL remain X, Y, W, B, D and M. Invalid input SHALL produce an explicit rule-scoped error, SHALL NOT produce derived points and SHALL NOT return the original raw address as a successful result. Existing direct MC reads SHALL retain the runtime parser's octal-first X/Y parsing with decimal fallback; this fallback SHALL NOT make X8, X9 or hexadecimal X/Y input valid for a new plan.
 
 #### Scenario: MC 3E hexadecimal offset crosses a digit boundary
 
-- **GIVEN** an enabled MC 3E rule starts at `X0`
-- **WHEN** the planner or source-rule service offsets that address by `16`
-- **THEN** the resulting address is `X10`
-- **AND** the same rule treats `Y0` and `B0` with hexadecimal suffixes
+- **GIVEN** an enabled new MC 3E rule starts at `W0`
+- **WHEN** the planner or source-rule service offsets that address by `10` and by `16`
+- **THEN** the resulting addresses SHALL be `WA` and `W10` respectively
+- **AND** the same hexadecimal formatting SHALL apply to B.
 
 ##### Example: Protocol radix boundary
 
 | Protocol | Start | Offset | Expected |
 | --- | --- | ---: | --- |
-| `mc_3e` | `X0` | 16 | `X10` |
+| `mc_3e` | `X0` | 16 | `X20` |
+| `mc_3e` | `Y7` | 1 | `Y10` |
+| `mc_3e` | `W0` | 10 | `WA` |
+| `mc_3e` | `W0` | 16 | `W10` |
+| `mc_3e` | `WA` | 1 | `WB` |
+| `mc_3e` | `BFF` | 1 | `B100` |
 | `mc_3e` | `D0` | 16 | `D16` |
+| `mc_3e` | `M0` | 16 | `M16` |
 | `fatek_fbs` | `R0` | 16 | `R16` |
 | `modbus_tcp` | `40001` | 2 | `40003` |
 
 #### Scenario: Invalid protocol address fails closed
 
-- **GIVEN** an enabled rule contains an address that does not match its owning device protocol
-- **WHEN** frontend validation, point expansion, or backend source-rule validation runs
-- **THEN** the operation returns a validation error that names the rule and address field
-- **AND** the point collection is empty or the request is rejected
-- **AND** the invalid raw address is not returned as a successful derived point
+- **GIVEN** a new MC rule contains X8, X9, YA, WG or Z0, or another rule contains input invalid for its owning device protocol
+- **WHEN** frontend validation, point expansion or backend source-rule validation runs
+- **THEN** the operation SHALL return a validation error that identifies the rule and address field
+- **AND** the point collection SHALL be empty or the request SHALL be rejected
+- **AND** the invalid raw address SHALL NOT be returned as a successful derived point.
+
+#### Scenario: Hexadecimal suffixes survive point creation
+
+- **WHEN** a new W0 int16 rule with count 17 is created, or WA or BFF is used as a new start address
+- **THEN** backend planning and point storage SHALL accept the supported hexadecimal suffixes including all-letter suffixes
+- **AND** the W0 rule SHALL persist W0 through W9, WA through WF and W10
+- **AND** the runtime parser SHALL interpret those positions as consecutive physical offsets 0 through 16
+- **AND** the change SHALL NOT add another MC area.
 
 
 <!-- @trace
-source: harden-studio-v2-release-correctness
-updated: 2026-08-24
+source: fix-plc-read-decoding-and-address-consistency
+updated: 2026-10-30
 code:
-  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
-  - internal/datalink/sourcerule/protocol_address_planner.go
+  - lib/hsllogic/register_conversion.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - internal/datalink/device/service_point_read.go
+  - frontend/src/i18n/locales/en/workbench-v2-plc.json
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2PersistedMCPoints.ts
+  - lib/hsllogic/bytetransform.go
+  - internal/datalink/collector/scheduler_polling.go
   - internal/datalink/sourcerule/service.go
-  - internal/api/handlers/studio_v2_workspace_source_rules_handler.go
+  - internal/datalink/sourcerule/runtime_reconcile.go
+  - frontend/src/features/datalink/workbench-v2/steps/step2/ReadinessIssuesWarning.tsx
+  - internal/datalink/sourcerule/mc_address_plan.go
+  - internal/datalink/collector/scheduler_manual_poll.go
+  - internal/datalink/connector/adapters/fatek_helpers.go
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2RuleAutosave.ts
+  - frontend/src/pages/datalink/workbench-v2/studioV2LocatorHydration.ts
+  - frontend/src/features/datalink/workbench-v2/state/nextFreeStartAddress.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
+  - internal/datalink/point/service_batch_validation.go
+  - frontend/src/i18n/locales/zh-TW/workbench-v2-plc.json
+  - internal/datalink/connector/point_read.go
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/features/datalink/workbench-v2/state/mcPersistedPoints.ts
+  - internal/datalink/connector/adapters/fatek_operations.go
+  - internal/datalink/sourcerule/protocol_address_planner.go
+  - frontend/src/i18n/config.ts
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
+  - internal/protocol/fatek/client.go
+  - frontend/src/utils/addressParser.ts
+  - internal/datalink/connector/adapters/modbus_parse_helpers.go
+  - internal/protocol/fatek/address_parse.go
+  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
 tests:
-  - internal/datalink/sourcerule/protocol_address_test.go
-  - frontend/tests/unit/utils/addressParser.test.ts
+  - internal/datalink/sourcerule/mc_validation_boundary_test.go
+  - internal/datalink/sourcerule/mc_address_planner_regression_test.go
+  - internal/protocol/fatek/status_payload_test.go
+  - internal/datalink/collector/point_count_contract_test.go
+  - internal/datalink/connector/adapters/fatek_refactor_test.go
+  - internal/datalink/connector/adapters/modbus_numeric_bounds_test.go
   - frontend/tests/unit/workbench-v2/sourceRule.test.ts
-  - internal/api/handlers/studio_v2_workspace_source_rules_handler_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-draft-preservation.test.ts
+  - frontend/tests/unit/workbench-v2/mc-persisted-hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/studio-locator-mc-hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/mc-address-bounds.test.tsx
+  - internal/datalink/collector/fatek_status_acquisition_test.go
+  - frontend/tests/unit/utils/addressParser.test.ts
+  - frontend/tests/unit/workbench-v2/mc-next-free-address.test.ts
+  - frontend/tests/unit/workbench-v2/mc-persisted-hydration.fixtures.ts
+  - frontend/tests/unit/workbench-v2/occupied-range.test.tsx
+  - internal/datalink/sourcerule/protocol_address_test.go
+  - internal/datalink/connector/adapters/plc_fatek_decoding_regression_test.go
+  - internal/datalink/collector/fatek_point_count_contract_test.go
+  - internal/datalink/sourcerule/mc_address_bounds_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-view.test.tsx
+  - internal/datalink/connector/adapters/plc_fatek_status_regression_test.go
+  - internal/datalink/connector/adapters/plc_modbus_address_regression_test.go
+  - internal/datalink/sourcerule/mc_radix_compatibility_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-mapping-queue.test.tsx
+  - internal/datalink/connector/point_read_test.go
+  - internal/datalink/point/mc_hex_address_test.go
+  - internal/datalink/sourcerule/mc_radix_runtime_reconcile_test.go
+  - internal/datalink/connector/adapters/plc_read_decoding_regression_test.go
+  - lib/hsllogic/plc_byte_order_regression_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-readiness-regression.test.ts
 -->
 
 ---
@@ -2088,4 +2136,215 @@ tests:
   - scripts/tests/f_device_to_sql/mc-fixture.mjs
   - frontend/tests/unit/workbench-v2/writeGroupColumns.test.ts
   - frontend/tests/unit/runtime-dashboard/focused-header-evidence.test.tsx
+-->
+
+---
+### Requirement: MC persisted source identities survive radix correction
+
+Startup, reload and ordinary source-rule updates SHALL NOT silently migrate existing MC addresses to the corrected planner grammar. Before any mutation in an MC rule update, the service SHALL compare the address set produced from the stored rule's range and skipped addresses under the corrected grammar with its persisted links. A grammar error or set mismatch SHALL fail with a rule-scoped validation conflict identifiable as `mc_address_plan_conflict`. The update SHALL perform no point, link, tag, mapping, rule or revision mutation, including orphan cleanup. This change SHALL provide no implicit migration or bypass.
+
+#### Scenario: Metadata update cannot recreate legacy points
+
+- **GIVEN** an existing W0 count-17 rule has persisted addresses W0 through W16 with point, tag and mapping identities
+- **WHEN** an update changes only the naming prefix or scale
+- **THEN** it SHALL fail with the address-plan conflict before any write
+- **AND** all rule/link/point/tag/mapping IDs, addresses, relationships and revision values SHALL equal the pre-request snapshot.
+
+#### Scenario: A range patch does not authorize legacy migration
+
+- **GIVEN** the stored MC rule's persisted set conflicts with its corrected stored-range plan, or its old start address is invalid under the corrected grammar
+- **WHEN** an update also supplies a new start address, count or data type
+- **THEN** the service SHALL still reject the request before mutation
+- **AND** SHALL NOT infer migration authorization from that patch.
+
+#### Scenario: Startup uses persisted points
+
+- **WHEN** a valid existing MC rule and its complete persisted links are synchronized on startup or reload
+- **THEN** synchronization SHALL retain point addresses and point/tag/mapping/link identities
+- **AND** SHALL NOT regenerate point addresses from the corrected planner
+- **AND** existing enabled-state and readiness synchronization SHALL remain effective.
+
+#### Scenario: Compatible rules retain normal updates
+
+- **GIVEN** a stored MC rule's corrected stored-range plan matches its persisted links
+- **WHEN** a valid ordinary update is submitted
+- **THEN** it SHALL retain the existing normal update behavior without applying the legacy-conflict guard to unrelated protocols.
+
+
+<!-- @trace
+source: fix-plc-read-decoding-and-address-consistency
+updated: 2026-10-30
+code:
+  - lib/hsllogic/register_conversion.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - internal/datalink/device/service_point_read.go
+  - frontend/src/i18n/locales/en/workbench-v2-plc.json
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2PersistedMCPoints.ts
+  - lib/hsllogic/bytetransform.go
+  - internal/datalink/collector/scheduler_polling.go
+  - internal/datalink/sourcerule/service.go
+  - internal/datalink/sourcerule/runtime_reconcile.go
+  - frontend/src/features/datalink/workbench-v2/steps/step2/ReadinessIssuesWarning.tsx
+  - internal/datalink/sourcerule/mc_address_plan.go
+  - internal/datalink/collector/scheduler_manual_poll.go
+  - internal/datalink/connector/adapters/fatek_helpers.go
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2RuleAutosave.ts
+  - frontend/src/pages/datalink/workbench-v2/studioV2LocatorHydration.ts
+  - frontend/src/features/datalink/workbench-v2/state/nextFreeStartAddress.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
+  - internal/datalink/point/service_batch_validation.go
+  - frontend/src/i18n/locales/zh-TW/workbench-v2-plc.json
+  - internal/datalink/connector/point_read.go
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/features/datalink/workbench-v2/state/mcPersistedPoints.ts
+  - internal/datalink/connector/adapters/fatek_operations.go
+  - internal/datalink/sourcerule/protocol_address_planner.go
+  - frontend/src/i18n/config.ts
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
+  - internal/protocol/fatek/client.go
+  - frontend/src/utils/addressParser.ts
+  - internal/datalink/connector/adapters/modbus_parse_helpers.go
+  - internal/protocol/fatek/address_parse.go
+  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
+tests:
+  - internal/datalink/sourcerule/mc_validation_boundary_test.go
+  - internal/datalink/sourcerule/mc_address_planner_regression_test.go
+  - internal/protocol/fatek/status_payload_test.go
+  - internal/datalink/collector/point_count_contract_test.go
+  - internal/datalink/connector/adapters/fatek_refactor_test.go
+  - internal/datalink/connector/adapters/modbus_numeric_bounds_test.go
+  - frontend/tests/unit/workbench-v2/sourceRule.test.ts
+  - frontend/tests/unit/workbench-v2/mc-persisted-draft-preservation.test.ts
+  - frontend/tests/unit/workbench-v2/mc-persisted-hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/studio-locator-mc-hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/mc-address-bounds.test.tsx
+  - internal/datalink/collector/fatek_status_acquisition_test.go
+  - frontend/tests/unit/utils/addressParser.test.ts
+  - frontend/tests/unit/workbench-v2/mc-next-free-address.test.ts
+  - frontend/tests/unit/workbench-v2/mc-persisted-hydration.fixtures.ts
+  - frontend/tests/unit/workbench-v2/occupied-range.test.tsx
+  - internal/datalink/sourcerule/protocol_address_test.go
+  - internal/datalink/connector/adapters/plc_fatek_decoding_regression_test.go
+  - internal/datalink/collector/fatek_point_count_contract_test.go
+  - internal/datalink/sourcerule/mc_address_bounds_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-view.test.tsx
+  - internal/datalink/connector/adapters/plc_fatek_status_regression_test.go
+  - internal/datalink/connector/adapters/plc_modbus_address_regression_test.go
+  - internal/datalink/sourcerule/mc_radix_compatibility_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-mapping-queue.test.tsx
+  - internal/datalink/connector/point_read_test.go
+  - internal/datalink/point/mc_hex_address_test.go
+  - internal/datalink/sourcerule/mc_radix_runtime_reconcile_test.go
+  - internal/datalink/connector/adapters/plc_read_decoding_regression_test.go
+  - lib/hsllogic/plc_byte_order_regression_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-readiness-regression.test.ts
+-->
+
+---
+### Requirement: Persisted MC points remain authoritative in Step 2
+
+For persisted MC rules, Step 2 hydration, point selectors, mapping alignment and summaries SHALL use persisted point identities and addresses obtained through the existing scoped candidates GET. Each read SHALL carry workspace ID, expected workspace revision and rule revision, and its cache identity SHALL distinguish those scopes. Source metadata SHALL use the rule's source data type rather than the candidate target type. New drafts SHALL continue using the corrected planner. Checking, missing, stale, invalid or mismatched persisted evidence SHALL block automatic rule saves and mapping creation, rebinding or deletion for the affected rule. During hydration, the frontend SHALL NOT call POST candidates/recompute or any candidate apply action. The existing GET endpoint's internal database-output snapshot refresh SHALL remain unchanged and SHALL NOT rebuild the persisted MC tag-candidate addresses or identities.
+
+#### Scenario: Reload does not reinterpret legacy addresses
+
+- **GIVEN** a persisted W0 count-17 rule has scoped snapshot addresses W0 through W16 with existing point, tag and mapping IDs
+- **WHEN** Step 2 reloads after the radix correction
+- **THEN** its point list SHALL retain those persisted addresses and identities
+- **AND** SHALL report the corrected-plan mismatch without presenting WA through WF as already stored
+- **AND** loading or editing a non-address field SHALL NOT issue an automatic rule or mapping mutation for that conflicting rule.
+
+#### Scenario: Unavailable or stale evidence blocks synthetic success
+
+- **WHEN** a persisted MC rule's candidates read is pending, absent, incomplete, rejected with 403/409/503, or bound to a different workspace or rule revision
+- **THEN** the rule SHALL be shown as checking or unavailable and SHALL remain blocked for dependent settings mutations
+- **AND** SHALL NOT fall back to synthetic points, saved state or ready state
+- **AND** unaffected devices and local drafts SHALL remain intact.
+
+#### Scenario: Summaries do not assert a fabricated continuous range
+
+- **WHEN** persisted MC points are noncontiguous or an old address cannot be parsed under the new-plan grammar
+- **THEN** the point grid and summary SHALL retain the persisted address list or show an explicit blocked/unknown state
+- **AND** occupied-range and conflict results SHALL NOT claim a newly computed continuous range or a clean result without sufficient evidence.
+
+#### Scenario: Scope changes revoke writable evidence
+
+- **WHEN** the workspace revision or rule revision changes after a compatible snapshot was loaded
+- **THEN** Step 2 SHALL revoke that snapshot's mutation eligibility before reading the new scope
+- **AND** a late response for the old scope SHALL NOT re-enable rule autosave or mapping reconciliation.
+
+<!-- @trace
+source: fix-plc-read-decoding-and-address-consistency
+updated: 2026-10-30
+code:
+  - lib/hsllogic/register_conversion.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - internal/datalink/device/service_point_read.go
+  - frontend/src/i18n/locales/en/workbench-v2-plc.json
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2PersistedMCPoints.ts
+  - lib/hsllogic/bytetransform.go
+  - internal/datalink/collector/scheduler_polling.go
+  - internal/datalink/sourcerule/service.go
+  - internal/datalink/sourcerule/runtime_reconcile.go
+  - frontend/src/features/datalink/workbench-v2/steps/step2/ReadinessIssuesWarning.tsx
+  - internal/datalink/sourcerule/mc_address_plan.go
+  - internal/datalink/collector/scheduler_manual_poll.go
+  - internal/datalink/connector/adapters/fatek_helpers.go
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2RuleAutosave.ts
+  - frontend/src/pages/datalink/workbench-v2/studioV2LocatorHydration.ts
+  - frontend/src/features/datalink/workbench-v2/state/nextFreeStartAddress.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
+  - internal/datalink/point/service_batch_validation.go
+  - frontend/src/i18n/locales/zh-TW/workbench-v2-plc.json
+  - internal/datalink/connector/point_read.go
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/features/datalink/workbench-v2/state/mcPersistedPoints.ts
+  - internal/datalink/connector/adapters/fatek_operations.go
+  - internal/datalink/sourcerule/protocol_address_planner.go
+  - frontend/src/i18n/config.ts
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
+  - internal/protocol/fatek/client.go
+  - frontend/src/utils/addressParser.ts
+  - internal/datalink/connector/adapters/modbus_parse_helpers.go
+  - internal/protocol/fatek/address_parse.go
+  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
+tests:
+  - internal/datalink/sourcerule/mc_validation_boundary_test.go
+  - internal/datalink/sourcerule/mc_address_planner_regression_test.go
+  - internal/protocol/fatek/status_payload_test.go
+  - internal/datalink/collector/point_count_contract_test.go
+  - internal/datalink/connector/adapters/fatek_refactor_test.go
+  - internal/datalink/connector/adapters/modbus_numeric_bounds_test.go
+  - frontend/tests/unit/workbench-v2/sourceRule.test.ts
+  - frontend/tests/unit/workbench-v2/mc-persisted-draft-preservation.test.ts
+  - frontend/tests/unit/workbench-v2/mc-persisted-hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/studio-locator-mc-hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/mc-address-bounds.test.tsx
+  - internal/datalink/collector/fatek_status_acquisition_test.go
+  - frontend/tests/unit/utils/addressParser.test.ts
+  - frontend/tests/unit/workbench-v2/mc-next-free-address.test.ts
+  - frontend/tests/unit/workbench-v2/mc-persisted-hydration.fixtures.ts
+  - frontend/tests/unit/workbench-v2/occupied-range.test.tsx
+  - internal/datalink/sourcerule/protocol_address_test.go
+  - internal/datalink/connector/adapters/plc_fatek_decoding_regression_test.go
+  - internal/datalink/collector/fatek_point_count_contract_test.go
+  - internal/datalink/sourcerule/mc_address_bounds_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-view.test.tsx
+  - internal/datalink/connector/adapters/plc_fatek_status_regression_test.go
+  - internal/datalink/connector/adapters/plc_modbus_address_regression_test.go
+  - internal/datalink/sourcerule/mc_radix_compatibility_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-mapping-queue.test.tsx
+  - internal/datalink/connector/point_read_test.go
+  - internal/datalink/point/mc_hex_address_test.go
+  - internal/datalink/sourcerule/mc_radix_runtime_reconcile_test.go
+  - internal/datalink/connector/adapters/plc_read_decoding_regression_test.go
+  - lib/hsllogic/plc_byte_order_regression_test.go
+  - frontend/tests/unit/workbench-v2/mc-persisted-readiness-regression.test.ts
 -->

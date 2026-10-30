@@ -17,6 +17,7 @@ import {
 } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
 import { workbenchV2Reducer, type WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { Mapping, MappingValue, Point, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
+import { persistedMCScopeKey } from '../../../features/datalink/workbench-v2/state/mcPersistedPoints';
 import { getSafeErrorStateMessage } from '../../../utils/typedErrors';
 import { mappingSaveError } from '../../../utils/mappingSaveErrors';
 
@@ -26,7 +27,12 @@ type RuleQueue = {
   pending: Map<string, number>;
   deletions: Map<string, { point: Point; mapping: Mapping; restored?: boolean }>;
   failure?: Partial<Mapping>;
+  blocked?: boolean;
 };
+
+type CanMutateRule = (ruleId: string) => boolean;
+
+const allowAllRules: CanMutateRule = () => true;
 
 function mappingRowKey(ruleId: string, address: string): string {
   return `${ruleId}::${address}`;
@@ -36,9 +42,9 @@ function errorMessageOf(error: unknown, fallback: string): string {
   return getSafeErrorStateMessage(error, fallback);
 }
 
-function canAutosaveMappingRule(state: WorkbenchV2State, point: Point): boolean {
+function canAutosaveMappingRule(state: WorkbenchV2State, point: Point, canMutateRule: CanMutateRule): boolean {
   const ownerRule = state.rules.find((rule) => rule.id === point.rule_id);
-  return Boolean(ownerRule?.persisted && ownerRule.save_state === 'saved');
+  return Boolean(ownerRule?.persisted && ownerRule.save_state === 'saved' && canMutateRule(point.rule_id));
 }
 
 function shouldAutosaveMappingPatch(patch: Partial<Mapping>): boolean {
@@ -93,6 +99,7 @@ export function useStudioV2MappingAutosave(
   actions: { dispatch: (action: WorkbenchV2Action) => void },
   stateRef: React.MutableRefObject<WorkbenchV2State>,
   enabled: boolean,
+  canMutateRule: CanMutateRule = allowAllRules,
 ) {
   const { t } = useTranslation('workbench-v2');
   const queryClient = useQueryClient();
@@ -108,6 +115,8 @@ export function useStudioV2MappingAutosave(
   const refreshing = React.useRef(false);
   const refreshAgain = React.useRef(false);
   const generations = React.useRef(new Map<string, number>());
+  const canMutateRuleRef = React.useRef(canMutateRule);
+  canMutateRuleRef.current = canMutateRule;
   React.useEffect(() => {
     mounted.current = true;
     const activeQueues = queues.current;
@@ -218,8 +227,22 @@ export function useStudioV2MappingAutosave(
         const deletion = queue.deletions.entries().next().value;
         if (deletion) {
           const [mappingId, removed] = deletion;
+          const requestScopeKey = persistedMCScopeKey(stateRef.current.rules.find((rule) => rule.id === removed.point.rule_id)?.mc_persisted_points);
+          if (!canMutateRuleRef.current(removed.point.rule_id)) {
+            queue.blocked = true;
+            queue.paused = true;
+            applyMappingPatch(removed.point.id, { save_state: 'draft-invalid', save_error: null, save_error_detail: null });
+            continue;
+          }
           try {
             const result = await deleteMappingMutation.mutateAsync(mappingId);
+            const currentRule = stateRef.current.rules.find((rule) => rule.id === removed.point.rule_id);
+            if (!canMutateRuleRef.current(removed.point.rule_id) || persistedMCScopeKey(currentRule?.mc_persisted_points) !== requestScopeKey) {
+              queue.deletions.delete(mappingId);
+              queue.blocked = true;
+              queue.paused = true;
+              continue;
+            }
             markCleanupIncomplete(result.cleanup_status);
             queue.deletions.delete(mappingId);
             confirmedRecords.current.delete(mappingId);
@@ -237,6 +260,13 @@ export function useStudioV2MappingAutosave(
               }
             }
           } catch (error) {
+            const currentRule = stateRef.current.rules.find((rule) => rule.id === removed.point.rule_id);
+            if (!canMutateRuleRef.current(removed.point.rule_id) || persistedMCScopeKey(currentRule?.mc_persisted_points) !== requestScopeKey) {
+              queue.blocked = true;
+              queue.paused = true;
+              applyMappingPatch(removed.point.id, { save_state: 'draft-invalid', save_error: null, save_error_detail: null });
+              continue;
+            }
             queue.paused = true;
             if (mounted.current) {
               queue.failure = { save_state: 'save-error', save_error: errorMessageOf(error, t('errors.autosave_failed')), save_error_detail: { ...mappingSaveError(error), operation: 'delete' } };
@@ -267,17 +297,35 @@ export function useStudioV2MappingAutosave(
         const point = stateRef.current.points.find((item) => item.id === pointId);
         const draft = stateRef.current.mappings[pointId];
         if (!point || !draft || point.rule_id !== ruleId || queuedGeneration !== (generations.current.get(pointId) ?? 0)) continue;
-        if (!isStudioV2MappingValid(draft) || !canAutosaveMappingRule(stateRef.current, point)) {
+        if (!isStudioV2MappingValid(draft)) {
+          applyMappingPatch(pointId, { save_state: 'draft-invalid', save_error: null, save_error_detail: null });
+          continue;
+        }
+        if (!canAutosaveMappingRule(stateRef.current, point, canMutateRuleRef.current)) {
+          if (!canMutateRuleRef.current(ruleId)) {
+            queue.pending.set(pointId, queuedGeneration);
+            queue.blocked = true;
+            queue.paused = true;
+          }
           applyMappingPatch(pointId, { save_state: 'draft-invalid', save_error: null, save_error_detail: null });
           continue;
         }
         const generation = generations.current.get(pointId) ?? 0;
+        const requestScopeKey = persistedMCScopeKey(stateRef.current.rules.find((rule) => rule.id === point.rule_id)?.mc_persisted_points);
         const request = toStudioV2MappingUpdateRequest(point, draft);
         applyMappingPatch(pointId, { save_state: 'saving', save_error: null, save_error_detail: null });
         try {
           const saved = draft.mapping_id
             ? await updateMappingMutation.mutateAsync({ mappingId: draft.mapping_id, request })
             : await createMappingMutation.mutateAsync(toStudioV2MappingCreateRequest(point, draft));
+          const currentRule = stateRef.current.rules.find((rule) => rule.id === point.rule_id);
+          if (!canMutateRuleRef.current(point.rule_id) || persistedMCScopeKey(currentRule?.mc_persisted_points) !== requestScopeKey) {
+            queue.pending.set(pointId, generation);
+            queue.blocked = true;
+            queue.paused = true;
+            applyMappingPatch(pointId, { save_state: 'draft-invalid', save_error: null, save_error_detail: null });
+            continue;
+          }
           markCleanupIncomplete(saved.cleanup_status);
           const latestPoint = stateRef.current.points.find((item) => item.id === pointId);
           const latest = stateRef.current.mappings[pointId];
@@ -296,6 +344,14 @@ export function useStudioV2MappingAutosave(
           applyMappingPatch(pointId, { ...hydrated, save_state: unchanged ? 'saved' : isStudioV2MappingValid(latest) ? 'saving' : 'draft-invalid' });
           if (!unchanged) queue.pending.set(pointId, generation);
         } catch (error) {
+          const currentRule = stateRef.current.rules.find((rule) => rule.id === ruleId);
+          if (!canMutateRuleRef.current(ruleId) || persistedMCScopeKey(currentRule?.mc_persisted_points) !== requestScopeKey) {
+            queue.pending.set(pointId, generation);
+            queue.blocked = true;
+            queue.paused = true;
+            applyMappingPatch(pointId, { save_state: 'draft-invalid', save_error: null, save_error_detail: null });
+            continue;
+          }
           const latestPoint = stateRef.current.points.find((item) => item.id === pointId);
           if (generation === (generations.current.get(pointId) ?? 0) && latestPoint?.rule_id === ruleId && latestPoint.address === point.address && latestPoint.device_id === point.device_id && latestPoint.data_type === point.data_type) {
             queue.pending.set(pointId, generation);
@@ -317,12 +373,33 @@ export function useStudioV2MappingAutosave(
     }
   }, [actions, applyMappingPatch, createMappingMutation, deleteMappingMutation, markCleanupIncomplete, queryClient, refreshAuthority, ruleQueue, stateRef, t, updateMappingMutation]);
 
+  React.useEffect(() => {
+    for (const [ruleId, queue] of queues.current) {
+      if (!queue.blocked || !canMutateRuleRef.current(ruleId)) continue;
+      queue.blocked = false;
+      queue.paused = false;
+      queue.failure = undefined;
+      void flushRule(ruleId);
+    }
+  }, [canMutateRule, flushRule]);
+
   const queueMappingSave = React.useCallback((pointId: string) => {
     const point = stateRef.current.points.find((item) => item.id === pointId);
     if (!point) return;
     const queue = ruleQueue(point.rule_id);
     draftVersions.current.set(pointId, (draftVersions.current.get(pointId) ?? 0) + 1);
     queue.pending.set(pointId, generations.current.get(pointId) ?? 0);
+    if (!canMutateRuleRef.current(point.rule_id)) {
+      queue.blocked = true;
+      queue.paused = true;
+      applyMappingPatch(pointId, { save_state: 'draft-invalid', save_error: null, save_error_detail: null });
+      return;
+    }
+    if (queue.blocked) {
+      queue.blocked = false;
+      queue.paused = false;
+      queue.failure = undefined;
+    }
     if (queue.paused) {
       applyMappingPatch(pointId, queue.failure ?? { save_state: 'save-error' });
     } else {
@@ -375,6 +452,11 @@ export function useStudioV2MappingAutosave(
             const queue = ruleQueue(point.rule_id);
             queue.pending.delete(pointId);
             if (mapping.mapping_id) queue.deletions.set(mapping.mapping_id, { point, mapping });
+            if (!canMutateRuleRef.current(point.rule_id)) {
+              queue.blocked = true;
+              queue.paused = true;
+              return;
+            }
             void flushRule(point.rule_id);
           }
         });
@@ -383,7 +465,7 @@ export function useStudioV2MappingAutosave(
       }
       case 'retryMappingSave': {
         const point = stateRef.current.points.find((item) => item.id === action.pointId);
-        if (point) void retryMappingSave(point);
+        if (point && canMutateRuleRef.current(point.rule_id)) void retryMappingSave(point);
         break;
       }
       case 'updateMapping':

@@ -6,7 +6,7 @@ import { hydrateStudioV2Device } from '../../../features/datalink/workbench-v2/s
 import { hydrateStudioV2Rule } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
 import { hydrateStudioV2Mapping } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
 import { hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseRowGroups, hydrateStudioV2DatabaseTarget } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
-import { deriveAllPoints, derivePoints } from '../../../features/datalink/workbench-v2/state/sourceRule';
+import { deriveAllPoints, derivePoints, projectPersistedMCPoint } from '../../../features/datalink/workbench-v2/state/sourceRule';
 
 /** Partial records never enter canonical React Query caches or imply workspace completeness. */
 export function studioV2LocatorHydration(read: StudioLocatorEntryRead): WorkbenchV2State | null {
@@ -19,7 +19,9 @@ export function studioV2LocatorHydration(read: StudioLocatorEntryRead): Workbenc
     const device = devices.find(value => value.id === record.device_id);
     if (!rule || !device || (target.mappingId !== undefined && record.id !== target.mappingId)) return [];
     // The address supplies display geometry, never identity lookup. The row key is the exact native Point ID.
-    const [geometry] = derivePoints({ ...rule, start_address: record.address, count: 1 }, device.id, new Set(), device.protocol);
+    const geometry = device.protocol === 'mc_3e' && rule.persisted
+      ? projectPersistedMCPoint(rule, { point_id: record.point_id, address: record.address })
+      : derivePoints({ ...rule, start_address: record.address, count: 1 }, device.id, new Set(), device.protocol)[0];
     return geometry ? [{ ...geometry, id: record.point_id, name: record.display_name }] : [];
   }) : deriveAllPoints(rules, Object.fromEntries(devices.map(device => [device.id, device.protocol])));
   const mappings = Object.fromEntries((read.entry.mappings ?? []).flatMap(record => {

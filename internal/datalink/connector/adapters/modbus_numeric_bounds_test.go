@@ -34,8 +34,14 @@ func TestModbusNumericInputBounds(t *testing.T) {
 }
 
 func TestFatekSignedWireBitsArePreserved(t *testing.T) {
-	require.Equal(t, int16(-1), convertFatekValue([]int{65535}, schema.DataTypeInt16, 16))
-	require.Equal(t, int32(-1), convertFatekValue([]int{65535, 65535}, schema.DataTypeInt32, 16))
-	require.Equal(t, uint16(65535), convertFatekValue([]int{-1}, schema.DataTypeUint16, 16))
+	int16Value, err := convertFatekValue([]int{65535}, schema.DataTypeInt16, 16)
+	require.NoError(t, err)
+	require.Equal(t, int16(-1), int16Value)
+	int32Value, err := convertFatekValue([]int{65535, 65535}, schema.DataTypeInt32, 16)
+	require.NoError(t, err)
+	require.Equal(t, int32(-1), int32Value)
+	uint16Value, err := convertFatekValue([]int{-1}, schema.DataTypeUint16, 16)
+	require.NoError(t, err)
+	require.Equal(t, uint16(65535), uint16Value)
 	require.Equal(t, []byte{255, 255, 255, 255, 128, 0, 0, 0}, intSliceToBytes([]int{-1, math.MinInt32}))
 }
