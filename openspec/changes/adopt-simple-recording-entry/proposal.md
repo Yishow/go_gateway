@@ -17,7 +17,7 @@
 
 - Affected specs: simple-recording-entry-adoption (new)
 - Affected code:
-  - Modified: frontend/src/App.tsx; frontend/src/features/datalink/legacyRoutes.ts; frontend/src/services/studioEntityLocator.ts; frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - Modified: `frontend/src/App.tsx`; `frontend/src/features/datalink/legacyRoutes.ts`; `frontend/src/services/studioEntityLocator.ts`; `frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx`
   - New: frontend/tests/e2e/simple-recording-journeys.spec.ts; docs/releases/simple-recording-entry.md
   - Removed: none
 - 前置 simplify-recording-home-guidance → streamline-recording-task-editor → simplify-recording-lifecycle-recovery。各案負責自己的行為與選測，本案唯一負責最終預設採用與整體驗收，避免重複同一工作。

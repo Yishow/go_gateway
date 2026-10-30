@@ -1,6 +1,6 @@
 ## 1. 頁面確認與整合驗收
 
-- [ ] 1.1 在前三change規格審查後、任何產品apply前完成 Default adoption follows explicit acceptance gates 的「使用者斷點與失敗回退」確認清單；提供此次修訂固定demo版本、協議參數／75%modal與RWD／亮暗主題情境及待決定例外，記錄owner明確回覆，不把沉默或舊waiver當確認。
+- [x] 1.1 在前三change規格審查後、任何產品apply前完成 Default adoption follows explicit acceptance gates 的「使用者斷點與失敗回退」確認清單；提供此次修訂固定demo版本、協議參數／75%modal與RWD／亮暗主題情境及待決定例外，記錄owner明確回覆，不把沉默或舊waiver當確認。
 - [ ] 1.2 [after: 1.1] 在home/editor/lifecycle實作完成後依「新版設計與能力驗收」實作 Revised design and protocol parity precede acceptance，並建立 Acceptance records distinguish evidence layers 的「驗收矩陣與分層證據」；為每個既定scenario及協議欄位parity、system/liveOS/override/persistence/portal/contrast/reduced-motion對應測試與真實層級，依「混合member計算前置與整體驗收」納入 Mixed member acceptance preserves one-row and legacy contracts，並依「同源採集次數預覽交接」驗收 Adoption distinguishes planned and actual acquisition counts，測估算／actual分層、stale409、零I/O及unsupported原因，實際性能證據由batching owner提供，不用demo冒充；內容review確認無漏列或以mock冒充SQL/PLC。
 - [ ] 1.3 [after: 1.2] 以現有Playwright pattern補齊首次建立、已有來源、草稿、正常、異常與修改/停恢/複製/表格變更journeys；驗證Close/Escape/Back/Forward/double click/scope切換、焦點及窄畫面；依新版設計與能力驗收覆蓋唯一Select Points、filter即時改同表／計數、加法pending與Add N、取消保非法輸入、remove/undo/re-add、空設備續建、無默選首設備、分步保存後取消不回滾來源及同scope返回位置；不能執行者明列NOT RUN與影響。
 
