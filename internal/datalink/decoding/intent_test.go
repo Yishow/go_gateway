@@ -9,8 +9,8 @@ import (
 
 func TestPointIntent_EqualFormatDistinctIntentAndReset(t *testing.T) {
 	defaults := FormatContext{Protocol: schema.ProtocolModbusTCP, RuleOwned: true, RuleFormat: "ABCD", ConnectionFormat: "DCBA"}
-	a := schema.Point{DataType: schema.DataTypeUint32, DataFormat: "ABCD", FormatMode: schema.PointFormatOverride, FormatOverride: "ABCD", FormatVersion: 1, RevisionID: "A-original"}
-	b := schema.Point{DataType: schema.DataTypeUint32, DataFormat: "ABCD", FormatMode: schema.PointFormatInherit, FormatVersion: 1, RevisionID: "B-original"}
+	a := schema.Point{Address: "HR0", DataType: schema.DataTypeUint32, DataFormat: "ABCD", FormatMode: schema.PointFormatOverride, FormatOverride: "ABCD", FormatVersion: 1, RevisionID: "A-original"}
+	b := schema.Point{Address: "HR0", DataType: schema.DataTypeUint32, DataFormat: "ABCD", FormatMode: schema.PointFormatInherit, FormatVersion: 1, RevisionID: "B-original"}
 	ar, err := ResolvePoint(a, defaults)
 	require.NoError(t, err)
 	br, err := ResolvePoint(b, defaults)
@@ -38,7 +38,7 @@ func TestPointIntent_EqualFormatDistinctIntentAndReset(t *testing.T) {
 }
 
 func TestPointIntent_InheritPrecedenceAndReadback(t *testing.T) {
-	point := schema.Point{DataType: schema.DataTypeUint64, FormatMode: schema.PointFormatInherit, FormatVersion: 1, RevisionID: "point-1", DataFormat: "DCBA"}
+	point := schema.Point{Address: "D0", DataType: schema.DataTypeUint64, FormatMode: schema.PointFormatInherit, FormatVersion: 1, RevisionID: "point-1", DataFormat: "DCBA"}
 	defaults := FormatContext{Protocol: schema.ProtocolMC3E, RuleOwned: true, RuleFormat: "ABCD", ConnectionFormat: "BADC", WorkspaceRevision: "workspace-1", RuleRevision: "rule-1", ConnectionRevision: "connection-1"}
 	for _, tc := range []struct {
 		owned                  bool
@@ -71,7 +71,7 @@ func TestPointIntent_InheritPrecedenceAndReadback(t *testing.T) {
 
 func TestPointIntent_LegacyPolicyAndNativeRemainDistinct(t *testing.T) {
 	for _, mode := range []schema.PointFormatMode{"", schema.PointFormatLegacy, schema.PointFormatInherit} {
-		point := schema.Point{DataType: schema.DataTypeUint32, DataFormat: "ABCD", FormatMode: mode}
+		point := schema.Point{Address: "D0", DataType: schema.DataTypeUint32, DataFormat: "ABCD", FormatMode: mode}
 		defaults := FormatContext{Protocol: schema.ProtocolFatekFBs}
 		got, err := ResolvePoint(point, defaults)
 		require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestPointIntent_LegacyPolicyAndNativeRemainDistinct(t *testing.T) {
 }
 
 func TestPointIntent_OmissionAndExplicitEqualOverride(t *testing.T) {
-	point := schema.Point{DataType: schema.DataTypeUint32, DataFormat: "ABCD", RevisionID: "old"}
+	point := schema.Point{Address: "D0", DataType: schema.DataTypeUint32, DataFormat: "ABCD", RevisionID: "old"}
 	unchanged, err := WithIntent(point, IntentEdit{})
 	require.NoError(t, err)
 	require.Equal(t, point, unchanged)
@@ -103,7 +103,7 @@ func TestPointIntent_OmissionAndExplicitEqualOverride(t *testing.T) {
 }
 
 func TestPointIntent_InvalidMetadataFailsWithoutCandidateMutation(t *testing.T) {
-	point := schema.Point{DataType: schema.DataTypeUint32, RevisionID: "old"}
+	point := schema.Point{Address: "D0", DataType: schema.DataTypeUint32, RevisionID: "old"}
 	override, invalid, legacy := schema.PointFormatOverride, schema.PointFormatMode("secret://bad"), schema.PointFormatLegacy
 	bad, canonical := "secret://bad", "ABCD"
 	for _, edit := range []IntentEdit{
@@ -134,7 +134,7 @@ func TestPointIntent_ReadErrorsAndCanonicalFormats(t *testing.T) {
 		require.NotContains(t, err.Error(), "secret")
 	}
 	for _, format := range []string{"ABCD", "BADC", "CDAB", "DCBA"} {
-		got, err := ResolvePoint(schema.Point{DataType: schema.DataTypeFloat64, FormatMode: schema.PointFormatOverride, FormatOverride: format, FormatVersion: 1},
+		got, err := ResolvePoint(schema.Point{Address: "HR0", DataType: schema.DataTypeFloat64, FormatMode: schema.PointFormatOverride, FormatOverride: format, FormatVersion: 1},
 			FormatContext{Protocol: schema.ProtocolModbusTCP, ConnectionFormat: "DCBA"})
 		require.NoError(t, err)
 		require.Equal(t, format, got.ConfiguredFormat)
@@ -150,7 +150,7 @@ func TestPointIntent_ReadErrorsAndCanonicalFormats(t *testing.T) {
 func TestPointIntent_ResetAndRetuneCandidates(t *testing.T) {
 	inherit, override := schema.PointFormatInherit, schema.PointFormatOverride
 	empty, format := "", "CDAB"
-	original := schema.Point{FormatMode: override, FormatOverride: "ABCD", FormatVersion: 1, RevisionID: "old"}
+	original := schema.Point{Address: "D0", DataType: schema.DataTypeUint32, FormatMode: override, FormatOverride: "ABCD", FormatVersion: 1, RevisionID: "old"}
 	reset, err := WithIntent(original, IntentEdit{Mode: &inherit, ConfiguredFormat: &empty})
 	require.NoError(t, err)
 	require.Empty(t, reset.FormatOverride)
@@ -180,7 +180,7 @@ func TestPointIntent_InheritedSingleWordDriverPolicies(t *testing.T) {
 		{schema.ProtocolMC3E, "DCBA", SourceConnection, false},
 		{schema.ProtocolFatekFBs, "", SourceNative, true},
 	} {
-		got, err := ResolvePoint(schema.Point{DataType: schema.DataTypeUint16, FormatMode: schema.PointFormatInherit, FormatVersion: 1},
+		got, err := ResolvePoint(schema.Point{Address: "D0", DataType: schema.DataTypeUint16, FormatMode: schema.PointFormatInherit, FormatVersion: 1},
 			FormatContext{Protocol: tc.protocol, RuleOwned: true, RuleFormat: "BADC", ConnectionFormat: "DCBA"})
 		require.NoError(t, err)
 		require.False(t, got.Applicable)
@@ -192,7 +192,7 @@ func TestPointIntent_InheritedSingleWordDriverPolicies(t *testing.T) {
 }
 
 func TestPointIntent_InheritedFatekExplicitDefaults(t *testing.T) {
-	point := schema.Point{DataType: schema.DataTypeUint32, FormatMode: schema.PointFormatInherit, FormatVersion: 1}
+	point := schema.Point{Address: "D0", DataType: schema.DataTypeUint32, FormatMode: schema.PointFormatInherit, FormatVersion: 1}
 	for _, tc := range []struct {
 		rule, connection, want string
 		source                 Source

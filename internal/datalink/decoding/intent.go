@@ -63,7 +63,9 @@ func ResolvePoint(point schema.Point, defaults FormatContext) (PointResolution, 
 	if mode != schema.PointFormatOverride && point.FormatOverride != "" {
 		return PointResolution{}, ErrInvalidIntent
 	}
-	applicable := multiwordNumeric(point.DataType)
+	_, capabilityErr := FormatCapability(defaults.Protocol, point.Address, point.DataType)
+	applicable := capabilityErr == nil
+	multiword := multiwordNumeric(point.DataType)
 	legacyInput := LegacyInput{Protocol: defaults.Protocol, PointFormat: point.DataFormat, ConnectionFormat: defaults.ConnectionFormat}
 	if mode != schema.PointFormatLegacy {
 		legacyInput.PointFormat = ""
@@ -76,12 +78,18 @@ func ResolvePoint(point schema.Point, defaults FormatContext) (PointResolution, 
 		if !canonicalFormat(point.FormatOverride) {
 			return PointResolution{}, ErrInvalidIntent
 		}
+		if capabilityErr != nil {
+			return PointResolution{}, capabilityErr
+		}
 		policy.EffectiveFormat, policy.Source, policy.Policy = point.FormatOverride, SourceOverride, PolicyOverride
 		policy.NativeCompatibility = false
 	} else if mode == schema.PointFormatInherit {
+		if multiword && capabilityErr != nil {
+			return PointResolution{}, capabilityErr
+		}
 		// Non-multiword MC/FATEK reads keep their native driver policy. Modbus
 		// still carries its default metadata, without changing register16 semantics.
-		useRule := applicable || policy.Policy == LegacyModbus
+		useRule := multiword || policy.Policy == LegacyModbus
 		if useRule && defaults.RuleOwned && strings.TrimSpace(defaults.RuleFormat) != "" {
 			format := strings.ToUpper(strings.TrimSpace(defaults.RuleFormat))
 			if !canonicalFormat(format) {
@@ -89,7 +97,7 @@ func ResolvePoint(point schema.Point, defaults FormatContext) (PointResolution, 
 			}
 			policy.EffectiveFormat, policy.Source = format, SourceRule
 			policy.NativeCompatibility = false
-		} else if applicable && defaults.Protocol == schema.ProtocolFatekFBs && strings.TrimSpace(defaults.ConnectionFormat) != "" {
+		} else if multiword && defaults.Protocol == schema.ProtocolFatekFBs && strings.TrimSpace(defaults.ConnectionFormat) != "" {
 			format := strings.ToUpper(strings.TrimSpace(defaults.ConnectionFormat))
 			if !canonicalFormat(format) {
 				return PointResolution{}, ErrInvalidIntent
@@ -138,6 +146,9 @@ func WithIntent(point schema.Point, edit IntentEdit) (schema.Point, error) {
 		if edit.ConfiguredFormat != nil {
 			candidate.FormatOverride = *edit.ConfiguredFormat
 		}
+		if !multiwordNumeric(candidate.DataType) {
+			return point, ErrInapplicableFormat
+		}
 		if !canonicalFormat(candidate.FormatOverride) {
 			return point, ErrInvalidIntent
 		}
@@ -174,8 +185,8 @@ func canonicalFormat(format string) bool {
 	return false
 }
 
-// This preliminary selector classification is not the protocol/address capability
-// validator. That boundary is added separately before accepting public overrides.
+// multiwordNumeric is the type-only gate for context-free candidate edits.
+// ResolvePoint also validates the protocol/address before mutation can be applied.
 func multiwordNumeric(dataType schema.DataType) bool {
 	switch dataType {
 	case schema.DataTypeInt32, schema.DataTypeUint32, schema.DataTypeFloat32,

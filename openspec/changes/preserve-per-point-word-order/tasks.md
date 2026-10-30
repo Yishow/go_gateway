@@ -2,7 +2,7 @@
 
 - [x] 1.1 以 TDD RED-GREEN-REFACTOR 交付 Preserve legacy decoding semantics／舊版語意以 legacy 保留：在現有 adapter fixture 鎖定 Modbus fallback、MC3E connection、FATEK component assembly 與舊16-bit行為，再新增相容 resolver；驗證升級／restart／無關編輯前後值不變。
 - [x] 1.2 [after: 1.1] 交付 Point format intent and effective order／點位意圖是唯一 authority：additive configuration migration、Point mode/revision、inherit/override/reset 與讀回有效來源；先寫模式相等但意圖不同的失敗測試，再實作，驗證 disposable DB roundtrip／migration repeat，省略欄位不變且不猜舊intent。
-- [ ] 1.3 [after: 1.2] 交付 Applicability and safe decoding failure：以 protocol/address width/type 的 capability matrix 驗證新32/64-bit格式、拒絕新的bool/16-bit/string override、保留legacy及新inherit的driver既有16-bit byte語意，鎖定64-bit全word反轉；以 resolver boundary tests 驗證 unknown格式、缺word及不適用不會QualityGood零值。
+- [x] 1.3 [after: 1.2] 交付 Applicability and safe decoding failure：以 protocol/address width/type 的 capability matrix 驗證新32/64-bit格式、拒絕新的bool/16-bit/string override、保留legacy及新inherit的driver既有16-bit byte語意，鎖定64-bit全word反轉；以 resolver boundary tests 驗證 unknown格式、缺word及不適用不會QualityGood零值。
 
 ## 2. 安全編輯與規則生命週期
 
