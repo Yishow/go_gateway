@@ -24,9 +24,13 @@ point-catalog、source-rule-runtime、source-rule-target-datatype 與 archived o
 
 multiword inherit precedence 是 rule 非空格式→connection 非空格式→協議原生預設；standalone point 沒 rule 則從 connection 起。覆寫依 workspace/device/rule/point ID 及 canonical address identity 綁定，不依顯示名稱或表格列序。保留點 ID 的 rename/count/skip/enable/default 更新保留 override；新地址 inherit；被移除點不自動把 override 借給日後新建同址點。skip→unskip產生新identity時inherit；start-address滑動時只保留重疊且identity仍在的點，不按index搬移覆寫。datatype/width 變更使 override 不適用時整個設定修改拒絕，要求明確 reset，不能丟掉意圖。
 
-### 共用正規化後逐協議解碼
+### 共用正規化後逐協議解碼（依實際讀取路徑保真）
 
-沿 collector→ReadRequest→正式 adapter.Read 傳不可變 resolved format；不得改共享 connection converter，避免不同點互相污染。Modbus TCP/RTU/UDP、MC3E、FATEK 都以 fixture 實測。32-bit／64-bit signed/unsigned/float 是設計範圍；bool、16-bit 與 string 不顯示多暫存器 selector，拒絕新的 override，legacy 仍按舊解碼。單word的「不適用」只指多word selector：既有 ByteTransform.TransformUint16 對 BADC/DCBA 仍交換bytes，不能統一改ABCD。新inherit的16-bit點保留所屬driver現有default decoding政策（Modbus rule/connection格式；MC3E connection；FATEK原component讀值），不新增16-bit override或改其byte語意。ABCD 是高字在前，BADC 交換每個16-bit字內bytes，CDAB 反轉整個 scalar 的16-bit words，DCBA 同時反轉words與字內bytes；64-bit 不可只交換首兩字。FATEK 先依原 component width（16/32）抽出16-bit words，再依上述 scalar semantics 重排，不改ReadCount單位或地址跨度。
+**Supersedes**: preserve-per-point-word-order / 共用正規化後逐協議解碼
+
+僅澄清舊段單word敘述的適用路徑，multiword契約不變。2026-10-30查核：`lib/hsllogic/register_conversion.go` 的 `DataConverter.RegistersToValue` 對int16／uint16直接回傳首register（signed cast除外）；`internal/datalink/connector/adapters/mc3e_read.go` 與 `internal/datalink/connector/adapters/modbus_parse_helpers.go` 使用此路徑。`lib/hsllogic/bytetransform.go` 的 `ByteTransform.TransformUint16` 才在直接byte呼叫時交換BADC／DCBA。把raw 0x0102的adapter讀值預期為0x0201是已推翻的假設，不是應實作的RED目標；相容回歸應鎖定0x0102，direct helper仍為0x0201。
+
+沿 collector→ReadRequest→正式 adapter.Read 傳不可變 resolved format；不得改共享 connection converter，避免不同點互相污染。Modbus TCP/RTU/UDP、MC3E、FATEK 都以 fixture 實測。32-bit／64-bit signed/unsigned/float 是設計範圍；bool、16-bit 與 string 不顯示多暫存器 selector，拒絕新的 override，legacy 仍按舊解碼。單word的「不適用」只指多word selector，必須按實際driver／呼叫路徑保留語意：legacy及新inherit的Modbus／MC3E register-value路徑，int16／uint16維持原register值（int16僅重解signed bits），不因BADC／DCBA新增byte swap；FATEK維持原生component讀值。直接byte helper ByteTransform.TransformUint16既有BADC／DCBA交換bytes的行為另行保持，不推論所有adapter Read都會交換。不新增16-bit override、不強制ABCD或其他format metadata、不擴張解碼行為。ABCD 是高字在前，BADC 交換每個16-bit字內bytes，CDAB 反轉整個 scalar 的16-bit words，DCBA 同時反轉words與字內bytes；64-bit 不可只交換首兩字。FATEK 先依原 component width（16/32）抽出16-bit words，再依上述 scalar semantics 重排，不改ReadCount單位或地址跨度。
 
 ### 原子更新與安全失敗
 

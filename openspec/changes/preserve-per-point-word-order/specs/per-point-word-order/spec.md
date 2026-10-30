@@ -74,8 +74,14 @@ The service SHALL expose applicability by protocol, address component width, and
 
 #### Scenario: Single-word byte semantics remain compatible
 - **WHEN** a legacy or newly inherited single-word point is read
-- **THEN** its driver's existing default byte-decoding policy SHALL remain unchanged, including applicable BADC or DCBA byte swaps
-- **AND** hiding the multiword selector SHALL NOT force ABCD or discard existing data-format metadata
+- **THEN** its actual driver and call-path semantics SHALL remain unchanged: Modbus and MC3E register-value reads SHALL preserve the int16 or uint16 register value, with signed interpretation for int16, without introducing BADC or DCBA byte swaps
+- **AND** FATEK SHALL retain native component decoding; direct ByteTransform.TransformUint16 calls SHALL retain their existing BADC or DCBA byte swaps without transferring that behavior to register-value adapter reads
+- **AND** hiding the multiword selector SHALL NOT force ABCD or other format metadata, discard existing data-format metadata, or enable new single-word overrides
+
+##### Example: Register-value reads differ from direct byte helpers
+- **GIVEN** a single register 0x0102 and BADC or DCBA metadata
+- **WHEN** legacy or newly inherited Modbus or MC3E uint16 reads use RegistersToValue
+- **THEN** the adapter value SHALL remain 0x0102, while a direct TransformUint16 call on bytes [0x01, 0x02] SHALL retain its existing 0x0201 result
 
 #### Scenario: Short response
 - **WHEN** a numeric decoder receives fewer words or components than its declared scalar requires

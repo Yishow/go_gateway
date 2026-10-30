@@ -26,7 +26,6 @@ func setupTestDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 	ctx := t.Context()
-	// 讀取並執行 migration 腳本
 	migrationPath := "../schema/migrations/001_initial_schema_sqlite.sql"
 	migrationContent, err := os.ReadFile(migrationPath)
 	require.NoError(t, err)
@@ -37,6 +36,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	_, err = db.ExecContext(ctx, `ALTER TABLE points ADD COLUMN data_format TEXT`)
 	require.NoError(t, err)
 
+	addPointFormatTestColumns(t, db)
 	return db
 }
 

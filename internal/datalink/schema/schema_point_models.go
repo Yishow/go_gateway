@@ -89,8 +89,20 @@ type Point struct {
 	// DataType 資料型別
 	DataType DataType `json:"data_type" db:"data_type"`
 
-	// DataFormat Modbus 等多暫存器型別的字節序（ABCD/BADC/CDAB/DCBA）；空字串表示與歷史行為相同（等同 ABCD）。
+	// DataFormat is the legacy format/projection; it is not evidence of format intent.
 	DataFormat string `json:"data_format,omitempty" db:"data_format"`
+
+	// FormatMode is empty for pre-contract rows; readers resolve that as legacy.
+	FormatMode PointFormatMode `json:"format_mode,omitempty" db:"format_mode"`
+
+	// FormatOverride is explicit intent, never inferred from DataFormat equality.
+	FormatOverride string `json:"configured_format,omitempty" db:"format_override"`
+
+	// FormatVersion is zero on untouched legacy records.
+	FormatVersion int `json:"format_version" db:"format_version"`
+
+	// RevisionID identifies a point configuration revision; old rows may be empty.
+	RevisionID string `json:"revision_id" db:"revision_id"`
 
 	// Mode 讀寫模式
 	Mode PointMode `json:"mode" db:"mode"`

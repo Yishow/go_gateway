@@ -20,8 +20,8 @@ func (r *SQLRepository) Create(ctx context.Context, point *schema.Point) error {
 	}
 
 	query := `
-		INSERT INTO points (id, device_id, name, description, address, function, data_type, data_format, mode, polling_group_id, enabled, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO points (id, device_id, name, description, address, function, data_type, data_format, format_mode, format_override, format_version, revision_id, mode, polling_group_id, enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -33,6 +33,10 @@ func (r *SQLRepository) Create(ctx context.Context, point *schema.Point) error {
 		point.Function,
 		point.DataType,
 		point.DataFormat,
+		point.FormatMode,
+		point.FormatOverride,
+		point.FormatVersion,
+		point.RevisionID,
 		point.Mode,
 		point.PollingGroupID,
 		point.Enabled,
@@ -51,7 +55,7 @@ func (r *SQLRepository) Create(ctx context.Context, point *schema.Point) error {
 func (r *SQLRepository) Update(ctx context.Context, point *schema.Point) error {
 	query := `
 		UPDATE points 
-		SET name = ?, description = ?, address = ?, function = ?, data_type = ?, data_format = ?, mode = ?, 
+		SET name = ?, description = ?, address = ?, function = ?, data_type = ?, data_format = ?, format_mode = ?, format_override = ?, format_version = ?, revision_id = ?, mode = ?,
 		    polling_group_id = ?, last_read_at = ?, last_value = ?, last_error = ?, enabled = ?, updated_at = ?
 		WHERE id = ?
 	`
@@ -63,6 +67,10 @@ func (r *SQLRepository) Update(ctx context.Context, point *schema.Point) error {
 		point.Function,
 		point.DataType,
 		point.DataFormat,
+		point.FormatMode,
+		point.FormatOverride,
+		point.FormatVersion,
+		point.RevisionID,
 		point.Mode,
 		point.PollingGroupID,
 		point.LastReadAt,

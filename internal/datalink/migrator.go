@@ -116,6 +116,9 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLitePointsDataFormatColumn(db); err != nil {
 			return err
 		}
+		if err := ensureSQLitePointFormatIntent(db); err != nil {
+			return err
+		}
 		if err := ensureSQLiteWorkspaceAuditHistoryTable(db); err != nil {
 			return err
 		}

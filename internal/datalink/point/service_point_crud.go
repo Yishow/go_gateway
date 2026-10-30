@@ -58,6 +58,10 @@ func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.P
 		return nil, fmt.Errorf("建立點位 ID 失敗: %w", err)
 	}
 
+	revision, err := common.NewUUID()
+	if err != nil {
+		return nil, fmt.Errorf("建立點位 revision 失敗: %w", err)
+	}
 	point := &schema.Point{
 		ID:             id,
 		DeviceID:       req.DeviceID,
@@ -67,6 +71,9 @@ func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.P
 		Function:       normalizedFunction,
 		DataType:       req.DataType,
 		DataFormat:     normalizePointDataFormat(req.DataFormat),
+		FormatMode:     schema.PointFormatInherit,
+		FormatVersion:  schema.PointFormatVersion,
+		RevisionID:     revision,
 		Mode:           cmp.Or(req.Mode, schema.PointModeReadOnly),
 		PollingGroupID: req.PollingGroupID,
 		Enabled:        true,
@@ -228,6 +235,11 @@ func (s *Service) Update(ctx context.Context, id string, req UpdatePointRequest)
 		point.Enabled = *req.Enabled
 	}
 
+	revision, err := common.NewUUID()
+	if err != nil {
+		return nil, fmt.Errorf("更新點位 revision 失敗: %w", err)
+	}
+	point.RevisionID = revision
 	point.UpdatedAt = time.Now()
 
 	if err := s.repo.Update(ctx, point); err != nil {

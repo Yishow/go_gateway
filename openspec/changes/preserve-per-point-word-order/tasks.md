@@ -1,7 +1,7 @@
 ## 1. 保留既有資料並建立可追溯意圖
 
-- [ ] 1.1 以 TDD RED-GREEN-REFACTOR 交付 Preserve legacy decoding semantics／舊版語意以 legacy 保留：在現有 adapter fixture 鎖定 Modbus fallback、MC3E connection、FATEK component assembly 與舊16-bit行為，再新增相容 resolver；驗證升級／restart／無關編輯前後值不變。
-- [ ] 1.2 [after: 1.1] 交付 Point format intent and effective order／點位意圖是唯一 authority：additive configuration migration、Point mode/revision、inherit/override/reset 與讀回有效來源；先寫模式相等但意圖不同的失敗測試，再實作，驗證 disposable DB roundtrip／migration repeat，省略欄位不變且不猜舊intent。
+- [x] 1.1 以 TDD RED-GREEN-REFACTOR 交付 Preserve legacy decoding semantics／舊版語意以 legacy 保留：在現有 adapter fixture 鎖定 Modbus fallback、MC3E connection、FATEK component assembly 與舊16-bit行為，再新增相容 resolver；驗證升級／restart／無關編輯前後值不變。
+- [x] 1.2 [after: 1.1] 交付 Point format intent and effective order／點位意圖是唯一 authority：additive configuration migration、Point mode/revision、inherit/override/reset 與讀回有效來源；先寫模式相等但意圖不同的失敗測試，再實作，驗證 disposable DB roundtrip／migration repeat，省略欄位不變且不猜舊intent。
 - [ ] 1.3 [after: 1.2] 交付 Applicability and safe decoding failure：以 protocol/address width/type 的 capability matrix 驗證新32/64-bit格式、拒絕新的bool/16-bit/string override、保留legacy及新inherit的driver既有16-bit byte語意，鎖定64-bit全word反轉；以 resolver boundary tests 驗證 unknown格式、缺word及不適用不會QualityGood零值。
 
 ## 2. 安全編輯與規則生命週期
@@ -21,4 +21,6 @@
 
 - [ ] 4.1 [after: 3.4] 交付 Production evidence and consumer handoff 的共用API schema、frontend types/services及en/zh-TW安全錯誤契約，供 streamline-recording-task-editor 顯示mode/effective source/applicability；以API contract與前端service tests確認unsupported不可假存成功，annotations變更經既有generator產生Swagger，不在本案改布局。
 - [ ] 4.2 [after: 4.1] 經 cmd/test_ui 真實wiring測試 rule save→point reload→collector→adapter→ingestor 與reset/restart/rollback，完成全protocol/type/format acceptance matrix；使用既有fake transport/disposable設定DB，列出實跑與NOT RUN，不以helper測試替代production證據。
-- [ ] 4.3 [after: 4.2] 完成expand→migrate→contract與downgrade安全演練：新override存在時以受管理回退程序／相容檢查阻止不相容downgrade（不新增部署engine，不聲稱攔任意舊binary），驗證設定備份還原不改歷史SQL；整個功能完成後一次執行相關完整前後端檢查、git diff --check、make check-lines、Spectra verify/review並交接測試矩陣，未做真PLC／正式DB驗收須明列。
+- [ ] 4.3 [after: 4.2] 完成expand→migrate→contract與downgrade安全演練：新override存在時以受管理回退程序／相容檢查阻止不相容downgrade（不新增部署engine，不聲稱攔任意舊binary），驗證設定備份還原不改歷史SQL；本案交接執行受影響測試與必要integration/acceptance、git diff --check、make check-lines、Spectra verify/review並交接測試矩陣；完整前後端全套檢查留到七案整批實作完成、最終交付前統一執行，不在單案交接提前總測，未做真PLC／正式DB驗收須明列。
+
+需求澄清（2026-10-30）：依 owner「做的期間只跑相關測試，直到完成才跑全部」，上述全套時點指七案整批最終交付，取代可能被誤讀為本案結束即總測的舊措辭；各 task 必要focused integration、production wiring與驗收矩陣不減免，task數與依賴不變。
