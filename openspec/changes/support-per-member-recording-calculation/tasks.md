@@ -8,7 +8,7 @@
 
 - [x] 2.1 [after: 1.3] 實作 Different member cadences preserve sparse due semantics，擴展既有snapshot mixed mode，只對delta members建立counterbinding並使用各member對齊window，依「已確認不同週期輸出與邊界」實作wide聯集／long due-only、[start,end)與first partial，測exact-boundary sample歸下一窗、required-not-due不skip及長表到期失敗原因；測兩gauge mean、一counter delta各自window及latest/mean不產生baseline，不另建reducer engine。
 - [x] 2.2 [after: 2.1] 實作 Counter policy and member state remain isolated，重用CloseCounterWindow；測firstbaseline、signed/rollover/reset、same-source不同group baseline隔離、method/binding revision變更不能借舊checkpoint。
-- [ ] 2.3 [after: 2.2] 實作 Missing results obey explicit completeness policy 與「缺值與baseline進展明確」；測optional NULL+reason、required整row skip、gapspan不進單窗delta欄、不補raw/0，以及缺值mean coverage保留。
+- [x] 2.3 [after: 2.2] 實作 Missing results obey explicit completeness policy 與「缺值與baseline進展明確」；測optional NULL+reason、required整row skip、gapspan不進單窗delta欄、不補raw/0，以及缺值mean coverage保留。
 - [ ] 2.4 [after: 2.3] 實作 Mixed result columns are not legacy raw columns 的typed managed-wide及long encoder；測mean/mean/delta結果欄22/12/8、exact大數與decimal、provenance raw/from/to分離，legacy raw欄不改，wide not_due=NULL且長表未到期零列、到期required僅skip所屬輸出，unsupported layout明確受阻。
 
 ## 3. 安全gate與durable整合
