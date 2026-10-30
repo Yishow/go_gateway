@@ -331,7 +331,7 @@ func TestDomainDeliveryClosedAndCancelledDoNotInventCommit(t *testing.T) {
 				b.domain.Close()
 			}
 			if b.EmitDomain(ctx, projectionJSON(t, deliveryCommit("E")), domainScope()) || b.queue.count != 1 || b.domain.Stats().Dropped != 1 {
-				t.Fatal("closed/cancelled capture admitted SQL success or lost rejection accounting")
+				t.Fatal("closed/canceled capture admitted SQL success or lost rejection accounting")
 			}
 		})
 	}

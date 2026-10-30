@@ -85,9 +85,9 @@ func operationManagedGroup(t *testing.T, f deliveryEventFixture, name string) *w
 	// never delivered here; replace only that proven-empty disposable table so
 	// the native managed preview owns creation of its required marker/layout.
 	var receiptRows int
-	require.NoError(t, target.QueryRow(`SELECT COUNT(*) FROM gw_effect_receipts`).Scan(&receiptRows))
+	require.NoError(t, target.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM gw_effect_receipts`).Scan(&receiptRows))
 	require.Zero(t, receiptRows)
-	_, err = target.Exec(`DROP TABLE gw_effect_receipts`)
+	_, err = target.ExecContext(t.Context(), `DROP TABLE gw_effect_receipts`)
 	require.NoError(t, err)
 	inspect := operationTableInspector(target)
 	token, err := f.env.services.recordingPlan.PrepareSchemaPreview(t.Context(), scope, inspect)
@@ -165,21 +165,21 @@ func (f repairOperationFixture) waitLongCommitted(t *testing.T, n int) {
 	t.Helper()
 	require.Eventually(t, func() bool {
 		var count int
-		require.NoError(t, f.env.db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_outbox WHERE group_id=? AND state=?`, f.long.ID, groupdelivery.StateCommitted).Scan(&count))
+		require.NoError(t, f.env.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_outbox WHERE group_id=? AND state=?`, f.long.ID, groupdelivery.StateCommitted).Scan(&count))
 		return count >= n
 	}, 8*time.Second, 20*time.Millisecond, "actual managed SQLite outbox must commit")
 }
 func (f repairOperationFixture) pending(t *testing.T) groupdelivery.OutboxItem {
 	t.Helper()
 	var effect string
-	require.NoError(t, f.env.db.QueryRow(`SELECT effect_key FROM wg_delivery_outbox WHERE group_id=? AND state=? ORDER BY effect_key LIMIT 1`, f.long.ID, groupdelivery.StatePending).Scan(&effect))
+	require.NoError(t, f.env.db.QueryRowContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox WHERE group_id=? AND state=? ORDER BY effect_key LIMIT 1`, f.long.ID, groupdelivery.StatePending).Scan(&effect))
 	item, err := groupdelivery.NewStore(f.env.db).GetOutbox(t.Context(), effect)
 	require.NoError(t, err)
 	return item
 }
 func (f repairOperationFixture) dropTable(t *testing.T) {
 	t.Helper()
-	_, err := f.targetDB.Exec(`DROP TABLE "` + f.long.Destination.TableName + `"`)
+	_, err := f.targetDB.ExecContext(t.Context(), `DROP TABLE "`+f.long.Destination.TableName+`"`)
 	require.NoError(t, err, "only the disposable, canonical fixture table is removed")
 }
 
@@ -208,7 +208,7 @@ func (f repairOperationFixture) restoreWithFault(t *testing.T, cfg grouppipeline
 	if mode == "unacknowledged" {
 		var seq int
 		var name, path string
-		require.NoError(t, f.env.db.QueryRow("PRAGMA database_list").Scan(&seq, &name, &path))
+		require.NoError(t, f.env.db.QueryRowContext(t.Context(), "PRAGMA database_list").Scan(&seq, &name, &path))
 		local = lostcommit.OpenFaults(path, faults)
 		defer local.Close()
 	}
@@ -227,7 +227,7 @@ func newOperationDeliveryFixture(t *testing.T, fileLog ...bool) deliveryEventFix
 		db, err := sql.Open("sqlite", path)
 		require.NoError(t, err)
 		t.Cleanup(func() { require.NoError(t, db.Close()) })
-		_, err = db.Exec(`CREATE TABLE readings (temperature REAL NOT NULL, pressure INTEGER NOT NULL)`)
+		_, err = db.ExecContext(t.Context(), `CREATE TABLE readings (temperature REAL NOT NULL, pressure INTEGER NOT NULL)`)
 		require.NoError(t, err)
 		require.NoError(t, dbtarget.CreateEffectReceiptTable(t.Context(), db, schema.DatabaseConnectorKindSQLite, "main"))
 		env.targets["connector-"+name] = path
@@ -244,7 +244,7 @@ func newOperationDeliveryFixture(t *testing.T, fileLog ...bool) deliveryEventFix
 	if len(fileLog) > 0 && fileLog[0] {
 		var sequence int
 		var name, path string
-		require.NoError(t, env.db.QueryRow("PRAGMA database_list").Scan(&sequence, &name, &path))
+		require.NoError(t, env.db.QueryRowContext(t.Context(), "PRAGMA database_list").Scan(&sequence, &name, &path))
 		logPath = filepath.Join(filepath.Dir(path), "logs", "operations.jsonl")
 		var err error
 		options.File, err = diagnostics.OpenFileSink(diagnostics.FileOptions{Path: logPath, DatabasePath: path, DatabaseID: strings.Repeat("a", 64)})
@@ -268,7 +268,7 @@ func newOperationDeliveryFixture(t *testing.T, fileLog ...bool) deliveryEventFix
 	require.NoError(t, seed.Reconcile(t.Context()))
 	env.feed(t, seed, clock, []*workspace.WriteGroup{group}, base, 21.5, 100)
 	var effect string
-	require.NoError(t, env.db.QueryRow(`SELECT effect_key FROM wg_delivery_outbox WHERE group_id=?`, group.ID).Scan(&effect))
+	require.NoError(t, env.db.QueryRowContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox WHERE group_id=?`, group.ID).Scan(&effect))
 	item, err := groupdelivery.NewStore(env.db).GetOutbox(t.Context(), effect)
 	require.NoError(t, err)
 	require.Equal(t, groupdelivery.StatePending, item.State)
@@ -283,7 +283,7 @@ func newOperationDeliveryFixture(t *testing.T, fileLog ...bool) deliveryEventFix
 
 func (f repairOperationFixture) pendingForBucket(t *testing.T, bucket time.Time) []groupdelivery.OutboxItem {
 	t.Helper()
-	rows, err := f.env.db.Query(`SELECT effect_key FROM wg_delivery_outbox WHERE group_id=?`, f.long.ID)
+	rows, err := f.env.db.QueryContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox WHERE group_id=?`, f.long.ID)
 	require.NoError(t, err)
 	var effects []string
 	for rows.Next() {

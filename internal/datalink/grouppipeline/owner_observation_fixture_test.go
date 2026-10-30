@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func ownerCapture(p *Pipeline, out *[]OwnerObservation, reads *int) {

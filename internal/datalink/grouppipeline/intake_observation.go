@@ -238,7 +238,7 @@ func (p *Pipeline) verifyIntakeObservation(ctx context.Context, d intakeDescript
 	if d.kind == IntakeQuotaRecovered && quota.IntakeRefused {
 		return IntakeQuotaObservation{}, false
 	}
-	id := ""
+	var id string
 	if d.hint != nil {
 		id = d.hint.ReferenceID
 	} else {

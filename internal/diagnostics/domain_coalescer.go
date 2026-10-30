@@ -83,7 +83,7 @@ func (c *DomainCoalescer) Observe(ctx context.Context, data []byte, scope runtim
 	if err != nil {
 		return c.enqueue(ctx, ProjectDomainEvent(data, scope))
 	}
-	if v.Code == "domain.collector.recovered" || v.Code == "domain.mapping.recovered" || v.Code == "domain.delivery.recovered" || v.Code == "domain.quota.recovered" {
+	if v.Code == domainCollectorRecovered || v.Code == domainMappingRecovered || v.Code == domainDeliveryRecovered || v.Code == domainQuotaRecovered {
 		c.drop(1)
 		return false
 	}
@@ -92,7 +92,11 @@ func (c *DomainCoalescer) Observe(ctx context.Context, data []byte, scope runtim
 		c.drop(1)
 		return false
 	}
-	raw, _ := json.Marshal(v) // canonical validated reference; no raw candidate retention
+	raw, err := json.Marshal(v) // canonical validated reference; no raw candidate retention
+	if err != nil {
+		c.drop(1)
+		return false
+	}
 	key := domainCoalescerKey(v)
 	entry := domainCoalescerEntry{data: raw, scope: runtimeview.Scope{WorkspaceID: strings.Clone(scope.WorkspaceID), WorkspaceRevision: strings.Clone(scope.WorkspaceRevision), DeviceID: strings.Clone(scope.DeviceID)}, reference: v.Evidence.ReferenceID, first: now, last: now, next: now.Add(c.options.Heartbeat), occurrences: 1, reported: 1}
 	// Encoded storage budget, like the broker: include key/reference/scope and a
@@ -237,7 +241,7 @@ func (c *DomainCoalescer) Close() {
 		return
 	}
 	c.closed = true
-	lost := uint64(c.queue.count)
+	lost := uint64(c.queue.count) //nolint:gosec // Queue count starts at zero and is decremented only when nonzero.
 	for _, e := range c.entries {
 		if e.occurrences > e.reported {
 			lost++
@@ -355,7 +359,7 @@ func (c *DomainCoalescer) drop(n uint64) {
 			break
 		}
 	}
-	defer func() { _ = recover() }() // logging callbacks cannot fail a writer
+	defer func() { recover() }() //nolint:errcheck // Logging callbacks cannot fail a writer.
 	c.options.OnDrop(n)
 }
 
@@ -378,10 +382,10 @@ func domainCoalescerKey(v DomainEventRef) string {
 	if deliveryFaultCode(v.Code) {
 		key += "\x00" + v.Evidence.ReferenceID // distinct durable effects never share fault episodes
 	}
-	if v.Evidence.Kind == "operation-result" {
+	if v.Evidence.Kind == domainOperationResultKind {
 		key += "\x00" + v.Evidence.ReferenceID // distinct repair/cutover ledger operations never merge
 	}
-	if v.Code == "domain.quota.refused" && v.Evidence.Quota != nil {
+	if v.Code == domainQuotaRefused && v.Evidence.Quota != nil {
 		key += "\x00" + v.Evidence.Quota.Scope // global and group capacity are distinct
 	}
 	return key
@@ -393,17 +397,22 @@ func domainEntryEvent(e domainCoalescerEntry, summary bool) Event {
 	data := e.data
 	if summary {
 		var v DomainEventRef
-		_ = json.Unmarshal(data, &v)
-		if v.Code == "domain.delivery.first-confirmed" {
-			v.Code = "domain.delivery.summary"
-			data, _ = json.Marshal(v)
+		if err := json.Unmarshal(data, &v); err != nil {
+			data = nil
+		} else if v.Code == domainDeliveryFirstConfirmed {
+			v.Code = domainDeliverySummary
+			var err error
+			data, err = json.Marshal(v)
+			if err != nil {
+				data = nil
+			}
 		}
 	}
 	return ProjectDomainSummary(data, e.scope, DomainEventSummary{FirstSeenAt: e.first.Format(time.RFC3339Nano), LastSeenAt: e.last.Format(time.RFC3339Nano), Occurrences: strconv.FormatUint(e.occurrences, 10)})
 }
 func domainOutputBytes(e Event) int {
 	e.InstanceID = "ffffffffffffffffffffffffffffffff"
-	e.Sequence = "18446744073709551615"
+	e.Sequence = maxEventSequence
 	e.Timestamp = time.Date(9999, 12, 31, 23, 59, 59, 999999999, time.UTC)
 	raw, err := json.Marshal(e)
 	if err != nil || len(raw) > MaxEventBytes {
@@ -416,18 +425,18 @@ func domainRecoveryPair(r, f DomainEventRef) bool {
 		return false
 	}
 	switch r.Code {
-	case "domain.source.applied":
-		return f.Code == "domain.source.rejected"
-	case "domain.collector.recovered":
-		return f.Code == "domain.collector.failed"
-	case "domain.mapping.recovered":
-		return f.Code == "domain.mapping.failed"
-	case "domain.repair.completed":
-		return f.Code == "domain.repair.blocked" && r.Evidence.ReferenceID == f.Evidence.ReferenceID
-	case "domain.cutover.applied":
-		return f.Code == "domain.cutover.rejected" && r.Evidence.ReferenceID == f.Evidence.ReferenceID
-	case "domain.delivery.recovered":
-		return (f.Code == "domain.delivery.retrying" || f.Code == "domain.delivery.blocked" || f.Code == "domain.delivery.quarantined" || f.Code == "domain.delivery.unknown") && r.Evidence.ReferenceID == f.Evidence.ReferenceID
+	case domainSourceApplied:
+		return f.Code == domainSourceRejected
+	case domainCollectorRecovered:
+		return f.Code == domainCollectorFailed
+	case domainMappingRecovered:
+		return f.Code == domainMappingFailed
+	case domainRepairCompleted:
+		return f.Code == domainRepairBlocked && r.Evidence.ReferenceID == f.Evidence.ReferenceID
+	case domainCutoverApplied:
+		return f.Code == domainCutoverRejected && r.Evidence.ReferenceID == f.Evidence.ReferenceID
+	case domainDeliveryRecovered:
+		return (f.Code == domainDeliveryRetrying || f.Code == domainDeliveryBlocked || f.Code == domainDeliveryQuarantined || f.Code == domainDeliveryUnknown) && r.Evidence.ReferenceID == f.Evidence.ReferenceID
 	default:
 		return false
 	}

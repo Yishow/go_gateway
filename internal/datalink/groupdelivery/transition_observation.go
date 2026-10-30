@@ -102,7 +102,7 @@ func (s *Store) finishDeliveryObservation(ctx context.Context, effect string, cl
 	observation := s.proveDeliveryObservation(ctx, effect, claim, state, code, interrupted, before)
 	// All native SQL statements/transactions have returned before this callback.
 	// A logging panic cannot replace the already-established mutation outcome.
-	defer func() { _ = recover() }()
+	defer func() { recover() }() //nolint:errcheck // Logging cannot change the settled native outcome.
 	s.deliveryObservation.Observe(observation)
 }
 

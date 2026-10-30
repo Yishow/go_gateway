@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-func mappingPair() (DomainEventRef, DomainEventRef) {
-	failed, recovered := projectionRef(projectionCases[4]), projectionRef(projectionCases[5])
+func mappingPair() (failed, recovered DomainEventRef) {
+	failed, recovered = projectionRef(projectionCases[4]), projectionRef(projectionCases[5])
 	failed.Evidence.ReferenceID = "acquisition-failed"
 	recovered.Evidence.ReferenceID = "acquisition-good"
 	return failed, recovered
@@ -223,10 +223,10 @@ func TestDomainMappingCancelAndCloseNeverClearOrFakeRecovery(t *testing.T) {
 				b.domain.options.Clock = func() time.Time { b.domain.Close(); return time.Now() }
 			}
 			if b.EmitDomain(ctx, projectionJSON(t, good), domainScope()) {
-				t.Fatal("cancelled/closed capture claimed recovery")
+				t.Fatal("canceled/closed capture claimed recovery")
 			}
 			if b.queue.count != 1 || b.domain.Stats().Dropped != 1 {
-				t.Fatal("closed/cancelled result emitted recovery or double counted capture")
+				t.Fatal("closed/canceled result emitted recovery or double counted capture")
 			}
 			if mode == "cancel" && b.domain.Stats().Entries != 1 {
 				t.Fatal("cancellation cleared fault")

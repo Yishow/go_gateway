@@ -1,6 +1,7 @@
 package diagnostics
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -49,7 +50,7 @@ func TestDomainBrokerMemoryFileAndSubscriberUseSameProjection(t *testing.T) {
 		}
 		a, _ := json.Marshal(want)
 		c, _ := json.Marshal(got)
-		if string(a) != string(c) {
+		if !bytes.Equal(a, c) {
 			t.Fatalf("subscriber changed projection: %s != %s", a, c)
 		}
 		sub.Ack(got.Cursor())
@@ -211,10 +212,8 @@ func TestDomainBrokerSourceTransitionCapacityAndContentionStayWhole(t *testing.T
 				if b.queue.count != priorCount || b.domain.Stats().Dropped != 2 {
 					t.Fatal("repeated applied resent lost recovery instead of coalescing")
 				}
-			} else {
-				if accepted || b.queue.count != priorCount || b.domain.entries[domainCoalescerKey(fault)] == nil || b.domain.entries[domainCoalescerKey(applied)] != nil || snapshot.CaptureDropped != priorLoss+1 {
-					t.Fatal("failed reservation partially cleared fault or emitted applied")
-				}
+			} else if accepted || b.queue.count != priorCount || b.domain.entries[domainCoalescerKey(fault)] == nil || b.domain.entries[domainCoalescerKey(applied)] != nil || snapshot.CaptureDropped != priorLoss+1 {
+				t.Fatal("failed reservation partially cleared fault or emitted applied")
 			}
 		})
 	}

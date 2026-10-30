@@ -10,7 +10,7 @@ import (
 )
 
 func fixedCollectorObservation(v DomainEventRef) bool {
-	return v.Code == "domain.collector.recovered" || (v.Code == "domain.collector.failed" && v.Reason == runtimeview.ReasonUnavailable && v.Action == runtimeview.ActionRefresh)
+	return v.Code == domainCollectorRecovered || (v.Code == domainCollectorFailed && v.Reason == runtimeview.ReasonUnavailable && v.Action == runtimeview.ActionRefresh)
 }
 
 // observeCollector does not retain healthy samples. Only an exact, already
@@ -27,11 +27,11 @@ func (c *DomainCoalescer) observeCollector(ctx context.Context, data []byte, sco
 	if err != nil || !fixedCollectorObservation(recovered) {
 		return c.rejectCollectorCapture()
 	}
-	if recovered.Code == "domain.collector.failed" {
+	if recovered.Code == domainCollectorFailed {
 		return c.Observe(ctx, data, scope)
 	}
 	failed := recovered
-	failed.Code = "domain.collector.failed"
+	failed.Code = domainCollectorFailed
 	failed.Reason = runtimeview.ReasonUnavailable
 	failed.Action = runtimeview.ActionRefresh
 	key := domainCoalescerKey(failed)
@@ -144,7 +144,7 @@ func (c *DomainCoalescer) observeUnavailable(ctx context.Context) bool {
 }
 
 func unavailableCoalescerEvent(entry domainCoalescerEntry, summary bool) Event {
-	e := project(Input{Code: "domain.unavailable"}, nil)
+	e := project(Input{Code: domainUnavailableCode}, nil)
 	if summary {
 		e.Fields = map[string]any{"first_seen_at": entry.first.Format(time.RFC3339Nano), "last_seen_at": entry.last.Format(time.RFC3339Nano), "occurrences": strconv.FormatUint(entry.occurrences, 10)}
 	}

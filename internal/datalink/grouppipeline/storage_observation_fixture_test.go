@@ -9,11 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Both destination DDL/catalog and local operation/lineage/outbox are real
@@ -56,19 +57,19 @@ func newStorageObservationFixture(t *testing.T) *storageObservationFixture {
 	f.snapshot.RuntimeLayout.SchemaDigest = op.VerifiedDigest
 	raw, err := json.Marshal(f.snapshot)
 	require.NoError(t, err)
-	_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(raw), f.group.ID, f.group.Revision)
+	_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(raw), f.group.ID, f.group.Revision)
 	require.NoError(t, err)
 	f.scope = workspace.StorageScopeOf(f.group)
 	encoded, err := json.Marshal(layout)
 	require.NoError(t, err)
 	digest := sha256.Sum256(encoded)
-	_, err = f.local.Exec(`INSERT INTO write_group_storage_scopes(workspace_id,connector_id,database_name,table_schema,storage_mode,layout_version,table_name,owner_column,layout_digest,generation) VALUES(?,?,?,?,?,?,?,?,?,1)`, f.scope.WorkspaceID, f.scope.ConnectorID, f.scope.Database, f.scope.TableSchema, f.scope.StorageMode, f.scope.LayoutVersion, layout.TableName, layout.OwnerColumn, hex.EncodeToString(digest[:]))
+	_, err = f.local.ExecContext(t.Context(), `INSERT INTO write_group_storage_scopes(workspace_id,connector_id,database_name,table_schema,storage_mode,layout_version,table_name,owner_column,layout_digest,generation) VALUES(?,?,?,?,?,?,?,?,?,1)`, f.scope.WorkspaceID, f.scope.ConnectorID, f.scope.Database, f.scope.TableSchema, f.scope.StorageMode, f.scope.LayoutVersion, layout.TableName, layout.OwnerColumn, hex.EncodeToString(digest[:]))
 	require.NoError(t, err)
 	require.NoError(t, recordingplan.RecordStorageConfirmation(t.Context(), f.local, f.scope, recordingplan.StorageConfirmation{Layout: *layout, ConnectorRevision: f.group.Destination.ConnectorRevision, OperationID: op.OperationID, VerifiedDigest: op.VerifiedDigest, GroupID: f.group.ID}, time.Now()))
 	require.NoError(t, f.reading(0, "input-before-table-loss", at(1), 100))
 	f.closeUntil(at(15))
 	var effect string
-	require.NoError(t, f.local.QueryRow(`SELECT effect_key FROM wg_delivery_outbox ORDER BY effect_key LIMIT 1`).Scan(&effect))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox ORDER BY effect_key LIMIT 1`).Scan(&effect))
 	f.item, err = f.store.GetOutbox(t.Context(), effect)
 	require.NoError(t, err)
 	f.recovery = NewStorageRecoveryWithObservation(f.store, f.ledger, f.dest, StorageObservationConfig{
@@ -83,7 +84,7 @@ func newStorageObservationFixture(t *testing.T) *storageObservationFixture {
 }
 func (f *storageObservationFixture) drop() {
 	f.t.Helper()
-	_, err := f.target.DB.Exec(`DROP TABLE "` + f.table + `"`)
+	_, err := f.target.DB.ExecContext(f.t.Context(), `DROP TABLE "`+f.table+`"`)
 	require.NoError(f.t, err)
 }
 func (f *storageObservationFixture) restore() (groupdelivery.RestoreDecision, error) {

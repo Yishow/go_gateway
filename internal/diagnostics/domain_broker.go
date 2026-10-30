@@ -26,22 +26,22 @@ func (b *Broker) EmitDomain(ctx context.Context, data []byte, scope runtimeview.
 			return b.domain.observeIntake(ctx, data, scope)
 		}
 		if fixedSourceObservation(v) {
-			if !visible && v.Code != "domain.source.applied" {
+			if !visible && v.Code != domainSourceApplied {
 				return false
 			}
 			return b.domain.observeSource(ctx, data, scope, visible)
 		}
 		if fixedCollectorObservation(v) {
-			if !visible && v.Code != "domain.collector.recovered" {
+			if !visible && v.Code != domainCollectorRecovered {
 				return false
 			}
 			return b.domain.observeCollector(ctx, data, scope, visible)
 		}
-		if v.Code == "domain.delivery.first-confirmed" {
+		if v.Code == domainDeliveryFirstConfirmed {
 			return b.domain.observeDeliveryCommit(ctx, data, scope, visible)
 		}
 		if fixedMappingObservation(v) {
-			if !visible && v.Code != "domain.mapping.recovered" {
+			if !visible && v.Code != domainMappingRecovered {
 				return false
 			}
 			return b.domain.observeMapping(ctx, data, scope, visible)
@@ -72,7 +72,7 @@ func (b *Broker) EmitDomainUnavailable(ctx context.Context) bool {
 	if b == nil || b.domain == nil {
 		return false
 	}
-	e := project(Input{Code: "domain.unavailable"}, nil)
+	e := project(Input{Code: domainUnavailableCode}, nil)
 	if levelRank(e.Level) < b.level {
 		return false
 	}

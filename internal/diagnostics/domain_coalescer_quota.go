@@ -54,7 +54,7 @@ func (b *Broker) TakeQuotaRecoveryHint(ctx context.Context) (QuotaRecoveryHint, 
 	c.quotaHintNext = now.Add(c.options.Heartbeat)
 	c.mu.Unlock()
 	ref, err := ParseDomainEventRef(raw, scope)
-	if err != nil || ref.Code != "domain.quota.refused" {
+	if err != nil || ref.Code != domainQuotaRefused {
 		return QuotaRecoveryHint{}, false
 	}
 	return QuotaRecoveryHint{Ref: ref, entry: chosen, generation: generation}, true
@@ -75,7 +75,7 @@ func (c *DomainCoalescer) recoverQuota(ctx context.Context, hint QuotaRecoveryHi
 		return c.rejectQuotaCapture()
 	}
 	recovered, err := ParseDomainEventRef(data, scope)
-	if err != nil || recovered.Code != "domain.quota.recovered" {
+	if err != nil || recovered.Code != domainQuotaRecovered {
 		return c.rejectQuotaCapture()
 	}
 	// Ref is public and mutable. Canonical equality with immutable retained bytes
@@ -85,7 +85,7 @@ func (c *DomainCoalescer) recoverQuota(ctx context.Context, hint QuotaRecoveryHi
 		return c.rejectQuotaCapture()
 	}
 	original, err := ParseDomainEventRef(hint.entry.data, scope)
-	if err != nil || original.Code != "domain.quota.refused" || domainEntityKey(original) != domainEntityKey(recovered) || original.Binding.WorkspaceRevision != recovered.Binding.WorkspaceRevision || original.Evidence.ReferenceID != recovered.Evidence.ReferenceID || original.Evidence.Quota.Scope != recovered.Evidence.Quota.Scope {
+	if err != nil || original.Code != domainQuotaRefused || domainEntityKey(original) != domainEntityKey(recovered) || original.Binding.WorkspaceRevision != recovered.Binding.WorkspaceRevision || original.Evidence.ReferenceID != recovered.Evidence.ReferenceID || original.Evidence.Quota.Scope != recovered.Evidence.Quota.Scope {
 		return c.rejectQuotaCapture()
 	}
 	now, ok := c.now()

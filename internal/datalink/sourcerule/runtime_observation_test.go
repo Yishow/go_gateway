@@ -2,9 +2,10 @@ package sourcerule
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/modbusshare"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type finalSourceRecorder struct {

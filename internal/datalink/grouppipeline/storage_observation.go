@@ -158,7 +158,7 @@ func (r *StorageRecovery) captureStorageObservation(ctx context.Context) (contex
 	}
 }
 func storageObservationDrop(cfg StorageObservationConfig) {
-	defer func() { _ = recover() }()
+	defer func() { recover() }() //nolint:errcheck // Drop reporting cannot affect the native operation.
 	if cfg.OnDrop != nil {
 		cfg.OnDrop(1)
 	}

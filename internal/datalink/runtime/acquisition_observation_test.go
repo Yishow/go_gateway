@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/measurement"
@@ -13,6 +12,8 @@ import (
 	"go-gateway/internal/datalink/workspace"
 	"go-gateway/internal/virtual/memory"
 	virtualmodbus "go-gateway/internal/virtual/server/modbus"
+
+	"github.com/stretchr/testify/require"
 )
 
 type acquisitionInstallFixture struct {

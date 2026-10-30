@@ -13,7 +13,7 @@ import (
 
 func deliveryFaultCode(code DomainEventCode) bool {
 	switch code {
-	case "domain.delivery.retrying", "domain.delivery.blocked", "domain.delivery.quarantined", "domain.delivery.unknown":
+	case domainDeliveryRetrying, domainDeliveryBlocked, domainDeliveryQuarantined, domainDeliveryUnknown:
 		return true
 	default:
 		return false
@@ -31,7 +31,7 @@ func (c *DomainCoalescer) observeDeliveryCommit(ctx context.Context, data []byte
 		return c.rejectDeliveryCapture()
 	}
 	v, err := ParseDomainEventRef(data, scope)
-	if err != nil || v.Code != "domain.delivery.first-confirmed" {
+	if err != nil || v.Code != domainDeliveryFirstConfirmed {
 		return c.rejectDeliveryCapture()
 	}
 	successKey := deliverySuccessKey(v)
@@ -64,7 +64,10 @@ func (c *DomainCoalescer) observeDeliveryCommit(ctx context.Context, data []byte
 	if !ok {
 		return c.rejectDeliveryCapture()
 	}
-	raw, _ := json.Marshal(v)
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return c.rejectDeliveryCapture()
+	}
 	next := c.deliverySuccessEntry(v, raw, scope, now)
 	if !c.mu.TryLock() {
 		return c.rejectDeliveryCapture()
@@ -106,8 +109,12 @@ func (c *DomainCoalescer) observeDeliveryCommit(ctx context.Context, data []byte
 	if visible {
 		if len(faults) > 0 {
 			recovery := v
-			recovery.Code = "domain.delivery.recovered"
-			recoveryRaw, _ := json.Marshal(recovery)
+			recovery.Code = domainDeliveryRecovered
+			recoveryRaw, err := json.Marshal(recovery)
+			if err != nil {
+				c.mu.Unlock()
+				return c.rejectDeliveryCapture()
+			}
 			appendOutput(ProjectDomainSummary(recoveryRaw, scope, DomainEventSummary{FirstSeenAt: now.Format(time.RFC3339Nano), LastSeenAt: now.Format(time.RFC3339Nano), Occurrences: "1"}))
 		}
 		if old == nil {
@@ -155,7 +162,7 @@ func deliveryFaultKeyMatches(key string, v DomainEventRef) bool {
 		return false
 	}
 	rest := strings.TrimPrefix(key, prefix)
-	for _, stage := range []string{"retrying", "blocked", "quarantined", "unknown"} {
+	for _, stage := range []string{string(runtimeview.StageRetrying), string(runtimeview.StageBlocked), string(runtimeview.StageQuarantined), string(runtimeview.StageUnknown)} {
 		if strings.HasPrefix(rest, stage+"\x00domain.delivery."+stage+"\x00") {
 			return true
 		}

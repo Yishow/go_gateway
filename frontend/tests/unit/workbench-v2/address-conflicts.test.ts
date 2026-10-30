@@ -75,16 +75,21 @@ describe('DeviceScopedAddressConflict', () => {
     expect(described).toEqual([{ device_id: 'dev-A', address: '40001', rule_names: ['Rule one', 'Rule two'] }]);
   });
 
-  it('reads MC3E contacts as hex when the device protocol is known', () => {
+  it('reads MC3E contacts as octal and rejects invalid contact suffixes', () => {
     const protocols = { 'dev-A': 'mc_3e' as const };
-    const x9 = point({ id: 'a', device_id: 'dev-A', rule_id: 'r1', address: 'X9', width: 2 });
+    const x7 = point({ id: 'a', device_id: 'dev-A', rule_id: 'r1', address: 'X7', width: 2 });
     const x10 = point({ id: 'b', device_id: 'dev-A', rule_id: 'r2', address: 'X10' });
-    const xa = point({ id: 'c', device_id: 'dev-A', rule_id: 'r3', address: 'XA' });
-    // X9 spans hex 9 and A: it overlaps XA but not X10 (= 16).
-    const conflicts = detectAddressConflicts([x9, x10, xa], protocols);
-    expect(conflicts.has(pointConflictKey(x9))).toBe(true);
-    expect(conflicts.has(pointConflictKey(xa))).toBe(true);
-    expect(conflicts.has(pointConflictKey(x10))).toBe(false);
+    const x11 = point({ id: 'c', device_id: 'dev-A', rule_id: 'r3', address: 'X11' });
+    const invalidX9 = point({ id: 'd', device_id: 'dev-A', rule_id: 'r4', address: 'X9' });
+    const invalidXa = point({ id: 'e', device_id: 'dev-A', rule_id: 'r5', address: 'XA' });
+    // X7's width-2 span reaches X10 across the octal boundary; it overlaps X10 (offset 8), but not X11 (offset 9).
+    // X9 and XA are not valid MC3E octal contacts and must not be treated as hexadecimal spans.
+    const conflicts = detectAddressConflicts([x7, x10, x11, invalidX9, invalidXa], protocols);
+    expect(conflicts.has(pointConflictKey(x7))).toBe(true);
+    expect(conflicts.has(pointConflictKey(x10))).toBe(true);
+    expect(conflicts.has(pointConflictKey(x11))).toBe(false);
+    expect(conflicts.has(pointConflictKey(invalidX9))).toBe(false);
+    expect(conflicts.has(pointConflictKey(invalidXa))).toBe(false);
   });
 
   it('stays fast for thousands of points on one device', () => {

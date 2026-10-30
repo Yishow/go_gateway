@@ -80,8 +80,8 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 	modbusShareSvc := modbusshare.NewService(tagSvc, 65536)
 	shareSettingsLoaded := loadPersistedShareSettings(ctx, modbusShareSvc, settingsRepo)
 	workspaceSvc := workspace.NewService(workspace.NewSQLRepository(db))
-	deliveryObservation, ownerObservation := newDeliveryEventObservers(logs, workspaceSvc)
-	storageObservation, cutoverObservation := newOperationEventObservers(logs, deliveryObservation.ScopeRevision)
+	deliveryObservation, ownerObservation := newDeliveryEventObservers(logs, workspaceSvc)                        //nolint:contextcheck // Runtime observers outlive the wiring context.
+	storageObservation, cutoverObservation := newOperationEventObservers(logs, deliveryObservation.ScopeRevision) //nolint:contextcheck // Runtime observers outlive the wiring context.
 	writeGroupsSvc := workspace.NewWriteGroupService(workspaceSvc, workspace.NewSQLWriteGroupRepository(db), cutoverObservation).
 		WithBacklogOwnershipGuard(grouppipeline.BacklogGuard{})
 	auditSvc := audit.NewService(audit.NewSQLRepository(db))
@@ -99,7 +99,7 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 		return gatewayServices{}, fmt.Errorf("configure group delivery capacity: %w", err)
 	}
 	groupStore = groupStore.WithDeliveryObservation(deliveryObservation)
-	intakeQuotaObservation := newIntakeQuotaEventObserver(logs, deliveryObservation.ScopeRevision)
+	intakeQuotaObservation := newIntakeQuotaEventObserver(logs, deliveryObservation.ScopeRevision) //nolint:contextcheck // Runtime observers outlive the wiring context.
 	pipelineConfig := fixture.pipelineConfig(gatewayNodeID(), uuid.NewString())
 	if logs != nil {
 		// The native error callback remains unchanged. Only this fixed diagnostic
@@ -126,14 +126,14 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 	// there is exactly one writer per output.
 	dbTargetWriter := dbtarget.NewWriterWithConfig(dbTargetConnectorRepo, dbTargetMappingRepo, dbtarget.WriterConfig{TagReader: tagSvc, SuppressMapping: groupPipe.Owns}) //nolint:contextcheck // Persistent worker is owned by runtime shutdown.
 	schedulerConfig := collector.DefaultSchedulerConfig()
-	schedulerConfig.AcquisitionObserver = newCollectorEventObserver(logs)
+	schedulerConfig.AcquisitionObserver = newCollectorEventObserver(logs) //nolint:contextcheck // Runtime observers outlive the wiring context.
 	scheduler := collector.NewScheduler(schedulerConfig, connMgr)
 	runtimeWriter := storage.NewBatchWriter(storage.NewSQLiteWriter(db), storage.DefaultBatchWriterConfig()) //nolint:contextcheck // Persistent timer is joined by runtime shutdown.
 	runtimeSvc, err := datalinkruntime.NewService(datalinkruntime.DefaultConfig(), datalinkruntime.Dependencies{
 		Scheduler: scheduler, Writer: runtimeWriter, TargetWriter: newProductionTargetWriter(dbTargetWriter, modbusShareSvc),
 		DeviceService: devSvc, PointService: pointSvc, MappingService: mappingSvc, TagService: tagSvc, PollingGroupService: pgSvc,
 		SampleSink: sampleSink, SourceRuleObserver: newSourceRuleEventObserver(logs),
-		MappingObserver: newMappingEventObserver(logs),
+		MappingObserver: newMappingEventObserver(logs), //nolint:contextcheck // Runtime observers outlive the wiring context.
 	})
 	if err != nil {
 		targetErr := dbTargetWriter.Close(ctx)

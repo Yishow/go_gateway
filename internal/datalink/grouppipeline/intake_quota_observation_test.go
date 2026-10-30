@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestIntakeObservationDoesNotActivateFutureOrDrainOnlyRevision(t *testing.T) {
@@ -135,7 +136,7 @@ func TestQuotaObservationRecoveryRequiresExactScopeMeasurement(t *testing.T) {
 	p.deps.IntakeQuotaObservation.TakeQuotaRecoveryHint = func(context.Context) (QuotaRecoveryHint, bool) { return hint, true }
 	require.NoError(t, p.Reconcile(t.Context()))
 	require.Empty(t, recovered, "hard limit is not recovered")
-	_, err := f.store.DB().Exec(`UPDATE wg_delivery_samples SET consumed=1`)
+	_, err := f.store.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET consumed=1`)
 	require.NoError(t, err)
 	require.NoError(t, p.Reconcile(t.Context()))
 	require.Len(t, recovered, 1)
@@ -216,7 +217,7 @@ func TestIntakeObservationPostScopeFrozenAndNativeChangesFailClosed(t *testing.T
 					case "frozen":
 						raw, err := f.store.RuntimeVersion(ctx, key)
 						require.NoError(t, err)
-						_, err = f.store.DB().Exec(`UPDATE wg_runtime_versions SET payload=?`, strings.Replace(string(raw), "crev-1", "crev-2", 1))
+						_, err = f.store.DB().ExecContext(ctx, `UPDATE wg_runtime_versions SET payload=?`, strings.Replace(string(raw), "crev-1", "crev-2", 1))
 						require.NoError(t, err)
 					case "pointer":
 						p.mu.Lock()
@@ -316,7 +317,7 @@ func TestQuotaObservationRecoveryRejectsWrongScopeAndFrozenIdentity(t *testing.T
 		t.Run(mode, func(t *testing.T) {
 			f, p, out, _ := intakeQuotaFixture(t, groupdelivery.QuotaScopeGroup)
 			p.deps.IntakeQuotaObservation.IntakeEnabled = false
-			_, err := f.store.DB().Exec(`UPDATE wg_delivery_samples SET consumed=1`)
+			_, err := f.store.DB().ExecContext(t.Context(), `UPDATE wg_delivery_samples SET consumed=1`)
 			require.NoError(t, err)
 			hint := QuotaRecoveryHint{Key: groupdelivery.GroupKey{WorkspaceID: "workspace-A", GroupID: "group-G", GroupRevision: "rev-1"}, WorkspaceRevision: "workspace-revision", ConnectorID: "connector-1", ConnectorRevision: "crev-1", ReferenceID: "original-ref", Scope: groupdelivery.QuotaScopeGroup, Observe: func(IntakeQuotaObservation) { t.Error("unproven recovery must not clear original token") }}
 			switch mode {
@@ -325,7 +326,7 @@ func TestQuotaObservationRecoveryRejectsWrongScopeAndFrozenIdentity(t *testing.T
 			case "foreign-connector":
 				hint.ConnectorID = "foreign"
 			case "missing-frozen":
-				_, err = f.store.DB().Exec(`DELETE FROM wg_runtime_versions`)
+				_, err = f.store.DB().ExecContext(t.Context(), `DELETE FROM wg_runtime_versions`)
 				require.NoError(t, err)
 			}
 			reads := 0
@@ -335,7 +336,7 @@ func TestQuotaObservationRecoveryRejectsWrongScopeAndFrozenIdentity(t *testing.T
 					panic("secret")
 				}
 				if mode == "changed-after-scope" && reads == 2 {
-					_, err = f.store.DB().Exec(`DELETE FROM wg_runtime_versions`)
+					_, err = f.store.DB().ExecContext(ctx, `DELETE FROM wg_runtime_versions`)
 					require.NoError(t, err)
 				}
 				return "workspace-revision", true

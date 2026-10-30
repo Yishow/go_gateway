@@ -107,7 +107,7 @@ func TestDomainIntakeInfoEligibilityIsImmutableAndNilSafe(t *testing.T) {
 // Reflection keeps the initial absent-API test executable rather than a compile
 // failure. All returned references and emitted events are checked through the
 // same production API, and the opaque token is never manufactured by this helper.
-func takeQuotaHint(t *testing.T, b *Broker, ctx context.Context) (reflect.Value, bool) {
+func takeQuotaHint(ctx context.Context, t *testing.T, b *Broker) (reflect.Value, bool) {
 	t.Helper()
 	m := reflect.ValueOf(b).MethodByName("TakeQuotaRecoveryHint")
 	if !m.IsValid() {

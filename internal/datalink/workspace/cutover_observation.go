@@ -31,6 +31,8 @@ type CutoverObservationConfig struct {
 
 var cutoverObservationID = regexp.MustCompile(`^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$`)
 
+const cutoverObservationUnavailable = "unavailable"
+
 func (s *WriteGroupService) observeCutover(ctx context.Context, plan *cutoverPlan, result *WriteGroupCutover, nativeErr error, replayed bool) {
 	if s == nil || replayed {
 		return
@@ -49,18 +51,21 @@ func (s *WriteGroupService) observeCutover(ctx context.Context, plan *cutoverPla
 		safeCutoverDrop(config.OnDrop)
 		return
 	}
-	observation := CutoverObservation{Outcome: "unavailable"}
+	observation := CutoverObservation{Outcome: cutoverObservationUnavailable}
 	if success {
 		observation = s.proveCutoverObservation(ctx, plan, result, config)
 	}
 	if !observation.Available && !config.WarnEnabled {
 		return
 	}
-	func() { defer func() { _ = recover() }(); config.Observe(ctx, observation) }()
+	func() {
+		defer func() { recover() }() //nolint:errcheck // Diagnostics must not change the settled cutover.
+		config.Observe(ctx, observation)
+	}()
 }
 func safeCutoverDrop(drop func(uint64)) {
 	if drop != nil {
-		defer func() { _ = recover() }()
+		defer func() { recover() }() //nolint:errcheck // Drop reporting must not change the cutover.
 		drop(1)
 	}
 }
@@ -78,19 +83,20 @@ func cutoverScopeRevision(ctx context.Context, c CutoverObservationConfig, g *Wr
 }
 
 func (s *WriteGroupService) proveCutoverObservation(ctx context.Context, plan *cutoverPlan, result *WriteGroupCutover, c CutoverObservationConfig) (observation CutoverObservation) {
-	observation = CutoverObservation{Outcome: "unavailable"}
+	observation = CutoverObservation{Outcome: cutoverObservationUnavailable}
 	// A provider panic or proof-read failure cannot change the already-settled
 	// operation; neither may it establish a partially attributed success.
 	defer func() {
 		if recover() != nil {
-			observation = CutoverObservation{Outcome: "unavailable"}
+			observation = CutoverObservation{Outcome: cutoverObservationUnavailable}
 		}
 	}()
 	if ctx == nil || ctx.Err() != nil || s.repo == nil || result == nil || plan == nil || plan.source == nil || result.WorkspaceID != plan.req.WorkspaceID || result.SourceGroupID != plan.source.ID || result.Kind != plan.req.Kind {
 		return observation
 	}
-	originalRevision := ""
-	if result.Kind == WriteGroupCutoverForward {
+	var originalRevision string
+	switch result.Kind {
+	case WriteGroupCutoverForward:
 		if plan.full == nil || plan.full.ID != result.SourceGroupID {
 			return observation
 		}
@@ -104,12 +110,12 @@ func (s *WriteGroupService) proveCutoverObservation(ctx context.Context, plan *c
 		if !found {
 			return observation
 		}
-	} else if result.Kind == WriteGroupCutoverRollback {
+	case WriteGroupCutoverRollback:
 		if plan.prior == nil || plan.prior.Kind != WriteGroupCutoverForward || plan.prior.SourceGroupID != result.SourceGroupID || result.PriorCutoverID != plan.prior.ID || len(plan.prior.Ended) != 1 || plan.prior.Ended[0].GroupID != result.SourceGroupID {
 			return observation
 		}
 		originalRevision = plan.prior.Ended[0].Revision
-	} else {
+	default:
 		return observation
 	}
 	// Identity comes from the actual original immutable version, not today's saved

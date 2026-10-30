@@ -68,9 +68,9 @@ func TestCutoverObservationMissingChangedOrForeignProofIsUnavailable(t *testing.
 				var err error
 				switch mode {
 				case "missing-frozen":
-					_, err = h.f.db.Exec(`DELETE FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, h.f.group.ID, h.f.group.AppliedRevision)
+					_, err = h.f.db.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, h.f.group.ID, h.f.group.AppliedRevision)
 				case "corrupt-frozen":
-					_, err = h.f.db.Exec(`UPDATE wg_runtime_versions SET payload='{}' WHERE group_id=? AND group_revision=?`, h.f.group.ID, h.f.group.AppliedRevision)
+					_, err = h.f.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload='{}' WHERE group_id=? AND group_revision=?`, h.f.group.ID, h.f.group.AppliedRevision)
 				case "changed-workspace":
 					h.beforeScope = func(call int) {
 						if call == 2 {
@@ -83,7 +83,7 @@ func TestCutoverObservationMissingChangedOrForeignProofIsUnavailable(t *testing.
 				case "foreign-workspace":
 					h.f.group.WorkspaceID = "foreign"
 				case "missing-ledger":
-					_, err = h.f.db.Exec(`DELETE FROM write_group_cutovers`)
+					_, err = h.f.db.ExecContext(t.Context(), `DELETE FROM write_group_cutovers`)
 				case "provider-panic":
 					panic("password_fixture")
 				}
@@ -101,17 +101,17 @@ func TestCutoverObservationCallbacksAfterWorkspaceUnlockAndNoExtraWrites(t *test
 	var settledChanges int64
 	h.beforeScope = func(call int) {
 		if call == 1 {
-			require.NoError(t, h.f.db.QueryRow(`SELECT total_changes()`).Scan(&settledChanges))
+			require.NoError(t, h.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&settledChanges))
 		}
 	}
 	h.onObserve = func(v observedCutover) {
 		var observedChanges int64
-		require.NoError(t, h.f.db.QueryRow(`SELECT total_changes()`).Scan(&observedChanges))
+		require.NoError(t, h.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&observedChanges))
 		require.Equal(t, settledChanges, observedChanges, "observation performed SQL writes")
 		require.True(t, h.f.service.workspaceSvc.mu.TryLock(), "callback under workspace lock")
 		h.f.service.workspaceSvc.mu.Unlock()
 		var count int
-		require.NoError(t, h.f.db.QueryRow(`SELECT COUNT(*) FROM write_group_cutovers WHERE id=?`, v.OperationID).Scan(&count))
+		require.NoError(t, h.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM write_group_cutovers WHERE id=?`, v.OperationID).Scan(&count))
 		require.Equal(t, 1, count)
 	}
 	result, err := h.apply(t)
@@ -151,7 +151,7 @@ func TestCutoverObservationUnacknowledgedSettlementNeverClaimsApplied(t *testing
 			h.requireUnavailable(t)
 			require.Zero(t, h.scopeCalls)
 			var count int
-			require.NoError(t, h.f.db.QueryRow(`SELECT COUNT(*) FROM write_group_cutovers`).Scan(&count))
+			require.NoError(t, h.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM write_group_cutovers`).Scan(&count))
 			if after {
 				require.Equal(t, 1, count)
 				replayed, e := h.apply(t)
@@ -241,9 +241,9 @@ func TestCutoverObservationUnsafeScopeAndWrongFrozenIdentityFailClosed(t *testin
 						return
 					}
 					var raw string
-					require.NoError(t, h.f.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, h.f.group.ID, h.f.group.AppliedRevision).Scan(&raw))
+					require.NoError(t, h.f.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, h.f.group.ID, h.f.group.AppliedRevision).Scan(&raw))
 					if mode == "foreign-descriptor" {
-						_, err := h.f.db.Exec(`INSERT INTO wg_runtime_versions(workspace_id,group_id,group_revision,payload)VALUES('foreign',?,?,?)`, h.f.group.ID, h.f.group.AppliedRevision, raw)
+						_, err := h.f.db.ExecContext(t.Context(), `INSERT INTO wg_runtime_versions(workspace_id,group_id,group_revision,payload)VALUES('foreign',?,?,?)`, h.f.group.ID, h.f.group.AppliedRevision, raw)
 						require.NoError(t, err)
 						return
 					}
@@ -256,7 +256,7 @@ func TestCutoverObservationUnsafeScopeAndWrongFrozenIdentityFailClosed(t *testin
 					}
 					changed, err := json.Marshal(frozen)
 					require.NoError(t, err)
-					_, err = h.f.db.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(changed), h.f.group.ID, h.f.group.AppliedRevision)
+					_, err = h.f.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(changed), h.f.group.ID, h.f.group.AppliedRevision)
 					require.NoError(t, err)
 				}
 			}
@@ -289,23 +289,23 @@ func TestCutoverObservationFinalProofRaceCannotClaimApplied(t *testing.T) {
 				require.NoError(t, err)
 				switch mode {
 				case "frozen":
-					_, err = h.f.db.Exec(`UPDATE wg_runtime_versions SET payload='{}' WHERE group_id=? AND group_revision=?`, h.f.group.ID, h.f.group.AppliedRevision)
+					_, err = h.f.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload='{}' WHERE group_id=? AND group_revision=?`, h.f.group.ID, h.f.group.AppliedRevision)
 				case "frozen-layout":
 					var raw string
-					require.NoError(t, h.f.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, h.f.group.ID, h.f.group.AppliedRevision).Scan(&raw))
+					require.NoError(t, h.f.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, h.f.group.ID, h.f.group.AppliedRevision).Scan(&raw))
 					var frozen WriteGroupAppliedSnapshot
 					require.NoError(t, json.Unmarshal([]byte(raw), &frozen))
 					require.NotEmpty(t, frozen.RuntimeLayout.Columns)
 					frozen.RuntimeLayout.Columns[0].Nullable = !frozen.RuntimeLayout.Columns[0].Nullable
 					changed, e := json.Marshal(frozen)
 					require.NoError(t, e)
-					_, err = h.f.db.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(changed), h.f.group.ID, h.f.group.AppliedRevision)
+					_, err = h.f.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(changed), h.f.group.ID, h.f.group.AppliedRevision)
 				case "ledger":
-					_, err = h.f.db.Exec(`UPDATE write_group_cutovers SET review_digest=review_digest||'-changed'`)
+					_, err = h.f.db.ExecContext(t.Context(), `UPDATE write_group_cutovers SET review_digest=review_digest||'-changed'`)
 				case "original-version":
-					_, err = h.f.db.Exec(`UPDATE write_group_versions SET payload='{}' WHERE group_id=? AND group_revision=?`, h.f.group.ID, h.f.group.AppliedRevision)
+					_, err = h.f.db.ExecContext(t.Context(), `UPDATE write_group_versions SET payload='{}' WHERE group_id=? AND group_revision=?`, h.f.group.ID, h.f.group.AppliedRevision)
 				case "prior-ledger":
-					_, err = h.f.db.Exec(`UPDATE write_group_cutovers SET review_digest=review_digest||'-changed' WHERE id=?`, priorID)
+					_, err = h.f.db.ExecContext(t.Context(), `UPDATE write_group_cutovers SET review_digest=review_digest||'-changed' WHERE id=?`, priorID)
 				}
 				require.NoError(t, err)
 				after, err := h.f.service.workspaceSvc.ReadSnapshot(t.Context())

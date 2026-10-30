@@ -198,7 +198,7 @@ func TestProductionDeliveryEventsRestartDoesNotReplayOldReceipt(t *testing.T) {
 	require.Empty(t, deliveryEventsOfCode(t, broker, "domain.delivery.first-confirmed"))
 	require.Empty(t, deliveryEventsOfCode(t, broker, "domain.delivery.recovered"))
 	var count int
-	require.NoError(t, f.destination.QueryRow("SELECT COUNT(*) FROM readings").Scan(&count))
+	require.NoError(t, f.destination.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM readings").Scan(&count))
 	require.Equal(t, 1, count)
 }
 
@@ -314,7 +314,7 @@ func TestDeliveryEventScopeReaderIsPureAndDoesNotBootstrap(t *testing.T) {
 	var before, after int64
 	changes := func() *int64 {
 		var n int64
-		require.NoError(t, f.env.db.QueryRow("SELECT total_changes()").Scan(&n))
+		require.NoError(t, f.env.db.QueryRowContext(t.Context(), "SELECT total_changes()").Scan(&n))
 		return &n
 	}
 	before = *changes()
@@ -330,7 +330,7 @@ func TestDeliveryEventScopeReaderIsPureAndDoesNotBootstrap(t *testing.T) {
 	}
 	after = *changes()
 	require.Equal(t, before, after)
-	_, err := f.env.db.Exec("DELETE FROM system_settings WHERE key='studio_v2_workspace'")
+	_, err := f.env.db.ExecContext(t.Context(), "DELETE FROM system_settings WHERE key='studio_v2_workspace'")
 	require.NoError(t, err)
 	before = *changes()
 	for _, read := range []func(context.Context, groupdelivery.GroupKey) (string, bool){delivery.ScopeRevision, owner.ScopeRevision} {
@@ -341,7 +341,7 @@ func TestDeliveryEventScopeReaderIsPureAndDoesNotBootstrap(t *testing.T) {
 	after = *changes()
 	require.Equal(t, before, after)
 	var count int
-	require.NoError(t, f.env.db.QueryRow("SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'").Scan(&count))
+	require.NoError(t, f.env.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'").Scan(&count))
 	require.Zero(t, count)
 }
 

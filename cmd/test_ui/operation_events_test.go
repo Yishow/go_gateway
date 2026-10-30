@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/grouppipeline"
@@ -15,6 +14,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestProductionOperationEventsCutoverUsesCommittedOriginalIdentity(t *testing.T) {
@@ -44,12 +45,12 @@ func TestProductionOperationEventsCutoverReplayDoesNotEmitNewResult(t *testing.T
 	require.NoError(t, err)
 	require.Len(t, deliveryEventsOfCode(t, f.broker, "domain.cutover.applied"), 1)
 	var before int
-	require.NoError(t, f.env.db.QueryRow(`SELECT COUNT(*) FROM write_group_cutovers`).Scan(&before))
+	require.NoError(t, f.env.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM write_group_cutovers`).Scan(&before))
 	replay, err := f.env.services.writeGroups.ApplyCutover(t.Context(), f.request)
 	require.NoError(t, err)
 	require.Equal(t, original.ID, replay.ID)
 	var after int
-	require.NoError(t, f.env.db.QueryRow(`SELECT COUNT(*) FROM write_group_cutovers`).Scan(&after))
+	require.NoError(t, f.env.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM write_group_cutovers`).Scan(&after))
 	require.Equal(t, before, after)
 	require.Len(t, deliveryEventsOfCode(t, f.broker, "domain.cutover.applied"), 1)
 }
@@ -61,7 +62,7 @@ func TestProductionOperationEventsPreledgerRejectionIsUnavailable(t *testing.T) 
 	require.Error(t, err)
 	require.Nil(t, result)
 	var count int
-	require.NoError(t, f.env.db.QueryRow(`SELECT COUNT(*) FROM write_group_cutovers`).Scan(&count))
+	require.NoError(t, f.env.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM write_group_cutovers`).Scan(&count))
 	require.Zero(t, count)
 	require.Empty(t, deliveryEventsOfCode(t, f.broker, "domain.cutover.applied"))
 	require.Empty(t, deliveryEventsOfCode(t, f.broker, "domain.cutover.rejected"), "no ledger ID must not become invented attributable operation")
@@ -106,7 +107,7 @@ func TestProductionOperationEventsRepairSchemaIsNotHistoricalDataRecovery(t *tes
 	f.waitLongCommitted(t, 2)
 	require.NoError(t, f.env.services.groupPipe.Stop(3*time.Second))
 	var oldIDs []string
-	rows, err := f.targetDB.Query(`SELECT record_id FROM "` + f.long.Destination.TableName + `"`)
+	rows, err := f.targetDB.QueryContext(t.Context(), `SELECT record_id FROM "`+f.long.Destination.TableName+`"`)
 	require.NoError(t, err)
 	for rows.Next() {
 		var id string
@@ -153,10 +154,10 @@ func TestProductionOperationEventsRepairSchemaIsNotHistoricalDataRecovery(t *tes
 	require.NotEqual(t, pending.EffectKey, id, "real repair ledger ID is not a delivery effect or observation UUID")
 	require.Contains(t, events[0].Message, "data recovery is not implied")
 	var count int
-	require.NoError(t, f.targetDB.QueryRow(`SELECT COUNT(*) FROM "`+f.long.Destination.TableName+`"`).Scan(&count))
+	require.NoError(t, f.targetDB.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM "`+f.long.Destination.TableName+`"`).Scan(&count))
 	require.GreaterOrEqual(t, count, 2, "both exact newly journaled effects reached the recreated table; timer outputs are independent")
 	for _, old := range oldIDs {
-		require.NoError(t, f.targetDB.QueryRow(`SELECT COUNT(*) FROM "`+f.long.Destination.TableName+`" WHERE record_id=?`, old).Scan(&count))
+		require.NoError(t, f.targetDB.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM "`+f.long.Destination.TableName+`" WHERE record_id=?`, old).Scan(&count))
 		require.Zero(t, count)
 	}
 }
@@ -265,7 +266,7 @@ func TestOperationEventObserverNilFilteredAndPureScope(t *testing.T) {
 	delivery, _ := newDeliveryEventObservers(f.broker, f.env.services.workspace)
 	cfg, c := newOperationEventObservers(f.broker, delivery.ScopeRevision)
 	var before, after int
-	require.NoError(t, f.env.db.QueryRow(`SELECT total_changes()`).Scan(&before))
+	require.NoError(t, f.env.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&before))
 	current, err := f.env.services.workspace.ReadSnapshot(t.Context())
 	require.NoError(t, err)
 	rev, ok := cfg.ScopeRevision(t.Context(), f.item.Key)
@@ -276,7 +277,7 @@ func TestOperationEventObserverNilFilteredAndPureScope(t *testing.T) {
 	require.Equal(t, current.DatabaseSetupRevision, rev)
 	_, ok = c.ScopeRevision(t.Context(), "foreign-workspace", f.group.ID, f.group.AppliedRevision, "connector-A", "connector-1")
 	require.False(t, ok)
-	require.NoError(t, f.env.db.QueryRow(`SELECT total_changes()`).Scan(&after))
+	require.NoError(t, f.env.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&after))
 	require.Equal(t, before, after)
 }
 
@@ -323,7 +324,7 @@ func TestProductionOperationEventsObserverPanicPreservesNativeRepair(t *testing.
 	require.Equal(t, groupdelivery.RestoreRetryNow, decision.Action)
 	require.True(t, called)
 	var succeeded int
-	require.NoError(t, f.env.db.QueryRow(`SELECT COUNT(*) FROM managed_schema_operations WHERE action='storage_repair' AND status='succeeded'`).Scan(&succeeded))
+	require.NoError(t, f.env.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM managed_schema_operations WHERE action='storage_repair' AND status='succeeded'`).Scan(&succeeded))
 	require.Equal(t, 1, succeeded)
 }
 

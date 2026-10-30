@@ -11,7 +11,7 @@ import (
 type template struct{ level, source, message string }
 
 var templates = map[string]template{
-	"domain.unavailable":       {levelWarn, sourceRuntime, "A runtime observation has no verified identity; inspect current runtime evidence."},
+	domainUnavailableCode:      {levelWarn, sourceRuntime, "A runtime observation has no verified identity; inspect current runtime evidence."},
 	"startup.begin":            {levelInfo, sourceStartup, "Gateway startup has begun."},
 	"startup.ready":            {levelInfo, sourceStartup, "The embedded web service is ready."},
 	"startup.failed":           {levelError, sourceStartup, "Gateway startup failed; review the stable diagnostic code."},
@@ -145,7 +145,7 @@ func levelRank(level string) int {
 
 // boundEvent is called only on projected safe content, never on raw input.
 func boundEvent(e Event) (event Event, size int) {
-	e.Sequence = "18446744073709551615"
+	e.Sequence = maxEventSequence
 	encoded, err := json.Marshal(e)
 	if err != nil {
 		return boundEvent(Event{Code: codeRawSuppressed, Message: templates[codeRawSuppressed].message, Truncated: true})

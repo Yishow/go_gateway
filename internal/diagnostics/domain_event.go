@@ -15,6 +15,37 @@ import (
 // DomainEventCode identifies a fixed observation, never a free-text error.
 type DomainEventCode string
 
+const (
+	domainSourceApplied            = "domain.source.applied"
+	domainSourceRejected           = "domain.source.rejected"
+	domainCollectorFailed          = "domain.collector.failed"
+	domainCollectorRecovered       = "domain.collector.recovered"
+	domainMappingFailed            = "domain.mapping.failed"
+	domainMappingRecovered         = "domain.mapping.recovered"
+	domainGroupApplied             = "domain.group.applied"
+	domainGroupPaused              = "domain.group.paused"
+	domainGroupRetiring            = "domain.group.retiring"
+	domainDeliveryRetrying         = "domain.delivery.retrying"
+	domainDeliveryBlocked          = "domain.delivery.blocked"
+	domainDeliveryQuarantined      = "domain.delivery.quarantined"
+	domainDeliveryUnknown          = "domain.delivery.unknown"
+	domainDeliveryFirstConfirmed   = "domain.delivery.first-confirmed"
+	domainDeliveryRecovered        = "domain.delivery.recovered"
+	domainDeliverySummary          = "domain.delivery.summary"
+	domainCounterReplayQuarantined = "domain.counter-replay.quarantined"
+	domainRecordingRefused         = "domain.recording.refused"
+	domainQuotaRefused             = "domain.quota.refused"
+	domainQuotaRecovered           = "domain.quota.recovered"
+	domainRepairCompleted          = "domain.repair.completed"
+	domainRepairBlocked            = "domain.repair.blocked"
+	domainCutoverApplied           = "domain.cutover.applied"
+	domainCutoverRejected          = "domain.cutover.rejected"
+	domainUnavailableCode          = "domain.unavailable"
+	domainOperationResultKind      = "operation-result"
+	domainCounterReplayInputsKind  = "counter-replay-inputs"
+	maxEventSequence               = "18446744073709551615"
+)
+
 // DomainEvidenceKind separates evidence authorities; a connection or process event
 // is not a delivery reference and is intentionally outside this domain contract.
 type DomainEvidenceKind string
@@ -73,6 +104,8 @@ type DomainProducerContract struct {
 // are existing authorities to RECHECK after backend-owner handoff, not emitters now.
 // Every boundary is after a confirmed result; capture failure must never change it.
 // Restart/read-model replay must NOT emit an old receipt as a new commitment.
+//
+//nolint:goconst // The literal matrix rows are a cross-language parity contract.
 func DomainProducerMatrix() []DomainProducerContract {
 	return []DomainProducerContract{
 		{"source", []DomainEventRule{
@@ -160,10 +193,10 @@ var domainID = regexp.MustCompile(`^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$`)
 var domainUTCTime = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?Z$`)
 
 func domainUnavailable() (DomainEventRef, error) {
-	return DomainEventRef{ContractVersion: 1, Code: "domain.unavailable", Stage: runtimeview.StageUnavailable,
-			Reason: runtimeview.ReasonUnavailable, Action: runtimeview.ActionForReason(runtimeview.ReasonUnavailable),
-			Evidence: DomainEvidenceRef{Kind: "unavailable"}}, &runtimeview.ContractError{
-			Reason: runtimeview.ReasonUnavailable, Action: runtimeview.ActionForReason(runtimeview.ReasonUnavailable)}
+	return DomainEventRef{ContractVersion: 1, Code: domainUnavailableCode, Stage: runtimeview.StageUnavailable,
+		Reason: runtimeview.ReasonUnavailable, Action: runtimeview.ActionForReason(runtimeview.ReasonUnavailable),
+		Evidence: DomainEvidenceRef{Kind: "unavailable"}}, &runtimeview.ContractError{
+		Reason: runtimeview.ReasonUnavailable, Action: runtimeview.ActionForReason(runtimeview.ReasonUnavailable)}
 }
 
 // ParseDomainEventRef is pure fail-closed structural validation, NOT authorization,
@@ -230,7 +263,7 @@ func validDomainEvidence(v DomainEventRef) bool {
 	if !compatibleDomainReason(v) {
 		return false
 	}
-	if (e.Receipt != nil) != (e.Kind == "runtime-receipt") || (e.Intake != nil) != (e.Kind == "intake-status") || (e.Quota != nil) != (e.Kind == "quota-refusal" || e.Kind == "quota-status") || (e.PendingSamples != nil) != (e.Kind == "counter-replay-inputs" || e.Kind == "recording-refusal") {
+	if (e.Receipt != nil) != (e.Kind == "runtime-receipt") || (e.Intake != nil) != (e.Kind == "intake-status") || (e.Quota != nil) != (e.Kind == "quota-refusal" || e.Kind == "quota-status") || (e.PendingSamples != nil) != (e.Kind == domainCounterReplayInputsKind || e.Kind == "recording-refusal") {
 		return false
 	}
 	if r := e.Receipt; r != nil {
@@ -247,7 +280,7 @@ func validDomainEvidence(v DomainEventRef) bool {
 		}
 	}
 	if intake := e.Intake; intake != nil {
-		state := map[DomainEventCode]string{"domain.group.applied": "active", "domain.group.paused": "not_running", "domain.group.retiring": "retiring"}[v.Code]
+		state := map[DomainEventCode]string{domainGroupApplied: "active", domainGroupPaused: "not_running", domainGroupRetiring: "retiring"}[v.Code]
 		if intake.GroupRevision != v.Binding.EntityRevision || intake.State != state || intake.Reason != nil {
 			return false
 		}
@@ -256,7 +289,7 @@ func validDomainEvidence(v DomainEventRef) bool {
 		if (q.Scope != "global" && q.Scope != "group") || q.UsedBytes < 0 || q.MaxBytes < 0 || q.UsedBytes > 9007199254740991 || q.MaxBytes > 9007199254740991 {
 			return false
 		}
-		if v.Code == "domain.quota.recovered" {
+		if v.Code == domainQuotaRecovered {
 			if (q.State != "ok" && q.State != "warning") || q.IntakeRefused || q.MaxBytes == 0 || q.UsedBytes >= q.MaxBytes {
 				return false
 			}
@@ -281,11 +314,11 @@ func compatibleDomainReason(v DomainEventRef) bool {
 	switch v.Reason {
 	case runtimeview.ReasonNone, runtimeview.ReasonUnavailable, runtimeview.ReasonStale,
 		runtimeview.ReasonForeign, runtimeview.ReasonDeleted, runtimeview.ReasonUnsupported, runtimeview.ReasonMissingProof:
-		return v.Evidence.Kind != "counter-replay-inputs" && v.Evidence.Kind != "recording-refusal"
+		return v.Evidence.Kind != domainCounterReplayInputsKind && v.Evidence.Kind != "recording-refusal"
 	case runtimeview.ReasonCounterMissing, runtimeview.ReasonCounterConflict, runtimeview.ReasonCounterUnsupported:
-		return v.Code == "domain.counter-replay.quarantined" && v.Evidence.Kind == "counter-replay-inputs"
+		return v.Code == domainCounterReplayQuarantined && v.Evidence.Kind == domainCounterReplayInputsKind
 	case runtimeview.ReasonOwnershipUnavailable, runtimeview.ReasonOwnershipConflict, runtimeview.ReasonHandoffConflict, runtimeview.ReasonFinalizedOverlap:
-		return v.Locator.Step == 4 && (v.Evidence.Kind == "durable-transition" || (v.Code == "domain.recording.refused" && v.Evidence.Kind == "recording-refusal") || (v.Code == "domain.cutover.rejected" && v.Evidence.Kind == "operation-result"))
+		return v.Locator.Step == 4 && (v.Evidence.Kind == "durable-transition" || (v.Code == domainRecordingRefused && v.Evidence.Kind == "recording-refusal") || (v.Code == domainCutoverRejected && v.Evidence.Kind == domainOperationResultKind))
 	default:
 		return false
 	}

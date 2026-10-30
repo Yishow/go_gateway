@@ -8,7 +8,7 @@ import (
 )
 
 func fixedMappingObservation(v DomainEventRef) bool {
-	return v.Code == "domain.mapping.recovered" || (v.Code == "domain.mapping.failed" && v.Reason == runtimeview.ReasonUnavailable && v.Action == runtimeview.ActionRefresh)
+	return v.Code == domainMappingRecovered || (v.Code == domainMappingFailed && v.Reason == runtimeview.ReasonUnavailable && v.Action == runtimeview.ActionRefresh)
 }
 
 // observeMapping retires only an exact retained transform fault. Healthy samples
@@ -25,11 +25,11 @@ func (c *DomainCoalescer) observeMapping(ctx context.Context, data []byte, scope
 	if err != nil || !fixedMappingObservation(recovered) {
 		return c.rejectMappingCapture()
 	}
-	if recovered.Code == "domain.mapping.failed" {
+	if recovered.Code == domainMappingFailed {
 		return c.Observe(ctx, data, scope)
 	}
 	failed := recovered
-	failed.Code = "domain.mapping.failed"
+	failed.Code = domainMappingFailed
 	// Failure and recovery intentionally have different stages. Use the failed
 	// stage to locate the original episode, never the incoming acquisition stage.
 	failed.Stage = runtimeview.StageBlocked

@@ -34,7 +34,7 @@ func diagnosticFaultFixture(t *testing.T, brokers ...*diagnostics.Broker) (deliv
 	require.NoError(t, f.env.services.runtime.Stop(t.Context()))
 	var seq int
 	var name, path string
-	require.NoError(t, f.env.db.QueryRow("PRAGMA database_list").Scan(&seq, &name, &path))
+	require.NoError(t, f.env.db.QueryRowContext(t.Context(), "PRAGMA database_list").Scan(&seq, &name, &path))
 	fault := &lostcommit.Faults{}
 	db := lostcommit.OpenFaults(path+"?_pragma=busy_timeout(5000)", fault)
 	datalink.ApplySQLitePoolDefaults(db)

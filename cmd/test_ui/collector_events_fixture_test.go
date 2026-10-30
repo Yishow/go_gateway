@@ -38,7 +38,7 @@ type collectorEventFixture struct {
 	devices  []collectorEventDevice
 }
 
-func newCollectorEventFixture(t *testing.T, count int, observedRevision bool, periodic bool) collectorEventFixture {
+func newCollectorEventFixture(t *testing.T, count int, observedRevision, periodic bool) collectorEventFixture {
 	t.Helper()
 	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "collector-events.db"))
 	require.NoError(t, err)
@@ -62,7 +62,7 @@ func newCollectorEventFixture(t *testing.T, count int, observedRevision bool, pe
 		config, err := json.Marshal(schema.ConnectionConfigModbusTCP{Host: "127.0.0.1", Port: server.Port(), SlaveID: 1, Timeout: 1})
 		require.NoError(t, err)
 		id := fmt.Sprintf("collector-device-%d", i)
-		_, err = db.Exec(`INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES(?, 'password_fixture', '', 'modbus_tcp', 'active', ?, '{}')`, id, string(config))
+		_, err = db.ExecContext(t.Context(), `INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES(?, 'password_fixture', '', 'modbus_tcp', 'active', ?, '{}')`, id, string(config))
 		require.NoError(t, err)
 		probe, err := services.device.TestConnectionWithResult(t.Context(), id)
 		require.NoError(t, err)

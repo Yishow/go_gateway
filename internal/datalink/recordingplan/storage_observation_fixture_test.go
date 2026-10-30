@@ -42,11 +42,7 @@ func (d settlementDriver) Open(name string) (driver.Conn, error) {
 	return settlementConn{Conn: conn, fault: d.fault}, nil
 }
 func (c settlementConn) Begin() (driver.Tx, error) {
-	tx, err := c.Conn.Begin()
-	if err != nil {
-		return nil, err
-	}
-	return settlementTx{Tx: tx, conn: c}, nil
+	return c.BeginTx(context.Background(), driver.TxOptions{})
 }
 func (c settlementConn) BeginTx(ctx context.Context, options driver.TxOptions) (driver.Tx, error) {
 	tx, err := c.Conn.(driver.ConnBeginTx).BeginTx(ctx, options)

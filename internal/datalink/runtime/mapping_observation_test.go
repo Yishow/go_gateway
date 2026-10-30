@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMappingObservationUsesCanonicalInstalledRevision(t *testing.T) {

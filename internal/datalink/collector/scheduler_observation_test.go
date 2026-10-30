@@ -13,9 +13,10 @@ import (
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/measurement"
 
-	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"go-gateway/internal/datalink/schema"
 )

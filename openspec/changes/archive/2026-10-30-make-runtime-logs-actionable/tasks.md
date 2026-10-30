@@ -29,3 +29,11 @@
 - 原 1.1 僅將 whole-change 前置拆為 runtime 1.1 契約前置與 2.1 的 production 前置；producer matrix、identity/authority/evidence 要求不變。
 - 原 1.2 的 fixed-code projection 留 1.2，新 2.1 接回真 admission／memory/file/SSE 與 guard 整合，DOM 保留 3.3/4.1；原 1.3 的 coalescer 留 1.3，真 writer 非阻塞與 drop accounting 再由 2.1–2.6/4.1 驗證。不是把 fixture-only 測試當成產品完成。
 - 2.1–4.2 保留原編號、producer 範圍及全部最終驗收，僅在 2.1 增加準備成果接線核對；14 項 pending，無完成 provenance 或 [P] 改寫。
+
+## 回歸驗證補記（2026-10-30）
+
+- 修正本變更涉及的 Go lint 與測試 context，保留診斷回呼隔離及事件契約；相對 `2d8ee159` 執行 `golangci-lint run --new-from-rev=2d8ee159 ./...` 為 0 項。
+- `cmd/test_ui`、`internal/api`、`internal/diagnostics` 與 collector、groupdelivery、grouppipeline、recordingplan、runtime、sourcerule、workspace 的完整套件測試及 Go vet 通過；`internal/diagnostics` race 測試通過。
+- 前端完整 Vitest 5,181／5,181 通過；ESLint 無錯誤，另有兩項既有 `no-console` 警告。MC 位址、首次啟用與 schema 確認的測試修正另屬工作台回歸，不代表新增日誌功能。
+- 全域 `golangci-lint run ./...` 仍失敗，共 1,496 項既有問題；其中 1,486 項位於此次合併範圍外的 349 個檔案，未在本變更擴大修復。
+- 未重新執行真 PLC、Windows、外部資料庫及現場驗收；本機瀏覽器既有模擬結果不等同 embedded browser 加真實資料庫的端到端驗收。

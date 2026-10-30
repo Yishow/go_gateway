@@ -32,7 +32,7 @@ type Query struct {
 
 // domainQueryNetwork matches the existing frontend safeRuntimeIdentity network
 // exclusion. Other URL, IPv6 and private-path syntax fails domainID itself.
-var domainQueryNetwork = regexp.MustCompile(`(?i)(?:[a-z0-9-]+\.)+[a-z]{2,}|(?:[0-9]{1,3}\.){3}[0-9]{1,3}`)
+var domainQueryNetwork = regexp.MustCompile(`(?i)(?:[a-z0-9-]+\.)+[a-z]{2,}|(?:\d{1,3}\.){3}\d{1,3}`)
 
 // Gap identifies an explicitly unavailable interval or process reset.
 type Gap struct {
@@ -127,7 +127,7 @@ func matchesDomainQuery(q Query, e Event) bool {
 	if q.WorkspaceID == "" && q.DeviceID == "" && q.RuleID == "" && q.GroupID == "" && q.Stage == "" && !q.Actionable {
 		return true
 	}
-	if e.Code == "domain.unavailable" && e.Source == sourceRuntime {
+	if e.Code == domainUnavailableCode && e.Source == sourceRuntime {
 		// The fixed observation is actionable but has no attributable identity.
 		return q.WorkspaceID == "" && q.DeviceID == "" && q.RuleID == "" && q.GroupID == "" &&
 			(q.Stage == "" || q.Stage == runtimeview.StageUnavailable)

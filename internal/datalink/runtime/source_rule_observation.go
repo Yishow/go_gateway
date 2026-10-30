@@ -103,7 +103,7 @@ func (s *Service) FinalizeSourceRuleObservation(ctx context.Context, outcome sou
 	if s == nil || s.sourceRuleObserver == nil {
 		return
 	}
-	defer func() { _ = recover() }()
+	defer func() { recover() }() //nolint:errcheck // Diagnostics must not change the settled result.
 	observation := sourcerule.RuntimeSourceObservation{Result: sourcerule.SourceObservationUnavailable}
 	if proof := outcome.Observation; proof != nil && proof.Verified && proof.Attempted && outcome.Scope.RuleID == proof.RuleID && outcome.Scope.DeviceID == proof.Scope.DeviceID {
 		current, ok := sourceObservationScope(s.sourceObservationSnapshot(ctx), proof.Scope.DeviceID)

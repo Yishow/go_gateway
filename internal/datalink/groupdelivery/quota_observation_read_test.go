@@ -46,7 +46,7 @@ func TestQuotaStatusForScopePreservesHistoricalGroupAndGlobalUsageReadOnly(t *te
 	require.NoError(t, err)
 	reader := exactQuotaReader(t, store)
 	var before, after int64
-	require.NoError(t, db.QueryRow(`SELECT total_changes()`).Scan(&before))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&before))
 	group, err := reader.QuotaStatusForScope(t.Context(), current, QuotaScopeGroup)
 	require.NoError(t, err)
 	require.Equal(t, QuotaScopeGroup, group.Scope)
@@ -66,7 +66,7 @@ func TestQuotaStatusForScopePreservesHistoricalGroupAndGlobalUsageReadOnly(t *te
 	aggregate, err := store.QuotaStatus(t.Context(), current)
 	require.NoError(t, err)
 	require.Equal(t, group, aggregate, "aggregate selects hard group; exact global must not borrow that scope")
-	require.NoError(t, db.QueryRow(`SELECT total_changes()`).Scan(&after))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&after))
 	require.Equal(t, before, after, "the reader must not mutate journals, outbox, receipts or quota state")
 	require.Zero(t, store.usage.measurements.Load(), "pure reads must not populate the intake usage cache")
 }
@@ -74,7 +74,7 @@ func TestQuotaStatusForScopePreservesHistoricalGroupAndGlobalUsageReadOnly(t *te
 func quotaFixtureUsage(t *testing.T, db *sql.DB, groupID string) int64 {
 	t.Helper()
 	var used int64
-	require.NoError(t, db.QueryRow(`SELECT COALESCE(SUM(bytes),0) FROM (
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COALESCE(SUM(bytes),0) FROM (
 		SELECT LENGTH(CAST(payload AS BLOB)) AS bytes FROM wg_delivery_samples WHERE consumed=0 AND (?='' OR group_id=?)
 		UNION ALL SELECT LENGTH(CAST(payload AS BLOB)) FROM wg_delivery_outbox WHERE state!='sql_committed' AND (?='' OR group_id=?)
 	)`, groupID, groupID, groupID, groupID).Scan(&used))
@@ -150,7 +150,7 @@ func TestQuotaStatusForScopeRejectsInvalidInputWithoutSuccessfulZero(t *testing.
 }
 
 func TestQuotaStatusForScopeReadFailureAndCancellationRemainErrors(t *testing.T) {
-	for _, failure := range []string{"closed-db", "missing-table", "cancelled"} {
+	for _, failure := range []string{"closed-db", "missing-table", "canceled"} {
 		t.Run(failure, func(t *testing.T) {
 			base, db, _ := newTestStore(t)
 			store, err := base.WithQuota(QuotaConfig{GlobalMaxBytes: 100})
@@ -161,9 +161,9 @@ func TestQuotaStatusForScopeReadFailureAndCancellationRemainErrors(t *testing.T)
 			case "closed-db":
 				require.NoError(t, db.Close())
 			case "missing-table":
-				_, err := db.Exec(`DROP TABLE wg_delivery_samples`)
+				_, err := db.ExecContext(t.Context(), `DROP TABLE wg_delivery_samples`)
 				require.NoError(t, err)
-			case "cancelled":
+			case "canceled":
 				var cancel context.CancelFunc
 				ctx, cancel = context.WithCancel(ctx)
 				cancel()
@@ -171,7 +171,7 @@ func TestQuotaStatusForScopeReadFailureAndCancellationRemainErrors(t *testing.T)
 			q, err := reader.QuotaStatusForScope(ctx, testKey, QuotaScopeGlobal)
 			require.Error(t, err)
 			require.Equal(t, QuotaStatus{}, q)
-			if failure == "cancelled" {
+			if failure == "canceled" {
 				require.ErrorIs(t, err, context.Canceled)
 			}
 		})

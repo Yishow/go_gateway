@@ -75,7 +75,7 @@ func newOperationEventObservers(logs *diagnostics.Broker, scopeRevision func(con
 			return
 		}
 		ref.Action = runtimeview.ActionForReason(ref.Reason)
-		emitDeliveryEvent(logs, ref)
+		emitDeliveryEvent(logs, ref) //nolint:contextcheck // A settled cutover remains observable after request cancellation.
 	}
 	return storage, cutover
 }

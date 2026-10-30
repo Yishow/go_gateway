@@ -413,10 +413,10 @@ func TestDomainBrokerSourceRecoveryRejectsReplacedEpisode(t *testing.T) {
 			replaced = true
 			b.domain.mu.Lock()
 			entry := b.domain.entries[domainCoalescerKey(fault)]
-			copy := *entry
-			copy.data = projectionJSON(t, newer)
-			copy.reference = "N"
-			b.domain.entries[domainCoalescerKey(fault)] = &copy
+			updated := *entry
+			updated.data = projectionJSON(t, newer)
+			updated.reference = "N"
+			b.domain.entries[domainCoalescerKey(fault)] = &updated
 			b.domain.mu.Unlock()
 		}
 		return time.Now()

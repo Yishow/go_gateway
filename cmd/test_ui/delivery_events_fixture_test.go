@@ -61,7 +61,7 @@ func newDeliveryEventFixture(t *testing.T, fileLog ...bool) deliveryEventFixture
 	if len(fileLog) > 0 && fileLog[0] {
 		var sequence int
 		var name, dbPath string
-		require.NoError(t, env.db.QueryRow("PRAGMA database_list").Scan(&sequence, &name, &dbPath))
+		require.NoError(t, env.db.QueryRowContext(t.Context(), "PRAGMA database_list").Scan(&sequence, &name, &dbPath))
 		logPath = filepath.Join(filepath.Dir(dbPath), "logs", "delivery.jsonl")
 		options.File, err = diagnostics.OpenFileSink(diagnostics.FileOptions{Path: logPath, DatabasePath: dbPath, DatabaseID: strings.Repeat("a", 64)})
 		require.NoError(t, err)

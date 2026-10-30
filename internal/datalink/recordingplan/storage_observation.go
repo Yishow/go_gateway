@@ -44,7 +44,7 @@ type storageObservationBatch struct {
 // The caller must register finish before acquiring outer native locks so those
 // locks are released first. Nested captures share the outer batch. Finish is
 // idempotent and invokes callbacks without holding the capture mutex.
-func CaptureStorageSettlements(ctx context.Context, cfg StorageObservationConfig) (context.Context, func()) {
+func CaptureStorageSettlements(ctx context.Context, cfg StorageObservationConfig) (captureContext context.Context, finish func()) {
 	if ctx == nil || cfg.Observe == nil || !cfg.InfoEnabled && !cfg.WarnEnabled {
 		return ctx, func() {}
 	}
@@ -76,14 +76,17 @@ func (b *storageObservationBatch) finish() {
 		}()
 	}
 	if dropped != 0 && b.config.OnDrop != nil {
-		func() { defer func() { _ = recover() }(); b.config.OnDrop(dropped) }()
+		func() {
+			defer func() { recover() }() //nolint:errcheck // Drop reporting must not affect the native operation.
+			b.config.OnDrop(dropped)
+		}()
 	}
 }
 
 // recordStorageSettlement reads no database and retains only closed scalar
 // metadata. It is deliberately not an observer invocation inside native work.
 func recordStorageSettlement(ctx context.Context, operationID string, owned bool, expected SchemaOperationResult, settledAt time.Time, op *SchemaOperation, err error) {
-	defer func() { _ = recover() }()
+	defer func() { recover() }() //nolint:errcheck // Diagnostics must not affect the native operation.
 	if ctx == nil {
 		return
 	}
@@ -127,7 +130,7 @@ func storageSettlement(operationID string, owned bool, expected SchemaOperationR
 }
 
 func storageObservationID(value string) bool {
-	if len(value) == 0 || len(value) > 128 {
+	if value == "" || len(value) > 128 {
 		return false
 	}
 	for i, c := range []byte(value) {

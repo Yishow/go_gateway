@@ -112,6 +112,7 @@ it('keeps unchanged preparation write-free and requires separate schema consent 
   await screen.findByTestId('group-schema-preview-result');
   expect(groupsAPI.update).not.toHaveBeenCalled(); expect(startAPI.ensureBasic).not.toHaveBeenCalled();
   expect(groupsAPI.schemaApply).not.toHaveBeenCalled(); expect(startAPI.start).not.toHaveBeenCalled();
+  await waitFor(() => expect(screen.getByTestId('group-schema-apply')).toBeEnabled());
   fireEvent.click(screen.getByTestId('group-schema-apply'));
   await waitFor(() => expect(screen.getByTestId('basic-recording-start')).toBeEnabled());
   expect(groupsAPI.schemaApply).toHaveBeenCalledTimes(1); expect(startAPI.start).not.toHaveBeenCalled();

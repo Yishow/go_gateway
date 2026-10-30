@@ -72,7 +72,7 @@ func newMappingEventFixture(t *testing.T, count int, fileLog ...bool) mappingEve
 		config, err := json.Marshal(schema.ConnectionConfigModbusTCP{Host: "127.0.0.1", Port: server.Port(), SlaveID: 1, Timeout: 1})
 		require.NoError(t, err)
 		id := fmt.Sprintf("mapping-device-%d", i)
-		_, err = db.Exec(`INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES(?, 'password_fixture', '', 'modbus_tcp', 'active', ?, '{}')`, id, string(config))
+		_, err = db.ExecContext(t.Context(), `INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES(?, 'password_fixture', '', 'modbus_tcp', 'active', ?, '{}')`, id, string(config))
 		require.NoError(t, err)
 		probe, err := services.device.TestConnectionWithResult(t.Context(), id)
 		require.NoError(t, err)
@@ -124,9 +124,9 @@ func (f mappingEventFixture) waitFailure(t *testing.T) {
 	require.Eventually(t, func() bool { return f.services.runtime.Snapshot().MappingError > 0 }, 3*time.Second, 10*time.Millisecond, "fixture must execute real failing cast, not merely configure a mapping")
 }
 
-func (f mappingEventFixture) setWord(t *testing.T, i int, word uint16) {
+func (f mappingEventFixture) setValidWord(t *testing.T, i int) {
 	t.Helper()
-	require.NoError(t, f.sources[i].bank.WriteWord(0, word))
+	require.NoError(t, f.sources[i].bank.WriteWord(0, 123))
 }
 
 func (f mappingEventFixture) records(t *testing.T) []diagnostics.Event {
@@ -137,8 +137,8 @@ func (f mappingEventFixture) records(t *testing.T) []diagnostics.Event {
 func findMappingEvent(records []diagnostics.Event, code, mappingID string) *diagnostics.Event {
 	for _, event := range records {
 		if event.Code == code && event.Fields["mapping_id"] == mappingID {
-			copy := event
-			return &copy
+			matched := event
+			return &matched
 		}
 	}
 	return nil

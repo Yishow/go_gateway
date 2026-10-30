@@ -229,7 +229,7 @@ func TestRepairObservationInvalidMetadataIsIdentityFreeUnavailable(t *testing.T)
 			result := SchemaOperationResult{Status: SchemaOperationSucceeded, VerifiedDigest: "digest-1", Reason: "password_fixture", Detail: `{"raw":"private-path"}`}
 			switch field {
 			case "workspace":
-				_, err := f.db.Exec("UPDATE managed_schema_operations SET workspace_id = ?", "http://private.example")
+				_, err := f.db.ExecContext(t.Context(), "UPDATE managed_schema_operations SET workspace_id = ?", "http://private.example")
 				require.NoError(t, err)
 			case "digest":
 				result.VerifiedDigest = "password=fixture"

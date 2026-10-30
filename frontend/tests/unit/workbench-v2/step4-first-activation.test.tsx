@@ -11,11 +11,13 @@ import { studioV2MappingsAPI } from '../../../src/services/studioV2Mappings';
 import { studioV2RulesAPI } from '../../../src/services/studioV2Rules';
 import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2WorkspaceDatabase';
 import { studioV2WorkspaceDevicesAPI } from '../../../src/services/studioV2WorkspaceDevices';
+import { sourceRuleCandidateAPI } from '../../../src/services/sourceRuleCandidates';
 import { deviceFixture, mappingFixture, ruleFixture, workspaceFixture } from './helpers/workbenchV2PageHarness';
 import { shareContext } from './step4-share-helpers';
 import { AUTOSAVE_SETTLEMENT_TIMEOUT_MS } from '../../../src/pages/datalink/workbench-v2/studioV2AutosaveBarrier';
 import { studioV2RuntimeContextAPI } from '../../../src/services/studioV2RuntimeContext';
 import type { StudioV2ActivationRecovery } from '../../../src/types/studioV2Activation';
+import type { SourceRuleCandidateSnapshotView } from '../../../src/types/sourceRuleCandidates';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 /** 讓測試看得到 activateWorkspace 的結果碼（mock 工廠只能引用 mock 前綴的外部變數）。 */
@@ -69,6 +71,7 @@ vi.mock('../../../src/services/datalink', () => ({
 }));
 vi.mock('../../../src/services/studioV2Workspace', () => ({ studioV2WorkspaceAPI: { get: vi.fn() } }));
 vi.mock('../../../src/services/studioV2WorkspaceDevices', () => ({ studioV2WorkspaceDevicesAPI: { list: vi.fn() } }));
+vi.mock('../../../src/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { get: vi.fn() } }));
 vi.mock('../../../src/services/studioV2Rules', () => ({ studioV2RulesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() } }));
 vi.mock('../../../src/services/studioV2Mappings', () => ({ studioV2MappingsAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() } }));
 vi.mock('../../../src/services/studioV2WorkspaceDatabase', () => ({
@@ -89,6 +92,39 @@ vi.mock('../../../src/services/studioV2WorkspaceActivation', async (importOrigin
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(<QueryClientProvider client={queryClient}><DatalinkWorkbenchV2Page /></QueryClientProvider>);
+}
+
+function persistedMCCandidateSnapshot(): SourceRuleCandidateSnapshotView {
+  return {
+    source_rule_id: 'mc-rule',
+    workspace_id: 'workspace-1',
+    workspace_revision: 'workspace-revision-1',
+    revision_id: 'rev-A',
+    tags: {
+      status: 'ready',
+      candidates: [{
+        id: 'candidate-0',
+        identity: {
+          source_rule_id: 'mc-rule',
+          candidate_type: 'tags',
+          candidate_kind: 'tag',
+          derived_from_rule_address: 'D0',
+          target_binding_scope: [{ key: 'derived_target_data_type', value: 'int16' }],
+        },
+        proposed_signature: 'candidate-signature-0',
+        address: 'D0',
+        point_id: 'persisted-point-0',
+        tag_id: 'tag-d0',
+        mapping_id: 'mapping-0',
+        tag_key: 'line.a.persisted',
+        display_name: 'Line A Temp',
+        data_type: 'int16',
+        status: 'active',
+      }],
+    },
+    database_outputs: { status: 'ready', candidates: [] },
+    local_modbus_outputs: { status: 'ready', candidates: [] },
+  };
 }
 
 describe('Step 4 first activation', () => {
@@ -115,8 +151,10 @@ describe('Step 4 first activation', () => {
     vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(null);
     vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue([]);
     vi.mocked(studioV2WorkspaceAuditAPI.list).mockResolvedValue({ entries: [] });
+    vi.mocked(sourceRuleCandidateAPI.get).mockResolvedValue(persistedMCCandidateSnapshot());
     vi.mocked(studioV2WorkspaceActivationAPI.activate).mockResolvedValue({ workspace_id: 'workspace-1', results: [] });
     vi.mocked(modbusShareAPI.status).mockResolvedValue({
+      workspace_id: 'workspace-1',
       enabled: true,
       port: 5020,
       address: '0.0.0.0:5020',

@@ -5,8 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/config"
 	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/diagnostics"
@@ -16,6 +14,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRuntimeLogDomainFiltersStrictHTTPContract(t *testing.T) {
@@ -31,7 +32,8 @@ func TestRuntimeLogDomainFiltersStrictHTTPContract(t *testing.T) {
 			}
 		})
 	}
-	invalid := []string{"actionable=1", "actionable=0", "actionable=True", "actionable=FALSE", "actionable=%20true", "stage=BLOCKED", "stage=not-a-stage", "workspace_id=%ZZ", "workspace_id=W;device_id=D", "workspace_id=W&workspace_id=%ZZ", "workspace%ZZ_id=W", "workspace_id=W&unknown=secret_fixture", "workspace_id=W&" + strings.Repeat("x", 4097)}
+	invalid := make([]string, 0, 79)
+	invalid = append(invalid, "actionable=1", "actionable=0", "actionable=True", "actionable=FALSE", "actionable=%20true", "stage=BLOCKED", "stage=not-a-stage", "workspace_id=%ZZ", "workspace_id=W;device_id=D", "workspace_id=W&workspace_id=%ZZ", "workspace%ZZ_id=W", "workspace_id=W&unknown=secret_fixture", "workspace_id=W&"+strings.Repeat("x", 4097))
 	for _, key := range []string{"workspace_id", "device_id", "rule_id", "group_id", "stage", "actionable"} {
 		invalid = append(invalid, key+"=", key, key+"=W&"+key+"=W")
 	}

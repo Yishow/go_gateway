@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-func collectorPair() (DomainEventRef, DomainEventRef) {
-	failed, recovered := projectionRef(projectionCases[2]), projectionRef(projectionCases[3])
+func collectorPair() (failed, recovered DomainEventRef) {
+	failed, recovered = projectionRef(projectionCases[2]), projectionRef(projectionCases[3])
 	failed.Evidence.ReferenceID = "acquisition-failed"
 	recovered.Evidence.ReferenceID = "acquisition-good"
 	return failed, recovered
@@ -198,10 +198,10 @@ func TestCollectorDomainBrokerRecoveryRejectsReplacedEpisode(t *testing.T) {
 			b.domain.mu.Lock()
 			key := domainCoalescerKey(bad)
 			entry := b.domain.entries[key]
-			copy := *entry
-			copy.data = projectionJSON(t, newer)
-			copy.reference = newer.Evidence.ReferenceID
-			b.domain.entries[key] = &copy
+			updated := *entry
+			updated.data = projectionJSON(t, newer)
+			updated.reference = newer.Evidence.ReferenceID
+			b.domain.entries[key] = &updated
 			b.domain.mu.Unlock()
 		}
 		return time.Now()

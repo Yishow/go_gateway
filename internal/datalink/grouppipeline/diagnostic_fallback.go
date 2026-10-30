@@ -11,7 +11,7 @@ func (c OwnerObservationConfig) enabled() bool { return c.ObserveCaptured != nil
 
 func reportGenericDiagnostic(config Config) {
 	if config.OnDiagnosticError != nil {
-		defer func() { _ = recover() }()
+		defer func() { recover() }() //nolint:errcheck // A diagnostic callback cannot affect the native operation.
 		config.OnDiagnosticError()
 	}
 }
@@ -32,7 +32,10 @@ func (p *Pipeline) report(err error) { reportPipelineError(p.config, err) }
 // Native reporting stays here, before pruning/flush, with the identical error.
 // Only the fixed generic diagnostic may wait for post-unlock capture acceptance.
 func (p *Pipeline) reportTick(ctx context.Context, m *managed, operation func() error) {
-	b, _ := ctx.Value(ownerBatchContextKey{}).(*ownerObservationBatch)
+	b, ok := ctx.Value(ownerBatchContextKey{}).(*ownerObservationBatch)
+	if !ok {
+		b = nil
+	}
 	start := 0
 	if b != nil {
 		start = len(b.descriptors)
@@ -73,14 +76,16 @@ func tickDescriptorCovers(err error, key groupdelivery.GroupKey, d ownerDescript
 		if _, joined := err.(interface{ Unwrap() []error }); joined {
 			return false
 		}
-		switch e := err.(type) {
+		// Only the current leaf is eligible; errors.As would also accept wrappers and joins.
+		switch e := err.(type) { //nolint:errorlint // Match only this exact error node.
 		case *counterproof.CounterBindingProofError:
 			if e == nil {
 				return false
 			}
 			// Identity is intentional: an Is implementation or matching text is not a
 			// closed proof-reason leaf and must not cover an unobserved native error.
-			reason := ""
+			var reason string
+			//nolint:errorlint // The proof contract requires the exact sentinel, not an Is claim.
 			switch e.Reason {
 			case counterproof.ErrCounterBindingProofMissing:
 				reason = counterproof.ErrCounterBindingProofMissing.Error()

@@ -125,7 +125,7 @@ func (s *Service) observeMappingResult(cv collector.CollectedValue, b mappingBin
 	if s == nil || s.mappingObserver == nil {
 		return
 	}
-	defer func() { _ = recover() }()
+	defer func() { recover() }() //nolint:errcheck // An observer panic must not change mapping.
 	o := MappingObservation{Result: MappingObservationUnavailable}
 	if b.observationScope.workspaceID != "" && b.observationScope.workspaceRevision != "" && b.MappingID != "" && b.MappingRevision != "" &&
 		cv.DeviceID == b.DeviceID && cv.PointID == b.PointID && cv.AcquisitionID != "" && !cv.ReceivedAt.IsZero() &&

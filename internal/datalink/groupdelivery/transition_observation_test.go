@@ -19,7 +19,7 @@ func TestDeliveryObservationRequiresExactMatchingReceipt(t *testing.T) {
 			base, db, _ := newTestStore(t)
 			var seen []map[string]any
 			store := observedDeliveryStore(t, base.WithClock(func() time.Time { return at(20) }), &seen)
-			item, claim := deliveryObservationRow(t, store, 0)
+			item, claim := deliveryObservationRow(t, store)
 			if mismatch {
 				_, err := db.ExecContext(t.Context(), `INSERT INTO wg_delivery_receipts(effect_key,payload_digest,committed_at) VALUES(?,?,?)`, item.EffectKey, "wrong-digest", timestamp(at(1)))
 				require.NoError(t, err)
@@ -50,7 +50,7 @@ func TestDeliveryObservationQueuedUnknownNeverClaimCommit(t *testing.T) {
 				ScopeRevision: func(context.Context, GroupKey) (string, bool) { return "W1", true },
 				Observe:       func(o DeliveryObservation) { seen = append(seen, o) },
 			})
-			item, claim := deliveryObservationRow(t, store, 0)
+			item, claim := deliveryObservationRow(t, store)
 			require.Empty(t, seen, "queued and sending are not observed delivery transitions")
 			var err error
 			wantState := StateBlocked
@@ -95,7 +95,7 @@ func TestDeliveryObservationAlreadyAndRestartDoNotReplayCommit(t *testing.T) {
 	var seen []DeliveryObservation
 	config := DeliveryObservationConfig{ScopeRevision: func(context.Context, GroupKey) (string, bool) { return "W1", true }, Observe: func(o DeliveryObservation) { seen = append(seen, o) }}
 	store := base.WithDeliveryObservation(config)
-	item, claim := deliveryObservationRow(t, store, 0)
+	item, claim := deliveryObservationRow(t, store)
 	require.NoError(t, store.CompleteDelivery(t.Context(), claim, item.PayloadDigest))
 	require.Len(t, seen, 1)
 	seen = nil
@@ -117,14 +117,14 @@ func TestDeliveryObservationInterruptedTransitionRaceDoesNotEmit(t *testing.T) {
 	for _, race := range []bool{false, true} {
 		t.Run(map[bool]string{false: "actual-transition", true: "native-race-no-update"}[race], func(t *testing.T) {
 			base, db, _ := newTestStore(t)
-			item, _ := deliveryObservationRow(t, base, 0)
+			item, _ := deliveryObservationRow(t, base)
 			var seen []DeliveryObservation
 			reads := 0
 			store := base.WithDeliveryObservation(DeliveryObservationConfig{
-				ScopeRevision: func(context.Context, GroupKey) (string, bool) {
+				ScopeRevision: func(ctx context.Context, _ GroupKey) (string, bool) {
 					reads++
 					if race && reads == 1 {
-						_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET state='blocked' WHERE effect_key=?`, item.EffectKey)
+						_, err := db.ExecContext(ctx, `UPDATE wg_delivery_outbox SET state='blocked' WHERE effect_key=?`, item.EffectKey)
 						require.NoError(t, err)
 					}
 					return "W1", true
@@ -148,11 +148,11 @@ func TestDeliveryObservationScopeChangeBecomesUnavailable(t *testing.T) {
 	for _, mode := range []string{"missing", "changed", "panic", "identity-change", "claim-owner-change", "receipt-change", "read-error"} {
 		t.Run(mode, func(t *testing.T) {
 			base, db, _ := newTestStore(t)
-			item, claim := deliveryObservationRow(t, base.WithClock(func() time.Time { return at(20) }), 0)
+			item, claim := deliveryObservationRow(t, base.WithClock(func() time.Time { return at(20) }))
 			var seen []DeliveryObservation
 			reads := 0
 			store := base.WithClock(func() time.Time { return at(20) }).WithDeliveryObservation(DeliveryObservationConfig{
-				ScopeRevision: func(context.Context, GroupKey) (string, bool) {
+				ScopeRevision: func(ctx context.Context, _ GroupKey) (string, bool) {
 					reads++
 					if mode == "missing" {
 						return "", false
@@ -165,13 +165,13 @@ func TestDeliveryObservationScopeChangeBecomesUnavailable(t *testing.T) {
 						case "changed":
 							return "W2", true
 						case "identity-change":
-							_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET connector_revision='C-foreign' WHERE effect_key=?`, item.EffectKey)
+							_, err := db.ExecContext(ctx, `UPDATE wg_delivery_outbox SET connector_revision='C-foreign' WHERE effect_key=?`, item.EffectKey)
 							require.NoError(t, err)
 						case "claim-owner-change":
-							_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET claim_owner='foreign-owner' WHERE effect_key=?`, item.EffectKey)
+							_, err := db.ExecContext(ctx, `UPDATE wg_delivery_outbox SET claim_owner='foreign-owner' WHERE effect_key=?`, item.EffectKey)
 							require.NoError(t, err)
 						case "receipt-change":
-							_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_receipts SET payload_digest='wrong' WHERE effect_key=?`, item.EffectKey)
+							_, err := db.ExecContext(ctx, `UPDATE wg_delivery_receipts SET payload_digest='wrong' WHERE effect_key=?`, item.EffectKey)
 							require.NoError(t, err)
 						case "read-error":
 							require.NoError(t, db.Close())
@@ -192,7 +192,7 @@ func TestDeliveryObservationCaptureFailurePreservesNativeOutcomeAndReleasesLocks
 		t.Run(mode, func(t *testing.T) {
 			base, db, _ := newTestStore(t)
 			db.SetMaxOpenConns(1)
-			item, claim := deliveryObservationRow(t, base, 0)
+			item, claim := deliveryObservationRow(t, base)
 			reads, calls := 0, 0
 			config := DeliveryObservationConfig{ScopeRevision: func(context.Context, GroupKey) (string, bool) { reads++; return "W1", true }}
 			if mode != "nil" {
@@ -234,7 +234,7 @@ func TestDeliveryObservationPreservesKnownOwnerReasonsAndRejectsUnsafeFields(t *
 			base, _, _ := newTestStore(t)
 			var seen []DeliveryObservation
 			store := base.WithDeliveryObservation(DeliveryObservationConfig{ScopeRevision: func(context.Context, GroupKey) (string, bool) { return "W1", true }, Observe: func(o DeliveryObservation) { seen = append(seen, o) }})
-			_, claim := deliveryObservationRow(t, store, 0)
+			_, claim := deliveryObservationRow(t, store)
 			require.NoError(t, store.BlockClaimed(t.Context(), claim, reason))
 			require.Len(t, seen, 1)
 			require.Equal(t, runtimeview.ParseReason(reason), seen[0].Reason)
@@ -256,7 +256,7 @@ func TestDeliveryObservationCorruptFrozenProofIsUnavailableWithoutChangingCommit
 				ScopeRevision: func(context.Context, GroupKey) (string, bool) { return "W1", true },
 				Observe:       func(o DeliveryObservation) { seen = append(seen, o) },
 			})
-			item, claim := deliveryObservationRow(t, store, 0)
+			item, claim := deliveryObservationRow(t, store)
 			var err error
 			switch mode {
 			case "record-id":

@@ -67,7 +67,7 @@ func ownerRefusalReason(err error) string {
 }
 
 func safeOwnerID(v string) bool {
-	if len(v) == 0 || len(v) > 128 {
+	if v == "" || len(v) > 128 {
 		return false
 	}
 	for i, c := range []byte(v) {
@@ -176,7 +176,7 @@ type ownerObservationBatch struct {
 
 // ownerOperation defers provider reads and callbacks until the outermost native
 // operation has released its locks and intake lifetime. Nested calls reuse it.
-func (p *Pipeline) ownerOperation(ctx context.Context) (context.Context, func()) {
+func (p *Pipeline) ownerOperation(ctx context.Context) (operationContext context.Context, flush func()) {
 	limit, loss, enabled := p.observationBatchPolicy()
 	if !enabled {
 		return ctx, func() {}
@@ -234,7 +234,10 @@ func (p *Pipeline) flushOwnerObservations(ctx context.Context, b *ownerObservati
 		}
 	}
 	if b.dropped != 0 && b.loss != nil {
-		func() { defer func() { _ = recover() }(); b.loss(b.dropped) }()
+		func() {
+			defer func() { recover() }() //nolint:errcheck // Loss reporting cannot affect the native operation.
+			b.loss(b.dropped)
+		}()
 	}
 }
 

@@ -11,30 +11,30 @@ import (
 // Fixed operator text only. Candidate messages, labels, errors and parameters are
 // never used as templates. Future localized renderers can key off the same code.
 var domainProjectionTemplates = map[DomainEventCode]struct{ level, message string }{
-	"domain.source.applied":             {levelInfo, "The source rule was applied to acquisition runtime."},
-	"domain.source.rejected":            {levelWarn, "A source-rule runtime update was rejected."},
-	"domain.collector.failed":           {levelWarn, "Acquisition failed for this source."},
-	"domain.collector.recovered":        {levelInfo, "Acquisition recovered for this source."},
-	"domain.mapping.failed":             {levelWarn, "Mapping failed for this source."},
-	"domain.mapping.recovered":          {levelInfo, "Mapping recovered for this source."},
-	"domain.group.applied":              {levelInfo, "Confirmed reconciliation observation: intake was active for this original revision."},
-	"domain.group.paused":               {levelInfo, "Recording intake is paused; historical delivery may remain pending."},
-	"domain.group.retiring":             {levelInfo, "The recording group revision is retiring; delivery may remain pending."},
-	"domain.delivery.retrying":          {levelWarn, "Delivery is retrying for this group revision."},
-	"domain.delivery.blocked":           {levelWarn, "Delivery is blocked for this group revision."},
-	"domain.delivery.quarantined":       {levelWarn, "A delivery output was quarantined."},
-	"domain.delivery.unknown":           {levelWarn, "The delivery outcome is unknown; commitment is not confirmed."},
-	"domain.delivery.first-confirmed":   {levelInfo, "First newly observed SQL commitment in this capture scope; this receipt proves only its own effect."},
-	"domain.delivery.recovered":         {levelInfo, "Delivery recovered with a matching SQL commitment."},
-	"domain.delivery.summary":           {levelInfo, "Newly observed SQL commitment count in this capture scope; the attached receipt proves only its own effect."},
-	"domain.counter-replay.quarantined": {levelWarn, "Accepted input samples are quarantined pending original revision evidence."},
-	"domain.recording.refused":          {levelWarn, "Recording was refused by original ownership evidence; pending inputs are not delivery outputs."},
-	"domain.quota.recovered":            {levelInfo, "Storage capacity is below the hard threshold; this is not resumed intake or SQL commitment."},
-	"domain.quota.refused":              {levelWarn, "Durable intake was refused by the configured storage quota."},
-	"domain.repair.completed":           {levelInfo, "The storage repair operation completed; data recovery is not implied."},
-	"domain.repair.blocked":             {levelWarn, "The storage repair operation was blocked."},
-	"domain.cutover.applied":            {levelInfo, "The recording cutover operation was applied."},
-	"domain.cutover.rejected":           {levelWarn, "The recording cutover operation was rejected."},
+	domainSourceApplied:            {levelInfo, "The source rule was applied to acquisition runtime."},
+	domainSourceRejected:           {levelWarn, "A source-rule runtime update was rejected."},
+	domainCollectorFailed:          {levelWarn, "Acquisition failed for this source."},
+	domainCollectorRecovered:       {levelInfo, "Acquisition recovered for this source."},
+	domainMappingFailed:            {levelWarn, "Mapping failed for this source."},
+	domainMappingRecovered:         {levelInfo, "Mapping recovered for this source."},
+	domainGroupApplied:             {levelInfo, "Confirmed reconciliation observation: intake was active for this original revision."},
+	domainGroupPaused:              {levelInfo, "Recording intake is paused; historical delivery may remain pending."},
+	domainGroupRetiring:            {levelInfo, "The recording group revision is retiring; delivery may remain pending."},
+	domainDeliveryRetrying:         {levelWarn, "Delivery is retrying for this group revision."},
+	domainDeliveryBlocked:          {levelWarn, "Delivery is blocked for this group revision."},
+	domainDeliveryQuarantined:      {levelWarn, "A delivery output was quarantined."},
+	domainDeliveryUnknown:          {levelWarn, "The delivery outcome is unknown; commitment is not confirmed."},
+	domainDeliveryFirstConfirmed:   {levelInfo, "First newly observed SQL commitment in this capture scope; this receipt proves only its own effect."},
+	domainDeliveryRecovered:        {levelInfo, "Delivery recovered with a matching SQL commitment."},
+	domainDeliverySummary:          {levelInfo, "Newly observed SQL commitment count in this capture scope; the attached receipt proves only its own effect."},
+	domainCounterReplayQuarantined: {levelWarn, "Accepted input samples are quarantined pending original revision evidence."},
+	domainRecordingRefused:         {levelWarn, "Recording was refused by original ownership evidence; pending inputs are not delivery outputs."},
+	domainQuotaRecovered:           {levelInfo, "Storage capacity is below the hard threshold; this is not resumed intake or SQL commitment."},
+	domainQuotaRefused:             {levelWarn, "Durable intake was refused by the configured storage quota."},
+	domainRepairCompleted:          {levelInfo, "The storage repair operation completed; data recovery is not implied."},
+	domainRepairBlocked:            {levelWarn, "The storage repair operation was blocked."},
+	domainCutoverApplied:           {levelInfo, "The recording cutover operation was applied."},
+	domainCutoverRejected:          {levelWarn, "The recording cutover operation was rejected."},
 }
 
 // ProjectDomainEvent is an unmounted, pure projection; it performs no admission or I/O.
@@ -105,7 +105,7 @@ func suppressedDomainProjection(truncated bool) Event {
 // Future admission still owns its own boundEvent/drop accounting and actual clock.
 func domainProjectionFits(e Event) bool {
 	e.InstanceID = "ffffffffffffffffffffffffffffffff"
-	e.Sequence = "18446744073709551615"
+	e.Sequence = maxEventSequence
 	e.Timestamp = time.Date(9999, 12, 31, 23, 59, 59, 999999999, time.UTC)
 	raw, err := json.Marshal(e)
 	return err == nil && len(raw) <= MaxEventBytes

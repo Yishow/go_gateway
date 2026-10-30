@@ -294,7 +294,7 @@ func TestDomainCoalescerCallbacksReenterWithoutLocks(t *testing.T) {
 
 func TestDomainCoalescerConcurrentLifecycle(t *testing.T) {
 	c, _, sink := newCoalescerFixture(t)
-	var inputs [][]byte
+	inputs := make([][]byte, 0, 16)
 	for i := range 16 {
 		v := domainFixture()
 		v.Locator.GroupID = domainText("G" + strconv.Itoa(i))

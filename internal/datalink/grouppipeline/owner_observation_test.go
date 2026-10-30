@@ -8,10 +8,11 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestOwnerObservationOriginalCounterScopeAndExactInputs(t *testing.T) {
@@ -116,7 +117,7 @@ func TestOwnerObservationMissingChangedOrUnreadableProofUnavailable(t *testing.T
 				return "observed-workspace-revision", key.WorkspaceID == "workspace-A"
 			}
 			if mode == "snapshot missing" {
-				_, err := f.local.Exec(`DELETE FROM wg_runtime_versions`)
+				_, err := f.local.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions`)
 				require.NoError(t, err)
 			}
 			if mode == "connector missing" {
@@ -127,7 +128,7 @@ func TestOwnerObservationMissingChangedOrUnreadableProofUnavailable(t *testing.T
 				v["group"].(map[string]any)["destination"].(map[string]any)["connector_revision"] = ""
 				raw, err = json.Marshal(v)
 				require.NoError(t, err)
-				_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=?`, string(raw))
+				_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=?`, string(raw))
 				require.NoError(t, err)
 			}
 			if mode == "count error" {
@@ -250,7 +251,7 @@ func TestOwnerObservationChangedFrozenOrQuarantineCannotBorrowProof(t *testing.T
 			var out []OwnerObservation
 			reads := 0
 			ownerCapture(f.pipe, &out, &reads)
-			f.pipe.deps.OwnerObservation.ScopeRevision = func(context.Context, groupdelivery.GroupKey) (string, bool) {
+			f.pipe.deps.OwnerObservation.ScopeRevision = func(ctx context.Context, _ groupdelivery.GroupKey) (string, bool) {
 				reads++
 				if reads == 2 {
 					if mode == "recovered" {
@@ -258,7 +259,7 @@ func TestOwnerObservationChangedFrozenOrQuarantineCannotBorrowProof(t *testing.T
 						delete(f.pipe.quarantines, groupKey(f.snapshot))
 						f.pipe.mu.Unlock()
 					} else {
-						_, err := f.local.Exec(`UPDATE wg_runtime_versions SET payload=replace(payload,'crev-1','crev-2')`)
+						_, err := f.local.ExecContext(ctx, `UPDATE wg_runtime_versions SET payload=replace(payload,'crev-1','crev-2')`)
 						require.NoError(t, err)
 					}
 				}
@@ -298,7 +299,7 @@ func TestOwnerObservationHandoffOwnerChangedBeforeFlushUnavailable(t *testing.T)
 	_, err = f.pipe.prepareWorkspaceHandoffs(ctx, f.source.WorkspaceID)
 	require.ErrorIs(t, err, groupdelivery.ErrHandoffProofConflict)
 	require.Empty(t, out)
-	_, err = f.local.Exec(`UPDATE write_group_versions SET payload=json_set(payload,'$.row_policy.interval_seconds',120) WHERE group_id=? AND group_revision=?`, f.source.GroupID, f.source.AppliedRevision)
+	_, err = f.local.ExecContext(t.Context(), `UPDATE write_group_versions SET payload=json_set(payload,'$.row_policy.interval_seconds',120) WHERE group_id=? AND group_revision=?`, f.source.GroupID, f.source.AppliedRevision)
 	require.NoError(t, err)
 	changed, err := f.store.OwnershipView(t.Context(), groupKey(f.source))
 	require.NoError(t, err)
@@ -342,7 +343,7 @@ func TestOwnerObservationHeldNativeTokenChangedBeforeFlushUnavailable(t *testing
 	ctx, finish := f.pipe.ownerOperation(t.Context())
 	require.ErrorIs(t, f.pipe.acceptWithOwnership(ctx, env, []*managed{target}), groupdelivery.ErrOwnershipConflict)
 	require.Empty(t, out)
-	_, err := f.local.Exec(`UPDATE write_group_versions SET payload=json_set(payload,'$.row_policy.interval_seconds',120) WHERE group_id=? AND group_revision=?`, f.target.GroupID, f.target.AppliedRevision)
+	_, err := f.local.ExecContext(t.Context(), `UPDATE write_group_versions SET payload=json_set(payload,'$.row_policy.interval_seconds',120) WHERE group_id=? AND group_revision=?`, f.target.GroupID, f.target.AppliedRevision)
 	require.NoError(t, err)
 	changed, err := f.store.OwnershipView(t.Context(), groupKey(f.target))
 	require.NoError(t, err)

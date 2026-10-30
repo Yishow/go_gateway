@@ -123,7 +123,7 @@ func (s *Service) finishAcquisitionObservation(ctx context.Context, capture *acq
 		return
 	}
 	// Metadata providers and diagnostic binding cannot change the native result.
-	defer func() { _ = recover() }()
+	defer func() { recover() }() //nolint:errcheck // Diagnostics must not change the native result.
 	after := s.acquisitionWorkspaceSnapshot(ctx)
 	if after == nil || after.ID != capture.before.ID || after.DatabaseSetupRevision != capture.before.DatabaseSetupRevision || !slices.Equal(after.OrderedDeviceIDs, capture.before.OrderedDeviceIDs) {
 		return

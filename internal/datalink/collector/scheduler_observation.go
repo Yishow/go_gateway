@@ -94,7 +94,7 @@ func (s *Scheduler) observeAcquisition(pt pointInfo, value CollectedValue) {
 	}
 	// The callback contract is nonblocking. Panic containment prevents a faulty
 	// optional observer from changing the native acquisition/retry result.
-	defer func() { _ = recover() }()
+	defer func() { recover() }() //nolint:errcheck // An observer panic must not change acquisition.
 	s.config.AcquisitionObserver(AcquisitionObservation{
 		Binding: pt.observationBinding, DeviceID: value.DeviceID, PointID: value.PointID,
 		AcquisitionID: value.AcquisitionID, ConfigFingerprint: value.ConfigFingerprint,

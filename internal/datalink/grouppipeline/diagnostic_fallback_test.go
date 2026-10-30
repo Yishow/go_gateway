@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/groupdelivery"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestDiagnosticFallbackCounterTickAcceptedAfterNative(t *testing.T) {
@@ -122,15 +123,15 @@ func TestDiagnosticFallbackOwnerTickExactOriginalError(t *testing.T) {
 	require.Equal(t, before, counterDurableState(t, f.store))
 }
 
-type diagnosticIsOnly struct{}
+type diagnosticIsOnlyError struct{}
 
-func (diagnosticIsOnly) Error() string { return "unknown" }
-func (diagnosticIsOnly) Is(error) bool { return true }
+func (diagnosticIsOnlyError) Error() string { return "unknown" }
+func (diagnosticIsOnlyError) Is(error) bool { return true }
 
-type diagnosticCycle struct{}
+type diagnosticCycleError struct{}
 
-func (diagnosticCycle) Error() string   { return "cycle" }
-func (e diagnosticCycle) Unwrap() error { return e }
+func (diagnosticCycleError) Error() string   { return "cycle" }
+func (e diagnosticCycleError) Unwrap() error { return e }
 
 func TestDiagnosticFallbackClosedLeafMatching(t *testing.T) {
 	key := groupdelivery.GroupKey{WorkspaceID: "workspace-A", GroupID: "group-G", GroupRevision: "rev-1"}
@@ -147,9 +148,9 @@ func TestDiagnosticFallbackClosedLeafMatching(t *testing.T) {
 		{"joined-covered-unknown", errors.Join(typed, errors.New("operational")), false},
 		{"joined-all-covered", errors.Join(typed, groupdelivery.ErrOwnershipUnavailable), false},
 		{"multi-wrap", fmt.Errorf("two: %w %w", typed, typed), false},
-		{"is-only", diagnosticIsOnly{}, false},
+		{"is-only", diagnosticIsOnlyError{}, false},
 		{"matching-string", errors.New(typed.Error()), false},
-		{"cycle", diagnosticCycle{}, false},
+		{"cycle", diagnosticCycleError{}, false},
 		{"typed-nil", (*groupdelivery.OwnershipError)(nil), false},
 		{"unknown-kind", groupdelivery.ErrIntakeStopped, false},
 	} {
@@ -226,7 +227,7 @@ func TestDiagnosticFallbackOwnerTokenChangesAndReentry(t *testing.T) {
 		p.config.OnError = func(err error) {
 			native++
 			require.Same(t, groupdelivery.ErrOwnershipConflict, err)
-			_, changeErr := f.local.Exec(`UPDATE write_group_versions SET payload=json_set(payload,'$.row_policy.interval_seconds',120) WHERE group_id=? AND group_revision=?`, f.target.GroupID, f.target.AppliedRevision)
+			_, changeErr := f.local.ExecContext(t.Context(), `UPDATE write_group_versions SET payload=json_set(payload,'$.row_policy.interval_seconds',120) WHERE group_id=? AND group_revision=?`, f.target.GroupID, f.target.AppliedRevision)
 			require.NoError(t, changeErr)
 		}
 		p.config.OnDiagnosticError = func() { generic++ }
@@ -287,14 +288,14 @@ func TestDiagnosticFallbackTickRealDiskFullStaysUnavailable(t *testing.T) {
 	f := ownerCounterFixture(t)
 	f.local.SetMaxOpenConns(1)
 	f.local.SetMaxIdleConns(1)
-	_, err := f.local.Exec(`CREATE TABLE diagnostic_filler (payload BLOB)`)
+	_, err := f.local.ExecContext(t.Context(), `CREATE TABLE diagnostic_filler (payload BLOB)`)
 	require.NoError(t, err)
 	var pages int
-	require.NoError(t, f.local.QueryRow(`PRAGMA page_count`).Scan(&pages))
-	_, err = f.local.Exec(fmt.Sprintf(`PRAGMA max_page_count = %d`, pages))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `PRAGMA page_count`).Scan(&pages))
+	_, err = f.local.ExecContext(t.Context(), fmt.Sprintf(`PRAGMA max_page_count = %d`, pages))
 	require.NoError(t, err)
 	// Real SQLite file growth is refused; this is not a fabricated quota Tick.
-	_, err = f.local.Exec(`INSERT INTO diagnostic_filler VALUES (zeroblob(1048576))`)
+	_, err = f.local.ExecContext(t.Context(), `INSERT INTO diagnostic_filler VALUES (zeroblob(1048576))`)
 	require.Error(t, err)
 	var out []IntakeQuotaObservation
 	reads, native, generic := 0, 0, 0

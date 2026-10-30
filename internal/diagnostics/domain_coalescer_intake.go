@@ -9,7 +9,7 @@ import (
 )
 
 func intakeObservation(v DomainEventRef) bool {
-	return v.Code == "domain.group.applied" || v.Code == "domain.group.paused" || v.Code == "domain.group.retiring"
+	return v.Code == domainGroupApplied || v.Code == domainGroupPaused || v.Code == domainGroupRetiring
 }
 
 // observeIntake retains one last verified state per exact original scope. Identical
@@ -43,7 +43,10 @@ func (c *DomainCoalescer) observeIntake(ctx context.Context, data []byte, scope 
 	if !ok {
 		return c.rejectIntakeCapture()
 	}
-	raw, _ := json.Marshal(v)
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return c.rejectIntakeCapture()
+	}
 	next := domainCoalescerEntry{data: raw, scope: runtimeview.Scope{WorkspaceID: strings.Clone(scope.WorkspaceID), WorkspaceRevision: strings.Clone(scope.WorkspaceRevision), DeviceID: strings.Clone(scope.DeviceID)}, reference: v.Evidence.ReferenceID, first: now, last: now, next: now.Add(c.options.Heartbeat), occurrences: 1, reported: 1}
 	next.bytes = len(raw) + len(key) + len(next.reference) + len(scope.WorkspaceID) + len(scope.WorkspaceRevision) + len(scope.DeviceID) + 256
 	event := domainEntryEvent(next, false)

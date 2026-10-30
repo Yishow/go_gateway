@@ -33,7 +33,7 @@ func TestProductionMappingSimulatorCastFailureThenRecovery(t *testing.T) {
 	require.Equal(t, "mapping-result", failed.Fields["evidence_kind"])
 	require.NotEmpty(t, failed.Fields["reference_id"])
 	before := f.services.runtime.Snapshot()
-	f.setWord(t, 0, 123)
+	f.setValidWord(t, 0)
 	require.Eventually(t, func() bool { return f.services.runtime.Snapshot().WriteSuccess > before.WriteSuccess }, 3*time.Second, 10*time.Millisecond, "native mapping and writer result must recover independently")
 	recovered := findMappingEvent(f.records(t), "domain.mapping.recovered", f.sources[0].mapping.ID)
 	require.NotNil(t, recovered)
@@ -56,7 +56,7 @@ func TestProductionMappingTwoDevicesAndRevisionChangeStaySeparate(t *testing.T) 
 	require.NoError(t, f.services.runtime.RefreshMappings(t.Context()))
 	require.Eventually(t, func() bool { return f.services.runtime.Snapshot().WriteSuccess > before.WriteSuccess }, 3*time.Second, 10*time.Millisecond)
 	require.Nil(t, findMappingEvent(f.records(t), "domain.mapping.recovered", f.sources[0].mapping.ID), "R2 success cannot recover the retained R1 failure")
-	f.setWord(t, 1, 123)
+	f.setValidWord(t, 1)
 	require.Eventually(t, func() bool {
 		return findMappingEvent(f.records(t), "domain.mapping.recovered", f.sources[1].mapping.ID) != nil
 	}, 3*time.Second, 10*time.Millisecond)
@@ -97,7 +97,7 @@ func TestProductionMappingSecretParamsNeverReachEvents(t *testing.T) {
 
 func TestProductionMappingHealthySamplesDoNotSpam(t *testing.T) {
 	f := newMappingEventFixture(t, 1)
-	f.setWord(t, 0, 123)
+	f.setValidWord(t, 0)
 	f.start(t)
 	require.Eventually(t, func() bool { return f.services.runtime.Snapshot().WriteSuccess >= 4 }, 3*time.Second, 10*time.Millisecond)
 	require.Empty(t, f.records(t))
@@ -117,7 +117,7 @@ func TestProductionMappingMissingScopeIsBoundedUnavailable(t *testing.T) {
 
 func TestProductionMappingMalformedPersistedTransformNeverExposesRawError(t *testing.T) {
 	f := newMappingEventFixture(t, 1)
-	_, err := f.db.Exec(`UPDATE mappings SET transform_pipeline=? WHERE id=?`, `[{"type":"password_fixture@private-host","params":{"password":"secret"}}]`, f.sources[0].mapping.ID)
+	_, err := f.db.ExecContext(t.Context(), `UPDATE mappings SET transform_pipeline=? WHERE id=?`, `[{"type":"password_fixture@private-host","params":{"password":"secret"}}]`, f.sources[0].mapping.ID)
 	require.NoError(t, err)
 	f.start(t)
 	f.waitFailure(t)
@@ -160,7 +160,7 @@ func TestProductionMappingFullOrClosedCapturePreservesNativeProcessing(t *testin
 				require.Greater(t, snapshot.CaptureDropped, dropped)
 			}
 			before := f.services.runtime.Snapshot()
-			f.setWord(t, 0, 123)
+			f.setValidWord(t, 0)
 			require.Eventually(t, func() bool { return f.services.runtime.Snapshot().WriteSuccess > before.WriteSuccess }, 3*time.Second, 10*time.Millisecond)
 		})
 	}

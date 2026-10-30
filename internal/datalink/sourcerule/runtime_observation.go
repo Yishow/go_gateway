@@ -31,7 +31,7 @@ type RuntimeSourceObservationFinalizer interface {
 }
 
 func (s *Service) finalizeSourceRuleObservation(ctx context.Context, outcome RuntimeReconcileOutcome, err error) {
-	defer func() { _ = recover() }() // Diagnostics must never replace a successful or failed mutation.
+	defer func() { recover() }() //nolint:errcheck // Diagnostics must not replace the mutation result.
 	if observer, ok := s.runtimeSync.(RuntimeSourceObservationFinalizer); ok {
 		observer.FinalizeSourceRuleObservation(ctx, outcome, err)
 	}

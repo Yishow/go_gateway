@@ -3,7 +3,6 @@ package runtime
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
@@ -12,6 +11,8 @@ import (
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 type mappingObservationFixture struct {

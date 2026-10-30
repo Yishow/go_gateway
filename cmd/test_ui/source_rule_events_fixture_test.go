@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
@@ -16,6 +15,8 @@ import (
 	"go-gateway/internal/diagnostics"
 	"go-gateway/internal/virtual/memory"
 	virtualmodbus "go-gateway/internal/virtual/server/modbus"
+
+	"github.com/stretchr/testify/require"
 )
 
 type sourceEventFixture struct {
@@ -38,7 +39,7 @@ func newSourceEventFixture(t *testing.T, running bool) sourceEventFixture {
 	t.Cleanup(func() { require.NoError(t, server.Stop()) })
 	config, err := json.Marshal(schema.ConnectionConfigModbusTCP{Host: "127.0.0.1", Port: server.Port(), SlaveID: 1, Timeout: 1})
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('source-device','Simulator','','modbus_tcp','active',?,'{}')`, string(config))
+	_, err = db.ExecContext(t.Context(), `INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('source-device','Simulator','','modbus_tcp','active',?,'{}')`, string(config))
 	require.NoError(t, err)
 	broker, err := diagnostics.New(diagnostics.Options{})
 	require.NoError(t, err)
@@ -58,9 +59,9 @@ func newSourceEventFixture(t *testing.T, running bool) sourceEventFixture {
 	return sourceEventFixture{services, db, broker, rule, record}
 }
 
-func sourceEventRecords(t *testing.T, b *diagnostics.Broker) []diagnostics.Event {
+func sourceEventRecords(ctx context.Context, t *testing.T, b *diagnostics.Broker) []diagnostics.Event {
 	t.Helper()
-	require.NoError(t, b.Flush(t.Context()))
+	require.NoError(t, b.Flush(ctx))
 	snapshot, err := b.Snapshot(diagnostics.Query{})
 	require.NoError(t, err)
 	return snapshot.Records

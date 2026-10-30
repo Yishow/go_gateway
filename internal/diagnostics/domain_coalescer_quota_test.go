@@ -20,12 +20,12 @@ func TestDomainQuotaHintIsBoundedAndThrottledWithoutHealthyState(t *testing.T) {
 	b := pausedDomainBroker(t)
 	clock := &coalescerClock{at: time.Now()}
 	b.domain.options.Clock = clock.Now
-	if _, ok := takeQuotaHint(t, b, t.Context()); ok {
+	if _, ok := takeQuotaHint(t.Context(), t, b); ok {
 		t.Fatal("healthy no-fault hint")
 	}
 	emitDelivery(t, b, quotaRef("group", false))
 	emitDelivery(t, b, quotaRef("global", false))
-	h, ok := takeQuotaHint(t, b, t.Context())
+	h, ok := takeQuotaHint(t.Context(), t, b)
 	if !ok {
 		t.Fatal("retained fault hint missing")
 	}
@@ -33,11 +33,11 @@ func TestDomainQuotaHintIsBoundedAndThrottledWithoutHealthyState(t *testing.T) {
 	if first.Code != "domain.quota.refused" || first.Evidence.Quota == nil {
 		t.Fatal("hint not validated original fault")
 	}
-	if _, ok := takeQuotaHint(t, b, t.Context()); ok {
+	if _, ok := takeQuotaHint(t.Context(), t, b); ok {
 		t.Fatal("more than one hint per heartbeat")
 	}
 	clock.Advance(RuntimeLogHeartbeat)
-	h2, ok := takeQuotaHint(t, b, t.Context())
+	h2, ok := takeQuotaHint(t.Context(), t, b)
 	if !ok || quotaHintRef(t, h2).Evidence.Quota.Scope == first.Evidence.Quota.Scope {
 		t.Fatal("next retained scope starved")
 	}
@@ -52,7 +52,7 @@ func TestDomainQuotaHintRecoveryFinalizesOnlyOriginalScope(t *testing.T) {
 	for range 3 {
 		emitDelivery(t, b, quotaRef("group", false))
 	}
-	h, ok := takeQuotaHint(t, b, t.Context())
+	h, ok := takeQuotaHint(t.Context(), t, b)
 	if !ok {
 		t.Fatal("hint missing")
 	}
@@ -77,7 +77,7 @@ func TestDomainQuotaHintRecoveryFinalizesOnlyOriginalScope(t *testing.T) {
 	}
 }
 func TestDomainQuotaHintNoFaultContentionCancellationOrCloseHasNoLoss(t *testing.T) {
-	for _, kind := range []string{"empty", "contended", "cancelled", "closed", "error"} {
+	for _, kind := range []string{"empty", "contended", "canceled", "closed", "error"} {
 		t.Run(kind, func(t *testing.T) {
 			b := pausedDomainBroker(t)
 			ctx := t.Context()
@@ -88,7 +88,7 @@ func TestDomainQuotaHintNoFaultContentionCancellationOrCloseHasNoLoss(t *testing
 			case "contended":
 				b.domain.mu.Lock()
 				defer b.domain.mu.Unlock()
-			case "cancelled":
+			case "canceled":
 				var cancel context.CancelFunc
 				ctx, cancel = context.WithCancel(ctx)
 				cancel()
@@ -98,7 +98,7 @@ func TestDomainQuotaHintNoFaultContentionCancellationOrCloseHasNoLoss(t *testing
 				b.level = levelRank(levelError)
 			}
 			before := b.domain.dropped.Load()
-			if _, ok := takeQuotaHint(t, b, ctx); ok {
+			if _, ok := takeQuotaHint(ctx, t, b); ok {
 				t.Fatal("noneligible hint returned")
 			}
 			if b.domain.dropped.Load() != before {
@@ -113,7 +113,7 @@ func TestDomainQuotaHintRejectsNewerFaultAndABA(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			b := pausedDomainBroker(t)
 			emitDelivery(t, b, quotaRef("group", false))
-			h, ok := takeQuotaHint(t, b, t.Context())
+			h, ok := takeQuotaHint(t.Context(), t, b)
 			if !ok {
 				t.Fatal("hint missing")
 			}
@@ -144,7 +144,7 @@ func TestDomainQuotaHintRejectsEveryForeignProofLeaf(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			b := pausedDomainBroker(t)
 			emitDelivery(t, b, quotaRef("group", false))
-			h, ok := takeQuotaHint(t, b, t.Context())
+			h, ok := takeQuotaHint(t.Context(), t, b)
 			if !ok {
 				t.Fatal("hint missing")
 			}
@@ -187,7 +187,7 @@ func TestDomainQuotaFilteredRecoveryRetiresWarnWithoutSuccessState(t *testing.T)
 	for range 3 {
 		emitDelivery(t, b, quotaRef("group", false))
 	}
-	h, ok := takeQuotaHint(t, b, t.Context())
+	h, ok := takeQuotaHint(t.Context(), t, b)
 	if !ok {
 		t.Fatal("warn level lost recovery processing")
 	}
@@ -205,7 +205,7 @@ func TestDomainQuotaAtomicReservationFailureRetainsFault(t *testing.T) {
 			for range 3 {
 				emitDelivery(t, b, quotaRef("group", false))
 			}
-			h, ok := takeQuotaHint(t, b, t.Context())
+			h, ok := takeQuotaHint(t.Context(), t, b)
 			if !ok {
 				t.Fatal("hint missing")
 			}
@@ -224,7 +224,7 @@ func TestDomainQuotaAtomicReservationFailureRetainsFault(t *testing.T) {
 func TestDomainQuotaNewRefusalDuringProbeCannotBeCleared(t *testing.T) {
 	b := pausedDomainBroker(t)
 	emitDelivery(t, b, quotaRef("group", false))
-	h, ok := takeQuotaHint(t, b, t.Context())
+	h, ok := takeQuotaHint(t.Context(), t, b)
 	if !ok {
 		t.Fatal("hint missing")
 	}
@@ -245,7 +245,7 @@ func TestDomainQuotaFullBrokerLossIsSeparateFromAtomicRetirement(t *testing.T) {
 	for range 3 {
 		emitDelivery(t, b, quotaRef("group", false))
 	}
-	h, ok := takeQuotaHint(t, b, t.Context())
+	h, ok := takeQuotaHint(t.Context(), t, b)
 	if !ok {
 		t.Fatal("hint missing")
 	}
@@ -278,7 +278,7 @@ func TestDomainQuotaFreshHintCanRecoverAfterRejectedOldGeneration(t *testing.T) 
 	clock := &coalescerClock{at: time.Now()}
 	b.domain.options.Clock = clock.Now
 	emitDelivery(t, b, quotaRef("group", false))
-	old, ok := takeQuotaHint(t, b, t.Context())
+	old, ok := takeQuotaHint(t.Context(), t, b)
 	if !ok {
 		t.Fatal("initial hint missing")
 	}
@@ -287,7 +287,7 @@ func TestDomainQuotaFreshHintCanRecoverAfterRejectedOldGeneration(t *testing.T) 
 		t.Fatal("old generation accepted")
 	}
 	clock.Advance(RuntimeLogHeartbeat)
-	fresh, ok := takeQuotaHint(t, b, t.Context())
+	fresh, ok := takeQuotaHint(t.Context(), t, b)
 	if !ok || !emitQuotaHint(t, b, fresh, quotaRef("group", true), domainScope()) {
 		t.Fatal("fresh exact proof could not retire retained fault")
 	}

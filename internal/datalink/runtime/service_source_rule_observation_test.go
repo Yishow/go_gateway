@@ -6,12 +6,13 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 type sourceObservationReader struct {

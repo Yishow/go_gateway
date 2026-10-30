@@ -13,6 +13,8 @@ import (
 	"go-gateway/internal/diagnostics"
 )
 
+const runtimeReceiptProvenance = "runtime"
+
 // The shared read proves only observed workspace scope. Frozen output/owner
 // identity and actual transition proof belong to the native producer, not here.
 func newDeliveryEventObservers(logs *diagnostics.Broker, workspaces *workspace.Service) (groupdelivery.DeliveryObservationConfig, grouppipeline.OwnerObservationConfig) {
@@ -91,7 +93,7 @@ func newDeliveryEventObserver(logs *diagnostics.Broker) func(groupdelivery.Deliv
 			}
 			ref.Code, ref.Stage = "domain.delivery.first-confirmed", runtimeview.StageSQLCommitted
 			ref.Evidence.Kind = "runtime-receipt"
-			ref.Evidence.Receipt = &runtimeview.Receipt{GroupRevision: o.Key.GroupRevision, ConnectorRevision: o.ConnectorRevision, RecordID: o.RecordID, EffectKey: o.EffectKey, PayloadDigest: o.PayloadDigest, CommittedAt: o.CommittedAt.UTC().Format(time.RFC3339Nano), Provenance: "runtime"}
+			ref.Evidence.Receipt = &runtimeview.Receipt{GroupRevision: o.Key.GroupRevision, ConnectorRevision: o.ConnectorRevision, RecordID: o.RecordID, EffectKey: o.EffectKey, PayloadDigest: o.PayloadDigest, CommittedAt: o.CommittedAt.UTC().Format(time.RFC3339Nano), Provenance: runtimeReceiptProvenance}
 		default:
 			unavailable()
 			return

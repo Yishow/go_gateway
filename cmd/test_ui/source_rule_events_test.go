@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/diagnostics"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestProductionSourceEventsAppliedUsesActualSQLiteRuleAndObservedWorkspaceRevision(t *testing.T) {
@@ -17,7 +18,7 @@ func TestProductionSourceEventsAppliedUsesActualSQLiteRuleAndObservedWorkspaceRe
 	outcome, err := f.services.sourceRule.DisableWithRuntimeReconcile(t.Context(), f.rule.ID)
 	require.NoError(t, err)
 	require.Equal(t, sourcerule.RuntimeReconcileStatusAligned, outcome.Status)
-	records := sourceEventRecords(t, f.broker)
+	records := sourceEventRecords(t.Context(), t, f.broker)
 	require.Len(t, records, 1)
 	e := records[0]
 	require.Equal(t, "domain.source.applied", e.Code)
@@ -34,7 +35,7 @@ func TestProductionSourceEventsNotRunningIsUnattributedUnavailable(t *testing.T)
 	outcome, err := f.services.sourceRule.DisableWithRuntimeReconcile(t.Context(), f.rule.ID)
 	require.NoError(t, err)
 	require.Equal(t, sourcerule.RuntimeReconcileStatusNotRunning, outcome.Status)
-	records := sourceEventRecords(t, f.broker)
+	records := sourceEventRecords(t.Context(), t, f.broker)
 	require.Len(t, records, 1)
 	require.Equal(t, "domain.unavailable", records[0].Code)
 	require.Empty(t, records[0].Fields)
@@ -42,8 +43,8 @@ func TestProductionSourceEventsNotRunningIsUnattributedUnavailable(t *testing.T)
 
 func TestProductionSourceEventsRejectAfterActualShareCompensation(t *testing.T) {
 	f := newSourceEventFixture(t, true)
-	f.services.sourceRule.SetShareRuntimeReconciler(sourcerule.ShareRuntimeReconcilerFunc(func(_ context.Context, req sourcerule.RuntimeReconcileRequest) (sourcerule.RuntimeReconcileOutcome, error) {
-		require.Empty(t, sourceEventRecords(t, f.broker), "intermediate generic apply must not escape")
+	f.services.sourceRule.SetShareRuntimeReconciler(sourcerule.ShareRuntimeReconcilerFunc(func(ctx context.Context, req sourcerule.RuntimeReconcileRequest) (sourcerule.RuntimeReconcileOutcome, error) {
+		require.Empty(t, sourceEventRecords(ctx, t, f.broker), "intermediate generic apply must not escape")
 		return sourcerule.RuntimeReconcileOutcome{Scope: req.Scope}, errors.New("password_fixture@private-host")
 	}))
 	_, err := f.services.sourceRule.DisableWithRuntimeReconcile(t.Context(), f.rule.ID)
@@ -51,7 +52,7 @@ func TestProductionSourceEventsRejectAfterActualShareCompensation(t *testing.T) 
 	restored, getErr := f.services.sourceRule.GetByID(t.Context(), f.rule.ID)
 	require.NoError(t, getErr)
 	require.Equal(t, f.rule.Enabled, restored.Enabled)
-	records := sourceEventRecords(t, f.broker)
+	records := sourceEventRecords(t.Context(), t, f.broker)
 	require.Len(t, records, 1)
 	require.Equal(t, "domain.source.rejected", records[0].Code)
 	require.Equal(t, f.rule.RevisionID, records[0].Fields["entity_revision"])
@@ -104,7 +105,7 @@ func TestProductionSourceEventsEmptyShareScopeRemainsUnattributed(t *testing.T) 
 	}))
 	_, err := f.services.sourceRule.DisableWithRuntimeReconcile(t.Context(), f.rule.ID)
 	require.Error(t, err)
-	records := sourceEventRecords(t, f.broker)
+	records := sourceEventRecords(t.Context(), t, f.broker)
 	require.Len(t, records, 1)
 	require.Equal(t, "domain.unavailable", records[0].Code)
 	require.Empty(t, records[0].Fields)
@@ -118,7 +119,7 @@ func TestProductionSourceEventsNotRunningIsNotPromotedByAlignedShare(t *testing.
 	out, err := f.services.sourceRule.DisableWithRuntimeReconcile(t.Context(), f.rule.ID)
 	require.NoError(t, err)
 	require.Equal(t, sourcerule.RuntimeReconcileStatusAligned, out.Status)
-	records := sourceEventRecords(t, f.broker)
+	records := sourceEventRecords(t.Context(), t, f.broker)
 	require.Len(t, records, 1)
 	require.Equal(t, "domain.unavailable", records[0].Code)
 }
@@ -130,7 +131,7 @@ func TestProductionSourceEventsDeleteRetainsPredeleteRevision(t *testing.T) {
 	require.Equal(t, sourcerule.RuntimeReconcileStatusAligned, out.Status)
 	_, err = f.services.sourceRule.GetByID(t.Context(), f.rule.ID)
 	require.Error(t, err)
-	records := sourceEventRecords(t, f.broker)
+	records := sourceEventRecords(t.Context(), t, f.broker)
 	require.Len(t, records, 1)
 	require.Equal(t, "domain.source.applied", records[0].Code)
 	require.Equal(t, f.rule.RevisionID, records[0].Fields["entity_revision"])
@@ -141,7 +142,7 @@ func TestProductionSourceEventsZeroPointCreateIsNotApplied(t *testing.T) {
 	_, out, err := f.services.sourceRule.CreateWithRuntimeReconcile(t.Context(), sourcerule.CreateRuleRequest{ID: "no-points", DeviceID: f.rule.DeviceID, StartAddress: "40002", Count: 1, DataType: f.rule.DataType, NamingPrefix: "Empty", SkippedAddresses: []string{"40002"}})
 	require.NoError(t, err)
 	require.Equal(t, sourcerule.RuntimeReconcileStatusAligned, out.Status)
-	records := sourceEventRecords(t, f.broker)
+	records := sourceEventRecords(t.Context(), t, f.broker)
 	require.Len(t, records, 1)
 	require.Equal(t, "domain.unavailable", records[0].Code)
 }

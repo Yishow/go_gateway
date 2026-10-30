@@ -57,7 +57,7 @@ func runtimeDomainScope() runtimeview.Scope {
 	return runtimeview.Scope{WorkspaceID: "W", WorkspaceRevision: "W1", DeviceID: "D"}
 }
 
-func newRuntimeDomainFileBroker(t *testing.T) (*diagnostics.Broker, string) {
+func newRuntimeDomainFileBroker(t *testing.T) (broker *diagnostics.Broker, logPath string) {
 	t.Helper()
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {

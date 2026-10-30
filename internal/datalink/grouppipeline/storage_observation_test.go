@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/recordingplan"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRepairObservationRequiresNewCommittedLedgerSettlement(t *testing.T) {
@@ -84,7 +85,7 @@ func TestRepairObservationMissingChangedAndForeignProofIsUnavailable(t *testing.
 		t.Run(mode, func(t *testing.T) {
 			f := newStorageObservationFixture(t)
 			f.drop()
-			f.recovery.observation.ScopeRevision = func(_ context.Context, key groupdelivery.GroupKey) (string, bool) {
+			f.recovery.observation.ScopeRevision = func(ctx context.Context, key groupdelivery.GroupKey) (string, bool) {
 				f.reads++
 				switch mode {
 				case "missing-wrev":
@@ -99,9 +100,9 @@ func TestRepairObservationMissingChangedAndForeignProofIsUnavailable(t *testing.
 					panic("private")
 				case "frozen-change":
 					if f.reads == 2 {
-						raw, err := f.store.RuntimeVersion(t.Context(), key)
+						raw, err := f.store.RuntimeVersion(ctx, key)
 						require.NoError(t, err)
-						_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=?`, strings.Replace(string(raw), "crev-1", "crev-2", 1))
+						_, err = f.local.ExecContext(ctx, `UPDATE wg_runtime_versions SET payload=?`, strings.Replace(string(raw), "crev-1", "crev-2", 1))
 						require.NoError(t, err)
 					}
 				case "ledger-read":
@@ -149,7 +150,7 @@ func TestRepairObservationRestartWithoutOriginalRevisionIsUnavailable(t *testing
 	_, err := f.restore()
 	f.localFault.Reject.Store(nil)
 	require.Error(t, err)
-	_, err = f.local.Exec(`UPDATE managed_schema_operations SET updated_at=? WHERE action=?`, time.Now().UTC().Add(-2*recordingplan.SchemaOperationLease), recordingplan.StorageRepairAction)
+	_, err = f.local.ExecContext(t.Context(), `UPDATE managed_schema_operations SET updated_at=? WHERE action=?`, time.Now().UTC().Add(-2*recordingplan.SchemaOperationLease), recordingplan.StorageRepairAction)
 	require.NoError(t, err)
 	r := NewStorageRecoveryWithObservation(f.store, f.ledger, f.dest, StorageObservationConfig{RecordLimit: 1024, InfoEnabled: true, WarnEnabled: true, ScopeRevision: func(context.Context, groupdelivery.GroupKey) (string, bool) { f.reads++; return "observed-wrev", true }, Observe: func(o StorageOperationObservation) { f.events = append(f.events, o) }})
 	require.NoError(t, r.ResolveStale(t.Context()))
@@ -174,8 +175,8 @@ func TestRepairObservationOldStaleInsideFreshRestoreCannotBorrowInputRevision(t 
 	f.localFault.Reject.Store(nil)
 	require.Error(t, err)
 	var oldID string
-	require.NoError(t, f.local.QueryRow(`SELECT operation_id FROM managed_schema_operations WHERE action=?`, recordingplan.StorageRepairAction).Scan(&oldID))
-	_, err = f.local.Exec(`UPDATE managed_schema_operations SET updated_at=? WHERE operation_id=?`, time.Now().UTC().Add(-2*recordingplan.SchemaOperationLease), oldID)
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT operation_id FROM managed_schema_operations WHERE action=?`, recordingplan.StorageRepairAction).Scan(&oldID))
+	_, err = f.local.ExecContext(t.Context(), `UPDATE managed_schema_operations SET updated_at=? WHERE operation_id=?`, time.Now().UTC().Add(-2*recordingplan.SchemaOperationLease), oldID)
 	require.NoError(t, err)
 	f.drop()
 	f.recovery = NewStorageRecoveryWithObservation(f.store, f.ledger, f.dest, cfg)
@@ -267,17 +268,17 @@ func TestRepairObservationFinalProofChangesCannotBorrowCompletedResult(t *testin
 	for _, mode := range []string{"operation", "outbox", "lineage"} {
 		t.Run(mode, func(t *testing.T) {
 			f := newStorageObservationFixture(t)
-			f.recovery.observation.ScopeRevision = func(_ context.Context, _ groupdelivery.GroupKey) (string, bool) {
+			f.recovery.observation.ScopeRevision = func(ctx context.Context, _ groupdelivery.GroupKey) (string, bool) {
 				f.reads++
 				if f.reads == 2 {
 					var err error
 					switch mode {
 					case "operation":
-						_, err = f.local.Exec(`UPDATE managed_schema_operations SET verified_digest='wrong' WHERE action=?`, recordingplan.StorageRepairAction)
+						_, err = f.local.ExecContext(ctx, `UPDATE managed_schema_operations SET verified_digest='wrong' WHERE action=?`, recordingplan.StorageRepairAction)
 					case "outbox":
-						_, err = f.local.Exec(`UPDATE wg_delivery_outbox SET payload='private-payload' WHERE effect_key=?`, f.item.EffectKey)
+						_, err = f.local.ExecContext(ctx, `UPDATE wg_delivery_outbox SET payload='private-payload' WHERE effect_key=?`, f.item.EffectKey)
 					case "lineage":
-						_, err = f.local.Exec(`UPDATE write_group_storage_scopes SET confirmed_connector_revision='other'`)
+						_, err = f.local.ExecContext(ctx, `UPDATE write_group_storage_scopes SET confirmed_connector_revision='other'`)
 					}
 					require.NoError(t, err)
 				}
@@ -296,6 +297,7 @@ func TestRepairObservationUnknownCatalogCannotBecomeCompleted(t *testing.T) {
 	f := newStorageObservationFixture(t)
 	f.drop()
 	// Fail only post-DDL catalog inspection, not the actual transaction.
+	//nolint:unparam // Reject's callback signature requires an error return.
 	reject := func(q string) error {
 		if strings.HasPrefix(strings.TrimSpace(q), "CREATE TABLE") {
 			post := func(q string) error {
@@ -315,6 +317,6 @@ func TestRepairObservationUnknownCatalogCannotBecomeCompleted(t *testing.T) {
 	require.Equal(t, groupdelivery.RestoreBlock, decision.Action)
 	require.Equal(t, []StorageOperationObservation{{}}, f.events)
 	var status string
-	require.NoError(t, f.local.QueryRow(`SELECT status FROM managed_schema_operations WHERE action=?`, recordingplan.StorageRepairAction).Scan(&status))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT status FROM managed_schema_operations WHERE action=?`, recordingplan.StorageRepairAction).Scan(&status))
 	require.Equal(t, string(recordingplan.SchemaOperationPartial), status)
 }

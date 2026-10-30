@@ -34,9 +34,9 @@ func observedDeliveryStore(t *testing.T, store *Store, observations *[]map[strin
 	return method.Call([]reflect.Value{config})[0].Interface().(*Store)
 }
 
-func deliveryObservationRow(t *testing.T, store *Store, offset int) (OutboxItem, Claim) {
+func deliveryObservationRow(t *testing.T, store *Store) (OutboxItem, Claim) {
 	t.Helper()
-	effect := enqueueFor(t, store, testKey, testDestination, "entity", at(offset), uint64(offset+1))
+	effect := enqueueFor(t, store, testKey, testDestination, "entity", at(0), 1)
 	claim, err := store.BeginDelivery(t.Context(), effect, "node/observer-test", time.Minute)
 	require.NoError(t, err)
 	item, err := store.GetOutbox(t.Context(), effect)

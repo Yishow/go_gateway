@@ -13,7 +13,7 @@ import (
 // Only the confirmed source producer's fixed pair uses this transition. Other
 // reasons are not guessed recovered; generic Observe/Recover remain unchanged.
 func fixedSourceObservation(v DomainEventRef) bool {
-	return v.Code == "domain.source.applied" || (v.Code == "domain.source.rejected" && v.Reason == runtimeview.ReasonUnavailable && v.Action == runtimeview.ActionRefresh)
+	return v.Code == domainSourceApplied || (v.Code == domainSourceRejected && v.Reason == runtimeview.ReasonUnavailable && v.Action == runtimeview.ActionRefresh)
 }
 
 // observeSource reserves an exact source transition in the existing bounded state
@@ -31,7 +31,10 @@ func (c *DomainCoalescer) observeSource(ctx context.Context, data []byte, scope 
 	if err != nil || !fixedSourceObservation(v) {
 		return c.rejectSourceCapture()
 	}
-	raw, _ := json.Marshal(v)
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return c.rejectSourceCapture()
+	}
 	key, otherKey := domainCoalescerKey(v), sourceOppositeKey(v)
 	if !c.mu.TryLock() {
 		if !visible {
@@ -121,13 +124,13 @@ func (c *DomainCoalescer) observeSource(ctx context.Context, data []byte, scope 
 func (c *DomainCoalescer) rejectSourceCapture() bool { c.drop(1); return false }
 
 func sourceOppositeKey(v DomainEventRef) string {
-	if v.Code == "domain.source.applied" {
-		v.Code = "domain.source.rejected"
+	if v.Code == domainSourceApplied {
+		v.Code = domainSourceRejected
 		v.Stage = runtimeview.StageBlocked
 		v.Reason = runtimeview.ReasonUnavailable
 		v.Action = runtimeview.ActionRefresh
 	} else {
-		v.Code = "domain.source.applied"
+		v.Code = domainSourceApplied
 		v.Stage = runtimeview.StageAccepted
 		v.Reason = runtimeview.ReasonNone
 		v.Action = runtimeview.ActionNone
