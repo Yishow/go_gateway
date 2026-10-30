@@ -75,6 +75,12 @@ export function useRecordingHomeEvidence({ scope, bootstrapRevision, sources, ow
   const failed = [workspace, groups, ...lifecycle, ...delivery].some(query => query.isError);
   return { projection, guidance,
     error: failed ? { code: 'recording_home_read_failed' as const, action: 'retry' as const } : null,
+    // Explicit page recheck does not refetch list metadata and thereby unmount
+    // its own query observers while their bounded transports are starting.
+    retryDetails: async () => {
+      if (!readable) return;
+      await Promise.all([...lifecycle.map(query => query.refetch()), ...delivery.map(query => query.refetch())]);
+    },
     retry: async () => {
       if (!readable) return;
       await Promise.all([workspace.refetch(), groups.refetch(), ...lifecycle.map(query => query.refetch()), ...delivery.map(query => query.refetch())]);

@@ -1,5 +1,8 @@
+import { recordingHomeResultGuidance } from './recordingHomeResultGuidance';
+import { useRecordingHomeFacts } from './useRecordingHomeFacts';
+import { homeOwners } from './recordingHomeGuidanceEvidence';
+import { recordingHomeResultSummary } from './recordingHomeResultSummary';
 import { cachedHomeReads } from './recordingHomeCachedReads';
-import { recordingHomeGuidance } from './recordingHomeGuidance';
 import type { WriteGroupListResponse } from '../../../../types/studioV2WriteGroup';
 import { recordingHomeProjection } from './recordingHomeProjection';
 import { RecordingHomeCollection } from './RecordingHomeCollection';
@@ -38,11 +41,6 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
   const groups = groupsRead.state === 'available' ? groupsRead.value.map(item => item.group) : [];
   const devices = sources.data?.state === 'available' ? sources.data.value.devices : [];
   const cached = cachedHomeReads(context, groups.map(group => ({ ...scope, groupId: group.id, groupRevision: group.revision, appliedRevision: group.applied_revision })));
-  const observed = recordingHomeGuidance({ evidence: { scope, groups: { state: 'available', scope, value: list }, ...cached } })
-    .attentionItems.filter(item => item.reason !== 'evidence_unavailable').map(item => item.id);
-  const unverified = (restored.observedIds ?? []).filter(id => groups.some(group => group.id === id) &&
-    (cached.delivery[id]?.state !== 'available' || cached.lifecycle[id]?.state !== 'available'));
-  const observedIds = [...new Set([...observed, ...unverified])];
   const collection = recordingCollection(groups, devices, state, new Set(filterObservedIds));
   const page = state.mode === 'devices' ? deviceCollection(devices, state).page : collection.page;
   // Capture at most one page after source names are available (or failed).
@@ -50,20 +48,32 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
   if (!sources.isPending && demand?.state !== state) {
     setDemand({ state, ids: state.mode === 'devices' ? [] : collection.rows.map(group => group.id) });
   }
-  const home = useRecordingHomeEvidence({ scope, detailGroupIds: demand?.state === state ? demand.ids : [], sources: sources.isFetching || sources.isPending
+  const demandIds = demand?.state === state ? demand.ids : [];
+  const facts = useRecordingHomeFacts(scope, groups, demandIds);
+  const home = useRecordingHomeEvidence({ scope, owners: facts.owners, detailGroupIds: demandIds, sources: sources.isFetching || sources.isPending
     ? { state: 'loading', scope } : sources.isError ? { state: 'error', scope } : sources.data });
-  return <RecordingHome guidance={home.guidance} location={location} onNavigate={onNavigate}
-    onRetry={() => { void Promise.all([reloadScope(), sources.refetch(), home.retry()]); }}
-    collection={<RecordingHomeCollection groups={groups} devices={devices} state={state} guidance={home.guidance}
-      observedIds={observedIds} filterObservedIds={filterObservedIds} unverifiedObserved={unverified.length > 0} onRecheck={() => { void home.retry(); }}
+  const summaries = Object.fromEntries(home.guidance.recordingItems.map(item => [item.id, recordingHomeResultSummary(item.evidence, {
+    runtime: facts.runtimeGroups[item.id], history: facts.histories[item.id], owner: homeOwners(scope, item.evidence, facts.owners[item.id]).inspection,
+  })]));
+  const guidance = recordingHomeResultGuidance(home.guidance, summaries);
+  const observedIds = guidance.attentionItems.filter(item => item.reason !== 'evidence_unavailable').map(item => item.id);
+  const unverified = (restored.observedIds ?? []).filter(id => groups.some(group => group.id === id) &&
+    (cached.delivery[id]?.state !== 'available' || cached.lifecycle[id]?.state !== 'available' || !facts.runtimeGroups[id]));
+  const displayedObservedIds = [...new Set([...observedIds, ...unverified])];
+  return <RecordingHome guidance={guidance} location={location} onNavigate={onNavigate}
+    onRetry={() => { void Promise.all([reloadScope(), sources.refetch(), home.retry(), facts.retry()]); }}
+    collection={<RecordingHomeCollection groups={groups} devices={devices} state={state} guidance={guidance}
+      pendingDevices={facts.pendingDevices}
+      summaries={summaries}
+      observedIds={displayedObservedIds} filterObservedIds={filterObservedIds} unverifiedObserved={unverified.length > 0} onRecheck={() => { void Promise.all([home.retryDetails(), facts.retry()]); }}
       sourcesAvailable={sources.data?.state === 'available' && !sources.isFetching} restored={restored}
       onChange={next => {
-        if (!state.observedOnly || !next.observedOnly) setFilterObservedIds(observedIds);
-        setState(next); const presentation = { state: next, workspaceRevision, scrollTop: 0, focusId: null, observedIds };
+        if (!state.observedOnly || !next.observedOnly) setFilterObservedIds(displayedObservedIds);
+        setState(next); const presentation = { state: next, workspaceRevision, scrollTop: 0, focusId: null, observedIds: displayedObservedIds };
         setRestored(presentation); rememberHomePresentation(context, workspaceId, presentation);
       }}
       onRemember={(scrollTop, focusId, currentPage) => rememberHomePresentation(context, workspaceId,
-        { state: { ...state, page: currentPage ?? page }, workspaceRevision, scrollTop, focusId, observedIds })}
+        { state: { ...state, page: currentPage ?? page }, workspaceRevision, scrollTop, focusId, observedIds: displayedObservedIds })}
       onOpen={id => {
         const item = home.guidance.recordingItems.find(candidate => candidate.id === id);
         if (item) {

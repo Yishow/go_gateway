@@ -329,3 +329,33 @@ export function isBasicManagedWriteGroup(group: WriteGroup, deviceId: string): b
     !rowPolicy.value_column?.trim() &&
     !rowPolicy.quality_column?.trim();
 }
+
+export interface BasicRecordingDeviceInspection {
+  readonly unavailable: boolean;
+  readonly retained: readonly { readonly operationId?: string; readonly groupIds: readonly string[] }[];
+}
+/** Read the original owner store without guessing roles. Safe metadata only;
+ * absence is local, never global operation absence. No cleanup or key disclosure. */
+export function inspectBasicRecordingDevice(workspaceId: string, deviceId: string): BasicRecordingDeviceInspection {
+  const retained: { operationId?: string; groupIds: string[] }[] = [];
+  if (!safeText(workspaceId, 256) || !safeText(deviceId, 256)) return { unavailable: true, retained };
+  try {
+    const source = storage();
+    if (!source || source.length > 5000) return { unavailable: true, retained };
+    let unavailable = false;
+    for (let index = 0; index < source.length; index++) {
+      const key = source.key(index); if (!key?.startsWith('wbv2.basic-recording.')) continue;
+      let scopeKey: string;
+      try { scopeKey = decodeURIComponent(key.slice('wbv2.basic-recording.'.length)); } catch { unavailable = true; continue; }
+      const parts = scopeKey.split('/');
+      if (parts[0] !== workspaceId || parts[1] !== deviceId) continue;
+      const raw = source.getItem(key); if (raw === null) { unavailable = true; continue; }
+      try {
+        const decoded = decodeBasicRecordingIntent(raw, scopeKey);
+        if (!decoded) { unavailable = true; continue; }
+        retained.push({ ...(decoded.operation_id ? { operationId: decoded.operation_id } : {}), groupIds: decoded.request.groups.map(group => group.group_id) });
+      } catch { unavailable = true; }
+    }
+    return { unavailable, retained };
+  } catch { return { unavailable: true, retained }; }
+}

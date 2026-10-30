@@ -1,3 +1,6 @@
+import { studioV2RuntimeContextAPI } from '@/services/studioV2RuntimeContext';
+import { listRecordingTestWriteRecovery } from '@/services/recordingTestWriteRecovery';
+import { ruleEvidenceFixture } from '../services/runtimeRuleEvidenceFixture';
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -20,10 +23,15 @@ vi.mock('@/services/studioV2WorkspaceDevices', () => ({ studioV2WorkspaceDevices
 vi.mock('@/services/studioV2Rules', () => ({ studioV2RulesAPI: { list: vi.fn(), create: vi.fn() } }));
 vi.mock('@/services/studioV2Mappings', () => ({ studioV2MappingsAPI: { list: vi.fn(), create: vi.fn() } }));
 vi.mock('@/services/datalink', () => ({ pointAPI: { list: vi.fn() } }));
+vi.mock('@/services/studioV2RuntimeContext', () => ({ studioV2RuntimeContextAPI: { getRuleEvidence: vi.fn() } }));
+vi.mock('@/services/recordingTestWriteRecovery', () => ({ listRecordingTestWriteRecovery: vi.fn() }));
 const workspace = { id: 'W', kind: 'single' as const, status: 'empty' as const, ordered_device_ids: [], created_at: '', updated_at: '' };
 const clients: QueryClient[] = [];
 beforeEach(() => {
-  vi.clearAllMocks(); vi.mocked(studioV2WorkspaceAPI.get).mockReset().mockResolvedValue(workspace);
+  vi.clearAllMocks();
+  vi.mocked(studioV2RuntimeContextAPI.getRuleEvidence).mockReset().mockResolvedValue({ ok: false, reason: 'unavailable', action: 'refresh' });
+  vi.mocked(listRecordingTestWriteRecovery).mockReset().mockResolvedValue({ workspace_id: 'W1', complete: true, operations: [] });
+  vi.mocked(studioV2WorkspaceAPI.get).mockReset().mockResolvedValue(workspace);
   vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockReset().mockResolvedValue({ workspace_id: 'W', workspace_revision: '', groups: [] });
   vi.mocked(studioV2WorkspaceDevicesAPI.list).mockReset().mockResolvedValue([]); vi.mocked(studioV2RulesAPI.list).mockReset().mockResolvedValue([]);
   vi.mocked(studioV2MappingsAPI.list).mockReset().mockResolvedValue([]); vi.mocked(pointAPI.list).mockReset().mockResolvedValue([]);
@@ -105,4 +113,53 @@ it('restored observed-only page does not auto scan all recovered groups', async 
  await act(async () => { await new Promise(resolve => setTimeout(resolve, 80)); });
  const ids = new Set(vi.mocked(studioV2WorkspaceWriteGroupsAPI.delivery).mock.calls.map(([id]) => id));
  expect(ids.size).toBe(50); expect(ids.has('G025')).toBe(true); expect(ids.has('G050')).toBe(false);
+});
+
+it('actual home retains a SQL fact through source faults and failed refresh without claiming new configuration success', async () => {
+  const saved = { ...group('G'), revision: 'C', applied_revision: 'B' };
+  const view = ruleEvidenceFixture({ workspace_id: 'W1', workspace_revision: 'W2', device_id: 'D1' });
+  const fixtureData = fixture(['D1'], true, [saved]);
+  const deliveryValue = fixtureData.evidence.delivery!.G;
+  if (deliveryValue.state !== 'available') throw new Error('fixture');
+  const response = { ...deliveryValue.value, stages: { ...deliveryValue.value.stages, blocked: 20 }, last_sql_committed_effect: { group_revision: 'B', connector_revision: 'DB2',
+    record_id: 'R', effect_key: 'E', payload_digest: 'a'.repeat(64), committed_at: '2026-10-30T10:32:00Z' } };
+  vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ ...workspace, id: 'W1', ordered_device_ids: ['D1'] });
+  vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([{ id: 'D1', name: 'Device' }] as Awaited<ReturnType<typeof studioV2WorkspaceDevicesAPI.list>>);
+  vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue({ workspace_id: 'W1', workspace_revision: 'W2', groups: [saved] });
+  vi.mocked(studioV2WriteGroupLifecycleAPI.lifecycle).mockImplementation(async () => (fixtureData.evidence.lifecycle!.G as { value: unknown }).value as never);
+  vi.mocked(studioV2WorkspaceWriteGroupsAPI.delivery).mockResolvedValue(response as never);
+  vi.mocked(studioV2RuntimeContextAPI.getRuleEvidence).mockResolvedValue({ ok: true, value: view });
+  mount();
+  await screen.findByText('result.sql.previous_revision_receipt');
+  expect(screen.getByText('2026-10-30T10:32:00Z')).toBeInTheDocument();
+  expect(screen.getAllByText('result.effective.requested_not_effective').length).toBeGreaterThan(0);
+  expect(screen.getByText('result.owners.unknown')).toBeInTheDocument();
+  expect(screen.queryByText('reason.delivery_attention')).not.toBeInTheDocument();
+  view.observed_at = '2026-10-30T10:34:00Z'; view.groups[0].as_of = view.observed_at;
+  view.groups[0].delivery = { oldest_pending_scope: 'group-all-revisions', oldest_pending_seconds: 0, counter_replay_quarantines: null,
+    backlog: [], test_write: null, current: { binding: view.groups[0].effective!.binding, totals_scope: 'group', shared: false,
+      intake: { group_revision: 'A', state: 'active', reason: null }, stages: { ...response.stages, sql_committed: 0, blocked: 0 }, last_commit: null,
+      sources: [{ device_id: 'D1', point_id: 'P', tag_id: 'T', last_committed: null, latest: { state: 'missing', window_start: '2026-10-30T10:32:30Z',
+        window_end: '2026-10-30T10:33:00Z', delta_known: null, coverage: null, receipt: null } }], source_state: 'available',
+      next_due_at: null, next_retry_at: null, attempt_duration_ms: null, quota: null, storage: null } };
+  vi.mocked(studioV2RuntimeContextAPI.getRuleEvidence).mockResolvedValue({ ok: true, value: structuredClone(view) });
+  await act(async () => { await clients[0].invalidateQueries({ predicate: query => query.queryKey.includes('home-rule-evidence') }); });
+  await screen.findByText('result.current.source_attention');
+  expect(screen.getByText('reason.source_attention')).toBeInTheDocument();
+  const calls = vi.mocked(studioV2RuntimeContextAPI.getRuleEvidence).mock.calls.length;
+  fireEvent.change(screen.getByLabelText('keyword'), { target: { value: 'no-matching-record' } });
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 80)); });
+  expect(screen.getByRole('complementary', { name: 'observedAttentionTitle' })).toBeInTheDocument();
+  expect(screen.getByText('reason.source_attention')).toBeInTheDocument();
+  expect(studioV2RuntimeContextAPI.getRuleEvidence).toHaveBeenCalledTimes(calls);
+  fireEvent.change(screen.getByLabelText('keyword'), { target: { value: '' } });
+  await screen.findByText('result.current.source_attention');
+  expect(screen.getByText('2026-10-30T10:32:00Z')).toBeInTheDocument();
+  vi.mocked(studioV2WorkspaceWriteGroupsAPI.delivery).mockRejectedValue(new Error('PRIVATE-ERROR'));
+  await act(async () => { await clients[0].invalidateQueries({ predicate: query => query.queryKey.includes('delivery') }); });
+  await screen.findByText('result.sql.historical_commit');
+  expect(screen.getByText('2026-10-30T10:32:00Z')).toBeInTheDocument();
+  expect(document.body.textContent).not.toContain('PRIVATE-ERROR');
+  for (const action of ['create', 'update', 'apply', 'schemaApply', 'remove'] as const) expect(studioV2WorkspaceWriteGroupsAPI[action]).not.toHaveBeenCalled();
+  expect(useStudioV2AutosaveState).not.toHaveBeenCalled();
 });

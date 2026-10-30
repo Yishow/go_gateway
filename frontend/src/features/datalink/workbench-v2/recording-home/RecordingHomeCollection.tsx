@@ -1,3 +1,5 @@
+import { RecordingHomeResultFacts } from './RecordingHomeResultFacts';
+import type { recordingHomeResultSummary } from './recordingHomeResultSummary';
 import { useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WriteGroup, WriteGroupStatus } from '../../../../types/studioV2WriteGroup';
@@ -8,11 +10,11 @@ import type { HomePresentation } from './recordingHomePresentation';
 
 export interface RecordingHomeCollectionProps {
   groups: readonly RecordingReadonly<WriteGroup>[]; devices: readonly HomeDeviceSummary[]; state: RecordingCollectionState;
-  guidance: RecordingHomeGuidance; observedIds: readonly string[]; filterObservedIds?: readonly string[]; unverifiedObserved: boolean; onRecheck: () => void; sourcesAvailable: boolean; restored: HomePresentation;
+  guidance: RecordingHomeGuidance; pendingDevices?: readonly string[]; summaries?: Readonly<Record<string, ReturnType<typeof recordingHomeResultSummary>>>; observedIds: readonly string[]; filterObservedIds?: readonly string[]; unverifiedObserved: boolean; onRecheck: () => void; sourcesAvailable: boolean; restored: HomePresentation;
   onChange: (state: RecordingCollectionState) => void; onOpen: (id: string) => void; onOpenDevice: (id: string) => void;
   onRemember: (scrollTop: number, focusId: string | null, page: number) => void;
 }
-export function RecordingHomeCollection({ groups, devices, state, guidance, observedIds, filterObservedIds = observedIds, unverifiedObserved, onRecheck, sourcesAvailable, restored, onChange, onOpen, onOpenDevice, onRemember }: RecordingHomeCollectionProps) {
+export function RecordingHomeCollection({ groups, devices, state, guidance, summaries, pendingDevices = [], observedIds, filterObservedIds = observedIds, unverifiedObserved, onRecheck, sourcesAvailable, restored, onChange, onOpen, onOpenDevice, onRemember }: RecordingHomeCollectionProps) {
   const { t } = useTranslation('recording-home');
   const records = recordingCollection(groups, devices, state, new Set(filterObservedIds)), devicePage = deviceCollection(devices, state);
   const current = state.mode === 'devices' ? devicePage : records;
@@ -31,6 +33,7 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, obse
   const destinations = [...new Map(groups.map(group => [group.destination.connector_id, group.destination.database || group.destination.connector_id])).entries()];
   const attention = guidance.attentionItems.filter(item => item.reason !== 'evidence_unavailable');
   return <section ref={root} aria-label={t('management')} className="space-y-4">
+    {pendingDevices.length > 0 && <aside><p>{t('result.devicePending')}</p>{pendingDevices.slice(0, 4).map(id => <button type="button" key={id} onClick={() => onOpenDevice(id)}>{devices.find(device => device.id === id)?.name ?? id}</button>)}</aside>}
     <p data-testid="recording-observation-boundary">{t('observationBoundary')}</p>
     {!!observedIds.length && <aside aria-label={t('observedAttentionTitle')}>
       <h2 className="text-lg font-semibold">{t('observedAttentionTitle')}</h2>
@@ -79,7 +82,9 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, obse
           </tr>) : records.rows.map(group => <tr key={group.id}>
             <td><button type="button" data-home-focus={`record-${group.id}`} onClick={() => { remember(`record-${group.id}`); onOpen(group.id); }}>{group.name}</button></td>
             <td>{t(`savedStatuses.${group.status}`)}{guidance.attentionItems.some(item => item.id === group.id && item.reason !== 'evidence_unavailable') ? ` · ${t('observedAttentionShort')}` : ` · ${t('statusUnknown')}`}</td>
-            <td>{[group.destination.table_schema, group.destination.table_name].filter(Boolean).join('.')}</td>
+            <td>{[group.destination.table_schema, group.destination.table_name].filter(Boolean).join('.')}
+              {summaries?.[group.id] && <RecordingHomeResultFacts id={group.id} summary={summaries[group.id]} />}
+            </td>
           </tr>)}</tbody>
         </table>}
     </div>

@@ -72,5 +72,42 @@
   "observedFilter": "只看已觀測異常",
   "observedFilterBoundary": "此篩選只依已觀測證據，其餘記錄尚未確認。",
   "recheckVisible": "重新確認本頁",
-  "observedAttentionTitle": "已觀測的異常項目"
+  "observedAttentionTitle": "已觀測的異常項目",
+  "result": {
+    "configuration": {
+      "requested": "已保存；這個設定版本已提出啟用要求",
+      "not_requested": "新設定尚未提出啟用要求；既有結果屬於先前版本"
+    },
+    "sql": {
+      "revision_receipt": "這個設定版本曾寫入 SQL",
+      "effective_revision_receipt": "目前生效版本曾寫入 SQL（不代表此刻健康）",
+      "previous_revision_receipt": "先前設定版本曾寫入 SQL；不是新設定的成功證據",
+      "historical_commit": "保留歷史 SQL 寫入紀錄；目前版本尚未確認",
+      "awaiting_first_write": "已觀測接收資料；等待第一筆 SQL 寫入證據",
+      "unknown": "尚無可確認的 SQL 寫入證據"
+    },
+    "effective": {
+      "requested_effective": "讀取時，要求的版本已生效",
+      "requested_not_effective": "要求的版本尚未成為目前生效版本",
+      "unknown": "目前生效版本尚未確認"
+    },
+    "current": {
+      "unknown": "目前來源健康尚未確認",
+      "source_attention": "生效版本的最近來源結果不完整或需確認",
+      "delivery_attention": "生效版本的交付證據顯示異常"
+    },
+    "owners": {
+      "unknown": "操作 owner 狀態未完整確認",
+      "unresolved": "有尚未釐清的操作，請開啟既有狀態頁",
+      "inspected": "操作 owner 已檢查；不代表可執行命令"
+    },
+    "lastCommit": "SQL 寫入確認時間：",
+    "requestedBoundary": "要求的切換時間：",
+    "readbackUnknown": "未取得這筆資料的回讀驗證",
+    "testWriteReadback": "試寫操作曾完成回讀驗證（不是一般資料列回讀）",
+    "testWriteCleanup": "試寫資料已完成清理",
+    "observedAt": "觀測時間：",
+    "devicePending": "設備保留了待查操作；尚未確認屬於本頁哪筆記錄，請前往原設定查看。",
+    "details": "詳細證據與觀測時間"
+  }
 }
