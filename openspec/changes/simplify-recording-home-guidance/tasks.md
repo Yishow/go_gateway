@@ -16,7 +16,7 @@
 
 - [x] 2.7 [after: 2.6] 依「已選 modal 與返回引導契約」實作 Classified modals and contextual return state preserve safety；測一般75%／手機近滿版／小確認尺寸、固定header/footer與body捲動、help不藏risk、同scope返回搜尋/篩選/scroll/focus及scope/revision變更不復活舊項目。
 
-- [ ] 2.8 [after: 2.7] 實作 Development style preview is isolated from operator navigation 與「開發驗收樣式頁不成為第三主流程」；以actualcomponents/tokens展示狀態，驗證dev/test入口可達、主選單無項目、production build不bundle且零資料寫入/啟用/credential。
+- [x] 2.8 [after: 2.7] 實作 Development style preview is isolated from operator navigation 與「開發驗收樣式頁不成為第三主流程」；以actualcomponents/tokens展示狀態，驗證dev/test入口可達、主選單無項目、production build不bundle且零資料寫入/啟用/credential。
 
 ## 3. 驗證與交接
 

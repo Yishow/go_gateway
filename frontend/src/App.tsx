@@ -13,6 +13,9 @@ import {
   buildLocalModbusCompatRedirect,
 } from './features/datalink/legacyRoutes'
 
+// Vite removes both the route and dynamic import from production output.
+const RecordingStyleFrame = import.meta.env.DEV ? lazy(() => import('./dev/RecordingStyleFrame')) : null
+
 // 路由級代碼分割：各重型頁面改為 lazy chunk，縮小主 bundle 體積
 const RuntimeLogsPage = lazy(() => import('./features/runtime-logs/RuntimeLogsPage'))
 const TestPage = lazy(() => import('./pages/TestPage'))
@@ -111,6 +114,7 @@ export function AppRoutes() {
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>
+      {RecordingStyleFrame && <Route path="/__dev/recording-style" element={<RecordingStyleFrame />} />}
       {/* 首頁重定向到 studio/v2 */}
       <Route path="/" element={<GuidedWorkbenchEntryRedirect />} />
 
