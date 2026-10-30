@@ -1,3 +1,5 @@
+import enRecordingHome from './locales/en/recording-home.json';
+import zhTWRecordingHome from './locales/zh-TW/recording-home.json';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
@@ -51,6 +53,7 @@ i18n
   .init({
     resources: {
       en: {
+        'recording-home': enRecordingHome,
         translation: mergeTranslations(
           enTranslations,
           enTagReviewTranslations,
@@ -70,6 +73,7 @@ i18n
         'recording-lifecycle': mergeTranslations(enRecordingLifecycle, enRecordingLifecycleDialog),
       },
       'zh-TW': {
+        'recording-home': zhTWRecordingHome,
         translation: mergeTranslations(
           zhTWTranslations,
           zhTWTagReviewTranslations,

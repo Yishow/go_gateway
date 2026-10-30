@@ -1,3 +1,5 @@
+import { RecordingHomeRoute } from '../../../features/datalink/workbench-v2/recording-home/RecordingHomeRoute';
+import type { StudioPresentation } from '../../../services/studioRecordingView';
 import type { StudioEntityLocatorIntent } from '../../../services/studioEntityLocator';
 import { useStudioLocatorEntry } from '../../../hooks/datalink/useStudioLocatorEntry';
 import { StudioLocatorEntryNotice, type StudioLocatorNoticeReason } from '../../../features/datalink/workbench-v2/shell/StudioLocatorEntryNotice';
@@ -30,6 +32,8 @@ import type { StudioV2ActivationRecovery } from '../../../types/studioV2Activati
 import '../../../features/datalink/workbench-v2/styles/workbench-v2.css';
 
 interface DatalinkWorkbenchV2PageProps {
+  presentation?: StudioPresentation;
+  presentationLocation?: { search: string; hash: string };
   navigateTo?: (target: string) => void;
   locatorIntent?: StudioEntityLocatorIntent;
   runtimeReturnFocus?: WorkbenchV2RuntimeReturnFocus | null;
@@ -89,7 +93,7 @@ function WorkbenchV2BootstrapState({ status }: WorkbenchV2BootstrapStateProps) {
  * 路由策略：/studio/v2 是唯一設定入口；/studio 依既有 generic unknown-route policy 收斂。
  * 限制 scope 與狀態綁定。
  */
-export default function DatalinkWorkbenchV2Page({
+function AdvancedWorkbenchV2Page({
   navigateTo,
   runtimeReturnFocus, locatorIntent,
 }: DatalinkWorkbenchV2PageProps) {
@@ -338,4 +342,13 @@ export default function DatalinkWorkbenchV2Page({
       </div>
     </div>
   );
+}
+
+/** Precise locator/runtime intent always outranks an optional presentation hint. */
+export default function DatalinkWorkbenchV2Page(props: DatalinkWorkbenchV2PageProps) {
+  const locator = props.locatorIntent?.kind;
+  if (props.presentation === 'recordings' && (!locator || locator === 'absent') && !props.runtimeReturnFocus) {
+    return <RecordingHomeRoute location={props.presentationLocation ?? { search: '?view=recordings', hash: '' }} onNavigate={props.navigateTo} />;
+  }
+  return <AdvancedWorkbenchV2Page {...props} />;
 }

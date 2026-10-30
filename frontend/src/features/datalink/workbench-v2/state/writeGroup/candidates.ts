@@ -26,7 +26,14 @@ export interface GroupCandidates {
   excluded: ExcludedCandidate[];
 }
 
-function pointLabel(point: Point, displayName: string): string {
+export interface GroupCandidateState {
+  points: readonly Pick<Point, 'id' | 'device_id' | 'rule_id' | 'address' | 'enabled' | 'skipped'>[];
+  rules: readonly Pick<WorkbenchV2State['rules'][number], 'id' | 'enabled'>[];
+  devices: readonly Pick<WorkbenchV2State['devices'][number], 'id' | 'name' | 'persisted' | 'save_state'>[];
+  mappings: Readonly<Record<string, Pick<WorkbenchV2State['mappings'][string], 'enabled' | 'display_name' | 'persisted' | 'save_state' | 'persisted_point_id' | 'tag_id' | 'tag_key' | 'target_type'>>>;
+}
+
+function pointLabel(point: Pick<Point, 'address'>, displayName: string): string {
   return displayName.trim() || point.address;
 }
 
@@ -35,7 +42,7 @@ function pointLabel(point: Point, displayName: string): string {
  * device, point and tag IDs, never UI draft IDs. Anything else is reported with
  * the reason so the operator can save it first instead of finding it missing.
  */
-export function buildGroupCandidates(state: WorkbenchV2State): GroupCandidates {
+export function buildGroupCandidates(state: GroupCandidateState): GroupCandidates {
   const candidates: GroupCandidate[] = [];
   const excluded: ExcludedCandidate[] = [];
   for (const point of state.points) {

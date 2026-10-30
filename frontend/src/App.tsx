@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { parseStudioEntityLocator } from './services/studioEntityLocator'
+import { parseStudioPresentation } from './services/studioRecordingView'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CardMinimizeProvider } from './components/CardMinimizeProvider'
@@ -83,7 +83,8 @@ function DatalinkWorkbenchV2Route() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const location = useLocation()
-  const locatorIntent = parseStudioEntityLocator(location.search)
+  const entry = parseStudioPresentation(location.search)
+  const locatorIntent = entry.locatorIntent
   const runtimeReturnFocus = locatorIntent.kind === 'absent' ? parseRuntimeReturnFocus(searchParams) : null
 
   return (
@@ -91,6 +92,8 @@ function DatalinkWorkbenchV2Route() {
       navigateTo={navigate}
       runtimeReturnFocus={runtimeReturnFocus}
       locatorIntent={locatorIntent}
+      presentation={runtimeReturnFocus ? 'advanced' : entry.presentation}
+      presentationLocation={{ search: location.search, hash: location.hash }}
     />
   )
 }

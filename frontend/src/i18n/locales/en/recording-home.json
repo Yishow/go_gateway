@@ -1,0 +1,6 @@
+{
+  "title": "Recordings", "navigation": "Workspace navigation", "advanced": "Advanced setup", "runtime": "Live status", "logs": "Logs", "test": "Test tools",
+  "loading": "Reading the current workspace…", "error": "Unable to read the current state. Retry or open setup.", "unknown": "The current state could not be verified. Open setup to check.",
+  "retry": "Refresh", "openSettings": "Open setup", "saved": "Saved recordings", "attention": "Needs attention", "draft": "Draft", "statusUnknown": "Full status has not been read", "savedState": "Saved",
+  "reason": { "operation_recovery": "Check an unfinished operation", "delivery_attention": "Check recording delivery", "source_attention": "Check a recording source", "evidence_unavailable": "Current evidence is unavailable", "draft": "Continue a draft", "missing_devices": "Connect your first device", "missing_points": "Choose device points", "missing_recordings": "Create a recording", "recordings": "Your recordings" }
+}
