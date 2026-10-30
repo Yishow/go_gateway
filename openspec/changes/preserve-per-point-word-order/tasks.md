@@ -13,7 +13,7 @@
 ## 3. 逐協議正式讀取接線
 
 - [x] 3.1 [after: 2.3] 交付 Protocol decoder parity／共用正規化後逐協議解碼 的 Modbus TCP/RTU/UDP 分支：scheduled/manual傳resolved format，legacy分支不變；以既有 adapter fake transport 加同連線A/B交錯與六種numeric type×四格式fixture驗證，不修改共享converter。
-- [ ] 3.2 [after: 3.1] 交付 MC3E 的逐request format decoder，保留legacy connection政策及既有count語意；先寫override被忽略的RED fixture，再實作GREEN並REFACTOR，以MC3E production Read測試確認兩點不同格式、32/64-bit與缺word失敗。
+- [x] 3.2 [after: 3.1] 交付 MC3E 的逐request format decoder，保留legacy connection政策及既有count語意；先寫override被忽略的RED fixture，再實作GREEN並REFACTOR，以MC3E production Read測試確認兩點不同格式、32/64-bit與缺word失敗。
 - [ ] 3.3 [after: 3.2] 交付 FATEK 的逐point格式與16/32-bit component正規化，保留legacy assembler；先寫忽略format的RED fixture再實作，以D/DR fake transport檢查全部numeric type/order、request count、不同點交錯與短response，禁止把它誤稱connection-default解碼。
 - [ ] 3.4 [after: 3.3] 交付 Version decoding identities and observation proofs：SourceRevision／AcquisitionConfigFingerprint版本化並含mode/effective policy/default來源，install/bind/poll snapshot同步；驗證MC相同舊DataFormat但legacy→override的fingerprint必改、舊proof/late sample拒絕，並交付resolver的不可變collector snapshot／manual路徑與restart一致性；以collector和adapter相關race／integration測試驗證併發兩點不同格式無污染、revision切換不重新解碼歷史量測。
 

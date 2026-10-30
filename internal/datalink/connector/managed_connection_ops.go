@@ -43,10 +43,10 @@ func (mc *ManagedConnection) Read(ctx context.Context, req ReadRequest) (ReadRes
 		return ReadResult{Quality: schema.QualityBad, Error: ErrReadProfile.Error()}, ErrReadProfile
 	}
 	// Only protocols whose production decoder consumes the profile may read
-	// modern intent. MC/FATEK are enabled by their subsequent wiring tasks.
+	// modern intent. FATEK is enabled by its subsequent wiring task.
 	if req.Profile.Present() && req.Profile.Resolution().Mode != schema.PointFormatLegacy {
 		switch mc.ProtocolType {
-		case schema.ProtocolModbusTCP, schema.ProtocolModbusRTU, schema.ProtocolModbusUDP:
+		case schema.ProtocolModbusTCP, schema.ProtocolModbusRTU, schema.ProtocolModbusUDP, schema.ProtocolMC3E:
 		default:
 			return ReadResult{Quality: schema.QualityBad, Error: ErrReadProfile.Error()}, ErrReadProfile
 		}

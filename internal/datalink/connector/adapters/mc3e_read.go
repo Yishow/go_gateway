@@ -14,6 +14,9 @@ func (c *MC3EConnector) executeRead(req connector.ReadRequest) (connector.ReadRe
 }
 
 func (c *MC3EConnector) executeReadContext(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
+	if err := validateMCReadProfile(req); err != nil {
+		return connector.ReadResult{Quality: schema.QualityBad, Error: err.Error()}, err
+	}
 	client := c.client.WithContext(ctx)
 	result := connector.ReadResult{
 		Timestamp: time.Now(),
@@ -48,9 +51,18 @@ func (c *MC3EConnector) executeReadContext(ctx context.Context, req connector.Re
 	} else {
 		// 字組設備
 		regPerValue := hsllogic.RegisterCountForDataType(hsllogic.DataType(req.DataType))
+		modern := modernMCScalar(req)
+		if modern && (req.Count < 0 || regPerValue < 1 || count > 125/regPerValue) {
+			return result, errMCReadCount
+		}
 		wordCount := count * regPerValue
 
-		values, err := client.BatchReadWord(parsedAddr.DeviceType, parsedAddr.Offset, wordCount)
+		var values []int
+		if modern {
+			values, err = client.BatchReadWordExact(parsedAddr.DeviceType, parsedAddr.Offset, wordCount)
+		} else {
+			values, err = client.BatchReadWord(parsedAddr.DeviceType, parsedAddr.Offset, wordCount)
+		}
 		if err != nil {
 			return result, err
 		}
@@ -61,6 +73,13 @@ func (c *MC3EConnector) executeReadContext(ctx context.Context, req connector.Re
 			registers[i] = uint16(v) // #nosec G115
 		}
 
+		if modern {
+			result.Value, err = decodeMCReadWords(registers, req, count)
+			if err != nil {
+				return result, err
+			}
+			return result, nil
+		}
 		if count == 1 {
 			result.Value = c.dataConverter.RegistersToValue(registers, hsllogic.DataType(req.DataType))
 		} else {
