@@ -78,3 +78,31 @@ describe('actual optional home entry', () => {
   });
 
 });
+import { group, fixture } from './recording-home-guidance-fixtures';
+import { rememberHomePresentation } from '@/features/datalink/workbench-v2/recording-home/recordingHomePresentation';
+import { initialCollectionState } from '@/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
+import { studioV2WriteGroupLifecycleAPI } from '@/services/studioV2WriteGroupLifecycle';
+vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn() } }));
+it('restored observed-only page does not auto scan all recovered groups', async () => {
+ const groups = Array.from({length: 75}, (_,i)=>group(`G${String(i).padStart(3,'0')}`));
+ const data = fixture([], false, groups);
+ vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({...workspace,id:'W1'});
+ vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue({workspace_id:'W1',workspace_revision:'W2',groups});
+ vi.mocked(studioV2WorkspaceWriteGroupsAPI.delivery).mockImplementation(async id => (data.evidence.delivery![id] as { value: unknown }).value as never);
+ vi.mocked(studioV2WriteGroupLifecycleAPI.lifecycle).mockImplementation(async id => (data.evidence.lifecycle![id] as { value: unknown }).value as never);
+ const client = new QueryClient(); clients.push(client);
+ rememberHomePresentation(client,'W1',{state:{...initialCollectionState(),observedOnly:true},workspaceRevision:'W2',scrollTop:0,focusId:null,observedIds:groups.map(g=>g.id)});
+ render(<QueryClientProvider client={client}><DatalinkWorkbenchV2Page presentation="recordings" locatorIntent={{kind:'absent'}} presentationLocation={{search:'?view=recordings',hash:''}} /></QueryClientProvider>);
+ await waitFor(()=>expect(studioV2WorkspaceWriteGroupsAPI.delivery).toHaveBeenCalledTimes(25));
+ await act(async () => { await new Promise(resolve => setTimeout(resolve, 80)); });
+ expect(studioV2WorkspaceWriteGroupsAPI.delivery).toHaveBeenCalledTimes(25);
+ fireEvent.click(screen.getByText('recheckVisible'));
+ await waitFor(() => expect(studioV2WorkspaceWriteGroupsAPI.delivery).toHaveBeenCalledTimes(50));
+ await act(async () => { await new Promise(resolve => setTimeout(resolve, 80)); });
+ expect(new Set(vi.mocked(studioV2WorkspaceWriteGroupsAPI.delivery).mock.calls.map(([id]) => id)).size).toBe(25);
+ fireEvent.click(screen.getByText('next'));
+ await waitFor(() => expect(studioV2WorkspaceWriteGroupsAPI.delivery).toHaveBeenCalledTimes(75));
+ await act(async () => { await new Promise(resolve => setTimeout(resolve, 80)); });
+ const ids = new Set(vi.mocked(studioV2WorkspaceWriteGroupsAPI.delivery).mock.calls.map(([id]) => id));
+ expect(ids.size).toBe(50); expect(ids.has('G025')).toBe(true); expect(ids.has('G050')).toBe(false);
+});

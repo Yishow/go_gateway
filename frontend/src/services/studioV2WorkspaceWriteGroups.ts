@@ -205,10 +205,9 @@ export const studioV2WorkspaceWriteGroupsAPI = {
   },
 
   /** Durable delivery truth: only `sql_committed` rows were confirmed by the destination. */
-  async delivery(id: string): Promise<WriteGroupDelivery> {
-    const res = await studioV2DatalinkApi.get<unknown>(
-      `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}/delivery`,
-    );
+  async delivery(id: string, signal?: AbortSignal): Promise<WriteGroupDelivery> {
+    const path = `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}/delivery`;
+    const res = await (signal ? studioV2DatalinkApi.get<unknown>(path, { signal }) : studioV2DatalinkApi.get<unknown>(path));
     return parseWriteGroupAPIData(res.data, 'write-group delivery', parseWriteGroupDeliveryData, 7);
   },
 

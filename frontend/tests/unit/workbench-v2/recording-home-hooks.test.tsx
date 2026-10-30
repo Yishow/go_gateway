@@ -41,7 +41,7 @@ describe('recording home readonly query adapter', () => {
     const { result } = renderHook(() => useRecordingHomeEvidence(input), { wrapper: wrapper(client) });
     expect(result.current.guidance.availability.state).toBe('unavailable');
     await waitFor(() => expect(result.current.guidance.reason).toBe('recordings'));
-    expect(api.list).toHaveBeenCalledTimes(1); expect(api.delivery).toHaveBeenCalledWith('G');
+    expect(api.list).toHaveBeenCalledTimes(1); expect(api.delivery).toHaveBeenCalledWith('G', expect.any(AbortSignal));
     for (const action of ['create', 'apply', 'schemaApply', 'update', 'remove'] as const) expect(api[action]).not.toHaveBeenCalled();
     expect(result.current.error).toBeNull(); client.clear();
   });
@@ -214,4 +214,65 @@ describe('recording home readonly query adapter', () => {
     expect(result.current.guidance.reason).toBe('evidence_unavailable'); client.clear();
   });
 
+});
+
+describe('recording home bounded page demand', () => {
+  it.each([25, 50])('300 saved groups request only the visible %s, never every group', async size => {
+    const groups = Array.from({ length: 300 }, (_, index) => group(`G${index}`));
+    const input = setup(scope, groups); const client = new QueryClient();
+    const { unmount } = renderHook(() => useRecordingHomeEvidence({ ...input,
+      detailGroupIds: groups.slice(0, size).map(value => value.id) }), { wrapper: wrapper(client) });
+    await waitFor(() => expect(api.delivery).toHaveBeenCalledTimes(size));
+    expect(studioV2WriteGroupLifecycleAPI.lifecycle).toHaveBeenCalledTimes(size);
+    expect(api.delivery.mock.calls.every(([id]) => groups.slice(0, size).some(value => value.id === id))).toBe(true);
+    unmount(); client.clear();
+  });
+  it('caps even malformed oversized demand at 50 canonical IDs', async () => {
+    const groups = Array.from({ length: 300 }, (_, index) => group(`G${index}`));
+    const input = setup(scope, groups); const client = new QueryClient();
+    const { unmount } = renderHook(() => useRecordingHomeEvidence({ ...input, detailGroupIds: groups.map(value => value.id) }), { wrapper: wrapper(client) });
+    await waitFor(() => expect(api.delivery).toHaveBeenCalledTimes(50));
+    expect(studioV2WriteGroupLifecycleAPI.lifecycle).toHaveBeenCalledTimes(50);
+    unmount(); client.clear();
+  });
+  it('rapid paging cancels queued old-page reads and caps actual active transport at six', async () => {
+    const groups = Array.from({ length: 100 }, (_, index) => group(`G${index}`));
+    const input = setup(scope, groups); const client = new QueryClient();
+    let active = 0; let peak = 0;
+    const lifecycle = vi.mocked(studioV2WriteGroupLifecycleAPI.lifecycle);
+    const actual = lifecycle.getMockImplementation()!;
+    lifecycle.mockImplementation((id, signal) => new Promise((resolve, reject) => {
+      active++; peak = Math.max(peak, active);
+      const cancel = () => { active--; reject(new DOMException('cancelled', 'AbortError')); };
+      signal?.addEventListener('abort', cancel, { once: true });
+      if (Number(id.slice(1)) >= 25) {
+        signal?.removeEventListener('abort', cancel); active--; void actual(id, signal).then(resolve, reject);
+      }
+    }));
+    const { rerender, unmount } = renderHook(props => useRecordingHomeEvidence(props), {
+      initialProps: { ...input, detailGroupIds: groups.slice(0, 25).map(value => value.id) }, wrapper: wrapper(client),
+    });
+    await waitFor(() => expect(lifecycle).toHaveBeenCalledTimes(6));
+    rerender({ ...input, detailGroupIds: groups.slice(25, 50).map(value => value.id) });
+    await waitFor(() => expect(api.delivery).toHaveBeenCalledTimes(25));
+    expect(lifecycle.mock.calls.filter(([id]) => Number(id.slice(1)) < 25)).toHaveLength(6);
+    expect(api.delivery.mock.calls.every(([id]) => Number(id.slice(1)) >= 25)).toBe(true);
+    expect(peak).toBeLessThanOrEqual(6); expect(active).toBe(0);
+    unmount(); client.clear();
+  });
+  it('unmounting one shared observer does not abort the other observer transport', async () => {
+    const input = setup(); const client = new QueryClient(); let captured: AbortSignal | undefined;
+    let finish!: () => void;
+    const actual = api.delivery.getMockImplementation()!;
+    api.delivery.mockImplementation((id, signal) => new Promise((resolve, reject) => {
+      captured = signal; finish = () => { void actual(id, signal).then(resolve, reject); };
+    }));
+    const first = renderHook(() => useRecordingHomeEvidence(input), { wrapper: wrapper(client) });
+    const second = renderHook(() => useRecordingHomeEvidence(input), { wrapper: wrapper(client) });
+    await waitFor(() => expect(api.delivery).toHaveBeenCalledTimes(1));
+    first.unmount(); expect(captured?.aborted).toBe(false);
+    await act(async () => finish());
+    await waitFor(() => expect(second.result.current.guidance.reason).toBe('recordings'));
+    second.unmount(); client.clear();
+  });
 });

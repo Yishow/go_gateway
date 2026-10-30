@@ -1,5 +1,7 @@
+import { cachedHomeReads } from './recordingHomeCachedReads';
+import { recordingHomeReadQueue } from './recordingHomeReadQueue';
 import type { RecordingReadonly } from '../state/recordingWorkflowView';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useStudioV2WorkspaceQuery } from '../../../../hooks/datalink/useStudioV2Workspace';
 import { useWriteGroupsQuery, writeGroupDeliveryQueryOptions } from '../../../../hooks/datalink/useStudioV2WriteGroups';
 import { writeGroupLifecycleQueryOptions } from '../../../../hooks/datalink/useStudioV2WriteGroupLifecycle';
@@ -29,10 +31,12 @@ export interface RecordingHomeReadInput {
   /** Existing buildGroupCandidates output with its owner's captured scope. No second hydration. */
   sources?: RecordingHomeEvidence<GroupCandidates>;
   owners?: RecordingHomeGuidanceInput['owners'];
+  /** Explicit current-page demand. Omitted defaults to first25; never more than50. */
+  detailGroupIds?: readonly string[];
   enabled?: boolean;
 }
 /** Read-only adapter. No mutation hook, autosave owner, command or persisted state is created. */
-export function useRecordingHomeEvidence({ scope, bootstrapRevision, sources, owners, enabled = true }: RecordingHomeReadInput) {
+export function useRecordingHomeEvidence({ scope, bootstrapRevision, sources, owners, detailGroupIds, enabled = true }: RecordingHomeReadInput) {
   const readable = enabled && validRecordingReadScope(scope);
   const workspace = useStudioV2WorkspaceQuery(readable, { ...scope, bootstrapRevision });
   const groups = useWriteGroupsQuery(readable, scope);
@@ -46,14 +50,25 @@ export function useRecordingHomeEvidence({ scope, bootstrapRevision, sources, ow
     sources, groups: readable ? evidence(groups, scope) : { state: 'unknown' as const, scope } };
   const validated = recordingHomeProjection(base);
   const savedGroups = validated.groups.state === 'available' ? validated.groups.value.map(item => item.group) : [];
-  const scopes: RecordingHomeGroupScope[] = savedGroups.map(group => ({ ...scope, groupId: group.id,
+  const queryClient = useQueryClient();
+  const requested = new Set((detailGroupIds ?? savedGroups.slice(0, 25).map(group => group.id)).slice(0, 50));
+  const allScopes: RecordingHomeGroupScope[] = savedGroups.map(group => ({ ...scope, groupId: group.id,
     groupRevision: group.revision, appliedRevision: group.applied_revision }));
-  const lifecycle = useQueries({ queries: scopes.map(bound =>
-    writeGroupLifecycleQueryOptions(bound.workspaceId, bound.groupId, readable, bound)) });
-  const delivery = useQueries({ queries: scopes.map(bound => writeGroupDeliveryQueryOptions(bound.groupId, readable, undefined, bound)) });
+  const scopes = allScopes.filter(bound => requested.has(bound.groupId));
+  const lifecycle = useQueries({ queries: scopes.map(bound => ({
+    ...writeGroupLifecycleQueryOptions(bound.workspaceId, bound.groupId, readable, bound),
+    queryFn: ({ signal }: { signal: AbortSignal }) => recordingHomeReadQueue.run(() =>
+      writeGroupLifecycleQueryOptions(bound.workspaceId, bound.groupId, readable, bound, signal).queryFn(), signal),
+  })) });
+  const delivery = useQueries({ queries: scopes.map(bound => ({
+    ...writeGroupDeliveryQueryOptions(bound.groupId, readable, undefined, bound),
+    queryFn: ({ signal }: { signal: AbortSignal }) => recordingHomeReadQueue.run(() =>
+      writeGroupDeliveryQueryOptions(bound.groupId, readable, undefined, bound, signal).queryFn(), signal),
+  })) });
+  const cached = cachedHomeReads(queryClient, allScopes);
   const input = { ...base,
-    lifecycle: Object.fromEntries(scopes.map((bound, index) => [bound.groupId, evidence(lifecycle[index], bound)])),
-    delivery: Object.fromEntries(scopes.map((bound, index) => [bound.groupId, evidence(delivery[index], bound)])),
+    lifecycle: { ...cached.lifecycle, ...Object.fromEntries(scopes.map((bound, index) => [bound.groupId, evidence(lifecycle[index], bound)])) },
+    delivery: { ...cached.delivery, ...Object.fromEntries(scopes.map((bound, index) => [bound.groupId, evidence(delivery[index], bound)])) },
   };
   const projection = recordingHomeProjection(input);
   const guidance = recordingHomeGuidance({ evidence: input, owners });

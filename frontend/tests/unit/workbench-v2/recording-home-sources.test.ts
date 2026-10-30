@@ -24,7 +24,7 @@ beforeEach(() => {
 describe('home readonly canonical source observation', () => {
   it('uses persisted point identities and the existing candidate resolver without deriving protocol addresses', async () => {
     const result = await readRecordingHomeSources(scope);
-    expect(result).toEqual({ state: 'available', scope, value: { candidates: [{ key: 'P|T', device_id: 'D', point_id: 'P', tag_id: 'T', tag_key: 'temperature', label: 'Temperature', device_name: 'Device', address: 'D0', target_type: 'float32' }], excluded: [] } });
+    expect(result).toEqual({ state: 'available', scope, value: { candidates: [{ key: 'P|T', device_id: 'D', point_id: 'P', tag_id: 'T', tag_key: 'temperature', label: 'Temperature', device_name: 'Device', address: 'D0', target_type: 'float32' }], excluded: [], devices: [{ id: 'D', name: 'Device', protocol: 'unknown', availability: 'unknown' }] } });
     expect(JSON.stringify(result)).not.toContain('never show'); expect(pointAPI.list).toHaveBeenCalledTimes(2);
   });
   it('actual disabled points do not become source candidates', async () => {
@@ -35,7 +35,7 @@ describe('home readonly canonical source observation', () => {
     vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ ...workspace, status: 'empty', ordered_device_ids: [] });
     vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([]); vi.mocked(studioV2RulesAPI.list).mockResolvedValue([]);
     vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]); vi.mocked(pointAPI.list).mockResolvedValue([]);
-    expect(await readRecordingHomeSources(scope)).toEqual({ state: 'available', scope, value: { candidates: [], excluded: [] } });
+    expect(await readRecordingHomeSources(scope)).toEqual({ state: 'available', scope, value: { candidates: [], excluded: [], devices: [] } });
   });
   it('source revision changes during the read remain unknown even if Share would be unchanged', async () => {
     vi.mocked(studioV2RulesAPI.list).mockResolvedValueOnce([rule]).mockResolvedValue([{ ...rule, revision_id: 'changed' }]);

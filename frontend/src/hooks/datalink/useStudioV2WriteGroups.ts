@@ -32,10 +32,10 @@ export function useWriteGroupReadinessQuery(groupId: string | undefined, enabled
 }
 
 /** Where the group's accepted rows stand; only `sql_committed` is destination evidence. */
-export function writeGroupDeliveryQueryOptions(groupId: string | undefined, enabled: boolean, refetchIntervalMs?: number, scope?: StudioV2RecordingReadScope) {
+export function writeGroupDeliveryQueryOptions(groupId: string | undefined, enabled: boolean, refetchIntervalMs?: number, scope?: StudioV2RecordingReadScope, signal?: AbortSignal) {
   return {
     queryKey: recordingReadKey(studioV2WorkspaceKeys.writeGroupDelivery(groupId ?? ''), scope),
-    queryFn: () => studioV2WorkspaceWriteGroupsAPI.delivery(groupId as string),
+    queryFn: () => signal ? studioV2WorkspaceWriteGroupsAPI.delivery(groupId as string, signal) : studioV2WorkspaceWriteGroupsAPI.delivery(groupId as string),
     enabled: enabled && Boolean(groupId) && (!scope || validRecordingReadScope(scope)),
     retry: false, refetchOnWindowFocus: false, refetchInterval: refetchIntervalMs, staleTime: 3000,
   };

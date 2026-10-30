@@ -1,3 +1,4 @@
+import type { HomeDeviceSummary } from './recordingHomeCollections';
 import { studioV2WorkspaceAPI } from '../../../../services/studioV2Workspace';
 import { studioV2WorkspaceDevicesAPI } from '../../../../services/studioV2WorkspaceDevices';
 import { studioV2RulesAPI } from '../../../../services/studioV2Rules';
@@ -6,6 +7,7 @@ import { pointAPI } from '../../../../services/datalink';
 import { buildGroupCandidates, type GroupCandidates, type GroupCandidateState } from '../state/writeGroup/candidates';
 import type { RecordingHomeEvidence, RecordingHomeScope } from './recordingHomeProjection';
 
+export interface RecordingHomeSourceSummary extends GroupCandidates { devices: HomeDeviceSummary[] }
 async function readSources() {
   const [workspace, devices, rules, mappings, points] = await Promise.all([
     studioV2WorkspaceAPI.get(), studioV2WorkspaceDevicesAPI.list(), studioV2RulesAPI.list(), studioV2MappingsAPI.list(), pointAPI.list(),
@@ -13,7 +15,7 @@ async function readSources() {
   // PointHandler.List currently returns the complete list. Never infer a complete
   // result from a paged endpoint; this projection discards foreign devices/values.
   return { workspace: { id: workspace.id, ordered_device_ids: workspace.ordered_device_ids },
-    devices: devices.map(({ id, name }) => ({ id, name })), rules: rules.map(rule => ({ id: rule.id, device_id: rule.device_id,
+    devices: devices.map(({ id, name, protocol, availability_status }) => ({ id, name, protocol: protocol ?? 'unknown', availability: availability_status ?? 'unknown' })), rules: rules.map(rule => ({ id: rule.id, device_id: rule.device_id,
       workspace_id: rule.workspace_id, revision_id: rule.revision_id, enabled: rule.enabled, skipped_addresses: rule.skipped_addresses })),
     mappings: mappings.map(({ id, workspace_id, point_id, rule_id, device_id, address, tag_id, tag_key, display_name, target_type, enabled }) =>
       ({ id, workspace_id, point_id, rule_id, device_id, address, tag_id, tag_key, display_name, target_type, enabled })),
@@ -25,7 +27,7 @@ function fingerprint(value: Sources): string {
   const sort = <T extends { id: string }>(items: T[]) => [...items].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   return JSON.stringify({ ...value, devices: sort(value.devices), rules: sort(value.rules), mappings: sort(value.mappings), points: sort(value.points) });
 }
-function projectSources(value: Sources, scope: RecordingHomeScope): GroupCandidates | undefined {
+function projectSources(value: Sources, scope: RecordingHomeScope): RecordingHomeSourceSummary | undefined {
   if (value.workspace.id !== scope.workspaceId || value.workspace.ordered_device_ids.length !== value.devices.length ||
     value.devices.some(device => !value.workspace.ordered_device_ids.includes(device.id))) return;
   for (const items of [value.devices, value.rules, value.mappings, value.points]) if (new Set(items.map(item => item.id)).size !== items.length) return;
@@ -42,11 +44,11 @@ function projectSources(value: Sources, scope: RecordingHomeScope): GroupCandida
     points.push({ ...point, rule_id: rule.id, skipped: rule.skipped_addresses.includes(point.address) });
     mappings[point.id] = { ...mapping, persisted: true, save_state: 'saved', persisted_point_id: point.id };
   }
-  return buildGroupCandidates({ ...state, points, mappings });
+  return { ...buildGroupCandidates({ ...state, points, mappings }), devices: value.devices };
 }
 /** Captured-generation readonly observation, not an atomic snapshot or command token.
  * Compare actual source content twice; Share revision cannot prove its freshness. */
-export async function readRecordingHomeSources(scope: RecordingHomeScope): Promise<RecordingHomeEvidence<GroupCandidates>> {
+export async function readRecordingHomeSources(scope: RecordingHomeScope): Promise<RecordingHomeEvidence<RecordingHomeSourceSummary>> {
   const captured = { ...scope };
   try {
     const before = await readSources();

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RecordingHomeGuidance, RecordingHomeGuidanceAction } from './recordingHomeGuidance';
 import { buildStudioEntityLocatorTarget } from '../../../../services/studioEntityLocator';
@@ -12,8 +13,8 @@ export function recordingHomeActionTarget(action: RecordingHomeGuidanceAction, l
   return buildStudioPresentationTarget(location.search, location.hash, 'advanced');
 }
 /** Initial readonly home. Management search/filter/paging is a later task. */
-export function RecordingHome({ guidance, location, onNavigate, onRetry }: {
-  guidance: RecordingHomeGuidance; location: RecordingHomeLocation; onNavigate?: (target: string) => void; onRetry: () => void;
+export function RecordingHome({ guidance, location, onNavigate, onRetry, collection }: {
+  guidance: RecordingHomeGuidance; location: RecordingHomeLocation; onNavigate?: (target: string) => void; onRetry: () => void; collection?: ReactNode;
 }) {
   const { t } = useTranslation('recording-home');
   const advanced = buildStudioPresentationTarget(location.search, location.hash, 'advanced');
@@ -37,7 +38,7 @@ export function RecordingHome({ guidance, location, onNavigate, onRetry }: {
       {guidance.primaryAction && <button type="button" onClick={() => navigate(guidance.primaryAction!)}>{t('openSettings')}</button>}
       <button type="button" onClick={onRetry} className="ml-4">{t('retry')}</button>
     </section>
-    <section aria-label={t('saved')}>
+    {collection ?? <section aria-label={t('saved')}>
       <h2 className="text-lg font-semibold">{t('saved')}</h2>
       <ul>{guidance.recordingItems.map(item => <li key={item.id} className="my-2">
         <button type="button" onClick={() => navigate(item.action)}>{item.name}</button>
@@ -45,6 +46,6 @@ export function RecordingHome({ guidance, location, onNavigate, onRetry }: {
           guidance.attentionItems.some(attention => attention.id === item.id) ? t('attention') :
           guidance.draftItems.some(draft => draft.id === item.id) ? t('draft') : t('savedState')}</span>
       </li>)}</ul>
-    </section>
+    </section>}
   </main>;
 }

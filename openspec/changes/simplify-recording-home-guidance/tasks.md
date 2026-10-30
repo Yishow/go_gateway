@@ -7,7 +7,7 @@
 ## 2. 同路由與結果呈現
 
 - [x] 2.1 [after: 1.3] 實作 Optional home preserves existing Studio navigation 與「同路由可選入口與既有識別保持」，保留 view、search/hash、locator 和 runtime focus 優先權；用 AppRoutes、legacyRoutes、studioEntityLocator 相關測試驗證valid locator+單一view、invalid locator+view、duplicate view及malformed encoding，invalid意圖不得降級首頁。
-- [ ] 2.2 [after: 2.1] 實作 Large recording collections remain searchable and bounded 與「大量設備與規則可定位而非無限卡片」，首頁以compact管理表、keyword/filter/stable sort/25或50分頁與設備最多4列摘要及同頁管理呈現，不另建 workspace authority；以 recording-home component tests 驗證大量fixture的100設備/300規則設計fixtures的每頁bounded rows（非backend效能保證）、跨頁定位/同scope返回、查無結果/empty分開、revision移除後page clamp、可達草稿/正常/異常與導航零寫入。
+- [x] 2.2 [after: 2.1] 實作 Large recording collections remain searchable and bounded 與「大量設備與規則可定位而非無限卡片」，首頁以compact管理表、keyword/filter/stable sort/25或50分頁與設備最多4列摘要及同頁管理呈現，不另建 workspace authority；以 recording-home component tests 驗證大量fixture的100設備/300規則設計fixtures的每頁bounded rows（非backend效能保證）、跨頁定位/同scope返回、查無結果/empty分開、revision移除後page clamp、可達草稿/正常/異常與導航零寫入。
 - [ ] 2.3 [after: 2.2] 實作 Healthy summaries distinguish history from present evidence 與「結果證據而非狀態綠燈」；測試已保存、等待首次寫入、SQL receipt 與舊成功後斷線分開顯示，不製造資料列數值。
 - [ ] 2.4 [after: 2.3] 依「Quiet mineral 取代被否決的 v4 配色」與 DESIGN.md 完成雙主題語意 tokens、繁中與英文精簡文案及字型階層、鍵盤焦點/返回焦點、長名稱與窄畫面排版；以 accessibility/component tests 及可用瀏覽器截圖驗證，無法執行的視覺項明列 NOT RUN。
 
