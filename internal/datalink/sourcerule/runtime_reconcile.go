@@ -206,6 +206,12 @@ func (s *Service) UpdateWithRuntimeReconcile(
 	}
 	rule, err = s.Update(ctx, id, req)
 	if err != nil {
+		// Inner compensation already failed closed. Replaying an unconditional
+		// outer snapshot here would overwrite the newer point revision it protected.
+		var uncertain *modbusshare.Error
+		if errors.As(err, &uncertain) && uncertain.Code == modbusshare.ErrCodeDirtyUnknown {
+			return nil, RuntimeReconcileOutcome{}, err
+		}
 		var validationErr *mcPreMutationValidationError
 		if !errors.Is(err, errMCAddressPlanConflict) && !errors.As(err, &validationErr) {
 			if rollbackErr := s.restoreRuleSnapshot(ctx, snapshot); rollbackErr != nil {
@@ -259,6 +265,10 @@ func (s *Service) setEnabledWithRuntimeReconcile(
 	}
 	rule := snapshot.rule
 	if err := s.setEnabled(ctx, id, enabled); err != nil {
+		var uncertain *modbusshare.Error
+		if errors.As(err, &uncertain) && uncertain.Code == modbusshare.ErrCodeDirtyUnknown {
+			return RuntimeReconcileOutcome{}, err
+		}
 		if rollbackErr := s.restoreRuleSnapshot(ctx, snapshot); rollbackErr != nil {
 			return RuntimeReconcileOutcome{}, s.dirtyUnknown(ctx)
 		}

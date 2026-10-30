@@ -18,8 +18,9 @@ import (
 )
 
 type pointUpdatePlan struct {
-	name  string
-	point *schema.Point
+	appliedRevision string
+	name            string
+	point           *schema.Point
 }
 
 type mappingRollbackState struct {
@@ -539,21 +540,22 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		return nil, s.finishUpdateRollback(ctx, err, tagMappingSyncResult{}, appliedUpdatePlans, rule, rollbackLinks, nil)
 	}
 	for _, plan := range updatePlans {
+		// Rule defaults are resolver inputs, never edits to a surviving point's intent
+		// or legacy DataFormat policy. New identities are created separately below.
 		dataType := next.DataType
-		df := next.DataFormat
 		updateReq := point.UpdatePointRequest{
-			Name:       &plan.name,
-			DataType:   &dataType,
-			DataFormat: &df,
-			Enabled:    &effectiveEnabled,
+			Name:     &plan.name,
+			DataType: &dataType,
+			Enabled:  &effectiveEnabled,
 		}
 		if plan.point.PollingGroupID == nil && defaultPollingGroupID != nil {
 			updateReq.PollingGroupID = defaultPollingGroupID
 		}
-		pointRecord, updateErr := s.pointSvc.Update(ctx, plan.point.ID, updateReq)
+		pointRecord, updateErr := s.pointSvc.UpdateMaterialized(ctx, plan.point, updateReq)
 		if updateErr != nil {
 			return nil, s.finishUpdateRollback(ctx, fmt.Errorf("更新衍生點位失敗: %w", updateErr), tagMappingSyncResult{}, appliedUpdatePlans, rule, rollbackLinks, nil)
 		}
+		plan.appliedRevision = pointRecord.RevisionID
 		appliedUpdatePlans = append(appliedUpdatePlans, plan)
 		s.syncPoints([]*schema.Point{pointRecord})
 	}
@@ -701,7 +703,7 @@ func (s *Service) syncRuleLinksEnabled(ctx context.Context, ruleID string, enabl
 		if enabled && pointRecord.PollingGroupID == nil && defaultPollingGroupID != nil {
 			updateReq.PollingGroupID = defaultPollingGroupID
 		}
-		pointRecord, getErr = s.pointSvc.Update(ctx, link.PointID, point.UpdatePointRequest{
+		pointRecord, getErr = s.pointSvc.UpdateMaterialized(ctx, original, point.UpdatePointRequest{
 			Enabled:             updateReq.Enabled,
 			PollingGroupID:      updateReq.PollingGroupID,
 			ReplacePollingGroup: updateReq.ReplacePollingGroup,
@@ -710,8 +712,9 @@ func (s *Service) syncRuleLinksEnabled(ctx context.Context, ruleID string, enabl
 			return nil, s.finishRollbackErrors(ctx, fmt.Errorf("更新衍生點位狀態失敗: %w", getErr), s.rollbackUpdatedPoints(ctx, appliedPlans))
 		}
 		appliedPlans = append(appliedPlans, pointUpdatePlan{
-			name:  original.Name,
-			point: original,
+			appliedRevision: pointRecord.RevisionID,
+			name:            original.Name,
+			point:           original,
 		})
 		s.syncPoints([]*schema.Point{pointRecord})
 	}
@@ -924,23 +927,13 @@ func (s *Service) syncPoints(points []*schema.Point) {
 func (s *Service) rollbackUpdatedPoints(ctx context.Context, plans []pointUpdatePlan) error {
 	var rollbackErrs []error
 	for _, plan := range plans {
-		name := plan.point.Name
-		dataType := plan.point.DataType
-		dataFormat := plan.point.DataFormat
-		enabled := plan.point.Enabled
-		restoredPoint, err := s.pointSvc.Update(ctx, plan.point.ID, point.UpdatePointRequest{
-			Name:                &name,
-			DataType:            &dataType,
-			DataFormat:          &dataFormat,
-			PollingGroupID:      plan.point.PollingGroupID,
-			ReplacePollingGroup: true,
-			Enabled:             &enabled,
-		})
+		// Compensation restores the exact identity and intent, not a new operator edit.
+		err := s.pointSvc.RestoreRevision(ctx, plan.point, plan.appliedRevision)
 		if err != nil {
 			rollbackErrs = append(rollbackErrs, fmt.Errorf("restore point %s: %w", plan.point.ID, err))
 			continue
 		}
-		s.syncPoints([]*schema.Point{restoredPoint})
+		s.syncPoints([]*schema.Point{plan.point})
 	}
 	return errors.Join(rollbackErrs...)
 }

@@ -27,7 +27,7 @@ func TestPointRollbackContinuesAndSyncsOnlyPersistedRestorations(t *testing.T) {
 	second.Address = "40002"
 	second.Name = "second-original"
 	require.NoError(t, pointRepo.Create(t.Context(), &second))
-	for _, original := range []pointUpdatePlan{{point: first}, {point: &second}} {
+	for _, original := range []pointUpdatePlan{{point: first, appliedRevision: first.RevisionID}, {point: &second, appliedRevision: second.RevisionID}} {
 		changed := *original.point
 		changed.Name = "changed-" + changed.ID
 		changed.DataFormat = "CDAB"
@@ -35,7 +35,7 @@ func TestPointRollbackContinuesAndSyncsOnlyPersistedRestorations(t *testing.T) {
 	}
 	syncer.upserted = nil
 
-	err = svc.rollbackUpdatedPoints(t.Context(), []pointUpdatePlan{{point: first}, {point: &second}})
+	err = svc.rollbackUpdatedPoints(t.Context(), []pointUpdatePlan{{point: first, appliedRevision: first.RevisionID}, {point: &second, appliedRevision: second.RevisionID}})
 
 	require.ErrorIs(t, err, restoreErr)
 	require.Equal(t, []string{second.ID}, syncer.upserted)

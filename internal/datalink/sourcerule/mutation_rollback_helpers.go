@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -15,6 +16,10 @@ func (s *Service) finishRollbackErrors(ctx context.Context, originalErr error, r
 		if rollbackErr != nil {
 			return s.dirtyUnknown(ctx)
 		}
+	}
+	// A newer point revision is not owned by this materializer or its outer snapshot.
+	if errors.Is(originalErr, point.ErrFormatConflict) {
+		return s.dirtyUnknown(ctx)
 	}
 	return originalErr
 }

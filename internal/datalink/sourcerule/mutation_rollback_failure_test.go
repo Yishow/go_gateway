@@ -45,6 +45,17 @@ func (r *rollbackPointRepository) Update(ctx context.Context, pointRecord *schem
 	return r.Repository.Update(ctx, pointRecord)
 }
 
+// Preserve fault injection at the production configuration-CAS boundary.
+func (r *rollbackPointRepository) UpdateRevision(ctx context.Context, record *schema.Point, expected string) error {
+	r.updateCalls++
+	if err := r.updateFailures[r.updateCalls]; err != nil {
+		return err
+	}
+	return r.Repository.(interface {
+		UpdateRevision(context.Context, *schema.Point, string) error
+	}).UpdateRevision(ctx, record, expected)
+}
+
 type rollbackTagRepository struct {
 	tag.Repository
 	deleteFailures int

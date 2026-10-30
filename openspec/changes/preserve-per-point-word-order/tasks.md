@@ -7,7 +7,7 @@
 ## 2. 安全編輯與規則生命週期
 
 - [x] 2.1 [after: 1.3] 交付 Scope and revision guarded updates／原子更新與安全失敗 的 scoped mutation 及舊API相容入口；以 handler/service tests 先重現foreign/stale與重播問題，再實作ownership、CAS、request_id同payload重播與異payload409，驗證revision只前進一次及typed errors。
-- [ ] 2.2 [after: 2.1] 交付 Preserve overrides across rule revisions／規則衍生以 identity 保留且版本化：先重現 Service.Update 抹除override，再使rename/count/skip/default/enable/rematerialize保留既有point意圖，新point inherit，skip/unskip與range slide不依index搬移，同址新identity不繼承舊override；以 sourcerule persistence/restart tests 驗證全部案例。
+- [x] 2.2 [after: 2.1] 交付 Preserve overrides across rule revisions／規則衍生以 identity 保留且版本化：先重現 Service.Update 抹除override，再使rename/count/skip/default/enable/rematerialize保留既有point意圖，新point inherit，skip/unskip與range slide不依index搬移，同址新identity不繼承舊override；以 sourcerule persistence/restart tests 驗證全部案例。
 - [ ] 2.3 [after: 2.2] 交付不相容type變更拒絕、rollback及readiness失效的一致性；internal materializer/rollback不被當operator intent；以 fault injection tests 驗證Point／rule／candidate任何一步失敗不留半套格式，uncertain時受影響採集fail closed，舊response不覆寫新revision且Share gate不弱化。
 
 ## 3. 逐協議正式讀取接線
