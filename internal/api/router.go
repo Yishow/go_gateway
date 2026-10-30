@@ -251,6 +251,12 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			registerStudioV2RecordingRoutes(datalinkGroup, datalinkServices)
 
 			// Points
+			if datalinkServices.SourceRule != nil {
+				datalinkServices.Point.SetFormatRuleGuard(datalinkServices.SourceRule)
+			}
+			if datalinkServices.ModbusShare != nil && datalinkServices.Runtime != nil {
+				handlers.ConfigurePointFormatLifecycle(datalinkServices.Point, datalinkServices.ModbusShare, datalinkServices.Runtime)
+			}
 			pointHandler := handlers.NewPointHandler(datalinkServices.Point, datalinkServices.Runtime).
 				WithPolling(datalinkServices.Scheduler, datalinkServices.Mapping, datalinkServices.PollingGroup).
 				WithDirectReader(handlers.NewPointDirectReader(datalinkServices.Point, datalinkServices.Device))
@@ -259,6 +265,8 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.POST("/points/batch", pointHandler.BatchCreate)
 			datalinkGroup.GET("/points/:id", pointHandler.Get)
 			datalinkGroup.PUT("/points/:id", pointHandler.Update)
+			datalinkGroup.PUT("/points/:id/format", pointHandler.UpdateFormat)
+			datalinkGroup.GET("/points/:id/format/operations/:request_id", pointHandler.InspectFormatOperation)
 			datalinkGroup.DELETE("/points/:id", pointHandler.Delete)
 			datalinkGroup.POST("/points/:id/poll", pointHandler.Poll)
 			datalinkGroup.POST("/points/poll", pointHandler.PollBatch)

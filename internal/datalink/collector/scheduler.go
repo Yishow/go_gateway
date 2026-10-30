@@ -172,6 +172,7 @@ type deviceConfig struct {
 
 // pointInfo 點位資訊快取
 type pointInfo struct {
+	configRevision     string
 	ID                 string
 	DeviceID           string
 	Address            string

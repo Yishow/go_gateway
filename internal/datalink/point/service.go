@@ -84,6 +84,8 @@ type PollingGroupSyncer interface {
 
 // Service 點位管理服務
 type Service struct {
+	formatInvalidator  FormatInvalidator
+	formatRuleGuard    FormatRuleGuard
 	repo               Repository
 	groupRepo          PollingGroupRepository
 	pollingGroupSyncer PollingGroupSyncer

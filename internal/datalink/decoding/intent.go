@@ -11,31 +11,31 @@ import (
 
 // FormatContext supplies defaults and revisions without becoming point intent.
 type FormatContext struct {
-	Protocol           schema.ProtocolType
-	RuleOwned          bool
-	RuleFormat         string
-	ConnectionFormat   string
-	WorkspaceRevision  string
-	RuleRevision       string
-	ConnectionRevision string
+	Protocol           schema.ProtocolType `json:"protocol"`
+	RuleOwned          bool                `json:"rule_owned"`
+	RuleFormat         string              `json:"rule_format"`
+	ConnectionFormat   string              `json:"connection_format"`
+	WorkspaceRevision  string              `json:"workspace_revision"`
+	RuleRevision       string              `json:"rule_revision"`
+	ConnectionRevision string              `json:"connection_revision"`
 }
 
 // PointResolution is a read-only projection. An empty effective format with
 // NativeCompatibility means component assembly, not an assumed ABCD override.
 type PointResolution struct {
-	Resolved            bool
-	Mode                schema.PointFormatMode
-	ConfiguredFormat    string
-	EffectiveFormat     string
-	Source              Source
-	Policy              Policy
-	NativeCompatibility bool
-	Applicable          bool
-	FormatVersion       int
-	PointRevision       string
-	WorkspaceRevision   string
-	RuleRevision        string
-	ConnectionRevision  string
+	Resolved            bool                   `json:"resolved"`
+	Mode                schema.PointFormatMode `json:"format_mode"`
+	ConfiguredFormat    string                 `json:"configured_format"`
+	EffectiveFormat     string                 `json:"effective_format"`
+	Source              Source                 `json:"effective_source"`
+	Policy              Policy                 `json:"effective_policy"`
+	NativeCompatibility bool                   `json:"native_compatibility"`
+	Applicable          bool                   `json:"applicable"`
+	FormatVersion       int                    `json:"format_version"`
+	PointRevision       string                 `json:"point_revision"`
+	WorkspaceRevision   string                 `json:"workspace_revision"`
+	RuleRevision        string                 `json:"rule_revision"`
+	ConnectionRevision  string                 `json:"connection_revision"`
 }
 
 // IntentEdit is an internal candidate edit, not an authorized public mutation.

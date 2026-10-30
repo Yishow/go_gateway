@@ -1,6 +1,7 @@
 package decoding
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -214,4 +215,16 @@ func TestPointIntent_InheritedFatekExplicitDefaults(t *testing.T) {
 		require.ErrorIs(t, err, ErrInvalidIntent)
 		require.Zero(t, got)
 	}
+}
+
+func TestPointResolutionDurableJSONPreservesEmptyIntentFields(t *testing.T) {
+	original := PointResolution{Resolved: true, Mode: schema.PointFormatInherit, Source: SourceNative, Policy: LegacyFatek, NativeCompatibility: true, FormatVersion: 1, PointRevision: "point", WorkspaceRevision: "workspace"}
+	raw, err := json.Marshal(original)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"configured_format":""`)
+	require.Contains(t, string(raw), `"effective_format":""`)
+	require.Contains(t, string(raw), `"applicable":false`)
+	var restored PointResolution
+	require.NoError(t, json.Unmarshal(raw, &restored))
+	require.Equal(t, original, restored)
 }

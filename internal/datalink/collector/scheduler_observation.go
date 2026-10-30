@@ -54,7 +54,7 @@ func (s *Scheduler) installPointLocked(point *schema.Point) uint64 {
 		lease = s.pointObservationLease
 	}
 	s.pointInfos[point.ID] = pointInfo{
-		ID: point.ID, DeviceID: point.DeviceID, Address: point.Address,
+		ID: point.ID, DeviceID: point.DeviceID, Address: point.Address, configRevision: point.RevisionID,
 		Function: point.Function, DataType: point.DataType, DataFormat: point.DataFormat,
 		Mode: point.Mode, PollingGroupID: groupID, observationLease: lease,
 	}

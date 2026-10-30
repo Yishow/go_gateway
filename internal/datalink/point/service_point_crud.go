@@ -193,46 +193,9 @@ func (s *Service) Update(ctx context.Context, id string, req UpdatePointRequest)
 		return nil, fmt.Errorf("取得點位失敗: %w", err)
 	}
 
-	if req.Name != nil {
-		point.Name = *req.Name
-	}
-	if req.Description != nil {
-		point.Description = *req.Description
-	}
-	if req.Address != nil {
-		address, err := validateAndNormalizeAddress(*req.Address)
-		if err != nil {
-			return nil, err
-		}
-		point.Address = address
-	}
-	if req.Function != nil {
-		function, err := validateAndNormalizeFunction(*req.Function)
-		if err != nil {
-			return nil, err
-		}
-		point.Function = function
-	}
-	if req.DataType != nil {
-		if err := validatePointDataType(*req.DataType); err != nil {
-			return nil, err
-		}
-		point.DataType = *req.DataType
-	}
-	if req.DataFormat != nil {
-		if err := validatePointDataFormat(*req.DataFormat); err != nil {
-			return nil, err
-		}
-		point.DataFormat = normalizePointDataFormat(*req.DataFormat)
-	}
-	if req.Mode != nil {
-		point.Mode = *req.Mode
-	}
-	if req.PollingGroupID != nil || req.ReplacePollingGroup {
-		point.PollingGroupID = req.PollingGroupID
-	}
-	if req.Enabled != nil {
-		point.Enabled = *req.Enabled
+	expectedRevision := point.RevisionID
+	if err := applyPointUpdate(point, req); err != nil {
+		return nil, err
 	}
 
 	revision, err := common.NewUUID()
@@ -242,7 +205,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdatePointRequest)
 	point.RevisionID = revision
 	point.UpdatedAt = time.Now()
 
-	if err := s.repo.Update(ctx, point); err != nil {
+	if err := s.updateRevision(ctx, point, expectedRevision); err != nil {
 		return nil, fmt.Errorf("更新點位失敗: %w", err)
 	}
 
@@ -251,16 +214,19 @@ func (s *Service) Update(ctx context.Context, id string, req UpdatePointRequest)
 
 // UpdatePointRequest 更新點位請求
 type UpdatePointRequest struct {
-	Name                *string           `json:"name,omitempty"`
-	Description         *string           `json:"description,omitempty"`
-	Address             *string           `json:"address,omitempty"`
-	Function            *string           `json:"function,omitempty"`
-	DataType            *schema.DataType  `json:"data_type,omitempty"`
-	DataFormat          *string           `json:"data_format,omitempty"`
-	Mode                *schema.PointMode `json:"mode,omitempty"`
-	PollingGroupID      *string           `json:"polling_group_id,omitempty"`
-	ReplacePollingGroup bool              `json:"-"`
-	Enabled             *bool             `json:"enabled,omitempty"`
+	FormatScope
+	FormatMode          *schema.PointFormatMode `json:"format_mode,omitempty"`
+	ConfiguredFormat    *string                 `json:"configured_format,omitempty"`
+	Name                *string                 `json:"name,omitempty"`
+	Description         *string                 `json:"description,omitempty"`
+	Address             *string                 `json:"address,omitempty"`
+	Function            *string                 `json:"function,omitempty"`
+	DataType            *schema.DataType        `json:"data_type,omitempty"`
+	DataFormat          *string                 `json:"data_format,omitempty"`
+	Mode                *schema.PointMode       `json:"mode,omitempty"`
+	PollingGroupID      *string                 `json:"polling_group_id,omitempty"`
+	ReplacePollingGroup bool                    `json:"-"`
+	Enabled             *bool                   `json:"enabled,omitempty"`
 }
 
 // Delete 刪除點位（若 ID 已不存在則視為成功，便於清理孤立關聯）。

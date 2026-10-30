@@ -111,6 +111,11 @@ func (h *PointHandler) Update(c *gin.Context) {
 		return
 	}
 
+	if req.DataFormat != nil || req.FormatMode != nil || req.ConfiguredFormat != nil {
+		h.updateLegacyPointFormat(c, id, req)
+		return
+	}
+
 	p, err := h.svc.Update(c.Request.Context(), id, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
