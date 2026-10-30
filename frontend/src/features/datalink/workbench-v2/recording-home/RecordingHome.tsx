@@ -1,3 +1,4 @@
+import './recording-home.css';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RecordingHomeGuidance, RecordingHomeGuidanceAction } from './recordingHomeGuidance';
@@ -12,7 +13,7 @@ export function recordingHomeActionTarget(action: RecordingHomeGuidanceAction, l
     device_id: action.deviceId, rule_id: null, mapping_id: null, group_id: null, group_revision: null });
   return buildStudioPresentationTarget(location.search, location.hash, 'advanced');
 }
-/** Initial readonly home. Management search/filter/paging is a later task. */
+/** Actual readonly home; visual hierarchy never changes evidence or command ownership. */
 export function RecordingHome({ guidance, location, onNavigate, onRetry, collection }: {
   guidance: RecordingHomeGuidance; location: RecordingHomeLocation; onNavigate?: (target: string) => void; onRetry: () => void; collection?: ReactNode;
 }) {
@@ -21,22 +22,22 @@ export function RecordingHome({ guidance, location, onNavigate, onRetry, collect
   const navigate = (action: RecordingHomeGuidanceAction) => {
     const target = recordingHomeActionTarget(action, location); if (target) onNavigate?.(target);
   };
-  return <main data-workbench-v2="true" data-testid="recording-home" className="min-h-screen p-6">
-    <header className="flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-2xl font-semibold">{t('title')}</h1>
-      <nav aria-label={t('navigation')} className="flex flex-wrap gap-4">
+  return <main data-workbench-v2="true" data-testid="recording-home" className="gw-recording-home">
+    <header className="gw-home-header">
+      <h1>{t('title')}</h1>
+      <nav aria-label={t('navigation')}>
         {advanced && <button type="button" onClick={() => onNavigate?.(advanced)}>{t('advanced')}</button>}
         {[['/studio/runtime', 'runtime'], ['/studio/logs', 'logs'], ['/test', 'test']].map(([target, key]) =>
           <button key={target} type="button" onClick={() => onNavigate?.(target)}>{t(key)}</button>)}
       </nav>
     </header>
-    <section aria-live="polite" className="my-6 space-y-3" data-testid="recording-home-guidance">
-      <h2 className="text-lg font-semibold">{t(`reason.${guidance.reason}`)}</h2>
+    <section aria-live="polite" className="gw-home-guidance" data-guidance-state={guidance.availability.state === 'unavailable' && guidance.availability.reason === 'error' ? 'error' : ['operation_recovery', 'delivery_attention', 'source_attention'].includes(guidance.reason) ? 'attention' : guidance.reason === 'evidence_unavailable' ? 'unknown' : 'neutral'} data-testid="recording-home-guidance">
+      <h2 className="gw-guidance-heading">{t(`reason.${guidance.reason}`)}</h2>
       {guidance.availability.state === 'unavailable' && <p role={guidance.availability.reason === 'error' ? 'alert' : 'status'}>
         {t(guidance.availability.reason === 'loading' ? 'loading' : guidance.availability.reason === 'error' ? 'error' : 'unknown')}
       </p>}
-      {guidance.primaryAction && <button type="button" onClick={() => navigate(guidance.primaryAction!)}>{t('openSettings')}</button>}
-      <button type="button" onClick={onRetry} className="ml-4">{t('retry')}</button>
+      <div className="gw-home-actions">{guidance.primaryAction && <button className="gw-primary" type="button" onClick={() => navigate(guidance.primaryAction!)}>{t('openSettings')}</button>}
+      <button type="button" onClick={onRetry}>{t('retry')}</button></div>
     </section>
     {collection ?? <section aria-label={t('saved')}>
       <h2 className="text-lg font-semibold">{t('saved')}</h2>

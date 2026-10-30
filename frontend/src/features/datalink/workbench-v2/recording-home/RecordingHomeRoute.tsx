@@ -99,11 +99,13 @@ export function RecordingHomeRoute({ location, onNavigate }: { location: Recordi
   const loading = workspace.isFetching || workspace.isPending || groups.isFetching || groups.isPending;
   const known = !failed && !loading && workspace.data?.id && groups.data?.workspace_id === workspace.data.id &&
     typeof groups.data.workspace_revision === 'string';
-  if (!known) return <main data-workbench-v2="true" data-testid="recording-home" className="min-h-screen p-6">
-    <h1 className="text-2xl font-semibold">{t('title')}</h1>
-    <p role={failed ? 'alert' : 'status'}>{t(failed ? 'error' : loading ? 'loading' : 'unknown')}</p>
-    <button type="button" onClick={() => { void reload(); }}>{t('retry')}</button>
-    <button type="button" className="ml-4" onClick={() => { const target = buildStudioPresentationTarget(location.search, location.hash, 'advanced'); if (target) onNavigate?.(target); }}>{t('advanced')}</button>
+  if (!known) return <main data-workbench-v2="true" data-testid="recording-home" className="gw-recording-home">
+    <header className="gw-home-header"><h1>{t('title')}</h1></header>
+    <section className="gw-home-guidance" aria-live="polite" data-guidance-state={failed ? 'error' : 'unknown'}>
+      <p className="gw-guidance-heading" role={failed ? 'alert' : 'status'}>{t(failed ? 'error' : loading ? 'loading' : 'unknown')}</p>
+      <div className="gw-home-actions"><button type="button" className="gw-primary" onClick={() => { void reload(); }}>{t('retry')}</button>
+      <button type="button" onClick={() => { const target = buildStudioPresentationTarget(location.search, location.hash, 'advanced'); if (target) onNavigate?.(target); }}>{t('advanced')}</button></div>
+    </section>
   </main>;
   return <ScopedRecordingHome key={JSON.stringify([workspace.data.id, groups.data.workspace_revision])}
     workspaceId={workspace.data.id} workspaceRevision={groups.data.workspace_revision} list={groups.data}

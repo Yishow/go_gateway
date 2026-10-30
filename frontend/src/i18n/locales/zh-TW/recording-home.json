@@ -19,7 +19,7 @@
     "operation_recovery": "先確認尚未完成的操作",
     "delivery_attention": "檢查記錄寫入狀態",
     "source_attention": "檢查記錄來源",
-    "evidence_unavailable": "目前證據尚未齊全",
+    "evidence_unavailable": "目前狀態尚未完整讀取",
     "draft": "繼續編輯草稿",
     "missing_devices": "連接第一台設備",
     "missing_points": "設定設備點位",
@@ -27,7 +27,7 @@
     "recordings": "目前的資料記錄"
   },
   "management": "記錄管理",
-  "observationBoundary": "目前只讀取本頁記錄的詳細狀態，其餘尚未確認；已觀測的異常不會因篩選而隱藏。",
+  "observationBoundary": "僅查詢本頁詳細狀態；其他項目尚未確認。已觀測異常不受篩選隱藏。",
   "observedAttention": "已觀測到的異常（{{count}}）",
   "observedAttentionShort": "已觀測到異常",
   "deviceSummary": "設備摘要",
@@ -75,14 +75,14 @@
   "observedAttentionTitle": "已觀測的異常項目",
   "result": {
     "configuration": {
-      "requested": "已保存；這個設定版本已提出啟用要求",
-      "not_requested": "新設定尚未提出啟用要求；既有結果屬於先前版本"
+      "requested": "已保存，已要求啟用這個版本",
+      "not_requested": "新設定尚未要求啟用，現有結果屬於舊版"
     },
     "sql": {
       "revision_receipt": "這個設定版本曾寫入 SQL",
-      "effective_revision_receipt": "目前生效版本曾寫入 SQL（不代表此刻健康）",
-      "previous_revision_receipt": "先前設定版本曾寫入 SQL；不是新設定的成功證據",
-      "historical_commit": "保留歷史 SQL 寫入紀錄；目前版本尚未確認",
+      "effective_revision_receipt": "生效版本曾寫入（不代表目前健康）",
+      "previous_revision_receipt": "舊設定曾寫入；不代表新設定成功",
+      "historical_commit": "曾寫入 SQL，目前版本尚未確認",
       "awaiting_first_write": "已觀測接收資料；等待第一筆 SQL 寫入證據",
       "unknown": "尚無可確認的 SQL 寫入證據"
     },
@@ -97,9 +97,9 @@
       "delivery_attention": "生效版本的交付證據顯示異常"
     },
     "owners": {
-      "unknown": "操作 owner 狀態未完整確認",
-      "unresolved": "有尚未釐清的操作，請開啟既有狀態頁",
-      "inspected": "操作 owner 已檢查；不代表可執行命令"
+      "unknown": "操作狀態尚未完整確認",
+      "unresolved": "尚有未確認的操作，請查看設定",
+      "inspected": "已檢查操作狀態；不代表允許執行"
     },
     "lastCommit": "SQL 寫入確認時間：",
     "requestedBoundary": "要求的切換時間：",
@@ -108,6 +108,9 @@
     "testWriteCleanup": "試寫資料已完成清理",
     "observedAt": "觀測時間：",
     "devicePending": "設備保留了待查操作；尚未確認屬於本頁哪筆記錄，請前往原設定查看。",
-    "details": "詳細證據與觀測時間"
-  }
+    "details": "詳細證據與觀測時間",
+    "detailsFor": "詳細證據與觀測時間：「{{name}}」"
+  },
+  "filters": "搜尋與篩選",
+  "tableRegion": "記錄與設備列表，可捲動"
 }

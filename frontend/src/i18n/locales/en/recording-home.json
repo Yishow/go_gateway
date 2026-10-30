@@ -19,7 +19,7 @@
     "operation_recovery": "Check an unfinished operation",
     "delivery_attention": "Check recording delivery",
     "source_attention": "Check a recording source",
-    "evidence_unavailable": "Current evidence is unavailable",
+    "evidence_unavailable": "Status not fully observed",
     "draft": "Continue a draft",
     "missing_devices": "Connect your first device",
     "missing_points": "Choose device points",
@@ -97,9 +97,9 @@
       "delivery_attention": "Delivery evidence for the effective version needs attention"
     },
     "owners": {
-      "unknown": "Operation-owner state incompletely observed",
-      "unresolved": "An unresolved operation needs its existing status page",
-      "inspected": "Operation owners inspected; not command permission"
+      "unknown": "Operation status not fully confirmed",
+      "unresolved": "An unresolved operation needs inspection",
+      "inspected": "Operation status inspected; not permission to execute"
     },
     "lastCommit": "SQL commit confirmation time:",
     "requestedBoundary": "Requested transition boundary:",
@@ -108,6 +108,9 @@
     "testWriteCleanup": "Test-write cleanup completed",
     "observedAt": "Observed at:",
     "devicePending": "Devices retain operations not attributed to this page. Inspect them in their original settings.",
-    "details": "Evidence details and observation time"
-  }
+    "details": "Evidence details and observation time",
+    "detailsFor": "Evidence details and observation time for {{name}}"
+  },
+  "filters": "Search and filters",
+  "tableRegion": "Scrollable recordings and devices"
 }
