@@ -64,6 +64,7 @@ type WriteGroupService struct {
 	managedTableInspector     ManagedWriteGroupTableInspector
 	backlogGuard              WriteGroupBacklogOwnershipGuard
 	writerOwnershipActivation WriterOwnershipActivationBarrier
+	cutoverObservation        CutoverObservationConfig
 	basicManagedMu            sync.Mutex
 	now                       func() time.Time
 }
@@ -79,11 +80,16 @@ func (s *WriteGroupService) WithManagedTableInspector(inspector ManagedWriteGrou
 
 // NewWriteGroupService creates the service used by the Studio V2 write-group
 // API. The repository must use the same database as workspaceSvc.
-func NewWriteGroupService(workspaceSvc *Service, repo *SQLWriteGroupRepository) *WriteGroupService {
+func NewWriteGroupService(workspaceSvc *Service, repo *SQLWriteGroupRepository, observation ...CutoverObservationConfig) *WriteGroupService {
+	var config CutoverObservationConfig
+	if len(observation) > 0 {
+		config = observation[0]
+	}
 	return &WriteGroupService{
-		workspaceSvc: workspaceSvc,
-		repo:         repo,
-		now:          func() time.Time { return time.Now().UTC() },
+		cutoverObservation: config,
+		workspaceSvc:       workspaceSvc,
+		repo:               repo,
+		now:                func() time.Time { return time.Now().UTC() },
 	}
 }
 

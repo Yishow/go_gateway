@@ -39,6 +39,9 @@ func boundaryKey(groupID, revision string) string { return groupID + "@" + revis
 // effective boundary, and ends disabled or deleted groups at the next bucket
 // boundary. Accepted buckets always keep closing and delivering.
 func (p *Pipeline) Reconcile(ctx context.Context) error {
+	ctx, finish := p.ownerOperation(ctx)
+	defer finish()
+	defer p.observeQuotaRecovery(ctx)
 	p.reconcileMu.Lock()
 	defer p.reconcileMu.Unlock()
 	list, err := p.deps.Groups.List(ctx)
@@ -50,7 +53,7 @@ func (p *Pipeline) Reconcile(ctx context.Context) error {
 	for _, group := range list.Groups {
 		known[group.ID] = struct{}{}
 		if group.Status == workspace.WriteGroupStatusDisabled || group.Status == workspace.WriteGroupStatusDeleted || group.AppliedRevision == "" {
-			p.retireGroup(group.ID, now)
+			p.retireObservedGroup(ctx, group, now)
 			continue
 		}
 		p.reconcileGroup(ctx, group, now)
@@ -65,7 +68,7 @@ func (p *Pipeline) Reconcile(ctx context.Context) error {
 	}
 	p.mu.RUnlock()
 	for _, m := range gone {
-		m.boundary.SetUntil(nextBoundary(now, m.interval))
+		p.observedIntakeCutoff(ctx, m, func() { m.boundary.SetUntil(nextBoundary(now, m.interval)) }, false)
 	}
 	handoffErr := p.reconcileHandoffs(ctx, list)
 	return errors.Join(handoffErr, p.restoreOpenJournals(ctx))
@@ -87,7 +90,7 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 		snapshots = append(snapshots, upcoming)
 	}
 	if len(snapshots) == 0 {
-		p.setBlocked(group, reasonSnapshotUnavailable)
+		p.setBlocked(ctx, group, reasonSnapshotUnavailable)
 		return
 	}
 	// A reconcile can miss the lookahead window. End every older boundary at
@@ -102,7 +105,7 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 		}
 		p.mu.RUnlock()
 		for _, previous := range previousRevisions {
-			previous.boundary.SetEndsAt(current.EffectiveAt)
+			p.observedIntakeCutoff(ctx, previous, func() { previous.boundary.SetEndsAt(current.EffectiveAt) }, false)
 		}
 	}
 	built := false
@@ -114,14 +117,14 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 		if existing != nil {
 			if !snap.EndsAt.IsZero() {
 				// A cutover took the sources away from this revision at an exact instant.
-				existing.boundary.SetEndsAt(snap.EndsAt)
+				p.observedIntakeCutoff(ctx, existing, func() { existing.boundary.SetEndsAt(snap.EndsAt) }, false)
 			}
 			built = true
 			continue
 		}
 		m, reason := p.build(ctx, snap)
 		if reason != "" {
-			p.setBlocked(snap.Group, reason)
+			p.setBlocked(ctx, snap.Group, reason)
 			continue
 		}
 		p.installManaged(m)
@@ -136,9 +139,10 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 		old := p.boundaries[boundaryKey(group.ID, current.AppliedRevision)]
 		p.mu.RUnlock()
 		if old != nil {
-			old.boundary.SetEndsAt(snapshots[1].EffectiveAt)
+			p.observedIntakeCutoff(ctx, old, func() { old.boundary.SetEndsAt(snapshots[1].EffectiveAt) }, false)
 		}
 	}
+	p.recordAppliedIntake(ctx, current, now)
 }
 
 // build creates the boundary for one applied snapshot from real destination
@@ -317,8 +321,8 @@ func (p *Pipeline) retireGroup(groupID string, now time.Time) {
 	}
 }
 
-func (p *Pipeline) setBlocked(group *workspace.WriteGroup, reason string) {
-	if p.setCounterQuarantine(groupdelivery.GroupKey{WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: group.AppliedRevision}, reason) {
+func (p *Pipeline) setBlocked(ctx context.Context, group *workspace.WriteGroup, reason string) {
+	if p.observedCounterQuarantine(ctx, groupdelivery.GroupKey{WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: group.AppliedRevision}, reason) {
 		return
 	}
 	p.mu.Lock()

@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const runtimeLogHeartbeat = 15 * time.Second
+const runtimeLogHeartbeat = diagnostics.RuntimeLogHeartbeat
 
 type runtimeLogHandler struct {
 	broker    *diagnostics.Broker

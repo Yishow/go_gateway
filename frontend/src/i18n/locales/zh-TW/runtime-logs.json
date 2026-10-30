@@ -9,6 +9,37 @@
   "source": "來源（完整 ID）",
   "allSources": "全部來源",
   "search": "搜尋安全文字",
+  "stage": "證據階段",
+  "allStages": "全部階段",
+  "actionable": "有處理建議／狀態不明",
+  "scopeFilters": "範圍篩選（完整 ID）",
+  "scopeHelp": "每個完整 ID 各自縮小保留事件的範圍，留空表示不限。請使用 ID，而非名稱或連線位址；套用篩選後才更新畫面。",
+  "scopeFields": {
+    "workspaceId": "工作區 ID",
+    "deviceId": "設備 ID",
+    "ruleId": "來源規則 ID",
+    "groupId": "寫入群組 ID"
+  },
+  "actionableHelp": "篩選有處理建議或狀態不明的歷史事件，並非目前尚未解除的故障清單。缺少事件或恢復紀錄，不代表目前正常。",
+  "historyUnknown": "歷史紀錄缺漏時，目前故障或恢復狀態不明。請開啟執行監看，檢視目前的規則證據。",
+  "stages": {
+    "unavailable": "無法取得",
+    "acquisition": "採集",
+    "accepted": "已接收",
+    "collecting": "收集中",
+    "queued": "已排入佇列",
+    "retrying": "重試中",
+    "blocked": "受阻",
+    "quarantined": "已隔離",
+    "unknown": "不明",
+    "skipped": "已略過",
+    "sql-committed": "SQL 已提交",
+    "readback-verified": "讀回已驗證",
+    "cleanup-completed": "清理已完成",
+    "transport-event": "傳輸事件"
+  },
+  "appliedScopeCount": "已套用 ID：{{count}}",
+  "invalidId": "ID 格式不符，請填完整 ID。",
   "apply": "套用篩選",
   "pause": "暫停檢視",
   "resume": "繼續檢視",
@@ -16,7 +47,7 @@
   "tail": "跟隨最新紀錄",
   "retry": "重試連線",
   "controlsHelp": "暫停及清除只影響此瀏覽器。採集與日誌記錄仍持續，不會刪除伺服器紀錄或檔案。",
-  "status": { "loading": "載入中", "connected": "已連線", "reconnecting": "已斷線・重新連線中", "paused": "已暫停", "denied": "存取遭拒", "failed": "載入失敗" },
+  "status": { "loading": "載入中", "connected": "已連線・僅日誌傳輸", "reconnecting": "已斷線・重新連線中", "paused": "已暫停", "denied": "存取遭拒", "failed": "載入失敗" },
   "deniedHelp": "僅限本機存取：請在閘道所在電腦使用 localhost 或 loopback 位址開啟。僅綁定遠端位址或透過代理伺服器時無法檢視日誌。已停止自動重試。",
   "failedHelp": "無法安全載入日誌。請確認閘道執行中後重試；畫面不顯示原始錯誤細節。",
   "reset": "閘道程序已重新啟動，先前程序的歷史紀錄無法取得。",
@@ -35,5 +66,340 @@
   "sourceColumn": "來源",
   "message": "代碼與訊息",
   "recordTruncated": "紀錄已截斷",
-  "empty": "沒有符合條件的保留紀錄"
+  "empty": "沒有符合條件的保留紀錄",
+  "domain": {
+    "source": "執行領域事件",
+    "unavailable": "無法取得",
+    "unavailableProblem": "事件證據無法取得",
+    "unavailableImpact": "此紀錄無法安全識別作業或結果，因此不提供設定操作。",
+    "historical": "歷史事件，並非目前狀態",
+    "details": "事件詳細資料",
+    "stage": "證據階段",
+    "occurrences": "發生次數",
+    "affected": "受影響身分",
+    "eventCode": "事件代碼",
+    "workspaceId": "工作區 ID",
+    "deviceId": "設備 ID",
+    "ruleId": "來源規則 ID",
+    "mappingId": "映射 ID",
+    "groupId": "寫入群組 ID",
+    "pointId": "點位 ID",
+    "tagId": "Tag ID",
+    "entityRevision": "原始實體版本",
+    "workspaceRevision": "觀察時的工作區版本",
+    "groupRevision": "原始群組版本",
+    "connectorId": "連線器 ID",
+    "connectorRevision": "原始連線器版本",
+    "firstSeen": "首次觀察",
+    "lastSeen": "最近觀察",
+    "referenceId": "參照 ID",
+    "evidenceKind": "證據類型",
+    "receipt": "執行收據（僅此效果）",
+    "recordId": "收據紀錄 ID",
+    "effectKey": "收據效果鍵",
+    "payloadDigest": "收據內容摘要",
+    "committedAt": "收據提交時間",
+    "receiptProvenance": "收據來源",
+    "receiptOwnEffect": "此收據僅證明自身效果，不是讀回、清理或彙總證明。",
+    "intakeState": "觀察到的接收狀態",
+    "pendingSamples": "待處理輸入樣本",
+    "quota": "觀察到的配額",
+    "quotaScope": "配額範圍（所有版本）",
+    "quotaState": "配額狀態",
+    "quotaUsed": "觀察到的使用位元組",
+    "quotaMax": "設定的最大位元組",
+    "intakeRefused": "配額是否拒絕接收",
+    "yes": "是",
+    "no": "否",
+    "reason": "原因",
+    "action": "建議下一步",
+    "openGroup": "開啟群組設定",
+    "openCurrent": "開啟目前設定",
+    "currentSettingsHelp": "開啟目前設定。原始來源或映射版本仍是歷史事件脈絡，不代表歷史快照。",
+    "groupSettingsHelp": "原始群組版本僅作歷史提示；設定頁會獨立確認目前版本。",
+    "navigationOnly": "僅導覽，不執行重試、略過、啟用或 DDL。",
+    "actions": {
+      "none": "未建議採取行動",
+      "refresh": "檢視最新證據",
+      "inspect-settings": "檢視設定",
+      "inspect-delivery": "檢視交付證據",
+      "open-workspace-list": "檢視所屬工作區清單",
+      "inspect-immutable-evidence": "檢視原始不可變證據"
+    },
+    "reasons": {
+      "none": "此事件未指出失敗",
+      "unavailable": "證據無法取得",
+      "stale-reference": "參照已變更",
+      "foreign-scope": "不在可用範圍內",
+      "deleted": "參照實體已刪除",
+      "unsupported": "不支援此證據",
+      "effective-proof-missing": "缺少生效版本證明",
+      "counter-replay-proof-missing": "缺少原始重播證明",
+      "counter-replay-proof-conflict": "原始重播證明衝突",
+      "counter-replay-proof-unsupported": "不支援原始重播證明",
+      "recording-ownership-unavailable": "寫入所有權無法取得",
+      "recording-ownership-conflict": "寫入所有權衝突",
+      "recording-handoff-proof-conflict": "寫入交接證明衝突",
+      "recording-cutover-finalized-overlap": "切換與已定案輸出重疊"
+    },
+    "problems": {
+      "source": {
+        "applied": "來源規則已套用",
+        "rejected": "來源更新遭拒"
+      },
+      "collector": {
+        "failed": "採集失敗",
+        "recovered": "採集已恢復"
+      },
+      "mapping": {
+        "failed": "映射失敗",
+        "recovered": "映射已恢復"
+      },
+      "group": {
+        "applied": "已觀察到寫入接收啟用",
+        "paused": "寫入接收已暫停",
+        "retiring": "寫入版本正在退役"
+      },
+      "delivery": {
+        "retrying": "資料交付重試中",
+        "blocked": "資料交付受阻",
+        "quarantined": "交付輸出已隔離",
+        "unknown": "資料交付結果不明",
+        "first-confirmed": "首次觀察到 SQL 提交",
+        "recovered": "資料交付已恢復",
+        "summary": "SQL 提交摘要"
+      },
+      "counter-replay": {
+        "quarantined": "輸入重播已隔離"
+      },
+      "recording": {
+        "refused": "寫入接收遭拒"
+      },
+      "quota": {
+        "recovered": "儲存容量已恢復",
+        "refused": "儲存配額拒絕接收"
+      },
+      "repair": {
+        "completed": "儲存修復已完成",
+        "blocked": "儲存修復受阻"
+      },
+      "cutover": {
+        "applied": "寫入切換已套用",
+        "rejected": "寫入切換遭拒"
+      }
+    },
+    "impacts": {
+      "source": {
+        "applied": "這次觀察的來源輸入已套用至採集執行流程，不代表 SQL 已送達。",
+        "rejected": "此次來源執行更新未獲確認，此事件不代表目前的設定狀態。"
+      },
+      "collector": {
+        "failed": "此固定來源身分的最終採集結果失敗；資料交付是另一階段。",
+        "recovered": "相符來源事件的採集已恢復，不代表 SQL 已提交。"
+      },
+      "mapping": {
+        "failed": "此綁定執行的映射失敗；不顯示原始數值或轉換錯誤。",
+        "recovered": "相符的映射結果已恢復，不代表下游 SQL 已送達。"
+      },
+      "group": {
+        "applied": "協調作業當時觀察到原始版本接收啟用；這不是目前狀態或 SQL 證明。",
+        "paused": "新資料接收已暫停；歷史待交付資料仍可能存在。",
+        "retiring": "此原始版本正在退役；歷史待交付資料仍可能存在。"
+      },
+      "delivery": {
+        "retrying": "固定輸出仍在交付重試中；此事件不確認 SQL 已提交。",
+        "blocked": "此固定版本的交付受阻；採取行動前請檢視目前證據。",
+        "quarantined": "已定案輸出遭隔離，與被隔離的輸入樣本不同。",
+        "unknown": "SQL 提交尚未確認。缺少證據不代表成功，也不授權安全重試。",
+        "first-confirmed": "附帶收據僅證明自身效果，不代表所有輸出、讀回或清理。",
+        "recovered": "相符的執行收據確認此效果，不代表所有待交付輸出都已送達。",
+        "summary": "次數描述觀察到的狀態轉換；附帶收據僅證明自身效果，不是彙總收據。"
+      },
+      "counter-replay": {
+        "quarantined": "已接收輸入樣本等待原始不可變證據；它們不是已定案的交付輸出。"
+      },
+      "recording": {
+        "refused": "原始所有權證據拒絕接收；待處理輸入樣本數不是交付輸出數。"
+      },
+      "quota": {
+        "recovered": "僅原始配額範圍的容量已恢復，不代表接收已恢復或 SQL 已提交。",
+        "refused": "已設定的儲存配額拒絕持久化接收；既有歷史交付狀態另行判定。"
+      },
+      "repair": {
+        "completed": "結構作業已完成，不代表歷史資料已恢復。",
+        "blocked": "修復作業未成功完成，此事件不授權再次修復。"
+      },
+      "cutover": {
+        "applied": "已確認的切換作業參照原始版本，不代表資料已交付。",
+        "rejected": "切換作業遭拒；請檢視目前證據，不可替換為同名群組。"
+      }
+    },
+    "quotaScopes": {
+      "global": "全域",
+      "group": "群組"
+    },
+    "quotaStates": {
+      "unconfigured": "未設定",
+      "ok": "容量範圍內",
+      "warning": "警告",
+      "hard_limit": "硬上限",
+      "unavailable": "無法取得"
+    },
+    "intakeStates": {
+      "active": "啟用",
+      "retiring": "退役中",
+      "blocked": "受阻",
+      "not_running": "未執行",
+      "unavailable": "無法取得"
+    },
+    "evidenceKinds": {
+      "source-runtime-transition": "來源執行轉換",
+      "acquisition-result": "採集結果",
+      "mapping-result": "映射結果",
+      "intake-status": "接收狀態",
+      "durable-transition": "持久化輸出轉換",
+      "runtime-receipt": "執行收據",
+      "counter-replay-inputs": "計量重播輸入樣本",
+      "recording-refusal": "寫入接收拒絕",
+      "quota-refusal": "配額拒絕",
+      "quota-status": "配額狀態",
+      "operation-result": "作業結果"
+    },
+    "runtimeProvenance": "執行流程",
+    "groupScope": "群組層級的歷史紀錄，不分配至個別設備。",
+    "receiptGroupRevision": "收據群組版本",
+    "receiptConnectorRevision": "收據連線器版本"
+  },
+  "legacy": {
+    "unavailable": "無法取得",
+    "details": "診斷詳細資料",
+    "reference": "日誌參照",
+    "code": "診斷代碼",
+    "method": "HTTP 方法",
+    "status": "HTTP 狀態",
+    "duration": "耗時（毫秒）",
+    "requestID": "請求 ID",
+    "phase": "關閉階段",
+    "safeRequestSummary": "僅顯示安全的請求摘要。",
+    "suppressedProblem": "診斷內容已隱藏",
+    "suppressedImpact": "此紀錄無法安全呈現，不據此推論作業結果或系統正常。",
+    "suppressedSource": "診斷",
+    "transportOnly": "連線狀態僅描述此日誌傳輸，不代表採集、寫入接收、SQL 提交、讀回或清理。",
+    "categories": {
+      "process": "程序觀察",
+      "http": "HTTP 觀察",
+      "suppressed": "已隱藏的診斷"
+    },
+    "sources": {
+      "startup": "啟動",
+      "runtime": "執行程序",
+      "shutdown": "關閉",
+      "http": "HTTP",
+      "application": "應用程式",
+      "standard": "標準輸出",
+      "slog": "結構化日誌"
+    },
+    "phases": {
+      "startup": "啟動",
+      "http": "HTTP",
+      "runtime": "執行流程",
+      "pipeline": "資料流程",
+      "share": "本機分享",
+      "connections": "連線",
+      "database": "資料庫",
+      "diagnostics": "診斷",
+      "tray": "桌面圖示",
+      "owner": "資料庫所有權"
+    },
+    "problems": {
+      "startup": {
+        "begin": "閘道開始啟動",
+        "ready": "網頁服務已就緒",
+        "failed": "閘道啟動失敗",
+        "config_invalid": "啟動設定無效",
+        "path_ambiguous": "資料庫位置不明確",
+        "path_unusable": "資料位置無法使用",
+        "owner_busy": "資料庫已有啟用中的擁有者",
+        "log_unavailable": "診斷儲存無法使用",
+        "tray_failed": "桌面控制圖示無法使用",
+        "bind_failed": "監聽服務無法啟動",
+        "assets_missing": "缺少應用程式資源",
+        "database_linked": "資料庫位置具有多重連結",
+        "db_open_failed": "無法開啟資料庫",
+        "db_ping_failed": "資料庫連線檢查失敗",
+        "migration_failed": "資料庫初始化失敗",
+        "service_failed": "應用程式服務初始化失敗",
+        "pipeline_failed": "資料流程初始化失敗"
+      },
+      "runtime": {
+        "started": "執行程序已啟動",
+        "degraded": "執行程序已降級",
+        "share_degraded": "本機分享已降級",
+        "group_failed": "寫入群組作業失敗",
+        "stopped": "執行程序已停止"
+      },
+      "shutdown": {
+        "begin": "閘道開始關閉",
+        "finalizing": "正在完成本機診斷",
+        "complete": "閘道關閉完成",
+        "timeout": "關閉仍在進行中",
+        "failed": "關閉階段失敗"
+      },
+      "http": {
+        "access": "HTTP 請求已完成",
+        "request": "HTTP 請求已完成",
+        "recovered": "HTTP 錯誤已處理",
+        "recovery": "HTTP 錯誤已處理",
+        "server_error": "HTTP 伺服器錯誤"
+      },
+      "raw": {
+        "suppressed": "診斷內容已隱藏"
+      }
+    },
+    "impacts": {
+      "startup": {
+        "begin": "閘道程序開始啟動；這不是採集或交付證據。",
+        "ready": "內嵌網頁服務回報就緒；採集與 SQL 提交仍須分別確認。",
+        "failed": "啟動未完成，請檢視固定診斷代碼與本機設定。",
+        "config_invalid": "請檢查設定值；此處不顯示原始設定或憑證。",
+        "path_ambiguous": "請設定單一明確的資料庫絕對位置；此處不顯示私人路徑。",
+        "path_unusable": "請檢查已設定資料位置的存取權限。",
+        "owner_busy": "此資料庫已有其他閘道擁有者啟用中；請勿略過所有權保護。",
+        "log_unavailable": "請檢查受管理診斷位置及權限；缺少日誌不代表正常。",
+        "tray_failed": "桌面控制圖示無法初始化。",
+        "bind_failed": "請檢查設定的監聽連接埠；這是程序觀察，不是採集證明。",
+        "assets_missing": "請使用包含內嵌應用程式資源的完整產品建置。",
+        "database_linked": "請使用單一標準資料庫位置，避免日誌附屬檔案位置不明確。",
+        "db_open_failed": "無法開啟選定的資料庫；此處不顯示原始驅動程式細節。",
+        "db_ping_failed": "選定資料庫未通過連線檢查；這不是資料交付結果。",
+        "migration_failed": "請保留既有資料並檢視診斷；此處不提供自動修復。",
+        "service_failed": "應用程式服務無法初始化；目前執行證據須另行檢視。",
+        "pipeline_failed": "資料流程無法初始化；尚無採集或 SQL 結果證明。"
+      },
+      "runtime": {
+        "started": "執行程序回報已啟動，不代表採集成功、接收成功或 SQL 已提交。",
+        "degraded": "請檢視目前執行狀態；此程序觀察不識別個別來源，也不證明交付。",
+        "share_degraded": "請檢視目前輸出狀態；本機分享與 SQL 交付不同。",
+        "group_failed": "請檢視目前寫入證據；此舊式觀察沒有已驗證的群組身分或收據。",
+        "stopped": "執行程序回報已停止；待交付資料與 SQL 結果仍須分別確認。"
+      },
+      "shutdown": {
+        "begin": "已開始關閉；這不代表待交付資料已送達。",
+        "finalizing": "本機診斷結束處理不代表資料交付完成。",
+        "complete": "程序關閉已完成；採集、SQL 提交、讀回及清理各有獨立證據。",
+        "timeout": "尚未確認關閉完成。",
+        "failed": "某個關閉階段失敗；尚未確認完成。"
+      },
+      "http": {
+        "access": "HTTP 請求已完成；HTTP 成功不代表採集成功、接收成功或 SQL 已提交。",
+        "request": "HTTP 請求已完成；HTTP 成功不代表採集成功、接收成功或 SQL 已提交。",
+        "recovered": "HTTP 處理常式已處理錯誤，不代表採集已恢復或 SQL 已提交。",
+        "recovery": "HTTP 處理常式已處理錯誤，不代表採集已恢復或 SQL 已提交。",
+        "server_error": "HTTP 伺服器回報錯誤；原始例外細節已隱藏。"
+      },
+      "raw": {
+        "suppressed": "未分類的診斷內容已隱藏，這不是系統正常的證明。"
+      }
+    }
+  }
 }

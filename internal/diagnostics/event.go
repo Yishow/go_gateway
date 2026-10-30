@@ -3,6 +3,9 @@ package diagnostics
 
 import "time"
 
+// RuntimeLogHeartbeat is the existing process-log heartbeat and domain summary window.
+const RuntimeLogHeartbeat = 15 * time.Second
+
 // Capacity constants are hard count and encoded-byte bounds.
 const (
 	MaxEventBytes    = 8 << 10

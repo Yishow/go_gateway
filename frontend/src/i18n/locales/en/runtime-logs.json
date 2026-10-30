@@ -9,6 +9,37 @@
   "source": "Source (exact ID)",
   "allSources": "All sources",
   "search": "Search safe text",
+  "stage": "Evidence stage",
+  "allStages": "All stages",
+  "actionable": "Suggested action / unknown state",
+  "scopeFilters": "Scope filters (exact IDs)",
+  "scopeHelp": "Each exact ID independently narrows retained events. Leave empty for no restriction; use IDs, not names or addresses. Apply filters to update the view.",
+  "scopeFields": {
+    "workspaceId": "Workspace ID",
+    "deviceId": "Device ID",
+    "ruleId": "Source rule ID",
+    "groupId": "Recording group ID"
+  },
+  "actionableHelp": "Historical events with a suggested action or unknown state, not a list of current unresolved faults. Missing events or recovery records do not establish health.",
+  "historyUnknown": "Current fault or recovery status is unknown where history is missing. Open the runtime monitor to inspect current rule evidence.",
+  "stages": {
+    "unavailable": "Unavailable",
+    "acquisition": "Acquisition",
+    "accepted": "Accepted",
+    "collecting": "Collecting",
+    "queued": "Queued",
+    "retrying": "Retrying",
+    "blocked": "Blocked",
+    "quarantined": "Quarantined",
+    "unknown": "Unknown",
+    "skipped": "Skipped",
+    "sql-committed": "SQL committed",
+    "readback-verified": "Readback verified",
+    "cleanup-completed": "Cleanup completed",
+    "transport-event": "Transport event"
+  },
+  "appliedScopeCount": "Applied IDs: {{count}}",
+  "invalidId": "Invalid ID format. Enter a complete ID.",
   "apply": "Apply filters",
   "pause": "Pause view",
   "resume": "Resume view",
@@ -16,7 +47,7 @@
   "tail": "Follow tail",
   "retry": "Retry connection",
   "controlsHelp": "Pause and clear affect this browser only. Acquisition and logging continue; no server records or files are deleted.",
-  "status": { "loading": "Loading", "connected": "Connected", "reconnecting": "Disconnected · reconnecting", "paused": "Paused", "denied": "Access denied", "failed": "Failed" },
+  "status": { "loading": "Loading", "connected": "Connected · log feed only", "reconnecting": "Disconnected · reconnecting", "paused": "Paused", "denied": "Access denied", "failed": "Failed" },
   "deniedHelp": "Local-only access: open the gateway page on its own computer using localhost or a loopback address. Remote-only binding and proxy access cannot expose logs. Automatic retries have stopped.",
   "failedHelp": "Logs could not be loaded safely. Check that the gateway is running, then retry. No raw error details are shown.",
   "reset": "The gateway process restarted. Earlier process history is unavailable.",
@@ -35,5 +66,340 @@
   "sourceColumn": "Source",
   "message": "Code and message",
   "recordTruncated": "Truncated record",
-  "empty": "No matching retained records"
+  "empty": "No matching retained records",
+  "domain": {
+    "source": "Runtime domain event",
+    "unavailable": "Unavailable",
+    "unavailableProblem": "Event evidence unavailable",
+    "unavailableImpact": "This record cannot safely identify an operation or its result. No settings action is available.",
+    "historical": "Historical event — not current status",
+    "details": "Event details",
+    "stage": "Evidence stage",
+    "occurrences": "Occurrences",
+    "affected": "Affected identity",
+    "eventCode": "Event code",
+    "workspaceId": "Workspace ID",
+    "deviceId": "Device ID",
+    "ruleId": "Source rule ID",
+    "mappingId": "Mapping ID",
+    "groupId": "Recording group ID",
+    "pointId": "Point ID",
+    "tagId": "Tag ID",
+    "entityRevision": "Original entity revision",
+    "workspaceRevision": "Observed workspace revision",
+    "groupRevision": "Original group revision",
+    "connectorId": "Connector ID",
+    "connectorRevision": "Original connector revision",
+    "firstSeen": "First seen",
+    "lastSeen": "Last seen",
+    "referenceId": "Reference ID",
+    "evidenceKind": "Evidence kind",
+    "receipt": "Runtime receipt (this effect only)",
+    "recordId": "Receipt record ID",
+    "effectKey": "Receipt effect key",
+    "payloadDigest": "Receipt payload digest",
+    "committedAt": "Receipt committed at",
+    "receiptProvenance": "Receipt provenance",
+    "receiptOwnEffect": "This receipt proves only its own effect; it is not readback, cleanup or aggregate proof.",
+    "intakeState": "Observed intake state",
+    "pendingSamples": "Pending input samples",
+    "quota": "Observed quota",
+    "quotaScope": "Quota scope (all revisions)",
+    "quotaState": "Quota state",
+    "quotaUsed": "Observed used bytes",
+    "quotaMax": "Configured maximum bytes",
+    "intakeRefused": "Intake refused by quota",
+    "yes": "Yes",
+    "no": "No",
+    "reason": "Reason",
+    "action": "Suggested next step",
+    "openGroup": "Open group settings",
+    "openCurrent": "Open current settings",
+    "currentSettingsHelp": "Opens current settings. The original source or mapping revision remains historical event context, not a historical snapshot.",
+    "groupSettingsHelp": "The original group revision remains a history hint. The settings page independently checks the current revision.",
+    "navigationOnly": "Navigation only — no retry, skip, activation or DDL is executed.",
+    "actions": {
+      "none": "No action suggested",
+      "refresh": "Inspect fresh evidence",
+      "inspect-settings": "Inspect settings",
+      "inspect-delivery": "Inspect delivery evidence",
+      "open-workspace-list": "Inspect the owned workspace list",
+      "inspect-immutable-evidence": "Inspect original immutable evidence"
+    },
+    "reasons": {
+      "none": "No failure indicated by this event",
+      "unavailable": "Evidence unavailable",
+      "stale-reference": "Reference changed",
+      "foreign-scope": "Outside the available scope",
+      "deleted": "Referenced entity deleted",
+      "unsupported": "Evidence unsupported",
+      "effective-proof-missing": "Effective revision proof missing",
+      "counter-replay-proof-missing": "Original replay proof missing",
+      "counter-replay-proof-conflict": "Original replay proof conflicts",
+      "counter-replay-proof-unsupported": "Original replay proof unsupported",
+      "recording-ownership-unavailable": "Recording ownership unavailable",
+      "recording-ownership-conflict": "Recording ownership conflicts",
+      "recording-handoff-proof-conflict": "Recording handoff proof conflicts",
+      "recording-cutover-finalized-overlap": "Cutover overlaps finalized output"
+    },
+    "problems": {
+      "source": {
+        "applied": "Source rule applied",
+        "rejected": "Source update rejected"
+      },
+      "collector": {
+        "failed": "Acquisition failed",
+        "recovered": "Acquisition recovered"
+      },
+      "mapping": {
+        "failed": "Mapping failed",
+        "recovered": "Mapping recovered"
+      },
+      "group": {
+        "applied": "Recording intake observed active",
+        "paused": "Recording intake paused",
+        "retiring": "Recording revision retiring"
+      },
+      "delivery": {
+        "retrying": "Delivery retrying",
+        "blocked": "Delivery blocked",
+        "quarantined": "Delivery output quarantined",
+        "unknown": "Delivery outcome unknown",
+        "first-confirmed": "First SQL commitment observed",
+        "recovered": "Delivery recovered",
+        "summary": "SQL commitment summary"
+      },
+      "counter-replay": {
+        "quarantined": "Input replay quarantined"
+      },
+      "recording": {
+        "refused": "Recording intake refused"
+      },
+      "quota": {
+        "recovered": "Storage capacity recovered",
+        "refused": "Storage quota refused intake"
+      },
+      "repair": {
+        "completed": "Storage repair completed",
+        "blocked": "Storage repair blocked"
+      },
+      "cutover": {
+        "applied": "Recording cutover applied",
+        "rejected": "Recording cutover rejected"
+      }
+    },
+    "impacts": {
+      "source": {
+        "applied": "The observed source input was applied to acquisition runtime, not SQL delivery.",
+        "rejected": "This source runtime update was not confirmed; this event does not establish the current configuration."
+      },
+      "collector": {
+        "failed": "The final acquisition result failed for this frozen source identity. Delivery is a separate stage.",
+        "recovered": "Acquisition recovered for the matching source episode; this is not SQL commitment."
+      },
+      "mapping": {
+        "failed": "The executed mapping failed for this binding; raw values and transform errors are not shown.",
+        "recovered": "The matching mapping result recovered; this does not prove downstream SQL delivery."
+      },
+      "group": {
+        "applied": "Reconciliation observed intake active for this original revision; this is not current-state or SQL proof.",
+        "paused": "New intake was paused; historical delivery backlog may remain.",
+        "retiring": "This original revision is retiring; historical delivery backlog may remain."
+      },
+      "delivery": {
+        "retrying": "The frozen output remains in delivery retry; SQL commitment is not confirmed by this event.",
+        "blocked": "Delivery is blocked for this frozen revision; inspect current evidence before taking any action.",
+        "quarantined": "A finalized output is quarantined; it is distinct from quarantined input samples.",
+        "unknown": "SQL commitment is not confirmed. Missing evidence is not a success or safe retry authorization.",
+        "first-confirmed": "The attached receipt proves only its own effect, not all outputs, readback or cleanup.",
+        "recovered": "A matching runtime receipt confirms this effect. It does not prove every pending output was delivered.",
+        "summary": "The count describes observed transitions. The attached receipt proves only its own effect, not an aggregate receipt."
+      },
+      "counter-replay": {
+        "quarantined": "Accepted input samples await original immutable evidence; they are not finalized delivery outputs."
+      },
+      "recording": {
+        "refused": "Original ownership evidence refused intake. Pending input samples are not delivery output counts."
+      },
+      "quota": {
+        "recovered": "Capacity recovered for the original quota scope only; this is not resumed intake or SQL commitment.",
+        "refused": "The configured storage quota refused durable intake; existing historical delivery remains separate."
+      },
+      "repair": {
+        "completed": "The schema operation completed; historical data recovery is not implied.",
+        "blocked": "The repair operation did not complete successfully. This event does not authorize another repair."
+      },
+      "cutover": {
+        "applied": "The confirmed cutover operation references the original revisions; it does not establish data delivery.",
+        "rejected": "The cutover operation was rejected; inspect current evidence without substituting a same-name group."
+      }
+    },
+    "quotaScopes": {
+      "global": "Global",
+      "group": "Group"
+    },
+    "quotaStates": {
+      "unconfigured": "Unconfigured",
+      "ok": "Within capacity",
+      "warning": "Warning",
+      "hard_limit": "Hard limit",
+      "unavailable": "Unavailable"
+    },
+    "intakeStates": {
+      "active": "Active",
+      "retiring": "Retiring",
+      "blocked": "Blocked",
+      "not_running": "Not running",
+      "unavailable": "Unavailable"
+    },
+    "evidenceKinds": {
+      "source-runtime-transition": "Source runtime transition",
+      "acquisition-result": "Acquisition result",
+      "mapping-result": "Mapping result",
+      "intake-status": "Intake status",
+      "durable-transition": "Durable output transition",
+      "runtime-receipt": "Runtime receipt",
+      "counter-replay-inputs": "Counter replay input samples",
+      "recording-refusal": "Recording refusal",
+      "quota-refusal": "Quota refusal",
+      "quota-status": "Quota status",
+      "operation-result": "Operation result"
+    },
+    "runtimeProvenance": "Runtime",
+    "groupScope": "Group-level history, not per-device allocation.",
+    "receiptGroupRevision": "Receipt group revision",
+    "receiptConnectorRevision": "Receipt connector revision"
+  },
+  "legacy": {
+    "unavailable": "Unavailable",
+    "details": "Diagnostic details",
+    "reference": "Log reference",
+    "code": "Diagnostic code",
+    "method": "HTTP method",
+    "status": "HTTP status",
+    "duration": "Duration (ms)",
+    "requestID": "Request ID",
+    "phase": "Shutdown phase",
+    "safeRequestSummary": "Only a safe request summary is shown.",
+    "suppressedProblem": "Diagnostic content suppressed",
+    "suppressedImpact": "This record cannot be safely presented. No operation or system health is inferred.",
+    "suppressedSource": "Diagnostic",
+    "transportOnly": "Connection status describes this log feed only, not acquisition, recording intake, SQL commitment, readback or cleanup.",
+    "categories": {
+      "process": "Process observation",
+      "http": "HTTP observation",
+      "suppressed": "Suppressed diagnostic"
+    },
+    "sources": {
+      "startup": "Startup",
+      "runtime": "Runtime process",
+      "shutdown": "Shutdown",
+      "http": "HTTP",
+      "application": "Application",
+      "standard": "Standard output",
+      "slog": "Structured logging"
+    },
+    "phases": {
+      "startup": "Startup",
+      "http": "HTTP",
+      "runtime": "Runtime",
+      "pipeline": "Pipeline",
+      "share": "Local sharing",
+      "connections": "Connections",
+      "database": "Database",
+      "diagnostics": "Diagnostics",
+      "tray": "Desktop icon",
+      "owner": "Database ownership"
+    },
+    "problems": {
+      "startup": {
+        "begin": "Gateway startup began",
+        "ready": "Web service ready",
+        "failed": "Gateway startup failed",
+        "config_invalid": "Startup configuration invalid",
+        "path_ambiguous": "Database location ambiguous",
+        "path_unusable": "Data location unavailable",
+        "owner_busy": "Database owner already active",
+        "log_unavailable": "Diagnostic storage unavailable",
+        "tray_failed": "Desktop control icon unavailable",
+        "bind_failed": "Listener could not start",
+        "assets_missing": "Application assets missing",
+        "database_linked": "Database location has multiple links",
+        "db_open_failed": "Database could not be opened",
+        "db_ping_failed": "Database connection check failed",
+        "migration_failed": "Database initialization failed",
+        "service_failed": "Application service initialization failed",
+        "pipeline_failed": "Pipeline initialization failed"
+      },
+      "runtime": {
+        "started": "Runtime started",
+        "degraded": "Runtime degraded",
+        "share_degraded": "Local sharing degraded",
+        "group_failed": "Recording group operation failed",
+        "stopped": "Runtime stopped"
+      },
+      "shutdown": {
+        "begin": "Gateway shutdown began",
+        "finalizing": "Finalizing local diagnostics",
+        "complete": "Gateway shutdown complete",
+        "timeout": "Shutdown still in progress",
+        "failed": "Shutdown phase failed"
+      },
+      "http": {
+        "access": "HTTP request completed",
+        "request": "HTTP request completed",
+        "recovered": "HTTP fault recovered",
+        "recovery": "HTTP fault recovered",
+        "server_error": "HTTP server error"
+      },
+      "raw": {
+        "suppressed": "Diagnostic content suppressed"
+      }
+    },
+    "impacts": {
+      "startup": {
+        "begin": "The gateway process began startup. This is not acquisition or delivery evidence.",
+        "ready": "The embedded web service reported ready; acquisition and SQL commitment remain separate.",
+        "failed": "Startup did not complete. Review the fixed diagnostic code and local configuration.",
+        "config_invalid": "Check the configured values. No raw configuration or credentials are shown.",
+        "path_ambiguous": "Configure one explicit absolute database location; no private path is displayed.",
+        "path_unusable": "Check access permissions for the configured data location.",
+        "owner_busy": "Another gateway owner is active for this database. Do not bypass ownership protection.",
+        "log_unavailable": "Check the managed diagnostic location and permissions; missing logs do not establish health.",
+        "tray_failed": "The desktop control icon could not be initialized.",
+        "bind_failed": "Check the configured listening port. This is a process observation, not acquisition proof.",
+        "assets_missing": "Use a complete product build containing the embedded application assets.",
+        "database_linked": "Use one canonical database location so journal sidecar locations are unambiguous.",
+        "db_open_failed": "The selected database could not be opened; raw driver details are not shown.",
+        "db_ping_failed": "The selected database did not pass its connection check. This is not a delivery result.",
+        "migration_failed": "Preserve existing data and review diagnostics; no automatic repair is offered here.",
+        "service_failed": "Application services could not initialize. Review current runtime evidence separately.",
+        "pipeline_failed": "The data pipeline could not initialize; no acquisition or SQL outcome is established."
+      },
+      "runtime": {
+        "started": "The runtime process reported started; this does not prove successful acquisition, intake or SQL commitment.",
+        "degraded": "Review current runtime status. This process observation does not identify a source or prove delivery.",
+        "share_degraded": "Review current output status; local sharing and SQL delivery are separate.",
+        "group_failed": "Review current recording evidence. This legacy observation has no verified group identity or receipt.",
+        "stopped": "The runtime process reported stopped; pending delivery and SQL outcomes remain separate."
+      },
+      "shutdown": {
+        "begin": "Shutdown began; this does not establish that pending data was delivered.",
+        "finalizing": "Local diagnostic finalization does not imply delivery completion.",
+        "complete": "Process shutdown completed; acquisition, SQL commitment, readback and cleanup are separate evidence.",
+        "timeout": "Shutdown completion has not been confirmed.",
+        "failed": "A shutdown phase failed; completion has not been confirmed."
+      },
+      "http": {
+        "access": "An HTTP request completed; HTTP success does not prove acquisition, intake or SQL commitment.",
+        "request": "An HTTP request completed; HTTP success does not prove acquisition, intake or SQL commitment.",
+        "recovered": "The HTTP handler recovered a fault; this is not acquisition recovery or SQL commitment.",
+        "recovery": "The HTTP handler recovered a fault; this is not acquisition recovery or SQL commitment.",
+        "server_error": "The HTTP server reported an error; raw exception details are suppressed."
+      },
+      "raw": {
+        "suppressed": "Unclassified diagnostic content is hidden. This is not evidence of a healthy system."
+      }
+    }
+  }
 }

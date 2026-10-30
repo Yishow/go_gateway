@@ -80,7 +80,9 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 	modbusShareSvc := modbusshare.NewService(tagSvc, 65536)
 	shareSettingsLoaded := loadPersistedShareSettings(ctx, modbusShareSvc, settingsRepo)
 	workspaceSvc := workspace.NewService(workspace.NewSQLRepository(db))
-	writeGroupsSvc := workspace.NewWriteGroupService(workspaceSvc, workspace.NewSQLWriteGroupRepository(db)).
+	deliveryObservation, ownerObservation := newDeliveryEventObservers(logs, workspaceSvc)
+	storageObservation, cutoverObservation := newOperationEventObservers(logs, deliveryObservation.ScopeRevision)
+	writeGroupsSvc := workspace.NewWriteGroupService(workspaceSvc, workspace.NewSQLWriteGroupRepository(db), cutoverObservation).
 		WithBacklogOwnershipGuard(grouppipeline.BacklogGuard{})
 	auditSvc := audit.NewService(audit.NewSQLRepository(db))
 	dbTargetConnectorRepo := dbtarget.NewSQLConnectorRepository(db)
@@ -96,16 +98,14 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 	if err != nil {
 		return gatewayServices{}, fmt.Errorf("configure group delivery capacity: %w", err)
 	}
+	groupStore = groupStore.WithDeliveryObservation(deliveryObservation)
+	intakeQuotaObservation := newIntakeQuotaEventObserver(logs, deliveryObservation.ScopeRevision)
 	pipelineConfig := fixture.pipelineConfig(gatewayNodeID(), uuid.NewString())
 	if logs != nil {
-		previous := pipelineConfig.OnError
-		pipelineConfig.OnError = func(err error) {
-			if err != nil {
-				logs.Emit(diagnostics.Input{Code: "runtime.group_failed"})
-				if previous != nil {
-					previous(err)
-				}
-			}
+		// The native error callback remains unchanged. Only this fixed diagnostic
+		// may be replaced by a verified, locally captured observation of the Tick.
+		pipelineConfig.OnDiagnosticError = func() {
+			logs.Emit(diagnostics.Input{Code: "runtime.group_failed"})
 		}
 	}
 	// Explicit group test writes and managed-storage recovery share the recording
@@ -115,19 +115,25 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 		Groups: writeGroupsSvc, Tags: tagSvc, Destinations: dbTargetConnectorSvc,
 		Inspector: dbtarget.NewReadOnlyTableInspector(dbTargetConnectorSvc), Store: groupStore,
 		// Cumulative groups count only from saved measurements that confirm counter semantics.
-		Counters: grouppipeline.NewMeasurementCounterSources(measurement.NewSQLRepository(db)),
-		Ledger:   recordingPlanSvc,
+		Counters:               grouppipeline.NewMeasurementCounterSources(measurement.NewSQLRepository(db)),
+		Ledger:                 recordingPlanSvc,
+		OwnerObservation:       ownerObservation,
+		IntakeQuotaObservation: intakeQuotaObservation,
+		StorageObservation:     storageObservation,
 	}, pipelineConfig)
 	sampleSink := fixture.sampleSink(groupPipe)
 	// A canonical group that owns an output replaces the legacy writer for it, so
 	// there is exactly one writer per output.
 	dbTargetWriter := dbtarget.NewWriterWithConfig(dbTargetConnectorRepo, dbTargetMappingRepo, dbtarget.WriterConfig{TagReader: tagSvc, SuppressMapping: groupPipe.Owns}) //nolint:contextcheck // Persistent worker is owned by runtime shutdown.
-	scheduler := collector.NewScheduler(collector.DefaultSchedulerConfig(), connMgr)
+	schedulerConfig := collector.DefaultSchedulerConfig()
+	schedulerConfig.AcquisitionObserver = newCollectorEventObserver(logs)
+	scheduler := collector.NewScheduler(schedulerConfig, connMgr)
 	runtimeWriter := storage.NewBatchWriter(storage.NewSQLiteWriter(db), storage.DefaultBatchWriterConfig()) //nolint:contextcheck // Persistent timer is joined by runtime shutdown.
 	runtimeSvc, err := datalinkruntime.NewService(datalinkruntime.DefaultConfig(), datalinkruntime.Dependencies{
 		Scheduler: scheduler, Writer: runtimeWriter, TargetWriter: newProductionTargetWriter(dbTargetWriter, modbusShareSvc),
 		DeviceService: devSvc, PointService: pointSvc, MappingService: mappingSvc, TagService: tagSvc, PollingGroupService: pgSvc,
-		SampleSink: sampleSink,
+		SampleSink: sampleSink, SourceRuleObserver: newSourceRuleEventObserver(logs),
+		MappingObserver: newMappingEventObserver(logs),
 	})
 	if err != nil {
 		targetErr := dbTargetWriter.Close(ctx)

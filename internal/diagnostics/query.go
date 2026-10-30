@@ -2,9 +2,12 @@ package diagnostics
 
 import (
 	"errors"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"go-gateway/internal/datalink/runtimeview"
 
 	"golang.org/x/text/cases"
 )
@@ -20,9 +23,16 @@ var (
 
 // Query bounds a current-process history query; Level is minimum severity.
 type Query struct {
-	Level, Source, Q, Before string
-	Limit                    int
+	Level, Source, Q, Before               string
+	Limit                                  int
+	WorkspaceID, DeviceID, RuleID, GroupID string
+	Stage                                  runtimeview.Stage
+	Actionable                             bool
 }
+
+// domainQueryNetwork matches the existing frontend safeRuntimeIdentity network
+// exclusion. Other URL, IPv6 and private-path syntax fails domainID itself.
+var domainQueryNetwork = regexp.MustCompile(`(?i)(?:[a-z0-9-]+\.)+[a-z]{2,}|(?:[0-9]{1,3}\.){3}[0-9]{1,3}`)
 
 // Gap identifies an explicitly unavailable interval or process reset.
 type Gap struct {
@@ -68,6 +78,17 @@ func validateQuery(q Query) (Query, error) {
 	default:
 		return q, ErrInvalidQuery
 	}
+	for _, id := range []string{q.WorkspaceID, q.DeviceID, q.RuleID, q.GroupID} {
+		if id != "" && (!domainID.MatchString(id) || domainQueryNetwork.MatchString(id)) {
+			return q, ErrInvalidQuery
+		}
+	}
+	if q.Stage != "" && runtimeview.ParseStage(string(q.Stage)) != q.Stage {
+		return q, ErrInvalidQuery
+	}
+	q.WorkspaceID, q.DeviceID = strings.Clone(q.WorkspaceID), strings.Clone(q.DeviceID)
+	q.RuleID, q.GroupID = strings.Clone(q.RuleID), strings.Clone(q.GroupID)
+	q.Stage = runtimeview.Stage(strings.Clone(string(q.Stage)))
 	q.Q = strings.Clone(cases.Fold().String(q.Q))
 	q.Level = strings.Clone(q.Level)
 	q.Source = strings.Clone(q.Source)
@@ -80,6 +101,9 @@ func validateQuery(q Query) (Query, error) {
 func ValidateQuery(q Query) (Query, error) { _, err := validateQuery(q); return q, err }
 func matches(q Query, e Event) bool {
 	if q.Level != "" && levelRank(e.Level) < levelRank(q.Level) || q.Source != "" && q.Source != e.Source {
+		return false
+	}
+	if !matchesDomainQuery(q, e) {
 		return false
 	}
 	if q.Q == "" {
@@ -96,6 +120,42 @@ func matches(q Query, e Event) bool {
 	}
 	return false
 }
+
+// matchesDomainQuery consumes already projected scalar metadata. It does not
+// reconstruct a runtime authority, resolve names, or infer present fault state.
+func matchesDomainQuery(q Query, e Event) bool {
+	if q.WorkspaceID == "" && q.DeviceID == "" && q.RuleID == "" && q.GroupID == "" && q.Stage == "" && !q.Actionable {
+		return true
+	}
+	if e.Code == "domain.unavailable" && e.Source == sourceRuntime {
+		// The fixed observation is actionable but has no attributable identity.
+		return q.WorkspaceID == "" && q.DeviceID == "" && q.RuleID == "" && q.GroupID == "" &&
+			(q.Stage == "" || q.Stage == runtimeview.StageUnavailable)
+	}
+	if _, fixed := domainProjectionTemplates[DomainEventCode(e.Code)]; !fixed || e.Source != sourceRuntime || e.Fields["event_version"] != 1 {
+		return false
+	}
+	stage, stageOK := e.Fields["stage"].(string)
+	reason, reasonOK := e.Fields["reason"].(string)
+	action, actionOK := e.Fields["action"].(string)
+	if !stageOK || stage == "" || runtimeview.ParseStage(stage) != runtimeview.Stage(stage) ||
+		!reasonOK || runtimeview.ParseReason(reason) != runtimeview.Reason(reason) ||
+		!actionOK || runtimeview.ActionForReason(runtimeview.Reason(reason)) != runtimeview.Action(action) {
+		return false
+	}
+	if q.Stage != "" && string(q.Stage) != stage || q.Actionable && action == string(runtimeview.ActionNone) {
+		return false
+	}
+	for _, identity := range []struct{ key, value string }{
+		{"workspace_id", q.WorkspaceID}, {"device_id", q.DeviceID}, {"rule_id", q.RuleID}, {"group_id", q.GroupID},
+	} {
+		if identity.value != "" && e.Fields[identity.key] != identity.value {
+			return false
+		}
+	}
+	return true
+}
+
 func parseCursor(cursor string) (instanceID string, number uint64, err error) {
 	instance, sequence, ok := strings.Cut(cursor, ":")
 	if !ok || !opaqueID(instance) || sequence == "" || len(sequence) > 20 || len(sequence) > 1 && sequence[0] == '0' {

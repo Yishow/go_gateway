@@ -48,14 +48,17 @@ type RuntimeReconcileScope struct {
 type RuntimeReconcileRequest struct {
 	Operation RuntimeReconcileOperation `json:"operation"`
 	Scope     RuntimeReconcileScope     `json:"scope"`
+	// RuleRevision is the actual mutation input, not an HTTP field.
+	RuleRevision string `json:"-"`
 }
 
 // RuntimeReconcileOutcome reports the source-rule projection result.
 type RuntimeReconcileOutcome struct {
-	Status  RuntimeReconcileStatus `json:"status"`
-	Scope   RuntimeReconcileScope  `json:"scope"`
-	Code    string                 `json:"code,omitempty"`
-	Message string                 `json:"message,omitempty"`
+	Status      RuntimeReconcileStatus    `json:"status"`
+	Scope       RuntimeReconcileScope     `json:"scope"`
+	Code        string                    `json:"code,omitempty"`
+	Message     string                    `json:"message,omitempty"`
+	Observation *RuntimeSourceObservation `json:"-"`
 }
 
 // RuntimeRuleReconciler reconciles generic source-rule runtime state.
@@ -108,9 +111,9 @@ func (s *Service) SetShareRuntimeReconciler(reconciler ShareRuntimeReconciler) {
 	s.shareRuntimeSync = reconciler
 }
 
-func (s *Service) reconcileSourceRuleAuthorities(ctx context.Context, operation RuntimeReconcileOperation, ruleID, deviceID string) (RuntimeReconcileOutcome, error) {
+func (s *Service) reconcileSourceRuleAuthorities(ctx context.Context, operation RuntimeReconcileOperation, ruleID, deviceID, ruleRevision string) (RuntimeReconcileOutcome, error) {
 	scope := RuntimeReconcileScope{RuleID: ruleID, DeviceID: deviceID}
-	outcome := s.reconcileSourceRuleRuntime(ctx, operation, ruleID, deviceID)
+	outcome := s.reconcileSourceRuleRuntime(ctx, operation, ruleID, deviceID, ruleRevision)
 	if outcome.Status == RuntimeReconcileStatusStale || outcome.Status == RuntimeReconcileStatusFailed {
 		return outcome, &modbusshare.Error{Code: modbusshare.ErrCodeReconcileFailed, Message: "generic runtime projection is not aligned", Retryable: true, Action: retrySourceRuleSaveAction}
 	}
@@ -118,6 +121,8 @@ func (s *Service) reconcileSourceRuleAuthorities(ctx context.Context, operation 
 		return outcome, nil
 	}
 	shareOutcome, err := s.shareRuntimeSync.ReconcileSourceRuleShare(ctx, RuntimeReconcileRequest{Operation: operation, Scope: scope})
+	// Share alignment does not substitute for generic acquisition evidence.
+	shareOutcome.Observation = outcome.Observation
 	if err != nil {
 		var shareErr *modbusshare.Error
 		if !errors.As(err, &shareErr) {
@@ -133,7 +138,7 @@ func (s *Service) reconcileSourceRuleAuthorities(ctx context.Context, operation 
 
 // CreateWithRuntimeReconcile persists a source rule and hands its derived
 // runtime projections to their configured authorities.
-func (s *Service) CreateWithRuntimeReconcile(ctx context.Context, req CreateRuleRequest) (*schema.SourceRule, RuntimeReconcileOutcome, error) {
+func (s *Service) CreateWithRuntimeReconcile(ctx context.Context, req CreateRuleRequest) (rule *schema.SourceRule, outcome RuntimeReconcileOutcome, err error) {
 	if strings.TrimSpace(req.ID) == "" {
 		id, err := common.NewUUID()
 		if err != nil {
@@ -143,11 +148,12 @@ func (s *Service) CreateWithRuntimeReconcile(ctx context.Context, req CreateRule
 	}
 	ctx, release := s.AcquireRuleMutation(ctx, strings.TrimSpace(req.ID))
 	defer release()
-	rule, err := s.Create(ctx, req)
+	rule, err = s.Create(ctx, req)
 	if err != nil {
 		return nil, RuntimeReconcileOutcome{}, err
 	}
-	outcome, err := s.reconcileSourceRuleAuthorities(ctx, RuntimeReconcileOperationCreate, rule.ID, rule.DeviceID)
+	defer func() { s.finalizeSourceRuleObservation(ctx, outcome, err) }()
+	outcome, err = s.reconcileSourceRuleAuthorities(ctx, RuntimeReconcileOperationCreate, rule.ID, rule.DeviceID, rule.RevisionID)
 	if err != nil {
 		var rollbackErrs []error
 		if rollbackErr := s.Delete(ctx, rule.ID); rollbackErr != nil {
@@ -191,21 +197,22 @@ func (s *Service) UpdateWithRuntimeReconcile(
 	ctx context.Context,
 	id string,
 	req UpdateRuleRequest,
-) (*schema.SourceRule, RuntimeReconcileOutcome, error) {
+) (rule *schema.SourceRule, outcome RuntimeReconcileOutcome, err error) {
 	ctx, release := s.AcquireRuleMutation(ctx, id)
 	defer release()
 	snapshot, err := s.snapshotRule(ctx, id)
 	if err != nil {
 		return nil, RuntimeReconcileOutcome{}, err
 	}
-	rule, err := s.Update(ctx, id, req)
+	rule, err = s.Update(ctx, id, req)
 	if err != nil {
 		if rollbackErr := s.restoreRuleSnapshot(ctx, snapshot); rollbackErr != nil {
 			return nil, RuntimeReconcileOutcome{}, s.dirtyUnknown(ctx)
 		}
 		return nil, RuntimeReconcileOutcome{}, err
 	}
-	outcome, err := s.reconcileSourceRuleAuthorities(ctx, RuntimeReconcileOperationUpdate, rule.ID, rule.DeviceID)
+	defer func() { s.finalizeSourceRuleObservation(ctx, outcome, err) }()
+	outcome, err = s.reconcileSourceRuleAuthorities(ctx, RuntimeReconcileOperationUpdate, rule.ID, rule.DeviceID, rule.RevisionID)
 	if err != nil {
 		return nil, outcome, s.compensateFailedShareMutation(ctx, snapshot, RuntimeReconcileOperationUpdate, err)
 	}
@@ -213,7 +220,7 @@ func (s *Service) UpdateWithRuntimeReconcile(
 }
 
 // DeleteWithRuntimeReconcile deletes a rule and reconciles its runtime state.
-func (s *Service) DeleteWithRuntimeReconcile(ctx context.Context, id string) (RuntimeReconcileOutcome, error) {
+func (s *Service) DeleteWithRuntimeReconcile(ctx context.Context, id string) (outcome RuntimeReconcileOutcome, err error) {
 	ctx, release := s.AcquireRuleMutation(ctx, id)
 	defer release()
 	snapshot, err := s.snapshotRule(ctx, id)
@@ -227,7 +234,8 @@ func (s *Service) DeleteWithRuntimeReconcile(ctx context.Context, id string) (Ru
 		}
 		return RuntimeReconcileOutcome{}, err
 	}
-	outcome, err := s.reconcileSourceRuleAuthorities(ctx, RuntimeReconcileOperationDelete, rule.ID, rule.DeviceID)
+	defer func() { s.finalizeSourceRuleObservation(ctx, outcome, err) }()
+	outcome, err = s.reconcileSourceRuleAuthorities(ctx, RuntimeReconcileOperationDelete, rule.ID, rule.DeviceID, rule.RevisionID)
 	if err != nil {
 		return outcome, s.compensateFailedShareMutation(ctx, snapshot, RuntimeReconcileOperationDelete, err)
 	}
@@ -239,7 +247,7 @@ func (s *Service) setEnabledWithRuntimeReconcile(
 	id string,
 	enabled bool,
 	operation RuntimeReconcileOperation,
-) (RuntimeReconcileOutcome, error) {
+) (outcome RuntimeReconcileOutcome, err error) {
 	ctx, release := s.AcquireRuleMutation(ctx, id)
 	defer release()
 	snapshot, err := s.snapshotRule(ctx, id)
@@ -253,7 +261,8 @@ func (s *Service) setEnabledWithRuntimeReconcile(
 		}
 		return RuntimeReconcileOutcome{}, err
 	}
-	outcome, err := s.reconcileSourceRuleAuthorities(ctx, operation, rule.ID, rule.DeviceID)
+	defer func() { s.finalizeSourceRuleObservation(ctx, outcome, err) }()
+	outcome, err = s.reconcileSourceRuleAuthorities(ctx, operation, rule.ID, rule.DeviceID, rule.RevisionID)
 	if err != nil {
 		return outcome, s.compensateFailedShareMutation(ctx, snapshot, operation, err)
 	}
@@ -265,6 +274,7 @@ func (s *Service) reconcileSourceRuleRuntime(
 	operation RuntimeReconcileOperation,
 	ruleID string,
 	deviceID string,
+	ruleRevision ...string,
 ) RuntimeReconcileOutcome {
 	scope := RuntimeReconcileScope{RuleID: ruleID, DeviceID: deviceID}
 	reconciler, ok := s.runtimeSync.(RuntimeRuleReconciler)
@@ -276,10 +286,11 @@ func (s *Service) reconcileSourceRuleRuntime(
 		}
 	}
 
-	outcome := reconciler.ReconcileSourceRule(ctx, RuntimeReconcileRequest{
-		Operation: operation,
-		Scope:     scope,
-	})
+	req := RuntimeReconcileRequest{Operation: operation, Scope: scope}
+	if len(ruleRevision) == 1 {
+		req.RuleRevision = ruleRevision[0]
+	}
+	outcome := reconciler.ReconcileSourceRule(ctx, req)
 	if outcome.Scope.RuleID == "" {
 		outcome.Scope = scope
 	}

@@ -70,21 +70,7 @@ func (s *Scheduler) AddPoint(point *schema.Point) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	groupID := ""
-	if point.PollingGroupID != nil {
-		groupID = *point.PollingGroupID
-	}
-
-	s.pointInfos[point.ID] = pointInfo{
-		ID:             point.ID,
-		DeviceID:       point.DeviceID,
-		Address:        point.Address,
-		Function:       point.Function,
-		DataType:       point.DataType,
-		DataFormat:     point.DataFormat,
-		Mode:           point.Mode,
-		PollingGroupID: groupID,
-	}
+	s.installPointLocked(point)
 }
 
 // RemovePoint 移除點位

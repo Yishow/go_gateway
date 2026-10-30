@@ -11,6 +11,7 @@ import (
 type template struct{ level, source, message string }
 
 var templates = map[string]template{
+	"domain.unavailable":       {levelWarn, sourceRuntime, "A runtime observation has no verified identity; inspect current runtime evidence."},
 	"startup.begin":            {levelInfo, sourceStartup, "Gateway startup has begun."},
 	"startup.ready":            {levelInfo, sourceStartup, "The embedded web service is ready."},
 	"startup.failed":           {levelError, sourceStartup, "Gateway startup failed; review the stable diagnostic code."},

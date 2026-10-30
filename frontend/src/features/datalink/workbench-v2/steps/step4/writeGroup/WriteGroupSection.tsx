@@ -162,6 +162,8 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, wor
       {locatorOnly && <p role="status">{runtime('locatorEntry.unrequested')}</p>}
       {located && selection.kind !== 'none' && (selection.kind !== 'edit' || selection.id !== located.groupId) && <p role="alert">{runtime('locatorEntry.draftBlocked')}</p>}
       {locatorEntry?.selection.state === 'selected' && locatorEntry.selection.history && <p>{runtime('locatorEntry.historicalHint', { revision: locatorEntry.selection.history.revisionHint })}</p>}
+      {located?.groupId && located.groupRevision && located.workspaceId === workspaceId &&
+        <p>{runtime('locatorEntry.currentRevision')}: <span>{located.groupRevision}</span></p>}
       {!locatorOnly && prerequisite && (
         <div className="space-y-1 text-xs text-amber-300" role="status" data-testid={`group-prerequisite-${prerequisite}`}>
           <p>{t(`step4.group.prerequisite.${prerequisite}`)}</p>

@@ -124,7 +124,7 @@ func (s *Scheduler) collectedValueWithReason(
 		}
 	}
 
-	return CollectedValue{
+	value := CollectedValue{
 		PointID:           pt.ID,
 		DeviceID:          pt.DeviceID,
 		Value:             result.Value,
@@ -139,6 +139,8 @@ func (s *Scheduler) collectedValueWithReason(
 		Error:             errText,
 		QualityReason:     qualityReason,
 	}
+	s.observeAcquisition(pt, value)
+	return value
 }
 
 // managedConfig reports the configuration the live connection actually uses,

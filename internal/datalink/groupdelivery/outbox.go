@@ -204,6 +204,7 @@ func (s *Store) fencedOrMissing(ctx context.Context, claim Claim) error {
 // CompleteDelivery records destination-confirmed success: the item becomes
 // sql_committed and a local receipt is written in the same transaction.
 func (s *Store) CompleteDelivery(ctx context.Context, claim Claim, payloadDigest string) error {
+	before := s.prepareDeliveryObservation(ctx, claim.EffectKey)
 	err := s.inTx(ctx, "delivery receipt", func(tx *sql.Tx) error {
 		now := timestamp(s.now())
 		result, err := tx.ExecContext(ctx, `
@@ -229,6 +230,7 @@ func (s *Store) CompleteDelivery(ctx context.Context, claim Claim, payloadDigest
 	}
 	if err == nil {
 		s.usage.invalidate()
+		s.finishDeliveryObservation(ctx, claim.EffectKey, &claim, StateCommitted, "", false, before)
 	}
 	return err
 }
@@ -243,23 +245,30 @@ func (s *Store) MarkRetry(ctx context.Context, claim Claim, state, code string, 
 	if state != StateRetrying && state != StateBlocked {
 		return fmt.Errorf("%w: retry state %q", ErrNotDeliverable, state)
 	}
-	return s.transitionClaimed(ctx, claim, "state = ?, retry_count = retry_count + 1, next_retry_at = ?, last_error_code = ?",
-		state, timestamp(next), code)
+	return s.observeDeliveryTransition(ctx, claim.EffectKey, &claim, state, code, false, func() error {
+		return s.transitionClaimed(ctx, claim, "state = ?, retry_count = retry_count + 1, next_retry_at = ?, last_error_code = ?", state, timestamp(next), code)
+	})
 }
 
 // MarkUnknown records an attempt whose destination outcome cannot be known.
 func (s *Store) MarkUnknown(ctx context.Context, claim Claim, code string) error {
-	return s.transitionClaimed(ctx, claim, "state = 'unknown', last_error_code = ?", code)
+	return s.observeDeliveryTransition(ctx, claim.EffectKey, &claim, StateUnknown, code, false, func() error {
+		return s.transitionClaimed(ctx, claim, "state = 'unknown', last_error_code = ?", code)
+	})
 }
 
 // MarkBlocked stops an unclaimed item until an operator repairs its cause.
 func (s *Store) MarkBlocked(ctx context.Context, effectKey, code string) error {
-	return s.transition(ctx, effectKey, []string{StatePending, StateRetrying}, "state = 'blocked', last_error_code = ?", code)
+	return s.observeDeliveryTransition(ctx, effectKey, nil, StateBlocked, code, false, func() error {
+		return s.transition(ctx, effectKey, []string{StatePending, StateRetrying}, "state = 'blocked', last_error_code = ?", code)
+	})
 }
 
 // BlockClaimed stops a claimed item until an operator repairs its cause.
 func (s *Store) BlockClaimed(ctx context.Context, claim Claim, code string) error {
-	return s.transitionClaimed(ctx, claim, "state = 'blocked', last_error_code = ?", code)
+	return s.observeDeliveryTransition(ctx, claim.EffectKey, &claim, StateBlocked, code, false, func() error {
+		return s.transitionClaimed(ctx, claim, "state = 'blocked', last_error_code = ?", code)
+	})
 }
 
 // ResolveInterrupted settles an item left in sending by a crash or a failed
@@ -275,13 +284,17 @@ func (s *Store) ResolveInterrupted(ctx context.Context, effectKey string) (strin
 		return item.State, nil
 	}
 	if item.Destination.DedupeCapability == DedupeReceipt || item.Destination.DedupeCapability == DedupeUniqueKey {
-		err = s.transition(ctx, effectKey, []string{StateSending}, "state = 'retrying', next_retry_at = ?, last_error_code = 'interrupted-delivery', claim_owner = '', claim_epoch = claim_epoch + 1", timestamp(s.now()))
+		err = s.observeDeliveryTransition(ctx, effectKey, nil, StateRetrying, "interrupted-delivery", true, func() error {
+			return s.transition(ctx, effectKey, []string{StateSending}, "state = 'retrying', next_retry_at = ?, last_error_code = 'interrupted-delivery', claim_owner = '', claim_epoch = claim_epoch + 1", timestamp(s.now()))
+		})
 		if err != nil && !errors.Is(err, ErrNotDeliverable) {
 			return "", err
 		}
 		return StateRetrying, nil
 	}
-	err = s.transition(ctx, effectKey, []string{StateSending}, "state = 'unknown', last_error_code = 'interrupted-delivery', claim_owner = '', claim_epoch = claim_epoch + 1")
+	err = s.observeDeliveryTransition(ctx, effectKey, nil, StateUnknown, "interrupted-delivery", true, func() error {
+		return s.transition(ctx, effectKey, []string{StateSending}, "state = 'unknown', last_error_code = 'interrupted-delivery', claim_owner = '', claim_epoch = claim_epoch + 1")
+	})
 	if err != nil && !errors.Is(err, ErrNotDeliverable) {
 		return "", err
 	}
@@ -301,7 +314,9 @@ const (
 // MarkQuarantined isolates a row the destination rejects; its payload is kept
 // and later rows of the same partition wait behind it.
 func (s *Store) MarkQuarantined(ctx context.Context, claim Claim, code string) error {
-	return s.transitionClaimed(ctx, claim, "state = 'quarantined', last_error_code = ?", code)
+	return s.observeDeliveryTransition(ctx, claim.EffectKey, &claim, StateQuarantined, code, false, func() error {
+		return s.transitionClaimed(ctx, claim, "state = 'quarantined', last_error_code = ?", code)
+	})
 }
 
 // ResolveQuarantine applies an operator decision to a quarantined or blocked

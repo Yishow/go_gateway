@@ -134,7 +134,7 @@ func (p *Pipeline) rebuildHandoffComponent(ctx context.Context, keys []groupdeli
 			locked[i].proofGate.Unlock()
 		}
 		if blocked != nil {
-			p.setBlocked(blocked, blockedReason)
+			p.setBlocked(ctx, blocked, blockedReason)
 		}
 	}()
 	for _, key := range keys {

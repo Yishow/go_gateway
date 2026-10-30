@@ -49,14 +49,8 @@ func TestSenderSlowRemoteSuccessStartsSettlementTimeoutAfterAttempt(t *testing.T
 func TestSenderSlowRemoteFailureStartsSettlementTimeoutAfterAttempt(t *testing.T) {
 	f := newDeliveryFixture(t, plainTargetTable, false)
 	effect := f.enqueueRaw(t, DedupeNone, t0, 5)
-	sender := NewSender(f.store, delayedResolver{err: errors.New("destination unavailable"), delay: 20 * time.Millisecond}, SenderConfig{
-		Owner:           "node-1/a",
-		DeliveryTimeout: 200 * time.Millisecond,
-		SettleTimeout:   5 * time.Millisecond,
-		Backoff:         immediateSettlementRetry,
-	})
-
-	result, err := sender.Deliver(t.Context(), effect)
+	f.resolver.err = errors.New("destination unavailable")
+	result, err := deliverAfterRemoteBudget(t.Context(), t, f, effect)
 	require.NoError(t, err)
 	require.Equal(t, StateRetrying, result.State)
 	require.Equal(t, codeTargetUnavailable, f.state(t, effect).LastErrorCode)

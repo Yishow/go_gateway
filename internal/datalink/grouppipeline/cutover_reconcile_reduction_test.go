@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/aggregation"
 	"go-gateway/internal/datalink/dbtarget"
+	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/runtime"
@@ -167,6 +168,48 @@ func readReductionRow(t *testing.T, f *ownershipPipelineFixture, owner *workspac
 	return value.String, evidence
 }
 
+// diagnoseReductionDelivery preserves the fixture's exact four native cycles.
+// Only after they finish, record safe state evidence; nil dispatch error alone
+// is not a statement that every partition committed.
+func diagnoseReductionDelivery(t *testing.T, f *ownershipPipelineFixture) {
+	t.Helper()
+	sender := groupdelivery.NewSender(f.store, destinationResolver{destinations: f.dest}, f.pipe.senderConfig())
+	dispatcher := groupdelivery.NewDispatcher(f.store, sender, f.pipe.config.Delivery)
+	var reports [4]groupdelivery.CycleReport
+	for i := range reports {
+		report, err := dispatcher.RunOnce(t.Context())
+		reports[i] = report
+		require.NoError(t, err)
+	}
+	for i, report := range reports {
+		t.Logf("delivery cycle=%d report=%+v", i+1, report)
+	}
+	for _, owner := range []*workspace.WriteGroupAppliedSnapshot{f.source, f.target} {
+		rows, err := f.local.QueryContext(t.Context(), `SELECT effect_key,state,last_error_code,retry_count,next_retry_at FROM wg_delivery_outbox WHERE group_id=? AND group_revision=? ORDER BY effect_key`, owner.GroupID, owner.AppliedRevision)
+		require.NoError(t, err)
+		var effects []string
+		for rows.Next() {
+			var effect, state, code, due string
+			var retries int
+			require.NoError(t, rows.Scan(&effect, &state, &code, &retries, &due))
+			effects = append(effects, effect)
+			t.Logf("outbox group=%s revision=%s effect=%s state=%s code=%s retries=%d due=%s", owner.GroupID, owner.AppliedRevision, effect, state, code, retries, due)
+		}
+		require.NoError(t, rows.Err())
+		require.NoError(t, rows.Close())
+		var localReceipts, destinationReceipts, targetRows int
+		for _, effect := range effects {
+			var localCount, destinationCount int
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_receipts WHERE effect_key=?`, effect).Scan(&localCount))
+			require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM gw_effect_receipts WHERE effect_key=?`, effect).Scan(&destinationCount))
+			localReceipts += localCount
+			destinationReceipts += destinationCount
+		}
+		require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+owner.Group.Destination.TableName+` WHERE group_id=?`, owner.GroupID).Scan(&targetRows))
+		t.Logf("settlement group=%s revision=%s local_receipts=%d destination_receipts=%d target_rows=%d", owner.GroupID, owner.AppliedRevision, localReceipts, destinationReceipts, targetRows)
+	}
+}
+
 func TestCutoverReconcileReductionPartitionAndRecoveryMatrix(t *testing.T) {
 	for _, shape := range []averageShape{shapeMeanLong, shapeMeanWide} {
 		for _, reduction := range []string{"latest", "mean", "state", "counter_raw", "cumulative"} {
@@ -217,7 +260,7 @@ func TestCutoverReconcileReductionPartitionAndRecoveryMatrix(t *testing.T) {
 				for _, owner := range []*workspace.WriteGroupAppliedSnapshot{f.source, f.target} {
 					require.NoError(t, f.pipe.boundaries[boundaryKey(owner.GroupID, owner.AppliedRevision)].boundary.Tick(t.Context(), f.clock))
 				}
-				f.deliver()
+				diagnoseReductionDelivery(t, f)
 				oldValue, oldEvidence := readReductionRow(t, f, f.source, at(0), reduction)
 				newValue, newEvidence := readReductionRow(t, f, f.target, at(10), reduction)
 				wantOld, wantNew := "20", "100"

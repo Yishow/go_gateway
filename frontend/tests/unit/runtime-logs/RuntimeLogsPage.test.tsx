@@ -4,14 +4,17 @@ import RuntimeLogsPage from '../../../src/features/runtime-logs/RuntimeLogsPage'
 import { runtimeLogTransport, RuntimeLogRequestError } from '../../../src/services/runtimeLogs';
 import type { RuntimeLogEvent, RuntimeLogSnapshot } from '../../../src/types/runtimeLogs';
 import i18n from '../../../src/i18n/config';
-import { snapshot as fixture, record } from './fixtures';
+import { snapshot as fixture } from './fixtures';
+import { legacyRecord } from './legacy-event-fixtures';
 vi.mock('../../../src/services/runtimeLogs', async (original) => ({
   ...await original<typeof import('../../../src/services/runtimeLogs')>(),
   runtimeLogTransport: { snapshot: vi.fn(), stream: vi.fn() },
 }));
 const text = '<img src=x onerror="alert(1)"><script>alert(2)</script>';
-const snapshot: RuntimeLogSnapshot = { ...fixture, records: [{ ...record('1', text), truncated: true }], sink_health: 'degraded' };
+const snapshot: RuntimeLogSnapshot = { ...fixture, records: [{ ...legacyRecord('runtime.started', { sequence: '1', message: text }), truncated: true }], sink_health: 'degraded' };
 let emit: (event: RuntimeLogEvent) => void;
+const row = (sequence: string) => document.querySelector(`[data-log-cursor="instance-a:${sequence}"]`);
+const retained = () => waitFor(() => expect(row('1')).not.toBeNull());
 beforeEach(async () => {
   await i18n.changeLanguage('en');
   vi.mocked(runtimeLogTransport.snapshot).mockResolvedValue(snapshot);
@@ -21,9 +24,10 @@ beforeEach(async () => {
 });
 afterEach(() => vi.clearAllMocks());
 describe('runtime log operator view', () => {
-  it('renders literal hostile text and accessible controls with independent storage/truncation states', async () => {
-    const view = render(<RuntimeLogsPage />); await screen.findByText(text);
+  it('suppresses candidate hostile text while retaining the exact safe row and accessible controls with independent storage/truncation states', async () => {
+    const view = render(<RuntimeLogsPage />); await retained();
     expect(view.container.querySelector('img,script')).toBeNull();
+    expect(document.body).not.toHaveTextContent(text);
     expect(screen.getByRole('combobox', { name: 'Minimum severity' })).toBeInTheDocument();
     expect(screen.getByLabelText('Search safe text')).toHaveAttribute('maxlength', '256');
     expect(screen.getByText(/Diagnostic storage is degraded/)).toBeInTheDocument();
@@ -32,7 +36,7 @@ describe('runtime log operator view', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Connected');
     fireEvent.click(screen.getByRole('button', { name: 'Pause view' }));
     fireEvent.click(screen.getByRole('button', { name: 'Clear view' }));
-    expect(screen.getByRole('status')).toHaveTextContent('Paused'); expect(screen.queryByText(text)).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent('Paused'); expect(row('1')).toBeNull(); expect(screen.queryByText(text)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Resume view' }));
     await waitFor(() => expect(runtimeLogTransport.stream).toHaveBeenCalledTimes(2));
     expect(runtimeLogTransport.snapshot).toHaveBeenCalledTimes(1);
@@ -57,19 +61,19 @@ describe('runtime log operator view', () => {
     const view = render(<RuntimeLogsPage />);
     fireEvent.change(screen.getByLabelText('Source (exact ID)'), { target: { value: 'http' } });
     fireEvent.change(screen.getByLabelText('Search safe text'), { target: { value: 'literal.*' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' })); await screen.findByText(text);
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' })); await retained();
     expect(vi.mocked(runtimeLogTransport.snapshot).mock.calls[0][1].aborted).toBe(true);
     expect(runtimeLogTransport.stream).toHaveBeenCalledWith({ level: 'debug', source: 'http', q: 'literal.*' },
       'instance-a:1', expect.any(AbortSignal), expect.any(Function));
-    await act(async () => finish({ ...snapshot, records: [record('99', 'late A')] }));
-    expect(screen.queryByText('late A')).toBeNull(); expect(runtimeLogTransport.stream).toHaveBeenCalledTimes(1);
+    await act(async () => finish({ ...snapshot, records: [legacyRecord('runtime.started', { sequence: '99', message: 'late A' })] }));
+    expect(row('99')).toBeNull(); expect(row('1')).not.toBeNull(); expect(screen.queryByText('late A')).toBeNull(); expect(runtimeLogTransport.stream).toHaveBeenCalledTimes(1);
     view.unmount(); expect(vi.mocked(runtimeLogTransport.stream).mock.calls[0][2].aborted).toBe(true);
   });
   it('shows safe failed state rather than empty and supports explicit retry', async () => {
     vi.mocked(runtimeLogTransport.snapshot).mockRejectedValueOnce(new RuntimeLogRequestError(400));
     render(<RuntimeLogsPage />); await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Failed'));
     expect(screen.queryByText('No matching retained records')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry connection' })); await screen.findByText(text);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry connection' })); await retained();
   });
   it('translates denial and scope controls into Traditional Chinese', async () => {
     await i18n.changeLanguage('zh-TW');

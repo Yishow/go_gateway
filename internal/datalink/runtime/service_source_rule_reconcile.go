@@ -10,7 +10,11 @@ import (
 )
 
 // ReconcileSourceRule applies the latest workspace projection after a source-rule lifecycle change.
-func (s *Service) ReconcileSourceRule(ctx context.Context, req sourcerule.RuntimeReconcileRequest) sourcerule.RuntimeReconcileOutcome {
+func (s *Service) ReconcileSourceRule(ctx context.Context, req sourcerule.RuntimeReconcileRequest) (outcome sourcerule.RuntimeReconcileOutcome) {
+	var projection *workspace.RuntimeProjection
+	var attempted, applied bool
+	before := s.sourceObservationSnapshot(ctx)
+	defer func() { outcome.Observation = s.sourceObservation(ctx, before, projection, req, attempted, applied) }()
 	if s == nil || !s.IsRunning() {
 		return sourcerule.RuntimeReconcileOutcome{
 			Status:  sourcerule.RuntimeReconcileStatusNotRunning,
@@ -26,7 +30,8 @@ func (s *Service) ReconcileSourceRule(ctx context.Context, req sourcerule.Runtim
 		}
 	}
 
-	projection, err := s.workspace.RuntimeProjection(ctx)
+	var err error
+	projection, err = s.workspace.RuntimeProjection(ctx)
 	if err != nil {
 		return sourcerule.RuntimeReconcileOutcome{
 			Status:  sourcerule.RuntimeReconcileStatusStale,
@@ -51,6 +56,7 @@ func (s *Service) ReconcileSourceRule(ctx context.Context, req sourcerule.Runtim
 			Message: "source rule device status is invalid in workspace runtime projection",
 		}
 	}
+	attempted = sourceObservationAttempt(req, projection)
 	if err := s.applySourceRuleProjection(ctx, projection, req); err != nil {
 		return sourcerule.RuntimeReconcileOutcome{
 			Status:  sourcerule.RuntimeReconcileStatusStale,
@@ -60,6 +66,7 @@ func (s *Service) ReconcileSourceRule(ctx context.Context, req sourcerule.Runtim
 		}
 	}
 
+	applied = attempted
 	return sourcerule.RuntimeReconcileOutcome{
 		Status: sourcerule.RuntimeReconcileStatusAligned,
 		Scope:  req.Scope,

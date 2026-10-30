@@ -45,6 +45,12 @@ func counterProofReason(reason string) error {
 // from durable evidence on restart and cleared only after this original scope
 // successfully validates and rebuilds; a draft or another revision cannot clear it.
 func (p *Pipeline) setCounterQuarantine(key groupdelivery.GroupKey, reason string) bool {
+	ctx, finish := p.ownerOperation(context.Background())
+	defer finish()
+	return p.observedCounterQuarantine(ctx, key, reason)
+}
+
+func (p *Pipeline) setCounterQuarantineNative(key groupdelivery.GroupKey, reason string) bool {
 	proofReason := counterProofReason(reason)
 	if !key.Valid() || proofReason == nil {
 		return false

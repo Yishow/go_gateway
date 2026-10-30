@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 )
@@ -21,6 +22,8 @@ type Options struct {
 
 // Broker owns only bounded safe event representations.
 type Broker struct {
+	domain                                                                   *DomainCoalescer
+	domainLoss                                                               atomic.Uint64
 	mu                                                                       sync.Mutex
 	routesMu                                                                 sync.RWMutex
 	routes                                                                   map[string]struct{}
@@ -48,6 +51,11 @@ func New(o Options) (*Broker, error) {
 		return nil, err
 	}
 	b := &Broker{instance: hex.EncodeToString(id), level: levelRank(level), file: o.File, routes: map[string]struct{}{"unmatched": {}}, queue: newQueue(AdmissionRecords), ring: newQueue(RingRecords), subs: make(map[*Subscription]struct{}), wake: make(chan struct{}, 1), done: make(chan struct{}), changed: make(chan struct{})}
+	var err error
+	b.domain, err = NewDomainCoalescer(DomainCoalescerOptions{Heartbeat: RuntimeLogHeartbeat, Clock: time.Now, TryAdmit: b.tryAdmitDomain, OnDrop: b.recordDomainLoss})
+	if err != nil {
+		return nil, err
+	}
 	go b.run()
 	return b, nil
 }
@@ -79,6 +87,7 @@ func (b *Broker) Emit(in Input) bool {
 	e, size := boundEvent(e)
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.foldDomainLossLocked()
 	if b.closing || b.next == math.MaxUint64 {
 		return false
 	}
@@ -107,9 +116,17 @@ func (b *Broker) changedLocked()         { close(b.changed); b.changed = make(ch
 func (b *Broker) cursor(n uint64) string { return b.instance + ":" + strconv.FormatUint(n, 10) }
 func (b *Broker) run() {
 	defer close(b.done)
-	for range b.wake {
+	ticker := time.NewTicker(RuntimeLogHeartbeat)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-b.wake:
+		case <-ticker.C:
+			b.domain.Tick(context.Background())
+		}
 		for {
 			b.mu.Lock()
+			b.foldDomainLossLocked()
 			if b.queue.count == 0 {
 				b.latest = b.next
 				b.completed = b.next
@@ -146,6 +163,8 @@ func (b *Broker) run() {
 // Flush waits for already admitted records, then the file writer.
 func (b *Broker) Flush(ctx context.Context) error {
 	b.mu.Lock()
+	b.foldDomainLossLocked()
+	b.signal()
 	target := b.next
 	for b.completed < target {
 		changed := b.changed
@@ -177,7 +196,11 @@ func (b *Broker) CloseSubscriptions() {
 // Close drains accepted records; a deadline-limited wait is safely retryable.
 func (b *Broker) Close(ctx context.Context) error {
 	b.CloseSubscriptions()
+	if b.domain != nil {
+		b.domain.Close()
+	}
 	b.mu.Lock()
+	b.foldDomainLossLocked()
 	b.closing = true
 	b.signal()
 	b.mu.Unlock()
@@ -200,6 +223,7 @@ func (b *Broker) Snapshot(query Query) (Snapshot, error) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.foldDomainLossLocked()
 	before := uint64(math.MaxUint64)
 	if q.Before != "" {
 		instance, n, err := parseCursor(q.Before)

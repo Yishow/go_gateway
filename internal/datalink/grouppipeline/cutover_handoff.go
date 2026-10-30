@@ -14,6 +14,8 @@ const handoffPageSize = 128
 // rebuilds participating workers; successful preparation alone never means
 // external delivery or worker readiness.
 func (p *Pipeline) PrepareCutoverHandoffs(ctx context.Context, workspaceID string) error {
+	ctx, finish := p.ownerOperation(ctx)
+	defer finish()
 	_, err := p.prepareWorkspaceHandoffs(ctx, workspaceID)
 	return err
 }
@@ -40,6 +42,7 @@ func (p *Pipeline) prepareWorkspaceHandoffs(ctx context.Context, workspaceID str
 			}
 			if err != nil {
 				failures = append(failures, scopedHandoffRefusal(key, err))
+				p.recordOwnerRefusals(ctx, key, err)
 			}
 			after = key
 		}

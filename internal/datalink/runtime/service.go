@@ -54,6 +54,8 @@ type Dependencies struct {
 	TagService          *tag.Service
 	PollingGroupService *pollinggroup.Service
 	SampleSink          SampleSink
+	SourceRuleObserver  SourceRuleObserver
+	MappingObserver     MappingObserver
 }
 
 type TargetWriter interface {
@@ -75,6 +77,8 @@ type Stats struct {
 }
 
 type mappingBinding struct {
+	MappingID         string
+	observationScope  mappingObservationScope
 	WorkspaceID       string
 	DeviceID          string
 	PointID           string
@@ -95,12 +99,14 @@ type Service struct {
 	target     TargetWriter
 	sampleSink SampleSink
 
-	deviceSvc  *device.Service
-	pointSvc   *point.Service
-	mappingSvc *mapping.Service
-	tagSvc     *tag.Service
-	groupSvc   *pollinggroup.Service
-	workspace  WorkspaceProjectionReader
+	deviceSvc          *device.Service
+	pointSvc           *point.Service
+	mappingSvc         *mapping.Service
+	tagSvc             *tag.Service
+	groupSvc           *pollinggroup.Service
+	workspace          WorkspaceProjectionReader
+	sourceRuleObserver SourceRuleObserver
+	mappingObserver    MappingObserver
 
 	// snapshot mode 使用
 	snapshot Snapshot
@@ -176,6 +182,8 @@ func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 		s.target = deps.TargetWriter
 		s.sampleSink = deps.SampleSink
 		s.workspace = deps.WorkspaceProjection
+		s.sourceRuleObserver = deps.SourceRuleObserver
+		s.mappingObserver = deps.MappingObserver
 		s.deviceSvc = deps.DeviceService
 		s.pointSvc = deps.PointService
 		s.mappingSvc = deps.MappingService

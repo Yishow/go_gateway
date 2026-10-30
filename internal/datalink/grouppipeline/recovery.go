@@ -216,7 +216,7 @@ func (p *Pipeline) restoreOpenJournals(ctx context.Context) error {
 		}
 		snap, err := p.loadRuntimeSnapshot(ctx, journal.Key)
 		if err != nil {
-			p.setBlocked(&workspace.WriteGroup{WorkspaceID: journal.Key.WorkspaceID, ID: journal.Key.GroupID, AppliedRevision: journal.Key.GroupRevision}, frozenFailureReason(err))
+			p.setBlocked(ctx, &workspace.WriteGroup{WorkspaceID: journal.Key.WorkspaceID, ID: journal.Key.GroupID, AppliedRevision: journal.Key.GroupRevision}, frozenFailureReason(err))
 			if !isCounterProofReason(frozenFailureReason(err)) && !errors.Is(err, errRuntimeSnapshotInvalid) {
 				recoveryErrors = append(recoveryErrors, err)
 			}
@@ -227,17 +227,17 @@ func (p *Pipeline) restoreOpenJournals(ctx context.Context) error {
 			// revision and verified destination, never through the current draft.
 			snap, err = p.deps.Groups.ResolveAppliedAt(ctx, journal.Key.GroupID, journal.FirstBucket)
 			if err != nil || snap == nil || groupKey(snap) != journal.Key {
-				p.setBlocked(&workspace.WriteGroup{WorkspaceID: journal.Key.WorkspaceID, ID: journal.Key.GroupID, AppliedRevision: journal.Key.GroupRevision}, reasonSnapshotUnavailable)
+				p.setBlocked(ctx, &workspace.WriteGroup{WorkspaceID: journal.Key.WorkspaceID, ID: journal.Key.GroupID, AppliedRevision: journal.Key.GroupRevision}, reasonSnapshotUnavailable)
 				continue
 			}
 			_, reason := p.build(ctx, snap)
 			if reason != "" {
-				p.setBlocked(snap.Group, reason)
+				p.setBlocked(ctx, snap.Group, reason)
 				continue
 			}
 			frozen, loadErr := p.loadRuntimeSnapshot(ctx, journal.Key)
 			if loadErr != nil || frozen == nil {
-				p.setBlocked(snap.Group, reasonSnapshotUnavailable)
+				p.setBlocked(ctx, snap.Group, reasonSnapshotUnavailable)
 				continue
 			}
 			snap = frozen
@@ -252,7 +252,7 @@ func (p *Pipeline) restoreOpenJournals(ctx context.Context) error {
 		until := journal.LastBucket.Add(time.Duration(snap.Group.RowPolicy.IntervalSeconds) * time.Second)
 		m, reason, buildErr := p.buildFrozenWithCause(ctx, snap, journal.FirstBucket, until)
 		if reason != "" {
-			p.setBlocked(snap.Group, reason)
+			p.setBlocked(ctx, snap.Group, reason)
 			if buildErr != nil && !isCounterProofReason(reason) && !errors.Is(buildErr, groupdelivery.ErrBaselineCorrupt) {
 				recoveryErrors = append(recoveryErrors, buildErr)
 			}
