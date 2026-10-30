@@ -110,12 +110,18 @@ func acquisitionObservationCandidates(projection *workspace.RuntimeProjection, b
 
 // installAcquisitionPoint preserves the native AddPoint path when observation is
 // disabled or proof is missing. Both paths clear old proof before replacement.
-func (s *Service) installAcquisitionPoint(capture *acquisitionObservationInstall, point *schema.Point) {
-	if capture == nil {
-		s.scheduler.AddPoint(point)
-		return
+func (s *Service) installAcquisitionPoint(ctx context.Context, capture *acquisitionObservationInstall, point *schema.Point) error {
+	lease, err := s.installProjectionPoint(ctx, point)
+	if err != nil {
+		return err
 	}
-	capture.leases[point.ID] = s.scheduler.AddPointWithObservationLease(point)
+	if capture != nil {
+		capture.leases[point.ID] = lease
+	}
+	if observe, ok := ctx.Value(sourcePointInstallKey{}).(func(*schema.Point, uint64)); ok && observe != nil {
+		observe(point, lease)
+	}
+	return nil
 }
 
 func (s *Service) finishAcquisitionObservation(ctx context.Context, capture *acquisitionObservationInstall) {

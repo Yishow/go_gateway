@@ -63,7 +63,7 @@ func ResolvePoint(point schema.Point, defaults FormatContext) (PointResolution, 
 	if mode != schema.PointFormatOverride && point.FormatOverride != "" {
 		return PointResolution{}, ErrInvalidIntent
 	}
-	_, capabilityErr := FormatCapability(defaults.Protocol, point.Address, point.DataType)
+	_, capabilityErr := pointFormatCapability(defaults.Protocol, point)
 	applicable := capabilityErr == nil
 	multiword := multiwordNumeric(point.DataType)
 	legacyInput := LegacyInput{Protocol: defaults.Protocol, PointFormat: point.DataFormat, ConnectionFormat: defaults.ConnectionFormat}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"go-gateway/internal/datalink/sqltx"
 	"time"
 )
 
@@ -41,12 +42,17 @@ func (s *Service) InspectFormatMutation(ctx context.Context, scope FormatScope) 
 	return store.InspectFormatMutation(ctx, scope)
 }
 
-func (r *SQLRepository) CompleteFormatInvalidation(ctx context.Context, req FormatMutationRequest, result *FormatMutationResult) error {
-	tx, err := r.db.BeginTx(ctx, nil)
+func (r *SQLRepository) CompleteFormatInvalidation(ctx context.Context, req FormatMutationRequest, result *FormatMutationResult) (resultErr error) {
+	ownedTx, err := sqltx.Begin(ctx, r.db, nil)
 	if err != nil {
 		return ErrFormatUnavailable
 	}
-	defer func() { _ = tx.Rollback() }()
+	tx := ownedTx.Tx
+	defer func() {
+		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone {
+			resultErr = formatTransactionFailure(err)
+		}
+	}()
 	snapshot, err := r.formatSnapshot(ctx, tx, req)
 	if err != nil {
 		return ErrFormatUnavailable
@@ -77,19 +83,25 @@ func (r *SQLRepository) CompleteFormatInvalidation(ctx context.Context, req Form
 	if err != nil || n != 1 {
 		return ErrFormatUnavailable
 	}
-	if tx.Commit() != nil {
-		return ErrFormatUnavailable
+	if err := ownedTx.Commit(); err != nil {
+		return formatTransactionFailure(err)
 	}
 	result.InvalidationStatus = "invalidated"
 	return nil
 }
 
-func (r *SQLRepository) InspectFormatMutation(ctx context.Context, scope FormatScope) (*FormatMutationResult, error) {
-	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+func (r *SQLRepository) InspectFormatMutation(ctx context.Context, scope FormatScope) (out *FormatMutationResult, resultErr error) {
+	ownedTx, err := sqltx.Begin(ctx, r.db, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, ErrFormatUnavailable
 	}
-	defer func() { _ = tx.Rollback() }()
+	tx := ownedTx.Tx
+	defer func() {
+		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone {
+			out = nil
+			resultErr = formatTransactionFailure(err)
+		}
+	}()
 	if _, err = r.formatSnapshot(ctx, tx, FormatMutationRequest{FormatScope: scope}); err != nil {
 		return nil, err
 	}

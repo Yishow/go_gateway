@@ -11,6 +11,7 @@ type ruleMutationGuard struct {
 	users int
 }
 type ruleMutationOwnership struct {
+	points  *pointWriteJournal
 	service *Service
 	ruleID  string
 	active  atomic.Bool

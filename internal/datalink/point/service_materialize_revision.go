@@ -10,6 +10,10 @@ import (
 // UpdateMaterialized applies a rule plan only to the exact revision it read.
 // Defaults are not operator intent; callers must omit all format edit fields.
 func (s *Service) UpdateMaterialized(ctx context.Context, planned *schema.Point, req UpdatePointRequest) (*schema.Point, error) {
+	return s.UpdateMaterializedObserved(ctx, planned, req, nil)
+}
+
+func (s *Service) UpdateMaterializedObserved(ctx context.Context, planned *schema.Point, req UpdatePointRequest, observer MaterializedWriteObserver) (*schema.Point, error) {
 	if planned == nil || req.DataFormat != nil || req.FormatMode != nil || req.ConfiguredFormat != nil {
 		return nil, ErrFormatInvalid
 	}
@@ -27,7 +31,10 @@ func (s *Service) UpdateMaterialized(ctx context.Context, planned *schema.Point,
 	}
 	next.RevisionID = revision
 	next.UpdatedAt = time.Now()
-	if err = repo.UpdateRevision(ctx, next, planned.RevisionID); err != nil {
+	complete := observeMaterialized(observer, planned, next)
+	err = repo.UpdateRevision(ctx, next, planned.RevisionID)
+	complete(err)
+	if err != nil {
 		return nil, err
 	}
 	return next, nil

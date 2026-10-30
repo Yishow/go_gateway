@@ -43,11 +43,7 @@ func (s *Service) UpsertDevice(ctx context.Context, device *schema.Device) error
 		if err != nil {
 			return err
 		}
-		s.registerPointMeta(pt.ID, pointMeta{
-			DeviceID: pt.DeviceID,
-			Address:  pt.Address,
-		})
-		s.scheduler.AddPoint(pt)
+		s.UpsertPoint(pt)
 	}
 
 	s.markDeviceProjectionAlignedFromWorkspace(ctx, device)
@@ -60,11 +56,13 @@ func (s *Service) RemoveDevice(deviceID string) {
 		return
 	}
 
-	s.removeDevicePointMeta(deviceID)
+	s.pointMetaMu.Lock()
+	s.removeDevicePointMetaLocked(deviceID)
 
 	if s.scheduler != nil {
 		s.scheduler.RemoveDevice(deviceID)
 	}
+	s.pointMetaMu.Unlock()
 	s.clearDeviceProjection(deviceID)
 }
 
@@ -73,6 +71,10 @@ func (s *Service) removeDevicePointMeta(deviceID string) {
 	s.pointMetaMu.Lock()
 	defer s.pointMetaMu.Unlock()
 
+	s.removeDevicePointMetaLocked(deviceID)
+}
+
+func (s *Service) removeDevicePointMetaLocked(deviceID string) {
 	maps.DeleteFunc(s.pointMetaIndex, func(_ string, meta pointMeta) bool {
 		return meta.DeviceID == deviceID
 	})

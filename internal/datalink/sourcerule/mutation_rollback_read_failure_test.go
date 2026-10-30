@@ -82,9 +82,14 @@ func TestService_UpdateWithRuntimeReconcile_ListLinksTransientReadFailureDoesNot
 func TestService_RestoreRuleSnapshot_SourceRuleNotFoundAllowsCreate(t *testing.T) {
 	repo := NewMemoryRepository()
 	svc := NewService(repo, nil, nil, nil)
-	snapshot := &sourceRuleSnapshot{rule: &schema.SourceRule{ID: "missing-rule", RevisionID: "revision-1"}}
-
-	require.NoError(t, svc.restoreRuleSnapshot(context.Background(), snapshot))
+	rule := &schema.SourceRule{ID: "missing-rule", RevisionID: "revision-1"}
+	require.NoError(t, repo.Create(t.Context(), rule))
+	ctx, release := svc.AcquireRuleMutation(t.Context(), rule.ID)
+	defer release()
+	svc.noteRuleBaseline(ctx, rule)
+	snapshot := &sourceRuleSnapshot{rule: rule, pointWrites: svc.pointJournal(ctx)}
+	require.NoError(t, svc.deleteOwnedRule(ctx, rule))
+	require.NoError(t, svc.restoreRuleSnapshot(ctx, snapshot))
 	stored, err := repo.GetByID(context.Background(), snapshot.rule.ID)
 	require.NoError(t, err)
 	assert.Equal(t, snapshot.rule.ID, stored.ID)

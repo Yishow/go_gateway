@@ -234,7 +234,7 @@ func TestService_Update_DisabledNewPointUpdateFailureDoesNotPanic(t *testing.T) 
 		_, updateErr = svc.Update(ctx, rule.ID, UpdateRuleRequest{Count: &count})
 	})
 	require.Error(t, updateErr)
-	assert.Contains(t, updateErr.Error(), "更新新增衍生點位狀態失敗")
+	assert.Contains(t, updateErr.Error(), "dirty_unknown") // Storage errors do not prove the write was absent.
 }
 
 func TestService_Update_PollingGroupResolutionFailureRestoresRule(t *testing.T) {

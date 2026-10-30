@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -116,12 +117,22 @@ func (h *PointHandler) Update(c *gin.Context) {
 		return
 	}
 
-	p, err := h.svc.Update(c.Request.Context(), id, req)
+	p, err := h.updateOrdinaryPoint(c, id, req)
 	if err != nil {
+		var pending *ordinaryRuntimePendingError
+		if errors.As(err, &pending) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{apiResponseSuccessKey: false, apiResponseDataKey: gin.H{"point": pending.point, "runtime_apply_status": "pending"}, apiResponseErrorKey: gin.H{"code": "point_format_unavailable", apiResponseMessageKey: pending.Error()}})
+			return
+		}
+
+		if errors.Is(err, point.ErrFormatInvalid) || errors.Is(err, point.ErrFormatConflict) || errors.Is(err, point.ErrFormatUnavailable) {
+			renderPointFormatError(c, err)
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	if h.runtimeSync != nil {
+	if _, guarded := h.runtimeSync.(ordinaryPointRuntime); h.runtimeSync != nil && !guarded {
 		h.runtimeSync.UpsertPoint(p)
 	}
 	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: p})

@@ -49,7 +49,8 @@ type RuntimeReconcileRequest struct {
 	Operation RuntimeReconcileOperation `json:"operation"`
 	Scope     RuntimeReconcileScope     `json:"scope"`
 	// RuleRevision is the actual mutation input, not an HTTP field.
-	RuleRevision string `json:"-"`
+	RuleRevision   string                      `json:"-"`
+	PointInstalled func(*schema.Point, uint64) `json:"-"`
 }
 
 // RuntimeReconcileOutcome reports the source-rule projection result.
@@ -124,6 +125,9 @@ func (s *Service) reconcileSourceRuleAuthorities(ctx context.Context, operation 
 	// Share alignment does not substitute for generic acquisition evidence.
 	shareOutcome.Observation = outcome.Observation
 	if err != nil {
+		if s.noteTransactionFailure(ctx, err) {
+			return shareOutcome, s.dirtyUnknown(ctx)
+		}
 		var shareErr *modbusshare.Error
 		if !errors.As(err, &shareErr) {
 			return shareOutcome, &modbusshare.Error{Code: modbusshare.ErrCodeReconcileFailed, Message: "share runtime projection reconcile failed", Retryable: true, Action: "retry the source-rule save"}
@@ -155,14 +159,14 @@ func (s *Service) CreateWithRuntimeReconcile(ctx context.Context, req CreateRule
 	defer func() { s.finalizeSourceRuleObservation(ctx, outcome, err) }()
 	outcome, err = s.reconcileSourceRuleAuthorities(ctx, RuntimeReconcileOperationCreate, rule.ID, rule.DeviceID, rule.RevisionID)
 	if err != nil {
+		if s.storageCompensationError(ctx) != nil {
+			return rule, outcome, err
+		}
 		var rollbackErrs []error
 		if rollbackErr := s.Delete(ctx, rule.ID); rollbackErr != nil {
-			rollbackErrs = append(rollbackErrs, rollbackErr)
+			return rule, outcome, s.dirtyUnknown(ctx)
 		}
-		rollback := s.reconcileSourceRuleRuntime(ctx, RuntimeReconcileOperationDelete, rule.ID, rule.DeviceID)
-		if rollback.Status != RuntimeReconcileStatusAligned && rollback.Status != RuntimeReconcileStatusDeferred {
-			rollbackErrs = append(rollbackErrs, fmt.Errorf("source-rule runtime compensation did not align: %s", rollback.Status))
-		}
+
 		if compensator, ok := s.shareRuntimeSync.(ShareRuntimeCompensator); ok {
 			shareRollback, shareErr := compensator.CompensateSourceRuleShare(ctx, RuntimeReconcileRequest{
 				Operation: RuntimeReconcileOperationDelete,
@@ -212,6 +216,10 @@ func (s *Service) UpdateWithRuntimeReconcile(
 		if errors.As(err, &uncertain) && uncertain.Code == modbusshare.ErrCodeDirtyUnknown {
 			return nil, RuntimeReconcileOutcome{}, err
 		}
+		var formatValidation *formatPreflightError
+		if errors.As(err, &formatValidation) {
+			return nil, RuntimeReconcileOutcome{}, err
+		}
 		var validationErr *mcPreMutationValidationError
 		if !errors.Is(err, errMCAddressPlanConflict) && !errors.As(err, &validationErr) {
 			if rollbackErr := s.restoreRuleSnapshot(ctx, snapshot); rollbackErr != nil {
@@ -238,6 +246,10 @@ func (s *Service) DeleteWithRuntimeReconcile(ctx context.Context, id string) (ou
 	}
 	rule := snapshot.rule
 	if err := s.Delete(ctx, id); err != nil {
+		var uncertain *modbusshare.Error
+		if errors.As(err, &uncertain) && uncertain.Code == modbusshare.ErrCodeDirtyUnknown {
+			return RuntimeReconcileOutcome{}, err
+		}
 		if rollbackErr := s.restoreRuleSnapshot(ctx, snapshot); rollbackErr != nil {
 			return RuntimeReconcileOutcome{}, s.dirtyUnknown(ctx)
 		}
@@ -299,7 +311,7 @@ func (s *Service) reconcileSourceRuleRuntime(
 		}
 	}
 
-	req := RuntimeReconcileRequest{Operation: operation, Scope: scope}
+	req := RuntimeReconcileRequest{Operation: operation, Scope: scope, PointInstalled: func(p *schema.Point, lease uint64) { s.observeRuntimeInstallation(ctx, p, lease) }}
 	if len(ruleRevision) == 1 {
 		req.RuleRevision = ruleRevision[0]
 	}

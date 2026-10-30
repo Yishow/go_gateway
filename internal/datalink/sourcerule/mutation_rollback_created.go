@@ -10,19 +10,41 @@ import (
 )
 
 func (s *Service) rollbackCreatedPoints(ctx context.Context, pointIDs []string) error {
+	if err := s.storageCompensationError(ctx); err != nil {
+		return err
+	}
+
 	var rollbackErrs []error
 	for _, pointID := range pointIDs {
-		if err := s.pointSvc.Delete(ctx, pointID); err != nil {
-			rollbackErrs = append(rollbackErrs, fmt.Errorf("delete created point %s: %w", pointID, err))
+		journal := s.pointJournal(ctx)
+		if journal == nil || journal.points[pointID] == nil {
+			rollbackErrs = append(rollbackErrs, fmt.Errorf("created point ownership unavailable"))
+			continue
 		}
-		if s.runtimeSync != nil {
-			s.runtimeSync.RemovePoint(pointID)
+		entry := journal.points[pointID]
+		if entry.uncertain {
+			rollbackErrs = append(rollbackErrs, fmt.Errorf("created point outcome uncertain"))
+			continue
 		}
+		if entry.current == nil {
+			continue
+		}
+		if err := s.pointSvc.DeleteRevision(ctx, entry.current); err != nil {
+			rollbackErrs = append(rollbackErrs, err)
+			continue
+		}
+		s.suspendOwnedPoint(ctx, pointID)
+		entry.current = nil
 	}
+
 	return errors.Join(rollbackErrs...)
 }
 
 func (s *Service) rollbackTagMappingSync(ctx context.Context, result tagMappingSyncResult) error {
+	if err := s.storageCompensationError(ctx); err != nil {
+		return err
+	}
+
 	var rollbackErrs []error
 	if s.mappingSvc != nil {
 		for mappingID, state := range result.updatedMappings {
@@ -54,6 +76,17 @@ func (s *Service) rollbackTagMappingSync(ctx context.Context, result tagMappingS
 }
 
 func (s *Service) rollbackCreatedRule(ctx context.Context, ruleID, revisionID string, pointIDs []string, tagMappings tagMappingSyncResult) error {
+	if err := s.storageCompensationError(ctx); err != nil {
+		return err
+	}
+
+	current, err := s.repo.GetByID(ctx, ruleID)
+	if err != nil {
+		return err
+	}
+	if err = s.deleteOwnedRule(ctx, current); err != nil {
+		return err
+	}
 	var rollbackErrs []error
 	if err := s.rollbackTagMappingSync(ctx, tagMappings); err != nil {
 		rollbackErrs = append(rollbackErrs, err)
@@ -61,14 +94,6 @@ func (s *Service) rollbackCreatedRule(ctx context.Context, ruleID, revisionID st
 	if err := s.rollbackCreatedPoints(ctx, pointIDs); err != nil {
 		rollbackErrs = append(rollbackErrs, err)
 	}
-	if err := s.repo.DeleteLinks(ctx, ruleID); err != nil {
-		rollbackErrs = append(rollbackErrs, fmt.Errorf("delete created source-rule links %s: %w", ruleID, err))
-	}
-	if err := s.repo.DeleteCandidateSnapshots(ctx, ruleID, revisionID); err != nil {
-		rollbackErrs = append(rollbackErrs, fmt.Errorf("delete created source-rule candidate snapshots %s: %w", ruleID, err))
-	}
-	if err := s.repo.Delete(ctx, ruleID); err != nil {
-		rollbackErrs = append(rollbackErrs, fmt.Errorf("delete created source rule %s: %w", ruleID, err))
-	}
+
 	return errors.Join(rollbackErrs...)
 }

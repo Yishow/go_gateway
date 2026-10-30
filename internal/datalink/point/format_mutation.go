@@ -8,6 +8,7 @@ import (
 
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/sqltx"
 )
 
 var (
@@ -129,6 +130,13 @@ func (s *Service) MutateFormat(ctx context.Context, req FormatMutationRequest) (
 	}
 	result, err := store.MutateFormat(ctx, req)
 	if err != nil {
+		var failed *formatTransactionError
+		if (errors.Is(err, sqltx.ErrCommitOutcomeUnknown) || errors.Is(err, sqltx.ErrConnectionUnusable)) && errors.As(err, &failed) && failed.attempted != nil {
+			attempted := failed.attempted
+			cleanupErr := s.formatInvalidator.InvalidatePointFormat(ctx, FormatInvalidation{WorkspaceID: req.WorkspaceID, ExpectedWorkspaceRevision: req.ExpectedWorkspaceRevision, WorkspaceRevision: attempted.WorkspaceRevision, PointID: attempted.Point.ID, ExpectedPointRevision: *req.ExpectedPointRevision, PointRevision: attempted.Point.RevisionID})
+			return nil, formatTransactionFailure(errors.Join(err, cleanupErr))
+		}
+
 		return nil, err
 	}
 	if result.replay {
@@ -142,8 +150,8 @@ func (s *Service) MutateFormat(ctx context.Context, req FormatMutationRequest) (
 	if s.formatInvalidator.InvalidatePointFormat(ctx, invalidation) != nil {
 		return nil, ErrFormatUnavailable
 	}
-	if completion.CompleteFormatInvalidation(ctx, req, result) != nil {
-		return nil, ErrFormatUnavailable
+	if err := completion.CompleteFormatInvalidation(ctx, req, result); err != nil {
+		return nil, formatTransactionFailure(err)
 	}
 	return result, nil
 }

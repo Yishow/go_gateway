@@ -17,25 +17,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type stubRuntimeSync struct {
-	upserted []string
-	removed  []string
-}
-
 type failingLinkRepository struct {
 	*MemoryRepository
 	failCreateLinks bool
-}
-
-func (s *stubRuntimeSync) UpsertPoint(pointRecord *schema.Point) {
-	if pointRecord == nil {
-		return
-	}
-	s.upserted = append(s.upserted, pointRecord.ID)
-}
-
-func (s *stubRuntimeSync) RemovePoint(pointID string) {
-	s.removed = append(s.removed, pointID)
 }
 
 func TestService_Create_PersistsRuleAndDerivedPoints(t *testing.T) {

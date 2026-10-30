@@ -12,6 +12,7 @@ import (
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/sqltx"
 )
 
 const formatReceiptPrefix = "point_format_receipt:v1:"
@@ -27,7 +28,7 @@ type formatReceipt struct {
 
 // MutateFormat commits the local configuration and replay outcome in one tx.
 // External runtime application is deliberately not performed in this transaction.
-func (r *SQLRepository) MutateFormat(ctx context.Context, req FormatMutationRequest) (*FormatMutationResult, error) {
+func (r *SQLRepository) MutateFormat(ctx context.Context, req FormatMutationRequest) (out *FormatMutationResult, resultErr error) {
 	if err := validateFormatRequest(req); err != nil {
 		return nil, err
 	}
@@ -38,11 +39,18 @@ func (r *SQLRepository) MutateFormat(ctx context.Context, req FormatMutationRequ
 	hash := sha256.Sum256(payload)
 	digest := hex.EncodeToString(hash[:])
 	receiptKey := formatReceiptKey(req.WorkspaceID, req.RequestID)
-	tx, err := r.db.BeginTx(ctx, nil)
+	ownedTx, err := sqltx.Begin(ctx, r.db, nil)
 	if err != nil {
 		return nil, ErrFormatUnavailable
 	}
-	defer func() { _ = tx.Rollback() }()
+	tx := ownedTx.Tx
+	var attempted *FormatMutationResult
+	defer func() {
+		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone {
+			out = nil
+			resultErr = formatAttemptFailure(err, attempted)
+		}
+	}()
 	snapshot, err := r.formatSnapshot(ctx, tx, req)
 	if err != nil {
 		return nil, err
@@ -121,6 +129,7 @@ func (r *SQLRepository) MutateFormat(ctx context.Context, req FormatMutationRequ
 	if err != nil {
 		return nil, ErrFormatUnavailable
 	}
+	attempted = &FormatMutationResult{Point: *candidate, WorkspaceRevision: nextWorkspace, RuntimeApplyStatus: "pending"}
 	if err = writePointConfigRevision(ctx, tx, candidate, *req.ExpectedPointRevision); err != nil {
 		return nil, err
 	}
@@ -141,8 +150,8 @@ func (r *SQLRepository) MutateFormat(ctx context.Context, req FormatMutationRequ
 	if _, err = tx.ExecContext(ctx, `INSERT INTO system_settings(key,value,updated_at) VALUES(?,?,?)`, receiptKey, string(encoded), time.Now().UTC()); err != nil {
 		return nil, ErrFormatUnavailable
 	}
-	if err = tx.Commit(); err != nil {
-		return nil, ErrFormatUnavailable
+	if err = ownedTx.Commit(); err != nil {
+		return nil, formatAttemptFailure(err, attempted)
 	}
 	return &result, nil
 }

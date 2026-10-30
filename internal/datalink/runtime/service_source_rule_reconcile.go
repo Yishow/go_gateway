@@ -11,6 +11,8 @@ import (
 
 // ReconcileSourceRule applies the latest workspace projection after a source-rule lifecycle change.
 func (s *Service) ReconcileSourceRule(ctx context.Context, req sourcerule.RuntimeReconcileRequest) (outcome sourcerule.RuntimeReconcileOutcome) {
+	ctx = context.WithValue(ctx, sourcePointInstallKey{}, req.PointInstalled)
+	ctx = s.beginSourceProjectionLeaseGuard(ctx, req.Scope.DeviceID)
 	var projection *workspace.RuntimeProjection
 	var attempted, applied bool
 	before := s.sourceObservationSnapshot(ctx)

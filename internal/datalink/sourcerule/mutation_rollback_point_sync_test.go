@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"go-gateway/internal/datalink/point"
+	"go-gateway/internal/datalink/schema"
 
 	"github.com/stretchr/testify/require"
 )
@@ -27,15 +28,20 @@ func TestPointRollbackContinuesAndSyncsOnlyPersistedRestorations(t *testing.T) {
 	second.Address = "40002"
 	second.Name = "second-original"
 	require.NoError(t, pointRepo.Create(t.Context(), &second))
+	ctx, release := svc.AcquireRuleMutation(t.Context(), rule.ID)
+	defer release()
+	svc.noteRuleBaseline(ctx, rule)
 	for _, original := range []pointUpdatePlan{{point: first, appliedRevision: first.RevisionID}, {point: &second, appliedRevision: second.RevisionID}} {
 		changed := *original.point
 		changed.Name = "changed-" + changed.ID
 		changed.DataFormat = "CDAB"
 		require.NoError(t, pointRepo.Repository.Update(t.Context(), &changed))
+		svc.observePointWrite(ctx)(original.point, &changed)(nil)
+		svc.syncPoints(ctx, []*schema.Point{&changed})
 	}
 	syncer.upserted = nil
 
-	err = svc.rollbackUpdatedPoints(t.Context(), []pointUpdatePlan{{point: first, appliedRevision: first.RevisionID}, {point: &second, appliedRevision: second.RevisionID}})
+	err = svc.rollbackUpdatedPoints(ctx, []pointUpdatePlan{{point: first, appliedRevision: first.RevisionID}, {point: &second, appliedRevision: second.RevisionID}})
 
 	require.ErrorIs(t, err, restoreErr)
 	require.Equal(t, []string{second.ID}, syncer.upserted)

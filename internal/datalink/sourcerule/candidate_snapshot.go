@@ -40,12 +40,15 @@ func (s *Service) ListCandidateSnapshotsByRevision(ctx context.Context, ruleID, 
 	return snapshots, nil
 }
 
-func (s *Service) persistCandidateSnapshots(ctx context.Context, rule *schema.SourceRule, links []*schema.SourceRuleLink) error {
+func (s *Service) persistCandidateSnapshots(ctx context.Context, rule *schema.SourceRule, links []*schema.SourceRuleLink) (resultErr error) {
+	defer func() { s.noteTransactionFailure(ctx, resultErr) }()
 	snapshots, err := s.buildCandidateSnapshots(ctx, rule, links)
 	if err != nil {
 		return err
 	}
+	s.noteCandidateWrite(ctx, rule.RevisionID)
 	if err := s.replaceCandidateSnapshotsAtRevision(ctx, snapshots, rule.RevisionID); err != nil {
+		s.noteTransactionFailure(ctx, err)
 		return fmt.Errorf("儲存來源規則候選快照失敗: %w", err)
 	}
 	tagCandidates, err := decodeCurrentTagCandidates(snapshots)

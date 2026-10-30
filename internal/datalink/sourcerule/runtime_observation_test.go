@@ -3,6 +3,7 @@ package sourcerule
 import (
 	"context"
 	"go-gateway/internal/datalink/modbusshare"
+	"go-gateway/internal/datalink/schema"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,8 +11,16 @@ import (
 
 type finalSourceRecorder struct {
 	*reconcileRuntimeSync
-	final func(RuntimeReconcileOutcome, error)
-	calls int
+	final            func(RuntimeReconcileOutcome, error)
+	calls            int
+	failOwnedRestore bool
+}
+
+func (r *finalSourceRecorder) RestoreRemovedPointOwned(p *schema.Point, removedLease, epoch uint64) (uint64, bool) {
+	if r.failOwnedRestore {
+		return 0, false
+	}
+	return r.reconcileRuntimeSync.RestoreRemovedPointOwned(p, removedLease, epoch)
 }
 
 func (r *finalSourceRecorder) FinalizeSourceRuleObservation(_ context.Context, o RuntimeReconcileOutcome, err error) {
@@ -60,7 +69,7 @@ func TestSourceFinalizationPanicDoesNotChangeSuccessfulOutcome(t *testing.T) {
 func TestSourceFinalizationDirtyUnknownIsPreserved(t *testing.T) {
 	f := newRuntimeReconcileRuleFixture(t, true)
 	f.runtimeSync.reconcileOutcomes = []RuntimeReconcileStatus{RuntimeReconcileStatusStale, RuntimeReconcileStatusFailed}
-	r := &finalSourceRecorder{reconcileRuntimeSync: f.runtimeSync}
+	r := &finalSourceRecorder{reconcileRuntimeSync: f.runtimeSync, failOwnedRestore: true}
 	f.svc.runtimeSync = r
 	r.final = func(_ RuntimeReconcileOutcome, err error) {
 		var typed *modbusshare.Error

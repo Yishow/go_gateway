@@ -59,22 +59,24 @@ func (s *Service) ApplyWorkspaceProjection(ctx context.Context, projection *work
 	}
 	for pointID := range s.currentPointMetaIDs() {
 		if _, ok := desiredPoints[pointID]; !ok {
-			s.RemovePoint(pointID)
+			if err := s.removeProjectionPoint(ctx, pointID); err != nil {
+				return err
+			}
 		}
 	}
 	for _, pointRecord := range projection.Points {
 		if pointRecord == nil {
 			continue
 		}
-		s.registerPointMeta(pointRecord.ID, pointMeta{
-			DeviceID: pointRecord.DeviceID,
-			Address:  pointRecord.Address,
-		})
 		if _, ok := activeDevices[pointRecord.DeviceID]; pointRecord.Enabled && ok {
-			s.installAcquisitionPoint(observation, pointRecord)
+			if err := s.installAcquisitionPoint(ctx, observation, pointRecord); err != nil {
+				return err
+			}
 			continue
 		}
-		s.scheduler.RemovePoint(pointRecord.ID)
+		if err := s.stopProjectionPoint(ctx, pointRecord.ID, pointRecord); err != nil {
+			return err
+		}
 	}
 
 	if s.IsRunning() {
@@ -153,7 +155,9 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 	if len(preserveUnselectedPoints) == 0 || !preserveUnselectedPoints[0] {
 		for pointID := range s.currentPointMetaIDsForDevice(deviceID) {
 			if _, ok := desiredPoints[pointID]; !ok {
-				s.RemovePoint(pointID)
+				if err := s.removeProjectionPoint(ctx, pointID); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -161,15 +165,15 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 		if pointRecord == nil || pointRecord.DeviceID != deviceID {
 			continue
 		}
-		s.registerPointMeta(pointRecord.ID, pointMeta{
-			DeviceID: pointRecord.DeviceID,
-			Address:  pointRecord.Address,
-		})
 		if active && pointRecord.Enabled {
-			s.installAcquisitionPoint(observation, pointRecord)
+			if err := s.installAcquisitionPoint(ctx, observation, pointRecord); err != nil {
+				return err
+			}
 			continue
 		}
-		s.scheduler.RemovePoint(pointRecord.ID)
+		if err := s.stopProjectionPoint(ctx, pointRecord.ID, pointRecord); err != nil {
+			return err
+		}
 	}
 
 	if s.IsRunning() {

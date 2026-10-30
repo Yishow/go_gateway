@@ -3,7 +3,9 @@ package sourcerule
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"go-gateway/internal/datalink/sqltx"
 
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
@@ -12,20 +14,22 @@ import (
 // ReplaceCandidateSnapshotsAtRevision performs the revision check in the same
 // transaction as the snapshot replacement, preventing an old build from
 // replacing a newer source-rule revision.
-func (r *SQLRepository) ReplaceCandidateSnapshotsAtRevision(ctx context.Context, snapshots []*schema.SourceRuleCandidateSnapshot, expectedRevision string) error {
+func (r *SQLRepository) ReplaceCandidateSnapshotsAtRevision(ctx context.Context, snapshots []*schema.SourceRuleCandidateSnapshot, expectedRevision string) (resultErr error) {
 	if len(snapshots) == 0 {
 		return nil
 	}
 	ruleID := snapshots[0].SourceRuleID
-	tx, err := r.db.BeginTx(ctx, nil)
+	ownedTx, err := sqltx.Begin(ctx, r.db, nil)
 	if err != nil {
 		return fmt.Errorf("開啟候選快照交易失敗: %w", err)
 	}
+	tx := ownedTx.Tx
 	defer func() {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			return
+		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone {
+			resultErr = errors.Join(resultErr, err)
 		}
 	}()
+
 	var revision string
 	if err := tx.QueryRowContext(ctx, `SELECT revision_id FROM source_rules WHERE id = ?`, ruleID).Scan(&revision); err != nil {
 		return fmt.Errorf("讀取來源規則 revision 失敗: %w", err)
@@ -36,7 +40,7 @@ func (r *SQLRepository) ReplaceCandidateSnapshotsAtRevision(ctx context.Context,
 	if err := replaceCandidateSnapshotsTx(ctx, tx, snapshots); err != nil {
 		return err
 	}
-	if err := tx.Commit(); err != nil {
+	if err := ownedTx.Commit(); err != nil {
 		return fmt.Errorf("提交候選快照交易失敗: %w", err)
 	}
 	return nil

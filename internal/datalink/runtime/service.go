@@ -256,27 +256,14 @@ func (s *Service) UpsertPoint(pointRecord *schema.Point) {
 		return
 	}
 
-	s.registerPointMeta(pointRecord.ID, pointMeta{
-		DeviceID: pointRecord.DeviceID,
-		Address:  pointRecord.Address,
-	})
-
-	if s.scheduler == nil {
-		return
-	}
-
-	if pointRecord.Enabled {
-		s.scheduler.AddPoint(pointRecord)
-		return
-	}
-	s.scheduler.RemovePoint(pointRecord.ID)
+	s.InstallPointForMutation(pointRecord)
 }
 
 // RemovePoint removes runtime metadata and scheduler state for a point.
 func (s *Service) RemovePoint(pointID string) {
 	s.pointMetaMu.Lock()
 	delete(s.pointMetaIndex, pointID)
-	s.pointMetaMu.Unlock()
+	defer s.pointMetaMu.Unlock()
 
 	if s.scheduler != nil {
 		s.scheduler.RemovePoint(pointID)
@@ -313,14 +300,7 @@ func (s *Service) bootstrapFromServices(ctx context.Context) error {
 		return fmt.Errorf("載入 points 失敗: %w", err)
 	}
 	for _, p := range points {
-		s.registerPointMeta(p.ID, pointMeta{
-			DeviceID: p.DeviceID,
-			Address:  p.Address,
-		})
-		if !p.Enabled {
-			continue
-		}
-		s.scheduler.AddPoint(p)
+		s.UpsertPoint(p)
 	}
 
 	if err := s.refreshMappings(ctx); err != nil {
@@ -345,14 +325,7 @@ func (s *Service) bootstrapFromSnapshot(ctx context.Context) error {
 		s.scheduler.AddDevice(d)
 	}
 	for _, p := range s.snapshot.Points {
-		s.registerPointMeta(p.ID, pointMeta{
-			DeviceID: p.DeviceID,
-			Address:  p.Address,
-		})
-		if !p.Enabled {
-			continue
-		}
-		s.scheduler.AddPoint(p)
+		s.UpsertPoint(p)
 	}
 
 	if err := s.refreshMappings(ctx); err != nil {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/sqltx"
 	"slices"
 )
 
@@ -30,12 +31,13 @@ func (r *SQLRepository) ReplaceLinks(ctx context.Context, ruleID string, links [
 	if err := validateReplacementLinks(ruleID, links); err != nil {
 		return err
 	}
-	tx, err := r.db.BeginTx(ctx, nil)
+	ownedTx, err := sqltx.Begin(ctx, r.db, nil)
 	if err != nil {
 		return fmt.Errorf("begin source-rule link replacement: %w", err)
 	}
+	tx := ownedTx.Tx
 	defer func() {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
 			err = errors.Join(err, fmt.Errorf("rollback source-rule link replacement: %w", rollbackErr))
 		}
 	}()
@@ -47,7 +49,7 @@ func (r *SQLRepository) ReplaceLinks(ctx context.Context, ruleID string, links [
 			return fmt.Errorf("insert replacement source-rule link: %w", err)
 		}
 	}
-	if err := tx.Commit(); err != nil {
+	if err := ownedTx.Commit(); err != nil {
 		return fmt.Errorf("commit source-rule link replacement: %w", err)
 	}
 	return nil

@@ -32,6 +32,10 @@ func clonePoint(record *schema.Point) *schema.Point {
 
 // Create 建立新點位
 func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.Point, error) {
+	return s.create(ctx, req, nil)
+}
+
+func (s *Service) create(ctx context.Context, req CreatePointRequest, observer MaterializedWriteObserver) (*schema.Point, error) {
 	if err := validatePointDataType(req.DataType); err != nil {
 		return nil, err
 	}
@@ -81,7 +85,10 @@ func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.P
 		UpdatedAt:      time.Now(),
 	}
 
-	if err := s.repo.Create(ctx, point); err != nil {
+	complete := observeMaterialized(observer, nil, point)
+	err = s.repo.Create(ctx, point)
+	complete(err)
+	if err != nil {
 		return nil, fmt.Errorf("建立點位失敗: %w", err)
 	}
 

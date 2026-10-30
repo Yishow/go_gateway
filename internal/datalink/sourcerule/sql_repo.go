@@ -8,6 +8,7 @@ import (
 
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/sqltx"
 )
 
 type SQLRepository struct {
@@ -84,6 +85,10 @@ func (r *SQLRepository) Create(ctx context.Context, rule *schema.SourceRule) err
 }
 
 func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) error {
+	return r.updateRuleRevision(ctx, rule, nil)
+}
+
+func (r *SQLRepository) updateRuleRevision(ctx context.Context, rule *schema.SourceRule, expected *schema.SourceRule) error {
 	query := `
 		UPDATE source_rules
 		SET start_address = ?, count = ?, data_type = ?, naming_prefix = ?,
@@ -119,7 +124,7 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 		shareStride = *rule.ShareStride
 	}
 
-	result, err := r.db.ExecContext(ctx, query,
+	args := []any{
 		rule.StartAddress,
 		rule.Count,
 		rule.DataType,
@@ -139,7 +144,23 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 		rule.UpdatedAt,
 		rule.RevisionID,
 		rule.ID,
-	)
+	}
+	if expected != nil {
+		var rawTimestamp string
+		if err := r.db.QueryRowContext(ctx, `SELECT CAST(updated_at AS TEXT) FROM source_rules WHERE id=? AND device_id=? AND revision_id=?`, expected.ID, expected.DeviceID, expected.RevisionID).Scan(&rawTimestamp); err != nil {
+			return ErrRuleRevisionConflict
+		}
+		parsed, err := common.ParseTimeString(rawTimestamp)
+		if err != nil || !parsed.Equal(expected.UpdatedAt) {
+			return ErrRuleRevisionConflict
+		}
+		query += " AND device_id = ? AND revision_id = ? AND updated_at = ?"
+		args = append(args, expected.DeviceID, expected.RevisionID, rawTimestamp)
+		predicate, stateArgs := ruleStatePredicate(expected)
+		query += " AND " + predicate
+		args = append(args, stateArgs...)
+	}
+	result, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("更新來源規則失敗: %w", err)
 	}
@@ -148,6 +169,9 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 		return fmt.Errorf("取得更新影響列數失敗: %w", err)
 	}
 	if rows == 0 {
+		if expected != nil {
+			return ErrRuleRevisionConflict
+		}
 		return fmt.Errorf("%w: %s", ErrSourceRuleNotFound, rule.ID)
 	}
 	return nil
@@ -227,12 +251,13 @@ func (r *SQLRepository) CreateLinks(ctx context.Context, links []*schema.SourceR
 		return nil
 	}
 
-	tx, err := r.db.BeginTx(ctx, nil)
+	ownedTx, err := sqltx.Begin(ctx, r.db, nil)
 	if err != nil {
 		return fmt.Errorf("開啟來源規則連結交易失敗: %w", err)
 	}
+	tx := ownedTx.Tx
 	defer func() {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
 			err = errors.Join(err, fmt.Errorf("回滾來源規則連結交易失敗: %w", rollbackErr))
 		}
 	}()
@@ -263,7 +288,7 @@ func (r *SQLRepository) CreateLinks(ctx context.Context, links []*schema.SourceR
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := ownedTx.Commit(); err != nil {
 		return fmt.Errorf("提交來源規則連結交易失敗: %w", err)
 	}
 	return nil
@@ -310,12 +335,13 @@ func (r *SQLRepository) ReplaceCandidateSnapshots(ctx context.Context, snapshots
 
 	ruleID := snapshots[0].SourceRuleID
 	revisionID := snapshots[0].RevisionID
-	tx, err := r.db.BeginTx(ctx, nil)
+	ownedTx, err := sqltx.Begin(ctx, r.db, nil)
 	if err != nil {
 		return fmt.Errorf("開啟候選快照交易失敗: %w", err)
 	}
+	tx := ownedTx.Tx
 	defer func() {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
 			err = errors.Join(err, fmt.Errorf("回滾候選快照交易失敗: %w", rollbackErr))
 		}
 	}()
@@ -358,7 +384,7 @@ func (r *SQLRepository) ReplaceCandidateSnapshots(ctx context.Context, snapshots
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := ownedTx.Commit(); err != nil {
 		return fmt.Errorf("提交候選快照交易失敗: %w", err)
 	}
 	return nil

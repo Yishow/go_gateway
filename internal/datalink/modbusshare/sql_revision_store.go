@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go-gateway/internal/datalink/sqltx"
 	"time"
 )
 
@@ -56,17 +57,18 @@ func (s *SQLWorkspaceRevisionStore) GetDesiredMappings(ctx context.Context, work
 
 // CommitDesiredMappings atomically stores desired mappings and advances the
 // workspace revision when expectedRevision still matches.
-func (s *SQLWorkspaceRevisionStore) CommitDesiredMappings(ctx context.Context, workspaceID, expectedRevision, nextRevision string, mappings []DesiredMapping) error {
+func (s *SQLWorkspaceRevisionStore) CommitDesiredMappings(ctx context.Context, workspaceID, expectedRevision, nextRevision string, mappings []DesiredMapping) (resultErr error) {
 	if s == nil || s.db == nil {
 		return newStorageError("commit desired mappings", fmt.Errorf("database is not configured"))
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
+	ownedTx, err := sqltx.Begin(ctx, s.db, nil)
 	if err != nil {
 		return newStorageError("begin desired mappings transaction", err)
 	}
+	tx := ownedTx.Tx
 	defer func() {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
-			return
+		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
+			resultErr = errors.Join(resultErr, newStorageError("rollback workspace revision transaction", rollbackErr))
 		}
 	}()
 	key := workspaceRevisionKey(workspaceID)
@@ -118,7 +120,7 @@ func (s *SQLWorkspaceRevisionStore) CommitDesiredMappings(ctx context.Context, w
 	if err := upsertSystemSetting(ctx, tx, desiredMappingsKey(workspaceID), string(payload)); err != nil {
 		return newStorageError("persist desired mappings", err)
 	}
-	if err := tx.Commit(); err != nil {
+	if err := ownedTx.Commit(); err != nil {
 		return newStorageError("commit desired mappings", err)
 	}
 	return nil
@@ -158,17 +160,18 @@ func (s *SQLWorkspaceRevisionStore) GetRevision(ctx context.Context, workspaceID
 }
 
 // UpdateRevision advances a workspace revision when expectedRevision matches.
-func (s *SQLWorkspaceRevisionStore) UpdateRevision(ctx context.Context, workspaceID, expectedRevision, nextRevision string) error {
+func (s *SQLWorkspaceRevisionStore) UpdateRevision(ctx context.Context, workspaceID, expectedRevision, nextRevision string) (resultErr error) {
 	if s == nil || s.db == nil {
 		return newStorageError("update workspace revision", fmt.Errorf("database is not configured"))
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
+	ownedTx, err := sqltx.Begin(ctx, s.db, nil)
 	if err != nil {
 		return newStorageError("begin workspace revision transaction", err)
 	}
+	tx := ownedTx.Tx
 	defer func() {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
-			return
+		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
+			resultErr = errors.Join(resultErr, newStorageError("rollback workspace revision transaction", rollbackErr))
 		}
 	}()
 
@@ -182,7 +185,7 @@ func (s *SQLWorkspaceRevisionStore) UpdateRevision(ctx context.Context, workspac
 		if err := insertWorkspaceRevision(ctx, tx, key, workspaceRevisionRecord{Revision: nextRevision}); err != nil {
 			return err
 		}
-		if err := tx.Commit(); err != nil {
+		if err := ownedTx.Commit(); err != nil {
 			return newStorageError("commit workspace revision", err)
 		}
 		return nil
@@ -221,7 +224,7 @@ func (s *SQLWorkspaceRevisionStore) UpdateRevision(ctx context.Context, workspac
 	if rows != 1 {
 		return newStorageError("update workspace revision rows affected", fmt.Errorf("unexpected affected row count %d", rows))
 	}
-	if err := tx.Commit(); err != nil {
+	if err := ownedTx.Commit(); err != nil {
 		return newStorageError("commit workspace revision", err)
 	}
 	return nil

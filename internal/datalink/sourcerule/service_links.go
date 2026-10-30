@@ -14,6 +14,9 @@ func (s *Service) ReplaceLinks(ctx context.Context, ruleID string, links []*sche
 		return fmt.Errorf("取得來源規則失敗: %w", err)
 	}
 	if err := s.repo.ReplaceLinks(ctx, ruleID, links); err != nil {
+		if s.noteTransactionFailure(ctx, err) {
+			return s.dirtyUnknown(ctx)
+		}
 		return fmt.Errorf("替換來源規則連結失敗: %w", err)
 	}
 	return nil
@@ -21,6 +24,7 @@ func (s *Service) ReplaceLinks(ctx context.Context, ruleID string, links []*sche
 
 func (s *Service) replaceRuleLinks(ctx context.Context, ruleID string, _, nextLinks []*schema.SourceRuleLink) error {
 	if err := s.repo.ReplaceLinks(ctx, ruleID, nextLinks); err != nil {
+		s.noteTransactionFailure(ctx, err)
 		return fmt.Errorf("重建來源規則連結失敗: %w", err)
 	}
 	return nil

@@ -48,6 +48,17 @@ func TestServiceUpdateWithRuntimeReconcile_MCValidationAfterWriteStillRestores(t
 
 	_, _, err := fixture.svc.UpdateWithRuntimeReconcile(t.Context(), fixture.rule.ID, UpdateRuleRequest{NamingPrefix: &prefix})
 	require.ErrorIs(t, err, ErrValidation)
-	require.Equal(t, []string{"Update", "DeleteCandidateSnapshots", "Update", "ReplaceLinks"}, spy.calls)
+	require.Equal(t, []string{"Update", "Update", "ReplaceLinks"}, spy.calls)
 	assertMCFixtureSnapshotEqual(t, before, snapshotMCFixture(t, fixture))
+}
+
+func (r *mcValidationAfterWriteRepository) UpdateRevision(ctx context.Context, next, expected *schema.SourceRule) error {
+	current, err := r.GetByID(ctx, expected.ID)
+	if err != nil {
+		return err
+	}
+	if current.RevisionID != expected.RevisionID {
+		return ErrRuleRevisionConflict
+	}
+	return r.Update(ctx, next)
 }
