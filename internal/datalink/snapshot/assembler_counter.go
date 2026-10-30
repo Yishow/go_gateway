@@ -122,7 +122,8 @@ func (a *Assembler) RestoreCounterCheckpoints(checkpoints map[string]aggregation
 			binding.GroupID != a.config.GroupID || binding.ProfileRevision != a.config.GroupRevision {
 			return fmt.Errorf("%w: baseline belongs to another scope", ErrInvalidConfig)
 		}
-		restored[member] = &checkpoint
+		owned := cloneCounterCheckpoint(checkpoint)
+		restored[member] = &owned
 	}
 	a.counters = restored
 	return nil
@@ -131,7 +132,7 @@ func (a *Assembler) RestoreCounterCheckpoints(checkpoints map[string]aggregation
 func copyCheckpoints(source map[string]*aggregation.CounterCheckpoint) map[string]aggregation.CounterCheckpoint {
 	copied := make(map[string]aggregation.CounterCheckpoint, len(source))
 	for member, checkpoint := range source {
-		copied[member] = *checkpoint
+		copied[member] = cloneCounterCheckpoint(*checkpoint)
 	}
 	return copied
 }

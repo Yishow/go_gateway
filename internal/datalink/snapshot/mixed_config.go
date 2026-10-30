@@ -42,6 +42,9 @@ func (c Config) normalizedMixed() (Config, error) {
 	}
 	c.Members = append([]Member(nil), c.Members...)
 	c.Counters = maps.Clone(c.Counters)
+	for key, binding := range c.Counters {
+		c.Counters[key] = cloneCounterBinding(binding)
+	}
 	seen := map[string]bool{}
 	deltaCount := 0
 	for i, m := range c.Members {
