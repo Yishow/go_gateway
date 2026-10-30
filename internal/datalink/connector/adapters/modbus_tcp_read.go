@@ -13,6 +13,9 @@ func (c *ModbusTCPConnector) executeRead(req connector.ReadRequest) (connector.R
 }
 
 func (c *ModbusTCPConnector) executeReadContext(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
+	if err := validateModbusReadProfile(req); err != nil {
+		return connector.ReadResult{Quality: schema.QualityBad, Error: err.Error()}, err
+	}
 	client := c.client.WithContext(ctx)
 	result := connector.ReadResult{
 		Quality: schema.QualityGood,
@@ -65,7 +68,11 @@ func (c *ModbusTCPConnector) executeReadContext(ctx context.Context, req connect
 			return result, err
 		}
 		result.RawBytes = uint16SliceToBytes(values)
-		result.Value = convertModbusValue(values, req.DataType, effectiveModbusDataFormat(req.DataFormat, c.config.DataFormat))
+		result.Value, err = decodeModbusReadWords(values, req, c.config.DataFormat)
+		if err != nil {
+			result.Quality, result.Error = schema.QualityBad, err.Error()
+			return result, err
+		}
 
 	case "04", "input", "FC04":
 		// 讀取輸入暫存器
@@ -74,7 +81,11 @@ func (c *ModbusTCPConnector) executeReadContext(ctx context.Context, req connect
 			return result, err
 		}
 		result.RawBytes = uint16SliceToBytes(values)
-		result.Value = convertModbusValue(values, req.DataType, effectiveModbusDataFormat(req.DataFormat, c.config.DataFormat))
+		result.Value, err = decodeModbusReadWords(values, req, c.config.DataFormat)
+		if err != nil {
+			result.Quality, result.Error = schema.QualityBad, err.Error()
+			return result, err
+		}
 
 	default:
 		return result, fmt.Errorf("不支援的功能碼: %s", function)

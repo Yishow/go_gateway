@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -23,17 +24,25 @@ func sourceProjectionGuard(ctx context.Context) *sourceProjectionLeaseGuard {
 	return g
 }
 func (s *Service) installProjectionPoint(ctx context.Context, p *schema.Point) (uint64, error) {
+	profile, err := s.pointReadProfile(ctx, p)
+	if err != nil {
+		return 0, err
+	}
 	s.pointMetaMu.Lock()
 	defer s.pointMetaMu.Unlock()
 	guard := sourceProjectionGuard(ctx)
 	if guard == nil {
+		lease := s.scheduler.AddPointWithObservationLease(p, profile)
+		if modernPoint(p) && lease == 0 {
+			return 0, connector.ErrReadProfile
+		}
 		s.setPointMetaLocked(p)
-		return s.scheduler.AddPointWithObservationLease(p), nil
+		return lease, nil
 	}
 	if p.DeviceID != guard.deviceID {
 		return 0, fmt.Errorf("source projection point scope changed")
 	}
-	lease, ok := s.scheduler.InstallPointAtLease(p, guard.expected[p.ID])
+	lease, ok := s.scheduler.InstallPointAtLease(p, guard.expected[p.ID], profile)
 	if !ok {
 		return 0, fmt.Errorf("source projection installation changed")
 	}

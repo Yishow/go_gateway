@@ -62,6 +62,7 @@ func TestService_UpsertDeviceAddsDeviceAndEnabledPoints(t *testing.T) {
 		t.Fatalf("create point failed: %v", err)
 	}
 
+	attachDeviceProfileFixture(runtimeSvc, dev)
 	if err := runtimeSvc.UpsertDevice(ctx, dev); err != nil {
 		t.Fatalf("upsert device failed: %v", err)
 	}
@@ -135,6 +136,7 @@ func TestService_UpsertDeviceStartsAutoCreatedPollingGroupOnRunningScheduler(t *
 	}
 	defer runtimeSvc.scheduler.Stop()
 
+	attachDeviceProfileFixture(runtimeSvc, dev)
 	if err := runtimeSvc.UpsertDevice(ctx, dev); err != nil {
 		t.Fatalf("upsert device failed: %v", err)
 	}
@@ -189,6 +191,7 @@ func TestService_RemoveDeviceRemovesSchedulerStateAndPointMeta(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create point failed: %v", err)
 	}
+	attachDeviceProfileFixture(runtimeSvc, dev)
 	if err := runtimeSvc.UpsertDevice(ctx, dev); err != nil {
 		t.Fatalf("upsert device failed: %v", err)
 	}

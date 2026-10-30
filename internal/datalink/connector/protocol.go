@@ -76,6 +76,9 @@ type ReadRequest struct {
 	// DataFormat Modbus 多暫存器數值的字節序（ABCD/BADC/CDAB/DCBA）；空字串表示歷史預設（等同 ABCD）。
 	DataFormat string
 
+	// Profile freezes the logical point decoding policy; zero preserves legacy callers.
+	Profile ReadProfile
+
 	// Count 讀取數量 (用於批次讀取)
 	Count int
 }

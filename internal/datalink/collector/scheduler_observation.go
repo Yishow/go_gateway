@@ -4,6 +4,7 @@ import (
 	"math"
 	"time"
 
+	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 )
@@ -37,13 +38,26 @@ func (s *Scheduler) HasAcquisitionObserver() bool {
 // AddPointWithObservationLease installs a native point with empty observation
 // proof. Its lease belongs to this scheduler's lifetime, not the point name.
 // Exhaustion returns zero while preserving ordinary point installation.
-func (s *Scheduler) AddPointWithObservationLease(point *schema.Point) uint64 {
+func (s *Scheduler) AddPointWithObservationLease(point *schema.Point, profiles ...connector.ReadProfile) uint64 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.installPointLocked(point)
+	return s.installPointLocked(point, profiles...)
 }
 
-func (s *Scheduler) installPointLocked(point *schema.Point) uint64 {
+func (s *Scheduler) installPointLocked(point *schema.Point, profiles ...connector.ReadProfile) uint64 {
+	var profile connector.ReadProfile
+	if len(profiles) > 0 {
+		profile = profiles[0]
+	}
+	if connector.ValidatePointReadProfile(point, profile) != nil {
+		return 0
+	}
+	if !profile.MatchesConnection(s.deviceConfigs[point.DeviceID].Protocol, s.deviceConfigs[point.DeviceID].Config) {
+		return 0
+	}
+	if profile.Present() && profile.Resolution().Mode != schema.PointFormatLegacy && s.pointObservationLease == math.MaxUint64 {
+		return 0
+	}
 	groupID := ""
 	if point.PollingGroupID != nil {
 		groupID = *point.PollingGroupID
@@ -56,7 +70,7 @@ func (s *Scheduler) installPointLocked(point *schema.Point) uint64 {
 	s.pointInfos[point.ID] = pointInfo{
 		ID: point.ID, DeviceID: point.DeviceID, Address: point.Address, configRevision: point.RevisionID,
 		Function: point.Function, DataType: point.DataType, DataFormat: point.DataFormat,
-		Mode: point.Mode, PollingGroupID: groupID, observationLease: lease,
+		readProfile: profile, Mode: point.Mode, PollingGroupID: groupID, observationLease: lease,
 	}
 	return lease
 }
@@ -71,6 +85,11 @@ func (s *Scheduler) BindPointObservation(pointID string, lease uint64, binding P
 	defer s.mu.Unlock()
 	pt, ok := s.pointInfos[pointID]
 	if !ok || pt.observationLease != lease || pt.ID != binding.PointID || pt.DeviceID != binding.DeviceID {
+		return false
+	}
+	// Modern decoding identity is not covered by the legacy fingerprint yet.
+	// Task 3.4 supplies the versioned proof; never advertise this as ready.
+	if pt.readProfile.Present() && pt.readProfile.Resolution().Mode != schema.PointFormatLegacy {
 		return false
 	}
 	cfg, ok := s.deviceConfigs[pt.DeviceID]

@@ -43,7 +43,9 @@ func (s *Service) UpsertDevice(ctx context.Context, device *schema.Device) error
 		if err != nil {
 			return err
 		}
-		s.UpsertPoint(pt)
+		if lease := s.InstallPointForMutation(pt); modernPoint(pt) && pt.Enabled && lease == 0 {
+			return fmt.Errorf("point decoding profile is unavailable")
+		}
 	}
 
 	s.markDeviceProjectionAlignedFromWorkspace(ctx, device)

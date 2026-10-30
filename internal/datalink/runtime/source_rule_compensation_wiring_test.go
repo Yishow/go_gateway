@@ -39,6 +39,10 @@ func TestSourceRuleCompensationRestoresOwnedRemovalsAcrossDeviceProjection(t *te
 			scheduler := collector.NewScheduler(collector.DefaultSchedulerConfig(), nil)
 			runtime := &Service{scheduler: scheduler, pointSvc: ps, mappingIndex: map[string][]mappingBinding{}, pointMetaIndex: map[string]pointMeta{}}
 			rules := sourcerule.NewService(sourcerule.NewMemoryRepository(), device.NewService(dr, nil), ps, runtime)
+			scheduler.AddDevice(d)
+			runtime.workspace = compensationWorkspaceFunc(func(ctx context.Context) (*workspace.RuntimeProjection, error) {
+				return persistedRuleProjection(ctx, rules, ps, d)
+			})
 			main, err := rules.Create(ctx, sourcerule.CreateRuleRequest{ID: "main", DeviceID: d.ID, StartAddress: "40001", Count: 2, DataType: schema.DataTypeInt32, NamingPrefix: "MAIN", Enabled: true})
 			require.NoError(t, err)
 			other, err := rules.Create(ctx, sourcerule.CreateRuleRequest{ID: "other", DeviceID: d.ID, StartAddress: "40011", Count: 1, DataType: schema.DataTypeInt32, NamingPrefix: "OTHER", Enabled: true})
@@ -75,7 +79,10 @@ func TestSourceRuleCompensationRestoresOwnedRemovalsAcrossDeviceProjection(t *te
 					allLinks = append(allLinks, ls...)
 				}
 				if operation == "foreign-gap" && foreignLease == 0 {
-					foreignLease = scheduler.AddPointWithObservationLease(otherPoint)
+					baseline := scheduler.CapturePointLease(otherPoint.ID, otherPoint.RevisionID)
+					profile, ok := scheduler.CapturePointReadProfile(otherPoint.ID, baseline)
+					require.True(t, ok)
+					foreignLease = scheduler.AddPointWithObservationLease(otherPoint, profile)
 				}
 				return &workspace.RuntimeProjection{WorkspaceID: "ws", Version: "projection", Alignment: workspace.RuntimeProjectionAlignmentAligned, DeviceIDs: []string{d.ID}, Devices: []*schema.Device{d}, Points: points, Rules: allRules, RuleLinks: allLinks}, nil
 			})
@@ -106,4 +113,24 @@ func TestSourceRuleCompensationRestoresOwnedRemovalsAcrossDeviceProjection(t *te
 			}
 		})
 	}
+}
+
+func persistedRuleProjection(ctx context.Context, rules *sourcerule.Service, ps *point.Service, d *schema.Device) (*workspace.RuntimeProjection, error) {
+	allRules, err := rules.List(ctx, sourcerule.ListFilter{})
+	if err != nil {
+		return nil, err
+	}
+	points, err := ps.ListByDevice(ctx, d.ID)
+	if err != nil {
+		return nil, err
+	}
+	var allLinks []*schema.SourceRuleLink
+	for _, r := range allRules {
+		links, err := rules.ListLinks(ctx, r.ID)
+		if err != nil {
+			return nil, err
+		}
+		allLinks = append(allLinks, links...)
+	}
+	return &workspace.RuntimeProjection{WorkspaceID: "ws", Version: "projection", Alignment: workspace.RuntimeProjectionAlignmentAligned, DeviceIDs: []string{d.ID}, Devices: []*schema.Device{d}, Points: points, Rules: allRules, RuleLinks: allLinks}, nil
 }

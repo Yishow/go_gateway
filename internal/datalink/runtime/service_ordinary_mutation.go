@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/schema"
 )
@@ -15,9 +16,15 @@ func (s *Service) ApplyOrdinaryPoint(p *schema.Point, proof collector.PointMutat
 	if s == nil || s.scheduler == nil || p == nil {
 		return false
 	}
+	profile, err := s.pointInstallationProfile(context.Background(), p)
+	if err != nil {
+		s.scheduler.InvalidateOrdinaryPoint(proof)
+		return false
+	}
 	s.pointMetaMu.Lock()
 	defer s.pointMetaMu.Unlock()
-	if !s.scheduler.ApplyOrdinaryPoint(p, proof) {
+	if !s.scheduler.ApplyOrdinaryPoint(p, proof, profile) {
+		s.scheduler.InvalidateOrdinaryPoint(proof)
 		return false
 	}
 	s.setPointMetaLocked(p)

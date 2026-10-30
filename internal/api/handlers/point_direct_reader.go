@@ -5,12 +5,18 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/collector"
+	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 )
 
+type pointReadProfileResolver interface {
+	ResolvePointReadProfile(context.Context, *schema.Point) (connector.ReadProfile, error)
+}
+
 type defaultPointDirectReader struct {
+	profiles  pointReadProfileResolver
 	pointSvc  *point.Service
 	deviceSvc *device.Service
 }
@@ -43,7 +49,16 @@ func (r *defaultPointDirectReader) PollDirect(
 			continue
 		}
 
-		readResult, readErr := r.deviceSvc.ReadPointNow(ctx, pt)
+		var profile connector.ReadProfile
+		var profileErr error
+		if r.profiles != nil {
+			profile, profileErr = r.profiles.ResolvePointReadProfile(ctx, pt)
+		}
+		var readResult connector.ReadResult
+		readErr := profileErr
+		if readErr == nil {
+			readResult, readErr = r.deviceSvc.ReadPointNow(ctx, pt, profile)
+		}
 		collected := collector.CollectedValue{
 			PointID:   pt.ID,
 			DeviceID:  pt.DeviceID,
@@ -64,4 +79,9 @@ func (r *defaultPointDirectReader) PollDirect(
 		results = append(results, collected)
 	}
 	return results
+}
+
+func (r *defaultPointDirectReader) WithReadProfileResolver(resolver pointReadProfileResolver) *defaultPointDirectReader {
+	r.profiles = resolver
+	return r
 }

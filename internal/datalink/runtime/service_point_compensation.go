@@ -1,6 +1,9 @@
 package runtime
 
-import "go-gateway/internal/datalink/schema"
+import (
+	"context"
+	"go-gateway/internal/datalink/schema"
+)
 
 type sourcePointInstallKey struct{}
 
@@ -28,33 +31,53 @@ func (s *Service) RestorePointLease(p *schema.Point, lease uint64) bool {
 // call. Disabled points have no installation proof and must not be resurrected
 // by compensation based on absence alone.
 func (s *Service) InstallPointForMutation(p *schema.Point) uint64 {
-	if s == nil || p == nil {
+	if s == nil || s.scheduler == nil || p == nil {
+		return 0
+	}
+	proof, captured := s.CaptureOrdinaryPoint(p.ID)
+	if !captured {
+		return 0
+	}
+	profile, err := s.pointInstallationProfile(context.Background(), p)
+	if err != nil {
+		s.InvalidateOrdinaryPoint(proof)
 		return 0
 	}
 	s.pointMetaMu.Lock()
 	defer s.pointMetaMu.Unlock()
+	lease, ok := s.scheduler.ApplyPointMutationReceipt(p, proof, profile)
+	if !ok {
+		s.scheduler.InvalidateOrdinaryPoint(proof)
+		return 0
+	}
 	s.setPointMetaLocked(p)
-	if s.scheduler == nil {
-		return 0
-	}
-	if !p.Enabled {
-		s.scheduler.RemovePoint(p.ID)
-		return 0
-	}
-	return s.scheduler.AddPointWithObservationLease(p)
+	return lease
 }
 
 func (s *Service) InstallPointForMutationAtLease(p *schema.Point, expected uint64) (uint64, bool) {
 	if s == nil || s.scheduler == nil || p == nil || !p.Enabled {
 		return 0, false
 	}
+	proof, captured := s.CaptureOrdinaryPoint(p.ID)
+	// The journal's expected lease remains authority. Capturing an epoch must not
+	// silently adopt a newer lease that arrived before this call.
+	if !captured || proof.Lease != expected {
+		return 0, false
+	}
+	profile, err := s.pointInstallationProfile(context.Background(), p)
+	if err != nil {
+		s.InvalidateOrdinaryPoint(proof)
+		return 0, false
+	}
 	s.pointMetaMu.Lock()
 	defer s.pointMetaMu.Unlock()
-	lease, ok := s.scheduler.InstallPointAtLease(p, expected)
-	if ok {
-		s.setPointMetaLocked(p)
+	lease, ok := s.scheduler.ApplyPointMutationReceipt(p, proof, profile)
+	if !ok {
+		s.scheduler.InvalidateOrdinaryPoint(proof)
+		return 0, false
 	}
-	return lease, ok
+	s.setPointMetaLocked(p)
+	return lease, true
 }
 func (s *Service) RemovePointOwned(id string, expected uint64) (uint64, bool) {
 	if s == nil || s.scheduler == nil {

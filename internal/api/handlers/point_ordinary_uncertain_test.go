@@ -27,6 +27,9 @@ func (r *uncertainOrdinaryRepository) UpdateOrdinaryRevision(ctx context.Context
 	if r.foreign {
 		newer := *p
 		newer.RevisionID = "foreign"
+		if err := r.MemoryRepository.UpdateRevision(ctx, &newer, p.RevisionID); err != nil {
+			return err
+		}
 		r.live.UpsertPoint(&newer)
 	}
 	return sqltx.ErrCommitOutcomeUnknown
@@ -42,6 +45,7 @@ func TestOrdinaryUnknownCommitStopsOnlyMatchingCapturedLease(t *testing.T) {
 			svc := point.NewService(repo, nil)
 			p, err := svc.Create(t.Context(), point.CreatePointRequest{DeviceID: "d", Name: "old", Address: "HR0", DataType: schema.DataTypeUint32})
 			require.NoError(t, err)
+			wirePointProfileFixture(t, live, svc, p.DeviceID)
 			live.UpsertPoint(p)
 			router := gin.New()
 			router.PUT("/points/:id", NewPointHandler(svc, live).Update)

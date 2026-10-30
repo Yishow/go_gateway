@@ -1,6 +1,9 @@
 package collector
 
-import "go-gateway/internal/datalink/schema"
+import (
+	"go-gateway/internal/datalink/connector"
+	"go-gateway/internal/datalink/schema"
+)
 
 // CapturePointLease identifies an installation, not merely a configuration.
 func (s *Scheduler) CapturePointLease(id, revision string) uint64 {
@@ -37,7 +40,7 @@ func (s *Scheduler) RestorePointLease(point *schema.Point, lease uint64) bool {
 	_, ok := s.RestorePointLeaseReceipt(point, lease)
 	return ok
 }
-func (s *Scheduler) RestorePointLeaseReceipt(point *schema.Point, lease uint64) (uint64, bool) {
+func (s *Scheduler) RestorePointLeaseReceipt(point *schema.Point, lease uint64, profiles ...connector.ReadProfile) (uint64, bool) {
 	if s == nil || point == nil || lease == 0 {
 		return 0, false
 	}
@@ -51,7 +54,8 @@ func (s *Scheduler) RestorePointLeaseReceipt(point *schema.Point, lease uint64) 
 		if s.pointObservationLease == ^uint64(0) {
 			return 0, false
 		}
-		return s.installPointLocked(point), true
+		installed := s.installPointLocked(point, profiles...)
+		return installed, installed != 0
 	} else {
 		delete(s.pointInfos, point.ID)
 	}
@@ -72,7 +76,7 @@ func (s *Scheduler) CaptureDevicePointLeases(deviceID string) map[string]uint64 
 	}
 	return leases
 }
-func (s *Scheduler) InstallPointAtLease(p *schema.Point, expected uint64) (uint64, bool) {
+func (s *Scheduler) InstallPointAtLease(p *schema.Point, expected uint64, profiles ...connector.ReadProfile) (uint64, bool) {
 	if s == nil || p == nil {
 		return 0, false
 	}
@@ -85,7 +89,8 @@ func (s *Scheduler) InstallPointAtLease(p *schema.Point, expected uint64) (uint6
 	if s.pointObservationLease == ^uint64(0) {
 		return 0, false
 	}
-	return s.installPointLocked(p), true
+	installed := s.installPointLocked(p, profiles...)
+	return installed, installed != 0
 }
 func (s *Scheduler) RemovePointAtLease(id string, expected uint64) bool {
 	if s == nil {
@@ -126,7 +131,7 @@ func (s *Scheduler) RemovePointOwned(id string, expected uint64) (uint64, bool) 
 	delete(s.pointInfos, id)
 	return epoch, true
 }
-func (s *Scheduler) RestoreRemovedPointOwned(p *schema.Point, removedLease, expectedEpoch uint64) (uint64, bool) {
+func (s *Scheduler) RestoreRemovedPointOwned(p *schema.Point, removedLease, expectedEpoch uint64, profiles ...connector.ReadProfile) (uint64, bool) {
 	if s == nil || p == nil || removedLease == 0 || expectedEpoch == ^uint64(0) {
 		return 0, false
 	}
@@ -138,5 +143,6 @@ func (s *Scheduler) RestoreRemovedPointOwned(p *schema.Point, removedLease, expe
 	if !p.Enabled {
 		return 0, false
 	}
-	return s.installPointLocked(p), true
+	installed := s.installPointLocked(p, profiles...)
+	return installed, installed != 0
 }

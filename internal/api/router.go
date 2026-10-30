@@ -259,7 +259,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			}
 			pointHandler := handlers.NewPointHandler(datalinkServices.Point, datalinkServices.Runtime).
 				WithPolling(datalinkServices.Scheduler, datalinkServices.Mapping, datalinkServices.PollingGroup).
-				WithDirectReader(handlers.NewPointDirectReader(datalinkServices.Point, datalinkServices.Device))
+				WithDirectReader(handlers.NewPointDirectReader(datalinkServices.Point, datalinkServices.Device).WithReadProfileResolver(datalinkServices.Runtime))
 			datalinkGroup.GET("/points", pointHandler.List)
 			datalinkGroup.POST("/points", pointHandler.Create)
 			datalinkGroup.POST("/points/batch", pointHandler.BatchCreate)

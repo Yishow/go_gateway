@@ -25,6 +25,11 @@ func (s *Service) ApplyWorkspaceProjection(ctx context.Context, projection *work
 		return fmt.Errorf("workspace runtime projection 不可為 nil")
 	}
 
+	var profileErr error
+	ctx, profileErr = s.prepareProjectionReadProfiles(ctx, projection)
+	if profileErr != nil {
+		return profileErr
+	}
 	observation := s.beginAcquisitionObservation(ctx, projection)
 	activeDevices := make(map[string]struct{}, len(projection.Devices))
 	for _, deviceRecord := range projection.Devices {
@@ -130,6 +135,11 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 		return fmt.Errorf("workspace runtime projection 不可為 nil")
 	}
 
+	var profileErr error
+	ctx, profileErr = s.prepareProjectionReadProfiles(ctx, projection, deviceID)
+	if profileErr != nil {
+		return profileErr
+	}
 	observation := s.beginAcquisitionObservation(ctx, projection)
 	var targetDevice *schema.Device
 	for _, deviceRecord := range projection.Devices {

@@ -40,6 +40,7 @@ func TestPointFormatHTTPWiringInvalidatesOnceAndPreservesLegacyShape(t *testing.
 			require.NoError(t, err)
 			live, err := runtimepkg.NewService(runtimepkg.Config{Writer: storage.NewSQLiteWriter(db)})
 			require.NoError(t, err)
+			wirePointProfileFixture(t, live, svc, p.DeviceID, devRepo)
 			live.UpsertPoint(p)
 			ConfigurePointFormatLifecycle(svc, share, live)
 			h := NewPointHandler(svc, live)
@@ -99,6 +100,7 @@ func TestPointFormatHTTPWiringInvalidatesOnceAndPreservesLegacyShape(t *testing.
 			current, err := svc.GetByID(t.Context(), p.ID)
 			require.NoError(t, err)
 			current.RevisionID = "new-install"
+			require.NoError(t, svc.Restore(t.Context(), current))
 			live.UpsertPoint(current)
 			latest := state
 			latest.WorkspaceRevision = "latest"
@@ -151,6 +153,7 @@ func TestPointFormatCommitThenCancelledRequestStillFailsClosed(t *testing.T) {
 	require.NoError(t, err)
 	live, err := runtimepkg.NewService(runtimepkg.Config{Writer: storage.NewSQLiteWriter(db)})
 	require.NoError(t, err)
+	wirePointProfileFixture(t, live, svc, p.DeviceID, devRepo)
 	live.UpsertPoint(p)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -169,6 +172,7 @@ func TestPointFormatCommitThenCancelledRequestStillFailsClosed(t *testing.T) {
 	// The pending receipt does not replay the callback against a newer install.
 	newer := status.Point
 	newer.RevisionID = "newer"
+	require.NoError(t, svc.Restore(t.Context(), &newer))
 	live.UpsertPoint(&newer)
 	_, err = svc.MutateFormat(t.Context(), req)
 	require.ErrorIs(t, err, point.ErrFormatUnavailable)

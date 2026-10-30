@@ -19,6 +19,7 @@ func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connecto
 		Function:   pt.Function,
 		DataType:   pt.DataType,
 		DataFormat: pt.DataFormat,
+		Profile:    pt.readProfile,
 	}
 
 	count, countErr := connector.PointReadCountForAddress(conn.ProtocolType, pt.Address, pt.DataType)

@@ -11,16 +11,27 @@ import (
 func (s *Service) ReadPointNow(
 	ctx context.Context,
 	point *schema.Point,
+	profiles ...connector.ReadProfile,
 ) (connector.ReadResult, error) {
 	if point == nil {
 		return connector.ReadResult{}, fmt.Errorf("point is required")
 	}
 
+	var profile connector.ReadProfile
+	if len(profiles) > 0 {
+		profile = profiles[0]
+	}
+	if err := connector.ValidatePointReadProfile(point, profile); err != nil {
+		return connector.ReadResult{Quality: schema.QualityBad, Error: err.Error()}, err
+	}
 	deviceRecord, err := s.repo.GetByID(ctx, point.DeviceID)
 	if err != nil {
 		return connector.ReadResult{}, fmt.Errorf("取得設備失敗: %w", err)
 	}
 
+	if !profile.MatchesConnection(deviceRecord.Protocol, deviceRecord.ConnectionConfig) {
+		return connector.ReadResult{Quality: schema.QualityBad, Error: connector.ErrReadProfile.Error()}, connector.ErrReadProfile
+	}
 	conn, err := s.connMgr.GetOrCreate(
 		ctx,
 		deviceRecord.ID,
@@ -36,6 +47,7 @@ func (s *Service) ReadPointNow(
 		Function:   point.Function,
 		DataType:   point.DataType,
 		DataFormat: point.DataFormat,
+		Profile:    profile,
 	}
 	count, countErr := connector.PointReadCountForAddress(conn.ProtocolType, point.Address, point.DataType)
 	if countErr != nil {

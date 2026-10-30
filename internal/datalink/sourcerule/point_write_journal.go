@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 )
@@ -18,6 +19,7 @@ type ownedPointWrite struct {
 	uncertain       bool
 }
 type pointWriteJournal struct {
+	baselineProfiles map[string]connector.ReadProfile
 	points           map[string]*ownedPointWrite
 	ruleTargets      map[[32]byte]bool
 	baselineLeases   map[string]map[uint64]bool
@@ -239,6 +241,7 @@ func (s *Service) capturePointBaseline(ctx context.Context, p *schema.Point) {
 	if lease == 0 {
 		return
 	}
+	s.captureBaselineReadProfile(j, p, lease)
 	if j.baselineLeases == nil {
 		j.baselineLeases = map[string]map[uint64]bool{}
 	}

@@ -55,6 +55,7 @@ func TestOrdinaryLateCallbackCannotReviveAfterFormatInvalidation(t *testing.T) {
 			devSvc := device.NewService(devRepo, nil)
 			live, err := runtimepkg.NewService(runtimepkg.DefaultConfig(), runtimepkg.Dependencies{Scheduler: collector.NewScheduler(collector.DefaultSchedulerConfig(), nil), Writer: storage.NewSQLiteWriter(db), DeviceService: devSvc, PointService: svc, MappingService: mapping.NewService(mapping.NewSQLRepository(db)), TagService: tag.NewService(tag.NewSQLRepository(db)), PollingGroupService: pollinggroup.NewService(pollinggroup.NewSQLRepository(db))})
 			require.NoError(t, err)
+			wirePointProfileFixture(t, live, svc, p.DeviceID, devRepo)
 			if !absent {
 				live.UpsertPoint(p)
 			}

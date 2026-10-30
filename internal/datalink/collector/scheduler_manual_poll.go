@@ -122,6 +122,7 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 					Function:   pt.Function,
 					DataType:   pt.DataType,
 					DataFormat: pt.DataFormat,
+					Profile:    pt.readProfile,
 				}
 				count, countErr := connector.PointReadCountForAddress(conn.ProtocolType, pt.Address, pt.DataType)
 				if countErr != nil {

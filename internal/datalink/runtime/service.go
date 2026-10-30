@@ -300,7 +300,9 @@ func (s *Service) bootstrapFromServices(ctx context.Context) error {
 		return fmt.Errorf("載入 points 失敗: %w", err)
 	}
 	for _, p := range points {
-		s.UpsertPoint(p)
+		if lease := s.InstallPointForMutation(p); modernPoint(p) && p.Enabled && lease == 0 {
+			return fmt.Errorf("point decoding profile is unavailable")
+		}
 	}
 
 	if err := s.refreshMappings(ctx); err != nil {
@@ -325,7 +327,9 @@ func (s *Service) bootstrapFromSnapshot(ctx context.Context) error {
 		s.scheduler.AddDevice(d)
 	}
 	for _, p := range s.snapshot.Points {
-		s.UpsertPoint(p)
+		if lease := s.InstallPointForMutation(p); modernPoint(p) && p.Enabled && lease == 0 {
+			return fmt.Errorf("point decoding profile is unavailable")
+		}
 	}
 
 	if err := s.refreshMappings(ctx); err != nil {

@@ -1,6 +1,9 @@
 package collector
 
-import "go-gateway/internal/datalink/schema"
+import (
+	"go-gateway/internal/datalink/connector"
+	"go-gateway/internal/datalink/schema"
+)
 
 // PointMutationLease is a server-captured attempt token, not an operator revision.
 // The existing global epoch also fences initially absent slots without tombstones.
@@ -21,22 +24,29 @@ func (s *Scheduler) CaptureOrdinaryPoint(id string) (PointMutationLease, bool) {
 	}
 	return PointMutationLease{PointID: id, Revision: s.pointInfos[id].configRevision, Lease: s.pointInfos[id].observationLease, Epoch: s.pointObservationLease}, true
 }
-func (s *Scheduler) ApplyOrdinaryPoint(p *schema.Point, proof PointMutationLease) bool {
+func (s *Scheduler) ApplyOrdinaryPoint(p *schema.Point, proof PointMutationLease, profiles ...connector.ReadProfile) bool {
+	_, ok := s.ApplyPointMutationReceipt(p, proof, profiles...)
+	return ok
+}
+
+// ApplyPointMutationReceipt consumes the proof captured before provider I/O and
+// returns the lease created by this atomic operation, never a later lookup.
+func (s *Scheduler) ApplyPointMutationReceipt(p *schema.Point, proof PointMutationLease, profiles ...connector.ReadProfile) (uint64, bool) {
 	if s == nil || p == nil || proof.PointID != p.ID {
-		return false
+		return 0, false
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.pointObservationLease == ^uint64(0) || s.pointObservationLease != proof.Epoch || s.pointInfos[p.ID].observationLease != proof.Lease {
-		return false
+		return 0, false
 	}
 	if p.Enabled {
-		s.installPointLocked(p)
-	} else {
-		delete(s.pointInfos, p.ID)
-		s.pointObservationLease++
+		lease := s.installPointLocked(p, profiles...)
+		return lease, lease != 0
 	}
-	return true
+	delete(s.pointInfos, p.ID)
+	s.pointObservationLease++
+	return 0, true
 }
 
 // A format invalidation fences pending ordinary callbacks even if no slot exists.

@@ -570,6 +570,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	}
 
 	createdPointIDs := make([]string, 0, len(createPlans))
+	createdRuntimePoints := []*schema.Point{}
 	createdLinkMap := make(map[string]*schema.SourceRuleLink, len(createPlans))
 	for _, plan := range createPlans {
 		pointRecord, createErr := s.createRulePoint(ctx, point.CreatePointRequest{
@@ -600,7 +601,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		}
-		s.syncPoints(ctx, []*schema.Point{pointRecord})
+		createdRuntimePoints = append(createdRuntimePoints, pointRecord)
 	}
 
 	for _, address := range filteredAddresses {
@@ -626,6 +627,8 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 			return nil, s.finishRollbackErrors(ctx, fmt.Errorf("刪除已移除衍生點位失敗: %w", err), s.repo.DeleteCandidateSnapshots(ctx, next.ID, next.RevisionID))
 		}
 	}
+
+	s.syncPoints(ctx, createdRuntimePoints)
 
 	return &next, nil
 }
@@ -660,29 +663,6 @@ func (s *Service) Disable(ctx context.Context, id string) error {
 
 func (s *Service) Enable(ctx context.Context, id string) error {
 	return s.setEnabled(ctx, id, true)
-}
-
-func (s *Service) validatePointAddresses(ctx context.Context, deviceID string, keepPointIDs map[string]struct{}, addresses []string) error {
-	filter := point.ListFilter{DeviceID: &deviceID}
-	points, err := s.pointSvc.List(ctx, filter)
-	if err != nil {
-		return fmt.Errorf("取得既有點位失敗: %w", err)
-	}
-
-	existing := make(map[string]string, len(points))
-	for _, item := range points {
-		if _, ok := keepPointIDs[item.ID]; ok {
-			continue
-		}
-		existing[strings.ToUpper(strings.TrimSpace(item.Address))] = item.ID
-	}
-
-	for _, address := range addresses {
-		if existing[strings.ToUpper(strings.TrimSpace(address))] != "" {
-			return fmt.Errorf("位址 %s 已存在既有點位", address)
-		}
-	}
-	return nil
 }
 
 func (s *Service) syncRuleLinksEnabled(ctx context.Context, ruleID string, enabled bool) ([]pointUpdatePlan, error) {

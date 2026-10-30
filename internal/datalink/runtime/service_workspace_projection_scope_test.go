@@ -62,7 +62,7 @@ func (s *runningProjectionSampleSink) pointCountAfter(pointID string, after time
 func TestService_ApplyWorkspaceProjectionForDevicesPreservesUnselectedRuntimeState(t *testing.T) {
 	ctx := t.Context()
 	runtimeSvc := newRuntimeServiceForDeviceSyncTest(t)
-	deviceB := &schema.Device{ID: "dev-B", Name: "Device B", Status: schema.DeviceStatusActive}
+	deviceB := &schema.Device{ID: "dev-B", Name: "Device B", Status: schema.DeviceStatusActive, Protocol: schema.ProtocolModbusTCP, ConnectionConfig: `{}`}
 	pointB := &schema.Point{ID: "point-B", DeviceID: deviceB.ID, Name: "Point B", Address: "40002", DataType: schema.DataTypeInt16, Enabled: true}
 	createdPoint, err := runtimeSvc.pointSvc.Create(ctx, point.CreatePointRequest{
 		DeviceID: deviceB.ID, Name: pointB.Name, Address: pointB.Address,
@@ -73,6 +73,7 @@ func TestService_ApplyWorkspaceProjectionForDevicesPreservesUnselectedRuntimeSta
 
 	// Seed B through the existing per-device sync path, then update only A from
 	// one coherent workspace projection.
+	attachDeviceProfileFixture(runtimeSvc, deviceB)
 	require.NoError(t, runtimeSvc.UpsertDevice(ctx, deviceB))
 	beforeState, beforeExists := runtimeSvc.scheduler.GetDeviceBreakerState(deviceB.ID)
 	require.True(t, beforeExists)

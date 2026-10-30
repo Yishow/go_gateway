@@ -52,7 +52,7 @@ func (s *Service) restoreOwnedRuntime(ctx context.Context, restored []*schema.Po
 		if !p.Enabled || e.removedLease == 0 {
 			continue
 		}
-		lease, restored := runtime.RestoreRemovedPointOwned(p, e.removedLease, advanceOwnedEpoch(j, e.removedEpoch))
+		lease, restored := s.restoreRemovedProfile(j, p, e.removedLease, advanceOwnedEpoch(j, e.removedEpoch))
 		if !restored {
 			return fmt.Errorf("removed installation epoch changed during compensation")
 		}
@@ -77,7 +77,7 @@ func (s *Service) restoreOwnedRuntime(ctx context.Context, restored []*schema.Po
 			}
 			continue
 		}
-		lease, restored := runtime.RestorePointLeaseReceipt(p, e.currentLease)
+		lease, restored := s.restorePointProfile(j, p, e.currentLease)
 		if !restored {
 			return fmt.Errorf("runtime installation changed during compensation")
 		}
