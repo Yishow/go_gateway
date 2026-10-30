@@ -30,9 +30,7 @@ func (c *FatekConnector) Reconnect(ctx context.Context) error {
 		return fmt.Errorf("客戶端未初始化，請先呼叫 Connect")
 	}
 
-	c.client.Close()
-
-	if err := c.client.Connect(); err != nil {
+	if err := c.client.ConnectContext(ctx); err != nil {
 		c.connected = false
 		return fmt.Errorf("重新連線失敗: %w", err)
 	}

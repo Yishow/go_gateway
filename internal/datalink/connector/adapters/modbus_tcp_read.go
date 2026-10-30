@@ -1,6 +1,7 @@
 package adapters
 
 import (
+	"context"
 	"fmt"
 
 	"go-gateway/internal/datalink/connector"
@@ -8,6 +9,11 @@ import (
 )
 
 func (c *ModbusTCPConnector) executeRead(req connector.ReadRequest) (connector.ReadResult, error) {
+	return c.executeReadContext(context.Background(), req)
+}
+
+func (c *ModbusTCPConnector) executeReadContext(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
+	client := c.client.WithContext(ctx)
 	result := connector.ReadResult{
 		Quality: schema.QualityGood,
 	}
@@ -34,7 +40,7 @@ func (c *ModbusTCPConnector) executeRead(req connector.ReadRequest) (connector.R
 	switch function {
 	case "01", "coil", "FC01":
 		// 讀取線圈
-		values, err := c.client.ReadCoils(address, uCount)
+		values, err := client.ReadCoils(address, uCount)
 		if err != nil {
 			return result, err
 		}
@@ -44,7 +50,7 @@ func (c *ModbusTCPConnector) executeRead(req connector.ReadRequest) (connector.R
 
 	case "02", "discrete", "FC02":
 		// 讀取離散輸入
-		values, err := c.client.ReadDiscreteInputs(address, uCount)
+		values, err := client.ReadDiscreteInputs(address, uCount)
 		if err != nil {
 			return result, err
 		}
@@ -54,7 +60,7 @@ func (c *ModbusTCPConnector) executeRead(req connector.ReadRequest) (connector.R
 
 	case "03", "holding", "FC03", "":
 		// 讀取保持暫存器 (預設)
-		values, err := c.client.ReadHoldingRegisters(address, uCount)
+		values, err := client.ReadHoldingRegisters(address, uCount)
 		if err != nil {
 			return result, err
 		}
@@ -63,7 +69,7 @@ func (c *ModbusTCPConnector) executeRead(req connector.ReadRequest) (connector.R
 
 	case "04", "input", "FC04":
 		// 讀取輸入暫存器
-		values, err := c.client.ReadInputRegisters(address, uCount)
+		values, err := client.ReadInputRegisters(address, uCount)
 		if err != nil {
 			return result, err
 		}

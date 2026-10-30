@@ -89,7 +89,7 @@ func (c *FatekConnector) Connect(ctx context.Context, configJSON string) error {
 
 	// 連線（僅在長連接模式下立即連線）
 	if c.persistentMode {
-		if err := c.client.Connect(); err != nil {
+		if err := c.client.ConnectContext(ctx); err != nil {
 			return fmt.Errorf("FATEK 連線失敗: %w", err)
 		}
 		c.connected = true

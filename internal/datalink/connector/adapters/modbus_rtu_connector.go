@@ -76,7 +76,7 @@ func (c *ModbusRTUConnector) Connect(ctx context.Context, configJSON string) err
 
 	// 連線（僅在長連接模式下立即連線）
 	if c.IsPersistentMode() {
-		if err := c.client.Connect(); err != nil {
+		if err := c.client.ConnectContext(ctx); err != nil {
 			return fmt.Errorf("modbus RTU 連線失敗: %w", err)
 		}
 		c.setConnected(true)
@@ -106,31 +106,14 @@ func (c *ModbusRTUConnector) ProtocolType() schema.ProtocolType {
 
 // TestConnection 測試連線
 func (c *ModbusRTUConnector) TestConnection(ctx context.Context) error {
-	if !c.isConnected() {
-		return fmt.Errorf("未連線")
-	}
-	_, err := c.client.ReadHoldingRegisters(0, 1)
-	return err
+	defer c.afterOperationContext(ctx)
+	return c.readProxy().TestConnection(ctx)
 }
 
 // Read 讀取資料 (委託給 TCP 版本的邏輯，因為 Modbus Client 已經抽象化)
 func (c *ModbusRTUConnector) Read(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
-	// 確保連線
-	if err := c.ensureConnection(); err != nil {
-		return connector.ReadResult{Quality: schema.QualityBad, Timestamp: time.Now(), Error: err.Error()}, err
-	}
-
-	// 短連接模式：操作完成後自動斷線
-	defer c.afterOperation()
-
-	// 複用 TCP 版本的讀取邏輯
-	tcpConn := &ModbusTCPConnector{
-		client:         c.client,
-		connected:      true,
-		persistentMode: true,
-		config:         schema.ConnectionConfigModbusTCP{DataFormat: c.config.DataFormat},
-	}
-	return tcpConn.Read(ctx, req)
+	defer c.afterOperationContext(ctx)
+	return c.readProxy().Read(ctx, req)
 }
 
 // Write 寫入資料
@@ -175,14 +158,9 @@ func (c *ModbusRTUConnector) Reconnect(ctx context.Context) error {
 	if c.client == nil {
 		return fmt.Errorf("客戶端未初始化，請先呼叫 Connect")
 	}
-
-	c.client.Close()
-
-	if err := c.client.Connect(); err != nil {
-		c.setConnected(false)
-		return fmt.Errorf("重新連線失敗: %w", err)
+	if err := c.client.ConnectContext(ctx); err != nil {
+		return err
 	}
-
 	c.setConnected(true)
 	return nil
 }

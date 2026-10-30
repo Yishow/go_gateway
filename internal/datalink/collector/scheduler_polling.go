@@ -9,6 +9,7 @@ import (
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/mcprotocol"
+	"go-gateway/internal/protocol/modbus"
 	"go-gateway/internal/protocol/wirebudget"
 )
 
@@ -29,6 +30,7 @@ func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connecto
 	}
 	req.Count = count
 
+	parentCtx := ctx
 	ctx, cancel := s.acquisitionReadContext(ctx, conn)
 	defer cancel()
 
@@ -36,6 +38,7 @@ func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connecto
 	var err error
 
 	// 重試邏輯 (指數退避)
+readAttempts:
 	for attempt := 0; attempt <= s.config.DefaultRetryCount; attempt++ {
 		if attempt > 0 {
 			// 指數退避: delay * 2^attempt
@@ -47,21 +50,33 @@ func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connecto
 			select {
 			case <-ctx.Done():
 				timer.Stop()
-				return ctx.Err()
+				err = ctx.Err()
+				break readAttempts
 			case <-timer.C:
 			}
 		}
 
 		if ctx.Err() != nil {
-			return ctx.Err()
+			err = ctx.Err()
+			break
 		}
 		result, err = conn.Read(ctx, req)
 		if err == nil && result.Quality == schema.QualityGood {
 			break
 		}
-		if budget := wirebudget.From(ctx); budget != nil && (budget.Remaining() == 0 || mcprotocol.IsCommandRejected(err)) {
+		if budget := wirebudget.From(ctx); budget != nil && (budget.Remaining() == 0 || mcprotocol.IsCommandRejected(err) || modbus.IsCommandRejected(err)) {
 			break
 		}
+	}
+
+	// Parent cancellation means stop: never publish a late observation. A request's
+	// own configured deadline, however, is an explicit failed acquisition.
+	if parentCtx.Err() != nil {
+		return parentCtx.Err()
+	}
+	if ctx.Err() != nil {
+		err = ctx.Err()
+		result = connector.ReadResult{Quality: schema.QualityBad, Error: err.Error()}
 	}
 
 	cv := s.collectedValue(managedConfig(conn), pt, result, err, acquisitionID, s.now())

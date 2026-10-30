@@ -12,20 +12,22 @@ import (
 
 // TestConnection 測試連線
 func (c *FatekConnector) TestConnection(ctx context.Context) error {
-	if err := c.ensureConnection(); err != nil {
+	ctx, cancel := c.readContext(ctx, 2)
+	defer cancel()
+	if err := c.ensureConnectionContext(ctx); err != nil {
 		return err
 	}
 
-	defer c.afterOperation()
+	defer c.afterOperationContext(ctx)
 
 	// 改用讀取一個暫存器來測試連線（例如讀取 D0）
 	// 原因：某些 FATEK PLC 型號不支援 Loopback Test (Cmd 4E)
 	// 讀取指令 (Cmd 46) 是所有 FATEK PLC 都支援的標準指令
 	// 注意：如果 D0 不存在，可以改用 R0 或其他暫存器
-	_, err := c.client.ReadRegisters("D", 0, 1)
+	_, err := c.client.WithContext(ctx).ReadRegisters("D", 0, 1)
 	if err != nil {
 		// 如果讀取 D0 失敗，嘗試讀取 R0（系統暫存器，通常總是存在）
-		_, err2 := c.client.ReadRegisters("R", 0, 1)
+		_, err2 := c.client.WithContext(ctx).ReadRegisters("R", 0, 1)
 		if err2 != nil {
 			return fmt.Errorf("連線測試失敗 (嘗試讀取 D0 和 R0 都失敗): D0錯誤=%w, R0錯誤=%w", err, err2)
 		}
@@ -38,7 +40,9 @@ func (c *FatekConnector) TestConnection(ctx context.Context) error {
 
 // Read 讀取資料
 func (c *FatekConnector) Read(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
-	if err := c.ensureConnection(); err != nil {
+	ctx, cancel := c.readContext(ctx, 1)
+	defer cancel()
+	if err := c.ensureConnectionContext(ctx); err != nil {
 		return connector.ReadResult{
 			Quality:   schema.QualityBad,
 			Timestamp: time.Now(),
@@ -46,7 +50,7 @@ func (c *FatekConnector) Read(ctx context.Context, req connector.ReadRequest) (c
 		}, err
 	}
 
-	defer c.afterOperation()
+	defer c.afterOperationContext(ctx)
 
 	result := connector.ReadResult{
 		Timestamp: time.Now(),
@@ -76,7 +80,7 @@ func (c *FatekConnector) Read(ctx context.Context, req connector.ReadRequest) (c
 
 	if comp.IsDiscrete {
 		// 離散元件 (位元)
-		values, err := c.client.ReadStatus(symbol, address, count)
+		values, err := c.client.WithContext(ctx).ReadStatus(symbol, address, count)
 		if err != nil {
 			result.Quality = schema.QualityBad
 			result.Error = err.Error()
@@ -91,7 +95,7 @@ func (c *FatekConnector) Read(ctx context.Context, req connector.ReadRequest) (c
 		}
 	} else {
 		// 暫存器元件
-		values, err := c.client.ReadRegisters(symbol, address, count)
+		values, err := c.client.WithContext(ctx).ReadRegisters(symbol, address, count)
 		if err != nil {
 			result.Quality = schema.QualityBad
 			result.Error = err.Error()

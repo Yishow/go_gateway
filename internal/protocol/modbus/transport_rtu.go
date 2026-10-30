@@ -2,9 +2,11 @@ package modbus
 
 import (
 	"bufio"
+	"context"
+	"errors"
 	"fmt"
+	"go-gateway/internal/protocol/wirebudget"
 	"io"
-	"sync"
 	"time"
 
 	"go.bug.st/serial"
@@ -20,7 +22,8 @@ type RTUTransport struct {
 	Timeout  time.Duration
 	port     serial.Port
 	reader   *bufio.Reader
-	mu       sync.Mutex
+	mu       wirebudget.Mutex
+	closeErr error
 }
 
 // NewRTUTransport 建立新的 RTU 傳輸實例
@@ -67,12 +70,22 @@ func NewRTUTransport(port string, baudRate, dataBits, stopBits int, parity strin
 	}
 }
 
-func (r *RTUTransport) Connect() error {
-	r.mu.Lock()
+func (r *RTUTransport) Connect() error { return r.ConnectContext(context.Background()) }
+func (r *RTUTransport) ConnectContext(ctx context.Context) error {
+	ctx, cancel := transportContext(ctx, r.Timeout)
+	defer cancel()
+	if err := r.mu.LockContext(ctx); err != nil {
+		return err
+	}
 	defer r.mu.Unlock()
 
-	if r.port != nil {
-		r.port.Close()
+	if err := r.closePort(); err != nil {
+		return err
+	}
+	// Closing the retired handle may outlive the caller. Never start a new
+	// non-context-aware OS open after cancellation during that cleanup.
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	mode := &serial.Mode{
@@ -89,58 +102,120 @@ func (r *RTUTransport) Connect() error {
 
 	r.port = port
 	r.reader = bufio.NewReader(port)
+	if err := ctx.Err(); err != nil {
+		return errors.Join(err, r.closePort())
+	}
 	return nil
 }
 
-func (r *RTUTransport) Close() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.port != nil {
-		err := r.port.Close()
-		r.port = nil
-		r.reader = nil
+func (r *RTUTransport) Close() error { return r.CloseContext(context.Background()) }
+func (r *RTUTransport) CloseContext(ctx context.Context) error {
+	if err := r.mu.LockContext(ctx); err != nil {
 		return err
 	}
+	defer r.mu.Unlock()
+	return r.closePort()
+}
+func (r *RTUTransport) closePort() error {
+	if r.port == nil {
+		return nil
+	}
+	if err := r.port.Close(); err != nil {
+		r.closeErr = err
+		return err
+	}
+	r.port = nil
+	r.reader = nil
+	r.closeErr = nil
 	return nil
 }
 
 // IsConnected 檢查 RTU 序列埠連線狀態
 func (r *RTUTransport) IsConnected() bool {
-	r.mu.Lock()
+	live, _ := r.IsConnectedContext(context.Background())
+	return live
+}
+func (r *RTUTransport) IsConnectedContext(ctx context.Context) (bool, error) {
+	if err := r.mu.LockContext(ctx); err != nil {
+		return false, err
+	}
 	defer r.mu.Unlock()
-	return r.port != nil
+	return r.port != nil && r.closeErr == nil, nil
 }
 
 func (r *RTUTransport) SendReceive(data []byte) ([]byte, error) {
-	r.mu.Lock()
+	return r.SendReceiveContext(context.Background(), data)
+}
+func (r *RTUTransport) SendReceiveContext(ctx context.Context, data []byte) (response []byte, resultErr error) {
+	ctx, cancel := transportContext(ctx, r.Timeout)
+	defer cancel()
+	if err := r.mu.LockContext(ctx); err != nil {
+		return nil, err
+	}
 	defer r.mu.Unlock()
 
+	if r.closeErr != nil {
+		return nil, r.closeErr
+	}
 	if r.port == nil {
 		return nil, ErrConnectionClosed
 	}
 
-	if err := r.port.SetReadTimeout(r.Timeout); err != nil {
-		r.internalClose()
+	if b := wirebudget.From(ctx); b != nil && b.Remaining() == 0 {
+		return nil, wirebudget.ErrExhausted
+	}
+	port := r.port
+	finish := serialContext(ctx, port)
+	defer func() {
+		closeErr := finish(resultErr != nil)
+		if closeErr != nil {
+			r.closeErr = closeErr
+			resultErr = errors.Join(resultErr, closeErr)
+		}
+		if closeErr == nil && (resultErr != nil || ctx.Err() != nil) {
+			r.port = nil
+			r.reader = nil
+		}
+		if ctx.Err() != nil {
+			resultErr = errors.Join(ctx.Err(), closeErr)
+		}
+	}()
+	reader := contextSerialReader{ctx: ctx, reader: port}
+	deadline, _ := ctx.Deadline()
+	if err := port.SetReadTimeout(time.Until(deadline)); err != nil {
 		return nil, fmt.Errorf("RTU 設定讀取逾時失敗: %w", err)
 	}
 
 	// 寫入請求
-	if _, err := r.port.Write(data); err != nil {
-		r.internalClose()
+	if err := wirebudget.Take(ctx); err != nil {
+		return nil, err
+	}
+	if n, err := port.Write(data); err != nil || n != len(data) {
+		if err == nil {
+			err = io.ErrShortWrite
+		}
 		return nil, fmt.Errorf("RTU 寫入失敗: %w", err)
 	}
 
 	// RTU 需要等待一段時間 (根據波特率計算)
 	// 通常為 3.5 個字符時間
-	charTime := time.Duration(10000000/r.BaudRate) * time.Microsecond
-	time.Sleep(charTime * 35 / 10) // 3.5 字符時間
+	baudRate := r.BaudRate
+	if baudRate <= 0 {
+		baudRate = DefaultBaudRate
+	}
+	charTime := time.Duration(10000000/baudRate) * time.Microsecond
+	timer := time.NewTimer(charTime * 35 / 10)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-timer.C:
+	}
 
 	// Read the response.
 	// 先讀取地址和功能碼
 	header := make([]byte, 2)
-	if _, err := io.ReadFull(r.reader, header); err != nil {
-		r.internalClose()
+	if _, err := io.ReadFull(reader, header); err != nil {
 		return nil, fmt.Errorf("RTU 讀取標頭失敗: %w", err)
 	}
 
@@ -150,8 +225,7 @@ func (r *RTUTransport) SendReceive(data []byte) ([]byte, error) {
 	if functionCode&FuncExceptionOffset != 0 {
 		// 異常回應: Address(1) + Function(1) + Exception(1) + CRC(2)
 		exceptionAndCRC := make([]byte, 3)
-		if _, err := io.ReadFull(r.reader, exceptionAndCRC); err != nil {
-			r.internalClose()
+		if _, err := io.ReadFull(reader, exceptionAndCRC); err != nil {
 			return nil, fmt.Errorf("RTU 讀取異常回應失敗: %w", err)
 		}
 		return append(header, exceptionAndCRC...), nil
@@ -164,14 +238,12 @@ func (r *RTUTransport) SendReceive(data []byte) ([]byte, error) {
 		// 讀取回應: Address(1) + Function(1) + ByteCount(1) + Data(N) + CRC(2)
 		// 需要先讀取 ByteCount
 		byteCount := make([]byte, 1)
-		if _, err := io.ReadFull(r.reader, byteCount); err != nil {
-			r.internalClose()
+		if _, err := io.ReadFull(reader, byteCount); err != nil {
 			return nil, fmt.Errorf("RTU 讀取 ByteCount 失敗: %w", err)
 		}
 		// 讀取數據和 CRC
 		dataAndCRC := make([]byte, int(byteCount[0])+2)
-		if _, err := io.ReadFull(r.reader, dataAndCRC); err != nil {
-			r.internalClose()
+		if _, err := io.ReadFull(reader, dataAndCRC); err != nil {
 			return nil, fmt.Errorf("RTU 讀取數據失敗: %w", err)
 		}
 		response := make([]byte, 0, len(header)+len(byteCount)+len(dataAndCRC))
@@ -189,7 +261,6 @@ func (r *RTUTransport) SendReceive(data []byte) ([]byte, error) {
 		expectedLength = 2 + 4 + 2 // Header + Address(2) + Quantity(2) + CRC
 
 	default:
-		r.internalClose()
 		return nil, ErrInvalidFunctionCode
 	}
 
@@ -197,8 +268,7 @@ func (r *RTUTransport) SendReceive(data []byte) ([]byte, error) {
 	remaining := expectedLength - 2
 	if remaining > 0 {
 		rest := make([]byte, remaining)
-		if _, err := io.ReadFull(r.reader, rest); err != nil {
-			r.internalClose()
+		if _, err := io.ReadFull(reader, rest); err != nil {
 			return nil, fmt.Errorf("RTU 讀取數據失敗: %w", err)
 		}
 		return append(header, rest...), nil
@@ -207,10 +277,4 @@ func (r *RTUTransport) SendReceive(data []byte) ([]byte, error) {
 	return header, nil
 }
 
-func (r *RTUTransport) internalClose() {
-	if r.port != nil {
-		r.port.Close()
-		r.port = nil
-		r.reader = nil
-	}
-}
+func (r *RTUTransport) internalClose() { _ = r.closePort() }

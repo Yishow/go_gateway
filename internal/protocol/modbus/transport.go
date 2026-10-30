@@ -3,10 +3,10 @@ package modbus
 import (
 	"context"
 	"fmt"
+	"go-gateway/internal/protocol/wirebudget"
 	"io"
 	"net"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -23,7 +23,7 @@ type TCPTransport struct {
 	Port          int
 	Timeout       time.Duration
 	conn          net.Conn
-	mu            sync.Mutex
+	mu            wirebudget.Mutex
 	transactionID uint16
 }
 
@@ -40,21 +40,35 @@ func NewTCPTransport(host string, port int) *TCPTransport {
 	}
 }
 
-func (t *TCPTransport) Connect() error {
-	t.mu.Lock()
+func (t *TCPTransport) Connect() error { return t.ConnectContext(context.Background()) }
+func (t *TCPTransport) ConnectContext(ctx context.Context) error {
+	ctx, cancel := transportContext(ctx, t.Timeout)
+	defer cancel()
+	if err := t.mu.LockContext(ctx); err != nil {
+		return err
+	}
 	defer t.mu.Unlock()
 
-	return t.internalConnect()
+	return t.internalConnectContext(ctx)
 }
 
 // IsConnected 檢查底層連線是否已建立且尚未關閉
 func (t *TCPTransport) IsConnected() bool {
-	t.mu.Lock()
+	live, _ := t.IsConnectedContext(context.Background())
+	return live
+}
+func (t *TCPTransport) IsConnectedContext(ctx context.Context) (bool, error) {
+	if err := t.mu.LockContext(ctx); err != nil {
+		return false, err
+	}
 	defer t.mu.Unlock()
-	return t.conn != nil
+	return t.conn != nil, nil
 }
 
-func (t *TCPTransport) internalConnect() error {
+func (t *TCPTransport) internalConnectContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if t.conn != nil {
 		t.conn.Close()
 		t.conn = nil
@@ -62,7 +76,7 @@ func (t *TCPTransport) internalConnect() error {
 
 	// 使用 net.JoinHostPort 支援 IPv6
 	addr := net.JoinHostPort(t.Host, strconv.Itoa(t.Port))
-	dialCtx, cancel := context.WithTimeout(context.Background(), t.Timeout)
+	dialCtx, cancel := transportContext(ctx, t.Timeout)
 	defer cancel()
 
 	conn, err := (&net.Dialer{}).DialContext(dialCtx, "tcp", addr)
@@ -70,12 +84,19 @@ func (t *TCPTransport) internalConnect() error {
 		return fmt.Errorf("TCP 連線失敗: %w", err)
 	}
 
+	if err := ctx.Err(); err != nil {
+		_ = conn.Close()
+		return err
+	}
 	t.conn = conn
 	return nil
 }
 
-func (t *TCPTransport) Close() error {
-	t.mu.Lock()
+func (t *TCPTransport) Close() error { return t.CloseContext(context.Background()) }
+func (t *TCPTransport) CloseContext(ctx context.Context) error {
+	if err := t.mu.LockContext(ctx); err != nil {
+		return err
+	}
 	defer t.mu.Unlock()
 
 	if t.conn != nil {
@@ -87,45 +108,56 @@ func (t *TCPTransport) Close() error {
 }
 
 func (t *TCPTransport) SendReceive(data []byte) ([]byte, error) {
-	t.mu.Lock()
+	return t.SendReceiveContext(context.Background(), data)
+}
+func (t *TCPTransport) SendReceiveContext(ctx context.Context, data []byte) ([]byte, error) {
+	ctx, cancel := transportContext(ctx, t.Timeout)
+	defer cancel()
+	if err := t.mu.LockContext(ctx); err != nil {
+		return nil, err
+	}
 	defer t.mu.Unlock()
-
-	// 若連線已被關閉，嘗試自動重新連線
+	if b := wirebudget.From(ctx); b != nil && b.Remaining() == 0 {
+		return nil, wirebudget.ErrExhausted
+	}
 	if t.conn == nil {
-		if err := t.internalConnect(); err != nil {
+		if err := t.internalConnectContext(ctx); err != nil {
 			return nil, fmt.Errorf("%w: %w", ErrConnectionClosed, err)
 		}
 	}
-
-	resp, err := t.sendReceiveLocked(data)
-	if err != nil {
-		// 若因對端逾時斷開導致寫入/讀取失敗，嘗試自癒重連並重試一次
-		if t.conn == nil {
-			if connErr := t.internalConnect(); connErr == nil {
-				retryResp, retryErr := t.sendReceiveLocked(data)
-				if retryErr == nil {
-					return retryResp, nil
-				}
-			}
-		}
-		return nil, err
+	response, err := t.sendReceiveLocked(ctx, data)
+	if ctxErr := transportContextError(ctx, nil); ctxErr != nil {
+		return nil, ctxErr
 	}
-
-	return resp, nil
+	if err != nil && wirebudget.From(ctx) == nil && t.conn == nil {
+		if connectErr := t.internalConnectContext(ctx); connectErr == nil {
+			return t.sendReceiveLocked(ctx, data)
+		}
+	}
+	return response, err
 }
 
-func (t *TCPTransport) sendReceiveLocked(data []byte) ([]byte, error) {
+func (t *TCPTransport) sendReceiveLocked(ctx context.Context, data []byte) ([]byte, error) {
 	if t.conn == nil {
 		return nil, ErrConnectionClosed
 	}
 
-	if err := t.conn.SetDeadline(time.Now().Add(t.Timeout)); err != nil {
+	conn := t.conn
+	stop, err := socketContext(ctx, conn)
+	if err != nil {
 		t.internalClose()
 		return nil, fmt.Errorf("TCP 設定逾時失敗: %w", err)
 	}
 
+	defer stop()
+	if err := wirebudget.Take(ctx); err != nil {
+		return nil, err
+	}
 	// 寫入請求
-	if _, err := t.conn.Write(data); err != nil {
+	if n, err := conn.Write(data); err != nil || n != len(data) {
+		if err == nil {
+			err = io.ErrShortWrite
+		}
 		t.internalClose()
 		return nil, fmt.Errorf("TCP 寫入失敗: %w", err)
 	}
@@ -172,11 +204,17 @@ func (t *TCPTransport) internalClose() {
 
 // GetNextTransactionID 獲取下一個交易 ID
 func (t *TCPTransport) GetNextTransactionID() uint16 {
-	t.mu.Lock()
+	id, _ := t.GetNextTransactionIDContext(context.Background())
+	return id
+}
+func (t *TCPTransport) GetNextTransactionIDContext(ctx context.Context) (uint16, error) {
+	if err := t.mu.LockContext(ctx); err != nil {
+		return 0, err
+	}
 	defer t.mu.Unlock()
 	t.transactionID++
 	if t.transactionID == 0 {
 		t.transactionID = 1
 	}
-	return t.transactionID
+	return t.transactionID, nil
 }

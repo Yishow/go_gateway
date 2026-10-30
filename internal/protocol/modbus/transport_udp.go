@@ -1,10 +1,12 @@
 package modbus
 
 import (
+	"context"
 	"fmt"
+	"go-gateway/internal/protocol/wirebudget"
+	"io"
 	"net"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -14,7 +16,7 @@ type UDPTransport struct {
 	Port          int
 	Timeout       time.Duration
 	conn          *net.UDPConn
-	mu            sync.Mutex
+	mu            wirebudget.Mutex
 	transactionID uint16
 }
 
@@ -31,31 +33,37 @@ func NewUDPTransport(host string, port int) *UDPTransport {
 	}
 }
 
-func (u *UDPTransport) Connect() error {
-	u.mu.Lock()
+func (u *UDPTransport) Connect() error { return u.ConnectContext(context.Background()) }
+func (u *UDPTransport) ConnectContext(ctx context.Context) error {
+	ctx, cancel := transportContext(ctx, u.Timeout)
+	defer cancel()
+	if err := u.mu.LockContext(ctx); err != nil {
+		return err
+	}
 	defer u.mu.Unlock()
 
 	if u.conn != nil {
 		u.conn.Close()
+		u.conn = nil
 	}
 
-	// 使用 net.JoinHostPort 支援 IPv6
-	addr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(u.Host, strconv.Itoa(u.Port)))
-	if err != nil {
-		return fmt.Errorf("UDP 地址解析失敗: %w", err)
-	}
-
-	conn, err := net.DialUDP("udp", nil, addr)
+	conn, err := (&net.Dialer{}).DialContext(ctx, "udp", net.JoinHostPort(u.Host, strconv.Itoa(u.Port)))
 	if err != nil {
 		return fmt.Errorf("UDP 連線失敗: %w", err)
 	}
-
-	u.conn = conn
+	if err := ctx.Err(); err != nil {
+		_ = conn.Close()
+		return err
+	}
+	u.conn = conn.(*net.UDPConn)
 	return nil
 }
 
-func (u *UDPTransport) Close() error {
-	u.mu.Lock()
+func (u *UDPTransport) Close() error { return u.CloseContext(context.Background()) }
+func (u *UDPTransport) CloseContext(ctx context.Context) error {
+	if err := u.mu.LockContext(ctx); err != nil {
+		return err
+	}
 	defer u.mu.Unlock()
 
 	if u.conn != nil {
@@ -68,26 +76,50 @@ func (u *UDPTransport) Close() error {
 
 // IsConnected 檢查 UDP 連線狀態
 func (u *UDPTransport) IsConnected() bool {
-	u.mu.Lock()
+	live, _ := u.IsConnectedContext(context.Background())
+	return live
+}
+func (u *UDPTransport) IsConnectedContext(ctx context.Context) (bool, error) {
+	if err := u.mu.LockContext(ctx); err != nil {
+		return false, err
+	}
 	defer u.mu.Unlock()
-	return u.conn != nil
+	return u.conn != nil, nil
 }
 
 func (u *UDPTransport) SendReceive(data []byte) ([]byte, error) {
-	u.mu.Lock()
+	return u.SendReceiveContext(context.Background(), data)
+}
+func (u *UDPTransport) SendReceiveContext(ctx context.Context, data []byte) (response []byte, resultErr error) {
+	ctx, cancel := transportContext(ctx, u.Timeout)
+	defer cancel()
+	if err := u.mu.LockContext(ctx); err != nil {
+		return nil, err
+	}
 	defer u.mu.Unlock()
 
 	if u.conn == nil {
 		return nil, ErrConnectionClosed
 	}
 
-	if err := u.conn.SetDeadline(time.Now().Add(u.Timeout)); err != nil {
+	stop, err := socketContext(ctx, u.conn)
+	if err != nil {
 		u.internalClose()
 		return nil, fmt.Errorf("UDP 設定逾時失敗: %w", err)
 	}
 
+	defer stop()
+	defer func() {
+		resultErr = transportContextError(ctx, resultErr)
+	}()
+	if err := wirebudget.Take(ctx); err != nil {
+		return nil, err
+	}
 	// 寫入請求
-	if _, err := u.conn.Write(data); err != nil {
+	if n, err := u.conn.Write(data); err != nil || n != len(data) {
+		if err == nil {
+			err = io.ErrShortWrite
+		}
 		return nil, fmt.Errorf("UDP 寫入失敗: %w", err)
 	}
 
@@ -102,13 +134,19 @@ func (u *UDPTransport) SendReceive(data []byte) ([]byte, error) {
 }
 
 func (u *UDPTransport) GetNextTransactionID() uint16 {
-	u.mu.Lock()
+	id, _ := u.GetNextTransactionIDContext(context.Background())
+	return id
+}
+func (u *UDPTransport) GetNextTransactionIDContext(ctx context.Context) (uint16, error) {
+	if err := u.mu.LockContext(ctx); err != nil {
+		return 0, err
+	}
 	defer u.mu.Unlock()
 	u.transactionID++
 	if u.transactionID == 0 {
 		u.transactionID = 1
 	}
-	return u.transactionID
+	return u.transactionID, nil
 }
 
 func (u *UDPTransport) internalClose() {

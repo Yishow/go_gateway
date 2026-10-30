@@ -72,7 +72,7 @@ func (c *ModbusTCPConnector) Connect(ctx context.Context, configJSON string) err
 
 	// 連線（僅在長連接模式下立即連線）
 	if c.IsPersistentMode() {
-		if err := c.client.Connect(); err != nil {
+		if err := c.client.ConnectContext(ctx); err != nil {
 			return fmt.Errorf("modbus TCP 連線失敗: %w", err)
 		}
 		c.setConnected(true)
@@ -108,53 +108,17 @@ func (c *ModbusTCPConnector) ProtocolType() schema.ProtocolType {
 
 // TestConnection 測試連線
 func (c *ModbusTCPConnector) TestConnection(ctx context.Context) error {
-	// 確保連線
-	if err := c.ensureConnection(); err != nil {
+	ctx, cancel := c.readContext(ctx, 1)
+	defer cancel()
+	if err := c.ensureConnectionContext(ctx); err != nil {
 		return err
 	}
-
-	// 短連接模式：測試完成後自動斷線
-	defer c.afterOperation()
-
-	// 嘗試讀取一個保持暫存器來測試連線
-	_, err := c.client.ReadHoldingRegisters(0, 1)
+	defer c.afterOperationContext(ctx)
+	_, err := c.client.WithContext(ctx).ReadHoldingRegisters(0, 1)
 	return err
 }
 
 // Read 讀取資料
-func (c *ModbusTCPConnector) Read(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
-	// 確保連線（短連接模式下會自動重連，長連接模式下若底層斷開會自癒重連）
-	if err := c.ensureConnection(); err != nil {
-		return connector.ReadResult{
-			Quality:   schema.QualityBad,
-			Timestamp: time.Now(),
-			Error:     err.Error(),
-		}, err
-	}
-
-	// 短連接模式：操作完成後自動斷線
-	defer c.afterOperation()
-
-	result, err := c.executeRead(req)
-	if err != nil && c.IsPersistentMode() && isConnectionError(err) {
-		// 連線中斷時嘗試單次自癒重連與重試
-		c.setConnected(false)
-		if reconnectErr := c.ensureConnection(); reconnectErr == nil {
-			if retryResult, retryErr := c.executeRead(req); retryErr == nil {
-				return retryResult, nil
-			}
-		}
-	}
-
-	if err != nil {
-		result.Quality = schema.QualityBad
-		result.Error = err.Error()
-		return result, err
-	}
-
-	return result, nil
-}
-
 // =============================================================================
 // PersistentConnection 介面實作（長連接支援）
 // =============================================================================
@@ -183,13 +147,9 @@ func (c *ModbusTCPConnector) Reconnect(ctx context.Context) error {
 	if c.client == nil {
 		return fmt.Errorf("客戶端未初始化，請先呼叫 Connect")
 	}
-
-	c.client.Close()
-	if err := c.client.Connect(); err != nil {
-		c.setConnected(false)
-		return fmt.Errorf("重新連線失敗: %w", err)
+	if err := c.client.ConnectContext(ctx); err != nil {
+		return err
 	}
-
 	c.setConnected(true)
 	return nil
 }

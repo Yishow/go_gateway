@@ -11,9 +11,18 @@ import (
 // acquisitionReadContext is shared by scheduled and manual reads. It only
 // enables protocols whose bounded-transport contract has been installed.
 func (s *Scheduler) acquisitionReadContext(ctx context.Context, conn *connector.ManagedConnection) (context.Context, context.CancelFunc) {
-	if bounded, ok := conn.Protocol.(interface{ AcquisitionReadTimeout() time.Duration }); ok && conn.ProtocolType == schema.ProtocolMC3E {
+	if bounded, ok := conn.Protocol.(interface{ AcquisitionReadTimeout() time.Duration }); ok && boundedAcquisitionProtocol(conn.ProtocolType) {
 		ctx, cancel := context.WithTimeout(ctx, bounded.AcquisitionReadTimeout())
 		return wirebudget.With(ctx, s.config.DefaultRetryCount+1, s.config.DefaultRetryDelay), cancel
 	}
 	return ctx, func() {}
+}
+
+func boundedAcquisitionProtocol(protocol schema.ProtocolType) bool {
+	switch protocol {
+	case schema.ProtocolMC3E, schema.ProtocolFatekFBs, schema.ProtocolModbusTCP, schema.ProtocolModbusRTU, schema.ProtocolModbusUDP:
+		return true
+	default:
+		return false
+	}
 }
