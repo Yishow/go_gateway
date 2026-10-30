@@ -122,7 +122,10 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLiteWorkspaceAuditHistoryTable(db); err != nil {
 			return err
 		}
-		return ensureSQLiteTelemetryRecordingMigrations(db)
+		if err := ensureSQLiteTelemetryRecordingMigrations(db); err != nil {
+			return err
+		}
+		return ensureSQLiteMemberCalculationIntent(db)
 	}
 
 	// Fallback to iterating if specific file not found (legacy behavior or different structure)

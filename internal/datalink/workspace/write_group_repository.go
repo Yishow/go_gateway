@@ -140,6 +140,9 @@ func (r *SQLWriteGroupRepository) ListInTx(ctx context.Context, tx *sql.Tx, work
 }
 
 func (r *SQLWriteGroupRepository) insertGroup(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup) error {
+	if err := ValidateMemberCalculationIntent(group); err != nil {
+		return err
+	}
 	rowPolicy, err := json.Marshal(group.RowPolicy)
 	if err != nil {
 		return fmt.Errorf("encode write-group row policy: %w", err)
@@ -160,14 +163,14 @@ func (r *SQLWriteGroupRepository) insertGroup(ctx context.Context, runner writeG
 			destination_database, destination_table_schema, destination_table_name, destination_storage_strategy,
 			destination_schema_revision, destination_schema_digest,
 			row_policy, write_policy, migration, created_at, updated_at,
-			layout_version, profile_kind, profile_interval, profile_unit, storage_mode, sample_reduction
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+			layout_version, profile_kind, profile_interval, profile_unit, storage_mode, sample_reduction, result_shape
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
 	`), group.ID, group.WorkspaceID, group.Revision, group.AppliedRevision, group.Name, group.Status,
 		group.Destination.ConnectorID, group.Destination.ConnectorRevision,
 		group.Destination.Database, group.Destination.TableSchema, group.Destination.TableName, group.Destination.StorageStrategy,
 		group.Destination.SchemaRevision, group.Destination.SchemaDigest,
 		string(rowPolicy), string(writePolicy), string(migration), group.CreatedAt, group.UpdatedAt,
-		profile.layout, profile.kind, profile.interval, profile.unit, profile.mode, profile.reduction)
+		profile.layout, profile.kind, profile.interval, profile.unit, profile.mode, profile.reduction, profile.shape)
 	if err != nil {
 		return fmt.Errorf("insert write group: %w", err)
 	}
@@ -189,13 +192,13 @@ func (r *SQLWriteGroupRepository) insertGroup(ctx context.Context, runner writeG
 				group_id, member_index, device_id, point_id, tag_id,
 				entity_key, source_revision, mapping_revision, measurement_id, target_column,
 				required, max_age_seconds, circuit_id, circuit_name,
-				value_role, source_value_type, result_value_type, exact_recording_source
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+				value_role, source_value_type, result_value_type, exact_recording_source, calculation
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		`), group.ID, memberIndex, member.DeviceID, member.PointID, member.TagID,
 			member.EntityKey, member.SourceRevision, member.MappingRevision, measurementID, member.TargetColumn,
 			member.Required, member.MaxAgeSeconds, nullableText(member.CircuitID), nullableText(member.CircuitName),
 			nullableText(string(member.ValueRole)), nullableText(string(member.SourceValueType)), nullableText(string(member.ResultValueType)),
-			exactRecordingSource)
+			exactRecordingSource, nullableText(string(member.Calculation)))
 		if err != nil {
 			return fmt.Errorf("insert write-group member %d: %w", memberIndex, err)
 		}
@@ -210,7 +213,7 @@ func (r *SQLWriteGroupRepository) get(ctx context.Context, runner writeGroupSQLR
 			destination_database, destination_table_schema, destination_table_name, destination_storage_strategy,
 			destination_schema_revision, destination_schema_digest,
 			row_policy, write_policy, migration, created_at, updated_at,
-			layout_version, profile_kind, profile_interval, profile_unit, storage_mode, sample_reduction
+			layout_version, profile_kind, profile_interval, profile_unit, storage_mode, sample_reduction, result_shape
 		FROM write_groups
 		WHERE workspace_id = $1 AND id = $2
 	`), workspaceID, groupID)
@@ -240,7 +243,7 @@ func (r *SQLWriteGroupRepository) list(ctx context.Context, runner writeGroupSQL
 			destination_database, destination_table_schema, destination_table_name, destination_storage_strategy,
 			destination_schema_revision, destination_schema_digest,
 			row_policy, write_policy, migration, created_at, updated_at,
-			layout_version, profile_kind, profile_interval, profile_unit, storage_mode, sample_reduction
+			layout_version, profile_kind, profile_interval, profile_unit, storage_mode, sample_reduction, result_shape
 		FROM write_groups
 		WHERE workspace_id = $1
 		ORDER BY created_at ASC, id ASC
@@ -283,18 +286,18 @@ func scanWriteGroup(row interface{ Scan(...any) error }) (*WriteGroup, error) {
 	var group WriteGroup
 	var status string
 	var rowPolicy, writePolicy, migration string
-	var layoutVersion, profileKind, profileUnit, storageMode, sampleReduction sql.NullString
+	var layoutVersion, profileKind, profileUnit, storageMode, sampleReduction, resultShape sql.NullString
 	var profileInterval sql.NullInt64
 	if err := row.Scan(&group.ID, &group.WorkspaceID, &group.Revision, &group.AppliedRevision,
 		&group.Name, &status, &group.Destination.ConnectorID, &group.Destination.ConnectorRevision,
 		&group.Destination.Database, &group.Destination.TableSchema, &group.Destination.TableName, &group.Destination.StorageStrategy,
 		&group.Destination.SchemaRevision, &group.Destination.SchemaDigest,
 		&rowPolicy, &writePolicy, &migration, &group.CreatedAt, &group.UpdatedAt,
-		&layoutVersion, &profileKind, &profileInterval, &profileUnit, &storageMode, &sampleReduction); err != nil {
+		&layoutVersion, &profileKind, &profileInterval, &profileUnit, &storageMode, &sampleReduction, &resultShape); err != nil {
 		return nil, err
 	}
 	group.Status = WriteGroupStatus(status)
-	if err := applyProfileColumns(&group, layoutVersion, profileKind, profileUnit, storageMode, profileInterval, sampleReduction); err != nil {
+	if err := applyProfileColumns(&group, layoutVersion, profileKind, profileUnit, storageMode, profileInterval, sampleReduction, resultShape); err != nil {
 		return nil, err
 	}
 	for _, field := range []struct {

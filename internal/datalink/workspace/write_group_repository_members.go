@@ -40,7 +40,7 @@ func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeG
 	rows, err := runner.QueryContext(ctx, r.query(`
 		SELECT device_id, point_id, tag_id, entity_key, source_revision, mapping_revision,
 			measurement_id, target_column, required, max_age_seconds, circuit_id, circuit_name,
-			value_role, source_value_type, result_value_type, exact_recording_source
+			value_role, source_value_type, result_value_type, exact_recording_source, calculation
 		FROM write_group_members
 		WHERE group_id = $1
 		ORDER BY member_index ASC
@@ -54,13 +54,19 @@ func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeG
 		var measurementID sql.NullString
 		var maxAgeSeconds sql.NullInt64
 		var entityKey, circuitID, circuitName sql.NullString
-		var valueRole, sourceValueType, resultValueType, exactRecordingSource sql.NullString
+		var valueRole, sourceValueType, resultValueType, exactRecordingSource, calculation sql.NullString
 		if err := rows.Scan(&member.DeviceID, &member.PointID, &member.TagID, &entityKey, &member.SourceRevision,
 			&member.MappingRevision, &measurementID, &member.TargetColumn, &member.Required, &maxAgeSeconds,
-			&circuitID, &circuitName, &valueRole, &sourceValueType, &resultValueType, &exactRecordingSource); err != nil {
+			&circuitID, &circuitName, &valueRole, &sourceValueType, &resultValueType, &exactRecordingSource, &calculation); err != nil {
 			_ = rows.Close()
 			return fmt.Errorf("scan write-group member: %w", err)
 		}
+		method, err := storedMemberEnum(calculation, func(value string) error { return WriteGroupMemberCalculation(value).validate() })
+		if err != nil {
+			rows.Close()
+			return fmt.Errorf("decode member calculation: %w", err)
+		}
+		member.Calculation = WriteGroupMemberCalculation(method)
 		if entityKey.Valid {
 			member.EntityKey = entityKey.String
 		}
@@ -130,5 +136,5 @@ func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeG
 	if err := rows.Close(); err != nil {
 		return fmt.Errorf("close write-group members: %w", err)
 	}
-	return nil
+	return ValidateMemberCalculationIntent(group)
 }

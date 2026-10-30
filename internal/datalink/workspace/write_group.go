@@ -57,9 +57,12 @@ type WriteGroup struct {
 
 // WriteGroupMember stores persisted source and mapping identities.
 type WriteGroupMember struct {
-	DeviceID string `json:"device_id"`
-	PointID  string `json:"point_id"`
-	TagID    string `json:"tag_id"`
+	// Calculation belongs to this recording member, never to its source.
+	// Absence preserves legacy profiles; mixed submissions must set it.
+	Calculation WriteGroupMemberCalculation `json:"calculation,omitempty"`
+	DeviceID    string                      `json:"device_id"`
+	PointID     string                      `json:"point_id"`
+	TagID       string                      `json:"tag_id"`
 	// EntityKey is the raw legacy group key used only to partition buffered
 	// rows. It is deliberately not interpreted as a destination SQL value.
 	EntityKey       string  `json:"entity_key,omitempty"`

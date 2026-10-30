@@ -36,21 +36,28 @@ const (
 // metadata. No runtime proof serves these shapes yet, so such a group stays
 // savable but never starts or restores a writer.
 func memberMetadataUnsupported(member *WriteGroupMember) bool {
-	return member != nil && (member.ValueRole != "" || member.SourceValueType != "" || member.ResultValueType != "" || member.ExactRecordingSource != nil)
+	return member != nil && (member.Calculation != "" || member.ValueRole != "" || member.SourceValueType != "" || member.ResultValueType != "" || member.ExactRecordingSource != nil)
 }
 
-// UnmarshalJSON decodes a member and validates only its three recording
+// UnmarshalJSON decodes a member and validates its calculation and recording
 // metadata fields: an unknown value, or an explicit empty, null or non-string
 // one, is rejected instead of silently degrading. Every other field keeps the
 // plain decoding; schema.DataType itself is not changed globally.
 func (m *WriteGroupMember) UnmarshalJSON(data []byte) error {
 	type memberAlias WriteGroupMember
 	var raw struct {
+		Calculation     json.RawMessage `json:"calculation"`
 		ValueRole       json.RawMessage `json:"value_role"`
 		SourceValueType json.RawMessage `json:"source_value_type"`
 		ResultValueType json.RawMessage `json:"result_value_type"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	_, err := decodeMemberEnum(raw.Calculation, func(value string) error {
+		return WriteGroupMemberCalculation(value).validate()
+	})
+	if err != nil {
 		return err
 	}
 	valueRole, err := decodeMemberEnum(raw.ValueRole, func(value string) error {
@@ -125,6 +132,15 @@ func decodeMemberEnum(raw json.RawMessage, known func(string) error) (*string, e
 // canonical meaning: roles exist only for instantaneous recording profiles.
 // It runs before the database is touched and never infers a role.
 func validateMemberMetadataShape(group *WriteGroup) error {
+	if err := validateCalculationProfileShape(group.RecordingProfile); err != nil {
+		return err
+	}
+	for i, member := range group.Members {
+		if member.Calculation != "" {
+			return fmt.Errorf("%w: member %d calculation requires unsupported mixed recording runtime", ErrWriteGroupValidation, i)
+		}
+	}
+
 	for i := range group.Members {
 		member := &group.Members[i]
 		if member.ValueRole == "" && member.SourceValueType == "" && member.ResultValueType == "" {

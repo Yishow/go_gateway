@@ -18,7 +18,7 @@ func nullableText(value string) any {
 // profileColumns holds the nullable profile and storage columns of one group,
 // each bound as a SQL parameter exactly as stored (nil is NULL).
 type profileColumns struct {
-	layout, kind, interval, unit, mode, reduction any
+	layout, kind, interval, unit, mode, reduction, shape any
 }
 
 // profileColumnValues maps a group to its nullable profile and storage columns.
@@ -30,6 +30,10 @@ func profileColumnValues(group *WriteGroup) profileColumns {
 	if group.RecordingProfile != nil {
 		columns.kind, columns.interval, columns.unit = string(group.RecordingProfile.Kind), group.RecordingProfile.Interval, string(group.RecordingProfile.Unit)
 		columns.reduction = nullableText(string(group.RecordingProfile.SampleReduction))
+		columns.shape = nullableText(string(group.RecordingProfile.ResultShape))
+		if group.RecordingProfile.Kind == WriteGroupProfileMixed {
+			columns.interval, columns.unit = nil, nil
+		}
 	}
 	return columns
 }
@@ -39,7 +43,7 @@ func profileColumnValues(group *WriteGroup) profileColumns {
 // loudly instead of being read as wide. An omitted reduction stays empty and
 // reads as latest through EffectiveSampleReduction; it is never backfilled, and
 // a stored unknown value fails instead of degrading to latest.
-func applyProfileColumns(group *WriteGroup, layout, kind, unit, mode sql.NullString, interval sql.NullInt64, reduction sql.NullString) error {
+func applyProfileColumns(group *WriteGroup, layout, kind, unit, mode sql.NullString, interval sql.NullInt64, reduction, shape sql.NullString) error {
 	group.LayoutVersion = WriteGroupLayoutVersion(layout.String)
 	group.StorageMode = WriteGroupStorageMode(mode.String)
 	if !supportedLayoutVersion(group.LayoutVersion) {
@@ -48,6 +52,16 @@ func applyProfileColumns(group *WriteGroup, layout, kind, unit, mode sql.NullStr
 	if group.StorageMode != "" && group.StorageMode != WriteGroupStorageModePlain &&
 		group.StorageMode != WriteGroupStorageModeTimescale && group.StorageMode != WriteGroupStorageModeNativeMonthly {
 		return fmt.Errorf("decode write-group storage mode %q: %w", mode.String, ErrWriteGroupValidation)
+	}
+	if kind.String == string(WriteGroupProfileMixed) {
+		if !shape.Valid || shape.String != string(WriteGroupResultShapeMemberCalculationV1) || interval.Valid || unit.Valid || reduction.Valid {
+			return fmt.Errorf("decode mixed recording profile: %w", ErrWriteGroupValidation)
+		}
+		group.RecordingProfile = &WriteGroupRecordingProfile{Kind: WriteGroupProfileMixed, ResultShape: WriteGroupResultShape(shape.String)}
+		return nil
+	}
+	if shape.Valid {
+		return fmt.Errorf("decode legacy result shape: %w", ErrWriteGroupValidation)
 	}
 	if !kind.Valid && !interval.Valid && !unit.Valid {
 		if reduction.Valid && reduction.String != "" {

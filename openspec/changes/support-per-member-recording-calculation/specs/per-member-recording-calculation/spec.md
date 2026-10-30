@@ -7,9 +7,15 @@ Allow independently configured latest, mean and delta results for recording memb
 ### Requirement: Recording members own calculation intent
 A versioned mixed recording profile SHALL persist explicit latest, mean or delta calculation on each canonical recording member, not on a global source Point or Tag. Reads SHALL expose configured and effective calculation, applicability, source/result types and applicable revisions. A new member SHALL initialize to latest; a group default MAY initialize new members but MUST NOT overwrite explicit choices. Unknown or omitted methods in the new mixed shape SHALL fail validation.
 
+Independent mixed record identities SHALL permit source-reference reuse within the same workspace and destination database/schema without weakening target-table/column ownership, legacy circuit/profile create-once identity, migration source claims or lineage integrity. Mixed record scope SHALL be distinct from legacy canonical key scopes and SHALL retain idempotency, CAS and foreign-scope rejection; a source device or circuit/profile pair MUST NOT collapse all independent mixed records into one identity.
+
 #### Scenario: One source participates in different records
-- **WHEN** record A uses a source as latest and record B uses that same source as delta with confirmed counter semantics where applicable
+- **WHEN** record A uses a source as latest every 5 seconds and independent record B in the same database/schema but another owned managed table uses that source as delta every 600 seconds with confirmed counter semantics
 - **THEN** each record retains its own member intent and counter state, and editing either record does not change the source Point or the other record.
+
+#### Scenario: Reusing a source does not transfer target ownership
+- **WHEN** another mixed record references an existing source but attempts to claim a managed table or columns owned by the first record without an existing authorized shared-storage scope
+- **THEN** validation rejects the target conflict without changing its owner, while a retry for the same record retains its canonical identity and lineage.
 
 ### Requirement: Member windows align independently of activation
 The mixed profile SHALL persist each member's interval and align its windows to an explicit clock basis rather than counting from activation. It SHALL support the requested 5-second, 15-second, one-minute and ten-minute aligned cadences without applying the superseded shared 300-second cap. Existing UTC-epoch half-open-window alignment SHALL be reused without changing legacy profile interpretation or acquisition polling frequency. Latest, arithmetic mean and confirmed-counter delta SHALL operate on the matching member's own window. Data-window timestamps SHALL be distinct from actual SQL commit time; lateness, worker queues and retry MUST NOT be presented as punctual physical commits. A member is due at aligned boundary T and selects observations in [T-interval,T); an observation exactly at T belongs to the next window. Closure waits for the existing allowed lateness. Positive integer second/minute intervals SHALL be normalized with overflow checks and backend-advertised bounded capability validation; the required acceptance cadences SHALL be supported without inventing an unrestricted interval range.
@@ -60,12 +66,24 @@ The existing durable transaction SHALL commit mixed output or skip decisions, ch
 ### Requirement: Legacy profiles keep their original meaning
 Existing instantaneous and cumulative profiles without the new explicit mixed shape SHALL retain their saved effective reductions, intervals, counter policies, output representation and replay semantics through upgrade, restart and unrelated edits. No migration SHALL infer arbitrary per-member method intent or reinterpret legacy cumulative raw columns as delta results. Conversion SHALL be explicit and revisioned through current schema and lifecycle safeguards.
 
+Storage expansion SHALL preserve nullable absence and all legacy payloads, revisions and relationships. Expanding the SQLite profile-kind constraint SHALL accept only recognized schema shapes, preserve complete rows and dependent schema objects, validate foreign keys before commit, roll back on failure and restore the connection foreign-key setting; a connection whose setting cannot be restored MUST NOT return to the pool. Existing initialized lineage corruption MUST fail rather than be guessed or repaired into new history.
+
+#### Scenario: Expansion fails while replacing the configuration table
+- **WHEN** a fault occurs during copy, table replacement, index restoration or foreign-key validation
+- **THEN** the migration rolls back without changing legacy members, snapshots, mappings, lineage or revisions, and rerun does not infer calculation or cadence.
+
 #### Scenario: Existing profiles are reloaded after upgrade
 - **WHEN** a legacy mean profile with gauge/counter_raw/state roles and a legacy cumulative profile are reloaded or replayed
 - **THEN** gauges retain their previous mean behavior, counter_raw/state retain latest behavior, cumulative raw-plus-provenance retains its prior representation, and neither profile silently becomes mixed.
 
 ### Requirement: Production proof precedes editor support
 Completion SHALL include tests through actual scoped persistence, readiness, frozen runtime, mixed snapshot dispatch, typed row encoding, durable ledger and disposable SQL write/readback. Pure helper or mock UI success SHALL NOT establish production support. The simple editor SHALL consume the canonical member contract without a second calculation authority and show unsupported capabilities explicitly.
+
+Storage expansion SHALL establish internal mixed-snapshot persistence and scoped readback without enabling normal mixed mutation or activation. Normal mixed draft CRUD SHALL require complete member cadence, applicability and record identity validation; it MUST NOT fabricate a group interval to satisfy a legacy validator. Saving a draft SHALL NOT establish readiness, runtime or editor capability before their existing production gates pass.
+
+#### Scenario: Mixed storage exists before cadence validation
+- **WHEN** the expansion phase can round-trip an internal mixed snapshot but normal member cadence validation is not implemented
+- **THEN** normal mixed create/update and activation remain rejected, legacy CRUD/CAS stay unchanged, and foreign-scope reads remain rejected.
 
 #### Scenario: Only a helper supports mixed methods
 - **WHEN** a helper computes means and delta but the production writer or frozen proof still rejects or drops the member method

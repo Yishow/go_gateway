@@ -6,7 +6,7 @@
 
 **Goals:** 同record group的各member選latest/mean/delta，各自使用對齊member時間窗，wide同一列各欄是真正選定結果；不確定delta有NULL原因／required skip與原子baseline進展。提供editor consumer契約。
 
-**Non-Goals:** 不把計算寫入global Point、不新增採集／任意公式／觸發引擎、不新增DB dialect或protocol、不遷移歷史SQL值、不自動拆成多record、不放寬ownership，不直接改四案UI。新mixed shape涵蓋既有managed wide及long布局；long一列一個到期member，不假裝一列包含全部members。native-monthly/legacy custom保原功能，未具新shape證明的組合明確受阻。
+**Non-Goals:** 不把計算寫入global Point、不新增採集／任意公式／觸發引擎、不新增DB dialect或protocol、不遷移歷史SQL值、不自動拆成多record、不放寬目的表／欄位ownership與legacy canonical create-once，不直接改四案UI。新mixed shape涵蓋既有managed wide及long布局；long一列一個到期member，不假裝一列包含全部members。native-monthly/legacy custom保原功能，未具新shape證明的組合明確受阻。
 
 ## Decisions
 
@@ -40,11 +40,29 @@ member method、resultshape/type、window、required、counterbinding/epoch/poli
 
 每個到期結果保留member identity、method、interval、aligned window start/end、actual coverage、quality/reason及provenance；not_due不偽造已計算window或sample，保留其設定與next due。wide列的T是共同到期標記，不代表全部欄同長window。first partial沿snapshot.windowBounds及markTruncation：aligned identity不改，實際起點max(window start, StartsAt)，可用latest/mean保留boundary-truncated與partial coverage，不捏造啟用前樣本；無baseline delta仍不可用，required skip／optional NULL，baseline與skip原子保存。不把partial mean冒稱完整15秒，無可靠單窗delta不可冒稱60秒用量。
 
+### 儲存擴展與草稿能力分期
+
+**Supersedes**: support-per-member-recording-calculation / 分期擴展與consumer交接（僅澄清1.2與1.3交付界線，後續runtime安全gate不變）
+
+1.2只擴展nullable calculation／result_shape及內部repository mixed snapshot寫入／scoped readback；legacy CRUD/CAS與foreign identity保護維持。正常mixed create/update在此階段仍拒絕，沒有member cadence前不得用0、任意預設或假group interval通過normalizeWriteGroupProfile。1.3完成member cadence、適用性與record-scoped identity後才接通正常mixed草稿CRUD；草稿可儲存不是可Apply／啟動，runtime、encoder、schema/readiness/proof與capability仍依後續任務逐項驗收。拒絕用新平行draft store或提前打開runtime來繞過依賴。
+
+已核對029的write_groups.profile_kind CHECK只允許legacy kinds，新增兩欄不能使mixed snapshot roundtrip；1.2安全擴展該CHECK保留舊值與約束。採專用sql.Conn保存原foreign_keys設定，交易前只在該連線暫停FK，交易中取寫鎖、確認已知schema、建立新暫存表、以明列完整欄位copy、驗完整內容與row count、替換舊表並還原indexes／triggers及相關views，foreign_key_check全庫無違反才commit；失敗rollback並恢復原FK。不得先rename舊表造成child references漂移，不使用writable_schema、不修改歷史migration、不轉換legacy intent。未知schema／未識別constraint fail closed，不靠任意SQL字串替換猜結構。FK恢復失敗必須報錯並丟棄該連線，不將FK-off連線歸還pool。
+
+1.2不為未開放的mixed canonical create提前重建profile_keys。1.3接record identity時再同步其CHECK與047 lineage key validator，保留既有PK／UNIQUE／FK、lineage genesis／head／reservation與create-once身份。047已初始化但缺損的corruption不得由repair猜測或重建；nullable缺欄repair只補結構、不回填method。測migration前後legacy完整列／JSON、members、versions、migration maps、lineage及revision不變，覆FK原ON／OFF、重跑／重啟、併發startup和copy／replace／index／FK-check故障rollback；不以row count相等代替資料完整性。
+
+### 來源共享與記錄身份隔離
+
+同source可在同一workspace、同DB/schema的獨立mixed records使用不同method／cadence，不得把需求縮為只允許跨DB。共享的是來源引用，不是目的表／欄位寫入權、canonical key或lineage。legacy circuit/profile create-once、migration source claim與既有destination ownership契約保持原樣；不可直接刪除checkProfileSourceOwnership、放寬所有profile guard或靠不同名稱繞過。
+
+1.3建立明確且持久的mixed record-scoped canonical identity：同record重送沿既有idempotency／CAS找到同一lineage，另一record有獨立identity／member/baseline；不得再以source device或circuit/profile組合作為所有mixed records唯一身份。優先在既有canonical key／selection_scope與lineage機制內擴展可區分的record scope，與legacy circuit／unassigned角色保持不相交；不要新增第二套權威。只在已驗證mixed record scope上允許來源重用，仍驗workspace／source revisions與managed target ownership。具體key shape與CHECK須一起覆蓋persist／reload／restart，不能只在記憶體helper隔離。
+
+正例為同DB/schema、不同獨立managed tables的record A latest/5s與record B confirmed delta/600s引用同source，互改不影響對方；反例為第二record企圖奪取第一record的同target table／columns，仍拒絕且不改owner。shared long table僅沿既有明確storage scope／member row identity授權，不因來源可共享而擴大任意共寫權。上述草稿配置正例不代替後續runtime baseline／SQL隔離驗收。
+
 ### 分期擴展與consumer交接
 
 expand新增optional persistence字段／版本讀取，legacy不變；migrate明確mixed候選走fresh安全gate；contract只在runtime/encoder/readiness/proof全部支援時開capability。不刪舊profile。新shape需要schema preview確認result欄型別與nullable，已有raw wide table轉delta結果語意不能默認相容，優先既有新表successor，歷史留存。
 
-editor每已選member顯示「存最後讀值／平均／增加量」與例子，不讓操作員以為與ABCD字序是同一設定；同source不同record不互改。此案不實作頁面，streamline-recording-task-editor依本案完成後接API；adopt-simple-recording-entry加同row mean/mean/delta驗收。owner仍需新版demo確認，proposal不授權apply。
+editor每已選member顯示「存最後讀值／平均／增加量」與例子，不讓操作員以為與ABCD字序是同一設定；同source不同record不互改。此案不實作頁面，streamline-recording-task-editor依本案完成後接API；adopt-simple-recording-entry加同row mean/mean/delta驗收。正式apply授權以docs/verification/simple-recording/implementation-decision-2026-10-30.md為準；demo/helper不代替runtime或SQL驗收。
 
 ## Implementation Contract
 
@@ -68,6 +86,6 @@ editor每已選member顯示「存最後讀值／平均／增加量」與例子�
 
 2026-10-30使用者要求同record內15秒平均＋1分鐘delta，以及多record的5秒／10分鐘整齊對齊。共同window限制與mixed 300秒上限撤回；原pending task1.3/2.1改為各member cadence，未標完成。interval合法值由上述backend bounded capability與驗收值約束，不沿用任意demo範圍。
 
-**Supersedes**: 前版必要storage決策blocker由2026-10-30 16:50 UTC使用者「這個決策依你說的避免記錯意思下去做」解除，確認寬表未到期留空、長表不新增未到期列、不補0、不沿用增加量，到期失敗另記原因且每筆保留自身區間。這只確認計算／儲存語意，不是新版demo核准或apply授權。
+**Supersedes**: 前版必要storage決策blocker由2026-10-30 16:50 UTC使用者「這個決策依你說的避免記錯意思下去做」解除，確認寬表未到期留空、長表不新增未到期列、不補0、不沿用增加量，到期失敗另記原因且每筆保留自身區間。該時點只確認計算／儲存語意；其後正式apply授權已記錄於docs/verification/simple-recording/implementation-decision-2026-10-30.md，未追認任何未完成測試。
 
 **已確定時間事實:** selector.go按UTC UnixNano/interval定位半開窗；Plan等window end+allowedlateness後閉窗；現pipeline/worker tick與SQL重試造成實際commit時間延遲。畫面分「資料窗口／到期時間」與「實際SQL寫入時間」，不能保證00整秒落盤；delay/restart不得把補寫時間當資料時間。採集ticker與記錄對齊是不同層，不改採集protocol週期。

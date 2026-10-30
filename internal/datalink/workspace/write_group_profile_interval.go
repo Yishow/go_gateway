@@ -100,12 +100,36 @@ func (p *WriteGroupRecordingProfile) UnmarshalJSON(data []byte) error {
 	}
 	var raw struct {
 		Kind            WriteGroupProfileKind  `json:"kind"`
+		ResultShape     json.RawMessage        `json:"result_shape"`
 		Interval        json.RawMessage        `json:"interval"`
 		Unit            WriteGroupIntervalUnit `json:"unit"`
 		SampleReduction json.RawMessage        `json:"sample_reduction"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
+	}
+	shape, err := decodeMemberEnum(raw.ResultShape, func(value string) error {
+		if WriteGroupResultShape(value) != WriteGroupResultShapeMemberCalculationV1 {
+			return fmt.Errorf("unsupported result shape %q", value)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	profile := WriteGroupRecordingProfile{Kind: raw.Kind}
+	if shape != nil {
+		profile.ResultShape = WriteGroupResultShape(*shape)
+	}
+	if err := validateCalculationProfileShape(&profile); err != nil {
+		return err
+	}
+	if raw.Kind == WriteGroupProfileMixed {
+		if raw.SampleReduction != nil || raw.Interval != nil || raw.Unit != "" {
+			return fmt.Errorf("%w: mixed profile uses member calculations and intervals, not group reduction or interval", ErrWriteGroupValidation)
+		}
+		*p = profile
+		return nil
 	}
 	text := string(bytes.TrimSpace(raw.Interval))
 	if !jsonIntegerLiteral.MatchString(text) {

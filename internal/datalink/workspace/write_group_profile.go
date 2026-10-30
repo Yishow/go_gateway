@@ -41,10 +41,11 @@ const WriteGroupStorageModeTimescale WriteGroupStorageMode = "timescale"
 // WriteGroupStorageModeNativeMonthly selects MySQL-family native UTC month partitions.
 const WriteGroupStorageModeNativeMonthly WriteGroupStorageMode = "native_monthly"
 
-// WriteGroupProfileKind separates the two independent recording profiles.
+// WriteGroupProfileKind separates legacy profiles from explicit mixed intent.
 type WriteGroupProfileKind string
 
 const (
+	WriteGroupProfileMixed         WriteGroupProfileKind = "mixed"
 	WriteGroupProfileInstantaneous WriteGroupProfileKind = "instantaneous"
 	WriteGroupProfileCumulative    WriteGroupProfileKind = "cumulative"
 )
@@ -75,9 +76,11 @@ const (
 // WriteGroupRecordingProfile is the recording profile of one canonical group.
 // Interval is expressed in Unit; see write_group_profile_interval.go.
 type WriteGroupRecordingProfile struct {
-	Kind     WriteGroupProfileKind  `json:"kind"`
-	Interval int                    `json:"interval"`
-	Unit     WriteGroupIntervalUnit `json:"unit"`
+	// ResultShape versions mixed result semantics; legacy profiles omit it.
+	ResultShape WriteGroupResultShape  `json:"result_shape,omitempty"`
+	Kind        WriteGroupProfileKind  `json:"kind"`
+	Interval    int                    `json:"interval"`
+	Unit        WriteGroupIntervalUnit `json:"unit"`
 	// SampleReduction is empty for every profile saved before reductions
 	// existed; read it through EffectiveSampleReduction so absence stays latest
 	// and a legacy profile never grows the key on the wire.

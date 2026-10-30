@@ -135,6 +135,9 @@ func sameWriteGroupSchema(candidate, existing *WriteGroup) bool {
 }
 
 func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, group *WriteGroup) error {
+	if err := ValidateMemberCalculationIntent(group); err != nil {
+		return err
+	}
 	rowPolicy, err := json.Marshal(group.RowPolicy)
 	if err != nil {
 		return fmt.Errorf("encode write-group row policy: %w", err)
@@ -157,14 +160,14 @@ func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, g
 			destination_schema_digest = $12, row_policy = $13, write_policy = $14,
 			migration = $15, updated_at = $16,
 			layout_version = $17, profile_kind = $18, profile_interval = $19, profile_unit = $20, storage_mode = $21,
-			sample_reduction = $22
-		WHERE workspace_id = $23 AND id = $24
+			sample_reduction = $22, result_shape = $23
+		WHERE workspace_id = $24 AND id = $25
 	`), group.Revision, group.AppliedRevision, group.Name, group.Status,
 		group.Destination.ConnectorID, group.Destination.ConnectorRevision,
 		group.Destination.Database, group.Destination.TableSchema, group.Destination.TableName,
 		group.Destination.StorageStrategy, group.Destination.SchemaRevision, group.Destination.SchemaDigest,
 		string(rowPolicy), string(writePolicy), string(migration), group.UpdatedAt,
-		profile.layout, profile.kind, profile.interval, profile.unit, profile.mode, profile.reduction,
+		profile.layout, profile.kind, profile.interval, profile.unit, profile.mode, profile.reduction, profile.shape,
 		group.WorkspaceID, group.ID)
 	if err != nil {
 		return fmt.Errorf("update write group: %w", err)
@@ -195,13 +198,13 @@ func (r *SQLWriteGroupRepository) updateGroup(ctx context.Context, tx *sql.Tx, g
 				group_id, member_index, device_id, point_id, tag_id,
 				entity_key, source_revision, mapping_revision, measurement_id, target_column,
 				required, max_age_seconds, circuit_id, circuit_name,
-				value_role, source_value_type, result_value_type, exact_recording_source
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+				value_role, source_value_type, result_value_type, exact_recording_source, calculation
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		`), group.ID, index, member.DeviceID, member.PointID, member.TagID,
 			member.EntityKey, member.SourceRevision, member.MappingRevision, measurementID, member.TargetColumn,
 			member.Required, member.MaxAgeSeconds, nullableText(member.CircuitID), nullableText(member.CircuitName),
 			nullableText(string(member.ValueRole)), nullableText(string(member.SourceValueType)), nullableText(string(member.ResultValueType)),
-			exactRecordingSource); err != nil {
+			exactRecordingSource, nullableText(string(member.Calculation))); err != nil {
 			return fmt.Errorf("replace write-group member %d: %w", index, err)
 		}
 	}
