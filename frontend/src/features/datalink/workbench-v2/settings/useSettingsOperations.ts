@@ -1,3 +1,4 @@
+import { useOptionalTheme } from '../../../../contexts/ThemeContext';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -17,7 +18,7 @@ import {
   useUpdateDbTargetConnectorMutation,
   useUpdateSettingKeyMutation,
 } from '../../../../hooks/datalink/useSettings';
-import { makeDefaultConnector } from '../state/settingsDefaults';
+import { DEFAULT_SETTINGS, makeDefaultConnector } from '../state/settingsDefaults';
 import { getSafeErrorMessage, type SafeErrorMessage } from '../../../../utils/typedErrors';
 import {
   buildCreateConnectorRequest,
@@ -56,6 +57,8 @@ export function useSettingsOperations(
   dispatch: React.Dispatch<WorkbenchV2Action>,
 ): SettingsOperations {
   const { t } = useTranslation('workbench-v2');
+  const theme = useOptionalTheme();
+  const themeOwner = React.useRef(theme); themeOwner.current = theme;
   const updateSettingKeyMutation = useUpdateSettingKeyMutation();
   const createConnectorMutation = useCreateDbTargetConnectorMutation();
   const updateConnectorMutation = useUpdateDbTargetConnectorMutation();
@@ -66,7 +69,7 @@ export function useSettingsOperations(
   const [isSaving, setIsSaving] = React.useState(false);
   const ownership = React.useRef(createSettingsOperationOwnership()).current;
   const activeSaveRequests = React.useRef(0);
-  const saveQueue = React.useRef<{ snapshot: Settings; waiters: Array<() => void> } | null>(null);
+  const saveQueue = React.useRef<{ snapshot: Settings; themeSave?: () => Promise<unknown>; waiters: Array<() => void> } | null>(null);
   const saveRunning = React.useRef(false);
   const addQueue = React.useRef(Promise.resolve());
   const pendingAdds = React.useRef(0);
@@ -99,12 +102,15 @@ export function useSettingsOperations(
     dispatch({ type: 'updateSettingsSection', section: 'modbus_share', patch: { ...patch, save_error: null } });
   }, [dispatch]);
   const onReset = React.useCallback(() => {
+    themeOwner.current?.resetPreference(DEFAULT_SETTINGS.general.theme === 'auto' ? 'system' : DEFAULT_SETTINGS.general.theme);
     dispatch({ type: 'resetSettingsToDefaults' });
   }, [dispatch]);
 
-  const persistSettingsSnapshot = React.useCallback(async (snapshot: Settings) => {
+  const persistSettingsSnapshot = React.useCallback(async (snapshot: Settings, themeSave?: () => Promise<unknown>) => {
     try {
       for (const entry of buildPersistableSettingEntries(snapshot)) {
+        // Preserve explicit full Save, but theme uses its global live owner rather than a captured stale draft.
+        if (entry.key === 'theme' && themeSave) { await themeSave(); continue; }
         const saved = await updateSettingKeyMutation.mutateAsync(entry);
         if (entry.key === 'modbus_share' && typeof saved.value === 'object' && saved.value !== null) {
           const value = saved.value as Record<string, unknown>;
@@ -140,7 +146,7 @@ export function useSettingsOperations(
         saveQueue.current = null;
         // 每一批開始前重新宣告 saving，讓 barrier 在整段佇列期間都看得到進行中。
         dispatch({ type: 'updateSettingsSection', section: 'modbus_share', patch: { save_state: 'saving' } });
-        await persistSettingsSnapshot(item.snapshot);
+        await persistSettingsSnapshot(item.snapshot, item.themeSave);
         activeSaveRequests.current = Math.max(0, activeSaveRequests.current - item.waiters.length);
         setIsSaving(activeSaveRequests.current > 0);
         item.waiters.forEach((resolve) => resolve());
@@ -159,9 +165,10 @@ export function useSettingsOperations(
     return new Promise<void>((resolve) => {
       if (saveQueue.current) {
         saveQueue.current.snapshot = state.settings;
+        saveQueue.current.themeSave = themeOwner.current?.captureSave();
         saveQueue.current.waiters.push(resolve);
       } else {
-        saveQueue.current = { snapshot: state.settings, waiters: [resolve] };
+        saveQueue.current = { snapshot: state.settings, themeSave: themeOwner.current?.captureSave(), waiters: [resolve] };
       }
       void drainSaveQueue();
     });

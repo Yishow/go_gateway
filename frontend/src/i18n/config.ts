@@ -1,3 +1,5 @@
+import enTheme from './locales/en/theme.json';
+import zhTWTheme from './locales/zh-TW/theme.json';
 import enRecordingHome from './locales/en/recording-home.json';
 import zhTWRecordingHome from './locales/zh-TW/recording-home.json';
 import i18n from 'i18next';
@@ -54,6 +56,7 @@ i18n
     resources: {
       en: {
         'recording-home': enRecordingHome,
+        theme: enTheme,
         translation: mergeTranslations(
           enTranslations,
           enTagReviewTranslations,
@@ -74,6 +77,7 @@ i18n
       },
       'zh-TW': {
         'recording-home': zhTWRecordingHome,
+        theme: zhTWTheme,
         translation: mergeTranslations(
           zhTWTranslations,
           zhTWTagReviewTranslations,

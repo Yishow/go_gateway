@@ -1,3 +1,5 @@
+import { useOptionalTheme } from '../../../../contexts/ThemeContext';
+import { themeWireValue } from '../../../../contexts/themePreference';
 import { useTranslation } from 'react-i18next';
 import type { GeneralSettings } from '../state/types';
 
@@ -15,6 +17,7 @@ interface UiSectionProps {
  */
 export function UiSection({ settings, onChange }: UiSectionProps) {
   const { t } = useTranslation('workbench-v2');
+  const theme = useOptionalTheme();
 
   return (
     <div className="space-y-4 bg-gray-900/10 border border-gray-800 rounded-2xl p-5 backdrop-blur-sm">
@@ -30,18 +33,26 @@ export function UiSection({ settings, onChange }: UiSectionProps) {
       <div className="space-y-3">
         {/* 視覺主題 */}
         <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-gray-400 block">
+          <label htmlFor="workbench-theme-preference" className="text-[11px] font-medium text-gray-400 block">
             {t('settings.ui_theme', '視覺主題')}
           </label>
           <select
-            value={settings.theme}
-            onChange={(e) => onChange({ theme: e.target.value as 'dark' | 'light' | 'auto' })}
+            id="workbench-theme-preference"
+            value={theme ? themeWireValue(theme.preference) : settings.theme}
+            onChange={(e) => {
+              const value = e.target.value as 'dark' | 'light' | 'auto';
+              onChange({ theme: value }); theme?.setPreference(value === 'auto' ? 'system' : value);
+            }}
             className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5 text-white text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all cursor-pointer"
           >
             <option value="dark">{t('settings.theme_dark', '深色模式 (Dark)')}</option>
             <option value="light">{t('settings.theme_light', '淺色模式 (Light)')}</option>
             <option value="auto">{t('settings.theme_auto', '跟隨系統 (Auto)')}</option>
           </select>
+          {theme?.saveState === 'unsaved' && <p role="status">{t('theme:unsaved', '主題偏好尚未儲存。')}</p>}
+          {theme?.saveState === 'pending' && <p role="status">{t('theme:saving', '正在儲存主題偏好…')}</p>}
+          {theme?.saveState === 'error' && <div role="alert">{t('theme:save_failed', '主題已暫時套用，但未儲存。')}
+            <button type="button" onClick={() => { void theme.persistCurrent().catch(() => undefined); }}>{t('theme:retry', '重試儲存主題')}</button></div>}
         </div>
 
         {/* 顯示語系 */}

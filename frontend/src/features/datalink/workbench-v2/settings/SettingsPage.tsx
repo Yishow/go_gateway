@@ -1,3 +1,5 @@
+import { useOptionalTheme } from '../../../../contexts/ThemeContext';
+import { themeWireValue } from '../../../../contexts/themePreference';
 import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { WorkbenchV2State } from '../state/types';
@@ -19,6 +21,11 @@ interface SettingsPageProps {
 
 /** System settings container; async mutation ownership lives in useSettingsOperations. */
 export function SettingsPage({ state, dispatch, shareStatus }: SettingsPageProps) {
+  const theme = useOptionalTheme();
+  const preference = theme?.preference;
+  React.useEffect(() => {
+    if (preference) dispatch({ type: 'updateSettingsSection', section: 'general', patch: { theme: themeWireValue(preference) } });
+  }, [dispatch, preference]);
   const settingsItemsQuery = useSettingsItemsQuery();
   const connectorsQuery = useDbTargetConnectorsQuery();
   const [hydrated, setHydrated] = React.useState(false);
@@ -40,11 +47,12 @@ export function SettingsPage({ state, dispatch, shareStatus }: SettingsPageProps
       type: 'updateSettings',
       patch: {
         ...mapSettingItemsToWorkbenchSettings(settingsItemsQuery.data),
+        ...(preference ? { general: { ...mapSettingItemsToWorkbenchSettings(settingsItemsQuery.data).general, theme: themeWireValue(preference) } } : {}),
         connectors: connectorsQuery.data.map((connector) => mapDatabaseConnectorToSettingsConnector(connector)),
       },
     });
     setHydrated(true);
-  }, [connectorsQuery.data, connectorsQuery.isSuccess, dispatch, hydrated, settingsItemsQuery.data, settingsItemsQuery.isSuccess]);
+  }, [connectorsQuery.data, connectorsQuery.isSuccess, dispatch, hydrated, preference, settingsItemsQuery.data, settingsItemsQuery.isSuccess]);
 
   if (!hydrated) {
     return <SettingsBackendStatus hasError={settingsItemsQuery.isError || connectorsQuery.isError} error={settingsItemsQuery.error ?? connectorsQuery.error} />;

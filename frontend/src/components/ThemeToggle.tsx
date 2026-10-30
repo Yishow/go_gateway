@@ -3,9 +3,10 @@ import { useTheme } from '../contexts/ThemeContext'
 
 export function ThemeToggle() {
   const { t } = useTranslation()
-  const { theme, toggleTheme } = useTheme()
+  const { theme, toggleTheme, saveState, persistCurrent } = useTheme()
 
   return (
+    <>
     <button
       type="button"
       onClick={toggleTheme}
@@ -24,5 +25,10 @@ export function ThemeToggle() {
         </svg>
       )}
     </button>
+    {saveState === 'unsaved' && <span role="status">{t('theme:unsaved')}</span>}
+    {saveState === 'pending' && <span role="status">{t('theme:saving')}</span>}
+    {saveState === 'error' && <span role="alert">{t('theme:save_failed')}
+      <button type="button" onClick={() => { void persistCurrent().catch(() => undefined); }}>{t('theme:retry')}</button></span>}
+    </>
   )
 }

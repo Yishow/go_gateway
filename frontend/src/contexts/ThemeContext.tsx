@@ -1,63 +1,35 @@
-import * as React from 'react'
-import { createContext, useContext, useEffect, useState } from 'react'
-
-type Theme = 'light' | 'dark'
-
+import * as React from 'react';
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { createThemePreference, type Theme, type ThemePreference, type ThemeSaveState } from './themePreference';
 interface ThemeContextType {
-  theme: Theme
-  toggleTheme: () => void
+  theme: Theme;
+  preference: ThemePreference;
+  saveState: ThemeSaveState;
+  toggleTheme: () => void;
+  setPreference: (preference: ThemePreference) => void;
+  persistCurrent: () => Promise<unknown>;
+  resetPreference: (preference: ThemePreference) => void;
+  captureSave: () => () => Promise<unknown>;
 }
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
-
-/**
- * Get initial theme safely
- */
-function getInitialTheme(): Theme {
-  try {
-    const savedTheme = typeof window !== 'undefined' ? localStorage.getItem('theme') : null
-    if (savedTheme === 'light' || savedTheme === 'dark') {
-      return savedTheme
-    }
-    
-    if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark'
-    }
-  } catch {
-    // Ignore storage/read errors and fallback to default theme.
-  }
-  return 'light'
-}
-
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme)
-
+  const client = useQueryClient();
+  const owner = useMemo(() => createThemePreference(client), [client]);
+  const snapshot = useSyncExternalStore(owner.subscribe, owner.snapshot, owner.snapshot);
+  useEffect(() => owner.start(), [owner]);
   useEffect(() => {
-    const root = window.document.documentElement
-    root.classList.remove('light', 'dark')
-    root.classList.add(theme)
-    try {
-      localStorage.setItem('theme', theme)
-    } catch {
-      // Ignore storage write errors (private mode, disabled storage, etc.)
-    }
-  }, [theme])
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))
-  }
-
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  )
+    const root = document.documentElement;
+    root.classList.remove('light', 'dark'); root.classList.add(snapshot.theme);
+    root.style.colorScheme = snapshot.theme;
+  }, [snapshot.theme]);
+  return <ThemeContext.Provider value={{ ...snapshot, setPreference: owner.setPreference, persistCurrent: owner.persistCurrent, resetPreference: owner.resetPreference, captureSave: owner.captureSave,
+    toggleTheme: () => owner.setPreference(snapshot.theme === 'light' ? 'dark' : 'light') }}>{children}</ThemeContext.Provider>;
 }
-
+/** Optional only for independently mounted legacy settings components; production has one provider. */
+export function useOptionalTheme() { return useContext(ThemeContext); }
 export function useTheme() {
-  const context = useContext(ThemeContext)
-  if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider')
-  }
-  return context
+  const context = useOptionalTheme();
+  if (!context) throw new Error('useTheme must be used within a ThemeProvider');
+  return context;
 }

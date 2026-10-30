@@ -11,7 +11,7 @@
 - [x] 2.3 [after: 2.2] 實作 Healthy summaries distinguish history from present evidence 與「結果證據而非狀態綠燈」；測試已保存、等待首次寫入、SQL receipt 與舊成功後斷線分開顯示，不製造資料列數值。
 - [x] 2.4 [after: 2.3] 依「Quiet mineral 取代被否決的 v4 配色」與 DESIGN.md 完成雙主題語意 tokens、繁中與英文精簡文案及字型階層、鍵盤焦點/返回焦點、長名稱與窄畫面排版；以 accessibility/component tests 及可用瀏覽器截圖驗證，無法執行的視覺項明列 NOT RUN。
 
-- [ ] 2.5 [after: 2.4] 實作 Theme preference resolves without inventing persisted intent，依「系統主題與單一語意 tokens」與 UI / API / Diagnostics options 連接現有provider及settings adapter；測試raw key有無、legacy相容、OS live change、override、回system、失敗fallback、late hydration與backend context切換／workspace不重設，theme-only updateKey只寫theme且modbus_share/default_interval零write。
+- [x] 2.5 [after: 2.4] 實作 Theme preference resolves without inventing persisted intent，依「系統主題與單一語意 tokens」與 UI / API / Diagnostics options 連接現有provider及settings adapter；測試raw key有無、legacy相容、OS live change、override、回system、失敗fallback、late hydration與backend context切換／workspace不重設，theme-only updateKey只寫theme且modbus_share/default_interval零write。
 - [ ] 2.6 [after: 2.5] 實作 Semantic design tokens govern affected surfaces、Design tokens scope 與 New configuration popups are centered viewport-sized modals，依 DESIGN.md 對新 surfaces／重用modal／portal導入單一CSS semantic tokens與TS aliases；檢查light/dark/focus/disabled/status對比、reduced-motion與viewport75% modal，不改未觸及舊頁。
 
 - [ ] 2.7 [after: 2.6] 依「已選 modal 與返回引導契約」實作 Classified modals and contextual return state preserve safety；測一般75%／手機近滿版／小確認尺寸、固定header/footer與body捲動、help不藏risk、同scope返回搜尋/篩選/scroll/focus及scope/revision變更不復活舊項目。
