@@ -1,0 +1,23 @@
+/* Content inherits the shared shell theme; no new dialog, tokens or page styles. */
+.recording-point-picker { display: flex; flex-direction: column; min-height: 0; height: 100%; color: inherit; background: inherit; }
+.recording-point-picker__toolbar { display: grid; grid-template-columns: minmax(12rem, 2fr) minmax(8rem, 1fr) minmax(8rem, 1fr); gap: 0.75rem; align-items: end; }
+.recording-point-picker__toolbar label { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.recording-point-picker input[type='search'], .recording-point-picker select { min-height: 2.5rem; width: 100%; border: 1px solid currentColor; border-radius: 0.375rem; padding: 0.375rem 0.625rem; color: inherit; background: inherit; }
+.recording-point-picker button { min-height: 2.5rem; padding: 0.375rem 0.75rem; border: 1px solid currentColor; border-radius: 0.375rem; }
+.recording-point-picker button:disabled { opacity: 0.5; cursor: not-allowed; }
+.recording-point-picker__body { flex: 1; min-height: 0; overflow: auto; padding-block: 0.75rem; }
+.recording-point-picker table { width: 100%; border-collapse: collapse; text-align: start; }
+.recording-point-picker th, .recording-point-picker td { padding: 0.625rem 0.5rem; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); vertical-align: top; }
+.recording-point-picker th:first-child { width: 45%; }
+.recording-point-picker td label { display: inline-flex; gap: 0.5rem; align-items: center; }
+.recording-point-picker small { display: block; font-size: 0.8125rem; }
+.recording-point-picker nav { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-block: 0.75rem; }
+.recording-point-picker nav select { width: auto; margin-inline-start: 0.5rem; }
+.recording-point-picker__source { margin-top: 0.75rem; }
+.recording-point-picker__footer { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; padding-block: 0.75rem; border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent); }
+.recording-point-picker__footer > div { flex: 1; min-width: 10rem; }
+.recording-point-picker__footer > button:last-child { font-weight: 600; border-width: 2px; }
+@media (max-width: 639px) {
+  .recording-point-picker__toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .recording-point-picker__search { grid-column: 1 / -1; }
+}

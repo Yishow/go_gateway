@@ -36,7 +36,12 @@
 
 共同 apply 前置：四案規格完成審查、補齊 demo，並已取得 owner 對本次固定版本關鍵頁面／路徑的確認。此 gate 在第一案產品實作前執行，不等到第四案；demo確認不代表正式瀏覽器或實機驗收通過。
 
-- 前置 simplify-recording-home-guidance 完成且 demo/owner 斷點已記錄。新 recording-editor 接現有 hooks/service，source identity 採正式 workspace/device/rule/point/tag ID，不採名稱或瀏覽器陣列 index。
+- 完整 editor 整合前置仍為 simplify-recording-home-guidance 完成且 demo/owner 斷點已記錄；僅 tasks 1.1/1.2 的未掛載 foundation 可依下列分期先行。新 recording-editor 接現有 hooks/service，source identity 採正式 workspace/device/rule/point/tag ID，不採名稱或瀏覽器陣列 index。
+- 分期依據：owner 正式實作決定見 docs/verification/simple-recording/implementation-decision-2026-10-30.md；2026-10-30 18:49 UTC 訊息 Sentinel_77b0a35bf0c48191aa14aff6c65cfe3a 明確要求「7個change」「多個agent平行實作，不可重覆」。本分期只取代原「home 全案完成後才可開始任何 editor 工作」的順序，不更動功能範圍、task IDs 或終驗 gate。
+- Foundation 前置為上述固定版本 owner acceptance 已記錄及 home tasks 1.1–2.2 完成。允許以 Red-Green-Refactor 在獨立 recording-editor 新檔建立純 UI state、picker/table/footer 內容及相關測試：同表 filters、獨立 pendingAdd、既有 ID locked、Cancel/Add N、失效 ID 阻擋、remove/undo/re-add 保留原 member 意圖與非法文字、單一 active view stack 及無第一設備默選。1.2 的此局部可在 1.1 對應 foundation 測試契約完成後先行；不是解除其完整任務的 [after: 1.1]。
+- Foundation 只接受既有 canonical projection/type 的 props 與明確事件 callbacks，不掛 production route、不新增 API/service mutation owner、不建立第二份 durable draft 或共享 modal primitive。候選資料的 device/point/tag ID 不等於 source/rule/mapping revision 證明；未知語意不得由名稱或 datatype 推猜，未知能力不可假成功。保存分步／不回滾與 late generation 可先測狀態契約，但不能以測試 callback 當作已完成正式來源保存。
+- 整合階段才接既有 device/rule action queue 與 matching settlement/readback，保留已保存來源、pending/unknown 查證及原 validator；不得將全域 barrier 清空當作本次保存成功。共享 tokens、ThemeProvider 與 modal shell 由 home 唯一 owner 提供，foundation 不修改其共享檔；完整掛載及 1.1/1.2 勾選仍等 home 完成、整合相關測試及原任務驗收。先行部分只記局部證據，不宣稱任務或 browser 完成。
+- Batching 預覽、逐點字序及逐 member 計算仍分別等待 tasks 1.4、1.6、2.1 的正式 backend/capability 前置；source 保存、schema consent、scoped start、browser 修復重驗及 adoption gate 均不放寬。開發只跑相關測試，七案完成才按既有決定跑全套。
 - 接口：editor 接收明確 create/edit 意圖及 scoped group identity；modal 回傳 persisted identity 或取消結果，未保存 connection 不能冒充 ready。既有設備連線變更依現行服務使 probe 過期。
 - 任何無法由既有 API 表達的操作顯示能力原因與進階交接，不新增後端能力以填滿 demo；如必要業務流程確有 gap，回報 owner 修規格後才實作。
 - 點數驗收使用設計測試例：10 float32 項需20個16-bit word；正式協議支援集仍由既有 validator決定。重複名稱與不同設備相同位址不合併。
