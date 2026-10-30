@@ -18,6 +18,21 @@ collection-optimizer 舊 spec 的 max_hole_size=10 不代表可安全跨不可�
 
 僅同設備、station/unit、連線版本、protocol/frame、function/access area、到期 polling group 合批；不同 cadence 不因這次同時到期就合併排程權威。跨 area random 只在能力明確支持時允許。capability 限制取協議、client、裝置配置三者最嚴，未知 random 能力預設 scalar/安全 contiguous；不得發測試讀來猜能力。MC client 目前 word random 1–255 items、FATEK 64 items 是程式上限，不等於所有 PLC 支持；只配置已支持命令才用，限制需對 simulator fixture 驗證。每 scalar words/native components 必須完整放同 request；超限 scalar 拒絕，不拼跨時刻半個值。MC hexadecimal address、FATEK D/DR width、Modbus normalized offsets 全用各協議既有 parser，不用 decimal regex 猜。
 
+**Byte budget 澄清（屬上述唯一不可變計畫與能力界線）**
+
+2026-10-30 澄清上述「byte限制」：immutable capability snapshot 分別承載 Protocol／Client／Device 的 `{RequestBytes, ResponseBytes}` budgets；request與response各自採正值中最嚴限制，0只代表未指定，不能代表已驗證成本為0。計算涵蓋受支持的完整application frame（Modbus MBAP或RTU unit＋CRC、MC3E binary header＋end code、FATEK ASCII framing＋checksum），不含IP／TCP／Ethernet開銷，不是通用payload byte數。成本必須依實際command/frame serializer與response fixture求得；未知成本明列unknown，遇正值budget則以 `unsupported-frame-cost` 拒絕該候選，不宣稱符合限制。random成本在其策略交付時另以真實serializer驗證，不能套用contiguous公式。
+
+來源查核：`internal/protocol/modbus/frame.go` 的 BuildTCPFrame／BuildRTUFrame／BuildReadRequest／ParseReadResponse，`internal/protocol/mcprotocol/frame.go` 的 RequestFrame.BuildPacket與 `internal/protocol/mcprotocol/client.go` 的BatchReadWord／Bit，以及 `internal/protocol/fatek/frame.go` 的BuildFrameToBuffer／ParseResponse與 `internal/protocol/fatek/client.go` 的ReadRegisters／Status。測試須比對實際序列化長度與正常回應fixture，包括bit packing、native component width、FormatAddress長度、恰好符合與超過一byte的邊界；以下為目前支援路徑的code-derived測試條件，不是通用協議最大值或實測效能承諾：
+
+| Contiguous／scalar frame | Request bytes | Response bytes（正常讀取） |
+|---|---|---|
+| Modbus TCP | 12 | 9＋payload；word為2N、bit為ceil(N/8) |
+| Modbus RTU | 8 | 5＋同上payload |
+| MC3E binary | 21 | 11＋payload；word為2N、bit為ceil(N/2) |
+| FATEK ASCII | 8＋2＋len(FormatAddress) | word為9＋N×(native bits/4)，bit為9＋N |
+
+item limit也須clamp到實際client：目前Modbus為125 words／2000 bits，MC BatchRead為125 words／2000 bits（不是MC協議通用上限），FATEK為64個16-bit／32個32-bit components或255 bits；裝置設定只能再縮小，不能放寬client實際能力。限制與成本模型參與不可變plan/capability identity；serializer或能力版本更新後須重驗fixture，不沿用未證明的bytes估算。
+
 ### 安全覆蓋與去重解碼
 
 MC/FATEK 針對稀疏 scalar 展開完整 native units，用現有 random client 一次讀 D0/D10/D20（已宣告可支持、int16 的設計 fixture）；只支持 batch contiguous 的組合採合法區塊，否則 scalar。Modbus 合併僅當 union 完全由有效 scalar spans 覆蓋，或 gap 每個 cell 都在同版本、明確 operator/config declared readable coverage 內且非 forbidden。SourceRule start/count 或曾經讀成功不構成 gap 授權；skipped/disabled 未被其他 active point 覆蓋的 cells 預設 excluded。max_hole_size 只是已許可範圍內成本限制，不能授權。無 coverage 的0/10/20三點仍三次；已確認0–20整段可讀且限制允許可一次讀21words，僅發射原三點。

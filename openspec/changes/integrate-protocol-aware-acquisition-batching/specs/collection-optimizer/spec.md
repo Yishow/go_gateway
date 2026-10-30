@@ -26,6 +26,20 @@ The system SHALL produce deterministic immutable protocol-aware plans for the ac
 ### Requirement: PDU awareness
 The planner SHALL enforce the strictest protocol, client and configured-device item, byte and address limits, using native address radix and component width. A typed scalar SHALL fit completely within one request; an individually oversized scalar SHALL fail explicitly. It SHALL preserve every original Point mapping when unioning nested or overlapping spans.
 
+Byte budgets SHALL be immutable Protocol, Client, and Device pairs of RequestBytes and ResponseBytes. Each direction SHALL use the strictest positive limit; zero SHALL mean unspecified, not a proven zero cost. Costs SHALL cover the complete supported application frame, including Modbus MBAP or RTU unit and CRC, MC3E binary headers and end code, or FATEK ASCII framing and checksum, and SHALL exclude IP, TCP, and Ethernet overhead. Costs SHALL be derived from the actual command serializers and response fixtures, not a generic payload-size formula. Unknown frame costs SHALL be reported as unknown; a positive applicable budget with unknown cost SHALL reject that candidate with unsupported-frame-cost rather than claim compliance. Native item limits SHALL also be clamped to the actual client implementation, not only configured or theoretical protocol limits. Cost-model and budget changes SHALL participate in plan and capability identity.
+
+#### Scenario: Complete frame budget boundaries
+- **GIVEN** a supported command whose request and normal response frame lengths are verified against its actual serializer and fixtures
+- **WHEN** Protocol, Client, and Device provide different positive request or response byte limits
+- **THEN** each direction uses its smallest positive limit; an exactly fitting frame is permitted and an over-limit frame is split only at complete scalar boundaries or explicitly rejected if indivisible
+- **AND** native bit packing, component width, address encoding length, and actual client item caps remain enforced independently of byte budgets
+
+#### Scenario: Unknown frame cost cannot pass a budget
+- **GIVEN** a command or frame variant without a verified frame-cost model
+- **WHEN** an applicable request or response byte budget is positive
+- **THEN** the candidate is rejected with unsupported-frame-cost, not accepted using zero or payload-only bytes
+- **AND** an unspecified budget does not turn an unknown cost into a known estimate or enable an otherwise unsupported command
+
 #### Scenario: Respect Modbus limit
 - **GIVEN** 200 contiguous int16 registers and a 125-register capability limit
 - **WHEN** the plan is built
