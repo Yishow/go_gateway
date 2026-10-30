@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/aggregation"
-	"go-gateway/internal/datalink/measurement"
 )
 
 func (a *Assembler) mixedMemberResult(p *Plan, m Member, start, end, nextDue time.Time) MemberResult {
@@ -41,7 +40,7 @@ func (a *Assembler) mixedIdentity(out *Outcome, member string, at time.Time) {
 	if a.config.Mode == ModeMixedLong {
 		id, err = ProfileRecordID(a.config.WorkspaceID, a.config.GroupID, a.config.GroupRevision, member, "mixed", at)
 	} else {
-		id, err = measurement.HashStringTuple("write-group-mixed-dispatch-v1", a.config.WorkspaceID, a.config.GroupID, a.config.GroupRevision, at.UTC().Format(time.RFC3339Nano))
+		id, err = MixedDispatchRecordID(a.config.WorkspaceID, a.config.GroupID, a.config.GroupRevision, at)
 	}
 	if err != nil {
 		out.Kind, out.Reason = OutcomeSkipped, ReasonIdentityUnavailable

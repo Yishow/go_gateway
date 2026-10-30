@@ -16,8 +16,12 @@ const rowErrCounterUnbound = "counter-unbound"
 // longCounterProvenance is the cumulative part of a record's provenance: what
 // the delta rests on and which readings and revisions it compares.
 type longCounterProvenance struct {
-	Kind  string `json:"kind"`
-	Basis string `json:"basis,omitempty"`
+	// Raw is mixed-only typed evidence; legacy JSON remains unchanged.
+	Raw           *measurement.ExactValue `json:"raw,omitempty"`
+	RawSampleID   string                  `json:"raw_sample_id,omitempty"`
+	RawObservedAt string                  `json:"raw_observed_at,omitempty"`
+	Kind          string                  `json:"kind"`
+	Basis         string                  `json:"basis,omitempty"`
 	// RawText is the decimal text the source gave, kept so a numeric column
 	// that normalizes digits never erases the original precision evidence.
 	RawText               string `json:"raw_text,omitempty"`
@@ -76,6 +80,9 @@ func (l *LongRowLayout) counterCells(values map[string]driver.Value, member Long
 	}
 	values[longColSeriesEpoch] = l.text(longColSeriesEpoch, member.Counter.SeriesEpoch)
 	values[longColUnit] = l.text(longColUnit, member.Counter.Unit)
+	if l.spec.ResultShape == MixedResultShapeV1 {
+		return
+	}
 	if result.Counter == nil || result.Counter.Delta == nil {
 		return
 	}

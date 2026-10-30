@@ -18,6 +18,9 @@ const longReductionMean = string(snapshot.SampleReductionMean)
 
 // LongRowMember is one source of a long-layout group.
 type LongRowMember struct {
+	Calculation              snapshot.Calculation `json:",omitempty"`
+	Interval                 time.Duration        `json:",omitempty"`
+	Required                 bool                 `json:",omitempty"`
 	MemberKey                string
 	DeviceID, PointID, TagID string
 	// CircuitID and MeasurementID are written only when known; empty is NULL.
@@ -39,8 +42,9 @@ type LongRowMember struct {
 // LongRowSpec maps closed profile records onto an inspected managed_long_v1
 // table. Columns must come from real table inspection.
 type LongRowSpec struct {
-	Dialect SQLDialect
-	Columns []ColumnInfo
+	ResultShape string `json:",omitempty"`
+	Dialect     SQLDialect
+	Columns     []ColumnInfo
 	// WorkspaceID, GroupID, GroupRevision and Profile* are frozen with the
 	// applied revision and written on every record.
 	WorkspaceID, GroupID, GroupRevision string
@@ -119,6 +123,10 @@ type longWindowProvenance struct {
 // and each member's exact type against its value slot, returning all blocking
 // issues at once.
 func NewLongRowLayout(spec LongRowSpec) (*LongRowLayout, []LayoutIssue) {
+	if issues := mixedLongIssues(spec); len(issues) > 0 {
+		return nil, issues
+	}
+	spec = freezeMixedLong(spec)
 	if spec.Dialect != SQLDialectSQLite && spec.Dialect != SQLDialectPostgres && spec.Dialect != SQLDialectMySQL && spec.Dialect != SQLDialectSQLServer {
 		return nil, []LayoutIssue{{Code: issueUnsupportedDialect}}
 	}
@@ -184,13 +192,16 @@ func (l *LongRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error) 
 	if !ok {
 		return EncodedRow{}, &GroupRowError{Code: rowErrMemberMissing}
 	}
+	if err := l.validateMixedOutcome(outcome, member, result); err != nil {
+		return EncodedRow{}, err
+	}
 	if result.Counter != nil && member.Counter == nil {
 		// A cumulative result must never lose its delta to a member without a binding.
 		return EncodedRow{}, &GroupRowError{Code: rowErrCounterUnbound}
 	}
 	windowStart, windowEnd := outcome.Window()
 	encoded := EncodedRow{
-		RecordID: outcome.RecordID, EffectKey: outcome.EffectKey, EntityKey: outcome.EntityKey,
+		DueAt: outcome.DueAt, RecordID: outcome.RecordID, EffectKey: outcome.EffectKey, EntityKey: outcome.EntityKey,
 		BucketStart: windowStart.UTC(),
 	}
 	if l.spec.Dialect == SQLDialectSQLServer {
@@ -303,6 +314,9 @@ func longStatus(result snapshot.MemberResult, truncated bool) string {
 // without its reduction result, or a raw reading that would stand in for it, is
 // refused instead of silently degrading to latest.
 func windowValue(member LongRowMember, result snapshot.MemberResult) (measurement.ExactValue, error) {
+	if member.Calculation != "" || result.Window != nil {
+		return mixedMemberValue(member.Calculation, result)
+	}
 	if member.Reduction == longReductionMean {
 		if result.Reduction == nil {
 			return measurement.ExactValue{}, &GroupRowError{Code: rowErrTypeMismatch, Column: longColValueDecimal}
@@ -319,6 +333,10 @@ func windowValue(member LongRowMember, result snapshot.MemberResult) (measuremen
 }
 
 func (l *LongRowLayout) provenance(member LongRowMember, result snapshot.MemberResult, outcome snapshot.Outcome) (driver.Value, error) {
+	if l.spec.ResultShape == MixedResultShapeV1 {
+		payload, err := json.Marshal(mixedProvenance(member.mixedIntent(), result, outcome.DueAt))
+		return string(payload), err
+	}
 	entry := longProvenance{Type: string(member.Type), Member: member.MemberKey}
 	entry.Profile.Kind, entry.Profile.Interval, entry.Profile.Unit = l.spec.ProfileKind, l.spec.ProfileInterval, l.spec.ProfileUnit
 	if !result.Usable() {

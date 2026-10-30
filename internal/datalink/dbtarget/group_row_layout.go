@@ -15,7 +15,10 @@ import (
 
 // GroupRowMember binds one snapshot member to a destination column.
 type GroupRowMember struct {
-	MemberKey string
+	// Calculation/Interval are frozen mixed-only member intent.
+	Calculation snapshot.Calculation `json:",omitempty"`
+	Interval    time.Duration        `json:",omitempty"`
+	MemberKey   string
 	// EntityKey partitions this member into the row emitted for that entity.
 	// Empty means the member belongs to the fixed group scope.
 	EntityKey string
@@ -38,9 +41,13 @@ type GroupRowMember struct {
 // GroupRowSpec describes how snapshot rows map onto one inspected table. The
 // Columns come from real table inspection, not from caller declarations.
 type GroupRowSpec struct {
-	Dialect SQLDialect
-	Columns []ColumnInfo
-	Members []GroupRowMember
+	ResultShape                string `json:",omitempty"`
+	WorkspaceID, GroupRevision string `json:",omitempty"`
+	// DueAtColumn is an explicitly confirmed mixed dispatch-time mapping.
+	DueAtColumn string `json:",omitempty"`
+	Dialect     SQLDialect
+	Columns     []ColumnInfo
+	Members     []GroupRowMember
 	// Partial opts in to NULL members; it needs nullable optional columns and
 	// a provenance column that stores member-level quality.
 	Partial bool
@@ -100,6 +107,7 @@ type EncodedCell struct {
 
 // EncodedRow is a snapshot row encoded for the destination.
 type EncodedRow struct {
+	DueAt       time.Time `json:",omitzero"`
 	RecordID    string
 	EffectKey   string
 	EntityKey   string
@@ -119,6 +127,10 @@ func (e *GroupRowError) Error() string { return "group row blocked: " + e.Code }
 // NewGroupRowLayout validates every mapped column against the inspected table
 // and returns all blocking issues at once, or a ready layout.
 func NewGroupRowLayout(spec GroupRowSpec) (*GroupRowLayout, []LayoutIssue) {
+	if issues := mixedWideIssues(spec); len(issues) > 0 {
+		return nil, issues
+	}
+	spec = freezeMixedWide(spec)
 	if spec.Dialect != SQLDialectSQLite && spec.Dialect != SQLDialectPostgres {
 		return nil, []LayoutIssue{{Code: issueUnsupportedDialect}}
 	}
@@ -159,7 +171,7 @@ func NewGroupRowLayout(spec GroupRowSpec) (*GroupRowLayout, []LayoutIssue) {
 		if _, err := exactStrategyFor(spec.Dialect, column.DataType, member.Type); err != nil {
 			issues = append(issues, LayoutIssue{Code: issueUnsupportedSQLType, Column: member.Column, MemberKey: member.MemberKey})
 		}
-		if !member.Required && !column.Nullable {
+		if (!member.Required || spec.ResultShape == MixedResultShapeV1) && !column.Nullable {
 			nullableOptional = false
 			if spec.Partial {
 				issues = append(issues, LayoutIssue{Code: issueColumnNotNullable, Column: member.Column, MemberKey: member.MemberKey})
@@ -173,6 +185,7 @@ func NewGroupRowLayout(spec GroupRowSpec) (*GroupRowLayout, []LayoutIssue) {
 	}{
 		{spec.RecordKeyColumn, func(c ColumnInfo) bool { return isTextColumn(spec.Dialect, c) }},
 		{spec.EntityKeyColumn, func(c ColumnInfo) bool { return isTextColumn(spec.Dialect, c) }},
+		{spec.DueAtColumn, func(c ColumnInfo) bool { return bucketColumnKind(spec.Dialect, c) != bucketUnsupported }},
 		{spec.BucketStartColumn, func(c ColumnInfo) bool { return bucketColumnKind(spec.Dialect, c) != bucketUnsupported }},
 		{spec.ProvenanceColumn, func(c ColumnInfo) bool { return isProvenanceColumn(spec.Dialect, c) }},
 		{spec.GroupIDColumn, func(c ColumnInfo) bool { return isTextColumn(spec.Dialect, c) && spec.GroupID != "" }},
@@ -273,12 +286,15 @@ func (l *GroupRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error)
 	if outcome.Kind != snapshot.OutcomeRow {
 		return EncodedRow{}, &GroupRowError{Code: rowErrNotARow}
 	}
+	if err := l.validateMixedOutcome(outcome); err != nil {
+		return EncodedRow{}, err
+	}
 	results := make(map[string]snapshot.MemberResult, len(outcome.Members))
 	for _, result := range outcome.Members {
 		results[result.MemberKey] = result
 	}
 	encoded := EncodedRow{
-		RecordID: outcome.RecordID, EffectKey: outcome.EffectKey, EntityKey: outcome.EntityKey,
+		DueAt: outcome.DueAt, RecordID: outcome.RecordID, EffectKey: outcome.EffectKey, EntityKey: outcome.EntityKey,
 		BucketStart: outcome.BucketStart.UTC(), Partial: outcome.Partial || outcome.Truncated != "",
 	}
 	rowMembers := l.membersForEntity(outcome.EntityKey)
@@ -331,6 +347,9 @@ func (l *GroupRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error)
 // other member. A mean without its reduction result, or a raw reading that would
 // stand in for it, is refused instead of silently degrading to latest.
 func rowMemberValue(member GroupRowMember, result snapshot.MemberResult) (measurement.ExactValue, error) {
+	if member.Calculation != "" || result.Window != nil {
+		return mixedMemberValue(member.Calculation, result)
+	}
 	if member.Reduction == longReductionMean {
 		if result.Reduction == nil {
 			return measurement.ExactValue{}, &GroupRowError{Code: rowErrTypeMismatch, Column: member.Column}
@@ -367,6 +386,13 @@ func (l *GroupRowLayout) appendIdentityCells(encoded *EncodedRow, outcome snapsh
 	if err := text(l.spec.DeviceIDColumn, l.spec.DeviceID); err != nil {
 		return err
 	}
+	if name := l.spec.DueAtColumn; name != "" {
+		if bucketColumnKind(l.spec.Dialect, l.column(name)) == bucketTimestamp {
+			encoded.Cells = append(encoded.Cells, EncodedCell{Column: name, Value: outcome.DueAt.UTC()})
+		} else if err := text(name, outcome.DueAt.UTC().Format(time.RFC3339Nano)); err != nil {
+			return err
+		}
+	}
 	if name := l.spec.BucketStartColumn; name != "" {
 		start := windowStartOf(outcome)
 		if bucketColumnKind(l.spec.Dialect, l.column(name)) == bucketTimestamp {
@@ -379,7 +405,11 @@ func (l *GroupRowLayout) appendIdentityCells(encoded *EncodedRow, outcome snapsh
 		return err
 	}
 	if name := l.spec.ProvenanceColumn; name != "" {
-		payload, err := json.Marshal(l.provenanceEntries(outcome))
+		var evidence any = l.provenanceEntries(outcome)
+		if l.spec.ResultShape == MixedResultShapeV1 {
+			evidence = l.mixedProvenanceEntries(outcome)
+		}
+		payload, err := json.Marshal(evidence)
 		if err != nil {
 			return &GroupRowError{Code: rowErrSQLValueBlock, Column: name}
 		}
