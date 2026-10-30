@@ -57,6 +57,12 @@ func (c *FatekConnector) Read(ctx context.Context, req connector.ReadRequest) (c
 		Quality:   schema.QualityGood,
 	}
 
+	if err := validateFatekReadProfile(req); err != nil {
+		result.Quality = schema.QualityBad
+		result.Error = err.Error()
+		return result, err
+	}
+
 	// 解析地址 (格式: "D0100", "R0", "M100", "X0", "Y0", etc.)
 	symbol, address, err := parseFatekAddress(req.Address)
 	if err != nil {
@@ -102,7 +108,7 @@ func (c *FatekConnector) Read(ctx context.Context, req connector.ReadRequest) (c
 			return result, err
 		}
 		result.RawBytes = intSliceToBytes(values)
-		value, err := convertFatekValue(values, req.DataType, comp.Width)
+		value, err := decodeFatekReadComponents(values, comp.Width, req)
 		if err != nil {
 			result.Quality = schema.QualityBad
 			result.Error = err.Error()
