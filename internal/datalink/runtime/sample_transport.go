@@ -59,6 +59,7 @@ func mappingBindingForRecords(
 		return mappingBinding{}, fmt.Errorf("derive acquisition config fingerprint: %w", err)
 	}
 	return mappingBinding{
+		MappingID:         mappingRecord.ID,
 		WorkspaceID:       workspaceID,
 		DeviceID:          deviceRecord.ID,
 		PointID:           pointRecord.ID,
@@ -158,6 +159,7 @@ func isSafeQualityReason(reason string, quality schema.QualityFlag) bool {
 }
 
 func (s *Service) refreshMappings(ctx context.Context) error {
+	before := s.mappingObservationSnapshot(ctx)
 	if s.mappingSvc != nil {
 		mappings, err := s.mappingSvc.List(ctx, mapping.ListFilter{Enabled: common.Ptr(true), Limit: 100000})
 		if err != nil {
@@ -185,6 +187,7 @@ func (s *Service) refreshMappings(ctx context.Context) error {
 			next[m.PointID] = append(next[m.PointID], binding)
 		}
 
+		s.annotateMappingObservation(ctx, before, next, nil)
 		s.mappingMu.Lock()
 		s.mappingIndex = next
 		s.mappingMu.Unlock()
@@ -239,6 +242,7 @@ func (s *Service) refreshMappings(ctx context.Context) error {
 		})
 	}
 
+	s.annotateMappingObservation(ctx, before, next, nil)
 	s.mappingMu.Lock()
 	s.mappingIndex = next
 	s.mappingMu.Unlock()

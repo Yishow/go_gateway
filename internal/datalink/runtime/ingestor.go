@@ -49,6 +49,7 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		finalValue := cv.Value
 		if shouldRunPipeline(b.TransformPipeline) {
 			out, err := mapping.ExecutePipeline(cv.Value, b.TransformPipeline)
+			s.observeMappingResult(cv, b, err == nil)
 			if err != nil {
 				s.mappingError.Add(1)
 				if index == 0 {

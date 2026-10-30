@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strconv"
 
+	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/diagnostics"
 )
 
@@ -27,6 +28,29 @@ func parseRuntimeLogQuery(r *http.Request, stream bool) (diagnostics.Query, stri
 		}
 		value := entries[0]
 		switch key {
+		case "workspace_id", "device_id", "rule_id", "group_id", "stage", "actionable":
+			// Independent exact filters, not an ownership tuple or authority.
+			// Presence is distinct from omission; never trim or silently drop it.
+			if value == "" {
+				return invalid()
+			}
+			switch key {
+			case "workspace_id":
+				q.WorkspaceID = value
+			case "device_id":
+				q.DeviceID = value
+			case "rule_id":
+				q.RuleID = value
+			case "group_id":
+				q.GroupID = value
+			case "stage":
+				q.Stage = runtimeview.Stage(value)
+			case "actionable":
+				if value != "true" && value != "false" {
+					return invalid()
+				}
+				q.Actionable = value == "true"
+			}
 		case "level":
 			q.Level = value
 		case "source":

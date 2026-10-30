@@ -115,6 +115,8 @@ func (r *StorageRecovery) ResolveStale(ctx context.Context) error {
 }
 
 func (r *StorageRecovery) resolveStaleOperation(ctx context.Context, operation recordingplan.SchemaOperation) error {
+	ctx, _, finish := r.captureStorageObservation(ctx)
+	defer finish(false)
 	request, ok := recordingplan.StorageRepairRequestOf(operation, "")
 	if !ok {
 		return nil

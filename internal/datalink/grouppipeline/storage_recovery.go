@@ -31,6 +31,7 @@ type StorageRecovery struct {
 	destinations Destinations
 	report       func(error)
 	sqlServerOps *sqlServerStorageRestoreTargetOps
+	observation  StorageObservationConfig
 
 	snapshots sync.Map // groupdelivery.GroupKey -> *workspace.WriteGroupAppliedSnapshot (immutable per revision)
 
@@ -122,7 +123,9 @@ func (r *StorageRecovery) BlockedCode(ctx context.Context, item groupdelivery.Ou
 // Restore decides what to do with a row the destination refused with a
 // schema-shaped error. The error only starts the look; the catalog and the
 // local evidence decide.
-func (r *StorageRecovery) Restore(ctx context.Context, item groupdelivery.OutboxItem, target groupdelivery.Target, cause error) (groupdelivery.RestoreDecision, error) {
+func (r *StorageRecovery) Restore(ctx context.Context, item groupdelivery.OutboxItem, target groupdelivery.Target, cause error) (decision groupdelivery.RestoreDecision, err error) {
+	ctx, original, finish := r.captureStorageObservation(ctx)
+	defer func() { finish(decision.Action == groupdelivery.RestoreBlock || err != nil) }()
 	snap, err := r.snapshot(ctx, item.Key)
 	if errors.Is(err, errRuntimeSnapshotInvalid) {
 		return groupdelivery.RestoreDecision{Action: groupdelivery.RestoreBlock, Code: recordingplan.StorageCodeOwnerMismatch}, nil
@@ -132,6 +135,9 @@ func (r *StorageRecovery) Restore(ctx context.Context, item groupdelivery.Outbox
 	}
 	if snap == nil {
 		return groupdelivery.RestoreDecision{}, nil
+	}
+	if original != nil {
+		*original = originalStorageProof(item, snap)
 	}
 	if target.Kind == schema.DatabaseConnectorKindSQLServer {
 		return r.restoreSQLServer(ctx, item, target, cause, snap)

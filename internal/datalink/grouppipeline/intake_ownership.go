@@ -34,7 +34,7 @@ func (p *Pipeline) acceptWithOwnership(ctx context.Context, envelope measurement
 			continue
 		}
 		invoked := false
-		err := p.withCounterProofGate(m, func() error {
+		err := p.observedProofGate(ctx, m, func() error {
 			invoked = true
 			if route.Owners[key] {
 				return m.boundary.AcceptOwnedSample(ctx, envelope)
@@ -51,6 +51,7 @@ func (p *Pipeline) acceptWithOwnership(ctx context.Context, envelope measurement
 	for key := range route.Owners {
 		if !attempted[key] {
 			errs = append(errs, groupdelivery.ErrOwnershipUnavailable)
+			p.recordOwnerObservation(ctx, ownerDescriptor{key: key, kind: OwnerRecordingRefusal, reason: groupdelivery.ErrOwnershipUnavailable.Error()})
 		}
 	}
 	// A cutover can commit after advisory routing while a formerly irrelevant

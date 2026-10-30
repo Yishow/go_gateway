@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { VITE_API_BASE_URL } from '../env';
+import { safeRuntimeIdentity } from '../utils/runtimeOperatorSafety';
+import { parseEvidenceStage } from './runtimeRuleEvidenceParser';
 import type { RuntimeLogEvent, RuntimeLogFilters, RuntimeLogTransport } from '../types/runtimeLogs';
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
 const sequence = z.string().regex(/^\d{1,20}$/);
@@ -38,6 +40,20 @@ export function runtimeLogsURL(filters: RuntimeLogFilters, stream = false, after
   const params = new URLSearchParams({ level: filters.level });
   if (filters.source) params.set('source', filters.source);
   if (filters.q) params.set('q', filters.q);
+  for (const [key, value] of [['workspace_id', filters.workspaceId], ['device_id', filters.deviceId],
+    ['rule_id', filters.ruleId], ['group_id', filters.groupId]] as const) {
+    if (value === undefined || value === '') continue;
+    if (safeRuntimeIdentity(value) !== value) throw new RuntimeLogRequestError(422);
+    params.set(key, value);
+  }
+  if (filters.stage !== undefined) {
+    if (parseEvidenceStage(filters.stage) !== filters.stage) throw new RuntimeLogRequestError(422);
+    params.set('stage', filters.stage);
+  }
+  if (filters.actionable !== undefined) {
+    if (typeof filters.actionable !== 'boolean') throw new RuntimeLogRequestError(422);
+    params.set('actionable', String(filters.actionable));
+  }
   if (stream) { if (after) params.set('after', after); } else params.set('limit', '200');
   return `${VITE_API_BASE_URL.replace(/\/$/, '')}/system/logs${stream ? '/stream' : ''}?${params}`;
 }

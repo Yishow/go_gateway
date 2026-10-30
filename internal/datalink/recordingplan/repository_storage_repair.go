@@ -50,7 +50,7 @@ func (r *SQLRepository) finishStorageRepair(ctx context.Context, operationID, ow
 		}
 		affected, err := res.RowsAffected()
 		return affected == 1, err
-	}, operationID, true)
+	}, operationID, true, result)
 }
 
 // finishStaleStorageRepair ends an active repair whose lease ran out, whoever
@@ -66,15 +66,16 @@ func (r *SQLRepository) finishStaleStorageRepair(ctx context.Context, operationI
 		}
 		affected, err := res.RowsAffected()
 		return affected == 1, err
-	}, operationID, false)
+	}, operationID, false, result)
 }
 
-func (r *SQLRepository) finishRepairInTx(ctx context.Context, apply func(context.Context, DBTX) error, finish func(*sql.Tx, time.Time) (bool, error), operationID string, mustOwn bool) (*SchemaOperation, error) {
+func (r *SQLRepository) finishRepairInTx(ctx context.Context, apply func(context.Context, DBTX) error, finish func(*sql.Tx, time.Time) (bool, error), operationID string, mustOwn bool, result SchemaOperationResult) (*SchemaOperation, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin storage repair finish: %w", err)
 	}
-	finished, err := finish(tx, time.Now().UTC())
+	settledAt := time.Now().UTC()
+	finished, err := finish(tx, settledAt)
 	if err == nil && finished && apply != nil {
 		err = apply(ctx, tx)
 	}
@@ -85,6 +86,9 @@ func (r *SQLRepository) finishRepairInTx(ctx context.Context, apply func(context
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
+		if finished {
+			recordStorageSettlement(ctx, operationID, mustOwn, result, settledAt, nil, err)
+		}
 		return nil, fmt.Errorf("commit storage repair finish: %w", err)
 	}
 	if !finished {
@@ -93,7 +97,9 @@ func (r *SQLRepository) finishRepairInTx(ctx context.Context, apply func(context
 		}
 		return nil, nil
 	}
-	return r.querySchemaOperation(ctx, schemaOperationByIDQuery, operationID)
+	op, err := r.querySchemaOperation(ctx, schemaOperationByIDQuery, operationID)
+	recordStorageSettlement(ctx, operationID, mustOwn, result, settledAt, op, err)
+	return op, err
 }
 
 func (r *SQLRepository) listStaleStorageRepairs(ctx context.Context, staleBefore time.Time) ([]SchemaOperation, error) {

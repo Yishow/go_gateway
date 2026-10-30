@@ -93,6 +93,10 @@ type SchedulerConfig struct {
 
 	// AcquisitionIDFactory supplies one ID per device poll. Nil uses UUIDs.
 	AcquisitionIDFactory func() string
+
+	// AcquisitionObserver must be nonblocking; it receives final metadata only.
+	// It is immutable after construction and cannot change acquisition results.
+	AcquisitionObserver func(AcquisitionObservation)
 }
 
 // DefaultSchedulerConfig 預設排程器配置
@@ -126,6 +130,9 @@ type Scheduler struct {
 
 	// 點位資訊快取
 	pointInfos map[string]pointInfo
+
+	// Monotonic for this scheduler lifetime, including removed/re-added points.
+	pointObservationLease uint64
 
 	// 設備鎖 (確保同一設備串列存取)
 	deviceLocks map[string]*sync.Mutex
@@ -165,14 +172,16 @@ type deviceConfig struct {
 
 // pointInfo 點位資訊快取
 type pointInfo struct {
-	ID             string
-	DeviceID       string
-	Address        string
-	Function       string
-	DataType       schema.DataType
-	DataFormat     string
-	Mode           schema.PointMode
-	PollingGroupID string
+	ID                 string
+	DeviceID           string
+	Address            string
+	Function           string
+	DataType           schema.DataType
+	DataFormat         string
+	Mode               schema.PointMode
+	PollingGroupID     string
+	observationLease   uint64
+	observationBinding PointObservationBinding
 }
 
 // NewScheduler 建立新的排程器

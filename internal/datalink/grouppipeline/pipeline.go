@@ -40,11 +40,15 @@ type TableInspector interface {
 
 // Dependencies wires the pipeline to the production services.
 type Dependencies struct {
-	Groups       GroupSource
-	Tags         TagReader
-	Destinations Destinations
-	Inspector    TableInspector
-	Store        *groupdelivery.Store
+	// OwnerObservation is optional diagnostic capture, never ownership authority.
+	OwnerObservation       OwnerObservationConfig
+	IntakeQuotaObservation IntakeQuotaObservationConfig
+	StorageObservation     StorageObservationConfig
+	Groups                 GroupSource
+	Tags                   TagReader
+	Destinations           Destinations
+	Inspector              TableInspector
+	Store                  *groupdelivery.Store
 	// Counters confirms the counter semantics of cumulative groups' members.
 	// Without it a cumulative group is not built.
 	Counters CounterSources
@@ -76,6 +80,8 @@ type Config struct {
 	ReclaimRetention time.Duration
 	Now              func() time.Time
 	OnError          func(error)
+	// OnDiagnosticError emits only a fixed generic diagnostic, never a native error.
+	OnDiagnosticError func()
 }
 
 // Defaults. They are bounds and cadences, not measured performance targets.
@@ -189,12 +195,8 @@ func New(deps Dependencies, config Config) *Pipeline {
 		if ledger == nil {
 			ledger = recordingplan.NewService(recordingplan.NewSQLRepository(deps.Store.DB()))
 		}
-		recovery = NewStorageRecovery(deps.Store, ledger, deps.Destinations)
-		recovery.report = func(err error) {
-			if err != nil && config.OnError != nil {
-				config.OnError(err)
-			}
-		}
+		recovery = NewStorageRecoveryWithObservation(deps.Store, ledger, deps.Destinations, deps.StorageObservation)
+		recovery.report = func(err error) { reportPipelineError(config, err) }
 		if config.Sender.Recovery == nil {
 			config.Sender.Recovery = recovery
 		}
@@ -209,12 +211,6 @@ func New(deps Dependencies, config Config) *Pipeline {
 		blocked:        make(map[string]GroupStatus),
 		quarantines:    make(map[groupdelivery.GroupKey]CounterReplayQuarantine),
 		sqlServerSplit: sqlServerSplit,
-	}
-}
-
-func (p *Pipeline) report(err error) {
-	if err != nil && p.config.OnError != nil {
-		p.config.OnError(err)
 	}
 }
 
@@ -359,6 +355,8 @@ func (p *Pipeline) resolveStaleStorage(ctx context.Context) {
 // TickAll closes every due bucket of every boundary and drops boundaries that
 // finished their interval.
 func (p *Pipeline) TickAll(ctx context.Context) {
+	ctx, finish := p.ownerOperation(ctx)
+	defer finish()
 	p.mu.RLock()
 	current := make([]*managed, 0, len(p.boundaries))
 	for _, m := range p.boundaries {
@@ -367,8 +365,7 @@ func (p *Pipeline) TickAll(ctx context.Context) {
 	p.mu.RUnlock()
 	now := p.config.Now()
 	for _, m := range current {
-		err := p.withCounterProofGate(m, func() error { return m.boundary.Tick(ctx, now) })
-		p.report(err)
+		p.reportTick(ctx, m, func() error { return m.boundary.Tick(ctx, now) })
 	}
 	p.pruneRetired(current)
 }
@@ -393,6 +390,8 @@ func (p *Pipeline) pruneRetired(current []*managed) {
 // authority chooses affected owners independently of reconciliation. Refusals
 // are joined while unaffected scopes continue their existing intake contract.
 func (p *Pipeline) AcceptSample(ctx context.Context, envelope measurement.SampleEnvelope) error {
+	ctx, finish := p.ownerOperation(ctx)
+	defer finish()
 	p.lifecycle.Lock()
 	if p.stopping {
 		p.lifecycle.Unlock()

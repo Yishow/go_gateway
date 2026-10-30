@@ -1,5 +1,10 @@
+import type { EvidenceStage } from './runtimeRuleEvidence';
 export type RuntimeLogLevel = 'debug' | 'info' | 'warn' | 'error';
-export interface RuntimeLogFilters { level: RuntimeLogLevel; source: string; q: string }
+export interface RuntimeLogFilters {
+  level: RuntimeLogLevel; source: string; q: string;
+  workspaceId?: string; deviceId?: string; ruleId?: string; groupId?: string;
+  stage?: EvidenceStage; actionable?: boolean;
+}
 export interface RuntimeLogRecord {
   instance_id: string;
   sequence: string;

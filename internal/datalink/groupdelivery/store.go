@@ -11,11 +11,12 @@ import (
 
 // Store is the local SQLite-backed durable state for write groups.
 type Store struct {
-	db              *sql.DB
-	now             func() time.Time
-	quota           *QuotaConfig
-	usage           *usageCache
-	canonicalIntake bool
+	db                  *sql.DB
+	now                 func() time.Time
+	quota               *QuotaConfig
+	usage               *usageCache
+	canonicalIntake     bool
+	deliveryObservation DeliveryObservationConfig
 }
 
 // NewStore wraps a migrated local database handle for standalone ledger users.

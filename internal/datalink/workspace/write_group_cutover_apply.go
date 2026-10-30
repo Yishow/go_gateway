@@ -23,11 +23,14 @@ func (s *WriteGroupService) RevisionEnd(ctx context.Context, groupID, revision s
 // groups are applied by the same code Apply runs, so a failure anywhere leaves
 // the group that held the sources exactly as it was: nothing is disabled first
 // and nothing is written twice.
-func (s *WriteGroupService) ApplyCutover(ctx context.Context, req CutoverRequest) (*WriteGroupCutover, error) {
+func (s *WriteGroupService) ApplyCutover(ctx context.Context, req CutoverRequest) (result *WriteGroupCutover, err error) {
+	var plan *cutoverPlan
+	replayed := false
+	defer func() { s.observeCutover(ctx, plan, result, err, replayed) }()
 	if err := s.validate(); err != nil {
 		return nil, err
 	}
-	req, err := normalizeCutoverRequest(req)
+	req, err = normalizeCutoverRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -37,9 +40,10 @@ func (s *WriteGroupService) ApplyCutover(ctx context.Context, req CutoverRequest
 	// An apply that committed but was never answered is asked again with the
 	// same request: it gets the recorded cutover back and nothing is written.
 	if recorded, err := s.recordedCutover(ctx, req); err != nil || recorded != nil {
+		replayed = err == nil && recorded != nil
 		return recorded, err
 	}
-	plan, err := s.planCutover(ctx, req)
+	plan, err = s.planCutover(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +53,6 @@ func (s *WriteGroupService) ApplyCutover(ctx context.Context, req CutoverRequest
 	if plan.review.Digest != req.ReviewDigest {
 		return nil, writeGroupRevisionConflict("cutover review is stale")
 	}
-	var result *WriteGroupCutover
 	_, err = s.workspaceSvc.UpdateDatabaseSetup(ctx, req.ExpectedWorkspaceRevision, func(ctx context.Context, tx *sql.Tx, record *Record) error {
 		if record.ID != req.WorkspaceID {
 			return writeGroupNotFound("apply cutover")

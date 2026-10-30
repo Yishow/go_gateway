@@ -20,11 +20,12 @@ func (s *Service) bootstrapFromWorkspaceProjection(ctx context.Context, projecti
 }
 
 // ApplyWorkspaceProjection replaces runtime device, point, and mapping scope with one persisted workspace projection.
-func (s *Service) ApplyWorkspaceProjection(_ context.Context, projection *workspace.RuntimeProjection) error {
+func (s *Service) ApplyWorkspaceProjection(ctx context.Context, projection *workspace.RuntimeProjection) error {
 	if s == nil || projection == nil {
 		return fmt.Errorf("workspace runtime projection 不可為 nil")
 	}
 
+	observation := s.beginAcquisitionObservation(ctx, projection)
 	activeDevices := make(map[string]struct{}, len(projection.Devices))
 	for _, deviceRecord := range projection.Devices {
 		if deviceRecord == nil || deviceRecord.Status != schema.DeviceStatusActive {
@@ -70,7 +71,7 @@ func (s *Service) ApplyWorkspaceProjection(_ context.Context, projection *worksp
 			Address:  pointRecord.Address,
 		})
 		if _, ok := activeDevices[pointRecord.DeviceID]; pointRecord.Enabled && ok {
-			s.scheduler.AddPoint(pointRecord)
+			s.installAcquisitionPoint(observation, pointRecord)
 			continue
 		}
 		s.scheduler.RemovePoint(pointRecord.ID)
@@ -82,10 +83,11 @@ func (s *Service) ApplyWorkspaceProjection(_ context.Context, projection *worksp
 		}
 	}
 
-	if err := s.applyWorkspaceProjectionMappings(projection); err != nil {
+	if err := s.applyWorkspaceProjectionMappings(ctx, projection); err != nil {
 		return err
 	}
 	s.replaceProjectionAligned(projection)
+	s.finishAcquisitionObservation(ctx, observation)
 	return nil
 }
 
@@ -126,6 +128,7 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 		return fmt.Errorf("workspace runtime projection 不可為 nil")
 	}
 
+	observation := s.beginAcquisitionObservation(ctx, projection)
 	var targetDevice *schema.Device
 	for _, deviceRecord := range projection.Devices {
 		if deviceRecord != nil && deviceRecord.ID == deviceID {
@@ -163,7 +166,7 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 			Address:  pointRecord.Address,
 		})
 		if active && pointRecord.Enabled {
-			s.scheduler.AddPoint(pointRecord)
+			s.installAcquisitionPoint(observation, pointRecord)
 			continue
 		}
 		s.scheduler.RemovePoint(pointRecord.ID)
@@ -174,19 +177,22 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 			s.scheduler.AddPollingGroup(group) //nolint:contextcheck // Scheduler lifecycle API does not accept context.
 		}
 	}
-	if err := s.applyWorkspaceProjectionMappingsForPoints(projection, desiredPoints); err != nil {
+	if err := s.applyWorkspaceProjectionMappingsForPoints(ctx, projection, desiredPoints); err != nil {
 		return err
 	}
 	s.markDeviceProjectionAligned(deviceID, projection)
+	s.finishAcquisitionObservation(ctx, observation)
 	return nil
 }
 
-func (s *Service) applyWorkspaceProjectionMappings(projection *workspace.RuntimeProjection) error {
+func (s *Service) applyWorkspaceProjectionMappings(ctx context.Context, projection *workspace.RuntimeProjection) error {
+	before := s.mappingObservationSnapshot(ctx)
 	next, err := workspaceProjectionMappingBindings(projection, nil)
 	if err != nil {
 		return err
 	}
 
+	s.annotateMappingObservation(ctx, before, next, projection)
 	s.mappingMu.Lock()
 	s.mappingIndex = next
 	s.mappingMu.Unlock()
@@ -194,14 +200,17 @@ func (s *Service) applyWorkspaceProjectionMappings(projection *workspace.Runtime
 }
 
 func (s *Service) applyWorkspaceProjectionMappingsForPoints(
+	ctx context.Context,
 	projection *workspace.RuntimeProjection,
 	pointIDs map[string]struct{},
 ) error {
+	before := s.mappingObservationSnapshot(ctx)
 	next, err := workspaceProjectionMappingBindings(projection, pointIDs)
 	if err != nil {
 		return err
 	}
 
+	s.annotateMappingObservation(ctx, before, next, projection)
 	s.mappingMu.Lock()
 	for pointID := range pointIDs {
 		delete(s.mappingIndex, pointID)
