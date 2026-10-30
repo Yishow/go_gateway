@@ -98,3 +98,20 @@ export const tokens = {
     },
   },
 } as const;
+
+/** Affected recording surfaces only. CSS owns all values and theme resolution. */
+export const semanticTokens = {
+  colors: {
+    ground: 'var(--gw-ground)', surface: 'var(--gw-surface)', raised: 'var(--gw-raised)', active: 'var(--gw-active)',
+    text: 'var(--gw-text)', muted: 'var(--gw-muted)', faint: 'var(--gw-faint)', border: 'var(--gw-border)', control: 'var(--gw-control)',
+    focus: 'var(--gw-focus)', accent: 'var(--gw-accent)', primary: 'var(--gw-primary)', onPrimary: 'var(--gw-on-primary)', primaryHover: 'var(--gw-primary-hover)',
+    success: 'var(--gw-success-fg)', successBackground: 'var(--gw-success-bg)', successBorder: 'var(--gw-success-border)',
+    warning: 'var(--gw-warning-fg)', warningBackground: 'var(--gw-warning-bg)', warningBorder: 'var(--gw-warning-border)',
+    danger: 'var(--gw-danger-fg)', dangerBackground: 'var(--gw-danger-bg)', dangerBorder: 'var(--gw-danger-border)',
+    unknown: 'var(--gw-unknown-fg)', unknownBackground: 'var(--gw-unknown-bg)', unknownBorder: 'var(--gw-unknown-border)', overlay: 'var(--gw-overlay)',
+  },
+  font: { sans: 'var(--gw-font-sans)', mono: 'var(--gw-font-mono)' },
+  radius: { control: 'var(--gw-radius-sm)', panel: 'var(--gw-radius-md)', modal: 'var(--gw-radius-lg)' },
+  spacing: { small: 'var(--gw-space-xs)', medium: 'var(--gw-space-md)', large: 'var(--gw-space-lg)' },
+  shadow: 'var(--gw-shadow)', transition: 'var(--gw-motion-feedback)',
+} as const;

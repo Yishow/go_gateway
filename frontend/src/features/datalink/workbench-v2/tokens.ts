@@ -59,3 +59,6 @@ export const ANIMATIONS = {
   sweepIn: 'sweepIn 240ms ease-out both',
   shimmer: 'shimmer 1.6s ease-in-out infinite',
 };
+
+// New affected surfaces share the global CSS authority; legacy constants remain unchanged.
+export { semanticTokens } from '../../../styles/tokens';

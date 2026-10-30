@@ -27,8 +27,9 @@ describe('DESIGN.md Quiet mineral semantic contract (not a browser render test)'
     const value = theme(mode), index = mode === 'light' ? 0 : 1;
     for (const [role, colors] of Object.entries(expected)) expect(value(`--gw-${role}`)?.toUpperCase(), role).toBe(colors[index]);
     for (const bg of ['ground', 'surface', 'raised']) for (const fg of ['text', 'muted', 'faint']) expect(ratio(value(`--gw-${fg}`), value(`--gw-${bg}`)), `${fg}/${bg}`).toBeGreaterThanOrEqual(4.5);
-    for (const bg of ['ground', 'surface']) for (const fg of ['focus', 'control']) expect(ratio(value(`--gw-${fg}`), value(`--gw-${bg}`)), `${fg}/${bg}`).toBeGreaterThanOrEqual(3);
+    for (const bg of ['ground', 'surface', 'raised']) for (const fg of ['focus', 'control']) expect(ratio(value(`--gw-${fg}`), value(`--gw-${bg}`)), `${fg}/${bg}`).toBeGreaterThanOrEqual(3);
     for (const kind of ['success', 'warning', 'danger', 'unknown']) expect(ratio(value(`--gw-${kind}-fg`), value(`--gw-${kind}-bg`)), kind).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(value('--gw-muted'), value('--gw-unknown-bg'))).toBeGreaterThanOrEqual(4.5);
     expect(ratio(value('--gw-on-primary'), value('--gw-primary'))).toBeGreaterThanOrEqual(4.5);
     expect(ratio(value('--gw-on-primary'), value('--gw-primary-hover'))).toBeGreaterThanOrEqual(4.5);
     for (const fg of ['accent', 'text', 'muted']) expect(ratio(value(`--gw-${fg}`), value('--gw-active')), `${fg}/active`).toBeGreaterThanOrEqual(4.5);
