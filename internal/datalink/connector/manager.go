@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/protocol/wirebudget"
 )
 
 // =============================================================================
@@ -77,7 +78,7 @@ type ManagedConnection struct {
 	LastError error
 
 	// mu 連線鎖定 (用於序列化存取)
-	mu sync.Mutex
+	mu wirebudget.Mutex
 
 	// inUse 是否正在使用中
 	inUse bool

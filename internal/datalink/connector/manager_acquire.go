@@ -3,10 +3,10 @@ package connector
 import (
 	"context"
 	"errors"
-	"sync"
 	"time"
 
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/protocol/wirebudget"
 )
 
 type connectionEntry struct {
@@ -17,7 +17,7 @@ type connectionEntry struct {
 	cancel     context.CancelFunc
 	conn       *ManagedConnection
 	err        error
-	cleanupMu  sync.Mutex
+	cleanupMu  wirebudget.Mutex
 	cleaned    bool
 }
 
@@ -64,10 +64,15 @@ func (cm *ConnectionManager) getOrCreate(ctx context.Context, deviceID string, t
 		if old.err != nil {
 			return nil, old.err
 		}
-		old.conn.mu.Lock()
-		live := old.conn.Protocol.IsConnected()
+		if err := old.conn.mu.LockContext(ctx); err != nil {
+			return nil, err
+		}
+		live, statusErr := protocolConnectedContext(ctx, old.conn.Protocol)
 		old.conn.LastUsed = time.Now()
 		old.conn.mu.Unlock()
+		if statusErr != nil {
+			return nil, statusErr
+		}
 		cm.mu.RLock()
 		current = cm.entries[deviceID] == old
 		cm.mu.RUnlock()
@@ -77,7 +82,10 @@ func (cm *ConnectionManager) getOrCreate(ctx context.Context, deviceID string, t
 		if live {
 			return old.conn, nil
 		}
-		version, retired := cm.retireIfCurrent(deviceID, old)
+		version, retired, retireErr := cm.retireIfCurrentContext(ctx, deviceID, old)
+		if retireErr != nil {
+			return nil, retireErr
+		}
 		if !retired {
 			return nil, errConnectionSuperseded
 		}
@@ -112,7 +120,7 @@ func (cm *ConnectionManager) getOrCreate(ctx context.Context, deviceID string, t
 	cm.mu.Unlock()
 	var conn *ManagedConnection
 	if old != nil {
-		err = cm.retire(old)
+		err = cm.retireContext(ctx, old)
 		if err != nil {
 			cm.mu.Lock()
 			if old.serial != "" && cm.serialOwners[old.serial] == entry {
@@ -202,22 +210,13 @@ func (cm *ConnectionManager) releaseSerial(entry *connectionEntry) {
 	cm.mu.Unlock()
 }
 func (cm *ConnectionManager) retire(entry *connectionEntry) error {
-	entry.cancel()
-	// A pending dial owns its resources until it returns; never close its replacement.
-	select {
-	case <-entry.done:
-		if entry.conn != nil {
-			return cm.cleanupEntry(entry)
-		}
-	default:
-	}
-	return nil
+	return cm.retireContext(context.Background(), entry)
 }
-func (cm *ConnectionManager) retireIfCurrent(id string, entry *connectionEntry) (uint64, bool) {
+func (cm *ConnectionManager) retireIfCurrentContext(ctx context.Context, id string, entry *connectionEntry) (uint64, bool, error) {
 	cm.mu.Lock()
 	if cm.entries[id] != entry {
 		cm.mu.Unlock()
-		return 0, false
+		return 0, false, nil
 	}
 	delete(cm.entries, id)
 	cm.nextGeneration++
@@ -225,6 +224,6 @@ func (cm *ConnectionManager) retireIfCurrent(id string, entry *connectionEntry) 
 	version := cm.nextGeneration
 	delete(cm.connections, id)
 	cm.mu.Unlock()
-	_ = cm.retire(entry)
-	return version, true
+	err := cm.retireContext(ctx, entry)
+	return version, true, err
 }

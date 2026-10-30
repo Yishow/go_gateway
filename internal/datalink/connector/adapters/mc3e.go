@@ -78,7 +78,7 @@ func (c *MC3EConnector) Connect(ctx context.Context, configJSON string) error {
 
 	// 連線（僅在長連接模式下立即連線）
 	if c.persistentMode {
-		if err := c.client.Connect(); err != nil {
+		if err := c.client.ConnectContext(ctx); err != nil {
 			return fmt.Errorf("MC 3E 連線失敗: %w", err)
 		}
 		c.connected = true
@@ -114,7 +114,9 @@ func (c *MC3EConnector) ProtocolType() schema.ProtocolType {
 
 // TestConnection 測試連線
 func (c *MC3EConnector) TestConnection(ctx context.Context) error {
-	if err := c.ensureConnection(); err != nil {
+	ctx, cancel := c.readContext(ctx)
+	defer cancel()
+	if err := c.ensureConnectionContext(ctx); err != nil {
 		return err
 	}
 
@@ -122,14 +124,16 @@ func (c *MC3EConnector) TestConnection(ctx context.Context) error {
 
 	// 嘗試讀取 D0 來測試連線（連線類錯誤自動乾淨重連重試）
 	return c.withConnectionRetry(ctx, func() error {
-		_, err := c.client.BatchReadWord("D", 0, 1)
+		_, err := c.client.WithContext(ctx).BatchReadWord("D", 0, 1)
 		return err
 	})
 }
 
 // Read 讀取資料
 func (c *MC3EConnector) Read(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
-	if err := c.ensureConnection(); err != nil {
+	ctx, cancel := c.readContext(ctx)
+	defer cancel()
+	if err := c.ensureConnectionContext(ctx); err != nil {
 		return connector.ReadResult{
 			Quality:   schema.QualityBad,
 			Timestamp: time.Now(),
@@ -141,7 +145,7 @@ func (c *MC3EConnector) Read(ctx context.Context, req connector.ReadRequest) (co
 
 	result, err := c.retryExecuteRead(ctx, req)
 	if err != nil {
-		if isConnectionError(err) {
+		if mcConnectionFailure(err) {
 			err = fmt.Errorf("%w（MC 連線持續被對端關閉：該 port 的 MC 服務可能被其他系統佔用或未啟用，可改用 6000-6003 其他 port）", err)
 		}
 		result.Quality = schema.QualityBad
@@ -173,13 +177,14 @@ func (c *MC3EConnector) Disconnect() error {
 
 // Reconnect 重新連線
 func (c *MC3EConnector) Reconnect(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if c.client == nil {
 		return fmt.Errorf("客戶端未初始化，請先呼叫 Connect")
 	}
 
-	c.client.Close()
-
-	if err := c.client.Connect(); err != nil {
+	if err := c.client.ReconnectContext(ctx); err != nil {
 		c.connected = false
 		return fmt.Errorf("重新連線失敗: %w", err)
 	}
@@ -190,21 +195,39 @@ func (c *MC3EConnector) Reconnect(ctx context.Context) error {
 
 // ensureConnection 確保連線已建立
 func (c *MC3EConnector) ensureConnection() error {
+	// Keep the legacy helper's disconnected-test-double behavior. Bounded reads
+	// use ensureConnectionContext, which still rejects a missing client safely.
+	if c.persistentMode && c.connected && c.client == nil {
+		return nil
+	}
+	return c.ensureConnectionContext(context.Background())
+}
+
+func (c *MC3EConnector) ensureConnectionContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if c.persistentMode {
 		if !c.connected {
 			if c.client == nil {
 				return fmt.Errorf("未連線")
 			}
-			if err := c.client.Connect(); err != nil {
+			if err := c.client.ConnectContext(ctx); err != nil {
 				return fmt.Errorf("連線失敗: %w", err)
 			}
 			c.connected = true
 			return nil
 		}
 		// 若已標記連線但底層連線已斷開，自動自癒重連
-		if c.client != nil && !c.client.IsConnected() {
-			c.client.Close()
-			if err := c.client.Connect(); err != nil {
+		if c.client == nil {
+			return fmt.Errorf("未連線")
+		}
+		connected, err := c.client.IsConnectedContext(ctx)
+		if err != nil {
+			return err
+		}
+		if !connected {
+			if err := c.client.ConnectContext(ctx); err != nil {
 				c.connected = false
 				return fmt.Errorf("連線失敗: %w", err)
 			}
@@ -218,7 +241,7 @@ func (c *MC3EConnector) ensureConnection() error {
 	}
 
 	if !c.connected {
-		if err := c.client.Connect(); err != nil {
+		if err := c.client.ConnectContext(ctx); err != nil {
 			return fmt.Errorf("連線失敗: %w", err)
 		}
 		c.connected = true
@@ -233,44 +256,6 @@ func (c *MC3EConnector) afterOperation() {
 		c.client.Close()
 		c.connected = false
 	}
-}
-
-const (
-	mcRetryAttempts  = 3
-	mcRetryBaseDelay = 300 * time.Millisecond
-)
-
-// withConnectionRetry 以乾淨重連重試 op，直到成功或耗盡重試次數。
-// FX5U 系列的 MC 服務在 port 連線額度被佔用時會「接受 TCP 連線後直接關閉」
-// （讀取得到 EOF）；這類瞬時佔用通常在短暫退避後釋放，重連重試即可恢復。
-func (c *MC3EConnector) withConnectionRetry(ctx context.Context, op func() error) error {
-	err := op()
-	for attempt := 0; err != nil && isConnectionError(err) && attempt < mcRetryAttempts; attempt++ {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(mcRetryBaseDelay << attempt): // 300ms、600ms、1200ms
-		}
-		if rerr := c.Reconnect(ctx); rerr != nil {
-			err = rerr
-			continue
-		}
-		err = op()
-	}
-	return err
-}
-
-// retryExecuteRead 以乾淨重連重試 executeRead（首次失敗即進入重連重試）
-func (c *MC3EConnector) retryExecuteRead(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
-	var result connector.ReadResult
-	var err error
-	if werr := c.withConnectionRetry(ctx, func() error {
-		result, err = c.executeRead(req)
-		return err
-	}); werr != nil {
-		return result, werr
-	}
-	return result, nil
 }
 
 // 注意: intSliceToBytes 和 toIntSlice 已定義於 fatek.go

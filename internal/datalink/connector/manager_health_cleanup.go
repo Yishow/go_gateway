@@ -16,7 +16,9 @@ func (cm *ConnectionManager) HealthCheck(ctx context.Context, deviceID string) e
 		return fmt.Errorf("設備 %s 沒有連線", deviceID)
 	}
 
-	conn.mu.Lock()
+	if err := conn.mu.LockContext(ctx); err != nil {
+		return err
+	}
 	defer conn.mu.Unlock()
 
 	err := conn.Protocol.TestConnection(ctx)

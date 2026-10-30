@@ -9,7 +9,7 @@
 ## 2. 有界傳輸與逐點結果
 
 - [x] 2.1 交付Concurrency control的connection generation／短鎖建立；在connector以慢dial第二device進度、同key single-flight、config改變／late dial及shared-serial alias拒絕fixtures證明不借舊connection。
-- [ ] 2.2 [after: 2.1] 交付Retry and backoff之MC實際wire attempt預算與cancel deadline；fixture涵蓋scheduler/adapter/transport重送、unsupported與timeout分流，確認取消後不新send、不關新版connection。
+- [x] 2.2 [after: 2.1] 交付Retry and backoff之MC實際wire attempt預算與cancel deadline；fixture涵蓋scheduler/adapter/transport重送、unsupported與timeout分流，確認取消後不新send、不關新版connection。
 - [ ] 2.3 [after: 2.2] 將相同Retry and backoff契約套FATEK／Modbus現有transport，不新增引擎；fixture驗backoff取消、deadline、serial解除等待與最終Bad，所有attempt計入統一預算。
 - [ ] 2.4 [after: 1.3, 2.3] 交付MC raw random/contiguous adapter執行與Identity-preserving raw deduplication；以正式adapter fixture驗完整scalar、重疊多Point及ABCD/CDAB各自解碼，空／短／壞回應不產生Good。
 - [ ] 2.5 [after: 2.4] 交付FATEK random native scatter與嚴格response驗證；正式adapter fixture驗D/DR/bit widths、空items、短／多餘字元／非0或1bit、缺map key與逐點格式，不默填零。

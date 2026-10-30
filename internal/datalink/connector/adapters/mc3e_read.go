@@ -1,6 +1,7 @@
 package adapters
 
 import (
+	"context"
 	"time"
 
 	"go-gateway/internal/datalink/connector"
@@ -9,6 +10,11 @@ import (
 )
 
 func (c *MC3EConnector) executeRead(req connector.ReadRequest) (connector.ReadResult, error) {
+	return c.executeReadContext(context.Background(), req)
+}
+
+func (c *MC3EConnector) executeReadContext(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
+	client := c.client.WithContext(ctx)
 	result := connector.ReadResult{
 		Timestamp: time.Now(),
 		Quality:   schema.QualityGood,
@@ -28,7 +34,7 @@ func (c *MC3EConnector) executeRead(req connector.ReadRequest) (connector.ReadRe
 	// 根據設備類型選擇讀取方式
 	if parsedAddr.IsBitDevice {
 		// 位元設備
-		values, err := c.client.BatchReadBit(parsedAddr.DeviceType, parsedAddr.Offset, count)
+		values, err := client.BatchReadBit(parsedAddr.DeviceType, parsedAddr.Offset, count)
 		if err != nil {
 			return result, err
 		}
@@ -44,7 +50,7 @@ func (c *MC3EConnector) executeRead(req connector.ReadRequest) (connector.ReadRe
 		regPerValue := hsllogic.RegisterCountForDataType(hsllogic.DataType(req.DataType))
 		wordCount := count * regPerValue
 
-		values, err := c.client.BatchReadWord(parsedAddr.DeviceType, parsedAddr.Offset, wordCount)
+		values, err := client.BatchReadWord(parsedAddr.DeviceType, parsedAddr.Offset, wordCount)
 		if err != nil {
 			return result, err
 		}

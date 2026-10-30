@@ -8,6 +8,8 @@ import (
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/protocol/mcprotocol"
+	"go-gateway/internal/protocol/wirebudget"
 )
 
 func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connector.ManagedConnection, pt pointInfo, acquisitionID string) error {
@@ -26,6 +28,9 @@ func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connecto
 		return countErr
 	}
 	req.Count = count
+
+	ctx, cancel := s.acquisitionReadContext(ctx, conn)
+	defer cancel()
 
 	var result connector.ReadResult
 	var err error
@@ -52,6 +57,9 @@ func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connecto
 		}
 		result, err = conn.Read(ctx, req)
 		if err == nil && result.Quality == schema.QualityGood {
+			break
+		}
+		if budget := wirebudget.From(ctx); budget != nil && (budget.Remaining() == 0 || mcprotocol.IsCommandRejected(err)) {
 			break
 		}
 	}

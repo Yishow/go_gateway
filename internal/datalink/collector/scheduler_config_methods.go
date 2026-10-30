@@ -2,11 +2,11 @@ package collector
 
 import (
 	"maps"
-	"sync"
 	"time"
 
 	"go-gateway/internal/datalink/collector/health"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/protocol/wirebudget"
 )
 
 // WithClock injects the gateway clock used to capture typed acquisition facts.
@@ -42,7 +42,7 @@ func (s *Scheduler) AddDevice(device *schema.Device) {
 
 	// 建立設備鎖
 	if _, exists := s.deviceLocks[device.ID]; !exists {
-		s.deviceLocks[device.ID] = &sync.Mutex{}
+		s.deviceLocks[device.ID] = &wirebudget.Mutex{}
 	}
 
 	// 建立設備熔斷器

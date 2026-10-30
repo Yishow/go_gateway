@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strconv"
 	"sync"
 	"time"
 
@@ -26,7 +25,7 @@ type TCPTransport struct {
 	Timeout     time.Duration
 	MaxBodySize int // Safety limit for response body allocation
 	conn        net.Conn
-	mu          sync.Mutex
+	mu          contextMutex
 }
 
 func NewTCPTransport(host string, port int) *TCPTransport {
@@ -38,28 +37,25 @@ func NewTCPTransport(host string, port int) *TCPTransport {
 	}
 }
 
-func (t *TCPTransport) Connect() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+func (t *TCPTransport) Connect() error { return t.ConnectContext(context.Background()) }
 
-	if t.conn != nil {
-		t.conn.Close()
-	}
-
-	// 使用 net.JoinHostPort 支援 IPv6
-	addr := net.JoinHostPort(t.Host, strconv.Itoa(t.Port))
-	dialCtx, cancel := context.WithTimeout(context.Background(), t.Timeout)
-	defer cancel()
-	conn, err := (&net.Dialer{}).DialContext(dialCtx, "tcp", addr)
-	if err != nil {
+func (t *TCPTransport) ConnectContext(ctx context.Context) error {
+	if err := t.mu.LockContext(ctx); err != nil {
 		return err
 	}
-	t.conn = conn
-	return nil
+	defer t.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return t.internalConnectContext(ctx)
 }
 
-func (t *TCPTransport) Close() error {
-	t.mu.Lock()
+func (t *TCPTransport) Close() error { return t.CloseContext(context.Background()) }
+
+func (t *TCPTransport) CloseContext(ctx context.Context) error {
+	if err := t.mu.LockContext(ctx); err != nil {
+		return err
+	}
 	defer t.mu.Unlock()
 	if t.conn != nil {
 		err := t.conn.Close()
@@ -71,107 +67,25 @@ func (t *TCPTransport) Close() error {
 
 // IsConnected checks if the TCP connection is active
 func (t *TCPTransport) IsConnected() bool {
-	t.mu.Lock()
+	connected, _ := t.IsConnectedContext(context.Background())
+	return connected
+}
+
+// IsConnectedContext uses the same cancelable gate as network operations.
+func (t *TCPTransport) IsConnectedContext(ctx context.Context) (bool, error) {
+	if err := t.mu.LockContext(ctx); err != nil {
+		return false, err
+	}
 	defer t.mu.Unlock()
-	return t.conn != nil
+	return t.conn != nil, nil
 }
 
 // SendReceive sends a packet and receives the response
 func (t *TCPTransport) SendReceive(req []byte) ([]byte, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	if t.conn == nil {
-		// Auto-reconnect attempt
-		if err := t.internalConnect(); err != nil {
-			return nil, err
-		}
-	}
-
-	resp, err := t.sendReceiveLocked(req)
-	if err != nil {
-		// 若因連線被對端中斷（如 PLC 逾時中斷導致的 broken pipe / EOF），嘗試自癒重連並重試一次
-		if t.conn == nil {
-			if connErr := t.internalConnect(); connErr == nil {
-				retryResp, retryErr := t.sendReceiveLocked(req)
-				if retryErr == nil {
-					return retryResp, nil
-				}
-			}
-		}
-		return nil, err
-	}
-
-	return resp, nil
+	return t.SendReceiveContext(context.Background(), req)
 }
 
-func (t *TCPTransport) sendReceiveLocked(req []byte) ([]byte, error) {
-	if t.conn == nil {
-		return nil, fmt.Errorf("connection is closed")
-	}
-
-	if err := t.conn.SetDeadline(time.Now().Add(t.Timeout)); err != nil {
-		t.internalClose()
-		return nil, err
-	}
-
-	// Write
-	if _, err := t.conn.Write(req); err != nil {
-		t.internalClose()
-		return nil, err
-	}
-
-	// Read Header (9 bytes)
-	// Sub(2)+Net(1)+PC(1)+IO(2)+Station(1)+Len(2)
-	// Use a small fixed buffer for header to avoid allocation
-	var header [9]byte
-	if _, err := io.ReadFull(t.conn, header[:]); err != nil {
-		t.internalClose()
-		return nil, err
-	}
-
-	// Parse Length
-	dataLen, err := ParseResponseHeader(header[:])
-	if err != nil {
-		// Invalid header, maybe out of sync
-		t.internalClose()
-		return nil, err
-	}
-
-	// Safety check for body size
-	if dataLen > t.MaxBodySize {
-		t.internalClose()
-		return nil, fmt.Errorf("response body too large: %d bytes (limit: %d)", dataLen, t.MaxBodySize)
-	}
-
-	// Read Body (EndCode + Data)
-	body := make([]byte, dataLen)
-	if _, err := io.ReadFull(t.conn, body); err != nil {
-		t.internalClose()
-		return nil, err
-	}
-
-	return body, nil
-}
-
-// internalConnect (no lock)
-func (t *TCPTransport) internalConnect() error {
-	if t.conn != nil {
-		t.conn.Close()
-	}
-	// 使用 net.JoinHostPort 支援 IPv6
-	addr := net.JoinHostPort(t.Host, strconv.Itoa(t.Port))
-	dialCtx, cancel := context.WithTimeout(context.Background(), t.Timeout)
-	defer cancel()
-	conn, err := (&net.Dialer{}).DialContext(dialCtx, "tcp", addr)
-	if err != nil {
-		return err
-	}
-	t.conn = conn
-	return nil
-}
-
-// internalClose (no lock)
+// internalClose (no lock) closes only this transport's current socket.
 func (t *TCPTransport) internalClose() {
 	if t.conn != nil {
 		t.conn.Close()

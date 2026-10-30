@@ -110,13 +110,15 @@ func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
 	}
 
 	// 鎖定設備確保串列存取
-	lock.Lock()
-	defer lock.Unlock()
-
-	// 取得或建立連線
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if err := lock.LockContext(ctx); err != nil {
+		return
+	}
+	defer lock.Unlock()
+
+	// 取得或建立連線
 	if ctx.Err() != nil {
 		return
 	}

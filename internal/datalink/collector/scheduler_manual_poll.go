@@ -8,6 +8,7 @@ import (
 	"go-gateway/internal/datalink/collector/health"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/protocol/wirebudget"
 )
 
 // =============================================================================
@@ -21,6 +22,9 @@ func (s *Scheduler) PollNow(pointIDs []string) []CollectedValue {
 
 // PollNowContext immediately polls points using the caller's context.
 func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []CollectedValue {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	results := make([]CollectedValue, 0, len(pointIDs))
 
 	s.mu.RLock()
@@ -79,7 +83,18 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 				return
 			}
 
-			lock.Lock()
+			if err := lock.LockContext(ctx); err != nil {
+				acquisitionID := s.nextAcquisitionID()
+				resultsMu.Lock()
+				for _, pt := range points {
+					results = append(results, s.collectedValueWithReason(deviceCfg, pt, connector.ReadResult{
+						Quality: schema.QualityBad,
+						Error:   err.Error(),
+					}, err, acquisitionID, s.now(), "request-canceled"))
+				}
+				resultsMu.Unlock()
+				return
+			}
 			defer lock.Unlock()
 
 			conn, err := s.connMgr.GetOrCreate(ctx, deviceID, deviceCfg.Protocol, deviceCfg.Config)
@@ -121,7 +136,9 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 				}
 				req.Count = count
 
-				result, readErr := conn.Read(ctx, req)
+				readCtx, cancelRead := s.acquisitionReadContext(ctx, conn)
+				result, readErr := conn.Read(readCtx, req)
+				cancelRead()
 				if breaker != nil {
 					breaker.ReportResult(readErr)
 				}
@@ -141,13 +158,13 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 func (s *Scheduler) ensureDeviceLocks() {
 	for id := range s.deviceConfigs {
 		if _, exists := s.deviceLocks[id]; !exists {
-			s.deviceLocks[id] = &sync.Mutex{}
+			s.deviceLocks[id] = &wirebudget.Mutex{}
 		}
 	}
 }
 
 func (s *Scheduler) ensureDeviceLock(deviceID string) {
 	if _, exists := s.deviceLocks[deviceID]; !exists {
-		s.deviceLocks[deviceID] = &sync.Mutex{}
+		s.deviceLocks[deviceID] = &wirebudget.Mutex{}
 	}
 }

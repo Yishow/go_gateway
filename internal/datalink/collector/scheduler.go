@@ -12,6 +12,7 @@ import (
 	"go-gateway/internal/datalink/collector/health"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/protocol/wirebudget"
 
 	"github.com/google/uuid"
 )
@@ -135,7 +136,7 @@ type Scheduler struct {
 	pointObservationLease uint64
 
 	// 設備鎖 (確保同一設備串列存取)
-	deviceLocks map[string]*sync.Mutex
+	deviceLocks map[string]*wirebudget.Mutex
 
 	// 設備熔斷器
 	deviceBreakers map[string]*health.CircuitBreaker
@@ -198,7 +199,7 @@ func NewScheduler(config SchedulerConfig, connMgr *connector.ConnectionManager) 
 		valueChan:      make(chan CollectedValue, config.ValueBufferSize),
 		deviceConfigs:  make(map[string]deviceConfig),
 		pointInfos:     make(map[string]pointInfo),
-		deviceLocks:    make(map[string]*sync.Mutex),
+		deviceLocks:    make(map[string]*wirebudget.Mutex),
 		deviceBreakers: make(map[string]*health.CircuitBreaker),
 		stopCh:         make(chan struct{}),
 		nowFunc:        config.Clock,

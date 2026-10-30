@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"go-gateway/internal/datalink/schema"
 	"time"
 )
 
@@ -9,6 +10,16 @@ import (
 func (mc *ManagedConnection) Lock() {
 	mc.mu.Lock()
 	mc.inUse = true
+}
+
+// LockContext acquires the same serialization gate, but canceled callers do not
+// wait behind another request's I/O and never enter the protocol afterward.
+func (mc *ManagedConnection) LockContext(ctx context.Context) error {
+	if err := mc.mu.LockContext(ctx); err != nil {
+		return err
+	}
+	mc.inUse = true
+	return nil
 }
 
 // Unlock 解鎖連線
@@ -20,7 +31,9 @@ func (mc *ManagedConnection) Unlock() {
 
 // Read 透過連線讀取資料 (自動鎖定)
 func (mc *ManagedConnection) Read(ctx context.Context, req ReadRequest) (ReadResult, error) {
-	mc.Lock()
+	if err := mc.LockContext(ctx); err != nil {
+		return ReadResult{Quality: schema.QualityBad, Error: err.Error()}, err
+	}
 	defer mc.Unlock()
 
 	result, err := mc.Protocol.Read(ctx, req)
@@ -32,7 +45,9 @@ func (mc *ManagedConnection) Read(ctx context.Context, req ReadRequest) (ReadRes
 
 // Write 透過連線寫入資料 (自動鎖定)
 func (mc *ManagedConnection) Write(ctx context.Context, req WriteRequest) error {
-	mc.Lock()
+	if err := mc.LockContext(ctx); err != nil {
+		return err
+	}
 	defer mc.Unlock()
 
 	err := mc.Protocol.Write(ctx, req)
