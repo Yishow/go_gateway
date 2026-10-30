@@ -20,7 +20,7 @@
 
 ## 3. 驗證與交接
 
-- [ ] 3.1 [after: 2.8] 執行本批首頁/route/locator/runtime-return 相關測試、受影響檔 lint、型別檢查、git diff --check 與 make check-lines；記錄命令和實際 PASS/FAIL/NOT RUN，不提前跑整個產品全套。
-- [ ] 3.2 [after: 3.1] 獨立 review 首頁零 mutation、scope、異常及既有路徑回歸，修復本批問題後重跑相關測試；交接 editor/lifecycle 尚未完成範圍，不宣稱整功能驗收完成。
+- [x] 3.1 [after: 2.8] 執行本批首頁/route/locator/runtime-return 相關測試、受影響檔 lint、型別檢查、git diff --check 與 make check-lines；記錄命令和實際 PASS/FAIL/NOT RUN，不提前跑整個產品全套。
+- [x] 3.2 [after: 3.1] 獨立 review 首頁零 mutation、scope、異常及既有路徑回歸，修復本批問題後重跑相關測試；交接 editor/lifecycle 尚未完成範圍，不宣稱整功能驗收完成。
 
 需求變更註：原 pending 2.4 的「完成淺色樣式」由雙主題／tokens取代，不算完成；原側欄pending工作由同語意的置中modal取代。沒有已完成工作被重標。
