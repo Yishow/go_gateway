@@ -6,8 +6,9 @@ import (
 )
 
 type contiguousCandidates struct {
-	coverage ReadableCoverage
-	requests []AcquisitionRequest
+	coverage   ReadableCoverage
+	capability AcquisitionCapability
+	requests   []AcquisitionRequest
 }
 
 // appendContiguous preserves complete scalars. A limit boundary may repeat raw

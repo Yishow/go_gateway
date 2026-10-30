@@ -27,9 +27,10 @@ type NativeAddressBound struct {
 
 // AcquisitionCapability is a revision-bound declaration, never a probing request.
 // Zero limits are unspecified; at least one positive native-unit limit is required.
-// Limits are additionally clamped to the existing contiguous client limits.
+// Limits are additionally clamped to the selected command's actual client cap.
 type AcquisitionCapability struct {
 	Revision                                                        string
+	RandomCrossArea                                                 bool   // Explicit support for mixed-area random commands.
 	RandomSupport                                                   string // "supported", "unsupported", or empty/"unknown"
 	ProtocolLimit, ClientLimit, DeviceLimit                         int
 	ProtocolFrameBudget, ClientFrameBudget, DeviceFrameBudget       ApplicationFrameBudget
@@ -85,7 +86,14 @@ type PointSlice struct {
 	Offset, Length, NativeBits, BitIndex int
 }
 
-// AcquisitionRequest contains complete scalar slices in a safe contiguous span.
+// NativeUnit identifies one random-read component in wire order.
+type NativeUnit struct {
+	Area          string
+	Address, Bits int
+}
+
+// AcquisitionRequest contains complete scalar slices in a safe contiguous span
+// or an ordered random Units list. Random PointSlice.Offset indexes that list.
 // Limit is the effective native-unit cap, including known frame budgets.
 // FrameCostKnown=false means no encoded-byte compliance claim can be made.
 type AcquisitionRequest struct {
@@ -96,6 +104,7 @@ type AcquisitionRequest struct {
 	FrameBytes           ApplicationFrameBudget
 	FrameCostKnown       bool
 	Points               []PointSlice
+	Units                []NativeUnit
 }
 
 // AcquisitionPointError is explicit, stable and attributable to a source point.
@@ -119,6 +128,7 @@ func (p AcquisitionPlan) Requests() []AcquisitionRequest {
 	result := append([]AcquisitionRequest(nil), p.requests...)
 	for i := range result {
 		result[i].Points = append([]PointSlice(nil), result[i].Points...)
+		result[i].Units = append([]NativeUnit(nil), result[i].Units...)
 	}
 	return result
 }

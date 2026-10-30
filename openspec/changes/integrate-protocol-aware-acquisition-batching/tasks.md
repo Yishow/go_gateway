@@ -4,7 +4,7 @@
 
 - [x] 1.1 交付Static request optimization的「唯一不可變計畫與能力界線」：在既有optimizer新增revision-bound輸入／結果，不改runtime；測invalid-address顯式錯誤、device/station/function/cadence隔離與 deterministic plan。
 - [x] 1.2 [after: 1.1] 交付PDU awareness與「安全覆蓋與去重解碼」raw span union／safe contiguous planner；先以D0 int64＋D1 int16重現shrink，再驗125/126、多word不切半、禁止gap／明確coverage、radix與native width。
-- [ ] 1.3 [after: 1.2] 交付Capability-aware random acquisition的planner及bounded candidate比較；fixture驗MC255/256、FATEK64/65 native units、D0/D1/D10一次、dense21選較少bytes及unknown capability安全退回。
+- [x] 1.3 [after: 1.2] 交付Capability-aware random acquisition的planner及bounded candidate比較；fixture驗MC255/256、FATEK64/65 native units、D0/D1/D10一次、dense21選較少bytes及unknown capability安全退回。
 
 ## 2. 有界傳輸與逐點結果
 

@@ -16,10 +16,10 @@ import (
 // BuildAcquisitionPlan plans without device I/O or runtime mutation. The caller
 // must not mutate input concurrently with this call; subsequent mutation is safe.
 // Compatible complete scalars share safe contiguous reads; uncovered gaps and
-// native limits remain hard boundaries. No runtime or random-read engine is used.
+// native limits remain hard boundaries. No runtime I/O or mutable connection state is used.
 func BuildAcquisitionPlan(input AcquisitionInput) AcquisitionPlan {
 	canonical := canonicalAcquisitionInput(input)
-	digest := sha256.Sum256([]byte("acquisition-plan-v2\n" + canonicalJSON(canonical)))
+	digest := sha256.Sum256([]byte("acquisition-plan-v3\n" + canonicalJSON(canonical)))
 	plan := AcquisitionPlan{fingerprint: hex.EncodeToString(digest[:])}
 	groups := make(map[string]*contiguousCandidates)
 	for _, source := range canonical.Sources {
@@ -31,21 +31,25 @@ func BuildAcquisitionPlan(input AcquisitionInput) AcquisitionPlan {
 			}
 			// Include complete capability/coverage declarations as well as revisions:
 			// a malformed caller reusing a revision must not merge conflicting scopes.
+			groupIdentity := request.Group
+			if source.Capability.RandomCrossArea && randomEligible(source.Identity, source.Capability, request.Points[0].NativeBits) {
+				groupIdentity.Area = ""
+			}
 			key := canonicalJSON(struct {
 				Group      AcquisitionGroup
 				Capability AcquisitionCapability
 				Coverage   ReadableCoverage
-			}{request.Group, source.Capability, source.Coverage})
+			}{groupIdentity, source.Capability, source.Coverage})
 			group := groups[key]
 			if group == nil {
-				group = &contiguousCandidates{coverage: source.Coverage}
+				group = &contiguousCandidates{coverage: source.Coverage, capability: source.Capability}
 				groups[key] = group
 			}
 			group.requests = append(group.requests, request)
 		}
 	}
 	for _, group := range groups {
-		plan.requests = appendContiguous(plan.requests, *group)
+		plan.requests = append(plan.requests, chooseAcquisitionRequests(*group)...)
 	}
 	slices.SortFunc(plan.requests, func(a, b AcquisitionRequest) int {
 		if n := cmp.Compare(canonicalJSON(a.Group), canonicalJSON(b.Group)); n != 0 {
