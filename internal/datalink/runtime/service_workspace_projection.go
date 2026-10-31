@@ -201,7 +201,7 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 
 func (s *Service) applyWorkspaceProjectionMappings(ctx context.Context, projection *workspace.RuntimeProjection) error {
 	before := s.mappingObservationSnapshot(ctx)
-	next, err := workspaceProjectionMappingBindings(projection, nil)
+	next, err := workspaceProjectionMappingBindings(projection, nil, ctx)
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func (s *Service) applyWorkspaceProjectionMappingsForPoints(
 	pointIDs map[string]struct{},
 ) error {
 	before := s.mappingObservationSnapshot(ctx)
-	next, err := workspaceProjectionMappingBindings(projection, pointIDs)
+	next, err := workspaceProjectionMappingBindings(projection, pointIDs, ctx)
 	if err != nil {
 		return err
 	}
@@ -237,6 +237,7 @@ func (s *Service) applyWorkspaceProjectionMappingsForPoints(
 func workspaceProjectionMappingBindings(
 	projection *workspace.RuntimeProjection,
 	pointIDs map[string]struct{},
+	contexts ...context.Context,
 ) (map[string][]mappingBinding, error) {
 	devices := make(map[string]*schema.Device, len(projection.Devices))
 	for _, deviceRecord := range projection.Devices {
@@ -280,7 +281,11 @@ func workspaceProjectionMappingBindings(
 		if tagRecord == nil {
 			return nil, fmt.Errorf("workspace projection mapping %s references missing tag %s", mappingRecord.ID, mappingRecord.TagID)
 		}
-		binding, err := mappingBindingForRecords(projection.WorkspaceID, mappingRecord, deviceRecord, pointRecord, tagRecord)
+		profile, err := mappingProjectionReadProfile(projection, pointRecord, contexts...)
+		if err != nil {
+			return nil, err
+		}
+		binding, err := mappingBindingForRecords(projection.WorkspaceID, mappingRecord, deviceRecord, pointRecord, tagRecord, profile)
 		if err != nil {
 			return nil, fmt.Errorf("workspace projection mapping %s identity invalid: %w", mappingRecord.ID, err)
 		}

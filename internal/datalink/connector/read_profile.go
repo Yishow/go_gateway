@@ -12,6 +12,7 @@ import (
 // Installation leases and acquisition proof belong to the collector envelope.
 type ReadProfile struct {
 	version    uint8
+	ruleID     string
 	protocol   schema.ProtocolType
 	deviceID   string
 	pointID    string
@@ -33,7 +34,7 @@ func ResolveReadProfile(point schema.Point, defaults decoding.FormatContext) (Re
 	if point.ID == "" || !resolution.Resolved {
 		return ReadProfile{}, ErrReadProfile
 	}
-	return ReadProfile{version: 1, protocol: defaults.Protocol, pointID: point.ID, deviceID: point.DeviceID, address: point.Address, function: point.Function, dataType: point.DataType, resolution: resolution}, nil
+	return ReadProfile{version: 1, ruleID: defaults.RuleID, protocol: defaults.Protocol, pointID: point.ID, deviceID: point.DeviceID, address: point.Address, function: point.Function, dataType: point.DataType, resolution: resolution}, nil
 }
 
 // Present distinguishes an explicit profile from the historical request API.

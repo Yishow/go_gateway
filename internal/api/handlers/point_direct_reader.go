@@ -49,24 +49,26 @@ func (r *defaultPointDirectReader) PollDirect(
 			continue
 		}
 
+		evidence, profileErr := r.captureDirectEvidence(ctx, pt)
 		var profile connector.ReadProfile
-		var profileErr error
-		if r.profiles != nil {
+		if r.profiles != nil && profileErr == nil {
 			profile, profileErr = r.profiles.ResolvePointReadProfile(ctx, pt)
 		}
+		evidence.Profile = profile
 		var readResult connector.ReadResult
 		readErr := profileErr
 		if readErr == nil {
 			readResult, readErr = r.deviceSvc.ReadPointNow(ctx, pt, profile)
 		}
 		collected := collector.CollectedValue{
-			PointID:   pt.ID,
-			DeviceID:  pt.DeviceID,
-			Value:     readResult.Value,
-			RawBytes:  readResult.RawBytes,
-			Timestamp: readResult.Timestamp,
-			Quality:   readResult.Quality,
-			Error:     readResult.Error,
+			DirectEvidence: evidence,
+			PointID:        pt.ID,
+			DeviceID:       pt.DeviceID,
+			Value:          readResult.Value,
+			RawBytes:       readResult.RawBytes,
+			Timestamp:      readResult.Timestamp,
+			Quality:        readResult.Quality,
+			Error:          readResult.Error,
 		}
 		if collected.Timestamp.IsZero() {
 			collected.Timestamp = time.Now()
@@ -76,6 +78,12 @@ func (r *defaultPointDirectReader) PollDirect(
 			collected.Error = readErr.Error()
 		}
 
+		if readErr == nil && !r.AcceptsDirectRead(ctx, collected) {
+			collected.Value = nil
+			collected.RawBytes = nil
+			collected.Quality = schema.QualityBad
+			collected.Error = "Read result superseded by configuration change"
+		}
 		results = append(results, collected)
 	}
 	return results

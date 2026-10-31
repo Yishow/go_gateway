@@ -8,6 +8,7 @@ import (
 
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/common"
+	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
@@ -36,6 +37,7 @@ func mappingBindingForRecords(
 	deviceRecord *schema.Device,
 	pointRecord *schema.Point,
 	tagRecord *schema.Tag,
+	profiles ...connector.ReadProfile,
 ) (mappingBinding, error) {
 	if mappingRecord == nil || deviceRecord == nil || pointRecord == nil || tagRecord == nil {
 		return mappingBinding{}, fmt.Errorf("%w: mapping identity is incomplete", ErrTypedSampleRejected)
@@ -46,7 +48,7 @@ func mappingBindingForRecords(
 	if pointRecord.DeviceID != deviceRecord.ID || mappingRecord.PointID != pointRecord.ID || mappingRecord.TagID != tagRecord.ID {
 		return mappingBinding{}, fmt.Errorf("%w: mapping identity does not match installed records", ErrTypedSampleRejected)
 	}
-	sourceRevision, err := measurement.SourceRevision(*deviceRecord, *pointRecord, *tagRecord)
+	sourceRevision, err := measurement.SourceRevision(*deviceRecord, *pointRecord, *tagRecord, profiles...)
 	if err != nil {
 		return mappingBinding{}, fmt.Errorf("derive source revision: %w", err)
 	}
@@ -54,7 +56,7 @@ func mappingBindingForRecords(
 	if err != nil {
 		return mappingBinding{}, fmt.Errorf("derive mapping revision: %w", err)
 	}
-	configFingerprint, err := measurement.AcquisitionConfigFingerprint(*deviceRecord, *pointRecord)
+	configFingerprint, err := measurement.AcquisitionConfigFingerprint(*deviceRecord, *pointRecord, profiles...)
 	if err != nil {
 		return mappingBinding{}, fmt.Errorf("derive acquisition config fingerprint: %w", err)
 	}
@@ -180,7 +182,11 @@ func (s *Service) refreshMappings(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("載入 device(%s) 失敗: %w", pt.DeviceID, err)
 			}
-			binding, err := mappingBindingForRecords(s.config.WorkspaceID, m, dev, pt, tg)
+			profile, err := s.pointReadProfile(ctx, pt, true)
+			if err != nil {
+				return err
+			}
+			binding, err := mappingBindingForRecords(s.config.WorkspaceID, m, dev, pt, tg, profile)
 			if err != nil {
 				return fmt.Errorf("建立 mapping(%s) runtime identity 失敗: %w", m.ID, err)
 			}
@@ -227,7 +233,11 @@ func (s *Service) refreshMappings(ctx context.Context) error {
 		if pointRecord != nil {
 			deviceRecord = deviceByID[pointRecord.DeviceID]
 		}
-		if binding, err := mappingBindingForRecords(workspaceID, m, deviceRecord, pointRecord, tagByID[m.TagID]); err == nil {
+		profile, profileErr := s.pointReadProfile(ctx, pointRecord, true)
+		if profileErr != nil {
+			return profileErr
+		}
+		if binding, err := mappingBindingForRecords(workspaceID, m, deviceRecord, pointRecord, tagByID[m.TagID], profile); err == nil {
 			next[m.PointID] = append(next[m.PointID], binding)
 			continue
 		}

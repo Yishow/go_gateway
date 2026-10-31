@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"go-gateway/internal/datalink/collector"
+	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
@@ -51,10 +52,18 @@ func (s *Service) beginAcquisitionObservation(ctx context.Context, projection *w
 	if projection == nil || before == nil || projection.WorkspaceID != before.ID || before.ID == "" || before.DatabaseSetupRevision == "" || projection.Version == "" {
 		return nil
 	}
-	return &acquisitionObservationInstall{before: before, version: projection.Version, candidates: acquisitionObservationCandidates(projection, before), leases: make(map[string]uint64)}
+	candidates := acquisitionObservationCandidates(projection, before, ctx)
+	profiles, _ := ctx.Value(readProfilesKey{}).(map[string]connector.ReadProfile)
+	for id, b := range candidates {
+		if profiles[id].Present() {
+			b.InstallationScope = s.scheduler.InstallationScope()
+			candidates[id] = b
+		}
+	}
+	return &acquisitionObservationInstall{before: before, version: projection.Version, candidates: candidates, leases: make(map[string]uint64)}
 }
 
-func acquisitionObservationCandidates(projection *workspace.RuntimeProjection, before *workspace.Record) map[string]collector.PointObservationBinding {
+func acquisitionObservationCandidates(projection *workspace.RuntimeProjection, before *workspace.Record, contexts ...context.Context) map[string]collector.PointObservationBinding {
 	devices := make(map[string]*schema.Device)
 	deviceCounts := make(map[string]int)
 	rules := make(map[string]*schema.SourceRule)
@@ -99,7 +108,15 @@ func acquisitionObservationCandidates(projection *workspace.RuntimeProjection, b
 		if rule == nil || rule.ID == "" || ruleCounts[rule.ID] != 1 || rule.DeviceID != device.ID || !rule.Enabled || rule.RevisionID == "" {
 			continue
 		}
-		fingerprint, err := measurement.AcquisitionConfigFingerprint(*device, *point)
+		var profile connector.ReadProfile
+		if modernPoint(point) {
+			if len(contexts) == 0 {
+				continue
+			}
+			profiles, _ := contexts[0].Value(readProfilesKey{}).(map[string]connector.ReadProfile)
+			profile = profiles[point.ID]
+		}
+		fingerprint, err := measurement.AcquisitionConfigFingerprint(*device, *point, profile)
 		if err != nil || fingerprint == "" {
 			continue
 		}

@@ -21,53 +21,6 @@ import (
 // 收集結果
 // =============================================================================
 
-// CollectedValue 收集到的值
-type CollectedValue struct {
-	// PointID 點位 ID
-	PointID string
-
-	// DeviceID 設備 ID
-	DeviceID string
-
-	// TagID 標籤 ID (若有映射)
-	TagID string
-
-	// Value 收集到的值
-	Value any
-
-	// RawBytes 原始位元組
-	RawBytes []byte
-
-	// Timestamp 收集時間戳記
-	Timestamp time.Time
-
-	// AcquisitionID identifies one poll attempt across retries and mapped tags.
-	AcquisitionID string
-
-	// ObservedAt is the typed observation time selected from a trusted source
-	// timestamp or the gateway completion time.
-	ObservedAt time.Time
-
-	// ReceivedAt is the gateway time immediately after the backend read ends.
-	ReceivedAt time.Time
-
-	// TimeOrigin identifies the source or gateway origin of ObservedAt.
-	TimeOrigin string
-
-	// ConfigFingerprint identifies the device and point configuration used by
-	// this poll without exposing connection configuration contents.
-	ConfigFingerprint string
-
-	// Quality 資料品質標誌
-	Quality schema.QualityFlag
-
-	// Error 錯誤訊息
-	Error string
-
-	// QualityReason is a safe explanation for bad, missing or uncertain data.
-	QualityReason string
-}
-
 // =============================================================================
 // 排程器配置
 // =============================================================================
@@ -134,6 +87,7 @@ type Scheduler struct {
 
 	// Monotonic for this scheduler lifetime, including removed/re-added points.
 	pointObservationLease uint64
+	installationScope     string
 
 	// 設備鎖 (確保同一設備串列存取)
 	deviceLocks map[string]*wirebudget.Mutex
@@ -184,6 +138,7 @@ type pointInfo struct {
 	Mode               schema.PointMode
 	PollingGroupID     string
 	observationLease   uint64
+	installationScope  string
 	observationBinding PointObservationBinding
 }
 
@@ -194,17 +149,18 @@ func NewScheduler(config SchedulerConfig, connMgr *connector.ConnectionManager) 
 	}
 
 	return &Scheduler{
-		config:         config,
-		connMgr:        connMgr,
-		groupTickers:   make(map[string]*groupTicker),
-		valueChan:      make(chan CollectedValue, config.ValueBufferSize),
-		deviceConfigs:  make(map[string]deviceConfig),
-		pointInfos:     make(map[string]pointInfo),
-		deviceLocks:    make(map[string]*wirebudget.Mutex),
-		deviceBreakers: make(map[string]*health.CircuitBreaker),
-		stopCh:         make(chan struct{}),
-		nowFunc:        config.Clock,
-		acquisitionID:  config.AcquisitionIDFactory,
+		installationScope: uuid.NewString(),
+		config:            config,
+		connMgr:           connMgr,
+		groupTickers:      make(map[string]*groupTicker),
+		valueChan:         make(chan CollectedValue, config.ValueBufferSize),
+		deviceConfigs:     make(map[string]deviceConfig),
+		pointInfos:        make(map[string]pointInfo),
+		deviceLocks:       make(map[string]*wirebudget.Mutex),
+		deviceBreakers:    make(map[string]*health.CircuitBreaker),
+		stopCh:            make(chan struct{}),
+		nowFunc:           config.Clock,
+		acquisitionID:     config.AcquisitionIDFactory,
 	}
 }
 

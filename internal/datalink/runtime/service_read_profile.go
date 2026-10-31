@@ -105,6 +105,7 @@ func projectionReadProfile(projection *workspace.RuntimeProjection, p *schema.Po
 		if rule == nil || rule.DeviceID != p.DeviceID || rule.RevisionID == "" {
 			return invalid()
 		}
+		defaults.RuleID = rule.ID
 		defaults.RuleOwned = true
 		defaults.RuleRevision = rule.RevisionID
 		defaults.RuleFormat = rule.DataFormat

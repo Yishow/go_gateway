@@ -140,22 +140,16 @@ func (s *Scheduler) collectedValueWithReason(
 			Protocol:         cfg.Protocol,
 			ConnectionConfig: cfg.Config,
 		}
-		point := schema.Point{
-			ID:             pt.ID,
-			DeviceID:       pt.DeviceID,
-			Address:        pt.Address,
-			Function:       pt.Function,
-			DataType:       pt.DataType,
-			DataFormat:     pt.DataFormat,
-			Mode:           pt.Mode,
-			PollingGroupID: pollingGroupPointer(pt.PollingGroupID),
-		}
-		if fingerprint, err := measurement.AcquisitionConfigFingerprint(device, point); err == nil {
+		point := pt.identityPoint()
+		if fingerprint, err := measurement.AcquisitionConfigFingerprint(device, point, pt.readProfile); err == nil {
 			configFingerprint = fingerprint
 		}
 	}
 
 	value := CollectedValue{
+		PointRevision:     pt.configRevision,
+		InstallationLease: pt.observationLease,
+		InstallationScope: pt.installationScope,
 		PointID:           pt.ID,
 		DeviceID:          pt.DeviceID,
 		Value:             result.Value,

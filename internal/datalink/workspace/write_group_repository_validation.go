@@ -209,6 +209,9 @@ func (r *SQLWriteGroupRepository) validateDefinitionWithMeasurements(ctx context
 		if err != nil {
 			return fmt.Errorf("read write-group source: %w", err)
 		}
+		if err := loadSourceFormatProfile(ctx, runner, r.query, &source); err != nil {
+			return err
+		}
 		sourceRevision, err := source.revision()
 		if err != nil {
 			return fmt.Errorf("%w: derive source revision: %w", ErrWriteGroupValidation, err)
@@ -365,20 +368,6 @@ type mappingRevisionSource struct {
 func (m mappingRevisionSource) revision() (string, error) {
 	return hashWriteGroupRevision(m.ID, m.PointID, m.TagID, m.TransformPipeline, m.Status,
 		m.RuleCandidateID, m.ProposedSignature, m.LastAppliedSignature, m.BlockingReason, fmt.Sprint(m.Enabled))
-}
-
-type sourceRevisionSource struct {
-	DeviceID, DeviceName, Protocol, ConnectionConfig                                                          string
-	PointID, PointDeviceID, PointName, PointAddress, PointFunction, PointDataType, PointDataFormat, PointMode string
-	PointEnabled                                                                                              bool
-	TagID, TagKey, TagDisplayName, TagDataType, TagUnit, TagStatus, TagLabels                                 string
-}
-
-func (s sourceRevisionSource) revision() (string, error) {
-	return hashWriteGroupRevision(s.DeviceID, s.DeviceName, s.Protocol, s.ConnectionConfig,
-		s.PointID, s.PointDeviceID, s.PointName, s.PointAddress, s.PointFunction, s.PointDataType,
-		s.PointDataFormat, s.PointMode, fmt.Sprint(s.PointEnabled), s.TagID, s.TagKey,
-		s.TagDisplayName, s.TagDataType, s.TagUnit, s.TagStatus, s.TagLabels)
 }
 
 func hashWriteGroupRevision(parts ...string) (string, error) {

@@ -15,6 +15,7 @@ import (
 type PointObservationBinding struct {
 	WorkspaceID, WorkspaceRevision, DeviceID, PointID string
 	RuleID, RuleRevision, ConfigFingerprint           string
+	InstallationScope                                 string
 }
 
 // AcquisitionObservation contains only final normalized acquisition metadata.
@@ -70,7 +71,7 @@ func (s *Scheduler) installPointLocked(point *schema.Point, profiles ...connecto
 	s.pointInfos[point.ID] = pointInfo{
 		ID: point.ID, DeviceID: point.DeviceID, Address: point.Address, configRevision: point.RevisionID,
 		Function: point.Function, DataType: point.DataType, DataFormat: point.DataFormat,
-		readProfile: profile, Mode: point.Mode, PollingGroupID: groupID, observationLease: lease,
+		readProfile: profile, Mode: point.Mode, PollingGroupID: groupID, observationLease: lease, installationScope: s.installationScope,
 	}
 	return lease
 }
@@ -87,18 +88,19 @@ func (s *Scheduler) BindPointObservation(pointID string, lease uint64, binding P
 	if !ok || pt.observationLease != lease || pt.ID != binding.PointID || pt.DeviceID != binding.DeviceID {
 		return false
 	}
-	// Modern decoding identity is not covered by the legacy fingerprint yet.
-	// Task 3.4 supplies the versioned proof; never advertise this as ready.
 	if pt.readProfile.Present() && pt.readProfile.Resolution().Mode != schema.PointFormatLegacy {
-		return false
+		identity := pt.readProfile.IdentityView()
+		if binding.InstallationScope != s.installationScope || identity.RuleID != binding.RuleID || identity.Resolution.RuleRevision != binding.RuleRevision {
+			return false
+		}
 	}
 	cfg, ok := s.deviceConfigs[pt.DeviceID]
 	if !ok || cfg.ID != binding.DeviceID {
 		return false
 	}
 	device := schema.Device{ID: cfg.ID, Protocol: cfg.Protocol, ConnectionConfig: cfg.Config}
-	point := schema.Point{ID: pt.ID, DeviceID: pt.DeviceID, Address: pt.Address, Function: pt.Function, DataType: pt.DataType, DataFormat: pt.DataFormat, Mode: pt.Mode, PollingGroupID: pollingGroupPointer(pt.PollingGroupID)}
-	fingerprint, err := measurement.AcquisitionConfigFingerprint(device, point)
+	point := pt.identityPoint()
+	fingerprint, err := measurement.AcquisitionConfigFingerprint(device, point, pt.readProfile)
 	if err != nil || fingerprint != binding.ConfigFingerprint {
 		return false
 	}
@@ -108,7 +110,7 @@ func (s *Scheduler) BindPointObservation(pointID string, lease uint64, binding P
 }
 
 func (s *Scheduler) observeAcquisition(pt pointInfo, value CollectedValue) {
-	if !s.HasAcquisitionObserver() {
+	if !s.HasAcquisitionObserver() || (s.observationNeedsCurrentInstall(pt) && !s.AcceptsInstallationSample(pt.ID, pt.observationLease, pt.installationScope)) {
 		return
 	}
 	// The callback contract is nonblocking. Panic containment prevents a faulty

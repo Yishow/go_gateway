@@ -15,6 +15,12 @@ import (
 )
 
 func (s *Service) handleCollectedValue(ctx context.Context, cv collector.CollectedValue) {
+	if cv.InstallationLease == 0 && s.scheduler != nil && !s.scheduler.AcceptsLegacyUnscopedSample(cv.PointID) {
+		return
+	}
+	if cv.InstallationLease != 0 && (s.scheduler == nil || !s.scheduler.AcceptsInstallationSample(cv.PointID, cv.InstallationLease, cv.InstallationScope)) {
+		return
+	}
 	if cv.Timestamp.IsZero() {
 		cv.Timestamp = time.Now()
 	}
@@ -27,10 +33,8 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		}
 	}
 
-	if s.config.UpdatePointState && s.pointSvc != nil {
-		if err := s.pointSvc.UpdateReadResult(ctx, cv.PointID, cv.Value, cv.Error); err != nil {
-			s.pointStateError.Add(1)
-		}
+	if !s.persistCapturedPointState(ctx, cv) {
+		return
 	}
 
 	meta := s.lookupPointMeta(cv.PointID)

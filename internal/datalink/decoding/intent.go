@@ -12,6 +12,7 @@ import (
 // FormatContext supplies defaults and revisions without becoming point intent.
 type FormatContext struct {
 	Protocol           schema.ProtocolType `json:"protocol"`
+	RuleID             string              `json:"rule_id"`
 	RuleOwned          bool                `json:"rule_owned"`
 	RuleFormat         string              `json:"rule_format"`
 	ConnectionFormat   string              `json:"connection_format"`

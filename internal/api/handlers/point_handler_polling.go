@@ -58,8 +58,15 @@ func (h *PointHandler) pollPoint(ctx context.Context, pointID string) (PollResul
 
 	manualResults := h.pollNow(ctx, []string{pointID})
 	if cv, ok := manualResults[pointID]; ok {
-		if err := h.svc.UpdateReadResult(ctx, pointID, cv.Value, cv.Error); err != nil {
+		if !h.acceptsPollResult(ctx, cv) {
+			return supersededPollResult(pointID), nil
+		}
+		saved, err := h.persistPollResult(ctx, cv)
+		if err != nil {
 			return PollResult{}, err
+		}
+		if !saved {
+			return supersededPollResult(pointID), nil
 		}
 		return h.buildPollResultFromCollectedValue(ctx, pt, cv), nil
 	}
@@ -74,11 +81,22 @@ func (h *PointHandler) pollPoint(ctx context.Context, pointID string) (PollResul
 
 func (h *PointHandler) pollBatch(ctx context.Context, pointIDs []string) ([]PollResult, error) {
 	manualResults := h.pollNow(ctx, pointIDs)
+	rejected := map[string]bool{}
 	if len(manualResults) > 0 {
 		updates := make([]point.ReadResultUpdate, 0, len(manualResults))
 		for _, pointID := range pointIDs {
 			cv, ok := manualResults[pointID]
-			if !ok {
+			if !ok || !h.acceptsPollResult(ctx, cv) {
+				continue
+			}
+			if cv.InstallationLease != 0 || cv.DirectEvidence != nil {
+				saved, err := h.persistPollResult(ctx, cv)
+				if err != nil {
+					return nil, err
+				}
+				if !saved {
+					rejected[pointID] = true
+				}
 				continue
 			}
 			updates = append(updates, point.ReadResultUpdate{
@@ -105,6 +123,10 @@ func (h *PointHandler) pollBatch(ctx context.Context, pointIDs []string) ([]Poll
 			continue
 		}
 
+		if rejected[pointID] {
+			results = append(results, supersededPollResult(pointID))
+			continue
+		}
 		if cv, ok := manualResults[pointID]; ok {
 			results = append(results, h.buildPollResultFromCollectedValue(ctx, pt, cv))
 			continue
@@ -171,6 +193,9 @@ func (h *PointHandler) buildPollResultFromCollectedValue(
 	}
 
 	transformedValue, transformErr := h.resolveTransformedValue(ctx, pt.ID, cv.Value)
+	if !h.acceptsPollResult(ctx, cv) {
+		return supersededPollResult(pt.ID)
+	}
 	quality := pollQualityCode(cv.Quality, cv.Error)
 	if transformErr != "" && quality == pollQualityGood {
 		quality = pollQualityUncertain

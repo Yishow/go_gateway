@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/common"
+	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -55,13 +56,21 @@ func HashStringTuple(parts ...string) (string, error) {
 
 // SourceRevision derives the source revision tuple used by write-group
 // validation from the installed device, point and tag metadata.
-func SourceRevision(device schema.Device, point schema.Point, tag schema.Tag) (string, error) {
-	return HashStringTuple(
+func SourceRevision(device schema.Device, point schema.Point, tag schema.Tag, profiles ...connector.ReadProfile) (string, error) {
+	identity, err := sourceFormatIdentity(device, point, profiles)
+	if err != nil {
+		return "", err
+	}
+	legacy, err := HashStringTuple(
 		device.ID, device.Name, string(device.Protocol), device.ConnectionConfig,
 		point.ID, point.DeviceID, point.Name, point.Address, point.Function, string(point.DataType),
 		point.DataFormat, string(point.Mode), fmt.Sprint(point.Enabled), tag.ID, tag.Key,
 		tag.DisplayName, string(tag.DataType), tag.Unit, string(tag.Status), tag.Labels,
 	)
+	if err != nil || identity == "" {
+		return legacy, err
+	}
+	return HashStringTuple("source-revision-v2", legacy, identity)
 }
 
 // MappingRevision derives the mapping revision tuple used by write-group
@@ -77,12 +86,20 @@ func MappingRevision(mapping schema.Mapping) (string, error) {
 // AcquisitionConfigFingerprint returns an opaque identity for the exact
 // device and point configuration used by a poll. The input can contain
 // credentials, but the returned value never exposes them.
-func AcquisitionConfigFingerprint(device schema.Device, point schema.Point) (string, error) {
-	return HashStringTuple(
+func AcquisitionConfigFingerprint(device schema.Device, point schema.Point, profiles ...connector.ReadProfile) (string, error) {
+	identity, err := sourceFormatIdentity(device, point, profiles)
+	if err != nil {
+		return "", err
+	}
+	legacy, err := HashStringTuple(
 		"acquisition-config-v1", device.ID, string(device.Protocol), device.ConnectionConfig,
 		point.ID, point.DeviceID, point.Address, point.Function, string(point.DataType),
 		point.DataFormat, string(point.Mode), pollingGroupID(point.PollingGroupID),
 	)
+	if err != nil || identity == "" {
+		return legacy, err
+	}
+	return HashStringTuple("acquisition-config-v2", legacy, identity)
 }
 
 // StableSampleID derives a retry-stable identity for one mapped acquisition.

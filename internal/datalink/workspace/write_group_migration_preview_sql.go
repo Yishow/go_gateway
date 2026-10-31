@@ -168,6 +168,11 @@ func readMigrationPreviewSources(
 	if err := rows.Close(); err != nil {
 		return nil, fmt.Errorf("close migration preview source mappings: %w", err)
 	}
+	for i := range sources {
+		if err := loadSourceFormatProfile(ctx, tx, repo.query, &sources[i].source); err != nil {
+			return nil, err
+		}
+	}
 	return sources, nil
 }
 
