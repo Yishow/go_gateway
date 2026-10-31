@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestMixedSchemaLedgerFreshConfirmationCannotActivateOrAuthorizeChangedMethod(t *testing.T) {
+func TestMixedSchemaLedgerFreshConfirmationCannotAuthorizeChangedMethod(t *testing.T) {
 	for _, layout := range []WriteGroupLayoutVersion{WriteGroupLayoutManagedWideProfileV1, WriteGroupLayoutManagedLongV1} {
 		for _, change := range []string{"method", "cadence", "required", "measurement identity", "counter policy", "proof lost during inspection"} {
 			t.Run(string(layout)+"/"+change, func(t *testing.T) { mixedSchemaLedgerCase(t, layout, change) })
@@ -136,12 +136,8 @@ func mixedSchemaLedgerCase(t *testing.T, layout WriteGroupLayoutVersion, change 
 	require.NoError(t, err)
 	require.True(t, ready.ConfigReady)
 	require.True(t, ready.SchemaReady)
-	require.False(t, ready.Ready)
-	require.True(t, recordingReductionUnsupported(confirmed.Group, nil))
-	apply := h.mutation(ctx, confirmed.Group)
-	apply.ExpectedGroupRevision = confirmed.Group.Revision
-	_, err = h.service.Apply(ctx, confirmed.Group.ID, apply)
-	require.Error(t, err, "schema proof is not mixed activation")
+	require.True(t, ready.Ready, "4.2 supports this shape only after the real coherent schema and source proofs")
+	require.True(t, recordingReductionUnsupported(confirmed.Group, nil), "missing source types still fail closed")
 
 	replay, err := h.service.ConfirmManagedSchemaWithStorage(ctx, saved.Group.ID, req, op.OperationID, op.VerifiedDigest, &StorageEvidence{Layout: *scope.GroupLayout, CreatedTable: true})
 	require.NoError(t, err)
@@ -187,7 +183,7 @@ func mixedSchemaLedgerCase(t *testing.T, layout WriteGroupLayoutVersion, change 
 		refreshedReady, err := h.service.Readiness(ctx, confirmed.Group.ID)
 		require.NoError(t, err)
 		require.True(t, refreshedReady.SchemaReady)
-		require.False(t, refreshedReady.Ready)
+		require.True(t, refreshedReady.Ready, "fresh coherent counter policy consent restores readiness")
 		require.NotEqual(t, ready.SchemaDigest, refreshedReady.SchemaDigest)
 		return
 	}

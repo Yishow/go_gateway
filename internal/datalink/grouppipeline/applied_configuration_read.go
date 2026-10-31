@@ -57,11 +57,18 @@ func (p *Pipeline) ResolveAppliedConfigurationAt(ctx context.Context, groupID st
 	}
 	// The recovery decoder also supports legacy custom descriptors. This public
 	// configuration reader claims only layouts whose managed proof is verified.
-	if !canonicalManagedGroup(frozen.Group) ||
-		(longGroup(frozen.Group) && !validLongRuntimeProof(frozen.Group, frozen.RuntimeLayout)) ||
+	if !canonicalManagedGroup(frozen.Group) {
+		return nil, ErrAppliedConfigurationUnavailable
+	}
+	if mixedRecordingGroup(frozen.Group) {
+		if !validMixedRuntimeStorageProof(frozen.Group, frozen.RuntimeLayout) {
+			return nil, ErrAppliedConfigurationUnavailable
+		}
+	} else if (longGroup(frozen.Group) && !validLongRuntimeProof(frozen.Group, frozen.RuntimeLayout)) ||
 		(!longGroup(frozen.Group) && !validCanonicalManagedRuntimeProof(frozen.Group, frozen.RuntimeLayout)) {
 		return nil, ErrAppliedConfigurationUnavailable
 	}
+
 	// JSON decoding made a detached descriptor; EndsAt instead belongs to the
 	// canonical ledger read and must never be replaced by absent/stale frozen data.
 	frozen.EndsAt = resolved.EndsAt

@@ -4350,24 +4350,24 @@
         "groupdelivery.SourceDelivery": {
             "type": "string",
             "enum": [
-                "window_skipped",
                 "queued",
                 "retrying",
                 "blocked",
                 "quarantined",
                 "unknown",
                 "sql_committed",
-                "operator_skipped"
+                "operator_skipped",
+                "window_skipped"
             ],
             "x-enum-varnames": [
-                "SourceDeliveryWindowSkipped",
                 "SourceDeliveryQueued",
                 "SourceDeliveryRetrying",
                 "SourceDeliveryBlocked",
                 "SourceDeliveryQuarantined",
                 "SourceDeliveryUnknown",
                 "SourceDeliveryCommitted",
-                "SourceDeliverySkipped"
+                "SourceDeliverySkipped",
+                "SourceDeliveryWindowSkipped"
             ]
         },
         "groupdelivery.SourceRecord": {
@@ -9693,6 +9693,18 @@
         "workspace.WriteGroupCalculationRestriction": {
             "type": "object",
             "properties": {
+                "layout": {
+                    "description": "An absent layout applies to every layout; a present one narrows this refusal.",
+                    "enum": [
+                        "managed_wide_profile_v1",
+                        "managed_long_v1"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/workspace.WriteGroupLayoutVersion"
+                        }
+                    ]
+                },
                 "method": {
                     "$ref": "#/definitions/workspace.WriteGroupMemberCalculation"
                 },

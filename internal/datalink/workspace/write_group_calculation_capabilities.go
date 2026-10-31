@@ -5,7 +5,7 @@ import (
 	"go-gateway/internal/datalink/snapshot"
 )
 
-// WriteGroupCalculationCapabilities describes this backend's preparation
+// WriteGroupCalculationCapabilities describes this backend's calculation
 // contract. It is not a saved candidate, readiness token or activation proof.
 type WriteGroupCalculationCapabilities struct {
 	Version             int                                `json:"version"`
@@ -33,6 +33,8 @@ type WriteGroupCadenceCapability struct {
 }
 
 type WriteGroupCalculationRestriction struct {
+	// An absent layout applies to every layout; a present one narrows this refusal.
+	Layout          WriteGroupLayoutVersion     `json:"layout,omitempty" enums:"managed_wide_profile_v1,managed_long_v1"`
 	Method          WriteGroupMemberCalculation `json:"method"`
 	Phase           string                      `json:"phase"`
 	SourceTransform string                      `json:"source_transform"`
@@ -40,13 +42,13 @@ type WriteGroupCalculationRestriction struct {
 }
 
 // RecordingCalculationCapabilities returns fresh slices so consumers cannot
-// mutate the backend contract. Public activation remains closed until the real
-// scoped save/schema/runtime/SQL acceptance gate has passed.
+// mutate the backend contract. Supported activation still requires each record
+// to pass fresh schema, readiness and ownership checks; editor support is separate.
 func RecordingCalculationCapabilities() WriteGroupCalculationCapabilities {
 	return WriteGroupCalculationCapabilities{
 		Version: 1, ResultShape: WriteGroupResultShapeMemberCalculationV1,
-		DraftSupported: true, ActivationSupported: false, EditorSupported: false,
-		Reason:         "production_acceptance_pending",
+		DraftSupported: true, ActivationSupported: true, EditorSupported: false,
+		Reason:         "record_readiness_required",
 		Methods:        []WriteGroupMemberCalculation{WriteGroupMemberCalculationLatest, WriteGroupMemberCalculationMean, WriteGroupMemberCalculationDelta},
 		Cadence:        WriteGroupCadenceCapability{Alignment: WriteGroupAlignmentUTCEpoch, Units: []WriteGroupIntervalUnit{WriteGroupIntervalUnitSecond, WriteGroupIntervalUnitMinute}, Minimum: 1, MaxSeconds: snapshot.MaxCadenceSeconds, MaxMinutes: snapshot.MaxCadenceMinutes, WindowBoundsChecked: true},
 		SchemaDialects: []string{"sqlite", "postgres"},
@@ -54,7 +56,7 @@ func RecordingCalculationCapabilities() WriteGroupCalculationCapabilities {
 		Unsupported: []WriteGroupCalculationRestriction{
 			{Method: WriteGroupMemberCalculationLatest, SourceTransform: "exact_counter_scale", Phase: "draft", Reason: "mixed_exact_source_draft_unsupported"},
 			{Method: WriteGroupMemberCalculationMean, SourceTransform: "exact_counter_scale", Phase: "draft", Reason: "mixed_exact_source_draft_unsupported"},
-			{Method: WriteGroupMemberCalculationDelta, SourceTransform: "exact_counter_scale", Phase: "draft", Reason: "mixed_exact_source_draft_unsupported"},
+			{Layout: WriteGroupLayoutManagedWideProfileV1, Method: WriteGroupMemberCalculationDelta, SourceTransform: "exact_counter_scale", Phase: "draft", Reason: "mixed_exact_source_draft_unsupported"},
 			{Method: WriteGroupMemberCalculationLatest, SourceTransform: "exact_counter_scale", Phase: "runtime", Reason: "mixed_exact_source_latest_unsupported"},
 		},
 	}

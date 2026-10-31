@@ -23,6 +23,8 @@ export interface WriteGroupCalculationCapabilities {
     method: WriteGroupMemberCalculation;
     source_transform: 'exact_counter_scale';
     phase: 'draft' | 'runtime';
+    /** Omitted means this restriction applies to every layout. */
+    layout?: Extract<WriteGroupLayoutVersion, 'managed_wide_profile_v1' | 'managed_long_v1'>;
     reason: string;
   }[];
 }

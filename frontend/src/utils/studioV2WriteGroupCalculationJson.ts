@@ -44,18 +44,25 @@ export function parseWriteGroupCalculationCapabilities(value: unknown): WriteGro
     cadence.minimum > cadence.max_seconds || cadence.minimum > cadence.max_minutes) return null;
   const units = enumArray(cadence.units, UNITS);
   const rawRestrictions = value.unsupported_combinations;
-  if (!units || !Array.isArray(rawRestrictions) || rawRestrictions.length > METHODS.length * 2) return null;
+  if (!units || !Array.isArray(rawRestrictions) || rawRestrictions.length > METHODS.length * 2 * LAYOUTS.length) return null;
   const restrictions: Array<WriteGroupCalculationCapabilities['unsupported_combinations'][number]> = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, Set<string>>();
   for (const raw of rawRestrictions) {
-    if (!isRecord(raw) || !exactKeys(raw, RESTRICTION_KEYS) ||
+    if (!isRecord(raw) || !exactKeys(raw, Object.hasOwn(raw, 'layout') ? [...RESTRICTION_KEYS, 'layout'] : RESTRICTION_KEYS) ||
       (raw.method !== 'latest' && raw.method !== 'mean' && raw.method !== 'delta') ||
       raw.source_transform !== 'exact_counter_scale' || (raw.phase !== 'draft' && raw.phase !== 'runtime')) return null;
+    const hasLayout = Object.hasOwn(raw, 'layout');
+    const layout = hasLayout ? raw.layout : undefined;
+    if (hasLayout && layout !== 'managed_wide_profile_v1' && layout !== 'managed_long_v1') return null;
     const restrictionReason = readRequiredText(raw, 'reason');
     const identity = `${raw.method}/${raw.phase}/${raw.source_transform}`;
-    if (!restrictionReason || seen.has(identity)) return null;
-    seen.add(identity);
-    restrictions.push({ method: raw.method, source_transform: raw.source_transform, phase: raw.phase, reason: restrictionReason });
+    const scope = typeof layout === 'string' ? layout : '*';
+    const scopes = seen.get(identity) ?? new Set<string>();
+    if (!restrictionReason || scopes.has(scope) || scopes.has('*') || (scope === '*' && scopes.size > 0)) return null;
+    scopes.add(scope);
+    seen.set(identity, scopes);
+    restrictions.push({ method: raw.method, source_transform: raw.source_transform, phase: raw.phase, reason: restrictionReason,
+      ...(layout === 'managed_wide_profile_v1' || layout === 'managed_long_v1' ? { layout } : {}) });
   }
   return {
     version: 1, result_shape: 'member-calculation-v1', draft_supported: value.draft_supported,

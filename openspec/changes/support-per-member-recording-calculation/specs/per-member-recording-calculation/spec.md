@@ -20,9 +20,29 @@ Independent mixed record identities SHALL permit source-reference reuse within t
 ### Requirement: Member windows align independently of activation
 The mixed profile SHALL persist each member's interval and align its windows to an explicit clock basis rather than counting from activation. It SHALL support the requested 5-second, 15-second, one-minute and ten-minute aligned cadences without applying the superseded shared 300-second cap. Existing UTC-epoch half-open-window alignment SHALL be reused without changing legacy profile interpretation or acquisition polling frequency. Latest, arithmetic mean and confirmed-counter delta SHALL operate on the matching member's own window. Data-window timestamps SHALL be distinct from actual SQL commit time; lateness, worker queues and retry MUST NOT be presented as punctual physical commits. A member is due at aligned boundary T and selects observations in [T-interval,T); an observation exactly at T belongs to the next window. Closure waits for the existing allowed lateness. Positive integer second/minute intervals SHALL be normalized with overflow checks and backend-advertised bounded capability validation; the required acceptance cadences SHALL be supported without inventing an unrestricted interval range.
 
+For ordinary Apply of a mixed recording that has never been applied, with no active or historical applied snapshot verified inside the transaction, EffectiveAt SHALL equal candidate.UpdatedAt set by the server clock for that Apply transaction. It MUST NOT use the earlier draft-save time, a client timestamp or an invented common interval. Each member SHALL retain its UTC-epoch phase and aligned identity; its first actual window start SHALL be max(aligned start, EffectiveAt) under existing partial-window and first-baseline policies. A disabled recording, a resume or a recording with historical applied snapshots MUST NOT be classified as never applied merely because no worker is currently active; existing history and resume safeguards SHALL remain in force.
+
+Replacing an active revision through ordinary Apply SHALL retain the existing next-common-UTC-boundary policy, strictly after the Apply transaction time. The boundary SHALL be derived with checked LCM arithmetic over all old and new member cadences, using the existing cadence for any permitted legacy side. This transient cutover calculation MUST NOT become a persisted common group interval, a dispatch quantum or a replacement for member windows. Duration, LCM and timestamp overflow SHALL fail through the existing typed validation/interval-overflow taxonomy without partial applied-version, runtime-snapshot or ownership changes. Ordinary legacy Apply and explicit reviewed successor boundaries SHALL retain their existing behavior; this rule MUST NOT authorize prohibited cross-canonical legacy-to-mixed conversion.
+
 #### Scenario: Two averages and one usage share a row
 - **WHEN** one aligned boundary closes equal-length member windows containing gauge A readings 20,22,24 and gauge B readings 10,14, and a confirmed counter C advances reliably from baseline 1000 to 1008
 - **THEN** the mixed wide output is one row with A=22, B=12 and C=8 under the same bucket and closure identity, not three separately scheduled records.
+
+#### Scenario: Never-applied mixed recording starts at the transaction time
+- **WHEN** a mixed recording with no active or historical applied snapshot passes normal Apply at server transaction time 12:00:07 with 5-second and 15-second members
+- **THEN** EffectiveAt is 12:00:07, their next due boundaries remain 12:00:10 and 12:00:15, their actual first windows begin at 12:00:07, and existing partial and first-baseline rules remain effective rather than deferring activation to a fabricated common window.
+
+#### Scenario: Active member cadence revisions share a safe cutover
+- **WHEN** ordinary Apply at 12:00:07 replaces active 15-second and 60-second members with 20-second and 60-second members
+- **THEN** the common UTC cutover is 12:01:00, no common interval is persisted, and old and new members retain their own windows; an Apply exactly on a common boundary instead selects the next common boundary.
+
+#### Scenario: Disabled history is not a first activation
+- **WHEN** a disabled mixed recording with a historical applied snapshot is resumed while no active worker exists
+- **THEN** Apply retains history and resume safeguards and does not choose the never-applied shortcut or reinterpret historical windows and accepted outputs.
+
+#### Scenario: Unrepresentable revision boundary fails atomically
+- **WHEN** mixed cadence validation, LCM or next-boundary timestamp arithmetic exceeds the supported representation during ordinary Apply
+- **THEN** the existing typed validation or interval-overflow error rejects Apply without partially persisting a new applied revision, runtime snapshot or ownership mutation, while legacy ordinary Apply and explicit reviewed successor scheduling remain unchanged.
 
 ### Requirement: Mixed result columns are not legacy raw columns
 The new member-calculation-v1 result shape SHALL store each member's selected result in its target column. Delta columns SHALL contain delta rather than raw counter readings; raw values, counter status, actual interval, coverage and provenance SHALL remain distinguishable evidence. Result types and exact SQL encoding SHALL be validated before writing. New mixed support SHALL cover existing managed wide and long layouts, with one due member per long row. Native-monthly or custom shapes without new-shape capability proof SHALL remain blocked rather than claiming one-row equivalence.

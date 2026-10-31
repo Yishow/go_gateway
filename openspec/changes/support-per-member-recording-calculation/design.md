@@ -40,6 +40,16 @@ member method、resultshape/type、window、required、counterbinding/epoch/poli
 
 每個到期結果保留member identity、method、interval、aligned window start/end、actual coverage、quality/reason及provenance；not_due不偽造已計算window或sample，保留其設定與next due。wide列的T是共同到期標記，不代表全部欄同長window。first partial沿snapshot.windowBounds及markTruncation：aligned identity不改，實際起點max(window start, StartsAt)，可用latest/mean保留boundary-truncated與partial coverage，不捏造啟用前樣本；無baseline delta仍不可用，required skip／optional NULL，baseline與skip原子保存。不把partial mean冒稱完整15秒，無可靠單窗delta不可冒稱60秒用量。
 
+**普通Apply的首次啟用與版本交界（task4.2真production驗收的排程契約）**
+
+本決策只補齊task4.2正常scoped Apply的排程語意；不改member UTC epoch phase、legacy普通Apply、已review的explicit successor boundary、ownership／readiness／CAS或durable closure權威。既有nextAlignedCutover不能把mixed的缺省group interval當0秒窗口或補假值。
+
+僅當交易內確認該mixed record從未Apply、沒有active或historical applied snapshot時，EffectiveAt取本次Apply交易由server clock設定的candidate.UpdatedAt，不取草稿原保存時間、client時間或另算的下一共同邊界。首次各member的aligned identity仍依UTC epoch，actual start=max(aligned start, EffectiveAt)，照既有first-partial／required delta首baseline規則處理。disabled／resume或有歷史snapshot不算首次；不可因當下沒有active worker就跳過歷史與resume安全檢查。
+
+替換active revision時沿既有「嚴格晚於本次Apply時刻的下一共同UTC邊界」交界政策，取舊／新revision全部member cadence（其中若有合法legacy一側，取該側既有cadence），以checked LCM求共同邊界。這僅是交界時刻的計算，不是dispatch quantum或member window，不持久化group共同interval，也不改各member對齊／窗口。驗證duration、LCM及邊界timestamp算術；超出可表達範圍沿既有typed validation／ErrWriteGroupIntervalOverflow taxonomy拒絕，交易不得留下新applied revision、runtime snapshot或ownership變更。此政策不授權原本禁止的跨canonical legacy→mixed轉換。
+
+驗收由task4.2真Apply鏈路涵蓋：首次server時刻12:00:07的5秒／15秒member分別保留12:00:10／12:00:15到期及partial實際起點；active舊15秒／60秒改新20秒／60秒於12:00:07 Apply，交界為12:01:00；若恰在共同邊界Apply仍取下一共同邊界。另驗disabled但有歷史版本不走首次分支、溢出零部分寫入、legacy與explicit reviewed boundary不變。這些是預期驗收資料，不是已完成產品測試的宣告。
+
 ### 儲存擴展與草稿能力分期
 
 **Supersedes**: support-per-member-recording-calculation / 分期擴展與consumer交接（僅澄清1.2與1.3交付界線，後續runtime安全gate不變）

@@ -16,6 +16,9 @@ type applySchedule func(candidate *WriteGroup, active *WriteGroupAppliedSnapshot
 // nextAlignedCutover is the ordinary schedule: the next UTC boundary that both
 // the old and the new interval share.
 func nextAlignedCutover(candidate *WriteGroup, active *WriteGroupAppliedSnapshot) (time.Time, error) {
+	if isMixedWriteGroup(candidate) || (active != nil && isMixedWriteGroup(active.Group)) {
+		return mixedApplyCutover(candidate, active)
+	}
 	oldIntervalSeconds := 0
 	if active != nil {
 		oldIntervalSeconds = active.Group.RowPolicy.IntervalSeconds
@@ -81,6 +84,21 @@ func (s *WriteGroupService) applyValidatedGroupInTx(ctx context.Context, tx *sql
 	activeSnapshot, snapshotErr := s.repo.versionByRevisionInTx(ctx, tx, record.ID, existing.ID, existing.AppliedRevision)
 	if snapshotErr != nil && !errors.Is(snapshotErr, ErrWriteGroupAppliedRevisionUnavailable) {
 		return nil, snapshotErr
+	}
+	// A retained applied identity without its immutable snapshot is not a new
+	// recording. In particular, disabling/resuming must never reset its start.
+	if isMixedWriteGroup(candidate) && activeSnapshot == nil {
+		if existing.AppliedRevision != "" {
+			return nil, ErrWriteGroupAppliedRevisionUnavailable
+		}
+		var historical bool
+		err := tx.QueryRowContext(ctx, s.repo.query(`SELECT EXISTS(SELECT 1 FROM write_group_versions WHERE group_id=$1) OR EXISTS(SELECT 1 FROM wg_runtime_versions WHERE workspace_id=$2 AND group_id=$3)`), existing.ID, record.ID, existing.ID).Scan(&historical)
+		if err != nil {
+			return nil, err
+		}
+		if historical {
+			return nil, ErrWriteGroupAppliedRevisionUnavailable
+		}
 	}
 	reuseApplied := existing.Status != WriteGroupStatusDisabled && activeSnapshot != nil && sameWriteGroupAppliedSemantics(candidate, activeSnapshot.Group)
 	if reuseApplied {

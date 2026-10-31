@@ -23,7 +23,7 @@ func TestMixedPreparationReadinessHasMemberCadenceButNoRuntimeAuthority(t *testi
 	result.ConfigReady = true
 	result.SchemaReady = true
 	require.False(t, finalizeWriteGroupReadiness(result).Ready, "preparation is not mixed runtime support")
-	require.True(t, recordingReductionUnsupported(g, types))
+	require.False(t, recordingReductionUnsupported(g, types), "validated shape is now supported; absent coherent runtime proofs still block readiness")
 	for i, c := range inspection.Columns {
 		if c.Name == "v" {
 			inspection.Columns[i].Nullable = false

@@ -321,7 +321,6 @@ definitions:
     type: object
   groupdelivery.SourceDelivery:
     enum:
-    - window_skipped
     - queued
     - retrying
     - blocked
@@ -329,9 +328,9 @@ definitions:
     - unknown
     - sql_committed
     - operator_skipped
+    - window_skipped
     type: string
     x-enum-varnames:
-    - SourceDeliveryWindowSkipped
     - SourceDeliveryQueued
     - SourceDeliveryRetrying
     - SourceDeliveryBlocked
@@ -339,6 +338,7 @@ definitions:
     - SourceDeliveryUnknown
     - SourceDeliveryCommitted
     - SourceDeliverySkipped
+    - SourceDeliveryWindowSkipped
   groupdelivery.SourceRecord:
     properties:
       aggregation:
@@ -4026,6 +4026,14 @@ definitions:
     type: object
   workspace.WriteGroupCalculationRestriction:
     properties:
+      layout:
+        allOf:
+        - $ref: '#/definitions/workspace.WriteGroupLayoutVersion'
+        description: An absent layout applies to every layout; a present one narrows
+          this refusal.
+        enum:
+        - managed_wide_profile_v1
+        - managed_long_v1
       method:
         $ref: '#/definitions/workspace.WriteGroupMemberCalculation'
       phase:

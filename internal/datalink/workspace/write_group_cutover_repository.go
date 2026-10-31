@@ -148,6 +148,17 @@ func (r *SQLWriteGroupRepository) rolledBackInTx(ctx context.Context, runner wri
 // activeOverlapInTx lists the sources of candidate that another applied,
 // not-ended wide or custom group of the workspace still owns.
 func (r *SQLWriteGroupRepository) activeOverlapInTx(ctx context.Context, runner writeGroupSQLRunner, candidate *WriteGroup) ([]CutoverMemberRef, error) {
+	candidateRecord, err := r.mixedRecordIdentityInTx(ctx, runner, candidate)
+	if err != nil {
+		return nil, err
+	}
+	if candidateRecord != nil {
+		// One scan, not one scan per active owner. Independent records never gain
+		// permission to write another record's wide table through source reuse.
+		if err := r.checkMixedTargetOwnership(ctx, runner, candidate); err != nil {
+			return nil, err
+		}
+	}
 	rows, err := runner.QueryContext(ctx, r.query(`
 		SELECT id, applied_revision FROM write_groups
 		WHERE workspace_id = $1 AND id <> $2 AND applied_revision <> '' AND status IN ('draft', 'ready', 'running')
@@ -186,11 +197,31 @@ func (r *SQLWriteGroupRepository) activeOverlapInTx(ctx context.Context, runner 
 			continue
 		}
 		version, err := r.versionByRevisionInTx(ctx, runner, candidate.WorkspaceID, a.id, a.revision)
-		if errors.Is(err, ErrWriteGroupAppliedRevisionUnavailable) || (err == nil && version.Group.isLongLayout()) {
+		if errors.Is(err, ErrWriteGroupAppliedRevisionUnavailable) {
+			if candidateRecord != nil {
+				// An unknown active writer cannot prove an independent record.
+				// Keep the historical legacy-candidate behavior unchanged.
+				return nil, err
+			}
 			continue
 		}
 		if err != nil {
 			return nil, err
+		}
+		if version.Group.isLongLayout() {
+			continue
+		}
+		if candidateRecord != nil && isMixedWriteGroup(version.Group) {
+			if version.Group.WorkspaceID != candidate.WorkspaceID || version.Group.ID != a.id || version.Group.Revision != a.revision || version.Group.AppliedRevision != a.revision {
+				return nil, lineageCorrupt("active mixed source reference has a foreign applied identity")
+			}
+			ownerRecord, err := r.mixedRecordIdentityInTx(ctx, runner, version.Group)
+			if err != nil {
+				return nil, err
+			}
+			if independentMixedRecordIdentities(candidateRecord, ownerRecord) {
+				continue
+			}
 		}
 		if candidate.isWideProfile() && version.Group.isWideProfile() && profileKindOf(version.Group) != profileKindOf(candidate) {
 			// The instantaneous and the cumulative profile of one source are two groups of different kinds,

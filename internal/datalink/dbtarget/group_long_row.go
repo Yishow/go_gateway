@@ -204,6 +204,11 @@ func (l *LongRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error) 
 		DueAt: outcome.DueAt, RecordID: outcome.RecordID, EffectKey: outcome.EffectKey, EntityKey: outcome.EntityKey,
 		BucketStart: windowStart.UTC(),
 	}
+	if l.spec.ResultShape == MixedResultShapeV1 {
+		// Stable mixed identity uses the aligned bucket; SQL coverage below
+		// still uses the actual (possibly partial) window.
+		encoded.BucketStart = outcome.BucketStart.UTC()
+	}
 	if l.spec.Dialect == SQLDialectSQLServer {
 		encoded.BucketStart = encoded.BucketStart.Truncate(time.Microsecond)
 	}

@@ -165,8 +165,13 @@ func (r *SQLWriteGroupRepository) deriveAndValidateExactRecordingSourceInTx(
 	}
 	cumulative := group.RecordingProfile != nil && group.RecordingProfile.Kind == WriteGroupProfileCumulative && member.ValueRole == ""
 	counterRaw := group.RecordingProfile != nil && group.RecordingProfile.Kind == WriteGroupProfileInstantaneous && member.ValueRole == WriteGroupValueRoleCounterRaw
-	if !cumulative && !counterRaw {
-		return fmt.Errorf("%w: member %d exact recording scale requires cumulative profile or instantaneous counter_raw", ErrWriteGroupValidation, index)
+	// Mixed scale applies only to the delta member's existing confirmed counter
+	// binding. It does not make latest/mean consume counter scaling or a baseline.
+	mixedDelta := isMixedWriteGroup(group) && member.Calculation == WriteGroupMemberCalculationDelta &&
+		(member.ValueRole == "" || member.ValueRole == WriteGroupValueRoleCounterRaw) &&
+		(group.StorageMode == "" || group.StorageMode == WriteGroupStorageModePlain)
+	if !cumulative && !counterRaw && !mixedDelta {
+		return fmt.Errorf("%w: member %d exact recording scale requires cumulative, instantaneous counter_raw, or managed-long mixed delta", ErrWriteGroupValidation, index)
 	}
 
 	exactKind, ok := measurement.ExactTypeForTag(tagType)

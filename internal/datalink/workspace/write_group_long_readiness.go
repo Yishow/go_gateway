@@ -104,6 +104,9 @@ func longRuntimeSupported(group *WriteGroup) bool {
 		group.StorageMode != WriteGroupStorageModePlain && group.StorageMode != WriteGroupStorageModeTimescale && group.StorageMode != WriteGroupStorageModeNativeMonthly {
 		return false
 	}
+	if isMixedWriteGroup(group) {
+		return group.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && group.StorageMode == WriteGroupStorageModePlain
+	}
 	kind := group.RecordingProfile.Kind
 	return kind == WriteGroupProfileInstantaneous || kind == WriteGroupProfileCumulative
 }
@@ -140,6 +143,9 @@ func longRuntimeUnavailableIssue(groupID string) ReadinessIssue {
 // the saved group stays draft and no writer may start from it. An omitted or
 // latest reduction without new metadata keeps the existing writable path.
 func recordingReductionUnsupported(group *WriteGroup, tagTypes map[string]schema.DataType) bool {
+	if isMixedWriteGroup(group) {
+		return !mixedRuntimeShapeSupported(group, tagTypes)
+	}
 	if group.isWideProfile() {
 		// The wide profile is served only when its frozen facts are verified; a
 		// cumulative wide profile and any partial or contradictory shape stay closed.
