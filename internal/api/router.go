@@ -59,6 +59,7 @@ type DatalinkServices struct {
 	WriteGroupTestWrite        handlers.WriteGroupTestWriter
 	Audit                      *audit.Service
 	ShareRestore               handlers.ShareRestoreBarrier
+	PointFormatRecovery        handlers.PointFormatRecovery
 	RecordingStartShareBarrier func(context.Context, workspace.RecordingStartRequest) error
 }
 
@@ -251,10 +252,10 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			registerStudioV2RecordingRoutes(datalinkGroup, datalinkServices)
 
 			// Points
-			if datalinkServices.SourceRule != nil {
+			if datalinkServices.Point != nil && datalinkServices.SourceRule != nil {
 				datalinkServices.Point.SetFormatRuleGuard(datalinkServices.SourceRule)
 			}
-			if datalinkServices.ModbusShare != nil && datalinkServices.Runtime != nil {
+			if datalinkServices.Point != nil && datalinkServices.ModbusShare != nil && datalinkServices.Runtime != nil {
 				handlers.ConfigurePointFormatLifecycle(datalinkServices.Point, datalinkServices.ModbusShare, datalinkServices.Runtime)
 			}
 			pointHandler := handlers.NewPointHandler(datalinkServices.Point, datalinkServices.Runtime).

@@ -10,6 +10,7 @@ import (
 )
 
 type ModbusShareHandler struct {
+	formatRecovery PointFormatRecovery
 	svc            *modbusshare.Service
 	gate           WorkspaceShareGate
 	reconciler     *modbusshare.Reconciler

@@ -14,9 +14,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ReconcileRequest) (Recon
 	if inputErr != nil {
 		return ReconcileOutcome{Outcome: HydrationStateFailed}, inputErr
 	}
-	lock := r.getWorkspaceLock(req.WorkspaceID)
-	lock.Lock()
-	defer lock.Unlock()
+	unlock := r.lockReconcileWorkspace(ctx, req.WorkspaceID)
+	defer unlock()
 
 	state, outcome, done, err := r.prepareReconcile(ctx, req, durable)
 	if done {

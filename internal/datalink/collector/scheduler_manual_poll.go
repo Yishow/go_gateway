@@ -31,7 +31,7 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 	// 取得點位資訊
 	pointsToPoll := make([]pointInfo, 0, len(pointIDs))
 	for _, id := range pointIDs {
-		if info, exists := s.pointInfos[id]; exists {
+		if info, exists := s.pointInfos[id]; exists && !info.recoveryPending {
 			pointsToPoll = append(pointsToPoll, info)
 		}
 	}

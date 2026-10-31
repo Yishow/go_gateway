@@ -126,6 +126,10 @@ func TestMappingObservationFailedAcquisitionCannotRecoverFault(t *testing.T) {
 
 func TestMappingObservationRefreshPreservesNativeSampleIdentity(t *testing.T) {
 	f := newMappingObservationFixture(t, true)
+	// Refresh preserves a native legacy sample; its producer still needs a
+	// current installation without changing the native workspace scope.
+	f.service.scheduler.AddDevice(f.projection.Devices[0])
+	require.NotZero(t, f.service.scheduler.AddPointWithObservationLease(f.projection.Points[0]))
 	require.NoError(t, f.service.RefreshMappings(t.Context()))
 	require.Empty(t, f.service.mappingIndex["P"][0].WorkspaceID, "diagnostics must not rewrite existing native sample scope")
 	o := f.execute(t, uint16(10))

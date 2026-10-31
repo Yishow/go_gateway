@@ -51,7 +51,7 @@ func (s *Scheduler) pollGroup(groupID string) {
 	// 取得群組中的所有點位
 	pointsToPoll := make([]pointInfo, 0)
 	for _, info := range s.pointInfos {
-		if info.PollingGroupID == groupID {
+		if info.PollingGroupID == groupID && !info.recoveryPending {
 			pointsToPoll = append(pointsToPoll, info)
 		}
 	}

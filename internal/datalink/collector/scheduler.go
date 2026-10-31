@@ -127,6 +127,7 @@ type deviceConfig struct {
 
 // pointInfo 點位資訊快取
 type pointInfo struct {
+	recoveryPending    bool
 	readProfile        connector.ReadProfile
 	configRevision     string
 	ID                 string

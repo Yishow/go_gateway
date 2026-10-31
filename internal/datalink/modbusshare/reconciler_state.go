@@ -103,7 +103,9 @@ func (r *Reconciler) getWorkspaceLock(wsID string) *sync.Mutex {
 // markDirty records an uncertain projection when durable revision storage is
 // available. A nil store cannot persist the marker, but rollback callers still
 // return the typed dirty_unknown error rather than panicking.
-func (r *Reconciler) markDirty(ctx context.Context, wsID string) error {
+func (r *Reconciler) markDirty(ctx context.Context, wsID string, hydration HydrationState) error {
+	// Every production dirty writer revokes the lifecycle before reaching SQL.
+	r.svc.FailClosed(hydration)
 	if r.revStore == nil {
 		return nil
 	}
@@ -113,9 +115,8 @@ func (r *Reconciler) markDirty(ctx context.Context, wsID string) error {
 func (r *Reconciler) rollbackUnknown(ctx context.Context, workspaceID string, hydration HydrationState) (ReconcileOutcome, error) {
 	// Fail closed first. The durable dirty marker is useful for recovery, but a
 	// failed marker must never leave a possibly active listener/readiness gate.
-	r.svc.FailClosed(hydration)
 	message := "runtime or durable rollback is uncertain"
-	if err := r.markDirty(ctx, workspaceID); err != nil {
+	if err := r.markDirty(ctx, workspaceID, hydration); err != nil {
 		message = failedMarkWorkspaceDirtyMessage
 	}
 	return ReconcileOutcome{Outcome: dirtyUnknownState, NewWorkspaceRevision: hydration.WorkspaceRevision, SettingsRevision: hydration.SettingsRevision}, &Error{

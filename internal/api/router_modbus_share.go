@@ -27,7 +27,7 @@ func registerModbusShareRoutes(datalinkGroup *gin.RouterGroup, services *Datalin
 	}
 
 	handler := handlers.NewModbusShareHandler(services.ModbusShare).
-		WithGate(services.ModbusShare).WithReconciler(services.ModbusShareReconciler)
+		WithGate(services.ModbusShare).WithReconciler(services.ModbusShareReconciler).WithFormatRecovery(services.PointFormatRecovery)
 	if builder := canonicalShareDesiredMappingBuilder(services); builder != nil {
 		handler.WithDesiredMappingBuilder(builder)
 	}

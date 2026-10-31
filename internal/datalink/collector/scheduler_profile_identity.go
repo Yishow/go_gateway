@@ -31,7 +31,7 @@ func (s *Scheduler) AcceptsInstallationSample(pointID string, lease uint64, scop
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	pt, ok := s.pointInfos[pointID]
-	return ok && pt.observationLease == lease
+	return ok && !pt.recoveryPending && pt.observationLease == lease
 }
 
 func (s *Scheduler) InstallationScope() string {
@@ -50,7 +50,7 @@ func (s *Scheduler) AcceptsDirectReadProof(proof PointMutationLease, scope strin
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	current := s.pointInfos[proof.PointID]
-	if current.observationLease != proof.Lease {
+	if current.recoveryPending || current.observationLease != proof.Lease {
 		return false
 	}
 	if proof.Lease != 0 {
@@ -67,7 +67,7 @@ func (s *Scheduler) AcceptsLegacyUnscopedSample(pointID string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	pt, ok := s.pointInfos[pointID]
-	return ok && (!pt.readProfile.Present() || pt.readProfile.Resolution().Mode == schema.PointFormatLegacy)
+	return ok && !pt.recoveryPending && (!pt.readProfile.Present() || pt.readProfile.Resolution().Mode == schema.PointFormatLegacy)
 }
 
 func (s *Scheduler) observationNeedsCurrentInstall(captured pointInfo) bool {

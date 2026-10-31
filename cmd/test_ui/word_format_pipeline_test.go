@@ -202,7 +202,7 @@ func TestProductionWordFormatRuleToIngestorMatrix(t *testing.T) {
 
 func wordProductionRouter(s gatewayServices, db *sql.DB) http.Handler {
 	revisions := modbusshare.NewSQLWorkspaceRevisionStore(db)
-	reconciler := modbusshare.NewReconciler(s.modbusShare, revisions)
+	reconciler := modbusshare.NewReconciler(s.modbusShare, revisions).WithOwnershipValidator(sourcerule.NewShareDesiredMappingOwnershipChecker(s.workspace, s.sourceRule, s.tag, s.modbusShare.Settings, s.mapping))
 	configureShareRuntimeReconciler(s.sourceRule, s.workspace, s.modbusShare, revisions, reconciler)
-	return api.NewRouter(&api.DatalinkServices{Device: s.device, Point: s.point, Tag: s.tag, Mapping: s.mapping, PollingGroup: s.pollingGroup, Settings: s.settings, ModbusShare: s.modbusShare, ModbusShareReconciler: reconciler, Scheduler: s.scheduler, Runtime: s.runtime, DBTarget: s.dbTarget, DBMapping: s.dbMapping, SourceRule: s.sourceRule, RecordingPlan: s.recordingPlan, Workspace: s.workspace, WriteGroups: s.writeGroups, WriteGroupDelivery: s.groupPipe, WriteGroupTestWrite: s.groupTestWrite, Audit: s.audit})
+	return api.NewRouter(&api.DatalinkServices{Device: s.device, Point: s.point, Tag: s.tag, Mapping: s.mapping, PollingGroup: s.pollingGroup, Settings: s.settings, ModbusShare: s.modbusShare, ModbusShareReconciler: reconciler, PointFormatRecovery: newPointFormatRecovery(s, reconciler), Scheduler: s.scheduler, Runtime: s.runtime, DBTarget: s.dbTarget, DBMapping: s.dbMapping, SourceRule: s.sourceRule, RecordingPlan: s.recordingPlan, Workspace: s.workspace, WriteGroups: s.writeGroups, WriteGroupDelivery: s.groupPipe, WriteGroupTestWrite: s.groupTestWrite, Audit: s.audit})
 }

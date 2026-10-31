@@ -35,6 +35,20 @@ func (s *Service) buildDesiredShareMappings(
 	settings modbusshare.Settings,
 	deviceIDs []string,
 ) ([]modbusshare.DesiredMapping, error) {
+	var tags shareTagReader
+	if s.tagSvc != nil {
+		tags = s.tagSvc
+	}
+	return buildDesiredShareMappingsFrom(ctx, workspaceID, settings, deviceIDs, s.repo, tags)
+}
+
+type desiredShareReader interface {
+	List(context.Context, ListFilter) ([]*schema.SourceRule, error)
+	ListLinks(context.Context, string) ([]*schema.SourceRuleLink, error)
+	ListCandidateSnapshots(context.Context, string, string) ([]*schema.SourceRuleCandidateSnapshot, error)
+}
+
+func buildDesiredShareMappingsFrom(ctx context.Context, workspaceID string, settings modbusshare.Settings, deviceIDs []string, reader desiredShareReader, tags shareTagReader) ([]modbusshare.DesiredMapping, error) {
 	if !settings.Enabled {
 		return []modbusshare.DesiredMapping{}, nil
 	}
@@ -42,9 +56,16 @@ func (s *Service) buildDesiredShareMappings(
 	var rules []*schema.SourceRule
 	var err error
 	if deviceIDs == nil {
-		rules, err = s.repo.List(ctx, ListFilter{})
+		rules, err = reader.List(ctx, ListFilter{})
 	} else {
-		rules, err = s.ListByDeviceIDs(ctx, deviceIDs)
+		for _, id := range deviceIDs {
+			var selected []*schema.SourceRule
+			selected, err = reader.List(ctx, ListFilter{DeviceID: &id})
+			if err != nil {
+				break
+			}
+			rules = append(rules, selected...)
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("列出來源規則失敗: %w", err)
@@ -69,7 +90,7 @@ func (s *Service) buildDesiredShareMappings(
 			continue
 		}
 
-		snapshots, err := s.repo.ListCandidateSnapshots(ctx, rule.ID, rule.RevisionID)
+		snapshots, err := reader.ListCandidateSnapshots(ctx, rule.ID, rule.RevisionID)
 		if err != nil {
 			return nil, fmt.Errorf("列出 local modbus 候選快照失敗: %w", err)
 		}
@@ -106,7 +127,7 @@ func (s *Service) buildDesiredShareMappings(
 			}
 			tagID := strings.TrimSpace(*c.TagID)
 			if c.MappingID == nil {
-				links, linkErr := s.ListLinks(ctx, rule.ID)
+				links, linkErr := reader.ListLinks(ctx, rule.ID)
 				if linkErr != nil {
 					return nil, linkErr
 				}
@@ -118,11 +139,11 @@ func (s *Service) buildDesiredShareMappings(
 			}
 			// Candidate payloads are not ownership proof by themselves. Require
 			// both the persisted tag and the rule link before projecting it.
-			if s.tagSvc != nil {
-				if _, err := s.tagSvc.GetByID(ctx, tagID); err != nil {
+			if tags != nil {
+				if _, err := tags.GetByID(ctx, tagID); err != nil {
 					return nil, &modbusshare.Error{Code: modbusshare.ErrCodeWorkspaceScope, Message: "local Modbus candidate tag is not persisted", Retryable: false, Action: "Repair the source-rule candidate and apply it again"}
 				}
-				links, err := s.ListLinks(ctx, rule.ID)
+				links, err := reader.ListLinks(ctx, rule.ID)
 				if err != nil {
 					return nil, err
 				}

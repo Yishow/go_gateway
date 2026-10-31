@@ -43,25 +43,27 @@ type TagMirrorMapping struct {
 
 // Service mirrors tag values into virtual Modbus memory and serves them over Modbus TCP.
 type Service struct {
-	lifecycleMu            sync.Mutex
-	lifecycleEpoch         uint64
-	mu                     sync.RWMutex
-	tagSvc                 *tag.Service
-	bank                   *memory.MemoryBank
-	server                 *virtualmodbus.Server
-	settingsRepo           datalinksettings.Repository
-	mappings               map[string]TagMirrorMapping
-	settings               Settings
-	state                  string
-	authoritativeSettings  bool
-	hydration              HydrationState
-	hydrationErr           error
-	lastFailure            *Diagnostic
-	ownership              OwnershipChecker
-	desiredOwnership       DesiredOwnershipChecker
-	restoreMemoryHook      func([]byte) error
-	projectionSwapHook     func(map[string]TagMirrorMapping) error
-	workspaceRevisionStore WorkspaceRevisionStore
+	lifecycleMu              sync.Mutex
+	lifecycleEpoch           uint64
+	hydrationGeneration      uint64
+	formatRecoveryCompletion *formatRecoveryCompletion
+	mu                       sync.RWMutex
+	tagSvc                   *tag.Service
+	bank                     *memory.MemoryBank
+	server                   *virtualmodbus.Server
+	settingsRepo             datalinksettings.Repository
+	mappings                 map[string]TagMirrorMapping
+	settings                 Settings
+	state                    string
+	authoritativeSettings    bool
+	hydration                HydrationState
+	hydrationErr             error
+	lastFailure              *Diagnostic
+	ownership                OwnershipChecker
+	desiredOwnership         DesiredOwnershipChecker
+	restoreMemoryHook        func([]byte) error
+	projectionSwapHook       func(map[string]TagMirrorMapping) error
+	workspaceRevisionStore   WorkspaceRevisionStore
 }
 
 // SetWorkspaceRevisionStore wires the durable workspace CAS boundary used by
@@ -170,6 +172,7 @@ func (s *Service) SetHydrationState(state HydrationState) {
 			s.state = shareStateStopped
 		}
 	}
+	s.advanceHydrationGenerationLocked()
 	s.hydration = state
 }
 
@@ -198,6 +201,7 @@ func (s *Service) InvalidateWorkspaceMembership(ctx context.Context, workspaceID
 			return err
 		}
 	}
+	s.advanceHydrationGenerationLocked()
 	s.hydration = state
 	return nil
 }
@@ -214,6 +218,7 @@ func (s *Service) CheckHydration(_ context.Context) (HydrationState, error) {
 // to verify that consumers fail closed when the status read itself fails.
 func (s *Service) SetHydrationError(err error) {
 	s.mu.Lock()
+	s.advanceHydrationGenerationLocked()
 	s.hydrationErr = err
 	s.mu.Unlock()
 }

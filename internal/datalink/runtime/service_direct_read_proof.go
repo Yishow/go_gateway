@@ -6,7 +6,7 @@ func (s *Service) CaptureDirectReadProof(id string) (collector.PointMutationLeas
 	if s == nil || s.scheduler == nil {
 		return collector.PointMutationLease{}, "", false
 	}
-	proof, ok := s.scheduler.CaptureOrdinaryPoint(id)
+	proof, ok := s.scheduler.CaptureReadablePoint(id)
 	return proof, s.scheduler.InstallationScope(), ok
 }
 func (s *Service) AcceptsDirectReadProof(proof collector.PointMutationLease, scope string) bool {

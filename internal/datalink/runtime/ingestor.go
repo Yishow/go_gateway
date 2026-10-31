@@ -15,10 +15,8 @@ import (
 )
 
 func (s *Service) handleCollectedValue(ctx context.Context, cv collector.CollectedValue) {
-	if cv.InstallationLease == 0 && s.scheduler != nil && !s.scheduler.AcceptsLegacyUnscopedSample(cv.PointID) {
-		return
-	}
-	if cv.InstallationLease != 0 && (s.scheduler == nil || !s.scheduler.AcceptsInstallationSample(cv.PointID, cv.InstallationLease, cv.InstallationScope)) {
+	bindings, accepted := s.captureCollectedBindings(cv)
+	if !accepted {
 		return
 	}
 	if cv.Timestamp.IsZero() {
@@ -45,9 +43,6 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 	transformedValue := cv.Value
 	eventQuality := quality
 
-	s.mappingMu.RLock()
-	bindings := s.mappingIndex[cv.PointID]
-	s.mappingMu.RUnlock()
 	rawValue := buildRawValue(cv)
 	for index, b := range bindings {
 		finalValue := cv.Value

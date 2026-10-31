@@ -52,22 +52,35 @@ A successful invalidation receipt releases only that operation's owned durable
 pending marker. It does **not** mark live hydration or acquisition ready. Foreign
 `dirty_unknown`, failed callbacks and uncertain commits remain fail-closed.
 
-### Recovery integration still required (4.2 / editor 1.6)
+### Explicit recovery on the existing reconcile route (4.2 / editor 1.6)
 
-The existing startup path can rebuild canonical source projections after a true
-service restart; integration tests exercise the same startup helper used by main.
-This proves recovery is possible, but restarting the entire service after every
-format edit is **not** the accepted user workflow. The existing activation and
-ordinary Share reconcile endpoints require a ready token and cannot currently
-serve as pending-format recovery. Do not label them a working recovery action.
+`POST /datalink/modbus-share/reconcile` accepts **only** a nested
+`format_recovery` intent for this flow. It is mutually exclusive with ordinary
+reconcile fields, desired mappings, Restore flags or client-supplied formats.
+The nested request carries workspace/device/point/rule IDs, the original Save
+request ID, **saved-result** point and source/Share workspace revisions, the
+original rule/connection revisions, and the settings revision captured when the
+operator starts recovery. It never uses database-setup revision or silently
+rebases to latest. A previously observed settings revision can be supplied too;
+changes reject rather than being accepted implicitly.
 
-The proposed narrow extension is an explicit recovery intent on the existing
-Share reconcile endpoint, bound to the original operation receipt and captured
-source revisions. It must rebuild from server-authoritative sources, preserve
-unknown/foreign dirty and late-operation fences, and issue a fresh readiness token
-without starting recording. Activation must still check that fresh token. This
-extension and its editor action remain pending safety review and implementation;
-clients must not invent it, bypass activation gates, or silently rebase revisions.
+A successful response contains `outcome: recovered|replayed`,
+`runtime_state: installed|not_started`, `share_applied` and hydration evidence.
+This means source configuration was restored, not that a Good measurement exists.
+Draft/Disabled devices remain inactive (`not_started`, no invented lease).
+Disabled Share remains disabled (`share_applied: false`); no listener or recording
+is started. Normal activation still requires the fresh readiness token and its
+existing guards. The first accepted recovery issues a token; replay preserves it
+and never reinstalls the point. Editor wording should distinguish
+「設定已恢復，設備尚未啟用」from「設定已重新套用；等待新的採集結果」.
+
+SQL unknown/foreign dirty, changed scope/defaults, failed hydration or a newer
+installation reject the original recovery. Keep the original operation ID and
+show a safe refusal; do not retry Save or recreate points. The original receipt's
+`runtime_apply_status: pending` records the historical invalidation, not a live
+health flag; only this recovery response/current runtime can describe recovery.
+The backend implementation is under 4.2 acceptance review; UI integration remains
+editor 1.6 and must not be advertised until both gates pass.
 
 For network/503/malformed responses, retain the same operation and request ID.
 Use `pointFormatAPI.inspect(operation)` to inspect its durable receipt without

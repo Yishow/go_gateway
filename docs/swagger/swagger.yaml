@@ -61,32 +61,32 @@ definitions:
     type: object
   decoding.Policy:
     enum:
+    - inherit_scalar
+    - override_scalar
     - legacy_modbus
     - legacy_mc3e
     - legacy_fatek_components
-    - inherit_scalar
-    - override_scalar
     type: string
     x-enum-varnames:
+    - PolicyInherit
+    - PolicyOverride
     - LegacyModbus
     - LegacyMC3E
     - LegacyFatek
-    - PolicyInherit
-    - PolicyOverride
   decoding.Source:
     enum:
+    - rule
+    - override
     - point
     - connection
     - native
-    - rule
-    - override
     type: string
     x-enum-varnames:
+    - SourceRule
+    - SourceOverride
     - SourcePoint
     - SourceConnection
     - SourceNative
-    - SourceRule
-    - SourceOverride
   groupdelivery.AttentionItem:
     properties:
       connector_id:
@@ -367,6 +367,7 @@ definitions:
     - identity_mismatch
     - status_unknown
     - window_invalid
+    - calculation_projection_unsupported
     type: string
     x-enum-varnames:
     - SourceCausePayloadInvalid
@@ -374,6 +375,7 @@ definitions:
     - SourceCauseIdentityMismatch
     - SourceCauseStatusUnknown
     - SourceCauseWindowInvalid
+    - SourceCauseCalculationUnsupported
   grouppipeline.BacklogView:
     properties:
       connector_id:
@@ -731,6 +733,8 @@ definitions:
         type: string
       expected_workspace_revision:
         type: string
+      format_recovery:
+        $ref: '#/definitions/point.FormatRecoveryRequest'
       readiness_token:
         type: string
       workspace_id:
@@ -2229,6 +2233,36 @@ definitions:
         type: string
       workspace_revision_origin:
         type: string
+    type: object
+  point.FormatRecoveryRequest:
+    properties:
+      device_id:
+        type: string
+      expected_connection_revision:
+        type: string
+      expected_point_revision:
+        type: string
+      expected_rule_revision:
+        type: string
+      expected_settings_revision:
+        type: string
+      expected_workspace_revision:
+        type: string
+      point_id:
+        type: string
+      request_id:
+        type: string
+      rule_id:
+        type: string
+      workspace_id:
+        type: string
+    required:
+    - device_id
+    - expected_point_revision
+    - expected_workspace_revision
+    - point_id
+    - request_id
+    - workspace_id
     type: object
   point.UpdatePointRequest:
     properties:

@@ -45,6 +45,7 @@ func (s *Service) FailClosed(state HydrationState) {
 	}
 	state.State = HydrationStateFailed
 	state.Readiness = false
+	s.advanceHydrationGenerationLocked()
 	s.hydration = state
 	s.state = HydrationStateFailed
 }

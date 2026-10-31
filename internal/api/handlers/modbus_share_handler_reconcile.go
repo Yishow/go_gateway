@@ -9,8 +9,10 @@ import (
 	"slices"
 
 	"go-gateway/internal/datalink/modbusshare"
+	"go-gateway/internal/datalink/point"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 )
 
 // WithReconciler wires the workspace-scoped projection authority.
@@ -22,6 +24,7 @@ func (h *ModbusShareHandler) WithReconciler(reconciler *modbusshare.Reconciler) 
 // ReconcileRequest is the complete workspace desired projection submitted by
 // the candidate/apply seam; direct mapping mutation is never inferred here.
 type ReconcileRequest struct {
+	FormatRecovery            *point.FormatRecoveryRequest `json:"format_recovery,omitempty"`
 	WorkspaceID               string                       `json:"workspace_id"`
 	ExpectedWorkspaceRevision string                       `json:"expected_workspace_revision"`
 	ExpectedSettingsRevision  string                       `json:"expected_settings_revision"`
@@ -52,6 +55,9 @@ func (h *ModbusShareHandler) WithDesiredMappingBuilder(builder DesiredMappingBui
 // @Failure 503 {object} APIErrorResponse
 // @Router /datalink/modbus-share/reconcile [post]
 func (h *ModbusShareHandler) Reconcile(c *gin.Context) {
+	if h.handleFormatRecovery(c) {
+		return
+	}
 	hs, ok := h.checkGates(c)
 	if !ok {
 		return
@@ -61,7 +67,7 @@ func (h *ModbusShareHandler) Reconcile(c *gin.Context) {
 		return
 	}
 	var req ReconcileRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.WorkspaceID == "" || req.ExpectedWorkspaceRevision == "" || req.ExpectedSettingsRevision == "" || req.ReadinessToken == "" {
+	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil || req.WorkspaceID == "" || req.ExpectedWorkspaceRevision == "" || req.ExpectedSettingsRevision == "" || req.ReadinessToken == "" {
 		renderSafeError(c, http.StatusBadRequest, ErrCodeSettingsInvalid, false)
 		return
 	}

@@ -112,7 +112,12 @@ func TestService_StatusEventMatchesAlignedRuntimeSnapshot(t *testing.T) {
 
 	scheduler := collector.NewScheduler(collector.DefaultSchedulerConfig(), nil)
 	scheduler.AddDevice(deviceRecord)
-	scheduler.AddPoint(pointRecord)
+	profile, err := projectionReadProfile(&workspace.RuntimeProjection{
+		DeviceIDs: []string{deviceRecord.ID}, Devices: []*schema.Device{deviceRecord}, Points: []*schema.Point{pointRecord},
+	}, pointRecord)
+	require.NoError(t, err)
+	lease := scheduler.AddPointWithObservationLease(pointRecord, profile)
+	require.NotZero(t, lease)
 
 	svc := &Service{
 		config: Config{UpdatePointState: true},
@@ -139,7 +144,8 @@ func TestService_StatusEventMatchesAlignedRuntimeSnapshot(t *testing.T) {
 	})
 
 	svc.handleCollectedValue(ctx, collector.CollectedValue{
-		PointID:   pointRecord.ID,
+		PointID:       pointRecord.ID,
+		PointRevision: pointRecord.RevisionID, InstallationLease: lease, InstallationScope: scheduler.InstallationScope(),
 		DeviceID:  deviceRecord.ID,
 		Value:     12.5,
 		Timestamp: time.Now(),

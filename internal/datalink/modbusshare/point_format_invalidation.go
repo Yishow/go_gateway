@@ -13,6 +13,7 @@ func (s *Service) InvalidatePointFormatRevision(ctx context.Context, workspaceID
 	if s.hydration.WorkspaceID != workspaceID || s.hydration.WorkspaceRevision != expected {
 		return NewError(ErrCodeRevisionConflict, "point format readiness revision changed", true)
 	}
+	s.advanceHydrationGenerationLocked()
 	s.hydration.State = HydrationStatePending
 	s.hydration.Readiness = false
 	s.hydration.ReadinessToken = ""

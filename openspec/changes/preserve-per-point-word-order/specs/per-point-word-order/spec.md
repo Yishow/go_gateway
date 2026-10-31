@@ -121,3 +121,21 @@ Completion SHALL require fixtures through production rule persistence, point rel
 #### Scenario: Helper passes but runtime omits point format
 - **WHEN** a helper unit test passes but a production adapter or collector path still ignores the requested point format
 - **THEN** acceptance SHALL remain incomplete and the consumer SHALL NOT claim that combination is supported
+
+### Requirement: 已知格式保存須有顯式且受版本保護的恢復入口
+
+系統 SHALL 在既有 reconcile 操作提供明確的 point-format recovery intent，使用原操作 receipt 與保存後的 scope/revision 證據，從 server canonical source 重建指定點的有效讀取設定。此操作 SHALL NOT 隱含啟動 recording 或 Share listener；普通 activation SHALL 繼續要求恢復後的 fresh readiness token。系統 SHALL NOT 要求每次合法格式修改都重啟整個服務。
+
+#### Scenario: 保存後恢復與開始採集分離
+- **WHEN** 使用者對 invalidated receipt 明確要求恢復，且同一 point/source/default identity、clean witness 與 lifecycle generation 仍成立
+- **THEN** 系統恢復指定點的 profile/installation，回傳可供原 activation 再檢查的 fresh readiness 證據，而不隱含開始 recording
+
+#### Scenario: 同 revision 的 unknown 撤銷恢復
+- **WHEN** restore 計畫後發生同 revision MarkDirty，或任何 settings/membership/pending/failed generation 改變
+- **THEN** 包含 aligned/replay 在內的所有成功出口拒絕舊 attempt，不清除 foreign dirty、不發布 Ready、不覆蓋新 installation
+
+#### Scenario: 成功操作重播與停用 Share
+- **WHEN** 同一恢復操作已成功且當前 ready 證據仍一致
+- **THEN** 重播唯讀返回原 token，不重安裝或發新 token
+- **WHEN** Share 已停用且合法 active point 要求恢復
+- **THEN** 只恢復該 point runtime，明確表示 Share 未投影且 listener 未啟動，仍拒絕 settings epoch 變更

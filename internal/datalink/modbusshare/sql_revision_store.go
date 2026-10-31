@@ -89,14 +89,32 @@ func (s *SQLWorkspaceRevisionStore) CommitDesiredMappings(ctx context.Context, w
 	if expectedRevision != "" && expectedRevision != current.Revision {
 		return &Error{Code: ErrCodeRevisionConflict, Message: workspaceRevisionConflictMessage, Retryable: true, WorkspaceRevision: current.Revision}
 	}
+	recoveryWitness, recovering := ctx.Value(formatRecoveryWitnessKey{}).(formatRecoveryWitness)
+	if recovering {
+		if recoveryWitness.workspaceID != workspaceID || expectedRevision != nextRevision || current.Revision != expectedRevision {
+			return NewError(ErrCodeRevisionConflict, "format recovery scope changed", true)
+		}
+		if err := validateFormatRecoveryWitness(workspaceID, recoveryWitness.raw, raw); err != nil {
+			return err
+		}
+	}
 	previousRevision := current.Revision
 	current.Revision, current.Dirty = nextRevision, false
 	currentPayload, marshalErr := json.Marshal(current)
 	if marshalErr != nil {
 		return newStorageError("encode workspace revision", marshalErr)
 	}
+	if recovering {
+		currentPayload = []byte(raw)
+	}
 	if found {
-		result, updateErr := tx.ExecContext(ctx, `UPDATE system_settings SET value = ?, updated_at = ? WHERE key = ? AND json_extract(value, '$.revision') = ?`, string(currentPayload), time.Now().UTC(), key, previousRevision)
+		query := `UPDATE system_settings SET value = ?, updated_at = ? WHERE key = ? AND json_extract(value, '$.revision') = ?`
+		expected := previousRevision
+		if recovering {
+			query = `UPDATE system_settings SET value = ?, updated_at = ? WHERE key = ? AND value = ?`
+			expected = recoveryWitness.raw
+		}
+		result, updateErr := tx.ExecContext(ctx, query, string(currentPayload), time.Now().UTC(), key, expected)
 		if updateErr != nil {
 			return newStorageError("update workspace revision", updateErr)
 		}

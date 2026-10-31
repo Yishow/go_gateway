@@ -3964,35 +3964,35 @@
         "decoding.Policy": {
             "type": "string",
             "enum": [
+                "inherit_scalar",
+                "override_scalar",
                 "legacy_modbus",
                 "legacy_mc3e",
-                "legacy_fatek_components",
-                "inherit_scalar",
-                "override_scalar"
+                "legacy_fatek_components"
             ],
             "x-enum-varnames": [
+                "PolicyInherit",
+                "PolicyOverride",
                 "LegacyModbus",
                 "LegacyMC3E",
-                "LegacyFatek",
-                "PolicyInherit",
-                "PolicyOverride"
+                "LegacyFatek"
             ]
         },
         "decoding.Source": {
             "type": "string",
             "enum": [
+                "rule",
+                "override",
                 "point",
                 "connection",
-                "native",
-                "rule",
-                "override"
+                "native"
             ],
             "x-enum-varnames": [
+                "SourceRule",
+                "SourceOverride",
                 "SourcePoint",
                 "SourceConnection",
-                "SourceNative",
-                "SourceRule",
-                "SourceOverride"
+                "SourceNative"
             ]
         },
         "groupdelivery.AttentionItem": {
@@ -4398,14 +4398,16 @@
                 "digest_mismatch",
                 "identity_mismatch",
                 "status_unknown",
-                "window_invalid"
+                "window_invalid",
+                "calculation_projection_unsupported"
             ],
             "x-enum-varnames": [
                 "SourceCausePayloadInvalid",
                 "SourceCauseDigestMismatch",
                 "SourceCauseIdentityMismatch",
                 "SourceCauseStatusUnknown",
-                "SourceCauseWindowInvalid"
+                "SourceCauseWindowInvalid",
+                "SourceCauseCalculationUnsupported"
             ]
         },
         "grouppipeline.BacklogView": {
@@ -4942,6 +4944,9 @@
                 },
                 "expected_workspace_revision": {
                     "type": "string"
+                },
+                "format_recovery": {
+                    "$ref": "#/definitions/point.FormatRecoveryRequest"
                 },
                 "readiness_token": {
                     "type": "string"
@@ -7090,6 +7095,49 @@
                     "type": "string"
                 },
                 "workspace_revision_origin": {
+                    "type": "string"
+                }
+            }
+        },
+        "point.FormatRecoveryRequest": {
+            "type": "object",
+            "required": [
+                "device_id",
+                "expected_point_revision",
+                "expected_workspace_revision",
+                "point_id",
+                "request_id",
+                "workspace_id"
+            ],
+            "properties": {
+                "device_id": {
+                    "type": "string"
+                },
+                "expected_connection_revision": {
+                    "type": "string"
+                },
+                "expected_point_revision": {
+                    "type": "string"
+                },
+                "expected_rule_revision": {
+                    "type": "string"
+                },
+                "expected_settings_revision": {
+                    "type": "string"
+                },
+                "expected_workspace_revision": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "rule_id": {
+                    "type": "string"
+                },
+                "workspace_id": {
                     "type": "string"
                 }
             }

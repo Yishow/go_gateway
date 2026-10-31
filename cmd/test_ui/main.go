@@ -202,6 +202,7 @@ func initializeGateway(h *gatewayHost) (runErr error) {
 		WriteGroupTestWrite:        services.groupTestWrite,
 		Audit:                      auditSvc,
 		ShareRestore:               newWorkspaceShareRestoreBarrier(workspaceSvc, sourceRuleSvc, modbusShareSvc, reconciler),
+		PointFormatRecovery:        newPointFormatRecovery(services, reconciler),
 		RecordingStartShareBarrier: newRecordingStartShareBarrier(sourceRuleSvc, modbusShareSvc),
 	}
 

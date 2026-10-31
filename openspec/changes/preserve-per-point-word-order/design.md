@@ -62,3 +62,33 @@ Expand：先新增nullable mode／revision與相容reader，既有點缺值視le
 ## Open Questions
 
 無阻塞產品決策；實作仍需以逐協議fixture證明以上能力，未達矩陣的組合不得宣稱支援。
+
+### 4.2 接線驗收補充：已知 pending 的顯式恢復
+
+真 HTTP 保存會停用舊 point installation 並使 Share hydration pending；既有 activate 與普通 reconcile 都要求 fresh readiness token，不能充當此 pending 的恢復入口。main startup 的 canonical restore 能作重啟恢復證據，但不能要求使用者每次改字序都重啟整個服務。
+
+沿既有 `/modbus-share/reconcile` 增加明確的 format-recovery intent（與普通 desired-mapping reconcile 互斥），由原操作 receipt、保存後 point/source revision、rule/connection identity 綁定。不得由客戶端注入 Restore、desired mappings 或新有效格式；不得讀 latest 後自行 rebase。沿現有 point/rule/Share/runtime authority，不建立第二 recovery engine。恢復來源投影與開始 recording 必須分離；成功後重新取得的 readiness token 仍須通過原 activation gate。
+
+安全邊界：
+- 單一 SQL snapshot 證實 receipt invalidated、原 point/rule/connection identity、當前 source revision 與 clean row witness。receipt 單獨不是權限。
+- 原 restore 的 revision-only CAS 不足：同 revision 的 MarkDirty 必須撤銷該 attempt；含 aligned/replay 的所有成功出口都驗 exact clean witness 與 lifecycle/hydration generation。
+- generation 涵蓋 settings、membership、新 pending、failed、format invalidation；不得晚到成功覆蓋較新狀態。
+- runtime 僅處理指定 point，以 captured profile/lease 安裝；失敗僅停止本 attempt 實際擁有的 revision/lease，不反向還原整個 workspace。
+- 成功重播只在同一操作且 current ready 證據仍相同時唯讀返回既有 token，不再安裝或發新 token。unknown/dirty/新版本不能用舊 receipt 喚醒。
+- Share disabled 時只可恢復合法 active point 的 runtime，不啟 listener/recording、不宣稱 Share projection applied；settings epoch 改變仍拒絕。
+
+必要反例：same-revision MarkDirty、aligned/replay late lifecycle、settings disable、membership 換代、第二個 format operation、late runtime completion、Share restore 後 runtime failure。失敗一律保留可辨識 pending/unknown，不能顯示假成功。
+
+#### 恢復的最終線性點（4.2 接線驗收澄清）
+
+真正的 point intent/receipt 與 Share canonical plan 寫入必須先有 known-success commit；這些資料交易的 unknown outcome 保護不變。最後的 acceptance 不再次寫入上述資料，而在 SQLite 以 `UPDATE ... WHERE 0` 取得 writer reservation，從同一 transaction 讀取並核對完整 canonical inputs/absence witness。零列 reservation 不得觸發 row UPDATE trigger、改時間戳或 revision。
+
+reservation 持有期間以一次非阻塞 Share lifecycle TryLock 驗證原 generation/epoch，再短暫 conditional activate 與 publish；不能阻塞等待 Share.mu，因 membership writer 的既有鎖順序是 Share.mu → DB。競爭時立即拒絕並清理 reservation，不重試或重讀 latest rebase。metadata/scheduler 鎖內不做 SQL/provider I/O。原先『所有 final acceptance 必須先 commit 才能 activate』是把零寫 reservation 誤當資料交易的保守測試前提，不是本規格需求；blocked 實質資料 commit 前 staged lease 仍不能被 poll。
+
+成功 publication 是 raw sample 的接受線性點：已依 known durable source 接受的歷史樣本不因稍後零寫 cleanup 失敗而重新解碼。cleanup 失敗不可回成功，須保留 sqltx typed error/connection isolation，且僅撤銷本 attempt 尚持有的 token/lease，不覆蓋 foreign generation/installation。所有 production dirty writer 經既有 Reconciler 私有入口，必先 revoke/FailClosed 再碰 DB；此保證不冒稱涵蓋外部直接 SQL 或另一服務 instance。
+
+known Draft/Disabled 的設定恢復不得隱性啟用設備或建立可 poll lease；須如實呈現 runtime 未啟用。Share disabled 不等於 dirty unknown 可略過，也不代表整個 Share 已投影。成功重播只回同一既有 token，仍通過相同 reservation、inputs 與 generation 檢核。
+
+恢復的 typed mapping binding 是必要資料路徑，不是診斷 observer。指定 point 的 device、全部 mapping（含 disabled／空集合）及 referenced tags，須與 point/profile 在同一 SQL snapshot 捕捉，以原 binding builder 建立 detached inputs；最後 reservation 比對其 configuration digest，排除 telemetry／時間戳。成功重播亦綁定首次 accepted inputs，不能用新的 current snapshot 自我驗證後偷 rebase。
+
+在 SQL 之前捕捉原 target binding installation proof；stage 不可 poll。發布時依 mappingMu → pointMetaMu → scheduler 短鎖順序，先條件替換該 target bindings，再 activate 同 owned lease。ingestor 在 mapping read lock 內接受 raw lease 並擷取 immutable bindings，SQL I/O 在鎖外；已接受的 raw 不套後來的新 mapping。失敗僅撤本次仍擁有的 binding/lease，foreign 同值重安裝也不得覆寫。不可整 workspace 重裝或另建 resolver。
