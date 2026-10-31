@@ -75,11 +75,17 @@ func validateClosure(key GroupKey, closure Closure) ([]decodedBaseline, error) {
 // all commit together or not at all. Repeating a committed closure is a no-op;
 // an existing effect key with different content is ErrEffectConflict.
 func (s *Store) CommitClosure(ctx context.Context, key GroupKey, closure Closure) error {
+	if closure.Mixed != nil {
+		return s.commitMixedClosure(ctx, key, closure)
+	}
 	baselines, err := validateClosure(key, closure)
 	if err != nil {
 		return err
 	}
 	err = s.inTx(ctx, "closure", func(tx *sql.Tx) error {
+		if err := refuseMixedLegacyCursor(ctx, tx, key); err != nil {
+			return err
+		}
 		if err := validateOwnershipClosure(ctx, tx, key, closure); err != nil {
 			return err
 		}
@@ -150,6 +156,14 @@ func (s *Store) enqueueRow(ctx context.Context, tx *sql.Tx, key GroupKey, d Froz
 	case !errors.Is(err, sql.ErrNoRows):
 		return fmt.Errorf("check outbox effect: %w", err)
 	}
+	bucketStart := timestamp(outcome.BucketStart)
+	var dueAt any
+	if !outcome.DueAt.IsZero() {
+		dueAt = timestamp(outcome.DueAt)
+		if outcome.BucketStart.IsZero() {
+			bucketStart = ""
+		}
+	}
 	capability := d.DedupeCapability
 	if capability == "" {
 		capability = DedupeNone
@@ -158,12 +172,12 @@ func (s *Store) enqueueRow(ctx context.Context, tx *sql.Tx, key GroupKey, d Froz
 		INSERT INTO wg_delivery_outbox (
 			effect_key, record_id, workspace_id, group_id, group_revision, entity_key, bucket_start, partition_key,
 			destination_scope, connector_id, connector_revision, database_name, table_schema, table_name,
-			dedupe_capability, record_key_column, payload, payload_digest, state, next_retry_at, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			dedupe_capability, record_key_column, payload, payload_digest, state, next_retry_at, created_at, updated_at, due_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		outcome.EffectKey, outcome.RecordID, key.WorkspaceID, key.GroupID, key.GroupRevision, outcome.EntityKey,
-		timestamp(outcome.BucketStart), partitionKey(key, outcome.EntityKey),
+		bucketStart, partitionKey(key, outcome.EntityKey),
 		d.Scope, d.ConnectorID, d.ConnectorRevision, d.Database, d.TableSchema, d.TableName,
-		capability, d.RecordKeyColumn, string(payload), digest, StatePending, now, now, now,
+		capability, d.RecordKeyColumn, string(payload), digest, StatePending, now, now, now, dueAt,
 	); err != nil {
 		return fmt.Errorf("enqueue outbox row: %w", err)
 	}

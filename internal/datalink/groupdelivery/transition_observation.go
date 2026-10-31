@@ -180,7 +180,7 @@ func (s *Store) proveDeliveryObservation(ctx context.Context, effect string, cla
 }
 
 func sameDeliveryIdentity(a, b OutboxItem) bool {
-	return bytes.Equal(a.Payload, b.Payload) && a.Key == b.Key && a.EffectKey == b.EffectKey && a.RecordID == b.RecordID && a.PayloadDigest == b.PayloadDigest && a.Destination == b.Destination && a.EntityKey == b.EntityKey && a.PartitionKey == b.PartitionKey && a.BucketStart.Equal(b.BucketStart)
+	return bytes.Equal(a.Payload, b.Payload) && a.Key == b.Key && a.EffectKey == b.EffectKey && a.RecordID == b.RecordID && a.PayloadDigest == b.PayloadDigest && a.Destination == b.Destination && a.EntityKey == b.EntityKey && a.PartitionKey == b.PartitionKey && a.BucketStart.Equal(b.BucketStart) && a.DueAt.Equal(b.DueAt)
 }
 
 func sameDeliveryObservationRow(a, b OutboxItem) bool {

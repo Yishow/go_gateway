@@ -28,20 +28,35 @@ type handoffProofEvidence struct {
 	OriginalReference, TargetReference       counterproof.CounterBindingReference
 	OriginRuntimeDigest, TargetRuntimeDigest string
 	TargetInterval                           time.Duration
+	TargetMixed                              bool
+}
+
+type handoffProofCadence struct {
+	Interval  int64  `json:"interval"`
+	Unit      string `json:"unit"`
+	Alignment string `json:"alignment"`
 }
 
 type handoffProofMember struct {
-	DeviceID        string          `json:"device_id"`
-	PointID         string          `json:"point_id"`
-	TagID           string          `json:"tag_id"`
-	MeasurementID   *string         `json:"measurement_id"`
-	SourceRevision  string          `json:"source_revision"`
-	MappingRevision string          `json:"mapping_revision"`
-	SourceValueType schema.DataType `json:"source_value_type"`
+	Calculation     string               `json:"calculation"`
+	Cadence         *handoffProofCadence `json:"cadence"`
+	ResultValueType string               `json:"result_value_type"`
+	ValueRole       string               `json:"value_role"`
+	DeviceID        string               `json:"device_id"`
+	PointID         string               `json:"point_id"`
+	TagID           string               `json:"tag_id"`
+	MeasurementID   *string              `json:"measurement_id"`
+	SourceRevision  string               `json:"source_revision"`
+	MappingRevision string               `json:"mapping_revision"`
+	SourceValueType schema.DataType      `json:"source_value_type"`
 }
 type handoffProofSnapshot struct {
 	Group *struct {
-		Members   []handoffProofMember `json:"members"`
+		Members []handoffProofMember `json:"members"`
+		Profile *struct {
+			Kind  string `json:"kind"`
+			Shape string `json:"result_shape"`
+		} `json:"recording_profile"`
 		RowPolicy struct {
 			IntervalSeconds int64 `json:"interval_seconds"`
 		} `json:"row_policy"`
@@ -58,10 +73,13 @@ type handoffResolvedProof struct {
 	input    schema.DataType
 	interval time.Duration
 	digest   string
+	mixed    bool
+	shape    string
 }
 
-// validateHandoffProof compares immutable input meaning, not the successor's
-// output reduction. The caller proves journal/receipt lineage and raw bytes;
+// validateHandoffProof preserves legacy input-compatible output reductions.
+// Mixed handoffs additionally require identical frozen calculation intent.
+// The caller proves journal/receipt lineage and raw bytes;
 // this helper never relabels a reference or creates a legacy association.
 func validateHandoffProof(ctx context.Context, q ownershipQuery, input handoffProofInput, target GroupKey) (handoffProofEvidence, error) {
 	var result handoffProofEvidence
@@ -84,6 +102,12 @@ func validateHandoffProof(ctx context.Context, q ownershipQuery, input handoffPr
 		return result, err
 	}
 	result.OriginRuntimeDigest, result.TargetRuntimeDigest, result.TargetInterval = origin.digest, next.digest, next.interval
+	result.TargetMixed = next.mixed
+	if origin.mixed || next.mixed {
+		if !origin.mixed || !next.mixed || origin.shape != next.shape || origin.member.Calculation != next.member.Calculation || !reflect.DeepEqual(origin.member.Cadence, next.member.Cadence) || origin.member.ResultValueType != next.member.ResultValueType || origin.member.ValueRole != next.member.ValueRole || origin.member.SourceValueType != next.member.SourceValueType {
+			return handoffProofEvidence{}, ErrHandoffProofConflict
+		}
+	}
 	if origin.member.SourceRevision == "" || origin.member.MappingRevision == "" || next.member.SourceRevision == "" || next.member.MappingRevision == "" {
 		return handoffProofEvidence{}, ErrOwnershipUnavailable
 	}
@@ -149,11 +173,20 @@ func readHandoffProof(ctx context.Context, q ownershipQuery, key GroupKey, membe
 		return result, ErrHandoffProofConflict
 	}
 	seconds := descriptor.Group.RowPolicy.IntervalSeconds
-	if seconds == 0 {
-		return result, ErrOwnershipUnavailable
-	}
-	if seconds < 0 || seconds > int64((1<<63-1)/int64(time.Second)) {
-		return result, ErrHandoffProofConflict
+	result.mixed = descriptor.Group.Profile != nil && descriptor.Group.Profile.Kind == "mixed"
+	if result.mixed {
+		result.shape = descriptor.Group.Profile.Shape
+		if result.shape != "member-calculation-v1" {
+			return result, ErrHandoffProofConflict
+		}
+	} else {
+		if seconds == 0 {
+			return result, ErrOwnershipUnavailable
+		}
+		if seconds < 0 || seconds > int64((1<<63-1)/int64(time.Second)) {
+			return result, ErrHandoffProofConflict
+		}
+		result.interval = time.Duration(seconds) * time.Second
 	}
 	var found bool
 	for _, member := range descriptor.Group.Members {
@@ -167,6 +200,15 @@ func readHandoffProof(ctx context.Context, q ownershipQuery, key GroupKey, membe
 		}
 		found = true
 		result.member = member
+		if result.mixed {
+			if member.SourceValueType == "" || member.ResultValueType == "" || member.ValueRole == "" || member.Cadence == nil || member.Cadence.Alignment != "utc_epoch" || (member.Calculation != "latest" && member.Calculation != "mean" && member.Calculation != "delta") {
+				return result, ErrHandoffProofConflict
+			}
+			result.interval, err = snapshot.CheckedCadenceDuration(member.Cadence.Interval, member.Cadence.Unit)
+			if err != nil {
+				return result, ErrHandoffProofConflict
+			}
+		}
 		result.input = descriptor.Layout.TagTypes[member.TagID]
 		if result.input == "" {
 			return result, ErrOwnershipUnavailable
@@ -181,7 +223,7 @@ func readHandoffProof(ctx context.Context, q ownershipQuery, key GroupKey, membe
 		return result, ErrHandoffProofConflict
 	}
 	sum := sha256.Sum256([]byte(raw))
-	result.digest, result.interval, result.evidence = hex.EncodeToString(sum[:]), time.Duration(seconds)*time.Second, evidence
+	result.digest, result.evidence = hex.EncodeToString(sum[:]), evidence
 	return result, nil
 }
 

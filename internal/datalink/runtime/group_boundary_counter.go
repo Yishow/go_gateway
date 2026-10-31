@@ -53,7 +53,7 @@ func restoreCounterBaselines(assembler *snapshot.Assembler, restored groupdelive
 		if err != nil || checkpoint.Binding.MemberKey != baseline.MemberKey {
 			return boundaryCounterBaselineInvalid
 		}
-		if _, ambiguous := checkpoints[baseline.MemberKey]; ambiguous || checkpoint.WindowEnd.After(restored.NextClose) {
+		if _, ambiguous := checkpoints[baseline.MemberKey]; ambiguous || counterCheckpointAfterCursor(checkpoint, restored) {
 			// Two baselines for one member, or one past the windows the checkpoint
 			// closed, cannot both be true of a state this process committed.
 			return boundaryCounterBaselineInvalid

@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"errors"
+	"time"
 
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/measurement"
@@ -51,6 +52,9 @@ func (b *GroupBoundary) acceptSample(ctx context.Context, envelope measurement.S
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.uncertainCommit != nil {
+		return groupSamplePersistenceError(b.uncertainCommit)
+	}
 	if !b.until.IsZero() && !envelope.ObservedAt.Before(b.until) {
 		if owned {
 			return groupdelivery.ErrOwnershipConflict
@@ -113,8 +117,18 @@ func (b *GroupBoundary) acceptSample(ctx context.Context, envelope measurement.S
 	}
 	if b.ledger != nil {
 		// The ACK is the commit: refuse, and leave memory untouched, if it fails.
-		start := snapshot.BucketStart(sample.ObservedAt, b.interval)
+		var start time.Time
+		if member.interval > 0 {
+			var err error
+			start, _, err = snapshot.CheckedWindowBounds(sample.ObservedAt, member.interval)
+			if err != nil {
+				return groupSamplePersistenceError(err)
+			}
+		} else {
+			start = snapshot.BucketStart(sample.ObservedAt, b.interval)
+		}
 		if err := b.ledger.AppendSample(ctx, start, sample); err != nil {
+			b.quarantineUncertainCommit(err)
 			return groupSamplePersistenceError(err)
 		}
 	}

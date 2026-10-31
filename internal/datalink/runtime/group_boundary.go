@@ -116,6 +116,7 @@ func (e *GroupSampleError) Unwrap() error { return e.Cause }
 
 type boundaryMember struct {
 	key                             string
+	interval                        time.Duration // mixed member cadence; never a common window
 	kind                            measurement.ExactType
 	counter                         *aggregation.CounterBinding // set for a cumulative member
 	counterProof                    counterproof.CounterBindingReference
@@ -125,24 +126,26 @@ type boundaryMember struct {
 }
 
 // GroupBoundary is the opt-in typed-sample consumer for one applied group. It
-// keeps open buckets in memory only: they are lost on restart until the
-// delivery change journals them, so it must not be described as durable.
+// rebuilds open windows from its ledger when configured. Without a ledger,
+// accepted samples and closed outcomes remain explicitly non-durable.
 type GroupBoundary struct {
-	mu            sync.Mutex
-	assembler     *snapshot.Assembler
-	interval      time.Duration
-	notBefore     time.Time
-	until         time.Time
-	ledger        GroupLedger
-	handoffView   groupdelivery.HandoffView
-	ownershipView groupdelivery.OwnershipView
-	destination   groupdelivery.FrozenDestination
-	layout        rowEncoder
-	members       map[string]boundaryMember
-	workspaceID   string
-	sink          GroupRowSink
-	clock         func() time.Time
-	onTickError   func(error)
+	mu               sync.Mutex
+	descriptorDigest string
+	uncertainCommit  error
+	assembler        *snapshot.Assembler
+	interval         time.Duration
+	notBefore        time.Time
+	until            time.Time
+	ledger           GroupLedger
+	handoffView      groupdelivery.HandoffView
+	ownershipView    groupdelivery.OwnershipView
+	destination      groupdelivery.FrozenDestination
+	layout           rowEncoder
+	members          map[string]boundaryMember
+	workspaceID      string
+	sink             GroupRowSink
+	clock            func() time.Time
+	onTickError      func(error)
 }
 
 func memberKey(deviceID, pointID, tagID string) string {
@@ -273,6 +276,9 @@ func (b *GroupBoundary) Tick(ctx context.Context, now time.Time) error {
 func (b *GroupBoundary) tickDurable(ctx context.Context, now time.Time) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.uncertainCommit != nil {
+		return b.uncertainCommit
+	}
 	plan := b.assembler.Plan(now)
 	if plan.Err != nil {
 		return plan.Err
@@ -305,7 +311,11 @@ func (b *GroupBoundary) tickDurable(ctx context.Context, now time.Time) error {
 		return &GroupBoundaryError{Code: boundaryLayoutBlocked, Cause: err}
 	}
 	closure := groupdelivery.Closure{OwnershipView: b.ownershipView, HandoffView: b.handoffView, Destination: b.destination, NextClose: plan.NextClose(), Buckets: buckets, Baselines: baselines, CounterProofs: b.counterClosureProofs()}
+	if err := b.attachMixedClosure(&closure, plan); err != nil {
+		return err
+	}
 	if err := b.ledger.CommitClosure(ctx, closure); err != nil {
+		b.quarantineUncertainCommit(err)
 		return err
 	}
 	b.assembler.Commit(plan)

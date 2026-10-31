@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/dbtarget"
+	"go-gateway/internal/datalink/snapshot"
 )
 
 const rowPayloadVersion = 1
@@ -36,6 +37,7 @@ type rowPayload struct {
 	EffectKey   string        `json:"effect_key"`
 	EntityKey   string        `json:"entity_key,omitempty"`
 	BucketStart string        `json:"bucket_start"`
+	DueAt       string        `json:"due_at,omitempty"`
 	Partial     bool          `json:"partial,omitempty"`
 	Cells       []payloadCell `json:"cells"`
 }
@@ -52,6 +54,15 @@ func encodeRowPayload(row dbtarget.EncodedRow) (payload []byte, digest string, e
 	wire := rowPayload{
 		Version: rowPayloadVersion, RecordID: row.RecordID, EffectKey: row.EffectKey, EntityKey: row.EntityKey,
 		BucketStart: timestamp(row.BucketStart), Partial: row.Partial, Cells: make([]payloadCell, 0, len(row.Cells)),
+	}
+	if !row.DueAt.IsZero() {
+		if _, e := snapshot.CheckedWindowAdd(row.DueAt, 0, "outbox due at"); e != nil {
+			return nil, "", e
+		}
+		wire.Version, wire.DueAt = 2, timestamp(row.DueAt)
+		if row.BucketStart.IsZero() {
+			wire.BucketStart = ""
+		}
 	}
 	for _, cell := range row.Cells {
 		encoded, err := encodeCell(cell)
@@ -96,16 +107,34 @@ func DecodeRowPayload(payload []byte) (dbtarget.EncodedRow, error) {
 	if err := json.Unmarshal(payload, &wire); err != nil {
 		return dbtarget.EncodedRow{}, fmt.Errorf("decode row payload: %w", err)
 	}
-	if wire.Version != rowPayloadVersion {
+	if wire.Version != rowPayloadVersion && wire.Version != 2 {
 		return dbtarget.EncodedRow{}, fmt.Errorf("decode row payload: unsupported version %d", wire.Version)
 	}
-	start, err := time.Parse(time.RFC3339Nano, wire.BucketStart)
-	if err != nil {
-		return dbtarget.EncodedRow{}, fmt.Errorf("decode row payload time: %w", err)
+	var start, due time.Time
+	var err error
+	if wire.Version == 2 {
+		due, err = time.Parse(time.RFC3339Nano, wire.DueAt)
+		if err != nil || due.IsZero() {
+			return dbtarget.EncodedRow{}, fmt.Errorf("decode mixed row payload: invalid due_at")
+		}
+		if _, err = snapshot.CheckedWindowAdd(due, 0, "outbox due at"); err != nil {
+			return dbtarget.EncodedRow{}, err
+		}
+	} else if wire.DueAt != "" {
+		return dbtarget.EncodedRow{}, fmt.Errorf("decode legacy row payload: unexpected due_at")
+	}
+	if wire.Version == 1 || wire.BucketStart != "" {
+		start, err = time.Parse(time.RFC3339Nano, wire.BucketStart)
+		if err != nil {
+			return dbtarget.EncodedRow{}, fmt.Errorf("decode row payload time: %w", err)
+		}
+	}
+	if wire.Version == 2 && !start.IsZero() && !due.After(start) {
+		return dbtarget.EncodedRow{}, fmt.Errorf("decode mixed row payload: invalid window")
 	}
 	row := dbtarget.EncodedRow{
 		RecordID: wire.RecordID, EffectKey: wire.EffectKey, EntityKey: wire.EntityKey,
-		BucketStart: start.UTC(), Partial: wire.Partial,
+		BucketStart: start.UTC(), DueAt: due.UTC(), Partial: wire.Partial,
 	}
 	for _, cell := range wire.Cells {
 		value, err := decodeCell(cell)

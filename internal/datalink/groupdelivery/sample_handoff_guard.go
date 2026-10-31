@@ -38,7 +38,7 @@ func handoffView(ctx context.Context, q ownershipQuery, key GroupKey) (HandoffVi
 }
 
 func validateHandoffClosure(ctx context.Context, tx *sql.Tx, key GroupKey, closure Closure) error {
-	if _, err := resolveCutoverOwnership(ctx, tx, OwnershipSource{WorkspaceID: key.WorkspaceID}, closure.NextClose, key); err != nil {
+	if _, err := resolveCutoverOwnership(ctx, tx, OwnershipSource{WorkspaceID: key.WorkspaceID}, closureThrough(closure), key); err != nil {
 		return err
 	}
 	view, receipts, err := handoffView(ctx, tx, key)
@@ -60,7 +60,7 @@ func validateHandoffClosure(ctx context.Context, tx *sql.Tx, key GroupKey, closu
 		if e != nil {
 			return ErrOwnershipUnavailable
 		}
-		if at.Before(closure.NextClose) {
+		if at.Before(closureThrough(closure)) {
 			return ErrOwnershipConflict
 		}
 	}
@@ -145,10 +145,10 @@ func validateHandoffClosure(ctx context.Context, tx *sql.Tx, key GroupKey, closu
 			if e != nil {
 				return ErrOwnershipUnavailable
 			}
-			if bucket.Before(closure.NextClose) {
+			if bucket.Before(closureThrough(closure)) {
 				return ErrOwnershipConflict
 			}
-		} else if own.Owners[key] && handoffDescendant(own, key, row.Key, map[GroupKey]bool{}) && sample.ObservedAt.Before(closure.NextClose) {
+		} else if own.Owners[key] && handoffDescendant(own, key, row.Key, map[GroupKey]bool{}) && sample.ObservedAt.Before(closureThrough(closure)) {
 			return ErrOwnershipConflict
 		}
 	}

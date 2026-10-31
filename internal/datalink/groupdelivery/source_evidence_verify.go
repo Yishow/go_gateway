@@ -161,6 +161,11 @@ func (s *Store) verifySource(ctx context.Context, scope SourceScope, ref SourceR
 	if !opened {
 		return unavailable(delivery, cause), nil
 	}
+	// Mixed stores a selected calculation result, never legacy raw evidence.
+	// Its explicit result/provenance projection is a separate DTO capability.
+	if !encoded.DueAt.IsZero() {
+		return unavailable(delivery, SourceCauseCalculationUnsupported), nil
+	}
 	if scope.Wide {
 		return verifyWideRecord(scope, ref, row, encoded, cells, delivery), nil
 	}

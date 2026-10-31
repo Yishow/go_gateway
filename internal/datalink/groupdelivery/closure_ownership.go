@@ -20,6 +20,7 @@ type OwnershipView struct {
 	digest     string
 	start, end time.Time
 	interval   time.Duration
+	mixed      bool
 }
 
 // OwnershipView reads a consistent routing hint without replaying the journal.
@@ -56,9 +57,15 @@ func captureOwnershipView(ctx context.Context, q ownershipQuery, key GroupKey) (
 	if !ok || bounds.Start.IsZero() {
 		return OwnershipView{}, ErrOwnershipUnavailable
 	}
+	descriptor, _, err := readMixedDescriptor(ctx, q, key)
+	if err != nil {
+		return OwnershipView{}, err
+	}
 	var seconds int64
-	if err := q.QueryRowContext(ctx, `SELECT json_extract(payload,'$.row_policy.interval_seconds') FROM write_group_versions WHERE group_id=? AND group_revision=?`, key.GroupID, key.GroupRevision).Scan(&seconds); err != nil || seconds <= 0 || seconds > int64((1<<63-1)/time.Second) {
-		return OwnershipView{}, ErrOwnershipUnavailable
+	if descriptor == nil {
+		if err := q.QueryRowContext(ctx, `SELECT json_extract(payload,'$.row_policy.interval_seconds') FROM write_group_versions WHERE group_id=? AND group_revision=?`, key.GroupID, key.GroupRevision).Scan(&seconds); err != nil || seconds <= 0 || seconds > int64((1<<63-1)/time.Second) {
+			return OwnershipView{}, ErrOwnershipUnavailable
+		}
 	}
 	ids := make([]string, 0, len(ownership.roots))
 	for id := range ownership.roots {
@@ -66,7 +73,7 @@ func captureOwnershipView(ctx context.Context, q ownershipQuery, key GroupKey) (
 	}
 	sort.Strings(ids)
 	raw, _ := json.Marshal(ids)
-	return OwnershipView{key: key, digest: handoffHash(string(raw)), start: bounds.Start.UTC(), end: bounds.End.UTC(), interval: time.Duration(seconds) * time.Second}, nil
+	return OwnershipView{key: key, digest: handoffHash(string(raw)), start: bounds.Start.UTC(), end: bounds.End.UTC(), interval: time.Duration(seconds) * time.Second, mixed: descriptor != nil}, nil
 }
 
 func ownershipCeil(at time.Time, interval time.Duration) time.Time {
@@ -84,7 +91,7 @@ func (v OwnershipView) ValidateBounds(key GroupKey, firstBucket, startsAt, until
 	if v == (OwnershipView{}) {
 		return nil
 	}
-	if v.key != key || interval != v.interval || firstBucket.IsZero() || !snapshot.BucketStart(firstBucket, interval).Equal(firstBucket) {
+	if v.mixed || v.key != key || interval != v.interval || firstBucket.IsZero() || !snapshot.BucketStart(firstBucket, interval).Equal(firstBucket) {
 		return ErrOwnershipConflict
 	}
 	floor := snapshot.BucketStart(v.start, interval)
@@ -123,6 +130,12 @@ func validateOwnershipClosure(ctx context.Context, tx *sql.Tx, key GroupKey, clo
 	if current == (OwnershipView{}) {
 		return nil
 	} // legacy callers without a relevant cutover
+	if closure.Mixed != nil {
+		return current.validateMixedClosure(key, closure)
+	}
+	if current.mixed {
+		return ErrOwnershipConflict
+	}
 	if !snapshot.BucketStart(closure.NextClose, current.interval).Equal(closure.NextClose) || closure.NextClose.Before(snapshot.BucketStart(current.start, current.interval)) || (!current.end.IsZero() && closure.NextClose.After(ownershipCeil(current.end, current.interval))) {
 		return ErrOwnershipConflict
 	}

@@ -17,6 +17,7 @@ type OutboxItem struct {
 	Key           GroupKey
 	EntityKey     string
 	BucketStart   time.Time
+	DueAt         time.Time
 	PartitionKey  string
 	Destination   FrozenDestination
 	Payload       []byte
@@ -38,7 +39,7 @@ var ErrOutboxItemNotFound = errors.New("outbox item not found")
 const outboxColumns = `effect_key, record_id, workspace_id, group_id, group_revision, entity_key, bucket_start,
 	partition_key, destination_scope, connector_id, connector_revision, database_name, table_schema, table_name,
 	dedupe_capability, record_key_column, payload, payload_digest, state, retry_count, next_retry_at,
-	last_error_code, committed_at, claim_epoch`
+	last_error_code, committed_at, claim_epoch, due_at`
 
 type rowScanner interface{ Scan(dest ...any) error }
 
@@ -47,21 +48,27 @@ func scanOutbox(row rowScanner) (OutboxItem, error) {
 		item                         OutboxItem
 		bucket, nextRetry, committed string
 		payload                      string
+		due                          sql.NullString
 	)
 	err := row.Scan(
 		&item.EffectKey, &item.RecordID, &item.Key.WorkspaceID, &item.Key.GroupID, &item.Key.GroupRevision,
 		&item.EntityKey, &bucket, &item.PartitionKey, &item.Destination.Scope, &item.Destination.ConnectorID,
 		&item.Destination.ConnectorRevision, &item.Destination.Database, &item.Destination.TableSchema,
 		&item.Destination.TableName, &item.Destination.DedupeCapability, &item.Destination.RecordKeyColumn,
-		&payload, &item.PayloadDigest, &item.State, &item.RetryCount, &nextRetry, &item.LastErrorCode, &committed, &item.ClaimEpoch,
+		&payload, &item.PayloadDigest, &item.State, &item.RetryCount, &nextRetry, &item.LastErrorCode, &committed, &item.ClaimEpoch, &due,
 	)
 	if err != nil {
 		return OutboxItem{}, err
 	}
 	item.Payload = []byte(payload)
 	var parseErr error
-	if item.BucketStart, parseErr = time.Parse(time.RFC3339Nano, bucket); parseErr != nil {
-		return OutboxItem{}, fmt.Errorf("parse outbox bucket_start: %w", parseErr)
+	if bucket != "" {
+		if item.BucketStart, parseErr = time.Parse(time.RFC3339Nano, bucket); parseErr != nil {
+			return OutboxItem{}, fmt.Errorf("parse outbox bucket_start: %w", parseErr)
+		}
+	}
+	if err := validateOutboxDispatch(&item, bucket, due); err != nil {
+		return OutboxItem{}, err
 	}
 	if item.NextRetryAt, parseErr = time.Parse(time.RFC3339Nano, nextRetry); parseErr != nil {
 		return OutboxItem{}, fmt.Errorf("parse outbox next_retry_at: %w", parseErr)
@@ -351,9 +358,9 @@ const headQuery = `
 	  AND NOT EXISTS (
 		SELECT 1 FROM wg_delivery_outbox e
 		WHERE e.partition_key = o.partition_key
-		  AND (e.bucket_start < o.bucket_start OR (e.bucket_start = o.bucket_start AND e.effect_key < o.effect_key))
+		  AND (COALESCE(e.due_at,e.bucket_start) < COALESCE(o.due_at,o.bucket_start) OR (COALESCE(e.due_at,e.bucket_start) = COALESCE(o.due_at,o.bucket_start) AND e.effect_key < o.effect_key))
 		  AND e.state NOT IN ('sql_committed', 'operator_skipped'))
-	ORDER BY o.bucket_start, o.effect_key`
+	ORDER BY COALESCE(o.due_at,o.bucket_start), o.effect_key`
 
 // headStatement builds the head query, optionally restricted to one partition.
 func headStatement(onePartition bool) string {

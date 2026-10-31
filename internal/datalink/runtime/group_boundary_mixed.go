@@ -15,14 +15,16 @@ func mixedBoundaryGroup(group *workspace.WriteGroup) bool {
 }
 
 // newMixedGroupBoundary assembles the existing member reducers and encoders.
-// Durable dispatch progress is a separate contract: until it is wired, a
-// ledger must be refused rather than borrowing the legacy common cursor.
+// Durable dispatch requires typed mixed progress, never a legacy common cursor.
 func newMixedGroupBoundary(ctx context.Context, cfg GroupBoundaryConfig) (*GroupBoundary, error) {
 	blocked := func(code string, err error) (*GroupBoundary, error) {
 		return nil, &GroupBoundaryError{Code: code, Cause: err}
 	}
 	if cfg.Ledger != nil {
-		return blocked("mixed-durable-progress-unsupported", nil)
+		capable, ok := cfg.Ledger.(interface{ PersistsMixedProgress() bool })
+		if !ok || !capable.PersistsMixedProgress() {
+			return blocked("mixed-durable-progress-unsupported", nil)
+		}
 	}
 	group := cfg.Group
 	if err := workspace.ValidateMixedRecordingSnapshot(group, cfg.TagTypes, cfg.CounterBindings); err != nil {
@@ -47,13 +49,16 @@ func newMixedGroupBoundary(ctx context.Context, cfg GroupBoundaryConfig) (*Group
 			return blocked(boundaryTagTypeUnsupport, nil)
 		}
 		key := memberKey(member.DeviceID, member.PointID, member.TagID)
-		entry := boundaryMember{key: key, kind: kind, sourceRevision: member.SourceRevision, mappingRevision: member.MappingRevision}
+		entry := boundaryMember{key: key, kind: kind, interval: interval, sourceRevision: member.SourceRevision, mappingRevision: member.MappingRevision}
 		var binding *aggregation.CounterBinding
 		sourceType := member.SourceValueType
 		if member.Calculation == workspace.WriteGroupMemberCalculationDelta {
 			bound, code := counterBindingFor(group, member, key, kind, cfg.Counters)
 			if code != "" {
 				return blocked(code, nil)
+			}
+			if cfg.Ledger != nil && !ledgerPersistsBaselines(cfg.Ledger) {
+				return blocked(boundaryCounterDurable, nil)
 			}
 			binding = &bound
 			entry.counter = binding

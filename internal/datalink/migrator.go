@@ -128,7 +128,7 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLiteMemberCalculationIntent(db); err != nil {
 			return err
 		}
-		return ensureSQLiteMemberCadence(db)
+		return ensureSQLiteMixedDelivery(db)
 	}
 
 	// Fallback to iterating if specific file not found (legacy behavior or different structure)

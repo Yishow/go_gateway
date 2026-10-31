@@ -31,7 +31,7 @@ type AttentionItem struct {
 
 // Attention lists a bounded, oldest-first set; unknown is visible but never resolvable here.
 func (s *Store) Attention(ctx context.Context, groupID string) ([]AttentionItem, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT effect_key,state,payload_digest,group_revision,connector_id,connector_revision,table_schema,table_name,last_error_code,claim_epoch FROM wg_delivery_outbox WHERE group_id=? AND state IN ('blocked','quarantined','unknown') ORDER BY bucket_start,effect_key LIMIT 20`, groupID)
+	rows, err := s.db.QueryContext(ctx, `SELECT effect_key,state,payload_digest,group_revision,connector_id,connector_revision,table_schema,table_name,last_error_code,claim_epoch FROM wg_delivery_outbox WHERE group_id=? AND state IN ('blocked','quarantined','unknown') ORDER BY COALESCE(due_at,bucket_start),effect_key LIMIT 20`, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("read delivery attention: %w", err)
 	}

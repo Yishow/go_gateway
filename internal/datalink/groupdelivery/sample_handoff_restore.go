@@ -8,6 +8,7 @@ import (
 
 	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/snapshot"
+	"go-gateway/internal/datalink/sqltx"
 )
 
 // HandoffView is a Store-verified snapshot of transfer dispositions.
@@ -152,15 +153,21 @@ func (s *Store) RecognizeTransferredSample(ctx context.Context, key GroupKey, in
 	return HandoffRecognition{}, nil
 }
 
-func (s *Store) restoreHandoffView(ctx context.Context, key GroupKey) (Restored, error) {
+func (s *Store) restoreHandoffView(ctx context.Context, key GroupKey) (result Restored, retErr error) {
 	if !key.Valid() {
 		return Restored{}, ErrInvalidGroupKey
 	}
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	owned, err := sqltx.Begin(ctx, s.db, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return Restored{}, ErrOwnershipUnavailable
 	}
-	defer tx.Rollback()
+	tx := owned.Tx
+	defer func() {
+		if e := owned.Rollback(); e != nil && !errors.Is(e, sql.ErrTxDone) {
+			retErr = errors.Join(retErr, e)
+			result = Restored{}
+		}
+	}()
 	r := Restored{handoffs: map[handoffAuthorizationKey]handoffAuthorization{}, handoffObservations: map[handoffObservationKey]bool{}}
 	view, _, err := handoffView(ctx, tx, key)
 	if err != nil {
@@ -179,6 +186,9 @@ func (s *Store) restoreHandoffView(ctx context.Context, key GroupKey) (Restored,
 		err = nil
 	}
 	if err != nil {
+		return Restored{}, err
+	}
+	if err = restoreMixedProgress(ctx, tx, key, &r); err != nil {
 		return Restored{}, err
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT seq FROM wg_delivery_samples WHERE group_id=? AND group_revision=? AND consumed=0 ORDER BY seq`, key.GroupID, key.GroupRevision)
@@ -260,7 +270,7 @@ func (s *Store) restoreHandoffView(ctx context.Context, key GroupKey) (Restored,
 			return Restored{}, ErrBaselineCorrupt
 		}
 		at, e := time.Parse(time.RFC3339Nano, end)
-		if handoffHash(payload) != digest || workspace != key.WorkspaceID || e != nil || at.After(r.NextClose) {
+		if handoffHash(payload) != digest || workspace != key.WorkspaceID || e != nil || at.After(restoredThrough(r)) {
 			rows.Close()
 			return Restored{}, ErrBaselineCorrupt
 		}
@@ -273,8 +283,13 @@ func (s *Store) restoreHandoffView(ctx context.Context, key GroupKey) (Restored,
 	if rows.Close() != nil {
 		return Restored{}, ErrBaselineCorrupt
 	}
-	if tx.Commit() != nil {
-		return Restored{}, ErrOwnershipUnavailable
+	if r.Mixed != nil {
+		if err = verifyMixedBaselineProof(ctx, tx, key, r.Baselines); err != nil {
+			return Restored{}, err
+		}
+	}
+	if err := owned.Commit(); err != nil {
+		return Restored{}, errors.Join(ErrOwnershipUnavailable, err)
 	}
 	return r, nil
 }

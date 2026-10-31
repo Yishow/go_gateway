@@ -52,3 +52,11 @@ func (l *Ledger) PrepareCounterReplay(ctx context.Context, expected []counterpro
 func (l *Ledger) RecognizeTransferredSample(ctx context.Context, incoming snapshot.Sample) (HandoffRecognition, error) {
 	return l.store.RecognizeTransferredSample(ctx, l.key, incoming)
 }
+
+// PersistsMixedProgress identifies the typed atomic member-progress contract.
+func (l *Ledger) PersistsMixedProgress() bool { return true }
+
+// RuntimeDescriptor returns original immutable applied bytes, never live edits.
+func (l *Ledger) RuntimeDescriptor(ctx context.Context) ([]byte, error) {
+	return l.store.RuntimeVersion(ctx, l.key)
+}

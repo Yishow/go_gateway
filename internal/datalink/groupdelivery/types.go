@@ -28,7 +28,9 @@ type Restored struct {
 	OwnershipView       OwnershipView
 	handoffs            map[handoffAuthorizationKey]handoffAuthorization
 	// NextClose is the checkpoint; zero when the group never closed a bucket.
-	NextClose time.Time
+	NextClose        time.Time
+	Mixed            *snapshot.MixedCheckpoint
+	DescriptorDigest string
 	// Samples are accepted but not yet consumed by a closed bucket, in
 	// acceptance order.
 	Samples []snapshot.Sample
@@ -86,6 +88,7 @@ type Closure struct {
 	OwnershipView OwnershipView
 	Destination   FrozenDestination
 	NextClose     time.Time
+	Mixed         *MixedClosureProgress
 	Buckets       []ClosedBucket
 	// Baselines are the counter baselines this closure advances. They commit in
 	// the same transaction as the outbox rows and the checkpoint, so a baseline
@@ -108,3 +111,9 @@ var ErrBaselineConflict = errors.New("durable counter baseline conflict")
 // ErrBaselineCorrupt marks a stored baseline whose bytes no longer match the
 // digest committed with them.
 var ErrBaselineCorrupt = errors.New("durable counter baseline corrupt")
+
+// MixedClosureProgress is a CAS of member-owned progress, not a common cursor.
+type MixedClosureProgress struct {
+	Before, After    snapshot.MixedCheckpoint
+	DescriptorDigest string
+}

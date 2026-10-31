@@ -311,7 +311,25 @@ func (s *Store) prepareHandoffInTx(ctx context.Context, tx *sql.Tx, key GroupKey
 		} else {
 			r.OriginalProof, r.TargetProof = proof.OriginalReference, proof.TargetReference
 			r.OriginRuntimeDigest, r.TargetRuntimeDigest = proof.OriginRuntimeDigest, proof.TargetRuntimeDigest
-			r.TargetBucket = timestamp(snapshot.BucketStart(sample.ObservedAt, proof.TargetInterval))
+			if proof.TargetMixed {
+				start, _, e := snapshot.CheckedWindowBounds(sample.ObservedAt, proof.TargetInterval)
+				if e != nil {
+					return nil, nil, ErrHandoffProofConflict
+				}
+				r.TargetBucket = timestamp(start)
+				var progress Restored
+				if e = restoreMixedProgress(ctx, tx, target, &progress); e != nil {
+					return nil, nil, e
+				}
+				if progress.Mixed != nil {
+					member, ok := progress.Mixed.Members[sample.MemberKey]
+					if !ok || sample.ObservedAt.Before(member.Start) || sample.ObservedAt.Before(progress.Mixed.StartsAt) || (!progress.Mixed.EndsAt.IsZero() && !sample.ObservedAt.Before(progress.Mixed.EndsAt)) {
+						return nil, nil, ErrOwnershipConflict
+					}
+				}
+			} else {
+				r.TargetBucket = timestamp(snapshot.BucketStart(sample.ObservedAt, proof.TargetInterval))
+			}
 			var checkpoint string
 			e := tx.QueryRowContext(ctx, `SELECT next_close FROM wg_delivery_checkpoints WHERE group_id=? AND group_revision=?`, target.GroupID, target.GroupRevision).Scan(&checkpoint)
 			if e != nil && !errors.Is(e, sql.ErrNoRows) {

@@ -71,6 +71,9 @@ func (s *Store) AppendSample(ctx context.Context, key GroupKey, bucketStart time
 		if err != nil || found {
 			return err
 		}
+		if err := validateMixedJournalWindow(ctx, tx, key, bucketStart, sample); err != nil {
+			return err
+		}
 		if err := verifySampleProof(ctx, tx, key, sample, true); err != nil {
 			return err
 		}

@@ -43,11 +43,12 @@ type SourceUnavailableCause string
 
 // Causes of an unverifiable record. None of them is a statement about the destination.
 const (
-	SourceCausePayloadInvalid   SourceUnavailableCause = "payload_invalid"
-	SourceCauseDigestMismatch   SourceUnavailableCause = "digest_mismatch"
-	SourceCauseIdentityMismatch SourceUnavailableCause = "identity_mismatch"
-	SourceCauseStatusUnknown    SourceUnavailableCause = "status_unknown"
-	SourceCauseWindowInvalid    SourceUnavailableCause = "window_invalid"
+	SourceCausePayloadInvalid         SourceUnavailableCause = "payload_invalid"
+	SourceCauseDigestMismatch         SourceUnavailableCause = "digest_mismatch"
+	SourceCauseIdentityMismatch       SourceUnavailableCause = "identity_mismatch"
+	SourceCauseStatusUnknown          SourceUnavailableCause = "status_unknown"
+	SourceCauseWindowInvalid          SourceUnavailableCause = "window_invalid"
+	SourceCauseCalculationUnsupported SourceUnavailableCause = "calculation_projection_unsupported"
 )
 
 // SourceReasonUnavailable replaces a stored reason that is not one of the stable codes.
@@ -198,7 +199,7 @@ func (s *Store) sourceRows(ctx context.Context, scope SourceScope, partition, st
 		query += ` AND state = ?`
 		args = append(args, state)
 	}
-	rows, err := s.db.QueryContext(ctx, query+` ORDER BY bucket_start DESC, effect_key DESC LIMIT ?`, append(args, limit)...)
+	rows, err := s.db.QueryContext(ctx, query+` ORDER BY COALESCE(due_at,bucket_start) DESC, effect_key DESC LIMIT ?`, append(args, limit)...)
 	if err != nil {
 		return nil, fmt.Errorf("read source records: %w", err)
 	}

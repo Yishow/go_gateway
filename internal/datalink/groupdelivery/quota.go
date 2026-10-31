@@ -259,7 +259,11 @@ func (s *Store) Reclaim(ctx context.Context, retention time.Duration) (int64, er
 		if err != nil {
 			return fmt.Errorf("reclaim old bucket status: %w", err)
 		}
-		for _, result := range []sql.Result{samples, outbox, buckets} {
+		mixed, err := reclaimMixedOutcomes(ctx, tx, cutoff)
+		if err != nil {
+			return fmt.Errorf("reclaim mixed status: %w", err)
+		}
+		for _, result := range []sql.Result{samples, outbox, buckets, mixed} {
 			if n, err := result.RowsAffected(); err == nil {
 				removed += n
 			}
