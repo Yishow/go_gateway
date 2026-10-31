@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
-	"time"
 
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
@@ -18,12 +17,13 @@ import (
 
 // ModbusRTUConnector Modbus RTU 協議連接器適配器
 type ModbusRTUConnector struct {
-	client         *modbus.ModbusClient
-	transport      modbus.Transport
-	config         schema.ConnectionConfigModbusRTU
-	stateMu        sync.RWMutex
-	connected      bool
-	persistentMode bool // 長連接模式標誌
+	transportFactory func(schema.ConnectionConfigModbusRTU) modbus.Transport
+	client           *modbus.ModbusClient
+	transport        modbus.Transport
+	config           schema.ConnectionConfigModbusRTU
+	stateMu          sync.RWMutex
+	connected        bool
+	persistentMode   bool // 長連接模式標誌
 }
 
 // NewModbusRTUConnector 建立新的 Modbus RTU 連接器
@@ -58,14 +58,10 @@ func (c *ModbusRTUConnector) Connect(ctx context.Context, configJSON string) err
 	}
 
 	// 建立 RTU 傳輸層
-	c.transport = modbus.NewRTUTransport(
-		c.config.SerialPort,
-		c.config.BaudRate,
-		c.config.DataBits,
-		c.config.StopBits,
-		c.config.Parity,
-		time.Duration(c.config.Timeout)*time.Second,
-	)
+	c.transport = c.newTransport()
+	if c.transport == nil {
+		return fmt.Errorf("modbus RTU transport is unavailable")
+	}
 
 	c.client = modbus.NewClient(c.transport, c.config.SlaveID)
 
