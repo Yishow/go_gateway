@@ -2,8 +2,9 @@ package grouppipeline
 
 import (
 	"errors"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestIntakeCutoffFailureIsReportedWithoutSuccessObservation(t *testing.T) {

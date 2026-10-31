@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func mixedScaledSaveFixture(t *testing.T, method string) (managedGroupFixture, map[string]any) {
+func mixedScaledSaveFixture(t *testing.T, method string) (fixture managedGroupFixture, payload map[string]any) {
 	t.Helper()
 	f := newManagedDestinationFixture(t, "sqlite", "uint64")
 	_, err := f.db.ExecContext(t.Context(), `UPDATE points SET data_type='uint64' WHERE id='point-A'`)
@@ -38,12 +38,12 @@ func TestMixedAcceptanceScaledDeltaPublicSave(t *testing.T) {
 	response := performJSONRequest(t, f.router, http.MethodPost, writeGroupsPath, request)
 
 	require.Equal(t, http.StatusCreated, response.Code, response.Body.String())
-	cap := decodeJSONBody(t, response)["data"].(map[string]any)["calculation_capabilities"].(map[string]any)
-	require.Equal(t, true, cap["activation_supported"], "supported activation still requires this record's fresh schema/readiness proof")
-	require.Equal(t, false, cap["editor_supported"])
-	require.Equal(t, "record_readiness_required", cap["reason"])
+	capabilities := decodeJSONBody(t, response)["data"].(map[string]any)["calculation_capabilities"].(map[string]any)
+	require.Equal(t, true, capabilities["activation_supported"], "supported activation still requires this record's fresh schema/readiness proof")
+	require.Equal(t, false, capabilities["editor_supported"])
+	require.Equal(t, "record_readiness_required", capabilities["reason"])
 	var wideOnly bool
-	for _, raw := range cap["unsupported_combinations"].([]any) {
+	for _, raw := range capabilities["unsupported_combinations"].([]any) {
 		restriction := raw.(map[string]any)
 		if restriction["method"] == "delta" && restriction["phase"] == "draft" {
 			require.Equal(t, "managed_wide_profile_v1", restriction["layout"])
@@ -64,8 +64,8 @@ func TestMixedAcceptanceScaledDeltaPublicSave(t *testing.T) {
 	_, read := groupSaveData(t, decodeJSONBody(t, get))
 	require.Equal(t, g, read)
 	var pointType, tagType string
-	require.NoError(t, f.db.QueryRow(`SELECT data_type FROM points WHERE id='point-A'`).Scan(&pointType))
-	require.NoError(t, f.db.QueryRow(`SELECT data_type FROM tags WHERE id='tag-A'`).Scan(&tagType))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT data_type FROM points WHERE id='point-A'`).Scan(&pointType))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT data_type FROM tags WHERE id='tag-A'`).Scan(&tagType))
 	require.Equal(t, "uint64", pointType)
 	require.Equal(t, "uint64", tagType)
 
@@ -78,7 +78,7 @@ func TestMixedAcceptanceScaledLatestAndMeanRemainRejected(t *testing.T) {
 			response := performJSONRequest(t, f.router, http.MethodPost, writeGroupsPath, request)
 			require.Equal(t, http.StatusUnprocessableEntity, response.Code, response.Body.String())
 			var n int
-			require.NoError(t, f.db.QueryRow(`SELECT count(*) FROM write_groups`).Scan(&n))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT count(*) FROM write_groups`).Scan(&n))
 			require.Zero(t, n)
 		})
 	}
@@ -96,10 +96,10 @@ func TestMixedAcceptanceScaledDraftRefusesForeignOrUnsupportedSource(t *testing.
 				g["destination"].(map[string]any)["table_name"] = "fresh_scaled"
 				g["members"].([]map[string]any)[0]["target_column"] = "v"
 			case "foreign measurement":
-				_, err := f.db.Exec(`UPDATE measurement_definitions SET point_id='foreign-point' WHERE id='mixed-meter'`)
+				_, err := f.db.ExecContext(t.Context(), `UPDATE measurement_definitions SET point_id='foreign-point' WHERE id='mixed-meter'`)
 				require.NoError(t, err)
 			case "unconfirmed":
-				_, err := f.db.Exec(`UPDATE measurement_definitions SET semantic_kind='gauge' WHERE id='mixed-meter'`)
+				_, err := f.db.ExecContext(t.Context(), `UPDATE measurement_definitions SET semantic_kind='gauge' WHERE id='mixed-meter'`)
 				require.NoError(t, err)
 			}
 			response := performJSONRequest(t, f.router, http.MethodPost, writeGroupsPath, request)
@@ -109,7 +109,7 @@ func TestMixedAcceptanceScaledDraftRefusesForeignOrUnsupportedSource(t *testing.
 			}
 			require.Equal(t, expected, response.Code, response.Body.String())
 			var n int
-			require.NoError(t, f.db.QueryRow(`SELECT count(*) FROM write_groups`).Scan(&n))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT count(*) FROM write_groups`).Scan(&n))
 			require.Zero(t, n)
 		})
 	}
@@ -121,7 +121,7 @@ func TestMixedAcceptanceScaledDraftCannotReuseOldDefinitionProofWithFreshCAS(t *
 	require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
 	data, g := groupSaveData(t, decodeJSONBody(t, created))
 	id := g["id"].(string)
-	_, err := f.db.Exec(`UPDATE measurement_definitions SET definition_revision='def-2',exact_recording_scale='0.01' WHERE id='mixed-meter'`)
+	_, err := f.db.ExecContext(t.Context(), `UPDATE measurement_definitions SET definition_revision='def-2',exact_recording_scale='0.01' WHERE id='mixed-meter'`)
 	require.NoError(t, err)
 	stale := groupEditRequest(f.writeGroupRouterFixture, data, g)
 	response := performJSONRequest(t, f.router, http.MethodPut, writeGroupsPath+"/"+id, stale)

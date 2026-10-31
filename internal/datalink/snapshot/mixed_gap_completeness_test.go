@@ -2,9 +2,10 @@ package snapshot
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/aggregation"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedGapSpanIsEvidenceNotCurrentWindowUsage(t *testing.T) {

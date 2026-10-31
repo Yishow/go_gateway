@@ -6,8 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/runtimeview"
+
+	"github.com/stretchr/testify/require"
 )
 
 func assertMixedScaledReadback(t *testing.T, r *mixedAcceptanceRig) {
@@ -27,9 +28,9 @@ func assertMixedScaledReadback(t *testing.T, r *mixedAcceptanceRig) {
 	require.Equal(t, true, calc["raw_present"])
 	require.Equal(t, true, latest["delta_known"])
 	if path := os.Getenv("MEMBER42_SOURCE_EVIDENCE"); path != "" {
-		require.NoError(t, os.WriteFile(path, response.Body.Bytes(), 0600))
+		require.NoError(t, os.WriteFile(path, response.Body.Bytes(), 0o600))
 	}
-	_, err := r.f.db.Exec(`UPDATE devices SET description='' WHERE description IS NULL`)
+	_, err := r.f.db.ExecContext(t.Context(), `UPDATE devices SET description='' WHERE description IS NULL`)
 	require.NoError(t, err)
 	resolved, resolveErr := r.pipe.ResolveAppliedConfigurationAt(t.Context(), r.frozen.GroupID, r.clock)
 	require.NoError(t, resolveErr, "the same production frozen proof must be readable")
@@ -47,7 +48,7 @@ func assertMixedScaledReadback(t *testing.T, r *mixedAcceptanceRig) {
 	}
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
 	if path := os.Getenv("MEMBER42_RUNTIME_EVIDENCE"); path != "" {
-		require.NoError(t, os.WriteFile(path, body.Data.Evidence, 0600))
+		require.NoError(t, os.WriteFile(path, body.Data.Evidence, 0o600))
 	}
 	evidence, err := runtimeview.ParseRuleEvidence(body.Data.Evidence, runtimeview.Scope{WorkspaceID: r.f.record.ID, WorkspaceRevision: q.Get("workspace_revision"), DeviceID: "device-A"})
 	require.NoError(t, err, string(body.Data.Evidence))
@@ -63,7 +64,7 @@ func assertMixedScaledReadback(t *testing.T, r *mixedAcceptanceRig) {
 	require.Equal(t, "decimal", selected.Calculation.ResultType)
 	require.True(t, selected.Calculation.ResultPresent)
 	if path := os.Getenv("MEMBER42_RUNTIME_EVIDENCE"); path != "" {
-		require.NoError(t, os.WriteFile(path, body.Data.Evidence, 0600))
+		require.NoError(t, os.WriteFile(path, body.Data.Evidence, 0o600))
 	}
 }
 
@@ -74,7 +75,7 @@ func assertMixedReadbackRejectsForeignProof(t *testing.T, r *mixedAcceptanceRig)
 	var original string
 	query := `SELECT payload FROM wg_runtime_versions WHERE workspace_id=? AND group_id=? AND group_revision=?`
 	args := []any{r.frozen.WorkspaceID, r.frozen.GroupID, r.frozen.AppliedRevision}
-	require.NoError(t, r.f.db.QueryRow(query, args...).Scan(&original))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), query, args...).Scan(&original))
 	for _, field := range []string{"foreign group", "unsupported dialect", "missing digest", "unknown shape"} {
 		var payload map[string]any
 		require.NoError(t, json.Unmarshal([]byte(original), &payload))
@@ -92,10 +93,10 @@ func assertMixedReadbackRejectsForeignProof(t *testing.T, r *mixedAcceptanceRig)
 		}
 		raw, err := json.Marshal(payload)
 		require.NoError(t, err)
-		_, err = r.f.db.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE workspace_id=? AND group_id=? AND group_revision=?`, string(raw), args[0], args[1], args[2])
+		_, err = r.f.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE workspace_id=? AND group_id=? AND group_revision=?`, string(raw), args[0], args[1], args[2])
 		require.NoError(t, err)
 		got, readErr := r.pipe.ResolveAppliedConfigurationAt(t.Context(), r.frozen.GroupID, r.clock)
-		_, restoreErr := r.f.db.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE workspace_id=? AND group_id=? AND group_revision=?`, original, args[0], args[1], args[2])
+		_, restoreErr := r.f.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE workspace_id=? AND group_id=? AND group_revision=?`, original, args[0], args[1], args[2])
 		require.NoError(t, restoreErr)
 		require.Error(t, readErr, field)
 		require.Nil(t, got, field)

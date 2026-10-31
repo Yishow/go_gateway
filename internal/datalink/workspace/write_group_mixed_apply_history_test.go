@@ -66,7 +66,7 @@ func mixedHistoryFixture(t *testing.T, now *time.Time) (*circuitProfileHarness, 
 	target := filepath.Join(t.TempDir(), "target.db")
 	db, err := sql.Open("sqlite", target)
 	require.NoError(t, err)
-	_, err = db.Exec(`PRAGMA user_version=0`)
+	_, err = db.ExecContext(t.Context(), `PRAGMA user_version=0`)
 	require.NoError(t, err)
 	require.NoError(t, db.Close())
 	setSQLiteConnectorConfig(t, h.db, h.fixture.connectorID, target)
@@ -147,9 +147,9 @@ func TestMixedScopedApplyRejectsOrphanedAppliedHistory(t *testing.T) {
 			// Deliberate corruption after a real successful Apply: neither missing
 			// current identity nor a missing snapshot erases durable application history.
 			if missing == "snapshot" {
-				_, err = h.db.Exec(`DELETE FROM write_group_versions WHERE group_id=?`, original.ID)
+				_, err = h.db.ExecContext(t.Context(), `DELETE FROM write_group_versions WHERE group_id=?`, original.ID)
 			} else {
-				_, err = h.db.Exec(`UPDATE write_groups SET applied_revision='' WHERE id=?`, original.ID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET applied_revision='' WHERE id=?`, original.ID)
 			}
 			require.NoError(t, err)
 			before := h.countRows(`SELECT COUNT(*) FROM wg_runtime_versions WHERE group_id=?`, original.ID)

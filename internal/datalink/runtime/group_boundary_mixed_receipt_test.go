@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/testutil/lostcommit"
+
+	"github.com/stretchr/testify/require"
 )
 
 type mixedReceiptTarget struct {
@@ -43,7 +44,7 @@ func TestMixedDurableFrozenDeltaReceiptRecovery(t *testing.T) {
 				f.accept(t, b, f.envelope(0, "delta-tail", boundaryAt(29), uint64(9007199254741001)))
 				require.NoError(t, b.Tick(t.Context(), boundaryAt(30)))
 				var effect string
-				require.NoError(t, local.QueryRow(`SELECT effect_key FROM wg_delivery_outbox`).Scan(&effect))
+				require.NoError(t, local.QueryRowContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox`).Scan(&effect))
 				before, err := store.GetOutbox(t.Context(), effect)
 				require.NoError(t, err)
 				require.True(t, before.DueAt.Equal(boundaryAt(30)))
@@ -51,20 +52,20 @@ func TestMixedDurableFrozenDeltaReceiptRecovery(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, before.RecordID, original.RecordID)
 				var baselineBefore string
-				require.NoError(t, local.QueryRow(`SELECT payload FROM wg_delivery_counter_baselines`).Scan(&baselineBefore))
+				require.NoError(t, local.QueryRowContext(t.Context(), `SELECT payload FROM wg_delivery_counter_baselines`).Scan(&baselineBefore))
 				var seq int
 				var name, targetPath string
-				require.NoError(t, f.db.QueryRow(`PRAGMA database_list`).Scan(&seq, &name, &targetPath))
+				require.NoError(t, f.db.QueryRowContext(t.Context(), `PRAGMA database_list`).Scan(&seq, &name, &targetPath))
 				lose := &atomic.Bool{}
 				target := lostcommit.Open(targetPath, lose)
 				t.Cleanup(func() { target.Close() })
-				_, err = target.Exec(`CREATE TABLE IF NOT EXISTS gw_effect_receipts(effect_key TEXT PRIMARY KEY,payload_digest TEXT NOT NULL,committed_at TEXT NOT NULL)`)
+				_, err = target.ExecContext(t.Context(), `CREATE TABLE IF NOT EXISTS gw_effect_receipts(effect_key TEXT PRIMARY KEY,payload_digest TEXT NOT NULL,committed_at TEXT NOT NULL)`)
 				require.NoError(t, err)
 				resolver := &mixedReceiptTarget{db: target}
 				config := groupdelivery.SenderConfig{Backoff: func(int) (string, time.Time) { return groupdelivery.StateRetrying, time.Now().Add(-time.Second) }}
 				sender := groupdelivery.NewSender(store, resolver, config)
 				if mode == "local-receipt-failure" {
-					_, err = local.Exec(`CREATE TRIGGER mixed_receipt_failure BEFORE INSERT ON wg_delivery_receipts BEGIN SELECT RAISE(ABORT,'receipt failure'); END`)
+					_, err = local.ExecContext(t.Context(), `CREATE TRIGGER mixed_receipt_failure BEFORE INSERT ON wg_delivery_receipts BEGIN SELECT RAISE(ABORT,'receipt failure'); END`)
 					require.NoError(t, err)
 				} else {
 					lose.Store(true)
@@ -86,11 +87,11 @@ func TestMixedDurableFrozenDeltaReceiptRecovery(t *testing.T) {
 				require.Zero(t, countTable(t, local, "wg_delivery_receipts"))
 				lose.Store(false)
 				if mode == "receipt-conflict" {
-					_, err = target.Exec(`UPDATE gw_effect_receipts SET payload_digest='different-accepted-payload' WHERE effect_key=?`, effect)
+					_, err = target.ExecContext(t.Context(), `UPDATE gw_effect_receipts SET payload_digest='different-accepted-payload' WHERE effect_key=?`, effect)
 					require.NoError(t, err)
 				}
 				if mode == "local-receipt-failure" {
-					_, err = local.Exec(`DROP TRIGGER mixed_receipt_failure`)
+					_, err = local.ExecContext(t.Context(), `DROP TRIGGER mixed_receipt_failure`)
 					require.NoError(t, err)
 				}
 				// Reopen the accepted local evidence; no assembler or current draft is
@@ -109,21 +110,22 @@ func TestMixedDurableFrozenDeltaReceiptRecovery(t *testing.T) {
 				f.config.Group.Members[0].Calculation = "latest"
 				for i := 0; i < 2; i++ {
 					result, err := recovered.Deliver(t.Context(), effect)
-					if mode == "unknown-no-dedupe" {
+					switch mode {
+					case "unknown-no-dedupe":
 						require.ErrorIs(t, err, groupdelivery.ErrNotDeliverable)
 						require.Equal(t, groupdelivery.StateUnknown, result.State)
 						attention, err := recoveredStore.Attention(t.Context(), before.Key.GroupID)
 						require.NoError(t, err)
 						require.Len(t, attention, 1)
 						require.Equal(t, effect, attention[0].EffectKey)
-					} else if mode == "receipt-conflict" {
+					case "receipt-conflict":
 						if i == 0 {
 							require.NoError(t, err)
 						} else {
 							require.ErrorIs(t, err, groupdelivery.ErrNotDeliverable)
 						}
 						require.Equal(t, groupdelivery.StateBlocked, result.State)
-					} else {
+					default:
 						require.NoError(t, err)
 						require.Equal(t, groupdelivery.StateCommitted, result.State)
 					}
@@ -144,11 +146,11 @@ func TestMixedDurableFrozenDeltaReceiptRecovery(t *testing.T) {
 				require.Equal(t, before.Payload, after.Payload)
 				require.Equal(t, before.PayloadDigest, after.PayloadDigest)
 				var baselineAfter string
-				require.NoError(t, reopened.QueryRow(`SELECT payload FROM wg_delivery_counter_baselines`).Scan(&baselineAfter))
+				require.NoError(t, reopened.QueryRowContext(t.Context(), `SELECT payload FROM wg_delivery_counter_baselines`).Scan(&baselineAfter))
 				require.Equal(t, baselineBefore, baselineAfter, "delivery cannot recalculate or advance baseline")
 				var value, provenance string
 				var delta sql.NullString
-				require.NoError(t, target.QueryRow(`SELECT value_decimal,delta_value,provenance FROM `+longFixtureTable).Scan(&value, &delta, &provenance))
+				require.NoError(t, target.QueryRowContext(t.Context(), `SELECT value_decimal,delta_value,provenance FROM `+longFixtureTable).Scan(&value, &delta, &provenance))
 				expected := "8"
 				if scaled {
 					expected = "0.8"
@@ -162,16 +164,17 @@ func TestMixedDurableFrozenDeltaReceiptRecovery(t *testing.T) {
 				require.Contains(t, provenance, rawText)
 				require.Contains(t, provenance, `"calculation":"delta"`)
 				require.Contains(t, provenance, `"interval_seconds":15`)
-				if mode == "unknown-no-dedupe" {
+				switch mode {
+				case "unknown-no-dedupe":
 					require.Equal(t, 1, resolver.calls)
 					require.Zero(t, countTable(t, reopened, "wg_delivery_receipts"))
-				} else if mode == "receipt-conflict" {
+				case "receipt-conflict":
 					require.Zero(t, countTable(t, reopened, "wg_delivery_receipts"))
 					require.Equal(t, "destination-identity-conflict", after.LastErrorCode)
-				} else {
+				default:
 					require.Equal(t, 1, countTable(t, reopened, "wg_delivery_receipts"))
 					var digest string
-					require.NoError(t, reopened.QueryRow(`SELECT payload_digest FROM wg_delivery_receipts WHERE effect_key=?`, effect).Scan(&digest))
+					require.NoError(t, reopened.QueryRowContext(t.Context(), `SELECT payload_digest FROM wg_delivery_receipts WHERE effect_key=?`, effect).Scan(&digest))
 					require.Equal(t, before.PayloadDigest, digest)
 				}
 			})

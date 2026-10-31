@@ -2,9 +2,10 @@ package workspace
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedAppliedDescriptorRetainsMemberIntentAndOriginalBytes(t *testing.T) {
@@ -25,7 +26,7 @@ func TestMixedAppliedDescriptorRetainsMemberIntentAndOriginalBytes(t *testing.T)
 	require.NoError(t, h.service.saveRuntimeVersionInTx(ctx, tx, frozen))
 	require.NoError(t, tx.Commit())
 	var original string
-	require.NoError(t, h.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=?`, g.ID).Scan(&original))
+	require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=?`, g.ID).Scan(&original))
 	var restored WriteGroupAppliedSnapshot
 	require.NoError(t, json.Unmarshal([]byte(original), &restored))
 	require.Equal(t, g.RecordID, restored.Group.RecordID)
@@ -41,7 +42,7 @@ func TestMixedAppliedDescriptorRetainsMemberIntentAndOriginalBytes(t *testing.T)
 	require.NoError(t, h.service.saveRuntimeVersionInTx(ctx, tx, frozen))
 	require.NoError(t, tx.Commit())
 	var after string
-	require.NoError(t, h.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=?`, g.ID).Scan(&after))
+	require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=?`, g.ID).Scan(&after))
 	require.Equal(t, original, after)
 	// This private descriptor fixture does not make the public draft applied.
 	public, err := h.service.Get(ctx, g.ID)

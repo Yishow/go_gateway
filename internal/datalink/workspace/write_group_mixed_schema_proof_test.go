@@ -1,14 +1,15 @@
 package workspace
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-func mixedSchemaFixture() (*WriteGroup, map[string]schema.DataType) {
+func mixedSchemaFixture() (group *WriteGroup, types map[string]schema.DataType) {
 	g := &WriteGroup{ID: "g", WorkspaceID: "w", Revision: "r", RecordID: "2f629763-f426-460f-a935-552d3a2e1ba8", LayoutVersion: WriteGroupLayoutManagedWideProfileV1,
 		RecordingProfile: &WriteGroupRecordingProfile{Kind: WriteGroupProfileMixed, ResultShape: WriteGroupResultShapeMemberCalculationV1},
 		Destination:      WriteGroupDestination{ConnectorID: "db", ConnectorRevision: "db-r", Database: "target", TableSchema: "main", TableName: "mixed", StorageStrategy: WriteGroupStorageStrategyManaged},

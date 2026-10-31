@@ -62,7 +62,7 @@ func checkedWindowNano(at time.Time, operation string) (int64, error) {
 
 // CheckedWindowBounds returns the UTC epoch-aligned half-open window containing
 // at. Both boundaries must be representable. Legacy BucketStart is unchanged.
-func CheckedWindowBounds(at time.Time, interval time.Duration) (time.Time, time.Time, error) {
+func CheckedWindowBounds(at time.Time, interval time.Duration) (alignedStart, alignedEnd time.Time, boundsErr error) {
 	if interval < time.Second || interval%time.Second != 0 {
 		return time.Time{}, time.Time{}, windowError("window", "interval must be positive whole seconds")
 	}

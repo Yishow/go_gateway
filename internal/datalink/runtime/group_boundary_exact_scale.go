@@ -13,15 +13,16 @@ func frozenExactCounterSource(group *workspace.WriteGroup, member workspace.Writ
 		member.ExactRecordingSource == nil || member.SourceRevision == "" || member.MappingRevision == "" {
 		return CounterSource{}, false
 	}
-	if mixedBoundaryGroup(group) {
+	switch {
+	case mixedBoundaryGroup(group):
 		if member.Calculation != workspace.WriteGroupMemberCalculationDelta {
 			return CounterSource{}, false
 		}
-	} else if group.RecordingProfile.Kind == workspace.WriteGroupProfileCumulative {
+	case group.RecordingProfile.Kind == workspace.WriteGroupProfileCumulative:
 		if member.ValueRole != "" {
 			return CounterSource{}, false
 		}
-	} else if group.RecordingProfile.Kind != workspace.WriteGroupProfileInstantaneous || member.ValueRole != workspace.WriteGroupValueRoleCounterRaw {
+	case group.RecordingProfile.Kind != workspace.WriteGroupProfileInstantaneous || member.ValueRole != workspace.WriteGroupValueRoleCounterRaw:
 		return CounterSource{}, false
 	}
 	proof := member.ExactRecordingSource

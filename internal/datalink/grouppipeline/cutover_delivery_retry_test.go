@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
+
+	"github.com/stretchr/testify/require"
 	"modernc.org/sqlite"
 )
 
@@ -19,17 +20,17 @@ func assertCompleteCutoverDelivery(t *testing.T, f *ownershipPipelineFixture, sh
 	require.Equal(t, expected, f.count(f.local, `SELECT COUNT(*) FROM wg_delivery_outbox`))
 	require.Equal(t, expected, f.count(f.local, `SELECT COUNT(*) FROM wg_delivery_outbox WHERE state='sql_committed'`))
 	require.Equal(t, expected, f.count(f.local, `SELECT COUNT(*) FROM wg_delivery_receipts`))
-	rows, err := f.local.Query(`SELECT effect_key,payload_digest,dedupe_capability FROM wg_delivery_outbox`)
+	rows, err := f.local.QueryContext(t.Context(), `SELECT effect_key,payload_digest,dedupe_capability FROM wg_delivery_outbox`)
 	require.NoError(t, err)
 	defer rows.Close()
 	for rows.Next() {
 		var effect, digest, capability string
 		require.NoError(t, rows.Scan(&effect, &digest, &capability))
 		var localDigest string
-		require.NoError(t, f.local.QueryRow(`SELECT payload_digest FROM wg_delivery_receipts WHERE effect_key=?`, effect).Scan(&localDigest))
+		require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload_digest FROM wg_delivery_receipts WHERE effect_key=?`, effect).Scan(&localDigest))
 		require.Equal(t, digest, localDigest)
 		var count int
-		require.NoError(t, f.plainTarget().QueryRow(`SELECT COUNT(*) FROM gw_effect_receipts WHERE effect_key=? AND payload_digest=?`, effect, digest).Scan(&count))
+		require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM gw_effect_receipts WHERE effect_key=? AND payload_digest=?`, effect, digest).Scan(&count))
 		if capability == groupdelivery.DedupeReceipt {
 			require.Equal(t, 1, count)
 		} else {
@@ -43,7 +44,7 @@ func assertCompleteCutoverDelivery(t *testing.T, f *ownershipPipelineFixture, sh
 	require.Equal(t, 2, f.count(f.plainTarget(), `SELECT COUNT(*) FROM legacy_readings`))
 	if !shape.wide() {
 		var missing int
-		require.NoError(t, f.plainTarget().QueryRow(`SELECT COUNT(*) FROM `+f.table+` WHERE tag_id='tag-kwh-2' AND value_decimal IS NULL`).Scan(&missing))
+		require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+f.table+` WHERE tag_id='tag-kwh-2' AND value_decimal IS NULL`).Scan(&missing))
 		require.Equal(t, 1, missing, "the optional missing member is still one accepted long row")
 	}
 	// A later normal cycle cannot duplicate either accepted partition.
@@ -60,7 +61,7 @@ func TestCutoverLongSQLiteBusyRollbackWaitsForPersistedRetryThenDrains(t *testin
 	require.NoError(t, target.boundary.AcceptSample(t.Context(), envelope(f.target.Group, "target", at(23), uint64(7))))
 	require.NoError(t, target.boundary.Tick(t.Context(), at(30)))
 	var effect string
-	require.NoError(t, f.local.QueryRow(`SELECT effect_key FROM wg_delivery_outbox ORDER BY effect_key LIMIT 1`).Scan(&effect))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox ORDER BY effect_key LIMIT 1`).Scan(&effect))
 	item, err := f.store.GetOutbox(t.Context(), effect)
 	require.NoError(t, err)
 	row, err := groupdelivery.DecodeRowPayload(item.Payload)
@@ -68,12 +69,12 @@ func TestCutoverLongSQLiteBusyRollbackWaitsForPersistedRetryThenDrains(t *testin
 	// This disposable connection deliberately refuses waiting, while a real
 	// independent writer holds SQLite's lock. Production busy_timeout is unchanged.
 	f.dest.target.SetMaxOpenConns(1)
-	_, err = f.dest.target.Exec(`PRAGMA busy_timeout=0`)
+	_, err = f.dest.target.ExecContext(t.Context(), `PRAGMA busy_timeout=0`)
 	require.NoError(t, err)
 	blocker, err := f.plainTarget().BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	defer blocker.Rollback()
-	_, err = blocker.Exec(`UPDATE ` + f.table + ` SET record_id=record_id WHERE 0`)
+	_, err = blocker.ExecContext(t.Context(), `UPDATE `+f.table+` SET record_id=record_id WHERE 0`)
 	require.NoError(t, err)
 	_, err = dbtarget.InsertGroupRow(t.Context(), f.dest.target, dbtarget.GroupInsertRequest{
 		Kind: f.dest.kind, SchemaName: item.Destination.TableSchema, TableName: item.Destination.TableName,

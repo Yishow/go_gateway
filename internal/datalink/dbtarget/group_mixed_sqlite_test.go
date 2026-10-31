@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/snapshot"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedSparseOutcomes(t *testing.T, mode snapshot.Mode) []snapshot.Outcome {
@@ -57,10 +58,10 @@ func TestMixedSQLiteWideActualCatalogInsertReadback(t *testing.T) {
 		mixedInsert(t, db, "mixed_results", row)
 	}
 	var a, b, c, class, provenance string
-	require.NoError(t, db.QueryRow(`SELECT a,b,c,typeof(c),provenance FROM mixed_results WHERE due_at=?`, mixedEncodeAt(120).Format("2006-01-02T15:04:05.999999999Z07:00")).Scan(&a, &b, &c, &class, &provenance))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT a,b,c,typeof(c),provenance FROM mixed_results WHERE due_at=?`, mixedEncodeAt(120).Format("2006-01-02T15:04:05.999999999Z07:00")).Scan(&a, &b, &c, &class, &provenance))
 	require.Equal(t, []string{"22", "12", "8", "text"}, []string{a, b, c, class})
 	var nullable sql.NullString
-	require.NoError(t, db.QueryRow(`SELECT a,b,c,typeof(c),provenance FROM mixed_results WHERE due_at=?`, mixedEncodeAt(135).Format("2006-01-02T15:04:05.999999999Z07:00")).Scan(&a, &b, &nullable, &class, &provenance))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT a,b,c,typeof(c),provenance FROM mixed_results WHERE due_at=?`, mixedEncodeAt(135).Format("2006-01-02T15:04:05.999999999Z07:00")).Scan(&a, &b, &nullable, &class, &provenance))
 	require.Equal(t, "23", a)
 	require.Equal(t, "13", b)
 	require.False(t, nullable.Valid)
@@ -92,11 +93,11 @@ func TestMixedSQLiteLongActualCatalogDueOnlyReadback(t *testing.T) {
 		mixedInsert(t, db, indexTestTable, row)
 	}
 	var count int
-	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM `+indexTestTable).Scan(&count))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+indexTestTable).Scan(&count))
 	require.Equal(t, 5, count)
 	var value, class, profile, rawJSON string
 	var oldDelta sql.NullString
-	require.NoError(t, db.QueryRow(`SELECT value_decimal,typeof(value_decimal),profile_kind,delta_value,provenance FROM `+indexTestTable+` WHERE tag_id='tag-c'`).Scan(&value, &class, &profile, &oldDelta, &rawJSON))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT value_decimal,typeof(value_decimal),profile_kind,delta_value,provenance FROM `+indexTestTable+` WHERE tag_id='tag-c'`).Scan(&value, &class, &profile, &oldDelta, &rawJSON))
 	require.Equal(t, "8", value)
 	require.Equal(t, "text", class)
 	require.Equal(t, "mixed", profile)
@@ -118,6 +119,6 @@ func TestMixedSQLiteExactDecimalReadback(t *testing.T) {
 	require.NoError(t, err)
 	mixedInsert(t, db, "mixed_results", row)
 	var a, b, c, typ string
-	require.NoError(t, db.QueryRow(`SELECT a,b,c,typeof(a) FROM mixed_results`).Scan(&a, &b, &c, &typ))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT a,b,c,typeof(a) FROM mixed_results`).Scan(&a, &b, &c, &typ))
 	require.Equal(t, []string{"9007199254740994", "1.5", "1", "text"}, []string{a, b, c, typ})
 }

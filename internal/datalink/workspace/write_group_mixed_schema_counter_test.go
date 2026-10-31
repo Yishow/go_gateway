@@ -1,10 +1,11 @@
 package workspace
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedSchemaCounterProofUsesExistingScopedFacts(t *testing.T) {
@@ -12,7 +13,7 @@ func TestMixedSchemaCounterProofUsesExistingScopedFacts(t *testing.T) {
 		t.Run(map[bool]string{false: "unscaled", true: "scaled"}[scaled], func(t *testing.T) {
 			identity, member := exactCounterBindingFixture()
 			member.Calculation = WriteGroupMemberCalculationDelta
-			group, types := mixedSchemaFixture()
+			group, _ := mixedSchemaFixture()
 			member.Cadence = group.Members[0].Cadence
 			group.WorkspaceID = identity.WorkspaceID
 			group.ID = identity.GroupID
@@ -31,7 +32,7 @@ func TestMixedSchemaCounterProofUsesExistingScopedFacts(t *testing.T) {
 			}
 			require.NoError(t, err)
 			group.Members = []WriteGroupMember{member}
-			types = map[string]schema.DataType{member.TagID: schema.DataTypeUint64}
+			types := map[string]schema.DataType{member.TagID: schema.DataTypeUint64}
 			proofs := CounterBindingProofs{identity.Key(): proof}
 			digest, err := managedSourceDigest(group, types, proofs)
 			require.NoError(t, err)

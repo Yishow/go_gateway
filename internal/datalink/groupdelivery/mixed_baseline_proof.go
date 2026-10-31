@@ -57,8 +57,14 @@ func verifyMixedBaselineProof(ctx context.Context, q ownershipQuery, key GroupKe
 		}
 		// ExactValue contains immutable private representation; JSON is its canonical
 		// public exact form, preserving decimal evidence without float conversion.
-		got, _ := json.Marshal([]any{b.RolloverModulus, b.MaxRatePerSecond})
-		want, _ := json.Marshal([]any{modulus, rate})
+		got, err := json.Marshal([]any{b.RolloverModulus, b.MaxRatePerSecond})
+		if err != nil {
+			return ErrBaselineCorrupt
+		}
+		want, err := json.Marshal([]any{modulus, rate})
+		if err != nil {
+			return ErrBaselineCorrupt
+		}
 		if !reflect.DeepEqual(got, want) {
 			return ErrBaselineCorrupt
 		}

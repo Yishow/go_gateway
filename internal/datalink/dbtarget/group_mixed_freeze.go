@@ -8,16 +8,16 @@ func freezeMixedCounter(source *aggregation.CounterBinding) *aggregation.Counter
 	if source == nil {
 		return nil
 	}
-	copy := *source
+	cloned := *source
 	if source.RolloverModulus != nil {
 		v := *source.RolloverModulus
-		copy.RolloverModulus = &v
+		cloned.RolloverModulus = &v
 	}
 	if source.MaxRatePerSecond != nil {
 		v := *source.MaxRatePerSecond
-		copy.MaxRatePerSecond = &v
+		cloned.MaxRatePerSecond = &v
 	}
-	return &copy
+	return &cloned
 }
 func freezeMixedWide(s GroupRowSpec) GroupRowSpec {
 	if s.ResultShape != MixedResultShapeV1 {

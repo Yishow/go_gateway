@@ -3,9 +3,10 @@ package dbtarget
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/snapshot"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Actual assembler output, not a forged CounterGap, exercises the encoder's

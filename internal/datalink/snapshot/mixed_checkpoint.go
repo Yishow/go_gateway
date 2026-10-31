@@ -71,7 +71,7 @@ func (a *Assembler) validateMixedCheckpoint(cp MixedCheckpoint) (*Assembler, err
 	if err != nil {
 		return nil, err
 	}
-	if err = candidate.RestoreMixedProgress(cp.Progress); err != nil {
+	if err := candidate.RestoreMixedProgress(cp.Progress); err != nil {
 		return nil, err
 	}
 	expected, err := candidate.MemberProgress()

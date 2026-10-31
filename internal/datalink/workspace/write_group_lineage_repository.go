@@ -127,7 +127,7 @@ func (r *SQLWriteGroupRepository) findCanonicalGroup(ctx context.Context, worksp
 	if err != nil {
 		return nil, fmt.Errorf("begin canonical read: %w", err)
 	}
-	defer func() {
+	defer func() { //nolint:contextcheck // sqltx terminal cleanup uses its own bounded context so caller cancellation cannot leak a transaction.
 		if rollbackErr := owned.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
 			err = errors.Join(err, rollbackErr)
 		}
@@ -156,7 +156,7 @@ func (r *SQLWriteGroupRepository) findCanonicalGroup(ctx context.Context, worksp
 	if err != nil {
 		return nil, lineageCorrupt("read canonical head: %v", err)
 	}
-	if err := owned.Commit(); err != nil {
+	if err := owned.Commit(); err != nil { //nolint:contextcheck // sqltx terminal cleanup uses its own bounded context so caller cancellation cannot leak a transaction.
 		return nil, fmt.Errorf("complete canonical read: %w", err)
 	}
 	return group, nil

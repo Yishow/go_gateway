@@ -1,8 +1,9 @@
 package groupdelivery
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedSourceEvidenceReadsRequiredSkipAndNotDue(t *testing.T) {
@@ -53,7 +54,7 @@ func TestMixedSourceEvidenceRowReceiptAndRetention(t *testing.T) {
 	require.False(t, slow.LastSQLCommitted.Calculation.RawPresent)
 	require.True(t, slow.LastSQLCommitted.Calculation.RowEmitted)
 	require.Nil(t, slow.LastSQLCommitted.Calculation.ActualEnd)
-	_, err = store.db.Exec(`DELETE FROM wg_delivery_mixed_outcomes`)
+	_, err = store.db.ExecContext(t.Context(), `DELETE FROM wg_delivery_mixed_outcomes`)
 	require.NoError(t, err)
 	got, err = store.SourceRecords(t.Context(), scope, ref)
 	require.NoError(t, err)
@@ -80,7 +81,7 @@ func TestMixedSourceEvidenceRejectsChangedFrozenIntent(t *testing.T) {
 }
 func TestMixedSourceEvidenceRejectsCorruptTypedOutcome(t *testing.T) {
 	store, scope, refs, _ := mixedSourceFixture(t, true)
-	_, err := store.db.Exec(`UPDATE wg_delivery_mixed_outcomes SET outcome_digest='wrong'`)
+	_, err := store.db.ExecContext(t.Context(), `UPDATE wg_delivery_mixed_outcomes SET outcome_digest='wrong'`)
 	require.NoError(t, err)
 	got, err := store.SourceRecords(t.Context(), scope, refs["fast"])
 	require.NoError(t, err)
@@ -127,7 +128,7 @@ func TestMixedSourceEvidenceRejectsRehashedWrongSelectedCell(t *testing.T) {
 	}
 	raw, digest, err := encodeRowPayload(row)
 	require.NoError(t, err)
-	_, err = store.db.Exec(`UPDATE wg_delivery_outbox SET payload=?,payload_digest=? WHERE effect_key=?`, string(raw), digest, effect)
+	_, err = store.db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET payload=?,payload_digest=? WHERE effect_key=?`, string(raw), digest, effect)
 	require.NoError(t, err)
 	got, err := store.SourceRecords(t.Context(), scope, refs["fast"])
 	require.NoError(t, err)
@@ -136,7 +137,7 @@ func TestMixedSourceEvidenceRejectsRehashedWrongSelectedCell(t *testing.T) {
 func TestMixedSourceEvidenceRejectsRehashedForeignObservation(t *testing.T) {
 	store, scope, refs, _ := mixedSourceFixture(t, true)
 	var raw, digest, id string
-	require.NoError(t, store.db.QueryRow(`SELECT record_id,outcome,outcome_digest FROM wg_delivery_mixed_outcomes`).Scan(&id, &raw, &digest))
+	require.NoError(t, store.db.QueryRowContext(t.Context(), `SELECT record_id,outcome,outcome_digest FROM wg_delivery_mixed_outcomes`).Scan(&id, &raw, &digest))
 	out, err := DecodeMixedOutcome([]byte(raw), digest)
 	require.NoError(t, err)
 	for i := range out.Members {
@@ -146,7 +147,7 @@ func TestMixedSourceEvidenceRejectsRehashedForeignObservation(t *testing.T) {
 	}
 	encoded, err := encodeMixedOutcome(out)
 	require.NoError(t, err)
-	_, err = store.db.Exec(`UPDATE wg_delivery_mixed_outcomes SET outcome=?,outcome_digest=? WHERE record_id=?`, string(encoded), handoffHash(string(encoded)), id)
+	_, err = store.db.ExecContext(t.Context(), `UPDATE wg_delivery_mixed_outcomes SET outcome=?,outcome_digest=? WHERE record_id=?`, string(encoded), handoffHash(string(encoded)), id)
 	require.NoError(t, err)
 	got, err := store.SourceRecords(t.Context(), scope, refs["fast"])
 	require.NoError(t, err)

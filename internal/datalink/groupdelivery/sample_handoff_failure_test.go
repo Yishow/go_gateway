@@ -13,8 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/testutil/lostcommit"
+
+	"github.com/stretchr/testify/require"
 )
 
 func handoffDatabasePath(t *testing.T, store *Store) string {
@@ -174,16 +175,16 @@ func addHandoffFanoutTarget(t *testing.T, store *Store) GroupKey {
 	third := GroupKey{WorkspaceID: testKey.WorkspaceID, GroupID: "pending-cumulative", GroupRevision: "rev-C"}
 	// A pending runtime proof still belongs to a real canonical group. Keep
 	// the fixture's immutable revision FK valid before exercising lost ACKs.
-	_, err := store.DB().Exec(`INSERT INTO write_groups(id,workspace_id,revision,applied_revision,name,destination_connector_id,destination_connector_revision,destination_table_name) VALUES(?,?,?,?,?,'connector-1','crev-1',?)`, third.GroupID, third.WorkspaceID, third.GroupRevision, third.GroupRevision, third.GroupID, third.GroupID)
+	_, err := store.DB().ExecContext(t.Context(), `INSERT INTO write_groups(id,workspace_id,revision,applied_revision,name,destination_connector_id,destination_connector_revision,destination_table_name) VALUES(?,?,?,?,?,'connector-1','crev-1',?)`, third.GroupID, third.WorkspaceID, third.GroupRevision, third.GroupRevision, third.GroupID, third.GroupID)
 	require.NoError(t, err)
-	_, err = store.DB().Exec(`INSERT INTO write_group_versions(group_id,group_revision,effective_at,payload) SELECT ?,?,effective_at,json_set(payload,'$.id',?,'$.revision',?,'$.applied_revision',?,'$.recording_profile.kind','cumulative','$.destination.table_name',?) FROM write_group_versions WHERE group_id=? AND group_revision=?`, third.GroupID, third.GroupRevision, third.GroupID, third.GroupRevision, third.GroupRevision, third.GroupID, otherKey.GroupID, otherKey.GroupRevision)
+	_, err = store.DB().ExecContext(t.Context(), `INSERT INTO write_group_versions(group_id,group_revision,effective_at,payload) SELECT ?,?,effective_at,json_set(payload,'$.id',?,'$.revision',?,'$.applied_revision',?,'$.recording_profile.kind','cumulative','$.destination.table_name',?) FROM write_group_versions WHERE group_id=? AND group_revision=?`, third.GroupID, third.GroupRevision, third.GroupID, third.GroupRevision, third.GroupRevision, third.GroupID, otherKey.GroupID, otherKey.GroupRevision)
 	require.NoError(t, err)
 	_, err = store.DB().Exec(`UPDATE write_group_cutovers SET detail=json_insert(detail,'$.started[#]',json_object('group_id',?,'revision',?))`, third.GroupID, third.GroupRevision)
 	require.NoError(t, err)
 	_, err = store.DB().Exec(`INSERT INTO write_group_ownership_fences SELECT fence_revision,workspace_id,direction,?,?,device_id,point_id,tag_id,'cumulative',connector_id,connector_revision,database_name,table_schema,? FROM write_group_ownership_fences WHERE direction='started'`, third.GroupID, third.GroupRevision, third.GroupID)
 	require.NoError(t, err)
 	var invalid int
-	require.NoError(t, store.DB().QueryRow(`SELECT COUNT(*) FROM pragma_foreign_key_check`).Scan(&invalid))
+	require.NoError(t, store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM pragma_foreign_key_check`).Scan(&invalid))
 	require.Zero(t, invalid, "normal fanout fixture must preserve real FK authority")
 	return third
 }
@@ -239,7 +240,7 @@ func TestHandoffPrematureFinalizedStateCannotReleaseOpenTarget(t *testing.T) {
 	require.NoError(t, store.inTx(t.Context(), "test corruption", func(ctx context.Context, tx *sql.Tx) error {
 		r := rs[0]
 		r.State = "finalized"
-		return writeHandoffReceipt(t.Context(), tx, r)
+		return writeHandoffReceipt(ctx, tx, r)
 	}))
 	_, err = store.Restore(t.Context(), otherKey)
 	require.ErrorIs(t, err, ErrOwnershipUnavailable, "state text alone cannot attest target consumption")

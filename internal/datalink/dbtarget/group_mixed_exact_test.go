@@ -2,12 +2,13 @@ package dbtarget
 
 import (
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/snapshot"
 	"math"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedExactOutcome(t *testing.T, mode snapshot.Mode) []snapshot.Outcome {
@@ -91,7 +92,7 @@ func TestMixedLatestUint64NeverPassesThroughFloat(t *testing.T) {
 			t.Cleanup(func() { _ = db.Close() })
 			mixedInsert(t, db, "mixed_results", row)
 			var value, kind string
-			require.NoError(t, db.QueryRow(`SELECT a,typeof(a) FROM mixed_results`).Scan(&value, &kind))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT a,typeof(a) FROM mixed_results`).Scan(&value, &kind))
 			require.Equal(t, "18446744073709551615", value)
 			require.Equal(t, "text", kind)
 		}

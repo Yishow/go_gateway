@@ -2,13 +2,14 @@ package grouppipeline
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedStorageProofFixture(t *testing.T, long bool, dialect dbtarget.SQLDialect) (*workspace.WriteGroup, *workspace.WriteGroupRuntimeLayout) {
@@ -59,7 +60,7 @@ func TestMixedFrozenStorageProofUsesCanonicalSchema(t *testing.T) {
 func TestMixedFrozenStorageProofRejectsIncompleteFacts(t *testing.T) {
 	for _, long := range []bool{false, true} {
 		for name, mutate := range map[string]func(*workspace.WriteGroup, *workspace.WriteGroupRuntimeLayout){
-			"owner missing": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
+			"owner missing": func(_ *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
 				for i, c := range l.Columns {
 					if strings.HasPrefix(c.Name, "_gw_owner_") {
 						l.Columns = append(l.Columns[:i], l.Columns[i+1:]...)
@@ -67,7 +68,7 @@ func TestMixedFrozenStorageProofRejectsIncompleteFacts(t *testing.T) {
 					}
 				}
 			},
-			"provenance nullable": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
+			"provenance nullable": func(_ *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
 				for i, c := range l.Columns {
 					if c.Name == "provenance" {
 						l.Columns[i].Nullable = true
@@ -81,18 +82,18 @@ func TestMixedFrozenStorageProofRejectsIncompleteFacts(t *testing.T) {
 					}
 				}
 			},
-			"record key missing": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
+			"record key missing": func(_ *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
 				for i := range l.Columns {
 					l.Columns[i].PrimaryKey = false
 				}
 			},
-			"unknown shape": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
+			"unknown shape": func(g *workspace.WriteGroup, _ *workspace.WriteGroupRuntimeLayout) {
 				g.RecordingProfile.ResultShape = "unknown"
 			},
-			"record UUID missing": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) { g.RecordID = "" },
-			"digest absent":       func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) { l.SchemaDigest = "" },
-			"consent absent":      func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) { g.Destination.SchemaRevision = "" },
-			"mysql": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
+			"record UUID missing": func(g *workspace.WriteGroup, _ *workspace.WriteGroupRuntimeLayout) { g.RecordID = "" },
+			"digest absent":       func(_ *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) { l.SchemaDigest = "" },
+			"consent absent":      func(g *workspace.WriteGroup, _ *workspace.WriteGroupRuntimeLayout) { g.Destination.SchemaRevision = "" },
+			"mysql": func(_ *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
 				l.Dialect = dbtarget.SQLDialectMySQL
 			},
 			"wrong source type": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
@@ -127,18 +128,18 @@ func TestMixedFrozenStorageProofRequiresOwnedShapeAndNoForeignCatalog(t *testing
 	require.False(t, validMixedRuntimeStorageProof(nil, nil))
 	for _, long := range []bool{false, true} {
 		for name, mutate := range map[string]func(*workspace.WriteGroup, *workspace.WriteGroupRuntimeLayout){
-			"foreign owner identity": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) { g.WorkspaceID = "foreign" },
-			"bad digest": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
+			"foreign owner identity": func(g *workspace.WriteGroup, _ *workspace.WriteGroupRuntimeLayout) { g.WorkspaceID = "foreign" },
+			"bad digest": func(_ *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
 				l.SchemaDigest = strings.Repeat("z", 64)
 			},
-			"duplicate column": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
+			"duplicate column": func(_ *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
 				l.Columns = append(l.Columns, l.Columns[0])
 			},
-			"shared interval": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) { g.RowPolicy.IntervalSeconds = 60 },
-			"sqlserver": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
+			"shared interval": func(g *workspace.WriteGroup, _ *workspace.WriteGroupRuntimeLayout) { g.RowPolicy.IntervalSeconds = 60 },
+			"sqlserver": func(_ *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
 				l.Dialect = dbtarget.SQLDialectSQLServer
 			},
-			"timescale": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {
+			"timescale": func(g *workspace.WriteGroup, _ *workspace.WriteGroupRuntimeLayout) {
 				g.StorageMode = workspace.WriteGroupStorageModeTimescale
 			},
 			"receipt absent": func(g *workspace.WriteGroup, l *workspace.WriteGroupRuntimeLayout) {

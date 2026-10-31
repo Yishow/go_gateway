@@ -1,10 +1,11 @@
 package groupdelivery
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/aggregation"
 	"go-gateway/internal/datalink/measurement"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedBaselineMustRetainOriginalSealedMeaning(t *testing.T) {

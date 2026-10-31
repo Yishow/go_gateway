@@ -2,7 +2,6 @@ package groupdelivery
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/recordingplan"
@@ -10,6 +9,8 @@ import (
 	"go-gateway/internal/datalink/snapshot"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedSourceFixture(t *testing.T, skip bool) (*Store, SourceScope, map[string]SourceRef, Closure) {

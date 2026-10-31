@@ -52,7 +52,7 @@ func (s *Store) verifyMixedSource(ctx context.Context, scope SourceScope, ref So
 	if err != nil {
 		return reject(SourceCausePayloadInvalid)
 	}
-	if ref.Calculation == "mean" && member.Status != snapshot.MemberNotDue {
+	if ref.Calculation == sourceReductionMean && member.Status != snapshot.MemberNotDue {
 		e := member.Evidence
 		if e == nil || e.Method != measurement.MeanAggregationMethod || e.Version != measurement.MeanAggregationVersion || string(e.SourceValueType) != ref.SourceType || string(e.ResultValueType) != ref.ResultType || e.ValidCount < 0 || e.RejectedCount < 0 || !sourceMeanCoverages[string(e.Coverage)] {
 			return reject(SourceCausePayloadInvalid)
@@ -121,7 +121,7 @@ func mixedSourceCells(scope SourceScope, ref SourceRef, facts mixedSourceFacts, 
 		}
 	}
 	if !scope.Wide {
-		for col, want := range map[string]string{"workspace_id": scope.WorkspaceID, "group_id": scope.GroupID, "group_revision": scope.GroupRevision, "device_id": ref.DeviceID, "point_id": ref.PointID, "tag_id": ref.TagID, "profile_kind": "mixed"} {
+		for col, want := range map[string]string{"workspace_id": scope.WorkspaceID, "group_id": scope.GroupID, "group_revision": scope.GroupRevision, "device_id": ref.DeviceID, "point_id": ref.PointID, "tag_id": ref.TagID, "profile_kind": mixedProfileKind} {
 			if cellText(cells, col) != want {
 				return false
 			}
@@ -187,15 +187,15 @@ func timePointer(at time.Time) *time.Time {
 	if at.IsZero() {
 		return nil
 	}
-	copy := at
-	return &copy
+	cloned := at
+	return &cloned
 }
 func projectMixedSource(scope SourceScope, ref SourceRef, o snapshot.Outcome, m snapshot.MemberResult, digest string) *VerifiedSourceRecord {
 	c := &SourceCalculation{ResultShape: scope.ResultShape, Method: ref.Calculation, IntervalSeconds: ref.CadenceSeconds, Alignment: ref.Alignment, DueAt: o.DueAt, OutcomeDigest: digest, OutcomeKind: string(o.Kind), Status: string(m.Status), Reason: sourceReason(m.Reason), ResultPresent: m.Usable(), RowEmitted: o.Kind == snapshot.OutcomeRow, RawPresent: m.Sample != nil, SourceType: ref.SourceType, ResultType: ref.ResultType}
 	if m.Status == snapshot.MemberNotDue {
 		c.Reason = snapshot.ReasonNotDue
 	}
-	r := &VerifiedSourceRecord{Calculation: c, GroupRevision: scope.GroupRevision, ConnectorRevision: scope.ConnectorRevision, RecordID: o.RecordID, ProfileKind: "mixed", Status: SourceStatus(m.Status), Reason: c.Reason, RawPresent: c.RawPresent}
+	r := &VerifiedSourceRecord{Calculation: c, GroupRevision: scope.GroupRevision, ConnectorRevision: scope.ConnectorRevision, RecordID: o.RecordID, ProfileKind: mixedProfileKind, Status: SourceStatus(m.Status), Reason: c.Reason, RawPresent: c.RawPresent}
 	if w := m.Window; w != nil {
 		c.NextDue = timePointer(w.NextDue)
 		c.AlignedStart = timePointer(w.AlignedStart)
@@ -209,7 +209,7 @@ func projectMixedSource(scope SourceScope, ref SourceRef, o snapshot.Outcome, m 
 		r.Status = SourceStatus(m.Counter.Status)
 		r.Reason = sourceReason(m.Counter.Reason)
 	}
-	if ref.Calculation == "delta" {
+	if ref.Calculation == mixedDeltaMethod {
 		known := m.Usable()
 		r.DeltaKnown = &known
 	}

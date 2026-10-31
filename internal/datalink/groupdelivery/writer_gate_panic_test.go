@@ -3,18 +3,19 @@ package groupdelivery
 import (
 	"context"
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestStoreTransactionPanicRollsBackBeforeReturningConnection(t *testing.T) {
 	store, db, _ := newTestStore(t)
 	db.SetMaxOpenConns(1)
-	_, err := db.Exec(`CREATE TABLE panic_probe(value INTEGER); INSERT INTO panic_probe VALUES(1)`)
+	_, err := db.ExecContext(t.Context(), `CREATE TABLE panic_probe(value INTEGER); INSERT INTO panic_probe VALUES(1)`)
 	require.NoError(t, err)
 	require.PanicsWithValue(t, "callback panic", func() {
 		_ = store.inTx(t.Context(), "panic", func(ctx context.Context, tx *sql.Tx) error {
-			_, err := tx.Exec(`UPDATE panic_probe SET value=2`)
+			_, err := tx.ExecContext(ctx, `UPDATE panic_probe SET value=2`)
 			require.NoError(t, err)
 			panic("callback panic")
 		})

@@ -40,7 +40,7 @@ func refuseMixedLegacyCursor(ctx context.Context, q ownershipQuery, key GroupKey
 		return mixedInvalid("legacy closure for mixed descriptor")
 	}
 	var count int
-	if err = q.QueryRowContext(ctx, `SELECT count(*) FROM wg_delivery_mixed_progress WHERE workspace_id=? AND group_id=? AND group_revision=?`, key.WorkspaceID, key.GroupID, key.GroupRevision).Scan(&count); err != nil {
+	if err := q.QueryRowContext(ctx, `SELECT count(*) FROM wg_delivery_mixed_progress WHERE workspace_id=? AND group_id=? AND group_revision=?`, key.WorkspaceID, key.GroupID, key.GroupRevision).Scan(&count); err != nil {
 		return err
 	}
 	if count != 0 {

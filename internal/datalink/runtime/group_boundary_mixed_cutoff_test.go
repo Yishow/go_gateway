@@ -1,10 +1,11 @@
 package runtime
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/snapshot"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedBoundaryCutoffExcludesAcceptedFutureAndKeepsSlowPartial(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 // replaceMixedCache never clears uncertainty or a local drain on the old
 // assembler. It restores a fresh worker from the original durable descriptor,
 // then fences captured old workers before atomically installing the replacement.
-func (p *Pipeline) replaceMixedCache(ctx context.Context, old *managed, snap *workspace.WriteGroupAppliedSnapshot) (*managed, string) {
+func (p *Pipeline) replaceMixedCache(ctx context.Context, old *managed, snap *workspace.WriteGroupAppliedSnapshot) (replacement *managed, reason string) {
 	old.proofGate.Lock()
 	defer old.proofGate.Unlock()
 	if old.superseded || old.proofQuarantined != nil {
@@ -72,7 +72,7 @@ func (p *Pipeline) restoreMixedDrainLocked(ctx context.Context, old *managed) er
 	if reason != "" || fresh == nil {
 		return errRuntimeSnapshotInvalid
 	}
-	if err = p.beginMixedDrain(ctx, fresh); err != nil {
+	if err := p.beginMixedDrain(ctx, fresh); err != nil {
 		return err
 	}
 	p.mu.Lock()

@@ -56,7 +56,7 @@ func TestMixedDraftCRUDRecordIdentityAndRestart(t *testing.T) {
 	require.Equal(t, int64(15), got.Group.Members[0].Cadence.Interval)
 	require.Zero(t, got.Group.RowPolicy.IntervalSeconds)
 	var policy string
-	require.NoError(t, db.QueryRow(`SELECT row_policy FROM write_groups WHERE id=?`, got.Group.ID).Scan(&policy))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT row_policy FROM write_groups WHERE id=?`, got.Group.ID).Scan(&policy))
 	require.NotContains(t, policy, "interval_seconds")
 	wire, err := json.Marshal(got.Group)
 	require.NoError(t, err)
@@ -77,7 +77,7 @@ func TestMixedDraftCounterConfirmationAndForeignIdentity(t *testing.T) {
 	delta.Members[0].MeasurementID = &id
 	_, err = h.service.Create(t.Context(), h.mutation(t.Context(), delta))
 	require.ErrorIs(t, err, ErrWriteGroupValidation)
-	_, err = h.db.Exec(`UPDATE measurement_definitions SET unit='kWh',series_epoch='epoch-1',numeric_encoding='float32',counter_policy='{}' WHERE id=?`, id)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE measurement_definitions SET unit='kWh',series_epoch='epoch-1',numeric_encoding='float32',counter_policy='{}' WHERE id=?`, id)
 	require.NoError(t, err)
 	saved, err := h.service.Create(t.Context(), h.mutation(t.Context(), delta))
 	require.NoError(t, err)
@@ -113,7 +113,7 @@ func TestMixedDraftCorruptCadenceAndReplayChangesRejected(t *testing.T) {
 		require.Error(t, err)
 	}
 	for _, raw := range []any{nil, `{}`, `{"interval":1,"unit":"hour","alignment":"utc_epoch"}`, `{"interval":5,"unit":"second","alignment":"utc_epoch","unknown":1}`} {
-		_, err := h.db.Exec(`UPDATE write_group_members SET cadence=? WHERE group_id=?`, raw, saved.Group.ID)
+		_, err := h.db.ExecContext(t.Context(), `UPDATE write_group_members SET cadence=? WHERE group_id=?`, raw, saved.Group.ID)
 		require.NoError(t, err)
 		_, err = h.service.Get(t.Context(), saved.Group.ID)
 		require.Error(t, err)

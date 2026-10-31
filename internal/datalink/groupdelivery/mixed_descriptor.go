@@ -12,6 +12,14 @@ import (
 	"go-gateway/internal/datalink/snapshot"
 )
 
+const (
+	mixedProfileKind = "mixed"
+	mixedResultShape = "member-calculation-v1"
+	mixedLongLayout  = "managed_long_v1"
+	mixedWideLayout  = "managed_wide_profile_v1"
+	mixedDeltaMethod = "delta"
+)
+
 // mixedDescriptor reads only scheduling projections from the immutable runtime
 // descriptor. Counter meaning continues to use ResolveSnapshotEvidence.
 type mixedDescriptor struct {
@@ -55,10 +63,10 @@ func readMixedDescriptor(ctx context.Context, q ownershipQuery, key GroupKey) (*
 	if json.Unmarshal([]byte(payload), &d) != nil {
 		return nil, "", ErrInvalidClosure
 	}
-	if d.Group == nil || d.Group.Profile == nil || d.Group.Profile.Kind != "mixed" {
+	if d.Group == nil || d.Group.Profile == nil || d.Group.Profile.Kind != mixedProfileKind {
 		return nil, "", nil
 	}
-	if !counterproof.UniqueJSONObject([]byte(payload), false) || d.WorkspaceID != key.WorkspaceID || d.GroupID != key.GroupID || d.AppliedRevision != key.GroupRevision || d.Group.WorkspaceID != key.WorkspaceID || d.Group.ID != key.GroupID || d.Group.Revision != key.GroupRevision || d.Group.AppliedRevision != key.GroupRevision || d.Group.Profile.Shape != "member-calculation-v1" {
+	if !counterproof.UniqueJSONObject([]byte(payload), false) || d.WorkspaceID != key.WorkspaceID || d.GroupID != key.GroupID || d.AppliedRevision != key.GroupRevision || d.Group.WorkspaceID != key.WorkspaceID || d.Group.ID != key.GroupID || d.Group.Revision != key.GroupRevision || d.Group.AppliedRevision != key.GroupRevision || d.Group.Profile.Shape != mixedResultShape {
 		return nil, "", ErrInvalidClosure
 	}
 	if _, err := counterproof.ResolveSnapshotEvidence([]byte(payload), counterproof.SnapshotScope{WorkspaceID: key.WorkspaceID, GroupID: key.GroupID, AppliedRevision: key.GroupRevision}); err != nil {

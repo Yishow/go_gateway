@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/snapshot"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestWriteGroupReadbackAdvertisesActivationRequiringRecordReadiness(t *testing.T) {
@@ -14,13 +15,13 @@ func TestWriteGroupReadbackAdvertisesActivationRequiringRecordReadiness(t *testi
 		require.NoError(t, err)
 		var data map[string]any
 		require.NoError(t, json.Unmarshal(raw, &data))
-		cap, ok := data["calculation_capabilities"].(map[string]any)
+		capabilities, ok := data["calculation_capabilities"].(map[string]any)
 		require.True(t, ok, "canonical responses must tell consumers whether mixed is actually available")
-		require.Equal(t, true, cap["draft_supported"])
-		require.Equal(t, true, cap["activation_supported"])
-		require.Equal(t, false, cap["editor_supported"])
-		require.Equal(t, "record_readiness_required", cap["reason"])
-		cadence := cap["cadence"].(map[string]any)
+		require.Equal(t, true, capabilities["draft_supported"])
+		require.Equal(t, true, capabilities["activation_supported"])
+		require.Equal(t, false, capabilities["editor_supported"])
+		require.Equal(t, "record_readiness_required", capabilities["reason"])
+		cadence := capabilities["cadence"].(map[string]any)
 		require.EqualValues(t, snapshot.MaxCadenceSeconds, cadence["max_seconds"])
 		require.EqualValues(t, snapshot.MaxCadenceMinutes, cadence["max_minutes"])
 		require.Equal(t, "utc_epoch", cadence["alignment"])
@@ -40,5 +41,5 @@ func TestWriteGroupReadbackIgnoresCallerCapabilityOverride(t *testing.T) {
 		require.Equal(t, string(expected), string(actual), "caller field cannot change wire bytes or backend capability authority")
 		require.NotContains(t, string(actual), "forged")
 	}
-	require.False(t, forged.ActivationSupported, "marshalling does not mutate caller state")
+	require.False(t, forged.ActivationSupported, "marshaling does not mutate caller state")
 }

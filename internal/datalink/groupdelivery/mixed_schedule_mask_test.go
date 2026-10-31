@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/snapshot"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedClosureScheduleRejectsForgedMemberMask(t *testing.T) {

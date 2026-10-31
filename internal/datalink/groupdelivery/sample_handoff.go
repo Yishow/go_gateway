@@ -318,7 +318,7 @@ func (s *Store) prepareHandoffInTx(ctx context.Context, tx *sql.Tx, key GroupKey
 				}
 				r.TargetBucket = timestamp(start)
 				var progress Restored
-				if e = restoreMixedProgress(ctx, tx, target, &progress); e != nil {
+				if e := restoreMixedProgress(ctx, tx, target, &progress); e != nil {
 					return nil, nil, e
 				}
 				if progress.Mixed != nil {

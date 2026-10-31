@@ -1,11 +1,12 @@
 package dbtarget
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/snapshot"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedWideLayoutRequiresVersionedFreshMappings(t *testing.T) {

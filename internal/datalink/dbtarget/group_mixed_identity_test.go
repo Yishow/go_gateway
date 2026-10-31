@@ -1,9 +1,10 @@
 package dbtarget
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/snapshot"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedScopedRows(t *testing.T, mode snapshot.Mode, scope string) []snapshot.Outcome {

@@ -2,8 +2,9 @@ package workspace
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedRowPolicyOmitsLegacyIntervalOnly(t *testing.T) {

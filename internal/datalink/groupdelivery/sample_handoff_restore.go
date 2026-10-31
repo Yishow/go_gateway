@@ -162,7 +162,7 @@ func (s *Store) restoreHandoffView(ctx context.Context, key GroupKey) (result Re
 		return Restored{}, ErrOwnershipUnavailable
 	}
 	tx := owned.Tx
-	defer func() {
+	defer func() { //nolint:contextcheck // sqltx terminal cleanup uses its own bounded context so caller cancellation cannot leak a transaction.
 		if e := owned.Rollback(); e != nil && !errors.Is(e, sql.ErrTxDone) {
 			retErr = errors.Join(retErr, e)
 			result = Restored{}
@@ -188,7 +188,7 @@ func (s *Store) restoreHandoffView(ctx context.Context, key GroupKey) (result Re
 	if err != nil {
 		return Restored{}, err
 	}
-	if err = restoreMixedProgress(ctx, tx, key, &r); err != nil {
+	if err := restoreMixedProgress(ctx, tx, key, &r); err != nil {
 		return Restored{}, err
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT seq FROM wg_delivery_samples WHERE group_id=? AND group_revision=? AND consumed=0 ORDER BY seq`, key.GroupID, key.GroupRevision)
@@ -284,11 +284,11 @@ func (s *Store) restoreHandoffView(ctx context.Context, key GroupKey) (result Re
 		return Restored{}, ErrBaselineCorrupt
 	}
 	if r.Mixed != nil {
-		if err = verifyMixedBaselineProof(ctx, tx, key, r.Baselines); err != nil {
+		if err := verifyMixedBaselineProof(ctx, tx, key, r.Baselines); err != nil {
 			return Restored{}, err
 		}
 	}
-	if err := owned.Commit(); err != nil {
+	if err := owned.Commit(); err != nil { //nolint:contextcheck // sqltx terminal cleanup uses its own bounded context so caller cancellation cannot leak a transaction.
 		return Restored{}, errors.Join(ErrOwnershipUnavailable, err)
 	}
 	return r, nil

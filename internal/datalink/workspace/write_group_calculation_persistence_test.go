@@ -2,9 +2,10 @@ package workspace
 
 import (
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestCalculationStorageLegacyAbsenceSurvivesRestart(t *testing.T) {
@@ -14,8 +15,8 @@ func TestCalculationStorageLegacyAbsenceSurvivesRestart(t *testing.T) {
 	draft.RecordingProfile.SampleReduction = ""
 	saved := h.mustEnsure(draft)
 	var calculation, shape sql.NullString
-	require.NoError(t, h.db.QueryRow(`SELECT calculation FROM write_group_members WHERE group_id=?`, saved.ID).Scan(&calculation))
-	require.NoError(t, h.db.QueryRow(`SELECT result_shape FROM write_groups WHERE id=?`, saved.ID).Scan(&shape))
+	require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT calculation FROM write_group_members WHERE group_id=?`, saved.ID).Scan(&calculation))
+	require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT result_shape FROM write_groups WHERE id=?`, saved.ID).Scan(&shape))
 	require.False(t, calculation.Valid)
 	require.False(t, shape.Valid)
 	require.NoError(t, h.db.Close())
@@ -75,13 +76,13 @@ func TestCalculationStorageCorruptCrossShapeRejected(t *testing.T) {
 	h := newCircuitProfileHarness(t, ":memory:")
 	saved := h.mustEnsure(h.draft(WriteGroupProfileInstantaneous, "legacy", "Legacy", h.primary()))
 	repo := NewSQLWriteGroupRepository(h.db)
-	_, err := h.db.Exec(`UPDATE write_group_members SET calculation='mean' WHERE group_id=?`, saved.ID)
+	_, err := h.db.ExecContext(t.Context(), `UPDATE write_group_members SET calculation='mean' WHERE group_id=?`, saved.ID)
 	require.NoError(t, err)
 	_, err = repo.Get(t.Context(), h.fixture.workspaceID, saved.ID)
 	require.ErrorIs(t, err, ErrWriteGroupValidation)
-	_, err = h.db.Exec(`UPDATE write_group_members SET calculation=NULL WHERE group_id=?`, saved.ID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_members SET calculation=NULL WHERE group_id=?`, saved.ID)
 	require.NoError(t, err)
-	_, err = h.db.Exec(`UPDATE write_groups SET result_shape='member-calculation-v1' WHERE id=?`, saved.ID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET result_shape='member-calculation-v1' WHERE id=?`, saved.ID)
 	require.NoError(t, err)
 	_, err = repo.Get(t.Context(), h.fixture.workspaceID, saved.ID)
 	require.ErrorIs(t, err, ErrWriteGroupValidation)

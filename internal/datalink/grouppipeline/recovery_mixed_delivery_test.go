@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedFrozenReplayAndFinalizedStorageKeepDistinctProofs(t *testing.T) {
@@ -40,14 +41,14 @@ func TestMixedFrozenReplayAndFinalizedStorageKeepDistinctProofs(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, storage.CounterBindings)
 		require.Error(t, workspace.ValidateMixedRecordingSnapshot(storage.Group, storage.RuntimeLayout.TagTypes, storage.CounterBindings), "storage projection cannot authorize replay")
-		_, err = f.store.DB().Exec(`UPDATE wg_runtime_versions SET payload=json_remove(payload,'$.counter_bindings') WHERE group_id=?`, g.ID)
+		_, err = f.store.DB().ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=json_remove(payload,'$.counter_bindings') WHERE group_id=?`, g.ID)
 		require.NoError(t, err)
 		_, err = loadFrozenSnapshot(t.Context(), f.store, key)
 		require.ErrorIs(t, err, counterproof.ErrCounterBindingProofMissing)
 		finalized, err := loadFinalizedStorageSnapshot(t.Context(), f.store, key)
 		require.NoError(t, err)
 		require.Equal(t, g.Destination, finalized.Group.Destination)
-		_, err = f.store.DB().Exec(`UPDATE wg_runtime_versions SET payload=json_set(payload,'$.group.workspace_id','foreign') WHERE group_id=?`, g.ID)
+		_, err = f.store.DB().ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=json_set(payload,'$.group.workspace_id','foreign') WHERE group_id=?`, g.ID)
 		require.NoError(t, err)
 		_, err = loadFinalizedStorageSnapshot(t.Context(), f.store, key)
 		require.ErrorIs(t, err, errRuntimeSnapshotInvalid)

@@ -111,8 +111,7 @@ func managedSourceDigest(group *WriteGroup, tagTypes map[string]schema.DataType,
 		if err != nil {
 			return "", fmt.Errorf("%w: %w", ErrWriteGroupValidation, err)
 		}
-		sources = append(sources, proofs)
-		sources = append(sources, group.WorkspaceID, group.ID, group.RecordID, group.RowPolicy, group.RecordingProfile, group.LayoutVersion, group.StorageMode)
+		sources = append(sources, proofs, group.WorkspaceID, group.ID, group.RecordID, group.RowPolicy, group.RecordingProfile, group.LayoutVersion, group.StorageMode)
 	}
 	switch group.EffectiveLayoutVersion() {
 	case WriteGroupLayoutManagedLongV1:

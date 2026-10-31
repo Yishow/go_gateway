@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/sqltx"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 type mixedLostClosureAck struct {
@@ -44,7 +45,7 @@ func TestMixedPipelineReconcileRestoresUnknownClosureWithoutReencoding(t *testin
 	require.ErrorIs(t, old.boundary.Tick(t.Context(), at(15)), sqltx.ErrCommitOutcomeUnknown)
 	require.True(t, old.boundary.NeedsDurableRestore())
 	var original string
-	require.NoError(t, f.store.DB().QueryRow(`SELECT payload FROM wg_delivery_outbox`).Scan(&original))
+	require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT payload FROM wg_delivery_outbox`).Scan(&original))
 	require.NoError(t, pipe.Reconcile(t.Context()))
 	fresh := pipe.boundaries[key]
 	require.NotSame(t, old, fresh, "unknown acknowledgment requires a new restored boundary")
@@ -53,10 +54,10 @@ func TestMixedPipelineReconcileRestoresUnknownClosureWithoutReencoding(t *testin
 	pipe.TickAll(t.Context())
 	require.Equal(t, 1, ledger.calls, "unknown old closure must never be retried")
 	var stored string
-	require.NoError(t, f.store.DB().QueryRow(`SELECT payload FROM wg_delivery_outbox`).Scan(&stored))
+	require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT payload FROM wg_delivery_outbox`).Scan(&stored))
 	require.Equal(t, original, stored, "accepted SQL payload is not recomputed")
 	var count int
-	require.NoError(t, f.store.DB().QueryRow(`SELECT COUNT(*) FROM wg_delivery_outbox`).Scan(&count))
+	require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_outbox`).Scan(&count))
 	require.Equal(t, 1, count)
 }
 

@@ -2,13 +2,14 @@ package dbtarget
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/aggregation"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/snapshot"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedEncodeAt(sec int) time.Time {

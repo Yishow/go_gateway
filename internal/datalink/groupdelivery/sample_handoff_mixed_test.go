@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/snapshot"
+
+	"github.com/stretchr/testify/require"
 )
 
-func mixedHandoffDescriptor(t *testing.T, key GroupKey, method string, interval int, proof *counterproof.CounterBindingProof) []byte {
+func mixedHandoffDescriptor(t *testing.T, key GroupKey, method string, proof *counterproof.CounterBindingProof) []byte {
 	t.Helper()
 	var doc map[string]any
 	require.NoError(t, json.Unmarshal(handoffProofDescriptor(t, key, proof, false), &doc))
@@ -24,7 +25,7 @@ func mixedHandoffDescriptor(t *testing.T, key GroupKey, method string, interval 
 	m["source_value_type"] = "int64"
 	m["result_value_type"] = "int64"
 	m["value_role"] = "gauge"
-	m["cadence"] = map[string]any{"interval": interval, "unit": "second", "alignment": "utc_epoch"}
+	m["cadence"] = map[string]any{"interval": 15, "unit": "second", "alignment": "utc_epoch"}
 	if method == "mean" {
 		m["result_value_type"] = "decimal"
 	}
@@ -42,19 +43,19 @@ func TestMixedHandoffSameIntentTransfersAndRestarts(t *testing.T) {
 			store, db, path := newTestStore(t)
 			store = store.WithClock(func() time.Time { return at(21) })
 			for _, key := range []GroupKey{testKey, otherKey} {
-				require.NoError(t, store.SaveRuntimeVersion(t.Context(), key, mixedHandoffDescriptor(t, key, method, 15, nil)))
+				require.NoError(t, store.SaveRuntimeVersion(t.Context(), key, mixedHandoffDescriptor(t, key, method, nil)))
 			}
 			sample := sampleAt("mixed-handoff", ownershipMember, 23, 7)
 			sample.ReceivedAt = at(21)
 			require.NoError(t, store.AppendSample(t.Context(), testKey, at(15), sample))
 			seedOwnershipCutover(t, db, "f-mixed", testKey, otherKey, at(22))
 			var original string
-			require.NoError(t, db.QueryRow(`SELECT payload FROM wg_delivery_samples`).Scan(&original))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload FROM wg_delivery_samples`).Scan(&original))
 			batch, err := store.PrepareCutoverHandoffs(t.Context(), testKey, 0, 128)
 			require.NoError(t, err)
 			require.Equal(t, 1, batch.Accepted)
 			var payload, bucket string
-			require.NoError(t, db.QueryRow(`SELECT payload,bucket_start FROM wg_delivery_samples WHERE group_id=?`, otherKey.GroupID).Scan(&payload, &bucket))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload,bucket_start FROM wg_delivery_samples WHERE group_id=?`, otherKey.GroupID).Scan(&payload, &bucket))
 			require.Equal(t, original, payload)
 			require.Equal(t, timestamp(at(15)), bucket)
 			require.NoError(t, db.Close())
@@ -90,9 +91,9 @@ func TestMixedHandoffRejectsChangedMeaning(t *testing.T) {
 		t.Run(change, func(t *testing.T) {
 			store, db, _ := newTestStore(t)
 			for _, key := range []GroupKey{testKey, otherKey} {
-				require.NoError(t, store.SaveRuntimeVersion(t.Context(), key, mixedHandoffDescriptor(t, key, "latest", 15, nil)))
+				require.NoError(t, store.SaveRuntimeVersion(t.Context(), key, mixedHandoffDescriptor(t, key, "latest", nil)))
 			}
-			_, err := db.Exec(`UPDATE wg_runtime_versions SET payload=`+change+` WHERE group_id=?`, otherKey.GroupID)
+			_, err := db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=`+change+` WHERE group_id=?`, otherKey.GroupID)
 			require.NoError(t, err)
 			sample := sampleAt("mixed-proof", ownershipMember, 23, 7)
 			raw, digest, err := encodeSample(sample)
@@ -111,8 +112,8 @@ func TestMixedHandoffDeltaKeepsOriginalSealedProof(t *testing.T) {
 	facts.Member.GroupID = otherKey.GroupID
 	target, err := counterproof.NewCounterBindingProof(facts)
 	require.NoError(t, err)
-	require.NoError(t, store.SaveRuntimeVersion(t.Context(), testKey, mixedHandoffDescriptor(t, testKey, "delta", 15, &origin)))
-	require.NoError(t, store.SaveRuntimeVersion(t.Context(), otherKey, mixedHandoffDescriptor(t, otherKey, "delta", 15, &target)))
+	require.NoError(t, store.SaveRuntimeVersion(t.Context(), testKey, mixedHandoffDescriptor(t, testKey, "delta", &origin)))
+	require.NoError(t, store.SaveRuntimeVersion(t.Context(), otherKey, mixedHandoffDescriptor(t, otherKey, "delta", &target)))
 	sample.ObservedAt = at(23)
 	sample.ReceivedAt = at(21)
 	require.NoError(t, store.AppendSample(t.Context(), testKey, at(15), sample))
@@ -135,7 +136,7 @@ func TestMixedHandoffDeltaKeepsOriginalSealedProof(t *testing.T) {
 func TestMixedHandoffRejectsAlreadyClosedTargetMember(t *testing.T) {
 	store, db, _ := newTestStore(t)
 	for _, key := range []GroupKey{testKey, otherKey} {
-		require.NoError(t, store.SaveRuntimeVersion(t.Context(), key, mixedHandoffDescriptor(t, key, "latest", 15, nil)))
+		require.NoError(t, store.SaveRuntimeVersion(t.Context(), key, mixedHandoffDescriptor(t, key, "latest", nil)))
 	}
 	sample := sampleAt("late-handoff", ownershipMember, 23, 7)
 	require.NoError(t, store.AppendSample(t.Context(), testKey, at(15), sample))
@@ -148,7 +149,7 @@ func TestMixedHandoffRejectsAlreadyClosedTargetMember(t *testing.T) {
 	require.NoError(t, err)
 	descriptor, err := store.RuntimeVersion(t.Context(), otherKey)
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO wg_delivery_mixed_progress(workspace_id,group_id,group_revision,version,descriptor_digest,closed_through,checkpoint,checkpoint_digest,last_closure_digest,updated_at) VALUES(?,?,?,1,?,?,?,?,?,?)`, otherKey.WorkspaceID, otherKey.GroupID, otherKey.GroupRevision, handoffHash(string(descriptor)), timestamp(at(30)), string(raw), handoffHash(string(raw)), "fixture", timestamp(at(31)))
+	_, err = db.ExecContext(t.Context(), `INSERT INTO wg_delivery_mixed_progress(workspace_id,group_id,group_revision,version,descriptor_digest,closed_through,checkpoint,checkpoint_digest,last_closure_digest,updated_at) VALUES(?,?,?,1,?,?,?,?,?,?)`, otherKey.WorkspaceID, otherKey.GroupID, otherKey.GroupRevision, handoffHash(string(descriptor)), timestamp(at(30)), string(raw), handoffHash(string(raw)), "fixture", timestamp(at(31)))
 	require.NoError(t, err)
 	_, err = store.PrepareCutoverHandoffs(t.Context(), testKey, 0, 128)
 	require.ErrorIs(t, err, ErrOwnershipConflict)

@@ -17,7 +17,7 @@ func mixedSchemaShapeSupported(group *WriteGroup, types map[string]schema.DataTy
 	if ValidateMemberCalculationIntent(group) != nil || validateMixedMemberCadences(group) != nil || len(group.Members) == 0 {
 		return false
 	}
-	if group.isWideProfile() && (group.RowPolicy.RecordKeyColumn == "" || group.RowPolicy.ProvenanceColumn == "" || group.RowPolicy.DueAtColumn == "" || group.RowPolicy.BucketStartColumn != "" || group.RowPolicy.IncompletePolicy != "partial") {
+	if group.isWideProfile() && (group.RowPolicy.RecordKeyColumn == "" || group.RowPolicy.ProvenanceColumn == "" || group.RowPolicy.DueAtColumn == "" || group.RowPolicy.BucketStartColumn != "" || group.RowPolicy.IncompletePolicy != writeGroupIncompletePolicyPartial) {
 		return false
 	}
 	if _, err := mixedRecordProfileKey(group); err != nil {
@@ -68,10 +68,10 @@ func sameMixedSchemaIntent(a, b *WriteGroup) bool {
 // by sameMixedMemberRevisions before this helper is used. Schema comparisons
 // for saved updates remain strict and are not weakened for this create path.
 func mixedReplayComparable(candidate, existing *WriteGroup) *WriteGroup {
-	comparable := cloneWriteGroup(candidate)
-	comparable.ID = existing.ID
-	for i := range comparable.Members {
-		m := &comparable.Members[i]
+	normalized := cloneWriteGroup(candidate)
+	normalized.ID = existing.ID
+	for i := range normalized.Members {
+		m := &normalized.Members[i]
 		for _, n := range existing.Members {
 			if m.DeviceID == n.DeviceID && m.PointID == n.PointID && m.TagID == n.TagID {
 				if m.SourceRevision == "" {
@@ -84,5 +84,5 @@ func mixedReplayComparable(candidate, existing *WriteGroup) *WriteGroup {
 			}
 		}
 	}
-	return comparable
+	return normalized
 }

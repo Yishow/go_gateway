@@ -1,12 +1,13 @@
 package runtime
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedCounterBoundaryFixture(t *testing.T, scaled bool) *longFixture {

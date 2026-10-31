@@ -48,7 +48,7 @@ func TestMixedAcceptanceSharedLongPreservesHistoricalRows(t *testing.T) {
 
 	var profile string
 	var result float64
-	require.NoError(t, current.f.target.QueryRow(`SELECT profile_kind,value_float FROM "`+table+`" WHERE group_id=?`, current.frozen.GroupID).Scan(&profile, &result))
+	require.NoError(t, current.f.target.QueryRowContext(t.Context(), `SELECT profile_kind,value_float FROM "`+table+`" WHERE group_id=?`, current.frozen.GroupID).Scan(&profile, &result))
 	require.Equal(t, "mixed", profile)
 	require.Equal(t, float64(22), result)
 	legacyRead, err := f.groups.Get(t.Context(), id)
@@ -59,7 +59,7 @@ func TestMixedAcceptanceSharedLongPreservesHistoricalRows(t *testing.T) {
 
 func mixedHistoricalRow(t *testing.T, db *sql.DB, table, id string) map[string]any {
 	t.Helper()
-	rows, err := db.Query(`SELECT * FROM "`+table+`" WHERE group_id=?`, id)
+	rows, err := db.QueryContext(t.Context(), `SELECT * FROM "`+table+`" WHERE group_id=?`, id)
 	require.NoError(t, err)
 	defer rows.Close()
 	columns, err := rows.Columns()

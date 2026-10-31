@@ -229,7 +229,7 @@ func (a *Assembler) SetUntil(until time.Time) {
 // It never extends an earlier end.
 func (a *Assembler) SetEndsAt(ends time.Time) {
 	if a.config.Mode.mixed() {
-		_ = a.SetMixedEndsAt(ends)
+		_ = a.SetMixedEndsAt(ends) //nolint:errcheck // Legacy void compatibility setter; mixed runtime uses SetMixedEndsAt directly to report errors. Invalid ends leave state unchanged.
 		return
 	}
 	ends = ends.UTC()

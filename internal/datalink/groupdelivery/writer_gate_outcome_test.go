@@ -6,14 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/sqltx"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestStoreWriterGateUnknownCommitDoesNotRetry(t *testing.T) {
 	store, db, _ := newTestStore(t)
 	db.SetMaxOpenConns(1)
-	_, err := db.Exec(`CREATE TABLE gate_outcome(value INTEGER); INSERT INTO gate_outcome VALUES(0)`)
+	_, err := db.ExecContext(t.Context(), `CREATE TABLE gate_outcome(value INTEGER); INSERT INTO gate_outcome VALUES(0)`)
 	require.NoError(t, err)
 	calls := 0
 	err = store.inTx(t.Context(), "lost-terminal-ack", func(ctx context.Context, tx *sql.Tx) error {
@@ -46,7 +47,7 @@ func TestStoreWriterGateUnknownCommitDoesNotRetry(t *testing.T) {
 func TestStoreWriterGateConcurrentStoresAndClones(t *testing.T) {
 	store, db, _ := newTestStore(t)
 	db.SetMaxOpenConns(8)
-	_, err := db.Exec(`CREATE TABLE gate_count(value INTEGER); INSERT INTO gate_count VALUES(0)`)
+	_, err := db.ExecContext(t.Context(), `CREATE TABLE gate_count(value INTEGER); INSERT INTO gate_count VALUES(0)`)
 	require.NoError(t, err)
 	stores := []*Store{store, NewStore(db), store.WithClock(time.Now)}
 	results := make(chan error, 12)
@@ -70,7 +71,7 @@ func TestStoreWriterGateConcurrentStoresAndClones(t *testing.T) {
 		require.NoError(t, <-results)
 	}
 	var value int
-	require.NoError(t, db.QueryRow(`SELECT value FROM gate_count`).Scan(&value))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT value FROM gate_count`).Scan(&value))
 	require.Equal(t, 96, value)
 	require.Zero(t, db.Stats().InUse)
 }

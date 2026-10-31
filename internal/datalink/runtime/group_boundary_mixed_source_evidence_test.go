@@ -1,10 +1,11 @@
 package runtime
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedDurableDeltaSourceProjectionSeparatesBaselineAndResult(t *testing.T) {

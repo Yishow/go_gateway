@@ -9,7 +9,7 @@ import (
 
 func validateMixedSchedule(d *mixedDescriptor, c Closure, intervals map[string]time.Duration) error {
 	mode := snapshot.ModeMixedWide
-	if d.Group.LayoutVersion == "managed_long_v1" {
+	if d.Group.LayoutVersion == mixedLongLayout {
 		mode = snapshot.ModeMixedLong
 	}
 	expected, err := snapshot.MixedCheckpointSchedule(c.Mixed.Before, c.Mixed.After, intervals, mode)
@@ -38,7 +38,7 @@ func validateMixedSchedule(d *mixedDescriptor, c Closure, intervals map[string]t
 	for _, m := range d.Group.Members {
 		member := (counterproof.CounterBindingMemberIdentity{DeviceID: m.DeviceID, PointID: m.PointID, TagID: m.TagID}).SampleMemberKey()
 		methods[member] = m.Calculation
-		if m.Calculation == "delta" {
+		if m.Calculation == mixedDeltaMethod {
 			key := (counterproof.CounterBindingMemberIdentity{DeviceID: m.DeviceID, PointID: m.PointID, TagID: m.TagID}).SampleMemberKey()
 			delta[key] = true
 		}

@@ -34,7 +34,7 @@ func TestMixedAcceptanceScaledSchemaAndApply(t *testing.T) {
 	require.Equal(t, now, frozen.EffectiveAt, "new mixed starts at Apply clock without rephasing member windows")
 	require.Zero(t, frozen.Group.RowPolicy.IntervalSeconds)
 	var payload string
-	require.NoError(t, f.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE workspace_id=? AND group_id=? AND group_revision=?`, f.record.ID, id, frozen.AppliedRevision).Scan(&payload))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE workspace_id=? AND group_id=? AND group_revision=?`, f.record.ID, id, frozen.AppliedRevision).Scan(&payload))
 	var durable workspace.WriteGroupAppliedSnapshot
 	require.NoError(t, json.Unmarshal([]byte(payload), &durable))
 	require.NotNil(t, durable.RuntimeLayout)

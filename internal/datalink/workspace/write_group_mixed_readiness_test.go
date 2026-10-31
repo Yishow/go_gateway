@@ -1,9 +1,10 @@
 package workspace
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedPreparationReadinessHasMemberCadenceButNoRuntimeAuthority(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func mixedActiveIdentityPair(t *testing.T) (*circuitProfileHarness, *WriteGroup, *WriteGroup) {
+func mixedActiveIdentityPair(t *testing.T) (harness *circuitProfileHarness, activeGroup, candidate *WriteGroup) {
 	t.Helper()
 	now := time.Date(2026, 10, 31, 12, 0, 7, 0, time.UTC)
 	h, active := mixedHistoryFixture(t, &now)
@@ -60,13 +60,13 @@ func TestMixedActiveIdentityRejectsUnprovenExceptions(t *testing.T) {
 				if name == "missing active key" {
 					id = active.ID
 				}
-				_, err := h.db.Exec(`DELETE FROM write_group_profile_keys WHERE group_id=?`, id)
+				_, err := h.db.ExecContext(t.Context(), `DELETE FROM write_group_profile_keys WHERE group_id=?`, id)
 				require.NoError(t, err)
 			case "same lineage":
-				_, err := h.db.Exec(`UPDATE write_group_generations SET lineage_id=(SELECT lineage_id FROM write_group_generations WHERE group_id=?), generation=2, predecessor_group_id=? WHERE group_id=?`, active.ID, active.ID, candidate.ID)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE write_group_generations SET lineage_id=(SELECT lineage_id FROM write_group_generations WHERE group_id=?), generation=2, predecessor_group_id=? WHERE group_id=?`, active.ID, active.ID, candidate.ID)
 				require.NoError(t, err)
 			case "stale applied revision":
-				_, err := h.db.Exec(`UPDATE write_groups SET applied_revision='absent-applied-revision' WHERE id=?`, active.ID)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET applied_revision='absent-applied-revision' WHERE id=?`, active.ID)
 				require.NoError(t, err)
 			case "foreign applied revision", "foreign snapshot scope":
 				saved := cloneWriteGroup(active)
@@ -77,7 +77,7 @@ func TestMixedActiveIdentityRejectsUnprovenExceptions(t *testing.T) {
 				}
 				payload, err := json.Marshal(saved)
 				require.NoError(t, err)
-				_, err = h.db.Exec(`UPDATE write_group_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(payload), active.ID, active.AppliedRevision)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(payload), active.ID, active.AppliedRevision)
 				require.NoError(t, err)
 			}
 			tx, err := h.db.BeginTx(t.Context(), nil)
@@ -102,7 +102,7 @@ func TestMixedActiveIdentityDoesNotExemptLegacySameKind(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "legacy-target.db")
 	db, err := sql.Open("sqlite", target)
 	require.NoError(t, err)
-	_, err = db.Exec(`PRAGMA user_version=0`)
+	_, err = db.ExecContext(t.Context(), `PRAGMA user_version=0`)
 	require.NoError(t, err)
 	require.NoError(t, db.Close())
 	setSQLiteConnectorConfig(t, h.db, h.fixture.connectorID, target)

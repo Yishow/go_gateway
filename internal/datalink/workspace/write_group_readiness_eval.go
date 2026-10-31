@@ -85,7 +85,7 @@ func (s *WriteGroupService) evaluateReadinessSnapshot(ctx context.Context, id st
 	if snapshot.schemaProofErr != nil {
 		result.SchemaReady = false
 		result.Issues = append(result.Issues, writeGroupReadinessIssue("schema-proof-stale", "calculation evidence changed; preview and confirm the schema again", id))
-		return finalizeWriteGroupReadiness(result), nil
+		return finalizeWriteGroupReadiness(result), nil //nolint:nilerr // A stale proof is a structured not-ready result with schema-proof-stale, not a transport failure.
 	}
 	managedCanonical := snapshot.validated.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && snapshot.validated.RowPolicy.RecordKeyColumn != ""
 	if managedCanonical {
@@ -189,7 +189,7 @@ func (s *WriteGroupService) evaluateReadinessSnapshot(ctx context.Context, id st
 	if postSnapshot != nil && postSnapshot.schemaProofErr != nil {
 		result.SchemaReady = false
 		result.Issues = append(result.Issues, writeGroupReadinessIssue("schema-proof-stale", "calculation evidence changed; preview and confirm the schema again", id))
-		return finalizeWriteGroupReadiness(result), nil
+		return finalizeWriteGroupReadiness(result), nil //nolint:nilerr // Post-inspection proof loss returns explicit SchemaReady=false and schema-proof-stale.
 	}
 	if !sameWriteGroupReadinessSnapshot(snapshot, postSnapshot) {
 		result = s.newSnapshotReadiness(ctx, postSnapshot)

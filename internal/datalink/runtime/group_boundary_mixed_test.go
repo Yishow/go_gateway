@@ -1,17 +1,18 @@
 package runtime
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/snapshot"
 	"go-gateway/internal/datalink/workspace"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedBoundaryFixture(t *testing.T) *longFixture {
 	t.Helper()
 	f := wideProfileFixture(t)
-	_, err := f.db.Exec(`ALTER TABLE ` + wideFixtureTable + ` RENAME COLUMN bucket_start TO due_at`)
+	_, err := f.db.ExecContext(t.Context(), `ALTER TABLE `+wideFixtureTable+` RENAME COLUMN bucket_start TO due_at`)
 	require.NoError(t, err)
 	f.config.Columns = sqliteColumns(t, f.db, wideFixtureTable)
 	g := f.config.Group

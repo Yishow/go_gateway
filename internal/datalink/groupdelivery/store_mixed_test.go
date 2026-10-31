@@ -2,11 +2,12 @@ package groupdelivery
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/snapshot"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedStorePlan(t *testing.T, store *Store) (*snapshot.Assembler, Closure) {
@@ -60,7 +61,7 @@ func TestMixedClosureAtomicSkipProgressKeepsSlowWindow(t *testing.T) {
 	changed.Mixed.DescriptorDigest = "foreign"
 	require.Error(t, store.CommitClosure(t.Context(), testKey, changed))
 	var data string
-	require.NoError(t, db.QueryRow(`SELECT checkpoint FROM wg_delivery_mixed_progress`).Scan(&data))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT checkpoint FROM wg_delivery_mixed_progress`).Scan(&data))
 	var cp snapshot.MixedCheckpoint
 	require.NoError(t, json.Unmarshal([]byte(data), &cp))
 	require.Equal(t, closure.Mixed.After, cp)
@@ -96,7 +97,7 @@ func TestMixedClosureOutboxKeepsDispatchWithoutFakeBucket(t *testing.T) {
 	require.NoError(t, store.CommitClosure(t.Context(), testKey, c))
 	var bucket string
 	var due *string
-	require.NoError(t, db.QueryRow(`SELECT bucket_start,due_at FROM wg_delivery_outbox`).Scan(&bucket, &due))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT bucket_start,due_at FROM wg_delivery_outbox`).Scan(&bucket, &due))
 	require.Empty(t, bucket)
 	require.NotNil(t, due)
 	require.Equal(t, timestamp(at(15)), *due)

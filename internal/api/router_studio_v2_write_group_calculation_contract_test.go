@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/docs/swagger"
 	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/datalink/workspace"
@@ -11,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestWriteGroupCanonicalCalculationContractKeepsLegacyEntry(t *testing.T) {
@@ -69,7 +70,7 @@ func TestWriteGroupMixedAPIReadsMemberIntentWithoutChangingPoint(t *testing.T) {
 	require.Equal(t, false, data["calculation_capabilities"].(map[string]any)["editor_supported"])
 	require.Equal(t, "record_readiness_required", data["calculation_capabilities"].(map[string]any)["reason"])
 	var sourceType string
-	require.NoError(t, f.db.QueryRow(`SELECT data_type FROM points WHERE id='point-A'`).Scan(&sourceType))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT data_type FROM points WHERE id='point-A'`).Scan(&sourceType))
 	require.Equal(t, "float32", sourceType)
 }
 
@@ -81,7 +82,7 @@ func assertGeneratedCalculationSchema(t *testing.T, actual map[string]any) {
 	statusField, ok := reflect.TypeOf(runtimeview.CalculationResult{}).FieldByName("Status")
 	require.True(t, ok)
 	statusDoc := defs["runtimeview.CalculationResult"].(map[string]any)["properties"].(map[string]any)["status"].(map[string]any)
-	var documentedStatus []string
+	documentedStatus := make([]string, 0, len(statusDoc["enum"].([]any)))
 	for _, value := range statusDoc["enum"].([]any) {
 		documentedStatus = append(documentedStatus, value.(string))
 	}
@@ -126,7 +127,7 @@ func assertGeneratedCalculationRestriction(t *testing.T, defs map[string]any, wi
 			required = append(required, tag[0])
 		}
 	}
-	var documented []string
+	documented := make([]string, 0, len(props))
 	for key := range props {
 		documented = append(documented, key)
 	}

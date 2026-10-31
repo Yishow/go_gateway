@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Reuse the production Store/fence/version fixture; only its initial descriptors
@@ -57,7 +58,7 @@ func newMixedCutoverPipelineFixture(t *testing.T) *ownershipPipelineFixture {
 		}
 		raw, err := json.Marshal(s)
 		require.NoError(t, err)
-		_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(raw), s.GroupID, s.AppliedRevision)
+		_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(raw), s.GroupID, s.AppliedRevision)
 		require.NoError(t, err)
 	}
 	f.groups.groups = []*workspace.WriteGroup{f.source.Group}
@@ -131,7 +132,7 @@ func mixedCutoverKeepsWindows(t *testing.T, mode string) {
 	require.NoError(t, err)
 	require.Equal(t, at(23), r.Mixed.EndsAt)
 	require.True(t, r.NextClose.IsZero())
-	rows, err := f.local.Query(`SELECT due_at,bucket_start,payload FROM wg_delivery_outbox WHERE group_id=?`, f.source.GroupID)
+	rows, err := f.local.QueryContext(t.Context(), `SELECT due_at,bucket_start,payload FROM wg_delivery_outbox WHERE group_id=?`, f.source.GroupID)
 	require.NoError(t, err)
 	defer rows.Close()
 	slowPartial := false
@@ -181,14 +182,14 @@ func TestMixedCutoverPipelineRejectsForeignFenceAndChangedIntent(t *testing.T) {
 				}
 				raw, err := json.Marshal(f.target)
 				require.NoError(t, err)
-				_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(raw), f.target.GroupID)
+				_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(raw), f.target.GroupID)
 				require.NoError(t, err)
 			}
 			f.clock = at(21)
 			require.NoError(t, f.pipe.AcceptSample(t.Context(), envelope(f.source.Group, "exact", at(23), uint64(7))))
 			f.commit()
 			if mode == "foreign-fence" {
-				_, err := f.local.Exec(`UPDATE write_group_ownership_fences SET connector_revision='foreign' WHERE direction='started'`)
+				_, err := f.local.ExecContext(t.Context(), `UPDATE write_group_ownership_fences SET connector_revision='foreign' WHERE direction='started'`)
 				require.NoError(t, err)
 			}
 			f.source.EndsAt = f.boundary
@@ -202,7 +203,7 @@ func TestMixedCutoverPipelineRejectsForeignFenceAndChangedIntent(t *testing.T) {
 				require.ErrorIs(t, err, groupdelivery.ErrOwnershipUnavailable)
 			}
 			var copied int
-			require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=?`, f.target.GroupID).Scan(&copied))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=?`, f.target.GroupID).Scan(&copied))
 			require.Zero(t, copied, "refused proof must not transfer accepted sample")
 		})
 	}

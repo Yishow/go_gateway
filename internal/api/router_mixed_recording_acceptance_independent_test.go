@@ -65,10 +65,10 @@ func TestMixedAcceptanceIndependentRecordsShareSamplesAndStopSeparately(t *testi
 			b.tick(t, base.Add(60*time.Second))
 			require.Len(t, b.deliver(t), 1, "stopping record A cannot consume or discard record B's open 60s window")
 			var n int
-			require.NoError(t, a.f.target.QueryRow(`SELECT count(*) FROM "`+a.frozen.Group.Destination.TableName+`"`).Scan(&n))
+			require.NoError(t, a.f.target.QueryRowContext(t.Context(), `SELECT count(*) FROM "`+a.frozen.Group.Destination.TableName+`"`).Scan(&n))
 			require.Equal(t, 2, n)
 			column := a.frozen.Group.Members[0].TargetColumn
-			rows, err := a.f.target.Query(`SELECT "` + column + `" FROM "` + a.frozen.Group.Destination.TableName + `" ORDER BY due_at`)
+			rows, err := a.f.target.QueryContext(t.Context(), `SELECT "`+column+`" FROM "`+a.frozen.Group.Destination.TableName+`" ORDER BY due_at`)
 			require.NoError(t, err)
 			var values []float64
 			for rows.Next() {
@@ -84,7 +84,7 @@ func TestMixedAcceptanceIndependentRecordsShareSamplesAndStopSeparately(t *testi
 				column = "value_float"
 			}
 			var mean float64
-			require.NoError(t, b.f.target.QueryRow(`SELECT "`+column+`" FROM "`+b.frozen.Group.Destination.TableName+`"`).Scan(&mean))
+			require.NoError(t, b.f.target.QueryRowContext(t.Context(), `SELECT "`+column+`" FROM "`+b.frozen.Group.Destination.TableName+`"`).Scan(&mean))
 			require.Equal(t, float64(20), mean)
 			retained, err := f.groups.Get(t.Context(), b.frozen.GroupID)
 			require.NoError(t, err)

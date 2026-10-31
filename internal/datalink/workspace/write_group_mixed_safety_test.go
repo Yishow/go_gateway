@@ -1,8 +1,9 @@
 package workspace
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedDraftDeleteRetainsCanonicalIdentity(t *testing.T) {
@@ -94,7 +95,7 @@ func TestMixedCanonicalReadRejectsStoredGroupWindow(t *testing.T) {
 	draft := mixedDraft(h, WriteGroupMemberCalculationLatest, 5, "no_group_window")
 	created, err := h.service.Create(t.Context(), h.mutation(t.Context(), draft))
 	require.NoError(t, err)
-	_, err = h.db.Exec(`UPDATE write_groups SET row_policy=json_set(row_policy,'$.interval_seconds',60) WHERE id=?`, created.Group.ID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET row_policy=json_set(row_policy,'$.interval_seconds',60) WHERE id=?`, created.Group.ID)
 	require.NoError(t, err)
 	_, err = h.service.Get(t.Context(), created.Group.ID)
 	require.ErrorIs(t, err, ErrWriteGroupValidation)

@@ -72,7 +72,7 @@ func validateMixedRuntimeDescriptor(ctx context.Context, cfg GroupBoundaryConfig
 		return &GroupBoundaryError{Code: "mixed-durable-descriptor-conflict"}
 	}
 	var frozen workspace.WriteGroupAppliedSnapshot
-	if err = json.Unmarshal(raw, &frozen); err != nil {
+	if err := json.Unmarshal(raw, &frozen); err != nil {
 		return err
 	}
 	if frozen.Group == nil || frozen.RuntimeLayout == nil || frozen.WorkspaceID != cfg.Group.WorkspaceID || frozen.GroupID != cfg.Group.ID || frozen.AppliedRevision != cfg.Group.AppliedRevision || !frozen.EffectiveAt.Equal(cfg.StartsAt) {

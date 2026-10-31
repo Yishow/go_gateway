@@ -6,9 +6,10 @@ import (
 	"database/sql/driver"
 	"errors"
 	"go-gateway/internal/datalink/sqltx"
-	"modernc.org/sqlite"
 	"path/filepath"
 	"testing"
+
+	"modernc.org/sqlite"
 )
 
 type replayCleanupConnector struct{ path string }
@@ -25,7 +26,7 @@ func (c replayCleanupConnector) Connect(context.Context) (driver.Conn, error) {
 type replayCleanupConn struct{ driver.Conn }
 
 func (c replayCleanupConn) Begin() (driver.Tx, error) {
-	tx, err := c.Conn.Begin()
+	tx, err := c.Conn.Begin() //nolint:staticcheck // Exercise database/sql legacy driver fallback with injected terminal rollback failure.
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +47,7 @@ func TestCanonicalReplayCleanupFailureIsNotAbsence(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			h := newCircuitProfileHarness(t, filepath.Join(t.TempDir(), "replay.db"))
 			var path string
-			if err := h.db.QueryRow("SELECT file FROM pragma_database_list WHERE name='main'").Scan(&path); err != nil {
+			if err := h.db.QueryRowContext(t.Context(), "SELECT file FROM pragma_database_list WHERE name='main'").Scan(&path); err != nil {
 				t.Fatal(err)
 			}
 			db := sql.OpenDB(replayCleanupConnector{path})
@@ -97,7 +98,7 @@ func TestCanonicalReplayCleanupFailureIsNotAbsence(t *testing.T) {
 				t.Fatalf("create path continued after cleanup failure: %v", err)
 			}
 			var count int
-			if err := h.db.QueryRow("SELECT COUNT(*) FROM write_groups").Scan(&count); err != nil {
+			if err := h.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM write_groups").Scan(&count); err != nil {
 				t.Fatal(err)
 			}
 			if count != 0 {

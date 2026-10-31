@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func checkpointAssembler(t *testing.T, cfg Config) *Assembler {
@@ -165,9 +167,10 @@ func TestMixedCheckpointRejectsCorruptionAtomically(t *testing.T) {
 		if err := a.RestoreMixedCheckpoint(cp); err == nil {
 			t.Fatal("restored over accepted samples")
 		}
-		if !reflect.DeepEqual(before, a.Plan(mixedTime(60))) {
-			t.Fatal("failed restore changed samples")
-		}
+		after := a.Plan(mixedTime(60))
+		require.NoError(t, before.Err)
+		require.NoError(t, after.Err)
+		require.Equal(t, before, after, "failed restore changed samples")
 	})
 	t.Run("committed", func(t *testing.T) {
 		a := checkpointAssembler(t, cfg)

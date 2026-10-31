@@ -11,11 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedDurableFixture(t *testing.T, f *longFixture, db *sql.DB) *groupdelivery.Store {
@@ -63,7 +64,7 @@ func TestMixedDurableDeltaSkipRestart(t *testing.T) {
 			require.NoError(t, restored.Tick(t.Context(), boundaryAt(30)))
 			require.Equal(t, 1, countTable(t, reopened, "wg_delivery_outbox"))
 			var payload string
-			require.NoError(t, reopened.QueryRow(`SELECT outcome FROM wg_delivery_mixed_outcomes WHERE kind='row'`).Scan(&payload))
+			require.NoError(t, reopened.QueryRowContext(t.Context(), `SELECT outcome FROM wg_delivery_mixed_outcomes WHERE kind='row'`).Scan(&payload))
 			var outcome snapshot.Outcome
 			require.NoError(t, json.Unmarshal([]byte(payload), &outcome))
 			digits, ok := outcome.Members[0].Counter.Delta.Value.DecimalDigits()
@@ -89,10 +90,10 @@ func TestMixedDurableSlowMemberSurvivesFastCloseRestart(t *testing.T) {
 	f.accept(t, b, f.envelope(0, "mean", boundaryAt(10), int64(22)), f.envelope(1, "state", boundaryAt(10), "ON"))
 	require.NoError(t, b.Tick(t.Context(), boundaryAt(15)))
 	var pending int
-	require.NoError(t, db.QueryRow(`SELECT count(*) FROM wg_delivery_samples WHERE consumed=0`).Scan(&pending))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM wg_delivery_samples WHERE consumed=0`).Scan(&pending))
 	require.Equal(t, 1, pending)
 	var legacy, due string
-	require.NoError(t, db.QueryRow(`SELECT bucket_start,due_at FROM wg_delivery_outbox`).Scan(&legacy, &due))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT bucket_start,due_at FROM wg_delivery_outbox`).Scan(&legacy, &due))
 	require.Empty(t, legacy)
 	parsed, err := time.Parse(time.RFC3339Nano, due)
 	require.NoError(t, err)
@@ -106,7 +107,7 @@ func TestMixedDurableSlowMemberSurvivesFastCloseRestart(t *testing.T) {
 	again.accept(t, restored, again.envelope(0, "last-mean", boundaryAt(59), int64(24)))
 	require.NoError(t, restored.Tick(t.Context(), boundaryAt(60)))
 	var payload string
-	require.NoError(t, reopened.QueryRow(`SELECT outcome FROM wg_delivery_mixed_outcomes WHERE due_at=?`, boundaryAt(60).Format("2006-01-02T15:04:05.000000000Z")).Scan(&payload))
+	require.NoError(t, reopened.QueryRowContext(t.Context(), `SELECT outcome FROM wg_delivery_mixed_outcomes WHERE due_at=?`, boundaryAt(60).Format("2006-01-02T15:04:05.000000000Z")).Scan(&payload))
 	var outcome snapshot.Outcome
 	require.NoError(t, json.Unmarshal([]byte(payload), &outcome))
 	require.Equal(t, "state", outcome.Members[1].Sample.SampleID)
@@ -220,7 +221,7 @@ func TestMixedDurableCutoffAfterProgressRestoresExactEnd(t *testing.T) {
 	require.True(t, restored.Retired())
 	require.True(t, restored.until.Equal(boundaryAt(23)))
 	var payload string
-	require.NoError(t, db.QueryRow(`SELECT outcome FROM wg_delivery_mixed_outcomes WHERE due_at=?`, boundaryAt(60).Format("2006-01-02T15:04:05.000000000Z")).Scan(&payload))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT outcome FROM wg_delivery_mixed_outcomes WHERE due_at=?`, boundaryAt(60).Format("2006-01-02T15:04:05.000000000Z")).Scan(&payload))
 	var outcome snapshot.Outcome
 	require.NoError(t, json.Unmarshal([]byte(payload), &outcome))
 	require.Equal(t, "before", outcome.Members[1].Sample.SampleID)
@@ -258,24 +259,24 @@ func TestMixedDurableBaselineFaultDoesNotPartiallyAdvance(t *testing.T) {
 	f.accept(t, b, f.envelope(0, "base", boundaryAt(14), uint64(9007199254740993)))
 	before, err := b.assembler.MixedCheckpoint()
 	require.NoError(t, err)
-	_, err = db.Exec(`CREATE TRIGGER fail_mixed_baseline BEFORE INSERT ON wg_delivery_counter_baselines BEGIN SELECT RAISE(ABORT,'baseline fault'); END`)
+	_, err = db.ExecContext(t.Context(), `CREATE TRIGGER fail_mixed_baseline BEFORE INSERT ON wg_delivery_counter_baselines BEGIN SELECT RAISE(ABORT,'baseline fault'); END`)
 	require.NoError(t, err)
 	require.ErrorContains(t, b.Tick(t.Context(), boundaryAt(15)), "baseline fault")
 	for _, table := range []string{"wg_delivery_mixed_progress", "wg_delivery_mixed_outcomes", "wg_delivery_counter_baselines", "wg_delivery_outbox"} {
 		require.Equal(t, 0, countTable(t, db, table), table)
 	}
 	var pending int
-	require.NoError(t, db.QueryRow(`SELECT count(*) FROM wg_delivery_samples WHERE consumed=0`).Scan(&pending))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM wg_delivery_samples WHERE consumed=0`).Scan(&pending))
 	require.Equal(t, 1, pending)
 	after, err := b.assembler.MixedCheckpoint()
 	require.NoError(t, err)
 	require.Equal(t, before, after)
 	require.Empty(t, b.assembler.CounterCheckpoints())
-	_, err = db.Exec(`DROP TRIGGER fail_mixed_baseline`)
+	_, err = db.ExecContext(t.Context(), `DROP TRIGGER fail_mixed_baseline`)
 	require.NoError(t, err)
 	require.NoError(t, b.Tick(t.Context(), boundaryAt(15)))
 	var kind string
-	require.NoError(t, db.QueryRow(`SELECT kind FROM wg_delivery_mixed_outcomes`).Scan(&kind))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT kind FROM wg_delivery_mixed_outcomes`).Scan(&kind))
 	require.Equal(t, string(snapshot.OutcomeSkipped), kind)
 	recovered, err := NewGroupBoundaryContext(t.Context(), f.config)
 	require.NoError(t, err)

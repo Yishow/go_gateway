@@ -29,7 +29,7 @@ func writerGateFor(db *sql.DB) *storeWriterGate {
 		runtime.AddCleanup(db, func(key weak.Pointer[sql.DB]) { storeWriterGates.Delete(key) }, key)
 	}
 	runtime.KeepAlive(db)
-	return actual.(*storeWriterGate)
+	return actual.(*storeWriterGate) //nolint:errcheck // This private registry only stores *storeWriterGate in the LoadOrStore above.
 }
 
 func acquireStoreWriter(ctx context.Context, db *sql.DB) (context.Context, func(), error) {

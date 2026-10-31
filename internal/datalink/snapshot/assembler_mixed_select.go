@@ -5,7 +5,7 @@ import "time"
 func (a *Assembler) initializeMixed() {
 	a.mixedNext = make(map[string]time.Time, len(a.members))
 	for key, m := range a.members {
-		start, _, _ := CheckedWindowBounds(a.config.StartsAt, m.Interval)
+		start, _, _ := CheckedWindowBounds(a.config.StartsAt, m.Interval) //nolint:errcheck // normalizedMixed already validated these immutable config bounds.
 		a.mixedNext[key] = start
 	}
 }
@@ -61,7 +61,7 @@ func (a *Assembler) offerMixed(sample Sample, now time.Time) OfferResult {
 		a.late++
 	case OfferSelected, OfferNotSelected:
 		m := a.members[sample.MemberKey]
-		start, _, _ := CheckedWindowBounds(sample.ObservedAt, m.Interval)
+		start, _, _ := CheckedWindowBounds(sample.ObservedAt, m.Interval) //nolint:errcheck // checkMixed accepted these exact bounds immediately before this switch.
 		state := a.buckets[start]
 		if state == nil {
 			state = &bucketState{selectors: map[string]*Selector{}}

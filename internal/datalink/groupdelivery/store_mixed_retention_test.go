@@ -1,10 +1,11 @@
 package groupdelivery
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/snapshot"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedRowClosure(t *testing.T, store *Store) Closure {
@@ -31,7 +32,7 @@ func TestMixedRetentionPinsUndeliveredOutcomeAndCurrentProgress(t *testing.T) {
 	require.Equal(t, 1, countRows(t, db, "wg_delivery_mixed_outcomes"))
 	require.Equal(t, 1, countRows(t, db, "wg_delivery_mixed_progress"))
 	require.Equal(t, 1, countRows(t, db, "wg_runtime_versions"))
-	_, err = db.Exec(`UPDATE wg_delivery_outbox SET state='sql_committed',committed_at=?`, timestamp(at(100)))
+	_, err = db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET state='sql_committed',committed_at=?`, timestamp(at(100)))
 	require.NoError(t, err)
 	_, err = store.Reclaim(t.Context(), time.Second)
 	require.NoError(t, err)
@@ -65,7 +66,7 @@ func TestMixedOutboxRejectsMissingOrForeignDispatch(t *testing.T) {
 			store, db, _ := newTestStore(t)
 			c := mixedRowClosure(t, store)
 			require.NoError(t, store.CommitClosure(t.Context(), testKey, c))
-			_, err := db.Exec(change)
+			_, err := db.ExecContext(t.Context(), change)
 			require.NoError(t, err)
 			_, err = store.GetOutbox(t.Context(), c.Buckets[0].Outcome.EffectKey)
 			require.Error(t, err)

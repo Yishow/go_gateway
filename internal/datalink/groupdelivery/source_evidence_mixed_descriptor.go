@@ -66,14 +66,14 @@ func (s *Store) mixedSourceFacts(ctx context.Context, scope SourceScope, ref Sou
 	if err != nil {
 		return facts, err
 	}
-	if d == nil || scope.ResultShape != "member-calculation-v1" {
+	if d == nil || scope.ResultShape != mixedResultShape {
 		return facts, mixedInvalid("source descriptor")
 	}
 	if _, err := d.intervals(); err != nil {
 		return facts, err
 	}
 	var raw string
-	if err = s.db.QueryRowContext(ctx, `SELECT payload FROM wg_runtime_versions WHERE workspace_id=? AND group_id=? AND group_revision=?`, scope.WorkspaceID, scope.GroupID, scope.GroupRevision).Scan(&raw); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT payload FROM wg_runtime_versions WHERE workspace_id=? AND group_id=? AND group_revision=?`, scope.WorkspaceID, scope.GroupID, scope.GroupRevision).Scan(&raw); err != nil {
 		return facts, err
 	}
 	if handoffHash(raw) != descriptorDigest {
@@ -84,7 +84,7 @@ func (s *Store) mixedSourceFacts(ctx context.Context, scope SourceScope, ref Sou
 		return facts, mixedInvalid("source descriptor JSON")
 	}
 	g := frozen.Group
-	if g.RecordID == "" || g.RecordID != scope.RecordIdentity || g.Destination.ConnectorID != scope.ConnectorID || g.Destination.ConnectorRevision != scope.ConnectorRevision || (g.Layout == "managed_wide_profile_v1") != scope.Wide || (g.Layout != "managed_wide_profile_v1" && g.Layout != "managed_long_v1") {
+	if g.RecordID == "" || g.RecordID != scope.RecordIdentity || g.Destination.ConnectorID != scope.ConnectorID || g.Destination.ConnectorRevision != scope.ConnectorRevision || (g.Layout == mixedWideLayout) != scope.Wide || (g.Layout != mixedWideLayout && g.Layout != mixedLongLayout) {
 		return facts, mixedInvalid("source scope")
 	}
 	if frozen.Layout.Dialect != dbtarget.SQLDialectSQLite && frozen.Layout.Dialect != dbtarget.SQLDialectPostgres {
@@ -159,7 +159,7 @@ func (s *Store) mixedSourceFacts(ctx context.Context, scope SourceScope, ref Sou
 	if facts.declared == "" {
 		return facts, mixedInvalid("source value column")
 	}
-	if ref.Calculation == "delta" {
+	if ref.Calculation == mixedDeltaMethod {
 		proofs, e := counterproof.ResolveSnapshot([]byte(raw), counterproof.SnapshotScope{WorkspaceID: scope.WorkspaceID, GroupID: scope.GroupID, AppliedRevision: scope.GroupRevision})
 		if e != nil {
 			return facts, e

@@ -18,7 +18,7 @@ func MixedCheckpointSchedule(before, after MixedCheckpoint, intervals map[string
 	if err != nil {
 		return nil, err
 	}
-	if err = a.RestoreMixedCheckpoint(before); err != nil {
+	if err := a.RestoreMixedCheckpoint(before); err != nil {
 		return nil, err
 	}
 	plan := a.Plan(after.Progress.ClosedThrough)

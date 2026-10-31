@@ -173,17 +173,17 @@ func readHandoffProof(ctx context.Context, q ownershipQuery, key GroupKey, membe
 		return result, ErrHandoffProofConflict
 	}
 	seconds := descriptor.Group.RowPolicy.IntervalSeconds
-	result.mixed = descriptor.Group.Profile != nil && descriptor.Group.Profile.Kind == "mixed"
+	result.mixed = descriptor.Group.Profile != nil && descriptor.Group.Profile.Kind == mixedProfileKind
 	if result.mixed {
 		result.shape = descriptor.Group.Profile.Shape
-		if result.shape != "member-calculation-v1" {
+		if result.shape != mixedResultShape {
 			return result, ErrHandoffProofConflict
 		}
 	} else {
 		if seconds == 0 {
 			return result, ErrOwnershipUnavailable
 		}
-		if seconds < 0 || seconds > int64((1<<63-1)/int64(time.Second)) {
+		if seconds < 0 || seconds > (1<<63-1)/int64(time.Second) {
 			return result, ErrHandoffProofConflict
 		}
 		result.interval = time.Duration(seconds) * time.Second
@@ -201,7 +201,7 @@ func readHandoffProof(ctx context.Context, q ownershipQuery, key GroupKey, membe
 		found = true
 		result.member = member
 		if result.mixed {
-			if member.SourceValueType == "" || member.ResultValueType == "" || member.ValueRole == "" || member.Cadence == nil || member.Cadence.Alignment != "utc_epoch" || (member.Calculation != "latest" && member.Calculation != "mean" && member.Calculation != "delta") {
+			if member.SourceValueType == "" || member.ResultValueType == "" || member.ValueRole == "" || member.Cadence == nil || member.Cadence.Alignment != "utc_epoch" || (member.Calculation != "latest" && member.Calculation != sourceReductionMean && member.Calculation != mixedDeltaMethod) {
 				return result, ErrHandoffProofConflict
 			}
 			result.interval, err = snapshot.CheckedCadenceDuration(member.Cadence.Interval, member.Cadence.Unit)

@@ -3,11 +3,12 @@ package workspace
 import (
 	"context"
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/recordingplan"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedSchemaLedgerFreshConfirmationCannotAuthorizeChangedMethod(t *testing.T) {
@@ -27,7 +28,7 @@ func mixedSchemaLedgerCase(t *testing.T, layout WriteGroupLayoutVersion, change 
 	external, err := sql.Open("sqlite", target)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = external.Close() })
-	_, err = external.Exec(`PRAGMA user_version=0`)
+	_, err = external.ExecContext(t.Context(), `PRAGMA user_version=0`)
 	require.NoError(t, err)
 	setSQLiteConnectorConfig(t, h.db, h.fixture.connectorID, target)
 	var legacy *WriteGroup
@@ -45,13 +46,13 @@ func mixedSchemaLedgerCase(t *testing.T, layout WriteGroupLayoutVersion, change 
 	draft.Destination.Database = target
 	if change == "counter policy" || change == "measurement identity" {
 		draft.Members[0].Calculation = WriteGroupMemberCalculationDelta
-		_, err = h.db.Exec(`UPDATE points SET data_type='uint64' WHERE id=?`, h.primary().pointID)
+		_, err = h.db.ExecContext(t.Context(), `UPDATE points SET data_type='uint64' WHERE id=?`, h.primary().pointID)
 		require.NoError(t, err)
-		_, err = h.db.Exec(`UPDATE tags SET data_type='uint64' WHERE id=?`, h.primary().tagID)
+		_, err = h.db.ExecContext(t.Context(), `UPDATE tags SET data_type='uint64' WHERE id=?`, h.primary().tagID)
 		require.NoError(t, err)
 		id := seedMeasurement(t, h, h.primary(), "counter")
 		draft.Members[0].MeasurementID = &id
-		_, err = h.db.Exec(`UPDATE measurement_definitions SET unit='kWh',series_epoch='epoch-1',numeric_encoding='uint64',counter_policy='{}' WHERE id=?`, id)
+		_, err = h.db.ExecContext(t.Context(), `UPDATE measurement_definitions SET unit='kWh',series_epoch='epoch-1',numeric_encoding='uint64',counter_policy='{}' WHERE id=?`, id)
 		require.NoError(t, err)
 	}
 
@@ -158,7 +159,7 @@ func mixedSchemaLedgerCase(t *testing.T, layout WriteGroupLayoutVersion, change 
 		return
 	}
 	if change == "counter policy" {
-		_, err = h.db.Exec(`UPDATE measurement_definitions SET definition_revision='definition-2',counter_policy='{"rollover_modulus":"65536","max_rate_per_second":"10"}' WHERE id=?`, *confirmed.Group.Members[0].MeasurementID)
+		_, err = h.db.ExecContext(t.Context(), `UPDATE measurement_definitions SET definition_revision='definition-2',counter_policy='{"rollover_modulus":"65536","max_rate_per_second":"10"}' WHERE id=?`, *confirmed.Group.Members[0].MeasurementID)
 		require.NoError(t, err)
 		fresh := h.mutation(ctx, confirmed.Group)
 		fresh.ExpectedGroupRevision = confirmed.Group.Revision
@@ -197,7 +198,7 @@ func mixedSchemaLedgerCase(t *testing.T, layout WriteGroupLayoutVersion, change 
 		changed.Members[0].Required = false
 	case "measurement identity":
 		id := seedMeasurement(t, h, h.primary(), "counter")
-		_, err = h.db.Exec(`UPDATE measurement_definitions SET unit='kWh',series_epoch='epoch-1',numeric_encoding='uint64',counter_policy='{}' WHERE id=?`, id)
+		_, err = h.db.ExecContext(t.Context(), `UPDATE measurement_definitions SET unit='kWh',series_epoch='epoch-1',numeric_encoding='uint64',counter_policy='{}' WHERE id=?`, id)
 		require.NoError(t, err)
 		changed.Members[0].MeasurementID = &id
 

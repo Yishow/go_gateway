@@ -1,9 +1,10 @@
 package groupdelivery
 
 import (
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedActualPartitionHeadQueryUsesIndexAndKeepsFIFO(t *testing.T) {
@@ -19,7 +20,7 @@ func TestMixedActualPartitionHeadQueryUsesIndexAndKeepsFIFO(t *testing.T) {
 			due = bucket
 			bucket = ""
 		}
-		_, err := db.Exec(`INSERT INTO wg_delivery_outbox(effect_key,record_id,workspace_id,group_id,group_revision,bucket_start,due_at,partition_key,destination_scope,connector_id,connector_revision,table_name,payload,payload_digest,next_retry_at,created_at,updated_at) VALUES(?,'r','w','g','v',?,?,'part','target','c','cr','data','{}','digest',?,?,?)`, row.id, bucket, due, timestamp(t0), timestamp(t0), timestamp(t0))
+		_, err := db.ExecContext(t.Context(), `INSERT INTO wg_delivery_outbox(effect_key,record_id,workspace_id,group_id,group_revision,bucket_start,due_at,partition_key,destination_scope,connector_id,connector_revision,table_name,payload,payload_digest,next_retry_at,created_at,updated_at) VALUES(?,'r','w','g','v',?,?,'part','target','c','cr','data','{}','digest',?,?,?)`, row.id, bucket, due, timestamp(t0), timestamp(t0), timestamp(t0))
 		require.NoError(t, err)
 	}
 	// This is the exact production statement, including the partition-specific
@@ -29,7 +30,7 @@ func TestMixedActualPartitionHeadQueryUsesIndexAndKeepsFIFO(t *testing.T) {
 		if one {
 			args = append(args, "part")
 		}
-		rows, err := db.Query(`EXPLAIN QUERY PLAN `+headStatement(one), args...)
+		rows, err := db.QueryContext(t.Context(), `EXPLAIN QUERY PLAN `+headStatement(one), args...)
 		require.NoError(t, err)
 		var plans []string
 		for rows.Next() {
@@ -48,7 +49,7 @@ func TestMixedActualPartitionHeadQueryUsesIndexAndKeepsFIFO(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, heads, 1)
 		require.Equal(t, want, heads[0].EffectKey)
-		_, err = db.Exec(`UPDATE wg_delivery_outbox SET state='sql_committed' WHERE effect_key=?`, want)
+		_, err = db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET state='sql_committed' WHERE effect_key=?`, want)
 		require.NoError(t, err)
 	}
 }

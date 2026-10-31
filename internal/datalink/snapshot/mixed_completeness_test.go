@@ -2,10 +2,11 @@ package snapshot
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/aggregation"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedDueMember(t *testing.T, p Plan, seconds int, member string) (Outcome, MemberResult) {

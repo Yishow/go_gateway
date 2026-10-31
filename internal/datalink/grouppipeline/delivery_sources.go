@@ -109,11 +109,11 @@ func (p *Pipeline) sourceEvidence(ctx context.Context, groupID, appliedRevision 
 			}
 			interval, err := snapshots.CheckedCadenceDuration(member.Cadence.Interval, string(member.Cadence.Unit))
 			if err != nil {
-				return unavailable(SourceEvidenceNoSnapshot), nil
+				return unavailable(SourceEvidenceNoSnapshot), nil //nolint:nilerr // Invalid frozen cadence is represented by typed unavailable evidence, not healthy data.
 			}
 			ref.Calculation = string(member.Calculation)
 			ref.CadenceSeconds = int64(interval / time.Second)
-			ref.Alignment = string(member.Cadence.Alignment)
+			ref.Alignment = member.Cadence.Alignment
 			ref.Required = member.Required
 			if member.MeasurementID != nil {
 				ref.MeasurementID = *member.MeasurementID

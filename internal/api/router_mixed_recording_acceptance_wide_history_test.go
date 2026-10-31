@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedAcceptanceFreshWideTargetPreservesLegacyRawHistory(t *testing.T) {
@@ -66,7 +67,7 @@ func TestMixedAcceptanceFreshWideTargetPreservesLegacyRawHistory(t *testing.T) {
 	require.Equal(t, original.Group, retained.Group, "a failed takeover does not automatically stop the old record")
 	require.Equal(t, before, mixedWideHistoricalRow(t, old.f.target, table))
 	var versions int
-	require.NoError(t, f.db.QueryRow(`SELECT count(*) FROM wg_runtime_versions WHERE group_id=?`, mixedID).Scan(&versions))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT count(*) FROM wg_runtime_versions WHERE group_id=?`, mixedID).Scan(&versions))
 	require.Zero(t, versions)
 	// This is an explicit user lifecycle command, not an implicit side effect of
 	// creating the calculated record. The original source-ownership guard stays.
@@ -97,7 +98,7 @@ func TestMixedAcceptanceFreshWideTargetPreservesLegacyRawHistory(t *testing.T) {
 	after := mixedWideHistoricalRow(t, current.f.target, table)
 	require.Equal(t, before, after, "every historical raw value, key, owner marker and provenance column remains unchanged")
 	var result float64
-	require.NoError(t, current.f.target.QueryRow(`SELECT "`+current.frozen.Group.Members[0].TargetColumn+`" FROM "`+current.frozen.Group.Destination.TableName+`"`).Scan(&result))
+	require.NoError(t, current.f.target.QueryRowContext(t.Context(), `SELECT "`+current.frozen.Group.Members[0].TargetColumn+`" FROM "`+current.frozen.Group.Destination.TableName+`"`).Scan(&result))
 	require.Equal(t, float64(22), result)
 	unchanged, err := f.groups.Get(t.Context(), id)
 	require.NoError(t, err)
@@ -106,7 +107,7 @@ func TestMixedAcceptanceFreshWideTargetPreservesLegacyRawHistory(t *testing.T) {
 
 func mixedWideHistoricalRow(t *testing.T, db *sql.DB, table string) map[string]any {
 	t.Helper()
-	rows, err := db.Query(`SELECT * FROM "` + table + `"`)
+	rows, err := db.QueryContext(t.Context(), `SELECT * FROM "`+table+`"`)
 	require.NoError(t, err)
 	defer rows.Close()
 	columns, err := rows.Columns()

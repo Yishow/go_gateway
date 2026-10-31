@@ -41,8 +41,9 @@ type DispatchWatermark struct {
 // End is zero when an exact cutover leaves no future window for this member.
 type MemberProgress struct{ Start, End time.Time }
 
+const MemberNotDue MemberStatus = "not_due"
+
 const (
-	MemberNotDue           MemberStatus = "not_due"
-	ReasonNotDue                        = "not_due"
-	ReasonWindowArithmetic              = "window-arithmetic"
+	ReasonNotDue           = "not_due"
+	ReasonWindowArithmetic = "window-arithmetic"
 )

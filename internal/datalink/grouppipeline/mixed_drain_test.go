@@ -3,11 +3,12 @@ package grouppipeline
 import (
 	"context"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedLocalDrainNoPendingCreatesNoWindow(t *testing.T) {

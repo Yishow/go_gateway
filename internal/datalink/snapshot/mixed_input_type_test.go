@@ -1,9 +1,10 @@
 package snapshot
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/measurement"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedScaledCounterTailAndRestoreKeepExactInputType(t *testing.T) {

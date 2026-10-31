@@ -9,6 +9,7 @@ import (
 )
 
 const issueMixedContract = "mixed-contract-invalid"
+const mixedTruncationStart = "start"
 
 type mixedIntent struct {
 	key      string
@@ -144,7 +145,7 @@ func validateMixedResult(m mixedIntent, o snapshot.Outcome, r snapshot.MemberRes
 	}
 	cut := ""
 	if w.ActualStart.After(start) {
-		cut = "start"
+		cut = mixedTruncationStart
 	}
 	if w.ActualEnd.Before(end) {
 		if cut == "" {

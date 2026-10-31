@@ -2,12 +2,13 @@ package groupdelivery
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/snapshot"
 	"go-gateway/internal/datalink/sqltx"
 	"go-gateway/internal/testutil/lostcommit"
 	"sync/atomic"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedClosureLostAckRestoresAcceptedProgress(t *testing.T) {
@@ -39,7 +40,7 @@ func TestMixedClosureCorruptionFailsClosed(t *testing.T) {
 			store, db, _ := newTestStore(t)
 			_, c := mixedStorePlan(t, store)
 			require.NoError(t, store.CommitClosure(t.Context(), testKey, c))
-			_, err := db.Exec(change)
+			_, err := db.ExecContext(t.Context(), change)
 			require.NoError(t, err)
 			_, err = store.Restore(t.Context(), testKey)
 			require.Error(t, err)
@@ -75,7 +76,7 @@ func TestMixedClosureJSONBoundsTamperingWithRehashedBytesRejected(t *testing.T) 
 	}
 	raw, err := json.Marshal(cp)
 	require.NoError(t, err)
-	_, err = db.Exec(`UPDATE wg_delivery_mixed_progress SET checkpoint=?,checkpoint_digest=?`, string(raw), handoffHash(string(raw)))
+	_, err = db.ExecContext(t.Context(), `UPDATE wg_delivery_mixed_progress SET checkpoint=?,checkpoint_digest=?`, string(raw), handoffHash(string(raw)))
 	require.NoError(t, err)
 	_, err = store.Restore(t.Context(), testKey)
 	require.Error(t, err)
@@ -86,7 +87,7 @@ func TestMixedOutcomeCodecRetainsLatestAndSealedCounterAbsence(t *testing.T) {
 	_, c := mixedStorePlan(t, store)
 	require.NoError(t, store.CommitClosure(t.Context(), testKey, c))
 	var raw, digest string
-	require.NoError(t, db.QueryRow(`SELECT outcome,outcome_digest FROM wg_delivery_mixed_outcomes`).Scan(&raw, &digest))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT outcome,outcome_digest FROM wg_delivery_mixed_outcomes`).Scan(&raw, &digest))
 	out, err := DecodeMixedOutcome([]byte(raw), digest)
 	require.NoError(t, err)
 	require.Equal(t, c.Buckets[0].Outcome, out)

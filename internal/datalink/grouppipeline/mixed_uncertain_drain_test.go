@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/snapshot"
 	"go-gateway/internal/datalink/sqltx"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 type mixedLostDrainAck struct {
@@ -67,7 +68,7 @@ func TestMixedUnknownDisabledOrMissingRestoresBeforeDrain(t *testing.T) {
 				f, p, snap, old, ledger := mixedUncertainDrainFixture(t, appendLost)
 				var original string
 				if !appendLost {
-					require.NoError(t, f.store.DB().QueryRow(`SELECT payload FROM wg_delivery_outbox`).Scan(&original))
+					require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT payload FROM wg_delivery_outbox`).Scan(&original))
 				}
 				if missing {
 					f.groups.groups = nil
@@ -91,12 +92,12 @@ func TestMixedUnknownDisabledOrMissingRestoresBeforeDrain(t *testing.T) {
 				require.Empty(t, r.Samples)
 				require.True(t, r.Mixed.EndsAt.IsZero())
 				var count int
-				require.NoError(t, f.store.DB().QueryRow(`SELECT COUNT(*) FROM wg_delivery_outbox`).Scan(&count))
+				require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_outbox`).Scan(&count))
 				require.Equal(t, 1, count)
 				require.Equal(t, 1, ledger.calls, "do not retry the old ledger's unknown operation")
 				if !appendLost {
 					var stored string
-					require.NoError(t, f.store.DB().QueryRow(`SELECT payload FROM wg_delivery_outbox`).Scan(&stored))
+					require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT payload FROM wg_delivery_outbox`).Scan(&stored))
 					require.Equal(t, original, stored)
 				}
 			})
@@ -120,8 +121,8 @@ func TestMixedUnknownHandoffEqualityCannotRetainUncertainWorker(t *testing.T) {
 func TestMixedUnknownDrainForeignFrozenScopeStaysFenced(t *testing.T) {
 	f, p, snap, old, _ := mixedUncertainDrainFixture(t, true)
 	var raw string
-	require.NoError(t, f.store.DB().QueryRow(`SELECT payload FROM wg_runtime_versions`).Scan(&raw))
-	_, err := f.store.DB().Exec(`UPDATE wg_runtime_versions SET payload=json_set(payload,'$.workspace_id','foreign')`)
+	require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions`).Scan(&raw))
+	_, err := f.store.DB().ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=json_set(payload,'$.workspace_id','foreign')`)
 	require.NoError(t, err)
 	f.groups.groups[0] = liveGroup(snap.Group, workspace.WriteGroupStatusDisabled)
 	var observed []error
@@ -132,9 +133,9 @@ func TestMixedUnknownDrainForeignFrozenScopeStaysFenced(t *testing.T) {
 	require.True(t, old.localDrain.Load())
 	require.True(t, old.boundary.NeedsDurableRestore())
 	var pending int
-	require.NoError(t, f.store.DB().QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE consumed=0`).Scan(&pending))
+	require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE consumed=0`).Scan(&pending))
 	require.Equal(t, 1, pending)
-	_, err = f.store.DB().Exec(`UPDATE wg_runtime_versions SET payload=?`, raw)
+	_, err = f.store.DB().ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=?`, raw)
 	require.NoError(t, err)
 	require.NoError(t, p.Reconcile(t.Context()))
 	f.clock = at(15)

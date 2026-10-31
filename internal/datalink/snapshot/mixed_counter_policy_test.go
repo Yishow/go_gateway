@@ -1,10 +1,11 @@
 package snapshot
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/aggregation"
 	"go-gateway/internal/datalink/measurement"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedPolicyAssembler(t *testing.T, mode Mode, mutate func(*aggregation.CounterBinding)) *Assembler {

@@ -103,7 +103,7 @@ func sameMemberCadence(a, b *WriteGroupMemberCadence) bool {
 
 // WindowAt computes metadata bounds without activating a runtime. The epoch
 // phase is identical before/after restart and does not depend on activation.
-func (c WriteGroupMemberCadence) WindowAt(at time.Time) (time.Time, time.Time, error) {
+func (c WriteGroupMemberCadence) WindowAt(at time.Time) (alignedStart, alignedEnd time.Time, boundsErr error) {
 	duration, err := c.Duration()
 	if err != nil {
 		return time.Time{}, time.Time{}, err

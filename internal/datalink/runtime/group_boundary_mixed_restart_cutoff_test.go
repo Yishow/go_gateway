@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/snapshot"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func installMixedRestartFence(t *testing.T, db *sql.DB, source *longFixture, end time.Time) {
@@ -33,14 +34,14 @@ func installMixedRestartFence(t *testing.T, db *sql.DB, source *longFixture, end
 	}
 	detail, err := json.Marshal(map[string]any{"ownership_fence_revision": "mixed-restart", "ended": []workspace.CutoverEnd{{GroupID: g.ID, Revision: g.AppliedRevision}}, "started": []workspace.CutoverStart{{GroupID: target.config.Group.ID, Revision: target.config.Group.AppliedRevision}}, "moved": moved})
 	require.NoError(t, err)
-	_, err = tx.Exec(`INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,intent) VALUES('mixed-restart',?,'forward',?,?,'review',?,'{}')`, g.WorkspaceID, g.ID, end.Format(time.RFC3339Nano), string(detail))
+	_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,intent) VALUES('mixed-restart',?,'forward',?,?,'review',?,'{}')`, g.WorkspaceID, g.ID, end.Format(time.RFC3339Nano), string(detail))
 	require.NoError(t, err)
-	_, err = tx.Exec(`INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,'mixed-restart')`, g.WorkspaceID, g.ID, g.AppliedRevision, end.Format(time.RFC3339Nano))
+	_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,'mixed-restart')`, g.WorkspaceID, g.ID, g.AppliedRevision, end.Format(time.RFC3339Nano))
 	require.NoError(t, err)
 	for direction, f := range map[string]*longFixture{"ended": source, "started": target} {
 		owner := f.config.Group
 		for _, m := range owner.Members {
-			_, err = tx.Exec(`INSERT INTO write_group_ownership_fences(fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) VALUES('mixed-restart',?,?,?,?,?,?,?,?,?,?,?,?,?)`, owner.WorkspaceID, direction, owner.ID, owner.AppliedRevision, m.DeviceID, m.PointID, m.TagID, string(owner.RecordingProfile.Kind), owner.Destination.ConnectorID, owner.Destination.ConnectorRevision, owner.Destination.Database, owner.Destination.TableSchema, owner.Destination.TableName)
+			_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_ownership_fences(fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) VALUES('mixed-restart',?,?,?,?,?,?,?,?,?,?,?,?,?)`, owner.WorkspaceID, direction, owner.ID, owner.AppliedRevision, m.DeviceID, m.PointID, m.TagID, string(owner.RecordingProfile.Kind), owner.Destination.ConnectorID, owner.Destination.ConnectorRevision, owner.Destination.Database, owner.Destination.TableSchema, owner.Destination.TableName)
 			require.NoError(t, err)
 		}
 	}
@@ -60,7 +61,7 @@ func TestMixedDurableRestartAcceptsCanonicalNewCutoff(t *testing.T) {
 	batch, err := store.PrepareCutoverHandoffs(t.Context(), groupdelivery.GroupKey{WorkspaceID: g.WorkspaceID, GroupID: g.ID, GroupRevision: g.AppliedRevision}, 0, 128)
 	require.NoError(t, err)
 	require.Equal(t, 1, batch.Accepted)
-	for _, wrong := range []time.Time{boundaryAt(22), boundaryAt(24), time.Time{}} {
+	for _, wrong := range []time.Time{boundaryAt(22), boundaryAt(24), {}} {
 		f.config.EndsAt = wrong
 		_, err = NewGroupBoundaryContext(t.Context(), f.config)
 		require.ErrorIs(t, err, groupdelivery.ErrOwnershipConflict)
@@ -71,7 +72,7 @@ func TestMixedDurableRestartAcceptsCanonicalNewCutoff(t *testing.T) {
 	require.NoError(t, restored.Tick(t.Context(), boundaryAt(60)))
 	require.True(t, restored.Retired())
 	var raw string
-	require.NoError(t, db.QueryRow(`SELECT outcome FROM wg_delivery_mixed_outcomes WHERE due_at=?`, boundaryAt(60).Format("2006-01-02T15:04:05.000000000Z")).Scan(&raw))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT outcome FROM wg_delivery_mixed_outcomes WHERE due_at=?`, boundaryAt(60).Format("2006-01-02T15:04:05.000000000Z")).Scan(&raw))
 	var out snapshot.Outcome
 	require.NoError(t, json.Unmarshal([]byte(raw), &out))
 	require.Equal(t, "slow", out.Members[1].Sample.SampleID)
@@ -89,12 +90,12 @@ func TestMixedDurableRestartRejectsUnprovenNewCutoff(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, b.Tick(t.Context(), boundaryAt(15)))
 	var before string
-	require.NoError(t, db.QueryRow(`SELECT checkpoint FROM wg_delivery_mixed_progress`).Scan(&before))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT checkpoint FROM wg_delivery_mixed_progress`).Scan(&before))
 	f.config.EndsAt = boundaryAt(23)
 	_, err = NewGroupBoundaryContext(t.Context(), f.config)
 	require.ErrorIs(t, err, groupdelivery.ErrOwnershipConflict)
 	var after string
-	require.NoError(t, db.QueryRow(`SELECT checkpoint FROM wg_delivery_mixed_progress`).Scan(&after))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT checkpoint FROM wg_delivery_mixed_progress`).Scan(&after))
 	require.Equal(t, before, after)
 }
 
@@ -107,11 +108,11 @@ func TestMixedDurableRestartCannotReopenClosedHistory(t *testing.T) {
 	require.NoError(t, b.Tick(t.Context(), boundaryAt(15)))
 	installMixedRestartFence(t, db, f, boundaryAt(10))
 	var before string
-	require.NoError(t, db.QueryRow(`SELECT checkpoint FROM wg_delivery_mixed_progress`).Scan(&before))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT checkpoint FROM wg_delivery_mixed_progress`).Scan(&before))
 	f.config.EndsAt = boundaryAt(10)
 	_, err = NewGroupBoundaryContext(t.Context(), f.config)
 	require.Error(t, err)
 	var after string
-	require.NoError(t, db.QueryRow(`SELECT checkpoint FROM wg_delivery_mixed_progress`).Scan(&after))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT checkpoint FROM wg_delivery_mixed_progress`).Scan(&after))
 	require.Equal(t, before, after)
 }

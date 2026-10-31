@@ -1,11 +1,12 @@
 package snapshot
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/aggregation"
 	"go-gateway/internal/datalink/measurement"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedSameSourceDifferentGroupsHaveIndependentBaselines(t *testing.T) {

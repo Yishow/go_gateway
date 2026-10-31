@@ -64,7 +64,7 @@ func restoreMixedProgress(ctx context.Context, q ownershipQuery, key GroupKey, r
 	if err != nil {
 		return err
 	}
-	if err = validateMixedCheckpoint(key, cp, intervals); err != nil {
+	if err := validateMixedCheckpoint(key, cp, intervals); err != nil {
 		return err
 	}
 	if cp.Progress.ClosedThrough.IsZero() || through != timestamp(cp.Progress.ClosedThrough) {
@@ -106,7 +106,7 @@ func (s *Store) commitMixedClosure(ctx context.Context, key GroupKey, c Closure)
 			return err
 		}
 		for _, cp := range []snapshot.MixedCheckpoint{c.Mixed.Before, c.Mixed.After} {
-			if err = validateMixedCheckpoint(key, cp, intervals); err != nil {
+			if err := validateMixedCheckpoint(key, cp, intervals); err != nil {
 				return err
 			}
 		}
@@ -114,19 +114,19 @@ func (s *Store) commitMixedClosure(ctx context.Context, key GroupKey, c Closure)
 			return mixedInvalid("coverage changed within plan")
 		}
 		var legacy int
-		if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM wg_delivery_checkpoints WHERE group_id=? AND group_revision=?`, key.GroupID, key.GroupRevision).Scan(&legacy); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM wg_delivery_checkpoints WHERE group_id=? AND group_revision=?`, key.GroupID, key.GroupRevision).Scan(&legacy); err != nil {
 			return err
 		}
 		if legacy != 0 {
 			return mixedInvalid("legacy cursor coexistence")
 		}
 		var prior Restored
-		if err = restoreMixedProgress(ctx, tx, key, &prior); err != nil {
+		if err := restoreMixedProgress(ctx, tx, key, &prior); err != nil {
 			return err
 		}
 		if prior.Mixed != nil {
 			var last string
-			if err = tx.QueryRowContext(ctx, `SELECT last_closure_digest FROM wg_delivery_mixed_progress WHERE workspace_id=? AND group_id=? AND group_revision=?`, key.WorkspaceID, key.GroupID, key.GroupRevision).Scan(&last); err != nil {
+			if err := tx.QueryRowContext(ctx, `SELECT last_closure_digest FROM wg_delivery_mixed_progress WHERE workspace_id=? AND group_id=? AND group_revision=?`, key.WorkspaceID, key.GroupID, key.GroupRevision).Scan(&last); err != nil {
 				return err
 			}
 			if reflect.DeepEqual(*prior.Mixed, c.Mixed.After) && last == closureDigest {
@@ -154,26 +154,26 @@ func (s *Store) commitMixedClosure(ctx context.Context, key GroupKey, c Closure)
 		} else if !c.Mixed.Before.Progress.ClosedThrough.IsZero() {
 			return mixedInvalid("missing prior progress")
 		}
-		if err = validateMixedSchedule(d, c, intervals); err != nil {
+		if err := validateMixedSchedule(d, c, intervals); err != nil {
 			return err
 		}
-		if err = validateMixedOutcomes(key, c, intervals); err != nil {
+		if err := validateMixedOutcomes(key, c, intervals); err != nil {
 			return err
 		}
-		if err = validateOwnershipClosure(ctx, tx, key, c); err != nil {
+		if err := validateOwnershipClosure(ctx, tx, key, c); err != nil {
 			return err
 		}
-		if err = validateHandoffClosure(ctx, tx, key, c); err != nil {
+		if err := validateHandoffClosure(ctx, tx, key, c); err != nil {
 			return err
 		}
-		if err = verifyClosureCounterProofs(ctx, tx, key, c.CounterProofs, closureThrough(c)); err != nil {
+		if err := verifyClosureCounterProofs(ctx, tx, key, c.CounterProofs, closureThrough(c)); err != nil {
 			return err
 		}
-		if err = verifyMixedBaselineProof(ctx, tx, key, c.Baselines); err != nil {
+		if err := verifyMixedBaselineProof(ctx, tx, key, c.Baselines); err != nil {
 			return err
 		}
 		now := timestamp(s.now())
-		if err = storeBaselines(ctx, tx, key, baselines, now); err != nil {
+		if err := storeBaselines(ctx, tx, key, baselines, now); err != nil {
 			return err
 		}
 		for _, b := range c.Buckets {
@@ -185,7 +185,7 @@ func (s *Store) commitMixedClosure(ctx context.Context, key GroupKey, c Closure)
 				return fmt.Errorf("mixed outcome: %w", err)
 			}
 			if b.Row != nil {
-				if err = s.enqueueRow(ctx, tx, key, c.Destination, b, now); err != nil {
+				if err := s.enqueueRow(ctx, tx, key, c.Destination, b, now); err != nil {
 					return err
 				}
 			}

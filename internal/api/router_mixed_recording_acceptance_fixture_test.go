@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/grouppipeline"
@@ -15,6 +14,8 @@ import (
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 type mixedAcceptanceRig struct {
@@ -77,9 +78,9 @@ func (r *mixedAcceptanceRig) Resolve(ctx context.Context, item groupdelivery.Out
 }
 func (r *mixedAcceptanceRig) deliver(t *testing.T) []string {
 	t.Helper()
-	rows, err := r.f.db.Query(`SELECT effect_key FROM wg_delivery_outbox WHERE group_id=? AND state='pending' ORDER BY due_at,effect_key`, r.frozen.GroupID)
+	rows, err := r.f.db.QueryContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox WHERE group_id=? AND state='pending' ORDER BY due_at,effect_key`, r.frozen.GroupID)
 	require.NoError(t, err)
-	var keys []string
+	keys := make([]string, 0, len(r.frozen.Group.Members))
 	for rows.Next() {
 		var key string
 		require.NoError(t, rows.Scan(&key))
@@ -93,8 +94,8 @@ func (r *mixedAcceptanceRig) deliver(t *testing.T) []string {
 		require.NoError(t, err)
 		require.Equal(t, groupdelivery.StateCommitted, result.State)
 		var local, target int
-		require.NoError(t, r.f.db.QueryRow(`SELECT count(*) FROM wg_delivery_receipts WHERE effect_key=?`, key).Scan(&local))
-		require.NoError(t, r.f.target.QueryRow(`SELECT count(*) FROM "`+dbtarget.EffectReceiptTable+`" WHERE effect_key=?`, key).Scan(&target))
+		require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT count(*) FROM wg_delivery_receipts WHERE effect_key=?`, key).Scan(&local))
+		require.NoError(t, r.f.target.QueryRowContext(t.Context(), `SELECT count(*) FROM "`+dbtarget.EffectReceiptTable+`" WHERE effect_key=?`, key).Scan(&target))
 		require.Equal(t, 1, local)
 		require.Equal(t, 1, target)
 	}

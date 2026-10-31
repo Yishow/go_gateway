@@ -16,7 +16,7 @@ func (s *WriteGroupService) verifyMixedSchemaProofInTx(ctx context.Context, tx *
 		return err
 	}
 	var dialect string
-	if err = tx.QueryRowContext(ctx, s.repo.query(`SELECT kind FROM database_connectors WHERE id=$1`), group.Destination.ConnectorID).Scan(&dialect); err != nil {
+	if err := tx.QueryRowContext(ctx, s.repo.query(`SELECT kind FROM database_connectors WHERE id=$1`), group.Destination.ConnectorID).Scan(&dialect); err != nil {
 		return err
 	}
 	layout, err := managedSchemaLayout(group, types, dialect)
@@ -86,16 +86,16 @@ func (s *WriteGroupService) replayMixedSchemaConfirmation(ctx context.Context, i
 	if record.ID != mutation.WorkspaceID || group.Revision != mutation.ExpectedGroupRevision || group.Destination.ConnectorRevision != mutation.ExpectedConnectorRevision || !isMixedWriteGroup(group) {
 		return nil, recordingplan.ErrPreviewTokenStale
 	}
-	if err = s.repo.requireUnreservedWriteGroupInTx(ctx, setup.SQLTx(), record.ID, id); err != nil {
+	if err := s.repo.requireUnreservedWriteGroupInTx(ctx, setup.SQLTx(), record.ID, id); err != nil {
 		return nil, err
 	}
-	if err = s.repo.validate(ctx, setup.SQLTx(), group); err != nil {
+	if err := s.repo.validate(ctx, setup.SQLTx(), group); err != nil {
 		return nil, err
 	}
 	if group.Destination.SchemaRevision != operationID || group.Destination.SchemaDigest != digest {
 		return nil, recordingplan.ErrPreviewTokenStale
 	}
-	if err = s.verifyMixedSchemaProofInTx(ctx, setup.SQLTx(), record, group, operationID, digest, storage); err != nil {
+	if err := s.verifyMixedSchemaProofInTx(ctx, setup.SQLTx(), record, group, operationID, digest, storage); err != nil {
 		return nil, err
 	}
 	return &WriteGroupSaveResult{WorkspaceRevision: record.DatabaseSetupRevision, Group: cloneWriteGroup(group)}, nil

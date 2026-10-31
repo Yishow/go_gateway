@@ -1,9 +1,10 @@
 package grouppipeline
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/workspace"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedPipelineShutdownRestartKeepsOpenCoverage(t *testing.T) {

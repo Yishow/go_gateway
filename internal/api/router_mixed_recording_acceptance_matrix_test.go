@@ -10,17 +10,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func mixedNativeRequest(t *testing.T, wide bool, intervals []int64, required []bool) (managedGroupFixture, map[string]any) {
+func mixedNativeRequest(t *testing.T, wide bool, intervals []int64, required []bool) (fixture managedGroupFixture, payload map[string]any) {
 	t.Helper()
 	f := newManagedDestinationFixture(t, "sqlite")
 	sources := []meanSource{{name: "a", tagType: "float64", role: "gauge"}, {name: "b", tagType: "float64", role: "gauge"}, {name: "c", tagType: "uint64", measurementID: "mixed-counter"}}
 	seedMeanSources(t, f, sources)
 	for _, s := range sources {
-		_, err := f.db.Exec(`UPDATE points SET data_type=? WHERE id=?`, s.tagType, "point-"+s.name)
+		_, err := f.db.ExecContext(t.Context(), `UPDATE points SET data_type=? WHERE id=?`, s.tagType, "point-"+s.name)
 		require.NoError(t, err)
 	}
 	insertMeasurement(t, f, "mixed-counter", "c", "epoch-1", "counter")
-	_, err := f.db.Exec(`UPDATE measurement_definitions SET numeric_encoding='uint64' WHERE id='mixed-counter'`)
+	_, err := f.db.ExecContext(t.Context(), `UPDATE measurement_definitions SET numeric_encoding='uint64' WHERE id='mixed-counter'`)
 	require.NoError(t, err)
 	req := f.createRequest()
 	g := req["group"].(map[string]any)
@@ -42,7 +42,7 @@ func mixedNativeRequest(t *testing.T, wide bool, intervals []int64, required []b
 	if wide {
 		dest["table_name"] = "mixed_results"
 	}
-	var members []map[string]any
+	members := make([]map[string]any, 0, len(sources))
 	for i, s := range sources {
 		method := "mean"
 		if i == 2 {
@@ -81,12 +81,12 @@ func TestMixedAcceptanceCommonBoundaryWrites22_12_8(t *testing.T) {
 	require.Len(t, r.deliver(t), 1)
 	var a, b float64
 	var delta string
-	require.NoError(t, r.f.target.QueryRow(`SELECT "`+r.frozen.Group.Members[0].TargetColumn+`","`+r.frozen.Group.Members[1].TargetColumn+`",CAST("`+r.frozen.Group.Members[2].TargetColumn+`" AS TEXT) FROM mixed_results`).Scan(&a, &b, &delta))
+	require.NoError(t, r.f.target.QueryRowContext(t.Context(), `SELECT "`+r.frozen.Group.Members[0].TargetColumn+`","`+r.frozen.Group.Members[1].TargetColumn+`",CAST("`+r.frozen.Group.Members[2].TargetColumn+`" AS TEXT) FROM mixed_results`).Scan(&a, &b, &delta))
 	require.Equal(t, float64(22), a)
 	require.Equal(t, float64(12), b)
 	require.Equal(t, "8", delta)
 	var count int
-	require.NoError(t, r.f.target.QueryRow(`SELECT count(*) FROM mixed_results`).Scan(&count))
+	require.NoError(t, r.f.target.QueryRowContext(t.Context(), `SELECT count(*) FROM mixed_results`).Scan(&count))
 	require.Equal(t, 1, count)
 }
 func TestMixedAcceptanceIndependentWideAndLongDueRows(t *testing.T) {
@@ -109,18 +109,18 @@ func TestMixedAcceptanceIndependentWideAndLongDueRows(t *testing.T) {
 			if wide {
 				var a float64
 				var b, c sql.NullString
-				require.NoError(t, r.f.target.QueryRow(`SELECT "`+r.frozen.Group.Members[0].TargetColumn+`","`+r.frozen.Group.Members[1].TargetColumn+`","`+r.frozen.Group.Members[2].TargetColumn+`" FROM "`+table+`"`).Scan(&a, &b, &c))
+				require.NoError(t, r.f.target.QueryRowContext(t.Context(), `SELECT "`+r.frozen.Group.Members[0].TargetColumn+`","`+r.frozen.Group.Members[1].TargetColumn+`","`+r.frozen.Group.Members[2].TargetColumn+`" FROM "`+table+`"`).Scan(&a, &b, &c))
 				require.Equal(t, float64(20), a)
 				require.False(t, b.Valid)
 				require.False(t, c.Valid)
 			} else {
 				var tag string
-				require.NoError(t, r.f.target.QueryRow(`SELECT tag_id FROM "`+table+`"`).Scan(&tag))
+				require.NoError(t, r.f.target.QueryRowContext(t.Context(), `SELECT tag_id FROM "`+table+`"`).Scan(&tag))
 				require.Equal(t, "tag-a", tag)
 			}
 			// SQL actual coverage remains partial while immutable row identity is aligned.
 			var rawEvidence string
-			require.NoError(t, r.f.target.QueryRow(`SELECT provenance FROM "`+table+`"`).Scan(&rawEvidence))
+			require.NoError(t, r.f.target.QueryRowContext(t.Context(), `SELECT provenance FROM "`+table+`"`).Scan(&rawEvidence))
 			var entry map[string]any
 			if wide {
 				var entries []map[string]any
@@ -139,9 +139,9 @@ func TestMixedAcceptanceIndependentWideAndLongDueRows(t *testing.T) {
 			require.Len(t, r.deliver(t), 1)
 			var boundaryValue float64
 			if wide {
-				require.NoError(t, r.f.target.QueryRow(`SELECT "`+r.frozen.Group.Members[0].TargetColumn+`" FROM "`+table+`" ORDER BY due_at DESC LIMIT 1`).Scan(&boundaryValue))
+				require.NoError(t, r.f.target.QueryRowContext(t.Context(), `SELECT "`+r.frozen.Group.Members[0].TargetColumn+`" FROM "`+table+`" ORDER BY due_at DESC LIMIT 1`).Scan(&boundaryValue))
 			} else {
-				require.NoError(t, r.f.target.QueryRow(`SELECT value_float FROM "`+table+`" ORDER BY bucket_start DESC LIMIT 1`).Scan(&boundaryValue))
+				require.NoError(t, r.f.target.QueryRowContext(t.Context(), `SELECT value_float FROM "`+table+`" ORDER BY bucket_start DESC LIMIT 1`).Scan(&boundaryValue))
 			}
 			require.Equal(t, float64(30), boundaryValue, "sample exactly :15 belongs only to next member window")
 			r.offer(t, 0, "a40", base.Add(40*time.Second), float64(40))
@@ -153,12 +153,12 @@ func TestMixedAcceptanceIndependentWideAndLongDueRows(t *testing.T) {
 			if wide {
 				require.Len(t, last, 1)
 				var count int
-				require.NoError(t, r.f.target.QueryRow(`SELECT count(*) FROM "`+table+`"`).Scan(&count))
+				require.NoError(t, r.f.target.QueryRowContext(t.Context(), `SELECT count(*) FROM "`+table+`"`).Scan(&count))
 				require.Equal(t, 4, count)
 			} else {
 				require.Len(t, last, 3, "only the three due members produce outputs, including optional null baseline")
 				var count int
-				require.NoError(t, r.f.target.QueryRow(`SELECT count(*) FROM "`+table+`"`).Scan(&count))
+				require.NoError(t, r.f.target.QueryRowContext(t.Context(), `SELECT count(*) FROM "`+table+`"`).Scan(&count))
 				require.Equal(t, 6, count)
 			}
 		})

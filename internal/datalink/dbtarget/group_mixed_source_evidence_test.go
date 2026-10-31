@@ -2,9 +2,10 @@ package dbtarget
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/snapshot"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedSourceEvidenceUsesActualEncoderSelection(t *testing.T) {

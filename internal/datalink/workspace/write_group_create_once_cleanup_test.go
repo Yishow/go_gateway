@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/sqltx"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateOnceDoesNotRetryUnknownCommitOrLostConnection(t *testing.T) {
@@ -58,6 +59,6 @@ func TestEnsureBasicManagedDoesNotConvertUnknownCommitToReplaySuccess(t *testing
 	require.ErrorIs(t, err, sqltx.ErrCommitOutcomeUnknown)
 	require.Nil(t, result)
 	var count int
-	require.NoError(t, db.QueryRow("SELECT COUNT(*) FROM write_group_basic_keys").Scan(&count))
+	require.NoError(t, db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM write_group_basic_keys").Scan(&count))
 	require.Equal(t, 1, count, "lost acknowledgment must not undo or repeat committed creation")
 }
