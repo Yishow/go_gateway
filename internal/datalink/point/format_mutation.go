@@ -21,22 +21,22 @@ var (
 // FormatScope binds the operator's visible snapshot, never an inferred latest revision.
 // A pointer distinguishes an explicit empty legacy point revision from omission.
 type FormatScope struct {
-	WorkspaceID               string  `json:"workspace_id"`
-	DeviceID                  string  `json:"device_id"`
+	WorkspaceID               string  `json:"workspace_id" validate:"required"`
+	DeviceID                  string  `json:"device_id" validate:"required"`
 	RuleID                    string  `json:"rule_id,omitempty"`
-	PointID                   string  `json:"point_id"`
-	ExpectedWorkspaceRevision string  `json:"expected_workspace_revision"`
+	PointID                   string  `json:"point_id" validate:"required"`
+	ExpectedWorkspaceRevision string  `json:"expected_workspace_revision" validate:"required"`
 	ExpectedRuleRevision      string  `json:"expected_rule_revision,omitempty"`
-	ExpectedPointRevision     *string `json:"expected_point_revision"`
-	RequestID                 string  `json:"request_id"`
+	ExpectedPointRevision     *string `json:"expected_point_revision" validate:"required"`
+	RequestID                 string  `json:"request_id" validate:"required"`
 }
 
 // FormatMutationRequest is shared by the new endpoint and the legacy PUT bridge.
 type FormatMutationRequest struct {
 	freshGateError error
 	FormatScope
-	FormatMode       schema.PointFormatMode `json:"format_mode"`
-	ConfiguredFormat string                 `json:"configured_format"`
+	FormatMode       schema.PointFormatMode `json:"format_mode" validate:"required" enums:"inherit,override"`
+	ConfiguredFormat string                 `json:"configured_format" validate:"required"`
 	Patch            *UpdatePointRequest    `json:"patch,omitempty"`
 }
 

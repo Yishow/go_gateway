@@ -265,6 +265,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.POST("/points/batch", pointHandler.BatchCreate)
 			datalinkGroup.GET("/points/:id", pointHandler.Get)
 			datalinkGroup.PUT("/points/:id", pointHandler.Update)
+			datalinkGroup.GET("/points/:id/format", pointHandler.ReadFormat)
 			datalinkGroup.PUT("/points/:id/format", pointHandler.UpdateFormat)
 			datalinkGroup.GET("/points/:id/format/operations/:request_id", pointHandler.InspectFormatOperation)
 			datalinkGroup.DELETE("/points/:id", pointHandler.Delete)

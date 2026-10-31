@@ -1,0 +1,30 @@
+{
+  "mode": {
+    "legacy": "Legacy decoding",
+    "inherit": "Use source default",
+    "override": "Point override"
+  },
+  "source": {
+    "point": "Legacy point setting",
+    "connection": "Connection default",
+    "native": "Native protocol assembly",
+    "rule": "Source rule default",
+    "override": "Point override"
+  },
+  "policy": {
+    "legacy_modbus": "Legacy Modbus decoding policy",
+    "legacy_mc3e": "Legacy MC connection decoding policy (point format is not used)",
+    "legacy_fatek_components": "Legacy FATEK native component assembly",
+    "inherit_scalar": "Inherited scalar word order",
+    "override_scalar": "Explicit scalar word order"
+  },
+  "savedPending": "Configuration saved. Runtime still needs the device settings to be applied. Do not recreate the point or repeatedly save.",
+  "errors": {
+    "point_format_scope": "This point does not belong to the selected source. Reopen it from the correct source.",
+    "point_format_conflict": "Settings changed since editing began. Review the new settings before starting a new edit.",
+    "point_format_invalid": "This word order is not supported for the selected point. No successful save was confirmed.",
+    "point_format_unavailable": "The save outcome is uncertain. Check the original operation before making another change.",
+    "point_format_operation_not_found": "No receipt was found for this operation. This does not confirm that saving failed; do not automatically repeat it.",
+    "point_format_unknown": "The result could not be verified. Check the original operation; do not repeat the save."
+  }
+}

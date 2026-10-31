@@ -30,6 +30,63 @@ definitions:
     - TableInspectionMissing
     - TableInspectionForbidden
     - TableInspectionFailed
+  decoding.PointResolution:
+    properties:
+      applicable:
+        type: boolean
+      configured_format:
+        type: string
+      connection_revision:
+        type: string
+      effective_format:
+        type: string
+      effective_policy:
+        $ref: '#/definitions/decoding.Policy'
+      effective_source:
+        $ref: '#/definitions/decoding.Source'
+      format_mode:
+        $ref: '#/definitions/schema.PointFormatMode'
+      format_version:
+        type: integer
+      native_compatibility:
+        type: boolean
+      point_revision:
+        type: string
+      resolved:
+        type: boolean
+      rule_revision:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
+  decoding.Policy:
+    enum:
+    - legacy_modbus
+    - legacy_mc3e
+    - legacy_fatek_components
+    - inherit_scalar
+    - override_scalar
+    type: string
+    x-enum-varnames:
+    - LegacyModbus
+    - LegacyMC3E
+    - LegacyFatek
+    - PolicyInherit
+    - PolicyOverride
+  decoding.Source:
+    enum:
+    - point
+    - connection
+    - native
+    - rule
+    - override
+    type: string
+    x-enum-varnames:
+    - SourcePoint
+    - SourceConnection
+    - SourceNative
+    - SourceRule
+    - SourceOverride
   groupdelivery.AttentionItem:
     properties:
       connector_id:
@@ -603,6 +660,64 @@ definitions:
         items:
           $ref: '#/definitions/mapping.StepResult'
         type: array
+    type: object
+  handlers.PointFormatError:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  handlers.PointFormatErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/handlers.PointFormatError'
+      success:
+        type: boolean
+    type: object
+  handlers.PointFormatMutationData:
+    properties:
+      invalidation_status:
+        type: string
+      point:
+        $ref: '#/definitions/handlers.PointFormatPoint'
+      resolution:
+        $ref: '#/definitions/decoding.PointResolution'
+      runtime_apply_status:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
+  handlers.PointFormatMutationResponse:
+    properties:
+      data:
+        $ref: '#/definitions/handlers.PointFormatMutationData'
+      success:
+        type: boolean
+    type: object
+  handlers.PointFormatPoint:
+    properties:
+      data_format:
+        type: string
+      device_id:
+        type: string
+      format_mode:
+        $ref: '#/definitions/schema.PointFormatMode'
+      format_override:
+        type: string
+      format_version:
+        type: integer
+      id:
+        type: string
+      revision_id:
+        type: string
+    type: object
+  handlers.PointFormatReadResponse:
+    properties:
+      data:
+        $ref: '#/definitions/point.FormatReadResult'
+      success:
+        type: boolean
     type: object
   handlers.ReconcileRequest:
     properties:
@@ -2052,6 +2167,117 @@ definitions:
       workspace_revision:
         type: string
     type: object
+  point.FormatMutationRequest:
+    properties:
+      configured_format:
+        type: string
+      device_id:
+        type: string
+      expected_point_revision:
+        type: string
+      expected_rule_revision:
+        type: string
+      expected_workspace_revision:
+        type: string
+      format_mode:
+        allOf:
+        - $ref: '#/definitions/schema.PointFormatMode'
+        enum:
+        - inherit
+        - override
+      patch:
+        $ref: '#/definitions/point.UpdatePointRequest'
+      point_id:
+        type: string
+      request_id:
+        type: string
+      rule_id:
+        type: string
+      workspace_id:
+        type: string
+    required:
+    - configured_format
+    - device_id
+    - expected_point_revision
+    - expected_workspace_revision
+    - format_mode
+    - point_id
+    - request_id
+    - workspace_id
+    type: object
+  point.FormatReadResult:
+    properties:
+      connection_revision:
+        type: string
+      device_id:
+        type: string
+      editable:
+        type: boolean
+      point_id:
+        type: string
+      point_revision:
+        type: string
+      resolution:
+        $ref: '#/definitions/decoding.PointResolution'
+      rule_id:
+        type: string
+      rule_revision:
+        type: string
+      workspace_id:
+        type: string
+      workspace_revision:
+        type: string
+      workspace_revision_origin:
+        type: string
+    type: object
+  point.UpdatePointRequest:
+    properties:
+      address:
+        type: string
+      configured_format:
+        type: string
+      data_format:
+        type: string
+      data_type:
+        $ref: '#/definitions/schema.DataType'
+      description:
+        type: string
+      device_id:
+        type: string
+      enabled:
+        type: boolean
+      expected_point_revision:
+        type: string
+      expected_rule_revision:
+        type: string
+      expected_workspace_revision:
+        type: string
+      format_mode:
+        $ref: '#/definitions/schema.PointFormatMode'
+      function:
+        type: string
+      mode:
+        $ref: '#/definitions/schema.PointMode'
+      name:
+        type: string
+      point_id:
+        type: string
+      polling_group_id:
+        type: string
+      request_id:
+        type: string
+      rule_id:
+        type: string
+      workspace_id:
+        type: string
+    required:
+    - device_id
+    - expected_point_revision
+    - expected_workspace_revision
+    - point_id
+    - request_id
+    - workspace_id
+    type: object
   recordingplan.GroupSchemaColumn:
     properties:
       name:
@@ -3137,6 +3363,24 @@ definitions:
     - MappingStatusActive
     - MappingStatusOutOfSync
     - MappingStatusError
+  schema.PointFormatMode:
+    enum:
+    - legacy
+    - inherit
+    - override
+    type: string
+    x-enum-varnames:
+    - PointFormatLegacy
+    - PointFormatInherit
+    - PointFormatOverride
+  schema.PointMode:
+    enum:
+    - read
+    - readwrite
+    type: string
+    x-enum-varnames:
+    - PointModeReadOnly
+    - PointModeReadWrite
   schema.ProtocolType:
     enum:
     - modbus_tcp
@@ -3534,6 +3778,9 @@ definitions:
         $ref: '#/definitions/workspace.WriteGroupMigration'
       name:
         type: string
+      record_id:
+        description: RecordID is mixed canonical-key scope; persisted only in profile_keys.
+        type: string
       recording_profile:
         allOf:
         - $ref: '#/definitions/workspace.WriteGroupRecordingProfile'
@@ -3750,6 +3997,14 @@ definitions:
     type: object
   workspace.WriteGroupMember:
     properties:
+      cadence:
+        allOf:
+        - $ref: '#/definitions/workspace.WriteGroupMemberCadence'
+        description: |-
+          Calculation belongs to this recording member, never to its source.
+          Absence preserves legacy profiles; mixed submissions must set it.
+      calculation:
+        $ref: '#/definitions/workspace.WriteGroupMemberCalculation'
       circuit_id:
         description: |-
           CircuitID is the opaque workspace-scoped circuit identity. It is never
@@ -3803,6 +4058,25 @@ definitions:
           ValueRole is explicit on new instantaneous recording shapes. Legacy
           members and cumulative profiles may omit it; absence never means gauge.
     type: object
+  workspace.WriteGroupMemberCadence:
+    properties:
+      alignment:
+        type: string
+      interval:
+        type: integer
+      unit:
+        $ref: '#/definitions/workspace.WriteGroupIntervalUnit'
+    type: object
+  workspace.WriteGroupMemberCalculation:
+    enum:
+    - latest
+    - mean
+    - delta
+    type: string
+    x-enum-varnames:
+    - WriteGroupMemberCalculationLatest
+    - WriteGroupMemberCalculationMean
+    - WriteGroupMemberCalculationDelta
   workspace.WriteGroupMigration:
     properties:
       adapter_version:
@@ -3938,10 +4212,12 @@ definitions:
     type: object
   workspace.WriteGroupProfileKind:
     enum:
+    - mixed
     - instantaneous
     - cumulative
     type: string
     x-enum-varnames:
+    - WriteGroupProfileMixed
     - WriteGroupProfileInstantaneous
     - WriteGroupProfileCumulative
   workspace.WriteGroupReadiness:
@@ -4013,6 +4289,11 @@ definitions:
         type: integer
       kind:
         $ref: '#/definitions/workspace.WriteGroupProfileKind'
+      result_shape:
+        allOf:
+        - $ref: '#/definitions/workspace.WriteGroupResultShape'
+        description: ResultShape versions mixed result semantics; legacy profiles
+          omit it.
       sample_reduction:
         allOf:
         - $ref: '#/definitions/workspace.WriteGroupSampleReduction'
@@ -4023,6 +4304,12 @@ definitions:
       unit:
         $ref: '#/definitions/workspace.WriteGroupIntervalUnit'
     type: object
+  workspace.WriteGroupResultShape:
+    enum:
+    - member-calculation-v1
+    type: string
+    x-enum-varnames:
+    - WriteGroupResultShapeMemberCalculationV1
   workspace.WriteGroupRowGroupMigrationIntent:
     properties:
       connector_id:
@@ -4045,6 +4332,10 @@ definitions:
       bucket_start_column:
         type: string
       device_id_column:
+        type: string
+      due_at_column:
+        description: DueAtColumn is mixed-wide dispatch time, never a common member
+          window.
         type: string
       entity_key_column:
         type: string
@@ -4723,6 +5014,151 @@ paths:
       summary: Write a mapped tag value to Modbus Share memory
       tags:
       - datalink
+  /datalink/points/{id}/format:
+    get:
+      description: workspace_revision is the source/Share authority, not database
+        setup. Empty point_revision is an observed legacy revision. editable=false
+        means source reconciliation is pending. Save must use this editing-start evidence,
+        never silently refresh it.
+      parameters:
+      - description: Point ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Source workspace ID
+        in: query
+        name: workspace_id
+        required: true
+        type: string
+      - description: Owning device ID
+        in: query
+        name: device_id
+        required: true
+        type: string
+      - description: Owning rule ID; omitted discovers the unique link
+        in: query
+        name: rule_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PointFormatReadResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.PointFormatErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.PointFormatErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.PointFormatErrorResponse'
+      summary: Read scoped point format intent and effective policy without writes
+      tags:
+      - points
+    put:
+      consumes:
+      - application/json
+      description: Configuration persistence does not mean runtime application. pending
+        requires existing device apply/reconcile. On unknown outcome inspect the same
+        request_id; do not retry with a new ID or rebase revisions.
+      parameters:
+      - description: Point ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Captured editing-start scope and explicit intent
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/point.FormatMutationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PointFormatMutationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.PointFormatErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.PointFormatErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.PointFormatErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.PointFormatErrorResponse'
+      summary: Save explicitly scoped point format intent
+      tags:
+      - points
+  /datalink/points/{id}/format/operations/{request_id}:
+    get:
+      parameters:
+      - description: Point ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Original request ID
+        in: path
+        name: request_id
+        required: true
+        type: string
+      - description: Source workspace ID
+        in: query
+        name: workspace_id
+        required: true
+        type: string
+      - description: Owning device ID
+        in: query
+        name: device_id
+        required: true
+        type: string
+      - description: Original owning rule ID
+        in: query
+        name: rule_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.PointFormatMutationResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.PointFormatErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.PointFormatErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.PointFormatErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.PointFormatErrorResponse'
+      summary: Inspect the original point format operation without replay
+      tags:
+      - points
   /datalink/preview/stream:
     get:
       description: Opens a text/event-stream backed by the runtime value source for

@@ -110,48 +110,7 @@ export interface ProtocolInfo {
 // =============================================================================
 // 點位相關
 // =============================================================================
-/** 點位 */
-export interface Point {
-  id: string;
-  device_id: string;
-  name: string;
-  description: string;
-  data_type: DataType;
-  /** Modbus 等多暫存器讀值的字節序；空字串表示後端歷史預設（ABCD）。 */
-  data_format?: string;
-  address: string;
-  enabled: boolean;
-  polling_group_id: string;
-  last_value: unknown;
-  last_read_at: string;
-  last_error: string;
-  error_count: number;
-  created_at: string;
-  updated_at: string;
-}
-
-/** 建立點位請求 */
-export interface CreatePointRequest {
-  device_id: string;
-  name: string;
-  description?: string;
-  data_type: DataType;
-  data_format?: string;
-  address: string;
-  enabled?: boolean;
-  polling_group_id?: string;
-}
-
-/** 更新點位請求 */
-export interface UpdatePointRequest {
-  name?: string;
-  description?: string;
-  data_type?: DataType;
-  data_format?: string;
-  address?: string;
-  enabled?: boolean;
-  polling_group_id?: string;
-}
+export type { Point, CreatePointRequest, UpdatePointRequest } from "./point";
 
 /** 來源規則 */
 export interface SourceRuleRecord {

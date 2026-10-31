@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/schema"
 )
@@ -51,7 +52,7 @@ func (r *SQLRepository) formatSnapshot(ctx context.Context, tx *sql.Tx, req Form
 	if err = tx.QueryRowContext(ctx, `SELECT protocol,connection_config FROM devices WHERE id=?`, p.DeviceID).Scan(&protocol, &configRaw); err != nil {
 		return formatSnapshot{}, ErrFormatUnavailable
 	}
-	result := formatSnapshot{point: p, connectionConfigRaw: configRaw, defaults: decoding.FormatContext{Protocol: protocol}}
+	result := formatSnapshot{point: p, connectionConfigRaw: configRaw, defaults: decoding.FormatContext{Protocol: protocol, ConnectionRevision: connector.ReadConnectionRevision(configRaw)}}
 
 	var ruleID, linkAddress string
 	err = tx.QueryRowContext(ctx, `SELECT rule_id,address FROM source_rule_links WHERE point_id=?`, p.ID).Scan(&ruleID, &linkAddress)

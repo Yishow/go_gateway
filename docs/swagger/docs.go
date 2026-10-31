@@ -514,6 +514,215 @@ const docTemplate = `{
                 }
             }
         },
+        "/datalink/points/{id}/format": {
+            "get": {
+                "description": "workspace_revision is the source/Share authority, not database setup. Empty point_revision is an observed legacy revision. editable=false means source reconciliation is pending. Save must use this editing-start evidence, never silently refresh it.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "points"
+                ],
+                "summary": "Read scoped point format intent and effective policy without writes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Point ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Source workspace ID",
+                        "name": "workspace_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Owning device ID",
+                        "name": "device_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Owning rule ID; omitted discovers the unique link",
+                        "name": "rule_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatReadResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Configuration persistence does not mean runtime application. pending requires existing device apply/reconcile. On unknown outcome inspect the same request_id; do not retry with a new ID or rebase revisions.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "points"
+                ],
+                "summary": "Save explicitly scoped point format intent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Point ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Captured editing-start scope and explicit intent",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/point.FormatMutationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatMutationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/points/{id}/format/operations/{request_id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "points"
+                ],
+                "summary": "Inspect the original point format operation without replay",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Point ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Original request ID",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Source workspace ID",
+                        "name": "workspace_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Owning device ID",
+                        "name": "device_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Original owning rule ID",
+                        "name": "rule_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatMutationResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.PointFormatErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/datalink/preview/stream": {
             "get": {
                 "description": "Opens a text/event-stream backed by the runtime value source for the persisted mapping. Failure responses use the typed safe-error envelope before the stream starts; a runtime stream failure is emitted as an SSE error event.",
@@ -3714,6 +3923,84 @@ const docTemplate = `{
                 "TableInspectionFailed"
             ]
         },
+        "decoding.PointResolution": {
+            "type": "object",
+            "properties": {
+                "applicable": {
+                    "type": "boolean"
+                },
+                "configured_format": {
+                    "type": "string"
+                },
+                "connection_revision": {
+                    "type": "string"
+                },
+                "effective_format": {
+                    "type": "string"
+                },
+                "effective_policy": {
+                    "$ref": "#/definitions/decoding.Policy"
+                },
+                "effective_source": {
+                    "$ref": "#/definitions/decoding.Source"
+                },
+                "format_mode": {
+                    "$ref": "#/definitions/schema.PointFormatMode"
+                },
+                "format_version": {
+                    "type": "integer"
+                },
+                "native_compatibility": {
+                    "type": "boolean"
+                },
+                "point_revision": {
+                    "type": "string"
+                },
+                "resolved": {
+                    "type": "boolean"
+                },
+                "rule_revision": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "decoding.Policy": {
+            "type": "string",
+            "enum": [
+                "legacy_modbus",
+                "legacy_mc3e",
+                "legacy_fatek_components",
+                "inherit_scalar",
+                "override_scalar"
+            ],
+            "x-enum-varnames": [
+                "LegacyModbus",
+                "LegacyMC3E",
+                "LegacyFatek",
+                "PolicyInherit",
+                "PolicyOverride"
+            ]
+        },
+        "decoding.Source": {
+            "type": "string",
+            "enum": [
+                "point",
+                "connection",
+                "native",
+                "rule",
+                "override"
+            ],
+            "x-enum-varnames": [
+                "SourcePoint",
+                "SourceConnection",
+                "SourceNative",
+                "SourceRule",
+                "SourceOverride"
+            ]
+        },
         "groupdelivery.AttentionItem": {
             "type": "object",
             "properties": {
@@ -4551,6 +4838,96 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/mapping.StepResult"
                     }
+                }
+            }
+        },
+        "handlers.PointFormatError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.PointFormatErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/handlers.PointFormatError"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PointFormatMutationData": {
+            "type": "object",
+            "properties": {
+                "invalidation_status": {
+                    "type": "string"
+                },
+                "point": {
+                    "$ref": "#/definitions/handlers.PointFormatPoint"
+                },
+                "resolution": {
+                    "$ref": "#/definitions/decoding.PointResolution"
+                },
+                "runtime_apply_status": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.PointFormatMutationResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.PointFormatMutationData"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.PointFormatPoint": {
+            "type": "object",
+            "properties": {
+                "data_format": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "format_mode": {
+                    "$ref": "#/definitions/schema.PointFormatMode"
+                },
+                "format_override": {
+                    "type": "string"
+                },
+                "format_version": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "revision_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.PointFormatReadResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/point.FormatReadResult"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },
@@ -6629,6 +7006,170 @@ const docTemplate = `{
                 }
             }
         },
+        "point.FormatMutationRequest": {
+            "type": "object",
+            "required": [
+                "configured_format",
+                "device_id",
+                "expected_point_revision",
+                "expected_workspace_revision",
+                "format_mode",
+                "point_id",
+                "request_id",
+                "workspace_id"
+            ],
+            "properties": {
+                "configured_format": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "expected_point_revision": {
+                    "type": "string"
+                },
+                "expected_rule_revision": {
+                    "type": "string"
+                },
+                "expected_workspace_revision": {
+                    "type": "string"
+                },
+                "format_mode": {
+                    "enum": [
+                        "inherit",
+                        "override"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.PointFormatMode"
+                        }
+                    ]
+                },
+                "patch": {
+                    "$ref": "#/definitions/point.UpdatePointRequest"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "rule_id": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "point.FormatReadResult": {
+            "type": "object",
+            "properties": {
+                "connection_revision": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "editable": {
+                    "type": "boolean"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "point_revision": {
+                    "type": "string"
+                },
+                "resolution": {
+                    "$ref": "#/definitions/decoding.PointResolution"
+                },
+                "rule_id": {
+                    "type": "string"
+                },
+                "rule_revision": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                },
+                "workspace_revision_origin": {
+                    "type": "string"
+                }
+            }
+        },
+        "point.UpdatePointRequest": {
+            "type": "object",
+            "required": [
+                "device_id",
+                "expected_point_revision",
+                "expected_workspace_revision",
+                "point_id",
+                "request_id",
+                "workspace_id"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "configured_format": {
+                    "type": "string"
+                },
+                "data_format": {
+                    "type": "string"
+                },
+                "data_type": {
+                    "$ref": "#/definitions/schema.DataType"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "expected_point_revision": {
+                    "type": "string"
+                },
+                "expected_rule_revision": {
+                    "type": "string"
+                },
+                "expected_workspace_revision": {
+                    "type": "string"
+                },
+                "format_mode": {
+                    "$ref": "#/definitions/schema.PointFormatMode"
+                },
+                "function": {
+                    "type": "string"
+                },
+                "mode": {
+                    "$ref": "#/definitions/schema.PointMode"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "polling_group_id": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "rule_id": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
         "recordingplan.GroupSchemaColumn": {
             "type": "object",
             "properties": {
@@ -8189,6 +8730,30 @@ const docTemplate = `{
                 "MappingStatusError"
             ]
         },
+        "schema.PointFormatMode": {
+            "type": "string",
+            "enum": [
+                "legacy",
+                "inherit",
+                "override"
+            ],
+            "x-enum-varnames": [
+                "PointFormatLegacy",
+                "PointFormatInherit",
+                "PointFormatOverride"
+            ]
+        },
+        "schema.PointMode": {
+            "type": "string",
+            "enum": [
+                "read",
+                "readwrite"
+            ],
+            "x-enum-varnames": [
+                "PointModeReadOnly",
+                "PointModeReadWrite"
+            ]
+        },
         "schema.ProtocolType": {
             "type": "string",
             "enum": [
@@ -8766,6 +9331,10 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "record_id": {
+                    "description": "RecordID is mixed canonical-key scope; persisted only in profile_keys.",
+                    "type": "string"
+                },
                 "recording_profile": {
                     "description": "RecordingProfile is nil for every pre-profile group.",
                     "allOf": [
@@ -9091,6 +9660,17 @@ const docTemplate = `{
         "workspace.WriteGroupMember": {
             "type": "object",
             "properties": {
+                "cadence": {
+                    "description": "Calculation belongs to this recording member, never to its source.\nAbsence preserves legacy profiles; mixed submissions must set it.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/workspace.WriteGroupMemberCadence"
+                        }
+                    ]
+                },
+                "calculation": {
+                    "$ref": "#/definitions/workspace.WriteGroupMemberCalculation"
+                },
                 "circuit_id": {
                     "description": "CircuitID is the opaque workspace-scoped circuit identity. It is never\nderived from names or addresses; CircuitName is display text only.",
                     "type": "string"
@@ -9157,6 +9737,33 @@ const docTemplate = `{
                     ]
                 }
             }
+        },
+        "workspace.WriteGroupMemberCadence": {
+            "type": "object",
+            "properties": {
+                "alignment": {
+                    "type": "string"
+                },
+                "interval": {
+                    "type": "integer"
+                },
+                "unit": {
+                    "$ref": "#/definitions/workspace.WriteGroupIntervalUnit"
+                }
+            }
+        },
+        "workspace.WriteGroupMemberCalculation": {
+            "type": "string",
+            "enum": [
+                "latest",
+                "mean",
+                "delta"
+            ],
+            "x-enum-varnames": [
+                "WriteGroupMemberCalculationLatest",
+                "WriteGroupMemberCalculationMean",
+                "WriteGroupMemberCalculationDelta"
+            ]
         },
         "workspace.WriteGroupMigration": {
             "type": "object",
@@ -9364,10 +9971,12 @@ const docTemplate = `{
         "workspace.WriteGroupProfileKind": {
             "type": "string",
             "enum": [
+                "mixed",
                 "instantaneous",
                 "cumulative"
             ],
             "x-enum-varnames": [
+                "WriteGroupProfileMixed",
                 "WriteGroupProfileInstantaneous",
                 "WriteGroupProfileCumulative"
             ]
@@ -9477,6 +10086,14 @@ const docTemplate = `{
                 "kind": {
                     "$ref": "#/definitions/workspace.WriteGroupProfileKind"
                 },
+                "result_shape": {
+                    "description": "ResultShape versions mixed result semantics; legacy profiles omit it.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/workspace.WriteGroupResultShape"
+                        }
+                    ]
+                },
                 "sample_reduction": {
                     "description": "SampleReduction is empty for every profile saved before reductions\nexisted; read it through EffectiveSampleReduction so absence stays latest\nand a legacy profile never grows the key on the wire.",
                     "allOf": [
@@ -9489,6 +10106,15 @@ const docTemplate = `{
                     "$ref": "#/definitions/workspace.WriteGroupIntervalUnit"
                 }
             }
+        },
+        "workspace.WriteGroupResultShape": {
+            "type": "string",
+            "enum": [
+                "member-calculation-v1"
+            ],
+            "x-enum-varnames": [
+                "WriteGroupResultShapeMemberCalculationV1"
+            ]
         },
         "workspace.WriteGroupRowGroupMigrationIntent": {
             "type": "object",
@@ -9523,6 +10149,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "device_id_column": {
+                    "type": "string"
+                },
+                "due_at_column": {
+                    "description": "DueAtColumn is mixed-wide dispatch time, never a common member window.",
                     "type": "string"
                 },
                 "entity_key_column": {

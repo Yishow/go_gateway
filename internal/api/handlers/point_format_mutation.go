@@ -12,6 +12,16 @@ import (
 
 // UpdateFormat applies only explicitly scoped configuration intent. Runtime
 // activation is separately reported, never implied by a successful save.
+// @Summary Save explicitly scoped point format intent
+// @Description Configuration persistence does not mean runtime application. pending requires existing device apply/reconcile. On unknown outcome inspect the same request_id; do not retry with a new ID or rebase revisions.
+// @Tags points
+// @Accept json
+// @Produce json
+// @Param id path string true "Point ID"
+// @Param request body point.FormatMutationRequest true "Captured editing-start scope and explicit intent"
+// @Success 200 {object} PointFormatMutationResponse
+// @Failure 403,409,422,503 {object} PointFormatErrorResponse
+// @Router /datalink/points/{id}/format [put]
 func (h *PointHandler) UpdateFormat(c *gin.Context) {
 	var req point.FormatMutationRequest
 	if c.ShouldBindJSON(&req) != nil {
@@ -75,7 +85,7 @@ func (h *PointHandler) mutatePointFormat(c *gin.Context, req point.FormatMutatio
 		c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: safeRuntimePointRead(&result.Point), "format_resolution": result.Resolution, "workspace_revision": result.WorkspaceRevision, "runtime_apply_status": result.RuntimeApplyStatus, "invalidation_status": result.InvalidationStatus})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: result})
+	c.JSON(http.StatusOK, formatMutationResponse(result))
 }
 
 func renderPointFormatError(c *gin.Context, err error) {
@@ -92,6 +102,17 @@ func renderPointFormatError(c *gin.Context, err error) {
 }
 
 // InspectFormatOperation reports a durable pending/invalidated receipt without replay.
+// @Summary Inspect the original point format operation without replay
+// @Tags points
+// @Produce json
+// @Param id path string true "Point ID"
+// @Param request_id path string true "Original request ID"
+// @Param workspace_id query string true "Source workspace ID"
+// @Param device_id query string true "Owning device ID"
+// @Param rule_id query string false "Original owning rule ID"
+// @Success 200 {object} PointFormatMutationResponse
+// @Failure 403,404,422,503 {object} PointFormatErrorResponse
+// @Router /datalink/points/{id}/format/operations/{request_id} [get]
 func (h *PointHandler) InspectFormatOperation(c *gin.Context) {
 	scope := point.FormatScope{WorkspaceID: c.Query("workspace_id"), DeviceID: c.Query("device_id"), RuleID: c.Query("rule_id"), PointID: c.Param("id"), RequestID: c.Param("request_id")}
 	result, err := h.svc.InspectFormatMutation(c.Request.Context(), scope)
@@ -103,5 +124,5 @@ func (h *PointHandler) InspectFormatOperation(c *gin.Context) {
 		renderPointFormatError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: result})
+	c.JSON(http.StatusOK, formatMutationResponse(result))
 }

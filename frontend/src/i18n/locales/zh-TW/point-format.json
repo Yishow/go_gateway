@@ -1,0 +1,30 @@
+{
+  "mode": {
+    "legacy": "既有解碼方式",
+    "inherit": "沿用來源預設",
+    "override": "此點位指定"
+  },
+  "source": {
+    "point": "既有點位設定",
+    "connection": "連線預設",
+    "native": "協議原生組合方式",
+    "rule": "來源規則預設",
+    "override": "此點位指定"
+  },
+  "policy": {
+    "legacy_modbus": "既有 Modbus 解碼規則",
+    "legacy_mc3e": "既有 MC 連線解碼規則（不使用點位格式）",
+    "legacy_fatek_components": "既有 FATEK 原生元件組合方式",
+    "inherit_scalar": "沿用來源的數值字序",
+    "override_scalar": "指定數值字序"
+  },
+  "savedPending": "設定已儲存，執行中的採集仍待重新套用設備設定。請勿重新建立點位或反覆按儲存。",
+  "errors": {
+    "point_format_scope": "此點位不屬於所選來源，請從正確來源重新開啟。",
+    "point_format_conflict": "開始編輯後設定已變更，請先檢視新設定，再開始新的編輯。",
+    "point_format_invalid": "此點位不支援指定的字序，尚未確認儲存成功。",
+    "point_format_unavailable": "儲存結果尚無法確認，請先查證原操作，再進行其他變更。",
+    "point_format_operation_not_found": "找不到此操作的回執；這不代表儲存失敗，請勿自動重送。",
+    "point_format_unknown": "無法確認操作結果，請查證原操作，勿重複儲存。"
+  }
+}

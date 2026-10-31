@@ -48,7 +48,14 @@ func TestPointFormatHTTPWiringInvalidatesOnceAndPreservesLegacyShape(t *testing.
 			router.PUT("/points/:id", h.Update)
 			router.PUT("/points/:id/format", h.UpdateFormat)
 			router.GET("/points/:id/format/operations/:request_id", h.InspectFormatOperation)
-			payload := map[string]any{"workspace_id": record.ID, "device_id": p.DeviceID, "point_id": p.ID, "expected_workspace_revision": "ws-old", "expected_point_revision": p.RevisionID, "request_id": "format-request"}
+			router.GET("/points/:id/format", h.ReadFormat)
+			read := httptest.NewRecorder()
+			router.ServeHTTP(read, httptest.NewRequest("GET", "/points/"+p.ID+"/format?workspace_id="+record.ID+"&device_id="+p.DeviceID, nil))
+			require.Equal(t, 200, read.Code, read.Body.String())
+			var initial PointFormatReadResponse
+			require.NoError(t, json.Unmarshal(read.Body.Bytes(), &initial))
+			require.Equal(t, "ws-old", initial.Data.WorkspaceRevision)
+			payload := map[string]any{"workspace_id": record.ID, "device_id": p.DeviceID, "point_id": p.ID, "expected_workspace_revision": initial.Data.WorkspaceRevision, "expected_point_revision": initial.Data.PointRevision, "request_id": "format-request"}
 			path := "/points/" + p.ID + "/format"
 			if legacy {
 				path = "/points/" + p.ID

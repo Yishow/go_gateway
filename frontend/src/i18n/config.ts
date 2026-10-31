@@ -1,3 +1,5 @@
+import enPointFormat from './locales/en/point-format.json';
+import zhTWPointFormat from './locales/zh-TW/point-format.json';
 import enRecordingEditor from './locales/en/recording-editor.json';
 import zhTWRecordingEditor from './locales/zh-TW/recording-editor.json';
 import enTheme from './locales/en/theme.json';
@@ -59,6 +61,7 @@ i18n
       en: {
         'recording-home': enRecordingHome,
         'recording-editor': enRecordingEditor,
+        'point-format': enPointFormat,
         theme: enTheme,
         translation: mergeTranslations(
           enTranslations,
@@ -81,6 +84,7 @@ i18n
       'zh-TW': {
         'recording-home': zhTWRecordingHome,
         'recording-editor': zhTWRecordingEditor,
+        'point-format': zhTWPointFormat,
         theme: zhTWTheme,
         translation: mergeTranslations(
           zhTWTranslations,
