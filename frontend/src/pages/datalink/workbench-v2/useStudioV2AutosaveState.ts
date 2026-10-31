@@ -1,3 +1,4 @@
+import { deviceAPI } from '../../../services/datalink';
 import { useRecordingRangeSubmission } from './useRecordingRangeSubmission';
 import { readSourceRangeDevice } from './readSourceRangeDevice';
 import type { DeviceSourceRequest } from './deviceSourceSubmission';
@@ -118,10 +119,22 @@ export function useStudioV2AutosaveState(
   const sourceRanges = useRecordingRangeSubmission({ workspaceId: sourceWorkspaceId, enabled: locatorEntry ? locatorHydration.ready : enabled && workspaceHydrated,
     stateRef, apply: action => { stateRef.current = workbenchV2Reducer(stateRef.current, action); actions.dispatch(action); },
     queueRule: action => rangeQueue.current.rule(action), queueMapping: (previous, action, next) => rangeQueue.current.mapping(previous, action, next),
-    prepareDevice: async id => sourceWorkspaceId ? readSourceRangeDevice(sourceWorkspaceId, id, async () => {
-      if (locatorEntry) { if (!sourceLease.allowed && !await sourceLease.acquire(sourceWorkspaceId)) return; return sourceLease.readback(); }
-      const result = await devicesQuery.refetch(); return result.isError ? undefined : result.data;
-    }) : undefined,
+    prepareDevice: async id => {
+      if (!sourceWorkspaceId) return;
+      const device = await readSourceRangeDevice(sourceWorkspaceId, id, async () => {
+        if (locatorEntry) { if (!sourceLease.allowed && !await sourceLease.acquire(sourceWorkspaceId)) return; return sourceLease.readback(); }
+        const result = await devicesQuery.refetch(); return result.isError ? undefined : result.data;
+      });
+      if (!device) return;
+      const readiness = await deviceAPI.checkReadiness(id);
+      return readiness.device_id === id ? { device, activationAllowed: readiness.activation_allowed === true } : undefined;
+    },
+    diagnoseDevice: async id => {
+      const result = await deviceAPI.testConnection(id);
+      if (!result.success) return false;
+      const readiness = await deviceAPI.checkReadiness(id);
+      return readiness.device_id === id && readiness.activation_allowed === true;
+    },
   });
   const persistedMCPoints = useStudioV2PersistedMCPoints(enabled, rulesQuery.data, devicesQuery.data, persistedMCWorkspaceScope, actions.state.rules);
   const persistedMCCanMutateRule = persistedMCPoints.canMutateRule;

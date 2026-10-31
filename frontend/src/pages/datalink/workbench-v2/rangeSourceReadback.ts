@@ -9,8 +9,8 @@ import type { SourceRuleCandidateSnapshotView } from '../../../types/sourceRuleC
 import { hydrateStudioV2Rule, toStudioV2RuleCreateRequest } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
 import { buildPersistedMCRuleState, type PersistedMCRuleState } from '../../../features/datalink/workbench-v2/state/mcPersistedPoints';
 import { derivePoints } from '../../../features/datalink/workbench-v2/state/sourceRule';
-import { buildGroupCandidates, type GroupCandidates, type GroupCandidateState } from '../../../features/datalink/workbench-v2/state/writeGroup/candidates';
-import type { RangeMappingReceipt, RangeRuleReceipt, RangeSourceRequest } from './rangeSourceSubmission';
+import { buildGroupCandidates, type GroupCandidateState } from '../../../features/datalink/workbench-v2/state/writeGroup/candidates';
+import type { RangeCompletion, RangeMappingReceipt, RangeRuleReceipt, RangeSourceRequest, SourceIdentity } from './rangeSourceSubmission';
 
 export interface RangeRuleProof {
   request: RangeSourceRequest;
@@ -23,16 +23,20 @@ export interface RangeRuleProof {
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 const canonical = (rule: SourceRuleRecord) => toStudioV2RuleCreateRequest(hydrateStudioV2Rule(rule));
 const matches = (expected: object, actual: object) => Object.entries(expected).every(([key, value]) => same(value, (actual as Record<string, unknown>)[key]));
-function ruleMatches(receipt: RangeRuleReceipt, request: RangeSourceRequest) {
+// Readiness may persist a requested active rule as disabled. This is a saved
+// configuration, never an activation grant. No other field mismatch is accepted.
+export function matchesRangeRuleAcknowledgement(receipt: RangeRuleReceipt, request: RangeSourceRequest): boolean {
   const expected = toStudioV2RuleCreateRequest({ ...request.buffer, id: receipt.submitted.id ?? '', device_id: request.deviceId });
+  const acknowledged = canonical(receipt.acknowledged);
+  const actualExpected = expected.enabled === true && acknowledged.enabled === false ? { ...expected, enabled: false } : expected;
   return Boolean(receipt.submitted.id?.trim() && matches(expected, receipt.submitted) &&
-    matches(expected, canonical(receipt.acknowledged)) && receipt.acknowledged.workspace_id === request.workspaceId &&
-    receipt.acknowledged.revision_id?.trim() && receipt.acknowledged.runtime_apply_status !== 'apply_failed');
+    matches(actualExpected, acknowledged) && receipt.acknowledged.workspace_id === request.workspaceId &&
+    receipt.acknowledged.revision_id?.trim());
 }
 /** Read-only evidence after a known acknowledgement. Never locates a lost create by name. */
 export async function readRuleProof(receipt: RangeRuleReceipt, request: RangeSourceRequest): Promise<RangeRuleProof | undefined> {
   try {
-    if (!ruleMatches(receipt, request)) return;
+    if (!matchesRangeRuleAcknowledgement(receipt, request) || receipt.acknowledged.runtime_apply_status === 'apply_failed') return;
     const workspace = await studioV2WorkspaceAPI.get();
     const revision = workspace.modbus_share?.workspace_revision;
     if (workspace.id !== request.workspaceId || !revision?.trim() || !workspace.ordered_device_ids.includes(request.deviceId)) return;
@@ -62,17 +66,19 @@ export async function readRuleProof(receipt: RangeRuleReceipt, request: RangeSou
   } catch { return; }
 }
 /** Complete canonical identities, not synthetic planned point IDs or an operation ledger. */
-export async function readRangeCompletion(proof: RangeRuleProof, receipts: readonly RangeMappingReceipt[]): Promise<GroupCandidates | undefined> {
+export async function readRangeCompletion(proof: RangeRuleProof, receipts: readonly RangeMappingReceipt[]): Promise<RangeCompletion | undefined> {
   try {
     const fresh = await readRuleProof(proof.receipt, proof.request);
     if (!fresh || receipts.length !== fresh.snapshot.tags.candidates.length || new Set(receipts.map(r => r.acknowledged.id)).size !== receipts.length) return;
+    const inactive = fresh.record.enabled === false;
+    const savedPoints: SourceIdentity[] = [];
     const records = await studioV2MappingsAPI.list();
     const points: GroupCandidateState['points'][number][] = [];
     const mappings: Record<string, GroupCandidateState['mappings'][string]> = {};
     for (const { submitted, acknowledged: ack } of receipts) {
       if (!ack.id?.trim() || !ack.point_id?.trim() || !ack.tag_id?.trim() || ack.runtime_apply_status === 'apply_failed' || ack.cleanup_status === 'failed' ||
         ack.rule_id !== fresh.record.id || ack.workspace_id !== fresh.request.workspaceId || ack.device_id !== fresh.device.id ||
-        !matches(submitted, ack)) return;
+        !matches(submitted, ack) || ack.enabled !== !inactive) return;
       const rows = records.filter(row => row.id === ack.id);
       if (rows.length !== 1 || !matches(submitted, rows[0]) ||
         !matches({ workspace_id: ack.workspace_id, device_id: ack.device_id, point_id: ack.point_id, tag_id: ack.tag_id }, rows[0])) return;
@@ -85,15 +91,16 @@ export async function readRangeCompletion(proof: RangeRuleProof, receipts: reado
       // Candidate metadata is the rule proposal, not the actual explicitly saved
       // workspace mapping. Verify actual values against its receipt and Tag below.
       const [point, tag] = await Promise.all([pointAPI.get(ack.point_id), tagAPI.get(ack.tag_id)]);
-      if (point.id !== ack.point_id || point.device_id !== fresh.device.id || point.address !== ack.address || point.data_type !== fresh.record.data_type || !point.enabled ||
+      if (point.id !== ack.point_id || point.device_id !== fresh.device.id || point.address !== ack.address || point.data_type !== fresh.record.data_type || point.enabled !== !inactive ||
         tag.id !== ack.tag_id || tag.key !== ack.tag_key || tag.data_type !== ack.target_type ||
         tag.display_name !== ack.display_name || (tag.unit === undefined ? '' : tag.unit) !== ack.unit || tag.status === 'retired') return;
+      savedPoints.push({ device_id: fresh.device.id, point_id: point.id, tag_id: tag.id });
       points.push({ ...point, rule_id: fresh.record.id, skipped: false });
       mappings[point.id] = { ...rows[0], persisted: true, save_state: 'saved', persisted_point_id: point.id };
     }
     const after = await studioV2WorkspaceAPI.get();
     if (after.id !== fresh.request.workspaceId || after.modbus_share?.workspace_revision !== fresh.snapshot.workspace_revision) return;
     const result = buildGroupCandidates({ devices: [{ ...fresh.device, persisted: true, save_state: 'saved' }], rules: [fresh.record], points, mappings });
-    return result.candidates.length === receipts.length ? result : undefined;
+    return result.candidates.length === (inactive ? 0 : receipts.length) ? { ...result, inactive, savedPoints } : undefined;
   } catch { return; }
 }

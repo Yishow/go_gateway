@@ -18,16 +18,30 @@ export interface RangeMappingReceipt {
   submitted: StudioV2WorkspaceMappingRequest;
   acknowledged: StudioV2MappingSaveResult;
 }
+export interface SourceIdentity {
+  device_id: string; point_id: string; tag_id: string;
+}
+export interface RangeSourcePreparation {
+  device: StudioV2WorkspaceDeviceRecord;
+  activationAllowed: boolean;
+}
+export interface RangeCompletion extends GroupCandidates {
+  inactive: boolean;
+  savedPoints: SourceIdentity[];
+}
 export interface RangeSourceOutcome {
   request: RangeSourceRequest;
-  status: 'pending' | 'confirmed' | 'unknown' | 'blocked' | 'persisted-unavailable';
+  status: 'pending' | 'confirmed' | 'unknown' | 'blocked' | 'persisted-unavailable' | 'saved-inactive';
   rule?: SourceRuleRecord;
   candidates?: GroupCandidates;
+  savedPoints?: SourceIdentity[];
+  preparationError?: 'diagnostic-failed' | 'source-changed';
 }
 export interface RangeSourcePort {
   /** Prevent partially observed new source points entering a recording draft. */
   canSelect?(deviceId: string, pointId: string): boolean;
-  prepare(deviceId: string): Promise<StudioV2WorkspaceDeviceRecord | undefined>;
+  prepare(deviceId: string): Promise<RangeSourcePreparation | undefined>;
+  prepareSaved(sourceRequestId: string, request: RangeSourceRequest): Promise<RangeSourceOutcome>;
   submit(request: RangeSourceRequest): Promise<RangeSourceOutcome>;
   inspect(requestId: string): Promise<RangeSourceOutcome | undefined>;
   observations(): readonly RangeSourceOutcome[];

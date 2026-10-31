@@ -14,11 +14,11 @@ import { useStudioV2AutosaveState } from '@/pages/datalink/workbench-v2/useStudi
 import { RecordingPointSelection } from '@/features/datalink/workbench-v2/recording-editor/RecordingPointSelection';
 import { buildGroupCandidates, type GroupCandidate } from '@/features/datalink/workbench-v2/state/writeGroup/candidates';
 import { sourceRuleCandidateAPI } from '@/services/sourceRuleCandidates';
-import { pointAPI, tagAPI } from '@/services/datalink';
+import { deviceAPI, pointAPI, tagAPI } from '@/services/datalink';
 import type { SourceRuleRecord, StudioV2WorkspaceMappingRecord } from '@/types/datalink';
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { get: vi.fn() } }));
-vi.mock('@/services/datalink', async original => { const actual = await original<typeof import('@/services/datalink')>(); return { ...actual, pointAPI: { ...actual.pointAPI, get: vi.fn() }, tagAPI: { ...actual.tagAPI, get: vi.fn() } }; });
+vi.mock('@/services/datalink', async original => { const actual = await original<typeof import('@/services/datalink')>(); return { ...actual, deviceAPI: { ...actual.deviceAPI, checkReadiness: vi.fn(), testConnection: vi.fn(), activate: vi.fn() }, pointAPI: { ...actual.pointAPI, get: vi.fn() }, tagAPI: { ...actual.tagAPI, get: vi.fn() } }; });
 vi.mock('@/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns', () => ({ useStep4TargetColumns: () => ({ columns: TABLE_COLUMNS, status: 'exists', refetch: vi.fn() }) }));
 vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: { list: vi.fn(), readiness: vi.fn(), delivery: vi.fn(), create: vi.fn(), update: vi.fn(), apply: vi.fn(), disable: vi.fn(), remove: vi.fn(), testWritePreview: vi.fn(), testWrite: vi.fn(), testWriteOperation: vi.fn(), get: vi.fn() } }));
 vi.mock('@/services/studioV2LocatorEntry', () => ({ readStudioLocatorEditorEntry: vi.fn() }));
@@ -36,7 +36,8 @@ function LocatorHarness() {
  const owner = useStudioV2AutosaveState(false, locator, false, undefined, 'W');
  return <Step4Database state={owner.state} dispatch={owner.actions.dispatch} workspaceId="W" locatorOnly locatorEntry={locator} deviceSource={owner.deviceSource} />;
 }
-const device = deviceFixture({ id: 'dev-1', name: 'PLC' });
+const device = deviceFixture({ id: 'dev-1', name: 'PLC', last_test_success: true });
+let diagnosed = new Set<string>();
 let sourceDevice = device;
 let rule: SourceRuleRecord | undefined;
 let mapping: StudioV2WorkspaceMappingRecord | undefined;
@@ -47,9 +48,11 @@ function Harness({ extra = [] }: { extra?: GroupCandidate[] }) {
   members={[]} onChange={vi.fn()} devices={owner.state.devices} disabled={false} deviceSource={owner.deviceSource} /></>;
 }
 beforeEach(() => {
- resetDeviceAutosaveMocks(); vi.clearAllMocks(); sourceDevice = device; rule = undefined; mapping = undefined;
+ resetDeviceAutosaveMocks(); vi.clearAllMocks(); diagnosed = new Set(['dev-1']); sourceDevice = device; rule = undefined; mapping = undefined;
  studioV2WorkspaceAPI.get.mockResolvedValue({ id: 'W', kind: 'single', status: 'ready', ordered_device_ids: ['dev-1'], created_at: '', updated_at: '', modbus_share: { workspace_id: 'W', workspace_revision: 'SOURCE-REV' } });
  studioV2WorkspaceDevicesAPI.list.mockResolvedValue([device]);
+ vi.mocked(deviceAPI.checkReadiness).mockImplementation(async id => ({ device_id: id, status: diagnosed.has(id) ? 'ready' : 'error', connect_status: diagnosed.has(id) ? 'success' : 'unknown', probe_status: diagnosed.has(id) ? 'success' : 'unknown', activation_allowed: diagnosed.has(id), planning_allowed: diagnosed.has(id), apply_allowed: diagnosed.has(id), blocking_reasons: [], checks: [] }));
+ vi.mocked(deviceAPI.testConnection).mockImplementation(async id => { diagnosed.add(id); return { success: true, error: '', latency_ms: 1, can_activate: true }; });
  studioV2RulesAPI.list.mockImplementation(async () => rule ? [rule] : []);
  studioV2MappingsAPI.list.mockImplementation(async () => mapping ? [mapping] : []);
  studioV2RulesAPI.create.mockImplementation(async request => {
@@ -60,11 +63,13 @@ beforeEach(() => {
   mapping = { ...request, id: 'MAP', workspace_id: 'W', device_id: sourceDevice.id, point_id: 'POINT', tag_id: 'TAG', created_at: '', updated_at: '' };
   return { ...mapping, runtime_apply_status: 'not_running' };
  });
- vi.mocked(sourceRuleCandidateAPI.get).mockImplementation(async () => ({ source_rule_id: rule!.id, workspace_id: 'W', workspace_revision: 'SOURCE-REV', revision_id: 'R1',
+ studioV2RulesAPI.update.mockImplementation(async (id, request) => { rule = { ...rule!, ...request, id, revision_id: 'R2' }; return { ...rule, runtime_apply_status: 'not_running' }; });
+ studioV2MappingsAPI.update.mockImplementation(async (id, request) => { mapping = { ...mapping!, ...request, id }; return { ...mapping, runtime_apply_status: 'not_running' }; });
+ vi.mocked(sourceRuleCandidateAPI.get).mockImplementation(async () => ({ source_rule_id: rule!.id, workspace_id: 'W', workspace_revision: 'SOURCE-REV', revision_id: rule!.revision_id!,
   tags: { status: 'ready', candidates: [{ id: 'CANDIDATE', identity: { source_rule_id: rule!.id, candidate_type: 'tag', candidate_kind: 'point', derived_from_rule_address: '40001' }, proposed_signature: 'SIG',
     address: '40001', point_id: 'POINT', tag_key: `${rule!.naming_prefix}_40001`, display_name: `${rule!.naming_prefix}_40001`, data_type: 'int16', status: 'draft' }] },
   database_outputs: { status: 'ready', candidates: [] }, local_modbus_outputs: { status: 'deferred', candidates: [] } }));
- vi.mocked(pointAPI.get).mockImplementation(async () => ({ id: 'POINT', device_id: sourceDevice.id, address: '40001', data_type: 'int16', enabled: true } as Awaited<ReturnType<typeof pointAPI.get>>));
+ vi.mocked(pointAPI.get).mockImplementation(async () => ({ id: 'POINT', device_id: sourceDevice.id, address: '40001', data_type: 'int16', enabled: rule?.enabled ?? true } as Awaited<ReturnType<typeof pointAPI.get>>));
  vi.mocked(tagAPI.get).mockImplementation(async () => ({ id: 'TAG', key: mapping!.tag_key, data_type: mapping!.target_type, display_name: mapping!.display_name, ...(mapping!.unit ? { unit: mapping!.unit } : {}), status: 'draft' } as Awaited<ReturnType<typeof tagAPI.get>>));
 });
 it('uses original rule and mapping owners and waits for canonical point/tag reads before returning to picker', async () => {
@@ -185,7 +190,14 @@ it('saves a new device then its range through the same stack, without selecting 
  await waitFor(() => expect(screen.getByRole('button', { name: 'range.save' })).toBeEnabled());
  expect(screen.getAllByRole('dialog')).toHaveLength(1);
  fireEvent.click(screen.getByRole('button', { name: 'range.save' }));
+ await screen.findByTestId('recording-range-saved-inactive');
+ expect(deviceAPI.testConnection).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByTestId('recording-range-prepare'));
  await screen.findByLabelText('picker.search');
+ expect(deviceAPI.testConnection).toHaveBeenCalledTimes(1);
+ expect(deviceAPI.activate).not.toHaveBeenCalled();
+ expect(studioV2RulesAPI.update).toHaveBeenCalledTimes(1);
+ expect(studioV2MappingsAPI.update).toHaveBeenCalledTimes(1);
  expect(screen.getByLabelText('picker.device')).toHaveValue(sourceDevice.id);
  expect(screen.getByRole('checkbox', { name: mapping!.display_name })).not.toBeChecked();
  fireEvent.click(screen.getByRole('button', { name: 'picker.cancel' }));
@@ -299,7 +311,7 @@ it('saves two int16 items at 40101 using unlinked draft proposals and exact live
   const row = { ...request, id: `MAP-${request.address}`, workspace_id: 'W', device_id: 'dev-1', point_id: `POINT-${request.address}`, tag_id: `TAG-${request.address}`, created_at: '', updated_at: '' };
   applied.push(row); return { ...row, runtime_apply_status: 'not_running' };
  });
- vi.mocked(sourceRuleCandidateAPI.get).mockImplementation(async () => ({ source_rule_id: rule!.id, workspace_id: 'W', workspace_revision: 'SOURCE-REV', revision_id: 'R1',
+ vi.mocked(sourceRuleCandidateAPI.get).mockImplementation(async () => ({ source_rule_id: rule!.id, workspace_id: 'W', workspace_revision: 'SOURCE-REV', revision_id: rule!.revision_id!,
   tags: { status: 'ready', candidates: ['40101', '40102'].map(address => ({ id: `C-${address}`, identity: { source_rule_id: rule!.id, candidate_type: 'tag', candidate_kind: 'point', derived_from_rule_address: address },
     proposed_signature: `SIG-${address}`, address, point_id: `POINT-${address}`, tag_key: `RULE_${address}`, display_name: `RULE_${address}`, data_type: 'int16', status: 'draft' })) },
   database_outputs: { status: 'ready', candidates: [] }, local_modbus_outputs: { status: 'deferred', candidates: [] } }));
@@ -315,4 +327,157 @@ it('saves two int16 items at 40101 using unlinked draft proposals and exact live
  expect(studioV2RulesAPI.create).toHaveBeenCalledTimes(1);
  expect(studioV2MappingsAPI.create).toHaveBeenCalledTimes(2);
  expect(screen.getByLabelText('Recording draft')).toHaveValue('Keep my recording');
+});
+
+async function createInactiveRange() {
+ studioV2WorkspaceDevicesAPI.create.mockImplementation(async payload => {
+  sourceDevice = deviceFixture({ id: payload.id, name: payload.name, protocol: payload.protocol, connection_config: JSON.stringify(payload.connection_config), last_test_success: null, status: 'draft' });
+  studioV2WorkspaceDevicesAPI.list.mockResolvedValue([device, sourceDevice]);
+  studioV2WorkspaceAPI.get.mockResolvedValue({ id: 'W', kind: 'single', status: 'ready', ordered_device_ids: [device.id, sourceDevice.id], created_at: '', updated_at: '', modbus_share: { workspace_id: 'W', workspace_revision: 'SOURCE-REV' } });
+  return sourceDevice;
+ });
+ studioV2RulesAPI.create.mockImplementation(async request => {
+  rule = { ...request, naming_prefix: request.naming_prefix.toUpperCase(), id: request.id!, workspace_id: 'W', revision_id: 'R1', enabled: false, created_at: '', updated_at: '' } as SourceRuleRecord;
+  return { ...rule, runtime_apply_status: 'not_running' };
+ });
+ studioV2MappingsAPI.create.mockImplementation(async request => {
+  mapping = { ...request, enabled: false, id: 'MAP', workspace_id: 'W', device_id: sourceDevice.id, point_id: 'POINT', tag_id: 'TAG', created_at: '', updated_at: '' };
+  return { ...mapping, runtime_apply_status: 'not_running' };
+ });
+ vi.mocked(pointAPI.get).mockImplementation(async () => ({ id: 'POINT', device_id: sourceDevice.id, address: '40001', data_type: 'int16', enabled: rule?.enabled ?? false } as Awaited<ReturnType<typeof pointAPI.get>>));
+ const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+ const view = render(<QueryClientProvider client={client}><Harness /></QueryClientProvider>);
+ fireEvent.click(await screen.findByTestId('recording-points-open'));
+ fireEvent.click(screen.getByRole('button', { name: 'picker.newSource' }));
+ fireEvent.click(screen.getByRole('button', { name: 'source.newDevice' }));
+ fireEvent.change(await screen.findByTestId('recording-source-name'), { target: { value: 'Unprobed B' } });
+ fireEvent.change(screen.getByTestId('input-host'), { target: { value: '192.0.2.30' } });
+ fireEvent.click(screen.getByTestId('recording-source-save'));
+ fireEvent.change(await screen.findByLabelText('range.name'), { target: { value: 'OFFLINE' } });
+ fireEvent.change(screen.getByLabelText('range.address'), { target: { value: '40001' } });
+ fireEvent.change(screen.getByLabelText('range.count'), { target: { value: '1' } });
+ await waitFor(() => expect(screen.getByRole('button', { name: 'range.save' })).toBeEnabled());
+ fireEvent.click(screen.getByRole('button', { name: 'range.save' }));
+ await screen.findByTestId('recording-range-saved-inactive');
+ return view;
+}
+it('fresh unprobed device finishes an explicitly inactive source without calling it unknown or activated', async () => {
+ await createInactiveRange();
+ expect(studioV2RulesAPI.create.mock.calls[0][0].enabled).toBe(false);
+ expect(screen.queryByTestId('recording-range-unknown')).not.toBeInTheDocument();
+ expect(studioV2RulesAPI.create).toHaveBeenCalledTimes(1);
+ expect(studioV2MappingsAPI.create).toHaveBeenCalledTimes(1);
+ expect(studioV2MappingsAPI.create.mock.calls[0][0].enabled).toBe(false);
+ expect(sourceDevice.last_test_success).toBeNull();
+ expect(sourceDevice.status).toBe('draft');
+ expect(screen.getByLabelText('Recording draft')).toHaveValue('Keep my recording');
+});
+
+it('failed diagnostics leave the source offline and explicit retry prepares existing IDs without activation', async () => {
+ await createInactiveRange();
+ vi.mocked(deviceAPI.testConnection).mockResolvedValueOnce({ success: false, error: 'probe failed', latency_ms: 1 });
+ fireEvent.click(screen.getByTestId('recording-range-prepare'));
+ await screen.findByText('range.diagnostic-failed');
+ expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); expect(studioV2MappingsAPI.update).not.toHaveBeenCalled();
+ expect(deviceAPI.activate).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByTestId('recording-range-prepare'));
+ await screen.findByLabelText('picker.search');
+ expect(studioV2RulesAPI.create).toHaveBeenCalledTimes(1); expect(studioV2MappingsAPI.create).toHaveBeenCalledTimes(1);
+ expect(studioV2RulesAPI.update).toHaveBeenCalledTimes(1); expect(studioV2MappingsAPI.update).toHaveBeenCalledTimes(1);
+ expect(deviceAPI.testConnection).toHaveBeenCalledTimes(2); expect(deviceAPI.activate).not.toHaveBeenCalled();
+});
+it('refuses to overwrite a foreign rule edit that arrives during explicit diagnostics', async () => {
+ await createInactiveRange();
+ let finish!: (value: Awaited<ReturnType<typeof deviceAPI.testConnection>>) => void;
+ vi.mocked(deviceAPI.testConnection).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+ fireEvent.click(screen.getByTestId('recording-range-prepare'));
+ await waitFor(() => expect(deviceAPI.testConnection).toHaveBeenCalledTimes(1));
+ rule = { ...rule!, naming_prefix: 'FOREIGN', revision_id: 'FOREIGN-REV' };
+ diagnosed.add(sourceDevice.id);
+ await act(async () => finish({ success: true, error: '', latency_ms: 1 }));
+ await screen.findByText('range.source-changed');
+ expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); expect(studioV2MappingsAPI.update).not.toHaveBeenCalled();
+ expect(deviceAPI.activate).not.toHaveBeenCalled();
+});
+it('keeps an unacknowledged existing-range update unknown and never resends on inspect', async () => {
+ await createInactiveRange();
+ studioV2RulesAPI.update.mockImplementationOnce(async (_id, request) => { rule = { ...rule!, ...request, revision_id: 'R2' }; throw new Error('lost update acknowledgement'); });
+ fireEvent.click(screen.getByTestId('recording-range-prepare'));
+ await screen.findByTestId('recording-range-unknown');
+ fireEvent.click(screen.getByTestId('recording-range-inspect'));
+ await waitFor(() => expect(screen.getByTestId('recording-range-inspect')).toBeEnabled());
+ expect(studioV2RulesAPI.update).toHaveBeenCalledTimes(1); expect(studioV2MappingsAPI.update).not.toHaveBeenCalled();
+ expect(studioV2RulesAPI.create).toHaveBeenCalledTimes(1); expect(studioV2MappingsAPI.create).toHaveBeenCalledTimes(1);
+ expect(deviceAPI.testConnection).toHaveBeenCalledTimes(1); expect(deviceAPI.activate).not.toHaveBeenCalled();
+});
+it('explicit preparation keeps newer invalid raw input when its saved source finishes', async () => {
+ await createInactiveRange();
+ let finish!: (value: Awaited<ReturnType<typeof deviceAPI.testConnection>>) => void;
+ vi.mocked(deviceAPI.testConnection).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+ fireEvent.click(screen.getByTestId('recording-range-prepare'));
+ await waitFor(() => expect(deviceAPI.testConnection).toHaveBeenCalledTimes(1));
+ fireEvent.change(screen.getByLabelText('range.count'), { target: { value: '1x newer offline' } });
+ diagnosed.add(sourceDevice.id);
+ await act(async () => finish({ success: true, error: '', latency_ms: 1 }));
+ await screen.findByTestId('recording-range-newer');
+ expect(screen.getByLabelText('range.count')).toHaveValue('1x newer offline');
+ expect(studioV2RulesAPI.update).toHaveBeenCalledTimes(1);
+ expect(studioV2MappingsAPI.update).toHaveBeenCalledTimes(1);
+ expect(deviceAPI.activate).not.toHaveBeenCalled();
+});
+it('explicit preparation never hides a newer device form after leaving its range', async () => {
+ await createInactiveRange();
+ let finish!: (value: Awaited<ReturnType<typeof deviceAPI.testConnection>>) => void;
+ vi.mocked(deviceAPI.testConnection).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+ fireEvent.click(screen.getByTestId('recording-range-prepare'));
+ await waitFor(() => expect(deviceAPI.testConnection).toHaveBeenCalledTimes(1));
+ fireEvent.click(screen.getByTestId('recording-range-back'));
+ fireEvent.change(screen.getByLabelText('picker.device'), { target: { value: '' } });
+ fireEvent.click(screen.getByRole('button', { name: 'picker.newSource' }));
+ fireEvent.click(screen.getByRole('button', { name: 'source.newDevice' }));
+ fireEvent.change(await screen.findByTestId('recording-source-name'), { target: { value: 'Keep newer C' } });
+ diagnosed.add(sourceDevice.id);
+ await act(async () => finish({ success: true, error: '', latency_ms: 1 }));
+ await waitFor(() => expect(studioV2MappingsAPI.update).toHaveBeenCalledTimes(1));
+ expect(screen.getByTestId('recording-source-name')).toBeVisible();
+ expect(screen.getByTestId('recording-source-name')).toHaveValue('Keep newer C');
+ expect(studioV2RulesAPI.create).toHaveBeenCalledTimes(1);
+ expect(studioV2MappingsAPI.create).toHaveBeenCalledTimes(1);
+ expect(deviceAPI.activate).not.toHaveBeenCalled();
+});
+it('preserves a known persisted rule acknowledgement when runtime application failed', async () => {
+ studioV2RulesAPI.create.mockImplementationOnce(async request => ({ ...request, id: request.id!, workspace_id: 'W', revision_id: 'R1', created_at: '', updated_at: '', runtime_apply_status: 'apply_failed' } as SourceRuleRecord));
+ await openRange();
+ fireEvent.click(screen.getByRole('button', { name: 'range.save' }));
+ await screen.findByTestId('recording-range-persisted-unavailable');
+ expect(studioV2MappingsAPI.create).not.toHaveBeenCalled();
+ expect(studioV2RulesAPI.create).toHaveBeenCalledTimes(1);
+});
+it('keeps an offline source reachable after returning and reopening without recreating it', async () => {
+ await createInactiveRange();
+ fireEvent.click(screen.getByTestId('recording-range-back'));
+ expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+ fireEvent.click(screen.getByRole('button', { name: 'picker.cancel' }));
+ fireEvent.click(screen.getByTestId('recording-points-open'));
+ fireEvent.click(screen.getByTestId('recording-range-resume'));
+ await screen.findByTestId('recording-range-saved-inactive');
+ fireEvent.click(screen.getByTestId('recording-range-prepare'));
+ await screen.findByLabelText('picker.search');
+ expect(studioV2RulesAPI.create).toHaveBeenCalledTimes(1);
+ expect(studioV2MappingsAPI.create).toHaveBeenCalledTimes(1);
+ expect(deviceAPI.testConnection).toHaveBeenCalledTimes(1);
+ expect(deviceAPI.activate).not.toHaveBeenCalled();
+ expect(screen.getByRole('checkbox', { name: mapping!.display_name })).not.toBeChecked();
+});
+it('does not update sources when the owning page unmounts during explicit diagnostics', async () => {
+ const view = await createInactiveRange();
+ let finish!: (value: Awaited<ReturnType<typeof deviceAPI.testConnection>>) => void;
+ vi.mocked(deviceAPI.testConnection).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+ fireEvent.click(screen.getByTestId('recording-range-prepare'));
+ await waitFor(() => expect(deviceAPI.testConnection).toHaveBeenCalledTimes(1));
+ view.unmount(); diagnosed.add(sourceDevice.id);
+ await act(async () => finish({ success: true, error: '', latency_ms: 1 }));
+ expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
+ expect(studioV2MappingsAPI.update).not.toHaveBeenCalled();
+ expect(deviceAPI.activate).not.toHaveBeenCalled();
 });

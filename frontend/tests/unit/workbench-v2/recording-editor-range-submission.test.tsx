@@ -8,7 +8,7 @@ import type { RangeSourceRequest } from '@/pages/datalink/workbench-v2/rangeSour
 import type { Rule } from '@/features/datalink/workbench-v2/state/types';
 import { toStudioV2RuleCreateRequest } from '@/features/datalink/workbench-v2/state/studioV2RuleAutosave';
 import { readRuleProof, readRangeCompletion } from '@/pages/datalink/workbench-v2/rangeSourceReadback';
-vi.mock('@/pages/datalink/workbench-v2/rangeSourceReadback', () => ({ readRuleProof: vi.fn(), readRangeCompletion: vi.fn() }));
+vi.mock('@/pages/datalink/workbench-v2/rangeSourceReadback', async original => ({ ...await original<typeof import('@/pages/datalink/workbench-v2/rangeSourceReadback')>(), readRuleProof: vi.fn(), readRangeCompletion: vi.fn() }));
 const device = { id: 'dev-1', name: 'PLC', description: '', protocol: 'modbus_tcp' as const, status: 'draft' as const, connection_config: '{"host":"192.0.2.1","port":502}', last_test_at: null, last_test_success: null, last_test_error: '', created_at: '', updated_at: '' };
 const request: RangeSourceRequest = { workspaceId: 'W', sessionId: 'S', requestId: 'REQ', generation: 1, deviceId: 'dev-1', buffer: {
   name: 'Range', naming_prefix: 'Range', start_address: '40001', count: 1, data_type: 'int16', enabled: true, scale_multiplier: 1, scale_offset: 0,
@@ -20,7 +20,7 @@ function harness() {
  const hook = renderHook(({ workspaceId }) => {
   const stateRef = useRef(savedGroupState());
   const submission = useRecordingRangeSubmission({ workspaceId, enabled: true, stateRef,
-   apply: action => { stateRef.current = workbenchV2Reducer(stateRef.current, action); }, prepareDevice: async () => device,
+   apply: action => { stateRef.current = workbenchV2Reducer(stateRef.current, action); }, prepareDevice: async () => ({ device, activationAllowed: true }), diagnoseDevice: async () => false,
    queueRule: ruleQueue, queueMapping: mappingQueue });
   return { submission, stateRef };
  }, { initialProps: { workspaceId: 'W' } });

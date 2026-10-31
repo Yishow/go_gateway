@@ -97,6 +97,13 @@
     "located": "Saved {{count}} points. Search and meaning filters were cleared to show them; choose which to add.",
     "invalid": "Enter a range name, a valid source address and positive whole item count. Scaling must contain valid numbers.",
     "prefix": "Saved point prefix: {{prefix}}",
-    "otherPending": "This device remains saved. Check the unresolved range before starting a range on another device."
+    "otherPending": "This device remains saved. Check the unresolved range before starting a range on another device.",
+    "offlineNote": "This device is not ready. Save an offline source first; no connection test or collection will start.",
+    "saved-inactive": "The range, points and tags are saved offline. They are not enabled or selectable yet.",
+    "prepare": "Check connection and prepare points",
+    "keepOffline": "Keep offline source and return",
+    "diagnostic-failed": "Connection diagnostics did not succeed. The source remains saved offline; no points were enabled.",
+    "source-changed": "The saved source changed. No newer configuration was overwritten. Review the current source before preparing it.",
+    "prepareNote": "This checks the connection and prepares the saved point settings. It does not start device collection."
   }
 }

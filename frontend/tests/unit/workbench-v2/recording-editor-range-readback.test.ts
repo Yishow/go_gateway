@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { readRuleProof, readRangeCompletion } from '../../../src/pages/datalink/workbench-v2/rangeSourceReadback';
+import { readRuleProof, readRangeCompletion, matchesRangeRuleAcknowledgement } from '../../../src/pages/datalink/workbench-v2/rangeSourceReadback';
 import type { RangeRuleReceipt, RangeSourceRequest, RangeMappingReceipt } from '../../../src/pages/datalink/workbench-v2/rangeSourceSubmission';
 const api = vi.hoisted(() => ({ workspace: vi.fn(), rules: vi.fn(), devices: vi.fn(), candidates: vi.fn(), mappings: vi.fn(), point: vi.fn(), tag: vi.fn() }));
 vi.mock('../../../src/services/studioV2Workspace', () => ({ studioV2WorkspaceAPI: { get: api.workspace } }));
@@ -106,5 +106,58 @@ describe('range proof safety boundaries', () => {
     if (kind === 'cleanup') ack.acknowledged.cleanup_status = 'failed';
     if (kind === 'revision') api.workspace.mockResolvedValue({ id: 'w', ordered_device_ids: ['d'], modbus_share: { workspace_revision: 'changed' } });
     expect(await readRangeCompletion(proof!, receipts)).toBeUndefined();
+  });
+});
+
+describe('offline saved identities are not selectable sources', () => {
+  it.each(['explicit-disabled', 'backend-disabled'])('proves %s rule/mapping/point/tag without pretending they are enabled', async mode => {
+    const req = structuredClone(request), ack = structuredClone(receipt), map = structuredClone(mapping);
+    if (mode === 'explicit-disabled') { req.buffer.enabled = false; ack.submitted.enabled = false; }
+    ack.acknowledged.enabled = false;
+    map.submitted.enabled = false; map.acknowledged.enabled = false;
+    api.rules.mockResolvedValue([ack.acknowledged]); api.mappings.mockResolvedValue([map.acknowledged]);
+    api.point.mockResolvedValue({ id: 'p', device_id: 'd', address: '40001', data_type: 'int16', enabled: false });
+    api.tag.mockResolvedValue({ id: 't', key: 'P1', display_name: 'P1', data_type: 'int16', status: 'draft' });
+    const proof = await readRuleProof(ack, req); expect(proof).toBeDefined();
+    expect(await readRangeCompletion(proof!, [map])).toEqual({
+      inactive: true, savedPoints: [{ device_id: 'd', point_id: 'p', tag_id: 't' }], candidates: [], excluded: [],
+    });
+  });
+  it('includes exact saved identities on active completion', async () => {
+    const proof = await readRuleProof(receipt, request);
+    expect(await readRangeCompletion(proof!, [mapping])).toMatchObject({ inactive: false, savedPoints: [{ device_id: 'd', point_id: 'p', tag_id: 't' }] });
+  });
+  it.each(['point', 'mapping', 'unknown-point', 'foreign-tag'])('rejects mixed inactive evidence: %s', async kind => {
+    const req = structuredClone(request), ack = structuredClone(receipt), map = structuredClone(mapping);
+    req.buffer.enabled = false; ack.submitted.enabled = false; ack.acknowledged.enabled = false;
+    map.submitted.enabled = kind === 'mapping'; map.acknowledged.enabled = kind === 'mapping';
+    api.rules.mockResolvedValue([ack.acknowledged]); api.mappings.mockResolvedValue([map.acknowledged]);
+    api.point.mockResolvedValue({ id: 'p', device_id: 'd', address: '40001', data_type: 'int16', ...(kind === 'unknown-point' ? {} : { enabled: kind === 'point' }) });
+    if (kind === 'foreign-tag') api.tag.mockResolvedValue({ id: 'foreign' });
+    const proof = await readRuleProof(ack, req); expect(proof).toBeDefined();
+    expect(await readRangeCompletion(proof!, [map])).toBeUndefined();
+  });
+  it('never accepts false to true activation or other field changes as a readiness downgrade', async () => {
+    const req = structuredClone(request), ack = structuredClone(receipt);
+    req.buffer.enabled = false; ack.submitted.enabled = false;
+    expect(await readRuleProof(ack, req)).toBeUndefined();
+    req.buffer.enabled = true; ack.submitted.enabled = true; ack.acknowledged.enabled = false; ack.acknowledged.count = 2;
+    expect(await readRuleProof(ack, req)).toBeUndefined();
+  });
+});
+
+describe('shared acknowledgement matcher', () => {
+  it('accepts only the backend activation downgrade without changing the captured request', () => {
+    const req = structuredClone(request), ack = structuredClone(receipt);
+    ack.acknowledged.enabled = false;
+    expect(matchesRangeRuleAcknowledgement(ack, req)).toBe(true);
+    expect(req.buffer.enabled).toBe(true);
+    expect(ack.submitted.enabled).toBe(true);
+    ack.acknowledged.scale_multiplier = 2;
+    expect(matchesRangeRuleAcknowledgement(ack, req)).toBe(false);
+    ack.acknowledged.scale_multiplier = 1;
+    req.buffer.enabled = false; ack.submitted.enabled = false; ack.acknowledged.enabled = true;
+    expect(matchesRangeRuleAcknowledgement(ack, req)).toBe(false);
+    expect(api.workspace).not.toHaveBeenCalled();
   });
 });
