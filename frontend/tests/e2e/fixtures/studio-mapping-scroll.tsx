@@ -6,6 +6,7 @@ import { initReactI18next } from 'react-i18next';
 import '../../../src/index.css';
 import '../../../src/features/datalink/workbench-v2/styles/workbench-v2.css';
 import zh from '../../../src/i18n/locales/zh-TW/workbench-v2.json';
+import en from '../../../src/i18n/locales/en/workbench-v2.json';
 import { WorkbenchV2Shell } from '../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { INITIAL_STATE, useWorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { DEFAULT_RULE } from '../../../src/features/datalink/workbench-v2/state/defaults';
@@ -14,7 +15,8 @@ import type { Device } from '../../../src/features/datalink/workbench-v2/state/t
 import type { StudioV2WorkspaceReadinessSummary } from '../../../src/types/studioV2WorkspaceReadiness';
 
 await i18n.use(initReactI18next).init({
-  lng: 'zh-TW', resources: { 'zh-TW': { 'workbench-v2': zh } },
+  lng: new URLSearchParams(window.location.search).get('language') === 'en' ? 'en' : 'zh-TW',
+  resources: { 'zh-TW': { 'workbench-v2': zh }, en: { 'workbench-v2': en } },
 });
 const devices: Device[] = [{ id: 'plc', name: '測試設備', description: '', protocol: 'modbus_tcp', config: {}, status: 'draft', test: null }];
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

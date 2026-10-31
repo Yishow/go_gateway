@@ -20,8 +20,8 @@ export interface PointGridProps {
  * 點位互動網格元件
  * 
  * 落地設計決策：「點位網格互動：點擊 + Shift + Ctrl/⌘ 三模式」與「衝突偵測」
- * 自適應 4/6/8 欄位 Grid。點擊與修飾鍵只選取；明確勾選才修改採集。
- * 視覺上，略過點位呈現半透明，衝突點位標示紅圈與 alert 圖示，轉發點位在右下角標註 Share 地址。
+ * 依容器可用寬度排欄。點擊與修飾鍵只選取；明確勾選才修改採集。
+ * 略過點位呈現半透明，衝突點位標示紅圈與 alert 圖示，轉發地址保留在內容流內。
  */
 export const PointGrid: React.FC<PointGridProps> = ({
   ruleId,
@@ -81,7 +81,7 @@ export const PointGrid: React.FC<PointGridProps> = ({
 
   return (
     <div
-      className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-3"
+      className="grid min-w-0 grid-cols-[repeat(auto-fill,minmax(min(100%,8.5rem),1fr))] gap-3"
       data-testid="point-grid"
     >
       {points.map((point, idx) => {
@@ -99,7 +99,7 @@ export const PointGrid: React.FC<PointGridProps> = ({
             onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
               e.preventDefault(); setGridSelection(new Set([point.id])); setLastClickedIdx(idx);
             } }}
-            className={`relative flex flex-col justify-between p-2.5 rounded-lg border transition-all select-none h-[72px] cursor-pointer ${
+            className={`relative flex min-w-0 flex-col justify-between gap-1 p-2.5 rounded-lg border transition-all select-none min-h-[72px] cursor-pointer ${
               point.skipped
                 ? 'bg-slate-950/20 border-slate-900 text-slate-600 opacity-40 hover:opacity-60'
                 : isConflict
@@ -119,28 +119,33 @@ export const PointGrid: React.FC<PointGridProps> = ({
             data-conflict={isConflict}
           >
             {/* Top row: Address & Conflict Badge */}
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs font-semibold">{point.address}</span>
-              <label className="flex items-center gap-1 text-[10px]" onClick={e => e.stopPropagation()}>
-                <input type="checkbox" checked={!point.skipped} onChange={() => onToggleSkipAddress(point.address)} data-testid={`collect-${point.id}`} />
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1">
+              <div className="flex min-w-0 items-center gap-1">
+                <span className="break-all font-mono text-xs font-semibold">{point.address}</span>
+                {isConflict && (
+                  <span className="shrink-0 text-red-400" title={t('step2.table.conflict')}>
+                    <Icon name="alert" className="w-3.5 h-3.5" />
+                  </span>
+                )}
+              </div>
+              <label
+                className="inline-flex min-h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center gap-1 whitespace-nowrap text-[10px] [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11"
+                onClick={e => e.stopPropagation()}
+              >
+                <input className="shrink-0" type="checkbox" checked={!point.skipped} onChange={() => onToggleSkipAddress(point.address)} data-testid={`collect-${point.id}`} />
                 {t('step2.grid.collect')}
               </label>
-              {isConflict && (
-                <span className="text-red-400" title="此地址與其他規則衝突">
-                  <Icon name="alert" className="w-3.5 h-3.5" />
-                </span>
-              )}
             </div>
 
             {/* Bottom row: Name & share address label */}
-            <div className="flex items-end justify-between mt-1">
-              <span className="text-[10px] text-slate-400 truncate max-w-[80%]">
+            <div className="flex min-w-0 flex-wrap items-end justify-between gap-x-2 gap-y-1">
+              <span className="min-w-0 flex-1 truncate text-[10px] text-slate-400" title={point.name}>
                 {point.name}
               </span>
 
               {shareAddr !== null && (
                 <span
-                  className="absolute bottom-1 right-2 text-[9px] font-mono text-blue-400/80"
+                  className="shrink-0 text-[9px] font-mono text-blue-400/80"
                   data-testid={`share-addr-${point.id}`}
                 >
                   →{shareAddr}
