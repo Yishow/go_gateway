@@ -6,7 +6,7 @@ import { hydrateStudioV2Rule, isStudioV2RuleValid, toStudioV2RuleCreateRequest }
 import { derivePoints, getRuleReadinessReason } from '../../../features/datalink/workbench-v2/state/sourceRule';
 import { mappingValueFromState, toStudioV2MappingUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
 import type { RangeMappingReceipt, RangeRuleReceipt, RangeSourceOutcome, RangeSourcePort, RangeSourcePreparation } from './rangeSourceSubmission';
-import type { RuleQueueObservation, MappingQueueObservation } from './sourceQueueObservation';
+import { isKnownRuleValidationRejection, type RuleQueueObservation, type MappingQueueObservation } from './sourceQueueObservation';
 import { readRuleProof, readRangeCompletion, matchesRangeRuleAcknowledgement, type RangeRuleProof } from './rangeSourceReadback';
 export interface RangeSubmissionOptions {
   workspaceId?: string; enabled: boolean; stateRef: MutableRefObject<WorkbenchV2State>;
@@ -165,13 +165,29 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
     const ruleObservation: RuleQueueObservation = {
       acknowledged: (rule, saved) => {
         const entry = byRule(rule.id); if (!entry) return true;
+        // A completed range does not own subsequent explicit legacy rule edits.
+        if (entry.outcome.status === 'confirmed') {
+          const submitted = toStudioV2RuleCreateRequest(rule);
+          const matches = active(entry) && saved.id === rule.id && saved.device_id === rule.device_id && saved.workspace_id === current.current.workspaceId && Boolean(saved.revision_id?.trim()) &&
+            same(submitted, toStudioV2RuleCreateRequest(hydrateStudioV2Rule(saved)));
+          if (!matches) { entry.receipt = undefined; entry.proof = undefined; publish(entry, 'unknown'); }
+          return matches;
+        }
         const match = active(entry) && same(toStudioV2RuleCreateRequest(entry.snapshot), toStudioV2RuleCreateRequest(rule)) &&
           matchesRangeRuleAcknowledgement({ submitted: toStudioV2RuleCreateRequest(rule), acknowledged: saved }, entry.outcome.request);
         if (!match) { publish(entry, 'unknown'); return false; }
         entry.receipt = { submitted: toStudioV2RuleCreateRequest(rule), acknowledged: structuredClone(saved) }; return true;
       },
-      saved: (rule, saved) => { const entry = byRule(rule.id); if (!entry) return; if (saved.runtime_apply_status === 'apply_failed') publish(entry, 'persisted-unavailable', { rule: saved }); else void advance(entry); },
-      failed: rule => { const entry = byRule(rule.id); if (entry) publish(entry, 'unknown'); },
+      saved: (rule, saved) => { const entry = byRule(rule.id); if (!entry || entry.outcome.status === 'confirmed') return; if (saved.runtime_apply_status === 'apply_failed') publish(entry, 'persisted-unavailable', { rule: saved }); else void advance(entry); },
+      failed: (rule, error) => {
+        const entry = byRule(rule.id); if (!entry || !active(entry)) return;
+        if (entry.outcome.status === 'confirmed') {
+          if (isKnownRuleValidationRejection(error)) return;
+          // A later ambiguous legacy write cannot be settled using the old range receipt.
+          entry.receipt = undefined; entry.proof = undefined;
+        }
+        publish(entry, 'unknown');
+      },
     };
     const mappingReceipt = (point: Point, mapping: Mapping, saved: RangeMappingReceipt['acknowledged']): RangeMappingReceipt => ({ submitted: toStudioV2MappingUpdateRequest(point, mapping), acknowledged: structuredClone(saved) });
     const mappingObservation: MappingQueueObservation = {

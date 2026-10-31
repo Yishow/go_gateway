@@ -34,7 +34,7 @@ export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourceP
     if (locked) return true;
     const previous = recovery(requestId);
     if (!previous) return false;
-    if (outcome?.request.requestId === previous.request.requestId) return true;
+    if (outcome?.request.requestId === previous.request.requestId) { setOutcome(previous); return true; }
     prepareGeneration.current += 1; setDevice(undefined); setPreparing(false); setBlocked(false);
     setTarget({ id: previous.request.deviceId, name: previous.request.deviceId }); setBuffer(raw(previous.request.buffer)); setDirty(false);
     setOutcome(previous); requestRef.current = previous.request; generation.current = previous.request.generation; session.current = previous.request.sessionId; return true;

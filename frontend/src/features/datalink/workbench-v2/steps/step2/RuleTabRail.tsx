@@ -52,6 +52,10 @@ const RuleTabItem: React.FC<RuleTabItemProps> = ({
   const ruleColorTheme = getColorTheme(DEVICE_COLORS[ruleIndex % DEVICE_COLORS.length]);
   const skippedCount = new Set(rule.skipped_addresses || []).size;
   const enabledCount = rule.enabled ? Math.max(0, rule.count - skippedCount) : 0;
+  const saved = rule.save_state === 'saved';
+  const saveLabel = rule.save_state && rule.save_state !== 'idle'
+    ? t(`step3.saveStates.${rule.save_state}`) : t('status.draft');
+  const saveStatusId = React.useId();
 
   return (
     <div
@@ -64,7 +68,7 @@ const RuleTabItem: React.FC<RuleTabItemProps> = ({
         isSelected
           ? 'bg-slate-800/80 border-slate-600 shadow-md ring-1 ring-slate-700/50'
           : 'bg-slate-900/40 border-slate-800/80 hover:bg-slate-800/40 hover:border-slate-700/60'
-      } ${!rule.enabled ? 'opacity-60' : ''}`}
+      } ${!rule.enabled && saved ? 'opacity-60' : ''}`}
       data-testid={`rule-tab-${rule.id}`}
     >
       {/* Top Row: Rule color, name and action icons */}
@@ -112,6 +116,7 @@ const RuleTabItem: React.FC<RuleTabItemProps> = ({
             onClick={() => dispatch({ type: 'toggleRuleEnabled', ruleId: rule.id })}
             className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200"
             title={rule.enabled ? '停用規則' : '啟用規則'}
+            aria-describedby={saveStatusId}
             data-testid={`rule-toggle-enabled-${rule.id}`}
           >
             <Icon
@@ -141,6 +146,9 @@ const RuleTabItem: React.FC<RuleTabItemProps> = ({
           {enabledCount}/{rule.count}
         </span>
       </div>
+
+      <span id={saveStatusId} role="status" data-testid={`rule-save-status-${rule.id}`}
+        className={`text-[10px] ${saved ? 'text-emerald-400' : 'text-amber-400'}`}>{saveLabel}</span>
 
       {/* Bottom Row: Device Badge (shown if 2+ devices exist) */}
       {devices.length >= 2 ? (

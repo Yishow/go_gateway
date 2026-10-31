@@ -161,7 +161,7 @@ export function useStudioV2RuleAutosave(
         observationRef.current?.saved(currentRule, savedRule);
       }
     } catch (error) {
-      observationRef.current?.failed(currentRule);
+      observationRef.current?.failed(currentRule, error);
       const latestRule = stateRef.current.rules.find((rule) => rule.id === ruleId);
       if (!latestRule || persistedMCScopeKey(latestRule.mc_persisted_points) !== requestScopeKey || !canMutateRuleRef.current(ruleId)) {
         if (latestRule && !meta.pending) applyRulePatch(ruleId, { save_state: 'draft-invalid', save_error: null });
