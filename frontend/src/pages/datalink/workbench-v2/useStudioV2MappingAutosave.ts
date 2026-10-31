@@ -1,3 +1,5 @@
+import type { MappingQueueObservation } from './sourceQueueObservation';
+import { canAutosaveMappingRule, shouldAutosaveMappingPatch, sameMappingValue, sameHydratedMapping } from './studioV2MappingQueueHelpers';
 import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { studioV2WorkspaceKeys } from '../../../hooks/datalink/keys';
@@ -16,7 +18,7 @@ import {
   toStudioV2MappingUpdateRequest,
 } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
 import { workbenchV2Reducer, type WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
-import type { Mapping, MappingValue, Point, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
+import type { Mapping, Point, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
 import { persistedMCScopeKey } from '../../../features/datalink/workbench-v2/state/mcPersistedPoints';
 import { getSafeErrorStateMessage } from '../../../utils/typedErrors';
 import { mappingSaveError } from '../../../utils/mappingSaveErrors';
@@ -42,66 +44,16 @@ function errorMessageOf(error: unknown, fallback: string): string {
   return getSafeErrorStateMessage(error, fallback);
 }
 
-function canAutosaveMappingRule(state: WorkbenchV2State, point: Point, canMutateRule: CanMutateRule): boolean {
-  const ownerRule = state.rules.find((rule) => rule.id === point.rule_id);
-  return Boolean(ownerRule?.persisted && ownerRule.save_state === 'saved' && canMutateRule(point.rule_id));
-}
-
-function shouldAutosaveMappingPatch(patch: Partial<Mapping>): boolean {
-  return (
-    patch.tag_key !== undefined ||
-    patch.display_name !== undefined ||
-    patch.unit !== undefined ||
-    patch.target_type !== undefined ||
-    patch.scale !== undefined ||
-    patch.offset !== undefined ||
-    patch.enabled !== undefined
-  );
-}
-
-function sameMappingValue(left?: MappingValue, right?: MappingValue): boolean {
-  return (
-    left?.tag_key === right?.tag_key &&
-    left?.display_name === right?.display_name &&
-    left?.unit === right?.unit &&
-    left?.target_type === right?.target_type &&
-    left?.scale === right?.scale &&
-    left?.offset === right?.offset &&
-    left?.enabled === right?.enabled
-  );
-}
-
-function sameHydratedMapping(current: Mapping, next: Mapping): boolean {
-  return (
-    current.tag_key === next.tag_key &&
-    current.display_name === next.display_name &&
-    current.unit === next.unit &&
-    current.target_type === next.target_type &&
-    current.scale === next.scale &&
-    current.offset === next.offset &&
-    current.enabled === next.enabled &&
-    current.mapping_id === next.mapping_id &&
-    current.workspace_id === next.workspace_id &&
-    current.rule_id === next.rule_id &&
-    current.device_id === next.device_id &&
-    current.address === next.address &&
-    current.tag_id === next.tag_id &&
-    current.persisted_point_id === next.persisted_point_id &&
-    current.persisted === next.persisted &&
-    current.save_state === next.save_state &&
-    current.save_error === next.save_error &&
-    sameMappingValue(current.local_value, next.local_value) &&
-    sameMappingValue(current.persisted_value, next.persisted_value)
-  );
-}
-
 export function useStudioV2MappingAutosave(
   actions: { dispatch: (action: WorkbenchV2Action) => void },
   stateRef: React.MutableRefObject<WorkbenchV2State>,
   enabled: boolean,
   canMutateRule: CanMutateRule = allowAllRules,
+  observation?: MappingQueueObservation,
 ) {
   const { t } = useTranslation('workbench-v2');
+  const observationRef = React.useRef(observation);
+  observationRef.current = observation;
   const queryClient = useQueryClient();
   const mappingsQuery = useStudioV2MappingsQuery(enabled);
   const createMappingMutation = useCreateStudioV2MappingMutation();
@@ -318,6 +270,12 @@ export function useStudioV2MappingAutosave(
           const saved = draft.mapping_id
             ? await updateMappingMutation.mutateAsync({ mappingId: draft.mapping_id, request })
             : await createMappingMutation.mutateAsync(toStudioV2MappingCreateRequest(point, draft));
+          if (observationRef.current?.acknowledged(point, draft, saved) === false) {
+            queue.paused = true; queue.blocked = false;
+            queue.failure = { save_state: 'save-error', save_error: t('errors.autosave_failed'), save_error_detail: null };
+            if (generation === (generations.current.get(pointId) ?? 0)) applyMappingPatch(pointId, queue.failure);
+            continue;
+          }
           const currentRule = stateRef.current.rules.find((rule) => rule.id === point.rule_id);
           if (!canMutateRuleRef.current(point.rule_id) || persistedMCScopeKey(currentRule?.mc_persisted_points) !== requestScopeKey) {
             queue.pending.set(pointId, generation);
@@ -342,8 +300,10 @@ export function useStudioV2MappingAutosave(
           const unchanged = sameMappingValue(latest, draft);
           const hydrated = hydrateStudioV2Mapping(point, saved, unchanged ? undefined : latest);
           applyMappingPatch(pointId, { ...hydrated, save_state: unchanged ? 'saved' : isStudioV2MappingValid(latest) ? 'saving' : 'draft-invalid' });
+          observationRef.current?.saved(point, draft, saved);
           if (!unchanged) queue.pending.set(pointId, generation);
         } catch (error) {
+          observationRef.current?.failed(point);
           const currentRule = stateRef.current.rules.find((rule) => rule.id === ruleId);
           if (!canMutateRuleRef.current(ruleId) || persistedMCScopeKey(currentRule?.mc_persisted_points) !== requestScopeKey) {
             queue.pending.set(pointId, generation);

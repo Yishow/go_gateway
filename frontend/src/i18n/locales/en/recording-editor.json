@@ -82,7 +82,20 @@
     "address": "Starting address",
     "count": "Number of data items",
     "savedDeviceNote": "This device is already saved. Returning or canceling this recording does not delete it.",
-    "persistenceUnavailable": "Range saving is not available in this stage. These fields are an unsent local buffer.",
-    "save": "Save range"
+    "save": "Save range",
+    "dataType": "Data type",
+    "transform": "Scaling (optional)",
+    "scale": "Multiplier",
+    "offset": "Offset",
+    "span": "{{count}} items · {{span}} addresses · ends at {{end}}",
+    "pending": "Saving the range and checking its points and tags. Closing this view does not cancel the request.",
+    "unknown": "The outcome is not confirmed. Your input is kept. Check this request; do not create a replacement range.",
+    "blocked": "This range cannot be saved in the current source context. Your input is kept.",
+    "persisted-unavailable": "Source changes were saved, but runtime availability is not confirmed. Check this request before continuing.",
+    "newer": "The submitted range is saved. Your newer input is still unsent. Return to points when ready.",
+    "inspect": "Check this range request",
+    "located": "Saved {{count}} points. Search and meaning filters were cleared to show them; choose which to add.",
+    "invalid": "Enter a range name, a valid source address and positive whole item count. Scaling must contain valid numbers.",
+    "prefix": "Saved point prefix: {{prefix}}"
   }
 }

@@ -1,3 +1,5 @@
+import { useRecordingRangeSubmission } from './useRecordingRangeSubmission';
+import { readSourceRangeDevice } from './readSourceRangeDevice';
 import type { DeviceSourceRequest } from './deviceSourceSubmission';
 import { useLocatorDeviceSourceLease } from './useLocatorDeviceSourceLease';
 import { useDeviceSourceSubmission } from './useDeviceSourceSubmission';
@@ -22,51 +24,39 @@ import { inferHydratedProgress } from './hydratedProgress';
 import type { ProtocolType } from '../../../types/datalink';
 import { getStudioV2AutosaveBarrier, hasPendingSave, isUnpersistedNonIdle } from './studioV2AutosaveBarrier';
 import { getSafeErrorStateMessage } from '../../../utils/typedErrors';
-
 type SaveMeta = {
   inFlight: boolean;
   pending: boolean;
 };
-
 const draftLossStorageKey = 'wbv2_unrecovered_draft';
-
 function saveMetaFor(store: Record<string, SaveMeta>, deviceId: string): SaveMeta {
   if (!store[deviceId]) {
     store[deviceId] = { inFlight: false, pending: false };
   }
   return store[deviceId];
 }
-
 function errorMessageOf(error: unknown, fallback: string): string {
   return getSafeErrorStateMessage(error, fallback);
 }
-
 const invalidDeviceAvailabilityReason = 'device form is invalid';
-
 function isDraftPending(saveState?: string): boolean {
   return saveState === 'saving' || saveState === 'save-error' || saveState === 'draft-invalid';
 }
-
 function hasLocalUnpersistedSetupDrafts(state: WorkbenchV2State): boolean {
   if (state.devices.some((device) => hasPendingSave(device.save_state, device.persisted) && (device.persisted !== true || device.save_state !== 'save-error' || device.runtime_apply_status !== 'apply_failed'))) {
     return true;
   }
-
   if (state.rules.some((rule) => isUnpersistedNonIdle(rule.save_state, rule.persisted) || isDraftPending(rule.save_state))) {
     return true;
   }
-
   if (Object.values(state.mappings).some((mapping) => isUnpersistedNonIdle(mapping.save_state, mapping.persisted) || isDraftPending(mapping.save_state))) {
     return true;
   }
-
   if (isUnpersistedNonIdle(state.db.connector.save_state, state.db.connector.persisted) || isDraftPending(state.db.connector.save_state)) {
     return true;
   }
-
   return Object.values(state.db.targets).some((target) => isUnpersistedNonIdle(target.save_state, target.persisted) || isDraftPending(target.save_state));
 }
-
 function isSetupMutationAction(action: WorkbenchV2Action): boolean {
   switch (action.type) {
     case 'addDevice':
@@ -100,7 +90,6 @@ function isSetupMutationAction(action: WorkbenchV2Action): boolean {
       return false;
   }
 }
-
 export function useStudioV2AutosaveState(
   enabled: boolean,
   locatorEntry?: StudioLocatorEntryRead,
@@ -124,9 +113,21 @@ export function useStudioV2AutosaveState(
   const saveMetaRef = React.useRef<Record<string, SaveMeta>>({});
   const appliedMCPersistedSignatureRef = React.useRef<string | null>(null);
   const locatorHydration = useStudioV2LocatorHydration(actions, stateRef, workspaceHydrated, locatorEntry, locatorEditorMounted);
+  const sourceLease = useLocatorDeviceSourceLease(locatorEntry, sourceWorkspaceId, locatorHydration.ready);
+  const rangeQueue = React.useRef<{ rule: (action: WorkbenchV2Action) => void; mapping: (previous: WorkbenchV2State, action: WorkbenchV2Action, next: WorkbenchV2State) => void }>({ rule: () => undefined, mapping: () => undefined });
+  const sourceRanges = useRecordingRangeSubmission({ workspaceId: sourceWorkspaceId, enabled: locatorEntry ? locatorHydration.ready : enabled && workspaceHydrated,
+    stateRef, apply: action => { stateRef.current = workbenchV2Reducer(stateRef.current, action); actions.dispatch(action); },
+    queueRule: action => rangeQueue.current.rule(action), queueMapping: (previous, action, next) => rangeQueue.current.mapping(previous, action, next),
+    prepareDevice: async id => sourceWorkspaceId ? readSourceRangeDevice(sourceWorkspaceId, id, async () => {
+      if (locatorEntry) { if (!sourceLease.allowed && !await sourceLease.acquire(sourceWorkspaceId)) return; return sourceLease.readback(); }
+      const result = await devicesQuery.refetch(); return result.isError ? undefined : result.data;
+    }) : undefined,
+  });
   const persistedMCPoints = useStudioV2PersistedMCPoints(enabled, rulesQuery.data, devicesQuery.data, persistedMCWorkspaceScope, actions.state.rules);
   const persistedMCCanMutateRule = persistedMCPoints.canMutateRule;
   const canMutateRule = React.useCallback((ruleID: string): boolean => {
+    if (!sourceRanges.canWrite(ruleID)) return false;
+    if (sourceRanges.compatibleMC(ruleID)) return true;
     const localRule = stateRef.current.rules.find((rule) => rule.id === ruleID);
     if (localRule && isPersistedMCRule(localRule, stateRef.current.devices)) {
       return persistedMCCanMutateRule(ruleID, localRule.revision_id);
@@ -135,15 +136,14 @@ export function useStudioV2AutosaveState(
     if (localRule?.persisted && localRule.mc_persisted_points && (!localDevice || localDevice.protocol === 'mc_3e')) return false;
     if (localRule) return true;
     return persistedMCCanMutateRule(ruleID);
-  }, [persistedMCCanMutateRule]);
-  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule);
-  const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled, canMutateRule);
+  }, [persistedMCCanMutateRule, sourceRanges]);
+  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule, sourceRanges.ruleObservation);
+  const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled, canMutateRule, sourceRanges.mappingObservation);
+  rangeQueue.current = { rule: ruleAutosave.afterRuleAction, mapping: mappingAutosave.afterMappingAction };
   const databaseAutosave = useStudioV2DatabaseAutosave(actions, stateRef, enabled, canMutateRule);
-
   React.useEffect(() => {
     stateRef.current = actions.state;
   }, [actions.state]);
-
   React.useEffect(() => {
     if (
       !enabled ||
@@ -156,7 +156,6 @@ export function useStudioV2AutosaveState(
     ) {
       return;
     }
-
     hydratedRef.current = true;
     const hydratedDevices = devicesQuery.data.map(hydrateStudioV2Device);
     const hydratedRules = withPersistedMCEvidence(rulesQuery.data
@@ -170,7 +169,6 @@ export function useStudioV2AutosaveState(
     const hydratedRowGroups = databaseAutosave.databaseConfigQuery.data
       ? hydrateStudioV2DatabaseRowGroups(databaseAutosave.databaseConfigQuery.data.row_groups)
       : stateRef.current.db.row_groups ?? [];
-
     const baseState = workbenchV2Reducer(stateRef.current, {
       type: 'SET_STATE',
       payload: {
@@ -186,7 +184,6 @@ export function useStudioV2AutosaveState(
         },
       },
     });
-
     const hydratedMCState = mergePersistedMCState(
       { ...baseState, points: enabledPoints },
       persistedMCPoints.evidenceByRule,
@@ -208,13 +205,11 @@ export function useStudioV2AutosaveState(
       payload: hydratedPayload,
     });
     appliedMCPersistedSignatureRef.current = persistedMCPoints.signature;
-
     stateRef.current = nextState;
     actions.dispatch({
       type: 'SET_STATE',
       payload: hydratedPayload,
     });
-
     try {
       if (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem(draftLossStorageKey) === '1') {
         setDraftLossWarning('偵測到上次重新整理前有未保存的本地草稿，系統已回復為最後一次成功保存的設定。');
@@ -223,7 +218,6 @@ export function useStudioV2AutosaveState(
     } catch {
       setDraftLossWarning(null);
     }
-
     setWorkspaceHydrated(true);
   }, [
     actions,
@@ -241,7 +235,6 @@ export function useStudioV2AutosaveState(
     persistedMCPoints.evidenceByRule,
     persistedMCPoints.signature,
   ]);
-
   React.useEffect(() => {
     if (!workspaceHydrated || !hydratedRef.current || appliedMCPersistedSignatureRef.current === persistedMCPoints.signature) {
       return;
@@ -265,12 +258,10 @@ export function useStudioV2AutosaveState(
     stateRef,
     workspaceHydrated,
   ]);
-
   React.useEffect(() => {
     if (!workspaceHydrated || !draftTrackingArmedRef.current) {
       return;
     }
-
     try {
       if (typeof window !== 'undefined' && window.sessionStorage) {
         if (hasLocalUnpersistedSetupDrafts(actions.state)) {
@@ -283,7 +274,6 @@ export function useStudioV2AutosaveState(
       // 忽略 sessionStorage 例外
     }
   }, [actions.state, workspaceHydrated]);
-
   const applyDevicePatch = React.useCallback((deviceId: string, patch: Partial<Device>) => {
     const nextState = workbenchV2Reducer(stateRef.current, {
       type: 'updateDevice',
@@ -297,8 +287,6 @@ export function useStudioV2AutosaveState(
       patch,
     });
   }, [actions]);
-
-  const sourceLease = useLocatorDeviceSourceLease(locatorEntry, sourceWorkspaceId, locatorHydration.ready);
   const queueDeviceRef = React.useRef<(id: string) => void>(() => undefined);
   const deviceSubmission = useDeviceSourceSubmission({ workspaceId: sourceWorkspaceId, enabled: locatorEntry ? locatorHydration.ready : enabled && workspaceHydrated,
     canSubmit: () => !locatorEntry || sourceLease.allowed,
@@ -307,7 +295,6 @@ export function useStudioV2AutosaveState(
     resume: id => { if (saveMetaRef.current[id]?.pending) { saveMetaRef.current[id].pending = false; queueDeviceRef.current(id); } },
     readback: async () => { if (locatorEntry) return sourceLease.readback(); const result = await devicesQuery.refetch(); return result.isError ? undefined : result.data; },
   });
-
   const flushDeviceSave = React.useCallback(async (deviceId: string) => {
     const meta = saveMetaFor(saveMetaRef.current, deviceId);
     const currentDevice = stateRef.current.devices.find((device) => device.id === deviceId);
@@ -315,7 +302,6 @@ export function useStudioV2AutosaveState(
       delete saveMetaRef.current[deviceId];
       return;
     }
-
     if (!isStudioV2DeviceValid(currentDevice)) {
       applyDevicePatch(deviceId, {
         save_state: 'draft-invalid',
@@ -344,13 +330,11 @@ export function useStudioV2AutosaveState(
       meta.pending = false;
       return;
     }
-
     meta.inFlight = true;
     applyDevicePatch(deviceId, {
       save_state: 'saving',
       save_error: null,
     });
-
     try {
       const savedDevice = currentDevice.persisted
         ? await updateDeviceMutation.mutateAsync({
@@ -358,7 +342,6 @@ export function useStudioV2AutosaveState(
           request: toStudioV2DeviceUpdateRequest(currentDevice),
         })
         : await createDeviceMutation.mutateAsync(toStudioV2DeviceCreateRequest(currentDevice));
-
       const observed = await deviceSubmission.acknowledge(deviceId, savedDevice);
       if (!deviceSubmission.canPublish(deviceId)) return;
       if (observed && savedDevice.id !== deviceId) {
@@ -399,7 +382,6 @@ export function useStudioV2AutosaveState(
       }
     }
   }, [applyDevicePatch, createDeviceMutation, deviceSubmission, t, updateAvailabilityMutation, updateDeviceMutation]);
-
   const queueDeviceSave = React.useCallback((deviceId: string) => {
     const meta = saveMetaFor(saveMetaRef.current, deviceId);
     if (!deviceSubmission.canWrite(deviceId)) { meta.pending = true; return; }
@@ -407,28 +389,23 @@ export function useStudioV2AutosaveState(
       meta.pending = true;
       return;
     }
-
     void flushDeviceSave(deviceId);
   }, [deviceSubmission, flushDeviceSave]);
   queueDeviceRef.current = queueDeviceSave;
-
   const dispatch = React.useCallback((action: WorkbenchV2Action) => {
     const previousState = stateRef.current;
-
     if (action.type === 'removeDevice') {
       if (deviceSubmission.hasUnresolved(action.deviceId)) return;
       const targetDevice = previousState.devices.find((device) => device.id === action.deviceId);
       if (!targetDevice) {
         return;
       }
-
       if (!targetDevice.persisted) {
         const nextState = workbenchV2Reducer(previousState, action);
         stateRef.current = nextState;
         actions.dispatch(action);
         return;
       }
-
       applyDevicePatch(action.deviceId, {
         save_state: 'saving',
         save_error: null,
@@ -448,19 +425,15 @@ export function useStudioV2AutosaveState(
         });
       return;
     }
-
     if (ruleAutosave.interceptRuleAction(previousState, action)) {
       return;
     }
-
     const nextState = workbenchV2Reducer(previousState, action);
     stateRef.current = nextState;
     actions.dispatch(action);
-
     if (workspaceHydrated && isSetupMutationAction(action)) {
       draftTrackingArmedRef.current = true;
     }
-
     switch (action.type) {
       case 'addDevice':
       case 'updateDevice':
@@ -476,16 +449,15 @@ export function useStudioV2AutosaveState(
     mappingAutosave.afterMappingAction(previousState, action, nextState);
     databaseAutosave.afterDatabaseAction(action, nextState);
   }, [actions, applyDevicePatch, databaseAutosave, deleteDeviceMutation, deviceSubmission, mappingAutosave, queueDeviceSave, ruleAutosave, t, workspaceHydrated]);
-
   return {
     actions: {
       ...actions,
       dispatch,
     },
-    deviceSource: locatorEntry ? { ...deviceSubmission.port,
+    deviceSource: locatorEntry ? { ...deviceSubmission.port, range: sourceRanges.port,
       prepare: async (id: string) => id === sourceWorkspaceId && (sourceLease.allowed ? Boolean(await sourceLease.readback()) : await sourceLease.acquire(id)),
       submit: async (request: DeviceSourceRequest) => sourceLease.allowed && await sourceLease.readback() ? deviceSubmission.port.submit(request) : { request, status: 'blocked' as const },
-    } : deviceSubmission.port,
+    } : { ...deviceSubmission.port, range: sourceRanges.port },
     databaseConfigQuery: databaseAutosave.databaseConfigQuery,
     databaseTargetsQuery: databaseAutosave.databaseTargetsQuery,
     devicesQuery,

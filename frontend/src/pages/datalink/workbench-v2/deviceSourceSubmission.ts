@@ -1,3 +1,4 @@
+import type { RangeSourcePort } from './rangeSourceSubmission';
 import type { Device } from '../../../features/datalink/workbench-v2/state/types';
 import type { StudioV2WorkspaceDeviceRecord } from '../../../services/studioV2WorkspaceDevices';
 
@@ -17,6 +18,7 @@ export interface DeviceSourceOutcome {
 }
 /** Local observations, not a backend operation ledger or CAS permission. */
 export interface DeviceSourcePort {
+  range?: RangeSourcePort;
   prepare?(workspaceId: string): Promise<boolean>;
   submit(request: DeviceSourceRequest): Promise<DeviceSourceOutcome>;
   inspect(requestId: string): Promise<DeviceSourceOutcome | undefined>;

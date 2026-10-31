@@ -1,3 +1,4 @@
+import type { RuleQueueObservation } from './sourceQueueObservation';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCreateStudioV2RuleMutation, useDeleteStudioV2RuleMutation, useUpdateStudioV2RuleMutation } from '../../../hooks/datalink/useStudioV2Rules';
@@ -50,8 +51,11 @@ export function useStudioV2RuleAutosave(
   actions: { dispatch: (action: WorkbenchV2Action) => void },
   stateRef: React.MutableRefObject<WorkbenchV2State>,
   canMutateRule: CanMutateRule = allowAllRules,
+  observation?: RuleQueueObservation,
 ) {
   const { t } = useTranslation('workbench-v2');
+  const observationRef = React.useRef(observation);
+  observationRef.current = observation;
   const createRuleMutation = useCreateStudioV2RuleMutation();
   const updateRuleMutation = useUpdateStudioV2RuleMutation();
   const deleteRuleMutation = useDeleteStudioV2RuleMutation();
@@ -117,6 +121,14 @@ export function useStudioV2RuleAutosave(
           })
         : await createRuleMutation.mutateAsync(toStudioV2RuleCreateRequest(currentRule));
 
+      if (observationRef.current?.acknowledged(currentRule, savedRule) === false) {
+        meta.pending = false;
+        const latest = stateRef.current.rules.find(rule => rule.id === ruleId);
+        if (latest && persistedMCScopeKey(latest.mc_persisted_points) === requestScopeKey) {
+          applyRulePatch(ruleId, { save_state: 'save-error', save_error: t('errors.autosave_failed') });
+        }
+        return;
+      }
       const latestRule = stateRef.current.rules.find((rule) => rule.id === ruleId);
       const currentScopeKey = persistedMCScopeKey(latestRule?.mc_persisted_points);
       const acknowledgedEvidence = latestRule?.mc_persisted_points;
@@ -146,8 +158,10 @@ export function useStudioV2RuleAutosave(
           save_state: 'saved',
           save_error: null,
         });
+        observationRef.current?.saved(currentRule, savedRule);
       }
     } catch (error) {
+      observationRef.current?.failed(currentRule);
       const latestRule = stateRef.current.rules.find((rule) => rule.id === ruleId);
       if (!latestRule || persistedMCScopeKey(latestRule.mc_persisted_points) !== requestScopeKey || !canMutateRuleRef.current(ruleId)) {
         if (latestRule && !meta.pending) applyRulePatch(ruleId, { save_state: 'draft-invalid', save_error: null });
