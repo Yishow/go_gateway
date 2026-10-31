@@ -14,7 +14,7 @@
 
 新增WriteGroupMember.calculation=latest|mean|delta，僅在顯式versioned mixed profile使用；API讀回configured method、effective method、source/result type、applicability、member identity及group/source/mapping/measurement revisions。canonical group member/mapping是authority，Point／Tag只提供來源與型別，沒有global method。新member初始化latest；群組預設只是建立新member的UI捷徑，既有explicit不被批次默覆。相同source可在不同record使用不同method與獨立baseline。
 
-新增profile.kind=mixed與result shape member-calculation-v1，不借舊instantaneous/cumulative假裝支援；member method必需，unknown/omitted混合member拒絕。既有profile不因reload/upgrade增欄或改method。既有profile/sample_reduction與role投影只供legacy摘要：mean gauge平均、counter_raw/state最新，cumulative維持原raw column＋delta provenance。明確轉mixed先產生新candidate/revision，必要時走既有successor/schema流程，不in-place重寫已寫入資料。
+新增profile.kind=mixed與result shape member-calculation-v1，不借舊instantaneous/cumulative假裝支援；member method必需，unknown/omitted混合member拒絕。既有profile不因reload/upgrade增欄或改method。既有profile/sample_reduction與role投影只供legacy摘要：mean gauge平均、counter_raw/state最新，cumulative維持原raw column＋delta provenance。明確改用mixed先建立獨立mixed record的candidate/revision與fresh安全證據，不in-place重寫legacy身份或已寫入資料；同canonical identity內的相容變更才沿既有successor/schema流程。
 
 ### 每member對齊時間窗與結果
 
@@ -60,7 +60,9 @@ member method、resultshape/type、window、required、counterbinding/epoch/poli
 
 ### 分期擴展與consumer交接
 
-expand新增optional persistence字段／版本讀取，legacy不變；migrate明確mixed候選走fresh安全gate；contract只在runtime/encoder/readiness/proof全部支援時開capability。不刪舊profile。新shape需要schema preview確認result欄型別與nullable，已有raw wide table轉delta結果語意不能默認相容，優先既有新表successor，歷史留存。
+expand新增optional persistence字段／版本讀取，legacy不變；migrate明確mixed候選走fresh安全gate；contract只在runtime/encoder/readiness/proof全部支援時開capability。不刪舊profile。新shape需要schema preview確認result欄型別與nullable，已有raw wide table改用delta結果語意不能默認相容；legacy到mixed須另建獨立record；wide raw轉result須新owned target，long依下述既有shared-storage邊界，歷史留存。
+
+**Supersedes**: support-per-member-recording-calculation / Member意圖與新mixed形狀獨立於來源（僅取代「必要時走既有successor/schema流程」對legacy轉mixed的歧義，不減少fresh proof與歷史保護驗收）。已核對circuitProfileKeyOf／mixedRecordProfileKey：legacy circuit或unassigned＋instantaneous/cumulative身份與mixed record＋mixed＋RecordID不相交；recreatedProfileIdentityInTx要求candidate key等於genesis。因此legacy原地Update及同lineage successor改mixed均須typed拒絕，不鬆canonical create-once、ownership或新增cross-canonical遷移引擎／scope alias。使用既有獨立mixed建立流程，以fresh RecordID／lineage、明確member method／cadence重新取得schema/result-type/nullable/quality/provenance及readiness證明；wide raw轉result必須新owned target，long可沿既有shared-long ownership／row partition重用同表，但必須fresh mixed result-shape／nullable／provenance／schema proof全部成立且不重解舊rows。不符合則走既有新storage scope／新目標流程或明確blocked，不任意換tablename、新增alias或放寬ownership guard；舊proof不可沿用、baseline不可複製。舊record、歷史raw、legacy create-once原樣，不自動停止或刪除舊record。這是操作員明確另建／複製definition後改用新記錄，不是同record原地轉換成功，也不是把一個mixed需求拆成多record；新mixed仍須同列mean/mean/delta。editor／lifecycle consumer交接須明示另建與獨立啟停，不能把typed拒絕包裝為已轉換；本案不新增自動handover或copy endpoint，4.2仍驗真production鏈路。
 
 editor每已選member顯示「存最後讀值／平均／增加量」與例子，不讓操作員以為與ABCD字序是同一設定；同source不同record不互改。此案不實作頁面，streamline-recording-task-editor依本案完成後接API；adopt-simple-recording-entry加同row mean/mean/delta驗收。正式apply授權以docs/verification/simple-recording/implementation-decision-2026-10-30.md為準；demo/helper不代替runtime或SQL驗收。
 
