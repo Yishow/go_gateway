@@ -173,14 +173,21 @@ func (p *Pipeline) rebuildHandoffComponent(ctx context.Context, keys []groupdeli
 		frozen.EndsAt = canonical.EndsAt
 		var first, until time.Time
 		drainOnly := !ready[key]
+		mixed := mixedRecordingGroup(frozen.Group)
 		if previous := old[key]; previous != nil {
-			state := previous.boundary.ReplayState()
-			first = snapshot.BucketStart(state.NotBefore, previous.interval)
-			if !state.Until.IsZero() {
-				until = alignUp(state.Until, previous.interval)
+			if mixed {
+				// Member cursors and the canonical end are restored by the
+				// existing mixed builder, never through a zero common interval.
+				drainOnly = drainOnly || previous.localDrain.Load() || previous.drainOnly
+			} else {
+				state := previous.boundary.ReplayState()
+				first = snapshot.BucketStart(state.NotBefore, previous.interval)
+				if !state.Until.IsZero() {
+					until = alignUp(state.Until, previous.interval)
+				}
+				drainOnly = previous.drainOnly
 			}
-			drainOnly = previous.drainOnly
-		} else if drainOnly {
+		} else if drainOnly && !mixed {
 			// Historical/disabled participants may drain accepted input, never become
 			// new intake owners merely because a receipt mentions them.
 			restored, err := p.deps.Store.Restore(ctx, key)
@@ -207,8 +214,16 @@ func (p *Pipeline) rebuildHandoffComponent(ctx context.Context, keys []groupdeli
 			blocked, blockedReason = frozen.Group, reason
 			return groupdelivery.ErrOwnershipUnavailable
 		}
-		fresh.drainOnly = drainOnly
-		if previous := old[key]; previous != nil && previous.boundary.ReplayState() == fresh.boundary.ReplayState() {
+		if mixed {
+			if drainOnly {
+				if err := p.beginMixedDrain(ctx, fresh); err != nil {
+					return err
+				}
+			}
+		} else {
+			fresh.drainOnly = drainOnly
+		}
+		if previous := old[key]; previous != nil && !previous.boundary.NeedsDurableRestore() && previous.boundary.ReplayState() == fresh.boundary.ReplayState() && previous.localDrain.Load() == fresh.localDrain.Load() {
 			continue
 		}
 		replacements[key] = fresh

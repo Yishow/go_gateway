@@ -53,7 +53,11 @@ func (p *Pipeline) Reconcile(ctx context.Context) error {
 	for _, group := range list.Groups {
 		known[group.ID] = struct{}{}
 		if group.Status == workspace.WriteGroupStatusDisabled || group.Status == workspace.WriteGroupStatusDeleted || group.AppliedRevision == "" {
-			p.retireObservedGroup(ctx, group, now)
+			if mixedRecordingGroup(group) {
+				p.retireMixedGroup(ctx, group.ID)
+			} else {
+				p.retireObservedGroup(ctx, group, now)
+			}
 			continue
 		}
 		p.reconcileGroup(ctx, group, now)
@@ -68,6 +72,10 @@ func (p *Pipeline) Reconcile(ctx context.Context) error {
 	}
 	p.mu.RUnlock()
 	for _, m := range gone {
+		if m.mixed {
+			p.report(p.beginMixedDrain(ctx, m))
+			continue
+		}
 		p.observedIntakeCutoff(ctx, m, func() error { return m.boundary.SetUntil(nextBoundary(now, m.interval)) }, false)
 	}
 	handoffErr := p.reconcileHandoffs(ctx, list)
@@ -115,6 +123,14 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 		existing := p.boundaries[key]
 		p.mu.RUnlock()
 		if existing != nil {
+			if existing.mixed && (existing.localDrain.Load() || existing.boundary.NeedsDurableRestore()) {
+				fresh, reason := p.replaceMixedCache(ctx, existing, snap)
+				if reason != "" {
+					p.setBlocked(ctx, snap.Group, reason)
+					continue
+				}
+				existing = fresh
+			}
 			if !snap.EndsAt.IsZero() {
 				// A cutover took the sources away from this revision at an exact instant.
 				p.observedIntakeCutoff(ctx, existing, func() error { return existing.boundary.SetEndsAt(snap.EndsAt) }, false)
@@ -247,24 +263,33 @@ func (p *Pipeline) buildFrozen(ctx context.Context, snap *workspace.WriteGroupAp
 func (p *Pipeline) buildFrozenWithCause(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot, first, until time.Time) (built *managed, blockedReason string, cause error) {
 	group, layout := snap.Group, snap.RuntimeLayout
 	interval := time.Duration(group.RowPolicy.IntervalSeconds) * time.Second
-	if interval < time.Second {
-		return nil, reasonIntervalInvalid, nil
-	}
+	mixed := mixedRecordingGroup(group)
 	effective := snap.EffectiveAt.UTC()
-	if first.IsZero() {
-		// An ordinary revision takes effect on a window boundary. A cutover revision
-		// takes effect at an exact instant: its first window is the one containing it.
-		first = snapshot.BucketStart(effective, interval)
-	}
 	var startsAt, endsAt time.Time
-	if !effective.Equal(first) && snapshot.BucketStart(effective, interval).Equal(first) {
-		startsAt = effective
-	}
-	if !snap.EndsAt.IsZero() {
-		end := alignUp(snap.EndsAt, interval)
-		if until.IsZero() || until.Equal(end) {
-			until, endsAt = end, snap.EndsAt.UTC()
+	if mixed {
+		if interval != 0 || !first.IsZero() || !until.IsZero() {
+			return nil, reasonIntervalInvalid, nil
 		}
+		startsAt, endsAt = effective, snap.EndsAt.UTC()
+	} else {
+		if interval < time.Second {
+			return nil, reasonIntervalInvalid, nil
+		}
+		if first.IsZero() {
+			// An ordinary revision takes effect on a window boundary. A cutover revision
+			// takes effect at an exact instant: its first window is the one containing it.
+			first = snapshot.BucketStart(effective, interval)
+		}
+		if !effective.Equal(first) && snapshot.BucketStart(effective, interval).Equal(first) {
+			startsAt = effective
+		}
+		if !snap.EndsAt.IsZero() {
+			end := alignUp(snap.EndsAt, interval)
+			if until.IsZero() || until.Equal(end) {
+				until, endsAt = end, snap.EndsAt.UTC()
+			}
+		}
+
 	}
 	members := make([]member, 0, len(group.Members))
 	for _, m := range group.Members {
@@ -288,7 +313,7 @@ func (p *Pipeline) buildFrozenWithCause(ctx context.Context, snap *workspace.Wri
 	}
 	return &managed{
 		workspaceID: group.WorkspaceID, groupID: group.ID, revision: snap.AppliedRevision, boundary: boundary, members: members,
-		connector: group.Destination.ConnectorID, interval: interval, effective: snap.EffectiveAt,
+		connector: group.Destination.ConnectorID, interval: interval, mixed: mixed, effective: snap.EffectiveAt,
 	}, "", nil
 }
 

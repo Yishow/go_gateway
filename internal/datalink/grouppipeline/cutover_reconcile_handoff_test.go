@@ -108,6 +108,7 @@ func TestCutoverReconcileRebuildsBothEligibleSets(t *testing.T) {
 			require.NoError(t, f.plainTarget().QueryRow(query).Scan(&newValue))
 			require.Equal(t, "6", oldValue)
 			require.Equal(t, "7", newValue)
+			assertCompleteCutoverDelivery(t, f, shape)
 		})
 	}
 }

@@ -56,7 +56,7 @@ func newOwnershipPipelineFixture(t *testing.T, shape averageShape) *ownershipPip
 	source := snapshotOf(&old, at(0))
 	source.RuntimeLayout = &workspace.WriteGroupRuntimeLayout{Dialect: dbtarget.SQLDialectSQLite, Columns: columns, TagTypes: map[string]schema.DataType{longKwhFirst: schema.DataTypeUint64, longKwhSecond: schema.DataTypeUint64}}
 	f.groups = &fakeGroups{groups: []*workspace.WriteGroup{&old}, snapshots: map[string][]*workspace.WriteGroupAppliedSnapshot{old.ID: {source}}}
-	f.pipe = New(Dependencies{Groups: f.groups, Destinations: f.dest, Store: f.store}, Config{Now: func() time.Time { return f.clock }, ReconcileInterval: 5 * time.Second})
+	f.pipe = New(Dependencies{Groups: f.groups, Destinations: f.dest, Store: f.store}, Config{Now: func() time.Time { return f.clock }, ReconcileInterval: 5 * time.Second, Sender: f.pipe.config.Sender})
 	require.NoError(t, f.pipe.saveRuntimeSnapshot(t.Context(), source))
 	require.NoError(t, f.pipe.Reconcile(t.Context()))
 	require.Len(t, f.pipe.boundaries, 1, "%+v", f.pipe.Status())

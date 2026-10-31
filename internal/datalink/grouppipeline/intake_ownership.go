@@ -27,7 +27,7 @@ func (p *Pipeline) acceptWithOwnership(ctx context.Context, envelope measurement
 	attempted := map[groupdelivery.GroupKey]bool{}
 	for _, m := range current {
 		key := groupdelivery.GroupKey{WorkspaceID: m.workspaceID, GroupID: m.groupID, GroupRevision: m.revision}
-		if m.drainOnly || !m.boundary.Wants(envelope.DeviceID, envelope.PointID, envelope.TagID) {
+		if m.drainOnly || m.localDrain.Load() || !m.boundary.Wants(envelope.DeviceID, envelope.PointID, envelope.TagID) {
 			continue
 		}
 		if routeErr == nil && route.Affected[key] && !route.Owners[key] {
@@ -35,6 +35,9 @@ func (p *Pipeline) acceptWithOwnership(ctx context.Context, envelope measurement
 		}
 		invoked := false
 		err := p.observedProofGate(ctx, m, func() error {
+			if m.localDrain.Load() {
+				return nil
+			}
 			invoked = true
 			if route.Owners[key] {
 				return m.boundary.AcceptOwnedSample(ctx, envelope)

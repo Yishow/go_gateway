@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go-gateway/internal/datalink/dbtarget"
@@ -126,8 +127,12 @@ type managed struct {
 	members          []member
 	connector        string
 	interval         time.Duration
+	mixed            bool
 	effective        time.Time
 	drainOnly        bool
+	localDrain       atomic.Bool // local intake fence, never a persisted revision end
+	drainFinished    atomic.Bool
+	drain            *mixedDrain // protected by proofGate
 }
 
 // Pipeline owns the applied write groups of one gateway.
@@ -365,7 +370,7 @@ func (p *Pipeline) TickAll(ctx context.Context) {
 	p.mu.RUnlock()
 	now := p.config.Now()
 	for _, m := range current {
-		p.reportTick(ctx, m, func() error { return m.boundary.Tick(ctx, now) })
+		p.reportTick(ctx, m, func() error { return p.tickManaged(ctx, m, now) })
 	}
 	p.pruneRetired(current)
 }
@@ -374,7 +379,7 @@ func (p *Pipeline) pruneRetired(current []*managed) {
 	for _, m := range current {
 		// Retired can wait for a boundary's SQL-backed Tick; never keep the
 		// global map locked while an unrelated worker needs it for intake.
-		if !m.boundary.Retired() {
+		if !m.drainFinished.Load() && !m.boundary.Retired() {
 			continue
 		}
 		p.mu.Lock()
@@ -414,7 +419,7 @@ func (p *Pipeline) AcceptSample(ctx context.Context, envelope measurement.Sample
 func (p *Pipeline) WantsSample(deviceID, pointID, tagID string) bool {
 	p.mu.RLock()
 	for _, m := range p.boundaries {
-		if !m.drainOnly && m.boundary.Wants(deviceID, pointID, tagID) {
+		if !m.drainOnly && !m.localDrain.Load() && m.boundary.Wants(deviceID, pointID, tagID) {
 			p.mu.RUnlock()
 			return true
 		}
@@ -457,7 +462,7 @@ func (p *Pipeline) Status() []GroupStatus {
 	statuses := make([]GroupStatus, 0, len(p.boundaries)+len(p.blocked))
 	for _, m := range p.boundaries {
 		state := StateActive
-		if m.boundary.Retiring() {
+		if m.localDrain.Load() || m.boundary.Retiring() {
 			state = StateRetiring
 		}
 		statuses = append(statuses, GroupStatus{GroupID: m.groupID, Revision: m.revision, State: state})

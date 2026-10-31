@@ -67,6 +67,10 @@ func decodeFrozenStorageSnapshot(payload []byte, key groupdelivery.GroupKey) (*w
 	// the fixed shared layout, not one column per source: it is judged by its own
 	// proof and never by the wide one.
 	switch {
+	case mixedRecordingGroup(snap.Group):
+		if !validMixedRuntimeStorageProof(snap.Group, snap.RuntimeLayout) {
+			return nil, errRuntimeSnapshotInvalid
+		}
 	case longGroup(snap.Group):
 		if !validLongRuntimeProof(snap.Group, snap.RuntimeLayout) {
 			return nil, errRuntimeSnapshotInvalid
@@ -249,8 +253,14 @@ func (p *Pipeline) restoreOpenJournals(ctx context.Context) error {
 				snap.EndsAt = ends
 			}
 		}
+		first := journal.FirstBucket
 		until := journal.LastBucket.Add(time.Duration(snap.Group.RowPolicy.IntervalSeconds) * time.Second)
-		m, reason, buildErr := p.buildFrozenWithCause(ctx, snap, journal.FirstBucket, until)
+		if mixedRecordingGroup(snap.Group) {
+			// Typed member progress, not the legacy journal bucket range, owns
+			// recovery. A local drain never becomes durable coverage.
+			first, until = time.Time{}, time.Time{}
+		}
+		m, reason, buildErr := p.buildFrozenWithCause(ctx, snap, first, until)
 		if reason != "" {
 			p.setBlocked(ctx, snap.Group, reason)
 			if buildErr != nil && !isCounterProofReason(reason) && !errors.Is(buildErr, groupdelivery.ErrBaselineCorrupt) {
@@ -258,7 +268,14 @@ func (p *Pipeline) restoreOpenJournals(ctx context.Context) error {
 			}
 			continue
 		}
-		m.drainOnly = true
+		if m.mixed {
+			if err := p.beginMixedDrain(ctx, m); err != nil {
+				recoveryErrors = append(recoveryErrors, err)
+				continue
+			}
+		} else {
+			m.drainOnly = true
+		}
 		p.installManaged(m)
 	}
 	return errors.Join(recoveryErrors...)
