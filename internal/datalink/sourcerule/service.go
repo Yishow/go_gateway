@@ -146,6 +146,13 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (result *sc
 	defer release()
 	defer s.finalizePointWrites(ctx, &err)
 
+	plannedAddresses, err := buildPlannedPointAddresses(strings.TrimSpace(strings.ToUpper(req.StartAddress)), req.Count, req.DataType, deviceRecord.Protocol)
+	if err != nil {
+		return nil, contextualRuleValidationError(id, req.StartAddress, deviceRecord.Protocol, err)
+	}
+	if err := s.preflightPointAddresses(ctx, req.DeviceID, nil, plannedAddresses, req.SkippedAddresses); err != nil {
+		return nil, err
+	}
 	enabled, err := s.initialRuleEnabled(ctx, req.Enabled, req.DeviceID)
 	if err != nil {
 		return nil, contextualRuleValidationError(id, req.StartAddress, deviceRecord.Protocol, err)
@@ -176,10 +183,6 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (result *sc
 		ShareStride:        cloneIntPtr(req.ShareStride),
 		CreatedAt:          now,
 		UpdatedAt:          now,
-	}
-	plannedAddresses, err := buildPlannedPointAddresses(rule.StartAddress, rule.Count, rule.DataType, deviceRecord.Protocol)
-	if err != nil {
-		return nil, contextualRuleValidationError(rule.ID, rule.StartAddress, deviceRecord.Protocol, err)
 	}
 	if err := assignRuleRevisionID(rule); err != nil {
 		return nil, err
@@ -384,9 +387,6 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		next.ShareStride = cloneIntPtr(req.ShareStride)
 	}
 	if req.Enabled != nil {
-		if err := s.ensureRuleActivationAllowed(ctx, rule.DeviceID, *req.Enabled); err != nil {
-			return nil, contextualRuleValidationError(id, next.StartAddress, deviceRecord.Protocol, err)
-		}
 		next.Enabled = *req.Enabled
 	}
 
@@ -437,6 +437,15 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		linkByAddress[normalizeAddressKey(link.Address)] = link
 		keepPointIDs[link.PointID] = struct{}{}
 	}
+	if err := s.preflightPointAddresses(ctx, next.DeviceID, keepPointIDs, filteredAddresses, nil); err != nil {
+		return nil, err
+	}
+	// Readiness checks persist device state, so run them after read-only preflight.
+	if req.Enabled != nil {
+		if err := s.ensureRuleActivationAllowed(ctx, rule.DeviceID, *req.Enabled); err != nil {
+			return nil, contextualRuleValidationError(id, next.StartAddress, deviceRecord.Protocol, err)
+		}
+	}
 
 	// 連結仍指向已手動刪除的 point 時，先清關聯並改走下方「新建衍生點」路徑，避免儲存規則時 GetByID 失敗。
 	for _, address := range filteredAddresses {
@@ -467,16 +476,6 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	links = survivingLinks
 	rollbackLinks := cloneSourceRuleLinks(links)
 
-	addedAddresses := make([]string, 0)
-	for _, address := range filteredAddresses {
-		if _, exists := linkByAddress[normalizeAddressKey(address)]; !exists {
-			addedAddresses = append(addedAddresses, address)
-		}
-	}
-	if err := s.validatePointAddresses(ctx, next.DeviceID, keepPointIDs, addedAddresses); err != nil {
-		return nil, err
-	}
-
 	// Points follow the device's activation readiness, like rule creation and
 	// enabling do, not its status: the runtime projection already collects only
 	// from active devices. Tying this to status "active" would switch derived
@@ -492,7 +491,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		linkID  string
 		address string
 	}
-	createPlans := make([]pointCreatePlan, 0, len(addedAddresses))
+	createPlans := make([]pointCreatePlan, 0)
 	removedLinks := make([]*schema.SourceRuleLink, 0)
 
 	for _, address := range filteredAddresses {

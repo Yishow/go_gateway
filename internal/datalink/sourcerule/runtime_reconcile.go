@@ -217,7 +217,8 @@ func (s *Service) UpdateWithRuntimeReconcile(
 			return nil, RuntimeReconcileOutcome{}, err
 		}
 		var formatValidation *formatPreflightError
-		if errors.As(err, &formatValidation) {
+		var addressValidation *pointAddressPreflightError
+		if errors.As(err, &formatValidation) || errors.As(err, &addressValidation) {
 			return nil, RuntimeReconcileOutcome{}, err
 		}
 		var validationErr *mcPreMutationValidationError
