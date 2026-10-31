@@ -304,7 +304,7 @@ func (c *MCClient) RandomRead(items []RandomReadItem) ([]int, error) {
 		}
 	}
 
-	// Request: Count(1) + DoubleCount(1) + [Code(1)+Head(3)]...
+	// Binary 0403: Count(1) + DoubleCount(1) + [Head LE24(3)+Code(1)].
 	// Note: DoubleCount is usually 0 for 3E frame word access command 0403
 
 	data := make([]byte, 2+count*4)
@@ -322,10 +322,10 @@ func (c *MCClient) RandomRead(items []RandomReadItem) ([]int, error) {
 		}
 
 		offset := 2 + i*4
-		data[offset] = devType.Code
-		data[offset+1] = byte(item.Addr & 0xFF)
-		data[offset+2] = byte((item.Addr >> 8) & 0xFF)
-		data[offset+3] = byte((item.Addr >> 16) & 0xFF)
+		data[offset] = byte(item.Addr & 0xFF)
+		data[offset+1] = byte((item.Addr >> 8) & 0xFF)
+		data[offset+2] = byte((item.Addr >> 16) & 0xFF)
+		data[offset+3] = devType.Code
 	}
 
 	req := c.frame.BuildPacket(CmdRandomRead, SubCmdWord, data)

@@ -3,6 +3,7 @@ package adapters
 import (
 	"encoding/binary"
 	"math"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,8 +16,9 @@ import (
 // profileWordTransport exercises the production client and adapter Read, without
 // pretending to be a serial/TCP/UDP network integration test.
 type profileWordTransport struct {
-	words []uint16
-	sends int
+	words   []uint16
+	sendsMu sync.Mutex // Protect only test instrumentation, not concurrent decoder calls.
+	sends   int
 }
 
 func (*profileWordTransport) Connect() error               { return nil }
@@ -24,7 +26,9 @@ func (*profileWordTransport) Close() error                 { return nil }
 func (*profileWordTransport) IsConnected() bool            { return true }
 func (*profileWordTransport) GetNextTransactionID() uint16 { return 1 }
 func (tr *profileWordTransport) SendReceive(request []byte) ([]byte, error) {
+	tr.sendsMu.Lock()
 	tr.sends++
+	tr.sendsMu.Unlock()
 	tx, unit, function, _, err := modbus.ParseTCPFrame(request)
 	if err != nil {
 		return nil, err
