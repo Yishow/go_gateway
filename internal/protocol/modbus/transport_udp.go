@@ -123,13 +123,17 @@ func (u *UDPTransport) SendReceiveContext(ctx context.Context, data []byte) (res
 		return nil, fmt.Errorf("UDP 寫入失敗: %w", err)
 	}
 
-	// 讀取回應
-	buffer := make([]byte, 256)
+	// The existing MBAP-over-UDP contract allows the full 260-byte ADU.
+	// One sentinel byte distinguishes an oversized datagram from a valid prefix.
+	buffer := make([]byte, 261)
 	n, err := u.conn.Read(buffer)
 	if err != nil {
 		return nil, fmt.Errorf("UDP 讀取失敗: %w", err)
 	}
 
+	if n > 260 {
+		return nil, ErrInvalidFrame
+	}
 	return buffer[:n], nil
 }
 

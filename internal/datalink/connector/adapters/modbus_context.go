@@ -79,7 +79,23 @@ func (c *ModbusTCPConnector) Read(ctx context.Context, req connector.ReadRequest
 		return connector.ReadResult{Quality: schema.QualityBad, Timestamp: time.Now(), Error: err.Error()}, err
 	}
 	defer c.afterOperationContext(ctx)
-	result, err := c.executeReadContext(ctx, req)
+	var result connector.ReadResult
+	err := c.withReadConnectionRetry(ctx, func() error {
+		var readErr error
+		result, readErr = c.executeReadContext(ctx, req)
+		return readErr
+	})
+	if err != nil {
+		result.Quality = schema.QualityBad
+		result.Error = err.Error()
+	}
+	return result, err
+}
+
+// withReadConnectionRetry is shared by scalar and planned reads. Only the same
+// typed connection failures retry, and every send consumes the caller's budget.
+func (c *ModbusTCPConnector) withReadConnectionRetry(ctx context.Context, read func() error) error {
+	err := read()
 	for err != nil && c.IsPersistentMode() && modbusConnectionFailure(err) {
 		budget := wirebudget.From(ctx)
 		if budget.Remaining() == 0 {
@@ -93,14 +109,11 @@ func (c *ModbusTCPConnector) Read(ctx context.Context, req connector.ReadRequest
 			err = reconnectErr
 			break
 		}
-		result, err = c.executeReadContext(ctx, req)
+		err = read()
 	}
-	if err != nil {
-		result.Quality = schema.QualityBad
-		result.Error = err.Error()
-	}
-	return result, err
+	return err
 }
+
 func modbusConnectionFailure(err error) bool {
 	if errors.Is(err, modbus.ErrConnectionClosed) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, net.ErrClosed) {
 		return true

@@ -147,6 +147,10 @@ func (r *RTUTransport) SendReceive(data []byte) ([]byte, error) {
 	return r.SendReceiveContext(context.Background(), data)
 }
 func (r *RTUTransport) SendReceiveContext(ctx context.Context, data []byte) (response []byte, resultErr error) {
+	return r.sendReceiveContext(ctx, data, false)
+}
+
+func (r *RTUTransport) sendReceiveContext(ctx context.Context, data []byte, exact bool) (response []byte, resultErr error) {
 	ctx, cancel := transportContext(ctx, r.Timeout)
 	defer cancel()
 	if err := r.mu.LockContext(ctx); err != nil {
@@ -182,7 +186,8 @@ func (r *RTUTransport) SendReceiveContext(ctx context.Context, data []byte) (res
 	}()
 	reader := contextSerialReader{ctx: ctx, reader: port}
 	deadline, _ := ctx.Deadline()
-	if err := port.SetReadTimeout(time.Until(deadline)); err != nil {
+	readTimeout := time.Until(deadline)
+	if err := port.SetReadTimeout(readTimeout); err != nil {
 		return nil, fmt.Errorf("RTU 設定讀取逾時失敗: %w", err)
 	}
 
@@ -195,6 +200,10 @@ func (r *RTUTransport) SendReceiveContext(ctx context.Context, data []byte) (res
 			err = io.ErrShortWrite
 		}
 		return nil, fmt.Errorf("RTU 寫入失敗: %w", err)
+	}
+
+	if exact {
+		return r.readExactFrame(ctx, port, readTimeout)
 	}
 
 	// RTU 需要等待一段時間 (根據波特率計算)
