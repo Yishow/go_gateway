@@ -14,6 +14,8 @@ export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourceP
   const locked = pending || outcome?.status === 'pending' || outcome?.status === 'unknown' || outcome?.status === 'persisted-unavailable';
   const unresolved = port?.observations().find(item => item.request.workspaceId === workspaceId && ['pending', 'unknown', 'persisted-unavailable'].includes(item.status));
   const recoverable = Boolean(locked || unresolved);
+  const unresolvedDeviceId = locked ? requestRef.current?.deviceId : unresolved?.request.deviceId;
+  const canStart = (deviceId: string) => !recoverable || unresolvedDeviceId === deviceId;
   const parsed = target && device ? parseRecordingRangeBuffer(buffer, target.id, device.protocol) : undefined;
   const change = (next: RecordingRangeBuffer) => { setBuffer(next); setDirty(true); generation.current += 1; };
   const reset = () => { if (locked) return; setDirty(false); setBuffer(newRecordingRangeBuffer()); setOutcome(undefined); requestRef.current = undefined; generation.current = 0; session.current = crypto.randomUUID(); };
@@ -24,7 +26,7 @@ export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourceP
     setOutcome(unresolved); requestRef.current = unresolved.request; generation.current = unresolved.request.generation; session.current = unresolved.request.sessionId; return true;
   };
   const start = async (next: { id: string; name: string }) => {
-    if (disabled) return false;
+    if (disabled || !canStart(next.id)) return false;
     if (resume()) return true;
     reset(); setTarget(next); setDevice(undefined); setBlocked(false);
     if (!port) return true; // Local buffer exists, but no submit capability is claimed.
@@ -59,7 +61,7 @@ export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourceP
     try { accept(await port.inspect(request.requestId), captured); } catch { accept({ request, status: 'unknown' }, captured); }
     finally { if (mounted.current && ownerRef.current === captured) setChecking(false); }
   };
-  return { buffer, dirty, target, device, outcome, pending, checking, preparing, blocked, locked, recoverable, parsed, change, reset, resume, start, submit, inspect, submission: () => requestRef.current,
+  return { buffer, dirty, target, device, outcome, pending, checking, preparing, blocked, locked, recoverable, canStart, parsed, change, reset, resume, start, submit, inspect, submission: () => requestRef.current,
     canSubmit: Boolean(port && !disabled && !locked && parsed && dirty && outcome?.status !== 'confirmed') };
 }
 export type RecordingRangeController = ReturnType<typeof useRecordingRangeBuffer>;

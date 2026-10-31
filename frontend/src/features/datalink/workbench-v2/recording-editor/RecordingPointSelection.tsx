@@ -102,6 +102,7 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
   const restored = lastRemoved ? addRecordingMembers(members, history, [lastRemoved], projection) : undefined;
   const targetAvailable = Boolean(rangeBuffer.target && devices.some(device => device.id === rangeBuffer.target?.id));
   const startRange = (device: { id: string; name: string }) => {
+    if (!rangeBuffer.canStart(device.id)) { setChoice(device.id); setView('device-choice'); return; }
     setView('range-buffer'); void rangeBuffer.start(device);
   };
   const captureRangeNavigation = () => {
@@ -157,13 +158,15 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
               status={active ? pickerStatus : 'failed'} labels={recordingPickerLabels(t)} onChange={setPicker} onCancel={() => setOpen(false)} onRetry={discover ? () => { void discovery.refresh(); } : onRetry ?? (() => undefined)}
               onAdd={identities => { const next = addRecordingMembers(members, history, identities, projection); if (active && next) { onChange(next); setPicker(cancelPicker(picker)); setOpen(false); } }} onSource={source} /></div>}
             {view === 'device-choice' && <><div className="gw-modal-body space-y-4">
+              {choice && !rangeBuffer.canStart(choice) && <><p role="status" data-testid="recording-range-other-pending">{t('range.otherPending')}</p>
+                <button type="button" data-testid="recording-range-resume-choice" onClick={() => { if (rangeBuffer.resume()) setView('range-buffer'); }}>{t('range.inspect')}</button></>}
               <label>{t('source.chooseDevice')}<select value={choice} onChange={event => setChoice(event.target.value)}><option value="">{t('source.noDeviceSelected')}</option>
                 {devices.map(device => <option key={device.id} value={device.id}>{device.name}</option>)}</select></label>
               <button type="button" disabled={!deviceSource || !active || deviceBuffer.preparing} onClick={() => { const intent = ++sourceIntent.current; void deviceBuffer.start().then(permitted => { if (permitted && sourceIntent.current === intent) { setDeviceMounted(true); setView('device-buffer'); } }); }}>{t('source.newDevice')}</button>
               {deviceBuffer.preparing && <p role="status">{t('device.checkingScope')}</p>}
               {deviceBuffer.blocked && <p role="alert">{t('device.scopeBlocked')}</p>}
             </div><footer className="gw-modal-footer"><button type="button" onClick={back}>{t('source.back')}</button>
-              <button type="button" className="gw-primary" disabled={!devices.some(device => device.id === choice)} onClick={() => { const device = devices.find(item => item.id === choice); if (device) startRange(device); }}>{t('source.continue')}</button></footer></>}
+              <button type="button" className="gw-primary" disabled={!devices.some(device => device.id === choice) || !rangeBuffer.canStart(choice)} onClick={() => { const device = devices.find(item => item.id === choice); if (device) startRange(device); }}>{t('source.continue')}</button></footer></>}
             {view === 'range-buffer' && <RecordingRangeContent controller={rangeBuffer} available={targetAvailable && active} onBack={back}
               onSubmit={() => { void rangeBuffer.submit(); captureRangeNavigation(); }} onInspect={() => { captureRangeNavigation(); void rangeBuffer.inspect(); }} />}
           </>}

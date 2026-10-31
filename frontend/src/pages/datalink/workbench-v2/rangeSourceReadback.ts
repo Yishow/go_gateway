@@ -70,21 +70,24 @@ export async function readRangeCompletion(proof: RangeRuleProof, receipts: reado
     const points: GroupCandidateState['points'][number][] = [];
     const mappings: Record<string, GroupCandidateState['mappings'][string]> = {};
     for (const { submitted, acknowledged: ack } of receipts) {
-      if (!ack.id?.trim() || ack.runtime_apply_status === 'apply_failed' || ack.cleanup_status === 'failed' ||
+      if (!ack.id?.trim() || !ack.point_id?.trim() || !ack.tag_id?.trim() || ack.runtime_apply_status === 'apply_failed' || ack.cleanup_status === 'failed' ||
         ack.rule_id !== fresh.record.id || ack.workspace_id !== fresh.request.workspaceId || ack.device_id !== fresh.device.id ||
         !matches(submitted, ack)) return;
       const rows = records.filter(row => row.id === ack.id);
       if (rows.length !== 1 || !matches(submitted, rows[0]) ||
         !matches({ workspace_id: ack.workspace_id, device_id: ack.device_id, point_id: ack.point_id, tag_id: ack.tag_id }, rows[0])) return;
-      const candidate = fresh.snapshot.tags.candidates.find(c => c.mapping_id === ack.id);
-      if (!candidate || candidate.point_id !== ack.point_id || candidate.tag_id !== ack.tag_id || candidate.address !== submitted.address ||
+      // Revisioned candidates are proposals and may predate live mapping links.
+      // The exact acknowledged mapping ID above is resolved by workspace GET
+      // through current source_rule_links; never locate by display name.
+      const candidate = fresh.snapshot.tags.candidates.find(c => c.point_id === ack.point_id && c.address === submitted.address);
+      if (!candidate || (candidate.mapping_id && candidate.mapping_id !== ack.id) || (candidate.tag_id && candidate.tag_id !== ack.tag_id) ||
         candidate.status === 'out_of_sync' || candidate.status === 'error' || candidate.blocking_reason || mappings[ack.point_id]) return;
       // Candidate metadata is the rule proposal, not the actual explicitly saved
       // workspace mapping. Verify actual values against its receipt and Tag below.
       const [point, tag] = await Promise.all([pointAPI.get(ack.point_id), tagAPI.get(ack.tag_id)]);
       if (point.id !== ack.point_id || point.device_id !== fresh.device.id || point.address !== ack.address || point.data_type !== fresh.record.data_type || !point.enabled ||
         tag.id !== ack.tag_id || tag.key !== ack.tag_key || tag.data_type !== ack.target_type ||
-        tag.display_name !== ack.display_name || tag.unit !== ack.unit || tag.status === 'retired') return;
+        tag.display_name !== ack.display_name || (tag.unit === undefined ? '' : tag.unit) !== ack.unit || tag.status === 'retired') return;
       points.push({ ...point, rule_id: fresh.record.id, skipped: false });
       mappings[point.id] = { ...rows[0], persisted: true, save_state: 'saved', persisted_point_id: point.id };
     }

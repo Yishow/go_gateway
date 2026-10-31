@@ -46,6 +46,24 @@ describe('request-bound range readback', () => {
     api.candidates.mockResolvedValue(candidate);
     expect(await readRangeCompletion(proof!, [mapping])).toMatchObject({ candidates: [{ tag_key: 'P1', target_type: 'int16' }] });
   });
+  it('accepts an unmapped revisioned proposal only with exact live workspace mapping and point/tag receipts', async () => {
+    const proof = await readRuleProof(receipt, request); expect(proof).toBeDefined();
+    expect(await readRangeCompletion(proof!, [mapping])).toMatchObject({ candidates: [{ point_id: 'p', tag_id: 't' }] });
+    api.mappings.mockResolvedValue([{ ...mapping.acknowledged, rule_id: 'foreign' }]);
+    expect(await readRangeCompletion(proof!, [mapping])).toBeUndefined();
+  });
+  it('parses the HTTP empty-unit omission as empty only, while rejecting a nonempty different unit', async () => {
+    const proof = await readRuleProof(receipt, request); expect(proof).toBeDefined();
+    // Same serialized shape asserted by the SQLite + HTTP contract test: unit
+    // is absent from Tag GET, but workspace mapping GET includes unit: "".
+    const wire = '{"id":"t","key":"P1","display_name":"P1","data_type":"int16","status":"active"}';
+    api.tag.mockResolvedValue(JSON.parse(wire));
+    expect(await readRangeCompletion(proof!, [mapping])).toMatchObject({ candidates: [{ point_id: 'p', tag_id: 't' }] });
+    api.tag.mockResolvedValue({ ...JSON.parse(wire), unit: 'C' });
+    expect(await readRangeCompletion(proof!, [mapping])).toBeUndefined();
+    api.tag.mockResolvedValue({ ...JSON.parse(wire), unit: null });
+    expect(await readRangeCompletion(proof!, [mapping])).toBeUndefined();
+  });
   it('requires all exact mapping receipts and canonical point/tag identities for completion', async () => {
     const proof = await readRuleProof(receipt, request); expect(proof).toBeDefined();
     api.candidates.mockResolvedValue(snapshot(true));
@@ -65,7 +83,7 @@ describe('range proof safety boundaries', () => {
     candidate.tags.candidates[0].address = 'D101';
     expect(await readRuleProof(ack, req)).toBeUndefined();
   });
-  it.each(['missing', 'duplicate', 'lost-ack', 'mapping-fields', 'mapping-id', 'point-id', 'point-type', 'candidate-blocked', 'candidate-out-of-sync', 'candidate-error', 'runtime', 'cleanup', 'revision'])('rejects completion with %s evidence', async kind => {
+  it.each(['missing', 'duplicate', 'lost-ack', 'mapping-fields', 'mapping-id', 'point-id', 'point-type', 'candidate-blocked', 'candidate-mapping-id', 'candidate-tag-id', 'live-device-id', 'live-workspace-id', 'live-point-id', 'live-tag-id', 'candidate-out-of-sync', 'candidate-error', 'runtime', 'cleanup', 'revision'])('rejects completion with %s evidence', async kind => {
     const proof = await readRuleProof(receipt, request); expect(proof).toBeDefined();
     const ack = structuredClone(mapping), candidate = snapshot(true); api.candidates.mockResolvedValue(candidate);
     let receipts = [ack];
@@ -76,6 +94,11 @@ describe('range proof safety boundaries', () => {
     if (kind === 'mapping-id') api.mappings.mockResolvedValue([{ ...mapping.acknowledged, id: 'foreign' }]);
     if (kind === 'point-id') api.point.mockResolvedValue({ id: 'foreign' });
     if (kind === 'point-type') api.point.mockResolvedValue({ id: 'p', device_id: 'd', address: '40001', enabled: true, data_type: 'float64' });
+    if (kind === 'candidate-mapping-id') candidate.tags.candidates[0].mapping_id = 'foreign';
+    if (kind === 'candidate-tag-id') candidate.tags.candidates[0].tag_id = 'foreign';
+    for (const [test, field] of [['live-device-id', 'device_id'], ['live-workspace-id', 'workspace_id'], ['live-point-id', 'point_id'], ['live-tag-id', 'tag_id']]) {
+      if (kind === test) api.mappings.mockResolvedValue([{ ...mapping.acknowledged, [field]: 'foreign' }]);
+    }
     if (kind === 'candidate-out-of-sync') candidate.tags.candidates[0].status = 'out_of_sync';
     if (kind === 'candidate-error') candidate.tags.candidates[0].status = 'error';
     if (kind === 'candidate-blocked') Object.assign(candidate.tags.candidates[0], { blocking_reason: 'conflict' });

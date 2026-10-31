@@ -96,6 +96,7 @@
     "inspect": "Check this range request",
     "located": "Saved {{count}} points. Search and meaning filters were cleared to show them; choose which to add.",
     "invalid": "Enter a range name, a valid source address and positive whole item count. Scaling must contain valid numbers.",
-    "prefix": "Saved point prefix: {{prefix}}"
+    "prefix": "Saved point prefix: {{prefix}}",
+    "otherPending": "This device remains saved. Check the unresolved range before starting a range on another device."
   }
 }
