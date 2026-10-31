@@ -49,8 +49,12 @@ export function summarizeBatchTarget(profiles: BatchProfileResults): BatchTarget
   return statuses.includes('saved') ? 'partial' : 'failed';
 }
 
-export function groupProfileInterval(group: WriteGroup, kind: WriteGroupProfileKind): number {
-  return group.recording_profile?.interval ?? (kind === 'cumulative' ? Math.round(group.row_policy.interval_seconds / 60) : group.row_policy.interval_seconds);
+export function groupProfileInterval(group: WriteGroup, kind: WriteGroupProfileKind): number | undefined {
+  if (group.recording_profile?.kind === 'mixed') return undefined;
+  const interval = group.recording_profile?.interval;
+  if (interval !== undefined) return interval;
+  if (group.row_policy.interval_seconds === undefined) return undefined;
+  return (kind === 'cumulative' ? Math.round(group.row_policy.interval_seconds / 60) : group.row_policy.interval_seconds);
 }
 
 interface ReviewedTarget {

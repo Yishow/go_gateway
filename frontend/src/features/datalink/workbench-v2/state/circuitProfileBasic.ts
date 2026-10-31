@@ -102,7 +102,8 @@ export function deriveCircuitId(circuitName: string, existingCircuitId = ''): st
 }
 
 export function groupProfileKind(group: WriteGroup | WriteGroupDraft | undefined): WriteGroupProfileKind | undefined {
-  return group?.recording_profile?.kind;
+  const kind = group?.recording_profile?.kind;
+  return kind === 'mixed' ? undefined : kind;
 }
 
 export function groupCircuitId(group: WriteGroup | WriteGroupDraft | undefined): string {
@@ -130,7 +131,7 @@ export function defaultCircuitProfileLocalDraft(
   const instKeys = instGroup ? allCandidateKeys.filter((k) => instSaved.has(k)) : (savedLongGroups.length === 0 && !targetCircuitId ? allCandidateKeys : []);
   const cumKeys = cumGroup ? allCandidateKeys.filter((k) => cumSaved.has(k)) : [];
   const instSeconds = instGroup?.recording_profile?.interval ?? instGroup?.row_policy.interval_seconds ?? 15;
-  const cumMinutes = cumGroup?.recording_profile?.interval ?? (cumGroup ? Math.max(1, Math.round(cumGroup.row_policy.interval_seconds / 60)) : 10);
+  const cumMinutes = cumGroup?.recording_profile?.interval ?? (cumGroup?.row_policy.interval_seconds !== undefined ? Math.max(1, Math.round(cumGroup.row_policy.interval_seconds / 60)) : 10);
   const circuitName = groupCircuitName(anyGroup);
   const circuitId = targetCircuitId !== undefined ? targetCircuitId : (groupCircuitId(anyGroup) || deriveCircuitId(circuitName));
   const savedRoles: Record<string, WriteGroupValueRole> = {};

@@ -35,6 +35,19 @@ function field(region: HTMLElement, name: string) { return within(region).getByT
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('read-only saved configuration and verified effective technical details', () => {
+  it('projects canonical mixed member identity without mutating its calculation intent', () => {
+    const group = source();
+    group.recording_profile = { kind: 'mixed', result_shape: 'member-calculation-v1' };
+    group.record_id = '12345678-1234-4234-8234-123456789abc';
+    delete group.row_policy.interval_seconds;
+    group.members[0].calculation = 'delta';
+    group.members[0].cadence = { interval: 15, unit: 'second', alignment: 'utc_epoch' };
+    const before = structuredClone(group);
+    render(<RecordingRuleDetails view={view(group)} labels={labels} />);
+    const saved = screen.getByRole('region', { name: labels.savedDetails });
+    expect(saved).toHaveTextContent('P1'); expect(saved).toHaveTextContent('reading');
+    expect(group).toEqual(before);
+  });
   it('labels the opaque Tag ID without conflating it with a semantic Tag key', () => {
     expect(en.detailFields.tag).toBe('Tag ID'); expect(zh.detailFields.tag).toBe('Tag ID');
   });

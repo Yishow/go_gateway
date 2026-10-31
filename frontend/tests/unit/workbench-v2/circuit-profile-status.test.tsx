@@ -5,7 +5,7 @@ import { CircuitProfileStatusView } from '@/features/datalink/workbench-v2/steps
 import type {
   WriteGroupDelivery,
   WriteGroupSourceEvidenceItem,
-  WriteGroupSourceRecord,
+  WriteGroupLegacySourceRecord,
   WriteGroupSourceRecordUnavailable,
 } from '@/types/studioV2WriteGroupDelivery';
 import { longProfileGroup } from '../../fixtures/circuitBatchPanel';
@@ -22,7 +22,7 @@ const APPLIED = 'applied-1';
 const instGroup = () => ({ ...longProfileGroup({ id: 'grp-i', circuitId: 'cir-a', circuitName: 'Feeder A', interval: 15, points: [0, 1] }), applied_revision: APPLIED });
 const cumGroup = () => ({ ...longProfileGroup({ id: 'grp-c', circuitId: 'cir-a', circuitName: 'Feeder A', interval: 10, points: [0, 1], kind: 'cumulative' }), applied_revision: APPLIED });
 
-function record(over: Partial<WriteGroupSourceRecord> = {}): WriteGroupSourceRecord {
+function record(over: Partial<WriteGroupLegacySourceRecord> = {}): WriteGroupLegacySourceRecord {
   return {
     available: true, group_revision: APPLIED, connector_revision: 'crev-1', record_id: 'rec-1', effect_key: 'eff-1',
     payload_digest: 'a'.repeat(64), profile_kind: 'instantaneous', window_start: '2026-10-24T10:00:00Z', window_end: '2026-10-24T10:00:15Z',

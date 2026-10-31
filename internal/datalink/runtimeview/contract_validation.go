@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -55,7 +56,7 @@ func checkJSON(raw []byte, typ reflect.Type, tag reflect.StructTag) error {
 		seen := make(map[string]bool)
 		for i := 0; i < typ.NumField(); i++ {
 			f := typ.Field(i)
-			fields[f.Tag.Get("json")] = f
+			fields[strings.Split(f.Tag.Get("json"), ",")[0]] = f
 		}
 		for d.More() {
 			key, err := d.Token()

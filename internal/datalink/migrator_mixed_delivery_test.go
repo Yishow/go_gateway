@@ -77,8 +77,18 @@ func TestMixedDeliveryMigrationPreservesLegacyAndReentry(t *testing.T) {
 		}
 	}
 	require.Equal(t, values, mixedDeliveryLegacyValues(t, db))
-	require.NoError(t, NewMigrator().Migrate(db))
+	require.NoError(t, expandSQLiteMixedDelivery(db, nil))
 	require.Equal(t, after, mixedDeliverySchema(t, db))
+	// Full migration additionally installs 052 read-side indexes. Preserve every
+	// 051 object exactly, and prove full migration is itself stable on reentry.
+	require.NoError(t, NewMigrator().Migrate(db))
+	full := mixedDeliverySchema(t, db)
+	for name, ddl := range after {
+		require.Equal(t, ddl, full[name], name)
+	}
+	require.Len(t, full, len(after)+2)
+	require.NoError(t, NewMigrator().Migrate(db))
+	require.Equal(t, full, mixedDeliverySchema(t, db))
 	var fk int
 	require.NoError(t, db.QueryRow(`PRAGMA foreign_keys`).Scan(&fk))
 	require.Equal(t, 1, fk)

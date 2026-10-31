@@ -1,5 +1,6 @@
 import type {
   WriteGroupIntervalUnit,
+  WriteGroupLegacyRecordingProfile,
   WriteGroupProfileKind,
   WriteGroupRecordingProfile,
   WriteGroupSampleReduction,
@@ -24,7 +25,7 @@ export const RECORDING_PROFILE_BOUNDS: Readonly<Record<WriteGroupProfileKind, In
  * Default of a NEW profile draft only. A saved or submitted profile that omits
  * or zeroes its interval is invalid; it is never completed from these values.
  */
-export function defaultRecordingProfile(kind: WriteGroupProfileKind): WriteGroupRecordingProfile {
+export function defaultRecordingProfile(kind: WriteGroupProfileKind): WriteGroupLegacyRecordingProfile {
   const bounds = RECORDING_PROFILE_BOUNDS[kind];
   return { kind, interval: bounds.default, unit: bounds.unit };
 }
@@ -40,7 +41,10 @@ function isSampleReduction(value: unknown): value is WriteGroupSampleReduction {
 /** True only for a whole-number interval inside its kind's bounds and in that kind's own unit. */
 export function isValidRecordingProfile(value: unknown): value is WriteGroupRecordingProfile {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const { kind, interval, unit, sample_reduction } = value as Record<string, unknown>;
+  const { kind, interval, unit, sample_reduction, result_shape } = value as Record<string, unknown>;
+  if (kind === 'mixed') return result_shape === 'member-calculation-v1' &&
+    interval === undefined && unit === undefined && sample_reduction === undefined;
+  if (result_shape !== undefined) return false;
   if (!isProfileKind(kind)) return false;
   // An unknown reduction and mean on cumulative totals are both rejected, never coerced to latest.
   if (sample_reduction !== undefined && !isSampleReduction(sample_reduction)) return false;
@@ -52,7 +56,7 @@ export function isValidRecordingProfile(value: unknown): value is WriteGroupReco
 
 /** Execution seconds of a valid profile; null rather than a guess for anything else. */
 export function recordingProfileIntervalSeconds(profile: WriteGroupRecordingProfile): number | null {
-  return isValidRecordingProfile(profile)
+  return isValidRecordingProfile(profile) && profile.kind !== 'mixed'
     ? profile.interval * RECORDING_PROFILE_BOUNDS[profile.kind].secondsPerUnit
     : null;
 }
@@ -64,6 +68,7 @@ export function recordingProfileIntervalSeconds(profile: WriteGroupRecordingProf
 export function parseRecordingProfile(value: unknown): WriteGroupRecordingProfile | undefined | null {
   if (value === undefined || value === null) return undefined;
   if (!isValidRecordingProfile(value)) return null;
+  if (value.kind === 'mixed') return { kind: 'mixed', result_shape: value.result_shape };
   return {
     kind: value.kind,
     interval: value.interval,

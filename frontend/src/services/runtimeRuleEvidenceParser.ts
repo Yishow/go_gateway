@@ -4,7 +4,7 @@ import type {
   HistoricalBacklog, IntakeEvidence, PerSourceEvidence, PollingEvidence, QuotaEvidence, RecordingGroupFacts,
   RecordingGroupView, RecordingMember, RecordingProfile, RevisionBinding, RuleEvidenceView, RuntimeReceipt,
   SafeDestination, SafeTransformStep, SourceEvidenceView, SourceFacts, SourceResult,
-  StorageEvidence, StorageEvidenceEvent, TestWriteEvidence,
+  StorageEvidence, StorageEvidenceEvent, TestWriteEvidence, MixedRecordingFacts, MemberCalculationFacts, CalculationResult,
 } from '../types/runtimeRuleEvidence'
 
 type Parser<T> = (input: unknown) => T
@@ -25,12 +25,13 @@ const timestamp: Parser<string> = (v) => {
   const at = new Date(v)
   return Number.isFinite(at.getTime()) && at.toISOString().slice(0, 19) === v.slice(0, 19) ? v : refuse()
 }
+const optional = <T>(parse: Parser<T>): Parser<T | undefined> => (v) => v === undefined ? undefined : parse(v)
 const nullable = <T>(parse: Parser<T>): Parser<T | null> => (v) => v == null ? null : parse(v)
 const array = <T>(parse: Parser<T>): Parser<T[]> => (v) => Array.isArray(v) ? v.map(parse) : refuse()
 const enumeration = <T extends string>(...allowed: T[]): Parser<T> => (v) =>
   typeof v === 'string' && allowed.some((item) => item === v) ? v as T : refuse()
 /** Closed schemas construct new DTOs; no input spreading, arbitrary JSON, or unsafe legacy fallback. */
-function object<T extends object>(shape: { [K in keyof T]: Parser<T[K]> }): Parser<T> {
+function object<T extends object>(shape: { [K in keyof T]-?: Parser<T[K]> }): Parser<T> {
   return (v) => {
     if (v === null || typeof v !== 'object' || Array.isArray(v) || (Object.getPrototypeOf(v) !== Object.prototype && Object.getPrototypeOf(v) !== null)) return refuse()
     const input = v as Record<string, unknown>
@@ -39,7 +40,8 @@ function object<T extends object>(shape: { [K in keyof T]: Parser<T[K]> }): Pars
     for (const key of Object.keys(shape) as (keyof T)[]) {
       const descriptor = Object.getOwnPropertyDescriptor(input, key)
       if (descriptor && !('value' in descriptor)) return refuse()
-      result[key] = shape[key](descriptor?.value)
+      const parsed = shape[key](descriptor?.value)
+      if (parsed !== undefined) result[key] = parsed
     }
     return result
   }
@@ -85,14 +87,38 @@ const destination = object<SafeDestination>({
   connector_id: id, connector_revision: id, alias: nullable(label), kind: enumeration('sqlite', 'postgres', 'mysql', 'sqlserver', 'unavailable'),
   schema: nullable(id), table: id,
 })
-const member = object<RecordingMember>({ source_value_type: nullable(dataType), circuit_id: nullable(id), device_id: id, point_id: id, tag_id: id, column: id })
+const calculationMethod = enumeration('latest', 'mean', 'delta')
+const resultType = enumeration('bool', 'text', 'int64', 'uint64', 'decimal', 'float64')
+const mixedRecording = object<MixedRecordingFacts>({
+  record_id: v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v) && v !== '00000000-0000-0000-0000-000000000000' ? v : refuse(),
+  result_shape: enumeration('member-calculation-v1'),
+})
+const memberCalculation = object<MemberCalculationFacts>({
+  method: calculationMethod, interval: numeric(true, 1, 9_223_372_036), unit: enumeration('second', 'minute'),
+  alignment: enumeration('utc_epoch'), required: bool, source_revision: id, mapping_revision: id,
+  measurement_id: nullable(id), result_type: resultType,
+})
+const mixedTimestamp: Parser<string> = v => {
+  const parsed = timestamp(v); const ns = timeNanos(parsed)
+  return ns < -9223372036854775808n || ns > 9223372036854775807n ? refuse() : parsed
+}
+const calculationResult = object<CalculationResult>({
+  result_shape: enumeration('member-calculation-v1'), method: calculationMethod,
+  interval_seconds: numeric(true, 1, 9_223_372_036), alignment: enumeration('utc_epoch'), due_at: mixedTimestamp,
+  next_due: nullable(mixedTimestamp), outcome_digest: v => typeof v === 'string' && /^[0-9a-f]{64}$/.test(v) ? v : refuse(),
+  outcome_kind: enumeration('row', 'skipped', 'no_data'), status: enumeration('ok', 'missing', 'bad', 'stale', 'invalid', 'not_due'),
+  reason: nullable(id), result_present: bool, row_emitted: bool, raw_present: bool, source_type: dataType, result_type: resultType,
+  aligned_start: nullable(mixedTimestamp), aligned_end: nullable(mixedTimestamp), actual_start: nullable(mixedTimestamp), actual_end: nullable(mixedTimestamp), rounded: nullable(bool),
+})
+const member = object<RecordingMember>({ calculation: optional(memberCalculation), source_value_type: nullable(dataType), circuit_id: nullable(id), device_id: id, point_id: id, tag_id: id, column: id })
 const profile = object<RecordingProfile>({ kind: enumeration('instantaneous', 'cumulative'), interval: numeric(true, 1, 600), unit: enumeration('second', 'minute') })
 const groupFacts = object<RecordingGroupFacts>({
+  mixed_recording: optional(mixedRecording),
   recording_profile: nullable(profile), allowed_lateness_seconds: nullable(count),
   ends_at: nullable(timestamp), binding, effective_at: nullable(timestamp), enabled: bool, destination, members: array(member),
   layout: enumeration('managed_wide_v1', 'managed_long_v1', 'managed_wide_profile_v1', 'unavailable'),
   storage_mode: enumeration('plain', 'timescale', 'native_monthly', 'unavailable'), interval_seconds: nullable(numeric(true, 1)),
-  reduction: enumeration('latest', 'mean', 'cumulative_delta', 'unavailable'), write_mode: enumeration('append', 'latest', 'unavailable'),
+  reduction: enumeration('latest', 'mean', 'cumulative_delta', 'member_calculation', 'unavailable'), write_mode: enumeration('append', 'latest', 'unavailable'),
   incomplete_policy: enumeration('skip_row', 'partial', 'unavailable'),
 })
 const stageCounts = object<DeliveryStageCounts>({ collecting: count, queued: count, retrying: count, blocked: count, quarantined: count, unknown: count, sql_committed: count, skipped: count })
@@ -100,7 +126,8 @@ const receipt = object<RuntimeReceipt>({
   group_revision: id, connector_revision: id, record_id: id, effect_key: id, payload_digest: id, committed_at: timestamp, provenance: enumeration('runtime'),
 })
 const sourceResult = object<SourceResult>({
-  state: enumeration('available', 'missing', 'unknown', 'partial', 'unavailable'), window_start: nullable(timestamp), window_end: nullable(timestamp),
+  calculation: optional(calculationResult),
+  state: enumeration('available', 'missing', 'unknown', 'partial', 'not_due', 'unavailable'), window_start: nullable(timestamp), window_end: nullable(timestamp),
   delta_known: nullable(bool), coverage: nullable(enumeration('complete', 'partial', 'unknown')), receipt: nullable(receipt),
 })
 const perSource = object<PerSourceEvidence>({ device_id: id, point_id: id, tag_id: id, latest: nullable(sourceResult), last_committed: nullable(sourceResult) })
@@ -188,13 +215,67 @@ function checkCurrent(c: CurrentDelivery, facts: RecordingGroupFacts) {
       checkReceipt(r.receipt, facts)
       if ((r.window_start === null) !== (r.window_end === null)) refuse()
       if (r.window_start !== null && r.window_end !== null && exactTime(r.window_start) >= exactTime(r.window_end)) refuse()
-      if ((r.delta_known === false && r.state !== 'unknown') || (r.coverage === 'partial' && r.state !== 'partial')) refuse()
-      if (r.receipt && (r.window_start === null || r.state === 'unavailable' || !c.last_commit)) refuse()
+      checkMixedResult(r, facts, s)
+      if (!r.calculation && ((r.delta_known === false && r.state !== 'unknown') || (r.coverage === 'partial' && r.state !== 'partial'))) refuse()
+      if (r.receipt && ((r.window_start === null && r.calculation?.status !== 'not_due') || r.state === 'unavailable' || !c.last_commit)) refuse()
     }
     if (s.last_committed && !s.last_committed.receipt) refuse()
   }
 }
+function timeNanos(value: string): bigint {
+  const seconds = BigInt(Date.parse(`${value.slice(0, 19)}Z`)) * 1_000_000n
+  return seconds + BigInt((value.split('.')[1]?.slice(0, -1) ?? '').padEnd(9, '0'))
+}
+function checkMixedFacts(f: RecordingGroupFacts) {
+  if (!f.mixed_recording) {
+    if (f.reduction === 'member_calculation' || f.members.some(m => m.calculation !== undefined)) refuse()
+    return
+  }
+  if (f.recording_profile !== null || f.interval_seconds !== null || f.reduction !== 'member_calculation') refuse()
+  for (const m of f.members) {
+    const c = m.calculation
+    if (!c || m.source_value_type === null || (c.unit === 'minute' && c.interval > 153_722_867) ||
+      (c.method === 'delta' && c.measurement_id === null)) refuse()
+  }
+}
+function checkMixedResult(r: SourceResult, facts: RecordingGroupFacts, source: PerSourceEvidence) {
+  const c = r.calculation
+  if (!c) {
+    if ((facts.mixed_recording && r.state !== 'unavailable') || r.state === 'not_due') refuse()
+    return
+  }
+  if (!facts.mixed_recording || c.result_shape !== facts.mixed_recording.result_shape) refuse()
+  const member = facts.members.find(m => sourceKey(m) === sourceKey(source))
+  if (!member?.calculation || !member.source_value_type) refuse('foreign-scope')
+  const intent = member.calculation
+  if (c.method !== intent.method || c.interval_seconds !== intent.interval * (intent.unit === 'minute' ? 60 : 1) ||
+    c.alignment !== intent.alignment || c.source_type !== member.source_value_type || c.result_type !== intent.result_type) refuse('stale-reference')
+  if (c.row_emitted !== (c.outcome_kind === 'row') || (c.result_present !== (c.status === 'ok')) || (c.result_present && !c.raw_present) || (r.receipt && !c.row_emitted)) refuse()
+  if ((r.state === 'available' && !c.result_present) || ((r.state === 'not_due') !== (c.status === 'not_due'))) refuse()
+  const width = BigInt(c.interval_seconds) * 1_000_000_000n
+  const due = timeNanos(c.due_at)
+  if (c.next_due !== null && exactTime(c.next_due) <= exactTime(c.due_at)) refuse()
+  if (c.rounded !== null && c.method !== 'mean') refuse()
+  if (c.method === 'delta' ? r.delta_known !== c.result_present : r.delta_known !== null) refuse()
+  if (c.status === 'not_due') {
+    if (facts.layout !== 'managed_wide_profile_v1' || r.state !== 'not_due' || c.result_present || c.raw_present ||
+      c.aligned_start !== null || c.aligned_end !== null || c.actual_start !== null || c.actual_end !== null ||
+      r.window_start !== null || r.window_end !== null) refuse()
+    if (c.next_due !== null) {
+      const aligned = due - ((due % width + width) % width)
+      if (aligned < -9223372036854775808n || aligned === due || timeNanos(c.next_due) !== aligned + width) refuse()
+    }
+  } else {
+    if (c.actual_start === null || c.actual_end === null || c.aligned_start === null || c.aligned_end === null || r.window_start === null || r.window_end === null) refuse()
+    const aligned = timeNanos(c.aligned_start)
+    if (aligned % width !== 0n || timeNanos(c.aligned_end) !== aligned + width || timeNanos(c.aligned_end) !== due ||
+      (c.next_due !== null && timeNanos(c.next_due) !== due + width)) refuse()
+    if (exactTime(c.actual_start) !== exactTime(r.window_start) || exactTime(c.actual_end) !== exactTime(r.window_end) ||
+      exactTime(c.actual_start) >= exactTime(c.actual_end) || exactTime(c.aligned_start) > exactTime(c.actual_start) || exactTime(c.actual_end) > exactTime(c.aligned_end)) refuse()
+  }
+}
 function checkSummaryProfile(f: RecordingGroupFacts) {
+  checkMixedFacts(f)
   const p = f.recording_profile
   if (!p) return
   if (p.kind === 'instantaneous' ? p.unit !== 'second' || p.interval > 300 || !['unavailable', 'latest', 'mean'].includes(f.reduction)
@@ -247,7 +328,7 @@ function checkGroup(g: RecordingGroupView, scope: EvidenceScope, observedAt: str
       if (g.effective) checkCurrent(c, g.effective)
     }
   }
-  if (g.state === 'effective' && (!g.effective_revision || !g.as_of || !observedAt || g.proof !== 'applied-snapshot-and-layout' || !g.effective || !revision || !g.effective.effective_at || g.effective.layout === 'unavailable' || g.effective.interval_seconds === null)) {
+  if (g.state === 'effective' && (!g.effective_revision || !g.as_of || !observedAt || g.proof !== 'applied-snapshot-and-layout' || !g.effective || !revision || !g.effective.effective_at || g.effective.layout === 'unavailable' || (!g.effective.mixed_recording && g.effective.interval_seconds === null))) {
     g.state = 'unavailable'; g.effective = null; g.proof = 'unavailable'
   }
   if (!g.delivery?.current) return

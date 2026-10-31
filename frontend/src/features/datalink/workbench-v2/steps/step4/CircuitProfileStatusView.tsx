@@ -49,7 +49,9 @@ export const CircuitProfileStatusView: React.FC<CircuitProfileStatusViewProps> =
     const tag = item.tag_id;
     const testId = `circuit-status-record-${kind}-${tag}`;
     const heading = <span className="font-medium text-slate-300">{t(`${base}.${kind === 'latest' ? 'latest_window' : 'confirmed_window'}`)}</span>;
-    if (!data.available) {
+    // This legacy view only describes raw-profile slots. Mixed calculation
+    // evidence stays read-only/unavailable here until its dedicated presentation.
+    if (!data.available || data.profile_kind === 'mixed') {
       return <div data-testid={testId} className="text-slate-400">{heading} {t(`${base}.record_unavailable`)}</div>;
     }
     const foreignRevision = data.group_revision !== applied;

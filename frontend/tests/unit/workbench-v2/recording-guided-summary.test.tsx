@@ -22,7 +22,7 @@ const labels: RecordingRuleSummaryLabels = {
   profiles: { instantaneous: 'Instantaneous', cumulative: 'Cumulative' }, units: { second: 'seconds', minute: 'minutes' },
   layouts: { managed_wide_v1: 'Wide', managed_long_v1: 'Long', managed_wide_profile_v1: 'Profile wide', unavailable: 'Unavailable' },
   storageModes: { plain: 'Plain table', timescale: 'Timescale', native_monthly: 'Native monthly', unavailable: 'Unavailable' },
-  reductions: { latest: 'Latest sample', mean: 'Mean', cumulative_delta: 'Cumulative delta', unavailable: 'Unavailable' },
+  reductions: { member_calculation: 'Per-point calculation', latest: 'Latest sample', mean: 'Mean', cumulative_delta: 'Cumulative delta', unavailable: 'Unavailable' },
   incompletePolicies: { skip_row: 'Skip incomplete row', partial: 'Retain partial row', unavailable: 'Unavailable' },
   sourceTypes: { bool: 'Boolean', int16: 'Int16', uint16: 'Uint16', int32: 'Int32', uint32: 'Uint32', int64: 'Int64', uint64: 'Uint64', float32: 'Float32', float64: 'Float64', string: 'Text' },
   reasons: { missing: 'Evidence missing', loading: 'Evidence loading', error: 'Evidence error', unknown: 'Evidence unknown',
@@ -107,6 +107,16 @@ describe('unmounted recording rule summary', () => {
     expect(field(draft, 'Allowed lateness')).toHaveTextContent('10 seconds'); expect(field(draft, 'Incomplete rows')).toHaveTextContent('Retain partial row');
     expect(active).toHaveTextContent('Immutable facts at the server observation, not SQL success.');
     expect(draft).toHaveTextContent('Saved is not an activation or SQL receipt.');
+  });
+  it('labels mixed effective calculation without inventing a shared interval', () => {
+    const proof = evidence(), facts = proof.groups[0].effective!;
+    facts.recording_profile = null; facts.interval_seconds = null; facts.reduction = 'member_calculation';
+    facts.mixed_recording = { record_id: '12345678-1234-4234-8234-123456789abc', result_shape: 'member-calculation-v1' };
+    facts.members[0].calculation = { method: 'mean', interval: 15, unit: 'second', alignment: 'utc_epoch', required: true, source_revision: 'S1', mapping_revision: 'M1', measurement_id: null, result_type: 'float64' };
+    const active = show(proof);
+    expect(field(active, 'Reduction')).toHaveTextContent('Per-point calculation');
+    expect(field(active, 'Interval')).toHaveTextContent('Unavailable');
+    expect(active).not.toHaveTextContent('15 seconds');
   });
   it('shows the proven cumulative profile period in minutes without claiming a physical measurement unit', () => {
     const proof = evidence(); const facts = proof.groups[0].effective!;

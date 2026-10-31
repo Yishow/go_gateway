@@ -10,7 +10,7 @@ it('changes only membership and preserves canonical columns, optional required, 
   const change = basicMemberChange(group, 'dev-1', [candidates[0], candidates[2]])!;
   expect(change.added.map(c => c.tag_id)).toEqual(['tag-2']);
   expect(change.removed.map(c => c.tag_id)).toEqual(['tag-1']);
-  expect(change.draft.members[0]).toEqual(basicManagedGroupDraft(group, group.row_policy.interval_seconds, group.row_policy.incomplete_policy! ).members[0]);
+  expect(change.draft.members[0]).toEqual(basicManagedGroupDraft(group, group.row_policy.interval_seconds!, group.row_policy.incomplete_policy! ).members[0]);
   expect(change.draft.members[0]).not.toHaveProperty('source_revision');
   expect(change.draft.members[0]).not.toHaveProperty('mapping_revision');
   expect(change.draft.members[1]).toMatchObject({ point_id: 'pt-2', tag_id: 'tag-2', target_column: '', required: true });

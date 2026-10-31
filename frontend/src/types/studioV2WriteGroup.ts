@@ -1,5 +1,6 @@
 import type { StudioV2WorkspaceReadinessIssue } from './studioV2WorkspaceReadiness';
 import type { DataType } from './datalink';
+import type { WriteGroupCalculationCapabilities } from './studioV2WriteGroupCalculation';
 import type { CounterPolicy } from './measurement';
 
 export type WriteGroupStatus = 'draft' | 'ready' | 'running' | 'disabled' | 'deleted';
@@ -16,6 +17,7 @@ export type WriteGroupLayoutVersion = 'managed_wide_v1' | 'managed_wide_profile_
 /** How a long layout is stored. Each non-default strategy is explicit and capability-gated. */
 export type WriteGroupStorageMode = 'plain' | 'timescale' | 'native_monthly';
 
+/** Legacy circuit-profile selector kinds; mixed uses the explicit recording-profile union below. */
 export type WriteGroupProfileKind = 'instantaneous' | 'cumulative';
 
 /** Each kind has one fixed unit: instantaneous in seconds, cumulative in minutes. */
@@ -44,7 +46,7 @@ export interface WriteGroupExactRecordingSource {
 }
 
 /** Recording profile of a canonical circuit group; the interval is in `unit`, never in seconds by default. */
-export interface WriteGroupRecordingProfile {
+export interface WriteGroupLegacyRecordingProfile {
   kind: WriteGroupProfileKind;
   interval: number;
   unit: WriteGroupIntervalUnit;
@@ -52,7 +54,25 @@ export interface WriteGroupRecordingProfile {
   sample_reduction?: WriteGroupSampleReduction;
 }
 
+/** Explicit per-member shape: no synthetic group interval or reduction. */
+export interface WriteGroupMixedRecordingProfile {
+  kind: 'mixed';
+  result_shape: 'member-calculation-v1';
+  interval?: never;
+  unit?: never;
+  sample_reduction?: never;
+}
+export type WriteGroupRecordingProfile = WriteGroupLegacyRecordingProfile | WriteGroupMixedRecordingProfile;
+export type WriteGroupMemberCalculation = 'latest' | 'mean' | 'delta';
+export interface WriteGroupMemberCadence {
+  interval: number;
+  unit: WriteGroupIntervalUnit;
+  alignment: 'utc_epoch';
+}
+
 export interface WriteGroupMember {
+  calculation?: WriteGroupMemberCalculation;
+  cadence?: WriteGroupMemberCadence;
   device_id: string;
   point_id: string;
   tag_id: string;
@@ -95,7 +115,8 @@ export type WriteGroupMemberDraft = Omit<WriteGroupMember, 'source_revision' | '
 export type WriteGroupDestinationDraft = Omit<WriteGroupDestination, 'database' | 'schema_revision' | 'schema_digest'>;
 
 export interface WriteGroupRowPolicy {
-  interval_seconds: number;
+  /** Absent only on explicit mixed profiles; never default mixed to a group window. */
+  interval_seconds?: number;
   allowed_lateness_seconds: number;
   incomplete_policy?: string;
   entity_key_column?: string;
@@ -107,6 +128,7 @@ export interface WriteGroupRowPolicy {
   /** Server-owned managed layout bindings. They are retained when editing a saved group. */
   record_key_column?: string;
   bucket_start_column?: string;
+  due_at_column?: string;
   group_id_column?: string;
   device_id_column?: string;
 }
@@ -133,6 +155,8 @@ export interface WriteGroupMigration {
 
 /** Canonical persisted authority returned by the workspace write-group API. */
 export interface WriteGroup {
+  /** Canonical identity of an independent mixed recording. */
+  record_id?: string;
   /** Server-owned persistent basic role; absent for pre-existing advanced groups. */
   basic_managed_device_id?: string;
   id: string;
@@ -147,7 +171,7 @@ export interface WriteGroup {
   write_policy: WriteGroupWritePolicy;
   migration: WriteGroupMigration;
   layout_version?: WriteGroupLayoutVersion;
-  /** Absent for every group saved before profiles; `row_policy.interval_seconds` is derived from it. */
+  /** Legacy profiles derive the group interval; mixed records carry independent member cadences. */
   recording_profile?: WriteGroupRecordingProfile;
   /** Set by the server on long-layout groups; absent on wide groups. */
   storage_mode?: WriteGroupStorageMode;
@@ -166,12 +190,14 @@ export type WriteGroupDraft = Omit<
 };
 
 export interface WriteGroupListResponse {
+  calculation_capabilities?: WriteGroupCalculationCapabilities;
   workspace_id: string;
   workspace_revision: string;
   groups: WriteGroup[];
 }
 
 export interface WriteGroupMutationResponse {
+  calculation_capabilities?: WriteGroupCalculationCapabilities;
   workspace_revision: string;
   group: WriteGroup;
 }

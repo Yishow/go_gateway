@@ -2,6 +2,8 @@ package grouppipeline
 
 import (
 	"context"
+	snapshots "go-gateway/internal/datalink/snapshot"
+	"time"
 
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/workspace"
@@ -73,7 +75,7 @@ func (p *Pipeline) sourceEvidence(ctx context.Context, groupID, appliedRevision 
 	}
 	// A wide profile and a mean read frozen recording facts, so the applied proof that froze them must still be valid.
 	// A long group without a mean keeps the evidence it always had.
-	if (wide || reduction == string(workspace.WriteGroupSampleReductionMean)) && !appliedProofValid(snapshot, wide) {
+	if (group.RecordingProfile.Kind == workspace.WriteGroupProfileMixed || wide || reduction == string(workspace.WriteGroupSampleReductionMean)) && !appliedProofValid(snapshot, wide) {
 		return unavailable(SourceEvidenceNoSnapshot), nil
 	}
 	scope := groupdelivery.SourceScope{
@@ -86,16 +88,38 @@ func (p *Pipeline) sourceEvidence(ctx context.Context, groupID, appliedRevision 
 		scope.RecordKeyColumn, scope.GroupIDColumn, scope.BucketStartColumn, scope.ProvenanceColumn =
 			policy.RecordKeyColumn, policy.GroupIDColumn, policy.BucketStartColumn, policy.ProvenanceColumn
 	}
+	if group.RecordingProfile.Kind == workspace.WriteGroupProfileMixed {
+		scope.ResultShape = string(group.RecordingProfile.ResultShape)
+		scope.RecordIdentity = group.RecordID
+		scope.DueAtColumn = group.RowPolicy.DueAtColumn
+	}
 	view := &SourceEvidenceView{
 		State: SourceEvidenceAvailable, GroupRevision: appliedRevision, ConnectorID: scope.ConnectorID, ConnectorRevision: scope.ConnectorRevision,
 		Sources: make([]SourceEvidenceItem, 0, len(group.Members)),
 	}
 	for _, member := range group.Members {
-		records, err := p.deps.Store.SourceRecords(ctx, scope, groupdelivery.SourceRef{
+		ref := groupdelivery.SourceRef{
 			CircuitID: member.CircuitID, DeviceID: member.DeviceID, PointID: member.PointID, TagID: member.TagID,
 			Column: member.TargetColumn, Reduction: reduction, Role: string(member.ValueRole),
 			SourceType: string(member.SourceValueType), ResultType: string(member.ResultValueType),
-		})
+		}
+		if group.RecordingProfile.Kind == workspace.WriteGroupProfileMixed {
+			if member.Cadence == nil {
+				return unavailable(SourceEvidenceNoSnapshot), nil
+			}
+			interval, err := snapshots.CheckedCadenceDuration(member.Cadence.Interval, string(member.Cadence.Unit))
+			if err != nil {
+				return unavailable(SourceEvidenceNoSnapshot), nil
+			}
+			ref.Calculation = string(member.Calculation)
+			ref.CadenceSeconds = int64(interval / time.Second)
+			ref.Alignment = string(member.Cadence.Alignment)
+			ref.Required = member.Required
+			if member.MeasurementID != nil {
+				ref.MeasurementID = *member.MeasurementID
+			}
+		}
+		records, err := p.deps.Store.SourceRecords(ctx, scope, ref)
 		if err != nil {
 			return nil, err
 		}
@@ -112,6 +136,9 @@ func (p *Pipeline) sourceEvidence(ctx context.Context, groupID, appliedRevision 
 func appliedProofValid(snapshot *workspace.WriteGroupAppliedSnapshot, wide bool) bool {
 	if snapshot.RuntimeLayout == nil {
 		return false
+	}
+	if mixedRecordingGroup(snapshot.Group) {
+		return validMixedRuntimeStorageProof(snapshot.Group, snapshot.RuntimeLayout)
 	}
 	if wide {
 		return validCanonicalManagedRuntimeProof(snapshot.Group, snapshot.RuntimeLayout)

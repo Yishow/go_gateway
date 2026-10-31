@@ -73,6 +73,7 @@
     "unavailable": "無法取得"
   },
   "reductions": {
+    "member_calculation": "各點位分別計算",
     "latest": "最新取樣",
     "mean": "平均值",
     "cumulative_delta": "累計差值",

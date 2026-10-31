@@ -2,6 +2,7 @@ import type { WriteGroup, WriteGroupListResponse, WriteGroupMutationResponse, Wr
 import type { StudioV2WorkspaceReadinessIssue, StudioV2WorkspaceReadinessSeverity, StudioV2WorkspaceReadinessStep } from '../types/studioV2WorkspaceReadiness';
 import { MAX_SAFE_JSON_ARRAY_LENGTH, MAX_SAFE_JSON_DEPTH, normalizeTypedEnvelope, parseBoundedJson } from './safeJson';
 import { isRecord, readOptionalText, readPresentText, readRequiredText } from './studioV2WriteGroupJsonPrimitives';
+import { parseWriteGroupCalculationCapabilities } from './studioV2WriteGroupCalculationJson';
 import { parseStudioV2WriteGroup } from './studioV2WriteGroupDefinitionJson';
 export { parseStudioV2WriteGroup } from './studioV2WriteGroupDefinitionJson';
 const READINESS_SEVERITIES = new Set<StudioV2WorkspaceReadinessSeverity>(['blocking', 'warning']);
@@ -17,6 +18,8 @@ export function parseWriteGroupListData(value: unknown): WriteGroupListResponse 
   if (!isRecord(value)) return null;
   const workspaceId = readRequiredText(value, 'workspace_id');
   const workspaceRevision = parseWorkspaceRevision(value.workspace_revision);
+  const capabilities = parseWriteGroupCalculationCapabilities(value.calculation_capabilities);
+  if (capabilities === null) return null;
   const rawGroups = value.groups;
   if (!workspaceId || workspaceRevision === null || !Array.isArray(rawGroups) ||
     rawGroups.length > MAX_SAFE_JSON_ARRAY_LENGTH) return null;
@@ -30,6 +33,7 @@ export function parseWriteGroupListData(value: unknown): WriteGroupListResponse 
     workspace_id: workspaceId,
     workspace_revision: workspaceRevision,
     groups: groups as WriteGroup[],
+    ...(capabilities !== undefined ? { calculation_capabilities: capabilities } : {}),
   };
 }
 
@@ -37,8 +41,9 @@ export function parseWriteGroupMutationData(value: unknown): WriteGroupMutationR
   if (!isRecord(value)) return null;
   const workspaceRevision = parseWorkspaceRevision(value.workspace_revision);
   const group = parseStudioV2WriteGroup(value.group);
-  if (workspaceRevision === null || !group) return null;
-  return { workspace_revision: workspaceRevision, group };
+  const capabilities = parseWriteGroupCalculationCapabilities(value.calculation_capabilities);
+  if (workspaceRevision === null || !group || capabilities === null) return null;
+  return { workspace_revision: workspaceRevision, group, ...(capabilities !== undefined ? { calculation_capabilities: capabilities } : {}) };
 }
 
 function parseWriteGroupReadinessIssue(value: unknown): StudioV2WorkspaceReadinessIssue | null {

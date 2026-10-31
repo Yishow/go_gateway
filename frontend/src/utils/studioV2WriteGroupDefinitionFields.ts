@@ -1,4 +1,4 @@
-import type { WriteGroupMember, WriteGroupDestination, WriteGroupRowPolicy, WriteGroupWritePolicy, WriteGroupMigration, WriteGroupStatus, WriteGroupProfileKind, WriteGroupStorageStrategy, WriteGroupValueRole, WriteGroupResultValueType } from '../types/studioV2WriteGroup';
+import type { WriteGroupMember, WriteGroupDestination, WriteGroupRowPolicy, WriteGroupWritePolicy, WriteGroupMigration, WriteGroupStatus, WriteGroupProfileKind, WriteGroupStorageStrategy, WriteGroupValueRole, WriteGroupResultValueType, WriteGroupMemberCadence, WriteGroupMemberCalculation } from '../types/studioV2WriteGroup';
 import { DATALINK_DATA_TYPES, type DataType } from '../types/datalink';
 import { boundedString, MAX_SAFE_JSON_ARRAY_LENGTH, MAX_SAFE_JSON_OBJECT_KEYS } from './safeJson';
 import { isRecord, type JsonRecord, readOptionalBoolean, readOptionalInteger, readOptionalText, readPresentText, readRequiredInteger, readRequiredText } from './studioV2WriteGroupJsonPrimitives';
@@ -7,6 +7,8 @@ const WRITE_GROUP_STORAGE_STRATEGIES = new Set<WriteGroupStorageStrategy>(['mana
 const WRITE_GROUP_VALUE_ROLES = new Set<WriteGroupValueRole>(['gauge', 'counter_raw', 'state']);
 const WRITE_GROUP_SOURCE_VALUE_TYPES = new Set<DataType>(DATALINK_DATA_TYPES);
 const WRITE_GROUP_RESULT_VALUE_TYPES = new Set<WriteGroupResultValueType>(['bool', 'text', 'int64', 'uint64', 'decimal', 'float64']);
+// Storage representation guard matching checked time.Duration conversion; not editor capability.
+const MAX_PERSISTED_CADENCE_SECONDS = 9_223_372_036;
 const PROTOTYPE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function parseOptionalStringArray(record: JsonRecord, key: string): string[] | undefined | null {
@@ -48,7 +50,7 @@ function readOptionalEnum<T extends string>(
   return typeof value === 'string' && allowed.has(value as T) ? value as T : null;
 }
 
-export function parseWriteGroupMember(value: unknown, profileKind?: WriteGroupProfileKind): WriteGroupMember | null {
+export function parseWriteGroupMember(value: unknown, profileKind?: WriteGroupProfileKind | 'mixed'): WriteGroupMember | null {
   if (!isRecord(value)) return null;
   const deviceId = readRequiredText(value, 'device_id');
   const pointId = readRequiredText(value, 'point_id');
@@ -86,7 +88,24 @@ export function parseWriteGroupMember(value: unknown, profileKind?: WriteGroupPr
     (exactSource && (exactSource.measurement_id !== measurementId || exactSource.original_data_type !== sourceValueType ||
       (valueRole !== undefined && valueRole !== 'counter_raw') || resultValueType !== 'decimal'))) return null;
 
+  let cadence: WriteGroupMemberCadence | undefined;
+  let calculation: WriteGroupMemberCalculation | undefined;
+  if (profileKind === 'mixed') {
+    if ((typeof value.calculation !== 'string' || !['latest', 'mean', 'delta'].includes(value.calculation)) ||
+      !isRecord(value.cadence) || !sourceValueType || !resultValueType) return null;
+    const raw = value.cadence;
+    if ((raw.unit !== 'second' && raw.unit !== 'minute') || raw.alignment !== 'utc_epoch' ||
+      typeof raw.interval !== 'number' || !Number.isSafeInteger(raw.interval) || raw.interval < 1 ||
+      raw.interval > (raw.unit === 'second' ? MAX_PERSISTED_CADENCE_SECONDS : Math.floor(MAX_PERSISTED_CADENCE_SECONDS / 60))) return null;
+    calculation = value.calculation as WriteGroupMemberCalculation;
+    cadence = { interval: raw.interval, unit: raw.unit, alignment: raw.alignment };
+    if (calculation !== 'latest' && (sourceValueType === 'bool' || sourceValueType === 'string')) return null;
+    if (calculation === 'delta' && (!measurementId || (valueRole !== undefined && valueRole !== 'counter_raw'))) return null;
+  } else if (value.calculation !== undefined || value.cadence !== undefined) return null;
+
   return {
+    ...(calculation ? { calculation } : {}),
+    ...(cadence ? { cadence } : {}),
     device_id: deviceId,
     point_id: pointId,
     tag_id: tagId,
@@ -136,23 +155,24 @@ export function parseWriteGroupDestination(value: unknown, candidate = false): W
   };
 }
 
-export function parseWriteGroupRowPolicy(value: unknown, status: WriteGroupStatus): WriteGroupRowPolicy | null {
+export function parseWriteGroupRowPolicy(value: unknown, status: WriteGroupStatus, mixed = false): WriteGroupRowPolicy | null {
   if (!isRecord(value)) return null;
   const minimumInterval = status === 'ready' || status === 'running' ? 1 : 0;
-  const intervalSeconds = readRequiredInteger(value, 'interval_seconds', minimumInterval);
+  if (mixed && value.interval_seconds !== undefined) return null;
+  const intervalSeconds = mixed ? undefined : readRequiredInteger(value, 'interval_seconds', minimumInterval);
   const allowedLatenessSeconds = readRequiredInteger(value, 'allowed_lateness_seconds');
   if (intervalSeconds === null || allowedLatenessSeconds === null) return null;
 
   const optionalKeys = [
     'incomplete_policy', 'entity_key_column', 'value_column', 'quality_column', 'provenance_column',
-    'record_key_column', 'bucket_start_column', 'group_id_column', 'device_id_column',
+    'record_key_column', 'bucket_start_column', 'group_id_column', 'device_id_column', 'due_at_column',
   ] as const;
   const optionalValues = optionalKeys.map((key) => readOptionalText(value, key));
   const groupKeyColumns = parseOptionalStringArray(value, 'group_key_columns');
   const uniqueKeyColumns = parseOptionalStringArray(value, 'unique_key_columns');
   if (optionalValues.some((item) => item === null) || groupKeyColumns === null || uniqueKeyColumns === null) return null;
   return {
-    interval_seconds: intervalSeconds,
+    ...(intervalSeconds !== undefined ? { interval_seconds: intervalSeconds } : {}),
     allowed_lateness_seconds: allowedLatenessSeconds,
     ...Object.fromEntries(optionalKeys.flatMap((key, index) => {
       const item = optionalValues[index];

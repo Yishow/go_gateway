@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CircuitProfileStatusView } from '@/features/datalink/workbench-v2/steps/step4/CircuitProfileStatusView';
-import type { WriteGroupDelivery, WriteGroupSourceEvidence, WriteGroupSourceRecord } from '@/types/studioV2WriteGroupDelivery';
+import type { WriteGroupDelivery, WriteGroupSourceEvidence, WriteGroupLegacySourceRecord } from '@/types/studioV2WriteGroupDelivery';
 import { longProfileGroup } from '../../fixtures/circuitBatchPanel';
 import { expandStatus } from '../../fixtures/sourceReview';
 
@@ -9,7 +9,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 
 const APPLIED = 'applied-1';
 const stage = { collecting: 0, queued: 0, retrying: 0, blocked: 0, quarantined: 0, unknown: 0, sql_committed: 1, skipped: 0 };
-const record = (over: Partial<WriteGroupSourceRecord> = {}): WriteGroupSourceRecord => ({
+const record = (over: Partial<WriteGroupLegacySourceRecord> = {}): WriteGroupLegacySourceRecord => ({
   available: true, group_revision: APPLIED, connector_revision: 'crev-1', record_id: 'rec-1', effect_key: 'eff-1', payload_digest: 'a'.repeat(64),
   profile_kind: 'instantaneous', window_start: '2026-10-24T10:00:00Z', window_end: '2026-10-24T10:00:15Z', status: 'ok', raw_present: true,
   delivery: 'sql_committed', committed_at: '2026-10-24T10:00:20Z', ...over,

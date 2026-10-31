@@ -276,8 +276,52 @@ definitions:
       version:
         type: string
     type: object
+  groupdelivery.SourceCalculation:
+    properties:
+      actual_end:
+        type: string
+      actual_start:
+        type: string
+      aligned_end:
+        type: string
+      aligned_start:
+        type: string
+      alignment:
+        type: string
+      due_at:
+        type: string
+      interval_seconds:
+        type: integer
+      method:
+        type: string
+      next_due:
+        type: string
+      outcome_digest:
+        type: string
+      outcome_kind:
+        type: string
+      raw_present:
+        type: boolean
+      reason:
+        type: string
+      result_present:
+        type: boolean
+      result_shape:
+        type: string
+      result_type:
+        type: string
+      rounded:
+        type: boolean
+      row_emitted:
+        type: boolean
+      source_type:
+        type: string
+      status:
+        type: string
+    type: object
   groupdelivery.SourceDelivery:
     enum:
+    - window_skipped
     - queued
     - retrying
     - blocked
@@ -287,6 +331,7 @@ definitions:
     - operator_skipped
     type: string
     x-enum-varnames:
+    - SourceDeliveryWindowSkipped
     - SourceDeliveryQueued
     - SourceDeliveryRetrying
     - SourceDeliveryBlocked
@@ -303,6 +348,8 @@ definitions:
           counts and coverage, never a value.'
       available:
         type: boolean
+      calculation:
+        $ref: '#/definitions/groupdelivery.SourceCalculation'
       cause:
         $ref: '#/definitions/groupdelivery.SourceUnavailableCause'
       committed_at:
@@ -2871,6 +2918,62 @@ definitions:
       workspace_revision:
         type: string
     type: object
+  runtimeview.CalculationResult:
+    properties:
+      actual_end:
+        format: time
+        type: string
+      actual_start:
+        format: time
+        type: string
+      aligned_end:
+        format: time
+        type: string
+      aligned_start:
+        format: time
+        type: string
+      alignment:
+        type: string
+      due_at:
+        format: time
+        type: string
+      interval_seconds:
+        type: integer
+      method:
+        type: string
+      next_due:
+        format: time
+        type: string
+      outcome_digest:
+        type: string
+      outcome_kind:
+        type: string
+      raw_present:
+        type: boolean
+      reason:
+        type: string
+      result_present:
+        type: boolean
+      result_shape:
+        type: string
+      result_type:
+        type: string
+      rounded:
+        type: boolean
+      row_emitted:
+        type: boolean
+      source_type:
+        type: string
+      status:
+        enum:
+        - ok
+        - missing
+        - bad
+        - stale
+        - invalid
+        - not_due
+        type: string
+    type: object
   runtimeview.CounterReplayQuarantine:
     properties:
       action:
@@ -2997,6 +3100,8 @@ definitions:
         items:
           $ref: '#/definitions/runtimeview.Member'
         type: array
+      mixed_recording:
+        $ref: '#/definitions/runtimeview.MixedRecordingFacts'
       recording_profile:
         $ref: '#/definitions/runtimeview.RecordingProfile'
       reduction:
@@ -3044,6 +3149,8 @@ definitions:
     type: object
   runtimeview.Member:
     properties:
+      calculation:
+        $ref: '#/definitions/runtimeview.MemberCalculationFacts'
       circuit_id:
         description: |-
           CircuitID is persisted WriteGroupMember.CircuitID from THIS snapshot, never a column/name.
@@ -3060,6 +3167,34 @@ definitions:
           source, never current Tag.
         type: string
       tag_id:
+        type: string
+    type: object
+  runtimeview.MemberCalculationFacts:
+    properties:
+      alignment:
+        type: string
+      interval:
+        type: integer
+      mapping_revision:
+        type: string
+      measurement_id:
+        type: string
+      method:
+        type: string
+      required:
+        type: boolean
+      result_type:
+        type: string
+      source_revision:
+        type: string
+      unit:
+        type: string
+    type: object
+  runtimeview.MixedRecordingFacts:
+    properties:
+      record_id:
+        type: string
+      result_shape:
         type: string
     type: object
   runtimeview.PollingEvidence:
@@ -3205,6 +3340,8 @@ definitions:
     type: object
   runtimeview.SourceResult:
     properties:
+      calculation:
+        $ref: '#/definitions/runtimeview.CalculationResult'
       coverage:
         type: string
       delta_known:
@@ -3837,6 +3974,67 @@ definitions:
       write_policy:
         $ref: '#/definitions/workspace.WriteGroupWritePolicy'
     type: object
+  workspace.WriteGroupCadenceCapability:
+    properties:
+      alignment:
+        type: string
+      max_minutes:
+        type: integer
+      max_seconds:
+        type: integer
+      minimum:
+        type: integer
+      units:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupIntervalUnit'
+        type: array
+      window_bounds_checked:
+        type: boolean
+    type: object
+  workspace.WriteGroupCalculationCapabilities:
+    properties:
+      activation_supported:
+        type: boolean
+      cadence:
+        $ref: '#/definitions/workspace.WriteGroupCadenceCapability'
+      draft_supported:
+        type: boolean
+      editor_supported:
+        type: boolean
+      methods:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupMemberCalculation'
+        type: array
+      reason:
+        type: string
+      result_shape:
+        $ref: '#/definitions/workspace.WriteGroupResultShape'
+      schema_dialects:
+        items:
+          type: string
+        type: array
+      schema_layouts:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupLayoutVersion'
+        type: array
+      unsupported_combinations:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupCalculationRestriction'
+        type: array
+      version:
+        type: integer
+    type: object
+  workspace.WriteGroupCalculationRestriction:
+    properties:
+      method:
+        $ref: '#/definitions/workspace.WriteGroupMemberCalculation'
+      phase:
+        type: string
+      reason:
+        type: string
+      source_transform:
+        type: string
+    type: object
   workspace.WriteGroupCutover:
     properties:
       boundary:
@@ -4020,6 +4218,10 @@ definitions:
     type: object
   workspace.WriteGroupListResult:
     properties:
+      calculation_capabilities:
+        allOf:
+        - $ref: '#/definitions/workspace.WriteGroupCalculationCapabilities'
+        readOnly: true
       groups:
         items:
           $ref: '#/definitions/workspace.WriteGroup'
@@ -4406,6 +4608,10 @@ definitions:
     - WriteGroupSampleReductionMean
   workspace.WriteGroupSaveResult:
     properties:
+      calculation_capabilities:
+        allOf:
+        - $ref: '#/definitions/workspace.WriteGroupCalculationCapabilities'
+        readOnly: true
       group:
         $ref: '#/definitions/workspace.WriteGroup'
       workspace_revision:

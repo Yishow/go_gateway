@@ -1,3 +1,4 @@
+import { parseMixedSourceRecord } from './studioV2MixedSourceEvidenceJson';
 import type {
   WriteGroupSourceDelivery,
   WriteGroupSourceEvidence,
@@ -5,6 +6,7 @@ import type {
   WriteGroupSourceAggregation,
   WriteGroupSourceEvidenceUnavailableReason,
   WriteGroupSourceRecord,
+  WriteGroupLegacySourceRecord,
   WriteGroupSourceRecordUnavailable,
   WriteGroupSourceStatus,
   WriteGroupSourceUnavailableCause,
@@ -16,8 +18,8 @@ type JsonRecord = Record<string, unknown>;
 type Parsed<T> = { ok: true; value: T } | { ok: false };
 
 const STATUSES = new Set<WriteGroupSourceStatus>(['ok', 'partial', 'baseline', 'missing', 'bad', 'stale', 'invalid', 'reset_or_uncertain', 'gap']);
-const DELIVERIES = new Set<WriteGroupSourceDelivery>(['queued', 'retrying', 'blocked', 'quarantined', 'unknown', 'sql_committed', 'operator_skipped']);
-const CAUSES = new Set<WriteGroupSourceUnavailableCause>(['payload_invalid', 'digest_mismatch', 'identity_mismatch', 'status_unknown', 'window_invalid']);
+const DELIVERIES = new Set<WriteGroupSourceDelivery>(['queued', 'retrying', 'blocked', 'quarantined', 'unknown', 'sql_committed', 'operator_skipped', 'window_skipped']);
+const CAUSES = new Set<WriteGroupSourceUnavailableCause>(['payload_invalid', 'digest_mismatch', 'identity_mismatch', 'status_unknown', 'window_invalid', 'calculation_projection_unsupported']);
 const UNAVAILABLE_REASONS = new Set<WriteGroupSourceEvidenceUnavailableReason>(['not_long_layout', 'applied_snapshot_unavailable', 'revision_mismatch']);
 /** Statuses whose record stores NULL in every value slot, and those that always store a reading. */
 const NULL_STATUSES = new Set<WriteGroupSourceStatus>(['missing', 'bad', 'stale', 'invalid']);
@@ -67,9 +69,12 @@ function parseRecord(value: unknown): WriteGroupSourceRecord | WriteGroupSourceR
   const delivery = oneOf(DELIVERIES, value.delivery);
   if (!delivery) return null;
   if (value.available === false) {
+    if (value.calculation !== undefined) return null;
     const cause = oneOf(CAUSES, value.cause);
     return cause ? { available: false, cause, delivery } : null;
   }
+  if (value.profile_kind === 'mixed') return parseMixedSourceRecord(value, parseAggregation);
+  if (value.calculation !== undefined || delivery === 'window_skipped') return null;
   const status = oneOf(STATUSES, value.status);
   const start = instant(value.window_start);
   const end = instant(value.window_end);
@@ -92,7 +97,7 @@ function parseRecord(value: unknown): WriteGroupSourceRecord | WriteGroupSourceR
     : undefined;
   return {
     available: true, group_revision: strings[0] as string, connector_revision: strings[1] as string, record_id: strings[2] as string,
-    effect_key: strings[3] as string, payload_digest: digest, profile_kind: profile as WriteGroupSourceRecord['profile_kind'],
+    effect_key: strings[3] as string, payload_digest: digest, profile_kind: profile as WriteGroupLegacySourceRecord['profile_kind'],
     window_start: value.window_start as string, window_end: value.window_end as string, status,
     ...(reason ? { reason } : {}), raw_present: value.raw_present, ...(aggregation ? { aggregation } : {}), ...(cumulative ? { delta_known: value.delta_known as boolean } : {}),
     delivery, ...(committed ? { committed_at: value.committed_at as string } : {}),
@@ -132,6 +137,16 @@ export function parseWriteGroupSourceEvidence(value: unknown): Parsed<WriteGroup
   // Records are proof only for the destination the applied revision froze, so an available answer must name it.
   if (value.state !== 'available' || value.unavailable_reason !== undefined || !connectorId || !connectorRevision) return { ok: false };
   const sources = value.sources.map(parseSource);
+  const mixedKeys = new Set<string>();
+  for (const source of sources) {
+    if (!source) continue;
+    const mixed = [source.latest, source.last_sql_committed].filter(record => record?.available && record.profile_kind === 'mixed');
+    if (!mixed.length) continue;
+    if (mixed.some(record => record?.available && (record.group_revision !== revision || record.connector_revision !== connectorRevision))) return { ok: false };
+    const key = JSON.stringify([source.device_id, source.point_id, source.tag_id]);
+    if (mixedKeys.has(key)) return { ok: false };
+    mixedKeys.add(key);
+  }
   return sources.some((source) => !source)
     ? { ok: false }
     : { ok: true, value: { state: 'available', group_revision: revision, connector_id: connectorId, connector_revision: connectorRevision, sources: sources as WriteGroupSourceEvidenceItem[] } };

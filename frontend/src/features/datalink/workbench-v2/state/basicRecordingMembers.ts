@@ -6,7 +6,7 @@ const key = (value: { device_id: string; point_id: string; tag_id: string }) => 
 
 /** Keep canonical bindings and policies; only membership changes in this draft. */
 export function basicMemberChange(group: WriteGroup, deviceId: string, candidates: GroupCandidate[]) {
-  if (!isBasicManagedWriteGroup(group, deviceId) || !candidates.length || candidates.some(c => c.device_id !== deviceId)) return undefined;
+  if (group.recording_profile?.kind === 'mixed' || group.row_policy.interval_seconds === undefined || !isBasicManagedWriteGroup(group, deviceId) || !candidates.length || candidates.some(c => c.device_id !== deviceId)) return undefined;
   // The managed backend reasserts these bindings. Customized variants must
   // stay in Advanced rather than silently normalize an operator's settings.
   if ((group.write_policy.mode && group.write_policy.mode !== 'append') ||

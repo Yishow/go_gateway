@@ -46,7 +46,10 @@ function cloneWriteGroupDraft(draft: WriteGroupDraft): WriteGroupDraft {
   return {
     workspace_id: draft.workspace_id,
     name: draft.name,
+    ...(draft.record_id !== undefined ? { record_id: draft.record_id } : {}),
     members: draft.members.map((member) => ({
+      ...(member.calculation !== undefined ? { calculation: member.calculation } : {}),
+      ...(member.cadence !== undefined ? { cadence: { ...member.cadence } } : {}),
       device_id: member.device_id,
       point_id: member.point_id,
       tag_id: member.tag_id,
@@ -72,8 +75,9 @@ function cloneWriteGroupDraft(draft: WriteGroupDraft): WriteGroupDraft {
       storage_strategy: draft.destination.storage_strategy,
     },
     row_policy: {
-      interval_seconds: draft.row_policy.interval_seconds,
+      ...(draft.row_policy.interval_seconds !== undefined ? { interval_seconds: draft.row_policy.interval_seconds } : {}),
       allowed_lateness_seconds: draft.row_policy.allowed_lateness_seconds,
+      ...(draft.row_policy.due_at_column ? { due_at_column: draft.row_policy.due_at_column } : {}),
       ...(draft.row_policy.incomplete_policy ? { incomplete_policy: draft.row_policy.incomplete_policy } : {}),
       ...(draft.row_policy.entity_key_column ? { entity_key_column: draft.row_policy.entity_key_column } : {}),
       ...(draft.row_policy.group_key_columns ? { group_key_columns: [...draft.row_policy.group_key_columns] } : {}),

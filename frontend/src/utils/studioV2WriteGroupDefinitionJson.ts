@@ -16,7 +16,7 @@ export function parseWriteGroupSuccessorCandidate(value: unknown): WriteGroup | 
     !isRecord(value.migration) || Object.keys(value.migration).length !== 0 || !isRecord(value.destination) ||
     value.destination.schema_revision !== undefined || value.destination.schema_digest !== undefined) return null;
   const group = parseDefinition(value, true);
-  if (!group || group.destination.storage_strategy !== 'managed' ||
+  if (!group || group.recording_profile?.kind === 'mixed' || group.destination.storage_strategy !== 'managed' ||
     (group.layout_version !== 'managed_long_v1' && group.destination.table_name !== '')) return null;
   return group;
 }
@@ -46,7 +46,7 @@ function parseDefinition(value: unknown, candidate: boolean): WriteGroup | null 
   const members = rawMembers.map((member) => parseWriteGroupMember(member, profileKind));
   if (members.some((member) => member === null)) return null;
   const destination = parseWriteGroupDestination(value.destination, candidate);
-  const rowPolicy = parseWriteGroupRowPolicy(value.row_policy, status as WriteGroupStatus);
+  const rowPolicy = parseWriteGroupRowPolicy(value.row_policy, status as WriteGroupStatus, profileKind === 'mixed');
   const writePolicy = parseWriteGroupWritePolicy(value.write_policy);
   const migration = parseWriteGroupMigration(value.migration);
   if (!destination || !rowPolicy || !writePolicy || !migration) return null;
@@ -55,7 +55,7 @@ function parseDefinition(value: unknown, candidate: boolean): WriteGroup | null 
   // An unknown layout or mode, or an interval whose unit was misread, must never reach the editor.
   if (layoutVersion === null || (layoutVersion !== undefined && !WRITE_GROUP_LAYOUT_VERSIONS.has(layoutVersion)) ||
     storageMode === null || (storageMode !== undefined && storageMode !== 'plain' && storageMode !== 'timescale' && storageMode !== 'native_monthly') ||
-    profile === null || (profile && recordingProfileIntervalSeconds(profile) !== rowPolicy.interval_seconds)) {
+    profile === null || (profile && profile.kind !== 'mixed' && recordingProfileIntervalSeconds(profile) !== rowPolicy.interval_seconds)) {
     return null;
   }
   // The long table serves profile groups with a mode; a wide group carries neither a mode nor a long layout.
@@ -71,14 +71,26 @@ function parseDefinition(value: unknown, candidate: boolean): WriteGroup | null 
   if (profile?.kind === 'cumulative' && parsedMembers.some((member) => member.value_role === 'counter_raw')) return null;
   if (parsedMembers.some((member) => member.exact_recording_source !== undefined &&
     (profile?.kind === 'instantaneous' ? member.value_role !== 'counter_raw' :
-      profile?.kind === 'cumulative' ? member.value_role !== undefined : true))) return null;
+      profile?.kind === 'cumulative' ? member.value_role !== undefined :
+        profile?.kind === 'mixed' ? member.value_role !== 'counter_raw' : true))) return null;
   if (layoutVersion === 'managed_long_v1' && parsedMembers.some((member) =>
     member.result_value_type === 'decimal' && member.source_value_type !== 'float32' &&
     member.source_value_type !== 'float64' && member.exact_recording_source === undefined &&
     ((profile?.kind === 'cumulative' && member.value_role === undefined) ||
       (profile?.kind === 'instantaneous' && member.value_role === 'counter_raw')))) return null;
 
+  const recordId = value.record_id;
+  if (profileKind === 'mixed') {
+    if (typeof recordId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(recordId) ||
+      recordId === '00000000-0000-0000-0000-000000000000' || destination.storage_strategy !== 'managed' ||
+      (layoutVersion !== 'managed_long_v1' && layoutVersion !== 'managed_wide_profile_v1') ||
+      (storageMode !== undefined && storageMode !== 'plain') || parsedMembers.length === 0 ||
+      (layoutVersion === 'managed_wide_profile_v1' && (rowPolicy.bucket_start_column !== undefined || !rowPolicy.due_at_column || !rowPolicy.record_key_column ||
+        !rowPolicy.provenance_column || rowPolicy.incomplete_policy !== 'partial'))) return null;
+  } else if (recordId !== undefined) return null;
+
   return {
+    ...(profileKind === 'mixed' ? { record_id: recordId as string } : {}),
     id,
     workspace_id: workspaceId,
     revision,

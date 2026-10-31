@@ -20,7 +20,7 @@
 
 ## 4. 生產證據與交接
 
-- [ ] 4.1 [after: 3.4] 實作 Production proof precedes editor support 與「分期擴展與consumer交接」的API/types/capability輸出；測legacy入口仍可用、simple editor讀回member計算/型別/revision而非global Point，不先開未完成能力。
+- [x] 4.1 [after: 3.4] 實作 Production proof precedes editor support 與「分期擴展與consumer交接」的API/types/capability輸出；測legacy入口仍可用、simple editor讀回member計算/型別/revision而非global Point，不先開未完成能力。
 - [ ] 4.2 [after: 4.1] 使用既有同機可丟棄SQLite執行真scoped save→readiness/schema確認→runtime→durable closure→SQL write/readback，驗證共同到期22/12/8一列、15秒／60秒不同窗的wide not_due與long due-only、exact邊界／first partial、NULL/skip/receipt；fake transport，不連PLC/正式DB、不新增環境。
 - [ ] 4.3 [after: 4.2] 獨立review並執行相關workspace/snapshot/aggregation/runtime/dbtarget/groupdelivery/API測試與Go lint/vet、diff/line gate；本案完整契約完成後交給editor/adoption，整功能最終才完整總測，明列PASS/FAIL/NOT RUN與未過必要gate，不以helper或demo代替真SQL。
 

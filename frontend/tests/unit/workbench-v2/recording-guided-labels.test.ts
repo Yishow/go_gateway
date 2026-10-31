@@ -34,6 +34,11 @@ const sectionKeys = {
 };
 afterEach(cleanup);
 describe('registered guided label contract', () => {
+  it('labels per-member calculation explicitly without calling it a common reduction', () => {
+    const labels = recordingGuidedLabels(key => String(lookup(en, key)));
+    expect(labels.reductions.member_calculation).toBe('Per-point calculation');
+    expect(lookup(zh, 'reductions.member_calculation')).toBe('各點位分別計算');
+  });
   it.each([['English', en], ['Traditional Chinese', zh]] as const)('provides exactly the summary/detail helper labels in %s', (_name, resource) => {
     const requested: string[] = [];
     const labels = recordingGuidedLabels(key => {

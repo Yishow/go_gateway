@@ -39,7 +39,8 @@ function SavedMember({ member, labels }: { member: RecordingReadonly<WriteGroupM
   const proof = member.exact_recording_source;
   const policy = proof?.counter_policy;
   const rows: Row[] = [
-    ...memberRows({ ...member, column: member.target_column, circuit_id: member.circuit_id ?? null, source_value_type: member.source_value_type ?? null }, labels),
+    ...memberRows({ device_id: member.device_id, point_id: member.point_id, tag_id: member.tag_id,
+      column: member.target_column, circuit_id: member.circuit_id ?? null, source_value_type: member.source_value_type ?? null }, labels),
     [f.sourceRevision, identity(member.source_revision, labels)], [f.mappingRevision, identity(member.mapping_revision, labels)],
     [f.required, yesNo(member.required, labels)], [f.maxAge, scalar(member.max_age_seconds, labels)],
     [f.valueRole, member.value_role && ['gauge', 'counter_raw', 'state'].includes(member.value_role) ? f[member.value_role] : labels.unavailable],

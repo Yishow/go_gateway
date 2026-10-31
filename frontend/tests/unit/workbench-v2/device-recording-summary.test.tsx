@@ -8,7 +8,7 @@ import { BasicRecordingPanel } from '@/features/datalink/workbench-v2/steps/step
 import type { Mapping, Point, WorkbenchV2State } from '@/features/datalink/workbench-v2/state/types';
 import type { MeasurementDefinition } from '@/types/measurement';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
-import type { WriteGroupDelivery, WriteGroupDeliveryStages, WriteGroupSourceEvidenceItem, WriteGroupSourceRecord } from '@/types/studioV2WriteGroupDelivery';
+import type { WriteGroupDelivery, WriteGroupDeliveryStages, WriteGroupSourceEvidenceItem, WriteGroupLegacySourceRecord } from '@/types/studioV2WriteGroupDelivery';
 import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
 import { expandSources } from '../../fixtures/sourceReview';
 
@@ -112,7 +112,7 @@ const range = (n: number) => Array.from({ length: n }, (_, i) => i);
 const STAGES: WriteGroupDeliveryStages = { collecting: 0, queued: 0, retrying: 0, blocked: 0, quarantined: 0, unknown: 0, sql_committed: 1, skipped: 0 };
 
 /** A verified record in the real wire form of the existing projection. */
-function sourceRecord(over: Partial<WriteGroupSourceRecord> = {}): WriteGroupSourceRecord {
+function sourceRecord(over: Partial<WriteGroupLegacySourceRecord> = {}): WriteGroupLegacySourceRecord {
   return {
     available: true, group_revision: 'rev-1', connector_revision: 'crev-1', record_id: 'r0', effect_key: 'e0', payload_digest: 'd'.repeat(64),
     profile_kind: 'instantaneous', window_start: '2026-01-01T00:00:00Z', window_end: '2026-01-01T00:00:15Z', status: 'ok', raw_present: true,
@@ -137,7 +137,7 @@ function deliveryWith(sources: WriteGroupSourceEvidenceItem[], groupId = 'grp-1'
 }
 
 /** The scoped delivery response of the applied revision with one source's latest record. */
-function deliveryOf(latest: WriteGroupSourceRecord): WriteGroupDelivery {
+function deliveryOf(latest: WriteGroupLegacySourceRecord): WriteGroupDelivery {
   return deliveryWith([{ device_id: 'dev-1', point_id: 'pt-0', tag_id: 'tag-0', latest, last_sql_committed: null }]);
 }
 const memberRows = () => screen.queryAllByTestId(/^circuit-profile-member-inst-/);
@@ -338,7 +338,7 @@ describe('missing values by layout', () => {
 describe('evidence stays honest', () => {
   it('shows a mean as counts, method and unknown coverage: never complete and never a percentage', () => {
     groupsQuery.data = { ...groupsQuery.data, groups: [profileGroup('managed_long_v1', [0, 1])] };
-    const mean: WriteGroupSourceRecord & { aggregation: AggregationEvidence } = {
+    const mean: WriteGroupLegacySourceRecord & { aggregation: AggregationEvidence } = {
       ...sourceRecord(), aggregation: {
         method: 'arithmetic-mean', version: 'arithmetic-mean-v1', basis: 'exact', source_type: 'uint64', result_type: 'decimal',
         valid_count: 2, rejected_count: 0, coverage: 'unknown',

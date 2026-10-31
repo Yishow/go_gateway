@@ -81,6 +81,7 @@ export interface RecordingProfile { kind: 'instantaneous' | 'cumulative'; interv
 /** Values from that exact WriteGroup snapshot; effective_at from applied snapshot; nullable
  * interval remains unknown. No legacy layout/policy defaults are synthesized by this parser. */
 export interface RecordingGroupFacts {
+  mixed_recording?: MixedRecordingFacts
   recording_profile: RecordingProfile | null
   /** Exact snapshot RowPolicy, not an invented scheduler delay. */
   allowed_lateness_seconds: number | null
@@ -90,7 +91,7 @@ export interface RecordingGroupFacts {
   destination: SafeDestination; members: RecordingMember[]
   layout: 'managed_wide_v1' | 'managed_long_v1' | 'managed_wide_profile_v1' | 'unavailable'
   storage_mode: 'plain' | 'timescale' | 'native_monthly' | 'unavailable'
-  interval_seconds: number | null; reduction: 'latest' | 'mean' | 'cumulative_delta' | 'unavailable'
+  interval_seconds: number | null; reduction: 'latest' | 'mean' | 'cumulative_delta' | 'member_calculation' | 'unavailable'
   write_mode: 'append' | 'latest' | 'unavailable'; incomplete_policy: 'skip_row' | 'partial' | 'unavailable'
 }
 /** Frozen connector ID/revision, validated display alias/kind, schema/table; no database path. */
@@ -104,7 +105,7 @@ export interface SafeDestination {
 /** circuit_id is persisted in this exact WriteGroupMember snapshot; missing legacy evidence
  * is null, never inferred from a column, display name or newer saved membership. */
 /** source_value_type is persisted/verified frozen evidence, never a current Tag lookup. */
-export interface RecordingMember { source_value_type: EvidenceDataType | null; circuit_id: string | null; device_id: string; point_id: string; tag_id: string; column: string }
+export interface RecordingMember { calculation?: MemberCalculationFacts; source_value_type: EvidenceDataType | null; circuit_id: string | null; device_id: string; point_id: string; tag_id: string; column: string }
 /** DeliveryForRevision is the ONLY runtime delivery authority. Operation ledger stays separate. */
 export interface DeliveryEvidence {
   counter_replay_quarantines: CounterReplayQuarantine[] | null
@@ -146,7 +147,8 @@ export interface PerSourceEvidence {
 }
 /** SourceRecord verified window/coverage/delta-known, with no raw values. Unknown is not zero. */
 export interface SourceResult {
-  state: 'available' | 'missing' | 'unknown' | 'partial' | 'unavailable'
+  calculation?: CalculationResult
+  state: 'available' | 'missing' | 'unknown' | 'partial' | 'not_due' | 'unavailable'
   window_start: string | null; window_end: string | null; delta_known: boolean | null
   coverage: 'complete' | 'partial' | 'unknown' | null; receipt: RuntimeReceipt | null
 }
@@ -184,4 +186,24 @@ export interface CounterReplayQuarantine {
   workspace_id: string; group_id: string; group_revision: string; pending_samples: number
   reason: 'counter-replay-proof-missing' | 'counter-replay-proof-conflict' | 'counter-replay-proof-unsupported'
   action: 'preserve-inputs-and-restore-original-revision-evidence-or-contact-maintenance'
+}
+
+/** Value-free mixed intent; never a public activation capability. */
+export interface MixedRecordingFacts { record_id: string; result_shape: 'member-calculation-v1' }
+export type CalculationMethod = 'latest' | 'mean' | 'delta'
+export type CalculationValueType = 'bool' | 'text' | 'int64' | 'uint64' | 'decimal' | 'float64'
+export interface MemberCalculationFacts {
+  method: CalculationMethod; interval: number; unit: 'second' | 'minute'; alignment: 'utc_epoch'
+  required: boolean; source_revision: string; mapping_revision: string
+  measurement_id: string | null; result_type: CalculationValueType
+}
+/** Receipt, selected result and original raw sample presence are independent facts. */
+export interface CalculationResult {
+  result_shape: 'member-calculation-v1'; method: CalculationMethod; interval_seconds: number; alignment: 'utc_epoch'
+  due_at: string; next_due: string | null; outcome_digest: string; outcome_kind: 'row' | 'skipped' | 'no_data'
+  status: 'ok' | 'missing' | 'bad' | 'stale' | 'invalid' | 'not_due'; reason: string | null
+  result_present: boolean; row_emitted: boolean; raw_present: boolean
+  source_type: EvidenceDataType; result_type: CalculationValueType
+  aligned_start: string | null; aligned_end: string | null; actual_start: string | null; actual_end: string | null
+  rounded: boolean | null
 }

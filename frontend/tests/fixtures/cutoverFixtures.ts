@@ -24,10 +24,13 @@ export const wideMeanTarget = (over: Partial<WriteGroup> = {}): WriteGroup => sa
   })),
   row_policy: { interval_seconds: 15, allowed_lateness_seconds: 0, incomplete_policy: 'partial' }, write_policy: { mode: 'append', dedupe_capability: 'receipt' }, ...over,
 });
-export const view = (group: WriteGroup, over: Partial<CutoverGroupView> = {}): CutoverGroupView => ({
+export const view = (group: WriteGroup, over: Partial<CutoverGroupView> = {}): CutoverGroupView => {
+  if (group.recording_profile?.kind === 'mixed' || group.row_policy.interval_seconds === undefined) throw new Error('Legacy cutover view requires a group interval');
+  return ({
   group_id: group.id, name: group.name, revision: group.revision, layout: group.layout_version ?? 'managed_wide_v1', interval_seconds: group.row_policy.interval_seconds,
   connector_id: 'conn-1', table_schema: '', table_name: group.destination.table_name, member_count: group.members.length, schema_confirmed: true, ...over,
 });
+};
 export const member = (index: number) => ({ device_id: 'dev-1', point_id: `pt-${index}`, tag_id: `tag-${index}` });
 export const reviewOf = (over: Partial<WriteGroupCutoverReview> = {}): WriteGroupCutoverReview => ({
   kind: 'forward', boundary: REVIEWED_BOUNDARY, digest: DIGEST, applicable: true, issues: [], source: view(wide()), targets: [view(target(), { storage_mode: 'plain', profile_kind: 'instantaneous' })],

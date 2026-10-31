@@ -8,6 +8,8 @@ import type {
   WriteGroupStorageStrategy,
   WriteGroupExactRecordingSource,
   WriteGroupValueRole,
+  WriteGroupMemberCalculation,
+  WriteGroupMemberCadence,
 } from '../../../../../types/studioV2WriteGroup';
 import type { DataType } from '../../../../../types/datalink';
 import { isValidRecordingProfile, recordingProfileIntervalSeconds } from '../../../../../utils/studioV2RecordingProfile';
@@ -18,6 +20,10 @@ export type IncompletePolicy = 'skip_row' | 'partial';
 
 /** One member as the editor holds it. `key` is the persisted point and tag IDs. */
 export interface EditorMember {
+  calculation?: WriteGroupMemberCalculation;
+  cadence?: WriteGroupMemberCadence;
+  source_revision?: string;
+  mapping_revision?: string;
   key: string;
   device_id: string;
   point_id: string;
@@ -39,13 +45,15 @@ export interface EditorMember {
 }
 
 export interface EditorDraft {
+  record_id?: string;
+  due_at_column?: string;
   name: string;
   connector_id: string;
   connector_revision: string;
   table_schema: string;
   table_name: string;
   storage_strategy: WriteGroupStorageStrategy;
-  interval_seconds: number;
+  interval_seconds?: number;
   allowed_lateness_seconds: number;
   incomplete_policy: IncompletePolicy;
   entity_key_column: string;
@@ -87,13 +95,15 @@ export function newDraft(destination: { connector_id: string; connector_revision
 
 export function groupToDraft(group: WriteGroup): EditorDraft {
   return {
+    ...(group.record_id !== undefined ? { record_id: group.record_id } : {}),
+    ...(group.row_policy.due_at_column !== undefined ? { due_at_column: group.row_policy.due_at_column } : {}),
     name: group.name,
     connector_id: group.destination.connector_id,
     connector_revision: group.destination.connector_revision,
     table_schema: group.destination.table_schema,
     table_name: group.destination.table_name,
     storage_strategy: group.destination.storage_strategy,
-    interval_seconds: group.row_policy.interval_seconds,
+    ...(group.row_policy.interval_seconds !== undefined ? { interval_seconds: group.row_policy.interval_seconds } : {}),
     allowed_lateness_seconds: group.row_policy.allowed_lateness_seconds,
     incomplete_policy: group.row_policy.incomplete_policy === 'partial' ? 'partial' : 'skip_row',
     entity_key_column: group.row_policy.entity_key_column ?? '',
@@ -101,6 +111,9 @@ export function groupToDraft(group: WriteGroup): EditorDraft {
     dedupe_capability: group.write_policy.dedupe_capability ?? '',
     ...(group.write_policy.recreate_missing !== undefined ? { recreate_missing: group.write_policy.recreate_missing } : {}),
     members: group.members.map((member) => ({
+      ...(member.calculation !== undefined ? { calculation: member.calculation } : {}),
+      ...(member.cadence !== undefined ? { cadence: { ...member.cadence } } : {}),
+      ...(group.recording_profile?.kind === 'mixed' ? { source_revision: member.source_revision, mapping_revision: member.mapping_revision } : {}),
       key: memberKey(member.point_id, member.tag_id),
       device_id: member.device_id, point_id: member.point_id, tag_id: member.tag_id,
       ...(member.measurement_id !== undefined ? { measurement_id: member.measurement_id } : {}),
@@ -128,7 +141,18 @@ export function groupToDraft(group: WriteGroup): EditorDraft {
 }
 
 /** The editable payload. Source and mapping revisions are not sent: the server pins the current ones. */
+function hasMixedRecordingIntent(draft: EditorDraft): boolean {
+  return draft.recording_profile?.kind === 'mixed' || draft.record_id !== undefined ||
+    draft.members.some(member => member.calculation !== undefined || member.cadence !== undefined);
+}
+
+export class UnsupportedRecordingEditorError extends Error {
+  readonly code = 'mixed-recording-editor-unsupported';
+  constructor() { super('Mixed recording is read-only in this editor.'); }
+}
+
 export function draftToRequestGroup(draft: EditorDraft, workspaceId: string): WriteGroupDraft {
+  if (hasMixedRecordingIntent(draft)) throw new UnsupportedRecordingEditorError();
   // The profile is the only authority for the row interval; the editable seconds
   // field can never contradict it, and an invalid profile is blocked by validateDraft.
   const profileSeconds = draft.recording_profile ? recordingProfileIntervalSeconds(draft.recording_profile) : null;
@@ -182,11 +206,14 @@ function comparable(draft: EditorDraft): string {
 
 /** True only when the draft would change what the server stores. */
 export function draftIsDirty(draft: EditorDraft, saved: WriteGroup): boolean {
+  if (draft.recording_profile?.kind === 'mixed' || saved.recording_profile?.kind === 'mixed') {
+    return JSON.stringify(draft) !== JSON.stringify(groupToDraft(saved));
+  }
   return comparable(draft) !== comparable(groupToDraft(saved));
 }
 
 export type DraftIssueCode =
-  | 'name-required' | 'members-required' | 'destination-unsaved' | 'table-required' | 'column-required'
+  | 'profile-editor-unsupported' | 'name-required' | 'members-required' | 'destination-unsaved' | 'table-required' | 'column-required'
   | 'column-conflict' | 'interval-invalid' | 'profile-interval-invalid' | 'lateness-invalid' | 'partial-needs-provenance' | 'entity-column-required';
 
 export interface DraftIssue {
@@ -202,6 +229,7 @@ export interface DraftValidationContext {
 
 /** Local checks only; the backend readiness result stays the authority for activation. */
 export function validateDraft(draft: EditorDraft, context: DraftValidationContext): DraftIssue[] {
+  if (hasMixedRecordingIntent(draft)) return [{ code: 'profile-editor-unsupported' }];
   const issues: DraftIssue[] = [];
   const managed = (context.storageStrategy ?? draft.storage_strategy) === 'managed';
   if (!draft.name.trim()) issues.push({ code: 'name-required' });
@@ -220,7 +248,7 @@ export function validateDraft(draft: EditorDraft, context: DraftValidationContex
   }
   if (draft.recording_profile) {
     if (!isValidRecordingProfile(draft.recording_profile)) issues.push({ code: 'profile-interval-invalid' });
-  } else if (!Number.isFinite(draft.interval_seconds) || draft.interval_seconds < 1) {
+  } else if (typeof draft.interval_seconds !== 'number' || !Number.isFinite(draft.interval_seconds) || draft.interval_seconds < 1) {
     issues.push({ code: 'interval-invalid' });
   }
   if (!Number.isFinite(draft.allowed_lateness_seconds) || draft.allowed_lateness_seconds < 0) issues.push({ code: 'lateness-invalid' });

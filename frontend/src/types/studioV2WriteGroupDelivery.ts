@@ -96,8 +96,8 @@ export interface WriteGroupDelivery {
 /** What one long record stored for its source. Zero and false are values; only NULL is absent. */
 export type WriteGroupSourceStatus = 'ok' | 'partial' | 'baseline' | 'missing' | 'bad' | 'stale' | 'invalid' | 'reset_or_uncertain' | 'gap';
 /** Local delivery stage of a record. Only `sql_committed` with a matching receipt is destination evidence. */
-export type WriteGroupSourceDelivery = 'queued' | 'retrying' | 'blocked' | 'quarantined' | 'unknown' | 'sql_committed' | 'operator_skipped';
-export type WriteGroupSourceUnavailableCause = 'payload_invalid' | 'digest_mismatch' | 'identity_mismatch' | 'status_unknown' | 'window_invalid';
+export type WriteGroupSourceDelivery = 'queued' | 'retrying' | 'blocked' | 'quarantined' | 'unknown' | 'sql_committed' | 'operator_skipped' | 'window_skipped';
+export type WriteGroupSourceUnavailableCause = 'payload_invalid' | 'digest_mismatch' | 'identity_mismatch' | 'status_unknown' | 'window_invalid' | 'calculation_projection_unsupported';
 
 /**
  * Value-free evidence of a mean window, verified against what the applied layout froze for the source: the method, the
@@ -118,7 +118,8 @@ export interface WriteGroupSourceAggregation {
 }
 
 /** A value-free, verified result read from the frozen outbox payload of one source and window. */
-export interface WriteGroupSourceRecord {
+export interface WriteGroupLegacySourceRecord {
+  calculation?: never;
   available: true;
   group_revision: string;
   /** The destination revision the record was frozen to; never retargeted. */
@@ -141,6 +142,24 @@ export interface WriteGroupSourceRecord {
   /** Present only when the destination receipt matched this payload. */
   committed_at?: string;
 }
+
+
+/** Value-free calculated result; raw presence is provenance, never source health. */
+export interface WriteGroupSourceCalculation {
+  result_shape: 'member-calculation-v1'; method: 'latest' | 'mean' | 'delta'; interval_seconds: number; alignment: 'utc_epoch';
+  due_at: string; next_due?: string; outcome_digest: string; outcome_kind: 'row' | 'skipped' | 'no_data';
+  status: 'ok' | 'missing' | 'bad' | 'stale' | 'invalid' | 'not_due'; reason?: string;
+  result_present: boolean; row_emitted: boolean; raw_present: boolean; source_type: string; result_type: string;
+  aligned_start?: string; aligned_end?: string; actual_start?: string; actual_end?: string; rounded?: boolean;
+}
+export interface WriteGroupMixedSourceRecord extends Omit<WriteGroupLegacySourceRecord, 'profile_kind' | 'window_start' | 'window_end' | 'status' | 'calculation'> {
+  profile_kind: 'mixed';
+  /** null means not due; the Go zero-time wire sentinel is never a data window. */
+  window_start: string | null; window_end: string | null;
+  status: WriteGroupSourceStatus | 'not_due';
+  calculation: WriteGroupSourceCalculation;
+}
+export type WriteGroupSourceRecord = WriteGroupLegacySourceRecord | WriteGroupMixedSourceRecord;
 
 /** A record whose frozen evidence could not be verified; it never counts as written. */
 export interface WriteGroupSourceRecordUnavailable {

@@ -93,6 +93,7 @@ vi.mock('@/hooks/datalink/useStudioV2WorkspaceMeasurements', () => ({
 }));
 
 function makeProfileGroup(overrides: Partial<WriteGroup> & { profileKind?: WriteGroupProfileKind } = {}): WriteGroup {
+  if (overrides.recording_profile?.kind === 'mixed') throw new Error('Legacy profile fixture cannot represent mixed');
   const profile: WriteGroupProfileKind = overrides.profileKind ?? overrides.recording_profile?.kind ?? 'instantaneous';
   const intervalVal = overrides.recording_profile?.interval ?? (profile === 'cumulative' ? 10 : 15);
   return savedGroup({

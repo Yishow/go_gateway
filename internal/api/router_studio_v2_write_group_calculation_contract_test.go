@@ -1,8 +1,14 @@
 package api
 
 import (
+	"encoding/json"
 	"github.com/stretchr/testify/require"
+	"go-gateway/docs/swagger"
+	"go-gateway/internal/datalink/runtimeview"
 	"net/http"
+	"reflect"
+	"sort"
+	"strings"
 	"testing"
 )
 
@@ -25,6 +31,7 @@ func TestWriteGroupCanonicalCalculationContractKeepsLegacyEntry(t *testing.T) {
 	list := performJSONRequest(t, f.router, http.MethodGet, writeGroupsPath, nil)
 	require.Equal(t, http.StatusOK, list.Code)
 	require.Equal(t, capability, decodeJSONBody(t, list)["data"].(map[string]any)["calculation_capabilities"])
+	assertGeneratedCalculationSchema(t, capability)
 }
 
 func TestWriteGroupMixedAPIReadsMemberIntentWithoutChangingPoint(t *testing.T) {
@@ -60,4 +67,44 @@ func TestWriteGroupMixedAPIReadsMemberIntentWithoutChangingPoint(t *testing.T) {
 	var sourceType string
 	require.NoError(t, f.db.QueryRow(`SELECT data_type FROM points WHERE id='point-A'`).Scan(&sourceType))
 	require.Equal(t, "float32", sourceType)
+}
+
+func assertGeneratedCalculationSchema(t *testing.T, actual map[string]any) {
+	t.Helper()
+	var spec map[string]any
+	require.NoError(t, json.Unmarshal([]byte(swagger.SwaggerInfo.ReadDoc()), &spec))
+	defs := spec["definitions"].(map[string]any)
+	statusField, ok := reflect.TypeOf(runtimeview.CalculationResult{}).FieldByName("Status")
+	require.True(t, ok)
+	statusDoc := defs["runtimeview.CalculationResult"].(map[string]any)["properties"].(map[string]any)["status"].(map[string]any)
+	var documentedStatus []string
+	for _, value := range statusDoc["enum"].([]any) {
+		documentedStatus = append(documentedStatus, value.(string))
+	}
+	require.Equal(t, strings.Split(statusField.Tag.Get("enum"), ","), documentedStatus, "generated member statuses match runtime validator; partial is coverage/state only")
+
+	for _, name := range []string{"workspace.WriteGroupSaveResult", "workspace.WriteGroupListResult"} {
+		props := defs[name].(map[string]any)["properties"].(map[string]any)
+		field, ok := props["calculation_capabilities"].(map[string]any)
+		require.True(t, ok, "generated canonical response must expose actual wire capability")
+		require.Equal(t, true, field["readOnly"])
+		require.Equal(t, "#/definitions/workspace.WriteGroupCalculationCapabilities", field["allOf"].([]any)[0].(map[string]any)["$ref"])
+	}
+	for name, value := range map[string]map[string]any{
+		"workspace.WriteGroupCalculationCapabilities": actual,
+		"workspace.WriteGroupCadenceCapability":       actual["cadence"].(map[string]any),
+		"workspace.WriteGroupCalculationRestriction":  actual["unsupported_combinations"].([]any)[0].(map[string]any),
+	} {
+		props := defs[name].(map[string]any)["properties"].(map[string]any)
+		var documented, wire []string
+		for key := range props {
+			documented = append(documented, key)
+		}
+		for key := range value {
+			wire = append(wire, key)
+		}
+		sort.Strings(documented)
+		sort.Strings(wire)
+		require.Equal(t, wire, documented, name)
+	}
 }

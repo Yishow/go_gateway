@@ -33,7 +33,7 @@ export function recordingGuidedLabels(t: (key: string) => string): RecordingGuid
     profiles: record('profiles', ['instantaneous', 'cumulative']), units: record('units', ['second', 'minute']),
     layouts: record('layouts', ['managed_wide_v1', 'managed_long_v1', 'managed_wide_profile_v1', 'unavailable']),
     storageModes: record('storageModes', ['plain', 'timescale', 'native_monthly', 'unavailable']),
-    reductions: record('reductions', ['latest', 'mean', 'cumulative_delta', 'unavailable']),
+    reductions: record('reductions', ['latest', 'mean', 'cumulative_delta', 'member_calculation', 'unavailable']),
     incompletePolicies: record('incompletePolicies', ['skip_row', 'partial', 'unavailable']),
     sourceTypes: record('sourceTypes', ['bool', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'float32', 'float64', 'string']),
     reasons: record('reasons', ['missing', 'loading', 'error', 'unknown', 'scope_mismatch', 'revision_mismatch',

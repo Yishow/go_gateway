@@ -71,6 +71,9 @@ func runtimeSourceDeliveryResult(raw *groupdelivery.SourceRecord, frozen *worksp
 		return &runtimeview.SourceResult{State: "unavailable"}, nil
 	}
 	r := raw.VerifiedSourceRecord
+	if frozen.Group.RecordingProfile != nil && frozen.Group.RecordingProfile.Kind == workspace.WriteGroupProfileMixed {
+		return runtimeMixedSourceResult(raw, frozen, member, groupCommit)
+	}
 	if raw.Cause != "" || !runtimeDeliveryIDs(r.GroupRevision, r.ConnectorRevision, r.RecordID, r.EffectKey, r.PayloadDigest) {
 		return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 	}

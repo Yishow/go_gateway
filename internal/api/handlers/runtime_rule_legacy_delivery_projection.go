@@ -130,12 +130,15 @@ func legacyDeliverySourceRecordSafe(r *groupdelivery.SourceRecord) bool {
 	if r == nil {
 		return true
 	}
-	if !legacyDeliveryChoice(string(r.Delivery), "", "queued", "retrying", "blocked", "quarantined", "unknown", "sql_committed", "operator_skipped") || !legacyDeliveryChoice(string(r.Cause), "", "payload_invalid", "digest_mismatch", "identity_mismatch", "status_unknown", "window_invalid") {
+	if !legacyDeliveryChoice(string(r.Delivery), "", "queued", "retrying", "blocked", "quarantined", "unknown", "sql_committed", "operator_skipped", "window_skipped") || !legacyDeliveryChoice(string(r.Cause), "", "payload_invalid", "digest_mismatch", "identity_mismatch", "status_unknown", "window_invalid", "calculation_projection_unsupported") {
 		return false
 	}
 	v := r.VerifiedSourceRecord
 	if v == nil {
 		return !r.Available
+	}
+	if v.Calculation != nil || v.ProfileKind == "mixed" {
+		return legacyDeliveryMixedRecordSafe(r)
 	}
 	if !r.Available || !runtimeDeliveryIDs(v.GroupRevision, v.ConnectorRevision, v.RecordID, v.EffectKey, v.PayloadDigest) || !legacyDeliveryChoice(v.ProfileKind, "instantaneous", "cumulative") || !legacyDeliveryChoice(string(v.Status), "ok", "partial", "baseline", "missing", "bad", "stale", "invalid", "reset_or_uncertain", "gap") {
 		return false
@@ -179,7 +182,7 @@ func legacyDeliveryReason(value string) string {
 }
 
 var legacyDeliverySourceReasons = strings.Fields(`
- reason_unavailable no-samples type-mismatch counter-unavailable missing-value max-age-exceeded mapping-failed
+ reason_unavailable not_due no-samples type-mismatch counter-unavailable missing-value max-age-exceeded mapping-failed
  quality-bad quality-missing quality-stale quality-invalid quality-uncertain coverage-unverified bad invalid stale non-numeric
  first-reading binding-changed no-eligible-reading decrease-unproven contradictory-same-time non-monotonic-time
  mixed-numeric-basis rollover-evidence-insufficient rollover-range-invalid rollover-multiple-wraps-possible

@@ -4288,9 +4288,75 @@ const docTemplate = `{
                 }
             }
         },
+        "groupdelivery.SourceCalculation": {
+            "type": "object",
+            "properties": {
+                "actual_end": {
+                    "type": "string"
+                },
+                "actual_start": {
+                    "type": "string"
+                },
+                "aligned_end": {
+                    "type": "string"
+                },
+                "aligned_start": {
+                    "type": "string"
+                },
+                "alignment": {
+                    "type": "string"
+                },
+                "due_at": {
+                    "type": "string"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "next_due": {
+                    "type": "string"
+                },
+                "outcome_digest": {
+                    "type": "string"
+                },
+                "outcome_kind": {
+                    "type": "string"
+                },
+                "raw_present": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "result_present": {
+                    "type": "boolean"
+                },
+                "result_shape": {
+                    "type": "string"
+                },
+                "result_type": {
+                    "type": "string"
+                },
+                "rounded": {
+                    "type": "boolean"
+                },
+                "row_emitted": {
+                    "type": "boolean"
+                },
+                "source_type": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "groupdelivery.SourceDelivery": {
             "type": "string",
             "enum": [
+                "window_skipped",
                 "queued",
                 "retrying",
                 "blocked",
@@ -4300,6 +4366,7 @@ const docTemplate = `{
                 "operator_skipped"
             ],
             "x-enum-varnames": [
+                "SourceDeliveryWindowSkipped",
                 "SourceDeliveryQueued",
                 "SourceDeliveryRetrying",
                 "SourceDeliveryBlocked",
@@ -4322,6 +4389,9 @@ const docTemplate = `{
                 },
                 "available": {
                     "type": "boolean"
+                },
+                "calculation": {
+                    "$ref": "#/definitions/groupdelivery.SourceCalculation"
                 },
                 "cause": {
                     "$ref": "#/definitions/groupdelivery.SourceUnavailableCause"
@@ -8026,6 +8096,85 @@ const docTemplate = `{
                 }
             }
         },
+        "runtimeview.CalculationResult": {
+            "type": "object",
+            "properties": {
+                "actual_end": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "actual_start": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "aligned_end": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "aligned_start": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "alignment": {
+                    "type": "string"
+                },
+                "due_at": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "next_due": {
+                    "type": "string",
+                    "format": "time"
+                },
+                "outcome_digest": {
+                    "type": "string"
+                },
+                "outcome_kind": {
+                    "type": "string"
+                },
+                "raw_present": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "result_present": {
+                    "type": "boolean"
+                },
+                "result_shape": {
+                    "type": "string"
+                },
+                "result_type": {
+                    "type": "string"
+                },
+                "rounded": {
+                    "type": "boolean"
+                },
+                "row_emitted": {
+                    "type": "boolean"
+                },
+                "source_type": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "ok",
+                        "missing",
+                        "bad",
+                        "stale",
+                        "invalid",
+                        "not_due"
+                    ]
+                }
+            }
+        },
         "runtimeview.CounterReplayQuarantine": {
             "type": "object",
             "properties": {
@@ -8215,6 +8364,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/runtimeview.Member"
                     }
                 },
+                "mixed_recording": {
+                    "$ref": "#/definitions/runtimeview.MixedRecordingFacts"
+                },
                 "recording_profile": {
                     "$ref": "#/definitions/runtimeview.RecordingProfile"
                 },
@@ -8286,6 +8438,9 @@ const docTemplate = `{
         "runtimeview.Member": {
             "type": "object",
             "properties": {
+                "calculation": {
+                    "$ref": "#/definitions/runtimeview.MemberCalculationFacts"
+                },
                 "circuit_id": {
                     "description": "CircuitID is persisted WriteGroupMember.CircuitID from THIS snapshot, never a column/name.\nMissing legacy evidence stays null; adapters normalize absent source identity, not infer it.",
                     "type": "string"
@@ -8304,6 +8459,49 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "tag_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.MemberCalculationFacts": {
+            "type": "object",
+            "properties": {
+                "alignment": {
+                    "type": "string"
+                },
+                "interval": {
+                    "type": "integer"
+                },
+                "mapping_revision": {
+                    "type": "string"
+                },
+                "measurement_id": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "required": {
+                    "type": "boolean"
+                },
+                "result_type": {
+                    "type": "string"
+                },
+                "source_revision": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "runtimeview.MixedRecordingFacts": {
+            "type": "object",
+            "properties": {
+                "record_id": {
+                    "type": "string"
+                },
+                "result_shape": {
                     "type": "string"
                 }
             }
@@ -8512,6 +8710,9 @@ const docTemplate = `{
         "runtimeview.SourceResult": {
             "type": "object",
             "properties": {
+                "calculation": {
+                    "$ref": "#/definitions/runtimeview.CalculationResult"
+                },
                 "coverage": {
                     "type": "string"
                 },
@@ -9419,6 +9620,99 @@ const docTemplate = `{
                 }
             }
         },
+        "workspace.WriteGroupCadenceCapability": {
+            "type": "object",
+            "properties": {
+                "alignment": {
+                    "type": "string"
+                },
+                "max_minutes": {
+                    "type": "integer"
+                },
+                "max_seconds": {
+                    "type": "integer"
+                },
+                "minimum": {
+                    "type": "integer"
+                },
+                "units": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupIntervalUnit"
+                    }
+                },
+                "window_bounds_checked": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "workspace.WriteGroupCalculationCapabilities": {
+            "type": "object",
+            "properties": {
+                "activation_supported": {
+                    "type": "boolean"
+                },
+                "cadence": {
+                    "$ref": "#/definitions/workspace.WriteGroupCadenceCapability"
+                },
+                "draft_supported": {
+                    "type": "boolean"
+                },
+                "editor_supported": {
+                    "type": "boolean"
+                },
+                "methods": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupMemberCalculation"
+                    }
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "result_shape": {
+                    "$ref": "#/definitions/workspace.WriteGroupResultShape"
+                },
+                "schema_dialects": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "schema_layouts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupLayoutVersion"
+                    }
+                },
+                "unsupported_combinations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupCalculationRestriction"
+                    }
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "workspace.WriteGroupCalculationRestriction": {
+            "type": "object",
+            "properties": {
+                "method": {
+                    "$ref": "#/definitions/workspace.WriteGroupMemberCalculation"
+                },
+                "phase": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "source_transform": {
+                    "type": "string"
+                }
+            }
+        },
         "workspace.WriteGroupCutover": {
             "type": "object",
             "properties": {
@@ -9691,6 +9985,14 @@ const docTemplate = `{
         "workspace.WriteGroupListResult": {
             "type": "object",
             "properties": {
+                "calculation_capabilities": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/workspace.WriteGroupCalculationCapabilities"
+                        }
+                    ],
+                    "readOnly": true
+                },
                 "groups": {
                     "type": "array",
                     "items": {
@@ -10255,6 +10557,14 @@ const docTemplate = `{
         "workspace.WriteGroupSaveResult": {
             "type": "object",
             "properties": {
+                "calculation_capabilities": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/workspace.WriteGroupCalculationCapabilities"
+                        }
+                    ],
+                    "readOnly": true
+                },
                 "group": {
                     "$ref": "#/definitions/workspace.WriteGroup"
                 },

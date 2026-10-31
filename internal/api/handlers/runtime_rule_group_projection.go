@@ -71,7 +71,11 @@ func runtimeRecordingFacts(group *workspace.WriteGroup, snapshot *workspace.Writ
 		seconds := int64(group.RowPolicy.AllowedLatenessSeconds)
 		result.AllowedLatenessSeconds = &seconds
 	}
-	if profile := group.RecordingProfile; profile != nil {
+	if profile := group.RecordingProfile; profile != nil && profile.Kind == workspace.WriteGroupProfileMixed {
+		if err := runtimeMixedGroupFacts(group, result); err != nil {
+			return nil, err
+		}
+	} else if profile != nil {
 		result.RecordingProfile = &runtimeview.RecordingProfile{Kind: string(profile.Kind), Interval: int64(profile.Interval), Unit: string(profile.Unit)}
 		if profile.Kind == workspace.WriteGroupProfileCumulative {
 			result.Reduction = "cumulative_delta"
@@ -102,6 +106,11 @@ func runtimeRecordingFacts(group *workspace.WriteGroup, snapshot *workspace.Writ
 			Column: member.TargetColumn, CircuitID: runtimeEvidenceString(member.CircuitID)}
 		if runtimeSafeEnum(valueType, "bool", "int16", "uint16", "int32", "uint32", "int64", "uint64", "float32", "float64", "string") != "" {
 			projected.SourceValueType = &valueType
+		}
+		if result.MixedRecording != nil {
+			if err := runtimeMixedMemberFacts(member, &projected); err != nil {
+				return nil, err
+			}
 		}
 		result.Members = append(result.Members, projected)
 	}

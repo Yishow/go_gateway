@@ -196,8 +196,9 @@ type RecordingProfile struct {
 // reduction = profile latest/mean/cumulative_delta; policies are not guessed for legacy/custom.
 // EndsAt is that snapshot Group.EndsAt; ended/disabled/tombstoned retained facts grant no intake.
 type GroupFacts struct {
-	RecordingProfile       *RecordingProfile `json:"recording_profile"`
-	AllowedLatenessSeconds *int64            `json:"allowed_lateness_seconds"`
+	MixedRecording         *MixedRecordingFacts `json:"mixed_recording,omitempty"`
+	RecordingProfile       *RecordingProfile    `json:"recording_profile"`
+	AllowedLatenessSeconds *int64               `json:"allowed_lateness_seconds"`
 
 	Binding          Binding     `json:"binding"`
 	EndsAt           *string     `json:"ends_at" format:"time"`
@@ -208,7 +209,7 @@ type GroupFacts struct {
 	Layout           string      `json:"layout" enum:"managed_wide_v1,managed_long_v1,managed_wide_profile_v1,unavailable"`
 	StorageMode      string      `json:"storage_mode" enum:"plain,timescale,native_monthly,unavailable"`
 	IntervalSeconds  *int64      `json:"interval_seconds" min:"1"`
-	Reduction        string      `json:"reduction" enum:"latest,mean,cumulative_delta,unavailable"`
+	Reduction        string      `json:"reduction" enum:"latest,mean,cumulative_delta,member_calculation,unavailable"`
 	WriteMode        string      `json:"write_mode" enum:"append,latest,unavailable"`
 	IncompletePolicy string      `json:"incomplete_policy" enum:"skip_row,partial,unavailable"`
 }
@@ -228,6 +229,7 @@ type Destination struct {
 // Member is the pinned WriteGroupMember source/column identity, without values or arbitrary metadata.
 // A group is selected when either saved or applied membership contains the selected device.
 type Member struct {
+	Calculation *MemberCalculationFacts `json:"calculation,omitempty"`
 	// SourceValueType comes from this persisted member/verified frozen source, never current Tag.
 	SourceValueType *string `json:"source_value_type" enum:"bool,int16,uint16,int32,uint32,int64,uint64,float32,float64,string"`
 
@@ -328,12 +330,13 @@ type SourceEvidence struct {
 
 // SourceResult keeps latest local windows separate from the last receipt-confirmed window.
 type SourceResult struct {
-	State       string   `json:"state" enum:"available,missing,unknown,partial,unavailable"`
-	WindowStart *string  `json:"window_start" format:"time"`
-	WindowEnd   *string  `json:"window_end" format:"time"`
-	DeltaKnown  *bool    `json:"delta_known"`
-	Coverage    *string  `json:"coverage" enum:"complete,partial,unknown"`
-	Receipt     *Receipt `json:"receipt"`
+	Calculation *CalculationResult `json:"calculation,omitempty"`
+	State       string             `json:"state" enum:"available,missing,unknown,partial,not_due,unavailable"`
+	WindowStart *string            `json:"window_start" format:"time"`
+	WindowEnd   *string            `json:"window_end" format:"time"`
+	DeltaKnown  *bool              `json:"delta_known"`
+	Coverage    *string            `json:"coverage" enum:"complete,partial,unknown"`
+	Receipt     *Receipt           `json:"receipt"`
 }
 
 // Backlog identity is historical DeliveryView.Backlog, not today's editable group destination.

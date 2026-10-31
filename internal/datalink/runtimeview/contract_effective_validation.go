@@ -15,6 +15,9 @@ func sameTime(a, b string) bool {
 
 // Validate only provided facts; never synthesize defaults or missing interval/reduction.
 func validateSummaryProfile(f *GroupFacts) error {
+	if err := validateMixedFacts(f); err != nil {
+		return err
+	}
 	p := f.RecordingProfile
 	if p == nil {
 		return nil
@@ -150,7 +153,7 @@ func validateGroup(g *GroupView, scope Scope, observedAt *string) error {
 			}
 		}
 	}
-	if g.State == "effective" && (g.EffectiveRevision == nil || g.AsOf == nil || observedAt == nil || g.Proof != "applied-snapshot-and-layout" || g.Effective == nil || revision == nil || g.Effective.EffectiveAt == nil || g.Effective.Layout == "unavailable" || g.Effective.IntervalSeconds == nil) {
+	if g.State == "effective" && (g.EffectiveRevision == nil || g.AsOf == nil || observedAt == nil || g.Proof != "applied-snapshot-and-layout" || g.Effective == nil || revision == nil || g.Effective.EffectiveAt == nil || g.Effective.Layout == "unavailable" || (g.Effective.IntervalSeconds == nil && g.Effective.MixedRecording == nil)) {
 		g.State = "unavailable"
 		g.Effective = nil
 		g.Proof = "unavailable"
@@ -204,6 +207,9 @@ func validateCurrent(c *CurrentDelivery, facts *GroupFacts) error {
 			if r == nil {
 				continue
 			}
+			if err := validateMixedResult(r, facts, s); err != nil {
+				return err
+			}
 			if err := checkReceipt(r.Receipt, facts); err != nil {
 				return err
 			}
@@ -217,10 +223,10 @@ func validateCurrent(c *CurrentDelivery, facts *GroupFacts) error {
 					return errUnavailable
 				}
 			}
-			if (r.DeltaKnown != nil && !*r.DeltaKnown && r.State != "unknown") || (r.Coverage != nil && *r.Coverage == "partial" && r.State != "partial") {
+			if (r.DeltaKnown != nil && !*r.DeltaKnown && r.State != "unknown" && r.State != "not_due") || (r.Coverage != nil && *r.Coverage == "partial" && r.State != "partial") {
 				return errUnavailable
 			}
-			if r.Receipt != nil && (r.WindowStart == nil || r.State == "unavailable" || c.LastCommit == nil) {
+			if r.Receipt != nil && ((r.WindowStart == nil && (r.Calculation == nil || r.Calculation.Status != "not_due")) || r.State == "unavailable" || c.LastCommit == nil) {
 				return errUnavailable
 			}
 		}

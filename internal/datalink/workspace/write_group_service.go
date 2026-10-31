@@ -44,15 +44,17 @@ type WriteGroupMutation struct {
 // WriteGroupSaveResult contains the coherent workspace and canonical group
 // snapshot returned after a successful create, update, or delete.
 type WriteGroupSaveResult struct {
-	WorkspaceRevision string      `json:"workspace_revision"`
-	Group             *WriteGroup `json:"group"`
+	Capabilities      *WriteGroupCalculationCapabilities `json:"calculation_capabilities" readonly:"true"`
+	WorkspaceRevision string                             `json:"workspace_revision"`
+	Group             *WriteGroup                        `json:"group"`
 }
 
 // WriteGroupListResult contains one workspace revision and its group snapshot.
 type WriteGroupListResult struct {
-	WorkspaceID       string        `json:"workspace_id"`
-	WorkspaceRevision string        `json:"workspace_revision"`
-	Groups            []*WriteGroup `json:"groups"`
+	Capabilities      *WriteGroupCalculationCapabilities `json:"calculation_capabilities" readonly:"true"`
+	WorkspaceID       string                             `json:"workspace_id"`
+	WorkspaceRevision string                             `json:"workspace_revision"`
+	Groups            []*WriteGroup                      `json:"groups"`
 }
 
 // WriteGroupService coordinates canonical WriteGroup persistence with the

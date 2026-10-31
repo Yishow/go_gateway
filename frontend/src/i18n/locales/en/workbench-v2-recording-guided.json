@@ -73,6 +73,7 @@
     "unavailable": "Unavailable"
   },
   "reductions": {
+    "member_calculation": "Per-point calculation",
     "latest": "Latest sample",
     "mean": "Mean",
     "cumulative_delta": "Cumulative delta",

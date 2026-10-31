@@ -82,6 +82,16 @@ function destinationSaved(connector: DbConnector): boolean {
  * revision and never the local checks alone.
  */
 export const GroupEditor: React.FC<GroupEditorProps> = (props) => {
+  const { t } = useTranslation('workbench-v2');
+  // Do not mount legacy editing, schema or activation hooks for a mixed record.
+  // The canonical object stays intact; this is not a conversion to raw/latest.
+  if (props.group?.recording_profile?.kind === 'mixed') return (
+    <section data-testid="mixed-group-editor-readonly" className="space-y-3 rounded border border-slate-700 p-4">
+      <h3>{props.group.name}</h3>
+      <p role="status">{t('step4.group_kind_unsupported')}</p>
+      <button type="button" onClick={props.onClose}>{t('step4.group.editor.back')}</button>
+    </section>
+  );
   const { connector } = props;
   const kind = String(connector.kind).toLowerCase();
   if (kind === 'mysql' && destinationSaved(connector)) {
