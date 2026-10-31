@@ -19,18 +19,20 @@ type ownedPointWrite struct {
 	uncertain       bool
 }
 type pointWriteJournal struct {
-	baselineProfiles map[string]connector.ReadProfile
-	points           map[string]*ownedPointWrite
-	ruleTargets      map[[32]byte]bool
-	baselineLeases   map[string]map[uint64]bool
-	baselineKnown    map[string]bool
-	ownedEpochs      map[uint64]bool
-	deviceID         string
-	runtimeUncertain bool
-	ruleUncertain    bool
-	storageFailure   error
-	ruleDeleted      bool
-	candidateWrites  map[string]bool
+	projectionEpoch      uint64
+	projectionEpochKnown bool
+	baselineProfiles     map[string]connector.ReadProfile
+	points               map[string]*ownedPointWrite
+	ruleTargets          map[[32]byte]bool
+	baselineLeases       map[string]map[uint64]bool
+	baselineKnown        map[string]bool
+	ownedEpochs          map[uint64]bool
+	deviceID             string
+	runtimeUncertain     bool
+	ruleUncertain        bool
+	storageFailure       error
+	ruleDeleted          bool
+	candidateWrites      map[string]bool
 }
 
 func (s *Service) pointJournal(ctx context.Context) *pointWriteJournal {
@@ -53,6 +55,7 @@ func (s *Service) observePointWrite(ctx context.Context) point.MaterializedWrite
 		if identity == nil {
 			identity = after
 		}
+		s.captureProjectionEpoch(ctx, identity.ID)
 		entry := journal.points[identity.ID]
 		if entry == nil {
 			entry = &ownedPointWrite{before: clonePointSnapshot(before), current: clonePointSnapshot(before)}
@@ -203,14 +206,14 @@ func (s *Service) observeRuntimeInstallation(ctx context.Context, p *schema.Poin
 	if p.DeviceID != j.deviceID {
 		return
 	}
-	if j.ownedEpochs == nil {
-		j.ownedEpochs = map[uint64]bool{}
-	}
-	j.ownedEpochs[lease] = true
 	e := j.points[p.ID]
 	if e == nil || e.current == nil || e.current.RevisionID != p.RevisionID || e.current.DeviceID != p.DeviceID {
 		return
 	}
+	if j.ownedEpochs == nil {
+		j.ownedEpochs = map[uint64]bool{}
+	}
+	j.ownedEpochs[lease] = true
 	if e.leases == nil {
 		e.leases = map[uint64]bool{}
 	}
@@ -236,6 +239,7 @@ func (s *Service) capturePointBaseline(ctx context.Context, p *schema.Point) {
 	if j.baselineKnown[p.ID] {
 		return
 	}
+	s.captureProjectionEpoch(ctx, p.ID)
 	j.baselineKnown[p.ID] = true
 	lease := runtime.CapturePointLease(p.ID, p.RevisionID)
 	if lease == 0 {

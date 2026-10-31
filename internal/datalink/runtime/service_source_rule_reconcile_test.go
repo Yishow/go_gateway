@@ -44,6 +44,7 @@ func TestService_ReconcileSourceRuleAppliesWorkspaceProjection(t *testing.T) {
 		DeviceIDs:   []string{deviceRecord.ID},
 		Devices:     []*schema.Device{deviceRecord},
 		Points:      []*schema.Point{pointRecord},
+		RuleLinks:   []*schema.SourceRuleLink{{RuleID: "rule-A", PointID: pointRecord.ID}},
 	}
 	svc := &Service{
 		scheduler:      scheduler,
@@ -95,6 +96,7 @@ func TestService_ReconcileSourceRuleTargetsAffectedDeviceAndIsIdempotent(t *test
 		DeviceIDs:   []string{devA.ID, devB.ID},
 		Devices:     []*schema.Device{devA, devB},
 		Points:      []*schema.Point{pointA, pointB},
+		RuleLinks:   []*schema.SourceRuleLink{{RuleID: "rule-A", PointID: pointA.ID}},
 		Mappings: []*schema.Mapping{
 			{ID: "map-A", PointID: pointA.ID, TagID: tagA.ID, TransformPipeline: "[]", Enabled: true},
 			{ID: "map-B", PointID: pointB.ID, TagID: "missing-tag", TransformPipeline: "[]", Enabled: true},
@@ -291,7 +293,8 @@ func TestService_ReconcileSourceRuleUpdateRemovesRemovedPoints(t *testing.T) {
 	fixture.reader.projection.Store(projectionWithoutPointA(fixture.projection))
 
 	outcome := fixture.service.ReconcileSourceRule(ctx, sourcerule.RuntimeReconcileRequest{
-		Operation: sourcerule.RuntimeReconcileOperationUpdate,
+		AffectedPointIDs: []string{"point-A"},
+		Operation:        sourcerule.RuntimeReconcileOperationUpdate,
 		Scope: sourcerule.RuntimeReconcileScope{
 			RuleID:   "rule-A",
 			DeviceID: fixture.device.ID,
@@ -310,7 +313,8 @@ func TestService_ReconcileSourceRuleDeleteRemovesRemovedPoints(t *testing.T) {
 	fixture.reader.projection.Store(projectionWithoutPointA(fixture.projection))
 
 	outcome := fixture.service.ReconcileSourceRule(ctx, sourcerule.RuntimeReconcileRequest{
-		Operation: sourcerule.RuntimeReconcileOperationDelete,
+		AffectedPointIDs: []string{"point-A"},
+		Operation:        sourcerule.RuntimeReconcileOperationDelete,
 		Scope: sourcerule.RuntimeReconcileScope{
 			RuleID:   "rule-A",
 			DeviceID: fixture.device.ID,

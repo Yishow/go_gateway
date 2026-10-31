@@ -44,7 +44,7 @@ func TestSourceProjectionDoesNotOverwriteConcurrentSameRevisionLease(t *testing.
 			reader := &compensationProjectionReader{projection: projection, hook: func() { newer = scheduler.AddPointWithObservationLease(p) }}
 			svc := &Service{scheduler: scheduler, workspace: reader, mappingIndex: map[string][]mappingBinding{}, pointMetaIndex: map[string]pointMeta{p.ID: {DeviceID: d.ID, Address: p.Address}}}
 			svc.running.Store(true)
-			outcome := svc.ReconcileSourceRule(t.Context(), sourcerule.RuntimeReconcileRequest{Operation: sourcerule.RuntimeReconcileOperationUpdate, Scope: sourcerule.RuntimeReconcileScope{RuleID: "rule", DeviceID: d.ID}})
+			outcome := svc.ReconcileSourceRule(t.Context(), sourcerule.RuntimeReconcileRequest{AffectedPointIDs: []string{p.ID}, Operation: sourcerule.RuntimeReconcileOperationUpdate, Scope: sourcerule.RuntimeReconcileScope{RuleID: "rule", DeviceID: d.ID}})
 			require.NotEqual(t, old, newer)
 			require.Equal(t, newer, scheduler.CapturePointLease(p.ID, p.RevisionID))
 			require.Equal(t, sourcerule.RuntimeReconcileStatusStale, outcome.Status)

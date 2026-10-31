@@ -15,14 +15,15 @@ import (
 // sourceRuleSnapshot is the durable state needed to compensate a mutation
 // when the subsequent runtime Share projection cannot be committed.
 type sourceRuleSnapshot struct {
-	rule        *schema.SourceRule
-	links       []*schema.SourceRuleLink
-	snapshots   []*schema.SourceRuleCandidateSnapshot
-	points      map[string]*schema.Point
-	tags        map[string]*schema.Tag
-	mappings    map[string]*schema.Mapping
-	share       *ShareRuntimeSnapshot
-	pointWrites *pointWriteJournal
+	runtimeProjection any
+	rule              *schema.SourceRule
+	links             []*schema.SourceRuleLink
+	snapshots         []*schema.SourceRuleCandidateSnapshot
+	points            map[string]*schema.Point
+	tags              map[string]*schema.Tag
+	mappings          map[string]*schema.Mapping
+	share             *ShareRuntimeSnapshot
+	pointWrites       *pointWriteJournal
 }
 
 func (s *Service) snapshotRule(ctx context.Context, id string) (*sourceRuleSnapshot, error) {
@@ -76,6 +77,7 @@ func (s *Service) snapshotRule(ctx context.Context, id string) (*sourceRuleSnaps
 		}
 		snapshot.share = &shareSnapshot
 	}
+	s.snapshotRuntimeProjection(snapshot)
 	return snapshot, nil
 }
 
@@ -225,6 +227,11 @@ func (s *Service) restoreRuleSnapshot(ctx context.Context, snapshot *sourceRuleS
 	}
 	if len(restoreErrs) == 0 {
 		if err := s.restoreOwnedRuntime(ctx, restoredPoints); err != nil {
+			restoreErrs = append(restoreErrs, err)
+		}
+	}
+	if len(restoreErrs) == 0 {
+		if err := s.restoreRuntimeProjection(ctx, snapshot); err != nil {
 			restoreErrs = append(restoreErrs, err)
 		}
 	}

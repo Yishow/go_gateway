@@ -46,8 +46,12 @@ type RuntimeReconcileScope struct {
 
 // RuntimeReconcileRequest describes a source-rule projection request.
 type RuntimeReconcileRequest struct {
-	Operation RuntimeReconcileOperation `json:"operation"`
-	Scope     RuntimeReconcileScope     `json:"scope"`
+	ProjectionSnapshot any                       `json:"-"`
+	AffectedPointIDs   []string                  `json:"-"`
+	ProjectionProof    *RuntimeProjectionProof   `json:"-"`
+	PointRemoved       func(string, uint64)      `json:"-"`
+	Operation          RuntimeReconcileOperation `json:"operation"`
+	Scope              RuntimeReconcileScope     `json:"scope"`
 	// RuleRevision is the actual mutation input, not an HTTP field.
 	RuleRevision   string                      `json:"-"`
 	PointInstalled func(*schema.Point, uint64) `json:"-"`
@@ -152,6 +156,10 @@ func (s *Service) CreateWithRuntimeReconcile(ctx context.Context, req CreateRule
 	}
 	ctx, release := s.AcquireRuleMutation(ctx, strings.TrimSpace(req.ID))
 	defer release()
+	projectionSnapshot := s.snapshotEmptyRuntimeProjection(req.DeviceID)
+	if projectionSnapshot != nil {
+		ctx = context.WithValue(ctx, sourceProjectionSnapshotKey{}, projectionSnapshot)
+	}
 	rule, err = s.Create(ctx, req)
 	if err != nil {
 		return nil, RuntimeReconcileOutcome{}, err
@@ -164,6 +172,9 @@ func (s *Service) CreateWithRuntimeReconcile(ctx context.Context, req CreateRule
 		}
 		var rollbackErrs []error
 		if rollbackErr := s.Delete(ctx, rule.ID); rollbackErr != nil {
+			return rule, outcome, s.dirtyUnknown(ctx)
+		}
+		if rollbackErr := s.restoreCapturedRuntimeProjection(ctx, projectionSnapshot); rollbackErr != nil {
 			return rule, outcome, s.dirtyUnknown(ctx)
 		}
 
@@ -208,6 +219,7 @@ func (s *Service) UpdateWithRuntimeReconcile(
 	if err != nil {
 		return nil, RuntimeReconcileOutcome{}, err
 	}
+	ctx = withSourceAffectedPoints(ctx, snapshot)
 	rule, err = s.Update(ctx, id, req)
 	if err != nil {
 		// Inner compensation already failed closed. Replaying an unconditional
@@ -245,6 +257,7 @@ func (s *Service) DeleteWithRuntimeReconcile(ctx context.Context, id string) (ou
 	if err != nil {
 		return RuntimeReconcileOutcome{}, err
 	}
+	ctx = withSourceAffectedPoints(ctx, snapshot)
 	rule := snapshot.rule
 	if err := s.Delete(ctx, id); err != nil {
 		var uncertain *modbusshare.Error
@@ -276,6 +289,7 @@ func (s *Service) setEnabledWithRuntimeReconcile(
 	if err != nil {
 		return RuntimeReconcileOutcome{}, err
 	}
+	ctx = withSourceAffectedPoints(ctx, snapshot)
 	rule := snapshot.rule
 	if err := s.setEnabled(ctx, id, enabled); err != nil {
 		var uncertain *modbusshare.Error
@@ -312,7 +326,9 @@ func (s *Service) reconcileSourceRuleRuntime(
 		}
 	}
 
-	req := RuntimeReconcileRequest{Operation: operation, Scope: scope, PointInstalled: func(p *schema.Point, lease uint64) { s.observeRuntimeInstallation(ctx, p, lease) }}
+	req := RuntimeReconcileRequest{Operation: operation, Scope: scope, ProjectionProof: s.sourceProjectionProof(ctx), PointRemoved: func(id string, epoch uint64) { s.observeProjectionRemoval(ctx, id, epoch) }, PointInstalled: func(p *schema.Point, lease uint64) { s.observeRuntimeInstallation(ctx, p, lease) }}
+	req.ProjectionSnapshot = ctx.Value(sourceProjectionSnapshotKey{})
+	req.AffectedPointIDs, _ = ctx.Value(sourceAffectedPointsKey{}).([]string)
 	if len(ruleRevision) == 1 {
 		req.RuleRevision = ruleRevision[0]
 	}

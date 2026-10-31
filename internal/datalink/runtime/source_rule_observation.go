@@ -127,7 +127,7 @@ func sourceObservationAttempt(req sourcerule.RuntimeReconcileRequest, projection
 	case sourcerule.RuntimeReconcileOperationCreate:
 		return len(sourceRuleProjectionPointIDs(projection, req.Scope.RuleID)) > 0
 	case sourcerule.RuntimeReconcileOperationUpdate, sourcerule.RuntimeReconcileOperationDelete, sourcerule.RuntimeReconcileOperationEnable, sourcerule.RuntimeReconcileOperationDisable:
-		return true
+		return len(req.AffectedPointIDs) > 0 || len(sourceRuleProjectionPointIDs(projection, req.Scope.RuleID)) > 0 || (req.ProjectionProof != nil && len(req.ProjectionProof.Points) > 0)
 	default:
 		return false
 	}

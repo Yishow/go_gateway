@@ -3,13 +3,17 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/sourcerule"
 )
 
 type sourceProjectionLeaseKey struct{}
 type sourceProjectionLeaseGuard struct {
 	deviceID string
+	proof    *sourcerule.RuntimeProjectionProof
+	removed  func(string, uint64)
 	expected map[string]uint64
 }
 
@@ -42,7 +46,19 @@ func (s *Service) installProjectionPoint(ctx context.Context, p *schema.Point) (
 	if p.DeviceID != guard.deviceID {
 		return 0, fmt.Errorf("source projection point scope changed")
 	}
-	lease, ok := s.scheduler.InstallPointAtLease(p, guard.expected[p.ID], profile)
+	if !sourceProjectionPointOwned(guard, p) {
+		return 0, fmt.Errorf("source projection point ownership changed")
+	}
+	var lease uint64
+	var ok bool
+	if guard.proof != nil {
+		lease, ok = s.scheduler.ApplyPointMutationReceipt(p, collector.PointMutationLease{PointID: p.ID, Lease: guard.expected[p.ID], Epoch: guard.proof.Epoch}, profile)
+		if ok {
+			guard.proof.Epoch = lease
+		}
+	} else {
+		lease, ok = s.scheduler.InstallPointAtLease(p, guard.expected[p.ID], profile)
+	}
 	if !ok {
 		return 0, fmt.Errorf("source projection installation changed")
 	}
@@ -63,7 +79,19 @@ func (s *Service) stopProjectionPoint(ctx context.Context, id string, keep *sche
 	if guard == nil {
 		s.scheduler.RemovePoint(id)
 	} else {
-		if !s.scheduler.RemovePointAtLease(id, guard.expected[id]) {
+		if guard.proof != nil {
+			proof, owned := guard.proof.Points[id]
+			if !owned || (keep == nil && !proof.Deleted) || (keep != nil && !sourceProjectionPointOwned(guard, keep)) {
+				return fmt.Errorf("source projection removal ownership changed")
+			}
+			if _, ok := s.scheduler.ApplyPointMutationReceipt(&schema.Point{ID: id}, collector.PointMutationLease{PointID: id, Lease: guard.expected[id], Epoch: guard.proof.Epoch}); !ok {
+				return fmt.Errorf("source projection installation changed")
+			}
+			guard.proof.Epoch++
+			if guard.removed != nil {
+				guard.removed(id, guard.proof.Epoch)
+			}
+		} else if !s.scheduler.RemovePointAtLease(id, guard.expected[id]) {
 			return fmt.Errorf("source projection installation changed")
 		}
 		guard.expected[id] = 0

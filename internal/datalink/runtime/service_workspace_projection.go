@@ -226,10 +226,15 @@ func (s *Service) applyWorkspaceProjectionMappingsForPoints(
 
 	s.annotateMappingObservation(ctx, before, next, projection)
 	s.mappingMu.Lock()
+	if err := s.validateSourceProjectionMappings(ctx, pointIDs); err != nil {
+		s.mappingMu.Unlock()
+		return err
+	}
 	for pointID := range pointIDs {
 		delete(s.mappingIndex, pointID)
 	}
 	maps.Copy(s.mappingIndex, next)
+	recordSourceProjectionMappings(ctx, next, pointIDs)
 	s.mappingMu.Unlock()
 	return nil
 }

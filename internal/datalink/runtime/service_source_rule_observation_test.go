@@ -50,6 +50,8 @@ func (r *sourceObservationReader) RuntimeProjection(context.Context) (*workspace
 func newSourceObservationRuntime(t *testing.T) (*Service, *sourceObservationReader, sourcerule.RuntimeReconcileRequest, *[]sourcerule.RuntimeSourceObservation) {
 	t.Helper()
 	r := &sourceObservationReader{record: &workspace.Record{ID: "W", DatabaseSetupRevision: "observed-W2", OrderedDeviceIDs: []string{"D"}}, projection: &workspace.RuntimeProjection{WorkspaceID: "W", Version: "input-fingerprint-not-W2", DeviceIDs: []string{"D"}, Devices: []*schema.Device{{ID: "D", Protocol: schema.ProtocolModbusTCP, Status: schema.DeviceStatusActive, ConnectionConfig: `{"host":"127.0.0.1","port":502,"slave_id":1}`}}, Rules: []*schema.SourceRule{{ID: "R", DeviceID: "D", RevisionID: "source-R3"}}}}
+	r.projection.Points = []*schema.Point{{ID: "P", DeviceID: "D", Enabled: false}}
+	r.projection.RuleLinks = []*schema.SourceRuleLink{{RuleID: "R", PointID: "P"}}
 	seen := []sourcerule.RuntimeSourceObservation{}
 	s := &Service{scheduler: collector.NewScheduler(collector.DefaultSchedulerConfig(), nil), workspace: r, mappingIndex: map[string][]mappingBinding{}, pointMetaIndex: map[string]pointMeta{}, sourceRuleObserver: func(_ context.Context, o sourcerule.RuntimeSourceObservation) { seen = append(seen, o) }}
 	s.running.Store(true)
@@ -165,6 +167,8 @@ func TestSourceObservationAlignedNoOpAndDeferredAreNotApplied(t *testing.T) {
 			switch name {
 			case "zero-point create":
 				req.Operation = sourcerule.RuntimeReconcileOperationCreate
+				r.projection.Points = nil
+				r.projection.RuleLinks = nil
 			case "inactive":
 				r.projection.Devices[0].Status = schema.DeviceStatusDraft
 			case "not running":
@@ -223,6 +227,9 @@ func TestSourceObservationFinalizationRechecksScopeAndInstalledInput(t *testing.
 func TestSourceObservationDeleteUsesOriginalRevisionWithAbsentCurrentRule(t *testing.T) {
 	s, r, req, seen := newSourceObservationRuntime(t)
 	r.projection.Rules = nil
+	r.projection.Points = nil
+	r.projection.RuleLinks = nil
+	req.AffectedPointIDs = []string{"P"}
 	req.Operation = sourcerule.RuntimeReconcileOperationDelete
 	out := s.ReconcileSourceRule(t.Context(), req)
 	s.FinalizeSourceRuleObservation(t.Context(), out, nil)
@@ -247,4 +254,23 @@ func TestSourceObservationCallbackPanicPreservesActualOutcome(t *testing.T) {
 	require.NotPanics(t, func() { s.FinalizeSourceRuleObservation(t.Context(), out, nil) })
 	require.Equal(t, sourcerule.RuntimeReconcileStatusAligned, out.Status)
 	require.True(t, s.sourceInputStillInstalled("D", "input-fingerprint-not-W2"))
+}
+
+func TestSourceObservationEmptyMutationDoesNotBorrowPriorAppliedProjection(t *testing.T) {
+	for _, op := range []sourcerule.RuntimeReconcileOperation{sourcerule.RuntimeReconcileOperationUpdate, sourcerule.RuntimeReconcileOperationEnable, sourcerule.RuntimeReconcileOperationDisable, sourcerule.RuntimeReconcileOperationDelete} {
+		t.Run(string(op), func(t *testing.T) {
+			s, r, req, seen := newSourceObservationRuntime(t)
+			r.projection.Points = nil
+			r.projection.RuleLinks = nil
+			if op == sourcerule.RuntimeReconcileOperationDelete {
+				r.projection.Rules = nil
+			}
+			s.markDeviceProjectionAligned("D", r.projection)
+			req.Operation = op
+			out := s.ReconcileSourceRule(t.Context(), req)
+			s.FinalizeSourceRuleObservation(t.Context(), out, nil)
+			require.Equal(t, sourcerule.RuntimeReconcileStatusAligned, out.Status)
+			require.Equal(t, sourcerule.SourceObservationUnavailable, (*seen)[0].Result)
+		})
+	}
 }
