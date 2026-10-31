@@ -1,3 +1,4 @@
+import { addRecordingTemperature, openNewRecordingDevice } from './recording-editor-test-actions';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,7 +23,7 @@ vi.mock('../../../src/services/studioV2WorkspaceWriteGroups', () => ({ studioV2W
   testWritePreview: vi.fn(), testWrite: vi.fn(), testWriteOperation: vi.fn(), get: vi.fn(),
 } }));
 vi.mock('../../../src/services/studioV2LocatorEntry', () => ({ readStudioLocatorEditorEntry: vi.fn() }));
-vi.mock('../../../src/features/datalink/workbench-v2/recording-home/recordingHomeSources', () => ({ readRecordingHomeSources: async (scope: object) => ({ state: 'unknown', scope }) }));
+vi.mock('../../../src/features/datalink/workbench-v2/recording-home/recordingHomeSources', () => ({ readRecordingHomeSources: async (scope: object) => ({ state: 'available', scope, value: { candidates: [], excluded: [], devices: [] } }) }));
 vi.mock('../../../src/features/datalink/workbench-v2/recording-home/useRecordingHomeFacts', () => ({ useRecordingHomeFacts: () => ({ owners: {}, runtimeGroups: {}, histories: {}, pendingDevices: [], retry: vi.fn() }) }));
 const locator = locatorRead(4);
 function HomeToLocatorHarness() {
@@ -61,8 +62,8 @@ describe('recording device source real owner integration', () => {
     render(<QueryClientProvider client={client}><OwnerHarness /></QueryClientProvider>);
     fireEvent.click(await screen.findByTestId('group-create'));
     fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Keep recording name' } });
-    fireEvent.click(screen.getByTestId('group-member-include-pt-0'));
-    fireEvent.click(screen.getByTestId('recording-source-open'));
+    addRecordingTemperature('picker.add');
+    await openNewRecordingDevice();
     fireEvent.change(screen.getByTestId('recording-source-name'), { target: { value: 'Unsent PLC' } });
     fireEvent.change(screen.getByTestId('input-port'), { target: { value: 'invalid 50x' } });
     expect(screen.getByTestId('input-port')).toHaveValue('invalid 50x');
@@ -72,22 +73,23 @@ describe('recording device source real owner integration', () => {
     expect(studioV2WorkspaceDevicesAPI.create).not.toHaveBeenCalled();
     expect(studioV2WorkspaceDevicesAPI.update).not.toHaveBeenCalled();
     expect(screen.getByTestId('group-name')).toHaveValue('Keep recording name');
-    expect(screen.getByTestId('group-member-include-pt-0')).toBeChecked();
+    expect(screen.getByTestId('group-member-row-pt-0')).toBeInTheDocument();
     vi.mocked(studioV2WorkspaceDevicesAPI.create).mockImplementation(async payload => {
       const saved = deviceFixture({ id: payload.id, name: payload.name, protocol: payload.protocol, connection_config: JSON.stringify(payload.connection_config) });
       vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([existing, saved]);
       studioV2WorkspaceAPI.get.mockResolvedValue({ ...locator.workspace, ordered_device_ids: [existing.id, saved.id] }); return saved;
     });
-    fireEvent.click(screen.getByTestId('recording-source-open'));
+    await openNewRecordingDevice();
     fireEvent.change(screen.getByTestId('recording-source-name'), { target: { value: 'Confirmed PLC' } });
     fireEvent.change(screen.getByTestId('input-host'), { target: { value: '192.0.2.10' } });
     fireEvent.click(screen.getByTestId('recording-source-save'));
     expect(await screen.findByTestId('recording-source-confirmed')).toBeVisible();
     expect(studioV2WorkspaceDevicesAPI.create).toHaveBeenCalledOnce();
     await waitFor(() => expect(screen.getByTestId('persisted-owner-devices')).toHaveTextContent('Confirmed PLC'));
-    fireEvent.click(screen.getByTestId('recording-source-close'));
+    fireEvent.click(screen.getByTestId('recording-range-back'));
+    fireEvent.click(screen.getByRole('button', { name: 'picker.cancel' }));
     expect(screen.getByTestId('group-name')).toHaveValue('Keep recording name');
-    expect(screen.getByTestId('group-member-include-pt-0')).toBeChecked();
+    expect(screen.getByTestId('group-member-row-pt-0')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('group-editor-close'));
     expect(screen.queryByTestId('group-editor')).not.toBeInTheDocument();
     expect(screen.getByTestId('persisted-owner-devices')).toHaveTextContent('Confirmed PLC');
@@ -109,9 +111,9 @@ describe('recording device source real owner integration', () => {
     fireEvent.click(await screen.findByTestId('group-open-G'));
     const name = await screen.findByTestId('group-name');
     fireEvent.change(name, { target: { value: 'Keep precise draft' } });
-    expect(screen.getByTestId('recording-source-open')).toBeEnabled();
+    expect(screen.getByTestId('recording-points-open')).toBeEnabled();
     expect(studioV2WorkspaceAPI.get).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByTestId('recording-source-open'));
+    await openNewRecordingDevice();
     fireEvent.change(await screen.findByTestId('recording-source-name'), { target: { value: 'Locator PLC' } });
     fireEvent.change(screen.getByTestId('input-host'), { target: { value: '192.0.2.20' } });
     vi.mocked(studioV2WorkspaceDevicesAPI.create).mockImplementation(async payload => {
@@ -144,7 +146,9 @@ describe('recording device source real owner integration', () => {
     render(<QueryClientProvider client={client}><LocatorOwnerHarness /></QueryClientProvider>);
     fireEvent.click(await screen.findByTestId('group-open-G'));
     fireEvent.change(await screen.findByTestId('group-name'), { target: { value: 'Keep blocked draft' } });
-    fireEvent.click(screen.getByTestId('recording-source-open'));
+    fireEvent.click(screen.getByTestId('recording-points-open'));
+    fireEvent.click(await screen.findByRole('button', { name: 'picker.newSource' }));
+    fireEvent.click(screen.getByRole('button', { name: 'source.newDevice' }));
     expect(await screen.findByText('device.scopeBlocked')).toBeVisible();
     expect(screen.queryByTestId('recording-source-name')).not.toBeInTheDocument();
     expect(screen.getByTestId('group-name')).toHaveValue('Keep blocked draft');

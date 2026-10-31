@@ -219,7 +219,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
       )}
 
       {editing && editorObserved && (
-        <GroupEditor deviceSource={deviceSource}
+        <GroupEditor deviceSource={deviceSource} sourceDevices={(editorState ?? state).devices.filter(device => device.persisted)}
           key={selection.kind === 'edit' ? selection.id : 'new'}
           group={selected} workspaceId={editorObserved.workspace_id} workspaceRevision={editorObserved.workspace_revision}
           locatorGuard={Boolean(locatorEntry || locatorSuspended)}

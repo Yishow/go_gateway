@@ -1,3 +1,4 @@
+import { addRecordingTemperature, openNewRecordingDevice } from './recording-editor-test-actions';
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -60,8 +61,8 @@ async function openSource(port: DeviceSourcePort) {
   renderSection({ deviceSource: port });
   fireEvent.click(await screen.findByTestId('group-create'));
   fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Unsaved recording name' } });
-  fireEvent.click(screen.getByTestId('group-member-include-pt-0'));
-  fireEvent.click(screen.getByTestId('recording-source-open'));
+  addRecordingTemperature();
+  await openNewRecordingDevice();
 }
 function enterDevice() {
   fireEvent.change(screen.getByTestId('recording-source-name'), { target: { value: 'New PLC' } });
@@ -85,7 +86,7 @@ describe('real recording editor device source consumer', () => {
     fireEvent.click(screen.getByTestId('recording-source-discard'));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(screen.getByTestId('group-name')).toHaveValue('Unsaved recording name');
-    expect(screen.getByTestId('group-member-include-pt-0')).toBeChecked();
+    expect(screen.getByTestId('group-member-row-pt-0')).toBeInTheDocument();
     expect(port.submit).not.toHaveBeenCalled();
     expect(api.create).not.toHaveBeenCalled();
   });
@@ -96,7 +97,8 @@ describe('real recording editor device source consumer', () => {
     expect(await screen.findByTestId('recording-source-confirmed')).toBeVisible();
     expect(port.submit).toHaveBeenCalledTimes(1);
     expect(port.submit.mock.calls[0][0]).toMatchObject({ workspaceId: 'ws-1', generation: 2, buffer: { name: 'New PLC', config: { host: '192.0.2.10', port: 502 } } });
-    fireEvent.click(screen.getByTestId('recording-source-close'));
+    fireEvent.click(screen.getByTestId('recording-range-back'));
+    fireEvent.click(screen.getByRole('button', { name: 'picker.cancel' }));
     expect(screen.getByTestId('group-name')).toHaveValue('Unsaved recording name');
     fireEvent.click(screen.getByTestId('group-editor-close'));
     expect(api.remove).not.toHaveBeenCalled();
@@ -138,8 +140,7 @@ describe('source retained-operation recovery consumer', () => {
     port.inspect.mockResolvedValue({ request, status: 'unknown' });
     renderSection({ deviceSource: port });
     fireEvent.click(await screen.findByTestId('group-create'));
-    expect(screen.getByTestId('recording-source-open')).toBeDisabled();
-    fireEvent.click(screen.getByTestId('recording-source-recover-exact-request'));
+    await openNewRecordingDevice();
     expect(screen.getByTestId('recording-source-name')).toHaveValue('Unresolved PLC');
     fireEvent.click(screen.getByTestId('recording-source-inspect'));
     await waitFor(() => expect(port.inspect).toHaveBeenCalledWith('exact-request'));
@@ -173,8 +174,8 @@ describe('saved-but-unavailable source and next explicit device', () => {
     const port = sourcePort(); port.submit.mockImplementation(async request => confirmed(request));
     await openSource(port); enterDevice(); fireEvent.click(screen.getByTestId('recording-source-save'));
     await screen.findByTestId('recording-source-confirmed');
-    fireEvent.click(screen.getByTestId('recording-source-close'));
-    fireEvent.click(screen.getByTestId('recording-source-open'));
+    fireEvent.click(screen.getByTestId('recording-range-back'));
+    await openNewRecordingDevice();
     expect(screen.getByTestId('recording-source-name')).toHaveValue('');
     expect(port.submit).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('group-name')).toHaveValue('Unsaved recording name');

@@ -1,5 +1,8 @@
 import type { DeviceSourcePort } from '../../../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
-import { RecordingDeviceSourceSetup } from '../../../recording-editor/RecordingDeviceSourceSetup';
+import { RecordingPointSelection } from '../../../recording-editor/RecordingPointSelection';
+import { RecordingSelectedMembers } from '../../../recording-editor/RecordingSelectedMembers';
+import type { RecordingPickerDiscovery } from '../../../recording-editor/useRecordingPickerDiscovery';
+import { readRecordingHomeSources } from '../../../recording-home/recordingHomeSources';
 import type { StudioV2LocatorReadScope } from '../../../../../../services/studioV2WorkspaceDatabase';
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -39,6 +42,7 @@ import { GroupTestWritePanel } from './GroupTestWritePanel';
 
 export interface GroupEditorProps {
   deviceSource?: DeviceSourcePort;
+  sourceDevices?: readonly { id: string; name: string }[];
   locatorScope?: StudioV2LocatorReadScope;
   /** Denial-only incoming navigation fence; never a read scope or write permission. */
   locatorGuard?: boolean;
@@ -113,9 +117,13 @@ type GroupEditorContentProps = GroupEditorProps & {
 };
 
 const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
-  deviceSource, group: propGroup, workspaceId, workspaceRevision, connector, candidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard,
+  deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const { t: editorText } = useTranslation('recording-editor');
+  const pickerScope = JSON.stringify([workspaceId, workspaceRevision, propGroup?.id ?? 'new', propGroup?.revision]);
+  const [observedSources, setObservedSources] = useState<{ scope: string; value: RecordingPickerDiscovery }>();
+  const candidates = useMemo(() => observedSources?.scope === pickerScope ? [...observedSources.value.candidates] : suppliedCandidates, [observedSources, pickerScope, suppliedCandidates]);
   const readonly = operatorReadonly || editorReadonly || propGroup?.status === 'deleted';
   const saved = destinationSaved(connector);
   const isMySQL = String(connector.kind).toLowerCase() === 'mysql';
@@ -327,16 +335,24 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
 
       <GroupPolicyFields draft={draft} readonly={readonly} profile={profile} onChange={set} onDedupe={(capability) => { customDedupeRef.current = capability; set({ dedupe_capability: capability }); }} />
 
-      {deviceSource && <RecordingDeviceSourceSetup key={workspaceId} workspaceId={workspaceId} port={deviceSource} disabled={readonly} />}
-
       {profile ? <GroupProfileMembers draft={draft} candidates={candidates} locatorScope={locatorScope} workspaceId={workspaceId} readonly={readonly} /> : (
         <>
-        <GroupMemberTable
-          managed={draft.storage_strategy === 'managed'} dialect={dialect}
+        {deviceSource ? <RecordingPointSelection key={pickerScope} scope={pickerScope} workspaceId={workspaceId} candidates={candidates}
+          members={draft.members} devices={sourceDevices} disabled={readonly} deviceSource={deviceSource} onChange={members => set({ members })}
+          onDiscovery={setObservedSources} discover={locatorScope ? async () => {
+            const read = await readRecordingHomeSources({ workspaceId, workspaceRevision, epoch: 0 });
+            if (read.state !== 'available') throw new Error('Source observation unavailable');
+            return { candidates: read.value.candidates, devices: read.value.devices };
+          } : undefined}
+          renderMembers={actions => <RecordingSelectedMembers {...actions} managed={draft.storage_strategy === 'managed'} dialect={dialect}
+            candidates={candidates} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
+            suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly}
+            onChange={members => set({ members })} labels={{ remove: member => editorText('picker.removeMember', { point: member.point_id }),
+              unavailable: editorText('picker.unavailable'), undo: editorText('picker.undo') }} />} /> :
+        <GroupMemberTable managed={draft.storage_strategy === 'managed'} dialect={dialect}
           candidates={candidates} excluded={excluded} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
           suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly}
-          onChange={(members) => set({ members })}
-        />
+          onChange={(members) => set({ members })} />}
         <GroupColumnProposal
           dialect={dialect}
           managed={draft.storage_strategy === 'managed'}

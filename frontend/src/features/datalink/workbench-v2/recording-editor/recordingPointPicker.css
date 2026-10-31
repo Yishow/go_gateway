@@ -21,3 +21,14 @@
   .recording-point-picker__toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .recording-point-picker__search { grid-column: 1 / -1; }
 }
+
+/* Feature-local layout: one shell, one scroll body, count/actions in one footer. */
+.gw-modal .recording-picker-panel { grid-row: 2 / -1; overflow: hidden; display: flex; flex-direction: column; }
+.recording-source-panel { display: contents; }
+.recording-source-panel[hidden] { display: none; }
+.recording-selected-members { color: var(--gw-text); background: var(--gw-surface); }
+.recording-selected-members [class*='text-slate'] { color: var(--gw-text); }
+.recording-selected-members [class*='bg-slate'] { background: var(--gw-surface); }
+.recording-selected-members [class*='border-slate'], .recording-selected-members tbody tr { border-color: var(--gw-border); }
+.recording-selected-members :is(input, select, button) { min-height: var(--gw-control-height); color: var(--gw-text); background: var(--gw-surface); border-color: var(--gw-control); }
+.recording-selected-members :is(input, select, button):focus-visible { outline: var(--gw-focus-width) solid var(--gw-focus); outline-offset: var(--gw-focus-offset); }
