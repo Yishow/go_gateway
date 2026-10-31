@@ -15,7 +15,12 @@ func (s *Service) syncPoints(ctx context.Context, points []*schema.Point) {
 		if runtime, ok := s.runtimeSync.(pointInstallationOwner); ok {
 			if journal := s.pointJournal(ctx); journal != nil {
 				if e := journal.points[pointRecord.ID]; e != nil {
-					if !pointRecord.Enabled {
+					required, scopeErr := s.pointRuntimeRequired(ctx, pointRecord)
+					if scopeErr != nil {
+						journal.runtimeUncertain = true
+						continue
+					}
+					if !required {
 						if !s.removeOwnedPointRuntime(ctx, pointRecord.ID) {
 							journal.runtimeUncertain = true
 						}
