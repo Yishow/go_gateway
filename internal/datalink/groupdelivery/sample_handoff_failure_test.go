@@ -1,6 +1,7 @@
 package groupdelivery
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"go-gateway/internal/datalink"
@@ -235,7 +236,7 @@ func TestHandoffPrematureFinalizedStateCannotReleaseOpenTarget(t *testing.T) {
 	rs, err := outgoingHandoffs(t.Context(), store.DB(), 1)
 	require.NoError(t, err)
 	require.Len(t, rs, 1)
-	require.NoError(t, store.inTx(t.Context(), "test corruption", func(tx *sql.Tx) error {
+	require.NoError(t, store.inTx(t.Context(), "test corruption", func(ctx context.Context, tx *sql.Tx) error {
 		r := rs[0]
 		r.State = "finalized"
 		return writeHandoffReceipt(t.Context(), tx, r)

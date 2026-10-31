@@ -93,7 +93,7 @@ func (s *Store) commitMixedClosure(ctx context.Context, key GroupKey, c Closure)
 		return err
 	}
 	closureDigest := handoffHash(string(rawClosure))
-	err = s.inTx(ctx, "mixed-closure", func(tx *sql.Tx) error {
+	err = s.inTx(ctx, "mixed-closure", func(ctx context.Context, tx *sql.Tx) error {
 		d, digest, err := readMixedDescriptor(ctx, tx, key)
 		if err != nil {
 			return err

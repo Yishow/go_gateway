@@ -114,7 +114,7 @@ func (s *Store) PrepareCutoverHandoffs(ctx context.Context, source GroupKey, aft
 		var states []string
 		var semanticErr error
 		var participants, replayParticipants []GroupKey
-		err = s.inTx(ctx, "handoff", func(tx *sql.Tx) error {
+		err = s.inTx(ctx, "handoff", func(ctx context.Context, tx *sql.Tx) error {
 			var e error
 			states, semanticErr, e = s.prepareHandoffInTx(ctx, tx, source, seq)
 			if e != nil {

@@ -85,7 +85,7 @@ func (s *Store) ResolveAttention(ctx context.Context, workspaceID, groupID strin
 		return nil, ErrInvalidDecision
 	}
 	result := &DecisionResult{DecisionID: d.DecisionID, EffectKey: d.EffectKey}
-	err := s.inTx(ctx, "operator delivery resolution", func(tx *sql.Tx) error {
+	err := s.inTx(ctx, "operator delivery resolution", func(ctx context.Context, tx *sql.Tx) error {
 		item, err := scanOutbox(tx.QueryRowContext(ctx, `SELECT `+outboxColumns+` FROM wg_delivery_outbox WHERE effect_key=? AND workspace_id=? AND group_id=?`, d.EffectKey, workspaceID, groupID))
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrOutboxItemNotFound

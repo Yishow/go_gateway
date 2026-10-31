@@ -212,7 +212,7 @@ func (s *Store) fencedOrMissing(ctx context.Context, claim Claim) error {
 // sql_committed and a local receipt is written in the same transaction.
 func (s *Store) CompleteDelivery(ctx context.Context, claim Claim, payloadDigest string) error {
 	before := s.prepareDeliveryObservation(ctx, claim.EffectKey)
-	err := s.inTx(ctx, "delivery receipt", func(tx *sql.Tx) error {
+	err := s.inTx(ctx, "delivery receipt", func(ctx context.Context, tx *sql.Tx) error {
 		now := timestamp(s.now())
 		result, err := tx.ExecContext(ctx, `
 			UPDATE wg_delivery_outbox

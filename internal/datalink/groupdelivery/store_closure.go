@@ -82,7 +82,7 @@ func (s *Store) CommitClosure(ctx context.Context, key GroupKey, closure Closure
 	if err != nil {
 		return err
 	}
-	err = s.inTx(ctx, "closure", func(tx *sql.Tx) error {
+	err = s.inTx(ctx, "closure", func(ctx context.Context, tx *sql.Tx) error {
 		if err := refuseMixedLegacyCursor(ctx, tx, key); err != nil {
 			return err
 		}

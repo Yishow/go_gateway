@@ -51,7 +51,7 @@ func (s *Store) VerifyCounterDuplicate(ctx context.Context, key GroupKey, sample
 	if err != nil {
 		return err
 	}
-	return s.inTx(ctx, "counter duplicate", func(tx *sql.Tx) error {
+	return s.inTx(ctx, "counter duplicate", func(ctx context.Context, tx *sql.Tx) error {
 		if err := refuseOrdinaryHandoffAppend(ctx, tx, key, sample); err != nil {
 			return err
 		}

@@ -48,7 +48,7 @@ func (s *Store) AssociateLegacyCounterProofs(ctx context.Context, key GroupKey, 
 		}
 		references[member] = ref
 	}
-	return s.inTx(ctx, "legacy counter proof", func(tx *sql.Tx) error {
+	return s.inTx(ctx, "legacy counter proof", func(ctx context.Context, tx *sql.Tx) error {
 		samples, err := readLegacyAcceptedSet(ctx, tx, key)
 		if err != nil {
 			return err

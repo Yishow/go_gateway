@@ -60,7 +60,7 @@ func (s *Store) AppendSample(ctx context.Context, key GroupKey, bucketStart time
 		return err
 	}
 	inserted := false
-	err = s.inTx(ctx, "journal", func(tx *sql.Tx) error {
+	err = s.inTx(ctx, "journal", func(ctx context.Context, tx *sql.Tx) error {
 		if err := refuseOrdinaryHandoffAppend(ctx, tx, key, sample); err != nil {
 			return err
 		}

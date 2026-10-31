@@ -240,7 +240,7 @@ func diskFullError(used int64) *QuotaError {
 func (s *Store) Reclaim(ctx context.Context, retention time.Duration) (int64, error) {
 	cutoff := timestamp(s.now().Add(-retention))
 	var removed int64
-	err := s.inTx(ctx, "reclaim", func(tx *sql.Tx) error {
+	err := s.inTx(ctx, "reclaim", func(ctx context.Context, tx *sql.Tx) error {
 		if err := compactHandoffs(ctx, tx); err != nil {
 			return err
 		}

@@ -1,6 +1,7 @@
 package groupdelivery
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"sort"
@@ -37,7 +38,7 @@ func TestHandoffParticipantsAcceptedRetryAndFinalized(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, store.CommitClosure(t.Context(), otherKey, Closure{OwnershipView: restored.OwnershipView, HandoffView: restored.HandoffView, Destination: testDestination, NextClose: at(30)}))
 	// Exercise the finalized receipt before normal GC deletes its source row.
-	require.NoError(t, store.inTx(t.Context(), "test-compact", func(tx *sql.Tx) error { return compactHandoffs(t.Context(), tx) }))
+	require.NoError(t, store.inTx(t.Context(), "test-compact", func(ctx context.Context, tx *sql.Tx) error { return compactHandoffs(t.Context(), tx) }))
 	batch, err := store.PrepareCutoverHandoffs(t.Context(), testKey, 0, 128)
 	require.NoError(t, err)
 	require.Equal(t, sortedParticipants(testKey, otherKey), batch.Participants)

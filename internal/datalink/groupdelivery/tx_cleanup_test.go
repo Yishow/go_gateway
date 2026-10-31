@@ -1,6 +1,7 @@
 package groupdelivery
 
 import (
+	"context"
 	"database/sql"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -20,9 +21,14 @@ func TestStoreBusyCommitCleansOwnedConnectionBeforeReuse(t *testing.T) {
 	var value int
 	require.NoError(t, held.QueryRow(`SELECT value FROM tx_probe`).Scan(&value))
 	require.Equal(t, 1, value)
-	err = store.inTx(t.Context(), "busy-test", func(tx *sql.Tx) error { _, err := tx.Exec(`UPDATE tx_probe SET value=2`); return err })
+	err = store.inTx(t.Context(), "busy-test", func(ctx context.Context, tx *sql.Tx) error {
+		_, err := tx.Exec(`UPDATE tx_probe SET value=2`)
+		return err
+	})
 	require.Error(t, err, "read lock must make DELETE-journal COMMIT busy")
 	require.NoError(t, held.Rollback())
-	require.NoError(t, store.inTx(t.Context(), "after-busy", func(tx *sql.Tx) error { return tx.QueryRow(`SELECT value FROM tx_probe`).Scan(&value) }), "failed commit must not return an active native transaction to the pool")
+	require.NoError(t, store.inTx(t.Context(), "after-busy", func(ctx context.Context, tx *sql.Tx) error {
+		return tx.QueryRow(`SELECT value FROM tx_probe`).Scan(&value)
+	}), "failed commit must not return an active native transaction to the pool")
 	require.Equal(t, 1, value, "unacknowledged busy transaction was rolled back, not guessed committed")
 }
