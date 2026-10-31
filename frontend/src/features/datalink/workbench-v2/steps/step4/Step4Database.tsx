@@ -1,3 +1,4 @@
+import type { DeviceSourcePort } from '../../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { markReturnRegion } from '@/utils/returnFocus';
 import type { StudioLocatorEntryRead } from '../../../../../types/studioV2LocatorEntry';
 import { useRuntimeRuleEvidence } from '../../../../../hooks/datalink/useRuntimeRuleEvidence';
@@ -42,6 +43,7 @@ import type { WorkspaceReadinessStepNumber } from '../../components/WorkspaceRea
 import type { ModbusShareStatus } from '../../../../../types/modbusShare';
 
 interface Step4DatabaseProps {
+  deviceSource?: DeviceSourcePort;
   locatorEntry?: StudioLocatorEntryRead;
   locatorOnly?: boolean;
   locatorSuspended?: boolean;
@@ -68,7 +70,7 @@ export { useStep4Readonly };
  * 落地設計決策：「拆檔策略：8 個元件 + 3 個 state module」 與 「Commit log 序列：純函式 + reducer 串聯」
  */
 function Step4DatabaseContent({
-  state,
+  deviceSource, state,
   dispatch,
   workspaceId,
   onCommit,
@@ -262,7 +264,7 @@ function Step4DatabaseContent({
         <summary className="cursor-pointer text-sm font-semibold text-slate-200">{guidedT('management.advancedTitle')}</summary>
         <div className="space-y-6 pt-2">
           <p data-testid="recording-workspace-status-note" className="text-xs text-slate-400">{guidedT('management.workspaceStatus')}</p>
-          <WriteGroupSection
+          <WriteGroupSection deviceSource={deviceSource}
             locatorEntry={locatorEntry} locatorSuspended={locatorSuspended} onEditorMountedChange={onLocatorEditorMountedChange}
             state={state}
             workspaceId={workspaceId}
@@ -300,7 +302,7 @@ function Step4DatabaseContent({
 /** Step 4 以 React Query 讀取實際欄位；沒有 QueryClient 的嵌入情境使用備援 client。 */
 export function Step4Database(props: Step4DatabaseProps) {
   return <SafeQueryBoundary>{props.locatorOnly && props.locatorEntry
-    ? <WriteGroupSection state={props.state} workspaceId={props.workspaceId} readonly={false}
+    ? <WriteGroupSection deviceSource={props.deviceSource} state={props.state} workspaceId={props.workspaceId} readonly={false}
         locatorEntry={props.locatorEntry} locatorSuspended={props.locatorSuspended} onEditorMountedChange={props.onLocatorEditorMountedChange} locatorOnly />
     : <Step4DatabaseContent {...props} />}</SafeQueryBoundary>;
 }

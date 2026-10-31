@@ -24,6 +24,8 @@ export interface ConnectionConfigFormProps {
   config: Record<string, unknown>;
   /** 當設定值變更時觸發的 callback 函數 */
   onChange: (patch: Record<string, unknown>) => void;
+  /** Source-local unsent buffers retain invalid numeric text until explicit submit. */
+  rawNumericText?: boolean;
 }
 
 /**
@@ -36,6 +38,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
   protocol,
   config,
   onChange,
+  rawNumericText = false,
 }) => {
   const { t } = useTranslation('workbench-v2');
 
@@ -57,7 +60,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
     const stationValue = (config.station_no as number) ?? (config.station as number) ?? (config.slave_id as number) ?? '';
 
     const handleStationChange = (val: string | number) => {
-      const num = val === '' ? '' : Number(val);
+      const num = rawNumericText ? String(val) : val === '' ? '' : Number(val);
       if (isStation) {
         onChange({ station: num, station_no: num, slave_id: num });
       } else {
@@ -79,9 +82,10 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
 
         <Field label={t('step1.fields.port')} required>
           <Input
-            type="number"
+            type={rawNumericText ? "text" : "number"}
+            inputMode={rawNumericText ? "decimal" : undefined}
             value={(config.port as number) ?? ''}
-            onChange={(e) => handleChange('port', e.target.value === '' ? '' : Number(e.target.value))}
+            onChange={(e) => handleChange('port', rawNumericText ? e.target.value : e.target.value === '' ? '' : Number(e.target.value))}
             placeholder={protocol === 'mc_3e' ? '6000' : protocol === 'fatek_fbs' ? '500' : '502'}
             data-testid="input-port"
           />
@@ -89,7 +93,8 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
 
         <Field label={isStation ? t('step1.fields.station', '站號') : t('step1.fields.slave_id', '從站 ID')} required>
           <Input
-            type="number"
+            type={rawNumericText ? "text" : "number"}
+            inputMode={rawNumericText ? "decimal" : undefined}
             value={stationValue}
             onChange={(e) => handleStationChange(e.target.value)}
             placeholder={protocol === 'mc_3e' ? '0' : '1'}
@@ -99,9 +104,10 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
 
         <Field label={t('step1.fields.timeout')} required hint={t('step1.fields.timeout_hint')}>
           <Input
-            type="number"
+            type={rawNumericText ? "text" : "number"}
+            inputMode={rawNumericText ? "decimal" : undefined}
             value={(config.timeout as number) ?? ''}
-            onChange={(e) => handleChange('timeout', e.target.value === '' ? '' : Number(e.target.value))}
+            onChange={(e) => handleChange('timeout', rawNumericText ? e.target.value : e.target.value === '' ? '' : Number(e.target.value))}
             placeholder="5"
             data-testid="input-timeout"
           />
@@ -154,9 +160,10 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
 
         <Field label={t('step1.fields.slave_id')} required>
           <Input
-            type="number"
+            type={rawNumericText ? "text" : "number"}
+            inputMode={rawNumericText ? "decimal" : undefined}
             value={(config.slave_id as number) ?? ''}
-            onChange={(e) => handleChange('slave_id', e.target.value === '' ? '' : Number(e.target.value))}
+            onChange={(e) => handleChange('slave_id', rawNumericText ? e.target.value : e.target.value === '' ? '' : Number(e.target.value))}
             placeholder="1"
             data-testid="input-rtu-slave-id"
           />

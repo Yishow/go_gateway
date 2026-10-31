@@ -1,3 +1,6 @@
+import type { DeviceSourceRequest } from './deviceSourceSubmission';
+import { useLocatorDeviceSourceLease } from './useLocatorDeviceSourceLease';
+import { useDeviceSourceSubmission } from './useDeviceSourceSubmission';
 import type { StudioLocatorEntryRead } from '../../../types/studioV2LocatorEntry';
 import { useStudioV2LocatorHydration } from './studioV2LocatorHydration';
 import * as React from 'react';
@@ -103,6 +106,7 @@ export function useStudioV2AutosaveState(
   locatorEntry?: StudioLocatorEntryRead,
   locatorEditorMounted = false,
   persistedMCWorkspaceScope?: PersistedMCWorkspaceScope,
+  sourceWorkspaceId?: string,
 ) {
   const { t } = useTranslation('workbench-v2');
   const actions = useWorkbenchV2State();
@@ -294,6 +298,16 @@ export function useStudioV2AutosaveState(
     });
   }, [actions]);
 
+  const sourceLease = useLocatorDeviceSourceLease(locatorEntry, sourceWorkspaceId, locatorHydration.ready);
+  const queueDeviceRef = React.useRef<(id: string) => void>(() => undefined);
+  const deviceSubmission = useDeviceSourceSubmission({ workspaceId: sourceWorkspaceId, enabled: locatorEntry ? locatorHydration.ready : enabled && workspaceHydrated,
+    canSubmit: () => !locatorEntry || sourceLease.allowed,
+    stateRef, apply: action => { stateRef.current = workbenchV2Reducer(stateRef.current, action); actions.dispatch(action); },
+    busy: id => Boolean(saveMetaRef.current[id]?.inFlight || saveMetaRef.current[id]?.pending), queue: id => queueDeviceRef.current(id),
+    resume: id => { if (saveMetaRef.current[id]?.pending) { saveMetaRef.current[id].pending = false; queueDeviceRef.current(id); } },
+    readback: async () => { if (locatorEntry) return sourceLease.readback(); const result = await devicesQuery.refetch(); return result.isError ? undefined : result.data; },
+  });
+
   const flushDeviceSave = React.useCallback(async (deviceId: string) => {
     const meta = saveMetaFor(saveMetaRef.current, deviceId);
     const currentDevice = stateRef.current.devices.find((device) => device.id === deviceId);
@@ -345,6 +359,12 @@ export function useStudioV2AutosaveState(
         })
         : await createDeviceMutation.mutateAsync(toStudioV2DeviceCreateRequest(currentDevice));
 
+      const observed = await deviceSubmission.acknowledge(deviceId, savedDevice);
+      if (!deviceSubmission.canPublish(deviceId)) return;
+      if (observed && savedDevice.id !== deviceId) {
+        applyDevicePatch(deviceId, { save_state: 'save-error', save_error: t('errors.autosave_failed') });
+        return;
+      }
       const latestDevice = stateRef.current.devices.find((device) => device.id === deviceId);
       if (latestDevice) {
         const runtimeApplyFailed = savedDevice.runtime_apply_status === 'apply_failed';
@@ -355,7 +375,7 @@ export function useStudioV2AutosaveState(
           protocol: latestDevice.protocol,
           persisted: true,
           status: savedDevice.status === 'active' ? 'active' : latestDevice.status,
-          save_state: runtimeApplyFailed ? 'save-error' : 'saved',
+          save_state: runtimeApplyFailed || observed?.status === 'unknown' ? 'save-error' : 'saved',
           save_error: runtimeApplyFailed ? savedDevice.runtime_apply_message ?? '執行中設定套用失敗' : null,
           runtime_apply_status: savedDevice.runtime_apply_status,
           runtime_apply_message: savedDevice.runtime_apply_message ?? null,
@@ -365,33 +385,38 @@ export function useStudioV2AutosaveState(
         });
       }
     } catch (error) {
+      deviceSubmission.failed(deviceId);
+      if (!deviceSubmission.canPublish(deviceId)) return;
       applyDevicePatch(deviceId, {
         save_state: 'save-error',
         save_error: errorMessageOf(error, t('errors.autosave_failed')),
       });
     } finally {
       meta.inFlight = false;
-      if (meta.pending) {
+      if (meta.pending && deviceSubmission.canWrite(deviceId)) {
         meta.pending = false;
         void flushDeviceSave(deviceId);
       }
     }
-  }, [applyDevicePatch, createDeviceMutation, t, updateAvailabilityMutation, updateDeviceMutation]);
+  }, [applyDevicePatch, createDeviceMutation, deviceSubmission, t, updateAvailabilityMutation, updateDeviceMutation]);
 
   const queueDeviceSave = React.useCallback((deviceId: string) => {
     const meta = saveMetaFor(saveMetaRef.current, deviceId);
+    if (!deviceSubmission.canWrite(deviceId)) { meta.pending = true; return; }
     if (meta.inFlight) {
       meta.pending = true;
       return;
     }
 
     void flushDeviceSave(deviceId);
-  }, [flushDeviceSave]);
+  }, [deviceSubmission, flushDeviceSave]);
+  queueDeviceRef.current = queueDeviceSave;
 
   const dispatch = React.useCallback((action: WorkbenchV2Action) => {
     const previousState = stateRef.current;
 
     if (action.type === 'removeDevice') {
+      if (deviceSubmission.hasUnresolved(action.deviceId)) return;
       const targetDevice = previousState.devices.find((device) => device.id === action.deviceId);
       if (!targetDevice) {
         return;
@@ -450,13 +475,17 @@ export function useStudioV2AutosaveState(
     ruleAutosave.afterRuleAction(action);
     mappingAutosave.afterMappingAction(previousState, action, nextState);
     databaseAutosave.afterDatabaseAction(action, nextState);
-  }, [actions, applyDevicePatch, databaseAutosave, deleteDeviceMutation, mappingAutosave, queueDeviceSave, ruleAutosave, t, workspaceHydrated]);
+  }, [actions, applyDevicePatch, databaseAutosave, deleteDeviceMutation, deviceSubmission, mappingAutosave, queueDeviceSave, ruleAutosave, t, workspaceHydrated]);
 
   return {
     actions: {
       ...actions,
       dispatch,
     },
+    deviceSource: locatorEntry ? { ...deviceSubmission.port,
+      prepare: async (id: string) => id === sourceWorkspaceId && (sourceLease.allowed ? Boolean(await sourceLease.readback()) : await sourceLease.acquire(id)),
+      submit: async (request: DeviceSourceRequest) => sourceLease.allowed && await sourceLease.readback() ? deviceSubmission.port.submit(request) : { request, status: 'blocked' as const },
+    } : deviceSubmission.port,
     databaseConfigQuery: databaseAutosave.databaseConfigQuery,
     databaseTargetsQuery: databaseAutosave.databaseTargetsQuery,
     devicesQuery,

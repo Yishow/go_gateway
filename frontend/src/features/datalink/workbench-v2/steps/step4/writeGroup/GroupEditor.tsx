@@ -1,3 +1,5 @@
+import type { DeviceSourcePort } from '../../../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
+import { RecordingDeviceSourceSetup } from '../../../recording-editor/RecordingDeviceSourceSetup';
 import type { StudioV2LocatorReadScope } from '../../../../../../services/studioV2WorkspaceDatabase';
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -36,6 +38,7 @@ import { GroupSchemaPanel } from './GroupSchemaPanel';
 import { GroupTestWritePanel } from './GroupTestWritePanel';
 
 export interface GroupEditorProps {
+  deviceSource?: DeviceSourcePort;
   locatorScope?: StudioV2LocatorReadScope;
   /** Denial-only incoming navigation fence; never a read scope or write permission. */
   locatorGuard?: boolean;
@@ -110,7 +113,7 @@ type GroupEditorContentProps = GroupEditorProps & {
 };
 
 const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
-  group: propGroup, workspaceId, workspaceRevision, connector, candidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard,
+  deviceSource, group: propGroup, workspaceId, workspaceRevision, connector, candidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const readonly = operatorReadonly || editorReadonly || propGroup?.status === 'deleted';
@@ -323,6 +326,8 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       <GroupIdentityFields draft={draft} readonly={readonly} locked={profile} onChange={set} onStorageStrategy={changeStorageStrategy} />
 
       <GroupPolicyFields draft={draft} readonly={readonly} profile={profile} onChange={set} onDedupe={(capability) => { customDedupeRef.current = capability; set({ dedupe_capability: capability }); }} />
+
+      {deviceSource && <RecordingDeviceSourceSetup key={workspaceId} workspaceId={workspaceId} port={deviceSource} disabled={readonly} />}
 
       {profile ? <GroupProfileMembers draft={draft} candidates={candidates} locatorScope={locatorScope} workspaceId={workspaceId} readonly={readonly} /> : (
         <>

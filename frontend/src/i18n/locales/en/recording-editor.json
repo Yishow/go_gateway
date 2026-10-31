@@ -1,0 +1,33 @@
+{
+  "device": {
+    "open": "Add source",
+    "resume": "Continue source setup",
+    "title": "Add a device",
+    "description": "Save this shared source separately. Your recording remains unchanged.",
+    "name": "Device name",
+    "protocol": "Protocol",
+    "unsupported": "Not available",
+    "scopeNote": "This saves connection settings only. It does not test the device, create points, or start recording.",
+    "discardTitle": "Discard unsent changes?",
+    "discardDescription": "Only these unsent fields will be discarded. Saved sources and your recording stay unchanged.",
+    "keep": "Keep editing",
+    "discard": "Discard unsent changes",
+    "save": "Save device",
+    "saveChanges": "Save device changes",
+    "cancel": "Cancel",
+    "close": "Close",
+    "pending": "Saving this device. Closing this view will not cancel the request.",
+    "unresolved": "A source request is unresolved. Check it before sending another.",
+    "inspect": "Check this request",
+    "confirmed": "{{name}} is saved. Points have not been created; recording has not started.",
+    "newer": "The submitted settings are saved. Your newer edits are still unsaved.",
+    "unknown": "The outcome is unknown. Your input is kept; do not create a replacement device.",
+    "failed": "The submitted settings were not saved. Review the values and try again.",
+    "blocked": "This source cannot be changed in the current context. Keep your input and return to an editable workspace.",
+    "persisted-unavailable": "Settings were saved, but runtime application was not confirmed. Check the device before continuing.",
+    "invalid": "Complete the required fields and correct invalid values before saving.",
+    "recover": "Check unresolved source: {{name}}",
+    "checkingScope": "Checking the current workspace…",
+    "scopeBlocked": "The current workspace or revision could not be verified. Your recording draft is unchanged. Reload its current scope before retrying."
+  }
+}

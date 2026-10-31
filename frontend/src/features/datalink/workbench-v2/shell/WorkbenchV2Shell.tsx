@@ -1,3 +1,4 @@
+import type { DeviceSourcePort } from '../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import type { StudioLocatorEntryRead } from '../../../../types/studioV2LocatorEntry';
 import { StudioLocatorEntryNotice } from './StudioLocatorEntryNotice';
 import * as React from 'react';
@@ -38,6 +39,7 @@ import { Step4Database } from '../steps/step4';
 import { isStep2Ready } from '../state/sourceRule';
 import type { ModbusShareStatus } from '../../../../types/modbusShare';
 export interface WorkbenchV2ShellProps {
+  deviceSource?: DeviceSourcePort;
   state: WorkbenchV2State;
   locatorEntry?: StudioLocatorEntryRead;
   locatorOnly?: boolean;
@@ -65,7 +67,7 @@ export interface WorkbenchV2RuntimeReturnFocus {
  * 組合所有子佈局區塊，並管理鍵盤捷徑及步驟渲染切換。
  */
 export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
-  state,
+  deviceSource, state,
   workspaceId,
   actions,
   navigateTo,
@@ -244,7 +246,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
         );
       case 4:
         return (
-          <Step4Database
+          <Step4Database deviceSource={deviceSource}
             locatorEntry={locatorEntry} locatorOnly={locatorOnly} locatorSuspended={locatorSuspended} onLocatorEditorMountedChange={onLocatorEditorMountedChange}
             state={state}
             dispatch={actions.dispatch}

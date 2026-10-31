@@ -1,3 +1,4 @@
+import type { DeviceSourcePort } from '../../../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { readStudioLocatorEditorEntry } from '../../../../../../services/studioV2LocatorEntry';
 import { studioV2LocatorHydration } from '../../../../../../pages/datalink/workbench-v2/studioV2LocatorHydration';
 import type { StudioLocatorEntryRead } from '../../../../../../types/studioV2LocatorEntry';
@@ -15,6 +16,7 @@ import { SavedRecordingCard } from '../SavedRecordingCard';
 import type { SavedRecordingActionHost } from './lifecycle/SavedRecordingActions';
 
 export interface WriteGroupSectionProps {
+  deviceSource?: DeviceSourcePort;
   locatorEntry?: StudioLocatorEntryRead;
   locatorOnly?: boolean;
   locatorSuspended?: boolean;
@@ -38,7 +40,7 @@ type Prerequisite = 'device' | 'tags' | 'destination' | null;
  * workspace and says what is missing before anything can be created, keeping a
  * failed load, an empty list and groups for another destination apart.
  */
-export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, workspaceId, readonly, onNavigateStep, openGroupRequest, onReviewScopedStart, lifecycleHost, locatorEntry, locatorOnly, locatorSuspended, onEditorMountedChange }) => {
+export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSource, state, workspaceId, readonly, onNavigateStep, openGroupRequest, onReviewScopedStart, lifecycleHost, locatorEntry, locatorOnly, locatorSuspended, onEditorMountedChange }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: runtime } = useTranslation('runtime-dashboard');
   const region = useRef<HTMLElement>(null);
@@ -217,7 +219,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, wor
       )}
 
       {editing && editorObserved && (
-        <GroupEditor
+        <GroupEditor deviceSource={deviceSource}
           key={selection.kind === 'edit' ? selection.id : 'new'}
           group={selected} workspaceId={editorObserved.workspace_id} workspaceRevision={editorObserved.workspace_revision}
           locatorGuard={Boolean(locatorEntry || locatorSuspended)}

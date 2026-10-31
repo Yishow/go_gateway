@@ -142,7 +142,7 @@ function AdvancedWorkbenchV2Page({
     return { workspace_id: workspaceId, workspace_revision: workspaceRevision };
   }, [shareStatus?.workspace_id, shareStatus?.workspace_revision, workspaceQuery.data?.id]);
   const auditHistoryQuery = useStudioV2WorkspaceAuditHistoryQuery(!locatorMode && workspaceQuery.isSuccess);
-  const autosave = useStudioV2AutosaveState(!locatorMode && workspaceQuery.isSuccess, locatorEntry, locatorEditorMounted, persistedMCWorkspaceScope);
+  const autosave = useStudioV2AutosaveState(!locatorMode && workspaceQuery.isSuccess, locatorEntry, locatorEditorMounted, persistedMCWorkspaceScope, locatorEntry?.workspace.id ?? workspaceQuery.data?.id);
   const waitForAutosaveSettlement = useStudioV2AutosaveSettlement(autosave.state);
   const activationMutation = useActivateStudioV2WorkspaceMutation();
   const activationInFlight = React.useRef(false);
@@ -325,7 +325,7 @@ function AdvancedWorkbenchV2Page({
       <WorkbenchV2Shell
         state={autosave.state}
         workspaceId={workspace.id}
-        actions={autosave.actions}
+        actions={autosave.actions} deviceSource={autosave.deviceSource}
         navigateTo={navigateTo}
         activateWorkspace={activateWorkspace}
         recoverActivationStatus={recoverActivationStatus}
