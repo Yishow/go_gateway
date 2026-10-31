@@ -1,6 +1,7 @@
 package point
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -24,7 +25,7 @@ func TestReadFormatIsZeroWriteCanonicalSnapshot(t *testing.T) {
 	require.Equal(t, "ws-old", got.WorkspaceRevision)
 	require.Equal(t, "persisted", got.WorkspaceRevisionOrigin)
 	require.Equal(t, "point-old", got.PointRevision)
-	require.True(t, got.Editable)
+	require.False(t, got.Editable, "missing live authority must not promise submit readiness")
 	require.True(t, got.Resolution.Resolved)
 	require.Equal(t, got.WorkspaceRevision, got.Resolution.WorkspaceRevision)
 	require.NotEmpty(t, got.ConnectionRevision)
@@ -61,7 +62,8 @@ func TestReadFormatCapturedVersionsSaveAndReset(t *testing.T) {
 	dirty, err := svc.ReadFormat(t.Context(), scope)
 	require.NoError(t, err)
 	require.False(t, dirty.Editable)
-	// Existing device reconciliation acknowledges Share state; only then a new edit starts.
+	// SQL-only fixture: known successful invalidation is no longer unknown dirty;
+	// live submit readiness is independently checked by the production gate.
 	_, err = db.Exec(`UPDATE system_settings SET value=json_set(value,'$.dirty',json('false')) WHERE key='modbus_share_workspace_revision:ws'`)
 	require.NoError(t, err)
 	next, err := svc.ReadFormat(t.Context(), scope)
@@ -104,4 +106,55 @@ func TestReadFormatScopeAndRuleDiscovery(t *testing.T) {
 		require.ErrorIs(t, err, ErrFormatScope)
 		require.Nil(t, out)
 	}
+}
+
+type formatReadLiveGate struct {
+	formatTestInvalidator
+	check func(FormatScope) error
+}
+
+func (g formatReadLiveGate) CheckPointFormatScope(_ context.Context, s FormatScope) error {
+	return g.check(s)
+}
+func TestReadFormatUsesOriginalSnapshotAtLiveGate(t *testing.T) {
+	for _, stale := range []bool{false, true} {
+		db, svc, req := formatFixture(t)
+		svc.SetFormatInvalidator(formatReadLiveGate{check: func(scope FormatScope) error {
+			require.Equal(t, "ws-old", scope.ExpectedWorkspaceRevision)
+			require.Equal(t, "point-old", *scope.ExpectedPointRevision)
+			if stale {
+				return ErrFormatConflict
+			}
+			return nil
+		}})
+		// Both SQL and live gate remain read-only, including initial revision reads.
+		_, err := db.Exec(`CREATE TRIGGER forbid_read_settings_update BEFORE UPDATE ON system_settings BEGIN SELECT RAISE(ABORT,'read may not initialize'); END`)
+		require.NoError(t, err)
+		got, err := svc.ReadFormat(t.Context(), FormatReadScope{WorkspaceID: req.WorkspaceID, DeviceID: req.DeviceID, PointID: req.PointID})
+		require.NoError(t, err)
+		require.Equal(t, !stale, got.Editable)
+		require.Equal(t, "ws-old", got.WorkspaceRevision)
+		require.True(t, got.Resolution.Resolved)
+	}
+}
+
+func TestReadFormatConcurrentAuthorityChangeDoesNotRebaseSnapshot(t *testing.T) {
+	db, svc, req := formatFixture(t)
+	svc.SetFormatInvalidator(formatReadLiveGate{check: func(scope FormatScope) error {
+		// Deterministic external-writer window AFTER the SQL read snapshot closed,
+		// before the same live gate used by Save checks the captured revision.
+		_, err := db.Exec(`UPDATE system_settings SET value='{"revision":"ws-new","dirty":false}' WHERE key='modbus_share_workspace_revision:ws'`)
+		require.NoError(t, err)
+		var current string
+		require.NoError(t, db.QueryRow(`SELECT json_extract(value,'$.revision') FROM system_settings WHERE key='modbus_share_workspace_revision:ws'`).Scan(&current))
+		if scope.ExpectedWorkspaceRevision != current {
+			return ErrFormatConflict
+		}
+		return nil
+	}})
+	got, err := svc.ReadFormat(t.Context(), FormatReadScope{WorkspaceID: req.WorkspaceID, DeviceID: req.DeviceID, PointID: req.PointID})
+	require.NoError(t, err)
+	require.False(t, got.Editable)
+	require.Equal(t, "ws-old", got.WorkspaceRevision)
+	require.Equal(t, "ws-old", got.Resolution.WorkspaceRevision)
 }

@@ -42,7 +42,18 @@ func (s *Service) ReadFormat(ctx context.Context, scope FormatReadScope) (*Forma
 	if !ok {
 		return nil, ErrFormatUnavailable
 	}
-	return reader.ReadFormat(ctx, scope)
+	result, err := reader.ReadFormat(ctx, scope)
+	if err != nil {
+		return nil, err
+	}
+	editable := false
+	if gate, ok := s.formatInvalidator.(interface {
+		CheckPointFormatScope(context.Context, FormatScope) error
+	}); ok && result.Editable {
+		editable = gate.CheckPointFormatScope(ctx, FormatScope{WorkspaceID: result.WorkspaceID, DeviceID: result.DeviceID, PointID: result.PointID, RuleID: result.RuleID, ExpectedWorkspaceRevision: result.WorkspaceRevision, ExpectedRuleRevision: result.RuleRevision, ExpectedPointRevision: &result.PointRevision}) == nil
+	}
+	result.Editable = editable
+	return result, nil
 }
 
 // ReadFormat uses one read snapshot and never initializes revision or receipt state.

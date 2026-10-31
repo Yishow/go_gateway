@@ -688,11 +688,10 @@ func (s *Service) syncRuleLinksEnabled(ctx context.Context, ruleID string, enabl
 		if enabled && pointRecord.PollingGroupID == nil && defaultPollingGroupID != nil {
 			updateReq.PollingGroupID = defaultPollingGroupID
 		}
-		pointRecord, getErr = s.updateRulePoint(ctx, original, point.UpdatePointRequest{
-			Enabled:             updateReq.Enabled,
-			PollingGroupID:      updateReq.PollingGroupID,
-			ReplacePollingGroup: updateReq.ReplacePollingGroup,
-		})
+		if s.syncUnchangedRulePoint(ctx, original, updateReq) {
+			continue
+		}
+		pointRecord, getErr = s.updateRulePoint(ctx, original, updateReq)
 		if getErr != nil {
 			return nil, s.finishRollbackErrors(ctx, fmt.Errorf("更新衍生點位狀態失敗: %w", getErr), s.rollbackUpdatedPoints(ctx, appliedPlans))
 		}

@@ -8,7 +8,7 @@ import (
 )
 
 func TestShareRevisionCommitBusyLeavesOriginalRevisionAndCleanPool(t *testing.T) {
-	for _, operation := range []string{"desired", "revision"} {
+	for _, operation := range []string{"desired", "revision", "dirty"} {
 		t.Run(operation, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "share.db")
 			db, err := sql.Open("sqlite", path)
@@ -28,6 +28,8 @@ func TestShareRevisionCommitBusyLeavesOriginalRevisionAndCleanPool(t *testing.T)
 			store := NewSQLWorkspaceRevisionStore(db)
 			if operation == "desired" {
 				err = store.CommitDesiredMappings(t.Context(), "ws", "rev-1", "rev-2", nil)
+			} else if operation == "dirty" {
+				err = store.MarkDirty(t.Context(), "ws")
 			} else {
 				err = store.UpdateRevision(t.Context(), "ws", "rev-1", "rev-2")
 			}

@@ -103,7 +103,7 @@ func loadFormatWorkspaceRevision(ctx context.Context, tx *sql.Tx, id string) (fo
 	return record, raw, nil
 }
 
-func advanceFormatWorkspace(ctx context.Context, tx *sql.Tx, id, previous, next string) error {
+func advanceFormatWorkspace(ctx context.Context, tx *sql.Tx, id, previous, next string, owner formatPendingDirty) error {
 	var record map[string]json.RawMessage
 	if previous != "" {
 		if json.Unmarshal([]byte(previous), &record) != nil {
@@ -114,6 +114,7 @@ func advanceFormatWorkspace(ctx context.Context, tx *sql.Tx, id, previous, next 
 	}
 	record["revision"], _ = json.Marshal(next)
 	record["dirty"] = json.RawMessage("true")
+	record[formatPendingDirtyKey], _ = json.Marshal(owner)
 	payload, _ := json.Marshal(record)
 	key := "modbus_share_workspace_revision:" + id
 	var result sql.Result

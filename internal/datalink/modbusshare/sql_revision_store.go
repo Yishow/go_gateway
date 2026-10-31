@@ -232,38 +232,5 @@ func (s *SQLWorkspaceRevisionStore) UpdateRevision(ctx context.Context, workspac
 
 // MarkDirty marks the durable workspace projection as requiring recovery.
 func (s *SQLWorkspaceRevisionStore) MarkDirty(ctx context.Context, workspaceID string) error {
-	if s == nil || s.db == nil {
-		return newStorageError("mark workspace dirty", fmt.Errorf("database is not configured"))
-	}
-	key := workspaceRevisionKey(workspaceID)
-	var raw string
-	err := s.db.QueryRowContext(ctx, `SELECT value FROM system_settings WHERE key = ?`, key).Scan(&raw)
-	record := workspaceRevisionRecord{Revision: "rev-1", Dirty: true}
-	if err == nil {
-		if unmarshalErr := json.Unmarshal([]byte(raw), &record); unmarshalErr != nil {
-			return newStorageError("decode workspace revision", unmarshalErr)
-		}
-		record.Dirty = true
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		return newStorageError("read workspace revision", err)
-	}
-	payload, marshalErr := json.Marshal(record)
-	if marshalErr != nil {
-		return newStorageError("encode workspace revision", marshalErr)
-	}
-	if errors.Is(err, sql.ErrNoRows) {
-		return insertWorkspaceRevision(ctx, s.db, key, record)
-	}
-	result, execErr := s.db.ExecContext(ctx, `UPDATE system_settings SET value = ?, updated_at = ? WHERE key = ?`, string(payload), time.Now().UTC(), key)
-	if execErr != nil {
-		return newStorageError("update workspace revision", execErr)
-	}
-	rows, rowsErr := result.RowsAffected()
-	if rowsErr != nil {
-		return newStorageError("update workspace revision rows affected", rowsErr)
-	}
-	if rows != 1 {
-		return newStorageError("update workspace revision rows affected", fmt.Errorf("unexpected affected row count %d", rows))
-	}
-	return nil
+	return s.markDirtyCurrentRevision(ctx, workspaceID)
 }

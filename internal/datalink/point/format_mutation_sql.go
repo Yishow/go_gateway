@@ -133,7 +133,7 @@ func (r *SQLRepository) MutateFormat(ctx context.Context, req FormatMutationRequ
 	if err = writePointConfigRevision(ctx, tx, candidate, *req.ExpectedPointRevision); err != nil {
 		return nil, err
 	}
-	if err = advanceFormatWorkspace(ctx, tx, req.WorkspaceID, rawRevision, nextWorkspace); err != nil {
+	if err = advanceFormatWorkspace(ctx, tx, req.WorkspaceID, rawRevision, nextWorkspace, formatDirtyOwner(req, attempted)); err != nil {
 		return nil, err
 	}
 	resolution.WorkspaceRevision = nextWorkspace
