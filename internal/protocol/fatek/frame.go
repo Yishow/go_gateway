@@ -3,6 +3,7 @@ package fatek
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 )
 
 // hexChars 預定義十六進位字元表，用於高效能轉換
@@ -120,6 +121,11 @@ func ParseResponse(response []byte, expectedCmd string) (string, error) {
 	// Status Code (Index 5)
 	statusCode := string(response[5])
 	if statusCode != "0" {
+		// Appendix 1-2: an error response has only its status, with no data.
+		// Malformed frames must not become explicit PLC capability evidence.
+		if len(response) != 9 {
+			return "", NewFatekCommunicationError("error response length mismatch: expected 9 bytes, got %d", len(response))
+		}
 		return "", NewProtocolError(statusCode, cmd)
 	}
 
@@ -135,12 +141,13 @@ func ParseResponse(response []byte, expectedCmd string) (string, error) {
 
 // HexToInt converts Hex string to int
 func HexToInt(hexStr string) (int, error) {
-	// Use ParseUint to handle potential large values if needed,
-	// but standard Fatek data fits in int (up to 32-bit)
-	// Using Sscanf is easy
-	var val int
-	_, err := fmt.Sscanf(hexStr, "%x", &val)
-	return val, err
+	for _, b := range []byte(hexStr) {
+		if !(b >= '0' && b <= '9' || b >= 'A' && b <= 'F' || b >= 'a' && b <= 'f') {
+			return 0, fmt.Errorf("invalid hexadecimal payload %q", hexStr)
+		}
+	}
+	value, err := strconv.ParseUint(hexStr, 16, 32)
+	return int(value), err
 }
 
 // IntToHex 將整數轉換為固定寬度的十六進位字串

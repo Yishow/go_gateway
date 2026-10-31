@@ -2,7 +2,6 @@ package fatek
 
 import (
 	"fmt"
-	"math"
 	"strings"
 )
 
@@ -31,13 +30,13 @@ var (
 	TypeF  = ComponentType{Name: "F", Width: 16, IsDiscrete: false, FormatLen: 6}      // File Register
 
 	// 16-bit access to discrete (word access)
-	// Use FormatLen=7 so word-access discrete symbols (e.g., WX) use 5-digit numbering like WX00012
-	TypeWX = ComponentType{Name: SymbolWX, Width: 16, IsDiscrete: false, FormatLen: 7}
-	TypeWY = ComponentType{Name: SymbolWY, Width: 16, IsDiscrete: false, FormatLen: 7}
-	TypeWM = ComponentType{Name: SymbolWM, Width: 16, IsDiscrete: false, FormatLen: 7}
-	TypeWS = ComponentType{Name: SymbolWS, Width: 16, IsDiscrete: false, FormatLen: 7}
-	TypeWT = ComponentType{Name: SymbolWT, Width: 16, IsDiscrete: false, FormatLen: 7}
-	TypeWC = ComponentType{Name: SymbolWC, Width: 16, IsDiscrete: false, FormatLen: 7}
+	// FATEK Appendix 1: every 16-bit address has six characters (e.g. WX0008).
+	TypeWX = ComponentType{Name: SymbolWX, Width: 16, IsDiscrete: false, FormatLen: 6}
+	TypeWY = ComponentType{Name: SymbolWY, Width: 16, IsDiscrete: false, FormatLen: 6}
+	TypeWM = ComponentType{Name: SymbolWM, Width: 16, IsDiscrete: false, FormatLen: 6}
+	TypeWS = ComponentType{Name: SymbolWS, Width: 16, IsDiscrete: false, FormatLen: 6}
+	TypeWT = ComponentType{Name: SymbolWT, Width: 16, IsDiscrete: false, FormatLen: 6}
+	TypeWC = ComponentType{Name: SymbolWC, Width: 16, IsDiscrete: false, FormatLen: 6}
 
 	// Registers (32-bit)
 	TypeDR = ComponentType{Name: SymbolDR, Width: 32, IsDiscrete: false, FormatLen: 7}
@@ -99,19 +98,23 @@ func GetComponentType(symbol string) (ComponentType, error) {
 	}
 }
 
-// FormatAddress normalizes the address string (e.g., "X", 10 -> "X00010")
+// FormatAddress normalizes the address string (e.g., "X", 10 -> "X0010").
 // It now includes bounds checking to prevent protocol frame corruption.
 func FormatAddress(comp ComponentType, addr int) (string, error) {
 	// Calculate available digits for the number part
-	// e.g., FormatLen(6) - Name("R", 1) = 5 digits. Max 99999.
+	// e.g., R uses five digits; the protocol memory limit is stricter than field capacity.
 	numDigits := comp.FormatLen - len(comp.Name)
 	if numDigits <= 0 {
 		return "", fmt.Errorf("invalid format length for component %s", comp.Name)
 	}
 
-	maxVal := int(math.Pow10(numDigits)) - 1
+	maxVal := comp.AddressLimit() - comp.AddressStep()
 	if addr < 0 || addr > maxVal {
 		return "", fmt.Errorf("address %d out of range for component %s (max %d)", addr, comp.Name, maxVal)
+	}
+
+	if comp.requiresEightAlignedStart() && addr%8 != 0 {
+		return "", fmt.Errorf("address %d for %s must be a multiple of eight", addr, comp.Name)
 	}
 
 	format := fmt.Sprintf("%%s%%0%dd", numDigits)

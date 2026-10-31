@@ -35,13 +35,14 @@ func FormatCapability(protocol schema.ProtocolType, address string, dtype schema
 			return ScalarCapability{}, ErrInapplicableFormat
 		}
 		count := bits / component.Width
-		if start < 0 || count-1 > int(^uint(0)>>1)-start {
+		step := component.AddressStep()
+		if start < 0 || count > (int(^uint(0)>>1)-start)/step {
 			return ScalarCapability{}, ErrInapplicableFormat
 		}
 		if _, err = fatek.FormatAddress(component, start); err != nil {
 			return ScalarCapability{}, ErrInapplicableFormat
 		}
-		if _, err = fatek.FormatAddress(component, start+count-1); err != nil {
+		if _, err = fatek.FormatAddress(component, start+(count-1)*step); err != nil {
 			return ScalarCapability{}, ErrInapplicableFormat
 		}
 		return ScalarCapability{component.Width, count, bits / 16}, nil

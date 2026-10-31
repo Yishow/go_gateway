@@ -75,13 +75,13 @@ func packRandom(scalars []AcquisitionRequest, cap AcquisitionCapability) ([]Acqu
 			return nil, false
 		}
 		candidate := appendRandomScalar(current, scalar, cap)
-		if len(candidate.Units) > candidate.Limit || !fitsFrameBudget(candidate.FrameBytes, budget) {
+		if !randomWithinLimits(candidate) || !fitsFrameBudget(candidate.FrameBytes, budget) {
 			if current == nil {
 				return nil, false
 			}
 			result = append(result, *current)
 			candidate = appendRandomScalar(nil, scalar, cap)
-			if len(candidate.Units) > candidate.Limit || !fitsFrameBudget(candidate.FrameBytes, budget) {
+			if !randomWithinLimits(candidate) || !fitsFrameBudget(candidate.FrameBytes, budget) {
 				return nil, false
 			}
 		}
@@ -98,6 +98,7 @@ func appendRandomScalar(current *AcquisitionRequest, scalar AcquisitionRequest, 
 	if current == nil {
 		candidate = scalar
 		candidate.Kind = "random"
+		candidate.AddressStep = 0
 		candidate.Points = nil
 		candidate.Units = nil
 		candidate.Limit = randomLimit(scalar.Group.Identity, cap)
@@ -112,7 +113,8 @@ func appendRandomScalar(current *AcquisitionRequest, scalar AcquisitionRequest, 
 	}
 	point := scalar.Points[0]
 	point.Offset = -1
-	for address := scalar.Start; address < scalar.Start+scalar.Length; address++ {
+	for n := range scalar.Length {
+		address := scalar.Start + n*scalar.AddressStep
 		unit := NativeUnit{Area: scalar.Group.Area, Address: address, Bits: point.NativeBits}
 		index := slices.Index(candidate.Units, unit)
 		if index < 0 {
@@ -134,6 +136,9 @@ func sortScalarRequests(requests []AcquisitionRequest) {
 		if n := cmp.Compare(a.Group.Area, b.Group.Area); n != 0 {
 			return n
 		}
+		if n := cmp.Compare(a.Start%a.AddressStep, b.Start%b.AddressStep); n != 0 {
+			return n
+		}
 		if n := cmp.Compare(a.Start, b.Start); n != 0 {
 			return n
 		}
@@ -142,4 +147,19 @@ func sortScalarRequests(requests []AcquisitionRequest) {
 		}
 		return cmp.Compare(canonicalJSON(a), canonicalJSON(b))
 	})
+}
+
+// Component caps are independent of FATEK's protocol word-cost budget.
+func randomWithinLimits(r AcquisitionRequest) bool {
+	if len(r.Units) > r.Limit {
+		return false
+	}
+	if r.Group.Identity.Protocol == "fatek" {
+		cost := 0
+		for _, u := range r.Units {
+			cost += max(1, u.Bits/16)
+		}
+		return cost <= 64
+	}
+	return true
 }

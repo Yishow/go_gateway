@@ -8,10 +8,11 @@ import (
 
 // validNativeSpan supplements permissive parsers with actual wire bounds.
 func validNativeSpan(protocol, area string, start, width int) bool {
-	if start < 0 || width <= 0 || width-1 > int(^uint(0)>>1)-start {
+	step := nativeAddressStep(protocol, area)
+	if start < 0 || width <= 0 || step <= 0 || width > (int(^uint(0)>>1)-start)/step {
 		return false
 	}
-	end := start + width - 1
+	end := start + (width-1)*step
 	switch protocol {
 	case "modbus":
 		return end <= 65535
@@ -58,7 +59,7 @@ func nativeClientLimit(protocol string, nativeBits int) int {
 func validCoverage(protocol string, coverage ReadableCoverage) bool {
 	for _, ranges := range [][]NativeRange{coverage.Readable, coverage.Forbidden, coverage.Excluded} {
 		for _, r := range ranges {
-			if !canonicalNativeArea(protocol, r.Area) || r.Start < 0 || r.End <= r.Start || !validNativeSpan(protocol, r.Area, r.Start, r.End-r.Start) {
+			if !canonicalNativeArea(protocol, r.Area) || r.Start < 0 || r.End <= r.Start || !validNativeRange(protocol, r.Area, r.Start, r.End) {
 				return false
 			}
 		}
@@ -94,4 +95,24 @@ func canonicalNativeArea(protocol, area string) bool {
 		}
 	}
 	return false
+}
+
+// Native ranges and configured bounds are physical half-open intervals, not
+// component counts. Boundaries need not themselves be aligned component starts.
+func validNativeRange(protocol, area string, start, end int) bool {
+	if protocol == "fatek" {
+		component, err := fatek.GetComponentType(area)
+		return err == nil && start >= 0 && end > start && end <= component.AddressLimit()
+	}
+	return validNativeSpan(protocol, area, start, end-start)
+}
+func nativeAddressStep(protocol, area string) int {
+	if protocol == "fatek" {
+		component, err := fatek.GetComponentType(area)
+		if err != nil {
+			return 0
+		}
+		return component.AddressStep()
+	}
+	return 1
 }

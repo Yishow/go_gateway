@@ -109,7 +109,8 @@ func TestAcquisitionPlanNativeDeclaredBoundsRegression(t *testing.T) {
 	}{
 		{"mc", "W", "W1A", "int16", 26, 27, 1, true},
 		{"mc", "W", "W1B", "int16", 26, 27, 1, false},
-		{"fatek", "DR", "DR5", "float32", 5, 6, 1, true},
+		{"fatek", "DR", "DR5", "float32", 5, 7, 1, true},
+		{"fatek", "DR", "DR5", "float32", 5, 6, 1, false},
 		{"fatek", "D", "D5", "float32", 5, 6, 2, false},
 		{"modbus", "COIL", "CO0", "bool", 0, 1, 1, true},
 		{"modbus", "DI", "DI1", "bool", 0, 1, 1, false},

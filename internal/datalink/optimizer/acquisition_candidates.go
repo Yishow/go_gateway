@@ -13,7 +13,7 @@ func chooseAcquisitionRequests(group contiguousCandidates) []AcquisitionRequest 
 	var contiguous []AcquisitionRequest
 	for start := 0; start < len(scalars); {
 		end := start + 1
-		for end < len(scalars) && scalars[end].Group.Area == scalars[start].Group.Area {
+		for end < len(scalars) && scalars[end].Group.Area == scalars[start].Group.Area && scalars[end].AddressStep == scalars[start].AddressStep && scalars[end].Start%scalars[end].AddressStep == scalars[start].Start%scalars[start].AddressStep {
 			end++
 		}
 		contiguous = appendContiguous(contiguous, contiguousCandidates{coverage: group.coverage, requests: append([]AcquisitionRequest(nil), scalars[start:end]...)})

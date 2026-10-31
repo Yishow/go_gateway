@@ -31,14 +31,15 @@ func appendContiguous(out []AcquisitionRequest, candidates contiguousCandidates)
 			current = &copy
 			continue
 		}
-		end := current.Start + current.Length
-		unionEnd := max(end, next.Start+next.Length)
-		if unionEnd-current.Start <= current.Limit && readableGap(candidates.coverage, current.Group.Area, end, next.Start) {
+		step := current.AddressStep
+		end := current.Start + current.Length*step
+		unionEnd := max(end, next.Start+next.Length*next.AddressStep)
+		if step == next.AddressStep && (next.Start-current.Start)%step == 0 && (unionEnd-current.Start)/step <= current.Limit && readableGap(candidates.coverage, current.Group.Area, end, next.Start) {
 			for _, point := range next.Points {
-				point.Offset += next.Start - current.Start
+				point.Offset += (next.Start - current.Start) / step
 				current.Points = append(current.Points, point)
 			}
-			current.Length = unionEnd - current.Start
+			current.Length = (unionEnd - current.Start) / step
 			current.FrameBytes, current.FrameCostKnown = contiguousFrameBytes(current.Group.Identity, current.Group.Area, current.Start, current.Length, current.Points[0].NativeBits)
 			if current.FallbackReason == "scalar-plan" {
 				current.FallbackReason = "safe-contiguous-plan"

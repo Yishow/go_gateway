@@ -8,16 +8,16 @@ import (
 
 func TestAcquisitionRandomLimitsCountComponentsNotPoints(t *testing.T) {
 	for _, c := range []struct {
-		protocol, area            string
-		count, width, bits, limit int
-	}{{"mc", "D", 64, 4, 16, 255}, {"fatek", "DR", 33, 2, 32, 64}} {
+		protocol, area                            string
+		count, width, bits, limit, requests, step int
+	}{{"mc", "D", 64, 4, 16, 255, 2, 1}, {"fatek", "DR", 33, 2, 32, 64, 3, 2}} {
 		in := randomInput(c.protocol)
 		for i := 0; i < c.count; i++ {
 			in.Sources[0].Points = append(in.Sources[0].Points, EffectivePoint{ID: fmt.Sprint(i), Address: fmt.Sprintf("%s%d", c.area, i*10), DataType: schema.DataTypeInt64, NativeWidth: c.width})
 		}
 		plan := BuildAcquisitionPlan(in)
 		r := plan.Requests()
-		if len(plan.Errors()) != 0 || len(r) != 2 {
+		if len(plan.Errors()) != 0 || len(r) != c.requests {
 			t.Fatalf("%s native capacity: %+v errors%+v", c.protocol, r, plan.Errors())
 		}
 		seen := map[string]bool{}
@@ -33,7 +33,7 @@ func TestAcquisitionRandomLimitsCountComponentsNotPoints(t *testing.T) {
 				_, start, _, _, _ := nativeAddress(c.protocol, point.Point.Address)
 				for n := 0; n < c.width; n++ {
 					u := request.Units[point.Offset+n]
-					if u.Address != start+n || u.Area != c.area || u.Bits != c.bits {
+					if u.Address != start+n*c.step || u.Area != c.area || u.Bits != c.bits {
 						t.Fatalf("invalid scatter: %+v", u)
 					}
 				}

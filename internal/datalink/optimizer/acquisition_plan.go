@@ -100,11 +100,14 @@ type AcquisitionRequest struct {
 	Group                AcquisitionGroup
 	Kind                 string
 	Start, Length, Limit int
-	FallbackReason       string
-	FrameBytes           ApplicationFrameBudget
-	FrameCostKnown       bool
-	Points               []PointSlice
-	Units                []NativeUnit
+	// AddressStep is the physical advance of each contiguous component. Random
+	// requests use zero (not applicable); Units stores their explicit addresses.
+	AddressStep    int
+	FallbackReason string
+	FrameBytes     ApplicationFrameBudget
+	FrameCostKnown bool
+	Points         []PointSlice
+	Units          []NativeUnit
 }
 
 // AcquisitionPointError is explicit, stable and attributable to a source point.

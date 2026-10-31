@@ -52,6 +52,11 @@ func (c *FatekClient) execute(cmd, body string) (string, error) {
 		return "", err
 	}
 
+	// Reject foreign-station status before it can be interpreted as a capability
+	// rejection. Short frames still use the existing framing error contract.
+	if len(resp) >= 3 && string(resp[1:3]) != fmt.Sprintf("%02X", c.station) {
+		return "", fmt.Errorf("response station mismatch: expected %02X, got %s", c.station, resp[1:3])
+	}
 	return ParseResponse(resp, cmd)
 }
 
@@ -159,6 +164,10 @@ func (c *FatekClient) ReadRegisters(symbol string, startAddr, count int) ([]int,
 		return nil, err
 	}
 
+	if _, err = FormatAddress(comp, startAddr+(count-1)*comp.AddressStep()); err != nil {
+		return nil, err
+	}
+
 	body := countHex + addrStr
 	dataStr, err := c.execute("46", body)
 	if err != nil {
@@ -224,77 +233,6 @@ func (c *FatekClient) WriteRegisters(symbol string, startAddr int, data []int) e
 	body := countHex + addrStr + sb.String()
 	_, err = c.execute("47", body)
 	return err
-}
-
-type RandomReadItem struct {
-	Symbol string
-	Addr   int
-}
-
-// ReadRandom (Cmd 48): Mixed Read
-func (c *FatekClient) ReadRandom(items []RandomReadItem) (map[string]any, error) {
-	if len(items) > 64 {
-		return nil, fmt.Errorf("max items is 64")
-	}
-
-	countHex := IntToHex(len(items), 2)
-	var sb strings.Builder
-	sb.WriteString(countHex)
-
-	comps := make([]ComponentType, len(items))
-
-	for i, item := range items {
-		comp, err := GetComponentType(item.Symbol)
-		if err != nil {
-			return nil, err
-		}
-		comps[i] = comp
-
-		addrStr, err := FormatAddress(comp, item.Addr)
-		if err != nil {
-			return nil, err
-		}
-		sb.WriteString(addrStr)
-	}
-
-	dataStr, err := c.execute("48", sb.String())
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse mixed response
-	results := make(map[string]any)
-	ptr := 0
-
-	for i, item := range items {
-		comp := comps[i]
-		key := fmt.Sprintf("%s%d", item.Symbol, item.Addr)
-
-		if comp.IsDiscrete {
-			// 1 char
-			if ptr+1 > len(dataStr) {
-				return nil, fmt.Errorf("malformed response for item %d", i)
-			}
-			valChar := dataStr[ptr]
-			results[key] = (valChar == '1')
-			ptr++
-		} else {
-			// Register (4 or 8 chars)
-			chars := comp.Width / 4
-			if ptr+chars > len(dataStr) {
-				return nil, fmt.Errorf("malformed response for item %d", i)
-			}
-			valHex := dataStr[ptr : ptr+chars]
-			val, err := HexToInt(valHex)
-			if err != nil {
-				return nil, err
-			}
-			results[key] = val
-			ptr += chars
-		}
-	}
-
-	return results, nil
 }
 
 // LoopbackTest (Cmd 4E)

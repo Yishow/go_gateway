@@ -23,7 +23,7 @@ func declaredSpanError(protocol string, cap AcquisitionCapability, area string, 
 				return "invalid-address-bounds"
 			}
 			areas[bound.Area] = true
-			if bound.Area == area && (start < bound.StartInclusive || start+width > bound.EndExclusive) {
+			if bound.Area == area && (start < bound.StartInclusive || start+width*nativeAddressStep(protocol, area) > bound.EndExclusive) {
 				outside = true
 			}
 		}

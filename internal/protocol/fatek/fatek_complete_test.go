@@ -345,12 +345,12 @@ func TestFormatAddress(t *testing.T) {
 	}
 
 	comp, _ = GetComponentType("WX")
-	addr, err = FormatAddress(comp, 12)
+	addr, err = FormatAddress(comp, 8)
 	if err != nil {
 		t.Fatalf("FormatAddress failed: %v", err)
 	}
-	if addr != "WX00012" {
-		t.Errorf("Expected address WX00012, got %s", addr)
+	if addr != "WX0008" {
+		t.Errorf("Expected address WX0008, got %s", addr)
 	}
 
 	// 測試超出範圍

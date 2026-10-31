@@ -50,6 +50,19 @@ Byte budgets SHALL be immutable Protocol, Client, and Device pairs of RequestByt
 - **WHEN** their raw spans are deduplicated
 - **THEN** the union remains D0 through D3 and neither Point loses required words.
 
+FATEK command 48 SHALL distinguish native component count from its independent 64-word protocol budget. Its N field SHALL equal the number of requested components; each discrete or 16-bit component SHALL cost one word and each 32-bit component SHALL cost two words. More restrictive configured component limits and byte limits SHALL remain independently enforced. Native address increments SHALL follow the protocol address space: DR/DD components advance two underlying word addresses, W-prefixed bit components advance sixteen bit addresses, and DW-prefixed bit components advance thirty-two bit addresses. Plain word and discrete components advance one address. The supported WX/WY/WM/WS and DWX/DWY/DWM/DWS start addresses SHALL be multiples of eight, not necessarily multiples of their component stride; complete scalar footprints SHALL remain within the declared address bounds. Complete scalar expansion, contiguous compatibility, random deduplication, frame costs and result scatter SHALL use this same address contract. A valid overlapping or odd-address component SHALL NOT be silently replaced by another component or rejected merely to conceal a stride mismatch.
+
+#### Scenario: FATEK component count is not word cost
+- **WHEN** a random request contains twenty 32-bit components and twenty-four discrete or 16-bit components
+- **THEN** its N is 44 and its word cost is 64; it fits only when all independent configured limits also permit it
+- **AND** thirty-three int32 Points at distinct DR wire addresses exceed 64 words and split into at least two requests without splitting a scalar, even when the configured component cap is 64
+
+#### Scenario: Native component addresses preserve scalar identity
+- **WHEN** DR0 and DR10 int64 Points expand into 32-bit native components
+- **THEN** their component addresses are DR0/DR2 and DR10/DR12, not DR0/DR1 and DR10/DR11
+- **AND** separate valid int32 Points at DR0 and DR1 do not become a contiguous request whose second returned component is DR2
+- **AND** a WY8 int32 scalar expands to WY8/WY24 while retaining the protocol's fixed-width address encoding
+
 #### Scenario: Native random limits
 - **WHEN** expanded MC random units exceed 255 or FATEK units exceed 64 under those configured client limits
 - **THEN** requests split at complete scalar boundaries with no dropped or duplicated Point result.

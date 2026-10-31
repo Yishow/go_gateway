@@ -31,6 +31,10 @@ func TestWordRule23PlannerFunctionParity(t *testing.T) {
 
 // COIL is the planner's native area, not a legal adapter address alias.
 func fixtureNativeAddress(protocol, area string, offset int) string {
+	// Published FATEK consecutive DR components start at 0, 2, 4, not 0, 1, 2.
+	if protocol == "fatek" && area == "DR" {
+		offset *= 2
+	}
 	if protocol == "modbus" && area == "COIL" {
 		area = "CO"
 	}
