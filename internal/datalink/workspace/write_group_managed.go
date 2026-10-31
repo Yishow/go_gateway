@@ -43,6 +43,10 @@ func prepareManagedWriteGroup(group *WriteGroup) error {
 	group.RowPolicy.RecordKeyColumn = "record_id"
 	group.RowPolicy.GroupIDColumn = "group_id"
 	group.RowPolicy.BucketStartColumn = "bucket_start"
+	if isMixedWriteGroup(group) && group.isWideProfile() {
+		group.RowPolicy.BucketStartColumn = ""
+		group.RowPolicy.DueAtColumn = "due_at"
+	}
 	group.RowPolicy.ProvenanceColumn = "provenance"
 	group.RowPolicy.DeviceIDColumn = ""
 	if len(group.Members) > 0 {

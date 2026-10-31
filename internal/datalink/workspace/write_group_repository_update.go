@@ -77,7 +77,7 @@ func mergeWriteGroupServerFields(candidate, existing *WriteGroup, r *SQLWriteGro
 }
 
 func sameWriteGroupSchema(candidate, existing *WriteGroup) bool {
-	if candidate == nil || existing == nil {
+	if candidate == nil || existing == nil || !sameMixedSchemaIntent(candidate, existing) {
 		return false
 	}
 	if candidate.Destination.ConnectorID != existing.Destination.ConnectorID ||

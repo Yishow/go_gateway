@@ -107,6 +107,8 @@ type WriteGroupDestination struct {
 
 // WriteGroupRowPolicy reserves the basic snapshot row contract for later tasks.
 type WriteGroupRowPolicy struct {
+	// DueAtColumn is mixed-wide dispatch time, never a common member window.
+	DueAtColumn            string   `json:"due_at_column,omitempty"`
 	IntervalSeconds        int      `json:"interval_seconds"`
 	AllowedLatenessSeconds int      `json:"allowed_lateness_seconds"`
 	IncompletePolicy       string   `json:"incomplete_policy,omitempty"`

@@ -49,6 +49,9 @@ func (s *WriteGroupService) ConfirmManagedSchemaWithStorage(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+	if isMixedWriteGroup(current.Group) && managedLongGroup(current.Group) && storage == nil {
+		return nil, ErrWriteGroupValidation
+	}
 	if current.Group.WorkspaceID != mutation.WorkspaceID {
 		return nil, writeGroupNotFound("confirm group schema")
 	}
@@ -56,6 +59,9 @@ func (s *WriteGroupService) ConfirmManagedSchemaWithStorage(ctx context.Context,
 		return nil, err
 	}
 	if current.Group.Destination.SchemaRevision == operationID && current.Group.Destination.SchemaDigest == digest {
+		if isMixedWriteGroup(current.Group) {
+			return s.replayMixedSchemaConfirmation(ctx, id, mutation, operationID, digest, storage)
+		}
 		return current, nil
 	}
 	var saved *WriteGroup
@@ -78,6 +84,11 @@ func (s *WriteGroupService) ConfirmManagedSchemaWithStorage(ctx context.Context,
 		}
 		if err := s.repo.validate(ctx, tx, group); err != nil {
 			return err
+		}
+		if isMixedWriteGroup(group) {
+			if err := s.verifyMixedSchemaProofInTx(ctx, tx, record, group, operationID, digest, storage); err != nil {
+				return err
+			}
 		}
 		group.Destination.SchemaRevision = operationID
 		group.Destination.SchemaDigest = digest

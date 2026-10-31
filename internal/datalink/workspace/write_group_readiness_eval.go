@@ -22,6 +22,7 @@ type writeGroupReadinessSnapshot struct {
 	connectorKind            string
 	connectorConfig          string
 	validateErr              error
+	schemaProofErr           error
 	counterBindings          CounterBindingProofs
 	counterIssues            []ReadinessIssue
 	confirmedMySQLLayout     *recordingplan.GroupSchemaLayout
@@ -79,6 +80,11 @@ func (s *WriteGroupService) evaluateReadinessSnapshot(ctx context.Context, id st
 		result.Issues = append(result.Issues, writeGroupReadinessIssue(
 			"schema-check-blocked", "destination schema check is blocked by configuration issues", id,
 		))
+		return finalizeWriteGroupReadiness(result), nil
+	}
+	if snapshot.schemaProofErr != nil {
+		result.SchemaReady = false
+		result.Issues = append(result.Issues, writeGroupReadinessIssue("schema-proof-stale", "calculation evidence changed; preview and confirm the schema again", id))
 		return finalizeWriteGroupReadiness(result), nil
 	}
 	managedCanonical := snapshot.validated.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && snapshot.validated.RowPolicy.RecordKeyColumn != ""
@@ -180,6 +186,11 @@ func (s *WriteGroupService) evaluateReadinessSnapshot(ctx context.Context, id st
 	if err != nil {
 		return nil, err
 	}
+	if postSnapshot != nil && postSnapshot.schemaProofErr != nil {
+		result.SchemaReady = false
+		result.Issues = append(result.Issues, writeGroupReadinessIssue("schema-proof-stale", "calculation evidence changed; preview and confirm the schema again", id))
+		return finalizeWriteGroupReadiness(result), nil
+	}
 	if !sameWriteGroupReadinessSnapshot(snapshot, postSnapshot) {
 		result = s.newSnapshotReadiness(ctx, postSnapshot)
 		if postSnapshot.validateErr != nil {
@@ -224,7 +235,7 @@ func (s *WriteGroupService) evaluateReadinessSnapshot(ctx context.Context, id st
 			Dialect: dbtarget.SQLDialect(postSnapshot.connectorKind), Columns: inspection.Columns,
 			TagTypes: postSnapshot.tagTypes, ReceiptTableReady: receiptReady,
 		}
-		result.SchemaDigest, err = digestWriteGroupInspection(postSnapshot.validated, inspection)
+		result.SchemaDigest, err = digestWriteGroupInspection(postSnapshot.validated, inspection, postSnapshot.counterBindings)
 		if err != nil {
 			return nil, fmt.Errorf("digest write-group schema readiness: %w", err)
 		}
@@ -290,10 +301,14 @@ func (s *WriteGroupService) readinessSnapshot(ctx context.Context, id string, co
 		}
 	}
 	proofs, issues := s.counterBindingEvidenceInTx(ctx, setupTx.SQLTx(), group, tagTypes, definitions)
+	var schemaProofErr error
+	if isMixedWriteGroup(validated) && validationErr == nil && validated.Destination.SchemaRevision != "" {
+		schemaProofErr = s.verifyMixedSchemaProofInTx(ctx, setupTx.SQLTx(), record, validated, validated.Destination.SchemaRevision, validated.Destination.SchemaDigest, nil)
+	}
 	return &writeGroupReadinessSnapshot{
 		record: record, group: group, validated: validated,
 		tagTypes: tagTypes, connectorKind: connectorKind, connectorConfig: connectorConfig,
-		validateErr:     validationErr,
+		validateErr: validationErr, schemaProofErr: schemaProofErr,
 		counterBindings: proofs, counterIssues: issues,
 	}, nil
 }
@@ -319,7 +334,7 @@ func validateBasicWriteGroupConfig(group *WriteGroup) []ReadinessIssue {
 			"storage-strategy-unsupported", "write group storage strategy is unsupported", group.ID,
 		))
 	}
-	if group.RowPolicy.IntervalSeconds <= 0 {
+	if !isMixedWriteGroup(group) && group.RowPolicy.IntervalSeconds <= 0 {
 		issues = append(issues, writeGroupReadinessIssue(
 			"interval-required", "write group interval must be positive", group.ID,
 		))
@@ -388,6 +403,9 @@ func writeGroupReadinessIssue(code, message, scope string) ReadinessIssue {
 
 func sameWriteGroupReadinessSnapshot(left, right *writeGroupReadinessSnapshot) bool {
 	if left == nil || right == nil || left.record == nil || right.record == nil || left.group == nil || right.group == nil {
+		return false
+	}
+	if left.schemaProofErr != nil || right.schemaProofErr != nil {
 		return false
 	}
 	if left.record.ID != right.record.ID ||

@@ -37,23 +37,30 @@ var counterMeasurementMessages = map[string]string{
 // result is the same rule the runtime applies when it builds the group, so a
 // group is never ready here and blocked there.
 func (s *WriteGroupService) counterBindingEvidenceInTx(ctx context.Context, tx *sql.Tx, group *WriteGroup, tagTypes map[string]schema.DataType, definitions map[string]*measurement.MeasurementDefinition) (CounterBindingProofs, []ReadinessIssue) {
-	if (!longRuntimeSupported(group) && !group.isWideProfile()) || group.RecordingProfile == nil {
+	mixed := isMixedWriteGroup(group)
+	if (!mixed && !longRuntimeSupported(group) && !group.isWideProfile()) || group.RecordingProfile == nil {
 		return nil, nil
 	}
 	cumulative := group.RecordingProfile.Kind == WriteGroupProfileCumulative
-	if !cumulative && group.RecordingProfile.Kind != WriteGroupProfileInstantaneous {
+	if !mixed && !cumulative && group.RecordingProfile.Kind != WriteGroupProfileInstantaneous {
 		return nil, nil
 	}
 	var proofs CounterBindingProofs
 	reasons := map[string]bool{}
 	repo := measurement.NewSQLRepository(s.repo.db)
 	for _, member := range group.Members {
-		if !cumulative && member.ValueRole != WriteGroupValueRoleCounterRaw {
+		if mixed && member.Calculation != WriteGroupMemberCalculationDelta {
+			continue
+		}
+		if !mixed && !cumulative && member.ValueRole != WriteGroupValueRoleCounterRaw {
 			continue // gauges and states never need a counter definition
 		}
 		kind, knownType := measurement.ExactTypeForTag(tagTypes[member.TagID])
 		supportedType := knownType && (kind == measurement.ExactInt64 || kind == measurement.ExactUint64 || kind == measurement.ExactFloat64)
 		if member.MeasurementID == nil || strings.TrimSpace(*member.MeasurementID) == "" {
+			if mixed {
+				reasons[counterMeasurementUnconfirmed] = true
+			}
 			if !supportedType {
 				reasons[counterTypeUnsupported] = true
 			}

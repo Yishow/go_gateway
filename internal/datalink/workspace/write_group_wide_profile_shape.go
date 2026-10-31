@@ -90,7 +90,7 @@ func cumulativeWideShapeSupported(group *WriteGroup, tagTypes map[string]schema.
 // a mean stored as a decimal or a float does not change the source Tag type.
 // Every other layout keeps the tag's own exact type.
 func memberExactType(group *WriteGroup, member WriteGroupMember, tagTypes map[string]schema.DataType) (measurement.ExactType, bool) {
-	if group.isWideProfile() {
+	if group.isWideProfile() || isMixedWriteGroup(group) {
 		return member.ResultValueType, member.ResultValueType != ""
 	}
 	return measurement.ExactTypeForTag(tagTypes[member.TagID])

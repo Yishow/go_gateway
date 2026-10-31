@@ -161,7 +161,9 @@ func evaluateWriteGroupInspection(
 			"destination-column-type-unverified", "destination SQL dialect could not be verified", group.ID,
 		)}
 	}
-	if group.isLongLayout() {
+	// Mixed schemas use the same canonical catalog authority as managed long,
+	// including frozen result types and all-member nullability from the layout.
+	if group.isLongLayout() || isMixedWriteGroup(group) {
 		return evaluateLongGroupInspection(group, tagTypes, inspection, string(dialect))
 	}
 	if group.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && group.RowPolicy.RecordKeyColumn != "" {

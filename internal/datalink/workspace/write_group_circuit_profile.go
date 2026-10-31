@@ -148,8 +148,11 @@ func (s *WriteGroupService) replayCircuitProfile(ctx context.Context, key circui
 // Group and circuit display names are deliberately ignored: renaming never
 // changes identity.
 func sameCircuitProfileIntent(candidate, existing *WriteGroup) bool {
-	if isMixedWriteGroup(candidate) && !sameMixedMemberRevisions(candidate, existing) {
-		return false
+	if isMixedWriteGroup(candidate) {
+		if !sameMixedMemberRevisions(candidate, existing) {
+			return false
+		}
+		candidate = mixedReplayComparable(candidate, existing)
 	}
 	if candidate.isLongLayout() && existing.isLongLayout() && candidate.Destination.TableName == "" {
 		// A long group's table is server-derived from its scope, not from its ID.

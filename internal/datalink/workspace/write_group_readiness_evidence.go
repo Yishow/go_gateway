@@ -13,12 +13,13 @@ import (
 )
 
 type writeGroupSchemaDigest struct {
-	GroupID     string                    `json:"group_id"`
-	ConnectorID string                    `json:"connector_id"`
-	Schema      string                    `json:"schema"`
-	Table       string                    `json:"table"`
-	Columns     []dbtarget.ColumnInfo     `json:"columns"`
-	Bindings    []writeGroupSchemaBinding `json:"bindings"`
+	MixedSourceDigest string                    `json:"mixed_source_digest,omitempty"`
+	GroupID           string                    `json:"group_id"`
+	ConnectorID       string                    `json:"connector_id"`
+	Schema            string                    `json:"schema"`
+	Table             string                    `json:"table"`
+	Columns           []dbtarget.ColumnInfo     `json:"columns"`
+	Bindings          []writeGroupSchemaBinding `json:"bindings"`
 	// Indexes joins the digest of a long table so that a changed index
 	// invalidates the confirmation like a changed column does.
 	Indexes []dbtarget.IndexInfo `json:"indexes,omitempty"`
@@ -67,7 +68,7 @@ func recordingPlanTableInspection(inspection *dbtarget.TableInspection) recordin
 	return state
 }
 
-func digestWriteGroupInspection(group *WriteGroup, inspection *dbtarget.TableInspection) (string, error) {
+func digestWriteGroupInspection(group *WriteGroup, inspection *dbtarget.TableInspection, bindings ...CounterBindingProofs) (string, error) {
 	digest := writeGroupSchemaDigest{
 		GroupID: group.ID, ConnectorID: group.Destination.ConnectorID,
 		Schema: group.Destination.TableSchema, Table: group.Destination.TableName,
@@ -75,6 +76,13 @@ func digestWriteGroupInspection(group *WriteGroup, inspection *dbtarget.TableIns
 		Bindings:   make([]writeGroupSchemaBinding, 0, len(group.Members)),
 		Indexes:    slices.Clone(inspection.Indexes),
 		Hypertable: inspection.Hypertable,
+	}
+	if isMixedWriteGroup(group) {
+		var err error
+		digest.MixedSourceDigest, err = managedSourceDigest(group, nil, bindings...)
+		if err != nil {
+			return "", err
+		}
 	}
 	slices.SortFunc(digest.Columns, func(a, b dbtarget.ColumnInfo) int {
 		left, right := strings.ToLower(a.Name), strings.ToLower(b.Name)

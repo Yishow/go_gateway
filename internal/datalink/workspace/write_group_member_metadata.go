@@ -142,6 +142,9 @@ func validateMemberMetadataShape(group *WriteGroup) error {
 		}
 		return validateMixedMemberCadences(group)
 	}
+	if group.RowPolicy.DueAtColumn != "" {
+		return fmt.Errorf("%w: due_at_column requires mixed profile", ErrWriteGroupValidation)
+	}
 	if group.RecordID != "" {
 		return fmt.Errorf("%w: record_id requires mixed profile", ErrWriteGroupValidation)
 	}

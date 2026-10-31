@@ -44,6 +44,13 @@ func (s *WriteGroupService) ManagedSchemaScope(ctx context.Context, id string, m
 	if snapshot.connectorKind == writeGroupConnectorKindSQLite && group.Destination.TableSchema != managedSQLiteSchemaName {
 		return recordingplan.SchemaPreviewScope{}, fmt.Errorf("managed SQLite schema must be main: %w", ErrWriteGroupValidation)
 	}
+	// Mixed intent uses only the existing supported result-layout authority.
+	// Check before legacy dialect branches, which may probe the destination.
+	if isMixedWriteGroup(group) {
+		if _, err := managedSchemaLayout(group, snapshot.tagTypes, snapshot.connectorKind); err != nil {
+			return recordingplan.SchemaPreviewScope{}, err
+		}
+	}
 	var layout *recordingplan.GroupSchemaLayout
 	switch snapshot.connectorKind {
 	case writeGroupConnectorKindSQLServer:
@@ -68,7 +75,7 @@ func (s *WriteGroupService) ManagedSchemaScope(ctx context.Context, id string, m
 			return recordingplan.SchemaPreviewScope{}, err
 		}
 	}
-	sourceDigest, err := managedSourceDigest(group, snapshot.tagTypes)
+	sourceDigest, err := managedSourceDigest(group, snapshot.tagTypes, snapshot.counterBindings)
 	if err != nil {
 		return recordingplan.SchemaPreviewScope{}, err
 	}
@@ -93,8 +100,20 @@ func (s *WriteGroupService) ManagedSchemaScope(ctx context.Context, id string, m
 // long group also binds its profile, layout and mode, which are part of the
 // confirmed scope; a wide group keeps the original two-part digest. Recording
 // start records the same digest at each checkpoint, so both must come from here.
-func managedSourceDigest(group *WriteGroup, tagTypes map[string]schema.DataType) (string, error) {
+func managedSourceDigest(group *WriteGroup, tagTypes map[string]schema.DataType, bindings ...CounterBindingProofs) (string, error) {
 	sources := []any{group.Members, tagTypes}
+	if isMixedWriteGroup(group) {
+		var supplied CounterBindingProofs
+		if len(bindings) > 0 {
+			supplied = bindings[0]
+		}
+		proofs, err := mixedSchemaCounterProofs(group, supplied)
+		if err != nil {
+			return "", fmt.Errorf("%w: %w", ErrWriteGroupValidation, err)
+		}
+		sources = append(sources, proofs)
+		sources = append(sources, group.WorkspaceID, group.ID, group.RecordID, group.RowPolicy, group.RecordingProfile, group.LayoutVersion, group.StorageMode)
+	}
 	switch group.EffectiveLayoutVersion() {
 	case WriteGroupLayoutManagedLongV1:
 		sources = append(sources, canonicalDigestProfile(group.RecordingProfile), group.LayoutVersion, group.StorageMode)
@@ -127,7 +146,13 @@ func canonicalDigestProfile(profile *WriteGroupRecordingProfile) *WriteGroupReco
 }
 
 func managedSchemaLayout(group *WriteGroup, types map[string]schema.DataType, dialect string) (*recordingplan.GroupSchemaLayout, error) {
-	if group.isWideProfile() && !WideProfileShapeSupported(group, types) {
+	if isMixedWriteGroup(group) && dialect != writeGroupConnectorKindSQLite && dialect != writeGroupConnectorKindPostgres {
+		return nil, fmt.Errorf("%w: mixed schema dialect unsupported", ErrWriteGroupValidation)
+	}
+	if isMixedWriteGroup(group) && !mixedSchemaShapeSupported(group, types) {
+		return nil, fmt.Errorf("%w: mixed schema requires complete frozen calculation facts and explicit dispatch mapping", ErrWriteGroupValidation)
+	}
+	if group.isWideProfile() && !isMixedWriteGroup(group) && !WideProfileShapeSupported(group, types) {
 		// The wide profile layout is prepared only from frozen result types that
 		// are complete and verified; anything else is never given the legacy wide
 		// DDL as a stand-in.
@@ -153,6 +178,7 @@ func managedSchemaLayout(group *WriteGroup, types map[string]schema.DataType, di
 	add(group.RowPolicy.GroupIDColumn, "TEXT", false, false)
 	add(group.RowPolicy.DeviceIDColumn, "TEXT", false, false)
 	add(group.RowPolicy.BucketStartColumn, "TEXT", false, false)
+	add(group.RowPolicy.DueAtColumn, "TEXT", false, false)
 	add(group.RowPolicy.ProvenanceColumn, "TEXT", false, false)
 	add(group.RowPolicy.EntityKeyColumn, "TEXT", false, false)
 	add(layout.OwnerColumn, "TEXT", false, false)
