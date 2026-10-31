@@ -6,6 +6,7 @@ import (
 
 	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/config"
+	datalinkapi "go-gateway/internal/datalink/api"
 	"go-gateway/internal/datalink/audit"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/dbtarget"
@@ -217,6 +218,11 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.PUT("/devices/:id", deviceHandler.Update)
 			datalinkGroup.DELETE("/devices/:id", deviceHandler.Delete)
 			datalinkGroup.POST("/devices/:id/test", deviceHandler.TestConnection)
+			// Reuse saved-diagnostic readiness; this does not probe or activate a device.
+			deviceReadiness := datalinkapi.NewDeviceHandler(datalinkServices.Device, nil)
+			datalinkGroup.POST("/devices/:id/readiness", func(c *gin.Context) {
+				deviceReadiness.CheckReadiness(c.Writer, c.Request, c.Param("id"))
+			})
 			datalinkGroup.POST("/devices/:id/activate", deviceHandler.Activate)
 			datalinkGroup.POST("/devices/:id/disable", deviceHandler.Disable)
 			datalinkGroup.POST("/devices/test-batch", deviceHandler.TestConnectionBatch)
