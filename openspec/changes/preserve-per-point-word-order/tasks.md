@@ -21,6 +21,6 @@
 
 - [x] 4.1 [after: 3.4] 交付 Production evidence and consumer handoff 的共用API schema、frontend types/services及en/zh-TW安全錯誤契約，供 streamline-recording-task-editor 顯示mode/effective source/applicability；以API contract與前端service tests確認unsupported不可假存成功，annotations變更經既有generator產生Swagger，不在本案改布局。
 - [x] 4.2 [after: 4.1] 經 cmd/test_ui 真實wiring測試 rule save→point reload→collector→adapter→ingestor 與reset/restart/rollback，完成全protocol/type/format acceptance matrix；使用既有fake transport/disposable設定DB，列出實跑與NOT RUN，不以helper測試替代production證據。
-- [ ] 4.3 [after: 4.2] 完成expand→migrate→contract與downgrade安全演練：新override存在時以受管理回退程序／相容檢查阻止不相容downgrade（不新增部署engine，不聲稱攔任意舊binary），驗證設定備份還原不改歷史SQL；本案交接執行受影響測試與必要integration/acceptance、git diff --check、make check-lines、Spectra verify/review並交接測試矩陣；完整前後端全套檢查留到七案整批實作完成、最終交付前統一執行，不在單案交接提前總測，未做真PLC／正式DB驗收須明列。
+- [x] 4.3 [after: 4.2] 完成expand→migrate→contract與downgrade安全演練：新override存在時以受管理回退程序／相容檢查阻止不相容downgrade（不新增部署engine，不聲稱攔任意舊binary），驗證設定備份還原不改歷史SQL；本案交接執行受影響測試與必要integration/acceptance、git diff --check、make check-lines、Spectra verify/review並交接測試矩陣；完整前後端全套檢查留到七案整批實作完成、最終交付前統一執行，不在單案交接提前總測，未做真PLC／正式DB驗收須明列。
 
 需求澄清（2026-10-30）：依 owner「做的期間只跑相關測試，直到完成才跑全部」，上述全套時點指七案整批最終交付，取代可能被誤讀為本案結束即總測的舊措辭；各 task 必要focused integration、production wiring與驗收矩陣不減免，task數與依賴不變。

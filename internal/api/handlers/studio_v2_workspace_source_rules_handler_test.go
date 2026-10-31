@@ -11,6 +11,7 @@ import (
 
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"
+	runtimepkg "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/workspace"
@@ -230,6 +231,7 @@ func TestStudioV2WorkspaceSourceRulesHandler_UpdateReturnsRuntimeReconcileOutcom
 
 func TestStudioV2WorkspaceSourceRulesHandler_DeleteReturnsRuntimeReconcileOutcome(t *testing.T) {
 	fixture := newWorkspaceSourceRuleReconcileFixture(t)
+	require.NotZero(t, fixture.runtimeSync.CapturePointLease(fixture.point.ID, fixture.point.RevisionID))
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/datalink/studio-v2/workspace/source-rules/rule-A", http.NoBody)
 	resp := httptest.NewRecorder()
@@ -244,11 +246,13 @@ func TestStudioV2WorkspaceSourceRulesHandler_DeleteReturnsRuntimeReconcileOutcom
 	require.Contains(t, resp.Body.String(), `"runtime_apply_message":"projection aligned"`)
 	require.Len(t, fixture.runtimeSync.reconcileRequests, 1)
 	require.Equal(t, sourcerule.RuntimeReconcileOperationDelete, fixture.runtimeSync.reconcileRequests[0].Operation)
+	require.Zero(t, fixture.runtimeSync.CapturePointLease(fixture.point.ID, fixture.point.RevisionID), "delete must remove the actual owned installation")
 	require.Equal(t, "rule-A", fixture.runtimeSync.reconcileRequests[0].Scope.RuleID)
 	require.Equal(t, "dev-A", fixture.runtimeSync.reconcileRequests[0].Scope.DeviceID)
 }
 
 type workspaceSourceRuleReconcileFixture struct {
+	point       *schema.Point
 	handler     *StudioV2WorkspaceSourceRulesHandler
 	runtimeSync *sourceRuleRuntimeReconcileRecorder
 }
@@ -269,6 +273,7 @@ func newWorkspaceSourceRuleReconcileFixture(t *testing.T) workspaceSourceRuleRec
 		},
 	}
 	ruleSvc := sourcerule.NewService(sourcerule.NewMemoryRepository(), deviceSvc, pointSvc, runtimeSync)
+	wireSourceRuleReconcileRuntimeFixture(t, runtimeSync, deviceSvc, pointSvc, ruleSvc)
 	workspaceSvc := workspace.NewService(workspace.NewMemoryRepository()).WithReadinessServices(deviceSvc, ruleSvc, nil, nil)
 	_, err := workspaceSvc.AttachDevice(context.Background(), "dev-A")
 	require.NoError(t, err)
@@ -284,20 +289,23 @@ func newWorkspaceSourceRuleReconcileFixture(t *testing.T) workspaceSourceRuleRec
 	})
 	require.NoError(t, err)
 
+	points, err := pointSvc.ListByDevice(t.Context(), "dev-A")
+	require.NoError(t, err)
+	require.Len(t, points, 1)
+	require.NotZero(t, runtimeSync.CapturePointLease(points[0].ID, points[0].RevisionID))
+
 	return workspaceSourceRuleReconcileFixture{
+		point:       points[0],
 		handler:     NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc, deviceSvc, ruleSvc),
 		runtimeSync: runtimeSync,
 	}
 }
 
 type sourceRuleRuntimeReconcileRecorder struct {
+	*runtimepkg.Service
 	outcome           sourcerule.RuntimeReconcileOutcome
 	reconcileRequests []sourcerule.RuntimeReconcileRequest
 }
-
-func (r *sourceRuleRuntimeReconcileRecorder) UpsertPoint(*schema.Point) {}
-
-func (r *sourceRuleRuntimeReconcileRecorder) RemovePoint(string) {}
 
 func (r *sourceRuleRuntimeReconcileRecorder) ReconcileSourceRule(_ context.Context, req sourcerule.RuntimeReconcileRequest) sourcerule.RuntimeReconcileOutcome {
 	r.reconcileRequests = append(r.reconcileRequests, req)
