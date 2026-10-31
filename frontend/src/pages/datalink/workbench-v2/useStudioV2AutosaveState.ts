@@ -150,7 +150,7 @@ export function useStudioV2AutosaveState(
     if (localRule) return true;
     return persistedMCCanMutateRule(ruleID);
   }, [persistedMCCanMutateRule, sourceRanges]);
-  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule, sourceRanges.ruleObservation);
+  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule, sourceRanges.ruleObservation, sourceWorkspaceId);
   const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled, canMutateRule, sourceRanges.mappingObservation);
   rangeQueue.current = { rule: ruleAutosave.afterRuleAction, mapping: mappingAutosave.afterMappingAction };
   const databaseAutosave = useStudioV2DatabaseAutosave(actions, stateRef, enabled, canMutateRule);

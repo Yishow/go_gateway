@@ -1,8 +1,13 @@
+import { buildStudioEntityLocatorTarget } from '../../../../services/studioEntityLocator';
 import { useTranslation } from 'react-i18next';
 import { recordingRangeDataTypes } from './recordingRangeBuffer';
 import type { RecordingRangeController } from './useRecordingRangeBuffer';
 export function RecordingRangeContent({ controller: range, available, onBack, onSubmit, onInspect, onPrepare }: { controller: RecordingRangeController; available: boolean; onBack: () => void; onSubmit: () => void; onInspect: () => void; onPrepare: () => void }) {
   const { t } = useTranslation('recording-editor');
+  const inspection = range.outcome?.inspection;
+  const reviewTarget = inspection?.ruleId && range.outcome ? buildStudioEntityLocatorTarget({ step: 2,
+    workspace_id: range.outcome.request.workspaceId, device_id: range.outcome.request.deviceId, rule_id: inspection.ruleId,
+    mapping_id: null, group_id: null, group_revision: null }) : null;
   return <><div className="gw-modal-body space-y-4"><p data-testid="recording-range-device">{range.target?.name}</p>
     {available ? <p className="gw-muted" data-testid="recording-source-confirmed">{t('range.savedDeviceNote')}</p> : <p role="alert">{t('picker.unavailable')}</p>}
     {(['name', 'address', 'count'] as const).map(field => <label key={field} className="block">{t(`range.${field}`)}<input disabled={!available} value={range.buffer[field]}
@@ -18,11 +23,14 @@ export function RecordingRangeContent({ controller: range, available, onBack, on
     {range.blocked && <p role="alert">{t('device.scopeBlocked')}</p>}
     {range.pending && <p role="status">{t('range.pending')}</p>}
     {range.outcome && range.outcome.status !== 'pending' && range.outcome.status !== 'confirmed' && <p role="alert" data-testid={`recording-range-${range.outcome.status}`}>{t(`range.${range.outcome.status}`)}</p>}
+    {inspection?.status === 'current-state' && <p role="status" data-testid="recording-range-current-state">{t('range.inspectedUnknown')} · {inspection.currentRule?.start_address}</p>}
+    {inspection?.status === 'unavailable' && <p role="alert" data-testid="recording-range-inspection-unavailable">{t(inspection.ruleId ? 'range.inspectFailed' : 'range.inspectUnavailable')}</p>}
+    {reviewTarget && <a href={reviewTarget} target="_blank" rel="noopener noreferrer">{t('range.reviewSource')}</a>}
     {range.outcome?.status === 'saved-inactive' && <p className="gw-muted">{t('range.prepareNote')}</p>}
     {range.outcome?.preparationError && <p role="alert">{t(`range.${range.outcome.preparationError}`)}</p>}
     {range.outcome && ['confirmed', 'saved-inactive'].includes(range.outcome.status) && range.dirty && <p role="status" data-testid="recording-range-newer">{t('range.newer')}</p>}
   </div><footer className="gw-modal-footer"><button type="button" data-testid="recording-range-back" onClick={onBack}>{t(range.outcome?.status === 'saved-inactive' ? 'range.keepOffline' : 'source.back')}</button>
-    {range.locked && !range.pending && <button type="button" data-testid="recording-range-inspect" disabled={range.checking} onClick={onInspect}>{t('range.inspect')}</button>}
+    {range.locked && !range.pending && <button type="button" data-testid="recording-range-inspect" disabled={range.checking || !range.canInspect} onClick={onInspect}>{t('range.inspect')}</button>}
     {range.outcome?.status === 'saved-inactive' ? <button type="button" className="gw-primary" data-testid="recording-range-prepare" disabled={!available || !range.canPrepareSaved} onClick={onPrepare}>{t('range.prepare')}</button> : <button type="button" className="gw-primary" disabled={!available || !range.canSubmit} onClick={onSubmit}>{t('range.save')}</button>}
   </footer></>;
 }

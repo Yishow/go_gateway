@@ -76,13 +76,15 @@ export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourceP
     requestRef.current = request; submitting.current = true; setPending(true); const captured = owner;
     try { accept(await port.prepareSaved(original.requestId, request), captured); } catch { accept({ request, status: 'unknown' }, captured); }
   };
+  const canInspect = Boolean(port && requestRef.current && (!outcome?.inspection || outcome.inspection.ruleId));
   const inspect = async () => {
-    const request = requestRef.current; if (!port || !request || checking) return;
+    const request = requestRef.current; if (!port || !request || checking || !canInspect) return;
     setChecking(true); const captured = owner;
     try { accept(await port.inspect(request.requestId), captured); } catch { accept({ request, status: 'unknown' }, captured); }
     finally { if (mounted.current && ownerRef.current === captured) setChecking(false); }
   };
   return { buffer, dirty, target, device, outcome, pending, checking, preparing, blocked, activationAllowed, locked, recoverable, inactiveSources, canResume, canStart, parsed, change, reset, resume, start, submit, inspect, prepareSaved, submission: () => requestRef.current,
+    canInspect,
     canPrepareSaved: Boolean(port && !disabled && !pending && !dirty && outcome?.status === 'saved-inactive'),
     canSubmit: Boolean(port && !disabled && !locked && parsed && dirty && !['confirmed', 'saved-inactive'].includes(outcome?.status ?? '')) };
 }

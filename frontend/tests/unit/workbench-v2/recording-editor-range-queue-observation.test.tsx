@@ -27,7 +27,7 @@ function harness(ruleObservation?: RuleQueueObservation, mappingObservation?: Ma
     saveMapping: () => act(() => hook.result.current.mapping.afterMappingAction(ref.current, { type: 'updateMapping', pointId: point.id, patch: { scale: 1 } }, ref.current)),
   };
 }
-const ruleAck = { id: 'rule-1', workspace_id: 'w', revision_id: 'r', runtime_apply_status: 'applied' };
+const ruleAck = { ...savedGroupState().rules[0], id: 'rule-1', device_id: 'dev-1', start_address: '40001', count: 1, workspace_id: 'w', revision_id: 'r', runtime_apply_status: 'applied' };
 const mappingAck = { id: 'mapping-1', workspace_id: 'w', point_id: 'canonical-p', tag_id: 't', rule_id: 'rule-1', device_id: 'dev-1', address: '40001', tag_key: 'line.temperature', display_name: 'line.temperature', unit: '', target_type: 'float64', scale: 1, offset: 0, enabled: true, runtime_apply_status: 'applied' };
 beforeEach(() => { vi.resetAllMocks(); api.list.mockResolvedValue([]); });
 describe('actual rule and mapping queue observation', () => {
@@ -93,4 +93,16 @@ describe('request observer replacement and queued edits', () => {
     expect(api[kind]).toHaveBeenCalledOnce();
     expect(kind === 'rule' ? current.ref.current.rules[0].persisted : current.ref.current.mappings[current.point.id].persisted).toBe(false);
   });
+});
+
+it('observes an actually queued generation before mutation permission allows HTTP, then submits that generation once', async () => {
+  api.rule.mockResolvedValue(ruleAck);
+  const observer: RuleQueueObservation = { queued: vi.fn(), submitted: vi.fn(), acknowledged: vi.fn(() => true), saved: vi.fn(), failed: vi.fn() };
+  const current = harness(observer); current.allowed.current = false; current.saveRule();
+  expect(observer.queued).toHaveBeenCalledWith(expect.objectContaining({ id: 'rule-1', count: 1 }), 1);
+  expect(observer.submitted).not.toHaveBeenCalled(); expect(api.rule).not.toHaveBeenCalled();
+  current.allowed.current = true; current.rerender();
+  await waitFor(() => expect(observer.saved).toHaveBeenCalledOnce());
+  expect(observer.submitted).toHaveBeenCalledWith(expect.objectContaining({ id: 'rule-1', count: 1 }), 1);
+  expect(observer.queued).toHaveBeenCalledOnce(); expect(api.rule).toHaveBeenCalledOnce();
 });

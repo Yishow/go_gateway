@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { readRuleProof, readRangeCompletion, matchesRangeRuleAcknowledgement } from '../../../src/pages/datalink/workbench-v2/rangeSourceReadback';
+import { readRuleProof, readCurrentRangeRule, readRangeCompletion, matchesRangeRuleAcknowledgement } from '../../../src/pages/datalink/workbench-v2/rangeSourceReadback';
 import type { RangeRuleReceipt, RangeSourceRequest, RangeMappingReceipt } from '../../../src/pages/datalink/workbench-v2/rangeSourceSubmission';
 const api = vi.hoisted(() => ({ workspace: vi.fn(), rules: vi.fn(), devices: vi.fn(), candidates: vi.fn(), mappings: vi.fn(), point: vi.fn(), tag: vi.fn() }));
 vi.mock('../../../src/services/studioV2Workspace', () => ({ studioV2WorkspaceAPI: { get: api.workspace } }));
@@ -159,5 +159,25 @@ describe('shared acknowledgement matcher', () => {
     req.buffer.enabled = false; ack.submitted.enabled = false; ack.acknowledged.enabled = true;
     expect(matchesRangeRuleAcknowledgement(ack, req)).toBe(false);
     expect(api.workspace).not.toHaveBeenCalled();
+  });
+});
+
+describe('current-state inspection is scoped but is not a missing write receipt', () => {
+  it('reads the precise known rule between matching workspace revisions', async () => {
+    expect(await readCurrentRangeRule('w', 'd', 'r')).toEqual(receipt.acknowledged);
+    expect(api.workspace).toHaveBeenCalledTimes(2); expect(api.rules).toHaveBeenCalledTimes(1);
+    expect(api.candidates).not.toHaveBeenCalled(); expect(api.mappings).not.toHaveBeenCalled();
+  });
+  it.each(['foreign-workspace', 'foreign-device', 'foreign-rule', 'duplicate', 'revision-race', 'scope-race', 'no-revision', 'failed'])('does not label %s as a verified current-state read', async kind => {
+    if (kind === 'foreign-workspace') api.rules.mockResolvedValue([{ ...receipt.acknowledged, workspace_id: 'other' }]);
+    if (kind === 'foreign-device') api.rules.mockResolvedValue([{ ...receipt.acknowledged, device_id: 'other' }]);
+    if (kind === 'foreign-rule') api.rules.mockResolvedValue([{ ...receipt.acknowledged, id: 'other' }]);
+    if (kind === 'duplicate') api.rules.mockResolvedValue([receipt.acknowledged, receipt.acknowledged]);
+    if (kind === 'no-revision') api.rules.mockResolvedValue([{ ...receipt.acknowledged, revision_id: '' }]);
+    if (kind === 'failed') api.rules.mockRejectedValue(new Error('read failed'));
+    if (kind === 'revision-race' || kind === 'scope-race') api.workspace
+      .mockResolvedValueOnce({ id: 'w', ordered_device_ids: ['d'], modbus_share: { workspace_revision: 'source-rev' } })
+      .mockResolvedValueOnce({ id: kind === 'scope-race' ? 'other' : 'w', ordered_device_ids: ['d'], modbus_share: { workspace_revision: 'changed' } });
+    expect(await readCurrentRangeRule('w', 'd', 'r')).toBeUndefined();
   });
 });

@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'rea
 import type { Mapping, Point, Rule, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
 import type { WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { hydrateStudioV2Device } from '../../../features/datalink/workbench-v2/state/studioV2DeviceAutosave';
-import { hydrateStudioV2Rule, isStudioV2RuleValid, toStudioV2RuleCreateRequest } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
+import { hydrateStudioV2Rule, isStudioV2RuleValid, toStudioV2RuleCreateRequest, toStudioV2RuleUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
 import { derivePoints, getRuleReadinessReason } from '../../../features/datalink/workbench-v2/state/sourceRule';
 import { mappingValueFromState, toStudioV2MappingUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
-import type { RangeMappingReceipt, RangeRuleReceipt, RangeSourceOutcome, RangeSourcePort, RangeSourcePreparation } from './rangeSourceSubmission';
+import type { RangeMappingReceipt, RangeRuleReceipt, RangeSourceOutcome, RangeSourcePort, RangeSourcePreparation, RangeSourceRequest, RangeSourceBuffer } from './rangeSourceSubmission';
 import { isKnownRuleValidationRejection, type RuleQueueObservation, type MappingQueueObservation } from './sourceQueueObservation';
-import { readRuleProof, readRangeCompletion, matchesRangeRuleAcknowledgement, type RangeRuleProof } from './rangeSourceReadback';
+import { readCurrentRangeRule, readRuleProof, readRangeCompletion, matchesRangeRuleAcknowledgement, type RangeRuleProof } from './rangeSourceReadback';
 export interface RangeSubmissionOptions {
   workspaceId?: string; enabled: boolean; stateRef: MutableRefObject<WorkbenchV2State>;
   apply(action: WorkbenchV2Action): void;
@@ -18,6 +18,7 @@ export interface RangeSubmissionOptions {
 }
 interface Entry {
   owner: object; outcome: RangeSourceOutcome; snapshot: Rule; receipt?: RangeRuleReceipt; proof?: RangeRuleProof;
+  knownPointIds: Set<string>; legacyRequest?: RangeSourceRequest; queuedRequest?: RangeSourceRequest;
   preparing?: boolean; mappingStarted: boolean; mappingIds: Set<string>; mappings: Map<string, RangeMappingReceipt>; checking: boolean;
   promise: Promise<RangeSourceOutcome>; resolve: (result: RangeSourceOutcome) => void;
 }
@@ -38,6 +39,22 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
     const publish = (entry: Entry, status: RangeSourceOutcome['status'], extra: Partial<RangeSourceOutcome> = {}) => {
       entry.outcome = { ...entry.outcome, ...extra, status }; entry.resolve(structuredClone(entry.outcome)); if (mounted.current) changed(value => value + 1); return structuredClone(entry.outcome);
     };
+    const legacyRequest = (entry: Entry, rule: Rule, generation: number): RangeSourceRequest => ({
+      workspaceId: entry.outcome.request.workspaceId, deviceId: rule.device_id, requestId: crypto.randomUUID(),
+      sessionId: `${entry.outcome.request.sessionId}:legacy`, generation,
+      buffer: structuredClone({ name: rule.name, ...toStudioV2RuleUpdateRequest(rule) }) as RangeSourceBuffer,
+    });
+    const quarantineLegacy = (entry: Entry, rule: Rule) => {
+      const request = entry.legacyRequest ?? legacyRequest(entry, rule, entry.outcome.request.generation + 1);
+      const outcome: RangeSourceOutcome = { request, status: 'unknown', inspection: { status: 'not-checked', ruleId: rule.id } };
+      const next: Entry = { ...entry, outcome, snapshot: structuredClone(rule), legacyRequest: undefined, queuedRequest: undefined,
+        receipt: undefined, proof: undefined, knownPointIds: new Set(entry.knownPointIds), checking: false,
+        promise: Promise.resolve(outcome), resolve: () => undefined };
+      entry.legacyRequest = undefined;
+      entries.current.set(request.requestId, next); publish(next, 'unknown');
+    };
+    const ownsPoint = (entry: Entry, deviceId: string, pointId: string) => byRule(entry.snapshot.id) === entry &&
+      entry.outcome.request.workspaceId === current.current.workspaceId && entry.outcome.request.deviceId === deviceId && entry.knownPointIds.has(pointId);
     const apply = (action: WorkbenchV2Action, mapping = false) => {
       const previous = current.current.stateRef.current; current.current.apply(action);
       if (mapping) current.current.queueMapping(previous, action, current.current.stateRef.current);
@@ -56,6 +73,7 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
         const proof = await readRuleProof(entry.receipt, entry.outcome.request);
         if (!active(entry) || !proof) return publish(entry, 'unknown');
         entry.proof = proof;
+        proof.snapshot.tags.candidates.forEach(point => { if (point.point_id) entry.knownPointIds.add(point.point_id); });
         if (entry.mappingStarted) return complete(entry);
         const rule = { ...hydrateStudioV2Rule(proof.record), ...(proof.mcEvidence ? { mc_persisted_points: proof.mcEvidence } : {}) };
         apply({ type: 'updateRule', ruleId: rule.id, patch: rule });
@@ -96,7 +114,11 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
         if (!mounted.current || owner.current.token !== captured || !current.current.enabled || device?.id !== id || device.runtime_apply_status === 'apply_failed') return;
         return prepared;
       },
-      canSelect: (deviceId, pointId) => ![...entries.current.values()].some(entry => byRule(entry.snapshot.id) === entry && entry.outcome.request.workspaceId === current.current.workspaceId && entry.outcome.request.deviceId === deviceId && entry.proof?.snapshot.tags.candidates.some(point => point.point_id === pointId) && entry.outcome.status !== 'confirmed'),
+      canSelect: (deviceId, pointId) => ![...entries.current.values()].some(entry => ownsPoint(entry, deviceId, pointId) && (entry.legacyRequest || entry.queuedRequest || entry.outcome.status !== 'confirmed')),
+      sourceWriteState: (deviceId, pointId) => {
+        const entry = [...entries.current.values()].find(row => ownsPoint(row, deviceId, pointId));
+        return entry?.legacyRequest || entry?.queuedRequest ? 'pending' : entry && (entry.outcome.status === 'pending' || entry.outcome.status === 'unknown') ? entry.outcome.status : undefined;
+      },
       observations: () => [...entries.current.values()].filter(entry => byRule(entry.snapshot.id) === entry && entry.outcome.request.workspaceId === current.current.workspaceId).map(entry => structuredClone(entry.outcome)),
       submit: request => {
         const previous = entries.current.get(request.requestId);
@@ -105,7 +127,7 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
           [...entries.current.values()].some(entry => entry.outcome.request.workspaceId === request.workspaceId && ['pending', 'unknown', 'persisted-unavailable'].includes(entry.outcome.status))) return Promise.resolve({ request, status: 'blocked' });
         const snapshot: Rule = { ...structuredClone(request.buffer), id: `rule-${crypto.randomUUID()}`, device_id: request.deviceId, persisted: false, save_state: 'idle' };
         let resolve!: Entry['resolve']; const promise = new Promise<RangeSourceOutcome>(yes => { resolve = yes; });
-        const entry: Entry = { owner: owner.current.token, outcome: { request: structuredClone(request), status: 'pending' }, snapshot, mappingStarted: false, mappingIds: new Set(), mappings: new Map(), checking: false, promise, resolve };
+        const entry: Entry = { owner: owner.current.token, outcome: { request: structuredClone(request), status: 'pending' }, snapshot, knownPointIds: new Set(), mappingStarted: false, mappingIds: new Set(), mappings: new Map(), checking: false, promise, resolve };
         entries.current.set(request.requestId, entry); changed(value => value + 1);
         void (async () => {
           try {
@@ -155,6 +177,19 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
       inspect: async requestId => {
         const entry = entries.current.get(requestId);
         if (!entry || entry.outcome.request.workspaceId !== current.current.workspaceId) return;
+        if (entry.outcome.status === 'unknown' && entry.receipt && entry.mappingStarted && entry.mappings.size !== entry.mappingIds.size && !entry.outcome.inspection) {
+          entry.outcome = { ...entry.outcome, inspection: { status: 'not-checked', ruleId: entry.receipt.acknowledged.id } };
+        }
+        if (entry.outcome.status === 'unknown' && entry.outcome.inspection?.ruleId && active(entry)) {
+          if (entry.checking) return structuredClone(entry.outcome);
+          entry.checking = true;
+          try {
+            const record = await readCurrentRangeRule(entry.outcome.request.workspaceId, entry.outcome.request.deviceId, entry.outcome.inspection.ruleId);
+            if (active(entry) && byRule(entry.snapshot.id) === entry) publish(entry, 'unknown', {
+              inspection: { ruleId: entry.snapshot.id, status: record ? 'current-state' : 'unavailable', currentRule: record },
+            });
+          } finally { entry.checking = false; }
+        }
         if (entry.outcome.status === 'unknown' && entry.receipt && active(entry)) {
           if (entry.mappingStarted && entry.mappings.size !== entry.mappingIds.size) return structuredClone(entry.outcome); // No lost mapping ack guessing or blind create retry.
           await advance(entry);
@@ -163,30 +198,40 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
       },
     };
     const ruleObservation: RuleQueueObservation = {
+      queued: (rule, generation) => {
+        const entry = byRule(rule.id);
+        if (entry && active(entry) && entry.outcome.status === 'confirmed') {
+          entry.queuedRequest = isStudioV2RuleValid(rule) ? legacyRequest(entry, rule, generation) : undefined; changed(value => value + 1);
+        }
+      },
+      submitted: (rule, generation) => {
+        const entry = byRule(rule.id);
+        if (entry && active(entry) && entry.outcome.status === 'confirmed') {
+          entry.legacyRequest = { ...legacyRequest(entry, rule, generation), ...(entry.queuedRequest?.generation === generation ? { requestId: entry.queuedRequest.requestId } : {}) };
+          entry.queuedRequest = undefined; changed(value => value + 1);
+        }
+      },
       acknowledged: (rule, saved) => {
         const entry = byRule(rule.id); if (!entry) return true;
         // A completed range does not own subsequent explicit legacy rule edits.
         if (entry.outcome.status === 'confirmed') {
-          const submitted = toStudioV2RuleCreateRequest(rule);
-          const matches = active(entry) && saved.id === rule.id && saved.device_id === rule.device_id && saved.workspace_id === current.current.workspaceId && Boolean(saved.revision_id?.trim()) &&
-            same(submitted, toStudioV2RuleCreateRequest(hydrateStudioV2Rule(saved)));
-          if (!matches) { entry.receipt = undefined; entry.proof = undefined; publish(entry, 'unknown'); }
+          const matches = active(entry) && saved.id === rule.id && saved.device_id === rule.device_id && saved.workspace_id === current.current.workspaceId && Boolean(saved.revision_id?.trim());
+          if (!matches) quarantineLegacy(entry, rule);
           return matches;
         }
         const match = active(entry) && same(toStudioV2RuleCreateRequest(entry.snapshot), toStudioV2RuleCreateRequest(rule)) &&
           matchesRangeRuleAcknowledgement({ submitted: toStudioV2RuleCreateRequest(rule), acknowledged: saved }, entry.outcome.request);
-        if (!match) { publish(entry, 'unknown'); return false; }
+        if (!match) { publish(entry, 'unknown', { inspection: { status: 'unavailable' } }); return false; }
         entry.receipt = { submitted: toStudioV2RuleCreateRequest(rule), acknowledged: structuredClone(saved) }; return true;
       },
-      saved: (rule, saved) => { const entry = byRule(rule.id); if (!entry || entry.outcome.status === 'confirmed') return; if (saved.runtime_apply_status === 'apply_failed') publish(entry, 'persisted-unavailable', { rule: saved }); else void advance(entry); },
+      saved: (rule, saved) => { const entry = byRule(rule.id); if (!entry) return; if (entry.outcome.status === 'confirmed') { entry.legacyRequest = undefined; changed(value => value + 1); return; } if (saved.runtime_apply_status === 'apply_failed') publish(entry, 'persisted-unavailable', { rule: saved }); else void advance(entry); },
       failed: (rule, error) => {
         const entry = byRule(rule.id); if (!entry || !active(entry)) return;
         if (entry.outcome.status === 'confirmed') {
-          if (isKnownRuleValidationRejection(error)) return;
-          // A later ambiguous legacy write cannot be settled using the old range receipt.
-          entry.receipt = undefined; entry.proof = undefined;
+          if (isKnownRuleValidationRejection(error)) { entry.legacyRequest = undefined; changed(value => value + 1); return; }
+          quarantineLegacy(entry, rule); return;
         }
-        publish(entry, 'unknown');
+        publish(entry, 'unknown', entry.receipt ? {} : { inspection: rule.persisted ? { status: 'not-checked', ruleId: rule.id } : { status: 'unavailable' } });
       },
     };
     const mappingReceipt = (point: Point, mapping: Mapping, saved: RangeMappingReceipt['acknowledged']): RangeMappingReceipt => ({ submitted: toStudioV2MappingUpdateRequest(point, mapping), acknowledged: structuredClone(saved) });

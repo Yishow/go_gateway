@@ -217,6 +217,9 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
     () => (editorMetadata.status === 'exists' ? suggestColumns(candidates, editorMetadata.columns, confirmed, dialect, draft.storage_strategy === 'managed') : { assignments: {}, unmatched: candidates.map((c) => c.key) }),
     [candidates, editorMetadata.columns, editorMetadata.status, confirmed, dialect, draft.storage_strategy],
   );
+  const sourceOwnerRef = useRef(deviceSource); sourceOwnerRef.current = deviceSource;
+  const unsettledSources = draft.members.filter(member => deviceSource?.range?.sourceWriteState?.(member.device_id, member.point_id));
+  const sourceWritePending = () => draft.members.some(member => sourceOwnerRef.current?.range?.sourceWriteState?.(member.device_id, member.point_id));
   const issues = validateDraft(draft, { destinationSaved: saved && destinationMatches, storageStrategy: draft.storage_strategy });
   const readiness = useWriteGroupReadinessQuery(group?.id, Boolean(group) && !dirty);
   const set = (patch: Partial<EditorDraft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -237,7 +240,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const renderLocatorLease = locatorLease.current;
 
   const handleSave = async () => {
-    if (savingRef.current || issues.length > 0 || readonly || locatorLease.current !== renderLocatorLease || renderLocatorLease.key !== null &&
+    if (savingRef.current || issues.length > 0 || sourceWritePending() || readonly || locatorLease.current !== renderLocatorLease || renderLocatorLease.key !== null &&
       (!mountedRef.current || locatorLease.current.blocked)) return;
     savingRef.current = true;
     const requestLease = renderLocatorLease;
@@ -246,6 +249,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       const body = draftToRequestGroup(draft, workspaceId);
       const latest = await fetchLatest();
       if (locatorLease.current !== requestLease || requestLease.key !== null && (!mountedRef.current || locatorLease.current.blocked)) return;
+      if (sourceWritePending()) return;
       const freshRevision = latest?.workspace_revision ?? workspaceRevision;
       if (group) {
         const current = latest?.groups.find((entry) => entry.id === group.id);
@@ -397,6 +401,12 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         />
       )}
 
+      {unsettledSources.length > 0 && <div role="alert" data-testid="group-source-unsettled">
+        <p>{editorText('range.selectedUnsettled')}</p><ul>{unsettledSources.map(member => {
+          const candidate = candidates.find(row => row.device_id === member.device_id && row.point_id === member.point_id);
+          return <li key={member.key}>{candidate ? `${candidate.device_name} · ${candidate.label} · ${candidate.address}` : `${sourceDevices.find(device => device.id === member.device_id)?.name ?? member.device_id} · ${member.point_id}`}</li>;
+        })}</ul>
+      </div>}
       {issues.length > 0 && (
         <ul role="alert" className="list-disc pl-5 text-xs text-red-300" data-testid="group-issues">
           {issues.map((issue, index) => <li key={`${issue.code}-${issue.member_key ?? issue.column ?? index}`}>{t(`step4.group.issue.${issue.code.replace(/-/g, '_')}`, { column: issue.column ?? '' })}</li>)}
@@ -414,7 +424,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
 
       <div className="flex items-center gap-3">
         <button
-          type="button" onClick={() => void handleSave()} disabled={readonly || saving || issues.length > 0 || (Boolean(group) && !dirty)}
+          type="button" onClick={() => void handleSave()} disabled={readonly || saving || issues.length > 0 || unsettledSources.length > 0 || (Boolean(group) && !dirty)}
           className="rounded bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-40" data-testid="group-save"
         >
           {group ? t('step4.group.editor.save') : t('step4.group.editor.create')}

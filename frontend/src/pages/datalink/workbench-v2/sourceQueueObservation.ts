@@ -4,6 +4,8 @@ import type { StudioV2RuntimeAppliedRecord } from '../../../types/studioV2Runtim
 import type { StudioV2MappingSaveResult } from '../../../services/studioV2Mappings';
 /** Optional request observers. Legacy queue/mutation ownership remains unchanged. */
 export interface RuleQueueObservation {
+  queued?(rule: Rule, generation: number): void;
+  submitted?(rule: Rule, generation: number): void;
   acknowledged(rule: Rule, saved: StudioV2RuntimeAppliedRecord<SourceRuleRecord>): boolean;
   saved(rule: Rule, saved: StudioV2RuntimeAppliedRecord<SourceRuleRecord>): void;
   failed(rule: Rule, error?: unknown): void;

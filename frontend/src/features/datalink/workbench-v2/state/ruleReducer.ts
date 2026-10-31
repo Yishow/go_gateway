@@ -33,6 +33,9 @@ export function ruleReducer(state: WorkbenchV2State, action: WorkbenchV2Action):
         selectedRuleId: nextSelectedRuleId,
       };
     }
+    case 'acknowledgeRuleSave':
+      // Canonical settlement is not a new user geometry edit: preserve skips.
+      return { ...state, rules: state.rules.map(rule => rule.id === action.ruleId ? { ...rule, ...action.patch } : rule) };
     case 'updateRule':
       return {
         ...state,

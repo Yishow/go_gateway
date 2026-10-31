@@ -104,6 +104,12 @@
     "keepOffline": "Keep offline source and return",
     "diagnostic-failed": "Connection diagnostics did not succeed. The source remains saved offline; no points were enabled.",
     "source-changed": "The saved source changed. No newer configuration was overwritten. Review the current source before preparing it.",
-    "prepareNote": "This checks the connection and prepares the saved point settings. It does not start device collection."
+    "prepareNote": "This checks the connection and prepares the saved point settings. It does not start device collection.",
+    "resume": "Restore this range input",
+    "inspectedUnknown": "Current rule read, but this submission is still unconfirmed. Input is retained and will not be resent. Current start address",
+    "inspectFailed": "The current source could not be verified. The submission is still unknown; check again later or open the advanced source page.",
+    "inspectUnavailable": "No verifiable save response was received. This creation cannot be confirmed; inspect advanced source settings without creating it again.",
+    "reviewSource": "Inspect the advanced source page (new tab)",
+    "selectedUnsettled": "These selected sources have pending or unconfirmed changes. Check them before saving; the recording draft and member settings are retained."
   }
 }

@@ -35,6 +35,7 @@ export type WorkbenchV2Action =
   | { type: 'addRule'; rule: Rule }
   | { type: 'removeRule'; ruleId: string }
   | { type: 'updateRule'; ruleId: string; patch: Partial<Rule> }
+  | { type: 'acknowledgeRuleSave'; ruleId: string; patch: Partial<Rule> }
   | { type: 'renameRule'; ruleId: string; name: string }
   | { type: 'toggleRuleEnabled'; ruleId: string }
   | { type: 'updateRuleSkipped'; ruleId: string; skippedAddresses: string[] }
@@ -349,6 +350,7 @@ export function workbenchV2Reducer(state: WorkbenchV2State, action: WorkbenchV2A
     case 'addRule':
     case 'removeRule':
     case 'updateRule':
+    case 'acknowledgeRuleSave':
     case 'renameRule':
     case 'toggleRuleEnabled':
     case 'updateRuleSkipped':

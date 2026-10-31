@@ -20,6 +20,7 @@ export function useCreateStudioV2WorkspaceDeviceMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    retry: false,
     mutationFn: (request: CreateDeviceRequest) => studioV2WorkspaceDevicesAPI.create(request),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
@@ -33,6 +34,7 @@ export function useUpdateStudioV2WorkspaceDeviceMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    retry: false,
     mutationFn: ({ deviceId, request }: { deviceId: string; request: UpdateDeviceRequest }) =>
       studioV2WorkspaceDevicesAPI.update(deviceId, request),
     onSuccess: async () => {
@@ -47,6 +49,7 @@ export function useDeleteStudioV2WorkspaceDeviceMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    retry: false,
     mutationFn: (deviceId: string) => studioV2WorkspaceDevicesAPI.remove(deviceId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
@@ -60,6 +63,7 @@ export function useUpdateStudioV2WorkspaceDeviceAvailabilityMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    retry: false,
     mutationFn: ({ deviceId, request }: { deviceId: string; request: StudioV2AvailabilityRequest }) =>
       studioV2WorkspaceDevicesAPI.updateAvailability(deviceId, request),
     onSuccess: async () => {
@@ -74,6 +78,7 @@ export function useUpdateStudioV2WorkspaceDeviceOrderMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    retry: false,
     mutationFn: (orderedDeviceIDs: string[]) => studioV2WorkspaceDevicesAPI.updateOrder(orderedDeviceIDs),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });

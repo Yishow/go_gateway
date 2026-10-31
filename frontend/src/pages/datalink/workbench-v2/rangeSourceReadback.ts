@@ -104,3 +104,17 @@ export async function readRangeCompletion(proof: RangeRuleProof, receipts: reado
     return result.candidates.length === (inactive ? 0 : receipts.length) ? { ...result, inactive, savedPoints } : undefined;
   } catch { return; }
 }
+
+/** Inspect a known persisted identity without inventing the missing write receipt. */
+export async function readCurrentRangeRule(workspaceId: string, deviceId: string, ruleId: string): Promise<SourceRuleRecord | undefined> {
+  try {
+    const before = await studioV2WorkspaceAPI.get();
+    if (before.id !== workspaceId || !before.modbus_share?.workspace_revision || !before.ordered_device_ids.includes(deviceId)) return;
+    const records = (await studioV2RulesAPI.list()).filter(rule => rule.id === ruleId);
+    const record = records[0];
+    if (records.length !== 1 || record.workspace_id !== workspaceId || record.device_id !== deviceId || !record.revision_id?.trim()) return;
+    const after = await studioV2WorkspaceAPI.get();
+    if (after.id !== before.id || after.modbus_share?.workspace_revision !== before.modbus_share.workspace_revision || !after.ordered_device_ids.includes(deviceId)) return;
+    return record;
+  } catch { return; }
+}

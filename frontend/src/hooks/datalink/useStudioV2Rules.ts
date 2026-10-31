@@ -18,6 +18,7 @@ export function useCreateStudioV2RuleMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    retry: false,
     mutationFn: (request: CreateSourceRuleRequest) => studioV2RulesAPI.create(request),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.sourceRules() });
@@ -30,6 +31,7 @@ export function useUpdateStudioV2RuleMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    retry: false,
     mutationFn: ({ ruleId, request }: { ruleId: string; request: StudioV2UpdateSourceRuleRequest }) =>
       studioV2RulesAPI.update(ruleId, request),
     onSuccess: async () => {
@@ -43,6 +45,7 @@ export function useDeleteStudioV2RuleMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    retry: false,
     mutationFn: (ruleId: string) => studioV2RulesAPI.remove(ruleId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.sourceRules() });

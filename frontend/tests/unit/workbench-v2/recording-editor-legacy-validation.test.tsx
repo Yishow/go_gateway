@@ -27,7 +27,7 @@ let mapping: StudioV2WorkspaceMappingRecord | undefined;
 function Harness({ extra = [] }: { extra?: GroupCandidate[] }) {
  const owner = useStudioV2AutosaveState(true, undefined, false, undefined, 'W');
  if (!owner.workspaceHydrated) return <p>Loading</p>;
- return <><RuleTabRail rules={owner.state.rules} devices={owner.state.devices} selectedRuleId={owner.state.rules[0]?.id ?? null} dispatch={owner.actions.dispatch} />{owner.state.rules.map(item => <div key={item.id}><input aria-label="Legacy address" value={item.start_address} onChange={event => owner.actions.dispatch({type:'updateRule',ruleId:item.id,patch:{start_address:event.target.value}})} /><output data-testid="legacy-save-state">{item.save_state}</output><output data-testid="legacy-enabled">{String(item.enabled)}</output></div>)}<input aria-label="Recording draft" defaultValue="Keep my recording" /><RecordingPointSelection scope="S" workspaceId="W" candidates={[...extra, ...buildGroupCandidates(owner.state).candidates]}
+ return <><output data-testid="source-write-state">{owner.deviceSource.range?.sourceWriteState?.('dev-1', 'POINT') ?? 'settled'}</output><RuleTabRail rules={owner.state.rules} devices={owner.state.devices} selectedRuleId={owner.state.rules[0]?.id ?? null} dispatch={owner.actions.dispatch} />{owner.state.rules.map(item => <div key={item.id}><input aria-label="Legacy address" value={item.start_address} onChange={event => owner.actions.dispatch({type:'updateRule',ruleId:item.id,patch:{start_address:event.target.value}})} /><output data-testid="legacy-save-state">{item.save_state}</output><output data-testid="legacy-enabled">{String(item.enabled)}</output></div>)}<input aria-label="Recording draft" defaultValue="Keep my recording" /><RecordingPointSelection scope="S" workspaceId="W" candidates={[...extra, ...buildGroupCandidates(owner.state).candidates]}
   members={[]} onChange={vi.fn()} devices={owner.state.devices} disabled={false} deviceSource={owner.deviceSource} /></>;
 }
 beforeEach(() => {
@@ -79,6 +79,7 @@ it('known HTTP400 validation permits corrected address and one later disable PUT
  await waitFor(()=>expect(screen.getByTestId('legacy-save-state')).toHaveTextContent('save-error'));
  expect(screen.getByLabelText('Legacy address')).toHaveValue('40001');
  expect(rule?.start_address).toBe('40009'); expect(rule?.enabled).toBe(true);
+ expect(screen.getByTestId('source-write-state')).toHaveTextContent('settled');
  fireEvent.change(screen.getByLabelText('Legacy address'),{target:{value:'40009'}});
  await waitFor(()=>expect(studioV2RulesAPI.update).toHaveBeenCalledTimes(2));
  await waitFor(()=>expect(screen.getByTestId('legacy-save-state')).toHaveTextContent('saved'));
@@ -146,4 +147,61 @@ it.each([
  {response:{status:400,data:{error:{code:'validation'+'x'.repeat(1024)}}}},
 ])('does not use alternative or malformed metadata as server zero-write proof (%#)', error => {
  expect(isKnownRuleValidationRejection(error)).toBe(false);
+});
+
+it('a later legacy edit on a confirmed range accepts canonical normalization without reviving the old receipt', async () => {
+ await confirmedSource();
+ studioV2RulesAPI.update.mockImplementationOnce(async (id, request) => {
+  rule = { ...rule!, ...request, id, start_address: '40009', enabled: false, revision_id: 'R2' };
+  return { ...rule, runtime_apply_status: 'not_running' };
+ });
+ fireEvent.change(screen.getByLabelText('Legacy address'), { target: { value: ' 40009 ' } });
+ await waitFor(() => expect(screen.getByTestId('legacy-save-state')).toHaveTextContent('saved'));
+ expect(screen.getByLabelText('Legacy address')).toHaveValue('40009');
+ expect(screen.getByTestId('legacy-enabled')).toHaveTextContent('false');
+ expect(studioV2RulesAPI.update).toHaveBeenCalledTimes(1);
+ fireEvent.change(screen.getByLabelText('Legacy address'), { target: { value: '40017' } });
+ await waitFor(() => expect(studioV2RulesAPI.update).toHaveBeenCalledTimes(2));
+});
+
+it.each([false, true])('a lost legacy PUT preserves attempted input, blocks old candidates, and reads current state without proving success (server wrote=%s)', async wrote => {
+ await confirmedSource();
+ const originalId = rule!.id;
+ expect(screen.getByTestId('source-write-state')).toHaveTextContent('settled');
+ studioV2RulesAPI.update.mockImplementationOnce(async (id, request) => {
+  if (wrote) rule = { ...rule!, ...request, id, revision_id: 'R2' };
+  throw new Error('lost response');
+ });
+ fireEvent.change(screen.getByLabelText('Legacy address'), { target: { value: '40711' } });
+ await waitFor(() => expect(screen.getByTestId('legacy-save-state')).not.toHaveTextContent('saving'));
+ expect(screen.getByTestId('source-write-state')).toHaveTextContent('unknown');
+ fireEvent.click(screen.getByTestId('recording-points-open'));
+ expect(screen.getByRole('checkbox')).toBeDisabled();
+ expect(screen.getByRole('button', { name: 'picker.add' })).toBeDisabled();
+ fireEvent.click(screen.getByTestId('recording-range-resume'));
+ expect(screen.getByLabelText('range.address')).toHaveValue('40711');
+ const reads = studioV2RulesAPI.list.mock.calls.length;
+ fireEvent.click(screen.getByTestId('recording-range-inspect'));
+ await waitFor(() => expect(studioV2RulesAPI.list).toHaveBeenCalledTimes(reads + 1));
+ expect(screen.getByTestId('recording-range-current-state')).toHaveTextContent(wrote ? '40711' : '40009');
+ expect(screen.getByTestId('recording-range-unknown')).toBeVisible();
+ expect(screen.getByLabelText('range.address')).toHaveValue('40711');
+ expect(screen.getByRole('button', { name: 'range.save' })).toBeDisabled();
+ const review = screen.getByRole('link', { name: 'range.reviewSource' });
+ expect(review).toHaveAttribute('target', '_blank'); expect(review.getAttribute('href')).toContain(`rule_id=${originalId}`);
+ expect(studioV2RulesAPI.update).toHaveBeenCalledTimes(1); expect(studioV2RulesAPI.create).toHaveBeenCalledTimes(1);
+});
+
+it('a failed current-state GET does not claim a successful inspection or release source uncertainty', async () => {
+ await confirmedSource();
+ studioV2RulesAPI.update.mockRejectedValueOnce(new Error('lost response'));
+ fireEvent.change(screen.getByLabelText('Legacy address'), { target: { value: '40711' } });
+ await waitFor(() => expect(screen.getByTestId('source-write-state')).toHaveTextContent('unknown'));
+ fireEvent.click(screen.getByTestId('recording-points-open')); fireEvent.click(screen.getByTestId('recording-range-resume'));
+ studioV2RulesAPI.list.mockRejectedValueOnce(new Error('GET failed'));
+ fireEvent.click(screen.getByTestId('recording-range-inspect'));
+ await screen.findByTestId('recording-range-inspection-unavailable');
+ expect(screen.queryByTestId('recording-range-current-state')).not.toBeInTheDocument();
+ expect(screen.getByLabelText('range.address')).toHaveValue('40711');
+ expect(studioV2RulesAPI.update).toHaveBeenCalledTimes(1);
 });

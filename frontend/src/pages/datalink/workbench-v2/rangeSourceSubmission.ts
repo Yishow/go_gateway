@@ -36,10 +36,13 @@ export interface RangeSourceOutcome {
   candidates?: GroupCandidates;
   savedPoints?: SourceIdentity[];
   preparationError?: 'diagnostic-failed' | 'source-changed';
+  /** A current-state read is never a receipt for an uncertain request. */
+  inspection?: { status: 'not-checked' | 'current-state' | 'unavailable'; ruleId?: string; currentRule?: SourceRuleRecord };
 }
 export interface RangeSourcePort {
   /** Prevent partially observed new source points entering a recording draft. */
   canSelect?(deviceId: string, pointId: string): boolean;
+  sourceWriteState?(deviceId: string, pointId: string): 'pending' | 'unknown' | undefined;
   prepare(deviceId: string): Promise<RangeSourcePreparation | undefined>;
   prepareSaved(sourceRequestId: string, request: RangeSourceRequest): Promise<RangeSourceOutcome>;
   submit(request: RangeSourceRequest): Promise<RangeSourceOutcome>;

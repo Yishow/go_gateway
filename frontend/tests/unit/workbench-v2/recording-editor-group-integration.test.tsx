@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { WriteGroupSection } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
 import type { DeviceSourcePort } from '@/pages/datalink/workbench-v2/deviceSourceSubmission';
@@ -78,4 +78,71 @@ describe('actual GroupEditor additive picker integration', () => {
     expect(screen.getByTestId('group-name')).toHaveValue('Keep name');
     expect(api.create).not.toHaveBeenCalled();
   });
+});
+
+it.each(['pending', 'unknown'] as const)('blocks Save only for a selected source with an unsettled %s write and preserves draft input', async status => {
+  let unsettled: 'pending' | 'unknown' | undefined;
+  const source: DeviceSourcePort = { submit: vi.fn(), inspect: vi.fn(), observations: () => [], range: {
+    prepare: vi.fn(), prepareSaved: vi.fn(), submit: vi.fn(), inspect: vi.fn(), observations: () => [],
+    sourceWriteState: (_device, point) => point === 'pt-0' ? unsettled : undefined,
+  } };
+  renderSection({ deviceSource: source });
+  fireEvent.click(await screen.findByTestId('group-create'));
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Keep draft' } });
+  fireEvent.click(screen.getByTestId('recording-points-open'));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'line.temperature' }));
+  fireEvent.click(screen.getByRole('button', { name: 'picker.add:1' }));
+  fireEvent.change(screen.getByTestId('group-member-column-pt-0'), { target: { value: 'temperature' } });
+  expect(screen.getByTestId('group-save')).toBeEnabled();
+  unsettled = status;
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Keep latest draft' } });
+  expect(screen.getByTestId('group-save')).toBeDisabled();
+  expect(screen.getByTestId('group-source-unsettled')).toHaveTextContent('line.temperature');
+  expect(screen.getByTestId('group-member-column-pt-0')).toHaveValue('temperature');
+  expect(api.create).not.toHaveBeenCalled();
+  unsettled = undefined;
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Now resolved' } });
+  expect(screen.getByTestId('group-save')).toBeEnabled();
+});
+it('rechecks pending source writes after the Save revision read, not only at click time', async () => {
+  let pending = false;
+  const source: DeviceSourcePort = { submit: vi.fn(), inspect: vi.fn(), observations: () => [], range: {
+    prepare: vi.fn(), prepareSaved: vi.fn(), submit: vi.fn(), inspect: vi.fn(), observations: () => [],
+    sourceWriteState: (_device, point) => pending && point === 'pt-0' ? 'pending' : undefined,
+  } };
+  renderSection({ deviceSource: source });
+  fireEvent.click(await screen.findByTestId('group-create'));
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Keep draft' } });
+  fireEvent.click(screen.getByTestId('recording-points-open'));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'line.temperature' }));
+  fireEvent.click(screen.getByRole('button', { name: 'picker.add:1' }));
+  fireEvent.change(screen.getByTestId('group-member-column-pt-0'), { target: { value: 'temperature' } });
+  let resolve!: (value: ReturnType<typeof list>) => void;
+  api.list.mockImplementationOnce(() => new Promise(yes => { resolve = yes; }));
+  const reads = api.list.mock.calls.length;
+  fireEvent.click(screen.getByTestId('group-save'));
+  await waitFor(() => expect(api.list).toHaveBeenCalledTimes(reads + 1));
+  pending = true;
+  await act(async () => { resolve(list([])); });
+  expect(api.create).not.toHaveBeenCalled();
+  expect(screen.getByTestId('group-name')).toHaveValue('Keep draft');
+});
+
+it('does not treat a known unavailable or inactive source as an ambiguous write when saving an offline draft', async () => {
+  let selectable = true;
+  const source: DeviceSourcePort = { submit: vi.fn(), inspect: vi.fn(), observations: () => [], range: {
+    prepare: vi.fn(), prepareSaved: vi.fn(), submit: vi.fn(), inspect: vi.fn(), observations: () => [],
+    canSelect: () => selectable, sourceWriteState: () => undefined,
+  } };
+  renderSection({ deviceSource: source });
+  fireEvent.click(await screen.findByTestId('group-create'));
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Offline draft' } });
+  fireEvent.click(screen.getByTestId('recording-points-open'));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'line.temperature' }));
+  fireEvent.click(screen.getByRole('button', { name: 'picker.add:1' }));
+  fireEvent.change(screen.getByTestId('group-member-column-pt-0'), { target: { value: 'temperature' } });
+  selectable = false;
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Keep offline draft' } });
+  expect(screen.getByTestId('group-save')).toBeEnabled();
+  expect(screen.queryByTestId('group-source-unsettled')).not.toBeInTheDocument();
 });

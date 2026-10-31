@@ -1,3 +1,4 @@
+import { queryClient } from '../../../src/lib/queryClient';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,7 +9,7 @@ import type { DeviceSourceRequest } from '../../../src/pages/datalink/workbench-
 const buffer = { name: 'New PLC', description: '', protocol: 'modbus_tcp' as const, config: { host: '192.0.2.20', port: 502, slave_id: 1, timeout: 5 } };
 const request = (id = 'request-1'): DeviceSourceRequest => ({ workspaceId: 'workspace-1', sessionId: 'modal-1', requestId: id, generation: 1, buffer: structuredClone(buffer) });
 function setup() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const client = new QueryClient({ defaultOptions: queryClient.getDefaultOptions() });
   const wrapper = ({ children }: PropsWithChildren) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   return renderHook(({ scope }) => useStudioV2AutosaveState(true, undefined, false, undefined, scope), { wrapper, initialProps: { scope: 'workspace-1' } });
 }
