@@ -194,7 +194,7 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 	if err := s.applyWorkspaceProjectionMappingsForPoints(ctx, projection, desiredPoints); err != nil {
 		return err
 	}
-	s.markDeviceProjectionAligned(deviceID, projection)
+	s.markDeviceProjectionAligned(deviceID, projection, len(preserveUnselectedPoints) > 0 && preserveUnselectedPoints[0])
 	s.finishAcquisitionObservation(ctx, observation)
 	return nil
 }

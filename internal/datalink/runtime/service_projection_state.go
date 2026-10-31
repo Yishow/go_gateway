@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"maps"
 
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
@@ -13,6 +14,7 @@ type runtimeProjectionDeviceState struct {
 	Alignment        workspace.RuntimeProjectionAlignment
 	Message          string
 	Code             string
+	AppliedPointIDs  map[string]struct{}
 }
 
 func (s *Service) replaceProjectionAligned(projection *workspace.RuntimeProjection) {
@@ -29,6 +31,7 @@ func (s *Service) replaceProjectionAligned(projection *workspace.RuntimeProjecti
 			RuntimeVersion:   projection.Version,
 			WorkspaceVersion: projection.Version,
 			Alignment:        workspace.RuntimeProjectionAlignmentAligned,
+			AppliedPointIDs:  appliedProjectionPointIDs(projection, deviceID),
 		}
 	}
 
@@ -37,7 +40,7 @@ func (s *Service) replaceProjectionAligned(projection *workspace.RuntimeProjecti
 	s.projectionMu.Unlock()
 }
 
-func (s *Service) markDeviceProjectionAligned(deviceID string, projection *workspace.RuntimeProjection) {
+func (s *Service) markDeviceProjectionAligned(deviceID string, projection *workspace.RuntimeProjection, preserveExistingPoints ...bool) {
 	if s == nil || projection == nil || deviceID == "" {
 		return
 	}
@@ -46,10 +49,25 @@ func (s *Service) markDeviceProjectionAligned(deviceID string, projection *works
 	if s.projections == nil {
 		s.projections = make(map[string]runtimeProjectionDeviceState)
 	}
+	pointIDs := appliedProjectionPointIDs(projection, deviceID)
+	if len(preserveExistingPoints) > 0 && preserveExistingPoints[0] {
+		merged := maps.Clone(s.projections[deviceID].AppliedPointIDs)
+		if merged == nil {
+			merged = make(map[string]struct{})
+		}
+		for _, point := range projection.Points {
+			if point != nil && point.DeviceID == deviceID {
+				delete(merged, point.ID)
+			}
+		}
+		maps.Copy(merged, pointIDs)
+		pointIDs = merged
+	}
 	s.projections[deviceID] = runtimeProjectionDeviceState{
 		RuntimeVersion:   projection.Version,
 		WorkspaceVersion: projection.Version,
 		Alignment:        workspace.RuntimeProjectionAlignmentAligned,
+		AppliedPointIDs:  pointIDs,
 	}
 	s.projectionMu.Unlock()
 }
@@ -174,5 +192,7 @@ func (s *Service) deviceProjectionState(deviceID string) runtimeProjectionDevice
 	if s.projections == nil {
 		return runtimeProjectionDeviceState{}
 	}
-	return s.projections[deviceID]
+	state := s.projections[deviceID]
+	state.AppliedPointIDs = maps.Clone(state.AppliedPointIDs)
+	return state
 }

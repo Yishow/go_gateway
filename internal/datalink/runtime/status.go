@@ -26,6 +26,9 @@ type RuntimeStatusSnapshot struct { //nolint:revive // Preserve the exported Go 
 }
 
 // DeviceRuntimeStatus describes one device runtime summary shared by snapshot and stream.
+// With workspace projections, point counts cover the successfully applied
+// collector scope, not the editable device inventory. Running observes current
+// scheduling independently of stale/error data quality; it does not prove SQL delivery.
 type DeviceRuntimeStatus struct {
 	DeviceID                   string     `json:"device_id"`
 	DeviceName                 string     `json:"device_name,omitempty"`
@@ -162,6 +165,9 @@ func (s *Service) deriveDeviceStatuses(
 		pointsByDeviceID[pt.DeviceID] = append(pointsByDeviceID[pt.DeviceID], pt)
 	}
 
+	collection := s.scheduler.CollectionStatus()
+	scopes := s.appliedCollectionScopes()
+	runtimeRunning := s.IsRunning()
 	collectors := make([]DeviceRuntimeStatus, 0, len(devices))
 	for _, dev := range devices {
 		if deviceID != "" && dev.ID != deviceID {
@@ -183,11 +189,26 @@ func (s *Service) deriveDeviceStatuses(
 			}
 		}
 
+		scope, scoped := scopes[dev.ID]
+		scoped = scoped || s.workspace != nil
+		for id := range scope {
+			current := collection[id]
+			if runtimeRunning && current.DeviceID == dev.ID && current.Running {
+				status.Running = true
+				break
+			}
+		}
 		var lastReadAt *time.Time
 		var lastError *string
 		var lastErrorAt *time.Time
 
 		for _, pt := range pointsByDeviceID[dev.ID] {
+			if scoped {
+				if _, selected := scope[pt.ID]; !selected {
+					continue
+				}
+			}
+			current := collection[pt.ID]
 			status.PointsTotal++
 
 			if pt.LastReadAt == nil {
@@ -209,7 +230,7 @@ func (s *Service) deriveDeviceStatuses(
 				continue
 			}
 
-			if now.Sub(*pt.LastReadAt) > effectiveRuntimePointInterval(groupIntervalByID, pt) {
+			if (scoped && (current.DeviceID != dev.ID || !current.Readable)) || now.Sub(*pt.LastReadAt) > effectiveRuntimePointInterval(groupIntervalByID, pt) {
 				status.PointsStale++
 				continue
 			}
@@ -217,10 +238,21 @@ func (s *Service) deriveDeviceStatuses(
 			status.PointsHealthy++
 		}
 
+		// A missing configuration row cannot erase an expected applied source or
+		// make the remaining healthy subset look complete.
+		if missing := len(scope) - status.PointsTotal; scoped && missing > 0 {
+			status.PointsTotal += missing
+			status.PointsStale += missing
+		}
 		status.LastReadAt = lastReadAt
 		status.LastError = lastError
-		status.Status = deriveRuntimeDeviceState(status, s.IsRunning())
-		status.Running = status.Status == "running" && status.AvailabilityStatus == device.AvailabilityStatusAvailable
+		if scoped {
+			status.Status = deriveRuntimeDeviceState(status, status.Running)
+		} else {
+			// Preserve the generic non-projection monitor contract.
+			status.Status = deriveRuntimeDeviceState(status, runtimeRunning)
+			status.Running = status.Status == "running" && status.AvailabilityStatus == device.AvailabilityStatusAvailable
+		}
 		if status.AvailabilityStatus == device.AvailabilityStatusUnavailable {
 			status.Running = false
 			status.Status = runtimeStatusIdle
