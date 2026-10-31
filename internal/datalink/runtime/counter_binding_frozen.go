@@ -14,7 +14,7 @@ import (
 // resolveBoundaryCounters keeps the documented no-ledger algorithm utility,
 // but durable activation only uses complete immutable descriptor evidence.
 func resolveBoundaryCounters(cfg GroupBoundaryConfig) (GroupBoundaryConfig, error) {
-	if cfg.Ledger == nil && cfg.CounterBindings == nil {
+	if cfg.Ledger == nil && cfg.CounterBindings == nil && !mixedBoundaryGroup(cfg.Group) {
 		return cfg, nil
 	}
 	group := cfg.Group

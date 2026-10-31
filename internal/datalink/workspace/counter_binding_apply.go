@@ -34,6 +34,14 @@ func (s *WriteGroupService) verifyCounterBindingsInTx(ctx context.Context, tx *s
 }
 
 func requiresUnscaledCounterProof(group *WriteGroup) bool {
+	if isMixedWriteGroup(group) {
+		for _, member := range group.Members {
+			if member.Calculation == WriteGroupMemberCalculationDelta && member.ExactRecordingSource == nil {
+				return true
+			}
+		}
+		return false
+	}
 	if (!longRuntimeSupported(group) && !group.isWideProfile()) || group.RecordingProfile == nil {
 		return false
 	}

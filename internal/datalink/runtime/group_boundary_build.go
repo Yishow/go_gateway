@@ -71,13 +71,24 @@ func assembleBoundary(ctx context.Context, cfg GroupBoundaryConfig, parts bounda
 	}
 	startsAt := cfg.StartsAt
 	interval := time.Duration(group.RowPolicy.IntervalSeconds) * time.Second
-	if !startsAt.IsZero() && !snapshot.BucketStart(startsAt, interval).Equal(firstBucket) {
+	if !mixedBoundaryGroup(group) && !startsAt.IsZero() && !snapshot.BucketStart(startsAt, interval).Equal(firstBucket) {
 		startsAt = time.Time{} // that window already closed; ownership routing still uses the exact instant
+	}
+	var lateness time.Duration
+	if mixedBoundaryGroup(group) {
+		if group.RowPolicy.AllowedLatenessSeconds != 0 {
+			lateness, err = snapshot.CheckedCadenceDuration(int64(group.RowPolicy.AllowedLatenessSeconds), "second")
+			if err != nil {
+				return nil, &GroupBoundaryError{Code: boundarySnapshotInvalid, Cause: err}
+			}
+		}
+	} else {
+		lateness = time.Duration(group.RowPolicy.AllowedLatenessSeconds) * time.Second
 	}
 	assembler, err := snapshot.NewAssembler(snapshot.Config{
 		WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: group.Revision, DestinationScope: scope,
 		Interval:         time.Duration(group.RowPolicy.IntervalSeconds) * time.Second,
-		AllowedLateness:  time.Duration(group.RowPolicy.AllowedLatenessSeconds) * time.Second,
+		AllowedLateness:  lateness,
 		MaxFutureSkew:    cfg.MaxFutureSkew,
 		FirstBucket:      firstBucket,
 		Until:            cfg.Until,
@@ -90,6 +101,9 @@ func assembleBoundary(ctx context.Context, cfg GroupBoundaryConfig, parts bounda
 		Storage:          parts.storage,
 	})
 	if err != nil {
+		if mixedBoundaryGroup(group) {
+			return nil, &GroupBoundaryError{Code: boundarySnapshotInvalid, Cause: err}
+		}
 		return nil, blocked(boundarySnapshotInvalid)
 	}
 	clock := cfg.Clock

@@ -181,8 +181,7 @@ func validateMixedResult(m mixedIntent, o snapshot.Outcome, r snapshot.MemberRes
 		return mixedRowError()
 	}
 	if r.Usable() {
-		source, _ := measurement.ExactTypeForTag(m.source)
-		if r.Sample == nil || r.Sample.Value.Type() != source || r.Sample.Quality != schema.QualityGood {
+		if r.Sample == nil || !snapshot.MixedInputMatches(m.source, m.method, m.counter, r.Sample.Value) || r.Sample.Quality != schema.QualityGood {
 			return mixedRowError()
 		}
 		if r.Sample == nil || r.Sample.ObservedAt.Before(w.ActualStart) || !r.Sample.ObservedAt.Before(w.ActualEnd) {

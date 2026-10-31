@@ -12,6 +12,7 @@ import (
 type SnapshotScope struct{ WorkspaceID, GroupID, AppliedRevision string }
 
 type snapshotMember struct {
+	Calculation     string                `json:"calculation"`
 	DeviceID        string                `json:"device_id"`
 	PointID         string                `json:"point_id"`
 	TagID           string                `json:"tag_id"`
@@ -33,7 +34,8 @@ type snapshotGroup struct {
 		StorageStrategy string `json:"storage_strategy"`
 	} `json:"destination"`
 	Profile *struct {
-		Kind string `json:"kind"`
+		Kind        string `json:"kind"`
+		ResultShape string `json:"result_shape"`
 	} `json:"recording_profile"`
 	Members []snapshotMember `json:"members"`
 }
@@ -78,6 +80,10 @@ func ResolveSnapshot(data []byte, scope SnapshotScope) (CounterBindingProofs, er
 	if group.ID != scope.GroupID || group.WorkspaceID != scope.WorkspaceID || group.Revision != scope.AppliedRevision || group.AppliedRevision != scope.AppliedRevision {
 		return fail(ErrCounterBindingProofConflict)
 	}
+	mixed := group.Profile != nil && group.Profile.Kind == "mixed"
+	if mixed && group.Profile.ResultShape != "member-calculation-v1" {
+		return fail(ErrCounterBindingProofConflict)
+	}
 	resolved := CounterBindingProofs{}
 	seen := map[string]bool{}
 	for _, member := range group.Members {
@@ -88,6 +94,15 @@ func ResolveSnapshot(data []byte, scope SnapshotScope) (CounterBindingProofs, er
 		}
 		seen[key] = true
 		counter := group.Profile != nil && (group.Profile.Kind == "cumulative" || group.Profile.Kind == "instantaneous" && member.ValueRole == "counter_raw")
+		if mixed {
+			switch member.Calculation {
+			case "latest", "mean":
+			case "delta":
+				counter = true
+			default:
+				return fail(ErrCounterBindingProofConflict)
+			}
+		}
 		proof, exists := snap.Bindings[key]
 		if !counter {
 			if exists || member.ExactSource != nil {
@@ -100,7 +115,7 @@ func ResolveSnapshot(data []byte, scope SnapshotScope) (CounterBindingProofs, er
 		}
 		tagType := snap.Layout.TagTypes[member.TagID]
 		if !exists {
-			if snap.Bindings != nil || member.ExactSource == nil {
+			if mixed || snap.Bindings != nil || member.ExactSource == nil {
 				return fail(ErrCounterBindingProofMissing)
 			}
 			var err error
@@ -112,8 +127,14 @@ func ResolveSnapshot(data []byte, scope SnapshotScope) (CounterBindingProofs, er
 		if proof.Member != identity || member.MeasurementID == nil || *member.MeasurementID != proof.MeasurementID || proof.SourceRevision != member.SourceRevision || proof.MappingRevision != member.MappingRevision || proof.SourceValueType != tagType {
 			return fail(ErrCounterBindingProofConflict)
 		}
-		if member.SourceValueType != "" && member.SourceValueType != proof.SourceValueType || member.ResultValueType != "" && member.ResultValueType != proof.ResultValueType {
+		if member.SourceValueType != "" && member.SourceValueType != proof.SourceValueType || !mixed && member.ResultValueType != "" && member.ResultValueType != proof.ResultValueType {
 			return fail(ErrCounterBindingProofConflict)
+		}
+		if mixed && member.ExactSource == nil {
+			input, ok := measurement.ExactTypeForTag(tagType)
+			if !ok || proof.ScaleMode != CounterScaleUnscaled || proof.ExactScale != "1" || proof.ResultValueType != input {
+				return fail(ErrCounterBindingProofConflict)
+			}
 		}
 		if proof.ScaleMode == CounterScaleExact || member.ExactSource != nil {
 			exact, err := legacyExactProof(group, member, identity, tagType)
@@ -140,7 +161,7 @@ func legacyExactProof(group *snapshotGroup, member snapshotMember, identity Coun
 	}
 	s := member.ExactSource
 	if s == nil || group.LayoutVersion != "managed_long_v1" || group.Destination.StorageStrategy != "managed" || group.Profile == nil ||
-		(group.Profile.Kind == "cumulative" && member.ValueRole != "") || (group.Profile.Kind != "cumulative" && (group.Profile.Kind != "instantaneous" || member.ValueRole != "counter_raw")) ||
+		(group.Profile.Kind == "cumulative" && member.ValueRole != "") || (group.Profile.Kind != "cumulative" && !(group.Profile.Kind == "mixed" && member.Calculation == "delta") && (group.Profile.Kind != "instantaneous" || member.ValueRole != "counter_raw")) ||
 		member.MeasurementID == nil || *member.MeasurementID != s.MeasurementID || s.OriginalDataType != tagType || member.SourceValueType != tagType || member.ResultValueType != measurement.ExactDecimal {
 		return fail()
 	}

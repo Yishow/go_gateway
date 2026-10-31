@@ -68,7 +68,7 @@ func (p *Pipeline) Reconcile(ctx context.Context) error {
 	}
 	p.mu.RUnlock()
 	for _, m := range gone {
-		p.observedIntakeCutoff(ctx, m, func() { m.boundary.SetUntil(nextBoundary(now, m.interval)) }, false)
+		p.observedIntakeCutoff(ctx, m, func() error { return m.boundary.SetUntil(nextBoundary(now, m.interval)) }, false)
 	}
 	handoffErr := p.reconcileHandoffs(ctx, list)
 	return errors.Join(handoffErr, p.restoreOpenJournals(ctx))
@@ -105,7 +105,7 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 		}
 		p.mu.RUnlock()
 		for _, previous := range previousRevisions {
-			p.observedIntakeCutoff(ctx, previous, func() { previous.boundary.SetEndsAt(current.EffectiveAt) }, false)
+			p.observedIntakeCutoff(ctx, previous, func() error { return previous.boundary.SetEndsAt(current.EffectiveAt) }, false)
 		}
 	}
 	built := false
@@ -117,7 +117,7 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 		if existing != nil {
 			if !snap.EndsAt.IsZero() {
 				// A cutover took the sources away from this revision at an exact instant.
-				p.observedIntakeCutoff(ctx, existing, func() { existing.boundary.SetEndsAt(snap.EndsAt) }, false)
+				p.observedIntakeCutoff(ctx, existing, func() error { return existing.boundary.SetEndsAt(snap.EndsAt) }, false)
 			}
 			built = true
 			continue
@@ -139,7 +139,7 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 		old := p.boundaries[boundaryKey(group.ID, current.AppliedRevision)]
 		p.mu.RUnlock()
 		if old != nil {
-			p.observedIntakeCutoff(ctx, old, func() { old.boundary.SetEndsAt(snapshots[1].EffectiveAt) }, false)
+			p.observedIntakeCutoff(ctx, old, func() error { return old.boundary.SetEndsAt(snapshots[1].EffectiveAt) }, false)
 		}
 	}
 	p.recordAppliedIntake(ctx, current, now)
@@ -317,7 +317,7 @@ func (p *Pipeline) retireGroup(groupID string, now time.Time) {
 	}
 	p.mu.RUnlock()
 	for _, m := range current {
-		m.boundary.SetUntil(nextBoundary(now, m.interval))
+		p.report(m.boundary.SetUntil(nextBoundary(now, m.interval)))
 	}
 }
 

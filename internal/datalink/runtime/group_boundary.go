@@ -182,6 +182,9 @@ func NewGroupBoundaryContext(ctx context.Context, cfg GroupBoundaryConfig) (*Gro
 	if proofErr != nil {
 		return nil, counterProofBoundaryError(proofErr)
 	}
+	if mixedBoundaryGroup(group) {
+		return newMixedGroupBoundary(ctx, cfg)
+	}
 	for _, member := range group.Members {
 		if member.ExactRecordingSource != nil && group.EffectiveLayoutVersion() != workspace.WriteGroupLayoutManagedLongV1 {
 			return nil, blocked(boundaryMemberMetadata)
@@ -242,7 +245,13 @@ func (b *GroupBoundary) Tick(ctx context.Context, now time.Time) error {
 		return b.tickDurable(ctx, now)
 	}
 	b.mu.Lock()
-	outcomes := b.assembler.Tick(now)
+	plan := b.assembler.Plan(now)
+	if plan.Err != nil {
+		b.mu.Unlock()
+		return plan.Err
+	}
+	b.assembler.Commit(plan)
+	outcomes := plan.Outcomes
 	b.mu.Unlock()
 
 	var errs []error
@@ -265,6 +274,9 @@ func (b *GroupBoundary) tickDurable(ctx context.Context, now time.Time) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	plan := b.assembler.Plan(now)
+	if plan.Err != nil {
+		return plan.Err
+	}
 	if plan.Empty() {
 		return nil
 	}
@@ -365,31 +377,46 @@ func dedupeSupported(capability string, cfg GroupBoundaryConfig) bool {
 	return false
 }
 
-// SetUntil ends the boundary's responsibility at an interval-aligned UTC
-// boundary: later samples go to the superseding revision (or nowhere, after a
-// disable), and buckets before it still close and deliver. It never extends an
-// earlier end.
-func (b *GroupBoundary) SetUntil(until time.Time) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	until = until.UTC()
-	if b.until.IsZero() || until.Before(b.until) {
-		b.until = until
-	}
-	b.assembler.SetUntil(until)
+// SetUntil ends legacy coverage at an aligned boundary and mixed coverage at
+// an exact instant across its independent member windows. Accepted future
+// observations are excluded too. It never extends an earlier end; invalid
+// mixed cutoffs return an error without changing intake or window coverage.
+func (b *GroupBoundary) SetUntil(until time.Time) error {
+	return b.setCoverageEnd(until, false)
 }
 
 // SetEndsAt hands the source to a newer owner at an exact instant that need not
-// be window-aligned: observations before it stay here, the window containing it
-// closes with its real end, and nothing is extended past an earlier end.
-func (b *GroupBoundary) SetEndsAt(ends time.Time) {
+// be window-aligned. Invalid mixed cutoffs return an error without changing
+// either accepted-window coverage or the intake cutoff.
+func (b *GroupBoundary) SetEndsAt(ends time.Time) error {
+	return b.setCoverageEnd(ends, true)
+}
+
+func (b *GroupBoundary) setCoverageEnd(end time.Time, exact bool) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	ends = ends.UTC()
-	if b.until.IsZero() || ends.Before(b.until) {
-		b.until = ends
+	end = end.UTC()
+	if _, mixed := b.assembler.MixedProgress(); mixed {
+		if _, err := snapshot.CheckedWindowAdd(end, 0, "cutoff"); err != nil {
+			return &GroupBoundaryError{Code: "cutoff-invalid", Cause: err}
+		}
+		if !b.until.IsZero() && !end.Before(b.until) {
+			return nil // replay/later request cannot extend accepted coverage
+		}
+		// Mixed windows have independent phases: this is an actual coverage
+		// end, never a shared aligned Until. Filter accepted future samples too.
+		if err := b.assembler.SetMixedEndsAt(end); err != nil {
+			return &GroupBoundaryError{Code: "cutoff-invalid", Cause: err}
+		}
+	} else if exact {
+		b.assembler.SetEndsAt(end)
+	} else {
+		b.assembler.SetUntil(end)
 	}
-	b.assembler.SetEndsAt(ends)
+	if b.until.IsZero() || end.Before(b.until) {
+		b.until = end
+	}
+	return nil
 }
 
 // NextClose is the first bucket that has not closed yet.

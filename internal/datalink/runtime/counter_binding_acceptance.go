@@ -24,7 +24,7 @@ func installCounterProofReferences(cfg GroupBoundaryConfig, members map[string]b
 		if !exists || member.counter == nil {
 			return fail(counterproof.ErrCounterBindingProofConflict)
 		}
-		if cfg.Ledger == nil {
+		if cfg.Ledger == nil && !mixedBoundaryGroup(cfg.Group) {
 			return fail(counterproof.ErrCounterBindingProofMissing)
 		}
 		ref, err := proof.Reference()

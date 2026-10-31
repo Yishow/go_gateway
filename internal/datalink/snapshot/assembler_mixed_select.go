@@ -16,7 +16,7 @@ func (a *Assembler) mixedSelector(start time.Time, member Member) *Selector {
 	s := NewSelector(SelectorConfig{Start: start, Interval: member.Interval, Members: []string{member.Key}, MaxFutureSkew: a.config.MaxFutureSkew})
 	_, end, _ := a.windowBounds(start, s.end)
 	s.eligible = func(sample Sample) bool {
-		return meanValueMatchesSource(member.SourceValueType, sample.Value) && evaluateMember(member, sample, end).Usable()
+		return a.mixedInputMatches(member, sample.Value) && evaluateMember(member, sample, end).Usable()
 	}
 	return s
 }

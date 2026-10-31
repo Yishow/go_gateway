@@ -14,7 +14,7 @@
 ## 3. 安全gate與durable整合
 
 - [x] 3.1 [after: 2.4] 實作 Calculation changes invalidate configuration proofs 與「版本與durable closure不能分離」的candidate/digest/resulttype/schema preview/readiness；測method改變過期proof拒絕及nullable partial能力需fresh確認，依「分期擴展與consumer交接」測legacy原地Update／同lineage successor轉mixed typed拒絕；既有獨立mixed建立流程使用fresh RecordID／lineage；測wide raw轉result須新owned target，long僅在既有shared-long ownership／row partition及fresh mixed result-shape／nullable／provenance／schema proof全部成立時重用同表，不符則既有新storage scope／新目標流程或明確blocked，不任意改tablename／alias／ownership guard；需fresh schema／ownership／readiness且拒舊proof，不複製baseline、不自動停刪舊record，歷史raw與legacy create-once不變。
-- [ ] 3.2 [after: 3.1] 串接production runtime boundary與counterproof resolver，frozen descriptor完整包含membermethod；測stale/foreign observation、member變更、source/mapping/measurement revision與exactscale保護，舊sample不能新method重解。
+- [x] 3.2 [after: 3.1] 串接production runtime boundary與counterproof resolver，frozen descriptor完整包含membermethod；測stale/foreign observation、member變更、source/mapping/measurement revision與exactscale保護，舊sample不能新method重解。
 - [ ] 3.3 [after: 3.2] 實作 Closure and counter progress are atomic and replayable；以ledger故障注入驗證row或skip、checkpoint、bucket/outbox同tx，required首窗skip仍可restart後下一窗delta，不部分advance。
 - [ ] 3.4 [after: 3.3] 完成immutable replay/receipt復原測試，覆crash前後、重試payload衝突、SQL已commit回覆遺失、copy不帶baseline；驗證stable effect不重複寫或重算用量，unknown查證不新建row。
 

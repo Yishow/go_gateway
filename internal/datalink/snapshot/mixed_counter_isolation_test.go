@@ -61,7 +61,13 @@ func TestMixedCounterBindingRevisionStartsNewBaseline(t *testing.T) {
 			a := mixedPolicyAssembler(t, ModeMixedWide, mutate)
 			require.NoError(t, a.RestoreMixedProgress(progress))
 			require.NoError(t, a.RestoreCounterCheckpoints(saved))
-			mixedOffer(t, a, mixedIntegerSample("c", "new-binding", 119, 1008))
+			sample := mixedIntegerSample("c", "new-binding", 119, 1008)
+			if scale := a.config.Counters["c"].ExactRecordingScale; scale != "" {
+				var err error
+				sample.Value, err = measurement.ScaleExactInteger(sample.Value, scale)
+				require.NoError(t, err)
+			}
+			mixedOffer(t, a, sample)
 			p := a.Plan(mixedTime(120))
 			r := mixedPolicyResult(t, p)
 			require.False(t, r.Usable())

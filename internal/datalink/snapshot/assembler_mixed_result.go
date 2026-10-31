@@ -14,7 +14,7 @@ func (a *Assembler) mixedMemberResult(p *Plan, m Member, start, end, nextDue tim
 		result = a.meanMemberResult(m, selector, start, end)
 	} else {
 		result = latestWindowResult(m, selector, actualEnd)
-		if result.Sample != nil && !meanValueMatchesSource(m.SourceValueType, result.Sample.Value) {
+		if result.Sample != nil && !a.mixedInputMatches(m, result.Sample.Value) {
 			result.Status, result.Reason = MemberInvalid, ReasonTypeMismatch
 		}
 		if m.Calculation == CalculationDelta && result.Usable() {
@@ -63,7 +63,7 @@ func (a *Assembler) mixedIdentity(out *Outcome, member string, at time.Time) {
 func (a *Assembler) enforceMixedCounterType(member Member, readings []aggregation.CounterReading, counter *aggregation.CounterWindowResult, next, prev *aggregation.CounterCheckpoint, result *MemberResult) *aggregation.CounterCheckpoint {
 	mismatch := false
 	for _, reading := range readings {
-		if !meanValueMatchesSource(member.SourceValueType, reading.Value) {
+		if !a.mixedInputMatches(member, reading.Value) {
 			mismatch = true
 			break
 		}
@@ -77,7 +77,7 @@ func (a *Assembler) enforceMixedCounterType(member Member, readings []aggregatio
 	case aggregation.CounterOK, aggregation.CounterBaseline, aggregation.CounterGap:
 		counter.Status, counter.Reason = aggregation.CounterUncertain, ReasonTypeMismatch
 	}
-	if next != nil && next != prev && !meanValueMatchesSource(member.SourceValueType, next.Reading.Value) {
+	if next != nil && next != prev && !a.mixedInputMatches(member, next.Reading.Value) {
 		return prev
 	}
 	return next

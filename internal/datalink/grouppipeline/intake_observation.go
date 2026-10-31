@@ -124,13 +124,16 @@ func (p *Pipeline) recordAppliedIntake(ctx context.Context, snap *workspace.Writ
 
 // observedIntakeCutoff preserves the native transition exactly. A missing group
 // in a list is not a disabled/deleted eligibility decision and cannot be paused.
-func (p *Pipeline) observedIntakeCutoff(ctx context.Context, m *managed, operation func(), paused bool) {
+func (p *Pipeline) observedIntakeCutoff(ctx context.Context, m *managed, operation func() error, paused bool) {
 	if !p.intakeEnabled() {
-		operation()
+		p.report(operation())
 		return
 	}
 	before := m.boundary.ReplayState().Until
-	operation()
+	if err := operation(); err != nil {
+		p.report(err)
+		return // never report a rejected cutoff as paused/retiring
+	}
 	after := m.boundary.ReplayState().Until
 	if after.IsZero() || after.Equal(before) {
 		return
@@ -268,6 +271,6 @@ func (p *Pipeline) retireObservedGroup(ctx context.Context, group *workspace.Wri
 	p.mu.RUnlock()
 	for _, m := range current {
 		paused := m.workspaceID == group.WorkspaceID && (group.Status == workspace.WriteGroupStatusDisabled || group.Status == workspace.WriteGroupStatusDeleted)
-		p.observedIntakeCutoff(ctx, m, func() { m.boundary.SetUntil(nextBoundary(now, m.interval)) }, paused)
+		p.observedIntakeCutoff(ctx, m, func() error { return m.boundary.SetUntil(nextBoundary(now, m.interval)) }, paused)
 	}
 }

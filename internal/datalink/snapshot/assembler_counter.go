@@ -111,7 +111,7 @@ func (a *Assembler) RestoreCounterCheckpoints(checkpoints map[string]aggregation
 		if m, known := a.members[member]; !known || (a.config.Mode.mixed() && m.Calculation != CalculationDelta) {
 			return fmt.Errorf("%w: baseline for unknown member", ErrInvalidConfig)
 		}
-		if a.config.Mode.mixed() && !meanValueMatchesSource(a.members[member].SourceValueType, checkpoint.Reading.Value) {
+		if a.config.Mode.mixed() && !MixedInputMatches(a.members[member].SourceValueType, a.members[member].Calculation, &checkpoint.Binding, checkpoint.Reading.Value) {
 			return fmt.Errorf("%w: baseline does not match frozen source type", aggregation.ErrCounterCheckpointInvalid)
 		}
 		if _, err := checkpoint.Binding.Key(); err != nil {
