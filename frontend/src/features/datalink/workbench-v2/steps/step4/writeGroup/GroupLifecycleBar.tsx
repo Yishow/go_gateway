@@ -1,3 +1,4 @@
+import { savedRecordingStartDevices } from '../../../recording-editor/savedRecordingStartScope';
 import type { StudioV2LocatorReadScope } from '../../../../../../services/studioV2WorkspaceDatabase';
 import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -37,6 +38,7 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   onReviewScopedStart, lifecycleHost, hideApply = false, locatorScope, locatorGuard,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const { t: recordingT } = useTranslation('recording-editor');
   const { t: lifecycleT } = useTranslation('recording-lifecycle');
   const apply = useWriteGroupLifecycleMutation('apply');
   const disable = useWriteGroupLifecycleMutation('disable');
@@ -70,7 +72,7 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   const deleted = group.status === 'deleted';
   const busy = checking || apply.isPending || disable.isPending || remove.isPending;
   const reviewStart = onReviewScopedStart ?? lifecycleHost?.onReviewScopedStart;
-  const routed = reviewStart !== undefined && managedProfileDeviceId(group) !== undefined;
+  const routed = reviewStart !== undefined && (managedProfileDeviceId(group) !== undefined || savedRecordingStartDevices(group).length > 0);
 
   const run = async (action: 'apply' | 'stop' | 'remove', confirm = false) => {
     if (confirm && deleteIntent !== scopeOwner.current) return;
@@ -126,10 +128,10 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
     {!hideApply && <>
       <button type="button" onClick={() => (routed ? reviewStart?.(group) : void run('apply'))}
         disabled={readonly || busy || deleted || !canApply} className="rounded bg-emerald-600 px-3 py-1 text-xs text-white disabled:opacity-40" data-testid="group-apply">
-        {t(routed ? 'step4.group.lifecycle.review_start' : 'step4.group.lifecycle.apply')}
+        {routed ? recordingT('start.reviewSaved') : t('step4.group.lifecycle.apply')}
       </button>
       {!canApply && !deleted && applyBlockedReason && <p className="text-xs text-amber-300" data-testid="group-apply-blocked">{applyBlockedReason}</p>}
-      <p className="text-xs text-slate-500" data-testid="group-apply-note">{t(routed ? 'step4.group.lifecycle.review_start_note' : 'step4.group.lifecycle.apply_note')}</p>
+      <p className="text-xs text-slate-500" data-testid="group-apply-note">{routed ? recordingT('start.reviewSavedNote') : t('step4.group.lifecycle.apply_note')}</p>
     </>}
     <SavedRecordingActions lifecycle={snapshot} scope={intentScope} disabled={readonly || busy || confirmingDelete} onAction={handleAction} canReview={Boolean(lifecycleHost)} />
     {(!snapshot || refreshBlocked) && <button type="button" onClick={() => { void lifecycle.refetch(); onConflict(); }} className="text-xs underline" data-testid="saved-recording-refresh">{lifecycleT('refresh')}</button>}

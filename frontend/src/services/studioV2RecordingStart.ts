@@ -28,6 +28,17 @@ export const studioV2RecordingStartAPI = {
     });
   },
 
+  /** Read-only lookup of the original complete intent. Never resumes or creates a start. */
+  async lookup(request: RecordingStartRequest): Promise<RecordingStartOperation> {
+    const result = await studioV2DatalinkApi.post<unknown>('/studio-v2/workspace/recording-start/lookup', request);
+    return parseWriteGroupAPIData(result.data, 'recording start lookup', data => {
+      const operation = parseRecordingStartOperation(data);
+      return operation && operation.workspace_id === request.workspace_id &&
+        sameIds(operation.device_ids, request.device_ids) &&
+        sameIds(operation.groups.map(group => group.group_id), request.groups.map(group => group.group_id)) ? operation : null;
+    });
+  },
+
   async operation(operationId: string): Promise<RecordingStartOperation> {
     const result = await studioV2DatalinkApi.get<unknown>(
       `/studio-v2/workspace/recording-start/operations/${encodeURIComponent(operationId)}`,

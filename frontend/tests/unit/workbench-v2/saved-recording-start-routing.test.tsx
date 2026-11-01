@@ -1,0 +1,26 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { expect, it, vi } from 'vitest';
+import { Step4Database } from '../../../src/features/datalink/workbench-v2/steps/step4/Step4Database';
+import { batchPanelState, longProfileGroup } from '../../fixtures/circuitBatchPanel';
+import type { WriteGroup } from '../../../src/types/studioV2WriteGroup';
+const { groups } = vi.hoisted(() => ({ groups: [] as WriteGroup[] }));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('../../../src/hooks/datalink/useStudioV2WriteGroups', () => ({ useWriteGroupsQuery: () => ({ data: { workspace_id: 'ws-1', workspace_revision: 'w1', groups }, refetch: vi.fn() }) }));
+vi.mock('../../../src/features/datalink/workbench-v2/steps/step4/BasicRecordingPanel', () => ({ BasicRecordingPanel: ({ reviewRequest }: { reviewRequest?: { groupId: string } }) => <div data-testid="basic-review">{reviewRequest?.groupId ?? 'none'}</div> }));
+vi.mock('../../../src/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection', () => ({ WriteGroupSection: ({ onReviewScopedStart }: { onReviewScopedStart: (group: WriteGroup) => void }) => <>{groups.map(group => <button key={group.id} onClick={() => onReviewScopedStart(group)}>{group.id}</button>)}</> }));
+vi.mock('../../../src/features/datalink/workbench-v2/recording-editor/SavedRecordingStartReview', () => ({ SavedRecordingStartReview: ({ group, onClose }: { group: WriteGroup; onClose: () => void }) => <div data-testid="independent-review">{group.id}<button onClick={onClose}>Close review</button></div> }));
+vi.mock('../../../src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels', () => ({ Step4SupportPanels: () => null }));
+vi.mock('../../../src/features/datalink/workbench-v2/steps/step4/RecordingTestWriteRecoveryPanel', () => ({ RecordingTestWriteRecoveryPanel: () => null }));
+vi.mock('../../../src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/RecordingChangeDialog', () => ({ RecordingChangeDialog: () => null }));
+vi.mock('../../../src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/useRecordingChangeController', () => ({ useRecordingChangeController: () => ({ isOpen: false, busy: false, unresolved: false, controller: {} }) }));
+it('routes independent mixed to its own saved-record review while preserving the original Basic profile route', () => {
+ const legacy = longProfileGroup({ id: 'legacy-profile', circuitId: 'c1', circuitName: 'Legacy', interval: 15, points: [0, 1] });
+ const mixed: WriteGroup = { ...legacy, id: 'mixed', recording_profile: { kind: 'mixed', result_shape: 'member-calculation-v1' }, members: legacy.members.map((member, i) => i ? { ...member, device_id: 'dev-2' } : member) };
+ groups.splice(0, groups.length, legacy, mixed);
+ render(<QueryClientProvider client={new QueryClient()}><Step4Database state={batchPanelState()} workspaceId="ws-1" dispatch={vi.fn()} /></QueryClientProvider>);
+ fireEvent.click(screen.getByText('mixed'));
+ expect(screen.getByTestId('independent-review')).toHaveTextContent('mixed'); expect(screen.getByTestId('basic-review')).toHaveTextContent('none');
+ fireEvent.click(screen.getByText('Close review')); fireEvent.click(screen.getByText('legacy-profile'));
+ expect(screen.queryByTestId('independent-review')).not.toBeInTheDocument(); expect(screen.getByTestId('basic-review')).toHaveTextContent('legacy-profile');
+});

@@ -237,6 +237,9 @@ describe('A lost start response while switching devices', () => {
     const original = startedRequests()[0];
     expect(original.device_ids).toEqual(['dev-1']);
     fireEvent.click(tile('dev-2'));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('navigation.pending');
+    expect(tile('dev-2')).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'navigation.discard' }));
     await waitFor(() => expect(tile('dev-2')).toHaveAttribute('aria-pressed', 'true'));
     expect(screen.queryByTestId('basic-recording-retry'), 'B does not inherit A\'s retry').not.toBeInTheDocument();
     expect(screen.queryByTestId('basic-recording-check')).not.toBeInTheDocument();
@@ -262,6 +265,9 @@ describe('A lost start response while switching devices', () => {
     await waitFor(() => expect(startApi.start).toHaveBeenCalledTimes(1));
     const original = startedRequests()[0];
     fireEvent.click(tile('dev-2'));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('navigation.pending');
+    expect(tile('dev-2')).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'navigation.discard' }));
     await waitFor(() => expect(tile('dev-2')).toHaveAttribute('aria-pressed', 'true'));
     await act(async () => { reply.resolve(operationFor(original)); await reply.promise; });
     expect(screen.queryByTestId('basic-recording-status'), 'A\'s success is not shown on B').not.toBeInTheDocument();

@@ -1,3 +1,6 @@
+import { SavedRecordingStartReview } from '../../recording-editor/SavedRecordingStartReview';
+import { savedRecordingStartDevices } from '../../recording-editor/savedRecordingStartScope';
+import { managedProfileDeviceId } from '../../state/circuitProfileBasic';
 import type { DeviceSourcePort } from '../../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { markReturnRegion } from '@/utils/returnFocus';
 import type { StudioLocatorEntryRead } from '../../../../../types/studioV2LocatorEntry';
@@ -174,6 +177,7 @@ function Step4DatabaseContent({
   React.useLayoutEffect(() => { if (locatorEntry?.selection.state === 'selected') setAdvancedOpen(true); }, [locatorEntry]);
   const [openGroupRequest, setOpenGroupRequest] = useState<{ id: string }>();
   const [reviewRequest, setReviewRequest] = useState<{ workspaceId: string; groupId: string }>();
+  const [savedStartReview, setSavedStartReview] = useState<{ workspaceId: string; group: WriteGroup }>();
   const [basicOperationActive, setBasicOperationActive] = useState(false);
   const [savedOperationActive, setSavedOperationActive] = useState(false);
   const savedOperationLock = useRef(false);
@@ -186,6 +190,9 @@ function Step4DatabaseContent({
   }, []);
   // A managed profile group's effective action returns to the reviewed start of its own device; it starts nothing.
   const reviewScopedStart = useCallback((group: WriteGroup) => {
+    if (!managedProfileDeviceId(group) && savedRecordingStartDevices(group).length) {
+      setSavedStartReview({ workspaceId: workspaceId ?? '', group }); return;
+    }
     setReviewRequest({ workspaceId: workspaceId ?? '', groupId: group.id });
     basicRef.current?.focus();
   }, [workspaceId]);
@@ -220,6 +227,12 @@ function Step4DatabaseContent({
     <div ref={node => markReturnRegion(node, recordingChange.controller)} className="space-y-6" data-focus-return-region={JSON.stringify([workspaceId, 'step4'])}>
       <h2 data-focus-return-heading ref={returnHeading} tabIndex={-1} className="sr-only focus:not-sr-only">{t('step4.overview_title')}</h2>
       {workspaceId && <RecordingTestWriteRecoveryPanel workspaceId={workspaceId} />}
+      {savedStartReview && savedStartReview.workspaceId === workspaceId && workspaceId && <SavedRecordingStartReview
+        key={`${workspaceId}/${savedStartReview.group.id}`} group={liveGroups.find(group => group.id === savedStartReview.group.id) ?? savedStartReview.group}
+        workspaceId={workspaceId} workspaceRevision={groupsQuery.data?.workspace_revision ?? ''} state={state}
+        readonly={basicOperationActive || lifecycleLocked || configurationState !== 'ready'} shareStatus={shareStatus} deviceSource={deviceSource}
+        fetchLatest={async () => { const latest = await groupsQuery.refetch(); return latest.isError ? undefined : latest.data; }}
+        onOperationActiveChange={setSavedOperationActive} onClose={() => setSavedStartReview(undefined)} />}
       <RecordingChangeDialog controller={recordingChange} destinations={destinations} fallbackFocus={() => returnHeading.current} />
       <Step4SupportPanels
         destinationReady={destinationIsSaved(state)}

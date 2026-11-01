@@ -1,3 +1,5 @@
+import { LocatorSavedRecordingStartReview } from '../../../recording-editor/LocatorSavedRecordingStartReview';
+import { locatorSavedRecordingStartScope } from '../../../recording-editor/locatorSavedRecordingStartScope';
 import { useRecordingNavigation } from '../../../recording-editor/RecordingDraftNavigation';
 import type { DeviceSourcePort } from '../../../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { readStudioLocatorEditorEntry } from '../../../../../../services/studioV2LocatorEntry';
@@ -49,6 +51,13 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
   const [selection, setSelection] = useState<Selection>({ kind: 'none' });
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId) && !locatorOnly);
   const [editorEntry, setEditorEntry] = useState<StudioLocatorEntryRead>();
+  const [startReview, setStartReview] = useState<{ entry: StudioLocatorEntryRead; lease: object }>();
+  const [startActive, setStartActive] = useState(false);
+  const startLease = useRef({ route: locatorEntry, suspended: locatorSuspended, readonly });
+  if (startLease.current.route !== locatorEntry || startLease.current.suspended !== locatorSuspended || startLease.current.readonly !== readonly)
+    startLease.current = { route: locatorEntry, suspended: locatorSuspended, readonly };
+  const canUseStartScope = () => Boolean(startReview && startReview.lease === startLease.current && startReview.entry === editorEntry &&
+    !readonly && !locatorSuspended && !openingRequest.current && selection.kind === 'edit');
   const [openError, setOpenError] = useState<'unavailable' | 'stale-reference' | 'foreign-scope'>();
   const [opening, setOpening] = useState(false);
   const openingRequest = useRef<AbortController | undefined>(undefined);
@@ -57,7 +66,11 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
     openingRequest.current?.abort(); openingRequest.current = undefined; setOpening(false);
     return () => { openingRequest.current?.abort(); openingRequest.current = undefined; };
   }, [locatorEntry, locatorSuspended]);
+  // Display-only receipt: never changes the URL expectation, editor lease or fresh Open read.
+  const listReceipt = useRef<{ route: StudioLocatorEntryRead; read: StudioLocatorEntryRead } | undefined>(undefined);
+  if (locatorSuspended || listReceipt.current?.route !== locatorEntry) listReceipt.current = undefined;
   const observed = locatorEntry?.entry.write_groups ?? groupsQuery.data;
+  const displayRead = locatorOnly && !locatorSuspended ? listReceipt.current?.read : undefined;
   const editorState = useMemo(() => editorEntry ? studioV2LocatorHydration(editorEntry) : null, [editorEntry]);
   const editorObserved = editorEntry?.entry.write_groups ?? observed;
   const open = async (group: WriteGroup) => {
@@ -91,6 +104,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
         setOpenError('stale-reference'); return;
       }
       openedLocator.current = locatorEntry;
+      if (locatorEntry) listReceipt.current = { route: locatorEntry, read: next };
       setEditorEntry(next); setSelection({ kind: 'edit', id: group.id, saved });
     } catch { if (!request.signal.aborted) setOpenError('unavailable'); }
     finally { if (openingRequest.current === request) { openingRequest.current = undefined; setOpening(false); } }
@@ -120,6 +134,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
         setOpenError('stale-reference'); return;
       }
       if (acknowledgement) deviceSource?.acknowledgeLocatorGroupSave?.({ previous: editorEntry, acknowledgement, current: result.value });
+      if (locatorEntry) listReceipt.current = { route: locatorEntry, read: result.value };
       setEditorEntry(result.value); setSelection({ kind: 'edit', id: group.id, saved: group });
     } catch { if (!request.signal.aborted) setOpenError('unavailable'); }
     finally { if (openingRequest.current === request) { openingRequest.current = undefined; setOpening(false); } }
@@ -143,7 +158,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
       : !destinationSaved ? 'destination' : null;
 
   const groups = observed?.groups ?? [];
-  const live = groups.filter((group) => group.status !== 'deleted' && (!located || group.id === located.groupId));
+  const live = (displayRead?.entry.write_groups?.groups ?? groups).filter((group) => group.status !== 'deleted' && (!located || group.id === located.groupId));
   const removed = groups.filter((group) => group.status === 'deleted' && !locatorEntry);
   // Right after a save the refetched list may not carry the group yet; the returned group bridges that gap.
   const selected = selection.kind === 'edit' ? editorEntry ? selection.saved ?? editorObserved?.groups.find(group => group.id === selection.id)
@@ -183,7 +198,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
       {located && selection.kind !== 'none' && (selection.kind !== 'edit' || selection.id !== located.groupId) && <p role="alert">{runtime('locatorEntry.draftBlocked')}</p>}
       {locatorEntry?.selection.state === 'selected' && locatorEntry.selection.history && <p>{runtime('locatorEntry.historicalHint', { revision: locatorEntry.selection.history.revisionHint })}</p>}
       {located?.groupId && located.groupRevision && located.workspaceId === workspaceId &&
-        <p>{runtime('locatorEntry.currentRevision')}: <span>{located.groupRevision}</span></p>}
+        <p>{runtime('locatorEntry.currentRevision')}: <span>{displayRead?.entry.group_heads[located.groupId] ?? located.groupRevision}</span></p>}
       {!locatorOnly && prerequisite && (
         <div className="space-y-1 text-xs text-amber-300" role="status" data-testid={`group-prerequisite-${prerequisite}`}>
           <p>{t(`step4.group.prerequisite.${prerequisite}`)}</p>
@@ -243,7 +258,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
           locatorGuard={Boolean(locatorEntry || locatorSuspended)}
           saveReadbackPending={Boolean(editorEntry && opening)}
           locatorScope={editorEntry ? { workspaceId: editorEntry.workspace.id, workspaceRevision: editorEntry.entry.workspace_revision } : undefined}
-          connector={connector} candidates={candidates} excluded={excluded} readonly={readonly || Boolean(locatorSuspended)} editorReadonly={selected?.status === 'deleted'}
+          connector={connector} candidates={candidates} excluded={excluded} readonly={readonly || Boolean(locatorSuspended) || startActive} editorReadonly={selected?.status === 'deleted'}
           onClose={() => { openingRequest.current?.abort(); openingRequest.current = undefined; setOpening(false); setSelection({ kind: 'none' }); setEditorEntry(undefined); }}
           onSaved={(group, _workspaceRevision, ownSaveAcknowledgement) => { setSelection({ kind: 'edit', id: group.id, saved: group }); if (editorEntry) void reloadEditor(ownSaveAcknowledgement); }}
           onReload={() => { if (editorEntry) void reloadEditor(); else void groupsQuery.refetch(); }}
@@ -259,9 +274,17 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
           }}
           configuredDestinations={{ data: editorObserved, loading: groupsQuery.isFetching || opening, failed: groupsQuery.isError,
             retry: () => { if (editorEntry) void reloadEditor(); else void groupsQuery.refetch(); }, open: locatorEntry ? undefined : group => { void open(group); } }}
-          onReviewScopedStart={onReviewScopedStart} lifecycleHost={lifecycleHost}
+          onReviewScopedStart={locatorOnly ? group => {
+            if (!editorEntry || locatorSuspended || readonly || openingRequest.current || startActive || openedLocator.current !== locatorEntry) return;
+            const context = locatorSavedRecordingStartScope(editorEntry, workspaceId ?? '');
+            if (context?.group.id !== group.id || context.group.revision !== group.revision) return;
+            setStartReview({ entry: editorEntry, lease: startLease.current });
+          } : onReviewScopedStart} lifecycleHost={lifecycleHost}
         />
       )}
+      {startReview && workspaceId && <LocatorSavedRecordingStartReview entry={editorEntry ?? startReview.entry} workspaceId={workspaceId}
+        readonly={!canUseStartScope()} canUseScope={canUseStartScope} deviceSource={deviceSource}
+        onClose={() => setStartReview(undefined)} onCompleted={() => { if (canUseStartScope()) void reloadEditor(); }} onOperationActiveChange={setStartActive} />}
     </section>
   );
 };

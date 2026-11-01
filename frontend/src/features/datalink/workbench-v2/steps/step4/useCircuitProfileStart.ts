@@ -1,9 +1,11 @@
+import { studioV2RecordingStartAPI } from '../../../../../services/studioV2RecordingStart';
+import { savedRecordingOwnerMatches, type SavedRecordingStartOwner } from '../../state/recordingStartOwner';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRecordingStartMutation, useRecordingStartOperationQuery } from '../../../../../hooks/datalink/useStudioV2RecordingStart';
 import type { RecordingStartOperation, RecordingStartRequest } from '../../../../../types/studioV2RecordingStart';
 import type { WriteGroup } from '../../../../../types/studioV2WriteGroup';
-import { clearBasicRecordingIntentIfCurrent, completeBasicRecordingIntent, sameBasicRecordingIntent, createBasicRecordingRequestId, latestRecordingStartOperation, loadBasicRecordingIntent, saveBasicRecordingIntent, type BasicRecordingIntentRecord } from '../../state/basicRecording';
+import { inspectBasicRecordingIntent, clearBasicRecordingIntentIfCurrent, completeBasicRecordingIntent, sameBasicRecordingIntent, createBasicRecordingRequestId, latestRecordingStartOperation, loadBasicRecordingIntent, saveBasicRecordingIntent, type BasicRecordingIntentRecord } from '../../state/basicRecording';
 import { isOriginalRequestRetry, recordingStartRecoveryBlocked } from './recordingStartRecovery';
 import { recordingCompletion } from './recordingCompletion';
 import { useBasicRecordingIntentObservation } from './useBasicRecordingIntentObservation';
@@ -15,6 +17,7 @@ interface StartView {
   submitted?: RecordingStartOperation;
   error?: string;
   queryFailed?: boolean;
+  recoveryUnavailable?: boolean;
 }
 
 interface StartInput {
@@ -23,6 +26,7 @@ interface StartInput {
   readonly: boolean;
   workspaceId?: string;
   deviceId: string;
+  savedRecord?: SavedRecordingStartOwner;
   connectorRevision: string;
   readinessToken?: string;
   settingsRevision?: string;
@@ -80,7 +84,9 @@ export function useCircuitProfileStart(input: StartInput) {
   };
   const operationQuery = useRecordingStartOperationQuery(operationId);
   const operation = latestRecordingStartOperation(operationId, operationQuery.data, scopedView.submitted);
-  const completion = recordingCompletion(record, operation, input.workspaceId, input.deviceId);
+  // A saved-record operation is historical truth about its original exact device set, not the newly edited membership.
+  const completionOwner = input.savedRecord && record?.owner ? record.owner : input.savedRecord;
+  const completion = recordingCompletion(record, operation, input.workspaceId, completionOwner?.deviceIds[0] ?? input.deviceId, completionOwner);
   const status = operation?.status ?? (record ? 'unknown' : undefined);
   const unresolved = Boolean(record && (!operation || completion.state === 'unavailable' || ['pending', 'running', 'partial', 'unknown'].includes(operation.status) ||
     operation.status !== 'succeeded' && operation.next_action === 'retry_same_request'));
@@ -132,13 +138,24 @@ export function useCircuitProfileStart(input: StartInput) {
           ...(input.readinessToken && input.settingsRevision && input.shareWorkspaceRevision ? {
             readiness_token: input.readinessToken, settings_revision: input.settingsRevision, workspace_revision: input.shareWorkspaceRevision,
           } : {}),
-          device_ids: [input.deviceId],
+          device_ids: input.savedRecord ? [...input.savedRecord.deviceIds] : [input.deviceId],
           groups: resolved.groups.map((group) => ({ group_id: group.id, expected_group_revision: group.revision, expected_connector_revision: input.connectorRevision })),
         };
-        intent = { scope_key: scope, request };
+        intent = { scope_key: scope, request, ...(input.savedRecord ? { owner: input.savedRecord } : {}) };
       }
       const submittedIntent = intent;
+      if (input.savedRecord && !savedRecordingOwnerMatches(submittedIntent.owner, scope, submittedIntent.request)) return;
+      if (input.savedRecord) {
+        const live = loadBasicRecordingIntent(scope);
+        if (inspectBasicRecordingIntent(scope).state === 'unavailable' ||
+          (live || record) && (!sameBasicRecordingIntent(live, record) || live?.operation_id !== record?.operation_id)) {
+          setView({ scope, intent: live ?? record, recoveryUnavailable: true }); return;
+        }
+      }
       saveBasicRecordingIntent(submittedIntent);
+      if (input.savedRecord && !sameBasicRecordingIntent(loadBasicRecordingIntent(scope), submittedIntent)) {
+        setView({ scope, recoveryUnavailable: true }); return;
+      }
       setView({ scope, intent: submittedIntent });
       try {
         const nextOp = await startMutation.mutateAsync(submittedIntent.request);
@@ -160,14 +177,23 @@ export function useCircuitProfileStart(input: StartInput) {
     await run(async () => { await input.prepare(); });
   };
   const check = async () => {
-    if (!operationId || !navigator.onLine || retryOwner.current.epoch !== renderRetryEpoch || retryOwner.current.record !== record) return;
+    if (!record || !navigator.onLine || retryOwner.current.epoch !== renderRetryEpoch || retryOwner.current.record !== record) return;
     await run(async (isCurrent) => {
+      if (!operationId) {
+        try {
+          const recovered = await studioV2RecordingStartAPI.lookup(record.request);
+          if (retryOwner.current.epoch !== renderRetryEpoch || retryOwner.current.record !== record) return;
+          if (completeBasicRecordingIntent(record, recovered.operation_id) === 'superseded' || !isCurrent()) return;
+          setView({ scope: input.scopeKey, intent: { ...record, operation_id: recovered.operation_id }, submitted: recovered });
+        } catch { if (isCurrent() && retryOwner.current.epoch === renderRetryEpoch && retryOwner.current.record === record) setView(previous => ({ ...previous, queryFailed: true })); }
+        return;
+      }
       const result = await operationQuery.refetch();
       if (!isCurrent() || retryOwner.current.epoch !== renderRetryEpoch || retryOwner.current.record !== record) return;
       setView({ ...scopedView, submitted: result.data ?? scopedView.submitted, queryFailed: Boolean(result.isError || result.error || !result.data) });
     }, true);
   };
-  return { busy, unresolved, operation, operationId, status, completion, queryFailed: scopedView.queryFailed,
-    error: scopedView.error, canRetrySameRequest: online && !input.prepareOnly && !operationQuery.isError && !operationQuery.isFetching &&
+  return { busy, unresolved, operation, operationId, canLookupRequest: Boolean(record && !operationId && online && !input.prepareOnly), status, completion, queryFailed: scopedView.queryFailed,
+    error: scopedView.error, recoveryUnavailable: Boolean(scopedView.recoveryUnavailable), canRetrySameRequest: online && !input.prepareOnly && !operationQuery.isError && !operationQuery.isFetching &&
       isOriginalRequestRetry(operationQuery.data, operationId, record?.request) && !recoveryBlocked(), start, prepare, check };
 }

@@ -1,3 +1,4 @@
+import { savedRecordingOwnerMatches, type SavedRecordingStartOwner } from './recordingStartOwner';
 import type { RecordingStartOperation, RecordingStartRequest } from '../../../../types/studioV2RecordingStart';
 import type { WriteGroup, WriteGroupDestinationDraft, WriteGroupDraft } from '../../../../types/studioV2WriteGroup';
 import { cloneWriteGroupExactRecordingSource } from '../../../../utils/studioV2ExactRecordingSourceJson';
@@ -15,6 +16,7 @@ export interface BasicRecordingIntentRecord {
   scope_key: string;
   request: RecordingStartRequest;
   operation_id?: string;
+  owner?: SavedRecordingStartOwner;
 }
 
 /** Readiness token rotation preserves intent; persisted Share revisions do not. */
@@ -90,7 +92,7 @@ function publishBasicRecordingIntent(scopeKey: string): void {
 
 /** Full original serialized payload, including original revisions/draft/tokens; no rebuilt request. */
 export function sameBasicRecordingIntent(left: BasicRecordingIntentRecord | undefined, right: BasicRecordingIntentRecord | undefined): boolean {
-  return Boolean(left && right && left.scope_key === right.scope_key && JSON.stringify(left.request) === JSON.stringify(right.request));
+  return Boolean(left && right && left.scope_key === right.scope_key && JSON.stringify(left.owner) === JSON.stringify(right.owner) && JSON.stringify(left.request) === JSON.stringify(right.request));
 }
 
 export function saveBasicRecordingIntent(record: BasicRecordingIntentRecord): void {
@@ -108,13 +110,13 @@ function safeText(value: unknown, maxLength: number): value is string {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= maxLength;
 }
 
-function validStoredRequest(value: unknown, workspaceId: string, deviceId: string): value is RecordingStartRequest {
+function validStoredRequest(value: unknown, workspaceId: string, deviceId: string, owner?: unknown, scopeKey = ''): value is RecordingStartRequest {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const request = value as Partial<RecordingStartRequest>;
   if (!safeText(request.request_id, 128) || request.workspace_id !== workspaceId ||
-    !Array.isArray(request.device_ids) || request.device_ids.length !== 1 ||
-    request.device_ids[0] !== deviceId || !Array.isArray(request.groups) ||
-    request.groups.length > 2) return false;
+    !Array.isArray(request.device_ids) || !Array.isArray(request.groups) ||
+    (owner !== undefined ? !savedRecordingOwnerMatches(owner, scopeKey, request as RecordingStartRequest)
+      : request.device_ids.length !== 1 || request.device_ids[0] !== deviceId || request.groups.length > 2)) return false;
   if (!safeText(request.expected_workspace_revision, 256) &&
     !(request.expected_workspace_revision === '' && request.groups.length === 0)) return false;
   const seenGroupIds = new Set<string>();
@@ -138,9 +140,9 @@ function decodeBasicRecordingIntent(raw: string, scopeKey: string): BasicRecordi
     const record = value as Partial<BasicRecordingIntentRecord>;
     const scopeParts = scopeKey.split('/');
     if (record.version !== 1 || scopeParts.length !== 3 || !safeText(scopeParts[0], 256) || !safeText(scopeParts[1], 256) ||
-      record.scope_key !== scopeKey || !validStoredRequest(record.request, scopeParts[0], scopeParts[1]) ||
+      record.scope_key !== scopeKey || (scopeParts[1] === 'saved-record' && !record.owner) || !validStoredRequest(record.request, scopeParts[0], scopeParts[1], record.owner, scopeKey) ||
       (record.operation_id !== undefined && !safeText(record.operation_id, 256))) return undefined;
-    return { version: 1, scope_key: scopeKey, request: record.request, ...(record.operation_id ? { operation_id: record.operation_id } : {}) };
+    return { version: 1, scope_key: scopeKey, request: record.request, ...(record.owner ? { owner: record.owner } : {}), ...(record.operation_id ? { operation_id: record.operation_id } : {}) };
 }
 
 /** Late replies may complete only their original retained intent, never overwrite a newer O2. */
@@ -348,11 +350,12 @@ export function inspectBasicRecordingDevice(workspaceId: string, deviceId: strin
       let scopeKey: string;
       try { scopeKey = decodeURIComponent(key.slice('wbv2.basic-recording.'.length)); } catch { unavailable = true; continue; }
       const parts = scopeKey.split('/');
-      if (parts[0] !== workspaceId || parts[1] !== deviceId) continue;
+      if (parts[0] !== workspaceId || parts[1] !== deviceId && parts[1] !== 'saved-record') continue;
       const raw = source.getItem(key); if (raw === null) { unavailable = true; continue; }
       try {
         const decoded = decodeBasicRecordingIntent(raw, scopeKey);
         if (!decoded) { unavailable = true; continue; }
+        if (!decoded.request.device_ids.includes(deviceId)) continue;
         retained.push({ ...(decoded.operation_id ? { operationId: decoded.operation_id } : {}), groupIds: decoded.request.groups.map(group => group.group_id) });
       } catch { unavailable = true; }
     }

@@ -80,7 +80,7 @@ it('routes the existing managed effective action to exact A review, not B or a w
   show(); fireEvent.click(screen.getByText('management.advancedTitle'));
   fireEvent.click(await screen.findByTestId('group-open-managed-A'));
   const action = await screen.findByTestId('group-apply');
-  await waitFor(() => expect(action).toBeEnabled()); expect(action).toHaveTextContent('step4.group.lifecycle.review_start');
+  await waitFor(() => expect(action).toBeEnabled()); expect(action).toHaveTextContent('start.reviewSaved');
   fireEvent.click(action);
   expect(screen.getByTestId('selected-basic-scope')).toHaveTextContent('{"workspaceId":"ws-1","groupId":"managed-A"}');
   expect(screen.getByTestId('selected-basic-scope')).not.toHaveTextContent('managed-B'); noMutation();

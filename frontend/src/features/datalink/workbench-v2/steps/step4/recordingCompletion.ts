@@ -1,3 +1,4 @@
+import { savedRecordingOwnerMatches, sameRecordingDeviceIds, type SavedRecordingStartOwner } from '../../state/recordingStartOwner';
 import type { RecordingStartOperation } from '../../../../../types/studioV2RecordingStart';
 import type { BasicRecordingIntentRecord } from '../../state/basicRecording';
 
@@ -15,12 +16,14 @@ function sameIds(left: readonly string[], right: readonly string[]): boolean {
 
 /** Read-only projection of the original owner's exact operation; never authorizes a command. */
 export function recordingCompletion(record: BasicRecordingIntentRecord | undefined, operation: RecordingStartOperation | undefined,
-  workspaceId: string | undefined, deviceId: string): RecordingCompletionView {
+  workspaceId: string | undefined, deviceId: string, savedOwner?: SavedRecordingStartOwner): RecordingCompletionView {
   if (!record?.operation_id || !operation) return { state: 'unavailable', reason: 'missing' };
   const request = record.request, owner = record.scope_key.split('/');
   const deviceIds = request.device_ids, groupIds = request.groups.map(group => group.group_id);
-  if (!workspaceId || !deviceId || owner.length !== 3 || owner[0] !== workspaceId || owner[1] !== deviceId ||
-    request.workspace_id !== workspaceId || deviceIds.length !== 1 || deviceIds[0] !== deviceId ||
+  const ownerMatches = savedOwner ? savedRecordingOwnerMatches(record.owner, record.scope_key, request) &&
+    savedRecordingOwnerMatches(savedOwner, record.scope_key, request) && sameRecordingDeviceIds(savedOwner.deviceIds, deviceIds)
+    : !record.owner && owner.length === 3 && owner[0] === workspaceId && owner[1] === deviceId && deviceIds.length === 1 && deviceIds[0] === deviceId;
+  if (!workspaceId || !deviceId || !ownerMatches || request.workspace_id !== workspaceId ||
     operation.workspace_id !== workspaceId || operation.operation_id !== record.operation_id ||
     !sameIds(deviceIds, operation.device_ids) || !sameIds(deviceIds, operation.devices.map(device => device.device_id)) ||
     !sameIds(groupIds, operation.groups.map(group => group.group_id))) return { state: 'unavailable', reason: 'scope_mismatch' };

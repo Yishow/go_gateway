@@ -342,5 +342,27 @@
         "unchanged": "No table change"
       }
     }
+  },
+  "start": {
+    "title": "Start this recording",
+    "scopeNote": "Only this saved recording and its listed source devices will start. Other recordings are not selected or stopped.",
+    "noSql": "Starting the sources does not prove that a row has reached the database.",
+    "changed": "The reviewed configuration or source state changed, or fresh readiness is unavailable. Close this review, refresh the saved state, then review again.",
+    "waiting": "Sources started — waiting for the first matching SQL write.",
+    "unknown": "The original start is unresolved. Leaving does not cancel it; check its original status instead of starting again.",
+    "incomplete": "The original start has not completed. Review its status and required next action.",
+    "confirm": "Start this recording and these sources",
+    "check": "Check original start status",
+    "retry": "Retry the original request",
+    "close": "Close review",
+    "lookup": "Look up the original request",
+    "lookupFailed": "The original operation could not be read. Its outcome remains unconfirmed; no replacement request was sent.",
+    "committed": "A matching SQL write is confirmed.",
+    "notReadback": "This is a committed-write receipt, not a readback or cleanup claim.",
+    "deliveryUnavailable": "Delivery evidence is unavailable. Waiting does not mean the start failed.",
+    "previousTerminal": "The previous start completed for an older saved configuration. This review requires a new explicit start for the settings shown above.",
+    "recoveryUnavailable": "The original operation cannot be inspected or safely retained. No new start was sent. Preserve the unresolved operation and review its status; do not clear its recovery data.",
+    "reviewSaved": "Review before starting",
+    "reviewSavedNote": "Review the selected recordings and sources, then explicitly confirm to start."
   }
 }
