@@ -38,7 +38,7 @@ type generationResult struct {
 	err  error
 }
 
-func acquire(cm *ConnectionManager, ctx context.Context, id string, typ schema.ProtocolType, c string) <-chan generationResult {
+func acquire(ctx context.Context, cm *ConnectionManager, id string, typ schema.ProtocolType, c string) <-chan generationResult {
 	ch := make(chan generationResult, 1)
 	go func() { v, e := cm.GetOrCreate(ctx, id, typ, c); ch <- generationResult{v, e} }()
 	return ch
@@ -73,10 +73,10 @@ func TestGenerationSlowDialDoesNotBlockOtherDevice(t *testing.T) {
 		}}
 	})
 	cm := NewConnectionManager(DefaultConnectionManagerConfig())
-	a := acquire(cm, t.Context(), "a", typ, `{"host":"slow"}`)
+	a := acquire(t.Context(), cm, "a", typ, `{"host":"slow"}`)
 	defer func() { close(unblock); result(t, a) }()
 	<-started
-	require.NoError(t, result(t, acquire(cm, t.Context(), "b", typ, `{"host":"fast"}`)).err)
+	require.NoError(t, result(t, acquire(t.Context(), cm, "b", typ, `{"host":"fast"}`)).err)
 }
 func TestGenerationConfigSwapRejectsLateDial(t *testing.T) {
 	typ := schema.ProtocolType(t.Name())
@@ -97,9 +97,9 @@ func TestGenerationConfigSwapRejectsLateDial(t *testing.T) {
 		return p
 	})
 	cm := NewConnectionManager(DefaultConnectionManagerConfig())
-	a := acquire(cm, t.Context(), "a", typ, `{"host":"old"}`)
+	a := acquire(t.Context(), cm, "a", typ, `{"host":"old"}`)
 	<-started
-	bch := acquire(cm, t.Context(), "a", typ, `{"host":"new"}`)
+	bch := acquire(t.Context(), cm, "a", typ, `{"host":"new"}`)
 	select {
 	case b := <-bch:
 		require.NoError(t, b.err)
@@ -151,7 +151,7 @@ func TestGenerationCloseAndCancelInvalidateDial(t *testing.T) {
 			cm := NewConnectionManager(DefaultConnectionManagerConfig())
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
-			ch := acquire(cm, ctx, "a", typ, `{}`)
+			ch := acquire(ctx, cm, "a", typ, `{}`)
 			<-started
 			done := make(chan struct{})
 			go func() {
@@ -224,15 +224,15 @@ func TestGenerationSameKeySingleFlight(t *testing.T) {
 		return &generationProtocol{dial: func(context.Context, string) error { once.Do(func() { close(started) }); <-unblock; return nil }}
 	})
 	cm := NewConnectionManager(DefaultConnectionManagerConfig())
-	first := acquire(cm, t.Context(), "a", typ, `{}`)
+	first := acquire(t.Context(), cm, "a", typ, `{}`)
 	<-started
-	var waiting []<-chan generationResult
+	waiting := make([]<-chan generationResult, 0, 20)
 	for i := 0; i < 20; i++ {
-		waiting = append(waiting, acquire(cm, t.Context(), "a", typ, `{}`))
+		waiting = append(waiting, acquire(t.Context(), cm, "a", typ, `{}`))
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	require.Error(t, result(t, acquire(cm, ctx, "a", typ, `{}`)).err)
+	require.Error(t, result(t, acquire(ctx, cm, "a", typ, `{}`)).err)
 	close(unblock)
 	a := result(t, first)
 	require.NoError(t, a.err)
@@ -277,7 +277,7 @@ func TestGenerationSerialReservationDuringDialAndAfterClose(t *testing.T) {
 		}}
 	})
 	cm := NewConnectionManager(DefaultConnectionManagerConfig())
-	ch := acquire(cm, t.Context(), "a", typ, `{"serial_port":"COM9"}`)
+	ch := acquire(t.Context(), cm, "a", typ, `{"serial_port":"COM9"}`)
 	<-started
 	_, e := cm.GetOrCreate(t.Context(), "b", typ, `{"serial_port":"COM9"}`)
 	require.Error(t, e)

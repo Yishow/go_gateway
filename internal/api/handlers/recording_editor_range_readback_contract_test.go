@@ -118,7 +118,12 @@ func TestRecordingEditorNewUnprobedDevicePersistsDisabledRangeAndMappingsWithout
 		require.False(t, point.Enabled)
 		require.Nil(t, link.MappingID)
 		require.Nil(t, link.TagID)
-		saved := post("/mappings", fmt.Sprintf(`{"rule_id":"offline-range","address":"%s","tag_key":"offline.%s","display_name":"Offline %s","unit":"","target_type":"int16","scale":1,"offset":0,"enabled":false}`, link.Address, link.Address, link.Address))
+		mappingJSON, err := json.Marshal(map[string]any{
+			"rule_id": "offline-range", "address": link.Address, "tag_key": "offline." + link.Address,
+			"display_name": "Offline " + link.Address, "unit": "", "target_type": "int16", "scale": 1, "offset": 0, "enabled": false,
+		})
+		require.NoError(t, err)
+		saved := post("/mappings", string(mappingJSON))
 		savedMappings = append(savedMappings, saved)
 		require.Equal(t, false, saved["enabled"])
 		require.Equal(t, link.PointID, saved["point_id"])
@@ -151,8 +156,12 @@ func TestRecordingEditorNewUnprobedDevicePersistsDisabledRangeAndMappingsWithout
 	require.Equal(t, savedRule["id"], updatedRule["id"])
 	require.Equal(t, true, updatedRule["enabled"])
 	for _, saved := range savedMappings {
-		body := fmt.Sprintf(`{"rule_id":"offline-range","address":"%s","tag_key":"%s","display_name":"%s","unit":"","target_type":"int16","scale":1,"offset":0,"enabled":true}`, saved["address"], saved["tag_key"], saved["display_name"])
-		updated := call(http.MethodPut, "/mappings/"+saved["id"].(string), body, http.StatusOK)
+		body, err := json.Marshal(map[string]any{
+			"rule_id": "offline-range", "address": saved["address"], "tag_key": saved["tag_key"],
+			"display_name": saved["display_name"], "unit": "", "target_type": "int16", "scale": 1, "offset": 0, "enabled": true,
+		})
+		require.NoError(t, err)
+		updated := call(http.MethodPut, "/mappings/"+saved["id"].(string), string(body), http.StatusOK)
 		for _, key := range []string{"id", "rule_id", "device_id", "point_id", "tag_id"} {
 			require.Equal(t, saved[key], updated[key], key)
 		}

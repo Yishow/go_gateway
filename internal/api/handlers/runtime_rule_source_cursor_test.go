@@ -33,11 +33,12 @@ func TestRuntimeSourcePageCursorRejectsChangedRevisionAndBindings(t *testing.T) 
 				require.NoError(t, err)
 				var cursor map[string]any
 				require.NoError(t, json.Unmarshal(raw, &cursor))
-				if change == "position" {
+				switch change {
+				case "position":
 					cursor["p"] = float64(100)
-				} else if change == "revision" {
+				case "revision":
 					cursor["r"] = strings.Repeat("a", 64)
-				} else {
+				default:
 					cursor["b"] = strings.Repeat("a", 64)
 				}
 				raw, err = json.Marshal(cursor)

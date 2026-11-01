@@ -56,11 +56,7 @@ type recoveryFaultConn struct {
 }
 
 func (c *recoveryFaultConn) Begin() (driver.Tx, error) {
-	raw, err := c.Conn.Begin()
-	if err != nil {
-		return nil, err
-	}
-	return &recoveryFaultTx{Tx: raw, owner: c.owner}, nil
+	return c.BeginTx(context.Background(), driver.TxOptions{})
 }
 func (c *recoveryFaultConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
 	raw, err := c.Conn.(driver.ConnBeginTx).BeginTx(ctx, opts)
@@ -85,7 +81,7 @@ func (tx *recoveryFaultTx) Commit() error {
 	}
 	tx.owner.mu.Unlock()
 	if mode == "before" {
-		if err := tx.Tx.Rollback(); err != nil {
+		if err := tx.Rollback(); err != nil {
 			return err
 		}
 		return errors.New("PRIVATE_COMMIT_FAILURE")

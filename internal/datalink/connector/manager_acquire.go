@@ -33,7 +33,7 @@ func (cm *ConnectionManager) getOrCreate(ctx context.Context, deviceID string, t
 	if err != nil {
 		return nil, err
 	}
-	if err = ctx.Err(); err != nil {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	cm.mu.Lock()
@@ -155,7 +155,7 @@ func (cm *ConnectionManager) getOrCreate(ctx context.Context, deviceID string, t
 	cm.mu.Unlock()
 	if err != nil {
 		if conn != nil {
-			if cm.cleanupEntry(entry) != nil {
+			if cm.cleanupEntryContext(context.WithoutCancel(ctx), entry) != nil {
 				err = errConnectionCleanup
 			}
 		} else {
@@ -213,7 +213,7 @@ func (cm *ConnectionManager) releaseSerial(entry *connectionEntry) {
 func (cm *ConnectionManager) retire(entry *connectionEntry) error {
 	return cm.retireContext(context.Background(), entry)
 }
-func (cm *ConnectionManager) retireIfCurrentContext(ctx context.Context, id string, entry *connectionEntry) (uint64, bool, error) {
+func (cm *ConnectionManager) retireIfCurrentContext(ctx context.Context, id string, entry *connectionEntry) (generation uint64, retired bool, retireErr error) {
 	cm.mu.Lock()
 	if cm.entries[id] != entry {
 		cm.mu.Unlock()

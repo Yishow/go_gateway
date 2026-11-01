@@ -16,7 +16,7 @@ import (
 func TestGenerationSerialPhysicalAliases(t *testing.T) {
 	dir := t.TempDir()
 	port := filepath.Join(dir, "port")
-	require.NoError(t, os.WriteFile(port, nil, 0600))
+	require.NoError(t, os.WriteFile(port, nil, 0o600))
 	alias := filepath.Join(dir, "alias")
 	require.NoError(t, os.Symlink(port, alias))
 	for _, tt := range []struct {
@@ -105,4 +105,33 @@ func TestGenerationSerialReplacementAbortsIfOldCloseFails(t *testing.T) {
 	_, err = cm.GetOrCreate(t.Context(), "b", typ, `{"serial_port":"COM9"}`)
 	require.Error(t, err)
 	require.Equal(t, 1, calls)
+}
+
+func TestConnectionIdentityModeDecodePreservesLegacyDomain(t *testing.T) {
+	for _, tc := range []struct {
+		name, config string
+		typ          schema.ProtocolType
+		serial       string
+		invalid      bool
+	}{
+		{"missing", `{}`, schema.ProtocolFatekFBs, "", false},
+		{"null", `{"mode":null}`, schema.ProtocolFatekFBs, "", false},
+		{"number", `{"mode":17}`, schema.ProtocolFatekFBs, "", false},
+		{"object", `{"mode":{"serial":true}}`, schema.ProtocolFatekFBs, "", false},
+		{"serial", `{"mode":"SERIAL","serial_port":"COM9"}`, schema.ProtocolFatekFBs, "COM9", false},
+		{"serial missing port", `{"mode":"serial"}`, schema.ProtocolFatekFBs, "", true},
+		{"rtu nonstring missing port", `{"mode":17}`, schema.ProtocolModbusRTU, "", true},
+		{"rtu nonstring valid port", `{"mode":17,"serial_port":"COM9"}`, schema.ProtocolModbusRTU, "COM9", false},
+		{"malformed", `{"mode":`, schema.ProtocolFatekFBs, "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, serial, err := connectionIdentity(tc.typ, tc.config)
+			if tc.invalid {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.serial, serial)
+		})
+	}
 }

@@ -19,6 +19,7 @@ func TestReadProfileFrozenAndValidated(t *testing.T) {
 	defaults.RuleFormat = "DCBA"
 	detached := profile.Resolution()
 	detached.EffectiveFormat = "ABCD"
+	require.Equal(t, "ABCD", detached.EffectiveFormat)
 	require.Equal(t, "CDAB", profile.Resolution().EffectiveFormat)
 	require.Equal(t, "rule-2", profile.Resolution().RuleRevision)
 	for _, mutate := range []func(*ReadRequest){

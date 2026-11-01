@@ -21,7 +21,7 @@ type uncertainOrdinaryRepository struct {
 }
 
 func (r *uncertainOrdinaryRepository) UpdateOrdinaryRevision(ctx context.Context, p *schema.Point, expected string, _ bool) error {
-	if err := r.MemoryRepository.UpdateRevision(ctx, p, expected); err != nil {
+	if err := r.UpdateRevision(ctx, p, expected); err != nil {
 		return err
 	}
 	if r.foreignWrite != nil {
@@ -44,7 +44,7 @@ func TestOrdinaryUnknownCommitStopsOnlyMatchingCapturedLease(t *testing.T) {
 				repo.foreignWrite = func(p *schema.Point) error {
 					newer := *p
 					newer.RevisionID = "foreign"
-					if err := repo.MemoryRepository.UpdateRevision(t.Context(), &newer, p.RevisionID); err != nil {
+					if err := repo.UpdateRevision(t.Context(), &newer, p.RevisionID); err != nil {
 						return err
 					}
 					live.UpsertPoint(&newer)
@@ -74,7 +74,7 @@ func TestOrdinaryUnknownCommitStopsOnlyMatchingCapturedLease(t *testing.T) {
 type absentOrdinaryUnknownRepo struct{ *point.MemoryRepository }
 
 func (r *absentOrdinaryUnknownRepo) UpdateOrdinaryRevision(ctx context.Context, p *schema.Point, expected string, _ bool) error {
-	if err := r.MemoryRepository.UpdateRevision(ctx, p, expected); err != nil {
+	if err := r.UpdateRevision(ctx, p, expected); err != nil {
 		return err
 	}
 	if p.Name == "uncertain" {

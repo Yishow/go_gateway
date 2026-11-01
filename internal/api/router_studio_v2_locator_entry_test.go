@@ -209,7 +209,7 @@ func TestStudioV2LocatorEntryEditorBindingsAndKnownOrphan(t *testing.T) {
 }
 func TestStudioV2LocatorEntryTombstoneDoesNotUseSameNameReplacement(t *testing.T) {
 	r := newRuntimeSourceRig(t)
-	draft := r.f.writeGroupRouterFixture.createRequest()
+	draft := r.f.createRequest()
 	current, err := r.f.workspace.ReadSnapshot(t.Context())
 	require.NoError(t, err)
 	draft["expected_workspace_revision"] = current.DatabaseSetupRevision
@@ -225,7 +225,7 @@ func TestStudioV2LocatorEntryTombstoneDoesNotUseSameNameReplacement(t *testing.T
 	require.Equal(t, id, group["id"])
 	require.Equal(t, "deleted", group["status"])
 	// A different persisted ID with the same display name is never substituted.
-	request := r.f.writeGroupRouterFixture.createRequest()
+	request := r.f.createRequest()
 	record, err := r.f.workspace.ReadSnapshot(t.Context())
 	require.NoError(t, err)
 	request["expected_workspace_revision"] = record.DatabaseSetupRevision

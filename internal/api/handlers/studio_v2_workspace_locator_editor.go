@@ -191,7 +191,7 @@ func (h *StudioV2WorkspaceHandler) readStudioLocatorEditor(ctx context.Context, 
 			if err != nil {
 				return nil, studioLocatorReadError(err)
 			}
-			if projected.DatabaseTargetMapping.ConnectorID != record.DatabaseConnectorID || tags[projected.DatabaseTargetMapping.TagID] != projected.PointID {
+			if projected.ConnectorID != record.DatabaseConnectorID || tags[projected.TagID] != projected.PointID {
 				continue
 			}
 			cloned, err := cloneStudioLocatorValue(row)

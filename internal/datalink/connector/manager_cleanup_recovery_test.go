@@ -43,7 +43,7 @@ func TestGenerationCleanupFailureObservableAndRetryable(t *testing.T) {
 			registerGeneration(t, typ, func() Protocol { return p })
 			cm := NewConnectionManager(DefaultConnectionManagerConfig())
 			if action == "late-dial" {
-				ch := acquire(cm, t.Context(), "a", typ, `{"serial_port":"COM9"}`)
+				ch := acquire(t.Context(), cm, "a", typ, `{"serial_port":"COM9"}`)
 				<-started
 				require.NoError(t, cm.Close("a"))
 				close(unblock)
@@ -87,7 +87,7 @@ func TestGenerationCleanupFailureObservableAndRetryable(t *testing.T) {
 }
 func TestGenerationRelativeAbsoluteSerialAlias(t *testing.T) {
 	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "port"), nil, 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "port"), nil, 0o600))
 	require.NoError(t, os.Symlink("port", filepath.Join(dir, "alias")))
 	t.Chdir(dir)
 	typ := schema.ProtocolModbusRTU
@@ -116,7 +116,7 @@ func TestGenerationLateFailedCleanupDoesNotCloseNewerConnection(t *testing.T) {
 		return newer
 	})
 	cm := NewConnectionManager(DefaultConnectionManagerConfig())
-	ch := acquire(cm, t.Context(), "a", typ, `{"host":"old"}`)
+	ch := acquire(t.Context(), cm, "a", typ, `{"host":"old"}`)
 	<-started
 	current, err := cm.GetOrCreate(t.Context(), "a", typ, `{"host":"new"}`)
 	require.NoError(t, err)

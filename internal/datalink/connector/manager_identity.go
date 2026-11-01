@@ -17,7 +17,7 @@ var errSerialAlias = errors.New("serial endpoint already owned; shared serial co
 
 // connectionIdentity keeps the entire configuration significant, including credentials.
 // JSON key order/whitespace do not change identity; the digest is never logged.
-func connectionIdentity(typ schema.ProtocolType, config string) ([32]byte, string, error) {
+func connectionIdentity(typ schema.ProtocolType, config string) (identity [32]byte, serialEndpoint string, identityErr error) {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(config), &fields); err != nil || fields == nil {
 		return [32]byte{}, "", errors.New("invalid connection configuration")
@@ -33,7 +33,9 @@ func connectionIdentity(typ schema.ProtocolType, config string) ([32]byte, strin
 		return [32]byte{}, "", errors.New("invalid connection configuration")
 	}
 	var mode, port string
-	_ = json.Unmarshal(fields["mode"], &mode)
+	if err := json.Unmarshal(fields["mode"], &mode); err != nil {
+		mode = "" // Preserve the legacy non-string/missing mode fallback.
+	}
 	serial := typ == schema.ProtocolModbusRTU || (typ == schema.ProtocolFatekFBs && strings.EqualFold(mode, "serial"))
 	if serial {
 		if json.Unmarshal(fields["serial_port"], &port) != nil || port == "" {

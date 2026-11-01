@@ -30,6 +30,12 @@ func (cm *ConnectionManager) HealthCheck(ctx context.Context, deviceID string) e
 
 // CleanupIdle 清理閒置連線
 func (cm *ConnectionManager) CleanupIdle() int {
+	return cm.CleanupIdleContext(context.Background())
+}
+
+// CleanupIdleContext uses the caller context for each retired connection cleanup.
+// Callers must provide a non-nil context.
+func (cm *ConnectionManager) CleanupIdleContext(ctx context.Context) int {
 	cm.mu.RLock()
 	snapshot := make(map[string]*ManagedConnection, len(cm.connections))
 	for id, conn := range cm.connections {
@@ -59,7 +65,7 @@ func (cm *ConnectionManager) CleanupIdle() int {
 		conn.mu.Unlock()
 		if entry != nil {
 			entry.cancel()
-			if cm.cleanupEntry(entry) == nil {
+			if cm.cleanupEntryContext(ctx, entry) == nil {
 				cleaned++
 			}
 		} else if closeManaged(conn) == nil {
@@ -81,7 +87,7 @@ func (cm *ConnectionManager) StartCleanupRoutine(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				cm.CleanupIdle()
+				cm.CleanupIdleContext(context.WithoutCancel(ctx))
 			}
 		}
 	}()

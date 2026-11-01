@@ -21,7 +21,7 @@ type closeAllContextProtocol struct {
 func (p *closeAllContextProtocol) CloseContext(ctx context.Context) error {
 	p.entered <- ctx
 	<-p.release
-	return p.generationProtocol.Close()
+	return p.Close()
 }
 
 func TestCloseAllContextCanceledCleanupRetainsExactGeneration(t *testing.T) {

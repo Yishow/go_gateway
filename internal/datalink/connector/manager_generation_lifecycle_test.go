@@ -24,7 +24,7 @@ func TestGenerationCleanupDoesNotHoldGlobalLockWhileDeviceBusy(t *testing.T) {
 	go func() { cm.CleanupIdle(); close(done) }()
 	// Cleanup may wait for A's request lock, but must not obstruct a different device.
 	time.Sleep(20 * time.Millisecond)
-	require.NoError(t, result(t, acquire(cm, t.Context(), "b", typ, `{}`)).err)
+	require.NoError(t, result(t, acquire(t.Context(), cm, "b", typ, `{}`)).err)
 }
 
 func TestGenerationReconnectDoesNotBlockOtherDevice(t *testing.T) {
@@ -50,7 +50,7 @@ func TestGenerationReconnectDoesNotBlockOtherDevice(t *testing.T) {
 	require.NoError(t, e)
 	go func() { done <- cm.Reconnect(t.Context(), "a") }()
 	<-started
-	require.NoError(t, result(t, acquire(cm, t.Context(), "b", typ, `{}`)).err)
+	require.NoError(t, result(t, acquire(t.Context(), cm, "b", typ, `{}`)).err)
 }
 
 func TestGenerationSerialOwnConfigChangeClosesBeforeReplacement(t *testing.T) {
@@ -119,10 +119,10 @@ func TestGenerationCanceledWaiterDoesNotCancelOwner(t *testing.T) {
 		return &generationProtocol{dial: func(ctx context.Context, _ string) error { close(started); <-unblock; return ctx.Err() }}
 	})
 	cm := NewConnectionManager(DefaultConnectionManagerConfig())
-	owner := acquire(cm, t.Context(), "a", typ, `{}`)
+	owner := acquire(t.Context(), cm, "a", typ, `{}`)
 	<-started
 	ctx, cancel := context.WithCancel(t.Context())
-	waiter := acquire(cm, ctx, "a", typ, `{}`)
+	waiter := acquire(ctx, cm, "a", typ, `{}`)
 	cancel()
 	require.ErrorIs(t, result(t, waiter).err, context.Canceled)
 	close(unblock)

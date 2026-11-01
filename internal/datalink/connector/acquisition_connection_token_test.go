@@ -134,12 +134,12 @@ func TestAcquisitionTokenManagerNeverPublishesLateDial(t *testing.T) {
 	})
 	manager := NewConnectionManager(DefaultConnectionManagerConfig())
 	t.Cleanup(func() { require.NoError(t, manager.CloseAll()) })
-	old := acquire(manager, t.Context(), "device", typ, `{"host":"old"}`)
+	old := acquire(t.Context(), manager, "device", typ, `{"host":"old"}`)
 	<-entered
 	manager.mu.RLock()
 	oldEntry := manager.entries["device"]
 	manager.mu.RUnlock()
-	newer := result(t, acquire(manager, t.Context(), "device", typ, `{"host":"new"}`))
+	newer := result(t, acquire(t.Context(), manager, "device", typ, `{"host":"new"}`))
 	require.NoError(t, newer.err)
 	newToken, err := newer.conn.CurrentAcquisitionToken(t.Context())
 	require.NoError(t, err)

@@ -17,7 +17,7 @@ var runtimePaddedHexRegisterPattern = regexp.MustCompile(`(?i)^((?:sw|sb|w|b)|0x
 var runtimeMCHexPattern = regexp.MustCompile(`(?i)^(?:S?[WB])([0-9A-F]{1,8})$`)
 var runtimeMCLongDecimalPattern = regexp.MustCompile(`^(?:[zZ][rR]|[sS][dD]|[sS][mM]|[cC][cC]|[tT][cC]|[sS][tT]|[dDmMlLsStTcCrRfF])(\d{7,8})$`)
 var runtimeNetworkPattern = regexp.MustCompile(`(?i)(?:[a-z0-9-]+\.)+[a-z]{2,}`)
-var runtimeIPv4Pattern = regexp.MustCompile(`(?:[0-9]{1,3}\.){3}[0-9]{1,3}`)
+var runtimeIPv4Pattern = regexp.MustCompile(`(?:\d{1,3}\.){3}\d{1,3}`)
 var runtimeSQLPattern = regexp.MustCompile(`(?i)\b(?:select\s+.+\s+from|insert\s+into|update\s+.+\s+set|delete\s+from|drop\s+table|alter\s+table|create\s+table|grant\s+.+\s+on)\b`)
 var runtimeCredentialPattern = regexp.MustCompile(`(?i)\b(?:password|passwd|token|secret|dsn|username|uid|pwd)\s*[:=]`)
 var runtimeBracketedIPPattern = regexp.MustCompile(`\[([^\[\]]+)\]`)

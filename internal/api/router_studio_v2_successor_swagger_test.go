@@ -68,7 +68,7 @@ func TestStudioV2LifecycleSuccessorSwaggerRoutes(t *testing.T) {
 				t.Fatalf("composed Swagger URL = %q, want %q", got, fullURL)
 			}
 			if !slices.ContainsFunc(router.Routes(), func(route gin.RouteInfo) bool {
-				return route.Path == fullURL && route.Method == strings.ToUpper(method)
+				return route.Path == fullURL && strings.EqualFold(route.Method, method)
 			}) {
 				t.Fatalf("actual router missing %s %s", method, fullURL)
 			}

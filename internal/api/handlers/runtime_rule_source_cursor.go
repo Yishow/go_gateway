@@ -30,7 +30,7 @@ type runtimeSourcePageCursor struct {
 	Position int    `json:"p"`
 }
 
-var runtimeSourcePageDigits = regexp.MustCompile(`^[0-9]+$`)
+var runtimeSourcePageDigits = regexp.MustCompile(`^\d+$`)
 var runtimeSourcePageDigest = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 func runtimeSourcePageRequestFromQuery(q url.Values, scope *runtimeview.Scope) (runtimeSourcePageRequest, bool) {

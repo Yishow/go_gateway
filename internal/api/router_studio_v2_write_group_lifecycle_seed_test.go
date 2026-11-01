@@ -59,12 +59,13 @@ func TestWriteGroupLifecycleSuccessorSeedUsesAppliedDefinitionAndFreshReview(t *
 				request.Group.Members[0].SourceRevision = "tampered"
 			}
 			review := performJSONRequest(t, f.f.router, http.MethodPost, writeGroupsPath+"/"+f.groupID+"/successor-review", request)
-			if mode == "valid" {
+			switch {
+			case mode == "valid":
 				require.Equal(t, http.StatusOK, review.Code, review.Body.String())
 				require.Empty(t, decodeJSONBody(t, review)["data"].(map[string]any)["blockers"])
-			} else if review.Code == http.StatusOK {
+			case review.Code == http.StatusOK:
 				require.NotEmpty(t, decodeJSONBody(t, review)["data"].(map[string]any)["blockers"])
-			} else {
+			default:
 				require.GreaterOrEqual(t, review.Code, 400)
 			}
 			require.Equal(t, before, successorAPIAllState(t, f.f.db))

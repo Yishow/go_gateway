@@ -101,7 +101,7 @@ func runtimeSafeUnit(value string) string {
 		return ""
 	}
 	for _, r := range value {
-		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '°' || r == '%' || r == '/' || r == '²' || r == '³' || r == 'µ' || r == 'Ω') {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '°' && r != '%' && r != '/' && r != '²' && r != '³' && r != 'µ' && r != 'Ω' {
 			return ""
 		}
 	}

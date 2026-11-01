@@ -3,7 +3,6 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -84,7 +83,7 @@ func addressConflictDatabaseSnapshot(t *testing.T, db *sql.DB) map[string][]stri
 	require.NoError(t, rows.Close())
 	snapshot := make(map[string][]string, len(tables))
 	for _, table := range tables {
-		rows, err := db.QueryContext(t.Context(), fmt.Sprintf(`SELECT * FROM "%s"`, strings.ReplaceAll(table, `"`, `""`)))
+		rows, err := db.QueryContext(t.Context(), `SELECT * FROM "`+strings.ReplaceAll(table, `"`, `""`)+`"`)
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)

@@ -86,9 +86,10 @@ func TestWriteGroupLifecycleHistoryCorruptEvidenceFailsSafely(t *testing.T) {
 			f := lifecycleAPIApplied(t)
 			id := f.group["id"].(string)
 			query := `UPDATE write_group_versions SET payload='private-corrupt-payload' WHERE group_id=?`
-			if mode == "foreign-workspace" {
+			switch mode {
+			case "foreign-workspace":
 				query = `UPDATE write_group_versions SET payload=json_set(payload,'$.workspace_id','private-foreign') WHERE group_id=?`
-			} else if mode == "missing-version" {
+			case "missing-version":
 				query = `DELETE FROM write_group_versions WHERE group_id=?`
 			}
 			_, err := f.db.ExecContext(t.Context(), query, id)

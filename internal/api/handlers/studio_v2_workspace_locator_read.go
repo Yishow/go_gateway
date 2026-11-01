@@ -75,7 +75,7 @@ func parseStudioLocatorQuery(raw string) (*studioLocatorRequest, error) {
 		return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 	}
 	for key, values := range q {
-		if !allowed[key] || len(values) != 1 || (values[0] == "" && key != expectedWorkspaceRevisionField) || (key != "entry" && key != "step" && key != "editor" && !(key == expectedWorkspaceRevisionField && values[0] == "") && !runtimeDeliveryIDs(values[0])) {
+		if !allowed[key] || len(values) != 1 || (values[0] == "" && key != expectedWorkspaceRevisionField) || (key != "entry" && key != "step" && key != "editor" && (key != expectedWorkspaceRevisionField || values[0] != "") && !runtimeDeliveryIDs(values[0])) {
 			return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 		}
 	}
@@ -112,7 +112,7 @@ func parseStudioLocatorQuery(raw string) (*studioLocatorRequest, error) {
 		}
 	}
 	for key := range q {
-		if !slices.Contains(required, key) && !(step == 4 && (key == "device_id" || key == "group_revision" || (editor && key == expectedWorkspaceRevisionField))) {
+		if !slices.Contains(required, key) && (step != 4 || (key != "device_id" && key != "group_revision" && (!editor || key != expectedWorkspaceRevisionField))) {
 			return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 		}
 	}

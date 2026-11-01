@@ -73,7 +73,7 @@ func wireScopeAPIWithReconcileBudget(t *testing.T, r *cutoverRig, budget time.Du
 
 func (s *scopeAPIRig) Resolve(ctx context.Context, item groupdelivery.OutboxItem) (groupdelivery.Target, error) {
 	allowed := false
-	for _, group := range append([]map[string]any{s.wide}, s.cutoverRig.targets...) {
+	for _, group := range append([]map[string]any{s.wide}, s.targets...) {
 		destination := destinationOf(group)
 		allowed = allowed || (item.Destination.ConnectorID == destination["connector_id"] &&
 			item.Destination.ConnectorRevision == destination["connector_revision"] && item.Destination.TableName == destination["table_name"])
