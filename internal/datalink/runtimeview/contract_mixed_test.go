@@ -131,7 +131,7 @@ func TestMixedContractRejectsProducerContradictions(t *testing.T) {
 			r.Calculation.ResultPresent = false
 		},
 		"ok without selected result": func(r *SourceResult) { r.State = "unknown"; r.Calculation.ResultPresent = false },
-		"due labelled not due":       func(r *SourceResult) { r.State = "not_due" },
+		"due labeled not due":        func(r *SourceResult) { r.State = "not_due" },
 		"usable without raw":         func(r *SourceResult) { r.Calculation.RawPresent = false },
 		"59 minute window": func(r *SourceResult) {
 			c := r.Calculation

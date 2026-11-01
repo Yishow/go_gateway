@@ -359,7 +359,7 @@ func TestEffectiveHandoffEquivalentTimeAndDuplicateQuarantine(t *testing.T) {
 }
 
 func TestPersistedCircuitIdentityRoundTrip(t *testing.T) {
-	raw := strings.Replace(contractLiteral, `"circuit_id":null`, `"circuit_id":"C1"`, -1)
+	raw := strings.ReplaceAll(contractLiteral, `"circuit_id":null`, `"circuit_id":"C1"`)
 	got, err := ParseRuleEvidence([]byte(raw), contractScope)
 	if err != nil {
 		t.Fatal("persisted frozen C1 rejected", err)

@@ -22,7 +22,12 @@ type CounterBindingMemberIdentity struct {
 
 // Key identifies a proof without relying on a tag label.
 func (m CounterBindingMemberIdentity) Key() string {
-	key, _ := json.Marshal([6]string{m.WorkspaceID, m.GroupID, m.AppliedRevision, m.DeviceID, m.PointID, m.TagID})
+	// A fixed array of built-in strings cannot contain custom marshalers,
+	// interfaces, unsupported numbers, or cycles. Preserve canonical JSON bytes.
+	key, err := json.Marshal([6]string{m.WorkspaceID, m.GroupID, m.AppliedRevision, m.DeviceID, m.PointID, m.TagID})
+	if err != nil {
+		panic("counter identity encoding invariant violated")
+	}
 	return string(key)
 }
 

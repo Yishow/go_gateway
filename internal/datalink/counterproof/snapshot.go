@@ -2,11 +2,14 @@ package counterproof
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 )
+
+const counterProfileCumulative = "cumulative"
 
 // SnapshotScope selects the original durable applied revision, not a draft.
 type SnapshotScope struct{ WorkspaceID, GroupID, AppliedRevision string }
@@ -62,7 +65,8 @@ func ResolveSnapshot(data []byte, scope SnapshotScope) (CounterBindingProofs, er
 	}
 	var snap snapshotDescriptor
 	if err := json.Unmarshal(data, &snap); err != nil {
-		if _, ok := err.(*CounterBindingProofError); ok {
+		var proofErr *CounterBindingProofError
+		if errors.As(err, &proofErr) {
 			return nil, err
 		}
 		return fail(ErrCounterBindingProofConflict)
@@ -93,7 +97,7 @@ func ResolveSnapshot(data []byte, scope SnapshotScope) (CounterBindingProofs, er
 			return fail(ErrCounterBindingProofConflict)
 		}
 		seen[key] = true
-		counter := group.Profile != nil && (group.Profile.Kind == "cumulative" || group.Profile.Kind == "instantaneous" && member.ValueRole == "counter_raw")
+		counter := group.Profile != nil && (group.Profile.Kind == counterProfileCumulative || group.Profile.Kind == "instantaneous" && member.ValueRole == "counter_raw")
 		if mixed {
 			switch member.Calculation {
 			case "latest", "mean":
@@ -161,7 +165,7 @@ func legacyExactProof(group *snapshotGroup, member snapshotMember, identity Coun
 	}
 	s := member.ExactSource
 	if s == nil || group.LayoutVersion != "managed_long_v1" || group.Destination.StorageStrategy != "managed" || group.Profile == nil ||
-		(group.Profile.Kind == "cumulative" && member.ValueRole != "") || (group.Profile.Kind != "cumulative" && !(group.Profile.Kind == "mixed" && member.Calculation == "delta") && (group.Profile.Kind != "instantaneous" || member.ValueRole != "counter_raw")) ||
+		(group.Profile.Kind == counterProfileCumulative && member.ValueRole != "") || (group.Profile.Kind != counterProfileCumulative && (group.Profile.Kind != "mixed" || member.Calculation != "delta") && (group.Profile.Kind != "instantaneous" || member.ValueRole != "counter_raw")) ||
 		member.MeasurementID == nil || *member.MeasurementID != s.MeasurementID || s.OriginalDataType != tagType || member.SourceValueType != tagType || member.ResultValueType != measurement.ExactDecimal {
 		return fail()
 	}

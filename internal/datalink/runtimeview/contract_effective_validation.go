@@ -3,13 +3,25 @@ package runtimeview
 import "time"
 
 func afterTime(a, b string) bool {
-	x, _ := time.Parse(time.RFC3339Nano, a)
-	y, _ := time.Parse(time.RFC3339Nano, b)
+	x, err := time.Parse(time.RFC3339Nano, a)
+	if err != nil {
+		return false
+	}
+	y, err := time.Parse(time.RFC3339Nano, b)
+	if err != nil {
+		return false
+	}
 	return x.After(y)
 }
 func sameTime(a, b string) bool {
-	x, _ := time.Parse(time.RFC3339Nano, a)
-	y, _ := time.Parse(time.RFC3339Nano, b)
+	x, err := time.Parse(time.RFC3339Nano, a)
+	if err != nil {
+		return false
+	}
+	y, err := time.Parse(time.RFC3339Nano, b)
+	if err != nil {
+		return false
+	}
 	return x.Equal(y)
 }
 
@@ -217,9 +229,9 @@ func validateCurrent(c *CurrentDelivery, facts *GroupFacts) error {
 				return errUnavailable
 			}
 			if r.WindowStart != nil {
-				a, _ := time.Parse(time.RFC3339Nano, *r.WindowStart)
-				b, _ := time.Parse(time.RFC3339Nano, *r.WindowEnd)
-				if !a.Before(b) {
+				a, startErr := time.Parse(time.RFC3339Nano, *r.WindowStart)
+				b, endErr := time.Parse(time.RFC3339Nano, *r.WindowEnd)
+				if startErr != nil || endErr != nil || !a.Before(b) {
 					return errUnavailable
 				}
 			}

@@ -84,6 +84,11 @@ func (p CounterBindingProof) Reference() (CounterBindingReference, error) {
 
 // SampleMemberKey is the existing snapshot selector's device/point/tag key.
 func (m CounterBindingMemberIdentity) SampleMemberKey() string {
-	key, _ := json.Marshal([3]string{m.DeviceID, m.PointID, m.TagID})
+	// A fixed array of built-in strings cannot contain custom marshalers,
+	// interfaces, unsupported numbers, or cycles. Preserve canonical JSON bytes.
+	key, err := json.Marshal([3]string{m.DeviceID, m.PointID, m.TagID})
+	if err != nil {
+		panic("counter identity encoding invariant violated")
+	}
 	return string(key)
 }

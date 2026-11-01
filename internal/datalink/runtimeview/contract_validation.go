@@ -135,7 +135,7 @@ func checkJSON(raw []byte, typ reflect.Type, tag reflect.StructTag) error {
 				}
 			}
 		case reflect.Int, reflect.Int64, reflect.Float64:
-			n := float64(0)
+			var n float64
 			if typ.Kind() == reflect.Float64 {
 				n = v.Float()
 			} else {
@@ -144,18 +144,26 @@ func checkJSON(raw []byte, typ reflect.Type, tag reflect.StructTag) error {
 			if math.IsNaN(n) || math.IsInf(n, 0) || math.Abs(n) > 9007199254740991 {
 				return errUnavailable
 			}
-			min := float64(0)
+			minimum := float64(0)
 			if tag.Get("signed") == "true" {
-				min = -9007199254740991
+				minimum = -9007199254740991
 			}
 			if s := tag.Get("min"); s != "" {
-				min, _ = strconv.ParseFloat(s, 64)
+				parsed, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					return errUnavailable
+				}
+				minimum = parsed
 			}
-			max := float64(9007199254740991)
+			maximum := float64(9007199254740991)
 			if s := tag.Get("max"); s != "" {
-				max, _ = strconv.ParseFloat(s, 64)
+				parsed, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					return errUnavailable
+				}
+				maximum = parsed
 			}
-			if n < min || n > max {
+			if n < minimum || n > maximum {
 				return errUnavailable
 			}
 		case reflect.Bool:

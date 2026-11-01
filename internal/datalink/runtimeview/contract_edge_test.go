@@ -61,9 +61,9 @@ func TestProvenSourceAndTransforms(t *testing.T) {
 		t.Fatal("source revisions collapsed")
 	}
 	for _, mutate := range []func(*SourceFacts){func(f *SourceFacts) { f.MappingRevision = nil }, func(f *SourceFacts) { f.Address = nil }, func(f *SourceFacts) { f.ReadType = nil }, func(f *SourceFacts) { f.ResultType = nil }, func(f *SourceFacts) { f.Polling = nil }} {
-		copy := f
-		mutate(&copy)
-		s.Effective = &copy
+		cloned := f
+		mutate(&cloned)
+		s.Effective = &cloned
 		if mustParse(t, v).Source.State != "unavailable" {
 			t.Fatal("missing effective fact promoted")
 		}

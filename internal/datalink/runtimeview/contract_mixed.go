@@ -140,11 +140,17 @@ func validateMixedResult(r *SourceResult, facts *GroupFacts, source SourceEviden
 	} else if r.DeltaKnown != nil {
 		return errUnavailable
 	}
-	due, _ := time.Parse(time.RFC3339Nano, c.DueAt)
+	due, parseErr := time.Parse(time.RFC3339Nano, c.DueAt)
+	if parseErr != nil {
+		return errUnavailable
+	}
 	if c.Status == "not_due" {
 		if c.NextDue != nil {
 			start, end, err := snapshot.CheckedWindowBounds(due, duration)
-			next, _ := time.Parse(time.RFC3339Nano, *c.NextDue)
+			next, parseErr := time.Parse(time.RFC3339Nano, *c.NextDue)
+			if parseErr != nil {
+				return errUnavailable
+			}
 			if err != nil || start.Equal(due) || !end.Equal(next) {
 				return errUnavailable
 			}
@@ -156,15 +162,24 @@ func validateMixedResult(r *SourceResult, facts *GroupFacts, source SourceEviden
 		if c.ActualStart == nil || c.ActualEnd == nil || c.AlignedStart == nil || c.AlignedEnd == nil || r.WindowStart == nil || r.WindowEnd == nil {
 			return errUnavailable
 		}
-		alignedStart, _ := time.Parse(time.RFC3339Nano, *c.AlignedStart)
-		alignedEnd, _ := time.Parse(time.RFC3339Nano, *c.AlignedEnd)
+		alignedStart, parseErr := time.Parse(time.RFC3339Nano, *c.AlignedStart)
+		if parseErr != nil {
+			return errUnavailable
+		}
+		alignedEnd, parseErr := time.Parse(time.RFC3339Nano, *c.AlignedEnd)
+		if parseErr != nil {
+			return errUnavailable
+		}
 		start, end, err := snapshot.CheckedWindowBounds(alignedStart, duration)
 		if err != nil || !start.Equal(alignedStart) || !end.Equal(alignedEnd) || !end.Equal(due) {
 			return errUnavailable
 		}
 		if c.NextDue != nil {
 			expected, err := snapshot.CheckedWindowAdd(end, duration, "next member due")
-			next, _ := time.Parse(time.RFC3339Nano, *c.NextDue)
+			next, parseErr := time.Parse(time.RFC3339Nano, *c.NextDue)
+			if parseErr != nil {
+				return errUnavailable
+			}
 			if err != nil || !expected.Equal(next) {
 				return errUnavailable
 			}
