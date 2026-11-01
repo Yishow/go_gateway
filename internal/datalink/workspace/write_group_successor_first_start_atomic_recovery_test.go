@@ -18,12 +18,12 @@ func TestSuccessorFirstStartAtomicOfflineReplayAfterReopenAndHeadMoves(t *testin
 	require.NoError(t, err)
 	// A later local head is not the authority for the original immutable result.
 	seedLineageGeneration(t, h, successor, result.LineageID, "later-G3", 3)
-	_, err = h.db.Exec(`UPDATE write_group_lineages SET current_group_id='later-G3',revision=revision+1 WHERE lineage_id=?`, result.LineageID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_lineages SET current_group_id='later-G3',revision=revision+1 WHERE lineage_id=?`, result.LineageID)
 	require.NoError(t, err)
 	before := firstStartAtomicSnapshot(t, h)
 	var seq int
 	var name, path string
-	require.NoError(t, h.db.QueryRow("PRAGMA database_list").Scan(&seq, &name, &path))
+	require.NoError(t, h.db.QueryRowContext(t.Context(), "PRAGMA database_list").Scan(&seq, &name, &path))
 	require.NotEmpty(t, path)
 	require.NoError(t, h.db.Close())
 	reopened := openWorkspaceTestDB(t, path)
@@ -54,12 +54,12 @@ func TestSuccessorFirstStartAtomicConcurrentConfirmations(t *testing.T) {
 			}
 			var seq int
 			var name, path string
-			require.NoError(t, h.db.QueryRow("PRAGMA database_list").Scan(&seq, &name, &path))
+			require.NoError(t, h.db.QueryRowContext(t.Context(), "PRAGMA database_list").Scan(&seq, &name, &path))
 			peerDB := openWorkspaceTestDB(t, path)
 			t.Cleanup(func() { peerDB.Close() })
 			peerDB.SetMaxOpenConns(1)
 			for _, db := range []*sql.DB{h.db, peerDB} {
-				_, err := db.Exec("PRAGMA busy_timeout=1000")
+				_, err := db.ExecContext(t.Context(), "PRAGMA busy_timeout=1000")
 				require.NoError(t, err)
 			}
 			peer := activationTestService(h.service)

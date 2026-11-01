@@ -67,8 +67,8 @@ func (t *TCPTransport) CloseContext(ctx context.Context) error {
 
 // IsConnected checks if the TCP connection is active
 func (t *TCPTransport) IsConnected() bool {
-	connected, _ := t.IsConnectedContext(context.Background())
-	return connected
+	connected, err := t.IsConnectedContext(context.Background())
+	return err == nil && connected
 }
 
 // IsConnectedContext uses the same cancelable gate as network operations.

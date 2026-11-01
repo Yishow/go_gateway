@@ -132,11 +132,11 @@ func levelRank(level string) int {
 	switch level {
 	case "debug":
 		return 0
-	case "info":
+	case levelInfo:
 		return 1
 	case "warn":
 		return 2
-	case "error":
+	case levelError:
 		return 3
 	default:
 		return -1

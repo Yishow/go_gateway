@@ -31,11 +31,11 @@ func TestLifecycleStopAndRemovePreserveAcceptedData(t *testing.T) {
 				// grouppipeline's integration tests exercise the actual ownership proof.
 				service.WithBacklogOwnershipGuard(writeGroupBacklogGuardFunc(func(context.Context, *sql.Tx, *WriteGroup) error { return nil }))
 				if connector == "changed" {
-					_, err := db.Exec(`UPDATE database_connectors SET identity_revision='C2', connection_config='{"database":"different"}' WHERE id=?`, group.Destination.ConnectorID)
+					_, err := db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='C2', connection_config='{"database":"different"}' WHERE id=?`, group.Destination.ConnectorID)
 					require.NoError(t, err)
 				}
 				if connector == "removed" {
-					_, err := db.Exec(`DELETE FROM database_connectors WHERE id=?`, group.Destination.ConnectorID)
+					_, err := db.ExecContext(t.Context(), `DELETE FROM database_connectors WHERE id=?`, group.Destination.ConnectorID)
 					require.NoError(t, err)
 				}
 				require.True(t, mustIntakeEligibility(t, service, group.ID).Accepting)
@@ -112,7 +112,7 @@ func lifecyclePreservationFixture(t *testing.T) (*sql.DB, *WriteGroupService, *W
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	db.SetMaxOpenConns(1)
 	fixture := seedWriteGroupFixture(t.Context(), t, db)
-	_, err := db.Exec(`UPDATE database_connectors SET kind='postgres',connection_config='{"database":"persisted-db","schema":"persisted-schema"}' WHERE id=?`, fixture.connectorID)
+	_, err := db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='postgres',connection_config='{"database":"persisted-db","schema":"persisted-schema"}' WHERE id=?`, fixture.connectorID)
 	require.NoError(t, err)
 	repo := NewSQLWriteGroupRepository(db)
 	sequence := 0
@@ -159,17 +159,17 @@ func seedLifecycleAcceptedData(t *testing.T, db *sql.DB, group *WriteGroup) *gro
 	next := start.Add(90 * time.Second)
 	require.NoError(t, store.CommitClosure(t.Context(), key, groupdelivery.Closure{Destination: destination, NextClose: next, Buckets: buckets}))
 	for effect, state := range map[string]string{"Qretry": "retrying", "Qblocked": "blocked", "Qunknown": "unknown", "Qsending": "sending", "Qcommitted": "sql_committed"} {
-		_, err := db.Exec(`UPDATE wg_delivery_outbox SET state=?,retry_count=2,last_error_code='preserved-code' WHERE effect_key=?`, state, effect)
+		_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET state=?,retry_count=2,last_error_code='preserved-code' WHERE effect_key=?`, state, effect)
 		require.NoError(t, err)
 	}
-	_, err = db.Exec(`INSERT INTO wg_delivery_receipts(effect_key,payload_digest,committed_at) SELECT effect_key,payload_digest,'2026-10-02T12:02:00Z' FROM wg_delivery_outbox WHERE effect_key='Qcommitted'`)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO wg_delivery_receipts(effect_key,payload_digest,committed_at) SELECT effect_key,payload_digest,'2026-10-02T12:02:00Z' FROM wg_delivery_outbox WHERE effect_key='Qcommitted'`)
 	require.NoError(t, err)
 	member := group.Members[0]
 	memberJSON, err := json.Marshal([]string{member.DeviceID, member.PointID, member.TagID})
 	require.NoError(t, err)
 	require.NoError(t, store.AppendSample(t.Context(), key, next, snapshot.Sample{SampleID: "S1", MemberKey: string(memberJSON), ObservedAt: next.Add(time.Second), Quality: schema.QualityGood, Value: measurement.NewInt64(42), SourceRevision: member.SourceRevision, MappingRevision: member.MappingRevision}))
 	for _, state := range []string{"pending", "succeeded"} {
-		_, err := db.Exec(`INSERT INTO managed_schema_operations(operation_id,token,workspace_id,scope_key,owner,action,status,created_at,updated_at,detail) VALUES(?,?,?,?,?,'create',?,'2026-10-02T12:00:00Z','2026-10-02T12:00:00Z','preserved history')`, "O-"+state, "T-"+state, group.WorkspaceID, "scope-"+state, group.ID, state)
+		_, err := db.ExecContext(t.Context(), `INSERT INTO managed_schema_operations(operation_id,token,workspace_id,scope_key,owner,action,status,created_at,updated_at,detail) VALUES(?,?,?,?,?,'create',?,'2026-10-02T12:00:00Z','2026-10-02T12:00:00Z','preserved history')`, "O-"+state, "T-"+state, group.WorkspaceID, "scope-"+state, group.ID, state)
 		require.NoError(t, err)
 	}
 	return store
@@ -182,7 +182,7 @@ func lifecyclePreservedData(t *testing.T, db *sql.DB) map[string]string {
 	delete(state, "write_groups")
 	delete(state, "database_connectors")
 	for _, table := range []string{"managed_schema_operations", "wg_delivery_buckets", "wg_delivery_counter_baselines", "wg_counter_proof_associations", "wg_delivery_sample_handoffs", "write_group_storage_scopes", "write_group_storage_events"} {
-		rows, err := db.Query(`SELECT * FROM ` + table + ` ORDER BY rowid`)
+		rows, err := db.QueryContext(t.Context(), `SELECT * FROM `+table+` ORDER BY rowid`)
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)

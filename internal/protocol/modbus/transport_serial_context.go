@@ -2,9 +2,10 @@ package modbus
 
 import (
 	"context"
-	"go.bug.st/serial"
 	"io"
 	"sync"
+
+	"go.bug.st/serial"
 )
 
 type contextSerialReader struct {

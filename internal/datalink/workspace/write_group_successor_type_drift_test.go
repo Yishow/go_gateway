@@ -25,14 +25,14 @@ func TestRecreateRepositoryAppliedCumulativeTypeDriftCannotRelabelSource(t *test
 			require.Nil(t, member.ExactRecordingSource, "exercise cumulative long's unscaled legacy type omission")
 			h := &circuitProfileHarness{t: t, db: f.db, service: f.service, workspace: f.service.workspaceSvc}
 			lineage := requireLineageGenesis(t, f.db, applied.Group)
-			_, err = f.db.Exec("UPDATE write_groups SET status='deleted' WHERE id=?", applied.Group.ID)
+			_, err = f.db.ExecContext(t.Context(), "UPDATE write_groups SET status='deleted' WHERE id=?", applied.Group.ID)
 			require.NoError(t, err)
 			// Only the live tag type changes; source tuple, mapping, and measurement
 			// identity/binding/epoch remain exactly those in the applied uint64 source.
-			_, err = f.db.Exec("UPDATE tags SET data_type='float64' WHERE id=?", member.TagID)
+			_, err = f.db.ExecContext(t.Context(), "UPDATE tags SET data_type='float64' WHERE id=?", member.TagID)
 			require.NoError(t, err)
 			var encoding, definition, binding, epoch string
-			require.NoError(t, f.db.QueryRow("SELECT numeric_encoding,definition_revision,source_binding_revision,series_epoch FROM measurement_definitions WHERE id=?", *member.MeasurementID).Scan(&encoding, &definition, &binding, &epoch))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), "SELECT numeric_encoding,definition_revision,source_binding_revision,series_epoch FROM measurement_definitions WHERE id=?", *member.MeasurementID).Scan(&encoding, &definition, &binding, &epoch))
 			require.Equal(t, []string{"uint64", "def-1", "binding-1", "epoch-1"}, []string{encoding, definition, binding, epoch})
 			target := cloneWriteGroup(applied.Group)
 			if mode != "saved_revision" {

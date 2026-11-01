@@ -23,10 +23,10 @@ type successorPreparationAPI interface {
 func successorSchemaFixture(t *testing.T) (*circuitProfileHarness, string, WriteGroupSuccessorStageRequest, successorSchemaAPI) {
 	t.Helper()
 	h, old := recreateBasicFixture(t, "sqlite")
-	_, fixtureErr := h.db.Exec(`UPDATE write_groups SET destination_table_schema='main' WHERE id=?`, old.PredecessorGroupID)
+	_, fixtureErr := h.db.ExecContext(t.Context(), `UPDATE write_groups SET destination_table_schema='main' WHERE id=?`, old.PredecessorGroupID)
 	require.NoError(t, fixtureErr)
 	old.Group.Destination.TableSchema = "main"
-	_, fixtureErr = h.db.Exec(`UPDATE database_connectors SET connection_config=json_set(connection_config,'$.schema','main') WHERE id=?`, old.Group.Destination.ConnectorID)
+	_, fixtureErr = h.db.ExecContext(t.Context(), `UPDATE database_connectors SET connection_config=json_set(connection_config,'$.schema','main') WHERE id=?`, old.Group.Destination.ConnectorID)
 	require.NoError(t, fixtureErr)
 	api, ok := any(h.service).(successorSchemaAPI)
 	require.True(t, ok, "reserved successor needs an operation-bound schema preparation service")

@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/protocol/wirebudget"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestPlannedExactNativeLimitsAndLastAddress(t *testing.T) {

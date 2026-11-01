@@ -187,7 +187,12 @@ func (c *DomainCoalescer) Recover(ctx context.Context, recovery, failed []byte, 
 	}
 	c.mu.Unlock()
 	if !fits {
-		c.drop(uint64(count)) // never retain a misleading partial transition
+		// The transition consists of the recovery and at most one final summary.
+		dropped := uint64(1)
+		if count == len(batch) {
+			dropped = 2
+		}
+		c.drop(dropped) // never retain a misleading partial transition
 	}
 	c.drain(ctx)
 	return true // logging refusal never rewrites the confirmed lifecycle observation

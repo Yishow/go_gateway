@@ -22,10 +22,10 @@ func TestRecordingLifecycleActionsRejectUnknownScopeAndState(t *testing.T) {
 			case "missing":
 				id = "not-a-recording"
 			case "foreign":
-				_, err := db.Exec(`UPDATE write_groups SET workspace_id='another-workspace' WHERE id=?`, id)
+				_, err := db.ExecContext(t.Context(), `UPDATE write_groups SET workspace_id='another-workspace' WHERE id=?`, id)
 				require.NoError(t, err)
 			case "unknown-status":
-				_, err := db.Exec(`UPDATE write_groups SET status='private-unknown-state' WHERE id=?`, id)
+				_, err := db.ExecContext(t.Context(), `UPDATE write_groups SET status='private-unknown-state' WHERE id=?`, id)
 				require.NoError(t, err)
 				want = ErrWriteGroupLifecycleBlocked
 			case "canceled":

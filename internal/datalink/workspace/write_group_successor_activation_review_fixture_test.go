@@ -23,7 +23,7 @@ func activationReadyFixture(t *testing.T) (*circuitProfileHarness, string, Write
 	target, err := sql.Open("sqlite", targetPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { target.Close() })
-	require.NoError(t, target.Ping())
+	require.NoError(t, target.PingContext(t.Context()))
 	old := writeGroupRecreateReservationRequest{Group: cloneWriteGroup(req.Group)}
 	recreateRepositoryNewTarget(t, h, &old)
 	setSQLiteConnectorConfig(t, h.db, old.Group.Destination.ConnectorID, targetPath)
@@ -47,7 +47,7 @@ func activationReadyFixture(t *testing.T) (*circuitProfileHarness, string, Write
 	})
 	require.NoError(t, err)
 	for _, statement := range token.Statements {
-		_, err = target.Exec(statement)
+		_, err = target.ExecContext(t.Context(), statement)
 		require.NoError(t, err)
 	}
 	op, _, err := ledger.ClaimSchemaApply(t.Context(), token)
@@ -95,7 +95,7 @@ func activationFileSourceFixture(t *testing.T) (*circuitProfileHarness, string, 
 	lineage := requireLineageGenesis(t, h.db, saved.Group)
 	old := writeGroupRecreateReservationRequest{WorkspaceID: saved.Group.WorkspaceID, PredecessorGroupID: saved.Group.ID, ExpectedPredecessorRevision: saved.Group.Revision, Group: saved.Group}
 	seedRecreateEngineEvidence(t, h, old)
-	_, err = h.db.Exec("UPDATE write_groups SET status='ready' WHERE id=?", saved.Group.ID)
+	_, err = h.db.ExecContext(t.Context(), "UPDATE write_groups SET status='ready' WHERE id=?", saved.Group.ID)
 	require.NoError(t, err)
 	h.service.WithBacklogOwnershipGuard(writeGroupBacklogGuardFunc(func(context.Context, *sql.Tx, *WriteGroup) error { return nil }))
 	return h, saved.Group.ID, WriteGroupSuccessorReviewRequest{WorkspaceID: saved.Group.WorkspaceID, ExpectedWorkspaceRevision: saved.WorkspaceRevision, LineageID: lineage, ExpectedLineageRevision: 1, ExpectedPredecessorRevision: saved.Group.Revision, ExpectedPredecessorConnectorRevision: saved.Group.Destination.ConnectorRevision, ExpectedTargetConnectorRevision: saved.Group.Destination.ConnectorRevision, OperationID: "activation-O", Boundary: time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC), Group: cloneWriteGroup(saved.Group)}

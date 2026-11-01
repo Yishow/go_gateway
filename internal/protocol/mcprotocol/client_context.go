@@ -36,13 +36,13 @@ func (t boundTransport) SendReceive(req []byte) ([]byte, error) {
 
 // WithContext returns an isolated call view; shared client/frame are unchanged.
 func (c *MCClient) WithContext(ctx context.Context) *MCClient {
-	copy := *c
+	clientCopy := *c
 	transport := c.transport
 	if bound, ok := transport.(boundTransport); ok {
 		transport = bound.Transport
 	}
-	copy.transport = boundTransport{Transport: transport, ctx: ctx}
-	return &copy
+	clientCopy.transport = boundTransport{Transport: transport, ctx: ctx}
+	return &clientCopy
 }
 
 // ConnectContext forwards cancellation to transports that support it.

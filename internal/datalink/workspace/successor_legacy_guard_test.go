@@ -15,7 +15,7 @@ func legacyHistoricalFixture(t *testing.T) (*circuitProfileHarness, string, Cuto
 	require.Empty(t, review.Blockers)
 	reserved, err := h.service.ReserveSuccessor(t.Context(), id, WriteGroupSuccessorReservationRequest{Envelope: review.Envelope, ReviewDigest: review.ReviewDigest})
 	require.NoError(t, err)
-	_, err = h.db.Exec(`UPDATE write_group_lineages SET current_group_id=?,reserved_group_id=NULL,reservation_operation_id=NULL,reservation_intent_digest=NULL,revision=revision+1 WHERE lineage_id=?`, reserved.Group.ID, reserved.LineageID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_lineages SET current_group_id=?,reserved_group_id=NULL,reservation_operation_id=NULL,reservation_intent_digest=NULL,revision=revision+1 WHERE lineage_id=?`, reserved.Group.ID, reserved.LineageID)
 	require.NoError(t, err)
 	return h, id, CutoverRequest{Kind: WriteGroupCutoverForward, WorkspaceID: req.WorkspaceID, ExpectedWorkspaceRevision: reserved.WorkspaceRevision,
 		SourceGroupID: id, ExpectedSourceRevision: req.ExpectedPredecessorRevision, ExpectedConnectorRevision: req.ExpectedPredecessorConnectorRevision,
@@ -27,7 +27,7 @@ func TestSuccessorLegacyGuardRejectsHistoricalGeneration(t *testing.T) {
 		for _, status := range []string{"ready", "disabled", "deleted"} {
 			t.Run(kind+"/"+status, func(t *testing.T) {
 				h, id, req := legacyHistoricalFixture(t)
-				_, err := h.db.Exec(`UPDATE write_groups SET status=?,revision='new-unapplied-draft' WHERE id=?`, status, id)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET status=?,revision='new-unapplied-draft' WHERE id=?`, status, id)
 				require.NoError(t, err)
 				req.Kind, req.ExpectedSourceRevision = kind, "new-unapplied-draft"
 				if kind == WriteGroupCutoverRollback {
@@ -48,7 +48,7 @@ func TestSuccessorLegacyGuardRejectsHistoricalGeneration(t *testing.T) {
 
 func TestSuccessorLegacyGuardRejectsCorruptLineage(t *testing.T) {
 	h, _, req := legacyHistoricalFixture(t)
-	_, err := h.db.Exec(`UPDATE write_group_lineages SET workspace_id='foreign'`)
+	_, err := h.db.ExecContext(t.Context(), `UPDATE write_group_lineages SET workspace_id='foreign'`)
 	require.NoError(t, err)
 	result, err := h.service.ReviewCutover(t.Context(), req)
 	require.ErrorIs(t, err, ErrWriteGroupLineageCorrupt)
@@ -62,7 +62,7 @@ func TestSuccessorLegacyGuardRejectsOriginBeforeProbe(t *testing.T) {
 			forward, err := f.service.ApplyCutover(t.Context(), req)
 			require.NoError(t, err)
 			rollback := reviewCounterRollback(t, f, forward)
-			_, err = f.db.Exec(`UPDATE write_group_cutovers SET intent=? WHERE id=?`, intent, forward.ID)
+			_, err = f.db.ExecContext(t.Context(), `UPDATE write_group_cutovers SET intent=? WHERE id=?`, intent, forward.ID)
 			require.NoError(t, err)
 			probes := 0
 			f.inspector.mutate = func() { probes++ }
@@ -84,7 +84,7 @@ func TestSuccessorLegacyGuardRechecksOriginInTransaction(t *testing.T) {
 	plan, err := f.service.planRollback(t.Context(), rollback)
 	require.NoError(t, err)
 	require.True(t, plan.review.Applicable)
-	_, err = f.db.Exec(`UPDATE write_group_cutovers SET intent=? WHERE id=?`, `{"version":"go-gateway/successor-activation-intent/v1"}`, forward.ID)
+	_, err = f.db.ExecContext(t.Context(), `UPDATE write_group_cutovers SET intent=? WHERE id=?`, `{"version":"go-gateway/successor-activation-intent/v1"}`, forward.ID)
 	require.NoError(t, err)
 	before := finalizedState(t, f.db)
 	tx, err := f.db.BeginTx(t.Context(), nil)
@@ -130,9 +130,9 @@ func TestSuccessorLegacyGuardPreservesCompletedLegacyReplay(t *testing.T) {
 	next := cloneWriteGroup(f.group)
 	next.ID, next.Revision, next.AppliedRevision, next.Status = "later-generation", "later-revision", "", WriteGroupStatusDraft
 	require.NoError(t, f.service.repo.insertGroup(t.Context(), tx, next))
-	_, err = tx.Exec(`INSERT INTO write_group_generations(group_id,lineage_id,generation,predecessor_group_id) VALUES(?,?,2,?)`, next.ID, meta.LineageID, f.group.ID)
+	_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_generations(group_id,lineage_id,generation,predecessor_group_id) VALUES(?,?,2,?)`, next.ID, meta.LineageID, f.group.ID)
 	require.NoError(t, err)
-	_, err = tx.Exec(`UPDATE write_group_lineages SET current_group_id=?,revision=revision+1 WHERE lineage_id=?`, next.ID, meta.LineageID)
+	_, err = tx.ExecContext(t.Context(), `UPDATE write_group_lineages SET current_group_id=?,revision=revision+1 WHERE lineage_id=?`, next.ID, meta.LineageID)
 	require.NoError(t, err)
 	require.ErrorIs(t, f.service.repo.requireCurrentCanonicalOwnerInTx(t.Context(), tx, req.WorkspaceID, f.group.ID), ErrWriteGroupLifecycleBlocked)
 	require.NoError(t, tx.Commit())
@@ -148,7 +148,7 @@ func TestSuccessorLegacyGuardCannotReschedulePendingCurrentGeneration(t *testing
 		t.Run(offset.String(), func(t *testing.T) {
 			h, _, req := legacyHistoricalFixture(t)
 			var currentID string
-			require.NoError(t, h.db.QueryRow(`SELECT current_group_id FROM write_group_lineages`).Scan(&currentID))
+			require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT current_group_id FROM write_group_lineages`).Scan(&currentID))
 			current, err := h.service.repo.Get(t.Context(), req.WorkspaceID, currentID)
 			require.NoError(t, err)
 			current.AppliedRevision, current.Status = current.Revision, WriteGroupStatusReady

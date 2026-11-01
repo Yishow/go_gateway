@@ -33,7 +33,13 @@ func With(ctx context.Context, attempts int, delay time.Duration) context.Contex
 	}
 	return context.WithValue(ctx, contextKey{}, &Budget{limit: int64(attempts), delay: delay})
 }
-func From(ctx context.Context) *Budget { b, _ := ctx.Value(contextKey{}).(*Budget); return b }
+func From(ctx context.Context) *Budget {
+	b, ok := ctx.Value(contextKey{}).(*Budget)
+	if !ok {
+		return nil
+	}
+	return b
+}
 func (b *Budget) Used() int {
 	if b == nil {
 		return 0

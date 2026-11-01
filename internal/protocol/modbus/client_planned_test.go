@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/protocol/wirebudget"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Literals are the Modbus Organization V1.1b3 examples, §§6.1–6.4,

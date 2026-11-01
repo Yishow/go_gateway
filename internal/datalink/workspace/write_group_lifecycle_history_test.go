@@ -69,9 +69,9 @@ func TestLifecycleHistoryTombstoneAndReservedGenerationRemainReadOnly(t *testing
 	require.NoError(t, err)
 	lineage := seedLineageReadFixture(t, h, first.Group)
 	successor := seedLineageGeneration(t, h, first.Group, lineage, "G-reserved", 2)
-	_, err = h.db.Exec(`UPDATE write_groups SET status='deleted' WHERE id=?`, first.Group.ID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='deleted' WHERE id=?`, first.Group.ID)
 	require.NoError(t, err)
-	_, err = h.db.Exec(`UPDATE write_group_lineages SET reserved_group_id=?,reservation_operation_id='O2',reservation_intent_digest='intent-2',revision=2 WHERE lineage_id=?`, successor.ID, lineage)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_lineages SET reserved_group_id=?,reservation_operation_id='O2',reservation_intent_digest='intent-2',revision=2 WHERE lineage_id=?`, successor.ID, lineage)
 	require.NoError(t, err)
 	before := lineageReadSnapshot(t, h)
 	history := lifecycleHistoryJSON(t, h.service, first.Group.ID)
@@ -100,17 +100,17 @@ func TestLifecycleHistoryRejectsCorruptImmutableOrForeignBoundary(t *testing.T) 
 			db, service, group := lifecycleReadFixture(t, true)
 			switch mode {
 			case "foreign-payload":
-				_, err := db.Exec(`UPDATE write_group_versions SET payload=json_set(payload,'$.workspace_id','foreign') WHERE group_id=?`, group.ID)
+				_, err := db.ExecContext(t.Context(), `UPDATE write_group_versions SET payload=json_set(payload,'$.workspace_id','foreign') WHERE group_id=?`, group.ID)
 				require.NoError(t, err)
 			case "foreign-end", "invalid-end":
 				workspace, end := "foreign", "2026-10-02T13:00:00Z"
 				if mode == "invalid-end" {
 					workspace, end = group.WorkspaceID, "broken"
 				}
-				_, err := db.Exec(`INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,?)`, workspace, group.ID, group.AppliedRevision, end, "C-end")
+				_, err := db.ExecContext(t.Context(), `INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,?)`, workspace, group.ID, group.AppliedRevision, end, "C-end")
 				require.NoError(t, err)
 			case "missing-applied":
-				_, err := db.Exec(`DELETE FROM write_group_versions WHERE group_id=?`, group.ID)
+				_, err := db.ExecContext(t.Context(), `DELETE FROM write_group_versions WHERE group_id=?`, group.ID)
 				require.NoError(t, err)
 			}
 			before := lifecycleReadState(t, db)

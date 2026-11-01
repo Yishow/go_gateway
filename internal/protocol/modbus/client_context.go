@@ -18,7 +18,11 @@ func (c *ModbusClient) WithContext(ctx context.Context) *ModbusClient {
 func (c *ModbusClient) ConnectContext(ctx context.Context) error { return c.WithContext(ctx).Connect() }
 func (c *ModbusClient) CloseContext(ctx context.Context) error   { return c.WithContext(ctx).Close() }
 func (c *ModbusClient) IsConnectedContext(ctx context.Context) (bool, error) {
-	return c.WithContext(ctx).transport.(*contextTransport).connected()
+	bound, ok := c.WithContext(ctx).transport.(*contextTransport)
+	if !ok {
+		return false, fmt.Errorf("context transport unavailable")
+	}
+	return bound.connected()
 }
 
 type contextTransport struct {
@@ -58,7 +62,7 @@ func (t *contextTransport) connected() (bool, error) {
 	}
 	return true, nil
 }
-func (t *contextTransport) IsConnected() bool { live, _ := t.connected(); return live }
+func (t *contextTransport) IsConnected() bool { live, err := t.connected(); return err == nil && live }
 func (t *contextTransport) SendReceive(data []byte) ([]byte, error) {
 	if err := t.ctx.Err(); err != nil {
 		return nil, err
@@ -81,7 +85,13 @@ func (t *contextTransport) GetOriginalTransport() any {
 	}
 	return t.Transport
 }
-func (t *contextTransport) GetNextTransactionID() uint16 { id, _ := t.nextTransactionID(); return id }
+func (t *contextTransport) GetNextTransactionID() uint16 {
+	id, err := t.nextTransactionID()
+	if err != nil {
+		return 0
+	}
+	return id
+}
 func (t *contextTransport) nextTransactionID() (uint16, error) {
 	if err := t.ctx.Err(); err != nil {
 		return 0, err

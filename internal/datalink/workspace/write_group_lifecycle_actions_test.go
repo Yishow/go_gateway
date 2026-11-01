@@ -31,11 +31,11 @@ func TestRecordingLifecycleActionsClassifySavedState(t *testing.T) {
 				service.WithBacklogOwnershipGuard(nil)
 			}
 			if mode == "stale-connector" || mode == "disabled-stale" {
-				_, err := db.Exec(`UPDATE database_connectors SET identity_revision='C2' WHERE id=?`, group.Destination.ConnectorID)
+				_, err := db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='C2' WHERE id=?`, group.Destination.ConnectorID)
 				require.NoError(t, err)
 			}
 			if mode == "removed-connector" {
-				_, err := db.Exec(`DELETE FROM database_connectors WHERE id=?`, group.Destination.ConnectorID)
+				_, err := db.ExecContext(t.Context(), `DELETE FROM database_connectors WHERE id=?`, group.Destination.ConnectorID)
 				require.NoError(t, err)
 			}
 			if mode == "disabled" || mode == "disabled-stale" || mode == "disabled-unknown" {
@@ -116,7 +116,7 @@ func TestRecordingLifecycleActionsClassifySavedState(t *testing.T) {
 func TestRecordingLifecycleActionsPreserveAppliedDraftAndCAS(t *testing.T) {
 	db, service, original := lifecycleReadFixture(t, true)
 	var appliedBefore string
-	require.NoError(t, db.QueryRow(`SELECT payload FROM write_group_versions WHERE group_id=? AND group_revision=?`, original.ID, original.AppliedRevision).Scan(&appliedBefore))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload FROM write_group_versions WHERE group_id=? AND group_revision=?`, original.ID, original.AppliedRevision).Scan(&appliedBefore))
 	draft := cloneWriteGroup(original)
 	draft.RowPolicy.IntervalSeconds = 30
 	mutation := lifecycleReadMutation(t, service, original)
@@ -133,7 +133,7 @@ func TestRecordingLifecycleActionsPreserveAppliedDraftAndCAS(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 15, applied.Group.RowPolicy.IntervalSeconds)
 	var appliedAfter string
-	require.NoError(t, db.QueryRow(`SELECT payload FROM write_group_versions WHERE group_id=? AND group_revision=?`, original.ID, original.AppliedRevision).Scan(&appliedAfter))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload FROM write_group_versions WHERE group_id=? AND group_revision=?`, original.ID, original.AppliedRevision).Scan(&appliedAfter))
 	require.Equal(t, appliedBefore, appliedAfter)
 	before := lifecycleReadState(t, db)
 	_, err = service.Disable(t.Context(), original.ID, mutation)

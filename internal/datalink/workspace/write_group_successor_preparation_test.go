@@ -25,7 +25,7 @@ func TestSuccessorPreparationReservesReviewedIntentAndReplaysAfterProof(t *testi
 	require.NoError(t, err)
 	require.Equal(t, saved, replay)
 	require.Equal(t, original, lineageReadSnapshot(t, h))
-	_, err = h.db.Exec("UPDATE write_groups SET revision='schema-R2',destination_schema_revision='proof-R',destination_schema_digest='proof-D' WHERE id=?", saved.Group.ID)
+	_, err = h.db.ExecContext(t.Context(), "UPDATE write_groups SET revision='schema-R2',destination_schema_revision='proof-R',destination_schema_digest='proof-D' WHERE id=?", saved.Group.ID)
 	require.NoError(t, err)
 	_, err = h.service.workspaceSvc.UpdateDatabaseSetup(t.Context(), saved.WorkspaceRevision, func(context.Context, *sql.Tx, *Record) error { return nil })
 	require.NoError(t, err)

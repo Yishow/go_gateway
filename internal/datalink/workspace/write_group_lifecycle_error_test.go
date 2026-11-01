@@ -32,13 +32,13 @@ func TestLifecycleRemoveClassifiesGuardAndConnectorFailures(t *testing.T) {
 				case "guard-failed":
 					service.WithBacklogOwnershipGuard(writeGroupBacklogGuardFunc(func(context.Context, *sql.Tx, *WriteGroup) error { return cause }))
 				case "connector-stale":
-					_, err := db.Exec(`UPDATE database_connectors SET identity_revision='C2' WHERE id=?`, group.Destination.ConnectorID)
+					_, err := db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='C2' WHERE id=?`, group.Destination.ConnectorID)
 					require.NoError(t, err)
 				case "connector-missing":
-					_, err := db.Exec(`DELETE FROM database_connectors WHERE id=?`, group.Destination.ConnectorID)
+					_, err := db.ExecContext(t.Context(), `DELETE FROM database_connectors WHERE id=?`, group.Destination.ConnectorID)
 					require.NoError(t, err)
 				case "connector-read-failed":
-					_, err := db.Exec(`ALTER TABLE database_connectors RENAME COLUMN identity_revision TO unavailable_revision`)
+					_, err := db.ExecContext(t.Context(), `ALTER TABLE database_connectors RENAME COLUMN identity_revision TO unavailable_revision`)
 					require.NoError(t, err)
 				}
 				before := lifecycleReadState(t, db)

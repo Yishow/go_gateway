@@ -18,8 +18,8 @@ func TestCounterBindingApplyPersistsUnscaledProofBeforeOwnership(t *testing.T) {
 				t.Run(string(layout)+"/"+string(kind)+"/"+string(dataType), func(t *testing.T) {
 					f := newCounterApplyFixture(t, layout, kind, dataType)
 					var prepared WriteGroupAppliedSnapshot
-					f.service.WithWriterOwnershipActivationBarrier(writerOwnershipActivationFunc(func(_ context.Context, tx *sql.Tx, _ WriterOwnershipActivationRequest) error {
-						prepared, _ = readCounterApplySnapshot(t, tx.QueryRowContext, f.group.ID)
+					f.service.WithWriterOwnershipActivationBarrier(writerOwnershipActivationFunc(func(ctx context.Context, tx *sql.Tx, _ WriterOwnershipActivationRequest) error {
+						prepared, _ = readCounterApplySnapshotContext(ctx, t, tx.QueryRowContext, f.group.ID)
 						return nil
 					}))
 					applied, err := f.service.Apply(t.Context(), f.group.ID, f.mutation)

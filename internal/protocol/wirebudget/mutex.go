@@ -15,7 +15,7 @@ type Mutex struct {
 func (m *Mutex) init() {
 	m.once.Do(func() { m.token = make(chan struct{}, 1); m.token <- struct{}{} })
 }
-func (m *Mutex) Lock()   { _ = m.LockContext(context.Background()) }
+func (m *Mutex) Lock()   { m.init(); <-m.token }
 func (m *Mutex) Unlock() { m.token <- struct{}{} }
 func (m *Mutex) LockContext(ctx context.Context) error {
 	m.init()

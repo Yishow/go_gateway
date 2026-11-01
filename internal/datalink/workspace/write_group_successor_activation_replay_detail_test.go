@@ -14,11 +14,11 @@ func TestSuccessorActivationReplayRejectsCorruptEventDetail(t *testing.T) {
 			event, err := h.service.ConfirmSuccessorActivation(t.Context(), id, req)
 			require.NoError(t, err)
 			if mutation == "prior" {
-				_, err = h.db.Exec(`UPDATE write_group_cutovers SET prior_cutover_id='unexpected-prior' WHERE id=?`, event.ID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_cutovers SET prior_cutover_id='unexpected-prior' WHERE id=?`, event.ID)
 			} else {
 				detail, marshalErr := json.Marshal(cutoverDetail{Ended: event.Ended, Started: event.Started, Moved: nil, OwnershipFenceRevision: event.OwnershipFenceRevision})
 				require.NoError(t, marshalErr)
-				_, err = h.db.Exec(`UPDATE write_group_cutovers SET detail=? WHERE id=?`, string(detail), event.ID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_cutovers SET detail=? WHERE id=?`, string(detail), event.ID)
 			}
 			require.NoError(t, err)
 			_, err = h.service.ConfirmSuccessorActivation(t.Context(), id, req)

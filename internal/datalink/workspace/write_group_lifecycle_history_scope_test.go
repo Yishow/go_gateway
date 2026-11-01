@@ -41,7 +41,7 @@ func TestLifecycleHistoryCannotHideOrphanDeliveryRevision(t *testing.T) {
 			if mode == "foreign-workspace" {
 				workspace, revision = "foreign", group.AppliedRevision
 			}
-			_, err := db.Exec(`INSERT INTO wg_delivery_samples(workspace_id,group_id,group_revision,sample_id,member_key,observed_at,bucket_start,payload,payload_digest,created_at) VALUES(?,?,?,?,?,'2026-10-02T12:00:10Z','2026-10-02T12:00:00Z','private-payload','digest','2026-10-02T12:00:10Z')`, workspace, group.ID, revision, "S-orphan", "member")
+			_, err := db.ExecContext(t.Context(), `INSERT INTO wg_delivery_samples(workspace_id,group_id,group_revision,sample_id,member_key,observed_at,bucket_start,payload,payload_digest,created_at) VALUES(?,?,?,?,?,'2026-10-02T12:00:10Z','2026-10-02T12:00:00Z','private-payload','digest','2026-10-02T12:00:10Z')`, workspace, group.ID, revision, "S-orphan", "member")
 			require.NoError(t, err)
 			before := lifecycleReadState(t, db)
 			result, err := service.Lifecycle(t.Context(), group.ID)

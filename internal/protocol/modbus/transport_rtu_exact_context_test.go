@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/protocol/wirebudget"
+
+	"github.com/stretchr/testify/require"
 )
 
 type plainExactRTU struct{ wrappedRTUTransport }
@@ -45,7 +46,10 @@ func TestPlannedExactRTUCancellationCannotRetireReplacement(t *testing.T) {
 	defer cancel()
 	ctx := wirebudget.With(base, 2, 0)
 	done := make(chan error, 1)
-	go func() { _, err := client.WithContext(ctx).ReadWordsExact(3, 0, 1); done <- err }()
+	go func(requestCtx context.Context) {
+		_, err := plannedExactReader(t, client.WithContext(requestCtx)).ReadWordsExact(3, 0, 1)
+		done <- err
+	}(ctx)
 	<-entered
 	cancel()
 	require.ErrorIs(t, <-done, context.Canceled)
@@ -73,7 +77,7 @@ func TestPlannedExactRTUBitFrameAndTotalDeadline(t *testing.T) {
 	bits, err := client.WithContext(t.Context()).ReadBitsExact(1, 0, 10)
 	require.NoError(t, err)
 	require.Equal(t, []bool{true, false, true, false, false, true, false, true, false, true}, bits)
-	var chunks [][]byte
+	chunks := make([][]byte, 0, 100)
 	for range 100 {
 		chunks = append(chunks, []byte{1})
 	}

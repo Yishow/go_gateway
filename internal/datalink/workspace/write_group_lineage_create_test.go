@@ -36,7 +36,7 @@ func TestCanonicalLineageFreshCreateReplayAndRestart(t *testing.T) {
 			require.NoError(t, err, "lineage uses an independent UUID")
 			for _, table := range lineageKeyTables(kind) {
 				var stored string
-				require.NoError(t, h.db.QueryRow("SELECT lineage_id FROM "+table+" WHERE group_id='G1'").Scan(&stored))
+				require.NoError(t, h.db.QueryRowContext(t.Context(), "SELECT lineage_id FROM "+table+" WHERE group_id='G1'").Scan(&stored))
 				require.Equal(t, lineage, stored)
 			}
 			before := lifecycleReadState(t, h.db)
@@ -68,7 +68,7 @@ func TestCanonicalLineageCreateRollbackIsAtomic(t *testing.T) {
 			require.NoError(t, err)
 			if failure != "caller_rollback" {
 				table := "write_group_" + failure + "s"
-				_, err = h.db.Exec("CREATE TRIGGER fail_key BEFORE INSERT ON " + table + " BEGIN SELECT RAISE(ABORT,'injected key failure'); END")
+				_, err = h.db.ExecContext(t.Context(), "CREATE TRIGGER fail_key BEFORE INSERT ON "+table+" BEGIN SELECT RAISE(ABORT,'injected key failure'); END")
 				require.NoError(t, err)
 				_, err = ensureLineageKind(h, "dual", h.mutation(ctx, group))
 				require.ErrorContains(t, err, "injected key failure")
@@ -97,7 +97,7 @@ func TestCanonicalLineageDeletedEnsureNeverCreatesSuccessor(t *testing.T) {
 			mutation := h.mutation(t.Context(), lineageTestDraft(h, kind))
 			first, err := ensureLineageKind(h, kind, mutation)
 			require.NoError(t, err)
-			_, err = h.db.Exec("UPDATE write_groups SET status='deleted' WHERE id=?", first.Group.ID)
+			_, err = h.db.ExecContext(t.Context(), "UPDATE write_groups SET status='deleted' WHERE id=?", first.Group.ID)
 			require.NoError(t, err)
 			before := lifecycleReadState(t, h.db)
 			_, err = ensureLineageKind(h, kind, mutation)
@@ -138,7 +138,7 @@ func requireLineageGenesis(t *testing.T, db *sql.DB, group *WriteGroup) string {
 	var lineage, workspace, current, genesis string
 	var revision, generation int64
 	var reserved, operation, intent, predecessor sql.NullString
-	require.NoError(t, db.QueryRow(`SELECT l.lineage_id,l.workspace_id,l.current_group_id,l.revision,
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT l.lineage_id,l.workspace_id,l.current_group_id,l.revision,
 		l.reserved_group_id,l.reservation_operation_id,l.reservation_intent_digest,g.group_id,g.generation,g.predecessor_group_id
 		FROM write_group_lineages l JOIN write_group_generations g ON g.lineage_id=l.lineage_id WHERE g.group_id=?`, group.ID).
 		Scan(&lineage, &workspace, &current, &revision, &reserved, &operation, &intent, &genesis, &generation, &predecessor))

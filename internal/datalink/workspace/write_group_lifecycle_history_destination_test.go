@@ -17,15 +17,15 @@ func lifecycleHistoryRecordKeyFixture(t *testing.T, dialect, key string, withOut
 	group.WritePolicy.DedupeCapability = "none"
 	raw, err := json.Marshal(group)
 	require.NoError(t, err)
-	_, err = db.Exec(`UPDATE write_group_versions SET payload=? WHERE group_id=?`, string(raw), group.ID)
+	_, err = db.ExecContext(t.Context(), `UPDATE write_group_versions SET payload=? WHERE group_id=?`, string(raw), group.ID)
 	require.NoError(t, err)
-	_, err = db.Exec(`UPDATE wg_runtime_versions SET payload=json_set(payload,'$.group.row_policy.record_key_column','record_id','$.runtime_layout.dialect',?) WHERE group_id=?`, dialect, group.ID)
+	_, err = db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=json_set(payload,'$.group.row_policy.record_key_column','record_id','$.runtime_layout.dialect',?) WHERE group_id=?`, dialect, group.ID)
 	require.NoError(t, err)
 	if withOutbox {
 		d := group.Destination
 		scope, err := snapshot.DestinationScope(d.ConnectorID, d.ConnectorRevision, d.Database, d.TableSchema, d.TableName)
 		require.NoError(t, err)
-		_, err = db.Exec(`INSERT INTO wg_delivery_outbox(effect_key,record_id,workspace_id,group_id,group_revision,bucket_start,partition_key,destination_scope,connector_id,connector_revision,database_name,table_schema,table_name,dedupe_capability,record_key_column,payload,payload_digest,next_retry_at,created_at,updated_at) VALUES('effect','record',?,?,?,'2026-10-02T12:00:00Z','partition',?,?,?,?,?,?,?,?,'{}','digest','2026-10-02T12:00:00Z','2026-10-02T12:00:00Z','2026-10-02T12:00:00Z')`, group.WorkspaceID, group.ID, group.AppliedRevision, scope, d.ConnectorID, d.ConnectorRevision, d.Database, d.TableSchema, d.TableName, group.WritePolicy.DedupeCapability, key)
+		_, err = db.ExecContext(t.Context(), `INSERT INTO wg_delivery_outbox(effect_key,record_id,workspace_id,group_id,group_revision,bucket_start,partition_key,destination_scope,connector_id,connector_revision,database_name,table_schema,table_name,dedupe_capability,record_key_column,payload,payload_digest,next_retry_at,created_at,updated_at) VALUES('effect','record',?,?,?,'2026-10-02T12:00:00Z','partition',?,?,?,?,?,?,?,?,'{}','digest','2026-10-02T12:00:00Z','2026-10-02T12:00:00Z','2026-10-02T12:00:00Z')`, group.WorkspaceID, group.ID, group.AppliedRevision, scope, d.ConnectorID, d.ConnectorRevision, d.Database, d.TableSchema, d.TableName, group.WritePolicy.DedupeCapability, key)
 		require.NoError(t, err)
 	}
 	return db, service, group
@@ -39,7 +39,7 @@ func TestLifecycleHistoryRecordKeyUsesFrozenRuntimeDialect(t *testing.T) {
 				key = "record_id"
 			}
 			db, service, group := lifecycleHistoryRecordKeyFixture(t, dialect, key, true)
-			_, err := db.Exec(`UPDATE database_connectors SET kind='unknown',identity_revision='changed' WHERE id=?`, group.Destination.ConnectorID)
+			_, err := db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='unknown',identity_revision='changed' WHERE id=?`, group.Destination.ConnectorID)
 			require.NoError(t, err)
 			before := lifecycleReadState(t, db)
 			view, err := service.Lifecycle(t.Context(), group.ID)
@@ -65,7 +65,7 @@ func TestLifecycleHistoryRecordKeyRejectsMissingOrContradictoryEvidence(t *testi
 				"wrong-key":         `UPDATE wg_runtime_versions SET payload=json_set(payload,'$.group.row_policy.record_key_column','other')`,
 				"unknown-dialect":   `UPDATE wg_runtime_versions SET payload=json_set(payload,'$.runtime_layout.dialect','unknown')`,
 			}[mode]
-			_, err := db.Exec(query)
+			_, err := db.ExecContext(t.Context(), query)
 			require.NoError(t, err)
 			before := lifecycleReadState(t, db)
 			view, err := service.Lifecycle(t.Context(), group.ID)
@@ -78,7 +78,7 @@ func TestLifecycleHistoryRecordKeyRejectsMissingOrContradictoryEvidence(t *testi
 
 func TestLifecycleHistoryWithoutOutboxDoesNotRequireUnusedRecordKeyEvidence(t *testing.T) {
 	db, service, group := lifecycleHistoryRecordKeyFixture(t, "postgres", "", false)
-	_, err := db.Exec(`DELETE FROM wg_runtime_versions`)
+	_, err := db.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions`)
 	require.NoError(t, err)
 	view, err := service.Lifecycle(t.Context(), group.ID)
 	require.NoError(t, err)

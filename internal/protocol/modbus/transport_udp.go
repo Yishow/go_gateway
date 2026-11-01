@@ -2,6 +2,7 @@ package modbus
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go-gateway/internal/protocol/wirebudget"
 	"io"
@@ -55,7 +56,11 @@ func (u *UDPTransport) ConnectContext(ctx context.Context) error {
 		_ = conn.Close()
 		return err
 	}
-	u.conn = conn.(*net.UDPConn)
+	udpConn, ok := conn.(*net.UDPConn)
+	if !ok {
+		return errors.Join(fmt.Errorf("UDP dial returned an incompatible connection"), conn.Close())
+	}
+	u.conn = udpConn
 	return nil
 }
 
@@ -76,8 +81,8 @@ func (u *UDPTransport) CloseContext(ctx context.Context) error {
 
 // IsConnected 檢查 UDP 連線狀態
 func (u *UDPTransport) IsConnected() bool {
-	live, _ := u.IsConnectedContext(context.Background())
-	return live
+	live, err := u.IsConnectedContext(context.Background())
+	return err == nil && live
 }
 func (u *UDPTransport) IsConnectedContext(ctx context.Context) (bool, error) {
 	if err := u.mu.LockContext(ctx); err != nil {
@@ -108,7 +113,12 @@ func (u *UDPTransport) SendReceiveContext(ctx context.Context, data []byte) (res
 		return nil, fmt.Errorf("UDP 設定逾時失敗: %w", err)
 	}
 
-	defer stop()
+	defer func() {
+		if cancelErr := stop(); cancelErr != nil {
+			response = nil
+			resultErr = errors.Join(resultErr, cancelErr)
+		}
+	}()
 	defer func() {
 		resultErr = transportContextError(ctx, resultErr)
 	}()
@@ -138,7 +148,10 @@ func (u *UDPTransport) SendReceiveContext(ctx context.Context, data []byte) (res
 }
 
 func (u *UDPTransport) GetNextTransactionID() uint16 {
-	id, _ := u.GetNextTransactionIDContext(context.Background())
+	id, err := u.GetNextTransactionIDContext(context.Background())
+	if err != nil {
+		return 0
+	}
 	return id
 }
 func (u *UDPTransport) GetNextTransactionIDContext(ctx context.Context) (uint16, error) {

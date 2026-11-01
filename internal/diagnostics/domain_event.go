@@ -42,6 +42,14 @@ const (
 	domainCutoverRejected          = "domain.cutover.rejected"
 	domainUnavailableCode          = "domain.unavailable"
 	domainOperationResultKind      = "operation-result"
+	domainIntakeStatusKind         = "intake-status"
+	domainQuotaScopeGlobal         = "global"
+	domainQuotaScopeGroup          = "group"
+	domainQuotaRefusalKind         = "quota-refusal"
+	domainRecordingRefusalKind     = "recording-refusal"
+	domainRuntimeReceiptKind       = "runtime-receipt"
+	domainDurableTransitionKind    = "durable-transition"
+	domainQuotaHardLimit           = "hard_limit"
 	domainCounterReplayInputsKind  = "counter-replay-inputs"
 	maxEventSequence               = "18446744073709551615"
 )
@@ -194,9 +202,9 @@ var domainUTCTime = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\
 
 func domainUnavailable() (DomainEventRef, error) {
 	return DomainEventRef{ContractVersion: 1, Code: domainUnavailableCode, Stage: runtimeview.StageUnavailable,
-		Reason: runtimeview.ReasonUnavailable, Action: runtimeview.ActionForReason(runtimeview.ReasonUnavailable),
-		Evidence: DomainEvidenceRef{Kind: "unavailable"}}, &runtimeview.ContractError{
-		Reason: runtimeview.ReasonUnavailable, Action: runtimeview.ActionForReason(runtimeview.ReasonUnavailable)}
+			Reason: runtimeview.ReasonUnavailable, Action: runtimeview.ActionForReason(runtimeview.ReasonUnavailable),
+			Evidence: DomainEvidenceRef{Kind: "unavailable"}}, &runtimeview.ContractError{
+			Reason: runtimeview.ReasonUnavailable, Action: runtimeview.ActionForReason(runtimeview.ReasonUnavailable)}
 }
 
 // ParseDomainEventRef is pure fail-closed structural validation, NOT authorization,
@@ -263,11 +271,11 @@ func validDomainEvidence(v DomainEventRef) bool {
 	if !compatibleDomainReason(v) {
 		return false
 	}
-	if (e.Receipt != nil) != (e.Kind == "runtime-receipt") || (e.Intake != nil) != (e.Kind == "intake-status") || (e.Quota != nil) != (e.Kind == "quota-refusal" || e.Kind == "quota-status") || (e.PendingSamples != nil) != (e.Kind == domainCounterReplayInputsKind || e.Kind == "recording-refusal") {
+	if (e.Receipt != nil) != (e.Kind == domainRuntimeReceiptKind) || (e.Intake != nil) != (e.Kind == domainIntakeStatusKind) || (e.Quota != nil) != (e.Kind == domainQuotaRefusalKind || e.Kind == "quota-status") || (e.PendingSamples != nil) != (e.Kind == domainCounterReplayInputsKind || e.Kind == domainRecordingRefusalKind) {
 		return false
 	}
 	if r := e.Receipt; r != nil {
-		if r.GroupRevision != v.Binding.EntityRevision || r.ConnectorRevision != *v.ConnectorRevision || r.EffectKey != e.ReferenceID || r.Provenance != "runtime" {
+		if r.GroupRevision != v.Binding.EntityRevision || r.ConnectorRevision != *v.ConnectorRevision || r.EffectKey != e.ReferenceID || r.Provenance != sourceRuntime {
 			return false
 		}
 		for _, id := range []string{r.RecordID, r.EffectKey, r.PayloadDigest} {
@@ -286,14 +294,14 @@ func validDomainEvidence(v DomainEventRef) bool {
 		}
 	}
 	if q := e.Quota; q != nil {
-		if (q.Scope != "global" && q.Scope != "group") || q.UsedBytes < 0 || q.MaxBytes < 0 || q.UsedBytes > 9007199254740991 || q.MaxBytes > 9007199254740991 {
+		if (q.Scope != domainQuotaScopeGlobal && q.Scope != domainQuotaScopeGroup) || q.UsedBytes < 0 || q.MaxBytes < 0 || q.UsedBytes > 9007199254740991 || q.MaxBytes > 9007199254740991 {
 			return false
 		}
 		if v.Code == domainQuotaRecovered {
 			if (q.State != "ok" && q.State != "warning") || q.IntakeRefused || q.MaxBytes == 0 || q.UsedBytes >= q.MaxBytes {
 				return false
 			}
-		} else if q.State != "hard_limit" || !q.IntakeRefused {
+		} else if q.State != domainQuotaHardLimit || !q.IntakeRefused {
 			return false
 		}
 	}
@@ -314,11 +322,11 @@ func compatibleDomainReason(v DomainEventRef) bool {
 	switch v.Reason {
 	case runtimeview.ReasonNone, runtimeview.ReasonUnavailable, runtimeview.ReasonStale,
 		runtimeview.ReasonForeign, runtimeview.ReasonDeleted, runtimeview.ReasonUnsupported, runtimeview.ReasonMissingProof:
-		return v.Evidence.Kind != domainCounterReplayInputsKind && v.Evidence.Kind != "recording-refusal"
+		return v.Evidence.Kind != domainCounterReplayInputsKind && v.Evidence.Kind != domainRecordingRefusalKind
 	case runtimeview.ReasonCounterMissing, runtimeview.ReasonCounterConflict, runtimeview.ReasonCounterUnsupported:
 		return v.Code == domainCounterReplayQuarantined && v.Evidence.Kind == domainCounterReplayInputsKind
 	case runtimeview.ReasonOwnershipUnavailable, runtimeview.ReasonOwnershipConflict, runtimeview.ReasonHandoffConflict, runtimeview.ReasonFinalizedOverlap:
-		return v.Locator.Step == 4 && (v.Evidence.Kind == "durable-transition" || (v.Code == domainRecordingRefused && v.Evidence.Kind == "recording-refusal") || (v.Code == domainCutoverRejected && v.Evidence.Kind == domainOperationResultKind))
+		return v.Locator.Step == 4 && (v.Evidence.Kind == domainDurableTransitionKind || (v.Code == domainRecordingRefused && v.Evidence.Kind == domainRecordingRefusalKind) || (v.Code == domainCutoverRejected && v.Evidence.Kind == domainOperationResultKind))
 	default:
 		return false
 	}

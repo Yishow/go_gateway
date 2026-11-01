@@ -132,8 +132,8 @@ func (r *RTUTransport) closePort() error {
 
 // IsConnected 檢查 RTU 序列埠連線狀態
 func (r *RTUTransport) IsConnected() bool {
-	live, _ := r.IsConnectedContext(context.Background())
-	return live
+	live, err := r.IsConnectedContext(context.Background())
+	return err == nil && live
 }
 func (r *RTUTransport) IsConnectedContext(ctx context.Context) (bool, error) {
 	if err := r.mu.LockContext(ctx); err != nil {
@@ -285,5 +285,3 @@ func (r *RTUTransport) sendReceiveContext(ctx context.Context, data []byte, exac
 
 	return header, nil
 }
-
-func (r *RTUTransport) internalClose() { _ = r.closePort() }

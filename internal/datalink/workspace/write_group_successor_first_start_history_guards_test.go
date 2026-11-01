@@ -35,9 +35,9 @@ func TestSuccessorFirstStartAtomicNoHistoryIncludesOldGenerationAndForeignRows(t
 				head := req.Envelope.Request.Stage.Current.GroupID
 				// Model a previously abandoned never-applied generation. Both generations
 				// remain genuine tombstones and no applied/runtime history is discarded.
-				_, err := h.db.Exec(`UPDATE write_groups SET status='deleted' WHERE id=?`, head)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='deleted' WHERE id=?`, head)
 				require.NoError(t, err)
-				_, err = h.db.Exec(`UPDATE write_group_lineages SET current_group_id=?,reserved_group_id=NULL,reservation_operation_id=NULL,reservation_intent_digest=NULL,revision=revision+1 WHERE lineage_id=?`, head, scope.LineageID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_lineages SET current_group_id=?,reserved_group_id=NULL,reservation_operation_id=NULL,reservation_intent_digest=NULL,revision=revision+1 WHERE lineage_id=?`, head, scope.LineageID)
 				require.NoError(t, err)
 				check := func() error {
 					tx, err := h.db.BeginTx(t.Context(), nil)
@@ -71,7 +71,7 @@ func firstStartHistoryRow(t *testing.T, h *circuitProfileHarness, table string, 
 	for i, key := range columns {
 		args[i], placeholders[i] = fields[key], "?"
 	}
-	_, err := h.db.Exec("INSERT INTO "+table+" ("+strings.Join(columns, ",")+") VALUES ("+strings.Join(placeholders, ",")+")", args...)
+	_, err := h.db.ExecContext(t.Context(), "INSERT INTO "+table+" ("+strings.Join(columns, ",")+") VALUES ("+strings.Join(placeholders, ",")+")", args...)
 	require.NoError(t, err, "seed contradictory %s evidence", table)
 }
 

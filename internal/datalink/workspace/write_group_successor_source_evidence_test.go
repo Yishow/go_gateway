@@ -22,15 +22,15 @@ func TestRecreateFrozenSourceEngineAllowsEditedOrRemovedOldConnector(t *testing.
 			effective := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 			require.NoError(t, h.service.repo.insertVersionInTx(t.Context(), tx, old, effective))
 			require.NoError(t, h.service.saveRuntimeVersionInTx(t.Context(), tx, &WriteGroupAppliedSnapshot{WorkspaceID: old.WorkspaceID, GroupID: old.ID, GroupRevision: old.Revision, AppliedRevision: old.AppliedRevision, EffectiveAt: effective, Group: old, RuntimeLayout: &WriteGroupRuntimeLayout{Dialect: dbtarget.SQLDialect("sqlite"), ReceiptTableReady: true}}))
-			_, err = tx.Exec(`UPDATE write_groups SET applied_revision=? WHERE id=?`, old.AppliedRevision, old.ID)
+			_, err = tx.ExecContext(t.Context(), `UPDATE write_groups SET applied_revision=? WHERE id=?`, old.AppliedRevision, old.ID)
 			require.NoError(t, err)
 			require.NoError(t, tx.Commit())
-			_, err = h.db.Exec(`INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('new-target','new-target','sqlite','{"database":"new-database","schema":"main"}','target-1','ok',1)`)
+			_, err = h.db.ExecContext(t.Context(), `INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('new-target','new-target','sqlite','{"database":"new-database","schema":"main"}','target-1','ok',1)`)
 			require.NoError(t, err)
 			if state == "edited" {
-				_, err = h.db.Exec(`UPDATE database_connectors SET kind='postgres',identity_revision='edited-old',connection_config='{}' WHERE id=?`, old.Destination.ConnectorID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='postgres',identity_revision='edited-old',connection_config='{}' WHERE id=?`, old.Destination.ConnectorID)
 			} else {
-				_, err = h.db.Exec(`DELETE FROM database_connectors WHERE id=?`, old.Destination.ConnectorID)
+				_, err = h.db.ExecContext(t.Context(), `DELETE FROM database_connectors WHERE id=?`, old.Destination.ConnectorID)
 			}
 			require.NoError(t, err)
 			req.Group.Destination.ConnectorID = "new-target"

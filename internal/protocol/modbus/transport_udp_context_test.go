@@ -2,11 +2,12 @@ package modbus
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/protocol/wirebudget"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestUDPContextDeadlineBudgetAndReplacement(t *testing.T) {

@@ -58,7 +58,7 @@ func TestCounterBindingApplyReapplyRefusesChangedMeaningAndPreservesOriginalRunt
 	require.Equal(t, applied.Group.AppliedRevision, current.Group.AppliedRevision)
 	require.Equal(t, applied.WorkspaceRevision, current.WorkspaceRevision)
 	var versions int
-	require.NoError(t, f.db.QueryRow(`SELECT COUNT(*) FROM wg_runtime_versions WHERE group_id=?`, f.group.ID).Scan(&versions))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_runtime_versions WHERE group_id=?`, f.group.ID).Scan(&versions))
 	require.Equal(t, 1, versions)
 	_, after := readCounterApplySnapshot(t, f.db.QueryRowContext, f.group.ID)
 	require.Equal(t, before, after)

@@ -3,8 +3,9 @@ package modbus
 import (
 	"context"
 	"errors"
-	"go.bug.st/serial"
 	"testing"
+
+	"go.bug.st/serial"
 )
 
 type cancelDuringClosePort struct {

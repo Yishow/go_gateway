@@ -71,14 +71,14 @@ func TestSuccessorActivationReviewRejectsTamperedSchemaLedgerAndPastBoundary(t *
 		t.Run(mode, func(t *testing.T) {
 			h, id, req := activationReadyFixture(t)
 			if mode == "schema-proof" {
-				_, err := h.db.Exec(`UPDATE managed_schema_operations SET verified_digest='tampered'`)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE managed_schema_operations SET verified_digest='tampered'`)
 				require.NoError(t, err)
 			}
 			if mode == "past-boundary" {
 				req.Boundary = h.service.clockNow().Add(-time.Second)
 			}
 			if mode == "ended-source" {
-				_, err := h.db.Exec(`INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,?)`, req.Stage.Envelope.Request.WorkspaceID, id, req.Stage.Envelope.SourceAppliedRevision, h.service.clockNow().Format(time.RFC3339Nano), "prior-cut")
+				_, err := h.db.ExecContext(t.Context(), `INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,?)`, req.Stage.Envelope.Request.WorkspaceID, id, req.Stage.Envelope.SourceAppliedRevision, h.service.clockNow().Format(time.RFC3339Nano), "prior-cut")
 				require.NoError(t, err)
 			}
 			before := lineageReadSnapshot(t, h)
@@ -117,7 +117,7 @@ func TestSuccessorActivationReadinessRejectsChangesDuringProbe(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, view.Blockers)
 	probe := &activationMutationInspector{delegate: h.service.managedTableInspector, mutate: func() {
-		_, e := h.db.Exec(`UPDATE database_connectors SET identity_revision='changed' WHERE id=?`, req.Stage.Envelope.Request.Group.Destination.ConnectorID)
+		_, e := h.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='changed' WHERE id=?`, req.Stage.Envelope.Request.Group.Destination.ConnectorID)
 		require.NoError(t, e)
 	}}
 	h.service.WithManagedTableInspector(probe)

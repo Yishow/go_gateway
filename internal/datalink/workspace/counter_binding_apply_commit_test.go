@@ -25,11 +25,12 @@ func (r *counterApplyCommitRepository) BeginDatabaseSetup(ctx context.Context) (
 	if err != nil {
 		return nil, err
 	}
-	return &counterApplyCommitTx{DatabaseSetupTx: tx, repo: r}, nil
+	return &counterApplyCommitTx{DatabaseSetupTx: tx, repo: r, ctx: ctx}, nil
 }
 
 type counterApplyCommitTx struct {
 	DatabaseSetupTx
+	ctx  context.Context
 	repo *counterApplyCommitRepository
 }
 
@@ -40,7 +41,7 @@ func (tx *counterApplyCommitTx) Commit() error {
 	}
 	// Observe the real pending descriptor inside the same transaction; this is
 	// not a stand-in for persistence or a fake successful commit.
-	if err := tx.SQLTx().QueryRow(`SELECT payload FROM wg_runtime_versions`).Scan(&tx.repo.pendingProof); err != nil {
+	if err := tx.SQLTx().QueryRowContext(tx.ctx, `SELECT payload FROM wg_runtime_versions`).Scan(&tx.repo.pendingProof); err != nil {
 		return err
 	}
 	if !tx.repo.after {
@@ -95,9 +96,9 @@ func TestCounterBindingProofApplyCommitCrashBoundaries(t *testing.T) {
 				require.Equal(t, repo.pendingProof, persisted)
 			}
 			var versions, samples int
-			require.NoError(t, f.db.QueryRow(`SELECT COUNT(*) FROM wg_runtime_versions`).Scan(&versions))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_runtime_versions`).Scan(&versions))
 			require.Equal(t, 1, versions)
-			require.NoError(t, f.db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&samples))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&samples))
 			require.Zero(t, samples)
 		})
 	}

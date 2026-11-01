@@ -44,7 +44,7 @@ func TestSuccessorPreparationConcurrentReservation(t *testing.T) {
 			peer := newCircuitProfileHarnessOn(t, openWorkspaceTestDB(t, path), h)
 			peer.db.SetMaxOpenConns(1)
 			for _, db := range []*sql.DB{h.db, peer.db} {
-				_, err := db.Exec("PRAGMA busy_timeout=1000")
+				_, err := db.ExecContext(t.Context(), "PRAGMA busy_timeout=1000")
 				require.NoError(t, err)
 			}
 			req := WriteGroupSuccessorReviewRequest{WorkspaceID: r.WorkspaceID, ExpectedWorkspaceRevision: r.ExpectedWorkspaceRevision, LineageID: r.LineageID, ExpectedLineageRevision: r.ExpectedLineageRevision, ExpectedPredecessorRevision: r.ExpectedPredecessorRevision, ExpectedPredecessorConnectorRevision: r.ExpectedPredecessorConnectorRevision, ExpectedTargetConnectorRevision: r.ExpectedTargetConnectorRevision, OperationID: r.OperationID, Boundary: time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC), Group: r.Group}

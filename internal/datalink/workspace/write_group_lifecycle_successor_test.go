@@ -24,7 +24,7 @@ func TestLifecycleSuccessorCanonicalActionsAndSafeSeed(t *testing.T) {
 				h, id, _ = successorActiveWideFixture(t)
 			}
 			if kind == "disabled" {
-				_, err := h.db.Exec(`UPDATE write_groups SET status='disabled' WHERE id=?`, id)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='disabled' WHERE id=?`, id)
 				require.NoError(t, err)
 			}
 			before := recreateRepositorySnapshot(t, h)

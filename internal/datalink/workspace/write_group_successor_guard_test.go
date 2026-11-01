@@ -28,12 +28,12 @@ func reservedGuardFixture(t *testing.T) (*circuitProfileHarness, *WriteGroup) {
 	original := h.mustEnsure(lineageTestDraft(h, "profile"))
 	lineage := requireLineageGenesis(t, h.db, original)
 	successor := seedLineageGeneration(t, h, original, lineage, "reserved-G2", 2)
-	_, err := h.db.Exec(`UPDATE write_groups SET status='deleted' WHERE id=?`, original.ID)
+	_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='deleted' WHERE id=?`, original.ID)
 	require.NoError(t, err)
-	_, err = h.db.Exec(`UPDATE write_group_lineages SET reserved_group_id=?,reservation_operation_id='O2',reservation_intent_digest='intent-O2',revision=2 WHERE lineage_id=?`, successor.ID, lineage)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_lineages SET reserved_group_id=?,reservation_operation_id='O2',reservation_intent_digest='intent-O2',revision=2 WHERE lineage_id=?`, successor.ID, lineage)
 	require.NoError(t, err)
 	// A staged proof must never open ordinary schema/apply paths for this draft.
-	_, err = h.db.Exec(`UPDATE write_groups SET destination_schema_revision='schema-op',destination_schema_digest=? WHERE id=?`, strings.Repeat("d", 64), successor.ID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET destination_schema_revision='schema-op',destination_schema_digest=? WHERE id=?`, strings.Repeat("d", 64), successor.ID)
 	require.NoError(t, err)
 	result, err := h.service.Get(t.Context(), successor.ID)
 	require.NoError(t, err)
@@ -123,12 +123,12 @@ func TestReservedSuccessorReadModelStaysReadableNotReady(t *testing.T) {
 func TestReservedSuccessorApplyBlocksOtherwiseReadySchema(t *testing.T) {
 	h := newCircuitProfileHarness(t, ":memory:")
 	h.db.SetMaxOpenConns(1)
-	_, err := h.db.Exec(`UPDATE database_connectors SET kind='postgres',connection_config='{"database":"persisted-db","schema":"persisted-schema"}'`)
+	_, err := h.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='postgres',connection_config='{"database":"persisted-db","schema":"persisted-schema"}'`)
 	require.NoError(t, err)
 	original := h.mustEnsure(lineageTestDraft(h, "profile"))
 	lineage := requireLineageGenesis(t, h.db, original)
 	successor := seedLineageGeneration(t, h, original, lineage, "ready-G2", 2)
-	_, err = h.db.Exec(`UPDATE write_groups SET status='deleted' WHERE id=?`, original.ID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='deleted' WHERE id=?`, original.ID)
 	require.NoError(t, err)
 	saveManagedReadinessProof(t, h.db, successor.ID)
 	successor = lifecycleReadGroup(t, h.service, successor.ID)
@@ -141,7 +141,7 @@ func TestReservedSuccessorApplyBlocksOtherwiseReadySchema(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ready.Ready, "all non-reservation readiness facts pass")
 	require.Equal(t, 1, probes)
-	_, err = h.db.Exec(`UPDATE write_group_lineages SET reserved_group_id=?,reservation_operation_id='O2',reservation_intent_digest='intent-O2',revision=2`, successor.ID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_lineages SET reserved_group_id=?,reservation_operation_id='O2',reservation_intent_digest='intent-O2',revision=2`, successor.ID)
 	require.NoError(t, err)
 	before := lineageReadSnapshot(t, h)
 	inspector.mutate = func() { probes++ }
@@ -211,9 +211,9 @@ func TestReservedSuccessorDeleteKeepsReservationReasonAfterTargetChange(t *testi
 			mutation := lifecycleReadMutation(t, h.service, group)
 			var err error
 			if state == "edited" {
-				_, err = h.db.Exec(`UPDATE database_connectors SET identity_revision='edited-target' WHERE id=?`, group.Destination.ConnectorID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='edited-target' WHERE id=?`, group.Destination.ConnectorID)
 			} else {
-				_, err = h.db.Exec(`DELETE FROM database_connectors WHERE id=?`, group.Destination.ConnectorID)
+				_, err = h.db.ExecContext(t.Context(), `DELETE FROM database_connectors WHERE id=?`, group.Destination.ConnectorID)
 			}
 			require.NoError(t, err)
 			before := lineageReadSnapshot(t, h)

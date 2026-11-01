@@ -2,6 +2,7 @@ package mcprotocol
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go-gateway/internal/protocol/wirebudget"
 	"io"
@@ -39,6 +40,9 @@ func (t *TCPTransport) SendReceiveContext(ctx context.Context, req []byte) ([]by
 		return response, nil
 	}
 	if ctx.Err() != nil {
+		if errors.Is(err, ctx.Err()) {
+			return nil, err
+		}
 		return nil, ctx.Err()
 	}
 	if b := wirebudget.From(ctx); b != nil {
@@ -55,7 +59,7 @@ func (t *TCPTransport) SendReceiveContext(ctx context.Context, req []byte) ([]by
 	return nil, err
 }
 
-func (t *TCPTransport) sendReceiveContextLocked(ctx context.Context, req []byte) ([]byte, error) {
+func (t *TCPTransport) sendReceiveContextLocked(ctx context.Context, req []byte) (result []byte, resultErr error) {
 	conn := t.conn
 	if conn == nil {
 		return nil, fmt.Errorf("connection is closed")
@@ -69,10 +73,20 @@ func (t *TCPTransport) sendReceiveContextLocked(ctx context.Context, req []byte)
 		return nil, err
 	}
 	callbackDone := make(chan struct{})
-	stop := context.AfterFunc(ctx, func() { defer close(callbackDone); _ = conn.SetDeadline(time.Now()) })
+	var cancelErr error
+	stop := context.AfterFunc(ctx, func() {
+		defer close(callbackDone)
+		if deadlineErr := conn.SetDeadline(time.Now()); deadlineErr != nil {
+			cancelErr = errors.Join(deadlineErr, conn.Close())
+		}
+	})
 	defer func() {
 		if !stop() {
 			<-callbackDone
+		}
+		if cancelErr != nil {
+			result = nil
+			resultErr = errors.Join(ctx.Err(), resultErr, cancelErr)
 		}
 	}()
 	if err := wirebudget.Take(ctx); err != nil {

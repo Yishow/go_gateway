@@ -39,14 +39,14 @@ func TestSuccessorReviewRequiresAppliedOwnerForActiveProfile(t *testing.T) {
 	for _, mode := range []string{"no-applied", "no-owner", "owner-error", "trusted-owner", "bad-source"} {
 		t.Run(mode, func(t *testing.T) {
 			h, id, req := successorReviewFixture(t)
-			_, err := h.db.Exec(`UPDATE write_groups SET status='ready' WHERE id=?`, id)
+			_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='ready' WHERE id=?`, id)
 			require.NoError(t, err)
 			old := writeGroupRecreateReservationRequest{WorkspaceID: req.WorkspaceID, PredecessorGroupID: id, ExpectedPredecessorRevision: req.ExpectedPredecessorRevision, Group: req.Group}
 			if mode != "no-applied" {
 				seedRecreateEngineEvidence(t, h, old)
 			}
 			if mode == "bad-source" {
-				_, err = h.db.Exec(`UPDATE write_group_versions SET payload='{}'`)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_versions SET payload='{}'`)
 				require.NoError(t, err)
 			}
 			if mode == "trusted-owner" || mode == "owner-error" {
@@ -82,7 +82,7 @@ func TestSuccessorReviewRequiresAppliedOwnerForActiveProfile(t *testing.T) {
 
 func TestSuccessorReviewDoesNotAuthorizeActiveBasic(t *testing.T) {
 	h, r := recreateBasicFixture(t, "sqlite")
-	_, err := h.db.Exec(`UPDATE write_groups SET status='ready' WHERE id=?`, r.PredecessorGroupID)
+	_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='ready' WHERE id=?`, r.PredecessorGroupID)
 	require.NoError(t, err)
 	req := WriteGroupSuccessorReviewRequest{WorkspaceID: r.WorkspaceID, ExpectedWorkspaceRevision: r.ExpectedWorkspaceRevision, LineageID: r.LineageID, ExpectedLineageRevision: 1, ExpectedPredecessorRevision: r.ExpectedPredecessorRevision, ExpectedPredecessorConnectorRevision: r.ExpectedPredecessorConnectorRevision, ExpectedTargetConnectorRevision: r.ExpectedTargetConnectorRevision, OperationID: "O2", Boundary: time.Date(2026, 10, 28, 10, 0, 0, 0, time.UTC), Group: r.Group}
 	before := lineageReadSnapshot(t, h)
@@ -115,7 +115,7 @@ func TestSuccessorReviewRejectsActiveLongNoopDestination(t *testing.T) {
 	h, id, req := successorReviewFixture(t)
 	old := writeGroupRecreateReservationRequest{WorkspaceID: req.WorkspaceID, PredecessorGroupID: id, ExpectedPredecessorRevision: req.ExpectedPredecessorRevision, Group: req.Group}
 	seedRecreateEngineEvidence(t, h, old)
-	_, err := h.db.Exec(`UPDATE write_groups SET status='ready' WHERE id=?`, id)
+	_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='ready' WHERE id=?`, id)
 	require.NoError(t, err)
 	h.service.WithBacklogOwnershipGuard(writeGroupBacklogGuardFunc(func(context.Context, *sql.Tx, *WriteGroup) error { return nil }))
 	before := lineageReadSnapshot(t, h)

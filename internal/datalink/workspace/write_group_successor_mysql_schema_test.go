@@ -88,19 +88,19 @@ func TestSuccessorMySQLActivationReviewUsesLocalSucceededToken(t *testing.T) {
 			h, id, req, p := confirmMySQLSuccessorFixture(t)
 			switch mutation {
 			case "digest":
-				_, err := h.db.Exec(`UPDATE managed_schema_operations SET verified_digest='foreign'`)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE managed_schema_operations SET verified_digest='foreign'`)
 				require.NoError(t, err)
 			case "source":
-				_, err := h.db.Exec(`UPDATE managed_schema_preview_tokens SET tables=json_set(tables,'$.source_digest','foreign')`)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET tables=json_set(tables,'$.source_digest','foreign')`)
 				require.NoError(t, err)
 			case "family":
-				_, err := h.db.Exec(`UPDATE managed_schema_preview_tokens SET tables=replace(tables,'mysql','mariadb')`)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET tables=replace(tables,'mysql','mariadb')`)
 				require.NoError(t, err)
 			case "status":
-				_, err := h.db.Exec(`UPDATE managed_schema_operations SET status='running'`)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE managed_schema_operations SET status='running'`)
 				require.NoError(t, err)
 			case "owner":
-				_, err := h.db.Exec(`UPDATE managed_schema_preview_tokens SET plan_id='foreign'`)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET plan_id='foreign'`)
 				require.NoError(t, err)
 			}
 			calls := p.calls

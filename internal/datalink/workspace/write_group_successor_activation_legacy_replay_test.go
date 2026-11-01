@@ -30,7 +30,7 @@ func TestSuccessorActivationReplaysPersistedV1WithoutKind(t *testing.T) {
 		Confirmation       WriteGroupSuccessorActivationConfirmation `json:"confirmation"`
 	}{"go-gateway/successor-activation-intent/v1", id, req})
 	require.NoError(t, err)
-	_, err = h.db.Exec(`UPDATE write_group_cutovers SET review_digest=?,intent=? WHERE id=?`, req.ReviewDigest, string(intent), event.ID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_cutovers SET review_digest=?,intent=? WHERE id=?`, req.ReviewDigest, string(intent), event.ID)
 	require.NoError(t, err)
 	event.ReviewDigest = req.ReviewDigest
 	event.intent = string(intent)

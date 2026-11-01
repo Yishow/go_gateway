@@ -22,7 +22,7 @@ import (
 func finalizedClosure(t *testing.T, f counterApplyFixture, g *WriteGroup, end time.Time) (*groupdelivery.Store, groupdelivery.GroupKey, groupdelivery.Closure) {
 	t.Helper()
 	var raw string
-	require.NoError(t, f.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, g.ID, g.AppliedRevision).Scan(&raw))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, g.ID, g.AppliedRevision).Scan(&raw))
 	var saved WriteGroupAppliedSnapshot
 	require.NoError(t, json.Unmarshal([]byte(raw), &saved))
 	require.Len(t, saved.CounterBindings, 1)
@@ -49,7 +49,7 @@ func finalizedState(t *testing.T, db *sql.DB) map[string][]string {
 	t.Helper()
 	state := map[string][]string{}
 	for _, table := range []string{"system_settings", "write_groups", "write_group_versions", "wg_runtime_versions", "write_group_cutovers", "write_group_revision_ends", "write_group_ownership_fences", "wg_delivery_samples", "wg_delivery_buckets", "wg_delivery_outbox", "wg_delivery_checkpoints", "wg_delivery_counter_baselines"} {
-		rows, err := db.Query(`SELECT * FROM ` + table + ` ORDER BY rowid`)
+		rows, err := db.QueryContext(t.Context(), `SELECT * FROM `+table+` ORDER BY rowid`)
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestCutoverFinalizedOverlap(t *testing.T) {
 				require.NoError(t, store.CommitClosure(t.Context(), key, closure))
 			}
 			if mode == "post reclaim" {
-				_, err := f.db.Exec(`UPDATE wg_delivery_outbox SET state='sql_committed', committed_at='2000-01-01T00:00:00.000000000Z'`)
+				_, err := f.db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET state='sql_committed', committed_at='2000-01-01T00:00:00.000000000Z'`)
 				require.NoError(t, err)
 				removed, err := store.Reclaim(t.Context(), 0)
 				require.NoError(t, err)
@@ -180,7 +180,7 @@ func TestCutoverFinalizedMissingCheckpointCannotEraseHistory(t *testing.T) {
 			// evidence remains, even if retention has removed all other evidence.
 			for _, table := range []string{"checkpoints", "samples", "buckets", "outbox", "counter_baselines"} {
 				if table != evidence {
-					_, err := f.db.Exec(`DELETE FROM wg_delivery_` + table)
+					_, err := f.db.ExecContext(t.Context(), `DELETE FROM wg_delivery_`+table)
 					require.NoError(t, err)
 				}
 			}
@@ -202,14 +202,14 @@ func TestCutoverFinalizedUnreadableCheckpointFailsSafely(t *testing.T) {
 			if mode == "missing table" {
 				statement = `ALTER TABLE wg_delivery_checkpoints RENAME TO unavailable_checkpoints`
 			}
-			_, err := f.db.Exec(statement)
+			_, err := f.db.ExecContext(t.Context(), statement)
 			require.NoError(t, err)
 			_, err = f.service.ApplyCutover(t.Context(), req)
 			require.ErrorIs(t, err, groupdelivery.ErrOwnershipUnavailable)
 			require.NotContains(t, err.Error(), "private-driver")
 			require.NotContains(t, err.Error(), "SQLITE")
 			var count int
-			require.NoError(t, f.db.QueryRow(`SELECT COUNT(*) FROM write_group_cutovers`).Scan(&count))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM write_group_cutovers`).Scan(&count))
 			require.Zero(t, count)
 		})
 	}

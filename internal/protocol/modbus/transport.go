@@ -2,6 +2,7 @@ package modbus
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go-gateway/internal/protocol/wirebudget"
 	"io"
@@ -54,8 +55,8 @@ func (t *TCPTransport) ConnectContext(ctx context.Context) error {
 
 // IsConnected 檢查底層連線是否已建立且尚未關閉
 func (t *TCPTransport) IsConnected() bool {
-	live, _ := t.IsConnectedContext(context.Background())
-	return live
+	live, err := t.IsConnectedContext(context.Background())
+	return err == nil && live
 }
 func (t *TCPTransport) IsConnectedContext(ctx context.Context) (bool, error) {
 	if err := t.mu.LockContext(ctx); err != nil {
@@ -127,6 +128,9 @@ func (t *TCPTransport) SendReceiveContext(ctx context.Context, data []byte) ([]b
 	}
 	response, err := t.sendReceiveLocked(ctx, data)
 	if ctxErr := transportContextError(ctx, nil); ctxErr != nil {
+		if errors.Is(err, ctxErr) {
+			return nil, err
+		}
 		return nil, ctxErr
 	}
 	if err != nil && wirebudget.From(ctx) == nil && t.conn == nil {
@@ -137,7 +141,7 @@ func (t *TCPTransport) SendReceiveContext(ctx context.Context, data []byte) ([]b
 	return response, err
 }
 
-func (t *TCPTransport) sendReceiveLocked(ctx context.Context, data []byte) ([]byte, error) {
+func (t *TCPTransport) sendReceiveLocked(ctx context.Context, data []byte) (result []byte, resultErr error) {
 	if t.conn == nil {
 		return nil, ErrConnectionClosed
 	}
@@ -149,7 +153,12 @@ func (t *TCPTransport) sendReceiveLocked(ctx context.Context, data []byte) ([]by
 		return nil, fmt.Errorf("TCP 設定逾時失敗: %w", err)
 	}
 
-	defer stop()
+	defer func() {
+		if cancelErr := stop(); cancelErr != nil {
+			result = nil
+			resultErr = errors.Join(resultErr, cancelErr)
+		}
+	}()
 	if err := wirebudget.Take(ctx); err != nil {
 		return nil, err
 	}
@@ -204,7 +213,10 @@ func (t *TCPTransport) internalClose() {
 
 // GetNextTransactionID 獲取下一個交易 ID
 func (t *TCPTransport) GetNextTransactionID() uint16 {
-	id, _ := t.GetNextTransactionIDContext(context.Background())
+	id, err := t.GetNextTransactionIDContext(context.Background())
+	if err != nil {
+		return 0
+	}
 	return id
 }
 func (t *TCPTransport) GetNextTransactionIDContext(ctx context.Context) (uint16, error) {

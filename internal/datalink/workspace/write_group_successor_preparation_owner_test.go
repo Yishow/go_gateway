@@ -9,7 +9,7 @@ import (
 func TestSuccessorPreparationAllowsOnlyVerifiedPredecessorOverlap(t *testing.T) {
 	h, req := recreateRepositoryFixture(t, "profile")
 	seedRecreateEngineEvidence(t, h, req)
-	_, err := h.db.Exec("UPDATE write_groups SET status='ready' WHERE id=?", req.PredecessorGroupID)
+	_, err := h.db.ExecContext(t.Context(), "UPDATE write_groups SET status='ready' WHERE id=?", req.PredecessorGroupID)
 	require.NoError(t, err)
 	predecessor, err := h.service.repo.Get(t.Context(), req.WorkspaceID, req.PredecessorGroupID)
 	require.NoError(t, err)
@@ -31,7 +31,7 @@ func TestSuccessorPreparationRejectsUnrelatedOwnerAndInvalidAuthority(t *testing
 			}
 			h, req := recreateRepositoryFixture(t, kind)
 			seedRecreateEngineEvidence(t, h, req)
-			_, err := h.db.Exec("UPDATE write_groups SET status='ready' WHERE id=?", req.PredecessorGroupID)
+			_, err := h.db.ExecContext(t.Context(), "UPDATE write_groups SET status='ready' WHERE id=?", req.PredecessorGroupID)
 			require.NoError(t, err)
 			pred, err := h.service.repo.Get(t.Context(), req.WorkspaceID, req.PredecessorGroupID)
 			require.NoError(t, err)
@@ -76,6 +76,6 @@ func TestSuccessorPreparationRepositoryRejectsUnmintedAuthority(t *testing.T) {
 	_, err = h.service.repo.reserveTransitionDraftInTx(t.Context(), tx, req, digest, successorTransitionAuthority{})
 	require.ErrorIs(t, err, ErrWriteGroupValidation)
 	var groups int
-	require.NoError(t, tx.QueryRow("SELECT COUNT(*) FROM write_groups").Scan(&groups))
+	require.NoError(t, tx.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM write_groups").Scan(&groups))
 	require.Equal(t, 1, groups)
 }

@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type exactWordTransport struct {

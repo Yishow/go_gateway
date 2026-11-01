@@ -51,7 +51,7 @@ func lifecycleReadState(t *testing.T, db *sql.DB) map[string]string {
 	t.Helper()
 	state := map[string]string{}
 	for _, table := range []string{"system_settings", "write_groups", "write_group_versions", "wg_runtime_versions", "database_connectors", "wg_delivery_samples", "wg_delivery_outbox", "wg_delivery_receipts", "wg_delivery_checkpoints"} {
-		rows, err := db.Query(`SELECT * FROM ` + table + ` ORDER BY rowid`)
+		rows, err := db.QueryContext(t.Context(), `SELECT * FROM `+table+` ORDER BY rowid`)
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)

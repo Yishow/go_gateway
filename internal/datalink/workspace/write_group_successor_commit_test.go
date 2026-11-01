@@ -95,7 +95,7 @@ func TestRecreateBacklogGuardPreservesAcceptedDataAndHistory(t *testing.T) {
 			effective := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 			require.NoError(t, h.service.repo.insertVersionInTx(t.Context(), tx, predecessor, effective))
 			require.NoError(t, h.service.saveRuntimeVersionInTx(t.Context(), tx, &WriteGroupAppliedSnapshot{WorkspaceID: predecessor.WorkspaceID, GroupID: predecessor.ID, GroupRevision: predecessor.Revision, AppliedRevision: predecessor.AppliedRevision, EffectiveAt: effective, Group: predecessor, RuntimeLayout: &WriteGroupRuntimeLayout{Dialect: dbtarget.SQLDialect("sqlite"), ReceiptTableReady: true}}))
-			_, err = tx.Exec(`UPDATE write_groups SET applied_revision=? WHERE id=?`, predecessor.AppliedRevision, predecessor.ID)
+			_, err = tx.ExecContext(t.Context(), `UPDATE write_groups SET applied_revision=? WHERE id=?`, predecessor.AppliedRevision, predecessor.ID)
 			require.NoError(t, err)
 			require.NoError(t, tx.Commit())
 			seedLifecycleAcceptedData(t, h.db, predecessor)

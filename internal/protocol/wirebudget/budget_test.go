@@ -2,11 +2,12 @@ package wirebudget
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestBudgetSharedConcurrentSendCap(t *testing.T) {

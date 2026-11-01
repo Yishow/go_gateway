@@ -28,7 +28,7 @@ func TestSuccessorSQLServerUnitProofRejectsCorruptLedger(t *testing.T) {
 		for name, query := range queries {
 			t.Run(string(mode)+"/"+name, func(t *testing.T) {
 				h, id, req, p := successorSQLServerUnitConfirmed(t, mode)
-				_, err := h.db.Exec(query)
+				_, err := h.db.ExecContext(t.Context(), query)
 				require.NoError(t, err)
 				calls, catalogs := p.calls, p.catalogCalls
 				before := lineageReadSnapshot(t, h)
@@ -106,7 +106,7 @@ func TestSuccessorSQLServerUnitRejectsBothModeProofExchanges(t *testing.T) {
 			require.Equal(t, before, lineageReadSnapshot(t, h))
 			// Even a locally injected schema reference cannot promote the valid
 			// opposite-mode token into activation authority.
-			_, err = h.db.Exec(`UPDATE write_groups SET destination_schema_revision=?,destination_schema_digest=? WHERE id=?`, token.OperationID, digest, stage.Current.GroupID)
+			_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET destination_schema_revision=?,destination_schema_digest=? WHERE id=?`, token.OperationID, digest, stage.Current.GroupID)
 			require.NoError(t, err)
 			view, err := h.service.SuccessorActivationReview(t.Context(), id, WriteGroupSuccessorActivationRequest{Stage: stage, Boundary: stage.Envelope.Request.Boundary})
 			require.NoError(t, err)
@@ -124,9 +124,9 @@ func TestSuccessorSQLServerUnitNativeProofBindsStorageConfirmation(t *testing.T)
 			connector := group.Group.Destination.ConnectorID
 			switch mutation {
 			case "missing":
-				_, err = h.db.Exec(`UPDATE write_group_storage_scopes SET confirmed_layout='' WHERE connector_id=?`, connector)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_storage_scopes SET confirmed_layout='' WHERE connector_id=?`, connector)
 			case "corrupt-digest":
-				_, err = h.db.Exec(`UPDATE write_group_storage_scopes SET layout_digest='corrupt' WHERE connector_id=?`, connector)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_storage_scopes SET layout_digest='corrupt' WHERE connector_id=?`, connector)
 			case "different-partitions":
 				lineage, e := recordingplan.ReadStorageLineage(t.Context(), h.db, StorageScopeOf(group.Group))
 				require.NoError(t, e)
@@ -135,7 +135,7 @@ func TestSuccessorSQLServerUnitNativeProofBindsStorageConfirmation(t *testing.T)
 				raw, e := json.Marshal(lineage.Layout)
 				require.NoError(t, e)
 				sum := sha256.Sum256(raw)
-				_, err = h.db.Exec(`UPDATE write_group_storage_scopes SET confirmed_layout=?,layout_digest=? WHERE connector_id=?`, string(raw), hex.EncodeToString(sum[:]), connector)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_storage_scopes SET confirmed_layout=?,layout_digest=? WHERE connector_id=?`, string(raw), hex.EncodeToString(sum[:]), connector)
 			}
 			require.NoError(t, err)
 			view, err := h.service.SuccessorActivationReview(t.Context(), id, req)

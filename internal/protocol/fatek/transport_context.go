@@ -3,6 +3,7 @@ package fatek
 import (
 	"bufio"
 	"context"
+	"errors"
 	"go-gateway/internal/protocol/wirebudget"
 	"io"
 	"net"
@@ -55,7 +56,7 @@ func (t *TCPTransport) IsConnectedContext(ctx context.Context) (bool, error) {
 	return t.conn != nil, nil
 }
 func (t *TCPTransport) SendReceiveContext(ctx context.Context, data []byte) (response []byte, err error) {
-	if err = t.mu.LockContext(ctx); err != nil {
+	if err := t.mu.LockContext(ctx); err != nil {
 		return nil, err
 	}
 	defer t.mu.Unlock()
@@ -66,23 +67,32 @@ func (t *TCPTransport) SendReceiveContext(ctx context.Context, data []byte) (res
 	}
 	conn := t.conn
 	deadline, _ := ctx.Deadline()
-	if err = conn.SetDeadline(deadline); err != nil {
+	if err := conn.SetDeadline(deadline); err != nil {
 		return nil, err
 	}
 	done := make(chan struct{})
-	stop := context.AfterFunc(ctx, func() { defer close(done); _ = conn.SetDeadline(time.Now()) })
+	var cancelErr error
+	stop := context.AfterFunc(ctx, func() {
+		defer close(done)
+		if deadlineErr := conn.SetDeadline(time.Now()); deadlineErr != nil {
+			cancelErr = errors.Join(deadlineErr, conn.Close())
+		}
+	})
 	defer func() {
 		if !stop() {
 			<-done
 		}
-		if ctx.Err() != nil {
+		if cancelErr != nil {
+			response = nil
+			err = errors.Join(ctx.Err(), err, cancelErr)
+		} else if ctx.Err() != nil {
 			err = ctx.Err()
 		}
 		if err != nil {
 			_ = t.internalClose()
 		}
 	}()
-	if err = wirebudget.Take(ctx); err != nil {
+	if err := wirebudget.Take(ctx); err != nil {
 		return nil, err
 	}
 	n, err := conn.Write(data)

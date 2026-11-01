@@ -5,9 +5,10 @@ import (
 	"context"
 	"errors"
 	"go-gateway/internal/protocol/wirebudget"
-	"go.bug.st/serial"
 	"io"
 	"time"
+
+	"go.bug.st/serial"
 )
 
 // ConnectContext checks cancellation around the OS serial-open operation. The OS
@@ -80,7 +81,7 @@ func (r serialContextReader) Read(p []byte) (int, error) {
 	return n, err
 }
 func (s *SerialTransport) SendReceiveContext(ctx context.Context, data []byte) (response []byte, err error) {
-	if err = s.mu.LockContext(ctx); err != nil {
+	if err := s.mu.LockContext(ctx); err != nil {
 		return nil, err
 	}
 	defer s.mu.Unlock()
@@ -115,7 +116,7 @@ func (s *SerialTransport) SendReceiveContext(ctx context.Context, data []byte) (
 			err = errors.Join(err, s.closeLocked())
 		}
 	}()
-	if err = wirebudget.Take(ctx); err != nil {
+	if err := wirebudget.Take(ctx); err != nil {
 		return nil, err
 	}
 	n, err := port.Write(data)

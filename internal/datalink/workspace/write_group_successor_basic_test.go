@@ -17,7 +17,7 @@ func recreateBasicFixtureAt(t *testing.T, engine, path string) (*circuitProfileH
 	h := newCircuitProfileHarness(t, path)
 	h.db.SetMaxOpenConns(1)
 	if engine == "postgres" {
-		_, err := h.db.Exec(`UPDATE database_connectors SET kind='postgres',connection_config='{"database":"persisted-db","schema":"persisted-schema"}'`)
+		_, err := h.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='postgres',connection_config='{"database":"persisted-db","schema":"persisted-schema"}'`)
 		require.NoError(t, err)
 	}
 	group := lineageTestDraft(h, "basic")
@@ -28,7 +28,7 @@ func recreateBasicFixtureAt(t *testing.T, engine, path string) (*circuitProfileH
 	saved, err := h.service.EnsureBasicManaged(t.Context(), h.fixture.deviceID, h.mutation(t.Context(), group))
 	require.NoError(t, err)
 	lineage := requireLineageGenesis(t, h.db, saved.Group)
-	_, err = h.db.Exec(`UPDATE write_groups SET status='deleted' WHERE id=?`, saved.Group.ID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='deleted' WHERE id=?`, saved.Group.ID)
 	require.NoError(t, err)
 	return h, writeGroupRecreateReservationRequest{WorkspaceID: saved.Group.WorkspaceID, ExpectedWorkspaceRevision: saved.WorkspaceRevision,
 		LineageID: lineage, ExpectedLineageRevision: 1, PredecessorGroupID: saved.Group.ID, ExpectedPredecessorRevision: saved.Group.Revision,
@@ -76,7 +76,7 @@ func TestRecreateBasicSameCompleteShape(t *testing.T) {
 				require.Equal(t, preserved[table], current[table], table)
 			}
 			var head string
-			require.NoError(t, h.db.QueryRow(`SELECT current_group_id FROM write_group_lineages`).Scan(&head))
+			require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT current_group_id FROM write_group_lineages`).Scan(&head))
 			require.Equal(t, before.ID, head)
 			replay, err := h.service.reserveRecreatedDraft(t.Context(), req)
 			require.NoError(t, err)

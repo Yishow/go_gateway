@@ -17,6 +17,8 @@ import (
 var ErrFileUnsafe = errors.New("diagnostic file ownership or protected-path validation failed")
 
 // DefaultPath provides one namespace for each canonical database identity.
+const diagnosticsWindowsOS = "windows"
+
 func DefaultPath(root, id string) string {
 	return filepath.Join(root, "logs", id, "gateway-runtime.jsonl")
 }
@@ -93,7 +95,7 @@ func openOwnedFiles(o FileOptions) (_ *ownedFiles, err error) {
 		}
 	}
 	key := path
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == diagnosticsWindowsOS {
 		key = strings.ToLower(key)
 	}
 	sum := sha256.Sum256([]byte(key))

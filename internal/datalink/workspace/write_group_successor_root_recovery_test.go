@@ -13,7 +13,7 @@ func TestSuccessorReserveResultSurvivesClearedReservationAndHeadAdvance(t *testi
 	confirmation := WriteGroupSuccessorReservationRequest{Envelope: view.Envelope, ReviewDigest: view.ReviewDigest}
 	saved, err := h.service.ReserveSuccessor(t.Context(), id, confirmation)
 	require.NoError(t, err)
-	_, err = h.db.Exec(`UPDATE write_group_lineages SET current_group_id=?,reserved_group_id=NULL,reservation_operation_id=NULL,reservation_intent_digest=NULL,revision=revision+1 WHERE lineage_id=?`, saved.Group.ID, saved.LineageID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_lineages SET current_group_id=?,reserved_group_id=NULL,reservation_operation_id=NULL,reservation_intent_digest=NULL,revision=revision+1 WHERE lineage_id=?`, saved.Group.ID, saved.LineageID)
 	require.NoError(t, err)
 	probe := &reservedProbeCounter{}
 	h.service.WithManagedTableInspector(probe)
@@ -30,7 +30,7 @@ func TestSuccessorReserveResultIsImmutableAfterSchemaProgress(t *testing.T) {
 	confirmation := WriteGroupSuccessorReservationRequest{Envelope: view.Envelope, ReviewDigest: view.ReviewDigest}
 	saved, err := h.service.ReserveSuccessor(t.Context(), id, confirmation)
 	require.NoError(t, err)
-	_, err = h.db.Exec(`UPDATE write_groups SET revision='later-schema',destination_schema_revision='later-proof' WHERE id=?`, saved.Group.ID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET revision='later-schema',destination_schema_revision='later-proof' WHERE id=?`, saved.Group.ID)
 	require.NoError(t, err)
 	replay, err := h.service.ReserveSuccessor(t.Context(), id, confirmation)
 	require.NoError(t, err)
@@ -46,7 +46,7 @@ func TestSuccessorReserveCheckpointRollbackAndLostAcknowledgement(t *testing.T) 
 			confirmation := WriteGroupSuccessorReservationRequest{Envelope: view.Envelope, ReviewDigest: view.ReviewDigest}
 			service := activationTestService(h.service)
 			if failure == "ledger" {
-				_, err = h.db.Exec(`CREATE TRIGGER reject_root BEFORE INSERT ON managed_schema_operations WHEN NEW.action='successor_reserve' BEGIN SELECT RAISE(ABORT,'root checkpoint failed'); END`)
+				_, err = h.db.ExecContext(t.Context(), `CREATE TRIGGER reject_root BEFORE INSERT ON managed_schema_operations WHEN NEW.action='successor_reserve' BEGIN SELECT RAISE(ABORT,'root checkpoint failed'); END`)
 				require.NoError(t, err)
 			} else {
 				service.workspaceSvc = NewService(&recreateCommitRepository{SQLRepository: NewSQLRepository(h.db), stage: failure})

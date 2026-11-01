@@ -17,10 +17,10 @@ func TestLifecycleSuccessorSourceFailsClosed(t *testing.T) {
 			var err error
 			switch mode {
 			case "stale-connector":
-				_, err = h.db.Exec(`UPDATE database_connectors SET identity_revision='C2'`)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='C2'`)
 				want = "connector_identity_stale"
 			case "missing-connector":
-				_, err = h.db.Exec(`DELETE FROM database_connectors`)
+				_, err = h.db.ExecContext(t.Context(), `DELETE FROM database_connectors`)
 				want = "connector_unavailable"
 			case "unknown-owner":
 				h.service.WithBacklogOwnershipGuard(nil)
@@ -29,23 +29,23 @@ func TestLifecycleSuccessorSourceFailsClosed(t *testing.T) {
 				h.service.WithBacklogOwnershipGuard(writeGroupBacklogGuardFunc(func(context.Context, *sql.Tx, *WriteGroup) error { return errors.New("private-dsn SQL secret") }))
 				want = "ownership_unavailable"
 			case "stale-source":
-				_, err = h.db.Exec(`UPDATE tags SET data_type='float64'`)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE tags SET data_type='float64'`)
 			case "unknown-engine":
-				_, err = h.db.Exec(`UPDATE wg_runtime_versions SET payload=json_set(payload,'$.runtime_layout.dialect','unknown')`)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=json_set(payload,'$.runtime_layout.dialect','unknown')`)
 			case "foreign-runtime":
-				_, err = h.db.Exec(`UPDATE wg_runtime_versions SET workspace_id='foreign'`)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET workspace_id='foreign'`)
 			case "missing-version":
-				_, err = h.db.Exec(`DELETE FROM write_group_versions`)
+				_, err = h.db.ExecContext(t.Context(), `DELETE FROM write_group_versions`)
 			case "foreign-version":
-				_, err = h.db.Exec(`UPDATE write_group_versions SET payload=json_set(payload,'$.workspace_id','foreign')`)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_versions SET payload=json_set(payload,'$.workspace_id','foreign')`)
 			case "active-basic":
 				var r writeGroupRecreateReservationRequest
 				h, r = recreateBasicFixture(t, "sqlite")
 				id = r.PredecessorGroupID
-				_, err = h.db.Exec(`UPDATE write_groups SET status='ready' WHERE id=?`, id)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='ready' WHERE id=?`, id)
 				want = "active_basic_unsupported"
 			case "draft-profile":
-				_, err = h.db.Exec(`UPDATE write_groups SET status='draft' WHERE id=?`, id)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='draft' WHERE id=?`, id)
 				want = "source_draft_not_active"
 			case "reserved":
 				review, e := h.service.SuccessorReview(t.Context(), id, req)
@@ -112,7 +112,7 @@ func TestLifecycleSuccessorHistoricalAndLegacyRemainBlocked(t *testing.T) {
 	old, err := h.service.repo.Get(t.Context(), req.WorkspaceID, req.PredecessorGroupID)
 	require.NoError(t, err)
 	seedLineageGeneration(t, h, old, req.LineageID, "new-head", 2)
-	_, err = h.db.Exec(`UPDATE write_group_lineages SET current_group_id='new-head',revision=2 WHERE lineage_id=?`, req.LineageID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_lineages SET current_group_id='new-head',revision=2 WHERE lineage_id=?`, req.LineageID)
 	require.NoError(t, err)
 	view, err := h.service.Lifecycle(t.Context(), old.ID)
 	require.NoError(t, err)

@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/protocol/wirebudget"
 	"io"
 	"net"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMCContextCancelInterruptsOnlyCapturedSocket(t *testing.T) {
@@ -54,7 +55,7 @@ func TestMCContextCancelInterruptsOnlyCapturedSocket(t *testing.T) {
 }
 
 func TestMCTCPBudgetPreventsHiddenReconnectResend(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer listener.Close()
 	var sends atomic.Int32

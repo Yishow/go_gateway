@@ -20,7 +20,7 @@ func TestSuccessorMySQLActivationRejectsChangedConfirmedProof(t *testing.T) {
 			require.True(t, ready.Readiness.Ready)
 			confirmation.ReadinessDigest = ready.ReadinessDigest
 			queries := map[string]string{"missing": `DELETE FROM managed_schema_operations`, "foreign": `UPDATE managed_schema_preview_tokens SET plan_id='foreign'`, "corrupt": `UPDATE managed_schema_preview_tokens SET statements='["DROP TABLE bad"]'`}
-			_, err = h.db.Exec(queries[mutation])
+			_, err = h.db.ExecContext(t.Context(), queries[mutation])
 			require.NoError(t, err)
 			before := lineageReadSnapshot(t, h)
 			_, err = h.service.ConfirmSuccessorActivation(t.Context(), id, confirmation)
@@ -56,7 +56,7 @@ func TestSuccessorMySQLReadinessRejectsLiveDriftAndStaleReload(t *testing.T) {
 				}
 			case "during-inspection":
 				inspector.during = func() {
-					_, err := h.db.Exec(`UPDATE managed_schema_operations SET status='unknown'`)
+					_, err := h.db.ExecContext(t.Context(), `UPDATE managed_schema_operations SET status='unknown'`)
 					require.NoError(t, err)
 				}
 			}
@@ -68,7 +68,7 @@ func TestSuccessorMySQLReadinessRejectsLiveDriftAndStaleReload(t *testing.T) {
 				require.False(t, result.Readiness.Ready)
 			}
 			var applied string
-			require.NoError(t, h.db.QueryRow(`SELECT applied_revision FROM write_groups WHERE id=?`, req.Stage.Current.GroupID).Scan(&applied))
+			require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT applied_revision FROM write_groups WHERE id=?`, req.Stage.Current.GroupID).Scan(&applied))
 			require.Empty(t, applied)
 		})
 	}

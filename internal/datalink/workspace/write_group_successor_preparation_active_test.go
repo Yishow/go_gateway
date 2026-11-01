@@ -28,7 +28,7 @@ func successorActiveWideFixture(t *testing.T, layouts ...WriteGroupLayoutVersion
 	lineage := requireLineageGenesis(t, h.db, saved.Group)
 	req := writeGroupRecreateReservationRequest{WorkspaceID: saved.Group.WorkspaceID, ExpectedWorkspaceRevision: saved.WorkspaceRevision, LineageID: lineage, ExpectedLineageRevision: 1, PredecessorGroupID: saved.Group.ID, ExpectedPredecessorRevision: saved.Group.Revision, ExpectedPredecessorConnectorRevision: saved.Group.Destination.ConnectorRevision, ExpectedTargetConnectorRevision: saved.Group.Destination.ConnectorRevision, OperationID: "active-O", Group: saved.Group}
 	seedRecreateEngineEvidence(t, h, req)
-	_, err = h.db.Exec("UPDATE write_groups SET status='ready' WHERE id=?", saved.Group.ID)
+	_, err = h.db.ExecContext(t.Context(), "UPDATE write_groups SET status='ready' WHERE id=?", saved.Group.ID)
 	require.NoError(t, err)
 	h.service.WithBacklogOwnershipGuard(writeGroupBacklogGuardFunc(func(context.Context, *sql.Tx, *WriteGroup) error { return nil }))
 	return h, saved.Group.ID, WriteGroupSuccessorReviewRequest{WorkspaceID: req.WorkspaceID, ExpectedWorkspaceRevision: req.ExpectedWorkspaceRevision, LineageID: lineage, ExpectedLineageRevision: 1, ExpectedPredecessorRevision: req.ExpectedPredecessorRevision, ExpectedPredecessorConnectorRevision: req.ExpectedPredecessorConnectorRevision, ExpectedTargetConnectorRevision: req.ExpectedTargetConnectorRevision, OperationID: req.OperationID, Boundary: time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC), Group: cloneWriteGroup(saved.Group)}
@@ -55,7 +55,7 @@ func TestSuccessorPreparationActiveWideKeepsPredecessorAndNewOwner(t *testing.T)
 	for _, table := range []string{"write_group_versions", "wg_runtime_versions", "write_group_ownership_fences", "write_group_basic_keys", "write_group_profile_keys"} {
 		require.Equal(t, before[table], preserved[table], table)
 	}
-	_, err = h.db.Exec("UPDATE write_groups SET name='new unapplied name',revision='draft-R2' WHERE id=?", id)
+	_, err = h.db.ExecContext(t.Context(), "UPDATE write_groups SET name='new unapplied name',revision='draft-R2' WHERE id=?", id)
 	require.NoError(t, err)
 	replay, err := h.service.ReserveSuccessor(t.Context(), id, c)
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestSuccessorPreparationActiveMissingBacklogAndSameLongScope(t *testing.T) 
 				h = h0
 				id = r.PredecessorGroupID
 				seedRecreateEngineEvidence(t, h, r)
-				_, err := h.db.Exec("UPDATE write_groups SET status='ready' WHERE id=?", id)
+				_, err := h.db.ExecContext(t.Context(), "UPDATE write_groups SET status='ready' WHERE id=?", id)
 				require.NoError(t, err)
 				h.service.WithBacklogOwnershipGuard(writeGroupBacklogGuardFunc(func(context.Context, *sql.Tx, *WriteGroup) error { return nil }))
 				req = WriteGroupSuccessorReviewRequest{WorkspaceID: r.WorkspaceID, ExpectedWorkspaceRevision: r.ExpectedWorkspaceRevision, LineageID: r.LineageID, ExpectedLineageRevision: 1, ExpectedPredecessorRevision: r.ExpectedPredecessorRevision, ExpectedPredecessorConnectorRevision: r.ExpectedPredecessorConnectorRevision, ExpectedTargetConnectorRevision: r.ExpectedTargetConnectorRevision, OperationID: "long-O", Boundary: req.Boundary, Group: r.Group}

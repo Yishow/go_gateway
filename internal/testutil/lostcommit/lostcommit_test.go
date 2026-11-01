@@ -2,7 +2,6 @@ package lostcommit
 
 import (
 	"context"
-	"database/sql"
 	"database/sql/driver"
 	"errors"
 	"io"
@@ -78,7 +77,7 @@ func (d *purePrepareDriver) Open(name string) (driver.Conn, error) {
 
 func TestLostConnPurePrepareDriverFallbackAndReject(t *testing.T) {
 	faults := &Faults{}
-	var db *sql.DB = WrapFaults(&purePrepareDriver{}, "test-dsn", faults)
+	var db = WrapFaults(&purePrepareDriver{}, "test-dsn", faults)
 	t.Cleanup(func() { _ = db.Close() })
 
 	// 1. Without fast-path QueryerContext, database/sql should fallback cleanly through ErrSkip.

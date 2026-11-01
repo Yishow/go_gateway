@@ -18,7 +18,7 @@ func TestSuccessorActivationEveryLocalWriteRollsBack(t *testing.T) {
 			if table == "write_group_lineages" {
 				verb = "UPDATE"
 			}
-			_, err := h.db.Exec(fmt.Sprintf("CREATE TRIGGER reject_activation BEFORE %s ON %s BEGIN SELECT RAISE(ABORT,'injected activation failure'); END", verb, table))
+			_, err := h.db.ExecContext(t.Context(), fmt.Sprintf("CREATE TRIGGER reject_activation BEFORE %s ON %s BEGIN SELECT RAISE(ABORT,'injected activation failure'); END", verb, table))
 			require.NoError(t, err)
 			before := recreateRepositorySnapshot(t, h)
 			_, err = h.service.ConfirmSuccessorActivation(t.Context(), id, req)
@@ -61,7 +61,7 @@ func TestSuccessorActivationExactReplayAfterSQLiteReopen(t *testing.T) {
 	require.NoError(t, err)
 	var seq int
 	var name, path string
-	require.NoError(t, h.db.QueryRow("PRAGMA database_list").Scan(&seq, &name, &path))
+	require.NoError(t, h.db.QueryRowContext(t.Context(), "PRAGMA database_list").Scan(&seq, &name, &path))
 	require.NotEmpty(t, path)
 	require.NoError(t, h.db.Close())
 	reopened := openWorkspaceTestDB(t, path)
@@ -73,7 +73,7 @@ func TestSuccessorActivationExactReplayAfterSQLiteReopen(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, event, replay)
 	var count int
-	require.NoError(t, reopened.QueryRow("SELECT COUNT(*) FROM write_group_cutovers").Scan(&count))
+	require.NoError(t, reopened.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM write_group_cutovers").Scan(&count))
 	require.Equal(t, 1, count)
 }
 
@@ -95,7 +95,7 @@ func TestSuccessorActivationRejectsForeignTransactionAuthority(t *testing.T) {
 func TestSuccessorActivationFinalizedOverlapRefusesWholeTransaction(t *testing.T) {
 	h, id, req := atomicActivationFixture(t)
 	boundary := req.Envelope.Request.Boundary
-	_, err := h.db.Exec(`INSERT INTO wg_delivery_checkpoints(group_id,group_revision,next_close,updated_at) VALUES(?,?,?,?)`, id, req.Envelope.SourceAppliedRevision, boundary.Add(time.Second).Format(time.RFC3339Nano), time.Now().UTC())
+	_, err := h.db.ExecContext(t.Context(), `INSERT INTO wg_delivery_checkpoints(group_id,group_revision,next_close,updated_at) VALUES(?,?,?,?)`, id, req.Envelope.SourceAppliedRevision, boundary.Add(time.Second).Format(time.RFC3339Nano), time.Now().UTC())
 	require.NoError(t, err)
 	before := recreateRepositorySnapshot(t, h)
 	_, err = h.service.ConfirmSuccessorActivation(t.Context(), id, req)
@@ -107,9 +107,9 @@ func TestSuccessorActivationFinalizedOverlapRefusesWholeTransaction(t *testing.T
 func TestSuccessorActivationWriterBarrierFailureRollsBack(t *testing.T) {
 	h, id, req := atomicActivationFixture(t)
 	before := recreateRepositorySnapshot(t, h)
-	h.service.WithWriterOwnershipActivationBarrier(writerOwnershipActivationFunc(func(_ context.Context, tx *sql.Tx, _ WriterOwnershipActivationRequest) error {
+	h.service.WithWriterOwnershipActivationBarrier(writerOwnershipActivationFunc(func(ctx context.Context, tx *sql.Tx, _ WriterOwnershipActivationRequest) error {
 		var count int
-		require.NoError(t, tx.QueryRow(`SELECT COUNT(*) FROM wg_runtime_versions WHERE group_id=?`, req.Envelope.Request.Stage.Current.GroupID).Scan(&count))
+		require.NoError(t, tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM wg_runtime_versions WHERE group_id=?`, req.Envelope.Request.Stage.Current.GroupID).Scan(&count))
 		require.Equal(t, 1, count, "runtime version is staged before ownership barrier")
 		return errRecreateInjected
 	}))

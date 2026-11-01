@@ -17,20 +17,20 @@ import (
 func postgresActivationLocalFixture(t *testing.T, confirmed bool) (*circuitProfileHarness, string, WriteGroupSuccessorActivationRequest) {
 	t.Helper()
 	h, id, req := activationFileSourceFixture(t)
-	_, err := h.db.Exec(`UPDATE database_connectors SET kind='postgres' WHERE id=?`, req.Group.Destination.ConnectorID)
+	_, err := h.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='postgres' WHERE id=?`, req.Group.Destination.ConnectorID)
 	require.NoError(t, err)
 	var payload string
-	require.NoError(t, h.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=?`, id).Scan(&payload))
+	require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=?`, id).Scan(&payload))
 	var source WriteGroupAppliedSnapshot
 	require.NoError(t, json.Unmarshal([]byte(payload), &source))
 	source.RuntimeLayout.Dialect = "postgres"
 	raw, err := json.Marshal(source)
 	require.NoError(t, err)
-	_, err = h.db.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(raw), id)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(raw), id)
 	require.NoError(t, err)
 	old := writeGroupRecreateReservationRequest{Group: cloneWriteGroup(req.Group)}
 	recreateRepositoryNewTarget(t, h, &old)
-	_, err = h.db.Exec(`UPDATE database_connectors SET kind='postgres' WHERE id=?`, old.Group.Destination.ConnectorID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='postgres' WHERE id=?`, old.Group.Destination.ConnectorID)
 	require.NoError(t, err)
 	req.Group = old.Group
 	req.Group.Destination.Database = "gateway_test"
@@ -89,7 +89,7 @@ func TestSuccessorActivationPostgresLocalReviewVerifiesLedger(t *testing.T) {
 		t.Run(mutation, func(t *testing.T) {
 			h, id, req := postgresActivationLocalFixture(t, true)
 			if query != "" {
-				_, err := h.db.Exec(query)
+				_, err := h.db.ExecContext(t.Context(), query)
 				require.NoError(t, err)
 			}
 			before := lineageReadSnapshot(t, h)

@@ -4,14 +4,15 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/protocol/wirebudget"
-	"go.bug.st/serial"
 	"net"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"go.bug.st/serial"
 )
 
 type fakeContextPort struct {

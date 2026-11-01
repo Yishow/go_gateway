@@ -19,7 +19,7 @@ func TestRecreateConcurrentSeparateConnections(t *testing.T) {
 			peer := newCircuitProfileHarnessOn(t, openWorkspaceTestDB(t, path), h)
 			peer.db.SetMaxOpenConns(1)
 			for _, db := range []*sql.DB{h.db, peer.db} {
-				_, err := db.Exec(`PRAGMA busy_timeout=1000`)
+				_, err := db.ExecContext(t.Context(), `PRAGMA busy_timeout=1000`)
 				require.NoError(t, err)
 			}
 			requests := []writeGroupRecreateReservationRequest{req, req}
@@ -68,7 +68,7 @@ func TestRecreateConcurrentSeparateConnections(t *testing.T) {
 			require.Equal(t, 2, h.countRows(`SELECT COUNT(*) FROM write_groups`))
 			require.Equal(t, 2, h.countRows(`SELECT COUNT(*) FROM write_group_generations`))
 			var revision int64
-			require.NoError(t, h.db.QueryRow(`SELECT revision FROM write_group_lineages`).Scan(&revision))
+			require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT revision FROM write_group_lineages`).Scan(&revision))
 			require.EqualValues(t, 2, revision)
 			winner := 0
 			if errs[0] != nil {

@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/protocol/wirebudget"
+
+	"github.com/stretchr/testify/require"
 	"go.bug.st/serial"
 )
 
@@ -159,6 +160,10 @@ func TestPlannedActualRTUUnknownBoundaryFailsClosed(t *testing.T) {
 			require.Nil(t, words)
 			require.False(t, IsCommandRejected(err))
 			require.Equal(t, 1, wirebudget.From(ctx).Used())
+			if fault == "eof" {
+				require.ErrorIs(t, err, ErrInvalidFrame)
+				require.NotErrorIs(t, err, io.EOF)
+			}
 			if fault == "deadline" {
 				require.ErrorIs(t, err, context.DeadlineExceeded)
 			}

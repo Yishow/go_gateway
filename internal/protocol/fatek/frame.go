@@ -67,12 +67,7 @@ func ParseResponse(response []byte, expectedCmd string) (string, error) {
 	// Normal: STX(1) + Station(2) + Cmd(2) + Status(1) + LRC(2) + ETX(1) = 9
 	// Loopback(4E): STX(1) + Station(2) + Cmd(2) + LRC(2) + ETX(1) = 8 (Empty body)
 
-	minLen := 9
-	if expectedCmd == "4E" {
-		minLen = 8
-	}
-
-	if len(response) < minLen {
+	if len(response) < 8 || (expectedCmd != "4E" && len(response) < 9) {
 		return "", ErrResponseTooShort
 	}
 
@@ -142,7 +137,7 @@ func ParseResponse(response []byte, expectedCmd string) (string, error) {
 // HexToInt converts Hex string to int
 func HexToInt(hexStr string) (int, error) {
 	for _, b := range []byte(hexStr) {
-		if !(b >= '0' && b <= '9' || b >= 'A' && b <= 'F' || b >= 'a' && b <= 'f') {
+		if (b < '0' || b > '9') && (b < 'A' || b > 'F') && (b < 'a' || b > 'f') {
 			return 0, fmt.Errorf("invalid hexadecimal payload %q", hexStr)
 		}
 	}

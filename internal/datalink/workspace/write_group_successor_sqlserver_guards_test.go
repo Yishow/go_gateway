@@ -14,14 +14,14 @@ import (
 func TestSuccessorSQLServerUnitRuntimeDescriptorBindsAppliedMeaning(t *testing.T) {
 	h, id, req, _ := successorSQLServerUnitFixture(t, WriteGroupStorageModePlain)
 	var raw string
-	require.NoError(t, h.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=?`, id).Scan(&raw))
+	require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=?`, id).Scan(&raw))
 	var frozen WriteGroupAppliedSnapshot
 	require.NoError(t, json.Unmarshal([]byte(raw), &frozen))
 	frozen.Group.Members[0].SourceRevision = "different-immutable-source"
 	require.NoError(t, ValidateSQLServerRuntimeLayout(frozen.Group, frozen.RuntimeLayout), "the altered descriptor is intrinsically valid, but is not the applied definition")
 	encoded, err := json.Marshal(frozen)
 	require.NoError(t, err)
-	_, err = h.db.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(encoded), id)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(encoded), id)
 	require.NoError(t, err)
 	view, err := h.service.SuccessorReview(t.Context(), id, req)
 	require.NoError(t, err)
@@ -101,7 +101,7 @@ func TestSuccessorSQLServerUnitFreshSchemaAndReadinessRejection(t *testing.T) {
 				}
 			case "during-inspection":
 				p.during = func() {
-					_, err := h.db.Exec(`UPDATE managed_schema_operations SET status='unknown'`)
+					_, err := h.db.ExecContext(t.Context(), `UPDATE managed_schema_operations SET status='unknown'`)
 					require.NoError(t, err)
 				}
 			}
@@ -113,7 +113,7 @@ func TestSuccessorSQLServerUnitFreshSchemaAndReadinessRejection(t *testing.T) {
 				require.False(t, ready.Readiness.Ready)
 			}
 			var applied string
-			require.NoError(t, h.db.QueryRow(`SELECT applied_revision FROM write_groups WHERE id=?`, req.Stage.Current.GroupID).Scan(&applied))
+			require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT applied_revision FROM write_groups WHERE id=?`, req.Stage.Current.GroupID).Scan(&applied))
 			require.Empty(t, applied)
 		})
 	}

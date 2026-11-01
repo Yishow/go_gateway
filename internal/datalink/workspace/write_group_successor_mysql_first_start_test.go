@@ -45,7 +45,7 @@ func successorMySQLNeverAppliedFixture(t *testing.T, family string) (*circuitPro
 	g.Destination.ConnectorRevision = "connector-revision-mysql"
 	saved := mustEnsureMySQLGroup(t, h, g)
 	lineage := requireLineageGenesis(t, h.db, saved)
-	_, err := h.db.Exec(`UPDATE write_groups SET status='deleted' WHERE id=?`, saved.ID)
+	_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='deleted' WHERE id=?`, saved.ID)
 	require.NoError(t, err)
 	record, err := h.workspace.GetOrCreate(t.Context())
 	require.NoError(t, err)
@@ -166,14 +166,14 @@ func TestSuccessorNeverAppliedMySQLSourceProofFailsClosed(t *testing.T) {
 			case "source-revision-during":
 				p.during = func() {
 					if len(p.calls) == 1 {
-						_, e := h.db.Exec(`UPDATE database_connectors SET identity_revision='changed' WHERE id=?`, p.source.ConnectorID)
+						_, e := h.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='changed' WHERE id=?`, p.source.ConnectorID)
 						require.NoError(t, e)
 					}
 				}
 			case "history-during":
 				p.during = func() {
 					if len(p.calls) == 1 {
-						_, e := h.db.Exec(`INSERT INTO wg_delivery_checkpoints(group_id,group_revision,next_close,updated_at) VALUES(?,'hidden-R','2026-10-28T12:00:00Z','2026-10-28T12:00:00Z')`, id)
+						_, e := h.db.ExecContext(t.Context(), `INSERT INTO wg_delivery_checkpoints(group_id,group_revision,next_close,updated_at) VALUES(?,'hidden-R','2026-10-28T12:00:00Z','2026-10-28T12:00:00Z')`, id)
 						require.NoError(t, e)
 					}
 				}

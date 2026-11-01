@@ -2,6 +2,7 @@ package modbus
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -17,7 +18,7 @@ func TestTransportPreCanceledRequest(t *testing.T) {
 			t.Errorf("%T lacks context send", tr)
 			continue
 		}
-		if _, err := bounded.SendReceiveContext(ctx, []byte{1}); err != context.Canceled {
+		if _, err := bounded.SendReceiveContext(ctx, []byte{1}); !errors.Is(err, context.Canceled) {
 			t.Errorf("%T: %v", tr, err)
 		}
 	}

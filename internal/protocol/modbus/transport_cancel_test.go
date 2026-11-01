@@ -4,19 +4,20 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/protocol/wirebudget"
-	"go.bug.st/serial"
 	"io"
 	"net"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"go.bug.st/serial"
 )
 
 func TestTCPContextBudgetCountsActualWriteWithoutHiddenRetry(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer listener.Close()
 	var sends atomic.Int32

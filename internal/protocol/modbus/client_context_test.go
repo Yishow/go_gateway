@@ -3,9 +3,10 @@ package modbus
 import (
 	"context"
 	"encoding/binary"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/protocol/wirebudget"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type contextClientTransport struct {

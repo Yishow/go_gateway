@@ -17,7 +17,7 @@ func TestSuccessorMySQLFamilyModeAndDeletedMatrix(t *testing.T) {
 				t.Run(family+"/"+string(mode)+map[bool]string{false: "/active", true: "/deleted"}[deleted], func(t *testing.T) {
 					h, id, req, p := successorMySQLShapeFixture(t, family, mode)
 					if deleted {
-						_, err := h.db.Exec(`UPDATE write_groups SET status='deleted' WHERE id=?`, id)
+						_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='deleted' WHERE id=?`, id)
 						require.NoError(t, err)
 					}
 					review, err := h.service.SuccessorReview(t.Context(), id, req)
@@ -72,17 +72,17 @@ func TestSuccessorMySQLPreflightFailuresLeaveNoReservation(t *testing.T) {
 				}
 			case "target-revision-during":
 				p.during = func() {
-					_, err := h.db.Exec(`UPDATE database_connectors SET identity_revision='changed' WHERE id=?`, req.Group.Destination.ConnectorID)
+					_, err := h.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='changed' WHERE id=?`, req.Group.Destination.ConnectorID)
 					require.NoError(t, err)
 				}
 			case "target-database-during":
 				p.during = func() {
-					_, err := h.db.Exec(`UPDATE database_connectors SET connection_config='{"dsn":"fixture:fixture-only@tcp(127.0.0.1:3306)/foreign?tls=true"}' WHERE id=?`, req.Group.Destination.ConnectorID)
+					_, err := h.db.ExecContext(t.Context(), `UPDATE database_connectors SET connection_config='{"dsn":"fixture:fixture-only@tcp(127.0.0.1:3306)/foreign?tls=true"}' WHERE id=?`, req.Group.Destination.ConnectorID)
 					require.NoError(t, err)
 				}
 			case "source-during":
 				p.during = func() {
-					_, err := h.db.Exec(`UPDATE write_groups SET revision='changed' WHERE id=?`, id)
+					_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET revision='changed' WHERE id=?`, id)
 					require.NoError(t, err)
 				}
 			case "backlog-during":
@@ -114,7 +114,7 @@ func TestSuccessorMySQLHardBlockerNeverCallsProbe(t *testing.T) {
 
 func TestSuccessorMySQLPrivateRecreateStillRefuses(t *testing.T) {
 	h, id, req, _ := successorMySQLFixture(t)
-	_, err := h.db.Exec(`UPDATE write_groups SET status='deleted' WHERE id=?`, id)
+	_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='deleted' WHERE id=?`, id)
 	require.NoError(t, err)
 	private := writeGroupRecreateReservationRequest{WorkspaceID: req.WorkspaceID, ExpectedWorkspaceRevision: req.ExpectedWorkspaceRevision, LineageID: req.LineageID, ExpectedLineageRevision: req.ExpectedLineageRevision, PredecessorGroupID: id, ExpectedPredecessorRevision: req.ExpectedPredecessorRevision, ExpectedPredecessorConnectorRevision: req.ExpectedPredecessorConnectorRevision, ExpectedTargetConnectorRevision: req.ExpectedTargetConnectorRevision, OperationID: req.OperationID, Group: req.Group}
 	_, err = reserveRepositoryTest(t, h, private)
@@ -124,7 +124,7 @@ func TestSuccessorMySQLPrivateRecreateStillRefuses(t *testing.T) {
 
 func TestSuccessorMySQLCorruptSourceNeverFallsBack(t *testing.T) {
 	h, id, req, p := successorMySQLFixture(t)
-	_, err := h.db.Exec(`UPDATE wg_runtime_versions SET payload='invalid' WHERE group_id=?`, id)
+	_, err := h.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload='invalid' WHERE group_id=?`, id)
 	require.NoError(t, err)
 	review, err := h.service.SuccessorReview(t.Context(), id, req)
 	require.NoError(t, err)

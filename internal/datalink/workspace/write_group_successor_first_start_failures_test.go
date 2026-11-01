@@ -23,7 +23,7 @@ func TestSuccessorFirstStartAtomicEveryWriteRollsBack(t *testing.T) {
 	} {
 		t.Run(point.name, func(t *testing.T) {
 			h, id, req := firstStartAtomicFixture(t)
-			_, err := h.db.Exec("CREATE TRIGGER reject_first_start AFTER " + point.event + " ON " + point.table + " " + point.when + " BEGIN SELECT RAISE(ABORT,'first-start-atomic-fault'); END")
+			_, err := h.db.ExecContext(t.Context(), "CREATE TRIGGER reject_first_start AFTER "+point.event+" ON "+point.table+" "+point.when+" BEGIN SELECT RAISE(ABORT,'first-start-atomic-fault'); END")
 			require.NoError(t, err)
 			before := firstStartAtomicSnapshot(t, h)
 			result, err := h.service.ConfirmSuccessorFirstStart(t.Context(), id, req)
@@ -33,7 +33,7 @@ func TestSuccessorFirstStartAtomicEveryWriteRollsBack(t *testing.T) {
 			require.Equal(t, before, firstStartAtomicSnapshot(t, h))
 			requireFirstStartNoPredecessorHistory(t, h, id)
 			require.Zero(t, h.countRows("SELECT COUNT(*) FROM managed_schema_operations WHERE action='successor_first_start'"))
-			_, err = h.db.Exec("DROP TRIGGER reject_first_start")
+			_, err = h.db.ExecContext(t.Context(), "DROP TRIGGER reject_first_start")
 			require.NoError(t, err)
 			result, err = h.service.ConfirmSuccessorFirstStart(t.Context(), id, req)
 			require.NoError(t, err)
@@ -74,15 +74,15 @@ func TestSuccessorFirstStartAtomicWriterBarrierAndCompetingCASRollback(t *testin
 		t.Run(mode, func(t *testing.T) {
 			h, id, req := firstStartAtomicFixture(t)
 			if mode == "barrier" {
-				h.service.WithWriterOwnershipActivationBarrier(writerOwnershipActivationFunc(func(_ context.Context, tx *sql.Tx, request WriterOwnershipActivationRequest) error {
+				h.service.WithWriterOwnershipActivationBarrier(writerOwnershipActivationFunc(func(ctx context.Context, tx *sql.Tx, request WriterOwnershipActivationRequest) error {
 					require.Equal(t, req.Envelope.Request.Stage.Current.GroupID, request.GroupID)
 					var count int
-					require.NoError(t, tx.QueryRow(`SELECT COUNT(*) FROM wg_runtime_versions WHERE group_id=?`, request.GroupID).Scan(&count))
+					require.NoError(t, tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM wg_runtime_versions WHERE group_id=?`, request.GroupID).Scan(&count))
 					require.Equal(t, 1, count)
 					return errRecreateInjected
 				}))
 			} else {
-				_, err := h.db.Exec(`CREATE TRIGGER compete_first_start AFTER INSERT ON wg_runtime_versions BEGIN UPDATE write_group_lineages SET revision=revision+1; END`)
+				_, err := h.db.ExecContext(t.Context(), `CREATE TRIGGER compete_first_start AFTER INSERT ON wg_runtime_versions BEGIN UPDATE write_group_lineages SET revision=revision+1; END`)
 				require.NoError(t, err)
 			}
 			before := firstStartAtomicSnapshot(t, h)
@@ -100,13 +100,13 @@ func TestSuccessorFirstStartAtomicWriterBarrierAndCompetingCASRollback(t *testin
 
 func TestSuccessorFirstStartAtomicExpiredUncommittedBoundaryNeedsFreshReview(t *testing.T) {
 	h, id, req := firstStartAtomicFixture(t)
-	_, err := h.db.Exec(`CREATE TRIGGER reject_first_start BEFORE INSERT ON managed_schema_operations WHEN NEW.action='successor_first_start' BEGIN SELECT RAISE(ABORT,'checkpoint-fault'); END`)
+	_, err := h.db.ExecContext(t.Context(), `CREATE TRIGGER reject_first_start BEFORE INSERT ON managed_schema_operations WHEN NEW.action='successor_first_start' BEGIN SELECT RAISE(ABORT,'checkpoint-fault'); END`)
 	require.NoError(t, err)
 	before := firstStartAtomicSnapshot(t, h)
 	_, err = h.service.ConfirmSuccessorFirstStart(t.Context(), id, req)
 	require.ErrorContains(t, err, "checkpoint-fault")
 	require.Equal(t, before, firstStartAtomicSnapshot(t, h))
-	_, err = h.db.Exec("DROP TRIGGER reject_first_start")
+	_, err = h.db.ExecContext(t.Context(), "DROP TRIGGER reject_first_start")
 	require.NoError(t, err)
 	h.service.now = func() time.Time { return req.Envelope.Request.Boundary }
 	_, err = h.service.ConfirmSuccessorFirstStart(t.Context(), id, req)
@@ -130,7 +130,7 @@ func TestSuccessorFirstStartAtomicUnknownOriginalOutcomeCannotBeReplaced(t *test
 	scope := req.Envelope.Request.Stage.Envelope.Request
 	root := recordingplan.SuccessorReserveOperationID(scope.WorkspaceID, scope.OperationID)
 	operation := recordingplan.SuccessorFirstStartOperationID(scope.WorkspaceID, root)
-	_, err := h.db.Exec(`INSERT INTO managed_schema_operations(operation_id,token,workspace_id,scope_key,owner,action,status,created_at,updated_at,detail,payload_digest) VALUES(?,?,?,'unknown-original-scope','owner','successor_first_start','unknown',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'{}',?)`, operation, "successor_first_start:"+operation, scope.WorkspaceID, req.ReviewDigest)
+	_, err := h.db.ExecContext(t.Context(), `INSERT INTO managed_schema_operations(operation_id,token,workspace_id,scope_key,owner,action,status,created_at,updated_at,detail,payload_digest) VALUES(?,?,?,'unknown-original-scope','owner','successor_first_start','unknown',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'{}',?)`, operation, "successor_first_start:"+operation, scope.WorkspaceID, req.ReviewDigest)
 	require.NoError(t, err)
 	before := firstStartAtomicSnapshot(t, h)
 	result, err := h.service.ConfirmSuccessorFirstStart(t.Context(), id, req)

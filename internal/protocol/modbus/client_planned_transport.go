@@ -16,7 +16,13 @@ func (t *exactReadTransport) GetOriginalTransport() any {
 	}
 	return t.Transport
 }
-func (t *exactReadTransport) GetNextTransactionID() uint16 { id, _ := t.nextTransactionID(); return id }
+func (t *exactReadTransport) GetNextTransactionID() uint16 {
+	id, err := t.nextTransactionID()
+	if err != nil {
+		return 0
+	}
+	return id
+}
 func (t *exactReadTransport) nextTransactionID() (uint16, error) {
 	if v, ok := t.Transport.(interface{ nextTransactionID() (uint16, error) }); ok {
 		return v.nextTransactionID()

@@ -40,7 +40,7 @@ func TestRecreateBasicConcurrentReservation(t *testing.T) {
 			peer := newCircuitProfileHarnessOn(t, openWorkspaceTestDB(t, path), h)
 			peer.db.SetMaxOpenConns(1)
 			for _, db := range []*sql.DB{h.db, peer.db} {
-				_, err := db.Exec(`PRAGMA busy_timeout=1000`)
+				_, err := db.ExecContext(t.Context(), `PRAGMA busy_timeout=1000`)
 				require.NoError(t, err)
 			}
 			requests := []writeGroupRecreateReservationRequest{req, req}

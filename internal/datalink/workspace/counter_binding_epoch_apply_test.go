@@ -16,7 +16,7 @@ import (
 func counterEpochRuntime(t *testing.T, f counterApplyFixture, revision string) (WriteGroupAppliedSnapshot, string) {
 	t.Helper()
 	var raw string
-	require.NoError(t, f.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, f.group.ID, revision).Scan(&raw))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, f.group.ID, revision).Scan(&raw))
 	var frozen WriteGroupAppliedSnapshot
 	require.NoError(t, json.Unmarshal([]byte(raw), &frozen))
 	return frozen, raw
@@ -51,8 +51,8 @@ func TestCounterBindingExplicitEpochApplyCreatesNewProofAndRetainsAcceptedOwner(
 			key := groupdelivery.GroupKey{WorkspaceID: f.group.WorkspaceID, GroupID: f.group.ID, GroupRevision: first.Group.AppliedRevision}
 			require.NoError(t, store.AppendSample(t.Context(), key, original.EffectiveAt, snapshot.Sample{SampleID: "old-accepted", MemberKey: proof.Member.SampleMemberKey(), ObservedAt: original.EffectiveAt.Add(time.Second), Value: value, Quality: schema.QualityGood, SourceRevision: proof.SourceRevision, MappingRevision: proof.MappingRevision, CounterProof: ref}))
 			var payload, digest string
-			require.NoError(t, f.db.QueryRow(`SELECT payload,payload_digest FROM wg_delivery_samples WHERE sample_id='old-accepted'`).Scan(&payload, &digest))
-			_, err = f.db.Exec(`UPDATE measurement_definitions SET definition_revision='def-2',source_binding_revision='binding-2',series_epoch='epoch-2',unit='MWh' WHERE id='measurement-1'`)
+			require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_samples WHERE sample_id='old-accepted'`).Scan(&payload, &digest))
+			_, err = f.db.ExecContext(t.Context(), `UPDATE measurement_definitions SET definition_revision='def-2',source_binding_revision='binding-2',series_epoch='epoch-2',unit='MWh' WHERE id='measurement-1'`)
 			require.NoError(t, err)
 			draft := cloneWriteGroup(first.Group)
 			draft.Name = "explicit epoch confirmation"
@@ -81,14 +81,14 @@ func TestCounterBindingExplicitEpochApplyCreatesNewProofAndRetainsAcceptedOwner(
 			require.Equal(t, originalBytes, afterOriginal)
 			var afterPayload, afterDigest string
 			var consumed, versions int
-			require.NoError(t, f.db.QueryRow(`SELECT payload,payload_digest,consumed FROM wg_delivery_samples WHERE sample_id='old-accepted'`).Scan(&afterPayload, &afterDigest, &consumed))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT payload,payload_digest,consumed FROM wg_delivery_samples WHERE sample_id='old-accepted'`).Scan(&afterPayload, &afterDigest, &consumed))
 			require.Equal(t, payload, afterPayload)
 			require.Equal(t, digest, afterDigest)
 			require.Zero(t, consumed)
 			again, err := f.service.Apply(t.Context(), f.group.ID, counterEpochMutation(t, f, second.Group))
 			require.NoError(t, err)
 			require.Equal(t, second.Group.AppliedRevision, again.Group.AppliedRevision)
-			require.NoError(t, f.db.QueryRow(`SELECT COUNT(*) FROM wg_runtime_versions WHERE group_id=?`, f.group.ID).Scan(&versions))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_runtime_versions WHERE group_id=?`, f.group.ID).Scan(&versions))
 			require.Equal(t, 2, versions, "retry creates no third owner or snapshot")
 		})
 	}
@@ -100,7 +100,7 @@ func TestCounterBindingChangedMeaningCannotReuseTheSameSavedRevision(t *testing.
 	require.NoError(t, err)
 	original, raw := counterEpochRuntime(t, f, first.Group.AppliedRevision)
 	f.service.WithClock(func() time.Time { return original.EffectiveAt.Add(time.Second) })
-	_, err = f.db.Exec(`UPDATE measurement_definitions SET definition_revision='def-2',series_epoch='epoch-2',unit='MWh' WHERE id='measurement-1'`)
+	_, err = f.db.ExecContext(t.Context(), `UPDATE measurement_definitions SET definition_revision='def-2',series_epoch='epoch-2',unit='MWh' WHERE id='measurement-1'`)
 	require.NoError(t, err)
 	mutation := counterEpochMutation(t, f, first.Group)
 	_, err = f.service.Apply(t.Context(), f.group.ID, mutation)

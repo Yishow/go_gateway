@@ -65,15 +65,16 @@ func (c *ModbusClient) sendTCPRequest(functionCode byte, data []byte) ([]byte, e
 
 	var transactionID uint16
 	// 嘗試通過接口調用（支持 WrappedTransport）
-	if contextual, ok := c.transport.(interface{ nextTransactionID() (uint16, error) }); ok {
+	switch transport := c.transport.(type) {
+	case interface{ nextTransactionID() (uint16, error) }:
 		var err error
-		transactionID, err = contextual.nextTransactionID()
+		transactionID, err = transport.nextTransactionID()
 		if err != nil {
 			return nil, err
 		}
-	} else if transportWithID, ok := c.transport.(interface{ GetNextTransactionID() uint16 }); ok {
-		transactionID = transportWithID.GetNextTransactionID()
-	} else {
+	case interface{ GetNextTransactionID() uint16 }:
+		transactionID = transport.GetNextTransactionID()
+	default:
 		// 向後兼容：嘗試類型斷言
 		switch transport := c.transport.(type) {
 		case *TCPTransport:

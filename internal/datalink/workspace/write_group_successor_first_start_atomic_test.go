@@ -37,7 +37,7 @@ func TestSuccessorFirstStartAtomicCommitHasNoFictitiousPredecessorHistory(t *tes
 	require.Equal(t, result.Boundary, version.EffectiveAt)
 	var head string
 	var reserved, operation, intent sql.NullString
-	require.NoError(t, h.db.QueryRow(`SELECT current_group_id,reserved_group_id,reservation_operation_id,reservation_intent_digest FROM write_group_lineages WHERE lineage_id=?`, result.LineageID).Scan(&head, &reserved, &operation, &intent))
+	require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT current_group_id,reserved_group_id,reservation_operation_id,reservation_intent_digest FROM write_group_lineages WHERE lineage_id=?`, result.LineageID).Scan(&head, &reserved, &operation, &intent))
 	require.Equal(t, result.GroupID, head)
 	require.False(t, reserved.Valid)
 	require.False(t, operation.Valid)

@@ -27,7 +27,7 @@ func TestCounterBindingExplicitApplyComparesEveryReviewedMeaningFact(t *testing.
 			first, err := f.service.Apply(t.Context(), f.group.ID, f.mutation)
 			require.NoError(t, err)
 			old, original := counterEpochRuntime(t, f, first.Group.AppliedRevision)
-			_, err = f.db.Exec(statement)
+			_, err = f.db.ExecContext(t.Context(), statement)
 			require.NoError(t, err)
 			draft := cloneWriteGroup(first.Group)
 			draft.Name = "explicit reviewed facts"
@@ -81,7 +81,7 @@ func TestCounterBindingDisplayRenameRetainsOriginalAppliedProof(t *testing.T) {
 			_, retained := counterEpochRuntime(t, f, first.Group.AppliedRevision)
 			require.Equal(t, original, retained)
 			var count int
-			require.NoError(t, f.db.QueryRow(`SELECT COUNT(*) FROM wg_runtime_versions WHERE group_id=?`, f.group.ID).Scan(&count))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_runtime_versions WHERE group_id=?`, f.group.ID).Scan(&count))
 			require.Equal(t, 1, count)
 		})
 	}
@@ -107,7 +107,7 @@ func TestCounterBindingFreshRevisionDoesNotRepairUnprovableOldEvidence(t *testin
 				broken = strings.Replace(original, `"version":1`, `"version":99`, 1)
 			}
 			require.NotEqual(t, original, broken)
-			_, err = f.db.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, broken, f.group.ID)
+			_, err = f.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, broken, f.group.ID)
 			require.NoError(t, err)
 			draft := cloneWriteGroup(first.Group)
 			draft.Name = "explicit new owner, never repair old evidence"
@@ -121,7 +121,7 @@ func TestCounterBindingFreshRevisionDoesNotRepairUnprovableOldEvidence(t *testin
 			require.Equal(t, saved.Group.Revision, next.Group.AppliedRevision)
 			require.NotEqual(t, first.Group.AppliedRevision, next.Group.AppliedRevision)
 			var retained string
-			require.NoError(t, f.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, f.group.ID, first.Group.AppliedRevision).Scan(&retained))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, f.group.ID, first.Group.AppliedRevision).Scan(&retained))
 			require.Equal(t, broken, retained)
 			proven, _ := counterEpochRuntime(t, f, next.Group.AppliedRevision)
 			require.Len(t, proven.CounterBindings, 1)
@@ -136,7 +136,7 @@ func TestCounterBindingExplicitExactScaleChangeCreatesNewOwner(t *testing.T) {
 	first, err := f.service.Apply(t.Context(), f.group.ID, f.mutation)
 	require.NoError(t, err)
 	old, original := counterEpochRuntime(t, f, first.Group.AppliedRevision)
-	_, err = f.db.Exec(`UPDATE measurement_definitions SET exact_recording_scale='0.01'`)
+	_, err = f.db.ExecContext(t.Context(), `UPDATE measurement_definitions SET exact_recording_scale='0.01'`)
 	require.NoError(t, err)
 	draft := cloneWriteGroup(first.Group)
 	draft.Members[0].ExactRecordingSource.Scale = "0.01"

@@ -20,7 +20,7 @@ func recreateRepositoryFixture(t *testing.T, kind string) (*circuitProfileHarnes
 	saved, err := ensureLineageKind(h, kind, h.mutation(t.Context(), group))
 	require.NoError(t, err)
 	lineage := requireLineageGenesis(t, h.db, saved.Group)
-	_, err = h.db.Exec("UPDATE write_groups SET status='deleted' WHERE id=?", saved.Group.ID)
+	_, err = h.db.ExecContext(t.Context(), "UPDATE write_groups SET status='deleted' WHERE id=?", saved.Group.ID)
 	require.NoError(t, err)
 	candidate := cloneWriteGroup(saved.Group)
 	candidate.Destination.SchemaRevision, candidate.Destination.SchemaDigest = "", ""
@@ -67,7 +67,7 @@ func TestRecreateRepositoryReservesNextDraftWithoutMovingAliases(t *testing.T) {
 			require.Equal(t, req.PredecessorGroupID, result.PredecessorGroupID)
 			var head, reserved, predecessor string
 			var generation int64
-			require.NoError(t, h.db.QueryRow(`SELECT l.current_group_id,l.reserved_group_id,g.predecessor_group_id,g.generation
+			require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT l.current_group_id,l.reserved_group_id,g.predecessor_group_id,g.generation
  FROM write_group_lineages l JOIN write_group_generations g ON g.group_id=l.reserved_group_id`).Scan(&head, &reserved, &predecessor, &generation))
 			require.Equal(t, req.PredecessorGroupID, head)
 			require.Equal(t, result.Group.ID, reserved)
@@ -76,7 +76,7 @@ func TestRecreateRepositoryReservesNextDraftWithoutMovingAliases(t *testing.T) {
 			for _, table := range lineageKeyTables(kind) {
 				require.Equal(t, 1, h.countRows("SELECT COUNT(*) FROM "+table))
 				var anchor string
-				require.NoError(t, h.db.QueryRow("SELECT group_id FROM "+table).Scan(&anchor))
+				require.NoError(t, h.db.QueryRowContext(t.Context(), "SELECT group_id FROM "+table).Scan(&anchor))
 				require.Equal(t, req.PredecessorGroupID, anchor)
 			}
 			after, err := h.service.repo.Get(t.Context(), req.WorkspaceID, req.PredecessorGroupID)
@@ -110,9 +110,9 @@ func TestRecreateRepositoryCallerRollbackIncludesNewStorageScope(t *testing.T) {
 	result, err := h.service.repo.reserveRecreatedDraftInTx(t.Context(), tx, req, "intent-O2")
 	require.NoError(t, err)
 	var count int
-	require.NoError(t, tx.QueryRow("SELECT COUNT(*) FROM write_group_storage_scopes WHERE connector_id='recreate-target'").Scan(&count))
+	require.NoError(t, tx.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM write_group_storage_scopes WHERE connector_id='recreate-target'").Scan(&count))
 	require.Equal(t, 1, count)
-	require.NoError(t, tx.QueryRow("SELECT COUNT(*) FROM write_group_generations WHERE group_id=?", result.Group.ID).Scan(&count))
+	require.NoError(t, tx.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM write_group_generations WHERE group_id=?", result.Group.ID).Scan(&count))
 	require.Equal(t, 1, count)
 	require.NoError(t, tx.Rollback())
 	require.Equal(t, before, recreateRepositorySnapshot(t, h))

@@ -50,7 +50,7 @@ func TestSuccessorActivationAtomicCommitAndExactReplay(t *testing.T) {
 	require.Equal(t, len(event.Moved)*2, h.countRows("SELECT COUNT(*) FROM write_group_ownership_fences"))
 	var head string
 	var pending sql.NullString
-	require.NoError(t, h.db.QueryRow(`SELECT current_group_id,reserved_group_id FROM write_group_lineages WHERE lineage_id=?`, req.Envelope.Request.Stage.Envelope.Request.LineageID).Scan(&head, &pending))
+	require.NoError(t, h.db.QueryRowContext(t.Context(), `SELECT current_group_id,reserved_group_id FROM write_group_lineages WHERE lineage_id=?`, req.Envelope.Request.Stage.Envelope.Request.LineageID).Scan(&head, &pending))
 	require.Equal(t, target.ID, head)
 	require.False(t, pending.Valid)
 	before := recreateRepositorySnapshot(t, h)

@@ -13,7 +13,7 @@ import (
 
 func TestSuccessorNoHistoryRejectsForeignCutoverNamingLineage(t *testing.T) {
 	h, id, stage, _ := successorSchemaFixture(t)
-	_, err := h.db.Exec(`INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,created_at,intent) VALUES('foreign-cut','foreign-workspace','forward',?,?, 'review',?,CURRENT_TIMESTAMP,'{}')`, id, time.Now().Format(time.RFC3339Nano), fmt.Sprintf(`{"ended":[{"group_id":%q,"revision":"R"}],"started":[{"group_id":"foreign","revision":"R2"}]}`, id))
+	_, err := h.db.ExecContext(t.Context(), `INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,created_at,intent) VALUES('foreign-cut','foreign-workspace','forward',?,?, 'review',?,CURRENT_TIMESTAMP,'{}')`, id, time.Now().Format(time.RFC3339Nano), fmt.Sprintf(`{"ended":[{"group_id":%q,"revision":"R"}],"started":[{"group_id":"foreign","revision":"R2"}]}`, id))
 	require.NoError(t, err)
 	tx, err := h.db.BeginTx(t.Context(), &sql.TxOptions{ReadOnly: true})
 	require.NoError(t, err)

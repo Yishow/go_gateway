@@ -28,7 +28,7 @@ func firstStartAtomicFixture(t *testing.T) (*circuitProfileHarness, string, Writ
 	saved, err := h.service.EnsureBasicManaged(t.Context(), h.fixture.deviceID, h.mutation(t.Context(), draft))
 	require.NoError(t, err)
 	lineage := requireLineageGenesis(t, h.db, saved.Group)
-	_, err = h.db.Exec(`UPDATE write_groups SET status='deleted' WHERE id=?`, saved.Group.ID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET status='deleted' WHERE id=?`, saved.Group.ID)
 	require.NoError(t, err)
 	old := writeGroupRecreateReservationRequest{WorkspaceID: saved.Group.WorkspaceID, ExpectedWorkspaceRevision: saved.WorkspaceRevision,
 		LineageID: lineage, ExpectedLineageRevision: 1, PredecessorGroupID: saved.Group.ID, ExpectedPredecessorRevision: saved.Group.Revision,
@@ -104,7 +104,7 @@ func firstStartAtomicSnapshot(t *testing.T, h *circuitProfileHarness) map[string
 	t.Helper()
 	state := recreateRepositorySnapshot(t, h)
 	for _, table := range []string{"managed_schema_operations", "managed_schema_preview_tokens", "write_group_cutovers", "write_group_revision_ends", "wg_delivery_samples", "wg_delivery_outbox", "wg_delivery_receipts", "wg_delivery_checkpoints", "wg_delivery_buckets", "wg_delivery_counter_baselines", "wg_counter_proof_associations", "wg_delivery_sample_handoffs"} {
-		rows, err := h.db.Query("SELECT * FROM " + table + " ORDER BY rowid")
+		rows, err := h.db.QueryContext(t.Context(), "SELECT * FROM "+table+" ORDER BY rowid")
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)

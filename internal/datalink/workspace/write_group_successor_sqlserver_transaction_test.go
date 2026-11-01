@@ -16,7 +16,7 @@ func TestSuccessorSQLServerUnitUnsupportedSourceAndTargetHaveNoEffects(t *testin
 			case "wide":
 				req.Group.LayoutVersion, req.Group.StorageMode = WriteGroupLayoutManagedWideProfileV1, ""
 			case "cross-engine":
-				_, err := h.db.Exec(`UPDATE database_connectors SET kind='postgres' WHERE id=?`, req.Group.Destination.ConnectorID)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='postgres' WHERE id=?`, req.Group.Destination.ConnectorID)
 				require.NoError(t, err)
 			case "cross-mode":
 				req.Group.StorageMode = WriteGroupStorageModeNativeMonthly
@@ -25,7 +25,7 @@ func TestSuccessorSQLServerUnitUnsupportedSourceAndTargetHaveNoEffects(t *testin
 			case "meaning":
 				req.Group.RecordingProfile.Interval++
 			case "never-applied":
-				_, err := h.db.Exec(`UPDATE write_groups SET applied_revision='' WHERE id=?`, id)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET applied_revision='' WHERE id=?`, id)
 				require.NoError(t, err)
 			}
 			before := lineageReadSnapshot(t, h)
@@ -50,7 +50,7 @@ func TestSuccessorSQLServerUnitActivationRollbackKeepsAllOwners(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, ready.Readiness.Ready)
 			confirmation.ReadinessDigest = ready.ReadinessDigest
-			_, err = h.db.Exec(`CREATE TRIGGER reject_sqlserver_activation BEFORE UPDATE ON write_group_lineages BEGIN SELECT RAISE(ABORT,'unit rollback'); END`)
+			_, err = h.db.ExecContext(t.Context(), `CREATE TRIGGER reject_sqlserver_activation BEFORE UPDATE ON write_group_lineages BEGIN SELECT RAISE(ABORT,'unit rollback'); END`)
 			require.NoError(t, err)
 			before := recreateRepositorySnapshot(t, h)
 			_, err = h.service.ConfirmSuccessorActivation(t.Context(), id, confirmation)

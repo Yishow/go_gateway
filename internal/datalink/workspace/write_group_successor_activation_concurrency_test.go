@@ -12,12 +12,12 @@ func TestSuccessorActivationConcurrentExactConfirmation(t *testing.T) {
 	h, id, req := atomicActivationFixture(t)
 	var seq int
 	var name, path string
-	require.NoError(t, h.db.QueryRow("PRAGMA database_list").Scan(&seq, &name, &path))
+	require.NoError(t, h.db.QueryRowContext(t.Context(), "PRAGMA database_list").Scan(&seq, &name, &path))
 	peerDB := openWorkspaceTestDB(t, path)
 	t.Cleanup(func() { peerDB.Close() })
 	peerDB.SetMaxOpenConns(1)
 	for _, db := range []*sql.DB{h.db, peerDB} {
-		_, err := db.Exec("PRAGMA busy_timeout=1000")
+		_, err := db.ExecContext(t.Context(), "PRAGMA busy_timeout=1000")
 		require.NoError(t, err)
 	}
 	peer := activationTestService(h.service)

@@ -133,9 +133,12 @@ func (f counterApplyFixture) assertUnapplied(t *testing.T) {
 
 func readCounterApplySnapshot(t *testing.T, query func(context.Context, string, ...any) *sql.Row, groupID string) (WriteGroupAppliedSnapshot, string) {
 	t.Helper()
-	var payload string
-	require.NoError(t, query(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id = ?`, groupID).Scan(&payload))
-	var snapshot WriteGroupAppliedSnapshot
+	return readCounterApplySnapshotContext(t.Context(), t, query, groupID)
+}
+
+func readCounterApplySnapshotContext(ctx context.Context, t *testing.T, query func(context.Context, string, ...any) *sql.Row, groupID string) (snapshot WriteGroupAppliedSnapshot, payload string) {
+	t.Helper()
+	require.NoError(t, query(ctx, `SELECT payload FROM wg_runtime_versions WHERE group_id = ?`, groupID).Scan(&payload))
 	require.NoError(t, json.Unmarshal([]byte(payload), &snapshot))
 	return snapshot, payload
 }

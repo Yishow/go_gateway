@@ -2,10 +2,11 @@ package fatek
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/protocol/wirebudget"
 	"io"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type contextClientTransport struct{ sends int }

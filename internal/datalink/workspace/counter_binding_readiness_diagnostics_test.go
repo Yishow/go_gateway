@@ -21,7 +21,7 @@ func TestCounterBindingReadinessRetainsOriginalMeasurementDiagnosis(t *testing.T
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newCounterApplyFixture(t, WriteGroupLayoutManagedLongV1, WriteGroupProfileCumulative, schema.DataTypeUint64)
-			_, err := f.db.Exec(tc.statement)
+			_, err := f.db.ExecContext(t.Context(), tc.statement)
 			require.NoError(t, err)
 			ready, err := f.service.Readiness(t.Context(), f.group.ID)
 			require.NoError(t, err)

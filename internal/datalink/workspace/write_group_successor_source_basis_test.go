@@ -12,10 +12,10 @@ func TestRecreateRepositoryAppliedMeaningCannotBeReplacedByUnappliedDraft(t *tes
 			h, req := recreateRepositoryFixture(t, "profile")
 			seedRecreateEngineEvidence(t, h, req)
 			if change == "reduction" {
-				_, err := h.db.Exec("UPDATE write_groups SET sample_reduction='mean',revision='unapplied-R2'; UPDATE write_group_members SET value_role='gauge',source_value_type='float32',result_value_type='float64'")
+				_, err := h.db.ExecContext(t.Context(), "UPDATE write_groups SET sample_reduction='mean',revision='unapplied-R2'; UPDATE write_group_members SET value_role='gauge',source_value_type='float32',result_value_type='float64'")
 				require.NoError(t, err)
 			} else {
-				_, err := h.db.Exec("UPDATE write_groups SET profile_interval=profile_interval+1,revision='unapplied-R2'")
+				_, err := h.db.ExecContext(t.Context(), "UPDATE write_groups SET profile_interval=profile_interval+1,revision='unapplied-R2'")
 				require.NoError(t, err)
 			}
 			draft, err := h.service.repo.Get(t.Context(), req.WorkspaceID, req.PredecessorGroupID)
@@ -39,13 +39,13 @@ func TestRecreateRepositoryCanSelectOriginalAppliedDefinitionOverUnappliedDraft(
 			h, req := recreateRepositoryFixture(t, "profile")
 			source := seedRecreateEngineEvidence(t, h, req)
 			if change == "reduction" {
-				_, err := h.db.Exec("UPDATE write_groups SET sample_reduction='mean',revision='unapplied-R2'; UPDATE write_group_members SET value_role='gauge',source_value_type='float32',result_value_type='float64'")
+				_, err := h.db.ExecContext(t.Context(), "UPDATE write_groups SET sample_reduction='mean',revision='unapplied-R2'; UPDATE write_group_members SET value_role='gauge',source_value_type='float32',result_value_type='float64'")
 				require.NoError(t, err)
 			} else {
 				changed := req
 				changed.Group = cloneWriteGroup(req.Group)
 				recreateRepositoryNewTarget(t, h, &changed)
-				_, err := h.db.Exec(`UPDATE write_groups SET revision='unapplied-R2',destination_connector_id='recreate-target',destination_connector_revision='target-rev',destination_database='new-db',destination_table_schema='main',destination_table_name='draft-table'`)
+				_, err := h.db.ExecContext(t.Context(), `UPDATE write_groups SET revision='unapplied-R2',destination_connector_id='recreate-target',destination_connector_revision='target-rev',destination_database='new-db',destination_table_schema='main',destination_table_name='draft-table'`)
 				require.NoError(t, err)
 				req.ExpectedPredecessorConnectorRevision = "target-rev"
 			}
@@ -70,7 +70,7 @@ func TestRecreateRepositoryAppliedSourceDefinitionMustRemainAvailableAndScoped(t
 		t.Run(query, func(t *testing.T) {
 			h, req := recreateRepositoryFixture(t, "profile")
 			seedRecreateEngineEvidence(t, h, req)
-			_, err := h.db.Exec(query)
+			_, err := h.db.ExecContext(t.Context(), query)
 			require.NoError(t, err)
 			before := recreateRepositorySnapshot(t, h)
 			_, err = reserveRepositoryTest(t, h, req)

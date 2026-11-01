@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/protocol/wirebudget"
+
+	"github.com/stretchr/testify/require"
 )
 
-func plannedUDPServer(t *testing.T, reply func([]byte) ([]byte, error)) (*UDPTransport, <-chan error) {
+func plannedUDPServer(t *testing.T, reply func([]byte) (response []byte, err error)) (transport *UDPTransport, result <-chan error) {
 	t.Helper()
 	peer, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	require.NoError(t, err)

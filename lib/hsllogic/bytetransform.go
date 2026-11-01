@@ -48,10 +48,10 @@ var DefaultTransform = NewByteTransform(DataFormatABCD)
 
 // TransformUint16 將 2 字節轉換為 uint16
 func (t *ByteTransform) TransformUint16(buffer []byte, index int) uint16 {
-	if len(buffer) < index+2 {
+	if index < 0 || index > len(buffer)-2 {
 		return 0
 	}
-	b := buffer[index : index+2]
+	b := (*[2]byte)(buffer[index : index+2])
 
 	switch t.Format {
 	case DataFormatBADC, DataFormatDCBA:
@@ -69,16 +69,16 @@ func (t *ByteTransform) TransformInt16(buffer []byte, index int) int16 {
 
 // TransformUint32 將 4 字節轉換為 uint32
 func (t *ByteTransform) TransformUint32(buffer []byte, index int) uint32 {
-	if len(buffer) < index+4 {
+	if index < 0 || index > len(buffer)-4 {
 		return 0
 	}
-	b := buffer[index : index+4]
+	b := (*[4]byte)(buffer[index : index+4])
 
 	switch t.Format {
 	case DataFormatABCD:
-		return binary.BigEndian.Uint32(b)
+		return binary.BigEndian.Uint32(b[:])
 	case DataFormatDCBA:
-		return binary.LittleEndian.Uint32(b)
+		return binary.LittleEndian.Uint32(b[:])
 	case DataFormatBADC:
 		// AB CD -> BA DC (每個 word 內部交換)
 		return uint32(b[1])<<24 | uint32(b[0])<<16 | uint32(b[3])<<8 | uint32(b[2])
@@ -86,7 +86,7 @@ func (t *ByteTransform) TransformUint32(buffer []byte, index int) uint32 {
 		// AB CD -> CD AB (word 順序交換)
 		return uint32(b[2])<<24 | uint32(b[3])<<16 | uint32(b[0])<<8 | uint32(b[1])
 	default:
-		return binary.BigEndian.Uint32(b)
+		return binary.BigEndian.Uint32(b[:])
 	}
 }
 
@@ -103,16 +103,16 @@ func (t *ByteTransform) TransformFloat32(buffer []byte, index int) float32 {
 
 // TransformUint64 將 8 字節轉換為 uint64
 func (t *ByteTransform) TransformUint64(buffer []byte, index int) uint64 {
-	if len(buffer) < index+8 {
+	if index < 0 || index > len(buffer)-8 {
 		return 0
 	}
-	b := buffer[index : index+8]
+	b := (*[8]byte)(buffer[index : index+8])
 
 	switch t.Format {
 	case DataFormatABCD:
-		return binary.BigEndian.Uint64(b)
+		return binary.BigEndian.Uint64(b[:])
 	case DataFormatDCBA:
-		return binary.LittleEndian.Uint64(b)
+		return binary.LittleEndian.Uint64(b[:])
 	case DataFormatBADC:
 		return uint64(b[1])<<56 | uint64(b[0])<<48 | uint64(b[3])<<40 | uint64(b[2])<<32 |
 			uint64(b[5])<<24 | uint64(b[4])<<16 | uint64(b[7])<<8 | uint64(b[6])
@@ -120,7 +120,7 @@ func (t *ByteTransform) TransformUint64(buffer []byte, index int) uint64 {
 		return uint64(b[6])<<56 | uint64(b[7])<<48 | uint64(b[4])<<40 | uint64(b[5])<<32 |
 			uint64(b[2])<<24 | uint64(b[3])<<16 | uint64(b[0])<<8 | uint64(b[1])
 	default:
-		return binary.BigEndian.Uint64(b)
+		return binary.BigEndian.Uint64(b[:])
 	}
 }
 

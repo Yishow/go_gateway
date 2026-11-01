@@ -50,7 +50,7 @@ func (r *RTUTransport) readExactFrame(ctx context.Context, port serial.Port, res
 	// The supported Windows serial driver floors durations to milliseconds;
 	// round up so its timeout still establishes at least the protocol interval.
 	// The parent deadline remains the upper bound on every physical Read.
-	silenceTimeout := (gap + time.Millisecond - 1) / time.Millisecond * time.Millisecond
+	silenceTimeout := time.Duration(((int64(gap) + int64(time.Millisecond) - 1) / int64(time.Millisecond)) * int64(time.Millisecond))
 	buffer := make([]byte, 257) // 256-byte ADU plus a sentinel, never a valid prefix.
 	used := 0
 	for {
@@ -84,7 +84,7 @@ func (r *RTUTransport) readExactFrame(ctx context.Context, port serial.Port, res
 			// EOF is not a frame boundary. Once any bytes arrived, an unknown boundary
 			// is malformed, not an unsupported exception or a retryable partial value.
 			if used > 0 {
-				return nil, fmt.Errorf("%w: RTU frame boundary: %v", ErrInvalidFrame, err)
+				return nil, fmt.Errorf("%w: RTU frame boundary: %s", ErrInvalidFrame, err.Error())
 			}
 			return nil, err
 		}

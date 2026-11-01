@@ -69,7 +69,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 			if len(pdu) > 0 {
 				response := s.exceptionResponse(pdu[0], ExceptionIllegalDataAddress)
 				responseLength := len(response) + 1
-				if responseLength > math.MaxUint16 {
+				if responseLength < 1 || responseLength > math.MaxUint16 {
 					return
 				}
 				fullResponse := make([]byte, MBAPHeaderLength+len(response))

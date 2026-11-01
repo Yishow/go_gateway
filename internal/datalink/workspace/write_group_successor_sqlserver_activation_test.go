@@ -69,7 +69,7 @@ func TestSuccessorSQLServerUnitSchemaConfirmationRequiresFreshFacts(t *testing.T
 
 func TestSuccessorSQLServerUnitSourceDescriptorMustValidate(t *testing.T) {
 	h, id, req, p := successorSQLServerUnitFixture(t, WriteGroupStorageModePlain)
-	_, err := h.db.Exec(`UPDATE wg_runtime_versions SET payload=json_remove(payload,'$.runtime_layout.sqlserver') WHERE group_id=?`, id)
+	_, err := h.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=json_remove(payload,'$.runtime_layout.sqlserver') WHERE group_id=?`, id)
 	require.NoError(t, err)
 	before := lineageReadSnapshot(t, h)
 	view, err := h.service.SuccessorReview(t.Context(), id, req)
