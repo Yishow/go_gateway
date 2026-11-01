@@ -174,7 +174,18 @@ func (s *RecordingStartService) recordingStartCheckpoint(op *recordingplan.Schem
 		if err != nil {
 			return err
 		}
-		sourceDigest, err := managedSourceDigest(group, types)
+		// Mixed delta digests bind the same sealed counter evidence as schema
+		// review. Rebuild it within this checkpoint transaction, never from a
+		// separately read snapshot or a nested ManagedSchemaScope transaction.
+		var proofs CounterBindingProofs
+		if isMixedWriteGroup(group) {
+			var issues []ReadinessIssue
+			proofs, issues = s.groups.counterBindingEvidenceInTx(ctx, tx, group, types, nil)
+			if len(issues) > 0 {
+				return fmt.Errorf("recording start counter scope: %w", ErrCounterBindingProofConflict)
+			}
+		}
+		sourceDigest, err := managedSourceDigest(group, types, proofs)
 		if err != nil {
 			return fmt.Errorf("encode recording start source scope: %w", err)
 		}

@@ -22,6 +22,7 @@ func registerStudioV2RecordingStartRoutes(group *gin.RouterGroup, services *Data
 	}
 	handler := handlers.NewStudioV2RecordingStartHandler(start, services.WriteGroups)
 	group.POST("/studio-v2/workspace/recording-start", handler.Start)
+	group.POST("/studio-v2/workspace/recording-start/lookup", handler.Lookup)
 	group.GET("/studio-v2/workspace/recording-start/operations/:id", handler.Get)
 	group.POST("/studio-v2/workspace/write-groups/basic/:id", handler.EnsureBasic)
 }

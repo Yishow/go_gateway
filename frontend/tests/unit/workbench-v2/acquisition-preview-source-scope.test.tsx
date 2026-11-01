@@ -57,11 +57,11 @@ describe('existing source surface acquisition scope', () => {
     expect(acquisitionPreviewWorkspaceScope({ workspaceId: 'OTHER', locatorEntry: locator })).toBeUndefined();
   });
   it('mounts the read-only preview for exactly the saved selected source', () => {
-    mount(); expect(JSON.parse(screen.getByTestId('preview-mounted').textContent!)).toMatchObject({ scope: { ...context, device_id: 'D' } });
+    mount(); expect(JSON.parse(screen.getByTestId('preview-mounted').textContent!)).toMatchObject({ scope: { ...context, device_id: 'D' }, refreshWorkspaceHead: true });
   });
   it.each(['saving', 'draft-invalid', 'save-error', 'idle'] as const)('does not preview typed or unconfirmed settings (%s)', save_state => {
     mount({ ...device, save_state });
-    expect(JSON.parse(screen.getByTestId('preview-mounted').textContent!)).toEqual({ unavailableReason: 'unsaved' });
+    expect(JSON.parse(screen.getByTestId('preview-mounted').textContent!)).toEqual({ unavailableReason: 'unsaved', refreshWorkspaceHead: true });
   });
   it('gives the full-height diagnostic and preview separate intrinsic grid rows above the footer', () => {
     mount();
@@ -77,11 +77,12 @@ describe('existing source surface acquisition scope', () => {
     render(<QueryClientProvider client={client}><Step1Device state={{ ...INITIAL_STATE, devices: [device, { ...device, id: 'B' }] }}
       dispatch={vi.fn()} onContinue={vi.fn()} locatorSelection={locator.selection}
       previewWorkspace={{ workspace_id: 'W', expected_workspace_revision: 'W2' }} /></QueryClientProvider>);
+    expect(JSON.parse(screen.getByTestId('preview-mounted').textContent!)).toMatchObject({ refreshWorkspaceHead: false });
     fireEvent.click(screen.getByTestId('device-tab-B'));
-    expect(JSON.parse(screen.getByTestId('preview-mounted').textContent!)).toEqual({ unavailableReason: 'scope' });
+    expect(JSON.parse(screen.getByTestId('preview-mounted').textContent!)).toEqual({ unavailableReason: 'scope', refreshWorkspaceHead: false });
   });
   it('does not preview a nonpersisted source even if a local saved flag is present', () => {
     mount({ ...device, persisted: false });
-    expect(JSON.parse(screen.getByTestId('preview-mounted').textContent!)).toEqual({ unavailableReason: 'unsaved' });
+    expect(JSON.parse(screen.getByTestId('preview-mounted').textContent!)).toEqual({ unavailableReason: 'unsaved', refreshWorkspaceHead: true });
   });
 });

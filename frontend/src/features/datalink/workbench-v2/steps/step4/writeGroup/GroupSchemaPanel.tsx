@@ -1,3 +1,4 @@
+import { RecordingSchemaImpact } from '../../../recording-editor/RecordingSchemaImpact';
 import type { GuidedSchemaPresentation, SchemaPreparationBlocker, SchemaPreparationPresentation } from './schemaPreparationPresentation';
 import { inspectSchemaOperation, readSchemaOperation, retainSchemaOperation } from './schemaOperationRecovery';
 import * as React from 'react';
@@ -63,6 +64,8 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
   const ownerScope = useRef({ identity: ownerIdentity, epoch: 0 });
   if (ownerScope.current.identity !== ownerIdentity) ownerScope.current = { identity: ownerIdentity, epoch: ownerScope.current.epoch + 1 };
   const previewEpoch = useRef<number | undefined>(undefined);
+  const parentConsent = useRef(guided?.consentEpoch); parentConsent.current = guided?.consentEpoch;
+  const previewConsent = useRef<number | undefined>(undefined);
   const operationId = useRef<string | undefined>(readSchemaOperation(workspaceId, group?.id));
   const scopeRef = useRef(scopeKey);
   scopeRef.current = scopeKey;
@@ -109,6 +112,8 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
   useEffect(() => {
     if (previewEpoch.current !== consentEpoch) { setPreview(null); setPreviewFailureEpoch(undefined); }
   }, [consentEpoch]);
+  // Parent-native changes retire only preview consent, not a known failed-preview retry or submitted operation.
+  useEffect(() => { if (previewConsent.current !== guided?.consentEpoch) setPreview(null); }, [guided?.consentEpoch]);
 
   const blockedReason = !group
     ? t('step4.group.schema.blocked_unsaved')
@@ -123,9 +128,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
             : undefined;
   const enabled = blockedReason === undefined;
   const busy = previewMutation.isPending || applyMutation.isPending || inFlight.current;
-  const canApply = enabled && preview !== null && previewEpoch.current === ownerScope.current.epoch && operation === null && !needsCheck;
-  const columns = preview?.group_layout?.columns.filter((column) => column.name !== preview.group_layout?.owner_column) ?? [];
-  const addedColumns = new Set(preview?.tables.filter(table => table.action === 'add_columns').flatMap(table => table.columns ?? []) ?? []);
+  const canApply = enabled && preview !== null && previewEpoch.current === ownerScope.current.epoch && previewConsent.current === parentConsent.current && operation === null && !needsCheck;
   const effectiveOperation = operation ?? lastOperation;
   const shouldOfferCheck = needsCheck || (effectiveOperation !== null && effectiveOperation.status !== 'succeeded');
   const blocksNewPreview = needsCheck || ['pending', 'running', 'unknown', 'partial'].includes(effectiveOperation?.status ?? '');
@@ -143,13 +146,13 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
     if (inFlight.current) return;
     inFlight.current = true;
     const requestedScope = scopeRef.current;
-    const requestedEpoch = ownerScope.current.epoch;
+    const requestedEpoch = ownerScope.current.epoch, requestedConsent = parentConsent.current;
     setError(null);
     setPreviewFailureEpoch(undefined);
     try {
       await action();
     } catch (cause) {
-      if (scopeRef.current === requestedScope && ownerScope.current.epoch === requestedEpoch) {
+      if (scopeRef.current === requestedScope && ownerScope.current.epoch === requestedEpoch && (origin !== 'preview' || parentConsent.current === requestedConsent)) {
         setError(cause);
         if (origin === 'preview') setPreviewFailureEpoch(requestedEpoch);
       }
@@ -163,7 +166,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
     const retained = readSchemaOperation(workspaceId, group.id);
     if (retained) { operationId.current = retained; setNeedsCheck(true); return; }
     const requestedScope = scopeRef.current;
-    const requestedEpoch = ownerScope.current.epoch;
+    const requestedEpoch = ownerScope.current.epoch, requestedConsent = parentConsent.current;
     const result = await previewMutation.mutateAsync({
       id: group.id,
       request: {
@@ -173,7 +176,8 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
         expected_connector_revision: group.destination.connector_revision,
       },
     });
-    if (scopeRef.current !== requestedScope || ownerScope.current.epoch !== requestedEpoch) return;
+    if (scopeRef.current !== requestedScope || ownerScope.current.epoch !== requestedEpoch || parentConsent.current !== requestedConsent) return;
+    previewConsent.current = requestedConsent;
     operationId.current = result.operation_id;
     previewEpoch.current = requestedEpoch;
     setPreview(result);
@@ -351,8 +355,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
 
       {blockedReason && <p role="status" className="text-xs text-amber-300" data-testid="group-schema-blocked">{blockedReason}</p>}
 
-      {guided?.renderActions?.(presentation)}
-      {guided && previewFailure && <button type="button" onClick={presentation.commands.retryPreview} disabled={!presentation.commands.retryPreview}
+      {guided && !guided.renderActions && previewFailure && <button type="button" onClick={presentation.commands.retryPreview} disabled={!presentation.commands.retryPreview}
         className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-100 disabled:opacity-40" data-testid="group-schema-preview">
         {t('step4.group.schema.preview')}
       </button>}
@@ -375,46 +378,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
         )}
       </div>}
 
-      {preview && (
-        <div className="max-h-72 space-y-3 overflow-auto rounded border border-slate-800 p-3 text-xs text-slate-300" data-testid="group-schema-preview-result">
-          <div className="grid gap-1 sm:grid-cols-2" data-testid="group-schema-preview-table">
-            <span className="text-slate-500">{t('step4.group.schema.table')}</span>
-            <span className="font-mono">{preview.group_layout?.table_name ?? preview.table_prefix}</span>
-            {preview.no_change_reason && <><span className="text-slate-500">{t('step4.group.schema.change')}</span><span>{t('step4.group.schema.no_change')}</span></>}
-          </div>
-
-          {columns.length > 0 && (
-            <div className="overflow-x-auto" role="region" aria-label={t('step4.group.schema.columns_region')} tabIndex={0}>
-              <table className="w-full min-w-[520px] border-collapse text-left" data-testid="group-schema-columns">
-                <thead className="text-slate-500">
-                  <tr>
-                    <th scope="col" className="p-2">{t('step4.group.schema.column_name')}</th>
-                    <th scope="col" className="p-2">{t('step4.group.schema.sql_type')}</th>
-                    <th scope="col" className="p-2">{t('step4.group.schema.nullable')}</th>
-                    <th scope="col" className="p-2">{t('step4.group.schema.primary_key')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {columns.map((column) => (
-                    <tr key={column.name}>
-                      <td className="p-2 font-mono">{column.name} {addedColumns.has(column.name) && <span className="text-amber-300">{t('step4.group.schema.added_column')}</span>}</td>
-                      <td className="p-2 font-mono">{column.sql_type}</td>
-                      <td className="p-2">{column.nullable ? t('step4.group.schema.yes') : t('step4.group.schema.no')}</td>
-                      <td className="p-2">{column.primary_key ? t('step4.group.schema.yes') : t('step4.group.schema.no')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <details>
-            <summary className="cursor-pointer text-slate-400">{t('step4.group.schema.advanced_sql')}</summary>
-            <pre className="mt-2 max-w-full overflow-x-auto whitespace-pre-wrap text-[11px] text-slate-500">{preview.statements.join('\n')}</pre>
-          </details>
-          <p className="text-slate-500" role="status">{t('step4.group.schema.confirm_note')}</p>
-        </div>
-      )}
+      {preview && <RecordingSchemaImpact preview={preview} layout={group?.layout_version} />}
 
       {shouldOfferCheck && (
         <div className="flex flex-wrap items-center gap-2" role="status" data-testid="group-schema-operation-pending">
@@ -439,6 +403,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
           {needsCheck && <span className="ml-1">{t('step4.group.schema.error_check_same_operation')}</span>}
         </p>
       )}
+      {guided?.renderActions?.(presentation)}
     </section>
   );
 };

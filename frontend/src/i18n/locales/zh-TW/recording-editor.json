@@ -292,5 +292,55 @@
     "connector": "連線 ID",
     "storage": "儲存策略／版型／模式",
     "revision": "記錄版本"
+  },
+  "preparation": {
+    "noStart": "保存、檢查及確認結構是分開的動作，都不會開始記錄，也不代表 SQL 已寫入。",
+    "testWritePending": "既有目的地測試尚待查證，請使用下方原操作的狀態查詢；不需要新增測試。",
+    "stage": {
+      "save": "保存此記錄設定",
+      "saving": "正在保存設定…",
+      "saveUnknown": "保存結果尚未確認，請先查看已保存記錄，不要再次提交。",
+      "saved": "設定已保存，下一步檢查目前結構影響。",
+      "checking": "正在查證目前操作…",
+      "review": "這只是預覽，請核對所有資料表變更後再確認。",
+      "lookup": "已提交操作尚未明確，請查詢同一筆操作。",
+      "ready": "依目前檢查，已保存設定已就緒；開始仍是獨立動作。",
+      "schemaConfirmed": "結構操作已完成，請重新檢查目前已保存設定。",
+      "offline": "目前離線，可繼續編輯；重新連線後才能檢查或提交。",
+      "blocked": "請先處理目前限制，再檢查或提交。"
+    },
+    "action": {
+      "save": "保存設定",
+      "check": "檢查結構影響",
+      "confirm": "確認這些結構變更",
+      "lookup": "查詢既有操作",
+      "recheck": "重新檢查已保存設定"
+    },
+    "blocker": {
+      "missing_scope": "請先保存記錄及其目的地。",
+      "scope_mismatch": "這份觀察屬於其他範圍，請重新開啟指定記錄。",
+      "unreadable": "尚無法查證目前操作，請先重試狀態查詢，再提交新命令。",
+      "offline": "請先重新連線再提交命令。",
+      "readonly": "此記錄目前唯讀，或另有變更尚待結算。",
+      "destination": "請先保存並確認目前目的地。",
+      "deleted": "此記錄已移除。",
+      "operation_unresolved": "請查詢已提交操作，不要另建替代操作。"
+    },
+    "impact": {
+      "previewOnly": "預覽僅說明預計的結構變更，不是已套用結構，也不是已寫入資料。",
+      "database": "資料庫",
+      "schema": "結構",
+      "layout": "記錄版型",
+      "workspaceRevision": "工作區版本",
+      "recordingRevision": "記錄版本",
+      "connectorRevision": "連線版本",
+      "indexes": "服務提供的版型索引",
+      "noColumns": "未列出欄位變更",
+      "action": {
+        "create": "建立資料表",
+        "add_columns": "新增欄位",
+        "unchanged": "資料表不變"
+      }
+    }
   }
 }

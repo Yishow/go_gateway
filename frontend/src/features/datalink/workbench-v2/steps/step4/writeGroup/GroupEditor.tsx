@@ -44,7 +44,7 @@ import { GroupMemberTable } from './GroupMemberTable';
 import { GroupPolicyFields } from './GroupPolicyFields';
 import { GroupProfileMembers, GroupProfileSummary } from './GroupProfileSummary';
 import { GroupReadinessPanel } from './GroupReadinessPanel';
-import { GroupSchemaPanel } from './GroupSchemaPanel';
+import { GroupEditorPreparation } from '../../../recording-editor/GroupEditorPreparation';
 import { GroupTestWritePanel } from './GroupTestWritePanel';
 
 export interface GroupEditorProps {
@@ -406,21 +406,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       )}
 
       </fieldset>
-      {draft.storage_strategy === 'managed' && (
-        <GroupSchemaPanel
-          group={group}
-          workspaceId={workspaceId}
-          workspaceRevision={workspaceRevision}
-          destinationMatches={destinationMatches}
-          dirty={dirty}
-          readonly={readonly}
-          onApplied={() => {
-            metadata.refetch();
-            void readiness.refetch();
-            onReload();
-          }}
-        />
-      )}
+
 
       {unsettledSources.length > 0 && <div role="alert" data-testid="group-source-unsettled">
         <p>{editorText('range.selectedUnsettled')}</p><ul>{unsettledSources.map(member => {
@@ -448,16 +434,15 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         <p>{editorText('navigation.unknownSave')}</p>
         <button type="button" className="gw-secondary" data-testid="group-save-review" onClick={() => navigation.request(() => { onReload(); onClose(); })}>{editorText('navigation.reviewSaved')}</button>
       </div>}
-      <div className="flex items-center gap-3">
-        <button
-          type="button" onClick={() => void handleSave()} disabled={readonly || saving || saveUnknown || saveReadbackPending || invalid || unsettledSources.length > 0 || (Boolean(group) && !dirty)}
-          className="rounded bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-40" data-testid="group-save"
-        >
-          {saving ? t('common.saving') : group ? t('step4.group.editor.save') : t('step4.group.editor.create')}
-        </button>
-        {group && !dirty && <span className="text-xs text-emerald-300" data-testid="group-saved-note">{t('step4.group.editor.saved')}</span>}
-        {dirty && group && <span className="text-xs text-amber-300" data-testid="group-dirty-note">{t('step4.group.editor.unsaved')}</span>}
-      </div>
+      <GroupEditorPreparation managed={draft.storage_strategy === 'managed' || group?.destination.storage_strategy === 'managed'}
+        group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision} destinationMatches={destinationMatches} dirty={dirty} readonly={readonly}
+        consentIdentity={JSON.stringify([workspaceId, workspaceRevision, group?.id, group?.revision, draft, connector.connector_id, connector.identity_revision,
+          candidates.filter(candidate => draft.members.some(member => member.point_id === candidate.point_id && member.tag_id === candidate.tag_id)), readonly, unsettledSources])}
+        save={{ saved: Boolean(group), dirty, busy: saving, unknown: saveUnknown || saveActivity.priorUnknown,
+          disabled: readonly || saving || saveUnknown || saveReadbackPending || invalid || unsettledSources.length > 0 || (Boolean(group) && !dirty), invoke: handleSave }}
+        blocked={readonly || saving || saveUnknown || saveReadbackPending || invalid || unsettledSources.length > 0}
+        readiness={{ data: readiness.data, loading: readiness.isFetching, failed: readiness.isError, updatedAt: readiness.dataUpdatedAt, check: readiness.refetch }}
+        onApplied={() => { metadata.refetch(); void readiness.refetch(); onReload(); }} />
 
       {group && (
         <>

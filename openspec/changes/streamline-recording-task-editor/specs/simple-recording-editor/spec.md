@@ -60,6 +60,20 @@ The system SHALL reuse existing saving, validation, schema review and scoped-sta
 - **WHEN** the operator clicks the same action repeatedly or receives a stale response after changing scope
 - **THEN** the existing in-flight, operation-identity and revision guards prevent duplicate commands and cross-scope updates.
 
+#### Scenario: A saved mixed recording has sources on multiple devices
+- **WHEN** an operator explicitly starts one saved mixed recording whose members require two selected devices
+- **THEN** the existing scoped-start owner includes exactly those required devices, leaves an unrelated third workspace device untouched, and preserves the recording identity without creating a Basic record or converting legacy configurations.
+- **AND** legacy Basic intents without the explicit saved-record discriminator retain their original single-device validation.
+
+#### Scenario: A start reply is lost before its operation ID is received
+- **WHEN** the original scoped start request is retained but its operation ID is unknown
+- **THEN** the operator SHALL be able to query the existing ledger using that original request through a read-only lookup, with the same workspace, request-ID and normalized-payload-digest checks.
+- **AND** lookup SHALL NOT claim, resume, apply or activate any work, and a found operation SHALL return to the original operation-ID recovery owner.
+
+#### Scenario: Original-request lookup cannot establish an operation
+- **WHEN** lookup finds no operation, fails, or receives a different workspace or normalized payload for the same request ID
+- **THEN** it SHALL remain unknown or explicitly reject the mismatch, without treating absence as cancellation or permission to send another start request.
+
 ### Requirement: Closing an editor does not roll back submitted source changes
 The system SHALL distinguish unsent modal fields, submitted source changes and confirmed saved source changes. A successful source save SHALL remain saved when the recording form is discarded, and a pending or unknown save SHALL use existing settlement or recovery rather than being labelled cancelled.
 

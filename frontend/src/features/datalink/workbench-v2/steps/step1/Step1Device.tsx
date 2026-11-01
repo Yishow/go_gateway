@@ -175,6 +175,7 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
               <div className="grid content-start gap-6 lg:col-span-6">
                 <ConnectionTestPanel device={activeDevice} onRunTest={handleRunTest} />
                 <AcquisitionPlanPreviewPanel
+                  refreshWorkspaceHead={!locatorSelection}
                   scope={previewWorkspace && (!locatorSelection || locatorSelection.target.deviceId === activeDevice.id) && activeDevice.persisted && activeDevice.save_state === 'saved'
                     ? { ...previewWorkspace, device_id: activeDevice.id } : undefined}
                   unavailableReason={!activeDevice.persisted || activeDevice.save_state !== 'saved' ? 'unsaved' : 'scope'} />

@@ -15,6 +15,8 @@
 
 ## Impact
 
+- 3.2 必要接線補充：前端沿原 start owner 支援已保存 mixed 的 exact 多設備 scope；後端只以既有 RecordingStartService／ledger 提供原 request 的唯讀 lookup facade，讓 lost-ACK 無 operation ID 仍能查證。涉及 recording-start router／handler／workspace service，不新增 engine、ledger、migration 或自動重送。
+
 - Affected specs: simple-recording-editor (new); guided-recording-workflow (modified)
 - Affected code:
   - Modified: `frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx`; `frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx`; `frontend/src/features/datalink/workbench-v2/steps/step4/GuidedRecordingPreparation.tsx`; `frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts`

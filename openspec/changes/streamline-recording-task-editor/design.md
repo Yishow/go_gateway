@@ -38,6 +38,18 @@
 
 顯示 save、檢查、schema impact 與 start 的實際階段，同一主 CTA 不等於合併後端安全 gate。schema review 的 table/columns/layout/revision 依服務 evidence；修改任何相關輸入清除過期 confirmation，再重新檢查。Start 使用既有 scoped ownership/readiness/CAS，不要求 workspace-wide 啟用；started 只轉 waiting，不轉 success。
 
+### 已保存記錄的多設備啟動與遺失回覆查詢
+
+3.2 接線時已核實 `recordingMixedDraft` 允許明確選擇多設備 members，而 `RecordingStartService` 已支援 selected device scope；原 Basic hook／session decoder／completion 的單設備假設不能變成新 mixed 的默認限制。「cross-device 不默轉」仍禁止舊配置自動轉型，不禁止明確建立且已保存的 mixed scope。
+
+前端沿同一 start request／recovery owner，以明確 `saved_record` discriminator 保存一個已保存 group 與 exact selected device IDs。沿 backend 既有最多 64 設備上限，驗非空、唯一、全部 members 所需集合且不借其他設備；API 仍為原 RecordingStartRequest，不新增啟動引擎。無 discriminator 的舊 Basic decoder／completion 保留原單設備及最多兩個 profile group 約束。原 record/group identity、語意及 baseline 不轉換，不建立隱藏 Basic 記錄。
+
+已核實目前 HTTP 只提供 Start 與 operation-ID GET；回覆遺失但 operation ID 尚未取得時，原 retained request 無可用查詢入口。原 ledger 已有唯讀 `FindRecordingStart(workspaceID, requestID, digest)`，因此僅補 `POST /studio-v2/workspace/recording-start/lookup` 這個唯讀 facade：body 為完整原 RecordingStartRequest，沿同一 normalize/digest，先讀既存 workspace，再查既有 ledger、decode 為原 operation DTO。使用 POST 是為避免完整請求／短期 readiness 資料出現在 URL，不代表重新開始。
+
+Lookup 不得呼叫 GetOrCreate、Claim、Resume、Apply、Activate、probe、DDL 或現況 source validation；歷史狀態查詢不能因新設定 revision 而改寫原 request。錯 workspace、同 request ID 不同 digest、錯 action／損壞 detail 明確拒絕；不存在或查詢失敗保持 unknown，不推論可安全重送。取得 operation ID 後接回原 operation-ID query／completion，不新增 ledger、store、migration、認證能力或跨 workspace 列舉。不在前端複製私有 operation ID 雜湊算法。
+
+此節只補原「scoped start／unknown 查狀態」的必要接縫，不新增 task／change 或演算法範圍。先驗兩設備一 mixed＋第三設備未選的真 production wiring、舊 Basic 嚴格負向、lost-ACK 原 request lookup 的零寫入／無重複啟動；再由真 Browser 驗新 start 與成功窗口。前後端獨立檔案並行，root 統一歸屬 3.2。
+
 ## Implementation Contract
 
 共同 apply 前置：四案規格完成審查、補齊 demo，並已取得 owner 對本次固定版本關鍵頁面／路徑的確認。此 gate 在第一案產品實作前執行，不等到第四案；demo確認不代表正式瀏覽器或實機驗收通過。

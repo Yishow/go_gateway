@@ -292,5 +292,55 @@
     "connector": "Connector ID",
     "storage": "Storage / layout / mode",
     "revision": "Recording revision"
+  },
+  "preparation": {
+    "noStart": "Saving, checking and confirming schema are separate actions. None starts recording or proves a SQL write.",
+    "testWritePending": "An existing destination test still needs recovery. Use its original operation status below; no new test is required.",
+    "stage": {
+      "save": "Save this recording configuration",
+      "saving": "Saving configuration…",
+      "saveUnknown": "The save result is unconfirmed — review saved records before submitting again.",
+      "saved": "Configuration saved. Check its current schema impact next.",
+      "checking": "Checking the current operation…",
+      "review": "Preview only — review every table change before confirming.",
+      "lookup": "A submitted operation is unresolved. Check that same operation.",
+      "ready": "Saved configuration is ready according to the current checks. Starting remains a separate action.",
+      "schemaConfirmed": "The schema operation completed. Recheck the current saved configuration.",
+      "offline": "Offline — keep editing, then reconnect to check or submit.",
+      "blocked": "Resolve the current restriction before checking or submitting."
+    },
+    "action": {
+      "save": "Save configuration",
+      "check": "Check schema impact",
+      "confirm": "Confirm these schema changes",
+      "lookup": "Check existing operation",
+      "recheck": "Recheck saved configuration"
+    },
+    "blocker": {
+      "missing_scope": "Save the recording and its destination first.",
+      "scope_mismatch": "This observation belongs to another scope. Reload the intended recording.",
+      "unreadable": "The current operation could not be verified. Retry its check before a new command.",
+      "offline": "Reconnect before sending a command.",
+      "readonly": "This recording is currently read-only or another change is pending.",
+      "destination": "Save and review the current destination first.",
+      "deleted": "This recording has been removed.",
+      "operation_unresolved": "Check the submitted operation instead of replacing it."
+    },
+    "impact": {
+      "previewOnly": "Preview describes proposed schema changes, not applied schema or recorded data.",
+      "database": "Database",
+      "schema": "Schema",
+      "layout": "Recording layout",
+      "workspaceRevision": "Workspace revision",
+      "recordingRevision": "Recording revision",
+      "connectorRevision": "Connector revision",
+      "indexes": "Indexes in the service-provided layout",
+      "noColumns": "No column changes listed",
+      "action": {
+        "create": "Create table",
+        "add_columns": "Add columns",
+        "unchanged": "No table change"
+      }
+    }
   }
 }
