@@ -40,7 +40,7 @@ func TestLifecycleCommitRejectsCachedBoundaryIntakeBeforeReconcile(t *testing.T)
 			for _, g := range []*workspace.WriteGroup{group, healthy} {
 				persistLifecycleIntakeGroup(t, f, g)
 			}
-			_, err = db.Exec(`INSERT INTO database_connectors(id,name,kind,identity_revision,connection_config,status) VALUES('connector-1','fixture','sqlite','crev-1','{}','ready')`)
+			_, err = db.ExecContext(t.Context(), `INSERT INTO database_connectors(id,name,kind,identity_revision,connection_config,status) VALUES('connector-1','fixture','sqlite','crev-1','{}','ready')`)
 			require.NoError(t, err)
 			service := workspace.NewWriteGroupService(ws, workspace.NewSQLWriteGroupRepository(db)).WithBacklogOwnershipGuard(BacklogGuard{}).WithClock(func() time.Time { return f.clock })
 			pipe := New(Dependencies{Groups: service, Tags: f.tags, Destinations: f.dest, Inspector: f.inspect, Store: f.store}, Config{Now: func() time.Time { return f.clock }})
@@ -51,12 +51,12 @@ func TestLifecycleCommitRejectsCachedBoundaryIntakeBeforeReconcile(t *testing.T)
 			f.clock = at(12)
 			pipe.TickAll(t.Context())
 			var queued int
-			require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_outbox WHERE group_id='G1' AND state='pending'`).Scan(&queued))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_outbox WHERE group_id='G1' AND state='pending'`).Scan(&queued))
 			require.Equal(t, 1, queued)
 			require.NoError(t, pipe.AcceptSample(t.Context(), envelope(group, "already-accepted", at(11), 11.5)))
 			f.clock = at(18)
 			require.NoError(t, pipe.AcceptSample(t.Context(), envelope(group, "preaccepted-future", at(21), 21.5)), "three seconds ahead is within the existing five-second MaxFutureSkew")
-			_, err = db.Exec(`INSERT INTO wg_delivery_receipts(effect_key,payload_digest,committed_at) VALUES('prior-receipt','prior-digest','2026-01-01T00:00:00Z')`)
+			_, err = db.ExecContext(t.Context(), `INSERT INTO wg_delivery_receipts(effect_key,payload_digest,committed_at) VALUES('prior-receipt','prior-digest','2026-01-01T00:00:00Z')`)
 			require.NoError(t, err)
 			current, err := service.Get(t.Context(), group.ID)
 			require.NoError(t, err)
@@ -84,17 +84,17 @@ func TestLifecycleCommitRejectsCachedBoundaryIntakeBeforeReconcile(t *testing.T)
 			after := backlogOwnershipState(t, db)
 			assert.Equal(t, before, after, "refused sample must not change accepted samples, outbox, versions or receipts")
 			var appended int
-			require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE sample_id='after-lifecycle-commit'`).Scan(&appended))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE sample_id='after-lifecycle-commit'`).Scan(&appended))
 			assert.Zero(t, appended, "the cached boundary must not commit the post-stop sample")
 			require.NoError(t, pipe.AcceptSample(t.Context(), envelope(healthy, "healthy-after-stop", at(18), 7.5)), "another active group remains usable without a global intake stop")
-			require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id='healthy-G1' AND sample_id='healthy-after-stop'`).Scan(&appended))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id='healthy-G1' AND sample_id='healthy-after-stop'`).Scan(&appended))
 			require.Equal(t, 1, appended)
 			for _, table := range []string{"wg_delivery_outbox", "wg_delivery_receipts", "write_group_versions", "wg_runtime_versions"} {
 				require.Equal(t, before[table], backlogOwnershipState(t, db)[table], "independent intake also leaves frozen history unchanged")
 			}
 			t.Run("preaccepted-future-drain", func(t *testing.T) {
 				var payload, digest string
-				require.NoError(t, db.QueryRow(`SELECT payload,payload_digest FROM wg_delivery_samples WHERE group_id='G1' AND sample_id='preaccepted-future' AND consumed=0`).Scan(&payload, &digest))
+				require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_samples WHERE group_id='G1' AND sample_id='preaccepted-future' AND consumed=0`).Scan(&payload, &digest))
 				// The existing stop boundary closes at 20, before the accepted
 				// observation at 21. Historical-journal recovery must then drain it.
 				require.NoError(t, pipe.Reconcile(t.Context()))
@@ -105,20 +105,20 @@ func TestLifecycleCommitRejectsCachedBoundaryIntakeBeforeReconcile(t *testing.T)
 				pipe.TickAll(t.Context())
 				var afterPayload, afterDigest string
 				var consumed, effects int
-				require.NoError(t, db.QueryRow(`SELECT payload,payload_digest,consumed FROM wg_delivery_samples WHERE group_id='G1' AND sample_id='preaccepted-future'`).Scan(&afterPayload, &afterDigest, &consumed))
+				require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload,payload_digest,consumed FROM wg_delivery_samples WHERE group_id='G1' AND sample_id='preaccepted-future'`).Scan(&afterPayload, &afterDigest, &consumed))
 				require.Equal(t, payload, afterPayload)
 				require.Equal(t, digest, afterDigest)
 				require.Equal(t, 1, consumed, "preaccepted future observation must finish closure, not remain stranded")
-				require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_outbox WHERE group_id='G1' AND group_revision='R1' AND bucket_start=?`, "2026-01-01T00:00:20.000000000Z").Scan(&effects))
+				require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_outbox WHERE group_id='G1' AND group_revision='R1' AND bucket_start=?`, "2026-01-01T00:00:20.000000000Z").Scan(&effects))
 				if effects != 1 {
 					var outcomes, queued string
-					require.NoError(t, db.QueryRow(`SELECT COALESCE(json_group_array(json_object('bucket',bucket_start,'kind',kind,'reason',reason,'members',members)),'[]') FROM wg_delivery_buckets WHERE group_id='G1'`).Scan(&outcomes))
-					require.NoError(t, db.QueryRow(`SELECT COALESCE(group_concat(bucket_start),'') FROM wg_delivery_outbox WHERE group_id='G1'`).Scan(&queued))
+					require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COALESCE(json_group_array(json_object('bucket',bucket_start,'kind',kind,'reason',reason,'members',members)),'[]') FROM wg_delivery_buckets WHERE group_id='G1'`).Scan(&outcomes))
+					require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COALESCE(group_concat(bucket_start),'') FROM wg_delivery_outbox WHERE group_id='G1'`).Scan(&queued))
 					t.Logf("future closure outcomes=%s queued=%s", outcomes, queued)
 				}
 				require.Equal(t, 1, effects, "the original revision keeps one frozen effect for the accepted future bucket")
 				var connector, connectorRevision, database, schema, table string
-				require.NoError(t, db.QueryRow(`SELECT connector_id,connector_revision,database_name,table_schema,table_name FROM wg_delivery_outbox WHERE group_id='G1' AND group_revision='R1' AND bucket_start='2026-01-01T00:00:20.000000000Z'`).Scan(&connector, &connectorRevision, &database, &schema, &table))
+				require.NoError(t, db.QueryRowContext(t.Context(), `SELECT connector_id,connector_revision,database_name,table_schema,table_name FROM wg_delivery_outbox WHERE group_id='G1' AND group_revision='R1' AND bucket_start='2026-01-01T00:00:20.000000000Z'`).Scan(&connector, &connectorRevision, &database, &schema, &table))
 				require.Equal(t, []string{"connector-1", "crev-1", "", "main", "readings"}, []string{connector, connectorRevision, database, schema, table}, "recovery keeps the original frozen destination")
 				require.Equal(t, before["wg_delivery_receipts"], backlogOwnershipState(t, db)["wg_delivery_receipts"])
 			})
@@ -136,10 +136,10 @@ func persistLifecycleIntakeGroup(t *testing.T, f *fixture, group *workspace.Writ
 	require.NoError(t, err)
 	writePolicy, err := json.Marshal(group.WritePolicy)
 	require.NoError(t, err)
-	_, err = tx.Exec(`UPDATE write_groups SET row_policy=?,write_policy=? WHERE id=?`, string(rowPolicy), string(writePolicy), group.ID)
+	_, err = tx.ExecContext(t.Context(), `UPDATE write_groups SET row_policy=?,write_policy=? WHERE id=?`, string(rowPolicy), string(writePolicy), group.ID)
 	require.NoError(t, err)
 	for i, m := range group.Members {
-		_, err = tx.Exec(`INSERT INTO write_group_members(group_id,member_index,device_id,point_id,tag_id,source_revision,mapping_revision,target_column,required) VALUES(?,?,?,?,?,?,?,?,?)`, group.ID, i, m.DeviceID, m.PointID, m.TagID, m.SourceRevision, m.MappingRevision, m.TargetColumn, m.Required)
+		_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_members(group_id,member_index,device_id,point_id,tag_id,source_revision,mapping_revision,target_column,required) VALUES(?,?,?,?,?,?,?,?,?)`, group.ID, i, m.DeviceID, m.PointID, m.TagID, m.SourceRevision, m.MappingRevision, m.TargetColumn, m.Required)
 		require.NoError(t, err)
 	}
 	require.NoError(t, tx.Commit())

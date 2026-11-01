@@ -73,7 +73,7 @@ func TestHandoffMetadataReadersIsolateDamagedScope(t *testing.T) {
 	store := acceptedMetadataHandoff(t)
 	healthy := GroupKey{WorkspaceID: testKey.WorkspaceID, GroupID: "healthy-metadata", GroupRevision: "rev-healthy"}
 	require.NoError(t, store.AppendSample(t.Context(), healthy, at(20), sampleAt("healthy", "temp", 23, 6)))
-	_, err := store.DB().Exec(`UPDATE wg_delivery_sample_handoffs SET record='{}'`)
+	_, err := store.DB().ExecContext(t.Context(), `UPDATE wg_delivery_sample_handoffs SET record='{}'`)
 	require.NoError(t, err)
 	store.DB().SetMaxOpenConns(1)
 	for _, reader := range handoffMetadataReaders {

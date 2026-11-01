@@ -39,7 +39,7 @@ func latestHandoffFixture(t *testing.T, shape averageShape) *ownershipPipelineFi
 		statements, err := recordingplan.GenerateGroupSchemaDDL("sqlite", wideAverageLayout(source.Group))
 		require.NoError(t, err)
 		// The shared receipt table already exists from the target fixture.
-		_, err = f.plainTarget().Exec(statements[0])
+		_, err = f.plainTarget().ExecContext(t.Context(), statements[0])
 		require.NoError(t, err)
 		for i := range source.RuntimeLayout.Columns {
 			if source.RuntimeLayout.Columns[i].Name == canonicalManagedOwnerColumn(f.target.Group) {
@@ -51,7 +51,7 @@ func latestHandoffFixture(t *testing.T, shape averageShape) *ownershipPipelineFi
 	for _, s := range []*workspace.WriteGroupAppliedSnapshot{f.source, f.target} {
 		raw, err = json.Marshal(s)
 		require.NoError(t, err)
-		_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(raw), s.GroupID)
+		_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(raw), s.GroupID)
 		require.NoError(t, err)
 	}
 	f.groups.groups = []*workspace.WriteGroup{f.source.Group}
@@ -91,8 +91,8 @@ func TestCutoverReconcileLatestPreservesEarlier100AndSuccessor200(t *testing.T) 
 			require.Equal(t, []any{"100"}, reconciledHandoffCell(t, f, f.source.GroupID, at(0), column))
 			require.Equal(t, []any{"200"}, reconciledHandoffCell(t, f, f.target.GroupID, at(0), column))
 			var oldConsumed, newConsumed int
-			require.NoError(t, f.local.QueryRow(`SELECT SUM(consumed) FROM wg_delivery_samples WHERE group_id=?`, f.source.GroupID).Scan(&oldConsumed))
-			require.NoError(t, f.local.QueryRow(`SELECT SUM(consumed) FROM wg_delivery_samples WHERE group_id=?`, f.target.GroupID).Scan(&newConsumed))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT SUM(consumed) FROM wg_delivery_samples WHERE group_id=?`, f.source.GroupID).Scan(&oldConsumed))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT SUM(consumed) FROM wg_delivery_samples WHERE group_id=?`, f.target.GroupID).Scan(&newConsumed))
 			require.Equal(t, 2, oldConsumed)
 			require.Equal(t, 1, newConsumed)
 			f.deliver()
@@ -106,7 +106,7 @@ func TestCutoverReconcileLatestPreservesEarlier100AndSuccessor200(t *testing.T) 
 					query = `SELECT kwh_1,provenance FROM ` + owner.snapshot.Group.Destination.TableName + ` WHERE group_id=? AND kwh_1 IS NOT NULL`
 				}
 				var value, provenance string
-				require.NoError(t, f.plainTarget().QueryRow(query, owner.snapshot.GroupID).Scan(&value, &provenance))
+				require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), query, owner.snapshot.GroupID).Scan(&value, &provenance))
 				require.Equal(t, owner.value, value, "real disposable SQLite destination readback")
 				var entries []struct{ Window struct{ Start, End string } }
 				if !shape.wide() {
@@ -132,11 +132,11 @@ func TestCutoverReconcilePendingSiblingDoesNotBlockAcceptedBranch(t *testing.T) 
 	// The existing independent cumulative fanout has no frozen runtime proof.
 	// It must stay pending, not become a required member of the accepted pair.
 	const pending = "pending-cumulative"
-	_, err := f.local.Exec(`INSERT INTO write_group_versions(group_id,group_revision,effective_at,payload) SELECT ?,group_revision,effective_at,json_set(payload,'$.id',?,'$.recording_profile.kind','cumulative','$.destination.table_name',?) FROM write_group_versions WHERE group_id=?`, pending, pending, pending, f.target.GroupID)
+	_, err := f.local.ExecContext(t.Context(), `INSERT INTO write_group_versions(group_id,group_revision,effective_at,payload) SELECT ?,group_revision,effective_at,json_set(payload,'$.id',?,'$.recording_profile.kind','cumulative','$.destination.table_name',?) FROM write_group_versions WHERE group_id=?`, pending, pending, pending, f.target.GroupID)
 	require.NoError(t, err)
-	_, err = f.local.Exec(`UPDATE write_group_cutovers SET detail=json_insert(detail,'$.started[#]',json_object('group_id',?,'revision',?))`, pending, f.target.AppliedRevision)
+	_, err = f.local.ExecContext(t.Context(), `UPDATE write_group_cutovers SET detail=json_insert(detail,'$.started[#]',json_object('group_id',?,'revision',?))`, pending, f.target.AppliedRevision)
 	require.NoError(t, err)
-	_, err = f.local.Exec(`INSERT INTO write_group_ownership_fences SELECT fence_revision,workspace_id,direction,?,group_revision,device_id,point_id,tag_id,'cumulative',connector_id,connector_revision,database_name,table_schema,? FROM write_group_ownership_fences WHERE direction='started'`, pending, pending)
+	_, err = f.local.ExecContext(t.Context(), `INSERT INTO write_group_ownership_fences SELECT fence_revision,workspace_id,direction,?,group_revision,device_id,point_id,tag_id,'cumulative',connector_id,connector_revision,database_name,table_schema,? FROM write_group_ownership_fences WHERE direction='started'`, pending, pending)
 	require.NoError(t, err)
 	f.clock = at(40)
 	require.ErrorIs(t, f.pipe.Reconcile(t.Context()), groupdelivery.ErrOwnershipUnavailable)
@@ -147,9 +147,9 @@ func TestCutoverReconcilePendingSiblingDoesNotBlockAcceptedBranch(t *testing.T) 
 	require.NoError(t, fresh.boundary.Tick(t.Context(), f.clock))
 	require.Equal(t, []any{"7"}, reconciledHandoffCell(t, f, f.target.GroupID, at(15), "value_decimal"))
 	var pendingCount, sourceConsumed int
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_sample_handoffs WHERE state='pending'`).Scan(&pendingCount))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_sample_handoffs WHERE state='pending'`).Scan(&pendingCount))
 	require.Equal(t, 1, pendingCount)
-	require.NoError(t, f.local.QueryRow(`SELECT SUM(consumed) FROM wg_delivery_samples WHERE group_id=?`, f.source.GroupID).Scan(&sourceConsumed))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT SUM(consumed) FROM wg_delivery_samples WHERE group_id=?`, f.source.GroupID).Scan(&sourceConsumed))
 	require.Zero(t, sourceConsumed)
 }
 

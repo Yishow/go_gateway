@@ -17,7 +17,7 @@ import (
 
 func seedLifecycleIntake(t *testing.T, db *sql.DB, key GroupKey) {
 	t.Helper()
-	_, err := db.Exec(`INSERT INTO write_groups(id,workspace_id,revision,applied_revision,name,status,destination_connector_id,destination_connector_revision,destination_table_name) VALUES(?,?,?,?,?,'ready','connector-1','C1','D1')`, key.GroupID, key.WorkspaceID, key.GroupRevision, key.GroupRevision, key.GroupID)
+	_, err := db.ExecContext(t.Context(), `INSERT INTO write_groups(id,workspace_id,revision,applied_revision,name,status,destination_connector_id,destination_connector_revision,destination_table_name) VALUES(?,?,?,?,?,'ready','connector-1','C1','D1')`, key.GroupID, key.WorkspaceID, key.GroupRevision, key.GroupRevision, key.GroupID)
 	require.NoError(t, err)
 	payload, err := json.Marshal(map[string]any{
 		"id": key.GroupID, "workspace_id": key.WorkspaceID, "revision": key.GroupRevision, "applied_revision": key.GroupRevision,
@@ -25,7 +25,7 @@ func seedLifecycleIntake(t *testing.T, db *sql.DB, key GroupKey) {
 		"destination": map[string]string{"connector_id": "connector-1", "connector_revision": "C1", "table_name": "D1"},
 	})
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO write_group_versions(group_id,group_revision,effective_at,payload) VALUES(?,?,?,?)`, key.GroupID, key.GroupRevision, t0, string(payload))
+	_, err = db.ExecContext(t.Context(), `INSERT INTO write_group_versions(group_id,group_revision,effective_at,payload) VALUES(?,?,?,?)`, key.GroupID, key.GroupRevision, t0, string(payload))
 	require.NoError(t, err)
 }
 
@@ -49,7 +49,7 @@ func TestCanonicalLifecycleNewIntakeFailsClosed(t *testing.T) {
 			prior := sampleAt("accepted", "temp", 3, 30)
 			require.NoError(t, store.AppendSample(t.Context(), testKey, t0, prior))
 			before := associationJournal(t, store)
-			_, err := db.Exec(mutation)
+			_, err := db.ExecContext(t.Context(), mutation)
 			require.NoError(t, err)
 			require.NoError(t, store.AppendSample(t.Context(), testKey, t0, prior), "durable exact retry does not reauthorize intake")
 			err = store.AppendSample(t.Context(), testKey, t0, sampleAt("new", "temp", 4, 40))
@@ -73,7 +73,7 @@ func TestCanonicalLifecycleActiveAndStandaloneCompatibility(t *testing.T) {
 		t.Run(status, func(t *testing.T) {
 			base, db, _ := newTestStore(t)
 			seedLifecycleIntake(t, db, testKey)
-			_, err := db.Exec(`UPDATE write_groups SET revision='new-draft',applied_revision='later-applied',status=?`, status)
+			_, err := db.ExecContext(t.Context(), `UPDATE write_groups SET revision='new-draft',applied_revision='later-applied',status=?`, status)
 			require.NoError(t, err)
 			store, err := base.WithCanonicalIntake().WithClock(func() time.Time { return at(5) }).WithQuota(QuotaConfig{GlobalMaxBytes: 1 << 20})
 			require.NoError(t, err)
@@ -81,7 +81,7 @@ func TestCanonicalLifecycleActiveAndStandaloneCompatibility(t *testing.T) {
 			invented := testKey
 			invented.GroupRevision = "invented"
 			require.ErrorIs(t, store.AppendSample(t.Context(), invented, t0, sampleAt("invented", "temp", 3, 30)), ErrOwnershipUnavailable)
-			_, err = db.Exec(`UPDATE write_groups SET status='disabled'`)
+			_, err = db.ExecContext(t.Context(), `UPDATE write_groups SET status='disabled'`)
 			require.NoError(t, err)
 			require.Error(t, store.AppendSample(t.Context(), testKey, t0, sampleAt("new", "temp", 4, 40)), "both clones retain the canonical guard")
 			require.NoError(t, base.AppendSample(t.Context(), otherKey, t0, sampleAt("standalone", "temp", 3, 30)), "opting in must not mutate the original standalone ledger")
@@ -119,7 +119,7 @@ func TestCanonicalLifecyclePreservesCounterProofAndQuota(t *testing.T) {
 	usage, ok := store.usage.get("", at(5))
 	require.True(t, ok)
 	require.Positive(t, usage)
-	_, err = db.Exec(`UPDATE write_groups SET status='disabled'`)
+	_, err = db.ExecContext(t.Context(), `UPDATE write_groups SET status='disabled'`)
 	require.NoError(t, err)
 	before := associationJournal(t, store)
 	require.NoError(t, store.AppendSample(t.Context(), testKey, t0, sample))
@@ -129,7 +129,7 @@ func TestCanonicalLifecyclePreservesCounterProofAndQuota(t *testing.T) {
 	newSample.CounterProof.Digest = strings.Repeat("b", 64)
 	var proofError *counterproof.CounterBindingProofError
 	require.ErrorAs(t, store.AppendSample(t.Context(), testKey, t0, newSample), &proofError, "stop must not bypass immutable proof validation")
-	_, err = db.Exec(`UPDATE wg_runtime_versions SET payload=?`, strings.Replace(string(payload), "kWh", "MWh", 1))
+	_, err = db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=?`, strings.Replace(string(payload), "kWh", "MWh", 1))
 	require.NoError(t, err)
 	require.ErrorAs(t, store.AppendSample(t.Context(), testKey, t0, sample), &proofError, "an accepted retry still verifies its immutable proof")
 	require.Equal(t, before, associationJournal(t, store))

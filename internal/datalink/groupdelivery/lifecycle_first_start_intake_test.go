@@ -14,7 +14,7 @@ import (
 func seedFirstStartIntake(t *testing.T, db *sql.DB, boundary time.Time) {
 	t.Helper()
 	seedLifecycleIntake(t, db, testKey)
-	_, err := db.Exec(`UPDATE write_group_versions SET effective_at=? WHERE group_id=? AND group_revision=?`, boundary, testKey.GroupID, testKey.GroupRevision)
+	_, err := db.ExecContext(t.Context(), `UPDATE write_group_versions SET effective_at=? WHERE group_id=? AND group_revision=?`, boundary, testKey.GroupID, testKey.GroupRevision)
 	require.NoError(t, err)
 }
 
@@ -77,7 +77,7 @@ func TestCanonicalLifecycleFirstStartUsesExactImmutableVersion(t *testing.T) {
 	seedFirstStartIntake(t, db, boundary)
 	// A saved draft/current pointer is not authority for the requested immutable
 	// revision. No substitute latest-version lookup may erase its start bound.
-	_, err := db.Exec(`UPDATE write_groups SET revision='new-draft',applied_revision='another-applied' WHERE id=?`, testKey.GroupID)
+	_, err := db.ExecContext(t.Context(), `UPDATE write_groups SET revision='new-draft',applied_revision='another-applied' WHERE id=?`, testKey.GroupID)
 	require.NoError(t, err)
 	store := base.WithCanonicalIntake()
 	pre := sampleAt("pre", ownershipMember, 12, 100)
@@ -108,7 +108,7 @@ func TestCanonicalLifecycleFirstStartCorruptAuthorityFailsClosed(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			base, db, _ := newTestStore(t)
 			seedFirstStartIntake(t, db, at(12))
-			_, err := db.Exec(mutation)
+			_, err := db.ExecContext(t.Context(), mutation)
 			require.NoError(t, err)
 			err = base.WithCanonicalIntake().AppendSample(t.Context(), testKey, at(10), sampleAt("refused", ownershipMember, 13, 107))
 			require.ErrorIs(t, err, ErrOwnershipUnavailable)
@@ -137,7 +137,7 @@ func TestCanonicalLifecycleFirstStartAcceptedRetryKeepsOriginalAuthority(t *test
 				require.NoError(t, store.AppendSample(t.Context(), testKey, at(10), accepted))
 			}
 			before := associationJournal(t, store)
-			_, err := db.Exec(`UPDATE write_groups SET status='disabled'`)
+			_, err := db.ExecContext(t.Context(), `UPDATE write_groups SET status='disabled'`)
 			require.NoError(t, err)
 			require.NoError(t, db.Close())
 			db = openStoreDB(t, path)

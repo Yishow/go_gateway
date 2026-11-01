@@ -36,7 +36,7 @@ func newOwnershipPipelineFixture(t *testing.T, shape averageShape) *ownershipPip
 	raw, err = json.Marshal(target)
 	require.NoError(t, err)
 	// Initial fixture construction: no input has ever been accepted by this target.
-	_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(raw), target.GroupID)
+	_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(raw), target.GroupID)
 	require.NoError(t, err)
 	var old workspace.WriteGroup
 	raw, err = json.Marshal(target.Group)
@@ -67,11 +67,11 @@ func newOwnershipPipelineFixture(t *testing.T, shape averageShape) *ownershipPip
 func persistOwnershipVersion(t *testing.T, tx *sql.Tx, s *workspace.WriteGroupAppliedSnapshot) {
 	t.Helper()
 	g := s.Group
-	_, err := tx.Exec(`INSERT INTO write_groups(id,workspace_id,revision,applied_revision,name,status,destination_connector_id,destination_connector_revision,destination_table_name) VALUES(?,?,?,?,?,'ready',?,?,?)`, g.ID, g.WorkspaceID, g.Revision, g.AppliedRevision, g.ID, g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.TableName)
+	_, err := tx.ExecContext(t.Context(), `INSERT INTO write_groups(id,workspace_id,revision,applied_revision,name,status,destination_connector_id,destination_connector_revision,destination_table_name) VALUES(?,?,?,?,?,'ready',?,?,?)`, g.ID, g.WorkspaceID, g.Revision, g.AppliedRevision, g.ID, g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.TableName)
 	require.NoError(t, err)
 	raw, err := json.Marshal(g)
 	require.NoError(t, err)
-	_, err = tx.Exec(`INSERT INTO write_group_versions(group_id,group_revision,effective_at,payload) VALUES(?,?,?,?)`, g.ID, g.Revision, s.EffectiveAt, string(raw))
+	_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_versions(group_id,group_revision,effective_at,payload) VALUES(?,?,?,?)`, g.ID, g.Revision, s.EffectiveAt, string(raw))
 	require.NoError(t, err)
 }
 
@@ -89,9 +89,9 @@ func (f *ownershipPipelineFixture) commit() {
 	}
 	detail, err := json.Marshal(map[string]any{"ended": []workspace.CutoverEnd{{GroupID: f.source.GroupID, Revision: f.source.AppliedRevision}}, "started": []workspace.CutoverStart{{GroupID: f.target.GroupID, Revision: f.target.AppliedRevision}}, "moved": moved, "ownership_fence_revision": "cutover-f2"})
 	require.NoError(t, err)
-	_, err = tx.Exec(`INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,intent) VALUES('cutover-f2',?,'forward',?,?, 'review-f2',?,'{}')`, f.source.WorkspaceID, f.source.GroupID, f.boundary.Format(time.RFC3339Nano), string(detail))
+	_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,intent) VALUES('cutover-f2',?,'forward',?,?, 'review-f2',?,'{}')`, f.source.WorkspaceID, f.source.GroupID, f.boundary.Format(time.RFC3339Nano), string(detail))
 	require.NoError(t, err)
-	_, err = tx.Exec(`INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,'cutover-f2')`, f.source.WorkspaceID, f.source.GroupID, f.source.AppliedRevision, f.boundary.Format(time.RFC3339Nano))
+	_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,'cutover-f2')`, f.source.WorkspaceID, f.source.GroupID, f.source.AppliedRevision, f.boundary.Format(time.RFC3339Nano))
 	require.NoError(t, err)
 	for direction, s := range map[string]*workspace.WriteGroupAppliedSnapshot{"ended": f.source, "started": f.target} {
 		g := s.Group
@@ -100,7 +100,7 @@ func (f *ownershipPipelineFixture) commit() {
 			kind = string(g.RecordingProfile.Kind)
 		}
 		for _, m := range g.Members {
-			_, err = tx.Exec(`INSERT INTO write_group_ownership_fences(fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) VALUES('cutover-f2',?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.WorkspaceID, direction, g.ID, s.AppliedRevision, m.DeviceID, m.PointID, m.TagID, kind, g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.Database, g.Destination.TableSchema, g.Destination.TableName)
+			_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_ownership_fences(fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) VALUES('cutover-f2',?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.WorkspaceID, direction, g.ID, s.AppliedRevision, m.DeviceID, m.PointID, m.TagID, kind, g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.Database, g.Destination.TableSchema, g.Destination.TableName)
 			require.NoError(t, err)
 		}
 	}

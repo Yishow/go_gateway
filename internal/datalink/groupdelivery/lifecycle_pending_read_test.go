@@ -24,7 +24,7 @@ func TestLifecyclePendingMixedUnitsRemainSeparate(t *testing.T) {
 	store, db, _ := newTestStore(t)
 	enqueueFor(t, store, testKey, testDestination, "first", t0, 1)
 	enqueueFor(t, store, testKey, testDestination, "second", at(10), 2)
-	_, err := db.Exec(`UPDATE wg_delivery_outbox SET state='unknown' WHERE entity_key='second'`)
+	_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET state='unknown' WHERE entity_key='second'`)
 	require.NoError(t, err)
 	for _, id := range []string{"one", "two", "three"} {
 		require.NoError(t, store.AppendSample(t.Context(), testKey, at(20), sampleAt(id, "temp", 23, 1)))
@@ -67,7 +67,7 @@ func TestLifecyclePendingCorruptOrForeignEvidenceFailsClosed(t *testing.T) {
 		t.Run(mutation, func(t *testing.T) {
 			store, db, _ := newTestStore(t)
 			enqueueFor(t, store, testKey, testDestination, "e", t0, 1)
-			_, err := db.Exec(mutation)
+			_, err := db.ExecContext(t.Context(), mutation)
 			require.NoError(t, err)
 			got, err := lifecycleRead(t, db, testKey, testDestination)
 			require.ErrorIs(t, err, ErrOwnershipUnavailable)
@@ -76,7 +76,7 @@ func TestLifecyclePendingCorruptOrForeignEvidenceFailsClosed(t *testing.T) {
 	}
 	t.Run("handoff", func(t *testing.T) {
 		store := acceptedMetadataHandoff(t)
-		_, err := store.DB().Exec(`UPDATE wg_delivery_sample_handoffs SET record='{}'`)
+		_, err := store.DB().ExecContext(t.Context(), `UPDATE wg_delivery_sample_handoffs SET record='{}'`)
 		require.NoError(t, err)
 		got, err := lifecycleRead(t, store.DB(), testKey, testDestination)
 		require.ErrorIs(t, err, ErrOwnershipUnavailable)

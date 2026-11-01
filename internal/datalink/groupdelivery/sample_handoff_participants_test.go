@@ -164,7 +164,7 @@ func TestHandoffParticipantsRetainEarlierCommittedBatchOnLaterFailure(t *testing
 
 func TestHandoffParticipantsPendingOnlyHasNoReplayComponent(t *testing.T) {
 	store, _ := seedPreparedHandoff(t)
-	_, err := store.DB().Exec("DELETE FROM wg_runtime_versions WHERE group_id=?", otherKey.GroupID)
+	_, err := store.DB().ExecContext(t.Context(), "DELETE FROM wg_runtime_versions WHERE group_id=?", otherKey.GroupID)
 	require.NoError(t, err)
 	batch, err := store.PrepareCutoverHandoffs(t.Context(), testKey, 0, 128)
 	require.ErrorIs(t, err, ErrOwnershipUnavailable)
@@ -193,7 +193,7 @@ func TestHandoffDiscoveryPreservesPendingFanoutAndHistoricalChain(t *testing.T) 
 	third := GroupKey{WorkspaceID: testKey.WorkspaceID, GroupID: "chain-C", GroupRevision: "rev-C"}
 	require.NoError(t, store.SaveRuntimeVersion(t.Context(), third, handoffProofDescriptor(t, third, nil, true)))
 	seedOwnershipCutover(t, store.DB(), "B-C", otherKey, third, at(23))
-	_, err = store.DB().Exec("UPDATE write_groups SET status='disabled',applied_revision='new-revision' WHERE id=?", otherKey.GroupID)
+	_, err = store.DB().ExecContext(t.Context(), "UPDATE write_groups SET status='disabled',applied_revision='new-revision' WHERE id=?", otherKey.GroupID)
 	require.NoError(t, err)
 	keys, err = store.HandoffSources(t.Context(), testKey.WorkspaceID, GroupKey{}, 128)
 	require.NoError(t, err)
@@ -220,7 +220,7 @@ func TestHandoffDiscoveryPreservesDamagedAuthority(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			store, _ := seedPreparedHandoff(t)
-			_, err := store.DB().Exec(damage)
+			_, err := store.DB().ExecContext(t.Context(), damage)
 			require.NoError(t, err)
 			keys, err := store.HandoffSources(t.Context(), testKey.WorkspaceID, GroupKey{}, 128)
 			require.NoError(t, err)
@@ -235,14 +235,14 @@ func TestHandoffDiscoveryPreservesReceiptOnlyEvidence(t *testing.T) {
 	store, _ := seedPreparedHandoff(t)
 	_, err := store.PrepareCutoverHandoffs(t.Context(), testKey, 0, 128)
 	require.NoError(t, err)
-	_, err = store.DB().Exec("DELETE FROM write_group_ownership_fences; DELETE FROM write_group_revision_ends; DELETE FROM write_group_cutovers; UPDATE wg_delivery_sample_handoffs SET record=json_set(record,'$.AcceptedAt','bad-time')")
+	_, err = store.DB().ExecContext(t.Context(), "DELETE FROM write_group_ownership_fences; DELETE FROM write_group_revision_ends; DELETE FROM write_group_cutovers; UPDATE wg_delivery_sample_handoffs SET record=json_set(record,'$.AcceptedAt','bad-time')")
 	require.NoError(t, err)
 	keys, err := store.HandoffSources(t.Context(), testKey.WorkspaceID, GroupKey{}, 128)
 	require.NoError(t, err)
 	require.Equal(t, sortedParticipants(testKey, otherKey), keys)
 	_, err = store.PrepareCutoverHandoffs(t.Context(), testKey, 0, 128)
 	require.ErrorIs(t, err, ErrOwnershipUnavailable, "damaged outgoing receipt still reaches proof validation")
-	_, err = store.DB().Exec("DELETE FROM wg_delivery_sample_handoffs")
+	_, err = store.DB().ExecContext(t.Context(), "DELETE FROM wg_delivery_sample_handoffs")
 	require.NoError(t, err)
 	keys, err = store.HandoffSources(t.Context(), testKey.WorkspaceID, GroupKey{}, 128)
 	require.NoError(t, err)

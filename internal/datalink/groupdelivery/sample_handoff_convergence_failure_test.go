@@ -82,18 +82,18 @@ func replaceConvergenceReceipt(t *testing.T, store *Store, original string, r ha
 	r.ID = handoffID(r)
 	raw, err := json.Marshal(r)
 	require.NoError(t, err)
-	_, err = store.DB().Exec(`UPDATE wg_delivery_sample_handoffs SET transfer_id=?,origin_seq=?,record=? WHERE transfer_id=?`, r.ID, r.OriginSeq, string(raw), original)
+	_, err = store.DB().ExecContext(t.Context(), `UPDATE wg_delivery_sample_handoffs SET transfer_id=?,origin_seq=?,record=? WHERE transfer_id=?`, r.ID, r.OriginSeq, string(raw), original)
 	require.NoError(t, err)
 }
 
 func TestHandoffConvergenceRejectsEveryCorruptPeerLiveAndAfterGC(t *testing.T) {
 	mutations := map[string]func(*testing.T, *Store, handoffReceipt, handoffReceipt){
 		"missing-canonical": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
-			_, err := s.DB().Exec(`DELETE FROM wg_delivery_sample_handoffs WHERE transfer_id=?`, canonical.ID)
+			_, err := s.DB().ExecContext(t.Context(), `DELETE FROM wg_delivery_sample_handoffs WHERE transfer_id=?`, canonical.ID)
 			require.NoError(t, err)
 		},
 		"malformed-alias": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
-			_, err := s.DB().Exec(`UPDATE wg_delivery_sample_handoffs SET record='{}' WHERE transfer_id=?`, alias.ID)
+			_, err := s.DB().ExecContext(t.Context(), `UPDATE wg_delivery_sample_handoffs SET record='{}' WHERE transfer_id=?`, alias.ID)
 			require.NoError(t, err)
 		},
 		"missing-reference": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
@@ -133,7 +133,7 @@ func TestHandoffConvergenceRejectsEveryCorruptPeerLiveAndAfterGC(t *testing.T) {
 			replaceConvergenceReceipt(t, s, alias.ID, alias)
 		},
 		"branch-lineage": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
-			_, err := s.DB().Exec(`DELETE FROM write_group_revision_ends WHERE group_id=? AND group_revision=?`, alias.Source.GroupID, alias.Source.GroupRevision)
+			_, err := s.DB().ExecContext(t.Context(), `DELETE FROM write_group_revision_ends WHERE group_id=? AND group_revision=?`, alias.Source.GroupID, alias.Source.GroupRevision)
 			require.NoError(t, err)
 		},
 	}
@@ -179,7 +179,7 @@ func TestHandoffConvergenceMissingAliasAfterGCRejectsIncompleteFanout(t *testing
 			consumeConvergentHandoff(t, store, target, restored)
 			_, alias := convergencePeerReceipts(t, store, target)
 			require.Equal(t, branch, alias.Source)
-			_, err = store.DB().Exec(`DELETE FROM wg_delivery_sample_handoffs WHERE transfer_id=?`, alias.ID)
+			_, err = store.DB().ExecContext(t.Context(), `DELETE FROM wg_delivery_sample_handoffs WHERE transfer_id=?`, alias.ID)
 			require.NoError(t, err)
 			_, err = store.Restore(t.Context(), target)
 			require.Error(t, err, "the surviving canonical cannot hide a lost ancestor fanout continuation")
@@ -196,7 +196,7 @@ func TestHandoffConvergenceConsumedTargetRequiresRelevantAliases(t *testing.T) {
 		require.Equal(t, 4, countRows(t, store.DB(), "wg_delivery_samples"), "raw authority still exists before GC")
 		require.Equal(t, 1, openCount(t, store.DB(), "wg_delivery_samples", "consumed=1"))
 		_, alias := convergencePeerReceipts(t, store, target)
-		_, err := store.DB().Exec(`DELETE FROM wg_delivery_sample_handoffs WHERE transfer_id=?`, alias.ID)
+		_, err := store.DB().ExecContext(t.Context(), `DELETE FROM wg_delivery_sample_handoffs WHERE transfer_id=?`, alias.ID)
 		require.NoError(t, err)
 		_, err = store.Restore(t.Context(), target)
 		require.Error(t, err, "consumption cannot hide a missing required converging edge")

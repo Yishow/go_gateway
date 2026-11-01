@@ -79,12 +79,13 @@ func ensureSQLiteSampleHandoffs(db *sql.DB) error {
 			lines = append(lines, line)
 		}
 	}
-	tx, err := db.BeginTx(context.Background(), nil)
+	ctx := context.Background()
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err = tx.Exec("UPDATE wg_delivery_checkpoints SET updated_at=updated_at WHERE 0"); err != nil {
+	if _, err = tx.ExecContext(ctx, "UPDATE wg_delivery_checkpoints SET updated_at=updated_at WHERE 0"); err != nil {
 		return err
 	}
 	for _, part := range strings.Split(strings.Join(lines, "\n"), ";") {
@@ -95,13 +96,13 @@ func ensureSQLiteSampleHandoffs(db *sql.DB) error {
 		// 046 supersedes only this receipt index. Never recreate its old unique
 		// form during 045 reentry: accepted aliases may already share a target.
 		if strings.HasPrefix(statement, "CREATE UNIQUE INDEX IF NOT EXISTS idx_wg_handoff_target_seq") {
-			if err = ensureSQLiteHandoffConvergenceIndex(tx); err != nil {
+			if err = ensureSQLiteHandoffConvergenceIndex(ctx, tx); err != nil {
 				return err
 			}
 			continue
 		}
 		if match := sqliteAddColumnStatement.FindStringSubmatch(statement); match != nil {
-			rows, err := tx.Query("PRAGMA table_info(" + match[1] + ")")
+			rows, err := tx.QueryContext(ctx, "PRAGMA table_info("+match[1]+")")
 			if err != nil {
 				return err
 			}
@@ -129,7 +130,7 @@ func ensureSQLiteSampleHandoffs(db *sql.DB) error {
 				continue
 			}
 		}
-		if _, err = tx.Exec(statement); err != nil {
+		if _, err = tx.ExecContext(ctx, statement); err != nil {
 			return fmt.Errorf("apply sample handoff migration: %w", err)
 		}
 	}
@@ -139,9 +140,9 @@ func ensureSQLiteSampleHandoffs(db *sql.DB) error {
 // ensureSQLiteHandoffConvergenceIndex preserves every journal and receipt while
 // allowing independently verified transfer edges to share a canonical target.
 // Its DDL runs in the same transaction as 045, including startup retries.
-func ensureSQLiteHandoffConvergenceIndex(tx *sql.Tx) error {
+func ensureSQLiteHandoffConvergenceIndex(ctx context.Context, tx *sql.Tx) error {
 	var unique int
-	err := tx.QueryRow(`SELECT "unique" FROM pragma_index_list('wg_delivery_sample_handoffs') WHERE name='idx_wg_handoff_target_seq'`).Scan(&unique)
+	err := tx.QueryRowContext(ctx, `SELECT "unique" FROM pragma_index_list('wg_delivery_sample_handoffs') WHERE name='idx_wg_handoff_target_seq'`).Scan(&unique)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("inspect handoff convergence index: %w", err)
 	}
@@ -154,7 +155,7 @@ func ensureSQLiteHandoffConvergenceIndex(tx *sql.Tx) error {
 	}
 	for _, part := range strings.Split(string(raw), ";") {
 		if statement := strings.TrimSpace(part); statement != "" {
-			if _, err = tx.Exec(statement); err != nil {
+			if _, err = tx.ExecContext(ctx, statement); err != nil {
 				return fmt.Errorf("apply handoff convergence migration: %w", err)
 			}
 		}

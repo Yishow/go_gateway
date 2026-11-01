@@ -20,7 +20,7 @@ import (
 // Every copy must retain the exact original payload, digest and acceptance time.
 func cutoverCrashJournal(t *testing.T, db *sql.DB) (map[string]string, map[string][]string) {
 	t.Helper()
-	rows, err := db.Query(`SELECT json_array(
+	rows, err := db.QueryContext(t.Context(), `SELECT json_array(
  CASE WHEN origin_workspace_id='' THEN workspace_id ELSE origin_workspace_id END,
  CASE WHEN origin_group_id='' THEN group_id ELSE origin_group_id END,
  CASE WHEN origin_revision='' THEN group_revision ELSE origin_revision END,
@@ -48,7 +48,7 @@ func cutoverCrashJournal(t *testing.T, db *sql.DB) (map[string]string, map[strin
 
 func cutoverCrashEffects(t *testing.T, db *sql.DB) []string {
 	t.Helper()
-	rows, err := db.Query(`SELECT json_array(effect_key,record_id,payload,payload_digest,
+	rows, err := db.QueryContext(t.Context(), `SELECT json_array(effect_key,record_id,payload,payload_digest,
  destination_scope,connector_id,connector_revision,database_name,table_schema,table_name,dedupe_capability,record_key_column)
  FROM wg_delivery_outbox ORDER BY effect_key`)
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func cutoverCrashDescriptors(t *testing.T, f *ownershipPipelineFixture) map[stri
 		require.NoError(t, err)
 		result[owner.GroupID+"/canonical"] = string(canonical)
 		var applied string
-		require.NoError(t, f.local.QueryRow(`SELECT payload FROM write_group_versions WHERE group_id=? AND group_revision=?`, owner.GroupID, owner.AppliedRevision).Scan(&applied))
+		require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload FROM write_group_versions WHERE group_id=? AND group_revision=?`, owner.GroupID, owner.AppliedRevision).Scan(&applied))
 		result[owner.GroupID+"/applied"] = applied
 		frozen, err := f.store.RuntimeVersion(t.Context(), groupKey(owner))
 		require.NoError(t, err)
@@ -82,7 +82,7 @@ func cutoverCrashDescriptors(t *testing.T, f *ownershipPipelineFixture) map[stri
 
 func cutoverCrashBaselines(t *testing.T, db *sql.DB) map[string]string {
 	t.Helper()
-	rows, err := db.Query(`SELECT json_array(workspace_id,group_id,group_revision,member_key),json_array(window_end,payload) FROM wg_delivery_counter_baselines ORDER BY group_id,member_key`)
+	rows, err := db.QueryContext(t.Context(), `SELECT json_array(workspace_id,group_id,group_revision,member_key),json_array(window_end,payload) FROM wg_delivery_counter_baselines ORDER BY group_id,member_key`)
 	require.NoError(t, err)
 	defer rows.Close()
 	result := map[string]string{}
@@ -102,7 +102,7 @@ func reopenCutoverPipeline(t *testing.T, f *ownershipPipelineFixture) {
 	oldDB := f.local
 	f.pipe, f.store = nil, nil // No worker or assembler from the crashed process is reused.
 	require.NoError(t, oldDB.Close())
-	require.Error(t, oldDB.Ping(), "the previous physical database handle is closed")
+	require.Error(t, oldDB.PingContext(t.Context()), "the previous physical database handle is closed")
 	plain, err := sql.Open("sqlite", f.localPath+"?_pragma=busy_timeout(5000)")
 	require.NoError(t, err)
 	require.NoError(t, datalink.NewMigrator().Migrate(plain))
@@ -158,7 +158,7 @@ func TestCutoverReconcileCrashRestoresCommittedHandoffAndFrozenOutput(t *testing
 				after, _ := cutoverCrashJournal(t, f.local)
 				require.Equal(t, originals, after)
 				var receipt string
-				require.NoError(t, f.local.QueryRow(`SELECT json_array(transfer_id,record,target_seq) FROM wg_delivery_sample_handoffs`).Scan(&receipt))
+				require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT json_array(transfer_id,record,target_seq) FROM wg_delivery_sample_handoffs`).Scan(&receipt))
 				reopenCutoverPipeline(t, f)
 				for _, owner := range []*workspace.WriteGroupAppliedSnapshot{f.source, f.target} {
 					state, err := f.store.Restore(t.Context(), groupKey(owner))
@@ -194,7 +194,7 @@ func TestCutoverReconcileCrashRestoresCommittedHandoffAndFrozenOutput(t *testing
 					require.NoError(t, err)
 					require.Equal(t, []string{string(want)}, consumers[identity], "exactly the eligible owner consumes each original identity")
 				}
-				_, err = f.plainTarget().Exec(`CREATE TABLE unapplied_destination(marker TEXT)`)
+				_, err = f.plainTarget().ExecContext(t.Context(), `CREATE TABLE unapplied_destination(marker TEXT)`)
 				require.NoError(t, err)
 				// Current drafts can differ; original applied descriptors/history do not.
 				f.groups.groups = nil
@@ -236,7 +236,7 @@ func TestCutoverReconcileCrashRestoresCommittedHandoffAndFrozenOutput(t *testing
 				require.Zero(t, f.count(f.plainTarget(), `SELECT COUNT(*) FROM unapplied_destination`))
 				var retriedReceipt string
 				require.NoError(t, f.pipe.Reconcile(t.Context()))
-				require.NoError(t, f.local.QueryRow(`SELECT json_array(transfer_id,record,target_seq) FROM wg_delivery_sample_handoffs`).Scan(&retriedReceipt))
+				require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT json_array(transfer_id,record,target_seq) FROM wg_delivery_sample_handoffs`).Scan(&retriedReceipt))
 				require.Equal(t, receipt, retriedReceipt)
 				require.Equal(t, finalEffects, cutoverCrashEffects(t, f.local))
 				require.Equal(t, descriptors, cutoverCrashDescriptors(t, f))

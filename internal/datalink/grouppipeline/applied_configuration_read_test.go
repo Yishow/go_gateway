@@ -48,13 +48,13 @@ func TestAppliedConfigurationRejectsMissingOrMismatchedFrozenProof(t *testing.T)
 			saved := f.apply(t)
 			key := saved.Group.ID
 			var raw string
-			require.NoError(t, f.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=?`, key).Scan(&raw))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=?`, key).Scan(&raw))
 			var snap workspace.WriteGroupAppliedSnapshot
 			require.NoError(t, json.Unmarshal([]byte(raw), &snap))
 			expected := ErrAppliedConfigurationUnavailable
 			switch mode {
 			case "missing":
-				_, err := f.db.Exec(`DELETE FROM wg_runtime_versions WHERE group_id=?`, key)
+				_, err := f.db.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions WHERE group_id=?`, key)
 				require.NoError(t, err)
 			case "layout":
 				snap.RuntimeLayout = nil
@@ -75,7 +75,7 @@ func TestAppliedConfigurationRejectsMissingOrMismatchedFrozenProof(t *testing.T)
 				if mode == "malformed" {
 					payload = []byte(`{"private":"credential"}`)
 				}
-				_, err = f.db.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(payload), key)
+				_, err = f.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(payload), key)
 				require.NoError(t, err)
 			}
 			before := appliedConfigurationState(t, f.db)
@@ -91,7 +91,7 @@ func TestAppliedConfigurationRejectsMissingOrMismatchedFrozenProof(t *testing.T)
 func TestAppliedConfigurationPreservesEndedSnapshotWithoutIntake(t *testing.T) {
 	f := newAppliedConfigurationFixture(t)
 	saved := f.apply(t)
-	_, err := f.db.Exec(`INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,?)`, saved.Group.WorkspaceID, saved.Group.ID, saved.Group.Revision, at(20).Format(time.RFC3339Nano), "ended-fixture")
+	_, err := f.db.ExecContext(t.Context(), `INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,?)`, saved.Group.WorkspaceID, saved.Group.ID, saved.Group.Revision, at(20).Format(time.RFC3339Nano), "ended-fixture")
 	require.NoError(t, err)
 	f.now = at(25)
 	_, err = f.groups.Disable(t.Context(), saved.Group.ID, f.mutation(t, nil))
@@ -196,7 +196,7 @@ func TestAppliedConfigurationRejectsLegacyCustomProofFallback(t *testing.T) {
 		`UPDATE write_group_versions SET payload=json_set(payload,'$.destination.storage_strategy','custom') WHERE group_id=?`,
 		`UPDATE wg_runtime_versions SET payload=json_set(payload,'$.group.destination.storage_strategy','custom') WHERE group_id=?`,
 	} {
-		_, err := f.db.Exec(statement, saved.Group.ID)
+		_, err := f.db.ExecContext(t.Context(), statement, saved.Group.ID)
 		require.NoError(t, err)
 	}
 	got, err := f.pipe.ResolveAppliedConfigurationAt(t.Context(), saved.Group.ID, at(16))

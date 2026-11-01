@@ -68,7 +68,7 @@ func handoffCounterProofFixture(t *testing.T, legacy bool) (*Store, handoffProof
 		require.NoError(t, store.AssociateLegacyCounterProofs(t.Context(), testKey, []counterproof.CounterBindingReference{ref}))
 	}
 	input := handoffProofInput{Origin: testKey}
-	require.NoError(t, db.QueryRow("SELECT seq,payload,payload_digest,created_at FROM wg_delivery_samples").Scan(&input.Sequence, &input.Payload, &input.Digest, &input.AcceptedAt))
+	require.NoError(t, db.QueryRowContext(t.Context(), "SELECT seq,payload,payload_digest,created_at FROM wg_delivery_samples").Scan(&input.Sequence, &input.Payload, &input.Digest, &input.AcceptedAt))
 	return store, input, origin, target
 }
 
@@ -86,7 +86,7 @@ func TestHandoffProofCounterPreservesOriginalReference(t *testing.T) {
 			require.Equal(t, wantTarget, evidence.TargetReference)
 			require.NotEqual(t, wantOrigin, wantTarget)
 			var payload, digest string
-			require.NoError(t, store.db.QueryRow("SELECT payload,payload_digest FROM wg_delivery_samples").Scan(&payload, &digest))
+			require.NoError(t, store.db.QueryRowContext(t.Context(), "SELECT payload,payload_digest FROM wg_delivery_samples").Scan(&payload, &digest))
 			require.Equal(t, input.Payload, payload)
 			require.Equal(t, input.Digest, digest)
 			decoded, err := decodeSample([]byte(payload))
@@ -116,7 +116,7 @@ func TestHandoffProofCounterRejectsChangedMeaning(t *testing.T) {
 			proof, err := counterproof.NewCounterBindingProof(facts)
 			require.NoError(t, err)
 			raw := handoffProofDescriptor(t, otherKey, &proof, false)
-			_, err = store.db.Exec("UPDATE wg_runtime_versions SET payload=? WHERE group_id=?", string(raw), otherKey.GroupID)
+			_, err = store.db.ExecContext(t.Context(), "UPDATE wg_runtime_versions SET payload=? WHERE group_id=?", string(raw), otherKey.GroupID)
 			require.NoError(t, err)
 			_, err = validateHandoffProof(t.Context(), store.db, input, otherKey)
 			require.ErrorIs(t, err, ErrHandoffProofConflict)
@@ -136,7 +136,7 @@ func TestHandoffProofLegacyRequiresExactExistingAssociation(t *testing.T) {
 	} {
 		t.Run(change, func(t *testing.T) {
 			store, input, _, _ := handoffCounterProofFixture(t, true)
-			_, err := store.db.Exec(change)
+			_, err := store.db.ExecContext(t.Context(), change)
 			require.NoError(t, err)
 			_, err = validateHandoffProof(t.Context(), store.db, input, otherKey)
 			if strings.HasPrefix(change, "DELETE") {
@@ -145,7 +145,7 @@ func TestHandoffProofLegacyRequiresExactExistingAssociation(t *testing.T) {
 				require.ErrorIs(t, err, ErrHandoffProofConflict)
 			}
 			var payload string
-			require.NoError(t, store.db.QueryRow("SELECT payload FROM wg_delivery_samples").Scan(&payload))
+			require.NoError(t, store.db.QueryRowContext(t.Context(), "SELECT payload FROM wg_delivery_samples").Scan(&payload))
 			require.Equal(t, input.Payload, payload)
 		})
 	}
@@ -166,7 +166,7 @@ func TestHandoffProofUnknownAndConflictingNoncounterInputs(t *testing.T) {
 			store, db, _ := newTestStore(t)
 			require.NoError(t, store.SaveRuntimeVersion(t.Context(), testKey, handoffProofDescriptor(t, testKey, nil, false)))
 			require.NoError(t, store.SaveRuntimeVersion(t.Context(), otherKey, handoffProofDescriptor(t, otherKey, nil, true)))
-			_, err := db.Exec("UPDATE wg_runtime_versions SET payload="+mutate+" WHERE group_id=?", otherKey.GroupID)
+			_, err := db.ExecContext(t.Context(), "UPDATE wg_runtime_versions SET payload="+mutate+" WHERE group_id=?", otherKey.GroupID)
 			require.NoError(t, err)
 			payload, digest, err := encodeSample(sampleAt("raw", ownershipMember, 23, 7))
 			require.NoError(t, err)
@@ -182,7 +182,7 @@ func TestHandoffProofUnknownAndConflictingNoncounterInputs(t *testing.T) {
 
 func TestHandoffProofUnreadableAuthorityIsSafe(t *testing.T) {
 	store, input, _, _ := handoffCounterProofFixture(t, false)
-	_, err := store.db.Exec("DELETE FROM wg_runtime_versions WHERE group_id=?", otherKey.GroupID)
+	_, err := store.db.ExecContext(t.Context(), "DELETE FROM wg_runtime_versions WHERE group_id=?", otherKey.GroupID)
 	require.NoError(t, err)
 	_, err = validateHandoffProof(t.Context(), store.db, input, otherKey)
 	require.ErrorIs(t, err, ErrOwnershipUnavailable)
@@ -219,10 +219,10 @@ func TestCompactHandoffProofRejectsReferenceMutation(t *testing.T) {
 
 func TestCompactHandoffProofPreservesLegacyAssociationAfterReclaim(t *testing.T) {
 	store, receipt := compactHandoffProofFixture(t, true)
-	_, err := store.db.Exec("DELETE FROM wg_delivery_samples")
+	_, err := store.db.ExecContext(t.Context(), "DELETE FROM wg_delivery_samples")
 	require.NoError(t, err)
 	require.NoError(t, verifyCompactHandoffMeaning(t.Context(), store.db, receipt), "valid proof does not depend on reclaimed value bytes")
-	_, err = store.db.Exec("DELETE FROM wg_counter_proof_associations")
+	_, err = store.db.ExecContext(t.Context(), "DELETE FROM wg_counter_proof_associations")
 	require.NoError(t, err)
 	require.ErrorIs(t, verifyCompactHandoffMeaning(t.Context(), store.db, receipt), ErrOwnershipUnavailable)
 }
@@ -242,7 +242,7 @@ func TestCompactHandoffProofRequiresMeaningBeyondMatchingDescriptorHashes(t *tes
 	proof, err := counterproof.NewCounterBindingProof(facts)
 	require.NoError(t, err)
 	raw := handoffProofDescriptor(t, otherKey, &proof, false)
-	_, err = store.db.Exec("UPDATE wg_runtime_versions SET payload=? WHERE group_id=?", string(raw), otherKey.GroupID)
+	_, err = store.db.ExecContext(t.Context(), "UPDATE wg_runtime_versions SET payload=? WHERE group_id=?", string(raw), otherKey.GroupID)
 	require.NoError(t, err)
 	receipt.TargetRuntimeDigest = handoffHash(string(raw))
 	receipt.TargetProof, err = proof.Reference()
@@ -258,10 +258,10 @@ func TestCompactHandoffProofNoncounterInputProjection(t *testing.T) {
 	receipt := handoffReceipt{Origin: testKey, Target: otherKey, OriginSeq: 1, Member: ownershipMember, AcceptedAt: timestamp(at(21)),
 		OriginRuntimeDigest: handoffHash(string(originRaw)), TargetRuntimeDigest: handoffHash(string(targetRaw))}
 	require.NoError(t, verifyCompactHandoffMeaning(t.Context(), db, receipt))
-	_, err := db.Exec("UPDATE wg_runtime_versions SET payload=json_set(payload,'$.runtime_layout.tag_types.tag-1','uint64','$.group.members[0].source_value_type','uint64') WHERE group_id=?", otherKey.GroupID)
+	_, err := db.ExecContext(t.Context(), "UPDATE wg_runtime_versions SET payload=json_set(payload,'$.runtime_layout.tag_types.tag-1','uint64','$.group.members[0].source_value_type','uint64') WHERE group_id=?", otherKey.GroupID)
 	require.NoError(t, err)
 	var changed string
-	require.NoError(t, db.QueryRow("SELECT payload FROM wg_runtime_versions WHERE group_id=?", otherKey.GroupID).Scan(&changed))
+	require.NoError(t, db.QueryRowContext(t.Context(), "SELECT payload FROM wg_runtime_versions WHERE group_id=?", otherKey.GroupID).Scan(&changed))
 	receipt.TargetRuntimeDigest = handoffHash(changed)
 	require.ErrorIs(t, verifyCompactHandoffMeaning(t.Context(), db, receipt), ErrHandoffProofConflict)
 }

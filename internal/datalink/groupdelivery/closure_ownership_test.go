@@ -146,7 +146,7 @@ func TestClosureOwnershipMissingAuthorityIsScoped(t *testing.T) {
 			seedOwnershipCutover(t, db, "f-2", testKey, otherKey, end)
 			restored, err := store.Restore(t.Context(), testKey)
 			require.NoError(t, err)
-			_, err = db.Exec(mutation)
+			_, err = db.ExecContext(t.Context(), mutation)
 			require.NoError(t, err)
 			err = store.CommitClosure(t.Context(), testKey, ownershipPartialClosure(t, restored, end))
 			require.ErrorIs(t, err, ErrOwnershipUnavailable)
@@ -199,7 +199,7 @@ func TestClosureOwnershipRefusalPreservesExistingProgress(t *testing.T) {
 	before, err := store.Restore(t.Context(), testKey)
 	require.NoError(t, err)
 	var originalPayload, originalDigest string
-	require.NoError(t, db.QueryRow(`SELECT payload,payload_digest FROM wg_delivery_outbox`).Scan(&originalPayload, &originalDigest))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_outbox`).Scan(&originalPayload, &originalDigest))
 	seedOwnershipCutover(t, db, "f-after-progress", testKey, otherKey, t0.Add(12500*time.Millisecond))
 	stale := closureWith(t, at(20), 20, baselineAt(t, "temp", at(20), 20))
 	stale.OwnershipView = before.OwnershipView
@@ -210,7 +210,7 @@ func TestClosureOwnershipRefusalPreservesExistingProgress(t *testing.T) {
 	require.Equal(t, before.Baselines, after.Baselines)
 	require.Equal(t, before.Samples, after.Samples)
 	var payload, digest string
-	require.NoError(t, db.QueryRow(`SELECT payload,payload_digest FROM wg_delivery_outbox`).Scan(&payload, &digest))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload,payload_digest FROM wg_delivery_outbox`).Scan(&payload, &digest))
 	require.Equal(t, originalPayload, payload)
 	require.Equal(t, originalDigest, digest)
 	for _, table := range []string{"wg_delivery_checkpoints", "wg_delivery_buckets", "wg_delivery_outbox", "wg_delivery_counter_baselines"} {

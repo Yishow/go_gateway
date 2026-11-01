@@ -35,7 +35,7 @@ func reductionHandoffFixture(t *testing.T, shape averageShape, reduction string)
 	group.Destination.TableName = "source_reduction_wide"
 	statements, err := recordingplan.GenerateGroupSchemaDDL("sqlite", wideAverageLayout(group))
 	require.NoError(t, err)
-	_, err = f.plainTarget().Exec(statements[0]) // Receipt table already exists.
+	_, err = f.plainTarget().ExecContext(t.Context(), statements[0]) // Receipt table already exists.
 	require.NoError(t, err)
 	f.source = snapshotOf(group, at(0))
 	digest := sha256.Sum256([]byte(group.Destination.TableName))
@@ -92,7 +92,7 @@ func reductionHandoffFixture(t *testing.T, shape averageShape, reduction string)
 		requireLegalProfile(t, g)
 		raw, err := json.Marshal(s)
 		require.NoError(t, err)
-		_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(raw), s.GroupID)
+		_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(raw), s.GroupID)
 		require.NoError(t, err)
 	}
 	reader := &changedCounterReader{err: errors.New("current definitions must not participate in replay")}
@@ -146,7 +146,7 @@ func readReductionRow(t *testing.T, f *ownershipPipelineFixture, owner *workspac
 	if !wide {
 		args = append(args, &columns.ObservedAt, &columns.status, &columns.delta, &columns.deltaFrom, &columns.deltaTo)
 	}
-	require.NoError(t, f.plainTarget().QueryRow(query, owner.GroupID, stamp).Scan(args...))
+	require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), query, owner.GroupID, stamp).Scan(args...))
 	require.True(t, value.Valid, "eligible input must remain usable at the actual owner boundary")
 	var entries []reductionRowEvidence
 	if !wide {
@@ -320,8 +320,8 @@ func TestCutoverReconcileReductionPartitionAndRecoveryMatrix(t *testing.T) {
 					require.Nil(t, newEvidence.Counter)
 				}
 				var consumedByOld, consumedByNew int
-				require.NoError(t, f.local.QueryRow(`SELECT consumed FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='after'`, f.source.GroupID).Scan(&consumedByOld))
-				require.NoError(t, f.local.QueryRow(`SELECT consumed FROM wg_delivery_samples WHERE group_id=?`, f.target.GroupID).Scan(&consumedByNew))
+				require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT consumed FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='after'`, f.source.GroupID).Scan(&consumedByOld))
+				require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT consumed FROM wg_delivery_samples WHERE group_id=?`, f.target.GroupID).Scan(&consumedByNew))
 				require.Zero(t, consumedByOld)
 				require.Equal(t, 1, consumedByNew)
 				count := f.count(f.local, `SELECT COUNT(*) FROM wg_delivery_outbox`)

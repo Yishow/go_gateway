@@ -53,7 +53,7 @@ func seedPreparedHandoff(t *testing.T) (*Store, int64) {
 	sample.ReceivedAt = at(21)
 	require.NoError(t, store.AppendSample(t.Context(), testKey, at(20), sample))
 	var seq int64
-	require.NoError(t, db.QueryRow("SELECT seq FROM wg_delivery_samples").Scan(&seq))
+	require.NoError(t, db.QueryRowContext(t.Context(), "SELECT seq FROM wg_delivery_samples").Scan(&seq))
 	seedOwnershipCutover(t, db, "f-2", testKey, otherKey, t0.Add(22500*time.Millisecond))
 	return store, seq
 }
@@ -62,7 +62,7 @@ func TestHandoffAtomicCopyPreservesBytesAndGuardsStaleAssemblers(t *testing.T) {
 	store, seq := seedPreparedHandoff(t)
 	db := store.DB()
 	var payload, digest, accepted string
-	require.NoError(t, db.QueryRow("SELECT payload,payload_digest,created_at FROM wg_delivery_samples WHERE seq=?", seq).Scan(&payload, &digest, &accepted))
+	require.NoError(t, db.QueryRowContext(t.Context(), "SELECT payload,payload_digest,created_at FROM wg_delivery_samples WHERE seq=?", seq).Scan(&payload, &digest, &accepted))
 	oldView, err := store.Restore(t.Context(), testKey)
 	require.NoError(t, err)
 	targetView, err := store.Restore(t.Context(), otherKey)
@@ -86,7 +86,7 @@ func TestHandoffAtomicCopyPreservesBytesAndGuardsStaleAssemblers(t *testing.T) {
 	require.Len(t, target.Samples, 1)
 	require.Equal(t, at(21), target.Samples[0].ReceivedAt)
 	var gotPayload, gotDigest, gotAccepted string
-	require.NoError(t, db.QueryRow("SELECT payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=?", otherKey.GroupID).Scan(&gotPayload, &gotDigest, &gotAccepted))
+	require.NoError(t, db.QueryRowContext(t.Context(), "SELECT payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=?", otherKey.GroupID).Scan(&gotPayload, &gotDigest, &gotAccepted))
 	require.Equal(t, []string{payload, digest, accepted}, []string{gotPayload, gotDigest, gotAccepted})
 	batch, err = store.PrepareCutoverHandoffs(t.Context(), testKey, 0, 128)
 	require.NoError(t, err)
@@ -105,7 +105,7 @@ func TestHandoffAtomicCopyPreservesBytesAndGuardsStaleAssemblers(t *testing.T) {
 
 func TestHandoffPendingIsNotTargetAcceptance(t *testing.T) {
 	store, _ := seedPreparedHandoff(t)
-	_, err := store.DB().Exec("DELETE FROM wg_runtime_versions WHERE group_id=?", otherKey.GroupID)
+	_, err := store.DB().ExecContext(t.Context(), "DELETE FROM wg_runtime_versions WHERE group_id=?", otherKey.GroupID)
 	require.NoError(t, err)
 	batch, err := store.PrepareCutoverHandoffs(t.Context(), testKey, 0, 128)
 	require.ErrorIs(t, err, ErrOwnershipUnavailable)
@@ -136,7 +136,7 @@ func TestHandoffMixedLegacyTargetAssociatesOnlyOwnOriginals(t *testing.T) {
 	legacy.ObservedAt = at(9)
 	payload, digest, err := encodeSample(legacy)
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO wg_delivery_samples(workspace_id,group_id,group_revision,sample_id,member_key,observed_at,bucket_start,payload,payload_digest,consumed,created_at) VALUES(?,?,?,?,?,?,?,?,?,0,?)`, otherKey.WorkspaceID, otherKey.GroupID, otherKey.GroupRevision, legacy.SampleID, legacy.MemberKey, timestamp(legacy.ObservedAt), timestamp(t0), string(payload), digest, timestamp(at(9)))
+	_, err = db.ExecContext(t.Context(), `INSERT INTO wg_delivery_samples(workspace_id,group_id,group_revision,sample_id,member_key,observed_at,bucket_start,payload,payload_digest,consumed,created_at) VALUES(?,?,?,?,?,?,?,?,?,0,?)`, otherKey.WorkspaceID, otherKey.GroupID, otherKey.GroupRevision, legacy.SampleID, legacy.MemberKey, timestamp(legacy.ObservedAt), timestamp(t0), string(payload), digest, timestamp(at(9)))
 	require.NoError(t, err)
 	ref, err := targetProof.Reference()
 	require.NoError(t, err)
@@ -162,9 +162,9 @@ func TestHandoffCounterChainRetainsTwoOriginalProofIdentities(t *testing.T) {
 	require.NoError(t, store.SaveRuntimeVersion(t.Context(), otherKey, handoffProofDescriptor(t, otherKey, &bProof, false)))
 	require.NoError(t, store.AppendSample(t.Context(), testKey, at(40), a))
 	seedOwnershipCutover(t, db, "A-B", testKey, otherKey, t0.Add(22500*time.Millisecond))
-	_, err = db.Exec("UPDATE write_group_versions SET payload=json_set(payload,'$.recording_profile.kind','cumulative')")
+	_, err = db.ExecContext(t.Context(), "UPDATE write_group_versions SET payload=json_set(payload,'$.recording_profile.kind','cumulative')")
 	require.NoError(t, err)
-	_, err = db.Exec("UPDATE write_group_ownership_fences SET profile_kind='cumulative'")
+	_, err = db.ExecContext(t.Context(), "UPDATE write_group_ownership_fences SET profile_kind='cumulative'")
 	require.NoError(t, err)
 	_, err = store.PrepareCutoverHandoffs(t.Context(), testKey, 0, 128)
 	require.NoError(t, err)
@@ -181,9 +181,9 @@ func TestHandoffCounterChainRetainsTwoOriginalProofIdentities(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, store.SaveRuntimeVersion(t.Context(), third, handoffProofDescriptor(t, third, &cProof, false)))
 	seedOwnershipCutover(t, db, "B-C", otherKey, third, at(40))
-	_, err = db.Exec("UPDATE write_group_versions SET payload=json_set(payload,'$.recording_profile.kind','cumulative')")
+	_, err = db.ExecContext(t.Context(), "UPDATE write_group_versions SET payload=json_set(payload,'$.recording_profile.kind','cumulative')")
 	require.NoError(t, err)
-	_, err = db.Exec("UPDATE write_group_ownership_fences SET profile_kind='cumulative'")
+	_, err = db.ExecContext(t.Context(), "UPDATE write_group_ownership_fences SET profile_kind='cumulative'")
 	require.NoError(t, err)
 	_, err = store.PrepareCutoverHandoffs(t.Context(), otherKey, 0, 128)
 	require.NoError(t, err)

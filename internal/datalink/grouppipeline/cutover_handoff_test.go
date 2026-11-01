@@ -24,7 +24,7 @@ func newHandoffPipelineFixture(t *testing.T, shape averageShape) *ownershipPipel
 
 func handoffOriginalRows(t *testing.T, f *ownershipPipelineFixture) []string {
 	t.Helper()
-	rows, err := f.local.Query(`SELECT sample_id||'|'||payload||'|'||payload_digest||'|'||created_at||'|'||consumed FROM wg_delivery_samples WHERE group_id=? ORDER BY seq`, f.source.GroupID)
+	rows, err := f.local.QueryContext(t.Context(), `SELECT sample_id||'|'||payload||'|'||payload_digest||'|'||created_at||'|'||consumed FROM wg_delivery_samples WHERE group_id=? ORDER BY seq`, f.source.GroupID)
 	require.NoError(t, err)
 	defer rows.Close()
 	var original []string
@@ -67,15 +67,15 @@ func TestCutoverHandoffCallableAdapterRestoresOneConsumerBeforeLiveReconcile(t *
 			require.Equal(t, "s-after", target.Samples[0].SampleID)
 			require.Equal(t, original, handoffOriginalRows(t, f), "transfer cannot mark source consumed or rewrite original bytes")
 			var sameBytes int
-			require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_sample_handoffs h JOIN wg_delivery_samples s ON s.seq=h.source_seq JOIN wg_delivery_samples d ON d.seq=h.target_seq WHERE s.group_id=? AND d.group_id=? AND s.payload=d.payload AND s.payload_digest=d.payload_digest AND s.created_at=d.created_at`, f.source.GroupID, f.target.GroupID).Scan(&sameBytes))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_sample_handoffs h JOIN wg_delivery_samples s ON s.seq=h.source_seq JOIN wg_delivery_samples d ON d.seq=h.target_seq WHERE s.group_id=? AND d.group_id=? AND s.payload=d.payload AND s.payload_digest=d.payload_digest AND s.created_at=d.created_at`, f.source.GroupID, f.target.GroupID).Scan(&sameBytes))
 			require.Equal(t, 1, sameBytes)
 			var transferID, state string
-			require.NoError(t, f.local.QueryRow(`SELECT transfer_id,state FROM wg_delivery_sample_handoffs WHERE json_extract(record,'$.SampleID')='s-after'`).Scan(&transferID, &state))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT transfer_id,state FROM wg_delivery_sample_handoffs WHERE json_extract(record,'$.SampleID')='s-after'`).Scan(&transferID, &state))
 			require.Equal(t, "accepted", state)
 			require.NoError(t, f.pipe.PrepareCutoverHandoffs(t.Context(), f.source.WorkspaceID))
 			var repeated string
 			var count int
-			require.NoError(t, f.local.QueryRow(`SELECT COUNT(*),MIN(transfer_id) FROM wg_delivery_sample_handoffs`).Scan(&count, &repeated))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*),MIN(transfer_id) FROM wg_delivery_sample_handoffs`).Scan(&count, &repeated))
 			require.Equal(t, 1, count)
 			require.Equal(t, transferID, repeated)
 			f.clock = at(40)
@@ -83,7 +83,7 @@ func TestCutoverHandoffCallableAdapterRestoresOneConsumerBeforeLiveReconcile(t *
 			require.Error(t, f.pipe.boundaries[boundaryKey(f.target.GroupID, f.target.AppliedRevision)].boundary.Tick(t.Context(), f.clock))
 			for _, table := range []string{"wg_delivery_checkpoints", "wg_delivery_outbox", "wg_delivery_counter_baselines"} {
 				var advanced int
-				require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM `+table).Scan(&advanced))
+				require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+table).Scan(&advanced))
 				require.Zero(t, advanced)
 			}
 			// A restart creates both assemblers from the verified, transactionally
@@ -93,15 +93,15 @@ func TestCutoverHandoffCallableAdapterRestoresOneConsumerBeforeLiveReconcile(t *
 			require.NoError(t, f.pipe.boundaries[boundaryKey(f.source.GroupID, f.source.AppliedRevision)].boundary.Tick(t.Context(), f.clock))
 			require.NoError(t, f.pipe.boundaries[boundaryKey(f.target.GroupID, f.target.AppliedRevision)].boundary.Tick(t.Context(), f.clock))
 			var sourceConsumed, targetConsumed int
-			require.NoError(t, f.local.QueryRow(`SELECT consumed FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='s-after'`, f.source.GroupID).Scan(&sourceConsumed))
-			require.NoError(t, f.local.QueryRow(`SELECT consumed FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='s-after'`, f.target.GroupID).Scan(&targetConsumed))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT consumed FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='s-after'`, f.source.GroupID).Scan(&sourceConsumed))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT consumed FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='s-after'`, f.target.GroupID).Scan(&targetConsumed))
 			require.Zero(t, sourceConsumed)
 			require.Equal(t, 1, targetConsumed)
 			_, err = f.store.Reclaim(t.Context(), 0)
 			require.NoError(t, err)
 			require.NoError(t, f.pipe.boundaries[boundaryKey(f.target.GroupID, f.target.AppliedRevision)].boundary.Tick(t.Context(), at(50)), "normal GC must not permanently invalidate the ownership view")
 			require.NoError(t, f.pipe.AcceptSample(t.Context(), envelope(f.target.Group, "s-after", at(23), uint64(7))), "finalized receipt recognizes resend without recreating reclaimed accepted bytes")
-			require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE json_extract(payload,'$.sample_id')='s-after'`).Scan(&count))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE json_extract(payload,'$.sample_id')='s-after'`).Scan(&count))
 			require.Zero(t, count)
 		})
 	}
@@ -114,15 +114,15 @@ func TestCutoverHandoffMissingTargetProofIsDurablePendingNotAcceptance(t *testin
 	original := handoffOriginalRows(t, f)
 	f.commit()
 	f.source.EndsAt = f.boundary
-	_, err := f.local.Exec(`DELETE FROM wg_runtime_versions WHERE group_id=?`, f.target.GroupID)
+	_, err := f.local.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions WHERE group_id=?`, f.target.GroupID)
 	require.NoError(t, err)
 	for range 2 {
 		require.ErrorIs(t, f.pipe.PrepareCutoverHandoffs(t.Context(), f.source.WorkspaceID), groupdelivery.ErrOwnershipUnavailable)
 	}
 	var pending, targetCount int
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_sample_handoffs WHERE state='pending'`).Scan(&pending))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_sample_handoffs WHERE state='pending'`).Scan(&pending))
 	require.Equal(t, 1, pending)
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=?`, f.target.GroupID).Scan(&targetCount))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=?`, f.target.GroupID).Scan(&targetCount))
 	require.Zero(t, targetCount)
 	require.Equal(t, original, handoffOriginalRows(t, f))
 	for range 2 {
@@ -132,7 +132,7 @@ func TestCutoverHandoffMissingTargetProofIsDurablePendingNotAcceptance(t *testin
 	require.Error(t, f.pipe.boundaries[boundaryKey(f.source.GroupID, f.source.AppliedRevision)].boundary.Tick(t.Context(), f.clock))
 	require.NoError(t, f.pipe.boundaries[boundaryKey(healthy.GroupID, healthy.AppliedRevision)].boundary.Tick(t.Context(), f.clock))
 	var consumed int
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=? AND consumed=1`, healthy.GroupID).Scan(&consumed))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=? AND consumed=1`, healthy.GroupID).Scan(&consumed))
 	require.Equal(t, 1, consumed)
 	require.Equal(t, original, handoffOriginalRows(t, f))
 }
@@ -159,7 +159,7 @@ func TestCutoverHandoffOriginalIDDoesNotReserveNativeTargetIdentity(t *testing.T
 			f.clock = at(50)
 			require.NoError(t, f.pipe.boundaries[boundaryKey(f.target.GroupID, f.target.AppliedRevision)].boundary.Tick(t.Context(), f.clock))
 			var consumed int
-			require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=? AND consumed=1`, f.target.GroupID).Scan(&consumed))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=? AND consumed=1`, f.target.GroupID).Scan(&consumed))
 			require.Equal(t, 2, consumed, "both distinct original observations have one target consumer")
 			_, err = f.store.Reclaim(t.Context(), 0)
 			require.NoError(t, err)

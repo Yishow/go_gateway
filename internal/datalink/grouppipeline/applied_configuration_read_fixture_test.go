@@ -38,20 +38,20 @@ func newAppliedConfigurationFixture(t *testing.T) *appliedConfigurationFixture {
 	ws := workspace.NewService(workspace.NewSQLRepository(db))
 	record, err := ws.GetOrCreate(t.Context())
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO devices(id,name,protocol,status,connection_config,readiness_status) VALUES('device-read','Read fixture','modbus_tcp','draft','{}','{}')`)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO devices(id,name,protocol,status,connection_config,readiness_status) VALUES('device-read','Read fixture','modbus_tcp','draft','{}','{}')`)
 	require.NoError(t, err)
 	_, err = ws.AttachDevice(t.Context(), "device-read")
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO points(id,device_id,name,address,function,data_type,mode,enabled) VALUES('point-read','device-read','temperature','40001','FC03','float32','read',1)`)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO points(id,device_id,name,address,function,data_type,mode,enabled) VALUES('point-read','device-read','temperature','40001','FC03','float32','read',1)`)
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO tags(id,key,key_lower,display_name,data_type,status,labels) VALUES('tag-read','temperature','temperature','Temperature','float32','active','{}')`)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO tags(id,key,key_lower,display_name,data_type,status,labels) VALUES('tag-read','temperature','temperature','Temperature','float32','active','{}')`)
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO mappings(id,point_id,tag_id,transform_pipeline,status,enabled) VALUES('mapping-read','point-read','tag-read','[]','active',1)`)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO mappings(id,point_id,tag_id,transform_pipeline,status,enabled) VALUES('mapping-read','point-read','tag-read','[]','active',1)`)
 	require.NoError(t, err)
 	targetPath := filepath.Join(t.TempDir(), "destination.db")
 	raw, err := json.Marshal(map[string]string{"dsn": targetPath, "database": targetPath, "schema": "main"})
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('connector-read','Read destination','sqlite',?,'connector-revision','ready',1)`, string(raw))
+	_, err = db.ExecContext(t.Context(), `INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('connector-read','Read destination','sqlite',?,'connector-revision','ready',1)`, string(raw))
 	require.NoError(t, err)
 	f := &appliedConfigurationFixture{db: db, now: at(7)}
 	f.groups = workspace.NewWriteGroupService(ws, workspace.NewSQLWriteGroupRepository(db)).WithClock(func() time.Time { return f.now }).WithBacklogOwnershipGuard(BacklogGuard{})
@@ -76,7 +76,7 @@ func newAppliedConfigurationFixture(t *testing.T) *appliedConfigurationFixture {
 	target, err := sql.Open("sqlite", targetPath)
 	require.NoError(t, err)
 	for _, statement := range token.Statements {
-		_, err = target.Exec(statement)
+		_, err = target.ExecContext(t.Context(), statement)
 		require.NoError(t, err)
 	}
 	require.NoError(t, target.Close())
@@ -120,7 +120,7 @@ func appliedConfigurationState(t *testing.T, db *sql.DB) map[string]string {
 	t.Helper()
 	state := map[string]string{}
 	for _, table := range []string{"system_settings", "write_groups", "write_group_members", "write_group_versions", "wg_runtime_versions", "write_group_revision_ends", "wg_delivery_samples", "wg_delivery_outbox", "wg_delivery_receipts", "wg_delivery_checkpoints"} {
-		rows, err := db.Query(`SELECT * FROM ` + table + ` ORDER BY rowid`)
+		rows, err := db.QueryContext(t.Context(), `SELECT * FROM `+table+` ORDER BY rowid`)
 		require.NoError(t, err)
 		cols, err := rows.Columns()
 		require.NoError(t, err)

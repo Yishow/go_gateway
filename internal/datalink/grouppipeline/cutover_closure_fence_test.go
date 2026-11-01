@@ -63,7 +63,7 @@ func TestCutoverClosureFenceRejectsCapturedPlanAndRefreshes(t *testing.T) {
 				f.deliver()
 				var value sql.NullString
 				var raw string
-				require.NoError(t, f.plainTarget().QueryRow(`SELECT kwh_1,provenance FROM `+f.source.Group.Destination.TableName+` WHERE group_id=?`, f.source.GroupID).Scan(&value, &raw))
+				require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT kwh_1,provenance FROM `+f.source.Group.Destination.TableName+` WHERE group_id=?`, f.source.GroupID).Scan(&value, &raw))
 				require.Equal(t, !empty, value.Valid)
 				if !empty {
 					require.Equal(t, "20", value.String)
@@ -127,7 +127,7 @@ func TestCutoverClosureFencePreservesEarlierDisabledStop(t *testing.T) {
 		t.Run(string(shape), func(t *testing.T) {
 			f := newOwnershipPipelineFixture(t, shape)
 			f.clock = at(7)
-			_, err := f.plainTarget().Exec(`CREATE TABLE legacy_readings(kwh_1 TEXT,kwh_2 TEXT)`)
+			_, err := f.plainTarget().ExecContext(t.Context(), `CREATE TABLE legacy_readings(kwh_1 TEXT,kwh_2 TEXT)`)
 			require.NoError(t, err)
 			for _, member := range f.source.Group.Members {
 				input := envelope(f.source.Group, "before-disable-"+member.TagID, at(9), uint64(20))
@@ -152,7 +152,7 @@ func TestCutoverClosureFencePreservesEarlierDisabledStop(t *testing.T) {
 			require.Equal(t, at(10), fresh.boundary.NextClose())
 			f.deliver()
 			var value string
-			require.NoError(t, f.plainTarget().QueryRow(`SELECT kwh_1 FROM legacy_readings`).Scan(&value))
+			require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT kwh_1 FROM legacy_readings`).Scan(&value))
 			require.Equal(t, "20", value)
 			digests := f.outboxDigests()
 			require.NoError(t, fresh.boundary.Tick(t.Context(), at(40)))

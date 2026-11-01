@@ -19,7 +19,7 @@ func TestBacklogGuardRejectsUnresolvedImmutableOwnership(t *testing.T) {
 				version := *group
 				switch damage {
 				case "missing":
-					_, err := db.Exec(`UPDATE ` + backlogTable(kind) + ` SET group_revision='R0'`)
+					_, err := db.ExecContext(t.Context(), `UPDATE `+backlogTable(kind)+` SET group_revision='R0'`)
 					require.NoError(t, err)
 				case "workspace":
 					version.WorkspaceID = "foreign"
@@ -45,7 +45,7 @@ func TestBacklogGuardRejectsUnresolvedImmutableOwnership(t *testing.T) {
 				} else if damage == "malformed" {
 					raw = []byte(`{`)
 				}
-				_, err = db.Exec(`UPDATE write_group_versions SET payload=?`, string(raw))
+				_, err = db.ExecContext(t.Context(), `UPDATE write_group_versions SET payload=?`, string(raw))
 				require.NoError(t, err)
 				before := backlogOwnershipState(t, db)
 				require.ErrorIs(t, checkBacklogOwnership(t, db, group), ErrBacklogOwnershipUnproven)
@@ -59,7 +59,7 @@ func TestBacklogGuardRejectsFrozenDestinationMismatch(t *testing.T) {
 	for _, column := range []string{"workspace_id", "connector_id", "connector_revision", "database_name", "table_schema", "table_name", "destination_scope", "dedupe_capability"} {
 		t.Run(column, func(t *testing.T) {
 			db, group := backlogOwnershipFixture(t, "outbox")
-			_, err := db.Exec(`UPDATE wg_delivery_outbox SET ` + column + `='foreign'`)
+			_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET `+column+`='foreign'`)
 			require.NoError(t, err)
 			before := backlogOwnershipState(t, db)
 			require.ErrorIs(t, checkBacklogOwnership(t, db, group), ErrBacklogOwnershipUnproven)
@@ -70,7 +70,7 @@ func TestBacklogGuardRejectsFrozenDestinationMismatch(t *testing.T) {
 
 func TestBacklogGuardRejectsSampleWorkspaceMismatch(t *testing.T) {
 	db, group := backlogOwnershipFixture(t, "sample")
-	_, err := db.Exec(`UPDATE wg_delivery_samples SET workspace_id='foreign'`)
+	_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_samples SET workspace_id='foreign'`)
 	require.NoError(t, err)
 	require.ErrorIs(t, checkBacklogOwnership(t, db, group), ErrBacklogOwnershipUnproven)
 }
@@ -104,7 +104,7 @@ func TestBacklogGuardPreservesHistoricalDestinationWithoutLiveConnector(t *testi
 			// This legacy revision deliberately has no runtime descriptor or connector.
 			group.Revision, group.AppliedRevision = "R2", "R2"
 			group.Destination.ConnectorRevision, group.Destination.TableName = "C2", "D2"
-			_, err := db.Exec(`UPDATE write_groups SET revision='R2', applied_revision='R2', destination_connector_revision='C2', destination_table_name='D2'`)
+			_, err := db.ExecContext(t.Context(), `UPDATE write_groups SET revision='R2', applied_revision='R2', destination_connector_revision='C2', destination_table_name='D2'`)
 			require.NoError(t, err)
 			before := backlogOwnershipState(t, db)
 			require.NoError(t, checkBacklogOwnership(t, db, group))
@@ -117,7 +117,7 @@ func TestBacklogGuardChecksPendingStatesButRetainsFinalizedHistory(t *testing.T)
 	for _, state := range []string{"pending", "retrying", "blocked", "unknown", "sql_committed", "operator_skipped"} {
 		t.Run(state, func(t *testing.T) {
 			db, group := backlogOwnershipFixture(t, "outbox")
-			_, err := db.Exec(`UPDATE wg_delivery_outbox SET group_revision='R0', state=?`, state)
+			_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET group_revision='R0', state=?`, state)
 			require.NoError(t, err)
 			before := backlogOwnershipState(t, db)
 			err = checkBacklogOwnership(t, db, group)
@@ -143,12 +143,12 @@ func backlogOwnershipFixture(t *testing.T, kind string) (*sql.DB, *workspace.Wri
 	persistOwnershipVersion(t, tx, snapshotOf(group, at(0)))
 	require.NoError(t, tx.Commit())
 	if kind == "sample" {
-		_, err = db.Exec(`INSERT INTO wg_delivery_samples(workspace_id,group_id,group_revision,sample_id,member_key,observed_at,bucket_start,payload,payload_digest,created_at)
+		_, err = db.ExecContext(t.Context(), `INSERT INTO wg_delivery_samples(workspace_id,group_id,group_revision,sample_id,member_key,observed_at,bucket_start,payload,payload_digest,created_at)
 		 VALUES(?,'G1','R1','Q1','member','2026-01-01T00:00:01Z','2026-01-01T00:00:00Z','accepted sample bytes','sample-digest','2026-01-01T00:00:01Z')`, group.WorkspaceID)
 	} else {
 		scope, scopeErr := snapshot.DestinationScope(group.Destination.ConnectorID, group.Destination.ConnectorRevision, group.Destination.Database, group.Destination.TableSchema, group.Destination.TableName)
 		require.NoError(t, scopeErr)
-		_, err = db.Exec(`INSERT INTO wg_delivery_outbox(effect_key,record_id,workspace_id,group_id,group_revision,bucket_start,partition_key,destination_scope,connector_id,connector_revision,database_name,table_schema,table_name,payload,payload_digest,state,next_retry_at,created_at,updated_at)
+		_, err = db.ExecContext(t.Context(), `INSERT INTO wg_delivery_outbox(effect_key,record_id,workspace_id,group_id,group_revision,bucket_start,partition_key,destination_scope,connector_id,connector_revision,database_name,table_schema,table_name,payload,payload_digest,state,next_retry_at,created_at,updated_at)
 		 VALUES('Q1','record-1',?,'G1','R1','2026-01-01T00:00:00Z','partition',?,?,'C1',?,?,'D1','accepted row bytes','row-digest','pending','2026-01-01T00:00:00Z','created','updated')`, group.WorkspaceID, scope, group.Destination.ConnectorID, group.Destination.Database, group.Destination.TableSchema)
 	}
 	require.NoError(t, err)
@@ -174,7 +174,7 @@ func backlogOwnershipState(t *testing.T, db *sql.DB) map[string]string {
 	t.Helper()
 	result := map[string]string{}
 	for _, table := range []string{"system_settings", "write_groups", "write_group_members", "write_group_versions", "wg_runtime_versions", "wg_delivery_samples", "wg_delivery_outbox", "wg_delivery_receipts"} {
-		rows, err := db.Query(`SELECT * FROM ` + table + ` ORDER BY rowid`)
+		rows, err := db.QueryContext(t.Context(), `SELECT * FROM `+table+` ORDER BY rowid`)
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)

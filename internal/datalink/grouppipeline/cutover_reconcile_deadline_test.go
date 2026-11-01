@@ -49,7 +49,7 @@ func newDeadlinePipeline(t *testing.T, shape averageShape) *ownershipPipelineFix
 func deadlineAcceptedBytes(t *testing.T, f *ownershipPipelineFixture, id string, accepted time.Time) [3]string {
 	t.Helper()
 	var result [3]string
-	require.NoError(t, f.local.QueryRow(`SELECT payload,payload_digest,created_at FROM wg_delivery_samples
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload,payload_digest,created_at FROM wg_delivery_samples
  WHERE group_id=? AND group_revision=? AND COALESCE(NULLIF(origin_sample_id,''),sample_id)=?`, f.target.GroupID, f.target.AppliedRevision, id).Scan(&result[0], &result[1], &result[2]))
 	created, err := time.Parse(time.RFC3339Nano, result[2])
 	require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestCutoverDeadlineOriginalAccepted14RemainsEligibleAfterReopen20(t *testin
 			require.NoError(t, err)
 			require.Equal(t, at(11), observed)
 			var consumed int
-			require.NoError(t, f.local.QueryRow(`SELECT consumed FROM wg_delivery_samples WHERE group_id=?`, f.target.GroupID).Scan(&consumed))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT consumed FROM wg_delivery_samples WHERE group_id=?`, f.target.GroupID).Scan(&consumed))
 			require.Equal(t, 1, consumed)
 			effects := cutoverCrashEffects(t, f.local)
 			reopenCutoverPipeline(t, f)

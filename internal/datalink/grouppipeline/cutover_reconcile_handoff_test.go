@@ -18,7 +18,7 @@ import (
 
 func reconciledHandoffCell(t *testing.T, f *ownershipPipelineFixture, groupID string, bucket time.Time, column string) []any {
 	t.Helper()
-	rows, err := f.local.Query(`SELECT bucket_start,payload FROM wg_delivery_outbox WHERE group_id=? ORDER BY effect_key`, groupID)
+	rows, err := f.local.QueryContext(t.Context(), `SELECT bucket_start,payload FROM wg_delivery_outbox WHERE group_id=? ORDER BY effect_key`, groupID)
 	require.NoError(t, err)
 	defer rows.Close()
 	var values []any
@@ -46,7 +46,7 @@ func TestCutoverReconcileRebuildsBothEligibleSets(t *testing.T) {
 	for _, shape := range []averageShape{shapeMeanLong, shapeMeanWide} {
 		t.Run(string(shape), func(t *testing.T) {
 			f := newHandoffPipelineFixture(t, shape)
-			_, err := f.plainTarget().Exec(`CREATE TABLE legacy_readings(kwh_1 TEXT,kwh_2 TEXT)`)
+			_, err := f.plainTarget().ExecContext(t.Context(), `CREATE TABLE legacy_readings(kwh_1 TEXT,kwh_2 TEXT)`)
 			require.NoError(t, err)
 			healthy := f.readyHealthy()
 			for _, input := range []struct {
@@ -94,19 +94,19 @@ func TestCutoverReconcileRebuildsBothEligibleSets(t *testing.T) {
 			}
 			require.Equal(t, []any{"7"}, reconciledHandoffCell(t, f, f.target.GroupID, at(15), column))
 			var sourceConsumed, targetConsumed int
-			require.NoError(t, f.local.QueryRow(`SELECT SUM(consumed) FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id') IN ('after','exact')`, f.source.GroupID).Scan(&sourceConsumed))
-			require.NoError(t, f.local.QueryRow(`SELECT SUM(consumed) FROM wg_delivery_samples WHERE group_id=?`, f.target.GroupID).Scan(&targetConsumed))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT SUM(consumed) FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id') IN ('after','exact')`, f.source.GroupID).Scan(&sourceConsumed))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT SUM(consumed) FROM wg_delivery_samples WHERE group_id=?`, f.target.GroupID).Scan(&targetConsumed))
 			require.Zero(t, sourceConsumed)
 			require.Equal(t, 2, targetConsumed)
 			require.Equal(t, []any{"9"}, reconciledHandoffCell(t, f, healthy.GroupID, at(20), "kwh_1"))
 			f.deliver()
 			var oldValue, newValue string
-			require.NoError(t, f.plainTarget().QueryRow(`SELECT kwh_1 FROM legacy_readings WHERE kwh_2='600'`).Scan(&oldValue))
+			require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT kwh_1 FROM legacy_readings WHERE kwh_2='600'`).Scan(&oldValue))
 			query := `SELECT CAST(value_decimal AS TEXT) FROM ` + f.table + ` WHERE tag_id='tag-kwh-1' AND value_decimal IS NOT NULL`
 			if shape.wide() {
 				query = `SELECT kwh_1 FROM ` + f.table + ` WHERE kwh_1 IS NOT NULL`
 			}
-			require.NoError(t, f.plainTarget().QueryRow(query).Scan(&newValue))
+			require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), query).Scan(&newValue))
 			require.Equal(t, "6", oldValue)
 			require.Equal(t, "7", newValue)
 			assertCompleteCutoverDelivery(t, f, shape)
@@ -193,7 +193,7 @@ func TestCutoverReconcileCapturedWorkersCannotRunAfterReplacement(t *testing.T) 
 	require.ErrorIs(t, <-accepted, groupdelivery.ErrOwnershipUnavailable)
 	require.ErrorIs(t, <-ticked, groupdelivery.ErrOwnershipUnavailable)
 	var checkpoints int
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_checkpoints`).Scan(&checkpoints))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_checkpoints`).Scan(&checkpoints))
 	require.Zero(t, checkpoints, "captured stale Tick never reaches closure")
 	require.NoError(t, f.pipe.AcceptSample(t.Context(), envelope(f.target.Group, "new-native", at(24), uint64(9))))
 	restored, err := f.store.Restore(t.Context(), groupKey(f.target))
@@ -252,7 +252,7 @@ func TestCutoverReconcileBuildFailureDoesNotPartiallyPublish(t *testing.T) {
 	require.Equal(t, at(30), target.boundary.ReplayState().Until)
 	require.Error(t, target.boundary.Tick(t.Context(), at(40)), "unpublished candidate cannot release the stale view guard")
 	var checkpoints int
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_checkpoints`).Scan(&checkpoints))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_checkpoints`).Scan(&checkpoints))
 	require.Zero(t, checkpoints)
 	f.pipe.deps.Destinations = failing.Destinations
 	require.NoError(t, f.pipe.Reconcile(t.Context()))

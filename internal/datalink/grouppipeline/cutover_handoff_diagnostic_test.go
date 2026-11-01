@@ -30,7 +30,7 @@ func TestCutoverHandoffFailureCarriesSafeScopeAndGuidance(t *testing.T) {
 			f.groups.snapshots[f.target.GroupID] = []*workspace.WriteGroupAppliedSnapshot{f.target}
 			expected := groupdelivery.ErrHandoffProofConflict
 			if mode == "missing-authority" {
-				_, err := f.local.Exec(`DELETE FROM wg_runtime_versions WHERE group_id=?`, f.target.GroupID)
+				_, err := f.local.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions WHERE group_id=?`, f.target.GroupID)
 				require.NoError(t, err)
 				expected = groupdelivery.ErrOwnershipUnavailable
 			}
@@ -51,7 +51,7 @@ func TestCutoverHandoffFailureCarriesSafeScopeAndGuidance(t *testing.T) {
 			require.NoError(t, f.pipe.boundaries[boundaryKey(healthy.GroupID, healthy.AppliedRevision)].boundary.Tick(t.Context(), at(80)))
 			f.deliver()
 			var reading string
-			require.NoError(t, f.plainTarget().QueryRow(`SELECT reading FROM healthy_proof_readings`).Scan(&reading))
+			require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT reading FROM healthy_proof_readings`).Scan(&reading))
 			require.Equal(t, "7", reading)
 		})
 	}

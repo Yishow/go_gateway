@@ -42,7 +42,7 @@ func TestLifecyclePendingOutboxStatesAreSubsetsNotAdditionalRows(t *testing.T) {
 	for i, state := range states {
 		entity := fmt.Sprintf("e%d", i)
 		enqueueFor(t, store, testKey, testDestination, entity, at(i*10), 1)
-		_, err := db.Exec(`UPDATE wg_delivery_outbox SET state=? WHERE entity_key=?`, state, entity)
+		_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET state=? WHERE entity_key=?`, state, entity)
 		require.NoError(t, err)
 	}
 	got, err := lifecycleRead(t, db, testKey, testDestination)
@@ -52,7 +52,7 @@ func TestLifecyclePendingOutboxStatesAreSubsetsNotAdditionalRows(t *testing.T) {
 
 func TestLifecyclePendingUsesCallerSnapshot(t *testing.T) {
 	store, db, _ := newTestStore(t)
-	_, err := db.Exec(`PRAGMA journal_mode=WAL`)
+	_, err := db.ExecContext(t.Context(), `PRAGMA journal_mode=WAL`)
 	require.NoError(t, err)
 	enqueueFor(t, store, testKey, testDestination, "e", t0, 1)
 	db.SetMaxOpenConns(2)
@@ -61,7 +61,7 @@ func TestLifecyclePendingUsesCallerSnapshot(t *testing.T) {
 	defer tx.Rollback()
 	first, err := ReadLifecyclePending(t.Context(), tx, testKey, testDestination)
 	require.NoError(t, err)
-	_, err = db.Exec(`UPDATE wg_delivery_outbox SET state='unknown'`)
+	_, err = db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET state='unknown'`)
 	require.NoError(t, err)
 	second, err := ReadLifecyclePending(t.Context(), tx, testKey, testDestination)
 	require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestLifecyclePendingProjectionExcludesPrivateFields(t *testing.T) {
 	destination := testDestination
 	destination.Database = "/private/password-secret.db"
 	enqueueFor(t, store, testKey, destination, "e", t0, 1)
-	_, err := db.Exec(`UPDATE wg_delivery_outbox SET last_error_code='private-raw-exception'`)
+	_, err := db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET last_error_code='private-raw-exception'`)
 	require.NoError(t, err)
 	got, err := lifecycleRead(t, db, testKey, destination)
 	require.NoError(t, err)

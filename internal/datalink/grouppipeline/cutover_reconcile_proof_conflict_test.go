@@ -44,7 +44,7 @@ func originalConflictFixture(t *testing.T, shape averageShape, mode string) (*ow
 		}
 		raw, err := json.Marshal(owner)
 		require.NoError(t, err)
-		_, err = f.local.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(raw), owner.GroupID)
+		_, err = f.local.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=?`, string(raw), owner.GroupID)
 		require.NoError(t, err)
 	}
 	// Independent existing legacy scope: it has no counter proof to reseal and
@@ -55,7 +55,7 @@ func originalConflictFixture(t *testing.T, shape averageShape, mode string) (*ow
 		Destination: workspace.WriteGroupDestination{ConnectorID: "connector-1", ConnectorRevision: "crev-1", TableSchema: "main", TableName: "healthy_proof_readings", StorageStrategy: workspace.WriteGroupStorageStrategyCustom},
 		RowPolicy:   workspace.WriteGroupRowPolicy{IntervalSeconds: 10}, WritePolicy: workspace.WriteGroupWritePolicy{Mode: "append", DedupeCapability: groupdelivery.DedupeNone},
 	}
-	_, err := f.plainTarget().Exec(`CREATE TABLE healthy_proof_readings(reading TEXT)`)
+	_, err := f.plainTarget().ExecContext(t.Context(), `CREATE TABLE healthy_proof_readings(reading TEXT)`)
 	require.NoError(t, err)
 	healthy := snapshotOf(healthyGroup, at(0))
 	healthy.RuntimeLayout = &workspace.WriteGroupRuntimeLayout{Dialect: dbtarget.SQLDialectSQLite, Columns: []dbtarget.ColumnInfo{{Name: "reading", DataType: "TEXT", Nullable: true}}, TagTypes: map[string]schema.DataType{"healthy-tag": schema.DataTypeUint64}}
@@ -74,7 +74,7 @@ func conflictPairState(t *testing.T, f *ownershipPipelineFixture) map[string][]s
 	t.Helper()
 	state := map[string][]string{}
 	for _, table := range []string{"wg_delivery_samples", "wg_delivery_checkpoints", "wg_delivery_counter_baselines", "wg_delivery_outbox", "wg_runtime_versions", "wg_counter_proof_associations"} {
-		rows, err := f.local.Query(`SELECT * FROM `+table+` WHERE group_id IN (?,?) ORDER BY rowid`, f.source.GroupID, f.target.GroupID)
+		rows, err := f.local.QueryContext(t.Context(), `SELECT * FROM `+table+` WHERE group_id IN (?,?) ORDER BY rowid`, f.source.GroupID, f.target.GroupID)
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)
@@ -123,7 +123,7 @@ func TestCutoverReconcileProofConflictRemainsDurableAndScoped(t *testing.T) {
 				f.groups.groups = append(f.groups.groups, f.target.Group)
 				f.groups.snapshots[f.target.GroupID] = []*workspace.WriteGroupAppliedSnapshot{f.target}
 				if mode == "missing-authority" {
-					_, err = f.local.Exec(`DELETE FROM wg_runtime_versions WHERE group_id=?`, f.target.GroupID)
+					_, err = f.local.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions WHERE group_id=?`, f.target.GroupID)
 					require.NoError(t, err)
 				}
 				before, originalRows := conflictPairState(t, f), handoffOriginalRows(t, f)
@@ -164,14 +164,14 @@ func TestCutoverReconcileProofConflictRemainsDurableAndScoped(t *testing.T) {
 					}
 					require.Contains(t, err.Error(), wantErr.Error(), "typed refusal retains a safe public reason")
 					var receipts int
-					require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_sample_handoffs`).Scan(&receipts))
+					require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_sample_handoffs`).Scan(&receipts))
 					if mode == "receipt-write-failure" {
 						require.Zero(t, receipts, "uncommitted transfer cannot masquerade as durable pending")
 					} else {
 						require.Equal(t, 1, receipts)
 						var id, state, raw string
 						var targetSequence sql.NullInt64
-						require.NoError(t, f.local.QueryRow(`SELECT transfer_id,state,target_seq,record FROM wg_delivery_sample_handoffs`).Scan(&id, &state, &targetSequence, &raw))
+						require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT transfer_id,state,target_seq,record FROM wg_delivery_sample_handoffs`).Scan(&id, &state, &targetSequence, &raw))
 						require.Equal(t, wantState, state)
 						require.False(t, targetSequence.Valid, "blocked receipt is not target acceptance")
 						var receipt struct {
@@ -218,10 +218,10 @@ func TestCutoverReconcileProofConflictRemainsDurableAndScoped(t *testing.T) {
 				require.NoError(t, f.pipe.boundaries[boundaryKey(healthy.GroupID, healthy.AppliedRevision)].boundary.Tick(t.Context(), at(80)))
 				f.deliver()
 				var value string
-				require.NoError(t, f.plainTarget().QueryRow(`SELECT reading FROM healthy_proof_readings`).Scan(&value))
+				require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT reading FROM healthy_proof_readings`).Scan(&value))
 				require.Equal(t, "7", value)
 				var targetRows int
-				require.NoError(t, f.plainTarget().QueryRow(`SELECT COUNT(*) FROM `+f.target.Group.Destination.TableName+` WHERE group_id=?`, f.target.GroupID).Scan(&targetRows))
+				require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+f.target.Group.Destination.TableName+` WHERE group_id=?`, f.target.GroupID).Scan(&targetRows))
 				require.Zero(t, targetRows, "blocked is neither SQL committed nor accepted")
 				require.Equal(t, before, conflictPairState(t, f))
 				require.Zero(t, reader.calls)
