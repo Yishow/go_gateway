@@ -216,12 +216,15 @@ func lineageSchemaSnapshot(t *testing.T, db *sql.DB) []string {
 	rows, err := db.QueryContext(t.Context(), `SELECT type||':'||name||':'||COALESCE(sql,'') FROM sqlite_master ORDER BY type,name`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var result []string
+	result := make([]string, 0, 16)
 	for rows.Next() {
 		var value string
 		require.NoError(t, rows.Scan(&value))
 		result = append(result, value)
 	}
 	require.NoError(t, rows.Err())
+	if len(result) == 0 {
+		return nil
+	}
 	return result
 }

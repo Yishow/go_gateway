@@ -3,6 +3,7 @@ package datalink
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"go-gateway/internal/datalink/schema/migrations"
@@ -10,13 +11,17 @@ import (
 
 // ensureSQLitePointFormatIntent adds nullable legacy intent atomically. Existing
 // data_format values, revisions, and accepted measurements are not rewritten.
-func ensureSQLitePointFormatIntent(db *sql.DB) error {
+func ensureSQLitePointFormatIntent(db *sql.DB) (err error) {
 	ctx := context.Background()
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin point format migration: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if cleanupErr := tx.Rollback(); cleanupErr != nil && !errors.Is(cleanupErr, sql.ErrTxDone) {
+			err = errors.Join(err, migrationCleanupError{cause: cleanupErr})
+		}
+	}()
 	// Acquire a write lock before inspecting the schema on concurrent startup.
 	if _, err = tx.ExecContext(ctx, "UPDATE points SET id=id WHERE 0"); err != nil {
 		return fmt.Errorf("lock point format migration: %w", err)

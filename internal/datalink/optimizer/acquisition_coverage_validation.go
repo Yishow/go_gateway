@@ -15,7 +15,8 @@ func ValidateAcquisitionCoverage(protocol string, coverage ReadableCoverage) boo
 // AcquisitionPointShape resolves the same native scalar shape used by planning.
 // It does not authorize coverage, apply capabilities or change source membership.
 func AcquisitionPointShape(protocol string, point EffectivePoint) (nativeBits, nativeWidth int, err error) {
-	area, start, nativeBits, bitIndex, _, code := pointNativeAddress(protocol, point)
+	resolved := pointNativeAddress(protocol, point)
+	area, start, nativeBits, bitIndex, code := resolved.area, resolved.start, resolved.nativeBits, resolved.bitIndex, resolved.code
 	if code != "" {
 		return 0, 0, errors.New(code)
 	}
@@ -37,7 +38,8 @@ func AcquisitionPointSpan(protocol string, point EffectivePoint) (NativeRange, e
 	if err != nil {
 		return NativeRange{}, err
 	}
-	area, start, _, _, _, _ := pointNativeAddress(protocol, point)
+	resolved := pointNativeAddress(protocol, point)
+	area, start := resolved.area, resolved.start
 	step := nativeAddressStep(protocol, area)
 	if step <= 0 || width > (int(^uint(0)>>1)-start)/step {
 		return NativeRange{}, errors.New(acquisitionReasonInvalidAddress)

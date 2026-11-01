@@ -104,7 +104,8 @@ func canonicalRanges(ranges []NativeRange) []NativeRange {
 }
 
 func planScalar(source AcquisitionSource, point EffectivePoint) (plannedRequest AcquisitionRequest, rejectionReason string) {
-	area, start, nativeBits, bitIndex, function, code := pointNativeAddress(source.Identity.Protocol, point)
+	resolved := pointNativeAddress(source.Identity.Protocol, point)
+	area, start, nativeBits, bitIndex, function, code := resolved.area, resolved.start, resolved.nativeBits, resolved.bitIndex, resolved.function, resolved.code
 	if code != "" {
 		return AcquisitionRequest{}, code
 	}
@@ -180,7 +181,7 @@ func scalarBits(dt schema.DataType) int {
 }
 
 func nativeAddress(protocol, address string) (area string, start, nativeBits, bitIndex int, code string) {
-	nativeBits, bitIndex = 16, -1
+	nativeBits = 16
 	if protocol == acquisitionProtocolFatek {
 		symbol, offset, err := fatek.ParseComponentAddress(address)
 		if err != nil {

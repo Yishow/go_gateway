@@ -66,7 +66,7 @@ func mixedSourceIndexRows(t *testing.T, db *sql.DB) [][]any {
 	defer rows.Close()
 	cols, err := rows.Columns()
 	require.NoError(t, err)
-	var result [][]any
+	result := make([][]any, 0, 16)
 	for rows.Next() {
 		v := make([]any, len(cols))
 		p := make([]any, len(cols))
@@ -77,6 +77,9 @@ func mixedSourceIndexRows(t *testing.T, db *sql.DB) [][]any {
 		result = append(result, v)
 	}
 	require.NoError(t, rows.Err())
+	if len(result) == 0 {
+		return nil
+	}
 	return result
 }
 

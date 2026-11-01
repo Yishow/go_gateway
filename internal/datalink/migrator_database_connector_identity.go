@@ -46,7 +46,7 @@ func ensureSQLiteDatabaseConnectorIdentityRevision(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("failed to inspect empty connector identity revisions: %w", err)
 	}
-	var pendingIDs []string
+	pendingIDs := make([]string, 0, 16)
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {

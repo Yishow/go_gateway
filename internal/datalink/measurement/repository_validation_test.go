@@ -83,3 +83,14 @@ func TestSQLRepositoryRejectsUnencodableMeasurementBeforeWrite(t *testing.T) {
 		t.Fatalf("invalid create changed row count: count=%d err=%v", count, err)
 	}
 }
+
+func TestSQLRepositoryEmptyListsRemainNil(t *testing.T) {
+	db := measurementRepositoryDB(t)
+	repo := NewSQLRepository(db)
+	if got, err := repo.ListByWorkspace(t.Context(), "empty"); err != nil || got != nil {
+		t.Fatalf("empty workspace list must remain nil: got=%v err=%v", got, err)
+	}
+	if got, err := repo.ListByDevice(t.Context(), "empty", "missing"); err != nil || got != nil {
+		t.Fatalf("empty device list must remain nil: got=%v err=%v", got, err)
+	}
+}

@@ -53,6 +53,7 @@ func runSQLiteConfigurationExpansion(db *sql.DB, migrate func(context.Context, *
 			return
 		}
 		tempErr := restoreSQLiteMigrationTemp(ctx, conn, hadTemp, tempStore)
+		discardConfirmed := false
 		restore := restoreSQLiteMigrationPragmas(
 			[]sqliteMigrationPragma{{"legacy_alter_table", legacyAlter}, {"foreign_keys", foreignKeys}},
 			func(query string) error { _, e := conn.ExecContext(ctx, query); return e },
@@ -61,10 +62,18 @@ func runSQLiteConfigurationExpansion(db *sql.DB, migrate func(context.Context, *
 				e := conn.QueryRowContext(ctx, query).Scan(&actual)
 				return actual, e
 			},
-			func() error { return conn.Raw(func(any) error { return driver.ErrBadConn }) },
+			func() error {
+				discardErr := conn.Raw(func(any) error { return driver.ErrBadConn })
+				if discardErr == nil || errors.Is(discardErr, driver.ErrBadConn) {
+					discardConfirmed = true
+				}
+				return discardErr
+			},
 		)
 		if tempErr != nil {
-			_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+			if discardErr := conn.Raw(func(any) error { return driver.ErrBadConn }); discardErr != nil && !errors.Is(discardErr, driver.ErrBadConn) && (!discardConfirmed || !errors.Is(discardErr, sql.ErrConnDone)) {
+				restore = errors.Join(restore, migrationCleanupError{cause: discardErr})
+			}
 			restore = errors.Join(restore, tempErr)
 		}
 		if restore != nil {
@@ -156,8 +165,8 @@ func rebuildMixedProfileTable(ctx context.Context, tx *sql.Tx, checkpoint func(s
 	if _, err = tx.ExecContext(ctx, ddl); err != nil {
 		return err
 	}
-	fields := strings.Join(columns, ",")
-	if _, err = tx.ExecContext(ctx, "INSERT INTO "+temporary+" ("+fields+") SELECT "+fields+" FROM write_groups"); err != nil {
+	// The validated source columns and copied DDL have exactly the same order.
+	if _, err = tx.ExecContext(ctx, "INSERT INTO write_groups_member_calculation_expand SELECT * FROM write_groups"); err != nil {
 		return err
 	}
 	var different int

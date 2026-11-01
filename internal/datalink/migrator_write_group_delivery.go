@@ -67,7 +67,7 @@ func ensureSQLiteCounterProofAssociations(db *sql.DB) error {
 
 // ensureSQLiteSampleHandoffs handles the mixed additive-column/table migration
 // transactionally and idempotently, including a retry after interrupted startup.
-func ensureSQLiteSampleHandoffs(db *sql.DB) error {
+func ensureSQLiteSampleHandoffs(db *sql.DB) (err error) {
 	const name = "045_write_group_sample_handoffs_sqlite.up.sql"
 	raw, err := migrations.FS.ReadFile(name)
 	if err != nil {
@@ -84,7 +84,11 @@ func ensureSQLiteSampleHandoffs(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if cleanupErr := tx.Rollback(); cleanupErr != nil && !errors.Is(cleanupErr, sql.ErrTxDone) {
+			err = errors.Join(err, migrationCleanupError{cause: cleanupErr})
+		}
+	}()
 	if _, err = tx.ExecContext(ctx, "UPDATE wg_delivery_checkpoints SET updated_at=updated_at WHERE 0"); err != nil {
 		return err
 	}

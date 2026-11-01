@@ -102,13 +102,16 @@ func recordProfileKeyObjects(ctx context.Context, tx *sql.Tx) ([]string, error) 
 		return nil, err
 	}
 	defer rows.Close()
-	var objects []string
+	objects := make([]string, 0, 16)
 	for rows.Next() {
 		var ddl string
 		if err := rows.Scan(&ddl); err != nil {
 			return nil, err
 		}
 		objects = append(objects, ddl)
+	}
+	if len(objects) == 0 {
+		return nil, rows.Err()
 	}
 	return objects, rows.Err()
 }

@@ -267,7 +267,7 @@ func TestDecodeMixedRegisters_SingleItemFailureIsolation(t *testing.T) {
 		},
 	}
 
-	results, err := DecodeMixedRegisters(rawRegs, items, "ABCD")
+	results, err := DecodeMixedRegisters(rawRegs, items, measurementDefaultDataFormat)
 	if err != nil {
 		t.Fatalf("unexpected fatal error: %v", err)
 	}

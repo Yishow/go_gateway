@@ -224,7 +224,7 @@ func TestMixedDeliveryMigrationHeadExpressionIndex(t *testing.T) {
 	}
 	rows, err := db.QueryContext(t.Context(), `EXPLAIN QUERY PLAN `+head, "z")
 	require.NoError(t, err)
-	var plans []string
+	plans := make([]string, 0, 16)
 	for rows.Next() {
 		var id, parent, unused int
 		var detail string

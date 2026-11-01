@@ -67,7 +67,7 @@ func TestWriteGroupsMigrationRepairsMissingMemberTableWithoutDroppingGroups(t *t
 	rows, err := db.QueryContext(ctx, `SELECT id FROM write_groups ORDER BY id`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var ids []string
+	ids := make([]string, 0, 16)
 	for rows.Next() {
 		var id string
 		require.NoError(t, rows.Scan(&id))

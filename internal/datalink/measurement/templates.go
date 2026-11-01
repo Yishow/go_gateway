@@ -38,7 +38,7 @@ var BuiltinTemplates = map[string]MeasurementTemplate{
 			{ItemID: "ib", Name: "Phase B Current", RegisterOffset: 8, DataType: schema.DataTypeFloat32, Quantity: quantityCurrent, Unit: "A", SemanticKind: SemanticKindGauge},
 			{ItemID: "ic", Name: "Phase C Current", RegisterOffset: 10, DataType: schema.DataTypeFloat32, Quantity: quantityCurrent, Unit: "A", SemanticKind: SemanticKindGauge},
 			{ItemID: "kw", Name: "Active Power", RegisterOffset: 12, DataType: schema.DataTypeFloat32, Quantity: "power", Unit: "kW", SemanticKind: SemanticKindGauge},
-			{ItemID: "kwh", Name: "Active Energy", RegisterOffset: 14, DataType: schema.DataTypeUint32, Quantity: "energy", Unit: "kWh", SemanticKind: SemanticKindCounter, DataFormat: "ABCD"},
+			{ItemID: "kwh", Name: "Active Energy", RegisterOffset: 14, DataType: schema.DataTypeUint32, Quantity: "energy", Unit: "kWh", SemanticKind: SemanticKindCounter, DataFormat: measurementDefaultDataFormat},
 		},
 	},
 	"mixed_equipment_sensors_v1": {

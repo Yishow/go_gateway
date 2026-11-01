@@ -1,6 +1,7 @@
 package datalink
 
 import (
+	"database/sql/driver"
 	"errors"
 	"fmt"
 )
@@ -27,7 +28,9 @@ func restoreSQLiteMigrationPragmas(settings []sqliteMigrationPragma, exec func(s
 		}
 	}
 	if result != nil {
-		_ = discard()
+		if discardErr := discard(); discardErr != nil && !errors.Is(discardErr, driver.ErrBadConn) {
+			result = errors.Join(result, migrationCleanupError{cause: discardErr})
+		}
 	}
 	return result
 }

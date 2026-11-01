@@ -5,15 +5,23 @@ import (
 	"strings"
 )
 
+type nativePointAddress struct {
+	area                        string
+	start, nativeBits, bitIndex int
+	function, code              string
+}
+
 // pointNativeAddress uses the same Function/address precedence as the actual
 // Modbus adapter and format resolver. The original Point snapshot stays intact.
-func pointNativeAddress(protocol string, point EffectivePoint) (area string, start, nativeBits, bitIndex int, function, code string) {
+func pointNativeAddress(protocol string, point EffectivePoint) nativePointAddress {
+	var area, function, code string
+	var start, nativeBits, bitIndex int
 	address := point.Address
 	function = point.Function
 	if protocol == acquisitionProtocolModbus {
 		canonical, err := decoding.CanonicalModbusAddress(address, function)
 		if err != nil {
-			return "", 0, 0, 0, "", acquisitionReasonInvalidAddress
+			return nativePointAddress{code: acquisitionReasonInvalidAddress}
 		}
 		// The canonical wire aliases C/CO correspond to the native parser's
 		// internal COIL area label. No address precedence is reimplemented here.
@@ -30,5 +38,5 @@ func pointNativeAddress(protocol string, point EffectivePoint) (area string, sta
 	if code == "" && protocol == acquisitionProtocolModbus {
 		function = map[string]string{"HR": "03", "IR": "04", acquisitionAreaCoil: "01", "DI": "02"}[area]
 	}
-	return
+	return nativePointAddress{area: area, start: start, nativeBits: nativeBits, bitIndex: bitIndex, function: function, code: code}
 }

@@ -20,7 +20,7 @@ func mixedProfileColumns(ctx context.Context, tx *sql.Tx) ([]string, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var columns []string
+	columns := make([]string, 0, len(known))
 	seen := make(map[string]bool)
 	for rows.Next() {
 		var cid, notNull, pk, hidden int
@@ -52,13 +52,16 @@ func mixedProfileObjects(ctx context.Context, tx *sql.Tx) ([]string, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var objects []string
+	objects := make([]string, 0, 16)
 	for rows.Next() {
 		var ddl string
 		if err := rows.Scan(&ddl); err != nil {
 			return nil, err
 		}
 		objects = append(objects, ddl)
+	}
+	if len(objects) == 0 {
+		return nil, rows.Err()
 	}
 	return objects, rows.Err()
 }

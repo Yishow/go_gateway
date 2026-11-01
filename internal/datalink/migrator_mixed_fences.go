@@ -58,7 +58,7 @@ func expandMixedOwnershipFences(ctx context.Context, tx *sql.Tx, step func(strin
 	if err != nil {
 		return err
 	}
-	var objects []string
+	objects := make([]string, 0, 16)
 	for rows.Next() {
 		var ddl string
 		if err = rows.Scan(&ddl); err != nil {

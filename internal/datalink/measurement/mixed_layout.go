@@ -10,6 +10,8 @@ import (
 	"go-gateway/lib/hsllogic"
 )
 
+const measurementDefaultDataFormat = "ABCD"
+
 // LayoutMode 來源規則讀取佈局模式。
 type LayoutMode string
 
@@ -180,7 +182,7 @@ func DecodeMixedRegisters(registers []uint16, items []MixedItem, defaultFormat s
 			fmtStr = defaultFormat
 		}
 		if fmtStr == "" {
-			fmtStr = "ABCD"
+			fmtStr = measurementDefaultDataFormat
 		}
 
 		conv := hsllogic.NewDataConverter(hsllogic.DataFormat(fmtStr))

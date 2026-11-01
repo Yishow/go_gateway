@@ -140,13 +140,16 @@ func (r *SQLRepository) ListByWorkspace(ctx context.Context, workspaceID string)
 	}
 	defer rows.Close()
 
-	var list []MeasurementDefinition
+	list := make([]MeasurementDefinition, 0, 16)
 	for rows.Next() {
 		def, err := scanMeasurementDefinitionRow(rows)
 		if err != nil {
 			return nil, err
 		}
 		list = append(list, *def)
+	}
+	if len(list) == 0 {
+		return nil, rows.Err() // Preserve the original empty-list API contract.
 	}
 	return list, rows.Err()
 }
@@ -170,13 +173,16 @@ func (r *SQLRepository) ListByDevice(ctx context.Context, workspaceID, deviceID 
 	}
 	defer rows.Close()
 
-	var list []MeasurementDefinition
+	list := make([]MeasurementDefinition, 0, 16)
 	for rows.Next() {
 		def, err := scanMeasurementDefinitionRow(rows)
 		if err != nil {
 			return nil, err
 		}
 		list = append(list, *def)
+	}
+	if len(list) == 0 {
+		return nil, rows.Err() // Preserve the original empty-list API contract.
 	}
 	return list, rows.Err()
 }

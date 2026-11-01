@@ -3,6 +3,7 @@ package datalink
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"go-gateway/internal/datalink/common"
@@ -37,13 +38,17 @@ func sqliteWriteGroupLineageState(ctx context.Context, reader sqliteLineageReade
 
 // ensureSQLiteWriteGroupLineages atomically expands canonical keys once. Reentry
 // only validates; it never repairs references, resets heads, or invents history.
-func ensureSQLiteWriteGroupLineages(db *sql.DB) error {
+func ensureSQLiteWriteGroupLineages(db *sql.DB) (err error) {
 	ctx := context.Background()
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin write-group lineage migration: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if cleanupErr := tx.Rollback(); cleanupErr != nil && !errors.Is(cleanupErr, sql.ErrTxDone) {
+			err = errors.Join(err, migrationCleanupError{cause: cleanupErr})
+		}
+	}()
 	// Take the write lock before schema inspection, including on concurrent startup.
 	if _, err := tx.ExecContext(ctx, `UPDATE write_groups SET revision=revision WHERE 0`); err != nil {
 		return fmt.Errorf("lock write-group lineage migration: %w", err)
@@ -83,7 +88,7 @@ func initializeSQLiteWriteGroupLineages(ctx context.Context, tx *sql.Tx) error {
 		return fmt.Errorf("read write-group lineage genesis keys: %w", err)
 	}
 	type anchor struct{ workspace, group string }
-	var anchors []anchor
+	anchors := make([]anchor, 0, 16)
 	for rows.Next() {
 		var a anchor
 		if err := rows.Scan(&a.workspace, &a.group); err != nil {

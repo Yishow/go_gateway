@@ -12,14 +12,14 @@ import (
 
 func TestMCFormatIntentChangesIdentityEvenWithSameLegacyDataFormat(t *testing.T) {
 	d := schema.Device{ID: "D", Protocol: schema.ProtocolMC3E, ConnectionConfig: `{"data_format":"CDAB"}`}
-	p := schema.Point{ID: "P", DeviceID: d.ID, Address: "D0", DataType: schema.DataTypeUint32, DataFormat: "ABCD"}
+	p := schema.Point{ID: "P", DeviceID: d.ID, Address: "D0", DataType: schema.DataTypeUint32, DataFormat: measurementDefaultDataFormat}
 	tag := schema.Tag{ID: "T"}
 	oldSource, err := SourceRevision(d, p, tag)
 	require.NoError(t, err)
 	oldFingerprint, err := AcquisitionConfigFingerprint(d, p)
 	require.NoError(t, err)
 	p.FormatMode = schema.PointFormatOverride
-	p.FormatOverride = "ABCD"
+	p.FormatOverride = measurementDefaultDataFormat
 	p.FormatVersion = 1
 	source, sourceErr := SourceRevision(d, p, tag)
 	fingerprint, fingerprintErr := AcquisitionConfigFingerprint(d, p)
@@ -29,8 +29,8 @@ func TestMCFormatIntentChangesIdentityEvenWithSameLegacyDataFormat(t *testing.T)
 
 func TestModernIdentityUsesFrozenPolicyAndDefaultIdentity(t *testing.T) {
 	d := schema.Device{ID: "D", Protocol: schema.ProtocolMC3E, ConnectionConfig: `{"data_format":"CDAB","password":"private-secret"}`}
-	p := schema.Point{ID: "P", DeviceID: d.ID, RevisionID: "p1", Address: "D0", DataType: schema.DataTypeUint64, DataFormat: "ABCD", FormatMode: schema.PointFormatInherit, FormatVersion: 1}
-	defaults := decoding.FormatContext{Protocol: d.Protocol, RuleID: "R", RuleOwned: true, RuleRevision: "r1", RuleFormat: "ABCD", ConnectionFormat: "CDAB", ConnectionRevision: connector.ReadConnectionRevision(d.ConnectionConfig)}
+	p := schema.Point{ID: "P", DeviceID: d.ID, RevisionID: "p1", Address: "D0", DataType: schema.DataTypeUint64, DataFormat: measurementDefaultDataFormat, FormatMode: schema.PointFormatInherit, FormatVersion: 1}
+	defaults := decoding.FormatContext{Protocol: d.Protocol, RuleID: "R", RuleOwned: true, RuleRevision: "r1", RuleFormat: measurementDefaultDataFormat, ConnectionFormat: "CDAB", ConnectionRevision: connector.ReadConnectionRevision(d.ConnectionConfig)}
 	profile, err := connector.ResolveReadProfile(p, defaults)
 	require.NoError(t, err)
 	first, err := AcquisitionConfigFingerprint(d, p, profile)
@@ -48,9 +48,12 @@ func TestModernIdentityUsesFrozenPolicyAndDefaultIdentity(t *testing.T) {
 		"effective default": func(_ *schema.Point, c *decoding.FormatContext) { c.RuleFormat = "DCBA" },
 		"same order different source": func(p *schema.Point, _ *decoding.FormatContext) {
 			p.FormatMode = schema.PointFormatOverride
-			p.FormatOverride = "ABCD"
+			p.FormatOverride = measurementDefaultDataFormat
 		},
-		"connection-selected": func(_ *schema.Point, c *decoding.FormatContext) { c.RuleFormat = ""; c.ConnectionFormat = "ABCD" },
+		"connection-selected": func(_ *schema.Point, c *decoding.FormatContext) {
+			c.RuleFormat = ""
+			c.ConnectionFormat = measurementDefaultDataFormat
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			candidate, ctx := p, defaults
