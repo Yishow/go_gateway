@@ -13,9 +13,10 @@ import (
 
 // Inject only cleanup I/O failure; transactions and storage are real SQLite.
 type cleanupFaultConnector struct {
-	fault       error
-	closes      int
-	sawDeadline bool
+	fault          error
+	closes         int
+	sawDeadline    bool
+	observeCleanup func(context.Context)
 }
 
 func (c *cleanupFaultConnector) Connect(ctx context.Context) (driver.Conn, error) {
@@ -35,6 +36,9 @@ type cleanupFaultConn struct {
 func (c *cleanupFaultConn) Close() error { c.owner.closes++; return c.Conn.Close() }
 func (c *cleanupFaultConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	if query == "ROLLBACK" {
+		if c.owner.observeCleanup != nil {
+			c.owner.observeCleanup(ctx)
+		}
 		_, c.owner.sawDeadline = ctx.Deadline()
 		if c.owner.fault != nil {
 			return nil, c.owner.fault
@@ -82,7 +86,7 @@ func TestRollbackCleanupFailureCannotBeHiddenAsTxDone(t *testing.T) {
 	tx, err := conn.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	require.NoError(t, tx.Rollback())
-	owned := &Transaction{Tx: tx, conn: conn}
+	owned := &Transaction{Tx: tx, conn: conn, cleanupParent: context.WithoutCancel(t.Context())}
 	err = owned.Rollback()
 	require.ErrorIs(t, err, ErrConnectionUnusable)
 	require.False(t, errors.Is(err, sql.ErrTxDone), "usual defer guards must not suppress cleanup failure")

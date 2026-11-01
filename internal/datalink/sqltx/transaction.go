@@ -26,8 +26,11 @@ var ErrConnectionUnusable = errors.New("transaction connection unusable; databas
 type Transaction struct {
 	Tx   *sql.Tx
 	conn *sql.Conn
-	mu   sync.Mutex
-	done bool
+	// cleanupParent is captured only with the owned modernc conn in Begin.
+	// Foreign-driver transactions return before any cleanup-parent use.
+	cleanupParent context.Context
+	mu            sync.Mutex
+	done          bool
 }
 
 // Begin retains a dedicated connection for modernc SQLite only. Other drivers
@@ -49,7 +52,7 @@ func Begin(ctx context.Context, db *sql.DB, opts *sql.TxOptions) (*Transaction, 
 		_ = conn.Close()
 		return nil, err
 	}
-	return &Transaction{Tx: tx, conn: conn}, nil
+	return &Transaction{Tx: tx, conn: conn, cleanupParent: context.WithoutCancel(ctx)}, nil
 }
 
 // Commit preserves the original failure, even if native cleanup succeeds.
@@ -64,7 +67,7 @@ func (t *Transaction) Commit() error {
 	if t.conn == nil {
 		return err
 	}
-	err = FinishSQLiteCommit(t.conn, err)
+	err = finishSQLiteCommit(t.cleanupParent, t.conn, err)
 	return errors.Join(err, t.conn.Close())
 }
 
@@ -81,7 +84,7 @@ func (t *Transaction) Rollback() error {
 		return err
 	}
 	if err != nil {
-		cleanupErr := RollbackSQLite(t.conn)
+		cleanupErr := rollbackSQLiteContext(t.cleanupParent, t.conn)
 		// Existing defer guards ignore ErrTxDone. Never attach that benign
 		// sentinel to a real cleanup failure or it too would be suppressed.
 		if cleanupErr != nil && errors.Is(err, sql.ErrTxDone) {
@@ -98,10 +101,14 @@ func (t *Transaction) Rollback() error {
 // A real SQLITE_BUSY plus a successful native rollback proves non-commit;
 // all other failed acknowledgments retain an explicitly unknown outcome.
 func FinishSQLiteCommit(conn *sql.Conn, commitErr error) error {
+	return finishSQLiteCommit(context.Background(), conn, commitErr)
+}
+
+func finishSQLiteCommit(ctx context.Context, conn *sql.Conn, commitErr error) error {
 	if commitErr == nil {
 		return nil
 	}
-	rolledBack, cleanupErr := rollbackSQLite(conn)
+	rolledBack, cleanupErr := rollbackSQLite(ctx, conn)
 	var sqliteErr *sqlite.Error
 	if cleanupErr == nil && rolledBack && errors.As(commitErr, &sqliteErr) && sqliteErr.Code()&255 == 5 {
 		return commitErr
@@ -112,13 +119,17 @@ func FinishSQLiteCommit(conn *sql.Conn, commitErr error) error {
 // RollbackSQLite resolves any native transaction on an exclusively owned conn.
 // Call only after the sql.Tx terminal method, before returning conn to the pool.
 func RollbackSQLite(conn *sql.Conn) error {
-	_, err := rollbackSQLite(conn)
+	return rollbackSQLiteContext(context.Background(), conn)
+}
+
+func rollbackSQLiteContext(ctx context.Context, conn *sql.Conn) error {
+	_, err := rollbackSQLite(ctx, conn)
 	return err
 }
 
-func rollbackSQLite(conn *sql.Conn) (bool, error) {
+func rollbackSQLite(parent context.Context, conn *sql.Conn) (bool, error) {
 	// Caller cancellation must not prevent cleanup. Bound cleanup independently.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
 	_, err := conn.ExecContext(ctx, "ROLLBACK")
 	if err == nil {
