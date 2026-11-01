@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func exerciseWordTransportBoundaries(t *testing.T, f wordProductionFixture) {

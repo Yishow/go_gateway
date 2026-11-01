@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func successorRuntimeOriginals(t *testing.T, r *successorRuntimeRig) map[string]string {

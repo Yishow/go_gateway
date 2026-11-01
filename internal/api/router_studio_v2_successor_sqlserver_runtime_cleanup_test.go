@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Register after rig construction: LIFO runs proof-scoped effect cleanup before

@@ -75,7 +75,8 @@ func ResolvePoint(point schema.Point, defaults FormatContext) (PointResolution, 
 	if err != nil {
 		return PointResolution{}, err
 	}
-	if mode == schema.PointFormatOverride {
+	switch mode {
+	case schema.PointFormatOverride:
 		if !canonicalFormat(point.FormatOverride) {
 			return PointResolution{}, ErrInvalidIntent
 		}
@@ -84,7 +85,7 @@ func ResolvePoint(point schema.Point, defaults FormatContext) (PointResolution, 
 		}
 		policy.EffectiveFormat, policy.Source, policy.Policy = point.FormatOverride, SourceOverride, PolicyOverride
 		policy.NativeCompatibility = false
-	} else if mode == schema.PointFormatInherit {
+	case schema.PointFormatInherit:
 		if multiword && capabilityErr != nil {
 			return PointResolution{}, capabilityErr
 		}

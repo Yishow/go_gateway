@@ -1,10 +1,11 @@
 package api
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/workspace"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMySQLSuccessorActivationRejectsForeignOrMissingProof(t *testing.T) {

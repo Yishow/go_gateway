@@ -2,11 +2,12 @@ package workspace
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/recordingplan"
 	"math"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorReserveDecoderRejectsPrivateProofFamilyContradiction(t *testing.T) {

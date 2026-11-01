@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/gin-gonic/gin"
 )
 
 // UpdateFormat applies only explicitly scoped configuration intent. Runtime

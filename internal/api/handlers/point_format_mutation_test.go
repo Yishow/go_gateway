@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"bytes"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPointLegacyFormatPUTRequiresExplicitGuards(t *testing.T) {

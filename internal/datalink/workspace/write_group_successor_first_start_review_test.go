@@ -3,9 +3,10 @@ package workspace
 import (
 	"context"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorFirstStartReviewDoesNotInventAppliedPredecessor(t *testing.T) {

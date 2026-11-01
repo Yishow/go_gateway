@@ -2,10 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestStudioLocatorEditorRequiresIndependentExpectedBindings(t *testing.T) {

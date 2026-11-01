@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/grouppipeline"
@@ -19,6 +18,8 @@ import (
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/testutil/lostcommit"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Both connections address the actual workspace database. Only the delivery

@@ -9,11 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Unlike a raw legacy source, this source was counter-bound at its first

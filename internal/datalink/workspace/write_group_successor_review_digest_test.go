@@ -1,10 +1,11 @@
 package workspace
 
 import (
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorEnvelopeBindsEveryScopeAndMeaning(t *testing.T) {

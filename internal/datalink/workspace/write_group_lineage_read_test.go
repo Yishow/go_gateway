@@ -38,21 +38,21 @@ func TestCanonicalLineageCorruptionCannotFallThroughToCreate(t *testing.T) {
 				current, err := h.workspace.GetOrCreate(t.Context())
 				require.NoError(t, err)
 				mutation.ExpectedWorkspaceRevision = current.DatabaseSetupRevision
-				_, err = h.db.Exec("PRAGMA foreign_keys=OFF; PRAGMA ignore_check_constraints=ON")
+				_, err = h.db.ExecContext(t.Context(), "PRAGMA foreign_keys=OFF; PRAGMA ignore_check_constraints=ON")
 				require.NoError(t, err)
 				if name == "foreign_key_workspace" {
 					// Keep the requested alias present and poison the other family.
 					other := "write_group_profile_keys"
 					if kind == "profile" {
 						other = "write_group_basic_keys"
-						_, err = h.db.Exec(`INSERT INTO write_group_basic_keys(workspace_id,device_id,canonical_role,group_id,lineage_id) SELECT workspace_id,'other-device','basic',current_group_id,lineage_id FROM write_group_lineages`)
+						_, err = h.db.ExecContext(t.Context(), `INSERT INTO write_group_basic_keys(workspace_id,device_id,canonical_role,group_id,lineage_id) SELECT workspace_id,'other-device','basic',current_group_id,lineage_id FROM write_group_lineages`)
 					} else {
-						_, err = h.db.Exec(`INSERT INTO write_group_profile_keys(workspace_id,circuit_id,profile_kind,canonical_role,group_id,lineage_id) SELECT workspace_id,'circuit-1','instantaneous','circuit',current_group_id,lineage_id FROM write_group_lineages`)
+						_, err = h.db.ExecContext(t.Context(), `INSERT INTO write_group_profile_keys(workspace_id,circuit_id,profile_kind,canonical_role,group_id,lineage_id) SELECT workspace_id,'circuit-1','instantaneous','circuit',current_group_id,lineage_id FROM write_group_lineages`)
 					}
 					require.NoError(t, err)
-					_, err = h.db.Exec(replaceLineageKeyTable(corruption, other))
+					_, err = h.db.ExecContext(t.Context(), replaceLineageKeyTable(corruption, other))
 				} else {
-					_, err = h.db.Exec(replaceLineageKeyTable(corruption, lineageKeyTables(kind)[0]))
+					_, err = h.db.ExecContext(t.Context(), replaceLineageKeyTable(corruption, lineageKeyTables(kind)[0]))
 				}
 				require.NoError(t, err)
 				before := lineageReadSnapshot(t, h)
@@ -77,7 +77,7 @@ func TestCanonicalLineageCurrentAndHistoricalIdentity(t *testing.T) {
 	genesis := cloneWriteGroup(first.Group)
 	current := seedLineageGeneration(t, h, genesis, lineage, "G2", 2)
 	seedLineageGeneration(t, h, current, lineage, "G3", 3)
-	_, err = h.db.Exec(`UPDATE write_group_lineages SET current_group_id='G2',reserved_group_id='G3',reservation_operation_id='O3',reservation_intent_digest='intent-3',revision=7 WHERE lineage_id=?`, lineage)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_lineages SET current_group_id='G2',reserved_group_id='G3',reservation_operation_id='O3',reservation_intent_digest='intent-3',revision=7 WHERE lineage_id=?`, lineage)
 	require.NoError(t, err)
 	before := lineageReadSnapshot(t, h)
 	key, err := circuitProfileKeyOf(genesis)
@@ -125,15 +125,15 @@ func TestCanonicalLineageOnlyAbsentKeysAreNotFound(t *testing.T) {
 func seedLineageReadFixture(t *testing.T, h *circuitProfileHarness, group *WriteGroup) string {
 	t.Helper()
 	var lineage string
-	err := h.db.QueryRow("SELECT lineage_id FROM write_group_generations WHERE group_id=?", group.ID).Scan(&lineage)
+	err := h.db.QueryRowContext(t.Context(), "SELECT lineage_id FROM write_group_generations WHERE group_id=?", group.ID).Scan(&lineage)
 	if errors.Is(err, sql.ErrNoRows) {
 		lineage = "L1"
-		_, err = h.db.Exec(`INSERT INTO write_group_lineages(lineage_id,workspace_id,current_group_id) VALUES(?,?,?)`, lineage, group.WorkspaceID, group.ID)
+		_, err = h.db.ExecContext(t.Context(), `INSERT INTO write_group_lineages(lineage_id,workspace_id,current_group_id) VALUES(?,?,?)`, lineage, group.WorkspaceID, group.ID)
 		require.NoError(t, err)
-		_, err = h.db.Exec(`INSERT INTO write_group_generations(group_id,lineage_id,generation) VALUES(?,?,1)`, group.ID, lineage)
+		_, err = h.db.ExecContext(t.Context(), `INSERT INTO write_group_generations(group_id,lineage_id,generation) VALUES(?,?,1)`, group.ID, lineage)
 		require.NoError(t, err)
 		for _, table := range lineageKeyTables("dual") {
-			_, err = h.db.Exec("UPDATE "+table+" SET lineage_id=? WHERE group_id=?", lineage, group.ID)
+			_, err = h.db.ExecContext(t.Context(), "UPDATE "+table+" SET lineage_id=? WHERE group_id=?", lineage, group.ID)
 			require.NoError(t, err)
 		}
 	} else {
@@ -148,7 +148,7 @@ func seedLineageGeneration(t *testing.T, h *circuitProfileHarness, predecessor *
 	group.ID, group.Revision = id, "R"+id
 	group.BasicManagedDeviceID = ""
 	require.NoError(t, h.service.repo.insertGroup(t.Context(), h.db, group))
-	_, err := h.db.Exec(`INSERT INTO write_group_generations(group_id,lineage_id,generation,predecessor_group_id) VALUES(?,?,?,?)`, id, lineage, generation, predecessor.ID)
+	_, err := h.db.ExecContext(t.Context(), `INSERT INTO write_group_generations(group_id,lineage_id,generation,predecessor_group_id) VALUES(?,?,?,?)`, id, lineage, generation, predecessor.ID)
 	require.NoError(t, err)
 	return group
 }
@@ -161,7 +161,7 @@ func lineageReadSnapshot(t *testing.T, h *circuitProfileHarness) map[string]stri
 	t.Helper()
 	state := lifecycleReadState(t, h.db)
 	for _, table := range []string{"write_group_lineages", "write_group_generations", "write_group_basic_keys", "write_group_profile_keys"} {
-		rows, err := h.db.Query("SELECT * FROM " + table + " ORDER BY rowid")
+		rows, err := h.db.QueryContext(t.Context(), "SELECT * FROM "+table+" ORDER BY rowid")
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)

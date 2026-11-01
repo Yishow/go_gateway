@@ -3,10 +3,11 @@ package handlers
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/grouppipeline"
 	"go-gateway/internal/datalink/runtimeview"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRuntimeDeliveryQuotaCopiesMeasuredScopeWithoutInference(t *testing.T) {

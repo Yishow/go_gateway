@@ -2,10 +2,11 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/workspace"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMySQLSuccessorRejectsActualOtherFamilyBeforeReservation(t *testing.T) {

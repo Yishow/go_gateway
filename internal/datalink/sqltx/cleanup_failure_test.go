@@ -55,7 +55,7 @@ func TestCleanupFailureDiscardsAndReportsMemoryDatabaseLoss(t *testing.T) {
 	require.NoError(t, err)
 	tx, err := conn.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
-	_, err = tx.Exec("INSERT INTO probe VALUES(7)")
+	_, err = tx.ExecContext(t.Context(), "INSERT INTO probe VALUES(7)")
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 	lostAck := errors.New("commit acknowledgment lost")
@@ -69,7 +69,7 @@ func TestCleanupFailureDiscardsAndReportsMemoryDatabaseLoss(t *testing.T) {
 	require.ErrorIs(t, conn.PingContext(t.Context()), sql.ErrConnDone, "migration must not restore pragmas on discarded conn")
 	// This is deliberately NOT recovery: the last private-memory handle was lost.
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM probe").Scan(&count)
+	err = db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM probe").Scan(&count)
 	require.ErrorContains(t, err, "no such table: probe")
 }
 

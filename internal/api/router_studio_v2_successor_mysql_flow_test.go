@@ -2,13 +2,14 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/workspace"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMySQLSuccessorPublicFlow(t *testing.T) {

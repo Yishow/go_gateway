@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"
@@ -17,6 +16,9 @@ import (
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/storage"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPointFormatHTTPWiringInvalidatesOnceAndPreservesLegacyShape(t *testing.T) {
@@ -50,7 +52,7 @@ func TestPointFormatHTTPWiringInvalidatesOnceAndPreservesLegacyShape(t *testing.
 			router.GET("/points/:id/format/operations/:request_id", h.InspectFormatOperation)
 			router.GET("/points/:id/format", h.ReadFormat)
 			read := httptest.NewRecorder()
-			router.ServeHTTP(read, httptest.NewRequest("GET", "/points/"+p.ID+"/format?workspace_id="+record.ID+"&device_id="+p.DeviceID, nil))
+			router.ServeHTTP(read, httptest.NewRequest("GET", "/points/"+p.ID+"/format?workspace_id="+record.ID+"&device_id="+p.DeviceID, http.NoBody))
 			require.Equal(t, 200, read.Code, read.Body.String())
 			var initial PointFormatReadResponse
 			require.NoError(t, json.Unmarshal(read.Body.Bytes(), &initial))
@@ -122,7 +124,7 @@ func TestPointFormatHTTPWiringInvalidatesOnceAndPreservesLegacyShape(t *testing.
 			state, err = share.CheckHydration(t.Context())
 			require.NoError(t, err)
 			require.Equal(t, latest, state)
-			r := httptest.NewRequest("GET", "/points/"+p.ID+"/format/operations/format-request?workspace_id="+record.ID+"&device_id="+p.DeviceID, nil)
+			r := httptest.NewRequest("GET", "/points/"+p.ID+"/format/operations/format-request?workspace_id="+record.ID+"&device_id="+p.DeviceID, http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, r)
 			require.Equal(t, 200, w.Code)
@@ -131,12 +133,12 @@ func TestPointFormatHTTPWiringInvalidatesOnceAndPreservesLegacyShape(t *testing.
 	}
 }
 
-type cancelledPointFormatLifecycle struct {
+type canceledPointFormatLifecycle struct {
 	*pointFormatLifecycle
 	cancel context.CancelFunc
 }
 
-func (l *cancelledPointFormatLifecycle) InvalidatePointFormat(ctx context.Context, change point.FormatInvalidation) error {
+func (l *canceledPointFormatLifecycle) InvalidatePointFormat(ctx context.Context, change point.FormatInvalidation) error {
 	l.cancel()
 	return l.pointFormatLifecycle.InvalidatePointFormat(ctx, change)
 }
@@ -164,11 +166,11 @@ func TestPointFormatCommitThenCancelledRequestStillFailsClosed(t *testing.T) {
 	live.UpsertPoint(p)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	svc.SetFormatInvalidator(&cancelledPointFormatLifecycle{pointFormatLifecycle: &pointFormatLifecycle{points: svc, share: share, runtime: live}, cancel: cancel})
+	svc.SetFormatInvalidator(&canceledPointFormatLifecycle{pointFormatLifecycle: &pointFormatLifecycle{points: svc, share: share, runtime: live}, cancel: cancel})
 	req := point.FormatMutationRequest{FormatScope: point.FormatScope{WorkspaceID: record.ID, DeviceID: p.DeviceID, PointID: p.ID, ExpectedWorkspaceRevision: "ws-old", ExpectedPointRevision: &p.RevisionID, RequestID: "cancel-request"}, FormatMode: schema.PointFormatOverride, ConfiguredFormat: "CDAB"}
 	_, err = svc.MutateFormat(ctx, req)
 	require.ErrorIs(t, err, point.ErrFormatUnavailable)
-	require.True(t, live.SuspendPointRevision(p.ID, "not-old"), "cancelled HTTP context must not leave old acquisition installed")
+	require.True(t, live.SuspendPointRevision(p.ID, "not-old"), "canceled HTTP context must not leave old acquisition installed")
 	state, err := share.CheckHydration(t.Context())
 	require.NoError(t, err)
 	require.False(t, state.Readiness)

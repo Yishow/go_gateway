@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/recordingplan"
+
+	"github.com/stretchr/testify/require"
 )
 
 // This fixture seeds local authority records only. It performs no target SQL,
@@ -15,7 +16,7 @@ import (
 func statusCutoverFixture(t *testing.T, disablePredecessor ...bool) (*circuitProfileHarness, string, WriteGroupSuccessorStageRequest, *WriteGroupCutover) {
 	t.Helper()
 	h, id, request := successorActiveWideFixture(t)
-	_, err := h.db.Exec(`UPDATE database_connectors SET connection_config=json_set(connection_config,'$.schema','main') WHERE id=?`, request.Group.Destination.ConnectorID)
+	_, err := h.db.ExecContext(t.Context(), `UPDATE database_connectors SET connection_config=json_set(connection_config,'$.schema','main') WHERE id=?`, request.Group.Destination.ConnectorID)
 	require.NoError(t, err)
 	request.Group.Destination.TableSchema = "main"
 	initial, err := h.service.SuccessorReview(t.Context(), id, request)
@@ -86,11 +87,11 @@ func TestSuccessorOperationStatusReadsOriginalCutoverAndRejectsCorruption(t *tes
 			case "moved":
 				detail, e := json.Marshal(cutoverDetail{Ended: event.Ended, Started: event.Started, OwnershipFenceRevision: event.ID})
 				require.NoError(t, e)
-				_, err = h.db.Exec(`UPDATE write_group_cutovers SET detail=? WHERE id=?`, string(detail), event.ID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_cutovers SET detail=? WHERE id=?`, string(detail), event.ID)
 			case "boundary":
-				_, err = h.db.Exec(`UPDATE write_group_cutovers SET boundary=? WHERE id=?`, event.Boundary.Add(time.Second).Format(time.RFC3339Nano), event.ID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_cutovers SET boundary=? WHERE id=?`, event.Boundary.Add(time.Second).Format(time.RFC3339Nano), event.ID)
 			case "intent":
-				_, err = h.db.Exec(`UPDATE write_group_cutovers SET intent=json_set(intent,'$.confirmation.readiness_digest','changed') WHERE id=?`, event.ID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_cutovers SET intent=json_set(intent,'$.confirmation.readiness_digest','changed') WHERE id=?`, event.ID)
 			case "activation-kind":
 				var stored struct {
 					Confirmation WriteGroupSuccessorActivationConfirmation `json:"confirmation"`
@@ -102,13 +103,13 @@ func TestSuccessorOperationStatusReadsOriginalCutoverAndRejectsCorruption(t *tes
 				stored.Confirmation.ReviewDigest = digest
 				_, intent, e := successorActivationIntent(id, stored.Confirmation)
 				require.NoError(t, e)
-				_, err = h.db.Exec(`UPDATE write_group_cutovers SET intent=?,review_digest=? WHERE id=?`, intent, digest, event.ID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_cutovers SET intent=?,review_digest=? WHERE id=?`, intent, digest, event.ID)
 			case "schema":
-				_, err = h.db.Exec(`UPDATE managed_schema_operations SET status='unknown' WHERE action='schema_apply'`)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE managed_schema_operations SET status='unknown' WHERE action='schema_apply'`)
 			case "fence":
-				_, err = h.db.Exec(`DELETE FROM write_group_ownership_fences WHERE fence_revision=?`, event.ID)
+				_, err = h.db.ExecContext(t.Context(), `DELETE FROM write_group_ownership_fences WHERE fence_revision=?`, event.ID)
 			case "ended":
-				_, err = h.db.Exec(`DELETE FROM write_group_revision_ends WHERE cutover_id=?`, event.ID)
+				_, err = h.db.ExecContext(t.Context(), `DELETE FROM write_group_revision_ends WHERE cutover_id=?`, event.ID)
 			}
 			require.NoError(t, err)
 			before := lineageReadSnapshot(t, h)

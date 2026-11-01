@@ -3,8 +3,6 @@ package handlers
 import (
 	"bytes"
 	"context"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/point"
 	runtimepkg "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/schema"
@@ -12,6 +10,9 @@ import (
 	"go-gateway/internal/datalink/storage"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 type uncertainOrdinaryRepository struct {

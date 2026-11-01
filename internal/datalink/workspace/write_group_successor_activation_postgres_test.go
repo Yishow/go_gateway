@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/recordingplan"
+
+	"github.com/stretchr/testify/require"
 )
 
 // This is a local configuration/ledger test, not PostgreSQL DDL acceptance.

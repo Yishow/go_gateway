@@ -5,8 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRuntimeSourceEvidenceByteOrderScaleCastAndUnsupportedParams(t *testing.T) {

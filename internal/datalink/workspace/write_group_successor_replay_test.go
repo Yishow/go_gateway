@@ -3,9 +3,10 @@ package workspace
 import (
 	"context"
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRecreatePendingReplayPrecedesFreshCAS(t *testing.T) {

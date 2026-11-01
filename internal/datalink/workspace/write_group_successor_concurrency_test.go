@@ -3,11 +3,12 @@ package workspace
 import (
 	"database/sql"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRecreateConcurrentSeparateConnections(t *testing.T) {

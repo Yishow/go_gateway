@@ -152,7 +152,7 @@ func mixedSuccessorConfirmAndActivate(ctx context.Context, t *testing.T, h *circ
 		require.NoError(t, err)
 		require.NotNil(t, lifecycle.SuccessorSeed, "activated successor must support its next reviewed change: %+v", lifecycle.Actions)
 		next := writeGroupRecreateReservationRequest{Group: cloneWriteGroup(lifecycle.SuccessorSeed.Group)}
-		recreateRepositoryNewTarget(t, h, &next)
+		recreateRepositoryNewTargetContext(ctx, t, h, &next)
 		targetPath := filepath.Join(t.TempDir(), "next-target.db")
 		db, err := sql.Open("sqlite", targetPath)
 		require.NoError(t, err)

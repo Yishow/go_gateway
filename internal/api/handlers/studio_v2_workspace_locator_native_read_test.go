@@ -3,9 +3,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/recordingplan"
@@ -15,6 +12,10 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func locatorNativeQuery(t *testing.T, f workspaceDatabaseFixture) url.Values {
@@ -26,7 +27,7 @@ func locatorNativeQuery(t *testing.T, f workspaceDatabaseFixture) url.Values {
 func locatorNativeServe(handler gin.HandlerFunc, q url.Values) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/native?"+q.Encode(), nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/native?"+q.Encode(), http.NoBody)
 	handler(c)
 	return w
 }
@@ -34,12 +35,12 @@ func TestStudioLocatorNativeMetadataNeverBootstrapsMissingWorkspace(t *testing.T
 	f := newWorkspaceDatabaseFixture(t)
 	saveWorkspaceDatabaseConfig(t, f)
 	q := locatorNativeQuery(t, f)
-	_, err := f.mainDB.Exec(`DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
+	_, err := f.mainDB.ExecContext(t.Context(), `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
 	require.NoError(t, err)
 	response := locatorNativeServe(f.handler.GetMetadata, q)
 	assert.Equal(t, 409, response.Code, response.Body.String())
 	var n int
-	require.NoError(t, f.mainDB.QueryRow(`SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
+	require.NoError(t, f.mainDB.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
 	assert.Zero(t, n)
 }
 
@@ -63,7 +64,7 @@ func TestStudioLocatorNativeOperationDeletionDuringReadNeverRecreates(t *testing
 			q := locatorNativeQuery(t, f)
 			plans := recordingplan.NewService(recordingplan.NewSQLRepository(f.mainDB))
 			reader := locatorNativeOperations{schemaOperationReader: plans, change: func() {
-				_, err := f.mainDB.Exec(`DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
+				_, err := f.mainDB.ExecContext(t.Context(), `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
 				require.NoError(t, err)
 			}}
 			h := NewStudioV2WorkspaceDatabaseOperationsHandler(f.workspaceSvc, reader)
@@ -74,7 +75,7 @@ func TestStudioLocatorNativeOperationDeletionDuringReadNeverRecreates(t *testing
 			response := locatorNativeServe(handler, q)
 			require.Equal(t, 409, response.Code, response.Body.String())
 			var n int
-			require.NoError(t, f.mainDB.QueryRow(`SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
+			require.NoError(t, f.mainDB.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
 			require.Zero(t, n)
 		})
 	}
@@ -100,7 +101,7 @@ func TestStudioLocatorNativeCapabilityDeletionDuringProbeNeverRecreates(t *testi
 			saveWorkspaceDatabaseConfig(t, f)
 			record, err := f.workspaceSvc.ReadSnapshot(t.Context())
 			require.NoError(t, err)
-			_, err = f.mainDB.Exec(`UPDATE database_connectors SET kind=? WHERE id=?`, kind, record.DatabaseConnectorID)
+			_, err = f.mainDB.ExecContext(t.Context(), `UPDATE database_connectors SET kind=? WHERE id=?`, kind, record.DatabaseConnectorID)
 			require.NoError(t, err)
 			connector, err := f.connectorSvc.GetByID(t.Context(), record.DatabaseConnectorID)
 			require.NoError(t, err)
@@ -109,14 +110,14 @@ func TestStudioLocatorNativeCapabilityDeletionDuringProbeNeverRecreates(t *testi
 			q.Set("connector_id", connector.ID)
 			q.Set("expected_connector_revision", connector.IdentityRevision)
 			probe := locatorNativeCapabilityProbe{ConnectorService: f.connectorSvc, change: func() {
-				_, err := f.mainDB.Exec(`DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
+				_, err := f.mainDB.ExecContext(t.Context(), `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
 				require.NoError(t, err)
 			}}
 			h := NewStudioV2WorkspaceRecordingPlansHandler(f.workspaceSvc, recordingplan.NewService(recordingplan.NewSQLRepository(f.mainDB)), probe)
 			response := locatorNativeServe(h.Capabilities, q)
 			assert.Equal(t, 409, response.Code, response.Body.String())
 			var n int
-			require.NoError(t, f.mainDB.QueryRow(`SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
+			require.NoError(t, f.mainDB.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
 			assert.Zero(t, n)
 		})
 	}
@@ -150,10 +151,10 @@ func TestStudioLocatorNativeStrictPairAndOrdinaryCompatibility(t *testing.T) {
 		})
 	}
 	var before, after int
-	require.NoError(t, f.mainDB.QueryRow(`SELECT total_changes()`).Scan(&before))
+	require.NoError(t, f.mainDB.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&before))
 	response := locatorNativeServe(f.handler.GetMetadata, base)
 	require.Equal(t, 200, response.Code, response.Body.String())
-	require.NoError(t, f.mainDB.QueryRow(`SELECT total_changes()`).Scan(&after))
+	require.NoError(t, f.mainDB.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&after))
 	require.Equal(t, before, after)
 	ordinary := url.Values{"expected_connector_revision": {connector.IdentityRevision}}
 	require.Equal(t, 200, locatorNativeServe(f.handler.GetMetadata, ordinary).Code)
@@ -183,7 +184,7 @@ func TestStudioLocatorNativeMeasurementMissingAndConcurrentDeletion(t *testing.T
 			f := newWorkspaceDatabaseFixture(t)
 			q := locatorNativeQuery(t, f)
 			remove := func() {
-				_, err := f.mainDB.Exec(`DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
+				_, err := f.mainDB.ExecContext(t.Context(), `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
 				require.NoError(t, err)
 			}
 			repo := locatorNativeMeasurementRepo{Repository: measurement.NewSQLRepository(f.mainDB)}
@@ -196,7 +197,7 @@ func TestStudioLocatorNativeMeasurementMissingAndConcurrentDeletion(t *testing.T
 			res := locatorNativeServe(h.List, q)
 			assert.Equal(t, 409, res.Code, res.Body.String())
 			var n int
-			require.NoError(t, f.mainDB.QueryRow(`SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
+			require.NoError(t, f.mainDB.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
 			assert.Zero(t, n)
 		})
 	}
@@ -290,7 +291,7 @@ func TestStudioLocatorNativeMetadataDeletionDuringReadOnlyInspection(t *testing.
 		c, err := f.connectorRepo.GetByID(ctx, id)
 		calls++
 		if calls == 2 {
-			_, deleteErr := f.mainDB.Exec(`DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
+			_, deleteErr := f.mainDB.ExecContext(ctx, `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
 			require.NoError(t, deleteErr)
 		}
 		return c, err
@@ -299,6 +300,6 @@ func TestStudioLocatorNativeMetadataDeletionDuringReadOnlyInspection(t *testing.
 	require.GreaterOrEqual(t, calls, 2)
 	require.Equal(t, 409, res.Code, res.Body.String())
 	var n int
-	require.NoError(t, f.mainDB.QueryRow(`SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
+	require.NoError(t, f.mainDB.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
 	require.Zero(t, n)
 }

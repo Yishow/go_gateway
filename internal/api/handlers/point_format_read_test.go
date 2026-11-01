@@ -2,16 +2,18 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPointFormatReadHTTPScopedWhitelist(t *testing.T) {
@@ -28,7 +30,7 @@ func TestPointFormatReadHTTPScopedWhitelist(t *testing.T) {
 	router.GET("/points/:id/format", NewPointHandler(svc).ReadFormat)
 	path := "/points/" + p.ID + "/format?workspace_id=" + ws.ID + "&device_id=" + p.DeviceID
 	w := httptest.NewRecorder()
-	router.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+	router.ServeHTTP(w, httptest.NewRequest("GET", path, http.NoBody))
 	require.Equal(t, 200, w.Code, w.Body.String())
 	require.NotContains(t, w.Body.String(), "private-secret")
 	require.NotContains(t, w.Body.String(), "connection_config")
@@ -39,6 +41,6 @@ func TestPointFormatReadHTTPScopedWhitelist(t *testing.T) {
 	require.Equal(t, schema.PointFormatInherit, response.Data.Resolution.Mode)
 	require.Equal(t, "ABCD", response.Data.Resolution.EffectiveFormat)
 	w = httptest.NewRecorder()
-	router.ServeHTTP(w, httptest.NewRequest("GET", path+"&rule_id=foreign", nil))
+	router.ServeHTTP(w, httptest.NewRequest("GET", path+"&rule_id=foreign", http.NoBody))
 	require.Equal(t, 403, w.Code)
 }

@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func wordSQLiteBackupCopy(t *testing.T, source, destination string) {

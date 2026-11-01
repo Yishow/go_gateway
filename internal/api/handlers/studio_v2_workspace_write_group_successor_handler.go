@@ -8,10 +8,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
 )
 
 // StudioV2WorkspaceWriteGroupSuccessorHandler separates preparation from

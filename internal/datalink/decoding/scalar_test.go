@@ -1,10 +1,11 @@
 package decoding
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"math"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestScalarAllNumericTypesAndOrders(t *testing.T) {

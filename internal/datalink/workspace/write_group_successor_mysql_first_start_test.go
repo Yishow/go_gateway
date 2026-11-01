@@ -2,11 +2,12 @@ package workspace
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/recordingplan"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 type successorDualMySQLProbe struct {

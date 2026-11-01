@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sourcerule"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestProductionWordFormatRestartAndSQLRollback(t *testing.T) {

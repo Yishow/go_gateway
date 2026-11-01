@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/grouppipeline"
@@ -17,6 +16,8 @@ import (
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/snapshot"
 	"go-gateway/internal/datalink/tag"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Keep the public setup/apply routes, then use explicit Reconcile/Tick/Dispatch

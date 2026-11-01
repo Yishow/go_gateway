@@ -3,10 +3,11 @@ package workspace
 import (
 	"context"
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRecreateFrozenSourceEngineAllowsEditedOrRemovedOldConnector(t *testing.T) {

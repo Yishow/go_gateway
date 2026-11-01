@@ -3,9 +3,10 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"sort"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Include table DDL and every row in both owned databases, not merely counts.

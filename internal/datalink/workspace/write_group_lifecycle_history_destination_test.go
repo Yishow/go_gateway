@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/snapshot"
+
+	"github.com/stretchr/testify/require"
 )
 
 func lifecycleHistoryRecordKeyFixture(t *testing.T, dialect, key string, withOutbox bool) (*sql.DB, *WriteGroupService, *WriteGroup) {

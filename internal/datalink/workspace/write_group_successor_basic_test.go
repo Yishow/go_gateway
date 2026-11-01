@@ -2,8 +2,9 @@ package workspace
 
 import (
 	"errors"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func recreateBasicFixture(t *testing.T, engine string) (*circuitProfileHarness, writeGroupRecreateReservationRequest) {

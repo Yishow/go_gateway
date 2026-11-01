@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 )
 
 // FormatRecoveryResult describes configuration recovery, never recording start
@@ -21,8 +22,8 @@ type FormatRecoveryResult struct {
 }
 type PointFormatRecovery func(context.Context, point.FormatRecoveryRequest) (FormatRecoveryResult, error)
 
-func (h *ModbusShareHandler) WithFormatRecovery(recover PointFormatRecovery) *ModbusShareHandler {
-	h.formatRecovery = recover
+func (h *ModbusShareHandler) WithFormatRecovery(recoverFormat PointFormatRecovery) *ModbusShareHandler {
+	h.formatRecovery = recoverFormat
 	return h
 }
 

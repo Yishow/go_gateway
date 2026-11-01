@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func sqlServerSuccessorRuntimeCounterRows(t *testing.T, r *sqlServerSuccessorRig, g *workspace.WriteGroup) []counterWindow {

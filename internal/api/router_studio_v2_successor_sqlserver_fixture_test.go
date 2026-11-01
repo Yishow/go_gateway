@@ -8,11 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/grouppipeline"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 const sqlServerSuccessorFixtureBEnv = "GW_SQLSERVER_TEST_FIXTURE_B"

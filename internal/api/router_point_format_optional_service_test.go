@@ -1,9 +1,10 @@
 package api
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/sourcerule"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRouterPointFormatInitializationAllowsMissingPointService(t *testing.T) {

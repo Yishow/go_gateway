@@ -2,11 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/workspace"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestPostgresSuccessorActivationPublicEligibility(t *testing.T) {

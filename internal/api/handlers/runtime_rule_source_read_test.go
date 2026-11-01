@@ -9,12 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
 	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 type runtimeSourceGroups struct{ record *workspace.Record }

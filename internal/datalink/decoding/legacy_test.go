@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolveLegacyPolicies(t *testing.T) {

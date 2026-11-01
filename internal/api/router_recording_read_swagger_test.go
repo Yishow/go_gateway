@@ -5,10 +5,11 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/api"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
 )
 
 // These read contracts must document the actual mounted URLs, not a second API.

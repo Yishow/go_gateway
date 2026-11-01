@@ -5,9 +5,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/workspace"
 	"go-gateway/internal/testutil/lostcommit"
+
+	"github.com/stretchr/testify/require"
 	"modernc.org/sqlite"
 )
 

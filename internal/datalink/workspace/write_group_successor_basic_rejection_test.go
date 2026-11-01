@@ -1,80 +1,81 @@
 package workspace
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRecreateBasicRejectsChangedShapeAndMeaning(t *testing.T) {
 	changes := map[string]func(*testing.T, *circuitProfileHarness, *writeGroupRecreateReservationRequest){
-		"partial_sources": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"partial_sources": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Members = r.Group.Members[:1]
 		},
-		"added_source": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"added_source": func(_ *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			s := h.seedSource(h.fixture.deviceID, "third")
 			m := r.Group.Members[0]
 			m.PointID, m.TagID, m.TargetColumn = s.pointID, s.tagID, "third"
 			r.Group.Members = append(r.Group.Members, m)
 		},
-		"layout": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"layout": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.LayoutVersion = WriteGroupLayoutManagedLongV1
 		},
-		"profile": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"profile": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.RecordingProfile = &WriteGroupRecordingProfile{Kind: WriteGroupProfileInstantaneous}
 		},
-		"custom": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"custom": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Destination.StorageStrategy = WriteGroupStorageStrategyCustom
 		},
-		"mode": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"mode": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.StorageMode = WriteGroupStorageModeTimescale
 		},
-		"interval": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"interval": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.RowPolicy.IntervalSeconds++
 		},
-		"lateness": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"lateness": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.RowPolicy.AllowedLatenessSeconds++
 		},
-		"write_policy": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"write_policy": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.WritePolicy.Mode = "latest"
 		},
-		"required": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"required": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Members[0].Required = false
 		},
-		"age": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"age": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			age := 10
 			r.Group.Members[0].MaxAgeSeconds = &age
 		},
-		"column": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"column": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Members[0].TargetColumn = "other"
 		},
-		"type": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"type": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Members[0].SourceValueType = "float64"
 		},
-		"source_revision": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"source_revision": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Members[0].SourceRevision = "changed"
 		},
-		"mapping_revision": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"mapping_revision": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Members[0].MappingRevision = "changed"
 		},
-		"binding": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"binding": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			id := "other-measurement"
 			r.Group.Members[0].MeasurementID = &id
 		},
-		"device": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"device": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Members[0].DeviceID = "other"
 		},
-		"table": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"table": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Destination.TableName = "arbitrary"
 		},
 		"destination": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			recreateRepositoryNewTarget(t, h, r)
 		},
-		"mysql": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
-			_, err := h.db.Exec(`UPDATE database_connectors SET kind='mysql'`)
+		"mysql": func(t *testing.T, h *circuitProfileHarness, _ *writeGroupRecreateReservationRequest) {
+			_, err := h.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='mysql'`)
 			require.NoError(t, err)
 		},
-		"sqlserver": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
-			_, err := h.db.Exec(`UPDATE database_connectors SET kind='sqlserver'`)
+		"sqlserver": func(t *testing.T, h *circuitProfileHarness, _ *writeGroupRecreateReservationRequest) {
+			_, err := h.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='sqlserver'`)
 			require.NoError(t, err)
 		},
 	}
@@ -98,7 +99,7 @@ func TestRecreateBasicImmutableAppliedBasisAndExactSource(t *testing.T) {
 			var err error
 			switch mode {
 			case "original", "draft_interval":
-				_, err = h.db.Exec(`UPDATE write_groups SET row_policy=json_set(row_policy,'$.interval_seconds',77),revision='draft-R2'`)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_groups SET row_policy=json_set(row_policy,'$.interval_seconds',77),revision='draft-R2'`)
 				require.NoError(t, err)
 				req.ExpectedPredecessorRevision = "draft-R2"
 				if mode == "draft_interval" {
@@ -106,20 +107,20 @@ func TestRecreateBasicImmutableAppliedBasisAndExactSource(t *testing.T) {
 					require.NoError(t, err)
 				}
 			case "missing_version":
-				_, err = h.db.Exec(`DELETE FROM write_group_versions`)
+				_, err = h.db.ExecContext(t.Context(), `DELETE FROM write_group_versions`)
 			case "foreign_version":
-				_, err = h.db.Exec(`UPDATE write_group_versions SET payload=json_set(payload,'$.workspace_id','foreign')`)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE write_group_versions SET payload=json_set(payload,'$.workspace_id','foreign')`)
 			case "stale_source", "refreshed_source":
-				_, err = h.db.Exec(`UPDATE tags SET data_type='float64'`)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE tags SET data_type='float64'`)
 				if mode == "refreshed_source" {
 					for i := range req.Group.Members {
 						req.Group.Members[i].SourceRevision = ""
 					}
 				}
 			case "unknown_type":
-				_, err = h.db.Exec(`PRAGMA ignore_check_constraints=ON; UPDATE tags SET data_type='unknown'`)
+				_, err = h.db.ExecContext(t.Context(), `PRAGMA ignore_check_constraints=ON; UPDATE tags SET data_type='unknown'`)
 			case "cross_engine":
-				_, err = h.db.Exec(`UPDATE database_connectors SET kind='postgres',connection_config='{"database":"persisted-db","schema":"persisted-schema"}'`)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='postgres',connection_config='{"database":"persisted-db","schema":"persisted-schema"}'`)
 			}
 			require.NoError(t, err)
 			before := recreateRepositorySnapshot(t, h)

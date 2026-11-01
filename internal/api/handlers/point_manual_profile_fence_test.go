@@ -2,13 +2,14 @@ package handlers
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type lateManualProfileProtocol struct {

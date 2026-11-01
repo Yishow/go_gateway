@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/recordingplan"
+
+	"github.com/stretchr/testify/require"
 )
 
 func successorStatusBody(f successorAPIFixture) map[string]any {

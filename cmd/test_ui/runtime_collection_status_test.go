@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	appconfig "go-gateway/internal/config"
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/connector"
@@ -19,6 +18,8 @@ import (
 	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 // The only fake is the local wire peer. Diagnosed draft, source rule, mapping,

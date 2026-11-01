@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
 )
 
 type successorOperationStatusRequest struct {

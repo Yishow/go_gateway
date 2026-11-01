@@ -6,8 +6,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/recordingplan"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorSQLServerUnitRuntimeDescriptorBindsAppliedMeaning(t *testing.T) {

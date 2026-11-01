@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/testutil/lostcommit"
+
+	"github.com/go-sql-driver/mysql"
+	"github.com/stretchr/testify/require"
 )
 
 // The real connector is resolved first, retaining frozen revision validation;

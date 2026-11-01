@@ -6,11 +6,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestStudioLocatorStrictQueryShapes(t *testing.T) {

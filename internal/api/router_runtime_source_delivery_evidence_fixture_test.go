@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/datalink/tag"
@@ -13,6 +12,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/gin-gonic/gin"
 
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"

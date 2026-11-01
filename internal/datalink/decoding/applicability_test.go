@@ -1,9 +1,10 @@
 package decoding
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolvePointRejectsInapplicableOverride(t *testing.T) {
@@ -46,11 +47,11 @@ func TestFormatCapabilityProtocolTypeWidthMatrix(t *testing.T) {
 		for _, dtype := range []schema.DataType{schema.DataTypeInt32, schema.DataTypeUint32, schema.DataTypeFloat32, schema.DataTypeInt64, schema.DataTypeUint64, schema.DataTypeFloat64} {
 			for _, format := range []string{"ABCD", "BADC", "CDAB", "DCBA"} {
 				t.Run(string(tc.protocol)+tc.address+string(dtype)+format, func(t *testing.T) {
-					cap, err := FormatCapability(tc.protocol, tc.address, dtype)
+					capability, err := FormatCapability(tc.protocol, tc.address, dtype)
 					require.NoError(t, err)
-					require.Equal(t, tc.width, cap.NativeBits)
-					require.Equal(t, scalarBits(dtype)/tc.width, cap.Components)
-					require.Equal(t, scalarBits(dtype)/16, cap.Words)
+					require.Equal(t, tc.width, capability.NativeBits)
+					require.Equal(t, scalarBits(dtype)/tc.width, capability.Components)
+					require.Equal(t, scalarBits(dtype)/16, capability.Words)
 					got, err := ResolvePoint(schema.Point{Address: tc.address, DataType: dtype, FormatMode: schema.PointFormatOverride, FormatOverride: format}, FormatContext{Protocol: tc.protocol})
 					require.NoError(t, err)
 					require.True(t, got.Applicable)

@@ -3,9 +3,10 @@ package workspace
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRecreateRepositoryAppliedCumulativeTypeDriftCannotRelabelSource(t *testing.T) {

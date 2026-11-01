@@ -3,10 +3,11 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/gin-gonic/gin"
 )
 
 // PointFormatReadResponse returns only scoped configuration evidence.

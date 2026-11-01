@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/sourcerule"
 	"log"
+
+	"github.com/google/uuid"
 )
 
 // hydrateStartupShare is the existing startup-only recovery boundary. It does

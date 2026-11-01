@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
@@ -19,6 +18,8 @@ import (
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
 )
 
 // StudioV2LocatorReaders exposes existing saved reads only, never bootstrap or repair.

@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/recordingplan"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorSQLServerUnitProofRejectsCorruptLedger(t *testing.T) {

@@ -3,8 +3,9 @@ package decoding
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestFatekFormatCapabilityUsesPhysicalComponentStep(t *testing.T) {
@@ -19,13 +20,13 @@ func TestFatekFormatCapabilityUsesPhysicalComponentStep(t *testing.T) {
 		{"DR65533", schema.DataTypeUint64, 2, false}, {"WY9", schema.DataTypeUint32, 2, false},
 	} {
 		t.Run(tc.address, func(t *testing.T) {
-			cap, err := FormatCapability(schema.ProtocolFatekFBs, tc.address, tc.dtype)
+			capability, err := FormatCapability(schema.ProtocolFatekFBs, tc.address, tc.dtype)
 			if !tc.valid {
 				require.ErrorIs(t, err, ErrInapplicableFormat)
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, tc.components, cap.Components)
+			require.Equal(t, tc.components, capability.Components)
 			for _, mode := range []schema.PointFormatMode{schema.PointFormatInherit, schema.PointFormatOverride} {
 				point := schema.Point{Address: tc.address, DataType: tc.dtype, FormatMode: mode, FormatVersion: 1}
 				if mode == schema.PointFormatOverride {

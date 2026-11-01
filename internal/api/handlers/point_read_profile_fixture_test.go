@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/point"
 	runtimepkg "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type pointProfileProjectionFunc func(context.Context) (*workspace.RuntimeProjection, error)

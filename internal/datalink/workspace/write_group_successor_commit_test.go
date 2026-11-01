@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/testutil/lostcommit"
+
+	"github.com/stretchr/testify/require"
 )
 
 var errRecreateInjected = errors.New("private SQL password payload injected")

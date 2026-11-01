@@ -1,10 +1,11 @@
 package decoding
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/lib/hsllogic"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSingleWordPoliciesKeepRegisterAndDirectByteSemanticsSeparate(t *testing.T) {

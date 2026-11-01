@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestCutoverPartialOwnersSurviveDelayedForwardAndRollback(t *testing.T) {

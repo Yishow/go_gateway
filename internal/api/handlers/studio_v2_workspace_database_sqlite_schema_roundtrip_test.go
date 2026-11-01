@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"go-gateway/internal/datalink/workspace"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
-	"go-gateway/internal/datalink/workspace"
 )
 
 // Reproduce the persisted legacy shape: blank connector schema and a canonical

@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/gin-gonic/gin"
 )
 
 // Legacy devices with no explicit availability field retain their existing semantics.

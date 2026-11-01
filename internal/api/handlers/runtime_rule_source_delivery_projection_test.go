@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/grouppipeline"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func runtimeSourceDeliveryFixture() (*workspace.WriteGroup, *workspace.WriteGroupAppliedSnapshot, runtimeview.Scope, *grouppipeline.DeliveryView, time.Time) {

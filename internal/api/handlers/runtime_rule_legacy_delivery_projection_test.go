@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/grouppipeline"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/runtimeview"
+
+	"github.com/stretchr/testify/require"
 )
 
 func legacyDeliverySafeFixture() *grouppipeline.DeliveryView {

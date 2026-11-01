@@ -1,10 +1,11 @@
 package api
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestPostgresSuccessorActivationRuntimeBoundaries(t *testing.T) {

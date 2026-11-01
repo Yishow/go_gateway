@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Never-applied generations now have an explicit first-start action. The old

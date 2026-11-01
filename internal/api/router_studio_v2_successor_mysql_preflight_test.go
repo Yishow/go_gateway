@@ -3,11 +3,12 @@ package api
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/workspace"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type mysqlSuccessorProbeSpy struct {

@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorMySQLFamilyModeAndDeletedMatrix(t *testing.T) {

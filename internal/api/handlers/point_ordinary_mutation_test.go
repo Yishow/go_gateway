@@ -3,8 +3,6 @@ package handlers
 import (
 	"bytes"
 	"context"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
@@ -19,6 +17,9 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 type lateOrdinaryRuntime struct {

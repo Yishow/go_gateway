@@ -6,10 +6,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	appconfig "go-gateway/internal/config"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestProductionFormatRecoveryMatchesSQLMemberSourceIdentity(t *testing.T) {

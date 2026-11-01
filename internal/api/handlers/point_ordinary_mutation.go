@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sqltx"
+
+	"github.com/gin-gonic/gin"
 )
 
 type ordinaryPointRuntime interface {

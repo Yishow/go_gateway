@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/decoding"
@@ -13,6 +12,8 @@ import (
 	"go-gateway/internal/datalink/storage"
 	"go-gateway/internal/datalink/workspace"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type telemetryGateWindowRepo struct {

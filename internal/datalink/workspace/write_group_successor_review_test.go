@@ -2,9 +2,10 @@ package workspace
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func successorReviewFixture(t *testing.T) (*circuitProfileHarness, string, WriteGroupSuccessorReviewRequest) {

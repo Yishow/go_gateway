@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/grouppipeline"
 	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/datalink/snapshot"
+
+	"github.com/stretchr/testify/require"
 )
 
 func runtimeQuotaConfigure(t *testing.T, r *runtimeDeliveryRig, config groupdelivery.QuotaConfig) {

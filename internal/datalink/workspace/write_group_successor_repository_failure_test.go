@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"math"
@@ -13,7 +14,7 @@ func recreateRepositorySnapshot(t *testing.T, h *circuitProfileHarness) map[stri
 	t.Helper()
 	state := lineageReadSnapshot(t, h)
 	for _, table := range []string{"write_group_members", "write_group_storage_scopes", "write_group_ownership_fences"} {
-		rows, err := h.db.Query("SELECT * FROM " + table + " ORDER BY rowid")
+		rows, err := h.db.QueryContext(t.Context(), "SELECT * FROM "+table+" ORDER BY rowid")
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)
@@ -61,7 +62,7 @@ func TestRecreateRepositoryRejectsChangedAuthorityWithoutEffects(t *testing.T) {
 			r.Group.WorkspaceID = "foreign"
 		}, ErrWriteGroupLineageCorrupt},
 		{"revision_overflow", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
-			_, err := h.db.Exec("UPDATE write_group_lineages SET revision=?", int64(math.MaxInt64))
+			_, err := h.db.ExecContext(t.Context(), "UPDATE write_group_lineages SET revision=?", int64(math.MaxInt64))
 			require.NoError(t, err)
 			r.ExpectedLineageRevision = math.MaxInt64
 		}, ErrWriteGroupLineageCorrupt},
@@ -70,7 +71,7 @@ func TestRecreateRepositoryRejectsChangedAuthorityWithoutEffects(t *testing.T) {
 		}, ErrWriteGroupLineageCorrupt},
 		{"historical_predecessor", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			seedLineageGeneration(t, h, r.Group, r.LineageID, "current-G2", 2)
-			_, err := h.db.Exec("UPDATE write_group_lineages SET current_group_id='current-G2'")
+			_, err := h.db.ExecContext(t.Context(), "UPDATE write_group_lineages SET current_group_id='current-G2'")
 			require.NoError(t, err)
 		}, ErrWriteGroupRevisionConflict},
 	}
@@ -80,7 +81,7 @@ func TestRecreateRepositoryRejectsChangedAuthorityWithoutEffects(t *testing.T) {
 			mutate func(*testing.T, *circuitProfileHarness, *writeGroupRecreateReservationRequest)
 			want   error
 		}{string(status), func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
-			_, err := h.db.Exec("UPDATE write_groups SET status=?", status)
+			_, err := h.db.ExecContext(t.Context(), "UPDATE write_groups SET status=?", status)
 			require.NoError(t, err)
 		}, ErrWriteGroupLifecycleBlocked})
 	}
@@ -110,9 +111,9 @@ func TestRecreateRepositoryCorruptionNeverRepairs(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			h, req := recreateRepositoryFixture(t, "dual")
-			_, err := h.db.Exec("PRAGMA foreign_keys=OFF; PRAGMA ignore_check_constraints=ON")
+			_, err := h.db.ExecContext(t.Context(), "PRAGMA foreign_keys=OFF; PRAGMA ignore_check_constraints=ON")
 			require.NoError(t, err)
-			_, err = h.db.Exec(query)
+			_, err = h.db.ExecContext(t.Context(), query)
 			require.NoError(t, err)
 			before := recreateRepositorySnapshot(t, h)
 			_, err = reserveRepositoryTest(t, h, req)
@@ -135,7 +136,7 @@ func TestRecreateRepositoryTransactionFailuresRollbackEveryArtifact(t *testing.T
 			if point.name == "storage" {
 				recreateRepositoryNewTarget(t, h, &req)
 			}
-			_, err := h.db.Exec("CREATE TRIGGER abort_recreate AFTER " + point.event + " ON " + point.table + " BEGIN SELECT RAISE(ABORT,'injected successor failure'); END")
+			_, err := h.db.ExecContext(t.Context(), "CREATE TRIGGER abort_recreate AFTER "+point.event+" ON "+point.table+" BEGIN SELECT RAISE(ABORT,'injected successor failure'); END")
 			require.NoError(t, err)
 			before := recreateRepositorySnapshot(t, h)
 			_, err = reserveRepositoryTest(t, h, req)
@@ -145,7 +146,7 @@ func TestRecreateRepositoryTransactionFailuresRollbackEveryArtifact(t *testing.T
 	}
 	t.Run("reservation_CAS_loser", func(t *testing.T) {
 		h, req := recreateRepositoryFixture(t, "profile")
-		_, err := h.db.Exec(`CREATE TRIGGER compete_recreate AFTER INSERT ON write_group_generations WHEN NEW.generation=2
+		_, err := h.db.ExecContext(t.Context(), `CREATE TRIGGER compete_recreate AFTER INSERT ON write_group_generations WHEN NEW.generation=2
    BEGIN UPDATE write_group_lineages SET revision=revision+1 WHERE lineage_id=NEW.lineage_id; END`)
 		require.NoError(t, err)
 		before := recreateRepositorySnapshot(t, h)
@@ -157,7 +158,12 @@ func TestRecreateRepositoryTransactionFailuresRollbackEveryArtifact(t *testing.T
 
 func recreateRepositoryNewTarget(t *testing.T, h *circuitProfileHarness, req *writeGroupRecreateReservationRequest) {
 	t.Helper()
-	_, err := h.db.Exec(`INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled)
+	recreateRepositoryNewTargetContext(t.Context(), t, h, req)
+}
+
+func recreateRepositoryNewTargetContext(ctx context.Context, t *testing.T, h *circuitProfileHarness, req *writeGroupRecreateReservationRequest) {
+	t.Helper()
+	_, err := h.db.ExecContext(ctx, `INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled)
  VALUES('recreate-target','recreate target','sqlite','{"database":"new-db","schema":"main"}','target-rev','ready',1)`)
 	require.NoError(t, err)
 	req.Group.Destination.ConnectorID, req.Group.Destination.ConnectorRevision = "recreate-target", "target-rev"

@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/recordingplan"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorNoHistoryRejectsForeignCutoverNamingLineage(t *testing.T) {

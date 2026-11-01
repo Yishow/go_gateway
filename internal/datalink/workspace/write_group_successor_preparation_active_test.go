@@ -3,9 +3,10 @@ package workspace
 import (
 	"context"
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func successorActiveWideFixture(t *testing.T, layouts ...WriteGroupLayoutVersion) (*circuitProfileHarness, string, WriteGroupSuccessorReviewRequest) {

@@ -15,7 +15,7 @@ func TestCanceledMemoryTransactionPreservesDatabase(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 	db.SetMaxOpenConns(1)
-	_, err = db.Exec("CREATE TABLE probe(value INTEGER); INSERT INTO probe VALUES(1)")
+	_, err = db.ExecContext(t.Context(), "CREATE TABLE probe(value INTEGER); INSERT INTO probe VALUES(1)")
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(t.Context())
 	tx, err := Begin(ctx, db, nil)
@@ -28,7 +28,7 @@ func TestCanceledMemoryTransactionPreservesDatabase(t *testing.T) {
 	require.NoError(t, err)
 	defer next.Rollback()
 	var value int
-	require.NoError(t, next.Tx.QueryRow("SELECT value FROM probe").Scan(&value))
+	require.NoError(t, next.Tx.QueryRowContext(t.Context(), "SELECT value FROM probe").Scan(&value))
 	require.Equal(t, 1, value)
 }
 
@@ -44,7 +44,7 @@ func TestCleanupAlreadyCommittedIsNotCommitSuccess(t *testing.T) {
 	require.NoError(t, err)
 	tx, err := conn.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
-	_, err = tx.Exec("INSERT INTO probe VALUES(7)")
+	_, err = tx.ExecContext(t.Context(), "INSERT INTO probe VALUES(7)")
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 	uncertain := errors.New("database is locked: acknowledgment lost")
@@ -55,7 +55,7 @@ func TestCleanupAlreadyCommittedIsNotCommitSuccess(t *testing.T) {
 	require.NoError(t, err)
 	defer next.Rollback()
 	var value int
-	require.NoError(t, next.QueryRow("SELECT value FROM probe").Scan(&value))
+	require.NoError(t, next.QueryRowContext(t.Context(), "SELECT value FROM probe").Scan(&value))
 	require.Equal(t, 7, value)
 }
 

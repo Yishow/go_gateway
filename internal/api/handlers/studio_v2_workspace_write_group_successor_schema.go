@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
 )
 
 func (h *StudioV2WorkspaceWriteGroupSuccessorHandler) scope(ctx context.Context, id string, req workspace.WriteGroupSuccessorStageRequest) (recordingplan.SchemaPreviewScope, error) {

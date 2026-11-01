@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
+
+	"github.com/stretchr/testify/require"
 )
 
 // The real connector is resolved first, retaining frozen revision validation;

@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
+
+	"github.com/stretchr/testify/require"
 )
 
 // The spec's rollback40 example keeps two legitimate native I/C acceptances

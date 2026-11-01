@@ -7,9 +7,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/gin-gonic/gin"
 )
 
 // Selection is only a read identity, never a locator or mutation capability.

@@ -5,9 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorOperationStatusRejectsCorruptSchemaBindings(t *testing.T) {
@@ -19,23 +20,23 @@ func TestSuccessorOperationStatusRejectsCorruptSchemaBindings(t *testing.T) {
 			require.NoError(t, err)
 			switch mutation {
 			case "digest":
-				_, err = h.db.Exec(`UPDATE managed_schema_preview_tokens SET digest='corrupt' WHERE token=?`, token.Token)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET digest='corrupt' WHERE token=?`, token.Token)
 			case "statements":
-				_, err = h.db.Exec(`UPDATE managed_schema_preview_tokens SET statements='[]' WHERE token=?`, token.Token)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET statements='[]' WHERE token=?`, token.Token)
 			case "connector":
-				_, err = h.db.Exec(`UPDATE managed_schema_preview_tokens SET connector_revision='foreign' WHERE token=?`, token.Token)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET connector_revision='foreign' WHERE token=?`, token.Token)
 			case "layout":
-				_, err = h.db.Exec(`UPDATE managed_schema_preview_tokens SET tables=json_set(tables,'$.group_layout.table_name','foreign') WHERE token=?`, token.Token)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET tables=json_set(tables,'$.group_layout.table_name','foreign') WHERE token=?`, token.Token)
 			case "operation-action":
-				_, err = h.db.Exec(`UPDATE managed_schema_operations SET action='successor_reserve' WHERE operation_id=?`, token.OperationID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE managed_schema_operations SET action='successor_reserve' WHERE operation_id=?`, token.OperationID)
 			case "operation-token":
-				_, err = h.db.Exec(`UPDATE managed_schema_operations SET token='foreign' WHERE operation_id=?`, token.OperationID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE managed_schema_operations SET token='foreign' WHERE operation_id=?`, token.OperationID)
 			case "operation-scope":
-				_, err = h.db.Exec(`UPDATE managed_schema_operations SET scope_key='foreign' WHERE operation_id=?`, token.OperationID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE managed_schema_operations SET scope_key='foreign' WHERE operation_id=?`, token.OperationID)
 			case "operation-workspace":
-				_, err = h.db.Exec(`UPDATE managed_schema_operations SET workspace_id='foreign' WHERE operation_id=?`, token.OperationID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE managed_schema_operations SET workspace_id='foreign' WHERE operation_id=?`, token.OperationID)
 			case "operation-proof":
-				_, err = h.db.Exec(`UPDATE managed_schema_operations SET status='succeeded',verified_digest=? WHERE operation_id=?`, strings.Repeat("z", 64), token.OperationID)
+				_, err = h.db.ExecContext(t.Context(), `UPDATE managed_schema_operations SET status='succeeded',verified_digest=? WHERE operation_id=?`, strings.Repeat("z", 64), token.OperationID)
 			}
 			require.NoError(t, err)
 			before := lineageReadSnapshot(t, h)
@@ -107,7 +108,7 @@ func TestSuccessorOperationStatusFrozenTypesSurviveLiveDrift(t *testing.T) {
 	_, _, _ = statusPreview(t, h, id, stage)
 	before, err := h.service.SuccessorOperationStatus(t.Context(), id, statusRequest(stage))
 	require.NoError(t, err)
-	_, err = h.db.Exec(`UPDATE tags SET data_type='int16' WHERE id=?`, stage.Envelope.Request.Group.Members[0].TagID)
+	_, err = h.db.ExecContext(t.Context(), `UPDATE tags SET data_type='int16' WHERE id=?`, stage.Envelope.Request.Group.Members[0].TagID)
 	require.NoError(t, err)
 	_, err = h.service.SuccessorSchemaScope(t.Context(), id, stage)
 	require.Error(t, err, "changed live source types must not issue a differently-bound preview for the same root")

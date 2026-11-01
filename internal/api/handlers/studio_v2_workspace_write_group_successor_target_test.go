@@ -5,10 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorSchemaTargetRequiresPrivateAuthority(t *testing.T) {

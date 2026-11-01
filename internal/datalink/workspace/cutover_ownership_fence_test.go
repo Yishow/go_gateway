@@ -7,9 +7,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/testutil/lostcommit"
+
+	"github.com/stretchr/testify/require"
 )
 
 // The seam intercepts only the real cutover transaction, after all writes but

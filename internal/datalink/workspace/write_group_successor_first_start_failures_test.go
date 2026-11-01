@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/recordingplan"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorFirstStartAtomicEveryWriteRollsBack(t *testing.T) {

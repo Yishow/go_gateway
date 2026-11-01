@@ -11,9 +11,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/fatek"
+
+	"github.com/stretchr/testify/require"
 )
 
 // The only fake is the PLC wire peer. Production factories, clients and decoders

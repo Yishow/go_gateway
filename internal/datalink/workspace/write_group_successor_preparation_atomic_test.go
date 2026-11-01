@@ -3,11 +3,12 @@ package workspace
 import (
 	"context"
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorPreparationAtomicRollbackAndLostACK(t *testing.T) {

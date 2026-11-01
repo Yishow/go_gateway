@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
@@ -20,6 +18,9 @@ import (
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/snapshot"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 type runtimeDeliveryRig struct {

@@ -20,7 +20,7 @@ func (c *foreignConnector) Driver() driver.Driver                        { retur
 
 type foreignDriver struct{ c *foreignConnector }
 
-func (d foreignDriver) Open(string) (driver.Conn, error) { return foreignConn{d.c}, nil }
+func (d foreignDriver) Open(string) (driver.Conn, error) { return foreignConn(d), nil }
 
 type foreignConn struct{ c *foreignConnector }
 
@@ -28,7 +28,7 @@ func (c foreignConn) Close() error { return nil }
 func (c foreignConn) Prepare(string) (driver.Stmt, error) {
 	return nil, errors.New("unexpected prepare")
 }
-func (c foreignConn) Begin() (driver.Tx, error) { return foreignTx{c.c}, nil }
+func (c foreignConn) Begin() (driver.Tx, error) { return foreignTx(c), nil }
 func (c foreignConn) ExecContext(context.Context, string, []driver.NamedValue) (driver.Result, error) {
 	c.c.execs++
 	return nil, errors.New("unexpected SQLite cleanup on foreign driver")

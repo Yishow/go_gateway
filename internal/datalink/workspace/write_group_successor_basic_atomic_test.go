@@ -3,10 +3,11 @@ package workspace
 import (
 	"context"
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"path/filepath"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRecreateBasicRollbackAndLostACK(t *testing.T) {

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/datalink/storage"
 	"net/http"
 	"net/http/httptest"
@@ -10,9 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/gin-gonic/gin"
+
 	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRuntimeRuleStatusSafetyLegacyNestedDiagnostics(t *testing.T) {

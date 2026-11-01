@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/dbtarget"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorActivationReviewBindsEveryActivationField(t *testing.T) {

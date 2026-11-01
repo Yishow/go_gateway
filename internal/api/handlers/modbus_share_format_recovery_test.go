@@ -2,14 +2,15 @@ package handlers
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExplicitFormatRecoveryDoesNotUseActivationGateOrAcceptInjectedPlan(t *testing.T) {

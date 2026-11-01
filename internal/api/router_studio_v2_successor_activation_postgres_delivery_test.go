@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/testutil/lostcommit"
+
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/stretchr/testify/require"
 )
 
 // The real connector is resolved first, retaining frozen revision validation;

@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func successorRuntimeCounterRows(t *testing.T, r *successorRuntimeRig, g *workspace.WriteGroup) []counterWindow {

@@ -8,25 +8,25 @@ import (
 
 func TestRecreateRepositoryPreservesFullProfileIdentityAndValidation(t *testing.T) {
 	for name, mutate := range map[string]func(*testing.T, *circuitProfileHarness, *writeGroupRecreateReservationRequest){
-		"profile_kind": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"profile_kind": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.RecordingProfile.Kind = WriteGroupProfileCumulative
 		},
-		"interval": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"interval": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.RecordingProfile.Interval++
 		},
-		"circuit": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"circuit": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Members[0].CircuitID = "different"
 		},
-		"mapping_revision": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"mapping_revision": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Members[0].MappingRevision = "stale"
 		},
-		"source_revision": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"source_revision": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Members[0].SourceRevision = "stale"
 		},
-		"missing_source": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"missing_source": func(_ *testing.T, _ *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.Group.Members[0].PointID = "missing"
 		},
-		"added_source": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		"added_source": func(_ *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			source := h.seedSource(h.fixture.deviceID, "added")
 			member := r.Group.Members[0]
 			member.PointID, member.TagID, member.TargetColumn = source.pointID, source.tagID, "second"
@@ -34,14 +34,14 @@ func TestRecreateRepositoryPreservesFullProfileIdentityAndValidation(t *testing.
 			r.Group.Members = append(r.Group.Members, member)
 		},
 		"unproven_mysql_family": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
-			_, err := h.db.Exec("UPDATE database_connectors SET kind='mysql',connection_config=?", `{"host":"localhost","port":3306,"database":"test"}`)
+			_, err := h.db.ExecContext(t.Context(), "UPDATE database_connectors SET kind='mysql',connection_config=?", `{"host":"localhost","port":3306,"database":"test"}`)
 			require.NoError(t, err)
 			r.Group.Destination.Database = "test"
 			r.Group.Destination.TableSchema = "test"
 			r.Group.Destination.TableName = ""
 		},
 		"unknown_type_evidence": func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
-			_, err := h.db.Exec("PRAGMA ignore_check_constraints=ON; UPDATE tags SET data_type='unknown'")
+			_, err := h.db.ExecContext(t.Context(), "PRAGMA ignore_check_constraints=ON; UPDATE tags SET data_type='unknown'")
 			require.NoError(t, err)
 			r.Group.Members[0].SourceRevision = ""
 		},
@@ -85,7 +85,7 @@ func TestRecreateRepositoryWideProfileHasFreshPhysicalIdentity(t *testing.T) {
 			saved, err := h.service.EnsureCircuitProfile(t.Context(), h.mutation(t.Context(), group))
 			require.NoError(t, err)
 			lineage := requireLineageGenesis(t, h.db, saved.Group)
-			_, err = h.db.Exec("UPDATE write_groups SET status='deleted' WHERE id=?", saved.Group.ID)
+			_, err = h.db.ExecContext(t.Context(), "UPDATE write_groups SET status='deleted' WHERE id=?", saved.Group.ID)
 			require.NoError(t, err)
 			req := writeGroupRecreateReservationRequest{WorkspaceID: saved.Group.WorkspaceID, LineageID: lineage, ExpectedLineageRevision: 1,
 				PredecessorGroupID: saved.Group.ID, ExpectedPredecessorRevision: saved.Group.Revision,
@@ -118,7 +118,7 @@ func TestRecreateRepositoryWideProfileHasFreshPhysicalIdentity(t *testing.T) {
 func TestRecreateRepositorySourceEngineFallbackRequiresSavedConnectorRevision(t *testing.T) {
 	h, req := recreateRepositoryFixture(t, "profile")
 	recreateRepositoryNewTarget(t, h, &req)
-	_, err := h.db.Exec("UPDATE database_connectors SET identity_revision='source-changed' WHERE id=?", h.fixture.connectorID)
+	_, err := h.db.ExecContext(t.Context(), "UPDATE database_connectors SET identity_revision='source-changed' WHERE id=?", h.fixture.connectorID)
 	require.NoError(t, err)
 	before := recreateRepositorySnapshot(t, h)
 	_, err = reserveRepositoryTest(t, h, req)

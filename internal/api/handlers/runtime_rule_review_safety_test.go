@@ -6,12 +6,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/device"
 	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRuntimeRuleReviewSafetyDNSAndConnectionSyntax(t *testing.T) {

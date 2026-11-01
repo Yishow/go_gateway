@@ -3,8 +3,9 @@ package workspace
 import (
 	"context"
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuccessorPreparationReservesReviewedIntentAndReplaysAfterProof(t *testing.T) {

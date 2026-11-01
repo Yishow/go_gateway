@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
@@ -15,6 +14,8 @@ import (
 	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/datalink/workspace"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func wireSourceRuleReconcileRuntimeFixture(t *testing.T, recorder *sourceRuleRuntimeReconcileRecorder, devices *device.Service, points *point.Service, rules *sourcerule.Service) {

@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/groupdelivery"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSQLServerSuccessorActivationRuntimeBoundaries(t *testing.T) {

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"
@@ -11,6 +10,8 @@ import (
 	"go-gateway/internal/datalink/storage"
 	"go-gateway/internal/datalink/workspace"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestDirectHTTPReadAcceptanceUsesCapturedProof(t *testing.T) {
