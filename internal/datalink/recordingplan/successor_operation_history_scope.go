@@ -17,7 +17,10 @@ func successorHistoryAttribution(raw, lineageID string, groups map[string]bool) 
 	facts := successorHistoryFacts{roots: map[string]bool{}}
 	decoder := json.NewDecoder(strings.NewReader(raw))
 	decoder.UseNumber()
-	_ = scanSuccessorHistoryValue(decoder, nil, lineageID, groups, &facts)
+	if err := scanSuccessorHistoryValue(decoder, nil, lineageID, groups, &facts); err != nil {
+		// Malformed trailing JSON cannot erase already observed negative evidence.
+		return facts
+	}
 	return facts
 }
 

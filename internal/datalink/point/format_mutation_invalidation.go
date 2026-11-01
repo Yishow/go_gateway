@@ -67,7 +67,7 @@ func (r *SQLRepository) CompleteFormatInvalidation(ctx context.Context, req Form
 		return ErrFormatUnavailable
 	}
 	var receipt formatReceipt
-	if json.Unmarshal([]byte(old), &receipt) != nil || !validFormatReceipt(receipt, req.FormatScope) || receipt.Result.Point.RevisionID != result.Point.RevisionID || receipt.Result.InvalidationStatus != "pending" {
+	if json.Unmarshal([]byte(old), &receipt) != nil || !validFormatReceipt(receipt, req.FormatScope) || receipt.Result.Point.RevisionID != result.Point.RevisionID || receipt.Result.InvalidationStatus != formatStagePending {
 		return ErrFormatUnavailable
 	}
 	if err := releaseOwnedFormatDirty(ctx, tx, req, result, rawWorkspace); err != nil {

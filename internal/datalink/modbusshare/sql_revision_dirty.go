@@ -23,7 +23,7 @@ func (s *SQLWorkspaceRevisionStore) markDirtyCurrentRevision(ctx context.Context
 		return newStorageError("begin dirty transaction", err)
 	}
 	defer func() {
-		if err := owned.Rollback(); err != nil && err != sql.ErrTxDone {
+		if err := owned.Rollback(); err != nil && err != sql.ErrTxDone { //nolint:errorlint // Ignore only bare TxDone; wrapped/joined foreign-driver errors can carry real cleanup failures (TestWorkspaceRevisionRollbackIgnoresOnlyBareTxDone).
 			resultErr = errors.Join(resultErr, newStorageError("rollback dirty transaction", err))
 		}
 	}()
@@ -32,7 +32,7 @@ func (s *SQLWorkspaceRevisionStore) markDirtyCurrentRevision(ctx context.Context
 	err = owned.Tx.QueryRowContext(ctx, `SELECT value FROM system_settings WHERE key=?`, key).Scan(&raw)
 	record := workspaceRevisionRecord{Revision: initialRevision, Dirty: true}
 	if errors.Is(err, sql.ErrNoRows) {
-		if err = insertWorkspaceRevision(ctx, owned.Tx, key, record); err != nil {
+		if err := insertWorkspaceRevision(ctx, owned.Tx, key, record); err != nil {
 			return err
 		}
 	} else {

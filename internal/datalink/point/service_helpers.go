@@ -7,6 +7,12 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
+const (
+	pointByteSwappedFormat = "BADC"
+	pointWordSwappedFormat = "CDAB"
+	pointReversedFormat    = "DCBA"
+)
+
 const pointDefaultDataFormat = "ABCD"
 
 // isValidDataType 檢查資料型別是否有效
@@ -38,7 +44,7 @@ func validatePointDataFormat(value string) error {
 		return nil
 	}
 	switch n {
-	case pointDefaultDataFormat, "BADC", "CDAB", "DCBA":
+	case pointDefaultDataFormat, pointByteSwappedFormat, pointWordSwappedFormat, pointReversedFormat:
 		return nil
 	default:
 		return fmt.Errorf("不支援的 data_format: %s", value)

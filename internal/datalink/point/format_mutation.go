@@ -11,6 +11,8 @@ import (
 	"go-gateway/internal/datalink/sqltx"
 )
 
+const formatStagePending = "pending"
+
 const formatInvalidationComplete = "invalidated"
 
 var (
@@ -90,7 +92,7 @@ func validateFormatRequest(req FormatMutationRequest) error {
 	}
 	if req.FormatMode == schema.PointFormatOverride {
 		switch req.ConfiguredFormat {
-		case pointDefaultDataFormat, "BADC", "CDAB", "DCBA":
+		case pointDefaultDataFormat, pointByteSwappedFormat, pointWordSwappedFormat, pointReversedFormat:
 		default:
 			return ErrFormatInvalid
 		}

@@ -95,7 +95,7 @@ func (r *MemoryRepository) ReclaimTestWriteCleanupOperation(_ context.Context, o
 	if op.Status.IsActive() {
 		return withoutOwner(op), ClaimInProgress, nil
 	}
-	if op.WriteOutcome != writeOutcomeVerified || (op.CleanupStatus != testWriteStatusFailed && op.CleanupStatus != "unknown") {
+	if op.WriteOutcome != writeOutcomeVerified || (op.CleanupStatus != testWriteStatusFailed && op.CleanupStatus != testWriteStatusUnknown) {
 		return withoutOwner(op), ClaimCompleted, nil
 	}
 	if op.Detail != expectedDetail {

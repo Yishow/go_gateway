@@ -110,7 +110,7 @@ func (r *SQLRepository) listStaleStorageRepairs(ctx context.Context, staleBefore
 		return nil, fmt.Errorf("list stale storage repairs: %w", err)
 	}
 	defer rows.Close()
-	var operations []SchemaOperation
+	operations := make([]SchemaOperation, 0, 50)
 	for rows.Next() {
 		var op SchemaOperation
 		var status string
@@ -122,6 +122,9 @@ func (r *SQLRepository) listStaleStorageRepairs(ctx context.Context, staleBefore
 		}
 		op.Status = SchemaOperationStatus(status)
 		operations = append(operations, op)
+	}
+	if len(operations) == 0 {
+		operations = nil
 	}
 	return operations, rows.Err()
 }

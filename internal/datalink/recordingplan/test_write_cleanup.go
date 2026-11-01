@@ -10,6 +10,11 @@ import (
 )
 
 const (
+	testWriteStatusUnknown    = "unknown"
+	cleanupStatusNotAttempted = "not_attempted"
+)
+
+const (
 	testWriteStatusFailed  = "failed"
 	writeOutcomeUnverified = "written_unverified"
 )

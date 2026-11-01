@@ -45,7 +45,11 @@ type successorOperationDetail struct {
 }
 
 func successorOperationID(domain, workspaceID, requestID string) string {
-	encoded, _ := json.Marshal([]string{domain, workspaceID, requestID})
+	// A string-only slice has no custom marshaler or unsupported JSON value.
+	encoded, err := json.Marshal([]string{domain, workspaceID, requestID})
+	if err != nil {
+		panic("successor operation identity encoding invariant violated")
+	}
 	digest := sha256.Sum256(encoded)
 	return strings.TrimSuffix(domain, "/v1") + "-" + hex.EncodeToString(digest[:])
 }
@@ -57,7 +61,11 @@ func (d successorOperationDetail) id() string {
 	return SuccessorFirstStartOperationID(d.Scope.WorkspaceID, d.ReserveOperationID)
 }
 func (d successorOperationDetail) scopeKey() string {
-	encoded, _ := json.Marshal(d.Scope)
+	// successorStoredScope contains only five strings and has no custom marshaler.
+	encoded, err := json.Marshal(d.Scope)
+	if err != nil {
+		panic("successor operation scope encoding invariant violated")
+	}
 	return successorOperationID(d.Action+"/v1", d.Scope.WorkspaceID, string(encoded))
 }
 

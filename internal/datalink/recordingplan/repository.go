@@ -172,13 +172,16 @@ func (r *SQLRepository) ListPlansByWorkspace(ctx context.Context, workspaceID st
 	}
 	defer rows.Close()
 
-	var list []RecordingPlan
+	list := make([]RecordingPlan, 0, 8)
 	for rows.Next() {
 		p, err := scanRecordingPlanRow(rows)
 		if err != nil {
 			return nil, err
 		}
 		list = append(list, *p)
+	}
+	if len(list) == 0 {
+		list = nil
 	}
 	return list, rows.Err()
 }

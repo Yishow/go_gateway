@@ -13,7 +13,7 @@ type pointFormatRevisionStore struct {
 	dirty    bool
 }
 
-func (s *pointFormatRevisionStore) GetRevision(context.Context, string) (string, bool, error) {
+func (s *pointFormatRevisionStore) GetRevision(context.Context, string) (revision string, dirty bool, err error) {
 	return s.revision, s.dirty, nil
 }
 func TestPointFormatReadinessInvalidationIsRevisionGuarded(t *testing.T) {

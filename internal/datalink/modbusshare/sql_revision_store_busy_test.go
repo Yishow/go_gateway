@@ -27,11 +27,12 @@ func TestShareRevisionCommitBusyLeavesOriginalRevisionAndCleanPool(t *testing.T)
 			var count int
 			require.NoError(t, held.QueryRowContext(t.Context(), `SELECT count(*) FROM system_settings`).Scan(&count))
 			store := NewSQLWorkspaceRevisionStore(db)
-			if operation == "desired" {
+			switch operation {
+			case "desired":
 				err = store.CommitDesiredMappings(t.Context(), "ws", "rev-1", "rev-2", nil)
-			} else if operation == "dirty" {
+			case "dirty":
 				err = store.MarkDirty(t.Context(), "ws")
-			} else {
+			default:
 				err = store.UpdateRevision(t.Context(), "ws", "rev-1", "rev-2")
 			}
 			require.Error(t, err)

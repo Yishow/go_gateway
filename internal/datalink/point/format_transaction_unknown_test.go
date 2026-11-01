@@ -33,11 +33,7 @@ type pointLostAckConn struct {
 }
 
 func (c *pointLostAckConn) Begin() (driver.Tx, error) {
-	tx, err := c.Conn.Begin()
-	if err != nil {
-		return nil, err
-	}
-	return &pointLostAckTx{Tx: tx, owner: c.owner}, nil
+	return c.BeginTx(context.Background(), driver.TxOptions{})
 }
 
 func (c *pointLostAckConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {

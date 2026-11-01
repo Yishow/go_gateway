@@ -67,7 +67,7 @@ func (s *SQLWorkspaceRevisionStore) CommitDesiredMappings(ctx context.Context, w
 	}
 	tx := ownedTx.Tx
 	defer func() {
-		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
+		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone { //nolint:errorlint // Ignore only bare TxDone; wrapped/joined foreign-driver errors can carry real cleanup failures (TestWorkspaceRevisionRollbackIgnoresOnlyBareTxDone).
 			resultErr = errors.Join(resultErr, newStorageError("rollback workspace revision transaction", rollbackErr))
 		}
 	}()
@@ -188,7 +188,7 @@ func (s *SQLWorkspaceRevisionStore) UpdateRevision(ctx context.Context, workspac
 	}
 	tx := ownedTx.Tx
 	defer func() {
-		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
+		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone { //nolint:errorlint // Ignore only bare TxDone; wrapped/joined foreign-driver errors can carry real cleanup failures (TestWorkspaceRevisionRollbackIgnoresOnlyBareTxDone).
 			resultErr = errors.Join(resultErr, newStorageError("rollback workspace revision transaction", rollbackErr))
 		}
 	}()
@@ -216,7 +216,7 @@ func (s *SQLWorkspaceRevisionStore) UpdateRevision(ctx context.Context, workspac
 		return newStorageError("decode workspace revision", err)
 	}
 	if record.Revision == "" {
-		record.Revision = "rev-1"
+		record.Revision = initialRevision
 	}
 	if expectedRevision != "" && expectedRevision != record.Revision {
 		return &Error{Code: ErrCodeRevisionConflict, Message: "workspace revision conflict", Retryable: true, WorkspaceRevision: record.Revision}

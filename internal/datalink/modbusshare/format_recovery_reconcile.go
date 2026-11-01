@@ -36,7 +36,7 @@ func (r *Reconciler) ReconcileFormatRecovery(ctx context.Context, req ReconcileR
 		}
 		return out, err
 	}
-	if err = check(); err != nil {
+	if err := check(); err != nil {
 		return ReconcileOutcome{}, err
 	}
 	return out, nil

@@ -112,13 +112,22 @@ func advanceFormatWorkspace(ctx context.Context, tx *sql.Tx, id, previous, next 
 	} else {
 		record = make(map[string]json.RawMessage)
 	}
-	record["revision"], _ = json.Marshal(next)
+	var err error
+	record["revision"], err = json.Marshal(next)
+	if err != nil {
+		return ErrFormatUnavailable
+	}
 	record["dirty"] = json.RawMessage("true")
-	record[formatPendingDirtyKey], _ = json.Marshal(owner)
-	payload, _ := json.Marshal(record)
+	record[formatPendingDirtyKey], err = json.Marshal(owner)
+	if err != nil {
+		return ErrFormatUnavailable
+	}
+	payload, err := json.Marshal(record)
+	if err != nil {
+		return ErrFormatUnavailable
+	}
 	key := "modbus_share_workspace_revision:" + id
 	var result sql.Result
-	var err error
 	if previous == "" {
 		result, err = tx.ExecContext(ctx, `INSERT INTO system_settings(key,value,updated_at) VALUES(?,?,?)`, key, string(payload), time.Now().UTC())
 	} else {

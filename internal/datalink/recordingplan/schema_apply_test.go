@@ -30,7 +30,7 @@ func sqliteTableState(ctx context.Context, db *sql.DB, table string) (TargetTabl
 		return TargetTableInspection{}, err
 	}
 	defer func() { _ = rows.Close() }()
-	var columns []string
+	columns := make([]string, 0, 8)
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {

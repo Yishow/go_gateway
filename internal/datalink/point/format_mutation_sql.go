@@ -35,7 +35,10 @@ func (r *SQLRepository) MutateFormat(ctx context.Context, req FormatMutationRequ
 	if err := validateFormatPatch(req.Patch); err != nil {
 		return nil, err
 	}
-	payload, _ := json.Marshal(req)
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return nil, ErrFormatUnavailable
+	}
 	hash := sha256.Sum256(payload)
 	digest := hex.EncodeToString(hash[:])
 	receiptKey := formatReceiptKey(req.WorkspaceID, req.RequestID)
@@ -129,7 +132,7 @@ func (r *SQLRepository) MutateFormat(ctx context.Context, req FormatMutationRequ
 	if err != nil {
 		return nil, ErrFormatUnavailable
 	}
-	attempted = &FormatMutationResult{Point: *candidate, WorkspaceRevision: nextWorkspace, RuntimeApplyStatus: "pending"}
+	attempted = &FormatMutationResult{Point: *candidate, WorkspaceRevision: nextWorkspace, RuntimeApplyStatus: formatStagePending}
 	if err := writePointConfigRevision(ctx, tx, candidate, *req.ExpectedPointRevision); err != nil {
 		return nil, err
 	}
@@ -141,7 +144,7 @@ func (r *SQLRepository) MutateFormat(ctx context.Context, req FormatMutationRequ
 	candidate.LastValue = nil
 	candidate.LastReadAt = nil
 	candidate.LastError = ""
-	result := FormatMutationResult{InvalidationStatus: "pending", Point: *candidate, Resolution: resolution, WorkspaceRevision: nextWorkspace, RuntimeApplyStatus: "pending"}
+	result := FormatMutationResult{InvalidationStatus: formatStagePending, Point: *candidate, Resolution: resolution, WorkspaceRevision: nextWorkspace, RuntimeApplyStatus: formatStagePending}
 	receipt := formatReceipt{Context: frozenFormatContext(snapshot.defaults.Protocol, snapshot.defaults.RuleOwned, resolution), Version: 1, WorkspaceID: req.WorkspaceID, RequestID: req.RequestID, PayloadHash: digest, Result: result}
 	encoded, err := json.Marshal(receipt)
 	if err != nil {
@@ -170,7 +173,11 @@ func validateFormatPatch(patch *UpdatePointRequest) error {
 }
 
 func formatReceiptKey(workspaceID, requestID string) string {
-	keyBytes, _ := json.Marshal([]string{workspaceID, requestID})
+	// A string-only slice has no custom marshaler or unsupported JSON value.
+	keyBytes, err := json.Marshal([]string{workspaceID, requestID})
+	if err != nil {
+		panic("point format receipt key encoding invariant violated")
+	}
 	digest := sha256.Sum256(keyBytes)
 	return formatReceiptPrefix + hex.EncodeToString(digest[:])
 }
@@ -180,7 +187,7 @@ func validFormatReceipt(receipt formatReceipt, scope FormatScope) bool {
 	if receipt.Version != 1 || receipt.WorkspaceID != scope.WorkspaceID || receipt.RequestID != scope.RequestID ||
 		r.Point.ID != scope.PointID || r.Point.DeviceID != scope.DeviceID || r.Point.RevisionID == "" || r.WorkspaceRevision == "" ||
 		r.Resolution.PointRevision != r.Point.RevisionID || r.Resolution.WorkspaceRevision != r.WorkspaceRevision ||
-		(r.InvalidationStatus != "pending" && r.InvalidationStatus != formatInvalidationComplete) || r.RuntimeApplyStatus != "pending" ||
+		(r.InvalidationStatus != formatStagePending && r.InvalidationStatus != formatInvalidationComplete) || r.RuntimeApplyStatus != formatStagePending ||
 		r.Point.FormatVersion != schema.PointFormatVersion || (r.Point.FormatMode != schema.PointFormatInherit && r.Point.FormatMode != schema.PointFormatOverride) ||
 		r.Point.DataFormat != r.Point.FormatOverride ||
 		r.Point.LastValue != nil || r.Point.LastReadAt != nil || r.Point.LastError != "" ||

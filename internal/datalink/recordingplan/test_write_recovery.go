@@ -75,7 +75,10 @@ func (s *Service) ListUnresolvedTestWrites(ctx context.Context, workspaceID stri
 			continue
 		}
 		// Hash the saved target and connector revision, never an editable current target.
-		target, _ := json.Marshal([]string{token.WorkspaceID, token.ConnectorID, token.ConnectorRevision, token.Dialect, token.Database, token.Schema, token.TablePrefix})
+		target, err := json.Marshal([]string{token.WorkspaceID, token.ConnectorID, token.ConnectorRevision, token.Dialect, token.Database, token.Schema, token.TablePrefix})
+		if err != nil {
+			return nil, ErrTestWriteRecoveryUnavailable
+		}
 		sum := sha256.Sum256(target)
 		result.Operations = append(result.Operations, TestWriteRecoveryOperation{
 			OperationID: op.OperationID, WorkspaceID: workspaceID, WorkspaceRevision: token.WorkspaceRevision,
@@ -113,12 +116,12 @@ func validRecoveryBinding(workspaceID string, op SchemaOperation, token *SchemaP
 		return false
 	}
 	switch op.WriteOutcome {
-	case "", writeOutcomeVerified, writeOutcomeUnverified, testWriteStatusFailed, "unknown":
+	case "", writeOutcomeVerified, writeOutcomeUnverified, testWriteStatusFailed, testWriteStatusUnknown:
 	default:
 		return false
 	}
 	switch op.CleanupStatus {
-	case "", "not_attempted", cleanupStatusCleaned, testWriteStatusFailed, "unknown":
+	case "", cleanupStatusNotAttempted, cleanupStatusCleaned, testWriteStatusFailed, testWriteStatusUnknown:
 	default:
 		return false
 	}
@@ -139,12 +142,12 @@ func validRecoveryShape(op SchemaOperation) bool {
 	}
 	switch op.WriteOutcome {
 	case writeOutcomeVerified:
-		return op.Status == SchemaOperationSucceeded && op.CleanupStatus != "not_attempted"
+		return op.Status == SchemaOperationSucceeded && op.CleanupStatus != cleanupStatusNotAttempted
 	case writeOutcomeUnverified:
 		return op.Status == SchemaOperationPartial
 	case testWriteStatusFailed:
-		return op.Status == SchemaOperationFailed && op.CleanupStatus == "not_attempted"
-	case "unknown":
+		return op.Status == SchemaOperationFailed && op.CleanupStatus == cleanupStatusNotAttempted
+	case testWriteStatusUnknown:
 		return op.Status == SchemaOperationUnknown
 	default:
 		return false
@@ -156,13 +159,13 @@ func validRecoveryShape(op SchemaOperation) bool {
 func recoveryResolved(op SchemaOperation) bool {
 	return validRecoveryShape(op) && ((op.Status == SchemaOperationSucceeded && op.WriteOutcome == writeOutcomeVerified && op.CleanupStatus == cleanupStatusCleaned) ||
 		(op.Status == SchemaOperationPartial && op.WriteOutcome == writeOutcomeUnverified && op.CleanupStatus == cleanupStatusCleaned) ||
-		(op.Status == SchemaOperationFailed && op.WriteOutcome == testWriteStatusFailed && op.CleanupStatus == "not_attempted"))
+		(op.Status == SchemaOperationFailed && op.WriteOutcome == testWriteStatusFailed && op.CleanupStatus == cleanupStatusNotAttempted))
 }
 
 // recoveryCleanupClaim recognizes only the existing cleanup-only reclaim shape.
 // Its previous completion/result are retained evidence, not a new insert result.
 func recoveryCleanupClaim(op SchemaOperation) bool {
 	return op.Status == SchemaOperationRunning && op.WriteOutcome == writeOutcomeVerified &&
-		(op.CleanupStatus == testWriteStatusFailed || op.CleanupStatus == "unknown") && op.CompletedAt != nil &&
+		(op.CleanupStatus == testWriteStatusFailed || op.CleanupStatus == testWriteStatusUnknown) && op.CompletedAt != nil &&
 		!op.CompletedAt.IsZero() && !op.CompletedAt.Before(op.CreatedAt) && !op.UpdatedAt.Before(*op.CompletedAt) && strings.TrimSpace(op.Detail) != ""
 }

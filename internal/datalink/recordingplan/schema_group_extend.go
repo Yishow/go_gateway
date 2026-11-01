@@ -21,7 +21,7 @@ func inspectGroupExtension(state TargetTableInspection, layout GroupSchemaLayout
 	}
 	expected := make(map[string]bool, len(layout.Columns))
 	existing := make([]GroupSchemaColumn, 0, len(state.Columns))
-	var missing []GroupSchemaColumn
+	missing := make([]GroupSchemaColumn, 0, len(layout.Columns))
 	for _, column := range layout.Columns {
 		name := strings.ToLower(column.Name)
 		expected[name] = true
@@ -51,6 +51,9 @@ func inspectGroupExtension(state TargetTableInspection, layout GroupSchemaLayout
 	// types, non-null historical columns, additional keys, and missing ownership.
 	if err := validateGroupInspection(state, existing); err != nil {
 		return nil, err
+	}
+	if len(missing) == 0 {
+		missing = nil
 	}
 	return missing, nil
 }

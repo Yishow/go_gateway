@@ -3,17 +3,23 @@ package recordingplan
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"sort"
 )
 
 // readTestWriteRecovery reads both ledger and original bindings from one local
 // transaction. No join may silently remove an operation whose binding is lost.
-func (r *SQLRepository) readTestWriteRecovery(ctx context.Context, workspaceID string) ([]testWriteRecoveryRecord, error) {
+func (r *SQLRepository) readTestWriteRecovery(ctx context.Context, workspaceID string) (out []testWriteRecoveryRecord, resultErr error) {
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = tx.Rollback() }()
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			out = nil
+			resultErr = errors.Join(resultErr, err)
+		}
+	}()
 	rows, err := tx.QueryContext(ctx, adaptPlaceholders(schemaOperationSelect+`WHERE workspace_id = $1 AND action = 'test_write' ORDER BY created_at, operation_id`), workspaceID)
 	if err != nil {
 		return nil, err

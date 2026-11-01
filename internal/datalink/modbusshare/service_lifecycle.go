@@ -6,6 +6,8 @@ import (
 	"strconv"
 )
 
+const shareBindFailed = "fail"
+
 // StartCAS starts the listener while checking the caller's durable settings revision.
 func (s *Service) StartCAS(ctx context.Context, port int, expectedSettingsRevision string) error {
 	s.mu.RLock()
@@ -125,13 +127,13 @@ func (s *Service) Status() Status {
 	if s.state == shareStateRunning && port > 0 {
 		bindState = "pass"
 	} else if s.state == HydrationStateFailed {
-		bindState = "fail"
+		bindState = shareBindFailed
 	} else if s.state == shareStateStopped {
 		bindState = shareStateStopped
 	} else if !s.settings.Enabled {
-		bindState = "disabled"
+		bindState = shareStateDisabled
 	} else if port == 0 {
-		bindState = "fail"
+		bindState = shareBindFailed
 	}
 
 	status := Status{
