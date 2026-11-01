@@ -375,12 +375,12 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
   };
 
   return (
-    <section data-testid="circuit-profile-basic-panel" aria-labelledby="circuit-profile-basic-title" className="space-y-4 rounded-xl border border-cyan-900/70 bg-slate-950/40 p-5">
+    <section data-testid="circuit-profile-basic-panel" aria-labelledby="circuit-profile-basic-title" className="space-y-4 rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-5">
       <CircuitProfileBasicHeader prepareOnly={prepareOnly} />
       {!prepareOnly && legacyGroup && <ExistingDeviceRecording lifecycle={{ workspaceId, workspaceRevision: effectiveWorkspaceRevision, lifecycleHost, readonly }} group={legacyGroup} disabled={flow.busy || flow.unresolved || batchBusy} onEdit={onEditLegacy} onOpenAdvanced={onOpenAdvanced} />}
-      <div data-testid="circuit-profile-destination-summary" className="rounded border border-slate-800/80 bg-slate-950/30 p-3 text-xs text-slate-300">
-        <p className="font-semibold text-slate-200">{t('step4.basic.circuit.step_destination')}</p>
-        <p className="mt-1 text-slate-400">{t('step4.basic.destination', { name: connectorAlias })} · {connectorAlias} ({state.db.connector.kind})</p>
+      <div data-testid="circuit-profile-destination-summary" className="rounded border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3 text-xs text-[var(--gw-text)]">
+        <p className="font-semibold text-[var(--gw-text)]">{t('step4.basic.circuit.step_destination')}</p>
+        <p className="mt-1 text-[var(--gw-muted)]">{t('step4.basic.destination', { name: connectorAlias })} · {connectorAlias} ({state.db.connector.kind})</p>
       </div>
       {isMySQL && <MySQLRecordingCapabilityPanel
         capability={mysqlCapability}
@@ -416,7 +416,7 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
           onBusyChange={batch.setHeld}
         />
       )}
-      {requiresCounterConfirmation && !counterDefinitionsReady && <p role="status" data-testid={measurementsQuery.isError ? 'circuit-profile-measurements-error' : 'circuit-profile-measurements-loading'} className="text-xs text-amber-300">
+      {requiresCounterConfirmation && !counterDefinitionsReady && <p role="status" data-testid={measurementsQuery.isError ? 'circuit-profile-measurements-error' : 'circuit-profile-measurements-loading'} className="text-xs text-[var(--gw-warning-fg)]">
         {t(measurementsQuery.isError ? 'step4.basic.circuit.measurements_error' : 'step4.basic.circuit.measurements_loading')}
         {measurementsQuery.isError && <button type="button" disabled={measurementsQuery.isFetching}
           onClick={() => void measurementsQuery.refetch({ cancelRefetch: false })}>{t('step4.group.retry')}</button>}
@@ -437,8 +437,8 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
           destinationMatches: Boolean(destination), onPrepare: () => void flow.prepare(), onApplied: () => void refreshSchema(),
           onRepairDestination: focusDestinationSettings, onOpenAdvanced, isMySQL: isMySQL && !prepareOnly,
           mysqlTestWriteAvailable, isSQLServer: isSQLServer && !prepareOnly, sqlserverTestWriteAvailable }} />
-      {advancedGroups.length > 0 && <p data-testid="basic-recording-advanced-note" className="text-xs text-slate-400">{t('step4.basic.advanced_note', { count: advancedGroups.length })}</p>}
-      {(errorMessage || flow.error) && <p role="alert" data-testid="circuit-profile-error" className="text-xs text-rose-300">{errorMessage || flow.error}</p>}
+      {advancedGroups.length > 0 && <p data-testid="basic-recording-advanced-note" className="text-xs text-[var(--gw-muted)]">{t('step4.basic.advanced_note', { count: advancedGroups.length })}</p>}
+      {(errorMessage || flow.error) && <p role="alert" data-testid="circuit-profile-error" className="text-xs text-[var(--gw-danger-fg)]">{errorMessage || flow.error}</p>}
       <CircuitProfileStatusList lifecycle={{ workspaceId, workspaceRevision: effectiveWorkspaceRevision, lifecycleHost, readonly: isEffectiveLocked }} groups={currentGroups} candidates={deviceCandidates} onOpenAdvanced={onOpenAdvanced} draftEnabled={{ instantaneous: localDraft.instantaneous_enabled, cumulative: localDraft.cumulative_enabled }} /><CircuitProfileRoles onOpenAdvanced={onOpenAdvanced} />
       <CircuitProfileBasicActions guided flow={flow} canStart={canPrepareOrStart} readonly={readonly || Boolean(layoutBlockedReason)} batchBusy={batchBusy} prepareOnly={prepareOnly} onClose={onClose} onContinueToRuntime={onContinueToRuntime} onOpenAdvanced={onOpenAdvanced} />
     </section>

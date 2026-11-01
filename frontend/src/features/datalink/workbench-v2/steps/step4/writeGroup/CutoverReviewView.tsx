@@ -18,8 +18,8 @@ const GroupRow: React.FC<{ view: CutoverGroupView; role: 'source' | 'target' }> 
   const { t } = useTranslation('workbench-v2');
   const long = view.layout === 'managed_long_v1';
   return (
-    <tr data-testid={`cutover-review-${role}-${view.group_id}`} className="border-t border-slate-800 align-top">
-      <th scope="row" className="py-1 pr-3 text-left font-medium text-slate-100">{view.name}</th>
+    <tr data-testid={`cutover-review-${role}-${view.group_id}`} className="border-t border-[var(--gw-border)] align-top">
+      <th scope="row" className="py-1 pr-3 text-left font-medium text-[var(--gw-text)]">{view.name}</th>
       <td className="pr-3">{t(long ? 'step4.cutover.layout_long' : 'step4.cutover.layout_wide')}</td>
       <td className="pr-3">{view.storage_mode ? t(`step4.basic.circuit.storage_${view.storage_mode}`) : '—'}</td>
       <td className="pr-3">{t('step4.cutover.period_seconds', { count: view.interval_seconds })}</td>
@@ -45,14 +45,14 @@ export const CutoverReviewView: React.FC<CutoverReviewViewProps> = ({ review, st
   const movedNames = review.moved.map((ref) => formatMemberRef(ref, candidates, sourceGroup));
   const unselectedNames = review.unselected.map((ref) => formatMemberRef(ref, candidates, sourceGroup));
   return (
-    <div data-testid="cutover-review" className="space-y-3 rounded border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-300">
-      <h5 className="text-xs font-semibold text-slate-100">{t('step4.cutover.review_title')}</h5>
-      {stale && <p role="status" data-testid="cutover-review-stale" className="text-amber-300">{t('step4.cutover.stale')}</p>}
-      <p>{t('step4.cutover.boundary_reviewed')} <code data-testid="cutover-review-boundary" className="text-slate-100">{review.boundary}</code></p>
+    <div data-testid="cutover-review" className="space-y-3 rounded border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3 text-xs text-[var(--gw-text)]">
+      <h5 className="text-xs font-semibold text-[var(--gw-text)]">{t('step4.cutover.review_title')}</h5>
+      {stale && <p role="status" data-testid="cutover-review-stale" className="text-[var(--gw-warning-fg)]">{t('step4.cutover.stale')}</p>}
+      <p>{t('step4.cutover.boundary_reviewed')} <code data-testid="cutover-review-boundary" className="text-[var(--gw-text)]">{review.boundary}</code></p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[34rem] text-xs">
           <thead>
-            <tr className="text-left text-slate-500">
+            <tr className="text-left text-[var(--gw-muted)]">
               {['group', 'layout', 'storage', 'period', 'destination', 'schema', 'sources'].map((column) => <th key={column} scope="col" className="pr-3 font-normal">{t(`step4.cutover.col_${column}`)}</th>)}
             </tr>
           </thead>
@@ -65,23 +65,23 @@ export const CutoverReviewView: React.FC<CutoverReviewViewProps> = ({ review, st
       <ul className="space-y-1">
         <li data-testid="cutover-moved">
           <span>{t('step4.cutover.moved', { count: review.moved.length })}</span>
-          {movedNames.length > 0 && <span className="ml-1 text-slate-200">({movedNames.join(', ')})</span>}
+          {movedNames.length > 0 && <span className="ml-1 text-[var(--gw-text)]">({movedNames.join(', ')})</span>}
         </li>
         {review.unselected.length > 0 && (
-          <li data-testid="cutover-unselected" className="text-amber-300">
+          <li data-testid="cutover-unselected" className="text-[var(--gw-warning-fg)]">
             <span>{t('step4.cutover.unselected', { count: review.unselected.length })}</span>
-            {unselectedNames.length > 0 && <span className="ml-1 font-medium text-amber-200">({unselectedNames.join(', ')})</span>}
+            {unselectedNames.length > 0 && <span className="ml-1 font-medium text-[var(--gw-warning-fg)]">({unselectedNames.join(', ')})</span>}
             {' '}<span>{t('step4.cutover.remaining', { count: review.remaining.length })}</span>
           </li>
         )}
       </ul>
-      <ul className="list-disc space-y-1 pl-4 text-slate-400">
+      <ul className="list-disc space-y-1 pl-4 text-[var(--gw-muted)]">
         <li>{t('step4.cutover.explain_truncation')}</li>
         <li>{t('step4.cutover.explain_drain')}</li>
         <li>{t('step4.cutover.explain_baseline')}</li>
       </ul>
       {review.issues.length > 0 && (
-        <div role="alert" data-testid="cutover-issues" className="space-y-2 text-amber-200">
+        <div role="alert" data-testid="cutover-issues" className="space-y-2 text-[var(--gw-warning-fg)]">
           <p className="font-semibold">{t('step4.cutover.issues_title')}</p>
           <ul className="space-y-1">
             {review.issues.map((code) => {

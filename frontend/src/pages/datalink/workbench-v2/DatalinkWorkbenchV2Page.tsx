@@ -54,7 +54,7 @@ function WorkbenchV2BootstrapState({ status }: WorkbenchV2BootstrapStateProps) {
       data-workbench-v2="true"
       data-testid={isError ? 'workbench-v2-bootstrap-error' : 'workbench-v2-bootstrap-loading'}
       role={isError ? 'alert' : 'status'}
-      className="wbv2-bootstrap-state bg-canvas min-h-screen font-sans text-slate-100"
+      className="wbv2-bootstrap-state bg-canvas min-h-screen font-sans text-[var(--gw-text)]"
     >
       <section
         data-testid="workbench-v2-bootstrap-shell"
@@ -63,13 +63,13 @@ function WorkbenchV2BootstrapState({ status }: WorkbenchV2BootstrapStateProps) {
       >
         <div className="flex items-start justify-between gap-6">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-cyan-200/70">
+            <p className="font-mono text-xs text-[var(--gw-accent)]">
               Studio V2
             </p>
-            <h1 className="mt-2 text-2xl font-semibold leading-tight text-slate-50">
+            <h1 className="mt-2 text-2xl font-semibold leading-tight text-[var(--gw-text)]">
               {isError ? '無法載入工作區' : '正在整理工作區狀態'}
             </h1>
-            <p className="mt-2 max-w-[34rem] text-sm leading-6 text-slate-400">
+            <p className="mt-2 max-w-[34rem] text-sm leading-6 text-[var(--gw-muted)]">
               {isError
                 ? '無法載入 Studio V2 工作區。請檢查後端資料庫連線後重試。'
                 : '正在讀取工作區、設備、接入規則與資料庫目標，完成後會直接進入設定流程。'}
@@ -317,11 +317,11 @@ function AdvancedWorkbenchV2Page({
       data-testid="workbench-v2-root"
       data-workspace-id={workspace.id}
       data-workspace-status={workspace.status}
-      className="bg-canvas min-h-screen font-sans text-slate-100 antialiased"
+      className="bg-canvas min-h-screen font-sans text-[var(--gw-text)] antialiased"
     >
       {backgroundReadFailed && <div role="alert" className="mx-4 my-3" data-testid="recording-draft-refresh-failed">
         <p>{draftText('navigation.refreshFailed')}</p>
-        <button type="button" className="gw-secondary" onClick={() => { void Promise.all([workspaceQuery.refetch(), autosave.devicesQuery.refetch(), autosave.rulesQuery.refetch(), autosave.mappingsQuery.refetch(), autosave.databaseConfigQuery.refetch(), autosave.databaseTargetsQuery.refetch()]); }}>{draftText('navigation.refresh')}</button>
+        <button type="button" className="rounded-md border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)]" onClick={() => { void Promise.all([workspaceQuery.refetch(), autosave.devicesQuery.refetch(), autosave.rulesQuery.refetch(), autosave.mappingsQuery.refetch(), autosave.databaseConfigQuery.refetch(), autosave.databaseTargetsQuery.refetch()]); }}>{draftText('navigation.refresh')}</button>
       </div>}
       {locatorMode && !autosave.locatorHydration.ready && locatorNotice}
       <div hidden={locatorMode && !autosave.locatorHydration.ready && !locatorEditorMounted}>
@@ -329,7 +329,7 @@ function AdvancedWorkbenchV2Page({
         <div
           data-testid="workbench-v2-draft-loss-warning"
           role="alert"
-          className="mx-4 mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 sm:mx-5 lg:mx-7"
+          className="mx-4 mt-4 rounded-xl border border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] px-4 py-3 text-sm text-[var(--gw-warning-fg)] sm:mx-5 lg:mx-7"
         >
           {autosave.draftLossWarning}
         </div>

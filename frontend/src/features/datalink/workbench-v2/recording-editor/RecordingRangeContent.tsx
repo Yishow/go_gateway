@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../components/ParameterHelp';
 import { RecordingRangeSchedule } from './RecordingRangeSchedule';
 import { buildStudioEntityLocatorTarget } from '../../../../services/studioEntityLocator';
 import { useTranslation } from 'react-i18next';
@@ -12,15 +13,15 @@ export function RecordingRangeContent({ controller: range, available, onBack, on
     mapping_id: null, group_id: null, group_revision: null }) : null;
   return <><div className="gw-modal-body space-y-4"><p data-testid="recording-range-device">{range.target?.name}</p>
     {available ? <p className="gw-muted" data-testid="recording-source-confirmed">{t('range.savedDeviceNote')}</p> : <p role="alert">{t('picker.unavailable')}</p>}
-    {(['name', 'address', 'count'] as const).map(field => <label key={field} className="block">{t(`range.${field}`)}<input disabled={!available} value={range.buffer[field]}
-      inputMode={field === 'count' ? 'numeric' : undefined} onChange={event => range.change({ ...range.buffer, [field]: event.target.value })} /></label>)}
-    <label className="block">{t('range.dataType')}<select disabled={!available} value={range.buffer.dataType} onChange={event => { const dataType = recordingRangeDataTypes.find(type => type === event.target.value); if (dataType) range.change({ ...range.buffer, dataType }); }}>
-      {recordingRangeDataTypes.map(type => <option key={type} value={type}>{type}</option>)}</select></label>
-    <details><summary>{t('range.transform')}</summary><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{(['scale', 'offset'] as const).map(field => <label key={field}>{t(`range.${field}`)}<input disabled={!available} value={range.buffer[field]} inputMode="decimal" onChange={event => range.change({ ...range.buffer, [field]: event.target.value })} /></label>)}
-      <label>{t('range.dataFormat')}<select disabled={!available} value={range.buffer.dataFormat} onChange={event => { const dataFormat = event.target.value; if (dataFormat === '' || dataFormat === 'ABCD' || dataFormat === 'BADC' || dataFormat === 'CDAB' || dataFormat === 'DCBA') range.change({ ...range.buffer, dataFormat }); }}>
+    {(['name', 'address', 'count'] as const).map(field => <div key={field} className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block">{t(`range.${field}`)}<input disabled={!available} value={range.buffer[field]}
+      inputMode={field === 'count' ? 'numeric' : undefined} onChange={event => range.change({ ...range.buffer, [field]: event.target.value })} /></label><ParameterHelp help={`range.${field}`} /></div>)}
+    <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block">{t('range.dataType')}<select disabled={!available} value={range.buffer.dataType} onChange={event => { const dataType = recordingRangeDataTypes.find(type => type === event.target.value); if (dataType) range.change({ ...range.buffer, dataType }); }}>
+      {recordingRangeDataTypes.map(type => <option key={type} value={type}>{type}</option>)}</select></label><ParameterHelp help="range.dataType" /></div>
+    <details><summary>{t('range.transform')}</summary><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{(['scale', 'offset'] as const).map(field => <div key={field} className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1">{t(`range.${field}`)}<input disabled={!available} value={range.buffer[field]} inputMode="decimal" onChange={event => range.change({ ...range.buffer, [field]: event.target.value })} /></label><ParameterHelp help={`range.${field}`} /></div>)}
+      <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1">{t('range.dataFormat')}<select disabled={!available} value={range.buffer.dataFormat} onChange={event => { const dataFormat = event.target.value; if (dataFormat === '' || dataFormat === 'ABCD' || dataFormat === 'BADC' || dataFormat === 'CDAB' || dataFormat === 'DCBA') range.change({ ...range.buffer, dataFormat }); }}>
         <option value="">{t('range.defaultFormat')}</option>{['ABCD', 'BADC', 'CDAB', 'DCBA'].map(format => <option key={format} value={format}>{format}</option>)}
-      </select></label>
-      <label>{t('range.unit')}<input disabled={!available} value={range.buffer.unit} onChange={event => range.change({ ...range.buffer, unit: event.target.value })} /></label>
+      </select></label><ParameterHelp help="range.dataFormat" /></div>
+      <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1">{t('range.unit')}<input disabled={!available} value={range.buffer.unit} onChange={event => range.change({ ...range.buffer, unit: event.target.value })} /></label><ParameterHelp help="range.unit" /></div>
     </div><p className="gw-muted">{t('range.unitNote')}</p></details>
     {range.parsed && <p className="gw-muted">{t('range.prefix', { prefix: range.parsed.rule.naming_prefix })}</p>}
     {range.parsed && <p role="status">{t('range.span', { count: range.parsed.rule.count, span: range.parsed.span, end: range.parsed.end })}</p>}

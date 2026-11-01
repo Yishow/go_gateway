@@ -6,7 +6,7 @@ import { buildStudioEntityLocatorTarget } from '../../../../services/studioEntit
 import { configuredDestinationIdentity, configuredDestinationReason, type ConfiguredDestinationContext } from './configuredRecordingDestinations';
 
 // Existing semantic tokens are defined for light and dark in index.css; no new theme authority.
-const SECONDARY_BUTTON = 'border border-[var(--gw-control)] bg-[var(--gw-surface)] text-[var(--gw-text)] hover:bg-[var(--gw-active)] disabled:text-[var(--gw-muted)] disabled:border-[var(--gw-border)] disabled:hover:bg-[var(--gw-surface)] aria-disabled:text-[var(--gw-muted)] aria-disabled:border-[var(--gw-border)] aria-disabled:hover:bg-[var(--gw-surface)] aria-disabled:opacity-50 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-[var(--gw-focus)] focus-visible:outline-offset-2 focus-visible:ring-0 focus-visible:ring-offset-0';
+const SECONDARY_BUTTON = 'border border-[var(--gw-control)] bg-[var(--gw-surface)] text-[var(--gw-text)] hover:bg-[var(--gw-active)] disabled:text-[var(--gw-muted)] disabled:border-[var(--gw-border)] disabled:hover:bg-[var(--gw-surface)] aria-disabled:text-[var(--gw-muted)] aria-disabled:border-[var(--gw-border)] aria-disabled:hover:bg-[var(--gw-surface)] aria-disabled:opacity-100 disabled:opacity-100 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-[var(--gw-focus)] focus-visible:outline-offset-2 focus-visible:ring-0 focus-visible:ring-offset-0';
 
 export interface ConfiguredDestinationObservation {
   data?: WriteGroupListResponse;
@@ -37,15 +37,15 @@ export function ConfiguredDestinationChooser({ observation, context, workspaceRe
         const reason = status ?? configuredDestinationReason(group, context);
         const target = buildStudioEntityLocatorTarget({ step: 4, workspace_id: group.workspace_id, group_id: group.id,
           group_revision: group.revision, device_id: null, rule_id: null, mapping_id: null });
-        return <li key={`${configuredDestinationIdentity(group)}:${group.id}`} className="py-3 space-y-1" data-testid={`configured-destination-${group.id}`}>
+        return <li key={`${configuredDestinationIdentity(group)}:${group.id}`} className="min-w-0 py-3 space-y-1" data-testid={`configured-destination-${group.id}`}>
           <h4 className="font-medium break-words">{group.name || t('destinations.unnamed')}</h4>
-          <p className="text-xs break-all"><span className="font-medium">{t('destinations.table')}: </span>{group.destination.table_name || t('destinations.unassigned')}</p>
-          <p className="text-xs break-all"><span className="font-medium">{t('destinations.database')}: </span>{group.destination.database} · <span className="font-medium">{t('destinations.schema')}: </span>{group.destination.table_schema || '—'}</p>
-          <details className="text-xs break-all"><summary className="cursor-pointer">{t('destinations.technical')}</summary>
+          <p className="text-xs"><span className="font-medium">{t('destinations.table')}: </span><span className="[overflow-wrap:anywhere]">{group.destination.table_name || t('destinations.unassigned')}</span></p>
+          <div className="flex min-w-0 flex-wrap gap-x-2 text-xs"><p className="min-w-0"><span className="font-medium">{t('destinations.database')}: </span><span className="[overflow-wrap:anywhere]">{group.destination.database}</span></p><p className="min-w-0"><span className="font-medium">{t('destinations.schema')}: </span><span className="[overflow-wrap:anywhere]">{group.destination.table_schema || '—'}</span></p></div>
+          <details className="text-xs"><summary className="cursor-pointer">{t('destinations.technical')}</summary>
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 mt-1">
-              <dt>{t('destinations.connector')}</dt><dd>{group.destination.connector_id}</dd>
-              <dt>{t('destinations.storage')}</dt><dd>{group.destination.storage_strategy} · {group.layout_version || 'managed_wide_v1'} · {group.storage_mode || 'plain'}</dd>
-              <dt>{t('destinations.revision')}</dt><dd>{group.revision}</dd>
+              <dt>{t('destinations.connector')}</dt><dd className="min-w-0 [overflow-wrap:anywhere]">{group.destination.connector_id}</dd>
+              <dt>{t('destinations.storage')}</dt><dd className="min-w-0 [overflow-wrap:anywhere]">{group.destination.storage_strategy} · {group.layout_version || 'managed_wide_v1'} · {group.storage_mode || 'plain'}</dd>
+              <dt>{t('destinations.revision')}</dt><dd className="min-w-0 [overflow-wrap:anywhere]">{group.revision}</dd>
             </dl>
           </details>
           {reason && <p className="text-xs">{t(`destinations.reason.${reason}`, { defaultValue: t(`destinations.${reason}`) })}</p>}

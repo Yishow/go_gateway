@@ -1,10 +1,12 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import type { EvidenceResult, EvidenceScope, RuleEvidenceView } from '../../types/runtimeRuleEvidence';
 import { studioV2RuntimeContextAPI } from '../../services/studioV2RuntimeContext';
 import { studioV2WorkspaceKeys } from './keys';
 
+const runtimeScopeAuthority = studioV2WorkspaceKeys.runtimeContext();
+
 /** Shared read-only evidence; never promotes editable setup data to applied facts. */
-export function useRuntimeRuleEvidence(scope: EvidenceScope | null) {
+export function useRuntimeRuleEvidence(scope: EvidenceScope | null, scopeAuthorityKey: QueryKey = runtimeScopeAuthority) {
   const client = useQueryClient();
   const selected = scope === null ? null : { workspace_id: scope.workspace_id, workspace_revision: scope.workspace_revision, device_id: scope.device_id };
   return useQuery<EvidenceResult<RuleEvidenceView>>({
@@ -16,7 +18,7 @@ export function useRuntimeRuleEvidence(scope: EvidenceScope | null) {
       if (!signal.aborted && !result.ok && result.reason === 'stale-reference') {
         // Refresh only the scope authority. Its new revision keys the next evidence
         // read; publish the stale result while that refresh is still pending.
-        void client.invalidateQueries({ queryKey: studioV2WorkspaceKeys.runtimeContext(), exact: true });
+        void client.invalidateQueries({ queryKey: scopeAuthorityKey, exact: true });
       }
       return result;
     },

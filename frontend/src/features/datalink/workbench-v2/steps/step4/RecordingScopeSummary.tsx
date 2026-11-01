@@ -11,8 +11,8 @@ const sourceKey = (source: Pick<GroupCandidate, 'device_id' | 'point_id' | 'tag_
   JSON.stringify([source.device_id, source.point_id, source.tag_id]);
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <div className="min-w-0"><dt className="text-xs text-slate-400">{label}</dt>
-    <dd className="break-words text-sm text-slate-100">{children}</dd></div>;
+  return <div className="min-w-0"><dt className="text-xs text-[var(--gw-muted)]">{label}</dt>
+    <dd className="break-words text-sm text-[var(--gw-text)]">{children}</dd></div>;
 }
 
 function DraftSummary({ scope, state, labels, sourceLabels }: Pick<RecordingScopeSummaryProps, 'scope' | 'state'> & {
@@ -20,18 +20,18 @@ function DraftSummary({ scope, state, labels, sourceLabels }: Pick<RecordingScop
 }) {
   const { draft } = scope;
   const alias = safeRuntimeLabel(state.db.connector.name) || labels.destinationFallback;
-  return <section aria-label={labels.unsaved} className="min-w-0 space-y-3 rounded border border-slate-700 p-3">
-    <h4 className="font-medium text-slate-100">{labels.unsaved}</h4>
-    <p className="text-xs text-slate-400">{labels.unsavedDescription}</p>
+  return <section aria-label={labels.unsaved} className="min-w-0 space-y-3 rounded border border-[var(--gw-border)] p-3">
+    <h4 className="font-medium text-[var(--gw-text)]">{labels.unsaved}</h4>
+    <p className="text-xs text-[var(--gw-muted)]">{labels.unsavedDescription}</p>
     <dl className="grid min-w-0 gap-3 sm:grid-cols-2">
       <Field label={labels.fields.layout}>{labels.layouts[draft.layout === 'wide' ? 'managed_wide_profile_v1' : 'managed_long_v1']}</Field>
       <Field label={labels.fields.storageMode}>{labels.storageModes[draft.storageMode]}</Field>
       <Field label={labels.fields.incomplete}>{labels.incompletePolicies[draft.incompletePolicy]}</Field>
       <Field label={labels.fields.destination}>{alias} — {labels.tablePending}</Field>
     </dl>
-    {draft.profiles.length === 0 && <p role="status" className="text-sm text-slate-300">{labels.noProfiles}</p>}
+    {draft.profiles.length === 0 && <p role="status" className="text-sm text-[var(--gw-text)]">{labels.noProfiles}</p>}
     {draft.profiles.map(profile => <section key={profile.kind} aria-label={labels.profiles[profile.kind]} className="space-y-2">
-      <h5 className="text-sm text-slate-200">{labels.profiles[profile.kind]}</h5>
+      <h5 className="text-sm text-[var(--gw-text)]">{labels.profiles[profile.kind]}</h5>
       <dl className="grid min-w-0 gap-3 sm:grid-cols-2">
         <Field label={labels.fields.interval}>{/^[1-9][0-9]*$/.test(profile.interval) && Number.isSafeInteger(Number(profile.interval))
           ? `${profile.interval} ${labels.units[profile.unit]}` : labels.unavailable}</Field>
@@ -73,7 +73,7 @@ export function RecordingScopeSummary({ scope, state, groups, configurationState
   const candidates = buildGroupCandidates(state).candidates;
   const sourceLabels = Object.fromEntries(candidates.map(source => [sourceKey(source),
     safeRuntimeLabel(source.label) || safeRuntimeAddress(source.address) || labels.unavailableSource]));
-  const unavailable = (message: string) => <p role="status" className="text-sm text-slate-300">{message}</p>;
+  const unavailable = (message: string) => <p role="status" className="text-sm text-[var(--gw-text)]">{message}</p>;
   let content: ReactNode;
   const validScope = Boolean(scope.workspaceId && scope.workspaceRevision && scope.deviceId && device && scope.circuitId !== '');
   if (!validScope) content = unavailable(labels.noScope);
@@ -99,12 +99,12 @@ export function RecordingScopeSummary({ scope, state, groups, configurationState
       return <SavedSummary key={group.id} view={view} scopeLabel={scopeLabel} labels={labels} sourceLabels={sourceLabels} />;
     });
   }
-  return <section data-testid="recording-scope-summary" aria-label={labels.draftHeading} className="min-w-0 space-y-4 rounded border border-slate-700 bg-slate-950/30 p-4">
-    <h3 className="text-sm font-semibold text-slate-100">{labels.draftHeading}</h3>
-    <p className="break-words text-sm text-slate-300">{scopeLabel}</p>
+  return <section data-testid="recording-scope-summary" aria-label={labels.draftHeading} className="min-w-0 space-y-4 rounded border border-[var(--gw-border)] bg-[var(--gw-surface)] p-4">
+    <h3 className="text-sm font-semibold text-[var(--gw-text)]">{labels.draftHeading}</h3>
+    <p className="break-words text-sm text-[var(--gw-text)]">{scopeLabel}</p>
     {content}
     {validScope && configurationState === 'ready' && scope.groupIds.length > 0 && <button type="button"
       disabled={evidence.isFetching} onClick={() => { void evidence.refetch(); }}
-      className="rounded border border-slate-600 px-3 py-2 text-sm text-slate-100 disabled:opacity-50">{labels.retryEvidence}</button>}
+      className="rounded border border-[var(--gw-control)] px-3 py-2 text-sm text-[var(--gw-text)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]">{labels.retryEvidence}</button>}
   </section>;
 }

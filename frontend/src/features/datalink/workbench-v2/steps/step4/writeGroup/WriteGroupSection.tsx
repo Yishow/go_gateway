@@ -174,21 +174,21 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
   useEffect(() => { retention.current?.(editing); return () => retention.current?.(false); }, [editing]);
   if (!editing && !locatorOnly && groupsQuery.isError) {
     return (
-      <section role="alert" className="space-y-2 rounded-xl border border-amber-700 p-5 text-xs text-amber-200" data-testid="group-section-error">
+      <section role="alert" className="space-y-2 rounded-xl border border-[var(--gw-warning-border)] p-5 text-xs text-[var(--gw-warning-fg)]" data-testid="group-section-error">
         <p>{t('step4.group.section.load_failed')}</p>
         <button type="button" onClick={() => void groupsQuery.refetch()} className="underline" data-testid="group-section-retry">{t('step4.group.retry')}</button>
       </section>
     );
   }
   if (!editing && !locatorOnly && groupsQuery.isLoading) {
-    return <section className="p-5 text-xs text-slate-400" role="status" data-testid="group-section-loading">{t('step4.group.section.loading')}</section>;
+    return <section className="p-5 text-xs text-[var(--gw-muted)]" role="status" data-testid="group-section-loading">{t('step4.group.section.loading')}</section>;
   }
 
   return (
-    <section ref={region} className="space-y-4 rounded-xl border border-slate-800 bg-slate-900/20 p-5" aria-labelledby="group-section-title" data-testid="group-section">
+    <section ref={region} className="space-y-4 rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-5" aria-labelledby="group-section-title" data-testid="group-section">
       <div>
-        <h3 id="group-section-title" className="text-sm font-semibold text-slate-100">{t('step4.group.section.title')}</h3>
-        <p className="mt-1 text-xs text-slate-400">{t('step4.group.section.subtitle')}</p>
+        <h3 id="group-section-title" className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.section.title')}</h3>
+        <p className="mt-1 text-xs text-[var(--gw-muted)]">{t('step4.group.section.subtitle')}</p>
       </div>
 
       {editing && groupsQuery.isError && !locatorOnly && <p role="alert">{t('step4.group.section.load_failed')}</p>}
@@ -200,7 +200,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
       {located?.groupId && located.groupRevision && located.workspaceId === workspaceId &&
         <p>{runtime('locatorEntry.currentRevision')}: <span>{displayRead?.entry.group_heads[located.groupId] ?? located.groupRevision}</span></p>}
       {!locatorOnly && prerequisite && (
-        <div className="space-y-1 text-xs text-amber-300" role="status" data-testid={`group-prerequisite-${prerequisite}`}>
+        <div className="space-y-1 text-xs text-[var(--gw-warning-fg)]" role="status" data-testid={`group-prerequisite-${prerequisite}`}>
           <p>{t(`step4.group.prerequisite.${prerequisite}`)}</p>
           {prerequisite === 'device' && onNavigateStep && (
             <button type="button" onClick={() => onNavigateStep(1)} className="underline" data-testid="group-prerequisite-go">{t('step4.group.prerequisite.go_step1')}</button>
@@ -217,7 +217,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
       {!editing && (
         <>
           {live.length === 0 && removed.length === 0 ? (
-            <p className="text-xs text-slate-400" data-testid="group-empty">{t('step4.group.list.empty')}</p>
+            <p className="text-xs text-[var(--gw-muted)]" data-testid="group-empty">{t('step4.group.list.empty')}</p>
           ) : (
             <ul className="space-y-2" data-testid="group-list">
               {live.map((group) => <SavedRecordingCard key={group.id} group={group} highlighted={located?.groupId === group.id} current={matches(group)} onOpen={() => void open(group)}
@@ -225,7 +225,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
             </ul>
           )}
           {live.length > 0 && !live.some(matches) && destinationSaved && (
-            <p className="text-xs text-amber-300" role="status" data-testid="group-none-match">{t('step4.group.list.none_match')}</p>
+            <p className="text-xs text-[var(--gw-warning-fg)]" role="status" data-testid="group-none-match">{t('step4.group.list.none_match')}</p>
           )}
           {!locatorOnly && groupsQuery.data && observed && live.length > 0 && (
             <CutoverPanel groups={live} workspaceId={observed.workspace_id} workspaceRevision={observed.workspace_revision}
@@ -235,13 +235,13 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
           <button
             type="button" disabled={readonly || prerequisite !== null || !observed || Boolean(locatorOnly)}
             onClick={() => setSelection({ kind: 'new' })}
-            className="rounded bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-40" data-testid="group-create"
+            className="rounded bg-[var(--gw-primary)] px-4 py-1.5 text-xs font-semibold text-[var(--gw-on-primary)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]" data-testid="group-create"
           >
             {t('step4.group.list.create')}
           </button>
           {removed.length > 0 && (
             <details data-testid="group-removed">
-              <summary className="cursor-pointer text-xs text-slate-400">{t('step4.group.list.removed', { count: removed.length })}</summary>
+              <summary className="cursor-pointer text-xs text-[var(--gw-muted)]">{t('step4.group.list.removed', { count: removed.length })}</summary>
               <ul className="mt-2 space-y-2">
                 {removed.map((group) => <SavedRecordingCard key={group.id} group={group} highlighted={located?.groupId === group.id} current={matches(group)} onOpen={() => void open(group)}
                 management={{ ...management, readonly: management.readonly || group.workspace_id !== workspaceId }} />)}

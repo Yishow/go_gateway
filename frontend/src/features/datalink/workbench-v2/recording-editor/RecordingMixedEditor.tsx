@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../components/ParameterHelp';
 import type { GroupCandidate } from '../state/writeGroup/candidates';
 import type { WriteGroup } from '../../../../types/studioV2WriteGroup';
 import { useWriteGroupDeliveryQuery } from '../../../../hooks/datalink/useStudioV2WriteGroups';
@@ -24,9 +25,9 @@ export function RecordingMixedEditor({ draft, saved, disabled, capabilities, dia
   const { t } = useTranslation('recording-editor');
   const mixed = draft.recording_profile?.kind === 'mixed';
   const available = mixedEditorAvailable(capabilities, dialect);
-  return <section className="space-y-2 text-xs text-slate-400" data-testid="recording-mixed-intent">
+  return <section className="space-y-2 text-xs text-[var(--gw-muted)]" data-testid="recording-mixed-intent">
     {!mixed && (saved ? <p>{t('calculation.legacyUnchanged')}</p> : <>
-      <button type="button" className="gw-secondary" disabled={disabled || !available || draft.members.length > 0} onClick={() => {
+      <button type="button" className="inline-flex min-h-10 max-sm:min-h-11 items-center justify-center rounded-lg border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)] disabled:cursor-not-allowed disabled:opacity-50" disabled={disabled || !available || draft.members.length > 0} onClick={() => {
         if (disabled || !available || saved || draft.members.length) return;
         onChange({ ...newMixedDraft({ connector_id: draft.connector_id, connector_revision: draft.connector_revision, table_schema: draft.table_schema, table_name: '' }, crypto.randomUUID()), name: draft.name });
       }}>{t('calculation.chooseMixed')}</button>
@@ -34,12 +35,12 @@ export function RecordingMixedEditor({ draft, saved, disabled, capabilities, dia
     </>)}
     {mixed && <>
       <p>{t('calculation.independent')}</p>
-      <label className="block">{t('calculation.layoutLabel')}
-        <select className="mt-1 block rounded border border-slate-700 bg-slate-950 p-1" value={draft.layout_version} disabled={disabled || saved} onChange={event => {
+      <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block">{t('calculation.layoutLabel')}
+        <select className="mt-1 block rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] p-1" value={draft.layout_version} disabled={disabled || saved} onChange={event => {
           const layout = event.target.value;
           if (!saved && !disabled && (layout === 'managed_long_v1' || layout === 'managed_wide_profile_v1') && capabilities?.schema_layouts.includes(layout)) onChange({ ...draft, layout_version: layout });
         }}>{(['managed_wide_profile_v1', 'managed_long_v1'] as const).map(layout => <option key={layout} value={layout} disabled={!capabilities?.schema_layouts.includes(layout)}>{t(`calculation.${layout}`)}</option>)}</select>
-      </label>
+      </label><ParameterHelp help="record.layout" /></div>
       <p>{t('calculation.savedNotApplied')}</p>
     </>}
     <RecordingIntentHelp />

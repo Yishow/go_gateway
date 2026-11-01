@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../../../components/ParameterHelp';
 import * as React from 'react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -126,65 +127,60 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
   const acceptable = shown.filter((row) => row.suggestion?.status === 'suggested' &&
     (!row.member || row.member.target_column === '')).length;
 
-  const tones: Record<string, string> = { 'bg-slate-950': 'bg-white', 'bg-slate-900/80': 'bg-slate-50',
-    'border-slate-700': 'border-slate-300', 'border-slate-800': 'border-slate-200', 'divide-slate-800': 'divide-slate-200',
-    'text-slate-100': 'text-slate-900', 'text-slate-200': 'text-slate-800', 'text-slate-300': 'text-slate-700',
-    'text-slate-400': 'text-slate-600', 'text-amber-300': 'text-amber-800', 'text-red-300': 'text-red-700',
-    'text-blue-300': 'text-blue-700', 'text-emerald-300': 'text-emerald-700' };
-  const classes = (value: string) => selectionControls ? value.split(' ').map(token => tones[token] ?? token).join(' ') : value;
+  const classes = (value: string) => value;
   return (
     <div className={classes('space-y-3')} data-testid="group-member-table">
       <div className={classes('flex flex-wrap items-end gap-3')}>
-        <label className={classes('flex flex-col text-xs text-slate-400')}>
+        <label className={classes('flex flex-col text-sm text-[var(--gw-muted)]')}>
           {t('step4.group.members.search')}
           <input
             type="search" value={query} onChange={(event) => setQuery(event.target.value)}
-            className={classes('mt-1 rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100')}
+            className={classes('mt-1 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1 text-sm text-[var(--gw-text)]')}
             data-testid="group-member-search"
           />
         </label>
-        <label className={classes('flex items-center gap-2 text-xs text-slate-300')}>
+        <label className={classes('flex items-center gap-2 text-sm text-[var(--gw-text)]')}>
           <input type="checkbox" checked={problemsOnly} onChange={(event) => setProblemsOnly(event.target.checked)} data-testid="group-member-problems-only" />
           {t('step4.group.members.problems_only')}
         </label>
         {!selectionControls && <div className={classes('flex flex-wrap gap-2')} role="group" aria-label={t('step4.group.members.bulk_label')}>
-          <button type="button" disabled={disabled || includable === 0} onClick={includeShown} className={classes('rounded border border-slate-700 px-2 py-1 text-xs text-slate-200 disabled:opacity-40')} data-testid="group-bulk-include">
+          <button type="button" disabled={disabled || includable === 0} onClick={includeShown} className={classes('rounded border border-[var(--gw-control)] px-2 py-1 text-sm text-[var(--gw-text)] disabled:opacity-40')} data-testid="group-bulk-include">
             {t('step4.group.members.bulk_include', { count: includable })}
           </button>
-          <button type="button" disabled={disabled || includedShown === 0} onClick={excludeShown} className={classes('rounded border border-slate-700 px-2 py-1 text-xs text-slate-200 disabled:opacity-40')} data-testid="group-bulk-exclude">
+          <button type="button" disabled={disabled || includedShown === 0} onClick={excludeShown} className={classes('rounded border border-[var(--gw-control)] px-2 py-1 text-sm text-[var(--gw-text)] disabled:opacity-40')} data-testid="group-bulk-exclude">
             {t('step4.group.members.bulk_exclude', { count: includedShown })}
           </button>
-          <button type="button" disabled={disabled || acceptable === 0} onClick={acceptShown} className={classes('rounded border border-blue-700 px-2 py-1 text-xs text-blue-200 disabled:opacity-40')} data-testid="group-bulk-accept">
+          <button type="button" disabled={disabled || acceptable === 0} onClick={acceptShown} className={classes('rounded border border-[var(--gw-focus)] px-2 py-1 text-sm text-[var(--gw-accent)] disabled:opacity-40')} data-testid="group-bulk-accept">
             {t('step4.group.members.bulk_accept', { count: acceptable })}
           </button>
         </div>}
-        <span className={classes('text-xs text-slate-500')} role="status" data-testid="group-member-scope">
+        <span className={classes('text-sm text-[var(--gw-muted)]')} role="status" data-testid="group-member-scope">
           {t('step4.group.members.scope', { shown: shown.length, total: rows.length })}
         </span>
       </div>
 
       {metadataStatus !== 'exists' && (
-        <p className={classes('text-xs text-amber-300')} data-testid="group-member-metadata-note">
+        <p className={classes('text-sm text-[var(--gw-warning-fg)]')} data-testid="group-member-metadata-note">
           {t(`step4.group.members.metadata_${metadataStatus}`)}
         </p>
       )}
 
-      <div className={classes('max-w-full overflow-x-auto rounded border border-slate-800')} role="region" aria-label={t('step4.group.members.region')} tabIndex={0}>
-        <table className={classes('w-full min-w-[640px] border-collapse text-left text-xs')}>
-          <thead className={classes('bg-slate-900/80 text-slate-400')}>
+      <div className={classes('max-w-full overflow-x-auto rounded border border-[var(--gw-control)]')} role="region" aria-label={t('step4.group.members.region')} tabIndex={0}>
+        <table className={classes('w-full min-w-[640px] border-collapse text-left text-sm')}>
+          <thead className={classes('bg-[var(--gw-surface)] text-[var(--gw-muted)]')}>
             <tr>
-              <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_include')}</th>
+              <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_include')} <ParameterHelp help="member.include" /></th>
               <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_tag')}</th>
               <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_type')}</th>
-              <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_column')}</th>
-              <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_required')}</th>
-              {showEntityKey && <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_entity')}</th>}
+              <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_column')} <ParameterHelp help="member.targetColumn" /></th>
+              <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_required')} <ParameterHelp help="member.required" /></th>
+              {showEntityKey && <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_entity')} <ParameterHelp help="member.entityKey" /></th>}
               <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_status')}</th>
             </tr>
           </thead>
-          <tbody className={classes('divide-y divide-slate-800 text-slate-200')}>
+          <tbody className={classes('divide-y divide-[var(--gw-control)] text-[var(--gw-text)]')}>
             {shown.length === 0 && (
-              <tr><td colSpan={showEntityKey ? 7 : 6} className={classes('p-4 text-center text-slate-500')} data-testid="group-member-empty">
+              <tr><td colSpan={showEntityKey ? 7 : 6} className={classes('p-4 text-center text-[var(--gw-muted)]')} data-testid="group-member-empty">
                 {rows.length === 0 ? t('step4.group.members.none') : t('step4.group.members.none_shown')}
               </td></tr>
             )}
@@ -192,16 +188,11 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
               const describedBy = problem ? `group-member-problem-${candidate.key}` : undefined;
               const chosenColumn = member?.target_column ?? '';
               const options = columns.filter((column) => !column.primary_key);
-              const tones: Record<string, string> = { 'bg-slate-950': 'bg-white', 'bg-slate-900/80': 'bg-slate-50',
-    'border-slate-700': 'border-slate-300', 'border-slate-800': 'border-slate-200', 'divide-slate-800': 'divide-slate-200',
-    'text-slate-100': 'text-slate-900', 'text-slate-200': 'text-slate-800', 'text-slate-300': 'text-slate-700',
-    'text-slate-400': 'text-slate-600', 'text-amber-300': 'text-amber-800', 'text-red-300': 'text-red-700',
-    'text-blue-300': 'text-blue-700', 'text-emerald-300': 'text-emerald-700' };
-  const classes = (value: string) => selectionControls ? value.split(' ').map(token => tones[token] ?? token).join(' ') : value;
+
   return (
                 <tr key={candidate.key} data-testid={`group-member-row-${candidate.point_id}`} data-problem={problem ?? ''}>
                   <td className={classes('p-2')}>
-                    {selectionControls && member ? <button type="button" className={classes('gw-secondary')} disabled={disabled}
+                    {selectionControls && member ? <button type="button" className={classes('inline-flex min-h-10 max-sm:min-h-11 items-center justify-center rounded-lg border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)] disabled:cursor-not-allowed disabled:opacity-50')} disabled={disabled}
                       onClick={() => selectionControls.onRemove(member)}>{selectionControls.removeLabel(member)}</button> : <input
                       type="checkbox" checked={Boolean(member)} disabled={disabled}
                       aria-label={t('step4.group.members.include_label', { tag: candidate.label })}
@@ -211,7 +202,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
                   </td>
                   <td className={classes('p-2')}>
                     <div className={classes('font-medium')}>{candidate.label}</div>
-                    <div className={classes('text-slate-500')}>{candidate.device_name} · {candidate.address}</div>
+                    <div className={classes('text-[var(--gw-muted)]')}>{candidate.device_name} · {candidate.address}</div>
                     {member && renderSource?.(member)}
                   </td>
                   <td className={classes('p-2 font-mono')}>{candidate.target_type}</td>
@@ -222,7 +213,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
                         aria-label={t('step4.group.members.column_label', { tag: candidate.label })}
                         aria-invalid={Boolean(problem)} aria-describedby={describedBy}
                         onChange={(event) => update(candidate, { target_column: event.target.value })}
-                        className={classes('rounded border border-slate-700 bg-slate-950 px-2 py-1')}
+                        className={classes('rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1')}
                         data-testid={`group-member-column-${candidate.point_id}`}
                       >
                         <option value="">{t('step4.group.members.choose_column')}</option>
@@ -237,7 +228,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
                         aria-label={t('step4.group.members.column_label', { tag: candidate.label })}
                         aria-invalid={Boolean(problem)} aria-describedby={describedBy}
                         onChange={(event) => update(candidate, { target_column: event.target.value })}
-                        className={classes('rounded border border-slate-700 bg-slate-950 px-2 py-1')}
+                        className={classes('rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1')}
                         data-testid={`group-member-column-${candidate.point_id}`}
                       />
                     )}
@@ -255,23 +246,23 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
                         type="text" value={member?.entity_key ?? ''} disabled={disabled || !member}
                         aria-label={t('step4.group.members.entity_label', { tag: candidate.label })}
                         onChange={(event) => update(candidate, { entity_key: event.target.value })}
-                        className={classes('w-28 rounded border border-slate-700 bg-slate-950 px-2 py-1')}
+                        className={classes('w-28 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1')}
                       />
                     </td>
                   )}
                   <td className={classes('p-2')}>
                     {problem ? (
-                      <span id={describedBy} role="alert" className={classes('text-red-300')} data-testid={`group-member-problem-${candidate.point_id}`}>
+                      <span id={describedBy} role="alert" className={classes('text-[var(--gw-danger-fg)]')} data-testid={`group-member-problem-${candidate.point_id}`}>
                         {t(`step4.group.members.problem_${problem.replace('-', '_')}`)}
                       </span>
                     ) : suggestion && (!member || member.target_column === suggestion.column || member.target_column === '') && suggestion.status === 'suggested' ? (
-                      <span className={classes('text-blue-300')} data-testid={`group-member-suggested-${candidate.point_id}`}>
+                      <span className={classes('text-[var(--gw-accent)]')} data-testid={`group-member-suggested-${candidate.point_id}`}>
                         {t('step4.group.members.suggested', { column: suggestion.column })}
                       </span>
                     ) : member?.target_column ? (
-                      <span className={classes('text-emerald-300')}>{t('step4.group.members.confirmed')}</span>
+                      <span className={classes('text-[var(--gw-success-fg)]')}>{t('step4.group.members.confirmed')}</span>
                     ) : (
-                      <span className={classes('text-slate-500')}>{t('step4.group.members.unassigned')}</span>
+                      <span className={classes('text-[var(--gw-muted)]')}>{t('step4.group.members.unassigned')}</span>
                     )}
                   </td>
                 </tr>
@@ -282,7 +273,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
       </div>
 
       {excluded.length > 0 && (
-        <div className={classes('text-xs text-amber-300')} data-testid="group-member-excluded">
+        <div className={classes('text-sm text-[var(--gw-warning-fg)]')} data-testid="group-member-excluded">
           <p>{t('step4.group.members.excluded', { count: excluded.length })}</p>
           <ul className={classes('mt-1 list-disc pl-5')}>
             {excluded.map((entry) => (

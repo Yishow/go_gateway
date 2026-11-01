@@ -22,11 +22,11 @@
 
 - [x] 3.1 [after: 2.4] 實作 One next action retains every safety boundary 與「重用檢查及明確開始」的save/check/schema impact流程；測試輸入變動清除舊consent、preview不是成功、schema確認不自動start。
 - [x] 3.2 [after: 3.1] 串接既有 scoped start，開始後僅waiting-first-write；測試double click、過期response、unknown查狀態與不啟動整workspace。 依「記錄設定與來源啟動分期」涵蓋legacy與獨立mixed，不新增隱藏Basic record來啟動mixed；驗真來源開始後mean/mean/delta、不同due窗口、fresh scoped proof與SQL/readback，先前2.1未測項在此閉合。 依「已保存記錄的多設備啟動與遺失回覆查詢」以同owner明確saved-record分支處理exact多設備scope，保舊Basic限制；以既有ledger唯讀原request lookup補無operation ID的lost-ACK，驗零寫入／不claim-resume-activate、foreign/digest拒絕與not-found不重送，不新增engine或task。
-- [ ] 3.3 [after: 3.2] 依 DESIGN.md 補齊雙主題、繁中/英文簡潔指引、字型階層、常用連線參數常顯、點位compact rows／低頻細節才折疊、依「緊湊表單與短確認分類」實作 Compact forms and short confirmations preserve useful density，普通75%modal與dirty/stop/remove/discard短確認autoheight、鍵盤及RWD；實作 Parameter help is accessible and source-grounded 與「每個參數都有可操作的圓圈說明」，逐欄coverage map對照；測click/touch/keyboard開關、focus/Escape/outside/no-submit、risk inline及source準確。執行component/a11y檢查並記錄瀏覽器視覺項實際PASS或NOT RUN。
+- [x] 3.3 [after: 3.2] 依 DESIGN.md 補齊雙主題、繁中/英文簡潔指引、字型階層、常用連線參數常顯、點位compact rows／低頻細節才折疊、依「緊湊表單與短確認分類」實作 Compact forms and short confirmations preserve useful density，普通75%modal與dirty/stop/remove/discard短確認autoheight、鍵盤及RWD；實作 Parameter help is accessible and source-grounded 與「每個參數都有可操作的圓圈說明」，逐欄coverage map對照；測click/touch/keyboard開關、focus/Escape/outside/no-submit、risk inline及source準確。執行component/a11y檢查並記錄瀏覽器視覺項實際PASS或NOT RUN。
 
 ## 4. 驗證與交接
 
-- [ ] 4.1 [after: 1.4, 3.3] 在完整1.4 canonical preview與3.3都完成後，跑本批editor/device/rule/mapping/autosave/preparation/start相關測試、lint/typecheck、git diff --check與make check-lines；記錄實際結果，不把mock或jsdom當真實PLC/SQL或視覺驗收。 終驗明列run10 React #185的觀測與後續追蹤結果及任何未定位限制；不可只以HTTP／SQL成功代替最後導航與console驗收。
+- [x] 4.1 [after: 1.4, 3.3] 在完整1.4 canonical preview與3.3都完成後，跑本批editor/device/rule/mapping/autosave/preparation/start相關測試、lint/typecheck、git diff --check與make check-lines；記錄實際結果，不把mock或jsdom當真實PLC/SQL或視覺驗收。 終驗明列run10 React #185的觀測與後續追蹤結果及任何未定位限制；不可只以HTTP／SQL成功代替最後導航與console驗收。
 - [ ] 4.2 [after: 4.1] 獨立review資料權威、草稿與confirmation失效、advanced交接，修復本批問題並重跑受影響測試；列出 lifecycle後續依賴，不重做已完成引擎。
 
 相關modal／導航任務依「已選 modal 與返回引導契約」回歸一般／手機／小確認分類、固定操作區、contexthelp風險可見性及同scope返回狀態，不新增未選功能。

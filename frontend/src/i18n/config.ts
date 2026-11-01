@@ -1,3 +1,7 @@
+import enParameterHelpAdvanced from './locales/en/parameter-help-advanced.json';
+import zhTWParameterHelpAdvanced from './locales/zh-TW/parameter-help-advanced.json';
+import enParameterHelp from './locales/en/parameter-help.json';
+import zhTWParameterHelp from './locales/zh-TW/parameter-help.json';
 import enAcquisitionPreview from './locales/en/acquisition-preview.json';
 import zhTWAcquisitionPreview from './locales/zh-TW/acquisition-preview.json';
 import enPointFormat from './locales/en/point-format.json';
@@ -63,6 +67,7 @@ i18n
       en: {
         'recording-home': enRecordingHome,
         'recording-editor': enRecordingEditor,
+        'parameter-help': { ...enParameterHelp, ...enParameterHelpAdvanced },
         'point-format': enPointFormat,
         'acquisition-preview': enAcquisitionPreview,
         theme: enTheme,
@@ -87,6 +92,7 @@ i18n
       'zh-TW': {
         'recording-home': zhTWRecordingHome,
         'recording-editor': zhTWRecordingEditor,
+        'parameter-help': { ...zhTWParameterHelp, ...zhTWParameterHelpAdvanced },
         'point-format': zhTWPointFormat,
         'acquisition-preview': zhTWAcquisitionPreview,
         theme: zhTWTheme,

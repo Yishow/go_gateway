@@ -40,7 +40,7 @@ export function ActivationRecoveryNotice({
       {recovery && (
         <div
           data-testid="activation-recovery-status"
-          className="rounded-xl border border-slate-700/70 bg-slate-950/40 px-3 py-2 text-xs text-slate-300"
+          className="rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] px-3 py-2 text-xs text-[var(--gw-text)]"
         >
           <div>
             {runningDevices.length > 0
@@ -50,7 +50,7 @@ export function ActivationRecoveryNotice({
               : t('step4.activation_recovery_read')}
           </div>
           {recovery.operation_id && (
-            <div className="mt-1 font-mono text-[11px] text-slate-400">
+            <div className="mt-1 font-mono text-xs text-[var(--gw-muted)]">
               {t('step4.activation_operation_id')}: {recovery.operation_id}
             </div>
           )}
@@ -59,7 +59,7 @@ export function ActivationRecoveryNotice({
       {recoveryUnavailable && (
         <div
           data-testid="activation-recovery-unavailable"
-          className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-100"
+          className="rounded-xl border border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] px-3 py-2 text-xs text-[var(--gw-warning-fg)]"
         >
           {t('step4.activation_recovery_unavailable')}
         </div>
@@ -104,7 +104,7 @@ export function ActivationNeutralSummary({
     <div
       data-testid="activation-empty-message"
       data-outcome={isUnconfirmed ? 'unconfirmed' : 'failed'}
-      className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-5 py-6 text-sm text-amber-100"
+      className="rounded-2xl border border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] px-5 py-6 text-sm text-[var(--gw-warning-fg)]"
     >
       <p>
         {isUnconfirmed
@@ -114,7 +114,7 @@ export function ActivationNeutralSummary({
       {(response?.operation_id || response?.request_id) && (
         <div
           data-testid="activation-response-identifiers"
-          className="mt-3 space-y-1 font-mono text-[11px] text-amber-200/80"
+          className="mt-3 space-y-1 font-mono text-xs text-[var(--gw-warning-fg)]"
         >
           {response.operation_id && (
             <div>
@@ -137,10 +137,10 @@ export function ActivationNeutralSummary({
             <div
               key={result.device_id}
               data-testid={`activation-neutral-result-${result.device_id}`}
-              className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-xs"
+              className="flex items-center justify-between gap-3 rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] px-3 py-2 text-xs"
             >
-              <span className="font-mono text-slate-200">{result.device_id}</span>
-              <span className="text-amber-200">{resultStatusLabel(result.status, t)}</span>
+              <span className="font-mono text-[var(--gw-text)]">{result.device_id}</span>
+              <span className="text-[var(--gw-warning-fg)]">{resultStatusLabel(result.status, t)}</span>
             </div>
           ))}
         </div>
@@ -148,7 +148,7 @@ export function ActivationNeutralSummary({
       {response && (
         <div
           data-testid="activation-delivery-status"
-          className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-100"
+          className="mt-3 rounded-xl border border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] px-4 py-3 text-xs text-[var(--gw-warning-fg)]"
         >
           <span className="font-semibold">
             {t('step4.activation_delivery_status_label')}:
@@ -164,7 +164,7 @@ export function ActivationNeutralSummary({
         {canContinue && onCommit && (
           <button
             type="button"
-            className="rounded-xl bg-emerald-600 px-4 py-2 font-medium text-white transition-all hover:bg-emerald-500 active:scale-[0.98]"
+            className="rounded-xl bg-[var(--gw-primary)] px-4 py-2 font-medium text-[var(--gw-on-primary)] transition-all hover:bg-[var(--gw-primary-hover)]"
             onClick={handleCommit}
           >
             {t('step4.go_to_dashboard_btn')}
@@ -172,7 +172,7 @@ export function ActivationNeutralSummary({
         )}
         <button
           type="button"
-          className="rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800/60"
+          className="rounded-xl border border-[var(--gw-control)] px-4 py-2 hover:bg-[var(--gw-surface)]"
           onClick={onReset}
         >
           {t('step4.reset_activation_btn')}

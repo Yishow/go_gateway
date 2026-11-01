@@ -25,13 +25,13 @@ export const CutoverRun: React.FC<CutoverRunProps> = ({ scope, readonly, groupNa
   const isUnknown = flow.outcome.state === 'unknown';
   return (
     <div className="space-y-3">
-      <button type="button" data-testid="cutover-review-button" disabled={readonly || flow.busy || !scope?.boundary || isUnknown} onClick={() => void flow.review()} className="rounded border border-slate-600 px-3 py-2 text-xs text-slate-200 disabled:opacity-40">
+      <button type="button" data-testid="cutover-review-button" disabled={readonly || flow.busy || !scope?.boundary || isUnknown} onClick={() => void flow.review()} className="rounded border border-[var(--gw-control)] px-3 py-2 text-xs text-[var(--gw-text)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]">
         {flow.busy && !flow.reviewed ? t('step4.cutover.reviewing') : t('step4.cutover.review')}
       </button>
-      {flow.error && <p role="alert" data-testid="cutover-review-error" className="text-xs text-rose-300">{flow.error}</p>}
+      {flow.error && <p role="alert" data-testid="cutover-review-error" className="text-xs text-[var(--gw-danger-fg)]">{flow.error}</p>}
       {flow.reviewed && <CutoverReviewView review={flow.reviewed} stale={flow.stale} onOpenGroup={onOpenGroup} candidates={candidates} sourceGroup={scope?.source} />}
       {flow.reviewed && flow.outcome.state === 'idle' && (
-        <button type="button" data-testid="cutover-confirm" disabled={!flow.canConfirm} onClick={() => void flow.confirm()} className="rounded bg-cyan-600 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
+        <button type="button" data-testid="cutover-confirm" disabled={!flow.canConfirm} onClick={() => void flow.confirm()} className="rounded bg-[var(--gw-primary)] px-4 py-2 text-xs font-semibold text-[var(--gw-on-primary)] disabled:cursor-not-allowed disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]">
           {flow.busy ? t('step4.cutover.confirming') : t(rollback ? 'step4.cutover.confirm_rollback' : 'step4.cutover.confirm')}
         </button>
       )}

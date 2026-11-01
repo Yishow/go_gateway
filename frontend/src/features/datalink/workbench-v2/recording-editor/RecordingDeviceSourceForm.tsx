@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../components/ParameterHelp';
 import { useTranslation } from 'react-i18next';
 import type { DeviceSourceBuffer } from '../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { ConnectionConfigForm } from '../steps/step1/ConnectionConfigForm';
@@ -13,15 +14,15 @@ export function RecordingDeviceSourceForm({ buffer, lockedProtocol, onChange, on
   const { t } = useTranslation('recording-editor');
   const { t: workbench } = useTranslation('workbench-v2');
   return <div className="space-y-4">
-    <label className="block">{t('device.name')}<input data-testid="recording-source-name" value={buffer.name}
-      onChange={event => onChange({ ...buffer, name: event.target.value })} /></label>
-    <label className="block">{t('device.protocol')}<select value={buffer.protocol} disabled={lockedProtocol}
+    <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block">{t('device.name')}<input data-testid="recording-source-name" value={buffer.name}
+      onChange={event => onChange({ ...buffer, name: event.target.value })} /></label><ParameterHelp help="device.name" /></div>
+    <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block">{t('device.protocol')}<select value={buffer.protocol} disabled={lockedProtocol}
       onChange={event => {
         const protocol = PROTOCOLS.find(item => item.id === event.target.value)?.id;
         if (protocol && getProtocolSupport(protocol).available) onProtocol({ ...buffer, protocol, config: getDefaultConfig(protocol) });
       }}>{PROTOCOLS.map(protocol => <option key={protocol.id} value={protocol.id} disabled={!getProtocolSupport(protocol.id).available}>
         {workbench(protocol.nameKey)}{!getProtocolSupport(protocol.id).available ? ` — ${t('device.unsupported')}` : ''}
-      </option>)}</select></label>
+      </option>)}</select></label><ParameterHelp help="device.protocol" /></div>
     <ConnectionConfigForm protocol={buffer.protocol} config={buffer.config} rawNumericText
       onChange={patch => {
         if (buffer.protocol === 'fatek_fbs' && patch.mode !== undefined && patch.mode !== (buffer.config.mode ?? 'tcp') && onSubtype) {

@@ -37,8 +37,8 @@ export function BasicSchemaPreparation({ group, workspaceId, workspaceRevision, 
   const groupId = savedGroup?.id;
   const onPresentation = useCallback((value: SchemaPreparationPresentation | null) => { if (groupId) report?.(groupId, value); }, [groupId, report]);
   return <section className="space-y-3">
-    {!guided && <button type="button" disabled={disabled || readonly || busy} onClick={() => void prepare()} className="rounded border border-slate-600 px-3 py-2 text-xs text-slate-200 disabled:opacity-40" data-testid="basic-recording-prepare">{t('step4.basic.prepare_schema')}</button>}
-    {failed && <p role="alert" className="text-xs text-amber-300">{t('step4.basic.prepare_failed')}</p>}
+    {!guided && <button type="button" disabled={disabled || readonly || busy} onClick={() => void prepare()} className="rounded border border-[var(--gw-control)] px-3 py-2 text-xs text-[var(--gw-text)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]" data-testid="basic-recording-prepare">{t('step4.basic.prepare_schema')}</button>}
+    {failed && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]">{t('step4.basic.prepare_failed')}</p>}
     {(guided ? Boolean(savedGroup) : open) && <GroupSchemaPanel autoPreview={!guided} guided={guided ? { online: guided.online, consentEpoch: guided.consentEpoch, suppressDefaultActions: true, onPresentation,
       newOperationBlocked: guided.newCommandsBlocked, isNewOperationBlocked: () => guided.isNewOperationBlocked?.() ?? true,
       isPreviewRetryBlocked: () => !savedGroup || (guided.isSchemaPreviewRetryBlocked?.(savedGroup.id) ?? true) } : undefined} previewRequest={previewRequest} group={savedGroup} workspaceId={workspaceId} workspaceRevision={revision} destinationMatches={destinationMatches} dirty={dirty} readonly={readonly || busy} onApplied={onApplied} />}

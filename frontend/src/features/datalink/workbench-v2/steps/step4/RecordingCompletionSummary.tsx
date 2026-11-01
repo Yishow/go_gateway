@@ -38,23 +38,23 @@ export function RecordingCompletionSummary({ view, deviceNames, groupNames, prim
   const list = (ids: readonly string[], kind: 'device' | 'group', title: string) => {
     if (view.state !== 'available' || ids.length === 0) return null;
     return <div className="space-y-1">
-      <h4 className="font-medium text-slate-200">{title}</h4>
-      <ul aria-label={title} className="max-h-40 list-inside list-disc overflow-y-auto break-words text-slate-300">
+      <h4 className="font-medium text-[var(--gw-text)]">{title}</h4>
+      <ul aria-label={title} className="max-h-40 list-inside list-disc overflow-y-auto break-words text-[var(--gw-text)]">
         {ids.map(id => <li key={id}>{label(id, kind === 'device' ? deviceNames : groupNames, kind === 'device' ? view.deviceIds : view.groupIds, kind)}</li>)}
       </ul>
     </div>;
   };
-  return <section aria-labelledby={headingId} data-testid="recording-completion-summary" className="min-w-0 space-y-3 rounded border border-slate-700 bg-slate-950/60 p-3 text-sm">
-    <h3 id={headingId} className="font-semibold text-slate-100">{t('completion.heading')}</h3>
-    {view.state === 'unavailable' ? <p role="status" className="text-amber-300">{t(`reasons.${view.reason}`)}</p> : <>
-      <p role="status" className="text-slate-200">{t(`states.${view.status}`)}</p>
+  return <section aria-labelledby={headingId} data-testid="recording-completion-summary" className="min-w-0 space-y-3 rounded border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3 text-sm">
+    <h3 id={headingId} className="font-semibold text-[var(--gw-text)]">{t('completion.heading')}</h3>
+    {view.state === 'unavailable' ? <p role="status" className="text-[var(--gw-warning-fg)]">{t(`reasons.${view.reason}`)}</p> : <>
+      <p role="status" className="text-[var(--gw-text)]">{t(`states.${view.status}`)}</p>
       {view.activatedDeviceIds.length ? list(view.activatedDeviceIds, 'device', t('completion.activated'))
-        : <p className="text-slate-300">{t('completion.noneActivated')}</p>}
+        : <p className="text-[var(--gw-text)]">{t('completion.noneActivated')}</p>}
       {list(view.incompleteDeviceIds, 'device', t('completion.incompleteDevices'))}
       {list(view.incompleteGroupIds, 'group', t('completion.incompleteGroups'))}
-      <p className="text-xs text-slate-400">{t('completion.deliverySeparate')}</p>
+      <p className="text-xs text-[var(--gw-muted)]">{t('completion.deliverySeparate')}</p>
       {handoff && onContinue && <button type="button" data-testid="basic-recording-continue-runtime" data-primary={primary ? 'true' : undefined}
-        className={primary ? 'rounded bg-cyan-600 px-4 py-2 font-semibold text-white' : 'rounded border border-emerald-700 px-3 py-2 text-emerald-200'}
+        className={primary ? 'rounded bg-[var(--gw-primary)] px-4 py-2 font-semibold text-[var(--gw-on-primary)]' : 'rounded border border-[var(--gw-success-border)] px-3 py-2 text-[var(--gw-success-fg)]'}
         onClick={navigate}>{t('completion.continue')}</button>}
     </>}
   </section>;

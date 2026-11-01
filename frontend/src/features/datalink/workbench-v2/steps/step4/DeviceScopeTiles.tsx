@@ -32,10 +32,10 @@ export const DeviceScopeTiles: React.FC<DeviceScopeTilesProps> = ({ devices, sel
           aria-pressed={selected}
           disabled={disabled}
           onClick={() => onSelect(device.id)}
-          className={`rounded border px-3 py-2 text-left text-xs ${selected ? 'border-cyan-500 bg-cyan-950/60 text-cyan-100' : 'border-slate-700 bg-slate-950 text-slate-200'} disabled:cursor-not-allowed disabled:opacity-40`}
+          className={`rounded border px-3 py-2 text-left text-xs ${selected ? 'border-[var(--gw-focus)] bg-[var(--gw-active)] text-[var(--gw-accent)]' : 'border-[var(--gw-control)] bg-[var(--gw-surface)] text-[var(--gw-text)]'} disabled:cursor-not-allowed disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]`}
         >
           <span className="block font-semibold">{device.name || device.id}</span>
-          {device.address && <span className="block text-[11px] text-slate-400">{device.address}</span>}
+          {device.address && <span className="block text-xs text-[var(--gw-muted)]">{device.address}</span>}
         </button>
       );
     })}

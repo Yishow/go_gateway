@@ -48,11 +48,11 @@ export const CircuitProfileStatusView: React.FC<CircuitProfileStatusViewProps> =
     if (!data) return null;
     const tag = item.tag_id;
     const testId = `circuit-status-record-${kind}-${tag}`;
-    const heading = <span className="font-medium text-slate-300">{t(`${base}.${kind === 'latest' ? 'latest_window' : 'confirmed_window'}`)}</span>;
+    const heading = <span className="font-medium text-[var(--gw-text)]">{t(`${base}.${kind === 'latest' ? 'latest_window' : 'confirmed_window'}`)}</span>;
     // This legacy view only describes raw-profile slots. Mixed calculation
     // evidence stays read-only/unavailable here until its dedicated presentation.
     if (!data.available || data.profile_kind === 'mixed') {
-      return <div data-testid={testId} className="text-slate-400">{heading} {t(`${base}.record_unavailable`)}</div>;
+      return <div data-testid={testId} className="text-[var(--gw-muted)]">{heading} {t(`${base}.record_unavailable`)}</div>;
     }
     const foreignRevision = data.group_revision !== applied;
     // Proof is judged against the destination the applied revision froze, never the draft's.
@@ -64,12 +64,12 @@ export const CircuitProfileStatusView: React.FC<CircuitProfileStatusViewProps> =
     return (
       <div data-testid={testId} className="space-y-0.5">
         {heading}
-        <div className="text-slate-400">{formatPreciseUtc(data.window_start)} → {formatPreciseUtc(data.window_end)} UTC</div>
-        {foreignRevision || foreignDestination ? <div className="text-amber-300">{t(`${base}.destination_changed`)}</div> : (
+        <div className="text-[var(--gw-muted)]">{formatPreciseUtc(data.window_start)} → {formatPreciseUtc(data.window_end)} UTC</div>
+        {foreignRevision || foreignDestination ? <div className="text-[var(--gw-warning-fg)]">{t(`${base}.destination_changed`)}</div> : (
           <>
             <div>{t(`${base}.status_value.${status}`)} · {t(`${base}.${data.raw_present ? 'raw_recorded' : 'null_stored'}`)}</div>
             {data.aggregation && (
-              <div data-testid={`circuit-status-aggregation-${tag}`} className="space-y-0.5 text-slate-400">
+              <div data-testid={`circuit-status-aggregation-${tag}`} className="space-y-0.5 text-[var(--gw-muted)]">
                 <div>{t(`${base}.method.${data.aggregation.method}`)} · {t(`${base}.coverage.${data.aggregation.coverage}`)}
                   {data.aggregation.reason && ` · ${reasonText(data.aggregation.reason)}`}</div>
                 <div>{t(`${base}.valid_label`)}: <span data-testid={`circuit-status-valid-${tag}`}>{data.aggregation.valid_count}</span>
@@ -90,20 +90,20 @@ export const CircuitProfileStatusView: React.FC<CircuitProfileStatusViewProps> =
   const row = (item: WriteGroupSourceEvidenceItem) => {
     const sameRecord = item.latest?.available && item.last_sql_committed?.available && item.latest.effect_key === item.last_sql_committed.effect_key;
     return (
-      <li key={item.tag_id} data-testid={`circuit-status-source-${item.tag_id}`} className="space-y-1 rounded border border-slate-900 bg-slate-950/40 px-2.5 py-1.5">
+      <li key={item.tag_id} data-testid={`circuit-status-source-${item.tag_id}`} className="space-y-1 rounded border border-[var(--gw-border)] bg-[var(--gw-surface)] px-2.5 py-1.5">
         {sourceLabels[item.tag_id]
-          ? <div className="font-medium text-slate-200">{sourceLabels[item.tag_id]}</div>
+          ? <div className="font-medium text-[var(--gw-text)]">{sourceLabels[item.tag_id]}</div>
           : (
             // No saved name or address: the technical key stays in diagnostics; the saved member is repaired in its group.
-            <div className="flex flex-wrap items-center gap-2 font-medium text-amber-300">
+            <div className="flex flex-wrap items-center gap-2 font-medium text-[var(--gw-warning-fg)]">
               <span>{t('step4.basic.saved_member_unavailable')}</span>
               {onOpenAdvanced && (
                 <button type="button" data-testid={`circuit-status-source-repair-${item.tag_id}`} onClick={() => onOpenAdvanced(group.id)}
-                  className="rounded border border-amber-600/60 px-2 py-0.5 text-[11px] font-normal">{t('step4.basic.sources.repair')}</button>
+                  className="rounded border border-[var(--gw-warning-border)] px-2 py-0.5 text-xs font-normal">{t('step4.basic.sources.repair')}</button>
               )}
             </div>
           )}
-        {!item.latest && !item.last_sql_committed && <div className="text-slate-400">{t(`${base}.source_none`)}</div>}
+        {!item.latest && !item.last_sql_committed && <div className="text-[var(--gw-muted)]">{t(`${base}.source_none`)}</div>}
         {record(item, 'latest', item.latest)}
         {!sameRecord && record(item, 'confirmed', item.last_sql_committed)}
       </li>
@@ -111,11 +111,11 @@ export const CircuitProfileStatusView: React.FC<CircuitProfileStatusViewProps> =
   };
 
   const chip = (id: string, label: string, value: string) => (
-    <li data-testid={`circuit-status-stage-${id}`} className="rounded border border-slate-800 px-2 py-0.5">{t(`${base}.${label}`)}: {value}</li>
+    <li data-testid={`circuit-status-stage-${id}`} className="rounded border border-[var(--gw-border)] px-2 py-0.5">{t(`${base}.${label}`)}: {value}</li>
   );
   return (
-    <div className="space-y-2 text-xs text-slate-300">
-      <ul className="flex flex-wrap gap-2 text-[11px]">
+    <div className="space-y-2 text-xs text-[var(--gw-text)]">
+      <ul className="flex flex-wrap gap-2 text-xs">
         {chip('saved', 'stage_saved', t(`${base}.state_done`))}
         {chip('applied', 'stage_applied', t(`${base}.${applied ? 'state_done' : 'state_pending'}`))}
         {chip('collecting', 'stage_collecting', stages ? String(stages.collecting) : '—')}
@@ -123,7 +123,7 @@ export const CircuitProfileStatusView: React.FC<CircuitProfileStatusViewProps> =
         {chip('sql', 'stage_sql', stages ? String(stages.sql_committed) : '—')}
       </ul>
       {answer?.storage?.history_may_be_lost && (
-        <div role="alert" data-testid="circuit-status-storage-history" className="rounded border border-amber-700/60 bg-amber-950/30 p-2 text-amber-200">
+        <div role="alert" data-testid="circuit-status-storage-history" className="rounded border border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] p-2 text-[var(--gw-warning-fg)]">
           <p data-testid="circuit-status-storage-generation">{t(`${base}.storage_generation`)}: {answer.storage.generation}</p>
           <p>{t(`${base}.storage_history_uncertain`)}</p>
         </div>
@@ -131,14 +131,14 @@ export const CircuitProfileStatusView: React.FC<CircuitProfileStatusViewProps> =
       {stages && stages.sql_committed > 0 && answer?.last_sql_committed_effect?.group_revision === applied && (
         <p data-testid="circuit-status-sql-confirmed">{t(`${base}.receipt_confirmed`)}</p>
       )}
-      {applied && <p data-testid="circuit-status-readback" className="text-slate-400">{t(`${base}.readback_not_checked`)}</p>}
+      {applied && <p data-testid="circuit-status-readback" className="text-[var(--gw-muted)]">{t(`${base}.readback_not_checked`)}</p>}
       {evidence && !current && (
-        <p data-testid="circuit-status-evidence-note" className="text-amber-300">
+        <p data-testid="circuit-status-evidence-note" className="text-[var(--gw-warning-fg)]">
           {t(`${base}.${evidence.state === 'unavailable' ? 'evidence_unavailable' : 'evidence_not_current'}`)}
         </p>
       )}
       {current && evidence && (evidence.connector_id !== group.destination.connector_id || evidence.connector_revision !== group.destination.connector_revision) && (
-        <p data-testid="circuit-status-applied-destination-note" className="text-slate-400">{t(`${base}.applied_destination_note`)}</p>
+        <p data-testid="circuit-status-applied-destination-note" className="text-[var(--gw-muted)]">{t(`${base}.applied_destination_note`)}</p>
       )}
       {current && evidence && (
         <SourceReview prefix={`circuit-status-sources-${group.id}`} count={evidence.sources.length} unavailable={evidence.sources.filter(needsCheck).length}

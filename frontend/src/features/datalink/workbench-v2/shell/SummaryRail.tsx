@@ -70,12 +70,12 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({
     dim?: boolean;
   }) => (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <span className="text-[10px] uppercase tracking-wider text-slate-500 flex-shrink-0">
+      <span className="text-xs text-[var(--gw-muted)] flex-shrink-0">
         {label}
       </span>
       <span
         className={`text-xs text-right truncate ${mono ? 'font-mono' : ''} ${
-          dim ? 'text-slate-500' : 'text-slate-200'
+          dim ? 'text-[var(--gw-muted)]' : 'text-[var(--gw-text)]'
         }`}
       >
         {value}
@@ -104,10 +104,10 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({
       />
 
       {/* 設備卡片 */}
-      <div className="rounded-xl border border-slate-700/60 bg-slate-900/40 p-3">
+      <div className="rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3">
         <div className="flex items-center gap-2 mb-2">
-          <Icon name="device" className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <Icon name="device" className="w-3.5 h-3.5 text-[var(--gw-muted)]" />
+          <span className="text-xs font-semibold text-[var(--gw-muted)]">
             設備
           </span>
         </div>
@@ -119,27 +119,26 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({
           dim={testedDevs !== devices.length}
         />
         <div className="mt-1.5 space-y-0.5">
-          {devices.slice(0, 4).map((d, i) => {
-            const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-fuchsia-500'];
+          {devices.slice(0, 4).map((d) => {
             return (
-              <div key={d.id} className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500">
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${colors[i % colors.length]}`} />
-                <span className="truncate text-slate-400">{d.name}</span>
-                <span className="ml-auto text-slate-500">{d.protocol}</span>
+              <div key={d.id} className="flex items-center gap-1.5 text-xs font-mono text-[var(--gw-muted)]">
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-[var(--gw-muted)]" />
+                <span className="truncate text-[var(--gw-muted)]">{d.name}</span>
+                <span className="ml-auto text-[var(--gw-muted)]">{d.protocol}</span>
               </div>
             );
           })}
           {devices.length > 4 && (
-            <div className="text-[10px] text-slate-600 pl-3">+ {devices.length - 4} 更多</div>
+            <div className="text-xs text-[var(--gw-muted)] pl-3">+ {devices.length - 4} 更多</div>
           )}
         </div>
       </div>
 
       {/* 規則卡片 */}
-      <div className="rounded-xl border border-slate-700/60 bg-slate-900/40 p-3">
+      <div className="rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3">
         <div className="flex items-center gap-2 mb-2">
-          <Icon name="rule" className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <Icon name="rule" className="w-3.5 h-3.5 text-[var(--gw-muted)]" />
+          <span className="text-xs font-semibold text-[var(--gw-muted)]">
             接入規則
           </span>
         </div>
@@ -148,10 +147,10 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({
       </div>
 
       {/* 映射卡片 */}
-      <div className="rounded-xl border border-slate-700/60 bg-slate-900/40 p-3">
+      <div className="rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3">
         <div className="flex items-center gap-2 mb-2">
-          <Icon name="map" className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <Icon name="map" className="w-3.5 h-3.5 text-[var(--gw-muted)]" />
+          <span className="text-xs font-semibold text-[var(--gw-muted)]">
             映射
           </span>
         </div>
@@ -168,10 +167,10 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({
       </div>
 
       {/* 資料庫卡片 */}
-      <div className="rounded-xl border border-slate-700/60 bg-slate-900/40 p-3">
+      <div className="rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3">
         <div className="flex items-center gap-2 mb-2">
-          <Icon name="db" className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <Icon name="db" className="w-3.5 h-3.5 text-[var(--gw-muted)]" />
+          <span className="text-xs font-semibold text-[var(--gw-muted)]">
             資料庫連線
           </span>
         </div>
@@ -179,23 +178,23 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({
           <>
             <Row label="名稱" value={connector.name} />
             <Row label="類型" value={connector.kind} mono />
-            <p className="mt-2 text-[10px] text-slate-400">表格、記錄間隔與量測點以 Basic／Advanced 群組設定為準。</p>
+            <p className="mt-2 text-xs text-[var(--gw-muted)]">表格、記錄間隔與量測點以 Basic／Advanced 群組設定為準。</p>
           </>
         ) : (
-          <div className="text-[11px] text-slate-500 italic">尚未設定</div>
+          <div className="text-xs text-[var(--gw-muted)] italic">尚未設定</div>
         )}
       </div>
 
       {/* 部署成功提示 */}
       {hasRunningDevice && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.08] p-3 sweep-in">
+        <div className="rounded-xl border border-[var(--gw-success-border)] bg-[var(--gw-success-bg)] p-3">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-emerald-200 text-xs font-semibold">
+              <div className="flex items-center gap-2 text-[var(--gw-success-fg)] text-xs font-semibold">
                 <Icon name="check" className="w-3.5 h-3.5" />
                 已有設備在 Runtime 執行
               </div>
-              <div className="text-[10px] text-emerald-300/70 mt-1">
+              <div className="text-xs text-[var(--gw-success-fg)] mt-1">
                 可直接進入 Runtime 觀察已成功啟動的設備。
               </div>
             </div>
@@ -203,7 +202,7 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({
               type="button"
               data-testid="summary-rail-runtime-link"
               onClick={onOpenRuntime}
-              className="shrink-0 rounded-md border border-emerald-400/40 bg-emerald-400/10 px-2 py-1 text-[10px] font-semibold text-emerald-100 transition-colors hover:bg-emerald-400/20"
+              className="shrink-0 rounded-md border border-[var(--gw-success-border)] bg-[var(--gw-success-bg)] px-2 py-1 text-xs font-semibold text-[var(--gw-success-fg)] transition-colors hover:bg-[var(--gw-success-bg)]"
             >
               前往 Runtime
             </button>

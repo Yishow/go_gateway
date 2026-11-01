@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../components/ParameterHelp';
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { canRestartPointOrder, type RecordingPointOrderPort } from './useRecordingPointOrder';
@@ -16,21 +17,21 @@ export function RecordingPointOrder({ port, workspaceId, deviceId, pointId, disa
   const canEdit = !disabled && entry?.status === 'ready' && entry.snapshot?.editable && resolution?.resolved;
   const value = entry?.intent?.format_mode === 'override' ? entry.intent.configured_format : entry?.intent?.format_mode ?? (resolution?.format_mode === 'override' ? resolution.configured_format : resolution?.format_mode);
   const busy = entry && ['loading', 'saving', 'inspecting', 'recovering'].includes(entry.status);
-  return <details className="mt-1 text-xs text-slate-400" data-testid={`recording-point-order-${pointId}`}>
+  return <details className="mt-1 text-sm text-[var(--gw-muted)]" data-testid={`recording-point-order-${pointId}`}>
     <summary className="cursor-pointer">{t('editor.title')}{resolution && <> · {t(`mode.${resolution.format_mode}`)} · <span data-testid="point-order-effective">{resolution.effective_format || t('editor.native')}</span></>}</summary>
-    <div className="mt-2 space-y-2 rounded border border-slate-800 p-2">
+    <div className="mt-2 space-y-2 rounded border border-[var(--gw-control)] p-2">
       {resolution && <>
         <p>{t(`source.${resolution.effective_source}`)} · {t(`policy.${resolution.effective_policy}`)}</p>
         <p>{t('editor.version')}: {resolution.format_version}{resolution.native_compatibility && <> · {t('editor.nativeCompatibility')}</>}</p>
         {!resolution.applicable && <p>{t('editor.notApplicable')}</p>}
-        <label className="block">{t('editor.order')}
-          <select aria-label={t('editor.order')} value={value ?? ''} disabled={!canEdit} className="ml-2 rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-100"
+        <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block">{t('editor.order')}
+          <select aria-label={t('editor.order')} value={value ?? ''} disabled={!canEdit} className="ml-2 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1 text-[var(--gw-text)]"
             onChange={event => port.choose(scope, event.target.value === 'inherit' ? { format_mode: 'inherit', configured_format: '' } : { format_mode: 'override', configured_format: event.target.value as PointWordFormat })}>
             {resolution.format_mode === 'legacy' && <option value="legacy" disabled>{t('mode.legacy')}</option>}
             <option value="inherit">{t('mode.inherit')}</option>
             {wordFormats.map(format => <option key={format} value={format} disabled={!resolution.applicable}>{format} · {t('mode.override')}</option>)}
           </select>
-        </label>
+        </label><ParameterHelp help="point.order" /></div>
         <div className="flex flex-wrap gap-3">
           <button type="button" disabled={!canEdit} onClick={() => port.choose(scope, { format_mode: 'inherit', configured_format: '' })}>{t('editor.reset')}</button>
           <button type="button" disabled={!canEdit || !entry?.intent} onClick={() => void port.save(scope)}>{t('editor.save')}</button>

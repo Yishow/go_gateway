@@ -9,7 +9,7 @@ export function StudioLocatorEntryNotice({ reason, entry, navigateTo }: {
 }) {
   const { t } = useTranslation('runtime-dashboard');
   const owned = entry && entry.workspace.id === entry.locator.workspace_id ? entry.workspace : undefined;
-  return <section role={reason === 'loading' ? 'status' : 'alert'} data-testid="studio-locator-notice" className="m-4 space-y-3 rounded border border-amber-600 p-4">
+  return <section role={reason === 'loading' ? 'status' : 'alert'} data-testid="studio-locator-notice" className="m-4 space-y-3 rounded border border-[var(--gw-warning-border)] p-4">
     <p>{t(`locatorEntry.${reason}`)}</p>
     {owned && <nav aria-label={t('locatorEntry.listTitle')}><p>{t('locatorEntry.listTitle')}</p>
       {owned.ordered_device_ids.map(id => {

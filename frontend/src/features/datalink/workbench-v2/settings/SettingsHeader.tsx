@@ -8,13 +8,13 @@ export function SettingsHeader() {
   const { t } = useTranslation('workbench-v2');
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-blue-500/20 bg-gradient-to-r from-blue-600/15 via-blue-500/5 to-slate-950 p-6 md:p-8 shadow-lg shadow-blue-500/[0.02]">
+    <div className="relative overflow-hidden rounded-2xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-6 md:p-8">
       {/* 漸層光暈裝飾 */}
-      <div className="absolute -right-16 -top-16 w-48 h-48 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
+      <div className="hidden" />
       
       <div className="flex items-center gap-4">
         {/* Sliders Icon */}
-        <div className="grid place-items-center w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 shadow-inner">
+        <div className="grid place-items-center w-12 h-12 rounded-xl bg-[var(--gw-surface)] text-[var(--gw-muted)]">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -37,10 +37,10 @@ export function SettingsHeader() {
         </div>
         
         <div>
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">
+          <h1 className="text-xl md:text-2xl font-bold text-[var(--gw-text)]">
             {t('settings.title', '系統設定')}
           </h1>
-          <p className="text-xs md:text-sm text-gray-400 mt-1">
+          <p className="text-xs md:text-sm text-[var(--gw-muted)] mt-1">
             {t('settings.subtitle', '管理閘道全局連線、儲存排程、位元組映射轉發以及開發人員診斷工具。')}
           </p>
         </div>

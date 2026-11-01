@@ -1,255 +1,148 @@
-/**
- * Datalink Workbench V2 Scoped CSS
- * 
- * 落地設計決策：「Design Tokens 落地：CSS variables + Tailwind theme.extend」
- * 限制所有樣式只在 `[data-workbench-v2]` 內生效。
- */
-
+/** Workbench adapters consume the one global light/dark semantic palette. */
 [data-workbench-v2] {
-  --wbv2-bg: #08111d;
-  --wbv2-panel: rgba(15, 23, 42, 0.72);
-  --wbv2-panel-strong: rgba(15, 23, 42, 0.88);
-  --wbv2-border: rgba(125, 211, 252, 0.14);
-  --wbv2-success: #34d399;
-  --wbv2-primary: #22d3ee;
-
-  color-scheme: dark;
+  --wbv2-bg: var(--gw-ground);
+  --wbv2-panel: var(--gw-surface);
+  --wbv2-panel-strong: var(--gw-raised);
+  --wbv2-border: var(--gw-border);
+  --wbv2-success: var(--gw-success-fg);
+  --wbv2-primary: var(--gw-primary);
+  color-scheme: inherit;
+  color: var(--gw-text);
+  font-family: var(--gw-font-sans);
+  font-size: 14px;
+  line-height: 1.5;
   font-variant-numeric: tabular-nums;
-  text-rendering: geometricPrecision;
 
-  /* 微動效 class */
-  & .pulse-dot {
-    animation: pulseDot 1.6s ease-in-out infinite;
+  &.bg-canvas, & .bg-canvas { background: var(--gw-ground); }
+  & .wbv2-shell { isolation: isolate; min-width: 0; width: 100%; }
+  /* Root padding is measured by useWorkbenchScroll; dialogs retain body-local scrolling. */
+  & #step-content, & #step-content :is(button, input, select, textarea, summary, a, [tabindex]) {
+    scroll-margin-block-start: 8px;
+    scroll-margin-block-end: 16px;
   }
-
-  & .sweep-in {
-    animation: sweepIn 240ms ease-out both;
-  }
-
-  & .shimmer {
-    background: linear-gradient(
-      90deg,
-      rgba(59, 130, 246, 0) 0%,
-      rgba(59, 130, 246, 0.18) 50%,
-      rgba(59, 130, 246, 0) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.6s ease-in-out infinite;
-  }
-
-  /* 畫布與格線 */
-  &.bg-canvas, & .bg-canvas {
-    background:
-      radial-gradient(900px 460px at 12% -8%, rgba(34, 211, 238, 0.09), transparent 58%),
-      radial-gradient(760px 420px at 100% 108%, rgba(52, 211, 153, 0.055), transparent 58%),
-      linear-gradient(180deg, #08111d 0%, #0b1220 46%, #07101a 100%);
-  }
-
-  &.bg-canvas::before,
-  & .bg-canvas::before,
-  &.wbv2-bootstrap-state::before {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    content: "";
-    opacity: 0.16;
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-    background-size: 28px 28px;
-    mask-image: linear-gradient(to bottom, black, transparent 82%);
-  }
-
-  & .wbv2-shell {
-    isolation: isolate;
-    min-width: 0;
-    width: 100%;
-  }
-
-  & .wbv2-topbar {
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.035) inset,
-      0 14px 40px rgba(2, 8, 23, 0.18);
-  }
-
-  & .wbv2-brand-mark {
-    background:
-      linear-gradient(180deg, rgba(34, 211, 238, 0.14), rgba(15, 23, 42, 0.72)),
-      rgba(8, 17, 29, 0.88);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.08) inset,
-      0 12px 24px rgba(8, 145, 178, 0.12);
-  }
-
+  & .wbv2-sidebar-rail > .sticky { top: calc(var(--wbv2-header-height, 0px) + 8px); }
+  & .wbv2-topbar { background: var(--gw-surface); border-color: var(--gw-border); }
+  & .wbv2-brand-mark { background: var(--gw-surface); color: var(--gw-accent); }
   & .wbv2-status-pill {
     min-height: 2rem;
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    border-radius: 0.625rem;
-    background: rgba(15, 23, 42, 0.58);
+    border: 1px solid var(--gw-border);
+    border-radius: 6px;
+    background: var(--gw-surface);
     padding: 0 0.625rem;
   }
-
-  & .wbv2-workspace {
-    position: relative;
-    z-index: 1;
-    min-width: 0;
+  & .wbv2-workspace { position: relative; z-index: 1; min-width: 0; }
+  & .wbv2-sidebar-rail { flex: 0 0 232px; width: 232px; }
+  & .wbv2-sidebar-rail[data-collapsed='true'] { flex-basis: 64px; width: 64px; }
+  & .wbv2-flow-note, & .wbv2-surface {
+    border-color: var(--gw-border);
+    background: var(--gw-surface);
   }
-
-  & .wbv2-sidebar-rail {
-    flex: 0 0 232px;
-    width: 232px;
-  }
-
-  & .wbv2-sidebar-rail[data-collapsed='true'] {
-    flex-basis: 64px;
-    width: 64px;
-  }
-
-  & .wbv2-flow-note,
-  & .wbv2-surface {
-    border-color: var(--wbv2-border);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 42%),
-      var(--wbv2-panel);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.06) inset,
-      0 18px 44px rgba(2, 8, 23, 0.22);
-  }
-
-  &.wbv2-bootstrap-state,
-  & .wbv2-bootstrap-state {
+  &.wbv2-bootstrap-state, & .wbv2-bootstrap-state {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 1.5rem;
   }
-
   & .wbv2-bootstrap-shell {
-    position: relative;
-    z-index: 1;
     width: min(100%, 760px);
-    border: 1px solid var(--wbv2-border);
-    border-radius: 1.25rem;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 38%),
-      var(--wbv2-panel-strong);
+    border: 1px solid var(--gw-border);
+    border-radius: 8px;
+    background: var(--gw-surface);
     padding: clamp(1.25rem, 4vw, 2rem);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.08) inset,
-      0 24px 70px rgba(2, 8, 23, 0.36);
   }
-
   & .wbv2-bootstrap-mark {
     display: inline-flex;
     min-width: 4rem;
     justify-content: center;
-    border: 1px solid rgba(34, 211, 238, 0.24);
-    border-radius: 0.75rem;
-    background: rgba(8, 145, 178, 0.12);
+    border: 1px solid var(--gw-border);
+    border-radius: 6px;
+    background: var(--gw-active);
     padding: 0.55rem 0.7rem;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    color: rgb(165, 243, 252);
+    font-family: var(--gw-font-mono);
+    font-size: 12px;
+    color: var(--gw-accent);
   }
-
   & .wbv2-bootstrap-mark.is-error {
-    border-color: rgba(251, 113, 133, 0.28);
-    background: rgba(244, 63, 94, 0.12);
-    color: rgb(255, 205, 214);
+    border-color: var(--gw-danger-border);
+    background: var(--gw-danger-bg);
+    color: var(--gw-danger-fg);
   }
-
-  & .wbv2-skeleton-line {
-    height: 0.5rem;
-    border-radius: 9999px;
-    background:
-      linear-gradient(90deg, rgba(148, 163, 184, 0.08), rgba(34, 211, 238, 0.2), rgba(148, 163, 184, 0.08));
-    background-size: 220% 100%;
-    animation: shimmer 1.8s ease-in-out infinite;
-  }
-
-  & .bg-grid {
-    background-image:
-      linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-
-  /* 輸入框基礎 */
+  & .wbv2-skeleton-line { height: 0.5rem; border-radius: 6px; background: var(--gw-border); }
   & .field {
     width: 100%;
-    border-radius: 0.5rem;
+    min-width: 0;
+    min-height: 40px;
+    border-radius: 6px;
     border-width: 1px;
-    border-color: rgba(51, 65, 85, 0.6);
-    background-color: rgba(2, 6, 23, 0.4);
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    font-size: 0.875rem;
-    color: rgb(241, 245, 249);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    border-color: var(--gw-control);
+    background-color: var(--gw-surface);
+    padding: 0.5rem 0.75rem;
+    font-size: 14px;
+    color: var(--gw-text);
+    transition: border-color 150ms ease;
   }
-  & .field::placeholder {
-    color: rgb(100, 116, 139);
+  & select.field { padding-right: 2.25rem; }
+  & .field[aria-invalid='true'] { border-color: var(--gw-danger-border); }
+  & :is(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--gw-focus);
+    outline-offset: 2px;
   }
-  & .field:focus {
-    border-color: rgba(59, 130, 246, 0.7);
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  & :is(button, input, select, textarea):disabled {
+    color: var(--gw-muted);
+    background-color: var(--gw-surface);
+    opacity: 1;
+    cursor: not-allowed;
   }
-
-  /* 表單標籤 */
+  & .field::placeholder { color: var(--gw-muted); opacity: 1; }
+  & .field:focus-visible {
+    border-color: var(--gw-focus);
+    outline: 2px solid var(--gw-focus);
+    outline-offset: 2px;
+  }
+  & .field:disabled { color: var(--gw-muted); border-color: var(--gw-border); cursor: not-allowed; opacity: 1; }
   & .label {
     display: block;
-    font-size: 0.75rem;
+    font-size: 14px;
     font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: rgb(148, 163, 184);
+    line-height: 1.5;
+    letter-spacing: 0;
+    color: var(--gw-text);
     margin-bottom: 0.375rem;
   }
-
-  /* 狀態徽章 */
   & .chip {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
     border-radius: 9999px;
     border-width: 1px;
-    padding-left: 0.625rem;
-    padding-right: 0.625rem;
-    padding-top: 0.125rem;
-    padding-bottom: 0.125rem;
-    font-size: 11px;
+    padding: 0.125rem 0.625rem;
+    font-size: 12px;
     font-weight: 500;
   }
-
-  /* 快捷鍵樣式 */
   & .kbd {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     min-width: 18px;
-    padding-left: 0.375rem;
-    padding-right: 0.375rem;
-    height: 18px;
-    border-radius: 0.25rem;
-    border-width: 1px;
-    border-color: rgba(71, 85, 105, 0.6);
-    background-color: rgba(30, 41, 59, 0.8);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 10px;
-    color: rgb(203, 213, 225);
+    padding-inline: 0.375rem;
+    border-radius: 4px;
+    border: 1px solid var(--gw-border);
+    background: var(--gw-ground);
+    font-family: var(--gw-font-mono);
+    font-size: 12px;
+    color: var(--gw-muted);
   }
-
-  /* 記憶體格子（Modbus Workbench） */
+  & .wbv2-topbar a[href='/studio/logs'] {
+    color: var(--gw-accent);
+    border-color: var(--gw-control);
+    outline-color: var(--gw-focus);
+  }
+  & .wbv2-topbar a[href='/studio/logs']:hover { background: var(--gw-active); }
   & .mem-cell {
     position: relative;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 10px;
+    font-family: var(--gw-font-mono);
+    font-size: 12px;
     line-height: 1;
     border-radius: 6px;
     display: flex;
@@ -260,97 +153,29 @@
     height: 48px;
     cursor: pointer;
     user-select: none;
-    transition:
-      background-color 120ms ease,
-      border-color 120ms ease,
-      transform 120ms ease;
   }
-  & .mem-cell:hover {
-    transform: translateY(-1px);
-  }
-  & .mem-cell .addr {
-    font-weight: 600;
-    letter-spacing: 0.02em;
-  }
-  & .mem-cell .meta {
-    opacity: 0.7;
-    font-size: 9px;
-  }
+  & .mem-cell .addr { font-weight: 600; }
+  & .mem-cell .meta { font-size: 12px; }
 }
 
 @media (max-width: 639px) {
   [data-workbench-v2] {
-    & .wbv2-topbar-inner {
-      gap: 0.5rem;
-      padding-inline: 0.75rem;
-    }
-
-    & .wbv2-brand-copy {
-      flex: 1 1 auto;
-    }
-
-    & .wbv2-brand-subtitle {
-      display: none;
-    }
-
-    & .wbv2-topbar-actions {
-      flex-basis: 100%;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      justify-content: flex-end;
-      margin-left: 0;
-    }
-
-    & .wbv2-topbar-actions > * {
-      flex-shrink: 0;
-      white-space: nowrap;
-    }
-
-    & .wbv2-status-pill {
-      padding-inline: 0.5rem;
-    }
-
-    & .wbv2-sidebar-rail,
-    & .wbv2-sidebar-rail[data-collapsed='true'] {
-      flex: 0 0 auto;
-      width: 100%;
-    }
-
-    & .wbv2-sidebar-rail > .sticky {
-      position: static;
-    }
+    & .wbv2-topbar-inner { gap: 0.5rem; padding-inline: 0.75rem; }
+    & .wbv2-brand-copy { flex: 1 1 auto; }
+    & .wbv2-brand-subtitle { display: none; }
+    & .wbv2-topbar-actions { flex-basis: 100%; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; margin-left: 0; }
+    & .wbv2-topbar-actions > * { flex-shrink: 0; white-space: nowrap; }
+    & .wbv2-status-pill { padding-inline: 0.5rem; }
+    & .wbv2-sidebar-rail, & .wbv2-sidebar-rail[data-collapsed='true'] { flex: 0 0 auto; width: 100%; }
+    & .wbv2-sidebar-rail > .sticky { position: static; }
+    & .field, & button, & select, & summary, & .wbv2-topbar a { min-height: 44px; }
+    & button, & input, & select, & label, & summary, & td, & th, & dd, & output { font-size: 14px; }
   }
 }
-
-/* 全域 keyframes */
-@keyframes pulseDot {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.55;
-    transform: scale(0.85);
-  }
-}
-
-@keyframes sweepIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
+@media (prefers-reduced-motion: reduce) {
+  [data-workbench-v2] *, [data-workbench-v2] *::before, [data-workbench-v2] *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }

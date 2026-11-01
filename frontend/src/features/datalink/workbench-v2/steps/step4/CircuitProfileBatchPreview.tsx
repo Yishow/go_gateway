@@ -14,12 +14,12 @@ const STATUS_KEY: Record<BatchTargetStatus, string> = {
   'not-attempted': 'batch_status_not_attempted', unchanged: 'batch_status_unchanged', partial: 'batch_status_partial',
 };
 const STATUS_TONE: Record<BatchTargetStatus, string> = {
-  saved: 'border-emerald-800 bg-emerald-950/70 text-emerald-200',
-  failed: 'border-rose-800 bg-rose-950/70 text-rose-200',
-  unknown: 'border-amber-800 bg-amber-950/70 text-amber-200',
-  partial: 'border-amber-800 bg-amber-950/70 text-amber-200',
-  unchanged: 'border-slate-700 bg-slate-900 text-slate-300',
-  'not-attempted': 'border-slate-700 bg-slate-900 text-slate-400',
+  saved: 'border-[var(--gw-focus)] bg-[var(--gw-success-bg)] text-[var(--gw-success-fg)]',
+  failed: 'border-[var(--gw-danger-border)] bg-[var(--gw-danger-bg)] text-[var(--gw-danger-fg)]',
+  unknown: 'border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] text-[var(--gw-warning-fg)]',
+  partial: 'border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] text-[var(--gw-warning-fg)]',
+  unchanged: 'border-[var(--gw-control)] bg-[var(--gw-surface)] text-[var(--gw-text)]',
+  'not-attempted': 'border-[var(--gw-control)] bg-[var(--gw-surface)] text-[var(--gw-muted)]',
 };
 
 export interface CircuitProfileBatchPreviewProps {
@@ -38,7 +38,7 @@ export const CircuitProfileBatchPreview: React.FC<CircuitProfileBatchPreviewProp
 }) => {
   const { t } = useTranslation('workbench-v2');
   const badge = (testId: string, status: BatchTargetStatus) => (
-    <span data-testid={testId} className={`rounded border px-1.5 py-0.5 text-[10px] ${STATUS_TONE[status]}`}>
+    <span data-testid={testId} className={`rounded border px-1.5 py-0.5 text-xs ${STATUS_TONE[status]}`}>
       {t(`step4.basic.circuit.${STATUS_KEY[status]}`)}
     </span>
   );
@@ -50,20 +50,20 @@ export const CircuitProfileBatchPreview: React.FC<CircuitProfileBatchPreviewProp
   };
   return (
     <>
-      <p className="font-medium text-slate-200">{t('step4.basic.circuit.preview_title')}</p>
-      {stale && <p role="alert" className="text-xs text-amber-300">{t('step4.basic.reason.stale_intent')}</p>}
-      <ul className="space-y-1.5 rounded border border-slate-800 bg-slate-900/40 p-2.5">
+      <p className="font-medium text-[var(--gw-text)]">{t('step4.basic.circuit.preview_title')}</p>
+      {stale && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]">{t('step4.basic.reason.stale_intent')}</p>}
+      <ul className="space-y-1.5 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] p-2.5">
         {items.map((item) => {
           const result = results[item.circuit_id];
           return (
-            <li key={item.circuit_id} className="flex items-center justify-between border-b border-slate-800/50 py-1 last:border-0">
+            <li key={item.circuit_id} className="flex items-center justify-between border-b border-[var(--gw-control)] py-1 last:border-0">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-200">{item.circuit_name || item.circuit_id}</span>
+                  <span className="font-semibold text-[var(--gw-text)]">{item.circuit_name || item.circuit_id}</span>
                   {result && badge(`circuit-profile-batch-status-${item.circuit_id}`, result.status)}
                 </div>
                 {item.selected ? (
-                  <div className="space-y-0.5 text-[11px] text-cyan-300">
+                  <div className="space-y-0.5 text-xs text-[var(--gw-accent)]">
                     {BATCH_PROFILE_ORDER.map((kind) => {
                       const change = item[kind];
                       const profile = result?.profiles[kind];
@@ -77,13 +77,13 @@ export const CircuitProfileBatchPreview: React.FC<CircuitProfileBatchPreviewProp
                     })}
                   </div>
                 ) : (
-                  <div data-testid={`circuit-profile-batch-unselected-${item.circuit_id}`} className="text-[11px] text-slate-500">
+                  <div data-testid={`circuit-profile-batch-unselected-${item.circuit_id}`} className="text-xs text-[var(--gw-muted)]">
                     {t('step4.basic.circuit.batch_unselected')}
                   </div>
                 )}
               </div>
               {item.hasOverride && (
-                <span data-testid={`circuit-profile-batch-override-${item.circuit_id}`} className="rounded bg-amber-900/60 px-1.5 py-0.5 text-[10px] text-amber-200">
+                <span data-testid={`circuit-profile-batch-override-${item.circuit_id}`} className="rounded bg-[var(--gw-warning-bg)] px-1.5 py-0.5 text-xs text-[var(--gw-warning-fg)]">
                   {t('step4.basic.circuit.batch_override')}
                 </span>
               )}
@@ -91,20 +91,20 @@ export const CircuitProfileBatchPreview: React.FC<CircuitProfileBatchPreviewProp
           );
         })}
       </ul>
-      {errorMessage && <p role="alert" className="text-xs text-rose-300">{errorMessage}</p>}
+      {errorMessage && <p role="alert" className="text-xs text-[var(--gw-danger-fg)]">{errorMessage}</p>}
       {hasUnknown && (
-        <div role="alert" data-testid="circuit-profile-batch-unknown-note" className="space-y-1.5 text-xs text-amber-300">
+        <div role="alert" data-testid="circuit-profile-batch-unknown-note" className="space-y-1.5 text-xs text-[var(--gw-warning-fg)]">
           <p>{t('step4.basic.circuit.batch_unknown_note')}</p>
           {onVerify && (
             <button type="button" data-testid="circuit-profile-batch-verify" disabled={verifying} onClick={onVerify}
-              className="rounded border border-amber-700 px-2 py-1 text-xs text-amber-200 disabled:opacity-40">
+              className="rounded border border-[var(--gw-warning-border)] px-2 py-1 text-xs text-[var(--gw-warning-fg)] disabled:opacity-40">
               {t('step4.basic.circuit.batch_verify')}
             </button>
           )}
         </div>
       )}
       {refreshFailed && (
-        <p role="alert" data-testid="circuit-profile-batch-refresh-error" className="text-xs text-amber-300">
+        <p role="alert" data-testid="circuit-profile-batch-refresh-error" className="text-xs text-[var(--gw-warning-fg)]">
           {t('step4.basic.circuit.batch_refresh_failed')}
         </p>
       )}

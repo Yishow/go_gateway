@@ -22,8 +22,8 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
   const recentIssues = confirmed?.recent_bucket_issues ?? [];
   const cell = (label: string, value: string, testId: string) => (
     <div key={testId} className="min-w-0">
-      <dt className="text-[11px] text-slate-500">{label}</dt>
-      <dd className="text-sm text-slate-200" data-testid={testId}>{value}</dd>
+      <dt className="text-xs text-[var(--gw-muted)]">{label}</dt>
+      <dd className="text-sm text-[var(--gw-text)]" data-testid={testId}>{value}</dd>
     </div>
   );
   const unknown = t('step4.group.delivery.unconfirmed');
@@ -34,8 +34,8 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
   };
   return (
     <section aria-label={t('step4.group.delivery.title')} className="space-y-2" data-testid="group-delivery-strip">
-      <h4 className="text-sm font-semibold text-slate-200">{t('step4.group.delivery.title')}</h4>
-      {delivery.isError && <p role="alert" className="text-xs text-amber-300" data-testid="group-delivery-failed">{t('step4.group.delivery.failed')}</p>}
+      <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.delivery.title')}</h4>
+      {delivery.isError && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-delivery-failed">{t('step4.group.delivery.failed')}</p>}
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {cell(t('step4.group.delivery.saved'), group.status === 'deleted' ? t('step4.group.status.deleted') : t('step4.group.delivery.yes'), 'delivery-saved')}
         {cell(t('step4.group.delivery.applied'), group.applied_revision ? t('step4.group.delivery.yes') : t('step4.group.delivery.no'), 'delivery-applied')}
@@ -48,8 +48,8 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
       </dl>
       {recentIssues.length > 0 && (
         <div data-testid="delivery-bucket-causes" className="space-y-1">
-          <p className="text-xs font-medium text-slate-300">{t('step4.group.delivery.recent_issues')}</p>
-          <ul className="space-y-1 text-xs text-slate-400">
+          <p className="text-xs font-medium text-[var(--gw-text)]">{t('step4.group.delivery.recent_issues')}</p>
+          <ul className="space-y-1 text-xs text-[var(--gw-muted)]">
             {recentIssues.map((issue, index) => (
               <li key={`${issue.bucket_start}-${index}`} data-testid={`delivery-recent-issue-${index}`}>
                 <span>{t(`step4.group.delivery.issue.${issue.kind}`)}</span>{' '}
@@ -60,9 +60,9 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
           </ul>
         </div>
       )}
-      {group.applied_revision && <details className="text-[11px] text-slate-500"><summary>{t('step4.group.delivery.recovery.diagnostics')}</summary>{group.applied_revision}</details>}
+      {group.applied_revision && <details className="text-xs text-[var(--gw-muted)]"><summary>{t('step4.group.delivery.recovery.diagnostics')}</summary>{group.applied_revision}</details>}
       <GroupDeliveryRecovery groupId={group.id} items={confirmed?.attention ?? []} readonly={readonly} onResolved={() => void delivery.refetch()} />
-      <p className="text-[11px] text-slate-500">{t('step4.group.delivery.note')}</p>
+      <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.delivery.note')}</p>
     </section>
   );
 };

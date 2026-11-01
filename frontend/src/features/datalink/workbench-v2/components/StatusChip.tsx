@@ -11,7 +11,7 @@ export interface StatusChipProps {
  * Workbench V2 統一狀態徽章元件
  * 
  * 落地設計決策：「共用元件移植：1:1 對應原型 + TypeScript 化」
- * 支援 tone (neutral/info/success/warning/error/draft)，info 與 success 帶 pulse-dot 動態效果。
+ * 支援 tone (neutral/info/success/warning/error/draft)，狀態以文字與圖示呈現，不依賴動畫。
  */
 export const StatusChip: React.FC<StatusChipProps> = ({
   tone = 'neutral',
@@ -20,32 +20,20 @@ export const StatusChip: React.FC<StatusChipProps> = ({
   className = '',
 }) => {
   const tones = {
-    neutral: 'border-slate-700/70 bg-slate-800/60 text-slate-300',
-    info: 'border-blue-500/30 bg-blue-500/10 text-blue-200',
-    success: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
-    warning: 'border-amber-500/30 bg-amber-500/10 text-amber-200',
-    error: 'border-red-500/30 bg-red-500/10 text-red-200',
-    draft: 'border-slate-500/30 bg-slate-700/40 text-slate-300',
+    neutral: 'border-[var(--gw-border)] bg-[var(--gw-surface)] text-[var(--gw-text)]',
+    info: 'border-[var(--gw-focus)] bg-[var(--gw-active)] text-[var(--gw-accent)]',
+    success: 'border-[var(--gw-success-border)] bg-[var(--gw-success-bg)] text-[var(--gw-success-fg)]',
+    warning: 'border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] text-[var(--gw-warning-fg)]',
+    error: 'border-[var(--gw-danger-border)] bg-[var(--gw-danger-bg)] text-[var(--gw-danger-fg)]',
+    draft: 'border-[var(--gw-border)] bg-[var(--gw-surface)] text-[var(--gw-text)]',
   };
 
-  const dots = {
-    neutral: 'bg-slate-400',
-    info: 'bg-blue-400',
-    success: 'bg-emerald-400',
-    warning: 'bg-amber-400',
-    error: 'bg-red-400',
-    draft: 'bg-slate-400',
-  };
-
-  const isPulse = tone === 'info' || tone === 'success';
 
   return (
     <span className={`chip ${tones[tone]} ${className}`}>
       {dot && (
         <span
-          className={`w-1.5 h-1.5 rounded-full ${dots[tone]} ${
-            isPulse ? 'pulse-dot' : ''
-          }`}
+          className="w-1.5 h-1.5 rounded-full bg-current"
         />
       )}
       {children}

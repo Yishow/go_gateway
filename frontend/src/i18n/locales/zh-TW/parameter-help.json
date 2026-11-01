@@ -1,0 +1,457 @@
+{
+  "open": "關於{{title}}",
+  "example": "例子",
+  "close": "關閉說明",
+  "device": {
+    "name": {
+      "title": "設備名稱",
+      "what": "辨識此來源設備的名稱，不是網路位址。",
+      "how": "輸入有意義且非空白的名稱；保存不會開始採集。",
+      "example": "A線電表"
+    },
+    "protocol": {
+      "title": "通訊協議",
+      "what": "決定閘道器如何與設備通訊。",
+      "how": "依設備手冊選擇；只有未停用的協議可用，本表單未開放MQTT。",
+      "example": "設備設定Modbus TCP時選Modbus TCP。"
+    }
+  },
+  "connection": {
+    "host": {
+      "title": "設備主機位址",
+      "what": "閘道器可連到的設備主機名稱或IP。",
+      "how": "依設備網路設定填寫，不是瀏覽器電腦的位址；存草稿不代表測試成功。",
+      "example": "192.0.2.10只是範例，不是可連線的預設。"
+    },
+    "port": {
+      "title": "設備通訊埠",
+      "what": "所選協議的網路服務通訊埠。",
+      "how": "依PLC實際服務設定；各協議預設不同，仍須通過原驗證。",
+      "example": "Modbus TCP常見502；FATEK TCP預設500、MC3E預設5000，不代表每台都相同。"
+    },
+    "modbusSlave": {
+      "title": "Modbus從站ID",
+      "what": "協議專屬的連線設定。",
+      "how": "TCP/RTU schema接受1–247整數，須與目標從站相同。",
+      "example": "設備設為從站1時填1。"
+    },
+    "udpSlave": {
+      "title": "Modbus UDP從站ID",
+      "what": "協議專屬的連線設定。",
+      "how": "依UDP連接器及設備設定，不套用其他傳輸模式的限制。",
+      "example": "連接器預設1，仍須確認設備設定。"
+    },
+    "fatekStation": {
+      "title": "FATEK站號",
+      "what": "協議專屬的連線設定。",
+      "how": "FATEK schema接受0–255，依TCP或serial模式的PLC站號填寫。",
+      "example": "連接器預設站號1。"
+    },
+    "mcStation": {
+      "title": "MC3E站號",
+      "what": "協議專屬的連線設定。",
+      "how": "使用PLC路由設定的站號，不是Modbus從站ID。",
+      "example": "MC3E連接器預設站號0。"
+    },
+    "timeoutModbus": {
+      "title": "回應逾時（秒）",
+      "what": "協議專屬的連線設定。",
+      "how": "TCP/RTU schema接受1–60秒；這是回應期限，不是採樣或SQL記錄間隔。",
+      "example": "連接器預設5秒。"
+    },
+    "timeoutOther": {
+      "title": "回應逾時（秒）",
+      "what": "協議專屬的連線設定。",
+      "how": "依所選連接器的逾時驗證，不是採樣或SQL記錄間隔。",
+      "example": "目前連接器顯示預設5秒。"
+    },
+    "fatekMode": {
+      "title": "FATEK連線模式",
+      "what": "協議專屬的連線設定。",
+      "how": "依PLC選TCP或serial；兩種模式使用不同連線欄位。",
+      "example": "serial顯示閘道器主機串列埠及串列參數。"
+    },
+    "serialPort": {
+      "title": "閘道器串列埠",
+      "what": "協議專屬的連線設定。",
+      "how": "使用閘道器主機上的串列設備，不是瀏覽器電腦的埠。",
+      "example": "例如/dev/ttyUSB0或COM1，前提是閘道器確實有該埠。"
+    },
+    "baudModbus": {
+      "title": "Modbus RTU鮑率",
+      "what": "協議專屬的連線設定。",
+      "how": "依設備選9600、19200、38400、57600或115200，下拉選項就是原RTU列舉。",
+      "example": "通訊兩端都用9600時選9600。"
+    },
+    "baudFatek": {
+      "title": "FATEK串列鮑率",
+      "what": "協議專屬的連線設定。",
+      "how": "依PLC串列設定，不把Modbus RTU下拉限制套到FATEK。",
+      "example": "FATEK連接器預設9600。"
+    },
+    "parity": {
+      "title": "串列同位檢查",
+      "what": "協議專屬的連線設定。",
+      "how": "選無、偶或奇同位檢查，通訊兩端須一致；FATEK與RTU預設不同。",
+      "example": "FATEK預設偶同位，Modbus RTU預設無。"
+    },
+    "dataBits": {
+      "title": "串列資料位元",
+      "what": "協議專屬的連線設定。",
+      "how": "目前表單提供7或8位元，依設備設定選擇。",
+      "example": "FATEK預設7，Modbus RTU預設8。"
+    },
+    "stopBits": {
+      "title": "串列停止位元",
+      "what": "協議專屬的連線設定。",
+      "how": "依設備選1或2個停止位元。",
+      "example": "連接器預設1。"
+    },
+    "networkNo": {
+      "title": "MC網路編號",
+      "what": "協議專屬的連線設定。",
+      "how": "依PLC路由網路編號，只有路由需要時才更改。",
+      "example": "連接器預設0。"
+    },
+    "pcNo": {
+      "title": "MC PC編號",
+      "what": "協議專屬的連線設定。",
+      "how": "使用PLC路由中的目的PC編號，不是電腦名稱。",
+      "example": "連接器預設255。"
+    },
+    "ioNo": {
+      "title": "MC I/O編號",
+      "what": "協議專屬的連線設定。",
+      "how": "使用路由模組I/O編號；原解碼器亦識別module_io_no別名。",
+      "example": "連接器預設1023。"
+    },
+    "dataFormat": {
+      "title": "連線位元組／字組順序",
+      "what": "適用來源值的預設解碼順序。",
+      "how": "依PLC暫存器排列選ABCD/BADC/CDAB/DCBA；這會改解碼，不是記錄計算。",
+      "example": "依設備手冊判斷ABCD或CDAB。"
+    },
+    "mqttBroker": {
+      "title": "既有 MQTT Broker",
+      "what": "既有 MQTT 配置畫面保留的 Broker 位址。",
+      "how": "此處不支援新增 MQTT 來源；說明不代表新增協議能力。",
+      "example": "mqtts://broker.example:8883"
+    },
+    "mqttUsername": {
+      "title": "既有 MQTT 使用者名稱",
+      "what": "既有 Broker 配置的選填使用者名稱。",
+      "how": "依 Broker 帳號設定填寫；說明不會顯示已存憑證。",
+      "example": "operator"
+    },
+    "mqttClientId": {
+      "title": "既有 MQTT 用戶端 ID",
+      "what": "既有 MQTT 用戶端保留的識別名稱。",
+      "how": "依既有 Broker 設定填寫；這不會啟用 MQTT 採集。",
+      "example": "gateway-01"
+    }
+  },
+  "range": {
+    "name": {
+      "title": "來源範圍名稱",
+      "what": "命名這段採集範圍及其產生的點位前綴。",
+      "how": "輸入非空白名稱；提交前綴會正規化，本地原始文字仍保留。",
+      "example": "A線電壓會轉為可用的ASCII前綴。"
+    },
+    "address": {
+      "title": "起始位址",
+      "what": "此來源範圍的第一個PLC位址。",
+      "how": "依所選協議的位址語法與暫存器區域填寫，資料型別決定寬度。",
+      "example": "Modbus40001與MC D0是不同協議的範例，不能互換。"
+    },
+    "count": {
+      "title": "點位數量",
+      "what": "要建立幾個值，不是網路請求數。",
+      "how": "使用符合協議位址範圍的正整數，沒有通用64點上限。",
+      "example": "3個float32點位占6個16-bit暫存器。"
+    },
+    "dataType": {
+      "title": "來源資料型別",
+      "what": "如何把暫存器位元組解碼成每個來源值。",
+      "how": "選符合協議及位址的型別，外觀看起來是數字不代表型別正確。",
+      "example": "float32占2個16-bit暫存器，int16占1個。"
+    },
+    "scale": {
+      "title": "來源倍率",
+      "what": "解碼值先乘此倍率，再加偏移。",
+      "how": "依設備規格輸入有限數值；這會改共用來源，不只一筆記錄。",
+      "example": "原值123、倍率0.1、偏移0，結果為12.3。"
+    },
+    "offset": {
+      "title": "來源偏移",
+      "what": "在來源倍率換算後加上固定值。",
+      "how": "填寫結果工程單位的有限數值，明確確認來源變更。",
+      "example": "原值10 ×2 +3得到23。"
+    },
+    "dataFormat": {
+      "title": "範圍位元組／字組順序",
+      "what": "設定這段共用採集範圍的解碼順序。",
+      "how": "依設備暫存器排列；預設沿原解碼規則，不是記錄計算方式。",
+      "example": "ABCD與CDAB是同4個位元組的不同排列。"
+    },
+    "unit": {
+      "title": "點位單位標籤",
+      "what": "寫入產生之點位映射的工程單位。",
+      "how": "只改單位文字不會換算數值，也不會建立計數器語意。",
+      "example": "倍率正確設定後，以V標示伏特。"
+    }
+  },
+  "point": {
+    "order": {
+      "title": "每點解碼順序",
+      "what": "對此正式來源點位覆寫或沿用位元組／字組順序。",
+      "how": "僅提供適用此資料寬度的選項；重設代表沿用，保存會影響使用此點的所有記錄。",
+      "example": "某32-bit點位可用CDAB，另一點仍沿用原順序。"
+    }
+  },
+  "record": {
+    "name": {
+      "title": "記錄名稱",
+      "what": "方便辨識此記錄的名稱，不是資料表身分。",
+      "how": "名稱不可空白；改名不會移轉資料表所有權。",
+      "example": "A線電力記錄"
+    },
+    "strategy": {
+      "title": "管理方式／既有資料表",
+      "what": "選擇原受管理資料表或自訂資料表契約。",
+      "how": "仍受所有權及schema檢查；選擇管理方式不會立即建表或改表。",
+      "example": "只能重用相容的已設定目的地，不能借用別人的寬表。"
+    },
+    "table": {
+      "title": "目的資料表",
+      "what": "接收此記錄的正式資料表。",
+      "how": "受管理長表名稱由後端決定，鎖定名稱不是可改別名；自訂表需最新欄位資料。",
+      "example": "選已設定資料表只填入意圖，不沿用schema同意。"
+    },
+    "schema": {
+      "title": "資料庫schema",
+      "what": "資料庫支援時使用的目的命名空間。",
+      "how": "依原連接器與所有權規則；不同schema的同名表是不同目的地。",
+      "example": "public是PostgreSQL schema範例，不是通用預設。"
+    },
+    "layout": {
+      "title": "記錄排列方式",
+      "what": "寬表把成員放同列，長表每個成員結果各一列。",
+      "how": "只用可選排列；不能藉選項默默轉換已保存的所有權或排列。",
+      "example": "混合記錄各成員可有不同UTC對齊到期窗口。"
+    }
+  },
+  "member": {
+    "method": {
+      "title": "要記錄的結果",
+      "what": "latest存最後讀值，mean取量測平均，delta記錄已確認計數器的區間變化。",
+      "how": "依可用方法及來源語意；原始計數器／狀態不自動平均，首次計數基準不等於0。",
+      "example": "同一來源可在一筆記錄用latest，另一筆用mean。"
+    },
+    "cadence": {
+      "title": "成員記錄間隔",
+      "what": "此成員以UTC epoch對齊的記錄窗口，與來源採集輪詢不同。",
+      "how": "輸入符合頁面所示最新後端範圍的整數，尚未到期不是採樣失敗。",
+      "example": "5秒成員與60秒成員各自到期。"
+    },
+    "cadenceUnit": {
+      "title": "間隔單位",
+      "what": "此成員記錄窗口的單位。",
+      "how": "使用最新能力提供的秒或分鐘，不是倍率換算。",
+      "example": "1分鐘代表60秒的對齊窗口。"
+    },
+    "include": {
+      "title": "加入此來源",
+      "what": "控制此已保存來源是否屬於記錄草稿。",
+      "how": "移出成員不會刪除共用來源或歷史。",
+      "example": "排除未用點位，不改PLC來源定義。"
+    },
+    "required": {
+      "title": "必要來源",
+      "what": "此來源缺值時，影響資料列完整性。",
+      "how": "必要來源失敗及略過規則仍直接顯示；可選來源的NULL保留原因，0是真實值。",
+      "example": "可選但不可用的值可為NULL，不能補成0。"
+    },
+    "targetColumn": {
+      "title": "目的欄位",
+      "what": "把此成員映射到相容SQL欄位。",
+      "how": "依最新欄位資料或明確schema提案選擇；提案欄位不代表已存在。",
+      "example": "相容數值來源可映射到temperature。"
+    },
+    "entityKey": {
+      "title": "成員實體識別值",
+      "what": "寫入設定之實體欄位的每成員識別值。",
+      "how": "該排列提供此欄位時，使用穩定且可區分的值。",
+      "example": "例如line-a-meter，不放秘密或持續變動的讀值。"
+    },
+    "gaugeConfirm": {
+      "title": "確認量測語意",
+      "what": "確認此數值來源可在這筆記錄中作量測平均。",
+      "how": "此同意僅限記錄且綁定來源情境，不改共用定義，也不等於計數器確認。",
+      "example": "只有確認真實來源語意後，才能把電壓視為量測。"
+    }
+  },
+  "policy": {
+    "interval": {
+      "title": "資料列間隔（秒）",
+      "what": "此非profile資料列的記錄窗口。",
+      "how": "使用原驗證接受的正間隔，採集輪詢另行設定。",
+      "example": "15秒是窗口，不代表15次PLC讀取。"
+    },
+    "lateness": {
+      "title": "容許延遲（秒）",
+      "what": "窗口結算前可接受來源觀測延遲多久。",
+      "how": "使用目前策略接受的非負值，已結算快照不會被默默重寫。",
+      "example": "0代表不增加延遲容許量，不代表缺值補0。"
+    },
+    "incomplete": {
+      "title": "不完整資料列策略",
+      "what": "資料列缺少必要來源時如何處理。",
+      "how": "使用提供的略過整列或部分資料策略，仍受必要成員及可NULL欄位限制。",
+      "example": "部分資料仍區分不可用值與真實0。"
+    },
+    "dedupe": {
+      "title": "寫入去重方式",
+      "what": "利用原receipt能力避免重複接受同一筆傳送。",
+      "how": "受管理資料表沿receipt所有權，不能由此選項推論SQL成功。",
+      "example": "選receipt不等於通過新schema檢查。"
+    },
+    "entityColumn": {
+      "title": "實體識別欄位",
+      "what": "設定後用來儲存成員實體識別值的SQL欄位。",
+      "how": "使用相容欄位並通過最新schema驗證，輸入名稱不會自動建欄。",
+      "example": "例如entity_id，須由目的schema支援。"
+    },
+    "provenanceColumn": {
+      "title": "來源追溯欄位",
+      "what": "設定後保留記錄來源追溯資訊的SQL欄位。",
+      "how": "依原schema契約，不是任意秘密或連線欄位。",
+      "example": "例如明確相容的source_info欄位。"
+    }
+  },
+  "db": {
+    "pool": {
+      "title": "既有資料庫連線",
+      "what": "選擇已保存的連接器身分及版本。",
+      "how": "只能選啟用且受支援的連接器；說明不複製憑證。",
+      "example": "選已保存的SQLite連線後，再確認目的地。"
+    },
+    "kind": {
+      "title": "資料庫種類",
+      "what": "選擇原資料庫連接器能力。",
+      "how": "僅能使用目前啟用的種類；列出或停用的種類不代表runtime支援。",
+      "example": "SQLite使用檔案，PostgreSQL使用伺服器連線。"
+    },
+    "name": {
+      "title": "連線名稱",
+      "what": "方便辨識資料庫連線的顯示名稱。",
+      "how": "使用有意義的標籤，不是資料庫檔名或憑證。",
+      "example": "A線歷史資料"
+    },
+    "host": {
+      "title": "資料庫伺服器",
+      "what": "閘道器可連到的資料庫伺服器名稱。",
+      "how": "依伺服器實際位址，SQLite不使用主機欄位。",
+      "example": "db.example.invalid只是範例，不是可用目的地。"
+    },
+    "port": {
+      "title": "資料庫通訊埠",
+      "what": "資料庫伺服器監聽的通訊埠。",
+      "how": "依所選連接器及伺服器設定，不沿用PLC通訊埠。",
+      "example": "PostgreSQL常見5432，仍須確認實際伺服器。"
+    },
+    "database": {
+      "title": "資料庫或SQLite路徑",
+      "what": "資料庫名稱，或閘道器主機上的SQLite檔案路徑。",
+      "how": "瀏覽器電腦路徑不等於閘道器路徑，選目的地不代表連通或資料表存在。",
+      "example": "在閘道器允許的資料路徑建立新SQLite目的地。"
+    },
+    "username": {
+      "title": "資料庫使用者",
+      "what": "此連接器使用的資料庫帳號。",
+      "how": "使用適當最低權限帳號，說明不顯示已存憑證。",
+      "example": "專用的記錄寫入帳號。"
+    },
+    "password": {
+      "title": "資料庫密碼",
+      "what": "由原資料庫保存流程處理的秘密。",
+      "how": "不要把密碼放進名稱、備註或範例；遮罩值不是原始密碼。",
+      "example": "不提供憑證範例，也不顯示目前秘密。"
+    },
+    "schema": {
+      "title": "預設資料庫schema",
+      "what": "此資料庫種類提供時，連接器所用的schema命名空間。",
+      "how": "更改連接器schema會使目的地證據失效，不會搬移既有資料。",
+      "example": "僅在PostgreSQL伺服器實際使用時填public。"
+    }
+  },
+  "circuit": {
+    "selector": {
+      "title": "目前編輯的迴路",
+      "what": "選擇原迴路草稿所有者，不會轉換另一份profile。",
+      "how": "切換保留可恢復離線草稿；未決或未保存操作沿原導航確認。",
+      "example": "回同一迴路繼續該迴路草稿。"
+    },
+    "name": {
+      "title": "迴路名稱",
+      "what": "與迴路身分關聯的可讀名稱。",
+      "how": "確認計數器前先輸入有意義名稱；改名不會捏造來源綁定。",
+      "example": "主饋線"
+    },
+    "instantaneous": {
+      "title": "記錄即時量測",
+      "what": "把所選來源加入原即時profile。",
+      "how": "仍依已保存的歸約方式及成員角色，此開關不重定義來源。",
+      "example": "電壓作量測，狀態仍保留狀態語意。"
+    },
+    "cumulative": {
+      "title": "記錄累積量變化",
+      "what": "把所選且已確認的計數器加入累積profile。",
+      "how": "仍受計數器定義、重設／回繞語意及首次基準處理約束。",
+      "example": "首次基準尚無差值，不是0用量記錄。"
+    },
+    "instantaneousInterval": {
+      "title": "量測記錄間隔",
+      "what": "原即時profile的記錄間隔。",
+      "how": "依欄位顯示單位及原間隔驗證，不是PLC輪詢間隔。",
+      "example": "已存latest仍為latest，改間隔不會轉成mean。"
+    },
+    "cumulativeInterval": {
+      "title": "累積量記錄間隔",
+      "what": "原累積profile使用的時間窗口。",
+      "how": "依顯示單位及目前限制，不因表單變更就假設有新基準。",
+      "example": "已確認計數器回報完成窗口內的差值。"
+    },
+    "role": {
+      "title": "成員語意",
+      "what": "區分原profile中的量測、原始計數器及狀態。",
+      "how": "只提供適用的數值角色，已保存角色不能默改；計數器仍需證據。",
+      "example": "狀態及原始計數器保留latest，不拿去平均。"
+    },
+    "storageMode": {
+      "title": "儲存組織方式",
+      "what": "原資料表儲存模式，與結果計算分開。",
+      "how": "僅使用能力允許的選項；已保存模式可能鎖定，分區不代表自動搬移歷史。",
+      "example": "所選後端支援時才可使用每月模式。"
+    },
+    "recreate": {
+      "title": "重建缺少的受管理結構",
+      "what": "原本需明確選擇的受管理資料庫缺失結構策略。",
+      "how": "閱讀直接顯示的影響及schema確認；不代表可刪除歷史。",
+      "example": "缺少資料表仍須最新所有權及schema檢查。"
+    }
+  },
+  "counter": {
+    "semantics": {
+      "title": "計數器行為",
+      "what": "宣告來源是一般累計值或允許負增量的累計值。",
+      "how": "依來源真實語意選擇 counter（不允許負增量）或 signed_counter（允許負增量）。確認會保存來源定義，不是保存記錄草稿。",
+      "example": "只有設備文件允許累計值下降時，才選 signed_counter。"
+    },
+    "unit": {
+      "title": "計數器工程單位",
+      "what": "隨計數器定義明確確認的單位。",
+      "how": "使用來源真實工程單位，此欄位本身不換算樣本。",
+      "example": "只有計數器實際量測千瓦小時時才填kWh。"
+    }
+  }
+}

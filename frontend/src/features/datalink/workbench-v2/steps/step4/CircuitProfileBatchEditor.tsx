@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../../components/ParameterHelp';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -113,67 +114,67 @@ export const CircuitProfileBatchEditor: React.FC<CircuitProfileBatchEditorProps>
   };
 
   return (
-    <div data-testid="circuit-profile-batch-editor" className="space-y-3 rounded-lg border border-cyan-800/80 bg-slate-950/80 p-4">
+    <div data-testid="circuit-profile-batch-editor" className="space-y-3 rounded-lg border border-[var(--gw-focus)] bg-[var(--gw-surface)] p-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-xs font-semibold text-cyan-200">{t('step4.basic.circuit.batch_title')}</h4>
+        <h4 className="text-xs font-semibold text-[var(--gw-accent)]">{t('step4.basic.circuit.batch_title')}</h4>
         <button type="button" data-testid="circuit-profile-batch-close" aria-label={t('step4.basic.circuit.batch_close')}
-          onClick={onClose} disabled={run.saving} className="text-xs text-slate-400 hover:text-slate-200">✕</button>
+          onClick={onClose} disabled={run.saving} className="text-xs text-[var(--gw-muted)] hover:text-[var(--gw-text)]">✕</button>
       </div>
 
-      {layoutBlockedReason && <p role="status" data-testid="circuit-profile-batch-layout-blocked" className="text-xs text-amber-300">
+      {layoutBlockedReason && <p role="status" data-testid="circuit-profile-batch-layout-blocked" className="text-xs text-[var(--gw-warning-fg)]">
         {t(`step4.basic.circuit.${layoutBlockedReason}`)}
       </p>}
       {!showPreview ? (
-        <div className="space-y-3 text-xs text-slate-300">
-          <p className="text-[11px] text-slate-400">{t('step4.basic.circuit.batch_desc')}</p>
-          <div className="space-y-1.5 rounded border border-slate-800 bg-slate-900/40 p-2.5">
+        <div className="space-y-3 text-xs text-[var(--gw-text)]">
+          <p className="text-xs text-[var(--gw-muted)]">{t('step4.basic.circuit.batch_desc')}</p>
+          <div className="space-y-1.5 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] p-2.5">
             {circuits.map((c) => {
               const isSelected = selectedCircuitIds.has(c.circuit_id);
               return (
-                <label key={c.circuit_id} className="flex items-center justify-between gap-2 py-1">
+                <div key={c.circuit_id} className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center justify-between gap-2 py-1">
                   <div className="flex items-center gap-2">
                     <input type="checkbox" data-testid={`circuit-profile-batch-select-${c.circuit_id}`}
                       checked={isSelected} disabled={readonly || run.saving} onChange={() => toggleCircuit(c.circuit_id)} />
                     <span>{c.circuit_name || c.circuit_id}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                  <div className="flex items-center gap-2 text-xs text-[var(--gw-muted)]">
                     {c.currentInstantaneousInterval !== undefined && <span>{t('step4.basic.circuit.instantaneous_label')}: {c.currentInstantaneousInterval}s</span>}
-                    {c.isOverrideInstantaneous && <span className="rounded bg-amber-950/60 px-1 text-amber-300">{t('step4.basic.circuit.batch_override')}</span>}
+                    {c.isOverrideInstantaneous && <span className="rounded bg-[var(--gw-warning-bg)] px-1 text-[var(--gw-warning-fg)]">{t('step4.basic.circuit.batch_override')}</span>}
                   </div>
-                </label>
+                </label><ParameterHelp help="batch.selection" /></div>
               );
             })}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1 rounded border border-slate-800 p-2">
-              <label className="flex items-center gap-2">
+            <div className="space-y-1 rounded border border-[var(--gw-control)] p-2">
+              <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-2">
                 <input type="checkbox" checked={applyInst} disabled={readonly || run.saving} onChange={(e) => setApplyInst(e.target.checked)} />
-                <span className="font-medium text-slate-200">{t('step4.basic.circuit.batch_inst_interval')}</span>
-              </label>
+                <span className="font-medium text-[var(--gw-text)]">{t('step4.basic.circuit.batch_inst_interval')}</span>
+              </label><ParameterHelp help="circuit.instantaneousInterval" /></div>
               <input id="circuit-profile-batch-interval-inst-input" type="text" data-testid="circuit-profile-batch-interval-inst"
                 aria-label={t('step4.basic.circuit.instantaneous_interval')} aria-invalid={applyInst && !instValidation.valid}
                 aria-describedby={applyInst && !instValidation.valid ? 'circuit-profile-batch-inst-error' : undefined}
                 value={instIntervalInput} disabled={readonly || run.saving || !applyInst} onChange={(e) => setInstIntervalInput(e.target.value)}
-                className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100 disabled:opacity-40" />
-              {instError && <p id="circuit-profile-batch-inst-error" role="alert" className="text-xs text-rose-300">{instError}</p>}
+                className="mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1 text-xs text-[var(--gw-text)] disabled:opacity-40" />
+              {instError && <p id="circuit-profile-batch-inst-error" role="alert" className="text-xs text-[var(--gw-danger-fg)]">{instError}</p>}
             </div>
-            <div className="space-y-1 rounded border border-slate-800 p-2">
-              <label className="flex items-center gap-2">
+            <div className="space-y-1 rounded border border-[var(--gw-control)] p-2">
+              <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-2">
                 <input type="checkbox" checked={applyCum} disabled={readonly || run.saving} onChange={(e) => setApplyCum(e.target.checked)} />
-                <span className="font-medium text-slate-200">{t('step4.basic.circuit.batch_cum_interval')}</span>
-              </label>
+                <span className="font-medium text-[var(--gw-text)]">{t('step4.basic.circuit.batch_cum_interval')}</span>
+              </label><ParameterHelp help="circuit.cumulativeInterval" /></div>
               <input id="circuit-profile-batch-interval-cum-input" type="text" data-testid="circuit-profile-batch-interval-cum"
                 aria-label={t('step4.basic.circuit.cumulative_interval')} aria-invalid={applyCum && !cumValidation.valid}
                 aria-describedby={applyCum && !cumValidation.valid ? 'circuit-profile-batch-cum-error' : undefined}
                 value={cumIntervalInput} disabled={readonly || run.saving || !applyCum} onChange={(e) => setCumIntervalInput(e.target.value)}
-                className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100 disabled:opacity-40" />
-              {cumError && <p id="circuit-profile-batch-cum-error" role="alert" className="text-xs text-rose-300">{cumError}</p>}
+                className="mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1 text-xs text-[var(--gw-text)] disabled:opacity-40" />
+              {cumError && <p id="circuit-profile-batch-cum-error" role="alert" className="text-xs text-[var(--gw-danger-fg)]">{cumError}</p>}
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">
-            <button type="button" data-testid="circuit-profile-batch-cancel" onClick={onClose} disabled={run.saving} className="rounded border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">
+            <button type="button" data-testid="circuit-profile-batch-cancel" onClick={onClose} disabled={run.saving} className="rounded border border-[var(--gw-control)] px-3 py-1.5 text-xs text-[var(--gw-text)] hover:bg-[var(--gw-raised)]">
               {t('step4.basic.circuit.batch_cancel')}
             </button>
             <button
@@ -181,14 +182,14 @@ export const CircuitProfileBatchEditor: React.FC<CircuitProfileBatchEditorProps>
               data-testid="circuit-profile-batch-preview-btn"
               disabled={!canPreview}
               onClick={handleOpenPreview}
-              className="rounded bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-40"
+              className="rounded bg-[var(--gw-active)] px-3 py-1.5 text-xs font-semibold text-[var(--gw-text)] hover:bg-[var(--gw-active)] disabled:opacity-40"
             >
               {t('step4.basic.circuit.batch_preview')}
             </button>
           </div>
         </div>
       ) : (
-        <div data-testid="circuit-profile-batch-preview" className="space-y-3 text-xs text-slate-300">
+        <div data-testid="circuit-profile-batch-preview" className="space-y-3 text-xs text-[var(--gw-text)]">
           <CircuitProfileBatchPreview
             items={previewItems} results={run.results} stale={isPlanStale && !run.finished} errorMessage={run.errorMessage}
             hasUnknown={run.hasUnknown} refreshFailed={run.refreshFailed} verifying={run.verifying}
@@ -196,11 +197,11 @@ export const CircuitProfileBatchEditor: React.FC<CircuitProfileBatchEditorProps>
           />
           <div className="flex items-center justify-end gap-2 pt-2">
             <button type="button" data-testid="circuit-profile-batch-cancel" disabled={run.saving || run.hasUnknown}
-              onClick={() => { run.reset(); setShowPreview(false); }} className="rounded border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-40">
+              onClick={() => { run.reset(); setShowPreview(false); }} className="rounded border border-[var(--gw-control)] px-3 py-1.5 text-xs text-[var(--gw-text)] hover:bg-[var(--gw-raised)] disabled:opacity-40">
               {t('step4.basic.circuit.batch_cancel')}
             </button>
             <button type="button" data-testid="circuit-profile-batch-confirm" disabled={readonly || Boolean(layoutBlockedReason) || run.saving || run.finished || isPlanStale}
-              onClick={() => void run.confirm()} className="rounded bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-40">
+              onClick={() => void run.confirm()} className="rounded bg-[var(--gw-active)] px-3 py-1.5 text-xs font-semibold text-[var(--gw-text)] hover:bg-[var(--gw-active)] disabled:opacity-40">
               {run.saving ? t('step4.basic.circuit.batch_saving') : t('step4.basic.circuit.batch_confirm')}
             </button>
           </div>

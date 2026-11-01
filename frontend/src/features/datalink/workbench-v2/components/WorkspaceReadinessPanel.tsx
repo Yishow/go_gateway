@@ -138,32 +138,32 @@ export const WorkspaceReadinessPanel: React.FC<WorkspaceReadinessPanelProps> = (
   const primaryIssue = readinessView.issues[0];
   const compactGuidance = compactReadinessGuidance(primaryIssue, t);
   const containerClassName = compact
-    ? 'rounded-xl border border-slate-700/60 bg-slate-950/50 px-4 py-2'
-    : 'rounded-xl border border-slate-700/60 bg-slate-900/40 p-3';
+    ? 'rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] px-4 py-2'
+    : 'rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3';
 
   return (
     <section className={containerClassName} data-testid={dataTestId}>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">
+          <div className="text-xs text-[var(--gw-muted)]">
             {t('workspace_readiness.title')}
           </div>
-          <div className={`mt-1 text-sm font-semibold ${readinessView.hasBlockers ? 'text-amber-200' : 'text-emerald-200'}`}>
+          <div className={`mt-1 text-sm font-semibold ${readinessView.hasBlockers ? 'text-[var(--gw-warning-fg)]' : 'text-[var(--gw-success-fg)]'}`}>
             {readinessView.hasBlockers ? t('workspace_readiness.blocked') : t('workspace_readiness.ready')}
           </div>
         </div>
-        <div className="flex items-center gap-2 text-[11px] font-mono">
-          <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-rose-200">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+          <span className="rounded-full border border-[var(--gw-danger-border)] bg-[var(--gw-danger-bg)] px-2 py-1 text-[var(--gw-danger-fg)]">
             {t('workspace_readiness.blocking_count', { count: readinessView.blockingCount })}
           </span>
-          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-200">
+          <span className="rounded-full border border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] px-2 py-1 text-[var(--gw-warning-fg)]">
             {t('workspace_readiness.warning_count', { count: readinessView.warningCount })}
           </span>
         </div>
       </div>
 
       {compact && compactGuidance ? (
-        <p className="mt-2 text-[11px] leading-5 text-slate-400">
+        <p className="mt-2 text-xs leading-5 text-[var(--gw-muted)]">
           {compactGuidance}
         </p>
       ) : null}
@@ -171,23 +171,23 @@ export const WorkspaceReadinessPanel: React.FC<WorkspaceReadinessPanelProps> = (
       {!compact && issues.length > 0 ? (
         <div className="mt-3 space-y-2">
           {issues.map(({ issue, count }) => (
-            <div key={`${issue.code}-${issue.step}-${issue.message}`} className="rounded-lg border border-slate-800/70 bg-black/20 px-3 py-2">
-              <div className="flex items-center justify-between gap-2 text-[11px]">
-                <span className={`flex items-center gap-2 font-semibold ${issue.severity === 'blocking' ? 'text-rose-200' : 'text-amber-200'}`}>
+            <div key={`${issue.code}-${issue.step}-${issue.message}`} className="rounded-lg border border-[var(--gw-border)] bg-[var(--gw-ground)] px-3 py-2">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className={`flex items-center gap-2 font-semibold ${issue.severity === 'blocking' ? 'text-[var(--gw-danger-fg)]' : 'text-[var(--gw-warning-fg)]'}`}>
                   <span>{readinessIssueLabel(issue, t)}</span>
                   {count > 1 ? (
-                    <span className="rounded-full border border-current/30 px-1.5 py-0.5 text-[10px]">
+                    <span className="rounded-full border border-current/30 px-1.5 py-0.5 text-xs">
                       x{count}
                     </span>
                   ) : null}
                 </span>
-                <span className="text-slate-500">
+                <span className="text-[var(--gw-muted)]">
                   {issue.step} · {groupedIssueScopeLabel(issue, count, t)}
                 </span>
               </div>
-              <p className="mt-1 text-[11px] leading-5 text-slate-400">{readinessIssueMessage(issue, t)}</p>
+              <p className="mt-1 text-xs leading-5 text-[var(--gw-muted)]">{readinessIssueMessage(issue, t)}</p>
               <div className="mt-2 flex items-center justify-between gap-2">
-                <p className="text-[11px] leading-5 text-slate-300">
+                <p className="text-xs leading-5 text-[var(--gw-text)]">
                   {readinessIssueSolution(issue, t)}
                 </p>
                 {onNavigateStep ? (
@@ -195,7 +195,7 @@ export const WorkspaceReadinessPanel: React.FC<WorkspaceReadinessPanelProps> = (
                     type="button"
                     data-testid={`workspace-readiness-action-${issue.code}`}
                     onClick={() => onNavigateStep(readinessStepNumber(issue.step))}
-                    className="shrink-0 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-[11px] font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/20"
+                    className="shrink-0 rounded-md border border-[var(--gw-focus)] bg-[var(--gw-active)] px-2 py-1 text-xs font-semibold text-[var(--gw-accent)] transition-colors hover:bg-[var(--gw-active)]"
                   >
                     {t('workspace_readiness.go_to_step', { step: issue.step })}
                   </button>
@@ -205,7 +205,7 @@ export const WorkspaceReadinessPanel: React.FC<WorkspaceReadinessPanelProps> = (
           ))}
         </div>
       ) : !compact ? (
-        <p className="mt-3 text-[11px] text-slate-500">{t('workspace_readiness.no_issues')}</p>
+        <p className="mt-3 text-xs text-[var(--gw-muted)]">{t('workspace_readiness.no_issues')}</p>
       ) : null}
     </section>
   );

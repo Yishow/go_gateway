@@ -19,7 +19,7 @@ export function RecordingTestWriteOperationResult({ operation, testIdPrefix = 'g
   const write = committed ? 'write_committed' : notWritten ? 'write_not_written' : 'write_unconfirmed';
   const readback = verified ? 'readback_verified' : committed ? 'readback_unverified' : notWritten ? 'readback_not_attempted' : 'readback_unconfirmed';
   return <div data-testid={`${testIdPrefix}-result`}>
-    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-slate-300">
+    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-[var(--gw-text)]">
       <dt>{key('operation')}</dt><dd className="font-mono">{operation.operation_id}</dd>
       {active && <><dt>{key('status')}</dt><dd data-testid={`${testIdPrefix}-running`}>{key('running')}</dd></>}
       {operation.write_outcome && <><dt>{key('recorded_outcome')}</dt><dd data-testid={`${testIdPrefix}-outcome`}>{key(`outcome_${operation.write_outcome}`)}</dd></>}
@@ -29,6 +29,6 @@ export function RecordingTestWriteOperationResult({ operation, testIdPrefix = 'g
       <dd data-testid={`${testIdPrefix}-cleanup`}>{key(cleanupClaim ? 'cleanup_repair_running' : `cleanup_${operation.cleanup_status ?? 'unconfirmed'}`)}</dd>
       {cleanupClaim && <><dt>{key('prior_cleanup')}</dt><dd data-testid={`${testIdPrefix}-prior-cleanup`}>{key(`cleanup_${operation.cleanup_status}`)}</dd></>}
     </dl>
-    {manualGuidance && <p className="mt-2 text-xs text-amber-200" data-testid={`${testIdPrefix}-manual-guidance`}>{key('recovery_manual_guidance')}</p>}
+    {manualGuidance && <p className="mt-2 text-xs text-[var(--gw-warning-fg)]" data-testid={`${testIdPrefix}-manual-guidance`}>{key('recovery_manual_guidance')}</p>}
   </div>;
 }

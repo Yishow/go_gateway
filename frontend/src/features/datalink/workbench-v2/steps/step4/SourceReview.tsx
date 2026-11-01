@@ -35,18 +35,18 @@ export const SourceReview: React.FC<SourceReviewProps> = ({ prefix, count, unava
   const listId = `${prefix}-list`;
   return (
     <div className="space-y-1.5">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--gw-text)]">
         <p data-testid={`${prefix}-summary`}>{t('step4.basic.sources.count', { count })}</p>
         <button ref={toggleRef} type="button" data-testid={`${prefix}-toggle`} aria-expanded={expanded} aria-controls={listId} onClick={() => setExpanded((open) => !open)}
-          className="rounded border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800">
+          className="rounded border border-[var(--gw-control)] px-2 py-0.5 text-xs text-[var(--gw-text)] hover:bg-[var(--gw-surface)]">
           {t(`step4.basic.sources.${expanded ? 'hide' : 'show'}`)}
         </button>
       </div>
       {unavailable > 0 && (
-        <div role="status" data-testid={`${prefix}-exceptions`} className="flex flex-wrap items-center gap-2 text-xs text-amber-300">
+        <div role="status" data-testid={`${prefix}-exceptions`} className="flex flex-wrap items-center gap-2 text-xs text-[var(--gw-warning-fg)]">
           <span>{t(exceptionKey, { count: unavailable })}</span>
           {onRepair && (
-            <button type="button" data-testid={`${prefix}-repair`} onClick={onRepair} className="rounded border border-amber-600/60 px-2 py-0.5 text-[11px]">
+            <button type="button" data-testid={`${prefix}-repair`} onClick={onRepair} className="rounded border border-[var(--gw-warning-border)] px-2 py-0.5 text-xs">
               {t('step4.basic.sources.repair')}
             </button>
           )}

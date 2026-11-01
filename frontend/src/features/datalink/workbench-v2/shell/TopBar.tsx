@@ -31,12 +31,12 @@ export const TopBar: React.FC<TopBarProps> = ({
     : t('step4.scheduler_idle', 'scheduler idle');
 
   return (
-    <header className="wbv2-topbar border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-30">
+    <header className="wbv2-topbar border-b border-[var(--gw-border)] bg-[var(--gw-surface)] sticky top-0 z-10">
       <div className="wbv2-topbar-inner min-w-0 px-4 sm:px-5 lg:px-7 py-3 flex flex-wrap items-center gap-3 lg:gap-4">
         {/* 收合按鈕 */}
         <button
           onClick={onToggleSidebar}
-          className="grid place-items-center w-8 h-8 rounded-lg border border-slate-700/60 text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+          className="grid place-items-center w-8 h-8 rounded-lg border border-[var(--gw-control)] text-[var(--gw-muted)] hover:text-[var(--gw-text)] hover:bg-[var(--gw-surface)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gw-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--gw-surface)]"
           title={sidebarCollapsed ? '展開側邊欄 (⌘B)' : '收合側邊欄 (⌘B)'}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-4 h-4">
@@ -48,22 +48,22 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* 品牌標識 */}
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="wbv2-brand-mark grid place-items-center w-9 h-9 rounded-lg border border-cyan-300/30">
-            <Icon name="bolt" className="w-4 h-4 text-cyan-200" />
+          <div className="wbv2-brand-mark grid place-items-center w-9 h-9 rounded-lg border border-[var(--gw-focus)]">
+            <Icon name="bolt" className="w-4 h-4 text-[var(--gw-accent)]" />
           </div>
           <div className="wbv2-brand-copy min-w-0">
-            <div className="truncate text-sm font-semibold tracking-tight text-slate-100 leading-tight">Datalink Workbench</div>
-            <div className="wbv2-brand-subtitle text-[10px] text-slate-500 leading-tight">go_gateway · v1 接入點位設定流程</div>
+            <div className="truncate text-sm font-semibold text-[var(--gw-text)] leading-tight">Datalink Workbench</div>
+            <div className="wbv2-brand-subtitle text-xs text-[var(--gw-muted)] leading-tight">go_gateway · v1 接入點位設定流程</div>
           </div>
         </div>
 
         {/* Breadcrumb */}
         <nav className="hidden md:flex items-center gap-1.5 ml-6 text-xs">
-          <span className="text-slate-500">Datalink</span>
-          <Icon name="chevron" className="w-3 h-3 text-slate-600" />
-          <span className="text-slate-500">Workbench</span>
-          <Icon name="chevron" className="w-3 h-3 text-slate-600" />
-          <span className="text-slate-200 font-medium">
+          <span className="text-[var(--gw-muted)]">Datalink</span>
+          <Icon name="chevron" className="w-3 h-3 text-[var(--gw-muted)]" />
+          <span className="text-[var(--gw-muted)]">Workbench</span>
+          <Icon name="chevron" className="w-3 h-3 text-[var(--gw-muted)]" />
+          <span className="text-[var(--gw-text)] font-medium">
             {view === 'settings' ? '設定' : stepTitle}
           </span>
         </nav>
@@ -77,13 +77,13 @@ export const TopBar: React.FC<TopBarProps> = ({
           <Button variant="secondary" size="sm" className="hidden md:inline-flex">
             取消
           </Button>
-          <div className="hidden sm:block h-6 w-px bg-slate-700/60 mx-1" />
-          <div className="wbv2-status-pill flex items-center gap-1.5 text-xs text-slate-400" aria-label={statusLabel} title={statusLabel}>
+          <div className="hidden sm:block h-6 w-px bg-[var(--gw-border)] mx-1" />
+          <div className="wbv2-status-pill flex items-center gap-1.5 text-xs text-[var(--gw-muted)]" aria-label={statusLabel} title={statusLabel}>
             <span
               className={`w-1.5 h-1.5 rounded-full ${
                 isRunning 
-                  ? 'bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse' 
-                  : 'bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+                  ? 'bg-[var(--gw-success-fg)]'
+                  : 'bg-[var(--gw-warning-fg)]'
               }`}
             />
             <span className="wbv2-status-label">{statusLabel}</span>

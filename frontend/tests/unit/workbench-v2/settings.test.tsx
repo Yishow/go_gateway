@@ -145,8 +145,8 @@ describe('Settings Components', () => {
         />,
       );
 
-      const toggle = screen.getByRole('button', { name: '未啟用' });
-      expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      const toggle = screen.getByRole('switch', { name: 'Local Modbus Share' });
+      expect(toggle).toHaveAttribute('aria-checked', 'false');
       expect(toggle).toBeDisabled();
       fireEvent.click(toggle);
       expect(onChange).not.toHaveBeenCalled();
@@ -472,7 +472,7 @@ describe('Settings Components', () => {
       );
 
       await screen.findByTestId('settings-page');
-      fireEvent.click(screen.getByRole('button', { name: '啟用' }));
+      fireEvent.click(screen.getByRole('switch', { name: 'Local Modbus Share' }));
 
       // 編輯只更新資料與清除既有錯誤，save_state 留給實際發出的存檔請求。
       expect(dispatch).toHaveBeenLastCalledWith({

@@ -14,19 +14,19 @@ export function SettingsStatus({ operationError, onRetry }: SettingsStatusProps)
 
   return (
     <div
-      className="rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-4 text-sm text-red-200"
+      className="rounded-2xl border border-[var(--gw-danger-border)] bg-[var(--gw-danger-bg)] px-5 py-4 text-sm text-[var(--gw-danger-fg)]"
       data-testid="settings-operation-error"
     >
       <p>{operationError.message}</p>
       {operationError.requestId ? (
-        <p className="mt-1 text-xs text-red-200/80" data-testid="settings-operation-request-id">
+        <p className="mt-1 text-xs text-[var(--gw-danger-fg)]" data-testid="settings-operation-request-id">
           {t('errors.request_id', 'Request ID')}: {operationError.requestId}
         </p>
       ) : null}
       {operationError.retryable && onRetry ? (
         <button
           type="button"
-          className="mt-3 rounded-lg border border-red-300/30 px-3 py-1.5 text-xs font-semibold text-red-100"
+          className="mt-3 rounded-lg border border-[var(--gw-danger-border)] px-3 py-1.5 text-xs font-semibold text-[var(--gw-danger-fg)]"
           onClick={onRetry}
         >
           {operationError.action ?? t('errors.retry', 'Retry')}
@@ -49,12 +49,12 @@ export function SettingsBackendStatus({ hasError, error }: SettingsBackendStatus
       : null;
     return (
       <div
-        className="rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-4 text-sm text-red-200"
+        className="rounded-2xl border border-[var(--gw-danger-border)] bg-[var(--gw-danger-bg)] px-5 py-4 text-sm text-[var(--gw-danger-fg)]"
         data-testid="settings-backend-error"
       >
         <p>{safeError?.message ?? t('settings.backend_load_error')}</p>
         {safeError?.requestId ? (
-          <p className="mt-1 text-xs text-red-200/80">
+          <p className="mt-1 text-xs text-[var(--gw-danger-fg)]">
             {t('errors.request_id', 'Request ID')}: {safeError.requestId}
           </p>
         ) : null}
@@ -64,7 +64,7 @@ export function SettingsBackendStatus({ hasError, error }: SettingsBackendStatus
 
   return (
     <div
-      className="rounded-2xl border border-slate-700/60 bg-slate-900/40 px-5 py-4 text-sm text-slate-300"
+      className="rounded-2xl border border-[var(--gw-border)] bg-[var(--gw-surface)] px-5 py-4 text-sm text-[var(--gw-text)]"
       data-testid="settings-backend-loading"
     >
       {t('settings.backend_loading')}

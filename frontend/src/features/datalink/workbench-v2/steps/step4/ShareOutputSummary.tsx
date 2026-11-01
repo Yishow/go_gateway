@@ -99,13 +99,13 @@ export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryPro
     return (
       <section
         data-testid="step4-share-output-blocked"
-        className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4"
+        className="rounded-2xl border border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] p-4"
         role="status"
       >
-        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
+        <div className="text-xs font-semibold text-[var(--gw-warning-fg)]">
           {t('step4.share_output_title')}
         </div>
-        <p className="mt-2 text-sm text-amber-100/80">
+        <p className="mt-2 text-sm text-[var(--gw-warning-fg)]">
           {t('step4.share_output_unknown')}
         </p>
       </section>
@@ -117,11 +117,11 @@ export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryPro
   // never misreported as blocked/unknown.
   if (!configured) {
     return (
-      <section data-testid="step4-share-output-disabled" className="rounded-2xl border border-slate-700/60 bg-slate-900/40 p-4" role="status">
-        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+      <section data-testid="step4-share-output-disabled" className="rounded-2xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-4" role="status">
+        <div className="text-xs font-semibold text-[var(--gw-muted)]">
           {t('step4.share_output_title')}
         </div>
-        <p className="mt-2 text-sm text-slate-400">
+        <p className="mt-2 text-sm text-[var(--gw-muted)]">
           {t('step4.share_output_disabled')}
         </p>
       </section>
@@ -132,13 +132,13 @@ export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryPro
     return (
       <section
         data-testid="step4-share-output-blocked"
-        className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4"
+        className="rounded-2xl border border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] p-4"
         role="status"
       >
-        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
+        <div className="text-xs font-semibold text-[var(--gw-warning-fg)]">
           {t('step4.share_output_title')}
         </div>
-        <p className="mt-2 text-sm text-amber-100/80">
+        <p className="mt-2 text-sm text-[var(--gw-warning-fg)]">
           {t('step4.share_output_blocked')}
         </p>
       </section>
@@ -149,13 +149,13 @@ export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryPro
     return (
       <section
         data-testid="step4-share-output-failed"
-        className="rounded-2xl border border-red-500/25 bg-red-500/5 p-4"
+        className="rounded-2xl border border-[var(--gw-danger-border)] bg-[var(--gw-danger-bg)] p-4"
         role="alert"
       >
-        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-200/80">
+        <div className="text-xs font-semibold text-[var(--gw-danger-fg)]">
           {t('step4.share_output_title')}
         </div>
-        <p className="mt-2 text-sm text-red-100/80">
+        <p className="mt-2 text-sm text-[var(--gw-danger-fg)]">
           {t('step4.share_output_failed')}
         </p>
         {shareStatus && <LocalModbusReviewSurface
@@ -171,11 +171,11 @@ export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryPro
 
   if (!running) {
     return (
-      <section data-testid="step4-share-output-pending" className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4" role="status">
-        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
+      <section data-testid="step4-share-output-pending" className="rounded-2xl border border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] p-4" role="status">
+        <div className="text-xs font-semibold text-[var(--gw-warning-fg)]">
           {t('step4.share_output_title')}
         </div>
-        <p className="mt-2 text-sm text-amber-100/80">
+        <p className="mt-2 text-sm text-[var(--gw-warning-fg)]">
           {t('step4.share_output_pending')}
         </p>
       </section>
@@ -189,20 +189,20 @@ export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryPro
   return (
     <section
       data-testid="step4-share-output-summary"
-      className="rounded-2xl border border-violet-500/25 bg-violet-500/5 p-4"
+      className="rounded-2xl border border-[var(--gw-border)] bg-[var(--gw-active)] p-4"
     >
-      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-200/80">
+      <div className="text-xs font-semibold text-[var(--gw-accent)]">
         {t('step4.share_output_title')}
       </div>
-      <div className="mt-1 text-sm text-slate-300">
+      <div className="mt-1 text-sm text-[var(--gw-text)]">
         {t('step4.share_output_subtitle')}
       </div>
       <div className="mt-3 space-y-2">
         {rows.map((row) => (
           <div key={row.id} className="flex flex-wrap items-center gap-2 text-sm" data-testid={`step4-share-output-row-${row.id}`}>
-            <span className="font-mono text-slate-300">{row.sourceRange}</span>
-            <span className="text-violet-200" aria-hidden="true">→</span>
-            <span className="font-mono font-semibold text-violet-100">{row.outputRange}</span>
+            <span className="font-mono text-[var(--gw-text)]">{row.sourceRange}</span>
+            <span className="text-[var(--gw-accent)]" aria-hidden="true">→</span>
+            <span className="font-mono font-semibold text-[var(--gw-accent)]">{row.outputRange}</span>
           </div>
         ))}
       </div>

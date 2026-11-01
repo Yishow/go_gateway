@@ -127,18 +127,18 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
     <h3 ref={returnContext} tabIndex={-1} data-testid="group-lifecycle-return" className="sr-only focus:not-sr-only">{group.name}</h3>
     {!hideApply && <>
       <button type="button" onClick={() => (routed ? reviewStart?.(group) : void run('apply'))}
-        disabled={readonly || busy || deleted || !canApply} className="rounded bg-emerald-600 px-3 py-1 text-xs text-white disabled:opacity-40" data-testid="group-apply">
+        disabled={readonly || busy || deleted || !canApply} className="rounded border border-[var(--gw-success-border)] bg-[var(--gw-success-bg)] px-3 py-1 text-xs text-[var(--gw-success-fg)] disabled:text-[var(--gw-muted)]" data-testid="group-apply">
         {routed ? recordingT('start.reviewSaved') : t('step4.group.lifecycle.apply')}
       </button>
-      {!canApply && !deleted && applyBlockedReason && <p className="text-xs text-amber-300" data-testid="group-apply-blocked">{applyBlockedReason}</p>}
-      <p className="text-xs text-slate-500" data-testid="group-apply-note">{routed ? recordingT('start.reviewSavedNote') : t('step4.group.lifecycle.apply_note')}</p>
+      {!canApply && !deleted && applyBlockedReason && <p className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-apply-blocked">{applyBlockedReason}</p>}
+      <p className="text-xs text-[var(--gw-muted)]" data-testid="group-apply-note">{routed ? recordingT('start.reviewSavedNote') : t('step4.group.lifecycle.apply_note')}</p>
     </>}
     <SavedRecordingActions lifecycle={snapshot} scope={intentScope} disabled={readonly || busy || confirmingDelete} onAction={handleAction} canReview={Boolean(lifecycleHost)} />
     {(!snapshot || refreshBlocked) && <button type="button" onClick={() => { void lifecycle.refetch(); onConflict(); }} className="text-xs underline" data-testid="saved-recording-refresh">{lifecycleT('refresh')}</button>}
-    <p className="text-xs text-slate-400">{lifecycleT('stop.keeps')}</p>
+    <p className="text-xs text-[var(--gw-muted)]">{lifecycleT('stop.keeps')}</p>
     <SavedRecordingRemoveDialog open={confirmingDelete} busy={busy || readonly} history={snapshot?.history}
       onClose={() => setDeleteIntent(null)} onConfirm={() => void run('remove', true)} returnFocus={returnFocus.current} objectLabel={group.name} focusOwner={scopeOwner.current} fallbackFocus={returnContext.current} />
-    {refreshBlocked && <p role="alert" className="text-xs text-amber-300">{lifecycleT('reason.stale_scope')}</p>}
-    {error !== null && <p role="alert" className="text-xs text-red-300" data-testid="group-lifecycle-error">{getSafeErrorMessage(error, t).message}</p>}
+    {refreshBlocked && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]">{lifecycleT('reason.stale_scope')}</p>}
+    {error !== null && <p role="alert" className="text-xs text-[var(--gw-danger-fg)]" data-testid="group-lifecycle-error">{getSafeErrorMessage(error, t).message}</p>}
   </div>;
 };

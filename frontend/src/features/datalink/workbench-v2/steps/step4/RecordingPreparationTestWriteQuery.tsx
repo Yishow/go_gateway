@@ -78,7 +78,7 @@ export function RecordingPreparationTestWriteQuery({ reference, ownerIdentity, o
     {visible?.unreadable && <p role="alert">{t('step4.group.test_write.recovery_storage_error')}</p>}
     {visible?.failed && <p role="alert">{t('step4.group.test_write.unconfirmed')}</p>}
     {visible?.operation && <>
-      <p className="text-xs text-slate-400">{t('step4.group.test_write.last_checked_result')}</p>
+      <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.test_write.last_checked_result')}</p>
       <RecordingTestWriteOperationResult operation={visible.operation} testIdPrefix="preparation-test-write"
         manualGuidance={visible.operation.cleanup_status === 'failed' || visible.operation.cleanup_status === 'unknown'} />
     </>}

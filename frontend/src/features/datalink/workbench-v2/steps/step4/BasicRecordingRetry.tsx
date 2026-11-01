@@ -34,7 +34,7 @@ export function BasicRecordingRetry({ context, eligible, disabled, verify, onRet
   if (!eligible) return null;
   return <div className="space-y-1">
     <button type="button" data-testid="basic-recording-retry" disabled={disabled || checking || !online}
-      className="rounded border border-slate-600 px-3 py-2 text-xs text-slate-200 disabled:opacity-40" onClick={() => { void retry(); }}>{t('step4.basic.retry')}</button>
-    {rejectedAt === owner.current.epoch && <p role="status" className="text-xs text-amber-300">{t('step4.basic.action.retry_same_request')}</p>}
+      className="rounded border border-[var(--gw-control)] px-3 py-2 text-xs text-[var(--gw-text)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]" onClick={() => { void retry(); }}>{t('step4.basic.retry')}</button>
+    {rejectedAt === owner.current.epoch && <p role="status" className="text-xs text-[var(--gw-warning-fg)]">{t('step4.basic.action.retry_same_request')}</p>}
   </div>;
 }

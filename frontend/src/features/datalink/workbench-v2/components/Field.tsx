@@ -1,9 +1,12 @@
 import * as React from 'react';
 import { Icon } from './Icon';
+import { ParameterHelp } from './ParameterHelp';
+import type { ParameterHelpKey } from './parameterHelpContent';
 
 export interface FieldProps {
   label: string;
   hint?: string;
+  help?: ParameterHelpKey;
   error?: string;
   required?: boolean;
   children: React.ReactNode;
@@ -19,25 +22,27 @@ export interface FieldProps {
 export const Field: React.FC<FieldProps> = ({
   label,
   hint,
+  help,
   error,
   required,
   children,
   className = '',
 }) => {
-  return (
-    <label className={`block ${className}`}>
-      <span className={`label ${required ? 'after:content-["*"] after:text-red-400 after:ml-0.5' : ''}`}>
+  const field = (
+    <label className={`block ${help ? 'min-w-0 flex-1' : className}`}>
+      <span className={`label ${required ? 'after:content-["*"] after:text-[var(--gw-danger-fg)] after:ml-0.5' : ''}`}>
         {label}
       </span>
       {children}
       {error ? (
-        <span className="mt-1 flex items-center gap-1 text-xs text-red-300">
+        <span className="mt-1 flex items-center gap-1 text-xs text-[var(--gw-danger-fg)]">
           <Icon name="alert" className="w-3 h-3" />
           {error}
         </span>
       ) : hint ? (
-        <span className="mt-1 block text-[11px] text-slate-500">{hint}</span>
+        <span className="mt-1 block text-xs text-[var(--gw-muted)]">{hint}</span>
       ) : null}
     </label>
   );
+  return help ? <div className={`flex min-w-0 items-start gap-2 ${className}`}>{field}<ParameterHelp help={help} /></div> : field;
 };

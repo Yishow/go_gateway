@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../../components/ParameterHelp';
 import { useTranslation } from 'react-i18next';
 import { KindSelector } from './KindSelector';
 import { supportsWriteGroupKind } from './writeGroupCapabilities';
@@ -47,10 +48,10 @@ export function ConnectorSection({
   return (
     <div className="space-y-6">
       {connectors && connectors.length > 0 && (
-        <div className="flex items-center gap-2 text-xs bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
-          <span className="text-slate-400 font-medium whitespace-nowrap">
+        <div className="flex items-center gap-2 text-xs bg-[var(--gw-surface)] p-2.5 rounded-lg border border-[var(--gw-control)]">
+          <span className="text-[var(--gw-muted)] font-medium whitespace-nowrap">
             {t('step4.load_from_pool')}
-          </span>
+          </span><ParameterHelp help="db.pool" />
           <select
             aria-label={t('step4.load_from_pool')}
             disabled={disabled}
@@ -62,7 +63,7 @@ export function ConnectorSection({
                 e.target.value = '';
               }
             }}
-            className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white text-xs focus:border-blue-500 outline-none"
+            className="w-full bg-[var(--gw-surface)] border border-[var(--gw-control)] rounded px-2 py-1 text-[var(--gw-text)] text-xs focus:border-[var(--gw-focus)] outline-none"
           >
             <option value="" disabled>-- {t('step4.select_existing_connector')} --</option>
             {connectors.map((c) => (
@@ -83,16 +84,16 @@ export function ConnectorSection({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-gray-400">
+          <label className="text-xs font-medium text-[var(--gw-muted)]">
             {t('step4.field_name')}
-          </label>
+          </label><ParameterHelp help="db.name" />
           <input
             type="text"
             aria-label={t('step4.field_name')}
             value={name}
             disabled={disabled}
             onChange={(e) => onUpdateConnector({ name: e.target.value })}
-            className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-[var(--gw-surface)] border border-[var(--gw-control)] rounded-lg px-3 py-2 text-[var(--gw-text)] text-sm focus:border-[var(--gw-focus)] focus:ring-1 focus:ring-[var(--gw-focus)] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             placeholder="e.g. TimescaleDB Local"
           />
         </div>
@@ -100,31 +101,31 @@ export function ConnectorSection({
         {!isSqlite && (
           <>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-400">
+              <label className="text-xs font-medium text-[var(--gw-muted)]">
                 {t('step4.field_host')}
-              </label>
+              </label><ParameterHelp help="db.host" />
               <input
                 type="text"
                 aria-label={t('step4.field_host')}
                 value={host}
                 disabled={disabled}
                 onChange={(e) => onUpdateConnector({ host: e.target.value })}
-                className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[var(--gw-surface)] border border-[var(--gw-control)] rounded-lg px-3 py-2 text-[var(--gw-text)] text-sm focus:border-[var(--gw-focus)] focus:ring-1 focus:ring-[var(--gw-focus)] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="127.0.0.1"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-400">
+              <label className="text-xs font-medium text-[var(--gw-muted)]">
                 {t('step4.field_port')}
-              </label>
+              </label><ParameterHelp help="db.port" />
               <input
                 type="number"
                 aria-label={t('step4.field_port')}
                 value={port}
                 disabled={disabled}
                 onChange={(e) => onUpdateConnector({ port: parseInt(e.target.value) || 0 })}
-                className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[var(--gw-surface)] border border-[var(--gw-control)] rounded-lg px-3 py-2 text-[var(--gw-text)] text-sm focus:border-[var(--gw-focus)] focus:ring-1 focus:ring-[var(--gw-focus)] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="5432"
               />
             </div>
@@ -132,32 +133,32 @@ export function ConnectorSection({
         )}
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-gray-400">
+          <label className="text-xs font-medium text-[var(--gw-muted)]">
             {isSqlite ? t('step4.field_db_sqlite') : t('step4.field_database')}
-          </label>
+          </label><ParameterHelp help="db.database" />
           <input
             type="text"
             aria-label={isSqlite ? t('step4.field_db_sqlite') : t('step4.field_database')}
             value={database}
             disabled={disabled}
             onChange={(e) => onUpdateConnector({ database: e.target.value })}
-            className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-[var(--gw-surface)] border border-[var(--gw-control)] rounded-lg px-3 py-2 text-[var(--gw-text)] text-sm focus:border-[var(--gw-focus)] focus:ring-1 focus:ring-[var(--gw-focus)] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             placeholder={isSqlite ? 'gateway.db' : 'gateway_metrics'}
           />
         </div>
 
         {!isSqlite && (
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-400">
+            <label className="text-xs font-medium text-[var(--gw-muted)]">
               {t('step4.field_username')}
-            </label>
+            </label><ParameterHelp help="db.username" />
             <input
               type="text"
               aria-label={t('step4.field_username')}
               value={username}
               disabled={disabled}
               onChange={(e) => onUpdateConnector({ username: e.target.value })}
-              className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[var(--gw-surface)] border border-[var(--gw-control)] rounded-lg px-3 py-2 text-[var(--gw-text)] text-sm focus:border-[var(--gw-focus)] focus:ring-1 focus:ring-[var(--gw-focus)] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="postgres"
             />
           </div>
@@ -165,9 +166,9 @@ export function ConnectorSection({
 
         {!isSqlite && (
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-400">
+            <label className="text-xs font-medium text-[var(--gw-muted)]">
               {t('step4.field_password')}
-            </label>
+            </label><ParameterHelp help="db.password" />
             <input
               type="password"
               aria-label={t('step4.field_password')}
@@ -175,10 +176,10 @@ export function ConnectorSection({
               disabled={disabled}
               autoComplete="new-password"
               onChange={(e) => onUpdateConnector({ password: e.target.value, clear_password: false })}
-              className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[var(--gw-surface)] border border-[var(--gw-control)] rounded-lg px-3 py-2 text-[var(--gw-text)] text-sm focus:border-[var(--gw-focus)] focus:ring-1 focus:ring-[var(--gw-focus)] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder={t('step4.field_password_placeholder')}
             />
-            <label className="flex items-center gap-2 text-xs text-gray-400">
+            <label className="flex items-center gap-2 text-xs text-[var(--gw-muted)]">
               <input type="checkbox" checked={connector.clear_password === true} disabled={disabled}
                 onChange={(e) => onUpdateConnector({ clear_password: e.target.checked, password: '', password_required: false })} />
               {t('step4.clear_password')}
@@ -188,16 +189,16 @@ export function ConnectorSection({
 
         {hasSchema && (
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-400">
+            <label className="text-xs font-medium text-[var(--gw-muted)]">
               {t('step4.field_schema')}
-            </label>
+            </label><ParameterHelp help="db.schema" />
             <input
               type="text"
               aria-label={t('step4.field_schema')}
               value={schema}
               disabled={disabled}
               onChange={(e) => onUpdateConnector({ schema: e.target.value })}
-              className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[var(--gw-surface)] border border-[var(--gw-control)] rounded-lg px-3 py-2 text-[var(--gw-text)] text-sm focus:border-[var(--gw-focus)] focus:ring-1 focus:ring-[var(--gw-focus)] outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="public"
             />
           </div>

@@ -34,7 +34,7 @@ function RecoveryEntry({ reference, observation, onObserved }: {
     </button>
     {query.isError && <p role="alert">{t('step4.group.test_write.unconfirmed')}</p>}
     {observation && <>
-      <p className="text-xs text-slate-400">{t('step4.group.test_write.last_checked_result')}</p>
+      <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.test_write.last_checked_result')}</p>
       <RecordingTestWriteOperationResult operation={observation} testIdPrefix={`recovery-${reference.operation_id}`}
         manualGuidance={observation.cleanup_status === 'failed' || observation.cleanup_status === 'unknown'} />
     </>}
@@ -57,7 +57,7 @@ function RecoveryEntriesScope({ references, testId = 'group-test-write-recovery'
   const entries = new Map(Object.values(observations).map((value) => [value.reference.operation_id, value.reference]));
   references.forEach((reference) => entries.set(reference.operation_id, reference));
   if (!visible && entries.size === 0) return null;
-  return <aside data-testid={testId} className="space-y-2 rounded border border-amber-700 p-3">
+  return <aside data-testid={testId} className="space-y-2 rounded border border-[var(--gw-warning-border)] p-3">
     {children ?? <p>{t('step4.group.test_write.recovery_results_title')}</p>}
     {[...entries.values()].map((reference) => <RecoveryEntry key={`${reference.workspace_id}|${reference.operation_id}`}
       reference={reference} observation={observations[reference.operation_id]?.operation}

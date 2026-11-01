@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../../components/ParameterHelp';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WriteGroup } from '../../../../../types/studioV2WriteGroup';
@@ -24,21 +25,21 @@ export const BasicRecordingMembers: React.FC<BasicRecordingMembersProps> = ({ ca
 
   const unavailable = rows.filter((row) => !row.candidate).length;
   return (
-    <section className="space-y-2 rounded border border-slate-800/80 bg-slate-950/20 p-3" aria-label={t('step4.basic.selected_data')} data-testid="basic-recording-selected-members">
-      <h4 className="text-xs font-semibold text-slate-200">{t('step4.basic.selected_data')}</h4>
+    <section className="space-y-2 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] p-3" aria-label={t('step4.basic.selected_data')} data-testid="basic-recording-selected-members">
+      <h4 className="text-xs font-semibold text-[var(--gw-text)]">{t('step4.basic.selected_data')} <ParameterHelp help="member.include" /></h4>
       <SourceReview prefix="basic-recording-sources" count={rows.length} unavailable={unavailable} onRepair={group && onRepair ? () => onRepair(group.id) : undefined}>
-      <ul className="max-h-72 space-y-1 overflow-y-auto text-[11px] text-slate-300">
+      <ul className="max-h-72 space-y-1 overflow-y-auto text-xs text-[var(--gw-text)]">
         {rows.map((row) => (
           <li key={row.key} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             {row.candidate ? (
               <>
                 <span className="font-medium">{row.candidate.label.trim() || row.candidate.address}</span>
-                <span className="text-slate-500">{row.candidate.device_name} · {row.candidate.address} · {row.candidate.target_type}</span>
+                <span className="text-[var(--gw-muted)]">{row.candidate.device_name} · {row.candidate.address} · {row.candidate.target_type}</span>
               </>
             ) : (
               <>
                 <span className="font-medium">{t('step4.basic.saved_member_unavailable')}</span>
-                <span className="text-slate-500">{t('step4.basic.saved_member_review')}</span>
+                <span className="text-[var(--gw-muted)]">{t('step4.basic.saved_member_review')}</span>
               </>
             )}
           </li>

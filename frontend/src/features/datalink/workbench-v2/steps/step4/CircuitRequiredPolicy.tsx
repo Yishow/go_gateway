@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../../components/ParameterHelp';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -15,12 +16,12 @@ export interface CircuitRequiredPolicyProps {
 export const CircuitRequiredPolicy: React.FC<CircuitRequiredPolicyProps> = ({ count, onOpen }) => {
   const { t } = useTranslation('workbench-v2');
   return (
-    <section data-testid="circuit-profile-required-policy" aria-label={t('step4.basic.required.title')} className="space-y-1 rounded border border-slate-800/80 bg-slate-950/20 p-3 text-xs text-slate-300">
-      <h4 className="text-xs font-semibold text-slate-200">{t('step4.basic.required.title')}</h4>
+    <section data-testid="circuit-profile-required-policy" aria-label={t('step4.basic.required.title')} className="space-y-1 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] p-3 text-xs text-[var(--gw-text)]">
+      <h4 className="text-xs font-semibold text-[var(--gw-text)]">{t('step4.basic.required.title')} <ParameterHelp help="member.required" /></h4>
       <p>{t('step4.basic.required.count', { count })}</p>
-      <p className="text-slate-400">{t(count > 0 ? 'step4.basic.required.wide_rule' : 'step4.basic.required.wide_optional')}</p>
+      <p className="text-[var(--gw-muted)]">{t(count > 0 ? 'step4.basic.required.wide_rule' : 'step4.basic.required.wide_optional')}</p>
       {onOpen && (
-        <button type="button" data-testid="circuit-profile-required-open" onClick={onOpen} className="rounded border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800">
+        <button type="button" data-testid="circuit-profile-required-open" onClick={onOpen} className="rounded border border-[var(--gw-control)] px-2 py-0.5 text-xs text-[var(--gw-text)] hover:bg-[var(--gw-raised)]">
           {t('step4.basic.required.open')}
         </button>
       )}

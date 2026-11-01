@@ -56,7 +56,9 @@ export function useSettingsOperations(
   state: WorkbenchV2State,
   dispatch: React.Dispatch<WorkbenchV2Action>,
 ): SettingsOperations {
-  const { t } = useTranslation('workbench-v2');
+  const { t, i18n } = useTranslation('workbench-v2');
+  const mounted = React.useRef(false);
+  React.useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const theme = useOptionalTheme();
   const themeOwner = React.useRef(theme); themeOwner.current = theme;
   const updateSettingKeyMutation = useUpdateSettingKeyMutation();
@@ -112,6 +114,10 @@ export function useSettingsOperations(
         // Preserve explicit full Save, but theme uses its global live owner rather than a captured stale draft.
         if (entry.key === 'theme' && themeSave) { await themeSave(); continue; }
         const saved = await updateSettingKeyMutation.mutateAsync(entry);
+        // Locale is a Save-only draft. Apply only this acknowledged key, even if a later key fails.
+        if (i18n && entry.key === 'locale' && saved.key === 'locale' && mounted.current && (saved.value === 'en' || saved.value === 'zh-TW')) {
+          await i18n.changeLanguage(saved.value);
+        }
         if (entry.key === 'modbus_share' && typeof saved.value === 'object' && saved.value !== null) {
           const value = saved.value as Record<string, unknown>;
           const revision = value.new_settings_revision ?? value.settings_revision;
@@ -135,7 +141,7 @@ export function useSettingsOperations(
       setRetryOperation({ kind: 'save' });
       dispatch({ type: 'updateSettingsSection', section: 'modbus_share', patch: { save_state: 'save-error', save_error: safeError.message } });
     }
-  }, [dispatch, safeErrorMessage, updateSettingKeyMutation]);
+  }, [dispatch, i18n, safeErrorMessage, updateSettingKeyMutation]);
 
   const drainSaveQueue = React.useCallback(async () => {
     if (saveRunning.current) return;

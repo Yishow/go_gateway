@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useOptionalTheme } from '../../../../contexts/ThemeContext';
 import { themeWireValue } from '../../../../contexts/themePreference';
 import * as React from 'react';
@@ -21,6 +22,7 @@ interface SettingsPageProps {
 
 /** System settings container; async mutation ownership lives in useSettingsOperations. */
 export function SettingsPage({ state, dispatch, shareStatus }: SettingsPageProps) {
+  const { i18n } = useTranslation('workbench-v2');
   const theme = useOptionalTheme();
   const preference = theme?.preference;
   React.useEffect(() => {
@@ -42,7 +44,9 @@ export function SettingsPage({ state, dispatch, shareStatus }: SettingsPageProps
     .sort((left, right) => left - right)[0] ?? null;
 
   React.useEffect(() => {
-    if (hydrated || !settingsItemsQuery.isSuccess || !connectorsQuery.isSuccess) return;
+    if (hydrated || !settingsItemsQuery.isSuccess || !connectorsQuery.isSuccess || settingsItemsQuery.isFetching || connectorsQuery.isFetching) return;
+    const locale = settingsItemsQuery.data.find(item => item.key === 'locale')?.value;
+    if (i18n && (locale === 'en' || locale === 'zh-TW')) void i18n.changeLanguage(locale);
     dispatch({
       type: 'updateSettings',
       patch: {
@@ -52,7 +56,7 @@ export function SettingsPage({ state, dispatch, shareStatus }: SettingsPageProps
       },
     });
     setHydrated(true);
-  }, [connectorsQuery.data, connectorsQuery.isSuccess, dispatch, hydrated, preference, settingsItemsQuery.data, settingsItemsQuery.isSuccess]);
+  }, [connectorsQuery.data, connectorsQuery.isSuccess, connectorsQuery.isFetching, dispatch, hydrated, i18n, preference, settingsItemsQuery.data, settingsItemsQuery.isSuccess, settingsItemsQuery.isFetching]);
 
   if (!hydrated) {
     return <SettingsBackendStatus hasError={settingsItemsQuery.isError || connectorsQuery.isError} error={settingsItemsQuery.error ?? connectorsQuery.error} />;

@@ -43,14 +43,14 @@ export function Step4SupportPanels({
         defaultOpen={!destinationReady}
         summary={
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-full border border-slate-700 px-2 py-1 font-mono text-[11px] text-slate-200">
+            <span className="rounded-full border border-[var(--gw-border)] px-2 py-1 font-mono text-xs text-[var(--gw-text)]">
               {connector.kind}
             </span>
-            <span className="rounded-full border border-slate-700 px-2 py-1 font-mono text-[11px] text-slate-200">
+            <span className="rounded-full border border-[var(--gw-border)] px-2 py-1 font-mono text-xs text-[var(--gw-text)]">
               {destinationAlias}
             </span>
             {connector.save_state && connector.save_state !== 'idle' && <span
-              role={saveFailed ? 'alert' : 'status'} className="basis-full text-xs text-amber-200"
+              role={saveFailed ? 'alert' : 'status'} className="basis-full text-xs text-[var(--gw-warning-fg)]"
               data-testid="database-connector-save-status"
             >
               {t(`step4.saveStates.${connector.save_state}`)} — {t(saveFailed ? 'step4.connector_save_failed'
@@ -68,7 +68,7 @@ export function Step4SupportPanels({
           disabled={disabled}
         />
 
-        {tableSetup ? <div className="mt-4 border-t border-slate-800 pt-4">{tableSetup}</div> : null}
+        {tableSetup ? <div className="mt-4 border-t border-[var(--gw-border)] pt-4">{tableSetup}</div> : null}
       </CollapsibleSupportCard>
 
       <CollapsibleSupportCard
@@ -78,14 +78,14 @@ export function Step4SupportPanels({
         expandedLabel={t('step4.delivery_collapse_btn')}
         summary={
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-200">
+            <span className="rounded-full border border-[var(--gw-border)] px-2 py-1 text-xs text-[var(--gw-text)]">
               {unsaved ? t('step4.connector_diagnostics_unsaved') : connector.status}
             </span>
 
           </div>
         }
       >
-        {unsaved ? <p className="text-xs text-amber-200">{t('step4.connector_diagnostics_unsaved')}</p> : <DeliveryTruthStrip connector={connector} />}
+        {unsaved ? <p className="text-xs text-[var(--gw-warning-fg)]">{t('step4.connector_diagnostics_unsaved')}</p> : <DeliveryTruthStrip connector={connector} />}
       </CollapsibleSupportCard>
     </div>
   );

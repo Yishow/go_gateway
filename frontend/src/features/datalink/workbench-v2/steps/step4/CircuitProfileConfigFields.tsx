@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../../components/ParameterHelp';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WriteGroupSampleReduction, WriteGroupStorageMode, WriteGroupValueRole } from '../../../../../types/studioV2WriteGroup';
@@ -90,28 +91,28 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
 
   return (
     <>
-      <div data-testid="circuit-profile-source-section" className="space-y-3 rounded border border-slate-800/80 bg-slate-950/20 p-3">
+      <div data-testid="circuit-profile-source-section" className="space-y-3 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] p-3">
         <div className="flex items-center justify-between">
-          <h4 className="text-xs font-semibold text-slate-200">{t('step4.basic.circuit.step_source')}</h4>
+          <h4 className="text-xs font-semibold text-[var(--gw-text)]">{t('step4.basic.circuit.step_source')}</h4>
           {savedCircuits.length > 1 && onOpenBatch && (
             <button type="button" data-testid="circuit-profile-open-batch" disabled={readonly} onClick={onOpenBatch}
-              className="rounded border border-cyan-800 bg-cyan-950/60 px-2 py-0.5 text-xs text-cyan-200 hover:bg-cyan-900/60">
+              className="rounded border border-[var(--gw-focus)] bg-[var(--gw-active)] px-2 py-0.5 text-xs text-[var(--gw-accent)] hover:bg-[var(--gw-active)]">
               {t('step4.basic.circuit.batch_edit_btn') || '批次設定迴路'}
             </button>
           )}
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="block text-xs text-slate-300">
+          <div className="block text-xs text-[var(--gw-text)]">
             <span>{t('step4.basic.device')}</span>
             <div className="mt-1">
               {/* Choosing a tile only changes the viewed scope, so a pending request or a read-only role never locks it. */}
               <DeviceScopeTiles devices={savedDevices} selectedId={activeDeviceId} onSelect={onSelectDevice} label={t('step4.basic.device')} />
             </div>
           </div>
-          <label className="block text-xs text-slate-300">
+          <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block text-xs text-[var(--gw-text)]">
             <span>{t('step4.basic.circuit.circuit_chooser_label') || '迴路選取'}</span>
             <select data-testid="circuit-profile-circuit-chooser" value={circuitId} disabled={readonly}
-              onChange={(e) => onSelectCircuit?.(e.target.value)} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100">
+              onChange={(e) => onSelectCircuit?.(e.target.value)} className="mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1.5 text-xs text-[var(--gw-text)]">
               {savedCircuits.map((c) => (
                 <option key={c.circuit_id} value={c.circuit_id}>
                   {c.circuit_name || (c.circuit_id ? c.circuit_id : (t('step4.basic.circuit.unassigned') || '未分配迴路'))}
@@ -122,8 +123,8 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
               )}
               <option value="__new__">+ {t('step4.basic.circuit.new_circuit_option') || '新增迴路'}</option>
             </select>
-          </label>
-          <label className="block text-xs text-slate-300">
+          </label><ParameterHelp help="circuit.selector" /></div>
+          <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block text-xs text-[var(--gw-text)]">
             <span id={`${circuitNameErrorId}-label`}>{t('step4.basic.circuit.circuit_name_label')}</span>
             <input ref={circuitNameRef} type="text" data-testid="circuit-profile-circuit-name" value={localDraft.circuit_name} disabled={readonly}
               aria-labelledby={`${circuitNameErrorId}-label`}
@@ -131,29 +132,29 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
               aria-describedby={circuitNameMissing ? circuitNameErrorId : undefined}
               placeholder={t('step4.basic.circuit.circuit_name_placeholder')}
               onChange={(e) => updateLocalDraft((prev) => ({ ...prev, circuit_name: e.target.value, circuit_id: deriveCircuitId(e.target.value, prev.circuit_id) }))}
-              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100" />
+              className="mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1.5 text-xs text-[var(--gw-text)]" />
             {circuitNameMissing && (
-              <span id={circuitNameErrorId} role="alert" data-testid="circuit-profile-circuit-required-error" className="mt-1 block text-xs text-amber-300">
+              <span id={circuitNameErrorId} role="alert" data-testid="circuit-profile-circuit-required-error" className="mt-1 block text-xs text-[var(--gw-warning-fg)]">
                 {t(counterNameMissing ? 'step4.basic.circuit.counter_circuit_required' : 'step4.basic.circuit.cumulative_circuit_required')}
               </span>
             )}
-          </label>
+          </label><ParameterHelp help="circuit.name" /></div>
         </div>
         {showPurpose && <CircuitPurposeFields purpose={purpose} locked={purposeLocked} readonly={readonly}
           layoutOptions={layoutOptions} blockedReason={layoutBlockedReason}
           onChange={(next) => updateLocalDraft((prev) => ({ ...prev, purpose: next }))} />}
-        <p className="text-[11px] text-slate-400">{t('step4.basic.circuit.unassigned_note')}</p>
+        <p className="text-xs text-[var(--gw-muted)]">{t('step4.basic.circuit.unassigned_note')}</p>
         <SourceReview prefix="circuit-profile-sources" count={deviceCandidates.length + unavailableSources.count} unavailable={unavailableSources.count} expandRequest={sourceExpandRequest}
           onRepair={unavailableSources.groupId && onOpenAdvanced ? () => onOpenAdvanced(unavailableSources.groupId as string) : undefined}>
-        <ul data-testid="circuit-profile-member-list" className="max-h-72 space-y-1.5 overflow-y-auto text-xs text-slate-300">
+        <ul data-testid="circuit-profile-member-list" className="max-h-72 space-y-1.5 overflow-y-auto text-xs text-[var(--gw-text)]">
           {deviceCandidates.map((candidate) => {
             const key = candidateKey(candidate);
             const instChecked = localDraft.instantaneous_keys.includes(key);
             const cumChecked = localDraft.cumulative_keys.includes(key);
             return (
-              <li key={key} className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-900 bg-slate-950/40 px-2.5 py-1.5">
+              <li key={key} className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2.5 py-1.5">
                 <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={instChecked || cumChecked}
@@ -173,11 +174,11 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                       }}
                     />
                     <span className="font-medium">{candidate.label}</span>
-                  </label>
-                  <span className="text-[11px] text-slate-500">({candidate.address} · {candidate.target_type})</span>
+                  </label><ParameterHelp help="member.include" /></div>
+                  <span className="text-xs text-[var(--gw-muted)]">({candidate.address} · {candidate.target_type})</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-1 text-[11px] text-slate-400">
+                  <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-1 text-xs text-[var(--gw-muted)]">
                     <input
                       type="checkbox"
                       data-testid={`circuit-profile-member-inst-${candidate.tag_id}`}
@@ -193,7 +194,7 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                       }}
                     />
                     <span>{t('step4.basic.circuit.instantaneous_label')}</span>
-                  </label>
+                  </label><ParameterHelp help="circuit.instantaneous" /></div>
                   {instChecked && instantaneousReduction === 'mean' && (
                     <CircuitProfileRoleOptions
                       testId={`circuit-profile-role-${candidate.tag_id}`}
@@ -205,7 +206,7 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                       onChange={(role) => updateLocalDraft((prev) => ({ ...prev, member_roles: { ...prev.member_roles, [key]: role } }))}
                     />
                   )}
-                  <label className="flex items-center gap-1 text-[11px] text-slate-400">
+                  <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-1 text-xs text-[var(--gw-muted)]">
                     <input
                       type="checkbox"
                       data-testid={`circuit-profile-member-cum-${candidate.tag_id}`}
@@ -221,7 +222,7 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                       }}
                     />
                     <span>{t('step4.basic.circuit.cumulative_label')}</span>
-                  </label>
+                  </label><ParameterHelp help="circuit.cumulative" /></div>
                 </div>
               </li>
             );
@@ -231,45 +232,45 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
       </div>
       <div
         data-testid="circuit-profile-profiles-section"
-        className="space-y-3 rounded border border-slate-800/80 bg-slate-950/20 p-3"
+        className="space-y-3 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] p-3"
       >
-        <h4 className="text-xs font-semibold text-slate-200">{t('step4.basic.circuit.step_profiles')}</h4>
+        <h4 className="text-xs font-semibold text-[var(--gw-text)]">{t('step4.basic.circuit.step_profiles')}</h4>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2 rounded border border-slate-800 p-2.5">
-            <label className="flex items-center gap-2 text-xs font-medium text-slate-200">
+          <div className="space-y-2 rounded border border-[var(--gw-control)] p-2.5">
+            <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-2 text-xs font-medium text-[var(--gw-text)]">
               <input type="checkbox" data-testid="circuit-profile-toggle-instantaneous" checked={localDraft.instantaneous_enabled}
                 disabled={readonly} onChange={(e) => updateLocalDraft((prev) => ({ ...prev, instantaneous_enabled: e.target.checked }))} />
               <span>{t('step4.basic.circuit.instantaneous_label')}</span>
-            </label>
-            <label className="block text-xs text-slate-300">
+            </label><ParameterHelp help="circuit.instantaneous" /></div>
+            <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block text-xs text-[var(--gw-text)]">
               <span>{t('step4.basic.circuit.instantaneous_interval')}</span>
               <input type="text" inputMode="numeric" data-testid="circuit-profile-interval-instantaneous"
                 value={localDraft.instantaneous_interval_input} disabled={readonly || !localDraft.instantaneous_enabled}
                 aria-invalid={localDraft.instantaneous_enabled && !instParsed.valid}
                 aria-describedby={localDraft.instantaneous_enabled && !instParsed.valid ? 'circuit-profile-interval-instantaneous-err' : undefined}
                 onChange={(e) => updateLocalDraft((prev) => ({ ...prev, instantaneous_interval_input: e.target.value }))}
-                className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100" />
-            </label>
+                className="mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1.5 text-xs text-[var(--gw-text)]" />
+            </label><ParameterHelp help="circuit.instantaneousInterval" /></div>
             {instantaneousReduction === 'latest' || (localDraft.instantaneous_enabled && instParsed.valid) ? (
-              <p data-testid="circuit-profile-reduction-instantaneous" className="text-[11px] text-slate-400">
+              <p data-testid="circuit-profile-reduction-instantaneous" className="text-xs text-[var(--gw-muted)]">
                 {instantaneousReduction === 'mean'
                   ? t('step4.basic.circuit.reduction_mean', { count: instParsed.intervalValue })
                   : t('step4.basic.circuit.reduction_latest')}
               </p>
             ) : null}
             {localDraft.instantaneous_enabled && !instParsed.valid && (
-              <p id="circuit-profile-interval-instantaneous-err" role="alert" data-testid="circuit-profile-interval-instantaneous-error" className="text-xs text-rose-300">
+              <p id="circuit-profile-interval-instantaneous-err" role="alert" data-testid="circuit-profile-interval-instantaneous-error" className="text-xs text-[var(--gw-danger-fg)]">
                 {t('step4.basic.errors.profile_interval_invalid')}
               </p>
             )}
             {localDraft.instantaneous_enabled && instParsed.valid && instantaneousSourcesMissing && (
-              <p role="alert" data-testid="circuit-profile-instantaneous-sources-error" className="text-xs text-amber-300">
+              <p role="alert" data-testid="circuit-profile-instantaneous-sources-error" className="text-xs text-[var(--gw-warning-fg)]">
                 {t('step4.basic.circuit.instantaneous_sources_required')}
               </p>
             )}
           </div>
-          <div className="space-y-2 rounded border border-slate-800 p-2.5">
-            <label className="flex items-center gap-2 text-xs font-medium text-slate-200">
+          <div className="space-y-2 rounded border border-[var(--gw-control)] p-2.5">
+            <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-2 text-xs font-medium text-[var(--gw-text)]">
               <input type="checkbox" data-testid="circuit-profile-toggle-cumulative" checked={localDraft.cumulative_enabled}
                 disabled={readonly} onChange={(e) => {
                   const enabled = e.target.checked;
@@ -277,27 +278,27 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                   if (enabled) setSourceExpandRequest((request) => request + 1);
                 }} />
               <span>{t('step4.basic.circuit.cumulative_label')}</span>
-            </label>
-            <label className="block text-xs text-slate-300">
+            </label><ParameterHelp help="circuit.cumulative" /></div>
+            <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block text-xs text-[var(--gw-text)]">
               <span>{t('step4.basic.circuit.cumulative_interval')}</span>
               <input type="text" inputMode="numeric" data-testid="circuit-profile-interval-cumulative"
                 value={localDraft.cumulative_interval_input} disabled={readonly || !localDraft.cumulative_enabled}
                 aria-invalid={localDraft.cumulative_enabled && !cumParsed.valid}
                 aria-describedby={localDraft.cumulative_enabled && !cumParsed.valid ? 'circuit-profile-interval-cumulative-err' : undefined}
                 onChange={(e) => updateLocalDraft((prev) => ({ ...prev, cumulative_interval_input: e.target.value }))}
-                className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100" />
-            </label>
-            <p data-testid="circuit-profile-reduction-cumulative" className="text-[11px] text-slate-400">{t('step4.basic.circuit.reduction_counter')}</p>
-            {localDraft.cumulative_enabled && <p data-testid="circuit-profile-cumulative-selected" className="text-xs text-slate-300">
+                className="mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1.5 text-xs text-[var(--gw-text)]" />
+            </label><ParameterHelp help="circuit.cumulativeInterval" /></div>
+            <p data-testid="circuit-profile-reduction-cumulative" className="text-xs text-[var(--gw-muted)]">{t('step4.basic.circuit.reduction_counter')}</p>
+            {localDraft.cumulative_enabled && <p data-testid="circuit-profile-cumulative-selected" className="text-xs text-[var(--gw-text)]">
               {t('step4.basic.circuit.cumulative_selected', { count: cumulativeSelectedCount })}
             </p>}
             {localDraft.cumulative_enabled && !cumParsed.valid && (
-              <p id="circuit-profile-interval-cumulative-err" role="alert" data-testid="circuit-profile-interval-cumulative-error" className="text-xs text-rose-300">
+              <p id="circuit-profile-interval-cumulative-err" role="alert" data-testid="circuit-profile-interval-cumulative-error" className="text-xs text-[var(--gw-danger-fg)]">
                 {t('step4.basic.errors.profile_interval_invalid')}
               </p>
             )}
             {localDraft.cumulative_enabled && cumParsed.valid && cumulativeSourcesMissing && (
-              <p role="alert" data-testid="circuit-profile-cumulative-sources-error" className="text-xs text-amber-300">
+              <p role="alert" data-testid="circuit-profile-cumulative-sources-error" className="text-xs text-[var(--gw-warning-fg)]">
                 {t('step4.basic.circuit.cumulative_sources_required')}
                 <button type="button" data-testid="circuit-profile-cumulative-choose-sources" onClick={() => setSourceExpandRequest((request) => request + 1)}
                   className="ml-2 underline">{t('step4.basic.circuit.cumulative_choose_sources')}</button>
@@ -306,7 +307,7 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
           </div>
         </div>
         {localDraft.instantaneous_enabled && localDraft.cumulative_enabled && (
-          <div data-testid="circuit-profile-interval-explainer" className="space-y-0.5 text-[11px] text-slate-400">
+          <div data-testid="circuit-profile-interval-explainer" className="space-y-0.5 text-xs text-[var(--gw-muted)]">
             <p>{t('step4.basic.circuit.interval_explainer')}</p>
             <p>{t('step4.basic.circuit.interval_not_report')}</p>
           </div>
@@ -315,17 +316,17 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
           <CircuitRequiredPolicy count={requiredPolicy.count} onOpen={onOpenAdvanced ? () => onOpenAdvanced(requiredPolicy.groupId) : undefined} />
         )}
         {purpose !== 'wide' && (<>
-        <fieldset data-testid="circuit-profile-storage-mode" className="space-y-1.5 text-xs text-slate-300">
-          <legend className="font-medium text-slate-200">{t('step4.basic.circuit.storage_mode_label')}</legend>
+        <fieldset data-testid="circuit-profile-storage-mode" className="space-y-1.5 text-xs text-[var(--gw-text)]">
+          <legend className="font-medium text-[var(--gw-text)]">{t('step4.basic.circuit.storage_mode_label')}</legend>
           <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2">
+            <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-2">
               <input type="radio" name="circuit-storage-mode" data-testid="circuit-profile-storage-plain"
                 checked={effectiveStorageMode === 'plain'} disabled={readonly || storageLocked}
                 onChange={() => updateLocalDraft((prev) => ({ ...prev, storage_mode: 'plain' }))} />
               <span>{t('step4.basic.circuit.storage_plain')}</span>
-            </label>
+            </label><ParameterHelp help="circuit.storageMode" /></div>
             {(isMySQL || isSQLServer) ? (
-              <label className="flex items-center gap-2">
+              <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-2">
                 <input type="radio" name="circuit-storage-mode" data-testid="circuit-profile-storage-native-monthly"
                   checked={effectiveStorageMode === 'native_monthly'} disabled={readonly || storageLocked || !nativeMonthlyAvailable}
                   onChange={() => updateLocalDraft((prev) => ({ ...prev, storage_mode: 'native_monthly' }))} />
@@ -334,23 +335,23 @@ export const CircuitProfileConfigFields: React.FC<CircuitProfileConfigFieldsProp
                     ? t('step4.basic.circuit.storage_native_monthly_sqlserver')
                     : t('step4.basic.circuit.storage_native_monthly')}
                 </span>
-              </label>
+              </label><ParameterHelp help="circuit.storageMode" /></div>
             ) : (
-              <label className="flex items-center gap-2">
+              <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-2">
                 <input type="radio" name="circuit-storage-mode" data-testid="circuit-profile-storage-timescale"
                   checked={effectiveStorageMode === 'timescale'} disabled={readonly || !isPostgres || storageLocked}
                   onChange={() => updateLocalDraft((prev) => ({ ...prev, storage_mode: 'timescale' }))} />
                 <span>{t('step4.basic.circuit.storage_timescale')}</span>
-              </label>
+              </label><ParameterHelp help="circuit.storageMode" /></div>
             )}
           </div>
-          {storageLocked && <p data-testid="circuit-profile-storage-locked" className="text-[11px] text-slate-400">{t('step4.basic.circuit.storage_locked')}</p>}
+          {storageLocked && <p data-testid="circuit-profile-storage-locked" className="text-xs text-[var(--gw-muted)]">{t('step4.basic.circuit.storage_locked')}</p>}
         </fieldset>
-        <label className="flex items-center gap-2 text-xs text-slate-200">
+        <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-2 text-xs text-[var(--gw-text)]">
           <input type="checkbox" data-testid="circuit-profile-recreate-missing" checked={localDraft.recreate_missing}
             disabled={readonly} onChange={(e) => updateLocalDraft((prev) => ({ ...prev, recreate_missing: e.target.checked }))} />
           <span>{t('step4.basic.circuit.recreate_missing_label')}</span>
-        </label>
+        </label><ParameterHelp help="circuit.recreate" /></div>
         </>)}
         {unconfirmedCounterStatuses.length > 0 && (
           <CircuitCounterConfirmation

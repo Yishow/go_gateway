@@ -24,28 +24,28 @@ export const CircuitProfileStatus: React.FC<CircuitProfileStatusProps> = ({ grou
   const applied = group.applied_revision !== '';
   const query = useWriteGroupDeliveryQuery(group.id, applied, REFRESH_MS);
   return (
-    <section data-testid={`circuit-status-${kind}`} aria-label={t(`step4.basic.circuit.${kind}_label`)} className="space-y-1.5 rounded border border-slate-800/80 bg-slate-950/30 p-3">
+    <section data-testid={`circuit-status-${kind}`} aria-label={t(`step4.basic.circuit.${kind}_label`)} className="space-y-1.5 rounded border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-xs font-semibold text-slate-200">{t(`step4.basic.circuit.${kind}_label`)} · {t('step4.basic.status.title')}</h4>
+        <h4 className="text-xs font-semibold text-[var(--gw-text)]">{t(`step4.basic.circuit.${kind}_label`)} · {t('step4.basic.status.title')}</h4>
         {onOpenAdvanced && (
           <button type="button" data-testid={`circuit-status-open-advanced-${kind}`} onClick={() => onOpenAdvanced(group.id)}
-            className="rounded border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800">
+            className="rounded border border-[var(--gw-control)] px-2 py-0.5 text-xs text-[var(--gw-text)] hover:bg-[var(--gw-surface)]">
             {t('step4.basic.status.open_advanced')}
           </button>
         )}
       </div>
-      {!applied && <p className="text-xs text-slate-400">{t('step4.basic.status.not_applied')}</p>}
+      {!applied && <p className="text-xs text-[var(--gw-muted)]">{t('step4.basic.status.not_applied')}</p>}
       {draftOff && applied && group.status !== 'disabled' && group.status !== 'deleted' && (
-        <div data-testid={`circuit-profile-draft-note-${kind}`} role="status" className="space-y-1 text-xs text-amber-300">
+        <div data-testid={`circuit-profile-draft-note-${kind}`} role="status" className="space-y-1 text-xs text-[var(--gw-warning-fg)]">
           <p>{t('step4.basic.circuit.draft_not_stop')}</p>
           {onOpenAdvanced && (
-            <button type="button" data-testid={`circuit-profile-draft-lifecycle-${kind}`} onClick={() => onOpenAdvanced(group.id)} className="rounded border border-amber-600/60 px-2 py-1">
+            <button type="button" data-testid={`circuit-profile-draft-lifecycle-${kind}`} onClick={() => onOpenAdvanced(group.id)} className="rounded border border-[var(--gw-warning-border)] px-2 py-1">
               {t('step4.basic.circuit.draft_open_lifecycle')}
             </button>
           )}
         </div>
       )}
-      {applied && query.isError && <p role="status" className="text-xs text-amber-300">{t('step4.basic.status.query_failed')}</p>}
+      {applied && query.isError && <p role="status" className="text-xs text-[var(--gw-warning-fg)]">{t('step4.basic.status.query_failed')}</p>}
       {applied && !query.isError && <CircuitProfileStatusView group={group} delivery={query.data} sourceLabels={sourceLabels} onOpenAdvanced={onOpenAdvanced} />}
       {lifecycle?.lifecycleHost && <SavedRecordingManagement {...lifecycle} group={group} />}
     </section>

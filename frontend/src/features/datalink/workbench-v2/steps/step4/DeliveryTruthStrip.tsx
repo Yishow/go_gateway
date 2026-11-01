@@ -14,9 +14,9 @@ type DeliveryTruthItem = {
 };
 
 const STATUS_CLASS: Record<DeliveryTruthItem['status'], string> = {
-  success: 'text-emerald-300',
-  failed: 'text-rose-300',
-  unknown: 'text-slate-400',
+  success: 'text-[var(--gw-success-fg)]',
+  failed: 'text-[var(--gw-danger-fg)]',
+  unknown: 'text-[var(--gw-muted)]',
 };
 
 export function DeliveryTruthStrip({ connector }: DeliveryTruthStripProps) {
@@ -54,30 +54,30 @@ export function DeliveryTruthStrip({ connector }: DeliveryTruthStripProps) {
   return (
     <div
       data-testid="database-delivery-truth"
-      className="border-y border-gray-800/70 py-3"
+      className="border-y border-[var(--gw-border)] py-3"
     >
       <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <div className="text-xs font-semibold text-[var(--gw-muted)]">
           {t('step4.delivery_truth_title')}
         </div>
-        <div className="text-[11px] text-slate-500">
+        <div className="text-xs text-[var(--gw-muted)]">
           {t('step4.delivery_truth_hint')}
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-3">
         {items.map((item) => (
           <div key={item.label} className="min-w-0">
-            <div className="text-[11px] text-slate-500">{item.label}</div>
+            <div className="text-xs text-[var(--gw-muted)]">{item.label}</div>
             <div className={`mt-0.5 text-sm font-medium ${STATUS_CLASS[item.status]}`}>
               {item.value}
             </div>
             {item.at && (
-              <div className="mt-0.5 truncate text-[11px] text-slate-500">
+              <div className="mt-0.5 truncate text-xs text-[var(--gw-muted)]">
                 {formatDeliveryTime(item.at)}
               </div>
             )}
             {item.status === 'failed' && item.error && (
-              <div className="mt-0.5 break-words text-[11px] text-rose-200">
+              <div className="mt-0.5 break-words text-xs text-[var(--gw-danger-fg)]">
                 {item.error}
               </div>
             )}

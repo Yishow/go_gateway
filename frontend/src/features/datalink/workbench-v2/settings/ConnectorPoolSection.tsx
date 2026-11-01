@@ -27,14 +27,14 @@ export function ConnectorPoolSection({
   const { t } = useTranslation('workbench-v2');
 
   return (
-    <div className="space-y-6 bg-gray-900/10 border border-gray-800 rounded-2xl p-6 backdrop-blur-sm" data-testid="connector-pool-section">
+    <div className="space-y-6 bg-[var(--gw-surface)] border border-[var(--gw-border)] rounded-2xl p-6" data-testid="connector-pool-section">
       {/* 區塊標題與新增按鈕 */}
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-white">
+          <h3 className="text-lg font-semibold text-[var(--gw-text)]">
             {t('settings.connector_pool_title', '資料庫連接器池')}
           </h3>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-[var(--gw-muted)] mt-1">
             {t('settings.connector_pool_subtitle', '設定多個目標寫入資料庫實體。可用於分流、備援或者是不同點位的多目標寫入設定。')}
           </p>
         </div>
@@ -43,7 +43,7 @@ export function ConnectorPoolSection({
         <button
           type="button"
           onClick={onAddConnector}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white cursor-pointer transition-all shadow-md shadow-blue-600/10 hover:shadow-blue-500/20 active:scale-[0.98]"
+          className="flex shrink-0 whitespace-nowrap items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[var(--gw-primary)] hover:bg-[var(--gw-primary-hover)] text-[var(--gw-on-primary)] cursor-pointer transition-all"
         >
           <span>＋</span>
           <span>{t('settings.add_connector_btn', '新增連接器')}</span>
@@ -64,13 +64,13 @@ export function ConnectorPoolSection({
 
         {/* 空狀態 */}
         {connectors.length === 0 && (
-          <div className="flex flex-col items-center justify-center p-12 border border-dashed border-gray-800 rounded-xl bg-gray-950/10 text-center space-y-3" data-testid="connector-pool-empty">
+          <div className="flex flex-col items-center justify-center p-12 border border-dashed border-[var(--gw-border)] rounded-xl bg-[var(--gw-surface)] text-center space-y-3" data-testid="connector-pool-empty">
             <span className="text-3xl select-none" role="img" aria-label="empty">🔌</span>
             <div>
-              <h4 className="font-semibold text-gray-400 text-sm">
+              <h4 className="font-semibold text-[var(--gw-muted)] text-sm">
                 {t('settings.connector_pool_empty_title', '尚未建立任何資料庫連接器')}
               </h4>
-              <p className="text-xs text-gray-600 mt-1">
+              <p className="text-xs text-[var(--gw-muted)] mt-1">
                 {t('settings.connector_pool_empty_desc', '點擊右上方「新增連接器」按鈕以新增一筆連線設定。')}
               </p>
             </div>

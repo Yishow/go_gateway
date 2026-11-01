@@ -1,3 +1,4 @@
+import { useWorkbenchScroll } from './useWorkbenchScroll';
 import { useRecordingNavigation } from '../recording-editor/RecordingDraftNavigation';
 import { acquisitionPreviewWorkspaceScope } from '../acquisition-preview/acquisitionPreviewScope';
 import type { DeviceSourcePort } from '../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
@@ -81,6 +82,8 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   shareStatus,
   runtimeReturnFocus, locatorEntry, locatorOnly, locatorSuspended, onLocatorEditorMountedChange,
 }) => {
+  const root = React.useRef<HTMLDivElement>(null);
+  useWorkbenchScroll(root, `${state.view}:${state.current}`);
   const { t } = useTranslation('workbench-v2');
   const { t: runtime } = useTranslation('runtime-dashboard');
   const locatorSelection = locatorEntry?.selection.state === 'selected' ? locatorEntry.selection : undefined;
@@ -173,12 +176,10 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     }
     setView('flow');
     setCurrent(runtimeFocusStep);
-    document.getElementById('step-content')?.scrollTo?.({ top: 0, behavior: 'smooth' });
   }, [runtimeFocusStep, runtimeFocusIssueCode, setCurrent, setView]);
   const goBack = () => {
     if (current > 1) {
       setCurrent((current - 1) as 1 | 2 | 3 | 4);
-      document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
   const handleReset = () => {
@@ -187,7 +188,6 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   const handleContinueStep1 = () => {
     completeStep(1);
     setCurrent(2);
-    document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const handleContinueStep2 = () => {
     if (!step2Ready) {
@@ -195,7 +195,6 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     }
     completeStep(2);
     setCurrent(3);
-    document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const handleRuntimeDashboardHandoff = React.useCallback((confirmedDeviceIds?: string[]) => {
     const deviceId = resolveRuntimeDashboardDevice(state, confirmedDeviceIds);
@@ -205,7 +204,6 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   }, [navigateTo, state]);
   const handleNavigateStep = React.useCallback((step: WorkspaceReadinessStepNumber) => {
     setCurrent(step);
-    document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [setCurrent]);
   // 渲染中央步驟內容
   const renderContent = () => {
@@ -251,7 +249,6 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
             onContinue={() => {
               completeStep(3);
               setCurrent(4);
-              document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             onBack={goBack}
           />
@@ -284,7 +281,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     }
   };
   return (
-    <div className="wbv2-shell min-h-screen flex flex-col" data-testid="workbench-v2-shell">
+    <div ref={root} className="wbv2-shell min-h-screen flex flex-col" data-testid="workbench-v2-shell">
       {/* 1. 頂部列 */}
       {locatorOnly ? <header className="p-4"><strong>Studio V2</strong><p role="status">{runtime('locatorEntry.unrequested')}</p></header> : <TopBar
         sidebarCollapsed={sidebarCollapsed}
@@ -302,7 +299,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
           data-collapsed={sidebarCollapsed}
           aria-expanded={!sidebarCollapsed}
         >
-          <div className="sticky top-[68px] space-y-4">
+          <div className="sticky top-[calc(var(--wbv2-header-height,0px)+8px)] space-y-4">
             <StepRail
               view={view}
               current={current}
@@ -313,11 +310,11 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
               onSwitchView={setView}
             />
             {!sidebarCollapsed && view === 'flow' && (
-              <div className="wbv2-flow-note rounded-xl border border-slate-700/40 bg-slate-900/30 p-3 sweep-in">
-                <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">
+              <div className="wbv2-flow-note rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3">
+                <div className="text-xs text-[var(--gw-muted)] mb-1.5">
                   本流程
                 </div>
-                <p className="text-[11px] leading-relaxed text-slate-400">
+                <p className="text-xs leading-relaxed text-[var(--gw-muted)]">
                   由「設備 → 接入規則 → 點位/映射 → 資料庫」四個階段組成，全部成功後才會啟動 collector 並寫入。
                 </p>
               </div>
@@ -332,13 +329,13 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-mono text-slate-500">
+                    <span className="text-xs font-mono text-[var(--gw-muted)]">
                       STEP 0{current} / 04
                     </span>
-                    <span className="h-3 w-px bg-slate-700" />
-                    <span className="text-[11px] text-slate-500">{stepMeta?.subtitle}</span>
+                    <span className="h-3 w-px bg-[var(--gw-surface)]" />
+                    <span className="text-xs text-[var(--gw-muted)]">{stepMeta?.subtitle}</span>
                   </div>
-                  <h2 className="text-xl font-semibold text-slate-100 mt-0.5">
+                  <h2 className="text-xl font-semibold text-[var(--gw-text)] mt-0.5">
                     {stepMeta?.title}
                   </h2>
                 </div>
@@ -348,10 +345,10 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
                       key={s.id}
                       className={`h-1 rounded-full transition-all ${
                         s.id < current
-                          ? 'w-8 bg-emerald-500/80'
+                          ? 'w-8 bg-[var(--gw-success-bg)]'
                           : s.id === current
-                          ? 'w-12 bg-blue-500'
-                          : 'w-8 bg-slate-700'
+                          ? 'w-12 bg-[var(--gw-active)]'
+                          : 'w-8 bg-[var(--gw-surface)]'
                       }`}
                     />
                   ))}
@@ -368,25 +365,25 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
               {runtimeFocusStep ? (
                 <section
                   data-testid="workbench-v2-runtime-return-focus"
-                  className="mb-4 rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-sm text-amber-50"
+                  className="mb-4 rounded-xl border border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] px-4 py-3 text-sm text-[var(--gw-warning-fg)]"
                 >
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="font-semibold">
                         {t('runtime_return.title', { step: `Step ${runtimeFocusStep}` })}
                       </p>
-                      <p className="mt-1 text-xs leading-5 text-amber-100/80">
+                      <p className="mt-1 text-xs leading-5 text-[var(--gw-warning-fg)]">
                         {runtimeFocusedIssue?.message ?? t('runtime_return.description')}
                       </p>
                       {runtimeFocusedIssue ? (
-                        <p className="mt-1 font-mono text-[11px] text-amber-200/90">
+                        <p className="mt-1 font-mono text-xs text-[var(--gw-warning-fg)]">
                           {runtimeFocusedIssue.code}
                         </p>
                       ) : null}
                       {runtimeFocusGuidance ? (
                         <p
                           data-testid="workbench-v2-runtime-return-guidance"
-                          className="mt-2 text-xs leading-5 text-amber-50"
+                          className="mt-2 text-xs leading-5 text-[var(--gw-warning-fg)]"
                         >
                           {runtimeFocusGuidance}
                         </p>
@@ -394,7 +391,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
                       {runtimeFocusScope ? (
                         <p
                           data-testid="workbench-v2-runtime-return-scope"
-                          className="mt-1 font-mono text-[11px] text-amber-200/90"
+                          className="mt-1 font-mono text-xs text-[var(--gw-warning-fg)]"
                         >
                           {t('runtime_return.scope', { scope: runtimeFocusScope })}
                         </p>
@@ -403,7 +400,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
                     <button
                       type="button"
                       onClick={() => handleNavigateStep(runtimeFocusStep)}
-                      className="shrink-0 rounded-lg border border-amber-300/40 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-50 transition hover:bg-amber-300/20"
+                      className="shrink-0 rounded-lg border border-[var(--gw-warning-border)] bg-[var(--gw-warning-bg)] px-3 py-1.5 text-xs font-semibold text-[var(--gw-warning-fg)] transition hover:bg-[var(--gw-warning-bg)]"
                     >
                       {t('runtime_return.action', { step: `Step ${runtimeFocusStep}` })}
                     </button>
@@ -413,7 +410,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
               {/* 步驟元件 */}
               {renderContent()}
               {/* 底部導航欄 */}
-              <div className="mt-6 flex items-center justify-between pt-4 border-t border-slate-800/80">
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-[var(--gw-border)]">
                 <Button
                   onClick={goBack}
                   disabled={current === 1}
@@ -422,7 +419,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
                 >
                   上一步
                 </Button>
-                <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                <div className="flex items-center gap-2 text-xs text-[var(--gw-muted)]">
                   <span className="kbd">Ctrl</span>
                   <span>+</span>
                   <span className="kbd">B</span>
@@ -441,8 +438,8 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
         {/* 4. 右側即時設定摘要欄 */}
         {!locatorOnly && showSummaryRail && view === 'flow' && (
           <aside className="hidden xl:block flex-shrink-0 w-[260px]">
-            <div className="sticky top-[68px]">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2 px-1">
+            <div className="sticky top-[calc(var(--wbv2-header-height,0px)+8px)]">
+              <div className="text-xs font-semibold text-[var(--gw-muted)] mb-2 px-1">
                 即時設定摘要
               </div>
               <SummaryRail

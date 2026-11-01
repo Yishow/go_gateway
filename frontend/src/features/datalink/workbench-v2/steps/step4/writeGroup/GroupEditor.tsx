@@ -323,25 +323,25 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
                       : isSQLServer && !sqlserverSchemaReady ? t('step4.group.test_write.blocked_schema_not_ready') : undefined;
 
   return (
-    <div className="space-y-5 rounded-xl border border-slate-800 p-5" data-testid="group-editor"
+    <div className="space-y-5 rounded-xl border border-[var(--gw-border)] p-5" data-testid="group-editor"
       onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing && !event.defaultPrevented && !(event.target as HTMLElement).closest('[role="dialog"], [role="alertdialog"], [role="tooltip"], [data-state="open"]')) { event.preventDefault(); closeEditor(); } }}>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-100">{group ? group.name : t('step4.group.editor.new_title')}</h3>
-        <button type="button" onClick={closeEditor} className="text-xs text-slate-400 underline" data-testid="group-editor-close">{t('step4.group.editor.back')}</button>
+        <h3 className="text-sm font-semibold text-[var(--gw-text)]">{group ? group.name : t('step4.group.editor.new_title')}</h3>
+        <button type="button" onClick={closeEditor} className="text-xs text-[var(--gw-muted)] underline" data-testid="group-editor-close">{t('step4.group.editor.back')}</button>
       </div>
 
       {group && (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-400 sm:grid-cols-4" data-testid="group-revisions">
-          <dt>{t('step4.group.editor.status')}</dt><dd className="text-slate-200">{group.status}</dd>
-          <dt>{t('step4.group.editor.draft_revision')}</dt><dd className="font-mono text-slate-200">{group.revision}</dd>
-          <dt>{t('step4.group.editor.applied_revision')}</dt><dd className="font-mono text-slate-200" data-testid="group-applied-revision">{group.applied_revision || t('step4.group.editor.not_applied')}</dd>
-          <dt>{t('step4.group.editor.connector_revision')}</dt><dd className="font-mono text-slate-200">{group.destination.connector_revision}</dd>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[var(--gw-muted)] sm:grid-cols-4" data-testid="group-revisions">
+          <dt>{t('step4.group.editor.status')}</dt><dd className="text-[var(--gw-text)]">{group.status}</dd>
+          <dt>{t('step4.group.editor.draft_revision')}</dt><dd className="font-mono text-[var(--gw-text)]">{group.revision}</dd>
+          <dt>{t('step4.group.editor.applied_revision')}</dt><dd className="font-mono text-[var(--gw-text)]" data-testid="group-applied-revision">{group.applied_revision || t('step4.group.editor.not_applied')}</dd>
+          <dt>{t('step4.group.editor.connector_revision')}</dt><dd className="font-mono text-[var(--gw-text)]">{group.destination.connector_revision}</dd>
         </dl>
       )}
 
       <fieldset disabled={saveBusy || readUnavailable} className="min-w-0 space-y-5" data-testid="group-save-fields">
       {!destinationMatches && (
-        <div role="alert" className="space-y-1 text-xs text-amber-300" data-testid="group-destination-mismatch">
+        <div role="alert" className="space-y-1 text-xs text-[var(--gw-warning-fg)]" data-testid="group-destination-mismatch">
           <p>{locatorScope && !saved ? t('runtime-dashboard:locatorEntry.destinationUnknown') : t('step4.group.editor.destination_mismatch')}</p>
           {saved && !readonly && (
             <button
@@ -415,24 +415,24 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         })}</ul>
       </div>}
       {issues.length > 0 && (
-        <ul role="alert" className="list-disc pl-5 text-xs text-red-300" data-testid="group-issues">
+        <ul role="alert" className="list-disc pl-5 text-xs text-[var(--gw-danger-fg)]" data-testid="group-issues">
           {issues.map((issue, index) => <li key={`${issue.code}-${issue.member_key ?? issue.column ?? index}`}>{t(`step4.group.issue.${issue.code.replace(/-/g, '_')}`, { column: issue.column ?? '' })}</li>)}
         </ul>
       )}
       {mixedIssues.length > 0 && <ul role="alert" data-testid="mixed-group-issues">{mixedIssues.map((code, index) => <li key={`${code}-${index}`}>{editorText(`calculation.issue.${code}`, { defaultValue: editorText('calculation.unavailable') })}</li>)}</ul>}
       {conflict && (
-        <div role="alert" className="text-xs text-amber-300" data-testid="group-conflict">
+        <div role="alert" className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-conflict">
           {t('step4.group.editor.conflict')}
           <button type="button" onClick={() => { setConflict(false); onReload(); }} className="ml-2 underline" data-testid="group-conflict-reload">{t('step4.group.editor.reload')}</button>
         </div>
       )}
       {saveError !== null && !conflict && (
-        <p role="alert" className="text-xs text-red-300" data-testid="group-save-error">{getSafeErrorMessage(saveError, t).message}</p>
+        <p role="alert" className="text-xs text-[var(--gw-danger-fg)]" data-testid="group-save-error">{getSafeErrorMessage(saveError, t).message}</p>
       )}
 
       {(saveUnknown || saveActivity.priorUnknown) && <div role="status" data-testid="group-save-unknown">
         <p>{editorText('navigation.unknownSave')}</p>
-        <button type="button" className="gw-secondary" data-testid="group-save-review" onClick={() => navigation.request(() => { onReload(); onClose(); })}>{editorText('navigation.reviewSaved')}</button>
+        <button type="button" className="rounded-md border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)]" data-testid="group-save-review" onClick={() => navigation.request(() => { onReload(); onClose(); })}>{editorText('navigation.reviewSaved')}</button>
       </div>}
       <GroupEditorPreparation managed={draft.storage_strategy === 'managed' || group?.destination.storage_strategy === 'managed'}
         group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision} destinationMatches={destinationMatches} dirty={dirty} readonly={readonly}
@@ -447,7 +447,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       {group && (
         <>
           <section aria-label={t('step4.group.readiness.title')} className="space-y-2">
-            <h4 className="text-sm font-semibold text-slate-200">{t('step4.group.readiness.title')}</h4>
+            <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.readiness.title')}</h4>
             <GroupReadinessPanel readiness={readiness.data} loading={readiness.isLoading && !dirty} failed={readiness.isError} dirty={dirty} onRetry={() => void readiness.refetch()} />
           </section>
           <GroupDeliveryStrip group={group} readonly={readonly} />

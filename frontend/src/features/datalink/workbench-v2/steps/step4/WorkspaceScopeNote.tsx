@@ -13,9 +13,9 @@ export const WorkspaceScopeNote: React.FC<WorkspaceScopeNoteProps> = ({ groupSum
   const { t } = useTranslation('workbench-v2');
   const draftCount = groupSummary.total - groupSummary.applied;
   return (
-    <div data-testid="workspace-scope-note" data-total={groupSummary.total} data-applied={groupSummary.applied} className="space-y-1 text-xs text-slate-400">
+    <div data-testid="workspace-scope-note" data-total={groupSummary.total} data-applied={groupSummary.applied} className="space-y-1 text-xs text-[var(--gw-muted)]">
       <p>{t('step4.workspace_scope.scope', { total: groupSummary.total, applied: groupSummary.applied })}</p>
-      {draftCount > 0 && <p className="text-amber-300">{t('step4.workspace_scope.draft_note', { count: draftCount })}</p>}
+      {draftCount > 0 && <p className="text-[var(--gw-warning-fg)]">{t('step4.workspace_scope.draft_note', { count: draftCount })}</p>}
       <p>{t('step4.workspace_scope.no_changes')}</p>
     </div>
   );

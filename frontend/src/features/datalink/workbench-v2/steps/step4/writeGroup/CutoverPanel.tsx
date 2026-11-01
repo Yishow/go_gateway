@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../../../components/ParameterHelp';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCutoversQuery } from '../../../../../../hooks/datalink/useStudioV2WriteGroupCutover';
@@ -58,60 +59,61 @@ const CutoverPanelContent: React.FC<CutoverPanelProps> = ({ groups, workspaceId,
   const isLocked = readonly || flow.busy || flow.outcome.state === 'unknown';
 
   return (
-    <section data-testid="cutover-panel" aria-labelledby="cutover-title" className="space-y-3 rounded-xl border border-slate-800 bg-slate-950/30 p-4 text-xs text-slate-300">
+    <section data-testid="cutover-panel" aria-labelledby="cutover-title" className="space-y-3 rounded-xl border border-[var(--gw-control)] bg-[var(--gw-surface)] p-4 text-xs text-[var(--gw-text)]">
       <div>
-        <h4 id="cutover-title" className="text-sm font-semibold text-slate-100">{t('step4.cutover.title')}</h4>
-        <p className="mt-1 text-slate-400">{t('step4.cutover.subtitle')}</p>
+        <h4 id="cutover-title" className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.cutover.title')}</h4>
+        <p className="mt-1 text-[var(--gw-muted)]">{t('step4.cutover.subtitle')}</p>
       </div>
       <div role="group" aria-label={t('step4.cutover.title')} className="flex gap-2">
+        <ParameterHelp help="cutover.mode" />
         {(['forward', 'rollback'] as const).map((item) => (
-          <button key={item} type="button" data-testid={`cutover-mode-${item}`} aria-pressed={mode === item} disabled={isLocked} onClick={() => { setMode(item); setSourceId(''); flow.resetReview(); }} className={`rounded border px-3 py-1.5 ${mode === item ? 'border-cyan-600 text-cyan-200' : 'border-slate-700 text-slate-300'} disabled:opacity-40`}>
+          <button key={item} type="button" data-testid={`cutover-mode-${item}`} aria-pressed={mode === item} disabled={isLocked} onClick={() => { setMode(item); setSourceId(''); flow.resetReview(); }} className={`rounded border px-3 py-1.5 ${mode === item ? 'border-[var(--gw-focus)] text-[var(--gw-accent)]' : 'border-[var(--gw-control)] text-[var(--gw-text)]'} disabled:opacity-40`}>
             {t(`step4.cutover.mode_${item}`)}
           </button>
         ))}
       </div>
       {sources.length === 0 ? (
-        <p role="status" data-testid="cutover-no-source" className="text-slate-400">{t('step4.cutover.no_source')}</p>
+        <p role="status" data-testid="cutover-no-source" className="text-[var(--gw-muted)]">{t('step4.cutover.no_source')}</p>
       ) : (
-        <label className="block">
+        <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block">
           <span>{t('step4.cutover.source')}</span>
-          <select data-testid="cutover-source" value={source?.id ?? ''} disabled={isLocked} onChange={(event) => { setSourceId(event.target.value); flow.resetReview(); }} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-slate-100">
+          <select data-testid="cutover-source" value={source?.id ?? ''} disabled={isLocked} onChange={(event) => { setSourceId(event.target.value); flow.resetReview(); }} className="mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1.5 text-[var(--gw-text)]">
             {sources.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
           </select>
-        </label>
+        </label><ParameterHelp help="cutover.source" /></div>
       )}
       {source && mode === 'forward' && (
         <fieldset className="space-y-1">
-          <legend className="font-medium text-slate-200">{t('step4.cutover.targets')}</legend>
-          {targetChoices.length === 0 && <p data-testid="cutover-no-targets" className="text-slate-400">{t('step4.cutover.no_targets')}</p>}
+          <legend className="font-medium text-[var(--gw-text)]">{t('step4.cutover.targets')}</legend>
+          {targetChoices.length === 0 && <p data-testid="cutover-no-targets" className="text-[var(--gw-muted)]">{t('step4.cutover.no_targets')}</p>}
           {targetChoices.map((group) => (
-            <label key={group.id} className="flex items-center gap-2">
+            <div key={group.id} className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-2">
               <input type="checkbox" data-testid={`cutover-target-${group.id}`} checked={targetIds.includes(group.id)} disabled={isLocked}
                 onChange={(event) => setTargetIds((current) => event.target.checked ? [...current, group.id] : current.filter((id) => id !== group.id))} />
               <span>{group.name} · {group.destination.table_name} · {group.members.length}</span>
-            </label>
+            </label><ParameterHelp help="cutover.target" /></div>
           ))}
         </fieldset>
       )}
       {source && mode === 'rollback' && (
         <fieldset className="space-y-1">
-          <legend className="font-medium text-slate-200">{t('step4.cutover.rollback_candidates')}</legend>
-          {candidates.length === 0 && <p data-testid="cutover-no-rollback" className="text-slate-400">{t('step4.cutover.no_rollback')}</p>}
+          <legend className="font-medium text-[var(--gw-text)]">{t('step4.cutover.rollback_candidates')}</legend>
+          {candidates.length === 0 && <p data-testid="cutover-no-rollback" className="text-[var(--gw-muted)]">{t('step4.cutover.no_rollback')}</p>}
           {candidates.map((item) => (
-            <label key={item.id} className="flex items-center gap-2">
+            <div key={item.id} className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-2">
               <input type="radio" name="cutover-rollback" data-testid={`cutover-rollback-${item.id}`} checked={cutoverId === item.id} disabled={isLocked} onChange={() => setCutoverId(item.id)} />
               <span><code>{item.boundary}</code> · {item.started.map((ref) => groupName(ref.group_id)).join(', ')}</span>
-            </label>
+            </label><ParameterHelp help="cutover.rollback" /></div>
           ))}
-          <p className="text-slate-400">{t('step4.cutover.rollback_note')}</p>
+          <p className="text-[var(--gw-muted)]">{t('step4.cutover.rollback_note')}</p>
         </fieldset>
       )}
       {source && (
-        <label className="block">
+        <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block">
           <span>{t(mode === 'forward' ? 'step4.cutover.boundary' : 'step4.cutover.rollback_boundary')}</span>
-          <input type="datetime-local" step={1} data-testid="cutover-boundary" value={boundaryLocal} disabled={isLocked} onChange={(event) => setBoundaryLocal(event.target.value)} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-slate-100" />
-          <span className="mt-1 block text-slate-500">{t('step4.cutover.boundary_hint')}</span>
-        </label>
+          <input type="datetime-local" step={1} data-testid="cutover-boundary" value={boundaryLocal} disabled={isLocked} onChange={(event) => setBoundaryLocal(event.target.value)} className="mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1.5 text-[var(--gw-text)]" />
+          <span className="mt-1 block text-[var(--gw-muted)]">{t('step4.cutover.boundary_hint')}</span>
+        </label><ParameterHelp help="cutover.boundary" /></div>
       )}
       {(source || flow.outcome.state === 'unknown') && <CutoverRun flow={flow} scope={scope} readonly={readonly} groupName={groupName} onOpenGroup={onOpenGroup} candidates={propCandidates} />}
       <CutoverHistory cutovers={cutovers.data ?? []} groupName={groupName} />

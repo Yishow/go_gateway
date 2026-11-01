@@ -345,24 +345,24 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
   return (
     <section
       aria-labelledby={titleId}
-      className="space-y-3 rounded-lg border border-slate-800 p-4"
+      className="space-y-3 rounded-lg border border-[var(--gw-border)] p-4"
       data-testid="group-schema-panel"
     >
       <div>
-        <h4 id={titleId} className="text-sm font-semibold text-slate-200">{t('step4.group.schema.title')}</h4>
-        <p className="mt-1 text-xs text-slate-400">{t('step4.group.schema.intro')}</p>
+        <h4 id={titleId} className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.schema.title')}</h4>
+        <p className="mt-1 text-xs text-[var(--gw-muted)]">{t('step4.group.schema.intro')}</p>
       </div>
 
-      {blockedReason && <p role="status" className="text-xs text-amber-300" data-testid="group-schema-blocked">{blockedReason}</p>}
+      {blockedReason && <p role="status" className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-schema-blocked">{blockedReason}</p>}
 
       {guided && !guided.renderActions && previewFailure && <button type="button" onClick={presentation.commands.retryPreview} disabled={!presentation.commands.retryPreview}
-        className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-100 disabled:opacity-40" data-testid="group-schema-preview">
+        className="rounded border border-[var(--gw-control)] px-3 py-1 text-xs text-[var(--gw-text)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]" data-testid="group-schema-preview">
         {t('step4.group.schema.preview')}
       </button>}
       {!suppressActions && <div className="flex flex-wrap gap-2" role="group" aria-label={t('step4.group.schema.actions')}>
         {!(guided && previewFailure) && <button
           type="button" onClick={guided ? presentation.commands.preview : handlePreview} disabled={guided ? !presentation.commands.preview : !enabled || busy || blocksNewPreview}
-          className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-100 disabled:opacity-40"
+          className="rounded border border-[var(--gw-control)] px-3 py-1 text-xs text-[var(--gw-text)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]"
           data-testid="group-schema-preview"
         >
           {previewMutation.isPending ? t('step4.group.schema.previewing') : t('step4.group.schema.preview')}
@@ -370,7 +370,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
         {preview && (
           <button
             type="button" onClick={guided ? presentation.commands.confirm : handleApply} disabled={guided ? !presentation.commands.confirm : !canApply || busy}
-            className="rounded bg-blue-600 px-3 py-1 text-xs text-white disabled:opacity-40"
+            className="rounded bg-[var(--gw-primary)] px-3 py-1 text-xs text-[var(--gw-on-primary)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]"
             data-testid="group-schema-apply"
           >
             {applyMutation.isPending ? t('step4.group.schema.applying') : t('step4.group.schema.confirm')}
@@ -382,15 +382,15 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
 
       {shouldOfferCheck && (
         <div className="flex flex-wrap items-center gap-2" role="status" data-testid="group-schema-operation-pending">
-          <span className="text-xs text-amber-300">{t('step4.group.schema.check_required')}</span>
-          {!suppressActions && <button type="button" onClick={guided ? presentation.commands.check : handleCheck} disabled={guided ? !presentation.commands.check : busy} className="text-xs underline disabled:opacity-40" data-testid="group-schema-check">
+          <span className="text-xs text-[var(--gw-warning-fg)]">{t('step4.group.schema.check_required')}</span>
+          {!suppressActions && <button type="button" onClick={guided ? presentation.commands.check : handleCheck} disabled={guided ? !presentation.commands.check : busy} className="text-xs underline disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]" data-testid="group-schema-check">
             {t('step4.group.schema.check')}
           </button>}
         </div>
       )}
 
       {effectiveOperation && (
-        <div className="space-y-1 text-xs text-slate-300" role="status" data-testid="group-schema-operation">
+        <div className="space-y-1 text-xs text-[var(--gw-text)]" role="status" data-testid="group-schema-operation">
           <details><summary>{t('step4.basic.diagnostics')}</summary><p>{t('step4.group.schema.operation')}: <span className="font-mono">{effectiveOperation.operation_id}</span></p></details>
           <p>{t('step4.group.schema.status')}: <span className="font-mono">{operationStatus(effectiveOperation, t)}</span></p>
           {detail && !blocker && <p>{t('step4.group.schema.reason')}: {detail}</p>}
@@ -398,7 +398,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
       )}
 
       {error !== null && !blocker && (
-        <p role="alert" className="text-xs text-red-300" data-testid="group-schema-error">
+        <p role="alert" className="text-xs text-[var(--gw-danger-fg)]" data-testid="group-schema-error">
           {getSafeErrorMessage(error, t).message}
           {needsCheck && <span className="ml-1">{t('step4.group.schema.error_check_same_operation')}</span>}
         </p>

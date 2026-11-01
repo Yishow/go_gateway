@@ -43,18 +43,18 @@ export const Toggle: React.FC<ToggleProps> = ({
           onChange(!checked);
         }
       }}
-      className={`inline-flex items-center gap-2 group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 rounded ${
-        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+      className={`inline-flex items-center gap-2 group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gw-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--gw-surface)] rounded ${
+        disabled ? 'disabled:text-[var(--gw-muted)] cursor-not-allowed' : 'cursor-pointer'
       }`}
     >
       <span
         className={`relative inline-block rounded-full transition-colors duration-200 flex-shrink-0 ${
-          checked ? 'bg-blue-600' : 'bg-slate-700'
+          checked ? 'bg-[var(--gw-primary)]' : 'bg-[var(--gw-control)]'
         }`}
         style={{ width: dim.w, height: dim.h }}
       >
         <span
-          className="absolute rounded-full bg-white shadow-sm transition-transform duration-200 will-change-transform"
+          className="absolute rounded-full bg-[var(--gw-on-primary)] transition-transform duration-200 will-change-transform"
           style={{
             width: dim.dot,
             height: dim.dot,
@@ -64,7 +64,7 @@ export const Toggle: React.FC<ToggleProps> = ({
           }}
         />
       </span>
-      {label && <span className="text-xs text-slate-300 select-none">{label}</span>}
+      {label && <span className="text-xs text-[var(--gw-text)] select-none">{label}</span>}
     </button>
   );
 };

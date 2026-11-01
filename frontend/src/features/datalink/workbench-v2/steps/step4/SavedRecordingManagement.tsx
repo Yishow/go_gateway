@@ -31,7 +31,7 @@ export function RemovedRecordingManagement({ groups, deviceId, onOpenAdvanced, .
   const removed = groups.filter((group) => group.status === 'deleted' &&
     (group.basic_managed_device_id === deviceId || group.members.some((member) => member.device_id === deviceId)));
   if (!removed.length) return null;
-  return <details className="rounded border border-slate-700 p-3 text-xs text-slate-300" data-testid="basic-removed-recordings">
+  return <details className="rounded border border-[var(--gw-border)] p-3 text-xs text-[var(--gw-text)]" data-testid="basic-removed-recordings">
     <summary className="cursor-pointer font-semibold">{t('removed.title', { count: removed.length })}</summary>
     <p className="my-2">{t('removed.note')}</p>
     {removed.map((group) => <section key={group.id} className="space-y-2 py-2" data-testid={`basic-removed-${group.id}`}>

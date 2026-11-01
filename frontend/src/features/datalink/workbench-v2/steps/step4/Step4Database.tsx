@@ -4,7 +4,7 @@ import { managedProfileDeviceId } from '../../state/circuitProfileBasic';
 import type { DeviceSourcePort } from '../../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { markReturnRegion } from '@/utils/returnFocus';
 import type { StudioLocatorEntryRead } from '../../../../../types/studioV2LocatorEntry';
-import { useRuntimeRuleEvidence } from '../../../../../hooks/datalink/useRuntimeRuleEvidence';
+import { useStep4RecordingEvidence } from './useStep4RecordingEvidence';
 import { RecordingScopeSummary } from './RecordingScopeSummary';
 import type { RecordingViewedDevice } from './recordingScopeModel';
 import { RecordingTestWriteRecoveryPanel } from './RecordingTestWriteRecoveryPanel';
@@ -165,7 +165,7 @@ function Step4DatabaseContent({
     viewedDevice && viewedDevice.workspaceId === workspaceId &&
     state.devices.some(device => device.id === viewedDevice.deviceId && device.persisted && device.save_state === 'saved')
     ? { workspace_id: workspaceId, workspace_revision: groupsQuery.data.workspace_revision, device_id: viewedDevice.deviceId } : null;
-  const recordingEvidence = useRuntimeRuleEvidence(evidenceScope);
+  const recordingEvidence = useStep4RecordingEvidence(evidenceScope, groupsQuery);
   const liveGroups = (groupsQuery.data?.groups ?? []).filter((group) => group.status !== 'deleted');
   const groupSummary = {
     state: groupsQuery.isError ? 'error' as const : groupsQuery.isLoading ? 'loading' as const : 'ready' as const,
@@ -272,12 +272,12 @@ function Step4DatabaseContent({
         tabIndex={-1}
         open={advancedOpen}
         onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
-        className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/20 p-4"
+        className="space-y-4 rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-4"
         data-testid="step4-advanced-recording"
       >
-        <summary className="cursor-pointer text-sm font-semibold text-slate-200">{guidedT('management.advancedTitle')}</summary>
+        <summary className="cursor-pointer text-sm font-semibold text-[var(--gw-text)]">{guidedT('management.advancedTitle')}</summary>
         <div className="space-y-6 pt-2">
-          <p data-testid="recording-workspace-status-note" className="text-xs text-slate-400">{guidedT('management.workspaceStatus')}</p>
+          <p data-testid="recording-workspace-status-note" className="text-xs text-[var(--gw-muted)]">{guidedT('management.workspaceStatus')}</p>
           <WriteGroupSection deviceSource={deviceSource}
             locatorEntry={locatorEntry} locatorSuspended={locatorSuspended} onEditorMountedChange={onLocatorEditorMountedChange}
             state={state}

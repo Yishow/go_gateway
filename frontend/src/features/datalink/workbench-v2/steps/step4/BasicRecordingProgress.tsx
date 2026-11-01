@@ -31,19 +31,19 @@ export const BasicRecordingProgress: React.FC<BasicRecordingProgressProps> = ({
 
   if (completion.state === 'unavailable') return <RecordingCompletionSummary view={completion} />;
   return (
-    <div className="space-y-1 text-xs text-slate-300" role={operation.status === 'failed' || operation.status === 'partial' ? 'alert' : 'status'} data-testid="basic-recording-status">
+    <div className="space-y-1 text-xs text-[var(--gw-text)]" role={operation.status === 'failed' || operation.status === 'partial' ? 'alert' : 'status'} data-testid="basic-recording-status">
       <RecordingCompletionSummary view={completion} deviceNames={deviceNames} groupNames={groupNames} primary={primary}
         onContinue={intentMatchesCurrent && onCommit ? deviceId => onCommit([deviceId]) : undefined} />
       <p>{t(`step4.basic.operation.${operation.status}`)}</p>
       <p>{t(`step4.basic.stage.${operation.stage}`)}</p>
-      {statusReason && <p className="text-amber-300">{statusReason}</p>}
-      {nextAction && <p className="text-slate-400">{nextAction}</p>}
+      {statusReason && <p className="text-[var(--gw-warning-fg)]">{statusReason}</p>}
+      {nextAction && <p className="text-[var(--gw-muted)]">{nextAction}</p>}
       {operation.groups.length > 0 && (
-        <ul className="space-y-1 pt-1 text-[11px]" data-testid="basic-recording-group-progress" aria-label={t('step4.basic.progress.groups')}>
+        <ul className="space-y-1 pt-1 text-xs" data-testid="basic-recording-group-progress" aria-label={t('step4.basic.progress.groups')}>
           {operation.groups.map((group) => (
             <li key={group.group_id} className="flex flex-wrap gap-x-2 gap-y-1">
-              <span className="break-all text-slate-400">{t('step4.basic.progress.group')}: {safeRuntimeLabel(groupNames[group.group_id]) || t('step4.basic.progress.group')}</span>
-              <details className="text-slate-500"><summary>{t('step4.basic.diagnostics')}</summary>{group.group_id}</details>
+              <span className="break-all text-[var(--gw-muted)]">{t('step4.basic.progress.group')}: {safeRuntimeLabel(groupNames[group.group_id]) || t('step4.basic.progress.group')}</span>
+              <details className="text-[var(--gw-muted)]"><summary>{t('step4.basic.diagnostics')}</summary>{group.group_id}</details>
               <span>{group.saved ? t('step4.basic.progress.saved') : t('step4.basic.progress.not_saved')}</span>
               <span>{group.ready ? t('step4.basic.progress.readiness_verified') : t('step4.basic.progress.readiness_unverified')}</span>
               <span>{group.applied ? t('step4.basic.progress.applied') : t('step4.basic.progress.not_applied')}</span>
@@ -52,21 +52,21 @@ export const BasicRecordingProgress: React.FC<BasicRecordingProgressProps> = ({
         </ul>
       )}
       {operation.devices.length > 0 && (
-        <ul className="space-y-1 pt-1 text-[11px]" data-testid="basic-recording-device-progress" aria-label={t('step4.basic.progress.devices')}>
+        <ul className="space-y-1 pt-1 text-xs" data-testid="basic-recording-device-progress" aria-label={t('step4.basic.progress.devices')}>
           {operation.devices.map((device) => (
             <li key={device.device_id} className="flex flex-wrap gap-x-2 gap-y-1">
-              <span className="break-all text-slate-400">{t('step4.basic.progress.device')}: {safeRuntimeLabel(deviceNames[device.device_id]) || t('step4.basic.progress.device')}</span>
-              <details className="text-slate-500"><summary>{t('step4.basic.diagnostics')}</summary>{device.device_id}</details>
+              <span className="break-all text-[var(--gw-muted)]">{t('step4.basic.progress.device')}: {safeRuntimeLabel(deviceNames[device.device_id]) || t('step4.basic.progress.device')}</span>
+              <details className="text-[var(--gw-muted)]"><summary>{t('step4.basic.diagnostics')}</summary>{device.device_id}</details>
               <span>{device.activated ? t('step4.basic.progress.activated') : t('step4.basic.progress.not_activated')}</span>
             </li>
           ))}
         </ul>
       )}
       {operation.status === 'succeeded' && intentMatchesCurrent
-        ? <p className="text-emerald-300">{t('step4.basic.verified_activation')}</p>
-        : operation.status === 'succeeded' && <p className="text-amber-300">{t('step4.basic.unconfirmed')}</p>}
+        ? <p className="text-[var(--gw-success-fg)]">{t('step4.basic.verified_activation')}</p>
+        : operation.status === 'succeeded' && <p className="text-[var(--gw-warning-fg)]">{t('step4.basic.unconfirmed')}</p>}
       {operation.next_action === 'prepare_schema' && onOpenAdvanced && (
-        <button type="button" onClick={onOpenAdvanced} className="mt-2 rounded border border-amber-700 px-3 py-2 text-xs text-amber-200" data-testid="basic-recording-open-advanced">
+        <button type="button" onClick={onOpenAdvanced} className="mt-2 rounded border border-[var(--gw-warning-border)] px-3 py-2 text-xs text-[var(--gw-warning-fg)]" data-testid="basic-recording-open-advanced">
           {t('step4.basic.prepare_schema')}
         </button>
       )}

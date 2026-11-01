@@ -25,8 +25,8 @@ const timestamp = (value: string | null | undefined, labels: Labels) => value &&
 
 function Fields({ rows }: { rows: readonly Row[] }) {
   return <dl className="grid min-w-0 gap-3 sm:grid-cols-2">{rows.map(([label, value], index) =>
-    <div key={`${label}-${index}`} className="min-w-0"><dt className="text-xs text-slate-400">{label}</dt>
-      <dd className="break-words text-sm text-slate-100">{value}</dd></div>)}</dl>;
+    <div key={`${label}-${index}`} className="min-w-0"><dt className="text-xs text-[var(--gw-muted)]">{label}</dt>
+      <dd className="break-words text-sm text-[var(--gw-text)]">{value}</dd></div>)}</dl>;
 }
 function memberRows(member: RecordingReadonly<RecordingMember>, labels: Labels): Row[] {
   const f = labels.detailFields;
@@ -53,7 +53,7 @@ function SavedMember({ member, labels }: { member: RecordingReadonly<WriteGroupM
     [f.semanticKind, proof.semantic_kind === 'counter' || proof.semantic_kind === 'signed_counter' ? f[proof.semantic_kind] : labels.unavailable], [f.allowNegative, yesNo(policy?.allow_negative, labels)],
     [f.resetThreshold, scalar(policy?.reset_threshold, labels)], [f.maxRollover, scalar(policy?.max_roll_over, labels)],
     [f.rolloverModulus, decimal(policy?.rollover_modulus, labels)], [f.maxRate, decimal(policy?.max_rate_per_second, labels)]);
-  return <li className="min-w-0 rounded border border-slate-700 p-3"><Fields rows={rows} /></li>;
+  return <li className="min-w-0 rounded border border-[var(--gw-border)] p-3"><Fields rows={rows} /></li>;
 }
 
 /** Allowlisted projections of existing owners only. No query, editor, raw token, SQL, or mutation. */
@@ -73,7 +73,7 @@ export function RecordingRuleDetails({ view, labels }: { view: RecordingWorkflow
   return <div className="space-y-5">
     <section aria-label={labels.savedDetails} className="min-w-0 space-y-3">
       <h4 className="font-medium">{labels.savedDetails}</h4>
-      <p className="text-sm text-slate-400">{labels.savedDescription}</p>
+      <p className="text-sm text-[var(--gw-muted)]">{labels.savedDescription}</p>
       <Fields rows={[
         [labels.fields.interval, `${scalar(group.row_policy.interval_seconds, labels)} ${labels.units.second}`],
         [labels.fields.lateness, `${scalar(group.row_policy.allowed_lateness_seconds, labels)} ${labels.units.second}`],
@@ -88,21 +88,21 @@ export function RecordingRuleDetails({ view, labels }: { view: RecordingWorkflow
         [f.recordKeyColumn, identity(group.row_policy.record_key_column, labels)], [f.bucketStartColumn, identity(group.row_policy.bucket_start_column, labels)],
         [f.groupIdColumn, identity(group.row_policy.group_id_column, labels)], [f.deviceIdColumn, identity(group.row_policy.device_id_column, labels)],
       ]} />
-      <p className="text-xs text-slate-400">{labels.savedReferences}</p>
+      <p className="text-xs text-[var(--gw-muted)]">{labels.savedReferences}</p>
       <ul aria-label={labels.savedDetails} className="space-y-2">{group.members.map((member) =>
         <SavedMember key={JSON.stringify([member.device_id, member.point_id, member.tag_id])} member={member} labels={labels} />)}</ul>
     </section>
     <section aria-label={labels.effectiveDetails} className="min-w-0 space-y-3">
       <h4 className="font-medium">{labels.effectiveDetails}</h4>
-      <p className="text-sm text-slate-400">{labels.effectiveDescription}</p>
+      <p className="text-sm text-[var(--gw-muted)]">{labels.effectiveDescription}</p>
       {effective ? <>
         <Fields rows={[[f.connector, identity(effective.facts.destination.connector_id, labels)],
           [f.connectorRevision, identity(effective.facts.destination.connector_revision, labels)]]} />
         <ul aria-label={labels.effectiveDetails} className="space-y-2">{effective.facts.members.map(member =>
-          <li className="min-w-0 rounded border border-slate-700 p-3" key={JSON.stringify([member.device_id, member.point_id, member.tag_id])}>
+          <li className="min-w-0 rounded border border-[var(--gw-border)] p-3" key={JSON.stringify([member.device_id, member.point_id, member.tag_id])}>
             <Fields rows={memberRows(member, labels)} /></li>)}</ul>
       </> : <p role="status">{labels.unavailable}</p>}
-      {counterRelevant && <p role="status" className="text-sm text-slate-400">{labels.effectiveCounterUnavailable}</p>}
+      {counterRelevant && <p role="status" className="text-sm text-[var(--gw-muted)]">{labels.effectiveCounterUnavailable}</p>}
     </section>
     <section aria-label={f.schemaEvidence} className="space-y-3">
       <h4 className="font-medium">{f.schemaEvidence}</h4>
@@ -118,7 +118,7 @@ export function RecordingRuleDetails({ view, labels }: { view: RecordingWorkflow
     </section>
     <section aria-label={f.delivery} className="space-y-3">
       <h4 className="font-medium">{f.delivery}</h4>
-      <p className="text-sm text-slate-400">{labels.deliveryDescription}</p>
+      <p className="text-sm text-[var(--gw-muted)]">{labels.deliveryDescription}</p>
       <Fields rows={[
         [f.intake, knownState(current?.intake?.state, labels)],
         [f.collecting, scalar(stages?.collecting, labels)], [f.queued, scalar(stages?.queued, labels)],

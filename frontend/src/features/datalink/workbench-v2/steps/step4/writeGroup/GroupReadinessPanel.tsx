@@ -17,7 +17,7 @@ function Fact({ label, value }: { label: string; value: boolean }) {
     <li className="flex items-center gap-2">
       <span aria-hidden="true">{value ? '✓' : '✗'}</span>
       <span>{label}</span>
-      <span className={value ? 'text-emerald-300' : 'text-amber-300'}>{value ? t('step4.group.readiness.yes') : t('step4.group.readiness.no')}</span>
+      <span className={value ? 'text-[var(--gw-success-fg)]' : 'text-[var(--gw-warning-fg)]'}>{value ? t('step4.group.readiness.yes') : t('step4.group.readiness.no')}</span>
     </li>
   );
 }
@@ -25,19 +25,19 @@ function Fact({ label, value }: { label: string; value: boolean }) {
 /** Shows the backend's persisted-readiness answer for the saved group; the editor never computes it. */
 export const GroupReadinessPanel: React.FC<GroupReadinessPanelProps> = ({ readiness, loading, failed, dirty, onRetry }) => {
   const { t } = useTranslation('workbench-v2');
-  if (loading) return <p className="text-xs text-slate-400" role="status" data-testid="group-readiness-loading">{t('step4.group.readiness.loading')}</p>;
+  if (loading) return <p className="text-xs text-[var(--gw-muted)]" role="status" data-testid="group-readiness-loading">{t('step4.group.readiness.loading')}</p>;
   if (failed) {
     return (
-      <div role="alert" className="text-xs text-amber-300" data-testid="group-readiness-failed">
+      <div role="alert" className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-readiness-failed">
         {t('step4.group.readiness.failed')}
         <button type="button" onClick={onRetry} className="ml-2 underline" data-testid="group-readiness-retry">{t('step4.group.retry')}</button>
       </div>
     );
   }
-  if (!readiness) return <p className="text-xs text-slate-500" data-testid="group-readiness-none">{t('step4.group.readiness.none')}</p>;
+  if (!readiness) return <p className="text-xs text-[var(--gw-muted)]" data-testid="group-readiness-none">{t('step4.group.readiness.none')}</p>;
   return (
-    <div className="space-y-2 text-xs text-slate-300" data-testid="group-readiness">
-      {dirty && <p className="text-amber-300" data-testid="group-readiness-stale">{t('step4.group.readiness.stale_draft')}</p>}
+    <div className="space-y-2 text-xs text-[var(--gw-text)]" data-testid="group-readiness">
+      {dirty && <p className="text-[var(--gw-warning-fg)]" data-testid="group-readiness-stale">{t('step4.group.readiness.stale_draft')}</p>}
       <ul className="space-y-1">
         <Fact label={t('step4.group.readiness.config')} value={readiness.config_ready} />
         <Fact label={t('step4.group.readiness.schema')} value={readiness.schema_ready} />
@@ -46,7 +46,7 @@ export const GroupReadinessPanel: React.FC<GroupReadinessPanelProps> = ({ readin
       {readiness.issues.length > 0 && (
         <ul className="space-y-1" data-testid="group-readiness-issues">
           {readiness.issues.map((issue) => (
-            <li key={`${issue.code}-${issue.scope}`} className={issue.severity === 'blocking' ? 'text-red-300' : 'text-amber-300'}>
+            <li key={`${issue.code}-${issue.scope}`} className={issue.severity === 'blocking' ? 'text-[var(--gw-danger-fg)]' : 'text-[var(--gw-warning-fg)]'}>
               <span className="font-semibold">{issue.severity === 'blocking' ? t('step4.group.readiness.blocking') : t('step4.group.readiness.warning')}</span>
               {' · '}{issue.message}
             </li>

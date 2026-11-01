@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../../../components/ParameterHelp';
 import type { StudioV2LocatorReadScope } from '../../../../../../services/studioV2WorkspaceDatabase';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -22,7 +23,7 @@ export interface CounterPolicyEditorProps {
 }
 
 type Outcome = 'saved' | 'epoch_started';
-const FIELD = 'mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100 disabled:opacity-50';
+const FIELD = 'mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1 text-xs text-[var(--gw-text)] disabled:opacity-50';
 
 function SourcePolicy({ def, confirmed, label, readonly, outcome, onSaved }: {
   def: MeasurementDefinition; confirmed: boolean; label: string; readonly: boolean; outcome?: Outcome; onSaved: (outcome: Outcome) => void;
@@ -59,40 +60,40 @@ function SourcePolicy({ def, confirmed, label, readonly, outcome, onSaved }: {
   };
 
   return (
-    <fieldset data-testid={`counter-policy-source-${tag}`} disabled={locked} className="space-y-2 rounded border border-slate-800 p-3">
-      <legend className="px-1 text-xs font-medium text-slate-200">{label}</legend>
-      <p data-testid={`counter-policy-revision-${tag}`} className="text-[11px] text-slate-500">
+    <fieldset data-testid={`counter-policy-source-${tag}`} className="space-y-2 rounded border border-[var(--gw-control)] p-3">
+      <legend className="px-1 text-xs font-medium text-[var(--gw-text)]">{label}</legend>
+      <p data-testid={`counter-policy-revision-${tag}`} className="text-xs text-[var(--gw-muted)]">
         {t('step4.group.policy.unit')}: {def.unit} · {t('step4.group.policy.definition_revision')}: {def.definition_revision} · {t('step4.group.policy.series_epoch')}: {def.series_epoch}
       </p>
-      <label className="flex items-center gap-2 text-xs text-slate-200">
+      <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 flex items-center gap-2 text-xs text-[var(--gw-text)]">
         <input type="checkbox" data-testid={`counter-policy-signed-${tag}`} checked={form.signed} disabled={locked}
           onChange={(event) => setForm((current) => ({ ...current, signed: event.target.checked }))} />
         <span>{t('step4.group.policy.signed')}</span>
-      </label>
+      </label><ParameterHelp help="counterPolicy.signed" /></div>
       <div className="grid gap-2 sm:grid-cols-2">
-        <label className="block text-xs text-slate-400">
+        <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block text-xs text-[var(--gw-muted)]">
           <span>{t('step4.group.policy.modulus')}</span>
           <input type="text" inputMode="decimal" data-testid={`counter-policy-modulus-${tag}`} value={form.modulus} disabled={locked || wrapLocked}
             aria-invalid={issues.includes('modulus_invalid')} aria-describedby={describedBy} className={FIELD}
             onChange={(event) => setForm((current) => ({ ...current, modulus: event.target.value }))} />
-        </label>
-        <label className="block text-xs text-slate-400">
+        </label><ParameterHelp help="counterPolicy.modulus" /></div>
+        <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block text-xs text-[var(--gw-muted)]">
           <span>{t('step4.group.policy.rate')}</span>
           <input type="text" inputMode="decimal" data-testid={`counter-policy-rate-${tag}`} value={form.rate} disabled={locked || wrapLocked}
             aria-invalid={issues.includes('rate_invalid') || issues.includes('rate_needs_modulus')} aria-describedby={describedBy} className={FIELD}
             onChange={(event) => setForm((current) => ({ ...current, rate: event.target.value }))} />
-        </label>
+        </label><ParameterHelp help="counterPolicy.rate" /></div>
       </div>
-      {!confirmed && <p role="status" data-testid={`counter-policy-unconfirmed-${tag}`} className="text-xs text-amber-300">{t('step4.group.policy.unconfirmed')}</p>}
+      {!confirmed && <p role="status" data-testid={`counter-policy-unconfirmed-${tag}`} className="text-xs text-[var(--gw-warning-fg)]">{t('step4.group.policy.unconfirmed')}</p>}
       {issues.length > 0 && (
-        <ul id={describedBy} data-testid={`counter-policy-issues-${tag}`} className="list-disc pl-5 text-xs text-amber-300">
+        <ul id={describedBy} data-testid={`counter-policy-issues-${tag}`} className="list-disc pl-5 text-xs text-[var(--gw-warning-fg)]">
           {issues.map((issue) => <li key={issue}>{t(`step4.group.policy.issue.${issue}`)}</li>)}
         </ul>
       )}
-      {error && <p role="alert" className="text-xs text-red-300">{error}</p>}
-      {outcome && <p role="status" data-testid={`counter-policy-result-${tag}`} className="text-xs text-emerald-300">{t(`step4.group.policy.${outcome}`)}</p>}
+      {error && <p role="alert" className="text-xs text-[var(--gw-danger-fg)]">{error}</p>}
+      {outcome && <p role="status" data-testid={`counter-policy-result-${tag}`} className="text-xs text-[var(--gw-success-fg)]">{t(`step4.group.policy.${outcome}`)}</p>}
       <button type="button" data-testid={`counter-policy-save-${tag}`} disabled={!canSave} onClick={() => void save()}
-        className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-40">
+        className="rounded bg-[var(--gw-active)] px-3 py-1 text-xs font-semibold text-[var(--gw-text)] disabled:opacity-40">
         {update.isPending ? t('step4.group.policy.saving') : t('step4.group.policy.save')}
       </button>
     </fieldset>
@@ -112,16 +113,16 @@ export const CounterPolicyEditor: React.FC<CounterPolicyEditorProps> = ({ worksp
   const [notOnScreen, setNotOnScreen] = React.useState<Record<string, boolean>>({});
   const definitions = Array.isArray(query.data) ? query.data : [];
   return (
-    <section data-testid="counter-policy" aria-label={t('step4.group.policy.title')} className="space-y-2 rounded border border-slate-800 p-3">
-      <h4 className="text-sm font-semibold text-slate-200">{t('step4.group.policy.title')}</h4>
-      <p className="text-xs text-slate-400">{t('step4.group.policy.note')}</p>
+    <section data-testid="counter-policy" aria-label={t('step4.group.policy.title')} className="space-y-2 rounded border border-[var(--gw-control)] p-3">
+      <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.policy.title')}</h4>
+      <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.policy.note')}</p>
       {query.isError && (
-        <p role="alert" data-testid="counter-policy-error" className="text-xs text-amber-300">
+        <p role="alert" data-testid="counter-policy-error" className="text-xs text-[var(--gw-warning-fg)]">
           {t('step4.group.policy.load_failed')}
           <button type="button" onClick={() => void query.refetch()} className="ml-2 underline">{t('step4.group.retry')}</button>
         </p>
       )}
-      {query.isLoading && <p role="status" className="text-xs text-slate-400">{t('step4.group.policy.loading')}</p>}
+      {query.isLoading && <p role="status" className="text-xs text-[var(--gw-muted)]">{t('step4.group.policy.loading')}</p>}
       {!query.isLoading && !query.isError && members.map((member) => {
         const source = resolvePolicyDefinition(workspaceId, member, definitions);
         const label = labels[member.tag_id] ?? member.tag_id;
@@ -130,9 +131,9 @@ export const CounterPolicyEditor: React.FC<CounterPolicyEditorProps> = ({ worksp
           ? <SourcePolicy key={`${source.def.id}:${source.def.definition_revision}:${source.def.series_epoch}`} def={source.def} confirmed={source.confirmed} label={label}
             readonly={readonly} outcome={outcomes[outcomeKey]} onSaved={(outcome) => setOutcomes((current) => ({ ...current, [outcomeKey]: outcome }))} />
           : (
-            <div key={member.tag_id} className="space-y-1 text-xs text-amber-300">
+            <div key={member.tag_id} className="space-y-1 text-xs text-[var(--gw-warning-fg)]">
               <p data-testid={`counter-policy-missing-${member.tag_id}`}>{label} · {t('step4.group.policy.missing')}</p>
-              <button type="button" data-testid={`counter-policy-open-basic-${member.tag_id}`} className="rounded border border-amber-600/60 px-2 py-1"
+              <button type="button" data-testid={`counter-policy-open-basic-${member.tag_id}`} className="rounded border border-[var(--gw-warning-border)] px-2 py-1"
                 onClick={() => setNotOnScreen((current) => ({ ...current, [member.tag_id]: !focusCounterConfirmation(member.tag_id) }))}>
                 {t('step4.group.policy.open_basic')}
               </button>

@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../../components/ParameterHelp';
 import { supportsWriteGroupKind } from './writeGroupCapabilities';
 import { useTranslation } from 'react-i18next';
 import type { DbConnector } from '../../state/types';
@@ -37,9 +38,9 @@ export function KindSelector({ value, onChange, disabled = false }: KindSelector
 
   return (
     <div className="space-y-3">
-      <label className="text-sm font-medium text-gray-400">
+      <label className="text-sm font-medium text-[var(--gw-muted)]">
         {t('step4.connector_kind')}
-      </label>
+      </label><ParameterHelp help="db.kind" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {options.map((opt) => {
           const isActive = value === opt.kind;
@@ -52,13 +53,13 @@ export function KindSelector({ value, onChange, disabled = false }: KindSelector
               onClick={() => { if (!unavailable) onChange(opt.kind); }}
               className={`
                 flex flex-col items-center justify-center p-4 rounded-xl border text-center transition-all duration-200
-                ${disabled 
-                  ? 'opacity-50 cursor-not-allowed border-gray-800 bg-gray-900/20' 
+                ${disabled
+                  ? 'opacity-50 cursor-not-allowed border-[var(--gw-control)] bg-[var(--gw-surface)]'
                   : 'cursor-pointer'
                 }
                 ${isActive && !disabled
-                  ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_12px_rgba(59,130,246,0.25)] text-white'
-                  : 'border-gray-800 bg-gray-900/40 hover:border-gray-700 hover:bg-gray-900/60 text-gray-400 hover:text-gray-200'
+                  ? 'border-[var(--gw-focus)] bg-[var(--gw-active)] shadow-[0_0_12px_rgba(59,130,246,0.25)] text-[var(--gw-text)]'
+                  : 'border-[var(--gw-control)] bg-[var(--gw-surface)] hover:border-[var(--gw-control)] hover:bg-[var(--gw-surface)] text-[var(--gw-muted)] hover:text-[var(--gw-text)]'
                 }
               `}
             >
@@ -68,7 +69,7 @@ export function KindSelector({ value, onChange, disabled = false }: KindSelector
               <span className="font-semibold text-sm block">
                 {t(`step4.kind_${opt.kind}`, opt.label)}
               </span>
-              <span className="text-xs text-gray-500 mt-1 block leading-tight">
+              <span className="text-xs text-[var(--gw-muted)] mt-1 block leading-tight">
                 {unavailable ? t('step4.group_kind_unsupported') : opt.desc}
               </span>
             </button>

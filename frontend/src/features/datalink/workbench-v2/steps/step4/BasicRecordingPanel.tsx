@@ -1,3 +1,4 @@
+import { ParameterHelp } from '../../components/ParameterHelp';
 import { LegacyRecordingReadError } from './LegacyRecordingReadError';
 import { RecordingDraftBoundary, useRecordingNavigation } from '../../recording-editor/RecordingDraftNavigation';
 import { useBasicLegacyDraftNavigation, useShareOnlyPresentation } from './useLegacyRecordingDraftNavigation';
@@ -270,7 +271,7 @@ const BasicRecordingPanelContent: React.FC<BasicRecordingPanelProps> = ({
     pending: operationActive || Boolean(localIntent && (!operation || ['pending', 'running', 'partial', 'unknown'].includes(operation.status))),
     interval: intervalSeconds, policy: incompletePolicy, setInterval: setIntervalSeconds, setPolicy: setIncompletePolicy });
   if (supportsCircuitProfile && !shareOnly) {
-    if (groupsQuery.isLoading) return <div data-testid="circuit-profile-groups-loading" className="rounded border border-slate-800 p-4 text-xs text-slate-400">{t('step4.basic.circuit.groups_loading')}</div>;
+    if (groupsQuery.isLoading) return <div data-testid="circuit-profile-groups-loading" className="rounded border border-[var(--gw-control)] p-4 text-xs text-[var(--gw-muted)]">{t('step4.basic.circuit.groups_loading')}</div>;
     if (groupsQuery.isError && !groupsQuery.data) return readError;
     if (!hasLegacyBasicWide || legacyMode !== 'edit') return <>{readError}<CircuitProfileBasicPanel renderScopeSummary={renderScopeSummary} lifecycleHost={lifecycleHost} key={JSON.stringify([workspaceId, selectedDeviceId, legacyMode])} prepareOnly={legacyMode === 'prepare'} onClose={() => request(() => setLegacyView({ scope: legacyScope, mode: 'edit' }))} legacyGroup={legacyGroup} onEditLegacy={() => request(() => setLegacyView({ scope: legacyScope, mode: 'edit' }))} deviceId={selectedDeviceId} onSelectDevice={selectByOperator} state={state} workspaceId={workspaceId} readonly={readonly} workspaceRevision={workspaceRevision} readinessToken={shareStatus?.readiness_token} settingsRevision={shareStatus?.settings_revision} shareWorkspaceRevision={shareStatus?.workspace_revision} onOpenAdvanced={onOpenAdvanced} onContinueToRuntime={(ids) => onCommit?.(ids)} onOperationActiveChange={onOperationActiveChange} circuitRequest={circuitRequest} onCircuitRequestDone={clearCircuitRequest} /><RemovedRecordingManagement groups={groups} deviceId={selectedDeviceId} workspaceId={workspaceId} workspaceRevision={workspaceRevision} readonly={readonly} lifecycleHost={lifecycleHost} onOpenAdvanced={onOpenAdvanced} /></>;
   }
@@ -378,16 +379,16 @@ const BasicRecordingPanelContent: React.FC<BasicRecordingPanelProps> = ({
         /> : undefined;
 
   return (
-    <section className="space-y-4 rounded-xl border border-cyan-900/70 bg-slate-950/40 p-5" aria-labelledby="basic-recording-title" data-testid="basic-recording-panel">
+    <section className="space-y-4 rounded-xl border border-[var(--gw-focus)] bg-[var(--gw-surface)] p-5" aria-labelledby="basic-recording-title" data-testid="basic-recording-panel">
       {readError}
       <div>
-        <h3 id="basic-recording-title" className="text-sm font-semibold text-slate-100">{t('step4.basic.title')}</h3>
-        <p className="mt-1 text-xs leading-5 text-slate-400">{t('step4.basic.subtitle')}</p>
-        {supportsCircuitProfile && !shareOnly && <button type="button" data-testid="device-recording-back-setup" disabled={operationActive} onClick={() => request(() => setLegacyView(undefined))} className="mt-2 text-xs text-cyan-300 underline disabled:opacity-40">{t('step4.basic.existing.back')}</button>}
+        <h3 id="basic-recording-title" className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.basic.title')}</h3>
+        <p className="mt-1 text-xs leading-5 text-[var(--gw-muted)]">{t('step4.basic.subtitle')}</p>
+        {supportsCircuitProfile && !shareOnly && <button type="button" data-testid="device-recording-back-setup" disabled={operationActive} onClick={() => request(() => setLegacyView(undefined))} className="mt-2 text-xs text-[var(--gw-accent)] underline disabled:opacity-40">{t('step4.basic.existing.back')}</button>}
       </div>
 
       {deviceIds.length > 0 && (
-        <div className="block text-xs text-slate-300">
+        <div className="block text-xs text-[var(--gw-text)]">
           <span>{t('step4.basic.device')}</span>
           <div className="mt-1">
             <DeviceScopeTiles
@@ -404,47 +405,47 @@ const BasicRecordingPanelContent: React.FC<BasicRecordingPanelProps> = ({
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs text-slate-300">
+        <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block text-xs text-[var(--gw-text)]">
           <span>{t('step4.basic.interval')}</span>
           <input type="number" min={1} value={intervalSeconds} disabled={operationActive || readonly} onChange={(event) => {
             const next = Math.max(1, Number(event.target.value) || 1);
             saveBasicLegacyDraft(scopeKey, { intervalSeconds: next });
             setIntervalSeconds(next);
-          }} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" data-testid="basic-recording-interval" />
-        </label>
-        <label className="block text-xs text-slate-300">
+          }} className="mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-2 text-sm text-[var(--gw-text)]" data-testid="basic-recording-interval" />
+        </label><ParameterHelp help="policy.interval" /></div>
+        <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block text-xs text-[var(--gw-text)]">
           <span>{t('step4.basic.completeness')}</span>
           <select value={incompletePolicy} disabled={operationActive || readonly} onChange={(event) => {
             saveBasicLegacyDraft(scopeKey, { incompletePolicy: event.target.value });
             setIncompletePolicy(event.target.value);
-          }} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" data-testid="basic-recording-completeness">
+          }} className="mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-2 text-sm text-[var(--gw-text)]" data-testid="basic-recording-completeness">
             <option value="skip_row">{t('step4.basic.skip_row')}</option>
             <option value="partial">{t('step4.basic.partial_row')}</option>
           </select>
-        </label>
+        </label><ParameterHelp help="policy.incomplete" /></div>
       </div>
 
-      {!shareOnly && <div className="space-y-1 text-xs text-slate-400" data-testid="basic-required-policy">
+      {!shareOnly && <div className="space-y-1 text-xs text-[var(--gw-muted)]" data-testid="basic-required-policy">
         <p>{t('basic.required_hint', { ns: 'studio-review' })}</p>
         <p>{t('basic.required_count', { ns: 'studio-review', count: (basicSelectedGroup?.members ?? selectedDraft?.members ?? []).filter(member => member.required).length })}</p>
         {basicSelectedGroup && onOpenMemberSettings
-          ? <button type="button" disabled={operationActive} className="text-cyan-300 underline" data-testid="basic-member-settings" onClick={() => onOpenMemberSettings(basicSelectedGroup.id)}>{t('basic.member_settings', { ns: 'studio-review' })}</button>
+          ? <button type="button" disabled={operationActive} className="text-[var(--gw-accent)] underline" data-testid="basic-member-settings" onClick={() => onOpenMemberSettings(basicSelectedGroup.id)}>{t('basic.member_settings', { ns: 'studio-review' })}</button>
           : <p>{t('basic.prepare_first', { ns: 'studio-review' })}</p>}
       </div>}
 
-      <p className="text-xs text-slate-400" data-testid="basic-recording-destination">
+      <p className="text-xs text-[var(--gw-muted)]" data-testid="basic-recording-destination">
         {shareOnly
           ? t('step4.basic.share_only_destination')
           : t('step4.basic.destination', { name: safeRuntimeLabel(state.db.connector.name) || state.db.connector.kind })}
       </p>
 
-      {blockReason && <p role="status" className="text-xs text-amber-300" data-testid="basic-recording-blocked">{t(`step4.basic.blocked.${blockReason}`)}</p>}
-      {destinationMismatch && <p role="alert" className="text-xs text-amber-300" data-testid="basic-recording-destination-mismatch">{t('step4.basic.blocked.destination_mismatch')}</p>}
-      {advancedGroups.length > 0 && <p className="text-xs text-slate-500" data-testid="basic-recording-advanced-note">{t('step4.basic.advanced_note', { count: advancedGroups.length })}</p>}
+      {blockReason && <p role="status" className="text-xs text-[var(--gw-warning-fg)]" data-testid="basic-recording-blocked">{t(`step4.basic.blocked.${blockReason}`)}</p>}
+      {destinationMismatch && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]" data-testid="basic-recording-destination-mismatch">{t('step4.basic.blocked.destination_mismatch')}</p>}
+      {advancedGroups.length > 0 && <p className="text-xs text-[var(--gw-muted)]" data-testid="basic-recording-advanced-note">{t('step4.basic.advanced_note', { count: advancedGroups.length })}</p>}
       {!shareOnly && (selectedGroup?.members.length ?? selectedCandidates.length) > 0 && (
         <>
           <BasicRecordingMembers candidates={selectedCandidates} group={selectedGroup} onRepair={onOpenAdvanced} />
-          <p className="text-xs text-slate-500">{t('step4.basic.members', { count: selectedGroup?.members.length ?? selectedCandidates.length })}</p>
+          <p className="text-xs text-[var(--gw-muted)]">{t('step4.basic.members', { count: selectedGroup?.members.length ?? selectedCandidates.length })}</p>
         </>
       )}
       {membersMismatch && basicSelectedGroup && <BasicMemberUpdate group={basicSelectedGroup} deviceId={selectedDeviceId} candidates={selectedCandidates} workspaceRevision={workspaceRevision} onOpenAdvanced={onOpenAdvanced} isBlocked={() => isPreparationBlocked(basicSelectedGroup.id)} disabled={excluded.length > 0 || readonly || operationActive || destinationMismatch || !workspaceSnapshotReady || operation?.status === 'unknown' || Boolean(localIntent && !operation)} onUpdated={() => void groupsQuery.refetch()} />}
@@ -482,16 +483,16 @@ const BasicRecordingPanelContent: React.FC<BasicRecordingPanelProps> = ({
           return !workspaceBlocked() && !result.isError && !result.error && retained?.operation_id === operationId && JSON.stringify(retained.request) === JSON.stringify(localIntent.request) &&
             isOriginalRequestRetry(result.data, operationId, localIntent.request) && !recordingStartRecoveryBlocked(scopeKey, workspaceId ?? '', localIntent.request.groups.map(group => group.group_id), operationId); }} />}
       {shareOnly && <div className="flex flex-wrap items-center gap-3">
-        <button type="button" disabled={Boolean(blockReason) || operationActive || groupsQuery.isLoading} onClick={() => void handleStart()} className="rounded bg-cyan-600 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40" data-testid="basic-recording-start">
+        <button type="button" disabled={Boolean(blockReason) || operationActive || groupsQuery.isLoading} onClick={() => void handleStart()} className="rounded bg-[var(--gw-active)] px-4 py-2 text-xs font-semibold text-[var(--gw-text)] disabled:cursor-not-allowed disabled:opacity-40" data-testid="basic-recording-start">
           {operationActive ? t('step4.basic.starting') : t('step4.basic.start')}
         </button>
-        {operation?.status && ['pending', 'running', 'partial', 'failed', 'unknown'].includes(operation.status) && <button type="button" disabled={actionBusy || !intentMatchesCurrent || Boolean(blockReason)} onClick={handleRetry} className="rounded border border-slate-600 px-3 py-2 text-xs text-slate-200 disabled:opacity-40" data-testid="basic-recording-retry">{t('step4.basic.retry')}</button>}
-        {operationId && operationQuery.isError && <button type="button" onClick={() => void operationQuery.refetch()} className="rounded border border-slate-600 px-3 py-2 text-xs text-slate-200" data-testid="basic-recording-check">{t('step4.basic.check')}</button>}
+        {operation?.status && ['pending', 'running', 'partial', 'failed', 'unknown'].includes(operation.status) && <button type="button" disabled={actionBusy || !intentMatchesCurrent || Boolean(blockReason)} onClick={handleRetry} className="rounded border border-[var(--gw-control)] px-3 py-2 text-xs text-[var(--gw-text)] disabled:opacity-40" data-testid="basic-recording-retry">{t('step4.basic.retry')}</button>}
+        {operationId && operationQuery.isError && <button type="button" onClick={() => void operationQuery.refetch()} className="rounded border border-[var(--gw-control)] px-3 py-2 text-xs text-[var(--gw-text)]" data-testid="basic-recording-check">{t('step4.basic.check')}</button>}
       </div>}
 
-      {safeActionError && <p role="alert" className="text-xs text-red-300" data-testid="basic-recording-error">{safeActionError}</p>}
+      {safeActionError && <p role="alert" className="text-xs text-[var(--gw-danger-fg)]" data-testid="basic-recording-error">{safeActionError}</p>}
       {shareOnly && renderStartResult(false)}
-      {operationQuery.isError && operationId && <p role="alert" className="text-xs text-amber-300" data-testid="basic-recording-query-error">{t('step4.basic.query_failed')}</p>}
+      {operationQuery.isError && operationId && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]" data-testid="basic-recording-query-error">{t('step4.basic.query_failed')}</p>}
     </section>
   );
 };

@@ -25,15 +25,15 @@ export interface RecordingNextActionProps {
 export function RecordingNextAction({ input, labels, scopeLabel, onIntent, disabled, blockedReason, testId, onRepair, repairLabel }: RecordingNextActionProps) {
   const statusId = useId();
   const model = recordingNextAction(input);
-  return <section aria-label={labels.heading} className="space-y-3 rounded border border-slate-700 p-3">
-    <h3 className="text-sm font-medium text-slate-100">{labels.heading}</h3>
-    <p className="break-words text-sm text-slate-300">{scopeLabel} — {labels.scopes[model.configurationScope.kind]}</p>
-    <p id={statusId} role="status" className="text-sm text-slate-300">{model.reasons.map((reason) => labels.reasons[reason]).join(' ')} {blockedReason}</p>
+  return <section aria-label={labels.heading} className="space-y-3 rounded border border-[var(--gw-border)] p-3">
+    <h3 className="text-sm font-medium text-[var(--gw-text)]">{labels.heading}</h3>
+    <p className="break-words text-sm text-[var(--gw-text)]">{scopeLabel} — {labels.scopes[model.configurationScope.kind]}</p>
+    <p id={statusId} role="status" className="text-sm text-[var(--gw-text)]">{model.reasons.map((reason) => labels.reasons[reason]).join(' ')} {blockedReason}</p>
     <button type="button" data-primary="true" data-testid={testId} aria-describedby={statusId} disabled={!model.enabled || disabled}
-      className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50"
+      className="rounded bg-[var(--gw-primary)] px-3 py-2 text-sm text-[var(--gw-on-primary)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]"
       onClick={() => onIntent(model.intent)}>{labels.actions[model.intent.kind]}</button>
     {model.intent.kind !== 'inspect' && <button type="button"
-      className="ml-2 rounded border border-slate-600 px-3 py-2 text-sm text-slate-200"
+      className="ml-2 rounded border border-[var(--gw-control)] px-3 py-2 text-sm text-[var(--gw-text)]"
       onClick={() => onIntent({ kind: 'inspect', scope: model.intent.scope })}>{labels.actions.inspect}</button>}
     {(disabled || !model.enabled) && onRepair && <button type="button" className="ml-2 text-sm underline"
       onClick={onRepair}>{repairLabel ?? labels.actions.inspect}</button>}

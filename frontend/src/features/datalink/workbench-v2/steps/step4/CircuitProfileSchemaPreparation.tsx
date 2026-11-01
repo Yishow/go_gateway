@@ -103,8 +103,8 @@ const PreparedGroup: React.FC<PreparedGroupProps> = ({
   };
 
   return (
-    <div data-testid={`circuit-prepared-group-${groupProfileKind(group) ?? 'instantaneous'}`} className="space-y-2 rounded border border-slate-800/80 bg-slate-950/30 p-3">
-      <p className="text-xs font-medium text-slate-300">
+    <div data-testid={`circuit-prepared-group-${groupProfileKind(group) ?? 'instantaneous'}`} className="space-y-2 rounded border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3">
+      <p className="text-xs font-medium text-[var(--gw-text)]">
         {group.name} ({t(`step4.basic.circuit.${groupProfileKind(group) ?? 'instantaneous'}_label`)})
       </p>
       <GroupSchemaPanel
@@ -178,13 +178,13 @@ export const CircuitProfileSchemaPreparation: React.FC<CircuitProfileSchemaPrepa
       className="space-y-3"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-xs font-semibold text-slate-200">{t('step4.basic.circuit.step_schema')}</h4>
+        <h4 className="text-xs font-semibold text-[var(--gw-text)]">{t('step4.basic.circuit.step_schema')}</h4>
         {!guided && <button
           type="button"
           data-testid="circuit-profile-prepare"
           disabled={disabled || readonly || isPreparing}
           onClick={() => void onPrepare()}
-          className="rounded border border-slate-600 px-3 py-2 text-xs text-slate-200 disabled:opacity-40"
+          className="rounded border border-[var(--gw-control)] px-3 py-2 text-xs text-[var(--gw-text)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]"
         >
           {t('step4.basic.prepare_schema')}
         </button>}

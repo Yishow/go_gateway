@@ -124,15 +124,16 @@ describe('StatusChip Component', () => {
   it('should render correct tone classes and text', () => {
     render(<StatusChip tone="success">Active</StatusChip>);
     const chip = screen.getByText('Active');
-    expect(chip).toHaveClass('border-emerald-500/30');
+    expect(chip).toHaveClass('border-[var(--gw-success-border)]', 'text-[var(--gw-success-fg)]');
   });
 
-  it('should render pulse-dot for info and success tones', () => {
+  it('keeps status text and a static dot without infinite animation', () => {
     const { container: successContainer } = render(
       <StatusChip tone="success">Success</StatusChip>
     );
-    const successDot = successContainer.querySelector('.pulse-dot');
-    expect(successDot).toBeInTheDocument();
+    expect(successContainer.querySelector('.pulse-dot')).not.toBeInTheDocument();
+    expect(successContainer.querySelector('.bg-current')).toBeInTheDocument();
+    expect(screen.getByText('Success')).toBeInTheDocument();
 
     const { container: neutralContainer } = render(
       <StatusChip tone="neutral">Neutral</StatusChip>

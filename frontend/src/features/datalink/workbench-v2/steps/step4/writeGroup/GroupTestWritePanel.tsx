@@ -193,15 +193,15 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
     preview.target.dialect === 'sqlserver';
 
   return (
-    <section className="space-y-3 rounded-lg border border-slate-800 p-4" aria-labelledby={`group-test-write-${groupId}`} data-testid="group-test-write">
-      <h4 id={`group-test-write-${groupId}`} className="text-sm font-semibold text-slate-200">{t('step4.group.test_write.title')}</h4>
-      <p className="text-xs text-slate-400">{t('step4.group.test_write.intro')}</p>
+    <section className="space-y-3 rounded-lg border border-[var(--gw-border)] p-4" aria-labelledby={`group-test-write-${groupId}`} data-testid="group-test-write">
+      <h4 id={`group-test-write-${groupId}`} className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.test_write.title')}</h4>
+      <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.test_write.intro')}</p>
 
-      {(!enabled || newOperationBlocked) && disabledReason && <p className="text-xs text-amber-300" data-testid="group-test-write-blocked">{disabledReason}</p>}
+      {(!enabled || newOperationBlocked) && disabledReason && <p className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-test-write-blocked">{disabledReason}</p>}
 
       <button
         type="button" onClick={handlePreview} disabled={!enabled || newOperationBlocked || busy || Boolean(reference) || recovery.unavailable || !recoveryList.available}
-        className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-100 disabled:opacity-40" data-testid="group-test-write-preview"
+        className="rounded border border-[var(--gw-control)] px-3 py-1 text-xs text-[var(--gw-text)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]" data-testid="group-test-write-preview"
       >
         {t('step4.group.test_write.preview')}
       </button>
@@ -215,7 +215,7 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
       {recovery.unavailable && <p role="alert" data-testid="group-test-write-storage-error">{t('step4.group.test_write.recovery_storage_error')}</p>}
       <RecoveryEntries scopeKey={identity} references={references} />
       {preview && !operation && (
-        <div className="space-y-2 text-xs text-slate-300" data-testid="group-test-write-preview-card">
+        <div className="space-y-2 text-xs text-[var(--gw-text)]" data-testid="group-test-write-preview-card">
           <p>{t('step4.group.test_write.target', { table: preview.target.table })}</p>
           {preview.record_ids && <p data-testid="group-test-write-row-count">{t('step4.group.test_write.long_preview_count', { count: preview.record_ids.length })}</p>}
           <ul className="list-disc pl-5">
@@ -224,7 +224,7 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
           <p>{t(preview.record_ids ? 'step4.group.test_write.long_cleanup_note' : 'step4.group.test_write.cleanup_note')}</p>
           <button
             type="button" onClick={handleConfirm} disabled={!enabled || newOperationBlocked || busy || unconfirmed || !recoveryList.available}
-            className="rounded bg-blue-600 px-3 py-1 text-xs text-white disabled:opacity-40" data-testid="group-test-write-confirm"
+            className="rounded bg-[var(--gw-primary)] px-3 py-1 text-xs text-[var(--gw-on-primary)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]" data-testid="group-test-write-confirm"
           >
             {t('step4.group.test_write.confirm')}
           </button>
@@ -236,7 +236,7 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
       {canRepairCleanup && (
         <button
           type="button" onClick={handleRepairCleanup} disabled={!enabled || busy || unconfirmed}
-          className="rounded border border-amber-600 px-3 py-1 text-xs text-amber-200 hover:bg-amber-950/40 disabled:opacity-40" data-testid="group-test-write-cleanup-repair"
+          className="rounded border border-[var(--gw-warning-border)] px-3 py-1 text-xs text-[var(--gw-warning-fg)] hover:bg-[var(--gw-warning-bg)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]" data-testid="group-test-write-cleanup-repair"
         >
           {t('step4.group.test_write.cleanup_repair')}
         </button>
@@ -246,13 +246,13 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
       )}
 
       {unconfirmed && (
-        <div role="alert" className="text-xs text-amber-300" data-testid="group-test-write-unconfirmed">
+        <div role="alert" className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-test-write-unconfirmed">
           {t(operation ? 'step4.group.test_write.operation_status_unconfirmed' : 'step4.group.test_write.unconfirmed')}
           <button type="button" onClick={handleCheck} disabled={!reference && !preview && !operation} className="ml-2 underline" data-testid="group-test-write-check-unconfirmed">{t('step4.group.test_write.check')}</button>
         </div>
       )}
       {error !== null && !unconfirmed && (
-        <p role="alert" className="text-xs text-red-300" data-testid="group-test-write-error">{getSafeErrorMessage(error, t).message}</p>
+        <p role="alert" className="text-xs text-[var(--gw-danger-fg)]" data-testid="group-test-write-error">{getSafeErrorMessage(error, t).message}</p>
       )}
     </section>
   );

@@ -33,24 +33,24 @@ export const SectionCard: React.FC<SectionCardProps> = ({
     <section
       role={title ? 'region' : undefined}
       aria-labelledby={title ? titleId : undefined}
-      className={`wbv2-surface rounded-2xl border border-slate-700/60 bg-slate-900/60 backdrop-blur-sm shadow-xl shadow-black/30 ${className}`}
+      className={`wbv2-surface rounded-lg border border-[var(--gw-border)] bg-[var(--gw-surface)] ${className}`}
     >
       {showHeader && (
-        <header className="flex items-start justify-between gap-4 border-b border-slate-700/60 px-5 py-4">
-          <div className="flex items-start gap-3">
+        <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--gw-border)] px-5 py-4">
+          <div className="flex min-w-0 items-start gap-3">
             {icon && (
-              <div className="grid place-items-center w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-300">
+              <div className="grid shrink-0 place-items-center w-6 h-6 text-[var(--gw-muted)]">
                 {icon}
               </div>
             )}
-            <div>
+            <div className="min-w-0">
               {title && (
-                <h3 id={titleId} className="text-sm font-semibold text-slate-100 leading-tight">
+                <h3 id={titleId} className="text-sm font-semibold text-[var(--gw-text)] leading-tight">
                   {title}
                 </h3>
               )}
               {subtitle && (
-                <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+                <p className="text-xs text-[var(--gw-muted)] mt-0.5">{subtitle}</p>
               )}
             </div>
           </div>

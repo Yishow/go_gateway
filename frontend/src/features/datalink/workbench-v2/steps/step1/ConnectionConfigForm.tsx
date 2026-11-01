@@ -59,7 +59,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {protocol === 'fatek_fbs' && <FatekModeField config={config} onChange={onChange} />}
-        <Field label={t('step1.fields.host')} required>
+        <Field help="connection.host" label={t('step1.fields.host')} required>
           <Input
             type="text"
             value={(config.host as string) ?? ''}
@@ -69,7 +69,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
           />
         </Field>
 
-        <Field label={t('step1.fields.port')} required>
+        <Field help="connection.port" label={t('step1.fields.port')} required>
           <Input
             type={rawNumericText ? "text" : "number"}
             inputMode={rawNumericText ? "decimal" : undefined}
@@ -80,7 +80,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
           />
         </Field>
 
-        <Field label={isStation ? t('step1.fields.station', '站號') : t('step1.fields.slave_id', '從站 ID')} required>
+        <Field help={protocol === 'fatek_fbs' ? 'connection.fatekStation' : protocol === 'mc_3e' ? 'connection.mcStation' : protocol === 'modbus_udp' ? 'connection.udpSlave' : 'connection.modbusSlave'} label={isStation ? t('step1.fields.station', '站號') : t('step1.fields.slave_id', '從站 ID')} required>
           <Input
             type={rawNumericText ? "text" : "number"}
             inputMode={rawNumericText ? "decimal" : undefined}
@@ -91,7 +91,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
           />
         </Field>
 
-        <Field label={t('step1.fields.timeout')} required hint={t('step1.fields.timeout_hint')}>
+        <Field help={protocol === 'modbus_tcp' ? 'connection.timeoutModbus' : 'connection.timeoutOther'} label={t('step1.fields.timeout')} required hint={t('step1.fields.timeout_hint')}>
           <Input
             type={rawNumericText ? "text" : "number"}
             inputMode={rawNumericText ? "decimal" : undefined}
@@ -114,7 +114,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
   if (protocol === 'mqtt') {
     return (
       <div className="grid grid-cols-1 gap-4">
-        <Field label={t('step1.fields.mqtt_broker')} required>
+        <Field help="connection.mqttBroker" label={t('step1.fields.mqtt_broker')} required>
           <Input
             type="text"
             value={(config.broker_url as string) ?? (config.broker as string) ?? ''}
@@ -125,7 +125,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={t('step1.fields.mqtt_username')}>
+          <Field help="connection.mqttUsername" label={t('step1.fields.mqtt_username')}>
             <Input
               type="text"
               value={(config.username as string) ?? ''}
@@ -135,7 +135,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
             />
           </Field>
 
-          <Field label={t('step1.fields.mqtt_client_id')} required>
+          <Field help="connection.mqttClientId" label={t('step1.fields.mqtt_client_id')} required>
             <Input
               type="text"
               value={(config.client_id as string) ?? ''}

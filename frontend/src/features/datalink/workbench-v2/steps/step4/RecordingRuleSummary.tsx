@@ -57,8 +57,8 @@ export interface RecordingRuleSummaryProps {
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <div className="min-w-0"><dt className="text-xs text-slate-400">{label}</dt>
-    <dd className="break-words text-sm text-slate-100">{children}</dd></div>;
+  return <div className="min-w-0"><dt className="text-xs text-[var(--gw-muted)]">{label}</dt>
+    <dd className="break-words text-sm text-[var(--gw-text)]">{children}</dd></div>;
 }
 
 function Facts({ facts, labels, sourceLabels }: { facts: RecordingReadonly<RecordingGroupFacts>; labels: RecordingRuleSummaryLabels;
@@ -82,7 +82,7 @@ function Facts({ facts, labels, sourceLabels }: { facts: RecordingReadonly<Recor
     <Field label={labels.fields.profile}>{profile === null ? labels.unavailable : labels.profiles[profile.kind]}</Field>
     <Field label={labels.fields.reduction}>{labels.reductions[facts.reduction]}</Field>
     <Field label={labels.fields.interval}><span>{period}</span>
-      {profile === null && interval !== null && <small className="ml-2 text-slate-400">{labels.normalizedInterval}</small>}</Field>
+      {profile === null && interval !== null && <small className="ml-2 text-[var(--gw-muted)]">{labels.normalizedInterval}</small>}</Field>
     <Field label={labels.fields.lateness}>{facts.allowed_lateness_seconds === null ? labels.unavailable
       : `${facts.allowed_lateness_seconds} ${labels.units.second}`}</Field>
     <Field label={labels.fields.incomplete}>{labels.incompletePolicies[facts.incomplete_policy]}</Field>
@@ -96,10 +96,10 @@ function VersionCard({ title, description, facts, reason, labels, sourceLabels }
   title: string; description: string; facts: RecordingReadonly<RecordingGroupFacts> | null;
   reason?: RecordingUnavailableReason; labels: RecordingRuleSummaryLabels; sourceLabels?: Readonly<Record<string, string>>;
 }) {
-  return <section aria-label={title} className="min-w-0 space-y-3 rounded border border-slate-700 p-3">
-    <h4 className="font-medium text-slate-100">{title}</h4>
-    <p className="text-xs text-slate-400">{description}</p>
-    {facts === null ? <p role="status" className="text-sm text-slate-300">{labels.unavailable}{reason && ` — ${labels.reasons[reason]}`}</p>
+  return <section aria-label={title} className="min-w-0 space-y-3 rounded border border-[var(--gw-border)] p-3">
+    <h4 className="font-medium text-[var(--gw-text)]">{title}</h4>
+    <p className="text-xs text-[var(--gw-muted)]">{description}</p>
+    {facts === null ? <p role="status" className="text-sm text-[var(--gw-text)]">{labels.unavailable}{reason && ` — ${labels.reasons[reason]}`}</p>
       : <Facts facts={facts} labels={labels} sourceLabels={sourceLabels} />}
   </section>;
 }
@@ -117,8 +117,8 @@ export function RecordingRuleSummary({ view, scopeLabel, labels, details, source
   const heading = useRef<HTMLHeadingElement>(null), trigger = useRef<HTMLButtonElement>(null), ticket = useRef<ReturnFocusTicket | null>(null);
   const currentScope = useRef(''); currentScope.current = view.state === 'available' ? JSON.stringify(scopeFields.map(key => view.scope[key])) : '';
   if (view.state !== 'available') return <section aria-label={labels.heading} className="space-y-3">
-    <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-slate-100">{labels.heading}</h3>
-    <p role="status" className="text-sm text-slate-300">{labels.reasons[view.reason]}</p>
+    <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-[var(--gw-text)]">{labels.heading}</h3>
+    <p role="status" className="text-sm text-[var(--gw-text)]">{labels.reasons[view.reason]}</p>
   </section>;
   const runtime = view.runtime.state === 'available' ? view.runtime.value : null;
   const effective = view.effective.state === 'available' ? view.effective.value : null;
@@ -132,8 +132,8 @@ export function RecordingRuleSummary({ view, scopeLabel, labels, details, source
   const scopeKey = JSON.stringify(scopeFields.map(key => view.scope[key]));
   return <Dialog.Root key={scopeKey}>
     <section aria-label={labels.heading} className="min-w-0 space-y-3">
-      <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-slate-100">{labels.heading}</h3>
-      <p className="break-words text-sm text-slate-300">{scopeLabel}</p>
+      <h3 ref={heading} tabIndex={-1} className="text-sm font-medium text-[var(--gw-text)]">{labels.heading}</h3>
+      <p className="break-words text-sm text-[var(--gw-text)]">{scopeLabel}</p>
       <div className="grid min-w-0 gap-3 sm:grid-cols-2">
         <VersionCard title={labels.saved} description={labels.savedDescription} facts={runtime?.saved ?? null}
           reason={view.runtime.state === 'unavailable' ? view.runtime.reason : undefined} labels={labels} sourceLabels={sourceLabels} />
@@ -141,8 +141,8 @@ export function RecordingRuleSummary({ view, scopeLabel, labels, details, source
           reason={view.effective.state === 'unavailable' ? view.effective.reason : undefined} labels={labels} sourceLabels={sourceLabels} />
       </div>
       {effectiveRevision !== null && runtime?.applied_revision && runtime.applied_revision !== effectiveRevision &&
-        <p role="status" className="text-sm text-slate-300">{labels.requestedNotEffective}</p>}
-      <Dialog.Trigger ref={trigger} type="button" className="rounded border border-slate-600 px-3 py-2 text-sm text-slate-100">{labels.details}</Dialog.Trigger>
+        <p role="status" className="text-sm text-[var(--gw-text)]">{labels.requestedNotEffective}</p>}
+      <Dialog.Trigger ref={trigger} type="button" className="rounded border border-[var(--gw-border)] px-3 py-2 text-sm text-[var(--gw-text)]">{labels.details}</Dialog.Trigger>
     </section>
     <Dialog.Portal>
       <Dialog.Overlay className="gw-modal-overlay" />

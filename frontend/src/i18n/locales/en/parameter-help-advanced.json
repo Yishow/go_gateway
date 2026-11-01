@@ -1,0 +1,62 @@
+{
+  "batch": {
+    "selection": {
+      "title": "Batch targets",
+      "what": "Selects the saved circuits included in this batch preview.",
+      "how": "Review each selected circuit; saving a batch does not start acquisition.",
+      "example": "Select Line A only."
+    }
+  },
+  "counterPolicy": {
+    "signed": {
+      "title": "Allow negative increments",
+      "what": "Declares signed counter semantics for this saved measurement.",
+      "how": "Use only when the source permits negative increments. Signed counters cannot use the rollover policy.",
+      "example": "A documented bidirectional cumulative reading."
+    },
+    "modulus": {
+      "title": "Rollover modulus",
+      "what": "The exact positive modulus used to interpret a counter wrap.",
+      "how": "Optional positive decimal text, at most 64 characters. No exponent notation; signed or floating counters cannot use it.",
+      "example": "65536 only for a documented modulo-65536 counter."
+    },
+    "rate": {
+      "title": "Maximum rate per second",
+      "what": "Bounds plausible counter growth when evaluating rollover.",
+      "how": "Optional positive decimal text, at most 64 characters, requiring a modulus. Do not infer it from a sample.",
+      "example": "100 only when the source specification supports that limit."
+    }
+  },
+  "cutover": {
+    "mode": {
+      "title": "Switch direction",
+      "what": "Chooses a forward switch or rollback of an existing switch.",
+      "how": "Review source, destinations and boundary before applying; this can change which recording runs.",
+      "example": "Forward to prepared long-format targets."
+    },
+    "source": {
+      "title": "Source recording",
+      "what": "The saved recording whose active sources will switch.",
+      "how": "Only eligible saved records are offered; a name alone does not grant ownership.",
+      "example": "The currently running line recording."
+    },
+    "target": {
+      "title": "Target recordings",
+      "what": "The prepared saved destinations for the selected source scope.",
+      "how": "Select eligible long-format targets and review the exact effect before applying.",
+      "example": "The prepared long-format line profile."
+    },
+    "rollback": {
+      "title": "Previous switch",
+      "what": "Identifies the prior switch eligible for rollback.",
+      "how": "Choose the exact recorded operation and review its boundary and started targets.",
+      "example": "The operation at the intended recorded boundary."
+    },
+    "boundary": {
+      "title": "Switch boundary",
+      "what": "The requested local date and time for a reviewed switch.",
+      "how": "The existing converter sends an instant; the server-reviewed boundary remains authoritative. Review before applying.",
+      "example": "A future local time agreed for the switch."
+    }
+  }
+}

@@ -1,0 +1,457 @@
+{
+  "open": "About {{title}}",
+  "example": "Example",
+  "close": "Close help",
+  "device": {
+    "name": {
+      "title": "Device name",
+      "what": "A label for this saved source device, not its network address.",
+      "how": "Use a meaningful nonempty name; saving does not start acquisition.",
+      "example": "Line A meter"
+    },
+    "protocol": {
+      "title": "Communication protocol",
+      "what": "Selects how the gateway communicates with the device.",
+      "how": "Match the device manual. Only enabled protocols are available; MQTT is not enabled by this form.",
+      "example": "Modbus TCP for a device configured for Modbus TCP."
+    }
+  },
+  "connection": {
+    "host": {
+      "title": "Device host",
+      "what": "The device hostname or IP reachable from the gateway.",
+      "how": "Use the device network settings, not the browser computer address. A saved draft is not a successful probe.",
+      "example": "192.0.2.10 is an example, not a reachable default."
+    },
+    "port": {
+      "title": "Device port",
+      "what": "The network service port used by the selected protocol.",
+      "how": "Match the configured PLC service. Protocol defaults differ; validation still applies.",
+      "example": "Modbus TCP commonly uses 502; FATEK TCP default 500 and MC3E default 5000 are not universal settings."
+    },
+    "modbusSlave": {
+      "title": "Modbus slave ID",
+      "what": "A protocol-specific connection setting.",
+      "how": "TCP/RTU schema accepts integers 1–247. Match the addressed slave.",
+      "example": "1 when the device is configured as slave 1."
+    },
+    "udpSlave": {
+      "title": "Modbus UDP slave ID",
+      "what": "A protocol-specific connection setting.",
+      "how": "Match the UDP connector and device configuration; do not assume another transport’s limits.",
+      "example": "The connector default is 1; confirm the device setting."
+    },
+    "fatekStation": {
+      "title": "FATEK station",
+      "what": "A protocol-specific connection setting.",
+      "how": "The FATEK schema accepts 0–255. Match the PLC station in the selected TCP or serial mode.",
+      "example": "Station 1 is the connector default."
+    },
+    "mcStation": {
+      "title": "MC3E station",
+      "what": "A protocol-specific connection setting.",
+      "how": "Use the station in the PLC routing configuration, not a Modbus slave ID.",
+      "example": "MC3E connector default station 0."
+    },
+    "timeoutModbus": {
+      "title": "Response timeout (seconds)",
+      "what": "A protocol-specific connection setting.",
+      "how": "TCP/RTU schema accepts 1–60 seconds. This is a response deadline, not the sampling or SQL interval.",
+      "example": "5 seconds is the connector default."
+    },
+    "timeoutOther": {
+      "title": "Response timeout (seconds)",
+      "what": "A protocol-specific connection setting.",
+      "how": "Use the selected connector’s timeout validation. This is not the sampling or SQL interval.",
+      "example": "The displayed connector default is 5 seconds."
+    },
+    "fatekMode": {
+      "title": "FATEK connection mode",
+      "what": "A protocol-specific connection setting.",
+      "how": "Choose TCP or serial to match the PLC. The two modes have different connection fields.",
+      "example": "Serial exposes the gateway host serial port and line settings."
+    },
+    "serialPort": {
+      "title": "Gateway serial port",
+      "what": "A protocol-specific connection setting.",
+      "how": "Use a serial device on the gateway host, not the browser computer.",
+      "example": "/dev/ttyUSB0 or COM1, only if that port exists on the gateway."
+    },
+    "baudModbus": {
+      "title": "Modbus RTU baud rate",
+      "what": "A protocol-specific connection setting.",
+      "how": "Choose 9600, 19200, 38400, 57600 or 115200 to match the device. The dropdown is the canonical RTU enum.",
+      "example": "9600 bits per second when both ends use 9600."
+    },
+    "baudFatek": {
+      "title": "FATEK serial baud rate",
+      "what": "A protocol-specific connection setting.",
+      "how": "Match the PLC serial configuration. FATEK does not borrow the Modbus RTU dropdown restriction.",
+      "example": "The FATEK connector default is 9600."
+    },
+    "parity": {
+      "title": "Serial parity",
+      "what": "A protocol-specific connection setting.",
+      "how": "Choose none, even or odd to match both ends. FATEK and RTU defaults differ.",
+      "example": "FATEK defaults to even; Modbus RTU defaults to none."
+    },
+    "dataBits": {
+      "title": "Serial data bits",
+      "what": "A protocol-specific connection setting.",
+      "how": "The current form offers 7 or 8 bits; match the device configuration.",
+      "example": "FATEK default 7; Modbus RTU default 8."
+    },
+    "stopBits": {
+      "title": "Serial stop bits",
+      "what": "A protocol-specific connection setting.",
+      "how": "Choose 1 or 2 stop bits to match the device.",
+      "example": "1 is the connector default."
+    },
+    "networkNo": {
+      "title": "MC network number",
+      "what": "A protocol-specific connection setting.",
+      "how": "Use the network number from the PLC route; change only when routing requires it.",
+      "example": "The connector default is 0."
+    },
+    "pcNo": {
+      "title": "MC PC number",
+      "what": "A protocol-specific connection setting.",
+      "how": "Use the destination PC number from the PLC route, not the workstation name.",
+      "example": "The connector default is 255."
+    },
+    "ioNo": {
+      "title": "MC I/O number",
+      "what": "A protocol-specific connection setting.",
+      "how": "Use the routed module I/O number. The existing decoder also recognizes the module_io_no alias.",
+      "example": "The connector default is 1023."
+    },
+    "dataFormat": {
+      "title": "Connection byte/word order",
+      "what": "The default decoding order used for applicable source values.",
+      "how": "Match the PLC register representation. ABCD/BADC/CDAB/DCBA change decoding, not this recording’s calculation.",
+      "example": "Use the device manual to identify ABCD versus CDAB."
+    },
+    "mqttBroker": {
+      "title": "Legacy MQTT broker",
+      "what": "The broker address retained by the existing MQTT configuration view.",
+      "how": "MQTT is not enabled for new source creation here. This explanation does not add protocol support.",
+      "example": "mqtts://broker.example:8883"
+    },
+    "mqttUsername": {
+      "title": "Legacy MQTT username",
+      "what": "The optional user name for the existing broker configuration.",
+      "how": "Use the broker account identifier. Help never displays stored credentials.",
+      "example": "operator"
+    },
+    "mqttClientId": {
+      "title": "Legacy MQTT client ID",
+      "what": "The identifier retained for the existing MQTT client.",
+      "how": "Use the identifier required by the existing broker setup; this does not enable MQTT acquisition.",
+      "example": "gateway-01"
+    }
+  },
+  "range": {
+    "name": {
+      "title": "Source range name",
+      "what": "Names this acquisition range and its generated point prefix.",
+      "how": "Enter a nonempty label. The submitted prefix is normalized; your raw draft remains visible.",
+      "example": "Line A voltage becomes an ASCII-safe prefix."
+    },
+    "address": {
+      "title": "Starting address",
+      "what": "The first PLC address in this source range.",
+      "how": "Use the selected protocol’s address syntax and register area. Width is determined by the data type.",
+      "example": "Modbus 40001 and MC D0 are different protocol examples, not interchangeable."
+    },
+    "count": {
+      "title": "Number of points",
+      "what": "How many values to create, not the number of network requests.",
+      "how": "Use a positive integer within the protocol/address geometry. There is no universal 64-point limit.",
+      "example": "Three float32 points occupy six 16-bit registers."
+    },
+    "dataType": {
+      "title": "Source data type",
+      "what": "How the register bytes are decoded into each source value.",
+      "how": "Choose a type supported by the selected protocol and address. A numeric-looking value does not prove its type.",
+      "example": "float32 consumes two 16-bit registers; int16 consumes one."
+    },
+    "scale": {
+      "title": "Source multiplier",
+      "what": "Multiplies the decoded value before the offset is added.",
+      "how": "Use a finite number from the device specification; this changes the shared source, not only one recording.",
+      "example": "Raw 123 with multiplier 0.1 and offset 0 represents 12.3."
+    },
+    "offset": {
+      "title": "Source offset",
+      "what": "Adds a constant after source scaling.",
+      "how": "Use a finite number in the resulting engineering unit. Keep critical source changes explicit.",
+      "example": "Raw 10 × 2 + 3 produces 23."
+    },
+    "dataFormat": {
+      "title": "Range byte/word order",
+      "what": "Selects decoding order for this shared acquisition range.",
+      "how": "Use the device register layout. Default inherits existing decoding rules; it is not a calculation mode.",
+      "example": "ABCD and CDAB represent different arrangements of the same four bytes."
+    },
+    "unit": {
+      "title": "Point unit label",
+      "what": "The engineering unit recorded on generated point mappings.",
+      "how": "A unit label alone does not rescale values or establish counter semantics.",
+      "example": "V for volts after the correct multiplier is configured."
+    }
+  },
+  "point": {
+    "order": {
+      "title": "Per-point decoding order",
+      "what": "Overrides or inherits byte/word order on this canonical source point.",
+      "how": "Only available choices apply to this data width. Reset means inherit; saving affects every recording using the point.",
+      "example": "A 32-bit point may use CDAB while another point keeps its inherited order."
+    }
+  },
+  "record": {
+    "name": {
+      "title": "Recording name",
+      "what": "A human-readable name for this recording, not a table identity.",
+      "how": "Enter a nonempty name; renaming does not transfer schema ownership.",
+      "example": "Line A electrical measurements"
+    },
+    "strategy": {
+      "title": "Managed or existing table",
+      "what": "Chooses the existing managed-table or custom-table contract.",
+      "how": "Managed ownership and schema checks still apply. Selecting a strategy does not create or modify a table.",
+      "example": "Reuse only a compatible configured destination, never another wide-table owner."
+    },
+    "table": {
+      "title": "Destination table",
+      "what": "The canonical table receiving this recording.",
+      "how": "Managed long-table names come from the backend; locked names are not editable aliases. Custom tables require current metadata.",
+      "example": "A configured table selection fills intent only, not schema consent."
+    },
+    "schema": {
+      "title": "Database schema",
+      "what": "The destination namespace, where supported by the database.",
+      "how": "Use the existing connector and ownership rules. The same table name in another schema is a different destination.",
+      "example": "public is a PostgreSQL schema example, not a universal default."
+    },
+    "layout": {
+      "title": "Recording layout",
+      "what": "Wide layouts place members in one row; long layouts store a row per member result.",
+      "how": "Use only enabled layouts. Saved ownership/layout cannot be silently converted by this choice.",
+      "example": "Independent members can have different UTC-aligned due windows in a mixed record."
+    }
+  },
+  "member": {
+    "method": {
+      "title": "Result to record",
+      "what": "Latest stores the last reading; mean averages measurements; delta records a confirmed counter interval change.",
+      "how": "Use the available method and source semantics. Counter raw/state are not automatically averaged; first counter baseline is not zero.",
+      "example": "The same source can use latest in one record and mean in another."
+    },
+    "cadence": {
+      "title": "Member interval",
+      "what": "The UTC-epoch-aligned window for this member, separate from acquisition polling.",
+      "how": "Enter an integer within the current backend bounds shown inline. Not yet due is not a failed sample.",
+      "example": "A 5-second member and a 60-second member become due independently."
+    },
+    "cadenceUnit": {
+      "title": "Interval unit",
+      "what": "The unit of this member’s recording window.",
+      "how": "Choose a unit offered by the current capability: seconds or minutes. This is not a rate multiplier.",
+      "example": "1 minute means a 60-second aligned window."
+    },
+    "include": {
+      "title": "Include this source",
+      "what": "Controls whether this saved source belongs to the recording draft.",
+      "how": "Removing membership does not delete the shared source or its history.",
+      "example": "Exclude an unused point without changing its PLC definition."
+    },
+    "required": {
+      "title": "Required source",
+      "what": "Controls row completeness when this source is missing.",
+      "how": "Required-source failures and skip policies remain inline. Optional NULL retains its reason; zero is a real value.",
+      "example": "An optional unavailable value may be NULL, not fabricated 0."
+    },
+    "targetColumn": {
+      "title": "Destination column",
+      "what": "Maps this member to a compatible SQL column.",
+      "how": "Select from current metadata or an explicit schema proposal. A proposed column does not already exist.",
+      "example": "temperature for a compatible numeric source."
+    },
+    "entityKey": {
+      "title": "Member entity key",
+      "what": "The per-member identity written to the configured entity column.",
+      "how": "Use a stable distinguishable value when the selected layout exposes this field.",
+      "example": "line-a-meter rather than a secret or changing display value."
+    },
+    "gaugeConfirm": {
+      "title": "Confirm measurement meaning",
+      "what": "Confirms that this numeric source is a measurement for this recording’s mean calculation.",
+      "how": "This record-only confirmation is bound to the source context; it does not edit the shared definition or approve a counter.",
+      "example": "Voltage is a measurement only when its real source meaning is verified."
+    }
+  },
+  "policy": {
+    "interval": {
+      "title": "Row interval (seconds)",
+      "what": "The recording window for this non-profile row.",
+      "how": "Use a positive interval accepted by the existing validator. Polling cadence is configured separately.",
+      "example": "15 seconds is a window, not 15 PLC reads."
+    },
+    "lateness": {
+      "title": "Allowed lateness (seconds)",
+      "what": "How long a recording window can accept late source observations before finalization.",
+      "how": "Use a nonnegative value accepted by the current policy. Closed snapshots are not silently rewritten.",
+      "example": "0 adds no lateness allowance; it does not mean missing values become 0."
+    },
+    "incomplete": {
+      "title": "Incomplete row policy",
+      "what": "What to do when a row lacks required source data.",
+      "how": "Choose the offered skip-row or partial policy. Required members and nullable schema still constrain the result.",
+      "example": "Partial data keeps unavailable values distinguishable from true zero."
+    },
+    "dedupe": {
+      "title": "Delivery deduplication",
+      "what": "The existing receipt capability used to avoid duplicating accepted delivery.",
+      "how": "Managed tables use receipt ownership; do not infer successful SQL from this selection.",
+      "example": "Receipt selection does not replace a fresh schema check."
+    },
+    "entityColumn": {
+      "title": "Entity key column",
+      "what": "The SQL column storing the member’s entity key where configured.",
+      "how": "Use a compatible column and current schema validation; a name alone does not create it.",
+      "example": "entity_id, only when the target schema supports it."
+    },
+    "provenanceColumn": {
+      "title": "Provenance column",
+      "what": "The SQL column retaining recording provenance where configured.",
+      "how": "Use the existing schema contract; this is not a free-form secret or connection field.",
+      "example": "source_info as an explicitly compatible column."
+    }
+  },
+  "db": {
+    "pool": {
+      "title": "Existing database connection",
+      "what": "Selects a saved connector identity and revision.",
+      "how": "Only enabled supported connectors can be selected. Credentials are not copied into help.",
+      "example": "Choose the saved production SQLite connector, then review its destination."
+    },
+    "kind": {
+      "title": "Database kind",
+      "what": "Chooses the existing database connector capability.",
+      "how": "Only currently enabled kinds can be used. A listed or disabled kind is not a promise of runtime support.",
+      "example": "SQLite is file based; PostgreSQL uses a server connection."
+    },
+    "name": {
+      "title": "Connection name",
+      "what": "A display name for the database connection.",
+      "how": "Use a meaningful label; this is not the database filename or credential.",
+      "example": "Line A history"
+    },
+    "host": {
+      "title": "Database server",
+      "what": "The server hostname reachable from the gateway.",
+      "how": "Use the server’s actual network address. SQLite has no server-host field.",
+      "example": "db.example.invalid is illustrative, not a working destination."
+    },
+    "port": {
+      "title": "Database port",
+      "what": "The database server listening port.",
+      "how": "Match the selected connector and server. Do not reuse a PLC protocol port.",
+      "example": "PostgreSQL often uses 5432; confirm the actual server."
+    },
+    "database": {
+      "title": "Database or SQLite path",
+      "what": "The database name, or the SQLite file path on the gateway host.",
+      "how": "A browser-local path is not a gateway path. Choosing a destination does not prove connectivity or table existence.",
+      "example": "A permitted gateway data path for a new SQLite target."
+    },
+    "username": {
+      "title": "Database user",
+      "what": "The database account used by this connector.",
+      "how": "Use the intended least-privileged account. Help never displays saved credentials.",
+      "example": "A dedicated recording writer account."
+    },
+    "password": {
+      "title": "Database password",
+      "what": "A secret used by the existing database save owner.",
+      "how": "Do not paste passwords into names, notes or examples. A masked stored value is not the original password.",
+      "example": "No credential example or current secret is shown."
+    },
+    "schema": {
+      "title": "Default database schema",
+      "what": "The connector’s schema namespace when this database kind exposes one.",
+      "how": "Changing a connector schema invalidates destination evidence; it does not move existing rows.",
+      "example": "public only for a PostgreSQL server configured to use it."
+    }
+  },
+  "circuit": {
+    "selector": {
+      "title": "Circuit being edited",
+      "what": "Selects the existing circuit draft owner, not a conversion of another profile.",
+      "how": "Switching keeps recoverable offline drafts; unresolved or unsaved operations use the existing navigation guard.",
+      "example": "Return to the same circuit to continue its own draft."
+    },
+    "name": {
+      "title": "Circuit name",
+      "what": "The human-readable name associated with the circuit identity.",
+      "how": "Use a meaningful name before confirming a counter; renaming does not fabricate source bindings.",
+      "example": "Main feeder"
+    },
+    "instantaneous": {
+      "title": "Record measurements",
+      "what": "Includes the selected source in the existing instantaneous profile.",
+      "how": "The saved reduction and member role remain authoritative; this toggle does not redefine a source.",
+      "example": "Voltage as a measurement; a status still keeps its status meaning."
+    },
+    "cumulative": {
+      "title": "Record counter changes",
+      "what": "Includes selected confirmed counters in the cumulative profile.",
+      "how": "Counter definitions, reset/rollover semantics and first-baseline handling still apply.",
+      "example": "The first baseline has no delta; it is not a zero consumption record."
+    },
+    "instantaneousInterval": {
+      "title": "Measurement interval",
+      "what": "The existing instantaneous profile recording interval.",
+      "how": "Use the unit shown by this field and its existing interval validator, not the PLC polling cadence.",
+      "example": "A saved latest profile stays latest; changing the interval does not make it mean."
+    },
+    "cumulativeInterval": {
+      "title": "Counter interval",
+      "what": "The time window used by the existing cumulative profile.",
+      "how": "Use the displayed unit and current limits; do not infer a fresh baseline from a form change.",
+      "example": "A confirmed counter reports the difference for its completed interval."
+    },
+    "role": {
+      "title": "Member meaning",
+      "what": "Distinguishes measurement, raw counter and state for the existing profile.",
+      "how": "Only appropriate numeric roles are offered. Saved roles cannot be silently rewritten; counter proof remains required.",
+      "example": "State and raw counters keep latest rather than being averaged."
+    },
+    "storageMode": {
+      "title": "Storage organization",
+      "what": "The existing table storage mode, separate from result calculation.",
+      "how": "Use only capability-approved options. A saved mode may be locked; partitioning is not an automatic history migration.",
+      "example": "Monthly mode is available only when the selected backend supports it."
+    },
+    "recreate": {
+      "title": "Recreate missing managed structure",
+      "what": "The existing opt-in policy for missing managed database structure.",
+      "how": "Read the inline impact and schema confirmation. This does not grant permission to erase history.",
+      "example": "A missing table still requires fresh ownership and schema checks."
+    }
+  },
+  "counter": {
+    "semantics": {
+      "title": "Counter behavior",
+      "what": "Declares whether this source is a counter or a signed counter.",
+      "how": "Choose the actual source semantics: counter disallows negative increments; signed_counter allows them. This saves the source definition, not the recording draft.",
+      "example": "Use signed_counter only for a source whose documented cumulative value may decrease."
+    },
+    "unit": {
+      "title": "Counter engineering unit",
+      "what": "The unit explicitly confirmed with the counter definition.",
+      "how": "Use the source’s real engineering unit. This field does not rescale samples by itself.",
+      "example": "kWh only when the counter really measures kilowatt-hours."
+    }
+  }
+}

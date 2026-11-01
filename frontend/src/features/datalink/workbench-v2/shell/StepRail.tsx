@@ -42,12 +42,12 @@ export const StepRail: React.FC<StepRailProps> = ({
   onSwitchView,
 }) => {
   const focusClass =
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gw-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--gw-surface)]';
 
   return (
     <nav className="flex flex-col gap-1 w-full">
       {!collapsed && (
-        <div className="px-1 mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <div className="px-1 mb-1 text-xs font-semibold text-[var(--gw-muted)]">
           建置流程
         </div>
       )}
@@ -65,26 +65,26 @@ export const StepRail: React.FC<StepRailProps> = ({
             disabled={!isReachable}
             title={collapsed ? s.title : undefined}
             data-testid={`step-nav-button-${s.id}`}
-            className={`relative flex items-center gap-3 rounded-xl border text-left transition-all duration-200 active:scale-[0.99] w-full ${focusClass} ${
+            className={`relative flex items-center gap-3 rounded-xl border text-left transition-all duration-200 w-full ${focusClass} ${
               collapsed ? 'p-1.5 justify-center' : 'px-3 py-2.5'
             } ${
               isCurrent
-                ? 'border-blue-500/40 bg-blue-500/10 shadow-lg shadow-blue-500/5'
+                ? 'border-[var(--gw-focus)] bg-[var(--gw-active)]'
                 : isDone
-                ? 'border-emerald-500/20 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08]'
+                ? 'border-[var(--gw-success-border)] bg-[var(--gw-success-bg)] hover:bg-[var(--gw-success-bg)]'
                 : !isReachable
-                ? 'border-slate-800 bg-slate-900/30 opacity-60 cursor-not-allowed'
-                : 'border-slate-800 bg-slate-900/30 hover:bg-slate-800/50'
+                ? 'border-[var(--gw-control)] bg-[var(--gw-surface)] disabled:text-[var(--gw-muted)] cursor-not-allowed'
+                : 'border-[var(--gw-control)] bg-[var(--gw-surface)] hover:bg-[var(--gw-surface)]'
             }`}
           >
             {/* 圖示外框 */}
             <span
               className={`grid place-items-center w-9 h-9 rounded-lg border flex-shrink-0 transition-colors ${
                 isCurrent
-                  ? 'border-blue-500/50 bg-blue-500/20 text-blue-200'
+                  ? 'border-[var(--gw-focus)] bg-[var(--gw-active)] text-[var(--gw-accent)]'
                   : isDone
-                  ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
-                  : 'border-slate-700 bg-slate-800 text-slate-500'
+                  ? 'border-[var(--gw-success-border)] bg-[var(--gw-success-bg)] text-[var(--gw-success-fg)]'
+                  : 'border-[var(--gw-border)] bg-[var(--gw-surface)] text-[var(--gw-muted)]'
               }`}
             >
               {isDone && !isCurrent ? (
@@ -99,28 +99,28 @@ export const StepRail: React.FC<StepRailProps> = ({
               <>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-mono text-slate-500">0{s.id}</span>
+                    <span className="text-xs font-mono text-[var(--gw-muted)]">0{s.id}</span>
                     <span
                       className={`text-sm font-semibold truncate ${
-                        isCurrent ? 'text-blue-100' : 'text-slate-200'
+                        isCurrent ? 'text-[var(--gw-accent)]' : 'text-[var(--gw-text)]'
                       }`}
                     >
                       {s.title}
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-500 truncate">{s.subtitle}</div>
+                  <div className="text-xs text-[var(--gw-muted)] truncate">{s.subtitle}</div>
                 </div>
-                {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 pulse-dot" />}
+                {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-[var(--gw-active)]" />}
               </>
             )}
           </button>
         );
       })}
 
-      <div className={`my-2 border-t border-slate-800 ${collapsed ? 'mx-1' : 'mx-1'}`} />
+      <div className={`my-2 border-t border-[var(--gw-border)] ${collapsed ? 'mx-1' : 'mx-1'}`} />
 
       {!collapsed && (
-        <div className="px-1 mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <div className="px-1 mb-1 text-xs font-semibold text-[var(--gw-muted)]">
           系統
         </div>
       )}
@@ -130,31 +130,31 @@ export const StepRail: React.FC<StepRailProps> = ({
         onClick={() => onSwitchView('settings')}
         title={collapsed ? '設定' : undefined}
         data-testid="settings-nav-button"
-        className={`relative flex items-center gap-3 rounded-xl border text-left transition-all duration-200 active:scale-[0.99] w-full ${focusClass} ${
+        className={`relative flex items-center gap-3 rounded-xl border text-left transition-all duration-200 w-full ${focusClass} ${
           collapsed ? 'p-1.5 justify-center' : 'px-3 py-2.5'
         } ${
           view === 'settings'
-            ? 'border-blue-500/40 bg-blue-500/10 shadow-lg shadow-blue-500/5'
-            : 'border-slate-800 bg-slate-900/30 hover:bg-slate-800/50'
+            ? 'border-[var(--gw-focus)] bg-[var(--gw-active)]'
+            : 'border-[var(--gw-control)] bg-[var(--gw-surface)] hover:bg-[var(--gw-surface)]'
         }`}
       >
         <span
           className={`grid place-items-center w-9 h-9 rounded-lg border flex-shrink-0 ${
             view === 'settings'
-              ? 'border-blue-500/50 bg-blue-500/20 text-blue-200'
-              : 'border-slate-700 bg-slate-800 text-slate-500'
+              ? 'border-[var(--gw-focus)] bg-[var(--gw-active)] text-[var(--gw-accent)]'
+              : 'border-[var(--gw-border)] bg-[var(--gw-surface)] text-[var(--gw-muted)]'
           }`}
         >
           <Icon name="sliders" className="w-4 h-4" />
         </span>
         {!collapsed && (
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold truncate text-slate-200">設定</div>
-            <div className="text-[11px] text-slate-500 truncate">資料庫、排程、介面…</div>
+            <div className="text-sm font-semibold truncate text-[var(--gw-text)]">設定</div>
+            <div className="text-xs text-[var(--gw-muted)] truncate">資料庫、排程、介面…</div>
           </div>
         )}
         {view === 'settings' && !collapsed && (
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 pulse-dot" />
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--gw-active)]" />
         )}
       </button>
     </nav>
