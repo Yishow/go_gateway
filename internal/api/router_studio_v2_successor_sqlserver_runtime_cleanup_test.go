@@ -30,7 +30,7 @@ func sqlServerSuccessorCleanupGroupEffects(t *testing.T, r *sqlServerSuccessorRi
 	defer cancel()
 	rows, err := r.f.db.QueryContext(ctx, `SELECT effect_key,payload_digest,payload FROM wg_delivery_outbox WHERE workspace_id=? AND group_id=? ORDER BY effect_key`, group.WorkspaceID, group.ID)
 	require.NoError(t, err)
-	var recordIDs []string
+	recordIDs := make([]string, 0, 8)
 	frozenRows := map[string]dbtarget.EncodedRow{}
 	digests := map[string]string{}
 	for rows.Next() {

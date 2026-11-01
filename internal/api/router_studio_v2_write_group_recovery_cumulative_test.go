@@ -14,13 +14,16 @@ func (r *recoveryRig) storedCumulative() []string {
 		`SELECT status, CAST(value_decimal AS TEXT), COALESCE(CAST(delta_value AS TEXT), 'NULL') FROM `+r.quoted(r.table)+` ORDER BY bucket_start`)
 	require.NoError(r.t, err)
 	defer rows.Close()
-	var out []string
+	out := make([]string, 0, 8)
 	for rows.Next() {
 		var status, raw, delta string
 		require.NoError(r.t, rows.Scan(&status, &raw, &delta))
 		out = append(out, status+"|"+raw+"|"+delta)
 	}
 	require.NoError(r.t, rows.Err())
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 

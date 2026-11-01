@@ -124,7 +124,7 @@ func postgresRouteTables(t *testing.T, admin *sql.DB, schemaName string) []strin
 		t.Fatalf("list schema tables: %v", err)
 	}
 	defer func() { _ = rows.Close() }()
-	var names []string
+	names := make([]string, 0, 8)
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
@@ -134,6 +134,9 @@ func postgresRouteTables(t *testing.T, admin *sql.DB, schemaName string) []strin
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatalf("iterate tables: %v", err)
+	}
+	if len(names) == 0 {
+		return nil
 	}
 	return names
 }

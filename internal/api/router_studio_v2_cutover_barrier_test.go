@@ -254,7 +254,7 @@ func barrierAPIAssertHandoff(t *testing.T, r *cutoverRig, originals map[string]s
 		FROM wg_delivery_sample_handoffs h JOIN wg_delivery_samples s ON s.seq=h.source_seq JOIN wg_delivery_samples t ON t.seq=h.target_seq ORDER BY s.sample_id`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var ids []string
+	ids := make([]string, 0, 2)
 	for rows.Next() {
 		var sourceID, payload, digest, created, originID, targetPayload, targetDigest, targetCreated, transferID, handoffID, originGroup string
 		var sourceConsumed, targetConsumed bool

@@ -91,7 +91,7 @@ func (r *postgresSuccessorRig) targetState(t *testing.T) map[string]string {
 	t.Helper()
 	rows, err := r.target.QueryContext(t.Context(), `SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ($1,$2) ORDER BY schemaname,tablename`, r.f.namespace, r.targetNamespace)
 	require.NoError(t, err)
-	var names [][2]string
+	names := make([][2]string, 0, 8)
 	for rows.Next() {
 		var pair [2]string
 		require.NoError(t, rows.Scan(&pair[0], &pair[1]))

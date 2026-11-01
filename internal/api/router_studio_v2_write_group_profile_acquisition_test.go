@@ -18,7 +18,7 @@ func dumpTable(t *testing.T, db *sql.DB, table string) []string {
 	defer rows.Close()
 	columns, err := rows.Columns()
 	require.NoError(t, err)
-	var dump []string
+	dump := make([]string, 0, 8)
 	for rows.Next() {
 		values := make([]any, len(columns))
 		pointers := make([]any, len(columns))
@@ -29,6 +29,9 @@ func dumpTable(t *testing.T, db *sql.DB, table string) []string {
 		dump = append(dump, fmt.Sprint(values...))
 	}
 	require.NoError(t, rows.Err())
+	if len(dump) == 0 {
+		return nil
+	}
 	return dump
 }
 

@@ -217,7 +217,7 @@ func readLongCounterWindows(t *testing.T, target *sql.DB, from string) []counter
 	rows, err := target.QueryContext(t.Context(), `SELECT status, CAST(value_decimal AS TEXT), CAST(value_int AS TEXT), CAST(value_float AS TEXT), CAST(delta_value AS TEXT), CAST(delta_from AS TEXT), CAST(delta_to AS TEXT), CAST(provenance AS TEXT) FROM `+from+` ORDER BY bucket_start`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var windows []counterWindow
+	windows := make([]counterWindow, 0, 8)
 	for rows.Next() {
 		var status string
 		var decimal, integer, float, delta, deltaFrom, deltaTo sql.NullString
@@ -243,6 +243,9 @@ func readLongCounterWindows(t *testing.T, target *sql.DB, from string) []counter
 		windows = append(windows, window)
 	}
 	require.NoError(t, rows.Err())
+	if len(windows) == 0 {
+		return nil
+	}
 	return windows
 }
 
@@ -251,7 +254,7 @@ func readWideCounterWindows(t *testing.T, target *sql.DB, from, column string) [
 	rows, err := target.QueryContext(t.Context(), `SELECT CAST("`+column+`" AS TEXT), provenance FROM `+from+` ORDER BY bucket_start`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var windows []counterWindow
+	windows := make([]counterWindow, 0, 8)
 	for rows.Next() {
 		var raw sql.NullString
 		var provenance string
@@ -276,6 +279,9 @@ func readWideCounterWindows(t *testing.T, target *sql.DB, from, column string) [
 		windows = append(windows, window)
 	}
 	require.NoError(t, rows.Err())
+	if len(windows) == 0 {
+		return nil
+	}
 	return windows
 }
 

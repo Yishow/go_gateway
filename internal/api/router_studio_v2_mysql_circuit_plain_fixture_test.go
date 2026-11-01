@@ -140,8 +140,7 @@ func newMySQLCircuitPlainFixture(t *testing.T, options ...mysqlCircuitPlainFixtu
 		option = options[0]
 	}
 	seedMeasurement := measurement.MeasurementDefinition{
-		ID: "meas-energy", SourceBindingRevision: "bind-5", SeriesEpoch: "epoch-3",
-		Quantity: "energy", Unit: "kWh", SemanticKind: measurement.SemanticKindCounter,
+		ID:              "meas-energy",
 		NumericEncoding: "uint64", ExactRecordingScale: option.SeedMeasurement.ExactRecordingScale,
 	}
 	inputs := slices.Clone(mysqlCircuitInputs[:])
@@ -401,7 +400,7 @@ func (f *mysqlCircuitPlainFixture) accept(index int) {
 		FROM wg_delivery_samples WHERE group_id IN (?, ?) AND sample_id=?`, f.instant.id, f.cumulative.id, input.sampleID)
 	require.NoError(f.t, err)
 	defer rows.Close()
-	var accepted []mysqlCircuitJournalEntry
+	accepted := make([]mysqlCircuitJournalEntry, 0, 2)
 	for rows.Next() {
 		var entry mysqlCircuitJournalEntry
 		require.NoError(f.t, rows.Scan(&entry.groupID, &entry.sampleID, &entry.payload, &entry.digest, &entry.consumed))

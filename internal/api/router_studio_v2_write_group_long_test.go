@@ -78,13 +78,16 @@ func columnsOf(t *testing.T, target *sql.DB, kind, namespace, table string) []st
 	rows, err := target.QueryContext(t.Context(), query, args...)
 	require.NoError(t, err)
 	defer rows.Close()
-	var names []string
+	names := make([]string, 0, 8)
 	for rows.Next() {
 		var name string
 		require.NoError(t, rows.Scan(&name))
 		names = append(names, name)
 	}
 	require.NoError(t, rows.Err())
+	if len(names) == 0 {
+		return nil
+	}
 	return names
 }
 

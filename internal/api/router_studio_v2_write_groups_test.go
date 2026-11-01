@@ -154,7 +154,7 @@ func TestNewRouter_AtomicGroupSaveAndCAS(t *testing.T) {
 	}
 	wg.Wait()
 	close(results)
-	var codes []int
+	codes := make([]int, 0, 2)
 	for code := range results {
 		codes = append(codes, code)
 	}

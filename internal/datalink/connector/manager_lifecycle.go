@@ -45,6 +45,12 @@ func (cm *ConnectionManager) Close(deviceID string) error {
 
 // CloseAll invalidates all current generations, including pending dials.
 func (cm *ConnectionManager) CloseAll() error {
+	return cm.CloseAllContext(context.Background())
+}
+
+// CloseAllContext invalidates all generations before attempting cleanup with the
+// non-nil caller context. Canceled cleanup remains owned for an explicit retry.
+func (cm *ConnectionManager) CloseAllContext(ctx context.Context) error {
 	cm.mu.Lock()
 	entries := cm.entries
 	pending := cm.pendingCleanup("", true)
@@ -57,12 +63,12 @@ func (cm *ConnectionManager) CloseAll() error {
 	cm.mu.Unlock()
 	var lastErr error
 	for _, entry := range entries {
-		if err := cm.retire(entry); err != nil {
+		if err := cm.retireContext(ctx, entry); err != nil {
 			lastErr = err
 		}
 	}
 	for _, old := range pending {
-		if err := cm.cleanupEntry(old); err != nil {
+		if err := cm.cleanupEntryContext(ctx, old); err != nil {
 			lastErr = err
 		}
 	}

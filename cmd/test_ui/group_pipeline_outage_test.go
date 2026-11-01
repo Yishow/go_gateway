@@ -181,13 +181,16 @@ func destinationRows(t *testing.T, file string) [][2]float64 {
 	rows, err := db.QueryContext(t.Context(), `SELECT temperature, pressure FROM readings ORDER BY rowid`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var out [][2]float64
+	out := make([][2]float64, 0, 8)
 	for rows.Next() {
 		var temperature, pressure float64
 		require.NoError(t, rows.Scan(&temperature, &pressure))
 		out = append(out, [2]float64{temperature, pressure})
 	}
 	require.NoError(t, rows.Err())
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 

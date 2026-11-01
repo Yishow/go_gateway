@@ -21,13 +21,16 @@ func (r *recoveryRig) columns(table string) []string {
 		WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position`, r.f.namespace, table)
 	require.NoError(r.t, err)
 	defer rows.Close()
-	var names []string
+	names := make([]string, 0, 8)
 	for rows.Next() {
 		var name string
 		require.NoError(r.t, rows.Scan(&name))
 		names = append(names, name)
 	}
 	require.NoError(r.t, rows.Err())
+	if len(names) == 0 {
+		return nil
+	}
 	return names
 }
 

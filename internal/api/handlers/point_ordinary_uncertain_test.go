@@ -17,21 +17,17 @@ import (
 
 type uncertainOrdinaryRepository struct {
 	*point.MemoryRepository
-	live    *runtimepkg.Service
-	foreign bool
+	foreignWrite func(*schema.Point) error
 }
 
 func (r *uncertainOrdinaryRepository) UpdateOrdinaryRevision(ctx context.Context, p *schema.Point, expected string, _ bool) error {
 	if err := r.MemoryRepository.UpdateRevision(ctx, p, expected); err != nil {
 		return err
 	}
-	if r.foreign {
-		newer := *p
-		newer.RevisionID = "foreign"
-		if err := r.MemoryRepository.UpdateRevision(ctx, &newer, p.RevisionID); err != nil {
+	if r.foreignWrite != nil {
+		if err := r.foreignWrite(p); err != nil {
 			return err
 		}
-		r.live.UpsertPoint(&newer)
 	}
 	return sqltx.ErrCommitOutcomeUnknown
 }
@@ -42,7 +38,19 @@ func TestOrdinaryUnknownCommitStopsOnlyMatchingCapturedLease(t *testing.T) {
 			defer db.Close()
 			live, err := runtimepkg.NewService(runtimepkg.Config{Writer: storage.NewSQLiteWriter(db)})
 			require.NoError(t, err)
-			repo := &uncertainOrdinaryRepository{MemoryRepository: point.NewMemoryRepository(), live: live, foreign: foreign}
+			repo := &uncertainOrdinaryRepository{MemoryRepository: point.NewMemoryRepository()}
+			if foreign {
+				// A separate writer owns this installation, not the interrupted HTTP request.
+				repo.foreignWrite = func(p *schema.Point) error {
+					newer := *p
+					newer.RevisionID = "foreign"
+					if err := repo.MemoryRepository.UpdateRevision(t.Context(), &newer, p.RevisionID); err != nil {
+						return err
+					}
+					live.UpsertPoint(&newer)
+					return nil
+				}
+			}
 			svc := point.NewService(repo, nil)
 			p, err := svc.Create(t.Context(), point.CreatePointRequest{DeviceID: "d", Name: "old", Address: "HR0", DataType: schema.DataTypeUint32})
 			require.NoError(t, err)

@@ -379,7 +379,7 @@ func runSQLServerCircuitPlainIntegration(t *testing.T, f *sqlServerCircuitPlainF
 	seen := map[string]bool{}
 	statuses := map[string]int{}
 	deltas := map[string]bool{}
-	var recordIDs []string
+	recordIDs := make([]string, 0, 8)
 	for rows.Next() {
 		var recordID, status string
 		var valueRaw, deltaRaw any

@@ -35,7 +35,7 @@ func (r *cutoverRig) targetRows() []transitionRow {
 		FROM `+r.quoted(r.longTable())+` ORDER BY bucket_start`)
 	require.NoError(r.t, err)
 	defer rows.Close()
-	var out []transitionRow
+	out := make([]transitionRow, 0, 8)
 	for rows.Next() {
 		var row transitionRow
 		var start, provenance string
@@ -45,6 +45,9 @@ func (r *cutoverRig) targetRows() []transitionRow {
 		out = append(out, row)
 	}
 	require.NoError(r.t, rows.Err())
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 

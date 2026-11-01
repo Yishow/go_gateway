@@ -21,7 +21,7 @@ func mysqlSuccessorRuntimeCounterRows(t *testing.T, r *mysqlSuccessorRig, g *wor
 	rows, err := target.QueryContext(t.Context(), `SELECT status, CAST(value_decimal AS CHAR), CAST(value_int AS CHAR), CAST(value_float AS CHAR), CAST(delta_value AS CHAR), CAST(delta_from AS CHAR), CAST(delta_to AS CHAR), CAST(provenance AS CHAR) FROM `+from+` ORDER BY bucket_start`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var windows []counterWindow
+	windows := make([]counterWindow, 0, 8)
 	for rows.Next() {
 		var status string
 		var decimal, integer, float, delta, deltaFrom, deltaTo sql.NullString
@@ -50,6 +50,9 @@ func mysqlSuccessorRuntimeCounterRows(t *testing.T, r *mysqlSuccessorRig, g *wor
 		windows = append(windows, window)
 	}
 	require.NoError(t, rows.Err())
+	if len(windows) == 0 {
+		return nil
+	}
 	return windows
 }
 

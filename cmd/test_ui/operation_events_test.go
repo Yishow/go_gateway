@@ -106,7 +106,7 @@ func TestProductionOperationEventsRepairSchemaIsNotHistoricalDataRecovery(t *tes
 	f.start(t)
 	f.waitLongCommitted(t, 2)
 	require.NoError(t, f.env.services.groupPipe.Stop(3*time.Second))
-	var oldIDs []string
+	oldIDs := make([]string, 0, 8)
 	rows, err := f.targetDB.QueryContext(t.Context(), `SELECT record_id FROM "`+f.long.Destination.TableName+`"`)
 	require.NoError(t, err)
 	for rows.Next() {

@@ -328,7 +328,7 @@ func (r *cutoverRig) longRecords() []longRecord {
 		COALESCE(`+cast("observed_at")+`, ''), COALESCE(value_float, 0), `+cast("provenance")+` FROM `+r.quoted(r.longTable())+` ORDER BY bucket_start, profile_kind`)
 	require.NoError(r.t, err)
 	defer rows.Close()
-	var out []longRecord
+	out := make([]longRecord, 0, 8)
 	for rows.Next() {
 		var rec longRecord
 		var start, end, observed string
@@ -337,6 +337,9 @@ func (r *cutoverRig) longRecords() []longRecord {
 		out = append(out, rec)
 	}
 	require.NoError(r.t, rows.Err())
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 

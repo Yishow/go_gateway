@@ -44,7 +44,7 @@ func recordingTargetTables(t *testing.T, db *sql.DB) []string {
 		t.Fatalf("list target tables: %v", err)
 	}
 	defer func() { _ = rows.Close() }()
-	var names []string
+	names := make([]string, 0, 8)
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
@@ -54,6 +54,9 @@ func recordingTargetTables(t *testing.T, db *sql.DB) []string {
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatalf("iterate target tables: %v", err)
+	}
+	if len(names) == 0 {
+		return nil
 	}
 	return names
 }

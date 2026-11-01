@@ -52,13 +52,13 @@ func (h *gatewayHost) prepareShutdown() {
 			}
 			return nil
 		}},
-		{Name: "connections", Stop: func(context.Context) error {
+		{Name: "connections", Stop: func(ctx context.Context) error {
 			var errs []error
 			if h.fixtureCleanup != nil {
 				errs = append(errs, h.fixtureCleanup())
 			}
 			if h.connections != nil {
-				errs = append(errs, h.connections.CloseAll())
+				errs = append(errs, h.connections.CloseAllContext(context.WithoutCancel(ctx)))
 			}
 			return errors.Join(errs...)
 		}},

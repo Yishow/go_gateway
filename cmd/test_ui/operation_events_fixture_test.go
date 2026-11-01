@@ -285,7 +285,7 @@ func (f repairOperationFixture) pendingForBucket(t *testing.T, bucket time.Time)
 	t.Helper()
 	rows, err := f.env.db.QueryContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox WHERE group_id=?`, f.long.ID)
 	require.NoError(t, err)
-	var effects []string
+	effects := make([]string, 0, 8)
 	for rows.Next() {
 		var effect string
 		require.NoError(t, rows.Scan(&effect))

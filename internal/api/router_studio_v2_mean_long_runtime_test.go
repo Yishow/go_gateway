@@ -383,7 +383,7 @@ func TestMeanLongRecording(t *testing.T) {
 		require.False(t, latest.deltaValue.Valid || latest.deltaFrom.Valid || latest.deltaTo.Valid, "no delta or baseline is produced")
 	}
 
-	var tagTypes []string
+	tagTypes := make([]string, 0, 8)
 	typeRows, err := f.db.QueryContext(ctx, `SELECT id || '=' || data_type FROM tags WHERE id LIKE 'tag-%' ORDER BY id`)
 	require.NoError(t, err)
 	defer typeRows.Close()

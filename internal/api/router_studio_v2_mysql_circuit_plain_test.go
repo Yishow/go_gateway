@@ -237,7 +237,7 @@ func assertMySQLCircuitSQLRows(t *testing.T, f *mysqlCircuitPlainFixture) {
 		FROM `+"`"+f.table+"`"+` ORDER BY group_id, bucket_start`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var stored []mysqlCircuitPlainSQLRow
+	stored := make([]mysqlCircuitPlainSQLRow, 0, 205)
 	for rows.Next() {
 		var row mysqlCircuitPlainSQLRow
 		require.NoError(t, rows.Scan(&row.groupID, &row.profile, &row.valueType, &row.status,

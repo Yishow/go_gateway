@@ -192,7 +192,7 @@ func partialAPITransfers(t *testing.T, r *scopeAPIRig, targets map[string]groupd
 		FROM wg_delivery_sample_handoffs h JOIN wg_delivery_samples s ON s.seq=h.source_seq JOIN wg_delivery_samples t ON t.seq=h.target_seq WHERE h.state='accepted' ORDER BY s.sample_id`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var ids []string
+	ids := make([]string, 0, 2*len(targets))
 	for rows.Next() {
 		var id, payload, digest, created, group, revision, origin, copied, copiedDigest, copiedCreated, transfer, handoff string
 		var sourceConsumed, targetConsumed bool
@@ -211,7 +211,7 @@ func partialAPITransfers(t *testing.T, r *scopeAPIRig, targets map[string]groupd
 		ids = append(ids, id)
 	}
 	require.NoError(t, rows.Err())
-	var expectedIDs []string
+	expectedIDs := make([]string, 0, 2*len(targets))
 	for prefix := range targets {
 		expectedIDs = append(expectedIDs, prefix+"-equal", prefix+"-after")
 	}
@@ -245,7 +245,7 @@ func partialAPIWideRow(t *testing.T, r *scopeAPIRig, start, end time.Time, first
 	require.Equal(t, end, storedInstant(t, window["end"].(string)))
 	var evidence []map[string]any
 	require.NoError(t, json.Unmarshal([]byte(row.Provenance), &evidence))
-	var ids []string
+	ids := make([]string, 0, len(evidence))
 	for _, entry := range evidence {
 		id := entry["sample_id"].(string)
 		ids = append(ids, id)

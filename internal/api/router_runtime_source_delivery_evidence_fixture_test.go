@@ -145,7 +145,7 @@ func (r *runtimeSourceDeliveryRig) deliver(t *testing.T) {
 	t.Helper()
 	rows, err := r.f.db.QueryContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox WHERE state='pending' ORDER BY bucket_start,effect_key`)
 	require.NoError(t, err)
-	var keys []string
+	keys := make([]string, 0, 8)
 	for rows.Next() {
 		var key string
 		require.NoError(t, rows.Scan(&key))

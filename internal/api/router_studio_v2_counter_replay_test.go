@@ -49,13 +49,16 @@ func counterReplayAPIJournal(t *testing.T, db *sql.DB) [][3]string {
 	rows, err := db.QueryContext(t.Context(), `SELECT sample_id,payload,payload_digest FROM wg_delivery_samples ORDER BY seq`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var result [][3]string
+	result := make([][3]string, 0, 8)
 	for rows.Next() {
 		var row [3]string
 		require.NoError(t, rows.Scan(&row[0], &row[1], &row[2]))
 		result = append(result, row)
 	}
 	require.NoError(t, rows.Err())
+	if len(result) == 0 {
+		return nil
+	}
 	return result
 }
 
@@ -246,12 +249,15 @@ func counterReplayAPIEffects(t *testing.T, db *sql.DB, revision string) [][3]str
 	rows, err := db.QueryContext(t.Context(), `SELECT effect_key,payload,payload_digest FROM wg_delivery_outbox WHERE group_revision=? ORDER BY bucket_start`, revision)
 	require.NoError(t, err)
 	defer rows.Close()
-	var result [][3]string
+	result := make([][3]string, 0, 8)
 	for rows.Next() {
 		var row [3]string
 		require.NoError(t, rows.Scan(&row[0], &row[1], &row[2]))
 		result = append(result, row)
 	}
 	require.NoError(t, rows.Err())
+	if len(result) == 0 {
+		return nil
+	}
 	return result
 }

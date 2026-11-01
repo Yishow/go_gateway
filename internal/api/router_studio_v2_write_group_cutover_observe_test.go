@@ -94,7 +94,7 @@ func (r *cutoverRig) wideRowsInOrder() []wideRow {
 		FROM `+r.quoted(r.wideTable())+` ORDER BY bucket_start, record_id`)
 	require.NoError(r.t, err)
 	defer rows.Close()
-	var out []wideRow
+	out := make([]wideRow, 0, 8)
 	for rows.Next() {
 		var row wideRow
 		var start string
@@ -104,6 +104,9 @@ func (r *cutoverRig) wideRowsInOrder() []wideRow {
 		out = append(out, row)
 	}
 	require.NoError(r.t, rows.Err())
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 

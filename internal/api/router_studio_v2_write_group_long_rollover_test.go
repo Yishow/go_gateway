@@ -140,7 +140,7 @@ func (s *rolloverStack) rows(n int) []rolloverRow {
 	result, err := s.target.QueryContext(s.t.Context(), `SELECT status, CAST(value_decimal AS TEXT), CAST(delta_value AS TEXT), CAST(provenance AS TEXT), series_epoch FROM `+from+` ORDER BY bucket_start`)
 	require.NoError(s.t, err)
 	defer result.Close()
-	var rows []rolloverRow
+	rows := make([]rolloverRow, 0, 8)
 	for result.Next() {
 		var row rolloverRow
 		require.NoError(s.t, result.Scan(&row.status, &row.raw, &row.delta, &row.provenance, &row.epoch))
@@ -153,6 +153,9 @@ func (s *rolloverStack) rows(n int) []rolloverRow {
 		rows = append(rows, row)
 	}
 	require.NoError(s.t, result.Err())
+	if len(rows) == 0 {
+		return nil
+	}
 	return rows
 }
 

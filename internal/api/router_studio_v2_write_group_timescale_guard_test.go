@@ -99,7 +99,8 @@ func insertRequiredColumns(t *testing.T, f managedGroupFixture, table string) {
 	rows, err := f.target.QueryContext(t.Context(), `SELECT column_name, data_type FROM information_schema.columns
 		WHERE table_schema = $1 AND table_name = $2 AND is_nullable = 'NO' AND column_default IS NULL ORDER BY ordinal_position`, f.namespace, table)
 	require.NoError(t, err)
-	var names, values []string
+	names := make([]string, 0, 8)
+	values := make([]string, 0, 8)
 	for rows.Next() {
 		var name, dataType string
 		require.NoError(t, rows.Scan(&name, &dataType))

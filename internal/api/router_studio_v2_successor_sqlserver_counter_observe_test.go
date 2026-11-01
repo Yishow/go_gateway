@@ -20,7 +20,7 @@ func sqlServerSuccessorRuntimeCounterRows(t *testing.T, r *sqlServerSuccessorRig
 	rows, err := target.QueryContext(t.Context(), `SELECT status, CONVERT(varchar(100),value_decimal), CONVERT(varchar(100),value_int), CONVERT(varchar(100),value_float), CONVERT(varchar(100),delta_value), delta_from, delta_to, provenance FROM `+from+` ORDER BY bucket_start`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var windows []counterWindow
+	windows := make([]counterWindow, 0, 8)
 	for rows.Next() {
 		var status, provenance string
 		var decimal, integer, float, delta sql.NullString
@@ -49,5 +49,8 @@ func sqlServerSuccessorRuntimeCounterRows(t *testing.T, r *sqlServerSuccessorRig
 		windows = append(windows, window)
 	}
 	require.NoError(t, rows.Err())
+	if len(windows) == 0 {
+		return nil
+	}
 	return windows
 }

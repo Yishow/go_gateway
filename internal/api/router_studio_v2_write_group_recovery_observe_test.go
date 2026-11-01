@@ -85,13 +85,16 @@ func (r *recoveryRig) outboxCodes() []string {
 	rows, err := r.f.db.QueryContext(r.t.Context(), `SELECT DISTINCT last_error_code FROM wg_delivery_outbox WHERE state <> 'sql_committed' AND last_error_code <> '' ORDER BY 1`)
 	require.NoError(r.t, err)
 	defer rows.Close()
-	var codes []string
+	codes := make([]string, 0, 8)
 	for rows.Next() {
 		var code string
 		require.NoError(r.t, rows.Scan(&code))
 		codes = append(codes, code)
 	}
 	require.NoError(r.t, rows.Err())
+	if len(codes) == 0 {
+		return nil
+	}
 	return codes
 }
 

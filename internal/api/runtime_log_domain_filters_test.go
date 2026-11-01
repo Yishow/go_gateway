@@ -211,7 +211,7 @@ func TestRuntimeLogDomainFiltersPreserveCursorPrecisionAndGap(t *testing.T) {
 	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	reader := bufio.NewReader(resp.Body)
-	var reasons []string
+	reasons := make([]string, 0, 2)
 	for {
 		name, id, data := readRuntimeFrame(t, reader)
 		if name == "handshake" {

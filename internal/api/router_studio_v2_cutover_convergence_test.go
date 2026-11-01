@@ -264,7 +264,7 @@ func convergenceAPIEmptyProfileRows(t *testing.T, r *scopeAPIRig) []string {
 	defer rows.Close()
 	columns, err := rows.Columns()
 	require.NoError(t, err)
-	var records []string
+	records := make([]string, 0, 8)
 	for rows.Next() {
 		values, pointers := make([]any, len(columns)), make([]any, len(columns))
 		for i := range values {
@@ -283,6 +283,9 @@ func convergenceAPIEmptyProfileRows(t *testing.T, r *scopeAPIRig) []string {
 		records = append(records, string(raw))
 	}
 	require.NoError(t, rows.Err())
+	if len(records) == 0 {
+		return nil
+	}
 	return records
 }
 
@@ -322,13 +325,16 @@ func convergenceAPIReceiptBytes(t *testing.T, r *scopeAPIRig) []string {
 	rows, err := r.f.db.QueryContext(t.Context(), `SELECT record FROM wg_delivery_sample_handoffs ORDER BY transfer_id`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var records []string
+	records := make([]string, 0, 8)
 	for rows.Next() {
 		var record string
 		require.NoError(t, rows.Scan(&record))
 		records = append(records, record)
 	}
 	require.NoError(t, rows.Err())
+	if len(records) == 0 {
+		return nil
+	}
 	return records
 }
 

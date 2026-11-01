@@ -94,7 +94,7 @@ func successorAPIAllState(t *testing.T, db *sql.DB) map[string][]string {
 	t.Helper()
 	rows, err := db.QueryContext(t.Context(), `SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name`)
 	require.NoError(t, err)
-	var names []string
+	names := make([]string, 0, 8)
 	for rows.Next() {
 		var name string
 		require.NoError(t, rows.Scan(&name))
