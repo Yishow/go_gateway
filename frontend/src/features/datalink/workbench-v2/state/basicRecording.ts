@@ -1,4 +1,5 @@
 import { savedRecordingOwnerMatches, type SavedRecordingStartOwner } from './recordingStartOwner';
+import { recordingCompletion } from '../steps/step4/recordingCompletion';
 import type { RecordingStartOperation, RecordingStartRequest } from '../../../../types/studioV2RecordingStart';
 import type { WriteGroup, WriteGroupDestinationDraft, WriteGroupDraft } from '../../../../types/studioV2WriteGroup';
 import { cloneWriteGroupExactRecordingSource } from '../../../../utils/studioV2ExactRecordingSourceJson';
@@ -334,12 +335,15 @@ export function isBasicManagedWriteGroup(group: WriteGroup, deviceId: string): b
 
 export interface BasicRecordingDeviceInspection {
   readonly unavailable: boolean;
-  readonly retained: readonly { readonly operationId?: string; readonly groupIds: readonly string[] }[];
+  readonly retained: readonly { readonly operationId?: string; readonly groupIds: readonly string[];
+    readonly completion?: { readonly workspaceRevision: string; readonly groups: readonly { readonly id: string; readonly revision: string; readonly appliedRevision: string }[] } }[];
 }
 /** Read the original owner store without guessing roles. Safe metadata only;
  * absence is local, never global operation absence. No cleanup or key disclosure. */
-export function inspectBasicRecordingDevice(workspaceId: string, deviceId: string): BasicRecordingDeviceInspection {
-  const retained: { operationId?: string; groupIds: string[] }[] = [];
+export function inspectBasicRecordingDevice(workspaceId: string, deviceId: string,
+  readOperation?: (operationId: string) => RecordingStartOperation | undefined,
+): BasicRecordingDeviceInspection {
+  const retained: Array<BasicRecordingDeviceInspection['retained'][number]> = [];
   if (!safeText(workspaceId, 256) || !safeText(deviceId, 256)) return { unavailable: true, retained };
   try {
     const source = storage();
@@ -356,7 +360,15 @@ export function inspectBasicRecordingDevice(workspaceId: string, deviceId: strin
         const decoded = decodeBasicRecordingIntent(raw, scopeKey);
         if (!decoded) { unavailable = true; continue; }
         if (!decoded.request.device_ids.includes(deviceId)) continue;
-        retained.push({ ...(decoded.operation_id ? { operationId: decoded.operation_id } : {}), groupIds: decoded.request.groups.map(group => group.group_id) });
+        let operation: RecordingStartOperation | undefined;
+        try { operation = decoded.operation_id ? readOperation?.(decoded.operation_id) : undefined; } catch { /* Missing evidence cannot erase retained work. */ }
+        const completion = recordingCompletion(decoded, operation, workspaceId, deviceId, decoded.owner);
+        const completed = operation && completion.state === 'available' && completion.status === 'succeeded' &&
+          safeText(operation.setup_revision, 256) && decoded.request.groups.every(intent => operation.groups.some(progress =>
+            progress.group_id === intent.group_id && progress.group_revision === intent.expected_group_revision && progress.applied_revision === progress.group_revision)) ? operation : undefined;
+        retained.push({ ...(decoded.operation_id ? { operationId: decoded.operation_id } : {}), groupIds: decoded.request.groups.map(group => group.group_id),
+          ...(completed ? { completion: { workspaceRevision: completed.setup_revision,
+            groups: completed.groups.map(group => ({ id: group.group_id, revision: group.group_revision, appliedRevision: group.group_revision })) } } : {}) });
       } catch { unavailable = true; }
     }
     return { unavailable, retained };

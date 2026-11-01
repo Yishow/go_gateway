@@ -3,6 +3,7 @@ import { readRecordingHomeOwners } from '@/features/datalink/workbench-v2/record
 import { inspectSchemaOperation } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery';
 import { recordingTestWriteRecovery } from '@/features/datalink/workbench-v2/state/recordingTestWriteRecovery';
 import { group, groupScope } from './recording-home-guidance-fixtures';
+import type { BasicRecordingDeviceInspection } from '@/features/datalink/workbench-v2/state/basicRecording';
 vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery', () => ({ inspectSchemaOperation: vi.fn() }));
 vi.mock('@/features/datalink/workbench-v2/state/recordingTestWriteRecovery', () => ({ recordingTestWriteRecovery: { read: vi.fn(), retain: vi.fn(), resolve: vi.fn() } }));
 beforeEach(() => {
@@ -45,4 +46,24 @@ it('a retained start is attributed only by its original validated group IDs, nev
   const second = readRecordingHomeOwners(scope, group('G'), undefined, known);
   expect(first.state === 'available' && first.value.find(item => item.owner === 'start')).toMatchObject({ state: 'unavailable' });
   expect(second.state === 'available' && second.value.find(item => item.owner === 'start')).toMatchObject({ state: 'unresolved', operationId: 'O' });
+});
+it('a completed Start observation never erases another retained intent or an unreadable owner', () => {
+  const saved = { ...group('G'), applied_revision: 'G2' }, scope = groupScope(saved);
+  const completed = { operationId: 'O1', groupIds: ['G'], completion: { workspaceRevision: scope.workspaceRevision,
+    groups: [{ id: 'G', revision: 'G2', appliedRevision: 'G2' }] } };
+  const inspect = (value: BasicRecordingDeviceInspection) => {
+    const result = readRecordingHomeOwners(scope, saved, undefined, new Map([['D1', value]]));
+    return result.state === 'available' ? result.value.find(item => item.owner === 'start') : undefined;
+  };
+  expect(inspect({ unavailable: false, retained: [completed] })).toMatchObject({ state: 'observed', result: 'resolved', operationId: 'O1' });
+  expect(inspect({ unavailable: false, retained: [completed, { operationId: 'O2', groupIds: ['G'] }] })).toMatchObject({ state: 'unresolved', operationId: 'O2' });
+  expect(inspect({ unavailable: true, retained: [completed] })).toMatchObject({ state: 'unavailable' });
+  expect(inspect({ unavailable: true, retained: [completed, { groupIds: ['G'] }] })).toMatchObject({ state: 'unresolved', reason: 'lost_ack' });
+});
+it.each(['workspace', 'group', 'applied'])('completed Start metadata cannot bless a different %s revision', kind => {
+  const saved = { ...group('G'), applied_revision: 'G2' }, scope = groupScope(saved);
+  const completion = { workspaceRevision: kind === 'workspace' ? 'OTHER' : scope.workspaceRevision,
+    groups: [{ id: 'G', revision: kind === 'group' ? 'OTHER' : 'G2', appliedRevision: kind === 'applied' ? 'OTHER' : 'G2' }] };
+  const result = readRecordingHomeOwners(scope, saved, undefined, new Map([['D1', { unavailable: false, retained: [{ operationId: 'O1', groupIds: ['G'], completion }] }]]));
+  expect(result.state === 'available' && result.value.find(item => item.owner === 'start')).toMatchObject({ state: 'unresolved', operationId: 'O1' });
 });

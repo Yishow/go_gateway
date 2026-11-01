@@ -12,6 +12,7 @@ import { recordingHomeRuntimeGroup } from './recordingHomeRuntimeEvidence';
 import type { RecordingHomeScope, RecordingHomeGroupScope } from './recordingHomeProjection';
 import type { RecordingReadonly } from '../state/recordingWorkflowView';
 import type { WriteGroup } from '../../../../types/studioV2WriteGroup';
+import type { RecordingStartOperation } from '../../../../types/studioV2RecordingStart';
 import { writeGroupDeliveryQueryOptions } from '../../../../hooks/datalink/useStudioV2WriteGroups';
 import { recordingHomeResultSummary, type RecordingHomeCommitHistory } from './recordingHomeResultSummary';
 
@@ -29,9 +30,11 @@ export function useRecordingHomeFacts(scope: RecordingHomeScope, groups: readonl
     return () => { unsubscribe(); window.removeEventListener('storage', refresh); };
   }, []);
   useEffect(() => client.getQueryCache().subscribe(event => {
-    if (event.type !== 'updated') return;
     const key = event.query.queryKey, marker = key.indexOf('home-rule-evidence');
-    if (marker >= 0 && key[marker + 1] === scope.workspaceId && key[marker + 2] === scope.workspaceRevision && key[marker + 3] === scope.epoch) update(value => value + 1);
+    if (event.type === 'updated' && marker >= 0 && key[marker + 1] === scope.workspaceId && key[marker + 2] === scope.workspaceRevision && key[marker + 3] === scope.epoch) update(value => value + 1);
+    // Original operation cache updates only wake this read-only projection; they never mount another owner/query.
+    if ((event.type === 'updated' || event.type === 'removed') && key.length === studioV2WorkspaceKeys.all.length + 2 && studioV2WorkspaceKeys.all.every((part, index) => key[index] === part) &&
+      key[studioV2WorkspaceKeys.all.length] === 'recording-start') update(value => value + 1);
   }), [client, scope.workspaceId, scope.workspaceRevision, scope.epoch]);
   const canonical = groups.filter(group => group.workspace_id === scope.workspaceId);
   const selected = canonical.filter(group => ids.slice(0, 50).includes(group.id));
@@ -47,7 +50,10 @@ export function useRecordingHomeFacts(scope: RecordingHomeScope, groups: readonl
     }, signal), signal), retry: false, refetchOnWindowFocus: false,
   })) });
   const starts = new Map([...new Set(canonical.flatMap(group => [...group.members.map(member => member.device_id), ...(group.basic_managed_device_id ? [group.basic_managed_device_id] : [])]))]
-    .map(device => [device, inspectBasicRecordingDevice(scope.workspaceId, device)]));
+    .map(device => [device, inspectBasicRecordingDevice(scope.workspaceId, device, operationId => {
+      const cached = client.getQueryState<RecordingStartOperation>([...studioV2WorkspaceKeys.all, 'recording-start', operationId]);
+      return cached?.status === 'success' && cached.fetchStatus === 'idle' && !cached.isInvalidated ? cached.data : undefined;
+    })]));
   const pendingDevices = [...starts].filter(([, inspection]) => inspection.retained.some(intent => !selected.some(group => intent.groupIds.includes(group.id)))).map(([device]) => device);
   const owners = Object.fromEntries(canonical.map(group => {
     const bound: RecordingHomeGroupScope = { ...scope, groupId: group.id, groupRevision: group.revision, appliedRevision: group.applied_revision };

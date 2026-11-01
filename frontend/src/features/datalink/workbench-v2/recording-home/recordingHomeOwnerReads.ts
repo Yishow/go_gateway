@@ -32,9 +32,14 @@ export function readRecordingHomeOwners(scope: RecordingHomeGroupScope, group: R
   if (!contexts.length && group.basic_managed_device_id) contexts.push({ deviceId: group.basic_managed_device_id, circuitId: undefined });
   return { state: 'available', scope, value: contexts.flatMap(context => {
     const bound = { ...scope, ...context };
-    const start = (starts?.get(context.deviceId) ?? inspectBasicRecordingDevice(scope.workspaceId, context.deviceId)).retained.find(item => item.groupIds.includes(group.id));
-    const startObservation: RecordingOwnerObservationState = start ? { state: 'unresolved', reason: start.operationId ? 'unknown' : 'lost_ack',
-      ...(start.operationId ? { operationId: start.operationId } : {}) } : { state: 'unavailable', reason: 'unreadable' };
+    const inspection = starts?.get(context.deviceId) ?? inspectBasicRecordingDevice(scope.workspaceId, context.deviceId);
+    const retained = inspection.retained.filter(item => item.groupIds.includes(group.id));
+    const unresolved = retained.find(item => item.completion?.workspaceRevision !== scope.workspaceRevision ||
+      !item.completion.groups.some(completed => completed.id === group.id && completed.revision === group.revision && completed.appliedRevision === group.applied_revision));
+    const start = unresolved ?? retained[0];
+    const startObservation: RecordingOwnerObservationState = !start || !unresolved && inspection.unavailable ? { state: 'unavailable', reason: 'unreadable' }
+      : unresolved ? { state: 'unresolved', reason: start.operationId ? 'unknown' : 'lost_ack', ...(start.operationId ? { operationId: start.operationId } : {}) }
+        : { state: 'observed', result: 'resolved', status: 'succeeded', reason: 'terminal', operationId: start.operationId };
     return [{ ...schemaObservation, owner: 'schema' as const, scope: bound },
       { ...startObservation, owner: 'start' as const, scope: bound },
       { ...testWrite, owner: 'test_write' as const, scope: bound }];
