@@ -5,6 +5,8 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
+const runtimeDialectSQLServer = "sqlserver"
+
 // runtimeWorkspaceDatabaseConfig deliberately does not embed the authoring DTO.
 // This is saved configuration, never proof of the currently effective destination.
 type runtimeWorkspaceDatabaseConfig struct {
@@ -29,12 +31,12 @@ func buildRuntimeDatabaseConfig(workspaceID string, connector *schema.DatabaseCo
 		WriteMode       string `json:"write_mode"`
 	}
 	configErr := json.Unmarshal([]byte(connector.ConnectionConfig), &config)
-	kind := "unavailable"
+	kind := runtimeEvidenceUnavailable
 	switch connector.Kind {
-	case "sqlite", "postgres", recordingDialectMySQL, "sqlserver":
+	case recordingDialectSQLite, recordingDialectPostgres, recordingDialectMySQL, runtimeDialectSQLServer:
 		kind = string(connector.Kind)
 	}
-	mode := "unavailable"
+	mode := runtimeEvidenceUnavailable
 	switch config.WriteMode {
 	case "insert", "upsert":
 		mode = config.WriteMode
@@ -45,9 +47,9 @@ func buildRuntimeDatabaseConfig(workspaceID string, connector *schema.DatabaseCo
 		config.Schema = ""
 		config.Table = ""
 		config.TimestampColumn = ""
-		mode = "unavailable"
+		mode = runtimeEvidenceUnavailable
 	}
-	status := "unavailable"
+	status := runtimeEvidenceUnavailable
 	switch connector.Status {
 	case "ready", "draft", apiResponseErrorKey, modbusShareStatusDisabled:
 		status = string(connector.Status)

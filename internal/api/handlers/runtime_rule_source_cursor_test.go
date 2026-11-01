@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"strings"
 	"testing"
@@ -101,4 +103,15 @@ func TestRuntimeSourcePageQueryUnicodeAndOrphanParameters(t *testing.T) {
 		rec := runtimeEvidenceScopeRequest(t, f.h, "?"+q.Encode())
 		require.Equal(t, 400, rec.Code, rec.Body.String())
 	}
+}
+
+func TestRuntimeSourcePageCursorWireBytesRemainCanonical(t *testing.T) {
+	f, q := runtimeSourcePageFixture(t, 120)
+	page := runtimeSourcePageGet(t, f.h, q)
+	require.NotNil(t, page.Next)
+	binding, err := json.Marshal([]any{1, f.record.ID, f.record.DatabaseSetupRevision, "device-1", "rules", "", 50, "", "", 50})
+	require.NoError(t, err)
+	require.Regexp(t, `^[0-9a-f]{64}$`, page.Revision)
+	raw := fmt.Sprintf(`{"v":1,"b":"%x","r":%q,"p":50}`, sha256.Sum256(binding), page.Revision)
+	require.Equal(t, base64.RawURLEncoding.EncodeToString([]byte(raw)), *page.Next)
 }

@@ -96,7 +96,7 @@ func ensureSQLiteSampleHandoffs(db *sql.DB) error {
 		// 046 supersedes only this receipt index. Never recreate its old unique
 		// form during 045 reentry: accepted aliases may already share a target.
 		if strings.HasPrefix(statement, "CREATE UNIQUE INDEX IF NOT EXISTS idx_wg_handoff_target_seq") {
-			if err = ensureSQLiteHandoffConvergenceIndex(ctx, tx); err != nil {
+			if err := ensureSQLiteHandoffConvergenceIndex(ctx, tx); err != nil {
 				return err
 			}
 			continue
@@ -123,7 +123,7 @@ func ensureSQLiteSampleHandoffs(db *sql.DB) error {
 				rows.Close()
 				return err
 			}
-			if err = rows.Close(); err != nil {
+			if err := rows.Close(); err != nil {
 				return err
 			}
 			if exists {

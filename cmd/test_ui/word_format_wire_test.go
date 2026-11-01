@@ -43,7 +43,7 @@ func (p *wordWirePLC) read(start, count int) ([]uint16, bool) {
 	}
 	return words, p.bad
 }
-func wordWireServer(t *testing.T, protocol schema.ProtocolType) (*wordWirePLC, string) {
+func wordWireServer(t *testing.T, protocol schema.ProtocolType) (plcResult *wordWirePLC, configResult string) {
 	t.Helper()
 	listener, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)

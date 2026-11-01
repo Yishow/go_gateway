@@ -11,7 +11,7 @@ const runtimeMethodLatest = "latest"
 
 func projectRuntimeRecordingGroup(saved *workspace.WriteGroup, snapshot *workspace.WriteGroupAppliedSnapshot, scope runtimeview.Scope, observed string) (runtimeview.GroupView, error) {
 	result := runtimeview.GroupView{GroupID: saved.ID, SavedRevision: runtimeEvidenceString(saved.Revision),
-		AppliedRevision: runtimeEvidenceString(saved.AppliedRevision), AsOf: &observed, State: "saved-only", Proof: "unavailable"}
+		AppliedRevision: runtimeEvidenceString(saved.AppliedRevision), AsOf: &observed, State: "saved-only", Proof: runtimeEvidenceUnavailable}
 	var err error
 	result.Saved, err = runtimeRecordingFacts(saved, nil, scope)
 	if err != nil {
@@ -20,7 +20,7 @@ func projectRuntimeRecordingGroup(saved *workspace.WriteGroup, snapshot *workspa
 	if saved.AppliedRevision == "" {
 		return result, nil
 	}
-	result.State = "unavailable"
+	result.State = runtimeEvidenceUnavailable
 	if snapshot == nil {
 		return result, nil
 	}
@@ -53,10 +53,10 @@ func runtimeRecordingFacts(group *workspace.WriteGroup, snapshot *workspace.Writ
 	result := &runtimeview.GroupFacts{
 		Binding:     runtimeview.Binding{WorkspaceID: scope.WorkspaceID, WorkspaceRevision: scope.WorkspaceRevision, EntityRevision: group.Revision},
 		Enabled:     group.Status != workspace.WriteGroupStatusDisabled && group.Status != workspace.WriteGroupStatusDeleted,
-		Destination: runtimeview.Destination{ConnectorID: group.Destination.ConnectorID, ConnectorRevision: group.Destination.ConnectorRevision, Table: group.Destination.TableName, Kind: "unavailable"},
+		Destination: runtimeview.Destination{ConnectorID: group.Destination.ConnectorID, ConnectorRevision: group.Destination.ConnectorRevision, Table: group.Destination.TableName, Kind: runtimeEvidenceUnavailable},
 		Members:     []runtimeview.Member{}, Layout: runtimeRecordingEnum(string(group.EffectiveLayoutVersion()), "managed_wide_v1", "managed_long_v1", "managed_wide_profile_v1"),
 		StorageMode: runtimeRecordingEnum(string(group.StorageMode), "plain", "timescale", "native_monthly"),
-		Reduction:   "unavailable", WriteMode: runtimeRecordingEnum(group.WritePolicy.Mode, "append", runtimeMethodLatest),
+		Reduction:   runtimeEvidenceUnavailable, WriteMode: runtimeRecordingEnum(group.WritePolicy.Mode, "append", runtimeMethodLatest),
 		IncompletePolicy: runtimeRecordingEnum(group.RowPolicy.IncompletePolicy, "skip_row", runtimeStatusPartial),
 	}
 	if schema := group.Destination.TableSchema; schema != "" {
@@ -89,7 +89,7 @@ func runtimeRecordingFacts(group *workspace.WriteGroup, snapshot *workspace.Writ
 	}
 	if snapshot != nil {
 		result.EffectiveAt, result.EndsAt = runtimeEvidenceTime(snapshot.EffectiveAt), runtimeEvidenceTime(snapshot.EndsAt)
-		result.Destination.Kind = runtimeRecordingEnum(string(snapshot.RuntimeLayout.Dialect), "sqlite", "postgres", recordingDialectMySQL, "sqlserver")
+		result.Destination.Kind = runtimeRecordingEnum(string(snapshot.RuntimeLayout.Dialect), recordingDialectSQLite, recordingDialectPostgres, recordingDialectMySQL, runtimeDialectSQLServer)
 	}
 	for _, member := range group.Members {
 		for _, value := range []string{member.DeviceID, member.PointID, member.TagID, member.TargetColumn} {
@@ -123,7 +123,7 @@ func runtimeRecordingEnum(value string, allowed ...string) string {
 	if result := runtimeSafeEnum(value, allowed...); result != "" {
 		return result
 	}
-	return "unavailable"
+	return runtimeEvidenceUnavailable
 }
 
 func runtimeEvidenceString(value string) *string {

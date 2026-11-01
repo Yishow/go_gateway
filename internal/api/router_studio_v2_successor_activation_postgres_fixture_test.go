@@ -19,7 +19,7 @@ import (
 )
 
 // Own two unique schemas; never touch public or any pre-existing schema.
-func newPostgresSuccessorDestination(t *testing.T, timescale bool) (managedGroupFixture, string) {
+func newPostgresSuccessorDestination(t *testing.T, timescale bool) (fixtureResult managedGroupFixture, connectorResult string) {
 	t.Helper()
 	key, database := "POSTGRES_DSN", "gateway_test"
 	if timescale {

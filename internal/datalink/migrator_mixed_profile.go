@@ -120,7 +120,7 @@ func rebuildMixedProfileTable(ctx context.Context, tx *sql.Tx, checkpoint func(s
 	}
 	const temporary = "write_groups_member_calculation_expand"
 	var exists int
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE name=?`, temporary).Scan(&exists); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE name=?`, temporary).Scan(&exists); err != nil {
 		return err
 	}
 	if exists != 0 {
@@ -150,7 +150,7 @@ func rebuildMixedProfileTable(ctx context.Context, tx *sql.Tx, checkpoint func(s
 		}
 		return nil
 	}
-	if err = step("copy"); err != nil {
+	if err := step("copy"); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, ddl); err != nil {
@@ -167,19 +167,19 @@ func rebuildMixedProfileTable(ctx context.Context, tx *sql.Tx, checkpoint func(s
 	}
 	query := "SELECT (SELECT COUNT(*) FROM write_groups a LEFT JOIN " + temporary + " b ON a.id=b.id WHERE b.id IS NULL OR " + strings.Join(comparisons, " OR ") + ") + ABS((SELECT COUNT(*) FROM write_groups)-(SELECT COUNT(*) FROM " + temporary + "))"
 
-	if err = tx.QueryRowContext(ctx, query).Scan(&different); err != nil {
+	if err := tx.QueryRowContext(ctx, query).Scan(&different); err != nil {
 		return err
 	}
 	if different != 0 {
 		return fmt.Errorf("mixed migration copy verification failed")
 	}
-	if err = step("replace"); err != nil {
+	if err := step("replace"); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "DROP TABLE write_groups; ALTER TABLE "+temporary+" RENAME TO write_groups"); err != nil {
 		return err
 	}
-	if err = step("indexes"); err != nil {
+	if err := step("indexes"); err != nil {
 		return err
 	}
 	for _, object := range objects {
@@ -187,10 +187,10 @@ func rebuildMixedProfileTable(ctx context.Context, tx *sql.Tx, checkpoint func(s
 			return err
 		}
 	}
-	if err = step("foreign_keys"); err != nil {
+	if err := step("foreign_keys"); err != nil {
 		return err
 	}
-	if err = checkSQLiteMixedForeignKeys(ctx, tx); err != nil {
+	if err := checkSQLiteMixedForeignKeys(ctx, tx); err != nil {
 		return err
 	}
 	return step("commit")

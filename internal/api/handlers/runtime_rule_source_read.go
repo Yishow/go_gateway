@@ -36,7 +36,7 @@ func runtimeSourceRequestSelection(c *gin.Context, scope *runtimeview.Scope) (*r
 		valid = valid && len(values) == 1 && values[0] != "" && runtimeSafeID(values[0]) == values[0]
 	}
 	if !valid {
-		renderRuntimeHandlerError(c, http.StatusBadRequest, "unavailable", false)
+		renderRuntimeHandlerError(c, http.StatusBadRequest, runtimeEvidenceUnavailable, false)
 		return nil, false
 	}
 	return &runtimeSourceSelection{RuleID: query.Get("rule_id"), RuleRevision: query.Get("rule_revision"), PointID: query.Get("point_id"), MappingID: query.Get("mapping_id")}, true

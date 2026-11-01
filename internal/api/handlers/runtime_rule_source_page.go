@@ -49,7 +49,7 @@ func (h *RuntimeHandler) tryRuntimeSourcePage(c *gin.Context, scope *runtimeview
 	}
 	request, valid := runtimeSourcePageRequestFromQuery(query, scope)
 	if err != nil || !valid {
-		renderRuntimeHandlerError(c, http.StatusBadRequest, "unavailable", false)
+		renderRuntimeHandlerError(c, http.StatusBadRequest, runtimeEvidenceUnavailable, false)
 		return true
 	}
 	h.scopedRuntimeSourcePage(c, *scope, request)
@@ -84,7 +84,7 @@ func (h *RuntimeHandler) scopedRuntimeSourcePage(c *gin.Context, scope runtimevi
 		var valid bool
 		cursor, valid = runtimeSourcePageDecode(request.Cursor)
 		if !valid {
-			renderRuntimeHandlerError(c, http.StatusBadRequest, "unavailable", false)
+			renderRuntimeHandlerError(c, http.StatusBadRequest, runtimeEvidenceUnavailable, false)
 			return
 		}
 	}

@@ -12,7 +12,7 @@ import (
 func (response runtimeStatusResponse) MarshalJSON() ([]byte, error) {
 	type wireResponse runtimeStatusResponse
 	safe := wireResponse(response)
-	if runtimeSafeEnum(safe.SnapshotState.State, "ready", "empty", "degraded", "unavailable", runtimeStatusStale) == "" {
+	if runtimeSafeEnum(safe.SnapshotState.State, "ready", "empty", "degraded", runtimeEvidenceUnavailable, runtimeStatusStale) == "" {
 		safe.SnapshotState = datalinkruntime.RuntimeUnavailableTruthState("runtime snapshot unavailable")
 	}
 	safe.SnapshotState.Reason = runtimeSafeDiagnostic(safe.SnapshotState.Reason)
@@ -70,8 +70,8 @@ func safeRuntimeCollector(c runtimeCollectorResponse) runtimeCollectorResponse {
 	c.DeviceName = runtimeSafeLabel(c.DeviceName)
 	c.Protocol = runtimeSafeStatusChoice(c.Protocol, testClientProtocolModbusTCP, "modbus_rtu", "modbus_udp", "fatek_fbs", "mc_3e", "mqtt")
 	c.Status = runtimeSafeStatusChoice(c.Status, "idle", "running", "warning", apiResponseErrorKey)
-	c.AvailabilityStatus = runtimeSafeStatusChoice(c.AvailabilityStatus, runtimeEvidenceAvailable, "unavailable")
-	if c.Status == "unavailable" || c.AvailabilityStatus == "unavailable" || c.Protocol == "unavailable" || c.DeviceID == "" {
+	c.AvailabilityStatus = runtimeSafeStatusChoice(c.AvailabilityStatus, runtimeEvidenceAvailable, runtimeEvidenceUnavailable)
+	if c.Status == runtimeEvidenceUnavailable || c.AvailabilityStatus == runtimeEvidenceUnavailable || c.Protocol == runtimeEvidenceUnavailable || c.DeviceID == "" {
 		c.Running = false
 	}
 	c.AvailabilityReason = runtimeSafeAvailabilityReason(c.AvailabilityReason)
@@ -101,7 +101,7 @@ func runtimeSafeStatusChoice(value string, allowed ...string) string {
 	if safe := runtimeSafeEnum(value, allowed...); safe != "" {
 		return safe
 	}
-	return "unavailable"
+	return runtimeEvidenceUnavailable
 }
 
 func runtimeSafeDiagnosticScope(value string) string {

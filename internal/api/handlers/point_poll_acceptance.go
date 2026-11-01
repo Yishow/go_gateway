@@ -40,12 +40,13 @@ func supersededPollResult(id string) PollResult {
 // It never holds scheduler locks while writing SQL.
 func (h *PointHandler) persistPollResult(ctx context.Context, cv collector.CollectedValue) (bool, error) {
 	var err error
-	if cv.DirectEvidence != nil {
+	switch {
+	case cv.DirectEvidence != nil:
 		captured := cv.DirectEvidence.Point
 		err = h.svc.UpdateReadResultAtRevision(ctx, cv.PointID, captured.DeviceID, captured.RevisionID, cv.Value, cv.Error)
-	} else if cv.InstallationLease != 0 {
+	case cv.InstallationLease != 0:
 		err = h.svc.UpdateReadResultAtRevision(ctx, cv.PointID, cv.DeviceID, cv.PointRevision, cv.Value, cv.Error)
-	} else {
+	default:
 		err = h.svc.UpdateReadResult(ctx, cv.PointID, cv.Value, cv.Error)
 	}
 	if errors.Is(err, point.ErrReadResultSuperseded) {

@@ -132,25 +132,3 @@ type WriteGroupSuccessorSchemaResponse struct {
 	Success bool                           `json:"success" example:"true"`
 	Data    *recordingplan.SchemaOperation `json:"data"`
 }
-
-// writeGroupSuccessorSwaggerModels is a route-less model catalog for Swag 2.
-// Swag parses these references into definitions but no operation without Router.
-// This is not an endpoint, request body, new stage URL, or runtime authority.
-// The real dispatcher links these exact models through x-action-contracts.
-// @Param reserve body WriteGroupSuccessorReserveRequest true "reserve only"
-// @Param preview body WriteGroupSuccessorPreviewRequest true "schema-preview only"
-// @Param confirm body WriteGroupSuccessorConfirmRequest true "schema-confirm only"
-// @Param activationReview body WriteGroupSuccessorActivationReviewRequest true "activation-review only"
-// @Param readiness body WriteGroupSuccessorReadinessRequest true "activation-readiness only"
-// @Param cutover body WriteGroupSuccessorCutoverConfirmRequest true "activation-confirm only"
-// @Param firstStart body WriteGroupSuccessorFirstStartConfirmRequest true "first-start-confirm only"
-// @Param status body WriteGroupSuccessorStatusRequest true "operation-status only"
-// @Success 200 {object} workspace.WriteGroupSuccessorPreparation
-// @Success 200 {object} recordingplan.SchemaPreviewToken
-// @Success 200 {object} recordingplan.SchemaOperation
-// @Success 200 {object} workspace.WriteGroupSuccessorActivationReview
-// @Success 200 {object} workspace.WriteGroupSuccessorActivationReadiness
-// @Success 200 {object} workspace.WriteGroupCutover
-// @Success 200 {object} workspace.WriteGroupSuccessorFirstStartResult
-// @Success 200 {object} workspace.WriteGroupSuccessorOperationStatus
-func writeGroupSuccessorSwaggerModels() {}

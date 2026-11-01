@@ -19,7 +19,7 @@ func rebuildRecordProfileKeys(ctx context.Context, tx *sql.Tx, checkpoint func(s
 		return err
 	}
 	var original string
-	if err = tx.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type='table' AND name='write_group_profile_keys'`).Scan(&original); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type='table' AND name='write_group_profile_keys'`).Scan(&original); err != nil {
 		return err
 	}
 	normalize := func(s string) string {
@@ -34,7 +34,7 @@ func rebuildRecordProfileKeys(ctx context.Context, tx *sql.Tx, checkpoint func(s
 	}
 	const temporary = "write_group_profile_keys_record_expand"
 	var count int
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE name=?`, temporary).Scan(&count); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE name=?`, temporary).Scan(&count); err != nil {
 		return err
 	}
 	if count != 0 {
@@ -50,7 +50,7 @@ func rebuildRecordProfileKeys(ctx context.Context, tx *sql.Tx, checkpoint func(s
 		}
 		return nil
 	}
-	if err = step("copy"); err != nil {
+	if err := step("copy"); err != nil {
 		return err
 	}
 	ddl := strings.Replace(expanded, "CREATE TABLE write_group_profile_keys", "CREATE TABLE "+temporary, 1)
@@ -67,19 +67,19 @@ func rebuildRecordProfileKeys(ctx context.Context, tx *sql.Tx, checkpoint func(s
 		comparisons = append(comparisons, "a."+column+" IS NOT b."+column+" OR typeof(a."+column+")<>typeof(b."+column+")")
 	}
 	query := "SELECT (SELECT COUNT(*) FROM write_group_profile_keys a LEFT JOIN " + temporary + " b ON a.group_id=b.group_id WHERE b.group_id IS NULL OR " + strings.Join(comparisons, " OR ") + ") + ABS((SELECT COUNT(*) FROM write_group_profile_keys)-(SELECT COUNT(*) FROM " + temporary + "))"
-	if err = tx.QueryRowContext(ctx, query).Scan(&count); err != nil {
+	if err := tx.QueryRowContext(ctx, query).Scan(&count); err != nil {
 		return err
 	}
 	if count != 0 {
 		return fmt.Errorf("record profile migration copy verification failed")
 	}
-	if err = step("replace"); err != nil {
+	if err := step("replace"); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "DROP TABLE write_group_profile_keys; ALTER TABLE "+temporary+" RENAME TO write_group_profile_keys"); err != nil {
 		return err
 	}
-	if err = step("indexes"); err != nil {
+	if err := step("indexes"); err != nil {
 		return err
 	}
 	for _, object := range objects {
@@ -87,10 +87,10 @@ func rebuildRecordProfileKeys(ctx context.Context, tx *sql.Tx, checkpoint func(s
 			return err
 		}
 	}
-	if err = step("foreign_keys"); err != nil {
+	if err := step("foreign_keys"); err != nil {
 		return err
 	}
-	if err = checkSQLiteMixedForeignKeys(ctx, tx); err != nil {
+	if err := checkSQLiteMixedForeignKeys(ctx, tx); err != nil {
 		return err
 	}
 	return step("commit")
@@ -105,7 +105,7 @@ func recordProfileKeyObjects(ctx context.Context, tx *sql.Tx) ([]string, error) 
 	var objects []string
 	for rows.Next() {
 		var ddl string
-		if err = rows.Scan(&ddl); err != nil {
+		if err := rows.Scan(&ddl); err != nil {
 			return nil, err
 		}
 		objects = append(objects, ddl)

@@ -33,7 +33,7 @@ func expandMixedOwnershipFences(ctx context.Context, tx *sql.Tx, step func(strin
 		return canonicalMixedDeliveryDDL(strings.Replace(s, `CREATE TABLE "`+table+`"`, "CREATE TABLE "+table, 1))
 	}
 	var actual string
-	if err = tx.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type='table' AND name=?`, table).Scan(&actual); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type='table' AND name=?`, table).Scan(&actual); err != nil {
 		return err
 	}
 	if normalize(actual) == normalize(expanded) {
@@ -44,7 +44,7 @@ func expandMixedOwnershipFences(ctx context.Context, tx *sql.Tx, step func(strin
 	}
 	const temporary = "write_group_ownership_fences_mixed_expand"
 	var count int
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE name=?`, temporary).Scan(&count); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE name=?`, temporary).Scan(&count); err != nil {
 		return err
 	}
 	if count != 0 {
@@ -71,10 +71,10 @@ func expandMixedOwnershipFences(ctx context.Context, tx *sql.Tx, step func(strin
 		rows.Close()
 		return err
 	}
-	if err = rows.Close(); err != nil {
+	if err := rows.Close(); err != nil {
 		return err
 	}
-	if err = step("fence_copy"); err != nil {
+	if err := step("fence_copy"); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, strings.Replace(expanded, "CREATE TABLE "+table, "CREATE TABLE "+temporary, 1)); err != nil {
@@ -93,19 +93,19 @@ func expandMixedOwnershipFences(ctx context.Context, tx *sql.Tx, step func(strin
 		joins = append(joins, "a."+column+"=b."+column)
 	}
 	query := "SELECT (SELECT COUNT(*) FROM " + table + " a LEFT JOIN " + temporary + " b ON " + strings.Join(joins, " AND ") + " WHERE b.fence_revision IS NULL OR " + strings.Join(comparisons, " OR ") + ") + ABS((SELECT COUNT(*) FROM " + table + ")-(SELECT COUNT(*) FROM " + temporary + "))"
-	if err = tx.QueryRowContext(ctx, query).Scan(&count); err != nil {
+	if err := tx.QueryRowContext(ctx, query).Scan(&count); err != nil {
 		return err
 	}
 	if count != 0 {
 		return fmt.Errorf("ownership fence copy verification failed")
 	}
-	if err = step("fence_replace"); err != nil {
+	if err := step("fence_replace"); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "DROP TABLE "+table+"; ALTER TABLE "+temporary+" RENAME TO "+table); err != nil {
 		return err
 	}
-	if err = step("fence_indexes"); err != nil {
+	if err := step("fence_indexes"); err != nil {
 		return err
 	}
 	for _, ddl := range objects {
@@ -120,10 +120,10 @@ func expandMixedOwnershipFences(ctx context.Context, tx *sql.Tx, step func(strin
 	if !maps.Equal(before, after) {
 		return fmt.Errorf("ownership fence dependencies changed")
 	}
-	if err = step("fence_foreign_keys"); err != nil {
+	if err := step("fence_foreign_keys"); err != nil {
 		return err
 	}
-	if err = checkSQLiteMixedForeignKeys(ctx, tx); err != nil {
+	if err := checkSQLiteMixedForeignKeys(ctx, tx); err != nil {
 		return err
 	}
 	return step("fence_commit")
@@ -140,7 +140,7 @@ func mixedFenceDependencies(ctx context.Context, tx *sql.Tx) (map[string]string,
 	result := map[string]string{}
 	for rows.Next() {
 		var kind, name, table, ddl string
-		if err = rows.Scan(&kind, &name, &table, &ddl); err != nil {
+		if err := rows.Scan(&kind, &name, &table, &ddl); err != nil {
 			return nil, err
 		}
 		result[kind+":"+name] = table + "\x00" + ddl

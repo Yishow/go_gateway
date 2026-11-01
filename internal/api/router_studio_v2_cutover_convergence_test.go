@@ -275,9 +275,9 @@ func convergenceAPIEmptyProfileRows(t *testing.T, r *scopeAPIRig) []string {
 		for i, name := range columns {
 			record[name] = values[i]
 		}
-		index := time.Duration(len(records))
-		require.Equal(t, r.at((10+index*5)*time.Second), storedInstant(t, record["bucket_start"].(string)))
-		require.Equal(t, r.at((15+index*5)*time.Second), storedInstant(t, record["bucket_end"].(string)))
+		index := int64(len(records))
+		require.Equal(t, r.at(time.Duration(10+index*5)*time.Second), storedInstant(t, record["bucket_start"].(string)))
+		require.Equal(t, r.at(time.Duration(15+index*5)*time.Second), storedInstant(t, record["bucket_end"].(string)))
 		raw, err := json.Marshal(record)
 		require.NoError(t, err)
 		records = append(records, string(raw))

@@ -71,7 +71,7 @@ type collectionStatusFixture struct {
 	router   http.Handler
 }
 
-func newCollectionStatusFixture(t *testing.T, mappingCount int) (collectionStatusFixture, string) {
+func newCollectionStatusFixture(t *testing.T, mappingCount int) (fixtureResult collectionStatusFixture, configResult string) {
 	t.Helper()
 	_, config := wordWireServer(t, schema.ProtocolModbusTCP)
 	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "status.db"))

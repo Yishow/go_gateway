@@ -48,21 +48,24 @@ func runtimeMixedSourceResult(raw *groupdelivery.SourceRecord, frozen *workspace
 	}
 	projected := &runtimeview.CalculationResult{ResultShape: c.ResultShape, Method: c.Method, IntervalSeconds: c.IntervalSeconds, Alignment: c.Alignment, DueAt: c.DueAt.UTC().Format(time.RFC3339Nano), NextDue: mixedEvidenceTime(c.NextDue), OutcomeDigest: c.OutcomeDigest, OutcomeKind: c.OutcomeKind, Status: c.Status, Reason: runtimeEvidenceString(c.Reason), ResultPresent: c.ResultPresent, RowEmitted: c.RowEmitted, RawPresent: c.RawPresent, SourceType: c.SourceType, ResultType: c.ResultType, AlignedStart: mixedEvidenceTime(c.AlignedStart), AlignedEnd: mixedEvidenceTime(c.AlignedEnd), ActualStart: mixedEvidenceTime(c.ActualStart), ActualEnd: mixedEvidenceTime(c.ActualEnd), Rounded: c.Rounded}
 	result := &runtimeview.SourceResult{State: runtimeStatusUnknown, Calculation: projected, WindowStart: projected.ActualStart, WindowEnd: projected.ActualEnd, DeltaKnown: r.DeltaKnown}
-	if c.Status == runtimeStatusNotDue {
+	switch {
+	case c.Status == runtimeStatusNotDue:
 		result.State = runtimeStatusNotDue
-	} else if c.ResultPresent {
+	case c.ResultPresent:
 		result.State = runtimeEvidenceAvailable
-	} else if c.Status == runtimeStatusMissing && r.Status == groupdelivery.SourceStatusMissing {
+	case c.Status == runtimeStatusMissing && r.Status == groupdelivery.SourceStatusMissing:
 		result.State = runtimeStatusMissing
 	}
 	if r.Aggregation != nil {
 		coverage := r.Aggregation.Coverage
-		if coverage == runtimeStatusPartial {
+		switch coverage {
+		case runtimeStatusPartial:
 			result.State = runtimeStatusPartial
 			result.Coverage = &coverage
-		} else if coverage == runtimeStatusUnknown {
+		case runtimeStatusUnknown:
 			result.Coverage = &coverage
-		} else if coverage != runtimeStatusMissing {
+		case runtimeStatusMissing:
+		default:
 			return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 		}
 	}

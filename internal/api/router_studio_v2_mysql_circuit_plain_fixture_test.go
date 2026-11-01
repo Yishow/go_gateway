@@ -140,8 +140,8 @@ func newMySQLCircuitPlainFixture(t *testing.T, options ...mysqlCircuitPlainFixtu
 		option = options[0]
 	}
 	seedMeasurement := measurement.MeasurementDefinition{
-		ID: "meas-energy", DefinitionRevision: "def-5", SourceBindingRevision: "bind-5", SeriesEpoch: "epoch-3",
-		Name: "Energy", Quantity: "energy", Unit: "kWh", SemanticKind: measurement.SemanticKindCounter,
+		ID: "meas-energy", SourceBindingRevision: "bind-5", SeriesEpoch: "epoch-3",
+		Quantity: "energy", Unit: "kWh", SemanticKind: measurement.SemanticKindCounter,
 		NumericEncoding: "uint64", ExactRecordingScale: option.SeedMeasurement.ExactRecordingScale,
 	}
 	inputs := slices.Clone(mysqlCircuitInputs[:])

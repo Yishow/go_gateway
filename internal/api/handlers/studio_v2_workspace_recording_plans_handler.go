@@ -233,7 +233,7 @@ func (h *StudioV2WorkspaceRecordingPlansHandler) Capabilities(c *gin.Context) {
 		return
 	}
 
-	kinds := []string{recordingDialectSQLite, recordingDialectPostgres, recordingDialectMySQL, "sqlserver", "oracle"}
+	kinds := []string{recordingDialectSQLite, recordingDialectPostgres, recordingDialectMySQL, runtimeDialectSQLServer, "oracle"}
 	caps := make([]recordingplan.ConnectorCapability, 0, len(kinds))
 	for _, k := range kinds {
 		caps = append(caps, h.planSvc.GetConnectorCapability(k))

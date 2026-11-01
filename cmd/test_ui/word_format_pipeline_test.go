@@ -59,7 +59,7 @@ func newWordProductionFixture(t *testing.T, protocol schema.ProtocolType) wordPr
 	require.Equal(t, 200, response.Code, response.Body.String())
 	return wordProductionFixture{services, db, plc, manager, router}
 }
-func wordCanonicalValue(dtype schema.DataType) (uint64, any, int) {
+func wordCanonicalValue(dtype schema.DataType) (bitsResult uint64, valueResult any, widthResult int) {
 	switch dtype {
 	case schema.DataTypeInt32:
 		return 0x11223344, int32(0x11223344), 2

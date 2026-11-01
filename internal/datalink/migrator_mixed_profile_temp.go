@@ -16,7 +16,7 @@ func sqliteMigrationHasTemp(ctx context.Context, conn *sql.Conn) (bool, error) {
 	for rows.Next() {
 		var seq int
 		var name, path string
-		if err = rows.Scan(&seq, &name, &path); err != nil {
+		if err := rows.Scan(&seq, &name, &path); err != nil {
 			return false, err
 		}
 		hasTemp = hasTemp || name == "temp"

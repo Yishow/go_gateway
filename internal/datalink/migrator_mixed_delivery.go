@@ -45,7 +45,7 @@ func expandSQLiteMixedDelivery(db *sql.DB, checkpoint func(string) error) error 
 			} else if canonicalMixedDeliveryDDL(actual) != canonicalMixedDeliveryDDL(expected) {
 				return fmt.Errorf("unknown %s schema; migration refused", name)
 			}
-			if err = step(name); err != nil {
+			if err := step(name); err != nil {
 				return err
 			}
 		}
@@ -65,7 +65,7 @@ func expandSQLiteMixedDelivery(db *sql.DB, checkpoint func(string) error) error 
 		original := "CREATE TABLE wg_delivery_outbox (" + body
 		expanded := strings.TrimSuffix(strings.TrimSpace(original), ")") + ", due_at TEXT)"
 		var actual string
-		if err = tx.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type='table' AND name='wg_delivery_outbox'`).Scan(&actual); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type='table' AND name='wg_delivery_outbox'`).Scan(&actual); err != nil {
 			return err
 		}
 		switch canonicalMixedDeliveryDDL(actual) {
@@ -77,7 +77,7 @@ func expandSQLiteMixedDelivery(db *sql.DB, checkpoint func(string) error) error 
 		default:
 			return fmt.Errorf("unknown wg_delivery_outbox schema; migration refused")
 		}
-		if err = step("outbox"); err != nil {
+		if err := step("outbox"); err != nil {
 			return err
 		}
 		const indexName = "idx_wg_delivery_outbox_due_head"
@@ -93,13 +93,13 @@ func expandSQLiteMixedDelivery(db *sql.DB, checkpoint func(string) error) error 
 		} else if canonicalMixedDeliveryDDL(indexSQL) != canonicalMixedDeliveryDDL(expectedIndex) {
 			return fmt.Errorf("unknown %s schema; migration refused", indexName)
 		}
-		if err = step("index"); err != nil {
+		if err := step("index"); err != nil {
 			return err
 		}
-		if err = expandMixedOwnershipFences(ctx, tx, step); err != nil {
+		if err := expandMixedOwnershipFences(ctx, tx, step); err != nil {
 			return err
 		}
-		if err = checkSQLiteMixedForeignKeys(ctx, tx); err != nil {
+		if err := checkSQLiteMixedForeignKeys(ctx, tx); err != nil {
 			return err
 		}
 		return step("commit")

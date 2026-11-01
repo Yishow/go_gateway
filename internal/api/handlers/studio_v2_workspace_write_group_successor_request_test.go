@@ -44,12 +44,12 @@ func TestSuccessorHTTPRejectsAmbiguousStageInputs(t *testing.T) {
 		{"preview-cannot-select-bypass", preview, "allow_reserved", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			copy := map[string]any{}
+			clonedRequest := map[string]any{}
 			for k, v := range tc.request {
-				copy[k] = v
+				clonedRequest[k] = v
 			}
-			copy[tc.field] = tc.value
-			raw, err := json.Marshal(copy)
+			clonedRequest[tc.field] = tc.value
+			raw, err := json.Marshal(clonedRequest)
 			require.NoError(t, err)
 			require.Equal(t, http.StatusBadRequest, successorHandlerStatus(t, h.Successor, string(raw)))
 		})

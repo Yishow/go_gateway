@@ -259,11 +259,11 @@ func TestRuntimeSourcePageRejectsMalformedForeignAndMixedModeRequests(t *testing
 	}
 	q := r.query(t, "rules")
 	q.Set("limit", "1")
-	first := runtimeSourcePageBody(t, r.get(t, q))
+	runtimeSourcePageBody(t, r.get(t, q))
 	// Two mappings supply a continuation even when the rule list has one row.
 	q = r.query(t, "mappings")
 	q.Set("limit", "1")
-	first = runtimeSourcePageBody(t, r.get(t, q))
+	first := runtimeSourcePageBody(t, r.get(t, q))
 	require.NotNil(t, first.NextCursor)
 	raw, err := base64.RawURLEncoding.DecodeString(*first.NextCursor)
 	require.NoError(t, err)

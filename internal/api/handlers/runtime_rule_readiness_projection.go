@@ -26,7 +26,7 @@ func projectRuntimeReadiness(summary *workspace.ReadinessSummary) *runtimeReadin
 	for _, issue := range summary.Issues {
 		code := runtimeSafeID(issue.Code)
 		if code == "" {
-			code = "unavailable"
+			code = runtimeEvidenceUnavailable
 			result.Ready = false
 		}
 		severity := runtimeSafeEnum(string(issue.Severity), "blocking", "warning")

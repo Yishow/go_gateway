@@ -68,7 +68,7 @@ func runtimeSourceDeliveryResult(raw *groupdelivery.SourceRecord, frozen *worksp
 		return nil, nil
 	}
 	if !raw.Available || raw.VerifiedSourceRecord == nil {
-		return &runtimeview.SourceResult{State: "unavailable"}, nil
+		return &runtimeview.SourceResult{State: runtimeEvidenceUnavailable}, nil
 	}
 	r := raw.VerifiedSourceRecord
 	if frozen.Group.RecordingProfile != nil && frozen.Group.RecordingProfile.Kind == workspace.WriteGroupProfileMixed {

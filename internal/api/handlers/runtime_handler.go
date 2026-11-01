@@ -17,6 +17,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const runtimeEvidenceUnavailable = "unavailable"
+
 const runtimeEvidenceAvailable = "available"
 
 type RuntimeHandler struct {
@@ -406,26 +408,26 @@ func mapRuntimeWorkspaceContextDevice(savedDevice *schema.Device, runtimeStatus 
 		response.AvailabilityReason = runtimeSafeAvailabilityReason(&reason)
 	}
 
-	if response.AvailabilityStatus != runtimeEvidenceAvailable || response.Protocol == "unavailable" || response.DeviceID == "" {
+	if response.AvailabilityStatus != runtimeEvidenceAvailable || response.Protocol == runtimeEvidenceUnavailable || response.DeviceID == "" {
 		response.Running = false
-		response.AvailabilityStatus = "unavailable"
+		response.AvailabilityStatus = runtimeEvidenceUnavailable
 	}
 	if runtimeStatus.DeviceID == "" {
 		return response
 	}
 
 	response.Running = runtimeStatus.Running
-	response.AvailabilityStatus = runtimeSafeStatusChoice(runtimeStatus.AvailabilityStatus, runtimeEvidenceAvailable, "unavailable")
+	response.AvailabilityStatus = runtimeSafeStatusChoice(runtimeStatus.AvailabilityStatus, runtimeEvidenceAvailable, runtimeEvidenceUnavailable)
 	response.AvailabilityReason = runtimeSafeAvailabilityReason(runtimeStatus.AvailabilityReason)
 	response.ProjectionAlignment = runtimeSafeStatusChoice(runtimeStatus.ProjectionAlignment, "aligned", "deferred", "restart-required", "restart_required", runtimeStatusStale, "degraded")
 	response.RuntimeProjectionVersion = runtimeSafeID(runtimeStatus.RuntimeProjectionVersion)
 	response.WorkspaceProjectionVersion = runtimeSafeID(runtimeStatus.WorkspaceProjectionVersion)
 	response.ProjectionMessage = runtimeSafeDiagnostic(runtimeStatus.ProjectionMessage)
 	response.ProjectionCode = runtimeSafeID(runtimeStatus.ProjectionCode)
-	if response.Protocol == "unavailable" || response.DeviceID == "" || runtimeSavedDeviceAvailability(savedDevice) != runtimeEvidenceAvailable {
-		response.AvailabilityStatus = "unavailable"
+	if response.Protocol == runtimeEvidenceUnavailable || response.DeviceID == "" || runtimeSavedDeviceAvailability(savedDevice) != runtimeEvidenceAvailable {
+		response.AvailabilityStatus = runtimeEvidenceUnavailable
 	}
-	if response.AvailabilityStatus != runtimeEvidenceAvailable || response.ProjectionAlignment == "unavailable" {
+	if response.AvailabilityStatus != runtimeEvidenceAvailable || response.ProjectionAlignment == runtimeEvidenceUnavailable {
 		response.Running = false
 	}
 	return response

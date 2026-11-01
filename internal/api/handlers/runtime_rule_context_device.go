@@ -13,7 +13,7 @@ import (
 // Explicit malformed or unknown values must not become available by default.
 func runtimeSavedDeviceAvailability(record *schema.Device) string {
 	if record == nil {
-		return "unavailable"
+		return runtimeEvidenceUnavailable
 	}
 	if strings.TrimSpace(record.ReadinessStatus) == "" {
 		return availabilityStatusOf(record)
@@ -22,16 +22,16 @@ func runtimeSavedDeviceAvailability(record *schema.Device) string {
 		AvailabilityStatus json.RawMessage `json:"availability_status"`
 	}
 	if json.Unmarshal([]byte(record.ReadinessStatus), &readiness) != nil {
-		return "unavailable"
+		return runtimeEvidenceUnavailable
 	}
 	if len(readiness.AvailabilityStatus) == 0 {
 		return availabilityStatusOf(record)
 	}
 	var status string
 	if json.Unmarshal(readiness.AvailabilityStatus, &status) != nil {
-		return "unavailable"
+		return runtimeEvidenceUnavailable
 	}
-	return runtimeSafeStatusChoice(status, runtimeEvidenceAvailable, "unavailable")
+	return runtimeSafeStatusChoice(status, runtimeEvidenceAvailable, runtimeEvidenceUnavailable)
 }
 
 // This normalization is deliberately limited to runtime requests; shared authoring

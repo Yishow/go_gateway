@@ -23,11 +23,11 @@ func (s *mysqlSuccessorProbeSpy) ProbeMySQLRecordingAtRevision(ctx context.Conte
 	if s.offline {
 		return nil, errors.New("fixture target offline")
 	}
-	cap, err := s.ManagedTableInspector.ProbeMySQLRecordingAtRevision(ctx, id, revision)
+	capabilityResult, err := s.ManagedTableInspector.ProbeMySQLRecordingAtRevision(ctx, id, revision)
 	if s.afterProbe != nil {
 		s.afterProbe()
 	}
-	return cap, err
+	return capabilityResult, err
 }
 
 func (s *mysqlSuccessorProbeSpy) InspectTableAtRevision(ctx context.Context, id, revision, namespace, table string) (*dbtarget.TableInspection, error) {

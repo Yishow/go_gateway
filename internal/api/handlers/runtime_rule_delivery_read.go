@@ -47,7 +47,7 @@ func (h *RuntimeHandler) readRuntimeRuleDelivery(ctx context.Context, saved *wor
 	if snapshot != nil && len(before) == 1 {
 		status := before[0]
 		compatible := status.State != "active" || (saved.Status != workspace.WriteGroupStatusDisabled && saved.Status != workspace.WriteGroupStatusDeleted && snapshot.Group.Status != workspace.WriteGroupStatusDisabled && snapshot.Group.Status != workspace.WriteGroupStatusDeleted && (snapshot.EndsAt.IsZero() || snapshot.EndsAt.After(asOf)))
-		if compatible && runtimeSafeEnum(status.State, "active", "retiring", "blocked", "not_running", "unavailable") != "" {
+		if compatible && runtimeSafeEnum(status.State, "active", "retiring", "blocked", "not_running", runtimeEvidenceUnavailable) != "" {
 			intake = &runtimeview.IntakeEvidence{GroupRevision: revision, State: status.State}
 			if status.Reason != "" {
 				reason := runtimeview.ParseReason(status.Reason)

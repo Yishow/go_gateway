@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func wordDatagramPeer(t *testing.T) (*wordWirePLC, string) {
+func wordDatagramPeer(t *testing.T) (plcResult *wordWirePLC, configResult string) {
 	t.Helper()
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1")})
 	require.NoError(t, err)

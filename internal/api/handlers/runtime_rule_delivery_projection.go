@@ -61,7 +61,7 @@ func projectRuntimeRuleDelivery(raw *grouppipeline.DeliveryView, saved *workspac
 		for _, code := range b.ErrorCodes {
 			reasons = append(reasons, runtimeview.ParseReason(code))
 		}
-		result.Backlog = append(result.Backlog, runtimeview.Backlog{Binding: runtimeview.Binding{WorkspaceID: scope.WorkspaceID, WorkspaceRevision: scope.WorkspaceRevision, EntityRevision: b.GroupRevision}, Destination: runtimeview.Destination{ConnectorID: b.ConnectorID, ConnectorRevision: b.ConnectorRevision, Schema: runtimeEvidenceString(b.TableSchema), Table: b.TableName, Kind: "unavailable"}, Pending: int64(b.Pending), Reasons: reasons})
+		result.Backlog = append(result.Backlog, runtimeview.Backlog{Binding: runtimeview.Binding{WorkspaceID: scope.WorkspaceID, WorkspaceRevision: scope.WorkspaceRevision, EntityRevision: b.GroupRevision}, Destination: runtimeview.Destination{ConnectorID: b.ConnectorID, ConnectorRevision: b.ConnectorRevision, Schema: runtimeEvidenceString(b.TableSchema), Table: b.TableName, Kind: runtimeEvidenceUnavailable}, Pending: int64(b.Pending), Reasons: reasons})
 	}
 	if revision == "" {
 		if raw.RevisionStages != nil || raw.LastSQLCommittedEffect != nil {
@@ -95,7 +95,7 @@ func projectRuntimeRuleDelivery(raw *grouppipeline.DeliveryView, saved *workspac
 	}
 	result.Current = &runtimeview.CurrentDelivery{Binding: runtimeview.Binding{WorkspaceID: scope.WorkspaceID, WorkspaceRevision: scope.WorkspaceRevision, EntityRevision: revision}, TotalsScope: "group", Shared: len(devices) > 1, Intake: intake,
 		Stages:     runtimeview.StageCounts{Collecting: int64(stages.Collecting), Queued: int64(stages.Queued), Retrying: int64(stages.Retrying), Blocked: int64(stages.Blocked), Quarantined: int64(stages.Quarantined), Unknown: int64(stages.Unknown), SQLCommitted: int64(stages.SQLCommitted), Skipped: int64(stages.Skipped)},
-		LastCommit: receipt, Sources: []runtimeview.SourceEvidence{}, SourceState: "unavailable", Quota: quota}
+		LastCommit: receipt, Sources: []runtimeview.SourceEvidence{}, SourceState: runtimeEvidenceUnavailable, Quota: quota}
 	// Storage remains unavailable: editable-group storage is not frozen lineage proof.
 	if err := projectRuntimeSourceDelivery(raw.SourceEvidence, snapshot, result.Current); err != nil {
 		return nil, err

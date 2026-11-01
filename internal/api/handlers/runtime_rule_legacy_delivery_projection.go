@@ -69,8 +69,8 @@ func projectLegacyRuntimeDelivery(raw *grouppipeline.DeliveryView, expectedGroup
 			return nil, unavailable
 		}
 		for j, cause := range b.Causes {
-			if !legacyDeliveryChoice(cause, runtimeStatusMissing, "bad", runtimeStatusStale, "invalid", "no_data", "unavailable", "boundary") {
-				b.Causes[j] = "unavailable"
+			if !legacyDeliveryChoice(cause, runtimeStatusMissing, "bad", runtimeStatusStale, "invalid", "no_data", runtimeEvidenceUnavailable, "boundary") {
+				b.Causes[j] = runtimeEvidenceUnavailable
 			}
 		}
 	}
@@ -79,7 +79,7 @@ func projectLegacyRuntimeDelivery(raw *grouppipeline.DeliveryView, expectedGroup
 		return nil, unavailable
 	}
 	if !legacyDeliveryChoice(q.LossRiskNotice, "", "new readings for this scope are not recorded until space is available; already accepted data is kept", "capacity is running low; intake will be refused at the hard limit") {
-		q.LossRiskNotice = "unavailable"
+		q.LossRiskNotice = runtimeEvidenceUnavailable
 	}
 	if s := result.Storage; s != nil {
 		if !legacyDeliveryChoice(s.RepairState, "", "blocked") {
@@ -180,7 +180,7 @@ func legacyDeliveryReason(value string) string {
 	if reason := runtimeview.ParseReason(value); reason != runtimeview.ReasonUnavailable {
 		return string(reason)
 	}
-	return "unavailable"
+	return runtimeEvidenceUnavailable
 }
 
 var legacyDeliverySourceReasons = strings.Fields(`

@@ -24,6 +24,27 @@ type StudioV2WorkspaceWriteGroupSuccessorHandler struct {
 }
 
 // NewStudioV2WorkspaceWriteGroupSuccessorHandler reuses the existing schema ledger.
+// NewStudioV2WorkspaceWriteGroupSuccessorHandler constructs the saved successor handler.
+// Its route-less model catalog below is parsed by Swag 2.
+// Swag parses these references into definitions but no operation without Router.
+// This is not an endpoint, request body, new stage URL, or runtime authority.
+// The real dispatcher links these exact models through x-action-contracts.
+// @Param reserve body WriteGroupSuccessorReserveRequest true "reserve only"
+// @Param preview body WriteGroupSuccessorPreviewRequest true "schema-preview only"
+// @Param confirm body WriteGroupSuccessorConfirmRequest true "schema-confirm only"
+// @Param activationReview body WriteGroupSuccessorActivationReviewRequest true "activation-review only"
+// @Param readiness body WriteGroupSuccessorReadinessRequest true "activation-readiness only"
+// @Param cutover body WriteGroupSuccessorCutoverConfirmRequest true "activation-confirm only"
+// @Param firstStart body WriteGroupSuccessorFirstStartConfirmRequest true "first-start-confirm only"
+// @Param status body WriteGroupSuccessorStatusRequest true "operation-status only"
+// @Success 200 {object} workspace.WriteGroupSuccessorPreparation
+// @Success 200 {object} recordingplan.SchemaPreviewToken
+// @Success 200 {object} recordingplan.SchemaOperation
+// @Success 200 {object} workspace.WriteGroupSuccessorActivationReview
+// @Success 200 {object} workspace.WriteGroupSuccessorActivationReadiness
+// @Success 200 {object} workspace.WriteGroupCutover
+// @Success 200 {object} workspace.WriteGroupSuccessorFirstStartResult
+// @Success 200 {object} workspace.WriteGroupSuccessorOperationStatus
 func NewStudioV2WorkspaceWriteGroupSuccessorHandler(groups *workspace.WriteGroupService, ledger *recordingplan.Service, targets *dbtarget.ConnectorService) *StudioV2WorkspaceWriteGroupSuccessorHandler {
 	h := &StudioV2WorkspaceWriteGroupSuccessorHandler{groups: groups, ledger: ledger}
 	if groups != nil && targets != nil {

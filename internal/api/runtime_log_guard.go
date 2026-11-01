@@ -10,6 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const runtimeLogLocalhost = "localhost"
+const runtimeLogSameOrigin = "same-origin"
+
 const runtimeLogIPv4Loopback = "127.0.0.1"
 const runtimeLogFetchSiteNone = "none"
 
@@ -26,7 +29,7 @@ func localLogGuard() gin.HandlerFunc {
 			}
 		}
 		c.Header("Cache-Control", "no-store")
-		c.Header("Cross-Origin-Resource-Policy", "same-origin")
+		c.Header("Cross-Origin-Resource-Policy", runtimeLogSameOrigin)
 		c.Header("X-Content-Type-Options", "nosniff")
 		if !localLogAllowed(c.Request) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"code": "logs_local_only"})
@@ -56,7 +59,7 @@ func localLogAllowed(r *http.Request) bool {
 	host, hostPort, err := net.SplitHostPort(r.Host)
 	if err != nil {
 		host, hostPort = r.Host, defaultPort
-		if host != runtimeLogIPv4Loopback && host != "localhost" && host != "[::1]" {
+		if host != runtimeLogIPv4Loopback && host != runtimeLogLocalhost && host != "[::1]" {
 			return false
 		}
 		if host == "[::1]" {
@@ -65,7 +68,7 @@ func localLogAllowed(r *http.Request) bool {
 	} else if r.Host != net.JoinHostPort(host, hostPort) {
 		return false
 	}
-	if host != runtimeLogIPv4Loopback && host != "::1" && host != "localhost" {
+	if host != runtimeLogIPv4Loopback && host != "::1" && host != runtimeLogLocalhost {
 		return false
 	}
 	if hostPort != port {
@@ -82,7 +85,7 @@ func localLogAllowed(r *http.Request) bool {
 		return false
 	}
 	sites, present := exactHeaderValues(r.Header, "Sec-Fetch-Site")
-	return !present || len(sites) == 1 && (sites[0] == "same-origin" || sites[0] == runtimeLogFetchSiteNone)
+	return !present || len(sites) == 1 && (sites[0] == runtimeLogSameOrigin || sites[0] == runtimeLogFetchSiteNone)
 }
 
 func validLogPort(port string) bool {

@@ -96,7 +96,7 @@ func (h *StudioV2AcquisitionPreviewHandler) Get(c *gin.Context) {
 		renderRuntimeEvidenceError(c, runtimeEvidenceError(runtimeview.ReasonStale))
 		return
 	}
-	unavailable := collector.AcquisitionPreview{Status: "unavailable", Reason: "installation_unavailable"}
+	unavailable := collector.AcquisitionPreview{Status: runtimeEvidenceUnavailable, Reason: "installation_unavailable"}
 	view := unavailable
 	var verify func() bool
 	var before *workspace.RuntimeProjection

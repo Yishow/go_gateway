@@ -27,14 +27,14 @@ func expandSQLiteMixedSourceIndexes(db *sql.DB, checkpoint func(string) error) e
 		}
 		expectedTable := strings.TrimSpace(strings.Split(string(predecessor), ";")[1])
 		var actual string
-		if err = tx.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE name='wg_delivery_mixed_outcomes' AND type='table'`).Scan(&actual); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE name='wg_delivery_mixed_outcomes' AND type='table'`).Scan(&actual); err != nil {
 			return err
 		}
 		if canonicalMixedDeliveryDDL(actual) != canonicalMixedDeliveryDDL(expectedTable) {
 			return fmt.Errorf("unknown mixed outcomes schema; index migration refused")
 		}
 		var invalid int
-		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM wg_delivery_mixed_outcomes WHERE CASE WHEN json_valid(outcome) THEN json_type(outcome) != 'object' ELSE 1 END`).Scan(&invalid); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM wg_delivery_mixed_outcomes WHERE CASE WHEN json_valid(outcome) THEN json_type(outcome) != 'object' ELSE 1 END`).Scan(&invalid); err != nil {
 			return err
 		}
 		if invalid != 0 {
@@ -58,12 +58,12 @@ func expandSQLiteMixedSourceIndexes(db *sql.DB, checkpoint func(string) error) e
 				return err
 			}
 			if checkpoint != nil {
-				if err = checkpoint(name); err != nil {
+				if err := checkpoint(name); err != nil {
 					return err
 				}
 			}
 		}
-		if err = checkSQLiteMixedForeignKeys(ctx, tx); err != nil {
+		if err := checkSQLiteMixedForeignKeys(ctx, tx); err != nil {
 			return err
 		}
 		if checkpoint != nil {

@@ -33,7 +33,7 @@ func (r *counterReplayAPIReader) CounterSources(ctx context.Context, g *workspac
 	return grouppipeline.NewMeasurementCounterSources(measurement.NewSQLRepository(r.db)).CounterSources(ctx, g)
 }
 
-func counterReplayAPISnapshot(t *testing.T, store *groupdelivery.Store, key groupdelivery.GroupKey) (workspace.WriteGroupAppliedSnapshot, []byte) {
+func counterReplayAPISnapshot(t *testing.T, store *groupdelivery.Store, key groupdelivery.GroupKey) (snapshotResult workspace.WriteGroupAppliedSnapshot, rawResult []byte) {
 	t.Helper()
 	raw, err := store.RuntimeVersion(t.Context(), key)
 	require.NoError(t, err)

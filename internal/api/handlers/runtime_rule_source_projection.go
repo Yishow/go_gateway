@@ -29,7 +29,7 @@ func projectRuntimeSource(records *runtimeSourceRecords, scope runtimeview.Scope
 	if group := records.Polling; group != nil && runtimeSafeID(group.ID) != "" && group.IntervalMs > 0 {
 		facts.Polling = &runtimeview.PollingEvidence{GroupID: group.ID, IntervalMS: int64(group.IntervalMs), Source: "polling-group"}
 	}
-	result := &runtimeview.SourceView{RuleID: rule.ID, PointID: p.ID, SavedRevision: runtimeEvidenceString(rule.RevisionID), State: "saved-only", Proof: "unavailable", Saved: facts}
+	result := &runtimeview.SourceView{RuleID: rule.ID, PointID: p.ID, SavedRevision: runtimeEvidenceString(rule.RevisionID), State: "saved-only", Proof: runtimeEvidenceUnavailable, Saved: facts}
 	if m := records.Mapping; m != nil {
 		result.MappingID, result.TagID = runtimeEvidenceString(m.ID), runtimeEvidenceString(records.Tag.ID)
 		revision, err := measurement.MappingRevision(*m)

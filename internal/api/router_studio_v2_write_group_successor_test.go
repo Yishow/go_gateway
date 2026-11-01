@@ -34,7 +34,7 @@ func TestWriteGroupSuccessorReviewIsReadOnlyAndExact(t *testing.T) {
 	require.Empty(t, review.Envelope.Request.Group.AppliedRevision)
 	require.Empty(t, review.Envelope.Request.Group.Destination.SchemaDigest)
 	require.NotNil(t, review.History)
-	require.Equal(t, before, successorAPIAllState(t, f.f.db), "opening or cancelling review must not save a token, reservation, ledger or any configuration")
+	require.Equal(t, before, successorAPIAllState(t, f.f.db), "opening or canceling review must not save a token, reservation, ledger or any configuration")
 	require.Zero(t, inspector.calls)
 	again := f.review(t)
 	require.Equal(t, review.ReviewDigest, again.ReviewDigest)

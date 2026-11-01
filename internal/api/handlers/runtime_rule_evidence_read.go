@@ -45,7 +45,7 @@ func runtimeEvidenceError(reason runtimeview.Reason) error {
 func runtimeEvidenceRequestScope(c *gin.Context) (*runtimeview.Scope, bool) {
 	query, err := url.ParseQuery(c.Request.URL.RawQuery)
 	if err != nil {
-		renderRuntimeHandlerError(c, http.StatusBadRequest, "unavailable", false)
+		renderRuntimeHandlerError(c, http.StatusBadRequest, runtimeEvidenceUnavailable, false)
 		return nil, false
 	}
 	keys := []string{"workspace_id", "workspace_revision", "device_id"}
@@ -60,7 +60,7 @@ func runtimeEvidenceRequestScope(c *gin.Context) (*runtimeview.Scope, bool) {
 	for _, key := range keys {
 		values := query[key]
 		if len(values) != 1 || values[0] == "" || runtimeSafeID(values[0]) != values[0] {
-			renderRuntimeHandlerError(c, http.StatusBadRequest, "unavailable", false)
+			renderRuntimeHandlerError(c, http.StatusBadRequest, runtimeEvidenceUnavailable, false)
 			return nil, false
 		}
 	}

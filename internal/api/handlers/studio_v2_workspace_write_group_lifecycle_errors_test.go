@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func lifecycleErrorResponse(t *testing.T, err error) (int, map[string]any) {
+func lifecycleErrorResponse(t *testing.T, err error) (statusResult int, bodyResult map[string]any) {
 	t.Helper()
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)

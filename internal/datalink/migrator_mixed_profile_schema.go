@@ -26,7 +26,7 @@ func mixedProfileColumns(ctx context.Context, tx *sql.Tx) ([]string, error) {
 		var cid, notNull, pk, hidden int
 		var name, kind string
 		var defaultValue any
-		if err = rows.Scan(&cid, &name, &kind, &notNull, &defaultValue, &pk, &hidden); err != nil {
+		if err := rows.Scan(&cid, &name, &kind, &notNull, &defaultValue, &pk, &hidden); err != nil {
 			return nil, err
 		}
 		if !allowed[name] || hidden != 0 {
@@ -35,7 +35,7 @@ func mixedProfileColumns(ctx context.Context, tx *sql.Tx) ([]string, error) {
 		seen[name] = true
 		columns = append(columns, "\""+name+"\"")
 	}
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	for _, name := range known[:19] {
@@ -55,7 +55,7 @@ func mixedProfileObjects(ctx context.Context, tx *sql.Tx) ([]string, error) {
 	var objects []string
 	for rows.Next() {
 		var ddl string
-		if err = rows.Scan(&ddl); err != nil {
+		if err := rows.Scan(&ddl); err != nil {
 			return nil, err
 		}
 		objects = append(objects, ddl)
