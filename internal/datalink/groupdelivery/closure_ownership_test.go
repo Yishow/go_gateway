@@ -27,14 +27,13 @@ func TestClosureOwnershipCutoverWinsWithoutReceipts(t *testing.T) {
 			}
 			entered, release := make(chan struct{}), make(chan struct{})
 			faults := &lostcommit.Faults{}
-			hook := func(query string) error {
+			hook := func(query string) {
 				if strings.Contains(query, "UPDATE wg_delivery_checkpoints SET updated_at") {
 					close(entered)
 					<-release
 				}
-				return nil
 			}
-			faults.Reject.Store(&hook)
+			faults.ObserveStatement.Store(&hook)
 			concurrent := lostcommit.OpenFaults(path+"?_pragma=busy_timeout(5000)", faults)
 			defer concurrent.Close()
 			result := make(chan error, 1)

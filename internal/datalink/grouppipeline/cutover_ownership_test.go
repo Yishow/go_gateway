@@ -132,14 +132,13 @@ func TestCutoverOwnershipCommitBetweenRoutingAndAppend(t *testing.T) {
 	var once sync.Once
 	defer once.Do(func() { close(resume) })
 	var hit atomic.Bool
-	hook := func(query string) error {
+	hook := func(query string) {
 		if strings.Contains(query, "UPDATE wg_delivery_checkpoints SET updated_at = updated_at WHERE 0") && hit.CompareAndSwap(false, true) {
 			close(reached)
 			<-resume
 		}
-		return nil
 	}
-	f.localFault.Reject.Store(&hook)
+	f.localFault.ObserveStatement.Store(&hook)
 	result := make(chan error, 1)
 	go func() {
 		result <- f.pipe.AcceptSample(t.Context(), envelope(f.source.Group, "stale-plan", at(23), uint64(7)))
@@ -152,7 +151,7 @@ func TestCutoverOwnershipCommitBetweenRoutingAndAppend(t *testing.T) {
 	f.commit()
 	once.Do(func() { close(resume) })
 	err := <-result
-	f.localFault.Reject.Store(nil)
+	f.localFault.ObserveStatement.Store(nil)
 	require.ErrorIs(t, err, groupdelivery.ErrOwnershipConflict)
 	for _, table := range []string{"wg_delivery_samples", "wg_delivery_checkpoints"} {
 		var count int

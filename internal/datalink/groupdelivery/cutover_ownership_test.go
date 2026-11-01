@@ -178,14 +178,13 @@ func TestCutoverOwnershipConcurrentCommitBeforeAcceptanceRefusesStalePlan(t *tes
 	require.Empty(t, before.Affected)
 	entered, release := make(chan struct{}), make(chan struct{})
 	faults := &lostcommit.Faults{}
-	hook := func(query string) error {
+	hook := func(query string) {
 		if strings.Contains(query, "UPDATE wg_delivery_checkpoints SET updated_at") {
 			close(entered)
 			<-release
 		}
-		return nil
 	}
-	faults.Reject.Store(&hook)
+	faults.ObserveStatement.Store(&hook)
 	concurrentDB := lostcommit.OpenFaults(path+"?_pragma=busy_timeout(5000)", faults)
 	defer concurrentDB.Close()
 	result := make(chan error, 1)

@@ -267,15 +267,14 @@ func TestCutoverReconcileDoesNotTakeHandoffWriteLocksForUnrelatedInput(t *testin
 	f := newHandoffPipelineFixture(t, shapeMeanLong)
 	require.NoError(t, f.pipe.AcceptSample(t.Context(), envelope(f.source.Group, "ordinary", at(23), uint64(7))))
 	writes := 0
-	observe := func(query string) error {
+	observe := func(query string) {
 		if strings.Contains(query, "UPDATE wg_delivery_checkpoints SET updated_at = updated_at WHERE 0") {
 			writes++
 		}
-		return nil
 	}
-	f.localFault.Reject.Store(&observe)
+	f.localFault.ObserveStatement.Store(&observe)
 	err := f.pipe.Reconcile(t.Context())
-	f.localFault.Reject.Store(nil)
+	f.localFault.ObserveStatement.Store(nil)
 	require.NoError(t, err)
 	require.Zero(t, writes, "ordinary unrelated accepted input is not cutover migration work")
 }

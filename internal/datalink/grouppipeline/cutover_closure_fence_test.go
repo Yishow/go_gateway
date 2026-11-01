@@ -30,15 +30,14 @@ func TestCutoverClosureFenceRejectsCapturedPlanAndRefreshes(t *testing.T) {
 				entered, release := make(chan struct{}), make(chan struct{})
 				var once atomic.Bool
 				var released sync.Once
-				t.Cleanup(func() { released.Do(func() { close(release) }); f.localFault.Reject.Store(nil) })
-				reject := func(query string) error {
+				t.Cleanup(func() { released.Do(func() { close(release) }); f.localFault.ObserveStatement.Store(nil) })
+				reject := func(query string) {
 					if strings.Contains(query, "UPDATE wg_delivery_checkpoints SET updated_at = updated_at WHERE 0") && once.CompareAndSwap(false, true) {
 						close(entered) // The stale plan exists; it has not acquired write authority.
 						<-release
 					}
-					return nil
 				}
-				f.localFault.Reject.Store(&reject)
+				f.localFault.ObserveStatement.Store(&reject)
 				closed := make(chan error, 1)
 				go func() { closed <- old.boundary.Tick(t.Context(), at(15)) }()
 				<-entered
@@ -46,7 +45,7 @@ func TestCutoverClosureFenceRejectsCapturedPlanAndRefreshes(t *testing.T) {
 				before := conflictPairState(t, f)
 				released.Do(func() { close(release) })
 				err := <-closed
-				f.localFault.Reject.Store(nil)
+				f.localFault.ObserveStatement.Store(nil)
 				require.ErrorIs(t, err, groupdelivery.ErrOwnershipConflict)
 				require.Equal(t, before, conflictPairState(t, f), "stale closure advances no journal, checkpoint, baseline or outbox")
 				require.Equal(t, at(0), old.boundary.NextClose(), "failed durable closure cannot commit the in-memory plan")
@@ -91,15 +90,14 @@ func TestCutoverClosureFenceNewRestoreCannotAuthorizeStaleCanonicalBounds(t *tes
 	entered, release := make(chan struct{}), make(chan struct{})
 	var once atomic.Bool
 	var released sync.Once
-	t.Cleanup(func() { released.Do(func() { close(release) }); f.localFault.Reject.Store(nil) })
-	reject := func(query string) error {
+	t.Cleanup(func() { released.Do(func() { close(release) }); f.localFault.ObserveStatement.Store(nil) })
+	reject := func(query string) {
 		if strings.Contains(query, "SELECT payload FROM wg_runtime_versions\n") && once.CompareAndSwap(false, true) {
 			close(entered)
 			<-release
 		}
-		return nil
 	}
-	f.localFault.Reject.Store(&reject)
+	f.localFault.ObserveStatement.Store(&reject)
 	type result struct {
 		worker *managed
 		reason string
@@ -111,7 +109,7 @@ func TestCutoverClosureFenceNewRestoreCannotAuthorizeStaleCanonicalBounds(t *tes
 	before := conflictPairState(t, f)
 	released.Do(func() { close(release) })
 	got := <-built
-	f.localFault.Reject.Store(nil)
+	f.localFault.ObserveStatement.Store(nil)
 	require.Nil(t, got.worker, "a newly read owner view cannot be attached to the stale canonical configuration")
 	require.Equal(t, groupdelivery.ErrOwnershipConflict.Error(), got.reason)
 	require.Equal(t, before, conflictPairState(t, f))

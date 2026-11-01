@@ -38,6 +38,9 @@ type Faults struct {
 	// AfterCommit, when set, runs right after a transaction committed for real
 	// and before Commit returns, e.g. to cancel the caller's context.
 	AfterCommit atomic.Pointer[func()]
+	// ObserveStatement, when set, observes a statement at the original Reject point,
+	// before Reject. ExecError still takes precedence; it does not reach this point.
+	ObserveStatement atomic.Pointer[func(query string)]
 	// Reject, when set, is asked about every statement before it reaches the
 	// database; a non-nil error is returned instead (e.g. a permission denial
 	// for SELECT or DELETE on one table).
@@ -140,6 +143,9 @@ func (c *lostConn) Prepare(query string) (driver.Stmt, error) {
 }
 
 func (f *Faults) rejected(query string) error {
+	if observe := f.ObserveStatement.Load(); observe != nil {
+		(*observe)(query)
+	}
 	if reject := f.Reject.Load(); reject != nil {
 		return (*reject)(query)
 	}

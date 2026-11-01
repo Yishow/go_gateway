@@ -26,13 +26,12 @@ func TestCanonicalLifecycleAppendAndStopLinearize(t *testing.T) {
 			require.NoError(t, err)
 			attempted := make(chan struct{})
 			faults := &lostcommit.Faults{}
-			hook := func(query string) error {
+			hook := func(query string) {
 				if strings.Contains(query, "UPDATE wg_delivery_checkpoints") {
 					close(attempted)
 				}
-				return nil
 			}
-			faults.Reject.Store(&hook)
+			faults.ObserveStatement.Store(&hook)
 			appends := lostcommit.OpenFaults(path+"?_pragma=busy_timeout(5000)", faults)
 			defer appends.Close()
 			result := make(chan error, 1)
@@ -85,13 +84,12 @@ func TestCanonicalLifecycleAppendAndStopLinearize(t *testing.T) {
 			awaitLifecycleBarrier(t, ctx, atInsert)
 			stopAttempted := make(chan struct{})
 			stopFaults := &lostcommit.Faults{}
-			stopHook := func(query string) error {
+			stopHook := func(query string) {
 				if strings.Contains(query, "UPDATE write_groups") {
 					close(stopAttempted)
 				}
-				return nil
 			}
-			stopFaults.Reject.Store(&stopHook)
+			stopFaults.ObserveStatement.Store(&stopHook)
 			stops := lostcommit.OpenFaults(path+"?_pragma=busy_timeout(5000)", stopFaults)
 			defer stops.Close()
 			stopResult := make(chan error, 1)

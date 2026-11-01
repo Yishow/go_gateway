@@ -80,13 +80,12 @@ func TestHandoffParticipantsOrdinarySourceEmpty(t *testing.T) {
 	require.Empty(t, keys, "ordinary accepted input is not handoff discovery work")
 	faults := &lostcommit.Faults{}
 	var writes atomic.Int32
-	observe := func(query string) error {
+	observe := func(query string) {
 		if strings.Contains(query, "UPDATE wg_delivery_checkpoints SET updated_at = updated_at WHERE 0") {
 			writes.Add(1)
 		}
-		return nil
 	}
-	faults.Reject.Store(&observe)
+	faults.ObserveStatement.Store(&observe)
 	db := lostcommit.OpenFaults(handoffDatabasePath(t, store), faults)
 	defer db.Close()
 	store = NewStore(db)

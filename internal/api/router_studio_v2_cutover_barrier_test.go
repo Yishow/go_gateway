@@ -167,16 +167,15 @@ func TestCutoverPublicBarrierDelayedReconcileSQLite(t *testing.T) {
 					case <-time.After(5 * time.Second):
 						t.Error("closure goroutine did not stop before delivery connection cleanup")
 					}
-					faults.Reject.Store(nil)
+					faults.ObserveStatement.Store(nil)
 				})
-				hook := func(query string) error {
+				hook := func(query string) {
 					if strings.Contains(query, "UPDATE wg_delivery_checkpoints SET updated_at = updated_at WHERE 0") && once.CompareAndSwap(false, true) {
 						close(entered)
 						<-release
 					}
-					return nil
 				}
-				faults.Reject.Store(&hook)
+				faults.ObserveStatement.Store(&hook)
 				// Only earlier due windows are planned here. All clocks remain before
 				// boundary; no time reversal or retroactive public cutover is needed.
 				go func() { r.pipe.TickAll(t.Context()); close(done) }()
@@ -200,7 +199,7 @@ func TestCutoverPublicBarrierDelayedReconcileSQLite(t *testing.T) {
 				case <-time.After(5 * time.Second):
 					t.Fatal("released closure did not finish after public cutover committed")
 				}
-				faults.Reject.Store(nil)
+				faults.ObserveStatement.Store(nil)
 				barrierAPIRefusal(t, reports)
 				require.Equal(t, beforeRefusal, barrierAPIDeliveryState(t, r))
 				require.Equal(t, originals, barrierAPIOriginals(t, r))

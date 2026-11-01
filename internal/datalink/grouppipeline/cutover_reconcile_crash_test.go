@@ -143,16 +143,15 @@ func TestCutoverReconcileCrashRestoresCommittedHandoffAndFrozenOutput(t *testing
 				f.groups.snapshots[f.target.GroupID] = []*workspace.WriteGroupAppliedSnapshot{f.target}
 				f.clock = at(12)
 				var armed atomic.Bool
-				reject := func(query string) error {
+				reject := func(query string) {
 					if strings.Contains(query, "INSERT INTO wg_delivery_sample_handoffs") {
 						armed.Store(true)
 						f.localFault.Lose.Store(true) // Only after real transfer work, never an earlier advisory read.
 					}
-					return nil
 				}
-				f.localFault.Reject.Store(&reject)
+				f.localFault.ObserveStatement.Store(&reject)
 				err := f.pipe.Reconcile(t.Context())
-				f.localFault.Reject.Store(nil)
+				f.localFault.ObserveStatement.Store(nil)
 				f.localFault.Lose.Store(false)
 				require.True(t, armed.Load())
 				require.ErrorIs(t, err, lostcommit.ErrResponseLost)

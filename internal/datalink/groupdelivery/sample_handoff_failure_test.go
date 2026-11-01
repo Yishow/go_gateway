@@ -132,14 +132,13 @@ func TestHandoffTransactionSerializesStaleClosure(t *testing.T) {
 	store, _ := seedPreparedHandoff(t)
 	started, release, closureAttempt := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	faults := &lostcommit.Faults{}
-	reject := func(query string) error {
+	reject := func(query string) {
 		if strings.Contains(query, "INSERT INTO wg_delivery_sample_handoffs") {
 			close(started)
 			<-release
 		}
-		return nil
 	}
-	faults.Reject.Store(&reject)
+	faults.ObserveStatement.Store(&reject)
 	writer := lostcommit.OpenFaults(handoffDatabasePath(t, store)+"?_pragma=busy_timeout(5000)", faults)
 	defer writer.Close()
 	transferred := make(chan error, 1)
@@ -149,13 +148,12 @@ func TestHandoffTransactionSerializesStaleClosure(t *testing.T) {
 	}()
 	<-started
 	closureFaults := &lostcommit.Faults{}
-	observe := func(query string) error {
+	observe := func(query string) {
 		if strings.Contains(query, "UPDATE wg_delivery_checkpoints SET updated_at = updated_at WHERE 0") {
 			close(closureAttempt)
 		}
-		return nil
 	}
-	closureFaults.Reject.Store(&observe)
+	closureFaults.ObserveStatement.Store(&observe)
 	closer := lostcommit.OpenFaults(handoffDatabasePath(t, store)+"?_pragma=busy_timeout(5000)", closureFaults)
 	defer closer.Close()
 	closed := make(chan error, 1)
