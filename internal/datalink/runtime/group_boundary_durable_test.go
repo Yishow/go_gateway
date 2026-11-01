@@ -224,7 +224,7 @@ func TestAtomicRowOutboxCheckpointBoundaryPreservesEntityScopedRows(t *testing.T
 	rows, err := db.QueryContext(t.Context(), `SELECT entity_key, payload FROM wg_delivery_outbox ORDER BY entity_key`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var entities []string
+	entities := make([]string, 0, 2)
 	for rows.Next() {
 		var entity, payload string
 		require.NoError(t, rows.Scan(&entity, &payload))

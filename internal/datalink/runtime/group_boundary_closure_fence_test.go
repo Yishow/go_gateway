@@ -17,7 +17,7 @@ import (
 
 // Establish both original frozen descriptors before any acceptance. The returned
 // transaction is the deterministic cutover barrier, never a descriptor rewrite.
-func closureFenceFixture(t *testing.T, wideTarget bool) (*runtimeHandoffFixture, func()) {
+func closureFenceFixture(t *testing.T, wideTarget bool) (fixture *runtimeHandoffFixture, commitCutover func()) {
 	t.Helper()
 	source, target := wideCounterFixture(t), newCounterFixture(t)
 	if wideTarget {

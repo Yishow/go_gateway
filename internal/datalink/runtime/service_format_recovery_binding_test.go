@@ -57,7 +57,16 @@ func TestFormatRecoveryRefreshesMandatoryTypedBinding(t *testing.T) {
 	require.Equal(t, values[0].ConfigFingerprint, sink.samples[0].ConfigFingerprint)
 }
 
-func recoveryBindingFixture(t *testing.T) (*Service, *schema.Point, connector.ReadProfile, FormatRecoveryBindingProof, PreparedFormatRecoveryBindings, uint64) {
+type recoveryBindingState struct {
+	service  *Service
+	point    *schema.Point
+	profile  connector.ReadProfile
+	proof    FormatRecoveryBindingProof
+	prepared PreparedFormatRecoveryBindings
+	lease    uint64
+}
+
+func recoveryBindingFixture(t *testing.T) recoveryBindingState {
 	t.Helper()
 	f := newAcquisitionInstallFixture(t, false)
 	p := f.projection.Points[0]
@@ -85,13 +94,14 @@ func recoveryBindingFixture(t *testing.T) (*Service, *schema.Point, connector.Re
 	require.NoError(t, err)
 	lease, ok := f.service.InstallPreparedFormatRecovery(p, proof, profile)
 	require.True(t, ok)
-	return f.service, p, profile, bindingProof, prepared, lease
+	return recoveryBindingState{service: f.service, point: p, profile: profile, proof: bindingProof, prepared: prepared, lease: lease}
 }
 
 func TestFormatRecoveryBindingPublicationRejectsForeignInstall(t *testing.T) {
 	for _, kind := range []string{"binding", "same-value-new-binding", "lease"} {
 		t.Run(kind, func(t *testing.T) {
-			s, p, profile, proof, prepared, lease := recoveryBindingFixture(t)
+			state := recoveryBindingFixture(t)
+			s, p, profile, proof, prepared, lease := state.service, state.point, state.profile, state.proof, state.prepared, state.lease
 			foreignLease := uint64(0)
 			s.mappingMu.Lock()
 			foreign := slices.Clone(s.mappingIndex[p.ID])
@@ -121,7 +131,8 @@ func TestFormatRecoveryBindingPublicationRejectsForeignInstall(t *testing.T) {
 func TestFormatRecoveryBindingCleanupOnlyRemovesOwnInstall(t *testing.T) {
 	for _, kind := range []string{"own", "foreign-binding", "foreign-lease"} {
 		t.Run(kind, func(t *testing.T) {
-			s, p, profile, proof, prepared, lease := recoveryBindingFixture(t)
+			state := recoveryBindingFixture(t)
+			s, p, profile, proof, prepared, lease := state.service, state.point, state.profile, state.proof, state.prepared, state.lease
 			receipt, ok := s.ActivateFormatRecoveryBindings(p.ID, lease, profile, proof, prepared)
 			require.True(t, ok)
 			var foreign []mappingBinding
@@ -155,7 +166,8 @@ func TestFormatRecoveryBindingCleanupOnlyRemovesOwnInstall(t *testing.T) {
 }
 
 func TestFormatRecoveryAcceptedRawRetainsCapturedBinding(t *testing.T) {
-	s, p, profile, proof, prepared, lease := recoveryBindingFixture(t)
+	state := recoveryBindingFixture(t)
+	s, p, profile, proof, prepared, lease := state.service, state.point, state.profile, state.proof, state.prepared, state.lease
 	_, ok := s.ActivateFormatRecoveryBindings(p.ID, lease, profile, proof, prepared)
 	require.True(t, ok)
 	cv := s.scheduler.PollNowContext(t.Context(), []string{p.ID})[0]

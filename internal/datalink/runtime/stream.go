@@ -36,15 +36,6 @@ type statusSubscriber struct {
 	ch       chan DeviceStatusEvent
 }
 
-func (s *Service) registerPointMeta(pointID string, meta pointMeta) {
-	s.pointMetaMu.Lock()
-	defer s.pointMetaMu.Unlock()
-	if s.pointMetaIndex == nil {
-		s.pointMetaIndex = make(map[string]pointMeta)
-	}
-	s.pointMetaIndex[pointID] = meta
-}
-
 func (s *Service) lookupPointMeta(pointID string) pointMeta {
 	s.pointMetaMu.RLock()
 	defer s.pointMetaMu.RUnlock()

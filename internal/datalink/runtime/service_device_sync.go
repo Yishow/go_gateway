@@ -68,14 +68,6 @@ func (s *Service) RemoveDevice(deviceID string) {
 	s.clearDeviceProjection(deviceID)
 }
 
-// removeDevicePointMeta 清除指定設備的 point metadata，避免停用後仍保留舊事件標記。
-func (s *Service) removeDevicePointMeta(deviceID string) {
-	s.pointMetaMu.Lock()
-	defer s.pointMetaMu.Unlock()
-
-	s.removeDevicePointMetaLocked(deviceID)
-}
-
 func (s *Service) removeDevicePointMetaLocked(deviceID string) {
 	maps.DeleteFunc(s.pointMetaIndex, func(_ string, meta pointMeta) bool {
 		return meta.DeviceID == deviceID

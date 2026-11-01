@@ -27,12 +27,12 @@ func TestModernSQLSourceRevisionMatchesActualManualRuntimeSample(t *testing.T) {
 	t.Cleanup(func() { db.Close() })
 	require.NoError(t, datalink.NewMigrator().Migrate(db))
 	ws := workspace.NewService(workspace.NewSQLRepository(db))
-	record, err := ws.GetOrCreate(t.Context())
+	_, err = ws.GetOrCreate(t.Context())
 	require.NoError(t, err)
 	d := f.projection.Devices[0]
 	d.Name = "PLC"
 	require.NoError(t, device.NewSQLRepository(db).Create(t.Context(), d))
-	record, err = ws.AttachDevice(t.Context(), d.ID)
+	record, err := ws.AttachDevice(t.Context(), d.ID)
 	require.NoError(t, err)
 	p := f.projection.Points[0]
 	p.Name = "value"

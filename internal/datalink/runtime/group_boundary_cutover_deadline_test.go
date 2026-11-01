@@ -19,7 +19,7 @@ import (
 // instantaneous 15-second profiles have actual successor window [10,15),
 // lateness 1 and deadline 16; counter_raw preserves proof without inventing a
 // five-second cumulative profile or backdating a public cutover.
-func deadlineFixture(t *testing.T, wide bool) (*runtimeHandoffFixture, func()) {
+func deadlineFixture(t *testing.T, wide bool) (fixture *runtimeHandoffFixture, commitCutover func()) {
 	t.Helper()
 	source, target := wideProfileFixture(t), newLongFixture(t)
 	if wide {
@@ -163,7 +163,7 @@ func TestGroupBoundaryCutoverDeadlineDelayedHandoffRemainsEligible(t *testing.T)
 			require.ErrorIs(t, source.Tick(t.Context(), f.source.clock), groupdelivery.ErrOwnershipConflict)
 			require.ErrorIs(t, target.Tick(t.Context(), f.source.clock), groupdelivery.ErrOwnershipConflict, "deadline16 cannot close an unresolved on-time original")
 			require.Equal(t, before, crashProgress(t, f.store.DB()))
-			source, target = nil, nil
+			// Abandon the old workers; reopen from durable evidence below.
 			f.source.clock = at(20 * time.Second)
 			deadlineReopen(t, f)
 			target = deadlineBoundary(t, f, f.targetKey)
@@ -236,7 +236,7 @@ func TestGroupBoundaryCutoverDeadlineFirstArrivalAfterFinalizationIsLate(t *test
 			require.NoError(t, target.Tick(t.Context(), f.source.clock))
 			require.Equal(t, final, crashProgress(t, f.store.DB()), "no ACK, append, checkpoint movement, effect rewrite or reopened finalized window")
 			f.source.clock = at(20 * time.Second)
-			target = nil
+			// Reopen from durable evidence without using the old worker again.
 			deadlineReopen(t, f)
 			require.NoError(t, deadlineBoundary(t, f, f.targetKey).Tick(t.Context(), f.source.clock))
 			require.Equal(t, final, crashProgress(t, f.store.DB()))

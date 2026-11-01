@@ -14,6 +14,11 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
+const (
+	sampleReasonReadFailed       = "read-failed"
+	sampleReasonConnectionFailed = "connection-failed"
+)
+
 // SampleSink is the optional typed acquisition transport seam. Production
 // wiring may leave it nil while the legacy writer remains the active path.
 type SampleSink interface {
@@ -104,7 +109,7 @@ func typedSampleFromValue(cv collector.CollectedValue, binding mappingBinding, v
 	if cv.Error != "" && !unknownQuality {
 		quality = schema.QualityBad
 		if !isSafeQualityReason(qualityReason, quality) {
-			qualityReason = "read-failed"
+			qualityReason = sampleReasonReadFailed
 		}
 	}
 	if quality == schema.QualityGood {
@@ -154,7 +159,7 @@ const reasonMappingFailed = "mapping-failed"
 
 func isSafeQualityReason(reason string, quality schema.QualityFlag) bool {
 	switch reason {
-	case "read-failed", "quality-unknown", "connection-failed", "circuit-open", reasonMappingFailed:
+	case sampleReasonReadFailed, "quality-unknown", sampleReasonConnectionFailed, "circuit-open", reasonMappingFailed:
 		return true
 	}
 	return reason == fmt.Sprintf("quality-%s", quality)

@@ -53,7 +53,10 @@ func (s *Service) beginAcquisitionObservation(ctx context.Context, projection *w
 		return nil
 	}
 	candidates := acquisitionObservationCandidates(projection, before, ctx)
-	profiles, _ := ctx.Value(readProfilesKey{}).(map[string]connector.ReadProfile)
+	profiles, ok := ctx.Value(readProfilesKey{}).(map[string]connector.ReadProfile)
+	if !ok {
+		profiles = nil
+	}
 	for id, b := range candidates {
 		if profiles[id].Present() {
 			b.InstallationScope = s.scheduler.InstallationScope()
@@ -113,7 +116,10 @@ func acquisitionObservationCandidates(projection *workspace.RuntimeProjection, b
 			if len(contexts) == 0 {
 				continue
 			}
-			profiles, _ := contexts[0].Value(readProfilesKey{}).(map[string]connector.ReadProfile)
+			profiles, ok := contexts[0].Value(readProfilesKey{}).(map[string]connector.ReadProfile)
+			if !ok {
+				profiles = nil
+			}
 			profile = profiles[point.ID]
 		}
 		fingerprint, err := measurement.AcquisitionConfigFingerprint(*device, *point, profile)

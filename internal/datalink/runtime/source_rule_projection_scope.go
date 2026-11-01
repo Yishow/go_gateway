@@ -43,7 +43,7 @@ func (s *Service) applyAffectedSourceRuleProjection(ctx context.Context, project
 		return s.publishScopedAcquisitionProjection(ctx, projection, map[string]struct{}{})
 	}
 	present := map[string]bool{}
-	var selected []string
+	selected := make([]string, 0, len(affected))
 	for _, p := range projection.Points {
 		if p == nil || !affected[p.ID] {
 			continue

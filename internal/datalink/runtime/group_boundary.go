@@ -257,7 +257,7 @@ func (b *GroupBoundary) Tick(ctx context.Context, now time.Time) error {
 	outcomes := plan.Outcomes
 	b.mu.Unlock()
 
-	var errs []error
+	errs := make([]error, 0, len(outcomes))
 	for _, outcome := range outcomes {
 		if outcome.Kind != snapshot.OutcomeRow {
 			errs = append(errs, b.sink.ReportOutcome(ctx, outcome))
@@ -322,7 +322,7 @@ func (b *GroupBoundary) tickDurable(ctx context.Context, now time.Time) error {
 	if b.sink == nil {
 		return nil
 	}
-	var errs []error
+	errs := make([]error, 0, len(reported))
 	for _, outcome := range reported {
 		errs = append(errs, b.sink.ReportOutcome(ctx, outcome))
 	}

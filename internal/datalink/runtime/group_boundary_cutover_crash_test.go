@@ -62,7 +62,7 @@ func crashRows(t *testing.T, db *sql.DB, table string) []string {
 	defer rows.Close()
 	columns, err := rows.Columns()
 	require.NoError(t, err)
-	var result []string
+	result := make([]string, 0, 16)
 	for rows.Next() {
 		values, refs := make([]any, len(columns)), make([]any, len(columns))
 		for i := range values {
@@ -74,6 +74,9 @@ func crashRows(t *testing.T, db *sql.DB, table string) []string {
 		result = append(result, string(raw))
 	}
 	require.NoError(t, rows.Err())
+	if len(result) == 0 {
+		return nil
+	}
 	return result
 }
 
@@ -236,7 +239,7 @@ func TestGroupBoundaryCutoverCrashRecoveryMatrix(t *testing.T) {
 				if closure {
 					require.Equal(t, boundaryStart, boundary.NextClose(), "a lost response must not acknowledge the old worker's memory")
 				}
-				boundary = nil // discard even when its transaction actually committed
+				// Do not reuse this worker, even when its transaction actually committed.
 				crashAssertJournal(t, f, originals, false)
 				atCrash := crashProgress(t, f.store.DB())
 				if lost && !closure {

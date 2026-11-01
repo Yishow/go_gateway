@@ -67,16 +67,16 @@ func TestSourceProjectionRollbackRejectsForeignLeaseAndAbsentABA(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			scheduler := collector.NewScheduler(collector.DefaultSchedulerConfig(), nil)
 			live := &Service{scheduler: scheduler, mappingIndex: map[string][]mappingBinding{"p": {{TagID: "old"}}}, pointMetaIndex: map[string]pointMeta{}, projections: map[string]runtimeProjectionDeviceState{"d": {AppliedPointIDs: map[string]struct{}{"p": {}}}}}
-			point := &schema.Point{ID: "p", DeviceID: "d", Address: "40001", DataType: schema.DataTypeInt16, Enabled: true}
+			pointRecord := &schema.Point{ID: "p", DeviceID: "d", Address: "40001", DataType: schema.DataTypeInt16, Enabled: true}
 			if mode == "lease" {
-				scheduler.AddPoint(point)
+				scheduler.AddPoint(pointRecord)
 			}
 			snapshot := live.SnapshotSourceRuleProjection("d", []string{"p"})
 			current, captured := scheduler.CaptureOrdinaryPoint("p")
 			require.True(t, captured)
 			proof := &sourcerule.RuntimeProjectionProof{Epoch: current.Epoch, Points: map[string]sourcerule.RuntimePointProof{"p": {Lease: current.Lease}}}
 			if mode != "mapping-only" && mode != "mapping-same-values" {
-				scheduler.AddPoint(point)
+				scheduler.AddPoint(pointRecord)
 			}
 			if mode == "absent-aba" {
 				scheduler.RemovePoint("p")

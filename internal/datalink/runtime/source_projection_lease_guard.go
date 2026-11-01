@@ -25,7 +25,10 @@ func (s *Service) beginSourceProjectionLeaseGuard(ctx context.Context, deviceID 
 	return context.WithValue(ctx, sourceProjectionLeaseKey{}, &sourceProjectionLeaseGuard{deviceID: deviceID, expected: s.scheduler.CaptureDevicePointLeases(deviceID)})
 }
 func sourceProjectionGuard(ctx context.Context) *sourceProjectionLeaseGuard {
-	g, _ := ctx.Value(sourceProjectionLeaseKey{}).(*sourceProjectionLeaseGuard)
+	g, ok := ctx.Value(sourceProjectionLeaseKey{}).(*sourceProjectionLeaseGuard)
+	if !ok {
+		return nil
+	}
 	return g
 }
 func (s *Service) installProjectionPoint(ctx context.Context, p *schema.Point) (uint64, error) {

@@ -91,7 +91,7 @@ func sqliteColumns(t *testing.T, db *sql.DB, table string) []dbtarget.ColumnInfo
 	rows, err := db.QueryContext(t.Context(), fmt.Sprintf(`PRAGMA table_info('%s')`, table))
 	require.NoError(t, err)
 	defer rows.Close()
-	var columns []dbtarget.ColumnInfo
+	columns := make([]dbtarget.ColumnInfo, 0, 16)
 	for rows.Next() {
 		var cid, notNull, pk int
 		var name, dataType string
