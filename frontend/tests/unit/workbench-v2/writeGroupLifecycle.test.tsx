@@ -457,6 +457,9 @@ describe('save uses the latest workspace revision', () => {
     fireEvent.click(screen.getByTestId('group-save'));
     await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByTestId('group-editor-close'));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('navigation.pending');
+    expect(screen.getByTestId('group-name')).toHaveValue('Saved A');
+    fireEvent.click(screen.getByRole('button', { name: 'navigation.discard' }));
     fireEvent.click(await screen.findByTestId('group-open-group-2'));
     fireEvent.change(await screen.findByTestId('group-name'), { target: { value: 'Unsaved B' } });
     const updated = savedGroup({ revision: 'rev-2', name: 'Saved A' });

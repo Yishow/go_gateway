@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"reflect"
 	"strings"
 
 	"go-gateway/internal/datalink/schema"
@@ -58,6 +59,17 @@ func ValidateWriteGroupTransitionStructure(source, target *WriteGroup, sourceEng
 	if source.RecordingProfile.Kind != target.RecordingProfile.Kind {
 		return transitionRejection("profile-kind-change")
 	}
+	if isMixedWriteGroup(source) {
+		if sourceEngine != writeGroupConnectorKindSQLite && sourceEngine != writeGroupConnectorKindPostgres {
+			return transitionRejection("unsupported-engine")
+		}
+		if sourceMode != WriteGroupStorageModePlain {
+			return transitionRejection("unsupported-storage-mode")
+		}
+		if source.RecordID != target.RecordID {
+			return transitionRejection("recording-meaning-change")
+		}
+	}
 	if !sameRecordingProfile(source.RecordingProfile, target.RecordingProfile) {
 		return transitionRejection("recording-meaning-change")
 	}
@@ -73,6 +85,9 @@ func ValidateWriteGroupTransitionStructure(source, target *WriteGroup, sourceEng
 		}
 		before = transitionComparableMember(source, before, tagTypes)
 		after = transitionComparableMember(target, after, tagTypes)
+		if isMixedWriteGroup(source) && (before.Required != after.Required || !reflect.DeepEqual(before.MaxAgeSeconds, after.MaxAgeSeconds)) {
+			return transitionRejection("recording-meaning-change")
+		}
 		if !sameTransitionMemberMeaning(before, after) {
 			return transitionRejection("recording-meaning-change")
 		}
@@ -147,7 +162,7 @@ func transitionMembers(group *WriteGroup) (map[CutoverMemberRef]WriteGroupMember
 }
 
 func sameTransitionMemberMeaning(before, after WriteGroupMember) bool {
-	return before.CircuitID == after.CircuitID && before.EntityKey == after.EntityKey &&
+	return before.Calculation == after.Calculation && reflect.DeepEqual(before.Cadence, after.Cadence) && before.CircuitID == after.CircuitID && before.EntityKey == after.EntityKey &&
 		before.SourceRevision == after.SourceRevision && before.MappingRevision == after.MappingRevision &&
 		before.ValueRole == after.ValueRole && sameOptionalString(before.MeasurementID, after.MeasurementID) &&
 		before.SourceValueType == after.SourceValueType && before.ResultValueType == after.ResultValueType &&

@@ -133,7 +133,7 @@ func TestSourceRuleHandler_EnableReconcilesRuntimeOverHTTP(t *testing.T) {
 	deviceRepo := device.NewMemoryRepository()
 	lastTestSuccess := true
 	require.NoError(t, deviceRepo.Create(context.Background(), &schema.Device{
-		ID:               "device-1",
+		ID:               "dev-A",
 		Name:             "Mixer PLC",
 		Protocol:         schema.ProtocolModbusTCP,
 		Status:           schema.DeviceStatusActive,
@@ -149,9 +149,10 @@ func TestSourceRuleHandler_EnableReconcilesRuntimeOverHTTP(t *testing.T) {
 		Message: "projection aligned",
 	}}
 	ruleSvc := sourcerule.NewService(sourcerule.NewMemoryRepository(), deviceSvc, pointSvc, runtimeSync)
+	wireSourceRuleReconcileRuntimeFixture(t, runtimeSync, deviceSvc, pointSvc, ruleSvc)
 	rule, err := ruleSvc.Create(context.Background(), sourcerule.CreateRuleRequest{
 		ID:           "rule-1",
-		DeviceID:     "device-1",
+		DeviceID:     "dev-A",
 		StartAddress: "40001",
 		Count:        1,
 		DataType:     schema.DataTypeInt16,
@@ -174,7 +175,7 @@ func TestSourceRuleHandler_EnableReconcilesRuntimeOverHTTP(t *testing.T) {
 	require.Len(t, runtimeSync.reconcileRequests, 1)
 	assert.Equal(t, sourcerule.RuntimeReconcileOperationEnable, runtimeSync.reconcileRequests[0].Operation)
 	assert.Equal(t, "rule-1", runtimeSync.reconcileRequests[0].Scope.RuleID)
-	assert.Equal(t, "device-1", runtimeSync.reconcileRequests[0].Scope.DeviceID)
+	assert.Equal(t, "dev-A", runtimeSync.reconcileRequests[0].Scope.DeviceID)
 }
 
 func TestSourceRuleHandler_Get_NotFound(t *testing.T) {

@@ -2,6 +2,7 @@ package grouppipeline
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -131,15 +132,27 @@ func TestCutoverReconcileProofConflictRemainsDurableAndScoped(t *testing.T) {
 				}
 				faultCalls := 0
 				reject := func(query string) error {
-					if mode == "authority-read-failure" && strings.Contains(query, "SELECT payload FROM wg_runtime_versions WHERE workspace_id=?") ||
-						mode == "receipt-write-failure" && strings.Contains(query, "INSERT INTO wg_delivery_sample_handoffs") {
+					if mode == "receipt-write-failure" && strings.Contains(query, "INSERT INTO wg_delivery_sample_handoffs") {
 						faultCalls++
 						return errors.New("private-proof-db-path-and-SQL")
 					}
 					return nil
 				}
+				rejectQuery := func(query string, args []driver.NamedValue) error {
+					if mode != "authority-read-failure" || query != "SELECT payload FROM wg_runtime_versions WHERE workspace_id=? AND group_id=? AND group_revision=?" || len(args) != 3 {
+						return nil
+					}
+					for _, owner := range []*workspace.WriteGroupAppliedSnapshot{f.source, f.target} {
+						if args[0].Value == owner.WorkspaceID && args[1].Value == owner.GroupID && args[2].Value == owner.AppliedRevision {
+							faultCalls++
+							return errors.New("private-proof-db-path-and-SQL")
+						}
+					}
+					return nil
+				}
 				f.localFault.Reject.Store(&reject)
-				t.Cleanup(func() { f.localFault.Reject.Store(nil) })
+				f.localFault.RejectQuery.Store(&rejectQuery)
+				t.Cleanup(func() { f.localFault.Reject.Store(nil); f.localFault.RejectQuery.Store(nil) })
 				f.clock = at(12)
 				var receiptID string
 				for attempt := 0; attempt < 2; attempt++ {
@@ -198,7 +211,7 @@ func TestCutoverReconcileProofConflictRemainsDurableAndScoped(t *testing.T) {
 					require.Positive(t, faultCalls, "the intended infrastructure boundary was reached")
 				}
 				// Already accepted healthy input still closes under the injected fault.
-				// A global runtime-proof read failure cannot promise new native intake.
+				// Only the cutover pair loses immutable authority; healthy recovery still reads its own descriptor.
 				require.ErrorIs(t, f.pipe.Reconcile(t.Context()), wantErr)
 				require.NotNil(t, f.pipe.boundaries[boundaryKey(healthy.GroupID, healthy.AppliedRevision)], "%+v", f.pipe.Status())
 				require.NoError(t, f.pipe.boundaries[boundaryKey(healthy.GroupID, healthy.AppliedRevision)].boundary.Tick(t.Context(), at(80)))
@@ -213,5 +226,60 @@ func TestCutoverReconcileProofConflictRemainsDurableAndScoped(t *testing.T) {
 				require.Zero(t, reader.calls)
 			})
 		}
+	}
+}
+
+// A global immutable-authority outage may pause closure after restart, but it
+// must preserve accepted evidence and resume the original effect once readable.
+func TestGlobalAuthorityReadFailurePreservesAcceptedHealthyInputUntilRecovery(t *testing.T) {
+	f, reader, healthy := originalConflictFixture(t, shapeMeanLong, "authority-read-failure")
+	f.clock = at(7)
+	require.NoError(t, f.pipe.AcceptSample(t.Context(), envelope(f.source.Group, "counter-preserved", at(11), uint64(100))))
+	require.NoError(t, f.pipe.AcceptSample(t.Context(), envelope(healthy.Group, "healthy-preserved", at(11), uint64(7))))
+	accepted, err := f.store.Restore(t.Context(), groupKey(healthy))
+	require.NoError(t, err)
+	require.Len(t, accepted.Samples, 1)
+	before := counterDurableState(t, f.store)
+	var originalPayload string
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload||'|'||payload_digest FROM wg_delivery_samples WHERE group_id=?`, healthy.GroupID).Scan(&originalPayload))
+	injected := errors.New("global immutable authority unavailable")
+	faultCalls := 0
+	reject := func(query string) error {
+		if strings.Contains(query, "SELECT payload FROM wg_runtime_versions WHERE workspace_id=?") {
+			faultCalls++
+			return injected
+		}
+		return nil
+	}
+	f.localFault.Reject.Store(&reject)
+	t.Cleanup(func() { f.localFault.Reject.Store(nil) })
+	f.clock = at(80)
+	for range 2 {
+		f.pipe = New(f.pipe.deps, f.pipe.config)
+		require.ErrorIs(t, f.pipe.Reconcile(t.Context()), injected)
+		require.Nil(t, f.pipe.boundaries[boundaryKey(healthy.GroupID, healthy.AppliedRevision)], "unreadable immutable authority cannot rebuild a healthy closure")
+		f.pipe.TickAll(t.Context())
+		f.deliver()
+		require.Equal(t, before, counterDurableState(t, f.store), "global outage preserves every accepted byte, proof, baseline, checkpoint and outbox")
+		require.Zero(t, f.count(f.plainTarget(), `SELECT COUNT(*) FROM healthy_proof_readings`))
+		require.Zero(t, reader.calls, "current definitions cannot substitute for unreadable immutable authority")
+	}
+	require.Positive(t, faultCalls, "the original global authority fault was exercised")
+	f.localFault.Reject.Store(nil)
+	for range 2 {
+		f.pipe = New(f.pipe.deps, f.pipe.config)
+		require.NoError(t, f.pipe.Reconcile(t.Context()))
+		recovered := f.pipe.boundaries[boundaryKey(healthy.GroupID, healthy.AppliedRevision)]
+		require.NotNil(t, recovered)
+		require.NoError(t, recovered.boundary.Tick(t.Context(), at(80)))
+		f.deliver()
+		require.Equal(t, 1, f.count(f.plainTarget(), `SELECT COUNT(*) FROM healthy_proof_readings`), "recovery and another restart deliver the accepted input exactly once")
+		var value, payload string
+		require.NoError(t, f.plainTarget().QueryRowContext(t.Context(), `SELECT reading FROM healthy_proof_readings`).Scan(&value))
+		require.Equal(t, "7", value)
+		require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload||'|'||payload_digest FROM wg_delivery_samples WHERE group_id=?`, healthy.GroupID).Scan(&payload))
+		require.Equal(t, originalPayload, payload)
+		require.Equal(t, before["wg_runtime_versions"], counterDurableState(t, f.store)["wg_runtime_versions"])
+		require.Zero(t, reader.calls)
 	}
 }

@@ -32,6 +32,9 @@ func productionDefaultUIValueToSQL(t *testing.T, source schema.DataType, scale, 
 	env := target.env
 	_, err := env.db.ExecContext(t.Context(), `UPDATE devices SET status='active', last_test_success=1, last_test_error='', readiness_status='{"probe_status":"success"}', description='', created_at='2026-10-05 00:00:00', updated_at='2026-10-05 00:00:00' WHERE id='device-1'`)
 	require.NoError(t, err)
+	active, err := env.services.device.GetByID(t.Context(), "device-1")
+	require.NoError(t, err)
+	env.services.scheduler.AddDevice(active)
 	rule, err := env.services.sourceRule.Create(t.Context(), sourcerule.CreateRuleRequest{ID: "default-u64", DeviceID: "device-1", StartAddress: "41001", Count: 4, DataType: source, ScaleMultiplier: &scale, ScaleOffset: &offset, NamingPrefix: "Counter_", Enabled: true})
 	require.NoError(t, err)
 	links, err := env.services.sourceRule.ListLinks(t.Context(), rule.ID)

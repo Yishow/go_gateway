@@ -20,11 +20,21 @@ AppRoutes 的 root/wildcard經GuidedWorkbenchEntryRedirect到 /studio/v2 並保�
 
 無明確意圖的 /studio/v2採記錄首頁；view=advanced保留原四步驟呈現，view=recordings明確開首頁。query先做raw encoding/duplicate驗證；只要有entry或workspace/device/rule/mapping/group等真正locator欄位，一律嚴格locator解析，錯誤不得降級。沒有真正locator欄位時，才容許已列舉的legacy step（device/source/tag/output）、target（database/modbus）、section/modal由既有allowlist處理；不得放任任意值。runtime readiness focus沿原有限定step與scope處理。既有entity locator、runtime readiness focus、純合法step/target/section/modal等有效相容意圖先解析，進入對應既有surface，不能被default搶走。root/wildcard仍用generic導向，不新增/studio特殊handler。不提供任意external return URL；return target沿現有受控route。
 
+### Demo 強化先接簡易呈現，預設另依所選主流程驗收
+
+**Supersedes**: adopt-simple-recording-entry / 驗收矩陣與分層證據
+
+依2026-11-01使用者最新「以討論清單及最後決議做為驗收點，強化demo」，本輪落實「精簡原Step4」及「最終完成版就是demo的強化版」，不再將完整四案／七案、Settings全頁或剩餘大型效能矩陣全部完成當成簡易host接線前置。既有home/editor可用契約先整合；未完成lifecycle、採集優化及其原owner任務保留pending，不因本批入口交付假done或刪需求。討論清單80–87不是全部已選；UTC epoch等既有實作選擇不改寫為使用者逐項確認。
+
+原已列的bounded legacy辨識修復隨1.2 routing foundation先做並保留RED；2.1預設採用沿用該證據及相關回歸，避免1.3先要求相容驗收、2.1才修的順序死結，不增加新的相容模式。
+
+本決議只取代舊「全案完成才可接線」順序，不取消安全保護、真Browser或所選主流程的必要SQL證據。1.2負責同一Step4的簡易呈現；1.3負責總覽新增／修改／返回接線及受影響主流程驗收。預設仍待「已選demo主旅程＋其必要生命週期安全」完整：新增、修改、停止／恢復、複製、移除與已選表格／目的地前向變更逐項真驗，必要安全缺陷閉合及2.1 gate；未過維持opt-in。原1.1完成描述及所有完成證據不變。未受影響證據可明列原版本沿用，不能冒充本批重跑；本批影響的行為須重驗。
+
 ### 驗收矩陣與分層證據
 
-四change的產品任務全完成才算功能完成。每批先相關測試；最終批次跑前端npm run lint、npm test -- --run、npm run build，並檢查built assets同步到cmd/test_ui/static的現有嵌入式交付流程。若只改前端不廣跑所有SQL engine；修改Go時才依docs/testing.md跑涉及側完整go test/vet/lint。
+依「Demo 強化先接簡易呈現，預設另依所選主流程驗收」分開接線與預設；未完成原owner任務繼續pending，不把本批完成寫成全案完成。每批先相關測試；最終批次跑前端npm run lint、npm test -- --run、npm run build，並檢查built assets同步到cmd/test_ui/static的現有嵌入式交付流程。若只改前端不廣跑所有SQL engine；修改Go時才依docs/testing.md跑涉及側完整go test/vet/lint。
 
-本環境已具Go1.25.5、相同lock的node_modules；不安裝新服務。已知browser啟動/loopback限制尚未解除，不能把歷史browser結果或waiver移到此批。Browser keyboard/Back/Forward/dialog/focus/responsive必須有本批實證；無法執行列NOT RUN並在必要斷點請owner看畫面，這不會自動取代全部browser回歸。設備/SQLmock、JSdom、真SQL、真PLC分開記錄。
+環境與Browser可用性以本批實際檢查為準，不新增測試服務；不能把歷史browser限制、結果或waiver移到此批。Browser keyboard/Back/Forward/dialog/focus/responsive必須有本批實證；無法執行列NOT RUN並在必要斷點請owner看畫面，這不會自動取代全部browser回歸。設備/SQLmock、JSdom、真SQL、真PLC分開記錄。
 
 ### 使用者斷點與失敗回退
 
@@ -36,14 +46,25 @@ release記錄列每個scenario的測試名稱/命令、PASS/FAIL/NOT RUN及證�
 
 ## Implementation Contract
 
-共同 apply 前置：四案規格完成審查、補齊 demo，並已取得 owner 對本次固定版本關鍵頁面／路徑的確認。此 gate 在第一案產品實作前執行，不等到第四案；demo確認不代表正式瀏覽器或實機驗收通過。
+共同 apply 前置：既有固定Site v9（commit `c7698bf137dc0d966e2be19c0ba6b06110da02d4`）owner checkpoint與最新強化demo指示為本輪依據；不再新增布局核准迴圈。接線不是預設切換或正式驗收完成。
 
-- 依賴順序為home→editor→lifecycle→adoption；各change單獨可build並保留舊入口。前三案沒完成或owner斷點未確認，本案不得切換預設。
-- 驗收路徑：空白連設備/點位/目的地/檢查/明確開始/等待receipt；已有來源跳過重設；草稿保存與reload；修改後再檢查；停止/恢復/複製/移除；寬長/目的地forward transition；partial/stale/DBfail/unknown修復；advanced-only配置與舊深連結。
-- 特別驗證錯誤載入不呈空白、歷史成功不當現況、欄位變更後舊consent不能用、dialog關閉不取消已送出命令、double click/late response/切scope不重送、普通DOM無secret/raw exceptions。
-- 前端瀏覽器journey用現有Playwright fixture pattern，不新增測試服務；真SQL僅用既有可丟棄同機測試目標且依變更範圍。沒有現場授權不接PLC或正式DB。
-- 以source測試及build驗證新default候選；任何必要gate未過則最終交付維持原default，報告阻礙，不用默默跳過換取完成。針對同一最終batch記錄結果，不重複無意義全套。
-- 不需編輯studio inventory即可完成本案release紀錄；若實作確實更新inventory，必須依AGENTS同步changelog.sqlite，不手改資料庫。
+- **In scope**：重用原Step4及既有home/editor，增加同route簡易呈現與總覽新增／修改／返回；保留進階及深連結。簡易頁可先掛載，不等待未用到的完整lifecycle或效能矩陣。
+- **Authority / interface**：`WriteGroupSection`既有new/edit selection及`GroupEditor`的`group`、`workspaceId`、`workspaceRevision`、`fetchLatest`、`onSaved`契約繼續負責保存與readback；`DeviceSourcePort`負責設備／範圍保存；`GroupEditorPreparation`與`SavedRecordingStartReview`／`LocatorSavedRecordingStartReview`維持確認及scoped Start。新增host props僅傳呈現、new/edit意圖及受guard的返回，不新增record DTO、保存queue、API或activation owner；同時僅掛載一套owner，不能把新舊owner以hidden雙掛。
+- **Failure / lifecycle**：沿`RecordingDraftNavigation`、locator freshness與原pending/unknown owner；載入失敗不可變空白成功。lifecycle僅呈現匹配workspace/group revisions的`WriteGroupLifecycle.actions`之`allowed`、`reason_code`、`requires_review`；允許的動作走原owner且可操作；真正不支援要說原因／導原進階，不以status猜命令、不為demo補造resume/copy API。尚未接妥的已選必要動作仍是pending，不得冒稱unsupported或藏掉來提前切default；必要限制只能依本批明確接受記錄處理。阻擋所選主流程的安全問題仍須原owner修復後才能驗收。
+- **Out of scope**：不另造editor、schema／計算／採集／傳送engine；不翻修Settings全頁、不擴協議或DB支援、不以接線為由新增效能矩陣、監測掛鉤、搬移歷史或重做全部既有頁面。採集優化需求不取消，未完成項留原owner pending。
+
+本批只有下列七個可觀察驗收點；子情境用既有scenario／owner證據對照，不另增使用者清單：
+
+1. **兩主畫面**：總覽的新增及既有記錄修改直接進入v9方向的單頁設定，返回回到總覽；一般使用者不用先展開Advanced／WriteGroups或重走四頁。無來源／未存目的地也能先開本地草稿並就地補齊；這不解除保存及Start的原prerequisite。
+2. **同頁與來源返回**：名稱、已選來源、逐點算法／週期、目的地及必要下一步同頁；唯一加法選點與來源modal沿原元件，取消保留原草稿、已保存設備／範圍不回滾，同scope搜尋／篩選／位置保留。
+3. **真正保存與明確開始**：save/reload對回同workspace/group/revision與逐點設定；schema影響／確認／Start沿原owner，保存不啟動、變更使舊consent失效、只啟動所選scope，開始後先等第一筆而非假稱SQL成功。
+4. **生命週期與失敗真實**：修改、停止／恢復、複製、移除、已選表格／目的地變更逐項驗證；lifecycle依server availability，允許的走原owner可操作，真正不支援明示原因及原advanced交接，未完成必要動作保留pending；stale、partial、DBfail、pending/unknown能看原因及原修復入口，未知結果查原operation、不盲目重送或使停用writer復活。
+5. **結果可核對**：總覽與原runtime/logs可查來源／記錄規則、saved/effective差異、待送與最近真實寫入證據；採集中、SQL committed與readback verified分開，無actual時不補0或宣稱效能。
+6. **保留原能力**：advanced-only能力、明確locator、runtime focus及合法legacy step/target/section/modal仍到原對象；invalid locator fail-closed；切呈現零mutation，不改資料身分或歷史。
+7. **已選demo主旅程＋其必要生命週期安全通過才預設**：以本批真Browser完成首次來源建立→選點／逐點設定→目的地→保存／確認→明確Start→真實結果，以及既有記錄修改／reload／返回、第4點生命週期及必要中斷回歸；所選mixed寬／長路徑沿原due/NULL與SQL證據。核對v9資訊層級、DESIGN.md主題／modal／RWD。必要項FAIL／NOT RUN不切預設，不能以DOM/mock或全部任務勾選代替。
+
+- 開發只跑當下受影響測試；完整功能批次才跑既定前端lint/test/build及embedded static檢查。Browser互動沿使用者已選工具，既有Playwright fixture可作回歸但不是對真Browser旅程的替代；真SQL限本輪既有可丟棄目標，未授權不接真PLC／正式DB。
+- 不需編輯studio inventory即可完成release紀錄；若實作確實更新inventory，仍依AGENTS同步changelog.sqlite。
 
 ## Risks / Trade-offs
 

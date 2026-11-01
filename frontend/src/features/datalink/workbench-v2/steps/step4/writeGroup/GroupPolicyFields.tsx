@@ -6,6 +6,7 @@ import type { EditorDraft, IncompletePolicy } from '../../../state/writeGroup/dr
 const FIELD = 'mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1 text-sm text-[var(--gw-text)]';
 
 export interface GroupPolicyFieldsProps {
+  expanded?: boolean;
   draft: EditorDraft;
   readonly: boolean;
   /** A profile group's period lives in its recording profile and its rows are never skipped or completed per row. */
@@ -15,10 +16,10 @@ export interface GroupPolicyFieldsProps {
 }
 
 /** Row policy of a group. Only the wide and custom layouts have a seconds interval and a completeness policy. */
-export const GroupPolicyFields: React.FC<GroupPolicyFieldsProps> = ({ draft, readonly, profile, onChange, onDedupe }) => {
+export const GroupPolicyFields: React.FC<GroupPolicyFieldsProps> = ({ expanded = false, draft, readonly, profile, onChange, onDedupe }) => {
   const { t } = useTranslation('workbench-v2');
   return (
-    <details className="rounded border border-[var(--gw-control)] p-3" data-testid="group-advanced">
+    <details open={expanded || undefined} className="rounded border border-[var(--gw-control)] p-3" data-testid="group-advanced">
       <summary className="cursor-pointer text-xs font-medium text-[var(--gw-text)]">{t('step4.group.editor.advanced')}</summary>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {!profile && (

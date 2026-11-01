@@ -1,7 +1,7 @@
 import { deviceFixture, resetDeviceAutosaveMocks, studioV2WorkspaceAPI, studioV2WorkspaceDevicesAPI, studioV2RulesAPI, studioV2MappingsAPI } from './device-autosave-page.testHarness';
 import { useState } from 'react';
 import { RecordingHomeRoute } from '@/features/datalink/workbench-v2/recording-home/RecordingHomeRoute';
-import { parseStudioEntityLocator } from '@/services/studioEntityLocator';
+import { parseStudioPresentation } from '@/services/studioRecordingView';
 import { Step4Database } from '@/features/datalink/workbench-v2/steps/step4/Step4Database';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
 import { readStudioLocatorEditorEntry } from '@/services/studioV2LocatorEntry';
@@ -28,8 +28,8 @@ const locator = locatorRead(4);
 function HomeHarness() {
  const [target, setTarget] = useState('');
  if (!target) return <RecordingHomeRoute location={{ search: '?view=recordings', hash: '' }} onNavigate={setTarget} />;
- const intent = parseStudioEntityLocator(new URL(target, 'https://example.test').search);
- if (intent.kind !== 'locator' || intent.locator.workspace_id !== 'W' || intent.locator.group_id !== 'G') throw new Error('Unexpected locator');
+ const { presentation, locatorIntent: intent } = parseStudioPresentation(new URL(target, 'https://example.test').search);
+ if (presentation !== 'recording' || intent.kind !== 'locator' || intent.locator.workspace_id !== 'W' || intent.locator.group_id !== 'G') throw new Error('Unexpected locator');
  return <LocatorHarness />;
 }
 function LocatorHarness() {

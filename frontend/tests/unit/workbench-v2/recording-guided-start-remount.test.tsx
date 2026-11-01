@@ -81,8 +81,13 @@ function noOtherMutation() {
     api.schemaPreview, api.schemaApply, api.measurementCreate, api.measurementUpdate, api.testWritePreview, api.testWrite,
     api.reviewCutover, api.applyCutover, dispatch, activate]) expect(command).not.toHaveBeenCalled();
 }
-async function selectDevice(name: string) {
+async function selectDevice(name: string, confirmPending = false) {
   const tile = await screen.findByRole('button', { name }); fireEvent.click(tile);
+  if (confirmPending) {
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('navigation.pending');
+    expect(tile).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'navigation.discard' }));
+  }
   await waitFor(() => expect(screen.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true'));
 }
 async function editLegacy() { fireEvent.click(await screen.findByTestId('device-recording-edit-existing')); await screen.findByTestId('basic-recording-panel'); }
@@ -135,7 +140,7 @@ it.each(['post', 'invalidation'] as const)('adopts the original Circuit O1 after
     await waitFor(() => expect(view.client.getQueryState(studioV2WorkspaceKeys.writeGroups())?.fetchStatus).toBe('fetching'));
     expect(retained(request).operation_id).toBeUndefined();
   }
-  await selectDevice('PLC B'); expect(screen.queryByTestId('basic-recording-status')).not.toBeInTheDocument();
+  await selectDevice('PLC B', true); expect(screen.queryByTestId('basic-recording-status')).not.toBeInTheDocument();
   await selectDevice('PLC A');
   expect(screen.getByTestId('basic-recording-status')).toHaveTextContent('step4.basic.operation.unknown');
   api.operation.mockResolvedValue(result(request));
@@ -166,7 +171,7 @@ it('recovers legacy O1 after a full host reload before the original POST reply, 
 it('never overwrites a newer retained O2 when an old unmounted A POST later completes', async () => {
   groups = [profileGroup()]; const response = deferred<RecordingStartOperation>(); api.start.mockReturnValue(response.promise);
   show(); const request = await confirmStart('circuit'); const original = retained(request);
-  await selectDevice('PLC B');
+  await selectDevice('PLC B', true);
   const replacement = { scope_key: original.scope_key, operation_id: 'newer-O2', request: { ...request, request_id: 'newer-request-O2' } };
   saveBasicRecordingIntent(replacement);
   await act(async () => response.resolve(result(request)));
@@ -179,7 +184,7 @@ it('never overwrites a newer retained O2 when an old unmounted A POST later comp
 it('never erases newer O2 when an old unmounted Circuit request later reports a definitive rejection', async () => {
   groups = [profileGroup()]; const response = deferred<RecordingStartOperation>(); api.start.mockReturnValue(response.promise);
   show(); const request = await confirmStart('circuit'); const original = retained(request);
-  await selectDevice('PLC B');
+  await selectDevice('PLC B', true);
   const replacement = { scope_key: original.scope_key, operation_id: 'newer-O2', request: { ...request, request_id: 'newer-request-O2' } };
   saveBasicRecordingIntent(replacement);
   await act(async () => response.reject({ code: 'revision-conflict', status: 409 }));
@@ -203,7 +208,7 @@ it.each(['circuit', 'legacy'] as const)('keeps lost-ACK %s manual after navigati
 it('leaves a remounted no-ID owner manual when durable completion fails, with no auto query or start', async () => {
   groups = [profileGroup()]; const response = deferred<RecordingStartOperation>(); api.start.mockReturnValue(response.promise);
   show(); const request = await confirmStart('circuit'); const original = retained(request);
-  await selectDevice('PLC B'); await selectDevice('PLC A');
+  await selectDevice('PLC B', true); await selectDevice('PLC A');
   const write = Storage.prototype.setItem;
   vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
     if (key.startsWith('wbv2.basic-recording.')) throw new Error('Storage write unavailable');
@@ -217,7 +222,7 @@ it('leaves a remounted no-ID owner manual when durable completion fails, with no
 it('keeps original O1 queryable after saved revision advances, and never displays A under B', async () => {
   groups = [profileGroup()]; const response = deferred<RecordingStartOperation>(); api.start.mockReturnValue(response.promise);
   show(); const request = await confirmStart('circuit'); const original = retained(request);
-  await selectDevice('PLC B'); groups = [{ ...groups[0], revision: 'new-group-revision' }];
+  await selectDevice('PLC B', true); groups = [{ ...groups[0], revision: 'new-group-revision' }];
   api.list.mockResolvedValue({ workspace_id: 'ws-1', workspace_revision: 'new-workspace-head', groups: structuredClone(groups) });
   api.operation.mockResolvedValue(result(request)); await act(async () => response.resolve(result(request)));
   expect(screen.queryByTestId('basic-recording-status')).not.toBeInTheDocument(); expect(api.operation).not.toHaveBeenCalled();

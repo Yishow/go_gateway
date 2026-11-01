@@ -21,6 +21,9 @@ func transitionComparableMember(group *WriteGroup, member WriteGroupMember, type
 }
 
 func transitionShapeSupported(group *WriteGroup, types map[string]schema.DataType) bool {
+	if isMixedWriteGroup(group) {
+		return mixedRuntimeShapeSupported(group, types)
+	}
 	if group.RecordingProfile.validate() != nil {
 		return false
 	}

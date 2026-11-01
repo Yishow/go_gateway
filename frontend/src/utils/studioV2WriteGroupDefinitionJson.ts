@@ -16,7 +16,7 @@ export function parseWriteGroupSuccessorCandidate(value: unknown): WriteGroup | 
     !isRecord(value.migration) || Object.keys(value.migration).length !== 0 || !isRecord(value.destination) ||
     value.destination.schema_revision !== undefined || value.destination.schema_digest !== undefined) return null;
   const group = parseDefinition(value, true);
-  if (!group || group.recording_profile?.kind === 'mixed' || group.destination.storage_strategy !== 'managed' ||
+  if (!group || group.destination.storage_strategy !== 'managed' ||
     (group.layout_version !== 'managed_long_v1' && group.destination.table_name !== '')) return null;
   return group;
 }

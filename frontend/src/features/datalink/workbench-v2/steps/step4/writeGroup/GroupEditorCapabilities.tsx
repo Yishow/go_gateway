@@ -23,7 +23,7 @@ export const GroupEditorWithCapabilities: React.FC<CapabilityProps> = ({ Content
     <section data-testid="mixed-group-editor-readonly" className="space-y-3 rounded border border-slate-700 p-4">
       <h3>{props.group?.name}</h3>
       <p role="status">{t('step4.group_kind_unsupported')}</p>
-      <button type="button" onClick={props.onClose}>{t('step4.group.editor.back')}</button>
+      {props.presentation !== 'simple' && <button type="button" onClick={props.onClose}>{t('step4.group.editor.back')}</button>}
     </section>
   );
   return <>{unavailable && <p role="status">{t('step4.group_kind_unsupported')}</p>}<DialectCapabilities {...props} Content={Content} editorReadonly={props.editorReadonly || unavailable} /></>;

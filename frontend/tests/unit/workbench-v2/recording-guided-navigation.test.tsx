@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -81,8 +82,13 @@ function noMutation() {
     api.schemaPreview, api.schemaApply, api.start, api.measurementCreate, api.measurementUpdate, api.testWritePreview, api.testWrite,
     api.reviewCutover, api.applyCutover, dispatch, activate]) expect(command).not.toHaveBeenCalled();
 }
-async function selectDevice(name: string) {
+async function selectDevice(name: string, confirmPending = false) {
   const tile = await screen.findByRole('button', { name }); fireEvent.click(tile);
+  if (confirmPending) {
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('navigation.pending');
+    expect(tile).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'navigation.discard' }));
+  }
   await waitFor(() => expect(screen.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true'));
 }
 async function editLegacy() { fireEvent.click(await screen.findByTestId('device-recording-edit-existing')); await screen.findByTestId('basic-recording-panel'); }
@@ -146,7 +152,7 @@ describe('mounted Step4 navigation preserves native drafts without commands', ()
     const request = buildBasicStartRequest({ workspaceId: 'ws-1', deviceId: 'dev-1', connectorRevision: 'crev-1' }, groups[0], 'W1', 'original-request');
     saveBasicRecordingIntent({ scope_key: owner, operation_id: 'O1', request }); const view = show(); await editLegacy();
     await waitFor(() => expect(api.operation).toHaveBeenCalledWith('O1')); fireEvent.click(screen.getByText('management.advancedTitle'));
-    await selectDevice('PLC B'); await selectDevice('PLC A'); await editLegacy();
+    await selectDevice('PLC B', true); await selectDevice('PLC A'); await editLegacy();
     expect(loadBasicRecordingIntent(owner)).toMatchObject({ operation_id: 'O1', request }); noMutation();
     view.unmount(); show(); await editLegacy(); expect(loadBasicRecordingIntent(owner)).toMatchObject({ operation_id: 'O1', request });
     expect(screen.getByTestId('basic-recording-check')).toBeInTheDocument(); noMutation();
@@ -173,7 +179,9 @@ describe('mounted navigation accessibility contracts (not browser geometry)', ()
     groups = [legacyGroup()]; show(); await editLegacy(); const trigger = await screen.findByRole('button', { name: 'details' });
     await waitFor(() => expect(api.runtime).toHaveBeenCalledOnce()); trigger.focus(); fireEvent.click(trigger);
     const dialog = await screen.findByRole('dialog'); expect(dialog).toHaveAccessibleName('detailsTitle');
-    expect(dialog).toHaveClass('overflow-y-auto'); fireEvent.keyDown(dialog, { key: 'Escape', code: 'Escape' });
+    expect(dialog).toHaveClass('gw-modal'); expect(dialog.querySelector('.gw-modal-body')).toBeInTheDocument();
+    expect(readFileSync('src/styles/semantic-modal.css', 'utf8')).toMatch(/\.gw-modal \.gw-modal-body\s*\{[^}]*overflow:\s*auto/);
+    fireEvent.keyDown(dialog, { key: 'Escape', code: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument()); expect(trigger).toHaveFocus();
     expect(api.runtime).toHaveBeenCalledOnce(); noMutation();
   });

@@ -49,17 +49,20 @@ func (h *StudioV2WorkspaceHandler) readStudioLocatorEntry(ctx context.Context, r
 	return o, err
 }
 func (h *StudioV2WorkspaceHandler) readStudioLocatorEditor(ctx context.Context, record *workspace.Record, group *workspace.WriteGroup) (*studioLocatorEditorObservation, error) {
+	if group == nil || group.WorkspaceID != record.ID || !runtimeDeliveryIDs(group.Destination.ConnectorID, group.Destination.ConnectorRevision) {
+		return nil, runtimeEvidenceError(runtimeview.ReasonStale)
+	}
 	r := h.locatorReaders
 	out := &studioLocatorEditorObservation{TargetGroup: group, Targets: []*schema.DatabaseTargetMapping{}, Devices: []*schema.Device{}, Sources: []*studioLocatorObservation{}, Missing: map[string]string{}}
-	if record.DatabaseConnectorID != "" {
+	if group.Destination.ConnectorID != "" {
 		if studioLocatorReaderMissing(r.Connectors) || studioLocatorReaderMissing(r.Targets) {
 			return nil, studioLocatorReadError(nil)
 		}
-		connector, err := r.Connectors.GetByID(ctx, record.DatabaseConnectorID)
+		connector, err := r.Connectors.GetByID(ctx, group.Destination.ConnectorID)
 		if err != nil || connector == nil {
 			return nil, studioLocatorReadError(err)
 		}
-		if connector.ID != record.DatabaseConnectorID || !runtimeDeliveryIDs(connector.IdentityRevision) {
+		if connector.ID != group.Destination.ConnectorID || connector.IdentityRevision != group.Destination.ConnectorRevision {
 			return nil, runtimeEvidenceError(runtimeview.ReasonStale)
 		}
 		out.Connector, err = cloneStudioLocatorValue(connector)
@@ -203,6 +206,10 @@ func projectStudioLocatorEditor(record *workspace.Record, o *studioLocatorEditor
 	if o.Connector != nil {
 		c := buildWorkspaceDatabaseConfigResponse(record.ID, o.Connector, record.DatabaseRowGroups)
 		c.SetupRevision = record.DatabaseSetupRevision
+		if o.TargetGroup != nil {
+			c.Database, c.Schema, c.Table = o.TargetGroup.Destination.Database, o.TargetGroup.Destination.TableSchema, o.TargetGroup.Destination.TableName
+			c.RowGroups = nil
+		}
 		c.LastSchemaEnsureError, c.LastWriteError, c.LastFlushError = "", "", ""
 		entry.DatabaseConfig = &c
 	}

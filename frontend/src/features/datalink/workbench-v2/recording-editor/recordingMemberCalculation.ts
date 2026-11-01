@@ -60,14 +60,14 @@ export function cadenceInputInvalid(member: CalculationEditorMember): boolean {
   return member.cadence_input !== undefined && (!member.cadence_input.trim() || !Number.isFinite(Number(member.cadence_input)) || Number(member.cadence_input) !== member.cadence?.interval);
 }
 
-export function initializeMixedMembers(members: EditorMember[], previous: EditorMember[], candidates: import('../state/writeGroup/candidates').GroupCandidate[], cap: WriteGroupCalculationCapabilities): EditorMember[] {
+export function initializeMixedMembers(members: EditorMember[], previous: EditorMember[], candidates: import('../state/writeGroup/candidates').GroupCandidate[], cap: WriteGroupCalculationCapabilities | undefined, initialCadence?: EditorMember['cadence']): EditorMember[] {
   const identity = (member: EditorMember) => JSON.stringify([member.device_id, member.point_id, member.tag_id]);
   const old = new Set(previous.map(identity));
   return members.map(member => {
     // Restored intent (including invalid text) is not a new source and must never receive defaults again.
     if (old.has(identity(member)) || member.calculation !== undefined || member.cadence !== undefined || 'cadence_input' in member) return member;
     const source = candidates.find(value => value.device_id === member.device_id && value.point_id === member.point_id && value.tag_id === member.tag_id);
-    return { ...member, calculation: 'latest', cadence: { interval: cap.cadence.minimum, unit: cap.cadence.units.includes('second') ? 'second' : 'minute', alignment: 'utc_epoch' }, ...(source ? { source_value_type: source.target_type } : {}) };
+    return { ...member, calculation: 'latest', cadence: initialCadence ? { ...initialCadence } : { interval: cap?.cadence.minimum ?? 15, unit: !cap || cap.cadence.units.includes('second') ? 'second' : 'minute', alignment: 'utc_epoch' }, ...(source ? { source_value_type: source.target_type } : {}) };
   });
 }
 

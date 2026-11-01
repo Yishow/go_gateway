@@ -9,7 +9,7 @@ import { RecordingHomeCollection } from './RecordingHomeCollection';
 import { recordingCollection, deviceCollection } from './recordingHomeCollections';
 import { readHomePresentation, rememberHomePresentation } from './recordingHomePresentation';
 import { buildStudioEntityLocatorTarget } from '../../../../services/studioEntityLocator';
-import { buildStudioPresentationTarget } from '../../../../services/studioRecordingView';
+import { buildSimpleRecordingTarget, buildStudioPresentationTarget } from '../../../../services/studioRecordingView';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -77,8 +77,9 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
       onOpen={id => {
         const item = home.guidance.recordingItems.find(candidate => candidate.id === id);
         if (item) {
-          const target = buildStudioEntityLocatorTarget({ step: 4, workspace_id: workspaceId, device_id: null, rule_id: null,
-            mapping_id: null, group_id: id, group_revision: item.evidence.group.revision });
+          const target = item.evidence.group.status === 'deleted'
+            ? buildStudioPresentationTarget('?step=output&target=database', location.hash, 'advanced')
+            : buildSimpleRecordingTarget({ kind: 'edit', workspaceId, groupId: id, groupRevision: item.evidence.group.revision }, location.hash);
           if (target) onNavigate?.(target);
         }
       }}

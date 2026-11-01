@@ -1,3 +1,6 @@
+import { useStudioLegacyPresentation } from './useStudioLegacyPresentation';
+import { SimpleRecordingShell } from './SimpleRecordingShell';
+import { buildSimpleRecordingTarget, buildStudioPresentationTarget } from '../../../../services/studioRecordingView';
 import { useWorkbenchScroll } from './useWorkbenchScroll';
 import { useRecordingNavigation } from '../recording-editor/RecordingDraftNavigation';
 import { acquisitionPreviewWorkspaceScope } from '../acquisition-preview/acquisitionPreviewScope';
@@ -42,6 +45,8 @@ import { Step4Database } from '../steps/step4';
 import { isStep2Ready } from '../state/sourceRule';
 import type { ModbusShareStatus } from '../../../../types/modbusShare';
 export interface WorkbenchV2ShellProps {
+  recordingIntent?: 'new' | 'located' | 'copy';
+  presentationLocation?: { search: string; hash: string };
   deviceSource?: DeviceSourcePort;
   state: WorkbenchV2State;
   locatorEntry?: StudioLocatorEntryRead;
@@ -50,7 +55,7 @@ export interface WorkbenchV2ShellProps {
   onLocatorEditorMountedChange?: (mounted: boolean) => void;
   workspaceId?: string;
   actions: ReturnType<typeof useWorkbenchV2State>;
-  navigateTo?: (target: string) => void;
+  navigateTo?: (target: string, options?: { replace?: boolean }) => void;
   activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
   recoverActivationStatus?: () => Promise<StudioV2ActivationRecovery>;
   workspaceReadiness?: StudioV2WorkspaceReadinessSummary | null;
@@ -70,7 +75,7 @@ export interface WorkbenchV2RuntimeReturnFocus {
  * 組合所有子佈局區塊，並管理鍵盤捷徑及步驟渲染切換。
  */
 export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
-  deviceSource, state,
+  deviceSource, state, recordingIntent, presentationLocation,
   workspaceId,
   actions,
   navigateTo,
@@ -84,6 +89,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
 }) => {
   const root = React.useRef<HTMLDivElement>(null);
   useWorkbenchScroll(root, `${state.view}:${state.current}`);
+  useStudioLegacyPresentation(presentationLocation?.search, actions, root, !recordingIntent && !locatorEntry && !runtimeReturnFocus);
   const { t } = useTranslation('workbench-v2');
   const { t: runtime } = useTranslation('runtime-dashboard');
   const locatorSelection = locatorEntry?.selection.state === 'selected' ? locatorEntry.selection : undefined;
@@ -114,11 +120,14 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     if (next !== view) requestNavigation(() => setViewDirect(next));
   }, [view, requestNavigation, setViewDirect]);
   const resetFlow = () => requestNavigation(resetFlowDirect);
+  const consumedLocator = React.useRef<string | undefined>(undefined);
   React.useLayoutEffect(() => {
-    if (!locatorSelection) return;
+    const locator = locatorEntry?.locator, key = locatorSelection && locator ? JSON.stringify([locator.workspace_id, locator.step, locator.device_id, locator.rule_id, locator.mapping_id, locator.group_id, locator.group_revision]) : undefined;
+    if (!locatorSelection || !key || consumedLocator.current === key) { if (!key) consumedLocator.current = undefined; return; }
+    consumedLocator.current = key;
     setView('flow'); setCurrent(locatorSelection.target.step);
     if (locatorSelection.target.ruleId) selectRule(locatorSelection.target.ruleId);
-  }, [locatorSelection, setView, setCurrent, selectRule]);
+  }, [locatorEntry, locatorSelection, setView, setCurrent, selectRule]);
   // 快捷鍵監聽 ⌘B / Ctrl+B
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -280,6 +289,19 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
         );
     }
   };
+  if (recordingIntent) {
+    const returnHome = () => navigateTo?.(`/studio/v2?view=recordings${presentationLocation?.hash ?? ''}`);
+    return <SimpleRecordingShell onBack={returnHome} onAdvanced={() => {
+      const target = buildStudioPresentationTarget(presentationLocation?.search ?? '', presentationLocation?.hash ?? '', 'advanced');
+      if (target) navigateTo?.(target);
+    }}><Step4Database key={recordingIntent} deviceSource={deviceSource} presentation="simple" initialSelection={recordingIntent} onClose={returnHome}
+      onCopyLocation={group => { const target = buildSimpleRecordingTarget({ kind: 'copy', workspaceId: group.workspace_id, groupId: group.id, groupRevision: group.revision }, presentationLocation?.hash); if (target) navigateTo?.(target); }}
+      onSavedLocation={group => { const target = buildSimpleRecordingTarget({ kind: 'edit', workspaceId: group.workspace_id, groupId: group.id, groupRevision: group.revision }, presentationLocation?.hash); if (target) navigateTo?.(target, { replace: true }); }}
+      locatorEntry={locatorEntry} locatorOnly={locatorOnly} locatorSuspended={locatorSuspended} onLocatorEditorMountedChange={onLocatorEditorMountedChange}
+      state={state} dispatch={actions.dispatch} workspaceId={workspaceId} shareStatus={shareStatus}
+      recoverActivationStatus={recoverActivationStatus} workspaceReadiness={workspaceReadiness} />
+    </SimpleRecordingShell>;
+  }
   return (
     <div ref={root} className="wbv2-shell min-h-screen flex flex-col" data-testid="workbench-v2-shell">
       {/* 1. 頂部列 */}

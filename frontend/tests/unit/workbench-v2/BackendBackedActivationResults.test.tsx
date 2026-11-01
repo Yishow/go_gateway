@@ -19,7 +19,7 @@ describe('Backend backed activation results', () => {
     vi.clearAllMocks();
   });
 
-  it('keeps a partial activation card amber and hands off only confirmed device ids once', () => {
+  it('keeps a partial activation card in the warning tone and hands off only confirmed device ids once', () => {
     const onCommit = vi.fn();
 
     render(
@@ -39,7 +39,8 @@ describe('Backend backed activation results', () => {
 
     const card = screen.getByTestId('activation-results-card');
     expect(card).toHaveAttribute('data-outcome', 'partial');
-    expect(card).toHaveClass('border-amber-500/30');
+    expect(card).toHaveClass('border-[var(--gw-warning-border)]');
+    expect(card).not.toHaveClass('border-[var(--gw-success-border)]');
     expect(card).toHaveTextContent('step4.result_status.success');
     expect(card).toHaveTextContent('step4.result_status.failed');
 

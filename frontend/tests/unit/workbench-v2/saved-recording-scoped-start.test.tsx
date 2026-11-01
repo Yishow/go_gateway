@@ -1,4 +1,5 @@
 import { recordingTestWriteRecovery } from '../../../src/features/datalink/workbench-v2/state/recordingTestWriteRecovery';
+import { safeBasicNextAction, safeBasicOperationMessage } from '../../../src/features/datalink/workbench-v2/state/basicRecordingMessages';
 import type { ComponentProps } from 'react';
 import { basicRecordingIntentKey, saveBasicRecordingIntent } from '../../../src/features/datalink/workbench-v2/state/basicRecording';
 import type { WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
@@ -170,4 +171,53 @@ it('an unreadable cleanup-owner store blocks fresh Start without requiring a tes
 it('does not borrow a foreign runtime barrier even when its token is populated', () => {
  mount(undefined, { shareStatus: { workspace_id: 'OTHER', workspace_revision: 'RUNTIME', settings_revision: 'SETTINGS', readiness_token: 'token', enabled: false, port: 502, address: '', bind_state: 'disabled', mapping_count: 0 } });
  expect(screen.getByTestId('saved-recording-start-confirm')).toBeDisabled(); expect(api.start).not.toHaveBeenCalled();
+});
+
+const failedReadiness: RecordingStartOperation = { ...operation, status: 'failed', stage: 'readiness', reason: 'invalid_scope', next_action: 'review_selection',
+ groups: operation.groups.map(progress => ({ ...progress, ready: false, applied: false, applied_revision: undefined })),
+ devices: operation.devices.map(progress => ({ ...progress, activated: false })) };
+it('shows a failed Start ACK as a failure with its safe reason, never as an older completed start', async () => {
+ api.start.mockResolvedValue(failedReadiness); api.operation.mockResolvedValue(failedReadiness);
+ const onCompleted = vi.fn(); mount(undefined, { onCompleted });
+ fireEvent.click(screen.getByTestId('saved-recording-start-confirm'));
+ expect(await screen.findByText('step4.basic.operation.failed')).toBeInTheDocument();
+ expect(screen.getByText('step4.basic.reason.invalid_scope')).toBeInTheDocument();
+ expect(screen.getByText('step4.basic.action.review_selection')).toBeInTheDocument();
+ expect(screen.queryByText('start.previousTerminal')).not.toBeInTheDocument();
+ expect(screen.queryByTestId('saved-recording-start-waiting')).not.toBeInTheDocument();
+ const check = screen.getByTestId('saved-recording-start-check');
+ await waitFor(() => expect(check).toBeEnabled()); fireEvent.click(check);
+ await waitFor(() => expect(api.operation).toHaveBeenCalledWith(operation.operation_id));
+ expect(api.start).toHaveBeenCalledTimes(1); expect(onCompleted).not.toHaveBeenCalled();
+ expect(JSON.parse(sessionStorage.getItem(basicRecordingIntentKey(`ws-1/saved-record/${group.id}`))!).operation_id).toBe(operation.operation_id);
+});
+it('reloads a retained failed Start as failure without replaying or calling it historical success', async () => {
+ saveBasicRecordingIntent({ scope_key: `ws-1/saved-record/${group.id}`, owner: { kind: 'saved_record', groupId: group.id, deviceIds: ['dev-1', 'dev-2'] }, operation_id: operation.operation_id,
+  request: { request_id: 'failed-retained-request', workspace_id: 'ws-1', expected_workspace_revision: 'w1', device_ids: ['dev-1', 'dev-2'], groups: [{ group_id: group.id, expected_group_revision: group.revision, expected_connector_revision: group.destination.connector_revision }] } });
+ api.operation.mockResolvedValue(failedReadiness);
+ const onCompleted = vi.fn(); mount(undefined, { onCompleted });
+ expect(await screen.findByText('step4.basic.operation.failed')).toBeInTheDocument();
+ expect(screen.getByText('step4.basic.reason.invalid_scope')).toBeInTheDocument();
+ expect(screen.queryByText('start.previousTerminal')).not.toBeInTheDocument();
+ expect(screen.queryByTestId('saved-recording-start-waiting')).not.toBeInTheDocument();
+ expect(screen.getByTestId('saved-recording-start-confirm')).toBeEnabled();
+ expect(api.start).not.toHaveBeenCalled(); expect(onCompleted).not.toHaveBeenCalled();
+});
+it('renders a safe fallback for an unknown failed Start reason without exposing raw diagnostics', async () => {
+ const failed = { ...failedReadiness, reason: 'private-endpoint-and-credential', next_action: 'raw-private-action' };
+ api.start.mockResolvedValue(failed); api.operation.mockResolvedValue(failed);
+ mount(); fireEvent.click(screen.getByTestId('saved-recording-start-confirm'));
+ expect(await screen.findByText('step4.basic.operation.failed')).toBeInTheDocument();
+ expect(screen.getByText('step4.basic.reason.unconfirmed')).toBeInTheDocument();
+ expect(screen.queryByText('start.previousTerminal')).not.toBeInTheDocument();
+ expect(document.body.textContent).not.toContain('private-endpoint-and-credential');
+ expect(document.body.textContent).not.toContain('raw-private-action');
+ expect(api.start).toHaveBeenCalledTimes(1);
+});
+it.each(['toString', 'constructor', '__proto__'])('does not translate inherited failed Start reason or action %s', key => {
+ const failed = { ...failedReadiness, reason: key, next_action: key };
+ const translate = vi.fn((message: string) => message);
+ expect(safeBasicOperationMessage(failed, translate)).toBe('step4.basic.reason.unconfirmed');
+ expect(safeBasicNextAction(failed, translate)).toBeUndefined();
+ expect(translate).toHaveBeenCalledExactlyOnceWith('step4.basic.reason.unconfirmed');
 });

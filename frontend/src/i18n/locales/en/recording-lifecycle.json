@@ -59,7 +59,9 @@
     "confirm": "Remove settings; keep history"
   },
   "stop": {
-    "keeps": "Stopping prevents new records. Already accepted backlog still goes to its original destination; SQL tables, history and receipts stay intact."
+    "keeps": "Stopping prevents new records. Already accepted backlog still goes to its original destination; SQL tables, history and receipts stay intact.",
+    "title": "Stop this recording?",
+    "confirm": "Confirm stop"
   },
   "removed": {
     "title": "Removed recordings ({{count}})",

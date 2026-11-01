@@ -161,7 +161,7 @@
     "deltaExample": "計數器差值：儲存已確認計數器在自己時間窗內的變化，例如每分鐘用電量，不是電表累積原始讀值。",
     "firstBaseline": "第一次計數器時間窗可能只建立基準：結果為 NULL 並附原因，不是 0，也不以原始讀值代替。",
     "counterPolicy": "已確認的 signed counter 允許減少；回捲必須符合已儲存政策，不能把所有下降都顯示為缺值。",
-    "dueUnion": "各點位使用自己的 UTC 對齊時間窗。其他點位到期時，尚未到期的點位為 NULL 並標記「未到期」，不提前產生或複製結果。",
+    "dueUnion": "每點各自依 UTC 時鐘格線分窗。寬表未到期的點留 NULL／not_due；長表只列到期的點。不沿用前值，也不補 0。",
     "requiredPolicy": "已到期的必要點位無法產生結果時，依已儲存政策可跳過整列；選用點位保留 NULL 與原因。必要點位尚未到期不會阻擋其他點位的列。",
     "chooseMixed": "選擇各點位計算結果",
     "independent": "各點位計算使用新的獨立記錄及計數器基準；不轉換、停止或複製既有記錄、排程與資料。",
@@ -364,5 +364,56 @@
     "recoveryUnavailable": "目前無法查明或安全保留原操作，沒有送出新的開始請求。請保留未確認操作並查看狀態，不要清除恢復資料。",
     "reviewSaved": "開始前檢查",
     "reviewSavedNote": "先確認要開始的記錄與來源，再明確按下開始。"
+  },
+  "simple": {
+    "title": "單頁記錄設定",
+    "back": "返回總覽",
+    "create": "新增記錄",
+    "sources": "記錄點位 · {{count}} 點",
+    "sourcesHint": "選擇來源，逐點設定記錄數值與間隔。來源設定共用；算法與間隔只屬於這組記錄。",
+    "destination": "目的地",
+    "destinationHint": "設定這組記錄存在哪裡。保存、檢查結構與開始是分開的動作。",
+    "calculationColumn": "記錄數值／間隔",
+    "technical": "已保存識別與版本",
+    "legacySourcesHint": "這筆已保存記錄維持原來的來源與全組記錄規則，不自動轉成逐點算法。",
+    "columnsAssignedOnSave": "儲存後由系統配置欄位對應，再檢查並確認資料表結構。",
+    "pendingColumn": "儲存後配置",
+    "sections": "本頁設定區段",
+    "section": {
+      "sources": "來源",
+      "method": "記錄方式",
+      "destination": "目的地與確認"
+    },
+    "sourceCadenceNote": "來源各依原讀取週期更新；記錄間隔是另一項設定，不代表各點同時採樣。",
+    "nextMethod": "接著選記錄方式",
+    "nextDestination": "接著選目的地",
+    "methodHint": "每個已選點位，各自留下結果與時間窗。",
+    "methodEmpty": "先選擇點位，再於各列設定記錄數值與間隔。",
+    "noSelectedPoints": "尚未選取點位。選擇點位後，在這裡設定各點的算法與間隔。",
+    "requiredRisk": "必要點到期卻無有效結果時，可能略過輸出；選填缺值保留 NULL 與原因。未到期不影響其他點輸出。",
+    "parameterLimits": "可用間隔範圍",
+    "unset": "尚未設定",
+    "summary": {
+      "title": "這組記錄",
+      "name": "記錄名稱",
+      "sources": "{{devices}} 台設備／{{points}} 點",
+      "results": "各點算法／記錄間隔",
+      "points": "{{count}} 點",
+      "localIntent": "未保存意圖 · 尚未套用此變更",
+      "savedIntent": "設定已保存 · 不代表已執行或寫入 SQL",
+      "legacy": "維持原全組記錄規則",
+      "noPoints": "尚未選點"
+    }
+  },
+  "copy": {
+    "action": "複製成新記錄",
+    "name": "{{name}}（副本）",
+    "intent": "這是已保存設定的未保存、未開始草稿，原記錄不變。請保存、檢查結構，再明確開始新記錄。",
+    "concurrent": "開始副本後，可能與原記錄同時記錄相同來源，請確認是否需要兩筆一起執行。",
+    "longIsolation": "長表沿用共用的受管資料表，以新的記錄識別隔離此副本；複製不代表建立另一張資料表。",
+    "unsupported": "這筆已保存記錄無法在此複製；只支援目前能力允許、使用受管一般儲存的逐點記錄。"
+  },
+  "versions": {
+    "details": "設定版本詳情"
   }
 }

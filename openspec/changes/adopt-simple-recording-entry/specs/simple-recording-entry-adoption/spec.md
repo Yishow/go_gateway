@@ -5,15 +5,30 @@ Adopt the simple recording home as the default Studio entry only after its compl
 ## ADDED Requirements
 
 ### Requirement: Default adoption follows explicit acceptance gates
-Product implementation of these dependent changes SHALL begin only after the owner has confirmed the completed demo checkpoint for this batch; demo confirmation SHALL NOT count as formal browser or device verification. The system SHALL retain the opt-in entry until the home, editor and lifecycle changes meet their agreed acceptance conditions and the owner has reviewed the demo checkpoint. Required verification gaps SHALL block default adoption unless their limitations are explicitly accepted for this batch. Silence or a historical waiver SHALL NOT establish acceptance.
+The recorded fixed-version demo checkpoint and the owner's latest instruction to strengthen that demo SHALL govern this batch. The existing home and editor contracts SHALL be integrated into the simple presentation without waiting for unused lifecycle work, Settings-wide changes or the remaining broad performance matrix. That pending work SHALL remain assigned to its existing owners and SHALL NOT be reported as completed. The system SHALL retain the opt-in entry until the selected demo journeys and their necessary lifecycle safety are verified: creation, editing, stop and resume, draft-only copying, removal, and selected forward-only table or destination changes, together with their affected browser and SQL acceptance conditions. Demo confirmation SHALL NOT count as formal browser or device verification. Required verification gaps SHALL block default adoption unless their limitations are explicitly accepted for this batch. Silence or a historical waiver SHALL NOT establish acceptance.
 
 #### Scenario: A required browser journey remains unverified
 - **WHEN** current browser verification cannot run and no current acceptance of that limitation exists
 - **THEN** the default remains the original entry, the new view remains opt-in, and the limitation is reported as NOT RUN rather than passed.
 
+#### Scenario: A selected lifecycle journey remains unfinished
+- **WHEN** the simple host is wired but a required selected lifecycle journey remains pending or unverified
+- **THEN** the host remains opt-in, the original owner retains that pending work, and unavailable presentation alone does not satisfy the default gate.
+
 #### Scenario: Complete entry is accepted
-- **WHEN** the dependent changes satisfy the acceptance matrix and the owner checkpoint is recorded
+- **WHEN** the selected main journeys satisfy the acceptance matrix, their affected safety checks pass and the owner checkpoint is recorded
 - **THEN** an unqualified /studio/v2 entry opens the recording home while view=advanced retains the original guided presentation.
+
+### Requirement: Simple recording presentation reuses canonical owners
+The simple home SHALL open new and existing recordings in the same Step 4 editor ownership with a single-page source, per-member recording and destination presentation, without requiring the operator to expand Advanced or WriteGroups first. An empty source or unsaved destination SHALL NOT prevent opening an unsent draft and completing its setup through the existing owners; the existing save and Start prerequisites SHALL remain enforced. Saving, source persistence, schema confirmation and scoped Start SHALL retain the existing canonical owners, identities, revisions and safeguards. Returning SHALL use the existing dirty and pending navigation guards. Lifecycle actions SHALL use matching server availability: allowed actions SHALL remain operable through their original owners, and genuinely unsupported actions SHALL display reasons and the existing advanced handoff rather than invented commands or status-derived permission. An unfinished required selected action SHALL remain pending and SHALL NOT be hidden or relabelled unsupported to enable default adoption.
+
+#### Scenario: An operator creates or edits from the overview
+- **WHEN** the operator chooses to add a recording or modify a saved recording from the overview
+- **THEN** the simple single-page presentation opens using the existing new-draft or exact saved-record ownership, and guarded return restores the same-scope overview without a new configuration authority or implicit activation.
+
+#### Scenario: A lifecycle action is not available
+- **WHEN** matching server action availability is absent, stale or denies an action
+- **THEN** the simple presentation explains the unavailable action and retains the supported repair or advanced path without fabricating permission, a replacement command or a completed lifecycle feature.
 
 ### Requirement: Explicit existing intents survive default adoption
 The system SHALL preserve valid entity locators, runtime repair focus and supported legacy step, target, section and modal intents before applying the default view. Requests with entry or canonical locator identity fields SHALL undergo strict locator validation and SHALL NOT fall back to legacy routing on error. Only requests without locator identity fields SHALL use bounded existing legacy intent allowlists after raw query encoding and uniqueness checks. Root and unknown routes SHALL retain their generic Studio V2 redirection and search/hash preservation. The retired /studio surface SHALL NOT be restored.
@@ -31,7 +46,7 @@ The system SHALL preserve valid entity locators, runtime repair focus and suppor
 - **THEN** it remains an invalid locator rather than being accepted as a legacy Modbus request.
 
 ### Requirement: Acceptance records distinguish evidence layers
-The system's release evidence SHALL identify each agreed journey, actual verification command or manual assertion, final source version and PASS, FAIL or NOT RUN status. Demo, mocked UI, DOM tests, browser tests, SQL tests and field-device acceptance SHALL be identified separately. Results from older versions SHALL NOT count as current verification.
+The system's release evidence SHALL identify each agreed journey, actual verification command or manual assertion, final source version and PASS, FAIL or NOT RUN status. Demo, mocked UI, DOM tests, browser tests, SQL tests and field-device acceptance SHALL be identified separately. Unaffected owner evidence SHALL identify its original version and reuse boundary rather than claiming a current rerun. Older results SHALL NOT replace verification of behavior affected by this batch.
 
 #### Scenario: Mocked UI journeys pass
 - **WHEN** UI fixtures and DOM tests pass without real SQL or device execution
@@ -49,7 +64,7 @@ The system SHALL allow reverting the entry presentation to the original flow wit
 - **THEN** only the UI entry selection changes and existing recording identities, pending operations and historical database data remain intact.
 
 ### Requirement: Revised design and protocol parity precede acceptance
-Acceptance SHALL cover each existing supported protocol's required and advanced parameter paths, lossless reload/edit/save, both themes, system live changes, override persistence, portals, typography, contrast, reduced motion and responsive modal behavior. The owner checkpoint SHALL use the revised fixed-version demo; prior viewing SHALL NOT imply approval. Unselected optional features or modal size exceptions MUST NOT enter the implementation checklist.
+Acceptance SHALL preserve each existing supported protocol's required and advanced parameter paths and lossless reload/edit/save, rechecking affected paths and retaining explicit provenance for unaffected owner evidence. The selected main journeys SHALL cover both themes, system live changes, override persistence, portals, typography, contrast, reduced motion and responsive modal behavior. The owner checkpoint SHALL use the revised fixed-version demo; prior viewing SHALL NOT imply approval. Unselected optional features or modal size exceptions MUST NOT enter the implementation checklist.
 
 #### Scenario: The revised point-picker journey is reviewed
 - **WHEN** the revised fixed-version demo and eventual product journey are evaluated

@@ -9,6 +9,7 @@ import { Step4Database } from '@/features/datalink/workbench-v2/steps/step4/Step
 import { useStudioV2AutosaveState } from '@/pages/datalink/workbench-v2/useStudioV2AutosaveState';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
 import { readStudioLocatorEditorEntry } from '@/services/studioV2LocatorEntry';
+import { listRecordingTestWriteRecovery } from '@/services/recordingTestWriteRecovery';
 import { deviceAPI } from '@/services/datalink';
 import type { StudioLocatorEntryRead } from '@/types/studioV2LocatorEntry';
 import { locatorRead } from './studio-locator-fixtures';
@@ -24,6 +25,7 @@ vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWri
   list: vi.fn(), readiness: vi.fn(), delivery: vi.fn(), create: vi.fn(), update: vi.fn(), apply: vi.fn(), disable: vi.fn(), remove: vi.fn(), testWritePreview: vi.fn(), testWrite: vi.fn(), testWriteOperation: vi.fn(), get: vi.fn(),
 } }));
 vi.mock('@/services/studioV2LocatorEntry', () => ({ readStudioLocatorEditorEntry: vi.fn() }));
+vi.mock('@/services/recordingTestWriteRecovery', () => ({ listRecordingTestWriteRecovery: vi.fn() }));
 vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor', async original => {
   const actual = await original<typeof import('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor')>();
   return { GroupEditor: (props: GroupEditorProps) => { editorProps = props; return <actual.GroupEditor {...props} />; } };
@@ -69,6 +71,7 @@ function mount(route: StudioLocatorEntryRead) {
 }
 beforeEach(() => {
   resetDeviceAutosaveMocks(); vi.clearAllMocks(); current = editorRead(); discoveredCandidates = [];
+  vi.mocked(listRecordingTestWriteRecovery).mockResolvedValue({ workspace_id: 'W', complete: true, operations: [] });
   studioV2WorkspaceAPI.get.mockImplementation(async () => ({ ...current.workspace, modbus_share: { workspace_id: 'W', workspace_revision: 'SOURCE-REV' } }));
   vi.mocked(studioV2WorkspaceWriteGroupsAPI.readiness).mockRejectedValue(new Error('not ready'));
   vi.mocked(studioV2WorkspaceWriteGroupsAPI.delivery).mockRejectedValue(new Error('unavailable'));
@@ -195,6 +198,8 @@ it.each(['foreign-ack', 'newer-readback'])('does not authorize source acquisitio
 it.each(['ack', 'readback'])('late own %s cannot refresh source authority after locator A -> B -> A navigation', async stage => {
   const route = editorRead(), view = mount(route);
   fireEvent.click(await screen.findByTestId('group-open-G')); await screen.findByTestId('group-name');
+  const cachedFetchLatest = editorProps.fetchLatest;
+  if (stage === 'readback') await waitFor(() => expect(screen.getByTestId('group-test-write-preview')).toBeEnabled());
   let finish!: () => void;
   if (stage === 'ack') vi.mocked(studioV2WorkspaceWriteGroupsAPI.update).mockImplementationOnce(async (_id, request) => {
     current = editorRead('W3', 'G4'); current.entry.write_groups!.groups[0].name = request.group.name;
@@ -209,6 +214,21 @@ it.each(['ack', 'readback'])('late own %s cannot refresh source authority after 
   await waitFor(() => expect(finish).toBeTypeOf('function'));
   view.navigate(locatorRead(4, 'OTHER')); view.navigate(route);
   await act(async () => { finish(); });
+  if (stage === 'readback') {
+    expect(screen.getByTestId('group-saved-note')).toBeInTheDocument();
+    expect(screen.getByTestId('group-test-write-preview')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('group-test-write-preview'));
+    expect(studioV2WorkspaceWriteGroupsAPI.testWritePreview).not.toHaveBeenCalled();
+    expect(studioV2WorkspaceWriteGroupsAPI.testWrite).not.toHaveBeenCalled();
+  }
+  expect(screen.getByTestId('group-name')).toBeEnabled();
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Keep newer local draft after ABA' } });
+  expect(screen.getByTestId('group-name')).toHaveValue('Keep newer local draft after ABA');
+  expect(screen.getByTestId('group-save')).toBeDisabled();
+  expect(editorProps.lifecycleHost?.tryAcquire?.()).toBe(false);
+  const reads = vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mock.calls.length;
+  await expect(cachedFetchLatest()).rejects.toThrow('Recording scope is unavailable.');
+  expect(studioV2WorkspaceWriteGroupsAPI.list).toHaveBeenCalledTimes(reads);
   await openUnsubmittedRange(); await screen.findByText('device.scopeBlocked');
   expect(screen.getByRole('button', { name: 'range.save' })).toBeDisabled();
   expect(studioV2RulesAPI.create).not.toHaveBeenCalled(); expect(studioV2MappingsAPI.create).not.toHaveBeenCalled();

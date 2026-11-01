@@ -16,10 +16,11 @@ import (
 )
 
 type successorSchemaSnapshot struct {
-	reserved     *WriteGroupSuccessorPreparation
-	types        map[string]schema.DataType
-	dialect      string
-	sourceFamily string
+	reserved        *WriteGroupSuccessorPreparation
+	types           map[string]schema.DataType
+	dialect         string
+	sourceFamily    string
+	counterBindings CounterBindingProofs
 }
 
 // SuccessorSchemaScope resolves only the exact operation-bound reserved draft.
@@ -143,11 +144,15 @@ func (s *WriteGroupService) successorSchemaSnapshotInTx(ctx context.Context, tx 
 			return nil, err
 		}
 	}
-	return &successorSchemaSnapshot{reserved: reserved, types: types, dialect: kind, sourceFamily: family}, nil
+	proofs, err := s.successorSchemaCounterBindingsInTx(ctx, tx, group, types)
+	if err != nil {
+		return nil, err
+	}
+	return &successorSchemaSnapshot{reserved: reserved, types: types, dialect: kind, sourceFamily: family, counterBindings: proofs}, nil
 }
 
 func successorSchemaSourceDigest(snapshot *successorSchemaSnapshot) (string, error) {
-	source, err := managedSourceDigest(snapshot.reserved.Group, snapshot.types)
+	source, err := managedSourceDigest(snapshot.reserved.Group, snapshot.types, snapshot.counterBindings)
 	if err != nil {
 		return "", err
 	}
@@ -170,4 +175,17 @@ func (s *WriteGroupService) successorDriverInTx(ctx context.Context, tx *sql.Tx,
 		return writeGroupConnectorKindMySQL, nil
 	}
 	return s.repo.recreateConnectorEngineInTx(ctx, tx, connectorID)
+}
+
+// Resolve fresh sealed facts for the reserved identity, never predecessor
+// runtime proofs or delivery baselines. The same owner serves ordinary schema.
+func (s *WriteGroupService) successorSchemaCounterBindingsInTx(ctx context.Context, tx *sql.Tx, group *WriteGroup, types map[string]schema.DataType) (CounterBindingProofs, error) {
+	if !isMixedWriteGroup(group) {
+		return nil, nil
+	}
+	proofs, issues := s.counterBindingEvidenceInTx(ctx, tx, group, types, nil)
+	if len(issues) > 0 {
+		return nil, errors.Join(ErrWriteGroupValidation, ErrCounterBindingProofConflict)
+	}
+	return mixedSchemaCounterProofs(group, proofs)
 }

@@ -1,3 +1,4 @@
+import type { GroupSchemaPanelProps } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel';
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import { studioV2WriteGroupLifecycleAPI } from '@/services/studioV2WriteGroupLifecycle';
 import { savedLifecycle } from '../../fixtures/writeGroupLifecycle';
@@ -72,7 +73,12 @@ vi.mock('@/hooks/datalink/useStudioV2WriteGroupTestWrite', () => ({
 vi.mock('@/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns', () => ({
   useStep4TargetColumns: () => ({ columns: TABLE_COLUMNS, status: 'exists', refetch: vi.fn() }),
 }));
-vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel', () => ({ GroupSchemaPanel: () => null }));
+vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel', () => ({
+  GroupSchemaPanel: ({ guided, workspaceId, workspaceRevision, group }: GroupSchemaPanelProps) => guided?.renderActions?.({
+    scope: { workspaceId, workspaceRevision, groupId: group?.id, groupRevision: group?.revision, epoch: 0 },
+    observation: { owner: 'schema', state: 'observed', result: 'none' }, phase: 'idle', preview: 'none', commands: {},
+  }) ?? null,
+}));
 vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupDeliveryStrip', () => ({ GroupDeliveryStrip: () => null }));
 vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleBar', () => ({ GroupLifecycleBar: () => null }));
 

@@ -9,6 +9,7 @@ import { columnCompatibility, type ColumnSuggestions, type WriteGroupSqlDialect 
 import { memberKey, type DraftIssue, type EditorMember } from '../../../state/writeGroup/draft';
 
 export interface GroupMemberTableProps {
+  presentation?: 'guided' | 'simple';
   candidates: GroupCandidate[];
   excluded: ExcludedCandidate[];
   members: EditorMember[];
@@ -21,8 +22,12 @@ export interface GroupMemberTableProps {
   /** Exact-value SQL dialect used when checking persisted metadata. */
   dialect?: WriteGroupSqlDialect;
   managed?: boolean;
+  /** Fresh managed intent has no server-owned column assignment until save. Presentation only. */
+  columnsAssignedOnSave?: boolean;
   /** Picker owns membership when supplied; this table edits only already selected rows. */
   selectionControls?: { removeLabel: (member: EditorMember) => string; onRemove: (member: EditorMember) => void };
+  /** Optional visible result column; the editor remains the calculation owner. */
+  renderCalculation?: (member: EditorMember) => React.ReactNode;
   renderSource?: (member: EditorMember) => React.ReactNode;
   onChange: (members: EditorMember[]) => void;
 }
@@ -47,10 +52,11 @@ function emptyMember(candidate: GroupCandidate, column: string): EditorMember {
  * bulk action names its scope and count and touches only the rows shown.
  */
 export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
-  renderSource, candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
-  dialect = 'portable', managed = false, onChange, selectionControls,
+  presentation = 'guided', renderSource, renderCalculation, candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
+  dialect = 'portable', managed = false, columnsAssignedOnSave = false, onChange, selectionControls,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const { t: editorText } = useTranslation('recording-editor');
   const [query, setQuery] = useState('');
   const [problemsOnly, setProblemsOnly] = useState(false);
   const byKey = useMemo(() => new Map(members.map((member) => [member.key, member])), [members]);
@@ -127,6 +133,10 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
   const acceptable = shown.filter((row) => row.suggestion?.status === 'suggested' &&
     (!row.member || row.member.target_column === '')).length;
 
+  if (presentation === 'simple' && selectionControls && members.length === 0) return <div data-testid="group-member-table">
+    <p className="recording-editor-empty" data-testid="group-member-empty">{editorText('simple.noSelectedPoints')}</p>
+    {metadataStatus !== 'exists' && <p role="status" data-testid="group-member-metadata-note">{t(`step4.group.members.metadata_${metadataStatus}`)}</p>}
+  </div>;
   const classes = (value: string) => value;
   return (
     <div className={classes('space-y-3')} data-testid="group-member-table">
@@ -159,6 +169,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
         </span>
       </div>
 
+      {columnsAssignedOnSave && <p className="text-sm text-[var(--gw-muted)]">{editorText('simple.columnsAssignedOnSave')}</p>}
       {metadataStatus !== 'exists' && (
         <p className={classes('text-sm text-[var(--gw-warning-fg)]')} data-testid="group-member-metadata-note">
           {t(`step4.group.members.metadata_${metadataStatus}`)}
@@ -171,7 +182,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
             <tr>
               <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_include')} <ParameterHelp help="member.include" /></th>
               <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_tag')}</th>
-              <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_type')}</th>
+              {renderCalculation ? <th scope="col" className={classes('p-2')}>{editorText('simple.calculationColumn')}</th> : <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_type')}</th>}
               <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_column')} <ParameterHelp help="member.targetColumn" /></th>
               <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_required')} <ParameterHelp help="member.required" /></th>
               {showEntityKey && <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_entity')} <ParameterHelp help="member.entityKey" /></th>}
@@ -202,12 +213,12 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
                   </td>
                   <td className={classes('p-2')}>
                     <div className={classes('font-medium')}>{candidate.label}</div>
-                    <div className={classes('text-[var(--gw-muted)]')}>{candidate.device_name} · {candidate.address}</div>
+                    <div className={classes('text-[var(--gw-muted)]')}>{candidate.device_name} · {candidate.address}{renderCalculation && <> · {candidate.target_type}</>}</div>
                     {member && renderSource?.(member)}
                   </td>
-                  <td className={classes('p-2 font-mono')}>{candidate.target_type}</td>
+                  {renderCalculation ? <td className={classes('p-2 align-top')} data-testid={`group-member-calculation-${candidate.point_id}`}>{member && renderCalculation(member)}</td> : <td className={classes('p-2 font-mono')}>{candidate.target_type}</td>}
                   <td className={classes('p-2')}>
-                    {metadataKnown ? (
+                    {columnsAssignedOnSave ? <span className="text-sm text-[var(--gw-muted)]">{chosenColumn || editorText('simple.pendingColumn')}</span> : metadataKnown ? (
                       <select
                         value={chosenColumn} disabled={disabled || !member}
                         aria-label={t('step4.group.members.column_label', { tag: candidate.label })}
@@ -251,7 +262,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
                     </td>
                   )}
                   <td className={classes('p-2')}>
-                    {problem ? (
+                    {columnsAssignedOnSave && member ? <span className="text-sm text-[var(--gw-muted)]">{editorText('simple.pendingColumn')}</span> : problem ? (
                       <span id={describedBy} role="alert" className={classes('text-[var(--gw-danger-fg)]')} data-testid={`group-member-problem-${candidate.point_id}`}>
                         {t(`step4.group.members.problem_${problem.replace('-', '_')}`)}
                       </span>

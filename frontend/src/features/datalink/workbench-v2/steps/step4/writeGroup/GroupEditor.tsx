@@ -6,7 +6,10 @@ import { GroupEditorWithCapabilities, destinationSaved, type GroupEditorContentP
 import { RecordingDraftBoundary, useRecordingDraftGuard, useRecordingReadUnavailable } from '../../../recording-editor/RecordingDraftNavigation';
 import type { WriteGroupCalculationCapabilities } from '../../../../../../types/studioV2WriteGroupCalculation';
 import { RecordingMixedEditor, RecordingMixedResults, recordingMixedEditorIssues } from '../../../recording-editor/RecordingMixedEditor';
-import { mixedDraftToRequestGroup } from '../../../recording-editor/recordingMixedDraft';
+import { createRecordingCopyDraft, type RecordingCopyPrefill } from '../../../recording-editor/recordingCopyDraft';
+import { RecordingEditorSummary } from '../../../recording-editor/RecordingEditorSummary';
+import { RecordingEditorLayout } from '../../../recording-editor/RecordingEditorLayout';
+import { mixedDraftToRequestGroup, newMixedDraft } from '../../../recording-editor/recordingMixedDraft';
 import { initializeMixedMembers } from '../../../recording-editor/recordingMemberCalculation';
 import { RecordingMemberCalculationSource } from '../../../recording-editor/RecordingMemberCalculation';
 import { RecordingPointOrder } from '../../../recording-editor/RecordingPointOrder';
@@ -48,6 +51,11 @@ import { GroupEditorPreparation } from '../../../recording-editor/GroupEditorPre
 import { GroupTestWritePanel } from './GroupTestWritePanel';
 
 export interface GroupEditorProps {
+  presentation?: 'guided' | 'simple';
+  copyPrefill?: RecordingCopyPrefill;
+  onCopy?: () => void;
+  /** One host-owned destination form, rendered here without adding a save owner. */
+  destinationContent?: React.ReactNode;
   configuredDestinations?: ConfiguredDestinationObservation;
   calculationCapabilities?: WriteGroupCalculationCapabilities;
   deviceSource?: DeviceSourcePort;
@@ -89,7 +97,7 @@ export interface GroupEditorProps {
  */
 export const GroupEditor: React.FC<GroupEditorProps> = props => <RecordingDraftBoundary><RecordingSourceNavigation workspaceId={props.workspaceId} source={props.deviceSource}><GroupEditorWithCapabilities {...props} Content={GroupEditorContent} /></RecordingSourceNavigation></RecordingDraftBoundary>;
 const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
-  configuredDestinations, calculationCapabilities, deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard, saveReadbackPending,
+  presentation = 'guided', copyPrefill, onCopy, destinationContent, configuredDestinations, calculationCapabilities, deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard, saveReadbackPending,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: editorText } = useTranslation('recording-editor');
@@ -111,10 +119,11 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const [observedSources, setObservedSources] = useState<{ scope: string; value: RecordingPickerDiscovery }>();
   const candidates = useMemo(() => observedSources?.scope === pickerScope ? [...observedSources.value.candidates] : suppliedCandidates, [observedSources, pickerScope, suppliedCandidates]);
   const readonly = operatorReadonly || readUnavailable || editorReadonly || propGroup?.status === 'deleted';
+  const renderCalculation = (member: EditorMember) => <RecordingMemberCalculationSource member={member} disabled={readonly || saveBusy} compact={presentation === 'simple'}
+    workspaceRevision={workspaceRevision} locatorScope={locatorScope} context={{ workspaceId, recordId: draft.record_id, capabilities: calculationCapabilities, layout: draft.layout_version ?? '', dialect: connector.kind }}
+    onChange={next => set({ members: draft.members.map(value => value === member ? next : value) })} />;
   const renderPointOrder = (member: EditorMember) => <>{deviceSource?.pointOrder && <RecordingPointOrder port={deviceSource.pointOrder}
-    workspaceId={workspaceId} deviceId={member.device_id} pointId={member.point_id} disabled={readonly || saveBusy} />}{mixed && <RecordingMemberCalculationSource member={member} disabled={readonly || saveBusy}
-      workspaceRevision={workspaceRevision} locatorScope={locatorScope} context={{ workspaceId, recordId: draft.record_id, capabilities: calculationCapabilities, layout: draft.layout_version ?? '', dialect: connector.kind }}
-      onChange={next => set({ members: draft.members.map(value => value === member ? next : value) })} />}</>;
+    workspaceId={workspaceId} deviceId={member.device_id} pointId={member.point_id} disabled={readonly || saveBusy} />}{mixed && presentation !== 'simple' && renderCalculation(member)}</>;
   const saved = destinationSaved(connector);
   const isMySQL = String(connector.kind).toLowerCase() === 'mysql';
   const mysqlConnectorId = connector.connector_id ?? '';
@@ -134,10 +143,11 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const [editorGroup, setEditorGroup] = useState<WriteGroup | undefined>(propGroup);
   const previousPropGroup = useRef(propGroup);
   const group = editorGroup;
-  const [draft, setDraft] = useState<EditorDraft>(() => group ? groupToDraft(group) : newDraft({
-    connector_id: connector.connector_id ?? '', connector_revision: connector.identity_revision ?? '',
-    table_schema: connector.schema ?? '', table_name: connector.table ?? '',
-  }));
+  const [draft, setDraft] = useState<EditorDraft>(() => {
+    const destination = { connector_id: connector.connector_id ?? '', connector_revision: connector.identity_revision ?? '', table_schema: connector.schema ?? '', table_name: connector.table ?? '' };
+    // Explicit simple creation is local per-point intent, not a capability or permission to save/start.
+    return group ? groupToDraft(group) : copyPrefill ? createRecordingCopyDraft(copyPrefill, destination, crypto.randomUUID(), editorText('copy.name', { name: copyPrefill.sourceName })) : presentation === 'simple' ? newMixedDraft({ ...destination, table_name: '' }, crypto.randomUUID()) : newDraft(destination);
+  });
   const [configuredChoice, setConfiguredChoice] = useState<WriteGroup>();
   const configuredContext = { workspaceId, connector, draft, groupId: group?.id };
   const configuredInvalid = Boolean(configuredChoice && (configuredDestinationReason(configuredChoice, configuredContext) || configuredDestinations?.failed || configuredDestinations?.loading || !configuredDestinationStillCurrent(configuredChoice, configuredDestinations?.data)));
@@ -161,6 +171,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   // Legacy profiles keep their canonical group policy; mixed members own their individual cadence.
   const profile = (draft.layout_version === 'managed_long_v1' || draft.layout_version === 'managed_wide_profile_v1') && draft.recording_profile !== undefined;
   const mixed = draft.recording_profile?.kind === 'mixed';
+  const columnsAssignedOnSave = presentation === 'simple' && !group && draft.storage_strategy === 'managed';
   const dirty = group ? draftIsDirty(draft, group) : true;
   const saveScopeKey = JSON.stringify([workspaceId, propGroup?.id, connector.connector_id, connector.identity_revision, readonly]);
   const saveScope = useRef({ key: saveScopeKey });
@@ -219,7 +230,8 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const invalid = issues.length > 0 || mixedIssues.length > 0 || configuredInvalid;
   const readiness = useWriteGroupReadinessQuery(group?.id, Boolean(group) && !dirty);
   const set = (patch: Partial<EditorDraft>) => { if (!savingRef.current) setDraft((current) => ({ ...current, ...patch })); };
-  const setMembers = (members: EditorMember[]) => set({ members: mixed && calculationCapabilities ? initializeMixedMembers(members, draft.members, candidates, calculationCapabilities) : members });
+  const setMembers = (members: EditorMember[]) => set({ members: mixed && (calculationCapabilities || presentation === 'simple') ? initializeMixedMembers(members, draft.members, candidates, calculationCapabilities,
+    presentation === 'simple' ? { interval: 15, unit: 'second', alignment: 'utc_epoch' } : undefined) : members });
   const changeStorageStrategy = (storage_strategy: WriteGroupStorageStrategy) => setDraft((current) => {
     if (savingRef.current || storage_strategy === current.storage_strategy) return current;
     if (storage_strategy === 'managed') {
@@ -308,7 +320,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
     readiness.data.schema_ready && !readiness.isFetching && !readiness.isError);
   const sqlserverSchemaReady = !isSQLServer || Boolean(group && readiness.data?.group_revision === group.revision &&
     readiness.data.schema_ready && !readiness.isFetching && !readiness.isError);
-  const testWriteEnabled = Boolean(group) && !readonly && !dirty && destinationMatches && group?.status !== 'deleted' &&
+  const testWriteEnabled = Boolean(group) && !readonly && !saveReadbackPending && !dirty && destinationMatches && group?.status !== 'deleted' &&
     mysqlTestWriteAvailable && mysqlSchemaReady && sqlserverTestWriteAvailable && sqlserverSchemaReady;
   const testBlocked = !group ? t('step4.group.test_write.blocked_unsaved')
     : dirty ? t('step4.group.test_write.blocked_dirty')
@@ -322,24 +334,38 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
                     : isSQLServer && (readiness.isLoading || readiness.isFetching) ? t('step4.group.test_write.blocked_readiness_loading')
                       : isSQLServer && !sqlserverSchemaReady ? t('step4.group.test_write.blocked_schema_not_ready') : undefined;
 
+  const revisionDetails = group && (
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[var(--gw-muted)] sm:grid-cols-4" data-testid="group-revisions">
+      <dt>{t('step4.group.editor.status')}</dt><dd className="text-[var(--gw-text)]">{group.status}</dd>
+      <dt>{t('step4.group.editor.draft_revision')}</dt><dd className="font-mono text-[var(--gw-text)]">{group.revision}</dd>
+      <dt>{t('step4.group.editor.applied_revision')}</dt><dd className="font-mono text-[var(--gw-text)]" data-testid="group-applied-revision">{group.applied_revision || t('step4.group.editor.not_applied')}</dd>
+      <dt>{t('step4.group.editor.connector_revision')}</dt><dd className="font-mono text-[var(--gw-text)]">{group.destination.connector_revision}</dd>
+    </dl>
+  );
   return (
-    <div className="space-y-5 rounded-xl border border-[var(--gw-border)] p-5" data-testid="group-editor"
+    <div className={presentation === 'simple' ? 'recording-editor-simple min-w-0 space-y-5' : 'min-w-0 space-y-5 rounded-xl border border-[var(--gw-border)] p-5'} data-testid="group-editor"
       onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing && !event.defaultPrevented && !(event.target as HTMLElement).closest('[role="dialog"], [role="alertdialog"], [role="tooltip"], [data-state="open"]')) { event.preventDefault(); closeEditor(); } }}>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[var(--gw-text)]">{group ? group.name : t('step4.group.editor.new_title')}</h3>
-        <button type="button" onClick={closeEditor} className="text-xs text-[var(--gw-muted)] underline" data-testid="group-editor-close">{t('step4.group.editor.back')}</button>
+        <h3 className="text-sm font-semibold text-[var(--gw-text)]">{group ? group.name : presentation === 'simple' ? editorText('simple.create') : t('step4.group.editor.new_title')}</h3>
+        {presentation === 'simple' && group && onCopy && <button type="button" className="gw-secondary" disabled={readonly || saveBusy || saveUnknown || saveReadbackPending} onClick={() => navigation.request(onCopy)} data-testid="recording-copy">{editorText('copy.action')}</button>}
+        {presentation !== 'simple' && <button type="button" onClick={closeEditor} className="text-xs text-[var(--gw-muted)] underline" data-testid="group-editor-close">{t('step4.group.editor.back')}</button>}
       </div>
 
-      {group && (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[var(--gw-muted)] sm:grid-cols-4" data-testid="group-revisions">
-          <dt>{t('step4.group.editor.status')}</dt><dd className="text-[var(--gw-text)]">{group.status}</dd>
-          <dt>{t('step4.group.editor.draft_revision')}</dt><dd className="font-mono text-[var(--gw-text)]">{group.revision}</dd>
-          <dt>{t('step4.group.editor.applied_revision')}</dt><dd className="font-mono text-[var(--gw-text)]" data-testid="group-applied-revision">{group.applied_revision || t('step4.group.editor.not_applied')}</dd>
-          <dt>{t('step4.group.editor.connector_revision')}</dt><dd className="font-mono text-[var(--gw-text)]">{group.destination.connector_revision}</dd>
-        </dl>
-      )}
+      {!group && copyPrefill && <aside role="status" className="space-y-2 text-sm" data-testid="recording-copy-intent"><p>{editorText('copy.intent')}</p><p>{editorText('copy.concurrent')}</p>{copyPrefill.layout === 'managed_long_v1' && <p>{editorText('copy.longIsolation')}</p>}</aside>}
+      {group && (presentation === 'simple' ? <details data-testid="group-revision-details">
+        <summary><span>{editorText('versions.details')}</span> · {t('step4.group.editor.status')}: {group.status}</summary>
+        {revisionDetails}
+      </details> : revisionDetails)}
 
       <fieldset disabled={saveBusy || readUnavailable} className="min-w-0 space-y-5" data-testid="group-save-fields">
+      <RecordingEditorLayout presentation={presentation} perPoint={mixed} memberCount={draft.members.length}
+        summary={presentation === 'simple' && <RecordingEditorSummary draft={draft} destinationName={saved && destinationMatches ? connector.name || connector.kind : undefined} saved={Boolean(group)} dirty={dirty} />}
+        identity={<GroupIdentityFields section={presentation === 'simple' ? 'name' : 'all'} draft={draft} readonly={readonly} locked={profile || draft.layout_version === 'managed_long_v1'} onChange={set} onStorageStrategy={changeStorageStrategy} />}
+        method={<>
+      <RecordingMixedEditor section={presentation === 'simple' ? 'method' : 'all'} draft={draft} saved={Boolean(group)} disabled={readonly || saveBusy} capabilities={calculationCapabilities} dialect={connector.kind} onChange={next => { if (!savingRef.current) setDraft(next); }} />
+      {profile && !mixed && <GroupProfileSummary draft={draft} />}
+        </>}
+        destination={<>{destinationContent}
       {!destinationMatches && (
         <div role="alert" className="space-y-1 text-xs text-[var(--gw-warning-fg)]" data-testid="group-destination-mismatch">
           <p>{locatorScope && !saved ? t('runtime-dashboard:locatorEntry.destinationUnknown') : t('step4.group.editor.destination_mismatch')}</p>
@@ -358,18 +384,19 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         </div>
       )}
 
-      <RecordingMixedEditor draft={draft} saved={Boolean(group)} disabled={readonly || saveBusy} capabilities={calculationCapabilities} dialect={connector.kind} onChange={next => { if (!savingRef.current) setDraft(next); }} />
-      {profile && !mixed && <GroupProfileSummary draft={draft} />}
-      <GroupIdentityFields draft={draft} readonly={readonly} locked={profile || draft.layout_version === 'managed_long_v1'} onChange={set} onStorageStrategy={changeStorageStrategy} />
+          {presentation === 'simple' && <>
+      <GroupIdentityFields section="destination" draft={draft} readonly={readonly} locked={profile || draft.layout_version === 'managed_long_v1'} onChange={set} onStorageStrategy={changeStorageStrategy} />
 
+      <RecordingMixedEditor section="destination" draft={draft} saved={Boolean(group)} disabled={readonly || saveBusy} capabilities={calculationCapabilities} dialect={connector.kind} onChange={next => { if (!savingRef.current) setDraft(next); }} />
+          </>}
       {configuredDestinations && <ConfiguredDestinationChooser observation={configuredDestinations} context={configuredContext} workspaceRevision={workspaceRevision}
         disabled={readonly || saveBusy} selected={configuredChoice} onSelect={choice => { setConfiguredChoice(choice); set(configuredDestinationPatch(choice)); }}
         onReset={() => { setConfiguredChoice(undefined); set({ table_name: group?.destination.table_name ?? '' }); }} />}
       {configuredInvalid && <p role="alert">{editorText(configuredDestinations?.failed ? 'destinations.error' : configuredDestinations?.loading ? 'destinations.loading' : configuredReason ? `destinations.reason.${configuredReason}` : 'destinations.stale')}</p>}
 
-      <GroupPolicyFields draft={draft} readonly={readonly} profile={profile} onChange={set} onDedupe={(capability) => { customDedupeRef.current = capability; set({ dedupe_capability: capability }); }} />
-
-      {profile && !mixed ? <GroupProfileMembers renderSource={renderPointOrder} draft={draft} candidates={candidates} locatorScope={locatorScope} workspaceId={workspaceId} readonly={readonly} /> : (
+        </>}
+        policy={<GroupPolicyFields expanded={presentation === 'simple'} draft={draft} readonly={readonly} profile={profile} onChange={set} onDedupe={(capability) => { customDedupeRef.current = capability; set({ dedupe_capability: capability }); }} />}
+        sources={profile && !mixed ? <GroupProfileMembers renderSource={renderPointOrder} draft={draft} candidates={candidates} locatorScope={locatorScope} workspaceId={workspaceId} readonly={readonly} /> : (
         <>
         {deviceSource ? <RecordingPointSelection key={pickerScope} scope={pickerScope} workspaceId={workspaceId} candidates={candidates}
           members={draft.members} devices={sourceDevices} disabled={readonly || saveBusy} deviceSource={deviceSource} onChange={setMembers}
@@ -378,16 +405,16 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
             if (read.state !== 'available') throw new Error('Source observation unavailable');
             return { candidates: read.value.candidates, devices: read.value.devices };
           } : undefined}
-          renderMembers={actions => <RecordingSelectedMembers renderSource={renderPointOrder} {...actions} managed={draft.storage_strategy === 'managed'} dialect={dialect}
+          renderMembers={actions => <RecordingSelectedMembers presentation={presentation} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} {...actions} managed={draft.storage_strategy === 'managed'} dialect={dialect}
             candidates={candidates} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
             suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly || saveBusy}
             onChange={setMembers} labels={{ remove: member => editorText('picker.removeMember', { point: member.point_id }),
               unavailable: editorText('picker.unavailable'), undo: editorText('picker.undo') }} />} /> :
-        <GroupMemberTable renderSource={renderPointOrder} managed={draft.storage_strategy === 'managed'} dialect={dialect}
+        <GroupMemberTable presentation={presentation} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} managed={draft.storage_strategy === 'managed'} dialect={dialect}
           candidates={candidates} excluded={excluded} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
           suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly || saveBusy}
           onChange={setMembers} />}
-        <GroupColumnProposal
+        {!columnsAssignedOnSave && <GroupColumnProposal
           dialect={dialect}
           managed={draft.storage_strategy === 'managed'}
           existingColumns={editorMetadata.columns.map((column) => column.name)}
@@ -397,13 +424,13 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
             const column = metadata.columns.find((entry) => entry.name === member.target_column);
             return editorMetadata.status === 'exists' && (!member.target_column || !column);
           })}
-        />
+        />}
         {editorMetadata.status === 'failed' && (
           <button type="button" onClick={metadata.refetch} className="text-xs underline" data-testid="group-metadata-retry">{t('step4.group.retry')}</button>
         )}
 
         </>
-      )}
+      )} />
 
       </fieldset>
 
@@ -438,7 +465,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision} destinationMatches={destinationMatches} dirty={dirty} readonly={readonly}
         consentIdentity={JSON.stringify([workspaceId, workspaceRevision, group?.id, group?.revision, draft, connector.connector_id, connector.identity_revision,
           candidates.filter(candidate => draft.members.some(member => member.point_id === candidate.point_id && member.tag_id === candidate.tag_id)), readonly, unsettledSources])}
-        save={{ saved: Boolean(group), dirty, busy: saving, unknown: saveUnknown || saveActivity.priorUnknown,
+        save={{ saved: Boolean(group), dirty, busy: saving, unknown: saveUnknown,
           disabled: readonly || saving || saveUnknown || saveReadbackPending || invalid || unsettledSources.length > 0 || (Boolean(group) && !dirty), invoke: handleSave }}
         blocked={readonly || saving || saveUnknown || saveReadbackPending || invalid || unsettledSources.length > 0}
         readiness={{ data: readiness.data, loading: readiness.isFetching, failed: readiness.isError, updatedAt: readiness.dataUpdatedAt, check: readiness.refetch }}
@@ -453,7 +480,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
           <GroupDeliveryStrip group={group} readonly={readonly} />
           {mixed && <RecordingMixedResults group={group} candidates={candidates} />}
           <GroupLifecycleBar
-            locatorScope={locatorScope} locatorGuard={locatorGuard}
+            locatorScope={locatorScope} locatorGuard={locatorGuard} confirmStop={presentation === 'simple'}
             group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision}
             canApply={canApply} applyBlockedReason={applyBlocked} readonly={operatorReadonly || readUnavailable} lifecycleHost={lifecycleHost}
             onChanged={onSaved} onConflict={() => setConflict(true)} onReviewScopedStart={onReviewScopedStart}
@@ -463,7 +490,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
             workspaceId={workspaceId}
             groupId={group.id}
             scopeKey={`${group.id}|${group.revision}`}
-            enabled={testWriteEnabled}
+            enabled={testWriteEnabled} newOperationBlocked={Boolean(saveReadbackPending)}
             disabledReason={readonly ? t('step4.group.test_write.blocked_readonly') : testBlocked}
           />
         </>

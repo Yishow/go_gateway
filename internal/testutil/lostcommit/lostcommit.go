@@ -42,6 +42,8 @@ type Faults struct {
 	// database; a non-nil error is returned instead (e.g. a permission denial
 	// for SELECT or DELETE on one table).
 	Reject atomic.Pointer[func(query string) error]
+	// RejectQuery optionally inspects QueryContext arguments after the original Reject hook.
+	RejectQuery atomic.Pointer[func(query string, args []driver.NamedValue) error]
 }
 
 // WrapFaults is Wrap with the full set of fault switches.
@@ -107,6 +109,11 @@ func (c *lostConn) ExecContext(ctx context.Context, query string, args []driver.
 func (c *lostConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	if err := c.faults.rejected(query); err != nil {
 		return nil, err
+	}
+	if reject := c.faults.RejectQuery.Load(); reject != nil {
+		if err := (*reject)(query, args); err != nil {
+			return nil, err
+		}
 	}
 	queryer, ok := c.Conn.(driver.QueryerContext)
 	if !ok {

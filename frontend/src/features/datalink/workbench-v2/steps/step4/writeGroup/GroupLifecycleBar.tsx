@@ -30,12 +30,14 @@ export interface GroupLifecycleBarProps {
   lifecycleHost?: SavedRecordingActionHost;
   /** Basic keeps its existing reviewed start; this bar only manages saved recordings. */
   hideApply?: boolean;
+  /** Simple presentation asks for explicit scope/impact consent before Stop. */
+  confirmStop?: boolean;
 }
 
 /** One action surface in Basic and Advanced, with server authority refreshed before ordinary mutations. */
 export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   group, workspaceId, workspaceRevision, canApply, applyBlockedReason, readonly, onChanged, onConflict,
-  onReviewScopedStart, lifecycleHost, hideApply = false, locatorScope, locatorGuard,
+  onReviewScopedStart, lifecycleHost, hideApply = false, confirmStop = false, locatorScope, locatorGuard,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: recordingT } = useTranslation('recording-editor');
@@ -44,7 +46,7 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   const disable = useWriteGroupLifecycleMutation('disable');
   const remove = useWriteGroupLifecycleMutation('remove');
   const lifecycle = useWriteGroupLifecycleQuery(workspaceId, group.id);
-  const [deleteIntent, setDeleteIntent] = useState<object | null>(null);
+  const [confirmation, setConfirmation] = useState<{ action: 'stop' | 'remove'; owner: object; lease: object } | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [refreshBlocked, setRefreshBlocked] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -56,13 +58,13 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   scopeRef.current = scope;
   const scopeOwner = useRef({ scope });
   if (scopeOwner.current.scope !== scope) scopeOwner.current = { scope };
-  const confirmingDelete = deleteIntent === scopeOwner.current;
   const returnContext = useRef<HTMLHeadingElement>(null);
   // This transient denial lease cannot be revived by an A -> B -> A navigation.
   const locatorLeaseKey = locatorScope || locatorGuard ? JSON.stringify([scope, locatorScope?.workspaceId, locatorScope?.workspaceRevision, readonly]) : null;
   const locatorLease = useRef({ key: locatorLeaseKey, blocked: readonly });
   if (locatorLease.current.key !== locatorLeaseKey) locatorLease.current = { key: locatorLeaseKey, blocked: readonly };
   const renderLocatorLease = locatorLease.current;
+  const confirmingAction = confirmation?.owner === scopeOwner.current && confirmation.lease === renderLocatorLease ? confirmation.action : undefined;
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
@@ -75,7 +77,7 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   const routed = reviewStart !== undefined && (managedProfileDeviceId(group) !== undefined || savedRecordingStartDevices(group).length > 0);
 
   const run = async (action: 'apply' | 'stop' | 'remove', confirm = false) => {
-    if (confirm && deleteIntent !== scopeOwner.current) return;
+    if (confirm && (confirmation?.action !== action || confirmation.owner !== scopeOwner.current || confirmation.lease !== renderLocatorLease)) return;
     if (readonly || busyRef.current || (action === 'apply' && (!canApply || deleted)) || locatorLease.current !== renderLocatorLease || renderLocatorLease.key !== null &&
       (!mountedRef.current || locatorLease.current.blocked)) return;
     if (lifecycleHost?.tryAcquire && !lifecycleHost.tryAcquire()) return;
@@ -84,6 +86,9 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
     const requestScope = scopeRef.current;
     const requestOwner = scopeOwner.current;
     const requestLease = renderLocatorLease;
+    let commandStarted = false;
+    const dismissPreCommandConfirmation = () => setConfirmation((current) =>
+      current?.action === action && current.owner === requestOwner && current.lease === requestLease ? null : current);
     setError(null); setRefreshBlocked(false); setChecking(true);
     try {
       if (action !== 'apply') {
@@ -92,20 +97,25 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
         if (!mountedRef.current || scopeRef.current !== requestScope || scopeOwner.current !== requestOwner ||
           locatorLease.current !== requestLease || requestLease.key !== null && locatorLease.current.blocked) return;
         if (!lifecycleMatches(fresh, intentScope) || !fresh.actions.some((entry) => entry.action === action && entry.allowed)) {
-          setRefreshBlocked(true); onConflict(); return;
+          dismissPreCommandConfirmation(); setRefreshBlocked(true); onConflict(); return;
         }
-        if (action === 'remove' && !confirm) { setDeleteIntent(requestOwner); return; }
+        if (!confirm && (action === 'remove' || action === 'stop' && confirmStop)) { setConfirmation({ action, owner: requestOwner, lease: requestLease }); return; }
       }
       const mutation = action === 'apply' ? apply : action === 'stop' ? disable : remove;
+      commandStarted = true;
       const result = await mutation.mutateAsync({ id: group.id, request: {
         workspace_id: workspaceId, expected_workspace_revision: workspaceRevision,
         expected_group_revision: group.revision, expected_connector_revision: group.destination.connector_revision,
       } });
       if (mountedRef.current && scopeRef.current === requestScope && scopeOwner.current === requestOwner) {
-        setDeleteIntent(null); onChanged(result.group, result.workspace_revision);
+        setConfirmation(null); onChanged(result.group, result.workspace_revision);
       }
     } catch (cause) {
       if (mountedRef.current && scopeRef.current === requestScope && scopeOwner.current === requestOwner) {
+        if (!commandStarted) {
+          if (locatorLease.current !== requestLease || requestLease.key !== null && locatorLease.current.blocked) return;
+          dismissPreCommandConfirmation(); setRefreshBlocked(true);
+        }
         setError(cause);
         if (normalizeTypedEnvelope(cause).code === 'revision_mismatch') onConflict();
       }
@@ -133,11 +143,11 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
       {!canApply && !deleted && applyBlockedReason && <p className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-apply-blocked">{applyBlockedReason}</p>}
       <p className="text-xs text-[var(--gw-muted)]" data-testid="group-apply-note">{routed ? recordingT('start.reviewSavedNote') : t('step4.group.lifecycle.apply_note')}</p>
     </>}
-    <SavedRecordingActions lifecycle={snapshot} scope={intentScope} disabled={readonly || busy || confirmingDelete} onAction={handleAction} canReview={Boolean(lifecycleHost)} />
+    <SavedRecordingActions lifecycle={snapshot} scope={intentScope} disabled={readonly || busy || Boolean(confirmingAction)} onAction={handleAction} canReview={Boolean(lifecycleHost)} />
     {(!snapshot || refreshBlocked) && <button type="button" onClick={() => { void lifecycle.refetch(); onConflict(); }} className="text-xs underline" data-testid="saved-recording-refresh">{lifecycleT('refresh')}</button>}
     <p className="text-xs text-[var(--gw-muted)]">{lifecycleT('stop.keeps')}</p>
-    <SavedRecordingRemoveDialog open={confirmingDelete} busy={busy || readonly} history={snapshot?.history}
-      onClose={() => setDeleteIntent(null)} onConfirm={() => void run('remove', true)} returnFocus={returnFocus.current} objectLabel={group.name} focusOwner={scopeOwner.current} fallbackFocus={returnContext.current} />
+    <SavedRecordingRemoveDialog action={confirmation?.action} open={Boolean(confirmingAction)} busy={busy || readonly} history={snapshot?.history}
+      onClose={() => setConfirmation(null)} onConfirm={() => { if (confirmingAction) void run(confirmingAction, true); }} returnFocus={returnFocus.current} objectLabel={group.name} focusOwner={scopeOwner.current} fallbackFocus={returnContext.current} />
     {refreshBlocked && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]">{lifecycleT('reason.stale_scope')}</p>}
     {error !== null && <p role="alert" className="text-xs text-[var(--gw-danger-fg)]" data-testid="group-lifecycle-error">{getSafeErrorMessage(error, t).message}</p>}
   </div>;

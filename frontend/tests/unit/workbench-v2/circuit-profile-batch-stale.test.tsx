@@ -290,6 +290,9 @@ describe('The parent reload is awaited and its outcome is reported on its own', 
     expect(serverGroups.map(group => group.recording_profile?.interval)).toEqual([30, 30, 15]);
     const original = structuredClone(update.mock.calls.map(([input]) => input));
     await act(async () => choose({ target: { value: 'cir-b' } }));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('navigation.pending');
+    expect(screen.getByTestId('circuit-profile-circuit-chooser')).toHaveValue('cir-a');
+    fireEvent.click(screen.getByRole('button', { name: 'navigation.discard' }));
     await waitFor(() => expect(screen.getByTestId('circuit-profile-circuit-chooser')).toHaveValue('cir-b'));
     const interval = screen.getByTestId('circuit-profile-interval-instantaneous');
     expect(interval).toHaveValue(seed ? '60' : '30');

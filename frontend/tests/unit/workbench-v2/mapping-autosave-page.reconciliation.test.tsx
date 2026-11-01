@@ -1,11 +1,13 @@
+import { useRecordingReadUnavailable } from '../../../src/features/datalink/workbench-v2/recording-editor/RecordingDraftNavigation';
+import { studioV2WorkspaceKeys } from '../../../src/hooks/datalink/keys';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2RulesAPI } from '../../../src/services/studioV2Rules';
 import { studioV2MappingsAPI } from '../../../src/services/studioV2Mappings';
 import {
-  mappingFixture,
+  mappingFixture, workspaceFixture,
   mappingPoints,
   registerMappingAutosaveFixtures,
   shiftedMappingPoints,
@@ -20,6 +22,12 @@ function renderPage() {
       <DatalinkWorkbenchV2Page />
     </QueryClientProvider>,
   );
+  return queryClient;
+}
+
+function ReadAuthority() {
+  const unavailable = useRecordingReadUnavailable();
+  return <output data-testid="read-unavailable">{String(unavailable)}</output>;
 }
 
 vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', () => ({
@@ -39,6 +47,7 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
     >;
   }>) => (
     <div data-testid="mapping-autosave-shell">
+      <ReadAuthority />
       <button
         type="button"
         data-testid="prime-mappings"
@@ -167,12 +176,39 @@ describe('DatalinkWorkbenchV2Page mapping autosave orchestration', () => {
     await waitFor(() => expect(screen.getByTestId('mapping-save-state-rule-A-p-0')).toHaveTextContent('save-error'));
     expect(screen.getByTestId('mapping-tag-key-rule-A-p-0')).toHaveTextContent('line.a.broken');
     expect(screen.getByTestId('retry-rule-A')).toBeInTheDocument();
+    expect(screen.getByTestId('recording-draft-refresh-failed')).toHaveAttribute('role', 'alert');
+    expect(screen.getByTestId('read-unavailable')).toHaveTextContent('true');
+    expect(studioV2MappingsAPI.create).not.toHaveBeenCalled();
     expect(studioV2MappingsAPI.update).toHaveBeenCalledTimes(1);
     vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]);
     vi.mocked(studioV2MappingsAPI.create).mockResolvedValueOnce(runtimeApplied(mappingFixture({ id: 'recovered', tag_key: 'line.a.broken' })));
     fireEvent.click(screen.getByTestId('retry-rule-A'));
     await waitFor(() => expect(screen.getByTestId('mapping-save-state-rule-A-p-0')).toHaveTextContent('saved'));
     expect(studioV2MappingsAPI.create).toHaveBeenCalledWith(expect.objectContaining({ rule_id: 'rule-A', address: '40001', tag_key: 'line.a.broken' }));
+  });
+
+  it('does not retain another workspace mapping retry after a failed reload', async () => {
+    vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([mappingFixture()]);
+    vi.mocked(studioV2MappingsAPI.update).mockRejectedValueOnce({ response: { status: 404, data: { error: { code: 'workspace_mapping_not_found', action: 'reload' } } } });
+    const queryClient = renderPage(); await screen.findByTestId('workbench-v2-root');
+    fireEvent.click(screen.getByTestId('prime-mappings'));
+    await waitFor(() => expect(screen.getByTestId('mapping-tag-key-rule-A-p-0')).toHaveTextContent('line.a.persisted'));
+    fireEvent.click(screen.getByTestId('make-rule-A-fail'));
+    await waitFor(() => expect(screen.getByTestId('mapping-save-state-rule-A-p-0')).toHaveTextContent('save-error'));
+    await act(async () => { queryClient.setQueryData(studioV2WorkspaceKeys.bootstrap(), workspaceFixture({ id: 'workspace-2' })); });
+    vi.mocked(studioV2MappingsAPI.list).mockRejectedValueOnce(new Error('reload unavailable'));
+    fireEvent.click(screen.getByTestId('retry-rule-A'));
+    await screen.findByTestId('workbench-v2-bootstrap-error');
+    expect(screen.queryByTestId('retry-rule-A')).not.toBeInTheDocument();
+    expect(studioV2MappingsAPI.create).not.toHaveBeenCalled(); expect(studioV2MappingsAPI.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not present retry authority when the initial mapping read fails', async () => {
+    vi.mocked(studioV2MappingsAPI.list).mockRejectedValueOnce(new Error('initial read unavailable'));
+    renderPage(); await screen.findByTestId('workbench-v2-bootstrap-error');
+    expect(screen.queryByTestId('workbench-v2-root')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('retry-rule-A')).not.toBeInTheDocument();
+    expect(studioV2MappingsAPI.create).not.toHaveBeenCalled(); expect(studioV2MappingsAPI.update).not.toHaveBeenCalled();
   });
 
   it('isolates one mapping row save failure without blocking another valid row', async () => {

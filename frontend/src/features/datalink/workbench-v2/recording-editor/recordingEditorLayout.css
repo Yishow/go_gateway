@@ -1,0 +1,55 @@
+/* Simple editor only; shared state, modal shell and the guided presentation are unchanged. */
+[data-testid='group-section']:has(> .recording-editor-simple) { padding: 0; border: 0; background: var(--gw-ground); }
+.recording-editor-simple { min-width: 0; padding: 0 0 max(13rem, 40dvh); border: 0; border-radius: 0; background: var(--gw-ground); }
+.recording-editor-simple > :first-child { padding: var(--gw-space-md) 0; }
+.recording-editor-layout { min-width: 0; }
+.recording-editor-steps { display: flex; flex-wrap: wrap; gap: var(--gw-space-xs); margin-bottom: var(--gw-space-md); }
+.recording-editor-steps button, .recording-editor-next, .recording-editor-simple [data-testid='recording-points-open'] {
+  min-height: var(--gw-control-height); border: 1px solid var(--gw-control); border-radius: var(--gw-radius-sm);
+  padding: var(--gw-space-xs) var(--gw-space-md); color: var(--gw-text); background: var(--gw-surface); font-size: 14px;
+}
+.recording-editor-steps button:hover, .recording-editor-next:hover { background: var(--gw-active); }
+.recording-editor-columns { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--gw-space-lg); align-items: start; }
+.recording-editor-main { min-width: 0; display: grid; gap: var(--gw-space-lg); }
+.recording-editor-panel, .recording-editor-summary { min-width: 0; padding: var(--gw-space-md); border: 1px solid var(--gw-border); border-radius: var(--gw-radius-md); background: var(--gw-surface); }
+.recording-editor-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gw-space-md); scroll-margin-block: var(--gw-space-lg) max(13rem, 40dvh); }
+.recording-editor-panel > * { min-width: 0; }
+.recording-editor-panel header h4 { font-size: 18px; line-height: 1.4; font-weight: 600; color: var(--gw-text); }
+.recording-editor-panel header p { margin-top: var(--gw-space-xs); font-size: 14px; color: var(--gw-muted); }
+.recording-editor-panel label { font-size: 14px; }
+.recording-editor-panel :is(input:not([type='checkbox']):not([type='radio']), select) { min-height: var(--gw-control-height); }
+.recording-editor-point-count { font-size: 14px; font-weight: 500; margin: 0; }
+.recording-editor-note, .recording-editor-empty { padding: var(--gw-space-sm); background: var(--gw-ground); color: var(--gw-muted); border-radius: var(--gw-radius-sm); font-size: 14px; }
+.recording-editor-next { justify-self: start; }
+.recording-editor-summary { position: sticky; top: var(--gw-space-md); overflow-wrap: anywhere; color: var(--gw-text); }
+.recording-editor-summary summary { cursor: pointer; font-size: 18px; font-weight: 500; }
+.recording-editor-summary-state { margin-top: var(--gw-space-xs); font-size: 12px; color: var(--gw-muted); }
+.recording-editor-summary dl > div { border-top: 1px solid var(--gw-border); margin-top: var(--gw-space-md); padding-top: var(--gw-space-sm); }
+.recording-editor-summary dt { font-size: 12px; color: var(--gw-muted); }
+.recording-editor-summary dd { margin-top: var(--gw-space-xs); font-size: 14px; }
+.recording-editor-summary li + li { margin-top: var(--gw-space-xs); }
+/* Move the one existing action projection; never render a second Save/confirmation owner. */
+.recording-editor-simple [data-testid='recording-preparation-actions'] {
+  position: fixed; inset: auto 0 0; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; gap: var(--gw-space-xs) var(--gw-space-md);
+  max-height: 40dvh; overflow-y: auto; padding: var(--gw-space-sm) var(--gw-space-lg); margin: 0;
+  border: 0; border-top: 1px solid var(--gw-border); border-radius: 0; background: var(--gw-surface);
+}
+.recording-editor-simple [data-testid='recording-preparation-phase'] { flex: 1 1 50%; margin: 0; }
+.recording-editor-simple [data-testid='recording-preparation-actions'] > button { order: 2; margin: 0 0 0 auto; min-height: var(--gw-control-height); }
+.recording-editor-simple [data-testid='recording-preparation-actions'] > :not(button):not([data-testid='recording-preparation-phase']) { order: 3; margin: 0; font-size: 12px; }
+.recording-editor-simple [data-testid='recording-preparation-actions'] > p:not([data-testid='recording-preparation-phase']) { flex-basis: 100%; }
+.recording-editor-simple :is(button, a, input, select, summary, section[tabindex]):focus-visible { outline: var(--gw-focus-width) solid var(--gw-focus); outline-offset: var(--gw-focus-offset); }
+@media (max-width: 1000px) {
+  .recording-editor-columns { grid-template-columns: minmax(0, 1fr); }
+  .recording-editor-summary { position: static; }
+}
+@media (max-width: 639px) {
+  .recording-editor-simple { padding-bottom: max(16rem, 40dvh); }
+  .recording-editor-panel, .recording-editor-summary { padding: var(--gw-space-sm); }
+  .recording-editor-simple :is(button, select, input:not([type='checkbox']):not([type='radio'])) { min-height: 44px; }
+  .recording-editor-simple [data-testid='recording-preparation-actions'] { padding: var(--gw-space-xs) var(--gw-space-sm); }
+}
+@media (max-height: 479px) {
+  .recording-editor-simple [data-testid='recording-preparation-actions'] { position: sticky; inset: auto; bottom: 0; max-height: none; }
+  .recording-editor-simple { padding-bottom: var(--gw-space-md); }
+}

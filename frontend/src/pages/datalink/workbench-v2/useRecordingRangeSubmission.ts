@@ -61,9 +61,13 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
     };
     const complete = async (entry: Entry) => {
       if (!active(entry) || !entry.proof || entry.mappings.size !== entry.mappingIds.size || entry.mappingIds.size === 0) return publish(entry, 'unknown');
-      const candidates = await readRangeCompletion(entry.proof, [...entry.mappings.values()]);
+      const proof = entry.proof, receipts = new Map(entry.mappings);
+      const candidates = await readRangeCompletion(proof, [...receipts.values()]);
+      // A later mapping attempt can revoke or replace receipts while this GET waits.
+      if (entry.proof !== proof || entry.mappings.size !== receipts.size ||
+        [...receipts].some(([pointId, receipt]) => entry.mappings.get(pointId) !== receipt)) return structuredClone(entry.outcome);
       if (!active(entry) || !candidates) return publish(entry, 'unknown');
-      return publish(entry, candidates.inactive ? 'saved-inactive' : 'confirmed', { rule: entry.proof.record, candidates, savedPoints: candidates.savedPoints });
+      return publish(entry, candidates.inactive ? 'saved-inactive' : 'confirmed', { rule: proof.record, candidates, savedPoints: candidates.savedPoints });
     };
     const advance = async (entry: Entry) => {
       if (entry.checking) return entry.outcome;
@@ -236,13 +240,17 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
       },
     };
     const mappingReceipt = (point: Point, mapping: Mapping, saved: RangeMappingReceipt['acknowledged']): RangeMappingReceipt => ({ submitted: toStudioV2MappingUpdateRequest(point, mapping), acknowledged: structuredClone(saved) });
+    const unconfirmedMapping = (entry: Entry, pointId: string) => {
+      // A previous successful write cannot prove a later uncertain mapping intent.
+      entry.mappings.delete(pointId); publish(entry, 'unknown');
+    };
     const mappingObservation: MappingQueueObservation = {
       acknowledged: (point, mapping, saved) => {
         const entry = byRule(point.rule_id); if (!entry) return true;
         const submitted = toStudioV2MappingUpdateRequest(point, mapping);
         const candidate = entry.proof?.snapshot.tags.candidates.find(row => row.address === point.address);
         if (!active(entry) || !entry.mappingIds.has(point.id) || !saved.id || !saved.tag_id || saved.point_id !== candidate?.point_id || saved.workspace_id !== entry.outcome.request.workspaceId || saved.device_id !== entry.outcome.request.deviceId ||
-          !Object.entries(submitted).every(([key, value]) => same(value, (saved as unknown as Record<string, unknown>)[key]))) { publish(entry, 'unknown'); return false; }
+          !Object.entries(submitted).every(([key, value]) => same(value, (saved as unknown as Record<string, unknown>)[key]))) { unconfirmedMapping(entry, point.id); return false; }
         return true;
       },
       saved: (point, mapping, saved) => {
@@ -251,7 +259,7 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
         if (saved.runtime_apply_status === 'apply_failed' || saved.cleanup_status === 'failed') { publish(entry, 'persisted-unavailable'); return; }
         if (entry.mappings.size === entry.mappingIds.size) void complete(entry);
       },
-      failed: point => { const entry = byRule(point.rule_id); if (entry) publish(entry, 'unknown'); },
+      failed: point => { const entry = byRule(point.rule_id); if (entry) unconfirmedMapping(entry, point.id); },
     };
     return { port, ruleObservation, mappingObservation,
       canWrite: (id: string) => { const entry = byRule(id); return !entry || active(entry) && !entry.preparing && ['pending', 'confirmed'].includes(entry.outcome.status); },

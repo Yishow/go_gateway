@@ -1,18 +1,18 @@
 ## 1. 頁面確認與整合驗收
 
 - [x] 1.1 在前三change規格審查後、任何產品apply前完成 Default adoption follows explicit acceptance gates 的「使用者斷點與失敗回退」確認清單；提供此次修訂固定demo版本、協議參數／75%modal與RWD／亮暗主題情境及待決定例外，記錄owner明確回覆，不把沉默或舊waiver當確認。
-- [ ] 1.2 [after: 1.1] 在home/editor/lifecycle實作完成後依「新版設計與能力驗收」實作 Revised design and protocol parity precede acceptance，並建立 Acceptance records distinguish evidence layers 的「驗收矩陣與分層證據」；為每個既定scenario及協議欄位parity、system/liveOS/override/persistence/portal/contrast/reduced-motion對應測試與真實層級，依「混合member計算前置與整體驗收」納入 Mixed member acceptance preserves one-row and legacy contracts，並依「同源採集次數預覽交接」驗收 Adoption distinguishes planned and actual acquisition counts，測估算／actual分層、stale409、零I/O及unsupported原因，實際性能證據由batching owner提供，不用demo冒充；內容review確認無漏列或以mock冒充SQL/PLC。
-- [ ] 1.3 [after: 1.2] 以現有Playwright pattern補齊首次建立、已有來源、草稿、正常、異常與修改/停恢/複製/表格變更journeys；驗證Close/Escape/Back/Forward/double click/scope切換、焦點及窄畫面；依新版設計與能力驗收覆蓋唯一Select Points、filter即時改同表／計數、加法pending與Add N、取消保非法輸入、remove/undo/re-add、空設備續建、無默選首設備、分步保存後取消不回滾來源及同scope返回位置；不能執行者明列NOT RUN與影響。
+- [x] 1.2 [after: 1.1] 依「Demo 強化先接簡易呈現，預設另依所選主流程驗收」實作 Simple recording presentation reuses canonical owners：先將原Step4／WriteGroupSection／GroupEditor投影為v9方向單頁，並接通總覽／route的薄呈現橋接（同一task可由不重疊檔案owner並行），同批先以原已列RED修正bounded legacy step/target辨識，保持任何真正locator欄位混入皆嚴格驗證；保留同一保存、source、schema確認、scoped Start及pending/unknown owner，不等待完整lifecycle或採集效能矩陣；lifecycle只消費匹配server availability。以受影響Step4/editor整合測試與畫面對照驗收Implementation Contract第1–3點及第4點的matching availability安全呈現，完整生命週期真旅程另由1.3閉合，證明不須Advanced／WriteGroups前置且無第二資料權威。
+- [x] 1.3 [after: 1.2] 驗證並補齊總覽新增／修改／返回及same-scope位置恢復，依「新版設計與能力驗收」、「已選 modal 與返回引導契約」以真Browser完成「已選demo主旅程＋其必要生命週期安全」的Implementation Contract七點，逐項覆核修改／停止／恢復／複製／移除／已選表格與目的地前向變更，沿server availability的允許動作走原owner；真正unsupported明示原因及原advanced交接，必要動作pending不得隱藏以提前default；並驗Close/Escape/Back/Forward/double click/late response/scope切換、dirty與來源保存返回回歸；以所選路徑實作 Revised design and protocol parity precede acceptance、Mixed member acceptance preserves one-row and legacy contracts、Adoption distinguishes planned and actual acquisition counts，建立 Acceptance records distinguish evidence layers 的「驗收矩陣與分層證據」，引用未受影響的原owner證據並明列pending／NOT RUN，不補跑未受影響整套矩陣、不以demo/mock冒充SQL或PLC；沿「混合member計算前置與整體驗收」及「同源採集次數預覽交接」保留due/NULL、estimate/actual與安全邊界。
 
 ## 2. 預設採用與相容
 
-- [ ] 2.1 [after: 1.3] 以前置gate與owner確認為條件實作「預設入口採用與明確意圖優先」；以Red-Green-Refactor測試 Explicit existing intents survive default adoption，鎖定locator、runtime focus、step/target/section/modal、search/hash及invalid locator fail-closed；先RED證明現行step=output&target=modbus被誤判locator，再修bounded legacy辨識，測invalid locator混legacy不得降級。
-- [ ] 2.2 [after: 2.1] 實作 Entry rollback preserves configuration and operations，保留view=advanced、runtime/logs/test及原default回退；測試切入口零mutation、pending operation與既有identity不變，不恢復/studio。
+- [x] 2.1 [after: 1.3] 以前置gate與owner確認為條件實作「預設入口採用與明確意圖優先」；以Red-Green-Refactor測試 Explicit existing intents survive default adoption，鎖定locator、runtime focus、step/target/section/modal、search/hash及invalid locator fail-closed；沿用1.2所留step=output&target=modbus誤判的原RED與bounded legacy修復證據，在預設切換時再驗invalid locator混legacy不得降級，不把已修正行為說成仍待初次重現。
+- [x] 2.2 [after: 2.1] 實作 Entry rollback preserves configuration and operations，保留view=advanced、runtime/logs/test及原default回退；測試切入口零mutation、pending operation與既有identity不變，不恢復/studio。
 
 ## 3. 最終驗證與交付
 
-- [ ] 3.1 [after: 2.2] 對最終功能批次執行npm run lint、npm test -- --run、npm run build及現有embedded static交付檢查；有Go改動才執行涉及側完整test/vet/lint，記實際PASS/FAIL/NOT RUN，不新增環境或接真PLC/正式DB。
-- [ ] 3.2 [after: 3.1] 獨立review安全與完整生命週期、修本批問題並重跑受影響gate；必要驗收未過且未獲本批明確接受則保持opt-in，驗證報告與實際default一致。
+- [x] 3.1 [after: 2.2] 對最終功能批次執行npm run lint、npm test -- --run、npm run build及現有embedded static交付檢查；有Go改動才執行涉及側完整test/vet/lint，記實際PASS/FAIL/NOT RUN，不新增環境或接真PLC/正式DB。
+- [ ] 3.2 [after: 3.1] 獨立review「已選demo主旅程＋其必要生命週期安全」、修本批問題並重跑受影響gate；未完成的原lifecycle／採集優化任務保持pending，不作簡易host接線前置，但已選必要生命週期未驗不得因host完成而切default；必要驗收未過且未獲本批明確接受則保持opt-in，驗證報告與實際default一致。
 - [ ] 3.3 [after: 3.2] 完成「唯一交接清單與最終批次覆核」的docs/releases/simple-recording-entry.md，列四change完成狀態、owner確認版本、測試命令/證據/風險及rollback邊界；跑diff/line gate與Spectra verify/review，未授權不push或部署。
 
 相關modal／導航任務依「已選 modal 與返回引導契約」回歸一般／手機／小確認分類、固定操作區、contexthelp風險可見性及同scope返回狀態，不新增未選功能。

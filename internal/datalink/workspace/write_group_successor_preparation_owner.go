@@ -3,8 +3,10 @@ package workspace
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"go-gateway/internal/datalink/measurement"
+	"slices"
 )
 
 // validateSuccessorDefinitionInTx validates a candidate without creating any
@@ -70,6 +72,7 @@ func (r *SQLWriteGroupRepository) checkSuccessorProfileOwnersInTx(ctx context.Co
 	for _, m := range candidate.Members {
 		wanted[[3]string{m.DeviceID, m.PointID, m.TagID}] = true
 	}
+	owners := map[string]bool{}
 	for rows.Next() {
 		var owner string
 		var source [3]string
@@ -77,8 +80,104 @@ func (r *SQLWriteGroupRepository) checkSuccessorProfileOwnersInTx(ctx context.Co
 			return err
 		}
 		if wanted[source] && owner != predecessor.ID {
-			return fmt.Errorf("%w: another recording owns a successor source", ErrWriteGroupCircuitProfileConflict)
+			owners[owner] = true
 		}
 	}
-	return rows.Err()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	var record *mixedActiveRecordIdentity
+	if isMixedWriteGroup(predecessor) && isMixedWriteGroup(candidate) && predecessor.RecordID == candidate.RecordID {
+		record, err = r.mixedRecordIdentityInTx(ctx, tx, predecessor)
+		if err != nil {
+			return err
+		}
+	}
+	for owner := range owners {
+		if record != nil {
+			group, err := r.GetInTx(ctx, tx, candidate.WorkspaceID, owner)
+			if err != nil {
+				return err
+			}
+			retired, err := r.retiredMixedSuccessorOwnerInTx(ctx, tx, predecessor, group, record)
+			if err != nil {
+				return err
+			}
+			if retired {
+				continue
+			}
+			other, err := r.mixedRecordIdentityInTx(ctx, tx, group)
+			if err != nil {
+				return err
+			}
+			if independentMixedRecordIdentities(record, other) {
+				continue
+			}
+		}
+		return fmt.Errorf("%w: another recording owns a successor source", ErrWriteGroupCircuitProfileConflict)
+	}
+	return nil
+}
+
+// A completed earlier generation is history, not a new source owner. This is
+// restricted to the same canonical record and authenticated forward lineage;
+// unknown or still-future ends do not qualify for the exception.
+func (r *SQLWriteGroupRepository) retiredMixedSuccessorOwnerInTx(ctx context.Context, tx *sql.Tx, predecessor, owner *WriteGroup, record *mixedActiveRecordIdentity) (bool, error) {
+	if !isMixedWriteGroup(owner) || owner.RecordID != record.recordID || owner.AppliedRevision == "" {
+		return false, nil
+	}
+	prior, found, err := r.loadWriteGroupLineage(ctx, tx, owner.WorkspaceID, owner.ID)
+	if err != nil {
+		return false, err
+	}
+	if !found || prior.LineageID != record.lineageID || prior.CurrentGroupID != predecessor.ID {
+		return false, nil
+	}
+	current, found, err := r.loadWriteGroupLineage(ctx, tx, predecessor.WorkspaceID, predecessor.ID)
+	if err != nil {
+		return false, err
+	}
+	if !found || prior.Generation >= current.Generation {
+		return false, nil
+	}
+	end, err := r.revisionEndInTx(ctx, tx, owner.ID, owner.AppliedRevision)
+	if err != nil {
+		return false, err
+	}
+	if end.IsZero() || end.After(r.now()) {
+		return false, nil
+	}
+	var eventID string
+	err = tx.QueryRowContext(ctx, r.query(`SELECT cutover_id FROM write_group_revision_ends WHERE workspace_id=$1 AND group_id=$2 AND group_revision=$3`), owner.WorkspaceID, owner.ID, owner.AppliedRevision).Scan(&eventID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, ErrWriteGroupLineageCorrupt
+	}
+	if err != nil {
+		return false, err
+	}
+	event, err := r.cutoverInTx(ctx, tx, owner.WorkspaceID, eventID)
+	if err != nil {
+		return false, err
+	}
+	if event == nil || event.Kind != WriteGroupCutoverForward || event.SourceGroupID != owner.ID || event.OwnershipFenceRevision != event.ID || !isSuccessorActivationIntent(event.intent) || !event.Boundary.Equal(end) || len(event.Ended) != 1 || !slices.Contains(event.Ended, CutoverEnd{GroupID: owner.ID, Revision: owner.AppliedRevision}) || len(event.Started) != 1 {
+		return false, ErrWriteGroupLineageCorrupt
+	}
+	next, found, err := r.loadWriteGroupLineage(ctx, tx, owner.WorkspaceID, event.Started[0].GroupID)
+	if err != nil {
+		return false, err
+	}
+	if !found || next.LineageID != record.lineageID || next.CurrentGroupID != predecessor.ID || next.Generation != prior.Generation+1 || next.PredecessorGroupID.String != owner.ID {
+		return false, ErrWriteGroupLineageCorrupt
+	}
+	version, err := r.versionByRevisionInTx(ctx, tx, owner.WorkspaceID, event.Started[0].GroupID, event.Started[0].Revision)
+	if err != nil {
+		return false, err
+	}
+	if !isMixedWriteGroup(version.Group) || version.Group.RecordID != record.recordID {
+		return false, ErrWriteGroupLineageCorrupt
+	}
+	return true, nil
 }

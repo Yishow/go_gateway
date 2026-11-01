@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WorkbenchV2Shell } from '../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
-import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
+import { INITIAL_STATE, useWorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
 import type { StudioV2WorkspaceReadinessSummary } from '../../../src/types/studioV2WorkspaceReadiness';
 
@@ -157,8 +157,9 @@ describe('Workbench V2 workspace readiness surfaces', () => {
         message: 'derived point is missing its persisted database target',
       }],
     };
+    const state: WorkbenchV2State = { ...INITIAL_STATE, view: 'settings' };
     const actions = {
-      state: INITIAL_STATE,
+      state,
       setView: vi.fn(),
       setCurrent: vi.fn(),
       completeStep: vi.fn(),
@@ -174,16 +175,14 @@ describe('Workbench V2 workspace readiness surfaces', () => {
       defaultOptions: { queries: { retry: false } },
     });
 
-    render(
-      <QueryClientProvider client={queryClient}>
-        <WorkbenchV2Shell
-          state={INITIAL_STATE}
-          actions={actions}
-          workspaceReadiness={readinessSummary}
-          runtimeReturnFocus={{ step: 4, issueCode: 'database-target-missing' }}
-        />
-      </QueryClientProvider>,
-    );
+    function RuntimeFocusHarness() {
+      const owner = useWorkbenchV2State(state);
+      actions.setView.mockImplementation(owner.setView);
+      actions.setCurrent.mockImplementation(owner.setCurrent);
+      return <WorkbenchV2Shell state={owner.state} actions={{ ...actions, state: owner.state }}
+        workspaceReadiness={readinessSummary} runtimeReturnFocus={{ step: 4, issueCode: 'database-target-missing' }} />;
+    }
+    render(<QueryClientProvider client={queryClient}><RuntimeFocusHarness /></QueryClientProvider>);
 
     expect(actions.setView).toHaveBeenCalledWith('flow');
     expect(actions.setCurrent).toHaveBeenCalledWith(4);

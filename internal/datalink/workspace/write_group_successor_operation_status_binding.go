@@ -16,18 +16,19 @@ const successorReserveSchemaBindingVersion = "successor-reserve-schema-binding/v
 // The original schema source facts are private, immutable ledger evidence. They
 // are not refreshed from current tags/connectors when reading historical status.
 type successorReserveSchemaBinding struct {
-	Version             string                     `json:"version"`
-	WorkspaceID         string                     `json:"workspace_id"`
-	LineageID           string                     `json:"lineage_id"`
-	PredecessorGroupID  string                     `json:"predecessor_group_id"`
-	GroupID             string                     `json:"group_id"`
-	OperationID         string                     `json:"operation_id"`
-	IntentDigest        string                     `json:"intent_digest"`
-	ManagedSourceDigest string                     `json:"managed_source_digest"`
-	SourceDigest        string                     `json:"source_digest"`
-	Dialect             string                     `json:"dialect"`
-	SourceFamily        string                     `json:"source_family"`
-	TagTypes            map[string]schema.DataType `json:"tag_types"`
+	CounterBindingProofs CounterBindingProofs       `json:"counter_binding_proofs,omitempty"`
+	Version              string                     `json:"version"`
+	WorkspaceID          string                     `json:"workspace_id"`
+	LineageID            string                     `json:"lineage_id"`
+	PredecessorGroupID   string                     `json:"predecessor_group_id"`
+	GroupID              string                     `json:"group_id"`
+	OperationID          string                     `json:"operation_id"`
+	IntentDigest         string                     `json:"intent_digest"`
+	ManagedSourceDigest  string                     `json:"managed_source_digest"`
+	SourceDigest         string                     `json:"source_digest"`
+	Dialect              string                     `json:"dialect"`
+	SourceFamily         string                     `json:"source_family"`
+	TagTypes             map[string]schema.DataType `json:"tag_types"`
 }
 
 func (s *WriteGroupService) makeSuccessorReserveSchemaBinding(ctx context.Context, tx *sql.Tx, result *WriteGroupSuccessorPreparation, evidence *successorReserveSourceEvidence) (json.RawMessage, error) {
@@ -49,11 +50,15 @@ func (s *WriteGroupService) makeSuccessorReserveSchemaBinding(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
-	managed, err := managedSourceDigest(result.Group, types)
+	proofs, err := s.successorSchemaCounterBindingsInTx(ctx, tx, result.Group, types)
 	if err != nil {
 		return nil, err
 	}
-	b := successorReserveSchemaBinding{Version: successorReserveSchemaBindingVersion, WorkspaceID: result.Group.WorkspaceID,
+	managed, err := managedSourceDigest(result.Group, types, proofs)
+	if err != nil {
+		return nil, err
+	}
+	b := successorReserveSchemaBinding{CounterBindingProofs: proofs, Version: successorReserveSchemaBindingVersion, WorkspaceID: result.Group.WorkspaceID,
 		LineageID: result.LineageID, PredecessorGroupID: result.PredecessorGroupID, GroupID: result.Group.ID,
 		OperationID: result.OperationID, IntentDigest: result.IntentDigest, ManagedSourceDigest: managed, Dialect: dialect, SourceFamily: family, TagTypes: types}
 	b.SourceDigest, err = b.sourceDigest()
@@ -91,7 +96,7 @@ func decodeSuccessorReserveSchemaBinding(raw json.RawMessage, result *WriteGroup
 	} else if b.SourceFamily != b.Dialect {
 		return nil, ErrWriteGroupLineageCorrupt
 	}
-	managed, err := managedSourceDigest(result.Group, b.TagTypes)
+	managed, err := managedSourceDigest(result.Group, b.TagTypes, b.CounterBindingProofs)
 	if err != nil || managed != b.ManagedSourceDigest {
 		return nil, ErrWriteGroupLineageCorrupt
 	}

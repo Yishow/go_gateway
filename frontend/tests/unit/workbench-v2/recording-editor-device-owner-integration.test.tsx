@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deviceFixture, resetDeviceAutosaveMocks, studioV2WorkspaceAPI, studioV2WorkspaceDevicesAPI } from './device-autosave-page.testHarness';
 import { useState } from 'react';
 import { RecordingHomeRoute } from '../../../src/features/datalink/workbench-v2/recording-home/RecordingHomeRoute';
-import { parseStudioEntityLocator } from '../../../src/services/studioEntityLocator';
+import { parseStudioPresentation } from '../../../src/services/studioRecordingView';
 import { useStudioV2AutosaveState } from '../../../src/pages/datalink/workbench-v2/useStudioV2AutosaveState';
 import { WriteGroupSection } from '../../../src/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection';
 import { studioV2WorkspaceWriteGroupsAPI } from '../../../src/services/studioV2WorkspaceWriteGroups';
@@ -29,8 +29,8 @@ const locator = locatorRead(4);
 function HomeToLocatorHarness() {
   const [target, setTarget] = useState('');
   if (!target) return <RecordingHomeRoute location={{ search: '?view=recordings', hash: '' }} onNavigate={setTarget} />;
-  const intent = parseStudioEntityLocator(new URL(target, 'https://example.test').search);
-  if (intent.kind !== 'locator' || intent.locator.workspace_id !== 'W' || intent.locator.group_id !== 'G') throw new Error('Foreign Home target');
+  const { presentation, locatorIntent: intent } = parseStudioPresentation(new URL(target, 'https://example.test').search);
+  if (presentation !== 'recording' || intent.kind !== 'locator' || intent.locator.workspace_id !== 'W' || intent.locator.group_id !== 'G') throw new Error('Foreign Home target');
   return <LocatorOwnerHarness />;
 }
 function LocatorOwnerHarness() {
@@ -91,6 +91,8 @@ describe('recording device source real owner integration', () => {
     expect(screen.getByTestId('group-name')).toHaveValue('Keep recording name');
     expect(screen.getByTestId('group-member-row-pt-0')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('group-editor-close'));
+    expect(screen.getByTestId('group-name')).toHaveValue('Keep recording name');
+    fireEvent.click(screen.getByRole('button', { name: 'navigation.discard' }));
     expect(screen.queryByTestId('group-editor')).not.toBeInTheDocument();
     expect(screen.getByTestId('persisted-owner-devices')).toHaveTextContent('Confirmed PLC');
     expect(studioV2WorkspaceDevicesAPI.remove).not.toHaveBeenCalled();

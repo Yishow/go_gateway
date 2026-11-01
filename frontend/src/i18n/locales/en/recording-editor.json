@@ -161,7 +161,7 @@
     "deltaExample": "Counter difference: store the change in a confirmed counter over its own window, for example energy used every minute. It is not the raw cumulative meter reading.",
     "firstBaseline": "The first counter window may establish a baseline only: the result is NULL with a reason, not zero and not the raw reading.",
     "counterPolicy": "A confirmed signed counter can decrease. A rollover is accepted only according to its saved policy; not every decrease is missing data.",
-    "dueUnion": "Each point has its own UTC-aligned window. At another point’s due time, a point that is not due is NULL with “not due”; no early or copied result is emitted.",
+    "dueUnion": "Each point has its own UTC-aligned window. Wide tables leave a point that is not due as NULL / not_due; long tables include only due points. No previous result is copied and no zero is invented.",
     "requiredPolicy": "A due required point that cannot produce its result can skip the row under the saved policy. Optional missing results remain NULL with their reason. A required point that is not due does not skip another point’s row.",
     "chooseMixed": "Choose per-point results",
     "independent": "Per-point calculation uses a new independent recording and new counter baseline. Existing recordings, schedules and data are not converted, stopped or copied.",
@@ -364,5 +364,56 @@
     "recoveryUnavailable": "The original operation cannot be inspected or safely retained. No new start was sent. Preserve the unresolved operation and review its status; do not clear its recovery data.",
     "reviewSaved": "Review before starting",
     "reviewSavedNote": "Review the selected recordings and sources, then explicitly confirm to start."
+  },
+  "simple": {
+    "title": "Recording setup",
+    "back": "Back to overview",
+    "create": "New recording",
+    "sources": "Recording points · {{count}}",
+    "sourcesHint": "Select sources, then choose the result and interval for each point. Source settings are shared; recording choices apply only here.",
+    "destination": "Destination",
+    "destinationHint": "Choose where this recording is stored. Saving, checking structure and starting remain separate actions.",
+    "calculationColumn": "Result / interval",
+    "technical": "Saved identity and revisions",
+    "legacySourcesHint": "This saved recording keeps its original source selection and group-wide policy. It is not converted to per-point results.",
+    "columnsAssignedOnSave": "Column mappings are assigned by the system after saving. Then review and confirm the table structure.",
+    "pendingColumn": "Assigned after saving",
+    "sections": "Recording sections",
+    "section": {
+      "sources": "Sources",
+      "method": "Recording method",
+      "destination": "Destination and review"
+    },
+    "sourceCadenceNote": "Sources follow their own acquisition schedules; recording intervals are separate and do not imply simultaneous sampling.",
+    "nextMethod": "Next: recording method",
+    "nextDestination": "Next: destination",
+    "methodHint": "Each selected point keeps its own result and interval.",
+    "methodEmpty": "Select points first. Their result and interval controls will appear beside each point.",
+    "noSelectedPoints": "No points selected. Choose points to configure their results and intervals here.",
+    "requiredRisk": "Missing results for due required points can suppress output; optional results remain NULL with their reason. A point that is not due does not suppress another point’s output.",
+    "parameterLimits": "Supported interval limits",
+    "unset": "Not set",
+    "summary": {
+      "title": "This recording",
+      "name": "Recording name",
+      "sources": "{{devices}} devices / {{points}} points",
+      "results": "Per-point results / intervals",
+      "points": "{{count}} points",
+      "localIntent": "Unsaved changes · not applied",
+      "savedIntent": "Saved settings · not proof of running or SQL writes",
+      "legacy": "Original group-wide recording policy",
+      "noPoints": "No points selected"
+    }
+  },
+  "copy": {
+    "action": "Copy as new recording",
+    "name": "{{name}} (copy)",
+    "intent": "This is an unsaved, stopped draft of the saved configuration. The original recording is unchanged. Save, check its structure, then explicitly start the new recording.",
+    "concurrent": "Starting this copy may record the same sources alongside the original. Check whether you want both recordings running.",
+    "longIsolation": "Long layout shares its managed table. A new recording ID separates this copy; copying does not create a separate table.",
+    "unsupported": "This saved recording cannot be copied here. Only supported per-point recordings with managed plain storage can be copied."
+  },
+  "versions": {
+    "details": "Configuration version details"
   }
 }

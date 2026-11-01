@@ -62,7 +62,7 @@ func (s *RecordingStartService) runRecordingStart(ctx context.Context, op *recor
 		p.View.Groups[i].Ready = true
 	}
 	ids := recordingStartGroupIDs(p)
-	ready, err := s.workspace.ReadinessScope(ctx, p.Request.DeviceIDs, ids)
+	ready, err := s.workspace.recordingStartReadinessScope(ctx, p.Request.DeviceIDs, ids)
 	if err != nil {
 		return err
 	}

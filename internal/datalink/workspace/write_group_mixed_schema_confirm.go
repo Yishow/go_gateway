@@ -3,6 +3,7 @@ package workspace
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"go-gateway/internal/datalink/recordingplan"
 	"reflect"
@@ -30,6 +31,18 @@ func (s *WriteGroupService) verifyMixedSchemaProofInTx(ctx context.Context, tx *
 	source, err := managedSourceDigest(group, types, proofs)
 	if err != nil {
 		return err
+	}
+	// Ordinary confirmations retain their original digest contract. A different
+	// digest is accepted only as the authenticated original successor reservation.
+	recorded, err := recordingplan.SucceededSchemaTokenInTx(ctx, tx, record.ID, operationID, digest)
+	if err != nil {
+		return err
+	}
+	if recorded.SourceDigest != source {
+		source, err = s.mixedSuccessorSchemaSourceInTx(ctx, tx, group, source, recorded)
+		if err != nil {
+			return err
+		}
 	}
 	scope := recordingplan.SchemaPreviewScope{WorkspaceID: record.ID, WorkspaceRevision: record.DatabaseSetupRevision, PlanID: group.ID, PlanRevision: group.Revision, ConnectorID: group.Destination.ConnectorID, ConnectorRevision: group.Destination.ConnectorRevision, Dialect: dialect, Database: group.Destination.Database, Schema: group.Destination.TableSchema, GroupLayout: layout, SourceDigest: source, SchemaRevision: group.Destination.SchemaRevision, SchemaDigest: group.Destination.SchemaDigest}
 	if managedLongGroup(group) && group.WritePolicy.RecreateMissing != nil {
@@ -99,4 +112,78 @@ func (s *WriteGroupService) replayMixedSchemaConfirmation(ctx context.Context, i
 		return nil, err
 	}
 	return &WriteGroupSaveResult{WorkspaceRevision: record.DatabaseSetupRevision, Group: cloneWriteGroup(group)}, nil
+}
+
+// Ledger details select a request ID only; ReadSuccessorReserveInTx and the
+// original decoders authenticate it before it can supply any proof authority.
+func (s *WriteGroupService) mixedSuccessorSchemaSourceInTx(ctx context.Context, tx *sql.Tx, group *WriteGroup, fresh string, token *recordingplan.SchemaPreviewToken) (string, error) {
+	meta, found, err := s.repo.loadWriteGroupLineage(ctx, tx, group.WorkspaceID, group.ID)
+	if err != nil {
+		return "", err
+	}
+	if !found || meta.CurrentGroupID != group.ID || group.AppliedRevision == "" {
+		return "", recordingplan.ErrPreviewTokenStale
+	}
+	rows, err := tx.QueryContext(ctx, s.repo.query(`SELECT detail FROM managed_schema_operations WHERE workspace_id=$1 AND action=$2`), group.WorkspaceID, recordingplan.SuccessorReserveAction)
+	if err != nil {
+		return "", err
+	}
+	var requestID string
+	for rows.Next() {
+		var raw []byte
+		if err := rows.Scan(&raw); err != nil {
+			rows.Close()
+			return "", err
+		}
+		var selector struct {
+			Scope struct {
+				GroupID   string `json:"successor_group_id"`
+				RequestID string `json:"request_id"`
+			} `json:"scope"`
+		}
+		if json.Unmarshal(raw, &selector) != nil {
+			rows.Close()
+			return "", ErrWriteGroupLineageCorrupt
+		}
+		if selector.Scope.GroupID != group.ID {
+			continue
+		}
+		if requestID != "" || selector.Scope.RequestID == "" {
+			rows.Close()
+			return "", ErrWriteGroupLineageCorrupt
+		}
+		requestID = selector.Scope.RequestID
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
+	if err := rows.Close(); err != nil {
+		return "", err
+	}
+	if requestID == "" {
+		return "", recordingplan.ErrPreviewTokenStale
+	}
+	root, err := recordingplan.ReadSuccessorReserveInTx(ctx, tx, group.WorkspaceID, requestID)
+	if err != nil {
+		return "", err
+	}
+	if root == nil || root.Scope.SuccessorGroupID != group.ID || root.Scope.LineageID != meta.LineageID {
+		return "", ErrWriteGroupLineageCorrupt
+	}
+	_, reserved, err := decodeSuccessorReserveRecord(root)
+	if err != nil {
+		return "", err
+	}
+	binding, err := decodeSuccessorReserveSchemaBinding(root.SchemaSourceBinding, reserved)
+	if err != nil {
+		return "", err
+	}
+	if reserved.Group.Revision != group.Revision || reserved.Group.RecordID != group.RecordID || binding.ManagedSourceDigest != fresh {
+		return "", recordingplan.ErrPreviewTokenStale
+	}
+	if err := successorStatusTokenScope(token, reserved, binding); err != nil {
+		return "", err
+	}
+	return binding.SourceDigest, nil
 }

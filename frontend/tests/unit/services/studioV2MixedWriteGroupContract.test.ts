@@ -84,9 +84,29 @@ describe('canonical mixed recording contract',()=>{
   expect(first.members[0].calculation).toBe('mean');expect(sent.group.members[0].cadence).not.toBe(second.members[0].cadence);
  });
 
- it('does not authorize a legacy successor route for mixed records',()=>{
+ it.each(['managed_wide_profile_v1','managed_long_v1'])('accepts a sanitized mixed successor candidate for %s without inventing authority',layout=>{
   const input=mixed();Object.assign(input,{id:'',revision:'',applied_revision:'',created_at:'0001-01-01T00:00:00Z',updated_at:'0001-01-01T00:00:00Z'});
-  input.destination.table_name='';expect(parseWriteGroupSuccessorCandidate(input)).toBeNull();
+  input.destination.table_name='';input.layout_version=layout;
+  if(layout==='managed_long_v1'){
+   Object.assign(input,{storage_mode:'plain'});Object.assign(input.row_policy,{bucket_start_column:'bucket_start'});Reflect.deleteProperty(input.row_policy,'due_at_column');
+   Object.assign(input.members[0],{calculation:'delta',measurement_id:'measurement',value_role:'counter_raw',source_value_type:'uint64',result_value_type:'decimal',exact_recording_source:{measurement_id:'measurement',definition_revision:'definition',source_binding_revision:'binding',series_epoch:'epoch',original_data_type:'uint64',scale:'0.1',unit:'kWh',semantic_kind:'counter',counter_policy:{allow_negative:false}}});
+  }
+  const before=structuredClone(input),parsed=parseWriteGroupSuccessorCandidate(input);
+  expect(parsed).toEqual(input);expect(input).toEqual(before);
+  expect(parsed?.row_policy).not.toHaveProperty('interval_seconds');
+  expect(parseStudioV2WriteGroup(input)).toBeNull();
+ });
+ it('keeps mixed successor candidate authority and unsupported shape fail-closed',()=>{
+  const input=mixed();Object.assign(input,{id:'',revision:'',applied_revision:'',created_at:'0001-01-01T00:00:00Z',updated_at:'0001-01-01T00:00:00Z'});input.destination.table_name='';
+  const invalid: unknown[]=[
+   {...input,id:'saved'}, {...input,revision:'saved-revision'}, {...input,applied_revision:'applied'}, {...input,status:'running'},
+   {...input,migration:{source_kind:'copied'}}, {...input,destination:{...input.destination,schema_revision:'schema'}},
+   {...input,destination:{...input.destination,schema_digest:'digest'}}, {...input,destination:{...input.destination,storage_strategy:'custom'}},
+   {...input,layout_version:'managed_long_v1',storage_mode:'timescale'}, {...input,row_policy:{...input.row_policy,interval_seconds:15}},
+   {...input,row_policy:{...input.row_policy,bucket_start_column:'bucket_start'}}, {...input,record_id:'changed-invalid-id'},
+   {...input,created_at:'2026-10-31T00:00:00Z'}, {...input,destination:{...input.destination,table_name:'old_wide_table'}},
+  ];
+  for(const value of invalid)expect(parseWriteGroupSuccessorCandidate(value)).toBeNull();
  });
 
 });

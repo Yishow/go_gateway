@@ -23,6 +23,13 @@ func (s *WriteGroupService) requireNoOtherSuccessorActiveOwnerInTx(ctx context.C
 	if !found || meta.CurrentGroupID != pred.ID || meta.ReservedGroupID.String != candidate.ID {
 		return ErrWriteGroupLineageCorrupt
 	}
+	var record *mixedActiveRecordIdentity
+	if isMixedWriteGroup(pred) && isMixedWriteGroup(candidate) && pred.RecordID == candidate.RecordID {
+		record, err = s.repo.mixedRecordIdentityInTx(ctx, tx, pred)
+		if err != nil {
+			return err
+		}
+	}
 	rows, err := tx.QueryContext(ctx, s.repo.query(`SELECT id,applied_revision FROM write_groups WHERE workspace_id=$1 AND id<>$2 AND id<>$3 AND applied_revision<>'' AND status IN ('draft','ready','running')`), candidate.WorkspaceID, candidate.ID, pred.ID)
 	if err != nil {
 		return err
@@ -65,6 +72,18 @@ func (s *WriteGroupService) requireNoOtherSuccessorActiveOwnerInTx(ctx context.C
 		}
 		if version.Group.isLongLayout() {
 			continue
+		}
+		if record != nil && isMixedWriteGroup(version.Group) {
+			if version.Group.WorkspaceID != candidate.WorkspaceID || version.Group.ID != o.id || version.Group.Revision != o.revision || version.Group.AppliedRevision != o.revision {
+				return ErrWriteGroupLineageCorrupt
+			}
+			other, err := s.repo.mixedRecordIdentityInTx(ctx, tx, version.Group)
+			if err != nil {
+				return err
+			}
+			if independentMixedRecordIdentities(record, other) {
+				continue
+			}
 		}
 		if candidate.isWideProfile() && version.Group.isWideProfile() && profileKindOf(candidate) != profileKindOf(version.Group) {
 			continue

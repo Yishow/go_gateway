@@ -37,7 +37,7 @@ func TestSourceRuleCompensationRestoresOwnedRemovalsAcrossDeviceProjection(t *te
 			require.NoError(t, dr.Create(ctx, d))
 			ps := point.NewService(point.NewMemoryRepository(), nil)
 			scheduler := collector.NewScheduler(collector.DefaultSchedulerConfig(), nil)
-			runtime := &Service{scheduler: scheduler, pointSvc: ps, mappingIndex: map[string][]mappingBinding{}, pointMetaIndex: map[string]pointMeta{}}
+			runtime := &Service{scheduler: scheduler, pointSvc: ps, mappingIndex: map[string][]mappingBinding{}, pointMetaIndex: map[string]pointMeta{}, projections: map[string]runtimeProjectionDeviceState{}}
 			rules := sourcerule.NewService(sourcerule.NewMemoryRepository(), device.NewService(dr, nil), ps, runtime)
 			scheduler.AddDevice(d)
 			runtime.workspace = compensationWorkspaceFunc(func(ctx context.Context) (*workspace.RuntimeProjection, error) {

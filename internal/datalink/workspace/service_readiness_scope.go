@@ -28,22 +28,29 @@ func (s *Service) readinessScope(
 	ctx context.Context,
 	deviceIDs, groupIDs []string,
 ) (*readinessScopeSelection, *ReadinessSummary, error) {
-	return s.readinessScopeWithApplyRequirement(ctx, deviceIDs, groupIDs, false)
+	return s.readinessScopeWithApplyRequirement(ctx, deviceIDs, groupIDs, false, false)
 }
 
 func (s *Service) activationReadinessScope(
 	ctx context.Context,
 	deviceIDs, groupIDs []string,
 ) (*readinessScopeSelection, *ReadinessSummary, error) {
-	return s.readinessScopeWithApplyRequirement(ctx, deviceIDs, groupIDs, true)
+	return s.readinessScopeWithApplyRequirement(ctx, deviceIDs, groupIDs, true, false)
+}
+
+// Only explicit RecordingStart may prepare its selected stopped groups before
+// the original CAS/history-aware Apply. Activation still rejects disabled groups.
+func (s *Service) recordingStartReadinessScope(ctx context.Context, deviceIDs, groupIDs []string) (*ReadinessSummary, error) {
+	_, summary, err := s.readinessScopeWithApplyRequirement(ctx, deviceIDs, groupIDs, false, true)
+	return summary, err
 }
 
 func (s *Service) readinessScopeWithApplyRequirement(
 	ctx context.Context,
 	deviceIDs, groupIDs []string,
-	requireApplied bool,
+	requireApplied, allowDisabled bool,
 ) (*readinessScopeSelection, *ReadinessSummary, error) {
-	selection, err := s.resolveReadinessScope(ctx, deviceIDs, groupIDs)
+	selection, err := s.resolveReadinessScope(ctx, deviceIDs, groupIDs, allowDisabled)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -96,7 +103,7 @@ func (s *Service) readinessScopeWithApplyRequirement(
 	return selection, summarizeScopedReadiness(issues), nil
 }
 
-func (s *Service) resolveReadinessScope(ctx context.Context, deviceIDs, groupIDs []string) (*readinessScopeSelection, error) {
+func (s *Service) resolveReadinessScope(ctx context.Context, deviceIDs, groupIDs []string, allowDisabled bool) (*readinessScopeSelection, error) {
 	if s == nil || s.readinessDevices == nil {
 		return nil, ErrReadinessUnavailable
 	}
@@ -158,7 +165,7 @@ func (s *Service) resolveReadinessScope(ctx context.Context, deviceIDs, groupIDs
 			if !ok || group.WorkspaceID != record.ID {
 				return nil, scopeInvalidError("group %s is not owned by the persisted workspace", groupID)
 			}
-			if group.Status == WriteGroupStatusDeleted || group.Status == WriteGroupStatusDisabled {
+			if group.Status == WriteGroupStatusDeleted || group.Status == WriteGroupStatusDisabled && !allowDisabled {
 				return nil, scopeInvalidError("group %s is not active", groupID)
 			}
 			if strings.TrimSpace(group.Revision) == "" {

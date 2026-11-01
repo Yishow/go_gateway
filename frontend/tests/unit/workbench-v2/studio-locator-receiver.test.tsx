@@ -2,7 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
-import type { WorkbenchV2ShellProps } from '@/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
+import { WorkbenchV2Shell, type WorkbenchV2ShellProps } from '@/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
+import { INITIAL_STATE } from '@/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import DatalinkWorkbenchV2Page from '@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2DatalinkApi, studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
 import { buildStudioEntityLocatorTarget, parseStudioEntityLocator } from '@/services/studioEntityLocator';
@@ -126,6 +127,33 @@ describe('locator receiver initialization through native parser and router', () 
     expect(screen.queryByTestId('group-open-G')).not.toBeInTheDocument(); expect(screen.queryByTestId('editor-input-name')).not.toBeInTheDocument();
     expect(studioV2WorkspaceAPI.get).not.toHaveBeenCalled(); expect(studioV2DatalinkApi.post).not.toHaveBeenCalled();
   });
+  it('does not reapply a consumed locator after same-intent clones but admits new and reset intents', () => {
+    native.shell = true;
+    vi.mocked(studioV2DatalinkApi.get).mockRejectedValue({ response: { status: 503 } });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); clients.push(client);
+    const setCurrent = vi.fn();
+    const actions: WorkbenchV2ShellProps['actions'] = { state: INITIAL_STATE, setView: vi.fn(), setCurrent,
+      completeStep: vi.fn(), toggleSidebar: vi.fn(), toggleSummaryRail: vi.fn(), setSidebarCollapsed: vi.fn(),
+      setShowSummaryRail: vi.fn(), resetFlow: vi.fn(), selectRule: vi.fn(), dispatch: vi.fn() };
+    const entry = locatorRead(4);
+    const content = (current: 1 | 4, value?: StudioLocatorEntryRead) => <QueryClientProvider client={client}>
+      <WorkbenchV2Shell state={{ ...INITIAL_STATE, current }} actions={actions} locatorOnly locatorEntry={value} />
+    </QueryClientProvider>;
+    const view = render(content(4, entry)); setCurrent.mockClear();
+    // A native step choice changes callback identities; re-reading the same URL
+    // may also produce a fresh object, neither is a new locator intent.
+    view.rerender(content(1, structuredClone(entry)));
+    expect(actions.setCurrent).not.toHaveBeenCalled();
+    expect(screen.getByTestId('studio-locator-notice')).toHaveTextContent('have not been read');
+    view.rerender(content(1, locatorRead(2, 'B')));
+    expect(actions.setCurrent).toHaveBeenLastCalledWith(2);
+    view.rerender(content(1, structuredClone(entry)));
+    expect(actions.setCurrent).toHaveBeenLastCalledWith(4);
+    expect(actions.setCurrent).toHaveBeenCalledTimes(2);
+    view.rerender(content(1)); setCurrent.mockClear();
+    view.rerender(content(1, structuredClone(entry)));
+    expect(actions.setCurrent).toHaveBeenCalledExactlyOnceWith(4);
+  });
   it('retains cold opened editor edits through Step1 navigation until Close revalidates the requested target', async () => {
     native.shell = true;
     const read = locatorRead(4), opened = { ...read, entry: { ...read.entry, editor_hydrated: true as const,
@@ -147,6 +175,8 @@ describe('locator receiver initialization through native parser and router', () 
     expect(screen.getByTestId('group-name')).toBe(input); expect(input).toHaveValue('Keep cold editor draft');
     expect(screen.queryByTestId('editor-input-name')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('group-editor-close'));
+    expect(screen.getByTestId('group-name')).toBe(input); expect(input).toHaveValue('Keep cold editor draft');
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('navigation.discard', { ns: 'recording-editor' }) }));
     await waitFor(() => expect(deviceReads).toBe(2));
     expect(screen.queryByTestId('editor-input-name')).not.toBeInTheDocument(); expect(screen.getByTestId('studio-locator-notice')).toBeVisible();
     await act(async () => { fresh(response(locatorRead(1, 'B'))); });

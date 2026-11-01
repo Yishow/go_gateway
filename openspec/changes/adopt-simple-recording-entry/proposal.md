@@ -1,6 +1,6 @@
 ## Summary
 
-在完整簡易操作生命週期經過驗證與使用者頁面斷點確認後，將同一 Studio V2 的記錄首頁作為無明確意圖時的預設入口；保留原進階流程與所有明確深連結。驗收未完成時維持可選入口。
+先把原Step4接成固定v9 demo方向的單頁簡易呈現與總覽新增／修改／返回；「已選demo主旅程＋其必要生命週期安全」經過驗證與既有使用者頁面斷點確認後，將同一 Studio V2 的記錄首頁作為無明確意圖時的預設入口；保留原進階流程與所有明確深連結。驗收未完成時維持可選入口。
 
 ## Motivation
 
@@ -9,7 +9,7 @@
 ## Proposed Solution
 
 - 新增 simple-recording-entry-adoption 能力：預設採用有明確gate，root/wildcard仍收斂到 /studio/v2，進階用明確view保留。
-- 把首次建立、已有來源、草稿恢復、正常、異常、修改、停恢、複製與表格前向變更列為完整操作驗收，不增新引擎。
+- 先接首次建立、已有來源、保存／reload、修改／返回、明確Start與真實結果；最終仍逐項驗已選修改／停止／恢復／複製／移除／表格及目的地前向變更與必要失敗／中斷。lifecycle按既有server availability走原owner，真正unsupported明示原因／原advanced交接，不造命令、不增新引擎；必要動作pending不得隱藏以提前default。
 - 完成相關測試後對最終功能批次跑完整前端lint/test/build與嵌入式交付檢查；後端僅在本批有改動時跑完整對應檢查。
 - UI瀏覽器及真設備/SQL證據分列；環境限制須呈現NOT RUN，不繼承歷史waiver。切換預設與發布都須遵守現有授權，不擅自部署。
 
@@ -17,10 +17,10 @@
 
 - Affected specs: simple-recording-entry-adoption (new)
 - Affected code:
-  - Modified: `frontend/src/App.tsx`; `frontend/src/features/datalink/legacyRoutes.ts`; `frontend/src/services/studioEntityLocator.ts`; `frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx`
+  - Modified: `frontend/src/App.tsx`; `frontend/src/features/datalink/legacyRoutes.ts`; `frontend/src/services/studioEntityLocator.ts`; `frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx`; `frontend/src/services/studioRecordingView.ts`; existing `recording-home` and Step4 `WriteGroupSection` / `GroupEditor` presentation
   - New: frontend/tests/e2e/simple-recording-journeys.spec.ts; docs/releases/simple-recording-entry.md
   - Removed: none
-- 前置 simplify-recording-home-guidance → streamline-recording-task-editor → simplify-recording-lifecycle-recovery。各案負責自己的行為與選測，本案唯一負責最終預設採用與整體驗收，避免重複同一工作。
+- 接線使用 simplify-recording-home-guidance 與 streamline-recording-task-editor 的既有契約；simplify-recording-lifecycle-recovery 及採集優化保留原owner與pending項，不作未用到能力的整包接線前置。本案負責簡易host整合及所選主流程的最終預設gate；不把Settings全頁或大型效能矩陣綁入。
 
 本次更新納入 `DESIGN.md` 語意 tokens、system/light/dark 主題、RWD、簡潔文案與字型階層；新彈出設定為 viewport 寬高各75%的置中 modal。已選手機近滿版／小確認框較小例外，分類依 DESIGN.md；舊 demo 不構成此次確認。
 

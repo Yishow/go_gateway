@@ -1,5 +1,6 @@
 import { inspectBasicRecordingIntent } from '../state/basicRecording';
 import { sameRecordingDeviceIds } from '../state/recordingStartOwner';
+import { safeBasicNextAction, safeBasicOperationMessage } from '../state/basicRecordingMessages';
 import type { PointOrderObservation } from './useRecordingPointOrder';
 import { buildGroupCandidates } from '../state/writeGroup/candidates';
 import { SavedRecordingStartEvidence } from './SavedRecordingStartEvidence';
@@ -32,6 +33,7 @@ const buttonStyle = 'max-w-full h-auto min-h-9 whitespace-normal break-words bor
 /** Explicit saved-record review, using the original retained request and scoped-start operation owner. */
 export function SavedRecordingStartReview({ group, workspaceId, workspaceRevision, state, readonly, fetchLatest, onClose, onOperationActiveChange, shareStatus, deviceSource, canUseScope, onCompleted }: SavedRecordingStartReviewProps) {
   const { t } = useTranslation('recording-editor');
+  const { t: startT } = useTranslation('workbench-v2');
   const navigation = useRecordingNavigation(), readUnavailable = useRecordingReadUnavailable();
   const devices = savedRecordingStartDevices(group);
   const candidates = buildGroupCandidates(state).candidates;
@@ -83,7 +85,11 @@ export function SavedRecordingStartReview({ group, workspaceId, workspaceRevisio
   const originalTerminal = flow.completion.state === 'available' && ['succeeded', 'failed'].includes(flow.completion.status) && !flow.unresolved;
   const matchesSaved = flow.completion.state === 'available' && sameRecordingDeviceIds(flow.completion.deviceIds, devices) &&
     flow.operation?.groups.some(progress => progress.group_id === group.id && progress.group_revision === group.revision);
-  const previousTerminal = originalTerminal && (!matchesSaved || flow.status === 'failed');
+  const terminalFailure = originalTerminal && flow.status === 'failed';
+  const previousTerminal = originalTerminal && !terminalFailure && !matchesSaved;
+  const canReviewAgain = previousTerminal || terminalFailure;
+  const failureReason = terminalFailure ? safeBasicOperationMessage(flow.operation, startT) : undefined;
+  const failureNextAction = terminalFailure ? safeBasicNextAction(flow.operation, startT) : undefined;
   const started = flow.completion.state === 'available' && flow.completion.status === 'succeeded' && matchesSaved;
   const completed = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -103,15 +109,17 @@ export function SavedRecordingStartReview({ group, workspaceId, workspaceRevisio
           {state.devices.find(device => device.id === member.device_id)?.name || member.device_id} / {candidates.find(candidate => candidate.device_id === member.device_id && candidate.point_id === member.point_id && candidate.tag_id === member.tag_id)?.label || member.point_id}
         </li>)}</ul>
         <p className="text-sm text-[var(--gw-muted)]">{t('start.noSql')}</p>
-        {(error || !valid) && !recoveryUnavailable() && !flow.recoveryUnavailable && (!flow.status || previousTerminal) && <p role="alert">{t('start.changed')}</p>}
+        {(error || !valid) && !recoveryUnavailable() && !flow.recoveryUnavailable && (!flow.status || canReviewAgain) && <p role="alert">{t('start.changed')}</p>}
         {flow.error && <p role="alert">{flow.error}</p>}
         {(recoveryUnavailable() || flow.recoveryUnavailable) && <p role="alert">{t('start.recoveryUnavailable')}</p>}
         {flow.queryFailed && <p role="alert">{t('start.lookupFailed')}</p>}
         {started && flow.operation ? <SavedRecordingStartEvidence group={group} workspaceRevision={workspaceRevision} operation={flow.operation} />
+          : terminalFailure ? <div role="alert"><p>{startT('step4.basic.operation.failed')}</p>
+            {failureReason && <p>{failureReason}</p>}{failureNextAction && <p>{failureNextAction}</p>}</div>
           : flow.status && <p role="status">{t(previousTerminal ? 'start.previousTerminal' : flow.unresolved ? 'start.unknown' : 'start.incomplete')}</p>}
       </div>
       <footer className="gw-modal-footer">
-        {(!flow.status || previousTerminal) && <Button className={`${buttonStyle} gw-primary`} disabled={!valid || flow.busy} data-testid="saved-recording-start-confirm" onClick={() => void flow.start()}>{t('start.confirm')}</Button>}
+        {(!flow.status || canReviewAgain) && <Button className={`${buttonStyle} gw-primary`} disabled={!valid || flow.busy} data-testid="saved-recording-start-confirm" onClick={() => void flow.start()}>{t('start.confirm')}</Button>}
         {flow.canLookupRequest && <Button className={buttonStyle} disabled={flow.busy} data-testid="saved-recording-start-lookup" onClick={() => void flow.check()}>{t('start.lookup')}</Button>}
         {flow.operationId && <Button className={buttonStyle} disabled={flow.busy} data-testid="saved-recording-start-check" onClick={() => void flow.check()}>{t('start.check')}</Button>}
         {flow.canRetrySameRequest && <Button className={buttonStyle} disabled={flow.busy} onClick={() => void flow.start(true)}>{t('start.retry')}</Button>}

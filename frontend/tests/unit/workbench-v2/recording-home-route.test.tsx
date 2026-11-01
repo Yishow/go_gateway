@@ -3,7 +3,7 @@ import { listRecordingTestWriteRecovery } from '@/services/recordingTestWriteRec
 import { ruleEvidenceFixture } from '../services/runtimeRuleEvidenceFixture';
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchV2Page from '@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
@@ -86,11 +86,33 @@ describe('actual optional home entry', () => {
   });
 
 });
-import { group, fixture } from './recording-home-guidance-fixtures';
+import { group, fixture, delivery } from './recording-home-guidance-fixtures';
 import { rememberHomePresentation } from '@/features/datalink/workbench-v2/recording-home/recordingHomePresentation';
 import { initialCollectionState } from '@/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
 import { studioV2WriteGroupLifecycleAPI } from '@/services/studioV2WriteGroupLifecycle';
 vi.mock('@/services/studioV2WriteGroupLifecycle', () => ({ studioV2WriteGroupLifecycleAPI: { lifecycle: vi.fn() } }));
+it('opens a removed home item through original management, never a deleted editor, while alive remains canonical', async () => {
+  const groups = [group('REMOVED', 'deleted'), group('ALIVE', 'ready')];
+  vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ ...workspace, id: 'W1' });
+  vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue({ workspace_id: 'W1', workspace_revision: 'W2', groups });
+  vi.mocked(studioV2WorkspaceWriteGroupsAPI.delivery).mockImplementation(async id => {
+    const found = groups.find(item => item.id === id);if (!found) throw new Error('fixture');return delivery(found);
+  });
+  vi.mocked(studioV2WriteGroupLifecycleAPI.lifecycle).mockImplementation(async id => {
+    const found = groups.find(item => item.id === id);if (!found) throw new Error('fixture');return {
+      workspace_id: 'W1', workspace_revision: 'W2', group_id: id, group_revision: found.revision, applied_revision: found.applied_revision,
+      status: found.status, connector_id: 'DB1', connector_revision: 'DB2', actions: [], history: { canonical: true, current_group_id: id, generations: [] },
+    };
+  });
+  const navigate = mount(), table = await screen.findByTestId('home-management-table');
+  await screen.findAllByText('result.lastCommit');
+  fireEvent.click(within(table).getByRole('button', { name: 'Recording REMOVED' }));
+  expect(navigate).toHaveBeenLastCalledWith('/studio/v2?step=output&target=database&view=advanced#saved');
+  fireEvent.click(within(table).getByRole('button', { name: 'Recording ALIVE' }));
+  expect(navigate.mock.calls.at(-1)?.[0]).toMatch(/^\/studio\/v2\?entry=locator&workspace_id=W1&step=4&group_id=ALIVE&group_revision=.+&view=recording#saved$/);
+  for (const action of ['create', 'update', 'apply', 'schemaApply', 'remove'] as const) expect(studioV2WorkspaceWriteGroupsAPI[action]).not.toHaveBeenCalled();
+  expect(useStudioV2AutosaveState).not.toHaveBeenCalled();
+});
 it('restored observed-only page does not auto scan all recovered groups', async () => {
  const groups = Array.from({length: 75}, (_,i)=>group(`G${String(i).padStart(3,'0')}`));
  const data = fixture([], false, groups);

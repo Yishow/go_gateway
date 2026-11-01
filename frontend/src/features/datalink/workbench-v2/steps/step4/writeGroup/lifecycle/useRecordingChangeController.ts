@@ -8,34 +8,40 @@ import { RecordingChangeController } from './RecordingChangeController';
 export interface UseRecordingChangeControllerOptions {
   workspaceId: string;
   readonly: boolean;
+  /** Denial-only caller lease, checked before every transport; absent preserves ordinary callers. */
+  canUseScope?: () => boolean;
   onChanged?: (group: WriteGroup, workspaceRevision: string) => void;
 }
-export function useRecordingChangeController({ workspaceId, readonly, onChanged }: UseRecordingChangeControllerOptions) {
+export function useRecordingChangeController({ workspaceId, readonly, canUseScope, onChanged }: UseRecordingChangeControllerOptions) {
   const actions = useWriteGroupSuccessorActions();
   const check = useCheckSuccessorOperation();
+  const scoped = <T,>(send: () => Promise<T>): Promise<T> => canUseScope?.() === false
+    ? Promise.reject(new Error('Recording scope is unavailable.')) : send();
+  const lifecycle = canUseScope ? (id: string) => scoped(() => studioV2WriteGroupLifecycleAPI.lifecycle(id)) : studioV2WriteGroupLifecycleAPI.lifecycle;
+  const getGroup = canUseScope ? (id: string) => scoped(() => studioV2WorkspaceWriteGroupsAPI.get(id)) : studioV2WorkspaceWriteGroupsAPI.get;
   const api: typeof studioV2WriteGroupSuccessorAPI = {
-    review: (groupId, request) => actions.review.mutateAsync({ groupId, request }),
-    reserve: (groupId, request) => actions.reserve.mutateAsync({ groupId, request }),
-    schemaPreview: (groupId, request) => actions.schemaPreview.mutateAsync({ groupId, request }),
-    schemaConfirm: (groupId, request) => actions.schemaConfirm.mutateAsync({ groupId, request }),
-    activationReview: (groupId, request) => actions.activationReview.mutateAsync({ groupId, request }),
-    activationReadiness: (groupId, request) => actions.activationReadiness.mutateAsync({ groupId, request }),
-    confirmCutover: (groupId, request) => actions.confirmCutover.mutateAsync({ groupId, request }),
-    confirmFirstStart: (groupId, request) => actions.confirmFirstStart.mutateAsync({ groupId, request }),
-    operationStatus: check,
+    review: (groupId, request) => scoped(() => actions.review.mutateAsync({ groupId, request })),
+    reserve: (groupId, request) => scoped(() => actions.reserve.mutateAsync({ groupId, request })),
+    schemaPreview: (groupId, request) => scoped(() => actions.schemaPreview.mutateAsync({ groupId, request })),
+    schemaConfirm: (groupId, request) => scoped(() => actions.schemaConfirm.mutateAsync({ groupId, request })),
+    activationReview: (groupId, request) => scoped(() => actions.activationReview.mutateAsync({ groupId, request })),
+    activationReadiness: (groupId, request) => scoped(() => actions.activationReadiness.mutateAsync({ groupId, request })),
+    confirmCutover: (groupId, request) => scoped(() => actions.confirmCutover.mutateAsync({ groupId, request })),
+    confirmFirstStart: (groupId, request) => scoped(() => actions.confirmFirstStart.mutateAsync({ groupId, request })),
+    operationStatus: (groupId, request) => scoped(() => check(groupId, request)),
   };
   // Workspace identity, not the selected mode, owns the controller and its recovery fence.
   const [controller, setController] = React.useState(() => new RecordingChangeController(workspaceId, {
-    api, lifecycle: studioV2WriteGroupLifecycleAPI.lifecycle, getGroup: studioV2WorkspaceWriteGroupsAPI.get, onChanged,
+    api, lifecycle, getGroup, onChanged,
   }));
   if (controller.workspaceId !== workspaceId) {
     controller.dispose();
     setController(new RecordingChangeController(workspaceId, {
-      api, lifecycle: studioV2WriteGroupLifecycleAPI.lifecycle, getGroup: studioV2WorkspaceWriteGroupsAPI.get, onChanged,
+      api, lifecycle, getGroup, onChanged,
     }));
   }
   React.useLayoutEffect(() => {
-    controller.deps = { api, lifecycle: studioV2WriteGroupLifecycleAPI.lifecycle, getGroup: studioV2WorkspaceWriteGroupsAPI.get, onChanged };
+    controller.deps = { api, lifecycle, getGroup, onChanged };
     controller.readonly = readonly;
   });
   React.useEffect(() => { controller.activate(); return () => controller.dispose(); }, [controller]);

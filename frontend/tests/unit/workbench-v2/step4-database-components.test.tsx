@@ -41,12 +41,20 @@ describe('Step 4 Database Components', () => {
       expect(onChange).toHaveBeenCalledWith('sqlite');
     });
 
-    it('在 disabled 為 true 時應禁用所有按鈕', () => {
-      render(<KindSelector value="postgres" onChange={() => { }} disabled={true} />);
-      const buttons = screen.getAllByRole('button');
-      buttons.forEach(btn => {
-        expect(btn).toBeDisabled();
-      });
+    it('在 disabled 為 true 時應禁用所有資料庫選擇但保留唯讀說明', () => {
+      const onChange = vi.fn();
+      render(<KindSelector value="postgres" onChange={onChange} disabled={true} />);
+      for (const kind of ['postgres', 'sqlite', 'mysql', 'sqlserver']) {
+        const button = screen.getByRole('button', { name: new RegExp(`step4.kind_${kind}`) });
+        expect(button).toBeDisabled();
+        fireEvent.click(button);
+      }
+      expect(onChange).not.toHaveBeenCalled();
+      const help = screen.getByRole('button', { name: 'open' });
+      expect(help).toBeEnabled();
+      fireEvent.click(help);
+      expect(screen.getByRole('note', { name: 'db.kind.title' })).toBeVisible();
+      expect(onChange).not.toHaveBeenCalled();
     });
   });
 

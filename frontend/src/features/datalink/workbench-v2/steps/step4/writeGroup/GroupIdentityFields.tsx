@@ -7,6 +7,7 @@ import type { EditorDraft } from '../../../state/writeGroup/draft';
 const FIELD = 'mt-1 w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1 text-sm text-[var(--gw-text)]';
 
 export interface GroupIdentityFieldsProps {
+  section?: 'all' | 'name' | 'destination';
   draft: EditorDraft;
   readonly: boolean;
   /** A profile group keeps the layout, storage kind and shared table it was created with. */
@@ -16,14 +17,15 @@ export interface GroupIdentityFieldsProps {
 }
 
 /** Name, storage kind and destination table of a group. */
-export const GroupIdentityFields: React.FC<GroupIdentityFieldsProps> = ({ draft, readonly, locked, onChange, onStorageStrategy }) => {
+export const GroupIdentityFields: React.FC<GroupIdentityFieldsProps> = ({ section = 'all', draft, readonly, locked, onChange, onStorageStrategy }) => {
   const { t } = useTranslation('workbench-v2');
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 text-xs text-[var(--gw-muted)]">
+    <div className={section === 'name' ? 'grid gap-3' : 'grid gap-3 sm:grid-cols-2'}>
+      {section !== 'destination' && <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 text-xs text-[var(--gw-muted)]">
         {t('step4.group.editor.name')}
         <input type="text" value={draft.name} disabled={readonly} onChange={(event) => onChange({ name: event.target.value })} className={FIELD} data-testid="group-name" />
-      </label><ParameterHelp help="record.name" /></div>
+      </label><ParameterHelp help="record.name" /></div>}
+      {section !== 'name' && <>
       <fieldset className="text-xs text-[var(--gw-muted)]">
         <legend>{t('step4.group.editor.storage')} <ParameterHelp help="record.strategy" /></legend>
         {(['custom', 'managed'] as WriteGroupStorageStrategy[]).map((strategy) => (
@@ -43,6 +45,7 @@ export const GroupIdentityFields: React.FC<GroupIdentityFieldsProps> = ({ draft,
         {t('step4.group.editor.schema')}
         <input type="text" value={draft.table_schema} disabled={readonly || locked} onChange={(event) => onChange({ table_schema: event.target.value })} className={FIELD} data-testid="group-schema" />
       </label><ParameterHelp help="record.schema" /></div>
+      </>}
     </div>
   );
 };

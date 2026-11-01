@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { studioV2LocatorHydration, studioLocatorStateMatches } from '@/pages/datalink/workbench-v2/studioV2LocatorHydration';
 import { locatorRead } from './studio-locator-fixtures';
+import { INITIAL_STATE } from '@/features/datalink/workbench-v2/state/useWorkbenchV2State';
 
 describe('detached locator hydration', () => {
   it('hydrates only requested device without default samples or observed connector', () => {
@@ -35,4 +36,18 @@ describe('detached locator hydration', () => {
     expect(state.devices).toEqual([]); expect(state.rules).toEqual([]);
     expect(JSON.stringify(read.entry.write_groups)).toBe(before);
   });
+});
+
+it('keeps saved-target DTO hydration detached from the workspace default and connector pool', () => {
+  const read = locatorRead(4); const original = JSON.stringify(INITIAL_STATE);
+  const group = read.entry.write_groups!.groups[0];
+  group.destination = { ...group.destination, connector_id: 'saved-target', connector_revision: 'saved-rev', database: 'saved.db', table_schema: 'main', table_name: 'saved_table' };
+  read.entry.editor_hydrated = true;
+  read.entry.database_config = { id: 'saved-target', identity_revision: 'saved-rev', setup_revision: 'W2', workspace_id: 'W', kind: 'sqlite', name: 'Saved target label', host: '', port: 0, database: 'saved.db', username: '', schema: 'main', table: 'saved_table', write_mode: 'insert', write_interval_seconds: 15, timestamp_column: 'time', status: 'ready', save_state: 'saved', created_at: '', updated_at: '' };
+  read.entry.database_targets = [];
+  const state = studioV2LocatorHydration(read)!;
+  expect(state.db.connector).toMatchObject({ connector_id: group.destination.connector_id, identity_revision: group.destination.connector_revision,
+    database: group.destination.database, schema: group.destination.table_schema, table: group.destination.table_name, name: 'Saved target label', persisted: true, save_state: 'saved' });
+  expect(state.db.connector.password).toBeUndefined(); expect(state.settings.connectors).toEqual([]);
+  expect(JSON.stringify(INITIAL_STATE)).toBe(original); expect(read.entry.database_config.id).toBe('saved-target');
 });

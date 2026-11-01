@@ -2,7 +2,7 @@ import { RecordingSourceNavigation } from '../../../features/datalink/workbench-
 import { useTranslation } from 'react-i18next';
 import { RecordingDraftReadState, useRecordingNavigation } from '../../../features/datalink/workbench-v2/recording-editor/RecordingDraftNavigation';
 import { RecordingHomeRoute } from '../../../features/datalink/workbench-v2/recording-home/RecordingHomeRoute';
-import type { StudioPresentation } from '../../../services/studioRecordingView';
+import { parseStudioPresentation, type StudioPresentation } from '../../../services/studioRecordingView';
 import type { StudioEntityLocatorIntent } from '../../../services/studioEntityLocator';
 import { useStudioLocatorEntry } from '../../../hooks/datalink/useStudioLocatorEntry';
 import { StudioLocatorEntryNotice, type StudioLocatorNoticeReason } from '../../../features/datalink/workbench-v2/shell/StudioLocatorEntryNotice';
@@ -37,7 +37,7 @@ import '../../../features/datalink/workbench-v2/styles/workbench-v2.css';
 interface DatalinkWorkbenchV2PageProps {
   presentation?: StudioPresentation;
   presentationLocation?: { search: string; hash: string };
-  navigateTo?: (target: string) => void;
+  navigateTo?: (target: string, options?: { replace?: boolean }) => void;
   locatorIntent?: StudioEntityLocatorIntent;
   runtimeReturnFocus?: WorkbenchV2RuntimeReturnFocus | null;
 }
@@ -98,8 +98,8 @@ function WorkbenchV2BootstrapState({ status }: WorkbenchV2BootstrapStateProps) {
  */
 function AdvancedWorkbenchV2Page({
   navigateTo,
-  runtimeReturnFocus, locatorIntent,
-}: DatalinkWorkbenchV2PageProps) {
+  runtimeReturnFocus, locatorIntent, presentationLocation, recordingIntent,
+}: DatalinkWorkbenchV2PageProps & { recordingIntent?: 'new' | 'located' | 'copy' }) {
   const { t: draftText } = useTranslation('recording-editor');
   const { blocked: hasUnsavedRecording } = useRecordingNavigation();
   const locatorMode = locatorIntent !== undefined && locatorIntent.kind !== 'absent';
@@ -290,9 +290,13 @@ function AdvancedWorkbenchV2Page({
     autosave.databaseConfigQuery.isError ||
     autosave.databaseTargetsQuery.isError
   );
+  // Retain only a previously owned missing-mapping retry; the failed GET grants no write authority.
+  const retainMappingRetry = autosave.mappingsQuery.isError && autosave.autosaveBarrier.pending_saves > 0 &&
+    Object.values(autosave.state.mappings).some(mapping => Boolean(mapping.workspace_id) && mapping.workspace_id === workspaceQuery.data?.id &&
+      mapping.save_state === 'save-error' && mapping.save_error_detail?.code === 'workspace_mapping_not_found');
   // A failed refresh must not destroy an already-hydrated editor's unsent intent.
   // This retains the existing form, not a second persisted draft or fresh readiness proof.
-  if (backgroundReadFailed && !(workspaceQuery.data && autosave.workspaceHydrated && hasUnsavedRecording())) {
+  if (backgroundReadFailed && !(workspaceQuery.data && autosave.workspaceHydrated && (hasUnsavedRecording() || retainMappingRetry))) {
     return <WorkbenchV2BootstrapState status="error" />;
   }
 
@@ -336,6 +340,7 @@ function AdvancedWorkbenchV2Page({
       )}
       <RecordingDraftReadState unavailable={backgroundReadFailed}><RecordingSourceNavigation workspaceId={workspace.id} source={autosave.deviceSource}><WorkbenchV2Shell
         state={autosave.state}
+        recordingIntent={recordingIntent} presentationLocation={presentationLocation}
         workspaceId={workspace.id}
         actions={autosave.actions} deviceSource={autosave.deviceSource}
         navigateTo={navigateTo}
@@ -362,5 +367,7 @@ export default function DatalinkWorkbenchV2Page(props: DatalinkWorkbenchV2PagePr
   if (props.presentation === 'recordings' && (!locator || locator === 'absent') && !props.runtimeReturnFocus) {
     return <RecordingHomeRoute location={props.presentationLocation ?? { search: '?view=recordings', hash: '' }} onNavigate={props.navigateTo} />;
   }
-  return <AdvancedWorkbenchV2Page {...props} />;
+  const intent = parseStudioPresentation(props.presentationLocation?.search ?? '');
+  const simple = props.presentation === 'recording' && !props.runtimeReturnFocus && intent.presentation === 'recording';
+  return <AdvancedWorkbenchV2Page {...props} recordingIntent={simple ? intent.recordingIntent === 'copy' ? 'copy' : locator === 'locator' ? 'located' : 'new' : undefined} />;
 }

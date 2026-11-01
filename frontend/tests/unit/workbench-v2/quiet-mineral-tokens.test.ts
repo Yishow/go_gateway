@@ -42,7 +42,10 @@ describe('DESIGN.md Quiet mineral semantic contract (not a browser render test)'
     expect(home).toContain('var(--gw-control-mobile)'); expect(home).toContain(':focus-visible');
     expect(home).toContain('overflow-wrap: anywhere'); expect(home).not.toContain('75vw');
     expect(home).not.toMatch(/url\(|@import|@font-face/); // no new network-dependent font or asset
-    expect(css.match(/fonts\.googleapis\.com/g)).toHaveLength(1); // pre-existing import only
+    expect(css).not.toMatch(/fonts\.(?:googleapis|gstatic)\.com/); // fonts remain available without an external request
+    const entry = readFileSync('src/main.tsx', 'utf8');
+    expect(entry).toContain("import '@fontsource/inter/400.css'");
+    expect(entry).toContain("import '@fontsource/jetbrains-mono/400.css'");
     expect(home).toContain('forced-colors: active');
   });
 });

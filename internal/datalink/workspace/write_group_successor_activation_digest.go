@@ -84,7 +84,7 @@ func (s *WriteGroupService) activationSchemaProofInTx(ctx context.Context, tx *s
 	if err != nil {
 		return err
 	}
-	digest, err := successorSchemaSourceDigest(&successorSchemaSnapshot{reserved: snap.reserved, types: snap.ready.tagTypes, dialect: snap.ready.connectorKind})
+	digest, err := successorSchemaSourceDigest(&successorSchemaSnapshot{reserved: snap.reserved, types: snap.ready.tagTypes, dialect: snap.ready.connectorKind, counterBindings: snap.ready.counterBindings})
 	if err != nil {
 		return err
 	}

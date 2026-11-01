@@ -94,12 +94,15 @@ describe('Workbench V2 redesign contract', () => {
     expect(screen.getByTestId('workbench-v2-bootstrap-shell')).toBeInTheDocument();
   });
 
-  it('adds pressed and visible focus feedback to shared buttons', () => {
+  it('keeps shared buttons stationary with semantic hover and visible keyboard focus', () => {
     render(<Button>Commit</Button>);
 
     const button = screen.getByRole('button', { name: 'Commit' });
-    expect(button).toHaveClass('active:scale-[0.98]');
-    expect(button).toHaveClass('focus-visible:ring-offset-2');
+    expect(button).not.toHaveClass('active:scale-[0.98]');
+    expect(button).toHaveClass('enabled:hover:bg-[var(--gw-primary-hover)]');
+    expect(button).toHaveClass('focus-visible:outline-2', 'focus-visible:outline-offset-2', 'focus-visible:outline-[var(--gw-focus)]');
+    button.focus();
+    expect(button).toHaveFocus();
   });
 
   it('uses the refined workbench surface class for section cards', () => {

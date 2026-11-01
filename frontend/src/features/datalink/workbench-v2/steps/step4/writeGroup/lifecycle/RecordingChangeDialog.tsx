@@ -70,7 +70,7 @@ export function RecordingChangeDialog({ controller: view, destinations = [], fal
               </select></label>
               <label className="block">{t('dialog.destination')}<select className={field} value={target.destination.connector_id} disabled={locked || !target.recording_profile} onChange={(event) => {
                 const destination = choices.find((item) => item.id === event.target.value);
-                if (destination) controller.setTarget({ ...target, destination: { ...target.destination, connector_id: destination.id, connector_revision: destination.revision, database: '' } });
+                if (destination) controller.setTarget({ ...target, destination: { ...target.destination, connector_id: destination.id, connector_revision: destination.revision, database: '', table_name: target.layout_version === 'managed_long_v1' && target.destination.storage_strategy === 'managed' ? '' : target.destination.table_name } });
               }}>{choices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
               <p className="gw-muted">{t(target.recording_profile ? 'dialog.compatibility_checked' : 'dialog.basic_same_shape')}</p>
             </div>}

@@ -1,3 +1,6 @@
+import { LocatorRecordingLifecycleHost } from './LocatorRecordingLifecycleHost';
+import { recordingCopyPrefill, type RecordingCopyPrefill } from '../../../recording-editor/recordingCopyDraft';
+import { studioV2WorkspaceWriteGroupsAPI } from '../../../../../../services/studioV2WorkspaceWriteGroups';
 import { LocatorSavedRecordingStartReview } from '../../../recording-editor/LocatorSavedRecordingStartReview';
 import { locatorSavedRecordingStartScope } from '../../../recording-editor/locatorSavedRecordingStartScope';
 import { useRecordingNavigation } from '../../../recording-editor/RecordingDraftNavigation';
@@ -19,6 +22,12 @@ import { SavedRecordingCard } from '../SavedRecordingCard';
 import type { SavedRecordingActionHost } from './lifecycle/SavedRecordingActions';
 
 export interface WriteGroupSectionProps {
+  presentation?: 'guided' | 'simple';
+  initialSelection?: 'new' | 'located' | 'copy';
+  destinationContent?: React.ReactNode;
+  onClose?: () => void;
+  onSavedLocation?: (group: WriteGroup) => void;
+  onCopyLocation?: (group: WriteGroup) => void;
   deviceSource?: DeviceSourcePort;
   locatorEntry?: StudioLocatorEntryRead;
   locatorOnly?: boolean;
@@ -34,7 +43,10 @@ export interface WriteGroupSectionProps {
   onReviewScopedStart?: (group: WriteGroup) => void;
 }
 
-type Selection = { kind: 'none' } | { kind: 'new' } | { kind: 'edit'; id: string; saved?: WriteGroup };
+type SavedLocationReadback = { acknowledgement: WriteGroupMutationResponse; lease: object };
+type SavedLocationReady = { group: WriteGroup; readback: SavedLocationReadback };
+
+type Selection = { kind: 'none' } | { kind: 'new'; copyPrefill?: RecordingCopyPrefill } | { kind: 'edit'; id: string; saved?: WriteGroup };
 
 type Prerequisite = 'device' | 'tags' | 'destination' | null;
 
@@ -43,36 +55,51 @@ type Prerequisite = 'device' | 'tags' | 'destination' | null;
  * workspace and says what is missing before anything can be created, keeping a
  * failed load, an empty list and groups for another destination apart.
  */
-export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSource, state, workspaceId, readonly, onNavigateStep, openGroupRequest, onReviewScopedStart, lifecycleHost, locatorEntry, locatorOnly, locatorSuspended, onEditorMountedChange }) => {
+export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentation = 'guided', initialSelection, destinationContent, onClose, onSavedLocation, onCopyLocation, deviceSource, state, workspaceId, readonly, onNavigateStep, openGroupRequest, onReviewScopedStart, lifecycleHost, locatorEntry, locatorOnly, locatorSuspended, onEditorMountedChange }) => {
   const { t } = useTranslation('workbench-v2');
-  const { request: requestNavigation } = useRecordingNavigation();
+  const { t: editorText } = useTranslation('recording-editor');
+  const { request: requestNavigation, blocked: navigationBlocked } = useRecordingNavigation();
   const { t: runtime } = useTranslation('runtime-dashboard');
   const region = useRef<HTMLElement>(null);
   const [selection, setSelection] = useState<Selection>({ kind: 'none' });
+  const returnAfterClose = useRef(false);
+  const copyAfterClose = useRef<{ group: WriteGroup; entry?: StudioLocatorEntryRead; lease: object } | undefined>(undefined);
+  const savedLocationReadback = useRef<SavedLocationReadback | undefined>(undefined);
+  const savedLocationAfterClose = useRef<SavedLocationReady | undefined>(undefined);
+  const [savedLocationReady, setSavedLocationReady] = useState<SavedLocationReady>();
+  const consumedSimple = useRef<string | StudioLocatorEntryRead | undefined>(undefined);
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId) && !locatorOnly);
   const [editorEntry, setEditorEntry] = useState<StudioLocatorEntryRead>();
   const [startReview, setStartReview] = useState<{ entry: StudioLocatorEntryRead; lease: object }>();
   const [startActive, setStartActive] = useState(false);
-  const startLease = useRef({ route: locatorEntry, suspended: locatorSuspended, readonly });
-  if (startLease.current.route !== locatorEntry || startLease.current.suspended !== locatorSuspended || startLease.current.readonly !== readonly)
-    startLease.current = { route: locatorEntry, suspended: locatorSuspended, readonly };
+  const startLease = useRef({ route: locatorEntry, suspended: locatorSuspended, readonly, workspaceId });
+  if (startLease.current.route !== locatorEntry || startLease.current.suspended !== locatorSuspended || startLease.current.readonly !== readonly || startLease.current.workspaceId !== workspaceId)
+    startLease.current = { route: locatorEntry, suspended: locatorSuspended, readonly, workspaceId };
+  const renderStartLease = startLease.current;
   const canUseStartScope = () => Boolean(startReview && startReview.lease === startLease.current && startReview.entry === editorEntry &&
     !readonly && !locatorSuspended && !openingRequest.current && selection.kind === 'edit');
-  const [openError, setOpenError] = useState<'unavailable' | 'stale-reference' | 'foreign-scope'>();
+  const [openError, setOpenError] = useState<'unavailable' | 'stale-reference' | 'foreign-scope' | 'copy-unsupported'>();
   const [opening, setOpening] = useState(false);
   const openingRequest = useRef<AbortController | undefined>(undefined);
   const openedLocator = useRef<StudioLocatorEntryRead | undefined>(undefined);
   useEffect(() => {
     openingRequest.current?.abort(); openingRequest.current = undefined; setOpening(false);
-    return () => { openingRequest.current?.abort(); openingRequest.current = undefined; };
-  }, [locatorEntry, locatorSuspended]);
+    return () => { openingRequest.current?.abort(); openingRequest.current = undefined; consumedSimple.current = undefined; savedLocationReadback.current = undefined; savedLocationAfterClose.current = undefined; copyAfterClose.current = undefined; };
+  }, [locatorEntry, locatorSuspended, workspaceId]);
   // Display-only receipt: never changes the URL expectation, editor lease or fresh Open read.
   const listReceipt = useRef<{ route: StudioLocatorEntryRead; read: StudioLocatorEntryRead } | undefined>(undefined);
   if (locatorSuspended || listReceipt.current?.route !== locatorEntry) listReceipt.current = undefined;
   const observed = locatorEntry?.entry.write_groups ?? groupsQuery.data;
   const displayRead = locatorOnly && !locatorSuspended ? listReceipt.current?.read : undefined;
   const editorState = useMemo(() => editorEntry ? studioV2LocatorHydration(editorEntry) : null, [editorEntry]);
-  const editorObserved = editorEntry?.entry.write_groups ?? observed;
+  // Retain only a matching display read for this simple form. It cannot grant
+  // writes: a failed or foreign current read below is denial-only.
+  const retainedSimpleRead = useRef<{ workspaceId: string; data: NonNullable<typeof observed> } | undefined>(undefined);
+  if (retainedSimpleRead.current?.workspaceId !== workspaceId) retainedSimpleRead.current = undefined;
+  if (presentation === 'simple' && !locatorEntry && workspaceId && observed?.workspace_id === workspaceId &&
+      typeof observed.workspace_revision === 'string' && !groupsQuery.isError && !groupsQuery.isFetching)
+    retainedSimpleRead.current = { workspaceId, data: observed };
+  const editorObserved = editorEntry?.entry.write_groups ?? (presentation === 'simple' && !locatorEntry ? retainedSimpleRead.current?.data : observed);
   const open = async (group: WriteGroup) => {
     if (!locatorEntry) { requestNavigation(() => setSelection({ kind: 'edit', id: group.id, saved: group })); return; }
     const target = locatorEntry.selection.state === 'selected' ? locatorEntry.selection.target : undefined;
@@ -98,25 +125,30 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
       const next = result.value;
       const selected = next.selection.state === 'selected' ? next.selection.target : undefined;
       const saved = next.entry.write_groups?.groups.find(value => value.id === group.id && value.status !== 'deleted');
+      const nextState = studioV2LocatorHydration(next);
       if (!next.entry.editor_hydrated || !selected || selected.workspaceId !== target.workspaceId ||
         selected.workspaceRevision !== expected.workspaceRevision || selected.groupId !== target.groupId ||
-        selected.groupRevision !== expected.groupRevision || !saved || !studioV2LocatorHydration(next)) {
+        selected.groupRevision !== expected.groupRevision || !saved || !nextState) {
         setOpenError('stale-reference'); return;
       }
+      const copyPrefill = initialSelection === 'copy' ? recordingCopyPrefill(saved, next.entry.write_groups?.calculation_capabilities, nextState.db.connector.kind) : undefined;
+      if (initialSelection === 'copy' && !copyPrefill) { setOpenError('copy-unsupported'); return; }
       openedLocator.current = locatorEntry;
       if (locatorEntry) listReceipt.current = { route: locatorEntry, read: next };
-      setEditorEntry(next); setSelection({ kind: 'edit', id: group.id, saved });
+      setEditorEntry(next); setSelection(copyPrefill ? { kind: 'new', copyPrefill } : { kind: 'edit', id: group.id, saved });
     } catch { if (!request.signal.aborted) setOpenError('unavailable'); }
     finally { if (openingRequest.current === request) { openingRequest.current = undefined; setOpening(false); } }
   };
-  const reloadEditor = async (acknowledgement?: WriteGroupMutationResponse) => {
+  const reloadEditor = async (acknowledgement?: WriteGroupMutationResponse, exactEntity = false) => {
     if (!editorEntry || locatorSuspended || selection.kind !== 'edit' || openingRequest.current) return;
     const original = editorEntry.selection.state === 'selected' ? editorEntry.selection.target : undefined;
     if (!original?.groupId) return;
     if (acknowledgement && (acknowledgement.group.workspace_id !== original.workspaceId || acknowledgement.group.id !== original.groupId)) return;
     const request = new AbortController(); openingRequest.current = request; setOpening(true); setOpenError(undefined);
     try {
-      const latest = await groupsQuery.refetch();
+      const latest = exactEntity ? await studioV2WorkspaceWriteGroupsAPI.get(original.groupId).then(result => ({
+        isError: false, data: { workspace_id: result.group.workspace_id, workspace_revision: result.workspace_revision, groups: [result.group] },
+      })) : await groupsQuery.refetch();
       if (request.signal.aborted || openingRequest.current !== request) return;
       if (latest.isError || !latest.data) { setOpenError('unavailable'); return; }
       if (latest.data.workspace_id !== original.workspaceId) { setOpenError('foreign-scope'); return; }
@@ -139,8 +171,63 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
     } catch { if (!request.signal.aborted) setOpenError('unavailable'); }
     finally { if (openingRequest.current === request) { openingRequest.current = undefined; setOpening(false); } }
   };
+  // This is a read-only URL handoff after an accepted Save, not another Save.
+  const readSavedLocation = async (readback: SavedLocationReadback) => {
+    if (readback !== savedLocationReadback.current || readback.lease !== startLease.current || openingRequest.current || readonly || locatorSuspended) return;
+    const accepted = readback.acknowledgement.group;
+    const request = new AbortController(); openingRequest.current = request; setOpening(true); setOpenError(undefined);
+    const current = () => !request.signal.aborted && openingRequest.current === request && savedLocationReadback.current === readback && startLease.current === readback.lease;
+    try {
+      const latest = initialSelection === 'copy' ? await studioV2WorkspaceWriteGroupsAPI.get(accepted.id).then(result => ({
+        isError: false, data: { workspace_id: result.group.workspace_id, workspace_revision: result.workspace_revision, groups: [result.group] },
+      })) : await groupsQuery.refetch();
+      if (!current()) return;
+      if (latest.isError || !latest.data) { setOpenError('unavailable'); return; }
+      if (latest.data.workspace_id !== accepted.workspace_id) { setOpenError('foreign-scope'); return; }
+      const exact = latest.data.groups.find(group => group.id === accepted.id && group.workspace_id === accepted.workspace_id && group.status !== 'deleted');
+      if (!exact || exact.revision !== accepted.revision) { setOpenError('stale-reference'); return; }
+      const result = await readStudioLocatorEditorEntry({ step: 4, workspace_id: accepted.workspace_id, device_id: null,
+        rule_id: null, mapping_id: null, group_id: accepted.id, group_revision: accepted.revision },
+      { workspaceRevision: latest.data.workspace_revision, groupRevision: accepted.revision }, request.signal);
+      if (!current()) return;
+      if (!result.ok) { setOpenError(result.reason); return; }
+      const target = result.value.selection.state === 'selected' ? result.value.selection.target : undefined;
+      const group = result.value.entry.write_groups?.groups.find(value => value.id === accepted.id && value.workspace_id === accepted.workspace_id && value.revision === accepted.revision && value.status !== 'deleted');
+      if (!target || target.workspaceId !== accepted.workspace_id || target.groupId !== accepted.id || target.groupRevision !== accepted.revision ||
+          target.workspaceRevision !== latest.data.workspace_revision || !group || !result.value.entry.editor_hydrated || !studioV2LocatorHydration(result.value)) {
+        setOpenError('stale-reference'); return;
+      }
+      setSavedLocationReady({ group, readback });
+    } catch { if (current()) setOpenError('unavailable'); }
+    finally { if (openingRequest.current === request) { openingRequest.current = undefined; setOpening(false); } }
+  };
+  React.useLayoutEffect(() => {
+    if (!savedLocationReady) return;
+    setSavedLocationReady(undefined);
+    if (savedLocationReady.readback !== savedLocationReadback.current || savedLocationReady.readback.lease !== startLease.current) return;
+    // A late picker/source callback can still introduce unsent intent. Never
+    // replace that editor merely because an older read has finished.
+    if (navigationBlocked()) { setOpenError('stale-reference'); return; }
+    savedLocationAfterClose.current = savedLocationReady;
+    setSelection({ kind: 'none' }); setEditorEntry(undefined);
+  }, [savedLocationReady, navigationBlocked]);
   const located = locatorEntry?.selection.state === 'selected' ? locatorEntry.selection.target : undefined;
   useEffect(() => { if (located) region.current?.querySelector<HTMLElement>('[data-locator-selected="true"]')?.focus(); }, [located]);
+  // Navigation intent only. Selection remains this section's single authority,
+  // and a saved record still enters through the original fresh scoped read.
+  const simpleOpen = useRef(open); simpleOpen.current = open;
+  useEffect(() => {
+    if (returnAfterClose.current || copyAfterClose.current || savedLocationAfterClose.current || presentation !== 'simple' || readonly || locatorSuspended || selection.kind !== 'none') return;
+    if (initialSelection === 'new' && !locatorEntry && observed && observed.workspace_id === workspaceId &&
+        typeof observed.workspace_revision === 'string' && !groupsQuery.isError && !groupsQuery.isFetching) {
+      const intent = `new:${workspaceId}`;
+      if (consumedSimple.current !== intent) { consumedSimple.current = intent; setSelection({ kind: 'new' }); }
+    }
+    if ((initialSelection === 'located' || initialSelection === 'copy') && locatorEntry && consumedSimple.current !== locatorEntry && located?.groupId) {
+      const group = observed?.groups.find(value => value.id === located.groupId && value.status !== 'deleted');
+      if (group) { consumedSimple.current = locatorEntry; void simpleOpen.current(group); }
+    }
+  }, [presentation, initialSelection, readonly, locatorSuspended, locatorEntry, located, observed, workspaceId, selection.kind, groupsQuery.isError, groupsQuery.isFetching]);
   const consumedOpen = useRef<typeof openGroupRequest>(undefined);
   useEffect(() => {
     if (openGroupRequest !== consumedOpen.current && openGroupRequest && groupsQuery.data?.groups.some(group => group.id === openGroupRequest.id)) {
@@ -157,12 +244,16 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
     : candidates.length === 0 ? 'tags'
       : !destinationSaved ? 'destination' : null;
 
-  const groups = observed?.groups ?? [];
+  const groups = (presentation === 'simple' && !locatorEntry ? editorObserved : observed)?.groups ?? [];
   const live = (displayRead?.entry.write_groups?.groups ?? groups).filter((group) => group.status !== 'deleted' && (!located || group.id === located.groupId));
   const removed = groups.filter((group) => group.status === 'deleted' && !locatorEntry);
   // Right after a save the refetched list may not carry the group yet; the returned group bridges that gap.
   const selected = selection.kind === 'edit' ? editorEntry ? selection.saved ?? editorObserved?.groups.find(group => group.id === selection.id)
     : groups.find(group => group.id === selection.id) ?? selection.saved : undefined;
+  const copySource = initialSelection === 'copy' ? editorEntry?.entry.write_groups?.groups.find(group => group.id === located?.groupId) : undefined;
+  const deniedCopyIdentity = (group: WriteGroup) => initialSelection === 'copy' && (!copySource || group.workspace_id !== workspaceId ||
+    group.id === copySource.id || !group.record_id || group.record_id === copySource.record_id);
+  const copyIdentityDenied = Boolean(selected && deniedCopyIdentity(selected));
   const management = { workspaceId, workspaceRevision: observed?.workspace_revision ?? '', lifecycleHost,
     readonly: readonly || !workspaceId || observed?.workspace_id !== workspaceId || !observed?.workspace_revision || !locatorOnly && groupsQuery.isFetching,
     onReload: () => { void groupsQuery.refetch(); } };
@@ -170,9 +261,33 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
     group.destination.connector_revision === connector.identity_revision;
 
   const editing = selection.kind === 'new' || Boolean(selection.kind === 'edit' && selected);
+  useEffect(() => {
+    // The original editor first resolves its leave guard and unmounts; only then
+    // may the router leave, without prompting for the same discarded draft twice.
+    if (!editing && returnAfterClose.current) { returnAfterClose.current = false; onClose?.(); }
+  }, [editing, onClose]);
   const retention = useRef(onEditorMountedChange); retention.current = onEditorMountedChange;
   useEffect(() => { retention.current?.(editing); return () => retention.current?.(false); }, [editing]);
-  if (!editing && !locatorOnly && groupsQuery.isError) {
+  useEffect(() => {
+    const pending = copyAfterClose.current;
+    if (editing || !pending) return;
+    copyAfterClose.current = undefined;
+    if (pending.lease !== startLease.current) return;
+    if (navigationBlocked()) { setEditorEntry(pending.entry); setSelection({ kind: 'edit', id: pending.group.id, saved: pending.group }); return; }
+    onCopyLocation?.(pending.group);
+  }, [editing, navigationBlocked, onCopyLocation]);
+  useEffect(() => {
+    const ready = savedLocationAfterClose.current;
+    if (editing || !ready) return;
+    savedLocationAfterClose.current = undefined;
+    if (ready.readback !== savedLocationReadback.current || ready.readback.lease !== startLease.current) return;
+    if (navigationBlocked()) { setSelection({ kind: 'edit', id: ready.group.id, saved: ready.group }); setOpenError('stale-reference'); return; }
+    savedLocationReadback.current = undefined;
+    onSavedLocation?.(ready.group);
+  }, [editing, navigationBlocked, onSavedLocation]);
+  const invalidSimpleScope = presentation === 'simple' && observed &&
+    (observed.workspace_id !== workspaceId || typeof observed.workspace_revision !== 'string');
+  if ((!editing || !editorObserved) && !locatorOnly && (groupsQuery.isError || invalidSimpleScope)) {
     return (
       <section role="alert" className="space-y-2 rounded-xl border border-[var(--gw-warning-border)] p-5 text-xs text-[var(--gw-warning-fg)]" data-testid="group-section-error">
         <p>{t('step4.group.section.load_failed')}</p>
@@ -184,22 +299,91 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
     return <section className="p-5 text-xs text-[var(--gw-muted)]" role="status" data-testid="group-section-loading">{t('step4.group.section.loading')}</section>;
   }
 
+  const renderEditor = (editorLifecycleHost = lifecycleHost, lifecycleReadonly = false, isOriginalScope?: () => boolean) => editing && editorObserved ? (
+        <GroupEditor presentation={presentation} destinationContent={destinationContent} calculationCapabilities={editorObserved.calculation_capabilities} deviceSource={deviceSource} sourceDevices={(editorState ?? state).devices.filter(device => device.persisted)}
+          copyPrefill={selection.kind === 'new' ? selection.copyPrefill : undefined}
+          key={`${editorObserved.workspace_id}:${selection.kind === 'edit' ? selection.id : 'new'}`}
+          group={selected} workspaceId={editorObserved.workspace_id} workspaceRevision={editorObserved.workspace_revision}
+          locatorGuard={Boolean(locatorEntry || locatorSuspended)}
+          saveReadbackPending={Boolean(opening && (editorEntry || savedLocationReadback.current)) || Boolean(isOriginalScope && !isOriginalScope())}
+          locatorScope={editorEntry ? { workspaceId: editorEntry.workspace.id, workspaceRevision: editorEntry.entry.workspace_revision } : undefined}
+          connector={connector} candidates={candidates} excluded={excluded} readonly={copyIdentityDenied || lifecycleReadonly || readonly || Boolean(locatorSuspended) || startActive || Boolean(opening && savedLocationReadback.current) || presentation === 'simple' && !locatorEntry &&
+            (groupsQuery.isError || !observed || Boolean(invalidSimpleScope))} editorReadonly={selected?.status === 'deleted'}
+          onClose={() => { openingRequest.current?.abort(); openingRequest.current = undefined; setOpening(false); savedLocationReadback.current = undefined; savedLocationAfterClose.current = undefined; returnAfterClose.current = true; setSelection({ kind: 'none' }); setEditorEntry(undefined); }}
+          onCopy={presentation === 'simple' && initialSelection !== 'copy' && onCopyLocation && selected && recordingCopyPrefill(selected, editorObserved.calculation_capabilities, connector.kind) ? () => {
+            if (startLease.current !== renderStartLease || readonly || locatorSuspended || openingRequest.current || copyAfterClose.current) return;
+            copyAfterClose.current = { group: selected, entry: editorEntry, lease: renderStartLease };
+            setSelection({ kind: 'none' }); setEditorEntry(undefined);
+          } : undefined}
+          onSaved={(group, savedRevision, ownSaveAcknowledgement) => {
+            setSelection({ kind: 'edit', id: group.id, saved: group });
+            if (editorEntry && initialSelection !== 'copy') { void reloadEditor(ownSaveAcknowledgement); return; }
+            if (presentation !== 'simple' || initialSelection !== 'new' && initialSelection !== 'copy' || initialSelection !== 'copy' && locatorEntry || !onSavedLocation || startLease.current !== renderStartLease) return;
+            openingRequest.current?.abort(); openingRequest.current = undefined; savedLocationReadback.current = undefined;
+            if (deniedCopyIdentity(group)) { setOpenError('stale-reference'); return; }
+            if (!ownSaveAcknowledgement || group.workspace_id !== workspaceId || ownSaveAcknowledgement.workspace_revision !== savedRevision ||
+                ownSaveAcknowledgement.group.id !== group.id || ownSaveAcknowledgement.group.workspace_id !== workspaceId || ownSaveAcknowledgement.group.revision !== group.revision) return;
+            const readback = { acknowledgement: ownSaveAcknowledgement, lease: renderStartLease };
+            savedLocationReadback.current = readback; void readSavedLocation(readback);
+          }}
+          onReload={() => { if (savedLocationReadback.current) void readSavedLocation(savedLocationReadback.current); else if (editorEntry && initialSelection !== 'copy') void reloadEditor(); else if (initialSelection !== 'copy') void groupsQuery.refetch(); }}
+          fetchLatest={async () => {
+            // Ref fence also covers a cached Save callback before React renders
+            // the pending flag. It never grants scope or changes picker state.
+            if (openingRequest.current || copyIdentityDenied || isOriginalScope && !isOriginalScope()) throw new Error('Recording scope is unavailable.');
+            if (initialSelection === 'copy' && editorEntry?.selection.state === 'selected') {
+              const id = selected?.id ?? editorEntry.selection.target.groupId;
+              if (!id) throw new Error('Recording scope is unavailable.');
+              const latest = await studioV2WorkspaceWriteGroupsAPI.get(id);
+              if (latest.group.id !== id || latest.group.workspace_id !== workspaceId || latest.group.status === 'deleted' ||
+                  !selected && latest.group.revision !== editorEntry.selection.target.groupRevision) throw new Error('Recording scope is unavailable.');
+              return { workspace_revision: latest.workspace_revision, groups: [latest.group] };
+            }
+            const latest = await groupsQuery.refetch();
+            if (latest.isError || !latest.data || latest.data.workspace_id !== editorObserved.workspace_id ||
+              selected && !latest.data.groups.some(group => group.id === selected.id && group.status !== 'deleted'))
+              throw new Error('Recording scope is unavailable.');
+            return latest.data;
+          }}
+          configuredDestinations={{ data: editorObserved, loading: groupsQuery.isFetching || opening, failed: groupsQuery.isError || Boolean(invalidSimpleScope),
+            retry: () => { if (editorEntry) void reloadEditor(); else if (savedLocationReadback.current) void readSavedLocation(savedLocationReadback.current); else void groupsQuery.refetch(); }, open: locatorEntry ? undefined : group => { void open(group); } }}
+          onReviewScopedStart={initialSelection === 'copy' ? undefined : locatorOnly ? group => {
+            if (!editorEntry || locatorSuspended || readonly || openingRequest.current || startActive || openedLocator.current !== locatorEntry || isOriginalScope && !isOriginalScope()) return;
+            const context = locatorSavedRecordingStartScope(editorEntry, workspaceId ?? '');
+            if (context?.group.id !== group.id || context.group.revision !== group.revision) return;
+            setStartReview({ entry: editorEntry, lease: startLease.current });
+          } : onReviewScopedStart} lifecycleHost={editorLifecycleHost}
+        />
+  ) : null;
+
+  const draftBlocked = initialSelection !== 'copy' && located && selection.kind !== 'none' && (selection.kind !== 'edit' || selection.id !== located.groupId);
+  const collapseDiagnostics = presentation === 'simple' && !readonly && !locatorSuspended && !opening && !openError && !draftBlocked && !invalidSimpleScope && !groupsQuery.isError &&
+    selected && editorEntry?.selection.state === 'selected' && selected.id === located?.groupId && selected.workspace_id === workspaceId &&
+    editorEntry.selection.target.groupId === selected.id && editorEntry.entry.group_heads[selected.id] === selected.revision;
+  const locatorDiagnostics = <>
+    {locatorOnly && <p role="status">{runtime('locatorEntry.unrequested')}</p>}
+    {draftBlocked && <p role="alert">{runtime('locatorEntry.draftBlocked')}</p>}
+    {locatorEntry?.selection.state === 'selected' && locatorEntry.selection.history && <p>{runtime('locatorEntry.historicalHint', { revision: locatorEntry.selection.history.revisionHint })}</p>}
+    {located?.groupId && located.groupRevision && located.workspaceId === workspaceId &&
+      <p>{runtime('locatorEntry.currentRevision')}: <span>{displayRead?.entry.group_heads[located.groupId] ?? located.groupRevision}</span></p>}
+  </>;
+
   return (
-    <section ref={region} className="space-y-4 rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-5" aria-labelledby="group-section-title" data-testid="group-section">
-      <div>
+    <section ref={region} className="space-y-4 rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-5" aria-labelledby={presentation === 'simple' ? undefined : 'group-section-title'} data-testid="group-section">
+      {presentation !== 'simple' && <div>
         <h3 id="group-section-title" className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.section.title')}</h3>
         <p className="mt-1 text-xs text-[var(--gw-muted)]">{t('step4.group.section.subtitle')}</p>
-      </div>
+      </div>}
 
-      {editing && groupsQuery.isError && !locatorOnly && <p role="alert">{t('step4.group.section.load_failed')}</p>}
+      {editing && (groupsQuery.isError || invalidSimpleScope) && !locatorOnly && <p role="alert">{t('step4.group.section.load_failed')}</p>}
       {opening && <p role="status">{runtime('locatorEntry.loading')}</p>}
-      {openError && <p role="alert" data-testid="studio-locator-open-error">{runtime(`locatorEntry.${openError === 'stale-reference' ? 'stale' : openError === 'foreign-scope' ? 'foreign' : 'unavailable'}`)}</p>}
-      {locatorOnly && <p role="status">{runtime('locatorEntry.unrequested')}</p>}
-      {located && selection.kind !== 'none' && (selection.kind !== 'edit' || selection.id !== located.groupId) && <p role="alert">{runtime('locatorEntry.draftBlocked')}</p>}
-      {locatorEntry?.selection.state === 'selected' && locatorEntry.selection.history && <p>{runtime('locatorEntry.historicalHint', { revision: locatorEntry.selection.history.revisionHint })}</p>}
-      {located?.groupId && located.groupRevision && located.workspaceId === workspaceId &&
-        <p>{runtime('locatorEntry.currentRevision')}: <span>{displayRead?.entry.group_heads[located.groupId] ?? located.groupRevision}</span></p>}
-      {!locatorOnly && prerequisite && (
+      {openError && <><p role="alert" data-testid="studio-locator-open-error">{openError === 'copy-unsupported' ? editorText('copy.unsupported') : runtime(`locatorEntry.${openError === 'stale-reference' ? 'stale' : openError === 'foreign-scope' ? 'foreign' : 'unavailable'}`)}</p>
+        {savedLocationReadback.current && <button type="button" disabled={opening || readonly} data-testid="saved-location-retry"
+          onClick={() => { if (savedLocationReadback.current) void readSavedLocation(savedLocationReadback.current); }}>{t('step4.group.retry')}</button>}</>}
+      {collapseDiagnostics ? <details data-testid="locator-version-details" className="text-xs text-[var(--gw-muted)]">
+        <summary className="cursor-pointer">{editorText('versions.details')}</summary>{locatorDiagnostics}
+      </details> : locatorDiagnostics}
+      {presentation !== 'simple' && !locatorOnly && prerequisite && (
         <div className="space-y-1 text-xs text-[var(--gw-warning-fg)]" role="status" data-testid={`group-prerequisite-${prerequisite}`}>
           <p>{t(`step4.group.prerequisite.${prerequisite}`)}</p>
           {prerequisite === 'device' && onNavigateStep && (
@@ -251,37 +435,11 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
         </>
       )}
 
-      {editing && editorObserved && (
-        <GroupEditor calculationCapabilities={editorObserved.calculation_capabilities} deviceSource={deviceSource} sourceDevices={(editorState ?? state).devices.filter(device => device.persisted)}
-          key={`${editorObserved.workspace_id}:${selection.kind === 'edit' ? selection.id : 'new'}`}
-          group={selected} workspaceId={editorObserved.workspace_id} workspaceRevision={editorObserved.workspace_revision}
-          locatorGuard={Boolean(locatorEntry || locatorSuspended)}
-          saveReadbackPending={Boolean(editorEntry && opening)}
-          locatorScope={editorEntry ? { workspaceId: editorEntry.workspace.id, workspaceRevision: editorEntry.entry.workspace_revision } : undefined}
-          connector={connector} candidates={candidates} excluded={excluded} readonly={readonly || Boolean(locatorSuspended) || startActive} editorReadonly={selected?.status === 'deleted'}
-          onClose={() => { openingRequest.current?.abort(); openingRequest.current = undefined; setOpening(false); setSelection({ kind: 'none' }); setEditorEntry(undefined); }}
-          onSaved={(group, _workspaceRevision, ownSaveAcknowledgement) => { setSelection({ kind: 'edit', id: group.id, saved: group }); if (editorEntry) void reloadEditor(ownSaveAcknowledgement); }}
-          onReload={() => { if (editorEntry) void reloadEditor(); else void groupsQuery.refetch(); }}
-          fetchLatest={async () => {
-            // Ref fence also covers a cached Save callback before React renders
-            // the pending flag. It never grants scope or changes picker state.
-            if (openingRequest.current) throw new Error('Recording scope is unavailable.');
-            const latest = await groupsQuery.refetch();
-            if (latest.isError || !latest.data || latest.data.workspace_id !== editorObserved.workspace_id ||
-              selected && !latest.data.groups.some(group => group.id === selected.id && group.status !== 'deleted'))
-              throw new Error('Recording scope is unavailable.');
-            return latest.data;
-          }}
-          configuredDestinations={{ data: editorObserved, loading: groupsQuery.isFetching || opening, failed: groupsQuery.isError,
-            retry: () => { if (editorEntry) void reloadEditor(); else void groupsQuery.refetch(); }, open: locatorEntry ? undefined : group => { void open(group); } }}
-          onReviewScopedStart={locatorOnly ? group => {
-            if (!editorEntry || locatorSuspended || readonly || openingRequest.current || startActive || openedLocator.current !== locatorEntry) return;
-            const context = locatorSavedRecordingStartScope(editorEntry, workspaceId ?? '');
-            if (context?.group.id !== group.id || context.group.revision !== group.revision) return;
-            setStartReview({ entry: editorEntry, lease: startLease.current });
-          } : onReviewScopedStart} lifecycleHost={lifecycleHost}
-        />
-      )}
+      {locatorOnly && editorEntry && initialSelection !== 'copy' ? <LocatorRecordingLifecycleHost entry={editorEntry} scopeLease={renderStartLease}
+        readonly={readonly || Boolean(locatorSuspended) || startActive}
+        canUseScope={() => startLease.current === renderStartLease && openedLocator.current === locatorEntry && !locatorSuspended && !openingRequest.current && selection.kind === 'edit'}
+        onReload={() => { void reloadEditor(undefined, true); }}>{renderEditor}</LocatorRecordingLifecycleHost> : renderEditor()}
+
       {startReview && workspaceId && <LocatorSavedRecordingStartReview entry={editorEntry ?? startReview.entry} workspaceId={workspaceId}
         readonly={!canUseStartScope()} canUseScope={canUseStartScope} deviceSource={deviceSource}
         onClose={() => setStartReview(undefined)} onCompleted={() => { if (canUseStartScope()) void reloadEditor(); }} onOperationActiveChange={setStartActive} />}

@@ -1,0 +1,204 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { beforeEach, expect, it, vi } from 'vitest';
+import { GroupEditor, type GroupEditorProps } from '../../../src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor';
+import { buildGroupCandidates } from '../../../src/features/datalink/workbench-v2/state/writeGroup/candidates';
+import { savedGroup, savedGroupState, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
+import { studioV2WorkspaceWriteGroupsAPI } from '../../../src/services/studioV2WorkspaceWriteGroups';
+import type { WriteGroupCalculationCapabilities } from '../../../src/types/studioV2WriteGroupCalculation';
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('../../../src/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns', () => ({ useStep4TargetColumns: () => ({ columns: TABLE_COLUMNS, status: 'exists', refetch: vi.fn() }) }));
+vi.mock('../../../src/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: {
+  readiness: vi.fn().mockResolvedValue(null), delivery: vi.fn().mockResolvedValue(null), list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), apply: vi.fn(), disable: vi.fn(), remove: vi.fn(), testWritePreview: vi.fn(), testWrite: vi.fn(), testWriteOperation: vi.fn(),
+} }));
+vi.mock('../../../src/services/studioV2WorkspaceMeasurements', () => ({ studioV2WorkspaceMeasurementsAPI: { list: vi.fn().mockResolvedValue([]) } }));
+const capabilities: WriteGroupCalculationCapabilities = { version: 1, result_shape: 'member-calculation-v1', editor_supported: true, draft_supported: true, activation_supported: false, reason: 'record_readiness_required', methods: ['latest', 'mean', 'delta'], cadence: { alignment: 'utc_epoch', units: ['second', 'minute'], minimum: 1, max_seconds: 600, max_minutes: 10, window_bounds_checked: true }, schema_dialects: ['sqlite'], schema_layouts: ['managed_wide_profile_v1', 'managed_long_v1'], unsupported_combinations: [] };
+function mount(overrides: Partial<GroupEditorProps> = {}) {
+  const state = savedGroupState();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const props: GroupEditorProps = { presentation: 'simple', group: undefined, calculationCapabilities: capabilities, workspaceId: 'ws-1', workspaceRevision: 'db-setup-9', connector: state.db.connector, candidates: buildGroupCandidates(state).candidates, excluded: [], readonly: false, onSaved: vi.fn(), onClose: vi.fn(), onReload: vi.fn(), fetchLatest: vi.fn().mockResolvedValue({ workspace_revision: 'db-fresh-10', groups: [] }), ...overrides };
+  const view = (value: GroupEditorProps) => <QueryClientProvider client={client}><GroupEditor {...value} /></QueryClientProvider>;
+  const result = render(view(props));
+  return { ...result, props, update: (patch: Partial<GroupEditorProps>) => { Object.assign(props, patch); result.rerender(view(props)); } };
+}
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(studioV2WorkspaceWriteGroupsAPI.create).mockImplementation(async request => {
+    const canonical = savedGroup();
+    const members = request.group.members.map(member => {
+      const source = canonical.members.find(value => value.device_id === member.device_id && value.point_id === member.point_id && value.tag_id === member.tag_id);
+      if (!source) throw new Error('Fixture source identity is unavailable');
+      return { ...member, source_revision: source.source_revision, mapping_revision: source.mapping_revision };
+    });
+    return { workspace_revision: 'created-1', group: savedGroup({ ...request.group, members,
+      destination: { ...canonical.destination, ...request.group.destination }, id: 'new-group', revision: 'new-1' }) };
+  });
+});
+it('starts an explicit simple recording in per-point mode and saves through the original single owner', async () => {
+  mount();
+  expect(screen.queryByRole('button', { name: 'calculation.chooseMixed' })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Simple intent' } });
+  fireEvent.click(screen.getByTestId('group-member-include-pt-0'));
+  const row = await screen.findByTestId('member-calculation-pt-0');
+  expect(within(row).getByLabelText('calculation.interval')).toHaveValue('15');
+  fireEvent.change(within(row).getByLabelText('calculation.interval'), { target: { value: '15' } });
+  fireEvent.click(screen.getByTestId('group-save'));
+  await waitFor(() => expect(studioV2WorkspaceWriteGroupsAPI.create).toHaveBeenCalledOnce());
+  const wire = vi.mocked(studioV2WorkspaceWriteGroupsAPI.create).mock.calls[0][0];
+  expect(wire.expected_workspace_revision).toBe('db-fresh-10');
+  expect(wire.group).toMatchObject({ name: 'Simple intent', recording_profile: { kind: 'mixed', result_shape: 'member-calculation-v1' }, members: [{ calculation: 'latest', cadence: { interval: 15, unit: 'second' } }] });
+  expect(wire.group.row_policy).not.toHaveProperty('interval_seconds');
+  expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
+});
+it('keeps local name and source intent while destination and calculation permission are unavailable', async () => {
+  const state = savedGroupState();
+  const view = mount({ calculationCapabilities: undefined, connector: { ...state.db.connector, persisted: false, save_state: 'idle', connector_id: undefined, identity_revision: undefined } });
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Keep my draft' } });
+  fireEvent.click(screen.getByTestId('group-member-include-pt-0'));
+  expect(screen.getByTestId('group-save')).toBeDisabled();
+  expect(screen.getByTestId('group-name')).toHaveValue('Keep my draft');
+  view.update({ calculationCapabilities: capabilities, connector: state.db.connector });
+  expect(screen.getByTestId('group-name')).toHaveValue('Keep my draft');
+  const row = await screen.findByTestId('member-calculation-pt-0');
+  expect(within(row).getByLabelText('calculation.interval')).toHaveValue('15');
+  fireEvent.change(within(row).getByLabelText('calculation.interval'), { target: { value: '1e' } });
+  view.update({ calculationCapabilities: undefined });
+  view.update({ calculationCapabilities: capabilities });
+  expect(within(row).getByLabelText('calculation.interval')).toHaveValue('1e');
+  expect(screen.getByTestId('group-save')).toBeDisabled();
+  expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
+});
+it('orders visible source and per-point controls before the destination without hiding common policy or safety notes', async () => {
+  mount({ destinationContent: <button type="button">Existing database owner</button> });
+  fireEvent.click(screen.getByTestId('group-member-include-pt-0'));
+  const sources = screen.getByTestId('recording-editor-sources');
+  const destination = screen.getByTestId('recording-editor-destination');
+  expect(sources.compareDocumentPosition(destination) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(within(sources).getByTestId('member-calculation-pt-0')).toBeVisible();
+  expect(within(destination).getByRole('button', { name: 'Existing database owner' })).toBeVisible();
+  expect(within(destination).getByLabelText('calculation.layoutLabel')).toBeVisible();
+  expect(screen.getByTestId('group-lateness')).toBeVisible();
+  expect(screen.getByText('calculation.firstBaseline')).not.toBeVisible();
+  expect(screen.getByText('simple.requiredRisk')).toBeVisible();
+  expect(screen.getByTestId('recording-editor-method-note')).toHaveTextContent('calculation.dueUnion');
+  expect(screen.getByTestId('member-calculation-pt-0').closest('td')).toHaveAttribute('data-testid', 'group-member-calculation-pt-0');
+});
+it('preserves saved legacy policy instead of silently converting it into per-point mode', () => {
+  mount({ group: savedGroup({ layout_version: 'managed_wide_profile_v1', recording_profile: { kind: 'instantaneous', interval: 15, unit: 'second', sample_reduction: 'mean' } }) });
+  expect(screen.queryByTestId('member-calculation-pt-0')).not.toBeInTheDocument();
+  expect(screen.getByTestId('group-profile-interval')).toHaveTextContent('15');
+  expect(screen.getByText('calculation.legacyUnchanged')).toBeVisible();
+  expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
+});
+it('keeps the original guided explicit mode choice when no simple presentation is requested', () => {
+  mount({ presentation: undefined });
+  expect(screen.getByRole('button', { name: 'calculation.chooseMixed' })).toBeVisible();
+  expect(screen.queryByTestId('recording-editor-sources')).not.toBeInTheDocument();
+  expect(screen.getByTestId('group-editor-close')).toBeVisible();
+});
+it('does not give a readonly simple presentation permission to change or save', () => {
+  mount({ readonly: true });
+  expect(screen.getByTestId('group-name')).toBeDisabled();
+  expect(screen.getByTestId('group-member-include-pt-0')).toBeDisabled();
+  expect(screen.getByTestId('group-save')).toBeDisabled();
+  fireEvent.click(screen.getByTestId('group-save'));
+  expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
+});
+
+it('explains server-assigned columns for only a new managed draft without asking for manual mapping or claiming SQL creation', async () => {
+  mount();
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Server-owned columns' } });
+  fireEvent.click(screen.getByTestId('group-member-include-pt-0'));
+  expect(screen.queryByTestId('group-member-column-pt-0')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('group-column-proposal')).not.toBeInTheDocument();
+  expect(screen.getByText('simple.columnsAssignedOnSave')).toBeVisible();
+  fireEvent.click(screen.getByTestId('group-save'));
+  await waitFor(() => expect(studioV2WorkspaceWriteGroupsAPI.create).toHaveBeenCalledOnce());
+  const wire = vi.mocked(studioV2WorkspaceWriteGroupsAPI.create).mock.calls[0][0].group;
+  expect(wire.members[0].target_column).toBe('');
+  expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
+});
+it.each(['custom', 'managed'] as const)('does not replace saved %s column repair with the server-assigned columns presentation', storage => {
+  const group = savedGroup();
+  mount({ group: { ...group, destination: { ...group.destination, storage_strategy: storage }, members: group.members.map(member => ({ ...member, target_column: '' })) } });
+  expect(screen.getByTestId('group-member-column-pt-0')).toBeVisible();
+  expect(screen.getByTestId('group-column-proposal')).toBeVisible();
+  expect(screen.queryByText('simple.columnsAssignedOnSave')).not.toBeInTheDocument();
+});
+
+
+it('keeps the empty simple picker focused and derives a read-only summary without extra save owners', () => {
+  const source: NonNullable<GroupEditorProps['deviceSource']> = { observations: () => [], inspect: vi.fn().mockResolvedValue(undefined),
+    submit: vi.fn(async request => ({ request, status: 'blocked' as const })) };
+  mount({ candidates: [], deviceSource: source });
+  expect(screen.getAllByTestId('recording-points-open')).toHaveLength(1);
+  expect(screen.queryByTestId('group-member-search')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('group-member-problems-only')).not.toBeInTheDocument();
+  expect(within(screen.getByTestId('recording-selected-members')).queryByRole('table')).not.toBeInTheDocument();
+  expect(screen.getByTestId('group-member-empty')).toHaveTextContent('simple.noSelectedPoints');
+  expect(screen.getByTestId('recording-summary-name')).toHaveTextContent('simple.unset');
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'My unsaved name' } });
+  expect(screen.getByTestId('recording-summary-name')).toHaveTextContent('My unsaved name');
+  expect(screen.getByText('simple.summary.localIntent')).toBeVisible();
+  expect(screen.getAllByTestId('recording-preparation-actions')).toHaveLength(1);
+  expect(screen.getAllByTestId('group-save')).toHaveLength(1);
+  expect(screen.getByTestId('group-editor')).toHaveClass('recording-editor-simple');
+  expect(screen.queryByTestId('group-editor-close')).not.toBeInTheDocument();
+  expect(screen.getByText('calculation.bounds')).not.toBeVisible();
+  expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
+  expect(source.submit).not.toHaveBeenCalled();
+});
+it('locates three sections in the same page without changing history or requiring wizard steps', () => {
+  mount();
+  const method = screen.getByTestId('recording-editor-method-note');
+  const scroll = vi.fn(); Object.defineProperty(method, 'scrollIntoView', { value: scroll, configurable: true });
+  const push = vi.spyOn(window.history, 'pushState');
+  fireEvent.click(screen.getByRole('button', { name: '2 simple.section.method' }));
+  expect(scroll).toHaveBeenCalledOnce(); expect(method).toHaveFocus(); expect(push).not.toHaveBeenCalled();
+  expect(screen.getByTestId('recording-editor-sources')).toBeVisible();
+  expect(screen.getByTestId('recording-editor-destination')).toBeVisible();
+  push.mockRestore();
+});
+it('keeps relevant counter risks and capability denial visible rather than folding them into help', () => {
+  const base = savedGroup();
+  const view = mount({ group: { ...base, record_id: '11111111-1111-4111-8111-111111111111', layout_version: 'managed_wide_profile_v1',
+    recording_profile: { kind: 'mixed', result_shape: 'member-calculation-v1' }, destination: { ...base.destination, storage_strategy: 'managed' },
+    row_policy: { allowed_lateness_seconds: 0, incomplete_policy: 'partial' }, members: [{ ...base.members[0], calculation: 'delta',
+      cadence: { interval: 60, unit: 'second', alignment: 'utc_epoch' }, source_value_type: 'uint64', value_role: 'counter_raw', measurement_id: 'counter-1' }] } });
+  expect(screen.getByText('calculation.firstBaseline')).toBeVisible();
+  expect(screen.getByText('simple.requiredRisk')).toBeVisible();
+  expect(screen.getByTestId('recording-editor-method-note')).toHaveTextContent('calculation.dueUnion');
+  expect(screen.getByTestId('recording-editor-summary')).toHaveTextContent('60');
+  view.update({ calculationCapabilities: undefined });
+  expect(screen.getByText('calculation.capability')).toBeVisible();
+  expect(screen.getByText('calculation.firstBaseline')).toBeVisible();
+  expect(screen.getByTestId('group-save')).toBeDisabled();
+});
+it('keeps only the outer Back for unsupported simple records while guided retains its original Back', () => {
+  const view = mount({ calculationCapabilities: undefined, group: savedGroup({ recording_profile: { kind: 'mixed', result_shape: 'member-calculation-v1' } }) });
+  expect(screen.getByTestId('mixed-group-editor-readonly')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'step4.group.editor.back' })).not.toBeInTheDocument();
+  view.update({ presentation: 'guided' });
+  expect(screen.getByRole('button', { name: 'step4.group.editor.back' })).toBeVisible();
+});
+
+it('collapses simple version identifiers while keeping actual status and destination denial visible', () => {
+  const state = savedGroupState();
+  mount({ group: savedGroup(), connector: { ...state.db.connector, identity_revision: 'different-connector-revision' } });
+  const versions = screen.getByTestId('group-revision-details');
+  const values = screen.getByTestId('group-revisions');
+  expect(versions).not.toHaveAttribute('open');
+  expect(values).toBeInTheDocument(); expect(values).not.toBeVisible();
+  const summary = within(versions).getByText('versions.details').closest('summary');
+  expect(summary).toBeVisible(); expect(summary).toHaveTextContent('ready');
+  expect(screen.getByTestId('group-destination-mismatch')).toBeVisible();
+  fireEvent.click(within(versions).getByText('versions.details'));
+  expect(values).toBeVisible(); expect(values).toHaveTextContent('rev-1');
+  expect(values).toHaveTextContent('crev-1');
+});
+it('keeps saved guided version identifiers visible without a disclosure wrapper', () => {
+  mount({ presentation: 'guided', group: savedGroup() });
+  expect(screen.queryByTestId('group-revision-details')).not.toBeInTheDocument();
+  expect(screen.getByTestId('group-revisions')).toBeVisible();
+  expect(screen.getByTestId('group-revisions')).toHaveTextContent('rev-1');
+});

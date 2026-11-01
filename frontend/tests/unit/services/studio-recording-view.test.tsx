@@ -43,7 +43,12 @@ describe('Studio presentation routing does not weaken viewing identity', () => {
     expect(received.props.runtimeReturnFocus).toEqual({ step: 3, issueCode: 'mapping-required' });
     expect(received.props.presentation).toBe('advanced');
   });
-  it.each(['', '?view=advanced', '?view=unknown'])('default and unsupported non-locator view retain advanced entry: %s', async search => {
+  it('opens the empty-query default as home without rewriting the hash or redirect search', async () => {
+    expect(await open('/studio/v2#saved%20position')).toHaveTextContent('/studio/v2#saved%20position');
+    expect(received.props.presentation).toBe('recordings');expect(received.props.locatorIntent).toEqual({ kind: 'absent' });
+    expect(received.props.presentationLocation).toEqual({ search: '', hash: '#saved%20position' });
+  });
+  it.each(['?view=advanced', '?view=unknown', '?search=kept'])('explicit and unsupported non-locator view retain advanced entry: %s', async search => {
     await open(`/studio/v2${search}`); expect(received.props.presentation).toBe('advanced');
     expect(received.props.locatorIntent).toEqual({ kind: 'absent' });
   });

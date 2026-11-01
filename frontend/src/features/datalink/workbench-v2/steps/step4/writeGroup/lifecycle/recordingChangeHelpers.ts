@@ -61,10 +61,18 @@ export function sameBoundary(left: string, right: string): boolean {
 /** Match the existing profile authoring/backend contract without rebuilding any source semantics. */
 export function changeTargetLayout(target: WriteGroup, layout: WriteGroup['layout_version']): WriteGroup {
   if ((target.storage_mode && target.storage_mode !== 'plain') || !target.recording_profile || (layout !== 'managed_long_v1' && layout !== 'managed_wide_profile_v1')) return target;
+  const mixed = target.recording_profile.kind === 'mixed';
+  // A layout choice must not silently change missing-value or exact-counter meaning.
+  if (mixed && (target.destination.storage_strategy !== 'managed' || (layout === 'managed_wide_profile_v1' &&
+    (target.row_policy.incomplete_policy !== 'partial' || target.members.some(member => member.exact_recording_source !== undefined))))) return target;
   const next = structuredClone(target);
   next.layout_version = layout; next.destination.table_name = '';
   if (layout === 'managed_long_v1') next.storage_mode = 'plain';
   else { delete next.storage_mode; delete next.write_policy.recreate_missing; }
+  if (mixed) {
+    if (layout === 'managed_long_v1') { next.row_policy.bucket_start_column = 'bucket_start'; delete next.row_policy.due_at_column; }
+    else { next.row_policy.due_at_column = 'due_at'; delete next.row_policy.bucket_start_column; }
+  }
   return next;
 }
 

@@ -74,14 +74,16 @@ export function safeBasicOperationMessage(
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string | undefined {
   if (!operation?.reason) return undefined;
-  return t(BASIC_REASON_KEYS[operation.reason] ?? 'step4.basic.reason.unconfirmed');
+  return t(Object.prototype.hasOwnProperty.call(BASIC_REASON_KEYS, operation.reason)
+    ? BASIC_REASON_KEYS[operation.reason] : 'step4.basic.reason.unconfirmed');
 }
 
 export function safeBasicNextAction(
   operation: RecordingStartOperation | undefined,
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string | undefined {
-  const key = operation?.next_action ? BASIC_ACTION_KEYS[operation.next_action] : undefined;
+  const key = operation?.next_action && Object.prototype.hasOwnProperty.call(BASIC_ACTION_KEYS, operation.next_action)
+    ? BASIC_ACTION_KEYS[operation.next_action] : undefined;
   return key ? t(key) : undefined;
 }
 

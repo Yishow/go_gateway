@@ -3,13 +3,14 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { describe, expect, it, vi } from 'vitest';
 import { RecordingChangeController } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/RecordingChangeController';
 import { RecordingChangeDialog } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/RecordingChangeDialog';
+import type { RecordingDestinationChoice } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/recordingChangeTypes';
 import { fixture } from '../../fixtures/recordingChange';
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-function setup() {
+function setup(destinations: RecordingDestinationChoice[] = [{ id: 'C', revision: 'C1', name: 'Safe destination' }]) {
   const f = fixture(); const controller = new RecordingChangeController(f.workspace, f.deps);
   function Host() {
     const state = React.useSyncExternalStore(controller.subscribe, controller.snapshot);
-    return <><button onClick={() => controller.requestAction(f.intent)}>Open change</button><RecordingChangeDialog controller={{ ...state, state, controller, requestAction: controller.requestAction, dismiss: controller.dismiss, unresolved: controller.unresolved }} destinations={[{ id: 'C', revision: 'C1', name: 'Safe destination' }]} /></>;
+    return <><button onClick={() => controller.requestAction(f.intent)}>Open change</button><RecordingChangeDialog controller={{ ...state, state, controller, requestAction: controller.requestAction, dismiss: controller.dismiss, unresolved: controller.unresolved }} destinations={destinations} /></>;
   }
   const host = render(<Host />); return { ...host, f, controller };
 }
@@ -40,6 +41,36 @@ describe('Radix saved recording change dialog', () => {
     await act(async () => { await controller.requestAction(f.intent); await controller.review(); });
     expect(screen.getByTestId('lifecycle-pending-samples')).toHaveTextContent('3'); expect(screen.getByTestId('lifecycle-pending-outbox')).toHaveTextContent('7'); expect(screen.getByTestId('lifecycle-pending-unknown')).toHaveTextContent('1');
   });
+});
+
+it('clears only the derived long table when selecting a new connector before original review', async () => {
+  const { f } = setup([{ id: 'C2', revision: 'C2R', name: 'Fresh destination' }]);
+  Object.assign(f.seed, { layout_version: 'managed_long_v1', storage_mode: 'plain', record_id: '11111111-1111-4111-8111-111111111111',
+    recording_profile: { kind: 'mixed', result_shape: 'member-calculation-v1' },
+    row_policy: { allowed_lateness_seconds: 2, incomplete_policy: 'partial', record_key_column: 'record_id', provenance_column: 'provenance', bucket_start_column: 'bucket_start' },
+  });
+  f.seed.destination.table_name = 'gw_long_original_scope';
+  Object.assign(f.seed.members[0], { calculation: 'delta', cadence: { interval: 10, unit: 'second', alignment: 'utc_epoch' },
+    source_value_type: 'uint64', result_value_type: 'decimal', value_role: 'counter_raw', measurement_id: 'MEASUREMENT',
+    exact_recording_source: { measurement_id: 'MEASUREMENT', definition_revision: 'DEF', source_binding_revision: 'BINDING', series_epoch: 'EPOCH', original_data_type: 'uint64', scale: '0.1', unit: 'kWh', semantic_kind: 'counter' },
+  });
+  const before = structuredClone(f.seed);
+  fireEvent.click(screen.getByText('Open change'));
+  fireEvent.change(await screen.findByLabelText('dialog.destination'), { target: { value: 'C2' } });
+  fireEvent.click(screen.getByTestId('recording-change-review'));await waitFor(() => expect(f.api.review).toHaveBeenCalledOnce());
+  const sent = f.api.review.mock.calls[0][1].group;
+  expect(sent.destination).toEqual({ ...before.destination, connector_id: 'C2', connector_revision: 'C2R', database: '', table_name: '' });
+  expect(sent.record_id).toBe(before.record_id);expect(sent.layout_version).toBe(before.layout_version);expect(sent.storage_mode).toBe('plain');
+  expect(sent.members).toEqual(before.members);expect(sent.recording_profile).toEqual(before.recording_profile);expect(sent.row_policy).toEqual(before.row_policy);
+  expect(f.seed).toEqual(before);expect(f.api.reserve).not.toHaveBeenCalled();expect(f.api.schemaConfirm).not.toHaveBeenCalled();
+});
+it('does not clear an explicit wide table when selecting a new connector', async () => {
+  const { f } = setup([{ id: 'C2', revision: 'C2R', name: 'Fresh destination' }]);
+  f.seed.layout_version = 'managed_wide_profile_v1';f.seed.recording_profile = { kind: 'instantaneous', interval: 15, unit: 'second' };f.seed.destination.table_name = 'explicit_wide_table';
+  fireEvent.click(screen.getByText('Open change'));fireEvent.change(await screen.findByLabelText('dialog.destination'), { target: { value: 'C2' } });
+  fireEvent.click(screen.getByTestId('recording-change-review'));await waitFor(() => expect(f.api.review).toHaveBeenCalledOnce());
+  expect(f.api.review.mock.calls[0][1].group.destination).toMatchObject({ connector_id: 'C2', connector_revision: 'C2R', database: '', table_name: 'explicit_wide_table' });
+  expect(f.api.reserve).not.toHaveBeenCalled();expect(f.api.schemaConfirm).not.toHaveBeenCalled();
 });
 
 it('collapsed optional prior-preview help never hides required risk, schema impact or the current unknown result', async () => {

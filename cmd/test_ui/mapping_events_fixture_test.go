@@ -80,6 +80,9 @@ func newMappingEventFixture(t *testing.T, count int, fileLog ...bool) mappingEve
 		record, err := services.workspace.AttachDevice(t.Context(), id)
 		require.NoError(t, err)
 		f.record = record
+		active, err := services.device.GetByID(t.Context(), id)
+		require.NoError(t, err)
+		require.NoError(t, services.runtime.UpsertDevice(t.Context(), active))
 		targetType := schema.DataTypeInt16
 		rule, err := services.sourceRule.Create(t.Context(), sourcerule.CreateRuleRequest{ID: fmt.Sprintf("mapping-rule-%d", i), DeviceID: id, StartAddress: "40001", Count: 1, DataType: schema.DataTypeUint16, TargetDataType: &targetType, NamingPrefix: fmt.Sprintf("Mapping%d", i), Enabled: true})
 		require.NoError(t, err)

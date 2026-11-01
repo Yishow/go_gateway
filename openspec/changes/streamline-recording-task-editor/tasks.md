@@ -27,7 +27,7 @@
 ## 4. 驗證與交接
 
 - [x] 4.1 [after: 1.4, 3.3] 在完整1.4 canonical preview與3.3都完成後，跑本批editor/device/rule/mapping/autosave/preparation/start相關測試、lint/typecheck、git diff --check與make check-lines；記錄實際結果，不把mock或jsdom當真實PLC/SQL或視覺驗收。 終驗明列run10 React #185的觀測與後續追蹤結果及任何未定位限制；不可只以HTTP／SQL成功代替最後導航與console驗收。
-- [ ] 4.2 [after: 4.1] 獨立review資料權威、草稿與confirmation失效、advanced交接，修復本批問題並重跑受影響測試；列出 lifecycle後續依賴，不重做已完成引擎。
+- [x] 4.2 [after: 4.1] 獨立review資料權威、草稿與confirmation失效、advanced交接，修復本批問題並重跑受影響測試；列出 lifecycle後續依賴，不重做已完成引擎。
 
 相關modal／導航任務依「已選 modal 與返回引導契約」回歸一般／手機／小確認分類、固定操作區、contexthelp風險可見性及同scope返回狀態，不新增未選功能。
 

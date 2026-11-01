@@ -44,7 +44,7 @@ type purePrepareStmt struct {
 	query string
 }
 
-func (s *purePrepareStmt) Close() error { return nil }
+func (s *purePrepareStmt) Close() error  { return nil }
 func (s *purePrepareStmt) NumInput() int { return -1 }
 
 func (s *purePrepareStmt) Exec(args []driver.Value) (driver.Result, error) {
@@ -120,5 +120,43 @@ func TestLostConnPurePrepareDriverFallbackAndReject(t *testing.T) {
 	err = db.QueryRowContext(t.Context(), "SELECT ALLOWED").Scan(&val)
 	if err != nil {
 		t.Fatalf("expected allowed query to succeed, got %v", err)
+	}
+}
+
+func TestLostConnQueryRejectIsScopedAndPreservesStatementReject(t *testing.T) {
+	faults := &Faults{}
+	db := OpenFaults(":memory:", faults)
+	t.Cleanup(func() { _ = db.Close() })
+	const query = "SELECT ? || ':' || ? || ':' || ?"
+	denied := errors.New("matching authority unavailable")
+	rejectQuery := func(sql string, args []driver.NamedValue) error {
+		if sql == query && len(args) == 3 && args[0].Value == "W" && args[1].Value == "blocked" && args[2].Value == "R" {
+			return denied
+		}
+		return nil
+	}
+	faults.RejectQuery.Store(&rejectQuery)
+	var value string
+	if err := db.QueryRowContext(t.Context(), query, "W", "blocked", "R").Scan(&value); !errors.Is(err, denied) {
+		t.Fatalf("matching immutable scope must be rejected, got %v", err)
+	}
+	for _, scope := range [][3]string{{"W", "healthy", "R"}, {"other-W", "blocked", "R"}, {"W", "blocked", "other-R"}} {
+		if err := db.QueryRowContext(t.Context(), query, scope[0], scope[1], scope[2]).Scan(&value); err != nil {
+			t.Fatalf("unrelated authority must pass through: %v", err)
+		}
+		if value != scope[0]+":"+scope[1]+":"+scope[2] {
+			t.Fatalf("query arguments changed: %q", value)
+		}
+	}
+	originalDenied := errors.New("original statement rejection")
+	reject := func(string) error { return originalDenied }
+	faults.Reject.Store(&reject)
+	if err := db.QueryRowContext(t.Context(), query, "W", "blocked", "R").Scan(&value); !errors.Is(err, originalDenied) {
+		t.Fatalf("original Reject must retain priority, got %v", err)
+	}
+	faults.Reject.Store(nil)
+	faults.RejectQuery.Store(nil)
+	if err := db.QueryRowContext(t.Context(), query, "W", "blocked", "R").Scan(&value); err != nil {
+		t.Fatalf("nil hooks must preserve ordinary QueryContext: %v", err)
 	}
 }

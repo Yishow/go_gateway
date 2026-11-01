@@ -102,7 +102,7 @@ func TestSourceRuleHTTP_MultipleRulesKeepServerOwnedRegisterGeometry(t *testing.
 	fixture := setupSourceRuleCandidatesFixture(t)
 
 	first := createAndApplyHTTPShareRule(t, fixture, "rule-http-share-first", "40001", 2, 40001, 2)
-	second := createAndApplyHTTPShareRule(t, fixture, "rule-http-share-second", "40001", 1, 40011, 3)
+	second := createAndApplyHTTPShareRule(t, fixture, "rule-http-share-second", "40011", 1, 40011, 3)
 
 	require.Equal(t, schema.SourceRuleCandidateStatusReady, first.Status)
 	require.Len(t, first.Candidates, 2)

@@ -19,14 +19,14 @@ export function recordingMixedEditorIssues(draft: EditorDraft, capabilities: Wri
   if (draft.members.some(cadenceInputInvalid)) issues.push('member-cadence-invalid');
   return [...new Set(issues)];
 }
-export interface RecordingMixedEditorProps { draft: EditorDraft; saved: boolean; disabled: boolean; capabilities?: WriteGroupCalculationCapabilities; dialect: string; onChange: (draft: EditorDraft) => void }
+export interface RecordingMixedEditorProps { section?: 'all' | 'method' | 'destination'; draft: EditorDraft; saved: boolean; disabled: boolean; capabilities?: WriteGroupCalculationCapabilities; dialect: string; onChange: (draft: EditorDraft) => void }
 /** Intent-only controls. The enclosing GroupEditor retains its single CAS/save/schema authority. */
-export function RecordingMixedEditor({ draft, saved, disabled, capabilities, dialect, onChange }: RecordingMixedEditorProps) {
+export function RecordingMixedEditor({ section = 'all', draft, saved, disabled, capabilities, dialect, onChange }: RecordingMixedEditorProps) {
   const { t } = useTranslation('recording-editor');
   const mixed = draft.recording_profile?.kind === 'mixed';
   const available = mixedEditorAvailable(capabilities, dialect);
-  return <section className="space-y-2 text-xs text-[var(--gw-muted)]" data-testid="recording-mixed-intent">
-    {!mixed && (saved ? <p>{t('calculation.legacyUnchanged')}</p> : <>
+  return <section className="space-y-2 text-xs text-[var(--gw-muted)]" data-testid={section === 'destination' ? 'recording-mixed-destination' : 'recording-mixed-intent'}>
+    {section !== 'destination' && !mixed && (saved ? <p>{t('calculation.legacyUnchanged')}</p> : <>
       <button type="button" className="inline-flex min-h-10 max-sm:min-h-11 items-center justify-center rounded-lg border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)] disabled:cursor-not-allowed disabled:opacity-50" disabled={disabled || !available || draft.members.length > 0} onClick={() => {
         if (disabled || !available || saved || draft.members.length) return;
         onChange({ ...newMixedDraft({ connector_id: draft.connector_id, connector_revision: draft.connector_revision, table_schema: draft.table_schema, table_name: '' }, crypto.randomUUID()), name: draft.name });
@@ -34,16 +34,18 @@ export function RecordingMixedEditor({ draft, saved, disabled, capabilities, dia
       <p>{t(!available ? 'calculation.capability' : draft.members.length ? 'calculation.chooseBeforePoints' : 'calculation.independent')}</p>
     </>)}
     {mixed && <>
-      <p>{t('calculation.independent')}</p>
-      <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block">{t('calculation.layoutLabel')}
+      {section === 'all' && <p>{t('calculation.independent')}</p>}
+      {section !== 'method' && <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block">{t('calculation.layoutLabel')}
         <select className="mt-1 block rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] p-1" value={draft.layout_version} disabled={disabled || saved} onChange={event => {
           const layout = event.target.value;
           if (!saved && !disabled && (layout === 'managed_long_v1' || layout === 'managed_wide_profile_v1') && capabilities?.schema_layouts.includes(layout)) onChange({ ...draft, layout_version: layout });
         }}>{(['managed_wide_profile_v1', 'managed_long_v1'] as const).map(layout => <option key={layout} value={layout} disabled={!capabilities?.schema_layouts.includes(layout)}>{t(`calculation.${layout}`)}</option>)}</select>
-      </label><ParameterHelp help="record.layout" /></div>
-      <p>{t('calculation.savedNotApplied')}</p>
+      </label><ParameterHelp help="record.layout" /></div>}
+      {section !== 'method' && <p>{t('calculation.savedNotApplied')}</p>}
     </>}
-    <RecordingIntentHelp />
+    {section !== 'destination' && <RecordingIntentHelp visibleSafety={section === 'method' && mixed} hasMembers={draft.members.length > 0} hasCounter={draft.members.some(member => member.calculation === 'delta')} hasRequired={draft.members.some(member => member.required)} />}
+    {section === 'method' && mixed && capabilities && <details data-testid="recording-calculation-limits"><summary>{t('simple.parameterLimits')}</summary><p>{t('calculation.bounds', { min: capabilities.cadence.minimum, seconds: capabilities.cadence.max_seconds, minutes: capabilities.cadence.max_minutes })}</p></details>}
+    {section === 'method' && mixed && !available && <p role="status">{t('calculation.capability')}</p>}
   </section>;
 }
 

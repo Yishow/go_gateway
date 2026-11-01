@@ -4,19 +4,19 @@ import type { WriteGroupMemberCalculation } from '../../../../types/studioV2Writ
 import type { StudioV2LocatorReadScope } from '../../../../services/studioV2WorkspaceDatabase';
 import { useStudioV2WorkspaceMeasurementsQuery } from '../../../../hooks/datalink/useStudioV2WorkspaceMeasurements';
 import { canConfirmMemberGauge, confirmMemberGauge, changeMemberCalculation, memberCalculationReason, type CalculationEditorMember, type MemberCalculationContext } from './recordingMemberCalculation';
-export interface RecordingMemberCalculationProps { member: CalculationEditorMember; context: MemberCalculationContext; disabled: boolean; onChange: (member: CalculationEditorMember) => void }
+export interface RecordingMemberCalculationProps { compact?: boolean; member: CalculationEditorMember; context: MemberCalculationContext; disabled: boolean; onChange: (member: CalculationEditorMember) => void }
 const FIELD = 'mt-1 block w-full rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1 text-sm text-[var(--gw-text)]';
 const methods: WriteGroupMemberCalculation[] = ['latest', 'mean', 'delta'];
-export function RecordingMemberCalculation({ member, context, disabled, onChange }: RecordingMemberCalculationProps) {
+export function RecordingMemberCalculation({ compact = false, member, context, disabled, onChange }: RecordingMemberCalculationProps) {
   const { t } = useTranslation('recording-editor');
   const cadence = member.cadence;
   const available = Boolean(context.capabilities?.editor_supported && context.capabilities.draft_supported);
   const blocked = disabled || !available;
   const reasons = methods.map(method => memberCalculationReason(member, method, context));
   const safeReason = (reason: string) => t(`calculation.${['capability', 'dialect', 'layout', 'gauge_required', 'counter_required'].includes(reason) ? reason : 'unavailable'}`);
-  return <fieldset className="mt-2 space-y-2" data-testid={`member-calculation-${member.point_id}`}>
-    <legend className="text-sm font-medium">{t('calculation.title')}</legend>
-    <div className="grid gap-2 sm:grid-cols-3">
+  return <fieldset className={compact ? 'min-w-64 space-y-2' : 'mt-2 space-y-2'} data-testid={`member-calculation-${member.point_id}`}>
+    <legend className={compact ? 'sr-only' : 'text-sm font-medium'}>{t('calculation.title')}</legend>
+    <div className={compact ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 [&>div:first-child]:col-span-2' : 'grid gap-2 sm:grid-cols-3'}>
       <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1">{t('calculation.title')}<select disabled={blocked} className={FIELD} value={member.calculation ?? ''} onChange={event => {
         const method = event.target.value as WriteGroupMemberCalculation;
         if (!blocked && methods.includes(method)) onChange(changeMemberCalculation(member, method, context));
@@ -34,8 +34,8 @@ export function RecordingMemberCalculation({ member, context, disabled, onChange
     </div>}
     {member.gauge_confirmation && !reasons[1] && <p className="text-sm text-[var(--gw-muted)]">{t('calculation.gaugeConfirmed')}</p>}
     {reasons.map((reason, index) => reason && <p key={methods[index]} className="text-sm text-[var(--gw-muted)]">{t(`calculation.${methods[index]}`)}: {safeReason(reason)}</p>)}
-    {context.capabilities && <p className="text-sm text-[var(--gw-muted)]">{t('calculation.bounds', { min: context.capabilities.cadence.minimum, seconds: context.capabilities.cadence.max_seconds, minutes: context.capabilities.cadence.max_minutes })}</p>}
-    <p className="text-sm text-[var(--gw-muted)]">{t('calculation.dueUnion')}</p>
+    {!compact && context.capabilities && <p className="text-sm text-[var(--gw-muted)]">{t('calculation.bounds', { min: context.capabilities.cadence.minimum, seconds: context.capabilities.cadence.max_seconds, minutes: context.capabilities.cadence.max_minutes })}</p>}
+    {!compact && <p className="text-sm text-[var(--gw-muted)]">{t('calculation.dueUnion')}</p>}
   </fieldset>;
 }
 /** Canonical read-only query shared by React Query; this row owns no save queue or measurement mutation. */

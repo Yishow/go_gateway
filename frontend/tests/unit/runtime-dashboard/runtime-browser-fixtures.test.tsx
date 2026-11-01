@@ -9,6 +9,7 @@ import { studioV2DatalinkApi } from '../../../src/services/studioV2Workspace';
 import { studioV2RuntimeContextAPI } from '../../../src/services/studioV2RuntimeContext';
 import { readStudioLocatorEntry } from '../../../src/services/studioV2LocatorEntry';
 import { buildStudioEntityLocatorTarget } from '../../../src/services/studioEntityLocator';
+import type { AcquisitionPlanPreview } from '../../../src/types/acquisitionPlanPreview';
 import type { EntityLocator, EvidenceScope } from '../../../src/types/runtimeRuleEvidence';
 import { createRuntimeRecordingMock } from '../../e2e/fixtures/runtime-recording-api';
 import { RuntimeRecordingHostView } from '../../e2e/fixtures/runtime-recording-host';
@@ -21,14 +22,27 @@ const originalAdapters = [api.defaults.adapter, studioV2DatalinkApi.defaults.ada
 const originalEventSource = globalThis.EventSource;
 let mock: ReturnType<typeof createRuntimeRecordingMock>;
 const clients: QueryClient[] = [];
+const acquisitionReads: string[] = [];
+const acquisitionPath = '/api/v1/datalink/studio-v2/workspace/acquisition-plan-preview';
+const acquisitionParams = new URLSearchParams({ workspace_id: 'W', device_id: 'A', expected_workspace_revision: 'W1' });
+acquisitionParams.sort();
+const acquisitionPreview: AcquisitionPlanPreview = { workspace_id: 'W', device_id: 'A', workspace_revision: 'W1', status: 'unavailable', reason: 'installation_unavailable' };
 function locator(step: 1 | 2 | 3 | 4): EntityLocator {
   return { step, workspace_id: 'W', device_id: 'A', rule_id: step === 2 ? 'A1' : null,
     mapping_id: step === 3 ? 'MA1' : null, group_id: step === 4 ? 'G1' : null, group_revision: step === 4 ? 'A' : null };
 }
 function installTransport() {
   const adapter: AxiosAdapter = async config => {
-    const result = mock.handle({ method: config.method?.toUpperCase() ?? 'GET',
-      url: new URL(axios.getUri(config), 'http://fixture.local').href, body: config.data });
+    const url = new URL(axios.getUri(config), 'http://fixture.local');
+    const method = config.method?.toUpperCase() ?? 'GET';
+    const query = new URLSearchParams(url.search); query.sort();
+    // Only this existing read-only endpoint and exact locator scope are added.
+    // Wrong scope, extra/duplicate keys, a body or a mutation still hit strict rejection.
+    const preview = method === 'GET' && url.pathname === acquisitionPath && query.toString() === acquisitionParams.toString() &&
+      (config.data === undefined || config.data === null || config.data === '');
+    if (preview) acquisitionReads.push(url.href);
+    const result = preview ? { status: 200, body: { success: true, data: acquisitionPreview } }
+      : mock.handle({ method, url: url.href, body: config.data });
     const response = { data: result.body, status: result.status, statusText: String(result.status), headers: new AxiosHeaders(), config };
     if (result.status >= 400) throw new AxiosError('Named fixture transport failure', 'ERR_BAD_RESPONSE', config, undefined, response);
     return response;
@@ -45,7 +59,7 @@ function cleanLedger() {
   expect(mock.ledger.some(entry => /logs|proxy/.test(entry.path))).toBe(false);
 }
 beforeEach(async () => {
-  await i18n.changeLanguage('en'); mock = createRuntimeRecordingMock(); installTransport();
+  await i18n.changeLanguage('en'); acquisitionReads.length = 0; mock = createRuntimeRecordingMock(); installTransport();
   installRuntimeRecordingStreamFixture();
   vi.spyOn(XMLHttpRequest.prototype, 'send').mockImplementation(() => { throw new Error('Unmocked HTTP escaped strict fixture transport'); });
 });
@@ -160,6 +174,7 @@ describe('real runtime and native receiver fixture viability in jsdom', () => {
   it.each([1, 2, 3] as const)('cold-mounts real native Step%i without automatic configuration writes', async step => {
     const target = buildStudioEntityLocatorTarget(locator(step)); if (!target) throw new Error('Expected safe target');
     mount(target); await screen.findByTestId('workbench-v2-shell');
+    expect(acquisitionReads).toHaveLength(step === 1 ? 1 : 0);
     expect(mock.ledger.filter(entry => entry.action === 'locator')).toHaveLength(1);
     expect(mock.ledger.filter(entry => entry.path.endsWith('/studio-v2/workspace')).every(entry => entry.params.entry === 'locator')).toBe(true);
     cleanLedger();

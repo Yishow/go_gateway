@@ -7,10 +7,11 @@ import { useTranslation } from 'react-i18next';
 import type { WriteGroupLifecycleHistory } from '@/types/studioV2WriteGroupLifecycle';
 import { RecordingLifecycleHistory } from './RecordingLifecycleHistory';
 
-export function SavedRecordingRemoveDialog({ open, busy, history, onClose, onConfirm, returnFocus, focusOwner, fallbackFocus, objectLabel }: {
-  open: boolean; busy: boolean; history?: WriteGroupLifecycleHistory; onClose: () => void; onConfirm: () => void; returnFocus?: HTMLElement | null; focusOwner?: object; fallbackFocus?: HTMLElement | null; objectLabel?: string;
+export function SavedRecordingRemoveDialog({ action = 'remove', open, busy, history, onClose, onConfirm, returnFocus, focusOwner, fallbackFocus, objectLabel }: {
+  action?: 'stop' | 'remove'; open: boolean; busy: boolean; history?: WriteGroupLifecycleHistory; onClose: () => void; onConfirm: () => void; returnFocus?: HTMLElement | null; focusOwner?: object; fallbackFocus?: HTMLElement | null; objectLabel?: string;
 }) {
   const { t } = useTranslation('recording-lifecycle');
+  const testId = action === 'stop' ? 'group-stop' : 'group-delete';
   const ownScope = useRef({}); const currentOwner = useRef(focusOwner ?? ownScope.current); currentOwner.current = focusOwner ?? ownScope.current;
   const ticket = useRef<ReturnFocusTicket | null>(null);
   return <Dialog.Root open={open} onOpenChange={(next) => { if (!next && !busy) onClose(); }}>
@@ -18,13 +19,13 @@ export function SavedRecordingRemoveDialog({ open, busy, history, onClose, onCon
       <Dialog.Overlay className="gw-modal-overlay" />
       <Dialog.Content role="alertdialog" onOpenAutoFocus={() => { ticket.current = captureReturnFocus(currentOwner.current, returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)); }}
         onCloseAutoFocus={(event) => { event.preventDefault(); restoreReturnFocus(ticket.current, currentOwner.current, fallbackFocus); }}
-        className="gw-modal" data-size="confirm" style={{ color: semanticTokens.colors.text, backgroundColor: semanticTokens.colors.raised }} data-testid="group-delete-confirm">
-        <header className="gw-modal-header"><Dialog.Title className="font-semibold">{t('remove.title')}</Dialog.Title>{objectLabel && <p>{objectLabel}</p>}</header>
-        <div className="gw-modal-body space-y-4 gw-history"><Dialog.Description>{t('remove.keeps')}</Dialog.Description>
-        <RecordingLifecycleHistory history={history} /></div>
+        className="gw-modal" data-size="confirm" style={{ color: semanticTokens.colors.text, backgroundColor: semanticTokens.colors.raised }} data-testid={`${testId}-confirm`}>
+        <header className="gw-modal-header"><Dialog.Title className="font-semibold">{t(`${action}.title`)}</Dialog.Title>{objectLabel && <p>{objectLabel}</p>}</header>
+        <div className="gw-modal-body space-y-4 gw-history"><Dialog.Description>{t(`${action}.keeps`)}</Dialog.Description>
+        {action === 'remove' && <RecordingLifecycleHistory history={history} />}</div>
         <footer className="gw-modal-footer">
-          <button type="button" onClick={onConfirm} disabled={busy} className="gw-danger" data-testid="group-delete-confirm-button">{t('remove.confirm')}</button>
-          <button type="button" onClick={onClose} disabled={busy} className="gw-secondary" data-testid="group-delete-cancel">{t('cancel')}</button>
+          <button type="button" onClick={onConfirm} disabled={busy} className="gw-danger" data-testid={`${testId}-confirm-button`}>{t(`${action}.confirm`)}</button>
+          <button type="button" onClick={onClose} disabled={busy} className="gw-secondary" data-testid={`${testId}-cancel`}>{t('cancel')}</button>
         </footer>
       </Dialog.Content>
     </Dialog.Portal>

@@ -1,0 +1,17 @@
+import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+/** Presentation only. The child is the original Step4 owner, never a second form. */
+export function SimpleRecordingShell({ children, onBack, onAdvanced }: {
+  children: ReactNode; onBack: () => void; onAdvanced: () => void;
+}) {
+  const { t } = useTranslation('recording-editor');
+  const { t: home } = useTranslation('recording-home');
+  return <main className="mx-auto w-full max-w-[1440px] space-y-5 px-4 py-6 sm:px-6 lg:px-8" data-testid="simple-recording-shell">
+    <header className="flex flex-wrap items-center justify-between gap-3">
+      <div><button type="button" className="gw-secondary" onClick={onBack}>{t('simple.back')}</button>
+        <h1 className="mt-3 text-2xl font-semibold text-[var(--gw-text)]">{t('simple.title')}</h1></div>
+      <button type="button" className="gw-secondary" onClick={onAdvanced}>{home('advanced')}</button>
+    </header>
+    {children}
+  </main>;
+}
