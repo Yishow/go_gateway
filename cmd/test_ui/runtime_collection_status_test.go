@@ -79,7 +79,7 @@ func newCollectionStatusFixture(t *testing.T, mappingCount int) (collectionStatu
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	require.NoError(t, datalink.NewMigrator().Migrate(db))
-	_, err = db.Exec(`INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('status-plc','PLC','','modbus_tcp','draft',?,'{}')`, config)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('status-plc','PLC','','modbus_tcp','draft',?,'{}')`, config)
 	require.NoError(t, err)
 	manager := connector.NewConnectionManager(connector.DefaultConnectionManagerConfig())
 	t.Cleanup(func() { require.NoError(t, manager.CloseAll()) })
@@ -112,7 +112,7 @@ func newCollectionStatusFixture(t *testing.T, mappingCount int) (collectionStatu
 	targetFile := filepath.Join(t.TempDir(), "destination.db")
 	targetConfig, err := json.Marshal(map[string]string{"dsn": targetFile})
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('connector-A','Target','sqlite',?,'connector-1','ready',1)`, string(targetConfig))
+	_, err = db.ExecContext(t.Context(), `INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('connector-A','Target','sqlite',?,'connector-1','ready',1)`, string(targetConfig))
 	require.NoError(t, err)
 	env := &outageEnv{db: db, services: services, workspID: record.ID, targets: map[string]string{"connector-A": targetFile}, schemas: map[string]string{"A": "main"}}
 	target := &managedPipelineTarget{env: env, file: targetFile, namespace: "main", kind: schema.DatabaseConnectorKindSQLite}

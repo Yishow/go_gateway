@@ -32,7 +32,7 @@ func barrierAPIRig(t *testing.T, wideTarget bool) (*cutoverRig, *groupdelivery.S
 	r.anchor = r.wideEffective.Add(time.Minute).Truncate(time.Minute)
 	var seq int
 	var name, path string
-	require.NoError(t, r.f.db.QueryRow(`PRAGMA database_list`).Scan(&seq, &name, &path))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `PRAGMA database_list`).Scan(&seq, &name, &path))
 	faults := &lostcommit.Faults{}
 	deliveryDB := lostcommit.OpenFaults(path, faults)
 	deliveryDB.SetMaxOpenConns(1)
@@ -190,7 +190,7 @@ func TestCutoverPublicBarrierDelayedReconcileSQLite(t *testing.T) {
 				cutover := body["data"].(map[string]any)
 				require.Equal(t, 2, r.localCount(`SELECT COUNT(*) FROM write_group_ownership_fences WHERE fence_revision=?`, cutover["id"]))
 				var persistedEnd string
-				require.NoError(t, r.f.db.QueryRow(`SELECT ends_at FROM write_group_revision_ends WHERE group_id=?`, r.wide["id"]).Scan(&persistedEnd))
+				require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT ends_at FROM write_group_revision_ends WHERE group_id=?`, r.wide["id"]).Scan(&persistedEnd))
 				require.Equal(t, boundary, storedInstant(t, persistedEnd))
 				require.Equal(t, sourceBefore, getGroup(t, r.f, r.wide["id"].(string)), "forward cutover preserves source status and historical descriptor")
 				beforeRefusal := barrierAPIDeliveryState(t, r)

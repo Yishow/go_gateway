@@ -46,7 +46,7 @@ func TestWorkspaceSourceRuleAddressConflictIsReadOnlyValidation(t *testing.T) {
 			}
 			before := addressConflictDatabaseSnapshot(t, f.db)
 			var changesBefore int64
-			require.NoError(t, f.db.QueryRow("SELECT total_changes()").Scan(&changesBefore))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), "SELECT total_changes()").Scan(&changesBefore))
 			response := httptest.NewRecorder()
 			request := httptest.NewRequestWithContext(f.ctx, method, path, strings.NewReader(body))
 			request.Header.Set("Content-Type", "application/json")
@@ -55,7 +55,7 @@ func TestWorkspaceSourceRuleAddressConflictIsReadOnlyValidation(t *testing.T) {
 			// timestamp trigger may run for a rejected address plan.
 			after := addressConflictDatabaseSnapshot(t, f.db)
 			var changesAfter int64
-			require.NoError(t, f.db.QueryRow("SELECT total_changes()").Scan(&changesAfter))
+			require.NoError(t, f.db.QueryRowContext(t.Context(), "SELECT total_changes()").Scan(&changesAfter))
 			require.Equal(t, before, after, "rejected address plan changed configuration")
 			require.Equal(t, changesBefore, changesAfter, "preflight ran a write or compensation")
 			require.Equal(t, http.StatusBadRequest, response.Code, response.Body.String())

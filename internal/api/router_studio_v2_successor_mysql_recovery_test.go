@@ -29,7 +29,7 @@ func TestMySQLSuccessorActivationReplaySurvivesSQLiteReopen(t *testing.T) {
 					before := successorAPIAllState(t, f.f.db)
 					var seq int
 					var name, path string
-					require.NoError(t, f.f.db.QueryRow(`PRAGMA database_list`).Scan(&seq, &name, &path))
+					require.NoError(t, f.f.db.QueryRowContext(t.Context(), `PRAGMA database_list`).Scan(&seq, &name, &path))
 					require.NotEmpty(t, path)
 					require.NoError(t, f.f.db.Close())
 					reopened, err := sql.Open("sqlite", path)
@@ -70,14 +70,14 @@ func TestMySQLSuccessorActivationRollbackKeepsPreparedReservation(t *testing.T) 
 							if fault == "fence" {
 								statement = `CREATE TRIGGER reject_activation_head BEFORE INSERT ON write_group_ownership_fences BEGIN SELECT RAISE(ABORT,'activation-head-failed'); END`
 							}
-							_, err := f.f.db.Exec(statement)
+							_, err := f.f.db.ExecContext(t.Context(), statement)
 							require.NoError(t, err)
 							before := successorAPIAllState(t, f.f.db)
 							response := performJSONRequest(t, f.f.router, http.MethodPost, writeGroupsPath+"/"+f.groupID+"/successor", request)
 							require.GreaterOrEqual(t, response.Code, 400, response.Body.String())
 							require.NotContains(t, response.Body.String(), "activation-head-failed")
 							require.Equal(t, before, successorAPIAllState(t, f.f.db), "version, runtime, fences, event and reservation must roll back together")
-							_, err = f.f.db.Exec(`DROP TRIGGER reject_activation_head`)
+							_, err = f.f.db.ExecContext(t.Context(), `DROP TRIGGER reject_activation_head`)
 							require.NoError(t, err)
 							event := f.postActivation(t, request)
 							require.NotEmpty(t, event["id"])
@@ -101,7 +101,7 @@ func TestMySQLSuccessorActivationLostCommitACK(t *testing.T) {
 					targetBefore := r.targetState(t)
 					var seq int
 					var name, path string
-					require.NoError(t, r.f.db.QueryRow(`PRAGMA database_list`).Scan(&seq, &name, &path))
+					require.NoError(t, r.f.db.QueryRowContext(t.Context(), `PRAGMA database_list`).Scan(&seq, &name, &path))
 					lose := &atomic.Bool{}
 					faults := &lostcommit.Faults{Lose: lose}
 					var commits atomic.Int64
@@ -121,7 +121,7 @@ func TestMySQLSuccessorActivationLostCommitACK(t *testing.T) {
 					require.Equal(t, int64(1), commits.Load(), "real commit occurred once even though driver returned ACK loss")
 					lose.Store(false)
 					var id string
-					require.NoError(t, r.f.db.QueryRow(`SELECT id FROM write_group_cutovers WHERE source_group_id=?`, r.groupID).Scan(&id))
+					require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT id FROM write_group_cutovers WHERE source_group_id=?`, r.groupID).Scan(&id))
 					before := successorAPIAllState(t, r.f.db)
 					require.Equal(t, id, f.postActivation(t, request)["id"])
 					require.Equal(t, before, successorAPIAllState(t, r.f.db))

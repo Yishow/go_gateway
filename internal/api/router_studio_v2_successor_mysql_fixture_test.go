@@ -76,7 +76,7 @@ func newMySQLSuccessorDestination(t *testing.T, family, targetFamily string) (ma
 		}
 		require.Equal(t, expectedVersion, version, "actual binary must match the existing verified release, never a spoofed family proof")
 		var count int
-		require.NoError(t, db.QueryRow(`SELECT count(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE()`).Scan(&count))
+		require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE()`).Scan(&count))
 		require.Zero(t, count, "fixture database must start empty")
 		t.Cleanup(func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -102,10 +102,10 @@ func newMySQLSuccessorDestination(t *testing.T, family, targetFamily string) (ma
 		config, err := json.Marshal(map[string]string{"dsn": rawDSN, "schema": database})
 		require.NoError(t, err)
 		if i == 0 {
-			_, err = f.db.Exec(`UPDATE database_connectors SET kind='mysql',connection_config=? WHERE id='connector-A'`, string(config))
+			_, err = f.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='mysql',connection_config=? WHERE id='connector-A'`, string(config))
 			f.target, f.namespace = db, database
 		} else {
-			_, err = f.db.Exec(`INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('connector-B','Other','mysql',?,'connector-2','ready',1)`, string(config))
+			_, err = f.db.ExecContext(t.Context(), `INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('connector-B','Other','mysql',?,'connector-2','ready',1)`, string(config))
 			targetB, namespaceB = db, database
 		}
 		require.NoError(t, err)
@@ -113,7 +113,7 @@ func newMySQLSuccessorDestination(t *testing.T, family, targetFamily string) (ma
 	var err error
 	f.record, err = f.workspace.BindDatabaseConnector(t.Context(), "connector-A")
 	require.NoError(t, err)
-	_, err = f.db.Exec(`UPDATE tags SET data_type='uint64' WHERE id='tag-A'`)
+	_, err = f.db.ExecContext(t.Context(), `UPDATE tags SET data_type='uint64' WHERE id='tag-A'`)
 	require.NoError(t, err)
 	targets := dbtarget.NewConnectorService(dbtarget.NewSQLConnectorRepository(f.db))
 	f.groups = workspace.NewWriteGroupService(f.workspace, workspace.NewSQLWriteGroupRepository(f.db)).WithTableInspector(dbtarget.NewReadOnlyTableInspector(targets)).WithBacklogOwnershipGuard(grouppipeline.BacklogGuard{})

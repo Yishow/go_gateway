@@ -116,7 +116,7 @@ func TestRuntimeSourceEvidenceRejectsForeignAndMismatchedBinding(t *testing.T) {
 			require.Contains(t, response.Body.String(), `"action"`)
 		})
 	}
-	_, err := r.f.db.Exec(`UPDATE mappings SET tag_id='tag-A' WHERE id='mapping-source'`)
+	_, err := r.f.db.ExecContext(t.Context(), `UPDATE mappings SET tag_id='tag-A' WHERE id='mapping-source'`)
 	require.NoError(t, err)
 	response := r.get(t, r.query(t))
 	require.Equal(t, http.StatusConflict, response.Code, response.Body.String())
@@ -134,7 +134,7 @@ func TestRuntimeSourceEvidenceChangedPointPollingMappingOrTagIsStale(t *testing.
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := newRuntimeSourceRig(t)
-			r.withChange(func() { _, err := r.f.db.Exec(tc.sql); require.NoError(t, err) })
+			r.withChange(func() { _, err := r.f.db.ExecContext(t.Context(), tc.sql); require.NoError(t, err) })
 			response := r.get(t, r.query(t))
 			require.Equal(t, http.StatusConflict, response.Code, response.Body.String())
 			require.Contains(t, response.Body.String(), `"code":"stale-reference"`)
@@ -146,7 +146,7 @@ func TestRuntimeSourceEvidenceChangedPointPollingMappingOrTagIsStale(t *testing.
 func TestRuntimeSourceEvidenceTelemetryChangesDoNotInvalidateConfiguration(t *testing.T) {
 	r := newRuntimeSourceRig(t)
 	r.withChange(func() {
-		_, err := r.f.db.Exec(`UPDATE points SET last_value='99',last_error='password=private-telemetry',last_read_at='2026-10-29T00:00:00Z',updated_at='2026-10-29T00:00:00Z' WHERE id='point-source'`)
+		_, err := r.f.db.ExecContext(t.Context(), `UPDATE points SET last_value='99',last_error='password=private-telemetry',last_read_at='2026-10-29T00:00:00Z',updated_at='2026-10-29T00:00:00Z' WHERE id='point-source'`)
 		require.NoError(t, err)
 	})
 	response := r.get(t, r.query(t))
@@ -161,7 +161,7 @@ func TestRuntimeSourceEvidenceByteOrderScaleCastAndUnsupportedParams(t *testing.
 	r := newRuntimeSourceRig(t)
 	for _, order := range []string{"ABCD", "BADC", "CDAB", "DCBA"} {
 		t.Run(order, func(t *testing.T) {
-			_, err := r.f.db.Exec(`UPDATE points SET data_format=? WHERE id='point-source'`, order)
+			_, err := r.f.db.ExecContext(t.Context(), `UPDATE points SET data_format=? WHERE id='point-source'`, order)
 			require.NoError(t, err)
 			s := runtimeSourceView(t, r.get(t, r.query(t))).Source
 			require.Equal(t, order, *s.Saved.Transforms[0].Order)
@@ -174,7 +174,7 @@ func TestRuntimeSourceEvidenceByteOrderScaleCastAndUnsupportedParams(t *testing.
 		`{ "private": "/private/fixture.sqlite" }`,
 	} {
 		t.Run(pipeline[:10], func(t *testing.T) {
-			_, err := r.f.db.Exec(`UPDATE mappings SET transform_pipeline=? WHERE id='mapping-source'`, pipeline)
+			_, err := r.f.db.ExecContext(t.Context(), `UPDATE mappings SET transform_pipeline=? WHERE id='mapping-source'`, pipeline)
 			require.NoError(t, err)
 			response := r.get(t, r.query(t))
 			s := runtimeSourceView(t, response).Source
@@ -256,12 +256,12 @@ func TestRuntimeSourceEvidenceConcurrentWorkspaceDeletionDoesNotRecreate(t *test
 	r := newRuntimeSourceRig(t)
 	q := r.query(t)
 	r.withChange(func() {
-		_, err := r.f.db.Exec(`DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
+		_, err := r.f.db.ExecContext(t.Context(), `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
 		require.NoError(t, err)
 	}, 2)
 	response := r.get(t, q)
 	var count int
-	require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&count))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&count))
 	require.Zero(t, count, "final source consistency read must not recreate a deleted workspace")
 	require.Equal(t, http.StatusServiceUnavailable, response.Code, response.Body.String())
 	require.NotContains(t, response.Body.String(), `"rule_evidence"`)

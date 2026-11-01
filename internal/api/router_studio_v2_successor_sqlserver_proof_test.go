@@ -42,10 +42,10 @@ func TestSQLServerSuccessorActivationRejectsForeignOrMissingProof(t *testing.T) 
 								query = `UPDATE write_groups SET revision='stale' WHERE id=?`
 							}
 							if field == "stale_source" {
-								_, err := r.f.db.Exec(`UPDATE write_groups SET revision='stale' WHERE id=?`, r.groupID)
+								_, err := r.f.db.ExecContext(t.Context(), `UPDATE write_groups SET revision='stale' WHERE id=?`, r.groupID)
 								require.NoError(t, err)
 							} else {
-								result, err := r.f.db.Exec(query, r.prepared.Group.ID)
+								result, err := r.f.db.ExecContext(t.Context(), query, r.prepared.Group.ID)
 								require.NoError(t, err)
 								n, err := result.RowsAffected()
 								require.NoError(t, err)

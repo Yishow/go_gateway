@@ -75,7 +75,7 @@ func TestSuccessorOperationStatusRejectsForeignRootScopeWithoutMutation(t *testi
 				id = f.prepared.Group.ID
 			case "root_action":
 				var schema string
-				require.NoError(t, f.f.db.QueryRow(`SELECT operation_id FROM managed_schema_operations WHERE action='schema_apply' LIMIT 1`).Scan(&schema))
+				require.NoError(t, f.f.db.QueryRowContext(t.Context(), `SELECT operation_id FROM managed_schema_operations WHERE action='schema_apply' LIMIT 1`).Scan(&schema))
 				request["operation_id"] = schema
 			default:
 				request[field] = "foreign"

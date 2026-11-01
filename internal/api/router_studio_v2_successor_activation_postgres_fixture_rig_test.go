@@ -120,7 +120,7 @@ func newPostgresSuccessorRig(t *testing.T, sourceLong, targetLong, counter, time
 	}
 	var lineage string
 	var revision int64
-	require.NoError(t, f.db.QueryRow(`SELECT lineage_id,revision FROM write_group_lineages WHERE current_group_id=?`, id).Scan(&lineage, &revision))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT lineage_id,revision FROM write_group_lineages WHERE current_group_id=?`, id).Scan(&lineage, &revision))
 	r.request = workspace.WriteGroupSuccessorReviewRequest{WorkspaceID: f.record.ID, ExpectedWorkspaceRevision: current.WorkspaceRevision,
 		LineageID: lineage, ExpectedLineageRevision: revision, ExpectedPredecessorRevision: current.Group.Revision,
 		ExpectedPredecessorConnectorRevision: current.Group.Destination.ConnectorRevision, ExpectedTargetConnectorRevision: "connector-2",

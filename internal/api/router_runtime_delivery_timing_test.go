@@ -86,7 +86,7 @@ func TestRuntimeDeliveryTimingDisabledAndMissingEffectiveProofRetainHistoricalAg
 			require.NoError(t, err)
 			require.NoError(t, r.pipe.Reconcile(t.Context()))
 			if missingProof {
-				_, err = r.f.db.Exec(`DELETE FROM wg_runtime_versions`)
+				_, err = r.f.db.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions`)
 				require.NoError(t, err)
 			}
 			r.clock = r.clock.Add(125*time.Second + 500*time.Millisecond)

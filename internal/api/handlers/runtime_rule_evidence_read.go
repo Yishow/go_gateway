@@ -185,7 +185,10 @@ func (h *RuntimeHandler) readRuntimeRuleEvidence(ctx context.Context, record *wo
 	// A stable saved revision alone cannot prove that the applied read stayed stable.
 	for _, group := range before.Groups {
 		after, err := h.runtimeRuleSnapshotAt(ctx, group, scope, asOf)
-		if err != nil || !reflect.DeepEqual(snapshots[group.ID], after) {
+		if err != nil {
+			return nil, err
+		}
+		if !reflect.DeepEqual(snapshots[group.ID], after) {
 			return nil, runtimeEvidenceError(runtimeview.ReasonStale)
 		}
 	}
@@ -227,7 +230,13 @@ func (h *RuntimeHandler) runtimeRuleSnapshotAt(ctx context.Context, group *works
 	if errors.Is(err, grouppipeline.ErrAppliedConfigurationStale) || errors.Is(err, workspace.ErrWriteGroupNotFound) {
 		return nil, runtimeEvidenceError(runtimeview.ReasonStale)
 	}
-	if err != nil || snapshot == nil {
+	if errors.Is(err, grouppipeline.ErrAppliedConfigurationUnavailable) {
+		return nil, nil // Expected absent or invalid proof retains the unavailable projection.
+	}
+	if err != nil {
+		return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
+	}
+	if snapshot == nil {
 		return nil, nil // Missing proof is unavailable, never a saved-as-effective fallback.
 	}
 	if snapshot.Group == nil || snapshot.RuntimeLayout == nil || snapshot.WorkspaceID != scope.WorkspaceID ||

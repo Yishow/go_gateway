@@ -33,10 +33,10 @@ func TestWriteGroupRemoveActionErrorsPreserveCompatibilityAndState(t *testing.T)
 				}
 				switch tc.name {
 				case "changed":
-					_, err := f.db.Exec(`UPDATE database_connectors SET identity_revision='connector-2', connection_config='{"password":"private-password"}' WHERE id='connector-A'`)
+					_, err := f.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='connector-2', connection_config='{"password":"private-password"}' WHERE id='connector-A'`)
 					require.NoError(t, err)
 				case "removed":
-					_, err := f.db.Exec(`DELETE FROM database_connectors WHERE id='connector-A'`)
+					_, err := f.db.ExecContext(t.Context(), `DELETE FROM database_connectors WHERE id='connector-A'`)
 					require.NoError(t, err)
 				case "no_guard":
 					f.groups.WithBacklogOwnershipGuard(nil)

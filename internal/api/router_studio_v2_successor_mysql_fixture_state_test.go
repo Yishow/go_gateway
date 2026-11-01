@@ -15,7 +15,7 @@ func (r *mysqlSuccessorRig) targetState(t *testing.T) map[string][]string {
 	state := map[string][]string{}
 	for i, db := range []*sql.DB{r.f.target, r.targetDB} {
 		scope := []string{r.f.namespace, r.targetNamespace}[i]
-		rows, err := db.Query(`SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME`)
+		rows, err := db.QueryContext(t.Context(), `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() ORDER BY TABLE_NAME`)
 		require.NoError(t, err)
 		var names []string
 		for rows.Next() {
@@ -28,10 +28,10 @@ func (r *mysqlSuccessorRig) targetState(t *testing.T) map[string][]string {
 		for _, name := range names {
 			require.Regexp(t, `^(gw_long_[0-9a-f]{16}|gw_effect_receipts)$`, name)
 			var table, ddl string
-			require.NoError(t, db.QueryRow("SHOW CREATE TABLE `"+name+"`").Scan(&table, &ddl))
+			require.NoError(t, db.QueryRowContext(t.Context(), "SHOW CREATE TABLE `"+name+"`").Scan(&table, &ddl))
 			key := scope + "." + name
 			state[key] = []string{ddl}
-			rows, err := db.Query("SELECT * FROM `" + name + "`")
+			rows, err := db.QueryContext(t.Context(), "SELECT * FROM `"+name+"`")
 			require.NoError(t, err)
 			columns, err := rows.Columns()
 			require.NoError(t, err)

@@ -47,7 +47,7 @@ func lifecyclePendingRig(t *testing.T) *recoveryRig {
 	}))
 	require.NoError(t, r.pipe.Stop(time.Second))
 	var pending int
-	require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE consumed=0`).Scan(&pending))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE consumed=0`).Scan(&pending))
 	require.Equal(t, 1, pending)
 	require.Equal(t, 1, r.outbox()["pending"])
 	require.Len(t, r.receipts(), 1)
@@ -75,7 +75,7 @@ func TestWriteGroupStopPreservesAcceptedDataAfterConnectorChange(t *testing.T) {
 			if mode == "removed" {
 				query = `DELETE FROM database_connectors WHERE id='connector-A'`
 			}
-			_, err := r.f.db.Exec(query)
+			_, err := r.f.db.ExecContext(t.Context(), query)
 			require.NoError(t, err)
 			before, rows, receipts := lifecycleAcceptedState(t, r), r.stored(), r.receipts()
 			response := performJSONRequest(t, r.f.router, http.MethodPost, writeGroupsPath+"/"+id+"/disable", request)
@@ -102,7 +102,7 @@ func TestWriteGroupRemoveUnknownAcceptedOwnerIsNoOp(t *testing.T) {
 			if pending == "row" {
 				query = `UPDATE wg_delivery_outbox SET group_revision='R0' WHERE state='pending'`
 			}
-			_, err := r.f.db.Exec(query)
+			_, err := r.f.db.ExecContext(t.Context(), query)
 			require.NoError(t, err)
 			request := scopeBody(t, r.f, id)
 			before, rows, receipts := lifecycleAPIState(t, r.f.db), r.stored(), r.receipts()

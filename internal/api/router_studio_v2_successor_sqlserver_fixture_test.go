@@ -62,9 +62,9 @@ func newSQLServerSuccessorDestination(t *testing.T, mode workspace.WriteGroupSto
 	for i, fixture := range fixtures {
 		var err error
 		if i == 0 {
-			_, err = f.db.Exec(`UPDATE database_connectors SET kind='sqlserver',connection_config=? WHERE id='connector-A'`, fixture.ConnectionConfigJSON())
+			_, err = f.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='sqlserver',connection_config=? WHERE id='connector-A'`, fixture.ConnectionConfigJSON())
 		} else {
-			_, err = f.db.Exec(`INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('connector-B','Other','sqlserver',?,'connector-2','ready',1)`, fixture.ConnectionConfigJSON())
+			_, err = f.db.ExecContext(t.Context(), `INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('connector-B','Other','sqlserver',?,'connector-2','ready',1)`, fixture.ConnectionConfigJSON())
 		}
 		require.NoError(t, err)
 	}
@@ -90,7 +90,7 @@ func newSQLServerSuccessorDestination(t *testing.T, mode workspace.WriteGroupSto
 	var err error
 	f.record, err = f.workspace.BindDatabaseConnector(t.Context(), "connector-A")
 	require.NoError(t, err)
-	_, err = f.db.Exec(`UPDATE tags SET data_type='uint64' WHERE id='tag-A'`)
+	_, err = f.db.ExecContext(t.Context(), `UPDATE tags SET data_type='uint64' WHERE id='tag-A'`)
 	require.NoError(t, err)
 	f.groups = workspace.NewWriteGroupService(f.workspace, workspace.NewSQLWriteGroupRepository(f.db)).WithTableInspector(dbtarget.NewReadOnlyTableInspector(targets)).WithBacklogOwnershipGuard(grouppipeline.BacklogGuard{})
 	f.groups.WithManagedTableInspector(f.groups.ManagedTableInspector(targets))

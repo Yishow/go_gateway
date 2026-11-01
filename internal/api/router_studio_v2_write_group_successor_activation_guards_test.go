@@ -37,15 +37,15 @@ func TestWriteGroupSuccessorActivationRechecksStoredProofAndCAS(t *testing.T) {
 			var err error
 			switch field {
 			case "connector":
-				_, err = f.f.db.Exec(`UPDATE database_connectors SET identity_revision='changed' WHERE id='connector-A'`)
+				_, err = f.f.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='changed' WHERE id='connector-A'`)
 			case "schema":
-				_, err = f.f.db.Exec(`UPDATE write_groups SET destination_schema_digest='changed' WHERE id=?`, f.prepared.Group.ID)
+				_, err = f.f.db.ExecContext(t.Context(), `UPDATE write_groups SET destination_schema_digest='changed' WHERE id=?`, f.prepared.Group.ID)
 			case "head":
-				_, err = f.f.db.Exec(`UPDATE write_group_lineages SET revision=revision+1 WHERE lineage_id=?`, f.prepared.LineageID)
+				_, err = f.f.db.ExecContext(t.Context(), `UPDATE write_group_lineages SET revision=revision+1 WHERE lineage_id=?`, f.prepared.LineageID)
 			case "source":
-				_, err = f.f.db.Exec(`UPDATE write_groups SET revision='changed' WHERE id=?`, f.groupID)
+				_, err = f.f.db.ExecContext(t.Context(), `UPDATE write_groups SET revision='changed' WHERE id=?`, f.groupID)
 			case "target":
-				_, err = f.f.db.Exec(`UPDATE write_groups SET revision='changed' WHERE id=?`, f.prepared.Group.ID)
+				_, err = f.f.db.ExecContext(t.Context(), `UPDATE write_groups SET revision='changed' WHERE id=?`, f.prepared.Group.ID)
 			}
 			require.NoError(t, err)
 			before := successorAPIAllState(t, f.f.db)

@@ -23,12 +23,12 @@ func TestProductionWordFormatRestartAndSQLRollback(t *testing.T) {
 			require.Len(t, before, 1)
 			require.Equal(t, want, before[0].Value)
 			// A real SQL persistence fault must not leave new decoding intent installed.
-			_, err := f.db.Exec(`CREATE TRIGGER word_fail_rule_point BEFORE UPDATE ON points BEGIN SELECT RAISE(ABORT,'word-test-write-fault'); END`)
+			_, err := f.db.ExecContext(t.Context(), `CREATE TRIGGER word_fail_rule_point BEFORE UPDATE ON points BEGIN SELECT RAISE(ABORT,'word-test-write-fault'); END`)
 			require.NoError(t, err)
 			format := "ABCD"
 			_, _, err = f.services.sourceRule.UpdateWithRuntimeReconcile(t.Context(), rule.ID, sourcerule.UpdateRuleRequest{DataFormat: &format})
 			require.Error(t, err)
-			_, err = f.db.Exec(`DROP TRIGGER word_fail_rule_point`)
+			_, err = f.db.ExecContext(t.Context(), `DROP TRIGGER word_fail_rule_point`)
 			require.NoError(t, err)
 			stored, err := f.services.point.GetByID(t.Context(), p.ID)
 			require.NoError(t, err)
@@ -39,7 +39,7 @@ func TestProductionWordFormatRestartAndSQLRollback(t *testing.T) {
 			require.Equal(t, rule.DataFormat, storedRule.DataFormat)
 			// Restart constructs new services/scheduler from the exact persisted state.
 			require.NoError(t, f.services.runtime.Stop(t.Context()))
-			_, err = f.db.Exec(`UPDATE points SET last_read_at=NULL,last_value=NULL,last_error='' WHERE id=?`, p.ID)
+			_, err = f.db.ExecContext(t.Context(), `UPDATE points SET last_read_at=NULL,last_value=NULL,last_error='' WHERE id=?`, p.ID)
 			require.NoError(t, err)
 			manager := connector.NewConnectionManager(connector.DefaultConnectionManagerConfig())
 			t.Cleanup(func() { require.NoError(t, manager.CloseAll()) })

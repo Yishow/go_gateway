@@ -47,7 +47,7 @@ func newPostgresSuccessorDestination(t *testing.T, timescale bool) (managedGroup
 	b := strings.TrimSuffix(a, "_a") + "_b"
 	t.Cleanup(func() { require.NoError(t, target.Close()) })
 	for _, name := range []string{a, b} {
-		_, err = target.Exec(`CREATE SCHEMA "` + name + `"`)
+		_, err = target.ExecContext(t.Context(), `CREATE SCHEMA "`+name+`"`)
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -65,15 +65,15 @@ func newPostgresSuccessorDestination(t *testing.T, timescale bool) (managedGroup
 		raw, err := json.Marshal(cfg)
 		require.NoError(t, err)
 		if i == 0 {
-			_, err = f.db.Exec(`UPDATE database_connectors SET kind='postgres',connection_config=? WHERE id='connector-A'`, string(raw))
+			_, err = f.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='postgres',connection_config=? WHERE id='connector-A'`, string(raw))
 		} else {
-			_, err = f.db.Exec(`INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('connector-B','Other','postgres',?,'connector-2','ready',1)`, string(raw))
+			_, err = f.db.ExecContext(t.Context(), `INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('connector-B','Other','postgres',?,'connector-2','ready',1)`, string(raw))
 		}
 		require.NoError(t, err)
 	}
 	f.record, err = f.workspace.BindDatabaseConnector(t.Context(), "connector-A")
 	require.NoError(t, err)
-	_, err = f.db.Exec(`UPDATE tags SET data_type='uint64' WHERE id='tag-A'`)
+	_, err = f.db.ExecContext(t.Context(), `UPDATE tags SET data_type='uint64' WHERE id='tag-A'`)
 	require.NoError(t, err)
 	targets := dbtarget.NewConnectorService(dbtarget.NewSQLConnectorRepository(f.db))
 	f.groups = workspace.NewWriteGroupService(f.workspace, workspace.NewSQLWriteGroupRepository(f.db)).WithTableInspector(dbtarget.NewReadOnlyTableInspector(targets)).WithBacklogOwnershipGuard(grouppipeline.BacklogGuard{})
@@ -89,7 +89,7 @@ func (r *postgresSuccessorRig) activationAPI() successorActivationAPIFixture {
 // Snapshot only the fixture-owned schemas, including marker and receipt rows.
 func (r *postgresSuccessorRig) targetState(t *testing.T) map[string]string {
 	t.Helper()
-	rows, err := r.target.Query(`SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ($1,$2) ORDER BY schemaname,tablename`, r.f.namespace, r.targetNamespace)
+	rows, err := r.target.QueryContext(t.Context(), `SELECT schemaname,tablename FROM pg_tables WHERE schemaname IN ($1,$2) ORDER BY schemaname,tablename`, r.f.namespace, r.targetNamespace)
 	require.NoError(t, err)
 	var names [][2]string
 	for rows.Next() {
@@ -102,7 +102,7 @@ func (r *postgresSuccessorRig) targetState(t *testing.T) map[string]string {
 	result := map[string]string{}
 	for _, pair := range names {
 		var body string
-		require.NoError(t, r.target.QueryRow(`SELECT COALESCE(jsonb_agg(rowdata ORDER BY rowdata::text),'[]'::jsonb)::text FROM (SELECT to_jsonb(t) AS rowdata FROM "`+pair[0]+`"."`+pair[1]+`" t) q`).Scan(&body))
+		require.NoError(t, r.target.QueryRowContext(t.Context(), `SELECT COALESCE(jsonb_agg(rowdata ORDER BY rowdata::text),'[]'::jsonb)::text FROM (SELECT to_jsonb(t) AS rowdata FROM "`+pair[0]+`"."`+pair[1]+`" t) q`).Scan(&body))
 		result[pair[0]+"."+pair[1]] = body
 	}
 	return result

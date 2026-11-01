@@ -95,11 +95,11 @@ func TestMySQLSuccessorProbeFailureAndStaleConnectorCannotReserve(t *testing.T) 
 					var after map[string][]string
 					spy.afterProbe = func() {
 						if fault == "revision" {
-							_, err := r.f.db.Exec(`UPDATE database_connectors SET identity_revision='changed-during-probe' WHERE id='connector-B'`)
+							_, err := r.f.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='changed-during-probe' WHERE id='connector-B'`)
 							require.NoError(t, err)
 						}
 						if fault == "database" {
-							_, err := r.f.db.Exec(`UPDATE database_connectors SET connection_config=replace(connection_config,?,?) WHERE id='connector-B'`, r.targetNamespace, r.f.namespace)
+							_, err := r.f.db.ExecContext(t.Context(), `UPDATE database_connectors SET connection_config=replace(connection_config,?,?) WHERE id='connector-B'`, r.targetNamespace, r.f.namespace)
 							require.NoError(t, err)
 						}
 						after = successorAPIAllState(t, r.f.db)

@@ -17,7 +17,7 @@ func TestWriteGroupLifecycleSuccessorSeedUsesAppliedDefinitionAndFreshReview(t *
 	f.f.groups.WithManagedTableInspector(inspector)
 	// Fixture isolation: preserve ready while changing only saved fields so this
 	// test examines immutable basis selection, not the real Update -> draft gate.
-	_, err := f.f.db.Exec(`UPDATE write_groups SET name='edited draft',row_policy=json_set(row_policy,'$.interval_seconds',77),revision='draft-R2' WHERE id=?`, f.groupID)
+	_, err := f.f.db.ExecContext(t.Context(), `UPDATE write_groups SET name='edited draft',row_policy=json_set(row_policy,'$.interval_seconds',77),revision='draft-R2' WHERE id=?`, f.groupID)
 	require.NoError(t, err)
 	before := successorAPIAllState(t, f.f.db)
 	response := performJSONRequest(t, f.f.router, http.MethodGet, writeGroupsPath+"/"+f.groupID+"/lifecycle", nil)

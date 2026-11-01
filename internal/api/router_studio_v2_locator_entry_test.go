@@ -91,7 +91,7 @@ func TestStudioV2LocatorEntryForeignMissingAndUnrepresentable(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r := newRuntimeSourceRig(t)
 			if tc.sql != "" {
-				locatorExec(t, r, tc.sql)
+				locatorExec(t.Context(), t, r, tc.sql)
 			}
 			res := locatorRequest(t, r, tc.step, tc.q)
 			require.Equal(t, tc.code, res.Code, res.Body.String())
@@ -109,7 +109,7 @@ func TestStudioV2LocatorEntryIndependentHeadsAndConfigurationRace(t *testing.T) 
 				got, err := r.services.SourceRule.GetByID(ctx, id)
 				calls++
 				if calls == 1 {
-					locatorExec(t, r, change)
+					locatorExec(ctx, t, r, change)
 				}
 				return got, err
 			}}
@@ -118,7 +118,7 @@ func TestStudioV2LocatorEntryIndependentHeadsAndConfigurationRace(t *testing.T) 
 			require.Equal(t, 409, res.Code, res.Body.String())
 			if strings.Contains(change, "DELETE") {
 				var n int
-				require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
+				require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
 				require.Zero(t, n)
 			}
 		})
@@ -142,8 +142,8 @@ func TestStudioV2LocatorEntryProviderFailureRemainsUnavailable(t *testing.T) {
 }
 func TestStudioV2LocatorEntryEmptyRevisionAndRedactedNativeDiagnostics(t *testing.T) {
 	r := newRuntimeSourceRig(t)
-	locatorExec(t, r, `UPDATE system_settings SET value=json_set(value,'$.database_setup_revision','') WHERE key='studio_v2_workspace'`)
-	locatorExec(t, r, `UPDATE devices SET last_test_error='password=secret' WHERE id='device-A'`)
+	locatorExec(t.Context(), t, r, `UPDATE system_settings SET value=json_set(value,'$.database_setup_revision','') WHERE key='studio_v2_workspace'`)
+	locatorExec(t.Context(), t, r, `UPDATE devices SET last_test_error='password=secret' WHERE id='device-A'`)
 	res := locatorRequest(t, r, "2", url.Values{"device_id": {"device-A"}, "rule_id": {"rule-R"}})
 	entry := locatorEntryData(t, res)
 	require.Equal(t, "", entry["workspace_revision"])
@@ -170,7 +170,7 @@ func TestStudioV2LocatorEntryRejectsMissingExactLinkIDs(t *testing.T) {
 	for _, column := range []string{"mapping_id", "tag_id"} {
 		t.Run(column, func(t *testing.T) {
 			r := newRuntimeSourceRig(t)
-			locatorExec(t, r, "UPDATE source_rule_links SET "+column+"=NULL WHERE id='link-source'")
+			locatorExec(t.Context(), t, r, "UPDATE source_rule_links SET "+column+"=NULL WHERE id='link-source'")
 			before := locatorTotal(t, r)
 			response := locatorRequest(t, r, "3", url.Values{"device_id": {"device-A"}, "mapping_id": {"mapping-source"}})
 			require.Equal(t, 409, response.Code, response.Body.String())
@@ -180,7 +180,7 @@ func TestStudioV2LocatorEntryRejectsMissingExactLinkIDs(t *testing.T) {
 }
 func TestStudioV2LocatorEntryNeverCreatesMissingWorkspace(t *testing.T) {
 	r := newRuntimeSourceRig(t)
-	locatorExec(t, r, `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
+	locatorExec(t.Context(), t, r, `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
 	before := locatorTotal(t, r)
 	res := locatorRequest(t, r, "1", url.Values{"device_id": {"device-A"}})
 	require.Equal(t, 409, res.Code, res.Body.String())
@@ -199,7 +199,7 @@ func TestStudioV2LocatorEntryEditorBindingsAndKnownOrphan(t *testing.T) {
 		q.Set(key, old)
 	}
 	q.Set("group_revision", "historical-only")
-	locatorExec(t, r, `DELETE FROM points WHERE id='point-source'`)
+	locatorExec(t.Context(), t, r, `DELETE FROM points WHERE id='point-source'`)
 	res := locatorRequest(t, r, "4", q)
 	entry := locatorEntryData(t, res)
 	require.Empty(t, entry["mappings"])
@@ -256,9 +256,9 @@ func TestStudioV2LocatorEntryGroupRereadAndEditorDeletionRace(t *testing.T) {
 				calls++
 				if calls == 1 {
 					if editor {
-						locatorExec(t, r, `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
+						locatorExec(ctx, t, r, `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
 					} else {
-						locatorExec(t, r, `UPDATE write_groups SET revision='changed' WHERE id=?`, id)
+						locatorExec(ctx, t, r, `UPDATE write_groups SET revision='changed' WHERE id=?`, id)
 					}
 				}
 				return g, err
@@ -268,7 +268,7 @@ func TestStudioV2LocatorEntryGroupRereadAndEditorDeletionRace(t *testing.T) {
 			require.Equal(t, 409, res.Code, res.Body.String())
 			if editor {
 				var n int
-				require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
+				require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&n))
 				require.Zero(t, n)
 			}
 		})
@@ -289,7 +289,7 @@ func TestStudioV2LocatorEntryEditorConnectorRaceAndError(t *testing.T) {
 				}
 				c, err := r.services.DBTarget.GetByID(ctx, id)
 				if calls == 1 && !failure {
-					locatorExec(t, r, `UPDATE database_connectors SET identity_revision='changed' WHERE id=?`, id)
+					locatorExec(ctx, t, r, `UPDATE database_connectors SET identity_revision='changed' WHERE id=?`, id)
 				}
 				return c, err
 			})
@@ -308,14 +308,14 @@ func TestStudioV2LocatorEntryEditorMissingProofReappearsIsStale(t *testing.T) {
 	r := newRuntimeSourceRig(t)
 	wireLocatorDatabase(r)
 	q := locatorEditorQuery(t, r)
-	locatorExec(t, r, `DELETE FROM source_rule_links WHERE id='link-source'`)
+	locatorExec(t.Context(), t, r, `DELETE FROM source_rule_links WHERE id='link-source'`)
 	readers := locatorReaders(r)
 	calls := 0
 	readers.Groups = locatorGroupRead{WriteGroupService: r.services.WriteGroups, get: func(ctx context.Context, id string) (*workspace.WriteGroupSaveResult, error) {
 		g, err := r.services.WriteGroups.Get(ctx, id)
 		calls++
 		if calls == 2 {
-			locatorExec(t, r, `INSERT INTO source_rule_links (id,rule_id,address,point_id,tag_id,mapping_id) VALUES ('restored-link','rule-R','40001','point-source','tag-source','mapping-source')`)
+			locatorExec(ctx, t, r, `INSERT INTO source_rule_links (id,rule_id,address,point_id,tag_id,mapping_id) VALUES ('restored-link','rule-R','40001','point-source','tag-source','mapping-source')`)
 		}
 		return g, err
 	}}
@@ -329,8 +329,8 @@ func TestStudioV2LocatorEntryEditorCanonicalTargetsDoNotResurrectRawIntent(t *te
 	id := r.f.group["id"].(string)
 	disabled := performJSONRequest(t, r.router, "POST", writeGroupsPath+"/"+id+"/disable", scopeBody(t, r.f, id))
 	require.Equal(t, 200, disabled.Code, disabled.Body.String())
-	locatorExec(t, r, `INSERT INTO tags (id,key,key_lower,display_name,data_type,status,labels) VALUES ('tag-other','other','other','Other','float32','active','{}')`)
-	locatorExec(t, r, `INSERT INTO database_target_mappings (id,tag_id,connector_id,table_schema,table_name,column_name,write_mode,enabled) VALUES ('unrelated','tag-other','connector-A','main','other','unrelated_column','insert',1)`)
+	locatorExec(t.Context(), t, r, `INSERT INTO tags (id,key,key_lower,display_name,data_type,status,labels) VALUES ('tag-other','other','other','Other','float32','active','{}')`)
+	locatorExec(t.Context(), t, r, `INSERT INTO database_target_mappings (id,tag_id,connector_id,table_schema,table_name,column_name,write_mode,enabled) VALUES ('unrelated','tag-other','connector-A','main','other','unrelated_column','insert',1)`)
 	before := locatorTotal(t, r)
 	entry := locatorEntryData(t, locatorRequest(t, r, "4", locatorEditorQuery(t, r)))
 	rows := entry["database_targets"].([]any)
@@ -355,7 +355,7 @@ func TestStudioV2LocatorEntryEditorMissingCanonicalLegacyRowIsUnavailable(t *tes
 	r := newLocatorMigratedRig(t)
 	q := locatorEditorQuery(t, r)
 	require.Equal(t, 200, locatorRequest(t, r, "4", q).Code, "valid canonical target proof must succeed before fault")
-	locatorExec(t, r, `DELETE FROM database_target_mappings WHERE id='legacy-A'`)
+	locatorExec(t.Context(), t, r, `DELETE FROM database_target_mappings WHERE id='legacy-A'`)
 	res := locatorRequest(t, r, "4", q)
 	require.Equal(t, 503, res.Code, res.Body.String())
 }
@@ -370,7 +370,7 @@ func TestStudioV2LocatorEntrySharedMembersNeverHydrateUnselectedDevices(t *testi
 	require.NotContains(t, entry, "source_rules")
 	require.Len(t, entry["write_groups"].(map[string]any)["groups"].([]any)[0].(map[string]any)["members"], 2)
 	// The saved group retains a former member without exposing its native config.
-	locatorExec(t, r, `UPDATE system_settings SET value=json_set(value,'$.ordered_device_ids',json('["device-A"]')) WHERE key='studio_v2_workspace'`)
+	locatorExec(t.Context(), t, r, `UPDATE system_settings SET value=json_set(value,'$.ordered_device_ids',json('["device-A"]')) WHERE key='studio_v2_workspace'`)
 	entry = locatorEntryData(t, locatorRequest(t, r, "4", q))
 	require.Len(t, entry["write_groups"].(map[string]any)["groups"].([]any)[0].(map[string]any)["members"], 2)
 	require.NotContains(t, entry, "devices")

@@ -91,7 +91,7 @@ func TestWriteGroupLifecycleHistoryCorruptEvidenceFailsSafely(t *testing.T) {
 			} else if mode == "missing-version" {
 				query = `DELETE FROM write_group_versions WHERE group_id=?`
 			}
-			_, err := f.db.Exec(query, id)
+			_, err := f.db.ExecContext(t.Context(), query, id)
 			require.NoError(t, err)
 			before := lifecycleAPIState(t, f.db)
 			response := performJSONRequest(t, f.router, http.MethodGet, writeGroupsPath+"/"+id+"/lifecycle", nil)

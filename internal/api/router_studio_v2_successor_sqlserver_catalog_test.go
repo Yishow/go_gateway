@@ -27,7 +27,7 @@ func TestSQLServerSuccessorLiveCatalogDamageRefusesActivation(t *testing.T) {
 				if fault == "receipt_owner" {
 					// Never fault a shared receipt table inherited from earlier runs.
 					var tokenID string
-					require.NoError(t, r.f.db.QueryRow(`SELECT token FROM managed_schema_preview_tokens WHERE plan_id=?`, r.prepared.Group.ID).Scan(&tokenID))
+					require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT token FROM managed_schema_preview_tokens WHERE plan_id=?`, r.prepared.Group.ID).Scan(&tokenID))
 					token, err := recordingplan.NewSQLRepository(r.f.db).GetPreviewToken(t.Context(), tokenID)
 					require.NoError(t, err)
 					created := false

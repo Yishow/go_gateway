@@ -61,11 +61,11 @@ func newRuntimeSourceDeliveryOptions(t *testing.T, options runtimeSourceDelivery
 		}
 	}
 	if options.multi {
-		_, err := f.db.Exec(`INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('device-B','Second','','modbus_tcp','draft','{}','{}')`)
+		_, err := f.db.ExecContext(t.Context(), `INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('device-B','Second','','modbus_tcp','draft','{}','{}')`)
 		require.NoError(t, err)
 		_, err = f.workspace.AttachDevice(t.Context(), "device-B")
 		require.NoError(t, err)
-		_, err = f.db.Exec(`UPDATE points SET device_id='device-B' WHERE id='point-other'`)
+		_, err = f.db.ExecContext(t.Context(), `UPDATE points SET device_id='device-B' WHERE id='point-other'`)
 		require.NoError(t, err)
 	}
 	request := meanLongRequest(t, f, sources)
@@ -99,7 +99,7 @@ func newRuntimeSourceDeliveryOptions(t *testing.T, options runtimeSourceDelivery
 	r.pipe = grouppipeline.New(grouppipeline.Dependencies{Groups: f.groups, Store: r.store, Destinations: dbtarget.NewConnectorService(dbtarget.NewSQLConnectorRepository(f.db)), Counters: grouppipeline.NewMeasurementCounterSources(measurement.NewSQLRepository(f.db))}, grouppipeline.Config{Now: func() time.Time { return r.clock }, OnError: func(err error) { t.Errorf("pipeline: %v", err) }})
 	require.NoError(t, r.pipe.Reconcile(t.Context()))
 	require.Contains(t, r.pipe.Status(), grouppipeline.GroupStatus{GroupID: id, Revision: r.snapshot.AppliedRevision, State: grouppipeline.StateActive})
-	_, err = f.db.Exec(`UPDATE devices SET description='' WHERE id='device-A'`)
+	_, err = f.db.ExecContext(t.Context(), `UPDATE devices SET description='' WHERE id='device-A'`)
 	require.NoError(t, err)
 	r.router = NewRouter(&DatalinkServices{Workspace: f.workspace, WriteGroups: f.groups, WriteGroupDelivery: r.pipe, Device: device.NewService(device.NewSQLRepository(f.db), nil)})
 	return r
@@ -143,7 +143,7 @@ func (r *runtimeSourceDeliveryRig) raw(t *testing.T) *grouppipeline.DeliveryView
 
 func (r *runtimeSourceDeliveryRig) deliver(t *testing.T) {
 	t.Helper()
-	rows, err := r.f.db.Query(`SELECT effect_key FROM wg_delivery_outbox WHERE state='pending' ORDER BY bucket_start,effect_key`)
+	rows, err := r.f.db.QueryContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox WHERE state='pending' ORDER BY bucket_start,effect_key`)
 	require.NoError(t, err)
 	var keys []string
 	for rows.Next() {
@@ -182,7 +182,7 @@ func (r *runtimeSourceDeliveryRig) durableState(t *testing.T) map[string]string 
 	t.Helper()
 	state := map[string]string{}
 	for _, table := range []string{"system_settings", "write_groups", "write_group_versions", "wg_delivery_samples", "wg_delivery_outbox", "wg_delivery_receipts", "wg_runtime_versions"} {
-		rows, err := r.f.db.Query(`SELECT * FROM ` + table + ` ORDER BY rowid`)
+		rows, err := r.f.db.QueryContext(t.Context(), `SELECT * FROM `+table+` ORDER BY rowid`)
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)
@@ -218,7 +218,7 @@ func newRuntimeSourceCustomRig(t *testing.T) *runtimeDeliveryRig {
 	f.groups.WithClock(func() time.Time { return r.clock })
 	target, err := sql.Open("sqlite", f.file)
 	require.NoError(t, err)
-	_, err = target.Exec(`CREATE TABLE custom_values(temperature REAL NOT NULL)`)
+	_, err = target.ExecContext(t.Context(), `CREATE TABLE custom_values(temperature REAL NOT NULL)`)
 	require.NoError(t, err)
 	require.NoError(t, target.Close())
 	request := f.createRequest()
@@ -240,7 +240,7 @@ func newRuntimeSourceCustomRig(t *testing.T) *runtimeDeliveryRig {
 	r.pipe = grouppipeline.New(grouppipeline.Dependencies{Groups: f.groups, Store: r.store, Destinations: targets, Inspector: dbtarget.NewReadOnlyTableInspector(targets), Tags: tag.NewService(tag.NewSQLRepository(f.db))}, grouppipeline.Config{Now: func() time.Time { return r.clock }})
 	require.NoError(t, r.pipe.Reconcile(t.Context()))
 	require.Contains(t, r.pipe.Status(), grouppipeline.GroupStatus{GroupID: id, Revision: r.f.group["applied_revision"].(string), State: grouppipeline.StateActive})
-	_, err = f.db.Exec(`UPDATE devices SET description='' WHERE id='device-A'`)
+	_, err = f.db.ExecContext(t.Context(), `UPDATE devices SET description='' WHERE id='device-A'`)
 	require.NoError(t, err)
 	r.router = NewRouter(&DatalinkServices{Workspace: f.workspace, WriteGroups: f.groups, WriteGroupDelivery: r.pipe, Device: device.NewService(device.NewSQLRepository(f.db), nil)})
 	return r

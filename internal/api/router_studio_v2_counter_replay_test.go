@@ -133,7 +133,7 @@ func TestStudioV2CounterReplayPublicMeasurementEditPreservesAcceptedEpoch(t *tes
 	// object or assembler is reused. Background work only sends finalized rows;
 	// all closure times are explicitly driven by the fixed clock below.
 	var localPath string
-	require.NoError(t, f.db.QueryRow(`SELECT file FROM pragma_database_list WHERE name='main'`).Scan(&localPath))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT file FROM pragma_database_list WHERE name='main'`).Scan(&localPath))
 	local, err := sql.Open("sqlite", localPath+"?_pragma=busy_timeout(5000)")
 	require.NoError(t, err)
 	local.SetMaxOpenConns(1)
@@ -162,11 +162,11 @@ func TestStudioV2CounterReplayPublicMeasurementEditPreservesAcceptedEpoch(t *tes
 	waitRows := func(want int) {
 		require.Eventually(t, func() bool {
 			var rows, receipts int
-			err := target.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&rows)
+			err := target.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+table).Scan(&rows)
 			if err != nil {
 				return false
 			}
-			err = local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_receipts`).Scan(&receipts)
+			err = local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_receipts`).Scan(&receipts)
 			return err == nil && rows == want && receipts == want
 		}, 5*time.Second, 10*time.Millisecond)
 	}
@@ -175,7 +175,7 @@ func TestStudioV2CounterReplayPublicMeasurementEditPreservesAcceptedEpoch(t *tes
 	require.Len(t, oldEffects, 2)
 	var unit, epoch, raw, status, provenance string
 	var delta *string
-	require.NoError(t, target.QueryRow(`SELECT unit,series_epoch,CAST(value_decimal AS TEXT),CAST(delta_value AS TEXT),status,provenance FROM `+table+` WHERE group_revision=? AND bucket_start=?`, oldRevision, old.EffectiveAt.Add(600*time.Second).Format(meanTimeLayout)).Scan(&unit, &epoch, &raw, &delta, &status, &provenance))
+	require.NoError(t, target.QueryRowContext(t.Context(), `SELECT unit,series_epoch,CAST(value_decimal AS TEXT),CAST(delta_value AS TEXT),status,provenance FROM `+table+` WHERE group_revision=? AND bucket_start=?`, oldRevision, old.EffectiveAt.Add(600*time.Second).Format(meanTimeLayout)).Scan(&unit, &epoch, &raw, &delta, &status, &provenance))
 	require.Equal(t, "kWh", unit)
 	require.Equal(t, "epoch-1", epoch)
 	require.Equal(t, "105", raw)
@@ -224,7 +224,7 @@ func TestStudioV2CounterReplayPublicMeasurementEditPreservesAcceptedEpoch(t *tes
 	clock.Store(next.EffectiveAt.Add(600 * time.Second).UnixNano())
 	pipe.TickAll(t.Context())
 	waitRows(3)
-	require.NoError(t, target.QueryRow(`SELECT unit,series_epoch,CAST(value_decimal AS TEXT),CAST(delta_value AS TEXT),status FROM `+table+` WHERE group_revision=?`, nextRevision).Scan(&unit, &epoch, &raw, &delta, &status))
+	require.NoError(t, target.QueryRowContext(t.Context(), `SELECT unit,series_epoch,CAST(value_decimal AS TEXT),CAST(delta_value AS TEXT),status FROM `+table+` WHERE group_revision=?`, nextRevision).Scan(&unit, &epoch, &raw, &delta, &status))
 	require.Equal(t, "MWh", unit)
 	require.Equal(t, "epoch-2", epoch)
 	require.Equal(t, "500", raw)

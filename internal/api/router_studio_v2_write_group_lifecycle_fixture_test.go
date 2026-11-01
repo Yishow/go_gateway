@@ -25,10 +25,10 @@ type lifecycleAPIGuard struct {
 	err   error
 }
 
-func (g *lifecycleAPIGuard) CheckWriteGroupBacklog(_ context.Context, tx *sql.Tx, group *workspace.WriteGroup) error {
+func (g *lifecycleAPIGuard) CheckWriteGroupBacklog(ctx context.Context, tx *sql.Tx, group *workspace.WriteGroup) error {
 	g.calls++
 	var id string
-	if err := tx.QueryRow(`SELECT id FROM write_groups WHERE id=? AND revision=?`, group.ID, group.Revision).Scan(&id); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM write_groups WHERE id=? AND revision=?`, group.ID, group.Revision).Scan(&id); err != nil {
 		return err
 	}
 	return g.err

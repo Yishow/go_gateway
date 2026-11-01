@@ -41,17 +41,17 @@ func TestProductionServicesFenceCachedIntakeAfterStop(t *testing.T) {
 		Destination: workspace.WriteGroupDestination{ConnectorID: "connector-1", ConnectorRevision: "C1", TableName: "readings"},
 		RowPolicy:   workspace.WriteGroupRowPolicy{IntervalSeconds: 10},
 	}
-	_, err = db.Exec(`INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('connector-1','Target','sqlite','{}','C1','ready',1)`)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('connector-1','Target','sqlite','{}','C1','ready',1)`)
 	require.NoError(t, err)
 	policy, err := json.Marshal(group.RowPolicy)
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO write_groups(id,workspace_id,revision,applied_revision,name,status,destination_connector_id,destination_connector_revision,destination_table_name,row_policy) VALUES('G1',?,'R1','R1','Temperature','ready','connector-1','C1','readings',?)`, record.ID, string(policy))
+	_, err = db.ExecContext(t.Context(), `INSERT INTO write_groups(id,workspace_id,revision,applied_revision,name,status,destination_connector_id,destination_connector_revision,destination_table_name,row_policy) VALUES('G1',?,'R1','R1','Temperature','ready','connector-1','C1','readings',?)`, record.ID, string(policy))
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO write_group_members(group_id,member_index,device_id,point_id,tag_id,source_revision,mapping_revision,target_column,required) VALUES('G1',0,'device-1','point-1','tag-1','source-1','mapping-1','temperature',1)`)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO write_group_members(group_id,member_index,device_id,point_id,tag_id,source_revision,mapping_revision,target_column,required) VALUES('G1',0,'device-1','point-1','tag-1','source-1','mapping-1','temperature',1)`)
 	require.NoError(t, err)
 	payload, err := json.Marshal(group)
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO write_group_versions(group_id,group_revision,effective_at,payload) VALUES('G1','R1',?,?)`, effective, string(payload))
+	_, err = db.ExecContext(t.Context(), `INSERT INTO write_group_versions(group_id,group_revision,effective_at,payload) VALUES('G1','R1',?,?)`, effective, string(payload))
 	require.NoError(t, err)
 	snap := workspace.WriteGroupAppliedSnapshot{
 		WorkspaceID: record.ID, GroupID: "G1", GroupRevision: "R1", AppliedRevision: "R1", EffectiveAt: effective, Group: group,
@@ -75,6 +75,6 @@ func TestProductionServicesFenceCachedIntakeAfterStop(t *testing.T) {
 	var refusal *groupdelivery.OwnershipError
 	require.ErrorAs(t, err, &refusal, "the production Store must fence the stale active boundary")
 	var count int
-	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
 	require.Equal(t, 1, count)
 }

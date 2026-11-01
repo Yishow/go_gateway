@@ -28,7 +28,7 @@ func TestSQLServerSuccessorUnsupportedShapesHaveNoEffects(t *testing.T) {
 					case "meaning":
 						r.request.Group.RecordingProfile.SampleReduction = workspace.WriteGroupSampleReductionLatest
 					case "cross_engine":
-						_, err := r.f.db.Exec(`UPDATE database_connectors SET kind='postgres' WHERE id='connector-B'`)
+						_, err := r.f.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='postgres' WHERE id='connector-B'`)
 						require.NoError(t, err)
 					case "partial":
 						require.Len(t, r.request.Group.Members, 2)

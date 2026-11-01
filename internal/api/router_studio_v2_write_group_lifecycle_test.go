@@ -66,9 +66,9 @@ func TestWriteGroupLifecycleStaleAndRemovedConnectorKeepStop(t *testing.T) {
 			var err error
 			reason := "connector_identity_stale"
 			if mode == "changed" {
-				_, err = f.db.Exec(`UPDATE database_connectors SET identity_revision='connector-2',connection_config='{"password":"private-secret","dsn":"private-endpoint"}' WHERE id='connector-A'`)
+				_, err = f.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='connector-2',connection_config='{"password":"private-secret","dsn":"private-endpoint"}' WHERE id='connector-A'`)
 			} else {
-				_, err = f.db.Exec(`DELETE FROM database_connectors WHERE id='connector-A'`)
+				_, err = f.db.ExecContext(t.Context(), `DELETE FROM database_connectors WHERE id='connector-A'`)
 				reason = "connector_unavailable"
 			}
 			require.NoError(t, err)

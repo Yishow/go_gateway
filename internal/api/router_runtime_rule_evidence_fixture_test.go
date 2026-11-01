@@ -39,7 +39,7 @@ func newRuntimeRuleEvidenceRig(t *testing.T) *runtimeRuleEvidenceRig {
 	f.data, f.group = groupSaveData(t, decodeJSONBody(t, created))
 	// The older write-group fixture omits nullable description because it does
 	// not read Device SQLRepository; runtime context does read that real service.
-	_, err := f.db.Exec(`UPDATE devices SET description='' WHERE id='device-A'`)
+	_, err := f.db.ExecContext(t.Context(), `UPDATE devices SET description='' WHERE id='device-A'`)
 	require.NoError(t, err)
 	devices := device.NewService(device.NewSQLRepository(f.db), nil)
 	_, err = devices.GetByID(t.Context(), "device-A")

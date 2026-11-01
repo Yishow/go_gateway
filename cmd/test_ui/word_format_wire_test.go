@@ -45,7 +45,7 @@ func (p *wordWirePLC) read(start, count int) ([]uint16, bool) {
 }
 func wordWireServer(t *testing.T, protocol schema.ProtocolType) (*wordWirePLC, string) {
 	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	plc := &wordWirePLC{words: map[int]uint16{}}
 	var wg sync.WaitGroup

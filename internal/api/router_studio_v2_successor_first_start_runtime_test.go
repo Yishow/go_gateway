@@ -70,7 +70,7 @@ func firstStartActualReadback(t *testing.T, tc firstStartTransition) {
 			require.Empty(t, r.reports)
 			r.deliver(t)
 			var oldCount int
-			require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=?`, r.groupID).Scan(&oldCount))
+			require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=?`, r.groupID).Scan(&oldCount))
 			require.Zero(t, oldCount, "G1 never acquired intake")
 			if counter {
 				rows := firstStartCounterRows(t, r)
@@ -103,7 +103,7 @@ func firstStartActualReadback(t *testing.T, tc firstStartTransition) {
 			require.Equal(t, before, successorAPIAllState(t, r.f.db), "post-delivery replay may not reset counter, runtime, or receipt state")
 			for _, table := range []string{"write_group_cutovers", "write_group_revision_ends", "write_group_ownership_fences", "wg_delivery_sample_handoffs"} {
 				var count int
-				require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM `+table).Scan(&count))
+				require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+table).Scan(&count))
 				require.Zero(t, count, table)
 			}
 		})

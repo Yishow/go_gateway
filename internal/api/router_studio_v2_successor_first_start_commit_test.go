@@ -26,6 +26,6 @@ func TestSuccessorFirstStartHTTPRecoversCommittedTransactionLostACK(t *testing.T
 	require.Equal(t, result, successorStatus(t, r.successorAPIFixture)["first_start"].(map[string]any)["result"])
 	require.Equal(t, after, successorAPIAllState(t, r.f.db), "an acknowledgement lost after local COMMIT must not create another generation or runtime version")
 	var versions int
-	require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM write_group_versions WHERE group_id=?`, r.prepared.Group.ID).Scan(&versions))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM write_group_versions WHERE group_id=?`, r.prepared.Group.ID).Scan(&versions))
 	require.Equal(t, 1, versions)
 }

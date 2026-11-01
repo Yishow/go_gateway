@@ -85,7 +85,7 @@ func (r *runtimeDeliveryRig) tick(t *testing.T) string {
 	r.clock = r.clock.Truncate(15 * time.Second).Add(15 * time.Second)
 	r.pipe.TickAll(t.Context())
 	var key string
-	err := r.f.db.QueryRow(`SELECT effect_key FROM wg_delivery_outbox WHERE group_revision=? ORDER BY bucket_start DESC LIMIT 1`, r.f.group["applied_revision"]).Scan(&key)
+	err := r.f.db.QueryRowContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox WHERE group_revision=? ORDER BY bucket_start DESC LIMIT 1`, r.f.group["applied_revision"]).Scan(&key)
 	if err != nil {
 		t.Logf("tick clock=%s applied=%s statuses=%+v", r.clock, r.f.group["applied_revision"], r.pipe.Status())
 		status, statusErr := r.store.GroupStatus(t.Context(), r.f.group["id"].(string))
@@ -209,12 +209,12 @@ func newRuntimeCounterDeliveryRig(t *testing.T, reason string) *runtimeDeliveryR
 	}
 	damaged, err := json.Marshal(descriptor)
 	require.NoError(t, err)
-	_, err = f.db.Exec(`UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(damaged), id, key.GroupRevision)
+	_, err = f.db.ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE group_id=? AND group_revision=?`, string(damaged), id, key.GroupRevision)
 	require.NoError(t, err)
 	// Recovery is through public Reconcile; no private quarantine map injection.
 	r.pipe = grouppipeline.New(deps, grouppipeline.Config{Now: func() time.Time { return r.clock }})
 	require.NoError(t, r.pipe.Reconcile(t.Context()))
-	_, err = f.db.Exec(`UPDATE devices SET description='' WHERE id='device-A'`)
+	_, err = f.db.ExecContext(t.Context(), `UPDATE devices SET description='' WHERE id='device-A'`)
 	require.NoError(t, err)
 	r.router = NewRouter(&DatalinkServices{Workspace: f.workspace, WriteGroups: f.groups, WriteGroupDelivery: r.pipe, Device: device.NewService(device.NewSQLRepository(f.db), nil)})
 	return r
@@ -222,15 +222,15 @@ func newRuntimeCounterDeliveryRig(t *testing.T, reason string) *runtimeDeliveryR
 
 func (r *runtimeDeliveryRig) sharedGroup(t *testing.T) {
 	t.Helper()
-	_, err := r.f.db.Exec(`INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('device-B','Second','','modbus_tcp','draft','{}','{}')`)
+	_, err := r.f.db.ExecContext(t.Context(), `INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('device-B','Second','','modbus_tcp','draft','{}','{}')`)
 	require.NoError(t, err)
 	_, err = r.f.workspace.AttachDevice(t.Context(), "device-B")
 	require.NoError(t, err)
-	_, err = r.f.db.Exec(`INSERT INTO points(id,device_id,name,address,function,data_type,mode,enabled) VALUES('point-B','device-B','Second','40001','FC03','float32','read',1)`)
+	_, err = r.f.db.ExecContext(t.Context(), `INSERT INTO points(id,device_id,name,address,function,data_type,mode,enabled) VALUES('point-B','device-B','Second','40001','FC03','float32','read',1)`)
 	require.NoError(t, err)
-	_, err = r.f.db.Exec(`INSERT INTO tags(id,key,key_lower,display_name,data_type,status,labels) VALUES('tag-B','second','second','Second','float32','active','{}')`)
+	_, err = r.f.db.ExecContext(t.Context(), `INSERT INTO tags(id,key,key_lower,display_name,data_type,status,labels) VALUES('tag-B','second','second','Second','float32','active','{}')`)
 	require.NoError(t, err)
-	_, err = r.f.db.Exec(`INSERT INTO mappings(id,point_id,tag_id,transform_pipeline,status,enabled) VALUES('mapping-B','point-B','tag-B','[]','active',1)`)
+	_, err = r.f.db.ExecContext(t.Context(), `INSERT INTO mappings(id,point_id,tag_id,transform_pipeline,status,enabled) VALUES('mapping-B','point-B','tag-B','[]','active',1)`)
 	require.NoError(t, err)
 	current, err := r.f.groups.Get(t.Context(), r.f.group["id"].(string))
 	require.NoError(t, err)

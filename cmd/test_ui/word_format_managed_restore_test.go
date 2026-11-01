@@ -38,7 +38,7 @@ func TestProductionWordFormatManagedBackupRestorePreservesIntentAndHistory(t *te
 	historyPath := filepath.Join(t.TempDir(), "historical-output.db")
 	history, err := sql.Open("sqlite", historyPath)
 	require.NoError(t, err)
-	_, err = history.Exec(`CREATE TABLE history(id INTEGER,value TEXT,source_revision TEXT); INSERT INTO history VALUES(1,'18446744073709551615','frozen-before-format-edit')`)
+	_, err = history.ExecContext(t.Context(), `CREATE TABLE history(id INTEGER,value TEXT,source_revision TEXT); INSERT INTO history VALUES(1,'18446744073709551615','frozen-before-format-edit')`)
 	require.NoError(t, err)
 	require.NoError(t, history.Close())
 	historicalBytes, err := os.ReadFile(historyPath)
@@ -46,7 +46,7 @@ func TestProductionWordFormatManagedBackupRestorePreservesIntentAndHistory(t *te
 	historicalHash := sha256.Sum256(historicalBytes)
 	var seq int
 	var name, source string
-	require.NoError(t, f.db.QueryRow(`PRAGMA database_list`).Scan(&seq, &name, &source))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `PRAGMA database_list`).Scan(&seq, &name, &source))
 	backup := filepath.Join(t.TempDir(), "config-backup.db")
 	wordSQLiteBackupCopy(t, source, backup)
 	restoredPath := filepath.Join(t.TempDir(), "config-restored-copy.db")

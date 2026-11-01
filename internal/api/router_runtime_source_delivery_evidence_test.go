@@ -122,11 +122,11 @@ func TestRuntimeSourceDeliveryEvidenceSourceReceiptMismatchNeverBorrowsGroupComm
 			var err error
 			switch damage {
 			case "missing":
-				_, err = r.f.db.Exec(`DELETE FROM wg_delivery_receipts WHERE effect_key=?`, effect)
+				_, err = r.f.db.ExecContext(t.Context(), `DELETE FROM wg_delivery_receipts WHERE effect_key=?`, effect)
 			case "digest":
-				_, err = r.f.db.Exec(`UPDATE wg_delivery_receipts SET payload_digest='mismatch' WHERE effect_key=?`, effect)
+				_, err = r.f.db.ExecContext(t.Context(), `UPDATE wg_delivery_receipts SET payload_digest='mismatch' WHERE effect_key=?`, effect)
 			case "time":
-				_, err = r.f.db.Exec(`UPDATE wg_delivery_receipts SET committed_at='2026-10-01T00:00:00Z' WHERE effect_key=?`, effect)
+				_, err = r.f.db.ExecContext(t.Context(), `UPDATE wg_delivery_receipts SET committed_at='2026-10-01T00:00:00Z' WHERE effect_key=?`, effect)
 			}
 			require.NoError(t, err)
 			raw := r.raw(t)
@@ -156,7 +156,7 @@ func TestRuntimeSourceDeliveryEvidenceUnverifiedRecordAndMissingRecordHaveNoInve
 		r := newRuntimeSourceDeliveryRig(t, false)
 		r.offer(t, "mean", 0, false)
 		r.closeWindow(t, 0)
-		_, err := r.f.db.Exec(`UPDATE wg_delivery_outbox SET payload='private-invalid-payload' WHERE entity_key=?`, `["device-A","point-mean","tag-mean"]`)
+		_, err := r.f.db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET payload='private-invalid-payload' WHERE entity_key=?`, `["device-A","point-mean","tag-mean"]`)
 		require.NoError(t, err)
 		g := r.evidence(t)
 		s := runtimeDeliveredSource(t, g, "tag-mean")
@@ -250,7 +250,7 @@ func TestRuntimeSourceDeliveryEvidenceLegacyCustomMissingFrozenProofUnavailable(
 		r := newRuntimeSourceDeliveryRig(t, true)
 		r.offer(t, "mean", 0, false)
 		r.closeWindow(t, 0)
-		_, err := r.f.db.Exec(`DELETE FROM wg_runtime_versions`)
+		_, err := r.f.db.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions`)
 		require.NoError(t, err)
 		g := r.evidence(t)
 		require.Nil(t, g.Effective)

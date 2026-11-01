@@ -45,12 +45,12 @@ func TestSuccessorFirstStartHTTPLostResponseOfflineReopen(t *testing.T) {
 	require.Equal(t, r.prepared.Group.ID, result["group_id"])
 	require.NoError(t, r.pipe.Stop(time.Second))
 	// A disconnected/revised target must not change historical status or replay.
-	_, err = r.f.db.Exec(`UPDATE database_connectors SET enabled=0,identity_revision='offline-new-revision'`)
+	_, err = r.f.db.ExecContext(t.Context(), `UPDATE database_connectors SET enabled=0,identity_revision='offline-new-revision'`)
 	require.NoError(t, err)
 	before := successorAPIAllState(t, r.f.db)
 	var seq int
 	var name, path string
-	require.NoError(t, r.f.db.QueryRow(`PRAGMA database_list`).Scan(&seq, &name, &path))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `PRAGMA database_list`).Scan(&seq, &name, &path))
 	require.NoError(t, r.f.db.Close())
 	reopened, err := sql.Open("sqlite", path)
 	require.NoError(t, err)
@@ -136,11 +136,11 @@ func TestSuccessorFirstStartHTTPConcurrentIdenticalRequestOneResult(t *testing.T
 		}
 	}
 	var versions int
-	require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM write_group_versions WHERE group_id=?`, r.prepared.Group.ID).Scan(&versions))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM write_group_versions WHERE group_id=?`, r.prepared.Group.ID).Scan(&versions))
 	require.Equal(t, 1, versions)
 	for _, table := range []string{"write_group_cutovers", "write_group_revision_ends", "write_group_ownership_fences", "wg_delivery_sample_handoffs"} {
 		var count int
-		require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM `+table).Scan(&count))
+		require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+table).Scan(&count))
 		require.Zero(t, count, table)
 	}
 }

@@ -26,15 +26,18 @@ func (h *RuntimeHandler) checkRuntimeSavedSnapshot(ctx context.Context, before *
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(rules, runtimeRuleSnapshot(latest)) {
+	latestSnapshot, err := runtimeRuleSnapshot(latest)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(rules, latestSnapshot) {
 		return errRuntimeStaleReference
 	}
 	return nil
 }
 
-func runtimeRuleSnapshot(rules []*schema.SourceRule) []byte {
-	data, _ := json.Marshal(rules)
-	return data
+func runtimeRuleSnapshot(rules []*schema.SourceRule) ([]byte, error) {
+	return json.Marshal(rules)
 }
 
 func (h *RuntimeHandler) checkRuntimeConnectorSnapshot(ctx context.Context, before *schema.DatabaseConnector) error {

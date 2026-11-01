@@ -40,7 +40,7 @@ func TestSQLServerSuccessorActivationRuntimeBoundaries(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, old.Group, current.Group, "schedule commit must not disable or rewrite G1")
 			var head string
-			require.NoError(t, r.f.db.QueryRow(`SELECT current_group_id FROM write_group_lineages WHERE lineage_id=?`, r.prepared.LineageID).Scan(&head))
+			require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT current_group_id FROM write_group_lineages WHERE lineage_id=?`, r.prepared.LineageID).Scan(&head))
 			require.Equal(t, r.prepared.Group.ID, head)
 			r.clock.Store(r.boundary.Add(-time.Millisecond).UnixNano())
 			require.NoError(t, r.pipe.AcceptSample(t.Context(), r.sample("before-after-confirm", r.boundary.Add(-2*time.Millisecond), float32(6))), "G1 still receives before-B data after config head moved")
@@ -48,7 +48,7 @@ func TestSQLServerSuccessorActivationRuntimeBoundaries(t *testing.T) {
 			require.ErrorIs(t, r.pipe.AcceptSample(t.Context(), r.sample("not-accepted", r.boundary.Add(time.Second), float32(999))), groupdelivery.ErrOwnershipUnavailable, "delayed reconcile must not ACK unowned post-B input")
 			require.Equal(t, original, successorRuntimeOriginals(t, r.successorRuntimeRig))
 			var targetCount int
-			require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=?`, r.prepared.Group.ID).Scan(&targetCount))
+			require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id=?`, r.prepared.Group.ID).Scan(&targetCount))
 			require.Zero(t, targetCount)
 			// Exact spec example: B=12:00:12.500, observed=13, reconcile=18.
 			r.clock.Store(time.Date(2026, 10, 28, 12, 0, 18, 0, time.UTC).UnixNano())
@@ -56,7 +56,7 @@ func TestSQLServerSuccessorActivationRuntimeBoundaries(t *testing.T) {
 			successorRuntimeHandoffs(t, r.successorRuntimeRig, original, false)
 			require.NoError(t, r.pipe.AcceptSample(t.Context(), r.sample("late-unfinalized", r.boundary.Add(1500*time.Millisecond), float32(7))))
 			var accepted string
-			require.NoError(t, r.f.db.QueryRow(`SELECT created_at FROM wg_delivery_samples WHERE group_id=? AND sample_id=?`, r.prepared.Group.ID, "late-unfinalized").Scan(&accepted))
+			require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT created_at FROM wg_delivery_samples WHERE group_id=? AND sample_id=?`, r.prepared.Group.ID, "late-unfinalized").Scan(&accepted))
 			require.Equal(t, time.Date(2026, 10, 28, 12, 0, 18, 0, time.UTC).Format(time.RFC3339Nano), accepted, "late observation remains in its unfinalized successor window")
 			r.clock.Store(time.Date(2026, 10, 28, 12, 0, 28, 0, time.UTC).UnixNano())
 			r.pipe.TickAll(t.Context())

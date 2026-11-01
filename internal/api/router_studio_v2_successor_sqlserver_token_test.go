@@ -18,7 +18,7 @@ func TestSQLServerSuccessorLocalReviewRejectsCorruptFullProof(t *testing.T) {
 			t.Run(string(mode)+"/"+fault, func(t *testing.T) {
 				r := newSQLServerSuccessorRig(t, mode, false, true)
 				var tokenID, raw string
-				require.NoError(t, r.f.db.QueryRow(`SELECT token,tables FROM managed_schema_preview_tokens WHERE plan_id=?`, r.prepared.Group.ID).Scan(&tokenID, &raw))
+				require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT token,tables FROM managed_schema_preview_tokens WHERE plan_id=?`, r.prepared.Group.ID).Scan(&tokenID, &raw))
 				var body map[string]any
 				require.NoError(t, json.Unmarshal([]byte(raw), &body))
 				layout := body["group_layout"].(map[string]any)
@@ -52,15 +52,15 @@ func TestSQLServerSuccessorLocalReviewRejectsCorruptFullProof(t *testing.T) {
 						options["native_monthly"] = native
 					}
 				case "operation_digest":
-					_, err := r.f.db.Exec(`UPDATE managed_schema_operations SET verified_digest='foreign' WHERE token=?`, tokenID)
+					_, err := r.f.db.ExecContext(t.Context(), `UPDATE managed_schema_operations SET verified_digest='foreign' WHERE token=?`, tokenID)
 					require.NoError(t, err)
 				case "token_digest":
-					_, err := r.f.db.Exec(`UPDATE managed_schema_preview_tokens SET digest='foreign' WHERE token=?`, tokenID)
+					_, err := r.f.db.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET digest='foreign' WHERE token=?`, tokenID)
 					require.NoError(t, err)
 				}
 				updated, err := json.Marshal(body)
 				require.NoError(t, err)
-				_, err = r.f.db.Exec(`UPDATE managed_schema_preview_tokens SET tables=? WHERE token=?`, string(updated), tokenID)
+				_, err = r.f.db.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET tables=? WHERE token=?`, string(updated), tokenID)
 				require.NoError(t, err)
 				spy := &sqlServerSuccessorProbeSpy{ManagedTableInspector: r.f.groups.ManagedTableInspector(r.targets), offline: true}
 				r.f.groups.WithManagedTableInspector(spy)

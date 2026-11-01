@@ -61,13 +61,13 @@ func (r *runtimeSourcePageRig) seed(t *testing.T, deviceID, ruleID string, mappi
 		r.points++
 		suffix := fmt.Sprintf("%s-%03d", ruleID, i)
 		pointID, tagID, mappingID := "point-"+suffix, "tag-"+suffix, "mapping-"+suffix
-		_, err := r.f.db.Exec(`INSERT INTO points(id,device_id,name,address,function,data_type,mode,enabled) VALUES(?,?,?,?, 'FC03','float32','read',1)`, pointID, deviceID, suffix, address)
+		_, err := r.f.db.ExecContext(t.Context(), `INSERT INTO points(id,device_id,name,address,function,data_type,mode,enabled) VALUES(?,?,?,?, 'FC03','float32','read',1)`, pointID, deviceID, suffix, address)
 		require.NoError(t, err)
 		labels, err := json.Marshal(map[string]string{"source": "source-rule", "source_rule_id": ruleID, "source_rule_address": address})
 		require.NoError(t, err)
-		_, err = r.f.db.Exec(`INSERT INTO tags(id,key,key_lower,display_name,data_type,status,labels) VALUES(?,?,?,?,'float32','active',?)`, tagID, "temperature_"+suffix, "temperature_"+suffix, "Temperature "+suffix, string(labels))
+		_, err = r.f.db.ExecContext(t.Context(), `INSERT INTO tags(id,key,key_lower,display_name,data_type,status,labels) VALUES(?,?,?,?,'float32','active',?)`, tagID, "temperature_"+suffix, "temperature_"+suffix, "Temperature "+suffix, string(labels))
 		require.NoError(t, err)
-		_, err = r.f.db.Exec(`INSERT INTO mappings(id,point_id,tag_id,transform_pipeline,status,enabled) VALUES(?,?,?,'[]','active',1)`, mappingID, pointID, tagID)
+		_, err = r.f.db.ExecContext(t.Context(), `INSERT INTO mappings(id,point_id,tag_id,transform_pipeline,status,enabled) VALUES(?,?,?,'[]','active',1)`, mappingID, pointID, tagID)
 		require.NoError(t, err)
 		links = append(links, &schema.SourceRuleLink{ID: "link-" + suffix, RuleID: ruleID, Address: address, PointID: pointID, TagID: &tagID, MappingID: &mappingID, CreatedAt: now, UpdatedAt: now})
 	}

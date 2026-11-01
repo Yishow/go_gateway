@@ -128,9 +128,9 @@ func TestRuntimeDeliveryEvidenceReplayInputsSeparateFromFinalizedQuarantine(t *t
 			before := lifecycleAPIState(t, r.f.db)
 			journal := counterReplayAPIJournal(t, r.f.db)
 			var descriptor string
-			require.NoError(t, r.f.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=?`, r.f.group["id"]).Scan(&descriptor))
+			require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=?`, r.f.group["id"]).Scan(&descriptor))
 			var changes int
-			require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&changes))
+			require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&changes))
 			g := r.evidence(t)
 			require.NotNil(t, g.Delivery)
 			require.Nil(t, g.Delivery.Current, "damaged current proof cannot manufacture effective/current stages")
@@ -146,12 +146,12 @@ func TestRuntimeDeliveryEvidenceReplayInputsSeparateFromFinalizedQuarantine(t *t
 			require.Equal(t, journal, counterReplayAPIJournal(t, r.f.db))
 			require.Equal(t, before, lifecycleAPIState(t, r.f.db))
 			var after string
-			require.NoError(t, r.f.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=?`, r.f.group["id"]).Scan(&after))
+			require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=?`, r.f.group["id"]).Scan(&after))
 			require.Equal(t, descriptor, after)
 			var count int
-			require.NoError(t, r.f.db.QueryRow(`SELECT count(*) FROM wg_delivery_outbox WHERE state='quarantined'`).Scan(&count))
+			require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT count(*) FROM wg_delivery_outbox WHERE state='quarantined'`).Scan(&count))
 			require.Zero(t, count)
-			require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&count))
+			require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&count))
 			require.Equal(t, changes, count)
 		})
 	}
@@ -209,11 +209,11 @@ func TestRuntimeDeliveryEvidenceMissingOrMismatchedCommitProofFailsClosed(t *tes
 			var err error
 			switch damage {
 			case "receipt_missing":
-				_, err = r.f.db.Exec(`DELETE FROM wg_delivery_receipts`)
+				_, err = r.f.db.ExecContext(t.Context(), `DELETE FROM wg_delivery_receipts`)
 			case "digest_mismatch":
-				_, err = r.f.db.Exec(`UPDATE wg_delivery_receipts SET payload_digest='mismatch'`)
+				_, err = r.f.db.ExecContext(t.Context(), `UPDATE wg_delivery_receipts SET payload_digest='mismatch'`)
 			case "time_mismatch":
-				_, err = r.f.db.Exec(`UPDATE wg_delivery_receipts SET committed_at='2026-10-01T00:00:00Z'`)
+				_, err = r.f.db.ExecContext(t.Context(), `UPDATE wg_delivery_receipts SET committed_at='2026-10-01T00:00:00Z'`)
 			}
 			require.NoError(t, err)
 			response := performJSONRequest(t, r.router, http.MethodGet, runtimeRuleContextPath+"?"+r.query(t).Encode(), nil)
@@ -283,7 +283,7 @@ func TestRuntimeDeliveryEvidenceNoWritesOrWorkspaceRecreation(t *testing.T) {
 			r.accept(t, "read-only")
 			query := r.query(t)
 			drop := func() {
-				_, err := r.f.db.Exec(`DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
+				_, err := r.f.db.ExecContext(t.Context(), `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
 				require.NoError(t, err)
 			}
 			if mode == "deleted_before" {
@@ -294,16 +294,16 @@ func TestRuntimeDeliveryEvidenceNoWritesOrWorkspaceRecreation(t *testing.T) {
 			}
 			journal := counterReplayAPIJournal(t, r.f.db)
 			var before int
-			require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&before))
+			require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&before))
 			response := performJSONRequest(t, r.router, http.MethodGet, runtimeRuleContextPath+"?"+query.Encode(), nil)
 			var after int
-			require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&after))
+			require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&after))
 			if mode == "unchanged" {
 				require.Equal(t, 200, response.Code, response.Body.String())
 				require.Equal(t, before, after)
 			} else {
 				var count int
-				require.NoError(t, r.f.db.QueryRow(`SELECT count(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&count))
+				require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT count(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&count))
 				require.Zero(t, count, "GET must not recreate a deleted workspace")
 				if mode == "deleted_during" {
 					require.Equal(t, 409, response.Code, response.Body.String())

@@ -15,7 +15,7 @@ func TestWriteGroupLifecycleAppliedDraftAndUnknownOwner(t *testing.T) {
 	require.NotEmpty(t, applied)
 	require.EqualValues(t, 15, f.group["row_policy"].(map[string]any)["interval_seconds"])
 	var immutable string
-	require.NoError(t, f.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, id, applied).Scan(&immutable))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, id, applied).Scan(&immutable))
 	changed := cloneMap(f.group)
 	changed["row_policy"].(map[string]any)["interval_seconds"] = 30
 	response := performJSONRequest(t, f.router, http.MethodPut, writeGroupsPath+"/"+id, groupEditRequest(f.writeGroupRouterFixture, f.data, changed))
@@ -27,7 +27,7 @@ func TestWriteGroupLifecycleAppliedDraftAndUnknownOwner(t *testing.T) {
 	require.NotEqual(t, data["group_revision"], data["applied_revision"])
 	require.Equal(t, savedData["workspace_revision"], data["workspace_revision"])
 	var after string
-	require.NoError(t, f.db.QueryRow(`SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, id, applied).Scan(&after))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, id, applied).Scan(&after))
 	require.Equal(t, immutable, after)
 	for _, mode := range []string{"nil", "failure", "proven"} {
 		t.Run(mode, func(t *testing.T) {

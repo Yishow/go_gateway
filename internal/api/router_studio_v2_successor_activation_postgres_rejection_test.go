@@ -20,7 +20,7 @@ func TestPostgresSuccessorUnsupportedShapesHaveNoEffects(t *testing.T) {
 			case "cross_mode":
 				r.request.Group.StorageMode = "timescale"
 			case "cross_engine":
-				_, err := r.f.db.Exec(`UPDATE database_connectors SET kind='sqlite' WHERE id='connector-B'`)
+				_, err := r.f.db.ExecContext(t.Context(), `UPDATE database_connectors SET kind='sqlite' WHERE id='connector-B'`)
 				require.NoError(t, err)
 			case "custom":
 				r.request.Group.Destination.StorageStrategy = workspace.WriteGroupStorageStrategyCustom

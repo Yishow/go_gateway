@@ -20,7 +20,7 @@ func TestWriteGroupSuccessorActivationReplaySurvivesSQLiteReopen(t *testing.T) {
 	before := successorAPIAllState(t, f.f.db)
 	var seq int
 	var name, path string
-	require.NoError(t, f.f.db.QueryRow(`PRAGMA database_list`).Scan(&seq, &name, &path))
+	require.NoError(t, f.f.db.QueryRowContext(t.Context(), `PRAGMA database_list`).Scan(&seq, &name, &path))
 	require.NotEmpty(t, path)
 	require.NoError(t, f.f.db.Close())
 	reopened, err := sql.Open("sqlite", path)

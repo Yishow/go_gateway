@@ -68,7 +68,7 @@ func TestRuntimeRuleEvidenceMissingProofNeverUsesSavedAsEffective(t *testing.T) 
 	for _, mutation := range []string{`DELETE FROM wg_runtime_versions`, `UPDATE wg_runtime_versions SET payload='{"private":"/private/fixture-secret.sqlite password=fixture-password"}'`} {
 		t.Run(mutation[:6], func(t *testing.T) {
 			r := newRuntimeRuleEvidenceRig(t)
-			_, err := r.f.db.Exec(mutation)
+			_, err := r.f.db.ExecContext(t.Context(), mutation)
 			require.NoError(t, err)
 			before := lifecycleAPIState(t, r.f.db)
 			response := performJSONRequest(t, r.router, http.MethodGet, runtimeRuleContextPath+"?"+r.query(t).Encode(), nil)
@@ -215,12 +215,12 @@ func TestRuntimeRuleEvidenceConcurrentWorkspaceDeletionDoesNotRecreate(t *testin
 	r.clock = time.Date(2026, 10, 2, 12, 0, 17, 0, time.UTC)
 	query := r.query(t)
 	deleting := &runtimeRuleDeletingWorkspaceGroups{groups: r.f.groups, delete: func() {
-		_, err := r.f.db.Exec(`DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
+		_, err := r.f.db.ExecContext(t.Context(), `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
 		require.NoError(t, err)
 	}}
 	response := performJSONRequest(t, r.deterministicRouter(deleting), http.MethodGet, runtimeRuleContextPath+"?"+query.Encode(), nil)
 	var count int
-	require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&count))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&count))
 	require.Zero(t, count, "final consistency read must never replace the deleted workspace")
 	require.Equal(t, http.StatusServiceUnavailable, response.Code, response.Body.String())
 	require.NotContains(t, response.Body.String(), `"rule_evidence"`)

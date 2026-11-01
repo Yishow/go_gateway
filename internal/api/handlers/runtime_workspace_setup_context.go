@@ -61,7 +61,10 @@ func (h *RuntimeHandler) buildWorkspaceSetupContext(ctx context.Context, record 
 	if err != nil {
 		return response, err
 	}
-	ruleSnapshot := runtimeRuleSnapshot(rules)
+	ruleSnapshot, err := runtimeRuleSnapshot(rules)
+	if err != nil {
+		return response, err
+	}
 	defer func() {
 		if resultErr == nil {
 			resultErr = h.checkRuntimeSavedSnapshot(ctx, record, ruleSnapshot)

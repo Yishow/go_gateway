@@ -115,7 +115,7 @@ func newFirstStartAPIRig(t *testing.T, kind string, sourceLong, targetLong, coun
 	}
 	var lineage string
 	var revision int64
-	require.NoError(t, f.db.QueryRow(`SELECT lineage_id,revision FROM write_group_lineages WHERE current_group_id=?`, id).Scan(&lineage, &revision))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT lineage_id,revision FROM write_group_lineages WHERE current_group_id=?`, id).Scan(&lineage, &revision))
 	boundary := time.Date(2026, 10, 28, 12, 0, 12, 500000000, time.UTC)
 	rig := &wideRig{f: f, kind: kind, groupID: id, table: old.Group.Destination.TableName, clock: clock, columns: map[string]string{}, frozen: map[string]workspace.WriteGroupMember{}}
 	r := &successorRuntimeRig{successorAPIFixture: successorAPIFixture{wideRig: rig}, counter: counter, boundary: boundary}

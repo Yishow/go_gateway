@@ -67,7 +67,7 @@ func TestSQLServerSuccessorReadinessRechecksReservedCASAfterActualProbe(t *testi
 				if after != nil {
 					return
 				}
-				_, err := r.f.db.Exec(`UPDATE write_groups SET revision='changed-during-probe' WHERE id=?`, r.prepared.Group.ID)
+				_, err := r.f.db.ExecContext(t.Context(), `UPDATE write_groups SET revision='changed-during-probe' WHERE id=?`, r.prepared.Group.ID)
 				require.NoError(t, err)
 				after = sqlServerSuccessorLocalState(t, r.f.db)
 			}

@@ -20,7 +20,7 @@ func TestSuccessorFirstStartHTTPRechecksNoHistoryAfterReadiness(t *testing.T) {
 			}
 			// An undecodable runtime row is contradictory evidence, not proof of zero
 			// history. Both sides of the same lineage must fail before target work.
-			_, err := r.f.db.Exec(`INSERT INTO wg_runtime_versions(workspace_id,group_id,group_revision,payload) VALUES(?,?,?,?)`, r.f.record.ID, id, "late-history", "{invalid")
+			_, err := r.f.db.ExecContext(t.Context(), `INSERT INTO wg_runtime_versions(workspace_id,group_id,group_revision,payload) VALUES(?,?,?,?)`, r.f.record.ID, id, "late-history", "{invalid")
 			require.NoError(t, err)
 			before := successorAPIAllState(t, r.f.db)
 			targetBefore := successorAPIAllState(t, r.target)
@@ -41,17 +41,17 @@ func TestSuccessorFirstStartHTTPRechecksCASAndTarget(t *testing.T) {
 			var err error
 			switch field {
 			case "connector":
-				_, err = r.f.db.Exec(`UPDATE database_connectors SET identity_revision='changed' WHERE id='connector-A'`)
+				_, err = r.f.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='changed' WHERE id='connector-A'`)
 			case "schema":
-				_, err = r.f.db.Exec(`UPDATE write_groups SET destination_schema_digest='changed' WHERE id=?`, r.prepared.Group.ID)
+				_, err = r.f.db.ExecContext(t.Context(), `UPDATE write_groups SET destination_schema_digest='changed' WHERE id=?`, r.prepared.Group.ID)
 			case "lineage":
-				_, err = r.f.db.Exec(`UPDATE write_group_lineages SET revision=revision+1 WHERE lineage_id=?`, r.request.LineageID)
+				_, err = r.f.db.ExecContext(t.Context(), `UPDATE write_group_lineages SET revision=revision+1 WHERE lineage_id=?`, r.request.LineageID)
 			case "source":
-				_, err = r.f.db.Exec(`UPDATE write_groups SET revision='changed' WHERE id=?`, r.groupID)
+				_, err = r.f.db.ExecContext(t.Context(), `UPDATE write_groups SET revision='changed' WHERE id=?`, r.groupID)
 			case "target":
-				_, err = r.f.db.Exec(`UPDATE write_groups SET revision='changed' WHERE id=?`, r.prepared.Group.ID)
+				_, err = r.f.db.ExecContext(t.Context(), `UPDATE write_groups SET revision='changed' WHERE id=?`, r.prepared.Group.ID)
 			case "missing_table":
-				_, err = r.target.Exec(`ALTER TABLE "` + r.prepared.Group.Destination.TableName + `" RENAME TO "missing_first_start_table"`)
+				_, err = r.target.ExecContext(t.Context(), `ALTER TABLE "`+r.prepared.Group.Destination.TableName+`" RENAME TO "missing_first_start_table"`)
 			}
 			require.NoError(t, err)
 			before := successorAPIAllState(t, r.f.db)

@@ -40,10 +40,10 @@ func TestMySQLSuccessorActivationRejectsForeignOrMissingProof(t *testing.T) {
 								query = `UPDATE write_groups SET revision='stale' WHERE id=?`
 							}
 							if field == "stale_source" {
-								_, err := r.f.db.Exec(`UPDATE write_groups SET revision='stale' WHERE id=?`, r.groupID)
+								_, err := r.f.db.ExecContext(t.Context(), `UPDATE write_groups SET revision='stale' WHERE id=?`, r.groupID)
 								require.NoError(t, err)
 							} else {
-								result, err := r.f.db.Exec(query, r.prepared.Group.ID)
+								result, err := r.f.db.ExecContext(t.Context(), query, r.prepared.Group.ID)
 								require.NoError(t, err)
 								n, err := result.RowsAffected()
 								require.NoError(t, err)
@@ -94,7 +94,7 @@ func TestMySQLSuccessorLiveCatalogDamageRefusesActivation(t *testing.T) {
 								statement = "ALTER TABLE `gw_effect_receipts` ENGINE=MyISAM"
 							case "index":
 								var index string
-								require.NoError(t, r.targetDB.QueryRow(`SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND INDEX_NAME<>'PRIMARY' LIMIT 1`, table).Scan(&index))
+								require.NoError(t, r.targetDB.QueryRowContext(t.Context(), `SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND INDEX_NAME<>'PRIMARY' LIMIT 1`, table).Scan(&index))
 								require.Regexp(t, `^[a-zA-Z0-9_]+$`, index)
 								statement = "ALTER TABLE `" + table + "` DROP INDEX `" + index + "`"
 							case "owner":
@@ -102,7 +102,7 @@ func TestMySQLSuccessorLiveCatalogDamageRefusesActivation(t *testing.T) {
 							case "partition":
 								statement = "ALTER TABLE `" + table + "` REMOVE PARTITIONING"
 							}
-							_, err = r.targetDB.Exec(statement)
+							_, err = r.targetDB.ExecContext(t.Context(), statement)
 							require.NoError(t, err)
 							before, external := successorAPIAllState(t, r.f.db), r.targetState(t)
 							ready := f.postActivation(t, map[string]any{"action": "activation-readiness", "envelope": review["envelope"], "review_digest": review["review_digest"]})

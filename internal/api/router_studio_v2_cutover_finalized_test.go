@@ -70,7 +70,7 @@ func TestCutoverFinalizedPublicAPI(t *testing.T) {
 				require.Empty(t, r.outbox())
 			}
 			if mode == "authority unavailable" {
-				_, err := r.f.db.Exec(`UPDATE wg_delivery_checkpoints SET next_close='dsn=private;value=secret'`)
+				_, err := r.f.db.ExecContext(t.Context(), `UPDATE wg_delivery_checkpoints SET next_close='dsn=private;value=secret'`)
 				require.NoError(t, err)
 			}
 			counts := r.cutoverCounts()
@@ -134,11 +134,11 @@ func TestCutoverFinalizedRollbackIncludesRetainedSuccessor(t *testing.T) {
 // permits the closure to win; the stale snapshot must refuse its lock upgrade.
 func TestCutoverFinalizedStaleTransactionSnapshotRefuses(t *testing.T) {
 	r, _ := finalizedAPIRig(t, cutoverOptions{lostCommit: true})
-	_, err := r.f.db.Exec(`PRAGMA journal_mode=WAL`)
+	_, err := r.f.db.ExecContext(t.Context(), `PRAGMA journal_mode=WAL`)
 	require.NoError(t, err)
 	var seq int
 	var name, path string
-	require.NoError(t, r.f.db.QueryRow(`PRAGMA database_list`).Scan(&seq, &name, &path))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `PRAGMA database_list`).Scan(&seq, &name, &path))
 	writer, err := sql.Open("sqlite", path)
 	require.NoError(t, err)
 	defer writer.Close()
@@ -168,7 +168,7 @@ func TestCutoverFinalizedStaleTransactionSnapshotRefuses(t *testing.T) {
 	require.Equal(t, before, r.cutoverCounts())
 	require.Equal(t, wide, getGroup(t, r.f, wide["id"].(string)))
 	var cursor string
-	require.NoError(t, r.f.db.QueryRow(`SELECT next_close FROM wg_delivery_checkpoints`).Scan(&cursor))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT next_close FROM wg_delivery_checkpoints`).Scan(&cursor))
 	require.Equal(t, r.at(30*time.Second), storedInstant(t, cursor), "the winning closure survives the rejected cutover")
 	// The same request now reads the committed authority and gives the precise
 	// overlap code; no automatic retry or write was performed by the first call.

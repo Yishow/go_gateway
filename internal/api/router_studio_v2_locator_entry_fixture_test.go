@@ -68,9 +68,9 @@ type locatorRuleReads struct {
 func (f locatorRuleReads) GetByID(ctx context.Context, id string) (*schema.SourceRule, error) {
 	return f.get(ctx, id)
 }
-func locatorExec(t *testing.T, r *runtimeSourceRig, statement string, args ...any) {
+func locatorExec(ctx context.Context, t *testing.T, r *runtimeSourceRig, statement string, args ...any) {
 	t.Helper()
-	_, err := r.f.db.ExecContext(t.Context(), statement, args...)
+	_, err := r.f.db.ExecContext(ctx, statement, args...)
 	require.NoError(t, err)
 }
 func locatorTotal(t *testing.T, r *runtimeSourceRig) int64 {
