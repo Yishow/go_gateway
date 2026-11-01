@@ -7,10 +7,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 type recoveryErrorReader struct {
@@ -47,7 +48,7 @@ func TestTestWriteRecoveryHandlerSanitizesFailedObservations(t *testing.T) {
 			r := gin.New()
 			r.GET("/recovery", h.ListTestWrites)
 			w := httptest.NewRecorder()
-			r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/recovery", nil))
+			r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/recovery", http.NoBody))
 			require.Equal(t, http.StatusServiceUnavailable, w.Code)
 			require.Contains(t, w.Body.String(), `"code":"RECORDING_PLAN_UNAVAILABLE"`)
 			require.Contains(t, w.Body.String(), `"retryable":true`)
@@ -69,7 +70,7 @@ func TestTestWriteRecoveryHandlerWorkspaceFailureIsTyped(t *testing.T) {
 	r := gin.New()
 	r.GET("/recovery", h.ListTestWrites)
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/recovery", nil))
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/recovery", http.NoBody))
 	require.Equal(t, http.StatusServiceUnavailable, w.Code)
 	require.Contains(t, w.Body.String(), `"code":"RECORDING_PLAN_UNAVAILABLE"`)
 	require.Contains(t, w.Body.String(), `"retryable":true`)

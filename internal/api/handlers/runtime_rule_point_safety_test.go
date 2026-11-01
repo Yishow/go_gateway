@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRuntimeRulePointSafetyRemoteDiagnostics(t *testing.T) {
@@ -21,7 +22,7 @@ func TestRuntimeRulePointSafetyRemoteDiagnostics(t *testing.T) {
 	for _, method := range []string{"list", "get"} {
 		rec := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(rec)
-		c.Request = httptest.NewRequest(http.MethodGet, "/points?device_id=device", nil)
+		c.Request = httptest.NewRequest(http.MethodGet, "/points?device_id=device", http.NoBody)
 		c.Request.RemoteAddr = "203.0.113.9:1234"
 		c.Params = gin.Params{{Key: "id", Value: "point"}}
 		if method == "list" {
@@ -56,7 +57,7 @@ func TestRuntimeRulePointSafetyScalarCompatibility(t *testing.T) {
 			h := NewPointHandler(point.NewService(repo, nil))
 			rec := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(rec)
-			c.Request = httptest.NewRequest(http.MethodGet, "/points", nil)
+			c.Request = httptest.NewRequest(http.MethodGet, "/points", http.NoBody)
 			h.List(c)
 			var body struct {
 				Data []struct {
@@ -86,7 +87,7 @@ func TestRuntimeRulePointSafetyReadFailure(t *testing.T) {
 	h := NewPointHandler(point.NewService(runtimePointFailedRepository{point.NewMemoryRepository()}, nil))
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodGet, "/points", nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/points", http.NoBody)
 	h.List(c)
 	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	require.NotContains(t, rec.Body.String(), "fixture-password")

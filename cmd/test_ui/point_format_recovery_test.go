@@ -3,16 +3,18 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/api/handlers"
 	appconfig "go-gateway/internal/config"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sourcerule"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestProductionFormatRecoveryWithoutRestart(t *testing.T) {
@@ -29,10 +31,10 @@ func TestProductionFormatRecoveryWithoutRestart(t *testing.T) {
 			rule, p, _ := f.createRule(t, schema.ProtocolModbusTCP, 0, schema.DataTypeUint32, "ABCD")
 			if tc.inactive != "" {
 				response := httptest.NewRecorder()
-				f.router.ServeHTTP(response, httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/disable", nil))
+				f.router.ServeHTTP(response, httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/disable", http.NoBody))
 				require.Equal(t, 200, response.Code, response.Body.String())
 				if tc.inactive == schema.DeviceStatusDraft {
-					_, e := f.db.Exec(`UPDATE devices SET status='draft' WHERE id='word-device'`)
+					_, e := f.db.ExecContext(t.Context(), `UPDATE devices SET status='draft' WHERE id='word-device'`)
 					require.NoError(t, e)
 				}
 			}
@@ -48,7 +50,7 @@ func TestProductionFormatRecoveryWithoutRestart(t *testing.T) {
 			base := appconfig.Get().API.BasePath + "/datalink"
 			for i, format := range []string{"CDAB", ""} {
 				get := httptest.NewRecorder()
-				f.router.ServeHTTP(get, httptest.NewRequest("GET", base+"/points/"+p.ID+"/format?workspace_id="+record.ID+"&device_id="+p.DeviceID+"&rule_id="+rule.ID, nil))
+				f.router.ServeHTTP(get, httptest.NewRequest("GET", base+"/points/"+p.ID+"/format?workspace_id="+record.ID+"&device_id="+p.DeviceID+"&rule_id="+rule.ID, http.NoBody))
 				require.Equal(t, 200, get.Code, get.Body.String())
 				var read handlers.PointFormatReadResponse
 				require.NoError(t, json.Unmarshal(get.Body.Bytes(), &read))
@@ -78,7 +80,7 @@ func TestProductionFormatRecoveryWithoutRestart(t *testing.T) {
 				var firstLease uint64
 				for attempt := 0; attempt < 2; attempt++ {
 					if attempt == 1 && tc.changedCandidate {
-						_, e := f.db.Exec(`UPDATE source_rule_candidate_snapshots SET payload=json_set(payload,'$.candidates[0].register',10) WHERE source_rule_id=? AND candidate_type='local_modbus_outputs'`, rule.ID)
+						_, e := f.db.ExecContext(t.Context(), `UPDATE source_rule_candidate_snapshots SET payload=json_set(payload,'$.candidates[0].register',10) WHERE source_rule_id=? AND candidate_type='local_modbus_outputs'`, rule.ID)
 						require.NoError(t, e)
 						desired, e := f.services.sourceRule.BuildDesiredShareMappingsForDevices(t.Context(), record.ID, f.services.modbusShare.Settings(), []string{p.DeviceID})
 						require.NoError(t, e)
@@ -87,7 +89,7 @@ func TestProductionFormatRecoveryWithoutRestart(t *testing.T) {
 						require.Equal(t, uint16(0), f.services.modbusShare.ListMappings()[0].ZeroBasedRegister)
 					} else if attempt == 1 && tc.inactive == "" {
 						poll := httptest.NewRecorder()
-						f.router.ServeHTTP(poll, httptest.NewRequest("POST", base+"/points/"+p.ID+"/poll", nil))
+						f.router.ServeHTTP(poll, httptest.NewRequest("POST", base+"/points/"+p.ID+"/poll", http.NoBody))
 						require.Equal(t, 200, poll.Code, poll.Body.String())
 						telemetry, e := f.services.point.GetByID(t.Context(), p.ID)
 						require.NoError(t, e)

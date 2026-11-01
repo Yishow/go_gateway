@@ -63,7 +63,7 @@ func lifecycleAPIState(t *testing.T, db *sql.DB) map[string][]string {
 	t.Helper()
 	state := map[string][]string{}
 	for _, table := range []string{"system_settings", "database_connectors", "write_groups", "write_group_versions", "wg_runtime_versions", "wg_delivery_samples", "wg_delivery_outbox", "wg_delivery_receipts"} {
-		rows, err := db.Query(`SELECT * FROM ` + table + ` ORDER BY rowid`)
+		rows, err := db.QueryContext(t.Context(), `SELECT * FROM `+table+` ORDER BY rowid`)
 		require.NoError(t, err)
 		cols, err := rows.Columns()
 		require.NoError(t, err)

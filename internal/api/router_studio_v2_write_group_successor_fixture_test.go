@@ -37,7 +37,7 @@ func newSuccessorAPIFixture(t *testing.T) successorAPIFixture {
 	target.Destination.TableName = ""
 	var lineage string
 	var revision int64
-	require.NoError(t, rig.f.db.QueryRow(`SELECT lineage_id,revision FROM write_group_lineages WHERE current_group_id=?`, rig.groupID).Scan(&lineage, &revision))
+	require.NoError(t, rig.f.db.QueryRowContext(t.Context(), `SELECT lineage_id,revision FROM write_group_lineages WHERE current_group_id=?`, rig.groupID).Scan(&lineage, &revision))
 	return successorAPIFixture{wideRig: rig, request: workspace.WriteGroupSuccessorReviewRequest{
 		WorkspaceID: rig.f.record.ID, ExpectedWorkspaceRevision: current.WorkspaceRevision,
 		LineageID: lineage, ExpectedLineageRevision: revision, ExpectedPredecessorRevision: current.Group.Revision,
@@ -79,7 +79,7 @@ func successorAPIStage(t *testing.T, f successorAPIFixture, review workspace.Wri
 	predecessor, err := f.f.groups.Get(t.Context(), f.groupID)
 	require.NoError(t, err)
 	var lineageRevision int64
-	require.NoError(t, f.f.db.QueryRow(`SELECT revision FROM write_group_lineages WHERE lineage_id=?`, prepared.LineageID).Scan(&lineageRevision))
+	require.NoError(t, f.f.db.QueryRowContext(t.Context(), `SELECT revision FROM write_group_lineages WHERE lineage_id=?`, prepared.LineageID).Scan(&lineageRevision))
 	return map[string]any{"envelope": review.Envelope, "review_digest": review.ReviewDigest,
 		"current": workspace.WriteGroupSuccessorCurrentCAS{
 			WorkspaceRevision: current.WorkspaceRevision, LineageRevision: lineageRevision,
@@ -92,7 +92,7 @@ func successorAPIStage(t *testing.T, f successorAPIFixture, review workspace.Wri
 // Compare sorted row bytes so query order is not confused with mutation.
 func successorAPIAllState(t *testing.T, db *sql.DB) map[string][]string {
 	t.Helper()
-	rows, err := db.Query(`SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name`)
+	rows, err := db.QueryContext(t.Context(), `SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name`)
 	require.NoError(t, err)
 	var names []string
 	for rows.Next() {
@@ -104,7 +104,7 @@ func successorAPIAllState(t *testing.T, db *sql.DB) map[string][]string {
 	require.NoError(t, rows.Close())
 	state := map[string][]string{}
 	for _, name := range names {
-		rows, err := db.Query(`SELECT * FROM "` + strings.ReplaceAll(name, `"`, `""`) + `"`)
+		rows, err := db.QueryContext(t.Context(), `SELECT * FROM "`+strings.ReplaceAll(name, `"`, `""`)+`"`)
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)

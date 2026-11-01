@@ -102,7 +102,7 @@ func barrierAPISample(r *cutoverRig, id string, observed time.Time, value float6
 // mutable consumed flag. Copies must preserve it under the original namespace.
 func barrierAPIOriginals(t *testing.T, r *cutoverRig) map[string]string {
 	t.Helper()
-	rows, err := r.f.db.Query(`SELECT sample_id,payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=? ORDER BY seq`, r.wide["id"])
+	rows, err := r.f.db.QueryContext(t.Context(), `SELECT sample_id,payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=? ORDER BY seq`, r.wide["id"])
 	require.NoError(t, err)
 	defer rows.Close()
 	out := map[string]string{}
@@ -250,7 +250,7 @@ func barrierAPIAssertHandoff(t *testing.T, r *cutoverRig, originals map[string]s
 	t.Helper()
 	require.Equal(t, originals, barrierAPIOriginals(t, r))
 	require.Equal(t, 2, r.localCount(`SELECT COUNT(*) FROM wg_delivery_sample_handoffs WHERE state='accepted' AND source_group_id=? AND target_group_id=?`, r.wide["id"], r.long["id"]))
-	rows, err := r.f.db.Query(`SELECT s.sample_id,s.payload,s.payload_digest,s.created_at,s.consumed,t.origin_sample_id,t.payload,t.payload_digest,t.created_at,t.consumed,h.transfer_id,t.handoff_id,t.origin_group_id
+	rows, err := r.f.db.QueryContext(t.Context(), `SELECT s.sample_id,s.payload,s.payload_digest,s.created_at,s.consumed,t.origin_sample_id,t.payload,t.payload_digest,t.created_at,t.consumed,h.transfer_id,t.handoff_id,t.origin_group_id
 		FROM wg_delivery_sample_handoffs h JOIN wg_delivery_samples s ON s.seq=h.source_seq JOIN wg_delivery_samples t ON t.seq=h.target_seq ORDER BY s.sample_id`)
 	require.NoError(t, err)
 	defer rows.Close()
@@ -272,7 +272,7 @@ func barrierAPIAssertHandoff(t *testing.T, r *cutoverRig, originals map[string]s
 	require.NoError(t, rows.Err())
 	require.Equal(t, []string{"after", "equal"}, ids, "exactly-boundary input belongs only to successor")
 	var oldConsumed bool
-	require.NoError(t, r.f.db.QueryRow(`SELECT consumed FROM wg_delivery_samples WHERE group_id=? AND sample_id='before'`, r.wide["id"]).Scan(&oldConsumed))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT consumed FROM wg_delivery_samples WHERE group_id=? AND sample_id='before'`, r.wide["id"]).Scan(&oldConsumed))
 	require.Equal(t, consumed, oldConsumed)
 	require.Equal(t, 5, r.localCount(`SELECT COUNT(*) FROM wg_delivery_samples`), "three originals plus two exact copies; none lost or duplicated")
 }
@@ -309,7 +309,7 @@ func barrierAPIAssertRows(t *testing.T, r *cutoverRig, wide bool, boundary, oldO
 	member := r.long["members"].([]any)[0].(map[string]any)
 	var value float64
 	var provenance string
-	require.NoError(t, r.dest.QueryRow(`SELECT "`+member["target_column"].(string)+`",provenance FROM `+r.quoted(r.longTable())+` WHERE bucket_start=?`, boundary.Format(time.RFC3339Nano)).Scan(&value, &provenance))
+	require.NoError(t, r.dest.QueryRowContext(t.Context(), `SELECT "`+member["target_column"].(string)+`",provenance FROM `+r.quoted(r.longTable())+` WHERE bucket_start=?`, boundary.Format(time.RFC3339Nano)).Scan(&value, &provenance))
 	require.Equal(t, newValue, value)
 	require.NoError(t, json.Unmarshal([]byte(provenance), &entries))
 	require.Len(t, entries, 1)

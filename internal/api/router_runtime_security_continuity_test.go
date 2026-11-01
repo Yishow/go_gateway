@@ -2,11 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRuntimeSecurityLegacyAndScopedDeliveryRedactPersistedReasons(t *testing.T) {
@@ -20,10 +21,10 @@ func TestRuntimeSecurityLegacyAndScopedDeliveryRedactPersistedReasons(t *testing
 	require.Equal(t, []string{hostile}, authority.Backlog[0].ErrorCodes)
 	before := lifecycleAPIState(t, r.f.db)
 	var changes int
-	require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&changes))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&changes))
 	for name, path := range map[string]string{"legacy": writeGroupsPath + "/" + r.f.group["id"].(string) + "/delivery", "scoped": runtimeRuleContextPath + "?" + r.query(t).Encode()} {
 		t.Run(name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req := httptest.NewRequest(http.MethodGet, path, http.NoBody)
 			req.RemoteAddr = "203.0.113.10:4567"
 			response := httptest.NewRecorder()
 			r.router.ServeHTTP(response, req)
@@ -39,7 +40,7 @@ func TestRuntimeSecurityLegacyAndScopedDeliveryRedactPersistedReasons(t *testing
 	}
 	require.Equal(t, before, lifecycleAPIState(t, r.f.db))
 	var after int
-	require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&after))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&after))
 	require.Equal(t, changes, after)
 }
 
@@ -52,7 +53,7 @@ func TestRuntimeSecurityRemoteSourceDetailsListsAndGroupKeepSafeFacts(t *testing
 		`UPDATE tags SET display_name='private-host.invalid',description='/private/fixture.sqlite' WHERE id='tag-source'`,
 		`UPDATE mappings SET transform_pipeline='[{"type":"scale","params":{"scale":0.1,"offset":2,"password":"fixture-transform-secret"}}]' WHERE id='mapping-source'`,
 	} {
-		_, err := r.f.db.Exec(statement)
+		_, err := r.f.db.ExecContext(t.Context(), statement)
 		require.NoError(t, err)
 	}
 	before := locatorTotal(t, r)
@@ -67,7 +68,7 @@ func TestRuntimeSecurityRemoteSourceDetailsListsAndGroupKeepSafeFacts(t *testing
 			if mode == "rules" || mode == "mappings" {
 				q.Set("source_list", mode)
 			}
-			req := httptest.NewRequest(http.MethodGet, runtimeRuleContextPath+"?"+q.Encode(), nil)
+			req := httptest.NewRequest(http.MethodGet, runtimeRuleContextPath+"?"+q.Encode(), http.NoBody)
 			req.RemoteAddr = "203.0.113.11:4567"
 			res := httptest.NewRecorder()
 			r.router.ServeHTTP(res, req)
@@ -87,7 +88,7 @@ func TestRuntimeSecurityRemoteSourceDetailsListsAndGroupKeepSafeFacts(t *testing
 	require.Equal(t, before, locatorTotal(t, r))
 	// The authorized native editing surface is deliberately not the runtime DTO.
 	q := url.Values{"entry": {"locator"}, "workspace_id": {r.f.record.ID}, "step": {"1"}, "device_id": {"device-A"}}
-	req := httptest.NewRequest(http.MethodGet, studioLocatorPath+"?"+q.Encode(), nil)
+	req := httptest.NewRequest(http.MethodGet, studioLocatorPath+"?"+q.Encode(), http.NoBody)
 	req.RemoteAddr = "203.0.113.11:4567"
 	res := httptest.NewRecorder()
 	r.router.ServeHTTP(res, req)
@@ -103,7 +104,7 @@ func TestRuntimeSecurityRemoteSourceDetailsListsAndGroupKeepSafeFacts(t *testing
 func TestRuntimeSecurityRemoteMonitorCannotUseLocalProcessLogs(t *testing.T) {
 	r := newRuntimeDeliveryRig(t)
 	for _, path := range []string{"/api/v1/system/logs", "/api/v1/system/logs/stream"} {
-		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req := httptest.NewRequest(http.MethodGet, path, http.NoBody)
 		req.RemoteAddr = "203.0.113.11:4567"
 		res := httptest.NewRecorder()
 		r.router.ServeHTTP(res, req)
@@ -120,7 +121,7 @@ func TestRuntimeSecuritySourcePageQueryRejectsIPv6AndPairedDSN(t *testing.T) {
 		t.Run(value, func(t *testing.T) {
 			q := r.query(t, "rules")
 			q.Set("q", value)
-			req := httptest.NewRequest(http.MethodGet, runtimeRuleContextPath+"?"+q.Encode(), nil)
+			req := httptest.NewRequest(http.MethodGet, runtimeRuleContextPath+"?"+q.Encode(), http.NoBody)
 			req.RemoteAddr = "203.0.113.11:4567"
 			res := httptest.NewRecorder()
 			r.router.ServeHTTP(res, req)
@@ -135,7 +136,7 @@ func TestRuntimeSecurityLegacyDeliveryErrorRequestIdentityIsSafe(t *testing.T) {
 	router := NewRouter(&DatalinkServices{Workspace: r.f.workspace, WriteGroups: r.f.groups})
 	for _, identity := range []string{"postgres://fixture-header-secret", "/private/fixture-header-secret", "[::1]:502", "req-safe-17"} {
 		t.Run(identity, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, writeGroupsPath+"/"+r.f.group["id"].(string)+"/delivery", nil)
+			req := httptest.NewRequest(http.MethodGet, writeGroupsPath+"/"+r.f.group["id"].(string)+"/delivery", http.NoBody)
 			req.RemoteAddr = "203.0.113.11:4567"
 			req.Header.Set("X-Request-ID", identity)
 			response := httptest.NewRecorder()

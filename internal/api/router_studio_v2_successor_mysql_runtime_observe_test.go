@@ -14,7 +14,7 @@ func mysqlSuccessorRuntimeValues(t *testing.T, db *sql.DB, g *workspace.WriteGro
 	t.Helper()
 	column := `COALESCE(CAST(value_decimal AS CHAR),CAST(value_float AS CHAR),CAST(value_int AS CHAR))`
 
-	rows, err := db.Query(`SELECT ` + column + ` FROM ` + qualified("mysql", g.Destination.TableSchema, g.Destination.TableName) + ` WHERE ` + column + ` IS NOT NULL ORDER BY bucket_start`)
+	rows, err := db.QueryContext(t.Context(), `SELECT `+column+` FROM `+qualified("mysql", g.Destination.TableSchema, g.Destination.TableName)+` WHERE `+column+` IS NOT NULL ORDER BY bucket_start`)
 	require.NoError(t, err)
 	defer rows.Close()
 	values := []string{}
@@ -34,7 +34,7 @@ func mysqlSuccessorRuntimeRows(t *testing.T, db *sql.DB, g *workspace.WriteGroup
 
 func mysqlSuccessorRuntimeEvidenceRows(t *testing.T, db *sql.DB, namespace, table, identity string) map[string]string {
 	t.Helper()
-	rows, err := db.Query(`SELECT * FROM ` + qualified("mysql", namespace, table) + " ORDER BY `" + identity + "`")
+	rows, err := db.QueryContext(t.Context(), `SELECT * FROM `+qualified("mysql", namespace, table)+" ORDER BY `"+identity+"`")
 	require.NoError(t, err)
 	defer rows.Close()
 	columns, err := rows.Columns()

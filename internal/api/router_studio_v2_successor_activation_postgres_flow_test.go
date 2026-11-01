@@ -61,14 +61,14 @@ func TestPostgresSuccessorActivationFourPlainTransitions(t *testing.T) {
 func TestPostgresSuccessorActivationTimescaleDestination(t *testing.T) {
 	r := newPostgresSuccessorRuntimeRig(t, true, true, false, true)
 	var extension string
-	require.NoError(t, r.target.QueryRow(`SELECT extversion FROM pg_extension WHERE extname='timescaledb'`).Scan(&extension))
+	require.NoError(t, r.target.QueryRowContext(t.Context(), `SELECT extversion FROM pg_extension WHERE extname='timescaledb'`).Scan(&extension))
 	require.NotEmpty(t, extension)
 	for _, scope := range []string{r.f.namespace, r.targetNamespace} {
 		var n int
-		require.NoError(t, r.target.QueryRow(`SELECT count(*) FROM timescaledb_information.hypertables WHERE hypertable_schema=$1`, scope).Scan(&n))
+		require.NoError(t, r.target.QueryRowContext(t.Context(), `SELECT count(*) FROM timescaledb_information.hypertables WHERE hypertable_schema=$1`, scope).Scan(&n))
 		require.Equal(t, 1, n, "both scopes are real hypertables")
 		var column, interval string
-		require.NoError(t, r.target.QueryRow(`SELECT column_name,time_interval::text FROM timescaledb_information.dimensions WHERE hypertable_schema=$1`, scope).Scan(&column, &interval))
+		require.NoError(t, r.target.QueryRowContext(t.Context(), `SELECT column_name,time_interval::text FROM timescaledb_information.dimensions WHERE hypertable_schema=$1`, scope).Scan(&column, &interval))
 		require.Equal(t, "bucket_start", column)
 		require.Equal(t, "7 days", interval)
 	}

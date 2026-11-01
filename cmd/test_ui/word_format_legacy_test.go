@@ -59,8 +59,8 @@ func TestProductionWordFormatSourceDRRemainsExplicitlyUnsupported(t *testing.T) 
 	_, err := f.services.sourceRule.Create(t.Context(), sourcerule.CreateRuleRequest{DeviceID: "word-device", StartAddress: "DR192", Count: 1, DataType: schema.DataTypeUint64, NamingPrefix: "unsupported", Enabled: true, DataFormat: "DCBA"})
 	require.ErrorIs(t, err, sourcerule.ErrValidation)
 	var rules, points int
-	require.NoError(t, f.db.QueryRow(`SELECT count(*) FROM source_rules`).Scan(&rules))
-	require.NoError(t, f.db.QueryRow(`SELECT count(*) FROM points`).Scan(&points))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT count(*) FROM source_rules`).Scan(&rules))
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT count(*) FROM points`).Scan(&points))
 	require.Zero(t, rules)
 	require.Zero(t, points)
 }

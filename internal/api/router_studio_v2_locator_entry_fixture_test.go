@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
@@ -18,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,7 +31,7 @@ func locatorRequest(t *testing.T, r *runtimeSourceRig, step string, extra url.Va
 		q[k] = v
 	}
 	response := httptest.NewRecorder()
-	r.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, studioLocatorPath+"?"+q.Encode(), nil))
+	r.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, studioLocatorPath+"?"+q.Encode(), http.NoBody))
 	return response
 }
 
@@ -114,10 +115,10 @@ func (f locatorConnectorRead) GetByID(ctx context.Context, id string) (*schema.D
 func newLocatorMigratedRig(t *testing.T) *runtimeSourceRig {
 	t.Helper()
 	f, group, targets := newMigratedMappingReadFixture(t)
-	_, descriptionErr := f.db.Exec(`UPDATE devices SET description='' WHERE id='device-A'`)
+	_, descriptionErr := f.db.ExecContext(t.Context(), `UPDATE devices SET description='' WHERE id='device-A'`)
 	require.NoError(t, descriptionErr)
 	repo := sourcerule.NewSQLRepository(f.db)
-	_, err := f.db.Exec(`UPDATE tags SET labels='{"source":"source-rule","source_rule_id":"rule-native","source_rule_address":"40001"}' WHERE id='tag-A'`)
+	_, err := f.db.ExecContext(t.Context(), `UPDATE tags SET labels='{"source":"source-rule","source_rule_id":"rule-native","source_rule_address":"40001"}' WHERE id='tag-A'`)
 	require.NoError(t, err)
 	require.NoError(t, repo.Create(t.Context(), &schema.SourceRule{ID: "rule-native", DeviceID: "device-A", RevisionID: "R-native", StartAddress: "40001", Count: 1, DataType: schema.DataTypeFloat32, Enabled: true, Origin: "manual", CreatedAt: time.Now(), UpdatedAt: time.Now()}))
 	tagID, mappingID := "tag-A", "mapping-A"

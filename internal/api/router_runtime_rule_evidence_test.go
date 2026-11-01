@@ -127,7 +127,7 @@ func TestRuntimeRuleEvidenceRetainsActualCutoverEndWithoutIntake(t *testing.T) {
 	cut, _ := finalizedAPIRig(t, cutoverOptions{})
 	boundary := cut.at(22500 * time.Millisecond)
 	cut.cutover(boundary)
-	_, err := cut.f.db.Exec(`UPDATE devices SET description='' WHERE id='device-A'`)
+	_, err := cut.f.db.ExecContext(t.Context(), `UPDATE devices SET description='' WHERE id='device-A'`)
 	require.NoError(t, err)
 	id := cut.wide["id"].(string)
 	r := &runtimeRuleEvidenceRig{f: cut.f, pipe: cut.pipe, clock: boundary.Add(time.Second)}
@@ -160,7 +160,7 @@ func TestRuntimeRuleEvidenceRetainsActualCutoverEndWithoutIntake(t *testing.T) {
 
 func TestRuntimeRuleEvidenceFrozenDestinationDoesNotNeedLiveConnector(t *testing.T) {
 	r := newRuntimeRuleEvidenceRig(t)
-	_, err := r.f.db.Exec(`DELETE FROM database_connectors WHERE id='connector-A'`)
+	_, err := r.f.db.ExecContext(t.Context(), `DELETE FROM database_connectors WHERE id='connector-A'`)
 	require.NoError(t, err)
 	before := lifecycleAPIState(t, r.f.db)
 	response := performJSONRequest(t, r.router, http.MethodGet, runtimeRuleContextPath+"?"+r.query(t).Encode(), nil)

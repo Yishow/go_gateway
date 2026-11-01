@@ -116,7 +116,7 @@ func TestCutoverFinalizedRollbackIncludesRetainedSuccessor(t *testing.T) {
 	// Only the retained 15-second successor closes past 82.5. The moved
 	// 20-second target has a cursor of 80 and must not cause this refusal.
 	var next string
-	require.NoError(t, r.f.db.QueryRow(`SELECT next_close FROM wg_delivery_checkpoints WHERE group_id=?`, r.long["id"]).Scan(&next))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT next_close FROM wg_delivery_checkpoints WHERE group_id=?`, r.long["id"]).Scan(&next))
 	require.Equal(t, r.at(80*time.Second), storedInstant(t, next))
 	before := r.cutoverCounts()
 	saved := getGroup(t, r.f, wideID)
@@ -183,7 +183,7 @@ func finalizedAPIState(t *testing.T, r *cutoverRig) map[string][]string {
 	t.Helper()
 	state := map[string][]string{}
 	for _, table := range []string{"system_settings", "write_groups", "write_group_versions", "wg_runtime_versions", "write_group_cutovers", "write_group_revision_ends", "write_group_ownership_fences", "wg_delivery_samples", "wg_delivery_buckets", "wg_delivery_outbox", "wg_delivery_checkpoints", "wg_delivery_counter_baselines"} {
-		rows, err := r.f.db.Query(`SELECT * FROM ` + table + ` ORDER BY rowid`)
+		rows, err := r.f.db.QueryContext(t.Context(), `SELECT * FROM `+table+` ORDER BY rowid`)
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)

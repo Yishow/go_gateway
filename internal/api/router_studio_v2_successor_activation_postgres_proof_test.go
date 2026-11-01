@@ -66,11 +66,11 @@ func TestPostgresSuccessorSameNameOtherSchemaCannotSatisfyReadiness(t *testing.T
 	saved, err := r.f.groups.Get(t.Context(), r.prepared.Group.ID)
 	require.NoError(t, err)
 	table := saved.Group.Destination.TableName
-	_, err = r.target.Exec(`CREATE TABLE "` + r.f.namespace + `"."` + table + `" (LIKE "` + r.targetNamespace + `"."` + table + `" INCLUDING ALL)`)
+	_, err = r.target.ExecContext(t.Context(), `CREATE TABLE "`+r.f.namespace+`"."`+table+`" (LIKE "`+r.targetNamespace+`"."`+table+`" INCLUDING ALL)`)
 	require.NoError(t, err)
 	request := f.activationRequest(t)
 	review := f.postActivation(t, request)
-	_, err = r.target.Exec(`DROP TABLE "` + r.targetNamespace + `"."` + table + `"`)
+	_, err = r.target.ExecContext(t.Context(), `DROP TABLE "`+r.targetNamespace+`"."`+table+`"`)
 	require.NoError(t, err)
 	before := successorAPIAllState(t, r.f.db)
 	target := r.targetState(t)

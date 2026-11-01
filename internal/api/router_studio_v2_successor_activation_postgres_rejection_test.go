@@ -51,7 +51,7 @@ func TestPostgresSuccessorTimescaleMissingExtensionDoesNotDowngrade(t *testing.T
 	r := newPostgresSuccessorRig(t, true, true, false, true, false)
 	// The separate plain test database intentionally has no Timescale extension.
 	// No schema or table in that database is created by this negative case.
-	_, err := r.f.db.Exec(`UPDATE database_connectors SET connection_config=replace(connection_config,'gateway_timescale_test','gateway_test') WHERE id='connector-B'`)
+	_, err := r.f.db.ExecContext(t.Context(), `UPDATE database_connectors SET connection_config=replace(connection_config,'gateway_timescale_test','gateway_test') WHERE id='connector-B'`)
 	require.NoError(t, err)
 	review := r.review(t)
 	prepared := r.reserve(t, review)

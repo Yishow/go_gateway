@@ -16,7 +16,7 @@ func postgresSuccessorRuntimeValues(t *testing.T, db *sql.DB, g *workspace.Write
 	if g.EffectiveLayoutVersion() == workspace.WriteGroupLayoutManagedWideProfileV1 {
 		column = `CAST("` + g.Members[0].TargetColumn + `" AS TEXT)`
 	}
-	rows, err := db.Query(`SELECT ` + column + ` FROM ` + qualified("postgres", g.Destination.TableSchema, g.Destination.TableName) + ` WHERE ` + column + ` IS NOT NULL ORDER BY bucket_start`)
+	rows, err := db.QueryContext(t.Context(), `SELECT `+column+` FROM `+qualified("postgres", g.Destination.TableSchema, g.Destination.TableName)+` WHERE `+column+` IS NOT NULL ORDER BY bucket_start`)
 	require.NoError(t, err)
 	defer rows.Close()
 	values := []string{}
@@ -36,7 +36,7 @@ func postgresSuccessorRuntimeRows(t *testing.T, db *sql.DB, g *workspace.WriteGr
 
 func postgresSuccessorRuntimeEvidenceRows(t *testing.T, db *sql.DB, namespace, table, identity string) map[string]string {
 	t.Helper()
-	rows, err := db.Query(`SELECT * FROM ` + qualified("postgres", namespace, table) + ` ORDER BY "` + identity + `"`)
+	rows, err := db.QueryContext(t.Context(), `SELECT * FROM `+qualified("postgres", namespace, table)+` ORDER BY "`+identity+`"`)
 	require.NoError(t, err)
 	defer rows.Close()
 	columns, err := rows.Columns()

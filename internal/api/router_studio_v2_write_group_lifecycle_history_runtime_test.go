@@ -17,7 +17,7 @@ func TestWriteGroupLifecycleHistoryReadsActualSQLiteRuntimeOutbox(t *testing.T) 
 	require.Equal(t, 1, r.outbox()["pending"])
 	id := r.wide["id"].(string)
 	var recordKey string
-	require.NoError(t, r.f.db.QueryRow(`SELECT record_key_column FROM wg_delivery_outbox WHERE group_id=?`, id).Scan(&recordKey))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT record_key_column FROM wg_delivery_outbox WHERE group_id=?`, id).Scan(&recordKey))
 	require.Empty(t, recordKey, "SQLite runtime deliberately omits the target record-key column from its frozen delivery identity")
 	before := lifecycleAPIState(t, r.f.db)
 	data := lifecycleAPIRead(t, r.f.writeGroupRouterFixture, id)

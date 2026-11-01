@@ -294,7 +294,7 @@ func TestRuntimeSourceDeliveryEvidenceGETPreservesSQLJournalDescriptorsAndRedact
 	r.deliver(t)
 	before := r.durableState(t)
 	var changes int
-	require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&changes))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&changes))
 	for range 2 {
 		response := r.get(t)
 		require.Equal(t, 200, response.Code, response.Body.String())
@@ -303,7 +303,7 @@ func TestRuntimeSourceDeliveryEvidenceGETPreservesSQLJournalDescriptorsAndRedact
 		}
 	}
 	var after int
-	require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&after))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&after))
 	require.Equal(t, changes, after)
 	require.Equal(t, before, r.durableState(t))
 	g := r.evidence(t)
@@ -330,7 +330,7 @@ func TestRuntimeSourceDeliveryEvidenceDamagedLatestReceiptRetainsOnlyOwnEarlierR
 	newest := runtimeDeliveredSource(t, r.evidence(t), "tag-mean").LastCommitted
 	require.NotNil(t, newest)
 	require.NotEqual(t, earlier.Receipt.EffectKey, newest.Receipt.EffectKey)
-	_, err := r.f.db.Exec(`UPDATE wg_delivery_receipts SET payload_digest='mismatch' WHERE effect_key=?`, newest.Receipt.EffectKey)
+	_, err := r.f.db.ExecContext(t.Context(), `UPDATE wg_delivery_receipts SET payload_digest='mismatch' WHERE effect_key=?`, newest.Receipt.EffectKey)
 	require.NoError(t, err)
 	before := r.durableState(t)
 	g := r.evidence(t)

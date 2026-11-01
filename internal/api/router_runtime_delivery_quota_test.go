@@ -45,8 +45,8 @@ func TestRuntimeDeliveryQuotaSQLiteGroupIncludesJournalAndHistoricalOutbox(t *te
 	used := runtimeQuotaMeasured(t, r, groupID)
 	require.Greater(t, used, journal)
 	var storedJournal, storedOutbox int64
-	require.NoError(t, r.f.db.QueryRow(`SELECT COALESCE(SUM(LENGTH(CAST(payload AS BLOB))),0) FROM wg_delivery_samples WHERE consumed=0 AND group_id=?`, groupID).Scan(&storedJournal))
-	require.NoError(t, r.f.db.QueryRow(`SELECT COALESCE(SUM(LENGTH(CAST(payload AS BLOB))),0) FROM wg_delivery_outbox WHERE state!='sql_committed' AND group_id=?`, groupID).Scan(&storedOutbox))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COALESCE(SUM(LENGTH(CAST(payload AS BLOB))),0) FROM wg_delivery_samples WHERE consumed=0 AND group_id=?`, groupID).Scan(&storedJournal))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COALESCE(SUM(LENGTH(CAST(payload AS BLOB))),0) FROM wg_delivery_outbox WHERE state!='sql_committed' AND group_id=?`, groupID).Scan(&storedOutbox))
 	require.Equal(t, storedJournal+storedOutbox, used)
 	runtimeQuotaConfigure(t, r, groupdelivery.QuotaConfig{GroupMaxBytes: used * 2, WarningRatio: 0.4, HardRatio: 0.9})
 	g := runtimeTimingReadOnly(t, r)
@@ -113,7 +113,7 @@ func TestRuntimeDeliveryQuotaSQLiteSharedMembersKeepWholeGroupBytes(t *testing.T
 	used := runtimeQuotaMeasured(t, r, r.f.group["id"].(string))
 	require.Positive(t, used)
 	var samples int
-	require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE consumed=0`).Scan(&samples))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE consumed=0`).Scan(&samples))
 	require.Equal(t, 2, samples)
 	runtimeQuotaConfigure(t, r, groupdelivery.QuotaConfig{GroupMaxBytes: used * 2, WarningRatio: 0.4, HardRatio: 0.9})
 	g := runtimeTimingReadOnly(t, r)
@@ -127,7 +127,7 @@ func TestRuntimeDeliveryQuotaSQLiteMissingFrozenProofKeepsBacklogOnly(t *testing
 	r := newRuntimeDeliveryRig(t)
 	r.historicalRows(t, 1)
 	runtimeQuotaConfigure(t, r, groupdelivery.QuotaConfig{GroupMaxBytes: 1})
-	_, err := r.f.db.Exec(`DELETE FROM wg_runtime_versions`)
+	_, err := r.f.db.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions`)
 	require.NoError(t, err)
 	g := runtimeTimingReadOnly(t, r)
 	require.Nil(t, g.Effective)

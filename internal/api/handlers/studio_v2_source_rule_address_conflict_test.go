@@ -72,7 +72,7 @@ func TestWorkspaceSourceRuleAddressConflictIsReadOnlyValidation(t *testing.T) {
 // durable row, including timestamps, source links, candidates and receipts.
 func addressConflictDatabaseSnapshot(t *testing.T, db *sql.DB) map[string][]string {
 	t.Helper()
-	rows, err := db.Query(`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`)
+	rows, err := db.QueryContext(t.Context(), `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`)
 	require.NoError(t, err)
 	var tables []string
 	for rows.Next() {
@@ -84,7 +84,7 @@ func addressConflictDatabaseSnapshot(t *testing.T, db *sql.DB) map[string][]stri
 	require.NoError(t, rows.Close())
 	snapshot := make(map[string][]string, len(tables))
 	for _, table := range tables {
-		rows, err := db.Query(fmt.Sprintf(`SELECT * FROM "%s"`, strings.ReplaceAll(table, `"`, `""`)))
+		rows, err := db.QueryContext(t.Context(), fmt.Sprintf(`SELECT * FROM "%s"`, strings.ReplaceAll(table, `"`, `""`)))
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)

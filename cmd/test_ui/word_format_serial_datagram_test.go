@@ -7,17 +7,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	appconfig "go-gateway/internal/config"
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func wordDatagramPeer(t *testing.T) (*wordWirePLC, string) {
@@ -66,7 +68,7 @@ func newWordTransportFixture(t *testing.T, protocol schema.ProtocolType, plc *wo
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	require.NoError(t, datalink.NewMigrator().Migrate(db))
-	_, err = db.Exec(`INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('word-device','PLC','',?,'draft',?,'{}')`, protocol, config)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('word-device','PLC','',?,'draft',?,'{}')`, protocol, config)
 	require.NoError(t, err)
 	manager := connector.NewConnectionManager(connector.DefaultConnectionManagerConfig())
 	t.Cleanup(func() { require.NoError(t, manager.CloseAll()) })
@@ -78,7 +80,7 @@ func newWordTransportFixture(t *testing.T, protocol schema.ProtocolType, plc *wo
 	require.NoError(t, err)
 	router := wordProductionRouter(services, db)
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/activate", nil))
+	router.ServeHTTP(response, httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/activate", http.NoBody))
 	require.Equal(t, 200, response.Code, response.Body.String())
 	return wordProductionFixture{services, db, plc, manager, router}
 }

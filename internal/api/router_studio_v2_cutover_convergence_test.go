@@ -255,11 +255,11 @@ func convergenceAPIEmptyProfileRows(t *testing.T, r *scopeAPIRig) []string {
 	defer opened.Close()
 	table := r.quoted(destination["table_name"].(string))
 	var total, missing int
-	require.NoError(t, opened.DB.QueryRow(`SELECT COUNT(*),SUM(CASE WHEN profile_kind='instantaneous' AND status='missing'
+	require.NoError(t, opened.DB.QueryRowContext(t.Context(), `SELECT COUNT(*),SUM(CASE WHEN profile_kind='instantaneous' AND status='missing'
 		AND observed_at IS NULL AND value_int IS NULL AND value_decimal IS NULL AND value_float IS NULL AND value_bool IS NULL AND value_text IS NULL
 		AND json_extract(provenance,'$.reason')='no-samples' THEN 1 ELSE 0 END) FROM `+table).Scan(&total, &missing))
 	require.Equal(t, []int{2, 2}, []int{total, missing}, "neither former profile may emit the transferred observation")
-	rows, err := opened.DB.Query(`SELECT * FROM ` + table + ` ORDER BY bucket_start,record_id`)
+	rows, err := opened.DB.QueryContext(t.Context(), `SELECT * FROM `+table+` ORDER BY bucket_start,record_id`)
 	require.NoError(t, err)
 	defer rows.Close()
 	columns, err := rows.Columns()
@@ -309,7 +309,7 @@ func convergenceAPIEdges(t *testing.T, r *scopeAPIRig, restored groupdelivery.Gr
 	t.Helper()
 	require.Equal(t, 4, r.localCount(`SELECT COUNT(*) FROM wg_delivery_sample_handoffs WHERE state='accepted'`))
 	var edges, targets, origins, sources, canonicals, aliases int
-	require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*),COUNT(DISTINCT h.target_seq),COUNT(DISTINCT h.origin_seq),COUNT(DISTINCT h.source_seq),
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*),COUNT(DISTINCT h.target_seq),COUNT(DISTINCT h.origin_seq),COUNT(DISTINCT h.source_seq),
 		SUM(CASE WHEN h.transfer_id=s.handoff_id AND COALESCE(json_extract(h.record,'$.CanonicalTransferID'),'')='' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN h.transfer_id<>s.handoff_id AND json_extract(h.record,'$.CanonicalTransferID')=s.handoff_id THEN 1 ELSE 0 END)
 		FROM wg_delivery_sample_handoffs h JOIN wg_delivery_samples s ON s.seq=h.target_seq
@@ -319,7 +319,7 @@ func convergenceAPIEdges(t *testing.T, r *scopeAPIRig, restored groupdelivery.Gr
 
 func convergenceAPIReceiptBytes(t *testing.T, r *scopeAPIRig) []string {
 	t.Helper()
-	rows, err := r.f.db.Query(`SELECT record FROM wg_delivery_sample_handoffs ORDER BY transfer_id`)
+	rows, err := r.f.db.QueryContext(t.Context(), `SELECT record FROM wg_delivery_sample_handoffs ORDER BY transfer_id`)
 	require.NoError(t, err)
 	defer rows.Close()
 	var records []string
@@ -343,7 +343,7 @@ func convergenceAPIExactCopies(t *testing.T, r *scopeAPIRig, count int) {
 func convergenceAPIState(t *testing.T, r *scopeAPIRig, stage string) {
 	t.Helper()
 	state := finalizedAPIState(t, r.cutoverRig)
-	rows, err := r.f.db.Query(`SELECT record FROM wg_delivery_sample_handoffs ORDER BY source_seq,target_group_id,target_revision`)
+	rows, err := r.f.db.QueryContext(t.Context(), `SELECT record FROM wg_delivery_sample_handoffs ORDER BY source_seq,target_group_id,target_revision`)
 	require.NoError(t, err)
 	for rows.Next() {
 		var record string

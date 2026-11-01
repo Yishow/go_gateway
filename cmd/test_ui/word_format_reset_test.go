@@ -8,13 +8,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/api/handlers"
 	appconfig "go-gateway/internal/config"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestProductionWordFormatHTTPOverrideRestartAndReset(t *testing.T) {
@@ -52,7 +53,7 @@ func TestProductionWordFormatHTTPOverrideRestartAndReset(t *testing.T) {
 			base := appconfig.Get().API.BasePath + "/datalink/points/" + p.ID + "/format"
 			read := func() *point.FormatReadResult {
 				response := httptest.NewRecorder()
-				router.ServeHTTP(response, httptest.NewRequest("GET", base+"?workspace_id="+record.ID+"&device_id="+p.DeviceID+"&rule_id="+rule.ID, nil))
+				router.ServeHTTP(response, httptest.NewRequest("GET", base+"?workspace_id="+record.ID+"&device_id="+p.DeviceID+"&rule_id="+rule.ID, http.NoBody))
 				require.Equal(t, 200, response.Code, response.Body.String())
 				var body handlers.PointFormatReadResponse
 				require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))

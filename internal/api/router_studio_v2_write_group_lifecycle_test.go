@@ -48,7 +48,7 @@ func TestWriteGroupLifecycleReadIsLocalScopedAndNonMutating(t *testing.T) {
 	require.Equal(t, before, lifecycleAPIState(t, f.db))
 	require.Zero(t, inspector.calls)
 	require.NoFileExists(t, f.file)
-	_, err := f.db.Exec(`INSERT INTO write_groups(id,workspace_id,revision,name,destination_connector_id,destination_connector_revision,destination_table_name) VALUES('foreign-lifecycle','private-workspace','private-revision','Private','connector-A','connector-1','private_table')`)
+	_, err := f.db.ExecContext(t.Context(), `INSERT INTO write_groups(id,workspace_id,revision,name,destination_connector_id,destination_connector_revision,destination_table_name) VALUES('foreign-lifecycle','private-workspace','private-revision','Private','connector-A','connector-1','private_table')`)
 	require.NoError(t, err)
 	for _, id := range []string{"missing", "foreign-lifecycle"} {
 		response := performJSONRequest(t, f.router, http.MethodGet, writeGroupsPath+"/"+id+"/lifecycle", nil)
@@ -113,7 +113,7 @@ func TestWriteGroupLifecycleRemovedAndUnavailableService(t *testing.T) {
 func TestWriteGroupLifecycleUnknownStatusFailsSafely(t *testing.T) {
 	f := newManagedGroupFixture(t, "sqlite")
 	id := f.group["id"].(string)
-	_, err := f.db.Exec(`UPDATE write_groups SET status='private-unknown-status' WHERE id=?`, id)
+	_, err := f.db.ExecContext(t.Context(), `UPDATE write_groups SET status='private-unknown-status' WHERE id=?`, id)
 	require.NoError(t, err)
 	before := lifecycleAPIState(t, f.db)
 	response := performJSONRequest(t, f.router, http.MethodGet, writeGroupsPath+"/"+id+"/lifecycle", nil)

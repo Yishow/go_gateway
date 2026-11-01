@@ -12,7 +12,7 @@ import (
 
 func successorRuntimeOriginals(t *testing.T, r *successorRuntimeRig) map[string]string {
 	t.Helper()
-	rows, err := r.f.db.Query(`SELECT sample_id,payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=? ORDER BY seq`, r.groupID)
+	rows, err := r.f.db.QueryContext(t.Context(), `SELECT sample_id,payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=? ORDER BY seq`, r.groupID)
 	require.NoError(t, err)
 	defer rows.Close()
 	result := map[string]string{}
@@ -28,7 +28,7 @@ func successorRuntimeOriginals(t *testing.T, r *successorRuntimeRig) map[string]
 func successorRuntimeHandoffs(t *testing.T, r *successorRuntimeRig, originals map[string]string, consumed bool) {
 	t.Helper()
 	require.Equal(t, originals, successorRuntimeOriginals(t, r))
-	rows, err := r.f.db.Query(`SELECT s.sample_id,s.payload,s.payload_digest,s.created_at,s.consumed,t.origin_sample_id,t.payload,t.payload_digest,t.created_at,t.consumed,h.transfer_id,t.handoff_id,t.origin_group_id
+	rows, err := r.f.db.QueryContext(t.Context(), `SELECT s.sample_id,s.payload,s.payload_digest,s.created_at,s.consumed,t.origin_sample_id,t.payload,t.payload_digest,t.created_at,t.consumed,h.transfer_id,t.handoff_id,t.origin_group_id
  FROM wg_delivery_sample_handoffs h JOIN wg_delivery_samples s ON s.seq=h.source_seq JOIN wg_delivery_samples t ON t.seq=h.target_seq
  WHERE h.source_group_id=? AND h.target_group_id=? ORDER BY s.sample_id`, r.groupID, r.prepared.Group.ID)
 	require.NoError(t, err)
@@ -58,7 +58,7 @@ func successorRuntimeValues(t *testing.T, db *sql.DB, g *workspace.WriteGroup) [
 	if g.EffectiveLayoutVersion() == workspace.WriteGroupLayoutManagedWideProfileV1 {
 		column = `CAST("` + g.Members[0].TargetColumn + `" AS TEXT)`
 	}
-	rows, err := db.Query(`SELECT ` + column + ` FROM "` + g.Destination.TableName + `" WHERE ` + column + ` IS NOT NULL ORDER BY bucket_start`)
+	rows, err := db.QueryContext(t.Context(), `SELECT `+column+` FROM "`+g.Destination.TableName+`" WHERE `+column+` IS NOT NULL ORDER BY bucket_start`)
 	require.NoError(t, err)
 	defer rows.Close()
 	values := []string{}
@@ -78,7 +78,7 @@ func successorRuntimeRows(t *testing.T, db *sql.DB, table string) map[string]str
 
 func successorRuntimeEvidenceRows(t *testing.T, db *sql.DB, table, identity string) map[string]string {
 	t.Helper()
-	rows, err := db.Query(`SELECT * FROM "` + table + `" ORDER BY "` + identity + `"`)
+	rows, err := db.QueryContext(t.Context(), `SELECT * FROM "`+table+`" ORDER BY "`+identity+`"`)
 	require.NoError(t, err)
 	defer rows.Close()
 	columns, err := rows.Columns()

@@ -19,7 +19,7 @@ func TestRuntimeDeliveryTimingOldestPendingAgeUsesDurableCreatedAtAcrossAllRevis
 	r.historicalRows(t, 1)
 	createdAt := r.clock
 	var storedCreated, bucket string
-	require.NoError(t, r.f.db.QueryRow(`SELECT created_at,bucket_start FROM wg_delivery_outbox`).Scan(&storedCreated, &bucket))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT created_at,bucket_start FROM wg_delivery_outbox`).Scan(&storedCreated, &bucket))
 	parsedCreated, err := time.Parse(time.RFC3339Nano, storedCreated)
 	require.NoError(t, err)
 	require.Equal(t, createdAt, parsedCreated)
@@ -221,11 +221,11 @@ func runtimeTimingReadOnly(t *testing.T, r *runtimeDeliveryRig) runtimeview.Grou
 	t.Helper()
 	before := lifecycleAPIState(t, r.f.db)
 	var changes int
-	require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&changes))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&changes))
 	g := r.evidence(t)
 	require.Equal(t, g.Delivery, r.evidence(t).Delivery, "fixed durable clock preserves the observation; server as-of is independently read")
 	var after int
-	require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&after))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&after))
 	require.Equal(t, changes, after)
 	require.Equal(t, before, lifecycleAPIState(t, r.f.db))
 	return g

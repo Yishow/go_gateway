@@ -40,7 +40,7 @@ func TestWriteGroupLifecycleHistoryKeepsFrozenDestinationAfterDraftEdit(t *testi
 	response := performJSONRequest(t, f.router, http.MethodPut, writeGroupsPath+"/"+id, groupEditRequest(f.writeGroupRouterFixture, f.data, changed))
 	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 	_, saved := groupSaveData(t, decodeJSONBody(t, response))
-	_, err := f.db.Exec(`UPDATE database_connectors SET identity_revision='later-private-connector',connection_config='{"dsn":"private-endpoint","password":"private-secret"}' WHERE id='connector-A'`)
+	_, err := f.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='later-private-connector',connection_config='{"dsn":"private-endpoint","password":"private-secret"}' WHERE id='connector-A'`)
 	require.NoError(t, err)
 	before := lifecycleAPIState(t, f.db)
 	data := lifecycleAPIRead(t, f.writeGroupRouterFixture, id)

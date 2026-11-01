@@ -66,7 +66,7 @@ func TestRuntimeDeliveryEvidenceDisabledHistoricalDestinationNotRelabeled(t *tes
 	r := newRuntimeDeliveryRig(t)
 	r.historicalRows(t, 3)
 	// Save a real new connector and disabled draft; retained rows own C1/rev7.
-	_, err := r.f.db.Exec(`INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) SELECT 'C2','New draft',kind,connection_config,'8',status,enabled FROM database_connectors WHERE id='connector-A'`)
+	_, err := r.f.db.ExecContext(t.Context(), `INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) SELECT 'C2','New draft',kind,connection_config,'8',status,enabled FROM database_connectors WHERE id='connector-A'`)
 	require.NoError(t, err)
 	_, err = r.f.workspace.BindDatabaseConnector(t.Context(), "C2")
 	require.NoError(t, err)
@@ -167,7 +167,7 @@ func TestRuntimeDeliveryEvidenceSharedFrozenMemberTotalsNotPerTag(t *testing.T) 
 	opened, err := r.Resolve(t.Context(), groupdelivery.OutboxItem{Destination: groupdelivery.FrozenDestination{ConnectorID: "connector-A", ConnectorRevision: "connector-1"}})
 	require.NoError(t, err)
 	var targetRows int
-	require.NoError(t, opened.DB.QueryRow(`SELECT count(*) FROM meter_shared`).Scan(&targetRows))
+	require.NoError(t, opened.DB.QueryRowContext(t.Context(), `SELECT count(*) FROM meter_shared`).Scan(&targetRows))
 	require.Equal(t, 10, targetRows)
 	require.NoError(t, opened.Close())
 	before := lifecycleAPIState(t, r.f.db)
@@ -266,7 +266,7 @@ func TestRuntimeDeliveryEvidenceProviderIdentityErrorAndIntakeRaceFailClosed(t *
 func TestRuntimeDeliveryEvidenceEmptyRevisionKeepsRetainedBacklogWithoutCurrentZeros(t *testing.T) {
 	r := newRuntimeDeliveryRig(t)
 	r.historicalRows(t, 3)
-	_, err := r.f.db.Exec(`DELETE FROM wg_runtime_versions`)
+	_, err := r.f.db.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions`)
 	require.NoError(t, err)
 	g := r.evidence(t)
 	require.Nil(t, g.Effective)

@@ -53,7 +53,7 @@ func TestWriteGroupSuccessorSchemaPreparationDoesNotActivate(t *testing.T) {
 	require.Equal(t, token.OperationID, body.Data.OperationID)
 	require.NotEmpty(t, body.Data.VerifiedDigest)
 	var count int
-	require.NoError(t, target.QueryRow(`SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name=?`, prepared.Group.Destination.TableName).Scan(&count))
+	require.NoError(t, target.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name=?`, prepared.Group.Destination.TableName).Scan(&count))
 	require.Equal(t, 1, count)
 	require.Equal(t, beforeTarget[f.table], successorAPIAllState(t, target)[f.table], "old SQL history is not rewritten")
 	saved, err := f.f.groups.Get(t.Context(), prepared.Group.ID)
@@ -65,12 +65,12 @@ func TestWriteGroupSuccessorSchemaPreparationDoesNotActivate(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, predecessor.Group, current.Group)
 	var head string
-	require.NoError(t, f.f.db.QueryRow(`SELECT current_group_id FROM write_group_lineages WHERE lineage_id=?`, prepared.LineageID).Scan(&head))
+	require.NoError(t, f.f.db.QueryRowContext(t.Context(), `SELECT current_group_id FROM write_group_lineages WHERE lineage_id=?`, prepared.LineageID).Scan(&head))
 	require.Equal(t, f.groupID, head)
 	var newVersions, newRuntime, newFences int
-	require.NoError(t, f.f.db.QueryRow(`SELECT count(*) FROM write_group_versions WHERE group_id=?`, prepared.Group.ID).Scan(&newVersions))
-	require.NoError(t, f.f.db.QueryRow(`SELECT count(*) FROM wg_runtime_versions WHERE group_id=?`, prepared.Group.ID).Scan(&newRuntime))
-	require.NoError(t, f.f.db.QueryRow(`SELECT count(*) FROM write_group_ownership_fences WHERE group_id=?`, prepared.Group.ID).Scan(&newFences))
+	require.NoError(t, f.f.db.QueryRowContext(t.Context(), `SELECT count(*) FROM write_group_versions WHERE group_id=?`, prepared.Group.ID).Scan(&newVersions))
+	require.NoError(t, f.f.db.QueryRowContext(t.Context(), `SELECT count(*) FROM wg_runtime_versions WHERE group_id=?`, prepared.Group.ID).Scan(&newRuntime))
+	require.NoError(t, f.f.db.QueryRowContext(t.Context(), `SELECT count(*) FROM write_group_ownership_fences WHERE group_id=?`, prepared.Group.ID).Scan(&newFences))
 	require.Zero(t, newVersions)
 	require.Zero(t, newRuntime)
 	require.Zero(t, newFences)
@@ -125,7 +125,7 @@ func TestWriteGroupSuccessorSchemaConfirmRechecksConnectorBeforeDDL(t *testing.T
 	token := successorAPIPreview(t, f, review, prepared)
 	request := successorAPIStage(t, f, review, prepared)
 	request["action"], request["token"], request["digest"], request["schema_operation_id"] = "schema-confirm", token.Token, token.Digest, token.OperationID
-	_, err := f.f.db.Exec(`UPDATE database_connectors SET identity_revision='connector-new' WHERE id='connector-A'`)
+	_, err := f.f.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='connector-new' WHERE id='connector-A'`)
 	require.NoError(t, err)
 	before := successorAPIAllState(t, f.f.db)
 	target, err := sql.Open("sqlite", f.f.file)
@@ -150,7 +150,7 @@ func TestWriteGroupSuccessorPreparationFailureKeepsPredecessor(t *testing.T) {
 	defer target.Close()
 	// A real target changes after preview: the proposed table name is occupied
 	// by an incompatible object. Confirmation must not treat preview as proof.
-	_, err = target.Exec(`CREATE VIEW "` + prepared.Group.Destination.TableName + `" AS SELECT 1 AS incompatible`)
+	_, err = target.ExecContext(t.Context(), `CREATE VIEW "`+prepared.Group.Destination.TableName+`" AS SELECT 1 AS incompatible`)
 	require.NoError(t, err)
 	request := successorAPIStage(t, f, review, prepared)
 	request["action"], request["token"], request["digest"], request["schema_operation_id"] = "schema-confirm", token.Token, token.Digest, token.OperationID
@@ -174,10 +174,10 @@ func TestWriteGroupSuccessorPreparationFailureKeepsPredecessor(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, old.Group, current.Group)
 	var head string
-	require.NoError(t, f.f.db.QueryRow(`SELECT current_group_id FROM write_group_lineages WHERE lineage_id=?`, prepared.LineageID).Scan(&head))
+	require.NoError(t, f.f.db.QueryRowContext(t.Context(), `SELECT current_group_id FROM write_group_lineages WHERE lineage_id=?`, prepared.LineageID).Scan(&head))
 	require.Equal(t, f.groupID, head)
 	var count int
-	require.NoError(t, target.QueryRow(`SELECT COUNT(*) FROM sqlite_schema WHERE type='view' AND name=?`, prepared.Group.Destination.TableName).Scan(&count))
+	require.NoError(t, target.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sqlite_schema WHERE type='view' AND name=?`, prepared.Group.Destination.TableName).Scan(&count))
 	require.Equal(t, 1, count)
 }
 
@@ -203,11 +203,11 @@ func TestWriteGroupSuccessorPreparesLongWithoutMovingWideOwner(t *testing.T) {
 	require.Empty(t, saved.Group.AppliedRevision)
 	require.Equal(t, body.Data.VerifiedDigest, saved.Group.Destination.SchemaDigest)
 	var current, reserved string
-	require.NoError(t, f.f.db.QueryRow(`SELECT current_group_id,reserved_group_id FROM write_group_lineages WHERE lineage_id=?`, prepared.LineageID).Scan(&current, &reserved))
+	require.NoError(t, f.f.db.QueryRowContext(t.Context(), `SELECT current_group_id,reserved_group_id FROM write_group_lineages WHERE lineage_id=?`, prepared.LineageID).Scan(&current, &reserved))
 	require.Equal(t, f.groupID, current)
 	require.Equal(t, prepared.Group.ID, reserved)
 	var confirmedOperation, confirmedDigest string
-	require.NoError(t, f.f.db.QueryRow(`SELECT confirmed_operation_id,confirmed_digest FROM write_group_storage_scopes WHERE table_name=?`, prepared.Group.Destination.TableName).Scan(&confirmedOperation, &confirmedDigest))
+	require.NoError(t, f.f.db.QueryRowContext(t.Context(), `SELECT confirmed_operation_id,confirmed_digest FROM write_group_storage_scopes WHERE table_name=?`, prepared.Group.Destination.TableName).Scan(&confirmedOperation, &confirmedDigest))
 	require.Equal(t, token.OperationID, confirmedOperation)
 	require.Equal(t, body.Data.VerifiedDigest, confirmedDigest)
 }

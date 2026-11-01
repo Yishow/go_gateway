@@ -17,12 +17,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sourcerule"
+
+	"github.com/stretchr/testify/require"
 )
 
 type wordProductionFixture struct {
@@ -41,7 +42,7 @@ func newWordProductionFixture(t *testing.T, protocol schema.ProtocolType) wordPr
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	require.NoError(t, datalink.NewMigrator().Migrate(db))
-	_, err = db.Exec(`INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('word-device','PLC','',?,'draft',?,'{}')`, protocol, config)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('word-device','PLC','',?,'draft',?,'{}')`, protocol, config)
 	require.NoError(t, err)
 	manager := connector.NewConnectionManager(connector.DefaultConnectionManagerConfig())
 	t.Cleanup(func() { require.NoError(t, manager.CloseAll()) })
@@ -52,7 +53,7 @@ func newWordProductionFixture(t *testing.T, protocol schema.ProtocolType) wordPr
 	_, err = services.workspace.AttachDevice(t.Context(), "word-device")
 	require.NoError(t, err)
 	router := wordProductionRouter(services, db)
-	request := httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/activate", nil)
+	request := httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/activate", http.NoBody)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 	require.Equal(t, 200, response.Code, response.Body.String())

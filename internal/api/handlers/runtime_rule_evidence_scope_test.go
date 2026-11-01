@@ -6,11 +6,12 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func runtimeEvidenceScopeFixture(t *testing.T) (*RuntimeHandler, *workspace.Record) {
@@ -29,7 +30,7 @@ func runtimeEvidenceScopeRequest(t *testing.T, h *RuntimeHandler, query string) 
 	t.Helper()
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context"+query, nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context"+query, http.NoBody)
 	h.WorkspaceContext(c)
 	return rec
 }

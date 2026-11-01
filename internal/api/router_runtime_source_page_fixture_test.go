@@ -36,9 +36,9 @@ type runtimeSourcePageRig struct {
 func newRuntimeSourcePageRig(t *testing.T) *runtimeSourcePageRig {
 	t.Helper()
 	f := newWriteGroupRouterFixture(t)
-	_, err := f.db.Exec(`UPDATE devices SET description='' WHERE id='device-A'`)
+	_, err := f.db.ExecContext(t.Context(), `UPDATE devices SET description='' WHERE id='device-A'`)
 	require.NoError(t, err)
-	_, err = f.db.Exec(`INSERT INTO devices (id,name,description,protocol,status,connection_config,readiness_status) VALUES ('device-B','Device B','','modbus_tcp','draft','{}','{}')`)
+	_, err = f.db.ExecContext(t.Context(), `INSERT INTO devices (id,name,description,protocol,status,connection_config,readiness_status) VALUES ('device-B','Device B','','modbus_tcp','draft','{}','{}')`)
 	require.NoError(t, err)
 	_, err = f.workspace.AttachDevice(t.Context(), "device-B")
 	require.NoError(t, err)

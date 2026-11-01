@@ -29,7 +29,7 @@ func TestWriteGroupSuccessorReserveReplayAndNoActivation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, predecessor.Group, current.Group)
 	var head, pending string
-	require.NoError(t, f.f.db.QueryRow(`SELECT current_group_id,reserved_group_id FROM write_group_lineages WHERE lineage_id=?`, reserved.LineageID).Scan(&head, &pending))
+	require.NoError(t, f.f.db.QueryRowContext(t.Context(), `SELECT current_group_id,reserved_group_id FROM write_group_lineages WHERE lineage_id=?`, reserved.LineageID).Scan(&head, &pending))
 	require.Equal(t, f.groupID, head)
 	require.Equal(t, reserved.Group.ID, pending)
 	after := successorAPIAllState(t, f.f.db)
@@ -116,7 +116,7 @@ func TestWriteGroupSuccessorStrictStagesCannotActivate(t *testing.T) {
 func TestWriteGroupSuccessorReserveRechecksLiveCAS(t *testing.T) {
 	f := newSuccessorAPIFixture(t)
 	review := f.review(t)
-	_, err := f.f.db.Exec(`UPDATE database_connectors SET identity_revision='connector-new' WHERE id='connector-A'`)
+	_, err := f.f.db.ExecContext(t.Context(), `UPDATE database_connectors SET identity_revision='connector-new' WHERE id='connector-A'`)
 	require.NoError(t, err)
 	before := successorAPIAllState(t, f.f.db)
 	response := performJSONRequest(t, f.f.router, http.MethodPost, writeGroupsPath+"/"+f.groupID+"/successor", map[string]any{"action": "reserve", "envelope": review.Envelope, "review_digest": review.ReviewDigest})

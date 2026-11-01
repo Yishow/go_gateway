@@ -37,7 +37,7 @@ func TestWriteGroupSuccessorActivationUsesExplicitFreshReadiness(t *testing.T) {
 	require.NotEmpty(t, result["id"])
 	var head string
 	var pending any
-	require.NoError(t, f.f.db.QueryRow(`SELECT current_group_id,reserved_group_id FROM write_group_lineages WHERE lineage_id=?`, f.prepared.LineageID).Scan(&head, &pending))
+	require.NoError(t, f.f.db.QueryRowContext(t.Context(), `SELECT current_group_id,reserved_group_id FROM write_group_lineages WHERE lineage_id=?`, f.prepared.LineageID).Scan(&head, &pending))
 	require.Equal(t, f.prepared.Group.ID, head)
 	require.Nil(t, pending)
 	old, err := f.f.groups.Get(t.Context(), f.groupID)

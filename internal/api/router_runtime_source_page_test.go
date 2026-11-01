@@ -312,28 +312,28 @@ func TestRuntimeSourcePageNeverBootstrapsWritesOrLeaksRawFields(t *testing.T) {
 		`UPDATE tags SET display_name='db.private.internal',description='secret://raw' WHERE id='tag-A1-000'`,
 		`UPDATE mappings SET transform_pipeline='[{"type":"formula","params":{"raw":"password=fixture-secret"}}]' WHERE id='mapping-A1-000'`,
 	} {
-		_, err := r.f.db.Exec(statement)
+		_, err := r.f.db.ExecContext(t.Context(), statement)
 		require.NoError(t, err)
 	}
 	for _, kind := range []string{"rules", "mappings"} {
 		q := r.query(t, kind)
 		var before, after int
-		require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&before))
+		require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&before))
 		response := r.get(t, q)
 		page := runtimeSourcePageBody(t, response)
 		require.NotEmpty(t, page.ListRevision)
-		require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&after))
+		require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&after))
 		require.Equal(t, before, after)
 		for _, secret := range []string{"fixture-secret", "source.sqlite", "db.private.internal", "secret://raw", "transform_pipeline", "connection_config"} {
 			require.NotContains(t, response.Body.String(), secret)
 		}
 	}
 	q := r.query(t, "rules")
-	_, err := r.f.db.Exec(`DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
+	_, err := r.f.db.ExecContext(t.Context(), `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
 	require.NoError(t, err)
 	response := r.get(t, q)
 	var count int
-	require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&count))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&count))
 	require.Zero(t, count)
 	require.Equal(t, http.StatusServiceUnavailable, response.Code, response.Body.String())
 }
@@ -345,7 +345,7 @@ func TestRuntimeSourcePageCursorRejectsChangedListWithoutRuleRevisionChange(t *t
 	q.Set("limit", "1")
 	first := runtimeSourcePageBody(t, r.get(t, q))
 	require.NotNil(t, first.NextCursor)
-	_, err := r.f.db.Exec(`UPDATE tags SET display_name='Changed visible name' WHERE id='tag-A1-002'`)
+	_, err := r.f.db.ExecContext(t.Context(), `UPDATE tags SET display_name='Changed visible name' WHERE id='tag-A1-002'`)
 	require.NoError(t, err)
 	q.Set("cursor", *first.NextCursor)
 	response := r.get(t, q)

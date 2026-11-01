@@ -7,12 +7,12 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/api/handlers"
 	appconfig "go-gateway/internal/config"
 	"go-gateway/internal/datalink"
@@ -21,6 +21,8 @@ import (
 	"go-gateway/internal/datalink/point"
 	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 	"modernc.org/sqlite"
 )
 
@@ -109,7 +111,7 @@ func newRecoveryFaultProductionFixture(t *testing.T) (wordProductionFixture, *re
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	require.NoError(t, datalink.NewMigrator().Migrate(db))
-	_, err := db.Exec(`INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('word-device','PLC','','modbus_tcp','draft',?,'{}')`, config)
+	_, err := db.ExecContext(t.Context(), `INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('word-device','PLC','','modbus_tcp','draft',?,'{}')`, config)
 	require.NoError(t, err)
 	manager := connector.NewConnectionManager(connector.DefaultConnectionManagerConfig())
 	t.Cleanup(func() { require.NoError(t, manager.CloseAll()) })
@@ -121,7 +123,7 @@ func newRecoveryFaultProductionFixture(t *testing.T) (wordProductionFixture, *re
 	require.NoError(t, err)
 	router := wordProductionRouter(services, db)
 	res := httptest.NewRecorder()
-	router.ServeHTTP(res, httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/activate", nil))
+	router.ServeHTTP(res, httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/activate", http.NoBody))
 	require.Equal(t, 200, res.Code, res.Body.String())
 	return wordProductionFixture{services, db, plc, manager, router}, fault
 }
@@ -157,9 +159,9 @@ func recoveryFaultSave(t *testing.T, f wordProductionFixture) point.FormatRecove
 func recoveryFaultDurable(t *testing.T, db *sql.DB, id string) []string {
 	t.Helper()
 	var intent string
-	require.NoError(t, db.QueryRow(`SELECT revision_id||'|'||format_mode||'|'||format_override||'|'||data_format FROM points WHERE id=?`, id).Scan(&intent))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT revision_id||'|'||format_mode||'|'||format_override||'|'||data_format FROM points WHERE id=?`, id).Scan(&intent))
 	result := []string{intent}
-	rows, err := db.Query(`SELECT key||'|'||value FROM system_settings WHERE key LIKE 'point_format_receipt:%' OR key LIKE 'modbus_share_workspace_revision:%' ORDER BY key`)
+	rows, err := db.QueryContext(t.Context(), `SELECT key||'|'||value FROM system_settings WHERE key LIKE 'point_format_receipt:%' OR key LIKE 'modbus_share_workspace_revision:%' ORDER BY key`)
 	require.NoError(t, err)
 	defer rows.Close()
 	for rows.Next() {
@@ -241,7 +243,7 @@ func TestProductionFormatRecoveryCommitFaultCleanup(t *testing.T) {
 				require.Empty(t, f.services.scheduler.PollNowContext(t.Context(), []string{req.PointID}))
 			}
 			require.Equal(t, before, recoveryFaultDurable(t, f.db, req.PointID))
-			tx, err := f.db.Begin()
+			tx, err := f.db.BeginTx(t.Context(), nil)
 			require.NoError(t, err, "cleanup must leave SQL pool usable")
 			require.NoError(t, tx.Rollback())
 		})

@@ -7,11 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/point"
 	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRuntimeRulePathSafetyDelimitedAndUNC(t *testing.T) {
@@ -40,7 +41,7 @@ func TestRuntimeRulePathSafetyDelimitedAndUNC(t *testing.T) {
 				require.NoError(t, repo.Create(t.Context(), &schema.Point{ID: "point", DeviceID: "device", Name: value, DataType: schema.DataTypeString, Address: "40001", LastValue: &stored}))
 				rec := httptest.NewRecorder()
 				c, _ := gin.CreateTestContext(rec)
-				c.Request = httptest.NewRequest(http.MethodGet, "/points", nil)
+				c.Request = httptest.NewRequest(http.MethodGet, "/points", http.NoBody)
 				c.Request.RemoteAddr = "203.0.113.7:1234"
 				NewPointHandler(point.NewService(repo, nil)).List(c)
 				var payload struct {

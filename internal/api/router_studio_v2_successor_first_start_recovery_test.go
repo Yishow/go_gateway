@@ -80,7 +80,7 @@ func TestSuccessorFirstStartHTTPLostResponseOfflineReopen(t *testing.T) {
 func TestSuccessorFirstStartHTTPRollbackExpiredBoundaryAndFreshReview(t *testing.T) {
 	r := newFirstStartAPIRig(t, "sqlite", false, true, false, workspace.WriteGroupStorageModePlain)
 	request := r.confirmation(t)
-	_, err := r.f.db.Exec(`CREATE TRIGGER reject_first_start_head BEFORE UPDATE OF current_group_id ON write_group_lineages WHEN NEW.current_group_id<>OLD.current_group_id BEGIN SELECT RAISE(ABORT,'private-first-start-fault'); END`)
+	_, err := r.f.db.ExecContext(t.Context(), `CREATE TRIGGER reject_first_start_head BEFORE UPDATE OF current_group_id ON write_group_lineages WHEN NEW.current_group_id<>OLD.current_group_id BEGIN SELECT RAISE(ABORT,'private-first-start-fault'); END`)
 	require.NoError(t, err)
 	before := successorAPIAllState(t, r.f.db)
 	rejected := performJSONRequest(t, r.f.router, http.MethodPost, writeGroupsPath+"/"+r.groupID+"/successor", request)
@@ -89,7 +89,7 @@ func TestSuccessorFirstStartHTTPRollbackExpiredBoundaryAndFreshReview(t *testing
 	require.Equal(t, before, successorAPIAllState(t, r.f.db))
 	status := successorStatus(t, r.successorAPIFixture)
 	require.Equal(t, "not_submitted", status["first_start"].(map[string]any)["status"])
-	_, err = r.f.db.Exec(`DROP TRIGGER reject_first_start_head`)
+	_, err = r.f.db.ExecContext(t.Context(), `DROP TRIGGER reject_first_start_head`)
 	require.NoError(t, err)
 	r.clock.Store(r.boundary.Add(time.Second).UnixNano())
 	before = successorAPIAllState(t, r.f.db)

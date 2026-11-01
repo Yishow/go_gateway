@@ -6,12 +6,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRuntimeRuleReadinessSafetyProductionDeviceDiagnostics(t *testing.T) {
@@ -28,7 +29,7 @@ func TestRuntimeRuleReadinessSafetyProductionDeviceDiagnostics(t *testing.T) {
 			h := NewRuntimeHandler(svc, nil, nil, nil, nil, ws)
 			rec := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(rec)
-			c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", nil)
+			c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", http.NoBody)
 			c.Request.RemoteAddr = "203.0.113.10:5678"
 			h.WorkspaceContext(c)
 			require.Equal(t, http.StatusOK, rec.Code)
@@ -83,7 +84,7 @@ func TestRuntimeRuleContextSafetyWorkspaceIdentity(t *testing.T) {
 	h := NewRuntimeHandler(device.NewService(device.NewMemoryRepository(), nil), nil, nil, nil, nil, ws)
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", http.NoBody)
 	h.WorkspaceContext(c)
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.NotContains(t, rec.Body.String(), "private.internal")
@@ -106,7 +107,7 @@ func TestRuntimeRuleReadErrorsDoNotReflectUnsafeRequestIdentity(t *testing.T) {
 		t.Run(surface, func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(rec)
-			c.Request = httptest.NewRequest(http.MethodGet, "/runtime-read", nil)
+			c.Request = httptest.NewRequest(http.MethodGet, "/runtime-read", http.NoBody)
 			c.Request.Header.Set("X-Request-ID", "file:/private/fixture.sqlite")
 			switch surface {
 			case "context":
@@ -128,7 +129,7 @@ func TestRuntimeRuleReadErrorHeaderAliases(t *testing.T) {
 		for _, value := range []string{"private.internal", "postgres://user:fixture@db", "/private/fixture.sqlite", "uid=sa;pwd=fixture", "file:/private/fixture"} {
 			rec := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(rec)
-			c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", nil)
+			c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", http.NoBody)
 			c.Request.Header.Set(header, value)
 			(&RuntimeHandler{}).WorkspaceContext(c)
 			var body struct {
@@ -144,7 +145,7 @@ func TestRuntimeRuleReadErrorHeaderAliases(t *testing.T) {
 	}
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", http.NoBody)
 	c.Request.Header.Set("X-Request-ID", "req-safe-123")
 	(&RuntimeHandler{}).WorkspaceContext(c)
 	require.Contains(t, rec.Body.String(), "req-safe-123")

@@ -73,7 +73,7 @@ func TestDeviceHandler_Activate(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newDevice)
-	req, _ := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -85,7 +85,7 @@ func TestDeviceHandler_Activate(t *testing.T) {
 	deviceID := createResp["data"].(map[string]any)["id"].(string)
 
 	// 啟用設備
-	req, _ = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/activate", http.NoBody)
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/activate", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -644,7 +644,7 @@ func TestDeviceHandler_ActivateThenDisable(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newDevice)
-	req, _ := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -654,14 +654,14 @@ func TestDeviceHandler_ActivateThenDisable(t *testing.T) {
 	deviceID := createResp["data"].(map[string]any)["id"].(string)
 
 	// 啟用設備
-	req, _ = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/activate", http.NoBody)
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/activate", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	// 停用設備
-	req, _ = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/disable", http.NoBody)
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/disable", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 

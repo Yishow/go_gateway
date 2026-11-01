@@ -37,7 +37,7 @@ func lifecycleHistorySeedPending(t *testing.T, f managedGroupFixture) {
 		dedupe = "none"
 	}
 	for i, state := range []string{groupdelivery.StatePending, groupdelivery.StateUnknown} {
-		_, err := f.db.Exec(`INSERT INTO wg_delivery_outbox(effect_key,record_id,workspace_id,group_id,group_revision,bucket_start,partition_key,destination_scope,connector_id,connector_revision,database_name,table_schema,table_name,dedupe_capability,record_key_column,payload,payload_digest,state,next_retry_at,last_error_code,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		_, err := f.db.ExecContext(t.Context(), `INSERT INTO wg_delivery_outbox(effect_key,record_id,workspace_id,group_id,group_revision,bucket_start,partition_key,destination_scope,connector_id,connector_revision,database_name,table_schema,table_name,dedupe_capability,record_key_column,payload,payload_digest,state,next_retry_at,last_error_code,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			fmt.Sprintf("history-effect-%d", i), fmt.Sprintf("history-record-%d", i), key.WorkspaceID, key.GroupID, key.GroupRevision,
 			at.Format(time.RFC3339Nano), "history-partition", scope, d.ConnectorID, d.ConnectorRevision, d.Database, d.TableSchema, d.TableName,
 			dedupe, "", `{"private-sample":"never-display"}`, "frozen-digest", state, at.Format(time.RFC3339Nano), "private-delivery-error", at.Format(time.RFC3339Nano), at.Format(time.RFC3339Nano))
@@ -75,7 +75,7 @@ func TestWriteGroupLifecycleHistoryMixedPendingUnitsRemainSeparate(t *testing.T)
 func TestWriteGroupLifecycleHistoryOrphanPendingRevisionFailsClosed(t *testing.T) {
 	f := lifecycleAPIApplied(t)
 	lifecycleHistorySeedPending(t, f)
-	_, err := f.db.Exec(`UPDATE wg_delivery_outbox SET group_revision='private-orphan-revision' WHERE effect_key='history-effect-1'`)
+	_, err := f.db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET group_revision='private-orphan-revision' WHERE effect_key='history-effect-1'`)
 	require.NoError(t, err)
 	before := lifecycleAPIState(t, f.db)
 	response := performJSONRequest(t, f.router, "GET", writeGroupsPath+"/"+f.group["id"].(string)+"/lifecycle", nil)

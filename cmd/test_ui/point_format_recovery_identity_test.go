@@ -30,7 +30,7 @@ func TestProductionFormatRecoveryMatchesSQLMemberSourceIdentity(t *testing.T) {
 	m := evidence.TargetInputs.Mappings[0]
 	tg := evidence.TargetInputs.Tags[m.TagID]
 	require.NotNil(t, tg)
-	_, err = f.db.Exec(`INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('identity-db','SQLite','sqlite','{"database":"persisted-db","schema":"persisted-schema"}','identity-db-rev','ready',1)`)
+	_, err = f.db.ExecContext(t.Context(), `INSERT INTO database_connectors(id,name,kind,connection_config,identity_revision,status,enabled) VALUES('identity-db','SQLite','sqlite','{"database":"persisted-db","schema":"persisted-schema"}','identity-db-rev','ready',1)`)
 	require.NoError(t, err)
 	group := &workspace.WriteGroup{
 		WorkspaceID: req.WorkspaceID, Name: "recovery identity",

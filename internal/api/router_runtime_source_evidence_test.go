@@ -190,7 +190,7 @@ func TestRuntimeSourceEvidenceByteOrderScaleCastAndUnsupportedParams(t *testing.
 
 func TestRuntimeSourceEvidenceUnknownPollingAndDecodeStayUnavailable(t *testing.T) {
 	r := newRuntimeSourceRig(t)
-	_, err := r.f.db.Exec(`UPDATE points SET polling_group_id=NULL,data_format='' WHERE id='point-source'`)
+	_, err := r.f.db.ExecContext(t.Context(), `UPDATE points SET polling_group_id=NULL,data_format='' WHERE id='point-source'`)
 	require.NoError(t, err)
 	s := runtimeSourceView(t, r.get(t, r.query(t))).Source
 	require.Nil(t, s.Saved.Polling)
@@ -226,15 +226,15 @@ func TestRuntimeSourceEvidenceNeverBootstrapsOrMutates(t *testing.T) {
 	r := newRuntimeSourceRig(t)
 	q := r.query(t)
 	var before, after int
-	require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&before))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&before))
 	runtimeSourceView(t, r.get(t, q))
-	require.NoError(t, r.f.db.QueryRow(`SELECT total_changes()`).Scan(&after))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT total_changes()`).Scan(&after))
 	require.Equal(t, before, after, "source read must issue no configuration or proof writes")
-	_, err := r.f.db.Exec(`DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
+	_, err := r.f.db.ExecContext(t.Context(), `DELETE FROM system_settings WHERE key='studio_v2_workspace'`)
 	require.NoError(t, err)
 	response := r.get(t, q)
 	var count int
-	require.NoError(t, r.f.db.QueryRow(`SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&count))
+	require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM system_settings WHERE key='studio_v2_workspace'`).Scan(&count))
 	require.Zero(t, count, "read must not recreate an absent workspace")
 	require.Equal(t, http.StatusServiceUnavailable, response.Code, response.Body.String())
 	require.NotContains(t, response.Body.String(), `"rule_evidence"`)
@@ -242,9 +242,9 @@ func TestRuntimeSourceEvidenceNeverBootstrapsOrMutates(t *testing.T) {
 
 func TestRuntimeSourceEvidenceForeignPointCannotBorrowOwnedLink(t *testing.T) {
 	r := newRuntimeSourceRig(t)
-	_, err := r.f.db.Exec(`INSERT INTO devices (id,name,description,protocol,status,connection_config,readiness_status) VALUES ('device-foreign','Foreign','','modbus_tcp','draft','{}','{}')`)
+	_, err := r.f.db.ExecContext(t.Context(), `INSERT INTO devices (id,name,description,protocol,status,connection_config,readiness_status) VALUES ('device-foreign','Foreign','','modbus_tcp','draft','{}','{}')`)
 	require.NoError(t, err)
-	_, err = r.f.db.Exec(`UPDATE points SET device_id='device-foreign' WHERE id='point-source'`)
+	_, err = r.f.db.ExecContext(t.Context(), `UPDATE points SET device_id='device-foreign' WHERE id='point-source'`)
 	require.NoError(t, err)
 	response := r.get(t, r.query(t))
 	require.Equal(t, http.StatusForbidden, response.Code, response.Body.String())

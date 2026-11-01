@@ -4,15 +4,17 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	appconfig "go-gateway/internal/config"
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestProductionWordWorkspaceDiagnosedDraftCreate(t *testing.T) {
@@ -32,7 +34,7 @@ func testWordWorkspaceDraftCreate(t *testing.T, diagnosed, foreignActivate bool)
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = db.Close() })
 	require.NoError(t, datalink.NewMigrator().Migrate(db))
-	_, err = db.Exec(`INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('draft-plc','PLC','','modbus_tcp','draft',?,'{}')`, config)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO devices(id,name,description,protocol,status,connection_config,readiness_status) VALUES('draft-plc','PLC','','modbus_tcp','draft',?,'{}')`, config)
 	require.NoError(t, err)
 	manager := connector.NewConnectionManager(connector.DefaultConnectionManagerConfig())
 	t.Cleanup(func() { _ = manager.CloseAll() })
@@ -45,7 +47,7 @@ func testWordWorkspaceDraftCreate(t *testing.T, diagnosed, foreignActivate bool)
 	base := appconfig.Get().API.BasePath + "/datalink"
 	response := httptest.NewRecorder()
 	if diagnosed {
-		router.ServeHTTP(response, httptest.NewRequest("POST", base+"/devices/draft-plc/test", nil))
+		router.ServeHTTP(response, httptest.NewRequest("POST", base+"/devices/draft-plc/test", http.NoBody))
 		require.Equal(t, 200, response.Code, response.Body.String())
 		require.Contains(t, response.Body.String(), `"can_activate":true`)
 	}
@@ -77,8 +79,8 @@ func testWordWorkspaceDraftCreate(t *testing.T, diagnosed, foreignActivate bool)
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(response, request)
 	var rules, points int
-	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM source_rules`).Scan(&rules))
-	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM points`).Scan(&points))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM source_rules`).Scan(&rules))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM points`).Scan(&points))
 	t.Logf("status=%d rules=%d points=%d body=%s", response.Code, rules, points, response.Body.String())
 	if foreignActivate {
 		require.Equal(t, 503, response.Code, response.Body.String())
@@ -92,7 +94,7 @@ func testWordWorkspaceDraftCreate(t *testing.T, diagnosed, foreignActivate bool)
 	}
 	require.Equal(t, 201, response.Code, response.Body.String())
 	var firstID string
-	require.NoError(t, db.QueryRow(`SELECT id FROM points ORDER BY id LIMIT 1`).Scan(&firstID))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT id FROM points ORDER BY id LIMIT 1`).Scan(&firstID))
 	stored, err := services.point.GetByID(t.Context(), firstID)
 	require.NoError(t, err)
 	require.Equal(t, diagnosed, stored.Enabled, "unprobed draft preserves the existing disabled rule contract")
@@ -100,7 +102,7 @@ func testWordWorkspaceDraftCreate(t *testing.T, diagnosed, foreignActivate bool)
 	require.Empty(t, services.scheduler.PollNowContext(t.Context(), []string{firstID}))
 	if diagnosed {
 		response = httptest.NewRecorder()
-		router.ServeHTTP(response, httptest.NewRequest("POST", base+"/devices/draft-plc/activate", nil))
+		router.ServeHTTP(response, httptest.NewRequest("POST", base+"/devices/draft-plc/activate", http.NoBody))
 		require.Equal(t, 200, response.Code, response.Body.String())
 		lease := services.runtime.CapturePointLease(firstID, stored.RevisionID)
 		require.NotZero(t, lease)

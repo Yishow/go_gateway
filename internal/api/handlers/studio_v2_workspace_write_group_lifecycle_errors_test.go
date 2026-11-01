@@ -17,7 +17,7 @@ func lifecycleErrorResponse(t *testing.T, err error) (int, map[string]any) {
 	t.Helper()
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodDelete, "/write-groups/G1", nil)
+	c.Request = httptest.NewRequest(http.MethodDelete, "/write-groups/G1", http.NoBody)
 	c.Request.Header.Set("X-Request-ID", "req-lifecycle")
 	renderWriteGroupError(c, err)
 	var response map[string]any

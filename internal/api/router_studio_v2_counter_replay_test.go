@@ -46,7 +46,7 @@ func counterReplayAPISnapshot(t *testing.T, store *groupdelivery.Store, key grou
 
 func counterReplayAPIJournal(t *testing.T, db *sql.DB) [][3]string {
 	t.Helper()
-	rows, err := db.Query(`SELECT sample_id,payload,payload_digest FROM wg_delivery_samples ORDER BY seq`)
+	rows, err := db.QueryContext(t.Context(), `SELECT sample_id,payload,payload_digest FROM wg_delivery_samples ORDER BY seq`)
 	require.NoError(t, err)
 	defer rows.Close()
 	var result [][3]string
@@ -243,7 +243,7 @@ func TestStudioV2CounterReplayPublicMeasurementEditPreservesAcceptedEpoch(t *tes
 
 func counterReplayAPIEffects(t *testing.T, db *sql.DB, revision string) [][3]string {
 	t.Helper()
-	rows, err := db.Query(`SELECT effect_key,payload,payload_digest FROM wg_delivery_outbox WHERE group_revision=? ORDER BY bucket_start`, revision)
+	rows, err := db.QueryContext(t.Context(), `SELECT effect_key,payload,payload_digest FROM wg_delivery_outbox WHERE group_revision=? ORDER BY bucket_start`, revision)
 	require.NoError(t, err)
 	defer rows.Close()
 	var result [][3]string

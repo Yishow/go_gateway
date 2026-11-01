@@ -2,14 +2,15 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/point"
 	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/schema"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRuntimeRuleNetworkSafetyRejectsIPv6AndPairedDSN(t *testing.T) {
@@ -38,7 +39,7 @@ func TestRuntimeRuleNetworkSafetyRemotePointAndSSE(t *testing.T) {
 			for _, get := range []bool{false, true} {
 				response := httptest.NewRecorder()
 				c, _ := gin.CreateTestContext(response)
-				c.Request = httptest.NewRequest(http.MethodGet, "/points?device_id=device", nil)
+				c.Request = httptest.NewRequest(http.MethodGet, "/points?device_id=device", http.NoBody)
 				c.Request.RemoteAddr = "203.0.113.9:1234"
 				c.Params = gin.Params{{Key: "id", Value: "point"}}
 				if get {
@@ -59,7 +60,7 @@ func TestRuntimeRuleNetworkSafetyRemotePointAndSSE(t *testing.T) {
 			close(source.valueCh)
 			response := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(response)
-			c.Request = httptest.NewRequest(http.MethodGet, "/runtime/stream?device_id=device", nil)
+			c.Request = httptest.NewRequest(http.MethodGet, "/runtime/stream?device_id=device", http.NoBody)
 			c.Request.RemoteAddr = "203.0.113.9:1234"
 			NewRuntimeStreamHandler(source).Stream(c)
 			require.Equal(t, 200, response.Code)
