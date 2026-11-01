@@ -67,7 +67,7 @@ func (s *Store) HandoffSources(ctx context.Context, workspaceID string, after Gr
 		return nil, ErrOwnershipUnavailable
 	}
 	defer rows.Close()
-	var keys []GroupKey
+	keys := make([]GroupKey, 0, limit)
 	for rows.Next() {
 		key := GroupKey{WorkspaceID: workspaceID}
 		if rows.Scan(&key.GroupID, &key.GroupRevision) != nil {
@@ -77,6 +77,9 @@ func (s *Store) HandoffSources(ctx context.Context, workspaceID string, after Gr
 	}
 	if rows.Err() != nil {
 		return nil, ErrOwnershipUnavailable
+	}
+	if len(keys) == 0 {
+		keys = nil
 	}
 	return keys, nil
 }
@@ -92,7 +95,7 @@ func (s *Store) PrepareCutoverHandoffs(ctx context.Context, source GroupKey, aft
 	if err != nil {
 		return batch, ErrOwnershipUnavailable
 	}
-	var seqs []int64
+	seqs := make([]int64, 0, limit+1)
 	for rows.Next() {
 		var seq int64
 		if rows.Scan(&seq) != nil {
@@ -125,11 +128,11 @@ func (s *Store) PrepareCutoverHandoffs(ctx context.Context, source GroupKey, aft
 				return e
 			}
 			for _, receipt := range receipts {
-				if e = verifyHandoffReceipt(ctx, tx, receipt, map[string]bool{}); e != nil {
+				if e := verifyHandoffReceipt(ctx, tx, receipt, map[string]bool{}); e != nil {
 					return e
 				}
 				participants = append(participants, receipt.Source, receipt.Target)
-				if receipt.State == "accepted" || receipt.State == "finalized" {
+				if receipt.State == handoffStateAccepted || receipt.State == handoffStateFinalized {
 					replayParticipants = append(replayParticipants, receipt.Source, receipt.Target)
 				}
 			}
@@ -149,11 +152,11 @@ func (s *Store) PrepareCutoverHandoffs(ctx context.Context, source GroupKey, aft
 		batch.NextSeq = seq
 		for _, state := range states {
 			switch state {
-			case "pending":
+			case handoffStatePending:
 				batch.Pending++
-			case "quarantined":
+			case handoffStateQuarantined:
 				batch.Quarantined++
-			case "accepted", "finalized":
+			case handoffStateAccepted, handoffStateFinalized:
 				batch.Accepted++
 			}
 		}
@@ -209,12 +212,12 @@ func (s *Store) prepareHandoffInTx(ctx context.Context, tx *sql.Tx, key GroupKey
 		return nil, nil, e
 	}
 	allAccepted := len(existingReceipts) > 0
-	var existingStates []string
+	existingStates := make([]string, 0, len(existingReceipts))
 	for _, r := range existingReceipts {
-		if e = verifyHandoffReceipt(ctx, tx, r, map[string]bool{}); e != nil {
+		if e := verifyHandoffReceipt(ctx, tx, r, map[string]bool{}); e != nil {
 			return nil, nil, e
 		}
-		if r.State != "accepted" && r.State != "finalized" {
+		if r.State != handoffStateAccepted && r.State != handoffStateFinalized {
 			allAccepted = false
 		}
 		existingStates = append(existingStates, r.State)
@@ -238,11 +241,11 @@ func (s *Store) prepareHandoffInTx(ctx context.Context, tx *sql.Tx, key GroupKey
 	if err != nil {
 		return nil, nil, err
 	}
-	if incoming == nil && row.Kind == "handoff" {
+	if incoming == nil && row.Kind == journalKindHandoff {
 		return nil, nil, ErrOwnershipUnavailable
 	}
 	if incoming != nil {
-		if err = verifyHandoffReceipt(ctx, tx, *incoming, map[string]bool{}); err != nil {
+		if err := verifyHandoffReceipt(ctx, tx, *incoming, map[string]bool{}); err != nil {
 			return nil, nil, err
 		}
 		origin, err = readHandoffSample(ctx, tx, incoming.OriginSeq)
@@ -276,35 +279,41 @@ func (s *Store) prepareHandoffInTx(ctx context.Context, tx *sql.Tx, key GroupKey
 	if err != nil {
 		return nil, nil, err
 	}
-	var states []string
+	states := make([]string, 0, len(targets))
 	var blocked error
 	for _, target := range targets {
 		fence, err := handoffFence(ctx, tx, key, target, sourceOf(key, sample), sample.ObservedAt)
 		if err != nil {
 			return nil, nil, err
 		}
-		r := newHandoffReceipt(row, origin, target, fence)
+		r, err := newHandoffReceipt(row, origin, target, fence)
+		if err != nil {
+			return nil, nil, err
+		}
 		r.Targets = targets
-		r.ID = handoffID(r)
+		r.ID, err = handoffID(r)
+		if err != nil {
+			return nil, nil, err
+		}
 		old, err := readHandoffID(ctx, tx, r.ID)
 		if err != nil {
 			return nil, nil, err
 		}
 		if old != nil {
-			if err = verifyHandoffReceipt(ctx, tx, *old, map[string]bool{}); err != nil {
+			if err := verifyHandoffReceipt(ctx, tx, *old, map[string]bool{}); err != nil {
 				return nil, nil, err
 			}
-			if old.State == "accepted" || old.State == "finalized" {
+			if old.State == handoffStateAccepted || old.State == handoffStateFinalized {
 				states = append(states, old.State)
 				continue
 			}
 		}
 		proof, proofErr := validateHandoffProof(ctx, tx, handoffProofInput{Origin: origin.Key, Sequence: origin.Seq, Payload: origin.Payload, Digest: origin.Digest, AcceptedAt: origin.AcceptedAt}, target)
 		if proofErr != nil {
-			r.State = "pending"
+			r.State = handoffStatePending
 			r.Reason = ErrOwnershipUnavailable.Error()
 			if errors.Is(proofErr, ErrHandoffProofConflict) {
-				r.State = "quarantined"
+				r.State = handoffStateQuarantined
 				r.Reason = ErrHandoffProofConflict.Error()
 			}
 			blocked = errors.Join(blocked, proofErr)
@@ -345,17 +354,17 @@ func (s *Store) prepareHandoffInTx(ctx context.Context, tx *sql.Tx, key GroupKey
 				}
 			}
 
-			if err = acceptHandoffTarget(ctx, tx, row, origin, &r); err != nil {
+			if err := acceptHandoffTarget(ctx, tx, row, origin, &r); err != nil {
 				return nil, nil, err
 			}
-			r.State = "accepted"
+			r.State = handoffStateAccepted
 		}
-		if err = writeHandoffReceipt(ctx, tx, r); err != nil {
+		if err := writeHandoffReceipt(ctx, tx, r); err != nil {
 			return nil, nil, err
 		}
 		states = append(states, r.State)
 	}
-	if err = s.checkHandoffQuota(ctx, tx, beforeQuota); err != nil {
+	if err := s.checkHandoffQuota(ctx, tx, beforeQuota); err != nil {
 		return nil, nil, err
 	}
 	return states, blocked, nil

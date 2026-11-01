@@ -78,7 +78,10 @@ func captureOwnershipView(ctx context.Context, q ownershipQuery, key GroupKey) (
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	raw, _ := json.Marshal(ids)
+	raw, err := json.Marshal(ids)
+	if err != nil {
+		return OwnershipView{}, ErrOwnershipUnavailable
+	}
 	return OwnershipView{key: key, digest: handoffHash(string(raw)), start: bounds.Start.UTC(), end: bounds.End.UTC(), interval: time.Duration(seconds) * time.Second, mixed: descriptor != nil}, nil
 }
 

@@ -6,10 +6,10 @@ import (
 	"go-gateway/internal/datalink/groupdelivery"
 )
 
-// HandoffRefusal identifies a failed source handoff without exposing raw inputs
+// HandoffRefusalError identifies a failed source handoff without exposing raw inputs
 // or storage errors. It is a diagnostic, never owner or retry authorization.
 // Operator presentation and pending counts belong to the runtime-view provider.
-type HandoffRefusal struct {
+type HandoffRefusalError struct {
 	scope  groupdelivery.GroupKey
 	reason string
 	cause  error
@@ -17,19 +17,19 @@ type HandoffRefusal struct {
 
 // Error returns only a closed, safe reason code. Inspect the original error
 // chain internally through errors.Is/As, not by serializing its raw causes.
-func (e *HandoffRefusal) Error() string { return e.reason }
+func (e *HandoffRefusalError) Error() string { return e.reason }
 
 // Unwrap preserves the underlying typed refusal and internal failure evidence.
-func (e *HandoffRefusal) Unwrap() error { return e.cause }
+func (e *HandoffRefusalError) Unwrap() error { return e.cause }
 
 // HandoffScope identifies the known source revision; it does not guess a target
 // when ownership evidence is unreadable or conflicting.
-func (e *HandoffRefusal) HandoffScope() groupdelivery.GroupKey { return e.scope }
+func (e *HandoffRefusalError) HandoffScope() groupdelivery.GroupKey { return e.scope }
 
 // RepairAction requests read-only inspection of original immutable evidence.
 // Preserve accepted inputs; never relabel them using current definitions, reset
 // baselines, or resend finalized output. Unrecoverable evidence needs maintenance.
-func (e *HandoffRefusal) RepairAction() string { return "inspect-immutable-evidence" }
+func (e *HandoffRefusalError) RepairAction() string { return "inspect-immutable-evidence" }
 
 func scopedHandoffRefusal(key groupdelivery.GroupKey, err error) error {
 	if err == nil || !key.Valid() {
@@ -42,7 +42,7 @@ func scopedHandoffRefusal(key groupdelivery.GroupKey, err error) error {
 		groupdelivery.ErrOwnershipUnavailable,
 	} {
 		if errors.Is(err, reason) {
-			return &HandoffRefusal{scope: key, reason: reason.Error(), cause: err}
+			return &HandoffRefusalError{scope: key, reason: reason.Error(), cause: err}
 		}
 	}
 	return err

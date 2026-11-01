@@ -276,9 +276,11 @@ func TestHandoffPhysicalAddressesDoNotReserveNativeIDs(t *testing.T) {
 	store, seq := seedPreparedHandoff(t)
 	row, err := readHandoffSample(t.Context(), store.DB(), seq)
 	require.NoError(t, err)
-	receipt := newHandoffReceipt(row, row, otherKey, "f-2")
+	receipt, err := newHandoffReceipt(row, row, otherKey, "f-2")
+	require.NoError(t, err)
 	receipt.Targets = []GroupKey{otherKey}
-	receipt.ID = handoffID(receipt)
+	receipt.ID, err = handoffID(receipt)
+	require.NoError(t, err)
 	native := sampleAt(receipt.ID, ownershipMember, 35, 9)
 	require.NoError(t, store.AppendSample(t.Context(), otherKey, at(30), native))
 	_, err = store.PrepareCutoverHandoffs(t.Context(), testKey, 0, 128)

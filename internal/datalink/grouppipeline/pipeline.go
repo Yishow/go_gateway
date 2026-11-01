@@ -17,6 +17,8 @@ import (
 	"go-gateway/internal/datalink/workspace"
 )
 
+const defaultNodeID = "gateway"
+
 // GroupSource reads canonical groups and their immutable applied snapshots.
 type GroupSource interface {
 	List(ctx context.Context) (*workspace.WriteGroupListResult, error)
@@ -189,7 +191,7 @@ func New(deps Dependencies, config Config) *Pipeline {
 		config.Now = func() time.Time { return time.Now().UTC() }
 	}
 	if config.NodeID == "" {
-		config.NodeID = "gateway"
+		config.NodeID = defaultNodeID
 	}
 	if config.Owner == "" {
 		config.Owner = config.NodeID + "/" + fmt.Sprintf("%d", config.Now().UnixNano())

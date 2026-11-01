@@ -9,6 +9,12 @@ import (
 	"go-gateway/internal/datalink/dbtarget"
 )
 
+const (
+	truncationStart = "start"
+	truncationEnd   = "end"
+	truncationBoth  = "both"
+)
+
 // sourceProvenance is the part of a record's provenance document this projection reads. Nothing else in the
 // document, which may carry raw diagnostics, is ever returned.
 type sourceProvenance struct {
@@ -82,11 +88,11 @@ func resolveSourceWindow(start, end, encodedStart, nominalStart time.Time, cut *
 		return start, end, false
 	}
 	switch cut.Truncated {
-	case "start":
+	case truncationStart:
 		ok = start.After(wantStart) && end.Equal(wantEnd)
-	case "end":
+	case truncationEnd:
 		ok = start.Equal(wantStart) && end.Before(wantEnd)
-	case "both":
+	case truncationBoth:
 		ok = start.After(wantStart) && end.Before(wantEnd)
 	}
 	return start, end, ok

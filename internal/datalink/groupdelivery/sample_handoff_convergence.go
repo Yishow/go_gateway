@@ -55,7 +55,10 @@ func verifyHandoffReceipt(ctx context.Context, q ownershipQuery, r handoffReceip
 		if _, err := v.incoming(ctx, r.TargetSeq, seen); err != nil {
 			return err
 		}
-		raw, _ := json.Marshal(r)
+		raw, err := json.Marshal(r)
+		if err != nil {
+			return ErrOwnershipUnavailable
+		}
 		if v.edges[r.ID] != string(raw) {
 			return ErrOwnershipUnavailable
 		}
@@ -75,16 +78,16 @@ func (v *handoffVerification) edge(ctx context.Context, r handoffReceipt, seen m
 		}
 		return nil
 	}
-	if err = verifyHandoffReceiptEdge(ctx, v, r, seen); err != nil {
+	if err := verifyHandoffReceiptEdge(ctx, v, r, seen); err != nil {
 		return err
 	}
-	if r.State == "accepted" {
-		if err = v.consumed(ctx, r); err != nil {
+	if r.State == handoffStateAccepted {
+		if err := v.consumed(ctx, r); err != nil {
 			return err
 		}
 	}
-	if r.State == "finalized" {
-		if err = v.compactLineage(ctx, r); err != nil {
+	if r.State == handoffStateFinalized {
+		if err := v.compactLineage(ctx, r); err != nil {
 			return err
 		}
 	}
@@ -114,7 +117,7 @@ func (v *handoffVerification) incoming(ctx context.Context, seq int64, seen map[
 		return nil, err
 	}
 	for _, r := range peers {
-		if err = v.edge(ctx, r, seen); err != nil {
+		if err := v.edge(ctx, r, seen); err != nil {
 			return nil, err
 		}
 	}
@@ -147,8 +150,8 @@ func handoffCanonical(ctx context.Context, q ownershipQuery, seq int64, peers []
 	for i := range peers {
 		r := &peers[i]
 		if canonicalTransferID(*r) != canonicalID || r.TargetSeq != seq ||
-			(r.State != "accepted" && r.State != "finalized") ||
-			(rowErr != nil && r.State != "finalized") {
+			(r.State != handoffStateAccepted && r.State != handoffStateFinalized) ||
+			(rowErr != nil && r.State != handoffStateFinalized) {
 			return nil, ErrOwnershipUnavailable
 		}
 		if r.ID == canonicalID {
@@ -183,7 +186,7 @@ func (v *handoffVerification) compactLineage(ctx context.Context, r handoffRecei
 	}
 	v.lineageActive[r.ID] = true
 	defer delete(v.lineageActive, r.ID)
-	if r.State == "finalized" {
+	if r.State == handoffStateFinalized {
 		// A finalized source disposes its entire immutable fanout. Validate
 		// siblings' forward obligations, not only the path back to this edge.
 		siblings, err := outgoingHandoffs(ctx, v, r.SourceSeq)
@@ -191,10 +194,10 @@ func (v *handoffVerification) compactLineage(ctx context.Context, r handoffRecei
 			return err
 		}
 		for _, sibling := range siblings {
-			if sibling.State != "finalized" {
+			if sibling.State != handoffStateFinalized {
 				return ErrOwnershipUnavailable
 			}
-			if err = v.terminal(ctx, sibling); err != nil {
+			if err := v.terminal(ctx, sibling); err != nil {
 				return err
 			}
 		}
@@ -217,13 +220,13 @@ func (v *handoffVerification) compactLineage(ctx context.Context, r handoffRecei
 		if !handoffSourceMatches(prior, r) {
 			return ErrHandoffProofConflict
 		}
-		if err = verifyHandoffBranch(ctx, v, prior); err != nil {
+		if err := verifyHandoffBranch(ctx, v, prior); err != nil {
 			return err
 		}
-		if err = verifyCompactHandoffMeaning(ctx, v, prior); err != nil {
+		if err := verifyCompactHandoffMeaning(ctx, v, prior); err != nil {
 			return err
 		}
-		if err = v.compactLineage(ctx, prior); err != nil {
+		if err := v.compactLineage(ctx, prior); err != nil {
 			return err
 		}
 	}

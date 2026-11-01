@@ -34,7 +34,7 @@ func (p *Pipeline) reconcileHandoffs(ctx context.Context, list *workspace.WriteG
 			ready[groupdelivery.GroupKey{WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: group.AppliedRevision}] = true
 		}
 	}
-	var failures []error
+	failures := make([]error, 0, len(workspaces))
 	for id := range workspaces {
 		groups, err := p.prepareWorkspaceHandoffs(ctx, id)
 		failures = append(failures, err)
@@ -95,12 +95,15 @@ func handoffComponents(groups [][]groupdelivery.GroupKey) [][]groupdelivery.Grou
 		r := root(key)
 		sets[r] = append(sets[r], key)
 	}
-	var components [][]groupdelivery.GroupKey
+	components := make([][]groupdelivery.GroupKey, 0, len(sets))
 	for _, keys := range sets {
 		sortHandoffKeys(keys)
 		components = append(components, keys)
 	}
 	sort.Slice(components, func(i, j int) bool { return handoffKeyLess(components[i][0], components[j][0]) })
+	if len(components) == 0 {
+		components = nil
+	}
 	return components
 }
 

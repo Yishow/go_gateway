@@ -39,7 +39,7 @@ func (s *Store) HasCutoverSource(ctx context.Context, source OwnershipSource) (i
 			return false, ErrOwnershipUnavailable
 		}
 		switch status {
-		case "disabled", "deleted":
+		case lifecycleStatusDisabled, lifecycleStatusDeleted:
 		case "draft", "ready", "running":
 			interested = interested || applied == owner.GroupRevision
 		default:

@@ -377,13 +377,16 @@ func (s *Store) ReadyHeads(ctx context.Context, now time.Time) ([]Head, error) {
 		return nil, fmt.Errorf("read ready partition heads: %w", err)
 	}
 	defer rows.Close()
-	var heads []Head
+	heads := make([]Head, 0, 8)
 	for rows.Next() {
 		var head Head
 		if err := rows.Scan(&head.PartitionKey, &head.EffectKey); err != nil {
 			return nil, fmt.Errorf("scan partition head: %w", err)
 		}
 		heads = append(heads, head)
+	}
+	if len(heads) == 0 {
+		heads = nil
 	}
 	return heads, rows.Err()
 }
@@ -417,7 +420,7 @@ func (s *Store) RecoverStaleClaims(ctx context.Context, nodeID, selfOwner string
 	if err != nil {
 		return 0, fmt.Errorf("find stale claims: %w", err)
 	}
-	var keys []string
+	keys := make([]string, 0, 8)
 	for rows.Next() {
 		var key string
 		if err := rows.Scan(&key); err != nil {

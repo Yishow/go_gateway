@@ -266,11 +266,11 @@ func (r *StorageRecovery) lock(scope recordingplan.StorageScope) (release func()
 func dialectName(kind schema.DatabaseConnectorKind) (string, bool) {
 	switch kind {
 	case schema.DatabaseConnectorKindSQLite:
-		return "sqlite", true
+		return string(dbtarget.SQLDialectSQLite), true
 	case schema.DatabaseConnectorKindPostgres:
-		return "postgres", true
+		return string(dbtarget.SQLDialectPostgres), true
 	case schema.DatabaseConnectorKindMySQL:
-		return "mysql", true
+		return string(dbtarget.SQLDialectMySQL), true
 	case schema.DatabaseConnectorKindSQLServer:
 		return string(dbtarget.SQLDialectSQLServer), true
 	}

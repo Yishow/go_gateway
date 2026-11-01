@@ -66,7 +66,7 @@ func (s *Store) OpenJournals(ctx context.Context) (journalsResult []OpenJournal,
 		return nil, &handoffStorageError{cause: err}
 	}
 	defer rows.Close()
-	var journals []OpenJournal
+	journals := make([]OpenJournal, 0, 8)
 	for rows.Next() {
 		var journal OpenJournal
 		var first, last string
@@ -89,7 +89,7 @@ func (s *Store) OpenJournals(ctx context.Context) (journalsResult []OpenJournal,
 	if err := rows.Close(); err != nil {
 		return nil, &handoffStorageError{cause: err}
 	}
-	var active []OpenJournal
+	active := make([]OpenJournal, 0, len(journals))
 	for _, journal := range journals {
 		observed := &handoffReadObserver{ownershipQuery: tx}
 		_, _, validationErr := handoffView(ctx, observed, journal.Key)
@@ -126,6 +126,9 @@ func (s *Store) OpenJournals(ctx context.Context) (journalsResult []OpenJournal,
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, &handoffStorageError{cause: err}
+	}
+	if len(active) == 0 {
+		active = nil
 	}
 	return active, nil
 }

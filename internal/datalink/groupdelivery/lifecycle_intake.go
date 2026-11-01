@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+const (
+	lifecycleStatusDeleted  = "deleted"
+	lifecycleStatusDisabled = "disabled"
+)
+
 // WithCanonicalIntake returns a clone whose new samples require canonical
 // write-group lifecycle authority in the journal transaction. NewStore remains
 // available for standalone ledgers whose providers do not own write_groups.
@@ -30,7 +35,7 @@ func (s *Store) validateLifecycleIntake(ctx context.Context, tx *sql.Tx, key Gro
 		return ErrOwnershipUnavailable
 	}
 	switch status {
-	case "disabled", "deleted":
+	case lifecycleStatusDisabled, lifecycleStatusDeleted:
 		return ErrIntakeStopped
 	case "draft", "ready", "running":
 		if applied == "" {

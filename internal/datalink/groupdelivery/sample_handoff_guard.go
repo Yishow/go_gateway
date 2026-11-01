@@ -19,13 +19,13 @@ func handoffView(ctx context.Context, q ownershipQuery, key GroupKey) (HandoffVi
 	if len(receipts) == 0 {
 		return HandoffView{}, nil, nil
 	}
-	var parts []string
+	parts := make([]string, 0, len(receipts))
 	for _, r := range receipts {
-		if err = verifyHandoffReceipt(ctx, q, r, map[string]bool{}); err != nil {
+		if err := verifyHandoffReceipt(ctx, q, r, map[string]bool{}); err != nil {
 			return HandoffView{}, nil, err
 		}
-		if r.State == "finalized" {
-			r.State = "accepted"
+		if r.State == handoffStateFinalized {
+			r.State = handoffStateAccepted
 		}
 		data, e := json.Marshal(r)
 		if e != nil {
@@ -34,7 +34,10 @@ func handoffView(ctx context.Context, q ownershipQuery, key GroupKey) (HandoffVi
 		parts = append(parts, string(data))
 	}
 	sort.Strings(parts)
-	raw, _ := json.Marshal(parts)
+	raw, err := json.Marshal(parts)
+	if err != nil {
+		return HandoffView{}, nil, ErrOwnershipUnavailable
+	}
 	return HandoffView{key: key, digest: handoffHash(string(raw))}, receipts, nil
 }
 
@@ -50,7 +53,7 @@ func validateHandoffClosure(ctx context.Context, tx *sql.Tx, key GroupKey, closu
 		return ErrOwnershipConflict
 	}
 	for _, r := range receipts {
-		if r.State != "pending" && r.State != "quarantined" {
+		if r.State != handoffStatePending && r.State != handoffStateQuarantined {
 			continue
 		}
 		when := r.ObservedAt
@@ -77,7 +80,7 @@ func validateHandoffClosure(ctx context.Context, tx *sql.Tx, key GroupKey, closu
 	if err != nil {
 		return ErrOwnershipUnavailable
 	}
-	var seqs []int64
+	seqs := make([]int64, 0, 8)
 	for rows.Next() {
 		var seq int64
 		if rows.Scan(&seq) != nil {
@@ -104,10 +107,10 @@ func validateHandoffClosure(ctx context.Context, tx *sql.Tx, key GroupKey, closu
 		}
 		settled := len(outgoing) > 0
 		for _, receipt := range outgoing {
-			if e = verifyHandoffReceipt(ctx, tx, receipt, map[string]bool{}); e != nil {
+			if e := verifyHandoffReceipt(ctx, tx, receipt, map[string]bool{}); e != nil {
 				return e
 			}
-			if receipt.State == "pending" || receipt.State == "quarantined" {
+			if receipt.State == handoffStatePending || receipt.State == handoffStateQuarantined {
 				settled = false
 			}
 		}
@@ -127,7 +130,7 @@ func validateHandoffClosure(ctx context.Context, tx *sql.Tx, key GroupKey, closu
 		if len(outgoing) > 0 {
 			obligated := false
 			for _, receipt := range outgoing {
-				if receipt.State != "pending" && receipt.State != "quarantined" {
+				if receipt.State != handoffStatePending && receipt.State != handoffStateQuarantined {
 					continue
 				}
 				if key == receipt.Target || handoffDescendant(own, key, receipt.Target, map[GroupKey]bool{}) {
@@ -195,7 +198,7 @@ func validateHandoffScope(ctx context.Context, q ownershipQuery, groupID, revisi
 	if err != nil {
 		return &handoffStorageError{cause: err}
 	}
-	var keys []GroupKey
+	keys := make([]GroupKey, 0, 8)
 	for rows.Next() {
 		var key GroupKey
 		if err := rows.Scan(&key.WorkspaceID, &key.GroupID, &key.GroupRevision); err != nil {
@@ -213,19 +216,6 @@ func validateHandoffScope(ctx context.Context, q ownershipQuery, groupID, revisi
 	}
 	for _, key := range keys {
 		if _, _, err := handoffView(ctx, q, key); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func validateAllHandoffReceipts(ctx context.Context, q ownershipQuery) error {
-	rs, err := queryHandoffs(ctx, q, "1=1")
-	if err != nil {
-		return err
-	}
-	for _, r := range rs {
-		if err = verifyHandoffReceipt(ctx, q, r, map[string]bool{}); err != nil {
 			return err
 		}
 	}

@@ -70,7 +70,7 @@ func bucketQualityCauses(kind, rawMembers string) []string {
 	causes := []string{}
 	for _, member := range members {
 		switch member.Status {
-		case "missing", "bad", "stale", "invalid":
+		case string(snapshot.MemberMissing), "bad", "stale", "invalid":
 			causes = append(causes, member.Status)
 		case "ok":
 		default:

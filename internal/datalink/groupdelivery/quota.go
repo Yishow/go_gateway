@@ -398,12 +398,12 @@ func (s *Store) checkHandoffQuota(ctx context.Context, q queryer, before map[str
 		if err != nil {
 			return err
 		}
-		max, scope := s.quota.GroupMaxBytes, QuotaScopeGroup
+		maxBytes, scope := s.quota.GroupMaxBytes, QuotaScopeGroup
 		if group == "" {
-			max, scope = s.quota.GlobalMaxBytes, QuotaScopeGlobal
+			maxBytes, scope = s.quota.GlobalMaxBytes, QuotaScopeGlobal
 		}
-		if used > old && s.quota.scopeState(old, max) == QuotaHard {
-			return &QuotaError{Reason: ReasonQuotaHardLimit, Scope: scope, GroupID: group, UsedBytes: old, MaxBytes: max}
+		if used > old && s.quota.scopeState(old, maxBytes) == QuotaHard {
+			return &QuotaError{Reason: ReasonQuotaHardLimit, Scope: scope, GroupID: group, UsedBytes: old, MaxBytes: maxBytes}
 		}
 	}
 	return nil

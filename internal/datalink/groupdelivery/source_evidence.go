@@ -214,7 +214,7 @@ func (s *Store) sourceRows(ctx context.Context, scope SourceScope, partition, st
 		return nil, fmt.Errorf("read source records: %w", err)
 	}
 	defer rows.Close()
-	var found []sourceRow
+	found := make([]sourceRow, 0, 8)
 	for rows.Next() {
 		var row sourceRow
 		if err := rows.Scan(&row.effectKey, &row.recordID, &row.workspaceID, &row.groupID, &row.groupRevision, &row.entityKey,
@@ -225,6 +225,9 @@ func (s *Store) sourceRows(ctx context.Context, scope SourceScope, partition, st
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("read source records: %w", err)
+	}
+	if len(found) == 0 {
+		found = nil
 	}
 	return found, nil
 }

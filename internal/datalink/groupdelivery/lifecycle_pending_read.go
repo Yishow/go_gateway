@@ -156,7 +156,7 @@ func LifecyclePendingRevisions(ctx context.Context, tx *sql.Tx, workspaceID, gro
 		return nil, &handoffStorageError{cause: err}
 	}
 	defer rows.Close()
-	var revisions []string
+	revisions := make([]string, 0, 8)
 	for rows.Next() {
 		var workspace, revision string
 		if err := rows.Scan(&workspace, &revision); err != nil {
@@ -171,6 +171,9 @@ func LifecyclePendingRevisions(ctx context.Context, tx *sql.Tx, workspaceID, gro
 		return nil, &handoffStorageError{cause: err}
 	}
 	sort.Strings(revisions)
+	if len(revisions) == 0 {
+		revisions = nil
+	}
 	return revisions, nil
 }
 
@@ -182,7 +185,7 @@ func (h LifecycleHandoff) MarshalJSON() ([]byte, error) {
 		GroupID       string `json:"group_id"`
 		GroupRevision string `json:"group_revision"`
 	}
-	key := func(k GroupKey) identity { return identity{k.WorkspaceID, k.GroupID, k.GroupRevision} }
+	key := func(k GroupKey) identity { return identity(k) }
 	return json.Marshal(struct {
 		Origin  identity `json:"origin"`
 		Source  identity `json:"source"`

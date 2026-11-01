@@ -40,7 +40,7 @@ func (BacklogGuard) CheckWriteGroupBacklog(ctx context.Context, tx *sql.Tx, grou
 		return fmt.Errorf("read undelivered rows: %w", err)
 	}
 	type owner struct{ workspace, revision, connector, connectorRevision, database, schema, table, scope, dedupe string }
-	var owners []owner
+	owners := make([]owner, 0, 8)
 	for rows.Next() {
 		var o owner
 		if err := rows.Scan(&o.workspace, &o.revision, &o.connector, &o.connectorRevision, &o.database, &o.schema, &o.table, &o.scope, &o.dedupe); err != nil {
@@ -78,7 +78,7 @@ func (BacklogGuard) CheckWriteGroupBacklog(ctx context.Context, tx *sql.Tx, grou
 		return fmt.Errorf("read uncollected samples: %w", err)
 	}
 	type pendingOwner struct{ workspace, revision string }
-	var pending []pendingOwner
+	pending := make([]pendingOwner, 0, 8)
 	for revisions.Next() {
 		var owner pendingOwner
 		if err := revisions.Scan(&owner.workspace, &owner.revision); err != nil {

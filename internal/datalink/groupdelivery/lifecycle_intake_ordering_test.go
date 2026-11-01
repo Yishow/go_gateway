@@ -38,7 +38,7 @@ func TestCanonicalLifecycleAppendAndStopLinearize(t *testing.T) {
 			go func() {
 				result <- NewStore(appends).WithCanonicalIntake().AppendSample(ctx, testKey, t0, sampleAt("new", "temp", 3, 30))
 			}()
-			awaitLifecycleBarrier(t, ctx, attempted)
+			awaitLifecycleBarrier(ctx, t, attempted)
 			require.NoError(t, tx.Commit())
 			err = <-result
 			var typed *OwnershipError
@@ -81,7 +81,7 @@ func TestCanonicalLifecycleAppendAndStopLinearize(t *testing.T) {
 			}
 			appendFaults.AfterCommit.Store(&afterCommit)
 			go func() { appendResult <- store.AppendSample(ctx, testKey, t0, sample) }()
-			awaitLifecycleBarrier(t, ctx, atInsert)
+			awaitLifecycleBarrier(ctx, t, atInsert)
 			stopAttempted := make(chan struct{})
 			stopFaults := &lostcommit.Faults{}
 			stopHook := func(query string) {
@@ -98,7 +98,7 @@ func TestCanonicalLifecycleAppendAndStopLinearize(t *testing.T) {
 				stopResult <- err
 				close(stopFinished)
 			}()
-			awaitLifecycleBarrier(t, ctx, stopAttempted)
+			awaitLifecycleBarrier(ctx, t, stopAttempted)
 			select {
 			case <-stopFinished:
 				t.Fatal("lifecycle committed through the in-flight journal transaction")
@@ -117,7 +117,7 @@ func TestCanonicalLifecycleAppendAndStopLinearize(t *testing.T) {
 	}
 }
 
-func awaitLifecycleBarrier(t *testing.T, ctx context.Context, barrier <-chan struct{}) {
+func awaitLifecycleBarrier(ctx context.Context, t *testing.T, barrier <-chan struct{}) {
 	t.Helper()
 	select {
 	case <-barrier:

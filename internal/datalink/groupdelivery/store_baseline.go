@@ -108,30 +108,3 @@ func storeBaselines(ctx context.Context, tx *sql.Tx, key GroupKey, baselines []d
 	}
 	return nil
 }
-
-// restoreBaselines reads the committed baselines of one group revision and
-// verifies each against the digest committed with it, the workspace it was
-// filed under and the closed cursor: a baseline cannot be ahead of the windows
-// the checkpoint says were closed.
-func (s *Store) restoreBaselines(ctx context.Context, key GroupKey, nextClose time.Time) ([]CounterBaseline, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT member_key, payload, payload_digest, workspace_id, window_end FROM wg_delivery_counter_baselines
-		WHERE group_id = ? AND group_revision = ? ORDER BY member_key`, key.GroupID, key.GroupRevision)
-	if err != nil {
-		return nil, fmt.Errorf("read counter baselines: %w", err)
-	}
-	defer rows.Close()
-	var baselines []CounterBaseline
-	for rows.Next() {
-		var member, payload, digest, workspaceID, windowEnd string
-		if err := rows.Scan(&member, &payload, &digest, &workspaceID, &windowEnd); err != nil {
-			return nil, fmt.Errorf("scan counter baseline: %w", err)
-		}
-		sum := sha256.Sum256([]byte(payload))
-		if hex.EncodeToString(sum[:]) != digest || workspaceID != key.WorkspaceID || windowEnd > timestamp(nextClose) {
-			return nil, ErrBaselineCorrupt
-		}
-		baselines = append(baselines, CounterBaseline{MemberKey: member, Payload: []byte(payload)})
-	}
-	return baselines, rows.Err()
-}

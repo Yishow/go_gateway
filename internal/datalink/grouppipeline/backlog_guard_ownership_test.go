@@ -40,9 +40,10 @@ func TestBacklogGuardRejectsUnresolvedImmutableOwnership(t *testing.T) {
 				}
 				raw, err := json.Marshal(version)
 				require.NoError(t, err)
-				if damage == "empty" {
+				switch damage {
+				case "empty":
 					raw = []byte(`{}`)
-				} else if damage == "malformed" {
+				case "malformed":
 					raw = []byte(`{`)
 				}
 				_, err = db.ExecContext(t.Context(), `UPDATE write_group_versions SET payload=?`, string(raw))

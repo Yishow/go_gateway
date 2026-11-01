@@ -76,7 +76,12 @@ func TestScopedHandoffRefusalClassificationAndErrorChain(t *testing.T) {
 		})
 	}
 	for _, cause := range []error{nil, errors.New("unknown-private-error"), &groupdelivery.OwnershipError{Reason: "unknown-private-reason"}} {
-		require.True(t, cause == scopedHandoffRefusal(key, cause))
+		got := scopedHandoffRefusal(key, cause)
+		if cause == nil {
+			require.Nil(t, got)
+		} else {
+			require.Same(t, cause, got)
+		}
 	}
 	require.Same(t, groupdelivery.ErrOwnershipUnavailable, scopedHandoffRefusal(groupdelivery.GroupKey{}, groupdelivery.ErrOwnershipUnavailable))
 }

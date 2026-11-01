@@ -1,6 +1,7 @@
 package groupdelivery
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -10,6 +11,15 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/counterproof"
+)
+
+const (
+	handoffStateAccepted    = "accepted"
+	handoffStatePending     = "pending"
+	handoffStateQuarantined = "quarantined"
+	handoffStateFinalized   = "finalized"
+	journalKindNative       = "native"
+	journalKindHandoff      = "handoff"
 )
 
 type handoffSample struct {
@@ -40,16 +50,25 @@ func handoffHash(raw string) string {
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
 }
-func handoffID(r handoffReceipt) string {
-	raw, _ := json.Marshal([]any{1, r.Fence, r.Source, r.SourceSeq, r.Target, r.Origin, r.OriginSeq, r.SampleID, r.Member, r.ObservedAt, r.Digest, r.RawDigest, r.AcceptedAt, r.Targets})
-	return handoffHash(string(raw))
+func handoffID(r handoffReceipt) (string, error) {
+	raw, err := json.Marshal([]any{1, r.Fence, r.Source, r.SourceSeq, r.Target, r.Origin, r.OriginSeq, r.SampleID, r.Member, r.ObservedAt, r.Digest, r.RawDigest, r.AcceptedAt, r.Targets})
+	if err != nil {
+		return "", ErrOwnershipUnavailable
+	}
+	return handoffHash(string(raw)), nil
 }
-func newHandoffReceipt(row, origin handoffSample, target GroupKey, fence string) handoffReceipt {
+func newHandoffReceipt(row, origin handoffSample, target GroupKey, fence string) (handoffReceipt, error) {
 	r := handoffReceipt{Version: 1, Fence: fence, Source: row.Key, Target: target, Origin: origin.Key, SourceSeq: row.Seq, OriginSeq: origin.Seq, SampleID: row.SampleID, Member: row.Member, ObservedAt: row.ObservedAt, SourceBucket: row.Bucket, Digest: row.Digest, RawDigest: handoffHash(row.Payload), AcceptedAt: row.AcceptedAt}
-	sample, _ := decodeVerifiedSample(row.Payload, row.Digest)
+	sample, err := decodeVerifiedSample(row.Payload, row.Digest)
+	if err != nil {
+		return handoffReceipt{}, err
+	}
 	r.SampleProof = sample.CounterProof
-	r.ID = handoffID(r)
-	return r
+	r.ID, err = handoffID(r)
+	if err != nil {
+		return handoffReceipt{}, err
+	}
+	return r, nil
 }
 func readHandoffSample(ctx context.Context, q ownershipQuery, seq int64) (handoffSample, error) {
 	var r handoffSample
@@ -57,12 +76,12 @@ func readHandoffSample(ctx context.Context, q ownershipQuery, seq int64) (handof
 	if err != nil {
 		return r, &handoffStorageError{cause: err}
 	}
-	if r.Kind == "native" {
+	if r.Kind == journalKindNative {
 		if r.HandoffID != "" || r.Origin != (GroupKey{}) && r.Origin != r.Key {
 			return r, ErrHandoffProofConflict
 		}
 		r.Origin = r.Key
-	} else if r.Kind != "handoff" || r.HandoffID == "" || !r.Origin.Valid() {
+	} else if r.Kind != journalKindHandoff || r.HandoffID == "" || !r.Origin.Valid() {
 		return r, ErrHandoffProofConflict
 	}
 	sample, err := decodeVerifiedSample(r.Payload, r.Digest)
@@ -85,7 +104,7 @@ func queryHandoffs(ctx context.Context, q ownershipQuery, where string, args ...
 		return nil, &handoffStorageError{cause: err}
 	}
 	defer rows.Close()
-	var receipts []handoffReceipt
+	receipts := make([]handoffReceipt, 0, 8)
 	for rows.Next() {
 		values := make([]any, 11)
 		dest := make([]any, 11)
@@ -114,18 +133,22 @@ func queryHandoffs(ctx context.Context, q ownershipQuery, where string, args ...
 			}
 			target.Valid = true
 		}
-		if !(a && b && c && d && e && f && g && h && i && j) {
+		if !a || !b || !c || !d || !e || !f || !g || !h || !i || !j {
 			return nil, ErrOwnershipUnavailable
 		}
 		var r handoffReceipt
-		if !counterproof.UniqueJSONObject([]byte(raw), false) || json.Unmarshal([]byte(raw), &r) != nil || r.ID != id || r.Source != (GroupKey{workspace, sg, sr}) || r.Target != (GroupKey{workspace, tg, tr}) || r.SourceSeq != seq || r.OriginSeq != origin || r.TargetSeq != target.Int64 || r.State != state || r.Version != 1 || r.ID != handoffID(r) {
+		if !counterproof.UniqueJSONObject([]byte(raw), false) || json.Unmarshal([]byte(raw), &r) != nil || r.ID != id || r.Source != (GroupKey{workspace, sg, sr}) || r.Target != (GroupKey{workspace, tg, tr}) || r.SourceSeq != seq || r.OriginSeq != origin || r.TargetSeq != target.Int64 || r.State != state || r.Version != 1 {
+			return nil, ErrOwnershipUnavailable
+		}
+		expectedID, identityErr := handoffID(r)
+		if identityErr != nil || r.ID != expectedID {
 			return nil, ErrOwnershipUnavailable
 		}
 		canonical, marshalErr := json.Marshal(r)
 		if marshalErr != nil || string(canonical) != raw {
 			return nil, ErrOwnershipUnavailable
 		}
-		if (state == "accepted" || state == "finalized") != target.Valid {
+		if (state == handoffStateAccepted || state == handoffStateFinalized) != target.Valid {
 			return nil, ErrOwnershipUnavailable
 		}
 		receipts = append(receipts, r)
@@ -135,6 +158,9 @@ func queryHandoffs(ctx context.Context, q ownershipQuery, where string, args ...
 	}
 	if err := rows.Close(); err != nil {
 		return nil, &handoffStorageError{cause: err}
+	}
+	if len(receipts) == 0 {
+		receipts = nil
 	}
 	return receipts, nil
 }
@@ -185,7 +211,11 @@ func receiptMatchesRow(r handoffReceipt, row handoffSample) bool {
 	return row.SampleID == r.SampleID && row.Member == r.Member && row.ObservedAt == r.ObservedAt && row.Digest == r.Digest && row.AcceptedAt == r.AcceptedAt && handoffHash(row.Payload) == r.RawDigest
 }
 func verifyHandoffReceiptEdge(ctx context.Context, q ownershipQuery, r handoffReceipt, seen map[string]bool) error {
-	if seen[r.ID] || r.ID != handoffID(r) || !r.Source.Valid() || !r.Target.Valid() || !r.Origin.Valid() || r.Origin.WorkspaceID != r.Source.WorkspaceID || r.Source.WorkspaceID != r.Target.WorkspaceID {
+	if seen[r.ID] {
+		return ErrOwnershipUnavailable
+	}
+	expectedID, identityErr := handoffID(r)
+	if identityErr != nil || r.ID != expectedID || !r.Source.Valid() || !r.Target.Valid() || !r.Origin.Valid() || r.Origin.WorkspaceID != r.Source.WorkspaceID || r.Source.WorkspaceID != r.Target.WorkspaceID {
 		return ErrOwnershipUnavailable
 	}
 	seen[r.ID] = true
@@ -193,7 +223,7 @@ func verifyHandoffReceiptEdge(ctx context.Context, q ownershipQuery, r handoffRe
 	if err := verifyHandoffBranch(ctx, q, r); err != nil {
 		return err
 	}
-	if r.State == "finalized" {
+	if r.State == handoffStateFinalized {
 		if err := verifyCompactHandoffMeaning(ctx, q, r); err != nil {
 			return err
 		}
@@ -210,7 +240,7 @@ func verifyHandoffReceiptEdge(ctx context.Context, q ownershipQuery, r handoffRe
 	if err != nil {
 		return err
 	}
-	if origin.Key != r.Origin || origin.Kind != "native" || !receiptMatchesRow(r, origin) || origin.Payload != source.Payload {
+	if origin.Key != r.Origin || origin.Kind != journalKindNative || !receiptMatchesRow(r, origin) || origin.Payload != source.Payload {
 		return ErrHandoffProofConflict
 	}
 	if r.SourceSeq != r.OriginSeq {
@@ -221,22 +251,22 @@ func verifyHandoffReceiptEdge(ctx context.Context, q ownershipQuery, r handoffRe
 		if prior == nil || prior.OriginSeq != r.OriginSeq || prior.Target != r.Source {
 			return ErrOwnershipUnavailable
 		}
-		if err = verifyHandoffReceipt(ctx, q, *prior, seen); err != nil {
+		if err := verifyHandoffReceipt(ctx, q, *prior, seen); err != nil {
 			return err
 		}
 	}
 	switch r.State {
-	case "pending", "quarantined":
+	case handoffStatePending, handoffStateQuarantined:
 		if r.TargetSeq != 0 || r.CanonicalTransferID != "" || r.Reason != ErrOwnershipUnavailable.Error() && r.Reason != ErrHandoffProofConflict.Error() {
 			return ErrOwnershipUnavailable
 		}
 		return nil
-	case "accepted":
+	case handoffStateAccepted:
 		target, err := readHandoffSample(ctx, q, r.TargetSeq)
 		if err != nil {
 			return err
 		}
-		if target.Key != r.Target || target.Kind != "handoff" || target.HandoffID != canonicalTransferID(r) || target.Origin != r.Origin || target.Bucket != r.TargetBucket || !receiptMatchesRow(r, target) || target.Payload != source.Payload {
+		if target.Key != r.Target || target.Kind != journalKindHandoff || target.HandoffID != canonicalTransferID(r) || target.Origin != r.Origin || target.Bucket != r.TargetBucket || !receiptMatchesRow(r, target) || target.Payload != source.Payload {
 			return ErrHandoffProofConflict
 		}
 		evidence, err := validateHandoffProof(ctx, q, handoffProofInput{Origin: r.Origin, Sequence: r.OriginSeq, Payload: origin.Payload, Digest: r.Digest, AcceptedAt: r.AcceptedAt}, r.Target)
@@ -255,7 +285,8 @@ func verifyHandoffReceiptEdge(ctx context.Context, q ownershipQuery, r handoffRe
 // Branch facts differ legitimately across aliases, but never lose their own
 // persisted fence and fanout authority, including after payload reclamation.
 func verifyHandoffBranch(ctx context.Context, q ownershipQuery, r handoffReceipt) error {
-	if r.ID != handoffID(r) || !r.Source.Valid() || !r.Target.Valid() || !r.Origin.Valid() || r.Origin.WorkspaceID != r.Source.WorkspaceID || r.Source.WorkspaceID != r.Target.WorkspaceID {
+	expectedID, identityErr := handoffID(r)
+	if identityErr != nil || r.ID != expectedID || !r.Source.Valid() || !r.Target.Valid() || !r.Origin.Valid() || r.Origin.WorkspaceID != r.Source.WorkspaceID || r.Source.WorkspaceID != r.Target.WorkspaceID {
 		return ErrOwnershipUnavailable
 	}
 	observed, err := time.Parse(time.RFC3339Nano, r.ObservedAt)
@@ -282,7 +313,7 @@ func handoffDisposed(ctx context.Context, q ownershipQuery, seq int64) (bool, er
 		return false, err
 	}
 	for _, r := range rs {
-		if err = verifyHandoffReceipt(ctx, q, r, map[string]bool{}); err != nil {
+		if err := verifyHandoffReceipt(ctx, q, r, map[string]bool{}); err != nil {
 			return false, err
 		}
 	}
@@ -307,10 +338,16 @@ func verifyHandoffFanout(ctx context.Context, q ownershipQuery, r handoffReceipt
 		}
 		want[key] = true
 	}
-	encoded, _ := json.Marshal(r.Targets)
+	encoded, err := json.Marshal(r.Targets)
+	if err != nil {
+		return ErrOwnershipUnavailable
+	}
 	for _, sibling := range rs {
-		set, _ := json.Marshal(sibling.Targets)
-		if !want[sibling.Target] || string(encoded) != string(set) || sibling.OriginSeq != r.OriginSeq || sibling.Fence != r.Fence || sibling.Digest != r.Digest || sibling.RawDigest != r.RawDigest || sibling.AcceptedAt != r.AcceptedAt {
+		set, err := json.Marshal(sibling.Targets)
+		if err != nil {
+			return ErrOwnershipUnavailable
+		}
+		if !want[sibling.Target] || !bytes.Equal(encoded, set) || sibling.OriginSeq != r.OriginSeq || sibling.Fence != r.Fence || sibling.Digest != r.Digest || sibling.RawDigest != r.RawDigest || sibling.AcceptedAt != r.AcceptedAt {
 			return ErrOwnershipUnavailable
 		}
 		delete(want, sibling.Target)

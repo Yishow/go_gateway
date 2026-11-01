@@ -15,7 +15,7 @@ func compactHandoffs(ctx context.Context, tx *sql.Tx) error {
 	if err != nil {
 		return ErrOwnershipUnavailable
 	}
-	var seqs []int64
+	seqs := make([]int64, 0, 8)
 	for rows.Next() {
 		var seq int64
 		if rows.Scan(&seq) != nil {
@@ -53,13 +53,13 @@ func finalizeHandoffSource(ctx context.Context, tx *sql.Tx, seq int64, seen map[
 		return false, nil
 	}
 	for _, r := range receipts {
-		if err = verifyHandoffReceipt(ctx, tx, r, map[string]bool{}); err != nil {
+		if err := verifyHandoffReceipt(ctx, tx, r, map[string]bool{}); err != nil {
 			return false, err
 		}
 		switch r.State {
-		case "pending", "quarantined":
+		case handoffStatePending, handoffStateQuarantined:
 			return false, nil
-		case "finalized":
+		case handoffStateFinalized:
 			continue
 		}
 		target, err := readHandoffSample(ctx, tx, r.TargetSeq)
@@ -77,11 +77,11 @@ func finalizeHandoffSource(ctx context.Context, tx *sql.Tx, seq int64, seen map[
 		}
 	}
 	for _, r := range receipts {
-		if r.State == "finalized" {
+		if r.State == handoffStateFinalized {
 			continue
 		}
-		r.State = "finalized"
-		if err = writeHandoffReceipt(ctx, tx, r); err != nil {
+		r.State = handoffStateFinalized
+		if err := writeHandoffReceipt(ctx, tx, r); err != nil {
 			return false, err
 		}
 	}
@@ -106,7 +106,7 @@ func verifyHandoffTerminal(ctx context.Context, q ownershipQuery, r handoffRecei
 		if e != nil {
 			return e
 		}
-		if target.Key != r.Target || target.Kind != "handoff" || target.HandoffID != canonicalTransferID(r) || target.Origin != r.Origin || target.Bucket != r.TargetBucket || !receiptMatchesRow(r, target) {
+		if target.Key != r.Target || target.Kind != journalKindHandoff || target.HandoffID != canonicalTransferID(r) || target.Origin != r.Origin || target.Bucket != r.TargetBucket || !receiptMatchesRow(r, target) {
 			return ErrHandoffProofConflict
 		}
 		if consumed {
@@ -121,10 +121,10 @@ func verifyHandoffTerminal(ctx context.Context, q ownershipQuery, r handoffRecei
 	}
 	if len(children) > 0 {
 		for _, child := range children {
-			if child.State != "finalized" || !handoffSourceMatches(r, child) {
+			if child.State != handoffStateFinalized || !handoffSourceMatches(r, child) {
 				return ErrOwnershipUnavailable
 			}
-			if e = handoffVerifier(q).terminal(ctx, child); e != nil {
+			if e := handoffVerifier(q).terminal(ctx, child); e != nil {
 				return e
 			}
 		}
@@ -181,13 +181,13 @@ func (v *handoffVerification) terminal(ctx context.Context, r handoffReceipt) er
 		return err
 	}
 	for _, peer := range peers {
-		if err = verifyHandoffBranch(ctx, v, peer); err != nil {
+		if err := verifyHandoffBranch(ctx, v, peer); err != nil {
 			return err
 		}
-		if err = verifyCompactHandoffMeaning(ctx, v, peer); err != nil {
+		if err := verifyCompactHandoffMeaning(ctx, v, peer); err != nil {
 			return err
 		}
-		if err = verifyHandoffTerminal(ctx, v, peer); err != nil {
+		if err := verifyHandoffTerminal(ctx, v, peer); err != nil {
 			return err
 		}
 	}
@@ -254,7 +254,7 @@ func (v *handoffVerification) consumed(ctx context.Context, r handoffReceipt) er
 				continue
 			}
 			required = true
-			if edge.State != "accepted" && edge.State != "finalized" {
+			if edge.State != handoffStateAccepted && edge.State != handoffStateFinalized {
 				return ErrOwnershipUnavailable
 			}
 			if !sameHandoffOriginal(r, edge) {
@@ -275,7 +275,7 @@ func (v *handoffVerification) consumed(ctx context.Context, r handoffReceipt) er
 		done[seq] = true
 		return nil
 	}
-	if err = walk(r.OriginSeq, r.Origin); err != nil {
+	if err := walk(r.OriginSeq, r.Origin); err != nil {
 		return err
 	}
 	v.consumedGroups[r.TargetSeq] = true

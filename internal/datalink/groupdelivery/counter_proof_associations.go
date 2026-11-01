@@ -153,7 +153,7 @@ func readAcceptedSet(ctx context.Context, tx *sql.Tx, key GroupKey, before time.
 		return nil, err
 	}
 	defer rows.Close()
-	var samples []legacyAcceptedSample
+	samples := make([]legacyAcceptedSample, 0, 8)
 	for rows.Next() {
 		var accepted legacyAcceptedSample
 		if err := rows.Scan(&accepted.seq, &accepted.workspaceID, &accepted.sampleID, &accepted.memberKey, &accepted.observedAt, &accepted.payload, &accepted.digest, &accepted.acceptedAt); err != nil {
@@ -169,6 +169,9 @@ func readAcceptedSet(ctx context.Context, tx *sql.Tx, key GroupKey, before time.
 			return nil, sampleProofError(counterproof.ErrCounterBindingProofConflict)
 		}
 		samples = append(samples, accepted)
+	}
+	if len(samples) == 0 {
+		samples = nil
 	}
 	return samples, rows.Err()
 }

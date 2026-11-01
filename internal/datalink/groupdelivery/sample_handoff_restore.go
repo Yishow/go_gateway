@@ -92,13 +92,13 @@ func (s *Store) RecognizeTransferredSample(ctx context.Context, key GroupKey, in
 		if r.SampleID != incoming.SampleID || r.Member != incoming.MemberKey || !at.Equal(incoming.ObservedAt) {
 			continue
 		}
-		if e = verifyHandoffReceipt(ctx, tx, r, map[string]bool{}); e != nil {
+		if e := verifyHandoffReceipt(ctx, tx, r, map[string]bool{}); e != nil {
 			return HandoffRecognition{}, e
 		}
-		if r.State != "accepted" && r.State != "finalized" {
+		if r.State != handoffStateAccepted && r.State != handoffStateFinalized {
 			return HandoffRecognition{}, ErrOwnershipUnavailable
 		}
-		if r.State == "accepted" {
+		if r.State == handoffStateAccepted {
 			disposed, e := handoffDisposed(ctx, tx, r.TargetSeq)
 			if e != nil {
 				return HandoffRecognition{}, e
@@ -128,7 +128,7 @@ func (s *Store) RecognizeTransferredSample(ctx context.Context, key GroupKey, in
 		if e != nil || digest != r.Digest {
 			return HandoffRecognition{}, ErrHandoffProofConflict
 		}
-		result := HandoffRecognition{Found: true, Finalized: r.State == "finalized"}
+		result := HandoffRecognition{Found: true, Finalized: r.State == handoffStateFinalized}
 		if !result.Finalized {
 			row, e := readHandoffSample(ctx, tx, r.TargetSeq)
 			if e != nil {
@@ -200,7 +200,7 @@ func (s *Store) restoreHandoffView(ctx context.Context, key GroupKey) (result Re
 	if err != nil {
 		return Restored{}, &handoffStorageError{cause: err}
 	}
-	var seqs []int64
+	seqs := make([]int64, 0, 8)
 	for rows.Next() {
 		var seq int64
 		if rows.Scan(&seq) != nil {
@@ -240,24 +240,24 @@ func (s *Store) restoreHandoffView(ctx context.Context, key GroupKey) (result Re
 			return Restored{}, e
 		}
 		if incoming != nil {
-			if e = verifyHandoffReceipt(ctx, tx, *incoming, map[string]bool{}); e != nil {
+			if e := verifyHandoffReceipt(ctx, tx, *incoming, map[string]bool{}); e != nil {
 				return Restored{}, e
 			}
 			sample.AcceptanceOrigin = handoffSampleOrigin(incoming.Origin)
 			r.handoffObservations[handoffObservationKey{sample.SampleID, sample.MemberKey, sample.ObservedAt.UTC()}] = true
 			r.handoffs[handoffAuthorizationKey{sample.AcceptanceOrigin, sample.SampleID}] = handoffAuthorization{digest: row.Digest, target: incoming.TargetProof, member: sample.MemberKey, observedAt: sample.ObservedAt}
 		} else {
-			if row.Kind != "native" {
+			if row.Kind != journalKindNative {
 				return Restored{}, ErrOwnershipUnavailable
 			}
-			if e = verifySampleProof(ctx, tx, key, sample, false); e != nil {
+			if e := verifySampleProof(ctx, tx, key, sample, false); e != nil {
 				return Restored{}, e
 			}
 			ownership, e := resolveCutoverOwnership(ctx, tx, sourceOf(key, sample), sample.ObservedAt, key)
 			if e != nil {
 				return Restored{}, e
 			}
-			if e = rejectAcceptedPredecessor(ctx, tx, ownership, key, sourceOf(key, sample), sample); e != nil {
+			if e := rejectAcceptedPredecessor(ctx, tx, ownership, key, sourceOf(key, sample), sample); e != nil {
 				return Restored{}, e
 			}
 		}
@@ -310,7 +310,7 @@ func refuseOrdinaryHandoffAppend(ctx context.Context, q ownershipQuery, key Grou
 			return ErrOwnershipUnavailable
 		}
 		if r.SampleID == sample.SampleID && r.Member == sample.MemberKey && at.Equal(sample.ObservedAt) {
-			if e = verifyHandoffReceipt(ctx, q, r, map[string]bool{}); e != nil {
+			if e := verifyHandoffReceipt(ctx, q, r, map[string]bool{}); e != nil {
 				return e
 			}
 			return ErrOwnershipConflict

@@ -79,7 +79,9 @@ func convergencePeerReceipts(t *testing.T, store *Store, target GroupKey) (canon
 
 func replaceConvergenceReceipt(t *testing.T, store *Store, original string, r handoffReceipt) {
 	t.Helper()
-	r.ID = handoffID(r)
+	id, err := handoffID(r)
+	require.NoError(t, err)
+	r.ID = id
 	raw, err := json.Marshal(r)
 	require.NoError(t, err)
 	_, err = store.DB().ExecContext(t.Context(), `UPDATE wg_delivery_sample_handoffs SET transfer_id=?,origin_seq=?,record=? WHERE transfer_id=?`, r.ID, r.OriginSeq, string(raw), original)

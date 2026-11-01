@@ -10,6 +10,11 @@ import (
 	"go-gateway/internal/datalink/snapshot"
 )
 
+const (
+	ownershipDirectionEnded   = "ended"
+	ownershipDirectionStarted = "started"
+)
+
 // OwnershipSource names a source without conflating independent profile kinds.
 type OwnershipSource struct {
 	WorkspaceID string `json:"workspace_id"`
@@ -213,12 +218,12 @@ func readOwnershipVersion(ctx context.Context, q ownershipQuery, workspace strin
 
 func validateOwnershipRoot(ctx context.Context, q ownershipQuery, source OwnershipSource, id string, boundary time.Time, detail ownershipDetail, requested GroupKey, bounds map[GroupKey]ownershipBound, affected map[GroupKey]bool, predecessors map[GroupKey]map[GroupKey]bool) error {
 	expected := map[ownershipScope]ownershipVersion{}
-	members := map[string]map[[3]string]bool{"ended": {}, "started": {}}
+	members := map[string]map[[3]string]bool{ownershipDirectionEnded: {}, ownershipDirectionStarted: {}}
 	matched := map[string][]GroupKey{}
 	for _, side := range []struct {
 		direction string
 		refs      []ownershipRef
-	}{{"ended", detail.Ended}, {"started", detail.Started}} {
+	}{{ownershipDirectionEnded, detail.Ended}, {ownershipDirectionStarted, detail.Started}} {
 		seen := map[ownershipRef]bool{}
 		for _, ref := range side.refs {
 			if ref.GroupID == "" || ref.Revision == "" || seen[ref] {
@@ -229,10 +234,10 @@ func validateOwnershipRoot(ctx context.Context, q ownershipQuery, source Ownersh
 			if err != nil {
 				return err
 			}
-			if side.direction == "started" && !effective.Equal(boundary) {
+			if side.direction == ownershipDirectionStarted && !effective.Equal(boundary) {
 				return ErrOwnershipUnavailable
 			}
-			if side.direction == "ended" {
+			if side.direction == ownershipDirectionEnded {
 				var endText, cutoverID, workspace string
 				err := q.QueryRowContext(ctx, `SELECT workspace_id,ends_at,cutover_id FROM write_group_revision_ends WHERE group_id=? AND group_revision=?`, ref.GroupID, ref.Revision).Scan(&workspace, &endText, &cutoverID)
 				end, parseErr := time.Parse(time.RFC3339Nano, endText)
@@ -266,7 +271,7 @@ func validateOwnershipRoot(ctx context.Context, q ownershipQuery, source Ownersh
 						return ErrOwnershipUnavailable
 					}
 					b.Start = effective
-					if side.direction == "ended" {
+					if side.direction == ownershipDirectionEnded {
 						if !b.End.IsZero() && !b.End.Equal(boundary) {
 							return ErrOwnershipUnavailable
 						}
@@ -277,18 +282,18 @@ func validateOwnershipRoot(ctx context.Context, q ownershipQuery, source Ownersh
 			}
 		}
 	}
-	if len(detail.Moved) == 0 || len(members["ended"]) != len(members["started"]) {
+	if len(detail.Moved) == 0 || len(members[ownershipDirectionEnded]) != len(members[ownershipDirectionStarted]) {
 		return ErrOwnershipUnavailable
 	}
-	for source := range members["ended"] {
-		if !members["started"][source] {
+	for source := range members[ownershipDirectionEnded] {
+		if !members[ownershipDirectionStarted][source] {
 			return ErrOwnershipUnavailable
 		}
 	}
 	moved := map[[3]string]bool{}
 	for _, source := range detail.Moved {
 		ref := [3]string{source.DeviceID, source.PointID, source.TagID}
-		if !members["ended"][ref] || !members["started"][ref] || moved[ref] {
+		if !members[ownershipDirectionEnded][ref] || !members[ownershipDirectionStarted][ref] || moved[ref] {
 			return ErrOwnershipUnavailable
 		}
 		moved[ref] = true
@@ -314,11 +319,11 @@ func validateOwnershipRoot(ctx context.Context, q ownershipQuery, source Ownersh
 	if rows.Err() != nil || len(expected) != 0 {
 		return ErrOwnershipUnavailable
 	}
-	for _, successor := range matched["started"] {
+	for _, successor := range matched[ownershipDirectionStarted] {
 		if predecessors[successor] == nil {
 			predecessors[successor] = map[GroupKey]bool{}
 		}
-		for _, prior := range matched["ended"] {
+		for _, prior := range matched[ownershipDirectionEnded] {
 			predecessors[successor][prior] = true
 		}
 	}

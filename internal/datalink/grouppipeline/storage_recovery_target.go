@@ -159,7 +159,7 @@ func (r *StorageRecovery) resolveStaleOperation(ctx context.Context, operation r
 	} else if opened.Kind == schema.DatabaseConnectorKindSQLServer {
 		return nil
 	}
-	if request.Dialect == "mysql" {
+	if request.Dialect == string(dbtarget.SQLDialectMySQL) {
 		if opened.Kind != schema.DatabaseConnectorKindMySQL ||
 			!mysqlCapabilityMatchesDestination(opened.MySQL, groupdelivery.FrozenDestination{
 				ConnectorID: request.Scope.ConnectorID, ConnectorRevision: request.ConnectorRevision, Database: request.Scope.Database,
