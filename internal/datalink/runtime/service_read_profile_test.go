@@ -2,10 +2,11 @@ package runtime
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestReadProfileProjectionMandatoryWithoutObserver(t *testing.T) {

@@ -3,12 +3,13 @@ package collector
 import (
 	"encoding/binary"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 	"net"
 	"sync/atomic"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSchedulerModbusUDPCountsRealDatagrams(t *testing.T) {

@@ -2,11 +2,12 @@ package adapters
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/optimizer"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestModbusPlannedCompleteScalarMatrix(t *testing.T) {

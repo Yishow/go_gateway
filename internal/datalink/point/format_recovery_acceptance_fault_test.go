@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/sqltx"
+
+	"github.com/stretchr/testify/require"
 	"modernc.org/sqlite"
 )
 

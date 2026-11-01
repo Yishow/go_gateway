@@ -3,8 +3,9 @@ package optimizer
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestFatekNativeFootprintBoundsAndForbidden(t *testing.T) {

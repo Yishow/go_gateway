@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"
@@ -11,6 +10,8 @@ import (
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/workspace"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type profileBoundaryRepository struct {

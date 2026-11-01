@@ -2,9 +2,10 @@ package runtimeview
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedContractFixture(t *testing.T) RuleEvidenceView {

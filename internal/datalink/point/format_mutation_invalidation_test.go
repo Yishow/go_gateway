@@ -3,9 +3,10 @@ package point
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type recordingFormatInvalidator struct {

@@ -1,13 +1,14 @@
 package collector
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/connector/adapters"
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMCResolvedProfileAcrossProductionEntrypoints(t *testing.T) {

@@ -2,10 +2,11 @@ package runtime
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sourcerule"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSourceRuleMutationPreservesOtherRuleSelectedScope(t *testing.T) {

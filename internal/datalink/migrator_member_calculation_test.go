@@ -2,8 +2,9 @@ package datalink
 
 import (
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMigratorMemberCalculationAtomicExpansion(t *testing.T) {

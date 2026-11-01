@@ -3,7 +3,6 @@ package runtime
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
@@ -14,9 +13,11 @@ import (
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/datalink/workspace"
-	_ "modernc.org/sqlite"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite"
 )
 
 func TestModernSQLSourceRevisionMatchesActualManualRuntimeSample(t *testing.T) {

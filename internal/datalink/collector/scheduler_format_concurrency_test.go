@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/connector/adapters"
 	"go-gateway/internal/datalink/decoding"
@@ -9,6 +8,8 @@ import (
 	"go-gateway/internal/datalink/schema"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestModernTwoPointConcurrentReadsRetainFormatFingerprint(t *testing.T) {

@@ -2,13 +2,14 @@ package runtime
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/workspace"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type compensationProjectionReader struct {

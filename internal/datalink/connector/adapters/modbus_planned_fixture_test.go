@@ -8,13 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/optimizer"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/modbus"
 	"go-gateway/internal/protocol/wirebudget"
+
+	"github.com/stretchr/testify/require"
 )
 
 type modbusPlannedAddress struct {

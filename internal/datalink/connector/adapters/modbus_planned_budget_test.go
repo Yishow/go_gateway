@@ -3,7 +3,6 @@ package adapters
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/optimizer"
 	"go-gateway/internal/datalink/schema"
@@ -11,6 +10,8 @@ import (
 	"io"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestModbusScalarRetryDefaultsRemainTwoAttempts(t *testing.T) {

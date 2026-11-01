@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/snapshot"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func newDeadlinePipeline(t *testing.T, shape averageShape) *ownershipPipelineFixture {

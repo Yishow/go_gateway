@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema/migrations"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedFenceLegacyDB(t *testing.T) *sql.DB {

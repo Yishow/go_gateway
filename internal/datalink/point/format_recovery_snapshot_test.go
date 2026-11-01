@@ -2,9 +2,10 @@ package point
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestReadFormatRecoveryEvidence(t *testing.T) {

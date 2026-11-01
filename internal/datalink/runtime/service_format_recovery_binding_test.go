@@ -1,11 +1,12 @@
 package runtime
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestFormatRecoveryRefreshesMandatoryTypedBinding(t *testing.T) {

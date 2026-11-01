@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func formatFixture(t *testing.T) (*sql.DB, *Service, FormatMutationRequest) {

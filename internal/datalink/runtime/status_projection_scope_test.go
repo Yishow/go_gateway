@@ -5,9 +5,10 @@ import (
 	"maps"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestCollectionScopePartialMergeFullReplaceAndStop(t *testing.T) {

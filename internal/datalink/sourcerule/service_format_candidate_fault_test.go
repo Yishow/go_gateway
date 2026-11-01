@@ -3,7 +3,6 @@ package sourcerule
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/modbusshare"
@@ -12,6 +11,8 @@ import (
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sqltx"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type committedCandidateError struct {

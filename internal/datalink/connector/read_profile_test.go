@@ -1,10 +1,11 @@
 package connector
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestReadProfileFrozenAndValidated(t *testing.T) {

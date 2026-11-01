@@ -2,10 +2,11 @@ package counterproof
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func mixedProofSnapshot(t *testing.T, method string, withProof bool) ([]byte, CounterBindingProof) {

@@ -3,11 +3,12 @@ package sourcerule
 import (
 	"context"
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sqltx"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRuleRepositoryCommitBusyCleansNativeTransaction(t *testing.T) {

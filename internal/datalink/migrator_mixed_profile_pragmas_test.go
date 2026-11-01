@@ -2,8 +2,9 @@ package datalink
 
 import (
 	"errors"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMixedProfileMigrationRestoreFailureDiscardsConnection(t *testing.T) {

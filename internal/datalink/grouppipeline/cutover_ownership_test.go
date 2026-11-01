@@ -2,7 +2,6 @@ package grouppipeline
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/measurement"
@@ -12,6 +11,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestCutoverOwnershipDelayedReconcileRefusesUnownedAck(t *testing.T) {
@@ -70,7 +71,7 @@ func TestCutoverOwnershipNoWorkersCannotAcknowledge(t *testing.T) {
 	err := f.pipe.AcceptSample(t.Context(), envelope(f.source.Group, "unaccepted", at(23), uint64(7)))
 	require.ErrorContains(t, err, "recording-ownership-unavailable")
 	var count int
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
 	require.Zero(t, count)
 }
 
@@ -92,7 +93,7 @@ func TestCutoverOwnershipCachedCutoffAndQuarantineCannotAck(t *testing.T) {
 			var owner *groupdelivery.OwnershipError
 			require.ErrorAs(t, err, &owner)
 			var count int
-			require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
+			require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
 			require.Zero(t, count)
 		})
 	}
@@ -104,7 +105,7 @@ func TestCutoverOwnershipAlreadyAcceptedFutureIsNotOrdinaryTargetAppend(t *testi
 	env := envelope(f.source.Group, "pending-transfer", at(23), uint64(7))
 	require.NoError(t, f.pipe.AcceptSample(t.Context(), env))
 	var original string
-	require.NoError(t, f.local.QueryRow(`SELECT payload FROM wg_delivery_samples WHERE sample_id='pending-transfer'`).Scan(&original))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload FROM wg_delivery_samples WHERE sample_id='pending-transfer'`).Scan(&original))
 	f.commit()
 	f.clock = at(24)
 	// Keep this ordinary-append guard independent from the now-live Reconcile
@@ -117,10 +118,10 @@ func TestCutoverOwnershipAlreadyAcceptedFutureIsNotOrdinaryTargetAppend(t *testi
 	err := f.pipe.AcceptSample(t.Context(), env)
 	require.ErrorIs(t, err, groupdelivery.ErrOwnershipConflict)
 	var after string
-	require.NoError(t, f.local.QueryRow(`SELECT payload FROM wg_delivery_samples WHERE sample_id='pending-transfer'`).Scan(&after))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT payload FROM wg_delivery_samples WHERE sample_id='pending-transfer'`).Scan(&after))
 	require.Equal(t, original, after)
 	var count int
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
 	require.Equal(t, 1, count)
 }
 
@@ -155,7 +156,7 @@ func TestCutoverOwnershipCommitBetweenRoutingAndAppend(t *testing.T) {
 	require.ErrorIs(t, err, groupdelivery.ErrOwnershipConflict)
 	for _, table := range []string{"wg_delivery_samples", "wg_delivery_checkpoints"} {
 		var count int
-		require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM `+table).Scan(&count))
+		require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+table).Scan(&count))
 		require.Zero(t, count)
 	}
 }
@@ -165,7 +166,7 @@ func TestCutoverOwnershipUnavailableDoesNotStopHealthyScope(t *testing.T) {
 	healthy := f.readyHealthy()
 	f.commit()
 	f.clock = at(24)
-	_, err := f.local.Exec(`DELETE FROM write_group_ownership_fences WHERE direction='started'`)
+	_, err := f.local.ExecContext(t.Context(), `DELETE FROM write_group_ownership_fences WHERE direction='started'`)
 	require.NoError(t, err)
 	err = f.pipe.AcceptSample(t.Context(), envelope(f.source.Group, "blocked", at(23), uint64(7)))
 	require.ErrorIs(t, err, groupdelivery.ErrOwnershipUnavailable)
@@ -173,9 +174,9 @@ func TestCutoverOwnershipUnavailableDoesNotStopHealthyScope(t *testing.T) {
 		require.NoError(t, f.pipe.AcceptSample(t.Context(), envelope(healthy.Group, "healthy", at(23), uint64(9))))
 	}
 	var count int
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id='healthy-group'`).Scan(&count))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id='healthy-group'`).Scan(&count))
 	require.Equal(t, 1, count)
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id<>'healthy-group'`).Scan(&count))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE group_id<>'healthy-group'`).Scan(&count))
 	require.Zero(t, count)
 }
 
@@ -212,7 +213,7 @@ func TestCutoverOwnershipCommitBeforeCachedIgnoreCannotAck(t *testing.T) {
 	f.localFault.AfterCommit.Store(nil)
 	require.ErrorIs(t, err, groupdelivery.ErrOwnershipConflict)
 	var count int
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
 	require.Zero(t, count)
 }
 
@@ -223,7 +224,7 @@ func TestCutoverOwnershipOutsideAllDurableBoundsRefused(t *testing.T) {
 	err := f.pipe.AcceptSample(t.Context(), envelope(f.source.Group, "before-any-owner", at(-1), uint64(7)))
 	require.ErrorIs(t, err, groupdelivery.ErrOwnershipConflict)
 	var count int
-	require.NoError(t, f.local.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
+	require.NoError(t, f.local.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
 	require.Zero(t, count)
 }
 
@@ -236,14 +237,14 @@ func TestCutoverOwnershipInterestSurvivesMissingWorkers(t *testing.T) {
 	require.True(t, f.pipe.WantsSample(m.DeviceID, m.PointID, m.TagID), "sinkWants must not silently drop the source before explicit acceptance refusal")
 	require.ErrorIs(t, f.pipe.AcceptSample(t.Context(), envelope(f.source.Group, "no-worker-interest", at(23), uint64(7))), groupdelivery.ErrOwnershipUnavailable)
 	require.False(t, f.pipe.WantsSample("unconfigured-device", "unconfigured-point", "unconfigured-tag"))
-	_, err := f.local.Exec(`UPDATE write_groups SET status='disabled' WHERE id=?`, f.target.GroupID)
+	_, err := f.local.ExecContext(t.Context(), `UPDATE write_groups SET status='disabled' WHERE id=?`, f.target.GroupID)
 	require.NoError(t, err)
 	for _, arrival := range []time.Time{at(24), at(20)} {
 		f.clock = arrival
 		require.True(t, f.pipe.WantsSample(m.DeviceID, m.PointID, m.TagID), "disabled target does not erase pre-boundary source interest, before or after boundary wall time")
 		require.ErrorIs(t, f.pipe.AcceptSample(t.Context(), envelope(f.source.Group, "before-end-no-worker", f.boundary.Add(-time.Nanosecond), uint64(6))), groupdelivery.ErrOwnershipUnavailable)
 	}
-	_, err = f.local.Exec(`UPDATE write_groups SET status='disabled' WHERE id=?`, f.source.GroupID)
+	_, err = f.local.ExecContext(t.Context(), `UPDATE write_groups SET status='disabled' WHERE id=?`, f.source.GroupID)
 	require.NoError(t, err)
 	require.False(t, f.pipe.WantsSample(m.DeviceID, m.PointID, m.TagID), "historical fence cannot reactivate known disabled owners")
 }
@@ -280,7 +281,7 @@ func TestCutoverOwnershipInterestIsScopedBoundedAndConservative(t *testing.T) {
 	require.False(t, f.pipe.WantsSample(member.DeviceID, member.PointID, member.TagID), "bare source IDs cannot activate a foreign workspace")
 	f.pipe.deps.Groups = &ownershipInterestGroups{fakeGroups: f.groups, workspace: f.source.WorkspaceID, inspect: inspect}
 	require.True(t, f.pipe.WantsSample(member.DeviceID, member.PointID, member.TagID))
-	_, err := f.local.Exec(`DROP TABLE write_group_ownership_fences`)
+	_, err := f.local.ExecContext(t.Context(), `DROP TABLE write_group_ownership_fences`)
 	require.NoError(t, err)
 	require.True(t, f.pipe.WantsSample(member.DeviceID, member.PointID, member.TagID), "read failure opts into explicit refusal, not silent drop")
 	require.ErrorIs(t, f.pipe.AcceptSample(t.Context(), envelope(f.source.Group, "authority-unavailable", at(23), uint64(7))), groupdelivery.ErrOwnershipUnavailable)

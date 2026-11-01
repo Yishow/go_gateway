@@ -2,9 +2,10 @@ package runtimeview
 
 import (
 	"encoding/hex"
-	"github.com/google/uuid"
 	"go-gateway/internal/datalink/snapshot"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // MixedRecordingFacts is a projection of the canonical mixed profile, never a

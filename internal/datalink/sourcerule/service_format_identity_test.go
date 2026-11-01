@@ -3,13 +3,14 @@ package sourcerule
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRuleFormatIdentitySQLLifecycle(t *testing.T) {

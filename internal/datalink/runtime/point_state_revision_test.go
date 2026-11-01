@@ -3,12 +3,13 @@ package runtime
 import (
 	"context"
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type pointStateCASWindowRepo struct {

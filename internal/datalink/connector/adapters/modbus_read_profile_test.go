@@ -1,12 +1,13 @@
 package adapters
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/modbus"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestModbusResolvedProfileOverridesLegacyProjection(t *testing.T) {

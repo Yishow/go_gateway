@@ -1,8 +1,9 @@
 package recordingplan
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestFrozenManagedGroupColumnsDoesNotInventIndexEvidence(t *testing.T) {

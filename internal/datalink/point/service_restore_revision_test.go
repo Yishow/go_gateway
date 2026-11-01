@@ -1,9 +1,10 @@
 package point
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type restoreWithoutCAS struct{ Repository }

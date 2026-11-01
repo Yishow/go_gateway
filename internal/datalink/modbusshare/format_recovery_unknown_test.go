@@ -2,11 +2,12 @@ package modbusshare
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sqltx"
 	"go-gateway/internal/datalink/tag"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type recoveryUnknownStore struct{ *mockWorkspaceRevisionStore }

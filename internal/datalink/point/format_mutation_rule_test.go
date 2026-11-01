@@ -2,8 +2,9 @@ package point
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type formatRuleTestGuard struct{ calls int }

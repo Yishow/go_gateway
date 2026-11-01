@@ -4,11 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema/migrations"
 	"path/filepath"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Build a genuine pre-expansion table from immutable historical migrations,

@@ -3,11 +3,12 @@ package groupdelivery
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/counterproof"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func handoffProofDescriptor(t *testing.T, key GroupKey, proof *counterproof.CounterBindingProof, managed bool) []byte {

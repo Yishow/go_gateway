@@ -2,10 +2,11 @@ package adapters
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/modbus"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestModbusRTURawFactoryKeepsProductionConnectDefaults(t *testing.T) {

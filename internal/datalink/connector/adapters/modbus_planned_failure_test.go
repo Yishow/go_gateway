@@ -2,13 +2,14 @@ package adapters
 
 import (
 	"encoding/binary"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/optimizer"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/modbus"
 	"go-gateway/internal/protocol/wirebudget"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestModbusPlannedMalformedWholeBatchIsBadWithoutFanout(t *testing.T) {

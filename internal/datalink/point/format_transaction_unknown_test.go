@@ -5,11 +5,12 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/sqltx"
-	"modernc.org/sqlite"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"modernc.org/sqlite"
 )
 
 type pointLostAckConnector struct {

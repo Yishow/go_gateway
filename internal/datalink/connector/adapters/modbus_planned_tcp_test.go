@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/optimizer"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/wirebudget"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestModbusPlannedTCPActiveCancelDoesNotPoisonReplacement(t *testing.T) {

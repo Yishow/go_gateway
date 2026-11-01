@@ -2,12 +2,13 @@ package adapters
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/optimizer"
 	"go-gateway/internal/datalink/schema"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestModbusPlannedManagedIdentityAndCanceledWaiter(t *testing.T) {

@@ -2,10 +2,11 @@ package point
 
 import (
 	"database/sql"
-	"github.com/stretchr/testify/require"
-	"modernc.org/sqlite"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"modernc.org/sqlite"
 )
 
 // This verifies the gateway's SQLite-only acceptance primitive without touching

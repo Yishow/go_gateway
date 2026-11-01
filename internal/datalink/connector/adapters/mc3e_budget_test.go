@@ -3,12 +3,13 @@ package adapters
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/protocol/mcprotocol"
 	"go-gateway/internal/protocol/wirebudget"
 	"io"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type countedMCTransport struct{ sends, closes int }

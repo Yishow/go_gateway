@@ -2,6 +2,7 @@ package modbusshare
 
 import (
 	"context"
+
 	"github.com/google/uuid"
 )
 

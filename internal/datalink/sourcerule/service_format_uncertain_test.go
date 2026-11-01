@@ -3,7 +3,6 @@ package sourcerule
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/modbusshare"
@@ -11,6 +10,8 @@ import (
 	"go-gateway/internal/datalink/pollinggroup"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type committedPointError struct {

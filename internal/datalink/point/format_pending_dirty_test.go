@@ -3,8 +3,9 @@ package point
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/modbusshare"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestFormatKnownInvalidationReleasesOnlyOwnedDirty(t *testing.T) {

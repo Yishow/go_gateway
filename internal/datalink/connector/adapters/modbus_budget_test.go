@@ -3,13 +3,14 @@ package adapters
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/modbus"
 	"go-gateway/internal/protocol/wirebudget"
 	"io"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type modbusBudgetTransport struct{ sends int }

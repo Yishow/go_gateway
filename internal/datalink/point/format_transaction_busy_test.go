@@ -2,9 +2,10 @@ package point
 
 import (
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestPointMutationCommitBusyLeavesNoNativeTransaction(t *testing.T) {

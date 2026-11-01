@@ -1,10 +1,11 @@
 package runtime
 
 import (
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/schema"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSuspendPointRevisionPreservesNewerSchedulerInstall(t *testing.T) {

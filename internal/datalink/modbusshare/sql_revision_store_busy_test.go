@@ -2,9 +2,10 @@ package modbusshare
 
 import (
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestShareRevisionCommitBusyLeavesOriginalRevisionAndCleanPool(t *testing.T) {

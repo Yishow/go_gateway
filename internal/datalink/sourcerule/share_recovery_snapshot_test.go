@@ -3,9 +3,10 @@ package sourcerule
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/modbusshare"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func shareRecoveryFixture(t *testing.T) (*sql.DB, modbusshare.Settings) {

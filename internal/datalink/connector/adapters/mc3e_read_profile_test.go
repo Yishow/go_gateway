@@ -3,7 +3,6 @@ package adapters
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/schema"
@@ -11,6 +10,8 @@ import (
 	"go-gateway/lib/hsllogic"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type mcProfileTransport struct {

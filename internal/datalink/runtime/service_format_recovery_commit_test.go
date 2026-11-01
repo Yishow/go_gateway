@@ -2,12 +2,13 @@ package runtime
 
 import (
 	"database/sql"
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/schema"
-	_ "modernc.org/sqlite"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite"
 )
 
 func TestFormatRecoveryPendingCommitCannotPoll(t *testing.T) {
