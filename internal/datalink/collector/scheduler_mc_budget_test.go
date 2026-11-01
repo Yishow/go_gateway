@@ -20,7 +20,8 @@ import (
 // mcBudgetServer counts actual protocol requests, not Protocol.Read invocations.
 func mcBudgetServer(t *testing.T, mode string) (string, *atomic.Int32) {
 	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	var listenConfig net.ListenConfig
+	listener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	var count atomic.Int32
 	var workers sync.WaitGroup
@@ -66,7 +67,7 @@ func mcBudgetFixture(t *testing.T, address string, retry int, delay time.Duratio
 	t.Helper()
 	host, portText, err := net.SplitHostPort(address)
 	require.NoError(t, err)
-	port, err := net.LookupPort("tcp", portText)
+	port, err := net.DefaultResolver.LookupPort(t.Context(), "tcp", portText)
 	require.NoError(t, err)
 	configJSON, err := json.Marshal(schema.ConnectionConfigMC3E{Host: host, Port: port, Timeout: 1})
 	require.NoError(t, err)

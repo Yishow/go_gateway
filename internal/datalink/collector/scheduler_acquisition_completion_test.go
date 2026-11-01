@@ -18,7 +18,8 @@ func TestAcquisitionCompletionPublishedDetachedAndUnlocked(t *testing.T) {
 		require.True(t, s.CaptureAcquisitionGeometry("device").authorized)
 		events = append(events, o)
 	}
-	s.pollAcquisitionSnapshot(s.captureScheduledGroup("source-cadence")[0], "scan", false, func(CollectedValue) {})
+	capturedSnapshot1 := s.captureScheduledGroup("source-cadence")[0]
+	s.pollAcquisitionSnapshot(capturedSnapshot1.ctx, capturedSnapshot1, "scan", false, func(CollectedValue) {})
 	require.Len(t, events, 1)
 	event := events[0]
 	require.Equal(t, "w", event.WorkspaceID)
@@ -49,7 +50,8 @@ func TestAcquisitionCompletionNilPanicAndRejected(t *testing.T) {
 		s, _ := previewExecutionFixture(t, `{}`, "D0")
 		require.Nil(t, DefaultSchedulerConfig().AcquisitionCompletionObserver)
 		require.Zero(t, testing.AllocsPerRun(10, func() { s.observeAcquisitionCompletion(nil) }))
-		s.pollAcquisitionSnapshot(s.captureScheduledGroup("source-cadence")[0], "nil", false, func(CollectedValue) {})
+		capturedSnapshot2 := s.captureScheduledGroup("source-cadence")[0]
+		s.pollAcquisitionSnapshot(capturedSnapshot2.ctx, capturedSnapshot2, "nil", false, func(CollectedValue) {})
 		original := s.acquisitionEvidence[acquisitionEvidenceTuple{"device", "source-cadence"}]
 		require.Equal(t, "nil", original.metrics.AcquisitionID)
 		require.Zero(t, testing.AllocsPerRun(10, func() { s.observeAcquisitionCompletion(original) }))
@@ -59,7 +61,8 @@ func TestAcquisitionCompletionNilPanicAndRejected(t *testing.T) {
 		var calls int
 		s.config.AcquisitionCompletionObserver = func(AcquisitionCompletionObservation) { calls++; panic("diagnostic failure") }
 		require.NotPanics(t, func() {
-			s.pollAcquisitionSnapshot(s.captureScheduledGroup("source-cadence")[0], "panic", false, func(CollectedValue) {})
+			capturedSnapshot3 := s.captureScheduledGroup("source-cadence")[0]
+			s.pollAcquisitionSnapshot(capturedSnapshot3.ctx, capturedSnapshot3, "panic", false, func(CollectedValue) {})
 		})
 		require.Equal(t, 1, calls)
 		require.Equal(t, "panic", s.acquisitionEvidence[acquisitionEvidenceTuple{"device", "source-cadence"}].metrics.AcquisitionID)
@@ -69,7 +72,7 @@ func TestAcquisitionCompletionNilPanicAndRejected(t *testing.T) {
 		var ids []string
 		s.config.AcquisitionCompletionObserver = func(o AcquisitionCompletionObservation) { ids = append(ids, o.Metrics.AcquisitionID) }
 		snapshot := s.captureScheduledGroup("source-cadence")[0]
-		s.pollAcquisitionSnapshot(snapshot, "manual", true, func(CollectedValue) {})
+		s.pollAcquisitionSnapshot(snapshot.ctx, snapshot, "manual", true, func(CollectedValue) {})
 		require.Empty(t, ids)
 		scan, err := buildScheduledPlan(snapshot)
 		require.NoError(t, err)

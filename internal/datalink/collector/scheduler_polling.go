@@ -45,7 +45,6 @@ func (s *Scheduler) pollScalarPoint(ctx context.Context, conn *connector.Managed
 	invoked := false
 
 	// 重試邏輯 (指數退避)
-readAttempts:
 	for attempt := 0; attempt <= retryCount; attempt++ {
 		if attempt > 0 {
 			// 指數退避: delay * 2^attempt
@@ -54,7 +53,7 @@ readAttempts:
 				backoff = 30 * time.Second // 最大 30 秒
 			}
 			if err = wirebudget.WaitDuration(ctx, backoff); err != nil {
-				break readAttempts
+				break
 			}
 		}
 

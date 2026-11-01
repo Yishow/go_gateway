@@ -18,16 +18,14 @@ func (s *Scheduler) PollNow(pointIDs []string) []CollectedValue {
 // PollNowContext uses the shared acquisition executor with caller-only delivery.
 // Scheduled Stop does not own this caller's cancellation or returned results.
 func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []CollectedValue {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = acquisitionCallerContext(ctx)
 	snapshots := s.captureManualPoints(ctx, pointIDs)
 	results := make([]CollectedValue, 0, len(pointIDs))
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, snapshot := range snapshots {
 		wg.Go(func() {
-			values := s.pollManualSnapshot(snapshot)
+			values := s.pollManualSnapshot(ctx, snapshot)
 			mu.Lock()
 			results = append(results, values...)
 			mu.Unlock()
@@ -83,7 +81,7 @@ func (s *Scheduler) captureManualPoints(ctx context.Context, pointIDs []string) 
 	return snapshots
 }
 
-func (s *Scheduler) pollManualSnapshot(snapshot scheduledSnapshot) []CollectedValue {
+func (s *Scheduler) pollManualSnapshot(ctx context.Context, snapshot scheduledSnapshot) []CollectedValue {
 	acquisitionID := s.nextAcquisitionID()
 	values := make([]CollectedValue, 0, len(snapshot.points))
 	completed := make(map[string]bool, len(snapshot.points))
@@ -94,7 +92,7 @@ func (s *Scheduler) pollManualSnapshot(snapshot scheduledSnapshot) []CollectedVa
 		completed[value.PointID] = true
 		values = append(values, value)
 	}
-	s.pollAcquisitionSnapshot(snapshot, acquisitionID, true, deliver)
+	s.pollAcquisitionSnapshot(ctx, snapshot, acquisitionID, true, deliver)
 	// Scheduled cancellation suppresses publication. Manual callers instead need
 	// one final Bad for each unresolved known Point, still bound to its old install.
 	for _, point := range snapshot.points {
@@ -119,4 +117,13 @@ func (s *Scheduler) ensureDeviceLocks() {
 			s.deviceLocks[id] = &wirebudget.Mutex{}
 		}
 	}
+}
+
+// acquisitionCallerContext preserves the legacy nil caller contract without changing
+// an explicit caller's cancellation, deadline or values.
+func acquisitionCallerContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
 }

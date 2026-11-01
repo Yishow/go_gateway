@@ -43,7 +43,7 @@ func TestAcquisitionPreviewActualOnlyScheduledMatchingLatest(t *testing.T) {
 	require.EqualValues(t, 0, p.connects.Load())
 	require.EqualValues(t, 0, p.sends.Load())
 	snapshot := s.captureScheduledGroup("source-cadence")[0]
-	s.pollAcquisitionSnapshot(snapshot, "scheduled-1", false, func(CollectedValue) {})
+	s.pollAcquisitionSnapshot(snapshot.ctx, snapshot, "scheduled-1", false, func(CollectedValue) {})
 	view, proof, err := s.PreviewAcquisition(t.Context(), "w", "device", "source")
 	require.NoError(t, err)
 	actual := view.Groups[0].Actual
@@ -51,7 +51,8 @@ func TestAcquisitionPreviewActualOnlyScheduledMatchingLatest(t *testing.T) {
 	require.Equal(t, "scheduled-1", actual.AcquisitionID)
 	require.EqualValues(t, 1, actual.WireAttempts)
 	require.EqualValues(t, 1, actual.LogicalRequests.Succeeded)
-	s.pollAcquisitionSnapshot(s.captureScheduledGroup("source-cadence")[0], "manual-2", true, func(CollectedValue) {})
+	capturedSnapshot1 := s.captureScheduledGroup("source-cadence")[0]
+	s.pollAcquisitionSnapshot(capturedSnapshot1.ctx, capturedSnapshot1, "manual-2", true, func(CollectedValue) {})
 	again, _, err := s.PreviewAcquisition(t.Context(), "w", "device", "source")
 	require.NoError(t, err)
 	require.Equal(t, "scheduled-1", again.Groups[0].Actual.AcquisitionID)
@@ -73,12 +74,14 @@ func TestAcquisitionPreviewWarmSafeInitialIsNotFallback(t *testing.T) {
 		}
 		return executionResults(req, time.Now(), nil), nil
 	}
-	s.pollAcquisitionSnapshot(s.captureScheduledGroup("source-cadence")[0], "fallback-scan", false, func(CollectedValue) {})
+	capturedSnapshot2 := s.captureScheduledGroup("source-cadence")[0]
+	s.pollAcquisitionSnapshot(capturedSnapshot2.ctx, capturedSnapshot2, "fallback-scan", false, func(CollectedValue) {})
 	first, _, err := s.PreviewAcquisition(t.Context(), "w", "device", "source")
 	require.NoError(t, err)
 	require.Equal(t, "safe_current_connection", first.Groups[0].Basis)
 	require.Equal(t, "unavailable", first.Groups[0].Actual.Status, "fallback changed context, not a matching warm-safe initial scan")
-	s.pollAcquisitionSnapshot(s.captureScheduledGroup("source-cadence")[0], "warm-scan", false, func(CollectedValue) {})
+	capturedSnapshot3 := s.captureScheduledGroup("source-cadence")[0]
+	s.pollAcquisitionSnapshot(capturedSnapshot3.ctx, capturedSnapshot3, "warm-scan", false, func(CollectedValue) {})
 	second, _, err := s.PreviewAcquisition(t.Context(), "w", "device", "source")
 	require.NoError(t, err)
 	require.Equal(t, first.PreviewRevision, second.PreviewRevision)

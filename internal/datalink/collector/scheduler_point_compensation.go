@@ -56,9 +56,8 @@ func (s *Scheduler) RestorePointLeaseReceipt(point *schema.Point, lease uint64, 
 		}
 		installed := s.installPointLocked(point, profiles...)
 		return installed, installed != 0
-	} else {
-		delete(s.pointInfos, point.ID)
 	}
+	delete(s.pointInfos, point.ID)
 	return 0, true
 }
 

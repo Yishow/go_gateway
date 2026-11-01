@@ -44,14 +44,14 @@ func (s *Scheduler) captureScheduledGroup(groupID string, expected ...*groupTick
 }
 
 func (s *Scheduler) pollScheduledSnapshot(snapshot scheduledSnapshot) {
-	s.pollAcquisitionSnapshot(snapshot, "", false, s.emitValue)
+	s.pollAcquisitionSnapshot(snapshot.ctx, snapshot, "", false, s.emitValue)
 }
 
-func (s *Scheduler) pollAcquisitionSnapshot(snapshot scheduledSnapshot, acquisitionID string, manual bool, deliver func(CollectedValue)) {
-	if snapshot.ctx == nil {
-		snapshot.ctx = context.Background()
-	}
-	ctx := snapshot.ctx
+// The ctx argument is the exact context stored in snapshot at capture. Callers
+// pass only that original context, never a later scheduler/caller authority.
+func (s *Scheduler) pollAcquisitionSnapshot(ctx context.Context, snapshot scheduledSnapshot, acquisitionID string, manual bool, deliver func(CollectedValue)) {
+	snapshot.ctx = acquisitionCallerContext(snapshot.ctx)
+	ctx = acquisitionCallerContext(ctx)
 	var scan scheduledPlan
 	var planErr error
 	if boundedAcquisitionProtocol(snapshot.device.Protocol) {

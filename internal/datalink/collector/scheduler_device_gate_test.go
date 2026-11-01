@@ -44,14 +44,14 @@ func TestSchedulerDeviceGateHonorsCanceledWaiters(t *testing.T) {
 			defer cancel()
 			scheduler.pollCtx = ctx
 			done := make(chan []CollectedValue, 1)
-			go func() {
-				if manual {
-					done <- scheduler.PollNowContext(ctx, []string{"p"})
-					return
-				}
-				scheduler.pollDevicePoints("d", []pointInfo{scheduler.pointInfos["p"]})
-				done <- nil
-			}()
+			if manual {
+				go func() { done <- scheduler.PollNowContext(ctx, []string{"p"}) }()
+			} else {
+				go func() {
+					scheduler.pollDevicePoints("d", []pointInfo{scheduler.pointInfos["p"]})
+					done <- nil
+				}()
+			}
 			var results []CollectedValue
 			select {
 			case results = <-done:
