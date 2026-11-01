@@ -93,7 +93,8 @@ func readSuccessorOperationInTx(ctx context.Context, tx *sql.Tx, action, workspa
 	if err = dec.Decode(&detail); err != nil {
 		return nil, ErrSchemaOperationResult
 	}
-	if err = dec.Decode(new(any)); err != io.EOF {
+	// This decoder reads canonical bytes through bytes.Reader, with no custom reader.
+	if err = dec.Decode(new(any)); !errors.Is(err, io.EOF) {
 		return nil, ErrSchemaOperationResult
 	}
 	if err := detail.normalize(); err != nil {

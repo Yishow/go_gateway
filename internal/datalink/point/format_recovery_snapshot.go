@@ -58,7 +58,7 @@ func (r *SQLRepository) ReadFormatRecovery(ctx context.Context, req FormatRecove
 		return nil, ErrFormatUnavailable
 	}
 	defer func() {
-		if err := owned.Rollback(); err != nil && err != sql.ErrTxDone {
+		if err := owned.Rollback(); err != nil && err != sql.ErrTxDone { //nolint:errorlint // Only bare ErrTxDone is benign; wrapped/joined cleanup failures must remain fatal.
 			out = nil
 			resultErr = formatTransactionFailure(err)
 		}

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"strings"
 )
@@ -123,7 +124,8 @@ func successorJSONObject(raw json.RawMessage) (json.RawMessage, error) {
 	if _, ok := value.(map[string]any); !ok {
 		return nil, ErrSchemaOperationResult
 	}
-	if _, err = dec.Token(); err != io.EOF {
+	// This decoder reads a fixed bytes.Reader, not an arbitrary error-producing source.
+	if _, err = dec.Token(); !errors.Is(err, io.EOF) {
 		return nil, ErrSchemaOperationResult
 	}
 	result, err := json.Marshal(value)

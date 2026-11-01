@@ -49,7 +49,7 @@ func (r *SQLRepository) MutateFormat(ctx context.Context, req FormatMutationRequ
 	tx := ownedTx.Tx
 	var attempted *FormatMutationResult
 	defer func() {
-		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone {
+		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone { //nolint:errorlint // Only bare ErrTxDone is benign; wrapped/joined cleanup failures must remain fatal.
 			out = nil
 			resultErr = formatAttemptFailure(err, attempted)
 		}

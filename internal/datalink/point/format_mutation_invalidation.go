@@ -49,7 +49,7 @@ func (r *SQLRepository) CompleteFormatInvalidation(ctx context.Context, req Form
 	}
 	tx := ownedTx.Tx
 	defer func() {
-		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone {
+		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone { //nolint:errorlint // Only bare ErrTxDone is benign; wrapped/joined cleanup failures must remain fatal.
 			resultErr = formatTransactionFailure(err)
 		}
 	}()
@@ -100,7 +100,7 @@ func (r *SQLRepository) InspectFormatMutation(ctx context.Context, scope FormatS
 	}
 	tx := ownedTx.Tx
 	defer func() {
-		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone {
+		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone { //nolint:errorlint // Only bare ErrTxDone is benign; wrapped/joined cleanup failures must remain fatal.
 			out = nil
 			resultErr = formatTransactionFailure(err)
 		}
@@ -110,7 +110,7 @@ func (r *SQLRepository) InspectFormatMutation(ctx context.Context, scope FormatS
 	}
 	var raw string
 	if err = tx.QueryRowContext(ctx, `SELECT value FROM system_settings WHERE key=?`, formatReceiptKey(scope.WorkspaceID, scope.RequestID)).Scan(&raw); err != nil {
-		if err == sql.ErrNoRows {
+		if err == sql.ErrNoRows { //nolint:errorlint // Only bare no-rows proves absence; wrapped/joined driver errors remain unavailable.
 			return nil, ErrPointNotFound
 		}
 		return nil, ErrFormatUnavailable

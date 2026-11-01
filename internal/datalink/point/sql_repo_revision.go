@@ -26,7 +26,7 @@ func (r *SQLRepository) updateConfigRevision(ctx context.Context, p *schema.Poin
 	}
 	tx := ownedTx.Tx
 	defer func() {
-		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone {
+		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone { //nolint:errorlint // Only bare ErrTxDone is benign; wrapped/joined cleanup failures must remain fatal.
 			resultErr = formatTransactionFailure(err)
 		}
 	}()
