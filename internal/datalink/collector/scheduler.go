@@ -95,6 +95,10 @@ type Scheduler struct {
 	// 設備熔斷器
 	deviceBreakers map[string]*health.CircuitBreaker
 
+	// Ephemeral command downgrade, scoped to a successfully published connection.
+	acquisitionDowngrades map[string]acquisitionDowngrade
+	acquisitionGeometry   map[string]*acquisitionGeometryState
+
 	// 狀態
 	running bool
 	mu      sync.RWMutex
@@ -120,27 +124,31 @@ type groupTicker struct {
 
 // deviceConfig 設備配置快取
 type deviceConfig struct {
-	ID       string
-	Protocol schema.ProtocolType
-	Config   string
+	ID                 string
+	Protocol           schema.ProtocolType
+	Config             string
+	connectionRevision string
 }
 
 // pointInfo 點位資訊快取
 type pointInfo struct {
-	recoveryPending    bool
-	readProfile        connector.ReadProfile
-	configRevision     string
-	ID                 string
-	DeviceID           string
-	Address            string
-	Function           string
-	DataType           schema.DataType
-	DataFormat         string
-	Mode               schema.PointMode
-	PollingGroupID     string
-	observationLease   uint64
-	installationScope  string
-	observationBinding PointObservationBinding
+	recoveryPending             bool
+	installedConnectionValid    bool
+	installedProtocol           schema.ProtocolType
+	installedConnectionRevision string
+	readProfile                 connector.ReadProfile
+	configRevision              string
+	ID                          string
+	DeviceID                    string
+	Address                     string
+	Function                    string
+	DataType                    schema.DataType
+	DataFormat                  string
+	Mode                        schema.PointMode
+	PollingGroupID              string
+	observationLease            uint64
+	installationScope           string
+	observationBinding          PointObservationBinding
 }
 
 // NewScheduler 建立新的排程器

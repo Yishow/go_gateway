@@ -55,15 +55,7 @@ func resolveWriteGroupDestinationScope(kind, rawConfig string, destination *Writ
 	if schema == "" {
 		schema = strings.TrimSpace(destination.TableSchema)
 	}
-	if schema == "" {
-		schema = "main"
-		if kind == writeGroupConnectorKindPostgres {
-			schema = "public"
-		}
-		if kind == writeGroupConnectorKindSQLServer {
-			schema = "dbo"
-		}
-	}
+	schema = NormalizeWriteGroupTableSchema(kind, schema)
 
 	destination.Database = database
 	destination.TableSchema = schema
@@ -107,4 +99,19 @@ func connectorDatabaseFromDSN(kind, dsn string) string {
 		}
 	}
 	return ""
+}
+
+// NormalizeWriteGroupTableSchema supplies the canonical default namespace only
+// when no namespace was resolved. Explicit namespaces are preserved unchanged.
+func NormalizeWriteGroupTableSchema(kind, tableSchema string) string {
+	if tableSchema != "" {
+		return tableSchema
+	}
+	if kind == writeGroupConnectorKindPostgres {
+		return "public"
+	}
+	if kind == writeGroupConnectorKindSQLServer {
+		return "dbo"
+	}
+	return "main"
 }

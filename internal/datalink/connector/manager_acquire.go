@@ -134,14 +134,15 @@ func (cm *ConnectionManager) getOrCreate(ctx context.Context, deviceID string, t
 	}
 	entry.conn = conn
 
-	if err == nil {
-		err = dialCtx.Err()
-	}
 	cm.mu.Lock()
 	if cm.entries[deviceID] != entry {
 		err = errConnectionSuperseded
 	}
 	if err == nil {
+		err = dialCtx.Err()
+	}
+	if err == nil {
+		conn.managerGeneration = entry.generation
 		entry.conn = conn
 		cm.connections[deviceID] = conn
 	} else if cm.entries[deviceID] == entry {

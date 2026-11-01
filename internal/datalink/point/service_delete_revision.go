@@ -2,6 +2,7 @@ package point
 
 import (
 	"context"
+
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -17,6 +18,8 @@ func (s *Service) DeleteMaterializedObserved(ctx context.Context, planned *schem
 	if !ok {
 		return ErrFormatUnavailable
 	}
+	finish := s.beginAcquisitionMutation(ctx, planned.DeviceID)
+	defer finish()
 	complete := observeMaterialized(observer, planned, nil)
 	err := repo.DeleteRevision(ctx, planned.ID, planned.DeviceID, planned.RevisionID)
 	complete(err)
@@ -31,6 +34,8 @@ func (s *Service) RestoreAbsent(ctx context.Context, p *schema.Point) error {
 	if p == nil {
 		return ErrFormatInvalid
 	}
+	finish := s.beginAcquisitionMutation(ctx, p.DeviceID)
+	defer finish()
 	return s.repo.Create(ctx, clonePoint(p))
 }
 func (r *SQLRepository) DeleteRevision(ctx context.Context, id, deviceID, expected string) error {

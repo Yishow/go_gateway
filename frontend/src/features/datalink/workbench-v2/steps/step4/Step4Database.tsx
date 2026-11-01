@@ -212,6 +212,7 @@ function Step4DatabaseContent({
     },
   };
   const savedActionsLocked = savedOperationActive || lifecycleLocked;
+  const hasSavedDatabaseContext = Boolean(connector.persisted && connector.connector_id && connector.identity_revision);
   const destinations = state.settings.connectors.filter((item) => item.enabled && item.id && item.identity_revision)
     .map((item) => ({ id: item.id, name: item.name, revision: item.identity_revision! }));
 
@@ -229,11 +230,11 @@ function Step4DatabaseContent({
         onSelectConnector={handleSelectConnectorPool}
         disabled={basicOperationActive || savedActionsLocked}
       />
-      <div ref={basicRef} tabIndex={-1} data-testid="step4-basic-recording" hidden={!destinationIsSaved(state) && !isModbusShareConfiguredEnabled(shareStatus)}>
+      <div ref={basicRef} tabIndex={-1} data-testid="step4-basic-recording" hidden={!hasSavedDatabaseContext && !isModbusShareConfiguredEnabled(shareStatus)}>
       <BasicRecordingPanel
         state={state}
         workspaceId={workspaceId}
-        readonly={savedActionsLocked}
+        readonly={savedActionsLocked || (hasSavedDatabaseContext && !destinationIsSaved(state))}
         lifecycleHost={actionHost}
         reviewRequest={reviewRequest}
         shareStatus={shareStatus}

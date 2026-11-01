@@ -6,7 +6,7 @@ import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWriteGroupsQuery } from '../../../../../../hooks/datalink/useStudioV2WriteGroups';
-import type { WriteGroup } from '../../../../../../types/studioV2WriteGroup';
+import type { WriteGroup, WriteGroupMutationResponse } from '../../../../../../types/studioV2WriteGroup';
 import type { WorkbenchV2State } from '../../../state/types';
 import { buildGroupCandidates } from '../../../state/writeGroup/candidates';
 import type { WorkspaceReadinessStepNumber } from '../../../components/WorkspaceReadinessPanel';
@@ -80,10 +80,11 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
     } catch { if (!request.signal.aborted) setOpenError('unavailable'); }
     finally { if (openingRequest.current === request) { openingRequest.current = undefined; setOpening(false); } }
   };
-  const reloadEditor = async () => {
-    if (!editorEntry || openingRequest.current || locatorSuspended || selection.kind !== 'edit') return;
+  const reloadEditor = async (acknowledgement?: WriteGroupMutationResponse) => {
+    if (!editorEntry || locatorSuspended || selection.kind !== 'edit' || openingRequest.current) return;
     const original = editorEntry.selection.state === 'selected' ? editorEntry.selection.target : undefined;
     if (!original?.groupId) return;
+    if (acknowledgement && (acknowledgement.group.workspace_id !== original.workspaceId || acknowledgement.group.id !== original.groupId)) return;
     const request = new AbortController(); openingRequest.current = request; setOpening(true); setOpenError(undefined);
     try {
       const latest = await groupsQuery.refetch();
@@ -103,6 +104,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
         !result.value.entry.editor_hydrated || !group || !studioV2LocatorHydration(result.value)) {
         setOpenError('stale-reference'); return;
       }
+      if (acknowledgement) deviceSource?.acknowledgeLocatorGroupSave?.({ previous: editorEntry, acknowledgement, current: result.value });
       setEditorEntry(result.value); setSelection({ kind: 'edit', id: group.id, saved: group });
     } catch { if (!request.signal.aborted) setOpenError('unavailable'); }
     finally { if (openingRequest.current === request) { openingRequest.current = undefined; setOpening(false); } }
@@ -223,12 +225,16 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
           key={selection.kind === 'edit' ? selection.id : 'new'}
           group={selected} workspaceId={editorObserved.workspace_id} workspaceRevision={editorObserved.workspace_revision}
           locatorGuard={Boolean(locatorEntry || locatorSuspended)}
+          saveReadbackPending={Boolean(editorEntry && opening)}
           locatorScope={editorEntry ? { workspaceId: editorEntry.workspace.id, workspaceRevision: editorEntry.entry.workspace_revision } : undefined}
           connector={connector} candidates={candidates} excluded={excluded} readonly={readonly || Boolean(locatorSuspended)} editorReadonly={selected?.status === 'deleted'}
           onClose={() => { openingRequest.current?.abort(); openingRequest.current = undefined; setOpening(false); setSelection({ kind: 'none' }); setEditorEntry(undefined); }}
-          onSaved={(group) => { setSelection({ kind: 'edit', id: group.id, saved: group }); if (editorEntry) void reloadEditor(); }}
+          onSaved={(group, _workspaceRevision, ownSaveAcknowledgement) => { setSelection({ kind: 'edit', id: group.id, saved: group }); if (editorEntry) void reloadEditor(ownSaveAcknowledgement); }}
           onReload={() => { if (editorEntry) void reloadEditor(); else void groupsQuery.refetch(); }}
           fetchLatest={async () => {
+            // Ref fence also covers a cached Save callback before React renders
+            // the pending flag. It never grants scope or changes picker state.
+            if (openingRequest.current) throw new Error('Recording scope is unavailable.');
             const latest = await groupsQuery.refetch();
             if (editorEntry && (latest.isError || !latest.data || latest.data.workspace_id !== editorObserved.workspace_id ||
               selected && !latest.data.groups.some(group => group.id === selected.id && group.status !== 'deleted')))

@@ -104,6 +104,7 @@ func (s *Scheduler) collectedValueWithReason(
 	acquisitionID string,
 	completedAt time.Time,
 	safeReason string,
+	trace ...acquisitionTrace,
 ) CollectedValue {
 	quality := result.Quality
 	qualityReason := safeReason
@@ -164,7 +165,10 @@ func (s *Scheduler) collectedValueWithReason(
 		Error:             errText,
 		QualityReason:     qualityReason,
 	}
-	s.observeAcquisition(pt, value)
+	if len(trace) > 0 {
+		value.RequestID, value.PlanFingerprint = trace[0].requestID, trace[0].planFingerprint
+	}
+	s.observeAcquisition(pt, value, trace...)
 	return value
 }
 

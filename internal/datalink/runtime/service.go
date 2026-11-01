@@ -141,11 +141,12 @@ type Service struct {
 	running       atomic.Bool
 	startedAt     atomic.Int64
 
-	collectedTotal  atomic.Uint64
-	writeSuccess    atomic.Uint64
-	writeError      atomic.Uint64
-	mappingError    atomic.Uint64
-	pointStateError atomic.Uint64
+	collectedTotal       atomic.Uint64
+	writeSuccess         atomic.Uint64
+	writeError           atomic.Uint64
+	mappingError         atomic.Uint64
+	pointStateError      atomic.Uint64
+	rejectedObservations atomic.Uint64
 }
 
 // NewService 建立 runtime service。

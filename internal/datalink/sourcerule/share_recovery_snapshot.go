@@ -100,11 +100,7 @@ func ReadShareRecoverySnapshot(ctx context.Context, tx *sql.Tx, workspaceID stri
 				return nil, ErrShareRecoverySnapshot
 			}
 			for _, link := range links {
-				var pointDevice string
-				if tx.QueryRowContext(ctx, `SELECT device_id FROM points WHERE id=?`, link.PointID).Scan(&pointDevice) != nil || pointDevice != rule.DeviceID {
-					return nil, ErrShareRecoverySnapshot
-				}
-				pointRows, err := shareRecoveryRows(ctx, tx, `SELECT id,device_id,address,function,data_type,data_format,format_mode,format_override,format_version,revision_id,enabled,mode,polling_group_id FROM points WHERE id=?`, link.PointID)
+				pointRows, err := readShareRecoveryPointRows(ctx, tx, link.PointID, rule.DeviceID)
 				if err != nil {
 					return nil, ErrShareRecoverySnapshot
 				}

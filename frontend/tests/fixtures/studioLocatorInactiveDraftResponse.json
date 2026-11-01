@@ -1,0 +1,132 @@
+{
+  "data": {
+    "id": "c69631a9-35da-4f16-bf9a-b2c2e094e19c",
+    "kind": "single",
+    "status": "ready",
+    "ordered_device_ids": [
+      "dev-1793434917275-69"
+    ],
+    "created_at": "2026-10-31T08:21:26.816459871Z",
+    "updated_at": "2026-10-31T08:24:27.304240336Z",
+    "readiness_summary": null,
+    "locator_entry": {
+      "workspace_revision": "e2ef58b3-45c7-4c0a-87d4-e2c52d9cbd47",
+      "hydration_scope": {
+        "complete_workspace": false,
+        "device_ids": [],
+        "rule_ids": [],
+        "mapping_ids": [],
+        "group_ids": [
+          "79daf50d-8c46-4bde-8e58-da39feddc83d"
+        ]
+      },
+      "write_groups": {
+        "workspace_id": "c69631a9-35da-4f16-bf9a-b2c2e094e19c",
+        "workspace_revision": "e2ef58b3-45c7-4c0a-87d4-e2c52d9cbd47",
+        "groups": [
+          {
+            "id": "79daf50d-8c46-4bde-8e58-da39feddc83d",
+            "workspace_id": "c69631a9-35da-4f16-bf9a-b2c2e094e19c",
+            "revision": "21c34198-5b7c-441f-84a5-defaec95809b",
+            "applied_revision": "",
+            "name": "Inactive Draft QA",
+            "status": "draft",
+            "members": [
+              {
+                "device_id": "dev-1793434917275-69",
+                "point_id": "02fa4b38-05f2-4517-8838-75ad0d626410",
+                "tag_id": "7e947145-6956-463b-a395-8d29be800660",
+                "source_revision": "8ade65c226b42c830196951e13165d707d23f328bb69a1068ef36801732a5a42",
+                "mapping_revision": "384f0911b30467b2babc8205a08ec8d67f8c021d2d2342a45fcd71e6aa8984ab",
+                "target_column": "known",
+                "required": true
+              }
+            ],
+            "destination": {
+              "connector_id": "1ec5b3ec-cae7-4947-b720-7d5411305d55",
+              "connector_revision": "9b7bc828-8565-43f5-8e76-dca31ce7cf17",
+              "database": "target.sqlite",
+              "table_schema": "main",
+              "table_name": "sensor_readings",
+              "storage_strategy": "custom"
+            },
+            "row_policy": {
+              "interval_seconds": 60,
+              "allowed_lateness_seconds": 0,
+              "incomplete_policy": "skip_row"
+            },
+            "write_policy": {},
+            "migration": {},
+            "created_at": "2026-10-31T08:24:27.303948306Z",
+            "updated_at": "2026-10-31T08:24:27.303948306Z"
+          }
+        ],
+        "calculation_capabilities": {
+          "version": 1,
+          "result_shape": "member-calculation-v1",
+          "draft_supported": true,
+          "activation_supported": true,
+          "editor_supported": false,
+          "reason": "record_readiness_required",
+          "methods": [
+            "latest",
+            "mean",
+            "delta"
+          ],
+          "cadence": {
+            "alignment": "utc_epoch",
+            "units": [
+              "second",
+              "minute"
+            ],
+            "minimum": 1,
+            "max_seconds": 9223372036,
+            "max_minutes": 153722867,
+            "window_bounds_checked": true
+          },
+          "schema_dialects": [
+            "sqlite",
+            "postgres"
+          ],
+          "schema_layouts": [
+            "managed_wide_profile_v1",
+            "managed_long_v1"
+          ],
+          "unsupported_combinations": [
+            {
+              "method": "latest",
+              "phase": "draft",
+              "source_transform": "exact_counter_scale",
+              "reason": "mixed_exact_source_draft_unsupported"
+            },
+            {
+              "method": "mean",
+              "phase": "draft",
+              "source_transform": "exact_counter_scale",
+              "reason": "mixed_exact_source_draft_unsupported"
+            },
+            {
+              "layout": "managed_wide_profile_v1",
+              "method": "delta",
+              "phase": "draft",
+              "source_transform": "exact_counter_scale",
+              "reason": "mixed_exact_source_draft_unsupported"
+            },
+            {
+              "method": "latest",
+              "phase": "runtime",
+              "source_transform": "exact_counter_scale",
+              "reason": "mixed_exact_source_latest_unsupported"
+            }
+          ]
+        }
+      },
+      "rule_heads": {},
+      "group_heads": {
+        "79daf50d-8c46-4bde-8e58-da39feddc83d": "21c34198-5b7c-441f-84a5-defaec95809b"
+      },
+      "revalidated_mapping_ids": []
+    }
+  },
+  "success": true
+}

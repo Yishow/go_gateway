@@ -52,6 +52,14 @@ npm test -- --run tests/unit/workbench-v2/mapping-autosave-queue
 - 在受限執行環境中，瀏覽器啟動須使用工具提供、經核准的主機執行權限；不要先嘗試啟動系統 Chrome。曾實測 macOS 應用程式註冊階段因限制而 SIGABRT，並產生「未預期結束」彈窗。
 - `agent-browser` 使用獨立工作階段及專用 headless shell，可透過 `--executable-path` 或本機設定的 `executablePath` 指定。瀏覽器版本更新後若路徑失效，重新安裝並核對設定；不退回系統 Chrome。
 
+### 已驗工具注意事項：Chrome DevTools MCP 1.12.0 填表
+
+- Linux Chromium 的 `/studio/v2` 實測中，`fill_form` 跨欄批次替換曾將 Step 1 的既有 port 與新值串接；fresh Step 3 兩列名稱批次替換也曾使第二列保留舊名稱前綴。工具回報成功不代表欄值已正確替換。
+- 此版本短字串填入實作先直接清空 DOM value，再 focus/type；與受控欄位的 focus 重繪互動是目前有證據支持的原因，尚非逐事件因果證明。Step 3 錯誤前綴在第一筆送出 request 已存在，17 筆 mutation 的名稱均與 ACK 一致，不能將本次觀察記為後端或 autosave ACK 改壞正確值。
+- 本流程使用此版本時，既有值替換以逐欄 `click` 取得 focus → `press_key` 的 `Control+A` → `type_text` 為優先；Step 3 已持久化名稱亦驗證先 `click` 再單欄 `fill_form` 可正確替換。跨欄後重新取得目標欄位，不把一次批次 fill 的 success 當驗收。
+- 每欄先核對即時 DOM；導航或執行連線測試前確認最終送出值與 ACK，再於重載後核對持久值。保留 request/ACK 證據，區分打字期間不同 payload 的自動儲存與相同 request 重試。發現前綴／數字追加時先用上述鍵盤替換對照，不修改正常產品 controlled/focus 行為來迎合工具。
+- 上述替換對照在已持久化 mapping 上通過；不代表所有 fresh/manual-input 情境或其他工具版本皆已驗證。若正常鍵盤替換也失敗，或正確 request 收到不同 ACK，應重新開啟產品缺陷調查。
+
 ## 完整檢查
 
 在合併／發布前，或符合上述擴大條件時，執行本批次涉及側的完整檢查。純文件修改適用下一節。

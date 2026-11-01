@@ -1,4 +1,17 @@
 {
+  "connection": {
+    "dataFormat": "Device default byte / word order",
+    "defaultFormat": "Not specified (use the protocol default)",
+    "mode": "Connection mode",
+    "serial": "Serial",
+    "serialHost": "The serial port is on the backend gateway host, not this browser.",
+    "dataBits": "Data bits",
+    "stopBits": "Stop bits",
+    "advanced": "Advanced connection parameters",
+    "network_no": "Network number",
+    "pc_no": "PC number",
+    "io_no": "I/O number"
+  },
   "device": {
     "open": "Add source",
     "resume": "Continue source setup",
@@ -84,7 +97,7 @@
     "savedDeviceNote": "This device is already saved. Returning or canceling this recording does not delete it.",
     "save": "Save range",
     "dataType": "Data type",
-    "transform": "Scaling (optional)",
+    "transform": "Scaling, format and unit (optional)",
     "scale": "Multiplier",
     "offset": "Offset",
     "span": "{{count}} items · {{span}} addresses · ends at {{end}}",
@@ -95,7 +108,7 @@
     "newer": "The submitted range is saved. Your newer input is still unsent. Return to points when ready.",
     "inspect": "Check this range request",
     "located": "Saved {{count}} points. Search and meaning filters were cleared to show them; choose which to add.",
-    "invalid": "Enter a range name, a valid source address and positive whole item count. Scaling must contain valid numbers.",
+    "invalid": "Enter a range name, a valid source address and positive whole item count. Scaling must contain valid numbers and the range format must be supported.",
     "prefix": "Saved point prefix: {{prefix}}",
     "otherPending": "This device remains saved. Check the unresolved range before starting a range on another device.",
     "offlineNote": "This device is not ready. Save an offline source first; no connection test or collection will start.",
@@ -109,7 +122,23 @@
     "inspectedUnknown": "Current rule read, but this submission is still unconfirmed. Input is retained and will not be resent. Current start address",
     "inspectFailed": "The current source could not be verified. The submission is still unknown; check again later or open the advanced source page.",
     "inspectUnavailable": "No verifiable save response was received. This creation cannot be confirmed; inspect advanced source settings without creating it again.",
-    "reviewSource": "Inspect the advanced source page (new tab)",
-    "selectedUnsettled": "These selected sources have pending or unconfirmed changes. Check them before saving; the recording draft and member settings are retained."
+    "reviewSource": "Open this range’s source settings (new tab)",
+    "selectedUnsettled": "These selected sources have pending or unconfirmed changes. Check them before saving; the recording draft and member settings are retained.",
+    "dataFormat": "Range byte / word order",
+    "defaultFormat": "Default (no explicit range format)",
+    "unit": "Unit",
+    "unitNote": "Applies to mappings for all new points in this range. It does not change their data type or recording calculation.",
+    "schedule": "Collection schedule",
+    "scheduleUnassigned": "The existing polling-group configuration determines collection after saving. No assigned group or interval has been read yet. This is not the recording interval.",
+    "scheduleLoading": "Reading the saved points’ polling groups…",
+    "scheduleObserved": "Read-back polling-group configuration, not proof that collection is running.",
+    "scheduleRow": "{{name}} · {{interval}} ms · {{count}} points",
+    "scheduleEnabled": "Group enabled",
+    "scheduleDisabled": "Group disabled",
+    "scheduleUnavailable": "The exact polling-group configuration could not be read. Refresh to check it again.",
+    "scheduleRefresh": "Refresh collection schedule",
+    "globalScheduleSettings": "Open global schedule settings (new tab)",
+    "globalScheduleNote": "In the advanced workspace, choose Settings → Scheduler. These are global settings, not this range’s effective group interval. Your unsaved input stays in this tab.",
+    "description": "Save a shared source range, then choose which saved points to add to this recording."
   }
 }

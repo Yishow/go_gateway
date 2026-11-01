@@ -3,12 +3,18 @@ package runtime
 import (
 	"context"
 	"fmt"
+
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/workspace"
 )
 
 func (s *Service) applyAffectedSourceRuleProjection(ctx context.Context, projection *workspace.RuntimeProjection, req sourcerule.RuntimeReconcileRequest) error {
+	var freezeErr error
+	projection, freezeErr = projection.FrozenCopy()
+	if freezeErr != nil {
+		return freezeErr
+	}
 	affected := map[string]bool{}
 	for _, id := range req.AffectedPointIDs {
 		if id != "" {
@@ -28,8 +34,13 @@ func (s *Service) applyAffectedSourceRuleProjection(ctx context.Context, project
 			}
 		}
 	}
+	var acquisitionErr error
+	ctx, acquisitionErr = s.prepareScopedAcquisitionProjection(ctx, projection, req)
+	if acquisitionErr != nil {
+		return acquisitionErr
+	}
 	if len(affected) == 0 {
-		return nil
+		return s.publishScopedAcquisitionProjection(ctx, projection, map[string]struct{}{})
 	}
 	present := map[string]bool{}
 	var selected []string
@@ -84,6 +95,10 @@ func (s *Service) applyAffectedSourceRuleProjection(ctx context.Context, project
 			s.mappingMu.Unlock()
 			return err
 		}
+		if scopedAcquisitionProjection(ctx) != nil {
+			s.mappingMu.Unlock()
+			continue
+		}
 		delete(s.mappingIndex, id)
 		recordSourceProjectionMappings(ctx, nil, map[string]struct{}{id: {}})
 		s.mappingMu.Unlock()
@@ -101,7 +116,7 @@ func (s *Service) applyAffectedSourceRuleProjection(ctx context.Context, project
 		s.projections[req.Scope.DeviceID] = state
 		s.projectionMu.Unlock()
 	}
-	return nil
+	return s.publishScopedAcquisitionProjection(ctx, projection, affectedIDs)
 }
 
 func (s *Service) beginSourceRuleProjectionGuard(ctx context.Context, req sourcerule.RuntimeReconcileRequest) context.Context {

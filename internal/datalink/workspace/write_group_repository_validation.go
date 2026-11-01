@@ -28,6 +28,12 @@ func (r *SQLWriteGroupRepository) validateWithMeasurements(ctx context.Context, 
 // Ordinary callers always use validateWithMeasurements above. The successor
 // preparation path separately proves its exact predecessor-only overlap.
 func (r *SQLWriteGroupRepository) validateDefinitionWithMeasurements(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup, definitions map[string]*measurement.MeasurementDefinition) error {
+	return r.validateDefinitionForDraftUpdate(ctx, runner, group, definitions, nil)
+}
+
+// existing is supplied only by draft Update, from the same scoped transaction.
+// All activation, schema, runtime and create callers keep the strict wrapper.
+func (r *SQLWriteGroupRepository) validateDefinitionForDraftUpdate(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup, definitions map[string]*measurement.MeasurementDefinition, existing *WriteGroup) error {
 	if strings.TrimSpace(group.WorkspaceID) == "" {
 		return fmt.Errorf("%w: workspace id is required", ErrWriteGroupValidation)
 	}
@@ -157,20 +163,7 @@ func (r *SQLWriteGroupRepository) validateDefinitionWithMeasurements(ctx context
 			return fmt.Errorf("read write-group tag: %w", err)
 		}
 
-		var mapping mappingRevisionSource
-		mappingQuery := `
-			SELECT id, point_id, tag_id, transform_pipeline, status,
-				COALESCE(rule_candidate_id, ''), COALESCE(proposed_signature, ''),
-				COALESCE(last_applied_signature, ''), COALESCE(blocking_reason, ''), enabled
-			FROM mappings
-			WHERE point_id = $1 AND tag_id = $2 AND enabled = ` + r.trueLiteral() + `
-			ORDER BY id ASC
-			LIMIT 1
-		`
-		err = runner.QueryRowContext(ctx, r.query(mappingQuery), member.PointID, member.TagID).Scan(&mapping.ID, &mapping.PointID, &mapping.TagID,
-			&mapping.TransformPipeline, &mapping.Status, &mapping.RuleCandidateID,
-			&mapping.ProposedSignature, &mapping.LastAppliedSignature, &mapping.BlockingReason,
-			&mapping.Enabled)
+		mapping, err := r.readWriteGroupMapping(ctx, runner, member, savedDraftMember(group, existing, member))
 		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("%w: %w", ErrWriteGroupNotFound, ErrNotFound)
 		}

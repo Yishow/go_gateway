@@ -268,14 +268,14 @@ var protocolInfos = map[schema.ProtocolType]ProtocolInfo{
 // GetProtocolInfo 取得協議資訊
 func GetProtocolInfo(protocolType schema.ProtocolType) (ProtocolInfo, bool) {
 	info, ok := protocolInfos[protocolType]
-	return info, ok
+	return withAcquisitionConfigSchema(info), ok
 }
 
 // ListProtocolInfos 列出所有協議資訊
 func ListProtocolInfos() []ProtocolInfo {
 	infos := make([]ProtocolInfo, 0, len(protocolInfos))
 	for _, info := range protocolInfos {
-		infos = append(infos, info)
+		infos = append(infos, withAcquisitionConfigSchema(info))
 	}
 	return infos
 }

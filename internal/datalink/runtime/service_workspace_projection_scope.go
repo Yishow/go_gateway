@@ -55,6 +55,11 @@ func (s *Service) applyWorkspaceProjectionForDevicesAndPoints(
 	if projection == nil {
 		return fmt.Errorf("workspace runtime projection 不可為 nil")
 	}
+	var freezeErr error
+	projection, freezeErr = projection.FrozenCopy()
+	if freezeErr != nil {
+		return freezeErr
+	}
 	selectedIDs := make([]string, 0, len(deviceIDs))
 	selected := make(map[string]bool, len(deviceIDs))
 	for _, rawID := range deviceIDs {

@@ -114,6 +114,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) parseWorkspaceDatabaseConfigRequest(c
 		renderStudioV2WorkspaceValidationError(c, err)
 		return nil, studioV2WorkspaceDatabaseConfigRequest{}, false
 	}
+	req.Schema = workspaceDatabaseAPISchema(req.Kind, req.Schema)
 	if err := validateWorkspaceDatabaseConfigRequest(req); err != nil {
 		renderStudioV2WorkspaceValidationError(c, err)
 		return nil, studioV2WorkspaceDatabaseConfigRequest{}, false
@@ -197,7 +198,7 @@ func buildWorkspaceDatabaseConfigResponse(workspaceID string, connector *schema.
 		Port:                   connectorConfigInt(connector, "port"),
 		Database:               connectorConfigString(connector, "database"),
 		Username:               connectorConfigString(connector, "user"),
-		Schema:                 connectorConfigString(connector, "schema"),
+		Schema:                 workspaceDatabaseAPISchema(connector.Kind, connectorConfigString(connector, "schema")),
 		Table:                  connectorConfigString(connector, "table"),
 		WriteMode:              connectorConfigWriteMode(connector),
 		WriteIntervalSeconds:   connector.DefaultWriteIntervalSeconds,
@@ -294,4 +295,13 @@ func workspaceOptionalInt(value int) *int {
 func workspaceOptionalWriteMode(value schema.DatabaseWriteMode) *schema.DatabaseWriteMode {
 	copyValue := value
 	return &copyValue
+}
+
+// Keep the SQLite API scope compatible with canonical write-group projection.
+// Other adapters retain their existing request/readback schema contract.
+func workspaceDatabaseAPISchema(kind schema.DatabaseConnectorKind, tableSchema string) string {
+	if kind == schema.DatabaseConnectorKindSQLite {
+		return workspace.NormalizeWriteGroupTableSchema(string(kind), strings.TrimSpace(tableSchema))
+	}
+	return tableSchema
 }

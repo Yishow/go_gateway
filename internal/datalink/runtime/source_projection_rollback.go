@@ -3,17 +3,23 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 
+	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/sourcerule"
 )
 
 type sourceProjectionRollbackSnapshot struct {
-	owner            *Service
-	deviceID         string
-	applied          map[string]bool
-	mappings         map[string][]mappingBinding
-	expectedMappings map[string]FormatRecoveryBindingProof
+	originalState        runtimeProjectionDeviceState
+	expectedState        runtimeProjectionDeviceState
+	expectedStatePresent bool
+	acquisitionReceipt   collector.AcquisitionGeometryReceipt
+	owner                *Service
+	deviceID             string
+	applied              map[string]bool
+	mappings             map[string][]mappingBinding
+	expectedMappings     map[string]FormatRecoveryBindingProof
 }
 
 // SnapshotSourceRuleProjection captures the existing authority for affected
@@ -24,7 +30,12 @@ func (s *Service) SnapshotSourceRuleProjection(deviceID string, ids []string) an
 	defer s.mappingMu.RUnlock()
 	s.projectionMu.RLock()
 	defer s.projectionMu.RUnlock()
-	state := s.projections[deviceID]
+	state, present := s.projections[deviceID]
+	snapshot.originalState = state
+	snapshot.originalState.AppliedPointIDs = maps.Clone(state.AppliedPointIDs)
+	snapshot.expectedState = state
+	snapshot.expectedState.AppliedPointIDs = maps.Clone(state.AppliedPointIDs)
+	snapshot.expectedStatePresent = present
 	for _, id := range ids {
 		bindings, exists := s.mappingIndex[id]
 		snapshot.expectedMappings[id] = FormatRecoveryBindingProof{pointID: id, exists: exists, installed: bindings, values: slices.Clone(bindings)}

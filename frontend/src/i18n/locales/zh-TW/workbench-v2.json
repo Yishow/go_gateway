@@ -229,7 +229,7 @@
   "step4": {
     "load_from_pool": "從連接器池載入",
     "select_existing_connector": "選擇既有連接器",
-    "connector_kind": "資料庫類型", "group_kind_unsupported": "群組記錄尚未支援（目前僅 SQLite／PostgreSQL）", "connector_diagnostics_title": "連線診斷", "connector_diagnostics_hint": "連線與舊介接器結果。群組投遞狀態顯示於上方。",
+    "connector_kind": "資料庫類型", "group_kind_unsupported": "群組記錄尚未支援（目前僅 SQLite／PostgreSQL）", "connector_save_failed": "連線變更尚未確認儲存，草稿已保留。連線儲存前無法執行記錄操作。", "connector_save_pending": "連線變更尚未儲存；既有記錄設定保留為唯讀。", "connector_diagnostics_unsaved": "目前連線變更尚未儲存；先前診斷不代表此草稿已確認。", "connector_diagnostics_title": "連線診斷", "connector_diagnostics_hint": "連線與舊介接器結果。群組投遞狀態顯示於上方。",
     "kind_sqlite": "SQLite",
     "kind_postgres": "PostgreSQL",
     "kind_mysql": "MySQL",

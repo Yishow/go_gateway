@@ -7,14 +7,10 @@ import {
   useUpsertStudioV2DatabaseTargetMutation,
 } from '../../../hooks/datalink/useStudioV2WorkspaceDatabase';
 import {
-  hydrateStudioV2DatabaseConnector,
-  hydrateStudioV2DatabaseRowGroups,
   hydrateStudioV2DatabaseTarget,
   isSameStudioV2DatabaseTargetEdit,
   isStudioV2DatabaseConnectorValid,
   isStudioV2DatabaseTargetValid,
-  mergeSavedStudioV2DatabaseConnector,
-  mergeSavedStudioV2DatabaseRowGroups,
   mergeSavedStudioV2DatabaseTarget,
   resolveStudioV2DatabaseTargetPointID,
   withLatestStudioV2DatabaseRevisions,
@@ -27,6 +23,8 @@ import { isPersistedMCRule, persistedMCScopeKey } from '../../../features/datali
 import type { StudioV2WorkspaceDatabaseTargetRecord } from '../../../types/datalink';
 import { getSafeErrorStateMessage } from '../../../utils/typedErrors';
 import { createDatabaseSaveQueue, type DatabaseSaveJob, type DatabaseSaveQueue } from './databaseSaveQueue';
+import { isAxiosError } from 'axios';
+import { normalizeTypedEnvelope } from '../../../utils/safeJson';
 import { hasPendingSave } from './studioV2AutosaveBarrier';
 
 type CanMutateRule = (ruleId: string) => boolean;
@@ -114,6 +112,10 @@ export function useStudioV2DatabaseAutosave(
   const saveQueueRef = React.useRef<DatabaseSaveQueue<WorkbenchV2State> | null>(null);
   const canMutateRuleRef = React.useRef(canMutateRule);
   const pendingConnectorRef = React.useRef(false);
+  const unknownConnectorRef = React.useRef<{ workspaceId?: string; error: string } | null>(null);
+  const activeRef = React.useRef(enabled); activeRef.current = enabled;
+  const mountedRef = React.useRef(true);
+  React.useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
   const pendingTargetsRef = React.useRef(new Set<string>());
   canMutateRuleRef.current = canMutateRule;
   if (!saveQueueRef.current) {
@@ -125,24 +127,13 @@ export function useStudioV2DatabaseAutosave(
     actions.dispatch({ type: 'updateDbConnector', patch });
   }, [actions, stateRef]);
 
-  const applyConnectorStatus = React.useCallback((patch: Partial<DbConnector>) => {
-    const state = stateRef.current;
-    const payload = { db: { ...state.db, connector: { ...state.db.connector, ...patch } } };
-    stateRef.current = workbenchV2Reducer(state, { type: 'SET_STATE', payload });
-    actions.dispatch({ type: 'SET_STATE', payload });
-  }, [actions, stateRef]);
+  const applyConnectorStatus = applyConnectorPatch;
 
   const applySetupRevision = React.useCallback((setupRevision: string | undefined) => {
-    if (!setupRevision || stateRef.current.db.connector.setup_revision === setupRevision) {
-      return;
+    if (setupRevision && stateRef.current.db.connector.setup_revision !== setupRevision) {
+      applyConnectorPatch({ setup_revision: setupRevision });
     }
-    const connector = { ...stateRef.current.db.connector, setup_revision: setupRevision };
-    stateRef.current = workbenchV2Reducer(stateRef.current, {
-      type: 'SET_STATE',
-      payload: { db: { ...stateRef.current.db, connector } },
-    });
-    actions.dispatch({ type: 'SET_STATE', payload: { db: { ...stateRef.current.db } } });
-  }, [actions, stateRef]);
+  }, [applyConnectorPatch, stateRef]);
 
   const applyTargetPatch = React.useCallback((pointId: string, patch: Partial<DbTarget>) => {
     const target = stateRef.current.db.targets[pointId];
@@ -175,17 +166,8 @@ export function useStudioV2DatabaseAutosave(
   }, [actions, stateRef]);
 
   const applyTargetStatus = React.useCallback((pointId: string, patch: Partial<DbTarget>) => {
-    const target = stateRef.current.db.targets[pointId];
-    if (!target) return;
-    const payload = {
-      db: {
-        ...stateRef.current.db,
-        targets: { ...stateRef.current.db.targets, [pointId]: { ...target, ...patch } },
-      },
-    };
-    stateRef.current = workbenchV2Reducer(stateRef.current, { type: 'SET_STATE', payload });
-    actions.dispatch({ type: 'SET_STATE', payload });
-  }, [actions, stateRef]);
+    if (stateRef.current.db.targets[pointId]) applyTargetPatch(pointId, patch);
+  }, [applyTargetPatch, stateRef]);
 
   React.useEffect(() => {
     if (!enabled || !databaseConfigQuery.isSuccess || !databaseConfigQuery.data) {
@@ -196,24 +178,9 @@ export function useStudioV2DatabaseAutosave(
       return;
     }
     lastConfigSignatureRef.current = signature;
-    stateRef.current = workbenchV2Reducer(stateRef.current, {
-      type: 'SET_STATE',
-      payload: {
-        db: {
-          ...stateRef.current.db,
-          connector: hydrateStudioV2DatabaseConnector(databaseConfigQuery.data, stateRef.current.db.connector),
-          row_groups: hydrateStudioV2DatabaseRowGroups(databaseConfigQuery.data.row_groups),
-        },
-      },
-    });
-    actions.dispatch({
-      type: 'SET_STATE',
-      payload: {
-        db: {
-          ...stateRef.current.db,
-        },
-      },
-    });
+    const action: WorkbenchV2Action = { type: 'hydrateDbConnector', record: databaseConfigQuery.data };
+    stateRef.current = workbenchV2Reducer(stateRef.current, action);
+    actions.dispatch(action);
   }, [actions, databaseConfigQuery.data, databaseConfigQuery.isSuccess, enabled, stateRef]);
 
   const reconcilePersistedTargets = React.useCallback(() => {
@@ -248,24 +215,9 @@ export function useStudioV2DatabaseAutosave(
       return;
     }
 
-    stateRef.current = workbenchV2Reducer(stateRef.current, {
-      type: 'SET_STATE',
-      payload: {
-        db: {
-          ...stateRef.current.db,
-          targets: nextTargets,
-        },
-      },
-    });
-    actions.dispatch({
-      type: 'SET_STATE',
-      payload: {
-        db: {
-          ...stateRef.current.db,
-          targets: nextTargets,
-        },
-      },
-    });
+    const action: WorkbenchV2Action = { type: 'replaceDbTargets', targets: nextTargets };
+    stateRef.current = workbenchV2Reducer(stateRef.current, action);
+    actions.dispatch(action);
   }, [actions, databaseTargetsQuery.data, databaseTargetsQuery.isSuccess, stateRef]);
 
   React.useEffect(() => {
@@ -273,6 +225,14 @@ export function useStudioV2DatabaseAutosave(
   }, [enabled, reconcilePersistedTargets]);
 
   const runConnectorSave = React.useCallback(async (snapshot: WorkbenchV2State): Promise<boolean> => {
+    if (!mountedRef.current || !activeRef.current) return false;
+    const requestWorkspace = stateRef.current.db.connector.workspace_id;
+    if (snapshot.db.connector.workspace_id && snapshot.db.connector.workspace_id !== requestWorkspace) return false;
+    const unknown = unknownConnectorRef.current;
+    if (unknown && unknown.workspaceId === requestWorkspace) {
+      applyConnectorStatus({ save_state: 'save-error', save_error: unknown.error });
+      return false;
+    }
     const currentState = stateRef.current;
     if (currentState.rules.some((rule) => isPersistedMCRule(rule, currentState.devices) && !canMutateRuleRef.current(rule.id))) {
       pendingConnectorRef.current = true;
@@ -293,6 +253,11 @@ export function useStudioV2DatabaseAutosave(
       const savedConnector = await updateConfigMutation.mutateAsync(
         toStudioV2DatabaseConfigRequest(submittedConnector, snapshot.db.row_groups ?? []),
       );
+      if (!mountedRef.current || !activeRef.current || requestWorkspace !== stateRef.current.db.connector.workspace_id) return false;
+      if (submittedConnector.connector_id && savedConnector.id !== submittedConnector.connector_id ||
+        requestWorkspace && savedConnector.workspace_id !== requestWorkspace) {
+        throw new Error('Database save response does not match the submitted identity');
+      }
       const currentMCRules = stateRef.current.rules.filter((rule) => isPersistedMCRule(rule, stateRef.current.devices));
       if (databaseMCScopeKey(stateRef.current) !== requestScopeKey || currentMCRules.some((rule) => !canMutateRuleRef.current(rule.id))) {
         pendingConnectorRef.current = !sameDatabaseConnectorEdit(stateRef.current.db.connector, submittedConnector);
@@ -300,33 +265,31 @@ export function useStudioV2DatabaseAutosave(
         return !pendingConnectorRef.current;
       }
       pendingConnectorRef.current = false;
-      stateRef.current = workbenchV2Reducer(stateRef.current, {
-        type: 'SET_STATE',
-        payload: {
-          db: {
-            ...stateRef.current.db,
-            connector: mergeSavedStudioV2DatabaseConnector(stateRef.current.db.connector, currentConnector, savedConnector),
-            row_groups: mergeSavedStudioV2DatabaseRowGroups(stateRef.current.db.row_groups, snapshot.db.row_groups, savedConnector.row_groups),
-          },
-        },
-      });
-      actions.dispatch({
-        type: 'SET_STATE',
-        payload: {
-          db: {
-            ...stateRef.current.db,
-          },
-        },
-      });
+      const action: WorkbenchV2Action = {
+        type: 'acknowledgeDbConnectorSave', submitted: submittedConnector,
+        rowGroups: snapshot.db.row_groups, record: savedConnector,
+      };
+      stateRef.current = workbenchV2Reducer(stateRef.current, action);
+      actions.dispatch(action);
       return true;
     } catch (error) {
+      if (!mountedRef.current || !activeRef.current || requestWorkspace !== stateRef.current.db.connector.workspace_id) return false;
+      const message = errorMessageOf(error, t('errors.autosave_failed'));
+      const status = isAxiosError(error) ? error.response?.status : undefined;
+      const rejected = status !== undefined && status >= 400 && status < 500 && status !== 408 && Boolean(normalizeTypedEnvelope(error).code);
+      // An uncertain write may already be committed. Keep newer intent local; never replay/create another ID.
+      if (!rejected) {
+        unknownConnectorRef.current = { workspaceId: requestWorkspace, error: message };
+        applyConnectorPatch({ save_state: 'save-error', save_error: message });
+        return false;
+      }
       const currentMCRules = stateRef.current.rules.filter((rule) => isPersistedMCRule(rule, stateRef.current.devices));
       if (databaseMCScopeKey(stateRef.current) !== requestScopeKey || currentMCRules.some((rule) => !canMutateRuleRef.current(rule.id))) {
         pendingConnectorRef.current = !sameDatabaseConnectorEdit(stateRef.current.db.connector, submittedConnector);
         applyConnectorStatus({ save_state: 'draft-invalid', save_error: null });
         return !pendingConnectorRef.current;
       }
-      applyConnectorPatch({ save_state: 'save-error', save_error: errorMessageOf(error, t('errors.autosave_failed')) });
+      applyConnectorPatch({ save_state: 'save-error', save_error: message });
       return false;
     }
   }, [actions, applyConnectorPatch, applyConnectorStatus, stateRef, t, updateConfigMutation]);
@@ -391,8 +354,13 @@ export function useStudioV2DatabaseAutosave(
   runSaveRef.current = (job) => (job.kind === 'connector' ? runConnectorSave(job.snapshot) : runTargetSave(job.pointId));
 
   const queueConnectorSave = React.useCallback((snapshot?: WorkbenchV2State) => {
+    const connector = stateRef.current.db.connector;
+    // Queued intent is already dirty, even while a target write owns the shared queue.
+    if (!unknownConnectorRef.current || unknownConnectorRef.current.workspaceId !== connector.workspace_id) {
+      applyConnectorStatus({ save_state: isStudioV2DatabaseConnectorValid(connector) ? 'saving' : 'draft-invalid', save_error: null });
+    }
     saveQueueRef.current?.enqueueConnector(snapshot ?? stateRef.current);
-  }, [stateRef]);
+  }, [applyConnectorStatus, stateRef]);
 
   const queueTargetSave = React.useCallback((pointId: string) => {
     // 入列即標為儲存中：連線儲存失敗而暫停欄位儲存時，也不會繼續顯示「已儲存」。

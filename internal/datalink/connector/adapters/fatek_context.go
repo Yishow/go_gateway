@@ -3,8 +3,9 @@ package adapters
 import (
 	"context"
 	"fmt"
-	"go-gateway/internal/protocol/wirebudget"
 	"time"
+
+	"go-gateway/internal/protocol/wirebudget"
 )
 
 func (c *FatekConnector) AcquisitionReadTimeout() time.Duration {
@@ -32,7 +33,7 @@ func (c *FatekConnector) ensureConnectionContext(ctx context.Context) error {
 		return err
 	}
 	if !c.connected || !live {
-		if err = c.client.ConnectContext(ctx); err != nil {
+		if err := c.acquisitionGeneration.connect(ctx, c.client.ConnectContext); err != nil {
 			return err
 		}
 		c.connected = true

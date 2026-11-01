@@ -85,6 +85,8 @@ func (s *Service) create(ctx context.Context, req CreatePointRequest, observer M
 		UpdatedAt:      time.Now(),
 	}
 
+	finishAcquisition := s.beginAcquisitionMutation(ctx, point.DeviceID)
+	defer finishAcquisition()
 	complete := observeMaterialized(observer, nil, point)
 	err = s.repo.Create(ctx, point)
 	complete(err)
@@ -238,6 +240,17 @@ type UpdatePointRequest struct {
 
 // Delete 刪除點位（若 ID 已不存在則視為成功，便於清理孤立關聯）。
 func (s *Service) Delete(ctx context.Context, id string) error {
+	if s.acquisitionMutation != nil {
+		before, err := s.repo.GetByID(ctx, id)
+		if errors.Is(err, ErrPointNotFound) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("取得待刪除點位失敗: %w", err)
+		}
+		finish := s.beginAcquisitionMutation(ctx, before.DeviceID)
+		defer finish()
+	}
 	if err := s.repo.Delete(ctx, id); err != nil {
 		if errors.Is(err, ErrPointNotFound) {
 			return nil
@@ -261,6 +274,8 @@ func (s *Service) Restore(ctx context.Context, record *schema.Point) error {
 	if record == nil {
 		return fmt.Errorf("point snapshot is empty")
 	}
+	finishAcquisition := s.beginAcquisitionMutation(ctx, record.DeviceID)
+	defer finishAcquisition()
 	if _, err := s.GetByID(ctx, record.ID); errors.Is(err, ErrPointNotFound) {
 		if createErr := s.repo.Create(ctx, clonePoint(record)); createErr != nil {
 			return fmt.Errorf("restore point: %w", createErr)

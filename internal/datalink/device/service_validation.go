@@ -94,7 +94,10 @@ func validateConnectionConfig(protocol schema.ProtocolType, config map[string]an
 		return errors.Join(requiredErrs...)
 	}
 
-	return valueErr
+	if valueErr != nil {
+		return valueErr
+	}
+	return validateAcquisitionDeclaration(protocol, config)
 }
 
 // isConditionallyOptional 判斷必填欄位是否因其他欄位的值而不需檢查

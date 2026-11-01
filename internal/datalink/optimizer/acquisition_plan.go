@@ -1,8 +1,9 @@
 package optimizer
 
 import (
-	"go-gateway/internal/datalink/schema"
 	"time"
+
+	"go-gateway/internal/datalink/schema"
 )
 
 // AcquisitionIdentity is the compatibility boundary; simultaneous due times do
@@ -29,10 +30,13 @@ type NativeAddressBound struct {
 // Zero limits are unspecified; at least one positive native-unit limit is required.
 // Limits are additionally clamped to the selected command's actual client cap.
 type AcquisitionCapability struct {
-	Revision                                                        string
-	RandomCrossArea                                                 bool   // Explicit support for mixed-area random commands.
-	RandomSupport                                                   string // "supported", "unsupported", or empty/"unknown"
-	ProtocolLimit, ClientLimit, DeviceLimit                         int
+	Revision                                string
+	RandomCrossArea                         bool   // Explicit support for mixed-area random commands.
+	RandomSupport                           string // "supported", "unsupported", or empty/"unknown"
+	ProtocolLimit, ClientLimit, DeviceLimit int
+	// RandomProtocolLimit only tightens random commands, never contiguous reads.
+	// Omission preserves historical plan fingerprints when this limit is unknown.
+	RandomProtocolLimit                                             int `json:",omitempty"`
 	ProtocolFrameBudget, ClientFrameBudget, DeviceFrameBudget       ApplicationFrameBudget
 	ProtocolAddressBounds, ClientAddressBounds, DeviceAddressBounds []NativeAddressBound
 }

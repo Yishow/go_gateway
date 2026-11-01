@@ -97,7 +97,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
     () => buildBasicManagedDrafts(workspaceId ?? '', candidates, destination, role),
     [candidates, destination, role, workspaceId],
   );
-  const shareOnly = isModbusShareConfiguredEnabled(shareStatus) && !destinationIsSaved(state);
+  const shareOnly = isModbusShareConfiguredEnabled(shareStatus) && !(state.db.connector.persisted && state.db.connector.connector_id && state.db.connector.identity_revision);
   // Every persisted device is a legal view, whether or not it has sources to record
   // yet; a device without sources shows its own blocked state instead of being
   // replaced by another one. The Circuit subtree lists the same devices.

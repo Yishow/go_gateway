@@ -1,3 +1,4 @@
+import { editStudioV2DatabaseConnector, hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseRowGroups, mergeSavedStudioV2DatabaseConnector, mergeSavedStudioV2DatabaseRowGroups } from './studioV2DatabaseAutosave';
 import type { WorkbenchV2State } from './types';
 import type { WorkbenchV2Action } from './useWorkbenchV2State';
 
@@ -16,12 +17,32 @@ export function dbReducer(state: WorkbenchV2State, action: WorkbenchV2Action): W
         ...state,
         db: {
           ...state.db,
-          connector: {
-            ...state.db.connector,
-            ...action.patch
-          }
+          connector: editStudioV2DatabaseConnector(state.db.connector, action.patch)
         }
       };
+
+    case 'hydrateDbConnector': {
+      const current = state.db.connector;
+      // Refetch is canonical observation, not acknowledgement of a local draft.
+      if (['saving', 'draft-invalid', 'save-error'].includes(current.save_state ?? '') ||
+        current.workspace_id && current.workspace_id !== action.record.workspace_id) return state;
+      return { ...state, db: { ...state.db,
+        connector: hydrateStudioV2DatabaseConnector(action.record, current),
+        row_groups: hydrateStudioV2DatabaseRowGroups(action.record.row_groups),
+      } };
+    }
+    case 'acknowledgeDbConnectorSave': {
+      const connector = mergeSavedStudioV2DatabaseConnector(state.db.connector, action.submitted, action.record);
+      if (connector === state.db.connector) return state;
+      const sameSelection = connector.connector_id === action.record.id &&
+        (state.db.connector.field_generations?.connector_id ?? 0) <= (action.submitted.edit_generation ?? 0);
+      return { ...state, db: { ...state.db, connector,
+        row_groups: sameSelection ? mergeSavedStudioV2DatabaseRowGroups(state.db.row_groups, action.rowGroups, action.record.row_groups) : state.db.row_groups,
+      } };
+    }
+
+    case 'replaceDbTargets':
+      return { ...state, db: { ...state.db, targets: action.targets } };
 
     case 'upsertDbTarget':
       return {

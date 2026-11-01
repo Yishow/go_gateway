@@ -1,5 +1,11 @@
 ## Context
 
+## 目前決策／Supersedes
+
+本段依 `docs/verification/simple-recording/owner-checkpoint-2026-10-30.md` 與 `implementation-decision-2026-10-30.md`，取代本文較早「待 owner 確認／未 apply／owner gate 停止」的當前狀態解讀。v2、v4、v5 原型與待確認敘述保留為歷史；正式實作參考已固定為 Site v9（commit `c7698bf137dc0d966e2be19c0ba6b06110da02d4`）。2026-10-30 的 owner 指示及已記錄判斷已解除是否開始正式實作的待決狀態，無需再次詢問布局。
+
+本段不宣稱 owner 已逐頁驗收正式產品，不變更現行 DESIGN.md 的 tokens、功能範圍、task 依賴、checkbox 或完成證據。正式 browser／SQL／協議驗收及 adoption 預設切換 gate 均維持；未完成必要驗收不得自行切換預設。Taste app-screen 文字規範與第三方 scripts 未執行的證據邊界不變。
+
 已讀 SavedRecordingActions 的 server availability/revision gate、RecordingChangeDialog 的 choose/impact/reserved/schema/activation/unknown流程、recordingWorkflowView 的 scoped intent。此批改變使用者看到的動作與指引，沿用既有 engine。demo 的手動成功/失敗切換是測試fixture，不得接到正式應用。
 
 ## Design Source

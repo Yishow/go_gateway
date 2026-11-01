@@ -31,7 +31,7 @@ func (s *Scheduler) AcceptsInstallationSample(pointID string, lease uint64, scop
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	pt, ok := s.pointInfos[pointID]
-	return ok && !pt.recoveryPending && pt.observationLease == lease
+	return ok && !pt.recoveryPending && pt.observationLease == lease && s.installationConnectionCurrentLocked(pt)
 }
 
 func (s *Scheduler) InstallationScope() string {
@@ -54,7 +54,7 @@ func (s *Scheduler) AcceptsDirectReadProof(proof PointMutationLease, scope strin
 		return false
 	}
 	if proof.Lease != 0 {
-		return current.configRevision == proof.Revision
+		return current.configRevision == proof.Revision && s.installationConnectionCurrentLocked(current)
 	}
 	return s.pointObservationLease == proof.Epoch
 }
@@ -67,7 +67,7 @@ func (s *Scheduler) AcceptsLegacyUnscopedSample(pointID string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	pt, ok := s.pointInfos[pointID]
-	return ok && !pt.recoveryPending && (!pt.readProfile.Present() || pt.readProfile.Resolution().Mode == schema.PointFormatLegacy)
+	return ok && !pt.recoveryPending && s.installationConnectionCurrentLocked(pt) && (!pt.readProfile.Present() || pt.readProfile.Resolution().Mode == schema.PointFormatLegacy)
 }
 
 func (s *Scheduler) observationNeedsCurrentInstall(captured pointInfo) bool {
@@ -78,4 +78,11 @@ func (s *Scheduler) observationNeedsCurrentInstall(captured pointInfo) bool {
 	defer s.mu.RUnlock()
 	current, ok := s.pointInfos[captured.ID]
 	return ok && current.modernObservationLease() != 0
+}
+
+// installationConnectionCurrentLocked compares the frozen installation stamp.
+// It performs no provider read or hashing while the caller holds scheduler.mu.
+func (s *Scheduler) installationConnectionCurrentLocked(pt pointInfo) bool {
+	device, exists := s.deviceConfigs[pt.DeviceID]
+	return exists && pt.installedConnectionValid && pt.installedProtocol == device.Protocol && pt.installedConnectionRevision == device.connectionRevision
 }

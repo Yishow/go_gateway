@@ -39,7 +39,7 @@ func (r *SQLWriteGroupRepository) updateInTx(ctx context.Context, tx *sql.Tx, gr
 		if candidate.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && candidate.RowPolicy.RecordKeyColumn != "" && strings.TrimSpace(candidate.Destination.TableName) == "" && !candidate.isLongLayout() {
 			candidate.Destination.TableName = managedGroupTableName(existing.ID)
 		}
-		if err := r.validate(ctx, tx, candidate); err != nil {
+		if err := r.validateDraftUpdate(ctx, tx, candidate, existing); err != nil {
 			return err
 		}
 		if err := r.checkProfileUpdateIdentity(ctx, tx, candidate, existing); err != nil {

@@ -88,7 +88,7 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
         for (const point of points) {
           const mapping = current.current.stateRef.current.mappings[point.id];
           if (!mapping) return publish(entry, 'unknown');
-          apply({ type: 'updateMapping', pointId: point.id, patch: { ...mappingValueFromState(mapping), enabled: rule.enabled } }, true);
+          apply({ type: 'updateMapping', pointId: point.id, patch: { ...mappingValueFromState(mapping), unit: entry.outcome.request.mappingDefaults?.unit ?? mapping.unit, enabled: rule.enabled } }, true);
         }
         return entry.outcome;
       } catch { return publish(entry, 'unknown'); }
@@ -149,6 +149,7 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
         if (!source || !active(source) || source.outcome.status !== 'saved-inactive' || !source.receipt || !source.proof ||
           request.workspaceId !== source.outcome.request.workspaceId || request.deviceId !== source.outcome.request.deviceId ||
           !request.requestId || request.requestId === sourceRequestId || !request.sessionId || !Number.isSafeInteger(request.generation) || request.generation < 0 ||
+          !same(source.outcome.request.mappingDefaults, request.mappingDefaults) ||
           !same({ ...source.outcome.request.buffer, enabled: true }, request.buffer)) return { request, status: 'blocked' };
         let resolve!: Entry['resolve']; const promise = new Promise<RangeSourceOutcome>(yes => { resolve = yes; });
         const entry: Entry = { ...source, owner: owner.current.token, outcome: { request: structuredClone(request), status: 'pending', rule: source.proof.record, savedPoints: source.outcome.savedPoints },

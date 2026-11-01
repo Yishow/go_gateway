@@ -107,7 +107,7 @@ function parseEntry(raw: unknown, locator: EntityLocator, expected?: StudioLocat
   if (needed.source_rules) entry.source_rules = collection(rawEntry.source_rules, rule, !!expected);
   if (needed.mappings) entry.mappings = collection(rawEntry.mappings, mapping, !!expected);
   if (needed.write_groups) {
-    object(rawEntry.write_groups, ['workspace_id', 'workspace_revision', 'groups']);
+    object(rawEntry.write_groups, ['workspace_id', 'workspace_revision', 'groups', 'calculation_capabilities']);
     const groups = parseWriteGroupListData(rawEntry.write_groups); if (!groups || groups.groups.length !== 1) reject(); entry.write_groups = groups;
   }
   const deviceIDs = entry.devices?.map(item => item.id) ?? [];

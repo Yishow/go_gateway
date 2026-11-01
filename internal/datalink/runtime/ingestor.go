@@ -17,6 +17,7 @@ import (
 func (s *Service) handleCollectedValue(ctx context.Context, cv collector.CollectedValue) {
 	bindings, accepted := s.captureCollectedBindings(cv)
 	if !accepted {
+		s.rejectedObservations.Add(1)
 		return
 	}
 	if cv.Timestamp.IsZero() {

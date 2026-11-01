@@ -2,6 +2,7 @@ package point
 
 import (
 	"context"
+
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -10,6 +11,8 @@ type pointRevisionUpdater interface {
 }
 
 func (s *Service) updateRevision(ctx context.Context, p *schema.Point, expected string) error {
+	finish := s.beginAcquisitionMutation(ctx, p.DeviceID)
+	defer finish()
 	if repo, ok := s.repo.(pointRevisionUpdater); ok {
 		return repo.UpdateRevision(ctx, p, expected)
 	}

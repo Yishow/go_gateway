@@ -17,7 +17,7 @@ import {
 } from '../../../../../../hooks/datalink/useStudioV2WorkspaceDatabase';
 import type { StudioV2MySQLRecordingCapability } from '../../../../../../types/studioV2MySQLRecordingCapability';
 import type { StudioV2SQLServerRecordingCapability } from '../../../../../../types/studioV2SQLServerRecordingCapability';
-import type { WriteGroup, WriteGroupStorageStrategy } from '../../../../../../types/studioV2WriteGroup';
+import type { WriteGroup, WriteGroupStorageStrategy, WriteGroupMutationResponse } from '../../../../../../types/studioV2WriteGroup';
 import { normalizeTypedEnvelope } from '../../../../../../utils/safeJson';
 import { getSafeErrorMessage } from '../../../../../../utils/typedErrors';
 import type { DbConnector } from '../../../state/types';
@@ -46,6 +46,8 @@ export interface GroupEditorProps {
   locatorScope?: StudioV2LocatorReadScope;
   /** Denial-only incoming navigation fence; never a read scope or write permission. */
   locatorGuard?: boolean;
+  /** Denial-only fence until the preceding locator save has read back. */
+  saveReadbackPending?: boolean;
   /** Undefined creates a new group. */
   group: WriteGroup | undefined;
   workspaceId: string;
@@ -58,7 +60,7 @@ export interface GroupEditorProps {
   editorReadonly?: boolean;
   lifecycleHost?: SavedRecordingActionHost;
   onClose: () => void;
-  onSaved: (group: WriteGroup) => void;
+  onSaved: (group: WriteGroup, workspaceRevision?: string, ownSaveAcknowledgement?: WriteGroupMutationResponse) => void;
   onReload: () => void;
   /**
    * Reads the current workspace revision and group just before a save. Other
@@ -127,11 +129,24 @@ type GroupEditorContentProps = GroupEditorProps & {
 };
 
 const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
-  deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard,
+  deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard, saveReadbackPending,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: editorText } = useTranslation('recording-editor');
-  const pickerScope = JSON.stringify([workspaceId, workspaceRevision, propGroup?.id ?? 'new', propGroup?.revision]);
+  const observedPickerScope = JSON.stringify([workspaceId, workspaceRevision, propGroup?.id ?? 'new', propGroup?.revision]);
+  const ownPickerAcknowledgement = useRef<WriteGroupMutationResponse | undefined>(undefined);
+  const pickerIdentity = useRef({ observed: observedPickerScope, scope: observedPickerScope, workspaceRevision });
+  if (pickerIdentity.current.observed !== observedPickerScope) {
+    const acknowledgement = ownPickerAcknowledgement.current;
+    const ownReadback = locatorScope && acknowledgement && acknowledgement.group.workspace_id === workspaceId &&
+      acknowledgement.group.id === propGroup?.id && acknowledgement.group.revision === propGroup?.revision &&
+      (workspaceRevision === acknowledgement.workspace_revision || workspaceRevision === pickerIdentity.current.workspaceRevision);
+    if (!ownReadback) ownPickerAcknowledgement.current = undefined;
+    // Only our acknowledged revision handoff keeps this local form session.
+    // Unrelated scope changes retain the existing invalidation behavior.
+    pickerIdentity.current = { observed: observedPickerScope, scope: ownReadback ? pickerIdentity.current.scope : observedPickerScope, workspaceRevision };
+  }
+  const pickerScope = pickerIdentity.current.scope;
   const [observedSources, setObservedSources] = useState<{ scope: string; value: RecordingPickerDiscovery }>();
   const candidates = useMemo(() => observedSources?.scope === pickerScope ? [...observedSources.value.candidates] : suppliedCandidates, [observedSources, pickerScope, suppliedCandidates]);
   const readonly = operatorReadonly || editorReadonly || propGroup?.status === 'deleted';
@@ -240,7 +255,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const renderLocatorLease = locatorLease.current;
 
   const handleSave = async () => {
-    if (savingRef.current || issues.length > 0 || sourceWritePending() || readonly || locatorLease.current !== renderLocatorLease || renderLocatorLease.key !== null &&
+    if (savingRef.current || saveReadbackPending || issues.length > 0 || sourceWritePending() || readonly || locatorLease.current !== renderLocatorLease || renderLocatorLease.key !== null &&
       (!mountedRef.current || locatorLease.current.blocked)) return;
     savingRef.current = true;
     const requestLease = renderLocatorLease;
@@ -269,12 +284,15 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
           expected_connector_revision: draft.connector_revision, group: body,
       });
       if (mountedRef.current) {
+        const acknowledgement = locatorLease.current === requestLease && !requestLease.blocked &&
+          result.group.workspace_id === workspaceId && (!group || result.group.id === group.id) ? result : undefined;
+        ownPickerAcknowledgement.current = acknowledgement;
         // Adopt every server-assigned managed column and binding before the
         // parent refetches. Server proof stays outside the editable draft.
         setDraft(groupToDraft(result.group));
         setEditorGroup(result.group);
         setConflict(false);
-        onSaved(result.group);
+        onSaved(result.group, result.workspace_revision, acknowledgement);
       }
     } catch (cause) {
       setSaveError(cause);
@@ -424,7 +442,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
 
       <div className="flex items-center gap-3">
         <button
-          type="button" onClick={() => void handleSave()} disabled={readonly || saving || issues.length > 0 || unsettledSources.length > 0 || (Boolean(group) && !dirty)}
+          type="button" onClick={() => void handleSave()} disabled={readonly || saving || saveReadbackPending || issues.length > 0 || unsettledSources.length > 0 || (Boolean(group) && !dirty)}
           className="rounded bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-40" data-testid="group-save"
         >
           {group ? t('step4.group.editor.save') : t('step4.group.editor.create')}

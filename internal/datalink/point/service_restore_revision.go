@@ -2,6 +2,7 @@ package point
 
 import (
 	"context"
+
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -16,5 +17,7 @@ func (s *Service) RestoreRevision(ctx context.Context, snapshot *schema.Point, a
 	if !ok {
 		return ErrFormatUnavailable
 	}
+	finish := s.beginAcquisitionMutation(ctx, snapshot.DeviceID)
+	defer finish()
 	return repo.UpdateRevision(ctx, clonePoint(snapshot), appliedRevision)
 }

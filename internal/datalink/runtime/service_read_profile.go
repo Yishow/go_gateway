@@ -166,6 +166,8 @@ func (s *Service) prepareProjectionReadProfiles(ctx context.Context, projection 
 		}
 		if guard := sourceProjectionGuard(ctx); guard != nil {
 			proof.Lease = guard.expected[p.ID]
+		} else if expected, captured := sourceAcquisitionExpectedLease(ctx, p.DeviceID, p.ID); captured {
+			proof.Lease = expected
 		}
 		proofs[p.ID] = proof
 	}

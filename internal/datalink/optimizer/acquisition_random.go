@@ -2,8 +2,9 @@ package optimizer
 
 import (
 	"cmp"
-	"go-gateway/internal/protocol/fatek"
 	"slices"
+
+	"go-gateway/internal/protocol/fatek"
 )
 
 func randomEligible(identity AcquisitionIdentity, cap AcquisitionCapability, bits int) bool {
@@ -24,7 +25,7 @@ func randomLimit(identity AcquisitionIdentity, cap AcquisitionCapability) int {
 	if identity.Protocol == "mc" || identity.Protocol == "mitsubishi" {
 		limit = 255
 	}
-	for _, n := range []int{cap.ProtocolLimit, cap.ClientLimit, cap.DeviceLimit} {
+	for _, n := range []int{cap.ProtocolLimit, cap.RandomProtocolLimit, cap.ClientLimit, cap.DeviceLimit} {
 		if n > 0 {
 			limit = min(limit, n)
 		}

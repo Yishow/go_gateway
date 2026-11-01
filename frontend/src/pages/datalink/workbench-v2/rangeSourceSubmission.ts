@@ -9,6 +9,8 @@ export type RangeSourceBuffer = Omit<Rule, 'id' | 'device_id' | 'workspace_id' |
 export interface RangeSourceRequest {
   workspaceId: string; sessionId: string; requestId: string; generation: number;
   deviceId: string; buffer: RangeSourceBuffer;
+  /** Defaults for new mapping rows, never part of the Rule API. */
+  mappingDefaults?: { unit: string };
 }
 export interface RangeRuleReceipt {
   submitted: CreateSourceRuleRequest;

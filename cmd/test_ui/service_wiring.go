@@ -62,8 +62,11 @@ type gatewayServices struct {
 func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) (gatewayServices, error) {
 	return wireGatewayServicesContext(context.Background(), db, connMgr, nil)
 }
-func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connector.ConnectionManager, logs *diagnostics.Broker) (gatewayServices, error) {
+func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connector.ConnectionManager, logs *diagnostics.Broker, fixtures ...groupFixtureHooks) (gatewayServices, error) {
 	fixture := newGroupFixture()
+	if len(fixtures) > 0 && fixtures[0] != nil {
+		fixture = fixtures[0]
+	}
 	devRepo := device.NewSQLRepository(db)
 	devSvc := device.NewService(devRepo, connMgr)
 	pgRepo := pollinggroup.NewSQLRepository(db)
@@ -127,6 +130,11 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 	dbTargetWriter := dbtarget.NewWriterWithConfig(dbTargetConnectorRepo, dbTargetMappingRepo, dbtarget.WriterConfig{TagReader: tagSvc, SuppressMapping: groupPipe.Owns}) //nolint:contextcheck // Persistent worker is owned by runtime shutdown.
 	schedulerConfig := collector.DefaultSchedulerConfig()
 	schedulerConfig.AcquisitionObserver = newCollectorEventObserver(logs) //nolint:contextcheck // Runtime observers outlive the wiring context.
+	if observer, ok := fixture.(interface {
+		acquisitionObserver(func(collector.AcquisitionObservation)) func(collector.AcquisitionObservation)
+	}); ok {
+		schedulerConfig.AcquisitionObserver = observer.acquisitionObserver(schedulerConfig.AcquisitionObserver)
+	}
 	scheduler := collector.NewScheduler(schedulerConfig, connMgr)
 	runtimeWriter := storage.NewBatchWriter(storage.NewSQLiteWriter(db), storage.DefaultBatchWriterConfig()) //nolint:contextcheck // Persistent timer is joined by runtime shutdown.
 	runtimeSvc, err := datalinkruntime.NewService(datalinkruntime.DefaultConfig(), datalinkruntime.Dependencies{
@@ -141,6 +149,8 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 		waitErr := runtimeWriter.WaitClosed(context.WithoutCancel(ctx))
 		return gatewayServices{}, fmt.Errorf("create datalink runtime: %w", errors.Join(err, targetErr, writerErr, waitErr))
 	}
+	pointSvc.SetAcquisitionMutationLifecycle(runtimeSvc)
+	pgRepo.SetAcquisitionMutationLifecycle(runtimeSvc)
 	sourceRuleSvc := sourcerule.NewService(sourceRuleRepo, devSvc, pointSvc, runtimeSvc)
 	sourceRuleSvc.SetTagMappingServices(tagSvc, mappingSvc)
 	sourceRuleSvc.SetDatabaseTargetMappingReader(sourcerule.DatabaseTargetMappingListFunc(func(ctx context.Context) ([]*schema.DatabaseTargetMapping, error) {

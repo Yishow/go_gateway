@@ -1,8 +1,9 @@
 package collector
 
 import (
-	"go-gateway/internal/datalink/schema"
 	"time"
+
+	"go-gateway/internal/datalink/schema"
 )
 
 // CollectedValue 收集到的值
@@ -33,6 +34,10 @@ type CollectedValue struct {
 
 	// AcquisitionID identifies one poll attempt across retries and mapped tags.
 	AcquisitionID string
+
+	// RequestID and PlanFingerprint are transient final acquisition diagnostics.
+	// They never change durable sample identity or source revisions.
+	RequestID, PlanFingerprint string
 
 	// ObservedAt is the typed observation time selected from a trusted source
 	// timestamp or the gateway completion time.

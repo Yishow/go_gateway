@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/collector/health"
+	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/wirebudget"
 )
@@ -31,23 +32,37 @@ func (s *Scheduler) WithAcquisitionIDFactory(factory func() string) *Scheduler {
 
 // AddDevice 新增設備配置
 func (s *Scheduler) AddDevice(device *schema.Device) {
+	cfg := deviceConfiguration(device)
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.addDeviceLocked(cfg)
+}
 
-	s.deviceConfigs[device.ID] = deviceConfig{
-		ID:       device.ID,
-		Protocol: device.Protocol,
-		Config:   device.ConnectionConfig,
+func deviceConfiguration(device *schema.Device) deviceConfig {
+	return deviceConfig{ID: device.ID, Protocol: device.Protocol, Config: device.ConnectionConfig, connectionRevision: connector.ReadConnectionRevision(device.ConnectionConfig)}
+}
+
+func (s *Scheduler) addDeviceLocked(cfg deviceConfig) {
+	previous, exists := s.deviceConfigs[cfg.ID]
+	if exists && (previous.Protocol != cfg.Protocol || previous.connectionRevision != cfg.connectionRevision) {
+		// Invalidation is monotonic for this installation: config A -> B -> A
+		// cannot revive its lease. Reinstallation alone supplies a fresh stamp.
+		for id, point := range s.pointInfos {
+			if point.DeviceID == cfg.ID {
+				point.installedConnectionValid = false
+				s.pointInfos[id] = point
+			}
+		}
 	}
+	s.deviceConfigs[cfg.ID] = cfg
 
 	// 建立設備鎖
-	if _, exists := s.deviceLocks[device.ID]; !exists {
-		s.deviceLocks[device.ID] = &wirebudget.Mutex{}
+	if _, exists := s.deviceLocks[cfg.ID]; !exists {
+		s.deviceLocks[cfg.ID] = &wirebudget.Mutex{}
 	}
-
 	// 建立設備熔斷器
-	if _, exists := s.deviceBreakers[device.ID]; !exists {
-		s.deviceBreakers[device.ID] = health.NewCircuitBreaker(s.config.BreakerConfig)
+	if _, exists := s.deviceBreakers[cfg.ID]; !exists {
+		s.deviceBreakers[cfg.ID] = health.NewCircuitBreaker(s.config.BreakerConfig)
 	}
 }
 
@@ -56,8 +71,14 @@ func (s *Scheduler) RemoveDevice(deviceID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.removeDeviceLocked(deviceID)
+}
+
+func (s *Scheduler) removeDeviceLocked(deviceID string) {
 	delete(s.deviceConfigs, deviceID)
 	delete(s.deviceBreakers, deviceID)
+	delete(s.acquisitionDowngrades, deviceID)
+	delete(s.acquisitionGeometry, deviceID)
 
 	// 移除相關點位
 	maps.DeleteFunc(s.pointInfos, func(_ string, info pointInfo) bool {

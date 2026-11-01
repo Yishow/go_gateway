@@ -29,6 +29,8 @@ export function Step4SupportPanels({
 }: Step4SupportPanelsProps) {
   const { t } = useTranslation('workbench-v2');
   const destinationAlias = safeRuntimeLabel(connector.name) || t('step4.connector_title');
+  const unsaved = ['saving', 'save-error', 'draft-invalid'].includes(connector.save_state ?? '');
+  const saveFailed = connector.save_state === 'save-error';
 
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -47,7 +49,13 @@ export function Step4SupportPanels({
             <span className="rounded-full border border-slate-700 px-2 py-1 font-mono text-[11px] text-slate-200">
               {destinationAlias}
             </span>
-
+            {connector.save_state && connector.save_state !== 'idle' && <span
+              role={saveFailed ? 'alert' : 'status'} className="basis-full text-xs text-amber-200"
+              data-testid="database-connector-save-status"
+            >
+              {t(`step4.saveStates.${connector.save_state}`)} — {t(saveFailed ? 'step4.connector_save_failed'
+                : unsaved ? 'step4.connector_save_pending' : 'step4.configuration_saved')}
+            </span>}
           </div>
         }
       >
@@ -71,13 +79,13 @@ export function Step4SupportPanels({
         summary={
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-200">
-              {connector.status}
+              {unsaved ? t('step4.connector_diagnostics_unsaved') : connector.status}
             </span>
 
           </div>
         }
       >
-        <DeliveryTruthStrip connector={connector} />
+        {unsaved ? <p className="text-xs text-amber-200">{t('step4.connector_diagnostics_unsaved')}</p> : <DeliveryTruthStrip connector={connector} />}
       </CollapsibleSupportCard>
     </div>
   );

@@ -32,6 +32,7 @@ type PlannedReadRequest struct {
 // on failure. Timestamp is final wire completion, not scheduled scan start.
 type PlannedPointResult struct {
 	Binding                                   PlannedPointBinding
+	ConnectionToken                           AcquisitionConnectionToken
 	Group                                     optimizer.AcquisitionGroup
 	PlanFingerprint, AcquisitionID, RequestID string
 	ReadResult

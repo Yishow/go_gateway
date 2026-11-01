@@ -25,6 +25,9 @@ type AcquisitionObservation struct {
 	DeviceID          string
 	PointID           string
 	AcquisitionID     string
+	RequestID         string
+	PlanFingerprint   string
+	PlanReason        string // Optional closed planning code, independent of sample quality.
 	ConfigFingerprint string
 	Quality           schema.QualityFlag
 	QualityReason     string
@@ -59,21 +62,29 @@ func (s *Scheduler) installPointLocked(point *schema.Point, profiles ...connecto
 	if profile.Present() && profile.Resolution().Mode != schema.PointFormatLegacy && s.pointObservationLease == math.MaxUint64 {
 		return 0
 	}
-	groupID := ""
-	if point.PollingGroupID != nil {
-		groupID = *point.PollingGroupID
-	}
 	lease := uint64(0)
 	if s.pointObservationLease < math.MaxUint64 {
 		s.pointObservationLease++
 		lease = s.pointObservationLease
 	}
-	s.pointInfos[point.ID] = pointInfo{
+	device, devicePresent := s.deviceConfigs[point.DeviceID]
+	s.pointInfos[point.ID] = installedPointInfo(point, profile, device, devicePresent, lease, s.installationScope)
+	return lease
+}
+
+// installedPointInfo is the single recipe for an actual installation and its
+// prepared geometry receipt. It performs no hashing or provider reads.
+func installedPointInfo(point *schema.Point, profile connector.ReadProfile, device deviceConfig, present bool, lease uint64, scope string) pointInfo {
+	groupID := ""
+	if point.PollingGroupID != nil {
+		groupID = *point.PollingGroupID
+	}
+	return pointInfo{
+		installedConnectionValid: present, installedProtocol: device.Protocol, installedConnectionRevision: device.connectionRevision,
 		ID: point.ID, DeviceID: point.DeviceID, Address: point.Address, configRevision: point.RevisionID,
 		Function: point.Function, DataType: point.DataType, DataFormat: point.DataFormat,
-		readProfile: profile, Mode: point.Mode, PollingGroupID: groupID, observationLease: lease, installationScope: s.installationScope,
+		readProfile: profile, Mode: point.Mode, PollingGroupID: groupID, observationLease: lease, installationScope: scope,
 	}
-	return lease
 }
 
 // BindPointObservation attaches proof only to the exact current installation.
@@ -109,16 +120,22 @@ func (s *Scheduler) BindPointObservation(pointID string, lease uint64, binding P
 	return true
 }
 
-func (s *Scheduler) observeAcquisition(pt pointInfo, value CollectedValue) {
+func (s *Scheduler) observeAcquisition(pt pointInfo, value CollectedValue, trace ...acquisitionTrace) {
 	if !s.HasAcquisitionObserver() || (s.observationNeedsCurrentInstall(pt) && !s.AcceptsInstallationSample(pt.ID, pt.observationLease, pt.installationScope)) {
 		return
 	}
 	// The callback contract is nonblocking. Panic containment prevents a faulty
 	// optional observer from changing the native acquisition/retry result.
 	defer func() { recover() }() //nolint:errcheck // An observer panic must not change acquisition.
+	planReason := ""
+	if len(trace) > 0 && trace[0].planReason == planReasonSourceCoverageUnverified {
+		planReason = planReasonSourceCoverageUnverified
+	}
 	s.config.AcquisitionObserver(AcquisitionObservation{
 		Binding: pt.observationBinding, DeviceID: value.DeviceID, PointID: value.PointID,
 		AcquisitionID: value.AcquisitionID, ConfigFingerprint: value.ConfigFingerprint,
-		Quality: value.Quality, QualityReason: value.QualityReason, ReceivedAt: value.ReceivedAt,
+		RequestID: value.RequestID, PlanFingerprint: value.PlanFingerprint,
+		PlanReason: planReason,
+		Quality:    value.Quality, QualityReason: value.QualityReason, ReceivedAt: value.ReceivedAt,
 	})
 }

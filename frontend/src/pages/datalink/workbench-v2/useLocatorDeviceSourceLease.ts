@@ -4,13 +4,17 @@ import type { StudioV2WorkspaceDeviceRecord } from '../../../services/studioV2Wo
 import { studioV2WorkspaceAPI } from '../../../services/studioV2Workspace';
 import { studioV2WorkspaceDevicesAPI } from '../../../services/studioV2WorkspaceDevices';
 import { studioV2WorkspaceWriteGroupsAPI } from '../../../services/studioV2WorkspaceWriteGroups';
+import type { LocatorGroupSaveAcknowledgement } from './deviceSourceSubmission';
 
 export interface LocatorDeviceSourceLease {
   allowed: boolean;
+  acknowledgeLocatorGroupSave(proof: LocatorGroupSaveAcknowledgement): boolean;
   acquire(workspaceId: string): Promise<boolean>;
   readback(): Promise<readonly StudioV2WorkspaceDeviceRecord[] | undefined>;
 }
 interface Owner {
+  origin?: StudioLocatorEntryRead;
+  originRevision?: string;
   entry?: StudioLocatorEntryRead;
   workspaceId?: string;
   revision?: string;
@@ -26,9 +30,9 @@ function valid(owner: Owner): owner is Owner & { workspaceId: string; revision: 
  * Uses database setup revision, never the unrelated Modbus Share revision.
  * No hydration dispatch occurs: an already-open recording draft is untouched. */
 export function useLocatorDeviceSourceLease(entry?: StudioLocatorEntryRead, sourceWorkspaceId?: string, enabled = true): LocatorDeviceSourceLease {
-  const owner = useRef<Owner>({ entry, workspaceId: sourceWorkspaceId, revision: entry?.entry.workspace_revision, enabled });
-  if (owner.current.entry !== entry || owner.current.workspaceId !== sourceWorkspaceId || owner.current.enabled !== enabled || owner.current.revision !== entry?.entry.workspace_revision) {
-    owner.current = { entry, workspaceId: sourceWorkspaceId, revision: entry?.entry.workspace_revision, enabled };
+  const owner = useRef<Owner>({ origin: entry, originRevision: entry?.entry.workspace_revision, entry, workspaceId: sourceWorkspaceId, revision: entry?.entry.workspace_revision, enabled });
+  if (owner.current.origin !== entry || owner.current.workspaceId !== sourceWorkspaceId || owner.current.enabled !== enabled || owner.current.originRevision !== entry?.entry.workspace_revision) {
+    owner.current = { origin: entry, originRevision: entry?.entry.workspace_revision, entry, workspaceId: sourceWorkspaceId, revision: entry?.entry.workspace_revision, enabled };
   }
   const [grant, setGrant] = useState<Owner>();
   const granted = useRef<Owner | undefined>(undefined);
@@ -65,6 +69,28 @@ export function useLocatorDeviceSourceLease(entry?: StudioLocatorEntryRead, sour
   };
   return {
     allowed,
+    acknowledgeLocatorGroupSave: ({ previous, acknowledgement, current }) => {
+      // The render's owner cannot borrow a later A -> B -> A lease. Only the
+      // exact own mutation and its canonical editor readback advance this basis.
+      const before = capture.entry?.selection, prior = previous.selection, next = current.selection;
+      const group = acknowledgement.group, list = current.entry.write_groups;
+      if (owner.current !== capture || !valid(capture) || before?.state !== 'selected' || prior.state !== 'selected' || next.state !== 'selected' ||
+        before.target.step !== 4 || prior.target.step !== 4 || next.target.step !== 4 || !before.target.groupId ||
+        prior.target.workspaceId !== capture.workspaceId || prior.target.workspaceRevision !== capture.revision || previous.entry.workspace_revision !== capture.revision ||
+        prior.target.groupId !== before.target.groupId || prior.target.groupRevision !== before.target.groupRevision ||
+        group.workspace_id !== capture.workspaceId || group.id !== before.target.groupId || group.status === 'deleted' || !group.revision.trim() ||
+        !acknowledgement.workspace_revision.trim() || current.workspace.id !== capture.workspaceId || current.locator.workspace_id !== capture.workspaceId ||
+        current.locator.group_id !== group.id || current.entry.editor_hydrated !== true || next.target.workspaceId !== capture.workspaceId ||
+        next.target.workspaceRevision !== acknowledgement.workspace_revision || current.entry.workspace_revision !== acknowledgement.workspace_revision ||
+        next.target.groupId !== group.id || next.target.groupRevision !== group.revision || current.entry.group_heads[group.id] !== group.revision ||
+        list?.workspace_id !== capture.workspaceId || list.workspace_revision !== acknowledgement.workspace_revision || list.groups.length !== 1 ||
+        list.groups[0].id !== group.id || list.groups[0].revision !== group.revision || list.groups[0].status === 'deleted') return false;
+      capture.entry = current; capture.revision = acknowledgement.workspace_revision;
+      // Existing pending source receipts retain read-only recovery eligibility.
+      // Their next readback still has to pass both canonical brackets.
+      sequence.current += 1; granted.current = undefined; setGrant(undefined);
+      return true;
+    },
     acquire: async workspaceId => {
       const captured = owner.current, request = ++sequence.current;
       if (!valid(captured) || workspaceId !== captured.workspaceId) { revoke(captured, request); return false; }

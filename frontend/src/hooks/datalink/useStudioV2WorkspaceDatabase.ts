@@ -85,6 +85,7 @@ export function useUpdateStudioV2DatabaseConfigMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    retry: false,
     mutationFn: (request: StudioV2WorkspaceDatabaseConfigRequest) => studioV2WorkspaceDatabaseAPI.updateConfig(request),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.databaseConfig() });

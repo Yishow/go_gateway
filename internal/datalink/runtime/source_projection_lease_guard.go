@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
@@ -36,11 +37,22 @@ func (s *Service) installProjectionPoint(ctx context.Context, p *schema.Point) (
 	defer s.pointMetaMu.Unlock()
 	guard := sourceProjectionGuard(ctx)
 	if guard == nil {
-		lease := s.scheduler.AddPointWithObservationLease(p, profile)
+		var lease uint64
+		if expected, tracked := sourceAcquisitionExpectedLease(ctx, p.DeviceID, p.ID); tracked {
+			var installed bool
+			lease, installed = s.scheduler.InstallPointAtLease(p, expected, profile)
+			if !installed {
+				return 0, fmt.Errorf("source geometry point installation changed")
+			}
+		} else {
+			lease = s.scheduler.AddPointWithObservationLease(p, profile)
+		}
 		if modernPoint(p) && lease == 0 {
 			return 0, connector.ErrReadProfile
 		}
 		s.setPointMetaLocked(p)
+		recordAcquisitionPointMetadata(ctx, p.ID, p)
+		recordAcquisitionGeometryInstall(ctx, p, profile, lease)
 		return lease, nil
 	}
 	if p.DeviceID != guard.deviceID {
@@ -63,7 +75,9 @@ func (s *Service) installProjectionPoint(ctx context.Context, p *schema.Point) (
 		return 0, fmt.Errorf("source projection installation changed")
 	}
 	s.setPointMetaLocked(p)
+	recordAcquisitionPointMetadata(ctx, p.ID, p)
 	guard.expected[p.ID] = lease
+	recordAcquisitionGeometryInstall(ctx, p, profile, lease)
 	return lease, nil
 }
 func (s *Service) removeProjectionPoint(ctx context.Context, id string) error {
@@ -77,7 +91,13 @@ func (s *Service) stopProjectionPoint(ctx context.Context, id string, keep *sche
 	defer s.pointMetaMu.Unlock()
 	guard := sourceProjectionGuard(ctx)
 	if guard == nil {
-		s.scheduler.RemovePoint(id)
+		if expected, tracked := sourceAcquisitionExpectedLease(ctx, "", id); tracked {
+			if !s.scheduler.RemovePointAtLease(id, expected) {
+				return fmt.Errorf("source geometry point removal changed")
+			}
+		} else {
+			s.scheduler.RemovePoint(id)
+		}
 	} else {
 		if guard.proof != nil {
 			proof, owned := guard.proof.Points[id]
@@ -96,10 +116,12 @@ func (s *Service) stopProjectionPoint(ctx context.Context, id string, keep *sche
 		}
 		guard.expected[id] = 0
 	}
+	recordAcquisitionGeometryRemoval(ctx, id)
 	if keep != nil {
 		s.setPointMetaLocked(keep)
 	} else {
 		delete(s.pointMetaIndex, id)
 	}
+	recordAcquisitionPointMetadata(ctx, id, keep)
 	return nil
 }

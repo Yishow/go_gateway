@@ -1,3 +1,4 @@
+import { RecordingRangeSchedule } from './RecordingRangeSchedule';
 import { buildStudioEntityLocatorTarget } from '../../../../services/studioEntityLocator';
 import { useTranslation } from 'react-i18next';
 import { recordingRangeDataTypes } from './recordingRangeBuffer';
@@ -5,8 +6,9 @@ import type { RecordingRangeController } from './useRecordingRangeBuffer';
 export function RecordingRangeContent({ controller: range, available, onBack, onSubmit, onInspect, onPrepare }: { controller: RecordingRangeController; available: boolean; onBack: () => void; onSubmit: () => void; onInspect: () => void; onPrepare: () => void }) {
   const { t } = useTranslation('recording-editor');
   const inspection = range.outcome?.inspection;
-  const reviewTarget = inspection?.ruleId && range.outcome ? buildStudioEntityLocatorTarget({ step: 2,
-    workspace_id: range.outcome.request.workspaceId, device_id: range.outcome.request.deviceId, rule_id: inspection.ruleId,
+  const ruleId = range.outcome?.rule?.id ?? inspection?.ruleId;
+  const reviewTarget = ruleId && range.outcome ? buildStudioEntityLocatorTarget({ step: 2,
+    workspace_id: range.outcome.request.workspaceId, device_id: range.outcome.request.deviceId, rule_id: ruleId,
     mapping_id: null, group_id: null, group_revision: null }) : null;
   return <><div className="gw-modal-body space-y-4"><p data-testid="recording-range-device">{range.target?.name}</p>
     {available ? <p className="gw-muted" data-testid="recording-source-confirmed">{t('range.savedDeviceNote')}</p> : <p role="alert">{t('picker.unavailable')}</p>}
@@ -14,7 +16,12 @@ export function RecordingRangeContent({ controller: range, available, onBack, on
       inputMode={field === 'count' ? 'numeric' : undefined} onChange={event => range.change({ ...range.buffer, [field]: event.target.value })} /></label>)}
     <label className="block">{t('range.dataType')}<select disabled={!available} value={range.buffer.dataType} onChange={event => { const dataType = recordingRangeDataTypes.find(type => type === event.target.value); if (dataType) range.change({ ...range.buffer, dataType }); }}>
       {recordingRangeDataTypes.map(type => <option key={type} value={type}>{type}</option>)}</select></label>
-    <details><summary>{t('range.transform')}</summary>{(['scale', 'offset'] as const).map(field => <label key={field}>{t(`range.${field}`)}<input disabled={!available} value={range.buffer[field]} inputMode="decimal" onChange={event => range.change({ ...range.buffer, [field]: event.target.value })} /></label>)}</details>
+    <details><summary>{t('range.transform')}</summary><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{(['scale', 'offset'] as const).map(field => <label key={field}>{t(`range.${field}`)}<input disabled={!available} value={range.buffer[field]} inputMode="decimal" onChange={event => range.change({ ...range.buffer, [field]: event.target.value })} /></label>)}
+      <label>{t('range.dataFormat')}<select disabled={!available} value={range.buffer.dataFormat} onChange={event => { const dataFormat = event.target.value; if (dataFormat === '' || dataFormat === 'ABCD' || dataFormat === 'BADC' || dataFormat === 'CDAB' || dataFormat === 'DCBA') range.change({ ...range.buffer, dataFormat }); }}>
+        <option value="">{t('range.defaultFormat')}</option>{['ABCD', 'BADC', 'CDAB', 'DCBA'].map(format => <option key={format} value={format}>{format}</option>)}
+      </select></label>
+      <label>{t('range.unit')}<input disabled={!available} value={range.buffer.unit} onChange={event => range.change({ ...range.buffer, unit: event.target.value })} /></label>
+    </div><p className="gw-muted">{t('range.unitNote')}</p></details>
     {range.parsed && <p className="gw-muted">{t('range.prefix', { prefix: range.parsed.rule.naming_prefix })}</p>}
     {range.parsed && <p role="status">{t('range.span', { count: range.parsed.rule.count, span: range.parsed.span, end: range.parsed.end })}</p>}
     {range.dirty && !range.parsed && !range.preparing && !range.blocked && <p role="alert">{t('range.invalid')}</p>}
@@ -26,6 +33,7 @@ export function RecordingRangeContent({ controller: range, available, onBack, on
     {inspection?.status === 'current-state' && <p role="status" data-testid="recording-range-current-state">{t('range.inspectedUnknown')} · {inspection.currentRule?.start_address}</p>}
     {inspection?.status === 'unavailable' && <p role="alert" data-testid="recording-range-inspection-unavailable">{t(inspection.ruleId ? 'range.inspectFailed' : 'range.inspectUnavailable')}</p>}
     {reviewTarget && <a href={reviewTarget} target="_blank" rel="noopener noreferrer">{t('range.reviewSource')}</a>}
+    <RecordingRangeSchedule workspaceId={range.workspaceId} deviceId={range.target?.id} outcome={range.outcome} />
     {range.outcome?.status === 'saved-inactive' && <p className="gw-muted">{t('range.prepareNote')}</p>}
     {range.outcome?.preparationError && <p role="alert">{t(`range.${range.outcome.preparationError}`)}</p>}
     {range.outcome && ['confirmed', 'saved-inactive'].includes(range.outcome.status) && range.dirty && <p role="status" data-testid="recording-range-newer">{t('range.newer')}</p>}

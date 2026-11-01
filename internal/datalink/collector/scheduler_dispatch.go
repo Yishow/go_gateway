@@ -2,153 +2,66 @@ package collector
 
 import (
 	"context"
-	"fmt"
+	"slices"
 	"sync"
 	"time"
 
-	"go-gateway/internal/datalink/collector/health"
-	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 )
 
-// =============================================================================
-// 內部方法
-// =============================================================================
-
 // startGroupTicker 啟動群組 Ticker (必須持有 mu 鎖)
 func (s *Scheduler) startGroupTicker(group *schema.PollingGroup) {
+	captured := *group
+	group = &captured
 	interval := time.Duration(group.IntervalMs) * time.Millisecond
-
-	gt := &groupTicker{
-		group:  group,
-		ticker: time.NewTicker(interval),
-		stopCh: make(chan struct{}),
-		done:   make(chan struct{}),
-	}
-
+	gt := &groupTicker{group: group, ticker: time.NewTicker(interval), stopCh: make(chan struct{}), done: make(chan struct{})}
 	s.groupTickers[group.ID] = gt
-
 	s.wg.Go(func() { s.runGroupTicker(gt) })
 }
 
 // runGroupTicker 運行群組 Ticker
 func (s *Scheduler) runGroupTicker(gt *groupTicker) {
 	defer close(gt.done)
-
 	for {
 		select {
 		case <-gt.stopCh:
 			return
 		case <-gt.ticker.C:
-			s.pollGroup(gt.group.ID)
+			s.pollGroup(gt.group.ID, gt)
 		}
 	}
 }
 
-// pollGroup 輪詢群組
-func (s *Scheduler) pollGroup(groupID string) {
-	s.mu.RLock()
-	// 取得群組中的所有點位
-	pointsToPoll := make([]pointInfo, 0)
-	for _, info := range s.pointInfos {
-		if info.PollingGroupID == groupID && !info.recoveryPending {
-			pointsToPoll = append(pointsToPoll, info)
-		}
-	}
-	s.mu.RUnlock()
-
-	// 依設備分組
-	devicePoints := make(map[string][]pointInfo)
-	for _, info := range pointsToPoll {
-		devicePoints[info.DeviceID] = append(devicePoints[info.DeviceID], info)
-	}
-
-	// 各設備並行處理，同一設備內依序執行。
+// pollGroup retains the existing per-device parallelism and group wait. Fair
+// due admission/coalescing is a separate migration, not part of planned reads.
+func (s *Scheduler) pollGroup(groupID string, expected ...*groupTicker) {
+	snapshots := s.captureScheduledGroup(groupID, expected...)
 	var wg sync.WaitGroup
-	for deviceID, points := range devicePoints {
-		wg.Go(func() { s.pollDevicePoints(deviceID, points) })
+	for _, snapshot := range snapshots {
+		wg.Go(func() { s.pollScheduledSnapshot(snapshot) })
 	}
 	wg.Wait()
 }
 
-// pollDevicePoints 輪詢設備的點位
+// pollDevicePoints retains the existing internal direct-call seam. Production
+// tickers capture all group slots and their device configs together above.
 func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
-	// 取得設備鎖與熔斷器
 	s.mu.RLock()
-	lock, exists := s.deviceLocks[deviceID]
-	deviceCfg, cfgExists := s.deviceConfigs[deviceID]
-	breaker := s.deviceBreakers[deviceID]
+	device, exists := s.deviceConfigs[deviceID]
 	ctx := s.pollCtx
-	s.mu.RUnlock()
-
-	if !exists || !cfgExists {
-		s.mu.Lock()
-		s.ensureDeviceLock(deviceID)
-		lock = s.deviceLocks[deviceID]
-		deviceCfg, cfgExists = s.deviceConfigs[deviceID]
-		if s.deviceBreakers[deviceID] == nil {
-			s.deviceBreakers[deviceID] = health.NewCircuitBreaker(s.config.BreakerConfig)
-		}
-		breaker = s.deviceBreakers[deviceID]
-		s.mu.Unlock()
-		if !cfgExists {
-			return
-		}
-	}
-
-	// 檢查熔斷器是否允許請求
-	acquisitionID := s.nextAcquisitionID()
-	if breaker != nil && !breaker.AllowRequest() {
-		// 熔斷中，跳過採集並產生熔斷錯誤
-		for _, pt := range points {
-			s.emitValue(s.collectedValueWithReason(deviceCfg, pt, connector.ReadResult{
-				Quality: schema.QualityBad,
-				Error:   fmt.Sprintf("設備熔斷中 (狀態: %s)", breaker.State()),
-			}, nil, acquisitionID, s.now(), "circuit-open"))
-		}
-		return
-	}
-
-	// 鎖定設備確保串列存取
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if err := lock.LockContext(ctx); err != nil {
-		return
+	snapshot := scheduledSnapshot{device: device, geometry: s.currentAcquisitionGeometryLocked(deviceID), points: slices.Clone(points), ctx: ctx, running: s.running, capturedAt: time.Now()}
+	if len(points) > 0 {
+		snapshot.groupID = points[0].PollingGroupID
+		snapshot.ticker = s.groupTickers[snapshot.groupID]
+		if snapshot.ticker != nil {
+			snapshot.cadence = time.Duration(snapshot.ticker.group.IntervalMs) * time.Millisecond
+		}
 	}
-	defer lock.Unlock()
-
-	// 取得或建立連線
-	if ctx.Err() != nil {
-		return
-	}
-	conn, err := s.connMgr.GetOrCreate(ctx, deviceID, deviceCfg.Protocol, deviceCfg.Config)
-	if err != nil {
-		// 連線失敗，報告給熔斷器
-		if breaker != nil {
-			breaker.ReportResult(err)
-		}
-
-		// 為所有點位產生錯誤結果
-		for _, pt := range points {
-			s.emitValue(s.collectedValueWithReason(deviceCfg, pt, connector.ReadResult{
-				Quality: schema.QualityBad,
-				Error:   fmt.Sprintf("連線失敗: %v", err),
-			}, nil, acquisitionID, s.now(), "connection-failed"))
-		}
-		return
-	}
-
-	// 逐一讀取點位，並報告結果給熔斷器
-	for _, pt := range points {
-		if ctx.Err() != nil {
-			return
-		}
-		err := s.pollPointWithAcquisition(ctx, conn, pt, acquisitionID)
-
-		// 報告結果給熔斷器
-		if breaker != nil {
-			breaker.ReportResult(err)
-		}
+	s.mu.RUnlock()
+	if exists {
+		s.pollScheduledSnapshot(snapshot)
 	}
 }

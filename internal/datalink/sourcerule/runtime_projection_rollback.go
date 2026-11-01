@@ -36,6 +36,11 @@ func (s *Service) restoreCapturedRuntimeProjection(ctx context.Context, value an
 	if value == nil {
 		return nil
 	}
+	if runtime, ok := s.runtimeSync.(interface {
+		RestoreSourceRuleProjectionContext(context.Context, any, *RuntimeProjectionProof) error
+	}); ok {
+		return runtime.RestoreSourceRuleProjectionContext(ctx, value, s.sourceProjectionProof(ctx))
+	}
 	if runtime, ok := s.runtimeSync.(sourceProjectionRollback); ok {
 		return runtime.RestoreSourceRuleProjection(value, s.sourceProjectionProof(ctx))
 	}

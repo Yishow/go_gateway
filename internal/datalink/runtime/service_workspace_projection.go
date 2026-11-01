@@ -25,6 +25,13 @@ func (s *Service) ApplyWorkspaceProjection(ctx context.Context, projection *work
 		return fmt.Errorf("workspace runtime projection 不可為 nil")
 	}
 
+	var freezeErr error
+	projection, freezeErr = projection.FrozenCopy()
+	if freezeErr != nil {
+		return freezeErr
+	}
+	ctx, finishAcquisition := s.beginFullAcquisitionProjection(ctx, projection)
+	defer finishAcquisition()
 	var profileErr error
 	ctx, profileErr = s.prepareProjectionReadProfiles(ctx, projection)
 	if profileErr != nil {
@@ -39,20 +46,20 @@ func (s *Service) ApplyWorkspaceProjection(ctx context.Context, projection *work
 		activeDevices[deviceRecord.ID] = struct{}{}
 	}
 
-	for deviceID := range s.scheduler.GetAllDeviceBreakerStates() {
+	for deviceID := range sourceAcquisitionProjectionFrom(ctx).devices {
 		if _, ok := activeDevices[deviceID]; !ok {
-			s.RemoveDevice(deviceID)
+			if !s.removeAcquisitionProjectionDevice(ctx, deviceID) {
+				return fmt.Errorf("source projection device removal changed")
+			}
 		}
 	}
 	for _, deviceRecord := range projection.Devices {
-		if deviceRecord == nil {
+		if deviceRecord == nil || deviceRecord.Status != schema.DeviceStatusActive {
 			continue
 		}
-		if deviceRecord.Status != schema.DeviceStatusActive {
-			s.RemoveDevice(deviceRecord.ID)
-			continue
+		if !s.applyAcquisitionProjectionDevice(ctx, deviceRecord) {
+			return fmt.Errorf("source projection device installation changed")
 		}
-		s.scheduler.AddDevice(deviceRecord)
 	}
 
 	desiredPoints := make(map[string]struct{}, len(projection.Points))
@@ -62,7 +69,7 @@ func (s *Service) ApplyWorkspaceProjection(ctx context.Context, projection *work
 		}
 		desiredPoints[pointRecord.ID] = struct{}{}
 	}
-	for pointID := range s.currentPointMetaIDs() {
+	for pointID := range sourceAcquisitionProjectionFrom(ctx).pointDevices {
 		if _, ok := desiredPoints[pointID]; !ok {
 			if err := s.removeProjectionPoint(ctx, pointID); err != nil {
 				return err
@@ -90,23 +97,19 @@ func (s *Service) ApplyWorkspaceProjection(ctx context.Context, projection *work
 		}
 	}
 
-	if err := s.applyWorkspaceProjectionMappings(ctx, projection); err != nil {
+	if handled, err := s.publishFullAcquisitionProjection(ctx, projection); err != nil {
 		return err
+	} else if !handled {
+		if err := s.applyWorkspaceProjectionMappings(ctx, projection); err != nil {
+			return err
+		}
+		s.replaceProjectionAligned(projection)
 	}
-	s.replaceProjectionAligned(projection)
+	// SQL acceptance and the native publication are settled. Optional observer
+	// reentry may install a newer source; it must not prolong this quarantine.
+	finishAcquisition()
 	s.finishAcquisitionObservation(ctx, observation)
 	return nil
-}
-
-func (s *Service) currentPointMetaIDs() map[string]struct{} {
-	s.pointMetaMu.RLock()
-	defer s.pointMetaMu.RUnlock()
-
-	ids := make(map[string]struct{}, len(s.pointMetaIndex))
-	for pointID := range s.pointMetaIndex {
-		ids[pointID] = struct{}{}
-	}
-	return ids
 }
 
 func (s *Service) currentPointMetaIDsForDevice(deviceID string) map[string]struct{} {
@@ -150,7 +153,9 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 	}
 	active := targetDevice != nil && targetDevice.Status == schema.DeviceStatusActive
 	if active {
-		s.scheduler.AddDevice(targetDevice)
+		if !s.applyAcquisitionProjectionDevice(ctx, targetDevice) {
+			return fmt.Errorf("source projection device installation changed")
+		}
 	} else {
 		s.RemoveDevice(deviceID)
 	}
@@ -190,6 +195,10 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 		for _, group := range projection.PollingGroups {
 			s.scheduler.AddPollingGroup(group) //nolint:contextcheck // Scheduler lifecycle API does not accept context.
 		}
+	}
+	if capture := scopedAcquisitionProjection(ctx); capture != nil {
+		capture.observations = append(capture.observations, observation)
+		return nil
 	}
 	if err := s.applyWorkspaceProjectionMappingsForPoints(ctx, projection, desiredPoints); err != nil {
 		return err

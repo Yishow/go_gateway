@@ -2,20 +2,8 @@ import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ProtocolId } from '../../state/types';
 import { Field } from '../../components/Field';
-import { Input, Select } from '../../components/inputs';
-
-function displayParity(value: unknown): 'N' | 'E' | 'O' {
-  switch (value) {
-    case 'even':
-    case 'E':
-      return 'E';
-    case 'odd':
-    case 'O':
-      return 'O';
-    default:
-      return 'N';
-  }
-}
+import { Input } from '../../components/inputs';
+import { ConnectionAdvancedFields, FatekModeField, SerialConnectionFields } from './ConnectionProtocolFields';
 
 export interface ConnectionConfigFormProps {
   /** 協議 ID，決定渲染哪種配置佈局 */
@@ -46,7 +34,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
   const isTcpLike =
     protocol === 'modbus_tcp' ||
     protocol === 'modbus_udp' ||
-    protocol === 'fatek_fbs' ||
+    (protocol === 'fatek_fbs' && (config.mode ?? 'tcp') === 'tcp') ||
     protocol === 'mc_3e';
 
   // 輔助更新屬性的 handler
@@ -57,7 +45,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
   if (isTcpLike) {
     const isStation = protocol === 'mc_3e' || protocol === 'fatek_fbs';
     // 只顯示設定裡真正存在的值；預設值由裝置載入正規化寫入，避免畫面與有效性判定不一致。
-    const stationValue = (config.station_no as number) ?? (config.station as number) ?? (config.slave_id as number) ?? '';
+    const stationValue = (config.station_no as number) ?? (config.station as number) ?? (config.slave_id as number) ?? (config.module_station_no as number) ?? '';
 
     const handleStationChange = (val: string | number) => {
       const num = rawNumericText ? String(val) : val === '' ? '' : Number(val);
@@ -70,6 +58,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
 
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {protocol === 'fatek_fbs' && <FatekModeField config={config} onChange={onChange} />}
         <Field label={t('step1.fields.host')} required>
           <Input
             type="text"
@@ -112,64 +101,14 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
             data-testid="input-timeout"
           />
         </Field>
+        <ConnectionAdvancedFields protocol={protocol} config={config} onChange={onChange} rawNumericText={rawNumericText} />
       </div>
     );
   }
 
 
-  if (protocol === 'modbus_rtu') {
-    return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label={t('step1.fields.serial_port')} required>
-          <Input
-            type="text"
-            value={(config.serial_port as string) ?? (config.port as string) ?? ''}
-            onChange={(e) => handleChange('serial_port', e.target.value)}
-            placeholder="/dev/ttyUSB0"
-            data-testid="input-rtu-port"
-          />
-        </Field>
-
-        <Field label={t('step1.fields.baud_rate')} required>
-          <Select
-            value={(config.baud_rate as number) ?? (config.baud as number) ?? 9600}
-            onChange={(e) => handleChange('baud_rate', Number(e.target.value))}
-            data-testid="select-baud"
-          >
-            <option value={2400}>2400</option>
-            <option value={4800}>4800</option>
-            <option value={9600}>9600</option>
-            <option value={19200}>19200</option>
-            <option value={38400}>38400</option>
-            <option value={57600}>57600</option>
-            <option value={115200}>115200</option>
-          </Select>
-        </Field>
-
-        <Field label={t('step1.fields.parity')} required>
-          <Select
-            value={displayParity(config.parity)}
-            onChange={(e) => handleChange('parity', e.target.value)}
-            data-testid="select-parity"
-          >
-            <option value="N">{t('step1.parity.none')}</option>
-            <option value="E">{t('step1.parity.even')}</option>
-            <option value="O">{t('step1.parity.odd')}</option>
-          </Select>
-        </Field>
-
-        <Field label={t('step1.fields.slave_id')} required>
-          <Input
-            type={rawNumericText ? "text" : "number"}
-            inputMode={rawNumericText ? "decimal" : undefined}
-            value={(config.slave_id as number) ?? ''}
-            onChange={(e) => handleChange('slave_id', rawNumericText ? e.target.value : e.target.value === '' ? '' : Number(e.target.value))}
-            placeholder="1"
-            data-testid="input-rtu-slave-id"
-          />
-        </Field>
-      </div>
-    );
+  if (protocol === 'modbus_rtu' || protocol === 'fatek_fbs') {
+    return <SerialConnectionFields protocol={protocol} config={config} onChange={onChange} rawNumericText={rawNumericText} />;
   }
 
   if (protocol === 'mqtt') {

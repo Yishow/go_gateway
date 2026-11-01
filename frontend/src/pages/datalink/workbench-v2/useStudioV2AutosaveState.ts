@@ -468,6 +468,7 @@ export function useStudioV2AutosaveState(
       dispatch,
     },
     deviceSource: locatorEntry ? { ...deviceSubmission.port, range: sourceRanges.port,
+      acknowledgeLocatorGroupSave: sourceLease.acknowledgeLocatorGroupSave,
       prepare: async (id: string) => id === sourceWorkspaceId && (sourceLease.allowed ? Boolean(await sourceLease.readback()) : await sourceLease.acquire(id)),
       submit: async (request: DeviceSourceRequest) => sourceLease.allowed && await sourceLease.readback() ? deviceSubmission.port.submit(request) : { request, status: 'blocked' as const },
     } : { ...deviceSubmission.port, range: sourceRanges.port },

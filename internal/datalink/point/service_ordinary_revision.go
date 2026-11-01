@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"time"
+
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
-	"time"
 )
 
 type ordinaryRevisionUpdater interface {
@@ -33,6 +34,8 @@ func (s *Service) UpdateOrdinary(ctx context.Context, before *schema.Point, req 
 	if !ok {
 		return nil, ErrFormatUnavailable
 	}
+	finish := s.beginAcquisitionMutation(ctx, next.DeviceID)
+	defer finish()
 	if err := repo.UpdateOrdinaryRevision(ctx, next, before.RevisionID, installedBaseline); err != nil {
 		return nil, err
 	}

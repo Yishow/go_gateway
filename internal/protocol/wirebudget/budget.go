@@ -52,8 +52,15 @@ func Take(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if err := checkAdmission(ctx); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	b := From(ctx)
 	if b == nil {
+		observeSend(ctx)
 		return nil
 	}
 	for {
@@ -62,6 +69,7 @@ func Take(ctx context.Context) error {
 			return ErrExhausted
 		}
 		if b.used.CompareAndSwap(n, n+1) {
+			observeSend(ctx)
 			return nil
 		}
 	}

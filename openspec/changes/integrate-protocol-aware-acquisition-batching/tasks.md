@@ -17,8 +17,8 @@
 
 ## 3. 既有排程遷移
 
-- [ ] 3.1 [after: 2.6] 在既有collector遷移Scheduled collection為planned reads，落實「結果、時間與版本不冒充一致快照」與Quality and timestamp；production wiring fixture驗scan/request identity、same-batch completion、每點一次emission、舊lease/revision不刷新新設定。
-- [ ] 3.2 [after: 3.1] 交付「調度、重試與背壓有界」：due producer脫離pollGroup全設備等待、bounded per-group coalescing／fair queue與drop counters；fake clock／race驗慢device不擋同group快device、多group不互覆、queue飽和可觀測及stop零新send。
+- [x] 3.1 [after: 2.6] 在既有collector遷移Scheduled collection為planned reads，落實「結果、時間與版本不冒充一致快照」與Quality and timestamp；production wiring fixture驗scan/request identity、same-batch completion、每點一次emission、舊lease/revision不刷新新設定。
+- [ ] 3.2 [after: 3.1] 交付「調度、重試與背壓有界」：due producer脫離pollGroup全設備等待、bounded per-group coalescing／fair queue與drop counters；fake clock／race驗慢device不擋同group快device、多group不互覆、queue飽和可觀測及stop零新send。 依3.2交接澄清，以每group一container／每(device,group)一pending entry及global entry bound、per-device running與可暫放的fair active permit驗收；原budget/deadline/actual-send fence不變。分別驗due admission counters與既有emitValue output loss的captured identity、有界近期明細／evicted彙總，兩者不可互代；manual shared executor仍留3.3，4.1只消費已有diagnostics。
 - [ ] 3.3 [after: 3.2] PollNowContext使用同planner/executor，保留exact requested subset／cancel並移除重複推導；manual與scheduled交錯fixture驗device lock、未要求點無新讀值、一次final結果與source-set不受record selectors影響。
 
 ## 4. 預覽與優化驗收

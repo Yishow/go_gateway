@@ -149,7 +149,7 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
           onPointerDownOutside={event => event.preventDefault()}
           onEscapeKeyDown={event => { event.preventDefault(); if (view === 'device-buffer') { sourceClose.current?.(); return; } if (confirm) setConfirm(false); else close(); }}>
           <header className="gw-modal-header"><Dialog.Title>{t(confirm || deviceConfirm ? 'device.discardTitle' : view === 'picker' ? 'picker.title' : view === 'range-buffer' ? 'range.title' : 'source.title')}</Dialog.Title>
-            <Dialog.Description>{t(confirm || deviceConfirm ? 'device.discardDescription' : 'picker.description')}</Dialog.Description></header>
+            <Dialog.Description>{t(confirm || deviceConfirm ? 'device.discardDescription' : view === 'range-buffer' ? 'range.description' : 'picker.description')}</Dialog.Description></header>
           {confirm ? <><div className="gw-modal-body" /><footer className="gw-modal-footer">
             <button type="button" className="gw-secondary" onClick={() => setConfirm(false)}>{t('device.keep')}</button>
             <button type="button" className="gw-primary" onClick={() => { setConfirm(false); rangeBuffer.reset(); setView('picker'); }}>{t('device.discard')}</button>

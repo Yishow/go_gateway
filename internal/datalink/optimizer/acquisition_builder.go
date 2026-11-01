@@ -13,6 +13,8 @@ import (
 	"go-gateway/lib/hsllogic"
 )
 
+const acquisitionReasonInvalidCapability = "invalid-capability"
+
 // BuildAcquisitionPlan plans without device I/O or runtime mutation. The caller
 // must not mutate input concurrently with this call; subsequent mutation is safe.
 // Compatible complete scalars share safe contiguous reads; uncovered gaps and
@@ -124,17 +126,20 @@ func planScalar(source AcquisitionSource, point EffectivePoint) (AcquisitionRequ
 		return AcquisitionRequest{}, "forbidden-address"
 	}
 	cap := source.Capability
+	if cap.RandomProtocolLimit < 0 {
+		return AcquisitionRequest{}, acquisitionReasonInvalidCapability
+	}
 	limit := 0
 	for _, n := range []int{cap.ProtocolLimit, cap.ClientLimit, cap.DeviceLimit} {
 		if n < 0 {
-			return AcquisitionRequest{}, "invalid-capability"
+			return AcquisitionRequest{}, acquisitionReasonInvalidCapability
 		}
 		if n > 0 && (limit == 0 || n < limit) {
 			limit = n
 		}
 	}
 	if limit == 0 {
-		return AcquisitionRequest{}, "invalid-capability"
+		return AcquisitionRequest{}, acquisitionReasonInvalidCapability
 	}
 	limit = min(limit, nativeClientLimit(source.Identity.Protocol, nativeBits))
 	if width > limit {

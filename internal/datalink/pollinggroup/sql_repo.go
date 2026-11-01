@@ -18,7 +18,8 @@ import (
 
 // SQLRepository SQL 輪詢群組儲存庫
 type SQLRepository struct {
-	db *sql.DB
+	db                  *sql.DB
+	acquisitionMutation AcquisitionMutationLifecycle
 }
 
 // NewSQLRepository 建立新的 SQL 儲存庫
@@ -94,6 +95,9 @@ func (r *SQLRepository) Update(ctx context.Context, group *schema.PollingGroup) 
 
 // Delete 刪除輪詢群組
 func (r *SQLRepository) Delete(ctx context.Context, id string) error {
+	if r.acquisitionMutation != nil {
+		return r.deleteWithAcquisitionMutation(ctx, id)
+	}
 	query := `DELETE FROM polling_groups WHERE id = ?`
 
 	result, err := r.db.ExecContext(ctx, query, id)

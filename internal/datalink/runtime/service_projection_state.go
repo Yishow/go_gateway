@@ -9,6 +9,7 @@ import (
 )
 
 type runtimeProjectionDeviceState struct {
+	acquisitionGraph workspace.AcquisitionSourceGraph
 	RuntimeVersion   string
 	WorkspaceVersion string
 	Alignment        workspace.RuntimeProjectionAlignment
@@ -63,12 +64,7 @@ func (s *Service) markDeviceProjectionAligned(deviceID string, projection *works
 		maps.Copy(merged, pointIDs)
 		pointIDs = merged
 	}
-	s.projections[deviceID] = runtimeProjectionDeviceState{
-		RuntimeVersion:   projection.Version,
-		WorkspaceVersion: projection.Version,
-		Alignment:        workspace.RuntimeProjectionAlignmentAligned,
-		AppliedPointIDs:  pointIDs,
-	}
+	s.projections[deviceID] = alignedProjectionDeviceState(projection.Version, pointIDs)
 	s.projectionMu.Unlock()
 }
 

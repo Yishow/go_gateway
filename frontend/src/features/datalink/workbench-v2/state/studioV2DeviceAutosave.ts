@@ -157,7 +157,7 @@ export function isStudioV2DeviceValid(device: Device): boolean {
     return Boolean(
       asNonEmptyString(device.config.host) &&
       asPositiveNumber(device.config.port) &&
-      asNonNegativeNumber(device.config.station_no ?? device.config.station) !== null &&
+      asNonNegativeNumber(toBackendConnectionConfig(device).station_no) !== null &&
       asPositiveNumber(device.config.timeout),
     );
   }

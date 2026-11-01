@@ -59,6 +59,9 @@ func DefaultConnectionManagerConfig() ConnectionManagerConfig {
 
 // ManagedConnection 受管理的連線
 type ManagedConnection struct {
+	// managerGeneration is published once, only by the owning manager entry.
+	managerGeneration uint64
+
 	// DeviceID 設備 ID
 	DeviceID string
 

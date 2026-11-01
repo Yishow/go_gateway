@@ -5,25 +5,23 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"reflect"
 	"strings"
 	"sync/atomic"
+	"testing"
 	"time"
 
 	"go-gateway/internal/datalink/collector/health"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/measurement"
-
-	"reflect"
-	"testing"
+	"go-gateway/internal/datalink/schema"
 
 	"github.com/stretchr/testify/require"
-
-	"go-gateway/internal/datalink/schema"
 )
 
 type pointObservationInstaller interface {
 	HasAcquisitionObserver() bool
-	AddPointWithObservationLease(*schema.Point) uint64
+	AddPointWithObservationLease(*schema.Point, ...connector.ReadProfile) uint64
 }
 
 func TestSchedulerObservationClosedObserverContract(t *testing.T) {
@@ -35,7 +33,7 @@ func TestSchedulerObservationClosedObserverContract(t *testing.T) {
 		t.Fatal("acquisition observer must accept one closed value and return no domain outcome")
 	}
 	observation := field.Type.In(0)
-	want := []string{"Binding", "DeviceID", "PointID", "AcquisitionID", "ConfigFingerprint", "Quality", "QualityReason", "ReceivedAt"}
+	want := []string{"Binding", "DeviceID", "PointID", "AcquisitionID", "RequestID", "PlanFingerprint", "PlanReason", "ConfigFingerprint", "Quality", "QualityReason", "ReceivedAt"}
 	if observation.Kind() != reflect.Struct || observation.NumField() != len(want) {
 		t.Fatal("observer must exclude arbitrary payload, values, raw bytes and errors")
 	}

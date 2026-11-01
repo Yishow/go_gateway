@@ -72,6 +72,22 @@ FATEK command 48 SHALL distinguish native component count from its independent 6
 ### Requirement: Capability-aware random acquisition
 The system SHALL integrate existing MC and FATEK random-read clients for verified compatible capabilities. Unknown or unsupported capabilities SHALL use safe contiguous or scalar reads with an explicit reason. MC word-only random restrictions and FATEK native component widths SHALL be respected.
 
+The only persisted capability declaration SHALL be the optional `acquisition` object in the existing Device connection configuration. Version 1 SHALL accept a known profile, optional stricter positive native-unit and directional application-frame limits, and optional revision-bound explicit readable/forbidden/excluded native ranges. Unknown fields, null declarations, unsupported versions/profiles and invalid limits/ranges SHALL be rejected by the existing device validation boundary. A single pure resolver SHALL serve installation and future preview; registry schema SHALL describe that same declaration. Coverage content as well as its revision SHALL participate in identity. No recording selector, client implementation, connection success or speculative read SHALL establish device support.
+
+#### Scenario: Historical configuration stays safe
+- **GIVEN** a saved MC or FATEK connection without an acquisition declaration, including a named FATEK subtype
+- **WHEN** scheduled acquisition resolves its capabilities
+- **THEN** random support remains unknown and only safe contiguous/scalar requests are eligible
+- **AND** an explicit `safe-v1` profile disables random without inventing readable holes.
+
+#### Scenario: Verified family and command-specific limits
+- **GIVEN** an explicit compatible `fatek-fbs-ascii-v1` or `mitsubishi-fx5-cpu-3e-binary-v1` declaration
+- **WHEN** the latter selects FX5 CPU built-in Ethernet 3E binary word random acquisition
+- **THEN** its 0403/0000 protocol limit is 192 access points independently of the client's 255-item serializer limit
+- **AND** `RandomProtocolLimit` only adds a stricter random-command cap; it never relaxes existing shared limits or constrains contiguous/bit commands by accident
+- **AND** unverified MC/Q/L/R/module families remain unknown, while all native-unit, frame-byte and address limits remain independently enforced.
+
+
 #### Scenario: Three sparse word Points
 - **GIVEN** supported MC or FATEK random capability and three int16 Points D0, D10 and D20
 - **WHEN** one error-free scan executes

@@ -100,6 +100,7 @@ func (s *Service) sourceInputStillInstalled(deviceID, version string) bool {
 // FinalizeSourceRuleObservation is called only after all source authorities and
 // compensation finish. It never reconstructs a projection (which may bootstrap).
 func (s *Service) FinalizeSourceRuleObservation(ctx context.Context, outcome sourcerule.RuntimeReconcileOutcome, finalErr error) {
+	s.rejectSourceAcquisitionPublication(ctx, finalErr)
 	if s == nil || s.sourceRuleObserver == nil {
 		return
 	}

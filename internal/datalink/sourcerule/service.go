@@ -144,6 +144,8 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (result *sc
 
 	ctx, release := s.AcquireRuleMutation(ctx, id)
 	defer release()
+	ctx, finishAcquisition := s.beginSourceAcquisitionMutation(ctx, id, req.DeviceID)
+	defer finishAcquisition()
 	defer s.finalizePointWrites(ctx, &err)
 
 	plannedAddresses, err := buildPlannedPointAddresses(strings.TrimSpace(strings.ToUpper(req.StartAddress)), req.Count, req.DataType, deviceRecord.Protocol)
@@ -329,6 +331,8 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	if err != nil {
 		return nil, fmt.Errorf("取得來源規則失敗: %w", err)
 	}
+	ctx, finishAcquisition := s.beginSourceAcquisitionMutation(ctx, id, rule.DeviceID)
+	defer finishAcquisition()
 
 	deviceRecord, err := s.deviceSvc.GetByID(ctx, rule.DeviceID)
 	if err != nil {
@@ -640,6 +644,8 @@ func (s *Service) Delete(ctx context.Context, id string) (err error) {
 	if err != nil {
 		return fmt.Errorf("取得來源規則失敗: %w", err)
 	}
+	ctx, finishAcquisition := s.beginSourceAcquisitionMutation(ctx, id, rule.DeviceID)
+	defer finishAcquisition()
 	links, err := s.repo.ListLinks(ctx, id)
 	if err != nil {
 		return fmt.Errorf("取得來源規則連結失敗: %w", err)
@@ -712,6 +718,8 @@ func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) (err 
 	if err != nil {
 		return fmt.Errorf("取得來源規則失敗: %w", err)
 	}
+	ctx, finishAcquisition := s.beginSourceAcquisitionMutation(ctx, id, rule.DeviceID)
+	defer finishAcquisition()
 
 	previousRule := *rule
 	previousLinks, err := s.repo.ListLinks(ctx, id)
@@ -1040,48 +1048,4 @@ func decodeTransformPipeline(raw string) ([]schema.TransformStep, error) {
 		return []schema.TransformStep{}, nil
 	}
 	return steps, nil
-}
-
-// buildRuleTransformPipeline 根據來源規則建構 Mapping 的轉換管線。
-// 順序：先 cast（若目標型別與 Point 型別不同），再 scale（若有設定）。
-func (s *Service) buildRuleTransformPipeline(rule *schema.SourceRule, pointRecord *schema.Point) []schema.TransformStep {
-	steps := make([]schema.TransformStep, 0)
-	order := 0
-
-	targetDataType := desiredRuleTargetDataType(rule, pointRecord)
-
-	// 若目標型別與 Point 型別不同，加入 cast 步驟
-	if targetDataType != pointRecord.DataType && targetDataType.IsValid() {
-		steps = append(steps, schema.TransformStep{
-			Type:  schema.TransformCast,
-			Order: order,
-			Params: map[string]any{
-				"target_type": string(targetDataType),
-			},
-		})
-		order++
-	}
-
-	// 若有 scale 設定，加入 scale 步驟
-	if rule.ScaleMultiplier != nil || rule.ScaleOffset != nil {
-		scale := 1.0
-		if rule.ScaleMultiplier != nil {
-			scale = *rule.ScaleMultiplier
-		}
-		offset := 0.0
-		if rule.ScaleOffset != nil {
-			offset = *rule.ScaleOffset
-		}
-
-		steps = append(steps, schema.TransformStep{
-			Type:  schema.TransformScale,
-			Order: order,
-			Params: map[string]any{
-				"scale":  scale,
-				"offset": offset,
-			},
-		})
-	}
-
-	return steps
 }

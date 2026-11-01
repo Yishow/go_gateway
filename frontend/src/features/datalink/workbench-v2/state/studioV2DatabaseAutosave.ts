@@ -67,6 +67,17 @@ const CONNECTOR_EDIT_FIELDS = [
   'schema', 'table', 'write_mode', 'write_interval_seconds', 'timestamp_column',
 ] as const;
 
+/** The reducer records edits, including A→B→A, independently of render timing. */
+export function editStudioV2DatabaseConnector(current: DbConnector, patch: Partial<DbConnector>): DbConnector {
+  const fields = [...CONNECTOR_EDIT_FIELDS, 'connector_id', 'workspace_id'] as const;
+  const edited = fields.filter(field => Object.hasOwn(patch, field));
+  if (!edited.length) return { ...current, ...patch };
+  const generation = (current.edit_generation ?? 0) + 1;
+  return { ...current, ...patch, edit_generation: generation, field_generations: {
+    ...current.field_generations, ...Object.fromEntries(edited.map(field => [field, generation])),
+  } };
+}
+
 function sameFields<T>(left: T, right: T, fields: readonly (keyof T)[]): boolean {
   return fields.every((field) => left[field] === right[field]);
 }
@@ -102,17 +113,26 @@ export function mergeSavedStudioV2DatabaseConnector(
   submitted: DbConnector,
   record: StudioV2WorkspaceDatabaseConfigWithDelivery,
 ): DbConnector {
+  // The workspace is the setup revision's owner; a foreign/late ACK grants nothing.
+  if (submitted.connector_id && submitted.connector_id !== record.id ||
+    current.workspace_id && current.workspace_id !== record.workspace_id ||
+    submitted.workspace_id && current.workspace_id !== submitted.workspace_id ||
+    (current.field_generations?.workspace_id ?? 0) > (submitted.edit_generation ?? 0)) return current;
   const hydrated = hydrateStudioV2DatabaseConnector(record, submitted);
+  const generation = submitted.edit_generation ?? 0;
   const responseAlreadyHydrated = Boolean(record.identity_revision) && current.connector_id === record.id && current.identity_revision === record.identity_revision;
-  if ((current.connector_id ?? '') !== (submitted.connector_id ?? '') && !responseAlreadyHydrated) {
+  const selectionChanged = (current.field_generations?.connector_id ?? 0) > generation ||
+    (current.connector_id ?? '') !== (submitted.connector_id ?? '') && !responseAlreadyHydrated;
+  if (selectionChanged) {
     return { ...current, setup_revision: hydrated.setup_revision, save_state: 'saving', save_error: null };
   }
-  if (sameFields(current, submitted, CONNECTOR_EDIT_FIELDS)) return hydrated;
-  return {
-    ...current, connector_id: hydrated.connector_id, identity_revision: hydrated.identity_revision,
-    setup_revision: hydrated.setup_revision, workspace_id: hydrated.workspace_id, persisted: true,
-    save_state: 'saving', save_error: null,
-  };
+  const untouched = (field: typeof CONNECTOR_EDIT_FIELDS[number]) =>
+    (current.field_generations?.[field] ?? 0) <= generation && current[field] === submitted[field];
+  const newerFields = CONNECTOR_EDIT_FIELDS.filter(field => !untouched(field));
+  const preserved = Object.fromEntries(newerFields.map(field => [field, current[field]]));
+  const merged = { ...current, ...hydrated, ...preserved };
+  if (newerFields.length) merged.save_state = isStudioV2DatabaseConnectorValid(merged) ? 'saving' : 'draft-invalid';
+  return merged;
 }
 
 /** 分組在送出後被本地改動時保留本地分組，由排隊中的下一筆連線儲存送出。 */
@@ -131,9 +151,16 @@ export function mergeSavedStudioV2DatabaseRowGroups(
  */
 export function withLatestStudioV2DatabaseRevisions(snapshot: DbConnector, latest: DbConnector): DbConnector {
   const sameConnector = !snapshot.connector_id || snapshot.connector_id === latest.connector_id;
+  // Earlier ACKs may normalize fields while this snapshot waits in the queue. Rebase only
+  // fields with the same edit generation; newer user intent still belongs to its own snapshot.
+  const canonical = sameConnector && snapshot.edit_generation !== undefined
+    ? Object.fromEntries(CONNECTOR_EDIT_FIELDS.filter(field =>
+      (snapshot.field_generations?.[field] ?? 0) === (latest.field_generations?.[field] ?? 0))
+      .map(field => [field, latest[field]])) : {};
   return {
-    ...snapshot,
+    ...snapshot, ...canonical,
     setup_revision: latest.setup_revision,
+    workspace_id: latest.workspace_id,
     connector_id: sameConnector ? latest.connector_id : snapshot.connector_id,
     identity_revision: sameConnector ? latest.identity_revision : snapshot.identity_revision,
   };

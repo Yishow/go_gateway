@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useReducer, useCallback } from 'react';
+import type { StudioV2WorkspaceDatabaseConfigRecord } from '../../../../types/datalink';
 import type { ConnectionTestResult } from '../../../../types/datalink';
 import type { WorkbenchV2State, Device, Rule, Mapping, Point, DbRowGroup, ProtocolId, DbConnector, DbTarget, CommitLog, Settings, SettingsConnector } from './types';
 import { getDefaultConfig } from './protocols';
@@ -51,6 +52,9 @@ export type WorkbenchV2Action =
   | { type: 'setAllMappingsEnabled' | 'setAllDbTargetsEnabled'; enabled: boolean }
   | { type: 'bulkApplyTransform'; fromPointId: string; toPointIds: string[]; fields: ('scale' | 'offset' | 'target_type' | 'unit')[] }
   | { type: 'updateDbConnector'; patch: Partial<DbConnector> }
+  | { type: 'hydrateDbConnector'; record: StudioV2WorkspaceDatabaseConfigRecord }
+  | { type: 'acknowledgeDbConnectorSave'; submitted: DbConnector; rowGroups?: DbRowGroup[]; record: StudioV2WorkspaceDatabaseConfigRecord }
+  | { type: 'replaceDbTargets'; targets: Record<string, DbTarget> }
   | { type: 'upsertDbTarget'; pointId: string; target: DbTarget }
   | { type: 'updateDbTarget'; pointId: string; patch: Partial<DbTarget> }
   | { type: 'autoAssignDbTargets'; targets: Record<string, DbTarget> }
@@ -365,8 +369,8 @@ export function workbenchV2Reducer(state: WorkbenchV2State, action: WorkbenchV2A
     case 'setAllMappingsEnabled':
     case 'bulkApplyTransform':
       return mappingReducer(state, action);
-    case 'updateDbConnector':
-    case 'upsertDbTarget':
+    case 'updateDbConnector': case 'hydrateDbConnector': case 'acknowledgeDbConnectorSave':
+    case 'replaceDbTargets': case 'upsertDbTarget':
     case 'updateDbTarget':
     case 'setAllDbTargetsEnabled':
     case 'autoAssignDbTargets': case 'setDbRowGroups':

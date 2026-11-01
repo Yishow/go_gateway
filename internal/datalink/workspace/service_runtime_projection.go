@@ -62,6 +62,7 @@ const (
 
 // RuntimeProjection is the persisted workspace scope consumed by runtime activation and restart.
 type RuntimeProjection struct {
+	acquisitionGraphs map[string]AcquisitionSourceGraph
 	WorkspaceID       string                          `json:"workspace_id"`
 	Version           string                          `json:"version"`
 	Alignment         RuntimeProjectionAlignment      `json:"alignment"`
@@ -154,6 +155,7 @@ func (s *Service) RuntimeProjection(ctx context.Context) (*RuntimeProjection, er
 	if err != nil {
 		return nil, err
 	}
+	s.attachAcquisitionSourceGraphs(ctx, projection)
 	return projection, nil
 }
 

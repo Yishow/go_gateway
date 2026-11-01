@@ -2,9 +2,10 @@ package point
 
 import (
 	"context"
+	"time"
+
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
-	"time"
 )
 
 // UpdateMaterialized applies a rule plan only to the exact revision it read.
@@ -31,6 +32,8 @@ func (s *Service) UpdateMaterializedObserved(ctx context.Context, planned *schem
 	}
 	next.RevisionID = revision
 	next.UpdatedAt = time.Now()
+	finish := s.beginAcquisitionMutation(ctx, next.DeviceID)
+	defer finish()
 	complete := observeMaterialized(observer, planned, next)
 	err = repo.UpdateRevision(ctx, next, planned.RevisionID)
 	complete(err)

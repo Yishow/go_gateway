@@ -1,3 +1,4 @@
+import { MODBUS_RTU_BAUD_RATES } from '../state/protocolConnectionOptions';
 import type { DeviceSourceBuffer } from '../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { getDefaultConfig } from '../state/protocols';
 import { getProtocolSupport } from '../state/protocolSupport';
@@ -20,6 +21,7 @@ export function parsedDeviceSourceBuffer(buffer: DeviceSourceBuffer): DeviceSour
     if (!Number.isFinite(parsed)) return undefined;
     config[key] = parsed;
   }
+  if (buffer.protocol === 'modbus_rtu' && !MODBUS_RTU_BAUD_RATES.includes(Number(config.baud_rate ?? config.baud))) return undefined;
   const parsed = { ...buffer, config };
   return isStudioV2DeviceValid({ ...parsed, id: '', status: 'draft', test: null }) ? parsed : undefined;
 }

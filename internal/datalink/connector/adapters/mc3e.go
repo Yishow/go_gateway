@@ -18,11 +18,12 @@ import (
 
 // MC3EConnector Mitsubishi MC Protocol 3E Frame 連接器適配器
 type MC3EConnector struct {
-	client         *mcprotocol.MCClient
-	config         schema.ConnectionConfigMC3E
-	connected      bool
-	dataConverter  *hsllogic.DataConverter // hsllogic 數據轉換器
-	persistentMode bool                    // 長連接模式標誌
+	acquisitionGeneration acquisitionGeneration
+	client                *mcprotocol.MCClient
+	config                schema.ConnectionConfigMC3E
+	connected             bool
+	dataConverter         *hsllogic.DataConverter // hsllogic 數據轉換器
+	persistentMode        bool                    // 長連接模式標誌
 }
 
 // NewMC3EConnector 建立新的 MC 3E 連接器
@@ -78,7 +79,7 @@ func (c *MC3EConnector) Connect(ctx context.Context, configJSON string) error {
 
 	// 連線（僅在長連接模式下立即連線）
 	if c.persistentMode {
-		if err := c.client.ConnectContext(ctx); err != nil {
+		if err := c.acquisitionGeneration.connect(ctx, c.client.ConnectContext); err != nil {
 			return fmt.Errorf("MC 3E 連線失敗: %w", err)
 		}
 		c.connected = true
@@ -184,7 +185,7 @@ func (c *MC3EConnector) Reconnect(ctx context.Context) error {
 		return fmt.Errorf("客戶端未初始化，請先呼叫 Connect")
 	}
 
-	if err := c.client.ReconnectContext(ctx); err != nil {
+	if err := c.acquisitionGeneration.connect(ctx, c.client.ReconnectContext); err != nil {
 		c.connected = false
 		return fmt.Errorf("重新連線失敗: %w", err)
 	}
@@ -212,7 +213,7 @@ func (c *MC3EConnector) ensureConnectionContext(ctx context.Context) error {
 			if c.client == nil {
 				return fmt.Errorf("未連線")
 			}
-			if err := c.client.ConnectContext(ctx); err != nil {
+			if err := c.acquisitionGeneration.connect(ctx, c.client.ConnectContext); err != nil {
 				return fmt.Errorf("連線失敗: %w", err)
 			}
 			c.connected = true
@@ -227,7 +228,7 @@ func (c *MC3EConnector) ensureConnectionContext(ctx context.Context) error {
 			return err
 		}
 		if !connected {
-			if err := c.client.ConnectContext(ctx); err != nil {
+			if err := c.acquisitionGeneration.connect(ctx, c.client.ConnectContext); err != nil {
 				c.connected = false
 				return fmt.Errorf("連線失敗: %w", err)
 			}
@@ -241,7 +242,7 @@ func (c *MC3EConnector) ensureConnectionContext(ctx context.Context) error {
 	}
 
 	if !c.connected {
-		if err := c.client.ConnectContext(ctx); err != nil {
+		if err := c.acquisitionGeneration.connect(ctx, c.client.ConnectContext); err != nil {
 			return fmt.Errorf("連線失敗: %w", err)
 		}
 		c.connected = true

@@ -128,6 +128,8 @@ func (s *Service) MutateFormat(ctx context.Context, req FormatMutationRequest) (
 			req.freshGateError = ErrFormatUnavailable
 		}
 	}
+	finishAcquisition := s.beginAcquisitionMutation(ctx, req.DeviceID)
+	defer finishAcquisition()
 	result, err := store.MutateFormat(ctx, req)
 	if err != nil {
 		var failed *formatTransactionError

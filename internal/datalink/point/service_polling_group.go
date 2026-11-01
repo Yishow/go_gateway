@@ -202,6 +202,8 @@ func (s *Service) AssignToGroup(ctx context.Context, pointID, groupID string) er
 	point.PollingGroupID = &groupID
 	point.UpdatedAt = time.Now()
 
+	finish := s.beginAcquisitionMutation(ctx, point.DeviceID)
+	defer finish()
 	if err := s.repo.Update(ctx, point); err != nil {
 		return fmt.Errorf("更新點位失敗: %w", err)
 	}
@@ -219,6 +221,8 @@ func (s *Service) RemoveFromGroup(ctx context.Context, pointID string) error {
 	point.PollingGroupID = nil
 	point.UpdatedAt = time.Now()
 
+	finish := s.beginAcquisitionMutation(ctx, point.DeviceID)
+	defer finish()
 	if err := s.repo.Update(ctx, point); err != nil {
 		return fmt.Errorf("更新點位失敗: %w", err)
 	}

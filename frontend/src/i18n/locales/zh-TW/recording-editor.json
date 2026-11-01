@@ -1,4 +1,17 @@
 {
+  "connection": {
+    "dataFormat": "設備預設位元組／字組順序",
+    "defaultFormat": "未指定（沿用原協議預設）",
+    "mode": "連線模式",
+    "serial": "串列",
+    "serialHost": "串列埠位於後端閘道主機，不是目前瀏覽器所在電腦。",
+    "dataBits": "資料位元",
+    "stopBits": "停止位元",
+    "advanced": "進階連線參數",
+    "network_no": "網路編號",
+    "pc_no": "PC 編號",
+    "io_no": "I/O 編號"
+  },
   "device": {
     "open": "新增來源",
     "resume": "繼續設定來源",
@@ -84,7 +97,7 @@
     "savedDeviceNote": "此設備已保存。返回或取消記錄不會刪除此設備。",
     "save": "保存範圍",
     "dataType": "資料型別",
-    "transform": "換算（選填）",
+    "transform": "縮放、格式與單位（選填）",
     "scale": "倍率",
     "offset": "偏移量",
     "span": "{{count}} 筆資料 · 占用 {{span}} 個位址 · 結束於 {{end}}",
@@ -95,7 +108,7 @@
     "newer": "送出的範圍已保存，較新的輸入仍未送出。可在確認後返回點位。",
     "inspect": "查詢這次範圍請求",
     "located": "已保存 {{count}} 個點位，已清除搜尋與語意篩選以定位新點，請自行選取要加入的點位。",
-    "invalid": "請填寫範圍名稱、有效來源位址及正整數資料筆數，倍率與偏移量須為有效數值。",
+    "invalid": "請填寫範圍名稱、有效來源位址與正整數項目數。縮放必須為有效數字，範圍格式也必須受支援。",
     "prefix": "保存的點位名稱前綴：{{prefix}}",
     "otherPending": "此設備已保留。請先查詢尚未確認的範圍，再為另一設備新增範圍。",
     "offlineNote": "設備尚未就緒，將先保存離線來源；不會測試連線或開始採集。",
@@ -109,7 +122,23 @@
     "inspectedUnknown": "已讀取目前規則，但仍無法確認這次提交；本次輸入保留且不會重送。目前起始位址",
     "inspectFailed": "無法讀取並核對目前來源。提交結果仍未知，請稍後再查或到進階來源頁檢查。",
     "inspectUnavailable": "未收到可驗證的保存回覆，無法確認這次建立結果。請檢查進階來源設定，勿重複建立。",
-    "reviewSource": "到進階來源頁檢查（新分頁）",
-    "selectedUnsettled": "下列已選來源有待完成或結果未知的變更，請先查證；記錄草稿與成員設定已保留。"
+    "reviewSource": "開啟此範圍的來源設定（新分頁）",
+    "selectedUnsettled": "下列已選來源有待完成或結果未知的變更，請先查證；記錄草稿與成員設定已保留。",
+    "dataFormat": "範圍位元組／字組順序",
+    "defaultFormat": "預設（範圍未指定格式）",
+    "unit": "單位",
+    "unitNote": "套用到此範圍所有新點位的映射，不改變資料型態或記錄計算方式。",
+    "schedule": "採集排程",
+    "scheduleUnassigned": "保存後由既有輪詢群組配置決定採集；目前尚未讀回指派群組與週期。這不是記錄週期。",
+    "scheduleLoading": "正在讀取已存點位的輪詢群組…",
+    "scheduleObserved": "以下是讀回的輪詢群組配置，不代表採集正在執行。",
+    "scheduleRow": "{{name}} · {{interval}} 毫秒 · {{count}} 點",
+    "scheduleEnabled": "群組已啟用",
+    "scheduleDisabled": "群組已停用",
+    "scheduleUnavailable": "尚未取得精確對應的輪詢群組配置，請重新讀取確認。",
+    "scheduleRefresh": "重新讀取採集排程",
+    "globalScheduleSettings": "開啟全域排程設定（新分頁）",
+    "globalScheduleNote": "在進階工作區選擇「設定 → 排程器」。這是全域設定，不代表本範圍實際的群組週期；尚未保存的輸入留在此分頁。",
+    "description": "先保存共用來源範圍，再選擇要加入此記錄的已存點位。"
   }
 }

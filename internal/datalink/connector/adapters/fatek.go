@@ -18,11 +18,12 @@ import (
 
 // FatekConnector FATEK FBs 協議連接器適配器
 type FatekConnector struct {
-	client         *fatek.FatekClient
-	transport      fatek.Transport
-	config         schema.ConnectionConfigFatekFBs
-	connected      bool
-	persistentMode bool // 長連接模式標誌
+	acquisitionGeneration acquisitionGeneration
+	client                *fatek.FatekClient
+	transport             fatek.Transport
+	config                schema.ConnectionConfigFatekFBs
+	connected             bool
+	persistentMode        bool // 長連接模式標誌
 }
 
 // NewFatekConnector 建立新的 FATEK 連接器
@@ -89,7 +90,7 @@ func (c *FatekConnector) Connect(ctx context.Context, configJSON string) error {
 
 	// 連線（僅在長連接模式下立即連線）
 	if c.persistentMode {
-		if err := c.client.ConnectContext(ctx); err != nil {
+		if err := c.acquisitionGeneration.connect(ctx, c.client.ConnectContext); err != nil {
 			return fmt.Errorf("FATEK 連線失敗: %w", err)
 		}
 		c.connected = true

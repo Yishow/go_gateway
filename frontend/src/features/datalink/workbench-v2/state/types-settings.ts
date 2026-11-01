@@ -27,6 +27,9 @@ export interface DbConnector extends DatabaseDeliveryOutcomeFields {
   persisted?: boolean;
   save_state?: DatabaseSaveState;
   save_error?: string | null;
+  /** Client-only request generations; never serialized into the database API. */
+  edit_generation?: number;
+  field_generations?: Partial<Record<keyof DbConnector, number>>;
 }
 
 export interface DbRowGroup {

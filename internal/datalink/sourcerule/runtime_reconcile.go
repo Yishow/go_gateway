@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go-gateway/internal/datalink/common"
 	"strings"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
 )
@@ -156,6 +156,8 @@ func (s *Service) CreateWithRuntimeReconcile(ctx context.Context, req CreateRule
 	}
 	ctx, release := s.AcquireRuleMutation(ctx, strings.TrimSpace(req.ID))
 	defer release()
+	ctx, finalizeAcquisition := s.beginSourceAcquisitionMutation(ctx, req.ID, req.DeviceID)
+	defer finalizeAcquisition()
 	projectionSnapshot := s.snapshotEmptyRuntimeProjection(req.DeviceID)
 	if projectionSnapshot != nil {
 		ctx = context.WithValue(ctx, sourceProjectionSnapshotKey{}, projectionSnapshot)
@@ -219,6 +221,8 @@ func (s *Service) UpdateWithRuntimeReconcile(
 	if err != nil {
 		return nil, RuntimeReconcileOutcome{}, err
 	}
+	ctx, finalizeAcquisition := s.beginSourceAcquisitionMutation(ctx, snapshot.rule.ID, snapshot.rule.DeviceID)
+	defer finalizeAcquisition()
 	ctx = withSourceAffectedPoints(ctx, snapshot)
 	rule, err = s.Update(ctx, id, req)
 	if err != nil {
@@ -257,6 +261,8 @@ func (s *Service) DeleteWithRuntimeReconcile(ctx context.Context, id string) (ou
 	if err != nil {
 		return RuntimeReconcileOutcome{}, err
 	}
+	ctx, finalizeAcquisition := s.beginSourceAcquisitionMutation(ctx, snapshot.rule.ID, snapshot.rule.DeviceID)
+	defer finalizeAcquisition()
 	ctx = withSourceAffectedPoints(ctx, snapshot)
 	rule := snapshot.rule
 	if err := s.Delete(ctx, id); err != nil {
@@ -289,6 +295,8 @@ func (s *Service) setEnabledWithRuntimeReconcile(
 	if err != nil {
 		return RuntimeReconcileOutcome{}, err
 	}
+	ctx, finalizeAcquisition := s.beginSourceAcquisitionMutation(ctx, snapshot.rule.ID, snapshot.rule.DeviceID)
+	defer finalizeAcquisition()
 	ctx = withSourceAffectedPoints(ctx, snapshot)
 	rule := snapshot.rule
 	if err := s.setEnabled(ctx, id, enabled); err != nil {

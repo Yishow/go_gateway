@@ -12,7 +12,7 @@ it('retains the current saved-inactive B receipt on resume when older saved-inac
  const h=renderHook(()=>useRecordingRangeBuffer('W',port));
  for(const id of ['A','B']){
   await act(async()=>{await h.result.current.start({id,name:id});});
-  act(()=>h.result.current.change({name:`Range ${id}`,address:'40001',count:'1',dataType:'int16',scale:'1',offset:'0'}));
+  act(()=>h.result.current.change({...h.result.current.buffer,name:`Range ${id}`,address:'40001',count:'1',dataType:'int16',scale:'1',offset:'0'}));
   await act(async()=>{await h.result.current.submit();});
  }
  expect(h.result.current.target?.id).toBe('B');

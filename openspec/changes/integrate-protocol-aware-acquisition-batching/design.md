@@ -41,7 +41,17 @@ MC/FATEK 針對稀疏 scalar 展開完整 native units，用現有 random client
 
 ### 調度、重試與背壓有界
 
-保留 device lock 與各設備並行，在既有 scheduler 加 bounded fair ready queue；每 device 最多一個 running；每已配置polling group最多一份coalesced pending due record，另受global pending bound約束，超時到期只合併 pending 而不建無限goroutine。不同設備 round-robin 取 ready work，單 device retry/backoff 不持有全域 worker slot；仍持有其必要序列化權，不能交錯該設備命令。global concurrency及queue容量為有驗證的正整數設定，超量 admission 顯示 skipped/overrun 與 freshness，不製造讀值。cancel/stop 在read timeout和backoff可中斷，driver不支持context時必須以deadline/transport close解除等待且避免關閉新版本連線。
+3.2 交接澄清（2026-10-31）：以下只精確定義原「調度、重試與背壓有界」的容量、coalescing 與 loss 歸屬，不改已完成 3.1、task IDs、來源權威或建立另一排程引擎。
+
+保留 device lock 與各設備並行，在既有 scheduler 加 bounded fair ready queue。每 device 最多一個 running scan；每已配置 polling group 最多一個 coalesced pending container，內含每 device 最多一份 latest due snapshot。Global pending capacity 計未 dispatch 的 `(device, group)` work entries；同 tuple replacement 不增加容量，新 tuple 超量則拒絕並計數，不踢除／覆寫另一 group 已 admitted 的 Point set。Group 部分 device 已 dispatch 後，新 tick 只更新同 tuple 的 pending 或在容量允許時新增；running scan 的 captured set/deadline 不被改寫。不同 ready devices round-robin，同 device 的不同 groups 用穩定先到／輪替順序避免飢餓。『保留多 group latest due』以成功 admitted entries 為界，飽和例外必須可觀察。
+
+每份 immutable snapshot 保留自己的 captured time、Point set、ticker/config/install identity 與固定 scan deadline；coalescing 是新 due snapshot 替代尚未執行的舊 due，需計 coalesced/overrun，不可抹掉missed history或延長 running deadline。Global active concurrency 計取得既有 device gate 後的連線／讀取 active phase；等待 gate 或 retry backoff 不佔 active permit。Backoff 暫放 permit但保留 device scan/gate 所有權，恢復時按原 context/deadline 公平重新取得，不能越過已等候其他設備。每 configured device 最多一個等待／執行 scan goroutine，另加固定 dispatcher／既有 group producer；不得按 tick 或 pending entry 生無界 goroutine。這是依配置設備數的明確上界，不宣稱與設備數無關的固定 goroutine 上限。
+
+沿既有 scheduler retry wait 與 wirebudget.Wait 的可選 context cooperation 接點暫放／重取 active capacity；不建立第二retry owner，不改budget、delay、decoder或actual-send admission，不把阻塞 acquire 放入短且非阻塞的 admission/send observer。取得permit後仍必須通過原 captured-install/config/stop send fence；cancel/stop在gate/backoff/permit wait/read均可中斷，transport解除等待不得關閉新版連線。既有ConnectionManager per-key single-flight/短global鎖/late generation guard已實作，僅保留回歸，不重造。此階段限定scheduled容量管理；manual同device原gate保留，manual共用planner/executor與容量契約在3.3完成，不提前宣稱。
+
+Global active concurrency與pending capacity用既有SchedulerConfig入口提供正整數設定；未指定者維持constructor/default相容，明確無效值須可辨識地拒絕，不以新增產品設定頁補此工作。原配置下的defaults是設計值，不宣稱已量測最佳效能。Due coalesced、capacity-rejected/skipped、overrun與pending depth分開診斷，拒絕不製造讀值或刷新last-good。測試用既有可控seam或Go synctest，不把目前只用於completion的Clock冒充ticker clock，不建通用clock框架。
+
+結果buffer loss也唯一歸3.2，與due admission loss分開計數；4.1只消費／呈現，不再建第二套counter。只處理既有emitValue實際丟掉的CollectedValue，使用該值已捕捉的InstallationScope/PointRevision/PointID，不在drop後lookup新revision，不改SampleEnvelope/StableSampleID，不把wire Good偽稱下游已接受，也不將drop當通訊失敗。保留累積總loss及有界近期scope/revision/point明細；近期最多256組（設計上限，不是量測值），超量淘汰舊明細並明示已淘汰的loss彙總，不能假稱完整歷史或靜默丟總數。未具完整identity的legacy值明示unattributed，不借當前identity。只新增native唯讀診斷供驗證與4.1，不在3.2新增public路由／診斷平台或泛化其他channel。
 
 每 request 用既有 DefaultRetryCount/Delay 上限與read deadline；統一嘗試預算，adapter自癒重送也計入，禁止batch×scalar×adapter巢狀放大。僅明確 unsupported-command 拒絕允許同scan一次降級至已驗證 scalar/contiguous plan，且計入總預算；timeout/CRC/短回應不猜unsupported，不盲目fanout重讀。下次scan對同connection capability revision保留降級狀態，重連／capability修改使其失效。總預算定義為該scan initial plan request數加fallback plan request數（僅真的被授權觸發時）乘以(1+retry count)；每request仍個別限額且總deadline不延長。
 
@@ -71,6 +81,21 @@ wire response完整驗證後依point span解碼；不可判定對齊的短／壞
 - 量測warm/cold分開；planner-only另測100/1000/10000 Point CPU／allocations。新增慢device dial、nested overlap、256 MC units、65 FATEK units、serial aliases、完整Modbus bit scatter、manual cancel fixtures。所有數量為設計測試條件，非現有測量。
 
 FATEK 原廠契約複核（2026-10-31，task 2.5 補償先前純 planner 假設）：Cmd48 的 N 是 component 數，但協議另限 64 words；bit／16-bit 各計 1W、32-bit 計 2W，configured component cap 與 bytes 上限仍獨立取最嚴。20 個 32-bit 加 24 個 bit／16-bit 為 N=44、64W；33 個不同 DR wire 地址的 int32 不可因 component 數小於 64 就單包送出。不得把 N 改成 weighted word 數。既有 NativeUnit 保持 component 語意，唯一地址步進契約由 scalar expansion、contiguous 相容判斷、random 去重、frame cost、scatter 共用：DR/DD 為 2 個底層 word 地址、W* 為 16 個 bit 地址、DW* 為 32 個 bit 地址，普通 word／離散點為 1。目前支援的 WX/WY/WM/WS、DWX/DWY/DWM/DWS 起始 bit 地址須為 8 倍數而非整個 component stride 的倍數，完整 scalar footprint 不得越界。合法的 DR1 不得當成 DR0 連續命令的第二回應（其實是 DR2），也不能為避開錯誤全面拒絕 odd address。修正計畫 model identity，舊 preview 失效；MC/Modbus 既有座標不改。原 completed task 描述與證據保留，task 2.5 的 native width／正式 adapter 驗收承擔此次修正，未經正式 wire fixture 與獨立複驗不交 collector。來源為 [FATEK 原廠 Appendix 1 文件](https://www.esea.cz/support/fatek/FBs_Manual/Manual_2/Appendix1.pdf) 的地址表、Cmd48 限額與 Cmd47/48 完整範例，以及 [FBe Advanced Chapter 14](https://www.esea.cz/support/fatek/FBe_Manual/Advanced/Chapter_14.pdf) 印刷 14-17 的 DR0/DR2、DD0/DD2 組成圖；fixture 必須解析實際地址及數值，不以舊 serializer 自我比對代替原廠規格。
+
+能力宣告只沿用既有 `Device.ConnectionConfig` 的 optional `acquisition` 物件；不新增 table、record selector authority 或第二份設定來源。格式固定 `version:1`、`profile`，可附 `limits:{native_units,request_bytes,response_bytes}` 與 `coverage:{revision,readable,forbidden,excluded}`。缺省宣告維持 unknown 並僅採安全 contiguous/scalar；`safe-v1` 明確禁止 random。非缺省的 null、未知欄位/profile/version、非正整數 limits 與不合法 coverage 均在既有 device validation/persist/install 邊界拒絕。coverage 的區域與半開實體地址範圍重用 optimizer 既有 canonical parser/bounds，content 本身納入 fingerprint，opaque revision 不足以授權讀取 gap。`native_units` 是每 request 的 native component 上限，單向 request/response bytes 分別取更嚴正值；缺省不是 0-byte 已證成本。
+
+初始經官方文件核證的可選 family profiles 僅 `fatek-fbs-ascii-v1` 與 `mitsubishi-fx5-cpu-3e-binary-v1`；後者限 FX5 CPU 內建 Ethernet 3E binary，不能泛稱所有 MC/Q/L/R 或 Ethernet modules。client 函式存在、protocol subtype 或成功連線都不是裝置 random 支持證明；即使 FATEK subtype 明確，舊 config 沒宣告仍 unknown。單一純 resolver 同供 install 與後續 preview，registry schema 從相同宣告定義輸出。FX5 CPU 0403/0000 binary 的 192 access-point protocol cap 只以 `RandomProtocolLimit` 額外限制 random，不套給 contiguous/bit，也不能以 client255 冒稱裝置上限。既有 `ProtocolLimit` 若配置仍為所有相關候選共同更嚴上限，新欄不能放寬它。FX5 CPU 0401 word960/bit3584 與現有 client word125/bit2000 各自取更嚴；FATEK 48 的 component count 與 64-word weighted budget 獨立保留。
+
+每次 scheduled due 在一個既有 scheduler 短鎖內捕捉 device config、source Points、原 group/cadence、immutable ReadProfile、PointRevision 與原 InstallationLease/Scope。pure plan fingerprint 只含 revision-bound 設定、source membership、capability/coverage content 與原 decoder policy，不含捕捉時間、AcquisitionID、requestID、observer 開關或 ephemeral connection token；lease/scope 仍保留於原 binding/admission，不能充當新 SourceEpoch。record selectors 不參與 source-set 推導。既有 ingestion 先凍結 raw→mapped binding、revision CAS 與 publication guards 均不更改。
+
+scan 固定 deadline 在同一 snapshot 建立時決定：取既有 request timeout ×（initial request 數＋預計一次安全 fallback 最多 request 數）的 checked 上界，尊重較早 caller deadline。預留時間不是 fallback 權限；只有完整且明確 unsupported-command response 才能同 scan 一次安全 replan，且僅重讀 unresolved Points。每 request 仍是原 timeout 與 `1+DefaultRetryCount` actual-send budget，adapter reconnect 與 scheduler retry 共用之；backoff、排隊與所有 fallback 不延長 scan deadline。MC C059 及嚴格 FATEK command48/status9 可授降級；FATEK4、timeout、CRC/短/錯站/錯命令/尾隨payload 不可。
+
+actual send 在既有 `wirebudget.Take` 最前檢查 context 和捕捉的 install/config/stop；成功檢查為 admission 線性化點，後發 disable 無法撤回已 admitted send，但每次後續 retry/fallback 都須重檢。callback 不得做 SQL/provider/scheduler callback 或逆轉 mapping→pointMeta→scheduler 鎖序。短 callback 後仍使用原 budget CAS，再以無鎖 token getter stamp 實際 final wire attempt。
+
+連線 token 僅 manager 成功 publication generation 加 adapter 成功 connect/reconnect publication generation，failed/late completion 不可清掉較新 downgrade。同 token/capability revision 的已證 unsupported 在下次 scan 保留；新成功 token 或 capability revision 不沿用。無有效 token 可完成同 scan 一次安全 fallback，但不可永久 cache downgrade。requestID 與 plan fingerprint 僅附 final `CollectedValue`/acquisition observation；不擴充 durable `SampleEnvelope` 或改 `StableSampleID`。同 request 用真 final completion，跨 request 不冒稱同一 PLC scan snapshot，每 Point 每 scan 最多 emit 一次。
+
+Primary profile evidence: Mitsubishi FX5 Ethernet manual JY997D56001K printed p57 / PDF p58 (CPU/module tables distinct), https://www.mitsubishielectric.com/dl/fa/document/manual/plcf/jy997d56001/jy997d56001k.pdf#page=58 ; FATEK FBs manual Appendix1 https://www.esea.cz/support/fatek/FBs_Manual/Manual_2/Appendix1.pdf .
+
 
 ## Implementation Contract
 
