@@ -1,6 +1,7 @@
 package modbusshare
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 
@@ -48,7 +49,7 @@ func encodeToWords(dataType schema.DataType, value any) ([]uint16, error) {
 			return nil, fmt.Errorf("value overflows int32")
 		}
 		raw := uint32(int32(v)) // #nosec G115 -- Preserve the sign bit of the validated 32-bit value.
-		return []uint16{uint16((raw >> 16) & 0xffff), uint16(raw & 0xffff)}, nil
+		return uint32Words(raw), nil
 
 	case schema.DataTypeUint32:
 		v, err := toUint64(value)
@@ -59,7 +60,7 @@ func encodeToWords(dataType schema.DataType, value any) ([]uint16, error) {
 			return nil, fmt.Errorf("value overflows uint32")
 		}
 		raw := uint32(v)
-		return []uint16{uint16((raw >> 16) & 0xffff), uint16(raw & 0xffff)}, nil
+		return uint32Words(raw), nil
 
 	case schema.DataTypeFloat32:
 		f, err := toFloat64(value)
@@ -67,7 +68,7 @@ func encodeToWords(dataType schema.DataType, value any) ([]uint16, error) {
 			return nil, err
 		}
 		raw := math.Float32bits(float32(f))
-		return []uint16{uint16((raw >> 16) & 0xffff), uint16(raw & 0xffff)}, nil
+		return uint32Words(raw), nil
 
 	case schema.DataTypeInt64:
 		v, err := toInt64(value)
@@ -75,24 +76,14 @@ func encodeToWords(dataType schema.DataType, value any) ([]uint16, error) {
 			return nil, err
 		}
 		raw := uint64(v) // #nosec G115 -- Reinterpret the signed 64-bit wire value without changing bits.
-		return []uint16{
-			uint16((raw >> 48) & 0xffff),
-			uint16((raw >> 32) & 0xffff),
-			uint16((raw >> 16) & 0xffff),
-			uint16(raw & 0xffff),
-		}, nil
+		return uint64Words(raw), nil
 
 	case schema.DataTypeUint64:
 		raw, err := toUint64(value)
 		if err != nil {
 			return nil, err
 		}
-		return []uint16{
-			uint16((raw >> 48) & 0xffff),
-			uint16((raw >> 32) & 0xffff),
-			uint16((raw >> 16) & 0xffff),
-			uint16(raw & 0xffff),
-		}, nil
+		return uint64Words(raw), nil
 
 	case schema.DataTypeFloat64:
 		f, err := toFloat64(value)
@@ -100,16 +91,24 @@ func encodeToWords(dataType schema.DataType, value any) ([]uint16, error) {
 			return nil, err
 		}
 		raw := math.Float64bits(f)
-		return []uint16{
-			uint16((raw >> 48) & 0xffff),
-			uint16((raw >> 32) & 0xffff),
-			uint16((raw >> 16) & 0xffff),
-			uint16(raw & 0xffff),
-		}, nil
+		return uint64Words(raw), nil
 
 	default:
 		return nil, fmt.Errorf("unsupported data_type for Modbus mirror: %s", dataType)
 	}
+}
+
+// Preserve the existing high-word-first wire order without narrowing bit casts.
+func uint32Words(raw uint32) []uint16 {
+	var wire [4]byte
+	binary.BigEndian.PutUint32(wire[:], raw)
+	return []uint16{binary.BigEndian.Uint16(wire[:2]), binary.BigEndian.Uint16(wire[2:])}
+}
+
+func uint64Words(raw uint64) []uint16 {
+	var wire [8]byte
+	binary.BigEndian.PutUint64(wire[:], raw)
+	return []uint16{binary.BigEndian.Uint16(wire[:2]), binary.BigEndian.Uint16(wire[2:4]), binary.BigEndian.Uint16(wire[4:6]), binary.BigEndian.Uint16(wire[6:])}
 }
 
 func toInt64(v any) (int64, error) {
@@ -125,10 +124,11 @@ func toInt64(v any) (int64, error) {
 	case int64:
 		return n, nil
 	case uint:
-		if uint64(n) > uint64(math.MaxInt64) {
+		wide := uint64(n)
+		if wide > uint64(math.MaxInt64) {
 			return 0, fmt.Errorf("uint value %d overflows int64", n)
 		}
-		return int64(n), nil
+		return int64(wide), nil
 	case uint8:
 		return int64(n), nil
 	case uint16:
