@@ -9,10 +9,6 @@ import (
 	"go-gateway/lib/hsllogic"
 )
 
-func (c *MC3EConnector) executeRead(req connector.ReadRequest) (connector.ReadResult, error) {
-	return c.executeReadContext(context.Background(), req)
-}
-
 func (c *MC3EConnector) executeReadContext(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
 	if err := validateMCReadProfile(req); err != nil {
 		return connector.ReadResult{Quality: schema.QualityBad, Error: err.Error()}, err

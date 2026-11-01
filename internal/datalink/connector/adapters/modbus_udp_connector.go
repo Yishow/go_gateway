@@ -109,7 +109,7 @@ func (c *ModbusUDPConnector) Read(ctx context.Context, req connector.ReadRequest
 // Write 寫入資料
 func (c *ModbusUDPConnector) Write(ctx context.Context, req connector.WriteRequest) error {
 	// 確保連線
-	if err := c.ensureConnection(); err != nil {
+	if err := c.ensureConnectionContext(ctx); err != nil {
 		return err
 	}
 
@@ -157,6 +157,13 @@ func (c *ModbusUDPConnector) Reconnect(ctx context.Context) error {
 
 // ensureConnection 確保連線已建立（用於短連接模式）
 func (c *ModbusUDPConnector) ensureConnection() error {
+	return c.ensureConnectionContext(context.Background())
+}
+
+func (c *ModbusUDPConnector) ensureConnectionContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if c.IsPersistentMode() {
 		if !c.isConnected() {
 			return fmt.Errorf("未連線")
@@ -169,7 +176,7 @@ func (c *ModbusUDPConnector) ensureConnection() error {
 	}
 
 	if !c.isConnected() {
-		if err := c.acquisitionGeneration.connect(context.Background(), c.client.ConnectContext); err != nil {
+		if err := c.acquisitionGeneration.connect(ctx, c.client.ConnectContext); err != nil {
 			return fmt.Errorf("連線失敗: %w", err)
 		}
 		c.setConnected(true)

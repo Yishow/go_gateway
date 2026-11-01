@@ -118,3 +118,75 @@ func TestMCClientContextViewDoesNotMutateOriginal(t *testing.T) {
 	require.True(t, IsCommandRejected(err))
 	require.Equal(t, 1, transport.calls)
 }
+
+// These injected peers distinguish the legacy synchronous branch from the
+// existing context-aware transport branch without opening a socket.
+type cancelLegacyPeer struct {
+	cancel context.CancelFunc
+	cause  error
+	calls  int
+}
+
+func (*cancelLegacyPeer) Connect() error { return nil }
+func (*cancelLegacyPeer) Close() error   { return nil }
+func (p *cancelLegacyPeer) SendReceive([]byte) ([]byte, error) {
+	p.calls++
+	p.cancel()
+	return []byte{7}, p.cause
+}
+func TestMCLegacyContextCancellationPreservesUnderlyingFailure(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		cause error
+	}{{"pure-cancel", nil}, {"unknown-effect", io.EOF}} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			peer := &cancelLegacyPeer{cancel: cancel, cause: tc.cause}
+			body, err := (boundTransport{Transport: peer, ctx: ctx}).SendReceive([]byte{1})
+			require.Nil(t, body)
+			require.ErrorIs(t, err, context.Canceled)
+			require.Equal(t, 1, peer.calls)
+			if tc.cause == nil {
+				require.Same(t, context.Canceled, err, "pure cancellation identity must stay unchanged")
+			} else {
+				require.ErrorIs(t, err, tc.cause, "unknown wire effect must not be hidden by cancellation")
+			}
+		})
+	}
+}
+
+type cancelContextPeer struct {
+	cancelLegacyPeer
+	seen         context.Context
+	contextCalls int
+}
+
+func (p *cancelContextPeer) SendReceiveContext(ctx context.Context, _ []byte) ([]byte, error) {
+	p.contextCalls++
+	p.seen = ctx
+	p.cancel()
+	return []byte{9}, p.cause
+}
+func TestMCContextAwareBranchKeepsOriginalResult(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		cause error
+	}{{"ack", nil}, {"failure", io.EOF}} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			peer := &cancelContextPeer{cancelLegacyPeer: cancelLegacyPeer{cancel: cancel, cause: tc.cause}}
+			body, err := (boundTransport{Transport: peer, ctx: ctx}).SendReceive([]byte{1})
+			require.Equal(t, []byte{9}, body)
+			if tc.cause == nil {
+				require.NoError(t, err)
+			} else {
+				require.Same(t, tc.cause, err, "context-aware branch must preserve the transport result")
+			}
+			require.True(t, peer.seen == ctx)
+			require.Equal(t, 1, peer.contextCalls)
+			require.Zero(t, peer.calls, "no legacy fallback or hidden resend")
+		})
+	}
+}

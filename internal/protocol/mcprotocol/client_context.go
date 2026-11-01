@@ -28,8 +28,11 @@ func (t boundTransport) SendReceive(req []byte) ([]byte, error) {
 		return nil, err
 	}
 	body, err := t.Transport.SendReceive(req)
-	if t.ctx.Err() != nil {
-		return nil, t.ctx.Err()
+	if ctxErr := t.ctx.Err(); ctxErr != nil {
+		if err != nil {
+			return nil, errors.Join(ctxErr, err)
+		}
+		return nil, ctxErr
 	}
 	return body, err
 }

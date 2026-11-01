@@ -122,7 +122,7 @@ func (c *FatekConnector) Read(ctx context.Context, req connector.ReadRequest) (c
 
 // Write 寫入資料
 func (c *FatekConnector) Write(ctx context.Context, req connector.WriteRequest) error {
-	if err := c.ensureConnection(); err != nil {
+	if err := c.ensureConnectionContext(ctx); err != nil {
 		return err
 	}
 
@@ -144,9 +144,9 @@ func (c *FatekConnector) Write(ctx context.Context, req connector.WriteRequest) 
 		// 離散元件寫入
 		switch v := req.Value.(type) {
 		case bool:
-			return c.client.WriteStatus(symbol, address, []bool{v})
+			return c.client.WithContext(ctx).WriteStatus(symbol, address, []bool{v})
 		case []bool:
-			return c.client.WriteStatus(symbol, address, v)
+			return c.client.WithContext(ctx).WriteStatus(symbol, address, v)
 		default:
 			return fmt.Errorf("離散元件需要布林值")
 		}
@@ -156,6 +156,6 @@ func (c *FatekConnector) Write(ctx context.Context, req connector.WriteRequest) 
 		if err != nil {
 			return err
 		}
-		return c.client.WriteRegisters(symbol, address, values)
+		return c.client.WithContext(ctx).WriteRegisters(symbol, address, values)
 	}
 }

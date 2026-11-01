@@ -33,7 +33,7 @@ func mcPlannedResults(req connector.PlannedReadRequest, r optimizer.AcquisitionR
 	}
 	return results
 }
-func decodeMCPlannedPoint(p optimizer.PointSlice, profile connector.ReadProfile, words []int, bits []bool) (any, []byte, error) {
+func decodeMCPlannedPoint(p optimizer.PointSlice, profile connector.ReadProfile, words []int, bits []bool) (decodedValue any, decodedBytes []byte, decodeErr error) {
 	if p.Offset < 0 || p.Length < 1 {
 		return nil, nil, decoding.ErrShortScalar
 	}

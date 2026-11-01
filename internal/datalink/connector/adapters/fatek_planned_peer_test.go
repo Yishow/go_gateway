@@ -48,7 +48,7 @@ func (p *fatekPlannedPeer) SendReceive(frame []byte) ([]byte, error) {
 			}
 		} else {
 			v, ok := value.(int)
-			if !ok || v < 0 || uint64(v) > uint64(1)<<uint(bits[i])-1 {
+			if !ok || v < 0 || uint64(v) >= uint64(1)<<uint(bits[i]) {
 				return nil, fmt.Errorf("peer register type/range at %s", address)
 			}
 			fmt.Fprintf(&payload, "%0*X", bits[i]/4, v)
@@ -75,7 +75,7 @@ func fatekPeerFrame(station, command, body string) []byte {
 	}
 	return []byte(fmt.Sprintf("%s%02X\x03", content, sum))
 }
-func parseFatekPlannedFrame(frame []byte) ([]string, []int, error) {
+func parseFatekPlannedFrame(frame []byte) (parsedAddresses []string, parsedWidths []int, parseErr error) {
 	if len(frame) < 10 || frame[0] != 2 || frame[len(frame)-1] != 3 {
 		return nil, nil, fmt.Errorf("peer invalid framing")
 	}
@@ -94,7 +94,8 @@ func parseFatekPlannedFrame(frame []byte) ([]string, []int, error) {
 	command := string(frame[3:5])
 	var addresses []string
 	var widths []int
-	if command == "48" {
+	switch command {
+	case "48":
 		cost := 0
 		for range int(count) {
 			symbol, address, width, used, err := parseFatekPeerAddress(body)
@@ -109,7 +110,7 @@ func parseFatekPlannedFrame(frame []byte) ([]string, []int, error) {
 		if body != "" || cost > 64 {
 			return nil, nil, fmt.Errorf("peer invalid random length/cost")
 		}
-	} else if command == "44" || command == "46" {
+	case "44", "46":
 		symbol, address, width, used, err := parseFatekPeerAddress(body)
 		if err != nil {
 			return nil, nil, err
@@ -134,12 +135,12 @@ func parseFatekPlannedFrame(frame []byte) ([]string, []int, error) {
 			addresses = append(addresses, fmt.Sprint(symbol, address+i*step))
 			widths = append(widths, width)
 		}
-	} else {
+	default:
 		return nil, nil, fmt.Errorf("peer unexpected command %s", command)
 	}
 	return addresses, widths, nil
 }
-func parseFatekPeerAddress(body string) (string, int, int, int, error) {
+func parseFatekPeerAddress(body string) (parsedSymbol string, parsedAddress, nativeWidth, consumedLength int, parseErr error) {
 	// FATEK Appendix 1 pp3,14: discrete=5, register16=6, register32=7 characters.
 	for _, c := range []struct {
 		symbol        string

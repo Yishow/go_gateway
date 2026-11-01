@@ -46,7 +46,7 @@ func TestFatekPlannedMalformedWholeResponseFailsEveryPoint(t *testing.T) {
 				return fatekPeerFrame(station, command, status+payload)
 			}}
 			ctx := wirebudget.With(t.Context(), 3, 0)
-			got, err := readFatekPlanned(t, ctx, fatekPlannedConnector(peer), req)
+			got, err := readFatekPlanned(ctx, t, fatekPlannedConnector(peer), req)
 			require.Error(t, err)
 			require.Len(t, got, 2)
 			require.Len(t, peer.frames, 1)
@@ -122,7 +122,7 @@ func TestFatekPlannedReadKeepsFrozenMetadataAtCompletion(t *testing.T) {
 		req.Bindings[0].InstallationLease = 99
 		req.Bindings[0].Point.SourceRevision = "new-source"
 	}}
-	got, err := readFatekPlanned(t, t.Context(), fatekPlannedConnector(peer), req)
+	got, err := readFatekPlanned(t.Context(), t, fatekPlannedConnector(peer), req)
 	require.NoError(t, err)
 	found := false
 	for _, r := range got {

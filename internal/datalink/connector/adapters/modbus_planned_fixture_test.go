@@ -73,8 +73,11 @@ func (p *modbusPlannedPeer) respond(frame []byte) ([]byte, error) {
 	} else {
 		tx, unit, function, data, err = modbus.ParseTCPFrame(frame)
 	}
-	if err != nil || len(data) != 4 || unit != 1 || function < 1 || function > 4 {
-		return nil, fmt.Errorf("invalid peer request %x: %v", frame, err)
+	if err != nil {
+		return nil, fmt.Errorf("invalid peer request %x: %w", frame, err)
+	}
+	if len(data) != 4 || unit != 1 || function < 1 || function > 4 {
+		return nil, fmt.Errorf("invalid peer request %x: <nil>", frame)
 	}
 	address, count := binary.BigEndian.Uint16(data), binary.BigEndian.Uint16(data[2:])
 	if count == 0 || int(address)+int(count) > 65536 {

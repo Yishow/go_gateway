@@ -10,17 +10,17 @@ import (
 
 // Write 寫入資料
 func (c *MC3EConnector) Write(ctx context.Context, req connector.WriteRequest) error {
-	if err := c.ensureConnection(); err != nil {
+	if err := c.ensureConnectionContext(ctx); err != nil {
 		return err
 	}
 
 	defer c.afterOperation()
 
-	err := c.executeWrite(req)
+	err := c.executeWrite(ctx, req)
 	if err != nil && c.IsPersistentMode() && isConnectionError(err) {
 		c.connected = false
-		if reconnectErr := c.ensureConnection(); reconnectErr == nil {
-			if retryErr := c.executeWrite(req); retryErr == nil {
+		if reconnectErr := c.ensureConnectionContext(ctx); reconnectErr == nil {
+			if retryErr := c.executeWrite(ctx, req); retryErr == nil {
 				return nil
 			}
 		}
@@ -29,7 +29,7 @@ func (c *MC3EConnector) Write(ctx context.Context, req connector.WriteRequest) e
 	return err
 }
 
-func (c *MC3EConnector) executeWrite(req connector.WriteRequest) error {
+func (c *MC3EConnector) executeWrite(ctx context.Context, req connector.WriteRequest) error {
 	// 使用 hsllogic 解析地址
 	parsedAddr, err := hsllogic.ParseAddress(hsllogic.ProtocolMitsubishi, req.Address)
 	if err != nil {
@@ -40,9 +40,9 @@ func (c *MC3EConnector) executeWrite(req connector.WriteRequest) error {
 		// 位元設備寫入
 		switch v := req.Value.(type) {
 		case bool:
-			return c.client.BatchWriteBit(parsedAddr.DeviceType, parsedAddr.Offset, []bool{v})
+			return c.client.WithContext(ctx).BatchWriteBit(parsedAddr.DeviceType, parsedAddr.Offset, []bool{v})
 		case []bool:
-			return c.client.BatchWriteBit(parsedAddr.DeviceType, parsedAddr.Offset, v)
+			return c.client.WithContext(ctx).BatchWriteBit(parsedAddr.DeviceType, parsedAddr.Offset, v)
 		default:
 			return fmt.Errorf("位元設備需要布林值")
 		}
@@ -53,5 +53,5 @@ func (c *MC3EConnector) executeWrite(req connector.WriteRequest) error {
 	if err != nil {
 		return err
 	}
-	return c.client.BatchWriteWord(parsedAddr.DeviceType, parsedAddr.Offset, values)
+	return c.client.WithContext(ctx).BatchWriteWord(parsedAddr.DeviceType, parsedAddr.Offset, values)
 }

@@ -7,6 +7,11 @@ import (
 	"go-gateway/internal/protocol/fatek"
 )
 
+const (
+	plannedReadKindRandom     = "random"
+	plannedReadKindContiguous = "contiguous"
+)
+
 // Validate every scalar's physical addresses, not just a planner offset. This
 // also makes a future planner bug fail closed instead of decoding another point.
 func validateFatekPlannedSlice(r optimizer.AcquisitionRequest, p optimizer.PointSlice) error {
@@ -26,7 +31,7 @@ func validateFatekPlannedSlice(r optimizer.AcquisitionRequest, p optimizer.Point
 		return connector.ErrPlannedRead
 	}
 	step := component.AddressStep()
-	if r.Kind == "random" {
+	if r.Kind == plannedReadKindRandom {
 		if r.AddressStep != 0 || p.Offset > len(r.Units)-p.Length {
 			return connector.ErrPlannedRead
 		}
@@ -36,7 +41,7 @@ func validateFatekPlannedSlice(r optimizer.AcquisitionRequest, p optimizer.Point
 				return connector.ErrPlannedRead
 			}
 		}
-	} else if r.Kind != "contiguous" || r.AddressStep != step || r.Group.Area != symbol || p.Offset > r.Length-p.Length || r.Start+p.Offset*step != start {
+	} else if r.Kind != plannedReadKindContiguous || r.AddressStep != step || r.Group.Area != symbol || p.Offset > r.Length-p.Length || r.Start+p.Offset*step != start {
 		return connector.ErrPlannedRead
 	}
 	return nil

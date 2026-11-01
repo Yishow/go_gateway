@@ -42,7 +42,7 @@ func fatekPlannedRequest(t *testing.T, points ...schema.Point) connector.Planned
 	require.Empty(t, req.Plan.Errors())
 	return req
 }
-func readFatekPlanned(t *testing.T, ctx context.Context, c *FatekConnector, req connector.PlannedReadRequest) ([]connector.PlannedPointResult, error) {
+func readFatekPlanned(ctx context.Context, t *testing.T, c *FatekConnector, req connector.PlannedReadRequest) ([]connector.PlannedPointResult, error) {
 	t.Helper()
 	reader, ok := any(c).(connector.PlannedReader)
 	require.True(t, ok, "formal FATEK adapter must implement PlannedReader")
@@ -95,7 +95,7 @@ func TestFatekPlannedThreeSparseWordsUseOneRandomRequest(t *testing.T) {
 	}
 	require.Len(t, baseline.frames, 3)
 	peer := &fatekPlannedPeer{memory: memory}
-	got, err := readFatekPlanned(t, t.Context(), fatekPlannedConnector(peer), req)
+	got, err := readFatekPlanned(t.Context(), t, fatekPlannedConnector(peer), req)
 	require.NoError(t, err)
 	assertFatekPlannedResults(t, req, got, map[string]any{"a": int16(11), "b": int16(22), "c": int16(33)})
 	require.Len(t, peer.frames, 1)

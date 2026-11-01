@@ -39,7 +39,7 @@ func fatekPlannedResults(req connector.PlannedReadRequest, r optimizer.Acquisiti
 	}
 	return results
 }
-func decodeFatekPlannedPoint(r optimizer.AcquisitionRequest, p optimizer.PointSlice, profile connector.ReadProfile, raw fatekPlannedRaw) (any, []byte, error) {
+func decodeFatekPlannedPoint(r optimizer.AcquisitionRequest, p optimizer.PointSlice, profile connector.ReadProfile, raw fatekPlannedRaw) (decodedValue any, decodedBytes []byte, decodeErr error) {
 	if err := validateFatekPlannedSlice(r, p); err != nil {
 		return nil, nil, err
 	}
@@ -51,7 +51,7 @@ func decodeFatekPlannedPoint(r optimizer.AcquisitionRequest, p optimizer.PointSl
 			return nil, nil, decoding.ErrShortScalar
 		}
 		var value bool
-		if r.Kind == "random" {
+		if r.Kind == plannedReadKindRandom {
 			item, err := fatekPlannedItem(r, p.Offset, raw.random)
 			if err != nil {
 				return nil, nil, err
@@ -77,7 +77,7 @@ func decodeFatekPlannedPoint(r optimizer.AcquisitionRequest, p optimizer.PointSl
 		return nil, nil, decoding.ErrShortScalar
 	}
 	var values []int
-	if r.Kind == "random" {
+	if r.Kind == plannedReadKindRandom {
 		if p.Offset > len(r.Units)-p.Length {
 			return nil, nil, decoding.ErrShortScalar
 		}
@@ -88,7 +88,7 @@ func decodeFatekPlannedPoint(r optimizer.AcquisitionRequest, p optimizer.PointSl
 				return nil, nil, err
 			}
 			value, ok := item.(int)
-			if !ok || value < 0 || uint64(value) > (uint64(1)<<uint(p.NativeBits))-1 {
+			if !ok || value < 0 || uint64(value) >= uint64(1)<<uint(p.NativeBits) {
 				return nil, nil, fmt.Errorf("invalid FATEK register component")
 			}
 			values[i] = value

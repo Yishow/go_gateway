@@ -21,7 +21,7 @@ func (c *MC3EConnector) ReadPlanned(ctx context.Context, req connector.PlannedRe
 	}
 	ctx, cancel := c.readContext(ctx)
 	defer cancel()
-	if err = c.ensureConnectionContext(ctx); err != nil {
+	if err := c.ensureConnectionContext(ctx); err != nil {
 		return mcPlannedFailure(req, request, bindings, err), err
 	}
 	defer c.afterOperation()
@@ -32,7 +32,7 @@ func (c *MC3EConnector) ReadPlanned(ctx context.Context, req connector.PlannedRe
 		client := c.client.WithContext(ctx)
 		var readErr error
 		switch {
-		case request.Kind == "random":
+		case request.Kind == plannedReadKindRandom:
 			items := make([]mcprotocol.RandomReadItem, len(request.Units))
 			for i, u := range request.Units {
 				items[i] = mcprotocol.RandomReadItem{Device: u.Area, Addr: u.Address}
@@ -52,7 +52,7 @@ func (c *MC3EConnector) ReadPlanned(ctx context.Context, req connector.PlannedRe
 	return mcPlannedResults(req, request, bindings, words, bits, completed, nil), nil
 }
 func validateMCPlannedRequest(r optimizer.AcquisitionRequest, bindings []connector.PlannedPointBinding) error {
-	if (r.Group.Identity.Protocol != "mc" && r.Group.Identity.Protocol != "mitsubishi") || r.Group.Identity.Frame != "3e-binary" || (r.Kind != "contiguous" && r.Kind != "random") {
+	if (r.Group.Identity.Protocol != "mc" && r.Group.Identity.Protocol != "mitsubishi") || r.Group.Identity.Frame != "3e-binary" || (r.Kind != plannedReadKindContiguous && r.Kind != plannedReadKindRandom) {
 		return connector.ErrPlannedRead
 	}
 	for _, b := range bindings {

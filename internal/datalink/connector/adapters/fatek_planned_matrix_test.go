@@ -15,7 +15,7 @@ func TestFatekPlannedMixedNativeWidthsAndPerPointFormats(t *testing.T) {
 	req := fatekPlannedRequest(t, fatekPlannedPoint("abcd", "D0", schema.DataTypeUint32, "ABCD"), fatekPlannedPoint("cdab", "D0", schema.DataTypeUint32, "CDAB"), fatekPlannedPoint("dr", "DR10", schema.DataTypeFloat32, "ABCD"), fatekPlannedPoint("bit", "X20", schema.DataTypeBool, ""))
 	require.Len(t, req.Plan.Requests(), 1)
 	peer := &fatekPlannedPeer{memory: map[string]any{"D0": 0x0102, "D1": 0x0304, "DR10": 0xc1200000, "X20": true}}
-	got, err := readFatekPlanned(t, t.Context(), fatekPlannedConnector(peer), req)
+	got, err := readFatekPlanned(t.Context(), t, fatekPlannedConnector(peer), req)
 	require.NoError(t, err)
 	assertFatekPlannedResults(t, req, got, map[string]any{"abcd": uint32(0x01020304), "cdab": uint32(0x03040102), "dr": float32(-10), "bit": true})
 	require.Len(t, peer.frames, 1)
@@ -28,7 +28,7 @@ func TestFatekPlannedDenseOverlapAndAllBits(t *testing.T) {
 	req := fatekPlannedRequest(t, fatekPlannedPoint("wide", "D0", schema.DataTypeUint64, "ABCD"), fatekPlannedPoint("small", "D1", schema.DataTypeUint16, ""))
 	require.Equal(t, "contiguous", req.Plan.Requests()[0].Kind)
 	peer := &fatekPlannedPeer{memory: map[string]any{"D0": 0x0102, "D1": 0x0304, "D2": 0x0506, "D3": 0x0708}}
-	got, err := readFatekPlanned(t, t.Context(), fatekPlannedConnector(peer), req)
+	got, err := readFatekPlanned(t.Context(), t, fatekPlannedConnector(peer), req)
 	require.NoError(t, err)
 	assertFatekPlannedResults(t, req, got, map[string]any{"wide": uint64(0x0102030405060708), "small": uint16(0x0304)})
 	require.Equal(t, "46", string(peer.frames[0][3:5]))
@@ -41,7 +41,7 @@ func TestFatekPlannedDenseOverlapAndAllBits(t *testing.T) {
 			}
 			req := fatekPlannedRequest(t, fatekPlannedPoint("a", addresses[0], schema.DataTypeBool, ""), fatekPlannedPoint("b", addresses[1], schema.DataTypeBool, ""), fatekPlannedPoint("c", addresses[2], schema.DataTypeBool, ""))
 			peer := &fatekPlannedPeer{memory: map[string]any{addresses[0]: true, addresses[1]: false, addresses[2]: true}}
-			got, err := readFatekPlanned(t, t.Context(), fatekPlannedConnector(peer), req)
+			got, err := readFatekPlanned(t.Context(), t, fatekPlannedConnector(peer), req)
 			require.NoError(t, err)
 			assertFatekPlannedResults(t, req, got, map[string]any{"a": true, "b": false, "c": true})
 			command := "44"
@@ -84,7 +84,7 @@ func TestFatekPlannedDScalarNumericMatrix(t *testing.T) {
 					memory[fmt.Sprint("D", i)] = w
 				}
 				peer := &fatekPlannedPeer{memory: memory}
-				got, err := readFatekPlanned(t, t.Context(), fatekPlannedConnector(peer), req)
+				got, err := readFatekPlanned(t.Context(), t, fatekPlannedConnector(peer), req)
 				require.NoError(t, err)
 				assertFatekPlannedResults(t, req, got, map[string]any{"scalar": tc.want, "far": int16(-2)})
 			})
@@ -123,7 +123,7 @@ func TestFatekPlannedDRScalarNumericMatrix(t *testing.T) {
 					memory[fmt.Sprint("DR", i)] = words[i]<<16 | words[i+1]
 				}
 				peer := &fatekPlannedPeer{memory: memory}
-				got, err := readFatekPlanned(t, t.Context(), fatekPlannedConnector(peer), req)
+				got, err := readFatekPlanned(t.Context(), t, fatekPlannedConnector(peer), req)
 				require.NoError(t, err)
 				assertFatekPlannedResults(t, req, got, map[string]any{"scalar": tc.want, "far": int16(-2)})
 			})
@@ -137,7 +137,7 @@ func TestFatekPlannedLegacyKeepsNativeComponents(t *testing.T) {
 		p.DataFormat = "DCBA"
 		req := fatekPlannedRequest(t, p)
 		peer := &fatekPlannedPeer{memory: map[string]any{"D0": 0x0102, "D1": 0x0304, "DR0": 0x01020304}}
-		got, err := readFatekPlanned(t, t.Context(), fatekPlannedConnector(peer), req)
+		got, err := readFatekPlanned(t.Context(), t, fatekPlannedConnector(peer), req)
 		require.NoError(t, err)
 		assertFatekPlannedResults(t, req, got, map[string]any{"legacy": uint32(0x01020304)})
 	}
@@ -172,7 +172,7 @@ func TestFatekPlanned65DUnitsSplitWithoutLostPoints(t *testing.T) {
 	seen := map[string]bool{}
 	for i := range req.Plan.Requests() {
 		selected := fatekSelectRequest(req, i)
-		got, err := readFatekPlanned(t, t.Context(), c, selected)
+		got, err := readFatekPlanned(t.Context(), t, c, selected)
 		require.NoError(t, err)
 		for _, value := range got {
 			require.Equal(t, schema.QualityGood, value.Quality)

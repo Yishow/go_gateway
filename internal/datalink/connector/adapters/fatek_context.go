@@ -3,6 +3,7 @@ package adapters
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"go-gateway/internal/protocol/wirebudget"
@@ -62,6 +63,8 @@ func (c *FatekConnector) CloseContext(ctx context.Context) error {
 
 func (c *FatekConnector) afterOperationContext(ctx context.Context) {
 	if !c.persistentMode && c.connected {
-		_ = c.CloseContext(ctx)
+		if err := c.CloseContext(ctx); err != nil {
+			slog.ErrorContext(ctx, adapterCleanupDiagnosticMessage, adapterCleanupProtocolLogKey, "fatek_fbs")
+		}
 	}
 }

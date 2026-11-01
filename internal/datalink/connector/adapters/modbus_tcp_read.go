@@ -8,10 +8,6 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
-func (c *ModbusTCPConnector) executeRead(req connector.ReadRequest) (connector.ReadResult, error) {
-	return c.executeReadContext(context.Background(), req)
-}
-
 func (c *ModbusTCPConnector) executeReadContext(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
 	if err := validateModbusReadProfile(req); err != nil {
 		return connector.ReadResult{Quality: schema.QualityBad, Error: err.Error()}, err
@@ -41,7 +37,7 @@ func (c *ModbusTCPConnector) executeReadContext(ctx context.Context, req connect
 
 	// 根據功能碼讀取
 	switch function {
-	case "01", "coil", "FC01":
+	case "01", modbusFunctionCoil, "FC01":
 		// 讀取線圈
 		values, err := client.ReadCoils(address, uCount)
 		if err != nil {
@@ -61,7 +57,7 @@ func (c *ModbusTCPConnector) executeReadContext(ctx context.Context, req connect
 			result.Value = values[0]
 		}
 
-	case "03", "holding", "FC03", "":
+	case "03", modbusFunctionHolding, "FC03", "":
 		// 讀取保持暫存器 (預設)
 		values, err := client.ReadHoldingRegisters(address, uCount)
 		if err != nil {

@@ -22,14 +22,14 @@ func (c *FatekConnector) ReadPlanned(ctx context.Context, req connector.PlannedR
 	}
 	ctx, cancel := c.readContext(ctx, 1)
 	defer cancel()
-	if err = c.ensureConnectionContext(ctx); err != nil {
+	if err := c.ensureConnectionContext(ctx); err != nil {
 		return fatekPlannedResults(req, request, bindings, fatekPlannedRaw{}, time.Now(), err), err
 	}
 	defer c.afterOperationContext(ctx)
 	client := c.client.WithContext(ctx)
 	raw := fatekPlannedRaw{}
 	switch {
-	case request.Kind == "random":
+	case request.Kind == plannedReadKindRandom:
 		items := make([]fatek.RandomReadItem, len(request.Units))
 		for i, u := range request.Units {
 			items[i] = fatek.RandomReadItem{Symbol: u.Area, Addr: u.Address}
@@ -48,7 +48,7 @@ func (c *FatekConnector) validatePlannedRequest(r optimizer.AcquisitionRequest, 
 	if station == 0 {
 		station = fatek.DefaultStation
 	}
-	if r.Group.Identity.Protocol != "fatek" || r.Group.Identity.Frame != "ascii" || r.Group.Identity.Station != strconv.Itoa(station) || (r.Kind != "contiguous" && r.Kind != "random") {
+	if r.Group.Identity.Protocol != "fatek" || r.Group.Identity.Frame != "ascii" || r.Group.Identity.Station != strconv.Itoa(station) || (r.Kind != plannedReadKindContiguous && r.Kind != plannedReadKindRandom) {
 		return connector.ErrPlannedRead
 	}
 	for _, p := range r.Points {

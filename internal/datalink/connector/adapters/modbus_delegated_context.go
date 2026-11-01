@@ -3,6 +3,7 @@ package adapters
 import (
 	"context"
 	"go-gateway/internal/datalink/schema"
+	"log/slog"
 	"time"
 )
 
@@ -27,7 +28,9 @@ func (c *ModbusRTUConnector) CloseContext(ctx context.Context) error {
 }
 func (c *ModbusRTUConnector) afterOperationContext(ctx context.Context) {
 	if !c.IsPersistentMode() {
-		_ = c.CloseContext(ctx)
+		if err := c.CloseContext(ctx); err != nil {
+			slog.ErrorContext(ctx, adapterCleanupDiagnosticMessage, adapterCleanupProtocolLogKey, "modbus_rtu")
+		}
 	}
 }
 
@@ -52,6 +55,8 @@ func (c *ModbusUDPConnector) CloseContext(ctx context.Context) error {
 }
 func (c *ModbusUDPConnector) afterOperationContext(ctx context.Context) {
 	if !c.IsPersistentMode() {
-		_ = c.CloseContext(ctx)
+		if err := c.CloseContext(ctx); err != nil {
+			slog.ErrorContext(ctx, adapterCleanupDiagnosticMessage, adapterCleanupProtocolLogKey, "modbus_udp")
+		}
 	}
 }

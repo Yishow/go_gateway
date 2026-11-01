@@ -79,18 +79,18 @@ func TestFatekPlannedPreservesCallerAttemptBudget(t *testing.T) {
 	c := fatekPlannedConnector(peer)
 	ctx := wirebudget.With(t.Context(), 2, 0)
 	for range 2 {
-		got, err := readFatekPlanned(t, ctx, c, req)
+		got, err := readFatekPlanned(ctx, t, c, req)
 		require.ErrorIs(t, err, io.EOF)
 		require.Equal(t, schema.QualityBad, got[0].Quality)
 	}
-	got, err := readFatekPlanned(t, ctx, c, req)
+	got, err := readFatekPlanned(ctx, t, c, req)
 	require.ErrorIs(t, err, wirebudget.ErrExhausted)
 	require.Equal(t, schema.QualityBad, got[0].Quality)
 	require.Equal(t, 2, wirebudget.From(ctx).Used())
 	require.Len(t, peer.frames, 2)
 	canceled, cancel := context.WithCancel(t.Context())
 	cancel()
-	_, err = readFatekPlanned(t, canceled, c, req)
+	_, err = readFatekPlanned(canceled, t, c, req)
 	require.ErrorIs(t, err, context.Canceled)
 	require.Len(t, peer.frames, 2)
 }

@@ -36,7 +36,7 @@ func (c *ModbusTCPConnector) readPlanned(ctx context.Context, req connector.Plan
 	}
 	ctx, cancel := c.readContext(ctx, 2)
 	defer cancel()
-	if err = c.ensureConnectionContext(ctx); err != nil {
+	if err := c.ensureConnectionContext(ctx); err != nil {
 		return modbusPlannedResults(req, request, bindings, nil, nil, time.Now(), err), err
 	}
 	defer c.afterOperationContext(ctx)

@@ -32,7 +32,7 @@ func modbusPlannedResults(req connector.PlannedReadRequest, r optimizer.Acquisit
 	return results
 }
 
-func decodeModbusPlannedPoint(p optimizer.PointSlice, profile connector.ReadProfile, words []uint16, bits []bool) (any, []byte, error) {
+func decodeModbusPlannedPoint(p optimizer.PointSlice, profile connector.ReadProfile, words []uint16, bits []bool) (decodedValue any, decodedBytes []byte, decodeErr error) {
 	if p.Offset < 0 || p.Length < 1 {
 		return nil, nil, decoding.ErrShortScalar
 	}

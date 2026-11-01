@@ -7,6 +7,11 @@ import (
 	"strconv"
 )
 
+const (
+	modbusFunctionCoil    = "coil"
+	modbusFunctionHolding = "holding"
+)
+
 func validateModbusPlannedRequest(r optimizer.AcquisitionRequest, bindings []connector.PlannedPointBinding, protocol schema.ProtocolType, frame string, station byte) error {
 	if station == 0 {
 		station = 1
@@ -17,7 +22,7 @@ func validateModbusPlannedRequest(r optimizer.AcquisitionRequest, bindings []con
 	if function == 1 || function == 2 {
 		limit, nativeBits = 2000, 1
 	}
-	if r.Group.Identity.Protocol != "modbus" || r.Group.Identity.Frame != frame || r.Group.Identity.Station != strconv.Itoa(int(station)) || r.Kind != "contiguous" || r.AddressStep != 1 || function == 0 || r.Group.Area != area || len(r.Units) != 0 || r.Length < 1 || r.Length > limit || r.Length > r.Limit || r.Start < 0 || r.Start > 65536-r.Length {
+	if r.Group.Identity.Protocol != "modbus" || r.Group.Identity.Frame != frame || r.Group.Identity.Station != strconv.Itoa(int(station)) || r.Kind != plannedReadKindContiguous || r.AddressStep != 1 || function == 0 || r.Group.Area != area || len(r.Units) != 0 || r.Length < 1 || r.Length > limit || r.Length > r.Limit || r.Start < 0 || r.Start > 65536-r.Length {
 		return connector.ErrPlannedRead
 	}
 	for _, p := range r.Points {
@@ -40,11 +45,11 @@ func validateModbusPlannedRequest(r optimizer.AcquisitionRequest, bindings []con
 
 func modbusPlannedFunction(function string) byte {
 	switch function {
-	case "01", "coil", "fc01":
+	case "01", modbusFunctionCoil, "fc01":
 		return 1
 	case "02", "discrete", "fc02":
 		return 2
-	case "03", "holding", "fc03", "":
+	case "03", modbusFunctionHolding, "fc03", "":
 		return 3
 	case "04", "input", "fc04":
 		return 4

@@ -37,7 +37,7 @@ func TestFatekPlannedPhysicalStrideAndPhase(t *testing.T) {
 			req := fatekPlannedRequest(t, tc.points...)
 			require.Len(t, req.Plan.Requests(), 1)
 			peer := &fatekPlannedPeer{memory: tc.memory}
-			got, err := readFatekPlanned(t, t.Context(), fatekPlannedConnector(peer), req)
+			got, err := readFatekPlanned(t.Context(), t, fatekPlannedConnector(peer), req)
 			require.NoError(t, err)
 			assertFatekPlannedResults(t, req, got, tc.want)
 			require.Len(t, peer.frames, 1)
@@ -81,7 +81,7 @@ func TestFatekPlannedWordCostWholeScalarLimits(t *testing.T) {
 			seen := map[string]bool{}
 			for i := range req.Plan.Requests() {
 				selected := fatekSelectRequest(req, i)
-				got, err := readFatekPlanned(t, t.Context(), c, selected)
+				got, err := readFatekPlanned(t.Context(), t, c, selected)
 				require.NoError(t, err)
 				for _, r := range got {
 					require.Equal(t, schema.QualityGood, r.Quality)

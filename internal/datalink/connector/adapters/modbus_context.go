@@ -9,8 +9,14 @@ import (
 	"go-gateway/internal/protocol/modbus"
 	"go-gateway/internal/protocol/wirebudget"
 	"io"
+	"log/slog"
 	"net"
 	"time"
+)
+
+const (
+	adapterCleanupDiagnosticMessage = "adapter connection cleanup failed; operation outcome unchanged"
+	adapterCleanupProtocolLogKey    = "protocol"
 )
 
 func modbusReadTimeout(seconds int) time.Duration {
@@ -67,7 +73,9 @@ func (c *ModbusTCPConnector) ensureConnectionContext(ctx context.Context) error 
 }
 func (c *ModbusTCPConnector) afterOperationContext(ctx context.Context) {
 	if !c.IsPersistentMode() {
-		_ = c.CloseContext(ctx)
+		if err := c.CloseContext(ctx); err != nil {
+			slog.ErrorContext(ctx, adapterCleanupDiagnosticMessage, adapterCleanupProtocolLogKey, "modbus_tcp")
+		}
 	}
 }
 
