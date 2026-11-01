@@ -301,7 +301,7 @@ func (s *Service) bootstrapFromServices(ctx context.Context) error {
 		return fmt.Errorf("載入 points 失敗: %w", err)
 	}
 	for _, p := range points {
-		if lease := s.InstallPointForMutation(p); modernPoint(p) && p.Enabled && lease == 0 {
+		if lease := s.InstallPointForMutation(p); modernPoint(p) && p.Enabled && lease == 0 { //nolint:contextcheck // Workspace-less fallback: modern profiles fail closed; legacy/disabled profiles do not inherit request evidence.
 			return fmt.Errorf("point decoding profile is unavailable")
 		}
 	}
@@ -328,7 +328,7 @@ func (s *Service) bootstrapFromSnapshot(ctx context.Context) error {
 		s.scheduler.AddDevice(d)
 	}
 	for _, p := range s.snapshot.Points {
-		if lease := s.InstallPointForMutation(p); modernPoint(p) && p.Enabled && lease == 0 {
+		if lease := s.InstallPointForMutation(p); modernPoint(p) && p.Enabled && lease == 0 { //nolint:contextcheck // Independent fresh-profile install; TestSnapshotInstallKeepsIndependentFreshProfileBoundary proves cancellation/cache isolation.
 			return fmt.Errorf("point decoding profile is unavailable")
 		}
 	}

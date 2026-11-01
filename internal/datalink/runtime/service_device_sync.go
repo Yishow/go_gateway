@@ -43,7 +43,7 @@ func (s *Service) UpsertDevice(ctx context.Context, device *schema.Device) error
 		if err != nil {
 			return err
 		}
-		if lease := s.InstallPointForMutation(pt); modernPoint(pt) && pt.Enabled && lease == 0 {
+		if lease := s.InstallPointForMutation(pt); modernPoint(pt) && pt.Enabled && lease == 0 { //nolint:contextcheck // Admitted install is independent; TestDeviceUpsertInstallKeepsIndependentFreshProfileBoundary proves cancellation/cache isolation.
 			return fmt.Errorf("point decoding profile is unavailable")
 		}
 	}
