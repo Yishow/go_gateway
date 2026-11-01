@@ -32,10 +32,10 @@ func runSQLiteConfigurationExpansion(db *sql.DB, migrate func(context.Context, *
 	}
 	defer conn.Close()
 	var foreignKeys, legacyAlter int
-	if err = conn.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&foreignKeys); err != nil {
+	if err := conn.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&foreignKeys); err != nil {
 		return err
 	}
-	if err = conn.QueryRowContext(ctx, "PRAGMA legacy_alter_table").Scan(&legacyAlter); err != nil {
+	if err := conn.QueryRowContext(ctx, "PRAGMA legacy_alter_table").Scan(&legacyAlter); err != nil {
 		return err
 	}
 	hadTemp, err := sqliteMigrationHasTemp(ctx, conn)
@@ -43,7 +43,7 @@ func runSQLiteConfigurationExpansion(db *sql.DB, migrate func(context.Context, *
 		return err
 	}
 	var tempStore int
-	if err = conn.QueryRowContext(ctx, "PRAGMA temp_store").Scan(&tempStore); err != nil {
+	if err := conn.QueryRowContext(ctx, "PRAGMA temp_store").Scan(&tempStore); err != nil {
 		return err
 	}
 	defer func() {
@@ -93,7 +93,7 @@ func runSQLiteConfigurationExpansion(db *sql.DB, migrate func(context.Context, *
 	if _, err = tx.ExecContext(ctx, "UPDATE write_groups SET id=id WHERE 0"); err != nil {
 		return err
 	}
-	if err = migrate(ctx, tx); err != nil {
+	if err := migrate(ctx, tx); err != nil {
 		return err
 	}
 	commitErr := tx.Commit()
@@ -161,7 +161,7 @@ func rebuildMixedProfileTable(ctx context.Context, tx *sql.Tx, checkpoint func(s
 		return err
 	}
 	var different int
-	var comparisons []string
+	comparisons := make([]string, 0, len(columns))
 	for _, column := range columns {
 		comparisons = append(comparisons, "a."+column+" IS NOT b."+column+" OR typeof(a."+column+")<>typeof(b."+column+")")
 	}

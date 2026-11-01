@@ -110,8 +110,11 @@ func initializeSQLiteWriteGroupLineages(ctx context.Context, tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO write_group_generations(group_id,lineage_id,generation) VALUES (?,?,1)`, a.group, id); err != nil {
 			return fmt.Errorf("insert write-group genesis: %w", err)
 		}
-		for _, table := range []string{"write_group_basic_keys", "write_group_profile_keys"} {
-			if _, err := tx.ExecContext(ctx, `UPDATE `+table+` SET lineage_id=? WHERE group_id=?`, id, a.group); err != nil {
+		for _, query := range []string{
+			`UPDATE write_group_basic_keys SET lineage_id=? WHERE group_id=?`,
+			`UPDATE write_group_profile_keys SET lineage_id=? WHERE group_id=?`,
+		} {
+			if _, err := tx.ExecContext(ctx, query, id, a.group); err != nil {
 				return fmt.Errorf("bind write-group lineage key: %w", err)
 			}
 		}

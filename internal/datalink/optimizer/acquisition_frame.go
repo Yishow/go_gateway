@@ -9,7 +9,7 @@ import "go-gateway/internal/protocol/fatek"
 // ParseResponseHeader and PackBits; FATEK BuildFrame and ReadRegisters/ReadStatus.
 func contiguousFrameBytes(identity AcquisitionIdentity, area string, start, count, nativeBits int) (ApplicationFrameBudget, bool) {
 	switch identity.Protocol {
-	case "modbus":
+	case acquisitionProtocolModbus:
 		payload := count * 2
 		if nativeBits == 1 {
 			payload = (count + 7) / 8
@@ -20,8 +20,8 @@ func contiguousFrameBytes(identity AcquisitionIdentity, area string, start, coun
 		case "rtu":
 			return ApplicationFrameBudget{RequestBytes: 8, ResponseBytes: 5 + payload}, true
 		}
-	case "mc", "mitsubishi":
-		if identity.Frame != "3e-binary" {
+	case "mc", acquisitionProtocolMitsubishi:
+		if identity.Frame != acquisitionFrame3EBinary {
 			break
 		}
 		payload := count * 2
@@ -29,8 +29,8 @@ func contiguousFrameBytes(identity AcquisitionIdentity, area string, start, coun
 			payload = (count + 1) / 2
 		}
 		return ApplicationFrameBudget{RequestBytes: 21, ResponseBytes: 11 + payload}, true
-	case "fatek":
-		if identity.Frame != "ascii" {
+	case acquisitionProtocolFatek:
+		if identity.Frame != acquisitionFrameASCII {
 			break
 		}
 		component, err := fatek.GetComponentType(area)
@@ -50,9 +50,9 @@ func contiguousFrameBytes(identity AcquisitionIdentity, area string, start, coun
 	return ApplicationFrameBudget{}, false
 }
 
-func strictFrameBudget(cap AcquisitionCapability) (ApplicationFrameBudget, bool) {
+func strictFrameBudget(capability AcquisitionCapability) (ApplicationFrameBudget, bool) {
 	var result ApplicationFrameBudget
-	for _, budget := range []ApplicationFrameBudget{cap.ProtocolFrameBudget, cap.ClientFrameBudget, cap.DeviceFrameBudget} {
+	for _, budget := range []ApplicationFrameBudget{capability.ProtocolFrameBudget, capability.ClientFrameBudget, capability.DeviceFrameBudget} {
 		if budget.RequestBytes < 0 || budget.ResponseBytes < 0 {
 			return ApplicationFrameBudget{}, false
 		}
@@ -73,7 +73,7 @@ func fitsFrameBudget(cost, budget ApplicationFrameBudget) bool {
 
 // frameLimitedUnits uses the monotone encoded frame size, not bytes/nativeBits:
 // MC packs bit nibbles and FATEK encodes word values as ASCII hex characters.
-func frameLimitedUnits(source AcquisitionSource, area string, start, width, nativeBits, limit int) (int, ApplicationFrameBudget, bool, string) {
+func frameLimitedUnits(source AcquisitionSource, area string, start, width, nativeBits, limit int) (unitLimit int, initialFrameCost ApplicationFrameBudget, frameCostKnown bool, rejectionReason string) {
 	budget, valid := strictFrameBudget(source.Capability)
 	if !valid {
 		return 0, ApplicationFrameBudget{}, false, "invalid-capability"

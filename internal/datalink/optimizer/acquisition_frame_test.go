@@ -29,15 +29,15 @@ func TestAcquisitionPlanFrameSizesAgainstSerializers(t *testing.T) {
 		dt                    schema.DataType
 		request, response     []byte
 	}{
-		{"modbus", "tcp", "HR", schema.DataTypeInt16, modbus.BuildTCPFrame(1, 1, 3, modbus.BuildReadRequest(0, 3)), modbus.BuildTCPFrame(1, 1, 3, []byte{6, 0, 0, 0, 0, 0, 0})},
-		{"modbus", "rtu", "HR", schema.DataTypeInt16, modbus.BuildRTUFrame(1, 3, modbus.BuildReadRequest(0, 3)), modbus.BuildRTUFrame(1, 3, []byte{6, 0, 0, 0, 0, 0, 0})},
-		{"modbus", "tcp", "COIL", schema.DataTypeBool, modbus.BuildTCPFrame(1, 1, 1, modbus.BuildReadRequest(0, 3)), modbus.BuildTCPFrame(1, 1, 1, []byte{1, 5})},
-		{"modbus", "rtu", "DI", schema.DataTypeBool, modbus.BuildRTUFrame(1, 2, modbus.BuildReadRequest(0, 3)), modbus.BuildRTUFrame(1, 2, []byte{1, 5})},
-		{"mc", "3e-binary", "D", schema.DataTypeInt16, mcRequest, mcResponse},
-		{"mc", "3e-binary", "M", schema.DataTypeBool, mcBitRequest, mcBitResponse},
-		{"fatek", "ascii", "D", schema.DataTypeInt16, fatek.BuildFrame(1, "46", "03D00000"), fatek.BuildFrame(1, "46", "0000000000000")},
-		{"fatek", "ascii", "DR", schema.DataTypeFloat32, fatek.BuildFrame(1, "46", "03DR00000"), fatek.BuildFrame(1, "46", "0000000000000000000000000")},
-		{"fatek", "ascii", "M", schema.DataTypeBool, fatek.BuildFrame(1, "44", "03M0000"), fatek.BuildFrame(1, "44", "0101")},
+		{acquisitionProtocolModbus, "tcp", "HR", schema.DataTypeInt16, modbus.BuildTCPFrame(1, 1, 3, modbus.BuildReadRequest(0, 3)), modbus.BuildTCPFrame(1, 1, 3, []byte{6, 0, 0, 0, 0, 0, 0})},
+		{acquisitionProtocolModbus, "rtu", "HR", schema.DataTypeInt16, modbus.BuildRTUFrame(1, 3, modbus.BuildReadRequest(0, 3)), modbus.BuildRTUFrame(1, 3, []byte{6, 0, 0, 0, 0, 0, 0})},
+		{acquisitionProtocolModbus, "tcp", "COIL", schema.DataTypeBool, modbus.BuildTCPFrame(1, 1, 1, modbus.BuildReadRequest(0, 3)), modbus.BuildTCPFrame(1, 1, 1, []byte{1, 5})},
+		{acquisitionProtocolModbus, "rtu", "DI", schema.DataTypeBool, modbus.BuildRTUFrame(1, 2, modbus.BuildReadRequest(0, 3)), modbus.BuildRTUFrame(1, 2, []byte{1, 5})},
+		{"mc", acquisitionFrame3EBinary, "D", schema.DataTypeInt16, mcRequest, mcResponse},
+		{"mc", acquisitionFrame3EBinary, "M", schema.DataTypeBool, mcBitRequest, mcBitResponse},
+		{acquisitionProtocolFatek, acquisitionFrameASCII, "D", schema.DataTypeInt16, fatek.BuildFrame(1, "46", "03D00000"), fatek.BuildFrame(1, "46", "0000000000000")},
+		{acquisitionProtocolFatek, acquisitionFrameASCII, "DR", schema.DataTypeFloat32, fatek.BuildFrame(1, "46", "03DR00000"), fatek.BuildFrame(1, "46", "0000000000000000000000000")},
+		{acquisitionProtocolFatek, acquisitionFrameASCII, "M", schema.DataTypeBool, fatek.BuildFrame(1, "44", "03M0000"), fatek.BuildFrame(1, "44", "0101")},
 	} {
 		t.Run(c.protocol+c.frame+c.area, func(t *testing.T) {
 			in := acquisitionInput()
@@ -123,13 +123,13 @@ func TestAcquisitionPlanEncodedResponseBudgetRegression(t *testing.T) {
 		dt                      schema.DataType
 		budget, first, requests int
 	}{
-		{"modbus", "rtu", "HR", schema.DataTypeInt16, 9, 2, 2},
-		{"modbus", "tcp", "COIL", schema.DataTypeBool, 10, 3, 1},
-		{"mc", "3e-binary", "D", schema.DataTypeInt16, 15, 2, 2},
-		{"mc", "3e-binary", "M", schema.DataTypeBool, 12, 2, 2},
-		{"fatek", "ascii", "D", schema.DataTypeInt16, 17, 2, 2},
-		{"fatek", "ascii", "DR", schema.DataTypeFloat32, 17, 1, 3},
-		{"fatek", "ascii", "M", schema.DataTypeBool, 11, 2, 2},
+		{acquisitionProtocolModbus, "rtu", "HR", schema.DataTypeInt16, 9, 2, 2},
+		{acquisitionProtocolModbus, "tcp", "COIL", schema.DataTypeBool, 10, 3, 1},
+		{"mc", acquisitionFrame3EBinary, "D", schema.DataTypeInt16, 15, 2, 2},
+		{"mc", acquisitionFrame3EBinary, "M", schema.DataTypeBool, 12, 2, 2},
+		{acquisitionProtocolFatek, acquisitionFrameASCII, "D", schema.DataTypeInt16, 17, 2, 2},
+		{acquisitionProtocolFatek, acquisitionFrameASCII, "DR", schema.DataTypeFloat32, 17, 1, 3},
+		{acquisitionProtocolFatek, acquisitionFrameASCII, "M", schema.DataTypeBool, 11, 2, 2},
 	} {
 		t.Run(c.protocol+c.area, func(t *testing.T) {
 			in := acquisitionInput()

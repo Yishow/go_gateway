@@ -14,9 +14,9 @@ func canonicalAddressBounds(bounds []NativeAddressBound) []NativeAddressBound {
 // declaredSpanError intersects every provided authority without treating a
 // missing declaration as proof that the real device has unlimited memory.
 // One bound per area per authority keeps intersection semantics unambiguous.
-func declaredSpanError(protocol string, cap AcquisitionCapability, area string, start, width int) string {
+func declaredSpanError(protocol string, capability AcquisitionCapability, area string, start, width int) string {
 	outside := false
-	for _, bounds := range [][]NativeAddressBound{cap.ProtocolAddressBounds, cap.ClientAddressBounds, cap.DeviceAddressBounds} {
+	for _, bounds := range [][]NativeAddressBound{capability.ProtocolAddressBounds, capability.ClientAddressBounds, capability.DeviceAddressBounds} {
 		areas := make(map[string]bool, len(bounds))
 		for _, bound := range bounds {
 			if !canonicalNativeArea(protocol, bound.Area) || bound.StartInclusive < 0 || bound.EndExclusive <= bound.StartInclusive || areas[bound.Area] {

@@ -36,13 +36,14 @@ func expandSQLiteMixedDelivery(db *sql.DB, checkpoint func(string) error) error 
 			expected := strings.TrimSpace(statements[i])
 			var actual string
 			err = tx.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE name=? AND type='table'`, name).Scan(&actual)
-			if errors.Is(err, sql.ErrNoRows) {
+			switch {
+			case errors.Is(err, sql.ErrNoRows):
 				if _, err = tx.ExecContext(ctx, expected); err != nil {
 					return err
 				}
-			} else if err != nil {
+			case err != nil:
 				return err
-			} else if canonicalMixedDeliveryDDL(actual) != canonicalMixedDeliveryDDL(expected) {
+			case canonicalMixedDeliveryDDL(actual) != canonicalMixedDeliveryDDL(expected):
 				return fmt.Errorf("unknown %s schema; migration refused", name)
 			}
 			if err := step(name); err != nil {
@@ -84,13 +85,14 @@ func expandSQLiteMixedDelivery(db *sql.DB, checkpoint func(string) error) error 
 		expectedIndex := strings.TrimSpace(statements[3])
 		var indexSQL string
 		err = tx.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE name=? AND type='index'`, indexName).Scan(&indexSQL)
-		if errors.Is(err, sql.ErrNoRows) {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
 			if _, err = tx.ExecContext(ctx, expectedIndex); err != nil {
 				return err
 			}
-		} else if err != nil {
+		case err != nil:
 			return err
-		} else if canonicalMixedDeliveryDDL(indexSQL) != canonicalMixedDeliveryDDL(expectedIndex) {
+		case canonicalMixedDeliveryDDL(indexSQL) != canonicalMixedDeliveryDDL(expectedIndex):
 			return fmt.Errorf("unknown %s schema; migration refused", indexName)
 		}
 		if err := step("index"); err != nil {

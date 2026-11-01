@@ -13,7 +13,7 @@ func TestAcquisitionPlanSnapshotRegression(t *testing.T) {
 	p := BuildAcquisitionPlan(in)
 	errors := p.Errors()
 	errors[0].Code = "mutated"
-	if p.Errors()[0].Code != "invalid-address" {
+	if p.Errors()[0].Code != acquisitionReasonInvalidAddress {
 		t.Fatal("errors accessor aliases internal storage")
 	}
 
@@ -58,7 +58,7 @@ func TestAcquisitionPlanScalarTypesRegression(t *testing.T) {
 			t.Fatalf("%s scalar split/rejected: %+v %+v", c.dt, r, p.Errors())
 		}
 	}
-	for _, protocol := range []string{"mc", "mitsubishi", "fatek"} {
+	for _, protocol := range []string{"mc", acquisitionProtocolMitsubishi, acquisitionProtocolFatek} {
 		for _, support := range []string{"", "unknown", "supported", "unsupported"} {
 			in := acquisitionInput()
 			in.Sources[0].Coverage = ReadableCoverage{}
@@ -75,7 +75,7 @@ func TestAcquisitionPlanScalarTypesRegression(t *testing.T) {
 				t.Fatalf("unsafe capability fallback: %+v", r)
 			}
 			in.Sources[0].Points[0].Address = "garbage"
-			if got := BuildAcquisitionPlan(in).Errors(); len(got) != 1 || got[0].Code != "invalid-address" {
+			if got := BuildAcquisitionPlan(in).Errors(); len(got) != 1 || got[0].Code != acquisitionReasonInvalidAddress {
 				t.Fatalf("malformed %s: %+v", protocol, got)
 			}
 		}

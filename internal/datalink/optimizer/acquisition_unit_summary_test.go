@@ -23,7 +23,7 @@ func TestAcquisitionWireUnitsPhysicalCells(t *testing.T) {
 		{"DWM", []EffectivePoint{{ID: "a", Address: "DWM8", DataType: schema.DataTypeUint64, NativeWidth: 2}}, 1, 64},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			in := randomInput("fatek")
+			in := randomInput(acquisitionProtocolFatek)
 			in.Sources[0].Points = tc.points
 			plan := BuildAcquisitionPlan(in)
 			require.Empty(t, plan.Errors())
@@ -38,7 +38,7 @@ func TestAcquisitionWireUnitsPhysicalCells(t *testing.T) {
 }
 
 func TestAcquisitionWireUnitsExcludeGapsAndRejectedScalars(t *testing.T) {
-	in := randomInput("fatek")
+	in := randomInput(acquisitionProtocolFatek)
 	s := &in.Sources[0]
 	s.Capability.RandomSupport = "unknown"
 	s.Points = []EffectivePoint{{ID: "a", Address: "DR0", DataType: schema.DataTypeUint32, NativeWidth: 1}, {ID: "b", Address: "DR4", DataType: schema.DataTypeUint32, NativeWidth: 1}, {ID: "bad", Address: "DR8", DataType: schema.DataTypeUint32, NativeWidth: 7}}
@@ -52,7 +52,7 @@ func TestAcquisitionWireUnitsExcludeGapsAndRejectedScalars(t *testing.T) {
 }
 
 func TestAcquisitionWireUnitsCompatibilityNamespaces(t *testing.T) {
-	base := randomInput("fatek").Sources[0]
+	base := randomInput(acquisitionProtocolFatek).Sources[0]
 	base.Points = []EffectivePoint{{ID: "a", Address: "DR0", DataType: schema.DataTypeUint32, NativeWidth: 1}}
 	for _, tc := range []struct {
 		name   string
@@ -88,7 +88,7 @@ func TestAcquisitionWireUnitsCompatibilityNamespaces(t *testing.T) {
 }
 
 func TestAcquisitionWireUnitsDeterministicAndFingerprintUnchanged(t *testing.T) {
-	in := randomInput("fatek", 0, 1, 9)
+	in := randomInput(acquisitionProtocolFatek, 0, 1, 9)
 	p := BuildAcquisitionPlan(in)
 	before := p.Fingerprint()
 	units := p.WireUnits()
@@ -107,8 +107,8 @@ func TestAcquisitionWireUnitsNativeBitAndWordAreas(t *testing.T) {
 		dtype                       schema.DataType
 		width, bits, units          int
 	}{
-		{"modbus", "40001", "", schema.DataTypeUint32, 2, 16, 2},
-		{"modbus", "0", "01", schema.DataTypeBool, 1, 1, 1},
+		{acquisitionProtocolModbus, "40001", "", schema.DataTypeUint32, 2, 16, 2},
+		{acquisitionProtocolModbus, "0", "01", schema.DataTypeBool, 1, 1, 1},
 		{"mc", "D0", "", schema.DataTypeBool, 1, 16, 1},
 		{"mc", "M0", "", schema.DataTypeBool, 1, 1, 1},
 	} {

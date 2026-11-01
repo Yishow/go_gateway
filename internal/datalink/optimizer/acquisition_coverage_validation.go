@@ -25,7 +25,7 @@ func AcquisitionPointShape(protocol string, point EffectivePoint) (nativeBits, n
 	}
 	nativeWidth = (bits + nativeBits - 1) / nativeBits
 	if !validNativeSpan(protocol, area, start, nativeWidth) {
-		return 0, 0, errors.New("invalid-address")
+		return 0, 0, errors.New(acquisitionReasonInvalidAddress)
 	}
 	return nativeBits, nativeWidth, nil
 }
@@ -40,11 +40,11 @@ func AcquisitionPointSpan(protocol string, point EffectivePoint) (NativeRange, e
 	area, start, _, _, _, _ := pointNativeAddress(protocol, point)
 	step := nativeAddressStep(protocol, area)
 	if step <= 0 || width > (int(^uint(0)>>1)-start)/step {
-		return NativeRange{}, errors.New("invalid-address")
+		return NativeRange{}, errors.New(acquisitionReasonInvalidAddress)
 	}
 	span := NativeRange{Area: area, Start: start, End: start + width*step}
 	if !validNativeRange(protocol, area, span.Start, span.End) {
-		return NativeRange{}, errors.New("invalid-address")
+		return NativeRange{}, errors.New(acquisitionReasonInvalidAddress)
 	}
 	return span, nil
 }

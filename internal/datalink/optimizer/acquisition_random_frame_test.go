@@ -17,7 +17,7 @@ func TestAcquisitionRandomFramesMatchSerializers(t *testing.T) {
 		t.Fatal("bad response oracle")
 	}
 	assertRandomFrameCost(t, mc, request, response)
-	f := randomInput("fatek", 0, 1, 10)
+	f := randomInput(acquisitionProtocolFatek, 0, 1, 10)
 	assertRandomFrameCost(t, f, fatek.BuildFrame(1, "48", "03D00000D00001D00010"), fatek.BuildFrame(1, "48", "0000100020003"))
 	f.Sources[0].Capability.RandomCrossArea = true
 	f.Sources[0].Points[1].Address = "DR1"
@@ -31,7 +31,7 @@ func assertRandomFrameCost(t *testing.T, in AcquisitionInput, request, response 
 	t.Helper()
 	p := BuildAcquisitionPlan(in)
 	r := p.Requests()
-	if len(p.Errors()) != 0 || len(r) != 1 || r[0].Kind != "random" || !r[0].FrameCostKnown || r[0].FrameBytes.RequestBytes != len(request) || r[0].FrameBytes.ResponseBytes != len(response) {
+	if len(p.Errors()) != 0 || len(r) != 1 || r[0].Kind != acquisitionKindRandom || !r[0].FrameCostKnown || r[0].FrameBytes.RequestBytes != len(request) || r[0].FrameBytes.ResponseBytes != len(response) {
 		t.Fatalf("serialized random cost: %+v errors%+v want%d/%d", r, p.Errors(), len(request), len(response))
 	}
 }

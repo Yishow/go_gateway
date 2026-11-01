@@ -17,10 +17,10 @@ func TestAcquisitionPointShapeUsesPlannerAddressAndTypeAuthority(t *testing.T) {
 		{"mc", "D0", "", schema.DataTypeFloat64, 16, 4},
 		{"mc", "D0", "", schema.DataTypeBool, 16, 1},
 		{"mc", "M0", "", schema.DataTypeBool, 1, 1},
-		{"fatek", "DR0", "", schema.DataTypeFloat64, 32, 2},
-		{"fatek", "D0", "", schema.DataTypeFloat32, 16, 2},
-		{"modbus", "0", "04", schema.DataTypeUint32, 16, 2},
-		{"modbus", "0", "01", schema.DataTypeBool, 1, 1},
+		{acquisitionProtocolFatek, "DR0", "", schema.DataTypeFloat64, 32, 2},
+		{acquisitionProtocolFatek, "D0", "", schema.DataTypeFloat32, 16, 2},
+		{acquisitionProtocolModbus, "0", "04", schema.DataTypeUint32, 16, 2},
+		{acquisitionProtocolModbus, "0", "01", schema.DataTypeBool, 1, 1},
 	} {
 		point := EffectivePoint{Address: tc.address, Function: tc.function, DataType: tc.dtype}
 		bits, width, err := AcquisitionPointShape(tc.protocol, point)
@@ -55,9 +55,9 @@ func TestAcquisitionCoverageValidationUsesCanonicalPhysicalRanges(t *testing.T) 
 			case "excluded":
 				coverage.Excluded = ranges
 			}
-			require.True(t, ValidateAcquisitionCoverage("modbus", coverage))
+			require.True(t, ValidateAcquisitionCoverage(acquisitionProtocolModbus, coverage))
 			ranges[0].End++
-			require.False(t, ValidateAcquisitionCoverage("modbus", coverage))
+			require.False(t, ValidateAcquisitionCoverage(acquisitionProtocolModbus, coverage))
 		})
 	}
 }

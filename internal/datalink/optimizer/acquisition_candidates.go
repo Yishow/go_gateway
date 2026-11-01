@@ -86,9 +86,9 @@ func betterRequests(a, b []AcquisitionRequest) []AcquisitionRequest {
 		return b
 	}
 	stable := func(requests []AcquisitionRequest) string {
-		copy := append([]AcquisitionRequest(nil), requests...)
-		slices.SortFunc(copy, func(a, b AcquisitionRequest) int { return cmp.Compare(canonicalJSON(a), canonicalJSON(b)) })
-		return canonicalJSON(copy)
+		requestCopy := append([]AcquisitionRequest(nil), requests...)
+		slices.SortFunc(requestCopy, func(a, b AcquisitionRequest) int { return cmp.Compare(canonicalJSON(a), canonicalJSON(b)) })
+		return canonicalJSON(requestCopy)
 	}
 	if stable(b) < stable(a) {
 		return b

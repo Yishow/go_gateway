@@ -14,10 +14,10 @@ func TestAcquisitionPointSpanUsesCanonicalPhysicalWidth(t *testing.T) {
 		dataType          schema.DataType
 		want              NativeRange
 	}{
-		{"modbus", "40001", schema.DataTypeFloat64, NativeRange{"HR", 0, 4}},
+		{acquisitionProtocolModbus, "40001", schema.DataTypeFloat64, NativeRange{"HR", 0, 4}},
 		{"mc", "W0F", schema.DataTypeUint32, NativeRange{"W", 15, 17}},
-		{"fatek", "WY0", schema.DataTypeUint16, NativeRange{"WY", 0, 16}},
-		{"fatek", "DR0", schema.DataTypeFloat64, NativeRange{"DR", 0, 4}},
+		{acquisitionProtocolFatek, "WY0", schema.DataTypeUint16, NativeRange{"WY", 0, 16}},
+		{acquisitionProtocolFatek, "DR0", schema.DataTypeFloat64, NativeRange{"DR", 0, 4}},
 	} {
 		t.Run(tc.protocol+tc.address, func(t *testing.T) {
 			got, err := AcquisitionPointSpan(tc.protocol, EffectivePoint{Address: tc.address, DataType: tc.dataType})

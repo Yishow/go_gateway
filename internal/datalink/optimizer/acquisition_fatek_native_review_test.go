@@ -8,7 +8,7 @@ import (
 )
 
 func TestIndependentFatekWeightedLimit(t *testing.T) {
-	in := randomInput("fatek")
+	in := randomInput(acquisitionProtocolFatek)
 	for i := 0; i < 33; i++ {
 		in.Sources[0].Points = append(in.Sources[0].Points, EffectivePoint{ID: fmt.Sprint(i), Address: fmt.Sprintf("DR%d", i*10), DataType: schema.DataTypeInt32, NativeWidth: 1})
 	}
@@ -29,7 +29,7 @@ func TestIndependentFatekWeightedLimit(t *testing.T) {
 	}
 }
 func TestIndependentFatekScalarStride(t *testing.T) {
-	in := randomInput("fatek")
+	in := randomInput(acquisitionProtocolFatek)
 	for i := 0; i < 2; i++ {
 		in.Sources[0].Points = append(in.Sources[0].Points, EffectivePoint{ID: fmt.Sprint(i), Address: fmt.Sprintf("DR%d", i*10), DataType: schema.DataTypeInt64, NativeWidth: 2})
 	}
@@ -47,7 +47,7 @@ func TestIndependentFatekScalarStride(t *testing.T) {
 	}
 }
 func TestIndependentFatekOverlapping32Points(t *testing.T) {
-	in := randomInput("fatek")
+	in := randomInput(acquisitionProtocolFatek)
 	for i := 0; i < 2; i++ {
 		in.Sources[0].Points = append(in.Sources[0].Points, EffectivePoint{ID: fmt.Sprint(i), Address: fmt.Sprintf("DR%d", i), DataType: schema.DataTypeInt32, NativeWidth: 1})
 	}
@@ -68,7 +68,7 @@ func TestIndependentFatekWordBitAddress(t *testing.T) {
 	if got != "WM0008" {
 		t.Errorf("want manual6char WM0008 got %q", got)
 	}
-	in := randomInput("fatek")
+	in := randomInput(acquisitionProtocolFatek)
 	in.Sources[0].Points = []EffectivePoint{{ID: "a", Address: "WY8", DataType: schema.DataTypeInt32, NativeWidth: 2}, {ID: "b", Address: "WY64", DataType: schema.DataTypeInt16, NativeWidth: 1}}
 	p := BuildAcquisitionPlan(in)
 	rs := p.Requests()
@@ -83,7 +83,7 @@ func TestIndependentFatekWordBitAddress(t *testing.T) {
 }
 
 func TestFatekNativeCrossPhaseScatterSlice(t *testing.T) {
-	in := randomInput("fatek")
+	in := randomInput(acquisitionProtocolFatek)
 	in.Sources[0].Points = []EffectivePoint{
 		{ID: "a", Address: "DR0", DataType: schema.DataTypeInt64, NativeWidth: 2},
 		{ID: "b", Address: "DR1", DataType: schema.DataTypeInt32, NativeWidth: 1},
@@ -91,7 +91,7 @@ func TestFatekNativeCrossPhaseScatterSlice(t *testing.T) {
 	}
 	plan := BuildAcquisitionPlan(in)
 	rs := plan.Requests()
-	if len(plan.Errors()) != 0 || len(rs) != 1 || rs[0].Kind != "random" {
+	if len(plan.Errors()) != 0 || len(rs) != 1 || rs[0].Kind != acquisitionKindRandom {
 		t.Fatalf("plan=%+v errors=%+v", rs, plan.Errors())
 	}
 	want := map[string][]int{"a": {0, 2}, "b": {1}, "c": {2, 4}}

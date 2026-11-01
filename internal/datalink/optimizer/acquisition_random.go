@@ -7,25 +7,25 @@ import (
 	"go-gateway/internal/protocol/fatek"
 )
 
-func randomEligible(identity AcquisitionIdentity, cap AcquisitionCapability, bits int) bool {
-	if cap.RandomSupport != "supported" {
+func randomEligible(identity AcquisitionIdentity, capability AcquisitionCapability, bits int) bool {
+	if capability.RandomSupport != "supported" {
 		return false
 	}
 	switch identity.Protocol {
-	case "mc", "mitsubishi":
-		return identity.Frame == "3e-binary" && bits == 16
-	case "fatek":
-		return identity.Frame == "ascii"
+	case "mc", acquisitionProtocolMitsubishi:
+		return identity.Frame == acquisitionFrame3EBinary && bits == 16
+	case acquisitionProtocolFatek:
+		return identity.Frame == acquisitionFrameASCII
 	}
 	return false
 }
 
-func randomLimit(identity AcquisitionIdentity, cap AcquisitionCapability) int {
+func randomLimit(identity AcquisitionIdentity, capability AcquisitionCapability) int {
 	limit := 64
-	if identity.Protocol == "mc" || identity.Protocol == "mitsubishi" {
+	if identity.Protocol == "mc" || identity.Protocol == acquisitionProtocolMitsubishi {
 		limit = 255
 	}
-	for _, n := range []int{cap.ProtocolLimit, cap.RandomProtocolLimit, cap.ClientLimit, cap.DeviceLimit} {
+	for _, n := range []int{capability.ProtocolLimit, capability.RandomProtocolLimit, capability.ClientLimit, capability.DeviceLimit} {
 		if n > 0 {
 			limit = min(limit, n)
 		}
@@ -35,13 +35,13 @@ func randomLimit(identity AcquisitionIdentity, cap AcquisitionCapability) int {
 
 func randomFrameBytes(identity AcquisitionIdentity, units []NativeUnit) (ApplicationFrameBudget, bool) {
 	switch identity.Protocol {
-	case "mc", "mitsubishi":
-		if identity.Frame != "3e-binary" {
+	case "mc", acquisitionProtocolMitsubishi:
+		if identity.Frame != acquisitionFrame3EBinary {
 			return ApplicationFrameBudget{}, false
 		}
 		return ApplicationFrameBudget{RequestBytes: 17 + 4*len(units), ResponseBytes: 11 + 2*len(units)}, true
-	case "fatek":
-		if identity.Frame != "ascii" {
+	case acquisitionProtocolFatek:
+		if identity.Frame != acquisitionFrameASCII {
 			return ApplicationFrameBudget{}, false
 		}
 		result := ApplicationFrameBudget{RequestBytes: 10, ResponseBytes: 9}
@@ -64,24 +64,24 @@ func randomFrameBytes(identity AcquisitionIdentity, units []NativeUnit) (Applica
 
 // packRandom adds complete scalars, deduplicating only identical native units.
 // A request has at most 255 units, bounding each candidate copy/lookup.
-func packRandom(scalars []AcquisitionRequest, cap AcquisitionCapability) ([]AcquisitionRequest, bool) {
+func packRandom(scalars []AcquisitionRequest, capability AcquisitionCapability) ([]AcquisitionRequest, bool) {
 	var result []AcquisitionRequest
 	var current *AcquisitionRequest
-	budget, valid := strictFrameBudget(cap)
+	budget, valid := strictFrameBudget(capability)
 	if !valid {
 		return nil, false
 	}
 	for _, scalar := range scalars {
-		if !randomEligible(scalar.Group.Identity, cap, scalar.Points[0].NativeBits) {
+		if !randomEligible(scalar.Group.Identity, capability, scalar.Points[0].NativeBits) {
 			return nil, false
 		}
-		candidate := appendRandomScalar(current, scalar, cap)
+		candidate := appendRandomScalar(current, scalar, capability)
 		if !randomWithinLimits(candidate) || !fitsFrameBudget(candidate.FrameBytes, budget) {
 			if current == nil {
 				return nil, false
 			}
 			result = append(result, *current)
-			candidate = appendRandomScalar(nil, scalar, cap)
+			candidate = appendRandomScalar(nil, scalar, capability)
 			if !randomWithinLimits(candidate) || !fitsFrameBudget(candidate.FrameBytes, budget) {
 				return nil, false
 			}
@@ -94,15 +94,15 @@ func packRandom(scalars []AcquisitionRequest, cap AcquisitionCapability) ([]Acqu
 	return result, true
 }
 
-func appendRandomScalar(current *AcquisitionRequest, scalar AcquisitionRequest, cap AcquisitionCapability) AcquisitionRequest {
+func appendRandomScalar(current *AcquisitionRequest, scalar AcquisitionRequest, capability AcquisitionCapability) AcquisitionRequest {
 	var candidate AcquisitionRequest
 	if current == nil {
 		candidate = scalar
-		candidate.Kind = "random"
+		candidate.Kind = acquisitionKindRandom
 		candidate.AddressStep = 0
 		candidate.Points = nil
 		candidate.Units = nil
-		candidate.Limit = randomLimit(scalar.Group.Identity, cap)
+		candidate.Limit = randomLimit(scalar.Group.Identity, capability)
 		candidate.FallbackReason = ""
 	} else {
 		candidate = *current
@@ -155,7 +155,7 @@ func randomWithinLimits(r AcquisitionRequest) bool {
 	if len(r.Units) > r.Limit {
 		return false
 	}
-	if r.Group.Identity.Protocol == "fatek" {
+	if r.Group.Identity.Protocol == acquisitionProtocolFatek {
 		cost := 0
 		for _, u := range r.Units {
 			cost += max(1, u.Bits/16)

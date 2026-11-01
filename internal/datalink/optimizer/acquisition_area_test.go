@@ -35,9 +35,9 @@ func TestAcquisitionPlanProtocolRestrictionAreas(t *testing.T) {
 		protocol, point, area string
 		valid                 bool
 	}{
-		{"modbus", "HR0", "IR", true}, {"modbus", "HR0", "COIL", true}, {"modbus", "HR0", "D", false},
+		{acquisitionProtocolModbus, "HR0", "IR", true}, {acquisitionProtocolModbus, "HR0", "COIL", true}, {acquisitionProtocolModbus, "HR0", "D", false},
 		{"mc", "D0", "W", true}, {"mc", "D0", "TC", true}, {"mc", "D0", "SM", false}, {"mc", "D0", "d", false},
-		{"fatek", "D0", "DR", true}, {"fatek", "D0", "WM", true}, {"fatek", "D0", "TYPO", false}, {"fatek", "D0", "dr", false},
+		{acquisitionProtocolFatek, "D0", "DR", true}, {acquisitionProtocolFatek, "D0", "WM", true}, {acquisitionProtocolFatek, "D0", "TYPO", false}, {acquisitionProtocolFatek, "D0", "dr", false},
 	} {
 		for _, kind := range []string{"coverage", "bounds"} {
 			t.Run(c.protocol+c.area+kind, func(t *testing.T) {

@@ -42,15 +42,15 @@ func TestModernIdentityUsesFrozenPolicyAndDefaultIdentity(t *testing.T) {
 	require.NotEqual(t, "{}", string(payload))
 	require.NotContains(t, string(payload), "private-secret")
 	for name, edit := range map[string]func(*schema.Point, *decoding.FormatContext){
-		"point revision":    func(p *schema.Point, c *decoding.FormatContext) { p.RevisionID = "p2" },
-		"rule revision":     func(p *schema.Point, c *decoding.FormatContext) { c.RuleRevision = "r2" },
-		"rule identity":     func(p *schema.Point, c *decoding.FormatContext) { c.RuleID = "R2" },
-		"effective default": func(p *schema.Point, c *decoding.FormatContext) { c.RuleFormat = "DCBA" },
-		"same order different source": func(p *schema.Point, c *decoding.FormatContext) {
+		"point revision":    func(p *schema.Point, _ *decoding.FormatContext) { p.RevisionID = "p2" },
+		"rule revision":     func(_ *schema.Point, c *decoding.FormatContext) { c.RuleRevision = "r2" },
+		"rule identity":     func(_ *schema.Point, c *decoding.FormatContext) { c.RuleID = "R2" },
+		"effective default": func(_ *schema.Point, c *decoding.FormatContext) { c.RuleFormat = "DCBA" },
+		"same order different source": func(p *schema.Point, _ *decoding.FormatContext) {
 			p.FormatMode = schema.PointFormatOverride
 			p.FormatOverride = "ABCD"
 		},
-		"connection-selected": func(p *schema.Point, c *decoding.FormatContext) { c.RuleFormat = ""; c.ConnectionFormat = "ABCD" },
+		"connection-selected": func(_ *schema.Point, c *decoding.FormatContext) { c.RuleFormat = ""; c.ConnectionFormat = "ABCD" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			candidate, ctx := p, defaults

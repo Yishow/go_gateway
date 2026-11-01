@@ -32,10 +32,10 @@ func TestWordRule23PlannerFunctionParity(t *testing.T) {
 // COIL is the planner's native area, not a legal adapter address alias.
 func fixtureNativeAddress(protocol, area string, offset int) string {
 	// Published FATEK consecutive DR components start at 0, 2, 4, not 0, 1, 2.
-	if protocol == "fatek" && area == "DR" {
+	if protocol == acquisitionProtocolFatek && area == "DR" {
 		offset *= 2
 	}
-	if protocol == "modbus" && area == "COIL" {
+	if protocol == acquisitionProtocolModbus && area == "COIL" {
 		area = "CO"
 	}
 	return fmt.Sprintf("%s%d", area, offset)
@@ -91,7 +91,7 @@ func TestAcquisitionModbusCanonicalAddressFunctionTable(t *testing.T) {
 			in.Sources[0].Points[0].Address = tc.address
 			in.Sources[0].Points[0].Function = tc.function
 			plan := BuildAcquisitionPlan(in)
-			if len(plan.Requests()) != 0 || len(plan.Errors()) != 1 || plan.Errors()[0].Code != "invalid-address" {
+			if len(plan.Requests()) != 0 || len(plan.Errors()) != 1 || plan.Errors()[0].Code != acquisitionReasonInvalidAddress {
 				t.Fatalf("unsupported wire form accepted: %+v %+v", plan.Requests(), plan.Errors())
 			}
 		})

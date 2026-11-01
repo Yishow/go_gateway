@@ -31,7 +31,7 @@ func mixedFenceLegacyDB(t *testing.T) *sql.DB {
 func mixedFenceRowBytes(t *testing.T, db *sql.DB) string {
 	t.Helper()
 	columns := strings.Fields("fence_revision workspace_id direction group_id group_revision device_id point_id tag_id profile_kind connector_id connector_revision database_name table_schema table_name")
-	var fields []string
+	fields := make([]string, 0, 2*len(columns))
 	for _, col := range columns {
 		fields = append(fields, col, "typeof("+col+")")
 	}

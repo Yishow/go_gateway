@@ -37,7 +37,7 @@ func restoreSQLiteMigrationTemp(ctx context.Context, conn *sql.Conn, hadTemp boo
 		return err
 	}
 	var objects int
-	if err = conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM temp.sqlite_master").Scan(&objects); err != nil {
+	if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM temp.sqlite_master").Scan(&objects); err != nil {
 		return err
 	}
 	if objects != 0 {
@@ -54,7 +54,7 @@ func restoreSQLiteMigrationTemp(ctx context.Context, conn *sql.Conn, hadTemp boo
 		return err
 	}
 	var actual int
-	if err = conn.QueryRowContext(ctx, "PRAGMA temp_store").Scan(&actual); err != nil {
+	if err := conn.QueryRowContext(ctx, "PRAGMA temp_store").Scan(&actual); err != nil {
 		return err
 	}
 	if actual != original {

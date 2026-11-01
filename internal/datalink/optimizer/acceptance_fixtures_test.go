@@ -80,7 +80,7 @@ func TestAcquisitionAcceptanceFixtureIntegrity(t *testing.T) {
 
 func validateAcceptanceCase(t *testing.T, c acceptanceCase) {
 	t.Helper()
-	if c.Limit <= 0 || (c.Protocol != "mc" && c.Protocol != "fatek" && c.Protocol != "modbus") {
+	if c.Limit <= 0 || (c.Protocol != "mc" && c.Protocol != acquisitionProtocolFatek && c.Protocol != acquisitionProtocolModbus) {
 		t.Fatal("invalid capability")
 	}
 	if len(c.Readable) > 0 && c.CoverageRevision == "" {
@@ -137,8 +137,8 @@ func validateAcceptanceCase(t *testing.T, c acceptanceCase) {
 			for u := r.Start; u < r.Start+r.Length; u++ {
 				units[u] = true
 			}
-		case "random":
-			if !c.RandomSupported || c.Protocol == "modbus" || len(r.Units) < 1 || len(r.Units) > c.Limit {
+		case acquisitionKindRandom:
+			if !c.RandomSupported || c.Protocol == acquisitionProtocolModbus || len(r.Units) < 1 || len(r.Units) > c.Limit {
 				t.Fatal("invalid random capability/limit")
 			}
 			for _, u := range r.Units {

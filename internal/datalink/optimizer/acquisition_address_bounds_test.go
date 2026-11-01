@@ -55,7 +55,7 @@ func TestAcquisitionPlanDeclaredAddressBounds(t *testing.T) {
 		{"wire-never-widens", func(s *AcquisitionSource) {
 			s.Points[0].Address = "HR65536"
 			s.Capability.DeviceAddressBounds = []NativeAddressBound{{Area: "HR", StartInclusive: 0, EndExclusive: 100000}}
-		}, 0, "invalid-address"},
+		}, 0, acquisitionReasonInvalidAddress},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			in := acquisitionInput()
@@ -109,11 +109,11 @@ func TestAcquisitionPlanNativeDeclaredBoundsRegression(t *testing.T) {
 	}{
 		{"mc", "W", "W1A", "int16", 26, 27, 1, true},
 		{"mc", "W", "W1B", "int16", 26, 27, 1, false},
-		{"fatek", "DR", "DR5", "float32", 5, 7, 1, true},
-		{"fatek", "DR", "DR5", "float32", 5, 6, 1, false},
-		{"fatek", "D", "D5", "float32", 5, 6, 2, false},
-		{"modbus", "COIL", "CO0", "bool", 0, 1, 1, true},
-		{"modbus", "DI", "DI1", "bool", 0, 1, 1, false},
+		{acquisitionProtocolFatek, "DR", "DR5", "float32", 5, 7, 1, true},
+		{acquisitionProtocolFatek, "DR", "DR5", "float32", 5, 6, 1, false},
+		{acquisitionProtocolFatek, "D", "D5", "float32", 5, 6, 2, false},
+		{acquisitionProtocolModbus, "COIL", "CO0", "bool", 0, 1, 1, true},
+		{acquisitionProtocolModbus, "DI", "DI1", "bool", 0, 1, 1, false},
 	} {
 		t.Run(c.protocol+c.address, func(t *testing.T) {
 			in := acquisitionInput()

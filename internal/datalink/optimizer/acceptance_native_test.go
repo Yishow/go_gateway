@@ -16,7 +16,7 @@ func validateAcceptanceNativePoint(t *testing.T, c acceptanceCase, p acceptanceP
 	address := p.Address
 	if address == "" {
 		prefix := "D"
-		if c.Protocol == "modbus" {
+		if c.Protocol == acquisitionProtocolModbus {
 			prefix = "HR"
 		}
 		address = fmt.Sprintf("%s%d", prefix, p.Start)
@@ -24,7 +24,7 @@ func validateAcceptanceNativePoint(t *testing.T, c acceptanceCase, p acceptanceP
 	var offset int
 	var err error
 	nativeBits := 16
-	if c.Protocol == "fatek" {
+	if c.Protocol == acquisitionProtocolFatek {
 		var symbol string
 		symbol, offset, err = fatek.ParseComponentAddress(address)
 		if err == nil {
@@ -45,7 +45,7 @@ func validateAcceptanceNativePoint(t *testing.T, c acceptanceCase, p acceptanceP
 			offset = parsed.Offset
 		}
 	}
-	if c.Reason == "invalid-address" {
+	if c.Reason == acquisitionReasonInvalidAddress {
 		if err == nil {
 			t.Fatal("invalid-address vector unexpectedly parsed")
 		}

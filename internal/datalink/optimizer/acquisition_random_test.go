@@ -10,9 +10,9 @@ func randomInput(protocol string, offsets ...int) AcquisitionInput {
 	in := acquisitionInput()
 	s := &in.Sources[0]
 	s.Identity.Protocol = protocol
-	s.Identity.Frame = "3e-binary"
-	if protocol == "fatek" {
-		s.Identity.Frame = "ascii"
+	s.Identity.Frame = acquisitionFrame3EBinary
+	if protocol == acquisitionProtocolFatek {
+		s.Identity.Frame = acquisitionFrameASCII
 	}
 	s.Capability.ProtocolLimit = 1000
 	s.Capability.RandomSupport = "supported"
@@ -25,11 +25,11 @@ func randomInput(protocol string, offsets ...int) AcquisitionInput {
 }
 
 func TestAcquisitionRandomSparseAndDense(t *testing.T) {
-	for _, protocol := range []string{"mc", "fatek"} {
+	for _, protocol := range []string{"mc", acquisitionProtocolFatek} {
 		t.Run(protocol, func(t *testing.T) {
 			p := BuildAcquisitionPlan(randomInput(protocol, 0, 1, 10))
 			r := p.Requests()
-			if len(p.Errors()) != 0 || len(r) != 1 || r[0].Kind != "random" {
+			if len(p.Errors()) != 0 || len(r) != 1 || r[0].Kind != acquisitionKindRandom {
 				t.Fatalf("sparse whole-group candidate: %+v errors%+v", r, p.Errors())
 			}
 			offsets := make([]int, 21)
@@ -49,7 +49,7 @@ func TestAcquisitionRandomNativeLimits(t *testing.T) {
 	for _, c := range []struct {
 		protocol string
 		limit    int
-	}{{"mc", 255}, {"fatek", 64}} {
+	}{{"mc", 255}, {acquisitionProtocolFatek, 64}} {
 		for _, n := range []int{c.limit, c.limit + 1} {
 			offsets := make([]int, n)
 			for i := range offsets {

@@ -67,14 +67,14 @@ func TestAcquisitionPlanNativeWireBounds(t *testing.T) {
 		{"mc", "WFFFFFF", schema.DataTypeInt16, 1, true},
 		{"mc", "W1000000", schema.DataTypeInt16, 1, false},
 		{"mc", "D16777215", schema.DataTypeInt32, 2, false},
-		{"fatek", "D65535", schema.DataTypeInt16, 1, true},
-		{"fatek", "D65536", schema.DataTypeInt16, 1, false},
-		{"fatek", "D65535", schema.DataTypeFloat32, 2, false},
-		{"fatek", "DR65534", schema.DataTypeFloat32, 1, true},
-		{"fatek", "DR65535", schema.DataTypeFloat32, 1, false},
-		{"fatek", "DR65534", schema.DataTypeFloat64, 2, false},
-		{"fatek", "M9999", schema.DataTypeBool, 1, true},
-		{"fatek", "M10000", schema.DataTypeBool, 1, false},
+		{acquisitionProtocolFatek, "D65535", schema.DataTypeInt16, 1, true},
+		{acquisitionProtocolFatek, "D65536", schema.DataTypeInt16, 1, false},
+		{acquisitionProtocolFatek, "D65535", schema.DataTypeFloat32, 2, false},
+		{acquisitionProtocolFatek, "DR65534", schema.DataTypeFloat32, 1, true},
+		{acquisitionProtocolFatek, "DR65535", schema.DataTypeFloat32, 1, false},
+		{acquisitionProtocolFatek, "DR65534", schema.DataTypeFloat64, 2, false},
+		{acquisitionProtocolFatek, "M9999", schema.DataTypeBool, 1, true},
+		{acquisitionProtocolFatek, "M10000", schema.DataTypeBool, 1, false},
 	} {
 		t.Run(c.protocol+c.address+string(c.dt), func(t *testing.T) {
 			in := acquisitionInput()
@@ -89,7 +89,7 @@ func TestAcquisitionPlanNativeWireBounds(t *testing.T) {
 				if len(p.Requests()) != 1 || len(p.Errors()) != 0 {
 					t.Fatalf("valid bound rejected: %+v", p.Errors())
 				}
-			} else if len(p.Requests()) != 0 || len(p.Errors()) != 1 || p.Errors()[0].Code != "invalid-address" {
+			} else if len(p.Requests()) != 0 || len(p.Errors()) != 1 || p.Errors()[0].Code != acquisitionReasonInvalidAddress {
 				t.Fatalf("wire-overflow accepted: %+v %+v", p.Requests(), p.Errors())
 			}
 		})
@@ -102,9 +102,9 @@ func TestAcquisitionPlanHardNativeLimits(t *testing.T) {
 		dt             schema.DataType
 		limit          int
 	}{
-		{"modbus", "HR", schema.DataTypeInt16, 125}, {"modbus", "COIL", schema.DataTypeBool, 2000},
+		{acquisitionProtocolModbus, "HR", schema.DataTypeInt16, 125}, {acquisitionProtocolModbus, "COIL", schema.DataTypeBool, 2000},
 		{"mc", "D", schema.DataTypeInt16, 125}, {"mc", "M", schema.DataTypeBool, 2000},
-		{"fatek", "D", schema.DataTypeInt16, 64}, {"fatek", "DR", schema.DataTypeFloat32, 32}, {"fatek", "M", schema.DataTypeBool, 255},
+		{acquisitionProtocolFatek, "D", schema.DataTypeInt16, 64}, {acquisitionProtocolFatek, "DR", schema.DataTypeFloat32, 32}, {acquisitionProtocolFatek, "M", schema.DataTypeBool, 255},
 	} {
 		t.Run(c.protocol+c.area, func(t *testing.T) {
 			in := acquisitionInput()
@@ -159,7 +159,7 @@ func TestAcquisitionPlanMCNativeClientClassification(t *testing.T) {
 		s := &in.Sources[0]
 		s.Coverage = ReadableCoverage{}
 		s.Identity.Protocol = "mc"
-		s.Identity.Frame = "3e-binary"
+		s.Identity.Frame = acquisitionFrame3EBinary
 		s.Points[0].Address = area + "0"
 		s.Points[0].DataType = schema.DataTypeBool
 		p := BuildAcquisitionPlan(in)

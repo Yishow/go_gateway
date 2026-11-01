@@ -58,11 +58,11 @@ func rebuildRecordProfileKeys(ctx context.Context, tx *sql.Tx, checkpoint func(s
 		return err
 	}
 	columns := strings.Fields("workspace_id circuit_id selection_scope profile_kind canonical_role group_id created_at lineage_id")
-	fields := strings.Join(columns, ",")
-	if _, err = tx.ExecContext(ctx, "INSERT INTO "+temporary+" ("+fields+") SELECT "+fields+" FROM write_group_profile_keys"); err != nil {
+	const copyRowsSQL = `INSERT INTO write_group_profile_keys_record_expand (workspace_id,circuit_id,selection_scope,profile_kind,canonical_role,group_id,created_at,lineage_id) SELECT workspace_id,circuit_id,selection_scope,profile_kind,canonical_role,group_id,created_at,lineage_id FROM write_group_profile_keys`
+	if _, err = tx.ExecContext(ctx, copyRowsSQL); err != nil {
 		return err
 	}
-	var comparisons []string
+	comparisons := make([]string, 0, len(columns))
 	for _, column := range columns {
 		comparisons = append(comparisons, "a."+column+" IS NOT b."+column+" OR typeof(a."+column+")<>typeof(b."+column+")")
 	}

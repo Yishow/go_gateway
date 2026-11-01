@@ -103,7 +103,7 @@ func canonicalRanges(ranges []NativeRange) []NativeRange {
 	return result
 }
 
-func planScalar(source AcquisitionSource, point EffectivePoint) (AcquisitionRequest, string) {
+func planScalar(source AcquisitionSource, point EffectivePoint) (plannedRequest AcquisitionRequest, rejectionReason string) {
 	area, start, nativeBits, bitIndex, function, code := pointNativeAddress(source.Identity.Protocol, point)
 	if code != "" {
 		return AcquisitionRequest{}, code
@@ -120,7 +120,7 @@ func planScalar(source AcquisitionSource, point EffectivePoint) (AcquisitionRequ
 		return AcquisitionRequest{}, "invalid-native-width"
 	}
 	if !validNativeSpan(source.Identity.Protocol, area, start, width) {
-		return AcquisitionRequest{}, "invalid-address"
+		return AcquisitionRequest{}, acquisitionReasonInvalidAddress
 	}
 	if code := declaredSpanError(source.Identity.Protocol, source.Capability, area, start, width); code != "" {
 		return AcquisitionRequest{}, code
@@ -128,12 +128,12 @@ func planScalar(source AcquisitionSource, point EffectivePoint) (AcquisitionRequ
 	if intersectsRanges(source.Coverage.Forbidden, area, start, start+width*nativeAddressStep(source.Identity.Protocol, area)) {
 		return AcquisitionRequest{}, "forbidden-address"
 	}
-	cap := source.Capability
-	if cap.RandomProtocolLimit < 0 {
+	capability := source.Capability
+	if capability.RandomProtocolLimit < 0 {
 		return AcquisitionRequest{}, acquisitionReasonInvalidCapability
 	}
 	limit := 0
-	for _, n := range []int{cap.ProtocolLimit, cap.ClientLimit, cap.DeviceLimit} {
+	for _, n := range []int{capability.ProtocolLimit, capability.ClientLimit, capability.DeviceLimit} {
 		if n < 0 {
 			return AcquisitionRequest{}, acquisitionReasonInvalidCapability
 		}
@@ -153,11 +153,11 @@ func planScalar(source AcquisitionSource, point EffectivePoint) (AcquisitionRequ
 		return AcquisitionRequest{}, code
 	}
 	reason := "scalar-plan"
-	if (source.Identity.Protocol == "mc" || source.Identity.Protocol == "mitsubishi" || source.Identity.Protocol == "fatek") && (cap.RandomSupport == "" || cap.RandomSupport == "unknown") {
+	if (source.Identity.Protocol == "mc" || source.Identity.Protocol == acquisitionProtocolMitsubishi || source.Identity.Protocol == acquisitionProtocolFatek) && (capability.RandomSupport == "" || capability.RandomSupport == "unknown") {
 		reason = "random-capability-unknown"
 	}
 	return AcquisitionRequest{
-		Group: AcquisitionGroup{Identity: source.Identity, CapabilityRevision: cap.Revision, CoverageRevision: source.Coverage.Revision, Function: function, Area: area},
+		Group: AcquisitionGroup{Identity: source.Identity, CapabilityRevision: capability.Revision, CoverageRevision: source.Coverage.Revision, Function: function, Area: area},
 		Kind:  "contiguous", Start: start, Length: width, Limit: limit, AddressStep: nativeAddressStep(source.Identity.Protocol, area), FallbackReason: reason,
 		FrameBytes: frameBytes, FrameCostKnown: frameKnown,
 		Points: []PointSlice{{Point: point, Offset: 0, Length: width, NativeBits: nativeBits, BitIndex: bitIndex}},
@@ -181,35 +181,35 @@ func scalarBits(dt schema.DataType) int {
 
 func nativeAddress(protocol, address string) (area string, start, nativeBits, bitIndex int, code string) {
 	nativeBits, bitIndex = 16, -1
-	if protocol == "fatek" {
+	if protocol == acquisitionProtocolFatek {
 		symbol, offset, err := fatek.ParseComponentAddress(address)
 		if err != nil {
-			return "", 0, 0, 0, "invalid-address"
+			return "", 0, 0, 0, acquisitionReasonInvalidAddress
 		}
 		component, err := fatek.GetComponentType(symbol)
 		if err != nil {
-			return "", 0, 0, 0, "invalid-address"
+			return "", 0, 0, 0, acquisitionReasonInvalidAddress
 		}
 		return symbol, offset, component.Width, -1, ""
 	}
 	var parserProtocol hsllogic.ProtocolType
 	switch protocol {
-	case "mc", "mitsubishi":
+	case "mc", acquisitionProtocolMitsubishi:
 		parserProtocol = hsllogic.ProtocolMitsubishi
-	case "modbus":
+	case acquisitionProtocolModbus:
 		parserProtocol = hsllogic.ProtocolModbus
 	default:
 		return "", 0, 0, 0, "unsupported-protocol"
 	}
 	parsed, err := hsllogic.ParseAddress(parserProtocol, address)
 	if err != nil {
-		return "", 0, 0, 0, "invalid-address"
+		return "", 0, 0, 0, acquisitionReasonInvalidAddress
 	}
 	// A coil/discrete input is already one native bit. The shared parser also
 	// accepts dotted syntax there; reject it rather than inventing a word slice.
 	if parserProtocol == hsllogic.ProtocolModbus && parsed.BitIndex >= 0 &&
-		(parsed.DeviceType == "COIL" || parsed.DeviceType == "DI") {
-		return "", 0, 0, 0, "invalid-address"
+		(parsed.DeviceType == acquisitionAreaCoil || parsed.DeviceType == "DI") {
+		return "", 0, 0, 0, acquisitionReasonInvalidAddress
 	}
 	if parserProtocol == hsllogic.ProtocolMitsubishi {
 		device, err := mcprotocol.GetDeviceType(parsed.DeviceType)

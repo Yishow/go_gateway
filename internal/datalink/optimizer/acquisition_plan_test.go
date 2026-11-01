@@ -9,7 +9,7 @@ import (
 
 func acquisitionInput() AcquisitionInput {
 	return AcquisitionInput{ConfigurationRevision: "cfg1", Sources: []AcquisitionSource{{
-		Identity:   AcquisitionIdentity{DeviceID: "device", DeviceRevision: "device1", Station: "1", ConnectionRevision: "conn1", Protocol: "modbus", Frame: "tcp", ProtocolRevision: "protocol1", PollingGroup: "fast", Cadence: 500 * time.Millisecond},
+		Identity:   AcquisitionIdentity{DeviceID: "device", DeviceRevision: "device1", Station: "1", ConnectionRevision: "conn1", Protocol: acquisitionProtocolModbus, Frame: "tcp", ProtocolRevision: "protocol1", PollingGroup: "fast", Cadence: 500 * time.Millisecond},
 		Capability: AcquisitionCapability{Revision: "cap1", ProtocolLimit: 125},
 		Coverage:   ReadableCoverage{Revision: "coverage1", Readable: []NativeRange{{Area: "HR", Start: 0, End: 21}}},
 		Points:     []EffectivePoint{{ID: "p", SourceIdentity: "source-p", SourceRevision: "source1", Address: "HR0", Function: "read-holding", DataType: schema.DataTypeInt16, NativeWidth: 1, Format: "ABCD", FormatSource: "point", FormatRevision: "format1"}},
@@ -27,7 +27,7 @@ func TestAcquisitionPlanScalarAndErrors(t *testing.T) {
 	unsupported.DataType = "imaginary"
 	in.Sources[0].Points = append(in.Sources[0].Points, bad, unsupported)
 	p := BuildAcquisitionPlan(in)
-	if got := p.Errors(); len(got) != 2 || got[0].PointID != "bad" || got[0].Code != "invalid-address" || got[1].PointID != "unsupported" || got[1].Code != "unsupported-type" {
+	if got := p.Errors(); len(got) != 2 || got[0].PointID != "bad" || got[0].Code != acquisitionReasonInvalidAddress || got[1].PointID != "unsupported" || got[1].Code != "unsupported-type" {
 		t.Fatalf("explicit errors: %+v", got)
 	}
 	r := p.Requests()

@@ -27,8 +27,8 @@ func appendContiguous(out []AcquisitionRequest, candidates contiguousCandidates)
 	var current *AcquisitionRequest
 	for _, next := range requests {
 		if current == nil {
-			copy := next
-			current = &copy
+			requestCopy := next
+			current = &requestCopy
 			continue
 		}
 		step := current.AddressStep
@@ -47,8 +47,8 @@ func appendContiguous(out []AcquisitionRequest, candidates contiguousCandidates)
 			continue
 		}
 		out = append(out, *current)
-		copy := next
-		current = &copy
+		requestCopy := next
+		current = &requestCopy
 	}
 	if current != nil {
 		out = append(out, *current)

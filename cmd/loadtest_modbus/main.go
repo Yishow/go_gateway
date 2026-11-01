@@ -104,6 +104,7 @@ func run() int {
 		log.Printf("value-base must be between 0 and 65535")
 		return 1
 	}
+	registerBase := uint16(initialValue)
 
 	ctx := context.Background()
 	if *cleanDB {
@@ -173,7 +174,7 @@ func run() int {
 		return 1
 	}
 
-	servers, err := startServers(*tcpCount, *udpCount, uint16(initialValue))
+	servers, err := startServers(*tcpCount, *udpCount, registerBase)
 	if err != nil {
 		log.Printf("start servers failed: %v", err)
 		return 1

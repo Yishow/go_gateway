@@ -81,11 +81,12 @@ func expandMixedOwnershipFences(ctx context.Context, tx *sql.Tx, step func(strin
 		return err
 	}
 	columns := strings.Fields("fence_revision workspace_id direction group_id group_revision device_id point_id tag_id profile_kind connector_id connector_revision database_name table_schema table_name")
-	fields := strings.Join(columns, ",")
-	if _, err = tx.ExecContext(ctx, "INSERT INTO "+temporary+" ("+fields+") SELECT "+fields+" FROM "+table); err != nil {
+	const copyRowsSQL = `INSERT INTO write_group_ownership_fences_mixed_expand (fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) SELECT fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name FROM write_group_ownership_fences`
+	if _, err = tx.ExecContext(ctx, copyRowsSQL); err != nil {
 		return err
 	}
-	var comparisons, joins []string
+	comparisons := make([]string, 0, len(columns))
+	joins := make([]string, 0, 7)
 	for _, column := range columns {
 		comparisons = append(comparisons, "a."+column+" IS NOT b."+column+" OR typeof(a."+column+")<>typeof(b."+column+")")
 	}

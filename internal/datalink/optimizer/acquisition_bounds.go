@@ -14,12 +14,12 @@ func validNativeSpan(protocol, area string, start, width int) bool {
 	}
 	end := start + (width-1)*step
 	switch protocol {
-	case "modbus":
+	case acquisitionProtocolModbus:
 		return end <= 65535
-	case "mc", "mitsubishi":
+	case "mc", acquisitionProtocolMitsubishi:
 		// The existing MC binary client encodes a 24-bit address (client.go).
 		return end <= 0xFFFFFF
-	case "fatek":
+	case acquisitionProtocolFatek:
 		component, err := fatek.GetComponentType(area)
 		if err != nil {
 			return false
@@ -38,12 +38,12 @@ func validNativeSpan(protocol, area string, start, width int) bool {
 // a universal protocol or random-read limit. See the three protocol clients.
 func nativeClientLimit(protocol string, nativeBits int) int {
 	switch protocol {
-	case "modbus", "mc", "mitsubishi":
+	case acquisitionProtocolModbus, "mc", acquisitionProtocolMitsubishi:
 		if nativeBits == 1 {
 			return 2000
 		}
 		return 125
-	case "fatek":
+	case acquisitionProtocolFatek:
 		if nativeBits == 1 {
 			return 255
 		}
@@ -75,12 +75,12 @@ func canonicalNativeArea(protocol, area string) bool {
 		return false
 	}
 	switch protocol {
-	case "modbus":
-		return area == "HR" || area == "IR" || area == "COIL" || area == "DI"
-	case "mc", "mitsubishi":
+	case acquisitionProtocolModbus:
+		return area == "HR" || area == "IR" || area == acquisitionAreaCoil || area == "DI"
+	case "mc", acquisitionProtocolMitsubishi:
 		_, err := mcprotocol.GetDeviceType(area)
 		return err == nil
-	case "fatek":
+	case acquisitionProtocolFatek:
 		// GetComponentType permits generic D* names; require an existing parser
 		// symbol or a named client component omitted by the general address parser.
 		symbol, _, err := fatek.ParseComponentAddress(area + "0")
@@ -100,14 +100,14 @@ func canonicalNativeArea(protocol, area string) bool {
 // Native ranges and configured bounds are physical half-open intervals, not
 // component counts. Boundaries need not themselves be aligned component starts.
 func validNativeRange(protocol, area string, start, end int) bool {
-	if protocol == "fatek" {
+	if protocol == acquisitionProtocolFatek {
 		component, err := fatek.GetComponentType(area)
 		return err == nil && start >= 0 && end > start && end <= component.AddressLimit()
 	}
 	return validNativeSpan(protocol, area, start, end-start)
 }
 func nativeAddressStep(protocol, area string) int {
-	if protocol == "fatek" {
+	if protocol == acquisitionProtocolFatek {
 		component, err := fatek.GetComponentType(area)
 		if err != nil {
 			return 0

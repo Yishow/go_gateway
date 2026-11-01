@@ -10,7 +10,7 @@ func TestAcquisitionRandomLimitsCountComponentsNotPoints(t *testing.T) {
 	for _, c := range []struct {
 		protocol, area                            string
 		count, width, bits, limit, requests, step int
-	}{{"mc", "D", 64, 4, 16, 255, 2, 1}, {"fatek", "DR", 33, 2, 32, 64, 3, 2}} {
+	}{{"mc", "D", 64, 4, 16, 255, 2, 1}, {acquisitionProtocolFatek, "DR", 33, 2, 32, 64, 3, 2}} {
 		in := randomInput(c.protocol)
 		for i := 0; i < c.count; i++ {
 			in.Sources[0].Points = append(in.Sources[0].Points, EffectivePoint{ID: fmt.Sprint(i), Address: fmt.Sprintf("%s%d", c.area, i*10), DataType: schema.DataTypeInt64, NativeWidth: c.width})
@@ -22,7 +22,7 @@ func TestAcquisitionRandomLimitsCountComponentsNotPoints(t *testing.T) {
 		}
 		seen := map[string]bool{}
 		for _, request := range r {
-			if request.Kind != "random" || len(request.Units) > c.limit {
+			if request.Kind != acquisitionKindRandom || len(request.Units) > c.limit {
 				t.Fatalf("component overflow: %+v", request)
 			}
 			for _, point := range request.Points {
@@ -49,7 +49,7 @@ func TestAcquisitionRandomForbiddenAndBudgetNeverBroadenRead(t *testing.T) {
 	in := randomInput("mc", 0, 10, 20)
 	in.Sources[0].Coverage = ReadableCoverage{Revision: "cov", Forbidden: []NativeRange{{Area: "D", Start: 5, End: 10}}}
 	plan := BuildAcquisitionPlan(in)
-	if len(plan.Requests()) != 1 || plan.Requests()[0].Kind != "random" {
+	if len(plan.Requests()) != 1 || plan.Requests()[0].Kind != acquisitionKindRandom {
 		t.Fatal("sparse random should skip forbidden gap")
 	}
 	for _, unit := range plan.Requests()[0].Units {

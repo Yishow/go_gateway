@@ -15,7 +15,7 @@ func TestAcquisitionRandomScalarDedupAndCompleteBoundary(t *testing.T) {
 	in.Sources[0].Points[1].Format = "CDAB"
 	p := BuildAcquisitionPlan(in)
 	r := p.Requests()
-	if len(r) != 1 || r[0].Kind != "random" || len(r[0].Units) != 5 || len(r[0].Points) != 3 {
+	if len(r) != 1 || r[0].Kind != acquisitionKindRandom || len(r[0].Units) != 5 || len(r[0].Points) != 3 {
 		t.Fatalf("nested span dedup: %+v errors%+v", r, p.Errors())
 	}
 	for _, point := range r[0].Points {
@@ -41,7 +41,7 @@ func TestAcquisitionRandomScalarDedupAndCompleteBoundary(t *testing.T) {
 }
 
 func TestAcquisitionRandomFatekNativeWidth(t *testing.T) {
-	in := randomInput("fatek", 0, 10, 20)
+	in := randomInput(acquisitionProtocolFatek, 0, 10, 20)
 	for i := range in.Sources[0].Points {
 		p := &in.Sources[0].Points[i]
 		p.Address = fmt.Sprintf("DR%d", i*10)
@@ -49,7 +49,7 @@ func TestAcquisitionRandomFatekNativeWidth(t *testing.T) {
 		p.NativeWidth = 2
 	}
 	r := BuildAcquisitionPlan(in).Requests()
-	if len(r) != 1 || r[0].Kind != "random" || len(r[0].Units) != 6 || r[0].Length != 6 {
+	if len(r) != 1 || r[0].Kind != acquisitionKindRandom || len(r[0].Units) != 6 || r[0].Length != 6 {
 		t.Fatalf("DR uses native components: %+v", r)
 	}
 	for _, u := range r[0].Units {
@@ -60,7 +60,7 @@ func TestAcquisitionRandomFatekNativeWidth(t *testing.T) {
 }
 
 func TestAcquisitionRandomCrossAreaRequiresDeclaration(t *testing.T) {
-	for _, protocol := range []string{"mc", "fatek"} {
+	for _, protocol := range []string{"mc", acquisitionProtocolFatek} {
 		in := randomInput(protocol, 0, 10)
 		in.Sources[0].Points[1].Address = "R10"
 		p := BuildAcquisitionPlan(in)
@@ -71,7 +71,7 @@ func TestAcquisitionRandomCrossAreaRequiresDeclaration(t *testing.T) {
 		in.Sources[0].Capability.RandomCrossArea = true
 		p = BuildAcquisitionPlan(in)
 		r := p.Requests()
-		if len(p.Errors()) != 0 || len(r) != 1 || r[0].Kind != "random" || r[0].Group.Area != "" || len(r[0].Units) != 2 || p.Fingerprint() == old {
+		if len(p.Errors()) != 0 || len(r) != 1 || r[0].Kind != acquisitionKindRandom || r[0].Group.Area != "" || len(r[0].Units) != 2 || p.Fingerprint() == old {
 			t.Fatalf("explicit cross area: %+v errors%+v", r, p.Errors())
 		}
 	}
@@ -149,7 +149,7 @@ func TestAcquisitionRandomBoundedHybridAndDeterminism(t *testing.T) {
 		kinds[request.Kind]++
 		count += len(request.Points)
 	}
-	if kinds["random"] != 1 || kinds["contiguous"] != 1 || count != 260 {
+	if kinds[acquisitionKindRandom] != 1 || kinds["contiguous"] != 1 || count != 260 {
 		t.Fatalf("bounded hybrid should save bytes at same count: %v %d", kinds, count)
 	}
 	for a, b := 0, len(in.Sources[0].Points)-1; a < b; a, b = a+1, b-1 {

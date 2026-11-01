@@ -24,10 +24,10 @@ func TestFatekNativeFootprintBoundsAndForbidden(t *testing.T) {
 		{"DWM8", "DWM", schema.DataTypeUint64, 2, 8, 72, nil, ""},
 		{"DWM8", "DWM", schema.DataTypeUint64, 2, 8, 71, nil, "address-out-of-bounds"},
 		{"DR65532", "DR", schema.DataTypeUint64, 2, 0, 65536, nil, ""},
-		{"DR65533", "DR", schema.DataTypeUint64, 2, 0, 65536, nil, "invalid-address"},
+		{"DR65533", "DR", schema.DataTypeUint64, 2, 0, 65536, nil, acquisitionReasonInvalidAddress},
 	} {
 		t.Run(tc.address+tc.code, func(t *testing.T) {
-			in := randomInput("fatek")
+			in := randomInput(acquisitionProtocolFatek)
 			s := &in.Sources[0]
 			s.Points = []EffectivePoint{{ID: "p", Address: tc.address, DataType: tc.dtype, NativeWidth: tc.width}}
 			s.Capability.DeviceAddressBounds = []NativeAddressBound{{Area: tc.area, StartInclusive: tc.start, EndExclusive: tc.end}}
@@ -45,7 +45,7 @@ func TestFatekNativeFootprintBoundsAndForbidden(t *testing.T) {
 	}
 }
 func TestFatekNativeUnknownCapabilityKeepsPhaseAndReadableGap(t *testing.T) {
-	in := randomInput("fatek")
+	in := randomInput(acquisitionProtocolFatek)
 	s := &in.Sources[0]
 	s.Capability.RandomSupport = "unknown"
 	s.Points = []EffectivePoint{{ID: "a", Address: "DR0", DataType: schema.DataTypeUint32, NativeWidth: 1}, {ID: "b", Address: "DR1", DataType: schema.DataTypeUint32, NativeWidth: 1}}
@@ -71,7 +71,7 @@ func TestFatekNativeUnknownCapabilityKeepsPhaseAndReadableGap(t *testing.T) {
 	require.Len(t, plan.Requests(), 2)
 }
 func TestFatekNativeStepSnapshotIsDetached(t *testing.T) {
-	in := randomInput("fatek")
+	in := randomInput(acquisitionProtocolFatek)
 	in.Sources[0].Points = []EffectivePoint{{ID: "p", Address: "DR0", DataType: schema.DataTypeUint64, NativeWidth: 2}}
 	plan := BuildAcquisitionPlan(in)
 	request, ok := plan.Request(0)

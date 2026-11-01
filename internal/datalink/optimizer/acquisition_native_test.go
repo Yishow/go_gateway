@@ -17,7 +17,7 @@ func TestAcquisitionPlanNativeAcceptanceVectors(t *testing.T) {
 	if err = json.Unmarshal(data, &fixtures); err != nil {
 		t.Fatal(err)
 	}
-	selected := map[string]bool{"invalid-address": true, "scalar-over-limit": true, "mc-unknown-capability": true, "fatek-unknown-capability": true, "fatek-D-float32": true, "fatek-DR-float32": true, "mc-hex-W1A": true, "gap-not-authorized": true}
+	selected := map[string]bool{acquisitionReasonInvalidAddress: true, "scalar-over-limit": true, "mc-unknown-capability": true, "fatek-unknown-capability": true, "fatek-D-float32": true, "fatek-DR-float32": true, "mc-hex-W1A": true, "gap-not-authorized": true}
 	for _, c := range fixtures.Cases {
 		if !selected[c.ID] {
 			continue
@@ -33,7 +33,7 @@ func TestAcquisitionPlanNativeAcceptanceVectors(t *testing.T) {
 				address := p.Address
 				if address == "" {
 					prefix := "D"
-					if c.Protocol == "modbus" {
+					if c.Protocol == acquisitionProtocolModbus {
 						prefix = "HR"
 					}
 					address = prefix + strconv.Itoa(p.Start)
@@ -72,13 +72,13 @@ func TestAcquisitionPlanRejectsUnsafeScalar(t *testing.T) {
 		change func(*AcquisitionSource)
 		code   string
 	}{
-		{"negative-address", func(s *AcquisitionSource) { s.Points[0].Address = "HR-1" }, "invalid-address"},
-		{"out-of-range", func(s *AcquisitionSource) { s.Points[0].Address = "HR65536" }, "invalid-address"},
+		{"negative-address", func(s *AcquisitionSource) { s.Points[0].Address = "HR-1" }, acquisitionReasonInvalidAddress},
+		{"out-of-range", func(s *AcquisitionSource) { s.Points[0].Address = "HR65536" }, acquisitionReasonInvalidAddress},
 		{"cross-end", func(s *AcquisitionSource) {
 			s.Points[0].Address = "HR65535"
 			s.Points[0].DataType = schema.DataTypeInt32
 			s.Points[0].NativeWidth = 2
-		}, "invalid-address"},
+		}, acquisitionReasonInvalidAddress},
 		{"wrong-width", func(s *AcquisitionSource) { s.Points[0].NativeWidth = 2 }, "invalid-native-width"},
 		{"unknown-protocol", func(s *AcquisitionSource) { s.Identity.Protocol = "unknown" }, "unsupported-protocol"},
 		{"missing-limit", func(s *AcquisitionSource) { s.Capability.ProtocolLimit = 0 }, "invalid-capability"},
@@ -89,7 +89,7 @@ func TestAcquisitionPlanRejectsUnsafeScalar(t *testing.T) {
 			s.Points[0].NativeWidth = 2
 		}, "scalar-exceeds-limit"},
 		{"bit-numeric", func(s *AcquisitionSource) { s.Points[0].Address = "CO0" }, "unsupported-type"},
-		{"bit-index-numeric", func(s *AcquisitionSource) { s.Points[0].Address = "HR0.5" }, "invalid-address"},
+		{"bit-index-numeric", func(s *AcquisitionSource) { s.Points[0].Address = "HR0.5" }, acquisitionReasonInvalidAddress},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -152,7 +152,7 @@ func TestAcquisitionPlanRejectsBitIndexOnNativeBitArea(t *testing.T) {
 			in.Sources[0].Points[0].Address = address
 			in.Sources[0].Points[0].DataType = schema.DataTypeBool
 			p := BuildAcquisitionPlan(in)
-			if len(p.Requests()) != 0 || len(p.Errors()) != 1 || p.Errors()[0].Code != "invalid-address" {
+			if len(p.Requests()) != 0 || len(p.Errors()) != 1 || p.Errors()[0].Code != acquisitionReasonInvalidAddress {
 				t.Fatalf("native bit area accepted word extraction: %+v errors %+v", p.Requests(), p.Errors())
 			}
 		})

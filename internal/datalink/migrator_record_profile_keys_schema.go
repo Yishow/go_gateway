@@ -19,7 +19,7 @@ const recordProfileUUIDCheck = `selection_scope<>'00000000-0000-0000-0000-000000
 
 const recordProfileTupleCheck = `(profile_kind='mixed' AND canonical_role='record' AND circuit_id='' AND ` + recordProfileUUIDCheck + `)`
 
-func recordProfileKeySchemas() (string, string, error) {
+func recordProfileKeySchemas() (legacyDDL, expandedDDL string, schemaErr error) {
 	raw, err := migrations.FS.ReadFile("030_write_group_profile_keys_sqlite.up.sql")
 	if err != nil {
 		return "", "", err
