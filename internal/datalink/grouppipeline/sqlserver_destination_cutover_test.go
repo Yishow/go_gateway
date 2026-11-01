@@ -51,7 +51,7 @@ func TestSQLServerDestinationCutover(t *testing.T) {
 
 	rows, err := fixture.store.DB().QueryContext(t.Context(), `SELECT effect_key FROM wg_delivery_outbox ORDER BY group_revision`)
 	require.NoError(t, err)
-	var keys []string
+	keys := make([]string, 0, 8)
 	for rows.Next() {
 		var key string
 		require.NoError(t, rows.Scan(&key))
@@ -114,7 +114,7 @@ func sqlServerFrozenOutboxForRevision(t *testing.T, db *sql.DB, revision string)
 		connector_revision, table_schema, table_name FROM wg_delivery_outbox WHERE group_revision = ? ORDER BY effect_key`, revision)
 	require.NoError(t, err)
 	defer rows.Close()
-	var out []sqlServerFrozenOutbox
+	out := make([]sqlServerFrozenOutbox, 0, 8)
 	for rows.Next() {
 		var item sqlServerFrozenOutbox
 		require.NoError(t, rows.Scan(&item.Key, &item.Payload, &item.Digest, &item.ConnectorID,
@@ -122,6 +122,9 @@ func sqlServerFrozenOutboxForRevision(t *testing.T, db *sql.DB, revision string)
 		out = append(out, item)
 	}
 	require.NoError(t, rows.Err())
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 

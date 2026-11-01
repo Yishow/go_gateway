@@ -134,7 +134,7 @@ func (b *cutoverRebuildBarrier) GetByID(ctx context.Context, id string) (*schema
 	return b.Destinations.GetByID(ctx, id)
 }
 
-func prepareLiveHandoffFixture(t *testing.T) (*ownershipPipelineFixture, *managed, *managed) {
+func prepareLiveHandoffFixture(t *testing.T) (resultFixture *ownershipPipelineFixture, resultSource, resultTarget *managed) {
 	t.Helper()
 	f := newHandoffPipelineFixture(t, shapeMeanLong)
 	require.NoError(t, f.pipe.AcceptSample(t.Context(), envelope(f.source.Group, "buffered", at(23), uint64(7))))

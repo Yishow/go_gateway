@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"go-gateway/internal/datalink/snapshot"
@@ -70,7 +71,7 @@ type ownershipBound struct {
 
 // ResolveCutoverOwnership is a consistent routing hint. AppendSample repeats
 // the same validation in its write transaction; this read never authorizes ACK.
-func (s *Store) ResolveCutoverOwnership(ctx context.Context, source OwnershipSource, observedAt time.Time) (CutoverOwnership, error) {
+func (s *Store) ResolveCutoverOwnership(ctx context.Context, source OwnershipSource, observedAt time.Time) (ownershipResult CutoverOwnership, retErr error) {
 	if source.WorkspaceID == "" || source.DeviceID == "" || source.PointID == "" || source.TagID == "" || observedAt.IsZero() {
 		return CutoverOwnership{}, ErrOwnershipUnavailable
 	}
@@ -78,7 +79,12 @@ func (s *Store) ResolveCutoverOwnership(ctx context.Context, source OwnershipSou
 	if err != nil {
 		return CutoverOwnership{}, ErrOwnershipUnavailable
 	}
-	defer tx.Rollback()
+	defer func() {
+		if cleanupErr := tx.Rollback(); cleanupErr != nil && !errors.Is(cleanupErr, sql.ErrTxDone) {
+			retErr = errors.Join(retErr, &handoffStorageError{cause: cleanupErr})
+			ownershipResult = CutoverOwnership{}
+		}
+	}()
 	result, err := resolveCutoverOwnership(ctx, tx, source, observedAt, GroupKey{})
 	if err != nil {
 		return CutoverOwnership{}, err

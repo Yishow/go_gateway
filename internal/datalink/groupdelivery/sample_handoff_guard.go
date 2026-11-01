@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"sort"
 	"time"
 )
@@ -157,7 +158,7 @@ func validateHandoffClosure(ctx context.Context, tx *sql.Tx, key GroupKey, closu
 
 // validateHandoffScope prevents metadata readers from silently treating a
 // malformed audit row as a successful transfer.
-func validateHandoffScope(ctx context.Context, q ownershipQuery, groupID, revision string) error {
+func validateHandoffScope(ctx context.Context, q ownershipQuery, groupID, revision string) (retErr error) {
 	if db, ok := q.(*sql.DB); ok {
 		// Pin the entire verification walk: nested ownership reads must not
 		// wait for another pool connection or observe a different snapshot.
@@ -166,7 +167,11 @@ func validateHandoffScope(ctx context.Context, q ownershipQuery, groupID, revisi
 		if err != nil {
 			return &handoffStorageError{cause: err}
 		}
-		defer tx.Rollback()
+		defer func() {
+			if cleanupErr := tx.Rollback(); cleanupErr != nil && !errors.Is(cleanupErr, sql.ErrTxDone) {
+				retErr = errors.Join(retErr, &handoffStorageError{cause: cleanupErr})
+			}
+		}()
 		observed := &handoffReadObserver{ownershipQuery: tx}
 		err = validateHandoffScope(ctx, observed, groupID, revision)
 		if observed.failure != nil {

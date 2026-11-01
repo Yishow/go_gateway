@@ -46,7 +46,7 @@ func TestHandoffProofLegacyRawInputCompatibleWithMeanOutput(t *testing.T) {
 	require.NotEmpty(t, evidence.TargetRuntimeDigest)
 }
 
-func handoffCounterProofFixture(t *testing.T, legacy bool) (*Store, handoffProofInput, counterproof.CounterBindingProof, counterproof.CounterBindingProof) {
+func handoffCounterProofFixture(t *testing.T, legacy bool) (resultStore *Store, resultInput handoffProofInput, sourceProof, targetProof counterproof.CounterBindingProof) {
 	t.Helper()
 	store, db, _ := newTestStore(t)
 	origin, sample, _ := journalProofFixture(t)

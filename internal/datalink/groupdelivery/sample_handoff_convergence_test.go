@@ -11,12 +11,12 @@ import (
 
 // Keep the Store fixture on the existing immutable-input comparator. The public
 // API companion covers the genuine counter_raw / cumulative proof matrix.
-func seedConvergentHandoff(t *testing.T) (*Store, GroupKey, GroupKey) {
+func seedConvergentHandoff(t *testing.T) (resultStore *Store, branchKey, targetKey GroupKey) {
 	t.Helper()
 	return seedConvergentHandoffAtInterval(t, 10)
 }
 
-func seedConvergentHandoffAtInterval(t *testing.T, branchSeconds int) (*Store, GroupKey, GroupKey) {
+func seedConvergentHandoffAtInterval(t *testing.T, branchSeconds int) (resultStore *Store, branchKey, targetKey GroupKey) {
 	t.Helper()
 	store, db, _ := newTestStore(t)
 	store = store.WithClock(func() time.Time { return at(8) })
@@ -74,7 +74,7 @@ func TestHandoffConvergenceOneCanonicalJournal(t *testing.T) {
 	require.Equal(t, 1, openCount(t, store.DB(), "wg_delivery_samples", "consumed=1"))
 }
 
-func finishConvergentHandoff(t *testing.T) (*Store, GroupKey, GroupKey, Restored) {
+func finishConvergentHandoff(t *testing.T) (resultStore *Store, branchKey, targetKey GroupKey, resultRestored Restored) {
 	t.Helper()
 	store, branch, target := seedConvergentHandoff(t)
 	_, err := store.PrepareCutoverHandoffs(t.Context(), branch, 0, 128)

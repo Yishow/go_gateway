@@ -180,7 +180,7 @@ func TestTimescaleSpansChunksAndReplayAddsNoRow(t *testing.T) {
 
 	rows, err := admin.QueryContext(t.Context(), `SELECT CAST(value_decimal AS TEXT), to_char(bucket_start AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI') FROM `+qualified+` ORDER BY bucket_start`)
 	require.NoError(t, err)
-	var read []string
+	read := make([]string, 0, 8)
 	for rows.Next() {
 		var value, bucket string
 		require.NoError(t, rows.Scan(&value, &bucket))

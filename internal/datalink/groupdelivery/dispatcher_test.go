@@ -29,13 +29,16 @@ func (f *deliveryFixture) delivered(t *testing.T) []int64 {
 	rows, err := f.target.QueryContext(t.Context(), `SELECT counter FROM readings ORDER BY rowid`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var counters []int64
+	counters := make([]int64, 0, 8)
 	for rows.Next() {
 		var counter int64
 		require.NoError(t, rows.Scan(&counter))
 		counters = append(counters, counter)
 	}
 	require.NoError(t, rows.Err())
+	if len(counters) == 0 {
+		return nil
+	}
 	return counters
 }
 

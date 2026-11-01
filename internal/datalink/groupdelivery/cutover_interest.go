@@ -3,6 +3,7 @@ package groupdelivery
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 )
 
@@ -13,7 +14,7 @@ import (
 // can still own delayed pre-boundary observations. A canonical active historical
 // revision can cause extra routing attempts, never acceptance outside its fence.
 // No scheduler clock is needed: observed_at is checked only by decisive intake.
-func (s *Store) HasCutoverSource(ctx context.Context, source OwnershipSource) (bool, error) {
+func (s *Store) HasCutoverSource(ctx context.Context, source OwnershipSource) (interestedResult bool, retErr error) {
 	if source.WorkspaceID == "" || source.DeviceID == "" || source.PointID == "" || source.TagID == "" {
 		return false, ErrOwnershipUnavailable
 	}
@@ -21,7 +22,12 @@ func (s *Store) HasCutoverSource(ctx context.Context, source OwnershipSource) (b
 	if err != nil {
 		return false, ErrOwnershipUnavailable
 	}
-	defer tx.Rollback()
+	defer func() {
+		if cleanupErr := tx.Rollback(); cleanupErr != nil && !errors.Is(cleanupErr, sql.ErrTxDone) {
+			retErr = errors.Join(retErr, &handoffStorageError{cause: cleanupErr})
+			interestedResult = false
+		}
+	}()
 	ownership, err := resolveCutoverOwnership(ctx, tx, source, time.Time{}, GroupKey{})
 	if err != nil {
 		return false, err

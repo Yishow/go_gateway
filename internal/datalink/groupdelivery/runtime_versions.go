@@ -46,14 +46,19 @@ type OpenJournal struct {
 }
 
 // OpenJournals discovers historical revisions independently of the live groups.
-func (s *Store) OpenJournals(ctx context.Context) ([]OpenJournal, error) {
+func (s *Store) OpenJournals(ctx context.Context) (journalsResult []OpenJournal, retErr error) {
 	// Receipt validation performs nested ownership reads. Keep discovery and
 	// exclusions in one snapshot and on one connection, even with a pool of one.
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, &handoffStorageError{cause: err}
 	}
-	defer tx.Rollback()
+	defer func() {
+		if cleanupErr := tx.Rollback(); cleanupErr != nil && !errors.Is(cleanupErr, sql.ErrTxDone) {
+			retErr = errors.Join(retErr, &handoffStorageError{cause: cleanupErr})
+			journalsResult = nil
+		}
+	}()
 	rows, err := tx.QueryContext(ctx, `SELECT workspace_id, group_id, group_revision,
 		MIN(bucket_start), MAX(bucket_start) FROM wg_delivery_samples WHERE consumed = 0
 		GROUP BY workspace_id, group_id, group_revision`)

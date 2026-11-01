@@ -66,7 +66,7 @@ type HandoffRecognition struct {
 	Sample    *snapshot.Sample
 }
 
-func (s *Store) RecognizeTransferredSample(ctx context.Context, key GroupKey, incoming snapshot.Sample) (HandoffRecognition, error) {
+func (s *Store) RecognizeTransferredSample(ctx context.Context, key GroupKey, incoming snapshot.Sample) (recognitionResult HandoffRecognition, retErr error) {
 	if !key.Valid() {
 		return HandoffRecognition{}, ErrInvalidGroupKey
 	}
@@ -74,7 +74,12 @@ func (s *Store) RecognizeTransferredSample(ctx context.Context, key GroupKey, in
 	if err != nil {
 		return HandoffRecognition{}, ErrOwnershipUnavailable
 	}
-	defer tx.Rollback()
+	defer func() {
+		if cleanupErr := tx.Rollback(); cleanupErr != nil && !errors.Is(cleanupErr, sql.ErrTxDone) {
+			retErr = errors.Join(retErr, &handoffStorageError{cause: cleanupErr})
+			recognitionResult = HandoffRecognition{}
+		}
+	}()
 	rs, err := queryHandoffs(ctx, tx, "workspace_id=? AND target_group_id=? AND target_revision=? AND json_extract(record,'$.SampleID')=?", key.WorkspaceID, key.GroupID, key.GroupRevision, incoming.SampleID)
 	if err != nil {
 		return HandoffRecognition{}, err

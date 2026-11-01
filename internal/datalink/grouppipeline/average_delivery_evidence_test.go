@@ -57,7 +57,7 @@ func (f *longPipeline) tamperPayloads(old, replacement string) {
 	rows, err := local.QueryContext(f.t.Context(), `SELECT effect_key, payload FROM wg_delivery_outbox`)
 	require.NoError(f.t, err)
 	type row struct{ key, payload string }
-	var found []row
+	found := make([]row, 0, 8)
 	for rows.Next() {
 		var r row
 		require.NoError(f.t, rows.Scan(&r.key, &r.payload))

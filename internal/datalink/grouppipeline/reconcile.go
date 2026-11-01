@@ -163,7 +163,7 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 
 // build creates the boundary for one applied snapshot from real destination
 // metadata, or returns the safe reason it cannot be built yet.
-func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot) (*managed, string) {
+func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot) (built *managed, blockedReason string) {
 	return p.buildAt(ctx, snap, time.Time{}, time.Time{})
 }
 

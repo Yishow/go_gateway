@@ -117,9 +117,9 @@ func TestLifecycleCommitRejectsCachedBoundaryIntakeBeforeReconcile(t *testing.T)
 					t.Logf("future closure outcomes=%s queued=%s", outcomes, queued)
 				}
 				require.Equal(t, 1, effects, "the original revision keeps one frozen effect for the accepted future bucket")
-				var connector, connectorRevision, database, schema, table string
-				require.NoError(t, db.QueryRowContext(t.Context(), `SELECT connector_id,connector_revision,database_name,table_schema,table_name FROM wg_delivery_outbox WHERE group_id='G1' AND group_revision='R1' AND bucket_start='2026-01-01T00:00:20.000000000Z'`).Scan(&connector, &connectorRevision, &database, &schema, &table))
-				require.Equal(t, []string{"connector-1", "crev-1", "", "main", "readings"}, []string{connector, connectorRevision, database, schema, table}, "recovery keeps the original frozen destination")
+				var connector, connectorRevision, database, tableSchema, table string
+				require.NoError(t, db.QueryRowContext(t.Context(), `SELECT connector_id,connector_revision,database_name,table_schema,table_name FROM wg_delivery_outbox WHERE group_id='G1' AND group_revision='R1' AND bucket_start='2026-01-01T00:00:20.000000000Z'`).Scan(&connector, &connectorRevision, &database, &tableSchema, &table))
+				require.Equal(t, []string{"connector-1", "crev-1", "", "main", "readings"}, []string{connector, connectorRevision, database, tableSchema, table}, "recovery keeps the original frozen destination")
 				require.Equal(t, before["wg_delivery_receipts"], backlogOwnershipState(t, db)["wg_delivery_receipts"])
 			})
 		})

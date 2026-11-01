@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"sort"
 	"time"
 
@@ -26,7 +27,7 @@ type OwnershipView struct {
 // OwnershipView reads a consistent routing hint without replaying the journal.
 // It may trigger a rebuild, but must never be attached to an existing assembler:
 // only Restore captures ownership and the complete replay state together.
-func (s *Store) OwnershipView(ctx context.Context, key GroupKey) (OwnershipView, error) {
+func (s *Store) OwnershipView(ctx context.Context, key GroupKey) (viewResult OwnershipView, retErr error) {
 	if !key.Valid() {
 		return OwnershipView{}, ErrInvalidGroupKey
 	}
@@ -34,7 +35,12 @@ func (s *Store) OwnershipView(ctx context.Context, key GroupKey) (OwnershipView,
 	if err != nil {
 		return OwnershipView{}, ErrOwnershipUnavailable
 	}
-	defer tx.Rollback()
+	defer func() {
+		if cleanupErr := tx.Rollback(); cleanupErr != nil && !errors.Is(cleanupErr, sql.ErrTxDone) {
+			retErr = errors.Join(retErr, &handoffStorageError{cause: cleanupErr})
+			viewResult = OwnershipView{}
+		}
+	}()
 	view, err := captureOwnershipView(ctx, tx, key)
 	if err != nil {
 		return OwnershipView{}, err

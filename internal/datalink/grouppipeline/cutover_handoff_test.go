@@ -27,13 +27,16 @@ func handoffOriginalRows(t *testing.T, f *ownershipPipelineFixture) []string {
 	rows, err := f.local.QueryContext(t.Context(), `SELECT sample_id||'|'||payload||'|'||payload_digest||'|'||created_at||'|'||consumed FROM wg_delivery_samples WHERE group_id=? ORDER BY seq`, f.source.GroupID)
 	require.NoError(t, err)
 	defer rows.Close()
-	var original []string
+	original := make([]string, 0, 8)
 	for rows.Next() {
 		var row string
 		require.NoError(t, rows.Scan(&row))
 		original = append(original, row)
 	}
 	require.NoError(t, rows.Err())
+	if len(original) == 0 {
+		return nil
+	}
 	return original
 }
 

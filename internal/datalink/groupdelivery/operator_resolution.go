@@ -114,16 +114,16 @@ func (s *Store) ResolveAttention(ctx context.Context, workspaceID, groupID strin
 			return ErrDecisionConflict
 		}
 		result.State = StatePending
-		set := `state='pending',retry_count=0,next_retry_at=?,last_error_code='',claim_owner='',claim_epoch=claim_epoch+1,updated_at=?`
+		query := `UPDATE wg_delivery_outbox SET state='pending',retry_count=0,next_retry_at=?,last_error_code='',claim_owner='',claim_epoch=claim_epoch+1,updated_at=? WHERE effect_key=? AND workspace_id=? AND group_id=? AND state=? AND payload_digest=? AND claim_epoch=?`
 		args := make([]any, 0, 8)
 		args = append(args, timestamp(s.now()), timestamp(s.now()))
 		if d.Resolution == ResolutionSkip {
 			result.State = StateSkipped
-			set = `state='operator_skipped',claim_owner='',claim_epoch=claim_epoch+1,updated_at=?`
+			query = `UPDATE wg_delivery_outbox SET state='operator_skipped',claim_owner='',claim_epoch=claim_epoch+1,updated_at=? WHERE effect_key=? AND workspace_id=? AND group_id=? AND state=? AND payload_digest=? AND claim_epoch=?`
 			args = []any{timestamp(s.now())}
 		}
 		args = append(args, d.EffectKey, workspaceID, groupID, d.ExpectedState, d.PayloadDigest, *d.ExpectedStateRevision)
-		updated, err := tx.ExecContext(ctx, `UPDATE wg_delivery_outbox SET `+set+` WHERE effect_key=? AND workspace_id=? AND group_id=? AND state=? AND payload_digest=? AND claim_epoch=?`, args...)
+		updated, err := tx.ExecContext(ctx, query, args...)
 		if err != nil {
 			return err
 		}

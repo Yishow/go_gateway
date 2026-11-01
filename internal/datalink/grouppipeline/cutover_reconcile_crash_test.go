@@ -18,7 +18,7 @@ import (
 
 // Logical identity includes the original namespace, not the physical copy ID.
 // Every copy must retain the exact original payload, digest and acceptance time.
-func cutoverCrashJournal(t *testing.T, db *sql.DB) (map[string]string, map[string][]string) {
+func cutoverCrashJournal(t *testing.T, db *sql.DB) (payloadByID map[string]string, groupsByID map[string][]string) {
 	t.Helper()
 	rows, err := db.QueryContext(t.Context(), `SELECT json_array(
  CASE WHEN origin_workspace_id='' THEN workspace_id ELSE origin_workspace_id END,
@@ -53,13 +53,16 @@ func cutoverCrashEffects(t *testing.T, db *sql.DB) []string {
  FROM wg_delivery_outbox ORDER BY effect_key`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var effects []string
+	effects := make([]string, 0, 8)
 	for rows.Next() {
 		var effect string
 		require.NoError(t, rows.Scan(&effect))
 		effects = append(effects, effect)
 	}
 	require.NoError(t, rows.Err())
+	if len(effects) == 0 {
+		return nil
+	}
 	return effects
 }
 

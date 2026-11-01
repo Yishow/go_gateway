@@ -43,7 +43,7 @@ func TestHandoffUnpreparedAcceptedInputBlocksTargetWindow(t *testing.T) {
 	require.Zero(t, openCount(t, db, "wg_delivery_samples", "consumed=1"))
 }
 
-func seedPreparedHandoff(t *testing.T) (*Store, int64) {
+func seedPreparedHandoff(t *testing.T) (resultStore *Store, sourceSequence int64) {
 	t.Helper()
 	store, db, _ := newTestStore(t)
 	store = store.WithClock(func() time.Time { return at(21) })

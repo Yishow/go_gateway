@@ -279,7 +279,7 @@ func sqliteColumnInfo(t *testing.T, db *sql.DB, table string) []dbtarget.ColumnI
 	rows, err := db.QueryContext(t.Context(), fmt.Sprintf(`PRAGMA table_info('%s')`, table))
 	require.NoError(t, err)
 	defer rows.Close()
-	var columns []dbtarget.ColumnInfo
+	columns := make([]dbtarget.ColumnInfo, 0, 8)
 	for rows.Next() {
 		var cid, notNull, pk int
 		var name, dataType string
@@ -288,6 +288,9 @@ func sqliteColumnInfo(t *testing.T, db *sql.DB, table string) []dbtarget.ColumnI
 		columns = append(columns, dbtarget.ColumnInfo{Name: name, DataType: dataType, Nullable: notNull == 0, PrimaryKey: pk > 0, Unique: pk > 0})
 	}
 	require.NoError(t, rows.Err())
+	if len(columns) == 0 {
+		return nil
+	}
 	return columns
 }
 

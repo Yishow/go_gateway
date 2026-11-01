@@ -66,7 +66,7 @@ func TestHandoffConvergenceSecondEdgeFailureAndLostAcknowledgement(t *testing.T)
 	}
 }
 
-func convergencePeerReceipts(t *testing.T, store *Store, target GroupKey) (handoffReceipt, handoffReceipt) {
+func convergencePeerReceipts(t *testing.T, store *Store, target GroupKey) (canonicalReceipt, aliasReceipt handoffReceipt) {
 	t.Helper()
 	rs, err := queryHandoffs(t.Context(), store.DB(), "target_group_id=? AND target_revision=?", target.GroupID, target.GroupRevision)
 	require.NoError(t, err)
@@ -88,19 +88,19 @@ func replaceConvergenceReceipt(t *testing.T, store *Store, original string, r ha
 
 func TestHandoffConvergenceRejectsEveryCorruptPeerLiveAndAfterGC(t *testing.T) {
 	mutations := map[string]func(*testing.T, *Store, handoffReceipt, handoffReceipt){
-		"missing-canonical": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
+		"missing-canonical": func(t *testing.T, s *Store, canonical, _ handoffReceipt) {
 			_, err := s.DB().ExecContext(t.Context(), `DELETE FROM wg_delivery_sample_handoffs WHERE transfer_id=?`, canonical.ID)
 			require.NoError(t, err)
 		},
-		"malformed-alias": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
+		"malformed-alias": func(t *testing.T, s *Store, _, alias handoffReceipt) {
 			_, err := s.DB().ExecContext(t.Context(), `UPDATE wg_delivery_sample_handoffs SET record='{}' WHERE transfer_id=?`, alias.ID)
 			require.NoError(t, err)
 		},
-		"missing-reference": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
+		"missing-reference": func(t *testing.T, s *Store, _, alias handoffReceipt) {
 			alias.CanonicalTransferID = ""
 			replaceConvergenceReceipt(t, s, alias.ID, alias)
 		},
-		"reference-cycle": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
+		"reference-cycle": func(t *testing.T, s *Store, _, alias handoffReceipt) {
 			alias.CanonicalTransferID = alias.ID
 			replaceConvergenceReceipt(t, s, alias.ID, alias)
 		},
@@ -108,31 +108,31 @@ func TestHandoffConvergenceRejectsEveryCorruptPeerLiveAndAfterGC(t *testing.T) {
 			canonical.CanonicalTransferID = alias.ID
 			replaceConvergenceReceipt(t, s, canonical.ID, canonical)
 		},
-		"origin-sequence": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
+		"origin-sequence": func(t *testing.T, s *Store, _, alias handoffReceipt) {
 			alias.OriginSeq++
 			replaceConvergenceReceipt(t, s, alias.ID, alias)
 		},
-		"origin-scope": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
+		"origin-scope": func(t *testing.T, s *Store, _, alias handoffReceipt) {
 			alias.Origin.GroupRevision = "different-origin"
 			replaceConvergenceReceipt(t, s, alias.ID, alias)
 		},
-		"sample-identity": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
+		"sample-identity": func(t *testing.T, s *Store, _, alias handoffReceipt) {
 			alias.SampleID = "different-sample"
 			replaceConvergenceReceipt(t, s, alias.ID, alias)
 		},
-		"raw-bytes": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
+		"raw-bytes": func(t *testing.T, s *Store, _, alias handoffReceipt) {
 			alias.RawDigest = handoffHash("different bytes")
 			replaceConvergenceReceipt(t, s, alias.ID, alias)
 		},
-		"target-proof": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
+		"target-proof": func(t *testing.T, s *Store, _, alias handoffReceipt) {
 			alias.TargetProof.Digest = "different-proof"
 			replaceConvergenceReceipt(t, s, alias.ID, alias)
 		},
-		"source-bucket": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
+		"source-bucket": func(t *testing.T, s *Store, _, alias handoffReceipt) {
 			alias.SourceBucket = timestamp(at(50))
 			replaceConvergenceReceipt(t, s, alias.ID, alias)
 		},
-		"branch-lineage": func(t *testing.T, s *Store, canonical, alias handoffReceipt) {
+		"branch-lineage": func(t *testing.T, s *Store, _, alias handoffReceipt) {
 			_, err := s.DB().ExecContext(t.Context(), `DELETE FROM write_group_revision_ends WHERE group_id=? AND group_revision=?`, alias.Source.GroupID, alias.Source.GroupRevision)
 			require.NoError(t, err)
 		},

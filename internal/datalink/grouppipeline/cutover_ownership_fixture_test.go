@@ -47,12 +47,15 @@ func newOwnershipPipelineFixture(t *testing.T, shape averageShape) *ownershipPip
 	old.Destination.TableName, old.Destination.StorageStrategy = "legacy_readings", workspace.WriteGroupStorageStrategyCustom
 	old.RowPolicy = workspace.WriteGroupRowPolicy{IntervalSeconds: 10}
 	old.WritePolicy = workspace.WriteGroupWritePolicy{Mode: "append", DedupeCapability: groupdelivery.DedupeNone}
-	var columns []dbtarget.ColumnInfo
+	columns := make([]dbtarget.ColumnInfo, 0, 8)
 	for i := range old.Members {
 		old.Members[i].ValueRole = ""
 		old.Members[i].Required = true
 		old.Members[i].SourceValueType, old.Members[i].ResultValueType = "", ""
 		columns = append(columns, dbtarget.ColumnInfo{Name: old.Members[i].TargetColumn, DataType: "TEXT", Nullable: true})
+	}
+	if len(columns) == 0 {
+		columns = nil
 	}
 	source := snapshotOf(&old, at(0))
 	source.RuntimeLayout = &workspace.WriteGroupRuntimeLayout{Dialect: dbtarget.SQLDialectSQLite, Columns: columns, TagTypes: map[string]schema.DataType{longKwhFirst: schema.DataTypeUint64, longKwhSecond: schema.DataTypeUint64}}

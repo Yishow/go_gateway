@@ -22,13 +22,16 @@ func crashCounterJournal(t *testing.T, f *longPipeline) [][3]string {
 	rows, err := f.local.QueryContext(t.Context(), `SELECT sample_id,payload,payload_digest FROM wg_delivery_samples ORDER BY seq`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var result [][3]string
+	result := make([][3]string, 0, 8)
 	for rows.Next() {
 		var r [3]string
 		require.NoError(t, rows.Scan(&r[0], &r[1], &r[2]))
 		result = append(result, r)
 	}
 	require.NoError(t, rows.Err())
+	if len(result) == 0 {
+		return nil
+	}
 	return result
 }
 

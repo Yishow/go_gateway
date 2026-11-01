@@ -43,13 +43,16 @@ func associationJournal(t *testing.T, store *Store) []string {
 	rows, err := store.DB().QueryContext(t.Context(), `SELECT sample_id || '|' || payload || '|' || payload_digest || '|' || consumed || '|' || created_at FROM wg_delivery_samples ORDER BY seq`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var values []string
+	values := make([]string, 0, 8)
 	for rows.Next() {
 		var value string
 		require.NoError(t, rows.Scan(&value))
 		values = append(values, value)
 	}
 	require.NoError(t, rows.Err())
+	if len(values) == 0 {
+		return nil
+	}
 	return values
 }
 
@@ -110,12 +113,15 @@ func associationAudit(t *testing.T, store *Store) []string {
 	rows, err := store.DB().QueryContext(t.Context(), `SELECT workspace_id || '|' || group_id || '|' || group_revision || '|' || sample_id || '|' || sample_seq || '|' || sample_digest || '|' || accepted_at || '|' || member_key || '|' || proof_member_key || '|' || proof_version || '|' || proof_digest || '|' || runtime_digest || '|' || evidence_kind || '|' || association_version || '|' || associated_at FROM wg_counter_proof_associations ORDER BY sample_seq`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var values []string
+	values := make([]string, 0, 8)
 	for rows.Next() {
 		var value string
 		require.NoError(t, rows.Scan(&value))
 		values = append(values, value)
 	}
 	require.NoError(t, rows.Err())
+	if len(values) == 0 {
+		return nil
+	}
 	return values
 }
