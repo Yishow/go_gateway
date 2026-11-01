@@ -19,16 +19,16 @@ func TestMCPlannedManagedConnectionGuardsAndCancellation(t *testing.T) {
 	require.Equal(t, int16(7), got[0].Value)
 	for _, bad := range []string{"config", "device", "protocol"} {
 		t.Run(bad, func(t *testing.T) {
-			copy := &connector.ManagedConnection{Protocol: managed.Protocol, ProtocolType: schema.ProtocolMC3E, Config: "{}", DeviceID: "device"}
+			altered := &connector.ManagedConnection{Protocol: managed.Protocol, ProtocolType: schema.ProtocolMC3E, Config: "{}", DeviceID: "device"}
 			switch bad {
 			case "config":
-				copy.Config = `{"host":"foreign"}`
+				altered.Config = `{"host":"foreign"}`
 			case "device":
-				copy.DeviceID = "foreign"
+				altered.DeviceID = "foreign"
 			case "protocol":
-				copy.ProtocolType = schema.ProtocolFatekFBs
+				altered.ProtocolType = schema.ProtocolFatekFBs
 			}
-			_, err := copy.ReadPlanned(t.Context(), req)
+			_, err := altered.ReadPlanned(t.Context(), req)
 			require.Error(t, err)
 			require.Len(t, tr.frames, 1)
 		})

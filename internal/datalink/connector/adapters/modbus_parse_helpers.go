@@ -60,15 +60,16 @@ func parseModbusAddress(addressStr, function string) (address uint16, functionCo
 	if len(addressStr) == 5 {
 		offset := addr % 10000
 		if offset >= 1 && offset <= 9999 {
+			zeroBased := uint16(offset) - 1
 			switch addressStr[0] {
 			case '4':
-				return uint16(offset - 1), "03", nil
+				return zeroBased, "03", nil
 			case '3':
-				return uint16(offset - 1), "04", nil
+				return zeroBased, "04", nil
 			case '1':
-				return uint16(offset - 1), "02", nil
+				return zeroBased, "02", nil
 			case '0':
-				return uint16(offset - 1), "01", nil
+				return zeroBased, "01", nil
 			}
 		}
 	}
@@ -76,7 +77,7 @@ func parseModbusAddress(addressStr, function string) (address uint16, functionCo
 	// 無 function 的短數字保留歷史一-based 線圈 fallback；明確指定
 	// function 時，數字地址一律視為 wire 上的完整 zero-based offset。
 	if function == "" && addr >= 1 && addr <= 9999 {
-		return uint16(addr - 1), "01", nil
+		return uint16(addr) - 1, "01", nil
 	}
 
 	// 純數字，使用指定的 function

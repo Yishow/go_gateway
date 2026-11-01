@@ -95,7 +95,7 @@ func TestFatekPlannedPreservesCallerAttemptBudget(t *testing.T) {
 	require.Len(t, peer.frames, 2)
 }
 func TestFatekPlannedTCPReadCancellationIsFinalBad(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer listener.Close()
 	received := make(chan error, 1)

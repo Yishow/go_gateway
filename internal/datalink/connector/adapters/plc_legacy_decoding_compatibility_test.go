@@ -54,7 +54,7 @@ func TestPLCLegacyCompatibility_MCConnectionDefaultAndTypedCount(t *testing.T) {
 			t.Run(fmt.Sprintf("format_%q/count_%d", format, count), func(t *testing.T) {
 				// Only Connect initialization uses loopback. All protocol reads use
 				// the existing in-memory wire fixture; no PLC endpoint is contacted.
-				listener, err := net.Listen("tcp", "127.0.0.1:0")
+				listener, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
 				require.NoError(t, err)
 				t.Cleanup(func() { _ = listener.Close() })
 				config := map[string]any{

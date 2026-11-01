@@ -16,7 +16,7 @@ import (
 func TestModbusReadWaiterCancellationAcrossManagerAndAdapter(t *testing.T) {
 	for _, managed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "adapter", true: "manager"}[managed], func(t *testing.T) {
-			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			listener, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
 			require.NoError(t, err)
 			defer listener.Close()
 			sent := make(chan struct{})

@@ -21,16 +21,16 @@ func TestModbusPlannedManagedIdentityAndCanceledWaiter(t *testing.T) {
 			require.NoError(t, err)
 			assertModbusPlannedResults(t, req, got, map[string]any{"a": uint16(7)})
 			for _, fault := range []string{"device", "config", "protocol"} {
-				copy := &connector.ManagedConnection{DeviceID: "device", ProtocolType: kind, Config: "{}", Protocol: managed.Protocol}
+				altered := &connector.ManagedConnection{DeviceID: "device", ProtocolType: kind, Config: "{}", Protocol: managed.Protocol}
 				switch fault {
 				case "device":
-					copy.DeviceID = "foreign"
+					altered.DeviceID = "foreign"
 				case "config":
-					copy.Config = `{"slaveId":2}`
+					altered.Config = `{"slaveId":2}`
 				case "protocol":
-					copy.ProtocolType = schema.ProtocolFatekFBs
+					altered.ProtocolType = schema.ProtocolFatekFBs
 				}
-				_, err = copy.ReadPlanned(t.Context(), req)
+				_, err = altered.ReadPlanned(t.Context(), req)
 				require.Error(t, err)
 				require.Len(t, peer.frames, 1)
 			}

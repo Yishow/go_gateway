@@ -17,7 +17,7 @@ import (
 )
 
 func TestModbusPlannedTCPActiveCancelDoesNotPoisonReplacement(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer listener.Close()
 	peer := &modbusPlannedPeer{kind: schema.ProtocolModbusTCP, memory: map[modbusPlannedAddress]uint16{{3, 0}: 7, {3, 1}: 8}}

@@ -17,7 +17,7 @@ import (
 func TestMCAdapterCanceledWaiter(t *testing.T) {
 	for _, operation := range []string{"read", "reconnect", "managed-read", "managed-write"} {
 		t.Run(operation, func(t *testing.T) {
-			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			listener, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
 			require.NoError(t, err)
 			defer listener.Close()
 			entered := make(chan struct{})

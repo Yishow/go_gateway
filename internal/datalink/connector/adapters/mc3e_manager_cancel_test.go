@@ -17,7 +17,7 @@ import (
 func TestMCManagerCanceledReuseAndRetirement(t *testing.T) {
 	for _, replace := range []bool{false, true} {
 		t.Run(map[bool]string{false: "reuse", true: "retire"}[replace], func(t *testing.T) {
-			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			listener, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
 			require.NoError(t, err)
 			defer listener.Close()
 			entered, serverDone := make(chan struct{}), make(chan struct{})

@@ -158,7 +158,7 @@ func fatekSelectRequest(req connector.PlannedReadRequest, index int) connector.P
 	return req
 }
 func TestFatekPlanned65DUnitsSplitWithoutLostPoints(t *testing.T) {
-	var points []schema.Point
+	points := make([]schema.Point, 0, 65)
 	memory := map[string]any{}
 	for i := range 65 {
 		address := fmt.Sprint("D", i*10)
