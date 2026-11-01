@@ -7,6 +7,7 @@ package collector
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go-gateway/internal/datalink/collector/health"
@@ -27,6 +28,10 @@ import (
 
 // SchedulerConfig 排程器配置
 type SchedulerConfig struct {
+	// MaxActiveScans and PendingScanCapacity are optional positive capacities.
+	MaxActiveScans      *int
+	PendingScanCapacity *int
+
 	// DefaultRetryCount 預設重試次數
 	DefaultRetryCount int
 
@@ -70,8 +75,13 @@ func DefaultSchedulerConfig() SchedulerConfig {
 
 // Scheduler 資料收集排程器
 type Scheduler struct {
-	config  SchedulerConfig
-	connMgr *connector.ConnectionManager
+	outputLoss   outputLossCounter
+	due          *dueQueue
+	active       *activeCapacity
+	pendingLimit int
+	capacityErr  error
+	config       SchedulerConfig
+	connMgr      *connector.ConnectionManager
 
 	// 輪詢群組 Ticker
 	groupTickers map[string]*groupTicker
@@ -116,10 +126,11 @@ type Scheduler struct {
 
 // groupTicker 輪詢群組 Ticker
 type groupTicker struct {
-	group  *schema.PollingGroup
-	ticker *time.Ticker
-	stopCh chan struct{}
-	done   chan struct{}
+	admissionCursor atomic.Uint64
+	group           *schema.PollingGroup
+	ticker          *time.Ticker
+	stopCh          chan struct{}
+	done            chan struct{}
 }
 
 // deviceConfig 設備配置快取
@@ -157,7 +168,12 @@ func NewScheduler(config SchedulerConfig, connMgr *connector.ConnectionManager) 
 		connMgr = connector.GetConnectionManager()
 	}
 
+	active, pending, capacityErr := schedulerCapacities(config)
+	// Resolve caller-owned pointers once; Start never rereads mutable pointers.
+	config.MaxActiveScans, config.PendingScanCapacity = nil, nil
 	return &Scheduler{
+		pendingLimit: pending, capacityErr: capacityErr,
+		active:            newActiveCapacity(active),
 		installationScope: uuid.NewString(),
 		config:            config,
 		connMgr:           connMgr,

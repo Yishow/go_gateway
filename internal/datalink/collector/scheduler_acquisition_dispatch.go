@@ -7,6 +7,7 @@ import (
 
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/protocol/wirebudget"
 )
 
 // captureScheduledGroup takes one coherent installed view. The global lock is
@@ -43,6 +44,10 @@ func (s *Scheduler) captureScheduledGroup(groupID string, expected ...*groupTick
 }
 
 func (s *Scheduler) pollScheduledSnapshot(snapshot scheduledSnapshot) {
+	s.pollAcquisitionSnapshot(snapshot, "", false, s.emitValue)
+}
+
+func (s *Scheduler) pollAcquisitionSnapshot(snapshot scheduledSnapshot, acquisitionID string, manual bool, deliver func(CollectedValue)) {
 	if snapshot.ctx == nil {
 		snapshot.ctx = context.Background()
 	}
@@ -59,15 +64,22 @@ func (s *Scheduler) pollScheduledSnapshot(snapshot scheduledSnapshot) {
 	}
 	s.mu.RLock()
 	gate, breaker := s.deviceLocks[snapshot.device.ID], s.deviceBreakers[snapshot.device.ID]
+	capacity := s.active
 	s.mu.RUnlock()
 	if gate == nil || s.admitScheduled(snapshot, snapshot.points) != nil || snapshot.ctx.Err() != nil {
 		return
 	}
-	acquisitionID := s.nextAcquisitionID()
+	if acquisitionID == "" {
+		acquisitionID = s.nextAcquisitionID()
+	}
+	if s.capacityErr != nil {
+		s.deliverAcquisitionFailure(snapshot, acquisitionID, s.capacityErr, "capacity-invalid", deliver)
+		return
+	}
 	trace := acquisitionTrace{planFingerprint: scan.plan.Fingerprint(), planReason: scan.coverageReason}
 	if boundedAcquisitionProtocol(snapshot.device.Protocol) {
 		if planErr != nil {
-			s.emitScheduledFailure(snapshot, acquisitionID, planErr, "plan-invalid", trace)
+			s.deliverAcquisitionFailure(snapshot, acquisitionID, planErr, "plan-invalid", deliver, trace)
 			return
 		}
 		if len(scan.plan.Requests()) == 0 {
@@ -76,26 +88,37 @@ func (s *Scheduler) pollScheduledSnapshot(snapshot scheduledSnapshot) {
 					return
 				}
 				s.reportScheduledHealth(snapshot, []pointInfo{scan.points[pointID]}, breaker, failure)
-				s.emitValue(s.collectedValueWithReason(snapshot.device, scan.points[pointID], connector.ReadResult{Quality: schema.QualityBad}, failure, acquisitionID, s.now(), "plan-invalid", acquisitionTrace{planFingerprint: scan.plan.Fingerprint(), planReason: scan.coverageReason}))
+				deliver(s.collectedValueWithReason(snapshot.device, scan.points[pointID], connector.ReadResult{Quality: schema.QualityBad}, failure, acquisitionID, s.now(), "plan-invalid", acquisitionTrace{planFingerprint: scan.plan.Fingerprint(), planReason: scan.coverageReason}))
 			}
 			return
 		}
 	}
 	if breaker != nil && !breaker.AllowRequest() {
-		s.emitScheduledFailure(snapshot, acquisitionID, fmt.Errorf("設備熔斷中 (狀態: %s)", breaker.State()), "circuit-open", trace)
+		s.deliverAcquisitionFailure(snapshot, acquisitionID, fmt.Errorf("設備熔斷中 (狀態: %s)", breaker.State()), "circuit-open", deliver, trace)
 		return
 	}
 	if err := gate.LockContext(ctx); err != nil {
 		if snapshot.ctx.Err() == nil && s.admitScheduled(snapshot, snapshot.points) == nil {
-			s.emitScheduledFailure(snapshot, acquisitionID, err, "scan-deadline", trace)
+			s.deliverAcquisitionFailure(snapshot, acquisitionID, err, "scan-deadline", deliver, trace)
 		}
 		return
 	}
 	defer gate.Unlock()
+	if capacity != nil {
+		lease, err := capacity.acquire(ctx)
+		if err != nil {
+			if snapshot.ctx.Err() == nil && s.admitScheduled(snapshot, snapshot.points) == nil {
+				s.deliverAcquisitionFailure(snapshot, acquisitionID, err, "scan-deadline", deliver, trace)
+			}
+			return
+		}
+		defer lease.release()
+		ctx = wirebudget.WithWaitCooperator(ctx, lease)
+	}
 	// Never let a stale queued caller replace the manager's current config.
 	if ctx.Err() != nil {
 		if snapshot.ctx.Err() == nil && s.admitScheduled(snapshot, snapshot.points) == nil {
-			s.emitScheduledFailure(snapshot, acquisitionID, ctx.Err(), "scan-deadline", trace)
+			s.deliverAcquisitionFailure(snapshot, acquisitionID, ctx.Err(), "scan-deadline", deliver, trace)
 		}
 		return
 	}
@@ -108,7 +131,7 @@ func (s *Scheduler) pollScheduledSnapshot(snapshot scheduledSnapshot) {
 			return
 		}
 		s.reportScheduledHealth(snapshot, snapshot.points, breaker, err)
-		s.emitScheduledFailure(snapshot, acquisitionID, fmt.Errorf("連線失敗: %w", err), "connection-failed", trace)
+		s.deliverAcquisitionFailure(snapshot, acquisitionID, fmt.Errorf("連線失敗: %w", err), "connection-failed", deliver, trace)
 		return
 	}
 	if boundedAcquisitionProtocol(snapshot.device.Protocol) {
@@ -118,10 +141,10 @@ func (s *Scheduler) pollScheduledSnapshot(snapshot scheduledSnapshot) {
 			for _, point := range snapshot.points {
 				s.reportScheduledHealth(snapshot, []pointInfo{point}, breaker, connector.ErrPlannedRead)
 			}
-			s.emitScheduledFailure(snapshot, acquisitionID, connector.ErrPlannedRead, "planned-read-unavailable", trace)
+			s.deliverAcquisitionFailure(snapshot, acquisitionID, connector.ErrPlannedRead, "planned-read-unavailable", deliver, trace)
 			return
 		}
-		s.executeScheduledPlan(ctx, conn, scan, acquisitionID, breaker)
+		s.executeAcquisitionPlan(ctx, conn, scan, acquisitionID, breaker, deliver)
 		return
 	}
 	// Other installed protocols retain their original scalar executor. This is
@@ -130,17 +153,21 @@ func (s *Scheduler) pollScheduledSnapshot(snapshot scheduledSnapshot) {
 		if ctx.Err() != nil || s.admitScheduled(snapshot, []pointInfo{point}) != nil {
 			return
 		}
-		err := s.pollPointWithAcquisition(ctx, conn, point, acquisitionID)
+		attempts := s.config.DefaultRetryCount
+		if manual {
+			attempts = 0
+		}
+		err := s.pollScalarPoint(ctx, conn, point, acquisitionID, attempts, deliver)
 		s.reportScheduledHealth(snapshot, []pointInfo{point}, breaker, err)
 	}
 }
 
-func (s *Scheduler) emitScheduledFailure(snapshot scheduledSnapshot, acquisitionID string, err error, reason string, trace ...acquisitionTrace) {
+func (s *Scheduler) deliverAcquisitionFailure(snapshot scheduledSnapshot, acquisitionID string, err error, reason string, deliver func(CollectedValue), trace ...acquisitionTrace) {
 	completed := s.now()
 	for _, point := range snapshot.points {
 		if snapshot.ctx.Err() != nil {
 			return
 		}
-		s.emitValue(s.collectedValueWithReason(snapshot.device, point, connector.ReadResult{Quality: schema.QualityBad, Error: err.Error()}, nil, acquisitionID, completed, reason, trace...))
+		deliver(s.collectedValueWithReason(snapshot.device, point, connector.ReadResult{Quality: schema.QualityBad, Error: err.Error()}, nil, acquisitionID, completed, reason, trace...))
 	}
 }

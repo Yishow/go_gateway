@@ -38,15 +38,17 @@ func (s *Scheduler) readScheduledRequest(ctx context.Context, conn *connector.Ma
 	readCtx = wirebudget.WithAdmission(readCtx, func() error { return s.admitScheduledWire(scan.snapshot, points, gap) })
 	var results []connector.PlannedPointResult
 	var err error
+	invoked := false
 	for attempt := 0; attempt <= s.config.DefaultRetryCount; attempt++ {
 		if attempt > 0 {
 			if err = waitScheduledRetry(readCtx, s.config.DefaultRetryDelay, attempt); err != nil {
 				break
 			}
 		}
-		if err = readCtx.Err(); err != nil {
+		if err = wirebudget.ResumeAfterWait(readCtx); err != nil {
 			break
 		}
+		invoked = true
 		results, err = conn.ReadPlanned(readCtx, read)
 		if err == nil && plannedResultsGood(results) {
 			break
@@ -58,7 +60,8 @@ func (s *Scheduler) readScheduledRequest(ctx context.Context, conn *connector.Ma
 			break
 		}
 	}
-	if readCtx.Err() != nil {
+	err = capacityWaitResult(err, invoked)
+	if readCtx.Err() != nil && !errors.Is(err, errActiveCapacityWait) {
 		err = readCtx.Err()
 	}
 	return validateScheduledResults(read, results, err, s.now())
@@ -79,14 +82,7 @@ func waitScheduledRetry(ctx context.Context, delay time.Duration, attempt int) e
 	if delay < 0 {
 		delay = 0
 	}
-	timer := time.NewTimer(delay)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
+	return wirebudget.WaitDuration(ctx, delay)
 }
 
 func explicitCommandRejection(err error) bool {

@@ -16,6 +16,9 @@ func (s *Scheduler) Start(groups []*schema.PollingGroup) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.capacityErr != nil {
+		return s.capacityErr
+	}
 	if s.running {
 		return fmt.Errorf("排程器已在運行")
 	}
@@ -33,6 +36,9 @@ func (s *Scheduler) Start(groups []*schema.PollingGroup) error {
 
 	s.running = true
 	s.stopCh = make(chan struct{})
+	s.due = newDueQueue(s.pendingLimit)
+	queue, ctx := s.due, s.pollCtx
+	s.wg.Go(func() { s.runDueDispatcher(ctx, queue) })
 
 	// 啟動所有已啟用的輪詢群組
 	for _, group := range groups {
@@ -55,6 +61,9 @@ func (s *Scheduler) StopContext(ctx context.Context) error {
 	s.mu.Lock()
 	if s.running {
 		s.running = false
+		if s.due != nil {
+			s.due.stop()
+		}
 		close(s.stopCh)
 		if s.pollCancel != nil {
 			s.pollCancel()

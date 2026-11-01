@@ -51,7 +51,8 @@ func TestModernTwoPointConcurrentReadsRetainFormatFingerprint(t *testing.T) {
 			require.True(t, s.AcceptsInstallationSample(v.PointID, v.InstallationLease, v.InstallationScope))
 		}
 	}
-	for i := 0; i < 4; i++ {
+	require.Len(t, requests, 2, "each manual caller shares one raw span across its two typed Points")
+	for i := 0; i < 2; i++ {
 		require.Equal(t, 2, <-requests)
 	}
 }

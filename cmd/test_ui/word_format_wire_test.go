@@ -162,5 +162,7 @@ func wordWireServer(t *testing.T, protocol schema.ProtocolType) (*wordWirePLC, s
 		wg.Wait()
 	})
 	port := listener.Addr().(*net.TCPAddr).Port
-	return plc, fmt.Sprintf(`{"host":"127.0.0.1","port":%d,"mode":"tcp","station_no":1,"slave_id":1,"timeout":1,"retry_count":0,"data_format":"ABCD"}`, port)
+	// The 24-source format/ingestor matrix is not a deadline performance test.
+	// Fixed scan deadlines include device-gate wait; allow race-build headroom.
+	return plc, fmt.Sprintf(`{"host":"127.0.0.1","port":%d,"mode":"tcp","station_no":1,"slave_id":1,"timeout":5,"retry_count":0,"data_format":"ABCD"}`, port)
 }

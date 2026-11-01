@@ -50,6 +50,27 @@ func TestProductionScheduledAcquisitionRecordingSubsetNeverNarrowsSource(t *test
 	}})
 	require.NoError(t, err)
 	require.Len(t, created.Group.Members, 3)
+	// Explicit manual intent may read an installed source not selected by this
+	// recording draft. It returns only that Point and never feeds the scheduled
+	// channel; the following full 21-source rounds must remain unchanged.
+	unrecordedPoint := ""
+	for _, link := range links {
+		if link.Address == "D1" {
+			unrecordedPoint = link.PointID
+		}
+	}
+	require.NotEmpty(t, unrecordedPoint)
+	beforeManual := len(peer.log())
+	manual := f.services.scheduler.PollNowContext(t.Context(), []string{unrecordedPoint})
+	require.Len(t, manual, 1)
+	require.Equal(t, unrecordedPoint, manual[0].PointID)
+	require.Equal(t, schema.QualityGood, manual[0].Quality, manual[0].Error)
+	require.Equal(t, int16(101), manual[0].Value)
+	require.Equal(t, []acquisitionWireRequest{{Kind: "contiguous", Addresses: []int{1}}}, peer.log()[beforeManual:])
+	require.Empty(t, f.services.scheduler.ValueChannel())
+	require.Empty(t, f.capture.samples)
+	require.Len(t, f.capture.observations, 1)
+	require.Equal(t, unrecordedPoint, (<-f.capture.observations).PointID)
 	baseline := len(peer.log())
 	require.NoError(t, f.services.runtime.Start(t.Context()))
 	samples := f.samples(t, 21)
@@ -72,12 +93,13 @@ func TestProductionScheduledAcquisitionRecordingSubsetNeverNarrowsSource(t *test
 	require.NoError(t, err)
 	require.Len(t, updated.Group.Members, 1)
 	// SQL mutation can span several real ticks under race instrumentation.
-	// First observe a complete post-update round, then select the NEXT scan.
+	// Exclude two complete post-update rounds (running plus one pending),
+	// then select a scan necessarily captured after the mutation.
 	// Completion alone cannot prove that a previously captured scan is new.
 	second := scheduledSamplesAfterRound(t, f, time.Now())
 	require.NoError(t, f.services.scheduler.Stop())
 	requests := peer.log()[baseline:]
-	require.GreaterOrEqual(t, len(requests), 3)
+	require.GreaterOrEqual(t, len(requests), 4)
 	for _, request := range requests {
 		require.Equal(t, "contiguous", request.Kind)
 		require.Len(t, request.Addresses, 21, "source-rule membership remains all 21 points before and after recording selection changes")
@@ -108,9 +130,10 @@ func TestProductionScheduledAcquisitionRecordingSubsetNeverNarrowsSource(t *test
 	require.Equal(t, min(21, window), stats.TrackerStats.SuccessCount)
 }
 
-// The existing ticker completes its current round before capturing another.
-// A full observed round after the mutation is therefore the barrier; the next
-// distinct AcquisitionID was captured after it, not merely completed after it.
+// At the mutation cutoff this one device/group tuple can have one running scan
+// and at most one captured pending scan. Excluding two complete distinct rounds
+// proves the selected third scan was captured after the cutoff, even with due
+// coalescing. Completion alone cannot prove when either earlier scan was captured.
 func scheduledSamplesAfterRound(t *testing.T, f scheduledProductionFixture, completedAfter time.Time) []measurement.SampleEnvelope {
 	t.Helper()
 	const count = 21
@@ -120,6 +143,7 @@ func scheduledSamplesAfterRound(t *testing.T, f scheduledProductionFixture, comp
 	deadline := time.NewTimer(30 * time.Second)
 	defer deadline.Stop()
 	barrierID := ""
+	barrierIDs := make([]string, 0, 2)
 	barrierPoints := make(map[string]bool, count)
 	selected := make([]measurement.SampleEnvelope, 0, count)
 	discarded := 0
@@ -132,23 +156,28 @@ func scheduledSamplesAfterRound(t *testing.T, f scheduledProductionFixture, comp
 				discarded++
 				continue
 			}
-			if barrierID == "" {
-				barrierID = sample.AcquisitionID
-			}
-			if len(barrierPoints) < count {
+			if len(barrierIDs) < 2 {
+				if len(barrierPoints) == 0 {
+					barrierID = sample.AcquisitionID
+					require.NotContains(t, barrierIDs, barrierID)
+				}
 				require.Equal(t, barrierID, sample.AcquisitionID, "post-update barrier is one complete source scan")
 				require.False(t, barrierPoints[sample.PointID])
 				require.Equal(t, schema.QualityGood, sample.Quality)
 				barrierPoints[sample.PointID] = true
+				if len(barrierPoints) == count {
+					barrierIDs = append(barrierIDs, barrierID)
+					clear(barrierPoints)
+				}
 				continue
 			}
-			require.NotEqual(t, barrierID, sample.AcquisitionID)
+			require.NotContains(t, barrierIDs, sample.AcquisitionID)
 			if len(selected) > 0 {
 				require.Equal(t, selected[0].AcquisitionID, sample.AcquisitionID, "after scan retains every source Point")
 			}
 			selected = append(selected, sample)
 		case <-deadline.C:
-			t.Fatalf("post-update source scan timeout: barrier=%d/%d selected=%d/%d discarded=%d cutoff=%s last-completion=%s rejected=%d runtime=%+v", len(barrierPoints), count, len(selected), count, discarded, completedAfter, lastCompletion, f.services.runtime.RejectedObservationCount(), f.services.runtime.Snapshot())
+			t.Fatalf("post-update source scan timeout: complete-barriers=%d/2 barrier=%d/%d selected=%d/%d discarded=%d cutoff=%s last-completion=%s rejected=%d runtime=%+v", len(barrierIDs), len(barrierPoints), count, len(selected), count, discarded, completedAfter, lastCompletion, f.services.runtime.RejectedObservationCount(), f.services.runtime.Snapshot())
 		}
 	}
 	t.Logf("post-update source barrier: discarded=%d, elapsed=%s, final gateway-completion-to-sink delay=%s", discarded, time.Since(completedAfter), time.Since(selected[0].ReceivedAt))

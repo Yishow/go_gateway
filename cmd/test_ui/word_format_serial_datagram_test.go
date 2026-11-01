@@ -52,7 +52,9 @@ func wordDatagramPeer(t *testing.T) (*wordWirePLC, string) {
 		}
 	}()
 	t.Cleanup(func() { require.NoError(t, conn.Close()); <-done })
-	return plc, fmt.Sprintf(`{"host":"127.0.0.1","port":%d,"slave_id":1,"timeout":1}`, conn.LocalAddr().(*net.UDPAddr).Port)
+	// The 24-source format/ingestor matrix is not a deadline performance test.
+	// Fixed scan deadlines include device-gate wait; allow race-build headroom.
+	return plc, fmt.Sprintf(`{"host":"127.0.0.1","port":%d,"slave_id":1,"timeout":5}`, conn.LocalAddr().(*net.UDPAddr).Port)
 }
 
 // Only the byte transport peer is simulated; factory, manager, probe, source

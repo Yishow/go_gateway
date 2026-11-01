@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"path/filepath"
@@ -9,11 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/connector/adapters"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/modbus"
+	"go-gateway/internal/protocol/wirebudget"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Simulated RTU byte transport, not a decoded Protocol. The actual ModbusClient
@@ -24,6 +27,16 @@ func (*wordRTUPeer) Connect() error            { return nil }
 func (*wordRTUPeer) Close() error              { return nil }
 func (*wordRTUPeer) IsConnected() bool         { return true }
 func (*wordRTUPeer) GetOriginalTransport() any { return &modbus.RTUTransport{} }
+
+// This simulator returns one complete CRC-checked frame and therefore can
+// explicitly participate in the exact RTU context/budget contract.
+func (p *wordRTUPeer) SendReceiveExactContext(ctx context.Context, raw []byte) ([]byte, error) {
+	if err := wirebudget.Take(ctx); err != nil {
+		return nil, err
+	}
+	return p.SendReceive(raw)
+}
+
 func (p *wordRTUPeer) SendReceive(raw []byte) ([]byte, error) {
 	unit, function, payload, err := modbus.ParseRTUFrame(raw)
 	if err != nil {

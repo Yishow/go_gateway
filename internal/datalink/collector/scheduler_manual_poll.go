@@ -2,158 +2,115 @@ package collector
 
 import (
 	"context"
-	"fmt"
 	"sync"
+	"time"
 
-	"go-gateway/internal/datalink/collector/health"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/wirebudget"
 )
 
-// =============================================================================
-// 手動觸發
-// =============================================================================
-
-// PollNow 立即輪詢指定的點位
+// PollNow immediately polls only the requested installed points.
 func (s *Scheduler) PollNow(pointIDs []string) []CollectedValue {
 	return s.PollNowContext(context.Background(), pointIDs)
 }
 
-// PollNowContext immediately polls points using the caller's context.
+// PollNowContext uses the shared acquisition executor with caller-only delivery.
+// Scheduled Stop does not own this caller's cancellation or returned results.
 func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []CollectedValue {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	snapshots := s.captureManualPoints(ctx, pointIDs)
 	results := make([]CollectedValue, 0, len(pointIDs))
-
-	s.mu.RLock()
-	// 取得點位資訊
-	pointsToPoll := make([]pointInfo, 0, len(pointIDs))
-	for _, id := range pointIDs {
-		if info, exists := s.pointInfos[id]; exists && !info.recoveryPending {
-			pointsToPoll = append(pointsToPoll, info)
-		}
-	}
-	s.mu.RUnlock()
-
-	// 依設備分組
-	devicePoints := make(map[string][]pointInfo)
-	for _, info := range pointsToPoll {
-		devicePoints[info.DeviceID] = append(devicePoints[info.DeviceID], info)
-	}
-
-	// 收集結果
-	var resultsMu sync.Mutex
+	var mu sync.Mutex
 	var wg sync.WaitGroup
-
-	for deviceID, points := range devicePoints {
+	for _, snapshot := range snapshots {
 		wg.Go(func() {
-			s.mu.RLock()
-			lock, exists := s.deviceLocks[deviceID]
-			deviceCfg, cfgExists := s.deviceConfigs[deviceID]
-			breaker := s.deviceBreakers[deviceID]
-			s.mu.RUnlock()
-
-			if !exists || !cfgExists || breaker == nil {
-				s.mu.Lock()
-				s.ensureDeviceLock(deviceID)
-				lock = s.deviceLocks[deviceID]
-				deviceCfg, cfgExists = s.deviceConfigs[deviceID]
-				if s.deviceBreakers[deviceID] == nil {
-					s.deviceBreakers[deviceID] = health.NewCircuitBreaker(s.config.BreakerConfig)
-				}
-				breaker = s.deviceBreakers[deviceID]
-				s.mu.Unlock()
-				if !cfgExists {
-					return
-				}
-			}
-
-			if breaker != nil && !breaker.AllowRequest() {
-				acquisitionID := s.nextAcquisitionID()
-				resultsMu.Lock()
-				for _, pt := range points {
-					results = append(results, s.collectedValueWithReason(deviceCfg, pt, connector.ReadResult{
-						Quality: schema.QualityBad,
-						Error:   fmt.Sprintf("設備熔斷中 (狀態: %s)", breaker.State()),
-					}, nil, acquisitionID, s.now(), "circuit-open"))
-				}
-				resultsMu.Unlock()
-				return
-			}
-
-			if err := lock.LockContext(ctx); err != nil {
-				acquisitionID := s.nextAcquisitionID()
-				resultsMu.Lock()
-				for _, pt := range points {
-					results = append(results, s.collectedValueWithReason(deviceCfg, pt, connector.ReadResult{
-						Quality: schema.QualityBad,
-						Error:   err.Error(),
-					}, err, acquisitionID, s.now(), "request-canceled"))
-				}
-				resultsMu.Unlock()
-				return
-			}
-			defer lock.Unlock()
-
-			conn, err := s.connMgr.GetOrCreate(ctx, deviceID, deviceCfg.Protocol, deviceCfg.Config)
-			if err != nil {
-				if breaker != nil {
-					breaker.ReportResult(err)
-				}
-
-				acquisitionID := s.nextAcquisitionID()
-				resultsMu.Lock()
-				for _, pt := range points {
-					results = append(results, s.collectedValueWithReason(deviceCfg, pt, connector.ReadResult{
-						Quality: schema.QualityBad,
-						Error:   fmt.Sprintf("連線失敗: %v", err),
-					}, nil, acquisitionID, s.now(), "connection-failed"))
-				}
-				resultsMu.Unlock()
-				return
-			}
-
-			acquisitionID := s.nextAcquisitionID()
-			for _, pt := range points {
-				req := connector.ReadRequest{
-					Address:    pt.Address,
-					Function:   pt.Function,
-					DataType:   pt.DataType,
-					DataFormat: pt.DataFormat,
-					Profile:    pt.readProfile,
-				}
-				count, countErr := connector.PointReadCountForAddress(conn.ProtocolType, pt.Address, pt.DataType)
-				if countErr != nil {
-					cv := s.collectedValue(managedConfig(conn), pt, connector.ReadResult{
-						Quality: schema.QualityBad,
-						Error:   countErr.Error(),
-					}, countErr, acquisitionID, s.now())
-					resultsMu.Lock()
-					results = append(results, cv)
-					resultsMu.Unlock()
-					continue
-				}
-				req.Count = count
-
-				readCtx, cancelRead := s.acquisitionReadContext(ctx, conn)
-				result, readErr := conn.Read(readCtx, req)
-				cancelRead()
-				if breaker != nil {
-					breaker.ReportResult(readErr)
-				}
-				cv := s.collectedValue(managedConfig(conn), pt, result, readErr, acquisitionID, s.now())
-
-				resultsMu.Lock()
-				results = append(results, cv)
-				resultsMu.Unlock()
-			}
+			values := s.pollManualSnapshot(snapshot)
+			mu.Lock()
+			results = append(results, values...)
+			mu.Unlock()
 		})
 	}
-
 	wg.Wait()
 	return results
+}
+
+// Capture all configuration authorities together; planning and I/O happen after
+// releasing the lock. A manual intent retains original groups, not their tickers.
+func (s *Scheduler) captureManualPoints(ctx context.Context, pointIDs []string) []scheduledSnapshot {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	seen := make(map[string]bool, len(pointIDs))
+	byDevice := map[string][]pointInfo{}
+	for _, id := range pointIDs {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		if point, ok := s.pointInfos[id]; ok && !point.recoveryPending {
+			byDevice[point.DeviceID] = append(byDevice[point.DeviceID], point)
+		}
+	}
+	capturedAt := time.Now()
+	snapshots := make([]scheduledSnapshot, 0, len(byDevice))
+	for id, points := range byDevice {
+		device, ok := s.deviceConfigs[id]
+		if !ok {
+			continue
+		}
+		cadences := make(map[string]time.Duration)
+		for _, point := range points {
+			if ticker := s.groupTickers[point.PollingGroupID]; ticker != nil {
+				cadences[point.PollingGroupID] = time.Duration(ticker.group.IntervalMs) * time.Millisecond
+			}
+		}
+		snapshot := scheduledSnapshot{device: device, geometry: s.currentAcquisitionGeometryLocked(id), points: points, ctx: ctx, capturedAt: capturedAt, groupCadences: cadences}
+		groupID := points[0].PollingGroupID
+		sameGroup := true
+		for _, point := range points {
+			sameGroup = sameGroup && point.PollingGroupID == groupID
+		}
+		if sameGroup {
+			// Identical installed sources have the same plan identity regardless
+			// of the caller, while manual never borrows ticker/run ownership.
+			snapshot.groupID, snapshot.cadence = groupID, cadences[groupID]
+			snapshot.groupCadences = nil
+		}
+		snapshots = append(snapshots, snapshot)
+	}
+	return snapshots
+}
+
+func (s *Scheduler) pollManualSnapshot(snapshot scheduledSnapshot) []CollectedValue {
+	acquisitionID := s.nextAcquisitionID()
+	values := make([]CollectedValue, 0, len(snapshot.points))
+	completed := make(map[string]bool, len(snapshot.points))
+	deliver := func(value CollectedValue) {
+		if completed[value.PointID] {
+			return
+		}
+		completed[value.PointID] = true
+		values = append(values, value)
+	}
+	s.pollAcquisitionSnapshot(snapshot, acquisitionID, true, deliver)
+	// Scheduled cancellation suppresses publication. Manual callers instead need
+	// one final Bad for each unresolved known Point, still bound to its old install.
+	for _, point := range snapshot.points {
+		if completed[point.ID] {
+			continue
+		}
+		err := snapshot.ctx.Err()
+		if err == nil {
+			err = s.admitScheduled(snapshot, []pointInfo{point})
+		}
+		if err == nil {
+			err = connector.ErrPlannedRead
+		}
+		deliver(s.collectedValueWithReason(snapshot.device, point, connector.ReadResult{Quality: schema.QualityBad}, err, acquisitionID, s.now(), "request-canceled"))
+	}
+	return values
 }
 
 func (s *Scheduler) ensureDeviceLocks() {
@@ -161,11 +118,5 @@ func (s *Scheduler) ensureDeviceLocks() {
 		if _, exists := s.deviceLocks[id]; !exists {
 			s.deviceLocks[id] = &wirebudget.Mutex{}
 		}
-	}
-}
-
-func (s *Scheduler) ensureDeviceLock(deviceID string) {
-	if _, exists := s.deviceLocks[deviceID]; !exists {
-		s.deviceLocks[deviceID] = &wirebudget.Mutex{}
 	}
 }

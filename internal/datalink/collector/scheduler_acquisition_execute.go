@@ -16,6 +16,10 @@ type acquisitionDowngrade struct {
 }
 
 func (s *Scheduler) executeScheduledPlan(ctx context.Context, conn *connector.ManagedConnection, scan scheduledPlan, acquisitionID string, breaker *health.CircuitBreaker) {
+	s.executeAcquisitionPlan(ctx, conn, scan, acquisitionID, breaker, s.emitValue)
+}
+
+func (s *Scheduler) executeAcquisitionPlan(ctx context.Context, conn *connector.ManagedConnection, scan scheduledPlan, acquisitionID string, breaker *health.CircuitBreaker, deliver func(CollectedValue)) {
 	completed := make(map[string]bool, len(scan.points))
 	for pointID, err := range scan.failures {
 		if scan.snapshot.ctx.Err() != nil {
@@ -23,7 +27,7 @@ func (s *Scheduler) executeScheduledPlan(ctx context.Context, conn *connector.Ma
 		}
 		pt := scan.points[pointID]
 		s.reportScheduledHealth(scan.snapshot, []pointInfo{pt}, breaker, err)
-		s.emitValue(s.collectedValueWithReason(scan.snapshot.device, pt, connector.ReadResult{Quality: schema.QualityBad}, err, acquisitionID, s.now(), "plan-invalid", acquisitionTrace{planFingerprint: scan.plan.Fingerprint(), planReason: scan.coverageReason}))
+		deliver(s.collectedValueWithReason(scan.snapshot.device, pt, connector.ReadResult{Quality: schema.QualityBad}, err, acquisitionID, s.now(), "plan-invalid", acquisitionTrace{planFingerprint: scan.plan.Fingerprint(), planReason: scan.coverageReason}))
 		completed[pointID] = true
 	}
 	plan, phase := scan.plan, "initial"
@@ -67,7 +71,7 @@ func (s *Scheduler) executeScheduledPlan(ctx context.Context, conn *connector.Ma
 					}
 					s.reportScheduledHealth(scan.snapshot, requestPoints, breaker, pointErr)
 				}
-				s.emitValue(value)
+				deliver(value)
 				completed[id] = true
 			}
 		}
@@ -84,7 +88,7 @@ func (s *Scheduler) executeScheduledPlan(ctx context.Context, conn *connector.Ma
 			}
 			pt := scan.points[failure.PointID]
 			s.reportScheduledHealth(scan.snapshot, []pointInfo{pt}, breaker, errors.New(failure.Code))
-			s.emitValue(s.collectedValueWithReason(scan.snapshot.device, pt, connector.ReadResult{Quality: schema.QualityBad}, errors.New(failure.Code), acquisitionID, s.now(), "fallback-invalid", acquisitionTrace{planFingerprint: plan.Fingerprint(), planReason: scan.coverageReason}))
+			deliver(s.collectedValueWithReason(scan.snapshot.device, pt, connector.ReadResult{Quality: schema.QualityBad}, errors.New(failure.Code), acquisitionID, s.now(), "fallback-invalid", acquisitionTrace{planFingerprint: plan.Fingerprint(), planReason: scan.coverageReason}))
 			completed[failure.PointID] = true
 		}
 	}
@@ -95,7 +99,7 @@ func (s *Scheduler) executeScheduledPlan(ctx context.Context, conn *connector.Ma
 // removed is not a device failure for its unchanged siblings. The established
 // scheduler->breaker lock order contains no I/O or callback into the scheduler.
 func (s *Scheduler) reportScheduledHealth(snapshot scheduledSnapshot, points []pointInfo, breaker *health.CircuitBreaker, err error) {
-	if breaker == nil || errors.Is(err, errAcquisitionSuperseded) {
+	if breaker == nil || errors.Is(err, errAcquisitionSuperseded) || errors.Is(err, errActiveCapacityWait) {
 		return
 	}
 	s.mu.RLock()

@@ -24,15 +24,17 @@ const planReasonSourceCoverageUnverified = "source_coverage_unverified"
 // scheduledSnapshot is a detached view of installed source slots, never a
 // recording selection or a second configuration authority.
 type scheduledSnapshot struct {
-	device     deviceConfig
-	geometry   *acquisitionGeometry
-	points     []pointInfo
-	groupID    string
-	cadence    time.Duration
-	ticker     *groupTicker
-	ctx        context.Context
-	running    bool
-	capturedAt time.Time
+	// Manual captures retain each original group without borrowing ticker ownership.
+	groupCadences map[string]time.Duration
+	device        deviceConfig
+	geometry      *acquisitionGeometry
+	points        []pointInfo
+	groupID       string
+	cadence       time.Duration
+	ticker        *groupTicker
+	ctx           context.Context
+	running       bool
+	capturedAt    time.Time
 }
 
 type scheduledPlan struct {
@@ -78,6 +80,12 @@ func buildScheduledPlan(snapshot scheduledSnapshot) (scheduledPlan, error) {
 	slices.SortFunc(points, func(a, b pointInfo) int { return comparePointID(a.ID, b.ID) })
 	proof := []string{config.Revision(), snapshot.groupID, snapshot.cadence.String()}
 	for _, installed := range points {
+		pointIdentity := identity
+		if snapshot.groupCadences != nil {
+			pointIdentity.PollingGroup = installed.PollingGroupID
+			pointIdentity.Cadence = snapshot.groupCadences[installed.PollingGroupID]
+			proof = append(proof, pointIdentity.PollingGroup, pointIdentity.Cadence.String())
+		}
 		out.points[installed.ID] = installed
 		profileProof, err := json.Marshal(installed.readProfile.IdentityView())
 		if err != nil {
@@ -93,7 +101,7 @@ func buildScheduledPlan(snapshot scheduledSnapshot) (scheduledPlan, error) {
 		}
 		out.bindings[installed.ID] = binding
 		proof = append(proof, binding.ConfigFingerprint)
-		out.input.Sources = append(out.input.Sources, optimizer.AcquisitionSource{Identity: identity, Capability: config.Capability(bits), Coverage: coverage, Points: []optimizer.EffectivePoint{binding.Point}})
+		out.input.Sources = append(out.input.Sources, optimizer.AcquisitionSource{Identity: pointIdentity, Capability: config.Capability(bits), Coverage: coverage, Points: []optimizer.EffectivePoint{binding.Point}})
 	}
 	out.input.ConfigurationRevision, err = measurement.HashStringTuple(proof...)
 	if err != nil {

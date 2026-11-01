@@ -8,6 +8,7 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/connector/adapters"
@@ -149,6 +150,21 @@ func (p *pointCountProtocol) Read(_ context.Context, req connector.ReadRequest) 
 	return connector.ReadResult{Value: uint64(9007199254740993), Quality: schema.QualityGood}, nil
 }
 
+// The migrated manual entry uses planned requests; keep the scalar/direct
+// counter too so the same native-width assertion covers all entrypoints.
+func (p *pointCountProtocol) ReadPlanned(_ context.Context, req connector.PlannedReadRequest) ([]connector.PlannedPointResult, error) {
+	request, _, err := req.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	p.count = request.Length
+	results := executionResults(req, time.Now(), nil)
+	for i := range results {
+		results[i].Value = uint64(9007199254740993)
+	}
+	return results, nil
+}
+
 func TestOtherProtocolPointWordCountsRemainUnchanged(t *testing.T) {
 	for _, typ := range []schema.ProtocolType{schema.ProtocolModbusTCP, schema.ProtocolModbusRTU, schema.ProtocolModbusUDP, schema.ProtocolFatekFBs} {
 		t.Run(string(typ), func(t *testing.T) {
@@ -177,7 +193,9 @@ func TestOtherProtocolPointWordCountsRemainUnchanged(t *testing.T) {
 			s := NewScheduler(DefaultSchedulerConfig(), manager)
 			s.AddDevice(dev)
 			s.AddPoint(point)
-			require.Len(t, s.PollNowContext(t.Context(), []string{point.ID}), 1)
+			values := s.PollNowContext(t.Context(), []string{point.ID})
+			require.Len(t, values, 1)
+			require.Equal(t, schema.QualityGood, values[0].Quality, values[0].Error)
 			require.Equal(t, 4, protocol.count)
 			conn, err := manager.GetOrCreate(t.Context(), dev.ID, typ, config)
 			require.NoError(t, err)

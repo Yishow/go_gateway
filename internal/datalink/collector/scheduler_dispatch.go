@@ -27,13 +27,13 @@ func (s *Scheduler) runGroupTicker(gt *groupTicker) {
 		case <-gt.stopCh:
 			return
 		case <-gt.ticker.C:
-			s.pollGroup(gt.group.ID, gt)
+			s.enqueueDueGroup(gt.group.ID, gt)
 		}
 	}
 }
 
-// pollGroup retains the existing per-device parallelism and group wait. Fair
-// due admission/coalescing is a separate migration, not part of planned reads.
+// pollGroup retains a synchronous internal test seam. Production group tickers
+// only enqueue detached due snapshots and never wait for device completion.
 func (s *Scheduler) pollGroup(groupID string, expected ...*groupTicker) {
 	snapshots := s.captureScheduledGroup(groupID, expected...)
 	var wg sync.WaitGroup

@@ -2,11 +2,14 @@ package collector
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
+	"testing"
+	"time"
+
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/schema"
-	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestModernPointWithoutProfileCannotInstall(t *testing.T) {
@@ -19,12 +22,22 @@ func TestModernPointWithoutProfileCannotInstall(t *testing.T) {
 type readProfileProbe struct {
 	acquisitionFactsProtocol
 	requests []connector.ReadRequest
+	planned  []connector.PlannedReadRequest
 }
 
 func (p *readProfileProbe) Read(_ context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
 	p.requests = append(p.requests, req)
 	return connector.ReadResult{Value: uint32(7), Quality: schema.QualityGood}, nil
 }
+func (p *readProfileProbe) ReadPlanned(_ context.Context, req connector.PlannedReadRequest) ([]connector.PlannedPointResult, error) {
+	p.planned = append(p.planned, req)
+	results := executionResults(req, time.Now(), nil)
+	for i := range results {
+		results[i].Value = uint64(7)
+	}
+	return results, nil
+}
+
 func TestReadProfileScheduledAndManualShareInstalledSnapshot(t *testing.T) {
 	old, exists := connector.GetFactory(schema.ProtocolModbusTCP)
 	probe := &readProfileProbe{}
@@ -50,11 +63,20 @@ func TestReadProfileScheduledAndManualShareInstalledSnapshot(t *testing.T) {
 	p.FormatMode = schema.PointFormatOverride
 	p.FormatOverride = "ABCD"
 	p.RevisionID = "point-2"
-	require.Len(t, s.PollNowContext(t.Context(), []string{p.ID}), 1)
+	values := s.PollNowContext(t.Context(), []string{p.ID})
+	require.Len(t, values, 1)
+	require.Equal(t, schema.QualityGood, values[0].Quality, values[0].Error)
 	conn, err := manager.GetOrCreate(t.Context(), d.ID, d.Protocol, d.ConnectionConfig)
 	require.NoError(t, err)
 	require.NoError(t, s.pollPointWithAcquisition(t.Context(), conn, installed, "scheduled"))
-	require.Len(t, probe.requests, 2)
+	require.Len(t, probe.requests, 1)
+	require.Len(t, probe.planned, 1)
+	request, bindings, err := probe.planned[0].Snapshot()
+	require.NoError(t, err)
+	require.Equal(t, 4, request.Length)
+	require.Len(t, bindings, 1)
+	require.Equal(t, profile, bindings[0].Profile)
+	require.Equal(t, "point-1", bindings[0].Profile.Resolution().PointRevision)
 	for _, req := range probe.requests {
 		require.Equal(t, profile, req.Profile)
 		require.Equal(t, 4, req.Count)

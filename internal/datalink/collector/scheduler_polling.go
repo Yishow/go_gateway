@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -14,6 +15,10 @@ import (
 )
 
 func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connector.ManagedConnection, pt pointInfo, acquisitionID string) error {
+	return s.pollScalarPoint(ctx, conn, pt, acquisitionID, s.config.DefaultRetryCount, s.emitValue)
+}
+
+func (s *Scheduler) pollScalarPoint(ctx context.Context, conn *connector.ManagedConnection, pt pointInfo, acquisitionID string, retryCount int, deliver func(CollectedValue)) error {
 	req := connector.ReadRequest{
 		Address:    pt.Address,
 		Function:   pt.Function,
@@ -26,7 +31,7 @@ func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connecto
 	if countErr != nil {
 		result := connector.ReadResult{Quality: schema.QualityBad, Error: countErr.Error()}
 		cv := s.collectedValue(managedConfig(conn), pt, result, countErr, acquisitionID, s.now())
-		s.emitValue(cv)
+		deliver(cv)
 		return countErr
 	}
 	req.Count = count
@@ -37,30 +42,26 @@ func (s *Scheduler) pollPointWithAcquisition(ctx context.Context, conn *connecto
 
 	var result connector.ReadResult
 	var err error
+	invoked := false
 
 	// 重試邏輯 (指數退避)
 readAttempts:
-	for attempt := 0; attempt <= s.config.DefaultRetryCount; attempt++ {
+	for attempt := 0; attempt <= retryCount; attempt++ {
 		if attempt > 0 {
 			// 指數退避: delay * 2^attempt
 			backoff := s.config.DefaultRetryDelay * time.Duration(1<<uint(attempt))
 			if backoff > 30*time.Second {
 				backoff = 30 * time.Second // 最大 30 秒
 			}
-			timer := time.NewTimer(backoff)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				err = ctx.Err()
+			if err = wirebudget.WaitDuration(ctx, backoff); err != nil {
 				break readAttempts
-			case <-timer.C:
 			}
 		}
 
-		if ctx.Err() != nil {
-			err = ctx.Err()
+		if err = wirebudget.ResumeAfterWait(ctx); err != nil {
 			break
 		}
+		invoked = true
 		result, err = conn.Read(ctx, req)
 		if err == nil && result.Quality == schema.QualityGood {
 			break
@@ -75,13 +76,14 @@ readAttempts:
 	if parentCtx.Err() != nil {
 		return parentCtx.Err()
 	}
-	if ctx.Err() != nil {
+	err = capacityWaitResult(err, invoked)
+	if ctx.Err() != nil && !errors.Is(err, errActiveCapacityWait) {
 		err = ctx.Err()
 		result = connector.ReadResult{Quality: schema.QualityBad, Error: err.Error()}
 	}
 
 	cv := s.collectedValue(managedConfig(conn), pt, result, err, acquisitionID, s.now())
-	s.emitValue(cv)
+	deliver(cv)
 	return err
 }
 
@@ -205,12 +207,14 @@ func (s *Scheduler) emitValue(cv CollectedValue) {
 	default:
 		// 緩衝區已滿，嘗試丟棄舊值後再非阻塞寫入
 		select {
-		case <-s.valueChan:
+		case dropped := <-s.valueChan:
+			s.outputLoss.record(dropped)
 		default:
 		}
 		select {
 		case s.valueChan <- cv:
 		default:
+			s.outputLoss.record(cv)
 		}
 	}
 }

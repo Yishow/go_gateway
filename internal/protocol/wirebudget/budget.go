@@ -99,12 +99,5 @@ func Wait(ctx context.Context) error {
 	if delay > 30*time.Second {
 		delay = 30 * time.Second
 	}
-	timer := time.NewTimer(delay)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return ctx.Err()
-	}
+	return WaitDuration(ctx, delay)
 }
