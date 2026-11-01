@@ -56,6 +56,11 @@ type SchedulerConfig struct {
 	// AcquisitionObserver must be nonblocking; it receives final metadata only.
 	// It is immutable after construction and cannot change acquisition results.
 	AcquisitionObserver func(AcquisitionObservation)
+
+	// AcquisitionCompletionObserver observes a detached, successfully published
+	// completion fact, not current source authority. Nil adds no copy/workers.
+	// Immutable after construction; must not block, perform I/O or call Stop.
+	AcquisitionCompletionObserver func(AcquisitionCompletionObservation)
 }
 
 // DefaultSchedulerConfig 預設排程器配置

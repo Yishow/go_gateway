@@ -30,10 +30,11 @@ type acquisitionWireAction struct {
 // This peer parses real application frames; no production planner/serializer
 // computes its requested addresses or replies. Missing memory is not Good zero.
 type acquisitionWirePeer struct {
-	mu       sync.Mutex
-	words    map[int]uint16
-	requests []acquisitionWireRequest
-	action   func(acquisitionWireRequest) acquisitionWireAction
+	mu          sync.Mutex
+	words       map[int]uint16
+	requests    []acquisitionWireRequest
+	action      func(acquisitionWireRequest) acquisitionWireAction
+	measurement *acquisitionAcceptanceWireMetrics
 }
 
 func (p *acquisitionWirePeer) log() []acquisitionWireRequest {
@@ -48,7 +49,9 @@ func (p *acquisitionWirePeer) setAction(action func(acquisitionWireRequest) acqu
 }
 func (p *acquisitionWirePeer) receive(request acquisitionWireRequest) (values []uint16, allPresent bool, responseAction acquisitionWireAction) {
 	p.mu.Lock()
-	p.requests = append(p.requests, request)
+	if p.measurement == nil {
+		p.requests = append(p.requests, request)
+	}
 	words := make([]uint16, len(request.Addresses))
 	complete := true
 	for i, address := range request.Addresses {
@@ -81,6 +84,7 @@ func newAcquisitionWirePeer(t *testing.T, protocol schema.ProtocolType, words ma
 			mu.Lock()
 			connections = append(connections, conn)
 			mu.Unlock()
+			peer.acceptanceConnected()
 			wg.Go(func() { defer conn.Close(); peer.serve(t.Context(), conn, protocol) })
 		}
 	})
@@ -112,6 +116,10 @@ func (p *acquisitionWirePeer) serve(ctx context.Context, conn net.Conn, protocol
 			return
 		}
 		words, complete, action := p.receive(request)
+		p.acceptanceRequest(len(frame))
+		if !p.acceptanceDelay(ctx) {
+			return
+		}
 		if action.wait != nil {
 			select {
 			case <-action.wait:
@@ -120,7 +128,9 @@ func (p *acquisitionWirePeer) serve(ctx context.Context, conn net.Conn, protocol
 			}
 		}
 		response := acquisitionWireResponse(frame, protocol, words, complete, action)
-		if _, err = conn.Write(response); err != nil {
+		written, writeErr := conn.Write(response)
+		p.acceptanceResponse(written)
+		if writeErr != nil {
 			return
 		}
 	}

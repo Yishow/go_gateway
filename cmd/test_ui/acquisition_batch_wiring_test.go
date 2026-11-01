@@ -19,16 +19,34 @@ import (
 // The decorator observes the real ingestor->SampleSink boundary and still
 // delegates to the production pipeline. Capturing is not a durable-write ACK.
 type acquisitionWiringCapture struct {
+	acceptanceCompletionObserver func(collector.AcquisitionCompletionObservation) // Installed before Start; bounded test-only collection.
 	groupFixtureHooks
-	pipe         *grouppipeline.Pipeline
-	samples      chan measurement.SampleEnvelope
-	observations chan collector.AcquisitionObservation
+	pipe                     *grouppipeline.Pipeline
+	samples                  chan measurement.SampleEnvelope
+	observations             chan collector.AcquisitionObservation
+	acceptanceInterest       *acceptanceInterestCapture             // Performance fixtures only.
+	acceptanceSampleObserver func(measurement.SampleEnvelope)       // Optional test-only, installed before Start.
+	acceptanceObserver       func(collector.AcquisitionObservation) // Optional test-only, installed before Start.
+}
+
+// This test wrapper installs its receiver before Start, after service wiring.
+// It therefore enables detached copies even when a particular fixture leaves
+// the receiver nil. Ordinary production wiring has no such interface and is nil.
+func (f *acquisitionWiringCapture) acquisitionCompletionObserver() func(collector.AcquisitionCompletionObservation) {
+	return func(observation collector.AcquisitionCompletionObservation) {
+		if f.acceptanceCompletionObserver != nil {
+			f.acceptanceCompletionObserver(observation)
+		}
+	}
 }
 
 func (f *acquisitionWiringCapture) acquisitionObserver(next func(collector.AcquisitionObservation)) func(collector.AcquisitionObservation) {
 	return func(observation collector.AcquisitionObservation) {
 		if next != nil {
 			next(observation)
+		}
+		if f.acceptanceObserver != nil {
+			f.acceptanceObserver(observation)
 		}
 		select {
 		case f.observations <- observation:
@@ -37,12 +55,24 @@ func (f *acquisitionWiringCapture) acquisitionObserver(next func(collector.Acqui
 	}
 }
 
+// Historical wiring fixtures intentionally capture all ingestor offers. Only
+// performance fixtures opt into the real pipeline's interest decision.
+func (f *acquisitionWiringCapture) WantsSample(deviceID, pointID, tagID string) bool {
+	if f.acceptanceInterest == nil {
+		return true
+	}
+	return f.acceptanceInterest.wants(f.pipe, deviceID, pointID, tagID)
+}
+
 func (f *acquisitionWiringCapture) sampleSink(p *grouppipeline.Pipeline) datalinkruntime.SampleSink {
 	f.pipe = p
 	return f
 }
 func (f *acquisitionWiringCapture) AcceptSample(ctx context.Context, sample measurement.SampleEnvelope) error {
 	err := f.pipe.AcceptSample(ctx, sample)
+	if f.acceptanceSampleObserver != nil {
+		f.acceptanceSampleObserver(sample)
+	}
 	select {
 	case f.samples <- sample:
 	case <-ctx.Done():

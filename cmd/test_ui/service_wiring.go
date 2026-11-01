@@ -135,6 +135,12 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 	}); ok {
 		schedulerConfig.AcquisitionObserver = observer.acquisitionObserver(schedulerConfig.AcquisitionObserver)
 	}
+	// Optional acceptance fixture only; ordinary production fixtures leave nil.
+	if observer, ok := fixture.(interface {
+		acquisitionCompletionObserver() func(collector.AcquisitionCompletionObservation)
+	}); ok {
+		schedulerConfig.AcquisitionCompletionObserver = observer.acquisitionCompletionObserver()
+	}
 	scheduler := collector.NewScheduler(schedulerConfig, connMgr)
 	runtimeWriter := storage.NewBatchWriter(storage.NewSQLiteWriter(db), storage.DefaultBatchWriterConfig()) //nolint:contextcheck // Persistent timer is joined by runtime shutdown.
 	runtimeSvc, err := datalinkruntime.NewService(datalinkruntime.DefaultConfig(), datalinkruntime.Dependencies{

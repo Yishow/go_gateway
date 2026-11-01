@@ -22,6 +22,16 @@ type acquisitionScanEvidence struct {
 	lastGood time.Time
 }
 
+// AcquisitionCompletionObservation is a historical fact from the original
+// successful publication, not callback-time source/SQL authorization. Consumers
+// must not infer ordering across devices or retain mutable scheduler internals.
+type AcquisitionCompletionObservation struct {
+	WorkspaceID, SourceRevision, DeviceID, PollingGroupID string
+	InstallationScope, IdentityHead                       string
+	PointCount                                            int
+	Metrics                                               AcquisitionActualMetrics
+}
+
 func (s *Scheduler) beginAcquisitionEvidence(ctx context.Context, scan scheduledPlan, id string) (context.Context, *acquisitionScanEvidence) {
 	e := &acquisitionScanEvidence{snapshot: scan.snapshot, metrics: AcquisitionActualMetrics{AcquisitionID: id, DeclaredPlanRevision: scan.plan.Fingerprint(), LogicalRequests: AcquisitionLogicalOutcomes{Status: "not_started"}, Phases: []AcquisitionActualPhase{}}}
 	s.setAcquisitionEvidenceInitial(e, scan, scan.plan, "initial")
@@ -99,19 +109,22 @@ func (s *Scheduler) finishAcquisitionEvidence(e *acquisitionScanEvidence) {
 	e.metrics.CycleLatencyMS = float64(max(elapsed, 0)) / float64(time.Millisecond)
 	e.metrics.Overrun = elapsed > e.snapshot.cadence
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.scheduledCurrentLocked(e.snapshot, e.snapshot.points) != nil || s.groupTickers[e.snapshot.groupID] == nil {
+		s.mu.Unlock()
 		return
 	}
 	key := acquisitionEvidenceTuple{e.snapshot.device.ID, e.snapshot.groupID}
 	old := s.acquisitionEvidence[key]
 	if old != nil && !old.snapshot.capturedAt.Before(e.snapshot.capturedAt) {
+		s.mu.Unlock()
 		return
 	}
 	if s.acquisitionEvidence == nil {
 		s.acquisitionEvidence = map[acquisitionEvidenceTuple]*acquisitionScanEvidence{}
 	}
 	s.acquisitionEvidence[key] = e
+	s.mu.Unlock()
+	s.observeAcquisitionCompletion(e)
 }
 
 func (s *Scheduler) previewActual(snapshot scheduledSnapshot, head string) AcquisitionActual {
@@ -143,4 +156,44 @@ func (s *Scheduler) pruneAcquisitionEvidenceLocked() {
 			delete(s.acquisitionEvidence, key)
 		}
 	}
+}
+
+// Called only after successful publication and after releasing scheduler.mu.
+// The event remains a publication-time fact if Stop/invalidation wins before
+// delivery; consumers must not treat it as callback-time source authorization.
+func (s *Scheduler) observeAcquisitionCompletion(e *acquisitionScanEvidence) {
+	observer := s.config.AcquisitionCompletionObserver
+	if observer == nil || e == nil {
+		return
+	}
+	metrics := e.metrics
+	metrics.Phases = slices.Clone(metrics.Phases)
+	if metrics.LogicalRequests.AcquisitionLogicalCounts != nil {
+		counts := *metrics.LogicalRequests.AcquisitionLogicalCounts
+		metrics.LogicalRequests.AcquisitionLogicalCounts = &counts
+	}
+	if metrics.LastGoodAgeMS != nil {
+		age := *metrics.LastGoodAgeMS
+		metrics.LastGoodAgeMS = &age
+	}
+	if !e.lastGood.IsZero() {
+		age := float64(max(metrics.ObservedAt.Sub(e.lastGood), 0)) / float64(time.Millisecond)
+		metrics.LastGoodAgeMS = &age
+	}
+	event := AcquisitionCompletionObservation{DeviceID: e.snapshot.device.ID, PollingGroupID: e.snapshot.groupID, IdentityHead: e.head, PointCount: len(e.snapshot.points), Metrics: metrics}
+	if e.snapshot.geometry != nil {
+		event.WorkspaceID = e.snapshot.geometry.workspaceID
+		event.SourceRevision = e.snapshot.geometry.sourceRevision
+	}
+	if len(e.snapshot.points) > 0 {
+		event.InstallationScope = e.snapshot.points[0].installationScope
+	}
+	// Same optional nonblocking/panic-isolated contract as the Point observer.
+	// No goroutine, retained history or callback-owned authority is introduced.
+	defer func() {
+		if recover() != nil {
+			return // Diagnostic panic cannot change published acquisition facts.
+		}
+	}()
+	observer(event)
 }
