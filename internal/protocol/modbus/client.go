@@ -75,15 +75,7 @@ func (c *ModbusClient) sendTCPRequest(functionCode byte, data []byte) ([]byte, e
 	case interface{ GetNextTransactionID() uint16 }:
 		transactionID = transport.GetNextTransactionID()
 	default:
-		// 向後兼容：嘗試類型斷言
-		switch transport := c.transport.(type) {
-		case *TCPTransport:
-			transactionID = transport.GetNextTransactionID()
-		case *UDPTransport:
-			transactionID = transport.GetNextTransactionID()
-		default:
-			return nil, fmt.Errorf("不支援的傳輸類型")
-		}
+		return nil, fmt.Errorf("不支援的傳輸類型")
 	}
 
 	// 構建 TCP/UDP 封包
