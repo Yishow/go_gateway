@@ -22,6 +22,7 @@ type sourceAcquisitionDeviceProjection struct {
 }
 type sourceAcquisitionProjection struct {
 	scopeRule    string
+	selection    *acquisitionActivationSelection
 	observations []*acquisitionObservationInstall
 	owner        *Service
 	devices      map[string]*sourceAcquisitionDeviceProjection
@@ -35,9 +36,13 @@ type sourceAcquisitionProjection struct {
 // profile/provider work. Capture uses the existing mapping -> metadata -> scope
 // -> scheduler lock order; all hashing/parsing stays outside those locks.
 func (s *Service) beginFullAcquisitionProjection(ctx context.Context, projection *workspace.RuntimeProjection) (projectionContext context.Context, finishProjection func()) {
-	capture := &sourceAcquisitionProjection{owner: s, devices: map[string]*sourceAcquisitionDeviceProjection{}, pointDevices: map[string]string{}, expectedMeta: map[string]pointMeta{}, mappings: map[string]FormatRecoveryBindingProof{}, states: map[string]runtimeProjectionDeviceState{}}
+	return s.beginAcquisitionProjection(ctx, projection, nil)
+}
+
+func (s *Service) beginAcquisitionProjection(ctx context.Context, projection *workspace.RuntimeProjection, selection *acquisitionActivationSelection) (projectionContext context.Context, finishProjection func()) {
+	capture := &sourceAcquisitionProjection{selection: selection, owner: s, devices: map[string]*sourceAcquisitionDeviceProjection{}, pointDevices: map[string]string{}, expectedMeta: map[string]pointMeta{}, mappings: map[string]FormatRecoveryBindingProof{}, states: map[string]runtimeProjectionDeviceState{}}
 	for _, device := range projection.Devices {
-		if device == nil {
+		if device == nil || (selection != nil && !selection.devices[device.ID]) {
 			continue
 		}
 		graph, _ := projection.AcquisitionSourceGraph(device.ID)
@@ -61,7 +66,15 @@ func (s *Service) beginFullAcquisitionProjection(ctx context.Context, projection
 	for id := range capture.devices {
 		requested = append(requested, id)
 	}
-	for id, mutation := range s.scheduler.BeginFullAcquisitionGeometryMutation(requested) {
+	mutations := map[string]collector.AcquisitionGeometryMutation{}
+	if selection == nil {
+		mutations = s.scheduler.BeginFullAcquisitionGeometryMutation(requested)
+	} else {
+		for _, id := range requested {
+			mutations[id] = s.scheduler.BeginAcquisitionGeometryMutation(id)
+		}
+	}
+	for id, mutation := range mutations {
 		if capture.devices[id] == nil {
 			capture.devices[id] = &sourceAcquisitionDeviceProjection{device: schema.Device{ID: id}}
 		}
@@ -92,7 +105,20 @@ func (s *Service) beginFullAcquisitionProjection(ctx context.Context, projection
 			}
 			definition.Rules[rule.ID] = revision
 		}
-		device.update = s.scheduler.PrepareAcquisitionGeometry(device.mutation, device.graph.Device(), definition, "")
+		if selection != nil {
+			selectedPoints := selection.points
+			if len(selectedPoints) == 0 {
+				selectedPoints = map[string]bool{}
+				for pointID, deviceID := range capture.pointDevices {
+					if deviceID == device.device.ID {
+						selectedPoints[pointID] = true
+					}
+				}
+			}
+			device.update = s.scheduler.PrepareSelectedAcquisitionGeometry(device.mutation, device.graph.Device(), definition, selectedPoints)
+		} else {
+			device.update = s.scheduler.PrepareAcquisitionGeometry(device.mutation, device.graph.Device(), definition, "")
+		}
 	}
 	finish := func() {
 		for _, device := range capture.devices {

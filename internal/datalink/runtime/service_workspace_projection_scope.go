@@ -103,10 +103,32 @@ func (s *Service) applyWorkspaceProjectionForDevicesAndPoints(
 	if len(selectedPoints) > 0 && !selectedProjectionPointsPresent(projection, selected, selectedPoints) {
 		return fmt.Errorf("selected runtime projection point is outside the selected device scope")
 	}
+	existing := sourceAcquisitionProjectionFrom(ctx)
+	if existing != nil && existing.owner != s {
+		return fmt.Errorf("source projection owner mismatch")
+	}
+	owned := existing == nil
+	if owned {
+		var finish func()
+		ctx, finish = s.beginAcquisitionProjection(ctx, projection, &acquisitionActivationSelection{devices: selected, points: selectedPoints})
+		defer finish()
+	}
 	for _, id := range selectedIDs {
 		scopedProjection := scopedWorkspaceProjectionForDevice(projection, id, selected, selectedPoints)
 		if err := s.applyWorkspaceProjectionForDevice(ctx, scopedProjection, id, len(selectedPoints) > 0); err != nil {
 			return fmt.Errorf("apply workspace runtime projection for device %s: %w", id, err)
+		}
+	}
+	if owned {
+		if _, err := s.publishFullAcquisitionProjection(ctx, projection); err != nil {
+			return err
+		}
+		capture := sourceAcquisitionProjectionFrom(ctx)
+		for _, d := range capture.devices {
+			s.scheduler.FinishAcquisitionGeometryMutation(d.mutation)
+		}
+		for _, observation := range capture.observations {
+			s.finishAcquisitionObservation(ctx, observation)
 		}
 	}
 	return nil

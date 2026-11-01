@@ -47,7 +47,7 @@ type WriteGroupCalculationRestriction struct {
 func RecordingCalculationCapabilities() WriteGroupCalculationCapabilities {
 	return WriteGroupCalculationCapabilities{
 		Version: 1, ResultShape: WriteGroupResultShapeMemberCalculationV1,
-		DraftSupported: true, ActivationSupported: true, EditorSupported: false,
+		DraftSupported: true, ActivationSupported: true, EditorSupported: true,
 		Reason:         "record_readiness_required",
 		Methods:        []WriteGroupMemberCalculation{WriteGroupMemberCalculationLatest, WriteGroupMemberCalculationMean, WriteGroupMemberCalculationDelta},
 		Cadence:        WriteGroupCadenceCapability{Alignment: WriteGroupAlignmentUTCEpoch, Units: []WriteGroupIntervalUnit{WriteGroupIntervalUnitSecond, WriteGroupIntervalUnitMinute}, Minimum: 1, MaxSeconds: snapshot.MaxCadenceSeconds, MaxMinutes: snapshot.MaxCadenceMinutes, WindowBoundsChecked: true},

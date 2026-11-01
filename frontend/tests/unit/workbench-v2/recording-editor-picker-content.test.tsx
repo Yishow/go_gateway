@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { RecordingPointPicker } from '../../../src/features/datalink/workbench-v2/recording-editor/RecordingPointPicker';
 import type { PickerLabels, RecordingPointPickerProps } from '../../../src/features/datalink/workbench-v2/recording-editor/RecordingPointPicker';
 import { createPicker, sourceKey } from '../../../src/features/datalink/workbench-v2/recording-editor/recordingPickerState';
@@ -185,4 +185,21 @@ describe('same-scope membership refresh recovery', () => {
     expect(value.onAdd).toHaveBeenCalledWith([points[2]]);
     expect(value.onCancel).not.toHaveBeenCalled();
   });
+});
+
+
+it('focus-only rerender does not undo native scroll before the scroll event is delivered', () => {
+  const value = props(); const view = render(<Controlled value={value} />);
+  const body = view.container.querySelector('.recording-point-picker__body') as HTMLDivElement;
+  const source = screen.getByRole('button', { name: 'Add source' });
+  // Native scrollIntoView/focus can move the viewport before React receives onScroll.
+  // Keep the pointer target stationary through focus capture, not at the old stored offset.
+  body.scrollTop = 29;
+  act(() => source.focus());
+  expect(source).toHaveFocus();
+  expect(body.scrollTop).toBe(29);
+  fireEvent.click(source);
+  expect(value.onSource).toHaveBeenCalledOnce();
+  expect(value.onSource).toHaveBeenCalledWith(undefined);
+  expect(value.onAdd).not.toHaveBeenCalled();
 });

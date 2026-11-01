@@ -235,12 +235,14 @@ it('own group acknowledgement preserves the same pending source request and its 
     return { workspace_revision: 'W3', group: current.entry.write_groups!.groups[0] };
   });
   studioV2RulesAPI.create.mockImplementationOnce(() => new Promise((_resolve, reject) => { failSource = reject; }));
-  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Own submitted name' } }); fireEvent.click(screen.getByTestId('group-save'));
-  await waitFor(() => expect(finishGroup).toBeTypeOf('function'));
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Own submitted name' } });
   await openUnsubmittedRange(); await waitFor(() => expect(screen.getByRole('button', { name: 'range.save' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'range.save' }));
   await waitFor(() => expect(studioV2RulesAPI.create).toHaveBeenCalledOnce());
   const rangeName = screen.getByLabelText('range.name'), pending = screen.getByTestId('source-receipts').textContent;
+  // Source intent starts before the existing group Save fence; no editing is allowed during Save.
+  fireEvent.click(screen.getByTestId('group-save'));
+  await waitFor(() => expect(finishGroup).toBeTypeOf('function'));
   expect(pending).toContain('"status":"pending"');
   await act(async () => { finishGroup(); });
   await waitFor(() => expect(readStudioLocatorEditorEntry).toHaveBeenCalledTimes(2));

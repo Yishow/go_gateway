@@ -17,7 +17,7 @@
 
 - Affected specs: simple-recording-editor (new); guided-recording-workflow (modified)
 - Affected code:
-  - Modified: frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx; frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx; frontend/src/features/datalink/workbench-v2/steps/step4/GuidedRecordingPreparation.tsx; frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
+  - Modified: `frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx`; `frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx`; `frontend/src/features/datalink/workbench-v2/steps/step4/GuidedRecordingPreparation.tsx`; `frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts`
   - New: frontend/src/features/datalink/workbench-v2/recording-editor/; frontend/tests/unit/workbench-v2/recording-editor.test.tsx
   - Removed: none
 - 依賴 simplify-recording-home-guidance；下批 simplify-recording-lifecycle-recovery 接續已保存記錄的操作。既有完成 fix-step4-recording-authoring 與 guide-step4-recording-workflow 不重做。

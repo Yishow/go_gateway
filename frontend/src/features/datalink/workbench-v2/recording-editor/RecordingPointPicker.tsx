@@ -31,12 +31,16 @@ export function RecordingPointPicker({ state, projection, devices, status, label
     if (status !== 'loaded' || state.scope !== projection.scope) return;
     // Controlled result navigation must move the DOM, not only the remembered position.
     if (body.current) body.current.scrollTop = state.scrollTop;
+  }, [status, state.scope, state.scrollTop, projection.scope]);
+  useLayoutEffect(() => {
+    if (status !== 'loaded' || state.scope !== projection.scope) return;
+    // Focus capture must not replay a stale scroll offset between pointer down/up.
     if (restoredScope.current === state.scope) return;
     restoredScope.current = state.scope;
     const target = [...(root.current?.querySelectorAll<HTMLElement>('[data-picker-focus]') ?? [])]
       .find(element => element.dataset.pickerFocus === state.focusKey);
     target?.focus({ preventScroll: true });
-  }, [status, state.scope, state.scrollTop, state.focusKey, projection.scope]);
+  }, [status, state.scope, state.focusKey, projection.scope]);
   const result = pickerResults(state, projection);
   const active = status === 'loaded' && state.scope === projection.scope;
   const members = new Set(projection.members.map(sourceKey));
@@ -48,7 +52,7 @@ export function RecordingPointPicker({ state, projection, devices, status, label
     const key = (event.target as HTMLElement).dataset.pickerFocus;
     if (key && key !== state.focusKey) onChange({ ...state, focusKey: key });
   }} onKeyDown={event => {
-    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel('escape'); }
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (!event.nativeEvent.isComposing) cancel('escape'); }
   }}>
     <div className="recording-point-picker__toolbar">
       <label className="recording-point-picker__search" htmlFor={`${id}-search`}>{labels.search}

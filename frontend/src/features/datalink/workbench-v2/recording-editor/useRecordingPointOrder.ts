@@ -15,12 +15,16 @@ export interface PointOrderEntry {
   recovered?: PointFormatRecoveryResult;
   error?: PointFormatError;
 }
+export interface PointOrderObservation { readonly scope: PointFormatScope; readonly entry: Readonly<PointOrderEntry> }
 export interface RecordingPointOrderPort {
+  /** Stable read-only projection until the original owner publishes; includes hidden rows. */
+  observations?(): readonly PointOrderObservation[];
   available(scope: PointFormatScope): boolean;
   subscribe(listener: () => void): () => void;
   get(scope: PointFormatScope): PointOrderEntry | undefined;
   load(scope: PointFormatScope): Promise<void>;
   choose(scope: PointFormatScope, intent: PointFormatIntent): void;
+  discardUnsent?(scope: PointFormatScope): void;
   save(scope: PointFormatScope): Promise<void>;
   inspect(scope: PointFormatScope): Promise<void>;
   recover(scope: PointFormatScope): Promise<void>;
@@ -36,10 +40,11 @@ export function useRecordingPointOrder(workspaceId: string | undefined, enabled:
   const current = useRef({ workspaceId, enabled }); current.current = { workspaceId, enabled };
   const port = useRef<RecordingPointOrderPort | null>(null);
   if (!port.current) {
-    const entries = new Map<string, PointOrderEntry>(), listeners = new Set<() => void>();
+    const entries = new Map<string, PointOrderObservation>(), listeners = new Set<() => void>();
+    let observations: readonly PointOrderObservation[] = [];
     const active = (scope: PointFormatScope) => mounted.current && current.current.enabled && scope.workspace_id === current.current.workspaceId;
-    const publish = (scope: PointFormatScope, entry: PointOrderEntry) => { entries.set(keyOf(scope), entry); listeners.forEach(listener => listener()); };
-    const read = (scope: PointFormatScope) => entries.get(keyOf(scope));
+    const publish = (scope: PointFormatScope, entry: PointOrderEntry) => { entries.set(keyOf(scope), { scope: { ...scope }, entry }); observations = [...entries.values()]; listeners.forEach(listener => listener()); };
+    const read = (scope: PointFormatScope) => entries.get(keyOf(scope))?.entry;
     const inspectOrSave = async (scope: PointFormatScope, inspect: boolean) => {
       const entry = read(scope);
       if (!active(scope) || !entry?.snapshot) return;
@@ -57,6 +62,7 @@ export function useRecordingPointOrder(workspaceId: string | undefined, enabled:
     };
     port.current = {
       available: active,
+      observations: () => observations,
       subscribe: listener => { listeners.add(listener); return () => { listeners.delete(listener); }; },
       get: scope => active(scope) ? read(scope) : undefined,
       async load(scope) {
@@ -74,6 +80,12 @@ export function useRecordingPointOrder(workspaceId: string | undefined, enabled:
         const entry = read(scope);
         if (!active(scope) || entry?.status !== 'ready' || !entry.snapshot?.editable || entry.operation || (intent.format_mode === 'override' && !entry.snapshot.resolution.applicable)) return;
         publish(scope, { ...entry, intent });
+      },
+      discardUnsent(scope) {
+        const entry = read(scope);
+        // Submitted/saved/recovery operations belong to this port and are never cancelled by navigation.
+        if (scope.workspace_id !== current.current.workspaceId || entry?.status !== 'ready' || entry.operation || !entry.intent) return;
+        publish(scope, { ...entry, intent: undefined });
       },
       save: scope => inspectOrSave(scope, false), inspect: scope => inspectOrSave(scope, true),
       async recover(scope) {

@@ -1,3 +1,6 @@
+import { RecordingSourceNavigation } from '../../../features/datalink/workbench-v2/recording-editor/RecordingSourceNavigation';
+import { useTranslation } from 'react-i18next';
+import { RecordingDraftReadState, useRecordingNavigation } from '../../../features/datalink/workbench-v2/recording-editor/RecordingDraftNavigation';
 import { RecordingHomeRoute } from '../../../features/datalink/workbench-v2/recording-home/RecordingHomeRoute';
 import type { StudioPresentation } from '../../../services/studioRecordingView';
 import type { StudioEntityLocatorIntent } from '../../../services/studioEntityLocator';
@@ -97,6 +100,8 @@ function AdvancedWorkbenchV2Page({
   navigateTo,
   runtimeReturnFocus, locatorIntent,
 }: DatalinkWorkbenchV2PageProps) {
+  const { t: draftText } = useTranslation('recording-editor');
+  const { blocked: hasUnsavedRecording } = useRecordingNavigation();
   const locatorMode = locatorIntent !== undefined && locatorIntent.kind !== 'absent';
   const locatorQuery = useStudioLocatorEntry(locatorIntent?.kind === 'locator' ? locatorIntent.locator : null);
   const locatorEntry = locatorMode && !locatorQuery.isFetching && !locatorQuery.isError && locatorQuery.data?.ok ? locatorQuery.data.value : undefined;
@@ -276,15 +281,18 @@ function AdvancedWorkbenchV2Page({
   const locatorNotice = <StudioLocatorEntryNotice reason={locatorReason} entry={locatorEntry} navigateTo={navigateTo} />;
   if (locatorMode && !autosave.locatorHydration.ready && !autosave.workspaceHydrated && !autosave.locatorHydration.lastEntry) return locatorNotice;
 
-  if (!locatorMode && (
+  const backgroundReadFailed = !locatorMode && (
     workspaceQuery.isError ||
     (workspaceQuery.isSuccess && !workspaceQuery.data) ||
     autosave.devicesQuery.isError ||
     autosave.rulesQuery.isError ||
-    autosave.mappingsQuery.isLoadingError ||
+    autosave.mappingsQuery.isError ||
     autosave.databaseConfigQuery.isError ||
     autosave.databaseTargetsQuery.isError
-  )) {
+  );
+  // A failed refresh must not destroy an already-hydrated editor's unsent intent.
+  // This retains the existing form, not a second persisted draft or fresh readiness proof.
+  if (backgroundReadFailed && !(workspaceQuery.data && autosave.workspaceHydrated && hasUnsavedRecording())) {
     return <WorkbenchV2BootstrapState status="error" />;
   }
 
@@ -311,6 +319,10 @@ function AdvancedWorkbenchV2Page({
       data-workspace-status={workspace.status}
       className="bg-canvas min-h-screen font-sans text-slate-100 antialiased"
     >
+      {backgroundReadFailed && <div role="alert" className="mx-4 my-3" data-testid="recording-draft-refresh-failed">
+        <p>{draftText('navigation.refreshFailed')}</p>
+        <button type="button" className="gw-secondary" onClick={() => { void Promise.all([workspaceQuery.refetch(), autosave.devicesQuery.refetch(), autosave.rulesQuery.refetch(), autosave.mappingsQuery.refetch(), autosave.databaseConfigQuery.refetch(), autosave.databaseTargetsQuery.refetch()]); }}>{draftText('navigation.refresh')}</button>
+      </div>}
       {locatorMode && !autosave.locatorHydration.ready && locatorNotice}
       <div hidden={locatorMode && !autosave.locatorHydration.ready && !locatorEditorMounted}>
       {autosave.draftLossWarning && (
@@ -322,7 +334,7 @@ function AdvancedWorkbenchV2Page({
           {autosave.draftLossWarning}
         </div>
       )}
-      <WorkbenchV2Shell
+      <RecordingDraftReadState unavailable={backgroundReadFailed}><RecordingSourceNavigation workspaceId={workspace.id} source={autosave.deviceSource}><WorkbenchV2Shell
         state={autosave.state}
         workspaceId={workspace.id}
         actions={autosave.actions} deviceSource={autosave.deviceSource}
@@ -338,7 +350,7 @@ function AdvancedWorkbenchV2Page({
         locatorSuspended={locatorMode && !autosave.locatorHydration.ready}
         locatorOnly={locatorMode && !autosave.workspaceHydrated}
         onLocatorEditorMountedChange={retainLocatorEditor}
-      />
+      /></RecordingSourceNavigation></RecordingDraftReadState>
       </div>
     </div>
   );

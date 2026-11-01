@@ -22,19 +22,26 @@ func (s *Service) publishFullAcquisitionProjection(ctx context.Context, projecti
 	if capture == nil || capture.owner != s {
 		return false, nil
 	}
-	before := s.mappingObservationSnapshot(ctx)
-	next, err := workspaceProjectionMappingBindings(projection, nil, ctx)
-	if err != nil {
-		return true, err
-	}
-	s.annotateMappingObservation(ctx, before, next, projection)
-	states := make(map[string]runtimeProjectionDeviceState, len(projection.DeviceIDs))
-	for _, id := range projection.DeviceIDs {
-		state := alignedProjectionDeviceState(projection.Version, appliedProjectionPointIDs(projection, id))
-		if device := capture.devices[id]; device != nil {
-			state.acquisitionGraph = device.graph
+	var next map[string][]mappingBinding
+	var states map[string]runtimeProjectionDeviceState
+	var err error
+	if capture.selection != nil {
+		next, states = s.activationProjectionAssignments(projection, capture)
+	} else {
+		before := s.mappingObservationSnapshot(ctx)
+		next, err = workspaceProjectionMappingBindings(projection, nil, ctx)
+		if err != nil {
+			return true, err
 		}
-		states[id] = state
+		s.annotateMappingObservation(ctx, before, next, projection)
+		states = make(map[string]runtimeProjectionDeviceState, len(projection.DeviceIDs))
+		for _, id := range projection.DeviceIDs {
+			state := alignedProjectionDeviceState(projection.Version, appliedProjectionPointIDs(projection, id))
+			if device := capture.devices[id]; device != nil {
+				state.acquisitionGraph = device.graph
+			}
+			states[id] = state
+		}
 	}
 	ids := make([]string, 0, len(capture.devices))
 	for id := range capture.devices {

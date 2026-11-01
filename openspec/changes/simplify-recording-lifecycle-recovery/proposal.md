@@ -17,7 +17,7 @@
 
 - Affected specs: simple-recording-lifecycle (new)
 - Affected code:
-  - Modified: frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/SavedRecordingActions.tsx; frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/RecordingChangeDialog.tsx; frontend/src/features/datalink/workbench-v2/state/recordingWorkflowView.ts
+  - Modified: `frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/SavedRecordingActions.tsx`; `frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/RecordingChangeDialog.tsx`; `frontend/src/features/datalink/workbench-v2/state/recordingWorkflowView.ts`
   - New: frontend/src/features/datalink/workbench-v2/recording-home/RecordingActions.tsx; frontend/tests/unit/workbench-v2/simple-recording-lifecycle.test.tsx
   - Removed: none
 - 依賴 streamline-recording-task-editor；重用已完成 manage-recording-lifecycle-safely、fix-recording-cutover-boundaries、expose-runtime-recording-rules、make-runtime-logs-actionable。既有後端契約不重寫。

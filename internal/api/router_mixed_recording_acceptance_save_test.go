@@ -40,7 +40,7 @@ func TestMixedAcceptanceScaledDeltaPublicSave(t *testing.T) {
 	require.Equal(t, http.StatusCreated, response.Code, response.Body.String())
 	capabilities := decodeJSONBody(t, response)["data"].(map[string]any)["calculation_capabilities"].(map[string]any)
 	require.Equal(t, true, capabilities["activation_supported"], "supported activation still requires this record's fresh schema/readiness proof")
-	require.Equal(t, false, capabilities["editor_supported"])
+	require.Equal(t, true, capabilities["editor_supported"])
 	require.Equal(t, "record_readiness_required", capabilities["reason"])
 	var wideOnly bool
 	for _, raw := range capabilities["unsupported_combinations"].([]any) {

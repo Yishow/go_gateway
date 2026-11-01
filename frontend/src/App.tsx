@@ -1,6 +1,7 @@
+import { RecordingRouterNavigation } from './features/datalink/workbench-v2/recording-editor/RecordingRouterNavigation'
 import { lazy, Suspense } from 'react'
 import { parseStudioPresentation } from './services/studioRecordingView'
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CardMinimizeProvider } from './components/CardMinimizeProvider'
 import { ThemeProvider } from './contexts/ThemeContext'
@@ -159,6 +160,17 @@ export function AppRoutes() {
   );
 }
 
+/** Keep the existing route tree and error presentation; only add the supported navigation seam. */
+export function AppRouteBoundary() {
+  return <ErrorBoundary><RecordingRouterNavigation><AppRoutes /></RecordingRouterNavigation></ErrorBoundary>
+}
+let browserRouter: ReturnType<typeof createBrowserRouter> | undefined
+function appRouter() {
+  // Module lifetime, not render/useMemo lifetime: StrictMode must not attach a second history listener.
+  return browserRouter ??= createBrowserRouter([{ path: '*', element: <AppRouteBoundary /> }])
+}
+if (import.meta.hot) import.meta.hot.dispose(() => browserRouter?.dispose())
+
 /**
  * 主應用程式組件
  * 
@@ -174,9 +186,7 @@ function App() {
       <ThemeProvider>
         <ToastProvider>
           <CardMinimizeProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
+            <RouterProvider router={appRouter()} />
           </CardMinimizeProvider>
         </ToastProvider>
       </ThemeProvider>

@@ -275,6 +275,8 @@ The draft capability SHALL authorize only canonical draft operations, not substi
 - **WHEN** canonical mixed drafts are supported but the editor consumer has not passed its integration gates
 - **THEN** draft support does not claim editor support; after the consumer passes, the server advertises the integrated editor while records still require their own fresh activation proofs.
 
+Consumer authoring acceptance SHALL distinguish Save, schema consent, record Apply and source activation, and SHALL preserve canonical skipped/not_due/no-source readback. End-to-end successful value/window evidence SHALL be completed through the existing owned scoped-start flow before overall editor acceptance. The mixed recording SHALL NOT require an auxiliary Basic recording solely to start its sources, and record Apply alone MUST NOT be represented as source activation.
+
 #### Scenario: Two means and one delta are configured
 - **WHEN** an operator assigns mean, mean and delta to three eligible members in one managed-wide recording
 - **THEN** the editor represents independently aligned member windows and a union-boundary wide row with independent results, illustrates 22,12,8, and does not split the request into separate records or modify those sources' use in another recording.

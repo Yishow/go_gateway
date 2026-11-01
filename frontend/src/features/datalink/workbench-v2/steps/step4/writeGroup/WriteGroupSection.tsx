@@ -1,3 +1,4 @@
+import { useRecordingNavigation } from '../../../recording-editor/RecordingDraftNavigation';
 import type { DeviceSourcePort } from '../../../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { readStudioLocatorEditorEntry } from '../../../../../../services/studioV2LocatorEntry';
 import { studioV2LocatorHydration } from '../../../../../../pages/datalink/workbench-v2/studioV2LocatorHydration';
@@ -42,6 +43,7 @@ type Prerequisite = 'device' | 'tags' | 'destination' | null;
  */
 export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSource, state, workspaceId, readonly, onNavigateStep, openGroupRequest, onReviewScopedStart, lifecycleHost, locatorEntry, locatorOnly, locatorSuspended, onEditorMountedChange }) => {
   const { t } = useTranslation('workbench-v2');
+  const { request: requestNavigation } = useRecordingNavigation();
   const { t: runtime } = useTranslation('runtime-dashboard');
   const region = useRef<HTMLElement>(null);
   const [selection, setSelection] = useState<Selection>({ kind: 'none' });
@@ -59,7 +61,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
   const editorState = useMemo(() => editorEntry ? studioV2LocatorHydration(editorEntry) : null, [editorEntry]);
   const editorObserved = editorEntry?.entry.write_groups ?? observed;
   const open = async (group: WriteGroup) => {
-    if (!locatorEntry) { setSelection({ kind: 'edit', id: group.id, saved: group }); return; }
+    if (!locatorEntry) { requestNavigation(() => setSelection({ kind: 'edit', id: group.id, saved: group })); return; }
     const target = locatorEntry.selection.state === 'selected' ? locatorEntry.selection.target : undefined;
     if (!target?.groupRevision || target.groupId !== group.id || target.workspaceId !== workspaceId ||
       locatorSuspended || selection.kind !== 'none' || openingRequest.current) return;
@@ -128,9 +130,9 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
   useEffect(() => {
     if (openGroupRequest !== consumedOpen.current && openGroupRequest && groupsQuery.data?.groups.some(group => group.id === openGroupRequest.id)) {
       consumedOpen.current = openGroupRequest;
-      setSelection({ kind: 'edit', id: openGroupRequest.id });
+      requestNavigation(() => setSelection({ kind: 'edit', id: openGroupRequest.id }));
     }
-  }, [openGroupRequest, groupsQuery.data]);
+  }, [openGroupRequest, groupsQuery.data, requestNavigation]);
   const { candidates, excluded } = useMemo(() => buildGroupCandidates(editorState ?? state), [editorState, state]);
   const connector = (editorState ?? state).db.connector;
   const destinationSaved = connector.persisted === true && connector.save_state === 'saved' &&
@@ -155,7 +157,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
   const editing = selection.kind === 'new' || Boolean(selection.kind === 'edit' && selected);
   const retention = useRef(onEditorMountedChange); retention.current = onEditorMountedChange;
   useEffect(() => { retention.current?.(editing); return () => retention.current?.(false); }, [editing]);
-  if (!locatorOnly && groupsQuery.isError) {
+  if (!editing && !locatorOnly && groupsQuery.isError) {
     return (
       <section role="alert" className="space-y-2 rounded-xl border border-amber-700 p-5 text-xs text-amber-200" data-testid="group-section-error">
         <p>{t('step4.group.section.load_failed')}</p>
@@ -163,7 +165,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
       </section>
     );
   }
-  if (!locatorOnly && groupsQuery.isLoading) {
+  if (!editing && !locatorOnly && groupsQuery.isLoading) {
     return <section className="p-5 text-xs text-slate-400" role="status" data-testid="group-section-loading">{t('step4.group.section.loading')}</section>;
   }
 
@@ -174,6 +176,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
         <p className="mt-1 text-xs text-slate-400">{t('step4.group.section.subtitle')}</p>
       </div>
 
+      {editing && groupsQuery.isError && !locatorOnly && <p role="alert">{t('step4.group.section.load_failed')}</p>}
       {opening && <p role="status">{runtime('locatorEntry.loading')}</p>}
       {openError && <p role="alert" data-testid="studio-locator-open-error">{runtime(`locatorEntry.${openError === 'stale-reference' ? 'stale' : openError === 'foreign-scope' ? 'foreign' : 'unavailable'}`)}</p>}
       {locatorOnly && <p role="status">{runtime('locatorEntry.unrequested')}</p>}
@@ -234,8 +237,8 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
       )}
 
       {editing && editorObserved && (
-        <GroupEditor deviceSource={deviceSource} sourceDevices={(editorState ?? state).devices.filter(device => device.persisted)}
-          key={selection.kind === 'edit' ? selection.id : 'new'}
+        <GroupEditor calculationCapabilities={editorObserved.calculation_capabilities} deviceSource={deviceSource} sourceDevices={(editorState ?? state).devices.filter(device => device.persisted)}
+          key={`${editorObserved.workspace_id}:${selection.kind === 'edit' ? selection.id : 'new'}`}
           group={selected} workspaceId={editorObserved.workspace_id} workspaceRevision={editorObserved.workspace_revision}
           locatorGuard={Boolean(locatorEntry || locatorSuspended)}
           saveReadbackPending={Boolean(editorEntry && opening)}
@@ -249,8 +252,8 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
             // the pending flag. It never grants scope or changes picker state.
             if (openingRequest.current) throw new Error('Recording scope is unavailable.');
             const latest = await groupsQuery.refetch();
-            if (editorEntry && (latest.isError || !latest.data || latest.data.workspace_id !== editorObserved.workspace_id ||
-              selected && !latest.data.groups.some(group => group.id === selected.id && group.status !== 'deleted')))
+            if (latest.isError || !latest.data || latest.data.workspace_id !== editorObserved.workspace_id ||
+              selected && !latest.data.groups.some(group => group.id === selected.id && group.status !== 'deleted'))
               throw new Error('Recording scope is unavailable.');
             return latest.data;
           }}

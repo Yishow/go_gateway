@@ -196,7 +196,12 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 			s.scheduler.AddPollingGroup(group) //nolint:contextcheck // Scheduler lifecycle API does not accept context.
 		}
 	}
-	if capture := scopedAcquisitionProjection(ctx); capture != nil {
+	if capture := sourceAcquisitionProjectionFrom(ctx); capture != nil && (capture.scopeRule != "" || capture.selection != nil) {
+		if capture.selection != nil {
+			if err := s.stageActivationBindings(ctx, projection, deviceID, capture); err != nil {
+				return err
+			}
+		}
 		capture.observations = append(capture.observations, observation)
 		return nil
 	}

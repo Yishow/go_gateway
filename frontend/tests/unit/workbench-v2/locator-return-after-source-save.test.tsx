@@ -136,6 +136,8 @@ it.each(['pending', 'unknown'] as const)('same-entry close retains real %s sourc
   expect(owner.deviceSource.observations()[0].status).toBe(status);
   const before = owner.deviceSource.observations(); const state = structuredClone(owner.state.devices);
   fireEvent.click(screen.getByTestId('group-editor-close'));
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent('navigation.pending');
+  fireEvent.click(screen.getByRole('button', { name: 'navigation.discard' }));
   expect(screen.getByTestId('group-open-G')).toBeVisible();
   expect(owner.deviceSource.observations()).toEqual(before); expect(owner.state.devices).toEqual(state);
   expect(studioV2WorkspaceDevicesAPI.create).toHaveBeenCalledOnce(); expect(studioV2WorkspaceDevicesAPI.remove).not.toHaveBeenCalled();

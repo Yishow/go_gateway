@@ -19,7 +19,7 @@ func TestWriteGroupReadbackAdvertisesActivationRequiringRecordReadiness(t *testi
 		require.True(t, ok, "canonical responses must tell consumers whether mixed is actually available")
 		require.Equal(t, true, capabilities["draft_supported"])
 		require.Equal(t, true, capabilities["activation_supported"])
-		require.Equal(t, false, capabilities["editor_supported"])
+		require.Equal(t, true, capabilities["editor_supported"])
 		require.Equal(t, "record_readiness_required", capabilities["reason"])
 		cadence := capabilities["cadence"].(map[string]any)
 		require.EqualValues(t, snapshot.MaxCadenceSeconds, cadence["max_seconds"])
@@ -29,7 +29,7 @@ func TestWriteGroupReadbackAdvertisesActivationRequiringRecordReadiness(t *testi
 }
 
 func TestWriteGroupReadbackIgnoresCallerCapabilityOverride(t *testing.T) {
-	forged := &WriteGroupCalculationCapabilities{Version: 99, ActivationSupported: false, EditorSupported: true, Reason: "forged"}
+	forged := &WriteGroupCalculationCapabilities{Version: 99, ActivationSupported: false, EditorSupported: false, Reason: "forged"}
 	for _, pair := range [][2]any{
 		{WriteGroupSaveResult{}, WriteGroupSaveResult{Capabilities: forged}},
 		{WriteGroupListResult{}, WriteGroupListResult{Capabilities: forged}},

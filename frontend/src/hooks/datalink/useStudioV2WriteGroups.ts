@@ -1,3 +1,4 @@
+import { writeGroupSaveMutationKey } from './useWriteGroupSaveActivity';
 import { recordingReadKey, validRecordingReadScope, type StudioV2RecordingReadScope } from './studioV2RecordingReadScope';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { studioV2WorkspaceWriteGroupsAPI } from '../../services/studioV2WorkspaceWriteGroups';
@@ -95,6 +96,7 @@ export function useWriteGroupSchemaOperationQuery(operationId: string | undefine
 export function useCreateWriteGroupMutation() {
   const invalidate = useInvalidateWriteGroups();
   return useMutation({
+    mutationKey: [...writeGroupSaveMutationKey, 'create'],
     mutationFn: (request: WriteGroupCreateRequest) => studioV2WorkspaceWriteGroupsAPI.create(request),
     retry: false,
     onSettled: invalidate,
@@ -114,6 +116,7 @@ export function useEnsureCircuitProfileMutation() {
 export function useUpdateWriteGroupMutation() {
   const invalidate = useInvalidateWriteGroups();
   return useMutation({
+    mutationKey: [...writeGroupSaveMutationKey, 'update'],
     mutationFn: (variables: { id: string; request: WriteGroupUpdateRequest }) =>
       studioV2WorkspaceWriteGroupsAPI.update(variables.id, variables.request),
     retry: false,

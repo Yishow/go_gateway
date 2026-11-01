@@ -180,3 +180,8 @@ Go1.25.5；GOMAXPROCS=1、GOGC=50，沿同GOPATH/GOCACHE。官方 golangci-lint2
 - sqltx terminalcleanup沿原獨立bounded context，typed unavailable/schema-not-ready沿原結構回覆；僅逐行註明lint理由，沒有關閉全域規則或放寬安全驗證。
 - 修後normal選224個改檔top-level tests，再加原cleanup/unknown/panic/cancel/Storegate/baselineproof回歸：8個有選中測試的package全PASS，EXIT0，`member43-lint-related-normal.log`。aggregation此regex未選到測試，不算此命令的產品驗證；另有C43完整package PASS。
 - 首輪修後lint剩1個test unlambda，`member43-fixed-lint.log`仍是FAIL；改成直接傳原callback後，原測試PASS0.162s，9package fresh vet EXIT0，正式8package lint **0 issues／EXIT0**（`member43-unlambda-normal.log`、`member43-lint-final-vet.log`、`member43-fixed-lint-final.log`）。其餘122檔不變；不因機械格式重跑全產品或舊大race。
+
+
+### Editor 2.1 consumer 後續驗收
+
+候選版已同步唯一 server editor_supported=true 與直接契約斷言；這不是任何 record 的 readiness 或來源 Start 許可。Run18 已驗真UUID counter確認、record-only gauge選mean、獨立cadence保存／更新／schema／Apply；其delivery outer parser對合法空effect proof／not_due零時間的拒讀，以真wire fixture修復，Run19真DOM顯示not_due、no-samples、NULL與window_skipped，最後導航／console通過。Source仍draft且沒有來源Start，不宣成功數值或SQL結果；這些留在原editor3.2及整體驗收。Template僅生成量測定義，不能當canonical採集點／綁定前置；未藉此新增模板引擎或改全域Point語意。

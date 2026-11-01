@@ -217,3 +217,10 @@ actual attempted/succeeded/failed/retry/fallback/canceled及cycle latency使用�
 ### 同源預覽的單位與唯讀掛點
 
 1.4 consumer沿batching「同源預覽的單位、head與實測契約」的唯一DTO/service，不由record members推導採集set或合批；每個原poll group分別顯示cadence與estimate，logical request outcomes與含重送wire attempts單位不能混加。未installed／context不可證實顯unavailable，不把缺證據當0；實測使用同scope/revision最近完成scheduled scan，manual結果不冒充它。獨立acquisition-preview locale namespace避免與1.5 cache的recording-editor keys雙寫；只在既有source surface嵌入readonly子元件，不新增頁面/modal/保存gate。409、錯誤、scope切換及晚回應清可用性；preview不是schema/readiness/activation證據。原五協議局部版本仍保留，不重作1.4已驗欄位，也不改1.5 cache範圍。
+
+
+### 記錄設定與來源啟動分期
+
+2.1交付每member意圖、明確record-only gauge確認／既有counter確認、保存／schema／Apply分離及canonical結果consumer；可用、skipped、not_due與無來源資料的真readback都不得偽造成寫入成功。Apply只套用記錄，不能稱來源已開始。來源未開始時不以額外Basic記錄或直接API捷徑冒充mixed自己的完整操作。
+
+3.2沿既有scoped recording-start owner串接legacy與獨立mixed的合法來源／group scope，不另建Start引擎或啟動整workspace，也不為啟動mixed另建隱藏Basic record。既有CAS、source/measurement、schema consent、ownership與readiness仍必須先通過；啟動後先顯waiting-first-write。來源確實開始後的成功值／完整window／SQL readback Browser證據在3.2與整體驗收閉合，2.1不可提前宣稱，整體交付亦不得省略。這只明確化原有功能分期，不減少最終驗收或新增產品能力。

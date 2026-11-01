@@ -79,9 +79,17 @@ function unchangedProof(raw: unknown, parsed: unknown): boolean {
   if (Array.isArray(parsed)) return Array.isArray(raw) && parsed.every((value, index) => unchangedProof(raw[index], value));
   if (!isRecord(parsed)) return true;
   if (!isRecord(raw)) return false;
-  return Object.entries(parsed).every(([key, value]) => PROOF_FIELDS.has(key)
-    ? identity(value) && raw[key] === value
-    : TIME_FIELDS.has(key) ? parsePreciseInstant(value) !== null && raw[key] === value : unchangedProof(raw[key], value));
+  // The inner mixed parser has already verified these exact producer states.
+  // A skipped window has no effect/payload receipt; not-due has no source window.
+  const mixed = parsed.available === true && parsed.profile_kind === 'mixed' && isRecord(parsed.calculation);
+  const skipped = mixed && parsed.delivery === 'window_skipped' && isRecord(parsed.calculation) && parsed.calculation.row_emitted === false;
+  const notDue = mixed && isRecord(parsed.calculation) && parsed.calculation.status === 'not_due';
+  return Object.entries(parsed).every(([key, value]) => {
+    if (skipped && (key === 'effect_key' || key === 'payload_digest')) return value === '' && raw[key] === '';
+    if (notDue && (key === 'window_start' || key === 'window_end')) return value === null && raw[key] === '0001-01-01T00:00:00Z';
+    return PROOF_FIELDS.has(key) ? identity(value) && raw[key] === value
+      : TIME_FIELDS.has(key) ? parsePreciseInstant(value) !== null && raw[key] === value : unchangedProof(raw[key], value);
+  });
 }
 
 function parseAttention(value: unknown): DeliveryAttentionItem | null {
@@ -112,7 +120,9 @@ function safeNestedEvidence(storage: WriteGroupStorage | undefined, evidence: Wr
       if (!identity(source.device_id) || !identity(source.point_id) || !identity(source.tag_id) || !optionalIdentity(source.circuit_id)) return false;
       for (const record of [source.latest, source.last_sql_committed]) {
         if (!record?.available) continue;
-        if (![record.group_revision, record.connector_revision, record.record_id, record.effect_key, record.payload_digest].every(identity)) return false;
+        if (![record.group_revision, record.connector_revision, record.record_id].every(identity)) return false;
+        const skipped = record.profile_kind === 'mixed' && record.delivery === 'window_skipped' && !record.calculation.row_emitted;
+        if (skipped ? record.effect_key !== '' || record.payload_digest !== '' : ![record.effect_key, record.payload_digest].every(identity)) return false;
         if (record.reason !== undefined) record.reason = sourceReason(record.reason);
         if (record.aggregation?.reason !== undefined) record.aggregation.reason = sourceReason(record.aggregation.reason);
       }

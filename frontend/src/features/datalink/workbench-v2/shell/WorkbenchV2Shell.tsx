@@ -1,3 +1,4 @@
+import { useRecordingNavigation } from '../recording-editor/RecordingDraftNavigation';
 import { acquisitionPreviewWorkspaceScope } from '../acquisition-preview/acquisitionPreviewScope';
 import type { DeviceSourcePort } from '../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import type { StudioLocatorEntryRead } from '../../../../types/studioV2LocatorEntry';
@@ -95,13 +96,21 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   const deviceProtocolMap = Object.fromEntries(state.devices.map((device) => [device.id, device.protocol]));
   const step2Ready = isStep2Ready(state.rules, deviceProtocolMap);
   const {
-    setView,
-    setCurrent,
+    setView: setViewDirect,
+    setCurrent: setCurrentDirect,
     toggleSidebar,
     toggleSummaryRail,
-    resetFlow,
+    resetFlow: resetFlowDirect,
     completeStep, selectRule,
   } = actions;
+  const { request: requestNavigation } = useRecordingNavigation();
+  const setCurrent = React.useCallback((step: 1 | 2 | 3 | 4) => {
+    if (step !== current) requestNavigation(() => setCurrentDirect(step));
+  }, [current, requestNavigation, setCurrentDirect]);
+  const setView = React.useCallback((next: 'flow' | 'settings') => {
+    if (next !== view) requestNavigation(() => setViewDirect(next));
+  }, [view, requestNavigation, setViewDirect]);
+  const resetFlow = () => requestNavigation(resetFlowDirect);
   React.useLayoutEffect(() => {
     if (!locatorSelection) return;
     setView('flow'); setCurrent(locatorSelection.target.step);

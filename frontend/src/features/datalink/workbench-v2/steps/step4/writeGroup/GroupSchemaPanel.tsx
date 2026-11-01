@@ -59,7 +59,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
     ].join('|')
     : `unsaved|${workspaceId}|${workspaceRevision}`, [group, workspaceId, workspaceRevision]);
   const ownerIdentity = JSON.stringify([workspaceId, workspaceRevision, group?.workspace_id, group?.id, group?.revision,
-    group?.destination.connector_id, group?.destination.connector_revision, group?.destination.schema_revision, group?.destination.schema_digest]);
+    group?.destination.connector_id, group?.destination.connector_revision, group?.destination.schema_revision, group?.destination.schema_digest, dirty, destinationMatches, readonly]);
   const ownerScope = useRef({ identity: ownerIdentity, epoch: 0 });
   if (ownerScope.current.identity !== ownerIdentity) ownerScope.current = { identity: ownerIdentity, epoch: ownerScope.current.epoch + 1 };
   const previewEpoch = useRef<number | undefined>(undefined);
@@ -103,6 +103,13 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
     inFlight.current = false;
   }, [scopeKey, workspaceId, group?.id]);
 
+  // Editing and reverting is a new consent context, even at the same saved revision.
+  // Only the preview is invalidated; a submitted operation remains recoverable.
+  const consentEpoch = ownerScope.current.epoch;
+  useEffect(() => {
+    if (previewEpoch.current !== consentEpoch) { setPreview(null); setPreviewFailureEpoch(undefined); }
+  }, [consentEpoch]);
+
   const blockedReason = !group
     ? t('step4.group.schema.blocked_unsaved')
     : readonly
@@ -116,7 +123,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
             : undefined;
   const enabled = blockedReason === undefined;
   const busy = previewMutation.isPending || applyMutation.isPending || inFlight.current;
-  const canApply = enabled && preview !== null && operation === null && !needsCheck;
+  const canApply = enabled && preview !== null && previewEpoch.current === ownerScope.current.epoch && operation === null && !needsCheck;
   const columns = preview?.group_layout?.columns.filter((column) => column.name !== preview.group_layout?.owner_column) ?? [];
   const addedColumns = new Set(preview?.tables.filter(table => table.action === 'add_columns').flatMap(table => table.columns ?? []) ?? []);
   const effectiveOperation = operation ?? lastOperation;
@@ -142,12 +149,12 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
     try {
       await action();
     } catch (cause) {
-      if (scopeRef.current === requestedScope && (!guided || ownerScope.current.epoch === requestedEpoch)) {
+      if (scopeRef.current === requestedScope && ownerScope.current.epoch === requestedEpoch) {
         setError(cause);
         if (origin === 'preview') setPreviewFailureEpoch(requestedEpoch);
       }
     } finally {
-      if (scopeRef.current === requestedScope && (!guided || ownerScope.current.epoch === requestedEpoch)) inFlight.current = false;
+      if (scopeRef.current === requestedScope) inFlight.current = false;
     }
   };
 
@@ -166,7 +173,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
         expected_connector_revision: group.destination.connector_revision,
       },
     });
-    if (scopeRef.current !== requestedScope || (guided && ownerScope.current.epoch !== requestedEpoch)) return;
+    if (scopeRef.current !== requestedScope || ownerScope.current.epoch !== requestedEpoch) return;
     operationId.current = result.operation_id;
     previewEpoch.current = requestedEpoch;
     setPreview(result);
@@ -176,7 +183,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
   }, 'preview');
 
   const handleApply = () => run(async () => {
-    if (!group || !preview || !enabled || !canApply) return;
+    if (!group || !preview || !enabled || !canApply || previewEpoch.current !== ownerScope.current.epoch) return;
     const retained = readSchemaOperation(workspaceId, group.id);
     if (retained) { operationId.current = retained; setNeedsCheck(true); return; }
     const requestedScope = scopeRef.current;

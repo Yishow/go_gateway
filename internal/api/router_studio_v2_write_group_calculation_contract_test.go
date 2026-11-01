@@ -23,7 +23,7 @@ func TestWriteGroupCanonicalCalculationContractKeepsLegacyEntry(t *testing.T) {
 	require.Equal(t, true, capability["draft_supported"])
 	require.Equal(t, true, capability["activation_supported"])
 	require.Equal(t, "record_readiness_required", capability["reason"])
-	require.Equal(t, false, capability["editor_supported"])
+	require.Equal(t, true, capability["editor_supported"])
 	require.NotContains(t, group, "recording_profile")
 	require.NotContains(t, group["members"].([]any)[0].(map[string]any), "calculation")
 	get := performJSONRequest(t, f.router, http.MethodGet, writeGroupsPath+"/"+group["id"].(string), nil)
@@ -67,7 +67,7 @@ func TestWriteGroupMixedAPIReadsMemberIntentWithoutChangingPoint(t *testing.T) {
 	require.Equal(t, "float32", m["source_value_type"])
 	require.Equal(t, "float64", m["result_value_type"])
 	require.Equal(t, true, data["calculation_capabilities"].(map[string]any)["activation_supported"])
-	require.Equal(t, false, data["calculation_capabilities"].(map[string]any)["editor_supported"])
+	require.Equal(t, true, data["calculation_capabilities"].(map[string]any)["editor_supported"])
 	require.Equal(t, "record_readiness_required", data["calculation_capabilities"].(map[string]any)["reason"])
 	var sourceType string
 	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT data_type FROM points WHERE id='point-A'`).Scan(&sourceType))

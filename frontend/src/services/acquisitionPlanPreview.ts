@@ -7,6 +7,8 @@ const row = (v: unknown): v is Row => !!v && typeof v === 'object' && !Array.isA
 const count = (v: unknown) => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
 const number = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 const identity = (v: unknown) => typeof v === 'string' && safeRuntimeIdentity(v) !== '';
+// connector.ResolveAcquisitionConfig emits this namespaced SHA-256 revision.
+const capabilityRevision = (v: unknown) => typeof v === 'string' && /^acquisition-config-v1:[a-f0-9]{64}$/.test(v);
 const code = (v: unknown) => typeof v === 'string' && /^[a-z][a-z0-9_-]{0,100}$/.test(v);
 const list = (v: unknown, validate: (item: unknown) => boolean) => Array.isArray(v) && v.every(validate);
 function actual(v: unknown): boolean {
@@ -26,7 +28,7 @@ function valid(v: unknown, scope: AcquisitionPreviewScope): v is AcquisitionPlan
   if (v.status === 'unavailable') return code(v.reason);
   return v.status === 'available' && identity(v.preview_revision) && (!scope.expected_preview_revision || v.preview_revision === scope.expected_preview_revision) && v.estimate === true &&
     list(v.groups, g => row(g) && identity(g.polling_group_id) && count(g.poll_interval_ms) && Number(g.poll_interval_ms) > 0 && identity(g.plan_revision) && identity(g.declared_plan_revision) &&
-      identity(g.capability_revision) && ['declared_no_connection', 'declared_current_connection', 'safe_current_connection'].includes(String(g.basis)) && count(g.acquisition_point_count) && count(g.planned_requests) &&
+      capabilityRevision(g.capability_revision) && ['declared_no_connection', 'declared_current_connection', 'safe_current_connection'].includes(String(g.basis)) && count(g.acquisition_point_count) && count(g.planned_requests) &&
       list(g.unique_wire_units, u => row(u) && typeof u.area === 'string' && /^[A-Za-z0-9_-]+$/.test(u.area) && typeof u.function === 'string' && /^[A-Za-z0-9_-]*$/.test(u.function) && (u.address_unit_bits === 1 || u.address_unit_bits === 16) && count(u.unique_address_units)) &&
       (g.request_limits === undefined || list(g.request_limits, r => row(r) && (r.kind === 'contiguous' || r.kind === 'random') && typeof r.area === 'string' && /^[A-Za-z0-9_-]*$/.test(r.area) && typeof r.function === 'string' && /^[A-Za-z0-9_-]*$/.test(r.function) && count(r.native_unit_limit) && Number(r.native_unit_limit) > 0 && count(r.request_frame_bytes) && count(r.response_frame_bytes) && typeof r.frame_cost_known === 'boolean')) &&
       list(g.point_errors, p => row(p) && identity(p.point_id) && code(p.code)) && list(g.fallback_reasons, code) && actual(g.actual)) &&
