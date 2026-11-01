@@ -10,6 +10,8 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
+const pointInputRegisterFunctionAlias = "fc04"
+
 var (
 	pointAddressPattern  = regexp.MustCompile(`^([A-Za-z]+\d+|[WB][A-F0-9]+|\d+)$`)
 	alphaFunctionPattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
@@ -104,7 +106,7 @@ func normalizeFunction(function string) string {
 		return "01"
 	case "2", "02", "fc02", "discrete":
 		return "02"
-	case "4", "04", "fc04", "input", "read_input":
+	case "4", "04", pointInputRegisterFunctionAlias, "input", "read_input":
 		return "04"
 	default:
 		return strings.ToUpper(strings.TrimSpace(function))
@@ -127,7 +129,7 @@ func isValidPointFunction(function string) bool {
 
 	normalized := strings.ToLower(raw)
 	switch normalized {
-	case "01", "02", "03", "04", "fc01", "fc02", "fc03", "fc04", "coil", "discrete", "holding", "input", "read_holding", "read_input":
+	case "01", "02", "03", "04", "fc01", "fc02", "fc03", pointInputRegisterFunctionAlias, "coil", "discrete", "holding", "input", "read_holding", "read_input":
 		return true
 	}
 

@@ -9,6 +9,8 @@ import (
 	"go-gateway/internal/datalink/common"
 )
 
+const schemaStatementFailureReason = "statement_failed"
+
 const (
 	mysqlSchemaNextActionRetry      = "grant target permission if needed, then retry the same confirmed preview"
 	mysqlSchemaNextActionNewPreview = "grant target permission, then prepare a new schema preview"
@@ -368,7 +370,7 @@ func mysqlSchemaDDLFailureCode(err error) string {
 	if errors.Is(err, ErrTargetPermissionDenied) {
 		return "permission_denied"
 	}
-	return "statement_failed"
+	return schemaStatementFailureReason
 }
 
 func (s *Service) saveMySQLSchemaApplyProgress(ctx context.Context, op *SchemaOperation, manifest mysqlSchemaApplyManifest) error {

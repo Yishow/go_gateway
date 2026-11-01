@@ -11,6 +11,8 @@ import (
 	"go-gateway/internal/datalink/common"
 )
 
+const initialUpdatedPlanRevision = "rev-2"
+
 const (
 	customTableMode      = "custom_table"
 	managedRecordingMode = "managed_recording"
@@ -85,7 +87,7 @@ func (s *Service) GetConnectorCapability(kind string) ConnectorCapability {
 			SupportsGroupTestWrites: true,
 			SupportedModes:          []string{managedRecordingMode, customTableMode},
 		}
-	case "mysql":
+	case dialectMySQL:
 		// MySQL commits each DDL statement on its own, so a managed schema batch
 		// cannot be undone as one unit. Managed schema stays unavailable until
 		// that behavior is verified; everything MySQL already supports is unaffected.
@@ -211,7 +213,7 @@ func (s *Service) ExecuteTestWrite(ctx context.Context, targetDB *sql.DB, tableP
 	)
 	if err != nil {
 		return &TestWriteResult{
-			Status:      "failed",
+			Status:      testWriteStatusFailed,
 			RecordID:    testRecordID,
 			Table:       tableName,
 			ObservedAt:  now,
@@ -225,10 +227,10 @@ func (s *Service) ExecuteTestWrite(ctx context.Context, targetDB *sql.DB, tableP
 	var foundID string
 	readErr := targetDB.QueryRowContext(ctx, adaptPlaceholders(selectQuery), testRecordID).Scan(&foundID)
 
-	status := "written_verified"
+	status := writeOutcomeVerified
 	message := "試寫成功且回讀驗證一致"
 	if readErr != nil {
-		status = "written_unverified"
+		status = writeOutcomeUnverified
 		message = fmt.Sprintf("資料已成功寫入，但回讀檢查受權限或視圖限制未能驗證: %v", readErr)
 	}
 
@@ -250,5 +252,5 @@ func incrementPlanRevision(rev string) string {
 			return fmt.Sprintf("rev-%d", n+1)
 		}
 	}
-	return "rev-2"
+	return initialUpdatedPlanRevision
 }

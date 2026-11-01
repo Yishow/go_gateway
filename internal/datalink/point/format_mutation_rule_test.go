@@ -9,7 +9,7 @@ import (
 
 type formatRuleTestGuard struct{ calls int }
 
-func (g *formatRuleTestGuard) AcquireRuleMutation(ctx context.Context, _ string) (context.Context, func()) {
+func (g *formatRuleTestGuard) AcquireRuleMutation(ctx context.Context, _ string) (guardContext context.Context, release func()) {
 	g.calls++
 	return ctx, func() {}
 }

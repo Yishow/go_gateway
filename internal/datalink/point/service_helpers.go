@@ -7,6 +7,8 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
+const pointDefaultDataFormat = "ABCD"
+
 // isValidDataType 檢查資料型別是否有效
 func isValidDataType(dataType schema.DataType) bool {
 	validTypes := map[schema.DataType]bool{
@@ -36,7 +38,7 @@ func validatePointDataFormat(value string) error {
 		return nil
 	}
 	switch n {
-	case "ABCD", "BADC", "CDAB", "DCBA":
+	case pointDefaultDataFormat, "BADC", "CDAB", "DCBA":
 		return nil
 	default:
 		return fmt.Errorf("不支援的 data_format: %s", value)

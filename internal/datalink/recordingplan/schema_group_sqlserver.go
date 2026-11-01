@@ -93,9 +93,9 @@ func ManagedSQLServerLongGroupLayout(tableName, ownerColumn string, options SQLS
 
 func sqlserverColumnType(col longColumn) string {
 	switch col.name {
-	case sqlserverBucketColumn, "bucket_end", "observed_at", "received_at", "delta_from", "delta_to":
+	case sqlserverBucketColumn, longBucketEndColumn, "observed_at", "received_at", "delta_from", "delta_to":
 		return sqlserverTimeSQLType
-	case "record_id":
+	case longRecordIDColumn:
 		return sqlserverHashSQLType
 	case "value_int":
 		return sqlserverBigIntSQLType

@@ -94,11 +94,11 @@ func validRecoveryBinding(workspaceID string, op SchemaOperation, token *SchemaP
 		op.CreatedAt.IsZero() || op.UpdatedAt.IsZero() {
 		return false
 	}
-	if recoveryCleanupClaim(op) && token.Dialect != "sqlserver" {
+	if recoveryCleanupClaim(op) && token.Dialect != dialectSQLServer {
 		return false
 	}
 	switch token.Dialect {
-	case "sqlite", "postgres", "mysql", "sqlserver":
+	case "sqlite", dialectPostgres, dialectMySQL, dialectSQLServer:
 	default:
 		return false
 	}
@@ -113,12 +113,12 @@ func validRecoveryBinding(workspaceID string, op SchemaOperation, token *SchemaP
 		return false
 	}
 	switch op.WriteOutcome {
-	case "", "written_verified", "written_unverified", "failed", "unknown":
+	case "", writeOutcomeVerified, writeOutcomeUnverified, testWriteStatusFailed, "unknown":
 	default:
 		return false
 	}
 	switch op.CleanupStatus {
-	case "", "not_attempted", "cleaned", "failed", "unknown":
+	case "", "not_attempted", cleanupStatusCleaned, testWriteStatusFailed, "unknown":
 	default:
 		return false
 	}
@@ -138,11 +138,11 @@ func validRecoveryShape(op SchemaOperation) bool {
 		return false
 	}
 	switch op.WriteOutcome {
-	case "written_verified":
+	case writeOutcomeVerified:
 		return op.Status == SchemaOperationSucceeded && op.CleanupStatus != "not_attempted"
-	case "written_unverified":
+	case writeOutcomeUnverified:
 		return op.Status == SchemaOperationPartial
-	case "failed":
+	case testWriteStatusFailed:
 		return op.Status == SchemaOperationFailed && op.CleanupStatus == "not_attempted"
 	case "unknown":
 		return op.Status == SchemaOperationUnknown
@@ -154,15 +154,15 @@ func validRecoveryShape(op SchemaOperation) bool {
 // A committed but unverified write with confirmed cleanup has no pending work;
 // its readback failure remains available through the ordinary operation GET.
 func recoveryResolved(op SchemaOperation) bool {
-	return validRecoveryShape(op) && ((op.Status == SchemaOperationSucceeded && op.WriteOutcome == "written_verified" && op.CleanupStatus == "cleaned") ||
-		(op.Status == SchemaOperationPartial && op.WriteOutcome == "written_unverified" && op.CleanupStatus == "cleaned") ||
-		(op.Status == SchemaOperationFailed && op.WriteOutcome == "failed" && op.CleanupStatus == "not_attempted"))
+	return validRecoveryShape(op) && ((op.Status == SchemaOperationSucceeded && op.WriteOutcome == writeOutcomeVerified && op.CleanupStatus == cleanupStatusCleaned) ||
+		(op.Status == SchemaOperationPartial && op.WriteOutcome == writeOutcomeUnverified && op.CleanupStatus == cleanupStatusCleaned) ||
+		(op.Status == SchemaOperationFailed && op.WriteOutcome == testWriteStatusFailed && op.CleanupStatus == "not_attempted"))
 }
 
 // recoveryCleanupClaim recognizes only the existing cleanup-only reclaim shape.
 // Its previous completion/result are retained evidence, not a new insert result.
 func recoveryCleanupClaim(op SchemaOperation) bool {
-	return op.Status == SchemaOperationRunning && op.WriteOutcome == "written_verified" &&
-		(op.CleanupStatus == "failed" || op.CleanupStatus == "unknown") && op.CompletedAt != nil &&
+	return op.Status == SchemaOperationRunning && op.WriteOutcome == writeOutcomeVerified &&
+		(op.CleanupStatus == testWriteStatusFailed || op.CleanupStatus == "unknown") && op.CompletedAt != nil &&
 		!op.CompletedAt.IsZero() && !op.CompletedAt.Before(op.CreatedAt) && !op.UpdatedAt.Before(*op.CompletedAt) && strings.TrimSpace(op.Detail) != ""
 }

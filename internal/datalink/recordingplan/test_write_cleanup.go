@@ -10,6 +10,11 @@ import (
 )
 
 const (
+	testWriteStatusFailed  = "failed"
+	writeOutcomeUnverified = "written_unverified"
+)
+
+const (
 	writeOutcomeVerified = "written_verified"
 	cleanupStatusCleaned = "cleaned"
 )

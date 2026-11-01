@@ -54,7 +54,7 @@ func scanSuccessorHistoryValue(decoder *json.Decoder, path []string, lineageID s
 			if !ok {
 				return ErrSchemaOperationResult
 			}
-			if err = scanSuccessorHistoryValue(decoder, append(path, key), lineageID, groups, facts); err != nil {
+			if err := scanSuccessorHistoryValue(decoder, append(path, key), lineageID, groups, facts); err != nil {
 				return err
 			}
 		}
@@ -67,7 +67,7 @@ func scanSuccessorHistoryValue(decoder *json.Decoder, path []string, lineageID s
 		}
 	case '[':
 		for decoder.More() {
-			if err = scanSuccessorHistoryValue(decoder, append(path, ""), lineageID, groups, facts); err != nil {
+			if err := scanSuccessorHistoryValue(decoder, append(path, ""), lineageID, groups, facts); err != nil {
 				return err
 			}
 		}

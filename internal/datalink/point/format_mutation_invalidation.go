@@ -73,7 +73,7 @@ func (r *SQLRepository) CompleteFormatInvalidation(ctx context.Context, req Form
 	if err := releaseOwnedFormatDirty(ctx, tx, req, result, rawWorkspace); err != nil {
 		return err
 	}
-	receipt.Result.InvalidationStatus = "invalidated"
+	receipt.Result.InvalidationStatus = formatInvalidationComplete
 	raw, err := json.Marshal(receipt)
 	if err != nil {
 		return ErrFormatUnavailable
@@ -89,7 +89,7 @@ func (r *SQLRepository) CompleteFormatInvalidation(ctx context.Context, req Form
 	if err := ownedTx.Commit(); err != nil {
 		return formatTransactionFailure(err)
 	}
-	result.InvalidationStatus = "invalidated"
+	result.InvalidationStatus = formatInvalidationComplete
 	return nil
 }
 

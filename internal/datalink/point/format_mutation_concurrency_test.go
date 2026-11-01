@@ -33,11 +33,12 @@ func TestFormatMutationConcurrentServicesCommitOneRevision(t *testing.T) {
 	close(results)
 	successes, conflicts := 0, 0
 	for err := range results {
-		if err == nil {
+		switch {
+		case err == nil:
 			successes++
-		} else if errors.Is(err, ErrFormatConflict) {
+		case errors.Is(err, ErrFormatConflict):
 			conflicts++
-		} else {
+		default:
 			require.NoError(t, err)
 		}
 	}

@@ -11,6 +11,8 @@ import (
 	"go-gateway/internal/datalink/sqltx"
 )
 
+const formatInvalidationComplete = "invalidated"
+
 var (
 	ErrFormatScope       = errors.New("point format is outside the requested workspace or source")
 	ErrFormatConflict    = errors.New("point format revision or request conflicts; reload before editing")
@@ -88,7 +90,7 @@ func validateFormatRequest(req FormatMutationRequest) error {
 	}
 	if req.FormatMode == schema.PointFormatOverride {
 		switch req.ConfiguredFormat {
-		case "ABCD", "BADC", "CDAB", "DCBA":
+		case pointDefaultDataFormat, "BADC", "CDAB", "DCBA":
 		default:
 			return ErrFormatInvalid
 		}
@@ -143,7 +145,7 @@ func (s *Service) MutateFormat(ctx context.Context, req FormatMutationRequest) (
 	}
 	if result.replay {
 		result.replay = false
-		if result.InvalidationStatus != "invalidated" {
+		if result.InvalidationStatus != formatInvalidationComplete {
 			return nil, ErrFormatUnavailable
 		}
 		return result, nil

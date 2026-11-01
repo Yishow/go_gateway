@@ -133,7 +133,7 @@ func (r *SQLRepository) readFormatRecoveryInTx(ctx context.Context, tx *sql.Tx, 
 		return nil, ErrFormatUnavailable
 	}
 	var receipt formatReceipt
-	if json.Unmarshal([]byte(rawReceipt), &receipt) != nil || !validFormatReceipt(receipt, req.FormatScope) || receipt.Result.InvalidationStatus != "invalidated" {
+	if json.Unmarshal([]byte(rawReceipt), &receipt) != nil || !validFormatReceipt(receipt, req.FormatScope) || receipt.Result.InvalidationStatus != formatInvalidationComplete {
 		return nil, ErrFormatUnavailable
 	}
 	if receipt.Result.Point.RevisionID != *req.ExpectedPointRevision || receipt.Result.WorkspaceRevision != req.ExpectedWorkspaceRevision || !sameRecoveryPoint(receipt.Result.Point, *snapshot.point) {

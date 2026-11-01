@@ -60,7 +60,7 @@ func (r *SQLRepository) readTestWriteRecovery(ctx context.Context, workspaceID s
 			return nil, err
 		}
 	}
-	if err = tx.Commit(); err != nil {
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return records, nil

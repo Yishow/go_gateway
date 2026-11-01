@@ -49,7 +49,7 @@ func ReadSuccessorFirstStartsInTx(ctx context.Context, tx *sql.Tx, workspaceID s
 		if err = decoder.Decode(&detail); err != nil {
 			return nil, ErrSchemaOperationResult
 		}
-		if err = detail.normalize(); err != nil {
+		if err := detail.normalize(); err != nil {
 			return nil, err
 		}
 		if detail.Action != SuccessorFirstStartAction || detail.Scope.WorkspaceID != workspaceID || detail.id() != c.id {

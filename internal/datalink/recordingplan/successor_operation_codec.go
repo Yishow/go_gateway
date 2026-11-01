@@ -26,10 +26,10 @@ type successorStoredScope struct {
 }
 
 func storedSuccessorScope(s SuccessorOperationScope) successorStoredScope {
-	return successorStoredScope{s.WorkspaceID, s.RequestID, s.LineageID, s.PredecessorGroupID, s.SuccessorGroupID}
+	return successorStoredScope(s)
 }
 func (s successorStoredScope) public() SuccessorOperationScope {
-	return SuccessorOperationScope{s.WorkspaceID, s.RequestID, s.LineageID, s.PredecessorGroupID, s.SuccessorGroupID}
+	return SuccessorOperationScope(s)
 }
 
 type successorOperationDetail struct {

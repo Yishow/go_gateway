@@ -2,6 +2,11 @@ package recordingplan
 
 import "fmt"
 
+const (
+	longBucketEndColumn = "bucket_end"
+	longRecordIDColumn  = "record_id"
+)
+
 // longColumn is one column of the fixed managed_long_v1 table. The layout
 // contract is the same for every circuit, source and point count: sources add
 // rows, never columns.
@@ -21,8 +26,8 @@ type longColumn struct {
 // JSON; the family collation and engine come from the layout options.
 var longColumns = []longColumn{
 	{name: "bucket_start", sqlite: managedTextSQLType, postgres: sqlTypeTimestamptz, mysql: mysqlTimeSQLType, primaryKey: true},
-	{name: "bucket_end", sqlite: managedTextSQLType, postgres: sqlTypeTimestamptz, mysql: mysqlTimeSQLType},
-	{name: "record_id", sqlite: managedTextSQLType, postgres: managedTextSQLType, mysql: mysqlHashSQLType, primaryKey: true},
+	{name: longBucketEndColumn, sqlite: managedTextSQLType, postgres: sqlTypeTimestamptz, mysql: mysqlTimeSQLType},
+	{name: longRecordIDColumn, sqlite: managedTextSQLType, postgres: managedTextSQLType, mysql: mysqlHashSQLType, primaryKey: true},
 	{name: "workspace_id", sqlite: managedTextSQLType, postgres: managedTextSQLType, mysql: mysqlIDSQLType},
 	{name: "group_id", sqlite: managedTextSQLType, postgres: managedTextSQLType, mysql: mysqlIDSQLType},
 	{name: "group_revision", sqlite: managedTextSQLType, postgres: managedTextSQLType, mysql: mysqlIDSQLType},

@@ -81,7 +81,7 @@ func (s *Service) runMySQLPartitionMaintenance(ctx context.Context, repo mysqlPa
 			Status: SchemaOperationSucceeded, ExecutedStatements: 1, VerifiedDigest: mysqlPartitionEvidenceDigest(after),
 		}, after, mysqlPartitionMaintenanceReady, "", true)
 	case verifyErr == nil && sameMySQLPartitionEvidence(observed, state.Current):
-		reason := "statement_failed"
+		reason := schemaStatementFailureReason
 		if errors.Is(execErr, ErrTargetPermissionDenied) {
 			reason = "permission_lost"
 		}

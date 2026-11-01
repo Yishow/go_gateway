@@ -96,7 +96,7 @@ func readSuccessorOperationInTx(ctx context.Context, tx *sql.Tx, action, workspa
 	if err = dec.Decode(new(any)); err != io.EOF {
 		return nil, ErrSchemaOperationResult
 	}
-	if err = detail.normalize(); err != nil {
+	if err := detail.normalize(); err != nil {
 		return nil, err
 	}
 	if detail.Action != action || detail.Scope.WorkspaceID != workspaceID || detail.id() != id || detail.scopeKey() != rowScope || detail.IntentDigest != digest {

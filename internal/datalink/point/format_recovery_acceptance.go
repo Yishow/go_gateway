@@ -60,13 +60,13 @@ func (r *SQLRepository) AcceptFormatRecovery(ctx context.Context, req FormatReco
 	if current.TargetInputs.WitnessDigest != evidence.TargetInputs.WitnessDigest || current.Profile != evidence.Profile || current.DeviceStatus != evidence.DeviceStatus || current.RuntimeRequired != evidence.RuntimeRequired || current.WorkspaceWitness != evidence.WorkspaceWitness || current.ReceiptFingerprint != evidence.ReceiptFingerprint || current.Resolution != evidence.Resolution || !sameRecoveryPoint(current.Point, evidence.Point) {
 		return ErrFormatConflict
 	}
-	if err = validateRecoverySnapshot(ctx, owned.Tx, validators); err != nil {
+	if err := validateRecoverySnapshot(ctx, owned.Tx, validators); err != nil {
 		return err
 	}
 	// The zero-write reservation remains held through this short publication.
 	// The callback must never block waiting on locks held by configuration writers.
 	// No SQL/provider I/O may occur under metadata/scheduler locks.
-	if err = stage(); err != nil {
+	if err := stage(); err != nil {
 		return err
 	}
 	if err = owned.Commit(); err != nil {

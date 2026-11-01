@@ -130,10 +130,10 @@ func (r *SQLRepository) MutateFormat(ctx context.Context, req FormatMutationRequ
 		return nil, ErrFormatUnavailable
 	}
 	attempted = &FormatMutationResult{Point: *candidate, WorkspaceRevision: nextWorkspace, RuntimeApplyStatus: "pending"}
-	if err = writePointConfigRevision(ctx, tx, candidate, *req.ExpectedPointRevision); err != nil {
+	if err := writePointConfigRevision(ctx, tx, candidate, *req.ExpectedPointRevision); err != nil {
 		return nil, err
 	}
-	if err = advanceFormatWorkspace(ctx, tx, req.WorkspaceID, rawRevision, nextWorkspace, formatDirtyOwner(req, attempted)); err != nil {
+	if err := advanceFormatWorkspace(ctx, tx, req.WorkspaceID, rawRevision, nextWorkspace, formatDirtyOwner(req, attempted)); err != nil {
 		return nil, err
 	}
 	resolution.WorkspaceRevision = nextWorkspace
@@ -180,7 +180,7 @@ func validFormatReceipt(receipt formatReceipt, scope FormatScope) bool {
 	if receipt.Version != 1 || receipt.WorkspaceID != scope.WorkspaceID || receipt.RequestID != scope.RequestID ||
 		r.Point.ID != scope.PointID || r.Point.DeviceID != scope.DeviceID || r.Point.RevisionID == "" || r.WorkspaceRevision == "" ||
 		r.Resolution.PointRevision != r.Point.RevisionID || r.Resolution.WorkspaceRevision != r.WorkspaceRevision ||
-		(r.InvalidationStatus != "pending" && r.InvalidationStatus != "invalidated") || r.RuntimeApplyStatus != "pending" ||
+		(r.InvalidationStatus != "pending" && r.InvalidationStatus != formatInvalidationComplete) || r.RuntimeApplyStatus != "pending" ||
 		r.Point.FormatVersion != schema.PointFormatVersion || (r.Point.FormatMode != schema.PointFormatInherit && r.Point.FormatMode != schema.PointFormatOverride) ||
 		r.Point.DataFormat != r.Point.FormatOverride ||
 		r.Point.LastValue != nil || r.Point.LastReadAt != nil || r.Point.LastError != "" ||
@@ -204,12 +204,12 @@ func validFormatReceipt(receipt formatReceipt, scope FormatScope) bool {
 }
 
 func frozenFormatContext(protocol schema.ProtocolType, ruleOwned bool, resolution decoding.PointResolution) decoding.FormatContext {
-	context := decoding.FormatContext{Protocol: protocol, RuleOwned: ruleOwned, WorkspaceRevision: resolution.WorkspaceRevision, RuleRevision: resolution.RuleRevision, ConnectionRevision: resolution.ConnectionRevision}
+	frozen := decoding.FormatContext{Protocol: protocol, RuleOwned: ruleOwned, WorkspaceRevision: resolution.WorkspaceRevision, RuleRevision: resolution.RuleRevision, ConnectionRevision: resolution.ConnectionRevision}
 	switch resolution.Source {
 	case decoding.SourceRule:
-		context.RuleFormat = resolution.EffectiveFormat
+		frozen.RuleFormat = resolution.EffectiveFormat
 	case decoding.SourceConnection:
-		context.ConnectionFormat = resolution.EffectiveFormat
+		frozen.ConnectionFormat = resolution.EffectiveFormat
 	}
-	return context
+	return frozen
 }
