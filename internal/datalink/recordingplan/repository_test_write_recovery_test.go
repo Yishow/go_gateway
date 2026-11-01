@@ -88,7 +88,7 @@ func TestTestWriteRecoverySQLMalformedResolvedRowsCannotDisappear(t *testing.T) 
 				"invalid-completion": `UPDATE managed_schema_operations SET completed_at='invalid'`,
 				"null-operation-id":  `UPDATE managed_schema_operations SET operation_id=NULL`,
 			}
-			_, err := db.Exec(queries[corruption])
+			_, err := db.ExecContext(t.Context(), queries[corruption])
 			require.NoError(t, err)
 			result, err := svc.ListUnresolvedTestWrites(t.Context(), "ws-1")
 			require.ErrorIs(t, err, ErrTestWriteRecoveryUnavailable)

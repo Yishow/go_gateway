@@ -134,7 +134,7 @@ func (p *successorMySQLRuntimeInspector) InspectMySQLManagedTableAtRevision(_ co
 	}
 	return p.group, nil
 }
-func successorMySQLCatalog(scope recordingplan.SchemaPreviewScope) (*dbtarget.MySQLManagedInspection, *dbtarget.MySQLManagedInspection) {
+func successorMySQLCatalog(scope recordingplan.SchemaPreviewScope) (groupCatalog, receiptCatalog *dbtarget.MySQLManagedInspection) {
 	layout := scope.GroupLayout
 	physical := makeMySQLPhysical(layout.TableName, layout.OwnerColumn, *layout, layout.MySQL.NativeMonthly)
 	receipt := makeMySQLReceiptPhysical()

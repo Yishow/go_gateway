@@ -123,8 +123,8 @@ func runtimeSafeEnum(value string, allowed ...string) string {
 
 func runtimeSafeAvailabilityReason(value *string) *string {
 	if value != nil && *value == "invalid Step 1 configuration" {
-		copy := *value
-		return &copy
+		cloned := *value
+		return &cloned
 	}
 	return runtimeSafeDiagnosticPointer(value)
 }

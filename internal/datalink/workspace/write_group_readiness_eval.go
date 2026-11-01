@@ -50,7 +50,7 @@ func (s *WriteGroupService) readinessOf(ctx context.Context, id string, content 
 	}
 	if isSuccessorReservedError(snapshot.validateErr) {
 		result := newWriteGroupReadiness(snapshot.record, snapshot.group)
-		result.Issues = append(result.Issues, writeGroupReadinessIssue("successor_reserved", "reserved successor is unavailable until reviewed activation", id))
+		result.Issues = append(result.Issues, writeGroupReadinessIssue(writeGroupReasonSuccessorReserved, "reserved successor is unavailable until reviewed activation", id))
 		return result, nil
 	}
 	return s.evaluateReadinessSnapshot(ctx, id, content, snapshot, func(ctx context.Context) (*writeGroupReadinessSnapshot, error) {
@@ -60,7 +60,7 @@ func (s *WriteGroupService) readinessOf(ctx context.Context, id string, content 
 
 // evaluateReadinessSnapshot shares schema evaluation, never ownership authority.
 // Every caller must supply its own mandatory, guarded coherent reloader.
-func (s *WriteGroupService) evaluateReadinessSnapshot(ctx context.Context, id string, content *WriteGroup, snapshot *writeGroupReadinessSnapshot, reload func(context.Context) (*writeGroupReadinessSnapshot, error)) (*WriteGroupReadiness, error) {
+func (s *WriteGroupService) evaluateReadinessSnapshot(ctx context.Context, id string, _ *WriteGroup, snapshot *writeGroupReadinessSnapshot, reload func(context.Context) (*writeGroupReadinessSnapshot, error)) (*WriteGroupReadiness, error) {
 	if snapshot == nil || reload == nil {
 		return nil, ErrWriteGroupReadinessUnavailable
 	}
@@ -163,7 +163,7 @@ func (s *WriteGroupService) evaluateReadinessSnapshot(ctx context.Context, id st
 		}
 	}
 	receiptReady := false
-	if inspectErr == nil && strings.EqualFold(strings.TrimSpace(snapshot.validated.WritePolicy.DedupeCapability), "receipt") {
+	if inspectErr == nil && strings.EqualFold(strings.TrimSpace(snapshot.validated.WritePolicy.DedupeCapability), writeGroupDedupeReceipt) {
 		var receipts *dbtarget.TableInspection
 		var receiptErr error
 		if managedCanonical {
@@ -219,7 +219,7 @@ func (s *WriteGroupService) evaluateReadinessSnapshot(ctx context.Context, id st
 	schemaReady, schemaIssues := evaluateWriteGroupInspection(
 		postSnapshot.validated, postSnapshot.tagTypes, inspection, postSnapshot.connectorKind,
 	)
-	if managedCanonical && strings.EqualFold(strings.TrimSpace(postSnapshot.validated.WritePolicy.DedupeCapability), "receipt") && !receiptReady {
+	if managedCanonical && strings.EqualFold(strings.TrimSpace(postSnapshot.validated.WritePolicy.DedupeCapability), writeGroupDedupeReceipt) && !receiptReady {
 		schemaReady = false
 		schemaIssues = append(schemaIssues, writeGroupReadinessIssue(
 			"managed-receipt-unverified", "managed receipt ownership and canonical schema could not be verified", id,
@@ -345,7 +345,7 @@ func validateBasicWriteGroupConfig(group *WriteGroup) []ReadinessIssue {
 		))
 	}
 	incompletePolicy := strings.ToLower(strings.TrimSpace(group.RowPolicy.IncompletePolicy))
-	if incompletePolicy != "" && incompletePolicy != writeGroupIncompletePolicySkipRow && incompletePolicy != "partial" {
+	if incompletePolicy != "" && incompletePolicy != writeGroupIncompletePolicySkipRow && incompletePolicy != writeGroupIncompletePolicyPartial {
 		issues = append(issues, writeGroupReadinessIssue(
 			"incomplete-policy-blocked", "selected incomplete-row policy is not supported by basic readiness", group.ID,
 		))
@@ -369,7 +369,7 @@ func validateBasicWriteGroupConfig(group *WriteGroup) []ReadinessIssue {
 func writeGroupReadinessValidationIssue(err error, scope string) (ReadinessIssue, bool) {
 	switch {
 	case isSuccessorReservedError(err):
-		return writeGroupReadinessIssue("successor_reserved", "reserved successor is unavailable until reviewed activation", scope), true
+		return writeGroupReadinessIssue(writeGroupReasonSuccessorReserved, "reserved successor is unavailable until reviewed activation", scope), true
 	case errors.Is(err, ErrWriteGroupConnectorRevisionConflict):
 		return writeGroupReadinessIssue("connector-revision-stale", "saved connector identity revision is stale", scope), true
 	case errors.Is(err, ErrWriteGroupSourceRevisionConflict):

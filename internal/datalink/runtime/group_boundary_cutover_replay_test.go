@@ -48,7 +48,7 @@ func freezeHandoffRuntime(t *testing.T, store *groupdelivery.Store, f *longFixtu
 	raw, err = json.Marshal(frozen)
 	require.NoError(t, err)
 	// Initial fixture construction only: neither owner has accepted any input.
-	_, err = store.DB().Exec(`UPDATE wg_runtime_versions SET payload=? WHERE workspace_id=? AND group_id=? AND group_revision=?`, string(raw), key.WorkspaceID, key.GroupID, key.GroupRevision)
+	_, err = store.DB().ExecContext(t.Context(), `UPDATE wg_runtime_versions SET payload=? WHERE workspace_id=? AND group_id=? AND group_revision=?`, string(raw), key.WorkspaceID, key.GroupID, key.GroupRevision)
 	require.NoError(t, err)
 	return key
 }
@@ -56,11 +56,11 @@ func freezeHandoffRuntime(t *testing.T, store *groupdelivery.Store, f *longFixtu
 func runtimeHandoffVersion(t *testing.T, tx *sql.Tx, f *longFixture, effective time.Time) {
 	t.Helper()
 	g := f.config.Group
-	_, err := tx.Exec(`INSERT INTO write_groups(id,workspace_id,revision,applied_revision,name,status,destination_connector_id,destination_connector_revision,destination_table_name) VALUES(?,?,?,?,?,'ready',?,?,?)`, g.ID, g.WorkspaceID, g.Revision, g.AppliedRevision, g.ID, g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.TableName)
+	_, err := tx.ExecContext(t.Context(), `INSERT INTO write_groups(id,workspace_id,revision,applied_revision,name,status,destination_connector_id,destination_connector_revision,destination_table_name) VALUES(?,?,?,?,?,'ready',?,?,?)`, g.ID, g.WorkspaceID, g.Revision, g.AppliedRevision, g.ID, g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.TableName)
 	require.NoError(t, err)
 	raw, err := json.Marshal(g)
 	require.NoError(t, err)
-	_, err = tx.Exec(`INSERT INTO write_group_versions(group_id,group_revision,effective_at,payload) VALUES(?,?,?,?)`, g.ID, g.AppliedRevision, effective, string(raw))
+	_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_versions(group_id,group_revision,effective_at,payload) VALUES(?,?,?,?)`, g.ID, g.AppliedRevision, effective, string(raw))
 	require.NoError(t, err)
 }
 
@@ -117,13 +117,13 @@ func newRuntimeHandoffFixtureWithLegacy(t *testing.T, legacy bool) *runtimeHando
 		"moved":                    []workspace.CutoverMemberRef{{DeviceID: m.DeviceID, PointID: m.PointID, TagID: m.TagID}},
 	})
 	require.NoError(t, err)
-	_, err = tx.Exec(`INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,intent) VALUES('runtime-handoff',?,'forward',?,?,'runtime-review',?,'{}')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, boundary.Format(time.RFC3339Nano), string(detail))
+	_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,intent) VALUES('runtime-handoff',?,'forward',?,?,'runtime-review',?,'{}')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, boundary.Format(time.RFC3339Nano), string(detail))
 	require.NoError(t, err)
-	_, err = tx.Exec(`INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,'runtime-handoff')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, f.sourceKey.GroupRevision, boundary.Format(time.RFC3339Nano))
+	_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,'runtime-handoff')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, f.sourceKey.GroupRevision, boundary.Format(time.RFC3339Nano))
 	require.NoError(t, err)
 	for direction, owner := range map[string]*longFixture{"ended": source, "started": target} {
 		g := owner.config.Group
-		_, err = tx.Exec(`INSERT INTO write_group_ownership_fences(fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) VALUES('runtime-handoff',?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.WorkspaceID, direction, g.ID, g.AppliedRevision, m.DeviceID, m.PointID, m.TagID, string(g.RecordingProfile.Kind), g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.Database, g.Destination.TableSchema, g.Destination.TableName)
+		_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_ownership_fences(fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) VALUES('runtime-handoff',?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.WorkspaceID, direction, g.ID, g.AppliedRevision, m.DeviceID, m.PointID, m.TagID, string(g.RecordingProfile.Kind), g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.Database, g.Destination.TableSchema, g.Destination.TableName)
 		require.NoError(t, err)
 	}
 	require.NoError(t, tx.Commit())
@@ -160,8 +160,8 @@ func TestGroupBoundaryCutoverReplayAuthorizesOriginalCounterProofWithoutRekey(t 
 	require.NoError(t, old.Tick(t.Context(), at(700*time.Second)))
 	require.NoError(t, target.Tick(t.Context(), at(700*time.Second)))
 	var oldConsumed, targetConsumed int
-	require.NoError(t, f.store.DB().QueryRow(`SELECT consumed FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='counter-after'`, f.sourceKey.GroupID).Scan(&oldConsumed))
-	require.NoError(t, f.store.DB().QueryRow(`SELECT consumed FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='counter-after'`, f.targetKey.GroupID).Scan(&targetConsumed))
+	require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT consumed FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='counter-after'`, f.sourceKey.GroupID).Scan(&oldConsumed))
+	require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT consumed FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='counter-after'`, f.targetKey.GroupID).Scan(&targetConsumed))
 	require.Zero(t, oldConsumed)
 	require.Equal(t, 1, targetConsumed)
 	_, err = f.store.Reclaim(t.Context(), 0)
@@ -169,7 +169,7 @@ func TestGroupBoundaryCutoverReplayAuthorizesOriginalCounterProofWithoutRekey(t 
 	require.NoError(t, target.Tick(t.Context(), at(1300*time.Second)))
 	require.NoError(t, target.AcceptOwnedSample(t.Context(), f.target.envelope(0, "counter-after", at(13*time.Second), uint64(200))))
 	var rows int
-	require.NoError(t, f.store.DB().QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples WHERE json_extract(payload,'$.sample_id')='counter-after'`).Scan(&rows))
+	require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples WHERE json_extract(payload,'$.sample_id')='counter-after'`).Scan(&rows))
 	require.Zero(t, rows, "finalized replay cannot reconstruct or reappend GC'd accepted bytes")
 }
 
@@ -215,7 +215,7 @@ func TestGroupBoundaryCutoverReplayTransferBetweenRecognitionAndAppend(t *testin
 	fresh := f.target.build(t)
 	require.NoError(t, fresh.Tick(t.Context(), at(700*time.Second)))
 	var copies, consumed int
-	require.NoError(t, f.store.DB().QueryRow(`SELECT COUNT(*),SUM(consumed) FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='counter-after'`, f.targetKey.GroupID).Scan(&copies, &consumed))
+	require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*),SUM(consumed) FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='counter-after'`, f.targetKey.GroupID).Scan(&copies, &consumed))
 	require.Equal(t, 1, copies)
 	require.Equal(t, 1, consumed)
 }
@@ -240,7 +240,7 @@ func TestGroupBoundaryCutoverReplayLegacyOriginCannotBorrowAssociation(t *testin
 	fresh := f.target.build(t)
 	require.NoError(t, fresh.Tick(t.Context(), at(700*time.Second)))
 	var targetAssociations int
-	require.NoError(t, f.store.DB().QueryRow(`SELECT COUNT(*) FROM wg_counter_proof_associations WHERE group_id=?`, f.targetKey.GroupID).Scan(&targetAssociations))
+	require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_counter_proof_associations WHERE group_id=?`, f.targetKey.GroupID).Scan(&targetAssociations))
 	require.Zero(t, targetAssociations, "legacy transfer keeps its original association, never a target rewrite")
 }
 
@@ -258,7 +258,7 @@ func TestGroupBoundaryCutoverReplayReopensDurableTransfer(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, batch.Accepted)
 	var copies, consumed int
-	require.NoError(t, reopened.DB().QueryRow(`SELECT COUNT(*),SUM(consumed) FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='counter-after'`, f.targetKey.GroupID).Scan(&copies, &consumed))
+	require.NoError(t, reopened.DB().QueryRowContext(t.Context(), `SELECT COUNT(*),SUM(consumed) FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')='counter-after'`, f.targetKey.GroupID).Scan(&copies, &consumed))
 	require.Equal(t, 1, copies)
 	require.Equal(t, 1, consumed)
 }

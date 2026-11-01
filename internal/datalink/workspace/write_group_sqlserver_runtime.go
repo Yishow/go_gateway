@@ -75,7 +75,7 @@ func ValidateSQLServerRuntimeLayout(group *WriteGroup, frozen *WriteGroupRuntime
 	options := recordingplan.SQLServerGroupSchemaOptions{
 		Database:           group.Destination.Database,
 		Schema:             group.Destination.TableSchema,
-		Collation:          evidence.ColumnCollations["record_id"],
+		Collation:          evidence.ColumnCollations[writeGroupRecordIDColumn],
 		ServerVersion:      evidence.ServerVersion,
 		ServerEdition:      evidence.ServerEdition,
 		CapabilityRevision: evidence.CapabilityRevision,

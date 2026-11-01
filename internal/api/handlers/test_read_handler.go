@@ -65,7 +65,7 @@ func (h *TestHandler) Read(c *gin.Context) {
 	if err != nil {
 		// 記錄錯誤日誌
 		if h.debugHandler != nil {
-			h.debugHandler.RecordLog("error", fmt.Sprintf("讀取失敗: %s", err.Error()), map[string]any{
+			h.debugHandler.RecordLog(apiResponseErrorKey, fmt.Sprintf("讀取失敗: %s", err.Error()), map[string]any{
 				apiResponseConnectionIDKey: req.ConnectionID,
 				apiResponseOperationKey:    req.Operation,
 				apiResponseAddressKey:      req.Address,

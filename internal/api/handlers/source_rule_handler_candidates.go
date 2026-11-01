@@ -62,7 +62,7 @@ func (h *SourceRuleHandler) RecomputeCandidates(c *gin.Context) {
 func candidateScopeFromQuery(c *gin.Context) sourcerule.CandidateScopeRequest {
 	return sourcerule.CandidateScopeRequest{
 		WorkspaceID:               c.Query("workspace_id"),
-		ExpectedWorkspaceRevision: c.Query("expected_workspace_revision"),
+		ExpectedWorkspaceRevision: c.Query(expectedWorkspaceRevisionField),
 		RevisionID:                c.Query("revision_id"),
 	}
 }

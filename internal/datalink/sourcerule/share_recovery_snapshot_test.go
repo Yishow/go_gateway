@@ -24,7 +24,7 @@ func shareRecoveryFixture(t *testing.T) (*sql.DB, modbusshare.Settings) {
 		`INSERT INTO source_rule_candidate_snapshots(source_rule_id,revision_id,candidate_type,payload,status,reason,generated_at) VALUES('r','rev','local_modbus_outputs','{"candidates":[{"point_id":"p","tag_id":"t","mapping_id":"m","register":0,"data_type":"uint16","status":"ready"}]}','ready','','2026-01-01T00:00:00Z')`,
 		`INSERT INTO system_settings(key,value) VALUES('studio_v2_workspace','{"id":"w","ordered_device_ids":["d"]}')`,
 	} {
-		_, err := db.Exec(q)
+		_, err := db.ExecContext(t.Context(), q)
 		require.NoError(t, err)
 	}
 	settings := modbusshare.DefaultSettings()
@@ -32,7 +32,7 @@ func shareRecoveryFixture(t *testing.T) (*sql.DB, modbusshare.Settings) {
 	settings.SettingsRevision = "set-1"
 	raw, err := json.Marshal(settings)
 	require.NoError(t, err)
-	_, err = db.Exec(`UPDATE system_settings SET value=? WHERE key='modbus_share'`, string(raw))
+	_, err = db.ExecContext(t.Context(), `UPDATE system_settings SET value=? WHERE key='modbus_share'`, string(raw))
 	require.NoError(t, err)
 	return db, settings
 }
@@ -41,7 +41,7 @@ func TestShareRecoverySnapshotInputWitness(t *testing.T) {
 	for _, kind := range []string{"unchanged", "candidate", "link", "tag", "mapping", "membership", "settings", "new-rule", "missing-candidate", "foreign-point-device"} {
 		t.Run(kind, func(t *testing.T) {
 			db, settings := shareRecoveryFixture(t)
-			tx, err := db.Begin()
+			tx, err := db.BeginTx(t.Context(), nil)
 			require.NoError(t, err)
 			initial, err := ReadShareRecoverySnapshot(t.Context(), tx, "w", settings)
 			require.NoError(t, err)
@@ -67,15 +67,15 @@ func TestShareRecoverySnapshotInputWitness(t *testing.T) {
 			case "missing-candidate":
 				query = `DELETE FROM source_rule_candidate_snapshots`
 			case "foreign-point-device":
-				_, err = db.Exec(`INSERT INTO devices(id,name,protocol,status) VALUES('foreign','foreign','modbus_tcp','active')`)
+				_, err = db.ExecContext(t.Context(), `INSERT INTO devices(id,name,protocol,status) VALUES('foreign','foreign','modbus_tcp','active')`)
 				require.NoError(t, err)
 				query = `UPDATE points SET device_id='foreign'`
 			}
 			if query != "" {
-				_, err = db.Exec(query)
+				_, err = db.ExecContext(t.Context(), query)
 				require.NoError(t, err)
 			}
-			tx, err = db.Begin()
+			tx, err = db.BeginTx(t.Context(), nil)
 			require.NoError(t, err)
 			defer tx.Rollback()
 			err = ValidateShareRecoverySnapshot(t.Context(), tx, "w", settings, initial.WitnessDigest)
@@ -92,9 +92,9 @@ func TestShareRecoverySnapshotRejectsIncompleteCandidate(t *testing.T) {
 	for _, payload := range []string{`{}`, `{"candidates":null}`, `{"candidates":[{"point_id":"p","data_type":"uint16","status":"ready"}]}`, `{"candidates":[{"point_id":"p","tag_id":"t","register":0,"data_type":"uint16","status":"out_of_sync"}]}`, `{"candidates":[{"point_id":"p","tag_id":"t","register":0,"data_type":"uint16","status":"deferred"}]}`} {
 		t.Run(payload, func(t *testing.T) {
 			db, settings := shareRecoveryFixture(t)
-			_, err := db.Exec(`UPDATE source_rule_candidate_snapshots SET payload=?`, payload)
+			_, err := db.ExecContext(t.Context(), `UPDATE source_rule_candidate_snapshots SET payload=?`, payload)
 			require.NoError(t, err)
-			tx, err := db.Begin()
+			tx, err := db.BeginTx(t.Context(), nil)
 			require.NoError(t, err)
 			defer tx.Rollback()
 			_, err = ReadShareRecoverySnapshot(t.Context(), tx, "w", settings)
@@ -105,9 +105,9 @@ func TestShareRecoverySnapshotRejectsIncompleteCandidate(t *testing.T) {
 
 func TestShareRecoverySnapshotAllowsExplicitEmptyCandidates(t *testing.T) {
 	db, settings := shareRecoveryFixture(t)
-	_, err := db.Exec(`UPDATE source_rule_candidate_snapshots SET payload='{"candidates":[]}'`)
+	_, err := db.ExecContext(t.Context(), `UPDATE source_rule_candidate_snapshots SET payload='{"candidates":[]}'`)
 	require.NoError(t, err)
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	defer tx.Rollback()
 	evidence, err := ReadShareRecoverySnapshot(t.Context(), tx, "w", settings)
@@ -118,7 +118,7 @@ func TestShareRecoverySnapshotAllowsExplicitEmptyCandidates(t *testing.T) {
 func TestShareRecoverySnapshotRejectsStaleSettingsInput(t *testing.T) {
 	db, settings := shareRecoveryFixture(t)
 	settings.CapacityRegisters--
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	defer tx.Rollback()
 	_, err = ReadShareRecoverySnapshot(t.Context(), tx, "w", settings)
@@ -130,19 +130,19 @@ func TestShareRecoverySnapshotWitnessesAbsentTag(t *testing.T) {
 	settings.Enabled = false
 	raw, err := json.Marshal(settings)
 	require.NoError(t, err)
-	_, err = db.Exec(`UPDATE system_settings SET value=? WHERE key='modbus_share'`, string(raw))
+	_, err = db.ExecContext(t.Context(), `UPDATE system_settings SET value=? WHERE key='modbus_share'`, string(raw))
 	require.NoError(t, err)
-	_, err = db.Exec(`UPDATE source_rule_candidate_snapshots SET payload='{"candidates":[{"point_id":"p","tag_id":"absent","data_type":"uint16","status":"deferred"}]}'`)
+	_, err = db.ExecContext(t.Context(), `UPDATE source_rule_candidate_snapshots SET payload='{"candidates":[{"point_id":"p","tag_id":"absent","data_type":"uint16","status":"deferred"}]}'`)
 	require.NoError(t, err)
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	evidence, err := ReadShareRecoverySnapshot(t.Context(), tx, "w", settings)
 	require.NoError(t, err)
 	require.Empty(t, evidence.Desired)
 	require.NoError(t, tx.Rollback())
-	_, err = db.Exec(`INSERT INTO tags(id,key,key_lower,display_name,data_type) VALUES('absent','absent','absent','Absent','uint16')`)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO tags(id,key,key_lower,display_name,data_type) VALUES('absent','absent','absent','Absent','uint16')`)
 	require.NoError(t, err)
-	tx, err = db.Begin()
+	tx, err = db.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	defer tx.Rollback()
 	require.ErrorIs(t, ValidateShareRecoverySnapshot(t.Context(), tx, "w", settings, evidence.WitnessDigest), ErrShareRecoverySnapshot)
@@ -150,9 +150,9 @@ func TestShareRecoverySnapshotWitnessesAbsentTag(t *testing.T) {
 
 func TestShareRecoverySnapshotRejectsBlockedSnapshot(t *testing.T) {
 	db, settings := shareRecoveryFixture(t)
-	_, err := db.Exec(`UPDATE source_rule_candidate_snapshots SET status='blocked',reason='repair-required'`)
+	_, err := db.ExecContext(t.Context(), `UPDATE source_rule_candidate_snapshots SET status='blocked',reason='repair-required'`)
 	require.NoError(t, err)
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	defer tx.Rollback()
 	_, err = ReadShareRecoverySnapshot(t.Context(), tx, "w", settings)

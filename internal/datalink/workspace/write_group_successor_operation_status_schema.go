@@ -14,7 +14,7 @@ func (s *WriteGroupService) successorSchemaOperationsInTx(ctx context.Context, t
 	if err != nil {
 		return nil, err
 	}
-	var candidates []string
+	candidates := make([]string, 0, 4)
 	for rows.Next() {
 		var candidate string
 		if err := rows.Scan(&candidate); err != nil {

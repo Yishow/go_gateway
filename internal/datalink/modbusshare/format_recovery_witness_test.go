@@ -12,10 +12,10 @@ func TestFormatRecoveryWitnessRejectsSameRevisionDirty(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 	db.SetMaxOpenConns(1)
-	_, err = db.Exec(`CREATE TABLE system_settings(key TEXT PRIMARY KEY,value TEXT,updated_at DATETIME); INSERT INTO system_settings VALUES('modbus_share_workspace_revision:ws','{"revision":"rev","dirty":false}',NULL)`)
+	_, err = db.ExecContext(t.Context(), `CREATE TABLE system_settings(key TEXT PRIMARY KEY,value TEXT,updated_at DATETIME); INSERT INTO system_settings VALUES('modbus_share_workspace_revision:ws','{"revision":"rev","dirty":false}',NULL)`)
 	require.NoError(t, err)
 	var witness string
-	require.NoError(t, db.QueryRow(`SELECT value FROM system_settings WHERE key='modbus_share_workspace_revision:ws'`).Scan(&witness))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT value FROM system_settings WHERE key='modbus_share_workspace_revision:ws'`).Scan(&witness))
 	ctx := WithFormatRecoveryWitness(t.Context(), "ws", witness)
 	store := NewSQLWorkspaceRevisionStore(db)
 	require.NoError(t, store.MarkDirty(t.Context(), "ws"))

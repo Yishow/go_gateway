@@ -33,7 +33,7 @@ func normalizeSuccessorReviewRequest(id string, req WriteGroupSuccessorReviewReq
 
 // normalizeSuccessorEnvelope is independent of live state, so exact retry can
 // prove its original identity after legitimate schema/workspace CAS advances.
-func normalizeSuccessorEnvelope(env WriteGroupSuccessorEnvelope) (WriteGroupSuccessorEnvelope, string, string, error) {
+func normalizeSuccessorEnvelope(env WriteGroupSuccessorEnvelope) (normalizedEnvelope WriteGroupSuccessorEnvelope, reviewDigest, reservationDigest string, validationError error) {
 	env.PredecessorGroupID = strings.TrimSpace(env.PredecessorGroupID)
 	if env.Version != successorReviewVersion || env.Generation < 1 || env.PredecessorGroupID == "" || len(env.SourceDefinitionDigest) != 64 {
 		return env, "", "", ErrWriteGroupValidation

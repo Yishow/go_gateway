@@ -58,7 +58,7 @@ func TestFormatDirtyOwnershipCannotBeForgedOrOutliveFailedFinalize(t *testing.T)
 				case "callback-fault":
 					return ErrFormatUnavailable
 				}
-				_, err := db.Exec(statement)
+				_, err := db.ExecContext(t.Context(), statement)
 				return err
 			}})
 			out, err := svc.MutateFormat(t.Context(), req)

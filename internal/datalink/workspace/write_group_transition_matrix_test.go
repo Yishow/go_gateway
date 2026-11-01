@@ -33,7 +33,7 @@ func transitionMatrixGroup(layout WriteGroupLayoutVersion) *WriteGroup {
 	return group
 }
 
-func transitionMatrixPair(from, to WriteGroupLayoutVersion) (*WriteGroup, *WriteGroup, map[string]schema.DataType) {
+func transitionMatrixPair(from, to WriteGroupLayoutVersion) (sourceGroup, targetGroup *WriteGroup, tagTypes map[string]schema.DataType) {
 	source := transitionMatrixGroup(from)
 	target := transitionMatrixGroup(to)
 	target.ID, target.Revision, target.Status = "G2", "R2", WriteGroupStatusDraft

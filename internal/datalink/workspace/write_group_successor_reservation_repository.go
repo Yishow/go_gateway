@@ -28,7 +28,7 @@ func (r *SQLWriteGroupRepository) reserveRecreatedDraftInTx(ctx context.Context,
 		return nil, recreateReservationConflict("lineage_changed")
 	}
 	if metadata.ReservedGroupID.Valid {
-		return nil, recreateReservationConflict("successor_reserved")
+		return nil, recreateReservationConflict(writeGroupReasonSuccessorReserved)
 	}
 	predecessor, err := r.get(ctx, tx, req.WorkspaceID, req.PredecessorGroupID)
 	if err != nil {

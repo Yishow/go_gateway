@@ -7,6 +7,11 @@ import (
 	"fmt"
 )
 
+const (
+	writeGroupRecordIDColumn = "record_id"
+	writeGroupDedupeReceipt  = "receipt"
+)
+
 func managedGroupTableName(id string) string {
 	digest := sha256.Sum256([]byte(id))
 	return "gw_group_" + hex.EncodeToString(digest[:16])
@@ -40,7 +45,7 @@ func prepareManagedWriteGroup(group *WriteGroup) error {
 		digest := sha256.Sum256(identity)
 		member.TargetColumn = "v_" + hex.EncodeToString(digest[:12])
 	}
-	group.RowPolicy.RecordKeyColumn = "record_id"
+	group.RowPolicy.RecordKeyColumn = writeGroupRecordIDColumn
 	group.RowPolicy.GroupIDColumn = "group_id"
 	group.RowPolicy.BucketStartColumn = "bucket_start"
 	if isMixedWriteGroup(group) && group.isWideProfile() {
@@ -60,6 +65,6 @@ func prepareManagedWriteGroup(group *WriteGroup) error {
 		}
 	}
 	group.WritePolicy.Mode = "append"
-	group.WritePolicy.DedupeCapability = "receipt"
+	group.WritePolicy.DedupeCapability = writeGroupDedupeReceipt
 	return nil
 }

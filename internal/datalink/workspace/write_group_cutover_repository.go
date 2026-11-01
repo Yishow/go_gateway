@@ -167,7 +167,7 @@ func (r *SQLWriteGroupRepository) activeOverlapInTx(ctx context.Context, runner 
 		return nil, fmt.Errorf("list active write groups: %w", err)
 	}
 	type applied struct{ id, revision string }
-	var active []applied
+	active := make([]applied, 0, 4)
 	for rows.Next() {
 		var a applied
 		if err := rows.Scan(&a.id, &a.revision); err != nil {

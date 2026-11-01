@@ -62,7 +62,8 @@ func (s *WriteGroupService) activationSchemaProofInTx(ctx context.Context, tx *s
 	group := snap.reserved.Group
 	var layout *recordingplan.GroupSchemaLayout
 	var err error
-	if snap.ready.connectorKind == writeGroupConnectorKindMySQL {
+	switch snap.ready.connectorKind {
+	case writeGroupConnectorKindMySQL:
 		token, e := recordingplan.SucceededSchemaTokenInTx(ctx, tx, group.WorkspaceID, group.Destination.SchemaRevision, group.Destination.SchemaDigest)
 		if e != nil {
 			return e
@@ -72,13 +73,13 @@ func (s *WriteGroupService) activationSchemaProofInTx(ctx context.Context, tx *s
 			return e
 		}
 		layout, err = successorMySQLProofLayout(group, family, token.GroupLayout)
-	} else if snap.ready.connectorKind == writeGroupConnectorKindSQLServer {
+	case writeGroupConnectorKindSQLServer:
 		token, e := recordingplan.SucceededSchemaTokenInTx(ctx, tx, group.WorkspaceID, group.Destination.SchemaRevision, group.Destination.SchemaDigest)
 		if e != nil {
 			return e
 		}
 		layout, err = successorSQLServerProofLayoutInTx(ctx, tx, group, token.GroupLayout)
-	} else {
+	default:
 		layout, err = managedSchemaLayout(group, snap.ready.tagTypes, snap.ready.connectorKind)
 	}
 	if err != nil {
@@ -112,7 +113,7 @@ func (s *WriteGroupService) activationCounterDigestInTx(ctx context.Context, tx 
 		if err != nil {
 			return "", err
 		}
-		comparable := make(CounterBindingProofs, len(original))
+		comparableBindings := make(CounterBindingProofs, len(original))
 		for _, proof := range original {
 			facts := proof.CounterBindingFacts
 			facts.Member.GroupID = snap.reserved.Group.ID
@@ -121,9 +122,9 @@ func (s *WriteGroupService) activationCounterDigestInTx(ctx context.Context, tx 
 			if err != nil {
 				return "", err
 			}
-			comparable[p.Member.Key()] = p
+			comparableBindings[p.Member.Key()] = p
 		}
-		if !reflect.DeepEqual(comparable, target) {
+		if !reflect.DeepEqual(comparableBindings, target) {
 			return "", ErrWriteGroupApplyNotReady
 		}
 	}
@@ -134,7 +135,7 @@ func (s *WriteGroupService) activationCounterDigestInTx(ctx context.Context, tx 
 // supported mode and canonical shape remain independently derived local facts.
 func successorMySQLProofLayout(group *WriteGroup, family string, recorded *recordingplan.GroupSchemaLayout) (*recordingplan.GroupSchemaLayout, error) {
 	if recorded == nil || recorded.MySQL == nil || recorded.MySQL.ServerFamily != family ||
-		(family != "mysql" && family != "mariadb") || !successorActivationEngineSupported(group, family) ||
+		(family != writeGroupConnectorKindMySQL && family != writeGroupConnectorFamilyMariaDB) || !successorActivationEngineSupported(group, family) ||
 		(group.StorageMode == WriteGroupStorageModeNativeMonthly) != (recorded.MySQL.NativeMonthly != nil) {
 		return nil, ErrWriteGroupValidation
 	}

@@ -20,6 +20,9 @@ import (
 	"go-gateway/internal/diagnostics"
 )
 
+const gatewayHostUnavailable = "unavailable"
+const gatewayHostStopping = "stopping"
+
 type gatewayHost struct {
 	launch                    apphost.Launch
 	cfg                       *config.Config
@@ -65,7 +68,7 @@ func (h *gatewayHost) requestQuit() {
 		if h.shutdown != nil {
 			h.shutdown.Begin()
 		} else {
-			h.updateShutdownState("stopping", "startup")
+			h.updateShutdownState(gatewayHostStopping, "startup")
 		}
 	})
 }
@@ -87,7 +90,7 @@ func (h *gatewayHost) updateState(process string) {
 	if h.runtime != nil && h.runtime.IsRunning() {
 		h.state.Acquisition = "running"
 	} else {
-		h.state.Acquisition = "unavailable"
+		h.state.Acquisition = gatewayHostUnavailable
 	}
 	if h.listener != nil {
 		base, local, err := apphost.ListenerURL(h.listener.Addr().String())
@@ -113,7 +116,7 @@ func (h *gatewayHost) updateShutdownState(process, phase string) {
 	h.state.LogsURL = ""
 	h.state.LogsUnavailable = "Gateway 正在關閉。"
 	if phase == "runtime" {
-		h.state.Acquisition = "stopping"
+		h.state.Acquisition = gatewayHostStopping
 	}
 	if phase == "pipeline" || phase == "share" || phase == "connections" || phase == "database" || phase == "diagnostics" {
 		h.state.Acquisition = "stopped"

@@ -12,7 +12,7 @@ import (
 func (response runtimeStatusResponse) MarshalJSON() ([]byte, error) {
 	type wireResponse runtimeStatusResponse
 	safe := wireResponse(response)
-	if runtimeSafeEnum(safe.SnapshotState.State, "ready", "empty", "degraded", "unavailable", "stale") == "" {
+	if runtimeSafeEnum(safe.SnapshotState.State, "ready", "empty", "degraded", "unavailable", runtimeStatusStale) == "" {
 		safe.SnapshotState = datalinkruntime.RuntimeUnavailableTruthState("runtime snapshot unavailable")
 	}
 	safe.SnapshotState.Reason = runtimeSafeDiagnostic(safe.SnapshotState.Reason)
@@ -26,7 +26,7 @@ func (response runtimeStatusResponse) MarshalJSON() ([]byte, error) {
 		d.DeviceID = runtimeSafeID(d.DeviceID)
 		d.PointID = runtimeSafeID(d.PointID)
 		d.TagID = runtimeSafeID(d.TagID)
-		d.Status = datalinkruntime.DatabaseDeliveryStatus(runtimeSafeEnum(string(d.Status), "succeeded", "failed"))
+		d.Status = datalinkruntime.DatabaseDeliveryStatus(runtimeSafeEnum(string(d.Status), "succeeded", workspaceMappingCleanupFailedStatus))
 		d.FailedStage = safeRuntimeDatabaseStage(d.FailedStage)
 		d.Stages = slices.Clone(d.Stages)
 		for j := range d.Stages {
@@ -41,7 +41,7 @@ func (response runtimeStatusResponse) MarshalJSON() ([]byte, error) {
 		d.DeviceID = runtimeSafeID(d.DeviceID)
 		d.PointID = runtimeSafeID(d.PointID)
 		d.TagID = runtimeSafeID(d.TagID)
-		d.Status = datalinkruntime.ModbusShareDeliveryStatus(runtimeSafeEnum(string(d.Status), "succeeded", "failed"))
+		d.Status = datalinkruntime.ModbusShareDeliveryStatus(runtimeSafeEnum(string(d.Status), "succeeded", workspaceMappingCleanupFailedStatus))
 		d.Stage = runtimeSafeID(d.Stage)
 		d.Error = runtimeSafeDiagnostic(d.Error)
 	}
@@ -58,7 +58,7 @@ func (response runtimeStatusResponse) MarshalJSON() ([]byte, error) {
 		d.Stages = slices.Clone(d.Stages)
 		for j := range d.Stages {
 			d.Stages[j].Stage = safeRuntimeFlowStage(d.Stages[j].Stage)
-			d.Stages[j].Status = datalinkruntime.RuntimeFlowStageStatus(runtimeSafeEnum(string(d.Stages[j].Status), "success", "failed", "unknown"))
+			d.Stages[j].Status = datalinkruntime.RuntimeFlowStageStatus(runtimeSafeEnum(string(d.Stages[j].Status), "success", workspaceMappingCleanupFailedStatus, runtimeStatusUnknown))
 			d.Stages[j].Reason = runtimeSafeDiagnostic(d.Stages[j].Reason)
 		}
 	}
@@ -68,16 +68,16 @@ func (response runtimeStatusResponse) MarshalJSON() ([]byte, error) {
 func safeRuntimeCollector(c runtimeCollectorResponse) runtimeCollectorResponse {
 	c.DeviceID = runtimeSafeID(c.DeviceID)
 	c.DeviceName = runtimeSafeLabel(c.DeviceName)
-	c.Protocol = runtimeSafeStatusChoice(c.Protocol, "modbus_tcp", "modbus_rtu", "modbus_udp", "fatek_fbs", "mc_3e", "mqtt")
-	c.Status = runtimeSafeStatusChoice(c.Status, "idle", "running", "warning", "error")
-	c.AvailabilityStatus = runtimeSafeStatusChoice(c.AvailabilityStatus, "available", "unavailable")
+	c.Protocol = runtimeSafeStatusChoice(c.Protocol, testClientProtocolModbusTCP, "modbus_rtu", "modbus_udp", "fatek_fbs", "mc_3e", "mqtt")
+	c.Status = runtimeSafeStatusChoice(c.Status, "idle", "running", "warning", apiResponseErrorKey)
+	c.AvailabilityStatus = runtimeSafeStatusChoice(c.AvailabilityStatus, runtimeEvidenceAvailable, "unavailable")
 	if c.Status == "unavailable" || c.AvailabilityStatus == "unavailable" || c.Protocol == "unavailable" || c.DeviceID == "" {
 		c.Running = false
 	}
 	c.AvailabilityReason = runtimeSafeAvailabilityReason(c.AvailabilityReason)
 	c.LastError = runtimeSafeDiagnosticPointer(c.LastError)
 	c.BreakerState = runtimeSafeStatusChoice(c.BreakerState, "open", "half-open", "closed")
-	c.ProjectionAlignment = runtimeSafeStatusChoice(c.ProjectionAlignment, "aligned", "deferred", "restart-required", "restart_required", "stale", "degraded")
+	c.ProjectionAlignment = runtimeSafeStatusChoice(c.ProjectionAlignment, "aligned", "deferred", "restart-required", "restart_required", runtimeStatusStale, "degraded")
 	c.RuntimeProjectionVersion = runtimeSafeID(c.RuntimeProjectionVersion)
 	c.WorkspaceProjectionVersion = runtimeSafeID(c.WorkspaceProjectionVersion)
 	c.ProjectionMessage = runtimeSafeDiagnostic(c.ProjectionMessage)
@@ -94,7 +94,7 @@ func safeRuntimeDatabaseStage(value datalinkruntime.DatabaseDeliveryStage) datal
 }
 
 func safeRuntimeFlowStage(value datalinkruntime.RuntimeFlowStage) datalinkruntime.RuntimeFlowStage {
-	return datalinkruntime.RuntimeFlowStage(runtimeSafeEnum(string(value), "collector", "mapping", "runtime_projection", "database_delivery"))
+	return datalinkruntime.RuntimeFlowStage(runtimeSafeEnum(string(value), "collector", studioLocatorOwnerMapping, "runtime_projection", "database_delivery"))
 }
 
 func runtimeSafeStatusChoice(value string, allowed ...string) string {
@@ -109,7 +109,7 @@ func runtimeSafeDiagnosticScope(value string) string {
 		return value
 	}
 	kind, id, found := strings.Cut(value, ":")
-	if found && runtimeSafeEnum(kind, "device", "point", "tag") != "" && runtimeSafeID(id) != "" {
+	if found && runtimeSafeEnum(kind, "device", "point", studioLocatorOwnerTag) != "" && runtimeSafeID(id) != "" {
 		return kind + ":" + id
 	}
 	return ""

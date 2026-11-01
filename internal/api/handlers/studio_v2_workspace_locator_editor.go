@@ -18,6 +18,9 @@ import (
 	"time"
 )
 
+const studioLocatorOwnerTag = "tag"
+const studioLocatorOwnerMapping = "mapping"
+
 var errStudioLocatorMissingBinding = errors.New("locator binding missing")
 
 type studioLocatorEditorObservation struct {
@@ -108,7 +111,7 @@ func (h *StudioV2WorkspaceHandler) readStudioLocatorEditor(ctx context.Context, 
 		}
 		t, err := r.Tags.GetByID(ctx, member.TagID)
 		if errors.Is(err, tag.ErrTagNotFound) {
-			out.Missing[key] = "tag"
+			out.Missing[key] = studioLocatorOwnerTag
 			continue
 		}
 		if err != nil || t == nil {
@@ -122,7 +125,7 @@ func (h *StudioV2WorkspaceHandler) readStudioLocatorEditor(ctx context.Context, 
 			return nil, studioLocatorReadError(err)
 		}
 		if len(rows) == 0 {
-			out.Missing[key] = "mapping"
+			out.Missing[key] = studioLocatorOwnerMapping
 			continue
 		}
 		if len(rows) != 1 || rows[0] == nil || rows[0].PointID != member.PointID || rows[0].TagID != member.TagID {
@@ -141,11 +144,11 @@ func (h *StudioV2WorkspaceHandler) readStudioLocatorEditor(ctx context.Context, 
 			return nil, runtimeEvidenceError(runtimeview.ReasonStale)
 		}
 		if !devices[d.ID] {
-			copy, err := cloneStudioLocatorValue(d)
+			cloned, err := cloneStudioLocatorValue(d)
 			if err != nil {
 				return nil, err
 			}
-			out.Devices = append(out.Devices, copy)
+			out.Devices = append(out.Devices, cloned)
 			devices[d.ID] = true
 		}
 		if !sources[source.Mapping.ID] {
@@ -191,11 +194,11 @@ func (h *StudioV2WorkspaceHandler) readStudioLocatorEditor(ctx context.Context, 
 			if projected.DatabaseTargetMapping.ConnectorID != record.DatabaseConnectorID || tags[projected.DatabaseTargetMapping.TagID] != projected.PointID {
 				continue
 			}
-			copy, err := cloneStudioLocatorValue(row)
+			cloned, err := cloneStudioLocatorValue(row)
 			if err != nil {
 				return nil, err
 			}
-			out.Targets = append(out.Targets, copy)
+			out.Targets = append(out.Targets, cloned)
 		}
 		sort.Slice(out.Targets, func(i, j int) bool { return out.Targets[i].ID < out.Targets[j].ID })
 	}

@@ -12,6 +12,8 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
+const runtimeRecordingMixed = "mixed"
+
 // projectLegacyRuntimeDelivery keeps the native delivery wire shape, not its raw
 // diagnostic strings. It neither reinterprets revisions nor authorizes recovery.
 func projectLegacyRuntimeDelivery(raw *grouppipeline.DeliveryView, expectedGroupID string) (*grouppipeline.DeliveryView, error) {
@@ -50,7 +52,7 @@ func projectLegacyRuntimeDelivery(raw *grouppipeline.DeliveryView, expectedGroup
 	}
 	for i := range result.Attention {
 		a := &result.Attention[i]
-		if !runtimeDeliveryIDs(a.EffectKey, a.PayloadDigest, a.GroupRevision, a.ConnectorID, a.ConnectorRevision, a.TableName) || !legacyDeliveryOptionalID(a.TableSchema) || !legacyDeliveryChoice(a.State, "blocked", "quarantined", "unknown") {
+		if !runtimeDeliveryIDs(a.EffectKey, a.PayloadDigest, a.GroupRevision, a.ConnectorID, a.ConnectorRevision, a.TableName) || !legacyDeliveryOptionalID(a.TableSchema) || !legacyDeliveryChoice(a.State, "blocked", "quarantined", runtimeStatusUnknown) {
 			return nil, unavailable
 		}
 		a.ErrorCode = legacyDeliveryReason(a.ErrorCode)
@@ -67,7 +69,7 @@ func projectLegacyRuntimeDelivery(raw *grouppipeline.DeliveryView, expectedGroup
 			return nil, unavailable
 		}
 		for j, cause := range b.Causes {
-			if !legacyDeliveryChoice(cause, "missing", "bad", "stale", "invalid", "no_data", "unavailable", "boundary") {
+			if !legacyDeliveryChoice(cause, runtimeStatusMissing, "bad", runtimeStatusStale, "invalid", "no_data", "unavailable", "boundary") {
 				b.Causes[j] = "unavailable"
 			}
 		}
@@ -130,22 +132,22 @@ func legacyDeliverySourceRecordSafe(r *groupdelivery.SourceRecord) bool {
 	if r == nil {
 		return true
 	}
-	if !legacyDeliveryChoice(string(r.Delivery), "", "queued", "retrying", "blocked", "quarantined", "unknown", "sql_committed", "operator_skipped", "window_skipped") || !legacyDeliveryChoice(string(r.Cause), "", "payload_invalid", "digest_mismatch", "identity_mismatch", "status_unknown", "window_invalid", "calculation_projection_unsupported") {
+	if !legacyDeliveryChoice(string(r.Delivery), "", "queued", "retrying", "blocked", "quarantined", runtimeStatusUnknown, "sql_committed", "operator_skipped", "window_skipped") || !legacyDeliveryChoice(string(r.Cause), "", "payload_invalid", "digest_mismatch", "identity_mismatch", "status_unknown", "window_invalid", "calculation_projection_unsupported") {
 		return false
 	}
 	v := r.VerifiedSourceRecord
 	if v == nil {
 		return !r.Available
 	}
-	if v.Calculation != nil || v.ProfileKind == "mixed" {
+	if v.Calculation != nil || v.ProfileKind == runtimeRecordingMixed {
 		return legacyDeliveryMixedRecordSafe(r)
 	}
-	if !r.Available || !runtimeDeliveryIDs(v.GroupRevision, v.ConnectorRevision, v.RecordID, v.EffectKey, v.PayloadDigest) || !legacyDeliveryChoice(v.ProfileKind, "instantaneous", "cumulative") || !legacyDeliveryChoice(string(v.Status), "ok", "partial", "baseline", "missing", "bad", "stale", "invalid", "reset_or_uncertain", "gap") {
+	if !r.Available || !runtimeDeliveryIDs(v.GroupRevision, v.ConnectorRevision, v.RecordID, v.EffectKey, v.PayloadDigest) || !legacyDeliveryChoice(v.ProfileKind, "instantaneous", "cumulative") || !legacyDeliveryChoice(string(v.Status), "ok", runtimeStatusPartial, "baseline", runtimeStatusMissing, "bad", runtimeStatusStale, "invalid", "reset_or_uncertain", "gap") {
 		return false
 	}
 	v.Reason = legacyDeliverySourceReason(v.Reason)
 	if a := v.Aggregation; a != nil {
-		if a.Method != measurement.MeanAggregationMethod || a.Version != measurement.MeanAggregationVersion || !legacyDeliveryChoice(a.Basis, string(measurement.MeanBasisExact), string(measurement.MeanBasisFloat64)) || !schema.DataType(a.SourceType).IsValid() || !legacyDeliveryChoice(a.ResultType, "decimal", "float64") || !legacyDeliveryChoice(a.Coverage, "partial", "unknown", "missing") {
+		if a.Method != measurement.MeanAggregationMethod || a.Version != measurement.MeanAggregationVersion || !legacyDeliveryChoice(a.Basis, string(measurement.MeanBasisExact), string(measurement.MeanBasisFloat64)) || !schema.DataType(a.SourceType).IsValid() || !legacyDeliveryChoice(a.ResultType, "decimal", "float64") || !legacyDeliveryChoice(a.Coverage, runtimeStatusPartial, runtimeStatusUnknown, runtimeStatusMissing) {
 			return false
 		}
 		a.Reason = legacyDeliverySourceReason(a.Reason)

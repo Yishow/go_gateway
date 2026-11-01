@@ -31,7 +31,7 @@ func buildRuntimeDatabaseConfig(workspaceID string, connector *schema.DatabaseCo
 	configErr := json.Unmarshal([]byte(connector.ConnectionConfig), &config)
 	kind := "unavailable"
 	switch connector.Kind {
-	case "sqlite", "postgres", "mysql", "sqlserver":
+	case "sqlite", "postgres", recordingDialectMySQL, "sqlserver":
 		kind = string(connector.Kind)
 	}
 	mode := "unavailable"
@@ -49,7 +49,7 @@ func buildRuntimeDatabaseConfig(workspaceID string, connector *schema.DatabaseCo
 	}
 	status := "unavailable"
 	switch connector.Status {
-	case "ready", "draft", "error", "disabled":
+	case "ready", "draft", apiResponseErrorKey, modbusShareStatusDisabled:
 		status = string(connector.Status)
 	}
 	return runtimeWorkspaceDatabaseConfig{
@@ -88,7 +88,7 @@ func runtimeSafeDataTypePointer(value *schema.DataType) *schema.DataType {
 
 func runtimeSafeMappingStatus(value schema.MappingStatus) schema.MappingStatus {
 	switch value {
-	case "draft", "validated", "active", "out_of_sync", "error":
+	case "draft", "validated", "active", "out_of_sync", apiResponseErrorKey:
 		return value
 	}
 	return ""

@@ -87,7 +87,7 @@ func TestLifecycleStopAndRemovePreserveAcceptedData(t *testing.T) {
 func TestLifecycleFailedRemovalPreservesAllAcceptedData(t *testing.T) {
 	db, service, group := lifecyclePreservationFixture(t)
 	seedLifecycleAcceptedData(t, db, group)
-	cause := &lifecyclePrivateCause{}
+	cause := &lifecyclePrivateError{}
 	service.WithBacklogOwnershipGuard(writeGroupBacklogGuardFunc(func(ctx context.Context, tx *sql.Tx, _ *WriteGroup) error {
 		var pending int
 		require.NoError(t, tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM wg_delivery_samples WHERE consumed=0`).Scan(&pending))
@@ -98,7 +98,7 @@ func TestLifecycleFailedRemovalPreservesAllAcceptedData(t *testing.T) {
 	config := lifecycleReadState(t, db)
 	_, err := service.Delete(t.Context(), group.ID, lifecycleReadMutation(t, service, group))
 	require.ErrorIs(t, err, ErrWriteGroupLifecycleBlocked)
-	var actual *lifecyclePrivateCause
+	var actual *lifecyclePrivateError
 	require.ErrorAs(t, err, &actual)
 	require.Same(t, cause, actual)
 	require.Equal(t, before, lifecyclePreservedData(t, db))
@@ -150,7 +150,7 @@ func seedLifecycleAcceptedData(t *testing.T, db *sql.DB, group *WriteGroup) *gro
 	// D1 is the exact frozen destination represented by these persisted fields.
 	destination := groupdelivery.FrozenDestination{Scope: scope, ConnectorID: d.ConnectorID, ConnectorRevision: d.ConnectorRevision, Database: d.Database, TableSchema: d.TableSchema, TableName: d.TableName, DedupeCapability: groupdelivery.DedupeNone}
 	start := time.Date(2026, 10, 2, 12, 0, 15, 0, time.UTC)
-	var buckets []groupdelivery.ClosedBucket
+	buckets := make([]groupdelivery.ClosedBucket, 0, 6)
 	for i, effect := range []string{"Q1", "Qretry", "Qblocked", "Qunknown", "Qsending", "Qcommitted"} {
 		bucket := start.Add(time.Duration(i) * 15 * time.Second)
 		row := &dbtarget.EncodedRow{RecordID: effect, EffectKey: effect, BucketStart: bucket, Cells: []dbtarget.EncodedCell{{Column: "temperature", Value: 21.5}}}

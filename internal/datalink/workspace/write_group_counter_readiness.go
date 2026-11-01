@@ -94,7 +94,8 @@ func (s *WriteGroupService) counterBindingEvidenceInTx(ctx context.Context, tx *
 				continue
 			}
 			var proof CounterBindingProof
-			if member.ExactRecordingSource != nil {
+			switch {
+			case member.ExactRecordingSource != nil:
 				source := member.ExactRecordingSource
 				if def.ExactRecordingScale != source.Scale ||
 					def.DefinitionRevision != source.DefinitionRevision ||
@@ -106,10 +107,10 @@ func (s *WriteGroupService) counterBindingEvidenceInTx(ctx context.Context, tx *
 				}
 				identity := CounterBindingMemberIdentity{WorkspaceID: group.WorkspaceID, GroupID: group.ID, AppliedRevision: group.Revision, DeviceID: member.DeviceID, PointID: member.PointID, TagID: member.TagID}
 				proof, err = CounterBindingProofFromExactSource(identity, member, tagTypes[member.TagID])
-			} else if strings.TrimSpace(def.ExactRecordingScale) != "" && group.isLongLayout() && group.Destination.StorageStrategy == WriteGroupStorageStrategyManaged {
+			case strings.TrimSpace(def.ExactRecordingScale) != "" && group.isLongLayout() && group.Destination.StorageStrategy == WriteGroupStorageStrategyManaged:
 				reasons[counterMeasurementUnconfirmed] = true
 				continue
-			} else {
+			default:
 				proof, err = unscaledCounterBindingProof(group, member, tagTypes[member.TagID], def)
 			}
 			if err != nil {

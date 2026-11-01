@@ -15,10 +15,10 @@ func TestMixedProfileMigrationRestoresConnectionIdentity(t *testing.T) {
 			for _, fail := range []bool{false, true} {
 				t.Run(fmt.Sprintf("store%d/temp%t/fail%t", store, preexisting, fail), func(t *testing.T) {
 					db := legacyMixedStorageDB(t)
-					_, err := db.Exec(fmt.Sprintf("PRAGMA temp_store=%d", store))
+					_, err := db.ExecContext(t.Context(), fmt.Sprintf("PRAGMA temp_store=%d", store))
 					require.NoError(t, err)
 					if preexisting {
-						_, err = db.Exec(`CREATE TEMP TABLE keep_my_data(value TEXT); INSERT INTO keep_my_data VALUES('unchanged')`)
+						_, err = db.ExecContext(t.Context(), `CREATE TEMP TABLE keep_my_data(value TEXT); INSERT INTO keep_my_data VALUES('unchanged')`)
 						require.NoError(t, err)
 					}
 					injected := errors.New("rollback after rename")

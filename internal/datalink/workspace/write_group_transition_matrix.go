@@ -104,7 +104,7 @@ func transitionRejection(reason string) error {
 
 func transitionEngineSupported(engine string) bool {
 	switch engine {
-	case writeGroupConnectorKindSQLite, writeGroupConnectorKindPostgres, writeGroupConnectorKindMySQL, "mariadb", writeGroupConnectorKindSQLServer:
+	case writeGroupConnectorKindSQLite, writeGroupConnectorKindPostgres, writeGroupConnectorKindMySQL, writeGroupConnectorFamilyMariaDB, writeGroupConnectorKindSQLServer:
 		return true
 	}
 	return false
@@ -141,7 +141,7 @@ func transitionStorageMode(group *WriteGroup, engine string) (WriteGroupStorageM
 	case WriteGroupStorageModeTimescale:
 		return mode, engine == writeGroupConnectorKindPostgres
 	case WriteGroupStorageModeNativeMonthly:
-		return mode, engine == writeGroupConnectorKindMySQL || engine == "mariadb" || engine == writeGroupConnectorKindSQLServer
+		return mode, engine == writeGroupConnectorKindMySQL || engine == writeGroupConnectorFamilyMariaDB || engine == writeGroupConnectorKindSQLServer
 	}
 	return mode, false
 }

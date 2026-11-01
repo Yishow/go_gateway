@@ -19,10 +19,10 @@ func formatFixture(t *testing.T) (*sql.DB, *Service, FormatMutationRequest) {
 	for _, file := range []string{"005_source_rules_sqlite.up.sql", "009_source_rule_revision_sqlite.up.sql"} {
 		raw, err := os.ReadFile("../schema/migrations/" + file)
 		require.NoError(t, err)
-		_, err = db.Exec(string(raw))
+		_, err = db.ExecContext(t.Context(), string(raw))
 		require.NoError(t, err)
 	}
-	_, err := db.Exec(`ALTER TABLE source_rules ADD COLUMN data_format TEXT`)
+	_, err := db.ExecContext(t.Context(), `ALTER TABLE source_rules ADD COLUMN data_format TEXT`)
 	require.NoError(t, err)
 	dev, _ := setupTestData(t, db)
 	repo := NewSQLRepository(db)
@@ -31,7 +31,7 @@ func formatFixture(t *testing.T) (*sql.DB, *Service, FormatMutationRequest) {
 	p.RevisionID = "point-old"
 	require.NoError(t, repo.Create(t.Context(), p))
 	ws, _ := json.Marshal(map[string]any{"id": "ws", "ordered_device_ids": []string{dev}})
-	_, err = db.Exec(`INSERT INTO system_settings(key,value) VALUES ('studio_v2_workspace',?),('modbus_share_workspace_revision:ws','{"revision":"ws-old","dirty":false}')`, string(ws))
+	_, err = db.ExecContext(t.Context(), `INSERT INTO system_settings(key,value) VALUES ('studio_v2_workspace',?),('modbus_share_workspace_revision:ws','{"revision":"ws-old","dirty":false}')`, string(ws))
 	require.NoError(t, err)
 	rev := p.RevisionID
 	req := FormatMutationRequest{FormatScope: FormatScope{WorkspaceID: "ws", DeviceID: dev, PointID: p.ID, ExpectedWorkspaceRevision: "ws-old", ExpectedPointRevision: &rev, RequestID: "request-1"}, FormatMode: schema.PointFormatOverride, ConfiguredFormat: "CDAB"}
@@ -90,7 +90,7 @@ func TestFormatMutationSQLScopeAndRevisionGuards(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, "point-old", p.RevisionID)
 			var count int
-			require.NoError(t, db.QueryRow(`SELECT count(*) FROM system_settings WHERE key LIKE 'point_format_receipt:%'`).Scan(&count))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM system_settings WHERE key LIKE 'point_format_receipt:%'`).Scan(&count))
 			require.Zero(t, count)
 		})
 	}
@@ -107,28 +107,28 @@ func TestFormatMutationSQLRollbackFailureAndSanitizedReceipt(t *testing.T) {
 			if target == "point" {
 				trigger = `CREATE TRIGGER fail_format BEFORE UPDATE ON points BEGIN SELECT RAISE(ABORT,'secret://db-error'); END;`
 			}
-			_, err := db.Exec(trigger)
+			_, err := db.ExecContext(t.Context(), trigger)
 			require.NoError(t, err)
 			got, err := svc.MutateFormat(t.Context(), req)
 			require.ErrorIs(t, err, ErrFormatUnavailable)
 			require.Nil(t, got)
 			require.NotContains(t, err.Error(), "secret")
 			var pointRevision, workspaceRevision string
-			require.NoError(t, db.QueryRow(`SELECT revision_id FROM points`).Scan(&pointRevision))
-			require.NoError(t, db.QueryRow(`SELECT json_extract(value,'$.revision') FROM system_settings WHERE key='modbus_share_workspace_revision:ws'`).Scan(&workspaceRevision))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT revision_id FROM points`).Scan(&pointRevision))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT json_extract(value,'$.revision') FROM system_settings WHERE key='modbus_share_workspace_revision:ws'`).Scan(&workspaceRevision))
 			require.Equal(t, "point-old", pointRevision)
 			require.Equal(t, "ws-old", workspaceRevision)
 		})
 	}
 	db, svc, req := formatFixture(t)
-	_, err := db.Exec(`UPDATE points SET last_error='secret://telemetry',last_value='private'`)
+	_, err := db.ExecContext(t.Context(), `UPDATE points SET last_error='secret://telemetry',last_value='private'`)
 	require.NoError(t, err)
 	got, err := svc.MutateFormat(t.Context(), req)
 	require.NoError(t, err)
 	require.Empty(t, got.Point.LastError)
 	require.Nil(t, got.Point.LastValue)
 	var receipt string
-	require.NoError(t, db.QueryRow(`SELECT value FROM system_settings WHERE key LIKE 'point_format_receipt:%'`).Scan(&receipt))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT value FROM system_settings WHERE key LIKE 'point_format_receipt:%'`).Scan(&receipt))
 	require.NotContains(t, receipt, "secret")
 	require.NotContains(t, receipt, "private")
 }
@@ -151,7 +151,7 @@ func TestFormatMutationSQLMixedLegacyPatchAndCAS(t *testing.T) {
 	require.Equal(t, got.Point.RevisionID, current.RevisionID)
 	require.Equal(t, "CDAB", current.FormatOverride)
 	// A deliberate subsequent request after the existing hydration/reconcile clears dirty.
-	_, err = db.Exec(`UPDATE system_settings SET value=json_set(value,'$.dirty',json('false')) WHERE key='modbus_share_workspace_revision:ws'`)
+	_, err = db.ExecContext(t.Context(), `UPDATE system_settings SET value=json_set(value,'$.dirty',json('false')) WHERE key='modbus_share_workspace_revision:ws'`)
 	require.NoError(t, err)
 	req.RequestID = "reset"
 	req.ExpectedWorkspaceRevision = got.WorkspaceRevision

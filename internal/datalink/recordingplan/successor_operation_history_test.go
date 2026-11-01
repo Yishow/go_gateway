@@ -11,7 +11,7 @@ import (
 
 func insertForeignSuccessorHistory(t *testing.T, tx *sql.Tx, id, workspaceID, raw string) {
 	t.Helper()
-	_, err := tx.Exec(`INSERT INTO managed_schema_operations
+	_, err := tx.ExecContext(t.Context(), `INSERT INTO managed_schema_operations
   (operation_id,token,workspace_id,scope_key,owner,action,status,created_at,updated_at,detail)
   VALUES(?,?,?,?,?,'successor_first_start','unknown',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,?)`,
 		id, "token-"+id, workspaceID, "scope-"+id, "owner-"+id, raw)

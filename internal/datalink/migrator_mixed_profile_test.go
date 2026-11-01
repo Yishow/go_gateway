@@ -27,10 +27,10 @@ func legacyMixedStorageDB(t *testing.T, paths ...string) *sql.DB {
 	for _, name := range []string{"024_write_groups_sqlite.up.sql", "029_write_group_circuit_profiles_sqlite.up.sql"} {
 		raw, err := migrations.FS.ReadFile(name)
 		require.NoError(t, err)
-		_, err = db.Exec(string(raw))
+		_, err = db.ExecContext(t.Context(), string(raw))
 		require.NoError(t, err)
 	}
-	_, err = db.Exec(`PRAGMA foreign_keys=ON;
+	_, err = db.ExecContext(t.Context(), `PRAGMA foreign_keys=ON;
  INSERT INTO write_groups(id,workspace_id,revision,name,destination_connector_id,destination_connector_revision,destination_table_name,profile_kind,profile_interval,profile_unit)
  VALUES('legacy','ws','revision-exact','Legacy','connector','connector-revision','history','instantaneous',15,'second');
  INSERT INTO write_group_members(group_id,member_index,device_id,point_id,tag_id,target_column) VALUES('legacy',0,'device','point','tag','value');
@@ -52,30 +52,30 @@ func TestMixedProfileMigrationPreservesSchemaAndValues(t *testing.T) {
 	}
 	// The same canonical table must admit mixed; migration cannot route storage
 	// to a shadow authority, rewrite the legacy kind, or drop referenced rows.
-	_, err := db.Exec(`UPDATE write_groups SET profile_kind='mixed',profile_interval=NULL,profile_unit=NULL,result_shape='member-calculation-v1' WHERE id='legacy'`)
+	_, err := db.ExecContext(t.Context(), `UPDATE write_groups SET profile_kind='mixed',profile_interval=NULL,profile_unit=NULL,result_shape='member-calculation-v1' WHERE id='legacy'`)
 	require.NoError(t, err)
 	var count, fk int
-	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM write_group_members WHERE group_id='legacy'`).Scan(&count))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM write_group_members WHERE group_id='legacy'`).Scan(&count))
 	require.Equal(t, 1, count)
-	require.NoError(t, db.QueryRow(`PRAGMA foreign_keys`).Scan(&fk))
+	require.NoError(t, db.QueryRowContext(t.Context(), `PRAGMA foreign_keys`).Scan(&fk))
 	require.Equal(t, 1, fk)
 	var revision string
-	require.NoError(t, db.QueryRow(`SELECT revision FROM preserve_view WHERE id='legacy'`).Scan(&revision))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT revision FROM preserve_view WHERE id='legacy'`).Scan(&revision))
 	require.Equal(t, "revision-exact", revision)
-	_, err = db.Exec(`UPDATE write_groups SET name='After' WHERE id='legacy'`)
+	_, err = db.ExecContext(t.Context(), `UPDATE write_groups SET name='After' WHERE id='legacy'`)
 	require.NoError(t, err)
-	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM audit_test WHERE value='After'`).Scan(&count))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM audit_test WHERE value='After'`).Scan(&count))
 	require.Equal(t, 1, count)
-	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='preserve_name'`).Scan(&count))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='preserve_name'`).Scan(&count))
 	require.Equal(t, 1, count)
-	_, err = db.Exec(`DELETE FROM write_groups WHERE id='legacy'`)
+	_, err = db.ExecContext(t.Context(), `DELETE FROM write_groups WHERE id='legacy'`)
 	require.Error(t, err, "foreign key still restricts delete")
 	require.NoError(t, ensureSQLiteMemberCalculationIntent(db))
 }
 
 func mixedStorageRow(t *testing.T, db *sql.DB) map[string]any {
 	t.Helper()
-	rows, err := db.Query("SELECT * FROM write_groups WHERE id='legacy'")
+	rows, err := db.QueryContext(t.Context(), "SELECT * FROM write_groups WHERE id='legacy'")
 	require.NoError(t, err)
 	defer rows.Close()
 	columns, err := rows.Columns()
@@ -101,11 +101,11 @@ func TestMixedProfileMigrationRollsBackEveryStage(t *testing.T) {
 		for _, fk := range []int{0, 1} {
 			t.Run(fmt.Sprintf("%s/fk%d", stage, fk), func(t *testing.T) {
 				db := legacyMixedStorageDB(t)
-				_, err := db.Exec(fmt.Sprintf("PRAGMA foreign_keys=%d", fk))
+				_, err := db.ExecContext(t.Context(), fmt.Sprintf("PRAGMA foreign_keys=%d", fk))
 				require.NoError(t, err)
 				before := mixedStorageRow(t, db)
 				var schemaBefore string
-				require.NoError(t, db.QueryRow(`SELECT sql FROM sqlite_master WHERE name='write_groups'`).Scan(&schemaBefore))
+				require.NoError(t, db.QueryRowContext(t.Context(), `SELECT sql FROM sqlite_master WHERE name='write_groups'`).Scan(&schemaBefore))
 				injected := errors.New("migration injected failure")
 				err = expandSQLiteMixedProfile(db, func(at string) error {
 					if at == stage {
@@ -116,12 +116,12 @@ func TestMixedProfileMigrationRollsBackEveryStage(t *testing.T) {
 				require.ErrorIs(t, err, injected)
 				require.Equal(t, before, mixedStorageRow(t, db))
 				var schemaAfter string
-				require.NoError(t, db.QueryRow(`SELECT sql FROM sqlite_master WHERE name='write_groups'`).Scan(&schemaAfter))
+				require.NoError(t, db.QueryRowContext(t.Context(), `SELECT sql FROM sqlite_master WHERE name='write_groups'`).Scan(&schemaAfter))
 				require.Equal(t, schemaBefore, schemaAfter)
 				var actual, count int
-				require.NoError(t, db.QueryRow(`PRAGMA foreign_keys`).Scan(&actual))
+				require.NoError(t, db.QueryRowContext(t.Context(), `PRAGMA foreign_keys`).Scan(&actual))
 				require.Equal(t, fk, actual)
-				require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name='write_groups_member_calculation_expand'`).Scan(&count))
+				require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sqlite_master WHERE name='write_groups_member_calculation_expand'`).Scan(&count))
 				require.Zero(t, count)
 				require.NoError(t, ensureSQLiteMemberCalculationIntent(db), "a failed migration remains safely retryable")
 			})
@@ -132,20 +132,20 @@ func TestMixedProfileMigrationRollsBackEveryStage(t *testing.T) {
 func TestMixedProfileMigrationRefusesUnknownSchemaAndForeignKeys(t *testing.T) {
 	t.Run("unknown column", func(t *testing.T) {
 		db := legacyMixedStorageDB(t)
-		_, err := db.Exec(`ALTER TABLE write_groups ADD COLUMN unrecognized TEXT`)
+		_, err := db.ExecContext(t.Context(), `ALTER TABLE write_groups ADD COLUMN unrecognized TEXT`)
 		require.NoError(t, err)
 		require.ErrorContains(t, ensureSQLiteMemberCalculationIntent(db), "unknown write_groups column")
 		var count int
-		require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('write_groups') WHERE name='result_shape'`).Scan(&count))
+		require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM pragma_table_info('write_groups') WHERE name='result_shape'`).Scan(&count))
 		require.Zero(t, count)
 	})
 	t.Run("preexisting foreign key violation is not repaired", func(t *testing.T) {
 		db := legacyMixedStorageDB(t)
-		_, err := db.Exec(`PRAGMA foreign_keys=OFF; UPDATE write_group_members SET group_id='missing'`)
+		_, err := db.ExecContext(t.Context(), `PRAGMA foreign_keys=OFF; UPDATE write_group_members SET group_id='missing'`)
 		require.NoError(t, err)
 		require.ErrorContains(t, ensureSQLiteMemberCalculationIntent(db), "foreign key check failed")
 		var fk int
-		require.NoError(t, db.QueryRow(`PRAGMA foreign_keys`).Scan(&fk))
+		require.NoError(t, db.QueryRowContext(t.Context(), `PRAGMA foreign_keys`).Scan(&fk))
 		require.Zero(t, fk)
 	})
 }
@@ -161,7 +161,7 @@ func TestMixedProfileMigrationConcurrentStartup(t *testing.T) {
 		db, err := sql.Open("sqlite", path)
 		require.NoError(t, err)
 		db.SetMaxOpenConns(1)
-		_, err = db.Exec("PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON")
+		_, err = db.ExecContext(t.Context(), "PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON")
 		require.NoError(t, err)
 		wait.Add(1)
 		go func() { defer wait.Done(); defer db.Close(); results <- ensureSQLiteMemberCalculationIntent(db) }()
@@ -175,6 +175,6 @@ func TestMixedProfileMigrationConcurrentStartup(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 	var kind string
-	require.NoError(t, db.QueryRow("SELECT profile_kind FROM write_groups WHERE id='legacy'").Scan(&kind))
+	require.NoError(t, db.QueryRowContext(t.Context(), "SELECT profile_kind FROM write_groups WHERE id='legacy'").Scan(&kind))
 	require.Equal(t, "instantaneous", kind)
 }

@@ -35,7 +35,7 @@ func (s *WriteGroupService) requireNoOtherSuccessorActiveOwnerInTx(ctx context.C
 		return err
 	}
 	type owner struct{ id, revision string }
-	var owners []owner
+	owners := make([]owner, 0, 4)
 	for rows.Next() {
 		var o owner
 		if err := rows.Scan(&o.id, &o.revision); err != nil {

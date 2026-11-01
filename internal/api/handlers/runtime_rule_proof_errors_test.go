@@ -167,3 +167,20 @@ func TestRuntimeExpectedUnavailableProofHTTPRetainsHistoricalProjection(t *testi
 		})
 	}
 }
+
+func TestRuntimeWrappedStaleSnapshotHTTPPreservesConflict(t *testing.T) {
+	h, _ := runtimeEvidenceScopeFixture(t)
+	h.sourceRuleReader = runtimeWrappedStaleRules{}
+	rec := runtimeEvidenceScopeRequest(t, h, "")
+	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "stale-reference")
+	require.NotContains(t, rec.Body.String(), "private-provider")
+}
+
+type runtimeWrappedStaleRules struct {
+	runtimeWorkspaceSourceRuleReader
+}
+
+func (runtimeWrappedStaleRules) ListByDeviceIDs(context.Context, []string) ([]*schema.SourceRule, error) {
+	return nil, fmt.Errorf("private-provider: %w", errRuntimeStaleReference)
+}

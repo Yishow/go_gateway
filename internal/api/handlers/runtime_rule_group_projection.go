@@ -7,6 +7,8 @@ import (
 	"go-gateway/internal/datalink/workspace"
 )
 
+const runtimeMethodLatest = "latest"
+
 func projectRuntimeRecordingGroup(saved *workspace.WriteGroup, snapshot *workspace.WriteGroupAppliedSnapshot, scope runtimeview.Scope, observed string) (runtimeview.GroupView, error) {
 	result := runtimeview.GroupView{GroupID: saved.ID, SavedRevision: runtimeEvidenceString(saved.Revision),
 		AppliedRevision: runtimeEvidenceString(saved.AppliedRevision), AsOf: &observed, State: "saved-only", Proof: "unavailable"}
@@ -54,8 +56,8 @@ func runtimeRecordingFacts(group *workspace.WriteGroup, snapshot *workspace.Writ
 		Destination: runtimeview.Destination{ConnectorID: group.Destination.ConnectorID, ConnectorRevision: group.Destination.ConnectorRevision, Table: group.Destination.TableName, Kind: "unavailable"},
 		Members:     []runtimeview.Member{}, Layout: runtimeRecordingEnum(string(group.EffectiveLayoutVersion()), "managed_wide_v1", "managed_long_v1", "managed_wide_profile_v1"),
 		StorageMode: runtimeRecordingEnum(string(group.StorageMode), "plain", "timescale", "native_monthly"),
-		Reduction:   "unavailable", WriteMode: runtimeRecordingEnum(group.WritePolicy.Mode, "append", "latest"),
-		IncompletePolicy: runtimeRecordingEnum(group.RowPolicy.IncompletePolicy, "skip_row", "partial"),
+		Reduction:   "unavailable", WriteMode: runtimeRecordingEnum(group.WritePolicy.Mode, "append", runtimeMethodLatest),
+		IncompletePolicy: runtimeRecordingEnum(group.RowPolicy.IncompletePolicy, "skip_row", runtimeStatusPartial),
 	}
 	if schema := group.Destination.TableSchema; schema != "" {
 		if runtimeSafeID(schema) != schema {
@@ -80,14 +82,14 @@ func runtimeRecordingFacts(group *workspace.WriteGroup, snapshot *workspace.Writ
 		if profile.Kind == workspace.WriteGroupProfileCumulative {
 			result.Reduction = "cumulative_delta"
 		} else {
-			result.Reduction = runtimeRecordingEnum(string(profile.EffectiveSampleReduction()), "latest", "mean")
+			result.Reduction = runtimeRecordingEnum(string(profile.EffectiveSampleReduction()), runtimeMethodLatest, "mean")
 		}
 	} else if group.EffectiveLayoutVersion() == workspace.WriteGroupLayoutManagedWideV1 {
-		result.Reduction = "latest" // The existing legacy-wide authority defines latest.
+		result.Reduction = runtimeMethodLatest // The existing legacy-wide authority defines latest.
 	}
 	if snapshot != nil {
 		result.EffectiveAt, result.EndsAt = runtimeEvidenceTime(snapshot.EffectiveAt), runtimeEvidenceTime(snapshot.EndsAt)
-		result.Destination.Kind = runtimeRecordingEnum(string(snapshot.RuntimeLayout.Dialect), "sqlite", "postgres", "mysql", "sqlserver")
+		result.Destination.Kind = runtimeRecordingEnum(string(snapshot.RuntimeLayout.Dialect), "sqlite", "postgres", recordingDialectMySQL, "sqlserver")
 	}
 	for _, member := range group.Members {
 		for _, value := range []string{member.DeviceID, member.PointID, member.TagID, member.TargetColumn} {

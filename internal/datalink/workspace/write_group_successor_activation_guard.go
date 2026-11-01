@@ -22,7 +22,7 @@ func (r *SQLWriteGroupRepository) requireCurrentCanonicalOwnerInTx(ctx context.C
 		return err
 	}
 	if found && meta.CurrentGroupID != groupID {
-		return &WriteGroupLifecycleActionError{Action: "apply", ReasonCode: "historical_generation", NextAction: "review_lifecycle", cause: ErrWriteGroupLifecycleBlocked}
+		return &WriteGroupLifecycleActionError{Action: "apply", ReasonCode: "historical_generation", NextAction: writeGroupNextReviewLifecycle, cause: ErrWriteGroupLifecycleBlocked}
 	}
 	return nil
 }

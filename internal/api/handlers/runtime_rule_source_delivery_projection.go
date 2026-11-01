@@ -59,7 +59,7 @@ func projectRuntimeSourceDelivery(raw *grouppipeline.SourceEvidenceView, frozen 
 		}
 		sources = append(sources, runtimeview.SourceEvidence{DeviceID: s.DeviceID, PointID: s.PointID, TagID: s.TagID, Latest: latest, LastCommitted: committed})
 	}
-	current.Sources, current.SourceState = sources, "available"
+	current.Sources, current.SourceState = sources, runtimeEvidenceAvailable
 	return nil
 }
 
@@ -84,14 +84,14 @@ func runtimeSourceDeliveryResult(raw *groupdelivery.SourceRecord, frozen *worksp
 	if r.ProfileKind != string(profile.Kind) || (profile.Kind != workspace.WriteGroupProfileInstantaneous && profile.Kind != workspace.WriteGroupProfileCumulative) {
 		return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 	}
-	state := "unknown"
+	state := runtimeStatusUnknown
 	switch r.Status {
 	case groupdelivery.SourceStatusOK:
-		state = "available"
+		state = runtimeEvidenceAvailable
 	case groupdelivery.SourceStatusPartial:
-		state = "partial"
+		state = runtimeStatusPartial
 	case groupdelivery.SourceStatusMissing:
-		state = "missing"
+		state = runtimeStatusMissing
 	case groupdelivery.SourceStatusBaseline, groupdelivery.SourceStatusBad, groupdelivery.SourceStatusStale, groupdelivery.SourceStatusInvalid, groupdelivery.SourceStatusUncertain, groupdelivery.SourceStatusGap:
 	default:
 		return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
@@ -118,7 +118,7 @@ func runtimeSourceDeliveryResult(raw *groupdelivery.SourceRecord, frozen *worksp
 		known := *r.DeltaKnown
 		result.DeltaKnown = &known
 		if !known {
-			result.State = "unknown"
+			result.State = runtimeStatusUnknown
 		}
 	} else if r.DeltaKnown != nil {
 		return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
@@ -158,15 +158,15 @@ func runtimeSourceDeliveryCoverage(r *groupdelivery.VerifiedSourceRecord, profil
 		return runtimeEvidenceError(runtimeview.ReasonUnavailable)
 	}
 	reading := r.Status == groupdelivery.SourceStatusOK || r.Status == groupdelivery.SourceStatusPartial
-	if (a.ValidCount == 0) != (a.Coverage == "missing") || (a.ValidCount > 0) != reading {
+	if (a.ValidCount == 0) != (a.Coverage == runtimeStatusMissing) || (a.ValidCount > 0) != reading {
 		return runtimeEvidenceError(runtimeview.ReasonUnavailable)
 	}
 	switch a.Coverage {
-	case "partial", "unknown":
+	case runtimeStatusPartial, runtimeStatusUnknown:
 		coverage := a.Coverage
 		result.Coverage, result.State = &coverage, coverage
-	case "missing":
-		result.State = "missing" // The existing DTO deliberately has no missing coverage enum.
+	case runtimeStatusMissing:
+		result.State = runtimeStatusMissing // The existing DTO deliberately has no missing coverage enum.
 	default:
 		return runtimeEvidenceError(runtimeview.ReasonUnavailable) // Complete has no producer proof.
 	}

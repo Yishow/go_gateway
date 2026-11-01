@@ -25,7 +25,7 @@ func (s *WriteGroupService) SuccessorActivationReview(ctx context.Context, id st
 }
 
 func (s *WriteGroupService) readSuccessorActivation(ctx context.Context, id string, req WriteGroupSuccessorActivationRequest) (view *WriteGroupSuccessorActivationReview, snapshot *successorActivationSnapshot, err error) {
-	if err = s.validate(); err != nil {
+	if err := s.validate(); err != nil {
 		return nil, nil, err
 	}
 	store, ok := s.workspaceSvc.repo.(DatabaseSetupStore)
@@ -65,7 +65,7 @@ func (s *WriteGroupService) activationReviewInTx(ctx context.Context, tx *sql.Tx
 	}
 	result := &WriteGroupSuccessorActivationReview{Blockers: []WriteGroupSuccessorBlocker{}}
 	block := func(code string) {
-		result.Blockers = append(result.Blockers, WriteGroupSuccessorBlocker{ReasonCode: code, NextAction: "review_lifecycle"})
+		result.Blockers = append(result.Blockers, WriteGroupSuccessorBlocker{ReasonCode: code, NextAction: writeGroupNextReviewLifecycle})
 	}
 	snap := &successorActivationSnapshot{tx: tx, predecessor: pred, reserved: reserved, activationKind: successorActivationCutover}
 	if pred.AppliedRevision == "" {
@@ -93,7 +93,7 @@ func (s *WriteGroupService) activationReviewInTx(ctx context.Context, tx *sql.Tx
 		block(CutoverIssueBoundaryNotFuture)
 	}
 	group := reserved.Group
-	if err = s.requireNoOtherSuccessorActiveOwnerInTx(ctx, tx, pred, group); err != nil {
+	if err := s.requireNoOtherSuccessorActiveOwnerInTx(ctx, tx, pred, group); err != nil {
 		return nil, nil, err
 	}
 	kind, err := s.successorDriverInTx(ctx, tx, group.Destination.ConnectorID)
@@ -114,7 +114,7 @@ func (s *WriteGroupService) activationReviewInTx(ctx context.Context, tx *sql.Tx
 	}
 	validated := cloneWriteGroup(group)
 	definitions := make(map[string]*measurement.MeasurementDefinition)
-	if err = s.repo.validateDefinitionWithMeasurements(ctx, tx, validated, definitions); err != nil {
+	if err := s.repo.validateDefinitionWithMeasurements(ctx, tx, validated, definitions); err != nil {
 		return nil, nil, err
 	}
 	types, err := loadWriteGroupTagTypes(ctx, tx, s.repo.query, validated)
@@ -122,7 +122,7 @@ func (s *WriteGroupService) activationReviewInTx(ctx context.Context, tx *sql.Tx
 		return nil, nil, err
 	}
 	var config string
-	if err = tx.QueryRowContext(ctx, s.repo.query("SELECT connection_config FROM database_connectors WHERE id=$1"), group.Destination.ConnectorID).Scan(&config); err != nil {
+	if err := tx.QueryRowContext(ctx, s.repo.query("SELECT connection_config FROM database_connectors WHERE id=$1"), group.Destination.ConnectorID).Scan(&config); err != nil {
 		return nil, nil, err
 	}
 	proofs, issues := s.counterBindingEvidenceInTx(ctx, tx, validated, types, definitions)
@@ -179,7 +179,7 @@ func successorActivationEngineSupported(group *WriteGroup, engine string) bool {
 	switch engine {
 	case writeGroupConnectorKindSQLite:
 		return group.StorageMode == "" || group.StorageMode == WriteGroupStorageModePlain
-	case writeGroupConnectorKindMySQL, "mariadb", writeGroupConnectorKindSQLServer:
+	case writeGroupConnectorKindMySQL, writeGroupConnectorFamilyMariaDB, writeGroupConnectorKindSQLServer:
 		return managedLongGroup(group) && (group.StorageMode == WriteGroupStorageModePlain || group.StorageMode == WriteGroupStorageModeNativeMonthly)
 	case writeGroupConnectorKindPostgres:
 		_, supported := transitionStorageMode(group, engine)

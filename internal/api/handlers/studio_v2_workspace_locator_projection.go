@@ -117,7 +117,7 @@ func cloneStudioLocatorValue[T any](value *T) (*T, error) {
 func sameStudioLocatorRecord(a, b any) bool { return reflect.DeepEqual(a, b) }
 
 func sameStudioLocatorObservation(a, b *studioLocatorObservation) bool {
-	comparable := func(o *studioLocatorObservation) studioLocatorObservation {
+	canonicalObservation := func(o *studioLocatorObservation) studioLocatorObservation {
 		value := *o
 		if o.Device != nil {
 			// Existence/configuration is revalidated; live diagnostics are not a revision.
@@ -143,7 +143,7 @@ func sameStudioLocatorObservation(a, b *studioLocatorObservation) bool {
 		}
 		return value
 	}
-	av, bv := comparable(a), comparable(b)
+	av, bv := canonicalObservation(a), canonicalObservation(b)
 	av.Editor, bv.Editor = nil, nil
 	return reflect.DeepEqual(av, bv) && sameStudioLocatorEditor(a.Editor, b.Editor)
 }

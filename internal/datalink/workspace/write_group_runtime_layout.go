@@ -52,7 +52,7 @@ func freezeHypertableEvidence(info *dbtarget.HypertableInfo) *WriteGroupHypertab
 }
 
 func (s *WriteGroupService) saveRuntimeVersionInTx(ctx context.Context, tx *sql.Tx, snap *WriteGroupAppliedSnapshot) error {
-	if snap.RuntimeLayout == nil || (strings.EqualFold(strings.TrimSpace(snap.Group.WritePolicy.DedupeCapability), "receipt") && !snap.RuntimeLayout.ReceiptTableReady) {
+	if snap.RuntimeLayout == nil || (strings.EqualFold(strings.TrimSpace(snap.Group.WritePolicy.DedupeCapability), writeGroupDedupeReceipt) && !snap.RuntimeLayout.ReceiptTableReady) {
 		return nil
 	}
 	payload, err := json.Marshal(snap)

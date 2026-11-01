@@ -9,6 +9,9 @@ import (
 	"go-gateway/internal/diagnostics"
 )
 
+const runtimeLogQueryTrue = "true"
+const runtimeLogSourceField = "source"
+
 // Parsing rejects duplicates, unknown operations and unbounded inputs before any
 // ring read. The original Unicode query is normalized exactly once by the broker.
 func parseRuntimeLogQuery(r *http.Request, stream bool) (diagnostics.Query, string, error) {
@@ -46,14 +49,14 @@ func parseRuntimeLogQuery(r *http.Request, stream bool) (diagnostics.Query, stri
 			case "stage":
 				q.Stage = runtimeview.Stage(value)
 			case "actionable":
-				if value != "true" && value != "false" {
+				if value != runtimeLogQueryTrue && value != "false" {
 					return invalid()
 				}
-				q.Actionable = value == "true"
+				q.Actionable = value == runtimeLogQueryTrue
 			}
 		case "level":
 			q.Level = value
-		case "source":
+		case runtimeLogSourceField:
 			q.Source = value
 		case "q":
 			q.Q = value

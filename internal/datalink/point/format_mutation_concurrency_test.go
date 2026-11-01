@@ -44,13 +44,13 @@ func TestFormatMutationConcurrentServicesCommitOneRevision(t *testing.T) {
 	require.Equal(t, 1, successes)
 	require.Equal(t, 1, conflicts)
 	var count int
-	require.NoError(t, db.QueryRow(`SELECT count(*) FROM system_settings WHERE key LIKE 'point_format_receipt:%'`).Scan(&count))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM system_settings WHERE key LIKE 'point_format_receipt:%'`).Scan(&count))
 	require.Equal(t, 1, count)
 }
 
 func TestFormatMutationExplicitEmptyLegacyRevisionAndReceiptScope(t *testing.T) {
 	db, svc, req := formatFixture(t)
-	_, err := db.Exec(`UPDATE points SET revision_id=''`)
+	_, err := db.ExecContext(t.Context(), `UPDATE points SET revision_id=''`)
 	require.NoError(t, err)
 	empty := ""
 	req.ExpectedPointRevision = &empty
@@ -58,7 +58,7 @@ func TestFormatMutationExplicitEmptyLegacyRevisionAndReceiptScope(t *testing.T) 
 	require.NoError(t, err)
 	require.NotEmpty(t, result.Point.RevisionID)
 	// A reused ID for a different point cannot read the earlier point's receipt.
-	_, err = db.Exec(`INSERT INTO points(id,device_id,name,address,data_type,mode,format_version,revision_id) VALUES('point-other',?,'other','HR10','uint32','read',0,'other-rev')`, req.DeviceID)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO points(id,device_id,name,address,data_type,mode,format_version,revision_id) VALUES('point-other',?,'other','HR10','uint32','read',0,'other-rev')`, req.DeviceID)
 	require.NoError(t, err)
 	other := req.FormatScope
 	other.PointID = "point-other"

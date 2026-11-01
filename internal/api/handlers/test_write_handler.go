@@ -55,7 +55,7 @@ func (h *TestHandler) Write(c *gin.Context) {
 		}
 		// 記錄錯誤日誌
 		if h.debugHandler != nil {
-			h.debugHandler.RecordLog("error", fmt.Sprintf("寫入失敗: %s", err.Error()), map[string]any{
+			h.debugHandler.RecordLog(apiResponseErrorKey, fmt.Sprintf("寫入失敗: %s", err.Error()), map[string]any{
 				apiResponseConnectionIDKey: req.ConnectionID,
 				apiResponseOperationKey:    req.Operation,
 				apiResponseAddressKey:      req.Address,

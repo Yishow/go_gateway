@@ -32,7 +32,7 @@ func (s *WriteGroupService) managedSQLServerSchemaLayout(ctx context.Context, gr
 	if capability == nil || !capability.Connected {
 		return nil, fmt.Errorf("%w: sqlserver destination is not connected", ErrWriteGroupValidation)
 	}
-	if capability.MetadataStatus != "verified" {
+	if capability.MetadataStatus != sqlServerTestWriteMetadataVerified {
 		return nil, fmt.Errorf("%w: sqlserver destination metadata is not verified (status=%s)", ErrWriteGroupValidation, capability.MetadataStatus)
 	}
 	if capability.ConnectorID != group.Destination.ConnectorID || capability.ConnectorRevision != group.Destination.ConnectorRevision ||

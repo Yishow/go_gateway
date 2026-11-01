@@ -47,7 +47,7 @@ func (s *WriteGroupService) reserveRecreatedDraft(ctx context.Context, req write
 		if errors.Is(err, ErrWriteGroupRevisionConflict) && !errors.As(err, &conflict) {
 			err = errors.Join(recreateReservationConflict("revision_changed"), err)
 		}
-		return nil, &writeGroupReservationFailure{cause: err}
+		return nil, &writeGroupReservationError{cause: err}
 	}
 	return reserved, nil
 }
@@ -69,7 +69,7 @@ func (s *WriteGroupService) createRecreatedDraft(ctx context.Context, req writeG
 			return recreateReservationConflict("lineage_changed")
 		}
 		if metadata.ReservedGroupID.Valid {
-			return recreateReservationConflict("successor_reserved")
+			return recreateReservationConflict(writeGroupReasonSuccessorReserved)
 		}
 		predecessor, err := s.repo.GetInTx(ctx, tx, req.WorkspaceID, req.PredecessorGroupID)
 		if err != nil {
@@ -86,10 +86,10 @@ func (s *WriteGroupService) createRecreatedDraft(ctx context.Context, req writeG
 		}
 		if predecessor.AppliedRevision != "" {
 			if s.backlogGuard == nil {
-				return writeGroupRemoveActionError(predecessor, "ownership_unavailable", ErrWriteGroupLifecycleBlocked)
+				return writeGroupRemoveActionError(predecessor, writeGroupReasonOwnershipUnavailable, ErrWriteGroupLifecycleBlocked)
 			}
 			if err := s.backlogGuard.CheckWriteGroupBacklog(ctx, tx, predecessor); err != nil {
-				return writeGroupRemoveActionError(predecessor, "ownership_unavailable", errors.Join(ErrWriteGroupLifecycleBlocked, err))
+				return writeGroupRemoveActionError(predecessor, writeGroupReasonOwnershipUnavailable, errors.Join(ErrWriteGroupLifecycleBlocked, err))
 			}
 		}
 		saved, err = s.repo.reserveRecreatedDraftInTx(ctx, tx, req, digest)
@@ -107,12 +107,12 @@ func (s *WriteGroupService) createRecreatedDraft(ctx context.Context, req writeG
 
 // Error text is closed: callers can classify the original sentinel/cause but
 // never accidentally display raw SQL, target configuration or source payloads.
-type writeGroupReservationFailure struct{ cause error }
+type writeGroupReservationError struct{ cause error }
 
-func (e *writeGroupReservationFailure) Error() string {
+func (e *writeGroupReservationError) Error() string {
 	return "write group successor reservation unavailable"
 }
-func (e *writeGroupReservationFailure) Unwrap() error { return e.cause }
+func (e *writeGroupReservationError) Unwrap() error { return e.cause }
 
 func (s *WriteGroupService) readPendingRecreateReservation(ctx context.Context, req writeGroupRecreateReservationRequest, digest string) (result *writeGroupReservedDraft, found bool, err error) {
 	store, ok := s.workspaceSvc.repo.(DatabaseSetupStore)

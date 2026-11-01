@@ -56,13 +56,13 @@ func deadlineFixture(t *testing.T, wide bool) (*runtimeHandoffFixture, func()) {
 			"started": []workspace.CutoverStart{{GroupID: f.targetKey.GroupID, Revision: f.targetKey.GroupRevision}},
 			"moved":   []workspace.CutoverMemberRef{{DeviceID: m.DeviceID, PointID: m.PointID, TagID: m.TagID}}})
 		require.NoError(t, err)
-		_, err = tx.Exec(`INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,intent) VALUES('runtime-deadline',?,'forward',?,?,'deadline-review',?,'{}')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, f.boundary.Format(time.RFC3339Nano), string(detail))
+		_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,intent) VALUES('runtime-deadline',?,'forward',?,?,'deadline-review',?,'{}')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, f.boundary.Format(time.RFC3339Nano), string(detail))
 		require.NoError(t, err)
-		_, err = tx.Exec(`INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,'runtime-deadline')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, f.sourceKey.GroupRevision, f.boundary.Format(time.RFC3339Nano))
+		_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,'runtime-deadline')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, f.sourceKey.GroupRevision, f.boundary.Format(time.RFC3339Nano))
 		require.NoError(t, err)
 		for direction, owner := range map[string]*longFixture{"ended": source, "started": target} {
 			g := owner.config.Group
-			_, err = tx.Exec(`INSERT INTO write_group_ownership_fences(fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) VALUES('runtime-deadline',?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.WorkspaceID, direction, g.ID, g.AppliedRevision, m.DeviceID, m.PointID, m.TagID, string(g.RecordingProfile.Kind), g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.Database, g.Destination.TableSchema, g.Destination.TableName)
+			_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_ownership_fences(fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) VALUES('runtime-deadline',?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.WorkspaceID, direction, g.ID, g.AppliedRevision, m.DeviceID, m.PointID, m.TagID, string(g.RecordingProfile.Kind), g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.Database, g.Destination.TableSchema, g.Destination.TableName)
 			require.NoError(t, err)
 		}
 		require.NoError(t, tx.Commit())
@@ -109,7 +109,7 @@ func deadlineSQL(t *testing.T, f *runtimeHandoffFixture, sample string) {
 		query = `SELECT value_decimal,provenance,observed_at FROM ` + longFixtureTable
 		args = append(args, &observed)
 	}
-	require.NoError(t, f.target.db.QueryRow(query).Scan(args...))
+	require.NoError(t, f.target.db.QueryRowContext(t.Context(), query).Scan(args...))
 	require.Equal(t, "200", value)
 	var evidence []struct {
 		SampleID   string                                 `json:"sample_id"`
@@ -179,8 +179,8 @@ func TestGroupBoundaryCutoverDeadlineDelayedHandoffRemainsEligible(t *testing.T)
 			require.NoError(t, source.Tick(t.Context(), f.source.clock))
 			require.NoError(t, target.Tick(t.Context(), f.source.clock))
 			var oldConsumed, newConsumed int
-			require.NoError(t, f.store.DB().QueryRow(`SELECT consumed FROM wg_delivery_samples WHERE group_id=?`, f.sourceKey.GroupID).Scan(&oldConsumed))
-			require.NoError(t, f.store.DB().QueryRow(`SELECT consumed FROM wg_delivery_samples WHERE group_id=?`, f.targetKey.GroupID).Scan(&newConsumed))
+			require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT consumed FROM wg_delivery_samples WHERE group_id=?`, f.sourceKey.GroupID).Scan(&oldConsumed))
+			require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT consumed FROM wg_delivery_samples WHERE group_id=?`, f.targetKey.GroupID).Scan(&newConsumed))
 			require.Zero(t, oldConsumed)
 			require.Equal(t, 1, newConsumed)
 			require.Len(t, crashRows(t, f.store.DB(), "wg_delivery_outbox"), 2)

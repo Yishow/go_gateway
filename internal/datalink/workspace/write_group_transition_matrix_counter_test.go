@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func transitionMatrixExactPair() (*WriteGroup, *WriteGroup, map[string]schema.DataType) {
+func transitionMatrixExactPair() (sourceGroup, targetGroup *WriteGroup, tagTypes map[string]schema.DataType) {
 	source, _, types := transitionMatrixCumulativePair()
 	_, member := exactCounterBindingFixture()
 	member.CircuitID, member.TargetColumn = "circuit-1", "counter_value"

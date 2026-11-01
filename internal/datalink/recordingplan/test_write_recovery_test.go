@@ -64,14 +64,14 @@ func TestTestWriteRecoveryDurableHistoricalBindingsAndNoMutation(t *testing.T) {
 	scope.Table = "other"
 	secondToken, second := seedRecovery(t, svc, scope, SchemaOperationUnknown, "unknown", "unknown")
 	// Expiry is not deletion and cannot discard an existing operation.
-	_, err := db.Exec(`UPDATE managed_schema_preview_tokens SET expires_at=?`, time.Now().Add(-time.Hour))
+	_, err := db.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET expires_at=?`, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
 	require.NoError(t, db.Close())
 	reopened := openLedgerDB(t, path)
 	repo := NewSQLRepository(reopened)
 	svc = NewService(repo)
 	var before string
-	require.NoError(t, reopened.QueryRow(`SELECT group_concat(operation_id || status || owner || detail) FROM managed_schema_operations`).Scan(&before))
+	require.NoError(t, reopened.QueryRowContext(t.Context(), `SELECT group_concat(operation_id || status || owner || detail) FROM managed_schema_operations`).Scan(&before))
 	result, err := svc.ListUnresolvedTestWrites(t.Context(), scope.WorkspaceID)
 	require.NoError(t, err)
 	require.True(t, result.Complete)
@@ -91,10 +91,10 @@ func TestTestWriteRecoveryDurableHistoricalBindingsAndNoMutation(t *testing.T) {
 		require.NotContains(t, string(encoded), secret)
 	}
 	var after string
-	require.NoError(t, reopened.QueryRow(`SELECT group_concat(operation_id || status || owner || detail) FROM managed_schema_operations`).Scan(&after))
+	require.NoError(t, reopened.QueryRowContext(t.Context(), `SELECT group_concat(operation_id || status || owner || detail) FROM managed_schema_operations`).Scan(&after))
 	require.Equal(t, before, after)
 	var count int
-	require.NoError(t, reopened.QueryRow(`SELECT count(*) FROM managed_schema_preview_tokens`).Scan(&count))
+	require.NoError(t, reopened.QueryRowContext(t.Context(), `SELECT count(*) FROM managed_schema_preview_tokens`).Scan(&count))
 	require.Equal(t, 2, count)
 	foreign, err := svc.ListUnresolvedTestWrites(t.Context(), "foreign")
 	require.NoError(t, err)
@@ -157,7 +157,7 @@ func TestTestWriteRecoveryCorruptionFailsClosed(t *testing.T) {
 				"cleanup": `UPDATE managed_schema_operations SET cleanup_status='private-endpoint'`, "operation": `UPDATE managed_schema_preview_tokens SET operation_id='wrong'`,
 				"kind": `UPDATE managed_schema_preview_tokens SET action='schema_apply'`, "json": `UPDATE managed_schema_preview_tokens SET statements='{'`,
 			}
-			_, err := db.Exec(queries[corruption])
+			_, err := db.ExecContext(t.Context(), queries[corruption])
 			require.NoError(t, err)
 			got, err := svc.ListUnresolvedTestWrites(t.Context(), "ws-1")
 			require.ErrorIs(t, err, ErrTestWriteRecoveryUnavailable)
@@ -228,7 +228,7 @@ func TestTestWriteRecoveryCorruptTerminalCannotDisappear(t *testing.T) {
 				_, op := seedRecovery(t, svc, testWriteScope(), SchemaOperationSucceeded, "written_verified", "cleaned")
 				if sqlRepo {
 					queries := map[string]string{"partial-missing-completion": `UPDATE managed_schema_operations SET status='partial',write_outcome='written_unverified',completed_at=NULL`, "missing-completion": `UPDATE managed_schema_operations SET completed_at=NULL`, "failed-cleaned": `UPDATE managed_schema_operations SET status='failed',write_outcome='failed'`, "wrong-status": `UPDATE managed_schema_operations SET status='failed'`}
-					_, err := db.Exec(queries[corruption])
+					_, err := db.ExecContext(t.Context(), queries[corruption])
 					require.NoError(t, err)
 				} else {
 					value := memory.operations[op.OperationID]

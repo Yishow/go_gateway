@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+const runtimeEvidenceAvailable = "available"
 
 type RuntimeHandler struct {
 	deviceSvc    *device.Service
@@ -184,7 +187,7 @@ func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
 	}
 	setup, err := h.buildWorkspaceSetupContext(c.Request.Context(), record)
 	if err != nil {
-		if err == errRuntimeStaleReference {
+		if errors.Is(err, errRuntimeStaleReference) {
 			renderRuntimeHandlerError(c, http.StatusConflict, "stale-reference", true)
 			return
 		}
@@ -367,7 +370,7 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 
 		switch {
 		case collectorResp.PointsError > 0 || collectorResp.BreakerState == "open":
-			collectorResp.Status = "error"
+			collectorResp.Status = apiResponseErrorKey
 		case collectorResp.PointsStale > 0:
 			collectorResp.Status = "warning"
 		case response.Running:
@@ -395,7 +398,7 @@ func mapRuntimeWorkspaceContextDevice(savedDevice *schema.Device, runtimeStatus 
 	response := runtimeWorkspaceContextDeviceEntry{
 		DeviceID:           runtimeSafeID(savedDevice.ID),
 		Name:               runtimeSafeLabel(savedDevice.Name),
-		Protocol:           runtimeSafeStatusChoice(string(savedDevice.Protocol), "modbus_tcp", "modbus_rtu", "modbus_udp", "fatek_fbs", "mc_3e", "mqtt"),
+		Protocol:           runtimeSafeStatusChoice(string(savedDevice.Protocol), testClientProtocolModbusTCP, "modbus_rtu", "modbus_udp", "fatek_fbs", "mc_3e", "mqtt"),
 		Running:            isWorkspaceDeviceRunning(savedDevice),
 		AvailabilityStatus: runtimeSavedDeviceAvailability(savedDevice),
 	}
@@ -403,7 +406,7 @@ func mapRuntimeWorkspaceContextDevice(savedDevice *schema.Device, runtimeStatus 
 		response.AvailabilityReason = runtimeSafeAvailabilityReason(&reason)
 	}
 
-	if response.AvailabilityStatus != "available" || response.Protocol == "unavailable" || response.DeviceID == "" {
+	if response.AvailabilityStatus != runtimeEvidenceAvailable || response.Protocol == "unavailable" || response.DeviceID == "" {
 		response.Running = false
 		response.AvailabilityStatus = "unavailable"
 	}
@@ -412,17 +415,17 @@ func mapRuntimeWorkspaceContextDevice(savedDevice *schema.Device, runtimeStatus 
 	}
 
 	response.Running = runtimeStatus.Running
-	response.AvailabilityStatus = runtimeSafeStatusChoice(runtimeStatus.AvailabilityStatus, "available", "unavailable")
+	response.AvailabilityStatus = runtimeSafeStatusChoice(runtimeStatus.AvailabilityStatus, runtimeEvidenceAvailable, "unavailable")
 	response.AvailabilityReason = runtimeSafeAvailabilityReason(runtimeStatus.AvailabilityReason)
-	response.ProjectionAlignment = runtimeSafeStatusChoice(runtimeStatus.ProjectionAlignment, "aligned", "deferred", "restart-required", "restart_required", "stale", "degraded")
+	response.ProjectionAlignment = runtimeSafeStatusChoice(runtimeStatus.ProjectionAlignment, "aligned", "deferred", "restart-required", "restart_required", runtimeStatusStale, "degraded")
 	response.RuntimeProjectionVersion = runtimeSafeID(runtimeStatus.RuntimeProjectionVersion)
 	response.WorkspaceProjectionVersion = runtimeSafeID(runtimeStatus.WorkspaceProjectionVersion)
 	response.ProjectionMessage = runtimeSafeDiagnostic(runtimeStatus.ProjectionMessage)
 	response.ProjectionCode = runtimeSafeID(runtimeStatus.ProjectionCode)
-	if response.Protocol == "unavailable" || response.DeviceID == "" || runtimeSavedDeviceAvailability(savedDevice) != "available" {
+	if response.Protocol == "unavailable" || response.DeviceID == "" || runtimeSavedDeviceAvailability(savedDevice) != runtimeEvidenceAvailable {
 		response.AvailabilityStatus = "unavailable"
 	}
-	if response.AvailabilityStatus != "available" || response.ProjectionAlignment == "unavailable" {
+	if response.AvailabilityStatus != runtimeEvidenceAvailable || response.ProjectionAlignment == "unavailable" {
 		response.Running = false
 	}
 	return response

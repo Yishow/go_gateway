@@ -29,7 +29,7 @@ func (r *SQLWriteGroupRepository) validateSuccessorStructureInTx(ctx context.Con
 	if err != nil {
 		return false, err
 	}
-	family := "mysql" // Provisional structural check only; both families require fresh probes.
+	family := writeGroupConnectorKindMySQL // Provisional structural check only; both families require fresh probes.
 	if predecessor.AppliedRevision == "" {
 		if predecessor.Status != WriteGroupStatusDeleted {
 			return false, transitionRejection("source-engine-evidence-unavailable")
@@ -41,17 +41,17 @@ func (r *SQLWriteGroupRepository) validateSuccessorStructureInTx(ctx context.Con
 		if !known {
 			return false, ErrWriteGroupLineageCorrupt
 		}
-		if e = r.requireSuccessorNoHistoryInTx(ctx, tx, predecessor.WorkspaceID, meta.LineageID, predecessor.ID); e != nil {
+		if e := r.requireSuccessorNoHistoryInTx(ctx, tx, predecessor.WorkspaceID, meta.LineageID, predecessor.ID); e != nil {
 			return false, e
 		}
 		var sourceKind string
-		if e = tx.QueryRowContext(ctx, r.query(`SELECT kind FROM database_connectors WHERE id=$1`), source.Destination.ConnectorID).Scan(&sourceKind); e != nil {
+		if e := tx.QueryRowContext(ctx, r.query(`SELECT kind FROM database_connectors WHERE id=$1`), source.Destination.ConnectorID).Scan(&sourceKind); e != nil {
 			return false, e
 		}
 		if strings.ToLower(strings.TrimSpace(sourceKind)) != writeGroupConnectorKindMySQL {
 			return false, transitionRejection("cross-engine-unsupported")
 		}
-		if e = validateLiveWriteGroupConnector(ctx, tx, r, source.Destination.ConnectorID, source.Destination.ConnectorRevision); e != nil {
+		if e := validateLiveWriteGroupConnector(ctx, tx, r, source.Destination.ConnectorID, source.Destination.ConnectorRevision); e != nil {
 			return false, e
 		}
 	} else {
@@ -60,7 +60,7 @@ func (r *SQLWriteGroupRepository) validateSuccessorStructureInTx(ctx context.Con
 			return false, err
 		}
 	}
-	if family != "mysql" && family != "mariadb" {
+	if family != writeGroupConnectorKindMySQL && family != writeGroupConnectorFamilyMariaDB {
 		return false, transitionRejection("cross-engine-unsupported")
 	}
 	tags, err := loadWriteGroupTagTypes(ctx, tx, r.query, candidate)
@@ -121,9 +121,9 @@ func (s *WriteGroupService) probeSuccessorMySQL(ctx context.Context, id string, 
 		if e != nil || source == nil {
 			return nil, transitionRejection("source-family-evidence-unavailable")
 		}
-		copy := *source
-		copy.Reasons = append([]string(nil), source.Reasons...)
-		result.Source = &copy
+		capabilityCopy := *source
+		capabilityCopy.Reasons = append([]string(nil), source.Reasons...)
+		result.Source = &capabilityCopy
 	}
 	capability, err := probe.ProbeMySQLRecordingAtRevision(ctx, envelope.Request.Group.Destination.ConnectorID, envelope.Request.ExpectedTargetConnectorRevision)
 	if err != nil {
@@ -133,26 +133,26 @@ func (s *WriteGroupService) probeSuccessorMySQL(ctx context.Context, id string, 
 		return nil, transitionRejection("target-family-evidence-unavailable")
 	}
 	// Copy the facts; never retain an inspector-owned mutable pointer as authority.
-	copy := *capability
-	copy.Reasons = append([]string(nil), capability.Reasons...)
-	result.Target = &copy
+	capabilityCopy := *capability
+	capabilityCopy.Reasons = append([]string(nil), capability.Reasons...)
+	result.Target = &capabilityCopy
 	return result, nil
 }
 
-func (r *SQLWriteGroupRepository) verifySuccessorMySQLInTx(ctx context.Context, tx *sql.Tx, pred, candidate *WriteGroup, cap *dbtarget.MySQLRecordingCapability, sourceCap *dbtarget.MySQLRecordingCapability) error {
+func (r *SQLWriteGroupRepository) verifySuccessorMySQLInTx(ctx context.Context, tx *sql.Tx, pred, candidate *WriteGroup, targetCapability, sourceCap *dbtarget.MySQLRecordingCapability) error {
 	required, err := r.validateSuccessorStructureInTx(ctx, tx, pred, candidate)
 	if err != nil {
 		return err
 	}
-	if !required || cap == nil {
+	if !required || targetCapability == nil {
 		return transitionRejection("target-family-evidence-unavailable")
 	}
-	if !cap.Connected || cap.MetadataStatus != "verified" || !cap.TransactionalEngine || !cap.SupportsManagedLong || cap.CapabilityRevision == "" || !dbtarget.MySQLRecordingVersionVerified(cap.ServerFamily, cap.ServerVersion) ||
-		cap.ConnectorID != candidate.Destination.ConnectorID || cap.ConnectorRevision != candidate.Destination.ConnectorRevision || cap.Database != candidate.Destination.Database ||
-		(candidate.StorageMode == WriteGroupStorageModeNativeMonthly && !cap.SupportsNativePartition) {
+	if !targetCapability.Connected || targetCapability.MetadataStatus != writeGroupMySQLMetadataVerified || !targetCapability.TransactionalEngine || !targetCapability.SupportsManagedLong || targetCapability.CapabilityRevision == "" || !dbtarget.MySQLRecordingVersionVerified(targetCapability.ServerFamily, targetCapability.ServerVersion) ||
+		targetCapability.ConnectorID != candidate.Destination.ConnectorID || targetCapability.ConnectorRevision != candidate.Destination.ConnectorRevision || targetCapability.Database != candidate.Destination.Database ||
+		(candidate.StorageMode == WriteGroupStorageModeNativeMonthly && !targetCapability.SupportsNativePartition) {
 		return transitionRejection("target-family-evidence-unavailable")
 	}
-	if err := validateLiveWriteGroupConnector(ctx, tx, r, cap.ConnectorID, cap.ConnectorRevision); err != nil {
+	if err := validateLiveWriteGroupConnector(ctx, tx, r, targetCapability.ConnectorID, targetCapability.ConnectorRevision); err != nil {
 		return err
 	}
 	source, err := r.recreateStructuralSourceInTx(ctx, tx, pred)
@@ -181,7 +181,7 @@ func (r *SQLWriteGroupRepository) verifySuccessorMySQLInTx(ctx context.Context, 
 	if err != nil {
 		return err
 	}
-	return ValidateWriteGroupTransitionStructure(source, candidate, family, cap.ServerFamily, tags)
+	return ValidateWriteGroupTransitionStructure(source, candidate, family, targetCapability.ServerFamily, tags)
 }
 
 func successorMySQLRequiredChecks(checks []WriteGroupSuccessorBlocker, first bool) bool {
@@ -206,6 +206,6 @@ func successorMySQLRequiredChecks(checks []WriteGroupSuccessorBlocker, first boo
 	return target && source == first
 }
 
-func successorMySQLCapabilityMatches(cap *dbtarget.MySQLRecordingCapability, g *WriteGroup) bool {
-	return cap != nil && g != nil && cap.Connected && cap.MetadataStatus == "verified" && cap.TransactionalEngine && cap.SupportsManagedLong && cap.CapabilityRevision != "" && dbtarget.MySQLRecordingVersionVerified(cap.ServerFamily, cap.ServerVersion) && cap.ConnectorID == g.Destination.ConnectorID && cap.ConnectorRevision == g.Destination.ConnectorRevision && cap.Database == g.Destination.Database && (g.StorageMode != WriteGroupStorageModeNativeMonthly || cap.SupportsNativePartition)
+func successorMySQLCapabilityMatches(targetCapability *dbtarget.MySQLRecordingCapability, g *WriteGroup) bool {
+	return targetCapability != nil && g != nil && targetCapability.Connected && targetCapability.MetadataStatus == writeGroupMySQLMetadataVerified && targetCapability.TransactionalEngine && targetCapability.SupportsManagedLong && targetCapability.CapabilityRevision != "" && dbtarget.MySQLRecordingVersionVerified(targetCapability.ServerFamily, targetCapability.ServerVersion) && targetCapability.ConnectorID == g.Destination.ConnectorID && targetCapability.ConnectorRevision == g.Destination.ConnectorRevision && targetCapability.Database == g.Destination.Database && (g.StorageMode != WriteGroupStorageModeNativeMonthly || targetCapability.SupportsNativePartition)
 }

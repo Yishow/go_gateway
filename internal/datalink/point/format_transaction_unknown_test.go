@@ -64,7 +64,7 @@ func (t *pointLostAckTx) Commit() error {
 func TestFormatUnknownCommitStopsAttemptButDoesNotFinalizeReceipt(t *testing.T) {
 	memory, _, req := formatFixture(t)
 	path := filepath.Join(t.TempDir(), "lost-ack.db")
-	_, err := memory.Exec(`VACUUM INTO ?`, path)
+	_, err := memory.ExecContext(t.Context(), `VACUUM INTO ?`, path)
 	require.NoError(t, err)
 	connector := &pointLostAckConnector{path: path, fail: true}
 	db := sql.OpenDB(connector)

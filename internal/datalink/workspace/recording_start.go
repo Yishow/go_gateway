@@ -11,6 +11,10 @@ import (
 	"go-gateway/internal/datalink/recordingplan"
 )
 
+const (
+	recordingStartNextReviewSelection = "review_selection"
+)
+
 // RecordingStartService coordinates only saved setup, group Apply and scoped
 // activation. It shares the schema/test-write operation ledger and performs no DDL.
 type RecordingStartService struct {
@@ -123,7 +127,7 @@ func (s *RecordingStartService) Start(ctx context.Context, request RecordingStar
 			view := recordingStartView(op, p)
 			view.Reason, view.NextAction = "stale_intent", "revalidate"
 			if isSuccessorReservedError(err) {
-				view.Reason, view.NextAction = "successor_reserved", "review_selection"
+				view.Reason, view.NextAction = writeGroupReasonSuccessorReserved, recordingStartNextReviewSelection
 			}
 			return view, nil //nolint:nilerr // A stale replay returns persisted progress and an explicit revalidation action.
 		}
@@ -231,13 +235,13 @@ func (s *RecordingStartService) finishRecordingStart(ctx context.Context, op *re
 		}
 		switch {
 		case isSuccessorReservedError(cause):
-			reason, action = "successor_reserved", "review_selection"
+			reason, action = writeGroupReasonSuccessorReserved, recordingStartNextReviewSelection
 		case errors.Is(cause, ErrWriteGroupApplyNotReady):
 			reason, action = "preparation_required", "prepare_schema"
 		case errors.Is(cause, ErrSetupRevisionConflict), errors.Is(cause, ErrWriteGroupRevisionConflict):
 			reason, action = "stale_intent", "revalidate"
 		case errors.Is(cause, ErrRecordingStartInvalid), errors.Is(cause, ErrReadinessScopeInvalid):
-			reason, action = "invalid_scope", "review_selection"
+			reason, action = "invalid_scope", recordingStartNextReviewSelection
 		case errors.Is(cause, ErrRecordingStartShareNotReady):
 			reason, action = "share_not_ready", "refresh_share"
 		case errors.Is(cause, ErrReadinessUnavailable), errors.Is(cause, ErrWriteGroupServiceUnavailable):

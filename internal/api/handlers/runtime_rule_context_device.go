@@ -31,7 +31,7 @@ func runtimeSavedDeviceAvailability(record *schema.Device) string {
 	if json.Unmarshal(readiness.AvailabilityStatus, &status) != nil {
 		return "unavailable"
 	}
-	return runtimeSafeStatusChoice(status, "available", "unavailable")
+	return runtimeSafeStatusChoice(status, runtimeEvidenceAvailable, "unavailable")
 }
 
 // This normalization is deliberately limited to runtime requests; shared authoring

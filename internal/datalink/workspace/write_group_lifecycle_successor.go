@@ -26,61 +26,61 @@ func (s *WriteGroupService) lifecycleSuccessorSeed(ctx context.Context, tx *sql.
 		return nil
 	}
 	if history == nil || !history.Canonical {
-		return block("canonical_required", "review_lifecycle")
+		return block("canonical_required", writeGroupNextReviewLifecycle)
 	}
 	if history.ReservedGroupID != "" {
-		return block("successor_reserved", "review_lifecycle")
+		return block(writeGroupReasonSuccessorReserved, writeGroupNextReviewLifecycle)
 	}
 	if history.CurrentGroupID != group.ID {
-		return block("historical_generation", "review_lifecycle")
+		return block("historical_generation", writeGroupNextReviewLifecycle)
 	}
 	if group.Status != WriteGroupStatusDeleted {
 		if group.RecordingProfile == nil {
-			return block("active_basic_unsupported", "review_lifecycle")
+			return block("active_basic_unsupported", writeGroupNextReviewLifecycle)
 		}
 		if group.Status == WriteGroupStatusDraft && group.AppliedRevision != "" {
-			return block("source_draft_not_active", "review_lifecycle")
+			return block("source_draft_not_active", writeGroupNextReviewLifecycle)
 		}
 		if group.AppliedRevision == "" {
-			return block("source_definition_unavailable", "review_lifecycle")
+			return block("source_definition_unavailable", writeGroupNextReviewLifecycle)
 		}
 	}
 	if err := validateLiveWriteGroupConnector(ctx, tx, s.repo, group.Destination.ConnectorID, group.Destination.ConnectorRevision); err != nil {
-		return block(lifecycleSuccessorReason(err), "review_connector")
+		return block(lifecycleSuccessorReason(err), writeGroupNextReviewConnector)
 	}
 	if group.AppliedRevision == "" {
 		// A missing pointer alone is not proof that the saved draft was never applied.
 		if err := s.repo.requireSuccessorNoHistoryInTx(ctx, tx, group.WorkspaceID, history.LineageID, group.ID); err != nil {
-			return block("source_definition_unavailable", "review_lifecycle")
+			return block("source_definition_unavailable", writeGroupNextReviewLifecycle)
 		}
 	} else if s.backlogGuard == nil || s.backlogGuard.CheckWriteGroupBacklog(ctx, tx, group) != nil {
-		return block("ownership_unavailable", "inspect_ownership")
+		return block(writeGroupReasonOwnershipUnavailable, writeGroupNextInspectOwnership)
 	}
 	source, err := s.repo.recreateStructuralSourceInTx(ctx, tx, group)
 	if err != nil || source == nil {
-		return block("source_definition_unavailable", "review_lifecycle")
+		return block("source_definition_unavailable", writeGroupNextReviewLifecycle)
 	}
 	if err := validateLiveWriteGroupConnector(ctx, tx, s.repo, source.Destination.ConnectorID, source.Destination.ConnectorRevision); err != nil {
-		return block(lifecycleSuccessorReason(err), "review_connector")
+		return block(lifecycleSuccessorReason(err), writeGroupNextReviewConnector)
 	}
 	candidate := lifecycleSuccessorCandidate(source, group.BasicManagedDeviceID)
 	if err := s.lifecycleSuccessorSourceInTx(ctx, tx, group, source, cloneWriteGroup(candidate)); err != nil {
-		return block(lifecycleSuccessorReason(err), "review_lifecycle")
+		return block(lifecycleSuccessorReason(err), writeGroupNextReviewLifecycle)
 	}
 	digest, err := successorDomainDigest("go-gateway/lifecycle-successor-basis/v1", source)
 	if err != nil {
-		return block("source_definition_unavailable", "review_lifecycle")
+		return block("source_definition_unavailable", writeGroupNextReviewLifecycle)
 	}
 	seed := &WriteGroupSuccessorSeed{BasisKind: "applied", BasisRevision: group.AppliedRevision, BasisDigest: digest, Group: candidate}
 	if group.AppliedRevision == "" {
 		seed.BasisKind, seed.BasisRevision = "saved", group.Revision
 	}
 	if group.Status == WriteGroupStatusDeleted {
-		actions[3].Allowed, actions[3].ReasonCode, actions[3].NextAction = true, "", "review_lifecycle"
+		actions[3].Allowed, actions[3].ReasonCode, actions[3].NextAction = true, "", writeGroupNextReviewLifecycle
 		actions[4].ReasonCode, actions[4].NextAction = "recording_removed", "recreate"
 	} else {
-		actions[3].ReasonCode, actions[3].NextAction = "recording_not_removed", "review_lifecycle"
-		actions[4].Allowed, actions[4].ReasonCode, actions[4].NextAction = true, "", "review_lifecycle"
+		actions[3].ReasonCode, actions[3].NextAction = "recording_not_removed", writeGroupNextReviewLifecycle
+		actions[4].Allowed, actions[4].ReasonCode, actions[4].NextAction = true, "", writeGroupNextReviewLifecycle
 	}
 	return seed
 }
@@ -133,13 +133,13 @@ func lifecycleSuccessorCandidate(source *WriteGroup, basicDeviceID string) *Writ
 
 func lifecycleSuccessorReason(err error) string {
 	if errors.Is(err, ErrWriteGroupConnectorRevisionConflict) {
-		return "connector_identity_stale"
+		return writeGroupReasonConnectorIdentityStale
 	}
 	if errors.Is(err, ErrWriteGroupConnectorNotFound) {
-		return "connector_unavailable"
+		return writeGroupReasonConnectorUnavailable
 	}
 	if errors.Is(err, ErrWriteGroupCircuitProfileConflict) {
-		return "ownership_unavailable"
+		return writeGroupReasonOwnershipUnavailable
 	}
 	// Never reflect raw diagnostics, driver errors or arbitrary private evidence.
 	return "source_definition_unavailable"

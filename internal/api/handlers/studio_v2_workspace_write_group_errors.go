@@ -14,6 +14,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const writeGroupActionStop = "stop"
+
 func renderWriteGroupError(c *gin.Context, err error) {
 	render := func(status int, code, message string, retryable bool, action string) {
 		envelope := TypedAPIErrorEnvelope{
@@ -23,7 +25,7 @@ func renderWriteGroupError(c *gin.Context, err error) {
 		if detail, ok := writeGroupLifecycleErrorDetails(err); ok {
 			envelope.Message = detail.message
 			envelope.Action = "review_group"
-			if detail.next == "stop" {
+			if detail.next == writeGroupActionStop {
 				envelope.Action = "disable_group"
 			}
 			c.JSON(status, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: struct {
@@ -88,7 +90,7 @@ func writeGroupLifecycleErrorDetails(err error) (detail struct{ reason, next, me
 	default:
 		return detail, false
 	}
-	if unavailable.NextAction != "stop" {
+	if unavailable.NextAction != writeGroupActionStop {
 		expected := "review_connector"
 		if unavailable.ReasonCode == "ownership_unavailable" {
 			expected = "inspect_ownership"

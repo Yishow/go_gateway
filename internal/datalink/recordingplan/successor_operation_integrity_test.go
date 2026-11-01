@@ -32,7 +32,7 @@ func TestSuccessorLedgerReadRejectsCorruptScopeActionAndState(t *testing.T) {
 			tx := beginSuccessorTx(t, db)
 			_, err := RecordSuccessorReserveInTx(t.Context(), tx, successorReserveFixture())
 			require.NoError(t, err)
-			_, err = tx.Exec(query)
+			_, err = tx.ExecContext(t.Context(), query)
 			require.NoError(t, err)
 			got, err := ReadSuccessorReserveInTx(t.Context(), tx, "W1", "O2")
 			require.Error(t, err)
@@ -53,7 +53,7 @@ func TestSuccessorLedgerCannotBeAcceptedAsSchemaProof(t *testing.T) {
 	require.NoError(t, err)
 	tx := beginSuccessorTx(t, db)
 	for _, action := range []string{SuccessorReserveAction, SuccessorFirstStartAction} {
-		_, err = tx.Exec(`UPDATE managed_schema_operations SET action=? WHERE operation_id=?`, action, op.OperationID)
+		_, err = tx.ExecContext(t.Context(), `UPDATE managed_schema_operations SET action=? WHERE operation_id=?`, action, op.OperationID)
 		require.NoError(t, err)
 		_, err = SucceededSchemaTokenInTx(t.Context(), tx, token.WorkspaceID, op.OperationID, digest)
 		require.ErrorIs(t, err, ErrSchemaOperationResult, "even a matching schema token must not upgrade a successor action")

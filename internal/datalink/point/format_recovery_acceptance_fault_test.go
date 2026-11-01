@@ -15,16 +15,16 @@ import (
 func recoveryAcceptanceFixture(t *testing.T) (*sql.DB, FormatRecoveryRequest, *FormatRecoveryEvidence) {
 	t.Helper()
 	db, svc, mutation := formatFixture(t)
-	_, err := db.Exec(`INSERT INTO source_rules(id,device_id,start_address,count,data_type,naming_prefix,revision_id,data_format) VALUES('rule',?,'40001',1,'uint32','p','rule-old','ABCD')`, mutation.DeviceID)
+	_, err := db.ExecContext(t.Context(), `INSERT INTO source_rules(id,device_id,start_address,count,data_type,naming_prefix,revision_id,data_format) VALUES('rule',?,'40001',1,'uint32','p','rule-old','ABCD')`, mutation.DeviceID)
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO source_rule_links(id,rule_id,address,point_id) VALUES('link','rule','40001',?)`, mutation.PointID)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO source_rule_links(id,rule_id,address,point_id) VALUES('link','rule','40001',?)`, mutation.PointID)
 	require.NoError(t, err)
 	mutation.RuleID = "rule"
 	mutation.ExpectedRuleRevision = "rule-old"
 	svc.SetFormatRuleGuard(&formatRuleTestGuard{})
 	result, err := svc.MutateFormat(t.Context(), mutation)
 	require.NoError(t, err)
-	_, err = db.Exec(`UPDATE system_settings SET value='{"enabled":true,"settings_revision":"settings-1"}' WHERE key='modbus_share'`)
+	_, err = db.ExecContext(t.Context(), `UPDATE system_settings SET value='{"enabled":true,"settings_revision":"settings-1"}' WHERE key='modbus_share'`)
 	require.NoError(t, err)
 	req := FormatRecoveryRequest{FormatScope: mutation.FormatScope, ExpectedConnectionRevision: result.Resolution.ConnectionRevision, ExpectedSettingsRevision: "settings-1"}
 	req.ExpectedPointRevision = &result.Point.RevisionID
@@ -45,7 +45,7 @@ func recoveryAcceptanceRows(t *testing.T, db *sql.DB) []string {
 		`SELECT id||'|'||revision_id||'|'||updated_at||'|'||data_format FROM source_rules ORDER BY id`,
 		`SELECT id||'|'||status||'|'||connection_config||'|'||updated_at FROM devices ORDER BY id`,
 	} {
-		rows, err := db.Query(query)
+		rows, err := db.QueryContext(t.Context(), query)
 		require.NoError(t, err)
 		for rows.Next() {
 			var raw string
@@ -65,25 +65,25 @@ func TestFormatRecoveryAcceptanceRejectsStaleEvidenceBeforeStage(t *testing.T) {
 			var err error
 			switch kind {
 			case "point":
-				_, err = db.Exec(`UPDATE points SET revision_id='new'`)
+				_, err = db.ExecContext(t.Context(), `UPDATE points SET revision_id='new'`)
 			case "workspace":
-				_, err = db.Exec(`UPDATE system_settings SET value=json_set(value,'$.revision','new') WHERE key='modbus_share_workspace_revision:ws'`)
+				_, err = db.ExecContext(t.Context(), `UPDATE system_settings SET value=json_set(value,'$.revision','new') WHERE key='modbus_share_workspace_revision:ws'`)
 			case "same-revision-dirty":
-				_, err = db.Exec(`UPDATE system_settings SET value=json_set(value,'$.dirty',json('true')) WHERE key='modbus_share_workspace_revision:ws'`)
+				_, err = db.ExecContext(t.Context(), `UPDATE system_settings SET value=json_set(value,'$.dirty',json('true')) WHERE key='modbus_share_workspace_revision:ws'`)
 			case "rule":
-				_, err = db.Exec(`UPDATE source_rules SET revision_id='new'`)
+				_, err = db.ExecContext(t.Context(), `UPDATE source_rules SET revision_id='new'`)
 			case "connection":
-				_, err = db.Exec(`UPDATE devices SET connection_config='{"data_format":"DCBA"}'`)
+				_, err = db.ExecContext(t.Context(), `UPDATE devices SET connection_config='{"data_format":"DCBA"}'`)
 			case "settings":
-				_, err = db.Exec(`UPDATE system_settings SET value=json_set(value,'$.settings_revision','new') WHERE key='modbus_share'`)
+				_, err = db.ExecContext(t.Context(), `UPDATE system_settings SET value=json_set(value,'$.settings_revision','new') WHERE key='modbus_share'`)
 			case "receipt":
-				_, err = db.Exec(`UPDATE system_settings SET value=json_set(value,'$.result.invalidation_status','pending') WHERE key=?`, formatReceiptKey(req.WorkspaceID, req.RequestID))
+				_, err = db.ExecContext(t.Context(), `UPDATE system_settings SET value=json_set(value,'$.result.invalidation_status','pending') WHERE key=?`, formatReceiptKey(req.WorkspaceID, req.RequestID))
 			case "point-config-same-revision":
-				_, err = db.Exec(`UPDATE points SET name='new'`)
+				_, err = db.ExecContext(t.Context(), `UPDATE points SET name='new'`)
 			case "device-inactive":
-				_, err = db.Exec(`UPDATE devices SET status='draft'`)
+				_, err = db.ExecContext(t.Context(), `UPDATE devices SET status='draft'`)
 			case "point-disabled":
-				_, err = db.Exec(`UPDATE points SET enabled=0`)
+				_, err = db.ExecContext(t.Context(), `UPDATE points SET enabled=0`)
 			}
 			require.NoError(t, err)
 			before := recoveryAcceptanceRows(t, db)
@@ -124,22 +124,22 @@ func TestFormatRecoveryAcceptancePreservesAuthorityRows(t *testing.T) {
 func TestFormatRecoveryAcceptanceCommitBusyCleansPool(t *testing.T) {
 	memory, req, evidence := recoveryAcceptanceFixture(t)
 	path := filepath.Join(t.TempDir(), "recovery-busy.db")
-	_, err := memory.Exec(`VACUUM INTO ?`, path)
+	_, err := memory.ExecContext(t.Context(), `VACUUM INTO ?`, path)
 	require.NoError(t, err)
 	db, err := sql.Open("sqlite", path)
 	require.NoError(t, err)
 	defer db.Close()
 	db.SetMaxOpenConns(1)
-	_, err = db.Exec(`PRAGMA journal_mode=DELETE; PRAGMA busy_timeout=0`)
+	_, err = db.ExecContext(t.Context(), `PRAGMA journal_mode=DELETE; PRAGMA busy_timeout=0`)
 	require.NoError(t, err)
 	reader, err := sql.Open("sqlite", path)
 	require.NoError(t, err)
 	defer reader.Close()
-	held, err := reader.Begin()
+	held, err := reader.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	defer held.Rollback()
 	var count int
-	require.NoError(t, held.QueryRow(`SELECT count(*) FROM points`).Scan(&count))
+	require.NoError(t, held.QueryRowContext(t.Context(), `SELECT count(*) FROM points`).Scan(&count))
 	before := recoveryAcceptanceRows(t, db)
 	stages := 0
 	err = NewSQLRepository(db).AcceptFormatRecovery(t.Context(), req, evidence, func() error { stages++; return nil })
@@ -151,7 +151,7 @@ func TestFormatRecoveryAcceptanceCommitBusyCleansPool(t *testing.T) {
 	require.Equal(t, 1, stages, "failure must occur after the acceptance callback, at zero-write cleanup COMMIT")
 	require.Equal(t, before, recoveryAcceptanceRows(t, db))
 	require.NoError(t, held.Rollback())
-	clean, err := db.Begin()
+	clean, err := db.BeginTx(t.Context(), nil)
 	require.NoError(t, err, "busy COMMIT must not leave a native transaction in the pool")
 	require.NoError(t, clean.Rollback())
 }
@@ -159,7 +159,7 @@ func TestFormatRecoveryAcceptanceCommitBusyCleansPool(t *testing.T) {
 func TestFormatRecoveryAcceptanceLostCommitAckIsUnknown(t *testing.T) {
 	memory, req, evidence := recoveryAcceptanceFixture(t)
 	path := filepath.Join(t.TempDir(), "recovery-unknown.db")
-	_, err := memory.Exec(`VACUUM INTO ?`, path)
+	_, err := memory.ExecContext(t.Context(), `VACUUM INTO ?`, path)
 	require.NoError(t, err)
 	connector := &pointLostAckConnector{path: path, fail: true}
 	db := sql.OpenDB(connector)
@@ -173,7 +173,7 @@ func TestFormatRecoveryAcceptanceLostCommitAckIsUnknown(t *testing.T) {
 	require.NotContains(t, err.Error(), "private lost")
 	require.Equal(t, 1, stages)
 	require.Equal(t, before, recoveryAcceptanceRows(t, db))
-	clean, err := db.Begin()
+	clean, err := db.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	require.NoError(t, clean.Rollback())
 }

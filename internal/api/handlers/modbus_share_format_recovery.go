@@ -12,6 +12,8 @@ import (
 	"github.com/gin-gonic/gin/binding"
 )
 
+const expectedWorkspaceRevisionField = "expected_workspace_revision"
+
 // FormatRecoveryResult describes configuration recovery, never recording start
 // or proof of an acquired Good value. Disabled Share is explicitly not applied.
 type FormatRecoveryResult struct {
@@ -55,7 +57,7 @@ func (h *ModbusShareHandler) handleFormatRecovery(c *gin.Context) bool {
 	}
 	for key := range fields {
 		switch key {
-		case "workspace_id", "device_id", "point_id", "rule_id", "expected_workspace_revision", "expected_point_revision", "expected_rule_revision", "request_id", "expected_connection_revision", "expected_settings_revision":
+		case "workspace_id", "device_id", "point_id", "rule_id", expectedWorkspaceRevisionField, "expected_point_revision", "expected_rule_revision", "request_id", "expected_connection_revision", "expected_settings_revision":
 		default:
 			renderPointFormatError(c, point.ErrFormatInvalid)
 			return true

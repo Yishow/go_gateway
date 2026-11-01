@@ -33,7 +33,7 @@ func TestSuccessorLedgerFirstStartReadIncludesAllAndRejectsUncertainEvidence(t *
 	foreign, err := ReadSuccessorFirstStartsInTx(t.Context(), tx, "foreign")
 	require.NoError(t, err)
 	require.Empty(t, foreign)
-	_, err = tx.Exec(`UPDATE managed_schema_operations SET status='unknown' WHERE action='successor_first_start'`)
+	_, err = tx.ExecContext(t.Context(), `UPDATE managed_schema_operations SET status='unknown' WHERE action='successor_first_start'`)
 	require.NoError(t, err)
 	_, err = ReadSuccessorFirstStartsInTx(t.Context(), tx, "W1")
 	require.ErrorIs(t, err, ErrSchemaOperationResult, "unknown activation cannot disappear from no-history proof")
@@ -62,7 +62,7 @@ func TestSuccessorLedgerFirstStartIsOneImmutableBoundaryPerRoot(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, got, original)
 	var count int
-	require.NoError(t, tx.QueryRow(`SELECT COUNT(*) FROM managed_schema_operations WHERE action='successor_first_start'`).Scan(&count))
+	require.NoError(t, tx.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM managed_schema_operations WHERE action='successor_first_start'`).Scan(&count))
 	require.Equal(t, 1, count)
 	encoded, err := json.Marshal(original)
 	require.NoError(t, err)

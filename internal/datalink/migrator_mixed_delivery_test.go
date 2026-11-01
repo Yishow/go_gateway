@@ -18,14 +18,14 @@ func mixedDeliveryMigrationDB(t *testing.T) *sql.DB {
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	db.SetMaxOpenConns(1)
 	require.NoError(t, NewMigrator().Migrate(db))
-	_, err = db.Exec(`DROP INDEX IF EXISTS idx_wg_delivery_outbox_due_head; DROP TABLE wg_delivery_mixed_progress; DROP TABLE wg_delivery_mixed_outcomes; ALTER TABLE wg_delivery_outbox DROP COLUMN due_at; PRAGMA foreign_keys=ON`)
+	_, err = db.ExecContext(t.Context(), `DROP INDEX IF EXISTS idx_wg_delivery_outbox_due_head; DROP TABLE wg_delivery_mixed_progress; DROP TABLE wg_delivery_mixed_outcomes; ALTER TABLE wg_delivery_outbox DROP COLUMN due_at; PRAGMA foreign_keys=ON`)
 	require.NoError(t, err)
 	return db
 }
 
 func mixedDeliverySchema(t *testing.T, db *sql.DB) map[string]string {
 	t.Helper()
-	rows, err := db.Query(`SELECT name,sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name`)
+	rows, err := db.QueryContext(t.Context(), `SELECT name,sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name`)
 	require.NoError(t, err)
 	defer rows.Close()
 	result := map[string]string{}
@@ -40,7 +40,7 @@ func mixedDeliverySchema(t *testing.T, db *sql.DB) map[string]string {
 
 func mixedDeliveryLegacyValues(t *testing.T, db *sql.DB) []any {
 	t.Helper()
-	rows, err := db.Query(`SELECT * FROM wg_delivery_outbox WHERE effect_key='old'`)
+	rows, err := db.QueryContext(t.Context(), `SELECT * FROM wg_delivery_outbox WHERE effect_key='old'`)
 	require.NoError(t, err)
 	defer rows.Close()
 	cols, err := rows.Columns()
@@ -61,7 +61,7 @@ func mixedDeliveryLegacyValues(t *testing.T, db *sql.DB) []any {
 
 func TestMixedDeliveryMigrationPreservesLegacyAndReentry(t *testing.T) {
 	db := mixedDeliveryMigrationDB(t)
-	_, err := db.Exec(`INSERT INTO wg_delivery_outbox(effect_key,record_id,workspace_id,group_id,group_revision,bucket_start,partition_key,destination_scope,connector_id,connector_revision,table_name,payload,payload_digest,next_retry_at,created_at,updated_at) VALUES('old','r','w','g','v','2026-10-31T00:00:00Z','part','target','c','cr','data',' {"legacy": 1} ','digest','next','created','updated');
+	_, err := db.ExecContext(t.Context(), `INSERT INTO wg_delivery_outbox(effect_key,record_id,workspace_id,group_id,group_revision,bucket_start,partition_key,destination_scope,connector_id,connector_revision,table_name,payload,payload_digest,next_retry_at,created_at,updated_at) VALUES('old','r','w','g','v','2026-10-31T00:00:00Z','part','target','c','cr','data',' {"legacy": 1} ','digest','next','created','updated');
  CREATE INDEX custom_outbox_record ON wg_delivery_outbox(record_id);
  CREATE TABLE migration_audit(value TEXT);
  CREATE TRIGGER custom_outbox_trigger AFTER UPDATE ON wg_delivery_outbox BEGIN INSERT INTO migration_audit VALUES(new.effect_key); END;
@@ -90,12 +90,12 @@ func TestMixedDeliveryMigrationPreservesLegacyAndReentry(t *testing.T) {
 	require.NoError(t, NewMigrator().Migrate(db))
 	require.Equal(t, full, mixedDeliverySchema(t, db))
 	var fk int
-	require.NoError(t, db.QueryRow(`PRAGMA foreign_keys`).Scan(&fk))
+	require.NoError(t, db.QueryRowContext(t.Context(), `PRAGMA foreign_keys`).Scan(&fk))
 	require.Equal(t, 1, fk)
-	_, err = db.Exec(`UPDATE wg_delivery_outbox SET state='retry' WHERE effect_key='old'`)
+	_, err = db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET state='retry' WHERE effect_key='old'`)
 	require.NoError(t, err)
 	var audited string
-	require.NoError(t, db.QueryRow(`SELECT value FROM migration_audit`).Scan(&audited))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT value FROM migration_audit`).Scan(&audited))
 	require.Equal(t, "old", audited)
 }
 
@@ -114,7 +114,7 @@ func TestMixedDeliveryMigrationAtomicFaultRollback(t *testing.T) {
 			require.ErrorIs(t, err, injected)
 			require.Equal(t, before, mixedDeliverySchema(t, db))
 			var fk int
-			require.NoError(t, db.QueryRow(`PRAGMA foreign_keys`).Scan(&fk))
+			require.NoError(t, db.QueryRowContext(t.Context(), `PRAGMA foreign_keys`).Scan(&fk))
 			require.Equal(t, 1, fk)
 			require.NoError(t, expandSQLiteMixedDelivery(db, nil))
 		})
@@ -134,7 +134,7 @@ func TestMixedDeliveryMigrationRejectsUnknownSchema(t *testing.T) {
 	} {
 		t.Run(alter, func(t *testing.T) {
 			db := mixedDeliveryMigrationDB(t)
-			_, err := db.Exec(alter)
+			_, err := db.ExecContext(t.Context(), alter)
 			require.NoError(t, err)
 			before := mixedDeliverySchema(t, db)
 			require.ErrorContains(t, expandSQLiteMixedDelivery(db, nil), "unknown")
@@ -146,37 +146,37 @@ func TestMixedDeliveryMigrationRejectsUnknownSchema(t *testing.T) {
 func TestMixedDeliveryMigrationForeignKeysAndJSON(t *testing.T) {
 	db := mixedDeliveryMigrationDB(t)
 	require.NoError(t, expandSQLiteMixedDelivery(db, nil))
-	_, err := db.Exec(`INSERT INTO wg_runtime_versions VALUES('w','g','r','{}')`)
+	_, err := db.ExecContext(t.Context(), `INSERT INTO wg_runtime_versions VALUES('w','g','r','{}')`)
 	require.NoError(t, err)
 	progress := `INSERT INTO wg_delivery_mixed_progress VALUES(?,?,?,?,?,?,?,?,?,?)`
 	args := []any{"w", "g", "r", 1, "descriptor", "", "{}", "checkpoint", "closure", "now"}
-	_, err = db.Exec(progress, args...)
+	_, err = db.ExecContext(t.Context(), progress, args...)
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO wg_delivery_mixed_outcomes VALUES('w','g','r','record','due','row','{}','digest','now')`)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO wg_delivery_mixed_outcomes VALUES('w','g','r','record','due','row','{}','digest','now')`)
 	require.NoError(t, err)
-	_, err = db.Exec(`DELETE FROM wg_runtime_versions WHERE workspace_id='w'`)
+	_, err = db.ExecContext(t.Context(), `DELETE FROM wg_runtime_versions WHERE workspace_id='w'`)
 	require.Error(t, err, "no implicit cascade")
 	for _, mutation := range []struct {
 		index int
 		value any
 	}{{0, "foreign"}, {3, 2}, {6, "[]"}, {6, "bad-json"}} {
-		_, err = db.Exec(`DELETE FROM wg_delivery_mixed_progress`)
+		_, err = db.ExecContext(t.Context(), `DELETE FROM wg_delivery_mixed_progress`)
 		require.NoError(t, err)
 		bad := append([]any(nil), args...)
 		bad[mutation.index] = mutation.value
-		_, err = db.Exec(progress, bad...)
+		_, err = db.ExecContext(t.Context(), progress, bad...)
 		require.Error(t, err, fmt.Sprint(mutation))
 	}
 	for _, query := range []string{
 		`INSERT INTO wg_delivery_mixed_outcomes VALUES('foreign','g','r','foreign','due','row','{}','digest','now')`,
 		`INSERT INTO wg_delivery_mixed_outcomes VALUES('w','g','r','bad','due','row','[]','digest','now')`,
 	} {
-		_, err = db.Exec(query)
+		_, err = db.ExecContext(t.Context(), query)
 		require.Error(t, err)
 	}
 	require.NoError(t, expandSQLiteMixedDelivery(db, nil))
 	// Existing corruption must fail closed even when schemas are already known.
-	_, err = db.Exec(`PRAGMA foreign_keys=OFF; INSERT INTO wg_delivery_mixed_outcomes VALUES('orphan','g','r','bad','due','row','{}','digest','now'); PRAGMA foreign_keys=ON`)
+	_, err = db.ExecContext(t.Context(), `PRAGMA foreign_keys=OFF; INSERT INTO wg_delivery_mixed_outcomes VALUES('orphan','g','r','bad','due','row','{}','digest','now'); PRAGMA foreign_keys=ON`)
 	require.NoError(t, err)
 	before := mixedDeliverySchema(t, db)
 	require.ErrorContains(t, expandSQLiteMixedDelivery(db, nil), "foreign key check")
@@ -186,12 +186,12 @@ func TestMixedDeliveryMigrationForeignKeysAndJSON(t *testing.T) {
 func TestMixedDeliveryMigrationReopenPreservesMixedRows(t *testing.T) {
 	db := mixedDeliveryMigrationDB(t)
 	require.NoError(t, expandSQLiteMixedDelivery(db, nil))
-	_, err := db.Exec(`INSERT INTO wg_runtime_versions VALUES('w','g','r','{"descriptor":true}');
+	_, err := db.ExecContext(t.Context(), `INSERT INTO wg_runtime_versions VALUES('w','g','r','{"descriptor":true}');
  INSERT INTO wg_delivery_mixed_progress VALUES('w','g','r',1,'descriptor','','{"version":1}','checkpoint','closure','now');
  INSERT INTO wg_delivery_mixed_outcomes VALUES('w','g','r','record','due','skipped','{"reason":"baseline"}','digest','now');`)
 	require.NoError(t, err)
 	var path string
-	require.NoError(t, db.QueryRow(`SELECT file FROM pragma_database_list WHERE name='main'`).Scan(&path))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT file FROM pragma_database_list WHERE name='main'`).Scan(&path))
 	require.NoError(t, db.Close())
 	reopened, err := sql.Open("sqlite", path)
 	require.NoError(t, err)
@@ -199,8 +199,8 @@ func TestMixedDeliveryMigrationReopenPreservesMixedRows(t *testing.T) {
 	reopened.SetMaxOpenConns(1)
 	require.NoError(t, NewMigrator().Migrate(reopened))
 	var checkpoint, outcome string
-	require.NoError(t, reopened.QueryRow(`SELECT checkpoint FROM wg_delivery_mixed_progress`).Scan(&checkpoint))
-	require.NoError(t, reopened.QueryRow(`SELECT outcome FROM wg_delivery_mixed_outcomes`).Scan(&outcome))
+	require.NoError(t, reopened.QueryRowContext(t.Context(), `SELECT checkpoint FROM wg_delivery_mixed_progress`).Scan(&checkpoint))
+	require.NoError(t, reopened.QueryRowContext(t.Context(), `SELECT outcome FROM wg_delivery_mixed_outcomes`).Scan(&outcome))
 	require.Equal(t, `{"version":1}`, checkpoint)
 	require.Equal(t, `{"reason":"baseline"}`, outcome)
 }
@@ -209,7 +209,7 @@ func TestMixedDeliveryMigrationHeadExpressionIndex(t *testing.T) {
 	db := mixedDeliveryMigrationDB(t)
 	require.NoError(t, expandSQLiteMixedDelivery(db, nil))
 	var indexSQL string
-	require.NoError(t, db.QueryRow(`SELECT sql FROM sqlite_master WHERE name='idx_wg_delivery_outbox_due_head'`).Scan(&indexSQL))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT sql FROM sqlite_master WHERE name='idx_wg_delivery_outbox_due_head'`).Scan(&indexSQL))
 	const head = `SELECT o.partition_key,o.effect_key FROM wg_delivery_outbox o
  WHERE o.state IN ('pending','retrying') AND o.next_retry_at <= ?
  AND NOT EXISTS (SELECT 1 FROM wg_delivery_outbox e WHERE e.partition_key=o.partition_key
@@ -219,10 +219,10 @@ func TestMixedDeliveryMigrationHeadExpressionIndex(t *testing.T) {
 		id, bucket string
 		due        any
 	}{{"legacy-early", "10", nil}, {"mixed-middle", "", "15"}, {"legacy-last", "20", nil}} {
-		_, err := db.Exec(`INSERT INTO wg_delivery_outbox(effect_key,record_id,workspace_id,group_id,group_revision,bucket_start,due_at,partition_key,destination_scope,connector_id,connector_revision,table_name,payload,payload_digest,next_retry_at,created_at,updated_at) VALUES(?,'r','w','g','v',?,?,'part','target','c','cr','data','{}','digest','0','created','updated')`, row.id, row.bucket, row.due)
+		_, err := db.ExecContext(t.Context(), `INSERT INTO wg_delivery_outbox(effect_key,record_id,workspace_id,group_id,group_revision,bucket_start,due_at,partition_key,destination_scope,connector_id,connector_revision,table_name,payload,payload_digest,next_retry_at,created_at,updated_at) VALUES(?,'r','w','g','v',?,?,'part','target','c','cr','data','{}','digest','0','created','updated')`, row.id, row.bucket, row.due)
 		require.NoError(t, err)
 	}
-	rows, err := db.Query(`EXPLAIN QUERY PLAN `+head, "z")
+	rows, err := db.QueryContext(t.Context(), `EXPLAIN QUERY PLAN `+head, "z")
 	require.NoError(t, err)
 	var plans []string
 	for rows.Next() {
@@ -237,9 +237,9 @@ func TestMixedDeliveryMigrationHeadExpressionIndex(t *testing.T) {
 	t.Logf("query plan:\n%s", strings.Join(plans, "\n"))
 	for _, want := range []string{"legacy-early", "mixed-middle", "legacy-last"} {
 		var partition, effect string
-		require.NoError(t, db.QueryRow(head, "z").Scan(&partition, &effect))
+		require.NoError(t, db.QueryRowContext(t.Context(), head, "z").Scan(&partition, &effect))
 		require.Equal(t, want, effect)
-		_, err = db.Exec(`UPDATE wg_delivery_outbox SET state='sql_committed' WHERE effect_key=?`, effect)
+		_, err = db.ExecContext(t.Context(), `UPDATE wg_delivery_outbox SET state='sql_committed' WHERE effect_key=?`, effect)
 		require.NoError(t, err)
 	}
 	before := mixedDeliverySchema(t, db)

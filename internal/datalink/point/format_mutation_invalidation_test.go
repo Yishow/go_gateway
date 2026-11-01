@@ -34,11 +34,14 @@ func TestFormatInvalidationIsOnceAndPendingCanBeInspected(t *testing.T) {
 				spy.run = func() error { return errors.New("secret://callback") }
 			case "finalize-failure":
 				spy.run = func() error {
-					_, err := db.Exec(`CREATE TRIGGER reject_receipt_finalize BEFORE UPDATE ON system_settings WHEN NEW.key LIKE 'point_format_receipt:%' BEGIN SELECT RAISE(ABORT,'secret://finalize'); END;`)
+					_, err := db.ExecContext(t.Context(), `CREATE TRIGGER reject_receipt_finalize BEFORE UPDATE ON system_settings WHEN NEW.key LIKE 'point_format_receipt:%' BEGIN SELECT RAISE(ABORT,'secret://finalize'); END;`)
 					return err
 				}
 			case "newer-revision":
-				spy.run = func() error { _, err := db.Exec(`UPDATE points SET revision_id='newer'`); return err }
+				spy.run = func() error {
+					_, err := db.ExecContext(t.Context(), `UPDATE points SET revision_id='newer'`)
+					return err
+				}
 			}
 			svc.SetFormatInvalidator(spy)
 			first, err := svc.MutateFormat(t.Context(), req)
@@ -85,7 +88,7 @@ func TestFormatInvalidationDoesNotRunOnRejectedOrFailedTransaction(t *testing.T)
 	_, err := svc.MutateFormat(t.Context(), bad)
 	require.ErrorIs(t, err, ErrFormatConflict)
 	require.Zero(t, spy.calls)
-	_, err = db.Exec(`CREATE TRIGGER reject_point BEFORE UPDATE ON points BEGIN SELECT RAISE(ABORT,'failure'); END;`)
+	_, err = db.ExecContext(t.Context(), `CREATE TRIGGER reject_point BEFORE UPDATE ON points BEGIN SELECT RAISE(ABORT,'failure'); END;`)
 	require.NoError(t, err)
 	_, err = svc.MutateFormat(t.Context(), req)
 	require.ErrorIs(t, err, ErrFormatUnavailable)
@@ -98,7 +101,7 @@ func TestFormatReceiptUnknownVersionAndResolutionAreUnavailable(t *testing.T) {
 			db, svc, req := formatFixture(t)
 			_, err := svc.MutateFormat(t.Context(), req)
 			require.NoError(t, err)
-			_, err = db.Exec(`UPDATE system_settings SET value=json_set(value,?,?) WHERE key LIKE 'point_format_receipt:%'`, path, "unknown")
+			_, err = db.ExecContext(t.Context(), `UPDATE system_settings SET value=json_set(value,?,?) WHERE key LIKE 'point_format_receipt:%'`, path, "unknown")
 			require.NoError(t, err)
 			_, err = svc.MutateFormat(t.Context(), req)
 			require.ErrorIs(t, err, ErrFormatUnavailable)
@@ -121,7 +124,7 @@ func TestFormatReceiptCorruptResolvedSemanticsAreUnavailable(t *testing.T) {
 			db, svc, req := formatFixture(t)
 			_, err := svc.MutateFormat(t.Context(), req)
 			require.NoError(t, err)
-			_, err = db.Exec(`UPDATE system_settings SET value=json_set(value,?,?) WHERE key LIKE 'point_format_receipt:%'`, change.path, change.value)
+			_, err = db.ExecContext(t.Context(), `UPDATE system_settings SET value=json_set(value,?,?) WHERE key LIKE 'point_format_receipt:%'`, change.path, change.value)
 			require.NoError(t, err)
 			_, err = svc.MutateFormat(t.Context(), req)
 			require.ErrorIs(t, err, ErrFormatUnavailable)
@@ -137,7 +140,7 @@ func TestFormatReceiptReplaysFrozenDefaultsNotCurrentConnection(t *testing.T) {
 	req.ConfiguredFormat = ""
 	first, err := svc.MutateFormat(t.Context(), req)
 	require.NoError(t, err)
-	_, err = db.Exec(`UPDATE devices SET connection_config='{"data_format":"DCBA"}'`)
+	_, err = db.ExecContext(t.Context(), `UPDATE devices SET connection_config='{"data_format":"DCBA"}'`)
 	require.NoError(t, err)
 	replay, err := svc.MutateFormat(t.Context(), req)
 	require.NoError(t, err)
@@ -151,7 +154,7 @@ func TestFormatReceiptReplayDoesNotParseChangedConnectionConfig(t *testing.T) {
 	db, svc, req := formatFixture(t)
 	first, err := svc.MutateFormat(t.Context(), req)
 	require.NoError(t, err)
-	_, err = db.Exec(`UPDATE devices SET connection_config='invalid-json'`)
+	_, err = db.ExecContext(t.Context(), `UPDATE devices SET connection_config='invalid-json'`)
 	require.NoError(t, err)
 	got, err := svc.MutateFormat(t.Context(), req)
 	require.NoError(t, err)
@@ -174,9 +177,9 @@ func TestFormatReceiptInheritedNativeAndSingleWordPoliciesRemainValid(t *testing
 	} {
 		t.Run(string(tc.protocol)+string(tc.dtype), func(t *testing.T) {
 			db, svc, req := formatFixture(t)
-			_, err := db.Exec(`UPDATE devices SET protocol=?,connection_config=json_object('data_format',?)`, tc.protocol, tc.format)
+			_, err := db.ExecContext(t.Context(), `UPDATE devices SET protocol=?,connection_config=json_object('data_format',?)`, tc.protocol, tc.format)
 			require.NoError(t, err)
-			_, err = db.Exec(`UPDATE points SET address=?,data_type=?`, tc.address, tc.dtype)
+			_, err = db.ExecContext(t.Context(), `UPDATE points SET address=?,data_type=?`, tc.address, tc.dtype)
 			require.NoError(t, err)
 			req.FormatMode = schema.PointFormatInherit
 			req.ConfiguredFormat = ""

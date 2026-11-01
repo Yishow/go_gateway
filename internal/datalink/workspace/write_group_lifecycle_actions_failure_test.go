@@ -15,7 +15,7 @@ func TestRecordingLifecycleActionsRejectUnknownScopeAndState(t *testing.T) {
 			db, service, group := lifecycleReadFixture(t, false)
 			id := group.ID
 			ctx := t.Context()
-			var want error = ErrWriteGroupNotFound
+			want := ErrWriteGroupNotFound
 			switch mode {
 			case "empty":
 				id = " "

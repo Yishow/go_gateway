@@ -10,6 +10,8 @@ import (
 	"go-gateway/internal/datalink/workspace"
 )
 
+const runtimeStatusStale = "stale"
+
 type workspaceReadinessReader interface {
 	Readiness(ctx context.Context) (*workspace.ReadinessSummary, error)
 }
@@ -131,9 +133,9 @@ func resolveStudioV2ScopedRuntimeApplyOutcome(ctx context.Context, workspaceSvc 
 
 func safeRuntimeApplyMessage(message, status string) string {
 	switch status {
-	case runtimeApplyFailedStatus, "failed":
+	case runtimeApplyFailedStatus, workspaceMappingCleanupFailedStatus:
 		return "runtime apply failed"
-	case "stale":
+	case runtimeStatusStale:
 		return "runtime projection is stale"
 	}
 	return message

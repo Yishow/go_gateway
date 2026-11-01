@@ -18,12 +18,12 @@ func (e *WriteGroupLifecycleActionError) Error() string {
 func (e *WriteGroupLifecycleActionError) Unwrap() error { return e.cause }
 
 func writeGroupRemoveActionError(group *WriteGroup, reason string, cause error) error {
-	next := "review_connector"
-	if reason == "ownership_unavailable" {
-		next = "inspect_ownership"
+	next := writeGroupNextReviewConnector
+	if reason == writeGroupReasonOwnershipUnavailable {
+		next = writeGroupNextInspectOwnership
 	}
 	if group.Status != WriteGroupStatusDisabled {
-		next = "stop"
+		next = writeGroupActionStop
 	}
 	return &WriteGroupLifecycleActionError{Action: "remove", ReasonCode: reason, NextAction: next, cause: cause}
 }

@@ -63,8 +63,8 @@ func (r *defaultPointDirectReader) AcceptsDirectRead(ctx context.Context, cv col
 			return false
 		}
 		// Recheck after provider I/O; absence may have been invalidated while reading.
-		authority := r.profiles.(pointDirectProofAuthority)
-		return authority.AcceptsDirectReadProof(evidence.Mutation, evidence.Scope)
+		authority, ok := r.profiles.(pointDirectProofAuthority)
+		return ok && authority.AcceptsDirectReadProof(evidence.Mutation, evidence.Scope)
 	}
 	return !evidence.Profile.Present() || evidence.Profile.Resolution().Mode == schema.PointFormatLegacy
 }

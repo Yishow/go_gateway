@@ -17,6 +17,8 @@ import (
 	"go-gateway/internal/datalink/runtimeview"
 )
 
+const runtimeSourceListRules = "rules"
+
 type runtimeSourcePageRequest struct {
 	Kind, Query, Cursor, RuleID, RuleRevision string
 	Limit                                     int
@@ -33,7 +35,7 @@ var runtimeSourcePageDigest = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 func runtimeSourcePageRequestFromQuery(q url.Values, scope *runtimeview.Scope) (runtimeSourcePageRequest, bool) {
 	request := runtimeSourcePageRequest{Kind: q.Get("source_list"), Query: strings.TrimSpace(q.Get("q")), Limit: 50, Cursor: q.Get("cursor"), RuleID: q.Get("rule_id"), RuleRevision: q.Get("rule_revision")}
-	if scope == nil || (request.Kind != "rules" && request.Kind != "mappings") {
+	if scope == nil || (request.Kind != runtimeSourceListRules && request.Kind != "mappings") {
 		return request, false
 	}
 	for _, key := range []string{"source_list", "q", "limit", "cursor", "rule_id", "rule_revision"} {
@@ -61,7 +63,10 @@ func runtimeSourcePageRequestFromQuery(q url.Values, scope *runtimeview.Scope) (
 		if len(digits) > 3 {
 			request.Limit = 100
 		} else {
-			value, _ := strconv.Atoi(digits)
+			value, err := strconv.Atoi(digits)
+			if err != nil {
+				return request, false
+			}
 			request.Limit = min(value, 100)
 		}
 	}
@@ -96,15 +101,21 @@ func runtimeSourcePageHash(value any) (string, error) {
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:]), nil
 }
-func runtimeSourcePageBinding(scope runtimeview.Scope, request runtimeSourcePageRequest, position int) string {
-	binding, _ := runtimeSourcePageHash([]any{1, scope.WorkspaceID, scope.WorkspaceRevision, scope.DeviceID, request.Kind, request.Query, request.Limit, request.RuleID, request.RuleRevision, position})
-	return binding
+func runtimeSourcePageBinding(scope runtimeview.Scope, request runtimeSourcePageRequest, position int) (string, error) {
+	return runtimeSourcePageHash([]any{1, scope.WorkspaceID, scope.WorkspaceRevision, scope.DeviceID, request.Kind, request.Query, request.Limit, request.RuleID, request.RuleRevision, position})
 }
-func runtimeSourcePageNext(scope runtimeview.Scope, request runtimeSourcePageRequest, revision string, position int) *string {
-	cursor := runtimeSourcePageCursor{Version: 1, Binding: runtimeSourcePageBinding(scope, request, position), Revision: revision, Position: position}
-	raw, _ := json.Marshal(cursor)
+func runtimeSourcePageNext(scope runtimeview.Scope, request runtimeSourcePageRequest, revision string, position int) (*string, error) {
+	binding, err := runtimeSourcePageBinding(scope, request, position)
+	if err != nil {
+		return nil, err
+	}
+	cursor := runtimeSourcePageCursor{Version: 1, Binding: binding, Revision: revision, Position: position}
+	raw, err := json.Marshal(cursor)
+	if err != nil {
+		return nil, err
+	}
 	encoded := base64.RawURLEncoding.EncodeToString(raw)
-	return &encoded
+	return &encoded, nil
 }
 func runtimeSourcePageDecode(raw string) (runtimeSourcePageCursor, bool) {
 	var result runtimeSourcePageCursor

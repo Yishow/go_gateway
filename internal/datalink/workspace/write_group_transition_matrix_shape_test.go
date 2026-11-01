@@ -45,7 +45,7 @@ func TestWriteGroupTransitionMatrixEquivalentInstantaneousShapes(t *testing.T) {
 	}
 }
 
-func transitionMatrixCumulativePair() (*WriteGroup, *WriteGroup, map[string]schema.DataType) {
+func transitionMatrixCumulativePair() (longGroup, wideGroup *WriteGroup, tagTypes map[string]schema.DataType) {
 	long, wide, types := transitionMatrixPair(WriteGroupLayoutManagedLongV1, WriteGroupLayoutManagedWideProfileV1)
 	for _, g := range []*WriteGroup{long, wide} {
 		g.RecordingProfile = &WriteGroupRecordingProfile{Kind: WriteGroupProfileCumulative, Interval: 10, Unit: WriteGroupIntervalUnitMinute}

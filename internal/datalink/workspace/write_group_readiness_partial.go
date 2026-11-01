@@ -19,7 +19,7 @@ func evaluateWriteGroupPartialInspection(group *WriteGroup, tagTypes map[string]
 	if managedLongGroup(group) {
 		return nil
 	}
-	if strings.ToLower(strings.TrimSpace(group.RowPolicy.IncompletePolicy)) != "partial" || inspection == nil || inspection.Status != dbtarget.TableInspectionExists {
+	if strings.ToLower(strings.TrimSpace(group.RowPolicy.IncompletePolicy)) != writeGroupIncompletePolicyPartial || inspection == nil || inspection.Status != dbtarget.TableInspectionExists {
 		return nil
 	}
 	dialect := dbtarget.SQLDialectSQLite

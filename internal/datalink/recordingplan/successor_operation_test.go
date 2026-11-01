@@ -45,7 +45,7 @@ func TestSuccessorLedgerReserveSurvivesCommitAndExactReplay(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, string(want.Result), string(replay.Result))
 	var count int
-	require.NoError(t, tx.QueryRow(`SELECT COUNT(*) FROM managed_schema_operations`).Scan(&count))
+	require.NoError(t, tx.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM managed_schema_operations`).Scan(&count))
 	require.Equal(t, 1, count, "same O2 never creates G3 or another root")
 	encoded, err := json.Marshal(read)
 	require.NoError(t, err)
@@ -94,7 +94,7 @@ func TestSuccessorLedgerReserveRollbackLeavesNoAuthority(t *testing.T) {
 	_, err := RecordSuccessorReserveInTx(t.Context(), tx, successorReserveFixture())
 	require.NoError(t, err)
 	// A later configuration checkpoint failure aborts the entire caller commit.
-	_, err = tx.Exec(`INSERT INTO missing_configuration_checkpoint VALUES (1)`)
+	_, err = tx.ExecContext(t.Context(), `INSERT INTO missing_configuration_checkpoint VALUES (1)`)
 	require.Error(t, err)
 	require.NoError(t, tx.Rollback())
 	tx = beginSuccessorTx(t, db)

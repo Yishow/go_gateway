@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const modbusShareStatusDisabled = "disabled"
+
 // @Summary Get Modbus Share status
 // @Tags datalink
 // @Produce json
@@ -73,7 +75,7 @@ func (h *ModbusShareHandler) Status(c *gin.Context) {
 		if ready && !dirty && status.Recovery == nil {
 			if !st.Enabled {
 				status.Enabled = false
-				status.BindState = "disabled"
+				status.BindState = modbusShareStatusDisabled
 			}
 		}
 		if ready && !dirty && status.Recovery == nil {

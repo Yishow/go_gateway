@@ -69,8 +69,8 @@ func (h *RuntimeHandler) readRuntimeSourceRecords(ctx context.Context, scope run
 		if rule != nil {
 			return nil, runtimeEvidenceError(runtimeview.ReasonStale)
 		}
-		copy := *candidate
-		rule = &copy
+		cloned := *candidate
+		rule = &cloned
 	}
 	if rule == nil || rule.RevisionID != selected.RuleRevision {
 		return nil, runtimeEvidenceError(runtimeview.ReasonStale)
@@ -90,8 +90,8 @@ func (h *RuntimeHandler) readRuntimeSourceRecords(ctx context.Context, scope run
 		if candidate.RuleID != selected.RuleID || link != nil {
 			return nil, runtimeEvidenceError(runtimeview.ReasonStale)
 		}
-		copy := *candidate
-		link = &copy
+		cloned := *candidate
+		link = &cloned
 	}
 	if link == nil {
 		return nil, runtimeEvidenceError(runtimeview.ReasonStale)
@@ -121,8 +121,8 @@ func (h *RuntimeHandler) readRuntimeSourceRecords(ctx context.Context, scope run
 		if group.ID != *p.PollingGroupID {
 			return nil, runtimeEvidenceError(runtimeview.ReasonStale)
 		}
-		copy := *group
-		records.Polling = &copy
+		cloned := *group
+		records.Polling = &cloned
 	}
 	if selected.MappingID != "" {
 		if err := h.readRuntimeSourceMapping(ctx, records, selected.MappingID); err != nil {

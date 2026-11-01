@@ -63,13 +63,13 @@ func newReductionHandoffFixture(t *testing.T, wideTarget bool) *runtimeHandoffFi
 		"moved":                    []workspace.CutoverMemberRef{{DeviceID: m.DeviceID, PointID: m.PointID, TagID: m.TagID}},
 	})
 	require.NoError(t, err)
-	_, err = tx.Exec(`INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,intent) VALUES('runtime-reduction',?,'forward',?,?,'reduction-review',?,'{}')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, boundary.Format(time.RFC3339Nano), string(detail))
+	_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,intent) VALUES('runtime-reduction',?,'forward',?,?,'reduction-review',?,'{}')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, boundary.Format(time.RFC3339Nano), string(detail))
 	require.NoError(t, err)
-	_, err = tx.Exec(`INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,'runtime-reduction')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, f.sourceKey.GroupRevision, boundary.Format(time.RFC3339Nano))
+	_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,'runtime-reduction')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, f.sourceKey.GroupRevision, boundary.Format(time.RFC3339Nano))
 	require.NoError(t, err)
 	for direction, owner := range map[string]*longFixture{"ended": source, "started": target} {
 		g := owner.config.Group
-		_, err = tx.Exec(`INSERT INTO write_group_ownership_fences(fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) VALUES('runtime-reduction',?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.WorkspaceID, direction, g.ID, g.AppliedRevision, m.DeviceID, m.PointID, m.TagID, string(g.RecordingProfile.Kind), g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.Database, g.Destination.TableSchema, g.Destination.TableName)
+		_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_ownership_fences(fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) VALUES('runtime-reduction',?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.WorkspaceID, direction, g.ID, g.AppliedRevision, m.DeviceID, m.PointID, m.TagID, string(g.RecordingProfile.Kind), g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.Database, g.Destination.TableSchema, g.Destination.TableName)
 		require.NoError(t, err)
 	}
 	require.NoError(t, tx.Commit())
@@ -83,14 +83,14 @@ type reductionFrozenRow struct{ payload, digest, scope, connector, table string 
 func reductionOutbox(t *testing.T, db *sql.DB, group string) reductionFrozenRow {
 	t.Helper()
 	var row reductionFrozenRow
-	require.NoError(t, db.QueryRow(`SELECT payload,payload_digest,destination_scope,connector_id,table_name FROM wg_delivery_outbox WHERE group_id=? ORDER BY bucket_start LIMIT 1`, group).Scan(&row.payload, &row.digest, &row.scope, &row.connector, &row.table))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload,payload_digest,destination_scope,connector_id,table_name FROM wg_delivery_outbox WHERE group_id=? ORDER BY bucket_start LIMIT 1`, group).Scan(&row.payload, &row.digest, &row.scope, &row.connector, &row.table))
 	return row
 }
 
 func reductionOriginal(t *testing.T, db *sql.DB, group, id string) [3]string {
 	t.Helper()
 	var result [3]string
-	require.NoError(t, db.QueryRow(`SELECT payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')=?`, group, id).Scan(&result[0], &result[1], &result[2]))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload,payload_digest,created_at FROM wg_delivery_samples WHERE group_id=? AND json_extract(payload,'$.sample_id')=?`, group, id).Scan(&result[0], &result[1], &result[2]))
 	return result
 }
 
@@ -107,12 +107,12 @@ func reductionReadback(t *testing.T, f *longFixture, frozen reductionFrozenRow, 
 	if f.config.Group.LayoutVersion == workspace.WriteGroupLayoutManagedLongV1 {
 		var status string
 		var delta, from, to sql.NullString
-		require.NoError(t, f.db.QueryRow(`SELECT value_decimal,status,delta_value,delta_from,delta_to,provenance FROM `+longFixtureTable).Scan(&value, &status, &delta, &from, &to, &provenance))
+		require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT value_decimal,status,delta_value,delta_from,delta_to,provenance FROM `+longFixtureTable).Scan(&value, &status, &delta, &from, &to, &provenance))
 		require.Equal(t, "baseline", status)
 		require.False(t, delta.Valid || from.Valid || to.Valid, "baseline delta and both bounds must be SQL NULL")
 	} else {
 		require.True(t, row.Partial, "wide rows carry their partial flag; long rows preserve baseline status and window evidence")
-		require.NoError(t, f.db.QueryRow(`SELECT v_gauge,provenance FROM `+wideFixtureTable).Scan(&value, &provenance))
+		require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT v_gauge,provenance FROM `+wideFixtureTable).Scan(&value, &provenance))
 		var entries []struct {
 			Counter struct {
 				Status string  `json:"status"`
@@ -173,7 +173,7 @@ func TestGroupBoundaryCutoverReductionVerifiedCumulativeMatrix(t *testing.T) {
 				last string
 				end  time.Time
 			}{{f.sourceKey, []string{"before"}, "before", f.boundary}, {f.targetKey, []string{"exact", "after"}, "after", targetEnd}} {
-				rows, err := f.store.DB().Query(`SELECT json_extract(payload,'$.sample_id') FROM wg_delivery_samples WHERE group_id=? AND consumed=1`, tc.key.GroupID)
+				rows, err := f.store.DB().QueryContext(t.Context(), `SELECT json_extract(payload,'$.sample_id') FROM wg_delivery_samples WHERE group_id=? AND consumed=1`, tc.key.GroupID)
 				require.NoError(t, err)
 				var ids []string
 				for rows.Next() {

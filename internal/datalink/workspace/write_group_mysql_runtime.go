@@ -18,7 +18,7 @@ func ValidateMySQLRuntimeLayout(group *WriteGroup, frozen *WriteGroupRuntimeLayo
 		group.Destination.ConnectorID == "" || group.Destination.ConnectorRevision == "" ||
 		group.Destination.Database == "" || group.Destination.Database != group.Destination.TableSchema ||
 		group.Destination.SchemaRevision == "" || len(group.Members) == 0 || frozen.Hypertable != nil ||
-		group.WritePolicy.DedupeCapability != "receipt" || !frozen.ReceiptTableReady ||
+		group.WritePolicy.DedupeCapability != writeGroupDedupeReceipt || !frozen.ReceiptTableReady ||
 		!LongRecordingShapeSupported(group, frozen.TagTypes) || !longRuntimeSupported(group) {
 		return ErrWriteGroupValidation
 	}

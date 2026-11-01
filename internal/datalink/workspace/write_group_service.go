@@ -233,10 +233,10 @@ func (s *WriteGroupService) Delete(ctx context.Context, id string, mutation Writ
 		}
 		if existing.AppliedRevision != "" {
 			if s.backlogGuard == nil {
-				return writeGroupRemoveActionError(existing, "ownership_unavailable", ErrWriteGroupLifecycleBlocked)
+				return writeGroupRemoveActionError(existing, writeGroupReasonOwnershipUnavailable, ErrWriteGroupLifecycleBlocked)
 			}
 			if err := s.backlogGuard.CheckWriteGroupBacklog(ctx, tx, existing); err != nil {
-				return writeGroupRemoveActionError(existing, "ownership_unavailable", errors.Join(ErrWriteGroupLifecycleBlocked, err))
+				return writeGroupRemoveActionError(existing, writeGroupReasonOwnershipUnavailable, errors.Join(ErrWriteGroupLifecycleBlocked, err))
 			}
 		}
 		if existing.Destination.ConnectorRevision != mutation.ExpectedConnectorRevision {
@@ -246,9 +246,9 @@ func (s *WriteGroupService) Delete(ctx context.Context, id string, mutation Writ
 			return err
 		}
 		if err := validateLiveWriteGroupConnector(ctx, tx, s.repo, existing.Destination.ConnectorID, mutation.ExpectedConnectorRevision); err != nil {
-			reason := "connector_unavailable"
+			reason := writeGroupReasonConnectorUnavailable
 			if errors.Is(err, ErrWriteGroupConnectorRevisionConflict) {
-				reason = "connector_identity_stale"
+				reason = writeGroupReasonConnectorIdentityStale
 			}
 			return writeGroupRemoveActionError(existing, reason, err)
 		}

@@ -39,7 +39,7 @@ func (s *WriteGroupService) checkLegacyCutoverOwnerInTx(ctx context.Context, tx 
 		return err
 	}
 	if version.EffectiveAt.After(s.clockNow()) {
-		return &WriteGroupLifecycleActionError{Action: "transition", ReasonCode: "successor_activation_pending", NextAction: "review_lifecycle", cause: ErrWriteGroupLifecycleBlocked}
+		return &WriteGroupLifecycleActionError{Action: "transition", ReasonCode: "successor_activation_pending", NextAction: writeGroupNextReviewLifecycle, cause: ErrWriteGroupLifecycleBlocked}
 	}
 	return nil
 }

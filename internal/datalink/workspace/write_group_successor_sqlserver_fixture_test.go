@@ -71,7 +71,7 @@ func successorSQLServerUnitReserved(t *testing.T, mode WriteGroupStorageMode) (*
 	return h, id, stage, p
 }
 
-func successorSQLServerUnitSucceeded(t *testing.T, h *circuitProfileHarness, scope recordingplan.SchemaPreviewScope, p *successorSQLServerUnitInspector) (*recordingplan.SchemaPreviewToken, string) {
+func successorSQLServerUnitSucceeded(t *testing.T, h *circuitProfileHarness, scope recordingplan.SchemaPreviewScope, p *successorSQLServerUnitInspector) (previewToken *recordingplan.SchemaPreviewToken, verifiedDigest string) {
 	t.Helper()
 	repo := recordingplan.NewSQLRepository(h.db)
 	svc := recordingplan.NewService(repo)

@@ -148,7 +148,7 @@ func requireNoLineageStartInTx(ctx context.Context, tx *sql.Tx, r *SQLWriteGroup
 		rows.Close()
 		return err
 	}
-	if err = rows.Close(); err != nil {
+	if err := rows.Close(); err != nil {
 		return err
 	}
 	groupIDs := make([]string, 0, len(ids))

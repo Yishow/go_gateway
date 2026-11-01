@@ -16,7 +16,7 @@ func safeRuntimeValueEvent(event datalinkruntime.ValueEvent) (json.RawMessage, e
 	event.PointID = runtimeSafeID(event.PointID)
 	address := runtimeSafeAddress(event.Address)
 	supported := rawOK && transformedOK && address != "" && address == event.Address && event.DeviceID != "" && event.PointID != ""
-	event.Quality = schema.QualityFlag(runtimeSafeEnum(string(event.Quality), "good", "bad", "missing", "stale", "invalid", "uncertain"))
+	event.Quality = schema.QualityFlag(runtimeSafeEnum(string(event.Quality), "good", "bad", runtimeStatusMissing, runtimeStatusStale, "invalid", "uncertain"))
 	event.Address = address
 	event.RawValue = raw
 	event.TransformedValue = transformed

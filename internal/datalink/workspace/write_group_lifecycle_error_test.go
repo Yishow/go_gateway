@@ -10,16 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type lifecyclePrivateCause struct{}
+type lifecyclePrivateError struct{}
 
-func (*lifecyclePrivateCause) Error() string { return "private endpoint credential sample payload" }
+func (*lifecyclePrivateError) Error() string { return "private endpoint credential sample payload" }
 
 func TestLifecycleRemoveClassifiesGuardAndConnectorFailures(t *testing.T) {
 	for _, stage := range []string{"guard-missing", "guard-failed", "connector-stale", "connector-missing", "connector-read-failed"} {
 		for _, stopped := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/stopped=%t", stage, stopped), func(t *testing.T) {
 				db, service, group := lifecycleReadFixture(t, true)
-				cause := &lifecyclePrivateCause{}
+				cause := &lifecyclePrivateError{}
 				service.WithBacklogOwnershipGuard(writeGroupBacklogGuardFunc(func(context.Context, *sql.Tx, *WriteGroup) error { return nil }))
 				if stopped {
 					saved, err := service.Disable(t.Context(), group.ID, lifecycleReadMutation(t, service, group))
@@ -57,7 +57,7 @@ func TestLifecycleRemoveClassifiesGuardAndConnectorFailures(t *testing.T) {
 					require.ErrorIs(t, err, ErrNotFound)
 				}
 				if stage == "guard-failed" {
-					var actual *lifecyclePrivateCause
+					var actual *lifecyclePrivateError
 					require.ErrorAs(t, err, &actual)
 					require.Same(t, cause, actual)
 				}
@@ -119,4 +119,4 @@ func TestLifecycleRemoveKeepsCASAndForeignScopeErrors(t *testing.T) {
 	}
 }
 
-var _ error = (*lifecyclePrivateCause)(nil)
+var _ error = (*lifecyclePrivateError)(nil)

@@ -18,7 +18,7 @@ func newSourceRuleEventObserver(logs *diagnostics.Broker) datalinkruntime.Source
 			logs.EmitDomainUnavailable(ctx)
 			return
 		}
-		code, stage, reason, action := diagnostics.DomainEventCode("domain.source.rejected"), runtimeview.Stage("blocked"), runtimeview.Reason("unavailable"), runtimeview.Action("refresh")
+		code, stage, reason, action := diagnostics.DomainEventCode("domain.source.rejected"), runtimeview.Stage("blocked"), runtimeview.Reason(gatewayHostUnavailable), runtimeview.Action("refresh")
 		if observation.Result == sourcerule.SourceObservationApplied {
 			if !observation.Applied {
 				logs.EmitDomainUnavailable(ctx)

@@ -40,7 +40,7 @@ func crashFrozenBoundary(t *testing.T, store *groupdelivery.Store, key groupdeli
 		FirstBucket: snapshot.BucketStart(frozen.EffectiveAt, interval), StartsAt: frozen.EffectiveAt, Ledger: store.Ledger(key), MaxFutureSkew: 2 * time.Second,
 		Clock: func() time.Time { return at(700 * time.Second) }}
 	var end string
-	err = store.DB().QueryRow(`SELECT ends_at FROM write_group_revision_ends WHERE workspace_id=? AND group_id=? AND group_revision=?`, key.WorkspaceID, key.GroupID, key.GroupRevision).Scan(&end)
+	err = store.DB().QueryRowContext(t.Context(), `SELECT ends_at FROM write_group_revision_ends WHERE workspace_id=? AND group_id=? AND group_revision=?`, key.WorkspaceID, key.GroupID, key.GroupRevision).Scan(&end)
 	if !errors.Is(err, sql.ErrNoRows) {
 		require.NoError(t, err)
 		cfg.EndsAt, err = time.Parse(time.RFC3339Nano, end)
@@ -57,7 +57,7 @@ func crashFrozenBoundary(t *testing.T, store *groupdelivery.Store, key groupdeli
 
 func crashRows(t *testing.T, db *sql.DB, table string) []string {
 	t.Helper()
-	rows, err := db.Query(`SELECT * FROM ` + table + ` ORDER BY rowid`)
+	rows, err := db.QueryContext(t.Context(), `SELECT * FROM `+table+` ORDER BY rowid`)
 	require.NoError(t, err)
 	defer rows.Close()
 	columns, err := rows.Columns()
@@ -90,7 +90,7 @@ func crashProgress(t *testing.T, db *sql.DB) map[string][]string {
 // copied physical row addresses are not a second logical accepted observation.
 func crashAssertJournal(t *testing.T, f *runtimeHandoffFixture, originals map[crashIdentity]crashAccepted, finalized bool) {
 	t.Helper()
-	rows, err := f.store.DB().Query(`SELECT workspace_id,group_id,group_revision,COALESCE(NULLIF(origin_workspace_id,''),workspace_id),COALESCE(NULLIF(origin_group_id,''),group_id),COALESCE(NULLIF(origin_revision,''),group_revision),COALESCE(NULLIF(origin_sample_id,''),sample_id),payload,payload_digest,created_at,consumed FROM wg_delivery_samples ORDER BY seq`)
+	rows, err := f.store.DB().QueryContext(t.Context(), `SELECT workspace_id,group_id,group_revision,COALESCE(NULLIF(origin_workspace_id,''),workspace_id),COALESCE(NULLIF(origin_group_id,''),group_id),COALESCE(NULLIF(origin_revision,''),group_revision),COALESCE(NULLIF(origin_sample_id,''),sample_id),payload,payload_digest,created_at,consumed FROM wg_delivery_samples ORDER BY seq`)
 	require.NoError(t, err)
 	defer rows.Close()
 	union, consumers := map[crashIdentity]bool{}, map[crashIdentity]groupdelivery.GroupKey{}

@@ -68,11 +68,11 @@ func TestVerifiedSchemaProofRejectsNilTransactionAndForeignOperation(t *testing.
 			case "foreign-workspace":
 				scope.WorkspaceID = "foreign"
 			case "foreign-op":
-				_, err = tx.Exec(`UPDATE managed_schema_preview_tokens SET operation_id='foreign' WHERE token=?`, token.Token)
+				_, err = tx.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET operation_id='foreign' WHERE token=?`, token.Token)
 			case "foreign-scope":
-				_, err = tx.Exec(`UPDATE managed_schema_operations SET scope_key='foreign' WHERE operation_id=?`, op.OperationID)
+				_, err = tx.ExecContext(t.Context(), `UPDATE managed_schema_operations SET scope_key='foreign' WHERE operation_id=?`, op.OperationID)
 			case "wrong-status":
-				_, err = tx.Exec(`UPDATE managed_schema_operations SET status='unknown' WHERE operation_id=?`, op.OperationID)
+				_, err = tx.ExecContext(t.Context(), `UPDATE managed_schema_operations SET status='unknown' WHERE operation_id=?`, op.OperationID)
 			case "wrong-digest":
 				digest = strings.Repeat("b", 64)
 			}

@@ -12,15 +12,16 @@ func TestLifecycleSuccessorCanonicalActionsAndSafeSeed(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			var h *circuitProfileHarness
 			var id string
-			if kind == "basic" {
+			switch kind {
+			case "basic":
 				var req writeGroupRecreateReservationRequest
 				h, req = recreateBasicFixture(t, "sqlite")
 				id = req.PredecessorGroupID
-			} else if kind == "profile" {
+			case "profile":
 				h, id, _ = successorReviewFixture(t)
-			} else if kind == "active-long" {
+			case "active-long":
 				h, id, _ = successorActiveWideFixture(t, WriteGroupLayoutManagedLongV1)
-			} else {
+			default:
 				h, id, _ = successorActiveWideFixture(t)
 			}
 			if kind == "disabled" {

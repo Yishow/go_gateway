@@ -8,6 +8,17 @@ import (
 	"strings"
 )
 
+const (
+	writeGroupReasonSuccessorReserved      = "successor_reserved"
+	writeGroupNextReviewConnector          = "review_connector"
+	writeGroupReasonOwnershipUnavailable   = "ownership_unavailable"
+	writeGroupNextReviewLifecycle          = "review_lifecycle"
+	writeGroupReasonConnectorIdentityStale = "connector_identity_stale"
+	writeGroupReasonConnectorUnavailable   = "connector_unavailable"
+	writeGroupNextInspectOwnership         = "inspect_ownership"
+	writeGroupActionStop                   = "stop"
+)
+
 // WriteGroupLifecycleAction is advisory availability, never mutation authority.
 // Existing mutation endpoints still recheck their scope, revisions and guards.
 type WriteGroupLifecycleAction struct {
@@ -38,7 +49,7 @@ type WriteGroupLifecycle struct {
 // Lifecycle reads local configuration and ownership evidence in one transaction.
 // It never probes the destination, invokes DDL, or changes a saved/applied group.
 func (s *WriteGroupService) Lifecycle(ctx context.Context, id string) (result *WriteGroupLifecycle, err error) {
-	if err = s.validate(); err != nil {
+	if err := s.validate(); err != nil {
 		return nil, err
 	}
 	id = strings.TrimSpace(id)
@@ -90,7 +101,7 @@ func (s *WriteGroupService) Lifecycle(ctx context.Context, id string) (result *W
 		History: history,
 	}
 	result.SuccessorSeed = s.lifecycleSuccessorSeed(ctx, setupTx.SQLTx(), group, history, result.Actions)
-	if err = ctx.Err(); err != nil {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -99,20 +110,20 @@ func (s *WriteGroupService) Lifecycle(ctx context.Context, id string) (result *W
 func (s *WriteGroupService) lifecycleActions(ctx context.Context, tx *sql.Tx, group *WriteGroup) []WriteGroupLifecycleAction {
 	actions := []WriteGroupLifecycleAction{
 		{Action: "edit", Allowed: true},
-		{Action: "stop", Allowed: true},
+		{Action: writeGroupActionStop, Allowed: true},
 		{Action: "remove", Allowed: true},
-		{Action: "recreate", ReasonCode: "source_definition_unavailable", NextAction: "review_lifecycle", RequiresReview: true},
-		{Action: "transition", ReasonCode: "source_definition_unavailable", NextAction: "review_lifecycle", RequiresReview: true},
+		{Action: "recreate", ReasonCode: "source_definition_unavailable", NextAction: writeGroupNextReviewLifecycle, RequiresReview: true},
+		{Action: "transition", ReasonCode: "source_definition_unavailable", NextAction: writeGroupNextReviewLifecycle, RequiresReview: true},
 	}
 	if isSuccessorReservedError(s.repo.requireUnreservedWriteGroupInTx(ctx, tx, group.WorkspaceID, group.ID)) {
 		for i := range actions {
-			actions[i].Allowed, actions[i].ReasonCode, actions[i].NextAction = false, "successor_reserved", "review_lifecycle"
+			actions[i].Allowed, actions[i].ReasonCode, actions[i].NextAction = false, writeGroupReasonSuccessorReserved, writeGroupNextReviewLifecycle
 		}
 		return actions
 	}
 	if group.Status == WriteGroupStatusDeleted {
 		for i := 0; i < 3; i++ {
-			actions[i].Allowed, actions[i].ReasonCode, actions[i].NextAction = false, "recording_removed", "review_lifecycle"
+			actions[i].Allowed, actions[i].ReasonCode, actions[i].NextAction = false, "recording_removed", writeGroupNextReviewLifecycle
 		}
 		return actions
 	}
@@ -123,18 +134,18 @@ func (s *WriteGroupService) lifecycleActions(ctx context.Context, tx *sql.Tx, gr
 	connectorErr := validateLiveWriteGroupConnector(ctx, tx, s.repo, group.Destination.ConnectorID, group.Destination.ConnectorRevision)
 	switch {
 	case errors.Is(connectorErr, ErrWriteGroupConnectorRevisionConflict):
-		remove.ReasonCode, remove.NextAction = "connector_identity_stale", "review_connector"
+		remove.ReasonCode, remove.NextAction = writeGroupReasonConnectorIdentityStale, writeGroupNextReviewConnector
 	case connectorErr != nil:
-		remove.ReasonCode, remove.NextAction = "connector_unavailable", "review_connector"
+		remove.ReasonCode, remove.NextAction = writeGroupReasonConnectorUnavailable, writeGroupNextReviewConnector
 	case group.AppliedRevision != "":
 		if s.backlogGuard == nil || s.backlogGuard.CheckWriteGroupBacklog(ctx, tx, group) != nil {
-			remove.ReasonCode, remove.NextAction = "ownership_unavailable", "inspect_ownership"
+			remove.ReasonCode, remove.NextAction = writeGroupReasonOwnershipUnavailable, writeGroupNextInspectOwnership
 		}
 	}
 	if remove.ReasonCode != "" {
 		remove.Allowed = false
 		if actions[1].Allowed {
-			remove.NextAction = "stop"
+			remove.NextAction = writeGroupActionStop
 		}
 	}
 	return actions

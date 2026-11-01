@@ -12,7 +12,7 @@ import (
 // SuccessorOperationStatus reads only persisted local evidence in one coherent
 // transaction. It never probes a target, reconciles DDL, or modifies a ledger.
 func (s *WriteGroupService) SuccessorOperationStatus(ctx context.Context, id string, req WriteGroupSuccessorOperationStatusRequest) (result *WriteGroupSuccessorOperationStatus, err error) {
-	if err = s.validate(); err != nil {
+	if err := s.validate(); err != nil {
 		return nil, err
 	}
 	for _, value := range []string{id, req.WorkspaceID, req.LineageID, req.OperationID} {

@@ -10,7 +10,7 @@ import (
 // SuccessorReview reads only local state. It never reserves a group, persists
 // a schema token, probes a connector, or authorizes a future mutation.
 func (s *WriteGroupService) SuccessorReview(ctx context.Context, id string, req WriteGroupSuccessorReviewRequest) (result *WriteGroupSuccessorReview, err error) {
-	if err = s.validate(); err != nil {
+	if err := s.validate(); err != nil {
 		return nil, err
 	}
 	id = strings.TrimSpace(id)
@@ -86,10 +86,10 @@ func (s *WriteGroupService) reviewSuccessorInTx(ctx context.Context, tx *sql.Tx,
 	}
 	result := &WriteGroupSuccessorReview{History: history, Blockers: []WriteGroupSuccessorBlocker{}, RequiredChecks: []WriteGroupSuccessorBlocker{}}
 	block := func(reason string) {
-		result.Blockers = append(result.Blockers, WriteGroupSuccessorBlocker{ReasonCode: reason, NextAction: "review_lifecycle"})
+		result.Blockers = append(result.Blockers, WriteGroupSuccessorBlocker{ReasonCode: reason, NextAction: writeGroupNextReviewLifecycle})
 	}
 	if metadata.ReservedGroupID.Valid {
-		block("successor_reserved")
+		block(writeGroupReasonSuccessorReserved)
 	}
 	switch predecessor.Status {
 	case WriteGroupStatusDeleted:
@@ -105,9 +105,9 @@ func (s *WriteGroupService) reviewSuccessorInTx(ctx context.Context, tx *sql.Tx,
 	}
 	if predecessor.AppliedRevision != "" {
 		if s.backlogGuard == nil {
-			block("ownership_unavailable")
+			block(writeGroupReasonOwnershipUnavailable)
 		} else if err := s.backlogGuard.CheckWriteGroupBacklog(ctx, tx, predecessor); err != nil {
-			block("ownership_unavailable")
+			block(writeGroupReasonOwnershipUnavailable)
 		}
 	}
 	if len(result.Blockers) == 0 {

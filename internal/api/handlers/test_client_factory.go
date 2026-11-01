@@ -11,6 +11,8 @@ import (
 
 // --- Helper Functions ---
 
+const testClientProtocolModbusTCP = "modbus_tcp"
+
 // createClientWithDebug 創建帶有數據包記錄功能的客戶端
 func (h *TestHandler) createClientWithDebug(protocol string, config map[string]any, connectionID string) (any, error) {
 	// Helper to safe cast config values
@@ -37,7 +39,7 @@ func (h *TestHandler) createClientWithDebug(protocol string, config map[string]a
 	}
 
 	switch protocol {
-	case "modbus_tcp":
+	case testClientProtocolModbusTCP:
 		host := getString("host", "localhost")
 		port := getInt("port", 502)
 		unitID, err := testModbusUnitID(config)

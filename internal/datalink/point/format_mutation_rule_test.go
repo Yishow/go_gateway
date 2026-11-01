@@ -17,9 +17,9 @@ func TestFormatMutationRuleIdentityAndRevision(t *testing.T) {
 	for _, kind := range []string{"valid", "wrong-rule", "wrong-device", "wrong-address", "missing-rule", "stale-rule", "missing-guard", "mixed-address"} {
 		t.Run(kind, func(t *testing.T) {
 			db, svc, req := formatFixture(t)
-			_, err := db.Exec(`INSERT INTO source_rules(id,device_id,start_address,count,data_type,naming_prefix,revision_id,data_format) VALUES('rule',?,'40001',1,'uint32','p','rule-old','ABCD')`, req.DeviceID)
+			_, err := db.ExecContext(t.Context(), `INSERT INTO source_rules(id,device_id,start_address,count,data_type,naming_prefix,revision_id,data_format) VALUES('rule',?,'40001',1,'uint32','p','rule-old','ABCD')`, req.DeviceID)
 			require.NoError(t, err)
-			_, err = db.Exec(`INSERT INTO source_rule_links(id,rule_id,address,point_id) VALUES('link','rule','40001',?)`, req.PointID)
+			_, err = db.ExecContext(t.Context(), `INSERT INTO source_rule_links(id,rule_id,address,point_id) VALUES('link','rule','40001',?)`, req.PointID)
 			require.NoError(t, err)
 			req.RuleID = "rule"
 			req.ExpectedRuleRevision = "rule-old"
@@ -32,10 +32,10 @@ func TestFormatMutationRuleIdentityAndRevision(t *testing.T) {
 			case "wrong-rule":
 				req.RuleID = "other"
 			case "wrong-device":
-				_, err = db.Exec(`UPDATE source_rules SET device_id='other'`)
+				_, err = db.ExecContext(t.Context(), `UPDATE source_rules SET device_id='other'`)
 				require.NoError(t, err)
 			case "wrong-address":
-				_, err = db.Exec(`UPDATE source_rule_links SET address='40002'`)
+				_, err = db.ExecContext(t.Context(), `UPDATE source_rule_links SET address='40002'`)
 				require.NoError(t, err)
 			case "missing-rule":
 				req.RuleID = ""

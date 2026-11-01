@@ -54,13 +54,13 @@ func closureFenceFixture(t *testing.T, wideTarget bool) (*runtimeHandoffFixture,
 			"moved":                    []workspace.CutoverMemberRef{{DeviceID: m.DeviceID, PointID: m.PointID, TagID: m.TagID}},
 		})
 		require.NoError(t, err)
-		_, err = tx.Exec(`INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,intent) VALUES('runtime-closure',?,'forward',?,?,'closure-review',?,'{}')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, f.boundary.Format(time.RFC3339Nano), string(detail))
+		_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail,intent) VALUES('runtime-closure',?,'forward',?,?,'closure-review',?,'{}')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, f.boundary.Format(time.RFC3339Nano), string(detail))
 		require.NoError(t, err)
-		_, err = tx.Exec(`INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,'runtime-closure')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, f.sourceKey.GroupRevision, f.boundary.Format(time.RFC3339Nano))
+		_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_revision_ends(workspace_id,group_id,group_revision,ends_at,cutover_id) VALUES(?,?,?,?,'runtime-closure')`, f.sourceKey.WorkspaceID, f.sourceKey.GroupID, f.sourceKey.GroupRevision, f.boundary.Format(time.RFC3339Nano))
 		require.NoError(t, err)
 		for direction, owner := range map[string]*longFixture{"ended": source, "started": target} {
 			g := owner.config.Group
-			_, err = tx.Exec(`INSERT INTO write_group_ownership_fences(fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) VALUES('runtime-closure',?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.WorkspaceID, direction, g.ID, g.AppliedRevision, m.DeviceID, m.PointID, m.TagID, string(g.RecordingProfile.Kind), g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.Database, g.Destination.TableSchema, g.Destination.TableName)
+			_, err = tx.ExecContext(t.Context(), `INSERT INTO write_group_ownership_fences(fence_revision,workspace_id,direction,group_id,group_revision,device_id,point_id,tag_id,profile_kind,connector_id,connector_revision,database_name,table_schema,table_name) VALUES('runtime-closure',?,?,?,?,?,?,?,?,?,?,?,?,?)`, g.WorkspaceID, direction, g.ID, g.AppliedRevision, m.DeviceID, m.PointID, m.TagID, string(g.RecordingProfile.Kind), g.Destination.ConnectorID, g.Destination.ConnectorRevision, g.Destination.Database, g.Destination.TableSchema, g.Destination.TableName)
 			require.NoError(t, err)
 		}
 		require.NoError(t, tx.Commit())
@@ -94,7 +94,7 @@ func closureFenceState(t *testing.T, f *runtimeHandoffFixture) map[string][]stri
 	t.Helper()
 	state := map[string][]string{}
 	for _, table := range []string{"wg_delivery_samples", "wg_delivery_checkpoints", "wg_delivery_buckets", "wg_delivery_outbox", "wg_delivery_counter_baselines"} {
-		rows, err := f.store.DB().Query(`SELECT * FROM `+table+` WHERE group_id=? ORDER BY rowid`, f.sourceKey.GroupID)
+		rows, err := f.store.DB().QueryContext(t.Context(), `SELECT * FROM `+table+` WHERE group_id=? ORDER BY rowid`, f.sourceKey.GroupID)
 		require.NoError(t, err)
 		columns, err := rows.Columns()
 		require.NoError(t, err)
@@ -114,7 +114,7 @@ func closureFenceState(t *testing.T, f *runtimeHandoffFixture) map[string][]stri
 		require.NoError(t, rows.Close())
 	}
 	var receipts int
-	require.NoError(t, f.store.DB().QueryRow(`SELECT COUNT(*) FROM wg_delivery_sample_handoffs`).Scan(&receipts))
+	require.NoError(t, f.store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_sample_handoffs`).Scan(&receipts))
 	require.Zero(t, receipts, "general fence must not depend on transfer receipts")
 	return state
 }

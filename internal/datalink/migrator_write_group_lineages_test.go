@@ -32,11 +32,11 @@ func TestWriteGroupLineagesMigrationFreshUpgradeAndReopen(t *testing.T) {
 				before = lineageMigrationSnapshot(t, db, columns)
 				keySchema = lineageOriginalKeySchema(t, db)
 			}
-			_, err := db.Exec(`PRAGMA foreign_keys=ON`)
+			_, err := db.ExecContext(t.Context(), `PRAGMA foreign_keys=ON`)
 			require.NoError(t, err)
 			require.NoError(t, NewMigrator().Migrate(db))
 			var count int
-			require.NoError(t, db.QueryRow(`SELECT count(*) FROM write_group_lineages`).Scan(&count))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM write_group_lineages`).Scan(&count))
 			want := 0
 			if legacy {
 				want = 3
@@ -79,7 +79,7 @@ func createPre047LineageSchema(t *testing.T, db *sql.DB) {
 	} {
 		raw, err := migrations.FS.ReadFile(name)
 		require.NoError(t, err)
-		_, err = db.Exec(string(raw))
+		_, err = db.ExecContext(t.Context(), string(raw))
 		require.NoError(t, err, name)
 	}
 }
@@ -89,7 +89,7 @@ func seedLegacyLineageRows(t *testing.T, db *sql.DB) {
 	for _, group := range []string{"G1", "basic-only", "profile-only", "unkeyed"} {
 		insertLineageMigrationGroup(t, db, group)
 	}
-	_, err := db.Exec(`UPDATE write_groups SET status='deleted' WHERE id='G1';
+	_, err := db.ExecContext(t.Context(), `UPDATE write_groups SET status='deleted' WHERE id='G1';
 		INSERT INTO write_group_basic_keys(workspace_id,device_id,canonical_role,group_id,created_at)
 		VALUES ('workspace','device-G1','basic','G1','2001-02-03 04:05:06'),
 		('workspace','device-basic','basic','basic-only','2002-03-04 05:06:07');
@@ -113,7 +113,7 @@ func seedLegacyLineageRows(t *testing.T, db *sql.DB) {
 
 func insertLineageMigrationGroup(t *testing.T, db *sql.DB, group string) {
 	t.Helper()
-	_, err := db.Exec(`INSERT INTO write_groups(id,workspace_id,revision,name,destination_connector_id,destination_connector_revision,destination_table_name,row_policy,write_policy,migration,created_at,updated_at)
+	_, err := db.ExecContext(t.Context(), `INSERT INTO write_groups(id,workspace_id,revision,name,destination_connector_id,destination_connector_revision,destination_table_name,row_policy,write_policy,migration,created_at,updated_at)
 		VALUES (?,'workspace','R1',?,'connector','C1','values',' { "interval_seconds" : 60 } ',' { "enabled" : true } ',' { "history" : "retain" } ','1999-01-01','2000-01-01')`, group, group)
 	require.NoError(t, err)
 }
@@ -124,7 +124,7 @@ func assertInitialLineageRows(t *testing.T, db *sql.DB) {
 		var id, workspace, current string
 		var revision, generation int
 		var reserved, operation, intent, predecessor sql.NullString
-		require.NoError(t, db.QueryRow(`SELECT l.lineage_id,l.workspace_id,l.current_group_id,l.revision,l.reserved_group_id,l.reservation_operation_id,l.reservation_intent_digest,g.generation,g.predecessor_group_id
+		require.NoError(t, db.QueryRowContext(t.Context(), `SELECT l.lineage_id,l.workspace_id,l.current_group_id,l.revision,l.reserved_group_id,l.reservation_operation_id,l.reservation_intent_digest,g.generation,g.predecessor_group_id
 			FROM write_group_generations g JOIN write_group_lineages l USING(lineage_id) WHERE g.group_id=?`, group).
 			Scan(&id, &workspace, &current, &revision, &reserved, &operation, &intent, &generation, &predecessor))
 		require.Regexp(t, `^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$`, id)
@@ -135,11 +135,11 @@ func assertInitialLineageRows(t *testing.T, db *sql.DB) {
 		require.False(t, reserved.Valid || operation.Valid || intent.Valid || predecessor.Valid)
 	}
 	var basicID, profileID string
-	require.NoError(t, db.QueryRow(`SELECT lineage_id FROM write_group_basic_keys WHERE group_id='G1'`).Scan(&basicID))
-	require.NoError(t, db.QueryRow(`SELECT lineage_id FROM write_group_profile_keys WHERE group_id='G1'`).Scan(&profileID))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT lineage_id FROM write_group_basic_keys WHERE group_id='G1'`).Scan(&basicID))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT lineage_id FROM write_group_profile_keys WHERE group_id='G1'`).Scan(&profileID))
 	require.Equal(t, basicID, profileID, "dual aliases share one lineage")
 	var count int
-	require.NoError(t, db.QueryRow(`SELECT count(*) FROM write_group_generations WHERE group_id='unkeyed'`).Scan(&count))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM write_group_generations WHERE group_id='unkeyed'`).Scan(&count))
 	require.Zero(t, count, "unkeyed legacy groups receive no invented lineage")
 }
 
@@ -152,7 +152,7 @@ func lineageSnapshotColumns(t *testing.T, db *sql.DB, tables ...string) map[stri
 	t.Helper()
 	result := make(map[string][]string)
 	for _, table := range tables {
-		rows, err := db.Query(`SELECT name FROM pragma_table_info(?) ORDER BY cid`, table)
+		rows, err := db.QueryContext(t.Context(), `SELECT name FROM pragma_table_info(?) ORDER BY cid`, table)
 		require.NoError(t, err)
 		for rows.Next() {
 			var name string
@@ -169,7 +169,7 @@ func lineageMigrationSnapshot(t *testing.T, db *sql.DB, columns map[string][]str
 	t.Helper()
 	result := make(map[string][]string)
 	for table, names := range columns {
-		rows, err := db.Query(`SELECT ` + strings.Join(names, ",") + ` FROM "` + table + `"`)
+		rows, err := db.QueryContext(t.Context(), `SELECT `+strings.Join(names, ",")+` FROM "`+table+`"`)
 		require.NoError(t, err)
 		result[table] = nil
 		for rows.Next() {
@@ -193,7 +193,7 @@ func lineageOriginalKeySchema(t *testing.T, db *sql.DB) []string {
 	t.Helper()
 	var result []string
 	for _, table := range []string{"write_group_basic_keys", "write_group_profile_keys"} {
-		rows, err := db.Query(`SELECT json_array(cid,name,type,"notnull",dflt_value,pk) FROM pragma_table_info(?) WHERE name<>'lineage_id'
+		rows, err := db.QueryContext(t.Context(), `SELECT json_array(cid,name,type,"notnull",dflt_value,pk) FROM pragma_table_info(?) WHERE name<>'lineage_id'
 			UNION ALL SELECT json_array(name,sql) FROM sqlite_master WHERE type='index' AND tbl_name=? ORDER BY 1`, table, table)
 		require.NoError(t, err)
 		for rows.Next() {

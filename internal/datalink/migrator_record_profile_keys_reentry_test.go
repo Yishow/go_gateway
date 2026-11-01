@@ -12,13 +12,13 @@ import (
 
 func TestRecordProfileKeysForeignKeyFailureRollsBack(t *testing.T) {
 	db := recordProfileDB(t)
-	_, err := db.Exec(`PRAGMA foreign_keys=OFF; UPDATE write_group_profile_keys SET lineage_id='missing' WHERE group_id='G1'`)
+	_, err := db.ExecContext(t.Context(), `PRAGMA foreign_keys=OFF; UPDATE write_group_profile_keys SET lineage_id='missing' WHERE group_id='G1'`)
 	require.NoError(t, err)
 	schema := recordProfileSchema(t, db)
 	require.ErrorContains(t, runSQLiteConfigurationExpansion(db, migrateMixedRecordProfileKeysTx), "foreign key check failed")
 	require.Equal(t, schema, recordProfileSchema(t, db))
 	var lineage string
-	require.NoError(t, db.QueryRow(`SELECT lineage_id FROM write_group_profile_keys WHERE group_id='G1'`).Scan(&lineage))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT lineage_id FROM write_group_profile_keys WHERE group_id='G1'`).Scan(&lineage))
 	require.Equal(t, "missing", lineage, "no attempted repair")
 }
 
@@ -33,7 +33,7 @@ func TestRecordProfileKeysConcurrentReentry(t *testing.T) {
 	connections := make([]*sql.DB, 3)
 	for i := range connections {
 		connections[i] = openLineageMigrationDB(t, path)
-		_, err := connections[i].Exec("PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON")
+		_, err := connections[i].ExecContext(t.Context(), "PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON")
 		require.NoError(t, err)
 	}
 	var wg sync.WaitGroup
@@ -70,6 +70,6 @@ func TestRecordProfileKeysCallerTransactionIsAtomic(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, schema, recordProfileSchema(t, db))
 	var count int
-	require.NoError(t, db.QueryRow(`SELECT count(*) FROM pragma_table_info('write_group_members') WHERE name='record_test_intent'`).Scan(&count))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM pragma_table_info('write_group_members') WHERE name='record_test_intent'`).Scan(&count))
 	require.Zero(t, count)
 }

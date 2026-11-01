@@ -10,6 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const runtimeLogIPv4Loopback = "127.0.0.1"
+const runtimeLogFetchSiteNone = "none"
+
 func runtimeLogPath(path, base string) bool {
 	root := strings.TrimRight(base, "/") + "/system/logs"
 	return path == root || strings.HasPrefix(path, root+"/")
@@ -53,7 +56,7 @@ func localLogAllowed(r *http.Request) bool {
 	host, hostPort, err := net.SplitHostPort(r.Host)
 	if err != nil {
 		host, hostPort = r.Host, defaultPort
-		if host != "127.0.0.1" && host != "localhost" && host != "[::1]" {
+		if host != runtimeLogIPv4Loopback && host != "localhost" && host != "[::1]" {
 			return false
 		}
 		if host == "[::1]" {
@@ -62,7 +65,7 @@ func localLogAllowed(r *http.Request) bool {
 	} else if r.Host != net.JoinHostPort(host, hostPort) {
 		return false
 	}
-	if host != "127.0.0.1" && host != "::1" && host != "localhost" {
+	if host != runtimeLogIPv4Loopback && host != "::1" && host != "localhost" {
 		return false
 	}
 	if hostPort != port {
@@ -79,7 +82,7 @@ func localLogAllowed(r *http.Request) bool {
 		return false
 	}
 	sites, present := exactHeaderValues(r.Header, "Sec-Fetch-Site")
-	return !present || len(sites) == 1 && (sites[0] == "same-origin" || sites[0] == "none")
+	return !present || len(sites) == 1 && (sites[0] == "same-origin" || sites[0] == runtimeLogFetchSiteNone)
 }
 
 func validLogPort(port string) bool {

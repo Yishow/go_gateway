@@ -17,7 +17,7 @@ func recoveryBindingsFixture(t *testing.T) (*sql.DB, *schema.Point) {
 		`INSERT INTO tags(id,key,key_lower,display_name,data_type,status,labels) VALUES('target','target','target','Target','uint32','active','{"owner":"initial"}')`,
 		`INSERT INTO mappings(id,point_id,tag_id,transform_pipeline,enabled) SELECT 'binding',id,'target','[]',1 FROM points`,
 	} {
-		_, err := db.Exec(q)
+		_, err := db.ExecContext(t.Context(), q)
 		require.NoError(t, err)
 	}
 	p, err := svc.GetByID(t.Context(), req.PointID)
@@ -26,7 +26,7 @@ func recoveryBindingsFixture(t *testing.T) (*sql.DB, *schema.Point) {
 }
 func readRecoveryBindings(t *testing.T, db *sql.DB, p *schema.Point) *FormatRecoveryTargetInputs {
 	t.Helper()
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	defer tx.Rollback()
 	got, err := ReadFormatRecoveryTargetInputs(t.Context(), tx, p)
@@ -69,7 +69,7 @@ func TestFormatRecoveryBindingsWitness(t *testing.T) {
 				query = `UPDATE devices SET connection_config='{"password":"PRIVATE_CONNECTION","data_format":"CDAB"}'`
 			}
 			if query != "" {
-				_, err := db.Exec(query)
+				_, err := db.ExecContext(t.Context(), query)
 				require.NoError(t, err)
 			}
 			after := readRecoveryBindings(t, db, p)
@@ -96,9 +96,9 @@ func TestFormatRecoveryBindingsWitness(t *testing.T) {
 }
 func TestFormatRecoveryBindingsMissingTagFailsClosed(t *testing.T) {
 	db, p := recoveryBindingsFixture(t)
-	_, err := db.Exec(`PRAGMA foreign_keys=OFF; DELETE FROM tags`)
+	_, err := db.ExecContext(t.Context(), `PRAGMA foreign_keys=OFF; DELETE FROM tags`)
 	require.NoError(t, err)
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	defer tx.Rollback()
 	got, err := ReadFormatRecoveryTargetInputs(t.Context(), tx, p)
@@ -108,10 +108,10 @@ func TestFormatRecoveryBindingsMissingTagFailsClosed(t *testing.T) {
 
 func TestFormatRecoveryBindingsRejectsForeignDeviceEvidence(t *testing.T) {
 	db, p := recoveryBindingsFixture(t)
-	_, err := db.Exec(`INSERT INTO devices(id,name,protocol,status) VALUES('foreign','Foreign','modbus_tcp','active')`)
+	_, err := db.ExecContext(t.Context(), `INSERT INTO devices(id,name,protocol,status) VALUES('foreign','Foreign','modbus_tcp','active')`)
 	require.NoError(t, err)
 	p.DeviceID = "foreign"
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	defer tx.Rollback()
 	got, err := ReadFormatRecoveryTargetInputs(t.Context(), tx, p)
@@ -124,7 +124,7 @@ func TestFormatRecoveryAcceptanceRejectsChangedTargetBindings(t *testing.T) {
 		t.Run(change, func(t *testing.T) {
 			db, req, evidence := recoveryAcceptanceFixture(t)
 			if change != "insert" {
-				_, err := db.Exec(`INSERT INTO tags(id,key,key_lower,display_name,data_type) VALUES('target','target','target','Target','uint32'); INSERT INTO mappings(id,point_id,tag_id,enabled) SELECT 'binding',id,'target',1 FROM points`)
+				_, err := db.ExecContext(t.Context(), `INSERT INTO tags(id,key,key_lower,display_name,data_type) VALUES('target','target','target','Target','uint32'); INSERT INTO mappings(id,point_id,tag_id,enabled) SELECT 'binding',id,'target',1 FROM points`)
 				require.NoError(t, err)
 				evidence, err = NewSQLRepository(db).ReadFormatRecovery(t.Context(), req)
 				require.NoError(t, err)
@@ -135,7 +135,7 @@ func TestFormatRecoveryAcceptanceRejectsChangedTargetBindings(t *testing.T) {
 				"tag":       `UPDATE tags SET display_name='Changed'`,
 				"delete":    `DELETE FROM mappings`,
 			}[change]
-			_, err := db.Exec(query)
+			_, err := db.ExecContext(t.Context(), query)
 			require.NoError(t, err)
 			called := false
 			err = NewSQLRepository(db).AcceptFormatRecovery(t.Context(), req, evidence, func() error { called = true; return nil })

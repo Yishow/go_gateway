@@ -12,7 +12,7 @@ func TestStoredSchemaPreviewReadAuthenticatesExpiredAndUnsubmittedEvidence(t *te
 	svc := NewService(NewSQLRepository(db))
 	token := preparedPreview(t, svc, previewScope())
 	// Expiry is an execution guard, not grounds for hiding historical evidence.
-	_, err := db.Exec(`UPDATE managed_schema_preview_tokens SET expires_at=? WHERE token=?`, time.Now().Add(-time.Hour), token.Token)
+	_, err := db.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET expires_at=? WHERE token=?`, time.Now().Add(-time.Hour), token.Token)
 	require.NoError(t, err)
 	tx := beginSuccessorTx(t, db)
 	got, err := StoredSchemaPreviewTokenInTx(t.Context(), tx, token.WorkspaceID, token.Token)
@@ -21,7 +21,7 @@ func TestStoredSchemaPreviewReadAuthenticatesExpiredAndUnsubmittedEvidence(t *te
 	require.True(t, got.ExpiresAt.Before(time.Now()))
 	_, err = StoredSchemaPreviewTokenInTx(t.Context(), tx, "foreign", token.Token)
 	require.ErrorIs(t, err, ErrSchemaOperationMismatch)
-	_, err = tx.Exec(`UPDATE managed_schema_preview_tokens SET database_name='tampered' WHERE token=?`, token.Token)
+	_, err = tx.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET database_name='tampered' WHERE token=?`, token.Token)
 	require.NoError(t, err)
 	_, err = StoredSchemaPreviewTokenInTx(t.Context(), tx, token.WorkspaceID, token.Token)
 	require.ErrorIs(t, err, ErrPreviewTokenStale)
@@ -38,11 +38,11 @@ func TestStoredSchemaPreviewReadRejectsMalformedAndLegacyEvidence(t *testing.T) 
 			case "nil-transaction":
 				tx = nil
 			case "legacy":
-				_, err = tx.Exec(`UPDATE managed_schema_preview_tokens SET digest='' WHERE token=?`, token.Token)
+				_, err = tx.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET digest='' WHERE token=?`, token.Token)
 			case "invalid-tables":
-				_, err = tx.Exec(`UPDATE managed_schema_preview_tokens SET tables='{' WHERE token=?`, token.Token)
+				_, err = tx.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET tables='{' WHERE token=?`, token.Token)
 			case "invalid-statements":
-				_, err = tx.Exec(`UPDATE managed_schema_preview_tokens SET statements='{' WHERE token=?`, token.Token)
+				_, err = tx.ExecContext(t.Context(), `UPDATE managed_schema_preview_tokens SET statements='{' WHERE token=?`, token.Token)
 			case "unknown-token":
 				token.Token = "missing-private-preview-token"
 			}

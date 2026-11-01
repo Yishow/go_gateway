@@ -55,7 +55,7 @@ func TestSuccessorLedgerConcurrentConnectionsKeepOneResult(t *testing.T) {
 		require.NoError(t, err)
 	}
 	var count int
-	require.NoError(t, first.QueryRow(`SELECT COUNT(*) FROM managed_schema_operations`).Scan(&count))
+	require.NoError(t, first.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM managed_schema_operations`).Scan(&count))
 	require.Equal(t, 1, count)
 	require.NoError(t, first.Close())
 	require.NoError(t, second.Close())
@@ -104,13 +104,13 @@ func TestSuccessorLedgerFirstStartListRejectsOrphanAndMalformedEvidence(t *testi
 			require.NoError(t, err)
 			switch mode {
 			case "malformed":
-				_, err = tx.Exec(`UPDATE managed_schema_operations SET detail='{' WHERE action='successor_first_start'`)
+				_, err = tx.ExecContext(t.Context(), `UPDATE managed_schema_operations SET detail='{' WHERE action='successor_first_start'`)
 			case "orphan":
-				_, err = tx.Exec(`DELETE FROM managed_schema_operations WHERE action='successor_reserve'`)
+				_, err = tx.ExecContext(t.Context(), `DELETE FROM managed_schema_operations WHERE action='successor_reserve'`)
 			case "wrong-id":
-				_, err = tx.Exec(`UPDATE managed_schema_operations SET operation_id='foreign' WHERE action='successor_first_start'`)
+				_, err = tx.ExecContext(t.Context(), `UPDATE managed_schema_operations SET operation_id='foreign' WHERE action='successor_first_start'`)
 			case "foreign-scope":
-				_, err = tx.Exec(`UPDATE managed_schema_operations SET scope_key='foreign' WHERE action='successor_first_start'`)
+				_, err = tx.ExecContext(t.Context(), `UPDATE managed_schema_operations SET scope_key='foreign' WHERE action='successor_first_start'`)
 			case "nil-transaction":
 				tx = nil
 			}

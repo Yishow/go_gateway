@@ -40,7 +40,10 @@ func lifecycleReadGroup(t *testing.T, service *WriteGroupService, id string) *Wr
 }
 
 func lifecycleActionNames(view *WriteGroupLifecycle) []string {
-	var names []string
+	if len(view.Actions) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(view.Actions))
 	for _, action := range view.Actions {
 		names = append(names, action.Action)
 	}

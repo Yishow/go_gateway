@@ -9,6 +9,11 @@ import (
 	"go-gateway/internal/datalink/recordingplan"
 )
 
+const (
+	writeGroupMySQLMetadataVerified = "verified"
+	writeGroupMySQLBinaryCollation  = "utf8mb4_0900_bin"
+)
+
 // ManagedWriteGroupMySQLProbeInspector reads live MySQL/MariaDB recording capability
 // facts at a specific connector identity revision.
 type ManagedWriteGroupMySQLProbeInspector interface {
@@ -43,7 +48,7 @@ func (s *WriteGroupService) managedMySQLSchemaLayoutWithCapability(ctx context.C
 	if !capability.Connected {
 		return nil, nil, fmt.Errorf("%w: mysql destination is not connected", ErrWriteGroupValidation)
 	}
-	if capability.MetadataStatus != "verified" {
+	if capability.MetadataStatus != writeGroupMySQLMetadataVerified {
 		return nil, nil, fmt.Errorf("%w: mysql destination metadata is not verified (status=%s)", ErrWriteGroupValidation, capability.MetadataStatus)
 	}
 	if !capability.TransactionalEngine {
@@ -67,8 +72,8 @@ func (s *WriteGroupService) managedMySQLSchemaLayoutWithCapability(ctx context.C
 	var collation string
 	switch family {
 	case writeGroupConnectorKindMySQL:
-		collation = "utf8mb4_0900_bin"
-	case "mariadb":
+		collation = writeGroupMySQLBinaryCollation
+	case writeGroupConnectorFamilyMariaDB:
 		collation = "utf8mb4_nopad_bin"
 	default:
 		return nil, nil, fmt.Errorf("%w: unsupported mysql server family: %s", ErrWriteGroupValidation, family)

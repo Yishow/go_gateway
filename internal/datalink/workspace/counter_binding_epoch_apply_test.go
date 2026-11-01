@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func counterEpochRuntime(t *testing.T, f counterApplyFixture, revision string) (WriteGroupAppliedSnapshot, string) {
+func counterEpochRuntime(t *testing.T, f counterApplyFixture, revision string) (frozenSnapshot WriteGroupAppliedSnapshot, payload string) {
 	t.Helper()
 	var raw string
 	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT payload FROM wg_runtime_versions WHERE group_id=? AND group_revision=?`, f.group.ID, revision).Scan(&raw))

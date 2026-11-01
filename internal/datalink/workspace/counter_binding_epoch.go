@@ -28,9 +28,9 @@ func (s *WriteGroupService) sameAppliedCounterMeaningInTx(ctx context.Context, t
 	if err != nil {
 		return false, err
 	}
-	comparable, err := rekeyCounterBindings(reviewed, active.AppliedRevision)
+	comparableBindings, err := rekeyCounterBindings(reviewed, active.AppliedRevision)
 	if err != nil {
 		return false, err
 	}
-	return reflect.DeepEqual(original, comparable), nil
+	return reflect.DeepEqual(original, comparableBindings), nil
 }

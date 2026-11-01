@@ -22,7 +22,7 @@ func TestMixedSourceLatestQueriesUseOrderedScopeIndexes(t *testing.T) {
 		{"long", ` AND json_extract(outcome,'$.EntityKey')=?`, "idx_wg_mixed_source_entity_latest", []any{"w", "g", "r", "member"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			rows, err := db.Query(`EXPLAIN QUERY PLAN SELECT record_id,due_at,kind,outcome,outcome_digest FROM wg_delivery_mixed_outcomes WHERE workspace_id=? AND group_id=? AND group_revision=?`+tc.filter+` ORDER BY due_at DESC,record_id DESC LIMIT 1`, tc.args...)
+			rows, err := db.QueryContext(t.Context(), `EXPLAIN QUERY PLAN SELECT record_id,due_at,kind,outcome,outcome_digest FROM wg_delivery_mixed_outcomes WHERE workspace_id=? AND group_id=? AND group_revision=?`+tc.filter+` ORDER BY due_at DESC,record_id DESC LIMIT 1`, tc.args...)
 			require.NoError(t, err)
 			defer rows.Close()
 			var details []string
@@ -47,7 +47,7 @@ func mixedSourceIndexFixture(t *testing.T) *sql.DB {
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
 	require.NoError(t, NewMigrator().Migrate(db))
-	_, err = db.Exec(`DROP INDEX idx_wg_mixed_source_latest; DROP INDEX idx_wg_mixed_source_entity_latest;
+	_, err = db.ExecContext(t.Context(), `DROP INDEX idx_wg_mixed_source_latest; DROP INDEX idx_wg_mixed_source_entity_latest;
  INSERT INTO wg_runtime_versions VALUES('w','g','r','{}');
  INSERT INTO wg_delivery_mixed_outcomes VALUES('w','g','r','record-a','2026-10-31T00:00:15Z','row',' {"EntityKey":"member", "legacySpacing": 1} ','hash-a','created');
  INSERT INTO wg_delivery_mixed_outcomes VALUES('w','g','r','record-b','2026-10-31T00:00:15Z','skipped','{"EntityKey":"member"}','hash-b','created');
@@ -61,7 +61,7 @@ func mixedSourceIndexFixture(t *testing.T) *sql.DB {
 
 func mixedSourceIndexRows(t *testing.T, db *sql.DB) [][]any {
 	t.Helper()
-	rows, err := db.Query(`SELECT * FROM wg_delivery_mixed_outcomes ORDER BY record_id`)
+	rows, err := db.QueryContext(t.Context(), `SELECT * FROM wg_delivery_mixed_outcomes ORDER BY record_id`)
 	require.NoError(t, err)
 	defer rows.Close()
 	cols, err := rows.Columns()
@@ -95,7 +95,7 @@ func TestMixedSourceIndexMigrationPreservesRowsDependenciesAndReentry(t *testing
 	require.Equal(t, values, mixedSourceIndexRows(t, db))
 	for _, filter := range []string{"", ` AND json_extract(outcome,'$.EntityKey')='member'`} {
 		var id, due, kind, raw, digest string
-		require.NoError(t, db.QueryRow(`SELECT record_id,due_at,kind,outcome,outcome_digest FROM wg_delivery_mixed_outcomes WHERE workspace_id='w' AND group_id='g' AND group_revision='r'`+filter+` ORDER BY due_at DESC,record_id DESC LIMIT 1`).Scan(&id, &due, &kind, &raw, &digest))
+		require.NoError(t, db.QueryRowContext(t.Context(), `SELECT record_id,due_at,kind,outcome,outcome_digest FROM wg_delivery_mixed_outcomes WHERE workspace_id='w' AND group_id='g' AND group_revision='r'`+filter+` ORDER BY due_at DESC,record_id DESC LIMIT 1`).Scan(&id, &due, &kind, &raw, &digest))
 		require.Equal(t, "record-b", id)
 	}
 }
@@ -129,7 +129,7 @@ func TestMixedSourceIndexMigrationRefusesUnknownOrCorruptInput(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			db := mixedSourceIndexFixture(t)
-			_, err := db.Exec(setup)
+			_, err := db.ExecContext(t.Context(), setup)
 			require.NoError(t, err)
 			before := mixedDeliverySchema(t, db)
 			values := mixedSourceIndexRows(t, db)
@@ -144,7 +144,7 @@ func TestMixedSourceIndexReentryRejectsCorruptJSONEvenWithExistingIndexes(t *tes
 	db := mixedSourceIndexFixture(t)
 	require.NoError(t, expandSQLiteMixedSourceIndexes(db, nil))
 	// Valid JSON non-object corruption is indexable but violates the retained table contract.
-	_, err := db.Exec(`PRAGMA ignore_check_constraints=ON; UPDATE wg_delivery_mixed_outcomes SET outcome='[]'; PRAGMA ignore_check_constraints=OFF`)
+	_, err := db.ExecContext(t.Context(), `PRAGMA ignore_check_constraints=ON; UPDATE wg_delivery_mixed_outcomes SET outcome='[]'; PRAGMA ignore_check_constraints=OFF`)
 	require.NoError(t, err)
 	require.Error(t, expandSQLiteMixedSourceIndexes(db, nil))
 }

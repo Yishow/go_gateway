@@ -43,7 +43,7 @@ func (s *WriteGroupService) makeSuccessorReserveSchemaBinding(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
-	if dialect == "mariadb" {
+	if dialect == writeGroupConnectorFamilyMariaDB {
 		dialect = writeGroupConnectorKindMySQL
 	}
 	family, err := s.successorReserveBindingFamily(ctx, tx, result, dialect, evidence)
@@ -90,7 +90,7 @@ func decodeSuccessorReserveSchemaBinding(raw json.RawMessage, result *WriteGroup
 		return nil, ErrWriteGroupLineageCorrupt
 	}
 	if b.Dialect == writeGroupConnectorKindMySQL {
-		if b.SourceFamily != "mysql" && b.SourceFamily != "mariadb" {
+		if b.SourceFamily != writeGroupConnectorKindMySQL && b.SourceFamily != writeGroupConnectorFamilyMariaDB {
 			return nil, ErrWriteGroupLineageCorrupt
 		}
 	} else if b.SourceFamily != b.Dialect {
@@ -133,9 +133,9 @@ func (s *WriteGroupService) successorReserveBindingFamily(ctx context.Context, t
 	return family, nil
 }
 
-func successorBindingCapability(cap *dbtarget.MySQLRecordingCapability, group *WriteGroup) bool {
-	return cap != nil && cap.Connected && cap.MetadataStatus == "verified" && cap.TransactionalEngine && cap.SupportsManagedLong &&
-		cap.CapabilityRevision != "" && dbtarget.MySQLRecordingVersionVerified(cap.ServerFamily, cap.ServerVersion) &&
-		cap.ConnectorID == group.Destination.ConnectorID && cap.ConnectorRevision == group.Destination.ConnectorRevision && cap.Database == group.Destination.Database &&
-		(group.StorageMode != WriteGroupStorageModeNativeMonthly || cap.SupportsNativePartition)
+func successorBindingCapability(capability *dbtarget.MySQLRecordingCapability, group *WriteGroup) bool {
+	return capability != nil && capability.Connected && capability.MetadataStatus == writeGroupMySQLMetadataVerified && capability.TransactionalEngine && capability.SupportsManagedLong &&
+		capability.CapabilityRevision != "" && dbtarget.MySQLRecordingVersionVerified(capability.ServerFamily, capability.ServerVersion) &&
+		capability.ConnectorID == group.Destination.ConnectorID && capability.ConnectorRevision == group.Destination.ConnectorRevision && capability.Database == group.Destination.Database &&
+		(group.StorageMode != WriteGroupStorageModeNativeMonthly || capability.SupportsNativePartition)
 }

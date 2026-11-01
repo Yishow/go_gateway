@@ -14,16 +14,16 @@ import (
 
 func mixedFenceLegacyDB(t *testing.T) *sql.DB {
 	db := mixedDeliveryMigrationDB(t)
-	_, err := db.Exec(`DROP TABLE write_group_ownership_fences`)
+	_, err := db.ExecContext(t.Context(), `DROP TABLE write_group_ownership_fences`)
 	require.NoError(t, err)
 	raw, err := migrations.FS.ReadFile("044_write_group_ownership_fences_sqlite.up.sql")
 	require.NoError(t, err)
-	_, err = db.Exec(string(raw))
+	_, err = db.ExecContext(t.Context(), string(raw))
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail) VALUES('cut','w','forward','g','boundary','review','{}')`)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO write_group_cutovers(id,workspace_id,kind,source_group_id,boundary,review_digest,detail) VALUES('cut','w','forward','g','boundary','review','{}')`)
 	require.NoError(t, err)
 	for i, profile := range []string{"", "instantaneous", "cumulative"} {
-		_, err = db.Exec(`INSERT INTO write_group_ownership_fences VALUES('cut','w','ended','g','r','d',?,'tag',?,'c','cr','db','schema','table trailing  ')`, fmt.Sprint(i), profile)
+		_, err = db.ExecContext(t.Context(), `INSERT INTO write_group_ownership_fences VALUES('cut','w','ended','g','r','d',?,'tag',?,'c','cr','db','schema','table trailing  ')`, fmt.Sprint(i), profile)
 		require.NoError(t, err)
 	}
 	return db
@@ -36,12 +36,12 @@ func mixedFenceRowBytes(t *testing.T, db *sql.DB) string {
 		fields = append(fields, col, "typeof("+col+")")
 	}
 	var raw string
-	require.NoError(t, db.QueryRow("SELECT json_group_array(json_array("+strings.Join(fields, ",")+")) FROM (SELECT * FROM write_group_ownership_fences ORDER BY point_id)").Scan(&raw))
+	require.NoError(t, db.QueryRowContext(t.Context(), "SELECT json_group_array(json_array("+strings.Join(fields, ",")+")) FROM (SELECT * FROM write_group_ownership_fences ORDER BY point_id)").Scan(&raw))
 	return raw
 }
 func TestMixedFenceExpansionPreservesRowsDependenciesAndConstraints(t *testing.T) {
 	db := mixedFenceLegacyDB(t)
-	_, err := db.Exec(`CREATE INDEX custom_fence_index ON write_group_ownership_fences(table_name);
+	_, err := db.ExecContext(t.Context(), `CREATE INDEX custom_fence_index ON write_group_ownership_fences(table_name);
  CREATE TABLE fence_audit(value TEXT);
  CREATE TRIGGER custom_fence_trigger AFTER UPDATE ON write_group_ownership_fences BEGIN INSERT INTO fence_audit VALUES(new.table_name); END;
  CREATE VIEW fence_view AS SELECT * FROM write_group_ownership_fences;
@@ -60,19 +60,19 @@ func TestMixedFenceExpansionPreservesRowsDependenciesAndConstraints(t *testing.T
 	require.Equal(t, values, mixedFenceRowBytes(t, db))
 	require.NoError(t, expandSQLiteMixedDelivery(db, nil))
 	require.Equal(t, after, mixedDeliverySchema(t, db))
-	_, err = db.Exec(`INSERT INTO write_group_ownership_fences VALUES('cut','w','ended','g','r','d','mixed','tag','mixed','c','cr','db','schema','mixed-table')`)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO write_group_ownership_fences VALUES('cut','w','ended','g','r','d','mixed','tag','mixed','c','cr','db','schema','mixed-table')`)
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO write_group_ownership_fences VALUES('cut','w','ended','other','r','d','mixed','tag','mixed','c','cr','db','schema','mixed-table')`)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO write_group_ownership_fences VALUES('cut','w','ended','other','r','d','mixed','tag','mixed','c','cr','db','schema','mixed-table')`)
 	require.Error(t, err, "existing UNIQUE authority preserved")
-	_, err = db.Exec(`DELETE FROM write_group_cutovers WHERE id='cut'`)
+	_, err = db.ExecContext(t.Context(), `DELETE FROM write_group_cutovers WHERE id='cut'`)
 	require.Error(t, err, "existing RESTRICT FK preserved")
-	_, err = db.Exec(`UPDATE write_group_ownership_fences SET table_name='new' WHERE point_id='mixed'`)
+	_, err = db.ExecContext(t.Context(), `UPDATE write_group_ownership_fences SET table_name='new' WHERE point_id='mixed'`)
 	require.NoError(t, err)
 	var audit string
-	require.NoError(t, db.QueryRow(`SELECT value FROM fence_audit`).Scan(&audit))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT value FROM fence_audit`).Scan(&audit))
 	require.Equal(t, "new", audit)
 	var count int
-	require.NoError(t, db.QueryRow(`SELECT count(*) FROM fence_view`).Scan(&count))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM fence_view`).Scan(&count))
 	require.Equal(t, 4, count)
 }
 func TestMixedFenceExpansionRollsBackEveryStage(t *testing.T) {
@@ -91,7 +91,7 @@ func TestMixedFenceExpansionRollsBackEveryStage(t *testing.T) {
 			require.Equal(t, before, mixedDeliverySchema(t, db))
 			require.Equal(t, values, mixedFenceRowBytes(t, db))
 			var fk int
-			require.NoError(t, db.QueryRow(`PRAGMA foreign_keys`).Scan(&fk))
+			require.NoError(t, db.QueryRowContext(t.Context(), `PRAGMA foreign_keys`).Scan(&fk))
 			require.Equal(t, 1, fk)
 			require.NoError(t, expandSQLiteMixedDelivery(db, nil))
 		})
@@ -101,7 +101,7 @@ func TestMixedFenceExpansionRejectsUnknownAndForeignCorruption(t *testing.T) {
 	for _, alter := range []string{`ALTER TABLE write_group_ownership_fences ADD COLUMN unknown TEXT`, `CREATE TABLE write_group_ownership_fences_mixed_expand(value TEXT)`, `PRAGMA foreign_keys=OFF; UPDATE write_group_ownership_fences SET fence_revision='missing'; PRAGMA foreign_keys=ON`} {
 		t.Run(alter, func(t *testing.T) {
 			db := mixedFenceLegacyDB(t)
-			_, err := db.Exec(alter)
+			_, err := db.ExecContext(t.Context(), alter)
 			require.NoError(t, err)
 			before := mixedDeliverySchema(t, db)
 			values := mixedFenceRowBytes(t, db)

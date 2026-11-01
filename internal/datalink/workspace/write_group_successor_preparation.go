@@ -50,7 +50,7 @@ func (s *WriteGroupService) ReserveSuccessor(ctx context.Context, id string, req
 		return nil, mutationErr
 	})
 	if err != nil {
-		return nil, &writeGroupReservationFailure{cause: err}
+		return nil, &writeGroupReservationError{cause: err}
 	}
 	return result, nil
 }
@@ -81,7 +81,8 @@ func (s *WriteGroupService) createSuccessorPreparation(ctx context.Context, id s
 		}
 		req := successorRecreateRequest(envelope)
 		var saved *writeGroupReservedDraft
-		if len(checked.RequiredChecks) > 0 {
+		switch {
+		case len(checked.RequiredChecks) > 0:
 			if capability == nil || capability.Target == nil || !successorMySQLRequiredChecks(checked.RequiredChecks, pred.AppliedRevision == "") {
 				return ErrWriteGroupValidation
 			}
@@ -91,9 +92,9 @@ func (s *WriteGroupService) createSuccessorPreparation(ctx context.Context, id s
 			evidence := successorMySQLReserveEvidence{tx: tx, digest: digest, workspaceID: record.ID, capability: *capability.Target, sourceCapability: capability.Source}
 			authority := successorTransitionAuthority{tx: tx, workspaceID: record.ID, lineageID: envelope.Request.LineageID, predecessorID: id, predecessorRevision: pred.Revision, digest: digest}
 			saved, err = s.repo.reserveVerifiedMySQLSuccessorInTx(ctx, tx, req, digest, authority, evidence)
-		} else if pred.Status == WriteGroupStatusDeleted {
+		case pred.Status == WriteGroupStatusDeleted:
 			saved, err = s.repo.reserveRecreatedDraftInTx(ctx, tx, req, digest)
-		} else {
+		default:
 			authority := successorTransitionAuthority{tx: tx, workspaceID: record.ID, lineageID: envelope.Request.LineageID, predecessorID: id, predecessorRevision: pred.Revision, digest: digest}
 			saved, err = s.repo.reserveTransitionDraftInTx(ctx, tx, req, digest, authority)
 		}

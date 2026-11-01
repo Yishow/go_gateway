@@ -10,6 +10,11 @@ import (
 )
 
 const (
+	writeGroupSQLServerDefaultSchema = "dbo"
+	writeGroupConnectorFamilyMariaDB = "mariadb"
+)
+
+const (
 	writeGroupConnectorKindSQLite    = "sqlite"
 	writeGroupConnectorKindPostgres  = "postgres"
 	writeGroupConnectorKindMySQL     = "mysql"
@@ -111,7 +116,7 @@ func NormalizeWriteGroupTableSchema(kind, tableSchema string) string {
 		return "public"
 	}
 	if kind == writeGroupConnectorKindSQLServer {
-		return "dbo"
+		return writeGroupSQLServerDefaultSchema
 	}
-	return "main"
+	return managedSQLiteSchemaName
 }

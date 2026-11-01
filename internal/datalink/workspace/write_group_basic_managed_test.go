@@ -229,8 +229,8 @@ func TestWriteGroupServiceEnsureBasicManagedConcurrentAcrossServicesConverges(t 
 	wg.Wait()
 	close(results)
 
-	var outcomes []outcome
-	var outcomeErrors []error
+	outcomes := make([]outcome, 0, cap(results))
+	outcomeErrors := make([]error, 0, cap(results))
 	for result := range results {
 		outcomes = append(outcomes, result)
 		outcomeErrors = append(outcomeErrors, result.err)

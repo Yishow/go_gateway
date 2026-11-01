@@ -177,8 +177,14 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.GET("/dashboard/stats", dashboardHandler.GetStats)
 			datalinkGroup.GET("/dashboard/device-statuses", dashboardHandler.GetDeviceStatuses)
 
-			runtimeAppliedReader, _ := datalinkServices.WriteGroupDelivery.(handlers.RuntimeAppliedConfigurationReader)
-			runtimeDeliveryReader, _ := datalinkServices.WriteGroupDelivery.(handlers.RuntimeRevisionDeliveryReader)
+			runtimeAppliedReader, ok := datalinkServices.WriteGroupDelivery.(handlers.RuntimeAppliedConfigurationReader)
+			if !ok {
+				runtimeAppliedReader = nil
+			}
+			runtimeDeliveryReader, ok := datalinkServices.WriteGroupDelivery.(handlers.RuntimeRevisionDeliveryReader)
+			if !ok {
+				runtimeDeliveryReader = nil
+			}
 			runtimeHandler := handlers.NewRuntimeHandler(
 				datalinkServices.Device,
 				datalinkServices.Point,
@@ -446,7 +452,7 @@ func corsMiddleware(cfg *config.Config) gin.HandlerFunc {
 		if allowOrigin != "" {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 		}
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", runtimeLogQueryTrue)
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 

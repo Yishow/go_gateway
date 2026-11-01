@@ -43,10 +43,7 @@ func (r *SQLWriteGroupRepository) validateSuccessorLocalDefinitionInTx(ctx conte
 				return err
 			}
 		}
-		if err := r.validate(ctx, tx, candidate); err != nil {
-			return err
-		}
-		return nil
+		return r.validate(ctx, tx, candidate)
 	}
 	if predecessor.RecordingProfile == nil || predecessor.AppliedRevision == "" {
 		return ErrWriteGroupLifecycleBlocked

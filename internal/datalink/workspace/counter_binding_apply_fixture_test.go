@@ -45,11 +45,14 @@ func (i *counterApplyInspector) InspectTableAtRevision(_ context.Context, _, _, 
 }
 
 func (i *counterApplyInspector) InspectTableIndexesAtRevision(_ context.Context, _, _, _, table string) ([]dbtarget.IndexInfo, error) {
-	var indexes []dbtarget.IndexInfo
 	layout := i.layout
 	if other := i.otherLayouts[table]; other != nil {
 		layout = other
 	}
+	if len(layout.Indexes) == 0 {
+		return nil, nil
+	}
+	indexes := make([]dbtarget.IndexInfo, 0, len(layout.Indexes))
 	for _, index := range layout.Indexes {
 		indexes = append(indexes, dbtarget.IndexInfo{Name: index.Name, Columns: index.Columns})
 	}
@@ -131,7 +134,7 @@ func (f counterApplyFixture) assertUnapplied(t *testing.T) {
 	}
 }
 
-func readCounterApplySnapshot(t *testing.T, query func(context.Context, string, ...any) *sql.Row, groupID string) (WriteGroupAppliedSnapshot, string) {
+func readCounterApplySnapshot(t *testing.T, query func(context.Context, string, ...any) *sql.Row, groupID string) (snapshot WriteGroupAppliedSnapshot, payload string) {
 	t.Helper()
 	return readCounterApplySnapshotContext(t.Context(), t, query, groupID)
 }

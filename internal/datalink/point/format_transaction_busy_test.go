@@ -13,22 +13,22 @@ func TestPointMutationCommitBusyLeavesNoNativeTransaction(t *testing.T) {
 		t.Run(operation, func(t *testing.T) {
 			memory, _, req := formatFixture(t)
 			path := filepath.Join(t.TempDir(), "busy.db")
-			_, err := memory.Exec(`VACUUM INTO ?`, path)
+			_, err := memory.ExecContext(t.Context(), `VACUUM INTO ?`, path)
 			require.NoError(t, err)
 			db, err := sql.Open("sqlite", path)
 			require.NoError(t, err)
 			defer db.Close()
 			db.SetMaxOpenConns(1)
-			_, err = db.Exec(`PRAGMA journal_mode=DELETE; PRAGMA busy_timeout=0`)
+			_, err = db.ExecContext(t.Context(), `PRAGMA journal_mode=DELETE; PRAGMA busy_timeout=0`)
 			require.NoError(t, err)
 			reader, err := sql.Open("sqlite", path)
 			require.NoError(t, err)
 			defer reader.Close()
-			readTx, err := reader.Begin()
+			readTx, err := reader.BeginTx(t.Context(), nil)
 			require.NoError(t, err)
 			defer readTx.Rollback()
 			var count int
-			require.NoError(t, readTx.QueryRow(`SELECT count(*) FROM points`).Scan(&count))
+			require.NoError(t, readTx.QueryRowContext(t.Context(), `SELECT count(*) FROM points`).Scan(&count))
 			repo := NewSQLRepository(db)
 			before, err := repo.GetByID(t.Context(), req.PointID)
 			require.NoError(t, err)
@@ -50,7 +50,7 @@ func TestPointMutationCommitBusyLeavesNoNativeTransaction(t *testing.T) {
 			require.NoError(t, err, "failed commit must not poison next pool borrower")
 			require.NoError(t, clean.Rollback())
 			var receipts int
-			require.NoError(t, db.QueryRow(`SELECT count(*) FROM system_settings WHERE key LIKE 'point_format_receipt:%'`).Scan(&receipts))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM system_settings WHERE key LIKE 'point_format_receipt:%'`).Scan(&receipts))
 			require.Zero(t, receipts)
 		})
 	}
@@ -59,13 +59,13 @@ func TestPointMutationCommitBusyLeavesNoNativeTransaction(t *testing.T) {
 func TestFormatCompletionBusyLeavesPendingReceiptAndCleanPool(t *testing.T) {
 	memory, _, req := formatFixture(t)
 	path := filepath.Join(t.TempDir(), "finalize-busy.db")
-	_, err := memory.Exec(`VACUUM INTO ?`, path)
+	_, err := memory.ExecContext(t.Context(), `VACUUM INTO ?`, path)
 	require.NoError(t, err)
 	db, err := sql.Open("sqlite", path)
 	require.NoError(t, err)
 	defer db.Close()
 	db.SetMaxOpenConns(1)
-	_, err = db.Exec(`PRAGMA journal_mode=DELETE; PRAGMA busy_timeout=0`)
+	_, err = db.ExecContext(t.Context(), `PRAGMA journal_mode=DELETE; PRAGMA busy_timeout=0`)
 	require.NoError(t, err)
 	reader, err := sql.Open("sqlite", path)
 	require.NoError(t, err)
@@ -73,12 +73,12 @@ func TestFormatCompletionBusyLeavesPendingReceiptAndCleanPool(t *testing.T) {
 	var held *sql.Tx
 	spy := &recordingFormatInvalidator{run: func() error {
 		var err error
-		held, err = reader.Begin()
+		held, err = reader.BeginTx(t.Context(), nil)
 		if err != nil {
 			return err
 		}
 		var n int
-		return held.QueryRow(`SELECT count(*) FROM system_settings`).Scan(&n)
+		return held.QueryRowContext(t.Context(), `SELECT count(*) FROM system_settings`).Scan(&n)
 	}}
 	svc := NewService(NewSQLRepository(db), nil)
 	svc.SetFormatInvalidator(spy)
@@ -92,7 +92,7 @@ func TestFormatCompletionBusyLeavesPendingReceiptAndCleanPool(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "pending", receipt.InvalidationStatus)
 	require.NoError(t, held.Rollback())
-	next, err := db.Begin()
+	next, err := db.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 	require.NoError(t, next.Rollback())
 }

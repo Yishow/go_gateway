@@ -39,19 +39,19 @@ func TestHandoffConvergenceMigrationFreshUpgradeAndReopen(t *testing.T) {
 			require.NoError(t, ensureSQLiteSampleHandoffs(db))
 			require.Equal(t, 0, convergenceTargetIndexUnique(t, db))
 			require.Equal(t, withAlias, convergenceMigrationSnapshot(t, db))
-			_, err := db.Exec(`DROP INDEX idx_wg_handoff_target_seq`)
+			_, err := db.ExecContext(t.Context(), `DROP INDEX idx_wg_handoff_target_seq`)
 			require.NoError(t, err)
 			require.NoError(t, ensureSQLiteSampleHandoffs(db))
 			require.Equal(t, 0, convergenceTargetIndexUnique(t, db))
 			require.Equal(t, withAlias, convergenceMigrationSnapshot(t, db))
 			var count int
-			require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_samples`).Scan(&count))
 			require.Equal(t, 4, count)
-			require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM wg_delivery_sample_handoffs WHERE target_seq=4`).Scan(&count))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_sample_handoffs WHERE target_seq=4`).Scan(&count))
 			require.Equal(t, 2, count)
-			_, err = db.Exec(`INSERT INTO wg_delivery_samples SELECT NULL,workspace_id,group_id,group_revision,'another-address',member_key,observed_at,bucket_start,payload,payload_digest,consumed,created_at,acceptance_kind,origin_workspace_id,origin_group_id,origin_revision,origin_sample_id,'another-transfer' FROM wg_delivery_samples WHERE seq=4`)
+			_, err = db.ExecContext(t.Context(), `INSERT INTO wg_delivery_samples SELECT NULL,workspace_id,group_id,group_revision,'another-address',member_key,observed_at,bucket_start,payload,payload_digest,consumed,created_at,acceptance_kind,origin_workspace_id,origin_group_id,origin_revision,origin_sample_id,'another-transfer' FROM wg_delivery_samples WHERE seq=4`)
 			require.Error(t, err, "target origin uniqueness must remain enforced")
-			_, err = db.Exec(`INSERT INTO wg_delivery_samples SELECT NULL,workspace_id,group_id,group_revision,'another-native-address',member_key,observed_at,bucket_start,payload,payload_digest,consumed,created_at,acceptance_kind,origin_workspace_id,origin_group_id,origin_revision,origin_sample_id,handoff_id FROM wg_delivery_samples WHERE seq=1`)
+			_, err = db.ExecContext(t.Context(), `INSERT INTO wg_delivery_samples SELECT NULL,workspace_id,group_id,group_revision,'another-native-address',member_key,observed_at,bucket_start,payload,payload_digest,consumed,created_at,acceptance_kind,origin_workspace_id,origin_group_id,origin_revision,origin_sample_id,handoff_id FROM wg_delivery_samples WHERE seq=1`)
 			require.Error(t, err, "native logical uniqueness must remain enforced")
 		})
 	}
@@ -105,7 +105,7 @@ func openConvergenceMigrationDB(t *testing.T, path string) *sql.DB {
 
 func setLegacyHandoffIndex(t *testing.T, db *sql.DB) {
 	t.Helper()
-	_, err := db.Exec(`DROP INDEX idx_wg_handoff_target_seq;
+	_, err := db.ExecContext(t.Context(), `DROP INDEX idx_wg_handoff_target_seq;
 		CREATE UNIQUE INDEX idx_wg_handoff_target_seq ON wg_delivery_sample_handoffs(target_seq) WHERE target_seq IS NOT NULL`)
 	require.NoError(t, err)
 }
@@ -113,7 +113,7 @@ func setLegacyHandoffIndex(t *testing.T, db *sql.DB) {
 func convergenceTargetIndexUnique(t *testing.T, db *sql.DB) int {
 	t.Helper()
 	var unique int
-	require.NoError(t, db.QueryRow(`SELECT "unique" FROM pragma_index_list('wg_delivery_sample_handoffs') WHERE name='idx_wg_handoff_target_seq'`).Scan(&unique))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT "unique" FROM pragma_index_list('wg_delivery_sample_handoffs') WHERE name='idx_wg_handoff_target_seq'`).Scan(&unique))
 	return unique
 }
 
@@ -129,7 +129,7 @@ func seedConvergenceMigrationRows(t *testing.T, db *sql.DB) {
 		if i == 3 {
 			revision = "R3"
 		}
-		_, err := db.Exec(`INSERT INTO wg_delivery_samples(seq,workspace_id,group_id,group_revision,sample_id,member_key,observed_at,bucket_start,payload,payload_digest,consumed,created_at,acceptance_kind,origin_workspace_id,origin_group_id,origin_revision,origin_sample_id,handoff_id)
+		_, err := db.ExecContext(t.Context(), `INSERT INTO wg_delivery_samples(seq,workspace_id,group_id,group_revision,sample_id,member_key,observed_at,bucket_start,payload,payload_digest,consumed,created_at,acceptance_kind,origin_workspace_id,origin_group_id,origin_revision,origin_sample_id,handoff_id)
 			VALUES(?,'workspace',?,?,'physical-address','member','25','20',?,'unchanged-digest',0,'8',?,'workspace','A','R1',?,?)`, i+1, group, revision, payload, kind, origin, transfer)
 		require.NoError(t, err)
 	}
@@ -137,7 +137,7 @@ func seedConvergenceMigrationRows(t *testing.T, db *sql.DB) {
 		id, source, target, revision string
 		sourceSeq, targetSeq         int
 	}{{"transfer-2", "A", "I", "R1", 1, 2}, {"transfer-3", "A", "C", "R1", 1, 3}, {"transfer-4", "I", "A", "R3", 2, 4}} {
-		_, err := db.Exec(`INSERT INTO wg_delivery_sample_handoffs(transfer_id,workspace_id,source_group_id,source_revision,source_seq,target_group_id,target_revision,target_seq,origin_seq,state,record)
+		_, err := db.ExecContext(t.Context(), `INSERT INTO wg_delivery_sample_handoffs(transfer_id,workspace_id,source_group_id,source_revision,source_seq,target_group_id,target_revision,target_seq,origin_seq,state,record)
 			VALUES(?,'workspace',?,'R1',?,?,?,?,1,'accepted',?)`, edge.id, edge.source, edge.sourceSeq, edge.target, edge.revision, edge.targetSeq, ` {"version":1,"proof":"unchanged","id":"`+edge.id+`"} `)
 		require.NoError(t, err)
 	}
@@ -145,7 +145,7 @@ func seedConvergenceMigrationRows(t *testing.T, db *sql.DB) {
 
 func insertConvergenceAlias(t *testing.T, db *sql.DB) {
 	t.Helper()
-	_, err := db.Exec(`INSERT INTO wg_delivery_sample_handoffs(transfer_id,workspace_id,source_group_id,source_revision,source_seq,target_group_id,target_revision,target_seq,origin_seq,state,record)
+	_, err := db.ExecContext(t.Context(), `INSERT INTO wg_delivery_sample_handoffs(transfer_id,workspace_id,source_group_id,source_revision,source_seq,target_group_id,target_revision,target_seq,origin_seq,state,record)
 		VALUES('alias','workspace','C','R1',3,'A','R3',4,1,'accepted',' {"version":1,"CanonicalTransferID":"transfer-4"} ')`)
 	require.NoError(t, err, "independently verified edges may reference one canonical target")
 }
@@ -159,7 +159,7 @@ func convergenceMigrationSnapshot(t *testing.T, db *sql.DB) []string {
 		`SELECT json_array(seq,workspace_id,group_id,group_revision,sample_id,member_key,observed_at,bucket_start,hex(payload),payload_digest,consumed,created_at,acceptance_kind,origin_workspace_id,origin_group_id,origin_revision,origin_sample_id,handoff_id) FROM wg_delivery_samples ORDER BY seq`,
 		`SELECT json_array(transfer_id,workspace_id,source_group_id,source_revision,source_seq,target_group_id,target_revision,target_seq,origin_seq,state,hex(record)) FROM wg_delivery_sample_handoffs ORDER BY transfer_id`,
 	} {
-		rows, err := db.Query(query)
+		rows, err := db.QueryContext(t.Context(), query)
 		require.NoError(t, err)
 		for rows.Next() {
 			var raw string

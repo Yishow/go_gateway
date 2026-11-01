@@ -16,7 +16,7 @@ func TestRuleRepositoryCommitBusyCleansNativeTransaction(t *testing.T) {
 		t.Run(operation, func(t *testing.T) {
 			db := atomicLinkSQLDB(t)
 			db.SetMaxOpenConns(1)
-			_, err := db.Exec(`PRAGMA journal_mode=DELETE; PRAGMA busy_timeout=0; CREATE TABLE source_rules(id TEXT PRIMARY KEY,revision_id TEXT); INSERT INTO source_rules VALUES('rule1','rev'); CREATE TABLE source_rule_candidate_snapshots(source_rule_id TEXT,revision_id TEXT,candidate_type TEXT,payload TEXT,status TEXT,reason TEXT,generated_at DATETIME); INSERT INTO source_rule_candidate_snapshots VALUES('rule1','rev','tag','old','ready','',CURRENT_TIMESTAMP)`)
+			_, err := db.ExecContext(t.Context(), `PRAGMA journal_mode=DELETE; PRAGMA busy_timeout=0; CREATE TABLE source_rules(id TEXT PRIMARY KEY,revision_id TEXT); INSERT INTO source_rules VALUES('rule1','rev'); CREATE TABLE source_rule_candidate_snapshots(source_rule_id TEXT,revision_id TEXT,candidate_type TEXT,payload TEXT,status TEXT,reason TEXT,generated_at DATETIME); INSERT INTO source_rule_candidate_snapshots VALUES('rule1','rev','tag','old','ready','',CURRENT_TIMESTAMP)`)
 			require.NoError(t, err)
 			repo := NewSQLRepository(db)
 			links := atomicLinkFixtures()
@@ -25,15 +25,15 @@ func TestRuleRepositoryCommitBusyCleansNativeTransaction(t *testing.T) {
 			}
 			var seq int
 			var name, path string
-			require.NoError(t, db.QueryRow(`PRAGMA database_list`).Scan(&seq, &name, &path))
+			require.NoError(t, db.QueryRowContext(t.Context(), `PRAGMA database_list`).Scan(&seq, &name, &path))
 			reader, err := sql.Open("sqlite", path)
 			require.NoError(t, err)
 			defer reader.Close()
-			readTx, err := reader.Begin()
+			readTx, err := reader.BeginTx(t.Context(), nil)
 			require.NoError(t, err)
 			defer readTx.Rollback()
 			var before int
-			require.NoError(t, readTx.QueryRow(`SELECT count(*) FROM source_rule_links`).Scan(&before))
+			require.NoError(t, readTx.QueryRowContext(t.Context(), `SELECT count(*) FROM source_rule_links`).Scan(&before))
 			snapshots := []*schema.SourceRuleCandidateSnapshot{{SourceRuleID: "rule1", RevisionID: "rev", CandidateType: "tag", Payload: "new", Status: "ready", GeneratedAt: time.Now()}}
 			switch operation {
 			case "create-links":
@@ -47,10 +47,10 @@ func TestRuleRepositoryCommitBusyCleansNativeTransaction(t *testing.T) {
 			}
 			require.Error(t, err)
 			var after int
-			require.NoError(t, db.QueryRow(`SELECT count(*) FROM source_rule_links`).Scan(&after))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM source_rule_links`).Scan(&after))
 			require.Equal(t, before, after)
 			var payload string
-			require.NoError(t, db.QueryRow(`SELECT payload FROM source_rule_candidate_snapshots`).Scan(&payload))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT payload FROM source_rule_candidate_snapshots`).Scan(&payload))
 			require.Equal(t, "old", payload)
 			require.NoError(t, readTx.Rollback())
 			next, err := db.BeginTx(t.Context(), nil)

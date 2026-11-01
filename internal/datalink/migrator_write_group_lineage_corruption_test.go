@@ -22,7 +22,7 @@ func TestWriteGroupLineagesMigrationPartialArtifactsFailClosed(t *testing.T) {
 			createPre047LineageSchema(t, db)
 			for i, ddl := range artifacts {
 				if mask&(1<<i) != 0 {
-					_, err := db.Exec(ddl)
+					_, err := db.ExecContext(t.Context(), ddl)
 					require.NoError(t, err)
 				}
 			}
@@ -35,7 +35,7 @@ func TestWriteGroupLineagesMigrationPartialArtifactsFailClosed(t *testing.T) {
 		t.Run("missing-"+table, func(t *testing.T) {
 			db := openLineageMigrationDB(t, filepath.Join(t.TempDir(), "missing.db"))
 			require.NoError(t, NewMigrator().Migrate(db))
-			_, err := db.Exec(`DROP TABLE ` + table)
+			_, err := db.ExecContext(t.Context(), `DROP TABLE `+table)
 			require.NoError(t, err)
 			before := lineageSchemaSnapshot(t, db)
 			require.ErrorContains(t, NewMigrator().Migrate(db), "lineage migration is incomplete")
@@ -55,7 +55,7 @@ func TestWriteGroupLineagesMigrationRejectsInvalidLegacyAnchors(t *testing.T) {
 			db := openLineageMigrationDB(t, filepath.Join(t.TempDir(), "legacy.db"))
 			createPre047LineageSchema(t, db)
 			seedLegacyLineageRows(t, db)
-			_, err := db.Exec(corrupt)
+			_, err := db.ExecContext(t.Context(), corrupt)
 			require.NoError(t, err)
 			columns := lineageSnapshotColumns(t, db, lineagePreservedTables...)
 			before := lineageMigrationSnapshot(t, db, columns)
@@ -73,7 +73,7 @@ func TestWriteGroupLineagesMigrationMissingRegistriesPreservesKeyMarkers(t *test
 	db := upgradedLineageFixture(t, path)
 	columns := lineageSnapshotColumns(t, db, lineagePreservedTables...)
 	before := lineageMigrationSnapshot(t, db, columns)
-	_, err := db.Exec(`DROP TABLE write_group_generations; DROP TABLE write_group_lineages`)
+	_, err := db.ExecContext(t.Context(), `DROP TABLE write_group_generations; DROP TABLE write_group_lineages`)
 	require.NoError(t, err)
 	schema := lineageSchemaSnapshot(t, db)
 	require.ErrorContains(t, NewMigrator().Migrate(db), "lineage migration is incomplete")
@@ -100,7 +100,7 @@ func TestWriteGroupLineagesMigrationFutureGenerationsAndReservationSurvive(t *te
 	require.Equal(t, before, lineageMigrationSnapshot(t, db, columns))
 	var anchor, current, reserved string
 	var revision int
-	require.NoError(t, db.QueryRow(`SELECT k.group_id,l.current_group_id,l.reserved_group_id,l.revision
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT k.group_id,l.current_group_id,l.reserved_group_id,l.revision
 		FROM write_group_basic_keys k JOIN write_group_lineages l USING(lineage_id) WHERE k.group_id='G1'`).Scan(&anchor, &current, &reserved, &revision))
 	require.Equal(t, "G1", anchor)
 	require.Equal(t, "G2", current)
@@ -141,7 +141,7 @@ func TestWriteGroupLineagesMigrationCorruptMetadataNeverRepaired(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "corrupt.db")
 			db := upgradedLineageFixture(t, path)
 			seedFutureLineageRows(t, db)
-			_, err := db.Exec(`PRAGMA foreign_keys=OFF; PRAGMA ignore_check_constraints=ON; ` + corrupt)
+			_, err := db.ExecContext(t.Context(), `PRAGMA foreign_keys=OFF; PRAGMA ignore_check_constraints=ON; `+corrupt)
 			require.NoError(t, err)
 			columns := lineageSnapshotColumns(t, db, append(lineagePreservedTables, "write_group_lineages", "write_group_generations")...)
 			before := lineageMigrationSnapshot(t, db, columns)
@@ -158,7 +158,7 @@ func TestWriteGroupLineagesMigrationCorruptMetadataNeverRepaired(t *testing.T) {
 func TestWriteGroupLineagesMigrationConstraintsProtectReferences(t *testing.T) {
 	db := upgradedLineageFixture(t, filepath.Join(t.TempDir(), "constraints.db"))
 	seedFutureLineageRows(t, db)
-	_, err := db.Exec(`PRAGMA foreign_keys=ON`)
+	_, err := db.ExecContext(t.Context(), `PRAGMA foreign_keys=ON`)
 	require.NoError(t, err)
 	for _, statement := range []string{
 		`UPDATE write_group_basic_keys SET lineage_id='missing' WHERE group_id='G1'`,
@@ -176,14 +176,14 @@ func TestWriteGroupLineagesMigrationConstraintsProtectReferences(t *testing.T) {
 		`DELETE FROM write_group_generations WHERE group_id='G1'`,
 		`DELETE FROM write_groups WHERE id='G1'`,
 	} {
-		_, err := db.Exec(statement)
+		_, err := db.ExecContext(t.Context(), statement)
 		require.Error(t, err, statement)
 	}
 	for _, table := range []string{"write_group_basic_keys", "write_group_profile_keys"} {
 		var nullable, references int
-		require.NoError(t, db.QueryRow(`SELECT "notnull" FROM pragma_table_info(?) WHERE name='lineage_id'`, table).Scan(&nullable))
+		require.NoError(t, db.QueryRowContext(t.Context(), `SELECT "notnull" FROM pragma_table_info(?) WHERE name='lineage_id'`, table).Scan(&nullable))
 		require.Zero(t, nullable, "expand reference is nullable only during migration")
-		require.NoError(t, db.QueryRow(`SELECT count(*) FROM pragma_foreign_key_list(?)
+		require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM pragma_foreign_key_list(?)
 			WHERE "from" IN ('group_id','lineage_id') AND on_delete='RESTRICT'`, table).Scan(&references))
 		require.Equal(t, 2, references, "original group FK and new lineage FK must both be retained")
 	}
@@ -203,7 +203,7 @@ func seedFutureLineageRows(t *testing.T, db *sql.DB) {
 	t.Helper()
 	insertLineageMigrationGroup(t, db, "G2")
 	insertLineageMigrationGroup(t, db, "G3")
-	_, err := db.Exec(`INSERT INTO write_group_generations(group_id,lineage_id,generation,predecessor_group_id)
+	_, err := db.ExecContext(t.Context(), `INSERT INTO write_group_generations(group_id,lineage_id,generation,predecessor_group_id)
 		SELECT 'G2',lineage_id,2,'G1' FROM write_group_generations WHERE group_id='G1';
 		INSERT INTO write_group_generations(group_id,lineage_id,generation,predecessor_group_id)
 		SELECT 'G3',lineage_id,3,'G2' FROM write_group_generations WHERE group_id='G1';
@@ -213,7 +213,7 @@ func seedFutureLineageRows(t *testing.T, db *sql.DB) {
 
 func lineageSchemaSnapshot(t *testing.T, db *sql.DB) []string {
 	t.Helper()
-	rows, err := db.Query(`SELECT type||':'||name||':'||COALESCE(sql,'') FROM sqlite_master ORDER BY type,name`)
+	rows, err := db.QueryContext(t.Context(), `SELECT type||':'||name||':'||COALESCE(sql,'') FROM sqlite_master ORDER BY type,name`)
 	require.NoError(t, err)
 	defer rows.Close()
 	var result []string

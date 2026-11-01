@@ -78,7 +78,7 @@ func (s *WriteGroupService) readSuccessorSchemaSnapshot(ctx context.Context, id 
 }
 
 func (s *WriteGroupService) readSuccessorSchemaSnapshotChecked(ctx context.Context, id string, req WriteGroupSuccessorStageRequest, check func(*sql.Tx, *successorSchemaSnapshot) error) (result *successorSchemaSnapshot, err error) {
-	if err = s.validate(); err != nil {
+	if err := s.validate(); err != nil {
 		return nil, err
 	}
 	store, ok := s.workspaceSvc.repo.(DatabaseSetupStore)
@@ -123,7 +123,7 @@ func (s *WriteGroupService) successorSchemaSnapshotInTx(ctx context.Context, tx 
 		return nil, err
 	}
 	// Connector kind, unlike frozen source engine, uses mysql for MariaDB drivers.
-	if kind == "mariadb" {
+	if kind == writeGroupConnectorFamilyMariaDB {
 		kind = writeGroupConnectorKindMySQL
 	}
 	if kind == writeGroupConnectorKindSQLite && group.Destination.TableSchema != managedSQLiteSchemaName {

@@ -97,20 +97,29 @@ func (h *RuntimeHandler) scopedRuntimeSourcePage(c *gin.Context, scope runtimevi
 	total := len(before.Rules) + len(before.Mappings)
 	start := 0
 	if request.Cursor != "" {
-		if cursor.Binding != runtimeSourcePageBinding(scope, request, cursor.Position) || cursor.Revision != before.Revision || cursor.Position >= total || cursor.Position%request.Limit != 0 {
+		binding, err := runtimeSourcePageBinding(scope, request, cursor.Position)
+		if err != nil {
+			renderRuntimeEvidenceError(c, err)
+			return
+		}
+		if cursor.Binding != binding || cursor.Revision != before.Revision || cursor.Position >= total || cursor.Position%request.Limit != 0 {
 			renderRuntimeEvidenceError(c, runtimeEvidenceError(runtimeview.ReasonStale))
 			return
 		}
 		start = cursor.Position
 	}
 	end := min(start+request.Limit, total)
-	if request.Kind == "rules" {
+	if request.Kind == runtimeSourceListRules {
 		page.Rules = before.Rules[start:end]
 	} else {
 		page.Mappings = before.Mappings[start:end]
 	}
 	if end < total {
-		page.NextCursor = runtimeSourcePageNext(scope, request, before.Revision, end)
+		page.NextCursor, err = runtimeSourcePageNext(scope, request, before.Revision, end)
+		if err != nil {
+			renderRuntimeEvidenceError(c, err)
+			return
+		}
 	}
 	after, err := h.readRuntimeSourcePage(ctx, scope, request)
 	if err != nil {
@@ -166,8 +175,8 @@ func (h *RuntimeHandler) readRuntimeSourcePage(ctx context.Context, scope runtim
 			}
 			filtered = true
 		}
-		copy := *rule
-		rules = append(rules, &copy)
+		cloned := *rule
+		rules = append(rules, &cloned)
 	}
 	if !filtered {
 		return nil, runtimeEvidenceError(runtimeview.ReasonStale)
@@ -181,7 +190,7 @@ func (h *RuntimeHandler) readRuntimeSourcePage(ctx context.Context, scope runtim
 	result := &runtimeSourcePageSnapshot{Rules: []runtimeWorkspaceSetupSourceRuleResponse{}, Mappings: []runtimeWorkspaceSetupMappingResponse{}}
 	var links []*schema.SourceRuleLink
 	var points []*schema.Point
-	if request.Kind == "rules" {
+	if request.Kind == runtimeSourceListRules {
 		for _, rule := range rules {
 			result.Rules = append(result.Rules, mapRuntimeSetupSourceRule(rule))
 		}
@@ -200,12 +209,12 @@ func (h *RuntimeHandler) readRuntimeSourcePage(ctx context.Context, scope runtim
 			if p == nil || p.DeviceID != scope.DeviceID || owned[p.ID] != nil {
 				return nil, runtimeEvidenceError(runtimeview.ReasonForeign)
 			}
-			copy := *p
-			copy.LastValue, copy.LastReadAt = nil, nil
-			copy.LastError = ""
-			copy.UpdatedAt = time.Time{}
-			points[i] = &copy
-			owned[p.ID] = &copy
+			cloned := *p
+			cloned.LastValue, cloned.LastReadAt = nil, nil
+			cloned.LastError = ""
+			cloned.UpdatedAt = time.Time{}
+			points[i] = &cloned
+			owned[p.ID] = &cloned
 		}
 		sort.Slice(points, func(i, j int) bool { return points[i].ID < points[j].ID })
 		for _, rule := range rules {
@@ -241,8 +250,8 @@ func (h *RuntimeHandler) readRuntimeSourcePage(ctx context.Context, scope runtim
 				}
 				row.RuleRevision = rule.RevisionID
 				result.Mappings = append(result.Mappings, row)
-				copy := *link
-				links = append(links, &copy)
+				cloned := *link
+				links = append(links, &cloned)
 			}
 		}
 		sort.Slice(result.Mappings, func(i, j int) bool {

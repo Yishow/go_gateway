@@ -23,18 +23,18 @@ func parseAcquisitionPreviewQuery(raw string) (acquisitionPreviewQuery, error) {
 	if err != nil {
 		return acquisitionPreviewQuery{}, bad
 	}
-	allowed := map[string]bool{"workspace_id": true, "device_id": true, "expected_workspace_revision": true, "expected_preview_revision": true}
+	allowed := map[string]bool{"workspace_id": true, "device_id": true, expectedWorkspaceRevisionField: true, "expected_preview_revision": true}
 	for key, values := range q {
-		if !allowed[key] || len(values) != 1 || (values[0] == "" && key != "expected_workspace_revision") || (values[0] != "" && !runtimeDeliveryIDs(values[0])) {
+		if !allowed[key] || len(values) != 1 || (values[0] == "" && key != expectedWorkspaceRevisionField) || (values[0] != "" && !runtimeDeliveryIDs(values[0])) {
 			return acquisitionPreviewQuery{}, bad
 		}
 	}
-	for _, key := range []string{"workspace_id", "device_id", "expected_workspace_revision"} {
+	for _, key := range []string{"workspace_id", "device_id", expectedWorkspaceRevisionField} {
 		if _, ok := q[key]; !ok {
 			return acquisitionPreviewQuery{}, bad
 		}
 	}
-	return acquisitionPreviewQuery{q.Get("workspace_id"), q.Get("device_id"), q.Get("expected_workspace_revision"), q.Get("expected_preview_revision")}, nil
+	return acquisitionPreviewQuery{q.Get("workspace_id"), q.Get("device_id"), q.Get(expectedWorkspaceRevisionField), q.Get("expected_preview_revision")}, nil
 }
 
 // AcquisitionPreviewReader has no mutation, probe, or installation methods.
@@ -118,7 +118,7 @@ func (h *StudioV2AcquisitionPreviewHandler) Get(c *gin.Context) {
 	if err != nil {
 		view = unavailable
 	}
-	if view.Status == "available" {
+	if view.Status == runtimeEvidenceAvailable {
 		after, readErr := h.workspace.ReadRuntimeProjection(c.Request.Context())
 		if readErr != nil || after == nil {
 			renderRuntimeEvidenceError(c, runtimeEvidenceError(runtimeview.ReasonUnavailable))
@@ -145,11 +145,11 @@ func (h *StudioV2AcquisitionPreviewHandler) Get(c *gin.Context) {
 		renderRuntimeEvidenceError(c, runtimeEvidenceError(runtimeview.ReasonStale))
 		return
 	}
-	if query.previewRevision != "" && (view.Status != "available" || query.previewRevision != view.PreviewRevision) {
+	if query.previewRevision != "" && (view.Status != runtimeEvidenceAvailable || query.previewRevision != view.PreviewRevision) {
 		renderRuntimeEvidenceError(c, runtimeEvidenceError(runtimeview.ReasonStale))
 		return
 	}
-	if view.Status == "available" && (verify == nil || !verify()) {
+	if view.Status == runtimeEvidenceAvailable && (verify == nil || !verify()) {
 		renderRuntimeEvidenceError(c, runtimeEvidenceError(runtimeview.ReasonStale))
 		return
 	}
