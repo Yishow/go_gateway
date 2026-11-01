@@ -257,6 +257,8 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
               throw new Error('Recording scope is unavailable.');
             return latest.data;
           }}
+          configuredDestinations={{ data: editorObserved, loading: groupsQuery.isFetching || opening, failed: groupsQuery.isError,
+            retry: () => { if (editorEntry) void reloadEditor(); else void groupsQuery.refetch(); }, open: locatorEntry ? undefined : group => { void open(group); } }}
           onReviewScopedStart={onReviewScopedStart} lifecycleHost={lifecycleHost}
         />
       )}

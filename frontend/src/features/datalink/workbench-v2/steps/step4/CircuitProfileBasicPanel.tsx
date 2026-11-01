@@ -1,14 +1,14 @@
+import { RecordingDraftBoundary, useRecordingNavigation } from '../../recording-editor/RecordingDraftNavigation';
+import { useCircuitDraftNavigation } from './useLegacyRecordingDraftNavigation';
+import { CircuitProfileCapabilities, type CircuitProfileBasicPanelContentProps } from './CircuitProfileCapabilities';
 import { safeRuntimeLabel } from '../../../../../utils/runtimeOperatorSafety';
 import { circuitRecordingScope, type RenderRecordingScopeSummary } from './recordingScopeModel';
 import type { SavedRecordingActionHost } from './writeGroup/lifecycle/SavedRecordingActions';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useStudioV2WorkspaceMeasurementsQuery } from '../../../../../hooks/datalink/useStudioV2WorkspaceMeasurements';
-import { useStudioV2MySQLRecordingCapabilityQuery, useStudioV2SQLServerRecordingCapabilityQuery } from '../../../../../hooks/datalink/useStudioV2WorkspaceDatabase';
 import { useEnsureCircuitProfileMutation, useUpdateWriteGroupMutation, useWriteGroupsQuery } from '../../../../../hooks/datalink/useStudioV2WriteGroups';
 import type { MeasurementDefinition } from '../../../../../types/measurement';
-import type { StudioV2MySQLRecordingCapability } from '../../../../../types/studioV2MySQLRecordingCapability';
-import type { StudioV2SQLServerRecordingCapability } from '../../../../../types/studioV2SQLServerRecordingCapability';
 import type { WriteGroup, WriteGroupProfileKind } from '../../../../../types/studioV2WriteGroup';
 import { basicRecordingScopeKey, createBasicRecordingRequestId } from '../../state/basicRecording';
 import { safeBasicStartError } from '../../state/basicRecordingMessages';
@@ -61,74 +61,7 @@ export interface CircuitProfileBasicPanelProps {
   onCircuitRequestDone?: () => void;
 }
 
-interface MySQLCapabilityQueryState {
-  data?: StudioV2MySQLRecordingCapability;
-  isLoading: boolean;
-  isFetching: boolean;
-  isError: boolean;
-  refetch: () => Promise<unknown>;
-}
-
-const EMPTY_MYSQL_CAPABILITY_QUERY: MySQLCapabilityQueryState = {
-  data: undefined, isLoading: false, isFetching: false, isError: false, refetch: async () => undefined,
-};
-
-interface SQLServerCapabilityQueryState {
-  data?: StudioV2SQLServerRecordingCapability;
-  isLoading: boolean;
-  isFetching: boolean;
-  isError: boolean;
-  refetch: () => Promise<unknown>;
-}
-
-const EMPTY_SQLSERVER_CAPABILITY_QUERY: SQLServerCapabilityQueryState = {
-  data: undefined, isLoading: false, isFetching: false, isError: false, refetch: async () => undefined,
-};
-
-export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> = (props) => {
-  const connector = props.state.db.connector;
-  const kind = String(connector.kind).toLowerCase();
-  if (kind === 'mysql' && destinationIsSaved(props.state)) {
-    return <SavedMySQLCircuitProfileBasicPanel {...props} />;
-  }
-  if (kind === 'sqlserver' && destinationIsSaved(props.state)) {
-    return <SavedSQLServerCircuitProfileBasicPanel {...props} />;
-  }
-  return <CircuitProfileBasicPanelContent
-    {...props}
-    mysqlCapabilityQuery={EMPTY_MYSQL_CAPABILITY_QUERY}
-    sqlserverCapabilityQuery={EMPTY_SQLSERVER_CAPABILITY_QUERY}
-  />;
-};
-
-const SavedMySQLCircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> = (props) => {
-  const connector = props.state.db.connector;
-  const capabilityQuery = useStudioV2MySQLRecordingCapabilityQuery(
-    connector.connector_id ?? '', connector.identity_revision ?? '', true,
-  );
-  return <CircuitProfileBasicPanelContent
-    {...props}
-    mysqlCapabilityQuery={capabilityQuery}
-    sqlserverCapabilityQuery={EMPTY_SQLSERVER_CAPABILITY_QUERY}
-  />;
-};
-
-const SavedSQLServerCircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> = (props) => {
-  const connector = props.state.db.connector;
-  const capabilityQuery = useStudioV2SQLServerRecordingCapabilityQuery(
-    connector.connector_id ?? '', connector.identity_revision ?? '', true,
-  );
-  return <CircuitProfileBasicPanelContent
-    {...props}
-    mysqlCapabilityQuery={EMPTY_MYSQL_CAPABILITY_QUERY}
-    sqlserverCapabilityQuery={capabilityQuery}
-  />;
-};
-
-type CircuitProfileBasicPanelContentProps = CircuitProfileBasicPanelProps & {
-  mysqlCapabilityQuery: MySQLCapabilityQueryState;
-  sqlserverCapabilityQuery: SQLServerCapabilityQueryState;
-};
+export const CircuitProfileBasicPanel: React.FC<CircuitProfileBasicPanelProps> = props => <RecordingDraftBoundary><CircuitProfileCapabilities {...props} Content={CircuitProfileBasicPanelContent} /></RecordingDraftBoundary>;
 
 const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentProps> = ({
   state, workspaceId, readonly, lifecycleHost, readinessToken, settingsRevision, shareWorkspaceRevision, workspaceRevision: propWorkspaceRevision,
@@ -136,6 +69,7 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
   deviceId, onSelectDevice, renderScopeSummary, circuitRequest, onCircuitRequestDone, mysqlCapabilityQuery, sqlserverCapabilityQuery,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const { request } = useRecordingNavigation();
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
   const workspaceBlocked = useRecordingWorkspaceGuard(workspaceId, groupsQuery.data);
   const queriedRevision = groupsQuery.data?.workspace_revision || propWorkspaceRevision || '';
@@ -155,10 +89,11 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
   const measurementsQuery = useStudioV2WorkspaceMeasurementsQuery(Boolean(workspaceId && activeDeviceId && queriedRevision), activeDeviceId,
     { workspaceId: workspaceId ?? '', workspaceRevision: queriedRevision });
   const selectDevice = React.useCallback((nextDeviceId: string) => {
-    saveSelectedDeviceId(workspaceId ?? '', nextDeviceId);
+    if (onSelectDevice) { onSelectDevice(nextDeviceId); return; }
+    request(() => { saveSelectedDeviceId(workspaceId ?? '', nextDeviceId);
     setOwnDeviceId(nextDeviceId);
-    onSelectDevice?.(nextDeviceId);
-  }, [onSelectDevice, workspaceId]);
+    });
+  }, [onSelectDevice, workspaceId, request]);
   const activeDevice = savedDevices.find((d) => d.id === activeDeviceId);
   const destination = React.useMemo(() => (
     destinationIsSaved(state) ? {
@@ -217,6 +152,7 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
 
   const [localDraft, setLocalDraft] = React.useState(() => loadCircuitProfileLocalDraft(workspaceId ?? '', activeDeviceId, deviceCandidates, savedLongGroups, activeCircuitId, prepareOnly));
   const nativeEdits = React.useRef(new Map<string, number>());
+  const draftForHydration = React.useRef(localDraft); draftForHydration.current = localDraft;
   const [preparedGroups, setPreparedGroups] = React.useState<WriteGroup[]>([]);
   const [revisionOverride, setRevisionOverride] = React.useState<{ base: string; revision: string }>();
   const [errorMessage, setErrorMessage] = React.useState<string>();
@@ -228,7 +164,7 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
     setSelectedCircuitId(stored);
   }, [workspaceId, activeDeviceId]);
 
-  const handleSelectCircuit = (targetId: string) => {
+  const handleSelectCircuit = (targetId: string) => request(() => {
     onCircuitRequestDone?.(); // choosing a circuit by hand retires a pending routing request
     if (targetId === '__new__') {
       const newId = `cir-${createBasicRecordingRequestId()}`;
@@ -241,7 +177,7 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
       setSelectedCircuitId(targetId);
       if (workspaceId && activeDeviceId) saveActiveCircuitId(workspaceId, activeDeviceId, targetId);
     }
-  };
+  });
 
   React.useEffect(() => {
     if (!circuitRequest || !workspaceId || circuitRequest.workspaceId !== workspaceId || circuitRequest.deviceId !== activeDeviceId) return;
@@ -359,12 +295,19 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
     deviceId: activeDeviceId, circuitId, consentKey: JSON.stringify([localDraft, deviceCandidates, settingsRevision, shareWorkspaceRevision]), batchGroups, updateWriteGroup: vars => updateGroup.mutateAsync(vars),
     counterBlocked: batchOpen || batchBusy, counterRepair: { available: !readonly && !measurementsQuery.isLoading && !measurementsQuery.isFetching && !measurementsQuery.isError, statuses: unconfirmedCounterStatuses },
     ensureCircuitProfile: vars => ensureProfile.mutateAsync(vars) });
+  const draftOwner = JSON.stringify([workspaceId, activeDeviceId, activeCircuitId, prepareOnly]);
+  const hydratedOwner = React.useRef(draftOwner);
   const hydrationScope = JSON.stringify([workspaceId, activeDeviceId, activeCircuitId, deviceCandidates, destination, prepareOnly]); const hydratedScope = React.useRef(hydrationScope);
   React.useEffect(() => {
     if (batchBusy && hydratedScope.current === hydrationScope) return; // Hold only own same-context canonical reseeds, not actual viewing-scope changes.
-    hydratedScope.current = hydrationScope; setLocalDraft(loadCircuitProfileLocalDraft(workspaceId ?? '', activeDeviceId, deviceCandidates, savedLongGroups, activeCircuitId, prepareOnly));
+    const restored = loadCircuitProfileLocalDraft(workspaceId ?? '', activeDeviceId, deviceCandidates, savedLongGroups, activeCircuitId, prepareOnly);
+    const current = draftForHydration.current;
+    const edited = nativeEdits.current.get(JSON.stringify([workspaceId ?? '', activeDeviceId, current.circuit_id ?? '']));
+    // Retaining native text never retains preparation evidence from an older read.
     setPreparedGroups([]);
-  }, [workspaceId, activeDeviceId, deviceCandidates, savedLongGroups, activeCircuitId, prepareOnly, batchBusy, hydrationScope]);
+    if (edited && hydratedOwner.current === draftOwner && JSON.stringify(current) !== JSON.stringify(restored)) return;
+    hydratedOwner.current = draftOwner; hydratedScope.current = hydrationScope; setLocalDraft(restored);
+  }, [workspaceId, activeDeviceId, deviceCandidates, savedLongGroups, activeCircuitId, prepareOnly, batchBusy, hydrationScope, draftOwner]);
   React.useEffect(() => { setPreparedGroups([]); setRevisionOverride(undefined); setErrorMessage(undefined); setBatchOpen(false); }, [scopeKey]);
   const counterDefinitionsReady = !measurementsQuery.isLoading && !measurementsQuery.isFetching && !measurementsQuery.isError && Array.isArray(measurementsQuery.data);
   const requiresCounterConfirmation = counterTargets.length > 0;
@@ -409,6 +352,9 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
   const flow = useCircuitProfileStart({ scopeKey, canStart: canPrepareOrStart, readonly, workspaceId, deviceId: activeDeviceId,
     connectorRevision: destination?.connector_revision ?? '', readinessToken, settingsRevision, shareWorkspaceRevision,
     prepare: ensureCurrentGroups, onActivated, prepareOnly, retryBlocked: () => workspaceBlocked() || batchBusy || batchOpen || Boolean(layoutBlockedReason) });
+  useCircuitDraftNavigation({ workspaceId: workspaceId ?? '', deviceId: activeDeviceId, circuitId: activeCircuitId,
+    candidates: deviceCandidates, groups: savedLongGroups, explicit: prepareOnly, draft: localDraft,
+    pending: flow.busy || flow.unresolved || batchBusy, setDraft: setLocalDraft });
   useReportOperationActive(flow.busy || flow.unresolved || batchBusy, onOperationActiveChange); // one merged page signal
   const isEffectiveLocked = readonly || flow.busy || flow.unresolved || batchBusy;
   const schemaGroups = preparedGroups.length > 0 ? preparedGroups : currentGroups;

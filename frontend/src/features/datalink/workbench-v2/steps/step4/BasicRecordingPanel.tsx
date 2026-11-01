@@ -1,3 +1,6 @@
+import { LegacyRecordingReadError } from './LegacyRecordingReadError';
+import { RecordingDraftBoundary, useRecordingNavigation } from '../../recording-editor/RecordingDraftNavigation';
+import { useBasicLegacyDraftNavigation, useShareOnlyPresentation } from './useLegacyRecordingDraftNavigation';
 import { safeRuntimeLabel } from '../../../../../utils/runtimeOperatorSafety';
 import type { RecordingViewedDevice, RenderRecordingScopeSummary } from './recordingScopeModel';
 import { RemovedRecordingManagement, SavedRecordingManagement } from './SavedRecordingManagement';
@@ -36,7 +39,7 @@ import { CircuitProfileBasicPanel } from './CircuitProfileBasicPanel';
 import { DeviceScopeTiles } from './DeviceScopeTiles';
 import { loadSelectedDeviceId, saveSelectedDeviceId } from '../../state/deviceScopeSelection';
 import { groupCircuitId, managedProfileDeviceId } from '../../state/circuitProfileBasic';
-import { clearBasicLegacyDraft, loadBasicLegacyDraft, saveBasicLegacyDraft } from '../../state/basicLegacyDraft';
+import { saveBasicLegacyDraft } from '../../state/basicLegacyDraft';
 import { basicManagedGroupDraft, completeBasicRecordingIntent, basicRecordingScopeKey, buildBasicManagedDrafts, createBasicRecordingRequestId, isBasicManagedWriteGroup, latestRecordingStartOperation, loadBasicRecordingIntent, saveBasicRecordingIntent, type BasicRecordingIntentRecord } from '../../state/basicRecording';
 
 export interface BasicRecordingPanelProps {
@@ -66,10 +69,11 @@ const BASIC_ROLE = 'managed-recording';
  * Basic owns one device and one managed group, including safe schema preparation.
  * Custom columns and other group variants remain in the advanced editor.
  */
-export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
+export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = props => <RecordingDraftBoundary><BasicRecordingPanelContent {...props} /></RecordingDraftBoundary>;
+const BasicRecordingPanelContent: React.FC<BasicRecordingPanelProps> = ({
   state,
   workspaceId,
-  readonly,
+  readonly: operatorReadonly,
   lifecycleHost,
   shareStatus,
   role = BASIC_ROLE,
@@ -80,8 +84,11 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   reviewRequest, onViewedDeviceChange, renderScopeSummary,
 }) => {
   const { t } = useTranslation(['workbench-v2', 'studio-review']);
+  const { request } = useRecordingNavigation();
   const queryClient = useQueryClient();
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
+  const readonly = operatorReadonly || groupsQuery.isError;
+  const readError = groupsQuery.isError && <LegacyRecordingReadError retry={groupsQuery.refetch} />;
   const workspaceBlocked = useRecordingWorkspaceGuard(workspaceId, groupsQuery.data);
   const ensureMutation = useEnsureBasicManagedMutation();
   const startMutation = useRecordingStartMutation();
@@ -97,7 +104,8 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
     () => buildBasicManagedDrafts(workspaceId ?? '', candidates, destination, role),
     [candidates, destination, role, workspaceId],
   );
-  const shareOnly = isModbusShareConfiguredEnabled(shareStatus) && !(state.db.connector.persisted && state.db.connector.connector_id && state.db.connector.identity_revision);
+  const shareOnly = useShareOnlyPresentation(workspaceId ?? '', Boolean(state.db.connector.persisted && state.db.connector.connector_id && state.db.connector.identity_revision),
+    Boolean(groupsQuery.data) && !groupsQuery.isLoading && !groupsQuery.isError, isModbusShareConfiguredEnabled(shareStatus));
   // Every persisted device is a legal view, whether or not it has sources to record
   // yet; a device without sources shows its own blocked state instead of being
   // replaced by another one. The Circuit subtree lists the same devices.
@@ -130,22 +138,21 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   const consumedReview = useRef<typeof reviewRequest>(undefined);
   const reviewGroups = groupsQuery.data?.groups;
   const clearCircuitRequest = useCallback(() => setCircuitRequest(undefined), []);
-  const selectByOperator = useCallback((deviceId: string) => {
+  const selectByOperator = useCallback((deviceId: string) => request(() => {
     consumedReview.current = reviewRequest;
     setCircuitRequest(undefined);
     setLegacyView(undefined);
     selectDevice(deviceId);
-  }, [reviewRequest, selectDevice]);
+  }), [request, reviewRequest, selectDevice]);
   useEffect(() => {
     if (!reviewRequest || reviewRequest === consumedReview.current || reviewRequest.workspaceId !== (workspaceId ?? '')) return;
     const group = reviewGroups?.find((candidate) => candidate.id === reviewRequest.groupId && candidate.status !== 'deleted');
     const reviewDeviceId = group ? managedProfileDeviceId(group) : undefined;
     if (!group || !reviewDeviceId || !deviceIds.includes(reviewDeviceId)) return;
     consumedReview.current = reviewRequest;
-    setLegacyView(undefined);
-    selectDevice(reviewDeviceId);
-    setCircuitRequest({ workspaceId: reviewRequest.workspaceId, deviceId: reviewDeviceId, circuitId: groupCircuitId(group) });
-  }, [reviewRequest, reviewGroups, deviceIds, selectDevice, workspaceId]);
+    request(() => { setLegacyView(undefined); selectDevice(reviewDeviceId);
+      setCircuitRequest({ workspaceId: reviewRequest.workspaceId, deviceId: reviewDeviceId, circuitId: groupCircuitId(group) }); });
+  }, [reviewRequest, reviewGroups, deviceIds, selectDevice, workspaceId, request]);
   const [intervalSeconds, setIntervalSeconds] = useState(DEFAULT_INTERVAL_SECONDS);
   const [incompletePolicy, setIncompletePolicy] = useState('skip_row');
   const [localIntent, setLocalIntent] = useState<BasicRecordingIntentRecord | undefined>();
@@ -176,8 +183,6 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   const selectedGroupRevision = basicSelectedGroup?.revision;
   const selectedGroupAppliedRevision = basicSelectedGroup?.applied_revision;
   const connectorRevision = state.db.connector.identity_revision;
-  const selectedGroupInterval = basicSelectedGroup?.row_policy.interval_seconds;
-  const selectedGroupIncompletePolicy = basicSelectedGroup?.row_policy.incomplete_policy;
   const selectedGroupMembersMatch = !basicSelectedGroup || basicSelectedGroup.members.length === selectedCandidates.length &&
     basicSelectedGroup.members.every((member) => selectedCandidates.some((candidate) => candidate.point_id === member.point_id && candidate.tag_id === member.tag_id));
   const membersMismatch = Boolean(basicSelectedGroup && !selectedGroupMembersMatch);
@@ -207,18 +212,6 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
     setLocalIntent(groupSnapshotMatchesRequest(stored, selectedGroupId, selectedGroupRevision, connectorRevision) || keepTerminalEvidence || keepUnresolvedRequest ? stored : undefined);
   }, [scopeKey, selectedGroupId, selectedGroupRevision, selectedGroupAppliedRevision, connectorRevision]);
   useBasicRecordingIntentObservation(scopeKey, localIntent, setLocalIntent);
-  // The unsaved view draft belongs to this workspace, device and purpose; once the
-  // saved group holds exactly what it said, it has nothing left to remember.
-  const hasSelectedGroup = Boolean(selectedGroup);
-  useEffect(() => {
-    const draft = scopeKey ? loadBasicLegacyDraft(scopeKey) : undefined;
-    const savedPolicy = selectedGroupIncompletePolicy === 'partial' ? 'partial' : 'skip_row';
-    if (draft && hasSelectedGroup && (draft.intervalSeconds === undefined || draft.intervalSeconds === selectedGroupInterval) &&
-      (draft.incompletePolicy === undefined || draft.incompletePolicy === savedPolicy)) clearBasicLegacyDraft(scopeKey);
-    setIntervalSeconds(draft?.intervalSeconds ?? selectedGroupInterval ?? DEFAULT_INTERVAL_SECONDS);
-    setIncompletePolicy(draft?.incompletePolicy ?? savedPolicy);
-  }, [scopeKey, selectedGroup?.id, hasSelectedGroup, selectedGroupIncompletePolicy, selectedGroupInterval]);
-
   const destinationMismatch = Boolean(!shareOnly && selectedGroup && (
     selectedGroup.destination.connector_id !== state.db.connector.connector_id ||
     selectedGroup.destination.connector_revision !== state.db.connector.identity_revision
@@ -273,10 +266,13 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   const hasLegacyBasicWide = Boolean(legacyGroup);
   const legacyScope = JSON.stringify([workspaceId, selectedDeviceId]);
   const legacyMode = legacyView?.scope === legacyScope ? legacyView.mode : undefined;
+  useBasicLegacyDraftNavigation({ scopeKey, group: basicSelectedGroup, visible: !supportsCircuitProfile || shareOnly || hasLegacyBasicWide && legacyMode === 'edit',
+    pending: operationActive || Boolean(localIntent && (!operation || ['pending', 'running', 'partial', 'unknown'].includes(operation.status))),
+    interval: intervalSeconds, policy: incompletePolicy, setInterval: setIntervalSeconds, setPolicy: setIncompletePolicy });
   if (supportsCircuitProfile && !shareOnly) {
     if (groupsQuery.isLoading) return <div data-testid="circuit-profile-groups-loading" className="rounded border border-slate-800 p-4 text-xs text-slate-400">{t('step4.basic.circuit.groups_loading')}</div>;
-    if (groupsQuery.isError) return <div role="alert" data-testid="circuit-profile-groups-error" className="rounded border border-rose-800/70 bg-rose-950/30 p-4 text-xs text-rose-200">{t('step4.basic.circuit.groups_error')}</div>;
-    if (!hasLegacyBasicWide || legacyMode !== 'edit') return <><CircuitProfileBasicPanel renderScopeSummary={renderScopeSummary} lifecycleHost={lifecycleHost} key={JSON.stringify([workspaceId, selectedDeviceId, legacyMode])} prepareOnly={legacyMode === 'prepare'} onClose={() => setLegacyView({ scope: legacyScope, mode: 'edit' })} legacyGroup={legacyGroup} onEditLegacy={() => setLegacyView({ scope: legacyScope, mode: 'edit' })} deviceId={selectedDeviceId} onSelectDevice={selectByOperator} state={state} workspaceId={workspaceId} readonly={readonly} workspaceRevision={workspaceRevision} readinessToken={shareStatus?.readiness_token} settingsRevision={shareStatus?.settings_revision} shareWorkspaceRevision={shareStatus?.workspace_revision} onOpenAdvanced={onOpenAdvanced} onContinueToRuntime={(ids) => onCommit?.(ids)} onOperationActiveChange={onOperationActiveChange} circuitRequest={circuitRequest} onCircuitRequestDone={clearCircuitRequest} /><RemovedRecordingManagement groups={groups} deviceId={selectedDeviceId} workspaceId={workspaceId} workspaceRevision={workspaceRevision} readonly={readonly} lifecycleHost={lifecycleHost} onOpenAdvanced={onOpenAdvanced} /></>;
+    if (groupsQuery.isError && !groupsQuery.data) return readError;
+    if (!hasLegacyBasicWide || legacyMode !== 'edit') return <>{readError}<CircuitProfileBasicPanel renderScopeSummary={renderScopeSummary} lifecycleHost={lifecycleHost} key={JSON.stringify([workspaceId, selectedDeviceId, legacyMode])} prepareOnly={legacyMode === 'prepare'} onClose={() => request(() => setLegacyView({ scope: legacyScope, mode: 'edit' }))} legacyGroup={legacyGroup} onEditLegacy={() => request(() => setLegacyView({ scope: legacyScope, mode: 'edit' }))} deviceId={selectedDeviceId} onSelectDevice={selectByOperator} state={state} workspaceId={workspaceId} readonly={readonly} workspaceRevision={workspaceRevision} readinessToken={shareStatus?.readiness_token} settingsRevision={shareStatus?.settings_revision} shareWorkspaceRevision={shareStatus?.workspace_revision} onOpenAdvanced={onOpenAdvanced} onContinueToRuntime={(ids) => onCommit?.(ids)} onOperationActiveChange={onOperationActiveChange} circuitRequest={circuitRequest} onCircuitRequestDone={clearCircuitRequest} /><RemovedRecordingManagement groups={groups} deviceId={selectedDeviceId} workspaceId={workspaceId} workspaceRevision={workspaceRevision} readonly={readonly} lifecycleHost={lifecycleHost} onOpenAdvanced={onOpenAdvanced} /></>;
   }
 
   const blockReason = !workspaceId ? 'workspace'
@@ -383,10 +379,11 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
 
   return (
     <section className="space-y-4 rounded-xl border border-cyan-900/70 bg-slate-950/40 p-5" aria-labelledby="basic-recording-title" data-testid="basic-recording-panel">
+      {readError}
       <div>
         <h3 id="basic-recording-title" className="text-sm font-semibold text-slate-100">{t('step4.basic.title')}</h3>
         <p className="mt-1 text-xs leading-5 text-slate-400">{t('step4.basic.subtitle')}</p>
-        {supportsCircuitProfile && !shareOnly && <button type="button" data-testid="device-recording-back-setup" disabled={operationActive} onClick={() => setLegacyView(undefined)} className="mt-2 text-xs text-cyan-300 underline disabled:opacity-40">{t('step4.basic.existing.back')}</button>}
+        {supportsCircuitProfile && !shareOnly && <button type="button" data-testid="device-recording-back-setup" disabled={operationActive} onClick={() => request(() => setLegacyView(undefined))} className="mt-2 text-xs text-cyan-300 underline disabled:opacity-40">{t('step4.basic.existing.back')}</button>}
       </div>
 
       {deviceIds.length > 0 && (
@@ -476,7 +473,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
 
       {!shareOnly && basicSelectedGroup && lifecycleHost && <SavedRecordingManagement group={basicSelectedGroup} workspaceId={workspaceId} workspaceRevision={workspaceRevision} readonly={readonly || operationActive} lifecycleHost={lifecycleHost} />}
       {!shareOnly && <RemovedRecordingManagement groups={groups} deviceId={selectedDeviceId} workspaceId={workspaceId} workspaceRevision={workspaceRevision} readonly={readonly} lifecycleHost={lifecycleHost} onOpenAdvanced={onOpenAdvanced} />}
-      {supportsCircuitProfile && !shareOnly && hasLegacyBasicWide && destinationSaved && <LegacyMigrationEntry disabled={readonly || operationActive} onOpen={() => setLegacyView({ scope: legacyScope, mode: 'prepare' })} />}
+      {supportsCircuitProfile && !shareOnly && hasLegacyBasicWide && destinationSaved && <LegacyMigrationEntry disabled={readonly || operationActive} onOpen={() => request(() => setLegacyView({ scope: legacyScope, mode: 'prepare' }))} />}
 
       {!shareOnly && localIntent && operationId && <BasicRecordingRetry context={JSON.stringify([preparationKey, localIntent.request.request_id, operationId])}
         eligible={isOriginalRequestRetry(operation, operationId, localIntent.request)} onRetry={handleRetry}

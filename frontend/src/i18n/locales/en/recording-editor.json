@@ -260,5 +260,37 @@
     "reviewSaved": "Review saved records",
     "refreshFailed": "The latest workspace read failed. Your unsaved fields remain on this page; the displayed saved data may be stale. Refresh before saving or starting.",
     "refresh": "Refresh saved state"
+  },
+  "destinations": {
+    "title": "Choose a configured table",
+    "configuredOnly": "Previously configured recording destinations only — not an inventory of physical database tables.",
+    "loading": "Loading configured destinations…",
+    "error": "Configured destinations could not be read. Cached entries cannot be selected.",
+    "unavailable": "Configured destination data is unavailable.",
+    "stale": "These destinations belong to an older workspace revision. Refresh before selecting.",
+    "retry": "Refresh configured destinations",
+    "empty": "No recording destinations have been configured here. This does not mean the database has no tables.",
+    "unassigned": "Canonical table not assigned yet",
+    "intentOnly": "Destination intent selected. Fresh schema, revision and ownership checks are still required; nothing has been saved or started.",
+    "reset": "Clear selection; use canonical destination",
+    "select": "Use this destination",
+    "editOriginal": "Open original recording",
+    "reason": {
+      "wideOwner": "This wide table belongs to its original recording. A new recording cannot reuse that owner.",
+      "destination": "A different connector, database or schema owns this destination. Open its original recording instead.",
+      "revision": "The saved connector revision is no longer current. Refresh the destination first.",
+      "layout": "Storage strategy, mode or layout is incompatible with this recording.",
+      "scope": "This destination belongs to another workspace.",
+      "unavailable": "This recording has no usable canonical destination.",
+      "connector": "Save the current connector before choosing a destination."
+    },
+    "unnamed": "Unnamed recording",
+    "table": "Table",
+    "database": "Database",
+    "schema": "Schema",
+    "technical": "Technical identity and revision",
+    "connector": "Connector ID",
+    "storage": "Storage / layout / mode",
+    "revision": "Recording revision"
   }
 }

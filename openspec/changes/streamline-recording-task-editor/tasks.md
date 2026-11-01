@@ -14,9 +14,9 @@
 
 - [x] 2.1 [after: 1.6] 實作 Basic and advanced recording semantics remain faithful 與「同頁漸進引導與能力保真」，在 support-per-member-recording-calculation 完成後依「同一記錄每個成員選擇計算結果」實作 Per-record member controls consume mixed calculation intent，並實作 Recording choices explain outcomes without inventing restrictions 與「以使用目的說明記錄結果」，基本 raw 值不強迫衍生語意，特殊配置只讀摘要可交接進階；測試白話label/例子及gauge mean但counter_raw/state latest、first baseline NULL與signed/rollover不能一律判missing、同組mean/mean/delta各member自己的對齊窗口、到期同列APIintent、同source不同record隔離、原始counter/legacy契約不默轉、requiredskip/optionalNULL與cross-device不可默轉。 依「同一記錄每個成員選擇計算結果」的consumer分期，驗draft能力與editor支援旗標不互代；整合通過後同步唯一server editor capability及契約測試，仍以每record fresh readiness／schema／ownership決定可否開始。 依「記錄設定與來源啟動分期」驗canonical skipped/not_due/未開始資料狀態及保存readback；成功值與完整window Browser另由原3.2及整體驗收閉合，不把Apply冒稱來源Start。
 - [x] 2.2 [after: 2.1] 實作 Draft navigation preserves or explicitly discards unsaved intent 與「草稿返回與確認失效契約」；以 dirty-navigation 測試覆蓋 Close/Escape/Back/Forward/切scope/reload/autosave失敗，驗證保留與捨棄語意。 納入run10已觀察的React #185與返回逾時事件，保留原FAIL及後續未重現證據；重走fresh首存、同session字序保存／恢復／衝突與返回，持續取console，出現首錯須取得stack修復。不得把未重現寫成已定位修復。
-- [ ] 2.3 [after: 2.2] 實作 Four-step intent-led setup 的同V2新舊呈現共用配置，保留原進階入口、routine mapping、offline draft及既有role約束；用原 guided workflow 與新 editor 整合測試確認導航不轉換配置。
+- [x] 2.3 [after: 2.2] 實作 Four-step intent-led setup 的同V2新舊呈現共用配置，保留原進階入口、routine mapping、offline draft及既有role約束；用原 guided workflow 與新 editor 整合測試確認導航不轉換配置。
 
-- [ ] 2.4 [after: 2.3] 實作 Configured destinations offer safe table reuse 與「從已設定目的地安全選表」；測不同connector/database同名不合併、兼容長表可選、寬表受owner限制導原編輯、無候選/失敗/過期狀態，選取零寫入且fresh schema/ownership/revision gate仍必要。
+- [x] 2.4 [after: 2.3] 實作 Configured destinations offer safe table reuse 與「從已設定目的地安全選表」；測不同connector/database同名不合併、兼容長表可選、寬表受owner限制導原編輯、無候選/失敗/過期狀態，選取零寫入且fresh schema/ownership/revision gate仍必要。
 
 ## 3. 檢查並開始
 

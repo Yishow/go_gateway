@@ -126,9 +126,9 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		Stale:            false,
 		Timestamp:        cv.Timestamp,
 	})
-	if deviceID != "" {
-		s.publishDerivedStatus(ctx, deviceID)
-	}
+	// Derived device summaries are refreshed by the existing statusLoop. Keep
+	// workspace projection queries off this per-point data path, including when
+	// a live status subscriber is present. Point value/quality events stay immediate.
 }
 
 func (s *Service) recordTargetDeliveryOutcome(deviceID, pointID, tagID string, outcome TargetDeliveryOutcome, observedAt time.Time) {
@@ -196,22 +196,6 @@ func buildRawValue(cv collector.CollectedValue) any {
 		return cv.RawBytes
 	}
 	return string(buf)
-}
-
-func (s *Service) publishDerivedStatus(ctx context.Context, deviceID string) {
-	if deviceID == "" {
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-
-	status, found, err := s.DeviceStatus(ctx, deviceID)
-	if err != nil || !found {
-		return
-	}
-
-	s.emitStatusIfChanged(status)
 }
 
 // offerFailedTypedSample reports a read whose transform could not run. The

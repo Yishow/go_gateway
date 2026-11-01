@@ -259,8 +259,10 @@ describe('device recording tiles', () => {
     const request = ensureCircuitAsync.mock.calls[0][0].request;
     expect(request.group.members.every((member: { device_id: string }) => member.device_id === 'dev-1')).toBe(true);
 
-    // A is still saving when the operator moves to B, whose draft is its own.
+    // Leaving A does not cancel its submitted request; B still owns its own draft.
     fireEvent.click(tile(1));
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('navigation.pending');
+    fireEvent.click(screen.getByRole('button', { name: 'navigation.discard' }));
     expect(tile(1)).toHaveAttribute('aria-pressed', 'true');
     expect(interval()).toHaveValue('33');
 

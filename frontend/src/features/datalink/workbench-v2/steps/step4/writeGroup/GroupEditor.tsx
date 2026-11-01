@@ -1,3 +1,5 @@
+import { ConfiguredDestinationChooser, type ConfiguredDestinationObservation } from '../../../recording-editor/ConfiguredDestinationChooser';
+import { configuredDestinationPatch, configuredDestinationReason, configuredDestinationStillCurrent } from '../../../recording-editor/configuredRecordingDestinations';
 import { RecordingSourceNavigation } from '../../../recording-editor/RecordingSourceNavigation';
 import { useWriteGroupSaveActivity, writeGroupSaveOutcomeUnknown } from '../../../../../../hooks/datalink/useWriteGroupSaveActivity';
 import { GroupEditorWithCapabilities, destinationSaved, type GroupEditorContentProps } from './GroupEditorCapabilities';
@@ -46,6 +48,7 @@ import { GroupSchemaPanel } from './GroupSchemaPanel';
 import { GroupTestWritePanel } from './GroupTestWritePanel';
 
 export interface GroupEditorProps {
+  configuredDestinations?: ConfiguredDestinationObservation;
   calculationCapabilities?: WriteGroupCalculationCapabilities;
   deviceSource?: DeviceSourcePort;
   sourceDevices?: readonly { id: string; name: string }[];
@@ -86,7 +89,7 @@ export interface GroupEditorProps {
  */
 export const GroupEditor: React.FC<GroupEditorProps> = props => <RecordingDraftBoundary><RecordingSourceNavigation workspaceId={props.workspaceId} source={props.deviceSource}><GroupEditorWithCapabilities {...props} Content={GroupEditorContent} /></RecordingSourceNavigation></RecordingDraftBoundary>;
 const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
-  calculationCapabilities, deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard, saveReadbackPending,
+  configuredDestinations, calculationCapabilities, deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard, saveReadbackPending,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: editorText } = useTranslation('recording-editor');
@@ -135,6 +138,10 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
     connector_id: connector.connector_id ?? '', connector_revision: connector.identity_revision ?? '',
     table_schema: connector.schema ?? '', table_name: connector.table ?? '',
   }));
+  const [configuredChoice, setConfiguredChoice] = useState<WriteGroup>();
+  const configuredContext = { workspaceId, connector, draft, groupId: group?.id };
+  const configuredInvalid = Boolean(configuredChoice && (configuredDestinationReason(configuredChoice, configuredContext) || configuredDestinations?.failed || configuredDestinations?.loading || !configuredDestinationStillCurrent(configuredChoice, configuredDestinations?.data)));
+  const configuredReason = configuredChoice && configuredDestinationReason(configuredChoice, configuredContext);
   const [saveError, setSaveError] = useState<unknown>(null);
   const [conflict, setConflict] = useState(false);
   const createMutation = useCreateWriteGroupMutation();
@@ -209,7 +216,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const sourceWritePending = () => draft.members.some(member => sourceOwnerRef.current?.range?.sourceWriteState?.(member.device_id, member.point_id));
   const issues = mixed ? [] : validateDraft(draft, { destinationSaved: saved && destinationMatches, storageStrategy: draft.storage_strategy });
   const mixedIssues = mixed ? recordingMixedEditorIssues(draft, calculationCapabilities, connector.kind, saved && destinationMatches) : [];
-  const invalid = issues.length > 0 || mixedIssues.length > 0;
+  const invalid = issues.length > 0 || mixedIssues.length > 0 || configuredInvalid;
   const readiness = useWriteGroupReadinessQuery(group?.id, Boolean(group) && !dirty);
   const set = (patch: Partial<EditorDraft>) => { if (!savingRef.current) setDraft((current) => ({ ...current, ...patch })); };
   const setMembers = (members: EditorMember[]) => set({ members: mixed && calculationCapabilities ? initializeMixedMembers(members, draft.members, candidates, calculationCapabilities) : members });
@@ -244,6 +251,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       const latest = await fetchLatest();
       if (!mountedRef.current || saveScope.current !== requestScope || locatorLease.current !== requestLease || requestLease.key !== null && locatorLease.current.blocked) return;
       if (sourceWritePending()) return;
+      if (configuredChoice && (!configuredDestinationStillCurrent(configuredChoice, latest) || configuredDestinationReason(configuredChoice, configuredContext))) throw new Error(editorText('destinations.stale'));
       const freshRevision = latest?.workspace_revision ?? workspaceRevision;
       if (group) {
         const current = latest?.groups.find((entry) => entry.id === group.id);
@@ -269,6 +277,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         ownPickerAcknowledgement.current = acknowledgement;
         // Adopt every server-assigned managed column and binding before the
         // parent refetches. Server proof stays outside the editable draft.
+        setConfiguredChoice(undefined);
         setDraft(groupToDraft(result.group));
         setEditorGroup(result.group);
         setConflict(false);
@@ -351,7 +360,12 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
 
       <RecordingMixedEditor draft={draft} saved={Boolean(group)} disabled={readonly || saveBusy} capabilities={calculationCapabilities} dialect={connector.kind} onChange={next => { if (!savingRef.current) setDraft(next); }} />
       {profile && !mixed && <GroupProfileSummary draft={draft} />}
-      <GroupIdentityFields draft={draft} readonly={readonly} locked={profile} onChange={set} onStorageStrategy={changeStorageStrategy} />
+      <GroupIdentityFields draft={draft} readonly={readonly} locked={profile || draft.layout_version === 'managed_long_v1'} onChange={set} onStorageStrategy={changeStorageStrategy} />
+
+      {configuredDestinations && <ConfiguredDestinationChooser observation={configuredDestinations} context={configuredContext} workspaceRevision={workspaceRevision}
+        disabled={readonly || saveBusy} selected={configuredChoice} onSelect={choice => { setConfiguredChoice(choice); set(configuredDestinationPatch(choice)); }}
+        onReset={() => { setConfiguredChoice(undefined); set({ table_name: group?.destination.table_name ?? '' }); }} />}
+      {configuredInvalid && <p role="alert">{editorText(configuredDestinations?.failed ? 'destinations.error' : configuredDestinations?.loading ? 'destinations.loading' : configuredReason ? `destinations.reason.${configuredReason}` : 'destinations.stale')}</p>}
 
       <GroupPolicyFields draft={draft} readonly={readonly} profile={profile} onChange={set} onDedupe={(capability) => { customDedupeRef.current = capability; set({ dedupe_capability: capability }); }} />
 
