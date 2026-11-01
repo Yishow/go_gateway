@@ -197,8 +197,8 @@ const CircuitProfileBasicPanelContent: React.FC<CircuitProfileBasicPanelContentP
   const sqlserverTestWriteAvailable = Boolean(sqlserverMetadataVerified && sqlserverCapability?.supports_group_test_write);
 
   const nativeMonthlyAvailable = (isMySQL && mysqlNativeMonthlyAvailable) || (isSQLServer && sqlserverNativeMonthlyAvailable);
-
-  const { candidates: allCandidates } = React.useMemo(() => buildGroupCandidates(state), [state]);
+  const { candidates: allCandidates } = React.useMemo(() => buildGroupCandidates({ devices: state.devices, rules: state.rules, points: state.points, mappings: state.mappings }),
+    [state.devices, state.rules, state.points, state.mappings]);
   const deviceCandidates = React.useMemo(() => allCandidates.filter((c) => c.device_id === activeDeviceId), [allCandidates, activeDeviceId]);
   const liveGroups = React.useMemo(() => (groupsQuery.data?.groups ?? []).filter((g) => g.status !== 'deleted'), [groupsQuery.data?.groups]);
   const savedLongGroups = React.useMemo(() => liveGroups.filter((g) => isManagedProfileGroupForDevice(g, activeDeviceId)), [liveGroups, activeDeviceId]);

@@ -35,6 +35,7 @@ func (s *Scheduler) executeAcquisitionPlan(ctx context.Context, conn *connector.
 		plan = optimizer.BuildAcquisitionPlan(safeAcquisitionInput(scan.input, completed))
 		phase = "safe"
 	}
+	s.setAcquisitionEvidenceInitial(evidenceFrom(ctx), scan, plan, phase)
 	fallbackUsed := false
 	for {
 		fallback := false
@@ -42,7 +43,9 @@ func (s *Scheduler) executeAcquisitionPlan(ctx context.Context, conn *connector.
 			if scan.snapshot.ctx.Err() != nil {
 				return
 			}
-			results, err := s.readScheduledRequest(ctx, conn, scan, plan, index, acquisitionID, phase)
+			requestCtx, recordOutcome := beginEvidenceRequest(ctx, phase)
+			results, err := s.readScheduledRequest(requestCtx, conn, scan, plan, index, acquisitionID, phase)
+			recordOutcome(results, err)
 			requestPoints := make([]pointInfo, 0, len(request.Points))
 			for _, point := range request.Points {
 				requestPoints = append(requestPoints, scan.points[point.Point.ID])
@@ -80,6 +83,9 @@ func (s *Scheduler) executeAcquisitionPlan(ctx context.Context, conn *connector.
 		}
 		plan = optimizer.BuildAcquisitionPlan(safeAcquisitionInput(scan.input, completed))
 		phase = "fallback"
+		if evidence := evidenceFrom(ctx); evidence != nil {
+			evidence.metrics.Phases = append(evidence.metrics.Phases, AcquisitionActualPhase{Phase: phase, PlanRevision: plan.Fingerprint()})
+		}
 		// Safe planning may reject a scalar impossible under its contiguous cap.
 		// It receives one final bad result, never a fabricated value or a retry plan.
 		for _, failure := range plan.Errors() {

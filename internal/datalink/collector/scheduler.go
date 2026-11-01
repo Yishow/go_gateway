@@ -75,13 +75,14 @@ func DefaultSchedulerConfig() SchedulerConfig {
 
 // Scheduler 資料收集排程器
 type Scheduler struct {
-	outputLoss   outputLossCounter
-	due          *dueQueue
-	active       *activeCapacity
-	pendingLimit int
-	capacityErr  error
-	config       SchedulerConfig
-	connMgr      *connector.ConnectionManager
+	outputLoss          outputLossCounter
+	acquisitionEvidence map[acquisitionEvidenceTuple]*acquisitionScanEvidence
+	due                 *dueQueue
+	active              *activeCapacity
+	pendingLimit        int
+	capacityErr         error
+	config              SchedulerConfig
+	connMgr             *connector.ConnectionManager
 
 	// 輪詢群組 Ticker
 	groupTickers map[string]*groupTicker

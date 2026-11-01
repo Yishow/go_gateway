@@ -1,3 +1,4 @@
+import { useRecordingPointOrder } from '../../../features/datalink/workbench-v2/recording-editor/useRecordingPointOrder';
 import { deviceAPI } from '../../../services/datalink';
 import { useRecordingRangeSubmission } from './useRecordingRangeSubmission';
 import { readSourceRangeDevice } from './readSourceRangeDevice';
@@ -301,6 +302,7 @@ export function useStudioV2AutosaveState(
     });
   }, [actions]);
   const queueDeviceRef = React.useRef<(id: string) => void>(() => undefined);
+  const pointOrder = useRecordingPointOrder(sourceWorkspaceId, locatorEntry ? locatorHydration.ready : enabled && workspaceHydrated);
   const deviceSubmission = useDeviceSourceSubmission({ workspaceId: sourceWorkspaceId, enabled: locatorEntry ? locatorHydration.ready : enabled && workspaceHydrated,
     canSubmit: () => !locatorEntry || sourceLease.allowed,
     stateRef, apply: action => { stateRef.current = workbenchV2Reducer(stateRef.current, action); actions.dispatch(action); },
@@ -467,11 +469,11 @@ export function useStudioV2AutosaveState(
       ...actions,
       dispatch,
     },
-    deviceSource: locatorEntry ? { ...deviceSubmission.port, range: sourceRanges.port,
+    deviceSource: locatorEntry ? { ...deviceSubmission.port, pointOrder, range: sourceRanges.port,
       acknowledgeLocatorGroupSave: sourceLease.acknowledgeLocatorGroupSave,
       prepare: async (id: string) => id === sourceWorkspaceId && (sourceLease.allowed ? Boolean(await sourceLease.readback()) : await sourceLease.acquire(id)),
       submit: async (request: DeviceSourceRequest) => sourceLease.allowed && await sourceLease.readback() ? deviceSubmission.port.submit(request) : { request, status: 'blocked' as const },
-    } : { ...deviceSubmission.port, range: sourceRanges.port },
+    } : { ...deviceSubmission.port, pointOrder, range: sourceRanges.port },
     databaseConfigQuery: databaseAutosave.databaseConfigQuery,
     databaseTargetsQuery: databaseAutosave.databaseTargetsQuery,
     devicesQuery,

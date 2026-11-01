@@ -65,7 +65,7 @@ wire response完整驗證後依point span解碼；不可判定對齊的短／壞
 
 ### 同planner預覽與量測證明
 
-新增scoped read-only acquisition-plan preview，輸入workspace/device scope與expected revision（不接受任意host或地址）；回傳plan_revision、capability_revision、acquisition_point_count、unique_wire_units、planned_requests、request kinds/spans、safe coverage/fallback reasons、poll interval、estimate=true。零PLC I/O、不變更設定；stale revision回409，不把未知能力顯示成random=1。UI label為「每輪計畫協議讀取次數（不含故障重試）」；actual attempted/succeeded/failed/retry/fallback/canceled、cycle latency、overrun和last-good age另列，同scope/revision標示，不稱TCP封包數或SQL次數。
+新增scoped read-only acquisition-plan preview，輸入workspace/device scope與expected revision（不接受任意host或地址）；回傳plan_revision、capability_revision、acquisition_point_count、unique_wire_units、planned_requests、request kinds/spans、safe coverage/fallback reasons、poll interval、estimate=true。零PLC I/O、不變更設定；stale revision回409，不把未知能力顯示成random=1。UI各group label為「每輪計畫協議讀取次數（不含故障重試）」；actual attempted/succeeded/failed/retry/fallback/canceled、cycle latency、overrun和last-good age另列，同scope/revision標示，不稱TCP封包數或SQL次數。
 
 量測使用同機fake transports／simulators、相同seed/data/point set/cadence/limits、baseline逐點與新planner兩模式；baseline只測試hook，不建立產品第二引擎。必要fixtures：稀疏三點MC/FATEK 3→1；Modbus未授權gap 3→3，明確coverage 3→1；21連續int16 21→1（限額允許）；125/126 limit切分、多word邊界、重疊去重不同格式、invalid address、forbidden gap、unsupported command、timeout、短回應、CRC、cancel、rapid revision swap。這些是設計斷言，不是已量測性能。
 
@@ -108,4 +108,83 @@ In scope：optimizer、collector、既有adapters與production wiring、scoped p
 - 批次擴大失敗blast radius：僅合法範圍、嚴格驗包、不盲目fallback，保留每點品質。
 - 過多合併增加多餘bytes：同planner列extra units，先安全再成本；不以最大合併為唯一目標。
 - 共享格式／過期回應污染：immutable decoder與revision隔離、race與swap fixtures。
-- 大矩陣超單task：每task限一context、預估不超一小時；若實際超界先拆獨立可驗證子change，不用漏測兌現完成。
+- 大矩陣耗時：4.2依「負載矩陣分批驗收」保留完整條件與樣本，按具名case／有證據的續跑區段執行，不靠漏測兌現完成；本次僅調整驗收執行分批，不新增產品子change。
+
+### 手動讀取保留回傳與生命週期
+
+3.3 沿原 PollNowContext 的明確 caller 意圖：可在尚未 Start 或 scheduled Stop 後讀已安裝且非 recoveryPending 的 requested Points；不自動擴到全部來源或建立 scheduled due。Unknown／recoveryPending／空集合沿原回傳邊界，重複 canonical Point ID 最多一份 final 結果，不按地址合併不同 Point。每 manual/device 保留一次 AcquisitionID（它進入既有 StableSampleID/SampleEnvelope，不可誤當純 transient）；一個 coherent device snapshot 包含全部 requested Points 及各 Point 原 group/cadence，沿既有 immutable planner 的 group 隔離與唯一 request index，不造 fake group 或晚取 device/config 拼舊 Point。已知資料不足不得杜撰 cadence；若與既有 before-Start caller 契約衝突，先保原可用契約並明列證據，不以啟用來源補洞。
+
+共用 executor 透過明確 final delivery policy 保 scheduled emitValue 與 manual return-only；manual 的既有 caller delivery／observer 語意保留，不同時再送 scheduled ValueChannel，known requested Points 在 caller cancel 仍回其原 Bad 結果、不額外重複。非 bounded PLC 的既有 custom protocol 保單次 scheduler-level scalar invocation，共用既有 count/read/result helper；adapter 原內部 retry、request budget/deadline 不因此變成只允許一次 wire attempt。MC/FATEK/Modbus 走同 shared planned executor，不為假 adapter 放行 unsafe scalar bypass。
+
+3.3 完成 manual capacity parity 時，active permit pool 改為 constructor 建立的 Scheduler-lifetime 物件；Start 只重建本輪 due queue，不在 manual 活動中重置或拆分全域容量，也不新增 Start-busy 行為。這精確化3.2階段僅scheduled時的per-run permit實作；3.2歷史交接不當成最終manual契約。配置值仍constructor凍結；明確無效容量的manual fail closed，不永久等待。Stop／WaitStopped 繼續只取消並join原scheduled workers，manual依原caller context；跨Start/Stop/restart仍共用同device gate、fair active pool、原backoff cooperation與actual-send fence。舊scheduled workers先join，不能回返改新queue；manual合法release屬同lifetime pool。Manual caller原每request/device fanout不冒稱受scheduled per-configured-device goroutine上界涵蓋，不新增內部無界queue。
+
+此為原3.3 migration的契約交接，沒有新public route、decoder、source/operation authority或持久ID；4.1預覽及4.2性能驗收仍獨立。
+
+
+### 同源預覽的單位、head與實測契約
+
+以下精確化原4.1／editor1.4單位與不可用邊界，未新增task、SourceEpoch、第二planner、SQL source-only規劃或診斷平台；同一次原生metadata更新只由一個owner計數。
+
+#### 同一 installed snapshot 與分組估算
+
+預覽只使用可證明 current 的 installed native acquisition snapshot，沿既有 capture/build helpers 及唯一 optimizer planner。沒有 current installation、無法證明原 polling group/cadence、或 context 不可證明時回明確 unavailable，不以空計畫或 count=0 假成功；不增加 SQL source-only planner 分支，不為預覽安裝來源或啟動 scheduler。已 installed 但尚無完成 scan 可以同時回傳有效 estimate 與 actual unavailable；因此不以執行過 PLC 讀取作估算前置。
+
+device 回傳 groups[]，每 group 有自己的 cadence、plan fingerprint、planned request count；不同 group 不合成同一輪。每組 acquisition_point_count 是 captured acquisition Point membership（包括被 planner 明確拒絕的 Point），point_errors 另列，不能靜默消失。unique_wire_units 為有效 scalar physical-address spans 在同一完整 compatibility key/area 內的 union，排除單為 bridge gap 多讀的 cells；按 physical address unit 分列 bit 與 16-bit word cells。不得將 PointSlice.NativeBits（request component width）貼到 span length 當 cell width：FATEK DR 的 component 是 32 bits，但 physical address cell 是 16 bits；WM/DWM 的 physical address cell 是 bit。API 只消費 pure planner 的同源只讀 summary，不自行解析/換算/union；例如 DR0:uint32 的 span [0,2) 是2個16-bit地址單位，不能乘component的32；DR0+DR1 span union [0,3) 為3個16-bit地址單位；WM8:uint16 為[8,24)的16個bit地址單位，DWM8:uint64為[8,72)的64個bit地址單位。僅在既有canonical area/compatibility namespace內union，不自行推定跨D/DR/R等別名關係。不同 function/area/station/connection/group/cadence 不互相 dedup。這是 wire source geometry，不是 recording members 或 fetched request length。
+
+planned_requests 表示該 group 當前已證明 context 下之初始執行策略的協議 request 數，不含故障重試與本 scan 未觸發的 fallback requests；零點/零 request 僅在完整有效 snapshot 證明該事實時才可為零。無法建立有效 snapshot 不能產生數值。
+
+#### 唯讀 GET、head 與一致性
+
+擬新增 GET 使用現有 `/api/v1/datalink/studio-v2/workspace/` prefix；建議 suffix `acquisition-plan-preview`（尚不存在，最終由 API owner 定名）。只接受 workspace_id、device_id、expected_workspace_revision 與可選 expected_preview_revision；拒絕任意 endpoint/address/member selector。
+
+expected_workspace_revision 必須出現；空字串只依既有 workspace legacy-empty revision 語意驗證，不能等同缺少欄位。expected_preview_revision 首讀可省略，回傳同次 coherent snapshot 的 preview_revision 與 estimate，不先發另一個無保護的 head request；後續提供的 revision 不相符回 409。提供空 preview revision 視為無效輸入，不等同省略。query 重複值與不支援欄位由既有嚴格 parsing 慣例拒絕。
+
+preview_revision 是既有 immutable plan/config/Point revision、installation lease/scope、group/cadence、capability/coverage 及所採 connection/downgrade context evidence 的 deterministic opaque composite，不是新的 SourceEpoch、持久 counter 或 authority。plan_revision 仍是 canonical planner fingerprint；兩者不能混稱。actual observation 的更新不改 preview_revision。
+
+捕捉前驗 workspace/device ownership，建置後重驗同一 captured identity、workspace revision、installed slots/group/capability/connection context，變動回 409，不重抓新版後宣稱原 requested revision 成功。first read 無 expected_preview_revision 也需前後同一 snapshot。無法觀察 context（不是證實 changed）為 unavailable；若使用者提供舊 head 而目前已失去其 installation/context，舊 head 不再有效，回 stale 409。foreign scope 按既有 typed foreign error 拒絕，不能先洩露計畫或 metrics。
+
+#### warm downgrade 與不探測
+
+只讀 existing exact manager entry/token 與既有 downgrade cache。確認沒有 existing connection 時按 declared capability 建初始 plan，標 basis=declared_no_connection；有匹配的 existing entry/token 時，依同 capability revision 的 cache 決定 declared 或 safe initial plan。存在 entry 但 config/generation/token/context 無法證明，回 unavailable；不能當成不存在後樂觀顯示 random。無 dial、GetOrCreate、probe、reconnect、read、write 或設定變更。
+
+preview evidence 明確區分 declared plan fingerprint 與 effective initial plan fingerprint：warm safe plan 是本輪初始策略，不是本輪剛發生的 fallback。connection replacement/cache change 使 context-bound head 失效；不能改寫 Point/sample 已有 fingerprint 或 AcquisitionID。
+
+#### 最近完成 scheduled scan 的 actual 單位
+
+只保留每 configured (device, polling group) 最近完成 scheduled scan 的 bounded native evidence，不建立歷史 registry。manual scan 不寫入此 view，也不能以 same device 或 subset point 結果充當 scheduled scan。保存 captured scope/install/Point/group/capability/plan/context proof，API 只有 proof 與 preview 完全匹配才取用；scope 證明不足或 revision 不符均 unavailable。遲到的舊 scan 不得取代新版 tuple 的 evidence。停用/移除配置時清除對應 tuple，restart 不借前次 lifetime evidence。
+
+完成指 scan execution 路徑終止（包含失敗或取消），不是保證成功採集；不包含尚未 dispatch 的 rejected/coalesced due intents。每次記錄保留 AcquisitionID、declared plan、effective initial plan 與各 phase fingerprint 關聯；fallback phase 的 sample fingerprint 不改綁 initial。
+
+actual 欄位採下列明確單位，保留原 attempted/succeeded/failed/retry/fallback/canceled 所需資訊，不宣稱每 wire success/failure：
+
+| 欄位 | 單位與來源 |
+| --- | --- |
+| wire_attempts（attempted） | 原 wirebudget send observer 成功 admission/budget 後、即將 transport I/O 的 send 次數，含 scheduler/adapter 重送；不是 TCP packets |
+| retry_wire_attempts（retry） | 各 logical request 第一次 actual send 之後的 actual sends；adapter self-retry 也算 |
+| fallback_wire_attempts（fallback） | phase=fallback 的 actual sends；warm safe initial 不算本輪 fallback |
+| logical_requests.succeeded | 一個已進入 readScheduledRequest 的 plan request 在完整驗證後 err=nil 且全部結果 Good 的最終結果，一 request 計一次 |
+| logical_requests.failed | 已進 request 層而非 canceled 的最終失敗；明確 unsupported-command 造成 fallback 的原 request 也記一次 failed |
+| logical_requests.canceled | 已進 request 層、最終為 cancellation/deadline interruption 的 request；不等於剩餘未執行 requests 數 |
+| logical_requests.status | not_started（未進 request 層）或 observed；不能把 gate/dial/planning failure 的 Point Bad fanout 當 request failed |
+| cycle_latency_ms | captured due 到 execution 終止的 monotonic elapsed，含 queue/gate/capacity/backoff/connection/read；不是 SQL latency |
+| overrun | 同 scan elapsed > captured positive cadence 的布林；無 cadence 證據不可計算 |
+| last_good_age | 僅能使用 matching captured Point/scan 的真正 Good completion 證據；無 Good 證據為 unavailable，不借其他 revision 的最後成功 |
+
+retry_wire_attempts 與 fallback_wire_attempts 是 wire_attempts 的可重疊子集：fallback request 的第二次 send 同時屬兩者；不可相加當 total。wire_attempts 不等於 logical succeeded+failed+canceled，也不等於 Point count。plan-invalid Point 尚未形成 request 不列 logical failed；fallback replanning 所拒絕的 Point 同理。
+
+真實已完成 scan 可以有 measured wire_attempts=0（例如 gate/dial 前失敗），但 logical_requests.status=not_started、三種 logical outcomes 不提供數值；仍可顯示真 latency。沒有 matching completed scan 時 actual 整體 unavailable，不能全補零。若已進 request 層而未送任何 wire，該 request 可以有實際 canceled/failed 結果與 measured wire=0，不與 not_started 混淆。顯示 true zero 必須有對應 observation。
+
+取消發生於 request 完成後不得追溯改寫已確定 outcome；分類取該 logical request 的最終 validated error/result，不讀稍晚的 scan ctx 去改判。為避免 early-return 漏數，outcome 先記錄再處理 executor 的 canceled exit / fallback transition。
+
+#### 已有 diagnostics 最小投影
+
+不把 DueDiagnostics 全域 Coalesced/Rejected/Overruns 等數值灌入 scoped actual；本版 overrun 由同一最近 matching scan 的 elapsed/cadence 投影，不新增全域 counter。既有 output-loss counter 仍唯一 owner，僅投影能按 captured installation scope/Point revision/PointID 證明匹配的 retained detail，標 partial/history-incomplete；沒有 retained row 不代表零損失。EvictedDetailLoss/Unattributed/Total 全域值不得暴露為 scoped 總數；不得以 output loss 當 wire 或 SQL failure。最多 256 retained series 是既有設計上限，非量測值。
+
+
+### 負載矩陣分批驗收
+
+**Supersedes**: integrate-protocol-aware-acquisition-batching / 同planner預覽與量測證明（僅澄清長矩陣執行分批，並取代 Risks 的超時即新增子change排程規則；原量測門檻與矩陣不減）。
+
+4.2保持原一項完整驗收；1/10/100設備、3/128點、1/20/100ms、至少100完整scan及cold/warm、fault/pressure條件全部保留。先短pilot實測時間，再依具名case分批安排，避免長測阻塞其他已授權介面驗證；每批保留版本、seed、完整參數、樣本數及結果，只有全部要求完成才勾4.2。超長case可分可續跑區段，但必須保存同一實驗的連線／warm狀態或明確重新分類cold，不能拼接不同條件冒充同次分布。任何仍未測／失敗case均明列，不把分批完成稱整體通過，不新增功能或第二引擎。
+
+每device分位數必須列實際樣本數；100設備的一次sample不可冒稱100筆每device分布。Cold首scan單列啟動與首讀條件，不能用單樣本宣稱可靠cold p95；warm分布與setup/probe流量分開。同canonical設定／limits的singleton-planner逐Point正式adapter讀取可作test-only scalar基準，whole-set planner為paired策略；不得改能力／limits來偽造scalar，也不得將多次scalar塞入原optimized單request預算。正式scheduled負載、queue／fairness／drop仍須沿現有production path另證；adapter-only計時不冒稱包含scheduled排隊的cycle latency。既有無變code的相關通過證據可沿用，race耗時不能作效能比較。

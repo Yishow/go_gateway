@@ -22,6 +22,8 @@
 這表示後端有已驗證的支援路徑，不表示特定 record 已 ready、已 Apply 或正在執行；每次仍須 CAS、來源／measurement、schema consent、ownership 與 readiness。
 旗標由單一 backend MarshalJSON 計算，caller 偽造值無效。
 
+上列 false 是本 backend 交接階段的狀態，不表示某一 record 未 ready。後續 editor 2.1 實作並驗證 canonical consumer 後，正式交付前同步更新唯一 server editor capability 與契約斷言；draft_supported 不可代替 editor_supported。此 UI 支援宣告仍不是任何記錄的啟用許可，上述每筆 fresh 安全檢查均保留。
+
 精確 counter scale 的正常 mixed delta 支援限 managed-long；managed-wide 的該組合仍有 layout-specific restriction。
 精確 scale mixed latest／mean、未知 shape/layout/dialect 不可偷偷轉 raw 或繞過限制。
 restriction 省略 layout 表示全部 layout；未知 layout 拒絕，不默認 long。

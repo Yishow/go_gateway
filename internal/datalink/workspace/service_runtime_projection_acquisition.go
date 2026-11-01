@@ -29,6 +29,23 @@ type acquisitionSourceGraphData struct {
 // Complete reports whether canonical SQL and source geometry were both proven.
 func (g AcquisitionSourceGraph) Complete() bool { return g.data != nil && g.data.owner != nil }
 
+// WorkspaceID returns the original verified ownership scope, never a new authority.
+func (g AcquisitionSourceGraph) WorkspaceID() string {
+	if !g.Complete() {
+		return ""
+	}
+	return g.data.workspaceID
+}
+
+// IdentityRevision returns the existing frozen provenance digest, including
+// Point and raw rule revisions. It is not a new persisted epoch or plan hash.
+func (g AcquisitionSourceGraph) IdentityRevision() string {
+	if !g.Complete() {
+		return ""
+	}
+	return g.data.original
+}
+
 // Reason is a closed safety reason; it never contains stored configuration.
 func (g AcquisitionSourceGraph) Reason() string {
 	if g.Complete() {

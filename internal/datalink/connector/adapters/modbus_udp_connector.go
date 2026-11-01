@@ -18,12 +18,13 @@ import (
 
 // ModbusUDPConnector Modbus UDP 協議連接器適配器
 type ModbusUDPConnector struct {
-	client         *modbus.ModbusClient
-	transport      modbus.Transport
-	config         schema.ConnectionConfigModbusUDP
-	stateMu        sync.RWMutex
-	connected      bool
-	persistentMode bool // 長連接模式標誌
+	acquisitionGeneration acquisitionGeneration
+	client                *modbus.ModbusClient
+	transport             modbus.Transport
+	config                schema.ConnectionConfigModbusUDP
+	stateMu               sync.RWMutex
+	connected             bool
+	persistentMode        bool // 長連接模式標誌
 }
 
 // NewModbusUDPConnector 建立新的 Modbus UDP 連接器
@@ -65,7 +66,7 @@ func (c *ModbusUDPConnector) Connect(ctx context.Context, configJSON string) err
 
 	// 連線（僅在長連接模式下立即連線）
 	if c.IsPersistentMode() {
-		if err := c.client.ConnectContext(ctx); err != nil {
+		if err := c.acquisitionGeneration.connect(ctx, c.client.ConnectContext); err != nil {
 			return fmt.Errorf("modbus UDP 連線失敗: %w", err)
 		}
 		c.setConnected(true)
@@ -115,7 +116,7 @@ func (c *ModbusUDPConnector) Write(ctx context.Context, req connector.WriteReque
 	// 短連接模式：操作完成後自動斷線
 	defer c.afterOperation()
 
-	tcpConn := &ModbusTCPConnector{client: c.client, connected: true, persistentMode: true}
+	tcpConn := &ModbusTCPConnector{client: c.client, connected: true, persistentMode: true, generationOwner: &c.acquisitionGeneration}
 	return tcpConn.Write(ctx, req)
 }
 
@@ -147,7 +148,7 @@ func (c *ModbusUDPConnector) Reconnect(ctx context.Context) error {
 	if c.client == nil {
 		return fmt.Errorf("客戶端未初始化，請先呼叫 Connect")
 	}
-	if err := c.client.ConnectContext(ctx); err != nil {
+	if err := c.acquisitionGeneration.connect(ctx, c.client.ConnectContext); err != nil {
 		return err
 	}
 	c.setConnected(true)
@@ -168,7 +169,7 @@ func (c *ModbusUDPConnector) ensureConnection() error {
 	}
 
 	if !c.isConnected() {
-		if err := c.client.Connect(); err != nil {
+		if err := c.acquisitionGeneration.connect(context.Background(), c.client.ConnectContext); err != nil {
 			return fmt.Errorf("連線失敗: %w", err)
 		}
 		c.setConnected(true)

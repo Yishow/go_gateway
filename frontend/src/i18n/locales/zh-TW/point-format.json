@@ -26,5 +26,25 @@
     "point_format_unavailable": "儲存結果尚無法確認，請先查證原操作，再進行其他變更。",
     "point_format_operation_not_found": "找不到此操作的回執；這不代表儲存失敗，請勿自動重送。",
     "point_format_unknown": "無法確認操作結果，請查證原操作，勿重複儲存。"
+  },
+  "editor": {
+    "title": "點位字序",
+    "native": "協議原生組合",
+    "notApplicable": "此點位不支援多字組覆寫；保留既有協議解碼方式。",
+    "order": "字序",
+    "reset": "重設為來源預設",
+    "save": "儲存字序",
+    "working": "正在核對原操作…",
+    "operation": "操作",
+    "inspect": "查詢原儲存結果",
+    "recover": "套用已存字序（不啟動）",
+    "installed": "已安裝儲存的字序",
+    "not_started": "已復原儲存字序；設備仍未啟動",
+    "shareApplied": "已套用既有 Share 設定",
+    "shareDisabled": "Share 保持停用",
+    "notReading": "這不是即時讀值，也不代表 Good 樣本。",
+    "version": "格式版本",
+    "nativeCompatibility": "保留原生相容模式",
+    "restart": "核對目前設定後開始新編輯"
   }
 }

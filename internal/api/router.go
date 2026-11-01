@@ -327,6 +327,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 					workspaceHandler.WithCanonicalPlanBuilder(builder)
 				}
 				datalinkGroup.GET("/studio-v2/workspace", workspaceHandler.Get)
+				datalinkGroup.GET("/studio-v2/workspace/acquisition-plan-preview", handlers.NewStudioV2AcquisitionPreviewHandler(datalinkServices.Workspace, datalinkServices.Runtime).Get)
 				if datalinkServices.Audit != nil {
 					workspaceAuditHandler := handlers.NewStudioV2WorkspaceAuditHandler(datalinkServices.Workspace, datalinkServices.Audit)
 					datalinkGroup.GET("/studio-v2/workspace/audit-history", workspaceAuditHandler.List)

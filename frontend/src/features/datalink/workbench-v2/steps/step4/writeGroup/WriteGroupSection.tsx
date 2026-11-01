@@ -50,6 +50,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
   const [openError, setOpenError] = useState<'unavailable' | 'stale-reference' | 'foreign-scope'>();
   const [opening, setOpening] = useState(false);
   const openingRequest = useRef<AbortController | undefined>(undefined);
+  const openedLocator = useRef<StudioLocatorEntryRead | undefined>(undefined);
   useEffect(() => {
     openingRequest.current?.abort(); openingRequest.current = undefined; setOpening(false);
     return () => { openingRequest.current?.abort(); openingRequest.current = undefined; };
@@ -64,18 +65,30 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ deviceSour
       locatorSuspended || selection.kind !== 'none' || openingRequest.current) return;
     const request = new AbortController(); openingRequest.current = request; setOpening(true); setOpenError(undefined);
     try {
-      const result = await readStudioLocatorEditorEntry(locatorEntry.locator,
-        { workspaceRevision: target.workspaceRevision, groupRevision: target.groupRevision }, request.signal);
+      let expected = { workspaceRevision: target.workspaceRevision, groupRevision: target.groupRevision };
+      if (openedLocator.current === locatorEntry) {
+        // Reopening the same selection rechecks canonical revisions. A source
+        // saved in the previous editor may have advanced the workspace revision.
+        const latest = await groupsQuery.refetch();
+        if (request.signal.aborted || openingRequest.current !== request) return;
+        if (latest.isError || !latest.data) { setOpenError('unavailable'); return; }
+        if (latest.data.workspace_id !== target.workspaceId) { setOpenError('foreign-scope'); return; }
+        const exact = latest.data.groups.find(value => value.id === target.groupId && value.status !== 'deleted');
+        if (!exact || !exact.revision.trim()) { setOpenError('stale-reference'); return; }
+        expected = { workspaceRevision: latest.data.workspace_revision, groupRevision: exact.revision };
+      }
+      const result = await readStudioLocatorEditorEntry(locatorEntry.locator, expected, request.signal);
       if (request.signal.aborted || openingRequest.current !== request) return;
       if (!result.ok) { setOpenError(result.reason); return; }
       const next = result.value;
       const selected = next.selection.state === 'selected' ? next.selection.target : undefined;
       const saved = next.entry.write_groups?.groups.find(value => value.id === group.id && value.status !== 'deleted');
       if (!next.entry.editor_hydrated || !selected || selected.workspaceId !== target.workspaceId ||
-        selected.workspaceRevision !== target.workspaceRevision || selected.groupId !== target.groupId ||
-        selected.groupRevision !== target.groupRevision || !saved || !studioV2LocatorHydration(next)) {
+        selected.workspaceRevision !== expected.workspaceRevision || selected.groupId !== target.groupId ||
+        selected.groupRevision !== expected.groupRevision || !saved || !studioV2LocatorHydration(next)) {
         setOpenError('stale-reference'); return;
       }
+      openedLocator.current = locatorEntry;
       setEditorEntry(next); setSelection({ kind: 'edit', id: group.id, saved });
     } catch { if (!request.signal.aborted) setOpenError('unavailable'); }
     finally { if (openingRequest.current === request) { openingRequest.current = undefined; setOpening(false); } }

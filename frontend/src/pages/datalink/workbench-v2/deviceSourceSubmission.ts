@@ -1,3 +1,5 @@
+import type { RecordingPointOrderPort } from '../../../features/datalink/workbench-v2/recording-editor/useRecordingPointOrder';
+import type { RecentConnectionPort } from '../../../features/datalink/workbench-v2/recording-editor/recentConnectionDefaults';
 import type { RangeSourcePort } from './rangeSourceSubmission';
 import type { Device } from '../../../features/datalink/workbench-v2/state/types';
 import type { StudioV2WorkspaceDeviceRecord } from '../../../services/studioV2WorkspaceDevices';
@@ -26,7 +28,10 @@ export interface DeviceSourceOutcome {
 }
 /** Local observations, not a backend operation ledger or CAS permission. */
 export interface DeviceSourcePort {
+  pointOrder?: RecordingPointOrderPort;
   range?: RangeSourcePort;
+  /** Page-session prefill only; no persistence or source-write authority. */
+  recentConnections?: RecentConnectionPort;
   /** Advance an own-save read basis only; never grants a source write. */
   acknowledgeLocatorGroupSave?(proof: LocatorGroupSaveAcknowledgement): boolean;
   prepare?(workspaceId: string): Promise<boolean>;

@@ -34,6 +34,7 @@ func (s *Scheduler) Start(groups []*schema.PollingGroup) error {
 	s.pollCtx, s.pollCancel = context.WithCancel(context.Background())
 	s.ensureDeviceLocks()
 
+	s.acquisitionEvidence = nil
 	s.running = true
 	s.stopCh = make(chan struct{})
 	s.due = newDueQueue(s.pendingLimit)
@@ -61,6 +62,7 @@ func (s *Scheduler) StopContext(ctx context.Context) error {
 	s.mu.Lock()
 	if s.running {
 		s.running = false
+		s.acquisitionEvidence = nil
 		if s.due != nil {
 			s.due.stop()
 		}

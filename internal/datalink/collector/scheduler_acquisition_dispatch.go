@@ -72,6 +72,11 @@ func (s *Scheduler) pollAcquisitionSnapshot(snapshot scheduledSnapshot, acquisit
 	if acquisitionID == "" {
 		acquisitionID = s.nextAcquisitionID()
 	}
+	if !manual && planErr == nil && boundedAcquisitionProtocol(snapshot.device.Protocol) {
+		var evidence *acquisitionScanEvidence
+		ctx, evidence = s.beginAcquisitionEvidence(ctx, scan, acquisitionID)
+		defer s.finishAcquisitionEvidence(evidence)
+	}
 	if s.capacityErr != nil {
 		s.deliverAcquisitionFailure(snapshot, acquisitionID, s.capacityErr, "capacity-invalid", deliver)
 		return
@@ -127,6 +132,9 @@ func (s *Scheduler) pollAcquisitionSnapshot(snapshot scheduledSnapshot, acquisit
 	}
 	conn, err := s.connMgr.GetOrCreate(ctx, snapshot.device.ID, snapshot.device.Protocol, snapshot.device.Config)
 	if err != nil {
+		if evidence := evidenceFrom(ctx); evidence != nil {
+			s.setAcquisitionEvidenceInitial(evidence, scan, scan.plan, "initial")
+		}
 		if snapshot.ctx.Err() != nil {
 			return
 		}

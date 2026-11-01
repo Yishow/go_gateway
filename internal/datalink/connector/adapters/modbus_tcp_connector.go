@@ -21,12 +21,14 @@ import (
 
 // ModbusTCPConnector Modbus TCP 協議連接器適配器
 type ModbusTCPConnector struct {
-	client         *modbus.ModbusClient
-	transport      modbus.Transport
-	config         schema.ConnectionConfigModbusTCP
-	stateMu        sync.RWMutex
-	connected      bool
-	persistentMode bool // 長連接模式標誌
+	acquisitionGeneration acquisitionGeneration
+	generationOwner       *acquisitionGeneration
+	client                *modbus.ModbusClient
+	transport             modbus.Transport
+	config                schema.ConnectionConfigModbusTCP
+	stateMu               sync.RWMutex
+	connected             bool
+	persistentMode        bool // 長連接模式標誌
 }
 
 // NewModbusTCPConnector 建立新的 Modbus TCP 連接器
@@ -72,7 +74,7 @@ func (c *ModbusTCPConnector) Connect(ctx context.Context, configJSON string) err
 
 	// 連線（僅在長連接模式下立即連線）
 	if c.IsPersistentMode() {
-		if err := c.client.ConnectContext(ctx); err != nil {
+		if err := c.connectAcquisitionContext(ctx); err != nil {
 			return fmt.Errorf("modbus TCP 連線失敗: %w", err)
 		}
 		c.setConnected(true)
@@ -147,7 +149,7 @@ func (c *ModbusTCPConnector) Reconnect(ctx context.Context) error {
 	if c.client == nil {
 		return fmt.Errorf("客戶端未初始化，請先呼叫 Connect")
 	}
-	if err := c.client.ConnectContext(ctx); err != nil {
+	if err := c.connectAcquisitionContext(ctx); err != nil {
 		return err
 	}
 	c.setConnected(true)
@@ -161,7 +163,7 @@ func (c *ModbusTCPConnector) ensureConnection() error {
 			if c.client == nil {
 				return fmt.Errorf("未連線")
 			}
-			if err := c.client.Connect(); err != nil {
+			if err := c.connectAcquisitionContext(context.Background()); err != nil {
 				return fmt.Errorf("連線失敗: %w", err)
 			}
 			c.setConnected(true)
@@ -170,7 +172,7 @@ func (c *ModbusTCPConnector) ensureConnection() error {
 		// 若已標記連線但底層連線已斷開，自動自癒重連
 		if c.client != nil && !c.client.IsConnected() {
 			c.client.Close()
-			if err := c.client.Connect(); err != nil {
+			if err := c.connectAcquisitionContext(context.Background()); err != nil {
 				c.setConnected(false)
 				return fmt.Errorf("連線失敗: %w", err)
 			}
@@ -185,7 +187,7 @@ func (c *ModbusTCPConnector) ensureConnection() error {
 	}
 
 	if !c.isConnected() {
-		if err := c.client.Connect(); err != nil {
+		if err := c.connectAcquisitionContext(context.Background()); err != nil {
 			return fmt.Errorf("連線失敗: %w", err)
 		}
 		c.setConnected(true)

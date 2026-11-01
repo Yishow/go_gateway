@@ -61,9 +61,9 @@ func (s *Scheduler) readScheduledRequest(ctx context.Context, conn *connector.Ma
 		}
 	}
 	err = capacityWaitResult(err, invoked)
-	if readCtx.Err() != nil && !errors.Is(err, errActiveCapacityWait) {
-		err = readCtx.Err()
-	}
+	// The final request result is authoritative. A later scan cancellation must
+	// not rewrite an already completed success or failure. Wait/send paths return
+	// their own cancellation errors when interruption actually ends the request.
 	return validateScheduledResults(read, results, err, s.now())
 }
 

@@ -19,11 +19,13 @@ type AcquisitionGeometryReceipt struct {
 }
 
 type acquisitionGeometry struct {
-	revision string
-	excluded []optimizer.NativeRange
-	rules    map[string]string
-	device   deviceConfig
-	slots    map[string]pointInfo
+	workspaceID    string
+	sourceRevision string
+	revision       string
+	excluded       []optimizer.NativeRange
+	rules          map[string]string
+	device         deviceConfig
+	slots          map[string]pointInfo
 }
 
 type acquisitionGeometryState struct {

@@ -55,6 +55,7 @@ func (s *Scheduler) addDeviceLocked(cfg deviceConfig) {
 		}
 	}
 	s.deviceConfigs[cfg.ID] = cfg
+	s.pruneAcquisitionEvidenceLocked()
 
 	// 建立設備鎖
 	if _, exists := s.deviceLocks[cfg.ID]; !exists {
@@ -80,6 +81,12 @@ func (s *Scheduler) removeDeviceLocked(deviceID string) {
 	delete(s.acquisitionDowngrades, deviceID)
 	delete(s.acquisitionGeometry, deviceID)
 
+	for key := range s.acquisitionEvidence {
+		if key.device == deviceID {
+			delete(s.acquisitionEvidence, key)
+		}
+	}
+
 	// 移除相關點位
 	maps.DeleteFunc(s.pointInfos, func(_ string, info pointInfo) bool {
 		return info.DeviceID == deviceID
@@ -100,6 +107,7 @@ func (s *Scheduler) RemovePoint(pointID string) {
 	defer s.mu.Unlock()
 
 	delete(s.pointInfos, pointID)
+	s.pruneAcquisitionEvidenceLocked()
 }
 
 // AddPollingGroup 新增輪詢群組
@@ -118,6 +126,7 @@ func (s *Scheduler) AddPollingGroup(group *schema.PollingGroup) {
 	if s.running && group.Enabled {
 		s.startGroupTicker(group)
 	}
+	s.pruneAcquisitionEvidenceLocked()
 }
 
 // RemovePollingGroup 移除輪詢群組
@@ -130,6 +139,7 @@ func (s *Scheduler) RemovePollingGroup(groupID string) {
 		gt.ticker.Stop()
 		delete(s.groupTickers, groupID)
 	}
+	s.pruneAcquisitionEvidenceLocked()
 }
 
 // PollingGroup returns a copy of an active polling group configuration.

@@ -59,7 +59,7 @@ func (c *ModbusTCPConnector) ensureConnectionContext(ctx context.Context) error 
 	if connected {
 		return nil
 	}
-	if err = c.client.ConnectContext(ctx); err != nil {
+	if err := c.connectAcquisitionContext(ctx); err != nil {
 		return err
 	}
 	c.setConnected(true)

@@ -22,6 +22,7 @@ export interface GroupMemberTableProps {
   managed?: boolean;
   /** Picker owns membership when supplied; this table edits only already selected rows. */
   selectionControls?: { removeLabel: (member: EditorMember) => string; onRemove: (member: EditorMember) => void };
+  renderSource?: (member: EditorMember) => React.ReactNode;
   onChange: (members: EditorMember[]) => void;
 }
 
@@ -45,7 +46,7 @@ function emptyMember(candidate: GroupCandidate, column: string): EditorMember {
  * bulk action names its scope and count and touches only the rows shown.
  */
 export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
-  candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
+  renderSource, candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
   dialect = 'portable', managed = false, onChange, selectionControls,
 }) => {
   const { t } = useTranslation('workbench-v2');
@@ -211,6 +212,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
                   <td className={classes('p-2')}>
                     <div className={classes('font-medium')}>{candidate.label}</div>
                     <div className={classes('text-slate-500')}>{candidate.device_name} · {candidate.address}</div>
+                    {member && renderSource?.(member)}
                   </td>
                   <td className={classes('p-2 font-mono')}>{candidate.target_type}</td>
                   <td className={classes('p-2')}>

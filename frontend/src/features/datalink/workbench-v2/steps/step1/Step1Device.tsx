@@ -1,3 +1,5 @@
+import { AcquisitionPlanPreviewPanel } from '../../acquisition-preview/AcquisitionPlanPreviewPanel';
+import type { AcquisitionWorkspaceScope } from '../../acquisition-preview/acquisitionPreviewScope';
 import type { StudioSelectionResult } from '../../state/studioSelection';
 import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -14,6 +16,7 @@ import { Icon } from '../../components/Icon';
 import { Button } from '../../components/Button';
 
 export interface Step1DeviceProps {
+  previewWorkspace?: AcquisitionWorkspaceScope;
   locatorSelection?: Extract<StudioSelectionResult, { state: 'selected' }>;
   /** Workbench V2 全域狀態 */
   state: WorkbenchV2State;
@@ -30,7 +33,7 @@ export interface Step1DeviceProps {
  * 實作需求 **Multi-device tab management**、**Readiness check with explicit connect / probe separation**、**Continue gate**。
  * 容納多裝置列表、設備參數編輯、連線測試進度以及流轉控制 footer。
  */
-export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onContinue, locatorSelection }) => {
+export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onContinue, locatorSelection, previewWorkspace }) => {
   const { t } = useTranslation('workbench-v2');
   const queryClient = useQueryClient();
   const testDraftConnectionMutation = useTestDraftConnectionMutation();
@@ -168,9 +171,13 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
                 />
               </div>
 
-              {/* 右側：診斷測試 (Col 6) */}
-              <div className="lg:col-span-6">
+              {/* 右側：診斷與唯讀預覽各自佔一列，避免診斷 h-full 擠出預覽。 */}
+              <div className="grid content-start gap-6 lg:col-span-6">
                 <ConnectionTestPanel device={activeDevice} onRunTest={handleRunTest} />
+                <AcquisitionPlanPreviewPanel
+                  scope={previewWorkspace && (!locatorSelection || locatorSelection.target.deviceId === activeDevice.id) && activeDevice.persisted && activeDevice.save_state === 'saved'
+                    ? { ...previewWorkspace, device_id: activeDevice.id } : undefined}
+                  unavailableReason={!activeDevice.persisted || activeDevice.save_state !== 'saved' ? 'unsaved' : 'scope'} />
               </div>
             </div>
           ) : (

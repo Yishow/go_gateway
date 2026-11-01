@@ -111,6 +111,10 @@ func (s *Service) RuntimeProjection(ctx context.Context) (*RuntimeProjection, er
 		return nil, err
 	}
 
+	return s.runtimeProjectionFromRecord(ctx, record)
+}
+
+func (s *Service) runtimeProjectionFromRecord(ctx context.Context, record *Record) (*RuntimeProjection, error) {
 	deviceOrder := indexStrings(record.OrderedDeviceIDs)
 	devices, err := s.runtimeProjectionDevices(ctx, record.OrderedDeviceIDs)
 	if err != nil {

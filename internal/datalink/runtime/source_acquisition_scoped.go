@@ -88,7 +88,7 @@ func acquisitionGraphDefinition(graph workspace.AcquisitionSourceGraph) collecto
 	if !graph.Complete() {
 		return collector.AcquisitionGeometryDefinition{}
 	}
-	definition := collector.AcquisitionGeometryDefinition{Revision: graph.SemanticRevision(), Excluded: graph.Excluded(), Rules: map[string]string{}}
+	definition := collector.AcquisitionGeometryDefinition{WorkspaceID: graph.WorkspaceID(), SourceRevision: graph.IdentityRevision(), Revision: graph.SemanticRevision(), Excluded: graph.Excluded(), Rules: map[string]string{}}
 	for _, rule := range graph.Rules() {
 		revision, ok := graph.RuleSemanticRevision(rule.ID)
 		if !ok {

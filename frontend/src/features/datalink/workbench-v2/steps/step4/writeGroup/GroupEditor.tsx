@@ -1,3 +1,4 @@
+import { RecordingPointOrder } from '../../../recording-editor/RecordingPointOrder';
 import type { DeviceSourcePort } from '../../../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { RecordingPointSelection } from '../../../recording-editor/RecordingPointSelection';
 import { RecordingSelectedMembers } from '../../../recording-editor/RecordingSelectedMembers';
@@ -25,7 +26,7 @@ import type { ExcludedCandidate, GroupCandidate } from '../../../state/writeGrou
 import { suggestColumns } from '../../../state/writeGroup/columns';
 import {
   draftIsDirty, draftToRequestGroup, groupToDraft, newDraft, validateDraft,
-  type EditorDraft,
+  type EditorDraft, type EditorMember,
 } from '../../../state/writeGroup/draft';
 import { useStep4TargetColumns } from '../useStep4TargetColumns';
 import { GroupColumnProposal } from './GroupColumnProposal';
@@ -150,6 +151,8 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const [observedSources, setObservedSources] = useState<{ scope: string; value: RecordingPickerDiscovery }>();
   const candidates = useMemo(() => observedSources?.scope === pickerScope ? [...observedSources.value.candidates] : suppliedCandidates, [observedSources, pickerScope, suppliedCandidates]);
   const readonly = operatorReadonly || editorReadonly || propGroup?.status === 'deleted';
+  const renderPointOrder = (member: EditorMember) => deviceSource?.pointOrder && <RecordingPointOrder port={deviceSource.pointOrder}
+    workspaceId={workspaceId} deviceId={member.device_id} pointId={member.point_id} disabled={readonly} />;
   const saved = destinationSaved(connector);
   const isMySQL = String(connector.kind).toLowerCase() === 'mysql';
   const mysqlConnectorId = connector.connector_id ?? '';
@@ -367,7 +370,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
 
       <GroupPolicyFields draft={draft} readonly={readonly} profile={profile} onChange={set} onDedupe={(capability) => { customDedupeRef.current = capability; set({ dedupe_capability: capability }); }} />
 
-      {profile ? <GroupProfileMembers draft={draft} candidates={candidates} locatorScope={locatorScope} workspaceId={workspaceId} readonly={readonly} /> : (
+      {profile ? <GroupProfileMembers renderSource={renderPointOrder} draft={draft} candidates={candidates} locatorScope={locatorScope} workspaceId={workspaceId} readonly={readonly} /> : (
         <>
         {deviceSource ? <RecordingPointSelection key={pickerScope} scope={pickerScope} workspaceId={workspaceId} candidates={candidates}
           members={draft.members} devices={sourceDevices} disabled={readonly} deviceSource={deviceSource} onChange={members => set({ members })}
@@ -376,12 +379,12 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
             if (read.state !== 'available') throw new Error('Source observation unavailable');
             return { candidates: read.value.candidates, devices: read.value.devices };
           } : undefined}
-          renderMembers={actions => <RecordingSelectedMembers {...actions} managed={draft.storage_strategy === 'managed'} dialect={dialect}
+          renderMembers={actions => <RecordingSelectedMembers renderSource={renderPointOrder} {...actions} managed={draft.storage_strategy === 'managed'} dialect={dialect}
             candidates={candidates} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
             suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly}
             onChange={members => set({ members })} labels={{ remove: member => editorText('picker.removeMember', { point: member.point_id }),
               unavailable: editorText('picker.unavailable'), undo: editorText('picker.undo') }} />} /> :
-        <GroupMemberTable managed={draft.storage_strategy === 'managed'} dialect={dialect}
+        <GroupMemberTable renderSource={renderPointOrder} managed={draft.storage_strategy === 'managed'} dialect={dialect}
           candidates={candidates} excluded={excluded} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
           suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly}
           onChange={(members) => set({ members })} />}

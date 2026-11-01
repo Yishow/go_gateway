@@ -932,6 +932,78 @@ const docTemplate = `{
                 }
             }
         },
+        "/datalink/studio-v2/workspace/acquisition-plan-preview": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datalink Studio v2"
+                ],
+                "summary": "Read the installed acquisition plan and matching latest scheduled scan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Exact owning workspace",
+                        "name": "workspace_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact workspace device",
+                        "name": "device_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Required presence; empty is valid only for a legacy-empty workspace revision",
+                        "name": "expected_workspace_revision",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Omit on first coherent read; if provided, must be nonempty and match the current composite head",
+                        "name": "expected_preview_revision",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AcquisitionPreviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Malformed, duplicate, unknown or missing query input",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TypedAPIErrorEnvelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Foreign workspace or device",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TypedAPIErrorEnvelope"
+                        }
+                    },
+                    "409": {
+                        "description": "Stale revision or capture changed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TypedAPIErrorEnvelope"
+                        }
+                    },
+                    "503": {
+                        "description": "Scoped evidence unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.TypedAPIErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
         "/datalink/studio-v2/workspace/activate": {
             "post": {
                 "description": "Activates the persisted workspace after hydration, save, and revision checks.",
@@ -3884,6 +3956,260 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "collector.AcquisitionActual": {
+            "type": "object",
+            "properties": {
+                "acquisition_id": {
+                    "type": "string"
+                },
+                "cycle_latency_ms": {
+                    "type": "number"
+                },
+                "declared_plan_revision": {
+                    "type": "string"
+                },
+                "fallback_wire_attempts": {
+                    "type": "integer"
+                },
+                "initial_plan_revision": {
+                    "type": "string"
+                },
+                "last_good_age_ms": {
+                    "type": "number"
+                },
+                "logical_requests": {
+                    "$ref": "#/definitions/collector.AcquisitionLogicalOutcomes"
+                },
+                "observed_at": {
+                    "type": "string"
+                },
+                "overrun": {
+                    "type": "boolean"
+                },
+                "phases": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/collector.AcquisitionActualPhase"
+                    }
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "retry_wire_attempts": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "wire_attempts": {
+                    "type": "integer"
+                }
+            }
+        },
+        "collector.AcquisitionActualPhase": {
+            "type": "object",
+            "properties": {
+                "phase": {
+                    "type": "string"
+                },
+                "plan_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "collector.AcquisitionLogicalOutcomes": {
+            "type": "object",
+            "properties": {
+                "canceled": {
+                    "type": "integer"
+                },
+                "failed": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "succeeded": {
+                    "type": "integer"
+                }
+            }
+        },
+        "collector.AcquisitionPreview": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "type": "string"
+                },
+                "estimate": {
+                    "type": "boolean"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/collector.AcquisitionPreviewGroup"
+                    }
+                },
+                "output_loss": {
+                    "$ref": "#/definitions/collector.AcquisitionPreviewLoss"
+                },
+                "preview_revision": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "collector.AcquisitionPreviewGroup": {
+            "type": "object",
+            "properties": {
+                "acquisition_point_count": {
+                    "type": "integer"
+                },
+                "actual": {
+                    "$ref": "#/definitions/collector.AcquisitionActual"
+                },
+                "basis": {
+                    "type": "string"
+                },
+                "capability_revision": {
+                    "type": "string"
+                },
+                "declared_plan_revision": {
+                    "type": "string"
+                },
+                "fallback_reasons": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "plan_revision": {
+                    "type": "string"
+                },
+                "planned_requests": {
+                    "type": "integer"
+                },
+                "point_errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/collector.AcquisitionPreviewPointError"
+                    }
+                },
+                "poll_interval_ms": {
+                    "type": "integer"
+                },
+                "polling_group_id": {
+                    "type": "string"
+                },
+                "request_limits": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/collector.AcquisitionPreviewRequestLimit"
+                    }
+                },
+                "unique_wire_units": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/collector.AcquisitionPreviewUnits"
+                    }
+                }
+            }
+        },
+        "collector.AcquisitionPreviewLoss": {
+            "type": "object",
+            "properties": {
+                "history_complete": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "retained_detail": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/collector.AcquisitionPreviewLossDetail"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "collector.AcquisitionPreviewLossDetail": {
+            "type": "object",
+            "properties": {
+                "losses": {
+                    "type": "integer"
+                },
+                "point_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "collector.AcquisitionPreviewPointError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "collector.AcquisitionPreviewRequestLimit": {
+            "type": "object",
+            "properties": {
+                "area": {
+                    "type": "string"
+                },
+                "frame_cost_known": {
+                    "type": "boolean"
+                },
+                "function": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "native_unit_limit": {
+                    "type": "integer"
+                },
+                "request_frame_bytes": {
+                    "type": "integer"
+                },
+                "response_frame_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "collector.AcquisitionPreviewUnits": {
+            "type": "object",
+            "properties": {
+                "address_unit_bits": {
+                    "type": "integer"
+                },
+                "area": {
+                    "type": "string"
+                },
+                "function": {
+                    "type": "string"
+                },
+                "unique_address_units": {
+                    "type": "integer"
+                }
+            }
+        },
         "dbtarget.ColumnInfo": {
             "type": "object",
             "properties": {
@@ -3970,35 +4296,35 @@ const docTemplate = `{
         "decoding.Policy": {
             "type": "string",
             "enum": [
-                "inherit_scalar",
-                "override_scalar",
                 "legacy_modbus",
                 "legacy_mc3e",
-                "legacy_fatek_components"
+                "legacy_fatek_components",
+                "inherit_scalar",
+                "override_scalar"
             ],
             "x-enum-varnames": [
-                "PolicyInherit",
-                "PolicyOverride",
                 "LegacyModbus",
                 "LegacyMC3E",
-                "LegacyFatek"
+                "LegacyFatek",
+                "PolicyInherit",
+                "PolicyOverride"
             ]
         },
         "decoding.Source": {
             "type": "string",
             "enum": [
-                "rule",
-                "override",
                 "point",
                 "connection",
-                "native"
+                "native",
+                "rule",
+                "override"
             ],
             "x-enum-varnames": [
-                "SourceRule",
-                "SourceOverride",
                 "SourcePoint",
                 "SourceConnection",
-                "SourceNative"
+                "SourceNative",
+                "SourceRule",
+                "SourceOverride"
             ]
         },
         "groupdelivery.AttentionItem": {
@@ -4836,6 +5162,17 @@ const docTemplate = `{
                 "success": {
                     "type": "boolean",
                     "example": false
+                }
+            }
+        },
+        "handlers.AcquisitionPreviewResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/collector.AcquisitionPreview"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },

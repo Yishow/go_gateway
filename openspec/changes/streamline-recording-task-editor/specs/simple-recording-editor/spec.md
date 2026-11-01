@@ -269,6 +269,12 @@ Removal SHALL occur on the main draft with undo and SHALL NOT delete shared sour
 ### Requirement: Per-record member controls consume mixed calculation intent
 After support-per-member-recording-calculation passes its production gates, the editor SHALL expose latest, mean or delta for each selected recording member with its own interval and UTC-epoch aligned mixed-profile window. This intent SHALL belong to the recording mapping, not the global Point, and SHALL remain separate from acquisition word order. Applicable choices, result types, revisions and completeness behavior SHALL come from the canonical mixed contract. Group defaults MAY initialize new members only. Legacy profiles MUST NOT silently become mixed or reinterpret raw columns as delta results.
 
+The draft capability SHALL authorize only canonical draft operations, not substitute for a false editor-support capability. The integrated consumer SHALL be validated before the server advertises editor support for release; the capability and its contract tests SHALL be updated together. Editor support SHALL remain distinct from each record's fresh readiness, schema consent, source validation, CAS and ownership. No global capability SHALL authorize activation by itself.
+
+#### Scenario: Draft support precedes an integrated editor
+- **WHEN** canonical mixed drafts are supported but the editor consumer has not passed its integration gates
+- **THEN** draft support does not claim editor support; after the consumer passes, the server advertises the integrated editor while records still require their own fresh activation proofs.
+
 #### Scenario: Two means and one delta are configured
 - **WHEN** an operator assigns mean, mean and delta to three eligible members in one managed-wide recording
 - **THEN** the editor represents independently aligned member windows and a union-boundary wide row with independent results, illustrates 22,12,8, and does not split the request into separate records or modify those sources' use in another recording.
@@ -283,6 +289,8 @@ After support-per-member-recording-calculation passes its production gates, the 
 
 ### Requirement: Acquisition request preview consumes the canonical planner
 The consumer SHALL depend on integrate-protocol-aware-acquisition-batching for canonical scoped revision-bound acquisition-plan previews and actual observations, not derive its own batching plan. It SHALL label planned protocol read requests per scan excluding fault retries as estimates, distinguish acquisition Point count and unique wire units, and retain capability, coverage and fallback reasons. Actual attempts, successes, failures, retries, fallback and cancellations SHALL be separately labelled with matching scope/revision; absent observations MUST NOT become zero or measured speedup. Preview SHALL perform no PLC I/O, reject stale revisions, and MUST NOT be called TCP packet counts or SQL writes. This dependency SHALL NOT redefine member recording windows or make recording selection the acquisition set.
+
+The consumer SHALL display per-group estimates and unavailable states without deriving plans from selected recording members. It SHALL distinguish admitted wire attempts and overlapping retry/fallback subsets from logical request final outcomes, and shall not assert equality between those units or label them TCP packets, SQL writes, or measured speedup. Uninstalled or stale previews SHALL not remain usable; an installed estimate with unavailable actual evidence SHALL remain explicitly an estimate.
 
 #### Scenario: Estimate exists before actual acquisition evidence
 - **WHEN** a canonical preview reports three planned protocol requests but no matching actual scan observations exist

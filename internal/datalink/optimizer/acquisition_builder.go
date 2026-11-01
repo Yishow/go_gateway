@@ -24,6 +24,7 @@ func BuildAcquisitionPlan(input AcquisitionInput) AcquisitionPlan {
 	digest := sha256.Sum256([]byte("acquisition-plan-v5\n" + canonicalJSON(canonical)))
 	plan := AcquisitionPlan{fingerprint: hex.EncodeToString(digest[:])}
 	groups := make(map[string]*contiguousCandidates)
+	units := make(map[string]*acquisitionUnitUnion)
 	for _, source := range canonical.Sources {
 		for _, point := range source.Points {
 			request, code := planScalar(source, point)
@@ -31,6 +32,7 @@ func BuildAcquisitionPlan(input AcquisitionInput) AcquisitionPlan {
 				plan.errors = append(plan.errors, AcquisitionPointError{Identity: source.Identity, PointID: point.ID, Code: code})
 				continue
 			}
+			collectAcquisitionWireUnits(units, source, request)
 			// Include complete capability/coverage declarations as well as revisions:
 			// a malformed caller reusing a revision must not merge conflicting scopes.
 			groupIdentity := request.Group
@@ -50,6 +52,7 @@ func BuildAcquisitionPlan(input AcquisitionInput) AcquisitionPlan {
 			group.requests = append(group.requests, request)
 		}
 	}
+	plan.wireUnits = summarizeAcquisitionWireUnits(units)
 	for _, group := range groups {
 		plan.requests = append(plan.requests, chooseAcquisitionRequests(*group)...)
 	}

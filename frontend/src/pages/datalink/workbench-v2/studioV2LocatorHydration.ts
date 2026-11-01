@@ -49,7 +49,11 @@ export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbe
   const [result, setResult] = useState<{ entry?: StudioLocatorEntryRead; blocked: boolean }>({ blocked: false });
   useLayoutEffect(() => {
     if (!entry || entry.selection.state !== 'selected' || attempted.current?.entry === entry && attempted.current.editorMounted === editorMounted) return;
+    const sameAcceptedEntry = !nativeHydrated && accepted.current?.entry === entry && attempted.current?.entry === entry;
     attempted.current = { entry, editorMounted };
+    // Opening/closing this accepted editor is not a new viewing request. Keep
+    // its live state and dirty baseline; a different entry still uses every guard.
+    if (sameAcceptedEntry) return;
     const dirty = !nativeHydrated && accepted.current && accepted.current.baseline !== draftIdentity(stateRef.current);
     // Preserve the live Basic subtree when a query-only route would leave Step 4.
     if (dirty || editorMounted && accepted.current?.entry !== entry || nativeHydrated && (!studioLocatorStateMatches(entry, stateRef.current) || stateRef.current.current === 4 && entry.selection.target.step !== 4)) {

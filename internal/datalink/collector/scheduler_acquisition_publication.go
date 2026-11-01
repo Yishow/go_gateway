@@ -14,9 +14,11 @@ import (
 // writer reservation as PublishAcquisitionGeometry. No HTTP/config input may
 // call this publication seam or manufacture installation receipts.
 type AcquisitionGeometryDefinition struct {
-	Revision string
-	Excluded []optimizer.NativeRange
-	Rules    map[string]string
+	WorkspaceID    string
+	SourceRevision string
+	Revision       string
+	Excluded       []optimizer.NativeRange
+	Rules          map[string]string
 }
 
 // AcquisitionGeometryUpdate journals actual successful install/removal receipts
@@ -47,7 +49,7 @@ func (s *Scheduler) PrepareAcquisitionGeometry(mutation AcquisitionGeometryMutat
 		definition = AcquisitionGeometryDefinition{}
 	}
 	cfg := deviceConfiguration(&device)
-	return &AcquisitionGeometryUpdate{expectedPublication: token.marker, owner: s, mutation: token, scopeRule: scopeRule, candidate: &acquisitionGeometry{revision: definition.Revision, excluded: slices.Clone(definition.Excluded), rules: maps.Clone(definition.Rules), device: cfg, slots: maps.Clone(token.before.slots)}}
+	return &AcquisitionGeometryUpdate{expectedPublication: token.marker, owner: s, mutation: token, scopeRule: scopeRule, candidate: &acquisitionGeometry{workspaceID: definition.WorkspaceID, sourceRevision: definition.SourceRevision, revision: definition.Revision, excluded: slices.Clone(definition.Excluded), rules: maps.Clone(definition.Rules), device: cfg, slots: maps.Clone(token.before.slots)}}
 }
 
 // Installed records the exact successful return lease with its supplied frozen

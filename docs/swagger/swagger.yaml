@@ -1,5 +1,171 @@
 basePath: /api
 definitions:
+  collector.AcquisitionActual:
+    properties:
+      acquisition_id:
+        type: string
+      cycle_latency_ms:
+        type: number
+      declared_plan_revision:
+        type: string
+      fallback_wire_attempts:
+        type: integer
+      initial_plan_revision:
+        type: string
+      last_good_age_ms:
+        type: number
+      logical_requests:
+        $ref: '#/definitions/collector.AcquisitionLogicalOutcomes'
+      observed_at:
+        type: string
+      overrun:
+        type: boolean
+      phases:
+        items:
+          $ref: '#/definitions/collector.AcquisitionActualPhase'
+        type: array
+      reason:
+        type: string
+      retry_wire_attempts:
+        type: integer
+      status:
+        type: string
+      wire_attempts:
+        type: integer
+    type: object
+  collector.AcquisitionActualPhase:
+    properties:
+      phase:
+        type: string
+      plan_revision:
+        type: string
+    type: object
+  collector.AcquisitionLogicalOutcomes:
+    properties:
+      canceled:
+        type: integer
+      failed:
+        type: integer
+      status:
+        type: string
+      succeeded:
+        type: integer
+    type: object
+  collector.AcquisitionPreview:
+    properties:
+      device_id:
+        type: string
+      estimate:
+        type: boolean
+      groups:
+        items:
+          $ref: '#/definitions/collector.AcquisitionPreviewGroup'
+        type: array
+      output_loss:
+        $ref: '#/definitions/collector.AcquisitionPreviewLoss'
+      preview_revision:
+        type: string
+      reason:
+        type: string
+      status:
+        type: string
+      workspace_id:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
+  collector.AcquisitionPreviewGroup:
+    properties:
+      acquisition_point_count:
+        type: integer
+      actual:
+        $ref: '#/definitions/collector.AcquisitionActual'
+      basis:
+        type: string
+      capability_revision:
+        type: string
+      declared_plan_revision:
+        type: string
+      fallback_reasons:
+        items:
+          type: string
+        type: array
+      plan_revision:
+        type: string
+      planned_requests:
+        type: integer
+      point_errors:
+        items:
+          $ref: '#/definitions/collector.AcquisitionPreviewPointError'
+        type: array
+      poll_interval_ms:
+        type: integer
+      polling_group_id:
+        type: string
+      request_limits:
+        items:
+          $ref: '#/definitions/collector.AcquisitionPreviewRequestLimit'
+        type: array
+      unique_wire_units:
+        items:
+          $ref: '#/definitions/collector.AcquisitionPreviewUnits'
+        type: array
+    type: object
+  collector.AcquisitionPreviewLoss:
+    properties:
+      history_complete:
+        type: boolean
+      reason:
+        type: string
+      retained_detail:
+        items:
+          $ref: '#/definitions/collector.AcquisitionPreviewLossDetail'
+        type: array
+      status:
+        type: string
+    type: object
+  collector.AcquisitionPreviewLossDetail:
+    properties:
+      losses:
+        type: integer
+      point_id:
+        type: string
+    type: object
+  collector.AcquisitionPreviewPointError:
+    properties:
+      code:
+        type: string
+      point_id:
+        type: string
+    type: object
+  collector.AcquisitionPreviewRequestLimit:
+    properties:
+      area:
+        type: string
+      frame_cost_known:
+        type: boolean
+      function:
+        type: string
+      kind:
+        type: string
+      native_unit_limit:
+        type: integer
+      request_frame_bytes:
+        type: integer
+      response_frame_bytes:
+        type: integer
+    type: object
+  collector.AcquisitionPreviewUnits:
+    properties:
+      address_unit_bits:
+        type: integer
+      area:
+        type: string
+      function:
+        type: string
+      unique_address_units:
+        type: integer
+    type: object
   dbtarget.ColumnInfo:
     properties:
       data_type:
@@ -61,32 +227,32 @@ definitions:
     type: object
   decoding.Policy:
     enum:
-    - inherit_scalar
-    - override_scalar
     - legacy_modbus
     - legacy_mc3e
     - legacy_fatek_components
+    - inherit_scalar
+    - override_scalar
     type: string
     x-enum-varnames:
-    - PolicyInherit
-    - PolicyOverride
     - LegacyModbus
     - LegacyMC3E
     - LegacyFatek
+    - PolicyInherit
+    - PolicyOverride
   decoding.Source:
     enum:
-    - rule
-    - override
     - point
     - connection
     - native
+    - rule
+    - override
     type: string
     x-enum-varnames:
-    - SourceRule
-    - SourceOverride
     - SourcePoint
     - SourceConnection
     - SourceNative
+    - SourceRule
+    - SourceOverride
   groupdelivery.AttentionItem:
     properties:
       connector_id:
@@ -657,6 +823,13 @@ definitions:
         $ref: '#/definitions/handlers.TypedAPIErrorEnvelope'
       success:
         example: false
+        type: boolean
+    type: object
+  handlers.AcquisitionPreviewResponse:
+    properties:
+      data:
+        $ref: '#/definitions/collector.AcquisitionPreview'
+      success:
         type: boolean
     type: object
   handlers.ActivateWorkspaceRequest:
@@ -5550,6 +5723,56 @@ paths:
       summary: Update durable settings
       tags:
       - datalink
+  /datalink/studio-v2/workspace/acquisition-plan-preview:
+    get:
+      parameters:
+      - description: Exact owning workspace
+        in: query
+        name: workspace_id
+        required: true
+        type: string
+      - description: Exact workspace device
+        in: query
+        name: device_id
+        required: true
+        type: string
+      - description: Required presence; empty is valid only for a legacy-empty workspace
+          revision
+        in: query
+        name: expected_workspace_revision
+        required: true
+        type: string
+      - description: Omit on first coherent read; if provided, must be nonempty and
+          match the current composite head
+        in: query
+        name: expected_preview_revision
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AcquisitionPreviewResponse'
+        "400":
+          description: Malformed, duplicate, unknown or missing query input
+          schema:
+            $ref: '#/definitions/handlers.TypedAPIErrorEnvelope'
+        "403":
+          description: Foreign workspace or device
+          schema:
+            $ref: '#/definitions/handlers.TypedAPIErrorEnvelope'
+        "409":
+          description: Stale revision or capture changed
+          schema:
+            $ref: '#/definitions/handlers.TypedAPIErrorEnvelope'
+        "503":
+          description: Scoped evidence unavailable
+          schema:
+            $ref: '#/definitions/handlers.TypedAPIErrorEnvelope'
+      summary: Read the installed acquisition plan and matching latest scheduled scan
+      tags:
+      - Datalink Studio v2
   /datalink/studio-v2/workspace/activate:
     post:
       consumes:

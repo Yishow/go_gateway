@@ -69,6 +69,7 @@ func (s *Scheduler) installPointLocked(point *schema.Point, profiles ...connecto
 	}
 	device, devicePresent := s.deviceConfigs[point.DeviceID]
 	s.pointInfos[point.ID] = installedPointInfo(point, profile, device, devicePresent, lease, s.installationScope)
+	s.pruneAcquisitionEvidenceLocked()
 	return lease
 }
 

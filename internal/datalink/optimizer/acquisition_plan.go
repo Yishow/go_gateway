@@ -125,6 +125,7 @@ type AcquisitionPlan struct {
 	fingerprint string
 	requests    []AcquisitionRequest
 	errors      []AcquisitionPointError
+	wireUnits   []AcquisitionWireUnits
 }
 
 // Fingerprint identifies all revision-bound acquisition inputs.

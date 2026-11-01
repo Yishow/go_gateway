@@ -1,3 +1,5 @@
+import enAcquisitionPreview from './locales/en/acquisition-preview.json';
+import zhTWAcquisitionPreview from './locales/zh-TW/acquisition-preview.json';
 import enPointFormat from './locales/en/point-format.json';
 import zhTWPointFormat from './locales/zh-TW/point-format.json';
 import enRecordingEditor from './locales/en/recording-editor.json';
@@ -62,6 +64,7 @@ i18n
         'recording-home': enRecordingHome,
         'recording-editor': enRecordingEditor,
         'point-format': enPointFormat,
+        'acquisition-preview': enAcquisitionPreview,
         theme: enTheme,
         translation: mergeTranslations(
           enTranslations,
@@ -85,6 +88,7 @@ i18n
         'recording-home': zhTWRecordingHome,
         'recording-editor': zhTWRecordingEditor,
         'point-format': zhTWPointFormat,
+        'acquisition-preview': zhTWAcquisitionPreview,
         theme: zhTWTheme,
         translation: mergeTranslations(
           zhTWTranslations,

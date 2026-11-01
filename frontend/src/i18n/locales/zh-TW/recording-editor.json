@@ -1,4 +1,9 @@
 {
+  "recentConnection": {
+    "reused": "已帶入上次保存的連線設定。",
+    "verifyEndpoint": "保存前請核對 IP／串列埠及站號，避免重複連到同台設備。",
+    "clear": "清除帶入值"
+  },
   "connection": {
     "dataFormat": "設備預設位元組／字組順序",
     "defaultFormat": "未指定（沿用原協議預設）",

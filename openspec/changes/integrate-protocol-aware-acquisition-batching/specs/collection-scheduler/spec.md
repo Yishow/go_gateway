@@ -65,6 +65,8 @@ Pending capacity SHALL count admitted, undispatched (device, polling-group) entr
 ### Requirement: Quality and timestamp
 The system SHALL emit at most one final result per Point per scan, with immutable Point identity, effective decoder, configuration fingerprint and acquisition lease. Complete validated raw responses SHALL be scattered per Point; corrupt alignment SHALL invalidate every affected Point, and a locally decodable Point failure SHALL NOT invalidate unrelated successful requests. Without trusted source time, completion of the actual successful read SHALL determine observation time. Shared batch identity SHALL NOT imply an atomic PLC snapshot.
 
+The latest scheduled scan evidence SHALL be bounded by configured device/group tuples and retain original captured identities. It SHALL not become a history registry or change acquisition, retry, emission, or sample-identity behavior. Overrun SHALL describe only the matching scan's captured-due elapsed time relative to its cadence; global due counters SHALL not be projected as scoped counters. Output-loss projection SHALL reuse existing counters, expose only provably matching retained detail as partial, and never attribute global evicted or unattributed loss to the requested scope.
+
 #### Scenario: Final request evidence preserves durable identity
 - **WHEN** retries or fallback finish a scheduled scan
 - **THEN** each Point emits at most once with its captured binding and the actual final request completion time
@@ -89,3 +91,15 @@ The system SHALL emit at most one final result per Point per scan, with immutabl
 #### Scenario: Manual acquisition parity
 - **WHEN** manual polling requests selected Points
 - **THEN** it uses the same immutable planner and bounded executor on exactly that requested subset, preserving cancellation, decoding and identity without creating duplicate scheduled work.
+
+#### Scenario: Manual return-only and captured identity
+- **WHEN** manual polling selects installed, non-recovery Points, including multiple original polling groups on one device or repeated IDs
+- **THEN** one coherent device/config/Point/profile/lease snapshot preserves the original group context, one acquisition ID per manual device intent and unique request identifiers within the shared plan
+- **AND** each canonical Point has at most one final result returned through the existing caller/observer path, with no extra emission to the scheduled ValueChannel or changes to unrequested Points
+- **AND** unknown, recovery-pending and empty selections retain their existing exclusion behavior; cancellation of known requested Points retains the existing Bad return contract.
+
+#### Scenario: Manual capacity before and across scheduled runs
+- **WHEN** explicit manual polling overlaps Start, scheduled Stop or restart
+- **THEN** a constructor-owned scheduler-lifetime active permit pool and the existing device gates enforce the same global capacity without resetting active manual ownership or requiring scheduled activation
+- **AND** scheduled Stop only cancels and joins its own workers while the original caller context owns manual cancellation; no new Start-busy condition or duplicate scheduled work is introduced
+- **AND** invalid explicit capacity fails closed rather than waiting forever, and legacy non-bounded custom protocols retain their single scheduler-level scalar invocation and original adapter budget behavior.

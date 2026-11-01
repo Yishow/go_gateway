@@ -2,7 +2,7 @@ import type { StudioV2LocatorReadScope } from '../../../../../../services/studio
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GroupCandidate } from '../../../state/writeGroup/candidates';
-import { memberKey, type EditorDraft } from '../../../state/writeGroup/draft';
+import { memberKey, type EditorDraft, type EditorMember } from '../../../state/writeGroup/draft';
 import { CounterPolicyEditor } from './CounterPolicyEditor';
 
 /**
@@ -42,7 +42,7 @@ export const GroupProfileSummary: React.FC<{ draft: EditorDraft }> = ({ draft })
 };
 
 /** The sources of a profile group. Their columns are fixed by the shared long layout, so there is nothing to map or require. */
-export const GroupProfileMembers: React.FC<{ draft: EditorDraft; candidates: GroupCandidate[]; workspaceId: string; readonly: boolean; locatorScope?: StudioV2LocatorReadScope }> = ({ draft, candidates, workspaceId, readonly, locatorScope }) => {
+export const GroupProfileMembers: React.FC<{ draft: EditorDraft; candidates: GroupCandidate[]; workspaceId: string; readonly: boolean; locatorScope?: StudioV2LocatorReadScope; renderSource?: (member: EditorMember) => React.ReactNode }> = ({ draft, candidates, workspaceId, readonly, locatorScope, renderSource }) => {
   const { t } = useTranslation('workbench-v2');
   const labels = new Map(candidates.map((candidate) => [candidate.key, candidate.label]));
   return (
@@ -54,6 +54,7 @@ export const GroupProfileMembers: React.FC<{ draft: EditorDraft; candidates: Gro
             <span className="font-medium">{labels.get(memberKey(member.point_id, member.tag_id)) ?? member.tag_id}</span>
             {member.circuit_name && <span className="ml-2 text-slate-500">{member.circuit_name}</span>}
             {member.value_role && <span className="ml-2 text-slate-400">{t(`step4.group.profile.role.${member.value_role}`)}</span>}
+            {renderSource?.(member)}
           </li>
         ))}
       </ul>

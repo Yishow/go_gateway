@@ -83,7 +83,7 @@ func (s *Service) beginFullAcquisitionProjection(ctx context.Context, projection
 			device.update = s.scheduler.PrepareAcquisitionGeometry(device.mutation, device.device, collector.AcquisitionGeometryDefinition{}, "")
 			continue
 		}
-		definition := collector.AcquisitionGeometryDefinition{Revision: device.graph.SemanticRevision(), Excluded: device.graph.Excluded(), Rules: map[string]string{}}
+		definition := collector.AcquisitionGeometryDefinition{WorkspaceID: device.graph.WorkspaceID(), SourceRevision: device.graph.IdentityRevision(), Revision: device.graph.SemanticRevision(), Excluded: device.graph.Excluded(), Rules: map[string]string{}}
 		for _, rule := range device.graph.Rules() {
 			revision, ok := device.graph.RuleSemanticRevision(rule.ID)
 			if !ok {

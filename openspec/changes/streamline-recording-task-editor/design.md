@@ -71,6 +71,14 @@
 
 共同 owner gate 必須用這次修訂後固定 demo 版本；過去 demo 檢視不視為確認。現處需求收集階段，未 apply、未做產品驗收；確定的協議保真與主題要求先納入，未選建議不擴 scope。
 
+### 預覽等待期間的 UI 分期
+
+2026-10-31 依已完成的1.3與1.4協議局部證據調整執行依賴，不新增功能或變更task IDs。1.4維持未完成：protocol/parameter局部版本見 `docs/verification/simple-recording/editor-protocol-parity-handoff-2026-10-31.md`；canonical preview仍必須等batching4.1，不能用mock或自算補齊。
+
+1.5改以1.3完成＋上述1.4協議局部版本/實測證據已固定核對為硬性前置，可與backend manual/preview工作平行。其page-session whitelist cache只消費既有device request snapshot與confirmed readback，不消費preview或改保存authority；不能只放會隨editor/modal卸載的hook，也不能module-global或持久storage。跨FATEK subtype的新表單清除不相容值放new-device adapter，不改1.4既有設備保留hidden fields的共用行為。
+
+1.6仍after1.5，2.1仍after1.6，既有word-order/member backend capability前置不變，避免同member row重覆施工。Editor終驗4.1同時after1.4與3.3，明確保留先前串行鏈隱含的完整preview gate；4.2、lifecycle、adoption、schema/readiness/ownership與browser終驗全部不放寬。這是排程相依澄清，不是先勾1.4或略過任何產品驗收。
+
 ### 既有協議與參數保真矩陣
 
 來源：state/protocols.ts、protocolSupport.ts、ConnectionConfigForm、studioV2DeviceAutosave.toBackendConnectionConfig、addressParser、internal/datalink/connector/registry.go、schema_device_models.go、sourcerule/protocol_address_planner.go；可達不等於此次硬體測試通過。
@@ -191,6 +199,8 @@ v5目前未核准；以上修正現在完成demo再給owner確認，不留正式
 
 保留白話label/例子、真實legacy說明與未知值保護；取代單一group method作新記錄唯一選項的呈現。前置 `support-per-member-recording-calculation` 完成後，已選來源每列提供「存最後讀值／取平均／此時間區間增加量」，method屬recording member/mapping，不屬來源Point；ABCD/CDAB是來源解碼，計算是此記錄要存的結果，兩欄不同。相同source在另一record可有不同method。新member預設latest，群組捷徑只初始化新增member、不覆explicit。
 
+`draft_supported` 允許符合完整 canonical capability／restrictions 的草稿操作；`editor_supported=false` 是尚未宣告正式 editor consumer 支援，不是特定 record 的 readiness。本階段 2.1 在 1.6 與既有 member production gates 完成後實作 consumer；候選版整合驗證通過後，同步更新唯一 server editor capability 與相關契約斷言，正式交付前再通過實際介面驗收。任何全域旗標都不能代替 CAS、來源／measurement、schema consent、ownership 與 fresh record readiness；不得只因 draft_supported 就把 editor_supported=false 忽略成正式支援，也不新增 per-record capability 權威。原 backend 交接時的 false 保留為歷史階段證據。
+
 新mixed是明確versioned shape：同group各member自己的interval（second/minute正整數、依backend bounded capability）及UTC epoch對齊到期邊界，每member獨立結果，managedwide同一列可為22/12/8。新mixed的delta欄是增加量，legacy cumulative欄仍raw＋provenance，不默轉。每列顯configured/effective/resulttype/applicable及缺失原因；mean僅numeric gauge，delta需confirmedcounter，unsupported組合disabled且給原因。不提供global Point method，不改semanticdefinition來硬過validator。
 
 required delta首窗無baseline→wide整列skip／long該member列skip但baseline原子進展，optional無結果→schema允許才NULL+reason；gapspan不冒充此窗增加量。改method清舊readiness/consent，fresh revision/schema/ownership；legacy變mixed若需新表沿既有successor。預覽是示範，不代表已runtime可用；前置未完成只明示mock目標，不正式啟用。
@@ -203,3 +213,7 @@ required delta首窗無baseline→wide整列skip／long該member列skip但baseli
 integrate-protocol-aware-acquisition-batching 唯一負責planner、preview API/shared types與實際計數來源；本案僅接既有consumer呈現／驗收，不另推導合批、不新增採集引擎。該案production gate完成後才顯正式「每輪計畫協議讀取次數（不含故障重試）」與estimate標示；顯示acquisition point count、unique wire units、planned requests及安全coverage/fallback原因，不能用recording已選點數當整設備採集集合或自行猜random=1。API預覽零PLC I/O，沿workspace/device scope與expected revision，stale409／載入失敗清除可用性並提示重新取得，不展示過期成功。
 
 actual attempted/succeeded/failed/retry/fallback/canceled及cycle latency使用另列同scope/revision的真實觀測；缺乏實測就顯尚無實測，不補0、不將估算稱TCP封包數、SQL寫入數或已證明加速。demo只可明標模擬契約，無須也不能假造真實性能。獨立member recording window仍由support-per-member-recording-calculation負責；更改selector不改採集plan，批次預覽依賴不升為member排程的硬性前置。最終adoption必須分開列預覽契約測試與實際transport量測證據，保留新版demo owner與apply gate。
+
+### 同源預覽的單位與唯讀掛點
+
+1.4 consumer沿batching「同源預覽的單位、head與實測契約」的唯一DTO/service，不由record members推導採集set或合批；每個原poll group分別顯示cadence與estimate，logical request outcomes與含重送wire attempts單位不能混加。未installed／context不可證實顯unavailable，不把缺證據當0；實測使用同scope/revision最近完成scheduled scan，manual結果不冒充它。獨立acquisition-preview locale namespace避免與1.5 cache的recording-editor keys雙寫；只在既有source surface嵌入readonly子元件，不新增頁面/modal/保存gate。409、錯誤、scope切換及晚回應清可用性；preview不是schema/readiness/activation證據。原五協議局部版本仍保留，不重作1.4已驗欄位，也不改1.5 cache範圍。

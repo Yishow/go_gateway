@@ -1,4 +1,9 @@
 {
+  "recentConnection": {
+    "reused": "Last saved connection settings filled in.",
+    "verifyEndpoint": "Verify the IP or serial port and station before saving to avoid connecting to the same device.",
+    "clear": "Clear reused settings"
+  },
   "connection": {
     "dataFormat": "Device default byte / word order",
     "defaultFormat": "Not specified (use the protocol default)",

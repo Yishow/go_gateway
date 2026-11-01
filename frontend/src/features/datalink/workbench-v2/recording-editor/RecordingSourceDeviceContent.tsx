@@ -8,7 +8,7 @@ import { RecordingDeviceSourceForm } from './RecordingDeviceSourceForm';
 export function RecordingSourceDeviceContent({ controller: device, slot }: { controller: RecordingDeviceBufferController; slot: RecordingSourceSlot }) {
   const { t } = useTranslation('recording-editor');
   const { onConfirmChange } = slot;
-  const [confirm, setConfirm] = useState<'back' | DeviceSourceBuffer>();
+  const [confirm, setConfirm] = useState<'back' | 'clear' | DeviceSourceBuffer>();
   const close = () => {
     if (confirm) { setConfirm(undefined); return; }
     if (device.locked) { slot.onReturn(); return; }
@@ -17,18 +17,26 @@ export function RecordingSourceDeviceContent({ controller: device, slot }: { con
   useEffect(() => { slot.closeRef.current = close; return () => { slot.closeRef.current = undefined; }; });
   useEffect(() => { onConfirmChange(Boolean(confirm)); }, [confirm, onConfirmChange]);
   useEffect(() => {
-    if (slot.active && device.outcome?.status === 'confirmed' && !device.dirty && device.outcome.device) slot.onSaved(device.outcome.device);
-  }, [slot, device.outcome, device.dirty]);
+    if (!confirm && slot.active && device.outcome?.status === 'confirmed' && !device.dirty && device.outcome.device) slot.onSaved(device.outcome.device);
+  }, [slot, device.outcome, device.dirty, confirm]);
   const discard = () => {
     if (confirm === 'back') { device.reset(); slot.onReturn(); }
-    else if (confirm) device.change(confirm);
+    else if (confirm === 'clear') device.clearRecent();
+    else if (confirm) device.selectConnection(confirm);
     setConfirm(undefined);
   };
   return <>
     <div className="gw-modal-body space-y-4">
       {!confirm && <>
         <RecordingDeviceSourceForm buffer={device.buffer} lockedProtocol={Boolean(device.deviceId) || device.locked} onChange={device.change}
-          onProtocol={next => { if (device.dirty) setConfirm(next); else device.change(next); }} />
+          onSubtype={!device.deviceId ? next => { if (device.dirty) setConfirm(next); else device.selectConnection(next); } : undefined}
+          onProtocol={next => { if (device.dirty) setConfirm(next); else device.selectConnection(next); }} />
+        {device.reused && !device.deviceId && <div data-testid="recording-source-reuse" className="space-y-2">
+          <p className="gw-muted">{t('recentConnection.reused')}</p>
+          <p className="gw-muted">{t('recentConnection.verifyEndpoint')}</p>
+          <button type="button" className="gw-secondary" data-testid="recording-source-clear-recent"
+            onClick={() => { if (device.connectionEdited) setConfirm('clear'); else device.clearRecent(); }}>{t('recentConnection.clear')}</button>
+        </div>}
         {device.pending && <p role="status">{t('device.pending')}</p>}
         {device.outcome?.status === 'confirmed' && device.dirty && <p role="status" data-testid="recording-source-newer">{t('device.newer')}</p>}
         {device.outcome && device.outcome.status !== 'confirmed' && device.outcome.status !== 'pending' && <p role="alert" data-testid={`recording-source-${device.outcome.status}`}>{t(`device.${device.outcome.status}`)}</p>}

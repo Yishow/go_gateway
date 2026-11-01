@@ -1,3 +1,4 @@
+import { acquisitionPreviewWorkspaceScope } from '../acquisition-preview/acquisitionPreviewScope';
 import type { DeviceSourcePort } from '../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import type { StudioLocatorEntryRead } from '../../../../types/studioV2LocatorEntry';
 import { StudioLocatorEntryNotice } from './StudioLocatorEntryNotice';
@@ -82,6 +83,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   const { t } = useTranslation('workbench-v2');
   const { t: runtime } = useTranslation('runtime-dashboard');
   const locatorSelection = locatorEntry?.selection.state === 'selected' ? locatorEntry.selection : undefined;
+  const previewWorkspace = acquisitionPreviewWorkspaceScope({ workspaceId, locatorEntry, locatorSuspended, databaseConnector: state.db.connector });
 
   const {
     view,
@@ -213,6 +215,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
       case 1:
         return (
           <Step1Device
+            previewWorkspace={previewWorkspace}
             locatorSelection={locatorSelection}
             state={state}
             dispatch={actions.dispatch}
@@ -262,6 +265,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
       default:
         return (
           <Step1Device
+            previewWorkspace={previewWorkspace}
             locatorSelection={locatorSelection}
             state={state}
             dispatch={actions.dispatch}

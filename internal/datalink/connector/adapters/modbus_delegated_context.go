@@ -10,7 +10,7 @@ func (c *ModbusRTUConnector) AcquisitionReadTimeout() time.Duration {
 	return modbusReadTimeout(c.config.Timeout)
 }
 func (c *ModbusRTUConnector) readProxy() *ModbusTCPConnector {
-	return &ModbusTCPConnector{client: c.client, transport: c.transport, connected: c.isConnected(), persistentMode: true, config: schema.ConnectionConfigModbusTCP{DataFormat: c.config.DataFormat, Timeout: c.config.Timeout}}
+	return &ModbusTCPConnector{generationOwner: &c.acquisitionGeneration, client: c.client, transport: c.transport, connected: c.isConnected(), persistentMode: true, config: schema.ConnectionConfigModbusTCP{DataFormat: c.config.DataFormat, Timeout: c.config.Timeout}}
 }
 func (c *ModbusRTUConnector) IsConnectedContext(ctx context.Context) (bool, error) {
 	return c.readProxy().IsConnectedContext(ctx)
@@ -35,7 +35,7 @@ func (c *ModbusUDPConnector) AcquisitionReadTimeout() time.Duration {
 	return modbusReadTimeout(c.config.Timeout)
 }
 func (c *ModbusUDPConnector) readProxy() *ModbusTCPConnector {
-	return &ModbusTCPConnector{client: c.client, transport: c.transport, connected: c.isConnected(), persistentMode: true, config: schema.ConnectionConfigModbusTCP{DataFormat: c.config.DataFormat, Timeout: c.config.Timeout}}
+	return &ModbusTCPConnector{generationOwner: &c.acquisitionGeneration, client: c.client, transport: c.transport, connected: c.isConnected(), persistentMode: true, config: schema.ConnectionConfigModbusTCP{DataFormat: c.config.DataFormat, Timeout: c.config.Timeout}}
 }
 func (c *ModbusUDPConnector) IsConnectedContext(ctx context.Context) (bool, error) {
 	return c.readProxy().IsConnectedContext(ctx)

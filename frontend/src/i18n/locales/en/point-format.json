@@ -26,5 +26,25 @@
     "point_format_unavailable": "The save outcome is uncertain. Check the original operation before making another change.",
     "point_format_operation_not_found": "No receipt was found for this operation. This does not confirm that saving failed; do not automatically repeat it.",
     "point_format_unknown": "The result could not be verified. Check the original operation; do not repeat the save."
+  },
+  "editor": {
+    "title": "Point word order",
+    "native": "Native assembly",
+    "notApplicable": "Multiword overrides are not available for this point. Existing protocol decoding is preserved.",
+    "order": "Word order",
+    "reset": "Reset to source default",
+    "save": "Save word order",
+    "working": "Checking original operation…",
+    "operation": "Operation",
+    "inspect": "Check original save",
+    "recover": "Apply saved format (no activation)",
+    "installed": "Saved format installed",
+    "not_started": "Saved format recovered; device remains stopped",
+    "shareApplied": "Existing Share settings applied",
+    "shareDisabled": "Share remains disabled",
+    "notReading": "This is not a live reading or a Good sample.",
+    "version": "Format version",
+    "nativeCompatibility": "Native compatibility preserved",
+    "restart": "Review current settings for a new edit"
   }
 }

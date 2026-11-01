@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createRecentConnectionCache } from '../../../features/datalink/workbench-v2/recording-editor/recentConnectionDefaults';
 import type { MutableRefObject } from 'react';
 import type { Device, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
 import type { WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
@@ -19,6 +20,7 @@ interface Options {
 }
 interface Entry {
   outcome: DeviceSourceOutcome;
+  rememberConnection: (outcome: DeviceSourceOutcome) => void;
   deviceId: string;
   owner: object;
   snapshot: Device;
@@ -39,6 +41,9 @@ function matches(record: StudioV2WorkspaceDeviceRecord, entry: Entry): boolean {
 
 /** Observes the existing device queue; this hook owns no API mutation or second queue. */
 export function useDeviceSourceSubmission(options: Options) {
+  const recent = useRef(createRecentConnectionCache(options.workspaceId));
+  recent.current.resetScope(options.workspaceId);
+  useEffect(() => { const cache = recent.current; return () => cache.dispose(); }, []);
   const current = useRef(options); current.current = options;
   const owner = useRef({ workspaceId: options.workspaceId, token: {} });
   if (owner.current.workspaceId !== options.workspaceId) owner.current = { workspaceId: options.workspaceId, token: {} };
@@ -50,6 +55,7 @@ export function useDeviceSourceSubmission(options: Options) {
   return useMemo(() => {
     const publish = (entry: Entry, status: DeviceSourceOutcome['status'], device?: StudioV2WorkspaceDeviceRecord) => {
       entry.outcome = { request: entry.outcome.request, status, ...(device ? { device } : {}) };
+      if (status === 'confirmed' && active(entry)) entry.rememberConnection(entry.outcome);
       entry.resolve(structuredClone(entry.outcome)); changed(value => value + 1); return structuredClone(entry.outcome);
     };
     const active = (entry: Entry) => current.current.enabled && owner.current.token === entry.owner &&
@@ -67,6 +73,7 @@ export function useDeviceSourceSubmission(options: Options) {
       } catch { return publish(entry, 'unknown'); }
     };
     const port: DeviceSourcePort = {
+      recentConnections: recent.current.port,
       observations: () => {
         const scoped = [...entries.current.values()].filter(entry => entry.outcome.request.workspaceId === current.current.workspaceId);
         return scoped.filter((entry, index) => entry.outcome.status !== 'persisted-unavailable' ||
@@ -90,7 +97,7 @@ export function useDeviceSourceSubmission(options: Options) {
           : { ...structuredClone(request.buffer), id: `dev-${crypto.randomUUID()}`, status: 'draft', test: null, persisted: false, save_state: 'idle' };
         if (!isStudioV2DeviceValid(snapshot) || snapshot.protocol === 'mqtt') return Promise.resolve({ request, status: 'blocked' });
         let resolve!: Entry['resolve']; const promise = new Promise<DeviceSourceOutcome>(yes => { resolve = yes; });
-        const entry: Entry = { outcome: { request: structuredClone(request), status: 'pending' }, snapshot, deviceId: snapshot.id, owner: owner.current.token, promise, resolve };
+        const entry: Entry = { rememberConnection: recent.current.capture(request), outcome: { request: structuredClone(request), status: 'pending' }, snapshot, deviceId: snapshot.id, owner: owner.current.token, promise, resolve };
         entries.current.set(request.requestId, entry); changed(value => value + 1);
         opt.apply(previous ? { type: 'updateDevice', deviceId: snapshot.id, patch: snapshot } : { type: 'addDevice', device: snapshot });
         opt.queue(snapshot.id); return promise;

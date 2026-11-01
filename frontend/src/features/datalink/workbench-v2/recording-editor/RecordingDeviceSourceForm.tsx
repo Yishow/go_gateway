@@ -4,10 +4,11 @@ import { ConnectionConfigForm } from '../steps/step1/ConnectionConfigForm';
 import { PROTOCOLS, getDefaultConfig } from '../state/protocols';
 import { getProtocolSupport } from '../state/protocolSupport';
 
-export function RecordingDeviceSourceForm({ buffer, lockedProtocol, onChange, onProtocol }: {
+export function RecordingDeviceSourceForm({ buffer, lockedProtocol, onChange, onProtocol, onSubtype }: {
   buffer: DeviceSourceBuffer; lockedProtocol: boolean;
   onChange: (buffer: DeviceSourceBuffer) => void;
   onProtocol: (buffer: DeviceSourceBuffer) => void;
+  onSubtype?: (buffer: DeviceSourceBuffer) => void;
 }) {
   const { t } = useTranslation('recording-editor');
   const { t: workbench } = useTranslation('workbench-v2');
@@ -22,7 +23,11 @@ export function RecordingDeviceSourceForm({ buffer, lockedProtocol, onChange, on
         {workbench(protocol.nameKey)}{!getProtocolSupport(protocol.id).available ? ` — ${t('device.unsupported')}` : ''}
       </option>)}</select></label>
     <ConnectionConfigForm protocol={buffer.protocol} config={buffer.config} rawNumericText
-      onChange={patch => onChange({ ...buffer, config: { ...buffer.config, ...patch } })} />
+      onChange={patch => {
+        if (buffer.protocol === 'fatek_fbs' && patch.mode !== undefined && patch.mode !== (buffer.config.mode ?? 'tcp') && onSubtype) {
+          onSubtype({ ...buffer, config: { mode: patch.mode } });
+        } else onChange({ ...buffer, config: { ...buffer.config, ...patch } });
+      }} />
     <p className="gw-muted">{t('device.scopeNote')}</p>
   </div>;
 }
