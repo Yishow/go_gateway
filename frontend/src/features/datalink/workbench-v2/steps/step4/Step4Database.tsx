@@ -1,3 +1,4 @@
+import type { StudioRecordingRepair } from '../../../../../services/studioRecordingView';
 import { SavedRecordingStartReview } from '../../recording-editor/SavedRecordingStartReview';
 import { savedRecordingStartDevices } from '../../recording-editor/savedRecordingStartScope';
 import { managedProfileDeviceId } from '../../state/circuitProfileBasic';
@@ -46,6 +47,8 @@ import type { WorkspaceReadinessStepNumber } from '../../components/WorkspaceRea
 import type { ModbusShareStatus } from '../../../../../types/modbusShare';
 
 interface Step4DatabaseProps {
+  repairIntent?: StudioRecordingRepair;
+  onRepairAdvanced?: () => void;
   presentation?: 'guided' | 'simple';
   initialSelection?: 'new' | 'located' | 'copy';
   onClose?: () => void;
@@ -336,6 +339,6 @@ function Step4DatabaseContent({
 export function Step4Database(props: Step4DatabaseProps) {
   return <SafeQueryBoundary>{props.locatorOnly && props.locatorEntry
     ? <WriteGroupSection key={props.initialSelection} presentation={props.presentation} initialSelection={props.initialSelection} onClose={props.onClose} onSavedLocation={props.onSavedLocation} onCopyLocation={props.onCopyLocation} deviceSource={props.deviceSource} state={props.state} workspaceId={props.workspaceId} readonly={false}
-        locatorEntry={props.locatorEntry} locatorSuspended={props.locatorSuspended} onEditorMountedChange={props.onLocatorEditorMountedChange} locatorOnly />
+        repairIntent={props.repairIntent} onRepairAdvanced={props.onRepairAdvanced} locatorEntry={props.locatorEntry} locatorSuspended={props.locatorSuspended} onEditorMountedChange={props.onLocatorEditorMountedChange} locatorOnly />
     : <Step4DatabaseContent {...props} />}</SafeQueryBoundary>;
 }

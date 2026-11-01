@@ -56,6 +56,7 @@ export interface GroupEditorProps {
   onCopy?: () => void;
   /** One host-owned destination form, rendered here without adding a save owner. */
   destinationContent?: React.ReactNode;
+  repairContent?: React.ReactNode;
   configuredDestinations?: ConfiguredDestinationObservation;
   calculationCapabilities?: WriteGroupCalculationCapabilities;
   deviceSource?: DeviceSourcePort;
@@ -97,7 +98,7 @@ export interface GroupEditorProps {
  */
 export const GroupEditor: React.FC<GroupEditorProps> = props => <RecordingDraftBoundary><RecordingSourceNavigation workspaceId={props.workspaceId} source={props.deviceSource}><GroupEditorWithCapabilities {...props} Content={GroupEditorContent} /></RecordingSourceNavigation></RecordingDraftBoundary>;
 const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
-  presentation = 'guided', copyPrefill, onCopy, destinationContent, configuredDestinations, calculationCapabilities, deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard, saveReadbackPending,
+  presentation = 'guided', copyPrefill, onCopy, destinationContent, repairContent, configuredDestinations, calculationCapabilities, deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard, saveReadbackPending,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: editorText } = useTranslation('recording-editor');
@@ -433,8 +434,6 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       )} />
 
       </fieldset>
-
-
       {unsettledSources.length > 0 && <div role="alert" data-testid="group-source-unsettled">
         <p>{editorText('range.selectedUnsettled')}</p><ul>{unsettledSources.map(member => {
           const candidate = candidates.find(row => row.device_id === member.device_id && row.point_id === member.point_id);
@@ -461,6 +460,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         <p>{editorText('navigation.unknownSave')}</p>
         <button type="button" className="rounded-md border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)]" data-testid="group-save-review" onClick={() => navigation.request(() => { onReload(); onClose(); })}>{editorText('navigation.reviewSaved')}</button>
       </div>}
+      {repairContent}
       <GroupEditorPreparation managed={draft.storage_strategy === 'managed' || group?.destination.storage_strategy === 'managed'}
         group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision} destinationMatches={destinationMatches} dirty={dirty} readonly={readonly}
         consentIdentity={JSON.stringify([workspaceId, workspaceRevision, group?.id, group?.revision, draft, connector.connector_id, connector.identity_revision,

@@ -76,6 +76,14 @@
       "partial": "部分完成",
       "unknown": "結果未知"
     },
-    "readback_received": "已讀取原操作狀態；無法讀取的本地請求仍保持鎖定，未送出新操作。"
+    "readback_received": "已讀取原操作狀態；無法讀取的本地請求仍保持鎖定，未送出新操作。",
+    "original_layout": "原資料表布局",
+    "new_layout": "新資料表布局",
+    "original_table": "原資料表",
+    "new_table": "新資料表",
+    "original_table_unavailable": "目前未提供原表名稱，歷史資料會保留。",
+    "new_table_pending": "新表名稱將在下一步確認時顯示。",
+    "layout_unavailable": "目前未提供資料表布局。",
+    "destination_unavailable": "目前未提供目的地名稱。"
   }
 }

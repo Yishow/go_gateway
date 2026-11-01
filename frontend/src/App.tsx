@@ -111,6 +111,10 @@ function DatalinkWorkbenchV2Route() {
  * - /datalink/* -> legacy 相容路由，generic landing 收斂到 /studio/v2
  * - /test -> 測試工具單頁入口
  */
+function RuntimeLogsEntryRoute() {
+  const location = useLocation();
+  return <RuntimeLogsPage search={location.search} hash={location.hash} />
+}
 export function AppRoutes() {
   return (
     <Suspense fallback={<RouteFallback />}>
@@ -122,7 +126,7 @@ export function AppRoutes() {
       {/* Studio Main Routes */}
       <Route path="/studio/v2" element={<DatalinkWorkbenchV2Route />} />
       <Route path="/studio/runtime" element={<RuntimeDashboardRoute />} />
-      <Route path="/studio/logs" element={<RuntimeLogsPage />} />
+      <Route path="/studio/logs" element={<RuntimeLogsEntryRoute />} />
 
       {/* Datalink legacy routes */}
       <Route path="/datalink" element={<GuidedWorkbenchEntryRedirect />} />

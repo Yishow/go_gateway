@@ -5,15 +5,16 @@ import type { DeviceSourcePort } from '../../../../pages/datalink/workbench-v2/d
 import { readStudioLocatorEditorEntry } from '../../../../services/studioV2LocatorEntry';
 import { useModbusShareStatusQuery } from '../../../../hooks/datalink/useModbusShareStatus';
 import { Button } from '../../../../components/ui/button';
-import { SavedRecordingStartReview } from './SavedRecordingStartReview';
+import { SavedRecordingStartReview, type SavedRecordingStartFocusReturn } from './SavedRecordingStartReview';
 import { savedRecordingStartSourceIdentity } from './savedRecordingStartScope';
 import { locatorSavedRecordingStartScope } from './locatorSavedRecordingStartScope';
 interface Props {
   entry: StudioLocatorEntryRead; workspaceId: string; readonly: boolean; canUseScope: () => boolean;
   deviceSource?: DeviceSourcePort; onClose: () => void; onCompleted: () => void; onOperationActiveChange: (active: boolean) => void;
+  focusReturn?: SavedRecordingStartFocusReturn;
 }
 /** This host only exists after explicit review of an already hydrated scoped editor. */
-export function LocatorSavedRecordingStartReview({ entry, workspaceId, readonly, canUseScope, deviceSource, onClose, onCompleted, onOperationActiveChange }: Props) {
+export function LocatorSavedRecordingStartReview({ entry, workspaceId, readonly, canUseScope, deviceSource, onClose, onCompleted, onOperationActiveChange, focusReturn }: Props) {
   const { t } = useTranslation('recording-editor');
   const context = locatorSavedRecordingStartScope(entry, workspaceId);
   const share = useModbusShareStatusQuery(Boolean(context) && !readonly && canUseScope());
@@ -27,7 +28,7 @@ export function LocatorSavedRecordingStartReview({ entry, workspaceId, readonly,
     <p>{t('start.changed')}</p><Button className="border border-[var(--gw-control)] bg-[var(--gw-surface)] text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-[var(--gw-focus)]" disabled={!current() || share.isFetching} onClick={() => void share.refetch()}>{t('start.check')}</Button>
     <Button className="border border-[var(--gw-control)] bg-[var(--gw-surface)] text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-[var(--gw-focus)]" onClick={onClose}>{t('start.close')}</Button>
   </section>;
-  return <SavedRecordingStartReview {...context} readonly={readonly || !current()} canUseScope={current} shareStatus={freshShare} deviceSource={deviceSource}
+  return <SavedRecordingStartReview {...context} readonly={readonly || !current()} canUseScope={current} shareStatus={freshShare} deviceSource={deviceSource} focusReturn={focusReturn}
     onClose={onClose} onOperationActiveChange={onOperationActiveChange} onCompleted={() => { if (current()) onCompleted(); }}
     fetchLatest={async () => {
       if (!current()) return undefined;

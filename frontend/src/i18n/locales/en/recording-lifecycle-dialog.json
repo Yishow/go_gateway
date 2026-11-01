@@ -76,6 +76,14 @@
       "partial": "Partially completed",
       "unknown": "Outcome unknown"
     },
-    "readback_received": "The original operation status was read. The unreadable local request remains locked; no new action was sent."
+    "readback_received": "The original operation status was read. The unreadable local request remains locked; no new action was sent.",
+    "original_layout": "Original table layout",
+    "new_layout": "New table layout",
+    "original_table": "Original table",
+    "new_table": "New table",
+    "original_table_unavailable": "The original table name is not provided. Historical data will be kept.",
+    "new_table_pending": "The new table name will appear at the next confirmation step.",
+    "layout_unavailable": "Table layout is not available.",
+    "destination_unavailable": "Destination name is not available."
   }
 }

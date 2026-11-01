@@ -85,3 +85,65 @@ it('collapsed optional prior-preview help never hides required risk, schema impa
     const message = within(dialog).getByText(key); expect(message).toBeVisible(); expect(help).not.toContainElement(message);
   }
 });
+
+describe('recording change impact summary', () => {
+  it('distinguishes the same table name in different schemas without displaying a database path', async () => {
+    const { f, controller } = setup([{ id: 'C', revision: 'C1', name: 'Original destination' }, { id: 'C2', revision: 'C2R', name: 'New destination' }]);
+    Object.assign(f.seed, { layout_version: 'managed_long_v1', storage_mode: 'plain', recording_profile: { kind: 'mixed', result_shape: 'member-calculation-v1' } });
+    Object.assign(f.seed.destination, { table_schema: 'old_schema', table_name: 'same_table' });
+    f.api.review.mockImplementation(async (_id, request) => ({ ...f.review, envelope: { ...f.envelope, request } }));
+    await act(async () => {
+      await controller.requestAction(f.intent);
+      controller.setTarget({ ...f.seed, destination: { ...f.seed.destination, connector_id: 'C2', connector_revision: 'C2R', table_schema: 'new_schema' } });
+      await controller.review();
+    });
+    expect(screen.getByTestId('recording-change-original-table')).toHaveTextContent('old_schema.same_table');
+    expect(screen.getByTestId('recording-change-new-table')).toHaveTextContent('new_schema.same_table');
+    expect(screen.queryByText('private.db')).toBeNull(); expect(f.api.reserve).not.toHaveBeenCalled(); expect(f.api.schemaConfirm).not.toHaveBeenCalled();
+  });
+  it('compares reviewed layouts and safe destinations without borrowing the edited target as the original table', async () => {
+    const { f, controller } = setup([{ id: 'C', revision: 'C1', name: 'Original destination' }, { id: 'C2', revision: 'C2R', name: 'New destination' }]);
+    Object.assign(f.seed, { layout_version: 'managed_long_v1', storage_mode: 'plain', recording_profile: { kind: 'mixed', result_shape: 'member-calculation-v1' }, row_policy: { allowed_lateness_seconds: 0, incomplete_policy: 'partial' } });
+    f.seed.destination.table_name = 'original_long_table';
+    f.api.review.mockImplementation(async (_id, request) => ({ ...f.review, envelope: { ...f.envelope, request } }));
+    fireEvent.click(screen.getByText('Open change'));
+    fireEvent.change(await screen.findByLabelText('dialog.layout'), { target: { value: 'managed_wide_profile_v1' } });
+    fireEvent.change(screen.getByLabelText('dialog.destination'), { target: { value: 'C2' } });
+    fireEvent.click(screen.getByTestId('recording-change-review')); await screen.findByTestId('recording-change-reserve_preview');
+    expect(screen.getByTestId('recording-change-original-layout')).toHaveTextContent('dialog.layout_long');
+    expect(screen.getByTestId('recording-change-new-layout')).toHaveTextContent('dialog.layout_wide');
+    expect(screen.getByTestId('recording-change-original-table')).toHaveTextContent('original_long_table');
+    expect(screen.getByTestId('recording-change-new-table')).toHaveTextContent('dialog.new_table_pending');
+    expect(screen.getByTestId('recording-change-original-destination')).toHaveTextContent('Original destination');
+    expect(screen.getByTestId('recording-change-new-destination')).toHaveTextContent('New destination');
+    expect(controller.snapshot().target?.destination.table_name).toBe('');
+    expect(screen.getByText('dialog.history_kept')).toBeVisible(); expect(f.api.reserve).not.toHaveBeenCalled(); expect(f.api.schemaConfirm).not.toHaveBeenCalled();
+  });
+  it('states missing table names honestly until a matching preparation returns the new table', async () => {
+    const { f } = setup();
+    fireEvent.click(screen.getByText('Open change')); fireEvent.click(await screen.findByTestId('recording-change-review'));
+    await screen.findByTestId('recording-change-reserve_preview');
+    expect(screen.getByTestId('recording-change-original-table')).toHaveTextContent('dialog.original_table_unavailable');
+    expect(screen.getByTestId('recording-change-new-table')).toHaveTextContent('dialog.new_table_pending');
+    expect(screen.queryByText('recording_G1')).toBeNull(); expect(f.api.reserve).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('recording-change-reserve_preview')); await screen.findByTestId('recording-change-confirm_schema');
+    expect(screen.getByTestId('recording-change-new-table')).toHaveTextContent('recording_G2');
+    expect(screen.getByTestId('recording-change-original-table')).toHaveTextContent('dialog.original_table_unavailable');
+    expect(screen.getByText('dialog.history_kept')).toBeVisible(); expect(f.api.schemaConfirm).not.toHaveBeenCalled();
+  });
+  it.each(['source', 'preparation'] as const)('does not present a foreign %s table as matching impact evidence', async foreign => {
+    const { f, controller, unmount } = setup();
+    await act(async () => { await controller.requestAction(f.intent); await controller.review(); await controller.reserveAndPreview(); });
+    const state = structuredClone(controller.snapshot());
+    if (foreign === 'source' && state.lifecycle?.successor_seed) {
+      state.lifecycle.group_id = 'OTHER'; state.lifecycle.successor_seed.group.destination.table_name = 'foreign_table';
+    }
+    if (foreign === 'preparation' && state.recovery?.preparation) {
+      state.recovery.preparation.operation_id = 'OTHER'; state.recovery.preparation.group.destination.table_name = 'foreign_table';
+      state.review!.envelope.request.group.destination.table_name = ''; state.preview = undefined;
+    }
+    unmount(); render(<RecordingChangeDialog controller={{ ...state, state, controller, requestAction: controller.requestAction, dismiss: controller.dismiss, unresolved: true }} />);
+    expect(screen.getByTestId(`recording-change-${foreign === 'source' ? 'original' : 'new'}-table`)).toHaveTextContent(foreign === 'source' ? 'dialog.original_table_unavailable' : 'dialog.new_table_pending');
+    expect(screen.queryByText('foreign_table')).toBeNull(); expect(f.api.reserve).toHaveBeenCalledOnce(); expect(f.api.schemaConfirm).not.toHaveBeenCalled();
+  });
+});

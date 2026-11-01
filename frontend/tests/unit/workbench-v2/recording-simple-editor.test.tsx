@@ -83,6 +83,21 @@ it('orders visible source and per-point controls before the destination without 
   expect(screen.getByTestId('recording-editor-method-note')).toHaveTextContent('calculation.dueUnion');
   expect(screen.getByTestId('member-calculation-pt-0').closest('td')).toHaveAttribute('data-testid', 'group-member-calculation-pt-0');
 });
+it('keeps one repair action inside the padded editor before preparation and in the readonly fallback', () => {
+  const lookup = vi.fn();
+  const repairContent = <button type="button" data-testid="repair-slot" onClick={lookup}>Original operation lookup</button>;
+  const view = mount({ repairContent });
+  const action = screen.getByTestId('repair-slot'), editor = screen.getByTestId('group-editor');
+  expect(editor).toHaveClass('recording-editor-simple'); expect(editor).toContainElement(action);
+  expect(action.compareDocumentPosition(screen.getByTestId('recording-preparation-actions')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getAllByTestId('repair-slot')).toHaveLength(1); expect(lookup).not.toHaveBeenCalled();
+  action.focus(); expect(action).toHaveFocus(); fireEvent.click(action); expect(lookup).toHaveBeenCalledOnce();
+  expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
+  view.unmount();
+  mount({ repairContent, calculationCapabilities: undefined, group: savedGroup({ recording_profile: { kind: 'mixed', result_shape: 'member-calculation-v1' } }) });
+  expect(screen.getByTestId('mixed-group-editor-readonly')).toContainElement(screen.getByTestId('repair-slot'));
+  expect(screen.getAllByTestId('repair-slot')).toHaveLength(1); expect(screen.queryByTestId('recording-preparation-actions')).toBeNull();
+});
 it('preserves saved legacy policy instead of silently converting it into per-point mode', () => {
   mount({ group: savedGroup({ layout_version: 'managed_wide_profile_v1', recording_profile: { kind: 'instantaneous', interval: 15, unit: 'second', sample_reduction: 'mean' } }) });
   expect(screen.queryByTestId('member-calculation-pt-0')).not.toBeInTheDocument();

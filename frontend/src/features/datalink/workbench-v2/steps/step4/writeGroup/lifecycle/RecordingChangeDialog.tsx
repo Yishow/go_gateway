@@ -8,6 +8,7 @@ import type { RecordingChangeControllerView } from './useRecordingChangeControll
 import type { RecordingDestinationChoice } from './recordingChangeTypes';
 import { RecordingLifecycleHistory } from './RecordingLifecycleHistory';
 import { activationAction, changeTargetLayout } from './recordingChangeHelpers';
+import { sameLifecycleJSON } from '../../../../../../../services/studioV2LifecycleTransport';
 
 const field = 'mt-1';
 const secondary = 'gw-secondary';
@@ -26,7 +27,30 @@ export function RecordingChangeDialog({ controller: view, destinations = [], fal
   const step = phase === 'choose' ? 1 : ['impact', 'reserved', 'schema-plan'].includes(phase) ? 2 : 3;
   const locked = state.busy || controller.readonly || state.unknown;
   const title = t('dialog.title');
-  const destinationName = (id: string) => destinations.find((item) => item.id === id)?.name ?? id;
+  const destinationName = (id?: string, revision?: string) => destinations.find((item) => item.id === id && item.revision === revision)?.name ?? t('dialog.destination_unavailable');
+  // Display only matching saved/reviewed DTOs; the editable target is not the original table.
+  const candidateEnvelope = review?.envelope ?? recovery?.envelope;
+  const envelope = candidateEnvelope && candidateEnvelope.request.workspace_id === controller.workspaceId && (!state.intent ||
+    candidateEnvelope.predecessor_group_id === state.intent.groupId && candidateEnvelope.request.expected_workspace_revision === state.intent.workspaceRevision &&
+    candidateEnvelope.request.expected_predecessor_revision === state.intent.groupRevision) ? candidateEnvelope : undefined;
+  const request = envelope?.request, lifecycle = state.lifecycle;
+  const originalLifecycle = envelope && request && lifecycle?.workspace_id === request.workspace_id && lifecycle.workspace_revision === request.expected_workspace_revision &&
+    lifecycle.group_id === envelope.predecessor_group_id && lifecycle.group_revision === request.expected_predecessor_revision &&
+    lifecycle.connector_revision === request.expected_predecessor_connector_revision && lifecycle.history.lineage_id === request.lineage_id &&
+    lifecycle.history.lineage_revision === request.expected_lineage_revision ? lifecycle : undefined;
+  const seed = originalLifecycle?.successor_seed;
+  const original = seed && seed.group.workspace_id === request?.workspace_id && seed.basis_revision ===
+    (seed.basis_kind === 'applied' ? envelope?.source_applied_revision : request?.expected_predecessor_revision) ? seed.group : undefined;
+  const preparation = recovery?.preparation;
+  const prepared = envelope && request && recovery && preparation && sameLifecycleJSON(recovery.envelope, envelope) && preparation.operation_id === request.operation_id &&
+    preparation.predecessor_group_id === envelope.predecessor_group_id && preparation.lineage_id === request.lineage_id &&
+    preparation.generation === envelope.generation + 1 && preparation.group.workspace_id === request.workspace_id &&
+    preparation.group.destination.connector_id === request.group.destination.connector_id &&
+    preparation.group.destination.connector_revision === request.expected_target_connector_revision ? preparation.group : undefined;
+  const tableName = (destination?: { table_schema: string; table_name: string }) => destination?.table_name
+    ? [destination.table_schema, destination.table_name].filter(Boolean).join('.') : undefined;
+  const layoutName = (layout?: string) => t(layout === 'managed_long_v1' ? 'dialog.layout_long' : layout === 'managed_wide_profile_v1'
+    ? 'dialog.layout_wide' : layout === 'managed_wide_v1' ? 'dialog.layout_basic' : 'dialog.layout_unavailable');
   const choices = target && !destinations.some((item) => item.id === target.destination.connector_id)
     ? [{ id: target.destination.connector_id, revision: target.destination.connector_revision, name: t('dialog.original_destination') }, ...destinations] : destinations;
   const primaryAction = state.unknown && state.canRepreview ? { key: 'repreview', action: controller.repreview, disabled: state.busy || controller.readonly }
@@ -76,11 +100,15 @@ export function RecordingChangeDialog({ controller: view, destinations = [], fal
             </div>}
             {step === 2 && <>
               <p className="gw-notice">{t('dialog.history_kept')}</p>
-              {review && <dl className="grid grid-cols-2 gap-2 gw-summary">
-                <dt>{t('dialog.generation')}</dt><dd>{review.envelope.generation + 1}</dd>
-                <dt>{t('dialog.sources')}</dt><dd>{review.envelope.request.group.members.length}</dd>
-                <dt>{t('dialog.original_destination')}</dt><dd className="break-words">{state.lifecycle ? destinationName(state.lifecycle.connector_id) : '—'}</dd>
-                <dt>{t('dialog.destination')}</dt><dd className="break-words">{destinationName(review.envelope.request.group.destination.connector_id)}</dd>
+              {envelope && request && <dl className="grid grid-cols-2 gap-2 gw-summary">
+                <dt>{t('dialog.generation')}</dt><dd>{envelope.generation + 1}</dd>
+                <dt>{t('dialog.sources')}</dt><dd>{request.group.members.length}</dd>
+                <dt>{t('dialog.original_layout')}</dt><dd data-testid="recording-change-original-layout">{layoutName(original ? original.layout_version ?? 'managed_wide_v1' : undefined)}</dd>
+                <dt>{t('dialog.new_layout')}</dt><dd data-testid="recording-change-new-layout">{layoutName(request.group.layout_version ?? 'managed_wide_v1')}</dd>
+                <dt>{t('dialog.original_destination')}</dt><dd className="break-words" data-testid="recording-change-original-destination">{destinationName(original?.destination.connector_id, original?.destination.connector_revision)}</dd>
+                <dt>{t('dialog.destination')}</dt><dd className="break-words" data-testid="recording-change-new-destination">{destinationName(request.group.destination.connector_id, request.expected_target_connector_revision)}</dd>
+                <dt>{t('dialog.original_table')}</dt><dd className="break-words" data-testid="recording-change-original-table">{tableName(original?.destination) || t('dialog.original_table_unavailable')}</dd>
+                <dt>{t('dialog.new_table')}</dt><dd className="break-words" data-testid="recording-change-new-table">{tableName(prepared?.destination) || tableName(request.group.destination) || t('dialog.new_table_pending')}</dd>
               </dl>}
               {review?.blockers.map((item, index) => <div role="alert" key={index} className="gw-warning"><p>{t('dialog.blocked')}</p><p>{t(`reason.${item.reason_code}`, { defaultValue: t('dialog.blocked') })}</p><p>{t(`next.${item.next_action}`, { defaultValue: t('dialog.repair_source') })}</p></div>)}
               {review?.required_checks.length ? <p>{t('dialog.required_checks')}</p> : null}

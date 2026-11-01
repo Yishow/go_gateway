@@ -1,6 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { parseStudioPresentation } from '@/services/studioRecordingView';
 const locator = 'entry=locator&workspace_id=W&step=4&group_id=G&group_revision=R';
+describe('bounded recording repair navigation', () => {
+  it.each(['sources', 'destination'])('retains exact %s repair without changing the canonical locator', section => {
+    expect(parseStudioPresentation(`?${locator}&view=recording&repair_section=${section}&repair_revision=W2`)).toMatchObject({
+      presentation: 'recording', locatorIntent: { kind: 'locator', locator: { workspace_id: 'W', group_id: 'G', group_revision: 'R' } },
+      repairIntent: { workspaceId: 'W', workspaceRevision: 'W2', groupId: 'G', groupRevision: 'R', section },
+    });
+  });
+  it('retains original operation query identity as navigation only', () => {
+    expect(parseStudioPresentation(`?${locator}&view=recording&repair_section=operation&repair_revision=W2&repair_kind=query_operation&repair_owner=start&repair_device=D&repair_circuit=C&repair_operation=O1`)).toMatchObject({
+      presentation: 'recording', repairIntent: { section: 'operation', workspaceRevision: 'W2', operation: {
+        kind: 'query_operation', owner: 'start', deviceId: 'D', circuitId: 'C', operationId: 'O1',
+      } },
+    });
+  });
+  it('rejects incomplete, duplicate, malformed and command-bearing recording repairs', () => {
+    expect(parseStudioPresentation('?entry=locator&workspace_id=W&step=4&group_id=G&view=recording&repair_section=sources&repair_revision=W2')).toEqual({ presentation: 'advanced', locatorIntent: { kind: 'invalid' } });
+    for (const suffix of ['repair_section=sources', 'repair_section=sources&repair_revision=W2&repair_section=destination',
+      'repair_section=operation&repair_revision=W2&repair_owner=start&repair_device=D',
+      'repair_section=sources&repair_revision=%ZZ', 'repair_section=sources&repair_revision=W2&command=start',
+      'repair_section=sources&repair_revision=W2&intent=copy']) {
+      expect(parseStudioPresentation(`?${locator}&view=recording&${suffix}`)).toEqual({ presentation: 'advanced', locatorIntent: { kind: 'invalid' } });
+    }
+  });
+});
 describe('bounded simple recording entry', () => {
   it('opens an explicit local new draft without fabricating a persisted identity', () => {
     expect(parseStudioPresentation('?view=recording&intent=new')).toEqual({ presentation: 'recording', locatorIntent: { kind: 'absent' } });

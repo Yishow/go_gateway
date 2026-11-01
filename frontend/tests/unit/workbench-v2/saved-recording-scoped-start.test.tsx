@@ -1,6 +1,6 @@
 import { recordingTestWriteRecovery } from '../../../src/features/datalink/workbench-v2/state/recordingTestWriteRecovery';
 import { safeBasicNextAction, safeBasicOperationMessage } from '../../../src/features/datalink/workbench-v2/state/basicRecordingMessages';
-import type { ComponentProps } from 'react';
+import { useState, type ComponentProps } from 'react';
 import { basicRecordingIntentKey, saveBasicRecordingIntent } from '../../../src/features/datalink/workbench-v2/state/basicRecording';
 import type { WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -33,6 +33,16 @@ function mount(fetchLatest = vi.fn(async () => latest), overrides: Partial<Compo
   shareStatus={{ workspace_id: 'ws-1', enabled: false, port: 502, address: '', bind_state: 'disabled', mapping_count: 0, readiness_token: 'share-token', settings_revision: 'settings-1', workspace_revision: 'share-1' }} readonly={false} fetchLatest={fetchLatest} onClose={vi.fn()} onOperationActiveChange={vi.fn()} {...overrides} /></QueryClientProvider>;
  const view = render(tree());
  return { ...view, changeSource: () => { currentState = { ...state, rules: state.rules.map(rule => ({ ...rule, save_state: 'saving' as const })) }; view.rerender(tree()); } };
+}
+function FocusReturnHost({ revision = group.revision, available = true, trigger = true }: { revision?: string; available?: boolean; trigger?: boolean }) {
+ const [open, setOpen] = useState(false);
+ const [client] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } }));
+ return <QueryClientProvider client={client}>
+  {trigger && <button type="button" onClick={() => setOpen(true)}>Original repair lookup</button>}
+  {open && <SavedRecordingStartReview group={{ ...group, revision }} workspaceId="ws-1" workspaceRevision="w1" state={state}
+   shareStatus={{ workspace_id: 'ws-1', enabled: false, port: 502, address: '', bind_state: 'disabled', mapping_count: 0, readiness_token: 'share-token', settings_revision: 'settings-1', workspace_revision: 'share-1' }}
+   readonly={false} canUseScope={() => available} fetchLatest={vi.fn(async () => latest)} onClose={() => setOpen(false)} />}
+ </QueryClientProvider>;
 }
 beforeEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); sessionStorage.clear(); api.start.mockResolvedValue(operation); api.operation.mockResolvedValue(operation);
  vi.mocked(studioV2WorkspaceWriteGroupsAPI.readiness).mockResolvedValue({ workspace_id: 'ws-1', workspace_revision: 'w1', group_id: group.id, group_revision: group.revision, applied_revision: '', config_ready: true, schema_ready: true, ready: true, issues: [] }); });
@@ -220,4 +230,33 @@ it.each(['toString', 'constructor', '__proto__'])('does not translate inherited 
  expect(safeBasicOperationMessage(failed, translate)).toBe('step4.basic.reason.unconfirmed');
  expect(safeBasicNextAction(failed, translate)).toBeUndefined();
  expect(translate).toHaveBeenCalledExactlyOnceWith('step4.basic.reason.unconfirmed');
+});
+
+it('returns a saved Start review to its same-scope trigger on Escape and Close', async () => {
+ render(<FocusReturnHost />); const trigger = screen.getByRole('button', { name: 'Original repair lookup' });
+ for (const dismissal of ['Escape', 'Close']) {
+  trigger.focus(); fireEvent.click(trigger); await screen.findByRole('dialog');
+  if (dismissal === 'Escape') fireEvent.keyDown(document.activeElement ?? document, { key: 'Escape' });
+  else fireEvent.click(screen.getByRole('button', { name: 'start.close' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  await waitFor(() => expect(trigger).toHaveFocus());
+ }
+ expect(api.start).not.toHaveBeenCalled(); expect(api.ensureBasic).not.toHaveBeenCalled();
+});
+it('does not restore saved Start focus after scope A to B to A revokes the original owner', async () => {
+ const view = render(<FocusReturnHost />); const trigger = screen.getByRole('button', { name: 'Original repair lookup' });
+ trigger.focus(); fireEvent.click(trigger); await screen.findByRole('dialog');
+ view.rerender(<FocusReturnHost revision="changed-revision" available={false} />);
+ view.rerender(<FocusReturnHost />);
+ fireEvent.keyDown(document.activeElement ?? document, { key: 'Escape' });
+ await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull()); expect(trigger).not.toHaveFocus();
+ expect(api.start).not.toHaveBeenCalled();
+});
+it('does not restore saved Start focus to a removed trigger', async () => {
+ const view = render(<FocusReturnHost />); const trigger = screen.getByRole('button', { name: 'Original repair lookup' });
+ trigger.focus(); fireEvent.click(trigger); await screen.findByRole('dialog');
+ view.rerender(<FocusReturnHost trigger={false} />); expect(trigger.isConnected).toBe(false);
+ fireEvent.click(screen.getByRole('button', { name: 'start.close' }));
+ await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull()); expect(trigger).not.toHaveFocus();
+ expect(api.start).not.toHaveBeenCalled();
 });

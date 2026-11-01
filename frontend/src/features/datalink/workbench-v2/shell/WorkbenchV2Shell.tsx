@@ -1,6 +1,6 @@
 import { useStudioLegacyPresentation } from './useStudioLegacyPresentation';
 import { SimpleRecordingShell } from './SimpleRecordingShell';
-import { buildSimpleRecordingTarget, buildStudioPresentationTarget } from '../../../../services/studioRecordingView';
+import { buildSimpleRecordingTarget, buildStudioPresentationTarget, parseStudioPresentation } from '../../../../services/studioRecordingView';
 import { useWorkbenchScroll } from './useWorkbenchScroll';
 import { useRecordingNavigation } from '../recording-editor/RecordingDraftNavigation';
 import { acquisitionPreviewWorkspaceScope } from '../acquisition-preview/acquisitionPreviewScope';
@@ -294,7 +294,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     return <SimpleRecordingShell onBack={returnHome} onAdvanced={() => {
       const target = buildStudioPresentationTarget(presentationLocation?.search ?? '', presentationLocation?.hash ?? '', 'advanced');
       if (target) navigateTo?.(target);
-    }}><Step4Database key={recordingIntent} deviceSource={deviceSource} presentation="simple" initialSelection={recordingIntent} onClose={returnHome}
+    }}><Step4Database repairIntent={parseStudioPresentation(presentationLocation?.search ?? '').repairIntent} onRepairAdvanced={() => { const target = buildStudioPresentationTarget(presentationLocation?.search ?? '', presentationLocation?.hash ?? '', 'advanced'); if (target) navigateTo?.(target); }} key={recordingIntent} deviceSource={deviceSource} presentation="simple" initialSelection={recordingIntent} onClose={returnHome}
       onCopyLocation={group => { const target = buildSimpleRecordingTarget({ kind: 'copy', workspaceId: group.workspace_id, groupId: group.id, groupRevision: group.revision }, presentationLocation?.hash); if (target) navigateTo?.(target); }}
       onSavedLocation={group => { const target = buildSimpleRecordingTarget({ kind: 'edit', workspaceId: group.workspace_id, groupId: group.id, groupRevision: group.revision }, presentationLocation?.hash); if (target) navigateTo?.(target, { replace: true }); }}
       locatorEntry={locatorEntry} locatorOnly={locatorOnly} locatorSuspended={locatorSuspended} onLocatorEditorMountedChange={onLocatorEditorMountedChange}

@@ -1,7 +1,15 @@
 import { DASHBOARD_MODAL_INTENTS, DASHBOARD_SECTION_INTENTS, LEGACY_DECOMMISSION_ROUTES, WORKBENCH_COMPAT_STEPS, WORKBENCH_COMPAT_TARGETS } from '../features/datalink/legacyRoutes';
 import { buildStudioEntityLocatorTarget, parseStudioEntityLocator, type StudioEntityLocatorIntent } from './studioEntityLocator';
+import { safeRuntimeIdentity } from '../utils/runtimeOperatorSafety';
 export type StudioPresentation = 'recordings' | 'recording' | 'advanced';
-export interface StudioPresentationIntent { presentation: StudioPresentation; locatorIntent: StudioEntityLocatorIntent; recordingIntent?: 'copy' }
+export interface StudioRecordingRepair {
+  workspaceId: string; workspaceRevision: string; groupId: string; groupRevision: string;
+  section: 'overview' | 'sources' | 'destination' | 'operation';
+  operation?: { kind: 'query_operation' | 'recover_operation'; owner: 'schema' | 'start' | 'test_write';
+    deviceId: string; circuitId?: string; operationId?: string };
+}
+const repairKeys = ['repair_section', 'repair_revision', 'repair_kind', 'repair_owner', 'repair_device', 'repair_circuit', 'repair_operation'];
+export interface StudioPresentationIntent { presentation: StudioPresentation; locatorIntent: StudioEntityLocatorIntent; recordingIntent?: 'copy'; repairIntent?: StudioRecordingRepair }
 /** Validate raw query before stripping only one recognized presentation hint. */
 export function parseStudioPresentation(search: string): StudioPresentationIntent {
   const invalid = { presentation: 'advanced', locatorIntent: { kind: 'invalid' } } as const;
@@ -13,6 +21,25 @@ export function parseStudioPresentation(search: string): StudioPresentationInten
   if ([...params.keys()].some(key => params.getAll(key).length !== 1)) return invalid;
   const view = params.get('view');
   if (view === 'recordings' || view === 'recording' || view === 'advanced') params.delete('view');
+  if ([...params.keys()].some(key => key.startsWith('repair_'))) {
+    if (view !== 'recording' || params.has('intent')) return invalid;
+    const repair = new URLSearchParams();
+    for (const key of repairKeys) { const value = params.get(key); if (value !== null) repair.set(key, value); params.delete(key); }
+    const locatorIntent = parseStudioEntityLocator(params.toString());
+    if (locatorIntent.kind !== 'locator' || locatorIntent.locator.step !== 4 || !locatorIntent.locator.group_id || !locatorIntent.locator.group_revision) return invalid;
+    const section = repair.get('repair_section'), workspaceRevision = repair.get('repair_revision');
+    if (!workspaceRevision || safeRuntimeIdentity(workspaceRevision) !== workspaceRevision ||
+      section !== 'overview' && section !== 'sources' && section !== 'destination' && section !== 'operation') return invalid;
+    const base: StudioRecordingRepair = { workspaceId: locatorIntent.locator.workspace_id, workspaceRevision, groupId: locatorIntent.locator.group_id, groupRevision: locatorIntent.locator.group_revision, section };
+    if (section !== 'operation') return repair.size === 2 ? { presentation: 'recording', locatorIntent, repairIntent: base } : invalid;
+    const kind = repair.get('repair_kind'), owner = repair.get('repair_owner'), deviceId = repair.get('repair_device');
+    const circuitId = repair.get('repair_circuit'), operationId = repair.get('repair_operation');
+    if (kind !== 'query_operation' && kind !== 'recover_operation' || owner !== 'schema' && owner !== 'start' && owner !== 'test_write' ||
+      !deviceId || safeRuntimeIdentity(deviceId) !== deviceId || circuitId !== null && (!circuitId || safeRuntimeIdentity(circuitId) !== circuitId) ||
+      (kind === 'query_operation' ? !operationId || safeRuntimeIdentity(operationId) !== operationId : operationId !== null)) return invalid;
+    return { presentation: 'recording', locatorIntent, repairIntent: { ...base, operation: { kind, owner, deviceId,
+      ...(circuitId ? { circuitId } : {}), ...(operationId ? { operationId } : {}) } } };
+  }
   // A new local draft has no persisted ID. No locator, extra command or return URL
   // may be smuggled into this bounded presentation intent.
   if (params.has('intent')) {
@@ -39,7 +66,7 @@ export function buildStudioPresentationTarget(search: string, hash: string, view
   if (parseStudioPresentation(search).locatorIntent.kind === 'invalid' || (hash && !hash.startsWith('#'))) return null;
   const parts = (search.startsWith('?') ? search.slice(1) : search).split('&').filter(Boolean)
     .filter(pair => decodeURIComponent(pair.split('=')[0].replace(/\+/g, ' ')) !== 'view')
-    .filter(pair => decodeURIComponent(pair.split('=')[0].replace(/\+/g, ' ')) !== 'intent');
+    .filter(pair => !['intent', ...repairKeys].includes(decodeURIComponent(pair.split('=')[0].replace(/\+/g, ' '))));
   parts.push(`view=${view}`);
   return `/studio/v2?${parts.join('&')}${hash}`;
 }
@@ -51,6 +78,20 @@ export function buildSimpleRecordingTarget(intent: { kind: 'new' } | { kind: 'ed
   const target = buildStudioEntityLocatorTarget({ step: 4, workspace_id: intent.workspaceId, device_id: null,
     rule_id: null, mapping_id: null, group_id: intent.groupId, group_revision: intent.groupRevision });
   return target ? `${target}&view=recording${intent.kind === 'copy' ? '&intent=copy' : ''}${hash}` : null;
+}
+
+/** Only a navigation hint. The editor still requires its own fresh canonical read. */
+export function buildRecordingRepairTarget(repair: StudioRecordingRepair, hash = ''): string | null {
+  const target = buildSimpleRecordingTarget({ kind: 'edit', ...repair });
+  if (!target || hash && !hash.startsWith('#')) return null;
+  const params = new URLSearchParams({ repair_section: repair.section, repair_revision: repair.workspaceRevision });
+  if (repair.operation) {
+    params.set('repair_kind', repair.operation.kind); params.set('repair_owner', repair.operation.owner); params.set('repair_device', repair.operation.deviceId);
+    if (repair.operation.circuitId !== undefined) params.set('repair_circuit', repair.operation.circuitId);
+    if (repair.operation.operationId !== undefined) params.set('repair_operation', repair.operation.operationId);
+  }
+  const result = `${target}&${params}`;
+  return parseStudioPresentation(result.slice(result.indexOf('?'))).repairIntent ? `${result}${hash}` : null;
 }
 
 export interface StudioLegacyPresentation { view: 'flow' | 'settings'; step: 1 | 2 | 3 | 4; target?: 'modbus' | 'database' }

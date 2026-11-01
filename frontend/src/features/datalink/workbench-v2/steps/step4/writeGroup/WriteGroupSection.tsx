@@ -1,3 +1,5 @@
+import { RecordingRepairFocus } from '../../../recording-editor/RecordingRepairFocus';
+import type { StudioRecordingRepair } from '../../../../../../services/studioRecordingView';
 import { LocatorRecordingLifecycleHost } from './LocatorRecordingLifecycleHost';
 import { recordingCopyPrefill, type RecordingCopyPrefill } from '../../../recording-editor/recordingCopyDraft';
 import { studioV2WorkspaceWriteGroupsAPI } from '../../../../../../services/studioV2WorkspaceWriteGroups';
@@ -20,8 +22,11 @@ import { CutoverPanel } from './CutoverPanel';
 import { GroupEditor } from './GroupEditor';
 import { SavedRecordingCard } from '../SavedRecordingCard';
 import type { SavedRecordingActionHost } from './lifecycle/SavedRecordingActions';
+import { captureReturnFocus, type ReturnFocusTicket } from '../../../../../../utils/returnFocus';
 
 export interface WriteGroupSectionProps {
+  repairIntent?: StudioRecordingRepair;
+  onRepairAdvanced?: () => void;
   presentation?: 'guided' | 'simple';
   initialSelection?: 'new' | 'located' | 'copy';
   destinationContent?: React.ReactNode;
@@ -49,13 +54,18 @@ type SavedLocationReady = { group: WriteGroup; readback: SavedLocationReadback }
 type Selection = { kind: 'none' } | { kind: 'new'; copyPrefill?: RecordingCopyPrefill } | { kind: 'edit'; id: string; saved?: WriteGroup };
 
 type Prerequisite = 'device' | 'tags' | 'destination' | null;
+function editorFocusScope(read: StudioLocatorEntryRead | undefined): string | undefined {
+  const target = read?.selection.state === 'selected' ? read.selection.target : undefined;
+  return target?.step === 4 && target.groupId && target.groupRevision
+    ? JSON.stringify([target.workspaceId, target.workspaceRevision, target.groupId, target.groupRevision]) : undefined;
+}
 
 /**
  * The only database output editor of Step 4. It reads the saved groups of the
  * workspace and says what is missing before anything can be created, keeping a
  * failed load, an empty list and groups for another destination apart.
  */
-export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentation = 'guided', initialSelection, destinationContent, onClose, onSavedLocation, onCopyLocation, deviceSource, state, workspaceId, readonly, onNavigateStep, openGroupRequest, onReviewScopedStart, lifecycleHost, locatorEntry, locatorOnly, locatorSuspended, onEditorMountedChange }) => {
+export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentation = 'guided', initialSelection, destinationContent, onClose, onSavedLocation, onCopyLocation, deviceSource, state, workspaceId, readonly, onNavigateStep, openGroupRequest, onReviewScopedStart, lifecycleHost, locatorEntry, locatorOnly, locatorSuspended, onEditorMountedChange, repairIntent, onRepairAdvanced }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: editorText } = useTranslation('recording-editor');
   const { request: requestNavigation, blocked: navigationBlocked } = useRecordingNavigation();
@@ -70,7 +80,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
   const consumedSimple = useRef<string | StudioLocatorEntryRead | undefined>(undefined);
   const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId) && !locatorOnly);
   const [editorEntry, setEditorEntry] = useState<StudioLocatorEntryRead>();
-  const [startReview, setStartReview] = useState<{ entry: StudioLocatorEntryRead; lease: object }>();
+  const [startReview, setStartReview] = useState<{ entry: StudioLocatorEntryRead; lease: object; focus: ReturnFocusTicket }>();
   const [startActive, setStartActive] = useState(false);
   const startLease = useRef({ route: locatorEntry, suspended: locatorSuspended, readonly, workspaceId });
   if (startLease.current.route !== locatorEntry || startLease.current.suspended !== locatorSuspended || startLease.current.readonly !== readonly || startLease.current.workspaceId !== workspaceId)
@@ -351,8 +361,20 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
             if (!editorEntry || locatorSuspended || readonly || openingRequest.current || startActive || openedLocator.current !== locatorEntry || isOriginalScope && !isOriginalScope()) return;
             const context = locatorSavedRecordingStartScope(editorEntry, workspaceId ?? '');
             if (context?.group.id !== group.id || context.group.revision !== group.revision) return;
-            setStartReview({ entry: editorEntry, lease: startLease.current });
+            setStartReview({ entry: editorEntry, lease: startLease.current,
+              focus: captureReturnFocus(startLease.current, document.activeElement instanceof HTMLElement ? document.activeElement : null) });
           } : onReviewScopedStart} lifecycleHost={editorLifecycleHost}
+          repairContent={presentation === 'simple' && repairIntent && editorEntry && initialSelection === 'located' && <RecordingRepairFocus
+          repair={repairIntent} entry={editorEntry} region={region} onAdvanced={onRepairAdvanced}
+          canUseScope={() => startLease.current === renderStartLease && openedLocator.current === locatorEntry && !readonly && !lifecycleReadonly &&
+            !locatorSuspended && !openingRequest.current && selection.kind === 'edit' && (!isOriginalScope || isOriginalScope()) &&
+            (repairIntent.operation?.owner !== 'start' || Boolean(locatorSavedRecordingStartScope(editorEntry, workspaceId ?? '')))}
+          onReviewStart={() => {
+            if (startLease.current !== renderStartLease || readonly || lifecycleReadonly || locatorSuspended || openingRequest.current || startActive ||
+              openedLocator.current !== locatorEntry || isOriginalScope && !isOriginalScope() || !locatorSavedRecordingStartScope(editorEntry, workspaceId ?? '')) return;
+            setStartReview({ entry: editorEntry, lease: startLease.current,
+              focus: captureReturnFocus(startLease.current, document.activeElement instanceof HTMLElement ? document.activeElement : null) });
+          }} />}
         />
   ) : null;
 
@@ -368,8 +390,17 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
       <p>{runtime('locatorEntry.currentRevision')}: <span>{displayRead?.entry.group_heads[located.groupId] ?? located.groupRevision}</span></p>}
   </>;
 
+  // A same-canonical completion readback may replace a DOM button, but never renews the old command lease.
+  const focusReturn = startReview ? { ticket: startReview.focus, currentTarget: () => {
+    const node = region.current, expected = editorFocusScope(startReview.entry);
+    if (startReview.lease !== startLease.current || openingRequest.current || !node?.isConnected || !expected || node.dataset.focusScope !== expected) return null;
+    const trigger = startReview.focus.trigger;
+    if (trigger && node.contains(trigger)) return trigger;
+    return trigger?.dataset.testid === 'recording-repair-start' ? node.querySelector<HTMLElement>('[data-testid="recording-repair-start"]') : null;
+  } } : undefined;
   return (
-    <section ref={region} className="space-y-4 rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-5" aria-labelledby={presentation === 'simple' ? undefined : 'group-section-title'} data-testid="group-section">
+    <section ref={region} className="space-y-4 rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-5" aria-labelledby={presentation === 'simple' ? undefined : 'group-section-title'} data-testid="group-section"
+      data-focus-scope={!opening && !openError && !locatorSuspended && selection.kind === 'edit' ? editorFocusScope(editorEntry) : undefined}>
       {presentation !== 'simple' && <div>
         <h3 id="group-section-title" className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.section.title')}</h3>
         <p className="mt-1 text-xs text-[var(--gw-muted)]">{t('step4.group.section.subtitle')}</p>
@@ -441,6 +472,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
         onReload={() => { void reloadEditor(undefined, true); }}>{renderEditor}</LocatorRecordingLifecycleHost> : renderEditor()}
 
       {startReview && workspaceId && <LocatorSavedRecordingStartReview entry={editorEntry ?? startReview.entry} workspaceId={workspaceId}
+        focusReturn={focusReturn}
         readonly={!canUseStartScope()} canUseScope={canUseStartScope} deviceSource={deviceSource}
         onClose={() => setStartReview(undefined)} onCompleted={() => { if (canUseStartScope()) void reloadEditor(); }} onOperationActiveChange={setStartActive} />}
     </section>

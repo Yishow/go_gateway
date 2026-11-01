@@ -23,6 +23,7 @@ export const GroupEditorWithCapabilities: React.FC<CapabilityProps> = ({ Content
     <section data-testid="mixed-group-editor-readonly" className="space-y-3 rounded border border-slate-700 p-4">
       <h3>{props.group?.name}</h3>
       <p role="status">{t('step4.group_kind_unsupported')}</p>
+      {props.repairContent}
       {props.presentation !== 'simple' && <button type="button" onClick={props.onClose}>{t('step4.group.editor.back')}</button>}
     </section>
   );

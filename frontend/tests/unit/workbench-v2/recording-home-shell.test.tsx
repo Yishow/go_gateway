@@ -1,11 +1,45 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { RecordingHome } from '@/features/datalink/workbench-v2/recording-home/RecordingHome';
+import { parseStudioPresentation } from '@/services/studioRecordingView';
 import { recordingHomeGuidance } from '@/features/datalink/workbench-v2/recording-home/recordingHomeGuidance';
 import { fixture, group } from './recording-home-guidance-fixtures';
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 afterEach(cleanup);
 describe('one readonly home renderer', () => {
+  it('opens scoped logs for the selected record while the header tools remain global', () => {
+    const navigate = vi.fn(); render(<RecordingHome guidance={recordingHomeGuidance(fixture(['D1'], true, [group('G')]))}
+      location={{ search: '?view=recordings', hash: '#same-row' }} onNavigate={navigate} onRetry={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('recording-scoped-logs'));
+    expect(navigate).toHaveBeenLastCalledWith('/studio/logs?entry=recording&workspace_id=W1&group_id=G&group_revision=G2#same-row');
+    expect(navigate).toHaveBeenCalledOnce();
+  });
+  it.each(['sources', 'destination'] as const)('preserves the selected recording %s repair and return position', section => {
+    const guidance = recordingHomeGuidance(fixture(['D1'], true, [group('G')]));
+    const navigate = vi.fn();
+    render(<RecordingHome guidance={{ ...guidance, primaryAction: { kind: 'navigate', target: 'recording',
+      scope: { workspaceId: 'W1', workspaceRevision: 'W2', epoch: 2 }, groupId: 'G', groupRevision: 'G2', section, intent: null } }}
+      location={{ search: '?view=recordings', hash: '#same-row' }} onNavigate={navigate} onRetry={vi.fn()} />);
+    fireEvent.click(screen.getByText('openSettings'));
+    const target = new URL(navigate.mock.calls[0][0], 'http://localhost');
+    expect(target.hash).toBe('#same-row');
+    expect(parseStudioPresentation(target.search)).toMatchObject({ repairIntent: {
+      workspaceId: 'W1', workspaceRevision: 'W2', groupId: 'G', groupRevision: 'G2', section,
+    } });
+  });
+  it('preserves the original operation repair instead of reducing it to an edit', () => {
+    const value = group('G'), base = fixture(['D1'], true, [value]);
+    if (base.owners?.G.state !== 'available') throw new Error('fixture');
+    const guidance = recordingHomeGuidance({ ...base, owners: { G: { ...base.owners.G,
+      value: base.owners.G.value.map(owner => owner.owner === 'start'
+        ? { ...owner, state: 'unresolved' as const, reason: 'unknown' as const, operationId: 'O1' } : owner) } } });
+    const navigate = vi.fn(); render(<RecordingHome guidance={guidance} location={{ search: '?view=recordings', hash: '#same-row' }} onNavigate={navigate} onRetry={vi.fn()} />);
+    expect(screen.getByText('reason.operation_recovery')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('openSettings'));
+    expect(parseStudioPresentation(new URL(navigate.mock.calls[0][0], 'http://localhost').search)).toMatchObject({
+      repairIntent: { section: 'operation', operation: { kind: 'query_operation', owner: 'start', operationId: 'O1', deviceId: 'D1' } },
+    });
+  });
   it.each([
     ['missing_devices', fixture()], ['missing_points', fixture(['D1'])], ['missing_recordings', fixture(['D1'], true)],
     ['draft', fixture(['D1'], true, [group('G', 'draft')])], ['recordings', fixture(['D1'], true, [group('G')])],

@@ -9,6 +9,7 @@ import { runtimeLogCursor } from './runtimeLogBuffer';
 import RuntimeLogDomainEvent from './RuntimeLogDomainEvent';
 import RuntimeLogLegacyEvent from './RuntimeLogLegacyEvent';
 import { projectRuntimeLogDomain } from '../../services/runtimeLogDomainProjection';
+import { readRuntimeLogsNavigation } from '../../services/runtimeLogsNavigation';
 const control = 'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60';
 const checkbox = 'accent-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600';
 const stages: EvidenceStage[] = ['unavailable', 'acquisition', 'accepted', 'collecting', 'queued', 'retrying',
@@ -20,12 +21,22 @@ const RuntimeLogRow = memo(function RuntimeLogRow({ record }: { record: RuntimeL
     ? <RuntimeLogDomainEvent record={record} />
     : <RuntimeLogLegacyEvent record={record} />;
 });
-export default function RuntimeLogsPage() {
+export default function RuntimeLogsPage({ search = '', hash = '' }: { search?: string; hash?: string } = {}) {
   const { t } = useTranslation('runtime-logs');
-  const [filters, setFilters] = useState(initialFilters);
-  const [draft, setDraft] = useState(initialFilters);
+  const navigation = readRuntimeLogsNavigation(search, hash);
+  // Invalid scoped input never mounts a global session as a fallback.
+  if (navigation.kind === 'invalid') return <main className="min-h-screen bg-slate-50 p-4 text-slate-900">
+    <h1>{t('title')}</h1><p role="alert">{t('invalidId')}</p><a href="/studio/v2" className={control}>{t('setup')}</a>
+  </main>;
+  return <RuntimeLogsContent key={JSON.stringify([search, hash])} defaults={{ ...initialFilters, ...(navigation.kind === 'recording' ? navigation.filters : {}) }}
+    setupTarget={navigation.kind === 'recording' ? navigation.returnTarget : '/studio/v2'} />;
+}
+function RuntimeLogsContent({ defaults, setupTarget }: { defaults: RuntimeLogFilters; setupTarget: string }) {
+  const { t } = useTranslation('runtime-logs');
+  const [filters, setFilters] = useState(defaults);
+  const [draft, setDraft] = useState(defaults);
   const [tail, setTail] = useState(true);
-  const [scopeOpen, setScopeOpen] = useState(false);
+  const [scopeOpen, setScopeOpen] = useState(Boolean(defaults.groupId));
   const [invalidIDs, setInvalidIDs] = useState(false);
   const scopeID = useId();
   const appliedScopeCount = scopeFields.filter((field) => Boolean(filters[field])).length;
@@ -44,7 +55,7 @@ export default function RuntimeLogsPage() {
           <LanguageSwitcher />
         </header>
         <nav aria-label={t('navigation')} className="flex flex-wrap gap-3">
-          <a href="/studio/v2" className={control}>{t('setup')}</a>
+          <a href={setupTarget} className={control}>{t('setup')}</a>
           <a href="/studio/runtime" className={control}>{t('runtime')}</a>
         </nav>
         <form className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-4"
