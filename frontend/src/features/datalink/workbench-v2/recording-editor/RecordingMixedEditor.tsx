@@ -1,3 +1,4 @@
+import { createBasicRecordingRequestId } from '../state/basicRecording';
 import { ParameterHelp } from '../components/ParameterHelp';
 import type { GroupCandidate } from '../state/writeGroup/candidates';
 import type { WriteGroup } from '../../../../types/studioV2WriteGroup';
@@ -29,7 +30,7 @@ export function RecordingMixedEditor({ section = 'all', draft, saved, disabled, 
     {section !== 'destination' && !mixed && (saved ? <p>{t('calculation.legacyUnchanged')}</p> : <>
       <button type="button" className="inline-flex min-h-10 max-sm:min-h-11 items-center justify-center rounded-lg border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)] disabled:cursor-not-allowed disabled:opacity-50" disabled={disabled || !available || draft.members.length > 0} onClick={() => {
         if (disabled || !available || saved || draft.members.length) return;
-        onChange({ ...newMixedDraft({ connector_id: draft.connector_id, connector_revision: draft.connector_revision, table_schema: draft.table_schema, table_name: '' }, crypto.randomUUID()), name: draft.name });
+        onChange({ ...newMixedDraft({ connector_id: draft.connector_id, connector_revision: draft.connector_revision, table_schema: draft.table_schema, table_name: '' }, createBasicRecordingRequestId()), name: draft.name });
       }}>{t('calculation.chooseMixed')}</button>
       <p>{t(!available ? 'calculation.capability' : draft.members.length ? 'calculation.chooseBeforePoints' : 'calculation.independent')}</p>
     </>)}

@@ -2,7 +2,6 @@ import './recording-home.css';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RecordingHomeGuidance, RecordingHomeGuidanceAction } from './recordingHomeGuidance';
-import { buildStudioEntityLocatorTarget } from '../../../../services/studioEntityLocator';
 import { buildRecordingRepairTarget, buildSimpleRecordingTarget, buildStudioPresentationTarget } from '../../../../services/studioRecordingView';
 import { buildRecordingLogsTarget } from '../../../../services/runtimeLogsNavigation';
 
@@ -20,13 +19,12 @@ export function recordingHomeActionTarget(action: RecordingHomeGuidanceAction, l
           ...(intent.scope.circuitId ? { circuitId: intent.scope.circuitId } : {}), ...(intent.operationId ? { operationId: intent.operationId } : {}) } } : {}) }, location.hash);
   }
   if (action.target === 'connect_device' || action.target === 'choose_sources') return buildSimpleRecordingTarget({ kind: 'new' }, location.hash);
-  if (action.target === 'configure_points') return buildStudioEntityLocatorTarget({ step: 1, workspace_id: action.scope.workspaceId,
-    device_id: action.deviceId, rule_id: null, mapping_id: null, group_id: null, group_revision: null });
+  if (action.target === 'configure_points') return null; // Same-home device modal, not an advanced locator route.
   return buildStudioPresentationTarget(location.search, location.hash, 'advanced');
 }
 /** Actual readonly home; visual hierarchy never changes evidence or command ownership. */
-export function RecordingHome({ guidance, location, onNavigate, onRetry, collection }: {
-  guidance: RecordingHomeGuidance; location: RecordingHomeLocation; onNavigate?: (target: string) => void; onRetry: () => void; collection?: ReactNode;
+export function RecordingHome({ guidance, location, onNavigate, onRetry, collection, onConfigurePoints }: {
+  guidance: RecordingHomeGuidance; location: RecordingHomeLocation; onNavigate?: (target: string) => void; onRetry: () => void; collection?: ReactNode; onConfigurePoints?: (deviceId: string) => void;
 }) {
   const { t } = useTranslation('recording-home');
   const { t: editorText } = useTranslation('recording-editor');
@@ -35,12 +33,13 @@ export function RecordingHome({ guidance, location, onNavigate, onRetry, collect
   const logs = action?.target === 'recording' ? buildRecordingLogsTarget({ workspaceId: action.scope.workspaceId,
     groupId: action.groupId, groupRevision: action.groupRevision }, location.hash) : null;
   const navigate = (action: RecordingHomeGuidanceAction) => {
+    if (action.target === 'configure_points') { onConfigurePoints?.(action.deviceId); return; }
     const target = recordingHomeActionTarget(action, location); if (target) onNavigate?.(target);
   };
   return <main data-workbench-v2="true" data-testid="recording-home" className="gw-recording-home">
     <header className="gw-home-header">
       <h1>{t('title')}</h1>
-      <button type="button" className="gw-primary" onClick={() => { const target = buildSimpleRecordingTarget({ kind: 'new' }, location.hash); if (target) onNavigate?.(target); }}>{editorText('simple.create')}</button>
+      <button type="button" className="gw-home-create" onClick={() => { const target = buildSimpleRecordingTarget({ kind: 'new' }, location.hash); if (target) onNavigate?.(target); }}>{editorText('simple.create')}</button>
       <nav aria-label={t('navigation')}>
         {advanced && <button type="button" onClick={() => onNavigate?.(advanced)}>{t('advanced')}</button>}
         {[['/studio/runtime', 'runtime'], ['/studio/logs', 'logs'], ['/test', 'test']].map(([target, key]) =>

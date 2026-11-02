@@ -4,8 +4,8 @@ import { buildStudioEntityLocatorTarget } from '../../../../services/studioEntit
 
 export type StudioLocatorNoticeReason = 'loading' | 'invalid' | 'unavailable' | 'stale' | 'foreign' | 'removed' | 'draftBlocked' | 'unrequested';
 /** Only current same-workspace proof can offer entity links; no unscoped bootstrap fallback. */
-export function StudioLocatorEntryNotice({ reason, entry, navigateTo }: {
-  reason: StudioLocatorNoticeReason; entry?: StudioLocatorEntryRead; navigateTo?: (target: string) => void;
+export function StudioLocatorEntryNotice({ reason, entry, navigateTo, onReturnToLoaded }: {
+  reason: StudioLocatorNoticeReason; entry?: StudioLocatorEntryRead; navigateTo?: (target: string) => void; onReturnToLoaded?: (deviceId: string) => boolean;
 }) {
   const { t } = useTranslation('runtime-dashboard');
   const owned = entry && entry.workspace.id === entry.locator.workspace_id ? entry.workspace : undefined;
@@ -16,6 +16,7 @@ export function StudioLocatorEntryNotice({ reason, entry, navigateTo }: {
         const target = buildStudioEntityLocatorTarget({ step: 1, workspace_id: owned.id, device_id: id,
           rule_id: null, mapping_id: null, group_id: null, group_revision: null });
         return target ? <a key={id} href={target} className="mr-3 underline" onClick={event => {
+          if (onReturnToLoaded && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button === 0 && onReturnToLoaded(id)) { event.preventDefault(); return; }
           if (navigateTo && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button === 0) { event.preventDefault(); navigateTo(target); }
         }}>{t('locatorEntry.listDevice', { id })}</a> : null;
       })}

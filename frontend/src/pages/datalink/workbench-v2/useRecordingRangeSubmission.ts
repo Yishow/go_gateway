@@ -1,3 +1,4 @@
+import { createBasicRecordingRequestId } from '../../../features/datalink/workbench-v2/state/basicRecording';
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import type { Mapping, Point, Rule, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
 import type { WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
@@ -40,7 +41,7 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
       entry.outcome = { ...entry.outcome, ...extra, status }; entry.resolve(structuredClone(entry.outcome)); if (mounted.current) changed(value => value + 1); return structuredClone(entry.outcome);
     };
     const legacyRequest = (entry: Entry, rule: Rule, generation: number): RangeSourceRequest => ({
-      workspaceId: entry.outcome.request.workspaceId, deviceId: rule.device_id, requestId: crypto.randomUUID(),
+      workspaceId: entry.outcome.request.workspaceId, deviceId: rule.device_id, requestId: createBasicRecordingRequestId(),
       sessionId: `${entry.outcome.request.sessionId}:legacy`, generation,
       buffer: structuredClone({ name: rule.name, ...toStudioV2RuleUpdateRequest(rule) }) as RangeSourceBuffer,
     });
@@ -129,7 +130,7 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
         if (previous) return same(previous.outcome.request, request) && active(previous) ? previous.outcome.status === 'pending' ? previous.promise : Promise.resolve(structuredClone(previous.outcome)) : Promise.resolve({ request, status: 'blocked' });
         if (!mounted.current || !current.current.enabled || request.workspaceId !== current.current.workspaceId || !request.requestId || !request.sessionId || !Number.isSafeInteger(request.generation) || request.generation < 0 ||
           [...entries.current.values()].some(entry => entry.outcome.request.workspaceId === request.workspaceId && ['pending', 'unknown', 'persisted-unavailable'].includes(entry.outcome.status))) return Promise.resolve({ request, status: 'blocked' });
-        const snapshot: Rule = { ...structuredClone(request.buffer), id: `rule-${crypto.randomUUID()}`, device_id: request.deviceId, persisted: false, save_state: 'idle' };
+        const snapshot: Rule = { ...structuredClone(request.buffer), id: `rule-${createBasicRecordingRequestId()}`, device_id: request.deviceId, persisted: false, save_state: 'idle' };
         let resolve!: Entry['resolve']; const promise = new Promise<RangeSourceOutcome>(yes => { resolve = yes; });
         const entry: Entry = { owner: owner.current.token, outcome: { request: structuredClone(request), status: 'pending' }, snapshot, knownPointIds: new Set(), mappingStarted: false, mappingIds: new Set(), mappings: new Map(), checking: false, promise, resolve };
         entries.current.set(request.requestId, entry); changed(value => value + 1);

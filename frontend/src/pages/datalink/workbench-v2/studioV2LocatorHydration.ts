@@ -1,8 +1,9 @@
 import { useLayoutEffect, useRef, useState, type MutableRefObject } from 'react';
 import type { StudioLocatorEntryRead } from '../../../types/studioV2LocatorEntry';
 import { INITIAL_STATE, type useWorkbenchV2State } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
-import type { WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
-import { hydrateStudioV2Device } from '../../../features/datalink/workbench-v2/state/studioV2DeviceAutosave';
+import type { Device, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
+import type { StudioV2WorkspaceDeviceRecord } from '../../../services/studioV2WorkspaceDevices';
+import { hydrateStudioV2Device, toStudioV2DeviceUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2DeviceAutosave';
 import { hydrateStudioV2Rule } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
 import { hydrateStudioV2Mapping } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
 import { hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseRowGroups, hydrateStudioV2DatabaseTarget } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
@@ -38,13 +39,21 @@ export function studioV2LocatorHydration(read: StudioLocatorEntryRead): Workbenc
     completed: new Set(), showSummaryRail: false, db,
     settings: { ...INITIAL_STATE.settings, connectors: [], modbus_share: { ...INITIAL_STATE.settings.modbus_share, enabled: false } } };
 }
+// Same canonical comparison used by the existing source-submission observer;
+// object key order in a server JSON connection config is not a user edit.
+function comparable(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(comparable).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${comparable(item)}`).join(',')}}`;
+  return JSON.stringify(value);
+}
 function draftIdentity(state: WorkbenchV2State): string {
   return JSON.stringify([state.devices, state.rules, state.points, state.mappings, state.db, state.settings]);
 }
 /** A new viewing request cannot replace local edits or the already hydrated normal workspace. */
 export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbenchV2State>, stateRef: MutableRefObject<WorkbenchV2State>,
   nativeHydrated: boolean, entry?: StudioLocatorEntryRead, editorMounted = false) {
-  const accepted = useRef<{ entry: StudioLocatorEntryRead; baseline: string } | undefined>(undefined);
+  const accepted = useRef<{ entry: StudioLocatorEntryRead; baseline: WorkbenchV2State } | undefined>(undefined);
+  const mode = useRef({ nativeHydrated, entry }); mode.current = { nativeHydrated, entry };
   const attempted = useRef<{ entry: StudioLocatorEntryRead; editorMounted: boolean } | undefined>(undefined);
   const [result, setResult] = useState<{ entry?: StudioLocatorEntryRead; blocked: boolean }>({ blocked: false });
   useLayoutEffect(() => {
@@ -54,7 +63,7 @@ export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbe
     // Opening/closing this accepted editor is not a new viewing request. Keep
     // its live state and dirty baseline; a different entry still uses every guard.
     if (sameAcceptedEntry) return;
-    const dirty = !nativeHydrated && accepted.current && accepted.current.baseline !== draftIdentity(stateRef.current);
+    const dirty = !nativeHydrated && accepted.current && draftIdentity(accepted.current.baseline) !== draftIdentity(stateRef.current);
     // Preserve the live Basic subtree when a query-only route would leave Step 4.
     if (dirty || editorMounted && accepted.current?.entry !== entry || nativeHydrated && (!studioLocatorStateMatches(entry, stateRef.current) || stateRef.current.current === 4 && entry.selection.target.step !== 4)) {
       setResult({ entry, blocked: true }); return;
@@ -62,10 +71,39 @@ export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbe
     const next = nativeHydrated ? stateRef.current : studioV2LocatorHydration(entry);
     if (!next) { setResult({ entry, blocked: true }); return; }
     if (!nativeHydrated) { stateRef.current = next; actions.dispatch({ type: 'SET_STATE', payload: next }); }
-    accepted.current = { entry, baseline: draftIdentity(next) };
+    accepted.current = { entry, baseline: structuredClone(next) };
     setResult({ entry, blocked: false });
   }, [entry, nativeHydrated, actions, stateRef, editorMounted]);
-  return { lastEntry: accepted.current?.entry, ready: Boolean(entry && result.entry === entry && !result.blocked), blocked: Boolean(entry && result.entry === entry && result.blocked) };
+  const captureDeviceSave = (submitted: Device, workspaceId?: string) => {
+    const owner = accepted.current, target = owner?.entry.selection, viewing = mode.current.entry, selected = viewing?.selection;
+    if (!owner || mode.current.nativeHydrated || !workspaceId || viewing?.workspace.id !== workspaceId || viewing.locator.workspace_id !== workspaceId || owner.entry.workspace.id !== workspaceId || selected?.state !== 'selected' || selected.target.workspaceId !== workspaceId ||
+        target?.state !== 'selected' || target.target.step !== 1 || target.target.workspaceId !== workspaceId ||
+        selected.target.step !== 1 || selected.target.deviceId !== submitted.id || selected.target.workspaceRevision !== target.target.workspaceRevision ||
+        target.target.deviceId !== submitted.id || submitted.persisted !== true || owner.baseline.devices.filter(device => device.id === submitted.id && device.persisted).length !== 1) return;
+    const captured = structuredClone(submitted);
+    const submittedIdentity = comparable(toStudioV2DeviceUpdateRequest(captured));
+    let consumed = false;
+    return (saved: StudioV2WorkspaceDeviceRecord) => {
+      if (consumed) return; consumed = true;
+      if (accepted.current !== owner || mode.current.nativeHydrated || mode.current.entry !== viewing || saved.id !== captured.id) return;
+      const matches = stateRef.current.devices.filter(device => device.id === captured.id);
+      const latest = matches.length === 1 ? matches[0] : undefined;
+      if (!latest || latest.save_state !== 'saved' || !latest.persisted || saved.runtime_apply_status === 'apply_failed') return;
+      try {
+        if (comparable(toStudioV2DeviceUpdateRequest(latest)) !== submittedIdentity ||
+            comparable(toStudioV2DeviceUpdateRequest({ ...captured, name: saved.name, description: saved.description, protocol: saved.protocol, config: JSON.parse(saved.connection_config) })) !== submittedIdentity) return;
+      } catch { return; }
+      // Only this ACK's unchanged persisted fields and its own save metadata move
+      // forward. Tests/other devices/rules/points/mappings/settings remain dirty.
+      owner.baseline = { ...owner.baseline, devices: owner.baseline.devices.map(device => device.id !== captured.id ? device : {
+        ...device, name: captured.name, description: captured.description, protocol: captured.protocol, config: structuredClone(captured.config),
+        persisted: latest.persisted, status: latest.status, save_state: latest.save_state, save_error: latest.save_error,
+        runtime_apply_status: latest.runtime_apply_status, runtime_apply_message: latest.runtime_apply_message,
+        availability_status: latest.availability_status, availability_reason: latest.availability_reason, running: latest.running,
+      }) };
+    };
+  };
+  return { captureDeviceSave, lastEntry: accepted.current?.entry, ready: Boolean(entry && result.entry === entry && !result.blocked), blocked: Boolean(entry && result.entry === entry && result.blocked) };
 }
 
 /** Only exact hydrated canonical bindings can receive a hot locator; drafts remain separate. */

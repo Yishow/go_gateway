@@ -1,17 +1,18 @@
+import type { ReactNode } from 'react';
 import { ParameterHelp } from '../components/ParameterHelp';
 import { RecordingRangeSchedule } from './RecordingRangeSchedulePanel';
 import { buildStudioEntityLocatorTarget } from '../../../../services/studioEntityLocator';
 import { useTranslation } from 'react-i18next';
 import { recordingRangeDataTypes } from './recordingRangeBuffer';
 import type { RecordingRangeController } from './useRecordingRangeBuffer';
-export function RecordingRangeContent({ controller: range, available, onBack, onSubmit, onInspect, onPrepare }: { controller: RecordingRangeController; available: boolean; onBack: () => void; onSubmit: () => void; onInspect: () => void; onPrepare: () => void }) {
+export function RecordingRangeContent({ controller: range, available, onBack, onSubmit, onInspect, onPrepare, beforeForm, onReview }: { controller: RecordingRangeController; available: boolean; onBack: () => void; onSubmit: () => void; onInspect: () => void; onPrepare: () => void; beforeForm?: ReactNode; onReview?: (ruleId: string) => void }) {
   const { t } = useTranslation('recording-editor');
   const inspection = range.outcome?.inspection;
   const ruleId = range.outcome?.rule?.id ?? inspection?.ruleId;
   const reviewTarget = ruleId && range.outcome ? buildStudioEntityLocatorTarget({ step: 2,
     workspace_id: range.outcome.request.workspaceId, device_id: range.outcome.request.deviceId, rule_id: ruleId,
     mapping_id: null, group_id: null, group_revision: null }) : null;
-  return <><div className="gw-modal-body space-y-4"><p data-testid="recording-range-device">{range.target?.name}</p>
+  return <><div className="gw-modal-body space-y-4">{beforeForm}<p data-testid="recording-range-device">{range.target?.name}</p>
     {available ? <p className="gw-muted" data-testid="recording-source-confirmed">{t('range.savedDeviceNote')}</p> : <p role="alert">{t('picker.unavailable')}</p>}
     {(['name', 'address', 'count'] as const).map(field => <div key={field} className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block">{t(`range.${field}`)}<input disabled={!available} value={range.buffer[field]}
       inputMode={field === 'count' ? 'numeric' : undefined} onChange={event => range.change({ ...range.buffer, [field]: event.target.value })} /></label><ParameterHelp help={`range.${field}`} /></div>)}
@@ -33,7 +34,7 @@ export function RecordingRangeContent({ controller: range, available, onBack, on
     {range.outcome && range.outcome.status !== 'pending' && range.outcome.status !== 'confirmed' && <p role="alert" data-testid={`recording-range-${range.outcome.status}`}>{t(`range.${range.outcome.status}`)}</p>}
     {inspection?.status === 'current-state' && <p role="status" data-testid="recording-range-current-state">{t('range.inspectedUnknown')} · {inspection.currentRule?.start_address}</p>}
     {inspection?.status === 'unavailable' && <p role="alert" data-testid="recording-range-inspection-unavailable">{t(inspection.ruleId ? 'range.inspectFailed' : 'range.inspectUnavailable')}</p>}
-    {reviewTarget && <a href={reviewTarget} target="_blank" rel="noopener noreferrer">{t('range.reviewSource')}</a>}
+    {reviewTarget && (onReview && ruleId ? <button type="button" onClick={() => onReview(ruleId)}>{t('range.reviewSource')}</button> : <a href={reviewTarget} target="_blank" rel="noopener noreferrer">{t('range.reviewSource')}</a>)}
     <RecordingRangeSchedule workspaceId={range.workspaceId} deviceId={range.target?.id} outcome={range.outcome} />
     {range.outcome?.status === 'saved-inactive' && <p className="gw-muted">{t('range.prepareNote')}</p>}
     {range.outcome?.preparationError && <p role="alert">{t(`range.${range.outcome.preparationError}`)}</p>}

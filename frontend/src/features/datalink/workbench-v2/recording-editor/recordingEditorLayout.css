@@ -53,3 +53,11 @@
   .recording-editor-simple [data-testid='recording-preparation-actions'] { position: sticky; inset: auto; bottom: 0; max-height: none; }
   .recording-editor-simple { padding-bottom: var(--gw-space-md); }
 }
+
+/* Count and the existing picker trigger share one row; all content retains its owner. */
+.recording-editor-source-selection { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--gw-space-sm); min-width: 0; }
+.recording-editor-source-selection > :not(.recording-editor-point-count):not(.recording-point-selection) { grid-column: 1 / -1; }
+.recording-editor-source-selection > .recording-editor-point-count { grid-column: 1; grid-row: 1; }
+.recording-editor-source-selection > .recording-point-selection { display: contents; }
+.recording-editor-source-selection > .recording-point-selection > * { grid-column: 1 / -1; min-width: 0; margin-top: 0; }
+.recording-editor-source-selection > .recording-point-selection > [data-testid='recording-points-open'] { grid-column: 2; grid-row: 1; }

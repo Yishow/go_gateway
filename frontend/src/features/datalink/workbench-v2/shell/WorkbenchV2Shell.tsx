@@ -1,3 +1,4 @@
+import { useLoadedLocatorReturn } from './useLoadedLocatorReturn';
 import { useStudioLegacyPresentation } from './useStudioLegacyPresentation';
 import { SimpleRecordingShell } from './SimpleRecordingShell';
 import { buildSimpleRecordingTarget, buildStudioPresentationTarget, parseStudioPresentation } from '../../../../services/studioRecordingView';
@@ -7,6 +8,7 @@ import { acquisitionPreviewWorkspaceScope } from '../acquisition-preview/acquisi
 import type { DeviceSourcePort } from '../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import type { StudioLocatorEntryRead } from '../../../../types/studioV2LocatorEntry';
 import { StudioLocatorEntryNotice } from './StudioLocatorEntryNotice';
+import { StudioScopedStep2Content } from './StudioScopedStep2Content';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -52,6 +54,7 @@ export interface WorkbenchV2ShellProps {
   locatorEntry?: StudioLocatorEntryRead;
   locatorOnly?: boolean;
   locatorSuspended?: boolean;
+  locatorDraftBlocked?: boolean;
   onLocatorEditorMountedChange?: (mounted: boolean) => void;
   workspaceId?: string;
   actions: ReturnType<typeof useWorkbenchV2State>;
@@ -85,7 +88,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   workspaceAuditHistory,
   workspaceAuditUnavailable,
   shareStatus,
-  runtimeReturnFocus, locatorEntry, locatorOnly, locatorSuspended, onLocatorEditorMountedChange,
+  runtimeReturnFocus, locatorEntry, locatorOnly, locatorSuspended, locatorDraftBlocked, onLocatorEditorMountedChange,
 }) => {
   const root = React.useRef<HTMLDivElement>(null);
   useWorkbenchScroll(root, `${state.view}:${state.current}`);
@@ -120,14 +123,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     if (next !== view) requestNavigation(() => setViewDirect(next));
   }, [view, requestNavigation, setViewDirect]);
   const resetFlow = () => requestNavigation(resetFlowDirect);
-  const consumedLocator = React.useRef<string | undefined>(undefined);
-  React.useLayoutEffect(() => {
-    const locator = locatorEntry?.locator, key = locatorSelection && locator ? JSON.stringify([locator.workspace_id, locator.step, locator.device_id, locator.rule_id, locator.mapping_id, locator.group_id, locator.group_revision]) : undefined;
-    if (!locatorSelection || !key || consumedLocator.current === key) { if (!key) consumedLocator.current = undefined; return; }
-    consumedLocator.current = key;
-    setView('flow'); setCurrent(locatorSelection.target.step);
-    if (locatorSelection.target.ruleId) selectRule(locatorSelection.target.ruleId);
-  }, [locatorEntry, locatorSelection, setView, setCurrent, selectRule]);
+  const returnToLoadedDevice = useLoadedLocatorReturn({ locatorEntry, locatorSelection, locatorDraftBlocked, state, setView, setCurrent, setViewDirect, setCurrentDirect, selectRule });
   // 快捷鍵監聽 ⌘B / Ctrl+B
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -214,10 +210,20 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   const handleNavigateStep = React.useCallback((step: WorkspaceReadinessStepNumber) => {
     setCurrent(step);
   }, [setCurrent]);
+  const step2Content = <Step2Rule locatorSelection={locatorSelection} state={state} dispatch={actions.dispatch}
+    onContinue={handleContinueStep2} shareStatus={shareStatus} />;
   // 渲染中央步驟內容
   const renderContent = () => {
+    const target = locatorSelection?.target;
+    if (locatorOnly && view === 'flow' && current === 2 && target?.step === 1 && !locatorSuspended && !locatorDraftBlocked && navigateTo &&
+        state.devices.length === 1 && state.devices[0].id === target.deviceId && state.devices[0].persisted) {
+      const scope = { workspace_id: target.workspaceId, workspace_revision: target.workspaceRevision, device_id: state.devices[0].id };
+      return <StudioScopedStep2Content key={JSON.stringify(scope)} scope={scope} navigateTo={navigateTo} hasLocalDraft={state.rules.some(rule => rule.device_id === scope.device_id)}>
+        {step2Content}
+      </StudioScopedStep2Content>;
+    }
     if (locatorOnly && (view !== 'flow' || current !== locatorSelection?.target.step))
-      return <StudioLocatorEntryNotice reason="unrequested" entry={locatorEntry} navigateTo={navigateTo} />;
+      return <StudioLocatorEntryNotice reason="unrequested" entry={locatorEntry} navigateTo={navigateTo} onReturnToLoaded={returnToLoadedDevice} />;
     if (view === 'settings') {
       return (
         <SettingsPage
@@ -239,15 +245,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
           />
         );
       case 2:
-        return (
-          <Step2Rule
-            locatorSelection={locatorSelection}
-            state={state}
-            dispatch={actions.dispatch}
-            onContinue={handleContinueStep2}
-            shareStatus={shareStatus}
-          />
-        );
+        return step2Content;
       case 3:
         return (
           <Step3Mapping

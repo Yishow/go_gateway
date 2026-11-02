@@ -425,5 +425,13 @@
     "empty": "No supported saved destination is available. Add a destination connection in Settings, then check again.",
     "stale": "The selected destination has changed or is unavailable. Check and select it again before saving.",
     "refresh": "Check saved destinations again"
+  },
+  "compact": {
+    "point": "Point / device",
+    "address": "Address / type",
+    "calculation": "Calculation",
+    "interval": "Interval",
+    "actions": "Actions",
+    "settings": "Column and required settings"
   }
 }

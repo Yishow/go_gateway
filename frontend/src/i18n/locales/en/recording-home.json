@@ -112,5 +112,40 @@
     "detailsFor": "Evidence details and observation time for {{name}}"
   },
   "filters": "Search and filters",
-  "tableRegion": "Scrollable recordings and devices"
+  "tableRegion": "Scrollable recordings and devices",
+  "devicePoints": "Points",
+  "deviceConnection": "Connection",
+  "openRecord": "Open recording",
+  "actions": "Actions",
+  "source": {
+    "connectionTitle": "Edit device connection",
+    "pointsTitle": "Configure read ranges",
+    "sharedDescription": "These settings are shared sources. Changes apply only when explicitly saved.",
+    "close": "Close",
+    "ranges": "Read ranges",
+    "pointsUnit": "points",
+    "emptyRanges": "This device has no saved read ranges.",
+    "newRange": "+ Add read range",
+    "edit": "Edit",
+    "saveRange": "Save read range",
+    "discardDescription": "Discard only these unsent changes? Previously saved sources will remain.",
+    "keep": "Keep editing",
+    "discard": "Discard and continue",
+    "saved": "Read range saved. You can continue editing or close this dialog.",
+    "checking": "Checking the current saved range…",
+    "saving": "Saving. Please wait; the submitted change cannot be canceled.",
+    "unknown": "The save acknowledgement is unavailable. Do not submit again. Read the current saved values or leave without claiming the change was canceled.",
+    "stale": "The saved range changed or could not be verified. Your unsent changes remain here. Close and reopen to review the current range.",
+    "unavailable": "This device or read range is unavailable. No changes have been sent.",
+    "prefixImpact": "The saved range label is its point-name prefix. Changing it may change generated point names; there is no separate saved display name.",
+    "inspect": "Read current saved values",
+    "leaveSent": "Leave without canceling the submitted change",
+    "currentRead": {
+      "available": "Current saved values were read. This does not prove whether the original request succeeded.",
+      "unavailable": "Current saved values could not be read. The original request remains unconfirmed."
+    }
+  },
+  "recordSources": "Sources",
+  "recordWrites": "Writing",
+  "recordPointCount": "{{count}} recording points"
 }

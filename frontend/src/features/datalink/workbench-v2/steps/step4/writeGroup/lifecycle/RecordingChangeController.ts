@@ -1,3 +1,4 @@
+import { createBasicRecordingRequestId } from '../../../../state/basicRecording';
 import { normalizeTypedEnvelope } from '../../../../../../../utils/safeJson';
 import type { WriteGroup, WriteGroupMutationResponse } from '../../../../../../../types/studioV2WriteGroup';
 import type { WriteGroupLifecycle, SavedRecordingActionIntent } from '../../../../../../../types/studioV2WriteGroupLifecycle';
@@ -89,7 +90,7 @@ export class RecordingChangeController {
     if (!lifecycle || !target || !intent || this.readonly || this.unresolved) return;
     const fresh = await this.deps.lifecycle(intent.groupId);
     if (!matchesIntent(fresh, intent)) { this.set({ error: 'stale' }, epoch); return; }
-    const request = reviewRequest(lifecycle, target, crypto.randomUUID());
+    const request = reviewRequest(lifecycle, target, createBasicRecordingRequestId());
     const review = await this.deps.api.review(intent.groupId, request);
     this.set({ review, phase: 'impact' }, epoch);
   });

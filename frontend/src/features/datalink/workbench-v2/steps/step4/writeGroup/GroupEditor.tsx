@@ -1,3 +1,5 @@
+import { RecordingRevisionDetails } from '../../../recording-editor/RecordingRevisionDetails';
+import { createBasicRecordingRequestId } from '../../../state/basicRecording';
 import { RecordingDestinationMismatch, RecordingNewDestinationChooser, RecordingSavedDestination } from '../../../recording-editor/RecordingNewDestination';
 import { ConfiguredDestinationChooser, type ConfiguredDestinationObservation } from '../../../recording-editor/ConfiguredDestinationChooser';
 import { configuredDestinationPatch, configuredDestinationReason, configuredDestinationStillCurrent } from '../../../recording-editor/configuredRecordingDestinations';
@@ -57,6 +59,8 @@ export interface GroupEditorProps {
   onCopy?: () => void;
   /** One host-owned destination form, rendered here without adding a save owner. */
   destinationContent?: React.ReactNode;
+  /** Host-owned fresh scope evidence, consolidated only in the simple saved disclosure. */
+  scopeDiagnostics?: React.ReactNode;
   repairContent?: React.ReactNode;
   configuredDestinations?: ConfiguredDestinationObservation;
   calculationCapabilities?: WriteGroupCalculationCapabilities;
@@ -99,7 +103,7 @@ export interface GroupEditorProps {
  */
 export const GroupEditor: React.FC<GroupEditorProps> = props => <RecordingDraftBoundary><RecordingSourceNavigation workspaceId={props.workspaceId} source={props.deviceSource}><GroupEditorWithCapabilities {...props} Content={GroupEditorContent} /></RecordingSourceNavigation></RecordingDraftBoundary>;
 const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
-  presentation = 'guided', newDestination, copyPrefill, onCopy, destinationContent, repairContent, configuredDestinations, calculationCapabilities, deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard, saveReadbackPending,
+  presentation = 'guided', newDestination, copyPrefill, onCopy, destinationContent, scopeDiagnostics, repairContent, configuredDestinations, calculationCapabilities, deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard, saveReadbackPending,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: editorText } = useTranslation('recording-editor');
@@ -149,7 +153,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const [draft, setDraft] = useState<EditorDraft>(() => {
     const destination = { connector_id: connector.connector_id ?? '', connector_revision: connector.identity_revision ?? '', table_schema: connector.schema ?? '', table_name: connector.table ?? '' };
     // Explicit simple creation is local per-point intent, not a capability or permission to save/start.
-    return group ? groupToDraft(group) : copyPrefill ? createRecordingCopyDraft(copyPrefill, destination, crypto.randomUUID(), editorText('copy.name', { name: copyPrefill.sourceName })) : presentation === 'simple' ? newMixedDraft({ ...destination, table_name: '' }, crypto.randomUUID()) : newDraft(destination);
+    return group ? groupToDraft(group) : copyPrefill ? createRecordingCopyDraft(copyPrefill, destination, createBasicRecordingRequestId(), editorText('copy.name', { name: copyPrefill.sourceName })) : presentation === 'simple' ? newMixedDraft({ ...destination, table_name: '' }, createBasicRecordingRequestId()) : newDraft(destination);
   });
   const [configuredChoice, setConfiguredChoice] = useState<WriteGroup>();
   const configuredContext = { workspaceId, connector, draft, groupId: group?.id };
@@ -337,14 +341,6 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
                     : isSQLServer && (readiness.isLoading || readiness.isFetching) ? t('step4.group.test_write.blocked_readiness_loading')
                       : isSQLServer && !sqlserverSchemaReady ? t('step4.group.test_write.blocked_schema_not_ready') : undefined;
 
-  const revisionDetails = group && (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[var(--gw-muted)] sm:grid-cols-4" data-testid="group-revisions">
-      <dt>{t('step4.group.editor.status')}</dt><dd className="text-[var(--gw-text)]">{group.status}</dd>
-      <dt>{t('step4.group.editor.draft_revision')}</dt><dd className="font-mono text-[var(--gw-text)]">{group.revision}</dd>
-      <dt>{t('step4.group.editor.applied_revision')}</dt><dd className="font-mono text-[var(--gw-text)]" data-testid="group-applied-revision">{group.applied_revision || t('step4.group.editor.not_applied')}</dd>
-      <dt>{t('step4.group.editor.connector_revision')}</dt><dd className="font-mono text-[var(--gw-text)]">{group.destination.connector_revision}</dd>
-    </dl>
-  );
   return (
     <div className={presentation === 'simple' ? 'recording-editor-simple min-w-0 space-y-5' : 'min-w-0 space-y-5 rounded-xl border border-[var(--gw-border)] p-5'} data-testid="group-editor"
       onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing && !event.defaultPrevented && !(event.target as HTMLElement).closest('[role="dialog"], [role="alertdialog"], [role="tooltip"], [data-state="open"]')) { event.preventDefault(); closeEditor(); } }}>
@@ -355,10 +351,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       </div>
 
       {!group && copyPrefill && <aside role="status" className="space-y-2 text-sm" data-testid="recording-copy-intent"><p>{editorText('copy.intent')}</p><p>{editorText('copy.concurrent')}</p>{copyPrefill.layout === 'managed_long_v1' && <p>{editorText('copy.longIsolation')}</p>}</aside>}
-      {group && (presentation === 'simple' ? <details data-testid="group-revision-details">
-        <summary><span>{editorText('versions.details')}</span> · {t('step4.group.editor.status')}: {group.status}</summary>
-        {revisionDetails}
-      </details> : revisionDetails)}
+      {group && <RecordingRevisionDetails group={group} simple={presentation === 'simple'} scopeDiagnostics={scopeDiagnostics} />}
 
       <fieldset disabled={saveBusy || readUnavailable} className="min-w-0 space-y-5" data-testid="group-save-fields">
       <RecordingEditorLayout presentation={presentation} perPoint={mixed} memberCount={draft.members.length}

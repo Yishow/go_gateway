@@ -206,13 +206,16 @@ it('keeps only the outer Back for unsupported simple records while guided retain
 
 it('collapses simple version identifiers while keeping actual status and destination denial visible', () => {
   const state = savedGroupState();
-  mount({ group: savedGroup(), connector: { ...state.db.connector, identity_revision: 'different-connector-revision' } });
+  mount({ group: savedGroup(), scopeDiagnostics: <p>Fresh scoped revision W2</p>, connector: { ...state.db.connector, identity_revision: 'different-connector-revision' } });
   const versions = screen.getByTestId('group-revision-details');
   const values = screen.getByTestId('group-revisions');
   expect(versions).not.toHaveAttribute('open');
   expect(values).toBeInTheDocument(); expect(values).not.toBeVisible();
   const summary = within(versions).getByText('versions.details').closest('summary');
-  expect(summary).toBeVisible(); expect(summary).toHaveTextContent('ready');
+  expect(summary).toBeVisible(); expect(summary).toHaveTextContent('savedStatuses.ready');
+  expect(summary).toHaveTextContent('savedStatus');
+  expect(screen.getByText('Fresh scoped revision W2').closest('details')).toBe(versions);
+  expect(screen.getAllByText('versions.details')).toHaveLength(1);
   expect(screen.getByTestId('group-destination-mismatch')).toBeVisible();
   fireEvent.click(within(versions).getByText('versions.details'));
   expect(values).toBeVisible(); expect(values).toHaveTextContent('rev-1');
@@ -267,4 +270,22 @@ it.each([
   expect(screen.queryByText('simple.columnsAssignedOnSave')).not.toBeInTheDocument();
   expect(group).toEqual(before); expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
   expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled(); expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
+});
+
+it('opens an existing simple recording when insecure HTTP has getRandomValues but no randomUUID', () => {
+  const getRandomValues = globalThis.crypto.getRandomValues.bind(globalThis.crypto);
+  vi.stubGlobal('crypto', { getRandomValues });
+  try {
+    const group = savedGroup();
+    const before = structuredClone(group);
+    const deviceSource = { submit: vi.fn(), inspect: vi.fn(), observations: () => [] };
+    const view = mount({ group, deviceSource });
+    expect(deviceSource.submit).not.toHaveBeenCalled();
+    expect(screen.getByTestId('group-name')).toHaveValue(group.name);
+    expect(group).toEqual(before);
+    expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
+    expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
+    expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
+    view.unmount();
+  } finally { vi.unstubAllGlobals(); }
 });

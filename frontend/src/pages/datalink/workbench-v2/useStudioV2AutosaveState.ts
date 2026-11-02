@@ -1,3 +1,4 @@
+import type { RuleQueueObservation } from './sourceQueueObservation';
 import { useRecordingPointOrder } from '../../../features/datalink/workbench-v2/recording-editor/useRecordingPointOrder';
 import { deviceAPI } from '../../../services/datalink';
 import { useRecordingRangeSubmission } from './useRecordingRangeSubmission';
@@ -98,6 +99,7 @@ export function useStudioV2AutosaveState(
   locatorEditorMounted = false,
   persistedMCWorkspaceScope?: PersistedMCWorkspaceScope,
   sourceWorkspaceId?: string,
+  ruleObserver?: Pick<RuleQueueObservation, 'submitted' | 'saved' | 'failed'>,
 ) {
   const { t } = useTranslation('workbench-v2');
   const actions = useWorkbenchV2State();
@@ -115,6 +117,7 @@ export function useStudioV2AutosaveState(
   const saveMetaRef = React.useRef<Record<string, SaveMeta>>({});
   const appliedMCPersistedSignatureRef = React.useRef<string | null>(null);
   const locatorHydration = useStudioV2LocatorHydration(actions, stateRef, workspaceHydrated, locatorEntry, locatorEditorMounted);
+  const { captureDeviceSave } = locatorHydration;
   const sourceLease = useLocatorDeviceSourceLease(locatorEntry, sourceWorkspaceId, locatorHydration.ready);
   const rangeQueue = React.useRef<{ rule: (action: WorkbenchV2Action) => void; mapping: (previous: WorkbenchV2State, action: WorkbenchV2Action, next: WorkbenchV2State) => void }>({ rule: () => undefined, mapping: () => undefined });
   const sourceRanges = useRecordingRangeSubmission({ workspaceId: sourceWorkspaceId, enabled: locatorEntry ? locatorHydration.ready : enabled && workspaceHydrated,
@@ -151,7 +154,13 @@ export function useStudioV2AutosaveState(
     if (localRule) return true;
     return persistedMCCanMutateRule(ruleID);
   }, [persistedMCCanMutateRule, sourceRanges]);
-  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule, sourceRanges.ruleObservation, sourceWorkspaceId);
+  // Presentation notifications cannot change the original queue's decisions/order.
+  const ruleObservation: RuleQueueObservation = { ...sourceRanges.ruleObservation,
+    submitted: (rule, generation) => { sourceRanges.ruleObservation.submitted?.(rule, generation); try { ruleObserver?.submitted?.(rule, generation); } catch { /* A view cannot fail the save pipeline. */ } },
+    saved: (rule, saved) => { sourceRanges.ruleObservation.saved(rule, saved); try { ruleObserver?.saved(rule, saved); } catch { /* Same non-authoritative notification boundary. */ } },
+    failed: (rule, error) => { sourceRanges.ruleObservation.failed(rule, error); try { ruleObserver?.failed(rule, error); } catch { /* Preserve the original failure. */ } },
+  };
+  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule, ruleObservation, sourceWorkspaceId);
   const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled, canMutateRule, sourceRanges.mappingObservation);
   rangeQueue.current = { rule: ruleAutosave.afterRuleAction, mapping: mappingAutosave.afterMappingAction };
   const databaseAutosave = useStudioV2DatabaseAutosave(actions, stateRef, enabled, canMutateRule);
@@ -345,6 +354,7 @@ export function useStudioV2AutosaveState(
       meta.pending = false;
       return;
     }
+    const acknowledgeLocatorDeviceSave = captureDeviceSave(currentDevice, sourceWorkspaceId);
     meta.inFlight = true;
     applyDevicePatch(deviceId, {
       save_state: 'saving',
@@ -381,6 +391,7 @@ export function useStudioV2AutosaveState(
           availability_reason: savedDevice.availability_reason ?? null,
           running: savedDevice.running ?? latestDevice.running ?? false,
         });
+        acknowledgeLocatorDeviceSave?.(savedDevice);
       }
     } catch (error) {
       deviceSubmission.failed(deviceId);
@@ -396,7 +407,7 @@ export function useStudioV2AutosaveState(
         void flushDeviceSave(deviceId);
       }
     }
-  }, [applyDevicePatch, createDeviceMutation, deviceSubmission, t, updateAvailabilityMutation, updateDeviceMutation]);
+  }, [applyDevicePatch, createDeviceMutation, deviceSubmission, captureDeviceSave, sourceWorkspaceId, t, updateAvailabilityMutation, updateDeviceMutation]);
   const queueDeviceSave = React.useCallback((deviceId: string) => {
     const meta = saveMetaFor(saveMetaRef.current, deviceId);
     if (!deviceSubmission.canWrite(deviceId)) { meta.pending = true; return; }

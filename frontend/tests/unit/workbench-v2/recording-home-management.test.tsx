@@ -6,17 +6,17 @@ import { initialCollectionState, type HomeDeviceSummary, type RecordingCollectio
 import { readHomePresentation, rememberHomePresentation } from '@/features/datalink/workbench-v2/recording-home/recordingHomePresentation';
 import { recordingHomeGuidance } from '@/features/datalink/workbench-v2/recording-home/recordingHomeGuidance';
 import { fixture, group } from './recording-home-guidance-fixtures';
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, value?: Record<string, unknown>) => key === 'pageOf' ? `${value?.page}/${value?.pages} (${value?.count})` : key }) }));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, value?: Record<string, unknown>) => key === 'pageOf' ? `${value?.page}/${value?.pages} (${value?.count})` : key === 'recordPointCount' ? `${value?.count} recording points` : key }) }));
 afterEach(cleanup);
 const devices: HomeDeviceSummary[] = Array.from({ length: 100 }, (_, index) => ({ id: `D${index}`, name: `Device ${index}`, protocol: 'mc_3e', availability: 'available' }));
 const groups = Array.from({ length: 300 }, (_, index) => ({ ...group(`G${String(index).padStart(3, '0')}`, index % 3 === 0 ? 'draft' : 'running'), name: `Recording ${String(index).padStart(3, '0')}`,
   members: [{ ...group('G').members[0], device_id: `D${index % 100}` }], destination: { ...group('G').destination, table_name: `table_${index}` } }));
 const guidance = recordingHomeGuidance(fixture(devices.map(device => device.id), false, groups));
-function Host({ initial = initialCollectionState(), observedIds = [] }: { initial?: RecordingCollectionState; observedIds?: string[] }) {
+function Host({ initial = initialCollectionState(), observedIds = [], openDevice = vi.fn() }: { initial?: RecordingCollectionState; observedIds?: string[]; openDevice?: (id: string, kind: 'connection' | 'points') => void }) {
   const [state, setState] = useState(initial);
   return <RecordingHomeCollection groups={groups} devices={devices} state={state} guidance={guidance} observedIds={observedIds} unverifiedObserved={false}
     sourcesAvailable restored={{ state: initial, workspaceRevision: 'W2', scrollTop: 0, focusId: null }}
-    onChange={setState} onOpen={vi.fn()} onOpenDevice={vi.fn()} onRemember={vi.fn()} onRecheck={vi.fn()} />;
+    onChange={setState} onOpen={vi.fn()} onOpenDevice={openDevice} onRemember={vi.fn()} onRecheck={vi.fn()} />;
 }
 describe('compact home management', () => {
   it('300 records render only25/50 rows, devices summary only4, and same-page device management stays bounded', () => {
@@ -77,4 +77,41 @@ describe('compact home management', () => {
     expect(screen.getByText('observationNeedsRefresh')).toBeInTheDocument(); expect(screen.getByRole('heading', { name: 'saved' })).toHaveFocus();
     expect(screen.getByText('recheckVisible')).toBeInTheDocument(); expect(screen.queryByText('removed')).not.toBeInTheDocument();
   });
+});
+
+
+describe('demo device summary stays inside the simple home', () => {
+  it('places saved recordings before the device summary and uses an explicit points action', () => {
+    const openDevice = vi.fn(); render(<Host openDevice={openDevice} />);
+    const table = screen.getByTestId('home-management-table');
+    const summary = screen.getByTestId('home-device-summary');
+    expect(table.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const row = within(summary).getAllByRole('listitem')[0];
+    expect(within(row).queryByRole('button', { name: 'Device 0' })).not.toBeInTheDocument();
+    expect(within(row).getByText('Device 0').tagName).toBe('STRONG');
+    fireEvent.click(within(row).getByRole('button', { name: 'devicePoints' }));
+    expect(openDevice).toHaveBeenCalledExactlyOnceWith('D0', 'points');
+  });
+  it('offers distinct connection and points actions on the same-page device list', () => {
+    const openDevice = vi.fn(); render(<Host openDevice={openDevice} />);
+    fireEvent.click(screen.getByRole('button', { name: 'manageDevices' }));
+    const row = within(screen.getByTestId('home-management-table')).getAllByRole('row')[1];
+    expect(within(row).queryByRole('button', { name: 'Device 0' })).not.toBeInTheDocument();
+    fireEvent.click(within(row).getByRole('button', { name: 'deviceConnection' }));
+    expect(openDevice).toHaveBeenLastCalledWith('D0', 'connection');
+    fireEvent.click(within(row).getByRole('button', { name: 'devicePoints' }));
+    expect(openDevice).toHaveBeenLastCalledWith('D0', 'points');
+    expect(openDevice).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId('home-page-status')).toHaveTextContent('1/4 (100)');
+  });
+});
+
+it('separates saved sources, destination and unknown writing facts without inventing runtime health', () => {
+  render(<Host />); const table = screen.getByTestId('home-management-table');
+  expect(within(table).getAllByRole('columnheader').map(node => node.textContent)).toEqual(['name', 'savedStatus', 'recordSources', 'destinationFilter', 'recordWrites', 'actions']);
+  const cells = within(within(table).getAllByRole('row')[1]).getAllByRole('cell');
+  expect(cells[2]).toHaveTextContent('Device 0'); expect(cells[2]).toHaveTextContent('1 recording points');
+  expect(cells[3]).toHaveTextContent('table_0'); expect(cells[4]).toHaveTextContent('statusUnknown');
+  expect(within(cells[5]).getByRole('button', { name: 'openRecord' })).toBeInTheDocument();
+  expect(cells[4]).not.toHaveTextContent(/healthy|rows\/s|0 faults/i);
 });

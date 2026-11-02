@@ -1,3 +1,4 @@
+import { createBasicRecordingRequestId } from '../../../state/basicRecording';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { studioV2WorkspaceWriteGroupsAPI } from '../../../../../../services/studioV2WorkspaceWriteGroups';
@@ -19,7 +20,7 @@ function DecisionRow({ groupId, item, readonly, onResolved }: { groupId: string;
     const draft = { effect_key: item.effect_key, expected_state: item.state, expected_state_revision: item.state_revision, payload_digest: item.payload_digest, resolution, reason: reason.trim(), confirm_skip: resolution === 'skip' };
     const old = requestRef.current;
     if (!old || JSON.stringify({ ...old, decision_id: undefined }) !== JSON.stringify(draft)) {
-      requestRef.current = { ...draft, decision_id: crypto.randomUUID() };
+      requestRef.current = { ...draft, decision_id: createBasicRecordingRequestId() };
     }
     inFlight.current = true; setBusy(true); setFailed(false);
     try {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { WriteGroup, WriteGroupDestinationDraft } from '../../../src/types/studioV2WriteGroup';
 import type { GroupCandidate } from '../../../src/features/datalink/workbench-v2/state/writeGroup/candidates';
 import {
@@ -170,5 +170,49 @@ describe('basic recording state', () => {
     expect(isBasicManagedWriteGroup(group({
       members: [{ ...multiEntity.members[0], entity_key: undefined }],
     }), 'device-a')).toBe(false);
+  });
+});
+
+describe('recording identity entropy boundary', () => {
+  it.each([{}, undefined])('refuses to manufacture a request identity without Web Crypto entropy (%s)', cryptoObject => {
+    vi.stubGlobal('crypto', cryptoObject);
+    const weakRandom = vi.spyOn(Math, 'random');
+    try {
+      expect(() => createBasicRecordingRequestId()).toThrow();
+      expect(weakRandom).not.toHaveBeenCalled();
+    } finally { weakRandom.mockRestore(); vi.unstubAllGlobals(); }
+  });
+  it('prefers native randomUUID with its original receiver', () => {
+    const cryptoObject = {
+      randomUUID: vi.fn(function (this: unknown) {
+        expect(this).toBe(cryptoObject);
+        return '01234567-89ab-4def-8123-456789abcdef';
+      }),
+      getRandomValues: vi.fn(),
+    };
+    vi.stubGlobal('crypto', cryptoObject);
+    try {
+      expect(createBasicRecordingRequestId()).toBe('01234567-89ab-4def-8123-456789abcdef');
+      expect(cryptoObject.randomUUID).toHaveBeenCalledOnce();
+      expect(cryptoObject.getRandomValues).not.toHaveBeenCalled();
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it('propagates entropy failure without falling back to weak randomness', () => {
+    const failure = new Error('entropy unavailable');
+    const cryptoObject = { getRandomValues: vi.fn(function (this: unknown) { expect(this).toBe(cryptoObject); throw failure; }) };
+    vi.stubGlobal('crypto', cryptoObject);
+    const weakRandom = vi.spyOn(Math, 'random');
+    try {
+      expect(() => createBasicRecordingRequestId()).toThrow(failure);
+      expect(weakRandom).not.toHaveBeenCalled();
+    } finally { weakRandom.mockRestore(); vi.unstubAllGlobals(); }
+  });
+  it('preserves UUIDv4 bits using getRandomValues when randomUUID is unavailable', () => {
+    const getRandomValues = vi.fn((bytes: Uint8Array) => { bytes.fill(255); return bytes; });
+    vi.stubGlobal('crypto', { getRandomValues });
+    try {
+      expect(createBasicRecordingRequestId()).toBe('ffffffff-ffff-4fff-bfff-ffffffffffff');
+      expect(getRandomValues).toHaveBeenCalledOnce();
+    } finally { vi.unstubAllGlobals(); }
   });
 });

@@ -31,8 +31,8 @@ export function RecordingEditorLayout({ presentation, identity, sources, method,
         <section className="recording-editor-panel" id="recording-editor-sources" tabIndex={-1} aria-labelledby="recording-editor-sources-title" data-testid="recording-editor-sources">
           {identity}
           <header><h4 id="recording-editor-sources-title">{t('simple.section.sources')}</h4><p>{t(perPoint ? 'simple.sourcesHint' : 'simple.legacySourcesHint')}</p></header>
-          <h5 className="recording-editor-point-count">{t('simple.sources', { count: memberCount })}</h5>
-          {sources}
+          <div className="recording-editor-source-selection"><h5 className="recording-editor-point-count">{t('simple.sources', { count: memberCount })}</h5>
+          {sources}</div>
           <p className="recording-editor-note">{t('simple.sourceCadenceNote')}</p>
           <button type="button" className="recording-editor-next" onClick={() => locate('method')}>{t('simple.nextMethod')} →</button>
         </section>

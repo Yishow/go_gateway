@@ -141,7 +141,7 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
     if (device) startRange(device);
     else { setChoice(''); setView('device-choice'); }
   };
-  return <section className="space-y-3" data-testid="recording-point-selection">
+  return <section className="recording-point-selection space-y-3" data-testid="recording-point-selection">
     <button ref={trigger} type="button" className="gw-secondary" data-testid="recording-points-open" disabled={!active}
       onClick={() => { setView('picker'); setLocatedCount(undefined); setOpen(true); if (discover) void discovery.refresh(); }}>{t('picker.open')}</button>
     {deviceBuffer.locked && (!open || view !== 'device-buffer') && <p role="status">{t('device.unresolved')}</p>}

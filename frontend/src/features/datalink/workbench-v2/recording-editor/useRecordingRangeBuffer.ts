@@ -1,3 +1,4 @@
+import { createBasicRecordingRequestId } from '../state/basicRecording';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RangeSourceBuffer, RangeSourceOutcome, RangeSourcePort, RangeSourceRequest } from '../../../../pages/datalink/workbench-v2/rangeSourceSubmission';
 import type { StudioV2WorkspaceDeviceRecord } from '../../../../services/studioV2WorkspaceDevices';
@@ -9,7 +10,7 @@ export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourceP
   const [activationAllowed, setActivationAllowed] = useState(false);
   const [outcome, setOutcome] = useState<RangeSourceOutcome>(), [pending, setPending] = useState(false), [checking, setChecking] = useState(false), [preparing, setPreparing] = useState(false), [blocked, setBlocked] = useState(false);
   const owner = useMemo(() => ({ workspaceId }), [workspaceId]), ownerRef = useRef(owner); ownerRef.current = owner;
-  const generation = useRef(0), session = useRef<string>(crypto.randomUUID()), requestRef = useRef<RangeSourceRequest | undefined>(undefined);
+  const generation = useRef(0), session = useRef<string>(createBasicRecordingRequestId()), requestRef = useRef<RangeSourceRequest | undefined>(undefined);
   const submitting = useRef(false), prepareGeneration = useRef(0), mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; prepareGeneration.current += 1; }; }, []);
   const locked = pending || outcome?.status === 'pending' || outcome?.status === 'unknown' || outcome?.status === 'persisted-unavailable';
@@ -22,7 +23,7 @@ export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourceP
   const canStart = (deviceId: string) => !(locked || unresolved) || unresolvedDeviceId === deviceId;
   const parsed = target && device ? parseRecordingRangeBuffer(buffer, target.id, device.protocol) : undefined;
   const change = (next: RecordingRangeBuffer) => { setBuffer(next); setDirty(true); generation.current += 1; };
-  const reset = () => { if (locked) return; setDirty(false); setBuffer(newRecordingRangeBuffer()); setOutcome(undefined); requestRef.current = undefined; generation.current = 0; session.current = crypto.randomUUID(); };
+  const reset = () => { if (locked) return; setDirty(false); setBuffer(newRecordingRangeBuffer()); setOutcome(undefined); requestRef.current = undefined; generation.current = 0; session.current = createBasicRecordingRequestId(); };
   const recovery = (requestId?: string) => requestId ? inactiveSources.find(item => item.request.requestId === requestId) : unresolved ?? inactive;
   const canResume = (requestId?: string) => {
     if (locked || unresolved) return !requestId || requestId === (locked ? requestRef.current?.requestId : unresolved?.request.requestId);
@@ -63,7 +64,7 @@ export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourceP
   const submit = async () => {
     if (!port || disabled || locked || !parsed || !dirty || submitting.current || ['confirmed', 'saved-inactive'].includes(outcome?.status ?? '')) return;
     const rule = { ...parsed.rule, enabled: activationAllowed };
-    const request: RangeSourceRequest = { workspaceId, sessionId: session.current, requestId: crypto.randomUUID(), generation: generation.current, deviceId: rule.device_id, mappingDefaults: { unit: buffer.unit },
+    const request: RangeSourceRequest = { workspaceId, sessionId: session.current, requestId: createBasicRecordingRequestId(), generation: generation.current, deviceId: rule.device_id, mappingDefaults: { unit: buffer.unit },
       buffer: { name: rule.name, naming_prefix: rule.naming_prefix, start_address: rule.start_address, count: rule.count, data_type: rule.data_type, enabled: rule.enabled,
         scale_multiplier: rule.scale_multiplier, scale_offset: rule.scale_offset, data_format: rule.data_format, skipped_addresses: rule.skipped_addresses, share_enabled: rule.share_enabled, share_start_register: rule.share_start_register, share_stride: rule.share_stride } };
     requestRef.current = request; submitting.current = true; setPending(true); setOutcome(undefined); const captured = owner;
@@ -72,7 +73,7 @@ export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourceP
   const prepareSaved = async () => {
     const source = outcome, original = requestRef.current;
     if (!port || disabled || pending || submitting.current || dirty || source?.status !== 'saved-inactive' || !original) return;
-    const request = { ...original, requestId: crypto.randomUUID(), generation: generation.current, buffer: { ...original.buffer, enabled: true } };
+    const request = { ...original, requestId: createBasicRecordingRequestId(), generation: generation.current, buffer: { ...original.buffer, enabled: true } };
     requestRef.current = request; submitting.current = true; setPending(true); const captured = owner;
     try { accept(await port.prepareSaved(original.requestId, request), captured); } catch { accept({ request, status: 'unknown' }, captured); }
   };

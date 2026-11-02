@@ -1,9 +1,10 @@
+import './parameterHelp.css';
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ParameterHelpKey } from './parameterHelpContent';
 
 /** A nonmodal top-layer note inside the existing focus scope. No business state or commands. */
-export function ParameterHelp({ help }: { help: ParameterHelpKey }) {
+export function ParameterHelp({ help, compact = false }: { help: ParameterHelpKey; compact?: boolean }) {
   const { t } = useTranslation('parameter-help');
   const id = useId(), trigger = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -38,7 +39,7 @@ export function ParameterHelp({ help }: { help: ParameterHelpKey }) {
   }, [open, close]);
   return <>
     <button ref={trigger} type="button" aria-label={t('open', { title: t(`${help}.title`) })} aria-expanded={open} aria-controls={id}
-      data-parameter-help={help} style={{ width: 44, height: 44, minWidth: 44, padding: 0, borderRadius: '50%' }} className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-[var(--gw-control)] bg-[var(--gw-surface)] text-sm font-semibold text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)]"
+      data-parameter-help={help} style={compact ? undefined : { width: 44, height: 44, minWidth: 44, padding: 0, borderRadius: '50%' }} className="parameter-help-trigger inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-[var(--gw-control)] bg-[var(--gw-surface)] text-sm font-semibold text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)]"
       onClick={event => { event.preventDefault(); event.stopPropagation(); if (open) close(true); else setOpen(true); }}>ⓘ</button>
     <div ref={panel} id={id} role="note" aria-labelledby={`${id}-title`} tabIndex={-1} popover="manual" hidden={!open}
       style={{ display: open ? 'block' : 'none', position: 'fixed', inset: 'auto', margin: 0, left: position.left, top: position.top, width: position.width, maxHeight: position.maxHeight, zIndex: 100 }}

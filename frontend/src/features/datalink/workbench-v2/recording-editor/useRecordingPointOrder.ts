@@ -1,3 +1,4 @@
+import { createBasicRecordingRequestId } from '../state/basicRecording';
 import { useEffect, useRef } from 'react';
 import { createPointFormatOperation, pointFormatAPI } from '../../../../services/pointFormat';
 import { createPointFormatRecovery, pointFormatRecoveryAPI } from '../../../../services/pointFormatRecovery';
@@ -51,7 +52,7 @@ export function useRecordingPointOrder(workspaceId: string | undefined, enabled:
       if (inspect ? entry.status !== 'unknown' || !entry.operation : entry.status !== 'ready' || !entry.intent || entry.operation) return;
       let operation = entry.operation;
       try {
-        operation ??= createPointFormatOperation(entry.snapshot, entry.intent!, `format-${crypto.randomUUID()}`);
+        operation ??= createPointFormatOperation(entry.snapshot, entry.intent!, `format-${createBasicRecordingRequestId()}`);
         publish(scope, { ...entry, operation, error: undefined, status: inspect ? 'inspecting' : 'saving' });
         const saved = await (inspect ? pointFormatAPI.inspect(operation) : pointFormatAPI.save(operation));
         publish(scope, { ...entry, operation, saved, status: 'saved' });

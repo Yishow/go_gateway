@@ -13,7 +13,7 @@ import type { StudioLocatorEntryResult } from '@/types/studioV2LocatorEntry';
 const captured = vi.hoisted(() => ({ props: undefined as GroupEditorProps | undefined }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor', () => ({ GroupEditor: (props: GroupEditorProps) => {
-  captured.props = props; return <div data-testid="canonical-editor"><input aria-label="Local recording name" defaultValue="" />{props.destinationContent}<button onClick={props.onClose}>Close canonical editor</button></div>;
+  captured.props = props; return <div data-testid="canonical-editor"><input aria-label="Local recording name" defaultValue="" />{props.destinationContent}{props.scopeDiagnostics && <details data-testid="mock-saved-revision-details"><summary>versions.details</summary>{props.scopeDiagnostics}</details>}<button onClick={props.onClose}>Close canonical editor</button></div>;
 } }));
 vi.mock('@/features/datalink/workbench-v2/steps/step4/SavedRecordingCard', () => ({ SavedRecordingCard: ({ onOpen }: { onOpen: () => void }) => <button onClick={onOpen}>Open saved card</button> }));
 vi.mock('@/services/studioV2LocatorEntry', () => ({ readStudioLocatorEditorEntry: vi.fn() }));
@@ -85,7 +85,9 @@ it('collapses only fresh simple locator diagnostics while opening and guided dia
   expect(await screen.findByText('locatorEntry.loading')).toBeVisible();expect(screen.getByText('locatorEntry.unrequested')).toBeVisible();
   expect(screen.queryByTestId('locator-version-details')).not.toBeInTheDocument();
   await act(async () => finish({ ok: true, value: { ...entry, entry: { ...entry.entry, editor_hydrated: true, database_config: null, database_targets: [] } } }));
-  await screen.findByTestId('canonical-editor');const details = screen.getByTestId('locator-version-details');
+  await screen.findByTestId('canonical-editor');const details = screen.getByTestId('mock-saved-revision-details');
+  expect(screen.queryByTestId('locator-version-details')).not.toBeInTheDocument();
+  expect(captured.props?.scopeDiagnostics).toBeDefined();
   expect(details.tagName).toBe('DETAILS');expect(details).not.toHaveAttribute('open');expect(details).toHaveTextContent('versions.details');
   for (const text of ['locatorEntry.unrequested', 'locatorEntry.historicalHint']) {
     expect(screen.getByText(text).closest('details')).toBe(details);expect(screen.getByText(text)).not.toBeVisible();

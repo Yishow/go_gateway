@@ -310,7 +310,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
   }
 
   const renderEditor = (editorLifecycleHost = lifecycleHost, lifecycleReadonly = false, isOriginalScope?: () => boolean) => editing && editorObserved ? (
-        <GroupEditor presentation={presentation} destinationContent={destinationContent} calculationCapabilities={editorObserved.calculation_capabilities} deviceSource={deviceSource} sourceDevices={(editorState ?? state).devices.filter(device => device.persisted)}
+        <GroupEditor presentation={presentation} scopeDiagnostics={collapseDiagnostics ? locatorDiagnostics : undefined} destinationContent={destinationContent} calculationCapabilities={editorObserved.calculation_capabilities} deviceSource={deviceSource} sourceDevices={(editorState ?? state).devices.filter(device => device.persisted)}
           copyPrefill={selection.kind === 'new' ? selection.copyPrefill : undefined}
           key={`${editorObserved.workspace_id}:${selection.kind === 'edit' ? selection.id : 'new'}`}
           group={selected} workspaceId={editorObserved.workspace_id} workspaceRevision={editorObserved.workspace_revision}
@@ -411,9 +411,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
       {openError && <><p role="alert" data-testid="studio-locator-open-error">{openError === 'copy-unsupported' ? editorText('copy.unsupported') : runtime(`locatorEntry.${openError === 'stale-reference' ? 'stale' : openError === 'foreign-scope' ? 'foreign' : 'unavailable'}`)}</p>
         {savedLocationReadback.current && <button type="button" disabled={opening || readonly} data-testid="saved-location-retry"
           onClick={() => { if (savedLocationReadback.current) void readSavedLocation(savedLocationReadback.current); }}>{t('step4.group.retry')}</button>}</>}
-      {collapseDiagnostics ? <details data-testid="locator-version-details" className="text-xs text-[var(--gw-muted)]">
-        <summary className="cursor-pointer">{editorText('versions.details')}</summary>{locatorDiagnostics}
-      </details> : locatorDiagnostics}
+      {!collapseDiagnostics && locatorDiagnostics}
       {presentation !== 'simple' && !locatorOnly && prerequisite && (
         <div className="space-y-1 text-xs text-[var(--gw-warning-fg)]" role="status" data-testid={`group-prerequisite-${prerequisite}`}>
           <p>{t(`step4.group.prerequisite.${prerequisite}`)}</p>

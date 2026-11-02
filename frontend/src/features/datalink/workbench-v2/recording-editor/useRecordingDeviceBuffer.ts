@@ -1,18 +1,22 @@
+import type { Device } from '../state/types';
+import { createBasicRecordingRequestId } from '../state/basicRecording';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DeviceSourceBuffer, DeviceSourceOutcome, DeviceSourcePort, DeviceSourceRequest } from '../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { newConnectionDefaults, newDeviceSourceBuffer, parsedDeviceSourceBuffer } from './deviceSourceBuffer';
 /** Ephemeral form state only. All submission and causal observations remain in
  * the existing workspace queue port. Lives above the modal's mount boundary. */
-export function useRecordingDeviceBuffer(workspaceId: string, port?: DeviceSourcePort, disabled = false) {
-  const [buffer, setBuffer] = useState(() => newDeviceSourceBuffer());
-  const initialized = useRef(false);
+export function useRecordingDeviceBuffer(workspaceId: string, port?: DeviceSourcePort, disabled = false, initialDevice?: Device) {
+  const initial = useRef(initialDevice);
+  const freshBuffer = () => initial.current ? { name: initial.current.name, description: initial.current.description, protocol: initial.current.protocol, config: { ...initial.current.config } } : newDeviceSourceBuffer();
+  const [buffer, setBuffer] = useState(freshBuffer);
+  const initialized = useRef(Boolean(initialDevice));
   const [reuseBaseline, setReuseBaseline] = useState<string>();
   const [generation, setGeneration] = useState(0), generationRef = useRef(0);
   const [dirty, setDirty] = useState(false);
   const [outcome, setOutcome] = useState<DeviceSourceOutcome>();
   const [pending, setPending] = useState(false), [checking, setChecking] = useState(false), [preparing, setPreparing] = useState(false);
-  const [blocked, setBlocked] = useState(false), [deviceId, setDeviceId] = useState<string>();
-  const [sessionId] = useState(() => crypto.randomUUID());
+  const [blocked, setBlocked] = useState(false), [deviceId, setDeviceId] = useState<string | undefined>(initialDevice?.id);
+  const [sessionId] = useState(() => createBasicRecordingRequestId());
   const owner = useMemo(() => ({ workspaceId, sessionId }), [workspaceId, sessionId]);
   const ownerRef = useRef(owner); ownerRef.current = owner;
   const requestRef = useRef<DeviceSourceRequest | undefined>(undefined), submitting = useRef(false), prepareFlight = useRef(false);
@@ -21,7 +25,7 @@ export function useRecordingDeviceBuffer(workspaceId: string, port?: DeviceSourc
   const locked = pending || outcome?.status === 'pending' || outcome?.status === 'unknown';
   const parsed = parsedDeviceSourceBuffer(buffer);
   const change = (next: DeviceSourceBuffer) => { initialized.current = true; setBuffer(next); generationRef.current += 1; setGeneration(generationRef.current); setDirty(true); };
-  const reset = () => { if (locked) return; setBuffer(newDeviceSourceBuffer()); initialized.current = false; setReuseBaseline(undefined); setGeneration(0); generationRef.current = 0; setDirty(false); setOutcome(undefined); setDeviceId(undefined); requestRef.current = undefined; };
+  const reset = () => { if (locked) return; setBuffer(freshBuffer()); initialized.current = Boolean(initial.current); setReuseBaseline(undefined); setGeneration(0); generationRef.current = 0; setDirty(false); setOutcome(undefined); setDeviceId(initial.current?.id); requestRef.current = undefined; };
   const selectConnection = (next: DeviceSourceBuffer) => {
     if ((deviceId || locked) && next.protocol !== buffer.protocol) return;
     const subtype = String(next.config.mode ?? 'tcp');
@@ -76,7 +80,7 @@ export function useRecordingDeviceBuffer(workspaceId: string, port?: DeviceSourc
   };
   const submit = async () => {
     if (!port || disabled || locked || !parsed || !dirty || submitting.current) return;
-    const request: DeviceSourceRequest = { workspaceId, sessionId, requestId: crypto.randomUUID(), generation, ...(deviceId ? { deviceId } : {}), buffer: parsed };
+    const request: DeviceSourceRequest = { workspaceId, sessionId, requestId: createBasicRecordingRequestId(), generation, ...(deviceId ? { deviceId } : {}), buffer: parsed };
     requestRef.current = request; submitting.current = true; setPending(true); setOutcome(undefined); const captured = owner;
     try { accept(await port.submit(request), captured); } catch { accept({ request, status: 'unknown' }, captured); }
   };

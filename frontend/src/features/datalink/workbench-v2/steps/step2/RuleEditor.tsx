@@ -14,6 +14,7 @@ export interface RuleEditorProps {
   rule: Rule;
   devices: Device[];
   globalShareEnabled: boolean;
+  hideLocalName?: boolean;
   dispatch: React.Dispatch<WorkbenchV2Action>;
 }
 
@@ -28,6 +29,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
   rule,
   devices,
   globalShareEnabled,
+  hideLocalName = false,
   dispatch,
 }) => {
   const { t } = useTranslation('workbench-v2');
@@ -144,7 +146,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
         </Field>
 
         {/* 規則名稱 */}
-        <Field label={t('step2.editor.rangeName')}>
+        {!hideLocalName && <Field label={t('step2.editor.rangeName')}>
           <Input
             type="text"
             value={rule.name}
@@ -152,7 +154,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
             data-testid="rule-name-input"
           />
           <button type="button" className="text-xs text-blue-300" data-testid="rule-suggest-name" onClick={() => handleTextChange('name', `${owningDevice?.name ?? ''} ${rule.start_address} · ${rule.count} ${rule.data_type}`)}>{t('step2.editor.suggestName')}</button>
-        </Field>
+        </Field>}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

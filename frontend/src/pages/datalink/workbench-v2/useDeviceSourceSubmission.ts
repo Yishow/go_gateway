@@ -1,3 +1,4 @@
+import { createBasicRecordingRequestId } from '../../../features/datalink/workbench-v2/state/basicRecording';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRecentConnectionCache } from '../../../features/datalink/workbench-v2/recording-editor/recentConnectionDefaults';
 import type { MutableRefObject } from 'react';
@@ -94,7 +95,7 @@ export function useDeviceSourceSubmission(options: Options) {
         const previous = request.deviceId ? opt.stateRef.current.devices.find(device => device.id === request.deviceId && device.persisted) : undefined;
         if (request.deviceId && (!previous || previous.protocol !== request.buffer.protocol || opt.busy(request.deviceId))) return Promise.resolve({ request, status: 'blocked' });
         const snapshot: Device = previous ? { ...previous, ...structuredClone(request.buffer) }
-          : { ...structuredClone(request.buffer), id: `dev-${crypto.randomUUID()}`, status: 'draft', test: null, persisted: false, save_state: 'idle' };
+          : { ...structuredClone(request.buffer), id: `dev-${createBasicRecordingRequestId()}`, status: 'draft', test: null, persisted: false, save_state: 'idle' };
         if (!isStudioV2DeviceValid(snapshot) || snapshot.protocol === 'mqtt') return Promise.resolve({ request, status: 'blocked' });
         let resolve!: Entry['resolve']; const promise = new Promise<DeviceSourceOutcome>(yes => { resolve = yes; });
         const entry: Entry = { rememberConnection: recent.current.capture(request), outcome: { request: structuredClone(request), status: 'pending' }, snapshot, deviceId: snapshot.id, owner: owner.current.token, promise, resolve };

@@ -1,3 +1,5 @@
+import { RecordingHomeSourceHost, type HomeSourceControls, type HomeRuleObserver } from '../../../features/datalink/workbench-v2/recording-home/RecordingHomeSourceHost';
+import { RecordingHomeSourceContent } from '../../../features/datalink/workbench-v2/recording-home/RecordingHomeSourceContent';
 import { RecordingSourceNavigation } from '../../../features/datalink/workbench-v2/recording-editor/RecordingSourceNavigation';
 import { useTranslation } from 'react-i18next';
 import { RecordingDraftReadState, useRecordingNavigation } from '../../../features/datalink/workbench-v2/recording-editor/RecordingDraftNavigation';
@@ -98,8 +100,8 @@ function WorkbenchV2BootstrapState({ status }: WorkbenchV2BootstrapStateProps) {
  */
 function AdvancedWorkbenchV2Page({
   navigateTo,
-  runtimeReturnFocus, locatorIntent, presentationLocation, recordingIntent,
-}: DatalinkWorkbenchV2PageProps & { recordingIntent?: 'new' | 'located' | 'copy' }) {
+  runtimeReturnFocus, locatorIntent, presentationLocation, recordingIntent, homeSource,
+}: DatalinkWorkbenchV2PageProps & { recordingIntent?: 'new' | 'located' | 'copy'; homeSource?: HomeSourceControls }) {
   const { t: draftText } = useTranslation('recording-editor');
   const { blocked: hasUnsavedRecording } = useRecordingNavigation();
   const locatorMode = locatorIntent !== undefined && locatorIntent.kind !== 'absent';
@@ -147,7 +149,13 @@ function AdvancedWorkbenchV2Page({
     return { workspace_id: workspaceId, workspace_revision: workspaceRevision };
   }, [shareStatus?.workspace_id, shareStatus?.workspace_revision, workspaceQuery.data?.id]);
   const auditHistoryQuery = useStudioV2WorkspaceAuditHistoryQuery(!locatorMode && workspaceQuery.isSuccess);
-  const autosave = useStudioV2AutosaveState(!locatorMode && workspaceQuery.isSuccess, locatorEntry, locatorEditorMounted, persistedMCWorkspaceScope, locatorEntry?.workspace.id ?? workspaceQuery.data?.id);
+  const homeRuleObserverRef = homeSource?.ruleObserverRef;
+  const homeRuleObserver = React.useMemo<HomeRuleObserver | undefined>(() => homeRuleObserverRef ? {
+    submitted: (rule, generation) => homeRuleObserverRef.current?.submitted?.(rule, generation),
+    saved: (rule, saved) => homeRuleObserverRef.current?.saved(rule, saved),
+    failed: (rule, error) => homeRuleObserverRef.current?.failed(rule, error),
+  } : undefined, [homeRuleObserverRef]);
+  const autosave = useStudioV2AutosaveState(!locatorMode && workspaceQuery.isSuccess, locatorEntry, locatorEditorMounted, persistedMCWorkspaceScope, locatorEntry?.workspace.id ?? workspaceQuery.data?.id, homeRuleObserver);
   const waitForAutosaveSettlement = useStudioV2AutosaveSettlement(autosave.state);
   const activationMutation = useActivateStudioV2WorkspaceMutation();
   const activationInFlight = React.useRef(false);
@@ -315,6 +323,9 @@ function AdvancedWorkbenchV2Page({
   const shownEntry = autosave.locatorHydration.ready ? locatorEntry : autosave.locatorHydration.lastEntry;
   const workspace = locatorMode ? shownEntry?.workspace ?? workspaceQuery.data! : workspaceQuery.data!;
 
+  if (homeSource) return <RecordingSourceNavigation workspaceId={workspace.id} source={autosave.deviceSource}><RecordingHomeSourceContent {...homeSource}
+    state={autosave.state} dispatch={autosave.actions.dispatch} source={autosave.deviceSource} suspended={!autosave.locatorHydration.ready} /></RecordingSourceNavigation>;
+
   return (
     <div
       data-workbench-v2="true"
@@ -328,7 +339,7 @@ function AdvancedWorkbenchV2Page({
         <button type="button" className="rounded-md border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)]" onClick={() => { void Promise.all([workspaceQuery.refetch(), autosave.devicesQuery.refetch(), autosave.rulesQuery.refetch(), autosave.mappingsQuery.refetch(), autosave.databaseConfigQuery.refetch(), autosave.databaseTargetsQuery.refetch()]); }}>{draftText('navigation.refresh')}</button>
       </div>}
       {locatorMode && !autosave.locatorHydration.ready && locatorNotice}
-      <div hidden={locatorMode && !autosave.locatorHydration.ready && !locatorEditorMounted}>
+      <div hidden={locatorMode && !autosave.locatorHydration.ready && !locatorEditorMounted && !autosave.locatorHydration.blocked}>
       {autosave.draftLossWarning && (
         <div
           data-testid="workbench-v2-draft-loss-warning"
@@ -353,6 +364,7 @@ function AdvancedWorkbenchV2Page({
         runtimeReturnFocus={locatorMode ? undefined : runtimeReturnFocus}
         locatorEntry={locatorMode ? shownEntry : undefined}
         locatorSuspended={locatorMode && !autosave.locatorHydration.ready}
+        locatorDraftBlocked={locatorMode && autosave.locatorHydration.blocked}
         locatorOnly={locatorMode && !autosave.workspaceHydrated}
         onLocatorEditorMountedChange={retainLocatorEditor}
       /></RecordingSourceNavigation></RecordingDraftReadState>
@@ -365,7 +377,12 @@ function AdvancedWorkbenchV2Page({
 export default function DatalinkWorkbenchV2Page(props: DatalinkWorkbenchV2PageProps) {
   const locator = props.locatorIntent?.kind;
   if (props.presentation === 'recordings' && (!locator || locator === 'absent') && !props.runtimeReturnFocus) {
-    return <RecordingHomeRoute location={props.presentationLocation ?? { search: '?view=recordings', hash: '' }} onNavigate={props.navigateTo} />;
+    return <RecordingHomeSourceHost renderSource={controls => <AdvancedWorkbenchV2Page key={controls.target.epoch} homeSource={controls}
+      locatorIntent={{ kind: 'locator', locator: { workspace_id: controls.target.workspaceId, step: controls.target.ruleId ? 2 : 1, device_id: controls.target.deviceId,
+        rule_id: controls.target.ruleId ?? null, mapping_id: null, group_id: null, group_revision: null } }} />} >
+      {(open, workspaceChanged) => <RecordingHomeRoute location={props.presentationLocation ?? { search: '?view=recordings', hash: '' }} onNavigate={props.navigateTo}
+        onOpenDevice={open} onWorkspaceChange={workspaceChanged} />}
+    </RecordingHomeSourceHost>;
   }
   const intent = parseStudioPresentation(props.presentationLocation?.search ?? '');
   const simple = props.presentation === 'recording' && !props.runtimeReturnFocus && intent.presentation === 'recording';

@@ -112,5 +112,40 @@
     "detailsFor": "詳細證據與觀測時間：「{{name}}」"
   },
   "filters": "搜尋與篩選",
-  "tableRegion": "記錄與設備列表，可捲動"
+  "tableRegion": "記錄與設備列表，可捲動",
+  "devicePoints": "點位",
+  "deviceConnection": "連線參數",
+  "openRecord": "開啟記錄",
+  "actions": "操作",
+  "source": {
+    "connectionTitle": "修改設備連線",
+    "pointsTitle": "設定讀取點位",
+    "sharedDescription": "這些是共用來源設定；只有按下儲存才會送出變更。",
+    "close": "關閉",
+    "ranges": "讀取範圍",
+    "pointsUnit": "點",
+    "emptyRanges": "此設備尚未保存讀取範圍。",
+    "newRange": "＋新增讀取範圍",
+    "edit": "編輯",
+    "saveRange": "儲存讀取範圍",
+    "discardDescription": "要捨棄這次尚未送出的修改嗎？先前已保存的來源會保留。",
+    "keep": "繼續編輯",
+    "discard": "捨棄並繼續",
+    "saved": "讀取範圍已保存，可以繼續編輯或關閉。",
+    "checking": "正在核對目前保存的範圍…",
+    "saving": "正在保存；已送出的變更無法取消，請稍候。",
+    "unknown": "尚未收到保存結果，請勿再次送出。可以讀取目前已存值，或明確離開；離開不表示已取消變更。",
+    "stale": "保存的範圍已改變或無法核對。未送出的修改仍保留，請關閉後重新開啟確認目前內容。",
+    "unavailable": "目前無法確認此設備或讀取範圍，未送出任何變更。",
+    "prefixImpact": "範圍以「點位名稱前綴」保存並顯示。修改可能改變產生的點位名稱；目前沒有獨立保存的顯示名稱。",
+    "inspect": "讀取目前已存值",
+    "leaveSent": "離開（不取消已送出的變更）",
+    "currentRead": {
+      "available": "已讀到目前保存的值，但這不代表已證實原請求成功。",
+      "unavailable": "目前無法讀取已存值，原請求仍未確認。"
+    }
+  },
+  "recordSources": "來源",
+  "recordWrites": "寫入",
+  "recordPointCount": "{{count}} 個記錄點位"
 }
