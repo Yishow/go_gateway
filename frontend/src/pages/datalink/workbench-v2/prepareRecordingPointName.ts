@@ -1,3 +1,4 @@
+import { studioV2WorkspaceAPI } from '../../../services/studioV2Workspace';
 import type { WorkbenchV2State, Mapping, Point } from '../../../features/datalink/workbench-v2/state/types';
 import type { SourceIdentity } from './rangeSourceSubmission';
 import { studioV2MappingsAPI } from '../../../services/studioV2Mappings';
@@ -26,7 +27,7 @@ export async function prepareRecordingPointName(workspaceId: string, identity: S
   const rows = all.filter(row => row.workspace_id === workspaceId && row.device_id === identity.device_id && row.point_id === identity.point_id && row.tag_id === identity.tag_id);
   if (!current() || rows.length !== 1 || !rows[0].id) return;
   const row = rows[0];
-  const read = await readStudioLocatorEntry({ step: 3, workspace_id: workspaceId, device_id: identity.device_id, rule_id: row.rule_id, mapping_id: row.id, group_id: null, group_revision: null });
+  const read = await readStudioLocatorEntry({ step: 3, workspace_id: workspaceId, device_id: identity.device_id, rule_id: null, mapping_id: row.id, group_id: null, group_revision: null });
   if (!current() || !read.ok || read.value.workspace.id !== workspaceId || read.value.entry.mappings?.length !== 1 ||
     !read.value.entry.revalidated_mapping_ids.includes(row.id)) return;
   const record = read.value.entry.mappings[0];
@@ -40,10 +41,12 @@ export async function prepareRecordingPointName(workspaceId: string, identity: S
   let mcEvidence: PersistedMCRuleState | undefined;
   if (freshDevice.protocol === 'mc_3e') {
     const rawRule = read.value.entry.source_rules?.find(value => value.id === record.rule_id);
-    const revision = read.value.workspace.modbus_share?.workspace_revision;
-    if (!rawRule || !revision) return;
+    const workspace = await studioV2WorkspaceAPI.get();
+    const revision = workspace.modbus_share?.workspace_revision;
+    if (!current() || !rawRule || workspace.id !== workspaceId || !revision?.trim() || !workspace.ordered_device_ids.includes(identity.device_id)) return;
     const snapshot = await sourceRuleCandidateAPI.get(rawRule.id, { workspace_id: workspaceId, expected_workspace_revision: revision, revision_id: freshRule.revision_id });
-    if (!current()) return;
+    const after = await studioV2WorkspaceAPI.get();
+    if (!current() || after.id !== workspaceId || after.modbus_share?.workspace_revision !== revision || !after.ordered_device_ids.includes(identity.device_id)) return;
     mcEvidence = buildPersistedMCRuleState(rawRule, { workspace_id: workspaceId, workspace_revision: revision, revision_id: freshRule.revision_id }, snapshot);
     if (mcEvidence.status !== 'compatible' || !mcEvidence.points.some(value => value.point_id === identity.point_id && value.mapping_id === record.id && value.tag_id === identity.tag_id && value.address === record.address)) return;
   }

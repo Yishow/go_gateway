@@ -18,6 +18,7 @@ it('renames within the active picker without losing another pending point or the
   render(<Harness />); fireEvent.click(screen.getByTestId('recording-points-open'));
   fireEvent.change(screen.getByLabelText('picker.search'), { target: { value: 'Point' } });
   fireEvent.click(screen.getByRole('checkbox', { name: 'Point 2' }));
+  expect(screen.getByRole('button', { name: 'name.rename Point 1' }).closest('.recording-point-picker__identity')).toContainElement(screen.getByRole('checkbox', { name: 'Point 1' }));
   const body = screen.getByRole('dialog').querySelector<HTMLElement>('.recording-point-picker__body')!;
   body.scrollTop = 230; fireEvent.scroll(body);
   act(() => screen.getByRole('button', { name: 'name.rename Point 1' }).focus());

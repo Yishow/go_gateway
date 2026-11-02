@@ -94,10 +94,10 @@ export function RecordingPointPicker({ state, projection, devices, status, label
             const typeLabel = meaning === 'gauge' || meaning === 'counter' || meaning === 'state' ? labels.types[meaning] : undefined;
             const unavailable = evidence?.availability !== 'eligible';
             return <tr key={key}>
-              <td><label className="recording-point-picker__point"><input data-picker-focus={key} type="checkbox" aria-label={row.label} checked={added || pending.has(key)} disabled={added || unavailable && !pending.has(key)}
+              <td><div className="recording-point-picker__identity"><label className="recording-point-picker__point"><input data-picker-focus={key} type="checkbox" aria-label={row.label} checked={added || pending.has(key)} disabled={added || unavailable && !pending.has(key)}
                 onChange={() => onChange(togglePending(state, row, projection))} /><span>{row.label}</span></label>
-                {added ? <small>{labels.alreadyAdded}</small> : unavailable && <small>{evidence?.reason || labels.unavailable}</small>}
-                {onRename && <button type="button" className="recording-point-picker__rename" data-picker-focus={`name:${key}`} aria-label={`${labels.rename} ${row.label}`} disabled={unavailable} onClick={() => onRename(row)}>{labels.rename}</button>}</td>
+                {onRename && <button type="button" className="recording-point-picker__rename" data-picker-focus={`name:${key}`} aria-label={`${labels.rename} ${row.label}`} disabled={unavailable} onClick={() => onRename(row)}>{labels.rename}</button>}</div>
+                {added ? <small>{labels.alreadyAdded}</small> : unavailable && <small>{evidence?.reason || labels.unavailable}</small>}</td>
               <td>{row.device_name}</td><td className="recording-point-picker__address">{row.address}</td><td>{row.target_type}{typeLabel && <small>{typeLabel}</small>}</td>
             </tr>;
           })}</tbody>

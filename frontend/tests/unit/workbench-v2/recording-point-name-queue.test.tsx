@@ -8,7 +8,8 @@ import { INITIAL_STATE, workbenchV2Reducer, type WorkbenchV2Action } from '../..
 import type { WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
 import type { StudioV2MappingSaveResult } from '../../../src/services/studioV2Mappings';
 import { locatorRead, nativeDevice, nativeMapping, nativeRule } from './studio-locator-fixtures';
-const api = vi.hoisted(() => ({ list: vi.fn(), read: vi.fn(), candidates: vi.fn(), update: vi.fn(), create: vi.fn(), remove: vi.fn(), refetch: vi.fn() }));
+const api = vi.hoisted(() => ({ workspace: vi.fn(), list: vi.fn(), read: vi.fn(), candidates: vi.fn(), update: vi.fn(), create: vi.fn(), remove: vi.fn(), refetch: vi.fn() }));
+vi.mock('../../../src/services/studioV2Workspace', () => ({ studioV2WorkspaceAPI: { get: api.workspace } }));
 vi.mock('../../../src/services/studioV2Mappings', () => ({ studioV2MappingsAPI: { list: api.list } }));
 vi.mock('../../../src/services/studioV2LocatorEntry', () => ({ readStudioLocatorEntry: api.read }));
 vi.mock('../../../src/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { get: api.candidates } }));
@@ -44,6 +45,7 @@ function setup() {
 }
 beforeEach(() => {
   vi.resetAllMocks(); record = { ...nativeMapping(), address: 'D0', target_type: 'int16', scale: 1, unit: '' };
+  api.workspace.mockImplementation(async () => read().value.workspace);
   api.list.mockImplementation(async () => [record]); api.read.mockImplementation(async () => read());
   api.candidates.mockResolvedValue({ workspace_id: 'W', workspace_revision: 'W2', source_rule_id: 'R', revision_id: 'R2', tags: { status: 'ready', candidates: [{ id: 'C', identity: { source_rule_id: 'R' }, address: 'D0', point_id: 'P-native', mapping_id: 'M', tag_id: 'T', tag_key: 'temperature', display_name: 'Mapping M', data_type: 'int16', status: 'draft' }] } });
   api.refetch.mockImplementation(async () => ({ data: [record], isError: false }));
