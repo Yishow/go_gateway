@@ -90,7 +90,7 @@
 .recording-editor-simple .recording-editor-destination-grid > :not(.recording-destination-fields):not([data-testid='recording-mixed-destination']) { grid-column: 1 / -1; }
 .recording-editor-simple .recording-editor-confirmation :is(section, details, fieldset, div) { min-width: 0; }
 .recording-editor-simple .recording-editor-confirmation :is(p, li, dt, dd) { overflow-wrap: anywhere; }
-.recording-editor-simple .recording-editor-confirmation summary { min-height: 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: var(--gw-text); }
+.recording-editor-simple .recording-editor-confirmation summary { min-height: 44px; display: list-item; list-style-position: inside; cursor: pointer; font-size: 14px; color: var(--gw-text); }
 .recording-editor-simple .recording-editor-confirmation [data-testid='recording-preparation-actions'] { padding: 16px; border-color: var(--gw-border); background: var(--gw-ground); }
 .recording-editor-simple .recording-editor-confirmation [data-testid='recording-preparation-actions'] > button { min-height: 44px; }
 .recording-editor-simple .recording-editor-confirmation [data-testid='recording-preparation-actions'] > button:enabled { background: var(--gw-primary); color: var(--gw-on-primary); border-color: var(--gw-primary); }

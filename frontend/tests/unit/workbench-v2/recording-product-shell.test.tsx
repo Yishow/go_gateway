@@ -29,7 +29,9 @@ it('names located editing and new copies without replacing the mounted draft or 
  const back = vi.fn(), advanced = vi.fn();
  const view = render(<SimpleRecordingShell mode="located" onBack={back} onAdvanced={advanced}><input aria-label="kept draft" defaultValue="original" /></SimpleRecordingShell>);
  const draft = screen.getByLabelText('kept draft'); fireEvent.change(draft, { target: { value: 'unsent' } });
- expect(screen.getByRole('heading', { level: 1, name: 'workflow.editTitle' })).toBeVisible();
+ const title = screen.getByRole('heading', { level: 1, name: 'workflow.editTitle' }); expect(title).toBeVisible();
+ expect(screen.getByRole('button', { name: 'simple.back' }).parentElement).toBe(title.parentElement);
+ expect(title.parentElement).toHaveClass('gw-simple-recording-title');
  view.rerender(<SimpleRecordingShell mode="copy" onBack={back} onAdvanced={advanced}><input aria-label="kept draft" defaultValue="original" /></SimpleRecordingShell>);
  expect(screen.getByRole('heading', { level: 1, name: 'simple.create' })).toBeVisible(); expect(screen.getByLabelText('kept draft')).toBe(draft); expect(draft).toHaveValue('unsent');
  expect(back).not.toHaveBeenCalled(); expect(advanced).not.toHaveBeenCalled();

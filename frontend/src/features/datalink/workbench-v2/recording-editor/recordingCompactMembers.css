@@ -4,7 +4,7 @@
 .recording-compact-members summary { cursor: pointer; }
 .recording-compact-members__filters[open] { display: flex; flex-wrap: wrap; gap: var(--gw-space-sm); }
 .recording-compact-members__filters label { display: inline-flex; align-items: center; gap: var(--gw-space-xs); }
-.recording-compact-members__scroll { max-width: 100%; overflow-x: auto; border: 1px solid var(--gw-border); border-radius: var(--gw-radius-sm); }
+.recording-compact-members__scroll { position: relative; max-width: 100%; overflow-x: auto; border: 1px solid var(--gw-border); border-radius: var(--gw-radius-sm); }
 .recording-compact-members table { width: 100%; min-width: 680px; border-collapse: collapse; text-align: start; }
 .recording-compact-members th { color: var(--gw-muted); font-size: 12px; font-weight: 500; background: var(--gw-ground); }
 .recording-compact-members :is(th, td) { padding: var(--gw-space-sm); vertical-align: top; border-bottom: 1px solid var(--gw-border); }
