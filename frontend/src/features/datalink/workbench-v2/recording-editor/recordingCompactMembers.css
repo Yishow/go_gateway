@@ -41,9 +41,9 @@
 .recording-editor-simple .recording-point-order-inline__heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--gw-space-xs) var(--gw-space-sm); }
 .recording-editor-simple .recording-point-order-inline__heading details { min-width: 0; }
 .recording-editor-simple .recording-point-order-inline__controls { display: flex; align-items: center; flex-wrap: wrap; gap: var(--gw-space-xs); }
-.recording-editor-simple .recording-point-order-inline__controls > div { align-items: center; gap: var(--gw-space-xs); }
+.recording-editor-simple .recording-point-order-inline__controls > div { align-items: center; flex-wrap: wrap; gap: var(--gw-space-xs); }
 .recording-editor-simple .recording-point-order-inline__controls label { display: flex; align-items: center; gap: var(--gw-space-xs); white-space: nowrap; flex-shrink: 0; }
-.recording-editor-simple .recording-point-order-inline__controls select { width: auto; min-width: 0; }
+.recording-editor-simple .recording-point-order-inline__controls select { width: auto; min-inline-size: 8.5em; flex-shrink: 0; }
 .recording-editor-simple .recording-point-order-inline__controls button:not(.parameter-help-trigger),
 .recording-editor-simple .recording-gauge-confirm { border: 1px solid var(--gw-control); border-radius: var(--gw-radius-sm); background: var(--gw-surface); color: var(--gw-text); padding: var(--gw-space-xs) var(--gw-space-sm); }
 .recording-editor-simple .recording-point-order-inline__controls button:focus-visible,
