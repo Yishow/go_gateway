@@ -19,7 +19,7 @@ export function RecordingEditorSummary({ draft, destinationName, saved, dirty }:
   }
   return <details open data-testid="recording-editor-summary">
     <summary>{t('simple.summary.title')}</summary>
-    <p className="recording-editor-summary-state">{t(!saved || dirty ? 'simple.summary.localIntent' : 'simple.summary.savedIntent')}</p>
+    <p className="recording-editor-summary-state">{t(!saved || dirty ? 'compact.unsavedSettings' : 'compact.savedSettings')}</p>
     <dl>
       <div><dt>{t('simple.section.sources')}</dt><dd>{t('simple.summary.sources', { devices, points: draft.members.length })}</dd></div>
       <div><dt>{t('simple.summary.results')}</dt><dd>{draft.recording_profile?.kind === 'mixed'
@@ -28,6 +28,7 @@ export function RecordingEditorSummary({ draft, destinationName, saved, dirty }:
       <div><dt>{t('simple.destination')}</dt><dd>{destinationName || t('simple.unset')}</dd></div>
     </dl>
     <details className="recording-editor-summary-identities"><summary>{t('compact.identities')}</summary>
+      <p>{t(!saved || dirty ? 'simple.summary.localIntent' : 'simple.summary.savedIntent')}</p>
       <dl><div><dt>{t('simple.summary.name')}</dt><dd data-testid="recording-summary-name">{draft.name || t('simple.unset')}</dd></div>
         <div><dt>{t('simple.destination')}</dt><dd>{draft.table_schema && <>{draft.table_schema} · </>}{draft.table_name || t(destinationName && draft.storage_strategy === 'managed' ? 'simple.pendingColumn' : 'simple.unset')}</dd></div></dl>
     </details>

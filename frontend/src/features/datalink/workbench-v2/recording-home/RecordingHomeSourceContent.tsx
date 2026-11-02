@@ -77,7 +77,7 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
     </>}
   </section>;
   const rule = state.rules.find(item => item.id === target.ruleId && item.workspace_id === target.workspaceId && item.device_id === target.deviceId && item.persisted);
-  if (target.ruleId) return rule ? <RecordingHomeSavedRangeEditor target={target} state={state} rule={rule} dispatch={dispatch} leave={leave} suspended={suspended} list={listContent} onLeave={props.onClose} ruleObserverRef={props.ruleObserverRef} />
+  if (target.ruleId) return rule ? <RecordingHomeSavedRangeEditor target={target} state={state} rule={rule} dispatch={dispatch} leave={leave} suspended={suspended} list={listContent} onDone={() => select()} onLeave={props.onClose} ruleObserverRef={props.ruleObserverRef} />
     : <div className="gw-modal-body" role="alert">{t('source.unavailable')}</div>;
   if (target.newRange) return <NewRange device={device} source={source} suspended={suspended} controls={props} leave={leave} list={listContent} refreshList={() => { void list.refetch(); }} />;
   return <><div className="gw-modal-body">{listContent}</div><footer className="gw-modal-footer"><button type="button" onClick={props.onClose}>{t('source.close')}</button></footer></>;

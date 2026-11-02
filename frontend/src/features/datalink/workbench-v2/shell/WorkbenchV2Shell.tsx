@@ -282,7 +282,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   };
   if (recordingIntent) {
     const returnHome = () => navigateTo?.(`/studio/v2?view=recordings${presentationLocation?.hash ?? ''}`);
-    return <SimpleRecordingShell workspaceId={workspaceId} onBack={returnHome} onAdvanced={() => {
+    return <SimpleRecordingShell mode={recordingIntent} workspaceId={workspaceId} onBack={returnHome} onAdvanced={() => {
       const target = buildStudioPresentationTarget(presentationLocation?.search ?? '', presentationLocation?.hash ?? '', 'advanced');
       if (target) navigateTo?.(target);
     }}><Step4Database repairIntent={parseStudioPresentation(presentationLocation?.search ?? '').repairIntent} onRepairAdvanced={() => { const target = buildStudioPresentationTarget(presentationLocation?.search ?? '', presentationLocation?.hash ?? '', 'advanced'); if (target) navigateTo?.(target); }} key={recordingIntent} deviceSource={deviceSource} presentation="simple" initialSelection={recordingIntent} onClose={returnHome}

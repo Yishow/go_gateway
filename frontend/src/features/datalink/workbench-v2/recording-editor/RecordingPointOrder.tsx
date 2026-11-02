@@ -17,7 +17,7 @@ export function RecordingPointOrder({ simple = false, port, workspaceId, deviceI
   const canEdit = !disabled && entry?.status === 'ready' && entry.snapshot?.editable && resolution?.resolved;
   const value = entry?.intent?.format_mode === 'override' ? entry.intent.configured_format : entry?.intent?.format_mode ?? (resolution?.format_mode === 'override' ? resolution.configured_format : resolution?.format_mode);
   const busy = entry && ['loading', 'saving', 'inspecting', 'recovering'].includes(entry.status);
-  const orderControl = resolution && <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block">{t('editor.order')}
+  const orderControl = resolution && <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block"><span className={simple ? 'sr-only' : undefined}>{t('editor.order')}</span>
           <select aria-label={t('editor.order')} value={value ?? ''} disabled={!canEdit} className="ml-2 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1 text-[var(--gw-text)]"
             onChange={event => port.choose(scope, event.target.value === 'inherit' ? { format_mode: 'inherit', configured_format: '' } : { format_mode: 'override', configured_format: event.target.value as PointWordFormat })}>
             {resolution.format_mode === 'legacy' && <option value="legacy" disabled>{t('mode.legacy')}</option>}
@@ -26,8 +26,8 @@ export function RecordingPointOrder({ simple = false, port, workspaceId, deviceI
           </select>
         </label><ParameterHelp compact={simple} help="point.order" /></div>;
   const orderActions = <div className="flex flex-wrap gap-3">
-          <button type="button" disabled={!canEdit} onClick={() => port.choose(scope, { format_mode: 'inherit', configured_format: '' })}>{t('editor.reset')}</button>
-          <button type="button" disabled={!canEdit || !entry?.intent} onClick={() => void port.save(scope)}>{t('editor.save')}</button>
+          {(!simple || resolution?.format_mode === 'override') && <button type="button" disabled={!canEdit} onClick={() => port.choose(scope, { format_mode: 'inherit', configured_format: '' })}>{t('editor.reset')}</button>}
+          {(!simple || (entry?.status === 'ready' && entry.intent)) && <button type="button" disabled={!canEdit || !entry?.intent} onClick={() => void port.save(scope)}>{t('editor.save')}</button>}
         </div>;
   const operationStatus = <>      {busy && <p role="status">{t('editor.working')}</p>}
       {entry?.saved && !entry.recovered && <p role="status">{t('savedPending')}</p>}

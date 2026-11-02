@@ -46,10 +46,10 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
   );
   return (
     <section aria-label={t('step4.group.delivery.title')} className="space-y-2" data-testid="group-delivery-strip">
-      <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.delivery.title')}</h4>
+      {!compact && <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.delivery.title')}</h4>}
       {delivery.isError && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-delivery-failed">{t('step4.group.delivery.failed')}</p>}
       {compact && stages && stages.blocked + stages.quarantined + stages.unknown > 0 && <p role="status" data-testid="group-delivery-attention-summary">{t('step4.group.delivery.attention')}: {stages.blocked + stages.quarantined + stages.unknown}</p>}
-      {compact ? <details data-testid="group-delivery-diagnostics"><summary>{t('step4.group.delivery.recovery.diagnostics')}{!confirmed && ` · ${unknown}`}</summary>{facts}</details> : facts}
+      {compact ? <details data-testid="group-delivery-diagnostics"><summary>{t('step4.group.delivery.title')}{!confirmed && ` · ${unknown}`}</summary>{facts}</details> : facts}
       {recentIssues.length > 0 && (
         <div data-testid="delivery-bucket-causes" className="space-y-1">
           <p className="text-xs font-medium text-[var(--gw-text)]">{t('step4.group.delivery.recent_issues')}</p>

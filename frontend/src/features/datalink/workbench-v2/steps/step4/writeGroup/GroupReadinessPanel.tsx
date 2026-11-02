@@ -37,14 +37,17 @@ export const GroupReadinessPanel: React.FC<GroupReadinessPanelProps> = ({ readin
     );
   }
   if (!readiness) return <p className="text-xs text-[var(--gw-muted)]" data-testid="group-readiness-none">{t('step4.group.readiness.none')}</p>;
-  return (
-    <div className="space-y-2 text-xs text-[var(--gw-text)]" data-testid="group-readiness">
-      {dirty && <p className="text-[var(--gw-warning-fg)]" data-testid="group-readiness-stale">{t('step4.group.readiness.stale_draft')}</p>}
-      <ul className="space-y-1">
+  const facts = (
+    <ul className="space-y-1">
         <Fact label={t('step4.group.readiness.config')} value={readiness.config_ready} />
         <Fact label={t('step4.group.readiness.schema')} value={readiness.schema_ready} />
         <Fact label={t('step4.group.readiness.ready')} value={readiness.ready} />
       </ul>
+  );
+  return (
+    <div className="space-y-2 text-xs text-[var(--gw-text)]" data-testid="group-readiness">
+      {dirty && <p className="text-[var(--gw-warning-fg)]" data-testid="group-readiness-stale">{t('step4.group.readiness.stale_draft')}</p>}
+      {compact && !dirty && (readiness.ready || readiness.issues.length > 0) ? <details data-testid="recording-readiness-details"><summary>{editorText('workflow.readinessDetails')}</summary>{facts}</details> : facts}
       {readiness.issues.length > 0 && (
         <ul className="space-y-1" data-testid="group-readiness-issues">
           {readiness.issues.map((issue) => (

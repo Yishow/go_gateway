@@ -11,8 +11,8 @@ export type HomeSourceLeave = MutableRefObject<((proceed: () => void) => void) |
 const editable = [ 'device_id', 'start_address', 'count', 'data_type', 'naming_prefix', 'enabled', 'skipped_addresses', 'scale_multiplier', 'scale_offset', 'data_format', 'share_enabled', 'share_start_register', 'share_stride'] as const satisfies readonly (keyof Rule)[];
 /** A local form only: one explicit dispatch hands the original saved-rule queue
  * its unchanged update contract. No new API, retry, CAS or operation receipt. */
-export function RecordingHomeSavedRangeEditor({ target, state, rule, dispatch, leave, suspended, list, onLeave, ruleObserverRef }: {
-  target: HomeSourceTarget; state: WorkbenchV2State; rule: Rule; dispatch: Dispatch<WorkbenchV2Action>; leave: HomeSourceLeave; suspended: boolean; list: ReactNode; onLeave: () => void; ruleObserverRef: MutableRefObject<HomeRuleObserver | undefined>;
+export function RecordingHomeSavedRangeEditor({ target, state, rule, dispatch, leave, suspended, list, onLeave, onDone, ruleObserverRef }: {
+  target: HomeSourceTarget; state: WorkbenchV2State; rule: Rule; dispatch: Dispatch<WorkbenchV2Action>; leave: HomeSourceLeave; suspended: boolean; list: ReactNode; onLeave: () => void; onDone: () => void; ruleObserverRef: MutableRefObject<HomeRuleObserver | undefined>;
 }) {
   const { t } = useTranslation('recording-home');
   const [draft, setDraft] = useState(rule), base = useRef(rule);
@@ -96,6 +96,6 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, dispatch, l
   </div><footer className="gw-modal-footer">
     {confirm ? <><button type="button" data-testid="home-source-keep" onClick={() => setConfirm(undefined)}>{t('source.keep')}</button>
       <button type="button" className="gw-primary" data-testid="home-source-discard" onClick={() => { const proceed = confirm; setDraft(base.current); setConfirm(undefined); proceed(); }}>{t('source.discard')}</button></>
-      : <>{phase === 'unknown' && <><button type="button" onClick={() => { void inspect(); }}>{t('source.inspect')}</button><button type="button" onClick={onLeave}>{t('source.leaveSent')}</button></>}<button type="button" className="gw-primary" data-testid="home-range-save" disabled={locked || suspended || !dirty || !isStudioV2RuleValid(draft)} onClick={() => { void save(); }}>{t('source.saveRange')}</button></>}
+      : <><button type="button" data-testid="home-range-done" disabled={locked || suspended} onClick={onDone}>{t(phase === 'saved' ? 'source.done' : 'source.backToList')}</button>{phase === 'unknown' && <><button type="button" onClick={() => { void inspect(); }}>{t('source.inspect')}</button><button type="button" onClick={onLeave}>{t('source.leaveSent')}</button></>}<button type="button" className="gw-primary" data-testid="home-range-save" disabled={locked || suspended || !dirty || !isStudioV2RuleValid(draft)} onClick={() => { void save(); }}>{t('source.saveRange')}</button></>}
   </footer></>;
 }

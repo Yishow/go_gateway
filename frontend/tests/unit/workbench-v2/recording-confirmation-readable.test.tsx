@@ -49,3 +49,18 @@ it('keeps the original guided readiness text when compact is absent', () => {
   render(<I18nextProvider i18n={i18n}><GroupReadinessPanel readiness={readiness()} loading={false} failed={false} dirty={false} onRetry={vi.fn()} /></I18nextProvider>);
   expect(screen.getByText(known, { exact: false })).toBeVisible();
 });
+
+it('folds diagnostic facts while keeping exact blocking issues visible and unexplained not-ready facts available', () => {
+  const ready = readiness(); ready.ready = true; ready.schema_ready = true; ready.issues = [];
+  const props = { readiness: ready, loading: false, failed: false, dirty: false, onRetry: vi.fn(), compact: true };
+  const view = render(<I18nextProvider i18n={i18n}><GroupReadinessPanel {...props} /></I18nextProvider>);
+  const details = screen.getByTestId('recording-readiness-details'); expect(details).not.toHaveAttribute('open');
+  expect(details.querySelector('ul')).not.toBeVisible();
+  view.rerender(<I18nextProvider i18n={i18n}><GroupReadinessPanel {...props} readiness={readiness()} /></I18nextProvider>);
+  expect(screen.getByTestId('group-readiness-issues')).toBeVisible();
+  expect(screen.getByTestId('recording-readiness-details').querySelector('ul')).not.toBeVisible();
+  const unexplained = readiness(); unexplained.issues = [];
+  view.rerender(<I18nextProvider i18n={i18n}><GroupReadinessPanel {...props} readiness={unexplained} /></I18nextProvider>);
+  expect(screen.queryByTestId('recording-readiness-details')).not.toBeInTheDocument();
+  expect(screen.getByTestId('group-readiness').querySelector('ul')).toBeVisible();
+});

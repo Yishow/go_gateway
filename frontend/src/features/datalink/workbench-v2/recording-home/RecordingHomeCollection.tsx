@@ -57,8 +57,8 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, summ
           <option value="">{t('allDestinations')}</option>{destinations.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select></label>
       </>}
-      {state.mode === 'recordings' && <label className="gw-checkbox"><input type="checkbox" checked={state.observedOnly} onChange={event => patch({ observedOnly: event.target.checked })} />{t('observedFilter')}</label>}
-      <button type="button" onClick={() => onChange({ ...initialCollectionState(), mode: state.mode, pageSize: state.pageSize })}>{t('clearFilters')}</button>
+      <div className="gw-filter-options">{state.mode === 'recordings' && <label className="gw-checkbox"><input type="checkbox" checked={state.observedOnly} onChange={event => patch({ observedOnly: event.target.checked })} />{t('observedFilter')}</label>}
+      <button type="button" onClick={() => onChange({ ...initialCollectionState(), mode: state.mode, pageSize: state.pageSize })}>{t('clearFilters')}</button></div>
     </form>
     {state.observedOnly && <div role="status"><p>{t(unverifiedObserved ? 'observationNeedsRefresh' : 'observedFilterBoundary')}</p>
       <button type="button" onClick={onRecheck}>{t('recheckVisible')}</button></div>}
@@ -76,12 +76,12 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, summ
               <button type="button" onClick={() => { remember(`device-${device.id}`); onOpenDevice(device.id, 'points'); }}>{t('devicePoints')}</button></td>
           </tr>) : records.rows.map(group => <tr key={group.id}>
             <td><strong>{group.name}</strong></td>
-            <td>{t(`savedStatuses.${group.status}`)}{guidance.attentionItems.some(item => item.id === group.id && item.reason !== 'evidence_unavailable') ? ` · ${t('observedAttentionShort')}` : ` · ${t('statusUnknown')}`}</td>
-            <td>{[...new Set(group.members.map(member => member.device_id))].map(id => devices.find(device => device.id === id)?.name ?? id).join(' / ') || t('unknown')}<p>{t('recordPointCount', { count: group.members.length })}</p></td>
+            <td>{t(`savedStatuses.${group.status}`)}{guidance.attentionItems.some(item => item.id === group.id && item.reason !== 'evidence_unavailable') && <p className="gw-observed-issue">{t('observedAttentionShort')}</p>}</td>
+            <td>{[...new Set(group.members.map(member => member.device_id))].map(id => devices.find(device => device.id === id)?.name ?? id).join(' / ') || t('unknown')}<p>{t('recordPointCount', { count: group.members.length })}</p><p className="gw-source-state">{t(`result.current.${summaries?.[group.id]?.current === 'source_attention' ? 'source_attention' : 'unknown'}`)}</p></td>
             <td><strong className="gw-destination-name" title={group.destination.table_name}>{group.destination.storage_strategy === 'managed' ? t('managedTable') : group.destination.table_name || t('unknown')}</strong>
               <p className="gw-destination-name">{(group.destination.database || '').split(/[\\/]/).filter(Boolean).at(-1) || t('unknown')}</p>
               <details className="gw-destination-identity"><summary>{t('destinationIdentity')}</summary><dl><dt>{t('destinationFilter')}</dt><dd>{group.destination.database || t('unknown')}</dd><dt>{t('tableRegion')}</dt><dd>{[group.destination.table_schema, group.destination.table_name].filter(Boolean).join('.')}</dd><dt>{t('product.connector')}</dt><dd>{group.destination.connector_id}</dd></dl></details></td>
-            <td>{summaries?.[group.id] ? <RecordingHomeResultFacts id={group.id} name={group.name} summary={summaries[group.id]} /> : t('statusUnknown')}</td><td><button type="button" data-home-focus={`record-${group.id}`} onClick={() => { remember(`record-${group.id}`); onOpen(group.id); }}>{t('openRecord')}</button></td>
+            <td>{summaries?.[group.id] ? <RecordingHomeResultFacts showSourceState={false} id={group.id} name={group.name} summary={summaries[group.id]} /> : t('statusUnknown')}</td><td><button type="button" data-home-focus={`record-${group.id}`} onClick={() => { remember(`record-${group.id}`); onOpen(group.id); }}>{t('openRecord')}</button></td>
           </tr>)}</tbody>
         </table>}
     </div>

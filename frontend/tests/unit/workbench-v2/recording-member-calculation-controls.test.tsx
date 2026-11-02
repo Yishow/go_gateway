@@ -50,12 +50,16 @@ it('renders compact method and cadence in two native cells while preserving expl
   expect(cells[1]).toContainElement(screen.getByLabelText('calculation.interval'));
   expect(cells[1]).toContainElement(screen.getByLabelText('calculation.unit'));
   expect(view.container.querySelector('tr > fieldset')).toBeNull();
-  const consent = screen.getByText('compact.gaugeConsent'); expect(consent).toBeVisible(); expect(consent.closest('details')).toBeNull();
+  const consent = screen.getByText('compact.unconfirmed'); expect(consent).toBeVisible(); expect(consent.closest('details')).toBeNull();
   expect(screen.getByRole('option', { name: 'calculation.mean' })).toBeDisabled(); expect(change).not.toHaveBeenCalled();
   expect(screen.getByText(/calculation.counter_required/).closest('details')).toBe(screen.getByTestId('member-calculation-help-P'));
   const confirmation = screen.getByRole('button', { name: 'compact.confirmGauge' });
   expect(confirmation).toHaveClass('recording-gauge-confirm');
   expect(confirmation).toBeVisible(); expect(confirmation.closest('details')).toBeNull();
+  const help = view.container.querySelector<HTMLButtonElement>('[data-parameter-help="member.gaugeConfirm"]')!;
+  fireEvent.click(help); expect(screen.getByRole('note')).toHaveTextContent('member.gaugeConfirm.what');
+  expect(change).not.toHaveBeenCalled();
+  fireEvent.keyDown(window, { key: 'Escape' });
   fireEvent.click(confirmation);
   expect(change.mock.calls[0][0].value_role).toBe('gauge'); expect(change.mock.calls[0][0].calculation).toBe('latest');
 });

@@ -21,7 +21,7 @@ export const GroupIdentityFields: React.FC<GroupIdentityFieldsProps> = ({ sectio
   const { t } = useTranslation('workbench-v2');
   const { t: text } = useTranslation('recording-editor');
   return (
-    <div className={section === 'name' ? 'grid gap-3' : 'grid gap-3 sm:grid-cols-2'}>
+    <div className={section === 'name' ? 'grid gap-3' : section === 'destination' ? 'recording-destination-fields grid gap-3 sm:grid-cols-2' : 'grid gap-3 sm:grid-cols-2'}>
       {section !== 'destination' && <div className={section === 'name' ? 'recording-simple-name min-w-0' : 'flex min-w-0 items-start gap-2'}><label className="min-w-0 flex-1 text-xs text-[var(--gw-muted)]">
         <span>{section === 'name' ? text('simple.summary.name') : t('step4.group.editor.name')}</span>
         <input type="text" value={draft.name} disabled={readonly} onChange={(event) => onChange({ name: event.target.value })} className={FIELD} data-testid="group-name" />

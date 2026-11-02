@@ -37,17 +37,16 @@ export function RecordingEditorLayout({ presentation, identity, sources, method,
           <div className="recording-editor-source-selection"><h5 className="recording-editor-point-count">{t('simple.sources', { count: memberCount })}</h5>
           {sources}</div>
           <p className="recording-editor-note">{t('simple.sourceCadenceNote')}</p>
-          <button type="button" className="recording-editor-next" onClick={() => locate('method')}>{t('simple.nextMethod')} →</button>
           </fieldset>
         </section>
         <section className="recording-editor-panel" id="recording-editor-method" tabIndex={-1} aria-labelledby="recording-editor-method-title" data-testid="recording-editor-method-note">
-          <header><h4 id="recording-editor-method-title">{t('simple.section.method')}</h4><p>{t('simple.methodHint')}</p></header>
+          <header><h4 id="recording-editor-method-title">{t('simple.section.method')}</h4></header>
           <fieldset disabled={fieldsDisabled} className="min-w-0 space-y-3" data-testid="group-save-method-fields">{method}
-          <button type="button" className="recording-editor-next" onClick={() => locate('destination')}>{t('simple.nextDestination')} →</button></fieldset>
+          </fieldset>
         </section>
         <section className="recording-editor-panel" id="recording-editor-destination" tabIndex={-1} aria-labelledby="recording-editor-destination-title" data-testid="recording-editor-destination">
-          <header><h4 id="recording-editor-destination-title">{t('simple.section.destination')}</h4><p>{t('simple.destinationHint')}</p></header>
-          <fieldset disabled={fieldsDisabled} className="min-w-0 space-y-3" data-testid="group-save-destination-fields">{destination}{policy}</fieldset>
+          <header><h4 id="recording-editor-destination-title">{t('simple.section.destination')}</h4></header>
+          <fieldset disabled={fieldsDisabled} className="min-w-0 space-y-3" data-testid="group-save-destination-fields"><div className="recording-editor-destination-grid">{destination}</div>{policy}</fieldset>
           <div className="recording-editor-confirmation" data-testid="recording-editor-confirmation">{confirmation}</div>
         </section>
       </div>

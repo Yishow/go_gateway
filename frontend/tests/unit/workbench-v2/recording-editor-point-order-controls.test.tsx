@@ -73,3 +73,20 @@ it('keeps unsupported simple point order compact without dead controls while pre
   expect(why).toBeVisible(); expect(screen.getByText('editor.version: 0')).toBeVisible();
   expect(pointFormatAPI.save).not.toHaveBeenCalled();
 });
+
+it('shows simple Save only for an explicit unsent intent and reset only for an existing override', async () => {
+  render(<Page simple />);
+  const order = await screen.findByLabelText('editor.order');
+  expect(order).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'editor.save' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'editor.reset' })).not.toBeInTheDocument();
+  fireEvent.change(order, { target: { value: 'CDAB' } });
+  expect(screen.getByRole('button', { name: 'editor.save' })).toBeEnabled();
+  expect(pointFormatAPI.save).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: 'editor.reset' })).not.toBeInTheDocument();
+  fireEvent.change(order, { target: { value: 'inherit' } });
+  expect(order).toHaveValue('inherit'); expect(pointFormatAPI.save).not.toHaveBeenCalled();
+  fireEvent.change(order, { target: { value: 'CDAB' } });
+  fireEvent.click(screen.getByRole('button', { name: 'editor.save' }));
+  await waitFor(() => expect(pointFormatAPI.save).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ format_mode: 'override', configured_format: 'CDAB' })));
+});

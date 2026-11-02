@@ -48,7 +48,7 @@ export function RecordingHome({ guidance, location, onNavigate, onRetry, collect
 
     </header>
     <section aria-live="polite" className="gw-home-guidance" data-guidance-state={guidance.availability.state === 'unavailable' && guidance.availability.reason === 'error' ? 'error' : ['operation_recovery', 'delivery_attention', 'source_attention'].includes(guidance.reason) ? 'attention' : guidance.reason === 'evidence_unavailable' ? 'unknown' : 'neutral'} data-testid="recording-home-guidance">
-      <h2 className="gw-guidance-heading">{t(`reason.${guidance.reason}`)}</h2>
+      <p className="gw-guidance-heading">{t(`reason.${guidance.reason}`)}</p>
       {guidance.availability.state === 'unavailable' && <p role={guidance.availability.reason === 'error' ? 'alert' : 'status'}>
         {t(guidance.availability.reason === 'loading' ? 'loading' : guidance.availability.reason === 'error' ? 'error' : 'unknown')}
       </p>}

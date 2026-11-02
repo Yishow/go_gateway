@@ -17,11 +17,11 @@
 .recording-compact-members__settings :is(input:not([type='checkbox']), select) { width: 100%; max-width: 12rem; }
 .recording-compact-members th { text-align: start; }
 .recording-compact-members table { table-layout: fixed; }
-.recording-compact-members th:nth-child(1) { width: 24%; }
-.recording-compact-members th:nth-child(2) { width: 14%; }
-.recording-compact-members th:nth-child(3) { width: 25%; }
-.recording-compact-members th:nth-child(4) { width: 23%; }
-.recording-compact-members th:nth-child(5) { width: 14%; }
+.recording-compact-members th:nth-child(1) { width: 30%; }
+.recording-compact-members th:nth-child(2) { width: 12%; }
+.recording-compact-members th:nth-child(3) { width: 24%; }
+.recording-compact-members th:nth-child(4) { width: 22%; }
+.recording-compact-members th:nth-child(5) { width: 12%; }
 .recording-compact-members .recording-calculation-control { display: flex; align-items: center; min-width: 0; gap: 2px; }
 .recording-compact-members .recording-calculation-control label { flex: 1; min-width: 0; }
 .recording-compact-members .recording-calculation-control :is(input, select) { margin-top: 0; width: 100%; }
@@ -43,7 +43,7 @@
 .recording-editor-simple .recording-point-order-inline__controls { display: flex; align-items: center; flex-wrap: wrap; gap: var(--gw-space-xs); }
 .recording-editor-simple .recording-point-order-inline__controls > div { align-items: center; flex-wrap: wrap; gap: var(--gw-space-xs); }
 .recording-editor-simple .recording-point-order-inline__controls label { display: flex; align-items: center; gap: var(--gw-space-xs); white-space: nowrap; flex-shrink: 0; }
-.recording-editor-simple .recording-point-order-inline__controls select { width: auto; min-inline-size: 8.5em; flex-shrink: 0; }
+.recording-editor-simple .recording-point-order-inline__controls select { width: auto; min-inline-size: 9.5em; flex-shrink: 0; }
 .recording-editor-simple .recording-point-order-inline__controls button:not(.parameter-help-trigger),
 .recording-editor-simple .recording-gauge-confirm { border: 1px solid var(--gw-control); border-radius: var(--gw-radius-sm); background: var(--gw-surface); color: var(--gw-text); padding: var(--gw-space-xs) var(--gw-space-sm); }
 .recording-editor-simple .recording-point-order-inline__controls button:focus-visible,
@@ -55,3 +55,10 @@
 .recording-compact-members[data-calculation-scope='group'] th:nth-child(1) { width: 52%; }
 .recording-compact-members[data-calculation-scope='group'] th:nth-child(2) { width: 28%; }
 .recording-compact-members[data-calculation-scope='group'] th:nth-child(3) { width: 20%; }
+
+/* The ordinary values remain readable; commands appear only when applicable. */
+.recording-compact-members strong, .recording-compact-members .font-mono { overflow-wrap: anywhere; }
+.recording-editor-simple .recording-gauge-consent { display: flex; align-items: center; flex-wrap: wrap; gap: var(--gw-space-xs); }
+.recording-editor-simple .recording-gauge-consent > span { white-space: nowrap; }
+.recording-editor-simple .recording-gauge-confirm { white-space: nowrap; }
+.recording-editor-simple .recording-point-order-inline__controls > div:empty { display: none; }

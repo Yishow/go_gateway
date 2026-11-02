@@ -30,8 +30,8 @@ export function RecordingMemberCalculation({ compact = false, tableCells = false
     return <><td data-testid={`group-member-calculation-${member.point_id}`}>
       {methodControl}
       {selectedReason && <p role="alert" className="recording-calculation-notes recording-calculation-error">{safeReason(selectedReason)}</p>}
-      {canConfirmMemberGauge(member, context) && reasons[1] && <div className="recording-calculation-notes">
-        <p>{t('compact.gaugeConsent')}</p>
+      {canConfirmMemberGauge(member, context) && reasons[1] && <div className="recording-calculation-notes recording-gauge-consent">
+        <span>{t('compact.unconfirmed')}</span>
         <button type="button" className="gw-secondary recording-gauge-confirm" disabled={blocked} onClick={() => { if (!blocked) onChange(confirmMemberGauge(member, context)); }}>{t('compact.confirmGauge')}</button><ParameterHelp compact help="member.gaugeConfirm" />
       </div>}
       {member.gauge_confirmation && !reasons[1] && <p className="recording-calculation-notes">{t('calculation.gaugeConfirmed')}</p>}

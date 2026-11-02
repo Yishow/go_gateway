@@ -21,5 +21,16 @@ it('uses the same quiet product header for simple editing without replacing its 
  const back = vi.fn(); render(<SimpleRecordingShell onBack={back} onAdvanced={vi.fn()}><input aria-label="draft" defaultValue="kept" /></SimpleRecordingShell>);
  expect(within(screen.getByTestId('recording-product-header')).getByText('go_gateway')).toBeInTheDocument();
  expect(within(screen.getByTestId('recording-product-header')).getByText('unknown')).not.toHaveAttribute('title');
+ expect(screen.getByRole('heading', { level: 1, name: 'simple.create' })).toBeVisible();
  expect(screen.getByLabelText('draft')).toHaveValue('kept'); fireEvent.click(screen.getByText('simple.back')); expect(back).toHaveBeenCalledOnce();
+});
+
+it('names located editing and new copies without replacing the mounted draft or navigation owners', () => {
+ const back = vi.fn(), advanced = vi.fn();
+ const view = render(<SimpleRecordingShell mode="located" onBack={back} onAdvanced={advanced}><input aria-label="kept draft" defaultValue="original" /></SimpleRecordingShell>);
+ const draft = screen.getByLabelText('kept draft'); fireEvent.change(draft, { target: { value: 'unsent' } });
+ expect(screen.getByRole('heading', { level: 1, name: 'workflow.editTitle' })).toBeVisible();
+ view.rerender(<SimpleRecordingShell mode="copy" onBack={back} onAdvanced={advanced}><input aria-label="kept draft" defaultValue="original" /></SimpleRecordingShell>);
+ expect(screen.getByRole('heading', { level: 1, name: 'simple.create' })).toBeVisible(); expect(screen.getByLabelText('kept draft')).toBe(draft); expect(draft).toHaveValue('unsent');
+ expect(back).not.toHaveBeenCalled(); expect(advanced).not.toHaveBeenCalled();
 });

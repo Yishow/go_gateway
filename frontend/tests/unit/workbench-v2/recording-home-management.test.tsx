@@ -124,3 +124,11 @@ it('keeps recording identity plain and exposes exactly one open action per row',
  expect(within(row).getByRole('button', { name: 'openRecord' })).toHaveAttribute('data-home-focus', 'record-G000');
  expect(within(row).getByText('destinationIdentity').closest('details')).toBeInTheDocument();
 });
+
+it('keeps clear and observed controls together without dropping unknown source state', () => {
+ render(<Host />); const clear = screen.getByRole('button', { name: 'clearFilters' });
+ expect(clear.parentElement).toBe(screen.getByLabelText('observedFilter').parentElement?.parentElement);
+ const row = within(screen.getByTestId('home-management-table')).getAllByRole('row')[1];
+ expect(within(row).getAllByRole('cell')[2]).toHaveTextContent('result.current.unknown');
+ expect(within(row).getAllByRole('cell')[1]).not.toHaveTextContent('statusUnknown');
+});

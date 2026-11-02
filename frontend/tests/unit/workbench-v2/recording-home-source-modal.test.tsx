@@ -84,7 +84,12 @@ describe('Home uses the original scoped source owner inside the demo modal', () 
     await waitFor(() => expect(studioV2RulesAPI.update).toHaveBeenCalledOnce());
     expect(studioV2RulesAPI.update).toHaveBeenCalledWith('R', expect.objectContaining({ naming_prefix: 'Saved range', device_id: 'D' }));
     await screen.findByTestId('home-range-saved'); expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByTestId('home-range-edit-R').closest('li')).toHaveTextContent('Saved range'); noOtherWrites();
+    expect(screen.getByTestId('home-range-edit-R').closest('li')).toHaveTextContent('Saved range');
+    vi.mocked(studioV2RulesAPI.list).mockResolvedValue([{ ...nativeRule(), naming_prefix: 'Saved range', revision_id: 'R3' }]);
+    fireEvent.click(screen.getByTestId('home-range-done'));
+    await waitFor(() => expect(screen.queryByTestId('home-saved-range-form')).not.toBeInTheDocument());
+    expect(screen.getByRole('dialog')).toBeInTheDocument(); expect((await screen.findByTestId('home-range-edit-R')).closest('li')).toHaveTextContent('Saved range');
+    expect(studioV2RulesAPI.update).toHaveBeenCalledOnce(); noOtherWrites();
   });
   it('does not resend or pretend to cancel a pending or unknown original save', async () => {
     let reject!: (error: Error) => void; vi.mocked(studioV2RulesAPI.update).mockImplementation(() => new Promise((_resolve, fail) => { reject = fail; }));

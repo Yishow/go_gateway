@@ -77,3 +77,29 @@
 /* The original mixed-result sibling also retains legacy slate classes. Scope to simple confirmation only. */
 .recording-editor-simple .recording-editor-confirmation [data-testid='recording-member-results'] { color: var(--gw-muted); font-size: 14px; line-height: 1.5; }
 .recording-editor-simple .recording-editor-confirmation [data-testid='recording-member-results'] :is(h4, h5) { color: var(--gw-text); }
+
+/* Unified simple workflow: 24px sections, 16px field groups, 8px related controls. */
+.recording-editor-simple .recording-editor-panel + .recording-editor-panel { margin-top: 24px; padding-top: 24px; }
+.recording-editor-simple .recording-editor-panel { gap: 16px; }
+.recording-editor-simple .recording-editor-confirmation { gap: 16px; }
+.recording-editor-simple .recording-editor-destination-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; min-width: 0; }
+.recording-editor-simple .recording-editor-destination-grid > * { min-width: 0; }
+.recording-editor-simple .recording-destination-fields { display: contents; }
+.recording-editor-simple [data-testid='recording-mixed-destination'] { display: contents; }
+.recording-editor-simple [data-testid='recording-mixed-destination'] > p { grid-column: 1 / -1; font-size: 12px; }
+.recording-editor-simple .recording-editor-destination-grid > :not(.recording-destination-fields):not([data-testid='recording-mixed-destination']) { grid-column: 1 / -1; }
+.recording-editor-simple .recording-editor-confirmation :is(section, details, fieldset, div) { min-width: 0; }
+.recording-editor-simple .recording-editor-confirmation :is(p, li, dt, dd) { overflow-wrap: anywhere; }
+.recording-editor-simple .recording-editor-confirmation summary { min-height: 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: var(--gw-text); }
+.recording-editor-simple .recording-editor-confirmation [data-testid='recording-preparation-actions'] { padding: 16px; border-color: var(--gw-border); background: var(--gw-ground); }
+.recording-editor-simple .recording-editor-confirmation [data-testid='recording-preparation-actions'] > button { min-height: 44px; }
+.recording-editor-simple .recording-editor-confirmation [data-testid='recording-preparation-actions'] > button:enabled { background: var(--gw-primary); color: var(--gw-on-primary); border-color: var(--gw-primary); }
+.recording-editor-simple .recording-editor-confirmation [data-testid='group-apply'] { min-height: 44px; background: var(--gw-surface); color: var(--gw-text); border-color: var(--gw-control); font-size: 14px; }
+/* Style only: the actual enabled Start and existing preparation phase select one primary control. */
+.recording-editor-simple .recording-editor-confirmation:has([data-testid='recording-preparation-actions']:is([data-phase='ready'], [data-phase='schemaConfirmed'])):has([data-testid='group-apply']:enabled) [data-testid='group-apply'] { background: var(--gw-primary); color: var(--gw-on-primary); border-color: var(--gw-primary); }
+.recording-editor-simple .recording-editor-confirmation:has([data-testid='recording-preparation-actions']:is([data-phase='ready'], [data-phase='schemaConfirmed'])):has([data-testid='group-apply']:enabled) [data-testid='recording-preparation-actions'] > button { background: var(--gw-surface); color: var(--gw-text); border-color: var(--gw-control); }
+.recording-editor-simple .recording-secondary-management { padding-top: 16px; border-top: 1px solid var(--gw-border); }
+.recording-editor-simple .recording-editor-confirmation [data-testid='group-apply-blocked'] { margin-top: 8px; }
+@media (max-width: 639px) {
+  .recording-editor-simple .recording-editor-destination-grid { grid-template-columns: minmax(0, 1fr); }
+}

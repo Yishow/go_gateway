@@ -440,10 +440,18 @@
     "identities": "Name and table details",
     "methodHelp": "Other calculation options",
     "gaugeConsent": "Confirm this is a measurement, not a counter or state. This applies only to this recording.",
-    "confirmGauge": "Confirm measurement use"
+    "confirmGauge": "Confirm measurement use",
+    "unconfirmed": "Unconfirmed",
+    "unsavedSettings": "Unsaved changes",
+    "savedSettings": "Saved settings"
   },
   "confirmation": {
     "schemaRequired": "Check the saved destination table, then explicitly confirm its preparation before starting.",
     "unknownIssue": "A saved recording status needs review. Expand the details below for the original reason."
+  },
+  "workflow": {
+    "manage": "Manage this recording",
+    "readinessDetails": "Readiness details",
+    "editTitle": "Edit recording"
   }
 }

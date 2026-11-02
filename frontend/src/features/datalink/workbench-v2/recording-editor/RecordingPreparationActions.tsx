@@ -41,7 +41,7 @@ export function RecordingPreparationActions({ save, schema, readonly, blocked, p
     command = schema ? schema.commands.retryPreview ?? schema.commands.preview : checkReadiness;
   }
   if (!command && phase === 'saved') phase = 'blocked';
-  return <section className="space-y-2 rounded border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3 text-[var(--gw-text)]" data-testid="recording-preparation-actions">
+  return <section className="space-y-2 rounded border border-[var(--gw-border)] bg-[var(--gw-surface)] p-3 text-[var(--gw-text)]" data-testid="recording-preparation-actions" data-phase={phase} data-command-available={Boolean(command)}>
     <p role="status" className="font-medium" data-testid="recording-preparation-phase">{t(`preparation.stage.${phase}`)}</p>
     <p className="text-sm text-[var(--gw-muted)]">{t('preparation.noStart')}</p>
     {pendingTestWrite && <p role="status">{t('preparation.testWritePending')}</p>}

@@ -131,7 +131,7 @@
     "discardDescription": "Discard only these unsent changes? Previously saved sources will remain.",
     "keep": "Keep editing",
     "discard": "Discard and continue",
-    "saved": "Read range saved. You can continue editing or close this dialog.",
+    "saved": "Range saved. Finish to return to the list, or continue editing.",
     "checking": "Checking the current saved range…",
     "saving": "Saving. Please wait; the submitted change cannot be canceled.",
     "unknown": "The save acknowledgement is unavailable. Do not submit again. Read the current saved values or leave without claiming the change was canceled.",
@@ -143,7 +143,9 @@
     "currentRead": {
       "available": "Current saved values were read. This does not prove whether the original request succeeded.",
       "unavailable": "Current saved values could not be read. The original request remains unconfirmed."
-    }
+    },
+    "done": "Done · back to ranges",
+    "backToList": "Back to ranges"
   },
   "recordSources": "Sources",
   "recordWrites": "Writing",

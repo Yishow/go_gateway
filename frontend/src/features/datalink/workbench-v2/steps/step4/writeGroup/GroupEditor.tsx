@@ -459,7 +459,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       {group && (
         <>
           <section aria-label={t('step4.group.readiness.title')} className="space-y-2">
-            <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.readiness.title')}</h4>
+            {presentation !== 'simple' && <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.readiness.title')}</h4>}
             <GroupReadinessPanel compact={presentation === 'simple'} readiness={readiness.data} loading={readiness.isLoading && !dirty} failed={readiness.isError} dirty={dirty} onRetry={() => void readiness.refetch()} />
           </section>
           <GroupDeliveryStrip compact={presentation === 'simple'} group={group} readonly={readonly} />

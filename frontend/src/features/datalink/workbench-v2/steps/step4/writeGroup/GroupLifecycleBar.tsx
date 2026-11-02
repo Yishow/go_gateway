@@ -134,6 +134,7 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
     else if (intent.action === 'edit') document.querySelector<HTMLInputElement>('[data-testid="group-name"]')?.focus();
   };
 
+  const management = <SavedRecordingActions compact={compact} lifecycle={snapshot} scope={intentScope} disabled={readonly || busy || Boolean(confirmingAction)} onAction={handleAction} canReview={Boolean(lifecycleHost)} />;
   return <div className="space-y-3" data-testid="group-lifecycle" data-focus-scope={scope}>
     <h3 ref={returnContext} tabIndex={-1} data-testid="group-lifecycle-return" className="sr-only focus:not-sr-only">{group.name}</h3>
     {!hideApply && <>
@@ -144,9 +145,10 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
       {!canApply && !deleted && applyBlockedReason && <p className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-apply-blocked">{applyBlockedReason}</p>}
       <p className="text-xs text-[var(--gw-muted)]" data-testid="group-apply-note">{routed ? recordingT('start.reviewSavedNote') : t('step4.group.lifecycle.apply_note')}</p>
     </>}
-    <SavedRecordingActions compact={compact} lifecycle={snapshot} scope={intentScope} disabled={readonly || busy || Boolean(confirmingAction)} onAction={handleAction} canReview={Boolean(lifecycleHost)} />
+    {compact ? <details className="recording-secondary-management" data-testid="recording-secondary-management"><summary>{recordingT('workflow.manage')}</summary>{management}<p className="text-xs text-[var(--gw-muted)]">{lifecycleT('stop.keeps')}</p></details> : management}
+    {compact && !snapshot && <p role="status" className="text-sm text-[var(--gw-warning-fg)]">{lifecycleT('reason.lifecycle_unavailable')}</p>}
     {(!snapshot || refreshBlocked) && <button type="button" onClick={() => { void lifecycle.refetch(); onConflict(); }} className="text-xs underline" data-testid="saved-recording-refresh">{lifecycleT('refresh')}</button>}
-    <p className="text-xs text-[var(--gw-muted)]">{lifecycleT('stop.keeps')}</p>
+    {!compact && <p className="text-xs text-[var(--gw-muted)]">{lifecycleT('stop.keeps')}</p>}
     <SavedRecordingRemoveDialog action={confirmation?.action} open={Boolean(confirmingAction)} busy={busy || readonly} history={snapshot?.history}
       onClose={() => setConfirmation(null)} onConfirm={() => { if (confirmingAction) void run(confirmingAction, true); }} returnFocus={returnFocus.current} objectLabel={group.name} focusOwner={scopeOwner.current} fallbackFocus={returnContext.current} />
     {refreshBlocked && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]">{lifecycleT('reason.stale_scope')}</p>}
