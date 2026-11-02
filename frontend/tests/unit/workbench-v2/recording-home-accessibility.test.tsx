@@ -37,7 +37,7 @@ describe('actual home semantic and keyboard/focus contracts (no geometry claims)
   });
   it('keeps full long names and uniquely names each native evidence disclosure', () => {
     render(<Host />);
-    expect(screen.getByRole('button', { name: longName })).toHaveTextContent(longName);
+    expect(screen.getByText(longName)).toHaveTextContent(longName);
     const detail = screen.getByLabelText(`result.detailsFor: ${longName}`);
     expect(detail.tagName).toBe('SUMMARY'); expect(detail.closest('details')).not.toHaveAttribute('open');
     fireEvent.click(detail); expect(detail.closest('details')).toHaveAttribute('open');
@@ -53,7 +53,7 @@ describe('actual home semantic and keyboard/focus contracts (no geometry claims)
   });
   it('records and restores the actual visible record trigger, without turning focus into command permission', () => {
     const remember = vi.fn(), open = vi.fn(); render(<Host restoredFocus="record-G" remember={remember} open={open} />);
-    const trigger = screen.getByRole('button', { name: longName }); expect(trigger).toHaveFocus();
+    const trigger = within(screen.getByText(longName).closest('tr')!).getByRole('button', { name: 'openRecord' }); expect(trigger).toHaveFocus();
     fireEvent.click(trigger); expect(remember).toHaveBeenCalledWith(0, 'record-G', 1); expect(open).toHaveBeenCalledWith('G');
   });
 });

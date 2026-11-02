@@ -106,9 +106,9 @@ it('opens a removed home item through original management, never a deleted edito
   });
   const navigate = mount(), table = await screen.findByTestId('home-management-table');
   await screen.findAllByText('result.lastCommit');
-  fireEvent.click(within(table).getByRole('button', { name: 'Recording REMOVED' }));
+  fireEvent.click(within(within(table).getByText('Recording REMOVED').closest('tr')!).getByRole('button', { name: 'openRecord' }));
   expect(navigate).toHaveBeenLastCalledWith('/studio/v2?step=output&target=database&view=advanced#saved');
-  fireEvent.click(within(table).getByRole('button', { name: 'Recording ALIVE' }));
+  fireEvent.click(within(within(table).getByText('Recording ALIVE').closest('tr')!).getByRole('button', { name: 'openRecord' }));
   expect(navigate.mock.calls.at(-1)?.[0]).toMatch(/^\/studio\/v2\?entry=locator&workspace_id=W1&step=4&group_id=ALIVE&group_revision=.+&view=recording#saved$/);
   for (const action of ['create', 'update', 'apply', 'schemaApply', 'remove'] as const) expect(studioV2WorkspaceWriteGroupsAPI[action]).not.toHaveBeenCalled();
   expect(useStudioV2AutosaveState).not.toHaveBeenCalled();

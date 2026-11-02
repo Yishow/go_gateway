@@ -1,6 +1,6 @@
 import { addRecordingTemperature, openNewRecordingDevice } from './recording-editor-test-actions';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deviceFixture, resetDeviceAutosaveMocks, studioV2WorkspaceAPI, studioV2WorkspaceDevicesAPI } from './device-autosave-page.testHarness';
 import { useState } from 'react';
@@ -106,9 +106,9 @@ describe('recording device source real owner integration', () => {
       editor_hydrated: true, database_config: null, database_targets: [] } } });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     render(<QueryClientProvider client={client}><HomeToLocatorHarness /></QueryClientProvider>);
-    await screen.findByRole('button', { name: 'Shared recorder' });
+    await screen.findByText('Shared recorder');
     await waitFor(() => expect(client.getQueryCache().getAll().filter(q => q.queryKey.includes('write-groups') || q.queryKey.includes('bootstrap')).every(q => q.state.status === 'success' && q.state.fetchStatus === 'idle')).toBe(true));
-    fireEvent.click(screen.getByRole('button', { name: 'Shared recorder' }));
+    fireEvent.click(within(screen.getByText('Shared recorder').closest('tr')!).getByRole('button', { name: 'openRecord' }));
     studioV2WorkspaceAPI.get.mockClear();
     fireEvent.click(await screen.findByTestId('group-open-G'));
     const name = await screen.findByTestId('group-name');
