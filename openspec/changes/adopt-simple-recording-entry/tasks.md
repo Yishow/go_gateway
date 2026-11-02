@@ -12,8 +12,8 @@
 ## 3. 最終驗證與交付
 
 - [x] 3.1 [after: 2.2] 對最終功能批次執行npm run lint、npm test -- --run、npm run build及現有embedded static交付檢查；有Go改動才執行涉及側完整test/vet/lint，記實際PASS/FAIL/NOT RUN，不新增環境或接真PLC/正式DB。
-- [ ] 3.2 [after: 3.1] 獨立review「已選demo主旅程＋其必要生命週期安全」、修本批問題並重跑受影響gate；未完成的原lifecycle／採集優化任務保持pending，不作簡易host接線前置，但已選必要生命週期未驗不得因host完成而切default；必要驗收未過且未獲本批明確接受則保持opt-in，驗證報告與實際default一致。
-- [ ] 3.3 [after: 3.2] 完成「唯一交接清單與最終批次覆核」的docs/releases/simple-recording-entry.md，列四change完成狀態、owner確認版本、測試命令/證據/風險及rollback邊界；跑diff/line gate與Spectra verify/review，未授權不push或部署。
+- [x] 3.2 [after: 3.1] 獨立review「已選demo主旅程＋其必要生命週期安全」、修本批問題並重跑受影響gate；未完成的原lifecycle／採集優化任務保持pending，不作簡易host接線前置，但已選必要生命週期未驗不得因host完成而切default；必要驗收未過且未獲本批明確接受則保持opt-in，驗證報告與實際default一致。
+- [x] 3.3 [after: 3.2] 完成「唯一交接清單與最終批次覆核」的docs/releases/simple-recording-entry.md，列四change完成狀態、owner確認版本、測試命令/證據/風險及rollback邊界；跑diff/line gate與Spectra verify/review，未授權不push或部署。
 
 相關modal／導航任務依「已選 modal 與返回引導契約」回歸一般／手機／小確認分類、固定操作區、contexthelp風險可見性及同scope返回狀態，不新增未選功能。
 

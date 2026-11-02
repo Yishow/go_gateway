@@ -1,5 +1,26 @@
 # 簡易記錄入口交付紀錄
 
+## 2026-11-02 最終收尾（下方 11-01 記錄保留為歷史）
+
+本輪原七個 changes 的實作、相關回歸與最後驗收依 [完整記錄](../verification/simple-recording/final-acceptance-2026-11-02.md) 及 [規格／review 對帳](../verification/simple-recording/conformance-summary.md) 分層整理；狹義 lint 例外見 [明細](../verification/simple-recording/lint-exceptions.md)。
+
+- 最終產品與 embedded artifact：`5025bdf609dc030193d64b505d5281bc02cde401`；後續僅文書／task checkbox，不把文書提交說成另一次產品 build。
+- 最後完整 Go 在 `0175b8e8`：5,367 top／12,538 leaf PASS、520 leaf SKIP，vet PASS；其後單測試 import 純格式增量原7 top／8 leaf PASS，官方**全庫 lint 0 issues**。此更新取代下方歷史「全庫 lint 2465 FAIL」作為目前狀態，沒有抹掉原失敗。
+- 同5025最後完整 FE：574 files／6,743 tests 全 PASS、全 lint PASS；官方 strict／Vite／static／Go embed PASS，110資產一致。修後同B長表1440/390真像素PASS、所有owned服務已停。
+- 雲端 MAIN 真走三協議來源、SQLite 寬／長表與新目的地、PostgreSQL mean／counter及fresh-baseline前向目的地；SQL／receipt、舊歷史、RWD／logs／導航分別查核。**PostgreSQL本輪實際E2E已執行**，下方「未跑」僅指更早的11-01交付。
+- MAIN跨版本沿同一自有設定／資料庫安全續跑，逐一修復FATEK mapper、MC同IDpoll、新目標選擇、已保存目的地卡及long假wide提示；不冒稱每步在最後提交重新跑過。最後5025 only-read畫面實載asset SHA匹配、1440/390真像素通過、所有owned服務已停。
+- 原unknown回覆故障恢復及歷史paired/race沿用均明列版本與review，沒有第三次ACK-drop。性能15缺格／6bench已完整留證；5格未達零drop容量目標，不冒無損SQL、不增engine。
+- 原平台無關 `_windows_test.go` 被Linux排除的測試發現缺口已改中性檔名、原7實達，沒有把未發現算成SKIP。未提供的外部DB/TLS/實體PLC等仍按真skip列出。
+- Change保留不archive；本機驗收與發布分開。遠端最後已核仍 `main=17972a409f5118d7acb3b0c34742ebc78ee13303`，後續提交**尚未GitHub同步**。既有同步授權下本批遭自動核准中止，依返回要求待使用者再次明確確認，不代推或改路繞過。
+
+### 啟動入口與安全邊界
+
+依 README 的 `./start.sh --dev` 開發，或 `node scripts/build-single.mjs --os linux --arch amd64` 產生官方單檔；本機測試明確使用loopback、自有設定資料庫與外部target，不將正式PLC／DB作測試fixture。預設入口 `/studio/v2` 為記錄總覽，新建用 `?view=recording&intent=new`，`?view=advanced`保留原工作台。保存、Check、Confirm、Start分開；Start ACK不是SQL成功。
+
+程式回退／切advanced不會回滾設定、取消unknown、刪除表或抹除歷史。使用者自行攜帶既有設定時，應先一致備份並核對目的地，不以測試副本取代原資料。
+
+## 2026-11-01 歷史交付紀錄
+
 日期：2026-11-01。範圍依使用者最後決議：強化已認可的 v9 Demo，完成總覽與單頁編輯，收尾已接入的功能，不增加旁支或另建記錄引擎。
 
 ## 入口與使用方式

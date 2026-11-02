@@ -2,11 +2,13 @@
 
 以 Go + React 建置的工業資料採集閘道。透過 Web UI 設定設備連線、採集點位、Point-to-Tag 映射與輸出，將 PLC 資料送往 Local Modbus 或資料庫。
 
-主程式為 `cmd/test_ui`：單一可執行檔提供 HTTP API、SSE 及嵌入式前端。技術版本以 [go.mod](go.mod) 和 [frontend/package.json](frontend/package.json) 為準，目前為 Go 1.25.5、React 19、TypeScript 5、Vite 7。
+主程式為 `cmd/test_ui`：單一可執行檔提供 HTTP API、SSE 及嵌入式前端。技術版本以 [go.mod](go.mod) 和 [frontend/package.json](frontend/package.json) 為準，目前為 Go 1.25.5、React 19、TypeScript 7（建置；TypeScript 6 alias 供 lint API）、Vite 8。
+
+最新七案的完整測試、雲端 SQLite／PostgreSQL 主旅程、版本與未驗限制，見 [2026-11-02 驗收記錄](docs/verification/simple-recording/final-acceptance-2026-11-02.md)；本機驗收不代表已同步 GitHub。
 
 ## 從哪裡開始
 
-- `/studio/v2`：主要設定入口，依設備連線、採集點位、Tag 映射、輸出設定四步進行
+- `/studio/v2`：預設記錄總覽，直接新增／修改記錄；`?view=advanced` 保留原設備、點位、映射與輸出工作台
 - `/studio/runtime`：設定後查看 runtime 狀態、問題與最近交付資訊
 - `/test`：工程測試工具
 - `/gateway/*`：實驗性介面，不是主要產品流程
@@ -86,6 +88,10 @@
 內部 SQLite 是設定與 runtime 儲存，不等於使用者選取的外部目標資料庫。對外 probe、建表與寫入均由 backend 主機發起。請先用 simulator 和可丟棄資料庫驗證，不把正式 PLC 或正式資料表當作測試環境。
 
 不要將 `.env`、真實 DSN、帳密或設備憑證提交到版本控制。備份、還原與 migration 前先停下相關寫入並核對作用範圍；程式版本 rollback 不會自動撤銷外部建表或已寫入資料。
+
+## 測試發現注意事項
+
+Go 會依檔名 `_windows_test.go` 過濾 Windows 專用測試。原平台無關的混合視窗檔已改為 `assembler_mixed_window_test.go`，內容不變，原 7 個案例已納入 Linux 完整測試；先前未被發現不等於 SKIP 或已通過。完整驗收保留這項補漏與實際測試版本，不拼接成不存在的全套執行。
 
 ## 驗證指令
 
