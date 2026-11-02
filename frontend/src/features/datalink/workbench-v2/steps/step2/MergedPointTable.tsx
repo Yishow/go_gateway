@@ -16,7 +16,7 @@ export interface MergedPointTableProps {
   shareLayouts: Record<string, ShareLayout | null>;
   readinessIssues: RuleReadinessIssue[];
   step2Ready: boolean;
-  onContinue: () => void;
+  onContinue?: () => void;
 }
 
 interface MergedPointRowProps {
@@ -279,7 +279,7 @@ export const MergedPointTable: React.FC<MergedPointTableProps> = ({
 
         <ReadinessIssuesWarning issues={readinessIssues} />
 
-        <button
+        {onContinue && <button
           type="button"
           onClick={onContinue}
           disabled={!step2Ready || conflictAddrs.size > 0}
@@ -287,7 +287,7 @@ export const MergedPointTable: React.FC<MergedPointTableProps> = ({
           data-testid="continue-step3-btn"
         >
           繼續到映射
-        </button>
+        </button>}
       </div>
     </div>
   );

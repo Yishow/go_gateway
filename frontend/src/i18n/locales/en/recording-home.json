@@ -147,5 +147,14 @@
   },
   "recordSources": "Sources",
   "recordWrites": "Writing",
-  "recordPointCount": "{{count}} recording points"
+  "recordPointCount": "{{count}} recording points",
+  "locator": {
+    "localTitle": "Selected settings",
+    "localDescription": "Only this selected device or record is loaded. Open full advanced setup for the complete four-step workflow.",
+    "openAdvanced": "Open full advanced setup",
+    "backRecordings": "Back to recordings",
+    "finishBeforeLeaving": "Finish the current changes before leaving. Your edits are kept here.",
+    "readUnavailable": "The current settings could not be confirmed. Your edits are retained below, but editing is paused until the read succeeds.",
+    "retryRead": "Read settings again"
+  }
 }

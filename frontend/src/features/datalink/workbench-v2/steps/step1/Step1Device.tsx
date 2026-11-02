@@ -24,7 +24,7 @@ export interface Step1DeviceProps {
   /** Dispatch 函數 */
   dispatch: React.Dispatch<WorkbenchV2Action>;
   /** 當前 Step 1 完成，準備進行下一步的 callback 函數 */
-  onContinue: () => void;
+  onContinue?: () => void;
 }
 
 /**
@@ -52,7 +52,8 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
     if (state.devices.length > 0) {
       const exists = state.devices.some((d) => d.id === selectedId);
       if (!exists) {
-        setSelectedId(locatorSelection ? '' : state.devices[0].id);
+        const requested = locatorSelection?.target.deviceId;
+        setSelectedId(locatorSelection ? requested && state.devices.some(device => device.id === requested) ? requested : '' : state.devices[0].id);
       }
     } else {
       setSelectedId('');
@@ -208,7 +209,7 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
           </div>
 
           {/* 右側：動作按鈕 */}
-          <Button
+          {onContinue && <Button
             onClick={onContinue}
             disabled={totalCount === 0}
             variant="primary"
@@ -218,7 +219,7 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
               {t('step1.buttons.continue')}
               <Icon name="arrow" className="h-3.5 w-3.5" />
             </span>
-          </Button>
+          </Button>}
         </div>
       </div>
     </DeviceListContext.Provider>

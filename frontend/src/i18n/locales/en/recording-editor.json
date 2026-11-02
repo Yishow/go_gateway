@@ -432,6 +432,7 @@
     "calculation": "Calculation",
     "interval": "Interval",
     "actions": "Actions",
-    "settings": "Column and required settings"
+    "settings": "Column and required settings",
+    "remove": "Remove"
   }
 }

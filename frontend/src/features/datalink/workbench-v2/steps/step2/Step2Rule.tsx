@@ -23,7 +23,7 @@ export interface Step2RuleProps {
   locatorSelection?: Extract<StudioSelectionResult, { state: 'selected' }>;
   state: WorkbenchV2State;
   dispatch: React.Dispatch<WorkbenchV2Action>;
-  onContinue: () => void;
+  onContinue?: () => void;
   /** Backend Share status; null means status is unknown and controls fail closed. */
   shareStatus?: ModbusShareStatus | null;
 }

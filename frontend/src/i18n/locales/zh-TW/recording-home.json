@@ -147,5 +147,14 @@
   },
   "recordSources": "來源",
   "recordWrites": "寫入",
-  "recordPointCount": "{{count}} 個記錄點位"
+  "recordPointCount": "{{count}} 個記錄點位",
+  "locator": {
+    "localTitle": "局部設定",
+    "localDescription": "目前只載入選取的設備或記錄。若要使用完整四步流程，請開啟完整進階設定。",
+    "openAdvanced": "開啟完整進階設定",
+    "backRecordings": "返回記錄首頁",
+    "finishBeforeLeaving": "請先完成目前的修改，再離開此頁。編輯內容仍保留在這裡。",
+    "readUnavailable": "目前無法確認設定。修改仍保留在下方，重新讀取成功後才能繼續編輯。",
+    "retryRead": "重新讀取設定"
+  }
 }

@@ -1,3 +1,4 @@
+import { StudioLocatorShell, runtimeReturnGuidanceFor } from './StudioLocatorShell';
 import { useLoadedLocatorReturn } from './useLoadedLocatorReturn';
 import { useStudioLegacyPresentation } from './useStudioLegacyPresentation';
 import { SimpleRecordingShell } from './SimpleRecordingShell';
@@ -8,10 +9,8 @@ import { acquisitionPreviewWorkspaceScope } from '../acquisition-preview/acquisi
 import type { DeviceSourcePort } from '../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import type { StudioLocatorEntryRead } from '../../../../types/studioV2LocatorEntry';
 import { StudioLocatorEntryNotice } from './StudioLocatorEntryNotice';
-import { StudioScopedStep2Content } from './StudioScopedStep2Content';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import type { WorkbenchV2State } from '../state/types';
 import { useWorkbenchV2State } from '../state/useWorkbenchV2State';
 import { TopBar } from './TopBar';
@@ -29,7 +28,6 @@ import type {
 } from '../../../../types/studioV2Activation';
 import type { StudioV2WorkspaceAuditEntry } from '../../../../types/studioV2WorkspaceAudit';
 import type {
-  StudioV2WorkspaceReadinessIssue,
   StudioV2WorkspaceReadinessSummary,
 } from '../../../../types/studioV2WorkspaceReadiness';
 import {
@@ -55,6 +53,9 @@ export interface WorkbenchV2ShellProps {
   locatorOnly?: boolean;
   locatorSuspended?: boolean;
   locatorDraftBlocked?: boolean;
+  locatorCanLeave?: boolean;
+  locatorRecoveryUnavailable?: boolean;
+  onRetryLocator?: () => void;
   onLocatorEditorMountedChange?: (mounted: boolean) => void;
   workspaceId?: string;
   actions: ReturnType<typeof useWorkbenchV2State>;
@@ -88,7 +89,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   workspaceAuditHistory,
   workspaceAuditUnavailable,
   shareStatus,
-  runtimeReturnFocus, locatorEntry, locatorOnly, locatorSuspended, locatorDraftBlocked, onLocatorEditorMountedChange,
+  runtimeReturnFocus, locatorEntry, locatorOnly, locatorSuspended, locatorDraftBlocked, locatorCanLeave, locatorRecoveryUnavailable, onRetryLocator, onLocatorEditorMountedChange,
 }) => {
   const root = React.useRef<HTMLDivElement>(null);
   useWorkbenchScroll(root, `${state.view}:${state.current}`);
@@ -211,17 +212,9 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     setCurrent(step);
   }, [setCurrent]);
   const step2Content = <Step2Rule locatorSelection={locatorSelection} state={state} dispatch={actions.dispatch}
-    onContinue={handleContinueStep2} shareStatus={shareStatus} />;
+    onContinue={locatorOnly ? undefined : handleContinueStep2} shareStatus={shareStatus} />;
   // 渲染中央步驟內容
   const renderContent = () => {
-    const target = locatorSelection?.target;
-    if (locatorOnly && view === 'flow' && current === 2 && target?.step === 1 && !locatorSuspended && !locatorDraftBlocked && navigateTo &&
-        state.devices.length === 1 && state.devices[0].id === target.deviceId && state.devices[0].persisted) {
-      const scope = { workspace_id: target.workspaceId, workspace_revision: target.workspaceRevision, device_id: state.devices[0].id };
-      return <StudioScopedStep2Content key={JSON.stringify(scope)} scope={scope} navigateTo={navigateTo} hasLocalDraft={state.rules.some(rule => rule.device_id === scope.device_id)}>
-        {step2Content}
-      </StudioScopedStep2Content>;
-    }
     if (locatorOnly && (view !== 'flow' || current !== locatorSelection?.target.step))
       return <StudioLocatorEntryNotice reason="unrequested" entry={locatorEntry} navigateTo={navigateTo} onReturnToLoaded={returnToLoadedDevice} />;
     if (view === 'settings') {
@@ -241,7 +234,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
             locatorSelection={locatorSelection}
             state={state}
             dispatch={actions.dispatch}
-            onContinue={handleContinueStep1}
+            onContinue={locatorOnly ? undefined : handleContinueStep1}
           />
         );
       case 2:
@@ -253,11 +246,11 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
             state={state}
             workspaceId={workspaceId}
             dispatch={actions.dispatch}
-            onContinue={() => {
+            onContinue={locatorOnly ? undefined : () => {
               completeStep(3);
               setCurrent(4);
             }}
-            onBack={goBack}
+            onBack={locatorOnly ? undefined : goBack}
           />
         );
       case 4:
@@ -282,7 +275,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
             locatorSelection={locatorSelection}
             state={state}
             dispatch={actions.dispatch}
-            onContinue={handleContinueStep1}
+            onContinue={locatorOnly ? undefined : handleContinueStep1}
           />
         );
     }
@@ -300,6 +293,9 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
       recoverActivationStatus={recoverActivationStatus} workspaceReadiness={workspaceReadiness} />
     </SimpleRecordingShell>;
   }
+  if (locatorOnly) return <StudioLocatorShell canLeave={Boolean(locatorCanLeave) && !locatorSuspended} navigateTo={navigateTo} unavailable={locatorRecoveryUnavailable} onRetry={onRetryLocator}>
+    {renderContent()}
+  </StudioLocatorShell>;
   return (
     <div ref={root} className="wbv2-shell min-h-screen flex flex-col" data-testid="workbench-v2-shell">
       {/* 1. 頂部列 */}
@@ -484,15 +480,4 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     </div>
   );
 };
-function runtimeReturnGuidanceFor(
-  issue: StudioV2WorkspaceReadinessIssue,
-  t: TFunction<'workbench-v2'>,
-): string | null {
-  switch (issue.code) {
-    case 'point-missing':
-      return t('runtime_return.point_missing_action');
-    default:
-      return null;
-  }
-}
 export default WorkbenchV2Shell;

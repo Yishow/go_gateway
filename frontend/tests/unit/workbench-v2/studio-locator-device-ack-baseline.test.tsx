@@ -64,6 +64,16 @@ describe('locator own-device ACK baseline boundary', () => {
     act(() => accept!(h.ack(submitted)));
     h.rerender({ selected: locatorRead(1, 'B') }); expect(h.result.current.blocked).toBe(true);
   });
+  it('does not revive a pending device ACK after returning to the exact retained editor object', () => {
+    const h = harness(), submitted = h.submit(), accept = h.result.current.captureDeviceSave(submitted, 'W');
+    h.latest(submitted); h.rerender({ selected: locatorRead(1, 'B') });
+    expect(h.result.current.blocked).toBe(true);
+    h.rerender({ selected: h.entry });
+    expect(h.result.current.ready).toBe(true); expect(h.ref.current.devices[0].name).toBe('Saved D');
+    act(() => accept!(h.ack(submitted)));
+    h.rerender({ selected: locatorRead(1, 'B') });
+    expect(h.result.current.blocked).toBe(true); expect(h.ref.current.devices[0].id).toBe('D');
+  });
   it('does not capture a newly created device or a foreign workspace', () => {
     const h = harness();
     expect(h.result.current.captureDeviceSave({ ...h.submit(), persisted: false }, 'W')).toBeUndefined();

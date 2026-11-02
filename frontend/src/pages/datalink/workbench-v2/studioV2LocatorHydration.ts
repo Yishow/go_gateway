@@ -1,10 +1,12 @@
 import { useLayoutEffect, useRef, useState, type MutableRefObject } from 'react';
 import type { StudioLocatorEntryRead } from '../../../types/studioV2LocatorEntry';
 import { INITIAL_STATE, type useWorkbenchV2State } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
-import type { Device, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
+import type { Device, Rule, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
 import type { StudioV2WorkspaceDeviceRecord } from '../../../services/studioV2WorkspaceDevices';
 import { hydrateStudioV2Device, toStudioV2DeviceUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2DeviceAutosave';
-import { hydrateStudioV2Rule } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
+import type { SourceRuleRecord } from '../../../types/datalink';
+import type { StudioV2RuntimeAppliedRecord } from '../../../types/studioV2RuntimeApply';
+import { hydrateStudioV2Rule, toStudioV2RuleUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
 import { hydrateStudioV2Mapping } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
 import { hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseRowGroups, hydrateStudioV2DatabaseTarget } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
 import { deriveAllPoints, derivePoints, projectPersistedMCPoint } from '../../../features/datalink/workbench-v2/state/sourceRule';
@@ -53,16 +55,20 @@ function draftIdentity(state: WorkbenchV2State): string {
 export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbenchV2State>, stateRef: MutableRefObject<WorkbenchV2State>,
   nativeHydrated: boolean, entry?: StudioLocatorEntryRead, editorMounted = false) {
   const accepted = useRef<{ entry: StudioLocatorEntryRead; baseline: WorkbenchV2State } | undefined>(undefined);
-  const mode = useRef({ nativeHydrated, entry }); mode.current = { nativeHydrated, entry };
+  const mode = useRef({ nativeHydrated, entry, epoch: 0 });
+  // Returning to the retained editor object must not revive an earlier submission.
+  if (mode.current.entry !== entry || mode.current.nativeHydrated !== nativeHydrated) {
+    mode.current = { nativeHydrated, entry, epoch: mode.current.epoch + 1 };
+  }
   const attempted = useRef<{ entry: StudioLocatorEntryRead; editorMounted: boolean } | undefined>(undefined);
   const [result, setResult] = useState<{ entry?: StudioLocatorEntryRead; blocked: boolean }>({ blocked: false });
   useLayoutEffect(() => {
     if (!entry || entry.selection.state !== 'selected' || attempted.current?.entry === entry && attempted.current.editorMounted === editorMounted) return;
-    const sameAcceptedEntry = !nativeHydrated && accepted.current?.entry === entry && attempted.current?.entry === entry;
+    const sameAcceptedEntry = !nativeHydrated && accepted.current?.entry === entry;
     attempted.current = { entry, editorMounted };
     // Opening/closing this accepted editor is not a new viewing request. Keep
     // its live state and dirty baseline; a different entry still uses every guard.
-    if (sameAcceptedEntry) return;
+    if (sameAcceptedEntry) { setResult({ entry, blocked: false }); return; }
     const dirty = !nativeHydrated && accepted.current && draftIdentity(accepted.current.baseline) !== draftIdentity(stateRef.current);
     // Preserve the live Basic subtree when a query-only route would leave Step 4.
     if (dirty || editorMounted && accepted.current?.entry !== entry || nativeHydrated && (!studioLocatorStateMatches(entry, stateRef.current) || stateRef.current.current === 4 && entry.selection.target.step !== 4)) {
@@ -80,12 +86,12 @@ export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbe
         target?.state !== 'selected' || target.target.step !== 1 || target.target.workspaceId !== workspaceId ||
         selected.target.step !== 1 || selected.target.deviceId !== submitted.id || selected.target.workspaceRevision !== target.target.workspaceRevision ||
         target.target.deviceId !== submitted.id || submitted.persisted !== true || owner.baseline.devices.filter(device => device.id === submitted.id && device.persisted).length !== 1) return;
-    const captured = structuredClone(submitted);
+    const captured = structuredClone(submitted), viewingEpoch = mode.current.epoch;
     const submittedIdentity = comparable(toStudioV2DeviceUpdateRequest(captured));
     let consumed = false;
     return (saved: StudioV2WorkspaceDeviceRecord) => {
       if (consumed) return; consumed = true;
-      if (accepted.current !== owner || mode.current.nativeHydrated || mode.current.entry !== viewing || saved.id !== captured.id) return;
+      if (accepted.current !== owner || mode.current.nativeHydrated || mode.current.entry !== viewing || mode.current.epoch !== viewingEpoch || saved.id !== captured.id) return;
       const matches = stateRef.current.devices.filter(device => device.id === captured.id);
       const latest = matches.length === 1 ? matches[0] : undefined;
       if (!latest || latest.save_state !== 'saved' || !latest.persisted || saved.runtime_apply_status === 'apply_failed') return;
@@ -103,7 +109,42 @@ export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbe
       }) };
     };
   };
-  return { captureDeviceSave, lastEntry: accepted.current?.entry, ready: Boolean(entry && result.entry === entry && !result.blocked), blocked: Boolean(entry && result.entry === entry && result.blocked) };
+  const captureRuleSave = (submitted: Rule, workspaceId?: string) => {
+    const owner = accepted.current, target = owner?.entry.selection, viewing = mode.current.entry, selected = viewing?.selection;
+    if (!owner || mode.current.nativeHydrated || !workspaceId || submitted.workspace_id !== workspaceId ||
+        viewing?.workspace.id !== workspaceId || viewing.locator.workspace_id !== workspaceId || owner.entry.workspace.id !== workspaceId ||
+        target?.state !== 'selected' || selected?.state !== 'selected' || target.target.step !== 2 || selected.target.step !== 2 ||
+        target.target.workspaceId !== workspaceId || selected.target.workspaceId !== workspaceId || selected.target.workspaceRevision !== target.target.workspaceRevision ||
+        target.target.deviceId !== submitted.device_id || selected.target.deviceId !== submitted.device_id ||
+        target.target.ruleId !== submitted.id || selected.target.ruleId !== submitted.id || submitted.persisted !== true ||
+        owner.baseline.rules.filter(rule => rule.id === submitted.id && rule.device_id === submitted.device_id && rule.persisted).length !== 1 ||
+        owner.baseline.rules.find(rule => rule.id === submitted.id)?.revision_id !== submitted.revision_id) return;
+    const captured = structuredClone(submitted), viewingEpoch = mode.current.epoch, fields = toStudioV2RuleUpdateRequest(captured), identity = comparable(fields);
+    let consumed = false;
+    return (saved: StudioV2RuntimeAppliedRecord<SourceRuleRecord>) => {
+      if (consumed) return; consumed = true;
+      if (accepted.current !== owner || mode.current.nativeHydrated || mode.current.entry !== viewing || mode.current.epoch !== viewingEpoch ||
+          saved.id !== captured.id || saved.device_id !== captured.device_id || saved.workspace_id !== workspaceId ||
+          !saved.revision_id?.trim() || saved.runtime_apply_status === 'apply_failed') return;
+      const matches = stateRef.current.rules.filter(rule => rule.id === captured.id && rule.device_id === captured.device_id);
+      const latest = matches.length === 1 ? matches[0] : undefined;
+      if (!latest || latest.save_state !== 'saved' || !latest.persisted || latest.revision_id !== saved.revision_id ||
+          comparable(toStudioV2RuleUpdateRequest(latest)) !== identity || comparable(toStudioV2RuleUpdateRequest(hydrateStudioV2Rule(saved))) !== identity) return;
+      // Only this unchanged, acknowledged rule advances. Local name, MC evidence,
+      // every other rule/device/point/mapping/database/settings remain untouched.
+      owner.baseline = { ...owner.baseline, rules: owner.baseline.rules.map(rule => rule.id !== captured.id ? rule : {
+        ...rule, ...structuredClone(fields), data_format: captured.data_format, workspace_id: saved.workspace_id, revision_id: saved.revision_id,
+        persisted: true, save_state: latest.save_state, save_error: latest.save_error,
+      }) };
+    };
+  };
+  const retainedTarget = accepted.current?.entry.selection;
+  const baselineRules = retainedTarget?.state === 'selected' && retainedTarget.target.ruleId
+    ? accepted.current?.baseline.rules.filter(rule => rule.id === retainedTarget.target.ruleId && rule.device_id === retainedTarget.target.deviceId && rule.workspace_id === retainedTarget.target.workspaceId) : undefined;
+  // This revision can advance only through the existing checked own-ACK baseline.
+  const retainedRuleRevision = baselineRules?.length === 1 && baselineRules[0].revision_id?.trim()
+    ? baselineRules[0].revision_id : retainedTarget?.state === 'selected' ? retainedTarget.target.ruleRevision : undefined;
+  return { captureDeviceSave, captureRuleSave, retainedRuleRevision, canLeave: Boolean(accepted.current && draftIdentity(accepted.current.baseline) === draftIdentity(stateRef.current)), lastEntry: accepted.current?.entry, ready: Boolean(entry && result.entry === entry && !result.blocked), blocked: Boolean(entry && result.entry === entry && result.blocked) };
 }
 
 /** Only exact hydrated canonical bindings can receive a hot locator; drafts remain separate. */

@@ -160,7 +160,7 @@ export function useStudioV2AutosaveState(
     saved: (rule, saved) => { sourceRanges.ruleObservation.saved(rule, saved); try { ruleObserver?.saved(rule, saved); } catch { /* Same non-authoritative notification boundary. */ } },
     failed: (rule, error) => { sourceRanges.ruleObservation.failed(rule, error); try { ruleObserver?.failed(rule, error); } catch { /* Preserve the original failure. */ } },
   };
-  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule, ruleObservation, sourceWorkspaceId);
+  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule, ruleObservation, sourceWorkspaceId, locatorHydration.captureRuleSave);
   const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled, canMutateRule, sourceRanges.mappingObservation);
   rangeQueue.current = { rule: ruleAutosave.afterRuleAction, mapping: mappingAutosave.afterMappingAction };
   const databaseAutosave = useStudioV2DatabaseAutosave(actions, stateRef, enabled, canMutateRule);

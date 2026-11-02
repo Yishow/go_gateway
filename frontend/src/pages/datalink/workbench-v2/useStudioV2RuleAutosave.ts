@@ -1,4 +1,6 @@
 import { canonicalRulePatch, ruleSaveFields, type RuleFieldGenerations } from '../../../features/datalink/workbench-v2/state/studioV2RuleAcknowledgement';
+import type { SourceRuleRecord } from '../../../types/datalink';
+import type { StudioV2RuntimeAppliedRecord } from '../../../types/studioV2RuntimeApply';
 import type { RuleQueueObservation } from './sourceQueueObservation';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -36,7 +38,10 @@ export function useStudioV2RuleAutosave(
   canMutateRule: CanMutateRule = allowAllRules,
   observation?: RuleQueueObservation,
   workspaceId?: string,
+  captureSavedRule?: (rule: Rule, workspaceId?: string) => ((saved: StudioV2RuntimeAppliedRecord<SourceRuleRecord>) => void) | undefined,
 ) {
+  const captureSavedRuleRef = React.useRef(captureSavedRule);
+  captureSavedRuleRef.current = captureSavedRule;
   const owner = React.useRef({ workspaceId });
   if (owner.current.workspaceId !== workspaceId) owner.current = { workspaceId };
   const mounted = React.useRef(true);
@@ -98,6 +103,7 @@ export function useStudioV2RuleAutosave(
     meta.inFlight = true;
     const requestOwner = owner.current;
     const requestGeneration = generationsRef.current.get(ruleId) ?? 0;
+    const acceptSavedRule = captureSavedRuleRef.current?.(currentRule, requestOwner.workspaceId);
     applyRulePatch(ruleId, {
       save_state: 'saving',
       save_error: null,
@@ -154,6 +160,7 @@ export function useStudioV2RuleAutosave(
           save_state: meta.pending ? 'saving' : 'saved',
           save_error: null,
         }, 'acknowledgeRuleSave');
+        if (!meta.pending && (generationsRef.current.get(ruleId) ?? 0) === requestGeneration) acceptSavedRule?.(savedRule);
         observationRef.current?.saved(currentRule, savedRule);
       }
     } catch (error) {

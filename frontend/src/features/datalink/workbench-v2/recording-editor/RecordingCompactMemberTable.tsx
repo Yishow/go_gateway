@@ -41,7 +41,7 @@ export function RecordingCompactMemberTable({ rows, total, query, setQuery, prob
             </td>
             <td><span className="font-mono">{candidate.address}</span><small>{candidate.target_type}</small></td>
             <td colSpan={2} data-testid={`group-member-calculation-${candidate.point_id}`}>{renderCalculation(member)}</td>
-            <td><button type="button" className="gw-secondary" disabled={disabled} onClick={() => controls.onRemove(member)}>{controls.removeLabel(member)}</button>
+            <td><button type="button" className="gw-secondary" disabled={disabled} aria-label={`${candidate.label} · ${controls.removeLabel(member)}`} onClick={() => controls.onRemove(member)}>{text('compact.remove')}</button>
               <details data-testid={`group-member-settings-${candidate.point_id}`} className="recording-compact-members__settings">
                 <summary>{text('compact.settings')}</summary>
                 <label>{t('step4.group.members.col_column')}

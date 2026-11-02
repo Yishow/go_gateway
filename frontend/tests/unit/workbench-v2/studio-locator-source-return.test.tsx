@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
+import { Link, MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import DatalinkWorkbenchV2Page from '@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2DatalinkApi, studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
 import { buildStudioEntityLocatorTarget, parseStudioEntityLocator } from '@/services/studioEntityLocator';
@@ -16,7 +16,9 @@ const clients: QueryClient[] = [];
 let completeConnection = false;
 function Host() {
   const location = useLocation(), navigate = useNavigate();
-  return <DatalinkWorkbenchV2Page navigateTo={navigate} locatorIntent={parseStudioEntityLocator(location.search)} />;
+  return <><nav>{['D', 'B'].map(id => <Link key={id} to={buildStudioEntityLocatorTarget(locatorRead(1, id).locator)!}>Choose device {id}</Link>)}</nav>
+    <output data-testid="current-locator-url">{location.search}</output>
+    <DatalinkWorkbenchV2Page navigateTo={navigate} locatorIntent={parseStudioEntityLocator(location.search)} /></>;
 }
 function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
@@ -44,14 +46,14 @@ function expectNoMutation() {
   expect(studioV2DatalinkApi.delete).not.toHaveBeenCalled();
 }
 describe('scoped device source return through the real page and shell', () => {
-  it('returns from an unread Settings to the same selected device form instead of looping its device list', async () => {
+  it('keeps the same selected device form and draft when its exact locator is selected again', async () => {
     mount();
     expect(await screen.findByTestId('editor-input-name')).toHaveValue('Device D');
-    fireEvent.click(screen.getByTestId('settings-nav-button'));
-    expect(await screen.findByTestId('studio-locator-notice')).toHaveTextContent('have not been read');
-    fireEvent.click(screen.getByRole('link', { name: 'Open device D' }));
+    fireEvent.change(screen.getByTestId('editor-input-name'), { target: { value: '' } });
+    await waitFor(() => expect(screen.getByTestId('device-save-banner')).toHaveAttribute('data-save-state', 'draft-invalid'));
+    fireEvent.click(screen.getByRole('link', { name: 'Choose device D' }));
     await waitFor(() => expect(screen.getByTestId('editor-input-name')).toBeVisible());
-    expect(screen.getByTestId('editor-input-name')).toHaveValue('Device D');
+    expect(screen.getByTestId('editor-input-name')).toHaveValue('');
     expectNoMutation();
   });
   it('keeps the original invalid device edit visible and editable when another locator is refused', async () => {
@@ -60,10 +62,10 @@ describe('scoped device source return through the real page and shell', () => {
     const name = await screen.findByTestId('editor-input-name');
     fireEvent.change(name, { target: { value: '' } });
     await waitFor(() => expect(screen.getByTestId('device-save-banner')).toHaveAttribute('data-save-state', 'draft-invalid'));
-    fireEvent.click(screen.getByTestId('settings-nav-button'));
-    expect(await screen.findByTestId('studio-locator-notice')).toHaveTextContent('have not been read');
-    fireEvent.click(screen.getByRole('link', { name: 'Open device B' }));
-    expect(await screen.findByText('Your existing edits are kept. Resolve them before opening a different settings selection.')).toBeVisible();
+    fireEvent.click(screen.getByRole('link', { name: 'Choose device B' }));
+    await waitFor(() => expect(studioV2DatalinkApi.get).toHaveBeenCalledWith('/studio-v2/workspace', expect.objectContaining({ params: expect.objectContaining({ device_id: 'B' }) })));
+    await waitFor(() => expect(screen.getByTestId('current-locator-url')).toHaveTextContent('device_id=D'));
+    await waitFor(() => expect(screen.getByTestId('editor-input-name')).toBeVisible());
     expect(screen.getByTestId('editor-input-name')).toBeVisible();
     expect(screen.getByTestId('editor-input-name')).toHaveValue('');
     expect(screen.getByTestId('editor-input-name')).toBeEnabled();
@@ -81,11 +83,12 @@ describe('scoped device source return through the real page and shell', () => {
     mount();
     fireEvent.change(await screen.findByTestId('editor-input-name'), { target: { value: '' } });
     await waitFor(() => expect(screen.getByTestId('device-save-banner')).toHaveAttribute('data-save-state', 'draft-invalid'));
-    fireEvent.click(screen.getByTestId('settings-nav-button'));
-    fireEvent.click(await screen.findByRole('link', { name: 'Open device B' }));
-    expect(await screen.findByText('Your existing edits are kept. Resolve them before opening a different settings selection.')).toBeVisible();
+    fireEvent.click(await screen.findByRole('link', { name: 'Choose device B' }));
+    await waitFor(() => expect(studioV2DatalinkApi.get).toHaveBeenCalledWith('/studio-v2/workspace', expect.objectContaining({ params: expect.objectContaining({ device_id: 'B' }) })));
+    await waitFor(() => expect(screen.getByTestId('current-locator-url')).toHaveTextContent('device_id=D'));
+    await waitFor(() => expect(screen.getByTestId('editor-input-name')).toBeVisible());
     expect(screen.getByTestId('editor-input-name')).toHaveValue('');
-    fireEvent.click(screen.getByRole('link', { name: 'Open device D' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Choose device D' }));
     await waitFor(() => expect(studioV2DatalinkApi.get).toHaveBeenLastCalledWith('/studio-v2/workspace', expect.objectContaining({ params: expect.objectContaining({ device_id: 'D' }) })));
     await waitFor(() => expect(screen.getByTestId('editor-input-name')).toBeVisible());
     expect(screen.getByTestId('editor-input-name')).toHaveValue('');
@@ -98,8 +101,7 @@ describe('scoped device source return through the real page and shell', () => {
     expect(studioV2WorkspaceAPI.get).not.toHaveBeenCalled();
     // Once the retained edit is genuinely saved, the original refusal's advice
     // must be actionable: selecting B again opens B without another mutation.
-    fireEvent.click(screen.getByTestId('settings-nav-button'));
-    fireEvent.click((await screen.findAllByRole('link', { name: 'Open device B' }))[0]);
+    fireEvent.click((await screen.findAllByRole('link', { name: 'Choose device B' }))[0]);
     await waitFor(() => expect(screen.getByTestId('editor-input-name')).toHaveValue('Device B'));
     expect(screen.getByTestId('editor-input-name')).toBeVisible();
     expect(screen.queryByText('Your existing edits are kept. Resolve them before opening a different settings selection.')).not.toBeInTheDocument();

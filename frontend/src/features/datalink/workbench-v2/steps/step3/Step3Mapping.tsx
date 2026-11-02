@@ -15,8 +15,8 @@ export interface Step3MappingProps {
   state: WorkbenchV2State;
   workspaceId?: string;
   dispatch: React.Dispatch<WorkbenchV2Action>;
-  onContinue: () => void;
-  onBack: () => void;
+  onContinue?: () => void;
+  onBack?: () => void;
 }
 
 /**
@@ -153,15 +153,15 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
 
         {/* 右側按鈕組 */}
         <div className="flex items-center gap-3">
-          <button
+          {onBack && <button
             type="button"
             onClick={onBack}
             className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors focus:outline-none"
             data-testid="btn-back"
           >
             {t('step3.footer.back', { defaultValue: '上一步' })}
-          </button>
-          <button
+          </button>}
+          {onContinue && <button
             type="button"
             disabled={!canContinue}
             onClick={onContinue}
@@ -173,7 +173,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
             data-testid="btn-continue"
           >
             {t('step3.footer.continue', { defaultValue: '設定資料庫寫入' })}
-          </button>
+          </button>}
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { useStudioLocatorRecovery } from './useStudioLocatorRecovery';
 import { RecordingHomeSourceHost, type HomeSourceControls, type HomeRuleObserver } from '../../../features/datalink/workbench-v2/recording-home/RecordingHomeSourceHost';
 import { RecordingHomeSourceContent } from '../../../features/datalink/workbench-v2/recording-home/RecordingHomeSourceContent';
 import { RecordingSourceNavigation } from '../../../features/datalink/workbench-v2/recording-editor/RecordingSourceNavigation';
@@ -106,7 +107,9 @@ function AdvancedWorkbenchV2Page({
   const { blocked: hasUnsavedRecording } = useRecordingNavigation();
   const locatorMode = locatorIntent !== undefined && locatorIntent.kind !== 'absent';
   const locatorQuery = useStudioLocatorEntry(locatorIntent?.kind === 'locator' ? locatorIntent.locator : null);
-  const locatorEntry = locatorMode && !locatorQuery.isFetching && !locatorQuery.isError && locatorQuery.data?.ok ? locatorQuery.data.value : undefined;
+  const freshLocatorEntry = locatorMode && !locatorQuery.isFetching && !locatorQuery.isError && locatorQuery.data?.ok ? locatorQuery.data.value : undefined;
+  const recovery = useStudioLocatorRecovery(locatorIntent?.kind === 'locator' ? locatorIntent.locator : null, freshLocatorEntry, navigateTo);
+  const locatorEntry = recovery.entry;
   const [locatorEditorMounted, setLocatorEditorMounted] = React.useState(false);
   const editorMountedRef = React.useRef(false), locatorPending = React.useRef(false);
   const { refetch: revalidateLocator } = locatorQuery;
@@ -278,8 +281,12 @@ function AdvancedWorkbenchV2Page({
     }
   };
 
+  const { restoreRejected } = recovery;
+  React.useLayoutEffect(() => {
+    if (!homeSource && !recordingIntent) restoreRejected(autosave.locatorHydration.blocked, autosave.locatorHydration.lastEntry, autosave.locatorHydration.retainedRuleRevision);
+  }, [homeSource, recordingIntent, restoreRejected, autosave.locatorHydration.blocked, autosave.locatorHydration.lastEntry, autosave.locatorHydration.retainedRuleRevision]);
   locatorPending.current = locatorMode && !autosave.locatorHydration.ready;
-  const locatorReason: StudioLocatorNoticeReason = locatorIntent?.kind === 'invalid' ? 'invalid'
+  const locatorReason: StudioLocatorNoticeReason = recovery.refused ? 'stale' : locatorIntent?.kind === 'invalid' ? 'invalid'
     : autosave.locatorHydration.blocked ? 'draftBlocked'
     : locatorEntry?.entry.write_groups?.groups.some(group => group.id === locatorEntry.locator.group_id && group.status === 'deleted') ? 'removed'
     : locatorEntry?.selection.state === 'unavailable' ? 'unavailable'
@@ -338,8 +345,8 @@ function AdvancedWorkbenchV2Page({
         <p>{draftText('navigation.refreshFailed')}</p>
         <button type="button" className="rounded-md border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)]" onClick={() => { void Promise.all([workspaceQuery.refetch(), autosave.devicesQuery.refetch(), autosave.rulesQuery.refetch(), autosave.mappingsQuery.refetch(), autosave.databaseConfigQuery.refetch(), autosave.databaseTargetsQuery.refetch()]); }}>{draftText('navigation.refresh')}</button>
       </div>}
-      {locatorMode && !autosave.locatorHydration.ready && locatorNotice}
-      <div hidden={locatorMode && !autosave.locatorHydration.ready && !locatorEditorMounted && !autosave.locatorHydration.blocked}>
+      {locatorMode && !autosave.locatorHydration.ready && !recovery.unavailable && locatorNotice}
+      <div hidden={locatorMode && !autosave.locatorHydration.ready && !locatorEditorMounted && !autosave.locatorHydration.blocked && !recovery.unavailable}>
       {autosave.draftLossWarning && (
         <div
           data-testid="workbench-v2-draft-loss-warning"
@@ -366,6 +373,8 @@ function AdvancedWorkbenchV2Page({
         locatorSuspended={locatorMode && !autosave.locatorHydration.ready}
         locatorDraftBlocked={locatorMode && autosave.locatorHydration.blocked}
         locatorOnly={locatorMode && !autosave.workspaceHydrated}
+        locatorRecoveryUnavailable={recovery.unavailable} onRetryLocator={() => { void locatorQuery.refetch(); }}
+        locatorCanLeave={autosave.locatorHydration.canLeave && autosave.autosaveBarrier.pending_saves === 0 && !autosave.autosaveBarrier.save_error}
         onLocatorEditorMountedChange={retainLocatorEditor}
       /></RecordingSourceNavigation></RecordingDraftReadState>
       </div>

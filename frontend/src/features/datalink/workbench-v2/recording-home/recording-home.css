@@ -106,3 +106,9 @@
 .gw-home-source-modal [class*='text-slate'] { color: var(--gw-text); }
 .gw-home-source-modal [class*='bg-slate'] { background-color: var(--gw-surface); }
 .gw-home-source-modal [class*='border-slate'] { border-color: var(--gw-border); }
+
+/* Keep this source dialog's actions aligned without changing any other modal. */
+.gw-home-source-modal[data-size=form] .gw-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--gw-space-md); }
+.gw-home-source-modal[data-size=form] .gw-modal-header > div { flex: 1; min-width: 0; }
+.gw-home-source-modal[data-size=form] .gw-modal-header > button { flex: none; }
+.gw-home-source-modal[data-size=form] .gw-modal-footer > .gw-primary { margin-inline-start: auto; }

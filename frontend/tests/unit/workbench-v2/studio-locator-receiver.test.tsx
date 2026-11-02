@@ -94,7 +94,9 @@ describe('locator receiver initialization through native parser and router', () 
     vi.mocked(studioV2DatalinkApi.get).mockImplementation(async (_url, config) => response(locatorRead(1, params(config?.params).device_id === 'B' ? 'B' : 'D')));
     sessionStorage.setItem('wbv2.fixture-recovery', 'retained'); const before = JSON.stringify(sessionStorage);
     mount(); await screen.findByTestId('receiver-devices'); fireEvent.click(screen.getByText('Keep draft')); fireEvent.click(screen.getByText('Device B'));
-    await waitFor(() => expect(screen.getByTestId('studio-locator-notice')).toHaveTextContent('edits'));
+    await waitFor(() => expect(studioV2DatalinkApi.get).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(screen.getByTestId('receiver-devices')).toHaveTextContent(/^D$/));
+    expect(screen.getByText('My unsaved draft')).toBeVisible();
     expect(JSON.stringify(sessionStorage)).toBe(before); expect(studioV2DatalinkApi.put).not.toHaveBeenCalled();
   });
   it('does not reconcile cached same-address foreign mapping into the selected native binding', async () => {
@@ -116,15 +118,15 @@ describe('locator receiver initialization through native parser and router', () 
     expect(await screen.findByTestId('editor-input-name')).toHaveValue('Device B'); expect(screen.queryByTestId('group-editor')).not.toBeInTheDocument();
     expect(studioV2DatalinkApi.post).not.toHaveBeenCalled(); expect(studioV2WorkspaceAPI.get).not.toHaveBeenCalled();
   });
-  it('consumes selection once and shows unrequested scope after explicit native step navigation', async () => {
+  it('keeps the exact selected group visible without advertising unloaded native steps', async () => {
     native.shell = true;
     vi.mocked(studioV2DatalinkApi.get).mockImplementation(async (url) => {
       if (url !== '/studio-v2/workspace') throw { response: { status: 503 } }; return response(locatorRead(4));
     });
     mount(locatorRead(4)); await screen.findByTestId('group-open-G');
-    fireEvent.click(screen.getByRole('button', { name: /連接設備/ }));
-    expect(await screen.findByTestId('studio-locator-notice')).toHaveTextContent('have not been read');
-    expect(screen.queryByTestId('group-open-G')).not.toBeInTheDocument(); expect(screen.queryByTestId('editor-input-name')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /連接設備/ })).not.toBeInTheDocument();
+    expect(screen.getByTestId('group-open-G')).toBeVisible();
+    expect(screen.queryByTestId('editor-input-name')).not.toBeInTheDocument();
     expect(studioV2WorkspaceAPI.get).not.toHaveBeenCalled(); expect(studioV2DatalinkApi.post).not.toHaveBeenCalled();
   });
   it('does not reapply a consumed locator after same-intent clones but admits new and reset intents', () => {

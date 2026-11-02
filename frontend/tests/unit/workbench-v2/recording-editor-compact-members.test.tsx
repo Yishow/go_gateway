@@ -1,3 +1,5 @@
+import { GroupIdentityFields } from '../../../src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupIdentityFields';
+import { newDraft } from '../../../src/features/datalink/workbench-v2/state/writeGroup/draft';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ParameterHelp } from '../../../src/features/datalink/workbench-v2/components/ParameterHelp';
@@ -21,7 +23,10 @@ describe('simple managed selected points use compact recording rows', () => {
       expect(within(row).getByText(`Calculation ${candidate.point_id}`)).toBeVisible();
       expect(screen.queryByTestId(`group-member-include-${candidate.point_id}`)).not.toBeInTheDocument();
     }
-    fireEvent.click(screen.getByRole('button', { name: 'Remove P2' }));
+    const remove = within(screen.getByTestId('group-member-row-P2')).getByRole('button');
+    expect(remove).toHaveTextContent('compact.remove'); expect(remove).not.toHaveTextContent('P2');
+    expect(remove).toHaveAccessibleName('Point P2 · Remove P2');
+    fireEvent.click(remove);
     expect(value.onRemove).toHaveBeenCalledExactlyOnceWith(members[1]); expect(value.onChange).not.toHaveBeenCalled();
   });
   it('keeps real issues visible outside secondary settings and preserves the exact update owner', () => {
@@ -36,7 +41,7 @@ describe('simple managed selected points use compact recording rows', () => {
   });
   it('keeps required settings and disabled removal rather than turning removal into disable', () => {
     const value = props(); render(<RecordingSelectedMembers {...value} disabled />);
-    expect(screen.getByRole('button', { name: 'Remove P1' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Point P1 · Remove P1' })).toBeDisabled();
     const settings = screen.getByTestId('group-member-settings-P1');
     fireEvent.click(within(settings).getByText('compact.settings'));
     expect(within(settings).getByRole('checkbox')).toBeChecked();
@@ -69,4 +74,23 @@ it('leaves legacy records without per-point calculations on their existing mappi
   expect(screen.getByTestId('group-member-column-P1')).toBeVisible();
   expect(screen.queryByTestId('group-member-settings-P1')).not.toBeInTheDocument();
   expect(screen.queryByText('calculation.unavailable')).not.toBeInTheDocument();
+});
+
+it.each(['name', 'all'] as const)('keeps the original name owner and scopes inline help to %s presentation', section => {
+  const onChange = vi.fn(), onStorageStrategy = vi.fn();
+  const draft = newDraft({ connector_id: 'C', connector_revision: 'CR', table_schema: '', table_name: '' });
+  draft.name = 'Original recording';
+  const view = render(<GroupIdentityFields section={section} draft={draft} readonly={false} locked={false} onChange={onChange} onStorageStrategy={onStorageStrategy} />);
+  const input = screen.getByTestId('group-name');
+  expect(input).toHaveAccessibleName('step4.group.editor.name');
+  const help = view.container.querySelector<HTMLButtonElement>('[data-parameter-help="record.name"]')!;
+  expect(help.closest('label')).toBeNull();
+  if (section === 'name') expect(help.style.width).toBe('');
+  else expect(help).toHaveStyle({ width: '44px', height: '44px', minWidth: '44px' });
+  fireEvent.click(help); expect(screen.getByRole('note')).toBeVisible();
+  expect(onChange).not.toHaveBeenCalled(); expect(onStorageStrategy).not.toHaveBeenCalled();
+  fireEvent.keyDown(window, { key: 'Escape' }); expect(help).toHaveFocus();
+  fireEvent.change(input, { target: { value: 'Local rename' } });
+  expect(onChange).toHaveBeenCalledExactlyOnceWith({ name: 'Local rename' });
+  expect(draft.name).toBe('Original recording');
 });

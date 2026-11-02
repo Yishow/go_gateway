@@ -21,10 +21,10 @@ export const GroupIdentityFields: React.FC<GroupIdentityFieldsProps> = ({ sectio
   const { t } = useTranslation('workbench-v2');
   return (
     <div className={section === 'name' ? 'grid gap-3' : 'grid gap-3 sm:grid-cols-2'}>
-      {section !== 'destination' && <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 text-xs text-[var(--gw-muted)]">
-        {t('step4.group.editor.name')}
+      {section !== 'destination' && <div className={section === 'name' ? 'recording-simple-name min-w-0' : 'flex min-w-0 items-start gap-2'}><label className="min-w-0 flex-1 text-xs text-[var(--gw-muted)]">
+        <span>{t('step4.group.editor.name')}</span>
         <input type="text" value={draft.name} disabled={readonly} onChange={(event) => onChange({ name: event.target.value })} className={FIELD} data-testid="group-name" />
-      </label><ParameterHelp help="record.name" /></div>}
+      </label><ParameterHelp compact={section === 'name'} help="record.name" /></div>}
       {section !== 'name' && <>
       <fieldset className="text-xs text-[var(--gw-muted)]">
         <legend>{t('step4.group.editor.storage')} <ParameterHelp help="record.strategy" /></legend>
