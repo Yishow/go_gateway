@@ -51,7 +51,7 @@ function Back() { const navigation = useRecordingNavigation(); return <button on
 function mount(options: { host?: boolean; props?: Partial<GroupEditorProps> } = {}) {
   const state = savedGroupState(); state.db.connector = { ...state.db.connector, save_state: 'save-error', save_error: 'WRITE_GROUP_LEGACY_WRITE_CONFLICT' };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } }); clients.push(client);
-  const props: GroupEditorProps = { presentation: 'simple', workspaceId: 'ws-1', workspaceRevision: 'db-setup-9', connector: state.db.connector,
+  const props: GroupEditorProps = { group: undefined, presentation: 'simple', workspaceId: 'ws-1', workspaceRevision: 'db-setup-9', connector: state.db.connector,
     calculationCapabilities: capabilities, candidates: buildGroupCandidates(state).candidates, excluded: [], readonly: false,
     onSaved: vi.fn(), onClose: leave, onReload: vi.fn(), fetchLatest: vi.fn().mockResolvedValue({ workspace_id: 'ws-1', workspace_revision: 'fresh-10', groups: [original] }),
     destinationContent: <button data-testid="original-setup">Original setup owner</button>, ...options.props };
