@@ -1,3 +1,4 @@
+import { dbTargetAPI } from '@/services/datalink';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider, useLocation, useNavigate } from 'react-router-dom';
@@ -62,7 +63,9 @@ function mount(url = `${sourceURL}&intent=copy#position`) {
  return { router, ...render(<RouterProvider router={router} />) };
 }
 beforeEach(() => {
- vi.clearAllMocks(); sessionStorage.clear(); vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+ vi.clearAllMocks(); sessionStorage.clear();
+ vi.spyOn(dbTargetAPI, 'listConnectors').mockResolvedValue([{ id: 'conn-1', identity_revision: 'crev-1', name: 'Line DB', kind: 'sqlite', enabled: true, status: 'ready', connection_config: { path: savedGroupState().db.connector.database }, last_check_error: '', default_write_interval_seconds: 5, created_at: '', updated_at: '' }]);
+ vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
  vi.mocked(readStudioLocatorEditorEntry).mockImplementation(async locator => ({ ok: true, value: locator.group_id === 'COPY' ? copied : source }));
  vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue(source.entry.write_groups!);
  vi.mocked(studioV2WorkspaceWriteGroupsAPI.get).mockImplementation(async id => ({ group: id === 'COPY' ? copied.entry.write_groups!.groups[0] : sourceGroup, workspace_revision: id === 'COPY' ? 'W3' : 'W2' }));

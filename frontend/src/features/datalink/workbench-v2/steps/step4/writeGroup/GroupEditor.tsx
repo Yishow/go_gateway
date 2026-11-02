@@ -1,3 +1,4 @@
+import { RecordingDestinationMismatch, RecordingNewDestinationChooser } from '../../../recording-editor/RecordingNewDestination';
 import { ConfiguredDestinationChooser, type ConfiguredDestinationObservation } from '../../../recording-editor/ConfiguredDestinationChooser';
 import { configuredDestinationPatch, configuredDestinationReason, configuredDestinationStillCurrent } from '../../../recording-editor/configuredRecordingDestinations';
 import { RecordingSourceNavigation } from '../../../recording-editor/RecordingSourceNavigation';
@@ -98,7 +99,7 @@ export interface GroupEditorProps {
  */
 export const GroupEditor: React.FC<GroupEditorProps> = props => <RecordingDraftBoundary><RecordingSourceNavigation workspaceId={props.workspaceId} source={props.deviceSource}><GroupEditorWithCapabilities {...props} Content={GroupEditorContent} /></RecordingSourceNavigation></RecordingDraftBoundary>;
 const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
-  presentation = 'guided', copyPrefill, onCopy, destinationContent, repairContent, configuredDestinations, calculationCapabilities, deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard, saveReadbackPending,
+  presentation = 'guided', newDestination, copyPrefill, onCopy, destinationContent, repairContent, configuredDestinations, calculationCapabilities, deviceSource, sourceDevices = [], group: propGroup, workspaceId, workspaceRevision, connector, candidates: suppliedCandidates, excluded, readonly: operatorReadonly, editorReadonly = false, lifecycleHost, onClose, onSaved, onReload, fetchLatest, onReviewScopedStart, mysqlCapability, sqlserverCapability, locatorScope, locatorGuard, saveReadbackPending,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: editorText } = useTranslation('recording-editor');
@@ -144,6 +145,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const [editorGroup, setEditorGroup] = useState<WriteGroup | undefined>(propGroup);
   const previousPropGroup = useRef(propGroup);
   const group = editorGroup;
+  const groupRef = useRef(group); groupRef.current = group;
   const [draft, setDraft] = useState<EditorDraft>(() => {
     const destination = { connector_id: connector.connector_id ?? '', connector_revision: connector.identity_revision ?? '', table_schema: connector.schema ?? '', table_name: connector.table ?? '' };
     // Explicit simple creation is local per-point intent, not a capability or permission to save/start.
@@ -228,7 +230,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const sourceWritePending = () => draft.members.some(member => sourceOwnerRef.current?.range?.sourceWriteState?.(member.device_id, member.point_id));
   const issues = mixed ? [] : validateDraft(draft, { destinationSaved: saved && destinationMatches, storageStrategy: draft.storage_strategy });
   const mixedIssues = mixed ? recordingMixedEditorIssues(draft, calculationCapabilities, connector.kind, saved && destinationMatches) : [];
-  const invalid = issues.length > 0 || mixedIssues.length > 0 || configuredInvalid;
+  const invalid = issues.length > 0 || mixedIssues.length > 0 || configuredInvalid || Boolean(!group && newDestination && !newDestination.current());
   const readiness = useWriteGroupReadinessQuery(group?.id, Boolean(group) && !dirty);
   const set = (patch: Partial<EditorDraft>) => { if (!savingRef.current) setDraft((current) => ({ ...current, ...patch })); };
   const setMembers = (members: EditorMember[]) => set({ members: mixed && (calculationCapabilities || presentation === 'simple') ? initializeMixedMembers(members, draft.members, candidates, calculationCapabilities,
@@ -250,7 +252,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const renderLocatorLease = locatorLease.current;
 
   const handleSave = async () => {
-    if (savingRef.current || saveActivity.isPending() || saveUnknown || saveReadbackPending || invalid || sourceWritePending() || readonly || locatorLease.current !== renderLocatorLease || renderLocatorLease.key !== null &&
+    if (savingRef.current || saveActivity.isPending() || saveUnknown || saveReadbackPending || invalid || !group && newDestination && !newDestination.current() || sourceWritePending() || readonly || locatorLease.current !== renderLocatorLease || renderLocatorLease.key !== null &&
       (!mountedRef.current || locatorLease.current.blocked)) return;
     savingRef.current = true;
     const operation = {}; saveOperation.current = operation;
@@ -263,7 +265,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       const body = mixed && calculationCapabilities ? mixedDraftToRequestGroup(draft, workspaceId, calculationCapabilities) : draftToRequestGroup(draft, workspaceId);
       const latest = await fetchLatest();
       if (!mountedRef.current || saveScope.current !== requestScope || locatorLease.current !== requestLease || requestLease.key !== null && locatorLease.current.blocked) return;
-      if (sourceWritePending()) return;
+      if (sourceWritePending() || !group && newDestination && !newDestination.current()) return;
       if (configuredChoice && (!configuredDestinationStillCurrent(configuredChoice, latest) || configuredDestinationReason(configuredChoice, configuredContext))) throw new Error(editorText('destinations.stale'));
       const freshRevision = latest?.workspace_revision ?? workspaceRevision;
       if (group) {
@@ -292,7 +294,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         // parent refetches. Server proof stays outside the editable draft.
         setConfiguredChoice(undefined);
         setDraft(groupToDraft(result.group));
-        setEditorGroup(result.group);
+        groupRef.current = result.group; setEditorGroup(result.group);
         setConflict(false);
         onSaved(result.group, result.workspace_revision, acknowledgement);
       }
@@ -366,24 +368,16 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       <RecordingMixedEditor section={presentation === 'simple' ? 'method' : 'all'} draft={draft} saved={Boolean(group)} disabled={readonly || saveBusy} capabilities={calculationCapabilities} dialect={connector.kind} onChange={next => { if (!savingRef.current) setDraft(next); }} />
       {profile && !mixed && <GroupProfileSummary draft={draft} />}
         </>}
-        destination={<>{destinationContent}
-      {!destinationMatches && (
-        <div role="alert" className="space-y-1 text-xs text-[var(--gw-warning-fg)]" data-testid="group-destination-mismatch">
-          <p>{locatorScope && !saved ? t('runtime-dashboard:locatorEntry.destinationUnknown') : t('step4.group.editor.destination_mismatch')}</p>
-          {saved && !readonly && (
-            <button
-              type="button" className="underline" data-testid="group-use-current-destination"
-              onClick={() => set({
-                connector_id: connector.connector_id ?? '', connector_revision: connector.identity_revision ?? '',
-                table_schema: connector.schema ?? '',
-                table_name: group?.layout_version === 'managed_long_v1' && draft.storage_strategy === 'managed' ? '' : connector.table ?? '',
-              })}
-            >
-              {t('step4.group.editor.use_current_destination')}
-            </button>
-          )}
-        </div>
-      )}
+        destination={<>
+      {newDestination && !newDestination.initialSetup ? !group && <RecordingNewDestinationChooser value={newDestination} selectedId={draft.connector_id}
+        disabled={readonly || saveBusy || saveUnknown || Boolean(saveReadbackPending)} onSelect={id => {
+          if (groupRef.current || readonly || savingRef.current || saveUnknown || saveReadbackPending) return;
+          const next = newDestination.choose(id); if (!next) return;
+          setConfiguredChoice(undefined); set({ connector_id: next.connector_id ?? '', connector_revision: next.identity_revision ?? '', table_schema: next.schema, table_name: '' });
+        }} /> : destinationContent}
+      {!destinationMatches && (!newDestination || newDestination.initialSetup) && <RecordingDestinationMismatch locatorUnknown={Boolean(locatorScope && !saved)} saved={saved} readonly={readonly}
+        onUseCurrent={() => set({ connector_id: connector.connector_id ?? '', connector_revision: connector.identity_revision ?? '', table_schema: connector.schema ?? '',
+          table_name: group?.layout_version === 'managed_long_v1' && draft.storage_strategy === 'managed' ? '' : connector.table ?? '' })} />}
 
           {presentation === 'simple' && <>
       <GroupIdentityFields section="destination" draft={draft} readonly={readonly} locked={profile || draft.layout_version === 'managed_long_v1'} onChange={set} onStorageStrategy={changeStorageStrategy} />

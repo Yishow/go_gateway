@@ -1,3 +1,4 @@
+import { useRecordingNewDestination, type NewRecordingDestination } from '../../../recording-editor/RecordingNewDestination';
 import type * as React from 'react';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,10 +12,11 @@ export function destinationSaved(connector: DbConnector): boolean {
   return connector.persisted === true && connector.save_state === 'saved' &&
     Boolean(connector.connector_id && connector.identity_revision);
 }
-type CapabilityProps = GroupEditorProps & { Content: React.ComponentType<GroupEditorContentProps> };
+type CapabilityProps = GroupEditorProps & { Content: React.ComponentType<GroupEditorContentProps>; newDestination?: NewRecordingDestination };
 /** Dialect capabilities remain canonical, independently queried only for saved destinations. */
 export const GroupEditorWithCapabilities: React.FC<CapabilityProps> = ({ Content, ...props }) => {
   const { t } = useTranslation('workbench-v2');
+  const newDestination = useRecordingNewDestination(props.presentation === 'simple' && !props.group, props.workspaceId, props.connector);
   const unavailable = props.group?.recording_profile?.kind === 'mixed' && !mixedEditorAvailable(props.calculationCapabilities, props.connector.kind, props.group.layout_version);
   const admitted = useRef(!unavailable);
   if (!unavailable) admitted.current = true;
@@ -27,7 +29,7 @@ export const GroupEditorWithCapabilities: React.FC<CapabilityProps> = ({ Content
       {props.presentation !== 'simple' && <button type="button" onClick={props.onClose}>{t('step4.group.editor.back')}</button>}
     </section>
   );
-  return <>{unavailable && <p role="status">{t('step4.group_kind_unsupported')}</p>}<DialectCapabilities {...props} Content={Content} editorReadonly={props.editorReadonly || unavailable} /></>;
+  return <>{unavailable && <p role="status">{t('step4.group_kind_unsupported')}</p>}<DialectCapabilities {...props} connector={newDestination?.connector ?? props.connector} newDestination={newDestination} Content={Content} editorReadonly={props.editorReadonly || unavailable} /></>;
 };
 
 /** Keep one Content instance while destination authority changes; disabled queries grant nothing. */
@@ -44,6 +46,7 @@ const DialectCapabilities: React.FC<CapabilityProps> = ({ Content, ...props }) =
 };
 
 export type GroupEditorContentProps = GroupEditorProps & {
+  newDestination?: NewRecordingDestination;
   mysqlCapability?: StudioV2MySQLRecordingCapability;
   sqlserverCapability?: StudioV2SQLServerRecordingCapability;
 };

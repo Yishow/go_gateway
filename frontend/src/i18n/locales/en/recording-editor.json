@@ -415,5 +415,15 @@
   },
   "versions": {
     "details": "Configuration version details"
+  },
+  "newDestination": {
+    "label": "Saved destination",
+    "choose": "Choose a saved destination",
+    "scope": "This choice applies only to this new recording. Other recordings and the workspace default are unchanged.",
+    "loading": "Loading saved destinations…",
+    "error": "Saved destinations could not be read. Check again before saving.",
+    "empty": "No supported saved destination is available. Add a destination connection in Settings, then check again.",
+    "stale": "The selected destination has changed or is unavailable. Check and select it again before saving.",
+    "refresh": "Check saved destinations again"
   }
 }

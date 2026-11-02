@@ -1,3 +1,4 @@
+import { dbTargetAPI } from '@/services/datalink';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -23,6 +24,7 @@ function mount(overrides: Partial<GroupEditorProps> = {}) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(dbTargetAPI, 'listConnectors').mockResolvedValue([{ id: 'conn-1', identity_revision: 'crev-1', name: 'Line DB', kind: 'sqlite', enabled: true, status: 'ready', connection_config: { path: savedGroupState().db.connector.database }, last_check_error: '', default_write_interval_seconds: 5, created_at: '', updated_at: '' }]);
   vi.mocked(studioV2WorkspaceWriteGroupsAPI.create).mockImplementation(async request => {
     const canonical = savedGroup();
     const members = request.group.members.map(member => {
@@ -42,6 +44,7 @@ it('starts an explicit simple recording in per-point mode and saves through the 
   const row = await screen.findByTestId('member-calculation-pt-0');
   expect(within(row).getByLabelText('calculation.interval')).toHaveValue('15');
   fireEvent.change(within(row).getByLabelText('calculation.interval'), { target: { value: '15' } });
+  await waitFor(() => expect(screen.getByTestId('group-save')).toBeEnabled());
   fireEvent.click(screen.getByTestId('group-save'));
   await waitFor(() => expect(studioV2WorkspaceWriteGroupsAPI.create).toHaveBeenCalledOnce());
   const wire = vi.mocked(studioV2WorkspaceWriteGroupsAPI.create).mock.calls[0][0];
@@ -75,7 +78,8 @@ it('orders visible source and per-point controls before the destination without 
   const destination = screen.getByTestId('recording-editor-destination');
   expect(sources.compareDocumentPosition(destination) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(within(sources).getByTestId('member-calculation-pt-0')).toBeVisible();
-  expect(within(destination).getByRole('button', { name: 'Existing database owner' })).toBeVisible();
+  expect(within(destination).getByRole('combobox', { name: 'newDestination.label' })).toBeVisible();
+  expect(within(destination).queryByRole('button', { name: 'Existing database owner' })).not.toBeInTheDocument();
   expect(within(destination).getByLabelText('calculation.layoutLabel')).toBeVisible();
   expect(screen.getByTestId('group-lateness')).toBeVisible();
   expect(screen.getByText('calculation.firstBaseline')).not.toBeVisible();
@@ -127,6 +131,7 @@ it('explains server-assigned columns for only a new managed draft without asking
   expect(screen.queryByTestId('group-member-column-pt-0')).not.toBeInTheDocument();
   expect(screen.queryByTestId('group-column-proposal')).not.toBeInTheDocument();
   expect(screen.getByText('simple.columnsAssignedOnSave')).toBeVisible();
+  await waitFor(() => expect(screen.getByTestId('group-save')).toBeEnabled());
   fireEvent.click(screen.getByTestId('group-save'));
   await waitFor(() => expect(studioV2WorkspaceWriteGroupsAPI.create).toHaveBeenCalledOnce());
   const wire = vi.mocked(studioV2WorkspaceWriteGroupsAPI.create).mock.calls[0][0].group;
