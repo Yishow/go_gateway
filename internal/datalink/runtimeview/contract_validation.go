@@ -218,7 +218,7 @@ func validateSource(s *SourceView, scope Scope) error {
 	if s.State == "saved-only" && (s.Saved == nil || s.Effective != nil) {
 		return errUnavailable
 	}
-	if s.State != "effective" && s.Effective != nil {
+	if s.State != runtimeStateEffective && s.Effective != nil {
 		return errUnavailable
 	}
 	unsupported := false
@@ -227,10 +227,10 @@ func validateSource(s *SourceView, scope Scope) error {
 			unsupported = unsupported || step.Kind == "unsupported"
 		}
 	}
-	if s.State == "effective" && (unsupported || s.Proof != "immutable-source-facts" || s.Effective == nil || s.EffectiveRevision == nil || s.Effective.MappingRevision == nil || s.Effective.ReadType == nil || s.Effective.ResultType == nil || s.Effective.Address == nil || s.Effective.Polling == nil) {
-		s.State = "unavailable"
+	if s.State == runtimeStateEffective && (unsupported || s.Proof != "immutable-source-facts" || s.Effective == nil || s.EffectiveRevision == nil || s.Effective.MappingRevision == nil || s.Effective.ReadType == nil || s.Effective.ResultType == nil || s.Effective.Address == nil || s.Effective.Polling == nil) {
+		s.State = runtimeViewUnavailable
 		s.Effective = nil
-		s.Proof = "unavailable"
+		s.Proof = runtimeViewUnavailable
 	}
 	return nil
 }
@@ -245,7 +245,7 @@ func validateView(v *RuleEvidenceView, scope Scope) error {
 	if v.WorkspaceRevision != scope.WorkspaceRevision {
 		return errStale
 	}
-	if v.Freshness != "unavailable" && v.ObservedAt == nil {
+	if v.Freshness != runtimeViewUnavailable && v.ObservedAt == nil {
 		return errUnavailable
 	}
 	if err := validateSource(v.Source, scope); err != nil {

@@ -37,50 +37,48 @@ func recreateRepositorySnapshot(t *testing.T, h *circuitProfileHarness) map[stri
 }
 
 func TestRecreateRepositoryRejectsChangedAuthorityWithoutEffects(t *testing.T) {
-	cases := []struct {
+	type testCase struct {
 		name   string
 		mutate func(*testing.T, *circuitProfileHarness, *writeGroupRecreateReservationRequest)
 		want   error
-	}{
-		{"stale_lineage", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+	}
+	cases := make([]testCase, 0, 13)
+	cases = append(cases,
+		testCase{"stale_lineage", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.ExpectedLineageRevision++
 		}, ErrWriteGroupRevisionConflict},
-		{"foreign_lineage", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		testCase{"foreign_lineage", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.LineageID = "foreign"
 		}, ErrWriteGroupRevisionConflict},
-		{"stale_group", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		testCase{"stale_group", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.ExpectedPredecessorRevision = "stale"
 		}, ErrWriteGroupRevisionConflict},
-		{"stale_saved_connector", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		testCase{"stale_saved_connector", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.ExpectedPredecessorConnectorRevision = "stale"
 		}, ErrWriteGroupConnectorRevisionConflict},
-		{"stale_target_connector", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		testCase{"stale_target_connector", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.ExpectedTargetConnectorRevision = "stale"
 		}, ErrWriteGroupConnectorRevisionConflict},
-		{"foreign_workspace", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		testCase{"foreign_workspace", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			r.WorkspaceID = "foreign"
 			r.Group.WorkspaceID = "foreign"
 		}, ErrWriteGroupLineageCorrupt},
-		{"revision_overflow", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		testCase{"revision_overflow", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			_, err := h.db.ExecContext(t.Context(), "UPDATE write_group_lineages SET revision=?", int64(math.MaxInt64))
 			require.NoError(t, err)
 			r.ExpectedLineageRevision = math.MaxInt64
 		}, ErrWriteGroupLineageCorrupt},
-		{"future_generation", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		testCase{"future_generation", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			seedLineageGeneration(t, h, r.Group, r.LineageID, "unexplained-G2", 2)
 		}, ErrWriteGroupLineageCorrupt},
-		{"historical_predecessor", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		testCase{"historical_predecessor", func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			seedLineageGeneration(t, h, r.Group, r.LineageID, "current-G2", 2)
 			_, err := h.db.ExecContext(t.Context(), "UPDATE write_group_lineages SET current_group_id='current-G2'")
 			require.NoError(t, err)
 		}, ErrWriteGroupRevisionConflict},
-	}
+	)
 	for _, status := range []WriteGroupStatus{WriteGroupStatusDraft, WriteGroupStatusReady, WriteGroupStatusRunning, WriteGroupStatusDisabled} {
-		cases = append(cases, struct {
-			name   string
-			mutate func(*testing.T, *circuitProfileHarness, *writeGroupRecreateReservationRequest)
-			want   error
-		}{string(status), func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
+		cases = append(cases, testCase{string(status), func(t *testing.T, h *circuitProfileHarness, r *writeGroupRecreateReservationRequest) {
 			_, err := h.db.ExecContext(t.Context(), "UPDATE write_groups SET status=?", status)
 			require.NoError(t, err)
 		}, ErrWriteGroupLifecycleBlocked})

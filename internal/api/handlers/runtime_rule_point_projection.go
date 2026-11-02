@@ -24,7 +24,7 @@ func safeRuntimePointRead(record *schema.Point) runtimePointReadResponse {
 	copyRecord.LastError = runtimeSafeDiagnostic(record.LastError)
 	response := runtimePointReadResponse{Point: &copyRecord}
 	if !safeRuntimePointMetadata(&copyRecord) {
-		response.MetadataState = "unsupported"
+		response.MetadataState = unsupportedState
 	}
 	if record.LastValue == nil {
 		return response
@@ -34,7 +34,7 @@ func safeRuntimePointRead(record *schema.Point) runtimePointReadResponse {
 		return response
 	}
 	copyRecord.LastValue = nil
-	response.ValueState = "unsupported"
+	response.ValueState = unsupportedState
 	return response
 }
 

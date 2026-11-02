@@ -12,7 +12,7 @@ import { RecordingEditorSummary } from '../../../recording-editor/RecordingEdito
 import { RecordingEditorLayout } from '../../../recording-editor/RecordingEditorLayout';
 import { mixedDraftToRequestGroup, newMixedDraft } from '../../../recording-editor/recordingMixedDraft';
 import { initializeMixedMembers } from '../../../recording-editor/recordingMemberCalculation';
-import { RecordingMemberCalculationSource } from '../../../recording-editor/RecordingMemberCalculation';
+import { RecordingMemberCalculationSource } from '../../../recording-editor/RecordingMemberCalculationPanel';
 import { RecordingPointOrder } from '../../../recording-editor/RecordingPointOrder';
 import type { DeviceSourcePort } from '../../../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { RecordingPointSelection } from '../../../recording-editor/RecordingPointSelection';

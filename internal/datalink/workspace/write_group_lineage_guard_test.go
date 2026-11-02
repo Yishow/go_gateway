@@ -118,7 +118,7 @@ func TestCanonicalLineageDistinctGenerationEffectsPreserveReceipts(t *testing.T)
 	require.NoError(t, err)
 	when := time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 	for _, profile := range []bool{false, true} {
-		var effects []string
+		effects := make([]string, 0, 2)
 		for _, id := range []string{"G1", "G2"} {
 			var record string
 			if profile {

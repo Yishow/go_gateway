@@ -103,7 +103,7 @@ func TestRuntimeRuleStreamSafetyRemoteRequest(t *testing.T) {
 	close(source.valueCh)
 	response := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(response)
-	c.Request = httptest.NewRequest(http.MethodGet, "/runtime/stream?device_id=postgres%3A%2F%2Fpassword-fixture", http.NoBody)
+	c.Request = newHandlerTestRequest(http.MethodGet, "/runtime/stream?device_id=postgres%3A%2F%2Fpassword-fixture", http.NoBody)
 	c.Request.RemoteAddr = "203.0.113.10:4567"
 	NewRuntimeStreamHandler(source).Stream(c)
 	require.Equal(t, http.StatusOK, response.Code)
@@ -122,7 +122,7 @@ func TestRuntimeRuleStatusSafetyRemoteRequest(t *testing.T) {
 	require.NoError(t, err)
 	response := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(response)
-	c.Request = httptest.NewRequest(http.MethodGet, "/runtime/status", http.NoBody)
+	c.Request = newHandlerTestRequest(http.MethodGet, "/runtime/status", http.NoBody)
 	c.Request.RemoteAddr = "203.0.113.10:4567"
 	NewRuntimeHandler(nil, nil, nil, nil, service, nil).Status(c)
 	require.Equal(t, http.StatusOK, response.Code)
@@ -134,7 +134,7 @@ func TestRuntimeRuleStreamSafetyUnavailableRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	response := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(response)
-	c.Request = httptest.NewRequest(http.MethodGet, "/runtime/stream?device_id=postgres%3A%2F%2Fpassword-fixture", http.NoBody)
+	c.Request = newHandlerTestRequest(http.MethodGet, "/runtime/stream?device_id=postgres%3A%2F%2Fpassword-fixture", http.NoBody)
 	c.Request.RemoteAddr = "203.0.113.10:4567"
 	NewRuntimeStreamHandler(&stubRuntimeStreamSource{}).Stream(c)
 	require.Equal(t, http.StatusServiceUnavailable, response.Code)

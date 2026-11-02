@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
-import { RecordingMemberCalculation } from '../../../src/features/datalink/workbench-v2/recording-editor/RecordingMemberCalculation';
+import { RecordingMemberCalculation } from '../../../src/features/datalink/workbench-v2/recording-editor/RecordingMemberCalculationPanel';
 import type { MemberCalculationContext } from '../../../src/features/datalink/workbench-v2/recording-editor/recordingMemberCalculation';
 import type { EditorMember } from '../../../src/features/datalink/workbench-v2/state/writeGroup/draft';
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));

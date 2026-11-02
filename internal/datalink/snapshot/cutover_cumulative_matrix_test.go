@@ -104,8 +104,9 @@ func TestCutoverCumulativeMatrixFullSequenceAndNewBaseline(t *testing.T) {
 			}{{old, []string{"rise-before", "hidden-reset", "latest-before"}}, {next, []string{"exact", "after"}}} {
 				entity := tc.owner.config.entityOf(tc.owner.config.Members[0])
 				selector := tc.owner.selectorWithinActualBounds(at(600), entity, tc.owner.buckets[at(600)].selectors[entity])
-				var ids []string
-				for _, reading := range selector.counterReadings("alpha") {
+				readings := selector.counterReadings("alpha")
+				ids := make([]string, 0, len(readings))
+				for _, reading := range readings {
 					ids = append(ids, reading.SampleID)
 				}
 				require.ElementsMatch(t, tc.ids, ids, "every eligible pre-decimation input survives; equality belongs only to the successor")

@@ -86,7 +86,7 @@ func validateMixedFacts(f *GroupFacts) error {
 
 func validateMixedResult(r *SourceResult, facts *GroupFacts, source SourceEvidence) error {
 	if r.Calculation == nil {
-		if facts.MixedRecording != nil && r.State != "unavailable" {
+		if facts.MixedRecording != nil && r.State != runtimeViewUnavailable {
 			return errUnavailable
 		}
 		return nil
@@ -130,7 +130,7 @@ func validateMixedResult(r *SourceResult, facts *GroupFacts, source SourceEviden
 	if err != nil || c.IntervalSeconds != int64(duration/time.Second) || c.Method != intent.Method || c.Alignment != intent.Alignment || c.SourceType != *member.SourceValueType || c.ResultType != intent.ResultType {
 		return errStale
 	}
-	if c.RowEmitted != (c.OutcomeKind == "row") || c.ResultPresent != (c.Status == "ok") || (c.ResultPresent && !c.RawPresent) || (r.State == "available" && !c.ResultPresent) || ((r.State == "not_due") != (c.Status == "not_due")) || (r.Receipt != nil && !c.RowEmitted) {
+	if c.RowEmitted != (c.OutcomeKind == "row") || c.ResultPresent != (c.Status == "ok") || (c.ResultPresent && !c.RawPresent) || (r.State == "available" && !c.ResultPresent) || ((r.State == snapshot.ReasonNotDue) != (c.Status == snapshot.ReasonNotDue)) || (r.Receipt != nil && !c.RowEmitted) {
 		return errUnavailable
 	}
 	if c.Method == "delta" {
@@ -144,7 +144,7 @@ func validateMixedResult(r *SourceResult, facts *GroupFacts, source SourceEviden
 	if parseErr != nil {
 		return errUnavailable
 	}
-	if c.Status == "not_due" {
+	if c.Status == snapshot.ReasonNotDue {
 		if c.NextDue != nil {
 			start, end, err := snapshot.CheckedWindowBounds(due, duration)
 			next, parseErr := time.Parse(time.RFC3339Nano, *c.NextDue)
@@ -155,7 +155,7 @@ func validateMixedResult(r *SourceResult, facts *GroupFacts, source SourceEviden
 				return errUnavailable
 			}
 		}
-		if facts.Layout != "managed_wide_profile_v1" || c.AlignedStart != nil || c.AlignedEnd != nil || r.State != "not_due" || c.ResultPresent || c.RawPresent || c.ActualStart != nil || c.ActualEnd != nil || r.WindowStart != nil || r.WindowEnd != nil {
+		if facts.Layout != "managed_wide_profile_v1" || c.AlignedStart != nil || c.AlignedEnd != nil || r.State != snapshot.ReasonNotDue || c.ResultPresent || c.RawPresent || c.ActualStart != nil || c.ActualEnd != nil || r.WindowStart != nil || r.WindowEnd != nil {
 			return errUnavailable
 		}
 	} else {

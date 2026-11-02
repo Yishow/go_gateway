@@ -27,7 +27,7 @@ func TestCounterBindingReadinessRetainsOriginalMeasurementDiagnosis(t *testing.T
 			require.NoError(t, err)
 			require.False(t, ready.Ready)
 			require.Empty(t, ready.counterBindings)
-			var codes []string
+			codes := make([]string, 0, len(ready.Issues))
 			for _, issue := range ready.Issues {
 				codes = append(codes, issue.Code)
 			}
@@ -39,7 +39,7 @@ func TestCounterBindingReadinessRetainsOriginalMeasurementDiagnosis(t *testing.T
 			proofs, issues := f.service.counterBindingEvidenceInTx(t.Context(), tx, f.group, nil, nil)
 			require.NoError(t, tx.Rollback())
 			require.Empty(t, proofs)
-			codes = nil
+			codes = make([]string, 0, len(issues))
 			for _, issue := range issues {
 				codes = append(codes, issue.Code)
 			}
@@ -67,7 +67,7 @@ func TestCounterBindingReadinessMissingOrUnsupportedTypeCannotSealProof(t *testi
 			}
 			proofs, issues := f.service.counterBindingEvidenceInTx(t.Context(), tx, group, map[string]schema.DataType{group.Members[0].TagID: kind}, definitions)
 			require.Empty(t, proofs, "type=%s measurement=%t", kind, withID)
-			var codes []string
+			codes := make([]string, 0, len(issues))
 			for _, issue := range issues {
 				codes = append(codes, issue.Code)
 			}

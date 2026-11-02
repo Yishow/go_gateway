@@ -1,5 +1,5 @@
 import { ParameterHelp } from '../components/ParameterHelp';
-import { RecordingRangeSchedule } from './RecordingRangeSchedule';
+import { RecordingRangeSchedule } from './RecordingRangeSchedulePanel';
 import { buildStudioEntityLocatorTarget } from '../../../../services/studioEntityLocator';
 import { useTranslation } from 'react-i18next';
 import { recordingRangeDataTypes } from './recordingRangeBuffer';

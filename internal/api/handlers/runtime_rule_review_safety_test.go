@@ -51,7 +51,7 @@ func TestRuntimeRuleReviewSafetyContextUnknownIsNotRunningOrDefault(t *testing.T
 		require.NoError(t, repo.Create(t.Context(), &schema.Device{ID: "device-1", Name: "Meter", Protocol: schema.ProtocolMC3E, Status: schema.DeviceStatusActive, ReadinessStatus: string(readiness)}))
 		response := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(response)
-		c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", http.NoBody)
+		c.Request = newHandlerTestRequest(http.MethodGet, "/runtime-context", http.NoBody)
 		NewRuntimeHandler(device.NewService(repo, nil), nil, nil, nil, nil, ws).WorkspaceContext(c)
 		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 		require.Contains(t, response.Body.String(), `"availability_status":"unavailable"`)
@@ -79,7 +79,7 @@ func TestRuntimeRuleReviewSafetyRemoteStreamRequestID(t *testing.T) {
 			}
 			response := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(response)
-			c.Request = httptest.NewRequest(http.MethodGet, "/runtime/stream?device_id=device-1", http.NoBody)
+			c.Request = newHandlerTestRequest(http.MethodGet, "/runtime/stream?device_id=device-1", http.NoBody)
 			c.Request.RemoteAddr = "203.0.113.10:4567"
 			c.Request.Header.Set("X-Request-ID", hostile)
 			NewRuntimeStreamHandler(source).Stream(c)

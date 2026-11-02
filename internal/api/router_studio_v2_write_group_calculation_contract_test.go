@@ -119,7 +119,7 @@ func assertGeneratedCalculationRestriction(t *testing.T, defs map[string]any, wi
 	doc := defs["workspace.WriteGroupCalculationRestriction"].(map[string]any)
 	props := doc["properties"].(map[string]any)
 	typ := reflect.TypeOf(workspace.WriteGroupCalculationRestriction{})
-	required, all := []string{}, []string{}
+	required, all := []string{}, make([]string, 0, typ.NumField())
 	for i := 0; i < typ.NumField(); i++ {
 		tag := strings.Split(typ.Field(i).Tag.Get("json"), ",")
 		all = append(all, tag[0])

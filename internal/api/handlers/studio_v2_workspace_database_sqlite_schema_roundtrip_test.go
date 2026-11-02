@@ -87,7 +87,7 @@ func TestWorkspaceSQLiteDefaultNamespace_ReadbackCanonicalizesLegacyBlank(t *tes
 	fixture, _ := legacySQLiteNamespaceFixture(t)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-config", http.NoBody)
+	c.Request = newHandlerTestRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-config", http.NoBody)
 	fixture.handler.GetConfig(c)
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	body := decodeWorkspaceDatabaseBody(t, resp)
@@ -176,7 +176,7 @@ func TestWorkspaceSQLiteDefaultNamespace_BoundPathChangeDoesNotRebindCanonicalGr
 	require.NoError(t, err)
 	require.False(t, readiness.Ready)
 	require.False(t, readiness.ConfigReady)
-	codes := []string{}
+	codes := make([]string, 0, len(readiness.Issues))
 	for _, issue := range readiness.Issues {
 		codes = append(codes, issue.Code)
 	}

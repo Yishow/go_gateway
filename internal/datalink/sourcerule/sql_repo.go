@@ -15,6 +15,18 @@ type SQLRepository struct {
 	db *sql.DB
 }
 
+const updateRuleQuery = `
+		UPDATE source_rules
+		SET start_address = ?, count = ?, data_type = ?, naming_prefix = ?,
+		    enabled = ?, locked = ?, origin = ?, template_name = ?, skipped_addresses = ?,
+		    target_data_type = ?, scale_multiplier = ?, scale_offset = ?, data_format = ?,
+		    share_enabled = ?, share_start_register = ?, share_stride = ?,
+		    updated_at = ?, revision_id = ?
+		WHERE id = ?
+	`
+
+const updateRuleExpectedQuery = updateRuleQuery + ` AND device_id = ? AND revision_id = ? AND updated_at = ? AND ` + sourceRuleStatePredicate
+
 func NewSQLRepository(db *sql.DB) *SQLRepository {
 	return &SQLRepository{db: db}
 }
@@ -89,15 +101,7 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 }
 
 func (r *SQLRepository) updateRuleRevision(ctx context.Context, rule, expected *schema.SourceRule) error {
-	query := `
-		UPDATE source_rules
-		SET start_address = ?, count = ?, data_type = ?, naming_prefix = ?,
-		    enabled = ?, locked = ?, origin = ?, template_name = ?, skipped_addresses = ?,
-		    target_data_type = ?, scale_multiplier = ?, scale_offset = ?, data_format = ?,
-		    share_enabled = ?, share_start_register = ?, share_stride = ?,
-		    updated_at = ?, revision_id = ?
-		WHERE id = ?
-	`
+	query := updateRuleQuery
 
 	var targetDataType any
 	if rule.TargetDataType != nil {
@@ -154,10 +158,9 @@ func (r *SQLRepository) updateRuleRevision(ctx context.Context, rule, expected *
 		if err != nil || !parsed.Equal(expected.UpdatedAt) {
 			return ErrRuleRevisionConflict
 		}
-		query += " AND device_id = ? AND revision_id = ? AND updated_at = ?"
+		query = updateRuleExpectedQuery
 		args = append(args, expected.DeviceID, expected.RevisionID, rawTimestamp)
-		predicate, stateArgs := ruleStatePredicate(expected)
-		query += " AND " + predicate
+		stateArgs := ruleStateArgs(expected)
 		args = append(args, stateArgs...)
 	}
 	result, err := r.db.ExecContext(ctx, query, args...)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
@@ -18,7 +19,7 @@ func TestProductionFormatRecoveryMatchesSQLMemberSourceIdentity(t *testing.T) {
 	req := recoveryFaultSave(t, f)
 	raw, err := json.Marshal(map[string]any{"format_recovery": req})
 	require.NoError(t, err)
-	request := httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/modbus-share/reconcile", bytes.NewReader(raw))
+	request := httptest.NewRequestWithContext(context.Background(), "POST", appconfig.Get().API.BasePath+"/datalink/modbus-share/reconcile", bytes.NewReader(raw))
 	request.Header.Set("Content-Type", "application/json")
 	res := httptest.NewRecorder()
 	f.router.ServeHTTP(res, request)

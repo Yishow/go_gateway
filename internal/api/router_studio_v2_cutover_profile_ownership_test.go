@@ -88,7 +88,7 @@ func TestCutoverPublicIndependentProfilesRollback40SQLite(t *testing.T) {
 			require.Zero(t, r.localCount(`SELECT COUNT(*) FROM wg_delivery_sample_handoffs`), "pre-boundary native I/C observations retain their original scopes")
 			require.GreaterOrEqual(t, r.flush(r.at(61*time.Second)).Delivered, 3)
 			require.Equal(t, originals, independentProfileJournal(t, r), "all original payload, proof and acceptance bytes survive rollback")
-			var effects []string
+			effects := make([]string, 0, 2)
 			for _, kind := range []string{"instantaneous", "cumulative"} {
 				key := profiles[kind]
 				require.Equal(t, 1, r.localCount(`SELECT COUNT(*) FROM wg_delivery_samples WHERE sample_id='same-observation' AND group_id=? AND group_revision=? AND consumed=1`, key.GroupID, key.GroupRevision))

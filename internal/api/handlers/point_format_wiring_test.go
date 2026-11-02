@@ -52,7 +52,7 @@ func TestPointFormatHTTPWiringInvalidatesOnceAndPreservesLegacyShape(t *testing.
 			router.GET("/points/:id/format/operations/:request_id", h.InspectFormatOperation)
 			router.GET("/points/:id/format", h.ReadFormat)
 			read := httptest.NewRecorder()
-			router.ServeHTTP(read, httptest.NewRequest("GET", "/points/"+p.ID+"/format?workspace_id="+record.ID+"&device_id="+p.DeviceID, http.NoBody))
+			router.ServeHTTP(read, newHandlerTestRequest("GET", "/points/"+p.ID+"/format?workspace_id="+record.ID+"&device_id="+p.DeviceID, http.NoBody))
 			require.Equal(t, 200, read.Code, read.Body.String())
 			var initial PointFormatReadResponse
 			require.NoError(t, json.Unmarshal(read.Body.Bytes(), &initial))
@@ -70,7 +70,7 @@ func TestPointFormatHTTPWiringInvalidatesOnceAndPreservesLegacyShape(t *testing.
 			raw, err := json.Marshal(payload)
 			require.NoError(t, err)
 			send := func() *httptest.ResponseRecorder {
-				r := httptest.NewRequest("PUT", path, bytes.NewReader(raw))
+				r := newHandlerTestRequest("PUT", path, bytes.NewReader(raw))
 				r.Header.Set("Content-Type", "application/json")
 				w := httptest.NewRecorder()
 				router.ServeHTTP(w, r)
@@ -124,7 +124,7 @@ func TestPointFormatHTTPWiringInvalidatesOnceAndPreservesLegacyShape(t *testing.
 			state, err = share.CheckHydration(t.Context())
 			require.NoError(t, err)
 			require.Equal(t, latest, state)
-			r := httptest.NewRequest("GET", "/points/"+p.ID+"/format/operations/format-request?workspace_id="+record.ID+"&device_id="+p.DeviceID, http.NoBody)
+			r := newHandlerTestRequest("GET", "/points/"+p.ID+"/format/operations/format-request?workspace_id="+record.ID+"&device_id="+p.DeviceID, http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, r)
 			require.Equal(t, 200, w.Code)

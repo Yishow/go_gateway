@@ -14,25 +14,36 @@ func AcquisitionConfigSchema(protocol schema.ProtocolType) json.RawMessage {
 	if len(profiles) == 0 {
 		return nil
 	}
+	const (
+		additionalPropertiesKey = "additionalProperties"
+		descriptionKey          = "description"
+		integerType             = "integer"
+		minimumKey              = "minimum"
+		objectType              = "object"
+		propertiesKey           = "properties"
+		requiredKey             = "required"
+		stringType              = "string"
+		typeKey                 = "type"
+	)
 	positive := func(description string) map[string]any {
-		return map[string]any{"type": "integer", "minimum": 1, "description": description}
+		return map[string]any{typeKey: integerType, minimumKey: 1, descriptionKey: description}
 	}
-	nativeRange := map[string]any{"type": "object", "additionalProperties": false, "required": []string{"area", "start", "end"}, "properties": map[string]any{
-		"area":  map[string]any{"type": "string", "minLength": 1, "description": "Canonical protocol area; function namespaces stay separate."},
-		"start": map[string]any{"type": "integer", "minimum": 0},
-		"end":   map[string]any{"type": "integer", "minimum": 1, "description": "Exclusive physical address, not component count."},
+	nativeRange := map[string]any{typeKey: objectType, additionalPropertiesKey: false, requiredKey: []string{"area", "start", "end"}, propertiesKey: map[string]any{
+		"area":  map[string]any{typeKey: stringType, "minLength": 1, descriptionKey: "Canonical protocol area; function namespaces stay separate."},
+		"start": map[string]any{typeKey: integerType, minimumKey: 0},
+		"end":   map[string]any{typeKey: integerType, minimumKey: 1, descriptionKey: "Exclusive physical address, not component count."},
 	}}
 	ranges := func() map[string]any { return map[string]any{"type": "array", "items": nativeRange} }
-	declaration := map[string]any{"type": "object", "title": "Acquisition declaration", "additionalProperties": false, "required": []string{"version", "profile"}, "properties": map[string]any{
-		"version": map[string]any{"type": "integer", "enum": []int{1}},
-		"profile": map[string]any{"type": "string", "enum": profiles, "description": "Explicit supported family profile; omitted acquisition remains unknown. FX5 CPU profile is only local CPU built-in Ethernet, not routed or module endpoints."},
-		"limits": map[string]any{"type": "object", "additionalProperties": false, "properties": map[string]any{
+	declaration := map[string]any{typeKey: objectType, "title": "Acquisition declaration", additionalPropertiesKey: false, requiredKey: []string{"version", "profile"}, propertiesKey: map[string]any{
+		"version": map[string]any{typeKey: integerType, "enum": []int{1}},
+		"profile": map[string]any{typeKey: stringType, "enum": profiles, descriptionKey: "Explicit supported family profile; omitted acquisition remains unknown. FX5 CPU profile is only local CPU built-in Ethernet, not routed or module endpoints."},
+		"limits": map[string]any{typeKey: objectType, additionalPropertiesKey: false, propertiesKey: map[string]any{
 			"native_units":   positive("Optional stricter per-request native component count; protocol/client limits still apply."),
 			"request_bytes":  positive("Optional stricter complete application-request frame bytes."),
 			"response_bytes": positive("Optional stricter complete application-response frame bytes."),
 		}},
-		"coverage": map[string]any{"type": "object", "additionalProperties": false, "required": []string{"revision"}, "properties": map[string]any{
-			"revision": map[string]any{"type": "string", "minLength": 1, "pattern": `\S`},
+		"coverage": map[string]any{typeKey: objectType, additionalPropertiesKey: false, requiredKey: []string{"revision"}, propertiesKey: map[string]any{
+			"revision": map[string]any{typeKey: stringType, "minLength": 1, "pattern": `\S`},
 			"readable": ranges(), "forbidden": ranges(), "excluded": ranges(),
 		}},
 	}}

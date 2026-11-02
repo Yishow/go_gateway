@@ -29,7 +29,7 @@ func projectRuntimeSource(records *runtimeSourceRecords, scope runtimeview.Scope
 	if group := records.Polling; group != nil && runtimeSafeID(group.ID) != "" && group.IntervalMs > 0 {
 		facts.Polling = &runtimeview.PollingEvidence{GroupID: group.ID, IntervalMS: int64(group.IntervalMs), Source: "polling-group"}
 	}
-	result := &runtimeview.SourceView{RuleID: rule.ID, PointID: p.ID, SavedRevision: runtimeEvidenceString(rule.RevisionID), State: "saved-only", Proof: runtimeEvidenceUnavailable, Saved: facts}
+	result := &runtimeview.SourceView{RuleID: rule.ID, PointID: p.ID, SavedRevision: runtimeEvidenceString(rule.RevisionID), State: savedOnlyState, Proof: runtimeEvidenceUnavailable, Saved: facts}
 	if m := records.Mapping; m != nil {
 		result.MappingID, result.TagID = runtimeEvidenceString(m.ID), runtimeEvidenceString(records.Tag.ID)
 		revision, err := measurement.MappingRevision(*m)
@@ -41,7 +41,7 @@ func projectRuntimeSource(records *runtimeSourceRecords, scope runtimeview.Scope
 			facts.ResultType = runtimeEvidenceString(string(runtimeSafeDataType(records.Tag.DataType)))
 			facts.Transforms = append(facts.Transforms, runtimeSourceTransforms(m.TransformPipeline)...)
 		} else {
-			facts.Transforms = append(facts.Transforms, runtimeview.TransformStep{Kind: "unsupported"})
+			facts.Transforms = append(facts.Transforms, runtimeview.TransformStep{Kind: unsupportedState})
 		}
 	}
 	// No public authority provides a revision-bound immutable source snapshot.
@@ -60,7 +60,7 @@ func runtimeSourceTransforms(raw string) []runtimeview.TransformStep {
 	if strings.TrimSpace(raw) == "" {
 		return []runtimeview.TransformStep{}
 	}
-	unsupported := []runtimeview.TransformStep{{Kind: "unsupported"}}
+	unsupported := []runtimeview.TransformStep{{Kind: unsupportedState}}
 	var steps []runtimeSourceTransform
 	if !runtimeSourceDecode(raw, &steps) {
 		return unsupported
@@ -75,22 +75,22 @@ func runtimeSourceTransforms(raw string) []runtimeview.TransformStep {
 	sort.SliceStable(steps, func(i, j int) bool { return steps[i].Order < steps[j].Order })
 	result := make([]runtimeview.TransformStep, 0, len(steps))
 	for _, step := range steps {
-		projected := runtimeview.TransformStep{Kind: "unsupported"}
+		projected := runtimeview.TransformStep{Kind: unsupportedState}
 		switch step.Type {
-		case "scale":
+		case transformScaleKind:
 			var params struct {
 				Scale  *float64 `json:"scale"`
 				Offset *float64 `json:"offset"`
 			}
 			if runtimeSourceDecode(string(step.Params), &params) && params.Scale != nil && params.Offset != nil && !math.IsNaN(*params.Scale) && !math.IsInf(*params.Scale, 0) && !math.IsNaN(*params.Offset) && !math.IsInf(*params.Offset, 0) {
-				projected = runtimeview.TransformStep{Kind: "scale", Multiplier: params.Scale, Offset: params.Offset}
+				projected = runtimeview.TransformStep{Kind: transformScaleKind, Multiplier: params.Scale, Offset: params.Offset}
 			}
-		case "cast":
+		case transformCastKind:
 			var params struct {
 				TargetType string `json:"target_type"`
 			}
 			if runtimeSourceDecode(string(step.Params), &params) && runtimeSafeDataType(schema.DataType(params.TargetType)) != "" {
-				projected = runtimeview.TransformStep{Kind: "cast", TargetType: &params.TargetType}
+				projected = runtimeview.TransformStep{Kind: transformCastKind, TargetType: &params.TargetType}
 			}
 		}
 		result = append(result, projected)

@@ -53,7 +53,7 @@ func TestProductionWordFormatHTTPOverrideRestartAndReset(t *testing.T) {
 			base := appconfig.Get().API.BasePath + "/datalink/points/" + p.ID + "/format"
 			read := func() *point.FormatReadResult {
 				response := httptest.NewRecorder()
-				router.ServeHTTP(response, httptest.NewRequest("GET", base+"?workspace_id="+record.ID+"&device_id="+p.DeviceID+"&rule_id="+rule.ID, http.NoBody))
+				router.ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), "GET", base+"?workspace_id="+record.ID+"&device_id="+p.DeviceID+"&rule_id="+rule.ID, http.NoBody))
 				require.Equal(t, 200, response.Code, response.Body.String())
 				var body handlers.PointFormatReadResponse
 				require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
@@ -65,7 +65,7 @@ func TestProductionWordFormatHTTPOverrideRestartAndReset(t *testing.T) {
 				req := point.FormatMutationRequest{FormatScope: point.FormatScope{WorkspaceID: record.ID, DeviceID: p.DeviceID, PointID: p.ID, RuleID: rule.ID, ExpectedWorkspaceRevision: initial.WorkspaceRevision, ExpectedPointRevision: &initial.PointRevision, ExpectedRuleRevision: initial.RuleRevision, RequestID: id}, FormatMode: mode, ConfiguredFormat: format}
 				raw, e := json.Marshal(req)
 				require.NoError(t, e)
-				request := httptest.NewRequest(http.MethodPut, base, bytes.NewReader(raw))
+				request := httptest.NewRequestWithContext(context.Background(), http.MethodPut, base, bytes.NewReader(raw))
 				request.Header.Set("Content-Type", "application/json")
 				response := httptest.NewRecorder()
 				router.ServeHTTP(response, request)

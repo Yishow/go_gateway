@@ -41,6 +41,12 @@ type WriteGroupCalculationRestriction struct {
 	Reason          string                      `json:"reason"`
 }
 
+const (
+	writeGroupCapabilityPhaseDraft                   = "draft"
+	writeGroupSourceTransformExactCounterScale       = "exact_counter_scale"
+	writeGroupReasonMixedExactSourceDraftUnsupported = "mixed_exact_source_draft_unsupported"
+)
+
 // RecordingCalculationCapabilities returns fresh slices so consumers cannot
 // mutate the backend contract. Supported activation still requires each record
 // to pass fresh schema, readiness and ownership checks; editor support is separate.
@@ -54,10 +60,10 @@ func RecordingCalculationCapabilities() WriteGroupCalculationCapabilities {
 		SchemaDialects: []string{"sqlite", "postgres"},
 		SchemaLayouts:  []WriteGroupLayoutVersion{WriteGroupLayoutManagedWideProfileV1, WriteGroupLayoutManagedLongV1},
 		Unsupported: []WriteGroupCalculationRestriction{
-			{Method: WriteGroupMemberCalculationLatest, SourceTransform: "exact_counter_scale", Phase: "draft", Reason: "mixed_exact_source_draft_unsupported"},
-			{Method: WriteGroupMemberCalculationMean, SourceTransform: "exact_counter_scale", Phase: "draft", Reason: "mixed_exact_source_draft_unsupported"},
-			{Layout: WriteGroupLayoutManagedWideProfileV1, Method: WriteGroupMemberCalculationDelta, SourceTransform: "exact_counter_scale", Phase: "draft", Reason: "mixed_exact_source_draft_unsupported"},
-			{Method: WriteGroupMemberCalculationLatest, SourceTransform: "exact_counter_scale", Phase: "runtime", Reason: "mixed_exact_source_latest_unsupported"},
+			{Method: WriteGroupMemberCalculationLatest, SourceTransform: writeGroupSourceTransformExactCounterScale, Phase: writeGroupCapabilityPhaseDraft, Reason: writeGroupReasonMixedExactSourceDraftUnsupported},
+			{Method: WriteGroupMemberCalculationMean, SourceTransform: writeGroupSourceTransformExactCounterScale, Phase: writeGroupCapabilityPhaseDraft, Reason: writeGroupReasonMixedExactSourceDraftUnsupported},
+			{Layout: WriteGroupLayoutManagedWideProfileV1, Method: WriteGroupMemberCalculationDelta, SourceTransform: writeGroupSourceTransformExactCounterScale, Phase: writeGroupCapabilityPhaseDraft, Reason: writeGroupReasonMixedExactSourceDraftUnsupported},
+			{Method: WriteGroupMemberCalculationLatest, SourceTransform: writeGroupSourceTransformExactCounterScale, Phase: "runtime", Reason: "mixed_exact_source_latest_unsupported"},
 		},
 	}
 }

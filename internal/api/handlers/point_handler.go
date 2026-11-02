@@ -121,7 +121,7 @@ func (h *PointHandler) Update(c *gin.Context) {
 	if err != nil {
 		var pending *ordinaryRuntimePendingError
 		if errors.As(err, &pending) {
-			c.JSON(http.StatusServiceUnavailable, gin.H{apiResponseSuccessKey: false, apiResponseDataKey: gin.H{"point": pending.point, "runtime_apply_status": "pending"}, apiResponseErrorKey: gin.H{"code": "point_format_unavailable", apiResponseMessageKey: pending.Error()}})
+			c.JSON(http.StatusServiceUnavailable, gin.H{apiResponseSuccessKey: false, apiResponseDataKey: gin.H{"point": pending.point, runtimeApplyStatusKey: "pending"}, apiResponseErrorKey: gin.H{apiResponseCodeKey: "point_format_unavailable", apiResponseMessageKey: pending.Error()}})
 			return
 		}
 

@@ -11,7 +11,7 @@ const runtimeMethodLatest = "latest"
 
 func projectRuntimeRecordingGroup(saved *workspace.WriteGroup, snapshot *workspace.WriteGroupAppliedSnapshot, scope runtimeview.Scope, observed string) (runtimeview.GroupView, error) {
 	result := runtimeview.GroupView{GroupID: saved.ID, SavedRevision: runtimeEvidenceString(saved.Revision),
-		AppliedRevision: runtimeEvidenceString(saved.AppliedRevision), AsOf: &observed, State: "saved-only", Proof: runtimeEvidenceUnavailable}
+		AppliedRevision: runtimeEvidenceString(saved.AppliedRevision), AsOf: &observed, State: savedOnlyState, Proof: runtimeEvidenceUnavailable}
 	var err error
 	result.Saved, err = runtimeRecordingFacts(saved, nil, scope)
 	if err != nil {

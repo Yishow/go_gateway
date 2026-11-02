@@ -27,7 +27,7 @@ func locatorNativeQuery(t *testing.T, f workspaceDatabaseFixture) url.Values {
 func locatorNativeServe(handler gin.HandlerFunc, q url.Values) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/native?"+q.Encode(), http.NoBody)
+	c.Request = newHandlerTestRequest(http.MethodGet, "/native?"+q.Encode(), http.NoBody)
 	handler(c)
 	return w
 }

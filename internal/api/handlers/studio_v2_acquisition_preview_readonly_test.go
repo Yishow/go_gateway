@@ -27,7 +27,7 @@ func TestAcquisitionPreviewMissingWorkspaceNeverBootstraps(t *testing.T) {
 	router := gin.New()
 	router.GET("/preview", NewStudioV2AcquisitionPreviewHandler(workspace.NewService(repo), nil).Get)
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/preview?workspace_id=w&device_id=d&expected_workspace_revision=", http.NoBody))
+	router.ServeHTTP(response, newHandlerTestRequest(http.MethodGet, "/preview?workspace_id=w&device_id=d&expected_workspace_revision=", http.NoBody))
 	require.Equal(t, http.StatusConflict, response.Code, response.Body.String())
 	require.Zero(t, repo.saves)
 	require.NotContains(t, response.Body.String(), "groups")

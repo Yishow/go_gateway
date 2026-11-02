@@ -26,11 +26,11 @@ func DecodeScalarWords(words []uint16, dtype schema.DataType, format string) (an
 	var bits uint64
 	for i := 0; i < count; i++ {
 		index := i
-		if format == "CDAB" || format == "DCBA" {
+		if format == formatCDAB || format == formatDCBA {
 			index = count - 1 - i
 		}
 		word := words[index]
-		if format == "BADC" || format == "DCBA" {
+		if format == formatBADC || format == formatDCBA {
 			word = word>>8 | word<<8
 		}
 		bits = bits<<16 | uint64(word)

@@ -80,7 +80,7 @@ func newWordTransportFixture(t *testing.T, protocol schema.ProtocolType, plc *wo
 	require.NoError(t, err)
 	router := wordProductionRouter(services, db)
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/activate", http.NoBody))
+	router.ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), "POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/activate", http.NoBody))
 	require.Equal(t, 200, response.Code, response.Body.String())
 	return wordProductionFixture{services, db, plc, manager, router}
 }
@@ -92,7 +92,7 @@ func exerciseWordTransportMatrix(t *testing.T, f wordProductionFixture, protocol
 		value  any
 		format string
 	}
-	var cases []expected
+	cases := make([]expected, 0, 24)
 	for _, dtype := range []schema.DataType{schema.DataTypeInt32, schema.DataTypeUint32, schema.DataTypeFloat32, schema.DataTypeInt64, schema.DataTypeUint64, schema.DataTypeFloat64} {
 		for _, format := range []string{"ABCD", "BADC", "CDAB", "DCBA"} {
 			// createRule's protocol switch only selects the address spelling. All

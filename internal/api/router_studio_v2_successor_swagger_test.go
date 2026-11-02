@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -168,7 +169,7 @@ func TestStudioV2SuccessorSwaggerDispatchMatchesActualMissingScope(t *testing.T)
 	for _, action := range []string{"reserve", "schema-preview", "schema-confirm", "activation-review", "activation-readiness", "activation-confirm", "first-start-confirm", "operation-status"} {
 		t.Run(action, func(t *testing.T) {
 			rr := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/write-groups/g1/successor", strings.NewReader(`{"action":"`+action+`"}`))
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/write-groups/g1/successor", strings.NewReader(`{"action":"`+action+`"}`))
 			req.Header.Set("Content-Type", "application/json")
 			router.ServeHTTP(rr, req)
 			if rr.Code != http.StatusBadRequest || !strings.Contains(rr.Body.String(), "WRITE_GROUP_INVALID_REQUEST") {

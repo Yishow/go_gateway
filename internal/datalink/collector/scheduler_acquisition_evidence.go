@@ -128,7 +128,7 @@ func (s *Scheduler) finishAcquisitionEvidence(e *acquisitionScanEvidence) {
 }
 
 func (s *Scheduler) previewActual(snapshot scheduledSnapshot, head string) AcquisitionActual {
-	out := AcquisitionActual{Status: "unavailable", Reason: "no_matching_completed_scan"}
+	out := AcquisitionActual{Status: acquisitionStatusUnavailable, Reason: "no_matching_completed_scan"}
 	s.mu.RLock()
 	e := s.acquisitionEvidence[acquisitionEvidenceTuple{snapshot.device.ID, snapshot.groupID}]
 	if e == nil || e.head != head {

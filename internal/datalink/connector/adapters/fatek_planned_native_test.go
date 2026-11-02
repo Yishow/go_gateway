@@ -55,7 +55,7 @@ func TestFatekPlannedWordCostWholeScalarLimits(t *testing.T) {
 		count, bits, requests int
 	}{{"DR32", schema.DataTypeUint32, 32, 0, 1}, {"DR33", schema.DataTypeUint32, 33, 0, 2}, {"DR33-wide", schema.DataTypeUint64, 33, 0, 3}, {"mixed44", schema.DataTypeUint32, 20, 24, 1}, {"mixed45", schema.DataTypeUint32, 20, 25, 2}} {
 		t.Run(tc.name, func(t *testing.T) {
-			var points []schema.Point
+			points := make([]schema.Point, 0, tc.count+tc.bits)
 			memory := map[string]any{}
 			want := map[string]any{}
 			for i := range tc.count {

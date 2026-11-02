@@ -119,7 +119,7 @@ func newRecoveryFaultProductionFixture(t *testing.T) (wordProductionFixture, *re
 	require.NoError(t, err)
 	router := wordProductionRouter(services, db)
 	res := httptest.NewRecorder()
-	router.ServeHTTP(res, httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/activate", http.NoBody))
+	router.ServeHTTP(res, httptest.NewRequestWithContext(context.Background(), "POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/activate", http.NoBody))
 	require.Equal(t, 200, res.Code, res.Body.String())
 	return wordProductionFixture{services, db, plc, manager, router}, fault
 }
@@ -140,7 +140,7 @@ func recoveryFaultSave(t *testing.T, f wordProductionFixture) point.FormatRecove
 	raw, err := json.Marshal(save)
 	require.NoError(t, err)
 	res := httptest.NewRecorder()
-	request := httptest.NewRequest("PUT", appconfig.Get().API.BasePath+"/datalink/points/"+p.ID+"/format", bytes.NewReader(raw))
+	request := httptest.NewRequestWithContext(context.Background(), "PUT", appconfig.Get().API.BasePath+"/datalink/points/"+p.ID+"/format", bytes.NewReader(raw))
 	request.Header.Set("Content-Type", "application/json")
 	f.router.ServeHTTP(res, request)
 	require.Equal(t, 200, res.Code, res.Body.String())
@@ -212,7 +212,7 @@ func TestProductionFormatRecoveryCommitFaultCleanup(t *testing.T) {
 			raw, err := json.Marshal(map[string]any{"format_recovery": req})
 			require.NoError(t, err)
 			res := httptest.NewRecorder()
-			request := httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/modbus-share/reconcile", bytes.NewReader(raw))
+			request := httptest.NewRequestWithContext(context.Background(), "POST", appconfig.Get().API.BasePath+"/datalink/modbus-share/reconcile", bytes.NewReader(raw))
 			request.Header.Set("Content-Type", "application/json")
 			f.router.ServeHTTP(res, request)
 			require.Equal(t, 503, res.Code, res.Body.String())

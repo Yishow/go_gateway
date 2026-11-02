@@ -28,7 +28,7 @@ func installMixedRestartFence(t *testing.T, db *sql.DB, source *longFixture, end
 	runtimeHandoffVersion(t, tx, source, source.config.StartsAt)
 	runtimeHandoffVersion(t, tx, target, end)
 	g := source.config.Group
-	moved := []workspace.CutoverMemberRef{}
+	moved := make([]workspace.CutoverMemberRef, 0, len(g.Members))
 	for _, m := range g.Members {
 		moved = append(moved, workspace.CutoverMemberRef{DeviceID: m.DeviceID, PointID: m.PointID, TagID: m.TagID})
 	}

@@ -12,8 +12,8 @@ func TestAcquisitionGeometryBatchPublicationRejectsWholeSetBeforeAssignment(t *t
 	for _, kind := range []string{"current", "second-reinstalled", "duplicate", "second-finalized", "busy"} {
 		t.Run(kind, func(t *testing.T) {
 			s := NewScheduler(DefaultSchedulerConfig(), nil)
-			var publications []AcquisitionGeometryPublication
-			var tokens []AcquisitionGeometryMutation
+			publications := make([]AcquisitionGeometryPublication, 0, 2)
+			tokens := make([]AcquisitionGeometryMutation, 0, 2)
 			for _, id := range []string{"a", "b"} {
 				d := schema.Device{ID: id, Protocol: schema.ProtocolMC3E, ConnectionConfig: `{}`}
 				s.AddDevice(&d)

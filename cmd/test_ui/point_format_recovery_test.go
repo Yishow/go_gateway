@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -31,7 +32,7 @@ func TestProductionFormatRecoveryWithoutRestart(t *testing.T) {
 			rule, p, _ := f.createRule(t, schema.ProtocolModbusTCP, 0, schema.DataTypeUint32, "ABCD")
 			if tc.inactive != "" {
 				response := httptest.NewRecorder()
-				f.router.ServeHTTP(response, httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/disable", http.NoBody))
+				f.router.ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), "POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/disable", http.NoBody))
 				require.Equal(t, 200, response.Code, response.Body.String())
 				if tc.inactive == schema.DeviceStatusDraft {
 					_, e := f.db.ExecContext(t.Context(), `UPDATE devices SET status='draft' WHERE id='word-device'`)
@@ -50,7 +51,7 @@ func TestProductionFormatRecoveryWithoutRestart(t *testing.T) {
 			base := appconfig.Get().API.BasePath + "/datalink"
 			for i, format := range []string{"CDAB", ""} {
 				get := httptest.NewRecorder()
-				f.router.ServeHTTP(get, httptest.NewRequest("GET", base+"/points/"+p.ID+"/format?workspace_id="+record.ID+"&device_id="+p.DeviceID+"&rule_id="+rule.ID, http.NoBody))
+				f.router.ServeHTTP(get, httptest.NewRequestWithContext(context.Background(), "GET", base+"/points/"+p.ID+"/format?workspace_id="+record.ID+"&device_id="+p.DeviceID+"&rule_id="+rule.ID, http.NoBody))
 				require.Equal(t, 200, get.Code, get.Body.String())
 				var read handlers.PointFormatReadResponse
 				require.NoError(t, json.Unmarshal(get.Body.Bytes(), &read))
@@ -64,7 +65,7 @@ func TestProductionFormatRecoveryWithoutRestart(t *testing.T) {
 				raw, e := json.Marshal(save)
 				require.NoError(t, e)
 				res := httptest.NewRecorder()
-				request := httptest.NewRequest("PUT", base+"/points/"+p.ID+"/format", bytes.NewReader(raw))
+				request := httptest.NewRequestWithContext(context.Background(), "PUT", base+"/points/"+p.ID+"/format", bytes.NewReader(raw))
 				request.Header.Set("Content-Type", "application/json")
 				f.router.ServeHTTP(res, request)
 				require.Equal(t, 200, res.Code, res.Body.String())
@@ -89,7 +90,7 @@ func TestProductionFormatRecoveryWithoutRestart(t *testing.T) {
 						require.Equal(t, uint16(0), f.services.modbusShare.ListMappings()[0].ZeroBasedRegister)
 					} else if attempt == 1 && tc.inactive == "" {
 						poll := httptest.NewRecorder()
-						f.router.ServeHTTP(poll, httptest.NewRequest("POST", base+"/points/"+p.ID+"/poll", http.NoBody))
+						f.router.ServeHTTP(poll, httptest.NewRequestWithContext(context.Background(), "POST", base+"/points/"+p.ID+"/poll", http.NoBody))
 						require.Equal(t, 200, poll.Code, poll.Body.String())
 						telemetry, e := f.services.point.GetByID(t.Context(), p.ID)
 						require.NoError(t, e)
@@ -98,7 +99,7 @@ func TestProductionFormatRecoveryWithoutRestart(t *testing.T) {
 					}
 
 					res = httptest.NewRecorder()
-					request = httptest.NewRequest("POST", base+"/modbus-share/reconcile", bytes.NewReader(raw))
+					request = httptest.NewRequestWithContext(context.Background(), "POST", base+"/modbus-share/reconcile", bytes.NewReader(raw))
 					request.Header.Set("Content-Type", "application/json")
 					f.router.ServeHTTP(res, request)
 					if attempt == 1 && tc.changedCandidate {

@@ -70,27 +70,27 @@ func parseStudioLocatorQuery(raw string) (*studioLocatorRequest, error) {
 		return nil, nil
 	}
 	q, err := url.ParseQuery(raw)
-	allowed := map[string]bool{"entry": true, "workspace_id": true, "step": true, "device_id": true, "rule_id": true, "mapping_id": true, "group_id": true, "group_revision": true, "editor": true, expectedWorkspaceRevisionField: true, "expected_group_revision": true}
-	if err != nil || q.Get("entry") != "locator" {
+	allowed := map[string]bool{entryKey: true, workspaceIDKey: true, stepKey: true, deviceIDKey: true, ruleIDKey: true, mappingIDKey: true, "group_id": true, "group_revision": true, "editor": true, expectedWorkspaceRevisionField: true, "expected_group_revision": true}
+	if err != nil || q.Get(entryKey) != "locator" {
 		return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 	}
 	for key, values := range q {
-		if !allowed[key] || len(values) != 1 || (values[0] == "" && key != expectedWorkspaceRevisionField) || (key != "entry" && key != "step" && key != "editor" && (key != expectedWorkspaceRevisionField || values[0] != "") && !runtimeDeliveryIDs(values[0])) {
+		if !allowed[key] || len(values) != 1 || (values[0] == "" && key != expectedWorkspaceRevisionField) || (key != entryKey && key != stepKey && key != "editor" && (key != expectedWorkspaceRevisionField || values[0] != "") && !runtimeDeliveryIDs(values[0])) {
 			return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 		}
 	}
-	step, err := strconv.Atoi(q.Get("step"))
-	if err != nil || q.Get("step") != strconv.Itoa(step) || !runtimeDeliveryIDs(q.Get("workspace_id")) {
+	step, err := strconv.Atoi(q.Get(stepKey))
+	if err != nil || q.Get(stepKey) != strconv.Itoa(step) || !runtimeDeliveryIDs(q.Get(workspaceIDKey)) {
 		return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 	}
-	required := []string{"entry", "workspace_id", "step"}
+	required := []string{entryKey, workspaceIDKey, stepKey}
 	switch step {
 	case 1:
-		required = append(required, "device_id")
+		required = append(required, deviceIDKey)
 	case 2:
-		required = append(required, "device_id", "rule_id")
+		required = append(required, deviceIDKey, ruleIDKey)
 	case 3:
-		required = append(required, "device_id", "mapping_id")
+		required = append(required, deviceIDKey, mappingIDKey)
 	case 4:
 		required = append(required, "group_id")
 	default:
@@ -112,11 +112,11 @@ func parseStudioLocatorQuery(raw string) (*studioLocatorRequest, error) {
 		}
 	}
 	for key := range q {
-		if !slices.Contains(required, key) && (step != 4 || (key != "device_id" && key != "group_revision" && (!editor || key != expectedWorkspaceRevisionField))) {
+		if !slices.Contains(required, key) && (step != 4 || (key != deviceIDKey && key != "group_revision" && (!editor || key != expectedWorkspaceRevisionField))) {
 			return nil, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 		}
 	}
-	return &studioLocatorRequest{Editor: editor, ExpectedWorkspaceRevision: q.Get(expectedWorkspaceRevisionField), ExpectedGroupRevision: q.Get("expected_group_revision"), EntityLocator: runtimeview.EntityLocator{Step: step, WorkspaceID: q.Get("workspace_id"), DeviceID: runtimeEvidenceString(q.Get("device_id")), RuleID: runtimeEvidenceString(q.Get("rule_id")), MappingID: runtimeEvidenceString(q.Get("mapping_id")), GroupID: runtimeEvidenceString(q.Get("group_id")), GroupRevision: runtimeEvidenceString(q.Get("group_revision"))}}, nil
+	return &studioLocatorRequest{Editor: editor, ExpectedWorkspaceRevision: q.Get(expectedWorkspaceRevisionField), ExpectedGroupRevision: q.Get("expected_group_revision"), EntityLocator: runtimeview.EntityLocator{Step: step, WorkspaceID: q.Get("workspace_id"), DeviceID: runtimeEvidenceString(q.Get(deviceIDKey)), RuleID: runtimeEvidenceString(q.Get(ruleIDKey)), MappingID: runtimeEvidenceString(q.Get(mappingIDKey)), GroupID: runtimeEvidenceString(q.Get("group_id")), GroupRevision: runtimeEvidenceString(q.Get("group_revision"))}}, nil
 }
 
 // locatorEntry handles every query-bearing request, so malformed scope cannot fall back to bootstrap.

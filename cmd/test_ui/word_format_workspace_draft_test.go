@@ -47,7 +47,7 @@ func testWordWorkspaceDraftCreate(t *testing.T, diagnosed, foreignActivate bool)
 	base := appconfig.Get().API.BasePath + "/datalink"
 	response := httptest.NewRecorder()
 	if diagnosed {
-		router.ServeHTTP(response, httptest.NewRequest("POST", base+"/devices/draft-plc/test", http.NoBody))
+		router.ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), "POST", base+"/devices/draft-plc/test", http.NoBody))
 		require.Equal(t, 200, response.Code, response.Body.String())
 		require.Contains(t, response.Body.String(), `"can_activate":true`)
 	}
@@ -75,7 +75,7 @@ func testWordWorkspaceDraftCreate(t *testing.T, diagnosed, foreignActivate bool)
 	}
 	body := []byte(`{"id":"draft-rule","device_id":"draft-plc","name":"BLOCK3","rule_type":"range","start_address":"40009","count":8,"data_type":"int16","prefix":"BLOCK3_","enabled":true,"skipped":[],"scale_factor":1,"scale_offset":0,"data_format":"","share_enabled":false}`)
 	response = httptest.NewRecorder()
-	request := httptest.NewRequest("POST", base+"/studio-v2/workspace/source-rules", bytes.NewReader(body))
+	request := httptest.NewRequestWithContext(context.Background(), "POST", base+"/studio-v2/workspace/source-rules", bytes.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(response, request)
 	var rules, points int
@@ -102,7 +102,7 @@ func testWordWorkspaceDraftCreate(t *testing.T, diagnosed, foreignActivate bool)
 	require.Empty(t, services.scheduler.PollNowContext(t.Context(), []string{firstID}))
 	if diagnosed {
 		response = httptest.NewRecorder()
-		router.ServeHTTP(response, httptest.NewRequest("POST", base+"/devices/draft-plc/activate", http.NoBody))
+		router.ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), "POST", base+"/devices/draft-plc/activate", http.NoBody))
 		require.Equal(t, 200, response.Code, response.Body.String())
 		lease := services.runtime.CapturePointLease(firstID, stored.RevisionID)
 		require.NotZero(t, lease)

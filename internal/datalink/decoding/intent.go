@@ -181,11 +181,18 @@ const (
 
 func canonicalFormat(format string) bool {
 	switch format {
-	case "ABCD", "BADC", "CDAB", "DCBA":
+	case formatABCD, formatBADC, formatCDAB, formatDCBA:
 		return true
 	}
 	return false
 }
+
+const (
+	formatABCD = "ABCD"
+	formatBADC = "BADC"
+	formatCDAB = "CDAB"
+	formatDCBA = "DCBA"
+)
 
 // multiwordNumeric is the type-only gate for context-free candidate edits.
 // ResolvePoint also validates the protocol/address before mutation can be applied.

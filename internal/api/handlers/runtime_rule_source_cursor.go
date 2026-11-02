@@ -34,11 +34,11 @@ var runtimeSourcePageDigits = regexp.MustCompile(`^\d+$`)
 var runtimeSourcePageDigest = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 func runtimeSourcePageRequestFromQuery(q url.Values, scope *runtimeview.Scope) (runtimeSourcePageRequest, bool) {
-	request := runtimeSourcePageRequest{Kind: q.Get("source_list"), Query: strings.TrimSpace(q.Get("q")), Limit: 50, Cursor: q.Get("cursor"), RuleID: q.Get("rule_id"), RuleRevision: q.Get("rule_revision")}
+	request := runtimeSourcePageRequest{Kind: q.Get("source_list"), Query: strings.TrimSpace(q.Get("q")), Limit: 50, Cursor: q.Get("cursor"), RuleID: q.Get(ruleIDKey), RuleRevision: q.Get("rule_revision")}
 	if scope == nil || (request.Kind != runtimeSourceListRules && request.Kind != "mappings") {
 		return request, false
 	}
-	for _, key := range []string{"source_list", "q", "limit", "cursor", "rule_id", "rule_revision"} {
+	for _, key := range []string{"source_list", "q", "limit", "cursor", ruleIDKey, "rule_revision"} {
 		if values, ok := q[key]; ok && len(values) != 1 {
 			return request, false
 		}
@@ -70,7 +70,7 @@ func runtimeSourcePageRequestFromQuery(q url.Values, scope *runtimeview.Scope) (
 			request.Limit = min(value, 100)
 		}
 	}
-	_, rule := q["rule_id"]
+	_, rule := q[ruleIDKey]
 	_, revision := q["rule_revision"]
 	if rule || revision {
 		if request.Kind != "mappings" || !rule || !revision || runtimeSafeID(request.RuleID) == "" || runtimeSafeID(request.RuleRevision) == "" {

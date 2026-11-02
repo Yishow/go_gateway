@@ -201,10 +201,15 @@ var domainID = regexp.MustCompile(`^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$`)
 var domainUTCTime = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?Z$`)
 
 func domainUnavailable() (DomainEventRef, error) {
-	return DomainEventRef{ContractVersion: 1, Code: domainUnavailableCode, Stage: runtimeview.StageUnavailable,
-			Reason: runtimeview.ReasonUnavailable, Action: runtimeview.ActionForReason(runtimeview.ReasonUnavailable),
-			Evidence: DomainEvidenceRef{Kind: "unavailable"}}, &runtimeview.ContractError{
-			Reason: runtimeview.ReasonUnavailable, Action: runtimeview.ActionForReason(runtimeview.ReasonUnavailable)}
+	ref := DomainEventRef{
+		ContractVersion: 1, Code: domainUnavailableCode, Stage: runtimeview.StageUnavailable,
+		Reason: runtimeview.ReasonUnavailable, Action: runtimeview.ActionForReason(runtimeview.ReasonUnavailable),
+		Evidence: DomainEvidenceRef{Kind: "unavailable"},
+	}
+	err := &runtimeview.ContractError{
+		Reason: runtimeview.ReasonUnavailable, Action: runtimeview.ActionForReason(runtimeview.ReasonUnavailable),
+	}
+	return ref, err
 }
 
 // ParseDomainEventRef is pure fail-closed structural validation, NOT authorization,

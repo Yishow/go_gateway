@@ -62,7 +62,7 @@ func (s *WriteGroupService) SuccessorOperationStatus(ctx context.Context, id str
 		return nil, err
 	}
 	result = &WriteGroupSuccessorOperationStatus{WorkspaceID: req.WorkspaceID, LineageID: req.LineageID, PredecessorGroupID: id, OperationID: req.OperationID,
-		Reserve: WriteGroupSuccessorReserveStatus{Status: "succeeded", Result: reserved},
+		Reserve: WriteGroupSuccessorReserveStatus{Status: writeGroupSuccessorStatusSucceeded, Result: reserved},
 		Cutover: WriteGroupSuccessorCutoverStatus{Status: "not_submitted"}, FirstStart: WriteGroupSuccessorFirstStartStatus{Status: "not_submitted"}}
 	result.SchemaOperations, err = s.successorSchemaOperationsInTx(ctx, tx, reserved, binding)
 	if err != nil {
@@ -73,7 +73,7 @@ func (s *WriteGroupService) SuccessorOperationStatus(ctx context.Context, id str
 		return nil, err
 	}
 	if result.Cutover.Result != nil {
-		result.Cutover.Status = "succeeded"
+		result.Cutover.Status = writeGroupSuccessorStatusSucceeded
 	}
 	first, err := recordingplan.ReadSuccessorFirstStartInTx(ctx, tx, req.WorkspaceID, recordingplan.SuccessorReserveOperationID(req.WorkspaceID, req.OperationID))
 	if err != nil {
@@ -91,7 +91,7 @@ func (s *WriteGroupService) SuccessorOperationStatus(ctx context.Context, id str
 		if e := s.validateSuccessorStatusFirstStart(ctx, tx, confirmation, started, reserved, binding); e != nil {
 			return nil, e
 		}
-		result.FirstStart = WriteGroupSuccessorFirstStartStatus{Status: "succeeded", Result: started}
+		result.FirstStart = WriteGroupSuccessorFirstStartStatus{Status: writeGroupSuccessorStatusSucceeded, Result: started}
 	}
 	return result, nil
 }

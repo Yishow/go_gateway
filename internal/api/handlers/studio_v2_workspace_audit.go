@@ -103,10 +103,10 @@ func (h *StudioV2WorkspaceDatabaseHandler) recordDatabaseConfigAudit(
 		Scope:       "database_connector:" + connector.ID,
 		ReferenceID: connector.ID,
 		Details: map[string]any{
-			"kind":                 connector.Kind,
-			"table":                connectorConfigString(connector, "table"),
-			"write_mode":           connectorConfigWriteMode(connector),
-			"runtime_apply_status": runtimeApplyStatus,
+			"kind":                connector.Kind,
+			"table":               connectorConfigString(connector, "table"),
+			"write_mode":          connectorConfigWriteMode(connector),
+			runtimeApplyStatusKey: runtimeApplyStatus,
 		},
 	}); err != nil {
 		log.Printf("record workspace database config audit failed: %v", err)
@@ -131,12 +131,12 @@ func (h *StudioV2WorkspaceDatabaseHandler) recordDatabaseTargetAudit(
 		Scope:       "database_target:" + strings.TrimSpace(pointID),
 		ReferenceID: mapping.ID,
 		Details: map[string]any{
-			"mapping_id":            mapping.ID,
-			"point_id":              strings.TrimSpace(pointID),
+			mappingIDKey:            mapping.ID,
+			pointIDKey:              strings.TrimSpace(pointID),
 			"tag_id":                mapping.TagID,
 			"column_name":           mapping.ColumnName,
 			"enabled":               mapping.Enabled,
-			"runtime_apply_status":  runtimeApplyStatus,
+			runtimeApplyStatusKey:   runtimeApplyStatus,
 			"database_connector_id": mapping.ConnectorID,
 		},
 	}); err != nil {

@@ -16,6 +16,8 @@ import (
 // ErrAcquisitionPreviewStale means evidence changed during a read, not absence.
 var ErrAcquisitionPreviewStale = errors.New("acquisition preview changed")
 
+const acquisitionStatusUnavailable = "unavailable"
+
 // AcquisitionPreviewProof is private-backed evidence for a final no-I/O recheck.
 type AcquisitionPreviewProof struct {
 	owner      *Scheduler
@@ -28,7 +30,7 @@ type AcquisitionPreviewProof struct {
 // PreviewAcquisition uses only installed capture and the execution planner.
 // sourceRevision is the caller's verified persisted source graph, not an input plan.
 func (s *Scheduler) PreviewAcquisition(ctx context.Context, workspaceID, deviceID, sourceRevision string) (AcquisitionPreview, AcquisitionPreviewProof, error) {
-	out := AcquisitionPreview{DeviceID: deviceID, Status: "unavailable", Reason: "installation_unavailable"}
+	out := AcquisitionPreview{DeviceID: deviceID, Status: acquisitionStatusUnavailable, Reason: "installation_unavailable"}
 	proof := AcquisitionPreviewProof{}
 	if s == nil {
 		return out, proof, nil
@@ -57,7 +59,7 @@ func (s *Scheduler) PreviewAcquisition(ctx context.Context, workspaceID, deviceI
 	}
 	s.mu.RUnlock()
 	proof.connection = s.connMgr.PeekAcquisitionConnection(previewDevice(receipt.device))
-	if proof.connection.State == "unavailable" {
+	if proof.connection.State == acquisitionStatusUnavailable {
 		out.Reason = "connection_context_unavailable"
 		return out, AcquisitionPreviewProof{}, nil
 	}
@@ -68,7 +70,7 @@ func (s *Scheduler) PreviewAcquisition(ctx context.Context, workspaceID, deviceI
 	for _, snapshot := range proof.snapshots {
 		scan, err := buildScheduledPlan(snapshot)
 		if err != nil {
-			out.Status, out.Reason, out.Estimate = "unavailable", "plan_unavailable", false
+			out.Status, out.Reason, out.Estimate = acquisitionStatusUnavailable, "plan_unavailable", false
 			out.Groups = nil
 			return out, AcquisitionPreviewProof{}, err
 		}
@@ -132,7 +134,8 @@ func acquisitionGroupHead(scan scheduledPlan, initial optimizer.AcquisitionPlan,
 	if scan.snapshot.geometry != nil {
 		scope = scan.snapshot.geometry.workspaceID + "/" + scan.snapshot.geometry.sourceRevision
 	}
-	fields := []string{scope, scan.plan.Fingerprint(), initial.Fingerprint(), fmt.Sprint(connection), fmt.Sprint(downgrade), scan.snapshot.groupID, scan.snapshot.cadence.String()}
+	fields := make([]string, 0, 7+4*len(scan.snapshot.points))
+	fields = append(fields, scope, scan.plan.Fingerprint(), initial.Fingerprint(), fmt.Sprint(connection), fmt.Sprint(downgrade), scan.snapshot.groupID, scan.snapshot.cadence.String())
 	points := slices.Clone(scan.snapshot.points)
 	slices.SortFunc(points, func(a, b pointInfo) int { return comparePointID(a.ID, b.ID) })
 	for _, p := range points {
@@ -162,7 +165,7 @@ func (s *Scheduler) AcquisitionPreviewCurrent(proof AcquisitionPreviewProof) boo
 	return true
 }
 func (s *Scheduler) previewOutputLoss(receipt AcquisitionGeometryReceipt) *AcquisitionPreviewLoss {
-	out := &AcquisitionPreviewLoss{Status: "unavailable", Reason: "no_matching_retained_detail"}
+	out := &AcquisitionPreviewLoss{Status: acquisitionStatusUnavailable, Reason: "no_matching_retained_detail"}
 	for _, loss := range s.OutputLossDiagnostics().Recent {
 		p, ok := receipt.slots[loss.PointID]
 		if ok && p.installationScope == loss.InstallationScope && p.configRevision == loss.PointRevision {

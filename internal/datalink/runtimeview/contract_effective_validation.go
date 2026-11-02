@@ -1,6 +1,12 @@
 package runtimeview
 
-import "time"
+import (
+	"time"
+
+	"go-gateway/internal/datalink/snapshot"
+)
+
+const runtimeStateEffective = "effective"
 
 func afterTime(a, b string) bool {
 	x, err := time.Parse(time.RFC3339Nano, a)
@@ -36,12 +42,12 @@ func validateSummaryProfile(f *GroupFacts) error {
 	}
 	seconds := p.Interval
 	if p.Kind == "instantaneous" {
-		if p.Unit != "second" || p.Interval > 300 || (f.Reduction != "unavailable" && f.Reduction != "latest" && f.Reduction != "mean") {
+		if p.Unit != "second" || p.Interval > 300 || (f.Reduction != runtimeViewUnavailable && f.Reduction != "latest" && f.Reduction != "mean") {
 			return errUnavailable
 		}
 	} else {
 		seconds *= 60
-		if p.Unit != "minute" || (f.Reduction != "unavailable" && f.Reduction != "cumulative_delta") {
+		if p.Unit != "minute" || (f.Reduction != runtimeViewUnavailable && f.Reduction != "cumulative_delta") {
 			return errUnavailable
 		}
 	}
@@ -96,7 +102,7 @@ func validateGroup(g *GroupView, scope Scope, observedAt *string) error {
 	if g.State == "saved-only" && (g.Saved == nil || g.Effective != nil) {
 		return errUnavailable
 	}
-	if g.State != "effective" && g.Effective != nil {
+	if g.State != runtimeStateEffective && g.Effective != nil {
 		return errUnavailable
 	}
 	// Validate mixed revisions before degrading proof, so missing proof cannot hide mixed inputs.
@@ -165,10 +171,10 @@ func validateGroup(g *GroupView, scope Scope, observedAt *string) error {
 			}
 		}
 	}
-	if g.State == "effective" && (g.EffectiveRevision == nil || g.AsOf == nil || observedAt == nil || g.Proof != "applied-snapshot-and-layout" || g.Effective == nil || revision == nil || g.Effective.EffectiveAt == nil || g.Effective.Layout == "unavailable" || (g.Effective.IntervalSeconds == nil && g.Effective.MixedRecording == nil)) {
-		g.State = "unavailable"
+	if g.State == runtimeStateEffective && (g.EffectiveRevision == nil || g.AsOf == nil || observedAt == nil || g.Proof != "applied-snapshot-and-layout" || g.Effective == nil || revision == nil || g.Effective.EffectiveAt == nil || g.Effective.Layout == runtimeViewUnavailable || (g.Effective.IntervalSeconds == nil && g.Effective.MixedRecording == nil)) {
+		g.State = runtimeViewUnavailable
 		g.Effective = nil
-		g.Proof = "unavailable"
+		g.Proof = runtimeViewUnavailable
 	}
 	if g.Delivery == nil || g.Delivery.Current == nil {
 		return nil
@@ -202,7 +208,7 @@ func validateCurrent(c *CurrentDelivery, facts *GroupFacts) error {
 		devices[m.DeviceID] = true
 		members[m.DeviceID+":"+m.PointID+":"+m.TagID] = true
 	}
-	if c.Shared != (len(devices) > 1) || (c.SourceState == "unavailable" && len(c.Sources) > 0) {
+	if c.Shared != (len(devices) > 1) || (c.SourceState == runtimeViewUnavailable && len(c.Sources) > 0) {
 		return errUnavailable
 	}
 	seen := map[string]bool{}
@@ -235,10 +241,10 @@ func validateCurrent(c *CurrentDelivery, facts *GroupFacts) error {
 					return errUnavailable
 				}
 			}
-			if (r.DeltaKnown != nil && !*r.DeltaKnown && r.State != "unknown" && r.State != "not_due") || (r.Coverage != nil && *r.Coverage == "partial" && r.State != "partial") {
+			if (r.DeltaKnown != nil && !*r.DeltaKnown && r.State != "unknown" && r.State != snapshot.ReasonNotDue) || (r.Coverage != nil && *r.Coverage == "partial" && r.State != "partial") {
 				return errUnavailable
 			}
-			if r.Receipt != nil && ((r.WindowStart == nil && (r.Calculation == nil || r.Calculation.Status != "not_due")) || r.State == "unavailable" || c.LastCommit == nil) {
+			if r.Receipt != nil && ((r.WindowStart == nil && (r.Calculation == nil || r.Calculation.Status != snapshot.ReasonNotDue)) || r.State == runtimeViewUnavailable || c.LastCommit == nil) {
 				return errUnavailable
 			}
 		}

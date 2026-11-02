@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"io"
@@ -35,7 +36,7 @@ func TestSuccessorFirstStartHTTPLostResponseOfflineReopen(t *testing.T) {
 	raw, err := json.Marshal(request)
 	require.NoError(t, err)
 	lost := &firstStartLostResponse{header: make(http.Header)}
-	req := httptest.NewRequest(http.MethodPost, writeGroupsPath+"/"+r.groupID+"/successor", bytes.NewReader(raw))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, writeGroupsPath+"/"+r.groupID+"/successor", bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
 	r.f.router.ServeHTTP(lost, req)
 	require.Equal(t, http.StatusOK, lost.status)
@@ -116,7 +117,7 @@ func TestSuccessorFirstStartHTTPConcurrentIdenticalRequestOneResult(t *testing.T
 			defer workers.Done()
 			<-start
 			response := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodPost, writeGroupsPath+"/"+r.groupID+"/successor", bytes.NewReader(raw))
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, writeGroupsPath+"/"+r.groupID+"/successor", bytes.NewReader(raw))
 			req.Header.Set("Content-Type", "application/json")
 			r.f.router.ServeHTTP(response, req)
 			responses <- response

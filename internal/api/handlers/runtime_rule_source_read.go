@@ -18,7 +18,7 @@ type runtimeSourceSelection struct{ RuleID, RuleRevision, PointID, MappingID str
 
 func runtimeSourceRequestSelection(c *gin.Context, scope *runtimeview.Scope) (*runtimeSourceSelection, bool) {
 	query, err := url.ParseQuery(c.Request.URL.RawQuery)
-	keys := []string{"rule_id", "rule_revision", "point_id", "mapping_id"}
+	keys := []string{ruleIDKey, "rule_revision", pointIDKey, mappingIDKey}
 	present := false
 	for _, key := range keys {
 		_, exists := query[key]
@@ -30,7 +30,7 @@ func runtimeSourceRequestSelection(c *gin.Context, scope *runtimeview.Scope) (*r
 	valid := err == nil && scope != nil
 	for _, key := range keys {
 		values, exists := query[key]
-		if key == "mapping_id" && !exists {
+		if key == mappingIDKey && !exists {
 			continue
 		}
 		valid = valid && len(values) == 1 && values[0] != "" && runtimeSafeID(values[0]) == values[0]
@@ -39,7 +39,7 @@ func runtimeSourceRequestSelection(c *gin.Context, scope *runtimeview.Scope) (*r
 		renderRuntimeHandlerError(c, http.StatusBadRequest, runtimeEvidenceUnavailable, false)
 		return nil, false
 	}
-	return &runtimeSourceSelection{RuleID: query.Get("rule_id"), RuleRevision: query.Get("rule_revision"), PointID: query.Get("point_id"), MappingID: query.Get("mapping_id")}, true
+	return &runtimeSourceSelection{RuleID: query.Get(ruleIDKey), RuleRevision: query.Get("rule_revision"), PointID: query.Get(pointIDKey), MappingID: query.Get(mappingIDKey)}, true
 }
 
 // These records are an ephemeral comparison snapshot, not persisted or execution

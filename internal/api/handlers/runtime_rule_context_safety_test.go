@@ -29,7 +29,7 @@ func TestRuntimeRuleContextSafetyRemoteConnector(t *testing.T) {
 			}}
 			recorder := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(recorder)
-			c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", http.NoBody)
+			c.Request = newHandlerTestRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", http.NoBody)
 			c.Request.RemoteAddr = "203.0.113.9:4567"
 			h.WorkspaceContext(c)
 			require.Equal(t, 200, recorder.Code)
@@ -66,7 +66,7 @@ func TestRuntimeRuleContextSafetyMixedRevision(t *testing.T) {
 	h.sourceRuleReader = &runtimeChangingRules{}
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", http.NoBody)
+	c.Request = newHandlerTestRequest(http.MethodGet, "/runtime-context", http.NoBody)
 	h.WorkspaceContext(c)
 	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), "stale-reference")
@@ -95,7 +95,7 @@ func TestRuntimeRuleContextSafetyReadinessAndTargets(t *testing.T) {
 	h := NewRuntimeHandler(devices, nil, nil, nil, nil, ws)
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", http.NoBody)
+	c.Request = newHandlerTestRequest(http.MethodGet, "/runtime-context", http.NoBody)
 	h.WorkspaceContext(c)
 	require.NotContains(t, rec.Body.String(), "fixture")
 	target := mapRuntimeSetupDatabaseTarget(&schema.DatabaseTargetMapping{ID: "target", TagID: "tag", ConnectorID: "connector", TableSchema: "/private/fixture.sqlite", TableName: "SELECT fixture FROM secrets", ColumnName: "value"})
@@ -147,7 +147,7 @@ func TestRuntimeRuleContextSafetyConnectorRevisionChanges(t *testing.T) {
 	h.dbConnectorReader = &runtimeChangingConnector{}
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", http.NoBody)
+	c.Request = newHandlerTestRequest(http.MethodGet, "/runtime-context", http.NoBody)
 	h.WorkspaceContext(c)
 	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), "stale-reference")
@@ -172,7 +172,7 @@ func TestRuntimeRuleContextSafetyMutableReadSnapshot(t *testing.T) {
 	h.sourceRuleReader = &runtimeMutatingRules{rule: &schema.SourceRule{ID: "rule", DeviceID: "device", RevisionID: "R1"}}
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context", http.NoBody)
+	c.Request = newHandlerTestRequest(http.MethodGet, "/runtime-context", http.NoBody)
 	h.WorkspaceContext(c)
 	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), "stale-reference")

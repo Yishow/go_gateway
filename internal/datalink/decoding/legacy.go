@@ -69,7 +69,7 @@ func ResolveLegacy(input LegacyInput) (Resolution, error) {
 	switch input.Protocol {
 	case schema.ProtocolModbusTCP, schema.ProtocolModbusRTU, schema.ProtocolModbusUDP:
 		result.Policy = LegacyModbus
-		result.EffectiveFormat = "ABCD"
+		result.EffectiveFormat = formatABCD
 		if strings.TrimSpace(input.PointFormat) != "" {
 			result.Source, result.EffectiveFormat = SourcePoint, input.PointFormat
 		} else if strings.TrimSpace(input.ConnectionFormat) != "" {
@@ -79,7 +79,7 @@ func ResolveLegacy(input LegacyInput) (Resolution, error) {
 		result.EffectiveFormat = strings.ToUpper(strings.TrimSpace(result.EffectiveFormat))
 	case schema.ProtocolMC3E:
 		result.Policy = LegacyMC3E
-		result.EffectiveFormat = "CDAB"
+		result.EffectiveFormat = formatCDAB
 		if input.ConnectionFormat != "" {
 			result.Source, result.EffectiveFormat = SourceConnection, input.ConnectionFormat
 		}
@@ -92,13 +92,13 @@ func ResolveLegacy(input LegacyInput) (Resolution, error) {
 		return Resolution{}, ErrUnsupportedProtocol
 	}
 	switch result.EffectiveFormat {
-	case "ABCD", "BADC", "CDAB", "DCBA":
+	case formatABCD, formatBADC, formatCDAB, formatDCBA:
 		return result, nil
 	default:
 		// Legacy adapters accepted unknown formats and decoded them as ABCD.
 		// Preserve that fallback and its selected source, not the invalid string.
 		// Strict validation belongs at the boundary for new explicit intent.
-		result.EffectiveFormat = "ABCD"
+		result.EffectiveFormat = formatABCD
 		return result, nil
 	}
 }

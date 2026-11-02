@@ -42,7 +42,7 @@ func (s *WriteGroupService) lifecycleSuccessorSeed(ctx context.Context, tx *sql.
 			return block("source_draft_not_active", writeGroupNextReviewLifecycle)
 		}
 		if group.AppliedRevision == "" {
-			return block("source_definition_unavailable", writeGroupNextReviewLifecycle)
+			return block(writeGroupReasonSourceDefinitionUnavailable, writeGroupNextReviewLifecycle)
 		}
 	}
 	if err := validateLiveWriteGroupConnector(ctx, tx, s.repo, group.Destination.ConnectorID, group.Destination.ConnectorRevision); err != nil {
@@ -51,14 +51,14 @@ func (s *WriteGroupService) lifecycleSuccessorSeed(ctx context.Context, tx *sql.
 	if group.AppliedRevision == "" {
 		// A missing pointer alone is not proof that the saved draft was never applied.
 		if err := s.repo.requireSuccessorNoHistoryInTx(ctx, tx, group.WorkspaceID, history.LineageID, group.ID); err != nil {
-			return block("source_definition_unavailable", writeGroupNextReviewLifecycle)
+			return block(writeGroupReasonSourceDefinitionUnavailable, writeGroupNextReviewLifecycle)
 		}
 	} else if s.backlogGuard == nil || s.backlogGuard.CheckWriteGroupBacklog(ctx, tx, group) != nil {
 		return block(writeGroupReasonOwnershipUnavailable, writeGroupNextInspectOwnership)
 	}
 	source, err := s.repo.recreateStructuralSourceInTx(ctx, tx, group)
 	if err != nil || source == nil {
-		return block("source_definition_unavailable", writeGroupNextReviewLifecycle)
+		return block(writeGroupReasonSourceDefinitionUnavailable, writeGroupNextReviewLifecycle)
 	}
 	if err := validateLiveWriteGroupConnector(ctx, tx, s.repo, source.Destination.ConnectorID, source.Destination.ConnectorRevision); err != nil {
 		return block(lifecycleSuccessorReason(err), writeGroupNextReviewConnector)
@@ -69,7 +69,7 @@ func (s *WriteGroupService) lifecycleSuccessorSeed(ctx context.Context, tx *sql.
 	}
 	digest, err := successorDomainDigest("go-gateway/lifecycle-successor-basis/v1", source)
 	if err != nil {
-		return block("source_definition_unavailable", writeGroupNextReviewLifecycle)
+		return block(writeGroupReasonSourceDefinitionUnavailable, writeGroupNextReviewLifecycle)
 	}
 	seed := &WriteGroupSuccessorSeed{BasisKind: "applied", BasisRevision: group.AppliedRevision, BasisDigest: digest, Group: candidate}
 	if group.AppliedRevision == "" {
@@ -142,5 +142,5 @@ func lifecycleSuccessorReason(err error) string {
 		return writeGroupReasonOwnershipUnavailable
 	}
 	// Never reflect raw diagnostics, driver errors or arbitrary private evidence.
-	return "source_definition_unavailable"
+	return writeGroupReasonSourceDefinitionUnavailable
 }

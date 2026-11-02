@@ -30,7 +30,7 @@ func runtimeEvidenceScopeRequest(t *testing.T, h *RuntimeHandler, query string) 
 	t.Helper()
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodGet, "/runtime-context"+query, http.NoBody)
+	c.Request = newHandlerTestRequest(http.MethodGet, "/runtime-context"+query, http.NoBody)
 	h.WorkspaceContext(c)
 	return rec
 }

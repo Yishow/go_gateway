@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { readRecordingRangeSchedule } from '@/features/datalink/workbench-v2/recording-editor/recordingRangeSchedule';
-import { RecordingRangeSchedule } from '@/features/datalink/workbench-v2/recording-editor/RecordingRangeSchedule';
+import { RecordingRangeSchedule } from '@/features/datalink/workbench-v2/recording-editor/RecordingRangeSchedulePanel';
 import type { RangeSourceOutcome } from '@/pages/datalink/workbench-v2/rangeSourceSubmission';
 import { pointAPI, pollingGroupAPI } from '@/services/datalink';
 vi.mock('@/services/datalink', () => ({ pointAPI: { get: vi.fn() }, pollingGroupAPI: { list: vi.fn() } }));

@@ -7,7 +7,7 @@ TBD - created by archiving change 'redesign-studio-recording-flow'. Update Purpo
 ## Requirements
 
 ### Requirement: Four-step intent-led setup
-Operators MUST be able to save and navigate offline drafts with unresolved probes; draft navigation MUST NOT imply verified readiness, and only dependent reads or activation SHALL be blocked. The existing Studio V2 route SHALL guide device connection, acquisition points, Point-to-Tag mapping and grouped database output in four steps labelled 連接設備 → 選要讀的資料 → 命名與換算 → 儲存並開始記錄. Basic/Advanced presentation changes SHALL preserve configuration values and protocol/type capabilities. Basic typed Tag writing MUST remain usable without required reporting, retention setup, aggregation or physical measurement semantics. Explicitly selected derived operations SHALL require their own confirmed semantics. The system MUST retain the Go backend and existing React framework and MUST NOT add a parallel V3 or restore a dedicated legacy /studio route. The basic path SHALL derive and persist routine mappings, show only necessary operator choices, and offer whole-device managed wide snapshots or selected-source managed long recording in the selected device scope without converting existing configurations. Table layout SHALL be independent of instantaneous or cumulative semantics. Existing canonical same-kind ownership SHALL remain unique and existing latest snapshots SHALL not become means through navigation.
+Operators MUST be able to save and navigate offline drafts with unresolved probes; draft navigation MUST NOT imply verified readiness, and only dependent reads or activation SHALL be blocked. The existing Studio V2 route SHALL offer a simple recording home, initially opt-in until explicit entry-adoption acceptance, and a progressive single-screen recording editor for source, recording intent and destination; the original four-step presentation SHALL remain available as an advanced path for device connection, acquisition points, Point-to-Tag mapping and grouped database output. Both presentations SHALL reuse the same canonical identities, configuration services and safety contracts, and explicit entity locators or runtime repair intents SHALL retain precedence. Basic/Advanced presentation changes SHALL preserve configuration values and protocol/type capabilities. Basic typed Tag writing MUST remain usable without required reporting, retention setup, aggregation or physical measurement semantics. Explicitly selected derived operations SHALL require their own confirmed semantics. The system MUST retain the Go backend and existing React framework and MUST NOT add a parallel V3 or restore a dedicated legacy /studio route. The basic path SHALL derive and persist routine mappings, show only necessary operator choices, and offer whole-device managed wide snapshots or selected-source managed long recording in the selected device scope without converting existing configurations. Table layout SHALL be independent of instantaneous or cumulative semantics. Existing canonical same-kind ownership SHALL remain unique and existing latest snapshots SHALL not become means through navigation.
 
 #### Scenario: Mixed sensor configured without SQL
 - **WHEN** an operator maps temperature, pressure, flow and counter source values as basic typed Tags
@@ -45,6 +45,9 @@ Operators MUST be able to save and navigate offline drafts with unresolved probe
 - **WHEN** a new per-device managed draft is reloaded or its save response is retried
 - **THEN** the persisted (workspace_id, device_id, canonical managed role) key reuses the same group and mappings without duplicate writers or selecting another group. A changed destination requires an explicit CAS-checked draft and new preparation/apply evidence; accepted historical data keeps its original destination. Existing advanced groups remain outside automatic conversion.
 
+#### Scenario: Simple and advanced presentations share configuration
+- **WHEN** an operator opens the simple recording editor and then the advanced presentation for the same persisted recording
+- **THEN** both presentations use the same scoped configuration identities and evidence, and navigation does not save, convert or activate the recording.
 
 <!-- @trace
 source: unify-device-recording-workflow
@@ -223,6 +226,9 @@ tests:
   - frontend/tests/unit/workbench-v2/schema-operation.test.tsx
   - frontend/tests/unit/workbench-v2/circuit-profile-sources-a11y.test.tsx
 -->
+
+
+
 
 ---
 ### Requirement: Safe reusable templates and overrides

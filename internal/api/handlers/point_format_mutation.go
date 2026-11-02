@@ -83,7 +83,7 @@ func (h *PointHandler) mutatePointFormat(c *gin.Context, req point.FormatMutatio
 	}
 	// Do not UpsertPoint: formal adapter application is a separate lifecycle step.
 	if legacy {
-		c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: safeRuntimePointRead(&result.Point), "format_resolution": result.Resolution, "workspace_revision": result.WorkspaceRevision, "runtime_apply_status": result.RuntimeApplyStatus, "invalidation_status": result.InvalidationStatus})
+		c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: safeRuntimePointRead(&result.Point), "format_resolution": result.Resolution, "workspace_revision": result.WorkspaceRevision, runtimeApplyStatusKey: result.RuntimeApplyStatus, "invalidation_status": result.InvalidationStatus})
 		return
 	}
 	c.JSON(http.StatusOK, formatMutationResponse(result))
@@ -99,7 +99,7 @@ func renderPointFormatError(c *gin.Context, err error) {
 	case errors.Is(err, point.ErrFormatInvalid):
 		status, code, message = http.StatusUnprocessableEntity, "point_format_invalid", point.ErrFormatInvalid.Error()
 	}
-	c.JSON(status, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{"code": code, apiResponseMessageKey: message}})
+	c.JSON(status, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseCodeKey: code, apiResponseMessageKey: message}})
 }
 
 // InspectFormatOperation reports a durable pending/invalidated receipt without replay.

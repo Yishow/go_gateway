@@ -297,7 +297,7 @@ func buildWorkspaceMappingPipeline(pointType, targetType schema.DataType, scale,
 	steps := make([]schema.TransformStep, 0, 2)
 	scaled := scale != 1 || offset != 0
 	if scaled {
-		steps = append(steps, schema.TransformStep{Type: schema.TransformScale, Order: len(steps), Params: map[string]any{"scale": scale, "offset": offset}})
+		steps = append(steps, schema.TransformStep{Type: schema.TransformScale, Order: len(steps), Params: map[string]any{transformScaleKind: scale, "offset": offset}})
 	}
 	// Only newly authored pipelines use this order. ExecutePipeline retains the
 	// stored order of existing pipelines, including historical cast-before-scale.
@@ -324,7 +324,7 @@ func decodeWorkspaceMappingPipeline(pointType schema.DataType, raw string) (deco
 				targetType = schema.DataType(value)
 			}
 		case schema.TransformScale:
-			if value, ok := step.Params["scale"].(float64); ok {
+			if value, ok := step.Params[transformScaleKind].(float64); ok {
 				scale = value
 			}
 			if value, ok := step.Params["offset"].(float64); ok {

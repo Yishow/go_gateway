@@ -65,7 +65,7 @@ func successorHandlerStatus(t *testing.T, handler gin.HandlerFunc, body string) 
 	t.Helper()
 	response := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(response)
-	c.Request = httptest.NewRequest(http.MethodPost, "/successor", strings.NewReader(body))
+	c.Request = newHandlerTestRequest(http.MethodPost, "/successor", strings.NewReader(body))
 	c.Params = gin.Params{{Key: "id", Value: "g1"}}
 	handler(c)
 	require.NotContains(t, response.Body.String(), "DROP TABLE")

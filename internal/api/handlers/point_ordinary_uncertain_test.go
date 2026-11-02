@@ -58,7 +58,7 @@ func TestOrdinaryUnknownCommitStopsOnlyMatchingCapturedLease(t *testing.T) {
 			live.UpsertPoint(p)
 			router := gin.New()
 			router.PUT("/points/:id", NewPointHandler(svc, live).Update)
-			req := httptest.NewRequest("PUT", "/points/"+p.ID, bytes.NewBufferString(`{"name":"uncertain"}`))
+			req := newHandlerTestRequest("PUT", "/points/"+p.ID, bytes.NewBufferString(`{"name":"uncertain"}`))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
@@ -94,7 +94,7 @@ func TestOrdinaryAbsentUnknownCommitFencesOlderCallback(t *testing.T) {
 	router := gin.New()
 	router.PUT("/points/:id", NewPointHandler(svc, delayed).Update)
 	send := func(body string) *httptest.ResponseRecorder {
-		req := httptest.NewRequest("PUT", "/points/"+p.ID, bytes.NewBufferString(body))
+		req := newHandlerTestRequest("PUT", "/points/"+p.ID, bytes.NewBufferString(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)

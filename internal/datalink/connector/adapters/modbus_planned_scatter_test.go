@@ -39,7 +39,7 @@ func TestModbusPlannedAllBitsNotFirstBool(t *testing.T) {
 		for _, area := range []string{"C", "DI"} {
 			t.Run(string(kind)+area, func(t *testing.T) {
 				bits := []bool{true, false, true, false, false, true, false, true, false, true}
-				var points []schema.Point
+				points := make([]schema.Point, 0, len(bits))
 				want := map[string]any{}
 				memory := map[modbusPlannedAddress]uint16{}
 				function := byte(1)

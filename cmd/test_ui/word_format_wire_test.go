@@ -87,7 +87,9 @@ func wordWireServer(t *testing.T, protocol schema.ProtocolType) (plcResult *word
 							payload = payload[:len(payload)-1]
 						}
 						binary.BigEndian.PutUint16(header[4:6], uint16(len(payload)+1))
-						response = append(header, payload...)
+						response = make([]byte, 0, len(header)+len(payload))
+						response = append(response, header...)
+						response = append(response, payload...)
 					case schema.ProtocolMC3E:
 						header := make([]byte, 9)
 						if _, err = io.ReadFull(reader, header); err != nil {
@@ -108,7 +110,9 @@ func wordWireServer(t *testing.T, protocol schema.ProtocolType) (plcResult *word
 						}
 						header[0], header[1] = 0xd0, 0
 						binary.LittleEndian.PutUint16(header[7:], uint16(len(payload)))
-						response = append(header, payload...)
+						response = make([]byte, 0, len(header)+len(payload))
+						response = append(response, header...)
+						response = append(response, payload...)
 					case schema.ProtocolFatekFBs:
 						frame, e := reader.ReadBytes(fatek.ETX)
 						if e != nil || len(frame) < 12 {

@@ -160,7 +160,10 @@ func readAcquisitionWireFrame(reader *bufio.Reader, protocol schema.ProtocolType
 	if _, err := io.ReadFull(reader, body); err != nil {
 		return nil, err
 	}
-	return append(header, body...), nil
+	frame := make([]byte, 0, size+len(body))
+	frame = append(frame, header...)
+	frame = append(frame, body...)
+	return frame, nil
 }
 func parseAcquisitionWireRequest(frame []byte, protocol schema.ProtocolType) (acquisitionWireRequest, error) {
 	request := acquisitionWireRequest{Kind: "contiguous"}

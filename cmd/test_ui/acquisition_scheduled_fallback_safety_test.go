@@ -17,7 +17,7 @@ func TestProductionScheduledAcquisitionUnsupportedCannotFallbackAfterSourceDisab
 		t.Run(string(protocol), func(t *testing.T) {
 			peer, config := newAcquisitionWirePeer(t, protocol, map[int]uint16{0: 11, 10: 22, 20: 33})
 			f := newScheduledProductionFixture(t, protocol, withAcquisitionDeclaration(config, declaredAcquisitionProfile(protocol)))
-			var rules []*schema.SourceRule
+			rules := make([]*schema.SourceRule, 0, 3)
 			for i, address := range []string{"D0", "D10", "D20"} {
 				rule, _ := f.createSource(t, address, 1, schema.DataTypeInt16, fmt.Sprintf("disable-fallback-%d", i))
 				applyAcquisitionTags(t, f.services, rule)

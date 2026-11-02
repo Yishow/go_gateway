@@ -68,7 +68,7 @@ func TestOrdinaryLateCallbackCannotReviveAfterFormatInvalidation(t *testing.T) {
 			router.PUT("/points/:id", h.Update)
 			router.PUT("/workspace/devices/:id", NewStudioV2WorkspaceDevicesHandler(ws, devSvc, live).Update)
 			send := func(body string) *httptest.ResponseRecorder {
-				r := httptest.NewRequest("PUT", "/points/"+p.ID, bytes.NewBufferString(body))
+				r := newHandlerTestRequest("PUT", "/points/"+p.ID, bytes.NewBufferString(body))
 				r.Header.Set("Content-Type", "application/json")
 				w := httptest.NewRecorder()
 				router.ServeHTTP(w, r)
@@ -99,7 +99,7 @@ func TestOrdinaryLateCallbackCannotReviveAfterFormatInvalidation(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, stopped.RevisionID, unchanged.RevisionID)
 			// A legitimate existing projection/recovery installs this exact durable revision.
-			recoverRequest := httptest.NewRequest("PUT", "/workspace/devices/d", bytes.NewBufferString(`{"name":"reapply saved device"}`))
+			recoverRequest := newHandlerTestRequest("PUT", "/workspace/devices/d", bytes.NewBufferString(`{"name":"reapply saved device"}`))
 			recoverRequest.Header.Set("Content-Type", "application/json")
 			recovered := httptest.NewRecorder()
 			router.ServeHTTP(recovered, recoverRequest)

@@ -51,7 +51,7 @@ func newScheduledProductionFixture(t *testing.T, protocol schema.ProtocolType, c
 	revisions := modbusshare.NewSQLWorkspaceRevisionStore(db)
 	hydrateStartupShare(t.Context(), services, revisions, modbusshare.NewReconciler(services.modbusShare, revisions))
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, appconfig.Get().API.BasePath+"/datalink/devices/batch-device/activate", http.NoBody))
+	router.ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), http.MethodPost, appconfig.Get().API.BasePath+"/datalink/devices/batch-device/activate", http.NoBody))
 	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 	return scheduledProductionFixture{services, db, manager, router, capture}
 }

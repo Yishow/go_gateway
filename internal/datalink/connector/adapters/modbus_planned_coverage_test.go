@@ -73,9 +73,9 @@ func TestModbusPlannedSeparatesFunctionsAndUsesNormalizedOffsets(t *testing.T) {
 func TestModbusPlannedLimitsKeepWideScalarsWhole(t *testing.T) {
 	for _, wide := range []bool{false, true} {
 		t.Run(fmt.Sprint(wide), func(t *testing.T) {
-			var points []schema.Point
 			memory := map[modbusPlannedAddress]uint16{}
 			count := 126
+			points := make([]schema.Point, 0, count)
 			for i := 0; i < count; i++ {
 				dtype := schema.DataTypeUint16
 				format := ""

@@ -57,7 +57,7 @@ func (h *ModbusShareHandler) handleFormatRecovery(c *gin.Context) bool {
 	}
 	for key := range fields {
 		switch key {
-		case "workspace_id", "device_id", "point_id", "rule_id", expectedWorkspaceRevisionField, "expected_point_revision", "expected_rule_revision", "request_id", "expected_connection_revision", "expected_settings_revision":
+		case workspaceIDKey, deviceIDKey, pointIDKey, ruleIDKey, expectedWorkspaceRevisionField, "expected_point_revision", "expected_rule_revision", "request_id", "expected_connection_revision", "expected_settings_revision":
 		default:
 			renderPointFormatError(c, point.ErrFormatInvalid)
 			return true

@@ -17,6 +17,8 @@ import (
 	"go-gateway/internal/datalink/sqltx"
 )
 
+const mixedDurableDescriptorConflict = "mixed-durable-descriptor-conflict"
+
 func (b *GroupBoundary) attachMixedClosure(closure *groupdelivery.Closure, plan snapshot.Plan) error {
 	if _, mixed := b.assembler.MixedProgress(); !mixed {
 		return nil
@@ -69,14 +71,14 @@ func validateMixedRuntimeDescriptor(ctx context.Context, cfg GroupBoundaryConfig
 	}
 	sum := sha256.Sum256(raw)
 	if hex.EncodeToString(sum[:]) != digest {
-		return &GroupBoundaryError{Code: "mixed-durable-descriptor-conflict"}
+		return &GroupBoundaryError{Code: mixedDurableDescriptorConflict}
 	}
 	var frozen workspace.WriteGroupAppliedSnapshot
 	if err := json.Unmarshal(raw, &frozen); err != nil {
 		return err
 	}
 	if frozen.Group == nil || frozen.RuntimeLayout == nil || frozen.WorkspaceID != cfg.Group.WorkspaceID || frozen.GroupID != cfg.Group.ID || frozen.AppliedRevision != cfg.Group.AppliedRevision || !frozen.EffectiveAt.Equal(cfg.StartsAt) {
-		return &GroupBoundaryError{Code: "mixed-durable-descriptor-conflict"}
+		return &GroupBoundaryError{Code: mixedDurableDescriptorConflict}
 	}
 	same := func(a, b any) bool {
 		left, e1 := json.Marshal(a)
@@ -89,7 +91,7 @@ func validateMixedRuntimeDescriptor(ctx context.Context, cfg GroupBoundaryConfig
 	}
 	layout := frozen.RuntimeLayout
 	if !same(frozen.Group, cfg.Group) || !same(layout.TagTypes, cfg.TagTypes) || !same(proofs, cfg.CounterBindings) || layout.Dialect != cfg.Dialect || !same(layout.Columns, cfg.Columns) || layout.ReceiptTableReady != cfg.ReceiptTableReady {
-		return &GroupBoundaryError{Code: "mixed-durable-descriptor-conflict"}
+		return &GroupBoundaryError{Code: mixedDurableDescriptorConflict}
 	}
 	return nil
 }

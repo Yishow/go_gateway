@@ -121,5 +121,5 @@ func (s *WriteGroupService) firstStartSuccessorInTx(ctx context.Context, tx *sql
 		return nil, recreateReservationConflict("lineage_changed")
 	}
 	rootID := recordingplan.SuccessorReserveOperationID(record.ID, snap.reserved.OperationID)
-	return &WriteGroupSuccessorFirstStartResult{OperationID: recordingplan.SuccessorFirstStartOperationID(record.ID, rootID), RootOperationID: snap.reserved.OperationID, LineageID: snap.reserved.LineageID, LineageRevision: snap.reserved.LineageRevision + 1, PredecessorGroupID: snap.predecessor.ID, GroupID: applied.ID, AppliedRevision: applied.AppliedRevision, Boundary: boundary, Generation: snap.reserved.Generation, Status: "succeeded"}, nil
+	return &WriteGroupSuccessorFirstStartResult{OperationID: recordingplan.SuccessorFirstStartOperationID(record.ID, rootID), RootOperationID: snap.reserved.OperationID, LineageID: snap.reserved.LineageID, LineageRevision: snap.reserved.LineageRevision + 1, PredecessorGroupID: snap.predecessor.ID, GroupID: applied.ID, AppliedRevision: applied.AppliedRevision, Boundary: boundary, Generation: snap.reserved.Generation, Status: writeGroupSuccessorStatusSucceeded}, nil
 }

@@ -53,7 +53,7 @@ func newWordProductionFixture(t *testing.T, protocol schema.ProtocolType) wordPr
 	_, err = services.workspace.AttachDevice(t.Context(), "word-device")
 	require.NoError(t, err)
 	router := wordProductionRouter(services, db)
-	request := httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/activate", http.NoBody)
+	request := httptest.NewRequestWithContext(context.Background(), "POST", appconfig.Get().API.BasePath+"/datalink/devices/word-device/activate", http.NoBody)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 	require.Equal(t, 200, response.Code, response.Body.String())
@@ -115,7 +115,7 @@ func (f wordProductionFixture) createRule(t *testing.T, protocol schema.Protocol
 	if !f.services.modbusShare.Settings().Enabled {
 		payload, e := json.Marshal(req)
 		require.NoError(t, e)
-		request := httptest.NewRequest("POST", appconfig.Get().API.BasePath+"/datalink/source-rules", bytes.NewReader(payload))
+		request := httptest.NewRequestWithContext(context.Background(), "POST", appconfig.Get().API.BasePath+"/datalink/source-rules", bytes.NewReader(payload))
 		request.Header.Set("Content-Type", "application/json")
 		response := httptest.NewRecorder()
 		f.router.ServeHTTP(response, request)
@@ -149,8 +149,8 @@ func TestProductionWordFormatRuleToIngestorMatrix(t *testing.T) {
 				want   any
 				format string
 			}
-			var cases []expected
 			prefixes := []string{"D"}
+			cases := make([]expected, 0, 24*len(prefixes))
 			for _, prefix := range prefixes {
 				for _, dtype := range []schema.DataType{schema.DataTypeInt32, schema.DataTypeUint32, schema.DataTypeFloat32, schema.DataTypeInt64, schema.DataTypeUint64, schema.DataTypeFloat64} {
 					for _, format := range []string{"ABCD", "BADC", "CDAB", "DCBA"} {

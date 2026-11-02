@@ -21,7 +21,7 @@ func TestPointLegacyFormatPUTRequiresExplicitGuards(t *testing.T) {
 	router := gin.New()
 	router.PUT("/points/:id", h.Update)
 	for _, payload := range []string{`{"data_format":"CDAB"}`, `{"data_format":""}`, `{"format_mode":"override","configured_format":"ABCD"}`} {
-		r := httptest.NewRequest("PUT", "/points/"+p.ID, bytes.NewBufferString(payload))
+		r := newHandlerTestRequest("PUT", "/points/"+p.ID, bytes.NewBufferString(payload))
 		r.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, r)
@@ -45,7 +45,7 @@ func TestPointOrdinaryTypePUTRejectsInapplicableOverride(t *testing.T) {
 	require.NoError(t, repo.Update(t.Context(), p))
 	router := gin.New()
 	router.PUT("/points/:id", NewPointHandler(svc).Update)
-	request := httptest.NewRequest("PUT", "/points/"+p.ID, bytes.NewBufferString(`{"data_type":"bool"}`))
+	request := newHandlerTestRequest("PUT", "/points/"+p.ID, bytes.NewBufferString(`{"data_type":"bool"}`))
 	request.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, request)

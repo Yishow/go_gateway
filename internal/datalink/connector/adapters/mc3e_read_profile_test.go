@@ -27,7 +27,7 @@ func (tr *mcProfileTransport) SendReceive(req []byte) ([]byte, error) {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
 	tr.requests = append(tr.requests, int(binary.LittleEndian.Uint16(req[len(req)-2:])))
-	response := make([]byte, 2+len(tr.words)*2)
+	response := make([]byte, 2+len(tr.words)*2, 2+len(tr.words)*2+len(tr.extra))
 	for i, w := range tr.words {
 		binary.LittleEndian.PutUint16(response[2+i*2:], w)
 	}

@@ -31,7 +31,7 @@ func locatorRequest(t *testing.T, r *runtimeSourceRig, step string, extra url.Va
 		q[k] = v
 	}
 	response := httptest.NewRecorder()
-	r.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, studioLocatorPath+"?"+q.Encode(), http.NoBody))
+	r.router.ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), http.MethodGet, studioLocatorPath+"?"+q.Encode(), http.NoBody))
 	return response
 }
 

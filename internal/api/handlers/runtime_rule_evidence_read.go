@@ -48,7 +48,7 @@ func runtimeEvidenceRequestScope(c *gin.Context) (*runtimeview.Scope, bool) {
 		renderRuntimeHandlerError(c, http.StatusBadRequest, runtimeEvidenceUnavailable, false)
 		return nil, false
 	}
-	keys := []string{"workspace_id", "workspace_revision", "device_id"}
+	keys := []string{workspaceIDKey, "workspace_revision", deviceIDKey}
 	present := false
 	for _, key := range keys {
 		_, exists := query[key]

@@ -9,14 +9,16 @@ import (
 )
 
 const (
-	writeGroupReasonSuccessorReserved      = "successor_reserved"
-	writeGroupNextReviewConnector          = "review_connector"
-	writeGroupReasonOwnershipUnavailable   = "ownership_unavailable"
-	writeGroupNextReviewLifecycle          = "review_lifecycle"
-	writeGroupReasonConnectorIdentityStale = "connector_identity_stale"
-	writeGroupReasonConnectorUnavailable   = "connector_unavailable"
-	writeGroupNextInspectOwnership         = "inspect_ownership"
-	writeGroupActionStop                   = "stop"
+	writeGroupReasonSuccessorReserved           = "successor_reserved"
+	writeGroupNextReviewConnector               = "review_connector"
+	writeGroupReasonOwnershipUnavailable        = "ownership_unavailable"
+	writeGroupNextReviewLifecycle               = "review_lifecycle"
+	writeGroupReasonConnectorIdentityStale      = "connector_identity_stale"
+	writeGroupReasonConnectorUnavailable        = "connector_unavailable"
+	writeGroupReasonSourceDefinitionUnavailable = "source_definition_unavailable"
+	writeGroupSuccessorStatusSucceeded          = "succeeded"
+	writeGroupNextInspectOwnership              = "inspect_ownership"
+	writeGroupActionStop                        = "stop"
 )
 
 // WriteGroupLifecycleAction is advisory availability, never mutation authority.
@@ -112,8 +114,8 @@ func (s *WriteGroupService) lifecycleActions(ctx context.Context, tx *sql.Tx, gr
 		{Action: "edit", Allowed: true},
 		{Action: writeGroupActionStop, Allowed: true},
 		{Action: "remove", Allowed: true},
-		{Action: "recreate", ReasonCode: "source_definition_unavailable", NextAction: writeGroupNextReviewLifecycle, RequiresReview: true},
-		{Action: "transition", ReasonCode: "source_definition_unavailable", NextAction: writeGroupNextReviewLifecycle, RequiresReview: true},
+		{Action: "recreate", ReasonCode: writeGroupReasonSourceDefinitionUnavailable, NextAction: writeGroupNextReviewLifecycle, RequiresReview: true},
+		{Action: "transition", ReasonCode: writeGroupReasonSourceDefinitionUnavailable, NextAction: writeGroupNextReviewLifecycle, RequiresReview: true},
 	}
 	if isSuccessorReservedError(s.repo.requireUnreservedWriteGroupInTx(ctx, tx, group.WorkspaceID, group.ID)) {
 		for i := range actions {

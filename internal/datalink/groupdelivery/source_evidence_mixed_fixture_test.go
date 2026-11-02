@@ -24,10 +24,11 @@ func mixedSourceFixtureMode(t *testing.T, skip, long, mean bool) (*Store, Source
 		scope.Wide = false
 	}
 	refs := map[string]SourceRef{}
-	members := []snapshot.Member{}
-	frozen := []any{}
-	sqlMembers := []dbtarget.GroupRowMember{}
-	columns := []dbtarget.ColumnInfo{{Name: "record_id", DataType: "TEXT", PrimaryKey: true}, {Name: "due_at", DataType: "TEXT"}, {Name: "provenance", DataType: "TEXT"}}
+	members := make([]snapshot.Member, 0, 3)
+	frozen := make([]any, 0, 3)
+	sqlMembers := make([]dbtarget.GroupRowMember, 0, 3)
+	columns := make([]dbtarget.ColumnInfo, 0, 6)
+	columns = append(columns, dbtarget.ColumnInfo{Name: "record_id", DataType: "TEXT", PrimaryKey: true}, dbtarget.ColumnInfo{Name: "due_at", DataType: "TEXT"}, dbtarget.ColumnInfo{Name: "provenance", DataType: "TEXT"})
 	for _, tag := range []string{"fast", "required", "slow"} {
 		seconds := int64(15)
 		if tag == "slow" {
@@ -58,7 +59,7 @@ func mixedSourceFixtureMode(t *testing.T, skip, long, mean bool) (*Store, Source
 		mode = snapshot.ModeMixedLong
 		definition, err := recordingplan.ManagedLongGroupLayout("sqlite", "source_test", "_gw_owner_0123456789abcdef01234567")
 		require.NoError(t, err)
-		columns = nil
+		columns = make([]dbtarget.ColumnInfo, 0, len(definition.Columns))
 		for _, c := range definition.Columns {
 			columns = append(columns, dbtarget.ColumnInfo{Name: c.Name, DataType: c.SQLType, Nullable: c.Nullable, PrimaryKey: c.PrimaryKey})
 		}
@@ -89,7 +90,7 @@ func mixedSourceFixtureMode(t *testing.T, skip, long, mean bool) (*Store, Source
 	require.NoError(t, err)
 	var encode func(snapshot.Outcome) (dbtarget.EncodedRow, error)
 	if long {
-		lm := []dbtarget.LongRowMember{}
+		lm := make([]dbtarget.LongRowMember, 0, len(sqlMembers))
 		for _, m := range sqlMembers {
 			r := refs[m.Column]
 			lm = append(lm, dbtarget.LongRowMember{MemberKey: m.MemberKey, DeviceID: r.DeviceID, PointID: r.PointID, TagID: r.TagID, Type: m.Type, Required: m.Required, Calculation: m.Calculation, Interval: m.Interval, SourceValueType: m.SourceValueType})

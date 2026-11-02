@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+const runtimeViewUnavailable = "unavailable"
+
 // Stage observes a fact, never permission to write/retry/activate. Runtime commit is not readback.
 type Stage string
 

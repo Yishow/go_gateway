@@ -972,26 +972,23 @@ tests:
 
 ---
 ### Requirement: UI / API / Diagnostics options
+The General settings SHALL retain three SectionCards for UI, API and Diagnostics.
+- UI SHALL retain theme dark/light/auto, locale zh-TW/en with zh-TW default and addr_format modbus/hex/raw with modbus default. A genuinely absent theme preference SHALL resolve to system/auto rather than treating an injected dark mapper default as saved intent.
+- API SHALL retain api_base text in mono defaulting to http://localhost:8080 with the no-trailing-slash hint, api_version v1/v2 default v1 and timeout_seconds default 30 seconds.
+- Diagnostics SHALL retain log_level trace/debug/info/warn/error default info, sse_heartbeat_seconds default 15, enable_debug_panel default false and enable_audit_log default true.
+Changes MUST write through state.settings.general. Existing explicit whole-settings Save behavior SHALL remain unchanged. A theme-only interaction SHALL persist only the theme key through the existing updateKey mutation or equivalent theme-limited adapter; it MUST NOT invoke full snapshot saving or flush other unsaved settings. Theme selection SHALL also update the shared global provider without introducing per-workspace preferences; auto SHALL follow live OS preference. Pending or failed persistence MUST NOT be represented as persisted success. Other settings behavior SHALL remain unchanged.
 
-The General settings SHALL be split across three side-by-side SectionCards:
+#### Scenario: Change theme updates the actual interface
+- **WHEN** the operator selects light from the theme select
+- **THEN** state.settings.general.theme becomes light and the shared provider resolves light for the new recording surfaces and affected controls without changing recording state.
 
-- **UI**: `theme` select (`dark` / `light` / `auto`, default `dark`), `locale` select (`zh-TW` / `en`, default `zh-TW`), `addr_format` select (`modbus` / `hex` / `raw`, default `modbus`).
-- **API**: `api_base` text (mono, default `http://localhost:8080`, hint `不含尾斜線`), `api_version` select (`v1` / `v2`, default `v1`), `timeout_seconds` number (default `30`, hint `秒`).
-- **Diagnostics**: `log_level` select (`trace`/`debug`/`info`/`warn`/`error`, default `info`), `sse_heartbeat_seconds` number (default `15`, hint `秒`), `enable_debug_panel` toggle (default `false`), `enable_audit_log` toggle (default `true`).
-
-Changes MUST write through to `state.settings.general`. The theme select MUST NOT actually toggle the UI theme during this change (dark-only); writing the value is sufficient.
-
-#### Scenario: Change theme stored but UI stays dark
-
-- **WHEN** the operator selects `light` from the theme select
-- **THEN** `state.settings.general.theme` becomes `light`
-- **AND** the v2 page subtree continues to use dark tokens (the visual theme does not change)
+#### Scenario: Select automatic theme
+- **WHEN** the operator selects auto and the OS preference later changes
+- **THEN** the provider follows that change without persisting the resolved color as an explicit manual preference.
 
 #### Scenario: Toggle audit log
-
-- **WHEN** the operator toggles `enable_audit_log` from on to off
-- **THEN** `state.settings.general.enable_audit_log` becomes `false`
-
+- **WHEN** the operator toggles enable_audit_log from on to off
+- **THEN** state.settings.general.enable_audit_log becomes false.
 
 <!-- @trace
 source: datalink-workbench-v2-settings
@@ -1129,6 +1126,9 @@ tests:
   - frontend/tests/unit/workbench-v2/step2-grid.test.tsx
   - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
 -->
+
+
+
 
 ---
 ### Requirement: Save bar actions

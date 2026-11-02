@@ -23,18 +23,18 @@ func parseAcquisitionPreviewQuery(raw string) (acquisitionPreviewQuery, error) {
 	if err != nil {
 		return acquisitionPreviewQuery{}, bad
 	}
-	allowed := map[string]bool{"workspace_id": true, "device_id": true, expectedWorkspaceRevisionField: true, "expected_preview_revision": true}
+	allowed := map[string]bool{workspaceIDKey: true, deviceIDKey: true, expectedWorkspaceRevisionField: true, "expected_preview_revision": true}
 	for key, values := range q {
 		if !allowed[key] || len(values) != 1 || (values[0] == "" && key != expectedWorkspaceRevisionField) || (values[0] != "" && !runtimeDeliveryIDs(values[0])) {
 			return acquisitionPreviewQuery{}, bad
 		}
 	}
-	for _, key := range []string{"workspace_id", "device_id", expectedWorkspaceRevisionField} {
+	for _, key := range []string{workspaceIDKey, deviceIDKey, expectedWorkspaceRevisionField} {
 		if _, ok := q[key]; !ok {
 			return acquisitionPreviewQuery{}, bad
 		}
 	}
-	return acquisitionPreviewQuery{q.Get("workspace_id"), q.Get("device_id"), q.Get(expectedWorkspaceRevisionField), q.Get("expected_preview_revision")}, nil
+	return acquisitionPreviewQuery{q.Get(workspaceIDKey), q.Get(deviceIDKey), q.Get(expectedWorkspaceRevisionField), q.Get("expected_preview_revision")}, nil
 }
 
 // AcquisitionPreviewReader has no mutation, probe, or installation methods.

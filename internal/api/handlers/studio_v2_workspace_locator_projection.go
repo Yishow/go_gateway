@@ -82,12 +82,12 @@ func projectStudioLocatorMapping(workspaceID string, o *studioLocatorObservation
 	scaled, cast := false, false
 	for _, step := range steps {
 		switch step.Kind {
-		case "scale":
+		case transformScaleKind:
 			if scaled || cast || step.Multiplier == nil || step.Offset == nil {
 				return empty, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 			}
 			scale, offset, scaled = *step.Multiplier, *step.Offset, true
-		case "cast":
+		case transformCastKind:
 			if cast || step.TargetType == nil {
 				return empty, runtimeEvidenceError(runtimeview.ReasonUnavailable)
 			}

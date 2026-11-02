@@ -98,7 +98,7 @@ func (s *WriteGroupService) reviewSuccessorInTx(ctx context.Context, tx *sql.Tx,
 			block("active_basic_unsupported")
 		}
 		if predecessor.AppliedRevision == "" {
-			block("source_definition_unavailable")
+			block(writeGroupReasonSourceDefinitionUnavailable)
 		}
 	default:
 		return nil, ErrWriteGroupLifecycleBlocked

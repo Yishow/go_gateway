@@ -109,11 +109,11 @@ func TestMCPlannedRandomNestedOverlap(t *testing.T) {
 }
 func TestMCPlannedLimitsExecuteCompleteScalarRequests(t *testing.T) {
 	for _, random := range []bool{false, true} {
-		points := []schema.Point{}
 		count := 126
 		if random {
 			count = 64
 		}
+		points := make([]schema.Point, 0, count)
 		for i := 0; i < count; i++ {
 			dtype := schema.DataTypeInt16
 			address := fmt.Sprint("D", i)

@@ -116,6 +116,6 @@ func (h *DeviceHealthHandler) ResetBreaker(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		apiResponseSuccessKey: true,
-		apiResponseDataKey:    gin.H{apiResponseMessageKey: "熔斷器已重置", "device_id": deviceID},
+		apiResponseDataKey:    gin.H{apiResponseMessageKey: "熔斷器已重置", deviceIDKey: deviceID},
 	})
 }

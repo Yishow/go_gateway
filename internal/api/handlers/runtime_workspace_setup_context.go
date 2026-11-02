@@ -44,7 +44,7 @@ func (h *RuntimeHandler) WithSetupContextServices(
 
 func (h *RuntimeHandler) buildWorkspaceSetupContext(ctx context.Context, record *workspace.Record) (response runtimeWorkspaceSetupContextResponse, resultErr error) {
 	response = runtimeWorkspaceSetupContextResponse{
-		EvidenceState:   "saved-only",
+		EvidenceState:   savedOnlyState,
 		SourceRules:     []runtimeWorkspaceSetupSourceRuleResponse{},
 		Mappings:        []runtimeWorkspaceSetupMappingResponse{},
 		DatabaseTargets: []runtimeWorkspaceSetupDatabaseTargetMapping{},

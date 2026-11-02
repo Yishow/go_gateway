@@ -16,7 +16,7 @@ type ruleRevisionDeleter interface {
 // Deletion and the database's FK cascade are one statement. A stale operation
 // cannot first erase the newer rule's links or candidate snapshots.
 func (r *SQLRepository) DeleteRevision(ctx context.Context, expected *schema.SourceRule) error {
-	_, args := ruleStatePredicate(expected)
+	args := ruleStateArgs(expected)
 	result, err := r.db.ExecContext(ctx, "DELETE FROM source_rules WHERE "+sourceRuleStatePredicate, args...)
 	if err != nil {
 		return err
@@ -52,6 +52,6 @@ func (r *MemoryRepository) DeleteRevision(_ context.Context, expected *schema.So
 // IS is SQLite's null-safe equality. Include the complete config rather than
 // only updated_at: SQLite's timestamp trigger has second precision, and an
 // enable toggle intentionally keeps its rule revision under the existing API.
-func ruleStatePredicate(p *schema.SourceRule) (predicate string, args []any) {
-	return sourceRuleStatePredicate, []any{p.ID, p.DeviceID, p.RevisionID, p.StartAddress, p.Count, p.DataType, p.NamingPrefix, p.Enabled, p.Locked, p.Origin, p.TemplateName, p.SkippedAddresses, p.TargetDataType, p.ScaleMultiplier, p.ScaleOffset, p.DataFormat, p.ShareEnabled, p.ShareStartRegister, p.ShareStride}
+func ruleStateArgs(p *schema.SourceRule) []any {
+	return []any{p.ID, p.DeviceID, p.RevisionID, p.StartAddress, p.Count, p.DataType, p.NamingPrefix, p.Enabled, p.Locked, p.Origin, p.TemplateName, p.SkippedAddresses, p.TargetDataType, p.ScaleMultiplier, p.ScaleOffset, p.DataFormat, p.ShareEnabled, p.ShareStartRegister, p.ShareStride}
 }
