@@ -14,7 +14,7 @@ const SAFE_BUCKET_CAUSES = new Set<WriteGroupDeliveryBucketCause>([
  * revisions come from the group, the rest from the delivery status. Only
  * `sql_committed` is destination evidence; nothing is summed into a success.
  */
-export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolean }> = ({ group, readonly = false }) => {
+export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolean; compact?: boolean }> = ({ group, readonly = false, compact = false }) => {
   const { t } = useTranslation('workbench-v2');
   const delivery = useWriteGroupDeliveryQuery(group.id, true, 5000);
   const confirmed = delivery.isError ? undefined : delivery.data;
@@ -32,11 +32,8 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
     const safeCause = SAFE_BUCKET_CAUSES.has(cause) ? cause : 'unavailable';
     return t(`step4.group.delivery.cause.${safeCause}`);
   };
-  return (
-    <section aria-label={t('step4.group.delivery.title')} className="space-y-2" data-testid="group-delivery-strip">
-      <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.delivery.title')}</h4>
-      {delivery.isError && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-delivery-failed">{t('step4.group.delivery.failed')}</p>}
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+  const facts = (
+    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {cell(t('step4.group.delivery.saved'), group.status === 'deleted' ? t('step4.group.status.deleted') : t('step4.group.delivery.yes'), 'delivery-saved')}
         {cell(t('step4.group.delivery.applied'), group.applied_revision ? t('step4.group.delivery.yes') : t('step4.group.delivery.no'), 'delivery-applied')}
         {cell(t('step4.group.delivery.collecting'), num(stages?.collecting), 'delivery-collecting')}
@@ -46,6 +43,13 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
         {cell(t('step4.group.delivery.attention'), stages ? String(stages.blocked + stages.quarantined + stages.unknown) : unknown, 'delivery-attention')}
         {cell(t('step4.group.delivery.committed'), num(stages?.sql_committed), 'delivery-committed')}
       </dl>
+  );
+  return (
+    <section aria-label={t('step4.group.delivery.title')} className="space-y-2" data-testid="group-delivery-strip">
+      <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.delivery.title')}</h4>
+      {delivery.isError && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-delivery-failed">{t('step4.group.delivery.failed')}</p>}
+      {compact && stages && stages.blocked + stages.quarantined + stages.unknown > 0 && <p role="status" data-testid="group-delivery-attention-summary">{t('step4.group.delivery.attention')}: {stages.blocked + stages.quarantined + stages.unknown}</p>}
+      {compact ? <details data-testid="group-delivery-diagnostics"><summary>{t('step4.group.delivery.recovery.diagnostics')}{!confirmed && ` · ${unknown}`}</summary>{facts}</details> : facts}
       {recentIssues.length > 0 && (
         <div data-testid="delivery-bucket-causes" className="space-y-1">
           <p className="text-xs font-medium text-[var(--gw-text)]">{t('step4.group.delivery.recent_issues')}</p>

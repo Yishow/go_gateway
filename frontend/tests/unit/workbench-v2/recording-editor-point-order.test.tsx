@@ -20,18 +20,23 @@ function snapshot(pointId: string): PointFormatSnapshot {
 }
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(pointFormatAPI.read).mockImplementation(async scope => snapshot(scope.point_id)); });
 describe('recording editor canonical point order consumer', () => {
-  it('reads independent canonical point orders for two selected points without deriving them from mapping datatype or DB revision', async () => {
+  it.each(['guided', 'simple'] as const)('reads independent canonical point orders for two selected points in %s without deriving them from mapping datatype or DB revision', async presentation => {
     const state = savedGroupState(), group = savedGroup();
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     const onSaved = vi.fn();
     function Page() {
       const pointOrder = useRecordingPointOrder('ws-1', true);
-      return <GroupEditor group={group} workspaceId="ws-1" workspaceRevision="DATABASE-SETUP-99"
+      return <GroupEditor presentation={presentation} group={group} workspaceId="ws-1" workspaceRevision="DATABASE-SETUP-99"
       connector={state.db.connector} candidates={buildGroupCandidates(state).candidates} excluded={[]} readonly={false}
       deviceSource={{ pointOrder, observations: () => [], submit: vi.fn(), inspect: vi.fn() }} onSaved={onSaved} onClose={vi.fn()} onReload={vi.fn()} fetchLatest={vi.fn()} />;
     }
     render(<QueryClientProvider client={client}><Page /></QueryClientProvider>);
-    expect((await screen.findByTestId('recording-point-order-pt-0')).querySelector('summary')).toBeVisible();
+    const row = await screen.findByTestId('recording-point-order-pt-0');
+    if (presentation === 'simple') {
+      const order = await within(row).findByLabelText('editor.order');
+      expect(order).toBeVisible(); expect(order.closest('details')).toBeNull();
+      expect(within(row).getByText('editor.save')).toBeVisible();
+    } else expect(row.querySelector('summary')).toBeVisible();
     expect(await within(screen.getByTestId('recording-point-order-pt-0')).findByTestId('point-order-effective')).toHaveTextContent('ABCD');
     expect(await within(screen.getByTestId('recording-point-order-pt-1')).findByTestId('point-order-effective')).toHaveTextContent('CDAB');
     expect(pointFormatAPI.read).toHaveBeenCalledWith({ workspace_id: 'ws-1', device_id: 'dev-1', point_id: 'pt-0' });

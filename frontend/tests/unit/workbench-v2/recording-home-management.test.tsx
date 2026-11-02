@@ -31,7 +31,7 @@ describe('compact home management', () => {
   });
   it('keyword and filters find a named recording without scanning pages, with clear-filter recovery', () => {
     render(<Host />); fireEvent.change(screen.getByLabelText('keyword'), { target: { value: 'table_299' } });
-    expect(screen.getByRole('button', { name: 'Recording 299' })).toBeInTheDocument();
+    expect(screen.getByText('Recording 299')).toBeInTheDocument();
     expect(screen.getByTestId('home-page-status')).toHaveTextContent('1/1 (1)');
     fireEvent.change(screen.getByLabelText('savedStatus'), { target: { value: 'draft' } });
     expect(screen.getByText('noResults')).toBeInTheDocument(); expect(screen.queryByText('emptyCollection')).not.toBeInTheDocument();
@@ -39,7 +39,7 @@ describe('compact home management', () => {
   });
   it('observed-only filter cannot turn unobserved records into a health claim', () => {
     render(<Host observedIds={['G299']} />); fireEvent.click(screen.getByLabelText('observedFilter'));
-    expect(screen.getByRole('button', { name: 'Recording 299' })).toBeInTheDocument();
+    expect(screen.getByText('Recording 299')).toBeInTheDocument();
     expect(screen.getByText('observedFilterBoundary')).toBeInTheDocument();
     expect(screen.getByText('observationBoundary')).toBeInTheDocument();
   });
@@ -50,7 +50,7 @@ describe('compact home management', () => {
     const changed = vi.fn(); render(<RecordingHomeCollection groups={[g]} devices={devices} state={{ ...initialCollectionState(), keyword: 'absent' }} guidance={fault}
       observedIds={['G0']} unverifiedObserved={false} sourcesAvailable restored={{ state: initialCollectionState(), workspaceRevision: 'W2', scrollTop: 0, focusId: null }}
       onChange={changed} onOpen={vi.fn()} onOpenDevice={vi.fn()} onRemember={vi.fn()} onRecheck={vi.fn()} />);
-    expect(screen.getByRole('button', { name: 'Recording G0' })).toBeInTheDocument();
+    expect(screen.getByText('Recording G0')).toBeInTheDocument();
     fireEvent.click(screen.getByText('viewObserved')); expect(changed).toHaveBeenCalledWith(expect.objectContaining({ keyword: '', observedOnly: true, page: 1 }));
   });
   it('restores filters only within the same query context/workspace and keeps IDs as presentation only', () => {
@@ -68,7 +68,7 @@ describe('compact home management', () => {
     const panel = screen.getByTestId('home-collection-scroll'); Object.defineProperty(panel, 'scrollHeight', { value: 500 }); Object.defineProperty(panel, 'clientHeight', { value: 100 });
     view.rerender(<RecordingHomeCollection {...props} sourcesAvailable />);
     expect(screen.getByTestId('home-page-status')).toHaveTextContent('2/2 (28)');
-    expect(screen.getByRole('button', { name: 'Recording 026' })).toHaveFocus(); expect(panel.scrollTop).toBe(80);
+    expect(within(screen.getByText('Recording 026').closest('tr')!).getByRole('button', { name: 'openRecord' })).toHaveFocus(); expect(panel.scrollTop).toBe(80);
   });
   it('does not resurrect a removed focus target or describe stale observations as zero faults', () => {
     const state = initialCollectionState(); render(<RecordingHomeCollection groups={groups.slice(0, 1)} devices={devices} state={{ ...state, observedOnly: true }} guidance={guidance}
@@ -114,4 +114,13 @@ it('separates saved sources, destination and unknown writing facts without inven
   expect(cells[3]).toHaveTextContent('table_0'); expect(cells[4]).toHaveTextContent('statusUnknown');
   expect(within(cells[5]).getByRole('button', { name: 'openRecord' })).toBeInTheDocument();
   expect(cells[4]).not.toHaveTextContent(/healthy|rows\/s|0 faults/i);
+});
+
+it('keeps recording identity plain and exposes exactly one open action per row', () => {
+ render(<Host />); const row = within(screen.getByTestId('home-management-table')).getAllByRole('row')[1];
+ expect(within(row).getByText('Recording 000').tagName).not.toBe('BUTTON');
+ expect(within(row).queryByRole('button', { name: 'Recording 000' })).not.toBeInTheDocument();
+ expect(within(row).getAllByRole('button')).toHaveLength(1);
+ expect(within(row).getByRole('button', { name: 'openRecord' })).toHaveAttribute('data-home-focus', 'record-G000');
+ expect(within(row).getByText('destinationIdentity').closest('details')).toBeInTheDocument();
 });

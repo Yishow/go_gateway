@@ -75,26 +75,27 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, summ
               <button type="button" data-home-focus={`device-${device.id}`} onClick={() => { remember(`device-${device.id}`); onOpenDevice(device.id, 'connection'); }}>{t('deviceConnection')}</button>
               <button type="button" onClick={() => { remember(`device-${device.id}`); onOpenDevice(device.id, 'points'); }}>{t('devicePoints')}</button></td>
           </tr>) : records.rows.map(group => <tr key={group.id}>
-            <td><button type="button" data-home-focus={`record-${group.id}`} onClick={() => { remember(`record-${group.id}`); onOpen(group.id); }}>{group.name}</button></td>
+            <td><strong>{group.name}</strong></td>
             <td>{t(`savedStatuses.${group.status}`)}{guidance.attentionItems.some(item => item.id === group.id && item.reason !== 'evidence_unavailable') ? ` · ${t('observedAttentionShort')}` : ` · ${t('statusUnknown')}`}</td>
             <td>{[...new Set(group.members.map(member => member.device_id))].map(id => devices.find(device => device.id === id)?.name ?? id).join(' / ') || t('unknown')}<p>{t('recordPointCount', { count: group.members.length })}</p></td>
-            <td>{group.destination.database && <p>{group.destination.database}</p>}{[group.destination.table_schema, group.destination.table_name].filter(Boolean).join('.')}</td>
-            <td>{summaries?.[group.id] ? <RecordingHomeResultFacts id={group.id} name={group.name} summary={summaries[group.id]} /> : t('statusUnknown')}</td><td><button type="button" onClick={() => { remember(`record-${group.id}`); onOpen(group.id); }}>{t('openRecord')}</button></td>
+            <td><strong className="gw-destination-name" title={group.destination.table_name}>{group.destination.storage_strategy === 'managed' ? t('managedTable') : group.destination.table_name || t('unknown')}</strong>
+              <p className="gw-destination-name">{(group.destination.database || '').split(/[\\/]/).filter(Boolean).at(-1) || t('unknown')}</p>
+              <details className="gw-destination-identity"><summary>{t('destinationIdentity')}</summary><dl><dt>{t('destinationFilter')}</dt><dd>{group.destination.database || t('unknown')}</dd><dt>{t('tableRegion')}</dt><dd>{[group.destination.table_schema, group.destination.table_name].filter(Boolean).join('.')}</dd><dt>{t('product.connector')}</dt><dd>{group.destination.connector_id}</dd></dl></details></td>
+            <td>{summaries?.[group.id] ? <RecordingHomeResultFacts id={group.id} name={group.name} summary={summaries[group.id]} /> : t('statusUnknown')}</td><td><button type="button" data-home-focus={`record-${group.id}`} onClick={() => { remember(`record-${group.id}`); onOpen(group.id); }}>{t('openRecord')}</button></td>
           </tr>)}</tbody>
         </table>}
     </div>
-    <footer className="gw-pagination">
+    <footer className="gw-pagination"><div className="gw-pagination-summary"><span role="status" data-testid="home-page-status">{t('pageOf', { page: current.page, pages: current.pageCount, count: current.filteredCount })}</span>
       <label>{t('sort')}<select value={state.descending ? 'desc' : 'asc'} onChange={event => patch({ descending: event.target.value === 'desc' })}>
         <option value="asc">{t('ascending')}</option><option value="desc">{t('descending')}</option>
       </select></label>
-      <label>{t('pageSize')}<select value={state.pageSize} onChange={event => patch({ pageSize: event.target.value === '50' ? 50 : 25 })}>
+      </div><div className="gw-pagination-controls"><label>{t('pageSize')}<select value={state.pageSize} onChange={event => patch({ pageSize: event.target.value === '50' ? 50 : 25 })}>
         <option value="25">25</option><option value="50">50</option>
       </select></label>
 
       <button type="button" disabled={current.page <= 1} onClick={() => onChange({ ...state, page: current.page - 1 })}>{t('previous')}</button>
-      <span role="status" data-testid="home-page-status">{t('pageOf', { page: current.page, pages: current.pageCount, count: current.filteredCount })}</span>
       <button type="button" disabled={current.page >= current.pageCount} onClick={() => onChange({ ...state, page: current.page + 1 })}>{t('next')}</button>
-    </footer>
+    </div></footer>
     <aside className="gw-summary" aria-label={t('deviceSummary')}>
       <h2 className="text-lg font-semibold">{t('deviceSummary')}</h2>
       <ul data-testid="home-device-summary">{devicePage.summary.map(device => <li key={device.id}><strong>{device.name}</strong><span>{device.protocol}</span><button type="button" data-testid={`home-device-points-${device.id}`} data-home-focus={`summary-device-${device.id}`} onClick={() => { remember(`summary-device-${device.id}`); onOpenDevice(device.id, 'points'); }}>{t('devicePoints')}</button></li>)}</ul>

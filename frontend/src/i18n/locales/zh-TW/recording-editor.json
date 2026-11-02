@@ -433,6 +433,13 @@
     "interval": "間隔",
     "actions": "操作",
     "settings": "欄位與必要性設定",
-    "remove": "移除"
+    "remove": "移除",
+    "groupRule": "沿用全組記錄規則",
+    "groupCadence": "沿用全組間隔",
+    "systemManaged": "系統管理",
+    "identities": "名稱與資料表詳情",
+    "methodHelp": "其他算法說明",
+    "gaugeConsent": "請確認這是一般量測值，而非累積值或狀態值；只套用此記錄。",
+    "confirmGauge": "確認量測用途"
   }
 }

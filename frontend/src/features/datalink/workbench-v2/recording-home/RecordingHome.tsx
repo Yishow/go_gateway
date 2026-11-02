@@ -1,3 +1,4 @@
+import { RecordingProductShell } from '../shell/RecordingProductShell';
 import './recording-home.css';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -23,8 +24,8 @@ export function recordingHomeActionTarget(action: RecordingHomeGuidanceAction, l
   return buildStudioPresentationTarget(location.search, location.hash, 'advanced');
 }
 /** Actual readonly home; visual hierarchy never changes evidence or command ownership. */
-export function RecordingHome({ guidance, location, onNavigate, onRetry, collection, onConfigurePoints }: {
-  guidance: RecordingHomeGuidance; location: RecordingHomeLocation; onNavigate?: (target: string) => void; onRetry: () => void; collection?: ReactNode; onConfigurePoints?: (deviceId: string) => void;
+export function RecordingHome({ guidance, location, onNavigate, onRetry, collection, onConfigurePoints, workspaceId }: {
+  workspaceId?: string; guidance: RecordingHomeGuidance; location: RecordingHomeLocation; onNavigate?: (target: string) => void; onRetry: () => void; collection?: ReactNode; onConfigurePoints?: (deviceId: string) => void;
 }) {
   const { t } = useTranslation('recording-home');
   const { t: editorText } = useTranslation('recording-editor');
@@ -36,15 +37,15 @@ export function RecordingHome({ guidance, location, onNavigate, onRetry, collect
     if (action.target === 'configure_points') { onConfigurePoints?.(action.deviceId); return; }
     const target = recordingHomeActionTarget(action, location); if (target) onNavigate?.(target);
   };
-  return <main data-workbench-v2="true" data-testid="recording-home" className="gw-recording-home">
-    <header className="gw-home-header">
-      <h1>{t('title')}</h1>
-      <button type="button" className="gw-home-create" onClick={() => { const target = buildSimpleRecordingTarget({ kind: 'new' }, location.hash); if (target) onNavigate?.(target); }}>{editorText('simple.create')}</button>
-      <nav aria-label={t('navigation')}>
+  return <><RecordingProductShell workspaceId={workspaceId ?? guidance.primaryAction?.scope.workspaceId} tools={<>
         {advanced && <button type="button" onClick={() => onNavigate?.(advanced)}>{t('advanced')}</button>}
         {[['/studio/runtime', 'runtime'], ['/studio/logs', 'logs'], ['/test', 'test']].map(([target, key]) =>
           <button key={target} type="button" onClick={() => onNavigate?.(target)}>{t(key)}</button>)}
-      </nav>
+      </>} /><main data-workbench-v2="true" data-testid="recording-home" className="gw-recording-home">
+    <header className="gw-home-header">
+      <h1>{t('title')}</h1>
+      <button type="button" className="gw-home-create" onClick={() => { const target = buildSimpleRecordingTarget({ kind: 'new' }, location.hash); if (target) onNavigate?.(target); }}>{editorText('simple.create')}</button>
+
     </header>
     <section aria-live="polite" className="gw-home-guidance" data-guidance-state={guidance.availability.state === 'unavailable' && guidance.availability.reason === 'error' ? 'error' : ['operation_recovery', 'delivery_attention', 'source_attention'].includes(guidance.reason) ? 'attention' : guidance.reason === 'evidence_unavailable' ? 'unknown' : 'neutral'} data-testid="recording-home-guidance">
       <h2 className="gw-guidance-heading">{t(`reason.${guidance.reason}`)}</h2>
@@ -64,5 +65,5 @@ export function RecordingHome({ guidance, location, onNavigate, onRetry, collect
           guidance.draftItems.some(draft => draft.id === item.id) ? t('draft') : t('savedState')}</span>
       </li>)}</ul>
     </section>}
-  </main>;
+  </main></>;
 }

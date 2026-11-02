@@ -19,6 +19,7 @@ import { getSafeErrorMessage } from '../../../../../../utils/typedErrors';
 
 export interface GroupTestWritePanelProps {
   locatorScope?: StudioV2LocatorReadScope;
+  compact?: boolean;
   workspaceId: string;
   groupId: string;
   /** Changes whenever the saved group does; an earlier preview is dropped, but recovery is retained. */
@@ -38,7 +39,7 @@ export interface GroupTestWritePanelProps {
  * checked rather than repeated, and nothing is inferred from a missing field.
  */
 export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ workspaceId, groupId, scopeKey, enabled, disabledReason,
-  newOperationBlocked = false, isNewOperationBlocked, locatorScope }) => {
+  newOperationBlocked = false, isNewOperationBlocked, locatorScope, compact = false }) => {
   const { t } = useTranslation('workbench-v2');
   const recoveryList = useRecordingTestWriteRecovery(workspaceId, locatorScope);
   const previewMutation = useWriteGroupTestWritePreviewMutation();
@@ -192,19 +193,23 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
     previewScope.current === scopeRef.current &&
     preview.target.dialect === 'sqlserver';
 
-  return (
-    <section className="space-y-3 rounded-lg border border-[var(--gw-border)] p-4" aria-labelledby={`group-test-write-${groupId}`} data-testid="group-test-write">
-      <h4 id={`group-test-write-${groupId}`} className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.test_write.title')}</h4>
-      <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.test_write.intro')}</p>
-
-      {(!enabled || newOperationBlocked) && disabledReason && <p className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-test-write-blocked">{disabledReason}</p>}
-
-      <button
+  const previewControl = (
+    <button
         type="button" onClick={handlePreview} disabled={!enabled || newOperationBlocked || busy || Boolean(reference) || recovery.unavailable || !recoveryList.available}
         className="rounded border border-[var(--gw-control)] px-3 py-1 text-xs text-[var(--gw-text)] disabled:text-[var(--gw-muted)] disabled:bg-[var(--gw-ground)]" data-testid="group-test-write-preview"
       >
         {t('step4.group.test_write.preview')}
       </button>
+  );
+  return (
+    <section className="space-y-3 rounded-lg border border-[var(--gw-border)] p-4" aria-labelledby={`group-test-write-${groupId}`} data-testid="group-test-write">
+      {!compact && <><h4 id={`group-test-write-${groupId}`} className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.test_write.title')}</h4>
+      <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.test_write.intro')}</p></>}
+
+      {(!enabled || newOperationBlocked) && disabledReason && <p className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-test-write-blocked">{disabledReason}</p>}
+
+      {compact ? <details data-testid="group-test-write-optional"><summary id={`group-test-write-${groupId}`}>{t('step4.group.test_write.title')}</summary>
+        <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.test_write.intro')}</p>{previewControl}</details> : previewControl}
 
       {!recoveryList.available && <div role="alert" data-testid="group-test-write-list-unavailable">
         {t('step4.group.test_write.recovery_list_unavailable')}

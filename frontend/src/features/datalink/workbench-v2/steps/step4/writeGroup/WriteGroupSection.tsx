@@ -399,7 +399,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
     return trigger?.dataset.testid === 'recording-repair-start' ? node.querySelector<HTMLElement>('[data-testid="recording-repair-start"]') : null;
   } } : undefined;
   return (
-    <section ref={region} className="space-y-4 rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-5" aria-labelledby={presentation === 'simple' ? undefined : 'group-section-title'} data-testid="group-section"
+    <section ref={region} className="space-y-4 rounded-xl border border-[var(--gw-border)] bg-[var(--gw-surface)] p-5" aria-labelledby={presentation === 'simple' ? undefined : 'group-section-title'} data-testid="group-section" data-editor-presentation={presentation} data-editor-active={Boolean(editing)}
       data-focus-scope={!opening && !openError && !locatorSuspended && selection.kind === 'edit' ? editorFocusScope(editorEntry) : undefined}>
       {presentation !== 'simple' && <div>
         <h3 id="group-section-title" className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.section.title')}</h3>

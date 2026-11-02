@@ -1,7 +1,8 @@
 /* Simple editor only; shared state, modal shell and the guided presentation are unchanged. */
-[data-testid='group-section']:has(> .recording-editor-simple) { padding: 0; border: 0; background: var(--gw-ground); }
-.recording-editor-simple { min-width: 0; padding: 0 0 max(13rem, 40dvh); border: 0; border-radius: 0; background: var(--gw-ground); }
-.recording-editor-simple > :first-child { padding: var(--gw-space-md) 0; }
+[data-testid='group-section'][data-editor-presentation='simple'][data-editor-active='true'] { padding: 0; border: 0; background: var(--gw-ground); }
+.recording-editor-simple { min-width: 0; padding: 0 0 var(--gw-space-md); border: 0; border-radius: 0; background: var(--gw-ground); }
+.recording-editor-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--gw-space-sm); color: var(--gw-muted); font-size: 12px; }
+.recording-editor-tools:empty { display: none; }
 .recording-editor-layout { min-width: 0; }
 .recording-editor-steps { display: flex; flex-wrap: wrap; gap: var(--gw-space-xs); margin-bottom: var(--gw-space-md); }
 .recording-editor-steps button, .recording-editor-next, .recording-editor-simple [data-testid='recording-points-open'] {
@@ -10,9 +11,11 @@
 }
 .recording-editor-steps button:hover, .recording-editor-next:hover { background: var(--gw-active); }
 .recording-editor-columns { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--gw-space-lg); align-items: start; }
-.recording-editor-main { min-width: 0; display: grid; gap: var(--gw-space-lg); }
-.recording-editor-panel, .recording-editor-summary { min-width: 0; padding: var(--gw-space-md); border: 1px solid var(--gw-border); border-radius: var(--gw-radius-md); background: var(--gw-surface); }
-.recording-editor-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gw-space-md); scroll-margin-block: var(--gw-space-lg) max(13rem, 40dvh); }
+.recording-editor-main { min-width: 0; display: grid; gap: 0; padding: var(--gw-space-md); border: 1px solid var(--gw-border); border-radius: var(--gw-radius-md); background: var(--gw-surface); }
+.recording-editor-summary { min-width: 0; padding: var(--gw-space-md); border: 1px solid var(--gw-border); border-radius: var(--gw-radius-md); background: var(--gw-surface); }
+.recording-editor-panel { min-width: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.recording-editor-panel + .recording-editor-panel { margin-top: var(--gw-space-lg); padding-top: var(--gw-space-lg); border-top: 1px solid var(--gw-border); }
+.recording-editor-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gw-space-md); scroll-margin-block: var(--gw-space-lg); }
 .recording-editor-panel > * { min-width: 0; }
 .recording-editor-panel header h4 { font-size: 18px; line-height: 1.4; font-weight: 600; color: var(--gw-text); }
 .recording-editor-panel header p { margin-top: var(--gw-space-xs); font-size: 14px; color: var(--gw-muted); }
@@ -28,31 +31,20 @@
 .recording-editor-summary dt { font-size: 12px; color: var(--gw-muted); }
 .recording-editor-summary dd { margin-top: var(--gw-space-xs); font-size: 14px; }
 .recording-editor-summary li + li { margin-top: var(--gw-space-xs); }
-/* Move the one existing action projection; never render a second Save/confirmation owner. */
-.recording-editor-simple [data-testid='recording-preparation-actions'] {
-  position: fixed; inset: auto 0 0; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; gap: var(--gw-space-xs) var(--gw-space-md);
-  max-height: 40dvh; overflow-y: auto; padding: var(--gw-space-sm) var(--gw-space-lg); margin: 0;
-  border: 0; border-top: 1px solid var(--gw-border); border-radius: 0; background: var(--gw-surface);
-}
-.recording-editor-simple [data-testid='recording-preparation-phase'] { flex: 1 1 50%; margin: 0; }
-.recording-editor-simple [data-testid='recording-preparation-actions'] > button { order: 2; margin: 0 0 0 auto; min-height: var(--gw-control-height); }
-.recording-editor-simple [data-testid='recording-preparation-actions'] > :not(button):not([data-testid='recording-preparation-phase']) { order: 3; margin: 0; font-size: 12px; }
-.recording-editor-simple [data-testid='recording-preparation-actions'] > p:not([data-testid='recording-preparation-phase']) { flex-basis: 100%; }
+/* One existing action projection stays in its destination panel, outside disabled fields. */
+.recording-editor-confirmation { display: grid; min-width: 0; gap: var(--gw-space-md); }
+.recording-editor-simple [data-testid='recording-preparation-actions'] { position: static; margin: 0; }
 .recording-editor-simple :is(button, a, input, select, summary, section[tabindex]):focus-visible { outline: var(--gw-focus-width) solid var(--gw-focus); outline-offset: var(--gw-focus-offset); }
 @media (max-width: 1000px) {
   .recording-editor-columns { grid-template-columns: minmax(0, 1fr); }
   .recording-editor-summary { position: static; }
 }
 @media (max-width: 639px) {
-  .recording-editor-simple { padding-bottom: max(16rem, 40dvh); }
-  .recording-editor-panel, .recording-editor-summary { padding: var(--gw-space-sm); }
+  .recording-editor-main, .recording-editor-summary { padding: var(--gw-space-sm); }
   .recording-editor-simple :is(button, select, input:not([type='checkbox']):not([type='radio'])) { min-height: 44px; }
   .recording-editor-simple [data-testid='recording-preparation-actions'] { padding: var(--gw-space-xs) var(--gw-space-sm); }
 }
-@media (max-height: 479px) {
-  .recording-editor-simple [data-testid='recording-preparation-actions'] { position: sticky; inset: auto; bottom: 0; max-height: none; }
-  .recording-editor-simple { padding-bottom: var(--gw-space-md); }
-}
+
 
 /* Count and the existing picker trigger share one row; all content retains its owner. */
 .recording-editor-source-selection { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--gw-space-sm); min-width: 0; }
@@ -71,3 +63,8 @@
 @media (pointer: coarse), (max-width: 639px) {
   .recording-editor-simple .recording-simple-name > .parameter-help-trigger { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
 }
+
+/* All simple-editor help: one small glyph in a transparent accessible hit target. */
+.recording-editor-simple .parameter-help-trigger { width: 44px !important; height: 44px !important; min-width: 44px !important; min-height: 44px !important; padding: 0 !important; border: 0; background: transparent; box-shadow: none; font-size: 14px; }
+.recording-editor-summary-identities { margin-top: var(--gw-space-md); font-size: 12px; }
+.recording-editor-summary-identities > summary { font-size: 12px; }

@@ -161,6 +161,10 @@ it('keeps the empty simple picker focused and derives a read-only summary withou
   expect(screen.getByTestId('recording-summary-name')).toHaveTextContent('simple.unset');
   fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'My unsaved name' } });
   expect(screen.getByTestId('recording-summary-name')).toHaveTextContent('My unsaved name');
+  expect(screen.getByTestId('recording-summary-name').closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByTestId('recording-summary-name')).not.toBeVisible();
+  fireEvent.click(screen.getByText('compact.identities'));
+  expect(screen.getByTestId('recording-summary-name')).toBeVisible();
   expect(screen.getByText('simple.summary.localIntent')).toBeVisible();
   expect(screen.getAllByTestId('recording-preparation-actions')).toHaveLength(1);
   expect(screen.getAllByTestId('group-save')).toHaveLength(1);
@@ -213,7 +217,9 @@ it('collapses simple version identifiers while keeping actual status and destina
   expect(values).toBeInTheDocument(); expect(values).not.toBeVisible();
   const summary = within(versions).getByText('versions.details').closest('summary');
   expect(summary).toBeVisible(); expect(summary).toHaveTextContent('savedStatuses.ready');
-  expect(summary).toHaveTextContent('savedStatus');
+  expect(summary).toHaveTextContent(/^versions\.details · savedStatuses\.ready$/);
+  expect(within(summary!.closest('.recording-editor-tools') as HTMLElement).queryByRole('heading', { name: savedGroup().name })).not.toBeInTheDocument();
+  expect(screen.getByTestId('group-lifecycle-return')).toHaveTextContent(savedGroup().name);
   expect(screen.getByText('Fresh scoped revision W2').closest('details')).toBe(versions);
   expect(screen.getAllByText('versions.details')).toHaveLength(1);
   expect(screen.getByTestId('group-destination-mismatch')).toBeVisible();
@@ -253,7 +259,12 @@ it.each([
   for (const member of group.members) {
     const row = screen.getByTestId(`group-member-row-${member.point_id}`);
     expect(row).toHaveAttribute('data-problem', proposal ? 'column-missing' : '');
-    expect(screen.getByTestId(`group-member-column-${member.point_id}`)).toHaveAttribute('aria-invalid', String(proposal));
+    const column = screen.getByTestId(`group-member-column-${member.point_id}`);
+    if (presentation === 'simple' && storage === 'managed') {
+      expect(column).toHaveTextContent('compact.systemManaged');
+      expect(column.matches('input, select')).toBe(false);
+      expect(within(row).getByText(member.target_column, { selector: 'code' })).toBeInTheDocument();
+    } else expect(column).toHaveAttribute('aria-invalid', String(proposal));
     if (proposal) expect(within(row).getByRole('alert')).toHaveTextContent('problem_column_missing');
     else expect(within(row).queryByRole('alert')).not.toBeInTheDocument();
   }
@@ -261,7 +272,12 @@ it.each([
   view.update({});
   const firstRow = screen.getByTestId('group-member-row-pt-0');
   expect(firstRow).toHaveAttribute('data-problem', proposal ? 'column-incompatible' : '');
-  expect(screen.getByTestId('group-member-column-pt-0')).toHaveAttribute('aria-invalid', String(proposal));
+  const firstColumn = screen.getByTestId('group-member-column-pt-0');
+  if (presentation === 'simple' && storage === 'managed') {
+    expect(firstColumn).toHaveTextContent('compact.systemManaged');
+    expect(firstColumn.matches('input, select')).toBe(false);
+    expect(within(firstRow).getByText('v_saved_0', { selector: 'code' })).toBeInTheDocument();
+  } else expect(firstColumn).toHaveAttribute('aria-invalid', String(proposal));
   if (proposal) expect(within(firstRow).getByRole('alert')).toHaveTextContent('problem_column_incompatible');
   else expect(within(firstRow).queryByRole('alert')).not.toBeInTheDocument();
   if (presentation === 'simple') expect(screen.getByTestId('recording-editor-summary')).not.toHaveTextContent('problem_column');
@@ -288,4 +304,17 @@ it('opens an existing simple recording when insecure HTTP has getRandomValues bu
     expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
     view.unmount();
   } finally { vi.unstubAllGlobals(); }
+});
+
+it('keeps the original saved confirmation owners inside the destination panel and outside save fields', async () => {
+  mount({ group: savedGroup() });
+  const destination = screen.getByTestId('recording-editor-destination');
+  for (const id of ['recording-preparation-actions', 'group-delivery-strip', 'group-lifecycle', 'group-test-write']) {
+    const owner = await screen.findByTestId(id);
+    expect(destination).toContainElement(owner); expect(owner.closest('fieldset')).toBeNull();
+    expect(screen.getAllByTestId(id)).toHaveLength(1);
+  }
+  expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
+  expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
+  expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
 });

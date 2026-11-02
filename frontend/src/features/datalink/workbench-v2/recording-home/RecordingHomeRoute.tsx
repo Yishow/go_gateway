@@ -59,7 +59,7 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
   const unverified = (restored.observedIds ?? []).filter(id => groups.some(group => group.id === id) &&
     (cached.delivery[id]?.state !== 'available' || cached.lifecycle[id]?.state !== 'available' || !facts.runtimeGroups[id]));
   const displayedObservedIds = [...new Set([...observedIds, ...unverified])];
-  return <RecordingHome guidance={guidance} location={location} onNavigate={onNavigate}
+  return <RecordingHome workspaceId={workspaceId} guidance={guidance} location={location} onNavigate={onNavigate}
     onConfigurePoints={id => { if (devices.some(device => device.id === id)) onOpenDevice?.(workspaceId, id, 'points'); }}
     onRetry={() => { void Promise.all([reloadScope(), sources.refetch(), home.retry(), facts.retry()]); }}
     collection={<RecordingHomeCollection groups={groups} devices={devices} state={state} guidance={guidance}

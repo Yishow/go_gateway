@@ -86,7 +86,7 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, dispatch, l
     {!confirm && list}
     {!confirm && <p className="gw-muted">{t('source.prefixImpact')}</p>}
     {confirm ? <p>{t('source.discardDescription')}</p> : <>
-      <fieldset disabled={locked || suspended}><RuleEditor hideLocalName rule={draft} devices={state.devices.filter(device => device.id === target.deviceId)}
+      <fieldset className="gw-home-saved-range-form" disabled={locked || suspended}><RuleEditor hideLocalName rule={draft} devices={state.devices.filter(device => device.id === target.deviceId)}
         globalShareEnabled={state.settings.modbus_share.enabled} dispatch={localDispatch} /></fieldset>
       {phase === 'saved' && <p role="status" data-testid="home-range-saved">{t('source.saved')}</p>}
       {locked && <p role={phase === 'unknown' ? 'alert' : 'status'} data-testid={`home-range-${phase}`}>{t(`source.${phase}`)}</p>}

@@ -33,6 +33,8 @@ describe('simple presentation delegates to the one canonical editor owner', () =
     const onClose = vi.fn(); mount({ onClose, destinationContent: <div data-testid="original-db-owner" /> });
     expect(await screen.findAllByTestId('canonical-editor')).toHaveLength(1);
     expect(screen.getAllByTestId('original-db-owner')).toHaveLength(1);
+    expect(screen.getByTestId('group-section')).toHaveAttribute('data-editor-presentation', 'simple');
+    expect(screen.getByTestId('group-section')).toHaveAttribute('data-editor-active', 'true');
     expect(captured.props).toMatchObject({ presentation: 'simple', group: undefined, workspaceId: 'ws-1', workspaceRevision: '', candidates: [] });
     expect(captured.props?.connector.persisted).toBe(false);
     expect(screen.queryByTestId('group-create')).not.toBeInTheDocument();
@@ -75,6 +77,8 @@ it('StrictMode abandons the first scope read and still opens exactly one fresh e
   expect(await screen.findAllByTestId('canonical-editor')).toHaveLength(1);
   expect(vi.mocked(readStudioLocatorEditorEntry).mock.calls[0][2]?.aborted).toBe(true);
   expect(captured.props?.group?.id).toBe('G');
+  expect(screen.getByTestId('group-section')).toHaveAttribute('data-editor-presentation', 'simple');
+  expect(screen.getByTestId('group-section')).toHaveAttribute('data-editor-active', 'true');
 });
 
 it('collapses only fresh simple locator diagnostics while opening and guided diagnostics stay visible', async () => {

@@ -125,10 +125,10 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const [observedSources, setObservedSources] = useState<{ scope: string; value: RecordingPickerDiscovery }>();
   const candidates = useMemo(() => observedSources?.scope === pickerScope ? [...observedSources.value.candidates] : suppliedCandidates, [observedSources, pickerScope, suppliedCandidates]);
   const readonly = operatorReadonly || readUnavailable || editorReadonly || propGroup?.status === 'deleted';
-  const renderCalculation = (member: EditorMember) => <RecordingMemberCalculationSource member={member} disabled={readonly || saveBusy} compact={presentation === 'simple'}
+  const renderCalculation = (member: EditorMember, tableCells = false) => <RecordingMemberCalculationSource tableCells={tableCells} member={member} disabled={readonly || saveBusy} compact={presentation === 'simple'}
     workspaceRevision={workspaceRevision} locatorScope={locatorScope} context={{ workspaceId, recordId: draft.record_id, capabilities: calculationCapabilities, layout: draft.layout_version ?? '', dialect: connector.kind }}
     onChange={next => set({ members: draft.members.map(value => value === member ? next : value) })} />;
-  const renderPointOrder = (member: EditorMember) => <>{deviceSource?.pointOrder && <RecordingPointOrder port={deviceSource.pointOrder}
+  const renderPointOrder = (member: EditorMember) => <>{deviceSource?.pointOrder && <RecordingPointOrder simple={presentation === 'simple'} port={deviceSource.pointOrder}
     workspaceId={workspaceId} deviceId={member.device_id} pointId={member.point_id} disabled={readonly || saveBusy} />}{mixed && presentation !== 'simple' && renderCalculation(member)}</>;
   const saved = destinationSaved(connector);
   const isMySQL = String(connector.kind).toLowerCase() === 'mysql';
@@ -344,17 +344,17 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   return (
     <div className={presentation === 'simple' ? 'recording-editor-simple min-w-0 space-y-5' : 'min-w-0 space-y-5 rounded-xl border border-[var(--gw-border)] p-5'} data-testid="group-editor"
       onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing && !event.defaultPrevented && !(event.target as HTMLElement).closest('[role="dialog"], [role="alertdialog"], [role="tooltip"], [data-state="open"]')) { event.preventDefault(); closeEditor(); } }}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[var(--gw-text)]">{group ? group.name : presentation === 'simple' ? editorText('simple.create') : t('step4.group.editor.new_title')}</h3>
+      <div className={presentation === 'simple' ? 'recording-editor-tools' : 'flex items-center justify-between'}>
+        {presentation !== 'simple' && <h3 className="text-sm font-semibold text-[var(--gw-text)]">{group ? group.name : t('step4.group.editor.new_title')}</h3>}
+        {presentation === 'simple' && group && <RecordingRevisionDetails group={group} simple scopeDiagnostics={scopeDiagnostics} />}
         {presentation === 'simple' && group && onCopy && <button type="button" className="gw-secondary" disabled={readonly || saveBusy || saveUnknown || saveReadbackPending} onClick={() => navigation.request(onCopy)} data-testid="recording-copy">{editorText('copy.action')}</button>}
         {presentation !== 'simple' && <button type="button" onClick={closeEditor} className="text-xs text-[var(--gw-muted)] underline" data-testid="group-editor-close">{t('step4.group.editor.back')}</button>}
       </div>
 
       {!group && copyPrefill && <aside role="status" className="space-y-2 text-sm" data-testid="recording-copy-intent"><p>{editorText('copy.intent')}</p><p>{editorText('copy.concurrent')}</p>{copyPrefill.layout === 'managed_long_v1' && <p>{editorText('copy.longIsolation')}</p>}</aside>}
-      {group && <RecordingRevisionDetails group={group} simple={presentation === 'simple'} scopeDiagnostics={scopeDiagnostics} />}
+      {group && presentation !== 'simple' && <RecordingRevisionDetails group={group} simple={false} scopeDiagnostics={scopeDiagnostics} />}
 
-      <fieldset disabled={saveBusy || readUnavailable} className="min-w-0 space-y-5" data-testid="group-save-fields">
-      <RecordingEditorLayout presentation={presentation} perPoint={mixed} memberCount={draft.members.length}
+      <RecordingEditorLayout presentation={presentation} fieldsDisabled={saveBusy || readUnavailable} perPoint={mixed} memberCount={draft.members.length}
         summary={presentation === 'simple' && <RecordingEditorSummary draft={draft} destinationName={saved && destinationMatches ? connector.name || connector.kind : undefined} saved={Boolean(group)} dirty={dirty} />}
         identity={<GroupIdentityFields section={presentation === 'simple' ? 'name' : 'all'} draft={draft} readonly={readonly} locked={profile || draft.layout_version === 'managed_long_v1'} onChange={set} onStorageStrategy={changeStorageStrategy} />}
         method={<>
@@ -418,9 +418,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         )}
 
         </>
-      )} />
-
-      </fieldset>
+      )} confirmation={<>
       {unsettledSources.length > 0 && <div role="alert" data-testid="group-source-unsettled">
         <p>{editorText('range.selectedUnsettled')}</p><ul>{unsettledSources.map(member => {
           const candidate = candidates.find(row => row.device_id === member.device_id && row.point_id === member.point_id);
@@ -464,7 +462,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
             <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.readiness.title')}</h4>
             <GroupReadinessPanel readiness={readiness.data} loading={readiness.isLoading && !dirty} failed={readiness.isError} dirty={dirty} onRetry={() => void readiness.refetch()} />
           </section>
-          <GroupDeliveryStrip group={group} readonly={readonly} />
+          <GroupDeliveryStrip compact={presentation === 'simple'} group={group} readonly={readonly} />
           {mixed && <RecordingMixedResults group={group} candidates={candidates} />}
           <GroupLifecycleBar
             locatorScope={locatorScope} locatorGuard={locatorGuard} confirmStop={presentation === 'simple'}
@@ -472,7 +470,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
             canApply={canApply} applyBlockedReason={applyBlocked} readonly={operatorReadonly || readUnavailable} lifecycleHost={lifecycleHost}
             onChanged={onSaved} onConflict={() => setConflict(true)} onReviewScopedStart={onReviewScopedStart}
           />
-          <GroupTestWritePanel
+          <GroupTestWritePanel compact={presentation === 'simple'}
             locatorScope={locatorScope}
             workspaceId={workspaceId}
             groupId={group.id}
@@ -482,6 +480,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
           />
         </>
       )}
+      </>} />
     </div>
   );
 };

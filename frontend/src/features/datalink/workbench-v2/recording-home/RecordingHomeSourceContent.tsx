@@ -68,7 +68,7 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
   if (!device || suspended) return <div className="gw-modal-body" role="status">{t('source.unavailable')}</div>;
   if (target.kind === 'connection') return <SavedConnection device={device} source={source} suspended={suspended} controls={props} />;
   const listContent = <section aria-label={t('source.ranges')} className="gw-home-range-list">
-    <h3>{device.name}</h3>
+    <h3>{t('source.ranges')}</h3>
     {list.isPending || list.isFetching ? <p role="status">{t('loading')}</p> : list.isError ? <p role="alert">{t('source.unavailable')}</p> : <>
       <ul>{list.data?.map(listed => { const rule = state.rules.find(item => item.id === listed.id && item.workspace_id === target.workspaceId && item.device_id === target.deviceId && item.save_state === 'saved') ?? listed; return <li key={rule.id}><div><strong>{rule.naming_prefix}</strong><p>{rule.start_address} · {rule.count} {t('source.pointsUnit')} · {rule.data_type}</p></div>
         <button type="button" data-testid={`home-range-edit-${rule.id}`} onClick={() => select(rule.id)}>{t('source.edit')}</button></li>; })}</ul>

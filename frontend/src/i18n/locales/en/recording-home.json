@@ -36,7 +36,7 @@
   "keyword": "Search recording, device or table",
   "deviceFilter": "Device",
   "allDevices": "All devices",
-  "savedStatus": "Saved status (not health)",
+  "savedStatus": "Saved status",
   "allStatuses": "All saved statuses",
   "destinationFilter": "Destination",
   "allDestinations": "All destinations",
@@ -156,5 +156,22 @@
     "finishBeforeLeaving": "Finish the current changes before leaving. Your edits are kept here.",
     "readUnavailable": "The current settings could not be confirmed. Your edits are retained below, but editing is paused until the read succeeds.",
     "retryRead": "Read settings again"
-  }
+  },
+  "product": {
+    "workspace": "Recording workspace",
+    "scope": "Workspace",
+    "tools": "Tools",
+    "appearance": "Appearance",
+    "system": "Follow system",
+    "light": "Light",
+    "dark": "Dark",
+    "connector": "Connection ID",
+    "theme": {
+      "pending": "Saving appearance…",
+      "unsaved": "Appearance not saved",
+      "error": "Appearance not saved"
+    }
+  },
+  "destinationIdentity": "Exact destination",
+  "managedTable": "Managed table"
 }

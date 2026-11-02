@@ -102,3 +102,14 @@ describe('GroupDeliveryStrip', () => {
     expect(issue).not.toHaveTextContent('private-dsn');
   });
 });
+
+it('folds only compact delivery diagnostics while errors and bucket risks remain visible', () => {
+  deliveryQuery.mockReturnValue({ data: delivery({ recent_bucket_issues: [{ group_revision: 'rev-1', bucket_start: '2026-10-03T00:00:00Z', kind: 'skipped', causes: ['missing'] }] }), isError: false } as never);
+  const view = render(<GroupDeliveryStrip group={savedGroup()} {...{ compact: true }} />);
+  expect(screen.getByTestId('group-delivery-diagnostics')).not.toHaveAttribute('open');
+  expect(screen.getByTestId('delivery-collecting')).not.toBeVisible();
+  expect(screen.getByTestId('delivery-bucket-causes')).toBeVisible();
+  deliveryQuery.mockReturnValue({ data: undefined, isError: true } as never);
+  view.rerender(<GroupDeliveryStrip group={savedGroup()} {...{ compact: true }} />);
+  expect(screen.getByTestId('group-delivery-failed')).toBeVisible();
+});

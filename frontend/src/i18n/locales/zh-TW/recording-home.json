@@ -36,7 +36,7 @@
   "keyword": "搜尋記錄、設備或資料表",
   "deviceFilter": "設備",
   "allDevices": "全部設備",
-  "savedStatus": "已保存狀態（非健康判定）",
+  "savedStatus": "保存狀態",
   "allStatuses": "全部保存狀態",
   "destinationFilter": "目的地",
   "allDestinations": "全部目的地",
@@ -156,5 +156,22 @@
     "finishBeforeLeaving": "請先完成目前的修改，再離開此頁。編輯內容仍保留在這裡。",
     "readUnavailable": "目前無法確認設定。修改仍保留在下方，重新讀取成功後才能繼續編輯。",
     "retryRead": "重新讀取設定"
-  }
+  },
+  "product": {
+    "workspace": "記錄工作台",
+    "scope": "工作區",
+    "tools": "工具",
+    "appearance": "外觀",
+    "system": "跟隨系統",
+    "light": "淺色",
+    "dark": "深色",
+    "connector": "連線識別",
+    "theme": {
+      "pending": "正在保存外觀…",
+      "unsaved": "外觀尚未保存",
+      "error": "外觀保存失敗"
+    }
+  },
+  "destinationIdentity": "完整目的地",
+  "managedTable": "受管資料表"
 }

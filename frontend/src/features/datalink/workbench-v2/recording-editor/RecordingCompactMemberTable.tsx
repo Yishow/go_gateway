@@ -11,14 +11,13 @@ interface Props {
   columnsAssignedOnSave: boolean; disabled: boolean; showEntityKey: boolean;
   controls: { removeLabel: (member: EditorMember) => string; onRemove: (member: EditorMember) => void };
   update: (candidate: GroupCandidate, patch: Partial<EditorMember>) => void;
-  renderCalculation: (member: EditorMember) => ReactNode;
+  renderCalculation?: (member: EditorMember, tableCells?: boolean) => ReactNode;
   renderSource?: (member: EditorMember) => ReactNode;
 }
 /** Presentation only. Rows, problems, exact tuple updates and membership all belong to GroupMemberTable. */
-export function RecordingCompactMemberTable({ rows, total, query, setQuery, problemsOnly, setProblemsOnly, columns, metadataStatus, columnsAssignedOnSave, disabled, showEntityKey, controls, update, renderCalculation, renderSource }: Props) {
+export function RecordingCompactMemberTable({ rows, total, query, setQuery, problemsOnly, setProblemsOnly, metadataStatus, columnsAssignedOnSave, disabled, showEntityKey, controls, update, renderCalculation, renderSource }: Props) {
   const { t } = useTranslation('workbench-v2');
   const { t: text } = useTranslation('recording-editor');
-  const options = columns.filter(column => !column.primary_key);
   return <div className="recording-compact-members" data-testid="group-member-table">
     <details className="recording-compact-members__filters"><summary>{t('step4.group.members.search')} · <span role="status" data-testid="group-member-scope">{t('step4.group.members.scope', { shown: rows.length, total })}</span></summary>
       <label>{t('step4.group.members.search')}<input type="search" value={query} onChange={event => setQuery(event.target.value)} data-testid="group-member-search" /></label>
@@ -40,19 +39,13 @@ export function RecordingCompactMemberTable({ rows, total, query, setQuery, prob
               </small>}
             </td>
             <td><span className="font-mono">{candidate.address}</span><small>{candidate.target_type}</small></td>
-            <td colSpan={2} data-testid={`group-member-calculation-${candidate.point_id}`}>{renderCalculation(member)}</td>
+            {renderCalculation ? renderCalculation(member, true) : <><td data-testid={`group-member-calculation-${candidate.point_id}`}>{text('compact.groupRule')}</td><td>{text('compact.groupCadence')}</td></>}
             <td><button type="button" className="gw-secondary" disabled={disabled} aria-label={`${candidate.label} · ${controls.removeLabel(member)}`} onClick={() => controls.onRemove(member)}>{text('compact.remove')}</button>
               <details data-testid={`group-member-settings-${candidate.point_id}`} className="recording-compact-members__settings">
                 <summary>{text('compact.settings')}</summary>
                 <label>{t('step4.group.members.col_column')}
-                  {columnsAssignedOnSave ? <span>{chosenColumn || text('simple.pendingColumn')}</span> : metadataStatus === 'exists' ? <select value={chosenColumn} disabled={disabled}
-                    aria-label={t('step4.group.members.column_label', { tag: candidate.label })} aria-invalid={Boolean(problem)} aria-describedby={describedBy}
-                    onChange={event => update(candidate, { target_column: event.target.value })} data-testid={`group-member-column-${candidate.point_id}`}>
-                    <option value="">{t('step4.group.members.choose_column')}</option>
-                    {chosenColumn && !columns.some(column => column.name === chosenColumn) && <option value={chosenColumn}>{chosenColumn}</option>}
-                    {options.map(column => <option key={column.name} value={column.name}>{column.name} ({column.type})</option>)}
-                  </select> : <input value={chosenColumn} disabled={disabled} aria-label={t('step4.group.members.column_label', { tag: candidate.label })}
-                    aria-invalid={Boolean(problem)} aria-describedby={describedBy} onChange={event => update(candidate, { target_column: event.target.value })} data-testid={`group-member-column-${candidate.point_id}`} />}
+                  <span data-testid={`group-member-column-${candidate.point_id}`}>{text('compact.systemManaged')}</span>
+                  <code className="recording-compact-members__binding">{chosenColumn || text('simple.pendingColumn')}</code>
                 </label>
                 <label><input type="checkbox" aria-label={t('step4.group.members.required_label', { tag: candidate.label })} checked={member.required} disabled={disabled} onChange={event => update(candidate, { required: event.target.checked })} />{t('step4.group.members.col_required')}</label>
                 {showEntityKey && <label>{t('step4.group.members.col_entity')}<input aria-label={t('step4.group.members.entity_label', { tag: candidate.label })} value={member.entity_key} disabled={disabled}

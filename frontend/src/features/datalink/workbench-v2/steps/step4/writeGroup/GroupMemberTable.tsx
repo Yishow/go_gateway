@@ -30,7 +30,7 @@ export interface GroupMemberTableProps {
   /** Picker owns membership when supplied; this table edits only already selected rows. */
   selectionControls?: { removeLabel: (member: EditorMember) => string; onRemove: (member: EditorMember) => void };
   /** Optional visible result column; the editor remains the calculation owner. */
-  renderCalculation?: (member: EditorMember) => React.ReactNode;
+  renderCalculation?: (member: EditorMember, tableCells?: boolean) => React.ReactNode;
   renderSource?: (member: EditorMember) => React.ReactNode;
   onChange: (members: EditorMember[]) => void;
 }
@@ -141,7 +141,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
     <p className="recording-editor-empty" data-testid="group-member-empty">{editorText('simple.noSelectedPoints')}</p>
     {metadataStatus !== 'exists' && <p role="status" data-testid="group-member-metadata-note">{t(`step4.group.members.metadata_${metadataStatus}`)}</p>}
   </div>;
-  if (presentation === 'simple' && managed && selectionControls && renderCalculation && excluded.length === 0) return <RecordingCompactMemberTable
+  if (presentation === 'simple' && managed && selectionControls && excluded.length === 0) return <RecordingCompactMemberTable
     rows={shown} total={rows.length} query={query} setQuery={setQuery} problemsOnly={problemsOnly} setProblemsOnly={setProblemsOnly}
     columns={columns} metadataStatus={metadataStatus} columnsAssignedOnSave={columnsAssignedOnSave} disabled={disabled}
     showEntityKey={showEntityKey} controls={selectionControls} update={update} renderCalculation={renderCalculation} renderSource={renderSource} />;

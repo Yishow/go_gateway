@@ -15,7 +15,7 @@ export function RecordingRevisionDetails({ group, simple, scopeDiagnostics }: { 
   </dl>;
   if (!simple) return values;
   return <details data-testid="group-revision-details" className="text-xs text-[var(--gw-muted)]">
-    <summary className="cursor-pointer"><span>{text('versions.details')}</span> · {home('savedStatus')}: {status}</summary>
+    <summary className="cursor-pointer"><span>{text('versions.details')}</span> · {status}</summary>
     {scopeDiagnostics && <section className="mt-2 space-y-1" data-testid="locator-version-details">{scopeDiagnostics}</section>}
     <section className="mt-2">{values}</section>
   </details>;

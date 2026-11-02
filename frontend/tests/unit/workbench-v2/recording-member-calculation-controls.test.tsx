@@ -41,3 +41,23 @@ it('offers explicit record-only gauge confirmation only for a fully known unboun
  view.rerender(<RecordingMemberCalculation member={confirmed} context={context} disabled={false} onChange={change} />);
  expect(screen.getByRole('option', { name: 'calculation.mean' })).not.toBeDisabled();
 });
+
+it('renders compact method and cadence in two native cells while preserving explicit consent and accessible controls', () => {
+  const change = vi.fn(), source = { ...member, source_value_type: 'float32' as const };
+  const view = render(<table><tbody><tr><RecordingMemberCalculation compact tableCells member={source} context={context} disabled={false} onChange={change} /></tr></tbody></table>);
+  const cells = screen.getAllByRole('cell'); expect(cells).toHaveLength(2);
+  expect(cells[0]).toContainElement(screen.getByLabelText('calculation.title'));
+  expect(cells[1]).toContainElement(screen.getByLabelText('calculation.interval'));
+  expect(cells[1]).toContainElement(screen.getByLabelText('calculation.unit'));
+  expect(view.container.querySelector('tr > fieldset')).toBeNull();
+  const consent = screen.getByText('compact.gaugeConsent'); expect(consent).toBeVisible(); expect(consent.closest('details')).toBeNull();
+  expect(screen.getByRole('option', { name: 'calculation.mean' })).toBeDisabled(); expect(change).not.toHaveBeenCalled();
+  expect(screen.getByText(/calculation.counter_required/).closest('details')).toBe(screen.getByTestId('member-calculation-help-P'));
+  fireEvent.click(screen.getByRole('button', { name: 'compact.confirmGauge' }));
+  expect(change.mock.calls[0][0].value_role).toBe('gauge'); expect(change.mock.calls[0][0].calculation).toBe('latest');
+});
+it('keeps an already selected invalid calculation visible outside optional help and never repairs it on render', () => {
+  const change = vi.fn(); render(<table><tbody><tr><RecordingMemberCalculation compact tableCells member={{ ...member, calculation: 'delta' }} context={context} disabled={false} onChange={change} /></tr></tbody></table>);
+  const problem = screen.getByRole('alert'); expect(problem).toHaveTextContent('calculation.counter_required'); expect(problem.closest('details')).toBeNull();
+  expect(screen.getByLabelText('calculation.title')).toHaveValue('delta'); expect(change).not.toHaveBeenCalled();
+});

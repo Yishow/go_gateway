@@ -10,7 +10,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 const candidates: GroupCandidate[] = ['P1', 'P2'].map((id, index) => ({ key: `${id}|T${index}`, device_id: 'D', point_id: id, tag_id: `T${index}`, tag_key: id, label: `Point ${id}`, device_name: 'Meter', address: String(40001 + index * 2), target_type: 'float64' }));
 const members: EditorMember[] = candidates.map((candidate, index) => ({ key: candidate.key, device_id: candidate.device_id, point_id: candidate.point_id, tag_id: candidate.tag_id, entity_key: `entity${index}`, target_column: `value${index}`, required: true }));
 function props() {
-  return { presentation: 'simple' as const, managed: true, candidates, members, columns: members.map((member) => ({ name: member.target_column, type: 'DOUBLE PRECISION', primary_key: false, nullable: true })), metadataStatus: 'exists' as const, suggestions: { assignments: {}, unmatched: [] }, issues: [], showEntityKey: false, disabled: false, onChange: vi.fn(), onRemove: vi.fn(), renderCalculation: (member: EditorMember) => <span>Calculation {member.point_id}</span>, labels: { remove: (member: EditorMember) => `Remove ${member.point_id}`, unavailable: 'Unavailable', undo: 'Undo' } };
+  return { presentation: 'simple' as const, managed: true, candidates, members, columns: members.map((member) => ({ name: member.target_column, type: 'DOUBLE PRECISION', primary_key: false, nullable: true })), metadataStatus: 'exists' as const, suggestions: { assignments: {}, unmatched: [] }, issues: [], showEntityKey: false, disabled: false, onChange: vi.fn(), onRemove: vi.fn(), renderCalculation: (member: EditorMember, tableCells = false) => tableCells ? <><td>Calculation {member.point_id}</td><td>Cadence {member.point_id}</td></> : <span>Calculation {member.point_id}</span>, labels: { remove: (member: EditorMember) => `Remove ${member.point_id}`, unavailable: 'Unavailable', undo: 'Undo' } };
 }
 describe('simple managed selected points use compact recording rows', () => {
   it('groups two exact selected points into the five recording columns without legacy inclusion or mapping headers', () => {
@@ -36,8 +36,11 @@ describe('simple managed selected points use compact recording rows', () => {
     const settings = screen.getByTestId('group-member-settings-P1');
     expect(within(settings).getByText('compact.settings')).toBeVisible();
     fireEvent.click(within(settings).getByText('compact.settings'));
-    fireEvent.change(screen.getByTestId('group-member-column-P1'), { target: { value: 'value0' } });
-    expect(value.onChange).toHaveBeenCalledExactlyOnceWith([members[0]]);
+    expect(screen.getByTestId('group-member-column-P1')).toHaveTextContent('compact.systemManaged');
+    expect(within(settings).getByText('missing')).toBeVisible();
+    expect(within(settings).queryByRole('combobox')).not.toBeInTheDocument();
+    fireEvent.click(within(settings).getByRole('checkbox'));
+    expect(value.onChange).toHaveBeenCalledExactlyOnceWith([{ ...members[0], target_column: 'missing', required: false }]);
   });
   it('keeps required settings and disabled removal rather than turning removal into disable', () => {
     const value = props(); render(<RecordingSelectedMembers {...value} disabled />);
@@ -68,12 +71,14 @@ it('keeps the original help target outside compact mode and reuses the same comp
   expect(trigger).toHaveAttribute('aria-expanded', 'false'); expect(trigger).toHaveFocus();
 });
 
-it('leaves legacy records without per-point calculations on their existing mapping presentation', () => {
+it('shows saved legacy rows in the same simple panel without inventing per-point calculations', () => {
   render(<RecordingSelectedMembers {...props()} renderCalculation={undefined} />);
-  expect(screen.getByRole('columnheader', { name: /step4.group.members.col_column/ })).toBeVisible();
-  expect(screen.getByTestId('group-member-column-P1')).toBeVisible();
-  expect(screen.queryByTestId('group-member-settings-P1')).not.toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: 'compact.point' })).toBeVisible();
+  expect(screen.getAllByText('compact.groupRule')).toHaveLength(2);
+  expect(screen.getAllByText('compact.groupCadence')).toHaveLength(2);
+  expect(screen.queryByRole('columnheader', { name: /step4.group.members.col_column/ })).not.toBeInTheDocument();
   expect(screen.queryByText('calculation.unavailable')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('calculation.title')).not.toBeInTheDocument();
 });
 
 it.each(['name', 'all'] as const)('keeps the original name owner and scopes inline help to %s presentation', section => {
@@ -82,7 +87,7 @@ it.each(['name', 'all'] as const)('keeps the original name owner and scopes inli
   draft.name = 'Original recording';
   const view = render(<GroupIdentityFields section={section} draft={draft} readonly={false} locked={false} onChange={onChange} onStorageStrategy={onStorageStrategy} />);
   const input = screen.getByTestId('group-name');
-  expect(input).toHaveAccessibleName('step4.group.editor.name');
+  expect(input).toHaveAccessibleName(section === 'name' ? 'simple.summary.name' : 'step4.group.editor.name');
   const help = view.container.querySelector<HTMLButtonElement>('[data-parameter-help="record.name"]')!;
   expect(help.closest('label')).toBeNull();
   if (section === 'name') expect(help.style.width).toBe('');
@@ -93,4 +98,17 @@ it.each(['name', 'all'] as const)('keeps the original name owner and scopes inli
   fireEvent.change(input, { target: { value: 'Local rename' } });
   expect(onChange).toHaveBeenCalledExactlyOnceWith({ name: 'Local rename' });
   expect(draft.name).toBe('Original recording');
+});
+
+it('keeps all 32 saved legacy identities and managed bindings without exposing a fake editable hash', () => {
+  const value = props();
+  const source = Array.from({ length: 32 }, (_, i) => ({ ...candidates[0], key: `P${i}|T${i}`, point_id: `P${i}`, tag_id: `T${i}`, label: `Point ${i}` }));
+  const rows = source.map((point, i) => ({ ...members[0], ...point, target_column: `v_${i.toString(16).padStart(24, '0')}` }));
+  render(<RecordingSelectedMembers {...value} candidates={source} members={rows} renderCalculation={undefined} />);
+  expect(screen.getAllByText('compact.groupRule')).toHaveLength(32);
+  for (const row of rows) expect(screen.getByTestId(`group-member-row-${row.point_id}`)).toHaveTextContent(row.label);
+  const settings = screen.getByTestId('group-member-settings-P0'); fireEvent.click(within(settings).getByText('compact.settings'));
+  expect(within(settings).getByText(rows[0].target_column)).toBeVisible();
+  expect(within(settings).queryByRole('combobox')).not.toBeInTheDocument();
+  expect(value.onChange).not.toHaveBeenCalled();
 });

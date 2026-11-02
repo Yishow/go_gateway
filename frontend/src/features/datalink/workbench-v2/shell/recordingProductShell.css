@@ -1,0 +1,15 @@
+.gw-product-header { display:flex; align-items:center; flex-wrap:wrap; gap:var(--gw-space-lg); padding:var(--gw-space-md) var(--gw-space-lg); border-bottom:1px solid var(--gw-border); background:var(--gw-surface); color:var(--gw-text); font:14px/1.5 var(--gw-font-sans); }
+.gw-product-brand { display:flex; align-items:center; gap:var(--gw-space-xs); flex:none; }
+.gw-product-brand strong { font-size:18px; font-weight:600; }
+.gw-product-brand p { margin:0; font-size:12px; color:var(--gw-muted); }
+.gw-product-mark { color:var(--gw-accent); font-size:28px; }
+.gw-product-scope { display:grid; min-width:0; color:var(--gw-muted); font-size:12px; }
+.gw-product-scope code { display:block; max-width:28ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--gw-text); }
+.gw-product-tools { margin-inline-start:auto; display:flex; align-items:center; flex-wrap:wrap; gap:var(--gw-space-sm); }
+.gw-product-tools label { display:flex; align-items:center; gap:var(--gw-space-xs); }
+.gw-product-tools :is(select,button,summary) { color:var(--gw-text); font:inherit; min-height:40px; padding:8px 12px; background:var(--gw-surface); border:1px solid var(--gw-control); border-radius:var(--gw-radius-sm); cursor:pointer; }
+.gw-product-tools details { position:relative; }
+.gw-product-tools details nav { position:absolute; z-index:20; inset-inline-end:0; top:100%; min-width:180px; display:grid; padding:var(--gw-space-xs); background:var(--gw-raised); border:1px solid var(--gw-border); border-radius:var(--gw-radius-sm); box-shadow:var(--gw-shadow); }
+.gw-product-tools nav button { border:0; text-align:start; }
+.gw-product-header :is(button,select,summary):focus-visible { outline:2px solid var(--gw-focus); outline-offset:2px; }
+@media(max-width:639px) { .gw-product-header { gap:12px; padding:12px 16px; } .gw-product-scope { margin-inline-start:auto; } .gw-product-scope code { max-width:17ch; } .gw-product-tools { width:100%; justify-content:space-between; } .gw-product-tools :is(button,select,summary) { min-height:44px; } }

@@ -19,10 +19,11 @@ export interface GroupIdentityFieldsProps {
 /** Name, storage kind and destination table of a group. */
 export const GroupIdentityFields: React.FC<GroupIdentityFieldsProps> = ({ section = 'all', draft, readonly, locked, onChange, onStorageStrategy }) => {
   const { t } = useTranslation('workbench-v2');
+  const { t: text } = useTranslation('recording-editor');
   return (
     <div className={section === 'name' ? 'grid gap-3' : 'grid gap-3 sm:grid-cols-2'}>
       {section !== 'destination' && <div className={section === 'name' ? 'recording-simple-name min-w-0' : 'flex min-w-0 items-start gap-2'}><label className="min-w-0 flex-1 text-xs text-[var(--gw-muted)]">
-        <span>{t('step4.group.editor.name')}</span>
+        <span>{section === 'name' ? text('simple.summary.name') : t('step4.group.editor.name')}</span>
         <input type="text" value={draft.name} disabled={readonly} onChange={(event) => onChange({ name: event.target.value })} className={FIELD} data-testid="group-name" />
       </label><ParameterHelp compact={section === 'name'} help="record.name" /></div>}
       {section !== 'name' && <>

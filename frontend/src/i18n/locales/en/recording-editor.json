@@ -433,6 +433,13 @@
     "interval": "Interval",
     "actions": "Actions",
     "settings": "Column and required settings",
-    "remove": "Remove"
+    "remove": "Remove",
+    "groupRule": "Group recording rule",
+    "groupCadence": "Same group interval",
+    "systemManaged": "System managed",
+    "identities": "Name and table details",
+    "methodHelp": "Other calculation options",
+    "gaugeConsent": "Confirm this is a measurement, not a counter or state. This applies only to this recording.",
+    "confirmGauge": "Confirm measurement use"
   }
 }

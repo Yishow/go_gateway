@@ -23,13 +23,13 @@ vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({
 
 const api = vi.mocked(studioV2WorkspaceWriteGroupsAPI);
 
-function mountPanel() {
+function mountPanel(compact = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <GroupTestWritePanel workspaceId="W1"
+      <GroupTestWritePanel {...{ compact }} workspaceId="W1"
         groupId="group-1"
         scopeKey="group-1|rev-1|ws-1|cap-1"
         enabled={true}
@@ -66,6 +66,28 @@ function resetRecoveryFixture() {
 
 beforeEach(() => {
     vi.clearAllMocks(); resetRecoveryFixture();
+  });
+
+  it('folds only optional test-write entry while explicit confirmation and cleanup risk stay visible', async () => {
+    api.testWritePreview.mockResolvedValue(preview);
+    api.testWrite.mockResolvedValueOnce({ operation_id: 'op-1', action: 'test_write', status: 'succeeded', write_outcome: 'written_verified', cleanup_status: 'failed', cleanup_reason: 'cleanup-denied', created_at: 'a', updated_at: 'b', completed_at: 'c' });
+    mountPanel(true);
+    const optional = screen.getByTestId('group-test-write-optional');
+    expect(optional).not.toHaveAttribute('open');
+    const title = screen.getAllByText('step4.group.test_write.title');
+    expect(title).toHaveLength(1); expect(title[0].tagName).toBe('SUMMARY');
+    expect(screen.getByTestId('group-test-write')).toHaveAttribute('aria-labelledby', title[0].id);
+    expect(screen.getByText('step4.group.test_write.intro')).not.toBeVisible();
+    expect(screen.getByTestId('group-test-write-preview')).not.toBeVisible();
+    fireEvent.click(optional.querySelector('summary')!);
+    fireEvent.click(screen.getByTestId('group-test-write-preview'));
+    expect(await screen.findByTestId('group-test-write-preview-card')).toBeVisible();
+    fireEvent.click(optional.querySelector('summary')!);
+    expect(screen.getByTestId('group-test-write-confirm')).toBeVisible();
+    await act(async () => { fireEvent.click(screen.getByTestId('group-test-write-confirm')); });
+    expect(await screen.findByTestId('group-test-write-cleanup')).toBeVisible();
+    expect(screen.getByTestId('group-test-write-cleanup-repair')).toBeVisible();
+    expect(api.testWrite).toHaveBeenCalledTimes(1);
   });
 
   it('renders cleanup repair button and triggers cleanup repair when write succeeded but cleanup failed', async () => {
