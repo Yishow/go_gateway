@@ -347,6 +347,29 @@ describe('Step 1 Components & Integration', () => {
       vi.restoreAllMocks();
     });
 
+    it.each([
+      { name: 'untouched default', config: { station: 1 }, expected: 1, persisted: false },
+      { name: 'saved legacy alias', config: { station: 7 }, expected: 7, persisted: true },
+      { name: 'canonical zero over legacy alias', config: { station_no: 0, station: 7 }, expected: 0, persisted: true },
+    ])('FATEK draft diagnostics uses canonical schema for $name without rewriting the form', async ({ config, expected, persisted }) => {
+      const input = { mode: 'tcp', host: '127.0.0.1', port: 2000, timeout: 5, ...config };
+      const original = structuredClone(input);
+      const draft = vi.spyOn(deviceAPI, 'testDraftConnection').mockResolvedValue(buildSuccessResult());
+      const saved = vi.spyOn(deviceAPI, 'testConnection').mockResolvedValue(buildSuccessResult());
+      const { unmount, queryClient } = renderWithQueryClient(<Step1Harness initialState={{ ...INITIAL_STATE,
+        devices: [{ ...mockDevice, protocol: 'fatek_fbs', config: input, persisted, save_state: persisted ? 'saved' : 'idle' }],
+      }} />);
+      fireEvent.click(screen.getByTestId('run-test-button'));
+      await waitFor(() => expect(draft).toHaveBeenCalledWith({ protocol: 'fatek_fbs', connection_config: {
+        mode: 'tcp', host: '127.0.0.1', port: 2000, timeout: 5, station_no: expected,
+      } }));
+      expect(draft).toHaveBeenCalledTimes(1);
+      if (persisted) await waitFor(() => expect(saved).toHaveBeenCalledWith(mockDevice.id));
+      else expect(saved).not.toHaveBeenCalled();
+      expect(input).toEqual(original);
+      unmount(); queryClient.clear();
+    });
+
     it('點擊執行測試應發出 draft diagnostics request，並在成功後允許繼續', async () => {
       const onContinue = vi.fn();
       let resolveResult: ((value: ConnectionTestResult) => void) | undefined;

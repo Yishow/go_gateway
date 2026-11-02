@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { WorkbenchV2State, Device, ProtocolId } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
+import { toBackendConnectionConfig } from '../../state/studioV2DeviceAutosave';
 import { studioV2WorkspaceKeys } from '../../../../../hooks/datalink/keys';
 import { useTestConnectionMutation, useTestDraftConnectionMutation } from '../../../../../hooks/datalink/useDevices';
 import { DeviceTabRail } from './DeviceTabRail';
@@ -72,7 +73,7 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
     try {
       let result = await testDraftConnectionMutation.mutateAsync({
         protocol: dev.protocol,
-        connection_config: dev.config,
+        connection_config: toBackendConnectionConfig(dev),
       });
       if (result.success && dev.persisted && dev.save_state === 'saved') {
         result = await testConnectionMutation.mutateAsync(dev.id);
