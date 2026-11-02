@@ -170,7 +170,8 @@
       "pending": "Saving appearance…",
       "unsaved": "Appearance not saved",
       "error": "Appearance not saved"
-    }
+    },
+    "currentWorkspace": "Current workspace"
   },
   "destinationIdentity": "Exact destination",
   "managedTable": "Managed table"

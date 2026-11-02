@@ -15,6 +15,7 @@ import { SavedRecordingRemoveDialog } from './lifecycle/SavedRecordingRemoveDial
 
 export interface GroupLifecycleBarProps {
   locatorScope?: StudioV2LocatorReadScope;
+  compact?: boolean;
   /** Denial-only incoming navigation fence; never a read scope or write permission. */
   locatorGuard?: boolean;
   group: WriteGroup;
@@ -37,7 +38,7 @@ export interface GroupLifecycleBarProps {
 /** One action surface in Basic and Advanced, with server authority refreshed before ordinary mutations. */
 export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   group, workspaceId, workspaceRevision, canApply, applyBlockedReason, readonly, onChanged, onConflict,
-  onReviewScopedStart, lifecycleHost, hideApply = false, confirmStop = false, locatorScope, locatorGuard,
+  onReviewScopedStart, lifecycleHost, hideApply = false, confirmStop = false, locatorScope, locatorGuard, compact = false,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: recordingT } = useTranslation('recording-editor');
@@ -143,7 +144,7 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
       {!canApply && !deleted && applyBlockedReason && <p className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-apply-blocked">{applyBlockedReason}</p>}
       <p className="text-xs text-[var(--gw-muted)]" data-testid="group-apply-note">{routed ? recordingT('start.reviewSavedNote') : t('step4.group.lifecycle.apply_note')}</p>
     </>}
-    <SavedRecordingActions lifecycle={snapshot} scope={intentScope} disabled={readonly || busy || Boolean(confirmingAction)} onAction={handleAction} canReview={Boolean(lifecycleHost)} />
+    <SavedRecordingActions compact={compact} lifecycle={snapshot} scope={intentScope} disabled={readonly || busy || Boolean(confirmingAction)} onAction={handleAction} canReview={Boolean(lifecycleHost)} />
     {(!snapshot || refreshBlocked) && <button type="button" onClick={() => { void lifecycle.refetch(); onConflict(); }} className="text-xs underline" data-testid="saved-recording-refresh">{lifecycleT('refresh')}</button>}
     <p className="text-xs text-[var(--gw-muted)]">{lifecycleT('stop.keeps')}</p>
     <SavedRecordingRemoveDialog action={confirmation?.action} open={Boolean(confirmingAction)} busy={busy || readonly} history={snapshot?.history}

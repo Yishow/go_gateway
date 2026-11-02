@@ -11,7 +11,8 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 it('gives Home product identity and theme controls through the existing owner without navigation', () => {
  const navigate = vi.fn(); render(<RecordingHome guidance={recordingHomeGuidance(fixture(['D1']))} location={{ search: '?view=recordings', hash: '' }} onRetry={vi.fn()} onNavigate={navigate} />);
  const shell = screen.getByTestId('recording-product-header'); expect(within(shell).getByText('go_gateway')).toBeInTheDocument();
- expect(within(shell).getByText('W1')).toBeInTheDocument();
+ expect(within(shell).getByText('product.currentWorkspace')).toHaveAttribute('title', 'W1');
+ expect(within(shell).queryByText('W1')).not.toBeInTheDocument();
  fireEvent.change(within(shell).getByLabelText('product.appearance'), { target: { value: 'dark' } });
  expect(theme.setPreference).toHaveBeenCalledExactlyOnceWith('dark'); expect(navigate).not.toHaveBeenCalled();
  expect(within(shell).getByText('product.tools').closest('details')).not.toHaveAttribute('open');
@@ -19,5 +20,6 @@ it('gives Home product identity and theme controls through the existing owner wi
 it('uses the same quiet product header for simple editing without replacing its form owner', () => {
  const back = vi.fn(); render(<SimpleRecordingShell onBack={back} onAdvanced={vi.fn()}><input aria-label="draft" defaultValue="kept" /></SimpleRecordingShell>);
  expect(within(screen.getByTestId('recording-product-header')).getByText('go_gateway')).toBeInTheDocument();
+ expect(within(screen.getByTestId('recording-product-header')).getByText('unknown')).not.toHaveAttribute('title');
  expect(screen.getByLabelText('draft')).toHaveValue('kept'); fireEvent.click(screen.getByText('simple.back')); expect(back).toHaveBeenCalledOnce();
 });

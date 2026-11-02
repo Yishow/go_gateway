@@ -35,6 +35,13 @@ describe('recording editor canonical point order consumer', () => {
     if (presentation === 'simple') {
       const order = await within(row).findByLabelText('editor.order');
       expect(order).toBeVisible(); expect(order.closest('details')).toBeNull();
+      const controls = order.closest('.recording-point-order-inline__controls');
+      expect(controls).not.toBeNull();
+      expect(controls).toContainElement(within(row).getByText('editor.save'));
+      expect(controls).toContainElement(within(row).getByText('editor.reset'));
+      const versions = within(row).getByText('editor.version', { selector: 'summary' }).closest('details');
+      expect(versions).not.toHaveAttribute('open');
+      expect(versions?.parentElement).toHaveClass('recording-point-order-inline__heading');
       expect(within(row).getByText('editor.save')).toBeVisible();
     } else expect(row.querySelector('summary')).toBeVisible();
     expect(await within(screen.getByTestId('recording-point-order-pt-0')).findByTestId('point-order-effective')).toHaveTextContent('ABCD');

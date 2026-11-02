@@ -54,6 +54,7 @@ describe('simple managed selected points use compact recording rows', () => {
   it.each([{ presentation: 'guided' as const, managed: true }, { presentation: 'simple' as const, managed: false }])('retains legacy mapping for $presentation managed=$managed', (mode) => {
     render(<RecordingSelectedMembers {...props()} {...mode} />);
     expect(screen.getByRole('columnheader', { name: /step4.group.members.col_column/ })).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: mode.presentation === 'simple' ? 'compact.actions' : /step4.group.members.col_include/ })).toBeVisible();
     expect(screen.getByTestId('group-member-column-P1')).toBeVisible();
     expect(screen.queryByTestId('group-member-settings-P1')).not.toBeInTheDocument();
   });
@@ -74,8 +75,9 @@ it('keeps the original help target outside compact mode and reuses the same comp
 it('shows saved legacy rows in the same simple panel without inventing per-point calculations', () => {
   render(<RecordingSelectedMembers {...props()} renderCalculation={undefined} />);
   expect(screen.getByRole('columnheader', { name: 'compact.point' })).toBeVisible();
-  expect(screen.getAllByText('compact.groupRule')).toHaveLength(2);
-  expect(screen.getAllByText('compact.groupCadence')).toHaveLength(2);
+  expect(screen.getAllByText('compact.groupRule')).toHaveLength(1);
+  expect(screen.getAllByRole('columnheader')).toHaveLength(3);
+  expect(screen.queryByText('compact.groupCadence')).not.toBeInTheDocument();
   expect(screen.queryByRole('columnheader', { name: /step4.group.members.col_column/ })).not.toBeInTheDocument();
   expect(screen.queryByText('calculation.unavailable')).not.toBeInTheDocument();
   expect(screen.queryByLabelText('calculation.title')).not.toBeInTheDocument();
@@ -105,7 +107,10 @@ it('keeps all 32 saved legacy identities and managed bindings without exposing a
   const source = Array.from({ length: 32 }, (_, i) => ({ ...candidates[0], key: `P${i}|T${i}`, point_id: `P${i}`, tag_id: `T${i}`, label: `Point ${i}` }));
   const rows = source.map((point, i) => ({ ...members[0], ...point, target_column: `v_${i.toString(16).padStart(24, '0')}` }));
   render(<RecordingSelectedMembers {...value} candidates={source} members={rows} renderCalculation={undefined} />);
-  expect(screen.getAllByText('compact.groupRule')).toHaveLength(32);
+  expect(screen.getAllByText('compact.groupRule')).toHaveLength(1);
+  expect(screen.getAllByRole('columnheader')).toHaveLength(3);
+  expect(screen.queryByText('compact.groupCadence')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('row')).toHaveLength(33);
   for (const row of rows) expect(screen.getByTestId(`group-member-row-${row.point_id}`)).toHaveTextContent(row.label);
   const settings = screen.getByTestId('group-member-settings-P0'); fireEvent.click(within(settings).getByText('compact.settings'));
   expect(within(settings).getByText(rows[0].target_column)).toBeVisible();

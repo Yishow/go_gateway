@@ -460,11 +460,11 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         <>
           <section aria-label={t('step4.group.readiness.title')} className="space-y-2">
             <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.readiness.title')}</h4>
-            <GroupReadinessPanel readiness={readiness.data} loading={readiness.isLoading && !dirty} failed={readiness.isError} dirty={dirty} onRetry={() => void readiness.refetch()} />
+            <GroupReadinessPanel compact={presentation === 'simple'} readiness={readiness.data} loading={readiness.isLoading && !dirty} failed={readiness.isError} dirty={dirty} onRetry={() => void readiness.refetch()} />
           </section>
           <GroupDeliveryStrip compact={presentation === 'simple'} group={group} readonly={readonly} />
           {mixed && <RecordingMixedResults group={group} candidates={candidates} />}
-          <GroupLifecycleBar
+          <GroupLifecycleBar compact={presentation === 'simple'}
             locatorScope={locatorScope} locatorGuard={locatorGuard} confirmStop={presentation === 'simple'}
             group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision}
             canApply={canApply} applyBlockedReason={applyBlocked} readonly={operatorReadonly || readUnavailable} lifecycleHost={lifecycleHost}

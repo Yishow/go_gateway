@@ -23,24 +23,36 @@ export function lifecycleMatches(data: WriteGroupLifecycle | undefined, scope: O
 }
 
 /** Both saved surfaces render the same server action facts. No status-derived capability guesses. */
-export function SavedRecordingActions({ lifecycle, scope, disabled, onAction, canReview = true }: {
+export function SavedRecordingActions({ lifecycle, scope, disabled, onAction, canReview = true, compact = false }: {
   lifecycle?: WriteGroupLifecycle;
   scope: Omit<SavedRecordingActionIntent, 'action'>;
   disabled: boolean;
   onAction: (intent: SavedRecordingActionIntent) => void;
   canReview?: boolean;
+  compact?: boolean;
 }) {
   const { t } = useTranslation('recording-lifecycle');
+  const { t: workbench } = useTranslation('workbench-v2');
   const instanceId = useId();
+  const ReasonTag = compact ? 'div' : 'p';
   const matching = lifecycleMatches(lifecycle, scope);
+  // Presentation groups only identical server reason/next pairs; permissions stay per action.
+  const reasons = ACTIONS.flatMap(action => {
+    const availability = matching ? lifecycle.actions.find(item => item.action === action) : undefined;
+    return availability?.allowed ? [] : [{ action, reason: availability?.reason_code ?? 'lifecycle_unavailable', next: availability?.next_action ?? 'reload' }];
+  });
+  const firstReason = (action: WriteGroupLifecycleActionName) => {
+    const item = reasons.find(row => row.action === action);
+    return compact && item ? reasons.find(row => row.reason === item.reason && row.next === item.next)!.action : action;
+  };
   return <div className="space-y-2" data-testid="saved-recording-actions">
     <div className="flex flex-wrap gap-2">
       {ACTIONS.map((action) => {
         const availability = matching ? lifecycle.actions.find((item) => item.action === action) : undefined;
         const blocked = !availability?.allowed || disabled || ((!canReview) && (action === 'recreate' || action === 'transition'));
-        return <button key={action} type="button" disabled={blocked} aria-describedby={!availability?.allowed ? `saved-action-${instanceId}-${action}` : undefined}
+        return <button key={action} type="button" disabled={blocked} aria-describedby={!availability?.allowed ? `saved-action-${instanceId}-${firstReason(action)}` : undefined}
           data-testid={TEST_IDS[action]} onClick={() => onAction({ ...scope, action })}
-          className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-200 disabled:opacity-40">
+          className={compact ? 'rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] disabled:bg-[var(--gw-ground)] disabled:text-[var(--gw-muted)] disabled:opacity-100' : 'rounded border border-slate-600 px-3 py-1 text-xs text-slate-200 disabled:opacity-40'}>
           {t(`action.${action}`)}{availability?.requires_review && <span className="ml-1 text-[10px]">· {t('review_required')}</span>}
         </button>;
       })}
@@ -50,10 +62,13 @@ export function SavedRecordingActions({ lifecycle, scope, disabled, onAction, ca
       if (availability?.allowed) return null;
       const reason = availability?.reason_code ?? 'lifecycle_unavailable';
       const next = availability?.next_action ?? 'reload';
-      return <p key={action} id={`saved-action-${instanceId}-${action}`} data-testid={`saved-recording-reason-${action}`} className="text-xs text-amber-300">
-        {t(`action.${action}`)}: {t(`reason.${REASONS.has(reason) ? reason : 'lifecycle_unavailable'}`)}{' '}
+      if (compact && firstReason(action) !== action) return null;
+      const names = compact ? reasons.filter(row => row.reason === reason && row.next === next).map(row => t(`action.${row.action}`)).join(' / ') : t(`action.${action}`);
+      return <ReasonTag key={action} id={`saved-action-${instanceId}-${action}`} data-testid={`saved-recording-reason-${action}`} className={compact ? 'text-sm text-[var(--gw-warning-fg)]' : 'text-xs text-amber-300'}>
+        {names}: {t(`reason.${REASONS.has(reason) ? reason : 'lifecycle_unavailable'}`)}{' '}
         {t(`next.${NEXT.has(next) ? next : 'review_lifecycle'}`)}
-      </p>;
+        {compact && (!REASONS.has(reason) || !NEXT.has(next)) && <details className="text-[var(--gw-muted)]"><summary>{workbench('step4.basic.diagnostics')}</summary><p>{reason} / {next}</p></details>}
+      </ReasonTag>;
     })}
   </div>;
 }

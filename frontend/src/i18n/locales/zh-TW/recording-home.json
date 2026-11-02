@@ -170,7 +170,8 @@
       "pending": "正在保存外觀…",
       "unsaved": "外觀尚未保存",
       "error": "外觀保存失敗"
-    }
+    },
+    "currentWorkspace": "目前工作區"
   },
   "destinationIdentity": "完整目的地",
   "managedTable": "受管資料表"

@@ -32,7 +32,26 @@
 .recording-compact-members__binding { display: block; overflow-wrap: anywhere; font-size: 12px; }
 
 .recording-editor-simple .recording-point-order-inline { margin-top: var(--gw-space-xs); font-size: 12px; color: var(--gw-muted); }
-.recording-editor-simple .recording-point-order-inline > div { margin-top: var(--gw-space-xs); }
+
 .recording-editor-simple .recording-point-order-inline label { font-size: 12px; }
 .recording-editor-simple .recording-point-order-inline select { margin-left: 0; max-width: 100%; }
-.recording-editor-simple .recording-point-order-inline details { margin-top: var(--gw-space-xs); }
+
+
+/* Routine point controls stay together; only provenance is secondary disclosure. */
+.recording-editor-simple .recording-point-order-inline__heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--gw-space-xs) var(--gw-space-sm); }
+.recording-editor-simple .recording-point-order-inline__heading details { min-width: 0; }
+.recording-editor-simple .recording-point-order-inline__controls { display: flex; align-items: center; flex-wrap: wrap; gap: var(--gw-space-xs); }
+.recording-editor-simple .recording-point-order-inline__controls > div { align-items: center; gap: var(--gw-space-xs); }
+.recording-editor-simple .recording-point-order-inline__controls label { display: flex; align-items: center; gap: var(--gw-space-xs); }
+.recording-editor-simple .recording-point-order-inline__controls select { width: auto; min-width: 0; }
+.recording-editor-simple .recording-point-order-inline__controls button:not(.parameter-help-trigger),
+.recording-editor-simple .recording-gauge-confirm { border: 1px solid var(--gw-control); border-radius: var(--gw-radius-sm); background: var(--gw-surface); color: var(--gw-text); padding: var(--gw-space-xs) var(--gw-space-sm); }
+.recording-editor-simple .recording-point-order-inline__controls button:focus-visible,
+.recording-editor-simple .recording-gauge-confirm:focus-visible { outline: 2px solid var(--gw-focus); outline-offset: 2px; }
+.recording-editor-simple .recording-gauge-confirm:disabled { cursor: not-allowed; opacity: 1; color: var(--gw-muted); background: var(--gw-ground); }
+.recording-compact-members__status::before { content: ' · '; }
+
+.recording-compact-members[data-calculation-scope='group'] table { min-width: 440px; }
+.recording-compact-members[data-calculation-scope='group'] th:nth-child(1) { width: 52%; }
+.recording-compact-members[data-calculation-scope='group'] th:nth-child(2) { width: 28%; }
+.recording-compact-members[data-calculation-scope='group'] th:nth-child(3) { width: 20%; }

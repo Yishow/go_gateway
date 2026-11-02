@@ -441,5 +441,9 @@
     "methodHelp": "其他算法說明",
     "gaugeConsent": "請確認這是一般量測值，而非累積值或狀態值；只套用此記錄。",
     "confirmGauge": "確認量測用途"
+  },
+  "confirmation": {
+    "schemaRequired": "請先檢查已儲存的目的地資料表，並明確確認準備內容，再開始記錄。",
+    "unknownIssue": "有一項記錄狀態需要確認。請展開下方詳細資訊，查看原始原因。"
   }
 }

@@ -68,3 +68,12 @@
 .recording-editor-simple .parameter-help-trigger { width: 44px !important; height: 44px !important; min-width: 44px !important; min-height: 44px !important; padding: 0 !important; border: 0; background: transparent; box-shadow: none; font-size: 14px; }
 .recording-editor-summary-identities { margin-top: var(--gw-space-md); font-size: 12px; }
 .recording-editor-summary-identities > summary { font-size: 12px; }
+
+/* Confirmation facts use theme semantic ink; unavailable controls remain readable. */
+.recording-editor-simple .recording-editor-confirmation :is([data-testid='group-readiness'], [data-testid='group-delivery-strip'], [data-testid='group-lifecycle']) { color: var(--gw-text); }
+.recording-editor-simple .recording-editor-confirmation :is([data-testid='group-readiness'], [data-testid='group-delivery-strip'], [data-testid='group-lifecycle']) :is(p, li, dt, dd) { font-size: 14px; line-height: 1.5; }
+.recording-editor-simple .recording-editor-confirmation button:disabled { opacity: 1; color: var(--gw-muted); background-color: var(--gw-ground); border-color: var(--gw-control); }
+
+/* The original mixed-result sibling also retains legacy slate classes. Scope to simple confirmation only. */
+.recording-editor-simple .recording-editor-confirmation [data-testid='recording-member-results'] { color: var(--gw-muted); font-size: 14px; line-height: 1.5; }
+.recording-editor-simple .recording-editor-confirmation [data-testid='recording-member-results'] :is(h4, h5) { color: var(--gw-text); }

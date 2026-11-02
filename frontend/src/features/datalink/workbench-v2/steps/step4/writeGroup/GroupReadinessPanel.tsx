@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { WriteGroupReadiness } from '../../../../../../types/studioV2WriteGroup';
 
 export interface GroupReadinessPanelProps {
+  compact?: boolean;
   readiness: WriteGroupReadiness | undefined;
   loading: boolean;
   failed: boolean;
@@ -23,8 +24,9 @@ function Fact({ label, value }: { label: string; value: boolean }) {
 }
 
 /** Shows the backend's persisted-readiness answer for the saved group; the editor never computes it. */
-export const GroupReadinessPanel: React.FC<GroupReadinessPanelProps> = ({ readiness, loading, failed, dirty, onRetry }) => {
+export const GroupReadinessPanel: React.FC<GroupReadinessPanelProps> = ({ readiness, loading, failed, dirty, onRetry, compact = false }) => {
   const { t } = useTranslation('workbench-v2');
+  const { t: editorText } = useTranslation('recording-editor');
   if (loading) return <p className="text-xs text-[var(--gw-muted)]" role="status" data-testid="group-readiness-loading">{t('step4.group.readiness.loading')}</p>;
   if (failed) {
     return (
@@ -48,7 +50,8 @@ export const GroupReadinessPanel: React.FC<GroupReadinessPanelProps> = ({ readin
           {readiness.issues.map((issue) => (
             <li key={`${issue.code}-${issue.scope}`} className={issue.severity === 'blocking' ? 'text-[var(--gw-danger-fg)]' : 'text-[var(--gw-warning-fg)]'}>
               <span className="font-semibold">{issue.severity === 'blocking' ? t('step4.group.readiness.blocking') : t('step4.group.readiness.warning')}</span>
-              {' · '}{issue.message}
+              {' · '}{compact ? editorText(issue.code === 'schema-confirmation-required' ? 'confirmation.schemaRequired' : 'confirmation.unknownIssue') : issue.message}
+              {compact && <details className="mt-1 text-[var(--gw-muted)]"><summary>{t('step4.basic.diagnostics')}</summary><p>{issue.code}: {issue.message}</p></details>}
             </li>
           ))}
         </ul>

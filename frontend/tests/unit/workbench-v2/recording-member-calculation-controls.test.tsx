@@ -53,7 +53,10 @@ it('renders compact method and cadence in two native cells while preserving expl
   const consent = screen.getByText('compact.gaugeConsent'); expect(consent).toBeVisible(); expect(consent.closest('details')).toBeNull();
   expect(screen.getByRole('option', { name: 'calculation.mean' })).toBeDisabled(); expect(change).not.toHaveBeenCalled();
   expect(screen.getByText(/calculation.counter_required/).closest('details')).toBe(screen.getByTestId('member-calculation-help-P'));
-  fireEvent.click(screen.getByRole('button', { name: 'compact.confirmGauge' }));
+  const confirmation = screen.getByRole('button', { name: 'compact.confirmGauge' });
+  expect(confirmation).toHaveClass('recording-gauge-confirm');
+  expect(confirmation).toBeVisible(); expect(confirmation.closest('details')).toBeNull();
+  fireEvent.click(confirmation);
   expect(change.mock.calls[0][0].value_role).toBe('gauge'); expect(change.mock.calls[0][0].calculation).toBe('latest');
 });
 it('keeps an already selected invalid calculation visible outside optional help and never repairs it on render', () => {

@@ -38,13 +38,16 @@ export function RecordingPointOrder({ simple = false, port, workspaceId, deviceI
       {entry && ['saved', 'recovery-unknown'].includes(entry.status) && <button type="button" disabled={disabled} onClick={() => void port.recover(scope)}>{t('editor.recover')}</button>}
       {entry?.recovered && <p role="status">{t(`editor.${entry.recovered.runtime_state}`)} · {t(entry.recovered.share_applied ? 'editor.shareApplied' : 'editor.shareDisabled')} {t('editor.notReading')}</p>}</>;
   if (simple) return <section className="recording-point-order-inline" data-testid={`recording-point-order-${pointId}`}>
-    <p>{t('editor.title')}{resolution && <> · <span data-testid="point-order-effective">{resolution.effective_format || t('editor.native')}</span></>}</p>
-    {resolution?.applicable ? <>{orderControl}{orderActions}</> : resolution && <p>{t('editor.notApplicable')}</p>}
+    <div className="recording-point-order-inline__heading"><span>{t('editor.order')}{resolution && <> · <span data-testid="point-order-effective">{resolution.applicable ? resolution.effective_format || t('editor.native') : t('editor.native')}</span></>}</span>
+      {resolution && <details><summary>{t('editor.version')}</summary>
+        <p>{t('editor.version')}: {resolution.format_version}</p>
+        {!resolution.applicable && <><p>{t('editor.notApplicable')}</p>{resolution.effective_format && <p>{resolution.effective_format}</p>}</>}
+        <p>{t(`source.${resolution.effective_source}`)} · {t(`policy.${resolution.effective_policy}`)}</p>
+        {resolution.native_compatibility && <p>{t('editor.nativeCompatibility')}</p>}
+      </details>}
+    </div>
+    {resolution?.applicable ? <div className="recording-point-order-inline__controls">{orderControl}{orderActions}</div> : null}
     {operationStatus}
-    {resolution && <details><summary>{t('editor.version')}: {resolution.format_version}</summary>
-      <p>{t(`source.${resolution.effective_source}`)} · {t(`policy.${resolution.effective_policy}`)}</p>
-      {resolution.native_compatibility && <p>{t('editor.nativeCompatibility')}</p>}
-    </details>}
   </section>;
   return <details className="mt-1 text-sm text-[var(--gw-muted)]" data-testid={`recording-point-order-${pointId}`}>
     <summary className="cursor-pointer">{t('editor.title')}{resolution && <> · {t(`mode.${resolution.format_mode}`)} · <span data-testid="point-order-effective">{resolution.effective_format || t('editor.native')}</span></>}</summary>

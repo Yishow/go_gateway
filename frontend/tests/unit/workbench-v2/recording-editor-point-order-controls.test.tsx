@@ -8,9 +8,9 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 vi.mock('../../../src/services/pointFormat', async original => ({ ...await original<typeof import('../../../src/services/pointFormat')>(), pointFormatAPI: { read: vi.fn(), save: vi.fn(), inspect: vi.fn() } }));
 const snapshot = (): PointFormatSnapshot => ({ workspace_id: 'W', device_id: 'D', point_id: 'P', rule_id: 'R', workspace_revision: 'source-7', workspace_revision_origin: 'persisted', point_revision: '', rule_revision: 'rule-2', connection_revision: 'conn-3', editable: true,
   resolution: { resolved: true, format_mode: 'legacy', configured_format: '', effective_format: 'ABCD', effective_source: 'connection', effective_policy: 'legacy_mc3e', native_compatibility: false, applicable: true, format_version: 0, workspace_revision: 'source-7', point_revision: '', rule_revision: 'rule-2', connection_revision: 'conn-3' } });
-function Page({ open = true, disabled = false, enabled = true }: { open?: boolean; disabled?: boolean; enabled?: boolean }) {
+function Page({ open = true, disabled = false, enabled = true, simple = false }: { open?: boolean; disabled?: boolean; enabled?: boolean; simple?: boolean }) {
   const port = useRecordingPointOrder('W', enabled);
-  return open ? <RecordingPointOrder port={port} workspaceId="W" deviceId="D" pointId="P" disabled={disabled} /> : null;
+  return open ? <RecordingPointOrder simple={simple} port={port} workspaceId="W" deviceId="D" pointId="P" disabled={disabled} /> : null;
 }
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(pointFormatAPI.read).mockImplementation(async () => snapshot()); });
 async function ready() { await screen.findByLabelText('editor.order'); fireEvent.click(screen.getByText('editor.title', { exact: false })); }
@@ -57,4 +57,19 @@ it('loads once when page hydration becomes available after the row already mount
   view.rerender(<Page enabled />);
   await screen.findByLabelText('editor.order');
   expect(pointFormatAPI.read).toHaveBeenCalledOnce();
+});
+
+it('keeps unsupported simple point order compact without dead controls while preserving the reason and version', async () => {
+  const native = snapshot(); Object.assign(native.resolution, { applicable: false, effective_format: '', effective_source: 'native', effective_policy: 'legacy_fatek_components', native_compatibility: true });
+  vi.mocked(pointFormatAPI.read).mockResolvedValue(native);
+  render(<Page simple />);
+  expect(await screen.findByTestId('point-order-effective')).toHaveTextContent('editor.native');
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'editor.save' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'editor.reset' })).not.toBeInTheDocument();
+  const why = screen.getByText('editor.notApplicable');
+  expect(why).not.toBeVisible(); expect(why.closest('details')).not.toHaveAttribute('open');
+  fireEvent.click(screen.getByText('editor.version', { selector: 'summary' }));
+  expect(why).toBeVisible(); expect(screen.getByText('editor.version: 0')).toBeVisible();
+  expect(pointFormatAPI.save).not.toHaveBeenCalled();
 });

@@ -188,7 +188,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
         <table className={classes('w-full min-w-[640px] border-collapse text-left text-sm')}>
           <thead className={classes('bg-[var(--gw-surface)] text-[var(--gw-muted)]')}>
             <tr>
-              <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_include')} <ParameterHelp help="member.include" /></th>
+              <th scope="col" className={classes('p-2')}>{presentation === 'simple' && selectionControls ? editorText('compact.actions') : <>{t('step4.group.members.col_include')} <ParameterHelp help="member.include" /></>}</th>
               <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_tag')}</th>
               {renderCalculation ? <th scope="col" className={classes('p-2')}>{editorText('simple.calculationColumn')}</th> : <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_type')}</th>}
               <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_column')} <ParameterHelp help="member.targetColumn" /></th>
