@@ -23,6 +23,9 @@ const originalEventSource = globalThis.EventSource;
 let mock: ReturnType<typeof createRuntimeRecordingMock>;
 const clients: QueryClient[] = [];
 const acquisitionReads: string[] = [];
+const runtimePolls: { method: string; url: string; body: unknown }[] = [];
+const pollPath = '/api/v1/datalink/points/poll';
+const pollBody = JSON.stringify({ point_ids: ['PA1'] });
 const acquisitionPath = '/api/v1/datalink/studio-v2/workspace/acquisition-plan-preview';
 const acquisitionParams = new URLSearchParams({ workspace_id: 'W', device_id: 'A', expected_workspace_revision: 'W1' });
 acquisitionParams.sort();
@@ -41,7 +44,14 @@ function installTransport() {
     const preview = method === 'GET' && url.pathname === acquisitionPath && query.toString() === acquisitionParams.toString() &&
       (config.data === undefined || config.data === null || config.data === '');
     if (preview) acquisitionReads.push(url.href);
-    const result = preview ? { status: 200, body: { success: true, data: acquisitionPreview } }
+    // Persisted-point polling may write runtime read results, never configuration. Keep it separately audited.
+    const selected = mock.ledger.filter(entry => entry.action === 'locator').at(-1);
+    const poll = method === 'POST' && url.pathname === pollPath && !url.search && config.data === pollBody &&
+      selected?.status === 200 && Object.keys(selected.params).length === 5 && selected.params.entry === 'locator' &&
+      selected.params.workspace_id === 'W' && selected.params.device_id === 'A' && selected.params.step === '3' && selected.params.mapping_id === 'MA1';
+    if (poll) runtimePolls.push({ method, url: url.href, body: config.data });
+    const result = poll ? { status: 200, body: { success: true, data: [] } }
+      : preview ? { status: 200, body: { success: true, data: acquisitionPreview } }
       : mock.handle({ method, url: url.href, body: config.data });
     const response = { data: result.body, status: result.status, statusText: String(result.status), headers: new AxiosHeaders(), config };
     if (result.status >= 400) throw new AxiosError('Named fixture transport failure', 'ERR_BAD_RESPONSE', config, undefined, response);
@@ -59,7 +69,7 @@ function cleanLedger() {
   expect(mock.ledger.some(entry => /logs|proxy/.test(entry.path))).toBe(false);
 }
 beforeEach(async () => {
-  await i18n.changeLanguage('en'); acquisitionReads.length = 0; mock = createRuntimeRecordingMock(); installTransport();
+  await i18n.changeLanguage('en'); acquisitionReads.length = 0; runtimePolls.length = 0; mock = createRuntimeRecordingMock(); installTransport();
   installRuntimeRecordingStreamFixture();
   vi.spyOn(XMLHttpRequest.prototype, 'send').mockImplementation(() => { throw new Error('Unmocked HTTP escaped strict fixture transport'); });
 });
@@ -129,6 +139,24 @@ describe('formal runtime fixture contracts through production readers', () => {
     mock.setScenario('foreign'); expect(await readStudioLocatorEntry(locator(4))).toMatchObject({ ok: false, reason: 'foreign-scope' });
     expect(mock.ledger.every(entry => !entry.mutation)).toBe(true);
   });
+  it('keeps the native persisted poll fixture exact and rejects unselected, foreign or extra requests', async () => {
+    await expect(api.post('/points/poll', { point_ids: ['PA1'] })).rejects.toMatchObject({ response: { status: 405 } });
+    expect(await readStudioLocatorEntry(locator(3))).toMatchObject({ ok: true });
+    const requests = [
+      { url: '/points/poll', data: { point_ids: ['PB1'] } },
+      { url: '/points/poll', data: { point_ids: ['PA1', 'PA2'] } },
+      { url: '/points/poll', data: { point_ids: ['PA1', 'PA1'] } },
+      { url: '/points/poll', data: { point_ids: ['PA1'], enabled: true } },
+      { url: '/points/poll?workspace_id=W', data: { point_ids: ['PA1'] } },
+      { url: '/points', data: { point_ids: ['PA1'] } },
+    ];
+    for (const request of requests) await expect(api.post(request.url, request.data)).rejects.toMatchObject({ response: { status: 405 } });
+    mock.setScenario('foreign');
+    expect(await readStudioLocatorEntry(locator(3))).toMatchObject({ ok: false, reason: 'foreign-scope' });
+    await expect(api.post('/points/poll', { point_ids: ['PA1'] })).rejects.toMatchObject({ response: { status: 405 } });
+    expect(runtimePolls).toEqual([]);
+    expect(mock.ledger.filter(entry => entry.mutation)).toHaveLength(8);
+  });
   it('rejects unknown reads, mutations and partial/foreign scopes in the mock itself', () => {
     const path = 'http://fixture.local/api/v1/datalink/studio-v2/workspace/runtime-context';
     const requests = [
@@ -174,6 +202,8 @@ describe('real runtime and native receiver fixture viability in jsdom', () => {
   it.each([1, 2, 3] as const)('cold-mounts real native Step%i without automatic configuration writes', async step => {
     const target = buildStudioEntityLocatorTarget(locator(step)); if (!target) throw new Error('Expected safe target');
     mount(target); await screen.findByTestId('workbench-v2-shell');
+    if (step === 3) await waitFor(() => expect(runtimePolls).toHaveLength(1));
+    expect(runtimePolls).toEqual(step === 3 ? [{ method: 'POST', url: `http://fixture.local${pollPath}`, body: pollBody }] : []);
     expect(acquisitionReads).toHaveLength(step === 1 ? 1 : 0);
     expect(mock.ledger.filter(entry => entry.action === 'locator')).toHaveLength(1);
     expect(mock.ledger.filter(entry => entry.path.endsWith('/studio-v2/workspace')).every(entry => entry.params.entry === 'locator')).toBe(true);
