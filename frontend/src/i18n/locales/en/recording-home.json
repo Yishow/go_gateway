@@ -1,4 +1,10 @@
 {
+  "devicesTitle": "Device management",
+  "createDevice": "Add device",
+  "deviceKeyword": "Search device names or protocols",
+  "recordingsTab": "Recordings",
+  "devicesTab": "Devices",
+
   "title": "Recordings",
   "navigation": "Workspace navigation",
   "advanced": "Advanced setup",

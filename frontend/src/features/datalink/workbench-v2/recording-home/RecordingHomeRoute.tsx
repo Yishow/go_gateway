@@ -23,8 +23,8 @@ import type { RecordingHomeScope } from './recordingHomeProjection';
 // Request generation only, not configuration or workspace authority. Remounting
 // cannot reuse pending evidence from a previous visit, even A -> B -> A.
 let generation = 0;
-function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, onNavigate, reloadScope, onOpenDevice }: {
-  workspaceId: string; workspaceRevision: string; list: WriteGroupListResponse; location: RecordingHomeLocation; onNavigate?: (target: string) => void; reloadScope: () => Promise<unknown>; onOpenDevice?: (workspaceId: string, deviceId: string, kind: 'connection' | 'points') => void;
+function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, onNavigate, reloadScope, onOpenDevice, onCreateDevice }: {
+  workspaceId: string; workspaceRevision: string; list: WriteGroupListResponse; location: RecordingHomeLocation; onNavigate?: (target: string) => void; reloadScope: () => Promise<unknown>; onOpenDevice?: (workspaceId: string, deviceId: string, kind: 'connection' | 'points') => void; onCreateDevice?: (workspaceId: string) => void;
 }) {
   const context = useQueryClient();
   const [restored, setRestored] = useState(() => readHomePresentation(context, workspaceId, workspaceRevision));
@@ -59,7 +59,7 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
   const unverified = (restored.observedIds ?? []).filter(id => groups.some(group => group.id === id) &&
     (cached.delivery[id]?.state !== 'available' || cached.lifecycle[id]?.state !== 'available' || !facts.runtimeGroups[id]));
   const displayedObservedIds = [...new Set([...observedIds, ...unverified])];
-  return <RecordingHome workspaceId={workspaceId} guidance={guidance} location={location} onNavigate={onNavigate}
+  return <RecordingHome mode={state.mode} onCreateDevice={() => onCreateDevice?.(workspaceId)} workspaceId={workspaceId} guidance={guidance} location={location} onNavigate={onNavigate}
     onConfigurePoints={id => { if (devices.some(device => device.id === id)) onOpenDevice?.(workspaceId, id, 'points'); }}
     onRetry={() => { void Promise.all([reloadScope(), sources.refetch(), home.retry(), facts.retry()]); }}
     collection={<RecordingHomeCollection groups={groups} devices={devices} state={state} guidance={guidance}
@@ -89,8 +89,8 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
 }
 /** Home mounts no autosave/activation owners. Bootstrap identity and DB setup
  * revision are read independently, with an explicit empty DB revision allowed. */
-export function RecordingHomeRoute({ location, onNavigate, onOpenDevice, onWorkspaceChange }: { location: RecordingHomeLocation; onNavigate?: (target: string) => void;
-  onOpenDevice?: (workspaceId: string, deviceId: string, kind: 'connection' | 'points') => void; onWorkspaceChange?: (id?: string) => void }) {
+export function RecordingHomeRoute({ location, onNavigate, onOpenDevice, onWorkspaceChange, onCreateDevice }: { location: RecordingHomeLocation; onNavigate?: (target: string) => void;
+  onOpenDevice?: (workspaceId: string, deviceId: string, kind: 'connection' | 'points') => void; onCreateDevice?: (workspaceId: string) => void; onWorkspaceChange?: (id?: string) => void }) {
   const { t } = useTranslation('recording-home');
   const workspace = useStudioV2WorkspaceQuery();
   useEffect(() => { onWorkspaceChange?.(workspace.data?.id); }, [workspace.data?.id, onWorkspaceChange]);
@@ -110,5 +110,5 @@ export function RecordingHomeRoute({ location, onNavigate, onOpenDevice, onWorks
   </main>;
   return <ScopedRecordingHome key={JSON.stringify([workspace.data.id, groups.data.workspace_revision])}
     workspaceId={workspace.data.id} workspaceRevision={groups.data.workspace_revision} list={groups.data}
-    location={location} onNavigate={onNavigate} reloadScope={reload} onOpenDevice={onOpenDevice} />;
+    location={location} onNavigate={onNavigate} reloadScope={reload} onOpenDevice={onOpenDevice} onCreateDevice={onCreateDevice} />;
 }

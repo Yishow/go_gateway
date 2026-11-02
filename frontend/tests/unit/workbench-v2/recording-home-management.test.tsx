@@ -25,7 +25,7 @@ describe('compact home management', () => {
     fireEvent.change(screen.getByLabelText('pageSize'), { target: { value: '50' } });
     expect(within(screen.getByTestId('home-management-table')).getAllByRole('row')).toHaveLength(51);
     fireEvent.click(screen.getByText('next')); expect(screen.getByTestId('home-page-status')).toHaveTextContent('2/6 (300)');
-    fireEvent.click(screen.getByRole('button', { name: 'manageDevices' }));
+    fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
     expect(within(screen.getByTestId('home-management-table')).getAllByRole('row')).toHaveLength(51);
     expect(screen.getByTestId('home-page-status')).toHaveTextContent('1/2 (100)');
   });
@@ -94,7 +94,7 @@ describe('demo device summary stays inside the simple home', () => {
   });
   it('offers distinct connection and points actions on the same-page device list', () => {
     const openDevice = vi.fn(); render(<Host openDevice={openDevice} />);
-    fireEvent.click(screen.getByRole('button', { name: 'manageDevices' }));
+    fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
     const row = within(screen.getByTestId('home-management-table')).getAllByRole('row')[1];
     expect(within(row).queryByRole('button', { name: 'Device 0' })).not.toBeInTheDocument();
     fireEvent.click(within(row).getByRole('button', { name: 'deviceConnection' }));
@@ -136,14 +136,14 @@ it('keeps clear and observed controls together without dropping unknown source s
 describe('Home separates recording and equipment intent', () => {
   it('keeps a single device management surface with both exact actions beside each device', () => {
     const openDevice = vi.fn(); render(<Host openDevice={openDevice} />);
-    fireEvent.click(screen.getByRole('button', { name: 'manageDevices' }));
+    fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
     expect(screen.queryByTestId('home-device-summary')).not.toBeInTheDocument();
     expect(screen.getByText('devicesPurpose')).toBeVisible();
     const row = screen.getByText('Device 0').closest('tr'); if (!row) throw new Error('missing row');
     fireEvent.click(within(row).getByRole('button', { name: 'deviceConnection' }));
     fireEvent.click(within(row).getByRole('button', { name: 'devicePoints' }));
     expect(openDevice.mock.calls).toEqual([['D0', 'connection'], ['D0', 'points']]);
-    fireEvent.click(screen.getByRole('button', { name: 'showRecordings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'recordingsTab' }));
     expect(screen.getByTestId('home-management-table')).toHaveAttribute('data-mode', 'recordings');
   });
 });

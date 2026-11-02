@@ -149,7 +149,7 @@ describe('modal exact identity and original completion boundaries', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); noOtherWrites();
   });
   it('starts an existing-device connection buffer without changing or duplicating the saved device', async () => {
-    mount(); await screen.findByTestId('home-device-points-D'); fireEvent.click(screen.getByRole('button', { name: 'Manage devices' }));
+    mount(); await screen.findByTestId('home-device-points-D'); fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
     fireEvent.click(within(screen.getByTestId('home-management-table')).getByRole('button', { name: 'Connection' }));
     const dialog = await screen.findByRole('dialog'); const name = await within(dialog).findByTestId('recording-source-name');
     expect(name).toHaveValue('Device D'); expect(within(dialog).getByLabelText('Protocol', { selector: 'select' })).toBeDisabled();
@@ -163,7 +163,7 @@ describe('modal exact identity and original completion boundaries', () => {
       vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([saved]);
       return saved;
     });
-    mount(); await screen.findByTestId('home-device-points-D'); fireEvent.click(screen.getByRole('button', { name: 'Manage devices' }));
+    mount(); await screen.findByTestId('home-device-points-D'); fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
     fireEvent.click(within(screen.getByTestId('home-management-table')).getByRole('button', { name: 'Connection' }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(await within(dialog).findByTestId('recording-source-name'), { target: { value: 'Saved device name' } });
@@ -177,7 +177,7 @@ describe('modal exact identity and original completion boundaries', () => {
   });
   it('opens the original new-range buffer and discards unsent values without a source write', async () => {
     mount(); const dialog = await openRange(); fireEvent.click(await within(dialog).findByTestId('home-range-done')); fireEvent.click(await within(dialog).findByTestId('home-range-new'));
-    const name = await within(dialog).findByLabelText('Point-name prefix');
+    const name = await within(dialog).findByLabelText('Point-name prefix', { selector: 'input' });
     fireEvent.change(name, { target: { value: 'Unsent new prefix' } });
     fireEvent.click(screen.getByTestId('home-source-close'));
     fireEvent.click(await screen.findByTestId('home-source-discard'));
@@ -204,7 +204,7 @@ describe('modal exact identity and original completion boundaries', () => {
     vi.mocked(pointAPI.get).mockImplementation(async () => ({ id: 'NEWPOINT', device_id: 'D', address: '40010', data_type: 'int16', enabled: false } as Awaited<ReturnType<typeof pointAPI.get>>));
     vi.mocked(tagAPI.get).mockImplementation(async () => ({ id: 'NEWTAG', key: mapping.tag_key, data_type: mapping.target_type, display_name: mapping.display_name, unit: mapping.unit ?? '', status: 'draft' } as Awaited<ReturnType<typeof tagAPI.get>>));
     mount(); const dialog = await openRange(); fireEvent.click(await within(dialog).findByTestId('home-range-done')); fireEvent.click(await within(dialog).findByTestId('home-range-new'));
-    fireEvent.change(await within(dialog).findByLabelText('Point-name prefix'), { target: { value: 'New source' } });
+    fireEvent.change(await within(dialog).findByLabelText('Point-name prefix', { selector: 'input' }), { target: { value: 'New source' } });
     fireEvent.change(within(dialog).getByLabelText('Starting address', { selector: 'input' }), { target: { value: '40010' } });
     fireEvent.change(within(dialog).getByLabelText('Number of data items', { selector: 'input' }), { target: { value: '1' } });
     const save = within(dialog).getByRole('button', { name: 'Save range' });
@@ -221,7 +221,7 @@ describe('modal exact identity and original completion boundaries', () => {
     mount(); await screen.findByTestId('home-device-points-D');
     let waiting = false;
     vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockImplementationOnce(() => { waiting = true; return new Promise(() => undefined); });
-    fireEvent.click(screen.getByRole('button', { name: 'Manage devices' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
     fireEvent.click(within(screen.getByTestId('home-management-table')).getByRole('button', { name: 'Connection' }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(await within(dialog).findByTestId('recording-source-name'), { target: { value: 'Prepared later' } });

@@ -331,7 +331,7 @@ function AdvancedWorkbenchV2Page({
   const workspace = locatorMode ? shownEntry?.workspace ?? workspaceQuery.data! : workspaceQuery.data!;
 
   if (homeSource) return <RecordingSourceNavigation workspaceId={workspace.id} source={autosave.deviceSource}><RecordingHomeSourceContent {...homeSource}
-    state={autosave.state} dispatch={autosave.actions.dispatch} source={autosave.deviceSource} suspended={!autosave.locatorHydration.ready} /></RecordingSourceNavigation>;
+    state={autosave.state} dispatch={autosave.actions.dispatch} source={autosave.deviceSource} suspended={homeSource.target.kind === 'create' ? !autosave.workspaceHydrated || workspace.id !== homeSource.target.workspaceId : !autosave.locatorHydration.ready} /></RecordingSourceNavigation>;
 
   return (
     <div
@@ -387,10 +387,10 @@ export default function DatalinkWorkbenchV2Page(props: DatalinkWorkbenchV2PagePr
   const locator = props.locatorIntent?.kind;
   if (props.presentation === 'recordings' && (!locator || locator === 'absent') && !props.runtimeReturnFocus) {
     return <RecordingHomeSourceHost renderSource={controls => <AdvancedWorkbenchV2Page key={controls.target.epoch} homeSource={controls}
-      locatorIntent={{ kind: 'locator', locator: { workspace_id: controls.target.workspaceId, step: controls.target.ruleId ? 2 : 1, device_id: controls.target.deviceId,
+      locatorIntent={controls.target.kind === 'create' ? { kind: 'absent' } : { kind: 'locator', locator: { workspace_id: controls.target.workspaceId, step: controls.target.ruleId ? 2 : 1, device_id: controls.target.deviceId,
         rule_id: controls.target.ruleId ?? null, mapping_id: null, group_id: null, group_revision: null } }} />} >
-      {(open, workspaceChanged) => <RecordingHomeRoute location={props.presentationLocation ?? { search: '?view=recordings', hash: '' }} onNavigate={props.navigateTo}
-        onOpenDevice={open} onWorkspaceChange={workspaceChanged} />}
+      {(open, workspaceChanged, create) => <RecordingHomeRoute location={props.presentationLocation ?? { search: '?view=recordings', hash: '' }} onNavigate={props.navigateTo}
+        onOpenDevice={open} onCreateDevice={create} onWorkspaceChange={workspaceChanged} />}
     </RecordingHomeSourceHost>;
   }
   const intent = parseStudioPresentation(props.presentationLocation?.search ?? '');

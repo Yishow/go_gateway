@@ -43,14 +43,13 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, summ
       <button type="button" onClick={() => onChange({ ...initialCollectionState(), pageSize: state.pageSize, observedOnly: true })}>{t('viewObserved')}</button>
     </aside>}
     <nav className="gw-home-object-modes" aria-label={t('objectModes')}>
-      <button type="button" aria-pressed={state.mode === 'recordings'} onClick={() => patch({ mode: 'recordings' })}>{t('showRecordings')}</button>
-      <button type="button" aria-pressed={state.mode === 'devices'} onClick={() => patch({ mode: 'devices' })}>{t('manageDevices')}</button>
+      <button type="button" aria-pressed={state.mode === 'recordings'} onClick={() => patch({ mode: 'recordings' })}>{t('recordingsTab')}</button>
+      <button type="button" aria-pressed={state.mode === 'devices'} onClick={() => patch({ mode: 'devices' })}>{t('devicesTab')}</button>
     </nav>
     <p className="gw-object-purpose">{t(state.mode === 'devices' ? 'devicesPurpose' : 'recordingsPurpose')}</p>
-    {state.mode === 'devices' && <p className="gw-object-purpose">{t('deviceCreationHint')}</p>}
     <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold">{t(state.mode === 'devices' ? 'manageDevices' : 'saved')}</h2>
     <form role="search" aria-label={t('filters')} className="gw-filters" onSubmit={event => event.preventDefault()}>
-      <label className="gw-filter-search">{t('keyword')}<input type="search" value={state.keyword} onChange={event => patch({ keyword: event.target.value })} /></label>
+      <label className="gw-filter-search">{t(state.mode === 'devices' ? 'deviceKeyword' : 'keyword')}<input type="search" value={state.keyword} onChange={event => patch({ keyword: event.target.value })} /></label>
       {state.mode === 'recordings' && <>
 
         <label>{t('deviceFilter')}<select value={state.deviceId} onChange={event => patch({ deviceId: event.target.value })}>

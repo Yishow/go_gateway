@@ -1,4 +1,10 @@
 {
+  "devicesTitle": "設備管理",
+  "createDevice": "新增設備",
+  "deviceKeyword": "搜尋設備名稱或協議",
+  "recordingsTab": "記錄",
+  "devicesTab": "設備",
+
   "title": "資料記錄",
   "navigation": "工作區導覽",
   "advanced": "進階設定",

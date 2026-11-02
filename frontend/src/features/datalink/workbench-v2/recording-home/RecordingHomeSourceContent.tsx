@@ -15,7 +15,7 @@ import type { HomeSourceControls } from './RecordingHomeSourceHost';
 export interface RecordingHomeSourceContentProps extends HomeSourceControls {
   state: WorkbenchV2State; dispatch: Dispatch<WorkbenchV2Action>; source: DeviceSourcePort; suspended: boolean;
 }
-function SavedConnection({ device, source, suspended, controls }: { device: Device; source: DeviceSourcePort; suspended: boolean; controls: HomeSourceControls }) {
+function SavedConnection({ device, source, suspended, controls }: { device?: Device; source: DeviceSourcePort; suspended: boolean; controls: HomeSourceControls }) {
   const buffer = useRecordingDeviceBuffer(controls.target.workspaceId, source, suspended, device);
   const started = useRef(false), innerClose = useRef<(() => void) | undefined>(undefined);
   const [, setConfirm] = useState(false);
@@ -23,7 +23,7 @@ function SavedConnection({ device, source, suspended, controls }: { device: Devi
   useLayoutEffect(() => { controls.closeRef.current = () => { if (!buffer.locked) innerClose.current?.(); }; return () => { controls.closeRef.current = undefined; }; }, [buffer.locked, controls.closeRef]);
   useRecordingDraftGuard({ version: JSON.stringify([controls.target.epoch, buffer.buffer]), dirty: buffer.dirty && !buffer.locked, pending: buffer.locked, host: true, discard: buffer.reset });
   return <RecordingSourceDeviceContent controller={{ ...buffer, disabled: buffer.disabled || buffer.preparing || buffer.blocked }} slot={{ active: true, closeRef: innerClose, onConfirmChange: setConfirm,
-    onReturn: () => { if (!buffer.pending) controls.onClose(); }, onSaved: controls.onClose }} />;
+    onReturn: () => { if (!buffer.pending) controls.onClose(); }, onSaved: saved => { if (controls.target.kind === 'create') controls.onCreated(saved.id); else controls.onClose(); } }} />;
 }
 function NewRange({ device, source, suspended, controls, leave, list, refreshList }: { device: Device; source: DeviceSourcePort; suspended: boolean; controls: HomeSourceControls; leave: HomeSourceLeave; list: ReactNode; refreshList: () => void }) {
   const { t } = useTranslation('recording-home');
@@ -52,7 +52,7 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
   const { t } = useTranslation('recording-home');
   const leave = useRef<((proceed: () => void) => void) | undefined>(undefined);
   const list = useQuery({ queryKey: ['recording-home-device-ranges', target.workspaceId, target.deviceId, target.epoch],
-    queryFn: () => readHomeDeviceRanges(target.workspaceId, target.deviceId), enabled: target.kind === 'points' && !suspended,
+    queryFn: () => { if (target.kind !== 'points') throw new Error('Range list requires an existing device'); return readHomeDeviceRanges(target.workspaceId, target.deviceId); }, enabled: target.kind === 'points' && !suspended,
     retry: false, refetchOnWindowFocus: false, gcTime: 0 });
   const initialSelection = useRef(false);
   useEffect(() => {
@@ -66,7 +66,7 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
   const device = state.devices.find(item => item.id === target.deviceId && item.persisted === true);
   useEffect(() => { if (device) onDeviceName(device.name); }, [device, onDeviceName]);
   useLayoutEffect(() => {
-    if (target.kind === 'connection') return;
+    if (target.kind === 'connection' || target.kind === 'create') return;
     closeRef.current = () => { if (leave.current) leave.current(onClose); else onClose(); };
     return () => { closeRef.current = undefined; };
   }, [target.kind, closeRef, onClose]);
@@ -74,7 +74,8 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
     const next = () => onSelect(ruleId, newRange);
     if (leave.current) leave.current(next); else next();
   };
-  if (!device || suspended) return <div className="gw-modal-body" role="status">{t('source.unavailable')}</div>;
+  if (target.kind === 'create' && !suspended) return <SavedConnection source={source} suspended={suspended} controls={props} />;
+  if (target.kind === 'create' || !device || suspended) return <div className="gw-modal-body" role="status">{t('source.unavailable')}</div>;
   if (target.kind === 'connection') return <SavedConnection device={device} source={source} suspended={suspended} controls={props} />;
   const listContent = <section aria-label={t('source.ranges')} className="gw-home-range-list">
     <header className="gw-range-list-heading"><h3>{t('source.ranges')}</h3>{list.isSuccess && !list.isFetching && <button type="button" data-testid="home-range-new" onClick={() => select(undefined, true)}>{t('source.newRange')}</button>}</header>
