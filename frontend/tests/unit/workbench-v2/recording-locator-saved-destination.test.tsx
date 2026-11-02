@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Step4Database } from '@/features/datalink/workbench-v2/steps/step4/Step4Database';
 import { RecordingDraftNavigation } from '@/features/datalink/workbench-v2/recording-editor/RecordingDraftNavigation';
@@ -48,13 +48,13 @@ function schemaPreview(): SchemaPreviewToken {
   return { ...managedSchemaPreviewToken, workspace_id: 'W', workspace_revision: 'W2', plan_id: 'G', plan_revision: 'G3', connector_id: 'saved-target', connector_revision: 'saved-target-rev', database: 'successor.db', schema: 'main', expires_at: '2099-01-01T00:00:00Z',
     statements: [], tables: [{ name: 'saved_long_table', action: 'unchanged', columns: ['value'] }], group_layout: { ...managedSchemaPreviewToken.group_layout!, table_name: 'saved_long_table' } };
 }
-function mount() {
+function mount(locatorOnly = true) {
   const route = locatorRead(4), state = savedGroupState();
   state.db.connector = { ...state.db.connector, workspace_id: 'W', connector_id: 'workspace-default', identity_revision: 'default-rev', name: 'Workspace default label', database: 'default.db', password: 'PRIVATE_DEFAULT_CREDENTIAL' };
   const before = JSON.stringify(state), dispatch = vi.fn();
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } }); clients.push(client);
   const content = (suspended = false) => <QueryClientProvider client={client}><RecordingDraftNavigation><Step4Database state={state} dispatch={dispatch} workspaceId="W"
-    presentation="simple" initialSelection="located" locatorOnly locatorEntry={route} locatorSuspended={suspended} /></RecordingDraftNavigation></QueryClientProvider>;
+    presentation="simple" initialSelection="located" locatorOnly={locatorOnly} locatorEntry={route} locatorSuspended={suspended} /></RecordingDraftNavigation></QueryClientProvider>;
   return { ...render(content()), content, state, before, dispatch };
 }
 function noWrites() {
@@ -66,6 +66,7 @@ beforeEach(() => {
   vi.clearAllMocks(); sessionStorage.clear(); current = receipt();
   vi.mocked(readStudioLocatorEditorEntry).mockImplementation(async () => ({ ok: true, value: current }));
   api.readiness.mockImplementation(async () => ({ workspace_id: 'W', workspace_revision: 'W2', group_id: 'G', group_revision: 'G3', applied_revision: '', config_ready: true, schema_ready: false, ready: false, issues: [{ code: 'schema-proof-stale', severity: 'blocking', step: 'Step 4', scope: 'G', message: '' }] }));
+  api.list.mockImplementation(async () => current.entry.write_groups!);
   api.delivery.mockRejectedValue(new Error('no delivery evidence')); api.schemaPreview.mockImplementation(async () => schemaPreview());
   vi.mocked(studioV2WriteGroupLifecycleAPI.lifecycle).mockImplementation(async () => savedLifecycle(current.entry.write_groups!.groups[0], 'W2'));
   vi.mocked(studioV2WorkspaceDatabaseAPI.getMetadata).mockResolvedValue({ workspace_id: 'W', connector_id: 'saved-target', connector_revision: 'saved-target-rev', database: 'successor.db', schema: 'main', table: 'saved_long_table', inspection_status: 'exists', columns: [{ name: 'value', data_type: 'REAL', nullable: true, primary_key: false }] });
@@ -103,6 +104,8 @@ it.each(['connector', 'revision'] as const)('does not borrow a wrong saved targe
   const config = current.entry.database_config!;
   if (kind === 'connector') config.id = 'workspace-default'; else config.identity_revision = 'stale-revision';
   mount(); await screen.findByTestId('group-destination-mismatch');
+  expect(screen.queryByTestId('recording-saved-destination')).not.toBeInTheDocument();
+  expect(document.body.textContent).not.toMatch(/Workspace default label|default\.db|PRIVATE_DEFAULT_CREDENTIAL/);
   await waitFor(() => expect(screen.getByTestId('recording-preparation-check')).toBeDisabled());
   expect(screen.getByTestId('group-apply')).toBeDisabled();
   fireEvent.click(screen.getByTestId('recording-preparation-check'));
@@ -126,4 +129,24 @@ it('does not publish late saved target schema consent after the locator lease is
   view.rerender(view.content(true)); await act(async () => { resolve(schemaPreview()); });
   expect(screen.queryByTestId('recording-preparation-confirm')).not.toBeInTheDocument();
   expect(screen.queryByTestId('group-schema-preview-result')).not.toBeInTheDocument(); expect(view.dispatch).not.toHaveBeenCalled(); noWrites();
+});
+
+it('shows only the saved P1 destination after a hydrated workspace enters its canonical editor', async () => {
+  const group = current.entry.write_groups!.groups[0];
+  group.destination = { ...group.destination, database: 'qa_p1', table_schema: 'public' };
+  current.entry.write_groups!.calculation_capabilities = { ...capabilities, schema_dialects: ['sqlite', 'postgres'] };
+  Object.assign(current.entry.database_config!, { kind: 'postgres', name: 'MAIN PG P1', database: 'qa_p1', schema: 'public', host: 'PRIVATE_TARGET_HOST', username: 'PRIVATE_TARGET_USER' });
+  vi.mocked(studioV2WorkspaceDatabaseAPI.getMetadata).mockResolvedValue({ workspace_id: 'W', connector_id: 'saved-target', connector_revision: 'saved-target-rev', database: 'qa_p1', schema: 'public', table: 'saved_long_table', inspection_status: 'exists', columns: [] });
+  api.schemaPreview.mockResolvedValue({ ...schemaPreview(), database: 'qa_p1', schema: 'public' });
+  const view = mount(false); await screen.findByTestId('group-editor');
+  await waitFor(() => expect(screen.getByTestId('recording-preparation-check')).toBeEnabled());
+  expect(screen.queryByTestId('database-connection-card')).not.toBeInTheDocument();
+  const destination = screen.getByTestId('recording-saved-destination');
+  expect(destination).toHaveTextContent('MAIN PG P1'); expect(destination).toHaveTextContent('step4.kind_postgres'); expect(destination).toHaveTextContent('public');
+  expect(within(destination).queryByRole('button')).not.toBeInTheDocument(); expect(within(destination).queryByRole('combobox')).not.toBeInTheDocument();
+  expect(document.body.textContent).not.toMatch(/Workspace default label|default\.db|PRIVATE_DEFAULT_CREDENTIAL|PRIVATE_TARGET_HOST|PRIVATE_TARGET_USER/);
+  fireEvent.click(screen.getByTestId('recording-preparation-check'));
+  await waitFor(() => expect(api.schemaPreview).toHaveBeenCalledExactlyOnceWith('G', { workspace_id: 'W', expected_workspace_revision: 'W2', expected_group_revision: 'G3', expected_connector_revision: 'saved-target-rev' }));
+  expect(await screen.findByTestId('group-schema-preview-result')).toHaveTextContent('qa_p1');
+  expect(JSON.stringify(view.state)).toBe(view.before); expect(view.dispatch).not.toHaveBeenCalled(); noWrites();
 });

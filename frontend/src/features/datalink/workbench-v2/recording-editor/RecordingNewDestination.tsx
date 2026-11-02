@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { dbTargetAPI } from '../../../../services/datalink';
 import { dbTargetKeys } from '../../../../hooks/datalink/keys';
 import type { DatabaseConnector } from '../../../../types/datalink';
+import type { WriteGroup } from '../../../../types/studioV2WriteGroup';
 import type { DbConnector } from '../state/types';
 import { safeRuntimeLabel } from '../../../../utils/runtimeOperatorSafety';
 
@@ -104,4 +105,23 @@ export function RecordingDestinationMismatch({ locatorUnknown, saved, readonly, 
       {t('step4.group.editor.use_current_destination')}
     </button>}
   </div>;
+}
+
+/** Saved target identity is display-only; the workspace connection form is not this record's destination. */
+export function RecordingSavedDestination({ group, connector, workspaceId }: {
+  group: WriteGroup; connector: DbConnector; workspaceId: string;
+}) {
+  const { t } = useTranslation('workbench-v2');
+  if (group.workspace_id !== workspaceId || connector.workspace_id !== workspaceId || !connector.persisted || connector.save_state !== 'saved' ||
+      !group.destination.connector_id || !group.destination.connector_revision || group.destination.connector_id !== connector.connector_id ||
+      group.destination.connector_revision !== connector.identity_revision || !['sqlite', 'postgres', 'mysql', 'sqlserver'].includes(connector.kind))
+    return <p role="status">{t('runtime-dashboard:locatorEntry.destinationUnknown')}</p>;
+  return <section className="space-y-2 rounded-xl border border-[var(--gw-border)] p-4" data-testid="recording-saved-destination">
+    <h3 className="text-sm font-semibold">{t('step4.connector_title')}</h3>
+    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+      <dt>{t('step4.connector_kind')}</dt><dd>{t(`step4.kind_${connector.kind}`)}</dd>
+      <dt>{t('step4.field_name')}</dt><dd>{safeRuntimeLabel(connector.name) || '—'}</dd>
+      <dt>{t('step4.field_schema')}</dt><dd>{safeRuntimeLabel(group.destination.table_schema) || '—'}</dd>
+    </dl>
+  </section>;
 }

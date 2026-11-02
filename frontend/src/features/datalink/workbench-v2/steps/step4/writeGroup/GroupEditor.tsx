@@ -1,4 +1,4 @@
-import { RecordingDestinationMismatch, RecordingNewDestinationChooser } from '../../../recording-editor/RecordingNewDestination';
+import { RecordingDestinationMismatch, RecordingNewDestinationChooser, RecordingSavedDestination } from '../../../recording-editor/RecordingNewDestination';
 import { ConfiguredDestinationChooser, type ConfiguredDestinationObservation } from '../../../recording-editor/ConfiguredDestinationChooser';
 import { configuredDestinationPatch, configuredDestinationReason, configuredDestinationStillCurrent } from '../../../recording-editor/configuredRecordingDestinations';
 import { RecordingSourceNavigation } from '../../../recording-editor/RecordingSourceNavigation';
@@ -369,7 +369,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       {profile && !mixed && <GroupProfileSummary draft={draft} />}
         </>}
         destination={<>
-      {newDestination && !newDestination.initialSetup ? !group && <RecordingNewDestinationChooser value={newDestination} selectedId={draft.connector_id}
+      {presentation === 'simple' && group ? <RecordingSavedDestination group={group} connector={connector} workspaceId={workspaceId} /> : newDestination && !newDestination.initialSetup ? !group && <RecordingNewDestinationChooser value={newDestination} selectedId={draft.connector_id}
         disabled={readonly || saveBusy || saveUnknown || Boolean(saveReadbackPending)} onSelect={id => {
           if (groupRef.current || readonly || savingRef.current || saveUnknown || saveReadbackPending) return;
           const next = newDestination.choose(id); if (!next) return;

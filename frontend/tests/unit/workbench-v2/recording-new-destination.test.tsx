@@ -179,7 +179,10 @@ it.each(['saved', 'guided'] as const)('does not mount the new destination query 
   mount({ props: mode === 'saved' ? { group: original, connector: savedGroupState().db.connector } : { presentation: 'guided' } });
   expect(screen.queryByRole('combobox', { name: 'newDestination.label' })).not.toBeInTheDocument();
   expect(dbTargetAPI.listConnectors).not.toHaveBeenCalled();
-  expect(screen.getByTestId('original-setup')).toBeInTheDocument();
+  if (mode === 'saved') {
+    expect(screen.queryByTestId('original-setup')).not.toBeInTheDocument();
+    expect(screen.getByTestId('recording-saved-destination')).toHaveTextContent('Line DB');
+  } else expect(screen.getByTestId('original-setup')).toBeInTheDocument();
 });
 it('retains saved MySQL and SQL Server choices while preserving their original capability and mixed-dialect denial', async () => {
   const mysql = { ...savedConnector('MYSQL'), kind: 'mysql' as const };
@@ -200,4 +203,18 @@ it('does not present the legacy initial setup for a nonempty pool containing onl
   mount({ props: { connector } });
   await waitFor(() => expect(screen.getByTestId('new-destination-status')).toHaveTextContent('newDestination.empty'));
   expect(screen.queryByTestId('original-setup')).not.toBeInTheDocument(); expect(screen.getByTestId('group-save')).toBeDisabled();
+});
+
+it('shows the saved target immediately after create ACK before parent group props catch up', async () => {
+  vi.mocked(studioV2WorkspaceWriteGroupsAPI.delivery).mockRejectedValue(new Error('delivery unavailable'));
+  const view = mount(); await fillDraft(); await choose('P1');
+  await waitFor(() => expect(screen.getByTestId('group-save')).toBeEnabled()); fireEvent.click(screen.getByTestId('group-save'));
+  await waitFor(() => expect(view.props.onSaved).toHaveBeenCalledOnce());
+  expect(view.props.group).toBeUndefined();
+  expect(screen.queryByRole('combobox', { name: 'newDestination.label' })).not.toBeInTheDocument();
+  expect(screen.queryByTestId('original-setup')).not.toBeInTheDocument();
+  const destination = screen.getByTestId('recording-saved-destination');
+  expect(destination).toHaveTextContent('MAIN PG P1'); expect(destination).toHaveTextContent('step4.kind_postgres'); expect(destination).toHaveTextContent('public');
+  expect(within(destination).queryByRole('button')).not.toBeInTheDocument();
+  expect(studioV2WorkspaceDatabaseAPI.updateConfig).not.toHaveBeenCalled(); expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
 });
