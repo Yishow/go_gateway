@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 )
 
 var (

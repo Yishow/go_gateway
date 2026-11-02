@@ -7,7 +7,7 @@ import (
 	"log"
 	"strings"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema/migrations"
 )
 

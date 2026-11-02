@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/counterproof"
 	"go-gateway/internal/datalink/groupdelivery"
 	"math"

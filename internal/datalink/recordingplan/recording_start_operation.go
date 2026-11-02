@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 )
 
 // RecordingStartAction separates a start intent from schema and test-write effects.

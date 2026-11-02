@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 )
 
 func TestStateTracker_S01_InitialSnapshotAndTransition(t *testing.T) {

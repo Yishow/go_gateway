@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 
 	"github.com/stretchr/testify/require"

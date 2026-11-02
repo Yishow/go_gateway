@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 )
 
 // Service 提供量測定義的業務邏輯、版本修訂與範本套用。

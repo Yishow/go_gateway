@@ -14,7 +14,7 @@ import (
 
 	datalinkbase "go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/audit"
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"

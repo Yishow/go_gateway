@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"slices"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"

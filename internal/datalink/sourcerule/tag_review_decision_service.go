@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 )

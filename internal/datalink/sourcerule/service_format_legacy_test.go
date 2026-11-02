@@ -3,7 +3,7 @@ package sourcerule
 import (
 	"testing"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"

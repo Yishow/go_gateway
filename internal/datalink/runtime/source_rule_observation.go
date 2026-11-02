@@ -5,7 +5,7 @@ import (
 	"errors"
 	"slices"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/datalink/sourcerule"

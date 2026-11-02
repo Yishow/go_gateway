@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/schema"
 

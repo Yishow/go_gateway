@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"strings"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"

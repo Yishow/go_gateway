@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 )
 
 func (s *Service) claimSQLServerPartitionMaintenance(ctx context.Context, repo sqlServerPartitionMaintenanceRepository, req SQLServerPartitionMaintenanceRequest, lineage *StorageLineage, state *SQLServerPartitionMaintenanceState, after *SQLServerPartitionEvidence, baseDigest, scopeKey string) (*SchemaOperation, ClaimOutcome, error) {

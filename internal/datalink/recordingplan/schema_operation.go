@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 )
 
 // SchemaOperationStatus is the durable state of one confirmed schema change.

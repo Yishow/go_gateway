@@ -1,6 +1,6 @@
 package dbtarget
 
-import "go-gateway/internal/datalink/common"
+import common "go-gateway/internal/datalink/common"
 
 func defaultWriteIntervalSeconds(value *int) int {
 	return common.Deref(value, 15)

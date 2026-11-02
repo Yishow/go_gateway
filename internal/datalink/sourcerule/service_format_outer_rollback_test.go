@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	datalinkbase "go-gateway/internal/datalink"
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 
 	mysqldriver "github.com/go-sql-driver/mysql"

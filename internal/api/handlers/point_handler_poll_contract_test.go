@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/collector"
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"

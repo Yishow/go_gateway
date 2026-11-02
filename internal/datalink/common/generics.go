@@ -1,4 +1,4 @@
-package common
+package datalinkvalue
 
 // Ptr returns a pointer to the given value of any type.
 func Ptr[T any](v T) *T {

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 )
 
 type sqlServerPartitionUnknownRepository interface {

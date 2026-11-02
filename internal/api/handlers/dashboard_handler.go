@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"

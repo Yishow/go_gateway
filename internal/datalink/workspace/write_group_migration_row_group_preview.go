@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 )
 
 const writeGroupRowGroupMigrationAdapterVersion = "row-group-v1"

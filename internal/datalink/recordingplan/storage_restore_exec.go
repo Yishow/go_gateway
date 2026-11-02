@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 )
 
 // claimStorageRepair claims the next attempt for the scope's current

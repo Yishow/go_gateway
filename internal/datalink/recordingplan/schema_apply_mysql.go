@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 )
 
 const schemaStatementFailureReason = "statement_failed"

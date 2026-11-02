@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 )
 
 const (

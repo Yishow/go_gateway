@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"go-gateway/internal/datalink/common"
+	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
 )
