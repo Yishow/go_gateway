@@ -206,7 +206,7 @@ func (s *Service) Preview(ctx context.Context, ws Workspace, groupID string) (*P
 		if err != nil {
 			return nil, err
 		}
-		preview.OwnerColumn, preview.OwnerValue = p.ownerColumn, "gateway"
+		preview.OwnerColumn, preview.OwnerValue = p.ownerColumn, mysqlTestTableOwner
 		preview.Values, preview.RecordIDs, preview.Cleanup = values, recordIDs, cleanup
 		return preview, nil
 	}

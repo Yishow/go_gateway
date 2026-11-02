@@ -64,7 +64,7 @@ func ReadOwnedRows(ctx context.Context, db *sql.DB, ref OwnedRowRef, columns []s
 		return nil, fmt.Errorf("read owned test rows: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	var out [][]any
+	out := make([][]any, 0, 8)
 	for rows.Next() {
 		values := make([]any, len(columns))
 		dest := make([]any, len(columns))
@@ -83,6 +83,9 @@ func ReadOwnedRows(ctx context.Context, db *sql.DB, ref OwnedRowRef, columns []s
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("read owned test rows: %w", err)
+	}
+	if len(out) == 0 {
+		out = nil
 	}
 	return out, nil
 }

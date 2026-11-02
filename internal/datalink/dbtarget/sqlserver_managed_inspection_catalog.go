@@ -293,7 +293,7 @@ func readSQLServerManagedColumns(ctx context.Context, db sqlServerManagedCatalog
 		} else {
 			defaults[name] = nil
 		}
-		if name == "provenance" {
+		if name == longColProvenance {
 			provenanceColumnID = id
 		}
 		if userDefined || computed || identity || generatedAlways != 0 || hidden || sparse || rowGUID ||

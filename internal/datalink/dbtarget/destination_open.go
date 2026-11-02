@@ -42,6 +42,11 @@ type OpenedDestination struct {
 	SQLServer *SQLServerRecordingCapability
 }
 
+const (
+	sqliteURIQueryMode = "mode"
+	sqliteURIPrefix    = "file:"
+)
+
 // OpenDestination opens the saved connector for delivery, but only while its
 // identity revision still equals expectedRevision, so accepted rows can never
 // be sent to an edited endpoint. It never creates a missing database file: a
@@ -149,7 +154,7 @@ func prepareSQLiteDeliveryDSN(rawDSN string) (string, error) {
 	if dsn == "" || isSQLiteMemoryDSN(dsn) {
 		return dsn, nil
 	}
-	if strings.HasPrefix(strings.ToLower(dsn), "file:") {
+	if strings.HasPrefix(strings.ToLower(dsn), sqliteURIPrefix) {
 		parsed, err := url.Parse(dsn)
 		if err != nil {
 			return "", fmt.Errorf("parse sqlite file dsn: %w", err)
@@ -214,13 +219,13 @@ func sqliteDeliveryFileDSN(path string, query url.Values) string {
 }
 
 func normalizeSQLiteDeliveryMode(query url.Values) (string, error) {
-	mode := strings.ToLower(strings.TrimSpace(query.Get("mode")))
+	mode := strings.ToLower(strings.TrimSpace(query.Get(sqliteURIQueryMode)))
 	switch mode {
 	case "":
-		query.Set("mode", sqliteDeliveryModeReadWrite)
+		query.Set(sqliteURIQueryMode, sqliteDeliveryModeReadWrite)
 		return sqliteDeliveryModeReadWrite, nil
 	case sqliteDeliveryModeReadWriteCreate, sqliteDeliveryModeReadWrite:
-		query.Set("mode", sqliteDeliveryModeReadWrite)
+		query.Set(sqliteURIQueryMode, sqliteDeliveryModeReadWrite)
 		return sqliteDeliveryModeReadWrite, nil
 	case sqliteDeliveryModeReadOnly, sqliteDeliveryModeMemory:
 		return mode, nil
@@ -234,7 +239,7 @@ func isSQLiteMemoryDSN(dsn string) bool {
 	if strings.EqualFold(trimmed, ":memory:") {
 		return true
 	}
-	if !strings.HasPrefix(strings.ToLower(trimmed), "file:") {
+	if !strings.HasPrefix(strings.ToLower(trimmed), sqliteURIPrefix) {
 		return false
 	}
 	parsed, err := url.Parse(trimmed)
@@ -245,5 +250,5 @@ func isSQLiteMemoryDSN(dsn string) bool {
 		return true
 	}
 	query, err := url.ParseQuery(parsed.RawQuery)
-	return err == nil && strings.EqualFold(strings.TrimSpace(query.Get("mode")), sqliteDeliveryModeMemory)
+	return err == nil && strings.EqualFold(strings.TrimSpace(query.Get(sqliteURIQueryMode)), sqliteDeliveryModeMemory)
 }

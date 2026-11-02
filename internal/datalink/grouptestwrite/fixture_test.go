@@ -99,7 +99,7 @@ func (f fakeInspector) InspectTable(ctx context.Context, _, _, table string) (*d
 		return nil, err
 	}
 	defer func() { _ = rows.Close() }()
-	var columns []dbtarget.ColumnInfo
+	columns := make([]dbtarget.ColumnInfo, 0, 8)
 	for rows.Next() {
 		var name, dataType string
 		var notNull int

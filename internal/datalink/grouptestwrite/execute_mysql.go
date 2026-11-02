@@ -23,6 +23,8 @@ const (
 	mysqlTestRecordColumn      = "record_id"
 )
 
+const mysqlTestTableOwner = "gateway"
+
 func mysqlLongTestRowRef(kind schema.DatabaseConnectorKind, state progress) dbtarget.GroupLongTestRowRef {
 	return dbtarget.GroupLongTestRowRef{
 		Kind: kind, SchemaName: state.Schema, TableName: state.Table,
@@ -41,7 +43,7 @@ func (s *Service) writeMySQLPhase(ctx context.Context, op *recordingplan.SchemaO
 		return stepResult{}, nil, err
 	}
 	state.Schema, state.Table = p.group.Destination.TableSchema, p.group.Destination.TableName
-	state.OwnerColumn, state.TableOwnerValue = p.ownerColumn, "gateway"
+	state.OwnerColumn, state.TableOwnerValue = p.ownerColumn, mysqlTestTableOwner
 	state.ProvenanceColumn = p.group.RowPolicy.ProvenanceColumn
 	state.WorkspaceID, state.GroupID, state.GroupRevision = p.group.WorkspaceID, p.group.ID, p.group.Revision
 	state.SampleIDs = make([]string, len(rows))

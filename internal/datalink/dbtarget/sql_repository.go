@@ -395,7 +395,7 @@ func scanTargetMappingRow(row *sql.Row) (*schema.DatabaseTargetMapping, error) {
 }
 
 func scanTargetMappingRows(rows *sql.Rows) ([]*schema.DatabaseTargetMapping, error) {
-	var mappings []*schema.DatabaseTargetMapping
+	mappings := make([]*schema.DatabaseTargetMapping, 0, 8)
 
 	for rows.Next() {
 		var mapping schema.DatabaseTargetMapping
@@ -452,6 +452,9 @@ func scanTargetMappingRows(rows *sql.Rows) ([]*schema.DatabaseTargetMapping, err
 		return nil, fmt.Errorf("遍歷資料庫目標映射失敗: %w", err)
 	}
 
+	if len(mappings) == 0 {
+		mappings = nil
+	}
 	return mappings, nil
 }
 

@@ -126,7 +126,7 @@ func InspectOpenManagedTable(ctx context.Context, db *sql.DB, kind schema.Databa
 		}
 		return result, nil
 	case schema.DatabaseConnectorKindPostgres:
-		result.Schema = defaultString(result.Schema, "public")
+		result.Schema = defaultString(result.Schema, postgresDefaultSchemaName)
 		var relkind string
 		err := db.QueryRowContext(ctx, `
 			SELECT c.relkind::text FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -169,7 +169,7 @@ func CanCreateManagedTable(ctx context.Context, db *sql.DB, kind schema.Database
 	err := db.QueryRowContext(ctx, `
 		SELECT to_regnamespace($1::text) IS NOT NULL
 		   AND has_schema_privilege(current_user, $1::text, 'USAGE') AND has_schema_privilege(current_user, $1::text, 'CREATE')`,
-		defaultString(strings.TrimSpace(schemaName), "public")).Scan(&allowed)
+		defaultString(strings.TrimSpace(schemaName), postgresDefaultSchemaName)).Scan(&allowed)
 	if err != nil {
 		return false, fmt.Errorf("read schema privileges: %w", err)
 	}

@@ -14,6 +14,8 @@ import (
 
 const sqlServerNativeRepairPartitionStatementCount = 4
 
+const sqlServerPartitionOwnerProperty = "gateway.recording.partition_owner"
+
 func executeSQLServerManagedRepairBatch(
 	ctx context.Context,
 	db *sql.DB,
@@ -147,7 +149,7 @@ func parseSQLServerNativeRepairDefinition(
 		len(request.Statements) < sqlServerNativeRepairPartitionStatementCount {
 		return nil, true, ErrSchemaExecutionUnsupported
 	}
-	functionName, schemeName := "pf_"+request.TableName, "ps_"+request.TableName
+	functionName, schemeName := sqlServerPartitionFunctionPrefix+request.TableName, sqlServerPartitionSchemePrefix+request.TableName
 	functionIdentifier := quoteIdentifier(schema.DatabaseConnectorKindSQLServer, functionName)
 	schemeIdentifier := quoteIdentifier(schema.DatabaseConnectorKindSQLServer, schemeName)
 	prefix := "CREATE PARTITION FUNCTION " + functionIdentifier + " (datetime2(6)) AS RANGE RIGHT FOR VALUES ("
@@ -181,7 +183,7 @@ func parseSQLServerNativeRepairDefinition(
 		if !previous.IsZero() {
 			name = "p_" + previous.Format("200601")
 			if !at.Equal(previous.AddDate(0, 1, 0)) {
-				name = "p_gap_" + at.Format("200601")
+				name = sqlServerPartitionGapPrefix + at.Format("200601")
 			}
 		}
 		partitions = append(partitions, SQLServerPartitionBoundary{
@@ -197,7 +199,7 @@ func parseSQLServerNativeRepairDefinition(
 		Filegroup: sqlServerNativePrimaryFilegroup, Partitions: partitions,
 	}
 	owner := strings.ReplaceAll(capability.Schema+"."+request.TableName, "'", "''")
-	marker := "gateway.recording.partition_owner"
+	marker := sqlServerPartitionOwnerProperty
 	want := []string{
 		statement,
 		"EXEC sys.sp_addextendedproperty @name=N'" + marker + "', @value=N'" + owner +

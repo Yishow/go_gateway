@@ -24,6 +24,12 @@ var (
 	ensureMySQLDatabaseIfMissingFunc    = ensureMySQLDatabaseIfMissing
 )
 
+const mysqlNetworkTCP = "tcp"
+
+const postgresDefaultAdminDatabase = "postgres"
+
+const mysqlDriverName = "mysql"
+
 // openExternalDBManagerWithMySQLDatabaseEnsure opens a target database and, for
 // MySQL only, creates a missing database before retrying the open once.
 func openExternalDBManagerWithMySQLDatabaseEnsure(
@@ -174,10 +180,10 @@ func ensurePostgresDatabaseIfMissing(ctx context.Context, config ConnectionConfi
 }
 
 func postgresAdminDatabaseName(databaseName string) string {
-	if strings.EqualFold(strings.TrimSpace(databaseName), "postgres") {
+	if strings.EqualFold(strings.TrimSpace(databaseName), postgresDefaultAdminDatabase) {
 		return "template1"
 	}
-	return "postgres"
+	return postgresDefaultAdminDatabase
 }
 
 func isPostgresMissingDatabaseError(err error) bool {
@@ -245,7 +251,7 @@ func ensureMySQLDatabaseIfMissing(ctx context.Context, config ConnectionConfig, 
 		}
 	}
 
-	adminDB, err := sql.Open("mysql", mysqlConfig.FormatDSN())
+	adminDB, err := sql.Open(mysqlDriverName, mysqlConfig.FormatDSN())
 	if err != nil {
 		return fmt.Errorf("建立 mysql 管理連線失敗: %w", err)
 	}

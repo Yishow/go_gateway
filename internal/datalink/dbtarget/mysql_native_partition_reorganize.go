@@ -25,6 +25,8 @@ var (
 	mysqlGapPartitionPattern     = regexp.MustCompile(`^p_gap_\d{6}$`)
 )
 
+const mysqlPartitionGapPrefix = "p_gap_"
+
 // ReorganizeOpenMySQLFuturePartition extends one owned native-monthly managed
 // table's bounded future horizon. It only reorganizes p_future; existing
 // partitions and the receipt table are never touched.
@@ -169,7 +171,7 @@ func validateMySQLFuturePartitionPlan(proof *MySQLManagedInspection, after *MySQ
 			if index != 0 || gapCount > 0 {
 				return nil, fmt.Errorf("%w: mysql gap partition must be the single first addition", ErrMySQLManagedTableUnconfirmed)
 			}
-			if addition.Name != "p_gap_"+boundary.Format("200601") {
+			if addition.Name != mysqlPartitionGapPrefix+boundary.Format("200601") {
 				return nil, fmt.Errorf("%w: mysql gap partition name does not match its upper boundary", ErrMySQLManagedTableUnconfirmed)
 			}
 			gapCount++

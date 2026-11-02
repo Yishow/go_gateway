@@ -36,7 +36,7 @@ func (i *ManagedTableInspector) ProbeTimescaleAtRevision(ctx context.Context, co
 		return nil, fmt.Errorf("open PostgreSQL destination for the timescale probe: %w", err)
 	}
 	defer manager.Close()
-	capability, err := ProbeTimescale(ctx, manager.DB(), defaultString(strings.TrimSpace(schemaName), "public"))
+	capability, err := ProbeTimescale(ctx, manager.DB(), defaultString(strings.TrimSpace(schemaName), postgresDefaultSchemaName))
 	if err != nil {
 		return nil, err
 	}
@@ -69,5 +69,5 @@ func (i *ManagedTableInspector) InspectHypertableAtRevision(ctx context.Context,
 		return nil, fmt.Errorf("open PostgreSQL destination for hypertable inspection: %w", err)
 	}
 	defer manager.Close()
-	return InspectHypertable(ctx, manager.DB(), defaultString(strings.TrimSpace(schemaName), "public"), strings.TrimSpace(tableName))
+	return InspectHypertable(ctx, manager.DB(), defaultString(strings.TrimSpace(schemaName), postgresDefaultSchemaName), strings.TrimSpace(tableName))
 }

@@ -51,7 +51,7 @@ func readMySQLManagedPartitions(ctx context.Context, q mysqlManagedQuerier, data
 		return nil, err
 	}
 	defer rows.Close()
-	var partitions []mysqlPartitionRow
+	partitions := make([]mysqlPartitionRow, 0, 8)
 	for rows.Next() {
 		var row mysqlPartitionRow
 		if err := rows.Scan(&row.name, &row.method, &row.expression, &row.description, &row.ordinal,

@@ -31,6 +31,8 @@ type mysqlManagedPrimaryKeyRow struct {
 	nonUnique int
 }
 
+const mysqlCatalogYes = "YES"
+
 // mysqlManagedCheckIsJSONValid accepts exactly one json_valid(<column>)
 // expression, optionally wrapped in outer parentheses/whitespace. Anything
 // combined with OR/NOT, a string literal, another column or extra arguments is

@@ -41,6 +41,21 @@ const (
 
 var declaredTypePattern = regexp.MustCompile(`^([A-Z][A-Z0-9 ]*?)\s*(?:\(\s*(\d+)\s*(?:,\s*(\d+)\s*)?\))?$`)
 
+const (
+	postgresTypeNumeric = "NUMERIC"
+	postgresTypeBigint  = "BIGINT"
+)
+
+const (
+	postgresTypeDoublePrecision = "DOUBLE PRECISION"
+	postgresTypeDecimal         = "DECIMAL"
+	postgresTypeVarchar         = "VARCHAR"
+	postgresTypeBool            = "BOOL"
+	sqliteTypeBool              = "BOOL"
+	sqliteAffinityCharToken     = "CHAR"
+	sqliteTypeDatetime          = "DATETIME"
+)
+
 func blockedf(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", ErrExactSQLBlocked, fmt.Sprintf(format, args...))
 }
@@ -105,7 +120,7 @@ func sqliteAffinity(base string) string {
 	switch {
 	case strings.Contains(base, "INT"):
 		return affinityInteger
-	case strings.Contains(base, "CHAR"), strings.Contains(base, "CLOB"), strings.Contains(base, affinityText):
+	case strings.Contains(base, sqliteAffinityCharToken), strings.Contains(base, "CLOB"), strings.Contains(base, affinityText):
 		return affinityText
 	case strings.Contains(base, affinityBlob):
 		return affinityBlob
@@ -119,7 +134,7 @@ func sqliteStrategy(d declaredType, typ measurement.ExactType) (exactStrategy, e
 	affinity := sqliteAffinity(d.base)
 	switch typ {
 	case measurement.ExactBool:
-		if affinity == affinityInteger || d.base == typeBoolean || d.base == "BOOL" {
+		if affinity == affinityInteger || d.base == typeBoolean || d.base == sqliteTypeBool {
 			return exactStrategy{kind: storageBoolean}, nil
 		}
 	case measurement.ExactText:
@@ -152,12 +167,12 @@ func sqliteStrategy(d declaredType, typ measurement.ExactType) (exactStrategy, e
 }
 
 func postgresStrategy(d declaredType, typ measurement.ExactType) (exactStrategy, error) {
-	numeric := d.base == "NUMERIC" || d.base == "DECIMAL"
-	bigint := d.base == "BIGINT" || d.base == "INT8"
-	text := d.base == affinityText || ((d.base == "VARCHAR" || d.base == "CHARACTER VARYING") && !d.hasS)
+	numeric := d.base == postgresTypeNumeric || d.base == postgresTypeDecimal
+	bigint := d.base == postgresTypeBigint || d.base == "INT8"
+	text := d.base == affinityText || ((d.base == postgresTypeVarchar || d.base == "CHARACTER VARYING") && !d.hasS)
 	switch typ {
 	case measurement.ExactBool:
-		if d.base == typeBoolean || d.base == "BOOL" {
+		if d.base == typeBoolean || d.base == postgresTypeBool {
 			return exactStrategy{kind: storageBoolean}, nil
 		}
 	case measurement.ExactText:
@@ -185,7 +200,7 @@ func postgresStrategy(d declaredType, typ measurement.ExactType) (exactStrategy,
 			return exactStrategy{kind: storageText}, nil
 		}
 	case measurement.ExactFloat64:
-		if d.base == "DOUBLE PRECISION" || d.base == "FLOAT8" {
+		if d.base == postgresTypeDoublePrecision || d.base == "FLOAT8" {
 			return exactStrategy{kind: storageReal}, nil
 		}
 	default:

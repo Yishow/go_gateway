@@ -56,6 +56,8 @@ type mysqlRecordingMetadata struct {
 	reasons             []string
 }
 
+const mysqlRecordingReasonConnectionFailed = "connection_failed"
+
 // ProbeMySQLRecordingAtRevision reads family and destination evidence from the
 // current saved connector revision without using any database-provisioning path.
 func (s *ConnectorService) ProbeMySQLRecordingAtRevision(
@@ -101,7 +103,7 @@ func (s *ConnectorService) ProbeMySQLRecordingAtRevision(
 	// path may create a missing database, which is forbidden for this probe.
 	manager, err := openExternalDBManagerFunc(connector.Kind, config)
 	if err != nil {
-		reason := "connection_failed"
+		reason := mysqlRecordingReasonConnectionFailed
 		if classifyConnectorError(err) == schema.DatabaseConnectorStatusAuthFailed {
 			reason = "authentication_failed"
 		}
@@ -112,7 +114,7 @@ func (s *ConnectorService) ProbeMySQLRecordingAtRevision(
 		if manager != nil {
 			_ = manager.Close()
 		}
-		metadata.reasons = append(metadata.reasons, "connection_failed")
+		metadata.reasons = append(metadata.reasons, mysqlRecordingReasonConnectionFailed)
 		return projectMySQLRecordingCapability(connector, metadata, false), nil
 	}
 	defer manager.Close()
@@ -199,7 +201,7 @@ func inspectMySQLRecordingMetadata(ctx context.Context, db *sql.DB, expectedData
 		return metadata
 	}
 	metadata.transactionalEngine = err == nil &&
-		(engineSupport == "YES" || engineSupport == "DEFAULT") && engineTransactions == "YES"
+		(engineSupport == mysqlCatalogYes || engineSupport == "DEFAULT") && engineTransactions == mysqlCatalogYes
 	metadata.metadataStatus = mysqlRecordingMetadataVerified
 	var permissionReason string
 	metadata.permissions, permissionReason = inspectMySQLRecordingPermissions(ctx, tx, expectedDatabase, metadata.serverFamily)
@@ -228,8 +230,8 @@ func mysqlRecordingServerFamily(version, versionComment string) string {
 	switch {
 	case strings.Contains(serverIdentity, mysqlManagedFamilyMariaDB):
 		return mysqlManagedFamilyMariaDB
-	case strings.Contains(strings.ToLower(versionComment), "mysql"):
-		return "mysql"
+	case strings.Contains(strings.ToLower(versionComment), mysqlManagedFamilyMySQL):
+		return mysqlManagedFamilyMySQL
 	default:
 		return mysqlRecordingFamilyUnknown
 	}
@@ -326,7 +328,7 @@ func mysqlRecordingInitialBaseline(family, version string) bool {
 		return false
 	}
 	switch family {
-	case "mysql":
+	case mysqlManagedFamilyMySQL:
 		return parts[0] == "8" && parts[1] == "4"
 	case mysqlManagedFamilyMariaDB:
 		return parts[0] == "11" && parts[1] == "4"

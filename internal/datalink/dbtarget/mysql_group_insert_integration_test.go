@@ -304,13 +304,19 @@ func runConcurrentMySQLInserts(t *testing.T, opened *OpenedDestination, requests
 	wg.Wait()
 	close(results)
 	close(errs)
-	var gotResults []GroupInsertResult
+	gotResults := make([]GroupInsertResult, 0, len(requests))
 	for result := range results {
 		gotResults = append(gotResults, result)
 	}
-	var gotErrors []error
+	gotErrors := make([]error, 0, len(requests))
 	for err := range errs {
 		gotErrors = append(gotErrors, err)
+	}
+	if len(gotResults) == 0 {
+		gotResults = nil
+	}
+	if len(gotErrors) == 0 {
+		gotErrors = nil
 	}
 	return gotResults, gotErrors
 }
@@ -350,7 +356,7 @@ func TestMySQLLongPhysicalDriftRejected(t *testing.T) {
 					_, err := f.db.ExecContext(t.Context(), "ALTER TABLE "+qualifiedTableName(schema.DatabaseConnectorKindMySQL, f.cfg.Database, table)+" MODIFY COLUMN "+quoteIdentifier(schema.DatabaseConnectorKindMySQL, owner)+" VARCHAR(32) NOT NULL DEFAULT 'gateway'")
 					require.NoError(t, err)
 				},
-				"engine": func(t *testing.T, f *mysqlGroupFixture, table string) {
+				"engine": func(t *testing.T, f *mysqlGroupFixture, _ string) {
 					require.True(t, f.receiptOwned, "engine drift requires a receipt created by this fixture")
 					_, err := f.db.ExecContext(t.Context(), "ALTER TABLE "+qualifiedTableName(schema.DatabaseConnectorKindMySQL, f.cfg.Database, longTestReceiptTable)+" ENGINE=MyISAM")
 					require.NoError(t, err)

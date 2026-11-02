@@ -10,6 +10,8 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
+const mappingSchemaMissingCode = "schema_missing"
+
 func resolveMappingColumnType(
 	ctx context.Context,
 	tagReader ConnectorTagReader,
@@ -17,7 +19,7 @@ func resolveMappingColumnType(
 	kind schema.DatabaseConnectorKind,
 ) (string, error) {
 	if tagReader == nil || strings.TrimSpace(tagID) == "" {
-		return "TEXT", nil
+		return affinityText, nil
 	}
 
 	tagEntity, err := tagReader.GetByID(ctx, tagID)
@@ -168,7 +170,7 @@ func mapValidationIssueCodeForDryRun(code string) string {
 	normalized := strings.TrimSpace(strings.ToLower(code))
 	switch normalized {
 	case validationTableMissingCode, validationColumnMissingCode, "timestamp_missing", validationTimestampColumnMissingCode, "timestamp_column_not_unique", "mapping_missing", validationTagMissingCode:
-		return "schema_missing"
+		return mappingSchemaMissingCode
 	case "column_type_mismatch":
 		return "type_conflict"
 	case "upsert_value_column_unique":
@@ -226,19 +228,19 @@ func columnTypeForDataType(kind schema.DatabaseConnectorKind, dataType schema.Da
 		if kind == schema.DatabaseConnectorKindPostgres {
 			return "BOOLEAN"
 		}
-		return "INTEGER"
+		return affinityInteger
 	case schema.DataTypeInt16, schema.DataTypeUint16, schema.DataTypeInt32, schema.DataTypeUint32, schema.DataTypeInt64, schema.DataTypeUint64:
 		if kind == schema.DatabaseConnectorKindPostgres {
-			return "BIGINT"
+			return postgresTypeBigint
 		}
-		return "INTEGER"
+		return affinityInteger
 	case schema.DataTypeFloat32, schema.DataTypeFloat64:
 		if kind == schema.DatabaseConnectorKindPostgres {
-			return "DOUBLE PRECISION"
+			return postgresTypeDoublePrecision
 		}
-		return "REAL"
+		return affinityReal
 	default:
-		return "TEXT"
+		return affinityText
 	}
 }
 
@@ -246,7 +248,7 @@ func timestampColumnType(kind schema.DatabaseConnectorKind) string {
 	if kind == schema.DatabaseConnectorKindPostgres {
 		return "TIMESTAMPTZ"
 	}
-	return "DATETIME"
+	return sqliteTypeDatetime
 }
 
 // buildEnsureSchemaStatement 回傳建立資料表所屬容器的語句：PostgreSQL 為 schema，

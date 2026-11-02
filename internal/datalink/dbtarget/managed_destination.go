@@ -273,7 +273,7 @@ func managedSQLitePathFromRaw(raw string) (string, error) {
 		return "", errors.New("empty sqlite path")
 	}
 	var path string
-	if strings.HasPrefix(strings.ToLower(raw), "file:") {
+	if strings.HasPrefix(strings.ToLower(raw), sqliteURIPrefix) {
 		parsed, err := url.Parse(raw)
 		if err != nil || parsed.Host != "" || parsed.Fragment != "" {
 			return "", errors.New("non-local sqlite uri")
@@ -325,7 +325,7 @@ func validManagedSQLiteQuery(query url.Values) bool {
 			return false
 		}
 		switch strings.ToLower(strings.TrimSpace(key)) {
-		case "mode":
+		case sqliteURIQueryMode:
 			mode := strings.ToLower(strings.TrimSpace(values[0]))
 			if mode != "" && mode != "ro" && mode != "rw" && mode != "rwc" {
 				return false

@@ -21,6 +21,8 @@ type sqlServerConnectionSettings struct {
 
 const sqlServerEncryptionRequiredOption = "true"
 
+const sqlServerEncryptionStrict = "strict"
+
 // sqlServerConnectionSettingsFor builds only structured SQL authentication.
 // Raw driver strings and certificate-verification bypasses cannot override the
 // saved database/schema scope or the encrypted, verified transport contract.
@@ -52,8 +54,8 @@ func sqlServerConnectionSettingsFor(config ConnectionConfig) (sqlServerConnectio
 	if value, present := config["encrypt"]; present {
 		switch strings.ToLower(strings.TrimSpace(sqlServerOptionText(value))) {
 		case sqlServerEncryptionRequiredOption, "mandatory", "yes", "1", "t":
-		case "strict":
-			encrypt = "strict"
+		case sqlServerEncryptionStrict:
+			encrypt = sqlServerEncryptionStrict
 		default:
 			return invalid()
 		}

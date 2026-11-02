@@ -160,13 +160,16 @@ func extensionFunctions(ctx context.Context, tx *sql.Tx) ([]extensionFunction, e
 		return nil, fmt.Errorf("read timescaledb functions: %w", err)
 	}
 	defer rows.Close()
-	var functions []extensionFunction
+	functions := make([]extensionFunction, 0, 8)
 	for rows.Next() {
 		var function extensionFunction
 		if err := rows.Scan(&function.name, &function.arguments, &function.executable); err != nil {
 			return nil, fmt.Errorf("scan timescaledb function: %w", err)
 		}
 		functions = append(functions, function)
+	}
+	if len(functions) == 0 {
+		functions = nil
 	}
 	return functions, rows.Err()
 }
@@ -205,7 +208,7 @@ func generalizedFunction(function extensionFunction) bool {
 
 func isPermissionDenied(err error) bool {
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "42501"
+	return errors.As(err, &pgErr) && pgErr.Code == postgresInsufficientPrivilegeCode
 }
 
 // HypertableInfo is the catalog evidence of one hypertable.

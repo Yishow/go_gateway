@@ -38,6 +38,8 @@ type mysqlRecordingPrivilege struct {
 	privilegeType string
 }
 
+const mysqlPrivilegeIndex = "INDEX"
+
 func inspectMySQLRecordingPermissions(
 	ctx context.Context,
 	tx *sql.Tx,
@@ -322,7 +324,7 @@ func mysqlRecordingApplyPrivilege(permissions *MySQLRecordingPermissions, privil
 		permissions.CreateTable = true
 	case "ALTER":
 		permissions.AlterSchema = true
-	case "INDEX":
+	case mysqlPrivilegeIndex:
 		permissions.IndexSchema = true
 	case "SELECT":
 		permissions.SelectSchema = true

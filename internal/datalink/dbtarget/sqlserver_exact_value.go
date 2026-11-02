@@ -23,6 +23,8 @@ const (
 
 var sqlServerNvarcharMaxPattern = regexp.MustCompile(`(?i)^NVARCHAR\s*\(\s*MAX\s*\)$`)
 
+const sqlServerTypeChar = "CHAR"
+
 func sqlServerStrategy(declared declaredType, typ measurement.ExactType) (exactStrategy, error) {
 	rangeErrorUnrepresentable := true
 	switch typ {
@@ -31,7 +33,7 @@ func sqlServerStrategy(declared declaredType, typ measurement.ExactType) (exactS
 			return exactStrategy{kind: storageBoolean}, nil
 		}
 	case measurement.ExactText:
-		if declared.base == "CHAR" && declared.hasP && declared.p == 64 && !declared.hasS {
+		if declared.base == sqlServerTypeChar && declared.hasP && declared.p == 64 && !declared.hasS {
 			return exactStrategy{
 				kind: storageText, precision: 64, bounded: true,
 				rangeErrorUnrepresentable: rangeErrorUnrepresentable, sqlServerHashID: true,

@@ -111,7 +111,7 @@ func inspectMySQLTables(ctx context.Context, db *sql.DB, databaseNames []string)
 		); err != nil {
 			return nil, fmt.Errorf("掃描 mysql 資料表欄位失敗: %w", err)
 		}
-		column.Nullable = strings.EqualFold(nullable, "YES")
+		column.Nullable = strings.EqualFold(nullable, mysqlCatalogYes)
 		if keyInfo, ok := uniqueColumns[mysqlColumnKey(schemaName, tableName, column.Name)]; ok {
 			column.Unique = true
 			column.PrimaryKey = keyInfo.primary

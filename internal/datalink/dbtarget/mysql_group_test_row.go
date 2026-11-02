@@ -39,7 +39,7 @@ type GroupLongTestRowRef struct {
 
 func (r GroupLongTestRowRef) validate() error {
 	if (r.Kind != schema.DatabaseConnectorKindMySQL && r.Kind != schema.DatabaseConnectorKindSQLServer) || strings.TrimSpace(r.SchemaName) == "" || strings.TrimSpace(r.TableName) == "" ||
-		strings.TrimSpace(r.OwnerColumn) == "" || r.OwnerValue != "gateway" ||
+		strings.TrimSpace(r.OwnerColumn) == "" || r.OwnerValue != groupLongOwnerMarkerValue ||
 		strings.TrimSpace(r.ProvenanceColumn) == "" || strings.TrimSpace(r.WorkspaceID) == "" ||
 		strings.TrimSpace(r.GroupID) == "" || strings.TrimSpace(r.GroupRevision) == "" ||
 		!strings.HasPrefix(r.OperationOwner, TestRowOwnerPrefix) || len(r.OperationOwner) == len(TestRowOwnerPrefix) {
@@ -154,7 +154,7 @@ func readGroupLongTestRows(ctx context.Context, q groupLongQueryer, ref GroupLon
 	for i, id := range ref.RecordIDs {
 		expected[id] = ref.SampleIDs[i]
 	}
-	var out [][]any
+	out := make([][]any, 0, 8)
 	for rows.Next() {
 		values := make([]any, len(selected))
 		dest := make([]any, len(selected))
@@ -175,6 +175,9 @@ func readGroupLongTestRows(ctx context.Context, q groupLongQueryer, ref GroupLon
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("read long test rows: %w", err)
+	}
+	if len(out) == 0 {
+		out = nil
 	}
 	return out, nil
 }

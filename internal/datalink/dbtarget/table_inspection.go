@@ -85,7 +85,7 @@ func (s *ConnectorService) InspectTable(ctx context.Context, connectorID, schema
 		}
 		return result.fromListing(tables, TableInspectionMissing, ""), nil
 	case schema.DatabaseConnectorKindPostgres:
-		result.Schema = defaultString(result.Schema, "public")
+		result.Schema = defaultString(result.Schema, postgresDefaultSchemaName)
 		exists, err := postgresCatalogHasTable(ctx, db, result.Schema, result.Table)
 		if err != nil {
 			return result.classified(err), nil
@@ -165,11 +165,11 @@ func classifyInspectionError(err error) (status TableInspectionStatus, reason st
 
 func isPermissionDeniedError(err error) bool {
 	var pqErr *pq.Error
-	if errors.As(err, &pqErr) && pqErr.Code == "42501" {
+	if errors.As(err, &pqErr) && pqErr.Code == postgresInsufficientPrivilegeCode {
 		return true
 	}
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "42501" {
+	if errors.As(err, &pgErr) && pgErr.Code == postgresInsufficientPrivilegeCode {
 		return true
 	}
 	var mysqlErr *mysqldriver.MySQLError

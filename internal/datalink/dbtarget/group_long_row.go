@@ -119,6 +119,8 @@ type longWindowProvenance struct {
 	NominalEnd   string `json:"nominal_end"`
 }
 
+const groupLongOwnerMarkerValue = "gateway"
+
 // NewLongRowLayout validates every fixed column against the inspected table
 // and each member's exact type against its value slot, returning all blocking
 // issues at once.
@@ -264,7 +266,7 @@ func (l *LongRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error) 
 	}
 	// The confirmed owner marker is written explicitly, so a compatible table
 	// does not depend on an unchecked column default for every insertion.
-	encoded.Cells = append(encoded.Cells, EncodedCell{Column: l.owner, Value: "gateway"})
+	encoded.Cells = append(encoded.Cells, EncodedCell{Column: l.owner, Value: groupLongOwnerMarkerValue})
 	return encoded, nil
 }
 

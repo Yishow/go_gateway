@@ -37,7 +37,7 @@ func scanConnectorRow(row *sql.Row) (*schema.DatabaseConnector, error) {
 }
 
 func scanConnectorRows(rows *sql.Rows) ([]*schema.DatabaseConnector, error) {
-	var connectors []*schema.DatabaseConnector
+	connectors := make([]*schema.DatabaseConnector, 0, 8)
 
 	for rows.Next() {
 		var connector schema.DatabaseConnector
@@ -53,6 +53,9 @@ func scanConnectorRows(rows *sql.Rows) ([]*schema.DatabaseConnector, error) {
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("遍歷資料庫連接器失敗: %w", err)
+	}
+	if len(connectors) == 0 {
+		connectors = nil
 	}
 	return connectors, nil
 }

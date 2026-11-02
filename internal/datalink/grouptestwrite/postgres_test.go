@@ -50,7 +50,7 @@ func (f pgInspector) InspectTable(ctx context.Context, _, _, table string) (*dbt
 		return nil, err
 	}
 	defer func() { _ = rows.Close() }()
-	var columns []dbtarget.ColumnInfo
+	columns := make([]dbtarget.ColumnInfo, 0, 8)
 	for rows.Next() {
 		var name, dataType, nullable string
 		if err := rows.Scan(&name, &dataType, &nullable); err != nil {

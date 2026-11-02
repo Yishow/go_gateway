@@ -17,15 +17,15 @@ func sqlServerLongColumnUsable(column ColumnInfo, role longColumnRole) bool {
 		if column.Name == longColRecordID {
 			return declared == sqlServerHashSQLType
 		}
-		return declared == "NVARCHAR(191)"
+		return declared == sqlServerManagedTextSQLType
 	case longProvenanceRole, longSlotText:
 		return declared == sqlServerNvarcharMaxSQLType
 	case longSlotInt:
 		return declared == sqlServerBigintSQLType
 	case longSlotDecimal, longSlotDelta:
-		return declared == "DECIMAL(38,18)"
+		return declared == sqlServerManagedDecimalSQLType
 	case longSlotFloat:
-		return declared == "FLOAT(53)"
+		return declared == sqlServerManagedFloatSQLType
 	case longSlotBool:
 		return declared == sqlServerBitSQLType
 	}

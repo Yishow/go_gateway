@@ -21,6 +21,8 @@ type mixedIntent struct {
 	counter  *aggregation.CounterBinding
 }
 
+const mixedProfileKind = "mixed"
+
 func (m GroupRowMember) mixedIntent() mixedIntent {
 	return mixedIntent{m.MemberKey, m.Calculation, m.Interval, m.SourceValueType, m.Type, m.Required, m.Counter}
 }
@@ -92,7 +94,7 @@ func mixedWideIssues(s GroupRowSpec) []LayoutIssue {
 func mixedLongIssues(s LongRowSpec) []LayoutIssue {
 	bad := func() []LayoutIssue { return []LayoutIssue{{Code: issueMixedContract}} }
 	if s.ResultShape == "" {
-		if s.ProfileKind == "mixed" {
+		if s.ProfileKind == mixedProfileKind {
 			return bad()
 		}
 		for _, m := range s.Members {
@@ -102,7 +104,7 @@ func mixedLongIssues(s LongRowSpec) []LayoutIssue {
 		}
 		return nil
 	}
-	if s.ResultShape != MixedResultShapeV1 || s.ProfileKind != "mixed" || s.ProfileInterval != 0 || s.ProfileUnit != "" || len(s.Members) == 0 {
+	if s.ResultShape != MixedResultShapeV1 || s.ProfileKind != mixedProfileKind || s.ProfileInterval != 0 || s.ProfileUnit != "" || len(s.Members) == 0 {
 		return bad()
 	}
 	if s.Dialect != SQLDialectSQLite && s.Dialect != SQLDialectPostgres {
@@ -236,7 +238,7 @@ func (l *LongRowLayout) validateMixedOutcome(o snapshot.Outcome, m LongRowMember
 	if o.EntityKey != m.MemberKey {
 		return mixedRowError()
 	}
-	expected, err := snapshot.ProfileRecordID(l.spec.WorkspaceID, l.spec.GroupID, l.spec.GroupRevision, m.MemberKey, "mixed", o.BucketStart)
+	expected, err := snapshot.ProfileRecordID(l.spec.WorkspaceID, l.spec.GroupID, l.spec.GroupRevision, m.MemberKey, mixedProfileKind, o.BucketStart)
 	if err != nil || o.RecordID != expected {
 		return mixedRowError()
 	}

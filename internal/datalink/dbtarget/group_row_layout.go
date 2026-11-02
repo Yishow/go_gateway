@@ -443,7 +443,7 @@ func bucketColumnKind(dialect SQLDialect, column ColumnInfo) bucketKind {
 	if err != nil {
 		return bucketUnsupported
 	}
-	if strings.HasPrefix(parsed.base, "TIMESTAMP") || (dialect == SQLDialectSQLite && parsed.base == "DATETIME") {
+	if strings.HasPrefix(parsed.base, "TIMESTAMP") || (dialect == SQLDialectSQLite && parsed.base == sqliteTypeDatetime) {
 		return bucketTimestamp
 	}
 	return bucketUnsupported

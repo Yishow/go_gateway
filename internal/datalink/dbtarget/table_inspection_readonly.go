@@ -52,7 +52,7 @@ func inspectReadOnlySavedConnectorTable(ctx context.Context, connector *schema.D
 			Reason: inspectionReasonInvalidConfiguration,
 		}, nil
 	}
-	db, err := sql.Open("sqlite", dsn)
+	db, err := sql.Open(string(SQLDialectSQLite), dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open read-only sqlite destination: %w", err)
 	}
@@ -106,7 +106,7 @@ func inspectSavedConnectorTable(
 	defer manager.Close()
 	switch connector.Kind {
 	case schema.DatabaseConnectorKindPostgres:
-		result.Schema = defaultString(result.Schema, "public")
+		result.Schema = defaultString(result.Schema, postgresDefaultSchemaName)
 		exists, err := postgresCatalogHasTable(ctx, manager.DB(), result.Schema, result.Table)
 		if err != nil {
 			return result.classified(err), nil
@@ -132,7 +132,7 @@ func sqliteReadOnlyDSN(config ConnectionConfig) (string, error) {
 	if dsn == "" || strings.EqualFold(dsn, ":memory:") {
 		return "", fmt.Errorf("sqlite read-only inspection requires a file dsn")
 	}
-	if strings.HasPrefix(strings.ToLower(dsn), "file:") {
+	if strings.HasPrefix(strings.ToLower(dsn), sqliteURIPrefix) {
 		parsed, err := url.Parse(dsn)
 		if err != nil || (parsed.Host != "" && !strings.EqualFold(parsed.Host, "localhost")) {
 			return "", fmt.Errorf("sqlite read-only inspection requires a local file dsn")
@@ -141,10 +141,10 @@ func sqliteReadOnlyDSN(config ConnectionConfig) (string, error) {
 			return "", fmt.Errorf("sqlite read-only inspection does not support memory databases")
 		}
 		query := parsed.Query()
-		if strings.EqualFold(query.Get("mode"), "memory") {
+		if strings.EqualFold(query.Get(sqliteURIQueryMode), "memory") {
 			return "", fmt.Errorf("sqlite read-only inspection does not support memory databases")
 		}
-		query.Set("mode", "ro")
+		query.Set(sqliteURIQueryMode, "ro")
 		query.Del("_pragma")
 		parsed.RawQuery = query.Encode()
 		return parsed.String(), nil
@@ -158,12 +158,12 @@ func sqliteReadOnlyDSN(config ConnectionConfig) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("parse sqlite dsn query: %w", err)
 		}
-		if strings.EqualFold(query.Get("mode"), "memory") {
+		if strings.EqualFold(query.Get(sqliteURIQueryMode), "memory") {
 			return "", fmt.Errorf("sqlite read-only inspection does not support memory databases")
 		}
-		query.Set("mode", "ro")
+		query.Set(sqliteURIQueryMode, "ro")
 		query.Del("_pragma")
-		return "file:" + base + "?" + query.Encode(), nil
+		return sqliteURIPrefix + base + "?" + query.Encode(), nil
 	}
-	return "file:" + dsn + "?mode=ro", nil
+	return sqliteURIPrefix + dsn + "?mode=ro", nil
 }

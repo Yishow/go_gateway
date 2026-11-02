@@ -21,6 +21,13 @@ const (
 // SQL column's lossless range.
 var ErrExactValueUnrepresentable = errors.New("exact_value_unrepresentable")
 
+const mysqlTypeNumeric = "NUMERIC"
+
+const (
+	mysqlTypeChar    = "CHAR"
+	mysqlTypeDecimal = "DECIMAL"
+)
+
 func exactRangeBlocked(strategy exactStrategy, reason string) error {
 	if strategy.mysql || strategy.rangeErrorUnrepresentable {
 		return fmt.Errorf("%w: %s", errors.Join(ErrExactSQLBlocked, ErrExactValueUnrepresentable), reason)
@@ -40,7 +47,7 @@ func mysqlStrategy(d declaredType, typ measurement.ExactType) (exactStrategy, er
 			if d.hasP {
 				return exactStrategy{kind: storageText, precision: d.p, bounded: true, mysql: true}, nil
 			}
-		case "CHAR":
+		case mysqlTypeChar:
 			if d.hasP && d.p == 64 {
 				return exactStrategy{kind: storageText, precision: 64, bounded: true, mysql: true}, nil
 			}
@@ -52,7 +59,7 @@ func mysqlStrategy(d declaredType, typ measurement.ExactType) (exactStrategy, er
 			return exactStrategy{kind: storageInteger, mysql: true}, nil
 		}
 	case measurement.ExactUint64, measurement.ExactDecimal:
-		if d.base == "DECIMAL" || d.base == "NUMERIC" {
+		if d.base == mysqlTypeDecimal || d.base == mysqlTypeNumeric {
 			return mysqlNumericStrategy(d)
 		}
 	case measurement.ExactFloat64:

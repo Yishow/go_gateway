@@ -22,6 +22,12 @@ const (
 	sqlServerManagedCollation              = "Latin1_General_100_BIN2"
 )
 
+const (
+	sqlServerManagedTextSQLType    = "NVARCHAR(191)"
+	sqlServerManagedDecimalSQLType = "DECIMAL(38,18)"
+	sqlServerManagedFloatSQLType   = "FLOAT(53)"
+)
+
 func validateSQLServerManagedRowProof(req GroupInsertRequest) error {
 	unsupported := func(reason string) error {
 		return fmt.Errorf("%w: %s", ErrGroupInsertUnsupported, reason)
@@ -209,15 +215,15 @@ func sqlServerManagedLongType(name string, role longColumnRole) string {
 		if name == longColRecordID {
 			return sqlServerHashSQLType
 		}
-		return "NVARCHAR(191)"
+		return sqlServerManagedTextSQLType
 	case longProvenanceRole, longSlotText:
 		return sqlServerNvarcharMaxSQLType
 	case longSlotInt:
 		return sqlServerBigintSQLType
 	case longSlotDecimal, longSlotDelta:
-		return "DECIMAL(38,18)"
+		return sqlServerManagedDecimalSQLType
 	case longSlotFloat:
-		return "FLOAT(53)"
+		return sqlServerManagedFloatSQLType
 	case longSlotBool:
 		return sqlServerBitSQLType
 	default:

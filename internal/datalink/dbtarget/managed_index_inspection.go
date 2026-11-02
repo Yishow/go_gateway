@@ -54,7 +54,7 @@ func (i *ManagedTableInspector) InspectTableIndexesAtRevision(ctx context.Contex
 		return nil, fmt.Errorf("open PostgreSQL destination for index inspection: %w", err)
 	}
 	defer manager.Close()
-	return inspectPostgresIndexes(ctx, manager.DB(), defaultString(strings.TrimSpace(schemaName), "public"), strings.TrimSpace(tableName))
+	return inspectPostgresIndexes(ctx, manager.DB(), defaultString(strings.TrimSpace(schemaName), postgresDefaultSchemaName), strings.TrimSpace(tableName))
 }
 
 func inspectReadOnlySQLiteIndexes(ctx context.Context, config ConnectionConfig, tableName string) ([]IndexInfo, error) {
@@ -62,7 +62,7 @@ func inspectReadOnlySQLiteIndexes(ctx context.Context, config ConnectionConfig, 
 	if err != nil {
 		return nil, managedDestinationInvalid("saved SQLite connector must use a local file destination")
 	}
-	db, err := sql.Open("sqlite", dsn)
+	db, err := sql.Open(string(SQLDialectSQLite), dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open read-only sqlite destination: %w", err)
 	}

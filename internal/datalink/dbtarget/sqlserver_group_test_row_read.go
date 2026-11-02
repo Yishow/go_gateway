@@ -49,7 +49,7 @@ func readSQLServerGroupLongTestRows(ctx context.Context, q groupLongQueryer, ref
 	for i, id := range ref.RecordIDs {
 		expected[id] = ref.SampleIDs[i]
 	}
-	var out [][]any
+	out := make([][]any, 0, 8)
 	seenRecords := make(map[string]struct{}, MaxGroupLongTestRows)
 	for rows.Next() {
 		values := make([]any, len(selected))
@@ -82,6 +82,9 @@ func readSQLServerGroupLongTestRows(ctx context.Context, q groupLongQueryer, ref
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("read SQL Server long test rows: %w", err)
+	}
+	if len(out) == 0 {
+		out = nil
 	}
 	return out, nil
 }

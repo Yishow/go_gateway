@@ -224,7 +224,7 @@ func inspectSQLServerRecordingMetadataWithQuerier(
 	case errors.Is(err, sql.ErrNoRows):
 		if databaseViewDefinition.Valid && databaseViewDefinition.Bool {
 			metadata.metadataStatus = sqlServerRecordingMetadataMissing
-			metadata.reasons = appendSQLServerRecordingReason(metadata.reasons, "schema_missing")
+			metadata.reasons = appendSQLServerRecordingReason(metadata.reasons, sqlServerManagedSchemaMissingReason)
 		} else {
 			metadata.reasons = appendSQLServerRecordingReason(metadata.reasons, "schema_visibility_unconfirmed")
 		}

@@ -27,9 +27,9 @@ func readSQLServerManagedPartitions(ctx context.Context, q sqlServerManagedCatal
 	if schemaName == "" || tableName == "" || strings.TrimSpace(tableName) != tableName {
 		return nil, false, ErrSQLServerManagedTableUnconfirmed
 	}
-	function, scheme := "pf_"+tableName, "ps_"+tableName
+	function, scheme := sqlServerPartitionFunctionPrefix+tableName, sqlServerPartitionSchemePrefix+tableName
 	var objects sqlServerNativeObjectFacts
-	err := q.QueryRowContext(ctx, sqlServerNativeObjectsQuery, function, scheme, "gateway.recording.partition_owner").Scan(
+	err := q.QueryRowContext(ctx, sqlServerNativeObjectsQuery, function, scheme, sqlServerPartitionOwnerProperty).Scan(
 		&objects.functionID, &objects.right, &objects.functionType, &objects.parameterType, &objects.scale,
 		&objects.parameterCount, &objects.schemeID, &objects.schemeFunctionID,
 		&objects.functionOwner, &objects.schemeOwner, &objects.schemeCount, &objects.visible,
@@ -94,7 +94,7 @@ func readSQLServerNativeBoundaries(ctx context.Context, q sqlServerManagedCatalo
 		return nil, err
 	}
 	defer rows.Close()
-	var result []SQLServerPartitionBoundary
+	result := make([]SQLServerPartitionBoundary, 0, 8)
 	var previous time.Time
 	for rows.Next() {
 		var ordinal, parameter int
@@ -112,7 +112,7 @@ func readSQLServerNativeBoundaries(ctx context.Context, q sqlServerManagedCatalo
 		if !previous.IsZero() {
 			name = "p_" + previous.Format("200601")
 			if !at.Equal(previous.AddDate(0, 1, 0)) {
-				name = "p_gap_" + at.Format("200601")
+				name = sqlServerPartitionGapPrefix + at.Format("200601")
 			}
 		}
 		result = append(result, SQLServerPartitionBoundary{Name: name, LessThan: at.Format(sqlServerNativeBoundaryTimeLayout), Ordinal: ordinal})

@@ -193,7 +193,7 @@ func readColumns(ctx context.Context, q mysqlManagedQuerier, family, database, t
 	}
 	defer rows.Close()
 
-	var columns []mysqlManagedColumnFacts
+	columns := make([]mysqlManagedColumnFacts, 0, 8)
 	for rows.Next() {
 		var name, dataType, columnType, nullable, extra, collation sql.NullString
 		var rawDefault sql.NullString
@@ -211,7 +211,7 @@ func readColumns(ctx context.Context, q mysqlManagedQuerier, family, database, t
 		}
 		column := mysqlManagedColumnFacts{
 			name: name.String, dataType: dataType.String, columnType: columnType.String,
-			collation: collation.String, nullable: strings.EqualFold(nullable.String, "YES"),
+			collation: collation.String, nullable: strings.EqualFold(nullable.String, mysqlCatalogYes),
 			hasDefault:   decodedDefault != nil || hasGeneratedDefault(extra.String),
 			defaultValue: decodedDefault,
 		}
@@ -219,6 +219,9 @@ func readColumns(ctx context.Context, q mysqlManagedQuerier, family, database, t
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	if len(columns) == 0 {
+		columns = nil
 	}
 	return columns, nil
 }
@@ -241,7 +244,7 @@ func readPrimaryKey(ctx context.Context, q mysqlManagedQuerier, database, table 
 	}
 	defer rows.Close()
 
-	var primaryKey []mysqlManagedPrimaryKeyRow
+	primaryKey := make([]mysqlManagedPrimaryKeyRow, 0, 8)
 	for rows.Next() {
 		var row mysqlManagedPrimaryKeyRow
 		if err := rows.Scan(&row.column, &row.subPart, &row.indexType, &row.nonUnique); err != nil {
@@ -335,7 +338,7 @@ func applyIndexVisibility(ctx context.Context, q mysqlManagedQuerier, family, da
 	for i := range values {
 		destinations[i] = &values[i]
 	}
-	var visibility []mysqlManagedVisibilityRow
+	visibility := make([]mysqlManagedVisibilityRow, 0, 8)
 	for rows.Next() {
 		if err := rows.Scan(destinations...); err != nil {
 			return err
@@ -379,7 +382,7 @@ func markJSONColumns(ctx context.Context, q mysqlManagedQuerier, family, databas
 		return err
 	}
 	defer rows.Close()
-	var clauses []string
+	clauses := make([]string, 0, 8)
 	for rows.Next() {
 		var clause string
 		if err := rows.Scan(&clause); err != nil {

@@ -31,13 +31,13 @@ func (s *ConnectorService) GenerateSchema(
 	if err != nil {
 		return nil, fmt.Errorf("取得資料庫連接器失敗: %w", err)
 	}
-	recordFailure := func(cause error) (*SchemaGenerateResult, error) {
+	recordFailure := func(cause error) error {
 		if !req.DryRun {
 			if outcomeErr := s.recordSchemaEnsureOutcome(ctx, connector, time.Now(), deliveryOutcomeFailed, cause.Error()); outcomeErr != nil {
-				return nil, fmt.Errorf("%w; %w", cause, outcomeErr)
+				return fmt.Errorf("%w; %w", cause, outcomeErr)
 			}
 		}
-		return nil, cause
+		return cause
 	}
 	recordSuccess := func(result *SchemaGenerateResult) (*SchemaGenerateResult, error) {
 		if !req.DryRun {
@@ -48,7 +48,7 @@ func (s *ConnectorService) GenerateSchema(
 		return result, nil
 	}
 	if s.mappingRepo == nil {
-		return recordFailure(fmt.Errorf("資料庫目標映射儲存庫未配置"))
+		return nil, recordFailure(fmt.Errorf("資料庫目標映射儲存庫未配置"))
 	}
 
 	projection, err := listLiveTargetProjection(
@@ -58,7 +58,7 @@ func (s *ConnectorService) GenerateSchema(
 		s.connectorTagReader(),
 	)
 	if err != nil {
-		return recordFailure(err)
+		return nil, recordFailure(err)
 	}
 
 	result := &SchemaGenerateResult{
@@ -73,20 +73,20 @@ func (s *ConnectorService) GenerateSchema(
 
 	connectorConnectionConfig, err := parseConnectionConfig(connector.ConnectionConfig)
 	if err != nil {
-		return recordFailure(err)
+		return nil, recordFailure(err)
 	}
 
 	if !req.DryRun {
 		// 只有明確的（非 dry-run）schema 產生才允許建立缺漏的目標資料庫；
 		// dry-run 僅回報將發生什麼，不得改變伺服器狀態。
 		if ensureErr := ensureExternalDatabaseExists(ctx, connector.Kind, connectorConnectionConfig); ensureErr != nil {
-			return recordFailure(ensureErr)
+			return nil, recordFailure(ensureErr)
 		}
 	}
 
 	tables, err := inspectTablesForSchemas(ctx, connector, mappingSchemaNames(projection.Mappings))
 	if err != nil {
-		return recordFailure(fmt.Errorf("檢查資料庫目標表結構失敗: %w", err))
+		return nil, recordFailure(fmt.Errorf("檢查資料庫目標表結構失敗: %w", err))
 	}
 
 	statements, err := buildSchemaGenerateStatements(
@@ -97,7 +97,7 @@ func (s *ConnectorService) GenerateSchema(
 		s.connectorTagReader(),
 	)
 	if err != nil {
-		return recordFailure(err)
+		return nil, recordFailure(err)
 	}
 
 	result.Statements = statements
@@ -107,13 +107,13 @@ func (s *ConnectorService) GenerateSchema(
 
 	manager, err := openExternalDBManagerFunc(connector.Kind, connectorConnectionConfig)
 	if err != nil {
-		return recordFailure(err)
+		return nil, recordFailure(err)
 	}
 	defer manager.Close()
 
 	for _, statement := range statements {
 		if _, execErr := manager.DB().ExecContext(ctx, statement); execErr != nil {
-			return recordFailure(fmt.Errorf("執行 schema statement 失敗: %w", execErr))
+			return nil, recordFailure(fmt.Errorf("執行 schema statement 失敗: %w", execErr))
 		}
 	}
 
@@ -188,7 +188,7 @@ func (s *MappingService) DryRun(
 					MappingID:   mappingRecord.ID,
 					TagID:       mappingRecord.TagID,
 					Status:      dryRunStatusBlocked,
-					Code:        "schema_missing",
+					Code:        mappingSchemaMissingCode,
 					Reason:      getTagErr.Error(),
 				})
 				continue

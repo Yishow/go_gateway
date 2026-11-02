@@ -15,6 +15,12 @@ const (
 	sqlServerNativeFuturePartitionName      = "p_future"
 )
 
+const (
+	sqlServerPartitionGapPrefix      = "p_gap_"
+	sqlServerPartitionFunctionPrefix = "pf_"
+	sqlServerPartitionSchemePrefix   = "ps_"
+)
+
 func sqlServerManagedNativeMonthlyEvidenceMatchesForTable(
 	tableName string,
 	evidence *SQLServerManagedPartitionEvidence,
@@ -28,8 +34,8 @@ func sqlServerManagedNativeMonthlyDefinitionMatchesForTable(
 	evidence *SQLServerManagedPartitionEvidence,
 ) bool {
 	if strings.TrimSpace(tableName) == "" || evidence == nil || evidence.Method != sqlServerNativeRangeRight || evidence.Column != longColBucketStart ||
-		evidence.FunctionName != "pf_"+tableName ||
-		evidence.SchemeName != "ps_"+tableName || evidence.Filegroup != sqlServerNativePrimaryFilegroup ||
+		evidence.FunctionName != sqlServerPartitionFunctionPrefix+tableName ||
+		evidence.SchemeName != sqlServerPartitionSchemePrefix+tableName || evidence.Filegroup != sqlServerNativePrimaryFilegroup ||
 		len(evidence.Partitions) < sqlServerManagedPartitionMinimumRanges {
 		return false
 	}
@@ -53,7 +59,7 @@ func sqlServerManagedNativeMonthlyDefinitionMatchesForTable(
 			if !at.After(previous.AddDate(0, 1, 0)) {
 				return false
 			}
-			name = "p_gap_" + at.Format("200601")
+			name = sqlServerPartitionGapPrefix + at.Format("200601")
 		}
 		if boundary.Name != name || boundary.Ordinal != index+1 {
 			return false
