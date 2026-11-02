@@ -241,10 +241,29 @@ it.each([
     recording_profile: { kind: 'mixed', result_shape: 'member-calculation-v1' }, destination: { ...base.destination, storage_strategy: storage },
     members: base.members.map((member, index) => ({ ...member, target_column: `v_saved_${index}`, calculation: 'mean',
       cadence: { interval: 5, unit: 'second', alignment: 'utc_epoch' }, source_value_type: 'float64', result_value_type: 'float64' })) });
-  const before = structuredClone(group); mount({ presentation, group });
+  const deviceSource: NonNullable<GroupEditorProps['deviceSource']> = { observations: () => [], inspect: vi.fn().mockResolvedValue(undefined),
+    submit: vi.fn(async request => ({ request, status: 'blocked' as const })) };
+  const before = structuredClone(group); const view = mount({ presentation, group, deviceSource: presentation === 'simple' ? deviceSource : undefined });
   expect(screen.getByTestId('group-editor')).toBeInTheDocument();
   if (proposal) expect(screen.getByTestId('group-column-proposal')).toBeVisible();
   else expect(screen.queryByTestId('group-column-proposal')).not.toBeInTheDocument();
+  for (const member of group.members) {
+    const row = screen.getByTestId(`group-member-row-${member.point_id}`);
+    expect(row).toHaveAttribute('data-problem', proposal ? 'column-missing' : '');
+    expect(screen.getByTestId(`group-member-column-${member.point_id}`)).toHaveAttribute('aria-invalid', String(proposal));
+    if (proposal) expect(within(row).getByRole('alert')).toHaveTextContent('problem_column_missing');
+    else expect(within(row).queryByRole('alert')).not.toBeInTheDocument();
+  }
+  observedColumns.value = [...observedColumns.value, { name: 'v_saved_0', type: 'text', nullable: true, primary_key: false }];
+  view.update({});
+  const firstRow = screen.getByTestId('group-member-row-pt-0');
+  expect(firstRow).toHaveAttribute('data-problem', proposal ? 'column-incompatible' : '');
+  expect(screen.getByTestId('group-member-column-pt-0')).toHaveAttribute('aria-invalid', String(proposal));
+  if (proposal) expect(within(firstRow).getByRole('alert')).toHaveTextContent('problem_column_incompatible');
+  else expect(within(firstRow).queryByRole('alert')).not.toBeInTheDocument();
+  if (presentation === 'simple') expect(screen.getByTestId('recording-editor-summary')).not.toHaveTextContent('problem_column');
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: '' } });
+  expect(screen.getByTestId('group-save')).toBeDisabled();
   expect(screen.queryByText('simple.columnsAssignedOnSave')).not.toBeInTheDocument();
   expect(group).toEqual(before); expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
   expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled(); expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();

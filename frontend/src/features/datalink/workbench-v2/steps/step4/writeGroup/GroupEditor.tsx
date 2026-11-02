@@ -400,12 +400,12 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
             if (read.state !== 'available') throw new Error('Source observation unavailable');
             return { candidates: read.value.candidates, devices: read.value.devices };
           } : undefined}
-          renderMembers={actions => <RecordingSelectedMembers presentation={presentation} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} {...actions} managed={draft.storage_strategy === 'managed'} dialect={dialect}
+          renderMembers={actions => <RecordingSelectedMembers presentation={presentation} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} {...actions} managed={draft.storage_strategy === 'managed'} layoutVersion={draft.layout_version} dialect={dialect}
             candidates={candidates} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
             suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly || saveBusy}
             onChange={setMembers} labels={{ remove: member => editorText('picker.removeMember', { point: member.point_id }),
               unavailable: editorText('picker.unavailable'), undo: editorText('picker.undo') }} />} /> :
-        <GroupMemberTable presentation={presentation} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} managed={draft.storage_strategy === 'managed'} dialect={dialect}
+        <GroupMemberTable presentation={presentation} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} managed={draft.storage_strategy === 'managed'} layoutVersion={draft.layout_version} dialect={dialect}
           candidates={candidates} excluded={excluded} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
           suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly || saveBusy}
           onChange={setMembers} />}

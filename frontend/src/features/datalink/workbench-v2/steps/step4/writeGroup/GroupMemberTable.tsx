@@ -6,7 +6,7 @@ import type { DbColumn } from '../../../state/dbSchemas';
 import type { Step4TargetMetadataStatus } from '../useStep4TargetColumns';
 import type { ExcludedCandidate, GroupCandidate } from '../../../state/writeGroup/candidates';
 import { columnCompatibility, type ColumnSuggestions, type WriteGroupSqlDialect } from '../../../state/writeGroup/columns';
-import { memberKey, type DraftIssue, type EditorMember } from '../../../state/writeGroup/draft';
+import { memberKey, type DraftIssue, type EditorDraft, type EditorMember } from '../../../state/writeGroup/draft';
 
 export interface GroupMemberTableProps {
   presentation?: 'guided' | 'simple';
@@ -22,6 +22,8 @@ export interface GroupMemberTableProps {
   /** Exact-value SQL dialect used when checking persisted metadata. */
   dialect?: WriteGroupSqlDialect;
   managed?: boolean;
+  /** Shared long storage has typed value slots, not a physical column per member. Presentation only. */
+  layoutVersion?: EditorDraft['layout_version'];
   /** Fresh managed intent has no server-owned column assignment until save. Presentation only. */
   columnsAssignedOnSave?: boolean;
   /** Picker owns membership when supplied; this table edits only already selected rows. */
@@ -53,7 +55,7 @@ function emptyMember(candidate: GroupCandidate, column: string): EditorMember {
  */
 export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
   presentation = 'guided', renderSource, renderCalculation, candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
-  dialect = 'portable', managed = false, columnsAssignedOnSave = false, onChange, selectionControls,
+  dialect = 'portable', managed = false, layoutVersion, columnsAssignedOnSave = false, onChange, selectionControls,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: editorText } = useTranslation('recording-editor');
@@ -61,6 +63,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
   const [problemsOnly, setProblemsOnly] = useState(false);
   const byKey = useMemo(() => new Map(members.map((member) => [member.key, member])), [members]);
   const metadataKnown = metadataStatus === 'exists';
+  const memberColumnsKnown = metadataKnown && !(managed && layoutVersion === 'managed_long_v1');
   const columnByName = useMemo(() => new Map(columns.map((column) => [column.name, column])), [columns]);
   const issuesByMember = useMemo(() => {
     const map = new Map<string, DraftIssue[]>();
@@ -83,8 +86,8 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
       const column = columnByName.get(member.target_column);
       if (issuesByMember.has(candidate.key)) problem = 'column-required';
       else if (conflictColumns.has(member.target_column)) problem = 'column-conflict';
-      else if (metadataKnown && column && columnCompatibility(candidate.target_type, column, dialect, managed) === 'incompatible') problem = 'column-incompatible';
-      else if (metadataKnown && member.target_column && !column) problem = 'column-missing';
+      else if (memberColumnsKnown && column && columnCompatibility(candidate.target_type, column, dialect, managed) === 'incompatible') problem = 'column-incompatible';
+      else if (memberColumnsKnown && member.target_column && !column) problem = 'column-missing';
     }
     return { candidate, member, suggestion, problem };
   });

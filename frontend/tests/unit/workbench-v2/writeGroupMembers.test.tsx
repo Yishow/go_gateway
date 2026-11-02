@@ -64,6 +64,24 @@ describe('RealMetadataAndReviewableAssignment (editor)', () => {
     expect(screen.getByTestId('group-member-row-counter')).toHaveAttribute('data-problem', '');
   });
 
+  it('preserves explicit member issues and conflicts in managed long row status', () => {
+    const candidates: GroupCandidate[] = ['one', 'two'].map(key => ({ key, device_id: 'dev-1', point_id: key,
+      tag_id: `tag-${key}`, tag_key: key, label: key, device_name: 'PLC A', address: key, target_type: 'float64' }));
+    const changed = vi.fn();
+    render(<GroupMemberTable managed layoutVersion="managed_long_v1" candidates={candidates} excluded={[]}
+      members={candidates.map(candidate => ({ ...candidate, entity_key: '', target_column: 'shared', required: true }))}
+      columns={[{ name: 'value_float', type: 'double precision', nullable: true, primary_key: false }]}
+      metadataStatus="exists" suggestions={{ assignments: {}, unmatched: [] }}
+      issues={[{ code: 'column-required', member_key: 'one' }, { code: 'column-conflict', column: 'shared' }]}
+      showEntityKey={false} disabled={false} onChange={changed} />);
+    expect(screen.getByTestId('group-member-problem-one')).toHaveTextContent('problem_column_required');
+    expect(screen.getByTestId('group-member-problem-two')).toHaveTextContent('problem_column_conflict');
+    for (const point of ['one', 'two']) expect(screen.getByTestId(`group-member-column-${point}`)).toHaveAttribute('aria-invalid', 'true');
+    fireEvent.click(screen.getByTestId('group-member-problems-only'));
+    expect(screen.getByTestId('group-member-row-one')).toBeVisible(); expect(screen.getByTestId('group-member-row-two')).toBeVisible();
+    expect(changed).not.toHaveBeenCalled();
+  });
+
   it('accepts SQLite TEXT for uint64 without reporting a type problem', () => {
     const candidate: GroupCandidate = {
       key: 'counter', device_id: 'dev-1', point_id: 'counter', tag_id: 'tag-counter', tag_key: 'line.counter',
