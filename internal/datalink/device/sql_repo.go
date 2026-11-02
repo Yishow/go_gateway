@@ -171,7 +171,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 	}
 	defer rows.Close()
 
-	var devices []*schema.Device
+	devices := make([]*schema.Device, 0, 16)
 	for rows.Next() {
 		var dev schema.Device
 		var lastTestAt sql.NullString
@@ -218,6 +218,9 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 		devices = append(devices, &dev)
 	}
 
+	if len(devices) == 0 {
+		devices = nil
+	}
 	return devices, nil
 }
 

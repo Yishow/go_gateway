@@ -44,7 +44,7 @@ func TrackStateDurations(
 		good  bool
 	}
 
-	var stateSamples []stateSample
+	stateSamples := make([]stateSample, 0, len(samples))
 	for _, s := range samples {
 		if s.ObservedAt.Before(windowStart) || !s.ObservedAt.Before(windowEnd) {
 			continue

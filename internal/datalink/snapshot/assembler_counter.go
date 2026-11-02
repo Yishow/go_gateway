@@ -41,7 +41,7 @@ func (c Config) countersInvalid() string {
 // member, before any decimation. It is the sequence a cumulative window is
 // judged on, in no particular order.
 func (s *Selector) counterReadings(member string) []aggregation.CounterReading {
-	var readings []aggregation.CounterReading
+	readings := make([]aggregation.CounterReading, 0, len(s.seen))
 	for _, sample := range s.seen {
 		if sample.MemberKey != member || sample.Quality != schema.QualityGood || sample.Value.Type() == "" {
 			continue
@@ -49,6 +49,9 @@ func (s *Selector) counterReadings(member string) []aggregation.CounterReading {
 		readings = append(readings, aggregation.CounterReading{
 			SampleID: sample.SampleID, ObservedAt: sample.ObservedAt, ReceivedAt: sample.ReceivedAt, Value: sample.Value,
 		})
+	}
+	if len(readings) == 0 {
+		readings = nil
 	}
 	return readings
 }

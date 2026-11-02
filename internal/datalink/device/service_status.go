@@ -215,7 +215,7 @@ func (s *Service) UpdateCollectionStats(ctx context.Context, id string, success 
 // Disable 停用設備
 func (s *Service) Disable(ctx context.Context, id string) error {
 	// 關閉現有連線
-	s.connMgr.Close(id)
+	s.connMgr.Close(id) //nolint:contextcheck // Single-device retirement intentionally completes independently of request cancellation; see TestDeviceMutationCleanupDoesNotInheritRequestCancellation.
 
 	if err := s.repo.UpdateStatus(ctx, id, schema.DeviceStatusDisabled); err != nil {
 		return fmt.Errorf("更新設備狀態失敗: %w", err)

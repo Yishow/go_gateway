@@ -47,7 +47,7 @@ func (m *MemoryHistoryRepository) QueryPoints(ctx context.Context, query History
 		measFilter[id] = true
 	}
 
-	var filtered []HistoryPoint
+	filtered := make([]HistoryPoint, 0, len(all))
 	for _, p := range all {
 		if len(measFilter) > 0 && !measFilter[p.MeasurementID] {
 			continue
@@ -65,6 +65,9 @@ func (m *MemoryHistoryRepository) QueryPoints(ctx context.Context, query History
 		}
 	}
 
+	if len(filtered) == 0 {
+		filtered = nil
+	}
 	return filtered, nil
 }
 

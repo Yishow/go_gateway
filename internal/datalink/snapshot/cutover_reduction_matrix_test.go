@@ -226,12 +226,13 @@ func TestCutoverReductionKeepsMissingAndBadQualityPolicies(t *testing.T) {
 						if wantKind == OutcomeSkipped {
 							require.Equal(t, ReasonIncompleteRequired, outcome.Reason)
 						}
-						if fault == "missing" {
+						switch {
+						case fault == "missing":
 							require.Nil(t, result.Sample)
 							require.Equal(t, ReasonNoSamples, result.Reason)
-						} else if wantStatus == MemberOK {
+						case wantStatus == MemberOK:
 							require.Equal(t, "earlier-good", result.Sample.SampleID)
-						} else {
+						default:
 							require.Equal(t, "unusable", result.Sample.SampleID)
 						}
 						if reduction == SampleReductionMean {

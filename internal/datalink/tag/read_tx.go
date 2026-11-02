@@ -17,7 +17,7 @@ func ReadByIDTx(ctx context.Context, tx *sql.Tx, id string) (*schema.Tag, error)
 	if err != nil {
 		return nil, err
 	}
-	if err = tx.QueryRowContext(ctx, `SELECT key_lower FROM tags WHERE id=?`, id).Scan(&value.KeyLower); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT key_lower FROM tags WHERE id=?`, id).Scan(&value.KeyLower); err != nil {
 		return nil, err
 	}
 	return value, nil

@@ -61,7 +61,7 @@ func (j *SQLJournal) ScanFrom(fromSequence int64, limit int) ([]*JournalEntry, e
 	}
 	defer rows.Close()
 
-	var entries []*JournalEntry
+	entries := make([]*JournalEntry, 0, 16)
 	for rows.Next() {
 		var (
 			seq     int64
@@ -82,6 +82,9 @@ func (j *SQLJournal) ScanFrom(fromSequence int64, limit int) ([]*JournalEntry, e
 			ObservedAt: obsTime,
 			Payload:    payload,
 		})
+	}
+	if len(entries) == 0 {
+		entries = nil
 	}
 	return entries, rows.Err()
 }

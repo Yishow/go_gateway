@@ -120,7 +120,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateDeviceRequest
 		device.LastTestSuccess = nil
 		device.LastTestError = ""
 		device.ReadinessStatus = ""
-		s.connMgr.Close(id)
+		s.connMgr.Close(id) //nolint:contextcheck // Single-device retirement intentionally completes independently of request cancellation; see TestDeviceMutationCleanupDoesNotInheritRequestCancellation.
 	}
 
 	device.UpdatedAt = time.Now()
@@ -151,7 +151,7 @@ type UpdateDeviceRequest struct {
 // Delete 刪除設備
 func (s *Service) Delete(ctx context.Context, id string) error {
 	// 關閉現有連線
-	s.connMgr.Close(id)
+	s.connMgr.Close(id) //nolint:contextcheck // Single-device retirement intentionally completes independently of request cancellation; see TestDeviceMutationCleanupDoesNotInheritRequestCancellation.
 
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("刪除設備失敗: %w", err)

@@ -107,7 +107,7 @@ func (o *SQLOutbox) FetchPending(destinationID string, limit int) ([]*OutboxItem
 	}
 	defer rows.Close()
 
-	var items []*OutboxItem
+	items := make([]*OutboxItem, 0, 16)
 	for rows.Next() {
 		var (
 			it         OutboxItem
@@ -133,6 +133,9 @@ func (o *SQLOutbox) FetchPending(destinationID string, limit int) ([]*OutboxItem
 			return nil, fmt.Errorf("parse outbox observed_at: %w", err)
 		}
 		items = append(items, &it)
+	}
+	if len(items) == 0 {
+		items = nil
 	}
 	return items, rows.Err()
 }
