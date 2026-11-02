@@ -194,14 +194,16 @@ describe('real runtime and native receiver fixture viability in jsdom', () => {
   it('follows a real runtime group link to the exact native cold card with no ordinary bootstrap or mutation', async () => {
     mount(); const group = await screen.findByRole('article', { name: 'Recording group G1' });
     const link = within(group).getByRole('link', { name: 'Open saved group settings' }); fireEvent.click(link);
-    await screen.findByTestId('workbench-v2-shell');
+    await screen.findByTestId('studio-local-editor');
+    expect(screen.queryByTestId('workbench-v2-shell')).not.toBeInTheDocument(); expect(screen.queryByTestId('step-nav-button-3')).not.toBeInTheDocument();
     await waitFor(() => expect(mock.ledger.filter(entry => entry.action === 'locator')).toHaveLength(1));
     expect(mock.ledger.filter(entry => entry.path.endsWith('/studio-v2/workspace')).every(entry => entry.params.entry === 'locator')).toBe(true);
     expect(screen.queryByTestId('group-editor')).not.toBeInTheDocument(); cleanLedger();
   });
   it.each([1, 2, 3] as const)('cold-mounts real native Step%i without automatic configuration writes', async step => {
     const target = buildStudioEntityLocatorTarget(locator(step)); if (!target) throw new Error('Expected safe target');
-    mount(target); await screen.findByTestId('workbench-v2-shell');
+    mount(target); await screen.findByTestId('studio-local-editor');
+    expect(screen.queryByTestId('workbench-v2-shell')).not.toBeInTheDocument(); expect(screen.queryByTestId('step-nav-button-3')).not.toBeInTheDocument();
     if (step === 3) await waitFor(() => expect(runtimePolls).toHaveLength(1));
     expect(runtimePolls).toEqual(step === 3 ? [{ method: 'POST', url: `http://fixture.local${pollPath}`, body: pollBody }] : []);
     expect(acquisitionReads).toHaveLength(step === 1 ? 1 : 0);

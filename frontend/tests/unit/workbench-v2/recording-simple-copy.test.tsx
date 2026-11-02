@@ -118,7 +118,9 @@ it('abandons a late copy source reply after Back without creating a draft or cha
 });
 it('leaves a guided canonical locator on the original surface without auto-opening a copy', async () => {
  mount(sourceURL.replace('&view=recording', '&view=advanced'));
- expect(await screen.findByTestId('workbench-v2-shell')).toBeInTheDocument(); expect(screen.queryByTestId('recording-copy')).not.toBeInTheDocument();
+ expect(await screen.findByTestId('studio-local-editor')).toBeInTheDocument();
+ expect(screen.queryByTestId('workbench-v2-shell')).not.toBeInTheDocument(); expect(screen.queryByTestId('step-nav-button-3')).not.toBeInTheDocument();
+ expect(screen.queryByTestId('recording-copy')).not.toBeInTheDocument();
  expect(readStudioLocatorEditorEntry).not.toHaveBeenCalled(); expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
 });
 

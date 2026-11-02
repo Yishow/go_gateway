@@ -43,12 +43,17 @@ describe('one readonly home renderer', () => {
   it.each([
     ['missing_devices', fixture()], ['missing_points', fixture(['D1'])], ['missing_recordings', fixture(['D1'], true)],
     ['draft', fixture(['D1'], true, [group('G', 'draft')])], ['recordings', fixture(['D1'], true, [group('G')])],
-  ] as const)('renders %s through the same real resolver with navigation only', (reason, input) => {
-    const navigate = vi.fn(); const retry = vi.fn();
-    render(<RecordingHome guidance={recordingHomeGuidance(input)} location={{ search: '?view=recordings&section=database', hash: '#return' }} onNavigate={navigate} onRetry={retry} />);
-    expect(screen.getByText(`reason.${reason}`)).toBeInTheDocument(); expect(navigate).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByText('openSettings')); expect(navigate).toHaveBeenCalledTimes(1);
-    expect(navigate.mock.calls[0][0]).toMatch(/^\/studio\/v2\?/); expect(retry).not.toHaveBeenCalled();
+  ] as const)('renders %s through the same real resolver with the explicit settings entry', (reason, input) => {
+    const navigate = vi.fn(); const retry = vi.fn(); const configurePoints = vi.fn();
+    render(<RecordingHome guidance={recordingHomeGuidance(input)} location={{ search: '?view=recordings&section=database', hash: '#return' }} onNavigate={navigate} onRetry={retry} onConfigurePoints={configurePoints} />);
+    expect(screen.getByText(`reason.${reason}`)).toBeInTheDocument(); expect(navigate).not.toHaveBeenCalled(); expect(configurePoints).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('openSettings'));
+    if (reason === 'missing_points') {
+      expect(configurePoints).toHaveBeenCalledExactlyOnceWith('D1'); expect(navigate).not.toHaveBeenCalled();
+    } else {
+      expect(navigate).toHaveBeenCalledTimes(1); expect(navigate.mock.calls[0][0]).toMatch(/^\/studio\/v2\?/); expect(configurePoints).not.toHaveBeenCalled();
+    }
+    expect(retry).not.toHaveBeenCalled();
   });
   it.each(['loading', 'error', 'unknown'] as const)('renders %s independently from empty, with safe recovery', state => {
     const base = fixture(); const input = { ...base, evidence: { ...base.evidence, workspace: { state, scope: base.evidence.scope } } };
