@@ -212,7 +212,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
                 <tr key={candidate.key} data-testid={`group-member-row-${candidate.point_id}`} data-problem={problem ?? ''}>
                   <td className={classes('p-2')}>
                     {selectionControls && member ? <button type="button" className={classes('inline-flex min-h-10 max-sm:min-h-11 items-center justify-center rounded-lg border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)] disabled:cursor-not-allowed disabled:opacity-50')} disabled={disabled}
-                      onClick={() => selectionControls.onRemove(member)}>{selectionControls.removeLabel(member)}</button> : <input
+                      aria-label={selectionControls.removeLabel(member)} onClick={() => selectionControls.onRemove(member)}>{presentation === 'simple' ? editorText('compact.remove') : selectionControls.removeLabel(member)}</button> : <input
                       type="checkbox" checked={Boolean(member)} disabled={disabled}
                       aria-label={t('step4.group.members.include_label', { tag: candidate.label })}
                       onChange={(event) => (event.target.checked ? include(candidate, suggestion?.status === 'confirmed' ? suggestion.column : '') : exclude(candidate.key))}

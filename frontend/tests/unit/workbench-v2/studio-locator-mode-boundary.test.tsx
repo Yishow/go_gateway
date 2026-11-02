@@ -50,6 +50,43 @@ beforeEach(async () => {
 });
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); });
 describe('precise locator versus full advanced navigation', () => {
+  it('allows leaving after the real previously-tested host clear and canonical multi-ACK recovery', async () => {
+    vi.mocked(studioV2DatalinkApi.get).mockImplementation(async (url, config) => {
+      expect(url).toBe('/studio-v2/workspace');
+      expect(config?.params).toEqual({ entry: 'locator', workspace_id: 'W', step: '1', device_id: 'D' });
+      const read = locatorRead();
+      read.entry.devices![0] = { ...nativeDevice(), name: 'Run16 Mixed PLC',
+        connection_config: JSON.stringify({ host: '127.0.0.1', port: 1502, slave_id: 1, timeout: 5 }),
+        last_test_at: '0001-01-01T00:00:00Z', last_test_success: true, availability_status: 'available', running: false };
+      return { data: { success: true, data: { ...read.workspace, locator_entry: read.entry } } };
+    });
+    vi.mocked(studioV2DatalinkApi.put).mockImplementation(async (url, value) => {
+      expect(url).toBe('/studio-v2/workspace/devices/D');
+      const request = value as { name: string; connection_config: Record<string, unknown> };
+      return { data: { success: true, data: { ...nativeDevice(), ...request,
+        connection_config: JSON.stringify(request.connection_config), last_test_at: null, last_test_success: null,
+        availability_status: 'available', running: false, runtime_apply_status: 'not_running' } } };
+    });
+    mount();
+    const host = await screen.findByTestId('input-host');
+    expect(host).toHaveValue('127.0.0.1');
+    fireEvent.change(host, { target: { value: '' } }); fireEvent.blur(host);
+    await waitFor(() => expect(screen.getByTestId('device-save-banner')).toHaveAttribute('data-save-state', 'draft-invalid'));
+    fireEvent.click(screen.getByRole('button', { name: 'Open full advanced setup' }));
+    expect(studioV2WorkspaceAPI.get).not.toHaveBeenCalled();
+    const submittedHosts = ['1', '127', '127.0.', '127.0.0.', '127.0.0.1'];
+    for (const [index, value] of submittedHosts.entries()) {
+      fireEvent.change(host, { target: { value } }); fireEvent.blur(host);
+      await waitFor(() => expect(studioV2DatalinkApi.put).toHaveBeenCalledTimes(index + 1));
+      await waitFor(() => expect(screen.getByTestId('device-save-banner')).toHaveAttribute('data-save-state', 'saved'));
+    }
+    expect(vi.mocked(studioV2DatalinkApi.put).mock.calls.map(([, value]) => (value as { connection_config: { host: string } }).connection_config.host)).toEqual(submittedHosts);
+    expect(host).toHaveValue('127.0.0.1');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Open full advanced setup' })).toBeEnabled());
+    expect(screen.getByRole('button', { name: 'Back to recordings' })).toBeEnabled();
+    expect(studioV2DatalinkApi.post).not.toHaveBeenCalled(); expect(studioV2DatalinkApi.delete).not.toHaveBeenCalled();
+    expect(studioV2WorkspaceAPI.get).not.toHaveBeenCalled();
+  });
   it('keeps a loaded rule editable without advertising unloaded steps or Continue to mapping', async () => {
     mount(2); expect(await screen.findByTestId('rule-start-input')).toBeVisible();
     expect(screen.queryByTestId('step-nav-button-3')).not.toBeInTheDocument();

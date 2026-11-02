@@ -6,8 +6,9 @@ import { toBackendConnectionConfig } from '@/features/datalink/workbench-v2/stat
 import type { Device, WorkbenchV2State } from '@/features/datalink/workbench-v2/state/types';
 import { locatorRead, nativeDevice } from './studio-locator-fixtures';
 
-function harness(fatek = false) {
+function harness(fatek = false, previouslyTested = false) {
   const entry = locatorRead();
+  if (previouslyTested) { entry.entry.devices![0].last_test_success = true; entry.entry.devices![0].last_test_at = '0001-01-01T00:00:00Z'; }
   entry.entry.devices![0].connection_config = JSON.stringify({ host: 'device.example', port: 502, slave_id: 1, timeout: 5 });
   if (fatek) { entry.entry.devices![0].protocol = 'fatek_fbs'; entry.entry.devices![0].connection_config = JSON.stringify({ host: 'device.example', port: 2000, station: 0, mode: 'tcp', timeout: 5 }); }
   const ref = { current: structuredClone(INITIAL_STATE) as WorkbenchV2State };
@@ -32,6 +33,20 @@ describe('locator own-device ACK baseline boundary', () => {
     act(() => accept!(h.ack(submitted)));
     h.rerender({ selected: locatorRead(1, 'B') });
     expect(h.result.current.ready).toBe(true); expect(h.ref.current.devices[0].id).toBe('B');
+  });
+  it.each(['new-test', 'other-dirty'] as const)('does not clear %s when acknowledging an invalidated old connection test', reason => {
+    const h = harness(false, true);
+    const submitted: Device = { ...h.submit(), config: { ...h.ref.current.devices[0].config, host: 'new.example' }, status: 'draft', test: null };
+    const accept = h.result.current.captureDeviceSave(submitted, 'W');
+    expect(accept).toBeTypeOf('function'); h.latest(submitted);
+    const newerTest = { status: 'success' as const, stages: { connect: { status: 'success' as const } }, tested_at: '2026-11-02T08:40:00Z' };
+    if (reason === 'new-test') h.ref.current.devices[0].test = newerTest;
+    else h.ref.current.settings.modbus_share.enabled = true;
+    act(() => accept!(h.ack(submitted)));
+    h.rerender({ selected: locatorRead(1, 'B') });
+    expect(h.result.current.blocked).toBe(true); expect(h.ref.current.devices[0].id).toBe('D');
+    if (reason === 'new-test') expect(h.ref.current.devices[0].test).toEqual(newerTest);
+    else { expect(h.ref.current.devices[0].test).toBeNull(); expect(h.ref.current.settings.modbus_share.enabled).toBe(true); }
   });
   it('keeps a pending save blocked without an ACK even if local flags claim saved', () => {
     const h = harness(), submitted = h.submit();

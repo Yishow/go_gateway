@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { RecordingSelectedMembers } from '../../../src/features/datalink/workbench-v2/recording-editor/RecordingSelectedMembers';
 import type { EditorMember } from '../../../src/features/datalink/workbench-v2/state/writeGroup/draft';
 import type { GroupCandidate } from '../../../src/features/datalink/workbench-v2/state/writeGroup/candidates';
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key === 'compact.remove' ? 'Remove' : key }) }));
 const candidate: GroupCandidate = { key: 'P|T', device_id: 'D', point_id: 'P', tag_id: 'T', tag_key: 'temperature', label: 'Temperature', device_name: 'Device', address: '40001', target_type: 'float64' };
 const member: EditorMember = { key: 'P|T', device_id: 'D', point_id: 'P', tag_id: 'T', entity_key: 'raw entity', target_column: 'illegal column!', required: true, measurement_id: 'M' };
 function props() {
@@ -34,7 +34,21 @@ describe('selected recording members use the canonical draft', () => {
     expect(screen.getByText('Source unavailable')).toBeVisible();
     expect(screen.getByTestId('recording-missing-member-P')).toHaveTextContent('D · P · T');
     expect(screen.queryByText('Do not borrow this label')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Remove P' })); expect(value.onRemove).toHaveBeenCalledWith(member);
+    const remove = screen.getByRole('button', { name: 'Remove P' });
+    expect(remove).toHaveTextContent(/^Remove$/); expect(remove).toHaveAccessibleName('Remove P');
+    fireEvent.click(remove); expect(value.onRemove).toHaveBeenCalledExactlyOnceWith(member); expect(value.onChange).not.toHaveBeenCalled();
+  });
+  it('keeps custom simple removal short without losing the exact accessible identity', () => {
+    const value = props(); render(<RecordingSelectedMembers {...value} presentation="simple" managed={false} />);
+    const remove = screen.getByRole('button', { name: 'Remove P' });
+    expect(remove).toHaveTextContent(/^Remove$/); expect(remove).toHaveAccessibleName('Remove P');
+    expect(screen.getByTestId('group-member-problem-P')).toBeVisible();
+    fireEvent.click(remove); expect(value.onRemove).toHaveBeenCalledExactlyOnceWith(member); expect(value.onChange).not.toHaveBeenCalled();
+  });
+  it('keeps guided custom removal visible text and mapping controls unchanged', () => {
+    const value = props(); render(<RecordingSelectedMembers {...value} managed={false} />);
+    expect(screen.getByRole('button', { name: 'Remove P' })).toHaveTextContent(/^Remove P$/);
+    expect(screen.getByTestId('group-member-column-P')).toHaveValue('illegal column!');
   });
   it('undo is parent-owned and disabled mutations stay disabled', () => {
     const value = props(), onUndo = vi.fn(); render(<RecordingSelectedMembers {...value} disabled undo={{ member, onUndo }} />);

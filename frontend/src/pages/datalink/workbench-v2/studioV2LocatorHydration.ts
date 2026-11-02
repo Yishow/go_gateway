@@ -100,9 +100,10 @@ export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbe
             comparable(toStudioV2DeviceUpdateRequest({ ...captured, name: saved.name, description: saved.description, protocol: saved.protocol, config: JSON.parse(saved.connection_config) })) !== submittedIdentity) return;
       } catch { return; }
       // Only this ACK's unchanged persisted fields and its own save metadata move
-      // forward. Tests/other devices/rules/points/mappings/settings remain dirty.
+      // forward. Only an already-invalidated test may clear; new test evidence and other scopes remain dirty.
       owner.baseline = { ...owner.baseline, devices: owner.baseline.devices.map(device => device.id !== captured.id ? device : {
         ...device, name: captured.name, description: captured.description, protocol: captured.protocol, config: structuredClone(captured.config),
+        ...(captured.test === null && latest.test === null ? { test: null } : {}),
         persisted: latest.persisted, status: latest.status, save_state: latest.save_state, save_error: latest.save_error,
         runtime_apply_status: latest.runtime_apply_status, runtime_apply_message: latest.runtime_apply_message,
         availability_status: latest.availability_status, availability_reason: latest.availability_reason, running: latest.running,
