@@ -75,7 +75,7 @@ func (s *Service) rollbackTagMappingSync(ctx context.Context, result tagMappingS
 	return errors.Join(rollbackErrs...)
 }
 
-func (s *Service) rollbackCreatedRule(ctx context.Context, ruleID, revisionID string, pointIDs []string, tagMappings tagMappingSyncResult) error {
+func (s *Service) rollbackCreatedRule(ctx context.Context, ruleID, _ string, pointIDs []string, tagMappings tagMappingSyncResult) error {
 	if err := s.storageCompensationError(ctx); err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (s *Service) rollbackCreatedRule(ctx context.Context, ruleID, revisionID st
 	if err != nil {
 		return err
 	}
-	if err = s.deleteOwnedRule(ctx, current); err != nil {
+	if err := s.deleteOwnedRule(ctx, current); err != nil {
 		return err
 	}
 	var rollbackErrs []error

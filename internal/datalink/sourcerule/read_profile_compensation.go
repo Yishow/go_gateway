@@ -26,7 +26,7 @@ func (s *Service) captureBaselineReadProfile(j *pointWriteJournal, p *schema.Poi
 	}
 	j.baselineProfiles[p.ID] = profile
 }
-func (s *Service) restorePointProfile(j *pointWriteJournal, p *schema.Point, lease uint64) (uint64, bool) {
+func (s *Service) restorePointProfile(owner pointInstallationOwner, j *pointWriteJournal, p *schema.Point, lease uint64) (uint64, bool) {
 	if runtime, ok := s.runtimeSync.(pointReadProfileOwner); ok {
 		profile, captured := j.baselineProfiles[p.ID]
 		if !captured {
@@ -34,9 +34,9 @@ func (s *Service) restorePointProfile(j *pointWriteJournal, p *schema.Point, lea
 		}
 		return runtime.RestorePointProfileReceipt(p, lease, profile)
 	}
-	return s.runtimeSync.(pointInstallationOwner).RestorePointLeaseReceipt(p, lease)
+	return owner.RestorePointLeaseReceipt(p, lease)
 }
-func (s *Service) restoreRemovedProfile(j *pointWriteJournal, p *schema.Point, lease, epoch uint64) (uint64, bool) {
+func (s *Service) restoreRemovedProfile(owner pointInstallationOwner, j *pointWriteJournal, p *schema.Point, lease, epoch uint64) (uint64, bool) {
 	if runtime, ok := s.runtimeSync.(pointReadProfileOwner); ok {
 		profile, captured := j.baselineProfiles[p.ID]
 		if !captured {
@@ -44,5 +44,5 @@ func (s *Service) restoreRemovedProfile(j *pointWriteJournal, p *schema.Point, l
 		}
 		return runtime.RestoreRemovedPointProfile(p, lease, epoch, profile)
 	}
-	return s.runtimeSync.(pointInstallationOwner).RestoreRemovedPointOwned(p, lease, epoch)
+	return owner.RestoreRemovedPointOwned(p, lease, epoch)
 }

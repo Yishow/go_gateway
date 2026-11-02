@@ -164,7 +164,7 @@ test('one device recording journey: keyboard, purposes, real SQL and lost-reply 
   await page.waitForURL('**/studio/runtime**');
   expect(recordingOperations(f)).toEqual(beforeRecovery);
   expect(runtimeVersions(f)).toEqual(aVersions);
-  console.info('Lost reply recovered: original request, one ledger operation, unchanged applied versions.');
+  info.annotations.push({ type: 'progress', description: 'Lost reply recovered: original request, one ledger operation, unchanged applied versions.' });
   let saved = await groups(f);
   expect(saved).toHaveLength(2); // B was unprepared and did not block A or gain a recording group.
   expect(saved.every(g => g.members.every(m => m.device_id === f.devices.a))).toBe(true);
@@ -196,7 +196,7 @@ test('one device recording journey: keyboard, purposes, real SQL and lost-reply 
   saved = await groups(f);
   expect(saved).toHaveLength(3);
   expect(recordingOperations(f)).toHaveLength(2);
-  console.info('Both purposes started; waiting for real UTC windows and matching SQL receipts.');
+  info.annotations.push({ type: 'progress', description: 'Both purposes started; waiting for real UTC windows and matching SQL receipts.' });
   const groupFor = (device: string, kind: string): WriteGroup => {
     const matches = saved.filter(g => g.members.every(m => m.device_id === device) && g.recording_profile?.kind === kind);
     expect(matches).toHaveLength(1);

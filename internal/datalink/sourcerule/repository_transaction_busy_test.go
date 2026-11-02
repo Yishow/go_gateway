@@ -1,10 +1,8 @@
 package sourcerule
 
 import (
-	"context"
 	"database/sql"
 	"go-gateway/internal/datalink/schema"
-	"go-gateway/internal/datalink/sqltx"
 	"testing"
 	"time"
 
@@ -58,14 +56,4 @@ func TestRuleRepositoryCommitBusyCleansNativeTransaction(t *testing.T) {
 			require.NoError(t, next.Rollback())
 		})
 	}
-}
-
-// Used only by the RED overlay: reproduce database/sql's old terminal behavior
-// without holding the native connection through failed COMMIT cleanup.
-func legacyRuleTransactionBegin(ctx context.Context, db *sql.DB, opts *sql.TxOptions) (*sqltx.Transaction, error) {
-	tx, err := db.BeginTx(ctx, opts)
-	if err != nil {
-		return nil, err
-	}
-	return &sqltx.Transaction{Tx: tx}, nil
 }

@@ -158,11 +158,10 @@ func buildDesiredShareMappingsFrom(ctx context.Context, workspaceID string, sett
 			// Candidate.Register is the canonical zero-based runtime coordinate.
 			// configuredLocalModbusRegister has already applied the durable human
 			// start register, so adding that base here would shift the mapping twice.
-			zeroBasedInt := int(*c.Register)
-			if zeroBasedInt > int(modbusshare.MaxRegisterIndex) {
+			zeroBased := *c.Register
+			if int(zeroBased) > int(modbusshare.MaxRegisterIndex) {
 				return nil, &modbusshare.Error{Code: modbusshare.ErrCodeCapacityExceeded, Message: "source-rule share register exceeds capacity", Retryable: false, Action: "Choose a register within the configured capacity"}
 			}
-			zeroBased := uint16(zeroBasedInt)
 			desired := modbusshare.DesiredMapping{
 				WorkspaceID:        workspaceID,
 				SourceRuleID:       rule.ID,

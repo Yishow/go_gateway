@@ -88,7 +88,7 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 	return r.updateRuleRevision(ctx, rule, nil)
 }
 
-func (r *SQLRepository) updateRuleRevision(ctx context.Context, rule *schema.SourceRule, expected *schema.SourceRule) error {
+func (r *SQLRepository) updateRuleRevision(ctx context.Context, rule, expected *schema.SourceRule) error {
 	query := `
 		UPDATE source_rules
 		SET start_address = ?, count = ?, data_type = ?, naming_prefix = ?,
@@ -219,7 +219,7 @@ func (r *SQLRepository) CreateLinks(ctx context.Context, links []*schema.SourceR
 	}
 	tx := ownedTx.Tx
 	defer func() {
-		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
+		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone { //nolint:errorlint // Ignore only bare TxDone; foreign-driver wrapped/joined cleanup causes must survive (TestRuleRepositoryRollbackIgnoresOnlyBareTxDone).
 			err = errors.Join(err, fmt.Errorf("回滾來源規則連結交易失敗: %w", rollbackErr))
 		}
 	}()
@@ -281,7 +281,7 @@ func (r *SQLRepository) ReplaceCandidateSnapshots(ctx context.Context, snapshots
 	}
 	tx := ownedTx.Tx
 	defer func() {
-		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
+		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone { //nolint:errorlint // Ignore only bare TxDone; foreign-driver wrapped/joined cleanup causes must survive (TestRuleRepositoryRollbackIgnoresOnlyBareTxDone).
 			err = errors.Join(err, fmt.Errorf("回滾候選快照交易失敗: %w", rollbackErr))
 		}
 	}()

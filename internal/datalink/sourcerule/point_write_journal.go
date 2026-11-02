@@ -110,7 +110,7 @@ func (s *Service) restoreOwnedPoints(ctx context.Context, journal *pointWriteJou
 			return nil, fmt.Errorf("point write outcome is uncertain")
 		}
 	}
-	var restored []*schema.Point
+	restored := make([]*schema.Point, 0, len(journal.points))
 	for _, e := range journal.points {
 		if e.before == nil {
 			if e.current != nil {
@@ -132,6 +132,9 @@ func (s *Service) restoreOwnedPoints(ctx context.Context, journal *pointWriteJou
 		}
 		e.current = clonePointSnapshot(e.before)
 		restored = append(restored, clonePointSnapshot(e.before))
+	}
+	if len(restored) == 0 {
+		return nil, nil
 	}
 	return restored, nil
 }
@@ -179,20 +182,19 @@ func (s *Service) suspendOwnedPoint(ctx context.Context, id string) {
 	}
 }
 
-func (s *Service) finalizePointWrites(ctx context.Context, result *error) {
+func (s *Service) finalizePointWrites(ctx context.Context, result error) error {
 
 	if j := s.pointJournal(ctx); j != nil {
 		if j.runtimeUncertain || j.ruleUncertain || j.storageFailure != nil {
-			*result = s.dirtyUnknown(ctx)
-			return
+			return s.dirtyUnknown(ctx)
 		}
 		for _, e := range j.points {
 			if e.uncertain {
-				*result = s.dirtyUnknown(ctx)
-				return
+				return s.dirtyUnknown(ctx)
 			}
 		}
 	}
+	return result
 }
 
 func (s *Service) observeRuntimeInstallation(ctx context.Context, p *schema.Point, lease uint64) {

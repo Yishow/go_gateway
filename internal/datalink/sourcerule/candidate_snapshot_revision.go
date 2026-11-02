@@ -25,7 +25,7 @@ func (r *SQLRepository) ReplaceCandidateSnapshotsAtRevision(ctx context.Context,
 	}
 	tx := ownedTx.Tx
 	defer func() {
-		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone {
+		if err := ownedTx.Rollback(); err != nil && err != sql.ErrTxDone { //nolint:errorlint // Ignore only bare TxDone; foreign-driver wrapped/joined cleanup causes must survive (TestRuleRepositoryRollbackIgnoresOnlyBareTxDone).
 			resultErr = errors.Join(resultErr, err)
 		}
 	}()

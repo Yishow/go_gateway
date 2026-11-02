@@ -37,7 +37,7 @@ func (r *SQLRepository) ReplaceLinks(ctx context.Context, ruleID string, links [
 	}
 	tx := ownedTx.Tx
 	defer func() {
-		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
+		if rollbackErr := ownedTx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone { //nolint:errorlint // Ignore only bare TxDone; foreign-driver wrapped/joined cleanup causes must survive (TestRuleRepositoryRollbackIgnoresOnlyBareTxDone).
 			err = errors.Join(err, fmt.Errorf("rollback source-rule link replacement: %w", rollbackErr))
 		}
 	}()

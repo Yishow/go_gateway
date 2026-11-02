@@ -114,7 +114,8 @@ func (r *MemoryRepository) CreateLinks(_ context.Context, links []*schema.Source
 		r.links[link.RuleID] = append(r.links[link.RuleID], cloneLink(link))
 	}
 
-	slices.SortFunc(r.links[links[0].RuleID], func(a, b *schema.SourceRuleLink) int {
+	first := (*[1]*schema.SourceRuleLink)(links)[0]
+	slices.SortFunc(r.links[first.RuleID], func(a, b *schema.SourceRuleLink) int {
 		return cmp.Compare(a.Address, b.Address)
 	})
 	return nil

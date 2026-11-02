@@ -111,13 +111,14 @@ func TestRuleFormatIdentitySQLLifecycle(t *testing.T) {
 	links, err = svc.ListLinks(ctx, rule.ID)
 	require.NoError(t, err)
 	for _, l := range links {
-		if l.Address == victim.Address {
-			require.NotEqual(t, victim.PointID, l.PointID)
-			p, e := ps.GetByID(ctx, l.PointID)
-			require.NoError(t, e)
-			require.Equal(t, schema.PointFormatInherit, p.FormatMode)
-			require.Empty(t, p.FormatOverride)
+		if l.Address != victim.Address {
+			continue
 		}
+		require.NotEqual(t, victim.PointID, l.PointID)
+		p, e := ps.GetByID(ctx, l.PointID)
+		require.NoError(t, e)
+		require.Equal(t, schema.PointFormatInherit, p.FormatMode)
+		require.Empty(t, p.FormatOverride)
 	}
 	// A dangling rule link must not donate intent when its point was manually deleted.
 	victim = links[0]

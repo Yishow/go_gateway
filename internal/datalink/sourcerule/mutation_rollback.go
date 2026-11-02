@@ -142,6 +142,9 @@ func (s *Service) restoreRuleSnapshot(ctx context.Context, snapshot *sourceRuleS
 	if snapshot == nil || snapshot.rule == nil {
 		return fmt.Errorf("source rule snapshot is empty")
 	}
+	if _, valid := ruleStateKey(snapshot.rule); !valid {
+		return ErrRuleRevisionConflict
+	}
 	current, currentErr := s.repo.GetByID(ctx, snapshot.rule.ID)
 	if currentErr != nil && !errors.Is(currentErr, ErrSourceRuleNotFound) {
 		return fmt.Errorf("read current source rule before rollback: %w", currentErr)

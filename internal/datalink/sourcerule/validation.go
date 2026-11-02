@@ -2,6 +2,7 @@ package sourcerule
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"go-gateway/internal/datalink/modbusshare"
@@ -9,6 +10,10 @@ import (
 )
 
 const (
+	sourceFormatABCD                 = "ABCD"
+	sourceFormatBADC                 = "BADC"
+	sourceFormatCDAB                 = "CDAB"
+	sourceFormatDCBA                 = "DCBA"
 	candidateRevisionConflictMessage = "candidate revision conflict"
 	candidateRetryAction             = "refresh workspace candidates and retry"
 	localModbusStrideAction          = "increase share_stride to match the datatype register span"
@@ -28,6 +33,9 @@ func validateCreateRequest(req CreateRuleRequest) error {
 		return err
 	}
 	if err := validateRuleDataFormat(req.DataFormat); err != nil {
+		return err
+	}
+	if err := validateRuleScale(req.ScaleMultiplier, req.ScaleOffset); err != nil {
 		return err
 	}
 	return validateShareConfig(req.ShareEnabled, req.ShareStartRegister, req.ShareStride, req.DataType)
@@ -64,7 +72,7 @@ func validateRuleDataFormat(dataFormat string) error {
 		return nil
 	}
 	switch normalized {
-	case "ABCD", "BADC", "CDAB", "DCBA":
+	case sourceFormatABCD, sourceFormatBADC, sourceFormatCDAB, sourceFormatDCBA:
 		return nil
 	default:
 		return validationError(fmt.Sprintf("unsupported data_format: %s", dataFormat))
@@ -94,4 +102,14 @@ func validateRuleDataType(dataType schema.DataType) error {
 
 func validationError(message string) error {
 	return fmt.Errorf("%w: %s", ErrValidation, message)
+}
+
+func validateRuleScale(multiplier, offset *float64) error {
+	if multiplier != nil && (math.IsNaN(*multiplier) || math.IsInf(*multiplier, 0)) {
+		return validationError("scale_multiplier must be finite")
+	}
+	if offset != nil && (math.IsNaN(*offset) || math.IsInf(*offset, 0)) {
+		return validationError("scale_offset must be finite")
+	}
+	return nil
 }

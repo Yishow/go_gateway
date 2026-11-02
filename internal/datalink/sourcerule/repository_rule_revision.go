@@ -18,8 +18,16 @@ func (r *SQLRepository) UpdateRevision(ctx context.Context, next, expected *sche
 func (r *MemoryRepository) UpdateRevision(_ context.Context, next, expected *schema.SourceRule) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if _, valid := ruleStateKey(next); !valid {
+		return ErrRuleRevisionConflict
+	}
 	current, ok := r.rules[next.ID]
-	if !ok || current.DeviceID != expected.DeviceID || current.RevisionID != expected.RevisionID || !current.UpdatedAt.Equal(expected.UpdatedAt) || ruleStateKey(current) != ruleStateKey(expected) {
+	if !ok || current.DeviceID != expected.DeviceID || current.RevisionID != expected.RevisionID || !current.UpdatedAt.Equal(expected.UpdatedAt) {
+		return ErrRuleRevisionConflict
+	}
+	currentKey, currentValid := ruleStateKey(current)
+	expectedKey, expectedValid := ruleStateKey(expected)
+	if !currentValid || !expectedValid || currentKey != expectedKey {
 		return ErrRuleRevisionConflict
 	}
 	r.rules[next.ID] = cloneRule(next)

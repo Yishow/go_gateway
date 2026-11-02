@@ -12,6 +12,10 @@ func assignRuleRevisionID(rule *schema.SourceRule) error {
 		return fmt.Errorf("source rule is nil")
 	}
 
+	if _, valid := ruleStateKey(rule); !valid {
+		return validationError("source rule contains an invalid canonical state")
+	}
+
 	revisionID, err := common.NewUUID()
 	if err != nil {
 		return fmt.Errorf("建立來源規則 revision id 失敗: %w", err)

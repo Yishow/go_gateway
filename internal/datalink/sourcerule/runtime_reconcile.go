@@ -336,7 +336,11 @@ func (s *Service) reconcileSourceRuleRuntime(
 
 	req := RuntimeReconcileRequest{Operation: operation, Scope: scope, ProjectionProof: s.sourceProjectionProof(ctx), PointRemoved: func(id string, epoch uint64) { s.observeProjectionRemoval(ctx, id, epoch) }, PointInstalled: func(p *schema.Point, lease uint64) { s.observeRuntimeInstallation(ctx, p, lease) }}
 	req.ProjectionSnapshot = ctx.Value(sourceProjectionSnapshotKey{})
-	req.AffectedPointIDs, _ = ctx.Value(sourceAffectedPointsKey{}).([]string)
+	var affectedOK bool
+	req.AffectedPointIDs, affectedOK = ctx.Value(sourceAffectedPointsKey{}).([]string)
+	if !affectedOK {
+		req.AffectedPointIDs = nil
+	}
 	if len(ruleRevision) == 1 {
 		req.RuleRevision = ruleRevision[0]
 	}
