@@ -1,3 +1,4 @@
+import type { DbColumn } from '@/features/datalink/workbench-v2/state/dbSchemas';
 import { dbTargetAPI } from '@/services/datalink';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -7,8 +8,9 @@ import { buildGroupCandidates } from '../../../src/features/datalink/workbench-v
 import { savedGroup, savedGroupState, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
 import { studioV2WorkspaceWriteGroupsAPI } from '../../../src/services/studioV2WorkspaceWriteGroups';
 import type { WriteGroupCalculationCapabilities } from '../../../src/types/studioV2WriteGroupCalculation';
+const observedColumns = vi.hoisted((): { value?: DbColumn[] } => ({}));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('../../../src/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns', () => ({ useStep4TargetColumns: () => ({ columns: TABLE_COLUMNS, status: 'exists', refetch: vi.fn() }) }));
+vi.mock('../../../src/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns', () => ({ useStep4TargetColumns: () => ({ columns: observedColumns.value ?? TABLE_COLUMNS, status: 'exists', refetch: vi.fn() }) }));
 vi.mock('../../../src/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: {
   readiness: vi.fn().mockResolvedValue(null), delivery: vi.fn().mockResolvedValue(null), list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), apply: vi.fn(), disable: vi.fn(), remove: vi.fn(), testWritePreview: vi.fn(), testWrite: vi.fn(), testWriteOperation: vi.fn(),
 } }));
@@ -23,7 +25,7 @@ function mount(overrides: Partial<GroupEditorProps> = {}) {
   return { ...result, props, update: (patch: Partial<GroupEditorProps>) => { Object.assign(props, patch); result.rerender(view(props)); } };
 }
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.clearAllMocks(); observedColumns.value = undefined;
   vi.spyOn(dbTargetAPI, 'listConnectors').mockResolvedValue([{ id: 'conn-1', identity_revision: 'crev-1', name: 'Line DB', kind: 'sqlite', enabled: true, status: 'ready', connection_config: { path: savedGroupState().db.connector.database }, last_check_error: '', default_write_interval_seconds: 5, created_at: '', updated_at: '' }]);
   vi.mocked(studioV2WorkspaceWriteGroupsAPI.create).mockImplementation(async request => {
     const canonical = savedGroup();
@@ -221,4 +223,29 @@ it('keeps saved guided version identifiers visible without a disclosure wrapper'
   expect(screen.queryByTestId('group-revision-details')).not.toBeInTheDocument();
   expect(screen.getByTestId('group-revisions')).toBeVisible();
   expect(screen.getByTestId('group-revisions')).toHaveTextContent('rev-1');
+});
+
+it.each([
+  { presentation: 'simple', storage: 'managed', layout: 'managed_long_v1', proposal: false },
+  { presentation: 'guided', storage: 'managed', layout: 'managed_long_v1', proposal: false },
+  { presentation: 'simple', storage: 'managed', layout: 'managed_wide_profile_v1', proposal: true },
+  { presentation: 'simple', storage: 'custom', layout: 'managed_long_v1', proposal: true },
+] as const)('keeps typed managed long storage separate from wide column proposals: $presentation $storage $layout', ({ presentation, storage, layout, proposal }) => {
+  observedColumns.value = [
+    { name: 'value_float', type: 'double precision', nullable: true, primary_key: false },
+    { name: 'value_decimal', type: 'numeric', nullable: true, primary_key: false },
+    { name: 'bucket_start', type: 'timestamp', nullable: false, primary_key: true },
+  ];
+  const base = savedGroup();
+  const group = savedGroup({ record_id: '11111111-1111-4111-8111-111111111111', layout_version: layout, storage_mode: 'plain',
+    recording_profile: { kind: 'mixed', result_shape: 'member-calculation-v1' }, destination: { ...base.destination, storage_strategy: storage },
+    members: base.members.map((member, index) => ({ ...member, target_column: `v_saved_${index}`, calculation: 'mean',
+      cadence: { interval: 5, unit: 'second', alignment: 'utc_epoch' }, source_value_type: 'float64', result_value_type: 'float64' })) });
+  const before = structuredClone(group); mount({ presentation, group });
+  expect(screen.getByTestId('group-editor')).toBeInTheDocument();
+  if (proposal) expect(screen.getByTestId('group-column-proposal')).toBeVisible();
+  else expect(screen.queryByTestId('group-column-proposal')).not.toBeInTheDocument();
+  expect(screen.queryByText('simple.columnsAssignedOnSave')).not.toBeInTheDocument();
+  expect(group).toEqual(before); expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
+  expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled(); expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
 });

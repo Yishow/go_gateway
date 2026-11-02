@@ -409,7 +409,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
           candidates={candidates} excluded={excluded} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
           suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly || saveBusy}
           onChange={setMembers} />}
-        {!columnsAssignedOnSave && <GroupColumnProposal
+        {!columnsAssignedOnSave && !(draft.storage_strategy === 'managed' && draft.layout_version === 'managed_long_v1') && <GroupColumnProposal
           dialect={dialect}
           managed={draft.storage_strategy === 'managed'}
           existingColumns={editorMetadata.columns.map((column) => column.name)}
