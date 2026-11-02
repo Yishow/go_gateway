@@ -95,8 +95,8 @@ async function openUnsubmittedRange() {
   await screen.findByRole('option', { name: 'PLC' });
   fireEvent.change(screen.getByLabelText('picker.device'), { target: { value: device.id } });
   fireEvent.click(screen.getByRole('button', { name: 'picker.newSource' }));
-  fireEvent.change(await screen.findByLabelText('range.name'), { target: { value: 'Unsent after own save' } });
-  fireEvent.change(screen.getByLabelText('range.address'), { target: { value: '41301' } });
+  fireEvent.change(await screen.findByLabelText('source.fields.prefix'), { target: { value: 'Unsent after own save' } });
+  fireEvent.change(screen.getByLabelText('source.fields.address'), { target: { value: '41301' } });
   fireEvent.change(screen.getByLabelText('range.count'), { target: { value: '2' } });
 }
 it('first source range acquisition after own group Save uses acknowledged canonical readback, not the old locator hint', async () => {
@@ -136,9 +136,9 @@ it('keeps an unsent range and newer recording draft mounted when own-save editor
   fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Newer unsaved recording name' } });
   await openUnsubmittedRange();
   await waitFor(() => expect(screen.getByRole('button', { name: 'range.save' })).toBeEnabled());
-  const rangeName = screen.getByLabelText('range.name'), picker = screen.getByTestId('recording-point-selection');
+  const rangeName = screen.getByLabelText('source.fields.prefix'), picker = screen.getByTestId('recording-point-selection');
   await act(async () => { finish({ ok: true, value: structuredClone(current) }); });
-  expect(screen.queryByLabelText('range.name')).toBe(rangeName);
+  expect(screen.queryByLabelText('source.fields.prefix')).toBe(rangeName);
   expect(rangeName).toHaveValue('Unsent after own save');
   expect(screen.getByTestId('recording-point-selection')).toBe(picker);
   expect(screen.getByTestId('group-name')).toHaveValue('Newer unsaved recording name');
@@ -259,21 +259,21 @@ it('own group acknowledgement preserves the same pending source request and its 
   await openUnsubmittedRange(); await waitFor(() => expect(screen.getByRole('button', { name: 'range.save' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'range.save' }));
   await waitFor(() => expect(studioV2RulesAPI.create).toHaveBeenCalledOnce());
-  const rangeName = screen.getByLabelText('range.name'), pending = screen.getByTestId('source-receipts').textContent;
+  const rangeName = screen.getByLabelText('source.fields.prefix'), pending = screen.getByTestId('source-receipts').textContent;
   // Source intent starts before the existing group Save fence; no editing is allowed during Save.
   fireEvent.click(screen.getByTestId('group-save'));
   await waitFor(() => expect(finishGroup).toBeTypeOf('function'));
   expect(pending).toContain('"status":"pending"');
   await act(async () => { finishGroup(); });
   await waitFor(() => expect(readStudioLocatorEditorEntry).toHaveBeenCalledTimes(2));
-  expect(screen.getByLabelText('range.name')).toBe(rangeName);
+  expect(screen.getByLabelText('source.fields.prefix')).toBe(rangeName);
   expect(screen.getByTestId('source-receipts')).toHaveTextContent(pending!);
   await act(async () => { failSource(new Error('uncertain source result')); });
   await screen.findByTestId('recording-range-unknown');
   const unknown = screen.getByTestId('source-receipts').textContent;
   expect(JSON.parse(unknown!)[0].request).toEqual(JSON.parse(pending!)[0].request);
   expect(screen.getByRole('button', { name: 'range.save' })).toBeDisabled();
-  expect(screen.getByLabelText('range.name')).toBe(rangeName);
+  expect(screen.getByLabelText('source.fields.prefix')).toBe(rangeName);
   expect(studioV2RulesAPI.create).toHaveBeenCalledOnce(); expect(studioV2MappingsAPI.create).not.toHaveBeenCalled();
 });
 

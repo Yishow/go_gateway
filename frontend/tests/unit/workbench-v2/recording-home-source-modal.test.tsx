@@ -54,7 +54,7 @@ async function openRange() {
   return screen.findByRole('dialog');
 }
 async function editRange() {
-  const dialog = await openRange(); fireEvent.click(await within(dialog).findByTestId('home-range-edit-R'));
+  const dialog = await openRange();
   return within(dialog).findByTestId('home-saved-range-form');
 }
 function noOtherWrites() {
@@ -65,7 +65,7 @@ function noOtherWrites() {
 describe('Home uses the original scoped source owner inside the demo modal', () => {
   it('opens the captured device and existing ranges without old navigation or writes', async () => {
     const { navigate } = mount(); const dialog = await openRange();
-    expect(await within(dialog).findByText('Rule R')).toBeInTheDocument(); expect(navigate).not.toHaveBeenCalled();
+    expect(await within(dialog).findByTestId('rule-prefix-input')).toHaveValue('Rule R'); expect(navigate).not.toHaveBeenCalled();
     expect(screen.queryByTestId('workbench-v2-root')).not.toBeInTheDocument();
     expect(studioV2DatalinkApi.get).toHaveBeenCalledWith('/studio-v2/workspace', expect.objectContaining({ params: expect.objectContaining({ step: '1', device_id: 'D', workspace_id: 'W' }) }));
     expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); noOtherWrites();
@@ -84,7 +84,7 @@ describe('Home uses the original scoped source owner inside the demo modal', () 
     await waitFor(() => expect(studioV2RulesAPI.update).toHaveBeenCalledOnce());
     expect(studioV2RulesAPI.update).toHaveBeenCalledWith('R', expect.objectContaining({ naming_prefix: 'Saved range', device_id: 'D' }));
     await screen.findByTestId('home-range-saved'); expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByTestId('home-range-edit-R').closest('li')).toHaveTextContent('Saved range');
+    expect(screen.getByTestId('rule-prefix-input')).toHaveValue('Saved range');
     vi.mocked(studioV2RulesAPI.list).mockResolvedValue([{ ...nativeRule(), naming_prefix: 'Saved range', revision_id: 'R3' }]);
     fireEvent.click(screen.getByTestId('home-range-done'));
     await waitFor(() => expect(screen.queryByTestId('home-saved-range-form')).not.toBeInTheDocument());
@@ -115,7 +115,7 @@ describe('modal exact identity and original completion boundaries', () => {
     await openRange(); await waitFor(() => expect(resolve).toBeTypeOf('function'));
     fireEvent.click(screen.getByTestId('home-source-close')); await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     vi.mocked(studioV2RulesAPI.list).mockResolvedValue([nativeRule(), nativeRule('OTHER-DEVICE', 'B'), { ...nativeRule('FOREIGN'), workspace_id: 'OTHER' }]);
-    const dialog = await openRange(); await within(dialog).findByText('Rule R');
+    const dialog = await openRange(); await within(dialog).findByTestId('rule-prefix-input');
     await act(async () => resolve([nativeRule('OLD')]));
     expect(within(dialog).queryByText('Rule OLD')).not.toBeInTheDocument(); expect(within(dialog).queryByText('Rule FOREIGN')).not.toBeInTheDocument();
     expect(within(dialog).queryByText('Rule OTHER-DEVICE')).not.toBeInTheDocument(); noOtherWrites();
@@ -176,8 +176,8 @@ describe('modal exact identity and original completion boundaries', () => {
     expect(studioV2WorkspaceDevicesAPI.create).not.toHaveBeenCalled(); expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
   });
   it('opens the original new-range buffer and discards unsent values without a source write', async () => {
-    mount(); const dialog = await openRange(); fireEvent.click(await within(dialog).findByTestId('home-range-new'));
-    const name = await within(dialog).findByLabelText('Range name');
+    mount(); const dialog = await openRange(); fireEvent.click(await within(dialog).findByTestId('home-range-done')); fireEvent.click(await within(dialog).findByTestId('home-range-new'));
+    const name = await within(dialog).findByLabelText('Point-name prefix');
     fireEvent.change(name, { target: { value: 'Unsent new prefix' } });
     fireEvent.click(screen.getByTestId('home-source-close'));
     fireEvent.click(await screen.findByTestId('home-source-discard'));
@@ -203,14 +203,15 @@ describe('modal exact identity and original completion boundaries', () => {
     });
     vi.mocked(pointAPI.get).mockImplementation(async () => ({ id: 'NEWPOINT', device_id: 'D', address: '40010', data_type: 'int16', enabled: false } as Awaited<ReturnType<typeof pointAPI.get>>));
     vi.mocked(tagAPI.get).mockImplementation(async () => ({ id: 'NEWTAG', key: mapping.tag_key, data_type: mapping.target_type, display_name: mapping.display_name, unit: mapping.unit ?? '', status: 'draft' } as Awaited<ReturnType<typeof tagAPI.get>>));
-    mount(); const dialog = await openRange(); fireEvent.click(await within(dialog).findByTestId('home-range-new'));
-    fireEvent.change(await within(dialog).findByLabelText('Range name'), { target: { value: 'New source' } });
+    mount(); const dialog = await openRange(); fireEvent.click(await within(dialog).findByTestId('home-range-done')); fireEvent.click(await within(dialog).findByTestId('home-range-new'));
+    fireEvent.change(await within(dialog).findByLabelText('Point-name prefix'), { target: { value: 'New source' } });
     fireEvent.change(within(dialog).getByLabelText('Starting address', { selector: 'input' }), { target: { value: '40010' } });
     fireEvent.change(within(dialog).getByLabelText('Number of data items', { selector: 'input' }), { target: { value: '1' } });
     const save = within(dialog).getByRole('button', { name: 'Save range' });
     await waitFor(() => expect(save).toBeEnabled()); fireEvent.click(save);
     await within(dialog).findByTestId('recording-range-saved-inactive');
     expect(studioV2RulesAPI.create).toHaveBeenCalledOnce(); expect(studioV2MappingsAPI.create).toHaveBeenCalledOnce();
+    fireEvent.click(within(dialog).getByTestId('recording-range-back'));
     const edit = await within(dialog).findByTestId(`home-range-edit-${saved.id}`);
     expect(edit.closest('li')).toHaveTextContent('40010 · 1');
     expect(studioV2WorkspaceDevicesAPI.update).not.toHaveBeenCalled(); expect(studioV2RulesAPI.remove).not.toHaveBeenCalled();

@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { captureReturnFocus, restoreReturnFocus, type ReturnFocusTicket } from '../../../../utils/returnFocus';
 import { semanticTokens } from '../tokens';
 import '../../../../styles/semantic-modal.css';
-export interface HomeSourceTarget { workspaceId: string; deviceId: string; kind: 'connection' | 'points'; ruleId?: string; newRange?: boolean; epoch: number }
+export interface HomeSourceTarget { workspaceId: string; deviceId: string; kind: 'connection' | 'points'; ruleId?: string; newRange?: boolean; initialSelection?: boolean; epoch: number }
 export type HomeRuleObserver = Pick<RuleQueueObservation, 'submitted' | 'saved' | 'failed'>;
 export interface HomeSourceControls {
   target: HomeSourceTarget; ruleObserverRef: MutableRefObject<HomeRuleObserver | undefined>; closeRef: MutableRefObject<(() => void) | undefined>;
@@ -28,7 +28,7 @@ export function RecordingHomeSourceHost({ children, renderSource }: {
   const open = useCallback((workspaceId: string, deviceId: string, kind: HomeSourceTarget['kind']) => {
     if (workspace.current !== workspaceId) return;
     setDeviceName(''); owner.current = {}; ticket.current = captureReturnFocus(owner.current, document.activeElement instanceof HTMLElement ? document.activeElement : null);
-    closeRef.current = undefined; ruleObserverRef.current = undefined; setTarget({ workspaceId, deviceId, kind, epoch: ++serial.current });
+    closeRef.current = undefined; ruleObserverRef.current = undefined; setTarget({ workspaceId, deviceId, kind, initialSelection: true, epoch: ++serial.current });
   }, []);
   const workspaceChanged = useCallback((id?: string) => {
     if (id && workspace.current !== id) { workspace.current = id; owner.current = {}; closeRef.current = undefined; ruleObserverRef.current = undefined; setTarget(undefined); }
@@ -46,7 +46,7 @@ export function RecordingHomeSourceHost({ children, renderSource }: {
         <button type="button" data-testid="home-source-close" onClick={close}>{t('source.close')}</button></header>}<div style={{ display: navigation.confirming ? 'none' : 'contents' }}>
       {captured && renderSource({ target: captured, closeRef, ruleObserverRef, onDeviceName: name => { if (workspace.current === captured.workspaceId) setDeviceName(name); }, onClose: () => { if (workspace.current === captured.workspaceId) setTarget(current => current?.epoch === captured.epoch ? undefined : current); },
         onSelect: (ruleId, newRange) => { if (workspace.current === captured.workspaceId) { closeRef.current = undefined; ruleObserverRef.current = undefined;
-          setTarget(current => current?.epoch === captured.epoch ? { ...captured, ruleId, newRange, epoch: ++serial.current } : current); } } })}
+          setTarget(current => current?.epoch === captured.epoch ? { ...captured, ruleId, newRange, initialSelection: false, epoch: ++serial.current } : current); } } })}
     </div></></Dialog.Content></Dialog.Portal>
   </Dialog.Root></>;
 }

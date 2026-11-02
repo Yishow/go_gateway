@@ -54,16 +54,16 @@
     "description": "選擇已保存的點位；按下加入前，現有記錄成員不會變更。",
     "search": "搜尋點位",
     "device": "來源設備",
-    "pointType": "點位類型",
+    "pointType": "量測用途",
     "allDevices": "全部設備",
-    "allTypes": "全部類型",
+    "allTypes": "全部用途",
     "gauge": "量測值",
     "counter": "累積值",
     "state": "狀態值",
     "unknownType": "語意未確認",
     "point": "點位",
     "address": "位址",
-    "alreadyAdded": "已加入",
+    "alreadyAdded": "已在此記錄",
     "unavailable": "來源不可用或尚未確認",
     "cancel": "取消",
     "loading": "正在讀取已保存來源…",
@@ -77,14 +77,16 @@
     "previous": "上一頁",
     "next": "下一頁",
     "pageSize": "每頁筆數",
-    "matching": "符合 {{count}} 點 · 已加入 {{added}} 點",
-    "pending": "已選 {{count}} 點",
+    "matching": "符合 {{count}} 點 · {{added}} 點已在此記錄",
+    "pending": "待加入 {{count}} 點",
     "hidden": "另有 {{count}} 個已選點位不在目前頁面或篩選中",
     "add": "加入 {{count}} 點",
     "page": "第 {{current}}／{{total}} 頁",
     "removePending": "移除失效選取 {{point}}",
     "removeMember": "移除 {{point}}",
-    "undo": "復原上次移除"
+    "undo": "復原上次移除",
+    "dataType": "資料型別",
+    "meaningUnknown": "部分點位尚未設定量測用途；加入不代表已確認可平均或計算差值。"
   },
   "source": {
     "title": "新增來源",
@@ -307,7 +309,8 @@
       "ready": "依目前檢查，已保存設定已就緒；開始仍是獨立動作。",
       "schemaConfirmed": "結構操作已完成，請重新檢查目前已保存設定。",
       "offline": "目前離線，可繼續編輯；重新連線後才能檢查或提交。",
-      "blocked": "請先處理目前限制，再檢查或提交。"
+      "blocked": "請先處理目前限制，再檢查或提交。",
+      "sourceReview": "下一步：確認來源並儲存"
     },
     "action": {
       "save": "保存設定",
@@ -443,15 +446,41 @@
     "confirmGauge": "確認量測用途",
     "unconfirmed": "未確認",
     "unsavedSettings": "未保存變更",
-    "savedSettings": "設定已保存"
+    "savedSettings": "設定已保存",
+    "filterSelected": "篩選已選點位",
+    "searchPlaceholder": "名稱、設備或位址"
   },
   "confirmation": {
     "schemaRequired": "請先檢查已儲存的目的地資料表，並明確確認準備內容，再開始記錄。",
-    "unknownIssue": "有一項記錄狀態需要確認。請展開下方詳細資訊，查看原始原因。"
+    "unknownIssue": "有一項記錄狀態需要確認。請展開下方詳細資訊，查看原始原因。",
+    "sourceStale": "來源設定已變更，這筆記錄仍使用先前設定。請先確認來源並儲存，再檢查資料表。",
+    "configBlocked": "請先處理這筆記錄的設定問題，才能檢查資料表。"
   },
   "workflow": {
     "manage": "管理這筆記錄",
     "readinessDetails": "就緒檢查詳細資訊",
     "editTitle": "編輯記錄"
+  },
+  "sourceRefresh": {
+    "review": "檢視並更新來源設定",
+    "confirm": "確認來源並儲存",
+    "cancel": "取消",
+    "inspect": "檢視已選來源",
+    "currentAtSave": "以下來源的選取與目的地保持不變。本次儲存會採用儲存當下的最新來源設定，尚不會開始記錄；之後仍需檢查資料表並明確開始。",
+    "unavailable": "部分來源或目前設定還無法確認。請先檢視已選來源並修正，再重新檢查。",
+    "pinned": "這筆記錄保留特定來源版本，不能直接套用最新設定。請先檢視來源與記錄方式，沿原有修改流程確認。",
+    "missingMember": "第 {{number}} 個已選來源目前無法唯一確認；請在來源區重新確認選取。"
+  },
+  "name": {
+    "title": "修改點位名稱",
+    "rename": "修改名稱",
+    "shared": "此名稱會同步顯示在使用此點位的記錄。",
+    "label": "點位名稱",
+    "save": "保存名稱",
+    "pending": "正在保存點位名稱…",
+    "blocked": "來源已變更或暫時無法讀取，請返回後重新開啟確認。",
+    "unknown": "尚未確認這次保存結果，請先讀取目前名稱，不要重複送出。",
+    "inspect": "讀取目前名稱",
+    "current": "目前保存的名稱：{{name}}"
   }
 }

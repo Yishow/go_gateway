@@ -113,8 +113,8 @@
   },
   "filters": "搜尋與篩選",
   "tableRegion": "記錄與設備列表，可捲動",
-  "devicePoints": "點位",
-  "deviceConnection": "連線參數",
+  "devicePoints": "讀取點位",
+  "deviceConnection": "連線設定",
   "openRecord": "開啟記錄",
   "actions": "操作",
   "source": {
@@ -145,7 +145,16 @@
       "unavailable": "目前無法讀取已存值，原請求仍未確認。"
     },
     "done": "完成，返回範圍列表",
-    "backToList": "返回範圍列表"
+    "backToList": "返回範圍列表",
+    "fields": {
+      "address": "起始位址",
+      "addressHint": "依設備暫存器表填第一個位址，例如 {{example}}。",
+      "addressUnknown": "請依此設備文件的位址格式填寫。",
+      "countHint": "例如讀取 16 個數值；這是資料項目數，不是暫存器字數。",
+      "typeHint": "請依設備暫存器表選擇資料型別。",
+      "prefix": "點位名稱前綴",
+      "prefixHint": "例如 TEMP_，會用於產生每個點位的名稱。"
+    }
   },
   "recordSources": "來源",
   "recordWrites": "寫入",
@@ -175,6 +184,19 @@
     },
     "currentWorkspace": "目前工作區"
   },
-  "destinationIdentity": "完整目的地",
-  "managedTable": "受管資料表"
+  "destinationIdentity": "技術識別",
+  "managedTable": "受管資料表",
+  "objectModes": "管理記錄或設備",
+  "devicesPurpose": "設備負責連線與讀值；選「連線設定」或「讀取點位」修改設備。",
+  "recordingsPurpose": "記錄決定要保存哪些設備數值，以及寫入哪個資料庫。",
+  "technicalTable": "資料庫資料表",
+  "protocolNames": {
+    "modbus_tcp": "Modbus TCP",
+    "modbus_udp": "Modbus UDP",
+    "modbus_rtu": "Modbus RTU",
+    "mc_3e": "三菱 MC 3E",
+    "fatek_fbs": "FATEK FBs",
+    "mqtt": "MQTT"
+  },
+  "deviceCreationHint": "新增設備：新增記錄 → 選擇點位 → 新增來源 → 建立新設備。"
 }

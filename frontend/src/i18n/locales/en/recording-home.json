@@ -113,7 +113,7 @@
   },
   "filters": "Search and filters",
   "tableRegion": "Scrollable recordings and devices",
-  "devicePoints": "Points",
+  "devicePoints": "Read points",
   "deviceConnection": "Connection",
   "openRecord": "Open recording",
   "actions": "Actions",
@@ -145,7 +145,16 @@
       "unavailable": "Current saved values could not be read. The original request remains unconfirmed."
     },
     "done": "Done · back to ranges",
-    "backToList": "Back to ranges"
+    "backToList": "Back to ranges",
+    "fields": {
+      "address": "Starting address",
+      "addressHint": "First address in the device register map, for example {{example}}.",
+      "addressUnknown": "Use the address format documented for this device.",
+      "countHint": "For example, 16 values. Count data items, not register words.",
+      "typeHint": "Use the data type specified by the device register map.",
+      "prefix": "Point-name prefix",
+      "prefixHint": "For example, TEMP_. This becomes part of each generated point name."
+    }
   },
   "recordSources": "Sources",
   "recordWrites": "Writing",
@@ -175,6 +184,19 @@
     },
     "currentWorkspace": "Current workspace"
   },
-  "destinationIdentity": "Exact destination",
-  "managedTable": "Managed table"
+  "destinationIdentity": "Technical identity",
+  "managedTable": "Managed table",
+  "objectModes": "Manage recordings or devices",
+  "devicesPurpose": "Devices define connections and the values to read. Use Connection or Read points to change a device.",
+  "recordingsPurpose": "Recordings choose which device values to save, and their destination database.",
+  "technicalTable": "Database table",
+  "protocolNames": {
+    "modbus_tcp": "Modbus TCP",
+    "modbus_udp": "Modbus UDP",
+    "modbus_rtu": "Modbus RTU",
+    "mc_3e": "Mitsubishi MC 3E",
+    "fatek_fbs": "FATEK FBs",
+    "mqtt": "MQTT"
+  },
+  "deviceCreationHint": "To add a device: New recording → Choose points → Add source → Create a new device."
 }

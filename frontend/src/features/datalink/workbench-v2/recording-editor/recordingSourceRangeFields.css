@@ -1,0 +1,18 @@
+/* Shared source form presentation only; no global/advanced utility overrides. */
+.recording-source-range-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.recording-source-field { position:relative; min-width:0; }
+.recording-source-field > label { display:grid; gap:8px; min-width:0; }
+.recording-source-field-label { min-height:28px; padding-inline-end:44px; display:flex; align-items:center; font-size:14px; }
+.recording-source-field-hint { font-size:12px; line-height:1.5; color:var(--gw-muted); }
+.recording-source-field > .parameter-help-trigger { position:absolute; top:-8px; right:0; width:44px; height:44px; min-width:44px; min-height:44px; padding:0; border:0; background:transparent; box-shadow:none; font-size:14px; }
+.gw-modal .recording-source-field > .parameter-help-trigger { border:0; background:transparent; }
+.recording-source-range-device { color:var(--gw-muted); font-size:14px; }
+.recording-source-option { border-top:1px solid var(--gw-border); padding-top:0; }
+.recording-source-option > summary { min-height:44px; display:list-item; list-style-position:inside; padding-block:12px; line-height:20px; }
+.recording-source-option[open] > .recording-source-range-grid { margin-top:8px; }
+@media(max-width:639px) { .recording-source-range-grid { grid-template-columns:minmax(0,1fr); } }
+
+/* Dynamic connection fields keep their original protocol controls and labels. */
+.recording-source-device-fields div:has(> .parameter-help-trigger) { position:relative; display:block; }
+.recording-source-device-fields div:has(> .parameter-help-trigger) > label > .label { display:block; min-height:28px; padding-inline-end:44px; }
+.gw-modal .recording-source-device-fields .parameter-help-trigger { position:absolute; right:0; top:-8px; border:0; background:transparent; box-shadow:none; font-size:14px; }

@@ -37,6 +37,8 @@ export const GroupReadinessPanel: React.FC<GroupReadinessPanelProps> = ({ readin
     );
   }
   if (!readiness) return <p className="text-xs text-[var(--gw-muted)]" data-testid="group-readiness-none">{t('step4.group.readiness.none')}</p>;
+  const sourceStale = compact && readiness.issues.some(issue => issue.code === 'source-revision-stale' && issue.severity === 'blocking');
+  const visibleIssues = sourceStale ? readiness.issues.filter(issue => issue.code !== 'schema-check-blocked') : readiness.issues;
   const facts = (
     <ul className="space-y-1">
         <Fact label={t('step4.group.readiness.config')} value={readiness.config_ready} />
@@ -50,11 +52,11 @@ export const GroupReadinessPanel: React.FC<GroupReadinessPanelProps> = ({ readin
       {compact && !dirty && (readiness.ready || readiness.issues.length > 0) ? <details data-testid="recording-readiness-details"><summary>{editorText('workflow.readinessDetails')}</summary>{facts}</details> : facts}
       {readiness.issues.length > 0 && (
         <ul className="space-y-1" data-testid="group-readiness-issues">
-          {readiness.issues.map((issue) => (
+          {visibleIssues.map((issue) => (
             <li key={`${issue.code}-${issue.scope}`} className={issue.severity === 'blocking' ? 'text-[var(--gw-danger-fg)]' : 'text-[var(--gw-warning-fg)]'}>
               <span className="font-semibold">{issue.severity === 'blocking' ? t('step4.group.readiness.blocking') : t('step4.group.readiness.warning')}</span>
-              {' · '}{compact ? editorText(issue.code === 'schema-confirmation-required' ? 'confirmation.schemaRequired' : 'confirmation.unknownIssue') : issue.message}
-              {compact && <details className="mt-1 text-[var(--gw-muted)]"><summary>{t('step4.basic.diagnostics')}</summary><p>{issue.code}: {issue.message}</p></details>}
+              {' · '}{compact ? editorText(issue.code === 'schema-confirmation-required' ? 'confirmation.schemaRequired' : issue.code === 'source-revision-stale' ? 'confirmation.sourceStale' : issue.code === 'schema-check-blocked' ? 'confirmation.configBlocked' : 'confirmation.unknownIssue') : issue.message}
+              {compact && <details className="mt-1 text-[var(--gw-muted)]"><summary>{t('step4.basic.diagnostics')}</summary><p>{issue.code}: {issue.message}</p>{sourceStale && issue.code === 'source-revision-stale' && readiness.issues.filter(item => item.code === 'schema-check-blocked').map(item => <p key={`${item.code}-${item.scope}`}>{item.code}: {item.message}</p>)}</details>}
             </li>
           ))}
         </ul>

@@ -5,7 +5,7 @@ import type { Device } from '../state/types';
 import type { PickerProjection, PickerState, PointFilter, SourceIdentity } from './recordingPickerState';
 export interface PickerLabels {
   title: string; search: string; device: string; pointType: string; allDevices: string; allTypes: string;
-  types: Record<Exclude<PointFilter, 'all'>, string>; unknownType: string;
+  types: Record<Exclude<PointFilter, 'all'>, string>; unknownType: string; dataType: string; meaningUnknown: string; rename: string;
   point: string; address: string; alreadyAdded: string; unavailable: string; cancel: string;
   loading: string; failed: string; retry: string; empty: string; noMatches: string; clearFilters: string;
   newSource: string; invalidPending: string; previous: string; next: string; pageSize: string;
@@ -20,10 +20,11 @@ export interface RecordingPointPickerProps {
   onChange: (state: PickerState) => void;
   onCancel: (reason: 'cancel' | 'escape') => void;
   onAdd: (identities: readonly SourceIdentity[]) => void;
+  onRename?: (candidate: PickerProjection['candidates'][number]) => void;
   onSource: (deviceId: string | undefined) => void; onRetry: () => void;
 }
 /** Content only. The shared shell owns modal sizing, close/dirty guards and focus trap/return. */
-export function RecordingPointPicker({ state, projection, devices, status, labels, onChange, onCancel, onAdd, onSource, onRetry }: RecordingPointPickerProps) {
+export function RecordingPointPicker({ state, projection, devices, status, labels, onChange, onCancel, onAdd, onSource, onRetry, onRename }: RecordingPointPickerProps) {
   const id = useId();
   const root = useRef<HTMLElement>(null), body = useRef<HTMLDivElement>(null);
   const restoredScope = useRef<string | undefined>(undefined);
@@ -80,22 +81,24 @@ export function RecordingPointPicker({ state, projection, devices, status, label
       {status === 'loaded' && !active && <p role="alert">{labels.unavailable}</p>}
       {active && <>
         <p aria-live="polite">{labels.matching(result.total, result.added)}</p>
+        {result.rows.some(row => !projection.evidence[sourceKey(row)]?.semantic) && <p className="recording-point-picker__meaning-note">{labels.meaningUnknown}</p>}
         {result.total === 0 ? <div>
           <p>{narrowed ? labels.noMatches : labels.empty}</p>
           {narrowed && <button type="button" onClick={() => patch({ query: '', pointType: 'all' })}>{labels.clearFilters}</button>}
         </div> : <table>
-          <thead><tr><th scope="col">{labels.point}</th><th scope="col">{labels.device}</th><th scope="col">{labels.address}</th><th scope="col">{labels.pointType}</th></tr></thead>
+          <thead><tr><th scope="col">{labels.point}</th><th scope="col">{labels.device}</th><th scope="col">{labels.address}</th><th scope="col">{labels.dataType}</th></tr></thead>
           <tbody>{result.rows.map(row => {
             const key = sourceKey(row), added = members.has(key), evidence = projection.evidence[key];
             const semantic = evidence?.semantic;
             const meaning = semantic === 'signed_counter' ? 'counter' : semantic;
-            const typeLabel = meaning === 'gauge' || meaning === 'counter' || meaning === 'state' ? labels.types[meaning] : labels.unknownType;
+            const typeLabel = meaning === 'gauge' || meaning === 'counter' || meaning === 'state' ? labels.types[meaning] : undefined;
             const unavailable = evidence?.availability !== 'eligible';
             return <tr key={key}>
-              <td><label><input data-picker-focus={key} type="checkbox" aria-label={row.label} checked={added || pending.has(key)} disabled={added || unavailable && !pending.has(key)}
-                onChange={() => onChange(togglePending(state, row, projection))} />{row.label}</label>
-                {added ? <small>{labels.alreadyAdded}</small> : unavailable && <small>{evidence?.reason || labels.unavailable}</small>}</td>
-              <td>{row.device_name}</td><td>{row.address}</td><td>{typeLabel}</td>
+              <td><label className="recording-point-picker__point"><input data-picker-focus={key} type="checkbox" aria-label={row.label} checked={added || pending.has(key)} disabled={added || unavailable && !pending.has(key)}
+                onChange={() => onChange(togglePending(state, row, projection))} /><span>{row.label}</span></label>
+                {added ? <small>{labels.alreadyAdded}</small> : unavailable && <small>{evidence?.reason || labels.unavailable}</small>}
+                {onRename && <button type="button" className="recording-point-picker__rename" data-picker-focus={`name:${key}`} aria-label={`${labels.rename} ${row.label}`} disabled={unavailable} onClick={() => onRename(row)}>{labels.rename}</button>}</td>
+              <td>{row.device_name}</td><td className="recording-point-picker__address">{row.address}</td><td>{row.target_type}{typeLabel && <small>{typeLabel}</small>}</td>
             </tr>;
           })}</tbody>
         </table>}

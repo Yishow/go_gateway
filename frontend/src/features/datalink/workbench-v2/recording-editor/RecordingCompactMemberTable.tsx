@@ -20,8 +20,8 @@ export function RecordingCompactMemberTable({ rows, total, query, setQuery, prob
   const { t: text } = useTranslation('recording-editor');
   return <div className="recording-compact-members" data-testid="group-member-table" data-calculation-scope={renderCalculation ? 'member' : 'group'}>
     {!renderCalculation && <p className="recording-compact-members__filters">{text('compact.groupRule')}</p>}
-    <details className="recording-compact-members__filters"><summary>{t('step4.group.members.search')} · <span role="status" data-testid="group-member-scope">{t('step4.group.members.scope', { shown: rows.length, total })}</span></summary>
-      <label>{t('step4.group.members.search')}<input type="search" value={query} onChange={event => setQuery(event.target.value)} data-testid="group-member-search" /></label>
+    <details className="recording-compact-members__filters"><summary>{text('compact.filterSelected')} · <span role="status" data-testid="group-member-scope">{t('step4.group.members.scope', { shown: rows.length, total })}</span></summary>
+      <label>{t('step4.group.members.search')}<input type="search" placeholder={text('compact.searchPlaceholder')} value={query} onChange={event => setQuery(event.target.value)} data-testid="group-member-search" /></label>
       <label><input type="checkbox" checked={problemsOnly} onChange={event => setProblemsOnly(event.target.checked)} data-testid="group-member-problems-only" />{t('step4.group.members.problems_only')}</label>
     </details>
     {metadataStatus !== 'exists' && <p role="status" data-testid="group-member-metadata-note">{t(`step4.group.members.metadata_${metadataStatus}`)}</p>}

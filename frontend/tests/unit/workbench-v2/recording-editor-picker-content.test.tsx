@@ -6,8 +6,9 @@ import type { PickerLabels, RecordingPointPickerProps } from '../../../src/featu
 import { createPicker, sourceKey } from '../../../src/features/datalink/workbench-v2/recording-editor/recordingPickerState';
 import type { GroupCandidate } from '../../../src/features/datalink/workbench-v2/state/writeGroup/candidates';
 const labels: PickerLabels = {
+  rename: 'Change name',
   title: 'Select points', search: 'Search points', device: 'Device', pointType: 'Point type', allDevices: 'All devices', allTypes: 'All types',
-  types: { gauge: 'Gauge', counter: 'Counter', state: 'State' }, unknownType: 'Unknown meaning', point: 'Point', address: 'Address', alreadyAdded: 'Already added', unavailable: 'Check source', cancel: 'Cancel',
+  types: { gauge: 'Gauge', counter: 'Counter', state: 'State' }, unknownType: 'Unknown meaning', dataType: 'Data type', meaningUnknown: 'Some points have no measurement purpose yet', point: 'Point', address: 'Address', alreadyAdded: 'Already added', unavailable: 'Check source', cancel: 'Cancel',
   loading: 'Loading sources', failed: 'Cannot load sources', retry: 'Retry', empty: 'No source points', noMatches: 'No matches', clearFilters: 'Clear filters',
   newSource: 'Add source', invalidPending: 'Revalidate pending points', previous: 'Previous', next: 'Next', pageSize: 'Rows per page',
   matching: (n, a) => `${n} matches, ${a} already added`, pending: n => `${n} pending`, hidden: n => `${n} outside this page`, add: n => `Add ${n} points`, page: (n, t) => `Page ${n} of ${t}`, removePending: identity => `Remove unavailable point ${identity.point_id}`,
@@ -202,4 +203,26 @@ it('focus-only rerender does not undo native scroll before the scroll event is d
   expect(value.onSource).toHaveBeenCalledOnce();
   expect(value.onSource).toHaveBeenCalledWith(undefined);
   expect(value.onAdd).not.toHaveBeenCalled();
+});
+
+it('keeps 32 existing members distinct from pending additions and shows actual types without repeating unknown meaning', () => {
+  const value = props();
+  const rows = Array.from({ length: 48 }, (_, i) => ({ ...points[0], key: `P${i}`, point_id: `P${i}`, tag_id: `T${i}`, label: `TAG_${i}`, address: `D${i}` }));
+  value.state.pageSize = 50;
+  value.projection = { scope: value.state.scope, candidates: rows, members: rows.slice(0, 32), evidence: Object.fromEntries(rows.map(row => [sourceKey(row), { availability: 'eligible' }])) };
+  render(<Controlled value={value} />);
+  expect(screen.getAllByRole('columnheader')).toHaveLength(4);
+  expect(screen.getByRole('columnheader', { name: 'Data type' })).toBeVisible();
+  expect(screen.getAllByText(labels.meaningUnknown)).toHaveLength(1);
+  expect(screen.queryByText(labels.unknownType)).not.toBeInTheDocument();
+  const existing = screen.getByRole('checkbox', { name: 'TAG_29' });
+  expect(existing).toBeChecked(); expect(existing).toBeDisabled();
+  expect(existing.closest('label')).toHaveClass('recording-point-picker__point');
+  expect(within(existing.closest('tr')!).getByText('float32')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Add 0 points' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'TAG_32' }));
+  expect(screen.getByRole('button', { name: 'Add 1 points' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(value.onAdd).not.toHaveBeenCalled();
+  expect(screen.getByRole('checkbox', { name: 'TAG_29' })).toBeChecked();
 });

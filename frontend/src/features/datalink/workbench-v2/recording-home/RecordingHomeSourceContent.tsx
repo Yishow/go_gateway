@@ -42,18 +42,27 @@ function NewRange({ device, source, suspended, controls, leave, list, refreshLis
     <button type="button" data-testid="home-source-keep" onClick={() => setConfirm(undefined)}>{t('source.keep')}</button>
     <button type="button" data-testid="home-source-discard" onClick={() => { const proceed = confirm; range.reset(); setConfirm(undefined); proceed(); }}>{t('source.discard')}</button></footer></>;
   return <RecordingRangeContent controller={range} available={!suspended} beforeForm={list}
-    onReview={ruleId => controls.onSelect(ruleId)} onBack={() => leave.current?.(controls.onClose)}
+    onReview={ruleId => controls.onSelect(ruleId)} onBack={() => leave.current?.(() => controls.onSelect())} backLabel={t('source.backToList')}
     onSubmit={() => { void range.submit(); }} onInspect={() => { void range.inspect(); }} onPrepare={() => { void range.prepareSaved(); }} />;
 }
 /** The original scoped Page supplies every command owner. This component selects
  * local form content only; list responses cannot install or authorize an editor. */
 export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProps) {
-  const { target, state, dispatch, source, suspended, onDeviceName, closeRef, onClose } = props;
+  const { target, state, dispatch, source, suspended, onDeviceName, closeRef, onClose, onSelect } = props;
   const { t } = useTranslation('recording-home');
   const leave = useRef<((proceed: () => void) => void) | undefined>(undefined);
   const list = useQuery({ queryKey: ['recording-home-device-ranges', target.workspaceId, target.deviceId, target.epoch],
     queryFn: () => readHomeDeviceRanges(target.workspaceId, target.deviceId), enabled: target.kind === 'points' && !suspended,
     retry: false, refetchOnWindowFocus: false, gcTime: 0 });
+  const initialSelection = useRef(false);
+  useEffect(() => {
+    if (!target.initialSelection || initialSelection.current || target.kind !== 'points' || target.ruleId || target.newRange || suspended || !list.isSuccess || list.isFetching) return;
+    if (!state.devices.some(device => device.id === target.deviceId && device.persisted)) return;
+    if (!list.data.every(rule => rule.workspace_id === target.workspaceId && rule.device_id === target.deviceId)) return;
+    initialSelection.current = true;
+    if (list.data.length === 1) onSelect(list.data[0].id);
+    else if (list.data.length === 0) onSelect(undefined, true);
+  }, [target, suspended, list.isSuccess, list.isFetching, list.data, onSelect, state.devices]);
   const device = state.devices.find(item => item.id === target.deviceId && item.persisted === true);
   useEffect(() => { if (device) onDeviceName(device.name); }, [device, onDeviceName]);
   useLayoutEffect(() => {
@@ -62,23 +71,22 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
     return () => { closeRef.current = undefined; };
   }, [target.kind, closeRef, onClose]);
   const select = (ruleId?: string, newRange?: boolean) => {
-    const next = () => props.onSelect(ruleId, newRange);
+    const next = () => onSelect(ruleId, newRange);
     if (leave.current) leave.current(next); else next();
   };
   if (!device || suspended) return <div className="gw-modal-body" role="status">{t('source.unavailable')}</div>;
   if (target.kind === 'connection') return <SavedConnection device={device} source={source} suspended={suspended} controls={props} />;
   const listContent = <section aria-label={t('source.ranges')} className="gw-home-range-list">
-    <h3>{t('source.ranges')}</h3>
+    <header className="gw-range-list-heading"><h3>{t('source.ranges')}</h3>{list.isSuccess && !list.isFetching && <button type="button" data-testid="home-range-new" onClick={() => select(undefined, true)}>{t('source.newRange')}</button>}</header>
     {list.isPending || list.isFetching ? <p role="status">{t('loading')}</p> : list.isError ? <p role="alert">{t('source.unavailable')}</p> : <>
       <ul>{list.data?.map(listed => { const rule = state.rules.find(item => item.id === listed.id && item.workspace_id === target.workspaceId && item.device_id === target.deviceId && item.save_state === 'saved') ?? listed; return <li key={rule.id}><div><strong>{rule.naming_prefix}</strong><p>{rule.start_address} · {rule.count} {t('source.pointsUnit')} · {rule.data_type}</p></div>
         <button type="button" data-testid={`home-range-edit-${rule.id}`} onClick={() => select(rule.id)}>{t('source.edit')}</button></li>; })}</ul>
       {!list.data?.length && <p>{t('source.emptyRanges')}</p>}
-      <button type="button" data-testid="home-range-new" onClick={() => select(undefined, true)}>{t('source.newRange')}</button>
     </>}
   </section>;
   const rule = state.rules.find(item => item.id === target.ruleId && item.workspace_id === target.workspaceId && item.device_id === target.deviceId && item.persisted);
-  if (target.ruleId) return rule ? <RecordingHomeSavedRangeEditor target={target} state={state} rule={rule} dispatch={dispatch} leave={leave} suspended={suspended} list={listContent} onDone={() => select()} onLeave={props.onClose} ruleObserverRef={props.ruleObserverRef} />
+  if (target.ruleId) return rule ? <RecordingHomeSavedRangeEditor target={target} state={state} rule={rule} dispatch={dispatch} leave={leave} suspended={suspended} list={undefined} onDone={() => select()} onLeave={props.onClose} ruleObserverRef={props.ruleObserverRef} />
     : <div className="gw-modal-body" role="alert">{t('source.unavailable')}</div>;
-  if (target.newRange) return <NewRange device={device} source={source} suspended={suspended} controls={props} leave={leave} list={listContent} refreshList={() => { void list.refetch(); }} />;
+  if (target.newRange) return <NewRange device={device} source={source} suspended={suspended} controls={props} leave={leave} list={undefined} refreshList={() => { void list.refetch(); }} />;
   return <><div className="gw-modal-body">{listContent}</div><footer className="gw-modal-footer"><button type="button" onClick={props.onClose}>{t('source.close')}</button></footer></>;
 }

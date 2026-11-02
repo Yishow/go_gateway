@@ -146,3 +146,18 @@
 .gw-home-source-modal .gw-home-saved-range-form [data-testid=rule-editor] > h3 { font-size:16px; }
 .gw-home-source-modal .gw-modal-footer > [data-testid=home-range-done] { margin-inline-end:auto; }
 @media(max-width:639px) { .gw-recording-home .gw-filter-options :is(button,label), .gw-home-source-modal :is(button,summary) { min-height:44px; } .gw-recording-home .gw-source-state { font-size:14px; } }
+
+/* Source/task intent is explicit; detail does not define the main layout. */
+.gw-recording-home .gw-home-object-modes { display:flex; gap:8px; border-bottom:1px solid var(--gw-border); }
+.gw-recording-home .gw-home-object-modes button[aria-pressed=true] { color:var(--gw-text); border-bottom:2px solid var(--gw-accent); border-radius:0; font-weight:600; }
+.gw-recording-home .gw-object-purpose { color:var(--gw-muted); font-size:14px; }
+.gw-recording-home [data-testid="home-device-summary"] li { display:grid; grid-template-columns:minmax(140px,280px) minmax(100px,180px) auto auto; justify-content:start; gap:8px 16px; align-items:center; }
+.gw-recording-home [data-testid="home-device-summary"] li button { margin-inline-start:0; }
+.gw-home-source-modal[data-size=form] { width:min(1000px,calc(100vw - 32px)); height:auto; max-height:75dvh; }
+.gw-home-source-modal .gw-range-list-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; }
+.gw-home-source-modal .gw-home-range-list ul { margin:0; padding:0; list-style:none; }
+.gw-home-source-modal .gw-home-range-list li { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.gw-home-source-modal .gw-home-saved-range-form { margin:0; }
+.gw-home-source-modal .gw-home-saved-range-form :is([data-testid=scale-section],[data-testid=share-section]) { padding-top:0; }
+.gw-home-source-modal .gw-home-saved-range-form :is([data-testid=scale-section],[data-testid=share-section]) > summary { min-height:44px; padding-block:12px; line-height:20px; }
+@media(max-width:639px) { .gw-recording-home [data-testid="home-device-summary"] li { grid-template-columns:minmax(0,1fr) auto; } .gw-home-source-modal[data-size=form] { width:calc(100vw - 16px); max-height:calc(100dvh - 16px); height:auto; } }

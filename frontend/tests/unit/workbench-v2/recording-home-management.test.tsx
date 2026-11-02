@@ -132,3 +132,18 @@ it('keeps clear and observed controls together without dropping unknown source s
  expect(within(row).getAllByRole('cell')[2]).toHaveTextContent('result.current.unknown');
  expect(within(row).getAllByRole('cell')[1]).not.toHaveTextContent('statusUnknown');
 });
+
+describe('Home separates recording and equipment intent', () => {
+  it('keeps a single device management surface with both exact actions beside each device', () => {
+    const openDevice = vi.fn(); render(<Host openDevice={openDevice} />);
+    fireEvent.click(screen.getByRole('button', { name: 'manageDevices' }));
+    expect(screen.queryByTestId('home-device-summary')).not.toBeInTheDocument();
+    expect(screen.getByText('devicesPurpose')).toBeVisible();
+    const row = screen.getByText('Device 0').closest('tr'); if (!row) throw new Error('missing row');
+    fireEvent.click(within(row).getByRole('button', { name: 'deviceConnection' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'devicePoints' }));
+    expect(openDevice.mock.calls).toEqual([['D0', 'connection'], ['D0', 'points']]);
+    fireEvent.click(screen.getByRole('button', { name: 'showRecordings' }));
+    expect(screen.getByTestId('home-management-table')).toHaveAttribute('data-mode', 'recordings');
+  });
+});

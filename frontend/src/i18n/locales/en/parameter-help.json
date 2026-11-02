@@ -152,10 +152,10 @@
   },
   "range": {
     "name": {
-      "title": "Source range name",
-      "what": "Names this acquisition range and its generated point prefix.",
-      "how": "Enter a nonempty label. The submitted prefix is normalized; your raw draft remains visible.",
-      "example": "Line A voltage becomes an ASCII-safe prefix."
+      "title": "Point-name prefix",
+      "what": "Generates initial point names and identifies this source range. Each point’s display name can be changed later.",
+      "how": "Enter a recognizable prefix; it is normalized before saving. This is not a database column name.",
+      "example": "Prefix TEMP and address D0 produce TEMP_D0."
     },
     "address": {
       "title": "Starting address",

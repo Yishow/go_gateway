@@ -8,6 +8,7 @@ import { Toggle } from '../../components/Toggle';
 import { RangeSummary } from './RangeSummary';
 import { ScaleSection } from './ScaleSection';
 import { ShareSection } from './ShareSection';
+import { RecordingSourceRangeField } from '../../recording-editor/RecordingSourceRangeFields';
 import { getRuleReadinessReason } from '../../state/sourceRule';
 
 export interface RuleEditorProps {
@@ -15,6 +16,7 @@ export interface RuleEditorProps {
   devices: Device[];
   globalShareEnabled: boolean;
   hideLocalName?: boolean;
+  simplePresentation?: boolean;
   dispatch: React.Dispatch<WorkbenchV2Action>;
 }
 
@@ -30,9 +32,12 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
   devices,
   globalShareEnabled,
   hideLocalName = false,
+  simplePresentation = false,
   dispatch,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const { t: sourceText } = useTranslation('recording-home');
+  const EditorField = simplePresentation ? RecordingSourceRangeField : Field;
 
   const handleTextChange = (field: keyof Rule, val: string) => {
     dispatch({
@@ -87,7 +92,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
       className="flex flex-col gap-5 p-5 rounded-xl border border-slate-800 bg-slate-900/20"
       data-testid="rule-editor"
     >
-      <h3 className="text-sm font-semibold text-slate-200">{t('step2.editor.rangeTitle')}</h3>
+      {!simplePresentation && <h3 className="text-sm font-semibold text-slate-200">{t('step2.editor.rangeTitle')}</h3>}
 
       {hasMissingDevice && (
         <div
@@ -121,7 +126,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {simplePresentation && !hasMissingDevice ? <p className="recording-source-range-device">{owningDevice?.name}</p> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* 裝置選擇 (僅在有多個裝置時啟用) */}
         <Field label="所屬設備來源">
           <Select
@@ -155,11 +160,11 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
           />
           <button type="button" className="text-xs text-blue-300" data-testid="rule-suggest-name" onClick={() => handleTextChange('name', `${owningDevice?.name ?? ''} ${rule.start_address} · ${rule.count} ${rule.data_type}`)}>{t('step2.editor.suggestName')}</button>
         </Field>}
-      </div>
+      </div>}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className={simplePresentation ? "recording-source-range-grid" : "grid grid-cols-2 sm:grid-cols-4 gap-4"}>
         {/* 起始位址 */}
-        <Field label="起始暫存器位址" hint={hasValidAddress ? addrHint : undefined}>
+        <EditorField label={simplePresentation ? sourceText('source.fields.address') : "起始暫存器位址"} help={simplePresentation ? "range.address" : undefined} hint={hasValidAddress ? addrHint : undefined}>
           <Input
             type="text"
             value={rule.start_address}
@@ -183,10 +188,10 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
                 : null}
             </span>
           )}
-        </Field>
+        </EditorField>
 
         {/* 點位數量 */}
-        <Field label={t('step2.editor.itemCount')} hint="範圍 1 至 64">
+        <EditorField label={t('step2.editor.itemCount')} help={simplePresentation ? "range.count" : undefined} hint={simplePresentation ? sourceText('source.fields.countHint') : "範圍 1 至 64"}>
           <Input
             type="number"
             min={1}
@@ -195,10 +200,10 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
             onChange={(e) => handleNumberChange('count', e.target.value, 1)}
             data-testid="rule-count-input"
           />
-        </Field>
+        </EditorField>
 
         {/* 資料型別 */}
-        <Field label="資料型別">
+        <EditorField label="資料型別" help={simplePresentation ? "range.dataType" : undefined} hint={simplePresentation ? sourceText('source.fields.typeHint') : undefined}>
           <Select
             value={rule.data_type}
             onChange={(e) => handleTextChange('data_type', e.target.value)}
@@ -215,17 +220,17 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
             <option value="float64">float64</option>
             <option value="string">string</option>
           </Select>
-        </Field>
+        </EditorField>
 
         {/* 命名前綴 */}
-        <Field label="點位名稱前綴" hint="例: TEMP_">
+        <EditorField label="點位名稱前綴" help={simplePresentation ? "range.name" : undefined} hint={simplePresentation ? sourceText('source.fields.prefixHint') : "例: TEMP_"}>
           <Input
             type="text"
             value={rule.naming_prefix}
             onChange={(e) => handleTextChange('naming_prefix', e.target.value)}
             data-testid="rule-prefix-input"
           />
-        </Field>
+        </EditorField>
       </div>
 
       {/* 暫存器區段摘要 */}

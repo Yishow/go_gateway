@@ -42,6 +42,12 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, summ
       {unverifiedObserved && <p>{t('observationNeedsRefresh')}</p>}
       <button type="button" onClick={() => onChange({ ...initialCollectionState(), pageSize: state.pageSize, observedOnly: true })}>{t('viewObserved')}</button>
     </aside>}
+    <nav className="gw-home-object-modes" aria-label={t('objectModes')}>
+      <button type="button" aria-pressed={state.mode === 'recordings'} onClick={() => patch({ mode: 'recordings' })}>{t('showRecordings')}</button>
+      <button type="button" aria-pressed={state.mode === 'devices'} onClick={() => patch({ mode: 'devices' })}>{t('manageDevices')}</button>
+    </nav>
+    <p className="gw-object-purpose">{t(state.mode === 'devices' ? 'devicesPurpose' : 'recordingsPurpose')}</p>
+    {state.mode === 'devices' && <p className="gw-object-purpose">{t('deviceCreationHint')}</p>}
     <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold">{t(state.mode === 'devices' ? 'manageDevices' : 'saved')}</h2>
     <form role="search" aria-label={t('filters')} className="gw-filters" onSubmit={event => event.preventDefault()}>
       <label className="gw-filter-search">{t('keyword')}<input type="search" value={state.keyword} onChange={event => patch({ keyword: event.target.value })} /></label>
@@ -71,7 +77,7 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, summ
             {state.mode === 'devices' ? <th scope="col">{t('availability')}</th> : <><th scope="col">{t('recordSources')}</th><th scope="col">{t('destinationFilter')}</th><th scope="col">{t('recordWrites')}</th></>}<th scope="col">{t('actions')}</th></tr></thead>
           <tbody>{state.mode === 'devices' ? devicePage.rows.map(device => <tr key={device.id}>
             <td><strong>{device.name}</strong></td>
-            <td>{device.protocol}</td><td>{t(`availabilityStates.${device.availability}`, { defaultValue: t('unknown') })}</td><td className="gw-row-actions">
+            <td>{t(`protocolNames.${device.protocol}`, { defaultValue: device.protocol })}</td><td>{t(`availabilityStates.${device.availability}`, { defaultValue: t('unknown') })}</td><td className="gw-row-actions">
               <button type="button" data-home-focus={`device-${device.id}`} onClick={() => { remember(`device-${device.id}`); onOpenDevice(device.id, 'connection'); }}>{t('deviceConnection')}</button>
               <button type="button" onClick={() => { remember(`device-${device.id}`); onOpenDevice(device.id, 'points'); }}>{t('devicePoints')}</button></td>
           </tr>) : records.rows.map(group => <tr key={group.id}>
@@ -80,7 +86,7 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, summ
             <td>{[...new Set(group.members.map(member => member.device_id))].map(id => devices.find(device => device.id === id)?.name ?? id).join(' / ') || t('unknown')}<p>{t('recordPointCount', { count: group.members.length })}</p><p className="gw-source-state">{t(`result.current.${summaries?.[group.id]?.current === 'source_attention' ? 'source_attention' : 'unknown'}`)}</p></td>
             <td><strong className="gw-destination-name" title={group.destination.table_name}>{group.destination.storage_strategy === 'managed' ? t('managedTable') : group.destination.table_name || t('unknown')}</strong>
               <p className="gw-destination-name">{(group.destination.database || '').split(/[\\/]/).filter(Boolean).at(-1) || t('unknown')}</p>
-              <details className="gw-destination-identity"><summary>{t('destinationIdentity')}</summary><dl><dt>{t('destinationFilter')}</dt><dd>{group.destination.database || t('unknown')}</dd><dt>{t('tableRegion')}</dt><dd>{[group.destination.table_schema, group.destination.table_name].filter(Boolean).join('.')}</dd><dt>{t('product.connector')}</dt><dd>{group.destination.connector_id}</dd></dl></details></td>
+              <details className="gw-destination-identity"><summary>{t('destinationIdentity')}</summary><dl><dt>{t('destinationFilter')}</dt><dd>{group.destination.database || t('unknown')}</dd><dt>{t('technicalTable')}</dt><dd>{[group.destination.table_schema, group.destination.table_name].filter(Boolean).join('.')}</dd><dt>{t('product.connector')}</dt><dd>{group.destination.connector_id}</dd></dl></details></td>
             <td>{summaries?.[group.id] ? <RecordingHomeResultFacts showSourceState={false} id={group.id} name={group.name} summary={summaries[group.id]} /> : t('statusUnknown')}</td><td><button type="button" data-home-focus={`record-${group.id}`} onClick={() => { remember(`record-${group.id}`); onOpen(group.id); }}>{t('openRecord')}</button></td>
           </tr>)}</tbody>
         </table>}
@@ -96,10 +102,9 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, summ
       <button type="button" disabled={current.page <= 1} onClick={() => onChange({ ...state, page: current.page - 1 })}>{t('previous')}</button>
       <button type="button" disabled={current.page >= current.pageCount} onClick={() => onChange({ ...state, page: current.page + 1 })}>{t('next')}</button>
     </div></footer>
-    <aside className="gw-summary" aria-label={t('deviceSummary')}>
+    {state.mode === 'recordings' && <aside className="gw-summary" aria-label={t('deviceSummary')}>
       <h2 className="text-lg font-semibold">{t('deviceSummary')}</h2>
-      <ul data-testid="home-device-summary">{devicePage.summary.map(device => <li key={device.id}><strong>{device.name}</strong><span>{device.protocol}</span><button type="button" data-testid={`home-device-points-${device.id}`} data-home-focus={`summary-device-${device.id}`} onClick={() => { remember(`summary-device-${device.id}`); onOpenDevice(device.id, 'points'); }}>{t('devicePoints')}</button></li>)}</ul>
-      <button type="button" onClick={() => patch({ mode: state.mode === 'devices' ? 'recordings' : 'devices' })}>{t(state.mode === 'devices' ? 'showRecordings' : 'manageDevices')}</button>
-    </aside>
+      <ul data-testid="home-device-summary">{devicePage.summary.map(device => <li key={device.id}><strong>{device.name}</strong><span>{t(`protocolNames.${device.protocol}`, { defaultValue: device.protocol })}</span><button type="button" data-home-focus={`summary-connection-${device.id}`} onClick={() => { remember(`summary-connection-${device.id}`); onOpenDevice(device.id, 'connection'); }}>{t('deviceConnection')}</button><button type="button" data-testid={`home-device-points-${device.id}`} data-home-focus={`summary-device-${device.id}`} onClick={() => { remember(`summary-device-${device.id}`); onOpenDevice(device.id, 'points'); }}>{t('devicePoints')}</button></li>)}</ul>
+    </aside>}
   </section>;
 }

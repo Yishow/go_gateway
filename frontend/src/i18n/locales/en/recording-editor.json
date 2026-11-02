@@ -54,16 +54,16 @@
     "description": "Choose saved points to add. Existing members remain unchanged until you explicitly add your selection.",
     "search": "Search points",
     "device": "Source device",
-    "pointType": "Point meaning",
+    "pointType": "Measurement use",
     "allDevices": "All devices",
-    "allTypes": "All meanings",
+    "allTypes": "All uses",
     "gauge": "Measurement",
     "counter": "Counter",
     "state": "State",
     "unknownType": "Meaning not confirmed",
     "point": "Point",
     "address": "Address",
-    "alreadyAdded": "Already added",
+    "alreadyAdded": "In this recording",
     "unavailable": "Source unavailable or not confirmed",
     "cancel": "Cancel",
     "loading": "Reading saved sources…",
@@ -77,14 +77,16 @@
     "previous": "Previous",
     "next": "Next",
     "pageSize": "Rows per page",
-    "matching": "{{count}} matching · {{added}} already added",
-    "pending": "{{count}} selected",
+    "matching": "{{count}} matches · {{added}} in this recording",
+    "pending": "{{count}} points to add",
     "hidden": "{{count}} selected outside this page/filter",
     "add": "Add {{count}} points",
     "page": "Page {{current}} of {{total}}",
     "removePending": "Remove unavailable selection {{point}}",
     "removeMember": "Remove {{point}}",
-    "undo": "Undo last removal"
+    "undo": "Undo last removal",
+    "dataType": "Data type",
+    "meaningUnknown": "Some points have no measurement purpose yet. Adding does not confirm mean or delta use."
   },
   "source": {
     "title": "Add a source",
@@ -307,7 +309,8 @@
       "ready": "Saved configuration is ready according to the current checks. Starting remains a separate action.",
       "schemaConfirmed": "The schema operation completed. Recheck the current saved configuration.",
       "offline": "Offline — keep editing, then reconnect to check or submit.",
-      "blocked": "Resolve the current restriction before checking or submitting."
+      "blocked": "Resolve the current restriction before checking or submitting.",
+      "sourceReview": "Next: review and save sources"
     },
     "action": {
       "save": "Save configuration",
@@ -443,15 +446,41 @@
     "confirmGauge": "Confirm measurement use",
     "unconfirmed": "Unconfirmed",
     "unsavedSettings": "Unsaved changes",
-    "savedSettings": "Saved settings"
+    "savedSettings": "Saved settings",
+    "filterSelected": "Filter selected points",
+    "searchPlaceholder": "Name, device or address"
   },
   "confirmation": {
     "schemaRequired": "Check the saved destination table, then explicitly confirm its preparation before starting.",
-    "unknownIssue": "A saved recording status needs review. Expand the details below for the original reason."
+    "unknownIssue": "A saved recording status needs review. Expand the details below for the original reason.",
+    "sourceStale": "Source settings changed after this recording was saved. Review and save its sources before checking the destination table.",
+    "configBlocked": "Resolve the recording configuration issues before checking the destination table."
   },
   "workflow": {
     "manage": "Manage this recording",
     "readinessDetails": "Readiness details",
     "editTitle": "Edit recording"
+  },
+  "sourceRefresh": {
+    "review": "Review source settings",
+    "confirm": "Confirm sources and save",
+    "cancel": "Cancel",
+    "inspect": "Inspect selected sources",
+    "currentAtSave": "The selected sources and destination stay unchanged. Saving uses the source settings current at save time. It does not start recording; check the table and explicitly start afterward.",
+    "unavailable": "Some sources or current settings cannot yet be confirmed. Inspect and correct the selected sources, then check again.",
+    "pinned": "This recording retains specific source revisions and cannot directly adopt current settings. Inspect its sources and recording method through the existing editing flow.",
+    "missingMember": "Selected source {{number}} cannot currently be identified uniquely. Review its selection in Sources."
+  },
+  "name": {
+    "title": "Change point name",
+    "rename": "Change name",
+    "shared": "This name is shared by recordings using this point.",
+    "label": "Point name",
+    "save": "Save name",
+    "pending": "Saving the point name…",
+    "blocked": "The source changed or could not be read. Return and open it again to check.",
+    "unknown": "The save result is not confirmed. Check the current name before continuing; do not submit again.",
+    "inspect": "Read current name",
+    "current": "Current stored name: {{name}}"
   }
 }

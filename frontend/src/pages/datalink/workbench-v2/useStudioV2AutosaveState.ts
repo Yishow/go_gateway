@@ -1,3 +1,5 @@
+import { composeRuleObservation, composeMappingObservation } from './sourceQueueComposition';
+import { useRecordingPointNameSubmission } from './useRecordingPointNameSubmission';
 import type { RuleQueueObservation } from './sourceQueueObservation';
 import { useRecordingPointOrder } from '../../../features/datalink/workbench-v2/recording-editor/useRecordingPointOrder';
 import { deviceAPI } from '../../../services/datalink';
@@ -141,6 +143,10 @@ export function useStudioV2AutosaveState(
     },
   });
   const persistedMCPoints = useStudioV2PersistedMCPoints(enabled, rulesQuery.data, devicesQuery.data, persistedMCWorkspaceScope, actions.state.rules);
+  const namingGuards = React.useRef({ mutate: (_id: string): boolean => false, queue: (_id: string): boolean => false });
+  const pointNames = useRecordingPointNameSubmission({ workspaceId: sourceWorkspaceId, scopeToken: locatorEntry, enabled: locatorEntry ? locatorHydration.ready : enabled && workspaceHydrated,
+    stateRef, canMutateRule: id => namingGuards.current.mutate(id), canQueueRule: id => namingGuards.current.queue(id), canWriteRule: id => sourceRanges.canWrite(id), apply: action => { stateRef.current = workbenchV2Reducer(stateRef.current, action); actions.dispatch(action); },
+    queue: (previous, action, next) => rangeQueue.current.mapping(previous, action, next) });
   const persistedMCCanMutateRule = persistedMCPoints.canMutateRule;
   const canMutateRule = React.useCallback((ruleID: string): boolean => {
     if (!sourceRanges.canWrite(ruleID)) return false;
@@ -154,14 +160,10 @@ export function useStudioV2AutosaveState(
     if (localRule) return true;
     return persistedMCCanMutateRule(ruleID);
   }, [persistedMCCanMutateRule, sourceRanges]);
-  // Presentation notifications cannot change the original queue's decisions/order.
-  const ruleObservation: RuleQueueObservation = { ...sourceRanges.ruleObservation,
-    submitted: (rule, generation) => { sourceRanges.ruleObservation.submitted?.(rule, generation); try { ruleObserver?.submitted?.(rule, generation); } catch { /* A view cannot fail the save pipeline. */ } },
-    saved: (rule, saved) => { sourceRanges.ruleObservation.saved(rule, saved); try { ruleObserver?.saved(rule, saved); } catch { /* Same non-authoritative notification boundary. */ } },
-    failed: (rule, error) => { sourceRanges.ruleObservation.failed(rule, error); try { ruleObserver?.failed(rule, error); } catch { /* Preserve the original failure. */ } },
-  };
+  const ruleObservation = composeRuleObservation(sourceRanges.ruleObservation, ruleObserver);
   const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule, ruleObservation, sourceWorkspaceId, locatorHydration.captureRuleSave);
-  const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled, canMutateRule, sourceRanges.mappingObservation);
+  const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled, canMutateRule, composeMappingObservation(sourceRanges.mappingObservation, pointNames.observation), (point, mapping) => sourceRanges.canWrite(point.rule_id) && pointNames.allowPreparedMapping(point, mapping));
+  namingGuards.current = { mutate: canMutateRule, queue: mappingAutosave.canSubmitPreparedMapping };
   rangeQueue.current = { rule: ruleAutosave.afterRuleAction, mapping: mappingAutosave.afterMappingAction };
   const databaseAutosave = useStudioV2DatabaseAutosave(actions, stateRef, enabled, canMutateRule);
   React.useEffect(() => {
@@ -480,11 +482,11 @@ export function useStudioV2AutosaveState(
       ...actions,
       dispatch,
     },
-    deviceSource: locatorEntry ? { ...deviceSubmission.port, pointOrder, range: sourceRanges.port,
+    deviceSource: locatorEntry ? { ...deviceSubmission.port, pointOrder, range: sourceRanges.port, name: pointNames.port,
       acknowledgeLocatorGroupSave: sourceLease.acknowledgeLocatorGroupSave,
       prepare: async (id: string) => id === sourceWorkspaceId && (sourceLease.allowed ? Boolean(await sourceLease.readback()) : await sourceLease.acquire(id)),
       submit: async (request: DeviceSourceRequest) => sourceLease.allowed && await sourceLease.readback() ? deviceSubmission.port.submit(request) : { request, status: 'blocked' as const },
-    } : { ...deviceSubmission.port, pointOrder, range: sourceRanges.port },
+    } : { ...deviceSubmission.port, pointOrder, range: sourceRanges.port, name: pointNames.port },
     databaseConfigQuery: databaseAutosave.databaseConfigQuery,
     databaseTargetsQuery: databaseAutosave.databaseTargetsQuery,
     devicesQuery,

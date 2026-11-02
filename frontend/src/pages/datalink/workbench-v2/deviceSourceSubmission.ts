@@ -1,3 +1,4 @@
+import type { RecordingPointNamePort } from './recordingPointNameSubmission';
 import type { RecordingPointOrderPort } from '../../../features/datalink/workbench-v2/recording-editor/useRecordingPointOrder';
 import type { RecentConnectionPort } from '../../../features/datalink/workbench-v2/recording-editor/recentConnectionDefaults';
 import type { RangeSourcePort } from './rangeSourceSubmission';
@@ -28,6 +29,7 @@ export interface DeviceSourceOutcome {
 }
 /** Local observations, not a backend operation ledger or CAS permission. */
 export interface DeviceSourcePort {
+  name?: RecordingPointNamePort;
   pointOrder?: RecordingPointOrderPort;
   range?: RangeSourcePort;
   /** Page-session prefill only; no persistence or source-write authority. */

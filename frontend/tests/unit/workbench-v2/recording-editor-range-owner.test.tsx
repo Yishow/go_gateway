@@ -78,8 +78,8 @@ it('uses original rule and mapping owners and waits for canonical point/tag read
  fireEvent.click(await screen.findByTestId('recording-points-open'));
  fireEvent.change(screen.getByLabelText('picker.device'), { target: { value: 'dev-1' } });
  fireEvent.click(screen.getByRole('button', { name: 'picker.newSource' }));
- fireEvent.change(await screen.findByLabelText('range.name'), { target: { value: 'Sensor' } });
- fireEvent.change(screen.getByLabelText('range.address'), { target: { value: '40001' } });
+ fireEvent.change(await screen.findByLabelText('source.fields.prefix'), { target: { value: 'Sensor' } });
+ fireEvent.change(screen.getByLabelText('source.fields.address'), { target: { value: '40001' } });
  fireEvent.change(screen.getByLabelText('range.count'), { target: { value: '1' } });
  let resolvePoint!: (point: Awaited<ReturnType<typeof pointAPI.get>>) => void;
  vi.mocked(pointAPI.get).mockImplementationOnce(() => new Promise(resolve => { resolvePoint = resolve; }));
@@ -104,8 +104,8 @@ async function openRange() {
  fireEvent.click(await screen.findByTestId('recording-points-open'));
  fireEvent.change(screen.getByLabelText('picker.device'), { target: { value: 'dev-1' } });
  fireEvent.click(screen.getByRole('button', { name: 'picker.newSource' }));
- fireEvent.change(await screen.findByLabelText('range.name'), { target: { value: 'Sensor' } });
- fireEvent.change(screen.getByLabelText('range.address'), { target: { value: '40001' } });
+ fireEvent.change(await screen.findByLabelText('source.fields.prefix'), { target: { value: 'Sensor' } });
+ fireEvent.change(screen.getByLabelText('source.fields.address'), { target: { value: '40001' } });
  fireEvent.change(screen.getByLabelText('range.count'), { target: { value: '1' } });
  await waitFor(() => expect(screen.getByRole('button', { name: 'range.save' })).toBeEnabled());
 }
@@ -154,8 +154,8 @@ it('Home precise locator saves an empty-device range without replacing the open 
  await screen.findByRole('option', { name: 'PLC' });
  fireEvent.change(screen.getByLabelText('picker.device'), { target: { value: 'dev-1' } });
  fireEvent.click(screen.getByRole('button', { name: 'picker.newSource' }));
- fireEvent.change(await screen.findByLabelText('range.name'), { target: { value: 'Sensor' } });
- fireEvent.change(screen.getByLabelText('range.address'), { target: { value: '40001' } });
+ fireEvent.change(await screen.findByLabelText('source.fields.prefix'), { target: { value: 'Sensor' } });
+ fireEvent.change(screen.getByLabelText('source.fields.address'), { target: { value: '40001' } });
  fireEvent.change(screen.getByLabelText('range.count'), { target: { value: '1' } });
  await waitFor(() => expect(screen.getByRole('button', { name: 'range.save' })).toBeEnabled());
  fireEvent.click(screen.getByRole('button', { name: 'range.save' }));
@@ -184,8 +184,8 @@ it('saves a new device then its range through the same stack, without selecting 
  fireEvent.change(await screen.findByTestId('recording-source-name'), { target: { value: 'New source PLC' } });
  fireEvent.change(screen.getByTestId('input-host'), { target: { value: '192.0.2.20' } });
  fireEvent.click(screen.getByTestId('recording-source-save'));
- fireEvent.change(await screen.findByLabelText('range.name'), { target: { value: 'New sensor' } });
- fireEvent.change(screen.getByLabelText('range.address'), { target: { value: '40001' } });
+ fireEvent.change(await screen.findByLabelText('source.fields.prefix'), { target: { value: 'New sensor' } });
+ fireEvent.change(screen.getByLabelText('source.fields.address'), { target: { value: '40001' } });
  fireEvent.change(screen.getByLabelText('range.count'), { target: { value: '1' } });
  await waitFor(() => expect(screen.getByRole('button', { name: 'range.save' })).toBeEnabled());
  expect(screen.getAllByRole('dialog')).toHaveLength(1);
@@ -216,8 +216,8 @@ it('locates confirmed new points on their page, clears hiding filters with a rea
  fireEvent.change(screen.getByLabelText('picker.search'), { target: { value: 'hides everything' } });
  fireEvent.change(screen.getByLabelText('picker.pointType'), { target: { value: 'counter' } });
  fireEvent.click(screen.getByRole('button', { name: 'picker.newSource' }));
- fireEvent.change(await screen.findByLabelText('range.name'), { target: { value: 'Sensor' } });
- fireEvent.change(screen.getByLabelText('range.address'), { target: { value: '40001' } });
+ fireEvent.change(await screen.findByLabelText('source.fields.prefix'), { target: { value: 'Sensor' } });
+ fireEvent.change(screen.getByLabelText('source.fields.address'), { target: { value: '40001' } });
  fireEvent.change(screen.getByLabelText('range.count'), { target: { value: '1' } });
  await waitFor(() => expect(screen.getByRole('button', { name: 'range.save' })).toBeEnabled());
  fireEvent.click(screen.getByRole('button', { name: 'range.save' }));
@@ -318,7 +318,7 @@ it('saves two int16 items at 40101 using unlinked draft proposals and exact live
  vi.mocked(pointAPI.get).mockImplementation(async id => ({ id, device_id: 'dev-1', address: id.replace('POINT-', ''), data_type: 'int16', enabled: true } as Awaited<ReturnType<typeof pointAPI.get>>));
  vi.mocked(tagAPI.get).mockImplementation(async id => { const row = applied.find(item => item.tag_id === id)!; return { id, key: row.tag_key, data_type: row.target_type, display_name: row.display_name, ...(row.unit ? { unit: row.unit } : {}), status: 'draft' } as Awaited<ReturnType<typeof tagAPI.get>>; });
  await openRange();
- fireEvent.change(screen.getByLabelText('range.address'), { target: { value: '40101' } });
+ fireEvent.change(screen.getByLabelText('source.fields.address'), { target: { value: '40101' } });
  fireEvent.change(screen.getByLabelText('range.count'), { target: { value: '2' } });
  fireEvent.click(screen.getByRole('button', { name: 'range.save' }));
  await screen.findByLabelText('picker.search');
@@ -353,8 +353,8 @@ async function createInactiveRange() {
  fireEvent.change(await screen.findByTestId('recording-source-name'), { target: { value: 'Unprobed B' } });
  fireEvent.change(screen.getByTestId('input-host'), { target: { value: '192.0.2.30' } });
  fireEvent.click(screen.getByTestId('recording-source-save'));
- fireEvent.change(await screen.findByLabelText('range.name'), { target: { value: 'OFFLINE' } });
- fireEvent.change(screen.getByLabelText('range.address'), { target: { value: '40001' } });
+ fireEvent.change(await screen.findByLabelText('source.fields.prefix'), { target: { value: 'OFFLINE' } });
+ fireEvent.change(screen.getByLabelText('source.fields.address'), { target: { value: '40001' } });
  fireEvent.change(screen.getByLabelText('range.count'), { target: { value: '1' } });
  await waitFor(() => expect(screen.getByRole('button', { name: 'range.save' })).toBeEnabled());
  fireEvent.click(screen.getByRole('button', { name: 'range.save' }));

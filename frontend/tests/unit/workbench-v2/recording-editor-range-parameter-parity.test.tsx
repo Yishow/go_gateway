@@ -83,7 +83,7 @@ describe('range parameter parity without a second persistence owner', () => {
     fireEvent.click(screen.getByTestId('recording-points-open'));
     fireEvent.change(screen.getByLabelText('picker.device'), { target: { value: 'D' } });
     fireEvent.click(screen.getByRole('button', { name: 'picker.newSource' }));
-    await screen.findByLabelText('range.name');
+    await screen.findByLabelText('source.fields.prefix');
     expect(screen.getByRole('dialog')).toHaveAccessibleDescription('range.description');
   });
   it('exposes editable range format and mapping unit, with no per-rule polling input', async () => {

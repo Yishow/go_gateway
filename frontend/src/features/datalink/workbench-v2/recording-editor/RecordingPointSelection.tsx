@@ -1,3 +1,5 @@
+import { useRecordingPointNameBuffer } from './useRecordingPointNameBuffer';
+import { RecordingPointNameContent } from './RecordingPointNameContent';
 import { useRecordingDraftGuard } from './RecordingDraftNavigation';
 import { useRecordingRangeBuffer } from './useRecordingRangeBuffer';
 import { RecordingRangeContent } from './RecordingRangeContent';
@@ -43,16 +45,18 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
   deviceSource, discover, onDiscovery, renderMembers }: RecordingPointSelectionProps) {
   const { t } = useTranslation('recording-editor');
   const deviceBuffer = useRecordingDeviceBuffer(workspaceId, deviceSource, disabled);
+  const nameBuffer = useRecordingPointNameBuffer(scope, deviceSource?.name, disabled);
   const rangeBuffer = useRecordingRangeBuffer(workspaceId, deviceSource?.range, disabled);
   const rangeSaved = useRef('');
   const rangeNavigation = useRef<{ requestId: string; sessionId: string; generation: number; scope: string; intent: number } | undefined>(undefined);
   const [locatedCount, setLocatedCount] = useState<number>();
   const discovery = useRecordingPickerDiscovery(scope, discover);
   const [confirmedCandidates, setConfirmedCandidates] = useState<{ rows: readonly GroupCandidate[]; afterRequest: number }>();
+  const [renamedCandidates, setRenamedCandidates] = useState<{ scope: string; rows: GroupCandidate[]; afterRequest: number; supplied: readonly GroupCandidate[] }>();
   const candidates = useMemo(() => {
     const observed = discover ? discovery.result?.value?.candidates ?? [] : suppliedCandidates;
-    return [...observed, ...(confirmedCandidates && !(discover && discovery.result?.status === 'loaded' && discovery.result.request > confirmedCandidates.afterRequest) ? confirmedCandidates.rows.filter(row => !observed.some(item => sourceKey(item) === sourceKey(row))) : [])];
-  }, [discover, discovery.result, suppliedCandidates, confirmedCandidates]);
+    return [...observed.map(row => renamedCandidates?.scope === scope && !(discover ? discovery.result?.status === 'loaded' && discovery.result.request > renamedCandidates.afterRequest : suppliedCandidates !== renamedCandidates.supplied) ? renamedCandidates.rows.find(named => sourceKey(named) === sourceKey(row)) ?? row : row), ...(confirmedCandidates && !(discover && discovery.result?.status === 'loaded' && discovery.result.request > confirmedCandidates.afterRequest) ? confirmedCandidates.rows.filter(row => !observed.some(item => sourceKey(item) === sourceKey(row))) : [])];
+  }, [discover, discovery.result, suppliedCandidates, confirmedCandidates, renamedCandidates, scope]);
   const [confirmedDevices, setConfirmedDevices] = useState<{ device: StudioV2WorkspaceDeviceRecord; afterRequest: number }[]>([]);
   const devices = useMemo(() => {
     const observed = discover ? discovery.result?.value?.devices ?? [] : suppliedDevices;
@@ -76,7 +80,7 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
   const [history, setHistory] = useState<MemberHistory<EditorMember>>(() => ({ scope, removed: new Map() }));
   const [lastRemoved, setLastRemoved] = useState<EditorMember>();
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<'picker' | 'device-choice' | 'device-buffer' | 'range-buffer'>('picker');
+  const [view, setView] = useState<'picker' | 'device-choice' | 'device-buffer' | 'range-buffer' | 'name-buffer'>('picker');
   const [choice, setChoice] = useState('');
 
   const [confirm, setConfirm] = useState(false);
@@ -84,10 +88,10 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
   const [deviceConfirm, setDeviceConfirm] = useState(false);
   const [deviceMounted, setDeviceMounted] = useState(false);
   const navigation = useRecordingDraftGuard({
-    version: JSON.stringify([scope, picker.pending, deviceBuffer.buffer, rangeBuffer.buffer]),
-    dirty: picker.pending.length > 0 || deviceBuffer.dirty || rangeBuffer.dirty,
-    pending: deviceBuffer.locked || rangeBuffer.locked, host: open,
-    discard: () => { sourceIntent.current += 1; deviceBuffer.reset(); rangeBuffer.reset(); setPicker(cancelPicker(picker)); setOpen(false); },
+    version: JSON.stringify([scope, picker.pending, deviceBuffer.buffer, rangeBuffer.buffer, nameBuffer.value?.name]),
+    dirty: picker.pending.length > 0 || deviceBuffer.dirty || rangeBuffer.dirty || nameBuffer.dirty,
+    pending: deviceBuffer.locked || rangeBuffer.locked || nameBuffer.pending, host: open,
+    discard: () => { sourceIntent.current += 1; deviceBuffer.reset(); rangeBuffer.reset(); nameBuffer.reset(); setPicker(cancelPicker(picker)); setOpen(false); },
   });
   const trigger = useRef<HTMLButtonElement>(null), ticket = useRef<ReturnFocusTicket | null>(null);
   const owner = useRef({ scope });
@@ -96,6 +100,7 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
   for (const row of candidates) if (deviceSource?.range?.canSelect?.(row.device_id, row.point_id) === false) projection.evidence = { ...projection.evidence, [sourceKey(row)]: { ...projection.evidence[sourceKey(row)], availability: 'unknown' } };
   const back = () => { sourceIntent.current += 1; if (view === 'range-buffer' && rangeBuffer.dirty && !rangeBuffer.locked) setConfirm(true); else setView('picker'); };
   const close = () => {
+    if (view === 'name-buffer') { if (!nameBuffer.pending) { nameBuffer.reset(); setView('picker'); } return; }
     sourceIntent.current += 1;
     if (view === 'device-buffer') { sourceClose.current?.(); return; }
     if (view !== 'picker') { back(); return; }
@@ -155,8 +160,8 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
           onCloseAutoFocus={event => { event.preventDefault(); restoreReturnFocus(ticket.current, owner.current, trigger.current); }}
           onPointerDownOutside={event => event.preventDefault()}
           onEscapeKeyDown={event => { event.preventDefault(); if (event.isComposing) return; if (navigation.confirming) { navigation.keep(); return; } if (view === 'device-buffer') { sourceClose.current?.(); return; } if (confirm) setConfirm(false); else close(); }}>
-          {navigation.confirmation ?? <header className="gw-modal-header"><Dialog.Title>{t(confirm || deviceConfirm ? 'device.discardTitle' : view === 'picker' ? 'picker.title' : view === 'range-buffer' ? 'range.title' : 'source.title')}</Dialog.Title>
-            <Dialog.Description>{t(confirm || deviceConfirm ? 'device.discardDescription' : view === 'range-buffer' ? 'range.description' : 'picker.description')}</Dialog.Description></header>}
+          {navigation.confirmation ?? <header className="gw-modal-header"><Dialog.Title>{t(confirm || deviceConfirm ? 'device.discardTitle' : view === 'name-buffer' ? 'name.title' : view === 'picker' ? 'picker.title' : view === 'range-buffer' ? 'range.title' : 'source.title')}</Dialog.Title>
+            <Dialog.Description>{t(confirm || deviceConfirm ? 'device.discardDescription' : view === 'name-buffer' ? 'name.shared' : view === 'range-buffer' ? 'range.description' : 'picker.description')}</Dialog.Description></header>}
           <div style={{ display: navigation.confirming ? 'none' : 'contents' }}>
           {confirm ? <><div className="gw-modal-body" /><footer className="gw-modal-footer">
             <button type="button" className="gw-secondary" onClick={() => setConfirm(false)}>{t('device.keep')}</button>
@@ -164,7 +169,15 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
           </footer></> : <>
             {view === 'picker' && <div className="gw-modal-body recording-picker-panel">{locatedCount !== undefined && <p role="status" data-testid="recording-range-located">{t('range.located', { count: locatedCount })}</p>}{rangeBuffer.recoverable && rangeBuffer.canResume() && <button type="button" data-testid="recording-range-resume" onClick={() => { if (rangeBuffer.resume()) setView('range-buffer'); }}>{t('range.resume')}</button>}{rangeBuffer.inactiveSources.map(item => <button key={item.request.requestId} type="button" data-testid={`recording-range-recover-${item.request.requestId}`} disabled={!rangeBuffer.canResume(item.request.requestId)} onClick={() => { sourceIntent.current += 1; if (rangeBuffer.resume(item.request.requestId)) setView('range-buffer'); }}>{t('range.resume')} · {devices.find(device => device.id === item.request.deviceId)?.name ?? item.request.deviceId} · {item.request.buffer.name} · {item.request.buffer.start_address}</button>)}{deviceBuffer.recoverable && <button type="button" data-testid="recording-source-resume" onClick={() => { if (deviceBuffer.resume()) { setDeviceMounted(true); setView('device-buffer'); } }}>{t('device.inspect')}</button>}<RecordingPointPicker state={picker} projection={projection} devices={devices}
               status={active ? pickerStatus : 'failed'} labels={recordingPickerLabels(t)} onChange={setPicker} onCancel={() => setOpen(false)} onRetry={discover ? () => { void discovery.refresh(); } : onRetry ?? (() => undefined)}
+              onRename={deviceSource?.name ? row => { if (active) { setView('name-buffer'); void nameBuffer.begin(row); } } : undefined}
               onAdd={identities => { const next = addRecordingMembers(members, history, identities, projection); if (active && next) { onChange(next); setPicker(cancelPicker(picker)); setOpen(false); } }} onSource={source} /></div>}
+            {view === 'name-buffer' && <RecordingPointNameContent disabled={!active} controller={nameBuffer} onBack={close} onSave={() => { if (!active) return; void nameBuffer.save().then(row => {
+              if (!row || !active) return;
+              const rows = candidates.map(value => sourceKey(value) === sourceKey(row) ? row : value);
+              setRenamedCandidates(current => ({ scope, afterRequest: discovery.currentRequest(), supplied: suppliedCandidates, rows: [...(current?.scope === scope ? current.rows.filter(value => sourceKey(value) !== sourceKey(row)) : []), row] }));
+              onDiscovery?.({ scope, value: { candidates: rows, devices } });
+              nameBuffer.reset(); setView('picker'); if (discover) void discovery.refresh();
+            }); }} />}
             {view === 'device-choice' && <><div className="gw-modal-body space-y-4">
               {choice && !rangeBuffer.canStart(choice) && <><p role="status" data-testid="recording-range-other-pending">{t('range.otherPending')}</p>
                 <button type="button" data-testid="recording-range-resume-choice" onClick={() => { if (rangeBuffer.resume()) setView('range-buffer'); }}>{t('range.resume')}</button></>}

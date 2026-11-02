@@ -61,8 +61,8 @@ async function openRange() {
  fireEvent.click(await screen.findByTestId('recording-points-open'));
  fireEvent.change(screen.getByLabelText('picker.device'), { target: { value: 'dev-1' } });
  fireEvent.click(screen.getByRole('button', { name: 'picker.newSource' }));
- fireEvent.change(await screen.findByLabelText('range.name'), { target: { value: 'Sensor' } });
- fireEvent.change(screen.getByLabelText('range.address'), { target: { value: '40009' } });
+ fireEvent.change(await screen.findByLabelText('source.fields.prefix'), { target: { value: 'Sensor' } });
+ fireEvent.change(screen.getByLabelText('source.fields.address'), { target: { value: '40009' } });
  fireEvent.change(screen.getByLabelText('range.count'), { target: { value: '1' } });
  await waitFor(() => expect(screen.getByRole('button', { name: 'range.save' })).toBeEnabled());
 }
@@ -179,13 +179,13 @@ it.each([false, true])('a lost legacy PUT preserves attempted input, blocks old 
  expect(screen.getByRole('checkbox')).toBeDisabled();
  expect(screen.getByRole('button', { name: 'picker.add' })).toBeDisabled();
  fireEvent.click(screen.getByTestId('recording-range-resume'));
- expect(screen.getByLabelText('range.address')).toHaveValue('40711');
+ expect(screen.getByLabelText('source.fields.address')).toHaveValue('40711');
  const reads = studioV2RulesAPI.list.mock.calls.length;
  fireEvent.click(screen.getByTestId('recording-range-inspect'));
  await waitFor(() => expect(studioV2RulesAPI.list).toHaveBeenCalledTimes(reads + 1));
  expect(screen.getByTestId('recording-range-current-state')).toHaveTextContent(wrote ? '40711' : '40009');
  expect(screen.getByTestId('recording-range-unknown')).toBeVisible();
- expect(screen.getByLabelText('range.address')).toHaveValue('40711');
+ expect(screen.getByLabelText('source.fields.address')).toHaveValue('40711');
  expect(screen.getByRole('button', { name: 'range.save' })).toBeDisabled();
  const review = screen.getByRole('link', { name: 'range.reviewSource' });
  expect(review).toHaveAttribute('target', '_blank'); expect(review.getAttribute('href')).toContain(`rule_id=${originalId}`);
@@ -202,6 +202,6 @@ it('a failed current-state GET does not claim a successful inspection or release
  fireEvent.click(screen.getByTestId('recording-range-inspect'));
  await screen.findByTestId('recording-range-inspection-unavailable');
  expect(screen.queryByTestId('recording-range-current-state')).not.toBeInTheDocument();
- expect(screen.getByLabelText('range.address')).toHaveValue('40711');
+ expect(screen.getByLabelText('source.fields.address')).toHaveValue('40711');
  expect(studioV2RulesAPI.update).toHaveBeenCalledTimes(1);
 });

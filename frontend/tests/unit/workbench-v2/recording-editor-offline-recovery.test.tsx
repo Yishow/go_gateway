@@ -43,8 +43,8 @@ it.each([['A','B'],['A','A']])('native consumer: explicit receipts remain reacha
   fireEvent.change(screen.getByLabelText('picker.device'),{target:{value:id}});
   fireEvent.click(screen.getByRole('button',{name:'picker.newSource'}));
   await act(async()=>Promise.resolve());
-  fireEvent.change(screen.getByLabelText('range.name'),{target:{value:`Range ${id}-${observations.length}`}});
-  fireEvent.change(screen.getByLabelText('range.address'),{target:{value:'40001'}});
+  fireEvent.change(screen.getByLabelText('source.fields.prefix'),{target:{value:`Range ${id}-${observations.length}`}});
+  fireEvent.change(screen.getByLabelText('source.fields.address'),{target:{value:'40001'}});
   fireEvent.change(screen.getByLabelText('range.count'),{target:{value:'1'}});
   fireEvent.click(screen.getByRole('button',{name:'range.save'}));
   await screen.findByTestId('recording-range-saved-inactive');
@@ -53,14 +53,14 @@ it.each([['A','B'],['A','A']])('native consumer: explicit receipts remain reacha
  fireEvent.click(screen.getByRole('button',{name:'picker.cancel'}));
  fireEvent.click(screen.getByTestId('recording-points-open'));
  fireEvent.click(screen.getByTestId('recording-range-resume'));
- expect(screen.getByLabelText('range.name')).toHaveValue(`Range ${second}-1`);
+ expect(screen.getByLabelText('source.fields.prefix')).toHaveValue(`Range ${second}-1`);
  expect(range.submit).toHaveBeenCalledTimes(2);
  fireEvent.click(screen.getByTestId('recording-range-back'));
  fireEvent.click(screen.getByTestId(`recording-range-recover-${observations[0].request.requestId}`));
- expect(screen.getByLabelText('range.name')).toHaveValue(`Range ${first}-0`);
+ expect(screen.getByLabelText('source.fields.prefix')).toHaveValue(`Range ${first}-0`);
  fireEvent.click(screen.getByTestId('recording-range-back'));
  fireEvent.click(screen.getByTestId(`recording-range-recover-${observations[1].request.requestId}`));
- expect(screen.getByLabelText('range.name')).toHaveValue(`Range ${second}-1`);
+ expect(screen.getByLabelText('source.fields.prefix')).toHaveValue(`Range ${second}-1`);
  expect(range.submit).toHaveBeenCalledTimes(2);
  expect(range.prepareSaved).not.toHaveBeenCalled();
 });

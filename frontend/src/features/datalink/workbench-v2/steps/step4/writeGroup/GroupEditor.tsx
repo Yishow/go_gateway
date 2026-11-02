@@ -1,3 +1,4 @@
+import { useRecordingSourceRefresh } from '../../../recording-editor/RecordingSourceRefresh';
 import { RecordingRevisionDetails } from '../../../recording-editor/RecordingRevisionDetails';
 import { createBasicRecordingRequestId } from '../../../state/basicRecording';
 import { RecordingDestinationMismatch, RecordingNewDestinationChooser, RecordingSavedDestination } from '../../../recording-editor/RecordingNewDestination';
@@ -255,7 +256,8 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   if (locatorLease.current.key !== locatorLeaseKey) locatorLease.current = { key: locatorLeaseKey, blocked: readonly };
   const renderLocatorLease = locatorLease.current;
 
-  const handleSave = async () => {
+  const handleSave = async (stillCurrent?: () => boolean) => {
+    if (stillCurrent && !stillCurrent()) return;
     if (savingRef.current || saveActivity.isPending() || saveUnknown || saveReadbackPending || invalid || !group && newDestination && !newDestination.current() || sourceWritePending() || readonly || locatorLease.current !== renderLocatorLease || renderLocatorLease.key !== null &&
       (!mountedRef.current || locatorLease.current.blocked)) return;
     savingRef.current = true;
@@ -269,7 +271,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       const body = mixed && calculationCapabilities ? mixedDraftToRequestGroup(draft, workspaceId, calculationCapabilities) : draftToRequestGroup(draft, workspaceId);
       const latest = await fetchLatest();
       if (!mountedRef.current || saveScope.current !== requestScope || locatorLease.current !== requestLease || requestLease.key !== null && locatorLease.current.blocked) return;
-      if (sourceWritePending() || !group && newDestination && !newDestination.current()) return;
+      if (stillCurrent && !stillCurrent() || sourceWritePending() || !group && newDestination && !newDestination.current()) return;
       if (configuredChoice && (!configuredDestinationStillCurrent(configuredChoice, latest) || configuredDestinationReason(configuredChoice, configuredContext))) throw new Error(editorText('destinations.stale'));
       const freshRevision = latest?.workspace_revision ?? workspaceRevision;
       if (group) {
@@ -316,6 +318,9 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   };
 
   const saving = saveBusy || createMutation.isPending || updateMutation.isPending;
+  const sourceRefresh = useRecordingSourceRefresh({ workspaceId, workspaceRevision, group, draft, candidates, dirty, busy: saving,
+    blocked: readonly || saveUnknown || saveActivity.priorUnknown || Boolean(saveReadbackPending) || invalid || unsettledSources.length > 0 || !destinationMatches,
+    save: handleSave });
   const canApply = Boolean(group) && !dirty && !invalid && (!mixed || calculationCapabilities?.activation_supported === true) && readiness.data?.ready === true &&
     readiness.data.group_revision === group?.revision;
   const applyBlocked = !group ? t('step4.group.apply_blocked_unsaved')
@@ -446,7 +451,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         <button type="button" className="rounded-md border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)]" data-testid="group-save-review" onClick={() => navigation.request(() => { onReload(); onClose(); })}>{editorText('navigation.reviewSaved')}</button>
       </div>}
       {repairContent}
-      <GroupEditorPreparation managed={draft.storage_strategy === 'managed' || group?.destination.storage_strategy === 'managed'}
+      <GroupEditorPreparation sourceRefresh={presentation === 'simple' ? sourceRefresh : undefined} managed={draft.storage_strategy === 'managed' || group?.destination.storage_strategy === 'managed'}
         group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision} destinationMatches={destinationMatches} dirty={dirty} readonly={readonly}
         consentIdentity={JSON.stringify([workspaceId, workspaceRevision, group?.id, group?.revision, draft, connector.connector_id, connector.identity_revision,
           candidates.filter(candidate => draft.members.some(member => member.point_id === candidate.point_id && member.tag_id === candidate.tag_id)), readonly, unsettledSources])}
