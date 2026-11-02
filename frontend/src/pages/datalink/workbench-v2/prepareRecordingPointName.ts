@@ -11,6 +11,14 @@ import { buildPersistedMCRuleState, type PersistedMCRuleState } from '../../../f
 import { toStudioV2DeviceUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2DeviceAutosave';
 import { sameMappingValue, sameHydratedMapping } from './studioV2MappingQueueHelpers';
 
+// Same canonical value comparison as the original device submission observer.
+// Config key order is not an edit; array order and every value remain significant.
+function comparable(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(comparable).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${comparable(item)}`).join(',')}}`;
+  return JSON.stringify(value);
+}
+
 export interface PointNamePreparation {
   workspaceId: string; identity: SourceIdentity; mappingId: string; ruleId: string; ruleRevision: string;
   point: Point; mapping: Mapping; mcEvidence?: PersistedMCRuleState;
@@ -54,7 +62,7 @@ export async function prepareRecordingPointName(workspaceId: string, identity: S
   if (live.rules.filter(value => value.id === record.rule_id).length > 1 || live.devices.filter(value => value.id === identity.device_id).length > 1 ||
     (rule && (rule.device_id !== identity.device_id || rule.persisted !== true || rule.save_state !== 'saved' ||
       rule.revision_id !== freshRule.revision_id || JSON.stringify(toStudioV2RuleUpdateRequest(rule)) !== JSON.stringify(toStudioV2RuleUpdateRequest(freshRule)) || initial.rules.find(value => value.id === rule.id) !== rule)) ||
-    (device && (!device.persisted || device.save_state !== 'saved' || JSON.stringify(toStudioV2DeviceUpdateRequest(device)) !== JSON.stringify(toStudioV2DeviceUpdateRequest(freshDevice)) || initial.devices.find(value => value.id === device.id) !== device))) return;
+    (device && (!device.persisted || device.save_state !== 'saved' || comparable(toStudioV2DeviceUpdateRequest(device)) !== comparable(toStudioV2DeviceUpdateRequest(freshDevice)) || initial.devices.find(value => value.id === device.id) !== device))) return;
   if (Object.values(live.mappings).some(value => value.rule_id === record.rule_id && value.mapping_id !== record.id && value.save_state !== 'saved')) return;
   const ownedRule = rule ?? freshRule;
   const candidates = live.points.filter(value => value.id === identity.point_id || live.mappings[value.id]?.persisted_point_id === identity.point_id);

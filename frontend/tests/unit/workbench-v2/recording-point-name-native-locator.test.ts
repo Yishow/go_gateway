@@ -1,4 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
+import { getDefaultConfig } from '../../../src/features/datalink/workbench-v2/state/protocols';
+import { hydrateStudioV2Device, toStudioV2DeviceUpdateRequest } from '../../../src/features/datalink/workbench-v2/state/studioV2DeviceAutosave';
 import { prepareRecordingPointName } from '../../../src/pages/datalink/workbench-v2/prepareRecordingPointName';
 import { studioV2DatalinkApi, studioV2WorkspaceAPI } from '../../../src/services/studioV2Workspace';
 import { studioV2MappingsAPI } from '../../../src/services/studioV2Mappings';
@@ -57,5 +59,23 @@ it.each(['foreign-before', 'foreign-after', 'revision-after', 'candidate-rule-re
     const snapshot = await sourceRuleCandidateAPI.get('R', { workspace_id: 'W', expected_workspace_revision: 'SOURCE-REV', revision_id: 'R2' });
     vi.mocked(sourceRuleCandidateAPI.get).mockResolvedValue({ ...snapshot, revision_id: 'FOREIGN-RULE' });
   }
+  expect(await prepareRecordingPointName('W', identity, () => state, () => true)).toBeUndefined();
+});
+
+it('accepts the newly created MC device original local config after an equivalent server canonical key ordering', async () => {
+  const read = mcFixture();
+  const device = { ...read.entry.devices![0], connection_config: JSON.stringify({ host: '127.0.0.1', io_no: 1023, network_no: 0, pc_no: 255, port: 15000, station_no: 0, timeout: 5 }) };
+  read.entry.devices = [device];
+  state.devices = [{ ...hydrateStudioV2Device(device), config: { ...getDefaultConfig('mc_3e'), host: '127.0.0.1', port: 15000 } }];
+  expect(toStudioV2DeviceUpdateRequest(state.devices[0])).toEqual(toStudioV2DeviceUpdateRequest(hydrateStudioV2Device(device)));
+  expect(JSON.stringify(toStudioV2DeviceUpdateRequest(state.devices[0]))).not.toBe(JSON.stringify(toStudioV2DeviceUpdateRequest(hydrateStudioV2Device(device))));
+  expect((await prepareRecordingPointName('W', identity, () => state, () => true))?.preparation.mcEvidence?.status).toBe('compatible');
+});
+
+it('still refuses a real MC local config change rather than treating it as server key ordering', async () => {
+  const read = mcFixture();
+  const device = { ...read.entry.devices![0], connection_config: JSON.stringify({ host: '127.0.0.1', io_no: 1023, network_no: 0, pc_no: 255, port: 15000, station_no: 0, timeout: 5 }) };
+  read.entry.devices = [device];
+  state.devices = [{ ...hydrateStudioV2Device(device), config: { ...getDefaultConfig('mc_3e'), host: '127.0.0.1', port: 15001 } }];
   expect(await prepareRecordingPointName('W', identity, () => state, () => true)).toBeUndefined();
 });
