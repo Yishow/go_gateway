@@ -128,15 +128,20 @@ export function useStep3LiveValues(
     [subscriptionKey],
   );
   const groups = React.useMemo(() => buildGroups(subscriptions), [subscriptions]);
+  const persistedSubscriptionKey = JSON.stringify(subscriptions.map((subscription) => [
+    subscription.localPointId, subscription.streamPointId,
+    persistedPointIdByLocalPointId[subscription.localPointId] ?? '',
+  ]));
   const persistedToLocalPointId = React.useMemo(() => {
     const lookup: Record<string, string> = {};
     subscriptions.forEach((subscription) => {
-      if (subscription.streamPointId !== subscription.localPointId) {
+      if (subscription.streamPointId && persistedPointIdByLocalPointId[subscription.localPointId] === subscription.streamPointId) {
         lookup[subscription.streamPointId] = subscription.localPointId;
       }
     });
     return lookup;
-  }, [subscriptions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 以持久身分語意 key 避免快照值更新重建串流
+  }, [persistedSubscriptionKey]);
   const pollPointIds = React.useMemo(
     () =>
       Array.from(
@@ -144,14 +149,14 @@ export function useStep3LiveValues(
           subscriptions
             .map((subscription) => {
               const persistedPointId = subscription.streamPointId;
-              return persistedPointId && persistedPointId !== subscription.localPointId
+              return persistedPointId && persistedToLocalPointId[persistedPointId] === subscription.localPointId
                 ? persistedPointId
                 : null;
             })
             .filter((pointId): pointId is string => Boolean(pointId)),
         ),
       ),
-    [subscriptions],
+    [subscriptions, persistedToLocalPointId],
   );
   const pollPointIdsKey = React.useMemo(() => pollPointIds.join(','), [pollPointIds]);
   const polledValuesQuery = useQuery({
