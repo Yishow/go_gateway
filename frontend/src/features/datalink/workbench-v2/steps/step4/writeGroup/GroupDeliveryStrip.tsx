@@ -16,9 +16,14 @@ const SAFE_BUCKET_CAUSES = new Set<WriteGroupDeliveryBucketCause>([
  */
 export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolean; compact?: boolean }> = ({ group, readonly = false, compact = false }) => {
   const { t } = useTranslation('workbench-v2');
+  const { t: summaryText } = useTranslation('recording-home');
   const delivery = useWriteGroupDeliveryQuery(group.id, true, 5000);
-  const confirmed = delivery.isError ? undefined : delivery.data;
+  const confirmed = delivery.isError || delivery.data?.group_id !== group.id ? undefined : delivery.data;
   const stages = confirmed?.stages;
+  const pending = stages ? stages.queued + stages.retrying : undefined;
+  const committed = stages?.sql_committed;
+  const hasHistory = Boolean(committed || confirmed?.last_sql_committed_at);
+  const intakeLabel = !confirmed ? 'unconfirmed' : confirmed.intake.state === 'active' ? 'active' : confirmed.intake.state === 'not_running' ? 'notRunning' : confirmed.intake.state === 'blocked' || confirmed.intake.state === 'retiring' ? 'blocked' : 'unconfirmed';
   const recentIssues = confirmed?.recent_bucket_issues ?? [];
   const cell = (label: string, value: string, testId: string) => (
     <div key={testId} className="min-w-0">
@@ -49,7 +54,13 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
       {!compact && <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.delivery.title')}</h4>}
       {delivery.isError && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-delivery-failed">{t('step4.group.delivery.failed')}</p>}
       {compact && stages && stages.blocked + stages.quarantined + stages.unknown > 0 && <p role="status" data-testid="group-delivery-attention-summary">{t('step4.group.delivery.attention')}: {stages.blocked + stages.quarantined + stages.unknown}</p>}
-      {compact ? <details data-testid="group-delivery-diagnostics"><summary>{t('step4.group.delivery.title')}{!confirmed && ` · ${unknown}`}</summary>{facts}</details> : facts}
+      {compact && <div data-testid="recording-delivery-summary" className="space-y-1 text-sm">
+        <p>{t('step4.group.delivery.saved')}: {group.status === 'deleted' ? t('step4.group.status.deleted') : t('step4.group.delivery.yes')} · {summaryText(`deliverySummary.${intakeLabel}`)}</p>
+        {hasHistory && <p data-testid="recording-delivery-history">{t('step4.group.delivery.committed')}: {num(committed)}{confirmed?.last_sql_committed_at && <> · <time dateTime={confirmed.last_sql_committed_at}>{confirmed.last_sql_committed_at}</time></>}</p>}
+        {pending !== undefined && pending > 0 && <p data-testid="recording-delivery-pending">{t('step4.group.delivery.local')}: {pending}</p>}
+        {confirmed?.backlog.some(item => item.pending > 0) && <p>{summaryText('deliverySummary.backlog')}</p>}
+      </div>}
+      {compact ? <details data-testid="group-delivery-diagnostics"><summary>{t('step4.group.delivery.title')}{!confirmed && ` · ${unknown}`}</summary>{facts}<p className="text-xs text-[var(--gw-muted)]">{t('step4.group.delivery.note')}</p></details> : facts}
       {recentIssues.length > 0 && (
         <div data-testid="delivery-bucket-causes" className="space-y-1">
           <p className="text-xs font-medium text-[var(--gw-text)]">{t('step4.group.delivery.recent_issues')}</p>
@@ -66,7 +77,7 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
       )}
       {group.applied_revision && <details className="text-xs text-[var(--gw-muted)]"><summary>{t('step4.group.delivery.recovery.diagnostics')}</summary>{group.applied_revision}</details>}
       <GroupDeliveryRecovery groupId={group.id} items={confirmed?.attention ?? []} readonly={readonly} onResolved={() => void delivery.refetch()} />
-      <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.delivery.note')}</p>
+      {!compact && <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.delivery.note')}</p>}
     </section>
   );
 };

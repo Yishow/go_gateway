@@ -4,7 +4,7 @@ import { Input, Select } from '../../components/inputs';
 import { MODBUS_RTU_BAUD_RATES } from '../../state/protocolConnectionOptions';
 import type { ConnectionConfigFormProps } from './ConnectionConfigForm';
 
-type Props = Pick<ConnectionConfigFormProps, 'protocol' | 'config' | 'onChange' | 'rawNumericText'>;
+type Props = Pick<ConnectionConfigFormProps, 'protocol' | 'config' | 'onChange' | 'rawNumericText' | 'inlineAdvanced'>;
 export function FatekModeField({ config, onChange }: Pick<Props, 'config' | 'onChange'>) {
   const { t } = useTranslation('recording-editor');
   return <Field help="connection.fatekMode" label={t('connection.mode')} required><Select value={String(config.mode ?? 'tcp')}
@@ -74,17 +74,16 @@ function ConnectionDataFormat({ config, onChange }: Pick<Props, 'config' | 'onCh
   </Select></Field>;
 }
 
-export function ConnectionAdvancedFields({ protocol, config, onChange, rawNumericText }: Props) {
+export function ConnectionAdvancedFields({ protocol, config, onChange, rawNumericText, inlineAdvanced = false }: Props) {
   const { t } = useTranslation('recording-editor');
   if (protocol === 'fatek_fbs') return null;
-  return <details className="sm:col-span-2"><summary>{t('connection.advanced')}</summary>
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+  const fields = <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {protocol === 'mc_3e' && (['network_no', 'pc_no', 'io_no'] as const).map(key =>
         <Field key={key} help={key === 'network_no' ? 'connection.networkNo' : key === 'pc_no' ? 'connection.pcNo' : 'connection.ioNo'} label={t(`connection.${key}`)}><Input type={rawNumericText ? 'text' : 'number'} inputMode="numeric"
           value={String(config[key] ?? (key === 'io_no' ? config.module_io_no : undefined) ?? (key === 'pc_no' ? 255 : key === 'io_no' ? 1023 : 0))}
           data-testid={`input-${key.replaceAll('_', '-')}`} onChange={event => onChange({ [key]: rawNumericText ? event.target.value : event.target.value === '' ? '' : Number(event.target.value) })} />
         </Field>)}
       <ConnectionDataFormat config={config} onChange={onChange} />
-    </div>
-  </details>;
+    </div>;
+  return inlineAdvanced ? <div className="sm:col-span-2">{fields}</div> : <details className="sm:col-span-2"><summary>{t('connection.advanced')}</summary>{fields}</details>;
 }

@@ -46,7 +46,9 @@
     "invalid": "Complete the required fields and correct invalid values before saving.",
     "recover": "Check unresolved source: {{name}}",
     "checkingScope": "Checking the current workspace…",
-    "scopeBlocked": "The current workspace or revision could not be verified. Your recording draft is unchanged. Reload its current scope before retrying."
+    "scopeBlocked": "The current workspace or revision could not be verified. Your recording draft is unchanged. Reload its current scope before retrying.",
+    "cancelEdit": "Cancel",
+    "saveAndReturn": "Save and return"
   },
   "picker": {
     "open": "Select points",
@@ -310,7 +312,7 @@
       "schemaConfirmed": "The schema operation completed. Recheck the current saved configuration.",
       "offline": "Offline — keep editing, then reconnect to check or submit.",
       "blocked": "Resolve the current restriction before checking or submitting.",
-      "sourceReview": "Next: review and save sources"
+      "sourceReview": "First review the changed source settings"
     },
     "action": {
       "save": "Save configuration",
@@ -369,6 +371,7 @@
     "reviewSavedNote": "Review the selected recordings and sources, then explicitly confirm to start."
   },
   "simple": {
+    "advancedPurpose": "Column and write settings",
     "title": "Recording setup",
     "back": "Back to overview",
     "create": "New recording",
@@ -378,7 +381,7 @@
     "destinationHint": "Choose where this recording is stored. Saving, checking structure and starting remain separate actions.",
     "calculationColumn": "Result / interval",
     "technical": "Saved identity and revisions",
-    "legacySourcesHint": "This saved recording keeps its original source selection and group-wide policy. It is not converted to per-point results.",
+    "legacySourcesHint": "Choose the points to record. The recording method and interval are shown in the summary.",
     "columnsAssignedOnSave": "Column mappings are assigned by the system after saving. Then review and confirm the table structure.",
     "pendingColumn": "Assigned after saving",
     "sections": "Recording sections",
@@ -397,6 +400,10 @@
     "parameterLimits": "Supported interval limits",
     "unset": "Not set",
     "summary": {
+      "intervalUnknown": "Interval unavailable",
+      "methodUnknown": "Recording method unavailable",
+      "cumulative": "Cumulative value",
+      "groupResults": "Recording method / interval",
       "title": "This recording",
       "name": "Recording name",
       "sources": "{{devices}} devices / {{points}} points",
@@ -430,6 +437,10 @@
     "refresh": "Check saved destinations again"
   },
   "compact": {
+    "formatUnknown": "Point format has not been verified",
+    "metadataFailed": "Table columns could not be read. Storage columns for these points cannot be verified yet.",
+    "selectedScope": "Showing {{shown}} of {{total}} points",
+    "search": "Search points",
     "point": "Point / device",
     "address": "Address / type",
     "calculation": "Calculation",
@@ -453,7 +464,7 @@
   "confirmation": {
     "schemaRequired": "Check the saved destination table, then explicitly confirm its preparation before starting.",
     "unknownIssue": "A saved recording status needs review. Expand the details below for the original reason.",
-    "sourceStale": "Source settings changed after this recording was saved. Review and save its sources before checking the destination table.",
+    "sourceStale": "The source settings changed and this recording still uses the earlier settings.",
     "configBlocked": "Resolve the recording configuration issues before checking the destination table."
   },
   "workflow": {
@@ -462,14 +473,15 @@
     "editTitle": "Edit recording"
   },
   "sourceRefresh": {
-    "review": "Review source settings",
-    "confirm": "Confirm sources and save",
+    "review": "Review current source settings",
+    "confirm": "Use current source settings and save",
     "cancel": "Cancel",
     "inspect": "Inspect selected sources",
-    "currentAtSave": "The selected sources and destination stay unchanged. Saving uses the source settings current at save time. It does not start recording; check the table and explicitly start afterward.",
-    "unavailable": "Some sources or current settings cannot yet be confirmed. Inspect and correct the selected sources, then check again.",
+    "currentAtSave": "Keep this recording, selected sources, methods, intervals and destination. Adopt the source settings current at save time, then check and explicitly confirm the table structure again before starting.",
+    "unavailable": "The current sources or settings cannot yet be confirmed. Resolve the issues shown below and check again. No source will be removed or replaced automatically.",
     "pinned": "This recording retains specific source revisions and cannot directly adopt current settings. Inspect its sources and recording method through the existing editing flow.",
-    "missingMember": "Selected source {{number}} cannot currently be identified uniquely. Review its selection in Sources."
+    "missingMember": "Selected source {{number}} cannot currently be identified uniquely. Review its selection in Sources.",
+    "impact": "Recording cannot start yet. Confirm these are still the sources you want, then adopt their current settings and save."
   },
   "name": {
     "title": "Change point name",
@@ -478,9 +490,10 @@
     "label": "Point name",
     "save": "Save name",
     "pending": "Saving the point name…",
-    "blocked": "The source changed or could not be read. Return and open it again to check.",
+    "blocked": "The source changed or could not be read. Cancel this edit, then select the name to read it again.",
     "unknown": "The save result is not confirmed. Check the current name before continuing; do not submit again.",
     "inspect": "Read current name",
+    "finishInspect": "Done viewing",
     "current": "Current stored name: {{name}}"
   }
 }

@@ -69,7 +69,7 @@ it('keeps unsupported simple point order compact without dead controls while pre
   expect(screen.queryByRole('button', { name: 'editor.reset' })).not.toBeInTheDocument();
   const why = screen.getByText('editor.notApplicable');
   expect(why).not.toBeVisible(); expect(why.closest('details')).not.toHaveAttribute('open');
-  fireEvent.click(screen.getByText('editor.version', { selector: 'summary' }));
+  fireEvent.click(screen.getByText('editor.title', { selector: 'summary' }));
   expect(why).toBeVisible(); expect(screen.getByText('editor.version: 0')).toBeVisible();
   expect(pointFormatAPI.save).not.toHaveBeenCalled();
 });
@@ -77,6 +77,7 @@ it('keeps unsupported simple point order compact without dead controls while pre
 it('shows simple Save only for an explicit unsent intent and reset only for an existing override', async () => {
   render(<Page simple />);
   const order = await screen.findByLabelText('editor.order');
+  fireEvent.click(order.closest('details')!.querySelector('summary')!);
   expect(order).toBeVisible();
   expect(screen.queryByRole('button', { name: 'editor.save' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'editor.reset' })).not.toBeInTheDocument();
@@ -89,4 +90,16 @@ it('shows simple Save only for an explicit unsent intent and reset only for an e
   fireEvent.change(order, { target: { value: 'CDAB' } });
   fireEvent.click(screen.getByRole('button', { name: 'editor.save' }));
   await waitFor(() => expect(pointFormatAPI.save).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ format_mode: 'override', configured_format: 'CDAB' })));
+});
+
+it('keeps simple per-point format settings in one detail while retaining the original setting interaction', async () => {
+  render(<Page simple />);
+  const control = await screen.findByLabelText('editor.order');
+  const detail = control.closest('details');
+  expect(detail).not.toBeNull(); expect(detail).not.toHaveAttribute('open'); expect(control).not.toBeVisible();
+  fireEvent.click(detail!.querySelector('summary')!);
+  expect(control).toBeVisible();
+  fireEvent.change(control, { target: { value: 'CDAB' } });
+  expect(screen.getByRole('button', { name: 'editor.save' })).toBeEnabled();
+  expect(pointFormatAPI.save).not.toHaveBeenCalled();
 });

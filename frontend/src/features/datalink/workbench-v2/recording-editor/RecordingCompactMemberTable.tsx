@@ -8,6 +8,7 @@ import './recordingCompactMembers.css';
 interface CompactRow { candidate: GroupCandidate; member: EditorMember | undefined; problem: string | null; suggestion?: { column: string; status: string } }
 interface Props {
   rows: CompactRow[]; total: number; query: string; setQuery: (query: string) => void; problemsOnly: boolean; setProblemsOnly: (value: boolean) => void; columns: DbColumn[]; metadataStatus: Step4TargetMetadataStatus;
+  onRetryMetadata?: () => void;
   columnsAssignedOnSave: boolean; disabled: boolean; showEntityKey: boolean;
   controls: { removeLabel: (member: EditorMember) => string; onRemove: (member: EditorMember) => void };
   update: (candidate: GroupCandidate, patch: Partial<EditorMember>) => void;
@@ -15,16 +16,16 @@ interface Props {
   renderSource?: (member: EditorMember) => ReactNode;
 }
 /** Presentation only. Rows, problems, exact tuple updates and membership all belong to GroupMemberTable. */
-export function RecordingCompactMemberTable({ rows, total, query, setQuery, problemsOnly, setProblemsOnly, metadataStatus, columnsAssignedOnSave, disabled, showEntityKey, controls, update, renderCalculation, renderSource }: Props) {
+export function RecordingCompactMemberTable({ rows, total, query, setQuery, problemsOnly, setProblemsOnly, metadataStatus, onRetryMetadata, columnsAssignedOnSave, disabled, showEntityKey, controls, update, renderCalculation, renderSource }: Props) {
   const { t } = useTranslation('workbench-v2');
   const { t: text } = useTranslation('recording-editor');
   return <div className="recording-compact-members" data-testid="group-member-table" data-calculation-scope={renderCalculation ? 'member' : 'group'}>
-    {!renderCalculation && <p className="recording-compact-members__filters">{text('compact.groupRule')}</p>}
-    <details className="recording-compact-members__filters"><summary>{text('compact.filterSelected')} · <span role="status" data-testid="group-member-scope">{t('step4.group.members.scope', { shown: rows.length, total })}</span></summary>
-      <label>{t('step4.group.members.search')}<input type="search" placeholder={text('compact.searchPlaceholder')} value={query} onChange={event => setQuery(event.target.value)} data-testid="group-member-search" /></label>
+    <details className="recording-compact-members__filters"><summary>{text('compact.filterSelected')} · <span role="status" data-testid="group-member-scope">{text('compact.selectedScope', { shown: rows.length, total })}</span></summary>
+      <label>{text('compact.search')}<input type="search" placeholder={text('compact.searchPlaceholder')} value={query} onChange={event => setQuery(event.target.value)} data-testid="group-member-search" /></label>
       <label><input type="checkbox" checked={problemsOnly} onChange={event => setProblemsOnly(event.target.checked)} data-testid="group-member-problems-only" />{t('step4.group.members.problems_only')}</label>
     </details>
-    {metadataStatus !== 'exists' && <p role="status" data-testid="group-member-metadata-note">{t(`step4.group.members.metadata_${metadataStatus}`)}</p>}
+    {metadataStatus !== 'exists' && <div className="recording-compact-members__metadata"><p role="status" data-testid="group-member-metadata-note">{metadataStatus === 'failed' ? text('compact.metadataFailed') : t(`step4.group.members.metadata_${metadataStatus}`)}</p>
+      {metadataStatus === 'failed' && onRetryMetadata && <button type="button" className="gw-secondary" onClick={onRetryMetadata} data-testid="group-metadata-retry">{t('step4.group.retry')}</button>}</div>}
     <div className="recording-compact-members__scroll" role="region" aria-label={t('step4.group.members.region')} tabIndex={0}>
       <table><thead><tr>{(renderCalculation ? ['point', 'address', 'calculation', 'interval', 'actions'] : ['point', 'address', 'actions']).map(key => <th key={key} scope="col">{text(`compact.${key}`)}</th>)}</tr></thead>
         <tbody>{rows.length === 0 && <tr><td colSpan={renderCalculation ? 5 : 3} data-testid="group-member-empty">{t(total ? 'step4.group.members.none_shown' : 'step4.group.members.none')}</td></tr>}{rows.map(({ candidate, member, problem, suggestion }) => {
@@ -32,7 +33,7 @@ export function RecordingCompactMemberTable({ rows, total, query, setQuery, prob
           const describedBy = problem ? `group-member-problem-${candidate.key}` : undefined;
           const chosenColumn = member.target_column;
           return <tr key={candidate.key} data-testid={`group-member-row-${candidate.point_id}`} data-problem={problem ?? ''}>
-            <td><strong>{candidate.label}</strong><small>{candidate.device_name} {!problem && <span className="recording-compact-members__status" data-testid={`group-member-status-${candidate.point_id}`}>
+            <td><strong>{candidate.label}</strong><small>{candidate.device_name} {(!problem && (columnsAssignedOnSave || !member.target_column || suggestion?.status === 'suggested')) && <span className="recording-compact-members__status" data-testid={`group-member-status-${candidate.point_id}`}>
                 {columnsAssignedOnSave ? text('simple.pendingColumn') : suggestion?.status === 'suggested' && (member.target_column === suggestion.column || member.target_column === '')
                   ? t('step4.group.members.suggested', { column: suggestion.column }) : member.target_column ? t('step4.group.members.confirmed') : t('step4.group.members.unassigned')}
               </span>}</small>{renderSource?.(member)}

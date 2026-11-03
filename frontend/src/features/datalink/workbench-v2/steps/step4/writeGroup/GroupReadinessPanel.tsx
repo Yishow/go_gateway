@@ -49,7 +49,7 @@ export const GroupReadinessPanel: React.FC<GroupReadinessPanelProps> = ({ readin
   return (
     <div className="space-y-2 text-xs text-[var(--gw-text)]" data-testid="group-readiness">
       {dirty && <p className="text-[var(--gw-warning-fg)]" data-testid="group-readiness-stale">{t('step4.group.readiness.stale_draft')}</p>}
-      {compact && !dirty && (readiness.ready || readiness.issues.length > 0) ? <details data-testid="recording-readiness-details"><summary>{editorText('workflow.readinessDetails')}</summary>{facts}</details> : facts}
+      {!compact && facts}
       {readiness.issues.length > 0 && (
         <ul className="space-y-1" data-testid="group-readiness-issues">
           {visibleIssues.map((issue) => (
@@ -61,6 +61,7 @@ export const GroupReadinessPanel: React.FC<GroupReadinessPanelProps> = ({ readin
           ))}
         </ul>
       )}
+      {compact && (!dirty && (readiness.ready || readiness.issues.length > 0) ? <details data-testid="recording-readiness-details"><summary>{editorText('workflow.readinessDetails')}</summary>{facts}</details> : facts)}
     </div>
   );
 };

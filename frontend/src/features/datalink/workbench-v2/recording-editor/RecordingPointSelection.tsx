@@ -80,7 +80,7 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
   const [history, setHistory] = useState<MemberHistory<EditorMember>>(() => ({ scope, removed: new Map() }));
   const [lastRemoved, setLastRemoved] = useState<EditorMember>();
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<'picker' | 'device-choice' | 'device-buffer' | 'range-buffer' | 'name-buffer'>('picker');
+  const [view, setView] = useState<'picker' | 'device-choice' | 'device-buffer' | 'range-buffer'>('picker');
   const [choice, setChoice] = useState('');
 
   const [confirm, setConfirm] = useState(false);
@@ -100,7 +100,9 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
   for (const row of candidates) if (deviceSource?.range?.canSelect?.(row.device_id, row.point_id) === false) projection.evidence = { ...projection.evidence, [sourceKey(row)]: { ...projection.evidence[sourceKey(row)], availability: 'unknown' } };
   const back = () => { sourceIntent.current += 1; if (view === 'range-buffer' && rangeBuffer.dirty && !rangeBuffer.locked) setConfirm(true); else setView('picker'); };
   const close = () => {
-    if (view === 'name-buffer') { if (!nameBuffer.pending) { nameBuffer.reset(); setView('picker'); } return; }
+    if (nameBuffer.pending || nameBuffer.value?.outcome?.status === 'unknown') return;
+    if (nameBuffer.dirty) { navigation.request(() => { nameBuffer.reset(); setPicker(cancelPicker(picker)); setOpen(false); }); return; }
+    nameBuffer.reset();
     sourceIntent.current += 1;
     if (view === 'device-buffer') { sourceClose.current?.(); return; }
     if (view !== 'picker') { back(); return; }
@@ -160,24 +162,25 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
           onCloseAutoFocus={event => { event.preventDefault(); restoreReturnFocus(ticket.current, owner.current, trigger.current); }}
           onPointerDownOutside={event => event.preventDefault()}
           onEscapeKeyDown={event => { event.preventDefault(); if (event.isComposing) return; if (navigation.confirming) { navigation.keep(); return; } if (view === 'device-buffer') { sourceClose.current?.(); return; } if (confirm) setConfirm(false); else close(); }}>
-          {navigation.confirmation ?? <header className="gw-modal-header"><Dialog.Title>{t(confirm || deviceConfirm ? 'device.discardTitle' : view === 'name-buffer' ? 'name.title' : view === 'picker' ? 'picker.title' : view === 'range-buffer' ? 'range.title' : 'source.title')}</Dialog.Title>
-            <Dialog.Description>{t(confirm || deviceConfirm ? 'device.discardDescription' : view === 'name-buffer' ? 'name.shared' : view === 'range-buffer' ? 'range.description' : 'picker.description')}</Dialog.Description></header>}
+          {navigation.confirmation ?? <header className="gw-modal-header"><Dialog.Title>{t(confirm || deviceConfirm ? 'device.discardTitle' : view === 'picker' ? 'picker.title' : view === 'range-buffer' ? 'range.title' : 'source.title')}</Dialog.Title>
+            <Dialog.Description>{t(confirm || deviceConfirm ? 'device.discardDescription' : view === 'range-buffer' ? 'range.description' : 'picker.description')}</Dialog.Description></header>}
           <div style={{ display: navigation.confirming ? 'none' : 'contents' }}>
           {confirm ? <><div className="gw-modal-body" /><footer className="gw-modal-footer">
             <button type="button" className="gw-secondary" onClick={() => setConfirm(false)}>{t('device.keep')}</button>
             <button type="button" className="gw-primary" onClick={() => { setConfirm(false); rangeBuffer.reset(); setView('picker'); }}>{t('device.discard')}</button>
           </footer></> : <>
             {view === 'picker' && <div className="gw-modal-body recording-picker-panel">{locatedCount !== undefined && <p role="status" data-testid="recording-range-located">{t('range.located', { count: locatedCount })}</p>}{rangeBuffer.recoverable && rangeBuffer.canResume() && <button type="button" data-testid="recording-range-resume" onClick={() => { if (rangeBuffer.resume()) setView('range-buffer'); }}>{t('range.resume')}</button>}{rangeBuffer.inactiveSources.map(item => <button key={item.request.requestId} type="button" data-testid={`recording-range-recover-${item.request.requestId}`} disabled={!rangeBuffer.canResume(item.request.requestId)} onClick={() => { sourceIntent.current += 1; if (rangeBuffer.resume(item.request.requestId)) setView('range-buffer'); }}>{t('range.resume')} · {devices.find(device => device.id === item.request.deviceId)?.name ?? item.request.deviceId} · {item.request.buffer.name} · {item.request.buffer.start_address}</button>)}{deviceBuffer.recoverable && <button type="button" data-testid="recording-source-resume" onClick={() => { if (deviceBuffer.resume()) { setDeviceMounted(true); setView('device-buffer'); } }}>{t('device.inspect')}</button>}<RecordingPointPicker state={picker} projection={projection} devices={devices}
-              status={active ? pickerStatus : 'failed'} labels={recordingPickerLabels(t)} onChange={setPicker} onCancel={() => setOpen(false)} onRetry={discover ? () => { void discovery.refresh(); } : onRetry ?? (() => undefined)}
-              onRename={deviceSource?.name ? row => { if (active) { setView('name-buffer'); void nameBuffer.begin(row); } } : undefined}
+              status={active ? pickerStatus : 'failed'} labels={recordingPickerLabels(t)} onChange={setPicker} onCancel={close} onRetry={discover ? () => { void discovery.refresh(); } : onRetry ?? (() => undefined)}
+              nameLocked={nameBuffer.pending || nameBuffer.dirty || nameBuffer.value?.outcome?.status === 'unknown'} nameNotice={deviceSource?.name ? t('name.shared') : undefined}
+              renderName={deviceSource?.name ? row => <RecordingPointNameContent candidate={row} disabled={!active || ((nameBuffer.pending || nameBuffer.dirty || nameBuffer.value?.outcome?.status === 'unknown') && sourceKey(nameBuffer.value!.candidate) !== sourceKey(row))}
+                controller={nameBuffer} onBegin={() => { if (active && !nameBuffer.pending && !nameBuffer.dirty && nameBuffer.value?.outcome?.status !== 'unknown') { nameBuffer.reset(); void nameBuffer.begin(row); } }}
+                onBack={() => nameBuffer.reset()} onSave={() => { if (!active) return; void nameBuffer.save().then(saved => {
+                  if (!saved || !active) return;
+                  const rows = candidates.map(value => sourceKey(value) === sourceKey(saved) ? saved : value);
+                  setRenamedCandidates(current => ({ scope, afterRequest: discovery.currentRequest(), supplied: suppliedCandidates, rows: [...(current?.scope === scope ? current.rows.filter(value => sourceKey(value) !== sourceKey(saved)) : []), saved] }));
+                  onDiscovery?.({ scope, value: { candidates: rows, devices } }); nameBuffer.reset(); if (discover) void discovery.refresh();
+                }); }} /> : undefined}
               onAdd={identities => { const next = addRecordingMembers(members, history, identities, projection); if (active && next) { onChange(next); setPicker(cancelPicker(picker)); setOpen(false); } }} onSource={source} /></div>}
-            {view === 'name-buffer' && <RecordingPointNameContent disabled={!active} controller={nameBuffer} onBack={close} onSave={() => { if (!active) return; void nameBuffer.save().then(row => {
-              if (!row || !active) return;
-              const rows = candidates.map(value => sourceKey(value) === sourceKey(row) ? row : value);
-              setRenamedCandidates(current => ({ scope, afterRequest: discovery.currentRequest(), supplied: suppliedCandidates, rows: [...(current?.scope === scope ? current.rows.filter(value => sourceKey(value) !== sourceKey(row)) : []), row] }));
-              onDiscovery?.({ scope, value: { candidates: rows, devices } });
-              nameBuffer.reset(); setView('picker'); if (discover) void discovery.refresh();
-            }); }} />}
             {view === 'device-choice' && <><div className="gw-modal-body space-y-4">
               {choice && !rangeBuffer.canStart(choice) && <><p role="status" data-testid="recording-range-other-pending">{t('range.otherPending')}</p>
                 <button type="button" data-testid="recording-range-resume-choice" onClick={() => { if (rangeBuffer.resume()) setView('range-buffer'); }}>{t('range.resume')}</button></>}

@@ -310,7 +310,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
   }
 
   const renderEditor = (editorLifecycleHost = lifecycleHost, lifecycleReadonly = false, isOriginalScope?: () => boolean) => editing && editorObserved ? (
-        <GroupEditor presentation={presentation} scopeDiagnostics={collapseDiagnostics ? locatorDiagnostics : undefined} destinationContent={destinationContent} calculationCapabilities={editorObserved.calculation_capabilities} deviceSource={deviceSource} sourceDevices={(editorState ?? state).devices.filter(device => device.persisted)}
+        <GroupEditor scopedPresentation={Boolean(locatorOnly && presentation === 'guided')} presentation={presentation} scopeDiagnostics={collapseDiagnostics ? locatorDiagnostics : undefined} destinationContent={destinationContent} calculationCapabilities={editorObserved.calculation_capabilities} deviceSource={deviceSource} sourceDevices={(editorState ?? state).devices.filter(device => device.persisted)}
           copyPrefill={selection.kind === 'new' ? selection.copyPrefill : undefined}
           key={`${editorObserved.workspace_id}:${selection.kind === 'edit' ? selection.id : 'new'}`}
           group={selected} workspaceId={editorObserved.workspace_id} workspaceRevision={editorObserved.workspace_revision}
@@ -379,7 +379,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
   ) : null;
 
   const draftBlocked = initialSelection !== 'copy' && located && selection.kind !== 'none' && (selection.kind !== 'edit' || selection.id !== located.groupId);
-  const collapseDiagnostics = presentation === 'simple' && !readonly && !locatorSuspended && !opening && !openError && !draftBlocked && !invalidSimpleScope && !groupsQuery.isError &&
+  const collapseDiagnostics = (presentation === 'simple' || locatorOnly && presentation === 'guided') && !readonly && !locatorSuspended && !opening && !openError && !draftBlocked && !invalidSimpleScope && !groupsQuery.isError &&
     selected && editorEntry?.selection.state === 'selected' && selected.id === located?.groupId && selected.workspace_id === workspaceId &&
     editorEntry.selection.target.groupId === selected.id && editorEntry.entry.group_heads[selected.id] === selected.revision;
   const locatorDiagnostics = <>

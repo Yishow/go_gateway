@@ -43,3 +43,11 @@
 .recording-selected-members [class*='border-slate'], .recording-selected-members tbody tr { border-color: var(--gw-border); }
 .recording-selected-members :is(input, select, button) { min-height: var(--gw-control-height); color: var(--gw-text); background: var(--gw-surface); border-color: var(--gw-control); }
 .recording-selected-members :is(input, select, button):focus-visible { outline: var(--gw-focus-width) solid var(--gw-focus); outline-offset: var(--gw-focus-offset); }
+
+.recording-point-picker .recording-point-name-inline { flex: 1; min-width: 0; }
+.recording-point-picker .recording-point-name-inline > input { width: 100%; min-width: 0; min-height: 36px; margin: 0; }
+.recording-point-picker .recording-point-name-inline__actions { display: flex; gap: var(--gw-space-xs); flex-wrap: wrap; margin-top: var(--gw-space-xs); }
+.recording-point-picker .recording-point-name-inline__actions button { min-height: 44px; }
+.recording-point-picker .recording-point-picker__added { flex: none; color: var(--gw-muted); white-space: nowrap; }
+
+.recording-point-picker__identity[data-inline-name='true'] > label { flex: none; }

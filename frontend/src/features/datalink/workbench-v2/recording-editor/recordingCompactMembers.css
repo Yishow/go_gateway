@@ -2,7 +2,7 @@
 .recording-compact-members { min-width: 0; font-size: 14px; }
 .recording-compact-members__filters { color: var(--gw-muted); font-size: 12px; margin-bottom: var(--gw-space-sm); }
 .recording-compact-members summary { cursor: pointer; }
-.recording-compact-members__filters[open] { display: flex; flex-wrap: wrap; gap: var(--gw-space-sm); }
+.recording-compact-members__filters[open] { display: block; }
 .recording-compact-members__filters label { display: inline-flex; align-items: center; gap: var(--gw-space-xs); }
 .recording-compact-members__scroll { position: relative; max-width: 100%; overflow-x: auto; border: 1px solid var(--gw-border); border-radius: var(--gw-radius-sm); }
 .recording-compact-members table { width: 100%; min-width: 680px; border-collapse: collapse; text-align: start; }
@@ -62,3 +62,11 @@
 .recording-editor-simple .recording-gauge-consent > span { white-space: nowrap; }
 .recording-editor-simple .recording-gauge-confirm { white-space: nowrap; }
 .recording-editor-simple .recording-point-order-inline__controls > div:empty { display: none; }
+
+/* Selected source diagnostics stay available without adding a full line of status per point. */
+.recording-compact-members__metadata { display: flex; align-items: center; flex-wrap: wrap; gap: var(--gw-space-sm); margin-bottom: var(--gw-space-sm); }
+.recording-compact-members__metadata p { margin: 0; }
+.recording-compact-members__filters > label { margin: var(--gw-space-xs) var(--gw-space-sm) 0 0; }
+.recording-compact-members__filters input[type='search'] { min-width: 12rem; max-width: 100%; }
+.recording-compact-members .recording-point-order-inline__details { font-size: 12px; color: var(--gw-muted); }
+.recording-compact-members .recording-point-order-inline__details > summary { display: inline-block; cursor: pointer; }

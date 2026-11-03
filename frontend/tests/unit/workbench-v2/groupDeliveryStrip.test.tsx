@@ -113,3 +113,33 @@ it('folds only compact delivery diagnostics while errors and bucket risks remain
   view.rerender(<GroupDeliveryStrip group={savedGroup()} {...{ compact: true }} />);
   expect(screen.getByTestId('group-delivery-failed')).toBeVisible();
 });
+
+
+it('summarizes a confirmed not-running record without presenting eight zero cells as progress', () => {
+  deliveryQuery.mockReturnValue({ data: delivery({ intake: { state: 'not_running' } }), isError: false } as never);
+  render(<GroupDeliveryStrip group={savedGroup()} compact />);
+  expect(screen.getByTestId('recording-delivery-summary')).toHaveTextContent('deliverySummary.notRunning');
+  expect(screen.getByTestId('recording-delivery-summary')).toHaveTextContent('step4.group.delivery.yes');
+  expect(screen.getByTestId('delivery-collecting')).not.toBeVisible();
+  expect(screen.queryByTestId('recording-delivery-history')).not.toBeInTheDocument();
+});
+
+it('keeps committed history and pending rows visible even without an applied revision', () => {
+  const data = delivery({ intake: { state: 'not_running' }, last_sql_committed_at: '2026-11-02T01:00:00Z' });
+  data.stages.sql_committed = 9; data.stages.queued = 2;
+  deliveryQuery.mockReturnValue({ data, isError: false } as never);
+  render(<GroupDeliveryStrip group={savedGroup({ applied_revision: '' })} compact />);
+  expect(screen.getByTestId('recording-delivery-history')).toBeVisible();
+  expect(screen.getByTestId('recording-delivery-history')).toHaveTextContent('9');
+  expect(screen.getByTestId('recording-delivery-pending')).toBeVisible();
+  expect(screen.getByTestId('recording-delivery-pending')).toHaveTextContent('2');
+});
+
+it('does not confirm runtime or history from a foreign delivery response', () => {
+  const data = delivery({ group_id: 'foreign-group' }); data.stages.sql_committed = 12;
+  deliveryQuery.mockReturnValue({ data, isError: false } as never);
+  render(<GroupDeliveryStrip group={savedGroup()} compact />);
+  expect(screen.getByTestId('recording-delivery-summary')).toHaveTextContent('deliverySummary.unconfirmed');
+  expect(screen.queryByTestId('recording-delivery-history')).not.toBeInTheDocument();
+  expect(screen.getByTestId('delivery-committed')).toHaveTextContent('step4.group.delivery.unconfirmed');
+});

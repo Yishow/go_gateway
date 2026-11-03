@@ -151,7 +151,7 @@ describe('Home direct device creation through the original workspace owner', () 
   expect(old).toBeDefined();
   old!.onCreated('LATE');
   expect(screen.getByTestId('selected-source')).toHaveTextContent('connection');
-  fireEvent.click(screen.getByTestId('home-source-close'));
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
   expect(currentClose).toHaveBeenCalledOnce();
   fireEvent.click(screen.getByText('Switch workspace'));
   old!.onCreated('FOREIGN');

@@ -9,6 +9,7 @@ interface Props { simple?: boolean; port: RecordingPointOrderPort; workspaceId: 
 /** Canonical source detail only: no mapping fields, local decoding or activation. */
 export function RecordingPointOrder({ simple = false, port, workspaceId, deviceId, pointId, disabled }: Props) {
   const { t } = useTranslation('point-format');
+  const { t: text } = useTranslation('recording-editor');
   const scope = useMemo(() => ({ workspace_id: workspaceId, device_id: deviceId, point_id: pointId }), [workspaceId, deviceId, pointId]);
   const entry = useSyncExternalStore(port.subscribe, () => port.get(scope));
   const available = port.available(scope);
@@ -38,15 +39,16 @@ export function RecordingPointOrder({ simple = false, port, workspaceId, deviceI
       {entry && ['saved', 'recovery-unknown'].includes(entry.status) && <button type="button" disabled={disabled} onClick={() => void port.recover(scope)}>{t('editor.recover')}</button>}
       {entry?.recovered && <p role="status">{t(`editor.${entry.recovered.runtime_state}`)} · {t(entry.recovered.share_applied ? 'editor.shareApplied' : 'editor.shareDisabled')} {t('editor.notReading')}</p>}</>;
   if (simple) return <section className="recording-point-order-inline" data-testid={`recording-point-order-${pointId}`}>
-    <div className="recording-point-order-inline__heading"><span>{t('editor.order')}{resolution && <> · <span data-testid="point-order-effective">{resolution.applicable ? resolution.effective_format || t('editor.native') : t('editor.native')}</span></>}</span>
-      {resolution && <details><summary>{t('editor.version')}</summary>
+    <details className="recording-point-order-inline__details"><summary>{t('editor.title')}</summary>
+      {resolution ? <>
+        <p>{t('editor.order')} · <span data-testid="point-order-effective">{resolution.applicable ? resolution.effective_format || t('editor.native') : t('editor.native')}</span></p>
+        {resolution.applicable && <div className="recording-point-order-inline__controls">{orderControl}{orderActions}</div>}
         <p>{t('editor.version')}: {resolution.format_version}</p>
-        {!resolution.applicable && <><p>{t('editor.notApplicable')}</p>{resolution.effective_format && <p>{resolution.effective_format}</p>}</>}
+        {!resolution.applicable && <p>{t('editor.notApplicable')}</p>}
         <p>{t(`source.${resolution.effective_source}`)} · {t(`policy.${resolution.effective_policy}`)}</p>
         {resolution.native_compatibility && <p>{t('editor.nativeCompatibility')}</p>}
-      </details>}
-    </div>
-    {resolution?.applicable ? <div className="recording-point-order-inline__controls">{orderControl}{orderActions}</div> : null}
+      </> : <p>{text('compact.formatUnknown')}</p>}
+    </details>
     {operationStatus}
   </section>;
   return <details className="mt-1 text-sm text-[var(--gw-muted)]" data-testid={`recording-point-order-${pointId}`}>

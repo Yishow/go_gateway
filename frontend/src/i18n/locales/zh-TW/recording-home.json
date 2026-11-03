@@ -4,7 +4,6 @@
   "deviceKeyword": "搜尋設備名稱或協議",
   "recordingsTab": "記錄",
   "devicesTab": "設備",
-
   "title": "資料記錄",
   "navigation": "工作區導覽",
   "advanced": "進階設定",
@@ -160,7 +159,14 @@
       "typeHint": "請依設備暫存器表選擇資料型別。",
       "prefix": "點位名稱前綴",
       "prefixHint": "例如 TEMP_，會用於產生每個點位的名稱。"
-    }
+    },
+    "cancelEdit": "取消",
+    "saveAndReturn": "儲存並返回",
+    "ruleEnabled": "啟用此規則",
+    "shareOff": "全域 Modbus Share 尚未啟用。請先到全域設定啟用，完成後返回此頁。",
+    "shareUnknown": "尚未確認全域 Modbus Share 狀態，請重新讀取後再設定此規則。",
+    "openShareSettings": "開啟全域設定",
+    "retryShare": "重新讀取狀態"
   },
   "recordSources": "來源",
   "recordWrites": "寫入",
@@ -172,7 +178,9 @@
     "backRecordings": "返回記錄首頁",
     "finishBeforeLeaving": "請先完成目前的修改，再離開此頁。編輯內容仍保留在這裡。",
     "readUnavailable": "目前無法確認設定。修改仍保留在下方，重新讀取成功後才能繼續編輯。",
-    "retryRead": "重新讀取設定"
+    "retryRead": "重新讀取設定",
+    "recordTitle": "欄位與寫入設定",
+    "backRecord": "返回這份記錄"
   },
   "product": {
     "workspace": "記錄工作台",
@@ -204,5 +212,12 @@
     "fatek_fbs": "FATEK FBs",
     "mqtt": "MQTT"
   },
-  "deviceCreationHint": "新增設備：新增記錄 → 選擇點位 → 新增來源 → 建立新設備。"
+  "deviceCreationHint": "新增設備：新增記錄 → 選擇點位 → 新增來源 → 建立新設備。",
+  "deliverySummary": {
+    "unconfirmed": "尚未取得記錄狀態",
+    "active": "正在採集",
+    "notRunning": "目前未開始記錄",
+    "blocked": "採集已停止接收或受阻，請處理顯示的問題",
+    "backlog": "仍有較早版本的資料等待交付；不會因設定更新而改寫其目的地。"
+  }
 }

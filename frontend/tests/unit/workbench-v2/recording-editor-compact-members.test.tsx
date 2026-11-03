@@ -75,7 +75,7 @@ it('keeps the original help target outside compact mode and reuses the same comp
 it('shows saved legacy rows in the same simple panel without inventing per-point calculations', () => {
   render(<RecordingSelectedMembers {...props()} renderCalculation={undefined} />);
   expect(screen.getByRole('columnheader', { name: 'compact.point' })).toBeVisible();
-  expect(screen.getAllByText('compact.groupRule')).toHaveLength(1);
+  expect(screen.queryByText('compact.groupRule')).not.toBeInTheDocument();
   expect(screen.getAllByRole('columnheader')).toHaveLength(3);
   expect(screen.queryByText('compact.groupCadence')).not.toBeInTheDocument();
   expect(screen.queryByRole('columnheader', { name: /step4.group.members.col_column/ })).not.toBeInTheDocument();
@@ -107,7 +107,7 @@ it('keeps all 32 saved legacy identities and managed bindings without exposing a
   const source = Array.from({ length: 32 }, (_, i) => ({ ...candidates[0], key: `P${i}|T${i}`, point_id: `P${i}`, tag_id: `T${i}`, label: `Point ${i}` }));
   const rows = source.map((point, i) => ({ ...members[0], ...point, target_column: `v_${i.toString(16).padStart(24, '0')}` }));
   render(<RecordingSelectedMembers {...value} candidates={source} members={rows} renderCalculation={undefined} />);
-  expect(screen.getAllByText('compact.groupRule')).toHaveLength(1);
+  expect(screen.queryByText('compact.groupRule')).not.toBeInTheDocument();
   expect(screen.getAllByRole('columnheader')).toHaveLength(3);
   expect(screen.queryByText('compact.groupCadence')).not.toBeInTheDocument();
   expect(screen.getAllByRole('row')).toHaveLength(33);
@@ -116,4 +116,19 @@ it('keeps all 32 saved legacy identities and managed bindings without exposing a
   expect(within(settings).getByText(rows[0].target_column)).toBeVisible();
   expect(within(settings).queryByRole('combobox')).not.toBeInTheDocument();
   expect(value.onChange).not.toHaveBeenCalled();
+});
+
+it('uses meaningful selected-point search and metadata impact without implementation reassurance', () => {
+  render(<RecordingSelectedMembers {...props()} metadataStatus="failed" />);
+  fireEvent.click(screen.getByText(/compact\.filterSelected/, { selector: 'summary' }));
+  expect(screen.getByLabelText('compact.search')).toHaveValue('');
+  expect(screen.getByTestId('group-member-metadata-note')).toHaveTextContent('compact.metadataFailed');
+  expect(screen.getByTestId('group-member-metadata-note')).not.toHaveTextContent('step4.group.members.metadata_failed');
+});
+
+it('keeps failed metadata retry next to its impact using the existing callback', () => {
+  const retry = vi.fn(); render(<RecordingSelectedMembers {...props()} metadataStatus="failed" onRetryMetadata={retry} />);
+  const note = screen.getByTestId('group-member-metadata-note');
+  const button = screen.getByTestId('group-metadata-retry'); expect(note.parentElement).toContainElement(button);
+  fireEvent.click(button); expect(retry).toHaveBeenCalledOnce();
 });

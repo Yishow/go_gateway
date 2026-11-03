@@ -13,6 +13,7 @@ import { RecordingHomeSavedRangeEditor, type HomeSourceLeave } from './Recording
 import { readHomeDeviceRanges } from './recordingHomeSourceList';
 import type { HomeSourceControls } from './RecordingHomeSourceHost';
 export interface RecordingHomeSourceContentProps extends HomeSourceControls {
+  shareEnabled?: boolean; onRetryShare: () => void; onOpenShareSettings: () => void;
   state: WorkbenchV2State; dispatch: Dispatch<WorkbenchV2Action>; source: DeviceSourcePort; suspended: boolean;
 }
 function SavedConnection({ device, source, suspended, controls }: { device?: Device; source: DeviceSourcePort; suspended: boolean; controls: HomeSourceControls }) {
@@ -22,7 +23,7 @@ function SavedConnection({ device, source, suspended, controls }: { device?: Dev
   useEffect(() => { if (!started.current) { started.current = true; void buffer.start(); } }, [buffer]);
   useLayoutEffect(() => { controls.closeRef.current = () => { if (!buffer.locked) innerClose.current?.(); }; return () => { controls.closeRef.current = undefined; }; }, [buffer.locked, controls.closeRef]);
   useRecordingDraftGuard({ version: JSON.stringify([controls.target.epoch, buffer.buffer]), dirty: buffer.dirty && !buffer.locked, pending: buffer.locked, host: true, discard: buffer.reset });
-  return <RecordingSourceDeviceContent controller={{ ...buffer, disabled: buffer.disabled || buffer.preparing || buffer.blocked }} slot={{ active: true, closeRef: innerClose, onConfirmChange: setConfirm,
+  return <RecordingSourceDeviceContent existingEdit={Boolean(device)} controller={{ ...buffer, disabled: buffer.disabled || buffer.preparing || buffer.blocked }} slot={{ active: true, closeRef: innerClose, onConfirmChange: setConfirm,
     onReturn: () => { if (!buffer.pending) controls.onClose(); }, onSaved: saved => { if (controls.target.kind === 'create') controls.onCreated(saved.id); else controls.onClose(); } }} />;
 }
 function NewRange({ device, source, suspended, controls, leave, list, refreshList }: { device: Device; source: DeviceSourcePort; suspended: boolean; controls: HomeSourceControls; leave: HomeSourceLeave; list: ReactNode; refreshList: () => void }) {
@@ -86,7 +87,7 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
     </>}
   </section>;
   const rule = state.rules.find(item => item.id === target.ruleId && item.workspace_id === target.workspaceId && item.device_id === target.deviceId && item.persisted);
-  if (target.ruleId) return rule ? <RecordingHomeSavedRangeEditor target={target} state={state} rule={rule} dispatch={dispatch} leave={leave} suspended={suspended} list={undefined} onDone={() => select()} onLeave={props.onClose} ruleObserverRef={props.ruleObserverRef} />
+  if (target.ruleId) return rule ? <RecordingHomeSavedRangeEditor shareEnabled={props.shareEnabled} onRetryShare={props.onRetryShare} onOpenShareSettings={props.onOpenShareSettings} target={target} state={state} rule={rule} dispatch={dispatch} leave={leave} suspended={suspended} list={undefined} onDone={() => select()} onLeave={props.onClose} ruleObserverRef={props.ruleObserverRef} />
     : <div className="gw-modal-body" role="alert">{t('source.unavailable')}</div>;
   if (target.newRange) return <NewRange device={device} source={source} suspended={suspended} controls={props} leave={leave} list={undefined} refreshList={() => { void list.refetch(); }} />;
   return <><div className="gw-modal-body">{listContent}</div><footer className="gw-modal-footer"><button type="button" onClick={props.onClose}>{t('source.close')}</button></footer></>;

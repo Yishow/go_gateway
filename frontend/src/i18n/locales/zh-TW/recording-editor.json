@@ -46,7 +46,9 @@
     "invalid": "請填妥必填欄位並修正非法數值，再明確保存。",
     "recover": "查證未決來源：{{name}}",
     "checkingScope": "正在核對目前工作區…",
-    "scopeBlocked": "無法核對目前工作區或版本。記錄草稿未變更；請先重新讀取目前範圍再試。"
+    "scopeBlocked": "無法核對目前工作區或版本。記錄草稿未變更；請先重新讀取目前範圍再試。",
+    "cancelEdit": "取消",
+    "saveAndReturn": "儲存並返回"
   },
   "picker": {
     "open": "選擇點位",
@@ -310,7 +312,7 @@
       "schemaConfirmed": "結構操作已完成，請重新檢查目前已保存設定。",
       "offline": "目前離線，可繼續編輯；重新連線後才能檢查或提交。",
       "blocked": "請先處理目前限制，再檢查或提交。",
-      "sourceReview": "下一步：確認來源並儲存"
+      "sourceReview": "先確認變更的來源設定"
     },
     "action": {
       "save": "保存設定",
@@ -369,6 +371,7 @@
     "reviewSavedNote": "先確認要開始的記錄與來源，再明確按下開始。"
   },
   "simple": {
+    "advancedPurpose": "欄位與寫入設定",
     "title": "單頁記錄設定",
     "back": "返回總覽",
     "create": "新增記錄",
@@ -378,7 +381,7 @@
     "destinationHint": "設定這組記錄存在哪裡。保存、檢查結構與開始是分開的動作。",
     "calculationColumn": "記錄數值／間隔",
     "technical": "已保存識別與版本",
-    "legacySourcesHint": "這筆已保存記錄維持原來的來源與全組記錄規則，不自動轉成逐點算法。",
+    "legacySourcesHint": "選擇要記錄的點位；記錄方式與週期列在右側摘要。",
     "columnsAssignedOnSave": "儲存後由系統配置欄位對應，再檢查並確認資料表結構。",
     "pendingColumn": "儲存後配置",
     "sections": "本頁設定區段",
@@ -397,6 +400,10 @@
     "parameterLimits": "可用間隔範圍",
     "unset": "尚未設定",
     "summary": {
+      "intervalUnknown": "週期未提供",
+      "methodUnknown": "記錄方式未提供",
+      "cumulative": "累積值",
+      "groupResults": "記錄方式／週期",
       "title": "這組記錄",
       "name": "記錄名稱",
       "sources": "{{devices}} 台設備／{{points}} 點",
@@ -430,6 +437,10 @@
     "refresh": "重新確認已保存目的地"
   },
   "compact": {
+    "formatUnknown": "字序設定尚未確認",
+    "metadataFailed": "無法讀取資料表欄位，目前無法確認這些點位的儲存欄位。",
+    "selectedScope": "顯示 {{shown}} / {{total}} 點",
+    "search": "搜尋點位",
     "point": "點位／設備",
     "address": "位址／型別",
     "calculation": "算法",
@@ -453,7 +464,7 @@
   "confirmation": {
     "schemaRequired": "請先檢查已儲存的目的地資料表，並明確確認準備內容，再開始記錄。",
     "unknownIssue": "有一項記錄狀態需要確認。請展開下方詳細資訊，查看原始原因。",
-    "sourceStale": "來源設定已變更，這筆記錄仍使用先前設定。請先確認來源並儲存，再檢查資料表。",
+    "sourceStale": "這筆記錄的來源設定已變更，尚未更新至此記錄。",
     "configBlocked": "請先處理這筆記錄的設定問題，才能檢查資料表。"
   },
   "workflow": {
@@ -462,14 +473,15 @@
     "editTitle": "編輯記錄"
   },
   "sourceRefresh": {
-    "review": "檢視並更新來源設定",
-    "confirm": "確認來源並儲存",
+    "review": "確認目前來源設定",
+    "confirm": "採用目前來源設定並儲存",
     "cancel": "取消",
     "inspect": "檢視已選來源",
-    "currentAtSave": "以下來源的選取與目的地保持不變。本次儲存會採用儲存當下的最新來源設定，尚不會開始記錄；之後仍需檢查資料表並明確開始。",
-    "unavailable": "部分來源或目前設定還無法確認。請先檢視已選來源並修正，再重新檢查。",
+    "currentAtSave": "保留這筆記錄、已選來源、記錄方式、時間間隔與目的地，只更新儲存當下的來源設定。接著需要重新檢查並明確確認資料表結構，才可開始記錄。",
+    "unavailable": "尚無法確認目前來源或設定。請先處理下方列出的問題，再重新檢查；不會替你移除來源或改用其他點位。",
     "pinned": "這筆記錄保留特定來源版本，不能直接套用最新設定。請先檢視來源與記錄方式，沿原有修改流程確認。",
-    "missingMember": "第 {{number}} 個已選來源目前無法唯一確認；請在來源區重新確認選取。"
+    "missingMember": "第 {{number}} 個已選來源目前無法唯一確認；請在來源區重新確認選取。",
+    "impact": "目前不能開始記錄。請確認下列來源仍是你要記錄的內容，再採用目前來源設定並儲存。"
   },
   "name": {
     "title": "修改點位名稱",
@@ -478,9 +490,10 @@
     "label": "點位名稱",
     "save": "保存名稱",
     "pending": "正在保存點位名稱…",
-    "blocked": "來源已變更或暫時無法讀取，請返回後重新開啟確認。",
+    "blocked": "來源已變更或暫時無法讀取。取消這次編輯，再點名稱重新讀取。",
     "unknown": "尚未確認這次保存結果，請先讀取目前名稱，不要重複送出。",
     "inspect": "讀取目前名稱",
+    "finishInspect": "結束查看",
     "current": "目前保存的名稱：{{name}}"
   }
 }

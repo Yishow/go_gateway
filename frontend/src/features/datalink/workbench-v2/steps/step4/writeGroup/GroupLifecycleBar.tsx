@@ -24,6 +24,7 @@ export interface GroupLifecycleBarProps {
   /** The exact saved revision is ready and the editor has no unsaved edits. */
   canApply: boolean;
   applyBlockedReason?: string;
+  sharedReadinessReason?: string;
   readonly: boolean;
   onChanged: (group: WriteGroup, workspaceRevision?: string) => void;
   onConflict: () => void;
@@ -37,7 +38,7 @@ export interface GroupLifecycleBarProps {
 
 /** One action surface in Basic and Advanced, with server authority refreshed before ordinary mutations. */
 export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
-  group, workspaceId, workspaceRevision, canApply, applyBlockedReason, readonly, onChanged, onConflict,
+  group, workspaceId, workspaceRevision, canApply, applyBlockedReason, sharedReadinessReason, readonly, onChanged, onConflict,
   onReviewScopedStart, lifecycleHost, hideApply = false, confirmStop = false, locatorScope, locatorGuard, compact = false,
 }) => {
   const { t } = useTranslation('workbench-v2');
@@ -139,10 +140,10 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
     <h3 ref={returnContext} tabIndex={-1} data-testid="group-lifecycle-return" className="sr-only focus:not-sr-only">{group.name}</h3>
     {!hideApply && <>
       <button type="button" onClick={() => (routed ? reviewStart?.(group) : void run('apply'))}
-        disabled={readonly || busy || deleted || !canApply} className="rounded border border-[var(--gw-success-border)] bg-[var(--gw-success-bg)] px-3 py-1 text-xs text-[var(--gw-success-fg)] disabled:text-[var(--gw-muted)]" data-testid="group-apply">
+        aria-describedby={!canApply ? sharedReadinessReason : undefined} disabled={readonly || busy || deleted || !canApply} className="rounded border border-[var(--gw-success-border)] bg-[var(--gw-success-bg)] px-3 py-1 text-xs text-[var(--gw-success-fg)] disabled:text-[var(--gw-muted)]" data-testid="group-apply">
         {routed ? recordingT('start.reviewSaved') : t('step4.group.lifecycle.apply')}
       </button>
-      {!canApply && !deleted && applyBlockedReason && <p className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-apply-blocked">{applyBlockedReason}</p>}
+      {!sharedReadinessReason && !canApply && !deleted && applyBlockedReason && <p className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-apply-blocked">{applyBlockedReason}</p>}
       <p className="text-xs text-[var(--gw-muted)]" data-testid="group-apply-note">{routed ? recordingT('start.reviewSavedNote') : t('step4.group.lifecycle.apply_note')}</p>
     </>}
     {compact ? <details className="recording-secondary-management" data-testid="recording-secondary-management"><summary>{recordingT('workflow.manage')}</summary>{management}<p className="text-xs text-[var(--gw-muted)]">{lifecycleT('stop.keeps')}</p></details> : management}

@@ -10,12 +10,14 @@ import { columnCompatibility, type ColumnSuggestions, type WriteGroupSqlDialect 
 import { memberKey, type DraftIssue, type EditorDraft, type EditorMember } from '../../../state/writeGroup/draft';
 
 export interface GroupMemberTableProps {
+  scopedPresentation?: boolean;
   presentation?: 'guided' | 'simple';
   candidates: GroupCandidate[];
   excluded: ExcludedCandidate[];
   members: EditorMember[];
   columns: DbColumn[];
   metadataStatus: Step4TargetMetadataStatus;
+  onRetryMetadata?: () => void;
   suggestions: ColumnSuggestions;
   issues: DraftIssue[];
   showEntityKey: boolean;
@@ -55,7 +57,7 @@ function emptyMember(candidate: GroupCandidate, column: string): EditorMember {
  * bulk action names its scope and count and touches only the rows shown.
  */
 export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
-  presentation = 'guided', renderSource, renderCalculation, candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
+  scopedPresentation = false, presentation = 'guided', onRetryMetadata, renderSource, renderCalculation, candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
   dialect = 'portable', managed = false, layoutVersion, columnsAssignedOnSave = false, onChange, selectionControls,
 }) => {
   const { t } = useTranslation('workbench-v2');
@@ -137,13 +139,17 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
   const acceptable = shown.filter((row) => row.suggestion?.status === 'suggested' &&
     (!row.member || row.member.target_column === '')).length;
 
+  const simpleMetadata = metadataStatus !== 'exists' && <div className="recording-compact-members__metadata">
+    <p role="status" data-testid="group-member-metadata-note">{metadataStatus === 'failed' ? editorText('compact.metadataFailed') : t(`step4.group.members.metadata_${metadataStatus}`)}</p>
+    {metadataStatus === 'failed' && onRetryMetadata && <button type="button" className="gw-secondary" onClick={onRetryMetadata} data-testid="group-metadata-retry">{t('step4.group.retry')}</button>}
+  </div>;
   if (presentation === 'simple' && selectionControls && members.length === 0) return <div data-testid="group-member-table">
     <p className="recording-editor-empty" data-testid="group-member-empty">{editorText('simple.noSelectedPoints')}</p>
-    {metadataStatus !== 'exists' && <p role="status" data-testid="group-member-metadata-note">{t(`step4.group.members.metadata_${metadataStatus}`)}</p>}
+    {simpleMetadata}
   </div>;
   if (presentation === 'simple' && managed && selectionControls && excluded.length === 0) return <RecordingCompactMemberTable
     rows={shown} total={rows.length} query={query} setQuery={setQuery} problemsOnly={problemsOnly} setProblemsOnly={setProblemsOnly}
-    columns={columns} metadataStatus={metadataStatus} columnsAssignedOnSave={columnsAssignedOnSave} disabled={disabled}
+    columns={columns} metadataStatus={metadataStatus} onRetryMetadata={onRetryMetadata} columnsAssignedOnSave={columnsAssignedOnSave} disabled={disabled}
     showEntityKey={showEntityKey} controls={selectionControls} update={update} renderCalculation={renderCalculation} renderSource={renderSource} />;
   const classes = (value: string) => value;
   return (
@@ -178,7 +184,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
       </div>
 
       {columnsAssignedOnSave && <p className="text-sm text-[var(--gw-muted)]">{editorText('simple.columnsAssignedOnSave')}</p>}
-      {metadataStatus !== 'exists' && (
+      {presentation === 'simple' ? simpleMetadata : metadataStatus !== 'exists' && (
         <p className={classes('text-sm text-[var(--gw-warning-fg)]')} data-testid="group-member-metadata-note">
           {t(`step4.group.members.metadata_${metadataStatus}`)}
         </p>
@@ -188,12 +194,12 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
         <table className={classes('w-full min-w-[640px] border-collapse text-left text-sm')}>
           <thead className={classes('bg-[var(--gw-surface)] text-[var(--gw-muted)]')}>
             <tr>
-              <th scope="col" className={classes('p-2')}>{presentation === 'simple' && selectionControls ? editorText('compact.actions') : <>{t('step4.group.members.col_include')} <ParameterHelp help="member.include" /></>}</th>
+              <th scope="col" className={classes('p-2')}>{(presentation === 'simple' || scopedPresentation) && selectionControls ? editorText('compact.actions') : <>{t('step4.group.members.col_include')} <ParameterHelp compact={scopedPresentation} help="member.include" /></>}</th>
               <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_tag')}</th>
               {renderCalculation ? <th scope="col" className={classes('p-2')}>{editorText('simple.calculationColumn')}</th> : <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_type')}</th>}
-              <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_column')} <ParameterHelp help="member.targetColumn" /></th>
-              <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_required')} <ParameterHelp help="member.required" /></th>
-              {showEntityKey && <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_entity')} <ParameterHelp help="member.entityKey" /></th>}
+              <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_column')} <ParameterHelp compact={scopedPresentation} help="member.targetColumn" /></th>
+              <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_required')} <ParameterHelp compact={scopedPresentation} help="member.required" /></th>
+              {showEntityKey && <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_entity')} <ParameterHelp compact={scopedPresentation} help="member.entityKey" /></th>}
               <th scope="col" className={classes('p-2')}>{t('step4.group.members.col_status')}</th>
             </tr>
           </thead>
@@ -212,7 +218,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
                 <tr key={candidate.key} data-testid={`group-member-row-${candidate.point_id}`} data-problem={problem ?? ''}>
                   <td className={classes('p-2')}>
                     {selectionControls && member ? <button type="button" className={classes('inline-flex min-h-10 max-sm:min-h-11 items-center justify-center rounded-lg border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)] disabled:cursor-not-allowed disabled:opacity-50')} disabled={disabled}
-                      aria-label={selectionControls.removeLabel(member)} onClick={() => selectionControls.onRemove(member)}>{presentation === 'simple' ? editorText('compact.remove') : selectionControls.removeLabel(member)}</button> : <input
+                      aria-label={selectionControls.removeLabel(member)} onClick={() => selectionControls.onRemove(member)}>{presentation === 'simple' || scopedPresentation ? editorText('compact.remove') : selectionControls.removeLabel(member)}</button> : <input
                       type="checkbox" checked={Boolean(member)} disabled={disabled}
                       aria-label={t('step4.group.members.include_label', { tag: candidate.label })}
                       onChange={(event) => (event.target.checked ? include(candidate, suggestion?.status === 'confirmed' ? suggestion.column : '') : exclude(candidate.key))}
@@ -226,7 +232,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
                   </td>
                   {renderCalculation ? <td className={classes('p-2 align-top')} data-testid={`group-member-calculation-${candidate.point_id}`}>{member && renderCalculation(member)}</td> : <td className={classes('p-2 font-mono')}>{candidate.target_type}</td>}
                   <td className={classes('p-2')}>
-                    {columnsAssignedOnSave ? <span className="text-sm text-[var(--gw-muted)]">{chosenColumn || editorText('simple.pendingColumn')}</span> : metadataKnown ? (
+                    {scopedPresentation && managed ? <details data-testid={`group-managed-column-${candidate.point_id}`}><summary>{editorText('simple.systemManaged')}</summary><code>{chosenColumn || editorText('simple.pendingColumn')}</code></details> : columnsAssignedOnSave ? <span className="text-sm text-[var(--gw-muted)]">{chosenColumn || editorText('simple.pendingColumn')}</span> : metadataKnown ? (
                       <select
                         value={chosenColumn} disabled={disabled || !member}
                         aria-label={t('step4.group.members.column_label', { tag: candidate.label })}

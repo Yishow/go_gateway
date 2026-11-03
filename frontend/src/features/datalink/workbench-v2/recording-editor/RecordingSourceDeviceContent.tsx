@@ -5,13 +5,13 @@ import type { RecordingSourceSlot } from './RecordingPointSelection';
 import type { RecordingDeviceBufferController } from './useRecordingDeviceBuffer';
 import { RecordingDeviceSourceForm } from './RecordingDeviceSourceForm';
 /** Content of the host's sole dialog, never a dialog or mutation owner itself. */
-export function RecordingSourceDeviceContent({ controller: device, slot }: { controller: RecordingDeviceBufferController; slot: RecordingSourceSlot }) {
+export function RecordingSourceDeviceContent({ controller: device, slot, existingEdit = false }: { controller: RecordingDeviceBufferController; slot: RecordingSourceSlot; existingEdit?: boolean }) {
   const { t } = useTranslation('recording-editor');
   const { onConfirmChange } = slot;
   const [confirm, setConfirm] = useState<'back' | 'clear' | DeviceSourceBuffer>();
   const close = () => {
     if (confirm) { setConfirm(undefined); return; }
-    if (device.locked) { slot.onReturn(); return; }
+    if (device.locked) return;
     if (device.dirty) setConfirm('back'); else slot.onReturn();
   };
   useEffect(() => { slot.closeRef.current = close; return () => { slot.closeRef.current = undefined; }; });
@@ -43,13 +43,13 @@ export function RecordingSourceDeviceContent({ controller: device, slot }: { con
         {device.dirty && !device.parsed && <p role="status">{t('device.invalid')}</p>}
       </>}
     </div>
-    <footer className="gw-modal-footer">
+    <footer className="gw-modal-footer" data-edit-actions={existingEdit || undefined} style={existingEdit ? { justifyContent: 'flex-end' } : undefined}>
       {confirm ? <><button type="button" className="gw-secondary" onClick={() => setConfirm(undefined)}>{t('device.keep')}</button>
         <button type="button" className="gw-primary" data-testid="recording-source-discard" onClick={discard}>{t('device.discard')}</button></> : <>
-        <button type="button" className="gw-secondary" data-testid="recording-source-close" onClick={close}>{t(device.locked ? 'device.close' : 'source.back')}</button>
+        <button type="button" className="gw-secondary" data-testid="recording-source-close" disabled={device.locked} onClick={close}>{t(existingEdit ? 'device.cancelEdit' : device.locked ? 'device.close' : 'source.back')}</button>
         {device.locked && !device.pending && <button type="button" data-testid="recording-source-inspect" disabled={device.checking} onClick={() => { void device.inspect(); }}>{t('device.inspect')}</button>}
         <button type="button" className="gw-primary" data-testid="recording-source-save" disabled={device.disabled || device.locked || !device.parsed || !device.dirty}
-          onClick={() => { void device.submit(); }}>{t(device.deviceId ? 'device.saveChanges' : 'device.save')}</button>
+          onClick={() => { void device.submit(); }}>{t(existingEdit ? 'device.saveAndReturn' : device.deviceId ? 'device.saveChanges' : 'device.save')}</button>
       </>}
     </footer>
   </>;

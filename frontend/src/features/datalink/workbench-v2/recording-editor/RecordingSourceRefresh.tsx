@@ -12,7 +12,7 @@ interface Props {
   candidates: readonly GroupCandidate[]; blocked: boolean; busy: boolean; dirty: boolean;
   save: (stillCurrent: () => boolean) => Promise<void>;
 }
-/** Explicit consent to the original legacy Save semantics, not a source hash/CAS proof. */
+/** Explicit consent to current-source Save semantics, not a source hash/CAS proof. */
 export function useRecordingSourceRefresh(props: Props): ReactNode {
   const { t } = useTranslation('recording-editor');
   const client = useQueryClient();
@@ -24,13 +24,13 @@ export function useRecordingSourceRefresh(props: Props): ReactNode {
     data?.workspace_id === props.workspaceId && data.workspace_revision === props.workspaceRevision &&
     data.group_id === props.group?.id && data.group_revision === props.group?.revision;
   const stale = Boolean(scoped && data?.issues.some(issue => issue.code === 'source-revision-stale' && issue.severity === 'blocking'));
-  const legacy = Boolean(props.group && !props.group.recording_profile && !props.group.record_id && !props.group.basic_managed_device_id);
+  const recoverable = Boolean(props.group && props.group.status !== 'deleted');
   const rows = props.draft.members.map(member => props.candidates.filter(candidate => candidate.device_id === member.device_id && candidate.point_id === member.point_id && candidate.tag_id === member.tag_id));
   const noRetainedOperation = () => {
     const recovery = recordingTestWriteRecovery.read();
     return navigator.onLine && !recovery.unavailable && !recovery.references.some(reference => reference.workspace_id === props.workspaceId && reference.group_id === props.group?.id) && inspectSchemaOperation(props.workspaceId, props.group?.id).state === 'empty';
   };
-  const canReview = noRetainedOperation() && stale && legacy && !props.blocked && !props.dirty && rows.length > 0 && rows.every(row => row.length === 1);
+  const canReview = noRetainedOperation() && stale && recoverable && !props.blocked && !props.dirty && rows.length > 0 && rows.every(row => row.length === 1);
   const identity = JSON.stringify([props.workspaceId, props.workspaceRevision, props.group?.id, props.group?.revision, props.draft, props.candidates, props.blocked, props.dirty, query?.dataUpdatedAt]);
   const epoch = useRef({ identity });
   if (epoch.current.identity !== identity) epoch.current = { identity };
@@ -43,10 +43,10 @@ export function useRecordingSourceRefresh(props: Props): ReactNode {
   };
   if (!stale || props.dirty) return null;
   return <section className="space-y-2" data-testid="recording-source-refresh">
-    <p role="status">{t('confirmation.sourceStale')}</p>
-    {!canReview && <p>{t(legacy ? 'sourceRefresh.unavailable' : 'sourceRefresh.pinned')}</p>}
+    <p>{t('sourceRefresh.impact')}</p>
+    {!canReview && <p>{t('sourceRefresh.unavailable')}</p>}
     {rows.some(row => row.length !== 1) && <ul>{rows.map((row, index) => row.length !== 1 && <li key={props.draft.members[index].key}>{t('sourceRefresh.missingMember', { number: index + 1 })}</li>)}</ul>}
-    <a href="#recording-editor-sources" className="underline">{t('sourceRefresh.inspect')}</a>
+    {!canReview && <a href="#recording-editor-sources" className="underline">{t('sourceRefresh.inspect')}</a>}
     {canReview && <button type="button" className="gw-primary" data-testid="recording-source-refresh-review" disabled={props.busy} onClick={() => { if (valid(epoch.current)) setReview(epoch.current); }}>{t('sourceRefresh.review')}</button>}
     {review && valid(review) && <div role="region" aria-label={t('sourceRefresh.review')} className="space-y-2" data-testid="recording-source-refresh-confirmation">
       <p>{t('sourceRefresh.currentAtSave')}</p>

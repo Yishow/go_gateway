@@ -116,7 +116,7 @@ it('does not repeat a source save when the original save acknowledgement is unkn
   expect(screen.queryByTestId('recording-source-refresh-review')).not.toBeInTheDocument();
   expect(studioV2WorkspaceWriteGroupsAPI.update).toHaveBeenCalledTimes(1); expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
 });
-it('does not expose legacy source refresh for a mixed recording with pinned source revisions', async () => {
+it('does not expose source refresh for an invalid mixed recording', async () => {
   const group = savedGroup({ record_id: 'e94e7348-c90c-4d24-bba0-680c3d89859c', recording_profile: { kind: 'mixed', result_shape: 'member-calculation-v1' }, layout_version: 'managed_wide_profile_v1' });
   const before = JSON.stringify(group); mount({ group, calculationCapabilities: {
     version: 1, result_shape: 'member-calculation-v1', editor_supported: true, draft_supported: true, activation_supported: false,
@@ -124,7 +124,7 @@ it('does not expose legacy source refresh for a mixed recording with pinned sour
     schema_dialects: ['sqlite'], schema_layouts: ['managed_wide_profile_v1', 'managed_long_v1'], unsupported_combinations: [],
   } });
   await screen.findByTestId('recording-source-refresh');
-  expect(screen.getByText('sourceRefresh.pinned')).toBeVisible();
+  expect(screen.getByText('sourceRefresh.unavailable')).toBeVisible();
   expect(screen.queryByTestId('recording-source-refresh-review')).not.toBeInTheDocument();
   expect(JSON.stringify(group)).toBe(before); expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
 });

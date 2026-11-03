@@ -1,13 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ConnectionConfigForm } from '@/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm';
 import DatalinkWorkbenchV2Page from '@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2DatalinkApi, studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
 import { studioV2WorkspaceDevicesAPI } from '@/services/studioV2WorkspaceDevices';
 import { studioV2RulesAPI } from '@/services/studioV2Rules';
 import { studioV2MappingsAPI } from '@/services/studioV2Mappings';
-import { deviceAPI, pointAPI, tagAPI } from '@/services/datalink';
+import { deviceAPI, pointAPI, tagAPI, modbusShareAPI } from '@/services/datalink';
 import { studioV2RuntimeContextAPI } from '@/services/studioV2RuntimeContext';
 import { locatorRead, nativeDevice, nativeRule } from './studio-locator-fixtures';
 import i18n from '@/i18n/config';
@@ -19,13 +20,14 @@ vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWri
 vi.mock('@/services/studioV2WorkspaceDevices', () => ({ studioV2WorkspaceDevicesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn() } }));
 vi.mock('@/services/studioV2Rules', () => ({ studioV2RulesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() } }));
 vi.mock('@/services/studioV2Mappings', () => ({ studioV2MappingsAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn() } }));
-vi.mock('@/services/datalink', () => ({ pointAPI: { list: vi.fn(), get: vi.fn() }, tagAPI: { get: vi.fn() }, deviceAPI: { checkReadiness: vi.fn().mockResolvedValue({ device_id: 'D', activation_allowed: false }) } }));
+vi.mock('@/services/datalink', () => ({ modbusShareAPI: { status: vi.fn() }, pointAPI: { list: vi.fn(), get: vi.fn() }, tagAPI: { get: vi.fn() }, deviceAPI: { checkReadiness: vi.fn().mockResolvedValue({ device_id: 'D', activation_allowed: false }) } }));
 vi.mock('@/services/studioV2RuntimeContext', () => ({ studioV2RuntimeContextAPI: { getRuleEvidence: vi.fn() } }));
 const completeDevice = () => ({ ...nativeDevice(), connection_config: '{"host":"device.example","port":502,"slave_id":1,"timeout":1500}' });
 const clients: QueryClient[] = [];
 const workspace = { ...locatorRead().workspace, ordered_device_ids: ['D'] };
 beforeEach(async () => {
   vi.resetAllMocks(); await i18n.changeLanguage('en'); sessionStorage.clear();
+  vi.mocked(modbusShareAPI.status).mockResolvedValue({ workspace_id: 'W', configured_enabled: false, enabled: false, port: 502, address: '127.0.0.1:502', bind_state: 'disabled', mapping_count: 0 });
   vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue(workspace);
   vi.mocked(deviceAPI.checkReadiness).mockResolvedValue({ device_id: 'D', status: 'ready', connect_status: 'success', probe_status: 'success', activation_allowed: false, planning_allowed: true, apply_allowed: false, blocking_reasons: [], checks: [] });
   vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue({ workspace_id: 'W', workspace_revision: 'W2', groups: [] });
@@ -73,20 +75,17 @@ describe('Home uses the original scoped source owner inside the demo modal', () 
   it('keeps local edits unsent and discards only after the explicit dirty confirmation', async () => {
     mount(); const form = await editRange(); const name = within(form).getByTestId('rule-prefix-input');
     fireEvent.change(name, { target: { value: 'Unsent range' } }); expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByTestId('home-source-close'));
+    fireEvent.click(screen.getByTestId('home-range-done'));
     fireEvent.click(await screen.findByTestId('home-source-keep')); expect(name).toHaveValue('Unsent range');
-    fireEvent.click(screen.getByTestId('home-source-close')); fireEvent.click(await screen.findByTestId('home-source-discard'));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument()); expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); noOtherWrites();
+    fireEvent.click(screen.getByTestId('home-range-done')); fireEvent.click(await screen.findByTestId('home-source-discard'));
+    await screen.findByTestId('home-range-edit-R'); expect(screen.queryByTestId('home-saved-range-form')).not.toBeInTheDocument(); expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); noOtherWrites();
   });
-  it('submits one exact original rule update and keeps the range modal open after ACK', async () => {
+  it('submits one exact original rule update and returns to its range list after ACK', async () => {
+    vi.mocked(studioV2RulesAPI.update).mockImplementation(async (_id, request) => { const saved = { ...nativeRule(), ...request, revision_id: 'R3', runtime_apply_status: 'not_running' as const }; vi.mocked(studioV2RulesAPI.list).mockResolvedValue([saved]); return saved; });
     mount(); const form = await editRange(); fireEvent.change(within(form).getByTestId('rule-prefix-input'), { target: { value: 'Saved range' } });
     expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); fireEvent.click(screen.getByTestId('home-range-save'));
     await waitFor(() => expect(studioV2RulesAPI.update).toHaveBeenCalledOnce());
     expect(studioV2RulesAPI.update).toHaveBeenCalledWith('R', expect.objectContaining({ naming_prefix: 'Saved range', device_id: 'D' }));
-    await screen.findByTestId('home-range-saved'); expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByTestId('rule-prefix-input')).toHaveValue('Saved range');
-    vi.mocked(studioV2RulesAPI.list).mockResolvedValue([{ ...nativeRule(), naming_prefix: 'Saved range', revision_id: 'R3' }]);
-    fireEvent.click(screen.getByTestId('home-range-done'));
     await waitFor(() => expect(screen.queryByTestId('home-saved-range-form')).not.toBeInTheDocument());
     expect(screen.getByRole('dialog')).toBeInTheDocument(); expect((await screen.findByTestId('home-range-edit-R')).closest('li')).toHaveTextContent('Saved range');
     expect(studioV2RulesAPI.update).toHaveBeenCalledOnce(); noOtherWrites();
@@ -95,7 +94,7 @@ describe('Home uses the original scoped source owner inside the demo modal', () 
     let reject!: (error: Error) => void; vi.mocked(studioV2RulesAPI.update).mockImplementation(() => new Promise((_resolve, fail) => { reject = fail; }));
     mount(); const form = await editRange(); fireEvent.change(within(form).getByTestId('rule-prefix-input'), { target: { value: 'Pending range' } });
     fireEvent.click(screen.getByTestId('home-range-save')); fireEvent.click(screen.getByTestId('home-range-save'));
-    await waitFor(() => expect(studioV2RulesAPI.update).toHaveBeenCalledOnce()); fireEvent.click(screen.getByTestId('home-source-close'));
+    await waitFor(() => expect(studioV2RulesAPI.update).toHaveBeenCalledOnce()); fireEvent.click(screen.getByTestId('home-range-done'));
     expect(screen.getByRole('dialog')).toBeInTheDocument(); expect(screen.queryByTestId('home-source-discard')).not.toBeInTheDocument();
     await act(async () => reject(new Error('acknowledgement unavailable'))); await screen.findByTestId('home-range-unknown');
     expect(screen.getByTestId('home-range-save')).toBeDisabled(); expect(studioV2RulesAPI.update).toHaveBeenCalledOnce(); noOtherWrites();
@@ -153,7 +152,7 @@ describe('modal exact identity and original completion boundaries', () => {
     fireEvent.click(within(screen.getByTestId('home-management-table')).getByRole('button', { name: 'Connection' }));
     const dialog = await screen.findByRole('dialog'); const name = await within(dialog).findByTestId('recording-source-name');
     expect(name).toHaveValue('Device D'); expect(within(dialog).getByLabelText('Protocol', { selector: 'select' })).toBeDisabled();
-    fireEvent.change(name, { target: { value: 'Unsent device name' } }); fireEvent.click(screen.getByTestId('home-source-close'));
+    fireEvent.change(name, { target: { value: 'Unsent device name' } }); fireEvent.click(screen.getByTestId('recording-source-close'));
     fireEvent.click(await screen.findByTestId('recording-source-discard'));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument()); noOtherWrites();
   });
@@ -229,4 +228,122 @@ describe('modal exact identity and original completion boundaries', () => {
     expect(within(dialog).getByTestId('recording-source-save')).toBeDisabled(); noOtherWrites();
   });
 
+});
+
+describe('existing device modal has one cancel and an acknowledged save return', () => {
+  async function openConnection() {
+    mount(); await screen.findByTestId('home-device-points-D');
+    fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
+    fireEvent.click(within(screen.getByTestId('home-management-table')).getByRole('button', { name: 'Connection' }));
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByTestId('recording-source-name'); return dialog;
+  }
+  it('shows only footer Cancel and Save and return, with source format always visible', async () => {
+    const dialog = await openConnection();
+    expect(within(dialog).queryByTestId('home-source-close')).not.toBeInTheDocument();
+    expect(within(dialog).getByTestId('recording-source-close')).toHaveTextContent('Cancel');
+    expect(within(dialog).getByTestId('recording-source-save')).toHaveTextContent('Save and return');
+    const format = within(dialog).getByTestId('select-data-format');
+    expect(format).toBeVisible(); expect(format.closest('details')).toBeNull();
+    fireEvent.change(within(dialog).getByTestId('recording-source-name'), { target: { value: 'Unsent cancel proof' } });
+    fireEvent.click(within(dialog).getByTestId('recording-source-close'));
+    fireEvent.click(await within(dialog).findByTestId('recording-source-discard'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    noOtherWrites(); expect(studioV2WorkspaceDevicesAPI.update).not.toHaveBeenCalled();
+  });
+  it('cannot leave an existing-device pending or unknown save through footer or Escape', async () => {
+    let reject!: (error: Error) => void;
+    vi.mocked(studioV2WorkspaceDevicesAPI.update).mockImplementation(() => new Promise((_resolve, no) => { reject = no; }));
+    const dialog = await openConnection();
+    fireEvent.change(within(dialog).getByTestId('recording-source-name'), { target: { value: 'Uncertain saved device' } });
+    await waitFor(() => expect(within(dialog).getByTestId('recording-source-save')).toBeEnabled());
+    fireEvent.click(within(dialog).getByTestId('recording-source-save'));
+    await waitFor(() => expect(studioV2WorkspaceDevicesAPI.update).toHaveBeenCalledOnce());
+    expect(within(dialog).getByTestId('recording-source-close')).toBeDisabled();
+    fireEvent.keyDown(dialog, { key: 'Escape' }); expect(dialog).toBeInTheDocument();
+    await act(async () => reject(new Error('response lost')));
+    await within(dialog).findByTestId('recording-source-unknown');
+    expect(within(dialog).getByTestId('recording-source-close')).toBeDisabled();
+    fireEvent.click(within(dialog).getByTestId('recording-source-close'));
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByTestId('recording-source-inspect')).toBeEnabled();
+    expect(studioV2WorkspaceDevicesAPI.update).toHaveBeenCalledOnce();
+  });
+  it('keeps the original advanced connection disclosure unchanged', () => {
+    render(<ConnectionConfigForm protocol="modbus_tcp" config={{ host: '127.0.0.1', port: 502, slave_id: 1, timeout: 5 }} onChange={vi.fn()} />);
+    const details = screen.getByTestId('select-data-format').closest('details');
+    expect(details).not.toBeNull(); expect(details).not.toHaveAttribute('open');
+  });
+});
+
+describe('range modal explicit return and fresh Share presentation', () => {
+  it('places the unsent enabled switch at the top and exposes only Cancel and Save and return', async () => {
+    mount(); const form = await editRange();
+    expect(screen.queryByTestId('home-source-close')).not.toBeInTheDocument();
+    expect(screen.getByTestId('home-range-done')).toHaveTextContent('Cancel');
+    expect(screen.getByTestId('home-range-save')).toHaveTextContent('Save and return');
+    const header = within(form).getByTestId('source-range-heading');
+    fireEvent.click(within(header).getByRole('switch'));
+    expect(within(header).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+    expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('home-range-done'));
+    fireEvent.click(await screen.findByTestId('home-source-discard'));
+    await screen.findByTestId('home-range-edit-R');
+    expect(screen.queryByTestId('home-saved-range-form')).not.toBeInTheDocument();
+    expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
+  });
+  it('returns to the range list only after the exact original acknowledged save', async () => {
+    let resolve!: () => void;
+    vi.mocked(studioV2RulesAPI.update).mockImplementation((_id, request) => new Promise(done => { resolve = () => {
+      const saved = { ...nativeRule(), ...request, revision_id: 'R3', runtime_apply_status: 'not_running' as const };
+      vi.mocked(studioV2RulesAPI.list).mockResolvedValue([saved]); done(saved);
+    }; }));
+    mount(); const form = await editRange();
+    fireEvent.change(within(form).getByTestId('rule-prefix-input'), { target: { value: 'ACK_' } });
+    fireEvent.click(screen.getByTestId('home-range-save'));
+    await waitFor(() => expect(studioV2RulesAPI.update).toHaveBeenCalledOnce());
+    expect(screen.getByTestId('home-range-done')).toBeDisabled(); expect(form).toBeInTheDocument();
+    await act(async () => resolve());
+    await waitFor(() => expect(screen.queryByTestId('home-saved-range-form')).not.toBeInTheDocument());
+    expect((await screen.findByTestId('home-range-edit-R')).closest('li')).toHaveTextContent('ACK_');
+    expect(studioV2RulesAPI.update).toHaveBeenCalledOnce();
+  });
+  it.each(['on', 'off', 'error', 'foreign'] as const)('uses fresh same-workspace Share %s, never scoped INITIAL false as evidence', async status => {
+    if (status === 'error') vi.mocked(modbusShareAPI.status).mockRejectedValue(new Error('unavailable'));
+    else vi.mocked(modbusShareAPI.status).mockResolvedValue({ workspace_id: status === 'foreign' ? 'OTHER' : 'W', configured_enabled: status === 'on', enabled: status === 'on', port: 502, address: '127.0.0.1:502', bind_state: status === 'on' ? 'pass' : 'disabled', mapping_count: 0 });
+    const { navigate } = mount(); const form = await editRange();
+    await waitFor(() => expect(modbusShareAPI.status).toHaveBeenCalled());
+    const section = within(form).getByTestId('share-section');
+    fireEvent.click(section.querySelector('summary')!);
+    const toggle = within(section).getByRole('switch');
+    if (status === 'on') {
+      await waitFor(() => expect(toggle).toBeEnabled());
+      fireEvent.click(toggle); expect(toggle).toHaveAttribute('aria-checked', 'true');
+      expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
+    } else if (status === 'off') {
+      await within(section).findByText('Global Modbus Share is off. Enable it in global settings, then return here.');
+      expect(toggle).toBeDisabled();
+      fireEvent.change(within(form).getByTestId('rule-prefix-input'), { target: { value: 'Unsent share edit' } });
+      fireEvent.click(within(section).getByRole('button', { name: 'Open global settings' }));
+      fireEvent.click(await screen.findByTestId('home-source-keep'));
+      expect(within(form).getByTestId('rule-prefix-input')).toHaveValue('Unsent share edit');
+      expect(navigate).not.toHaveBeenCalled();
+      const restored = within(form).getByTestId('share-section'); fireEvent.click(restored.querySelector('summary')!);
+      fireEvent.click(within(restored).getByRole('button', { name: 'Open global settings' }));
+      fireEvent.click(await screen.findByTestId('home-source-discard'));
+      expect(navigate).toHaveBeenCalledExactlyOnceWith('/studio/v2?view=advanced&section=settings');
+    } else {
+      await within(section).findByText('Global Modbus Share status is unconfirmed. Refresh before configuring this rule.');
+      expect(toggle).toBeDisabled();
+      expect(within(section).queryByTestId('global-disabled-chip')).not.toBeInTheDocument();
+      expect(within(section).getByRole('button', { name: 'Refresh status' })).toBeEnabled();
+      if (status === 'error') {
+        vi.mocked(modbusShareAPI.status).mockResolvedValue({ workspace_id: 'W', configured_enabled: true, enabled: true, port: 502, address: '127.0.0.1:502', bind_state: 'pass', mapping_count: 0 });
+        fireEvent.click(within(section).getByRole('button', { name: 'Refresh status' }));
+        await waitFor(() => expect(toggle).toBeEnabled());
+      }
+    }
+    expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); noOtherWrites();
+  });
 });

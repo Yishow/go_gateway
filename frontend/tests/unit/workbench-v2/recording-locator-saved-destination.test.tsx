@@ -1,3 +1,6 @@
+import { WorkbenchV2Shell } from '@/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
+import { useWorkbenchV2State } from '@/features/datalink/workbench-v2/state/useWorkbenchV2State';
+import { buildSimpleRecordingTarget } from '@/services/studioRecordingView';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -13,7 +16,7 @@ import type { StudioLocatorEntryRead } from '@/types/studioV2LocatorEntry';
 import type { SchemaPreviewToken } from '@/types/recordingPlan';
 import type { WriteGroupCalculationCapabilities } from '@/types/studioV2WriteGroupCalculation';
 import { locatorRead, nativeDevice, nativeMapping, nativeRule } from './studio-locator-fixtures';
-import { savedGroupState } from '../../fixtures/writeGroupState';
+import { savedGroup, savedGroupState } from '../../fixtures/writeGroupState';
 import { savedLifecycle } from '../../fixtures/writeGroupLifecycle';
 import { managedSchemaPreviewToken } from '../../fixtures/managedSchemaPreview';
 
@@ -149,4 +152,71 @@ it('shows only the saved P1 destination after a hydrated workspace enters its ca
   await waitFor(() => expect(api.schemaPreview).toHaveBeenCalledExactlyOnceWith('G', { workspace_id: 'W', expected_workspace_revision: 'W2', expected_group_revision: 'G3', expected_connector_revision: 'saved-target-rev' }));
   expect(await screen.findByTestId('group-schema-preview-result')).toHaveTextContent('qa_p1');
   expect(JSON.stringify(view.state)).toBe(view.before); expect(view.dispatch).not.toHaveBeenCalled(); noWrites();
+});
+
+function mountLocalRecord(options: { foreignHead?: boolean; fullAdvanced?: boolean; custom?: boolean; unlockedManaged?: boolean } = {}) {
+  const route = receipt();
+  if (options.foreignHead) route.entry.group_heads = { G: 'FOREIGN' };
+  if (options.unlockedManaged) {
+    const prior = current.entry.write_groups!.groups[0];
+    current.entry.write_groups!.groups[0] = savedGroup({ id: prior.id, workspace_id: prior.workspace_id, revision: prior.revision, name: prior.name, destination: prior.destination,
+      members: [{ device_id: 'D', point_id: 'P-native', tag_id: 'T', source_revision: 'R2', mapping_revision: 'M2', target_column: 'value', required: true }] });
+  }
+  if (options.custom) current.entry.write_groups!.groups[0].destination.storage_strategy = 'custom';
+  const navigate = vi.fn();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } }); clients.push(client);
+  function Caller() {
+    const actions = useWorkbenchV2State();
+    return <WorkbenchV2Shell state={{ ...savedGroupState(), view: 'flow', current: 4 }} actions={actions} workspaceId="W"
+      deviceSource={{ submit: vi.fn(), inspect: vi.fn(), observations: () => [] }} locatorEntry={route} locatorOnly={!options.fullAdvanced} locatorCanLeave navigateTo={navigate}
+      presentationLocation={{ search: '?view=advanced', hash: '#record-position' }} />;
+  }
+  render(<QueryClientProvider client={client}><RecordingDraftNavigation><Caller /></RecordingDraftNavigation></QueryClientProvider>);
+  return navigate;
+}
+it('scoped guided record presents its confirmed name and returns through the original dirty guard to that record', async () => {
+  const navigate = mountLocalRecord(); fireEvent.click(await screen.findByTestId('group-open-G')); await screen.findByTestId('group-editor');
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Saved successor');
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('locator.recordTitle');
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Unsent local name' } });
+  fireEvent.click(screen.getByRole('button', { name: 'locator.backRecord' }));
+  expect(await screen.findByRole('alertdialog')).toBeInTheDocument(); expect(navigate).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByText('navigation.keep')); expect(screen.getByTestId('group-name')).toHaveValue('Unsent local name');
+  fireEvent.click(screen.getByRole('button', { name: 'locator.backRecord' })); fireEvent.click(await screen.findByText('navigation.discard'));
+  expect(navigate).toHaveBeenCalledExactlyOnceWith(buildSimpleRecordingTarget({ kind: 'edit', workspaceId: 'W', groupId: 'G', groupRevision: 'G3' }, '#record-position'));
+  noWrites();
+});
+it('scoped guided record collapses technical versions and preserves exact managed identities without editable assignments', async () => {
+  mountLocalRecord(); fireEvent.click(await screen.findByTestId('group-open-G')); await screen.findByTestId('group-editor');
+  const details = screen.getByTestId('group-revision-details'); expect(details).not.toHaveAttribute('open');
+  expect(within(details).getByTestId('locator-version-details')).toBeInTheDocument();
+  expect(screen.getByTestId('group-managed-table')).toHaveTextContent('saved_long_table');
+  expect(screen.queryByTestId('group-table')).not.toBeInTheDocument();
+  expect(screen.getByTestId('group-managed-column-P-native')).toHaveTextContent('value');
+  expect(screen.queryByTestId('group-member-column-P-native')).not.toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: 'compact.actions' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'picker.removeMember' })).toHaveTextContent('compact.remove'); noWrites();
+});
+it('scoped guided custom record keeps the original table and member assignment controls', async () => {
+  mountLocalRecord({ custom: true }); fireEvent.click(await screen.findByTestId('group-open-G')); await screen.findByTestId('group-editor');
+  expect(screen.getByTestId('group-table')).toBeInTheDocument();
+  expect(screen.getByTestId('group-member-column-P-native')).toBeInTheDocument();
+  expect(screen.queryByTestId('group-managed-column-P-native')).not.toBeInTheDocument(); noWrites();
+});
+it('a mismatched group head does not receive a same-record title or return target', async () => {
+  const navigate = mountLocalRecord({ foreignHead: true });
+  expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('locator.localTitle');
+  expect(screen.queryByRole('button', { name: 'locator.backRecord' })).not.toBeInTheDocument(); expect(navigate).not.toHaveBeenCalled(); noWrites();
+});
+
+it('scoped guided unlocked managed record retains its existing editable table name', async () => {
+  mountLocalRecord({ unlockedManaged: true }); fireEvent.click(await screen.findByTestId('group-open-G')); await screen.findByTestId('group-editor');
+  expect(screen.getByTestId('group-table')).toBeEnabled();
+  fireEvent.change(screen.getByTestId('group-table'), { target: { value: 'operator_named_table' } });
+  expect(screen.getByTestId('group-table')).toHaveValue('operator_named_table'); noWrites();
+});
+it('full advanced retains its original uncollapsed revisions and assignment controls', async () => {
+  mountLocalRecord({ fullAdvanced: true }); fireEvent.click(await screen.findByTestId('group-open-G')); await screen.findByTestId('group-editor');
+  expect(screen.queryByTestId('group-revision-details')).not.toBeInTheDocument(); expect(screen.getByTestId('group-revisions')).toBeInTheDocument();
+  expect(screen.getByTestId('group-member-column-P-native')).toBeInTheDocument(); expect(screen.getByTestId('group-table')).toBeInTheDocument(); noWrites();
 });

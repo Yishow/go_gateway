@@ -1,3 +1,5 @@
+import { RecordingEditorSummary } from '../../../src/features/datalink/workbench-v2/recording-editor/RecordingEditorSummary';
+import { newDraft } from '../../../src/features/datalink/workbench-v2/state/writeGroup/draft';
 import type { DbColumn } from '@/features/datalink/workbench-v2/state/dbSchemas';
 import { dbTargetAPI } from '@/services/datalink';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -218,7 +220,8 @@ it('collapses simple version identifiers while keeping actual status and destina
   const summary = within(versions).getByText('versions.details').closest('summary');
   expect(summary).toBeVisible(); expect(summary).toHaveTextContent('savedStatuses.ready');
   expect(summary).toHaveTextContent(/^versions\.details · savedStatuses\.ready$/);
-  expect(within(summary!.closest('.recording-editor-tools') as HTMLElement).queryByRole('heading', { name: savedGroup().name })).not.toBeInTheDocument();
+  expect(screen.getByTestId('recording-editor-summary')).toContainElement(versions);
+  expect(versions.closest('.recording-editor-tools')).toBeNull();
   expect(screen.getByTestId('group-lifecycle-return')).toHaveTextContent(savedGroup().name);
   expect(screen.getByText('Fresh scoped revision W2').closest('details')).toBe(versions);
   expect(screen.getAllByText('versions.details')).toHaveLength(1);
@@ -317,4 +320,38 @@ it('keeps the original saved confirmation owners inside the destination panel an
   expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
   expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
   expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
+});
+
+it('keeps version diagnostics below the everyday summary rather than above source editing', () => {
+  mount({ group: savedGroup(), scopeDiagnostics: <p>Exact diagnostic revision</p> });
+  expect(screen.getByTestId('recording-editor-summary')).toContainElement(screen.getByTestId('group-revision-details'));
+  expect(screen.getByTestId('group-revisions')).not.toBeVisible();
+  expect(screen.getByTestId('recording-editor-summary')).toHaveTextContent('compact.savedSettings');
+});
+it.each([
+  { kind: 'instantaneous' as const, interval: 15, unit: 'second' as const, sample_reduction: 'mean' as const, label: 'calculation.mean' },
+  { kind: 'cumulative' as const, interval: 10, unit: 'minute' as const, label: 'simple.summary.cumulative' },
+])('summarizes the actual saved whole-group $kind method and interval without converting it', profile => {
+  const { label, ...recording_profile } = profile;
+  mount({ group: savedGroup({ recording_profile, layout_version: 'managed_wide_profile_v1' }) });
+  const summary = screen.getByTestId('recording-editor-summary');
+  expect(summary).toHaveTextContent(label); expect(summary).toHaveTextContent(String(profile.interval));
+  expect(summary).toHaveTextContent(`calculation.${profile.unit}`);
+  if (profile.kind === 'cumulative') expect(summary).not.toHaveTextContent('calculation.mean');
+  expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
+});
+it('shows a known legacy interval without inventing a recording method', () => {
+  mount({ group: savedGroup({ recording_profile: undefined, row_policy: { ...savedGroup().row_policy, interval_seconds: 7 } }) });
+  const summary = screen.getByTestId('recording-editor-summary');
+  expect(summary).toHaveTextContent('7'); expect(summary).toHaveTextContent('simple.summary.methodUnknown');
+  expect(summary).not.toHaveTextContent('calculation.latest'); expect(summary).not.toHaveTextContent('calculation.mean');
+});
+
+it('does not borrow a legacy interval when an existing profile is invalid', () => {
+  const draft = newDraft({ connector_id: 'C', connector_revision: 'C1', table_schema: '', table_name: '' });
+  draft.interval_seconds = 42; draft.recording_profile = { kind: 'instantaneous', interval: 0, unit: 'second' };
+  render(<RecordingEditorSummary draft={draft} saved dirty={false} />);
+  const summary = screen.getByTestId('recording-editor-summary');
+  expect(summary).toHaveTextContent('simple.summary.methodUnknown'); expect(summary).toHaveTextContent('simple.summary.intervalUnknown');
+  expect(summary).not.toHaveTextContent('42'); expect(summary).not.toHaveTextContent('calculation.latest');
 });

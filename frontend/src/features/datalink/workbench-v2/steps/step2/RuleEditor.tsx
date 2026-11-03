@@ -7,7 +7,7 @@ import { Input, Select } from '../../components/inputs';
 import { Toggle } from '../../components/Toggle';
 import { RangeSummary } from './RangeSummary';
 import { ScaleSection } from './ScaleSection';
-import { ShareSection } from './ShareSection';
+import { ShareSection, type RuleShareControls } from './ShareSection';
 import { RecordingSourceRangeField } from '../../recording-editor/RecordingSourceRangeFields';
 import { getRuleReadinessReason } from '../../state/sourceRule';
 
@@ -17,6 +17,7 @@ export interface RuleEditorProps {
   globalShareEnabled: boolean;
   hideLocalName?: boolean;
   simplePresentation?: boolean;
+  shareControls?: RuleShareControls;
   dispatch: React.Dispatch<WorkbenchV2Action>;
 }
 
@@ -33,6 +34,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
   globalShareEnabled,
   hideLocalName = false,
   simplePresentation = false,
+  shareControls,
   dispatch,
 }) => {
   const { t } = useTranslation('workbench-v2');
@@ -87,6 +89,8 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
     : t('step2.editor.addr_hint_plc', '例: D0, M0, W0');
   const addrPlaceholder = owningDevice ? (isModbus ? '40001' : 'D0') : '';
 
+  const enabledControl = <Toggle checked={rule.enabled} onChange={() => dispatch({ type: 'toggleRuleEnabled', ruleId: rule.id })}
+    label={simplePresentation ? sourceText('source.ruleEnabled') : '啟用此規則 (停用時將不衍生其所屬點位)'} data-testid="rule-editor-enable-toggle" />;
   return (
     <div
       className="flex flex-col gap-5 p-5 rounded-xl border border-slate-800 bg-slate-900/20"
@@ -126,7 +130,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
         </div>
       )}
 
-      {simplePresentation && !hasMissingDevice ? <p className="recording-source-range-device">{owningDevice?.name}</p> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {simplePresentation && !hasMissingDevice ? <div data-testid="source-range-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--gw-space-md)', minHeight: 'var(--gw-control-height)' }}><p className="recording-source-range-device">{owningDevice?.name}</p>{enabledControl}</div> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* 裝置選擇 (僅在有多個裝置時啟用) */}
         <Field label="所屬設備來源">
           <Select
@@ -268,18 +272,12 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
         shareStartRegister={rule.share_start_register}
         shareStride={rule.share_stride}
         globalShareEnabled={globalShareEnabled}
+        shareControls={simplePresentation ? shareControls : undefined}
         dispatch={dispatch}
       />
 
       {/* 啟用此規則 */}
-      <div className="border-t border-slate-800/60 pt-4 flex items-center justify-between">
-        <Toggle
-          checked={rule.enabled}
-          onChange={() => dispatch({ type: 'toggleRuleEnabled', ruleId: rule.id })}
-          label="啟用此規則 (停用時將不衍生其所屬點位)"
-          data-testid="rule-editor-enable-toggle"
-        />
-      </div>
+      {(!simplePresentation || hasMissingDevice) && <div className="border-t border-slate-800/60 pt-4 flex items-center justify-between">{enabledControl}</div>}
     </div>
   );
 };

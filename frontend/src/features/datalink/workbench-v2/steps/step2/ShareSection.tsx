@@ -5,7 +5,9 @@ import { Field } from '../../components/Field';
 import { Input } from '../../components/inputs';
 import { Toggle } from '../../components/Toggle';
 
+export interface RuleShareControls { enabled: boolean | undefined; retry: () => void; openSettings: () => void }
 export interface ShareSectionProps {
+  shareControls?: RuleShareControls;
   ruleId: string;
   shareEnabled: boolean;
   shareStartRegister: number | null;
@@ -26,10 +28,14 @@ export const ShareSection: React.FC<ShareSectionProps> = ({
   shareEnabled,
   shareStartRegister,
   shareStride,
-  globalShareEnabled,
+  globalShareEnabled: inheritedShareEnabled,
+  shareControls,
   dispatch,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const { t: sourceText } = useTranslation('recording-home');
+  const globalShareEnabled = shareControls ? shareControls.enabled === true : inheritedShareEnabled;
+  const globalShareKnown = !shareControls || shareControls.enabled !== undefined;
 
   return (
     <details className="group border-t border-slate-800/60 pt-4" data-testid="share-section">
@@ -47,7 +53,7 @@ export const ShareSection: React.FC<ShareSectionProps> = ({
         </svg>
         <span>{t('step2.labels.share_details', 'Modbus Share 轉發配置 (選填)')}</span>
 
-        {!globalShareEnabled && (
+        {globalShareKnown && !globalShareEnabled && (
           <span
             className="ml-2 bg-slate-800 border border-slate-700/60 text-slate-500 text-[9px] font-sans font-normal px-1.5 py-0.5 rounded"
             data-testid="global-disabled-chip"
@@ -58,6 +64,10 @@ export const ShareSection: React.FC<ShareSectionProps> = ({
       </summary>
 
       <div className="space-y-4 pt-3 pl-6">
+        {shareControls && !globalShareEnabled && <div role="status">
+          <p>{sourceText(globalShareKnown ? 'source.shareOff' : 'source.shareUnknown')}</p>
+          <button type="button" onClick={globalShareKnown ? shareControls.openSettings : shareControls.retry}>{sourceText(globalShareKnown ? 'source.openShareSettings' : 'source.retryShare')}</button>
+        </div>}
         <div>
           <Toggle
             checked={shareEnabled && globalShareEnabled}

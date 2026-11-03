@@ -23,7 +23,7 @@ export function RecordingDeviceSourceForm({ buffer, lockedProtocol, onChange, on
       }}>{PROTOCOLS.map(protocol => <option key={protocol.id} value={protocol.id} disabled={!getProtocolSupport(protocol.id).available}>
         {workbench(protocol.nameKey)}{!getProtocolSupport(protocol.id).available ? ` — ${t('device.unsupported')}` : ''}
       </option>)}</select></RecordingSourceRangeField></RecordingSourceRangeGrid>
-    <ConnectionConfigForm protocol={buffer.protocol} config={buffer.config} rawNumericText
+    <ConnectionConfigForm protocol={buffer.protocol} config={buffer.config} rawNumericText inlineAdvanced
       onChange={patch => {
         if (buffer.protocol === 'fatek_fbs' && patch.mode !== undefined && patch.mode !== (buffer.config.mode ?? 'tcp') && onSubtype) {
           onSubtype({ ...buffer, config: { mode: patch.mode } });

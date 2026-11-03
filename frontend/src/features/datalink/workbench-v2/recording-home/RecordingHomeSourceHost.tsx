@@ -52,7 +52,7 @@ export function RecordingHomeSourceHost({ children, renderSource }: {
       onCloseAutoFocus={event => { event.preventDefault(); restoreReturnFocus(ticket.current, owner.current, document.querySelector<HTMLElement>('[data-testid="recording-home"] h1')); }}>
       <>{navigation.confirmation ?? <header className="gw-modal-header"><div><Dialog.Title>{deviceName && `${deviceName} · `}{t(target?.kind === 'create' ? 'createDevice' : target?.kind === 'connection' ? 'source.connectionTitle' : 'source.pointsTitle')}</Dialog.Title>
         <Dialog.Description>{t('source.sharedDescription')}</Dialog.Description></div>
-        <button type="button" data-testid="home-source-close" onClick={close}>{t('source.close')}</button></header>}<div style={{ display: navigation.confirming ? 'none' : 'contents' }}>
+        {target?.kind !== 'connection' && !target?.ruleId && <button type="button" data-testid="home-source-close" onClick={close}>{t('source.close')}</button>}</header>}<div style={{ display: navigation.confirming ? 'none' : 'contents' }}>
       {captured && renderSource({ target: captured, closeRef, ruleObserverRef, onCreated: deviceId => {
           if (!deviceId || workspace.current !== captured.workspaceId || captured.kind !== 'create' || captured.epoch !== serial.current) return;
           void context.invalidateQueries({ queryKey: [...studioV2WorkspaceKeys.all, 'recording-home-sources'] });

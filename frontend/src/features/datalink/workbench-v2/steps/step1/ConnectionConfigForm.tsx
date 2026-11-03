@@ -14,6 +14,8 @@ export interface ConnectionConfigFormProps {
   onChange: (patch: Record<string, unknown>) => void;
   /** Source-local unsent buffers retain invalid numeric text until explicit submit. */
   rawNumericText?: boolean;
+  /** Source-local forms show all connection fields directly; advanced stays unchanged. */
+  inlineAdvanced?: boolean;
 }
 
 /**
@@ -27,6 +29,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
   config,
   onChange,
   rawNumericText = false,
+  inlineAdvanced = false,
 }) => {
   const { t } = useTranslation('workbench-v2');
 
@@ -101,7 +104,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
             data-testid="input-timeout"
           />
         </Field>
-        <ConnectionAdvancedFields protocol={protocol} config={config} onChange={onChange} rawNumericText={rawNumericText} />
+        <ConnectionAdvancedFields inlineAdvanced={inlineAdvanced} protocol={protocol} config={config} onChange={onChange} rawNumericText={rawNumericText} />
       </div>
     );
   }

@@ -4,7 +4,6 @@
   "deviceKeyword": "Search device names or protocols",
   "recordingsTab": "Recordings",
   "devicesTab": "Devices",
-
   "title": "Recordings",
   "navigation": "Workspace navigation",
   "advanced": "Advanced setup",
@@ -160,7 +159,14 @@
       "typeHint": "Use the data type specified by the device register map.",
       "prefix": "Point-name prefix",
       "prefixHint": "For example, TEMP_. This becomes part of each generated point name."
-    }
+    },
+    "cancelEdit": "Cancel",
+    "saveAndReturn": "Save and return",
+    "ruleEnabled": "Enable rule",
+    "shareOff": "Global Modbus Share is off. Enable it in global settings, then return here.",
+    "shareUnknown": "Global Modbus Share status is unconfirmed. Refresh before configuring this rule.",
+    "openShareSettings": "Open global settings",
+    "retryShare": "Refresh status"
   },
   "recordSources": "Sources",
   "recordWrites": "Writing",
@@ -172,7 +178,9 @@
     "backRecordings": "Back to recordings",
     "finishBeforeLeaving": "Finish the current changes before leaving. Your edits are kept here.",
     "readUnavailable": "The current settings could not be confirmed. Your edits are retained below, but editing is paused until the read succeeds.",
-    "retryRead": "Read settings again"
+    "retryRead": "Read settings again",
+    "recordTitle": "Field and write settings",
+    "backRecord": "Back to this record"
   },
   "product": {
     "workspace": "Recording workspace",
@@ -204,5 +212,12 @@
     "fatek_fbs": "FATEK FBs",
     "mqtt": "MQTT"
   },
-  "deviceCreationHint": "To add a device: New recording → Choose points → Add source → Create a new device."
+  "deviceCreationHint": "To add a device: New recording → Choose points → Add source → Create a new device.",
+  "deliverySummary": {
+    "unconfirmed": "Recording status has not been confirmed",
+    "active": "Collecting",
+    "notRunning": "Not currently recording",
+    "blocked": "Intake is retiring or blocked; resolve the issues shown",
+    "backlog": "Rows from an earlier revision are still pending. Updating settings does not retarget them."
+  }
 }

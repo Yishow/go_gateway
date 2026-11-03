@@ -293,7 +293,12 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
       recoverActivationStatus={recoverActivationStatus} workspaceReadiness={workspaceReadiness} />
     </SimpleRecordingShell>;
   }
-  if (locatorOnly) return <StudioLocatorShell canLeave={Boolean(locatorCanLeave) && !locatorSuspended} navigateTo={navigateTo} unavailable={locatorRecoveryUnavailable} onRetry={onRetryLocator}>
+  const recordTarget = locatorSelection?.target;
+  const recordGroups = recordTarget?.step === 4 && recordTarget.workspaceId === workspaceId && locatorEntry?.entry.workspace_revision === recordTarget.workspaceRevision && locatorEntry.entry.write_groups?.workspace_id === workspaceId && locatorEntry.entry.write_groups.workspace_revision === recordTarget.workspaceRevision
+    ? locatorEntry.entry.write_groups?.groups.filter(group => group.workspace_id === workspaceId && group.id === recordTarget.groupId && group.revision === recordTarget.groupRevision && locatorEntry.entry.group_heads?.[group.id] === group.revision) : undefined;
+  const recordGroup = recordGroups?.length === 1 ? recordGroups[0] : undefined;
+  const recordReturn = recordGroup && buildSimpleRecordingTarget({ kind: 'edit', workspaceId: recordGroup.workspace_id, groupId: recordGroup.id, groupRevision: recordGroup.revision }, presentationLocation?.hash);
+  if (locatorOnly) return <StudioLocatorShell recordContext={recordGroup && recordReturn ? { name: recordGroup.name, target: recordReturn } : undefined} canLeave={Boolean(locatorCanLeave) && !locatorSuspended} navigateTo={navigateTo ? target => requestNavigation(() => navigateTo(target)) : undefined} unavailable={locatorRecoveryUnavailable} onRetry={onRetryLocator}>
     {renderContent()}
   </StudioLocatorShell>;
   return (
