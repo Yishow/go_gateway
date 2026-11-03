@@ -17,13 +17,14 @@ export interface RecordingHomeSourceContentProps extends HomeSourceControls {
   state: WorkbenchV2State; dispatch: Dispatch<WorkbenchV2Action>; source: DeviceSourcePort; suspended: boolean;
 }
 function SavedConnection({ device, source, suspended, controls }: { device?: Device; source: DeviceSourcePort; suspended: boolean; controls: HomeSourceControls }) {
+  const { t } = useTranslation('recording-editor');
   const buffer = useRecordingDeviceBuffer(controls.target.workspaceId, source, suspended, device);
   const started = useRef(false), innerClose = useRef<(() => void) | undefined>(undefined);
   const [, setConfirm] = useState(false);
   useEffect(() => { if (!started.current) { started.current = true; void buffer.start(); } }, [buffer]);
   useLayoutEffect(() => { controls.closeRef.current = () => { if (!buffer.locked) innerClose.current?.(); }; return () => { controls.closeRef.current = undefined; }; }, [buffer.locked, controls.closeRef]);
   useRecordingDraftGuard({ version: JSON.stringify([controls.target.epoch, buffer.buffer]), dirty: buffer.dirty && !buffer.locked, pending: buffer.locked, host: true, discard: buffer.reset });
-  return <RecordingSourceDeviceContent existingEdit={Boolean(device)} controller={{ ...buffer, disabled: buffer.disabled || buffer.preparing || buffer.blocked }} slot={{ active: true, closeRef: innerClose, onConfirmChange: setConfirm,
+  return <RecordingSourceDeviceContent cancelLabel={t('device.cancelEdit')} existingEdit={Boolean(device)} controller={{ ...buffer, disabled: buffer.disabled || buffer.preparing || buffer.blocked }} slot={{ active: true, closeRef: innerClose, onConfirmChange: setConfirm,
     onReturn: () => { if (!buffer.pending) controls.onClose(); }, onSaved: saved => { if (controls.target.kind === 'create') controls.onCreated(saved.id); else controls.onClose(); } }} />;
 }
 function NewRange({ device, source, suspended, controls, leave, list, refreshList }: { device: Device; source: DeviceSourcePort; suspended: boolean; controls: HomeSourceControls; leave: HomeSourceLeave; list: ReactNode; refreshList: () => void }) {

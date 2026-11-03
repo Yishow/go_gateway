@@ -349,13 +349,13 @@ it('releases the save-only fence on failed readback and exposes the existing err
   expect(studioV2WorkspaceWriteGroupsAPI.update).toHaveBeenCalledOnce();
 });
 
-it.each(['cancel', 'save'] as const)('keeps a cold saved Page return available after inline name %s without treating source reads as edits', async outcome => {
+it.each(['cancel', 'save', 'reject-cancel'] as const)('keeps a cold saved Page return available after inline name %s without treating source reads as edits', async outcome => {
   vi.doUnmock('@/features/datalink/workbench-v2/shell/WorkbenchV2Shell');
   const { default: DatalinkWorkbenchV2Page } = await import('@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page');
   let mapping = { ...nativeMapping(), device_id: device.id, point_id: 'pt-0', tag_id: 'tag-0', address: '40001', display_name: 'Point 0' };
   const sourceRead = () => {
     const value = locatorRead(3, device.id);
-    value.entry.devices = [device]; value.entry.source_rules = [{ ...nativeRule('R', device.id), start_address: '40001', count: 1 }];
+    value.entry.devices = [device]; value.entry.source_rules = [{ ...nativeRule('R', device.id), start_address: '40001', count: 1, ...(outcome === 'reject-cancel' ? { scale_multiplier: 3 } : {}) }];
     value.entry.mappings = [mapping]; return value;
   };
   const routeRead = () => {
@@ -367,6 +367,7 @@ it.each(['cancel', 'save'] as const)('keeps a cold saved Page return available a
     device_name: device.name, address: '40001', target_type: 'float64' }];
   studioV2MappingsAPI.list.mockImplementation(async () => [mapping]);
   studioV2MappingsAPI.update.mockImplementation(async (_id, request) => { mapping = { ...mapping, ...request }; discoveredCandidates = discoveredCandidates.map(row => ({ ...row, label: mapping.display_name })); return { ...mapping, runtime_apply_status: 'applied' }; });
+  if (outcome === 'reject-cancel') studioV2MappingsAPI.update.mockRejectedValueOnce({ response: { status: 409, data: { error: { code: 'workspace_mapping_conflict', action: 'review_source' } } } });
   vi.mocked(readStudioLocatorEntry).mockImplementation(async locator => ({ ok: true, value: locator.step === 3 ? sourceRead() : routeRead() }));
   const initial = buildSimpleRecordingTarget({ kind: 'edit', workspaceId: 'W', groupId: 'G', groupRevision: 'G3' })!;
   function PageHost() {
@@ -387,12 +388,18 @@ it.each(['cancel', 'save'] as const)('keeps a cold saved Page return available a
     expect(input).toHaveValue('Shared renamed point'); expect(screen.getByRole('dialog')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'name.save' }));
     await screen.findByRole('textbox', { name: 'name.label Shared renamed point' });
+  } else if (outcome === 'reject-cancel') {
+    fireEvent.change(input, { target: { value: 'Rejected point name' } }); fireEvent.click(screen.getByRole('button', { name: 'name.save' }));
+    await screen.findByText('name_source_review');
+    fireEvent.click(screen.getByRole('button', { name: 'cancel_rejected_name' }));
+    await waitFor(() => expect(input).toHaveValue('Point 0'));
+    expect(mapping.display_name).toBe('Point 0');
   } else fireEvent.click(within(screen.getByTestId('inline-point-name-pt-0')).getByRole('button', { name: 'picker.cancel' }));
   fireEvent.click(within(screen.getByRole('contentinfo')).getByRole('button', { name: 'picker.cancel' }));
   fireEvent.click(screen.getByRole('button', { name: 'simple.advancedPurpose' }));
   await screen.findByTestId('studio-local-editor');
   expect(screen.getByRole('button', { name: 'locator.backRecord' })).toBeEnabled();
-  expect(studioV2MappingsAPI.update).toHaveBeenCalledTimes(outcome === 'save' ? 1 : 0);
+  expect(studioV2MappingsAPI.update).toHaveBeenCalledTimes(outcome === 'cancel' ? 0 : 1);
   expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
   expect(studioV2RulesAPI.create).not.toHaveBeenCalled(); expect(studioV2WorkspaceDevicesAPI.create).not.toHaveBeenCalled();
 });

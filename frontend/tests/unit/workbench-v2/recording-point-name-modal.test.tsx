@@ -1,6 +1,7 @@
+import { useRecordingPointNameBuffer } from '../../../src/features/datalink/workbench-v2/recording-editor/useRecordingPointNameBuffer';
 import { RecordingDraftNavigation } from '../../../src/features/datalink/workbench-v2/recording-editor/RecordingDraftNavigation';
 import type { PointNameOutcome, RecordingPointNamePort } from '../../../src/pages/datalink/workbench-v2/recordingPointNameSubmission';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { RecordingPointSelection } from '../../../src/features/datalink/workbench-v2/recording-editor/RecordingPointSelection';
@@ -129,4 +130,40 @@ it('reopens the same focused inline name after Cancel and confirmed Save without
   expect(name.prepare).toHaveBeenCalledTimes(3); expect(name.submit).toHaveBeenCalledExactlyOnceWith('S', 'Point renamed');
   expect(screen.getByRole('checkbox', { name: 'Point 2' })).toBeChecked();
   expect(screen.getByLabelText('picker.search')).toHaveValue('Point'); expect(body.scrollTop).toBe(230);
+});
+
+it('shows safe source-review rejection and cancels only that rejected name while preserving pending points and search', async () => {
+  const name: RecordingPointNamePort = { prepare: vi.fn(async () => ({ session: inlineSession, status: 'ready' as const })),
+    submit: vi.fn(async () => ({ session: inlineSession, status: 'unknown' as const, reason: 'source-review' as const, canDiscardRejected: true })),
+    discardRejected: vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true), inspect: vi.fn(), release: vi.fn() };
+  mountInlineGuard(name);
+  const input = screen.getByRole('textbox', { name: 'name.label Point 1' });
+  await waitFor(() => expect(input).not.toHaveAttribute('readonly'));
+  fireEvent.change(input, { target: { value: 'Rejected name' } }); fireEvent.click(screen.getByRole('button', { name: 'name.save' }));
+  await screen.findByText('name_source_review'); expect(screen.queryByText('name.unknown')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'cancel_rejected_name' }));
+  await waitFor(() => expect(name.discardRejected).toHaveBeenCalledTimes(1));
+  expect(input).toHaveValue('Rejected name'); expect(screen.getByRole('button', { name: 'name.inspect' })).toBeVisible();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'cancel_rejected_name' })).toBeEnabled());
+  fireEvent.click(screen.getByRole('button', { name: 'cancel_rejected_name' }));
+  await waitFor(() => expect(input).toHaveValue('Point 1'));
+  expect(screen.getByRole('checkbox', { name: 'Point 2' })).toBeChecked(); expect(screen.getByRole('button', { name: 'picker.add:1' })).toBeEnabled();
+  expect(name.submit).toHaveBeenCalledTimes(1); expect(name.release).not.toHaveBeenCalled();
+});
+
+it('one-flights rejected cancellation in the buffer and recovers from a thrown cancel read', async () => {
+  let resolve!: (value: boolean) => void;
+  const name: RecordingPointNamePort = { prepare: vi.fn(async () => ({ session: inlineSession, status: 'ready' as const })),
+    submit: vi.fn(async () => ({ session: inlineSession, status: 'unknown' as const, reason: 'source-review' as const, canDiscardRejected: true })),
+    discardRejected: vi.fn().mockRejectedValueOnce(new Error('read unavailable')).mockImplementationOnce(() => new Promise<boolean>(done => { resolve = done; })), inspect: vi.fn(), release: vi.fn() };
+  const h = renderHook(() => useRecordingPointNameBuffer('W/G', name));
+  await act(async () => { await h.result.current.begin(rows[0]); });
+  act(() => h.result.current.change('Rejected')); await act(async () => { await h.result.current.save(); });
+  await act(async () => { await h.result.current.discardRejected(); });
+  expect(h.result.current.pending).toBe(false); expect(h.result.current.value?.name).toBe('Rejected');
+  let first: Promise<void>;
+  act(() => { first = h.result.current.discardRejected(); void h.result.current.discardRejected(); void h.result.current.inspect(); });
+  expect(name.discardRejected).toHaveBeenCalledTimes(2); expect(name.inspect).not.toHaveBeenCalled();
+  await act(async () => { resolve(true); await first!; });
+  expect(h.result.current.value).toBeUndefined(); expect(name.submit).toHaveBeenCalledTimes(1);
 });

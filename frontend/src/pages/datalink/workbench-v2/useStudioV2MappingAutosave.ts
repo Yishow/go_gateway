@@ -1,4 +1,4 @@
-import type { MappingQueueObservation } from './sourceQueueObservation';
+import { isKnownMappingSourceRejection, type MappingQueueObservation } from './sourceQueueObservation';
 import { canAutosaveMappingRule, shouldAutosaveMappingPatch, sameMappingValue, sameHydratedMapping } from './studioV2MappingQueueHelpers';
 import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -268,6 +268,7 @@ export function useStudioV2MappingAutosave(
         const generation = generations.current.get(pointId) ?? 0;
         const requestScopeKey = persistedMCScopeKey(stateRef.current.rules.find((rule) => rule.id === point.rule_id)?.mc_persisted_points);
         const request = toStudioV2MappingUpdateRequest(point, draft);
+        const requestVersion = draftVersions.current.get(pointId) ?? 0;
         const preparedNameAttempt = preparedMappingRef.current?.(point, draft) === true;
         applyMappingPatch(pointId, { save_state: 'saving', save_error: null, save_error_detail: null });
         try {
@@ -307,7 +308,7 @@ export function useStudioV2MappingAutosave(
           observationRef.current?.saved(point, draft, saved);
           if (!unchanged) queue.pending.set(pointId, generation);
         } catch (error) {
-          observationRef.current?.failed(point);
+          observationRef.current?.failed(point, error);
           const currentRule = stateRef.current.rules.find((rule) => rule.id === ruleId);
           if (!preparedNameAttempt && (!canWriteMapping(point, draft) || persistedMCScopeKey(currentRule?.mc_persisted_points) !== requestScopeKey)) {
             queue.pending.set(pointId, generation);
@@ -328,6 +329,28 @@ export function useStudioV2MappingAutosave(
             const pendingPoint = stateRef.current.points.find((item) => item.id === pendingId);
             if (pendingPoint?.rule_id !== ruleId || pendingGeneration !== (generations.current.get(pendingId) ?? 0)) continue;
             applyMappingPatch(pendingId, { save_state: 'save-error', save_error: errorMessageOf(error, t('errors.autosave_failed')), save_error_detail: detail });
+          }
+          if (draft.mapping_id && isKnownMappingSourceRejection(error)) {
+            const failedMapping = stateRef.current.mappings[pointId], failure = queue.failure;
+            const failedRule = stateRef.current.rules.find(rule => rule.id === ruleId);
+            let consumed = false;
+            observationRef.current?.rejectedName?.(point, draft, original => {
+              const state = stateRef.current, latest = state.mappings[pointId];
+              if (consumed || !mounted.current || queues.current.get(ruleId) !== queue || queue.running || !queue.paused || queue.failure !== failure ||
+                generation !== (generations.current.get(pointId) ?? 0) || requestVersion !== (draftVersions.current.get(pointId) ?? 0) ||
+                queue.pending.get(pointId) !== generation || queue.deletions.has(draft.mapping_id!) || !latest || !failedMapping || !sameHydratedMapping(latest, failedMapping) || latest.save_error_detail !== failedMapping.save_error_detail || state.points.find(row => row.id === pointId) !== point ||
+                state.rules.find(rule => rule.id === ruleId) !== failedRule || !latest || !sameMappingValue(latest, draft) ||
+                original.save_state !== 'saved' || !original.persisted || original.mapping_id !== draft.mapping_id || original.workspace_id !== draft.workspace_id ||
+                original.device_id !== draft.device_id || original.rule_id !== draft.rule_id || original.point_id !== draft.point_id || original.persisted_point_id !== draft.persisted_point_id ||
+                original.tag_id !== draft.tag_id || original.address !== draft.address || !sameMappingValue({ ...original, display_name: draft.display_name }, draft) ||
+                !sameMappingValue(original, original.persisted_value) || !sameMappingValue(original, draft.persisted_value) || !sameMappingValue(original, latest.persisted_value)) return false;
+              consumed = true;
+              applyMappingPatch(pointId, { display_name: original.display_name, save_state: original.save_state, save_error: original.save_error, save_error_detail: original.save_error_detail });
+              queue.pending.delete(pointId);
+              draftVersions.current.set(pointId, requestVersion + 1);
+              if (!queue.pending.size && !queue.deletions.size) { queue.paused = false; queue.blocked = false; queue.failure = undefined; }
+              return true;
+            });
           }
         }
       }

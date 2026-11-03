@@ -160,3 +160,99 @@ describe('shared point naming through the original mapping queue', () => {
     expect(h.stateRef.current.mappings['P-native'].unit).toBe('dirty unit'); expect(api.update).not.toHaveBeenCalled();
   });
 });
+
+const sourceRejection = { response: { status: 409, data: { success: false, error: { code: 'workspace_mapping_conflict', action: 'review_source' } } } };
+async function rejectedName() {
+  const h = setup(), ready = await h.result.current.port.prepare(identity);
+  const original = structuredClone(h.stateRef.current.mappings['P-native']);
+  api.update.mockRejectedValueOnce(sourceRejection);
+  let outcome;
+  await act(async () => { outcome = await h.result.current.port.submit(ready!.session.id, 'Rejected name'); });
+  expect(outcome).toMatchObject({ status: 'unknown', reason: 'source-review', canDiscardRejected: true });
+  return { h, id: ready!.session.id, original };
+}
+it('cancels only a proven rejected name through the original queue after fresh unchanged read, without a second write', async () => {
+  const { h, id, original } = await rejectedName();
+  const dirtySettings = { ...h.stateRef.current.settings, theme: 'dark' as const };
+  h.stateRef.current = { ...h.stateRef.current, settings: dirtySettings };
+  expect(h.result.current.original.canSubmitPreparedMapping('R')).toBe(false);
+  await act(async () => { expect(await h.result.current.port.discardRejected?.(id)).toBe(true); });
+  expect(h.stateRef.current.mappings['P-native']).toEqual(original);
+  expect(h.stateRef.current.settings).toBe(dirtySettings);
+  expect(h.result.current.original.canSubmitPreparedMapping('R')).toBe(true);
+  expect(api.update).toHaveBeenCalledTimes(1); expect(api.create).not.toHaveBeenCalled(); expect(api.remove).not.toHaveBeenCalled();
+  expect(await h.result.current.port.discardRejected?.(id)).toBe(false);
+  expect(await h.result.current.port.prepare(identity)).toMatchObject({ status: 'ready' });
+});
+it.each(['network', 'other code', 'other action', 'root fallback'])('never offers rejected-name cancellation for %s', async kind => {
+  const h = setup(), ready = await h.result.current.port.prepare(identity);
+  const error = kind === 'network' ? new Error('network lost') : kind === 'root fallback' ? { status: 409, code: 'workspace_mapping_conflict', action: 'review_source' } :
+    { response: { status: 409, data: { error: { code: kind === 'other code' ? 'conflict' : 'workspace_mapping_conflict', action: kind === 'other action' ? 'retry' : 'review_source' } } } };
+  api.update.mockRejectedValueOnce(error);
+  await act(async () => { const result = await h.result.current.port.submit(ready!.session.id, 'Do not discard'); expect(result).toMatchObject({ status: 'unknown' }); expect(result?.canDiscardRejected).not.toBe(true); });
+  expect(await h.result.current.port.discardRejected?.(ready!.session.id)).toBe(false);
+  expect(h.stateRef.current.mappings['P-native'].display_name).toBe('Do not discard'); expect(api.update).toHaveBeenCalledTimes(1);
+});
+it.each(['foreign identity', 'changed server field', 'changed server stamp', 'read fails', 'new local name', 'scope ABA'])('preserves rejected intent when cancellation sees %s', async kind => {
+  const { h, id } = await rejectedName();
+  if (kind === 'foreign identity') api.list.mockResolvedValueOnce([{ ...record, tag_id: 'FOREIGN' }]);
+  if (kind === 'changed server field') api.list.mockResolvedValueOnce([{ ...record, scale: 3 }]);
+  if (kind === 'changed server stamp') api.list.mockResolvedValueOnce([{ ...record, updated_at: '2099-01-01T00:00:00Z' }]);
+  if (kind === 'read fails') api.list.mockRejectedValueOnce(new Error('unavailable'));
+  if (kind === 'new local name') h.stateRef.current = workbenchV2Reducer(h.stateRef.current, { type: 'updateMapping', pointId: 'P-native', patch: { display_name: 'Newer intent' } });
+  if (kind === 'scope ABA') { h.rerender({ token: {}, generallyAllowed: false }); h.rerender({ token: {}, generallyAllowed: false }); }
+  await act(async () => { expect(await h.result.current.port.discardRejected?.(id)).toBe(false); });
+  expect(h.stateRef.current.mappings['P-native'].display_name).toBe(kind === 'new local name' ? 'Newer intent' : 'Rejected name');
+  expect(api.update).toHaveBeenCalledTimes(1);
+  if (kind === 'read fails') await act(async () => { expect(await h.result.current.port.discardRejected?.(id)).toBe(true); });
+});
+it('rechecks the captured name owner after the cancel read and preserves another queued mapping', async () => {
+  const { h, id, original } = await rejectedName();
+  const point = h.stateRef.current.points[0];
+  h.stateRef.current = { ...h.stateRef.current, points: [...h.stateRef.current.points, { ...point, id: 'other' }], mappings: { ...h.stateRef.current.mappings, other: { ...original, point_id: 'other', mapping_id: 'OTHER', persisted_point_id: 'OTHER', tag_id: 'OTHER' } } };
+  const previous = h.stateRef.current, action: WorkbenchV2Action = { type: 'updateMapping', pointId: 'other', patch: { display_name: 'Other dirty' } };
+  h.stateRef.current = workbenchV2Reducer(previous, action); h.result.current.original.afterMappingAction(previous, action, h.stateRef.current);
+  const other = h.stateRef.current.mappings.other;
+  await act(async () => { expect(await h.result.current.port.discardRejected?.(id)).toBe(true); });
+  expect(h.stateRef.current.mappings.other).toBe(other); expect(h.result.current.original.canSubmitPreparedMapping('R')).toBe(false);
+  expect(h.stateRef.current.mappings['P-native']).toEqual(original); expect(api.update).toHaveBeenCalledTimes(1);
+});
+it('rejects cancellation when scope changes during its fresh read', async () => {
+  const { h, id } = await rejectedName(); let resolve!: (rows: typeof record[]) => void;
+  api.list.mockImplementationOnce(() => new Promise<typeof record[]>(done => { resolve = done; }));
+  const pending = h.result.current.port.discardRejected?.(id);
+  h.rerender({ token: {}, generallyAllowed: false });
+  await act(async () => { resolve([record]); expect(await pending).toBe(false); });
+  expect(h.stateRef.current.mappings['P-native'].display_name).toBe('Rejected name'); expect(api.update).toHaveBeenCalledTimes(1);
+});
+it('does not discard an edit queued while the rejected request was in flight', async () => {
+  const h = setup(), ready = await h.result.current.port.prepare(identity); let reject!: (reason: unknown) => void;
+  api.update.mockImplementationOnce(() => new Promise((_done, fail) => { reject = fail; }));
+  const pending = h.result.current.port.submit(ready!.session.id, 'First');
+  await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
+  const previous = h.stateRef.current, action: WorkbenchV2Action = { type: 'updateMapping', pointId: 'P-native', patch: { display_name: 'Newer intent' } };
+  h.stateRef.current = workbenchV2Reducer(previous, action); h.result.current.original.afterMappingAction(previous, action, h.stateRef.current);
+  await act(async () => { reject(sourceRejection); await pending; });
+  expect(await h.result.current.port.discardRejected?.(ready!.session.id)).toBe(false);
+  expect(h.stateRef.current.mappings['P-native'].display_name).toBe('Newer intent'); expect(api.update).toHaveBeenCalledTimes(1);
+});
+
+it.each(['inspect first', 'cancel first'])('one-flights rejected-name reads when %s without resurrecting a cancelled session', async order => {
+  const { h, id } = await rejectedName(); let resolve!: (rows: typeof record[]) => void;
+  api.list.mockImplementationOnce(() => new Promise<typeof record[]>(done => { resolve = done; }));
+  const beforeCalls = api.list.mock.calls.length;
+  if (order === 'inspect first') {
+    const inspecting = h.result.current.port.inspect(id);
+    expect(await h.result.current.port.discardRejected?.(id)).toBe(false);
+    await act(async () => { resolve([record]); expect(await inspecting).toMatchObject({ status: 'unknown' }); });
+    await act(async () => { expect(await h.result.current.port.discardRejected?.(id)).toBe(true); });
+    expect(api.list.mock.calls.length).toBe(beforeCalls + 2);
+  } else {
+    const cancelling = h.result.current.port.discardRejected?.(id);
+    expect(await h.result.current.port.inspect(id)).toBeUndefined();
+    await act(async () => { resolve([record]); expect(await cancelling).toBe(true); });
+    expect(api.list.mock.calls.length).toBe(beforeCalls + 1);
+  }
+  expect(await h.result.current.port.inspect(id)).toBeUndefined();
+  expect(h.stateRef.current.mappings['P-native'].save_state).toBe('saved'); expect(api.update).toHaveBeenCalledTimes(1);
+});

@@ -1,4 +1,6 @@
 {
+  "name_source_review": "來源點位設定已變更，先確認點位設定。",
+  "cancel_rejected_name": "取消這次改名",
   "workspace_mapping_conflict": "儲存映射時來源規則已變更。",
   "workspace_mapping_not_found": "原本儲存的映射已不存在。",
   "workspace_mapping_save_failed": "映射無法儲存。",

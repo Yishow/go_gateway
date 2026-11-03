@@ -14,6 +14,7 @@ export function composeMappingObservation(source: MappingQueueObservation, name:
       return name.acknowledged(point, mapping, saved);
     },
     saved: (point, mapping, saved) => { source.saved(point, mapping, saved); name.saved(point, mapping, saved); },
-    failed: point => { source.failed(point); name.failed(point); },
+    failed: (point, error) => { source.failed(point, error); name.failed(point, error); },
+    rejectedName: (point, mapping, cancel) => name.rejectedName?.(point, mapping, cancel),
   };
 }

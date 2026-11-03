@@ -1,4 +1,6 @@
 {
+  "name_source_review": "Source point settings changed. Review the point settings first.",
+  "cancel_rejected_name": "Cancel this name change",
   "workspace_mapping_conflict": "The source changed while saving this mapping.",
   "workspace_mapping_not_found": "The saved mapping no longer exists.",
   "workspace_mapping_save_failed": "The mapping could not be saved.",

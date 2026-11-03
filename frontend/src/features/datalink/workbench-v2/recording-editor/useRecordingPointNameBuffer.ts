@@ -4,6 +4,7 @@ import type { PointNameOutcome, RecordingPointNamePort } from '../../../../pages
 export function useRecordingPointNameBuffer(scope: string, port?: RecordingPointNamePort, disabled = false) {
   const current = useRef({ scope, port, disabled }); current.current = { scope, port, disabled };
   const sequence = useRef(0);
+  const cancelling = useRef(false);
   const [value, setValue] = useState<{ scope: string; candidate: GroupCandidate; name: string; outcome?: PointNameOutcome; preparing: boolean; failed: boolean }>();
   const active = value?.scope === scope ? value : undefined;
   const begin = async (candidate: GroupCandidate) => {
@@ -29,11 +30,22 @@ export function useRecordingPointNameBuffer(scope: string, port?: RecordingPoint
     } catch { if (sequence.current === request && current.current.scope === captured.scope) setValue({ ...captured, failed: true }); }
   };
   const inspect = async () => {
-    if (!active?.outcome || active.outcome.status !== 'unknown' || !port) return;
+    if (cancelling.current || active?.preparing || !active?.outcome || active.outcome.status !== 'unknown' || !port) return;
     const request = ++sequence.current, captured = active;
     try { const outcome = await port.inspect(active.outcome.session.id); if (outcome && sequence.current === request && current.current.scope === captured.scope) setValue({ ...captured, outcome }); } catch { /* Preserve unresolved write and the local name. */ }
   };
+  const discardRejected = async () => {
+    if (current.current.disabled || cancelling.current || active?.preparing || !active?.outcome?.canDiscardRejected || !port?.discardRejected) return;
+    cancelling.current = true;
+    const request = ++sequence.current, captured = active;
+    setValue({ ...captured, preparing: true });
+    try {
+      let discarded = false;
+      try { discarded = await port.discardRejected(captured.outcome!.session.id); } catch { /* Keep the rejected draft available for another read. */ }
+      if (sequence.current === request && current.current.scope === captured.scope && current.current.port === port) setValue(discarded ? undefined : { ...captured, preparing: false });
+    } finally { cancelling.current = false; }
+  };
   const reset = () => { if (active?.outcome?.status === 'pending') return; sequence.current += 1; if (active?.outcome) port?.release(active.outcome.session.id); setValue(undefined); };
-  return { value: active, begin, save, inspect, reset, change: (name: string) => { if (!current.current.disabled && active?.outcome?.status === 'ready') setValue({ ...active, name }); },
+  return { value: active, begin, save, inspect, reset, discardRejected, change: (name: string) => { if (!current.current.disabled && active?.outcome?.status === 'ready') setValue({ ...active, name }); },
     pending: active?.preparing || active?.outcome?.status === 'pending', dirty: !!active && active.outcome?.status === 'ready' && active.name !== active.outcome.session.displayName };
 }

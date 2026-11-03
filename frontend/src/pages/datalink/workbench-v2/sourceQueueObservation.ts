@@ -13,7 +13,8 @@ export interface RuleQueueObservation {
 export interface MappingQueueObservation {
   acknowledged(point: Point, mapping: Mapping, saved: StudioV2MappingSaveResult): boolean;
   saved(point: Point, mapping: Mapping, saved: StudioV2MappingSaveResult): void;
-  failed(point: Point): void;
+  failed(point: Point, error?: unknown): void;
+  rejectedName?(point: Point, mapping: Mapping, cancel: (original: Mapping) => boolean): void;
 }
 
 /** Only the server's pre-write validation rejection proves this attempt did not write. */
@@ -26,4 +27,17 @@ export function isKnownRuleValidationRejection(error: unknown): boolean {
   const serverError = data.error;
   // An exact bounded server discriminator, never a client/root fallback or message.
   return Boolean(serverError && typeof serverError === 'object' && !Array.isArray(serverError) && 'code' in serverError && serverError.code === 'validation');
+}
+
+/** Exact server pre-write source rejection; fallback/client error envelopes are not authority. */
+export function isKnownMappingSourceRejection(error: unknown): boolean {
+  if (!error || typeof error !== 'object' || !('response' in error)) return false;
+  const response = error.response;
+  if (Array.isArray(response)) return false;
+  if (!response || typeof response !== 'object' || !('status' in response) || response.status !== 409 || !('data' in response)) return false;
+  const data = response.data;
+  if (Array.isArray(data)) return false;
+  if (!data || typeof data !== 'object' || !('error' in data)) return false;
+  const value = data.error;
+  return !!value && typeof value === 'object' && !Array.isArray(value) && 'code' in value && value.code === 'workspace_mapping_conflict' && 'action' in value && value.action === 'review_source';
 }

@@ -6,7 +6,7 @@ import { mappingValueFromState, toStudioV2MappingUpdateRequest } from '../../../
 import { sameMappingValue } from './studioV2MappingQueueHelpers';
 import { prepareRecordingPointName, type PointNamePreparation } from './prepareRecordingPointName';
 import type { PointNameOutcome, RecordingPointNamePort } from './recordingPointNameSubmission';
-import type { MappingQueueObservation } from './sourceQueueObservation';
+import { isKnownMappingSourceRejection, type MappingQueueObservation } from './sourceQueueObservation';
 import { studioV2MappingsAPI, type StudioV2MappingSaveResult, type StudioV2WorkspaceMappingRequest } from '../../../services/studioV2Mappings';
 interface Options {
   workspaceId?: string; enabled: boolean; scopeToken: unknown; stateRef: MutableRefObject<WorkbenchV2State>;
@@ -18,7 +18,7 @@ interface Options {
   canWriteRule(id: string): boolean;
   canQueueRule(id: string): boolean;
 }
-interface Entry { acceptSave?: (saved: StudioV2MappingSaveResult) => void; flight?: boolean; owner: object; preparation: PointNamePreparation; outcome: PointNameOutcome; submitted?: StudioV2WorkspaceMappingRequest; resolve?: (value: PointNameOutcome) => void }
+interface Entry { cancelRejected?: (original: Mapping) => boolean; acceptSave?: (saved: StudioV2MappingSaveResult) => void; flight?: boolean; owner: object; preparation: PointNamePreparation; outcome: PointNameOutcome; submitted?: StudioV2WorkspaceMappingRequest; resolve?: (value: PointNameOutcome) => void }
 const equal = (expected: object, actual: object) => Object.entries(expected).every(([key, value]) => value === (actual as Record<string, unknown>)[key]);
 export function useRecordingPointNameSubmission(options: Options) {
   const current = useRef(options); current.current = options;
@@ -31,7 +31,7 @@ export function useRecordingPointNameSubmission(options: Options) {
   }
   useEffect(() => { mounted.current = true; const activeEntries = entries.current; return () => { mounted.current = false; for (const entry of activeEntries.values()) { entry.resolve?.({ ...entry.outcome, status: 'unknown' }); entry.resolve = undefined; } }; }, []);
   return useMemo(() => {
-    const active = (entry: Entry) => mounted.current && current.current.enabled && entry.owner === owner.current.token && entry.preparation.workspaceId === current.current.workspaceId;
+    const active = (entry: Entry) => entries.current.get(entry.outcome.session.id) === entry && mounted.current && current.current.enabled && entry.owner === owner.current.token && entry.preparation.workspaceId === current.current.workspaceId;
     const finish = (entry: Entry, status: PointNameOutcome['status'], currentName?: string) => {
       entry.outcome = { ...entry.outcome, status, ...(currentName === undefined ? {} : { currentName }) }; entry.resolve?.(entry.outcome); entry.resolve = undefined; return entry.outcome;
     };
@@ -69,6 +69,7 @@ export function useRecordingPointNameSubmission(options: Options) {
         const fresh = await prepareRecordingPointName(entry.preparation.workspaceId, entry.preparation.identity, () => current.current.stateRef.current, () => active(entry));
         if (!active(entry) || entry.outcome.status !== 'ready' || !fresh || current.current.stateRef.current !== fresh.expectedState || fresh.preparation.mappingId !== entry.preparation.mappingId || fresh.preparation.ruleRevision !== entry.preparation.ruleRevision ||
           !sameMappingValue(mappingValueFromState(fresh.preparation.mapping), mappingValueFromState(entry.preparation.mapping)) || !current.current.canQueueRule(entry.preparation.ruleId) || !current.current.canWriteRule(entry.preparation.ruleId) || (!current.current.canMutateRule(entry.preparation.ruleId) && !compatibleMC(entry.preparation.ruleId))) return finish(entry, 'blocked');
+        entry.preparation = { ...entry.preparation, serverRecord: fresh.preparation.serverRecord };
         const previous = current.current.stateRef.current, action: WorkbenchV2Action = { type: 'updateMapping', pointId: entry.preparation.point.id, patch: { display_name: name.trim() } };
         entry.submitted = { ...toStudioV2MappingUpdateRequest(entry.preparation.point, entry.preparation.mapping), display_name: name.trim() };
         entry.acceptSave = current.current.captureSave?.(fresh.preparation, entry.submitted);
@@ -78,11 +79,29 @@ export function useRecordingPointNameSubmission(options: Options) {
         return promise;
         } finally { entry.flight = false; }
       },
+      discardRejected: async id => {
+        const entry = entries.current.get(id);
+        if (!entry || !active(entry) || entry.flight || entry.outcome.status !== 'unknown' || entry.outcome.reason !== 'source-review' || !entry.cancelRejected || !liveMatches(entry)) return false;
+        entry.flight = true;
+        try {
+          const rows = await studioV2MappingsAPI.list();
+          const matches = rows.filter(row => row.id === entry.preparation.mappingId);
+          const record = matches[0], prepared = entry.preparation;
+          if (!active(entry) || entry.outcome.status !== 'unknown' || !liveMatches(entry) || matches.length !== 1 ||
+            record.workspace_id !== prepared.workspaceId || record.device_id !== prepared.identity.device_id || record.point_id !== prepared.identity.point_id || record.tag_id !== prepared.identity.tag_id ||
+            !prepared.serverRecord || prepared.serverRecord.created_at !== record.created_at || prepared.serverRecord.updated_at !== record.updated_at || prepared.serverRecord.save_state !== record.save_state || !equal(toStudioV2MappingUpdateRequest(prepared.point, prepared.mapping), record) || !entry.cancelRejected(prepared.mapping)) return false;
+          entries.current.delete(id);
+          return true;
+        } catch { return false; } finally { entry.flight = false; }
+      },
       inspect: async id => {
-        const entry = entries.current.get(id); if (!entry || !active(entry) || entry.outcome.status !== 'unknown') return;
-        const rows = (await studioV2MappingsAPI.list()).filter(row => row.workspace_id === entry.preparation.workspaceId && row.id === entry.preparation.mappingId && row.device_id === entry.preparation.identity.device_id && row.point_id === entry.preparation.identity.point_id && row.tag_id === entry.preparation.identity.tag_id);
-        // A current read does not prove the uncertain write and never enables retry.
-        return active(entry) ? finish(entry, 'unknown', rows.length === 1 ? rows[0].display_name : undefined) : undefined;
+        const entry = entries.current.get(id); if (!entry || !active(entry) || entry.flight || entry.outcome.status !== 'unknown') return;
+        entry.flight = true;
+        try {
+          const rows = (await studioV2MappingsAPI.list()).filter(row => row.workspace_id === entry.preparation.workspaceId && row.id === entry.preparation.mappingId && row.device_id === entry.preparation.identity.device_id && row.point_id === entry.preparation.identity.point_id && row.tag_id === entry.preparation.identity.tag_id);
+          // A current read does not prove the uncertain write and never enables retry.
+          return active(entry) ? finish(entry, 'unknown', rows.length === 1 ? rows[0].display_name : undefined) : undefined;
+        } finally { entry.flight = false; }
       },
     };
     const observation: MappingQueueObservation = {
@@ -97,7 +116,18 @@ export function useRecordingPointNameSubmission(options: Options) {
           finish(entry, confirmed ? 'confirmed' : 'unknown', result?.preparation.mapping.display_name);
         }).catch(() => finish(entry, 'unknown'));
       },
-      failed: point => { for (const entry of entries.current.values()) if (active(entry) && entry.outcome.status === 'pending' && entry.preparation.point.id === point.id) finish(entry, 'unknown'); },
+      failed: (point, error) => { for (const entry of entries.current.values()) if (active(entry) && entry.outcome.status === 'pending' && entry.preparation.point.id === point.id) {
+        if (isKnownMappingSourceRejection(error) && liveMatches(entry)) entry.outcome = { ...entry.outcome, reason: 'source-review' };
+        finish(entry, 'unknown');
+      } },
+      rejectedName: (point, mapping, cancel) => {
+        for (const entry of entries.current.values()) if (active(entry) && entry.outcome.status === 'unknown' && entry.outcome.reason === 'source-review' &&
+          entry.preparation.point.id === point.id && entry.preparation.mappingId === mapping.mapping_id && entry.submitted && equal(entry.submitted, toStudioV2MappingUpdateRequest(point, mapping)) && liveMatches(entry)) {
+          entry.cancelRejected = cancel;
+          // The resolved outcome is the same notification object consumed by the awaiting buffer.
+          entry.outcome.canDiscardRejected = true;
+        }
+      },
     };
     const compatibleMC = (ruleId: string) => [...entries.current.values()].some(entry => active(entry) && entry.preparation.ruleId === ruleId && entry.preparation.mcEvidence?.status === 'compatible' &&
       current.current.stateRef.current.rules.find(rule => rule.id === ruleId)?.revision_id === entry.preparation.ruleRevision && current.current.stateRef.current.rules.find(rule => rule.id === ruleId)?.mc_persisted_points === entry.preparation.mcEvidence && !['blocked', 'unknown'].includes(entry.outcome.status));

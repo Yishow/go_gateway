@@ -1,4 +1,5 @@
 import { studioV2WorkspaceAPI } from '../../../services/studioV2Workspace';
+import type { StudioV2WorkspaceMappingRecord } from '../../../types/datalink';
 import type { WorkbenchV2State, Mapping, Point } from '../../../features/datalink/workbench-v2/state/types';
 import type { SourceIdentity } from './rangeSourceSubmission';
 import { studioV2MappingsAPI } from '../../../services/studioV2Mappings';
@@ -21,7 +22,7 @@ function comparable(value: unknown): string {
 
 export interface PointNamePreparation {
   workspaceId: string; workspaceRevision: string; identity: SourceIdentity; mappingId: string; ruleId: string; ruleRevision: string;
-  point: Point; mapping: Mapping; mcEvidence?: PersistedMCRuleState;
+  point: Point; mapping: Mapping; serverRecord?: StudioV2WorkspaceMappingRecord; mcEvidence?: PersistedMCRuleState;
 }
 /** Exact one-point read/merge proposal. Never replaces devices, rules, database or settings.
  * Read freshness is not mutation CAS. The original queue must still accept canMutateRule.
@@ -75,7 +76,7 @@ export async function prepareRecordingPointName(workspaceId: string, identity: S
     initial.points.find(value => value.id === local.id) !== local || !initial.mappings[local.id] || !sameHydratedMapping(initial.mappings[local.id], existing))) return;
   if (!local && (Object.values(live.mappings).some(value => value.mapping_id === record.id) || live.mappings[point.id] || live.points.some(value => value.id === point.id))) return;
   const preparedPoint = local ?? point, preparedMapping = existing ?? mapping;
-  return { expectedState: live, preparation: { workspaceId, workspaceRevision: read.value.entry.workspace_revision, identity: { ...identity }, mappingId: record.id, ruleId: ownedRule.id, ruleRevision: ownedRule.revision_id!, point: preparedPoint, mapping: preparedMapping, mcEvidence },
+  return { expectedState: live, preparation: { workspaceId, workspaceRevision: read.value.entry.workspace_revision, identity: { ...identity }, mappingId: record.id, ruleId: ownedRule.id, ruleRevision: ownedRule.revision_id!, point: preparedPoint, mapping: preparedMapping, serverRecord: { ...record }, mcEvidence },
     merge: local && rule && device && !mcEvidence ? undefined : { devices: device ? live.devices : [...live.devices, freshDevice],
       rules: rule ? live.rules.map(value => value === rule && mcEvidence ? { ...value, mc_persisted_points: mcEvidence } : value) : [...live.rules, { ...freshRule, ...(mcEvidence ? { mc_persisted_points: mcEvidence } : {}) }],
       points: local ? live.points : [...live.points, point], mappings: local ? live.mappings : { ...live.mappings, [point.id]: mapping } } };

@@ -84,6 +84,8 @@ describe('Home direct device creation through the original workspace owner', () 
     const { navigate } = mount(); const dialog = await openCreate();
     expect(screen.queryByTestId('group-name')).not.toBeInTheDocument();
     expect(screen.queryByTestId('workbench-v2-root')).not.toBeInTheDocument();
+    expect(within(dialog).getByTestId('recording-source-close')).toHaveAccessibleName('Cancel');
+    expect(within(dialog).queryByRole('button', { name: 'Back to points' })).not.toBeInTheDocument();
     noConfigurationWrites(); expect(deviceAPI.checkReadiness).not.toHaveBeenCalled();
     expect(studioV2DatalinkApi.get).not.toHaveBeenCalled();
     fireEvent.change(within(dialog).getByTestId('recording-source-name'), { target: { value: 'Unsent device' } });
