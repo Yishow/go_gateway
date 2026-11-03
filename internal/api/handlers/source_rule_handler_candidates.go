@@ -16,6 +16,16 @@ func (h *SourceRuleHandler) Candidates(c *gin.Context) {
 	if !h.requireCandidateScope(c, scope) {
 		return
 	}
+	if c.Query("view") == "tags" {
+		view, err := h.svc.GetTagCandidateViewAtRevision(c.Request.Context(), c.Param("id"), scope.RevisionID, &scope)
+		if err != nil {
+			writeCandidateScopeError(c, err)
+			return
+		}
+		view.WorkspaceID, view.WorkspaceRevision = scope.WorkspaceID, scope.ExpectedWorkspaceRevision
+		c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: view})
+		return
+	}
 	var view *sourcerule.CandidateSnapshotView
 	var err error
 	if h.svc.CandidateScopeConfigured() {
