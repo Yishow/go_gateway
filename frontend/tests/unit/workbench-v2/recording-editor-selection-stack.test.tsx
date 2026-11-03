@@ -69,9 +69,10 @@ describe('single recording picker modal stack', () => {
     expect(screen.getByTestId('members')).toHaveTextContent('[]');
   });
 
-  it('keeps unknown submitted device and newer raw input across picker close/reopen without a replacement create', async () => {
+  it('keeps unknown submitted device and newer raw input in the locked dialog without a replacement create', async () => {
     const submit = vi.fn(async (request: import('@/pages/datalink/workbench-v2/deviceSourceSubmission').DeviceSourceRequest) => ({ request, status: 'unknown' as const }));
-    render(<Harness port={{ submit, inspect: vi.fn(), observations: () => [] }} />);
+    const inspect = vi.fn(async () => ({ request: submit.mock.calls[0][0], status: 'unknown' as const }));
+    render(<Harness port={{ submit, inspect, observations: () => [] }} />);
     const openDevice = async () => {
       fireEvent.click(screen.getByTestId('recording-points-open'));
       fireEvent.click(screen.getByRole('button', { name: 'picker.newSource' }));
@@ -84,9 +85,12 @@ describe('single recording picker modal stack', () => {
     fireEvent.click(screen.getByTestId('recording-source-save'));
     await screen.findByTestId('recording-source-unknown');
     fireEvent.change(screen.getByTestId('input-port'), { target: { value: 'invalid 5x' } });
+    expect(screen.getByTestId('recording-source-close')).toBeDisabled();
     fireEvent.click(screen.getByTestId('recording-source-close'));
-    fireEvent.click(screen.getByRole('button', { name: 'picker.cancel' }));
-    await openDevice();
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    fireEvent.click(screen.getByTestId('recording-source-inspect'));
+    await waitFor(() => expect(inspect).toHaveBeenCalledWith(submit.mock.calls[0][0].requestId));
     expect(screen.getByTestId('input-port')).toHaveValue('invalid 5x');
     expect(screen.getByLabelText('device.protocol')).toBeDisabled();
     expect(screen.getByTestId('recording-source-save')).toBeDisabled();
@@ -135,11 +139,14 @@ describe('single recording picker modal stack', () => {
 
 });
 
-it('keeps a same-owner submitted unknown device reachable for inspection when point discovery fails on reopen', async()=>{
+it('recovers the original unknown device after a same-owner picker remount when discovery fails', async()=>{
  const discover=vi.fn().mockResolvedValue({candidates:[],devices:[]});
- const submit=vi.fn(async(request: import('@/pages/datalink/workbench-v2/deviceSourceSubmission').DeviceSourceRequest)=>({request,status:'unknown' as const}));
+ let observed: import('@/pages/datalink/workbench-v2/deviceSourceSubmission').DeviceSourceOutcome[] = [];
+ const submit=vi.fn(async(request: import('@/pages/datalink/workbench-v2/deviceSourceSubmission').DeviceSourceRequest)=>{ const outcome = {request,status:'unknown' as const}; observed = [outcome]; return outcome; });
  const inspect = vi.fn(async () => ({ request: submit.mock.calls[0][0], status: 'unknown' as const }));
- render(<RecordingPointSelection scope="S" workspaceId="W" candidates={[]} members={[]} devices={[]} disabled={false} onChange={vi.fn()} discover={discover} deviceSource={{submit,inspect,observations:()=>[]}}/>);
+ const port = { submit, inspect, observations: () => observed };
+ const mount = () => render(<RecordingPointSelection scope="S" workspaceId="W" candidates={[]} members={[]} devices={[]} disabled={false} onChange={vi.fn()} discover={discover} deviceSource={port}/>);
+ const view = mount();
  fireEvent.click(screen.getByTestId('recording-points-open'));
  fireEvent.click(await screen.findByRole('button',{name:'picker.newSource'}));
  fireEvent.click(screen.getByRole('button',{name:'source.newDevice'}));
@@ -147,9 +154,14 @@ it('keeps a same-owner submitted unknown device reachable for inspection when po
  fireEvent.change(screen.getByTestId('input-host'),{target:{value:'192.0.2.5'}});
  fireEvent.click(screen.getByTestId('recording-source-save'));
  await screen.findByTestId('recording-source-unknown');
+ expect(screen.getByTestId('recording-source-close')).toBeDisabled();
  fireEvent.click(screen.getByTestId('recording-source-close'));
- fireEvent.click(screen.getByRole('button',{name:'picker.cancel'}));
+ fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+ expect(screen.getByTestId('recording-source-unknown')).toBeVisible();
+ // The host remounts; the original source owner and its observed request survive.
+ view.unmount();
  discover.mockRejectedValue(new Error('point service unavailable'));
+ mount();
  fireEvent.click(screen.getByTestId('recording-points-open'));
  await screen.findByText('picker.failed');
  // Existing operation should remain reachable even when unrelated point discovery fails.
@@ -182,14 +194,17 @@ it('does not resurrect a confirmed device omitted by a later successful authorit
  expect(screen.queryByRole('option',{name:'Saved PLC'})).not.toBeInTheDocument();
 });
 
-it('a pre-confirmation read that arrives late cannot remove the just-saved device, but a later-started read can', async () => {
+it('after same-owner remount a pre-confirmation read cannot remove the saved device, but a later-started read can', async () => {
  const empty = { candidates: [], devices: [] };
  let resolveOld!: (value: typeof empty) => void;
  const discover = vi.fn().mockResolvedValueOnce(empty).mockImplementationOnce(() => new Promise(done => { resolveOld = done; })).mockResolvedValue(empty);
- const submit = vi.fn(async (request: import('@/pages/datalink/workbench-v2/deviceSourceSubmission').DeviceSourceRequest) => ({ request, status: 'unknown' as const }));
- const inspect = vi.fn(async () => ({ request: submit.mock.calls[0][0], status: 'confirmed' as const, device: { id: 'SAVED', name: 'Saved PLC', protocol: 'modbus_tcp' as const,
-   description: '', status: 'draft' as const, connection_config: '{}', created_at: '', updated_at: '', last_test_at: null, last_test_success: null, last_test_error: '' } }));
- render(<RecordingPointSelection scope="S" workspaceId="W" candidates={[]} members={[]} devices={[]} disabled={false} onChange={vi.fn()} discover={discover} deviceSource={{ submit, inspect, observations: () => [] }} />);
+ let observed: import('@/pages/datalink/workbench-v2/deviceSourceSubmission').DeviceSourceOutcome[] = [];
+ const submit = vi.fn(async (request: import('@/pages/datalink/workbench-v2/deviceSourceSubmission').DeviceSourceRequest) => { const outcome = { request, status: 'unknown' as const }; observed = [outcome]; return outcome; });
+ const inspect = vi.fn(async () => { const outcome = { request: submit.mock.calls[0][0], status: 'confirmed' as const, device: { id: 'SAVED', name: 'Saved PLC', protocol: 'modbus_tcp' as const,
+   description: '', status: 'draft' as const, connection_config: '{}', created_at: '', updated_at: '', last_test_at: null, last_test_success: null, last_test_error: '' } }; observed = [outcome]; return outcome; });
+ const port = { submit, inspect, observations: () => observed };
+ const mount = () => render(<RecordingPointSelection scope="S" workspaceId="W" candidates={[]} members={[]} devices={[]} disabled={false} onChange={vi.fn()} discover={discover} deviceSource={port} />);
+ const view = mount();
  fireEvent.click(screen.getByTestId('recording-points-open'));
  fireEvent.click(await screen.findByRole('button', { name: 'picker.newSource' }));
  fireEvent.click(screen.getByRole('button', { name: 'source.newDevice' }));
@@ -197,13 +212,19 @@ it('a pre-confirmation read that arrives late cannot remove the just-saved devic
  fireEvent.change(screen.getByTestId('input-host'), { target: { value: '192.0.2.5' } });
  fireEvent.click(screen.getByTestId('recording-source-save'));
  await screen.findByTestId('recording-source-unknown');
+ expect(screen.getByTestId('recording-source-close')).toBeDisabled();
  fireEvent.click(screen.getByTestId('recording-source-close'));
- fireEvent.click(screen.getByRole('button', { name: 'picker.cancel' }));
+ fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+ expect(screen.getByTestId('recording-source-unknown')).toBeVisible();
+ // This is host lifecycle recovery, not permission to close an unknown operation.
+ view.unmount(); mount();
  fireEvent.click(screen.getByTestId('recording-points-open')); // Read 2 starts before confirmed save.
  expect(screen.getByText('picker.loading')).toBeVisible();
  fireEvent.click(screen.getByTestId('recording-source-resume'));
  fireEvent.click(screen.getByTestId('recording-source-inspect'));
  await screen.findByTestId('recording-range-device');
+ expect(inspect).toHaveBeenCalledWith(submit.mock.calls[0][0].requestId);
+ expect(discover).toHaveBeenCalledTimes(2);
  await act(async () => resolveOld(empty)); // Its old empty snapshot must not remove this new ID.
  expect(screen.getByTestId('recording-source-confirmed')).toBeVisible();
  fireEvent.click(screen.getByTestId('recording-range-back'));
@@ -212,5 +233,6 @@ it('a pre-confirmation read that arrives late cannot remove the just-saved devic
  fireEvent.click(screen.getByTestId('recording-points-open')); // Read 3 starts after confirmed save.
  await screen.findByRole('button', { name: 'picker.newSource' });
  expect(screen.queryByRole('option', { name: 'Saved PLC' })).not.toBeInTheDocument();
+ expect(discover).toHaveBeenCalledTimes(3);
  expect(submit).toHaveBeenCalledTimes(1);
 });

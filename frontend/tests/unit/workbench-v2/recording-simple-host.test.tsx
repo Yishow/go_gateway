@@ -81,7 +81,7 @@ it('StrictMode abandons the first scope read and still opens exactly one fresh e
   expect(screen.getByTestId('group-section')).toHaveAttribute('data-editor-active', 'true');
 });
 
-it('collapses only fresh simple locator diagnostics while opening and guided diagnostics stay visible', async () => {
+it('collapses fresh simple and scoped guided diagnostics while opening diagnostics stay visible', async () => {
   const entry = locatorRead(4);let finish!: (result: StudioLocatorEntryResult) => void;
   vi.mocked(readStudioLocatorEditorEntry).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
   const props: Partial<WriteGroupSectionProps> = { state: studioV2LocatorHydration(entry)!, workspaceId: 'W', locatorEntry: entry, locatorOnly: true, initialSelection: 'located' };
@@ -98,8 +98,16 @@ it('collapses only fresh simple locator diagnostics while opening and guided dia
   }
   expect(screen.getByText(/locatorEntry.currentRevision/).closest('details')).toBe(details);
   view.rerender(view.content({ ...props, presentation: 'guided' }));
-  expect(screen.queryByTestId('locator-version-details')).not.toBeInTheDocument();expect(screen.getByText('locatorEntry.unrequested')).toBeVisible();
-  expect(screen.getByText('locatorEntry.historicalHint')).toBeVisible();
+  const guidedDetails = screen.getByTestId('mock-saved-revision-details');
+  expect(screen.queryByTestId('locator-version-details')).not.toBeInTheDocument();
+  expect(guidedDetails).not.toHaveAttribute('open'); expect(captured.props?.scopeDiagnostics).toBeDefined();
+  for (const text of ['locatorEntry.unrequested', 'locatorEntry.historicalHint']) {
+    expect(screen.getByText(text).closest('details')).toBe(guidedDetails); expect(screen.getByText(text)).not.toBeVisible();
+  }
+  fireEvent.click(guidedDetails.querySelector('summary')!);
+  expect(guidedDetails).toHaveAttribute('open');
+  expect(screen.getByText('locatorEntry.unrequested')).toBeVisible(); expect(screen.getByText('locatorEntry.historicalHint')).toBeVisible();
+  expect(screen.getByText(/locatorEntry.currentRevision/)).toBeVisible();
 });
 it.each(['stale-reference', 'foreign-scope', 'unavailable'] as const)('keeps %s locator diagnostics and denial outside any collapsed version details', async reason => {
   const entry = locatorRead(4);vi.mocked(readStudioLocatorEditorEntry).mockResolvedValue({ ok: false, reason });

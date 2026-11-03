@@ -1,16 +1,18 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { GroupDeliveryStrip } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupDeliveryStrip';
+import type { DeliveryAttentionItem, WriteGroupDelivery } from '@/types/studioV2WriteGroupDelivery';
 import { savedGroup } from '../../fixtures/writeGroupState';
 const api = vi.hoisted(() => ({ resolveDelivery: vi.fn() }));
 const query = vi.hoisted(() => ({ data: undefined as unknown, isError: false, refetch: vi.fn() }));
 vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: api }));
 vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({ useWriteGroupDeliveryQuery: () => query }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-const item = { effect_key: 'effect-old', state: 'blocked', state_revision: 1, payload_digest: 'digest-old', group_revision: 'revision-old', connector_id: 'connector-old', connector_revision: 'connector-revision-old', table_schema: 'main', table_name: 'original_readings', error_code: 'missing-table' };
+const item: DeliveryAttentionItem = { effect_key: 'effect-old', state: 'blocked', state_revision: 1, payload_digest: 'digest-old', group_revision: 'revision-old', connector_id: 'connector-old', connector_revision: 'connector-revision-old', table_schema: 'main', table_name: 'original_readings', error_code: 'missing-table' };
 beforeEach(() => {
  vi.clearAllMocks(); query.isError = false;
- query.data = { stages: { collecting: 0, queued: 1, retrying: 0, blocked: 1, quarantined: 0, unknown: 0, sql_committed: 0, skipped: 0 }, no_data_buckets: 0, skipped_buckets: 0, attention: [item] };
+ query.data = { group_id: savedGroup().id, intake: { state: 'blocked' }, last_sql_committed_at: null, oldest_pending_seconds: 0, backlog: [],
+  quota: { configured: false, state: 'unconfigured', scope: '', used_bytes: 0, max_bytes: 0, intake_refused: false }, stages: { collecting: 0, queued: 1, retrying: 0, blocked: 1, quarantined: 0, unknown: 0, sql_committed: 0, skipped: 0 }, no_data_buckets: 0, skipped_buckets: 0, attention: [item] } satisfies WriteGroupDelivery;
  api.resolveDelivery.mockResolvedValue({ decision_id: 'decision', effect_key: item.effect_key, state: 'pending', duplicate: false });
 });
 it('requires a repair note and explicit skip confirmation, preserving frozen row identity', async () => {
@@ -68,4 +70,14 @@ it('skip requires expanding impact, a reason and explicit confirmation', async (
  fireEvent.click(screen.getByTestId('delivery-skip-effect-old'));
  await waitFor(() => expect(api.resolveDelivery).toHaveBeenCalledTimes(1));
  expect(api.resolveDelivery.mock.calls[0][1]).toMatchObject({ resolution: 'skip', confirm_skip: true, effect_key: item.effect_key, expected_state_revision: 1, payload_digest: item.payload_digest });
+});
+
+
+it('does not expose recovery actions from a delivery response belonging to another group', () => {
+ query.data = { ...(query.data as object), group_id: 'another-group' };
+ render(<GroupDeliveryStrip group={savedGroup()} />);
+ expect(screen.queryByTestId('delivery-recovery')).not.toBeInTheDocument();
+ expect(screen.queryByTestId('delivery-retry-effect-old')).not.toBeInTheDocument();
+ expect(screen.queryByTestId('delivery-skip-effect-old')).not.toBeInTheDocument();
+ expect(api.resolveDelivery).not.toHaveBeenCalled();
 });

@@ -1,6 +1,6 @@
 import { useRecordingPointOrder } from '../../../src/features/datalink/workbench-v2/recording-editor/useRecordingPointOrder';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GroupEditor } from '../../../src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor';
 import { buildGroupCandidates } from '../../../src/features/datalink/workbench-v2/state/writeGroup/candidates';
@@ -34,14 +34,16 @@ describe('recording editor canonical point order consumer', () => {
     const row = await screen.findByTestId('recording-point-order-pt-0');
     if (presentation === 'simple') {
       const order = await within(row).findByLabelText('editor.order');
-      expect(order).toBeVisible(); expect(order.closest('details')).toBeNull();
+      const details = order.closest('details');
+      expect(details).not.toBeNull(); expect(details).not.toHaveAttribute('open'); expect(order).not.toBeVisible();
+      fireEvent.click(within(row).getByText('editor.title', { selector: 'summary' }));
+      expect(details).toHaveAttribute('open'); expect(order).toBeVisible();
       const controls = order.closest('.recording-point-order-inline__controls');
       expect(controls).not.toBeNull();
       expect(within(row).queryByText('editor.save')).not.toBeInTheDocument();
       expect(controls).toContainElement(within(row).getByText('editor.reset'));
-      const versions = within(row).getByText('editor.version', { selector: 'summary' }).closest('details');
-      expect(versions).not.toHaveAttribute('open');
-      expect(versions?.parentElement).toHaveClass('recording-point-order-inline__heading');
+      const version = within(row).getByText(/editor.version/);
+      expect(version.closest('details')).toBe(details); expect(version).toBeVisible();
       expect(within(row).getByText('editor.reset')).toBeVisible();
     } else expect(row.querySelector('summary')).toBeVisible();
     expect(await within(screen.getByTestId('recording-point-order-pt-0')).findByTestId('point-order-effective')).toHaveTextContent('ABCD');

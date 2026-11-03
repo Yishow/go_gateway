@@ -93,6 +93,11 @@ describe('real log Page and native settings receiver with strict HTTP-only fixtu
     const card = await screen.findByTestId('group-list-item-G'); expect(card).toHaveAttribute('data-locator-selected', 'true');
     expect(card).toHaveFocus(); expect(card).toHaveTextContent('Renamed current recorder');
     expect(screen.getByTestId('location')).toHaveTextContent('workspace_id=W&step=4&group_id=G&group_revision=R1');
+    const diagnostics = screen.getByTestId('group-list-diagnostics');
+    expect(diagnostics).not.toHaveAttribute('open');
+    expect(screen.getByText(/Requested revision R1 is informational/)).not.toBeVisible();
+    fireEvent.click(diagnostics.querySelector('summary')!);
+    expect(diagnostics).toHaveAttribute('open');
     expect(screen.getByText(/Requested revision R1 is informational/)).toBeVisible();
     expect(screen.getByText(/Current settings revision/)).toBeVisible(); expect(screen.getByText('R2')).toBeVisible();
     await waitFor(() => expect(ledger).toHaveLength(2)); expectNoCommands();

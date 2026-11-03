@@ -49,7 +49,11 @@ describe('formal logs host viability through actual Page, BrowserRouter and nati
     expect(mock.ledger).toHaveLength(1); expect(mock.ledger[0]?.path).toBe('/api/v1/system/logs');
     fireEvent.click(screen.getByRole('link', { name: i18n.t('domain.openGroup', { ns: 'runtime-logs' }) }));
     const card = await screen.findByTestId('group-list-item-G'); expect(card).toHaveAttribute('data-locator-selected', 'true');
-    expect(window.location.search).toContain('group_revision=R1'); expect(screen.getByText('R2')).toBeVisible();
+    expect(window.location.search).toContain('group_revision=R1');
+    const diagnostics = screen.getByTestId('group-list-diagnostics');
+    expect(diagnostics).not.toHaveAttribute('open'); expect(screen.getByText('R2')).not.toBeVisible();
+    fireEvent.click(diagnostics.querySelector('summary')!);
+    expect(diagnostics).toHaveAttribute('open'); expect(screen.getByText('R2')).toBeVisible();
     await waitFor(() => expect(mock.ledger).toHaveLength(3)); noCommands(mock);
   });
   it.each(['deleted', 'foreign', 'unavailable'] as const)('%s preserves historical identity and fails closed without hydration or mutation', async scenario => {
