@@ -119,4 +119,4 @@ npm run test:e2e
 - [docs](docs)：技術與維運文件；[Studio inventory](docs/technical/studio-surface-inventory/START_HERE.md) 提供歷史與 surface 脈絡，日期較舊的結論需對照 source
 - [openspec](openspec)：規格與提案；規格存在或提案驗證通過，不代表產品實作完成
 
-開發與 agent 共通規範見 [AGENTS.md](AGENTS.md)，Claude 補充見 [CLAUDE.md](CLAUDE.md)。README 專注使用與能力邊界，不另存一套開發規則。
+開發與 agent 共通規範見 [AGENTS.md](AGENTS.md)（[CLAUDE.md](CLAUDE.md) 只匯入該檔）。README 專注使用與能力邊界，不另存一套開發規則。
