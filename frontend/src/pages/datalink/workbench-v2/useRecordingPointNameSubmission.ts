@@ -10,13 +10,15 @@ import type { MappingQueueObservation } from './sourceQueueObservation';
 import { studioV2MappingsAPI, type StudioV2MappingSaveResult, type StudioV2WorkspaceMappingRequest } from '../../../services/studioV2Mappings';
 interface Options {
   workspaceId?: string; enabled: boolean; scopeToken: unknown; stateRef: MutableRefObject<WorkbenchV2State>;
+  captureRead?: ReturnType<typeof import('./studioV2LocatorHydration').useStudioV2LocatorHydration>['capturePointNameRead'];
+  captureSave?: ReturnType<typeof import('./studioV2LocatorHydration').useStudioV2LocatorHydration>['capturePointNameSave'];
   apply(action: WorkbenchV2Action): void;
   queue(previous: WorkbenchV2State, action: WorkbenchV2Action, next: WorkbenchV2State): void;
   canMutateRule(id: string): boolean;
   canWriteRule(id: string): boolean;
   canQueueRule(id: string): boolean;
 }
-interface Entry { flight?: boolean; owner: object; preparation: PointNamePreparation; outcome: PointNameOutcome; submitted?: StudioV2WorkspaceMappingRequest; resolve?: (value: PointNameOutcome) => void }
+interface Entry { acceptSave?: (saved: StudioV2MappingSaveResult) => void; flight?: boolean; owner: object; preparation: PointNamePreparation; outcome: PointNameOutcome; submitted?: StudioV2WorkspaceMappingRequest; resolve?: (value: PointNameOutcome) => void }
 const equal = (expected: object, actual: object) => Object.entries(expected).every(([key, value]) => value === (actual as Record<string, unknown>)[key]);
 export function useRecordingPointNameSubmission(options: Options) {
   const current = useRef(options); current.current = options;
@@ -51,7 +53,10 @@ export function useRecordingPointNameSubmission(options: Options) {
         const session = { id: createBasicRecordingRequestId(), identity: { ...identity }, displayName: result.preparation.mapping.display_name };
         const entry: Entry = { owner: captured, preparation: result.preparation, outcome: { session, status: 'ready' } };
         entries.current.set(session.id, entry);
-        if (result.merge) current.current.apply({ type: 'SET_STATE', payload: result.merge });
+        if (result.merge) {
+          const acceptRead = current.current.captureRead?.(result.expectedState, result.preparation, result.merge);
+          current.current.apply({ type: 'SET_STATE', payload: result.merge }); acceptRead?.();
+        }
         if (!current.current.canQueueRule(result.preparation.ruleId) || !current.current.canWriteRule(result.preparation.ruleId) || (!current.current.canMutateRule(result.preparation.ruleId) && !compatibleMC(result.preparation.ruleId))) return finish(entry, 'blocked');
         return entry.outcome;
       },
@@ -66,6 +71,7 @@ export function useRecordingPointNameSubmission(options: Options) {
           !sameMappingValue(mappingValueFromState(fresh.preparation.mapping), mappingValueFromState(entry.preparation.mapping)) || !current.current.canQueueRule(entry.preparation.ruleId) || !current.current.canWriteRule(entry.preparation.ruleId) || (!current.current.canMutateRule(entry.preparation.ruleId) && !compatibleMC(entry.preparation.ruleId))) return finish(entry, 'blocked');
         const previous = current.current.stateRef.current, action: WorkbenchV2Action = { type: 'updateMapping', pointId: entry.preparation.point.id, patch: { display_name: name.trim() } };
         entry.submitted = { ...toStudioV2MappingUpdateRequest(entry.preparation.point, entry.preparation.mapping), display_name: name.trim() };
+        entry.acceptSave = current.current.captureSave?.(fresh.preparation, entry.submitted);
         entry.outcome = { ...entry.outcome, status: 'pending', submittedName: name.trim() };
         const promise = new Promise<PointNameOutcome>(resolve => { entry.resolve = resolve; });
         current.current.apply(action); current.current.queue(previous, action, current.current.stateRef.current);
@@ -86,7 +92,9 @@ export function useRecordingPointNameSubmission(options: Options) {
         if (!acknowledged(entry, saved) || !liveMatches(entry) || saved.runtime_apply_status === 'apply_failed' || saved.cleanup_status === 'failed') { finish(entry, 'unknown'); return; }
         void prepareRecordingPointName(entry.preparation.workspaceId, entry.preparation.identity, () => current.current.stateRef.current, () => active(entry)).then(result => {
           if (!active(entry)) { finish(entry, 'unknown'); return; }
-          finish(entry, result && result.preparation.mappingId === entry.preparation.mappingId && entry.submitted && equal(entry.submitted, toStudioV2MappingUpdateRequest(result.preparation.point, result.preparation.mapping)) && liveMatches(entry) ? 'confirmed' : 'unknown', result?.preparation.mapping.display_name);
+          const confirmed = result && result.preparation.mappingId === entry.preparation.mappingId && entry.submitted && equal(entry.submitted, toStudioV2MappingUpdateRequest(result.preparation.point, result.preparation.mapping)) && liveMatches(entry);
+          if (confirmed) entry.acceptSave?.(saved);
+          finish(entry, confirmed ? 'confirmed' : 'unknown', result?.preparation.mapping.display_name);
         }).catch(() => finish(entry, 'unknown'));
       },
       failed: point => { for (const entry of entries.current.values()) if (active(entry) && entry.outcome.status === 'pending' && entry.preparation.point.id === point.id) finish(entry, 'unknown'); },

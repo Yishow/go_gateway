@@ -145,7 +145,7 @@ export function useStudioV2AutosaveState(
   const persistedMCPoints = useStudioV2PersistedMCPoints(enabled, rulesQuery.data, devicesQuery.data, persistedMCWorkspaceScope, actions.state.rules);
   const namingGuards = React.useRef({ mutate: (_id: string): boolean => false, queue: (_id: string): boolean => false });
   const pointNames = useRecordingPointNameSubmission({ workspaceId: sourceWorkspaceId, scopeToken: locatorEntry, enabled: locatorEntry ? locatorHydration.ready : enabled && workspaceHydrated,
-    stateRef, canMutateRule: id => namingGuards.current.mutate(id), canQueueRule: id => namingGuards.current.queue(id), canWriteRule: id => sourceRanges.canWrite(id), apply: action => { stateRef.current = workbenchV2Reducer(stateRef.current, action); actions.dispatch(action); },
+    stateRef, captureRead: locatorHydration.capturePointNameRead, captureSave: locatorHydration.capturePointNameSave, canMutateRule: id => namingGuards.current.mutate(id), canQueueRule: id => namingGuards.current.queue(id), canWriteRule: id => sourceRanges.canWrite(id), apply: action => { stateRef.current = workbenchV2Reducer(stateRef.current, action); actions.dispatch(action); },
     queue: (previous, action, next) => rangeQueue.current.mapping(previous, action, next) });
   const persistedMCCanMutateRule = persistedMCPoints.canMutateRule;
   const canMutateRule = React.useCallback((ruleID: string): boolean => {

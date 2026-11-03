@@ -1,18 +1,19 @@
 import { deviceFixture, resetDeviceAutosaveMocks, studioV2WorkspaceAPI, studioV2WorkspaceDevicesAPI, studioV2RulesAPI, studioV2MappingsAPI } from './device-autosave-page.testHarness';
+import { buildSimpleRecordingTarget, parseStudioPresentation } from '@/services/studioRecordingView';
 import { useState, type ComponentProps } from 'react';
 import type { GroupEditorProps } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor';
 import type { GroupCandidate } from '@/features/datalink/workbench-v2/state/writeGroup/candidates';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Step4Database } from '@/features/datalink/workbench-v2/steps/step4/Step4Database';
 import { useStudioV2AutosaveState } from '@/pages/datalink/workbench-v2/useStudioV2AutosaveState';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
-import { readStudioLocatorEditorEntry } from '@/services/studioV2LocatorEntry';
+import { readStudioLocatorEntry, readStudioLocatorEditorEntry } from '@/services/studioV2LocatorEntry';
 import { listRecordingTestWriteRecovery } from '@/services/recordingTestWriteRecovery';
 import { deviceAPI } from '@/services/datalink';
 import type { StudioLocatorEntryRead } from '@/types/studioV2LocatorEntry';
-import { locatorRead } from './studio-locator-fixtures';
+import { locatorRead, nativeRule, nativeMapping } from './studio-locator-fixtures';
 import { TABLE_COLUMNS } from '../../fixtures/writeGroupState';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
@@ -24,7 +25,7 @@ vi.mock('@/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns', ()
 vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: {
   list: vi.fn(), readiness: vi.fn(), delivery: vi.fn(), create: vi.fn(), update: vi.fn(), apply: vi.fn(), disable: vi.fn(), remove: vi.fn(), testWritePreview: vi.fn(), testWrite: vi.fn(), testWriteOperation: vi.fn(), get: vi.fn(),
 } }));
-vi.mock('@/services/studioV2LocatorEntry', () => ({ readStudioLocatorEditorEntry: vi.fn() }));
+vi.mock('@/services/studioV2LocatorEntry', () => ({ readStudioLocatorEntry: vi.fn(), readStudioLocatorEditorEntry: vi.fn() }));
 vi.mock('@/services/recordingTestWriteRecovery', () => ({ listRecordingTestWriteRecovery: vi.fn() }));
 vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor', async original => {
   const actual = await original<typeof import('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor')>();
@@ -346,4 +347,52 @@ it('releases the save-only fence on failed readback and exposes the existing err
   expect(screen.getByTestId('group-save')).toBeEnabled();
   expect(screen.getByTestId('group-name')).toHaveValue('Keep unsent edits');
   expect(studioV2WorkspaceWriteGroupsAPI.update).toHaveBeenCalledOnce();
+});
+
+it.each(['cancel', 'save'] as const)('keeps a cold saved Page return available after inline name %s without treating source reads as edits', async outcome => {
+  vi.doUnmock('@/features/datalink/workbench-v2/shell/WorkbenchV2Shell');
+  const { default: DatalinkWorkbenchV2Page } = await import('@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page');
+  let mapping = { ...nativeMapping(), device_id: device.id, point_id: 'pt-0', tag_id: 'tag-0', address: '40001', display_name: 'Point 0' };
+  const sourceRead = () => {
+    const value = locatorRead(3, device.id);
+    value.entry.devices = [device]; value.entry.source_rules = [{ ...nativeRule('R', device.id), start_address: '40001', count: 1 }];
+    value.entry.mappings = [mapping]; return value;
+  };
+  const routeRead = () => {
+    const value = editorRead(); delete value.entry.editor_hydrated;
+    delete value.entry.database_config; value.entry.devices = []; value.entry.source_rules = []; value.entry.mappings = [];
+    return value;
+  };
+  discoveredCandidates = [{ key: 'pt-0|tag-0', device_id: device.id, point_id: 'pt-0', tag_id: 'tag-0', tag_key: mapping.tag_key, label: mapping.display_name,
+    device_name: device.name, address: '40001', target_type: 'float64' }];
+  studioV2MappingsAPI.list.mockImplementation(async () => [mapping]);
+  studioV2MappingsAPI.update.mockImplementation(async (_id, request) => { mapping = { ...mapping, ...request }; discoveredCandidates = discoveredCandidates.map(row => ({ ...row, label: mapping.display_name })); return { ...mapping, runtime_apply_status: 'applied' }; });
+  vi.mocked(readStudioLocatorEntry).mockImplementation(async locator => ({ ok: true, value: locator.step === 3 ? sourceRead() : routeRead() }));
+  const initial = buildSimpleRecordingTarget({ kind: 'edit', workspaceId: 'W', groupId: 'G', groupRevision: 'G3' })!;
+  function PageHost() {
+    const [target, setTarget] = useState(initial), url = new URL(target, 'http://owned.invalid');
+    return <><output data-testid="page-location">{target}</output><DatalinkWorkbenchV2Page presentation={parseStudioPresentation(url.search).presentation} presentationLocation={{ search: url.search, hash: url.hash }}
+      locatorIntent={parseStudioPresentation(url.search).locatorIntent} navigateTo={next => setTarget(next)} /></>;
+  }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } }); clients.push(client);
+  render(<QueryClientProvider client={client}><PageHost /></QueryClientProvider>);
+  await screen.findByTestId('group-name'); fireEvent.click(screen.getByTestId('recording-points-open'));
+  const input = await screen.findByRole('textbox', { name: 'name.label Point 0' }); act(() => input.focus());
+  await waitFor(() => expect(input).not.toHaveAttribute('readonly'));
+  if (outcome === 'save') {
+    fireEvent.change(input, { target: { value: 'Shared renamed point' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.getByRole('alertdialog')).toBeVisible(); expect(studioV2MappingsAPI.update).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'navigation.keep' }));
+    expect(input).toHaveValue('Shared renamed point'); expect(screen.getByRole('dialog')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'name.save' }));
+    await screen.findByRole('textbox', { name: 'name.label Shared renamed point' });
+  } else fireEvent.click(within(screen.getByTestId('inline-point-name-pt-0')).getByRole('button', { name: 'picker.cancel' }));
+  fireEvent.click(within(screen.getByRole('contentinfo')).getByRole('button', { name: 'picker.cancel' }));
+  fireEvent.click(screen.getByRole('button', { name: 'simple.advancedPurpose' }));
+  await screen.findByTestId('studio-local-editor');
+  expect(screen.getByRole('button', { name: 'locator.backRecord' })).toBeEnabled();
+  expect(studioV2MappingsAPI.update).toHaveBeenCalledTimes(outcome === 'save' ? 1 : 0);
+  expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
+  expect(studioV2RulesAPI.create).not.toHaveBeenCalled(); expect(studioV2WorkspaceDevicesAPI.create).not.toHaveBeenCalled();
 });

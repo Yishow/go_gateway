@@ -1,3 +1,5 @@
+import type { PointNamePreparation } from './prepareRecordingPointName';
+import type { StudioV2MappingSaveResult, StudioV2WorkspaceMappingRequest } from '../../../services/studioV2Mappings';
 import { useLayoutEffect, useRef, useState, type MutableRefObject } from 'react';
 import type { StudioLocatorEntryRead } from '../../../types/studioV2LocatorEntry';
 import { INITIAL_STATE, type useWorkbenchV2State } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
@@ -7,7 +9,7 @@ import { hydrateStudioV2Device, toStudioV2DeviceUpdateRequest } from '../../../f
 import type { SourceRuleRecord } from '../../../types/datalink';
 import type { StudioV2RuntimeAppliedRecord } from '../../../types/studioV2RuntimeApply';
 import { hydrateStudioV2Rule, toStudioV2RuleUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
-import { hydrateStudioV2Mapping } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
+import { hydrateStudioV2Mapping, toStudioV2MappingUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
 import { hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseRowGroups, hydrateStudioV2DatabaseTarget } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
 import { deriveAllPoints, derivePoints, projectPersistedMCPoint } from '../../../features/datalink/workbench-v2/state/sourceRule';
 
@@ -139,13 +141,71 @@ export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbe
       }) };
     };
   };
+  const capturePointNameRead = (before: WorkbenchV2State, proof: PointNamePreparation, merge: Pick<WorkbenchV2State, 'devices' | 'rules' | 'points' | 'mappings'>) => {
+    const owner = accepted.current, viewing = mode.current.entry, epoch = mode.current.epoch;
+    if (!owner || mode.current.nativeHydrated || viewing !== owner.entry || stateRef.current !== before ||
+        viewing.workspace.id !== proof.workspaceId || viewing.entry.workspace_revision !== proof.workspaceRevision) return;
+    const addedDevices = merge.devices.filter(value => !before.devices.includes(value));
+    const addedRules = merge.rules.filter(value => !before.rules.includes(value));
+    const addedPoints = merge.points.filter(value => !before.points.includes(value));
+    const addedMappings = Object.keys(merge.mappings).filter(key => !Object.hasOwn(before.mappings, key));
+    // Only missing scope is accepted. Replaced rows, including existing MC proof, remain dirty.
+    if (!before.devices.every(value => merge.devices.includes(value)) || !before.rules.every(value => merge.rules.includes(value)) ||
+        !before.points.every(value => merge.points.includes(value)) || Object.entries(before.mappings).some(([key, value]) => merge.mappings[key] !== value) ||
+        addedDevices.length > 1 || addedRules.length > 1 || addedPoints.length > 1 || addedMappings.length > 1 ||
+        addedDevices.some(value => (before.devices.some(old => old.id === value.id) || owner.baseline.devices.some(old => old.id === value.id)) || value.id !== proof.identity.device_id || !value.persisted || value.save_state !== 'saved') ||
+        addedRules.some(value => (before.rules.some(old => old.id === value.id) || owner.baseline.rules.some(old => old.id === value.id)) || value.id !== proof.ruleId || value.device_id !== proof.identity.device_id || value.workspace_id !== proof.workspaceId || value.revision_id !== proof.ruleRevision || !value.persisted || value.save_state !== 'saved') ||
+        addedPoints.some(value => (before.points.some(old => old.id === value.id) || owner.baseline.points.some(old => old.id === value.id)) || value !== proof.point || value.device_id !== proof.identity.device_id || value.rule_id !== proof.ruleId) ||
+        addedMappings.some(key => [...Object.values(before.mappings), ...Object.values(owner.baseline.mappings)].some(old => old.mapping_id === proof.mappingId || old.persisted_point_id === proof.identity.point_id) || Object.hasOwn(owner.baseline.mappings, key) || key !== proof.point.id || merge.mappings[key] !== proof.mapping || !proof.mapping.persisted || proof.mapping.save_state !== 'saved')) return;
+    if (proof.mapping.mapping_id !== proof.mappingId || proof.mapping.workspace_id !== proof.workspaceId || proof.mapping.device_id !== proof.identity.device_id ||
+        proof.mapping.rule_id !== proof.ruleId || proof.mapping.persisted_point_id !== proof.identity.point_id || proof.mapping.tag_id !== proof.identity.tag_id ||
+        proof.point.device_id !== proof.identity.device_id || proof.point.rule_id !== proof.ruleId) return;
+    const baseline = owner.baseline;
+    return () => {
+      if (accepted.current !== owner || mode.current.entry !== viewing || mode.current.epoch !== epoch || mode.current.nativeHydrated || owner.baseline !== baseline ||
+          stateRef.current.devices !== merge.devices || stateRef.current.rules !== merge.rules || stateRef.current.points !== merge.points || stateRef.current.mappings !== merge.mappings ||
+          stateRef.current.db !== before.db || stateRef.current.settings !== before.settings) return;
+      owner.baseline = { ...baseline, devices: [...baseline.devices, ...structuredClone(addedDevices)], rules: [...baseline.rules, ...structuredClone(addedRules)],
+        points: [...baseline.points, ...structuredClone(addedPoints)], mappings: { ...baseline.mappings, ...Object.fromEntries(addedMappings.map(key => [key, structuredClone(merge.mappings[key])])) } };
+    };
+  };
+  const capturePointNameSave = (proof: PointNamePreparation, submitted: StudioV2WorkspaceMappingRequest) => {
+    const owner = accepted.current, viewing = mode.current.entry, epoch = mode.current.epoch;
+    const initial = stateRef.current.mappings[proof.point.id], baseline = owner?.baseline.mappings[proof.point.id];
+    if (!owner || mode.current.nativeHydrated || viewing !== owner.entry || viewing.workspace.id !== proof.workspaceId || viewing.entry.workspace_revision !== proof.workspaceRevision ||
+        !initial || !baseline || comparable(initial) !== comparable(baseline) || initial.mapping_id !== proof.mappingId || initial.persisted_point_id !== proof.identity.point_id ||
+        initial.tag_id !== proof.identity.tag_id || initial.device_id !== proof.identity.device_id || initial.workspace_id !== proof.workspaceId ||
+        comparable({ ...toStudioV2MappingUpdateRequest(proof.point, initial), display_name: submitted.display_name }) !== comparable(submitted)) return;
+    const capturedPoint = structuredClone(stateRef.current.points.find(point => point.id === proof.point.id));
+    const capturedRule = stateRef.current.rules.find(rule => rule.id === proof.ruleId);
+    if (!capturedPoint || capturedPoint.device_id !== proof.identity.device_id || capturedPoint.rule_id !== proof.ruleId || capturedRule?.revision_id !== proof.ruleRevision ||
+        comparable(owner.baseline.points.find(point => point.id === proof.point.id)) !== comparable(capturedPoint) ||
+        owner.baseline.rules.find(rule => rule.id === proof.ruleId)?.revision_id !== proof.ruleRevision) return;
+    let consumed = false;
+    return (saved: StudioV2MappingSaveResult) => {
+      if (consumed) return; consumed = true;
+      const latest = stateRef.current.mappings[proof.point.id];
+      if (accepted.current !== owner || mode.current.entry !== viewing || mode.current.epoch !== epoch || mode.current.nativeHydrated ||
+          owner.baseline.mappings[proof.point.id] !== baseline || comparable(stateRef.current.points.find(point => point.id === proof.point.id)) !== comparable(capturedPoint) || !latest || latest.save_state !== 'saved' || saved.id !== proof.mappingId || saved.workspace_id !== proof.workspaceId ||
+          saved.device_id !== proof.identity.device_id || saved.point_id !== proof.identity.point_id || saved.tag_id !== proof.identity.tag_id ||
+          Object.entries(submitted).some(([key, value]) => (saved as unknown as Record<string, unknown>)[key] !== value) ||
+          comparable(toStudioV2MappingUpdateRequest(proof.point, latest)) !== comparable(submitted) ||
+          comparable(latest.local_value) !== comparable({ ...baseline.local_value, display_name: submitted.display_name }) ||
+          comparable(latest.persisted_value) !== comparable({ ...baseline.persisted_value, display_name: submitted.display_name }) ||
+          stateRef.current.rules.find(rule => rule.id === proof.ruleId)?.revision_id !== proof.ruleRevision) return;
+      // Name and this ACK's save metadata only; source/group pins and other draft fields stay untouched.
+      owner.baseline = { ...owner.baseline, mappings: { ...owner.baseline.mappings, [proof.point.id]: { ...baseline, display_name: submitted.display_name,
+        local_value: structuredClone(latest.local_value), persisted_value: structuredClone(latest.persisted_value), persisted: latest.persisted,
+        save_state: latest.save_state, save_error: latest.save_error, save_error_detail: structuredClone(latest.save_error_detail) } } };
+    };
+  };
   const retainedTarget = accepted.current?.entry.selection;
   const baselineRules = retainedTarget?.state === 'selected' && retainedTarget.target.ruleId
     ? accepted.current?.baseline.rules.filter(rule => rule.id === retainedTarget.target.ruleId && rule.device_id === retainedTarget.target.deviceId && rule.workspace_id === retainedTarget.target.workspaceId) : undefined;
   // This revision can advance only through the existing checked own-ACK baseline.
   const retainedRuleRevision = baselineRules?.length === 1 && baselineRules[0].revision_id?.trim()
     ? baselineRules[0].revision_id : retainedTarget?.state === 'selected' ? retainedTarget.target.ruleRevision : undefined;
-  return { captureDeviceSave, captureRuleSave, retainedRuleRevision, canLeave: Boolean(accepted.current && draftIdentity(accepted.current.baseline) === draftIdentity(stateRef.current)), lastEntry: accepted.current?.entry, ready: Boolean(entry && result.entry === entry && !result.blocked), blocked: Boolean(entry && result.entry === entry && result.blocked) };
+  return { capturePointNameRead, capturePointNameSave, captureDeviceSave, captureRuleSave, retainedRuleRevision, canLeave: Boolean(accepted.current && draftIdentity(accepted.current.baseline) === draftIdentity(stateRef.current)), lastEntry: accepted.current?.entry, ready: Boolean(entry && result.entry === entry && !result.blocked), blocked: Boolean(entry && result.entry === entry && result.blocked) };
 }
 
 /** Only exact hydrated canonical bindings can receive a hot locator; drafts remain separate. */
