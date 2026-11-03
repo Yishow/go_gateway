@@ -146,3 +146,32 @@ it('does not start a source refresh while an original schema operation remains u
   expect(screen.queryByTestId('recording-source-refresh-review')).not.toBeInTheDocument();
   expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
 });
+
+
+it('reuses the plain-language source recovery and folded runtime facts only in a scoped guided editor', async () => {
+  mount({ presentation: 'guided', scopedPresentation: true });
+  expect(await screen.findByTestId('recording-source-refresh-review')).toBeEnabled();
+  const preparation = screen.getByTestId('recording-preparation-actions');
+  expect(within(preparation).getByTestId('group-readiness')).toBeVisible();
+  expect(screen.getAllByTestId('group-readiness')).toHaveLength(1);
+  expect(screen.getByTestId('group-readiness-issues')).toHaveTextContent('confirmation.sourceStale');
+  expect(screen.getByText('source-revision-stale: saved source or mapping revision is stale')).not.toBeVisible();
+  expect(screen.getByTestId('recording-delivery-summary')).toBeVisible();
+  expect(screen.getByTestId('delivery-collecting')).not.toBeVisible();
+  expect(screen.getByTestId('recording-secondary-management')).not.toHaveAttribute('open');
+  expect(screen.getByTestId('group-test-write-optional')).not.toHaveAttribute('open');
+  expect(screen.getByTestId('group-apply')).toBeDisabled();
+  expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
+  expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
+});
+
+it('leaves the complete advanced workflow outside scoped guided presentation unchanged', async () => {
+  mount({ presentation: 'guided', scopedPresentation: false });
+  await screen.findByTestId('group-readiness-issues');
+  expect(screen.queryByTestId('recording-source-refresh-review')).not.toBeInTheDocument();
+  expect(screen.getByTestId('group-readiness-issues')).toHaveTextContent('saved source or mapping revision is stale');
+  expect(screen.getByTestId('delivery-collecting')).toBeVisible();
+  expect(screen.queryByTestId('recording-delivery-summary')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('recording-secondary-management')).not.toBeInTheDocument();
+  expect(screen.getByTestId('group-apply')).toBeDisabled();
+});

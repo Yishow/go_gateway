@@ -190,7 +190,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
         </p>
       )}
 
-      <div className={classes('max-w-full overflow-x-auto rounded border border-[var(--gw-control)]')} role="region" aria-label={t('step4.group.members.region')} tabIndex={0}>
+      <div className={`${classes('max-w-full overflow-x-auto rounded border border-[var(--gw-control)]')} ${presentation === 'simple' || scopedPresentation ? 'recording-selected-table-scroll' : ''}`} role="region" aria-label={t('step4.group.members.region')} tabIndex={0}>
         <table className={classes('w-full min-w-[640px] border-collapse text-left text-sm')}>
           <thead className={classes('bg-[var(--gw-surface)] text-[var(--gw-muted)]')}>
             <tr>
@@ -227,12 +227,14 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
                   </td>
                   <td className={classes('p-2')}>
                     <div className={classes('font-medium')}>{candidate.label}</div>
-                    <div className={classes('text-[var(--gw-muted)]')}>{candidate.device_name} · {candidate.address}{renderCalculation && <> · {candidate.target_type}</>}</div>
-                    {member && renderSource?.(member)}
+                    {presentation === 'simple' || scopedPresentation ? <div className="recording-selected-point-meta"><span className={classes('text-[var(--gw-muted)]')}>{candidate.device_name} · {candidate.address}{renderCalculation && <> · {candidate.target_type}</>}</span>{member && renderSource?.(member)}</div> : <>
+                      <div className={classes('text-[var(--gw-muted)]')}>{candidate.device_name} · {candidate.address}{renderCalculation && <> · {candidate.target_type}</>}</div>
+                      {member && renderSource?.(member)}
+                    </>}
                   </td>
                   {renderCalculation ? <td className={classes('p-2 align-top')} data-testid={`group-member-calculation-${candidate.point_id}`}>{member && renderCalculation(member)}</td> : <td className={classes('p-2 font-mono')}>{candidate.target_type}</td>}
                   <td className={classes('p-2')}>
-                    {scopedPresentation && managed ? <details data-testid={`group-managed-column-${candidate.point_id}`}><summary>{editorText('simple.systemManaged')}</summary><code>{chosenColumn || editorText('simple.pendingColumn')}</code></details> : columnsAssignedOnSave ? <span className="text-sm text-[var(--gw-muted)]">{chosenColumn || editorText('simple.pendingColumn')}</span> : metadataKnown ? (
+                    {scopedPresentation && managed ? <details data-testid={`group-managed-column-${candidate.point_id}`}><summary>{editorText('compact.systemManaged')}</summary><code>{chosenColumn || editorText('simple.pendingColumn')}</code></details> : columnsAssignedOnSave ? <span className="text-sm text-[var(--gw-muted)]">{chosenColumn || editorText('simple.pendingColumn')}</span> : metadataKnown ? (
                       <select
                         value={chosenColumn} disabled={disabled || !member}
                         aria-label={t('step4.group.members.column_label', { tag: candidate.label })}

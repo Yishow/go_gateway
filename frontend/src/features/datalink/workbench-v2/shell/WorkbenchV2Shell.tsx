@@ -256,6 +256,8 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
       case 4:
         return (
           <Step4Database deviceSource={deviceSource}
+            onSavedLocation={locatorOnly ? group => { const target = buildSimpleRecordingTarget({ kind: 'edit', workspaceId: group.workspace_id, groupId: group.id, groupRevision: group.revision });
+              const advanced = target && buildStudioPresentationTarget(target.slice('/studio/v2'.length), presentationLocation?.hash ?? '', 'advanced'); if (advanced) navigateTo?.(advanced, { replace: true }); } : undefined}
             locatorEntry={locatorEntry} locatorOnly={locatorOnly} locatorSuspended={locatorSuspended} onLocatorEditorMountedChange={onLocatorEditorMountedChange}
             state={state}
             dispatch={actions.dispatch}

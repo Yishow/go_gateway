@@ -112,6 +112,9 @@ it('keeps all 32 saved legacy identities and managed bindings without exposing a
   expect(screen.queryByText('compact.groupCadence')).not.toBeInTheDocument();
   expect(screen.getAllByRole('row')).toHaveLength(33);
   for (const row of rows) expect(screen.getByTestId(`group-member-row-${row.point_id}`)).toHaveTextContent(row.label);
+  const region = screen.getByRole('region', { name: 'step4.group.members.region' });
+  expect(region).toHaveAttribute('tabindex', '0'); expect(region).toHaveClass('recording-selected-table-scroll');
+  expect(within(region).getAllByRole('row')).toHaveLength(33);
   const settings = screen.getByTestId('group-member-settings-P0'); fireEvent.click(within(settings).getByText('compact.settings'));
   expect(within(settings).getByText(rows[0].target_column)).toBeVisible();
   expect(within(settings).queryByRole('combobox')).not.toBeInTheDocument();
@@ -131,4 +134,18 @@ it('keeps failed metadata retry next to its impact using the existing callback',
   const note = screen.getByTestId('group-member-metadata-note');
   const button = screen.getByTestId('group-metadata-retry'); expect(note.parentElement).toContainElement(button);
   fireEvent.click(button); expect(retry).toHaveBeenCalledOnce();
+});
+
+it.each([
+  { presentation: 'simple' as const, scopedPresentation: false, bounded: true },
+  { presentation: 'guided' as const, scopedPresentation: true, bounded: true },
+  { presentation: 'guided' as const, scopedPresentation: false, bounded: false },
+])('bounds only the selected simple or scoped table: $presentation scoped=$scopedPresentation', mode => {
+  const value = props();
+  render(<RecordingSelectedMembers {...value} presentation={mode.presentation} scopedPresentation={mode.scopedPresentation} managed={false} renderCalculation={undefined} />);
+  const region = screen.getByRole('region', { name: 'step4.group.members.region' });
+  expect(region).toHaveAttribute('tabindex', '0');
+  expect(region.classList.contains('recording-selected-table-scroll')).toBe(mode.bounded);
+  expect(within(region).getAllByRole('row')).toHaveLength(3);
+  expect(value.onRemove).not.toHaveBeenCalled(); expect(value.onChange).not.toHaveBeenCalled();
 });

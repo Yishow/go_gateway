@@ -40,7 +40,7 @@ export const GroupIdentityFields: React.FC<GroupIdentityFieldsProps> = ({ scoped
       </fieldset>
       <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 text-xs text-[var(--gw-muted)]">
         {t('step4.group.editor.table')}
-        {scopedPresentation && locked && draft.storage_strategy === 'managed' ? <details data-testid="group-managed-table"><summary>{text('simple.systemManaged')}</summary><code>{draft.table_name}</code></details> : <input type="text" value={draft.table_name} disabled={readonly || locked} onChange={(event) => onChange({ table_name: event.target.value })} className={FIELD} data-testid="group-table" />}
+        {scopedPresentation && locked && draft.storage_strategy === 'managed' ? <details data-testid="group-managed-table"><summary>{text('compact.systemManaged')}</summary><code>{draft.table_name}</code></details> : <input type="text" value={draft.table_name} disabled={readonly || locked} onChange={(event) => onChange({ table_name: event.target.value })} className={FIELD} data-testid="group-table" />}
         {draft.storage_strategy === 'managed' && <span className="mt-1 block text-xs text-[var(--gw-muted)]">{t('step4.group.editor.table_managed_note')}</span>}
       </label><ParameterHelp compact={scopedPresentation} help="record.table" /></div>
       <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 text-xs text-[var(--gw-muted)]">

@@ -324,6 +324,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const sourceRefresh = useRecordingSourceRefresh({ workspaceId, workspaceRevision, group, draft, candidates, dirty, busy: saving,
     blocked: readonly || saveUnknown || saveActivity.priorUnknown || Boolean(saveReadbackPending) || invalid || unsettledSources.length > 0 || !destinationMatches,
     save: guard => handleSave(guard, true) });
+  const compactWorkflow = presentation === 'simple' || scopedPresentation;
   const canApply = Boolean(group) && !dirty && !invalid && (!mixed || calculationCapabilities?.activation_supported === true) && readiness.data?.ready === true &&
     readiness.data.group_revision === group?.revision;
   const applyBlocked = !group ? t('step4.group.apply_blocked_unsaved')
@@ -453,7 +454,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         <button type="button" className="rounded-md border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-active)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gw-focus)]" data-testid="group-save-review" onClick={() => navigation.request(() => { onReload(); onClose(); })}>{editorText('navigation.reviewSaved')}</button>
       </div>}
       {repairContent}
-      <GroupEditorPreparation compact={presentation === 'simple'} sourceRefresh={presentation === 'simple' ? sourceRefresh : undefined} managed={draft.storage_strategy === 'managed' || group?.destination.storage_strategy === 'managed'}
+      <GroupEditorPreparation compact={compactWorkflow} sourceRefresh={compactWorkflow ? sourceRefresh : undefined} managed={draft.storage_strategy === 'managed' || group?.destination.storage_strategy === 'managed'}
         group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision} destinationMatches={destinationMatches} dirty={dirty} readonly={readonly}
         consentIdentity={JSON.stringify([workspaceId, workspaceRevision, group?.id, group?.revision, draft, connector.connector_id, connector.identity_revision,
           candidates.filter(candidate => draft.members.some(member => member.point_id === candidate.point_id && member.tag_id === candidate.tag_id)), readonly, unsettledSources])}
@@ -465,19 +466,19 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
 
       {group && (
         <>
-          {presentation !== 'simple' && <section aria-label={t('step4.group.readiness.title')} className="space-y-2">
+          {!compactWorkflow && <section aria-label={t('step4.group.readiness.title')} className="space-y-2">
             <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.readiness.title')}</h4>
             <GroupReadinessPanel compact={false} readiness={readiness.data} loading={readiness.isLoading && !dirty} failed={readiness.isError} dirty={dirty} onRetry={() => void readiness.refetch()} />
           </section>}
-          <GroupDeliveryStrip compact={presentation === 'simple'} group={group} readonly={readonly} />
+          <GroupDeliveryStrip compact={compactWorkflow} group={group} readonly={readonly} />
           {mixed && <RecordingMixedResults group={group} candidates={candidates} />}
-          <GroupLifecycleBar compact={presentation === 'simple'} sharedReadinessReason={presentation === 'simple' && !dirty && !operatorReadonly && !readUnavailable && destinationMatches && !readiness.isLoading && !readiness.isFetching && !readiness.isError && readiness.data?.workspace_id === workspaceId && readiness.data.workspace_revision === workspaceRevision && readiness.data.group_id === group?.id && readiness.data.group_revision === group?.revision && readiness.data.ready === false && applyBlocked === t('step4.group.apply_blocked_not_ready') ? 'recording-preparation-status' : undefined}
+          <GroupLifecycleBar compact={compactWorkflow} sharedReadinessReason={compactWorkflow && !dirty && !operatorReadonly && !readUnavailable && destinationMatches && !readiness.isLoading && !readiness.isFetching && !readiness.isError && readiness.data?.workspace_id === workspaceId && readiness.data.workspace_revision === workspaceRevision && readiness.data.group_id === group?.id && readiness.data.group_revision === group?.revision && readiness.data.ready === false && applyBlocked === t('step4.group.apply_blocked_not_ready') ? 'recording-preparation-status' : undefined}
             locatorScope={locatorScope} locatorGuard={locatorGuard} confirmStop={presentation === 'simple'}
             group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision}
             canApply={canApply} applyBlockedReason={applyBlocked} readonly={operatorReadonly || readUnavailable} lifecycleHost={lifecycleHost}
             onChanged={onSaved} onConflict={() => setConflict(true)} onReviewScopedStart={onReviewScopedStart}
           />
-          <GroupTestWritePanel compact={presentation === 'simple'}
+          <GroupTestWritePanel compact={compactWorkflow}
             locatorScope={locatorScope}
             workspaceId={workspaceId}
             groupId={group.id}

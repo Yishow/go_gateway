@@ -224,7 +224,7 @@ it('full advanced retains its original uncollapsed revisions and assignment cont
   expect(screen.getByTestId('group-member-column-P-native')).toBeInTheDocument(); expect(screen.getByTestId('group-table')).toBeInTheDocument(); noWrites();
 });
 
-function mountSavedHandoff() {
+function mountSavedHandoff(guided = false) {
   function RoutedRecord() {
     const location = useLocation(), navigate = useNavigate(), intent = parseStudioPresentation(location.search), actions = useWorkbenchV2State();
     const read = useStudioLocatorEntry(intent.locatorIntent.kind === 'locator' ? intent.locatorIntent.locator : null);
@@ -236,7 +236,7 @@ function mountSavedHandoff() {
   }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } }); clients.push(client);
   const router = createMemoryRouter([{ path: '/studio/v2', element: <RecordingRouterNavigation><RoutedRecord /></RecordingRouterNavigation> }],
-    { initialEntries: [buildSimpleRecordingTarget({ kind: 'edit', workspaceId: 'W', groupId: 'G', groupRevision: 'G3' })!] });
+    { initialEntries: [buildSimpleRecordingTarget({ kind: 'edit', workspaceId: 'W', groupId: 'G', groupRevision: 'G3' })!.replace('view=recording', guided ? 'view=advanced' : 'view=recording')] });
   render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>); return router;
 }
 function savedHandoffReads(foreignRevision = false) {
@@ -308,4 +308,53 @@ it.each(['rejected', 'unknown'] as const)('does not update a located URL after a
   await screen.findByTestId(outcome === 'unknown' ? 'group-save-unknown' : 'group-save-error');
   expect(new URLSearchParams(router.state.location.search).get('group_revision')).toBe('G3');
   expect(readStudioLocatorEditorEntry).toHaveBeenCalledTimes(1); expect(api.update).toHaveBeenCalledTimes(1); expect(api.create).not.toHaveBeenCalled();
+});
+
+it('folds only confirmed scoped group list diagnostics and leaves Open failures visible', async () => {
+  mountLocalRecord(); await screen.findByTestId('group-open-G');
+  const details = screen.getByTestId('group-list-diagnostics'); expect(details).not.toHaveAttribute('open');
+  expect(details).toHaveTextContent('G3'); expect(within(details).getByText('locatorEntry.historicalHint')).toBeInTheDocument();
+  vi.mocked(readStudioLocatorEditorEntry).mockResolvedValue({ ok: false, reason: 'unavailable' });
+  fireEvent.click(screen.getByTestId('group-open-G'));
+  expect(await screen.findByTestId('studio-locator-open-error')).toBeVisible();
+  expect(screen.queryByTestId('group-list-diagnostics')).not.toBeInTheDocument(); noWrites();
+});
+
+it('does not fold a dirty blocked guided group warning when another locator is requested', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } }); clients.push(client);
+  const content = (route: StudioLocatorEntryRead) => <QueryClientProvider client={client}><RecordingDraftNavigation>
+    <Step4Database state={savedGroupState()} dispatch={vi.fn()} workspaceId="W" presentation="guided" locatorOnly locatorEntry={route} />
+  </RecordingDraftNavigation></QueryClientProvider>;
+  const view = render(content(receipt())); fireEvent.click(await screen.findByTestId('group-open-G')); await screen.findByTestId('group-editor');
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Retain this local draft' } });
+  view.rerender(content(locatorRead(4, 'OTHER-G')));
+  expect(await screen.findByText('locatorEntry.draftBlocked')).toBeVisible();
+  expect(screen.queryByTestId('group-list-diagnostics')).not.toBeInTheDocument();
+  expect(screen.getByTestId('group-name')).toHaveValue('Retain this local draft'); noWrites();
+});
+
+it('returns a guided own Save through the canonical local list and back to the same simple record at the new version', async () => {
+  savedHandoffReads(); const router = mountSavedHandoff(true);
+  fireEvent.click(await screen.findByTestId('group-open-G')); await screen.findByTestId('group-editor');
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Guided own saved rename' } });
+  await waitFor(() => expect(screen.getByTestId('group-save')).toBeEnabled()); fireEvent.click(screen.getByTestId('group-save'));
+  await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(new URLSearchParams(router.state.location.search).get('group_revision')).toBe('G4'));
+  expect(new URLSearchParams(router.state.location.search).get('view')).toBe('advanced');
+  await screen.findByTestId('group-open-G'); expect(screen.queryByTestId('group-editor')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'locator.backRecord' }));
+  await screen.findByTestId('simple-recording-shell'); await screen.findByTestId('group-editor');
+  expect(screen.getByTestId('group-name')).toHaveValue('Guided own saved rename');
+  expect(new URLSearchParams(router.state.location.search).get('group_revision')).toBe('G4');
+  expect(vi.mocked(readStudioLocatorEditorEntry).mock.calls.at(-1)?.[1]).toEqual({ workspaceRevision: 'W3', groupRevision: 'G4' });
+  expect(api.update).toHaveBeenCalledTimes(1); expect(api.create).not.toHaveBeenCalled();
+});
+it.each(['rejected', 'unknown'] as const)('keeps the guided locator unchanged after a %s Save', async outcome => {
+  savedHandoffReads(); api.update.mockRejectedValue(outcome === 'rejected' ? { response: { status: 422 } } : new Error('Connection interrupted'));
+  const router = mountSavedHandoff(true); fireEvent.click(await screen.findByTestId('group-open-G')); await screen.findByTestId('group-editor');
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Unconfirmed guided rename' } });
+  await waitFor(() => expect(screen.getByTestId('group-save')).toBeEnabled()); fireEvent.click(screen.getByTestId('group-save'));
+  await screen.findByTestId(outcome === 'unknown' ? 'group-save-unknown' : 'group-save-error');
+  expect(new URLSearchParams(router.state.location.search).get('group_revision')).toBe('G3');
+  expect(new URLSearchParams(router.state.location.search).get('view')).toBe('advanced'); expect(api.update).toHaveBeenCalledTimes(1); expect(api.create).not.toHaveBeenCalled();
 });

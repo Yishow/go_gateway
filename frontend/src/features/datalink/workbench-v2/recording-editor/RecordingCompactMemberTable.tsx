@@ -26,17 +26,17 @@ export function RecordingCompactMemberTable({ rows, total, query, setQuery, prob
     </details>
     {metadataStatus !== 'exists' && <div className="recording-compact-members__metadata"><p role="status" data-testid="group-member-metadata-note">{metadataStatus === 'failed' ? text('compact.metadataFailed') : t(`step4.group.members.metadata_${metadataStatus}`)}</p>
       {metadataStatus === 'failed' && onRetryMetadata && <button type="button" className="gw-secondary" onClick={onRetryMetadata} data-testid="group-metadata-retry">{t('step4.group.retry')}</button>}</div>}
-    <div className="recording-compact-members__scroll" role="region" aria-label={t('step4.group.members.region')} tabIndex={0}>
+    <div className="recording-compact-members__scroll recording-selected-table-scroll" role="region" aria-label={t('step4.group.members.region')} tabIndex={0}>
       <table><thead><tr>{(renderCalculation ? ['point', 'address', 'calculation', 'interval', 'actions'] : ['point', 'address', 'actions']).map(key => <th key={key} scope="col">{text(`compact.${key}`)}</th>)}</tr></thead>
         <tbody>{rows.length === 0 && <tr><td colSpan={renderCalculation ? 5 : 3} data-testid="group-member-empty">{t(total ? 'step4.group.members.none_shown' : 'step4.group.members.none')}</td></tr>}{rows.map(({ candidate, member, problem, suggestion }) => {
           if (!member) return null;
           const describedBy = problem ? `group-member-problem-${candidate.key}` : undefined;
           const chosenColumn = member.target_column;
           return <tr key={candidate.key} data-testid={`group-member-row-${candidate.point_id}`} data-problem={problem ?? ''}>
-            <td><strong>{candidate.label}</strong><small>{candidate.device_name} {(!problem && (columnsAssignedOnSave || !member.target_column || suggestion?.status === 'suggested')) && <span className="recording-compact-members__status" data-testid={`group-member-status-${candidate.point_id}`}>
+            <td><strong>{candidate.label}</strong><div className="recording-selected-point-meta"><small>{candidate.device_name} {(!problem && (columnsAssignedOnSave || !member.target_column || suggestion?.status === 'suggested')) && <span className="recording-compact-members__status" data-testid={`group-member-status-${candidate.point_id}`}>
                 {columnsAssignedOnSave ? text('simple.pendingColumn') : suggestion?.status === 'suggested' && (member.target_column === suggestion.column || member.target_column === '')
                   ? t('step4.group.members.suggested', { column: suggestion.column }) : member.target_column ? t('step4.group.members.confirmed') : t('step4.group.members.unassigned')}
-              </span>}</small>{renderSource?.(member)}
+              </span>}</small>{renderSource?.(member)}</div>
               {problem && <p id={describedBy} role="alert" data-testid={`group-member-problem-${candidate.point_id}`} className="recording-compact-members__problem">{t(`step4.group.members.problem_${problem.replace('-', '_')}`)}</p>}
 
             </td>

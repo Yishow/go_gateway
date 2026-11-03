@@ -154,7 +154,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
     const original = editorEntry.selection.state === 'selected' ? editorEntry.selection.target : undefined;
     if (!original?.groupId) return;
     if (acknowledgement && (acknowledgement.group.workspace_id !== original.workspaceId || acknowledgement.group.id !== original.groupId)) return;
-    const handoff = acknowledgement && presentation === 'simple' && initialSelection === 'located' && onSavedLocation && startLease.current === renderStartLease
+    const handoff = acknowledgement && (presentation === 'simple' && initialSelection === 'located' || locatorOnly && presentation === 'guided') && onSavedLocation && startLease.current === renderStartLease
       ? { acknowledgement, lease: renderStartLease } : undefined;
     const request = new AbortController(); openingRequest.current = request; setOpening(true); setOpenError(undefined);
     try {
@@ -389,6 +389,9 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
   const collapseDiagnostics = (presentation === 'simple' || locatorOnly && presentation === 'guided') && !readonly && !locatorSuspended && !opening && !openError && !draftBlocked && !invalidSimpleScope && !groupsQuery.isError &&
     selected && editorEntry?.selection.state === 'selected' && selected.id === located?.groupId && selected.workspace_id === workspaceId &&
     editorEntry.selection.target.groupId === selected.id && editorEntry.entry.group_heads[selected.id] === selected.revision;
+  const collapseListDiagnostics = locatorOnly && presentation === 'guided' && !editing && !opening && !openError && !locatorSuspended && !readonly && !draftBlocked && !groupsQuery.isError && !invalidSimpleScope &&
+    located?.step === 4 && located.workspaceId === workspaceId && observed?.workspace_revision === located.workspaceRevision &&
+    observed.groups.some(group => group.workspace_id === workspaceId && group.id === located.groupId && group.revision === located.groupRevision && locatorEntry?.entry.group_heads[group.id] === group.revision);
   const locatorDiagnostics = <>
     {locatorOnly && <p role="status">{runtime('locatorEntry.unrequested')}</p>}
     {draftBlocked && <p role="alert">{runtime('locatorEntry.draftBlocked')}</p>}
@@ -418,7 +421,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
       {openError && <><p role="alert" data-testid="studio-locator-open-error">{openError === 'copy-unsupported' ? editorText('copy.unsupported') : runtime(`locatorEntry.${openError === 'stale-reference' ? 'stale' : openError === 'foreign-scope' ? 'foreign' : 'unavailable'}`)}</p>
         {savedLocationReadback.current && <button type="button" disabled={opening || readonly} data-testid="saved-location-retry"
           onClick={() => { if (savedLocationReadback.current) void readSavedLocation(savedLocationReadback.current); }}>{t('step4.group.retry')}</button>}</>}
-      {!collapseDiagnostics && locatorDiagnostics}
+      {!collapseDiagnostics && (collapseListDiagnostics ? <details data-testid="group-list-diagnostics" className="text-xs text-[var(--gw-muted)]"><summary>{editorText('versions.details')}</summary>{locatorDiagnostics}</details> : locatorDiagnostics)}
       {presentation !== 'simple' && !locatorOnly && prerequisite && (
         <div className="space-y-1 text-xs text-[var(--gw-warning-fg)]" role="status" data-testid={`group-prerequisite-${prerequisite}`}>
           <p>{t(`step4.group.prerequisite.${prerequisite}`)}</p>

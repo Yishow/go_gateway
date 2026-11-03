@@ -70,3 +70,16 @@
 .recording-compact-members__filters input[type='search'] { min-width: 12rem; max-width: 100%; }
 .recording-compact-members .recording-point-order-inline__details { font-size: 12px; color: var(--gw-muted); }
 .recording-compact-members .recording-point-order-inline__details > summary { display: inline-block; cursor: pointer; }
+
+/* Bound selected lists, not their owner: every row and control stays mounted. */
+.recording-selected-table-scroll { min-width: 0; max-width: 100%; max-block-size: 30rem; overflow: auto; overscroll-behavior: contain; }
+.recording-selected-table-scroll th { position: sticky; top: 0; z-index: 1; background: var(--gw-ground); }
+.recording-selected-table-scroll:focus-visible { outline: 2px solid var(--gw-focus); outline-offset: 2px; }
+.recording-selected-point-meta { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 var(--gw-space-sm); color: var(--gw-muted); }
+.recording-selected-point-meta > small { margin-top: 0; }
+.recording-selected-point-meta .recording-point-order-inline { display: inline-block; min-width: 0; margin-top: 0; }
+.recording-selected-point-meta .recording-point-order-inline__details { font-size: 12px; }
+.recording-selected-point-meta .recording-point-order-inline__details > summary { cursor: pointer; }
+@media (max-width: 640px) {
+  .recording-selected-table-scroll { max-block-size: 26rem; }
+}
