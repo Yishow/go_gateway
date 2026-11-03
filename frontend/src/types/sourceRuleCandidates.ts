@@ -92,12 +92,15 @@ export interface SourceRuleCandidateSetView<TCandidate> {
   candidates: TCandidate[];
 }
 
-export interface SourceRuleCandidateSnapshotView {
+export interface SourceRuleTagSnapshotView {
   source_rule_id: string;
   workspace_id?: string;
   workspace_revision?: string;
   revision_id: string;
   tags: SourceRuleCandidateSetView<SourceRuleTagCandidateView>;
+}
+
+export interface SourceRuleCandidateSnapshotView extends SourceRuleTagSnapshotView {
   database_outputs: SourceRuleCandidateSetView<SourceRuleDatabaseOutputCandidateView>;
   local_modbus_outputs: SourceRuleCandidateSetView<SourceRuleLocalModbusOutputCandidateView>;
 }

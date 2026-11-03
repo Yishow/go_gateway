@@ -37,6 +37,14 @@ export const RangeSummary: React.FC<RangeSummaryProps> = ({
     ? sortPersistedMCAddresses((persistedMCPoints?.points ?? []).map((point) => point.address))
     : [];
   const hasPersistedAddresses = persistedAddresses.length > 0;
+  const contiguous = persistedAddresses.every((address, index) => {
+    if (index === 0) return true;
+    try {
+      const previous = addressParser.parse(persistedAddresses[index - 1], 'mc_3e');
+      const current = addressParser.parse(address, 'mc_3e');
+      return previous.area === current.area && current.startNumber === previous.startNumber + width;
+    } catch { return false; }
+  });
   const persistedStatus = persistedMCPoints?.status ?? 'unavailable';
   let plannerAddressValid = startAddr.length > 0 && addressParser.validate(startAddr, protocol).valid;
   let endAddr = '';
@@ -148,7 +156,8 @@ export const RangeSummary: React.FC<RangeSummaryProps> = ({
       </span>
       <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-100">
         {isPersistedMC
-          ? (hasPersistedAddresses ? persistedAddresses.join(', ') : '—')
+          ? (!hasPersistedAddresses ? '—' : !contiguous ? t('step2.summary.noncontiguous', 'Non-contiguous addresses') :
+            persistedAddresses.length === 1 ? persistedAddresses[0] : `${persistedAddresses[0]}–${persistedAddresses[persistedAddresses.length - 1]}`)
           : `${startAddr || '—'} ~ ${endAddr || '—'}`}
       </span>
 
@@ -174,6 +183,10 @@ export const RangeSummary: React.FC<RangeSummaryProps> = ({
         </span>
       )}
 
+      {isPersistedMC && persistedAddresses.length > 1 && <details className="basis-full" open={!contiguous || undefined}>
+        <summary className="cursor-pointer">{t('step2.summary.show_addresses', 'Show all addresses')}</summary>
+        <p className="mt-1 break-all">{persistedAddresses.join(', ')}</p>
+      </details>}
       {isPersistedMC && persistedStatus !== 'compatible' && (
         <span className="basis-full text-amber-300" data-testid="persisted-mc-summary-status">
           {t(`step2.summary.mc_points_${persistedStatus}_action`, 'Review saved point evidence before continuing.')}

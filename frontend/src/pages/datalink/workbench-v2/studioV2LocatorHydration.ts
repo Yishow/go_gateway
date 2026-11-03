@@ -56,7 +56,7 @@ function draftIdentity(state: WorkbenchV2State): string {
 /** A new viewing request cannot replace local edits or the already hydrated normal workspace. */
 export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbenchV2State>, stateRef: MutableRefObject<WorkbenchV2State>,
   nativeHydrated: boolean, entry?: StudioLocatorEntryRead, editorMounted = false) {
-  const accepted = useRef<{ entry: StudioLocatorEntryRead; baseline: WorkbenchV2State } | undefined>(undefined);
+  const accepted = useRef<{ entry: StudioLocatorEntryRead; baseline: WorkbenchV2State; acknowledgedRule?: SourceRuleRecord } | undefined>(undefined);
   const mode = useRef({ nativeHydrated, entry, epoch: 0 });
   // Returning to the retained editor object must not revive an earlier submission.
   if (mode.current.entry !== entry || mode.current.nativeHydrated !== nativeHydrated) {
@@ -121,7 +121,7 @@ export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbe
         target.target.deviceId !== submitted.device_id || selected.target.deviceId !== submitted.device_id ||
         target.target.ruleId !== submitted.id || selected.target.ruleId !== submitted.id || submitted.persisted !== true ||
         owner.baseline.rules.filter(rule => rule.id === submitted.id && rule.device_id === submitted.device_id && rule.persisted).length !== 1 ||
-        owner.baseline.rules.find(rule => rule.id === submitted.id)?.revision_id !== submitted.revision_id) return;
+        (owner.acknowledgedRule?.revision_id ?? owner.baseline.rules.find(rule => rule.id === submitted.id)?.revision_id) !== submitted.revision_id) return;
     const captured = structuredClone(submitted), viewingEpoch = mode.current.epoch, fields = toStudioV2RuleUpdateRequest(captured), identity = comparable(fields);
     let consumed = false;
     return (saved: StudioV2RuntimeAppliedRecord<SourceRuleRecord>) => {
@@ -131,8 +131,11 @@ export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbe
           !saved.revision_id?.trim() || saved.runtime_apply_status === 'apply_failed') return;
       const matches = stateRef.current.rules.filter(rule => rule.id === captured.id && rule.device_id === captured.device_id);
       const latest = matches.length === 1 ? matches[0] : undefined;
-      if (!latest || latest.save_state !== 'saved' || !latest.persisted || latest.revision_id !== saved.revision_id ||
-          comparable(toStudioV2RuleUpdateRequest(latest)) !== identity || comparable(toStudioV2RuleUpdateRequest(hydrateStudioV2Rule(saved))) !== identity) return;
+      if (!latest || !latest.persisted || latest.revision_id !== saved.revision_id ||
+          comparable(toStudioV2RuleUpdateRequest(hydrateStudioV2Rule(saved))) !== identity) return;
+      // This acknowledged record, not an unsaved local rule, is the authority for a new candidate read.
+      owner.acknowledgedRule = structuredClone(saved);
+      if (latest.save_state !== 'saved' || comparable(toStudioV2RuleUpdateRequest(latest)) !== identity) return;
       // Only this unchanged, acknowledged rule advances. Local name, MC evidence,
       // every other rule/device/point/mapping/database/settings remain untouched.
       owner.baseline = { ...owner.baseline, rules: owner.baseline.rules.map(rule => rule.id !== captured.id ? rule : {
@@ -205,7 +208,8 @@ export function useStudioV2LocatorHydration(actions: ReturnType<typeof useWorkbe
   // This revision can advance only through the existing checked own-ACK baseline.
   const retainedRuleRevision = baselineRules?.length === 1 && baselineRules[0].revision_id?.trim()
     ? baselineRules[0].revision_id : retainedTarget?.state === 'selected' ? retainedTarget.target.ruleRevision : undefined;
-  return { capturePointNameRead, capturePointNameSave, captureDeviceSave, captureRuleSave, retainedRuleRevision, canLeave: Boolean(accepted.current && draftIdentity(accepted.current.baseline) === draftIdentity(stateRef.current)), lastEntry: accepted.current?.entry, ready: Boolean(entry && result.entry === entry && !result.blocked), blocked: Boolean(entry && result.entry === entry && result.blocked) };
+  const acknowledgedRule = !nativeHydrated && entry === accepted.current?.entry ? accepted.current?.acknowledgedRule : undefined;
+  return { capturePointNameRead, capturePointNameSave, captureDeviceSave, captureRuleSave, retainedRuleRevision, acknowledgedRule, canLeave: Boolean(accepted.current && draftIdentity(accepted.current.baseline) === draftIdentity(stateRef.current)), lastEntry: accepted.current?.entry, ready: Boolean(entry && result.entry === entry && !result.blocked), blocked: Boolean(entry && result.entry === entry && result.blocked) };
 }
 
 /** Only exact hydrated canonical bindings can receive a hot locator; drafts remain separate. */

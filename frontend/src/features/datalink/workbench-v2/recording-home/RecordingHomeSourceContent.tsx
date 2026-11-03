@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type React
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { WorkbenchV2State, Device } from '../state/types';
+import type { PersistedMCRuleState } from '../state/mcPersistedPoints';
 import type { WorkbenchV2Action } from '../state/useWorkbenchV2State';
 import type { DeviceSourcePort } from '../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { useRecordingDeviceBuffer } from '../recording-editor/useRecordingDeviceBuffer';
@@ -14,7 +15,7 @@ import { readHomeDeviceRanges } from './recordingHomeSourceList';
 import type { HomeSourceControls } from './RecordingHomeSourceHost';
 export interface RecordingHomeSourceContentProps extends HomeSourceControls {
   shareEnabled?: boolean; onRetryShare: () => void; onOpenShareSettings: () => void;
-  state: WorkbenchV2State; dispatch: Dispatch<WorkbenchV2Action>; source: DeviceSourcePort; suspended: boolean;
+  state: WorkbenchV2State; dispatch: Dispatch<WorkbenchV2Action>; source: DeviceSourcePort; suspended: boolean; mcEvidenceByRule?: Readonly<Record<string, PersistedMCRuleState>>;
 }
 function SavedConnection({ device, source, suspended, controls }: { device?: Device; source: DeviceSourcePort; suspended: boolean; controls: HomeSourceControls }) {
   const { t } = useTranslation('recording-editor');
@@ -88,7 +89,7 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
     </>}
   </section>;
   const rule = state.rules.find(item => item.id === target.ruleId && item.workspace_id === target.workspaceId && item.device_id === target.deviceId && item.persisted);
-  if (target.ruleId) return rule ? <RecordingHomeSavedRangeEditor shareEnabled={props.shareEnabled} onRetryShare={props.onRetryShare} onOpenShareSettings={props.onOpenShareSettings} target={target} state={state} rule={rule} dispatch={dispatch} leave={leave} suspended={suspended} list={undefined} onDone={() => select()} onLeave={props.onClose} ruleObserverRef={props.ruleObserverRef} />
+  if (target.ruleId) return rule ? <RecordingHomeSavedRangeEditor shareEnabled={props.shareEnabled} onRetryShare={props.onRetryShare} onOpenShareSettings={props.onOpenShareSettings} target={target} state={state} rule={rule} mcEvidence={props.mcEvidenceByRule?.[rule.id]} dispatch={dispatch} leave={leave} suspended={suspended} list={undefined} onDone={() => select()} onLeave={props.onClose} ruleObserverRef={props.ruleObserverRef} />
     : <div className="gw-modal-body" role="alert">{t('source.unavailable')}</div>;
   if (target.newRange) return <NewRange device={device} source={source} suspended={suspended} controls={props} leave={leave} list={undefined} refreshList={() => { void list.refetch(); }} />;
   return <><div className="gw-modal-body">{listContent}</div><footer className="gw-modal-footer"><button type="button" onClick={props.onClose}>{t('source.close')}</button></footer></>;

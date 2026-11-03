@@ -125,12 +125,13 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   }
   const pickerScope = pickerIdentity.current.scope;
   const [observedSources, setObservedSources] = useState<{ scope: string; value: RecordingPickerDiscovery }>();
+  const [selectedScope, setSelectedScope] = useState<{ shown: number; total: number }>();
   const candidates = useMemo(() => observedSources?.scope === pickerScope ? [...observedSources.value.candidates] : suppliedCandidates, [observedSources, pickerScope, suppliedCandidates]);
   const readonly = operatorReadonly || readUnavailable || editorReadonly || propGroup?.status === 'deleted';
   const renderCalculation = (member: EditorMember, tableCells = false) => <RecordingMemberCalculationSource tableCells={tableCells} member={member} disabled={readonly || saveBusy} compact={presentation === 'simple'}
     workspaceRevision={workspaceRevision} locatorScope={locatorScope} context={{ workspaceId, recordId: draft.record_id, capabilities: calculationCapabilities, layout: draft.layout_version ?? '', dialect: connector.kind }}
     onChange={next => set({ members: draft.members.map(value => value === member ? next : value) })} />;
-  const renderPointOrder = (member: EditorMember) => <>{deviceSource?.pointOrder && <RecordingPointOrder simple={presentation === 'simple'} port={deviceSource.pointOrder}
+  const renderPointOrder = (member: EditorMember, inline = false) => <>{deviceSource?.pointOrder && <RecordingPointOrder simple={presentation === 'simple'} inline={inline} port={deviceSource.pointOrder}
     workspaceId={workspaceId} deviceId={member.device_id} pointId={member.point_id} disabled={readonly || saveBusy} />}{mixed && presentation !== 'simple' && renderCalculation(member)}</>;
   const saved = destinationSaved(connector);
   const isMySQL = String(connector.kind).toLowerCase() === 'mysql';
@@ -180,6 +181,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   // Legacy profiles keep their canonical group policy; mixed members own their individual cadence.
   const profile = (draft.layout_version === 'managed_long_v1' || draft.layout_version === 'managed_wide_profile_v1') && draft.recording_profile !== undefined;
   const mixed = draft.recording_profile?.kind === 'mixed';
+  const scopeInHeading = presentation === 'simple' && draft.storage_strategy === 'managed' && Boolean(deviceSource) && (!profile || mixed);
   const columnsAssignedOnSave = presentation === 'simple' && !group && draft.storage_strategy === 'managed';
   const dirty = group ? draftIsDirty(draft, group) : true;
   const saveScopeKey = JSON.stringify([workspaceId, propGroup?.id, connector.connector_id, connector.identity_revision, readonly]);
@@ -362,7 +364,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       {!group && copyPrefill && <aside role="status" className="space-y-2 text-sm" data-testid="recording-copy-intent"><p>{editorText('copy.intent')}</p><p>{editorText('copy.concurrent')}</p>{copyPrefill.layout === 'managed_long_v1' && <p>{editorText('copy.longIsolation')}</p>}</aside>}
       {group && presentation !== 'simple' && <RecordingRevisionDetails group={group} simple={scopedPresentation} scopeDiagnostics={scopeDiagnostics} />}
 
-      <RecordingEditorLayout presentation={presentation} fieldsDisabled={saveBusy || readUnavailable} perPoint={mixed} memberCount={draft.members.length}
+      <RecordingEditorLayout presentation={presentation} fieldsDisabled={saveBusy || readUnavailable} perPoint={mixed} memberCount={draft.members.length} selectedScope={scopeInHeading ? selectedScope : undefined} selectedScopeInHeading={scopeInHeading}
         summary={presentation === 'simple' && <RecordingEditorSummary draft={draft} destinationName={saved && destinationMatches ? connector.name || connector.kind : undefined} saved={Boolean(group)} dirty={dirty} diagnostics={group && <RecordingRevisionDetails group={group} simple scopeDiagnostics={scopeDiagnostics} />} />}
         identity={<GroupIdentityFields scopedPresentation={scopedPresentation} section={presentation === 'simple' ? 'name' : 'all'} draft={draft} readonly={readonly} locked={profile || draft.layout_version === 'managed_long_v1'} onChange={set} onStorageStrategy={changeStorageStrategy} />}
         method={<>
@@ -370,6 +372,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       {profile && !mixed && <GroupProfileSummary draft={draft} />}
         </>}
         destination={<>
+      {presentation === 'simple' && draft.storage_strategy === 'managed' && editorMetadata.status !== 'exists' && <div className="recording-compact-members__metadata" data-testid="recording-destination-metadata-note"><p role="status">{editorText(`compact.destinationMetadata.${editorMetadata.status}`)}</p>{(editorMetadata.status === 'failed' || editorMetadata.status === 'forbidden') && <button type="button" className="gw-secondary" onClick={metadata.refetch}>{t('step4.group.retry')}</button>}</div>}
       {presentation === 'simple' && group ? <RecordingSavedDestination group={group} connector={connector} workspaceId={workspaceId} /> : newDestination && !newDestination.initialSetup ? !group && <RecordingNewDestinationChooser value={newDestination} selectedId={draft.connector_id}
         disabled={readonly || saveBusy || saveUnknown || Boolean(saveReadbackPending)} onSelect={id => {
           if (groupRef.current || readonly || savingRef.current || saveUnknown || saveReadbackPending) return;
@@ -401,12 +404,12 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
             if (read.state !== 'available') throw new Error('Source observation unavailable');
             return { candidates: read.value.candidates, devices: read.value.devices };
           } : undefined}
-          renderMembers={actions => <RecordingSelectedMembers scopedPresentation={scopedPresentation} presentation={presentation} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} {...actions} managed={draft.storage_strategy === 'managed'} layoutVersion={draft.layout_version} dialect={dialect}
+          renderMembers={actions => <RecordingSelectedMembers scopedPresentation={scopedPresentation} presentation={presentation} onScopeChange={scopeInHeading ? setSelectedScope : undefined} scopeInHeading={scopeInHeading} pointOrderSort={deviceSource?.pointOrder ? { workspaceId, port: deviceSource.pointOrder } : undefined} metadataAtDestination={presentation === 'simple' && draft.storage_strategy === 'managed'} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} {...actions} managed={draft.storage_strategy === 'managed'} layoutVersion={draft.layout_version} dialect={dialect}
             candidates={candidates} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status} onRetryMetadata={metadata.refetch}
             suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly || saveBusy}
             onChange={setMembers} labels={{ remove: member => editorText('picker.removeMember', { point: member.point_id }),
               unavailable: editorText('picker.unavailable'), undo: editorText('picker.undo') }} />} /> :
-        <GroupMemberTable scopedPresentation={scopedPresentation} presentation={presentation} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} managed={draft.storage_strategy === 'managed'} layoutVersion={draft.layout_version} dialect={dialect}
+        <GroupMemberTable scopedPresentation={scopedPresentation} presentation={presentation} metadataAtDestination={presentation === 'simple' && draft.storage_strategy === 'managed'} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} managed={draft.storage_strategy === 'managed'} layoutVersion={draft.layout_version} dialect={dialect}
           candidates={candidates} excluded={excluded} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status} onRetryMetadata={metadata.refetch}
           suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly || saveBusy}
           onChange={setMembers} />}

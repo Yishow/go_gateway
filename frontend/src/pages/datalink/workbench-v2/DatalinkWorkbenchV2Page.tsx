@@ -146,11 +146,11 @@ function AdvancedWorkbenchV2Page({
     };
   }, [bootstrapShareStatus, shareStatusQuery.data]);
   const persistedMCWorkspaceScope = React.useMemo(() => {
-    const workspaceId = workspaceQuery.data?.id;
+    const workspaceId = locatorEntry?.workspace.id ?? workspaceQuery.data?.id;
     const workspaceRevision = shareStatus?.workspace_revision;
     if (!workspaceId || shareStatus?.workspace_id !== workspaceId || !workspaceRevision) return undefined;
     return { workspace_id: workspaceId, workspace_revision: workspaceRevision };
-  }, [shareStatus?.workspace_id, shareStatus?.workspace_revision, workspaceQuery.data?.id]);
+  }, [shareStatus?.workspace_id, shareStatus?.workspace_revision, workspaceQuery.data?.id, locatorEntry?.workspace.id]);
   const auditHistoryQuery = useStudioV2WorkspaceAuditHistoryQuery(!locatorMode && workspaceQuery.isSuccess);
   const homeRuleObserverRef = homeSource?.ruleObserverRef;
   const homeRuleObserver = React.useMemo<HomeRuleObserver | undefined>(() => homeRuleObserverRef ? {
@@ -333,7 +333,7 @@ function AdvancedWorkbenchV2Page({
   if (homeSource) return <RecordingSourceNavigation workspaceId={workspace.id} source={autosave.deviceSource}><RecordingHomeSourceContent {...homeSource}
     shareEnabled={shareStatusQuery.isSuccess && !shareStatusQuery.isFetching && !shareStatusQuery.isError && shareStatusQuery.data?.workspace_id === homeSource.target.workspaceId ? modbusShareConfiguredValue(shareStatusQuery.data) : undefined}
     onRetryShare={() => { void shareStatusQuery.refetch(); }} onOpenShareSettings={() => navigateTo?.('/studio/v2?view=advanced&section=settings')}
-    state={autosave.state} dispatch={autosave.actions.dispatch} source={autosave.deviceSource} suspended={homeSource.target.kind === 'create' ? !autosave.workspaceHydrated || workspace.id !== homeSource.target.workspaceId : !autosave.locatorHydration.ready} /></RecordingSourceNavigation>;
+    state={autosave.state} dispatch={autosave.actions.dispatch} source={autosave.deviceSource} mcEvidenceByRule={autosave.persistedMCPoints} suspended={homeSource.target.kind === 'create' ? !autosave.workspaceHydrated || workspace.id !== homeSource.target.workspaceId : !autosave.locatorHydration.ready} /></RecordingSourceNavigation>;
 
   return (
     <div

@@ -130,7 +130,7 @@ export function setupPersistedMCMocks(): void {
   ]);
   vi.mocked(studioV2ServiceMocks.database.getConfig).mockResolvedValue(sqliteConfigFixture());
   vi.mocked(studioV2ServiceMocks.database.listTargets).mockResolvedValue([dbTargetFixture({ point_id: 'legacy-point-0' })]);
-  vi.mocked(sourceRuleCandidateAPI.get).mockResolvedValue(candidateSnapshot());
+  vi.mocked(sourceRuleCandidateAPI.getTags).mockResolvedValue(candidateSnapshot());
   vi.mocked(modbusShareAPI.status).mockResolvedValue({
     workspace_id: 'workspace-1',
     enabled: false,

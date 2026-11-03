@@ -382,19 +382,19 @@ it.each(['cancel', 'save', 'reject-cancel'] as const)('keeps a cold saved Page r
   await waitFor(() => expect(input).not.toHaveAttribute('readonly'));
   if (outcome === 'save') {
     fireEvent.change(input, { target: { value: 'Shared renamed point' } });
-    fireEvent.keyDown(input, { key: 'Escape' });
+    fireEvent.click(within(screen.getByRole('contentinfo')).getByRole('button', { name: 'picker.cancel' }));
     expect(screen.getByRole('alertdialog')).toBeVisible(); expect(studioV2MappingsAPI.update).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'navigation.keep' }));
     expect(input).toHaveValue('Shared renamed point'); expect(screen.getByRole('dialog')).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: 'name.save' }));
+    fireEvent.keyDown(input, { key: 'Enter' });
     await screen.findByRole('textbox', { name: 'name.label Shared renamed point' });
   } else if (outcome === 'reject-cancel') {
-    fireEvent.change(input, { target: { value: 'Rejected point name' } }); fireEvent.click(screen.getByRole('button', { name: 'name.save' }));
+    fireEvent.change(input, { target: { value: 'Rejected point name' } }); fireEvent.keyDown(input, { key: 'Enter' });
     await screen.findByText('name_source_review');
     fireEvent.click(screen.getByRole('button', { name: 'cancel_rejected_name' }));
     await waitFor(() => expect(input).toHaveValue('Point 0'));
     expect(mapping.display_name).toBe('Point 0');
-  } else fireEvent.click(within(screen.getByTestId('inline-point-name-pt-0')).getByRole('button', { name: 'picker.cancel' }));
+  } else fireEvent.keyDown(input, { key: 'Escape' });
   fireEvent.click(within(screen.getByRole('contentinfo')).getByRole('button', { name: 'picker.cancel' }));
   fireEvent.click(screen.getByRole('button', { name: 'simple.advancedPurpose' }));
   await screen.findByTestId('studio-local-editor');

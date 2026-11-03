@@ -5,9 +5,9 @@ import { canRestartPointOrder, type RecordingPointOrderPort } from './useRecordi
 import { pointFormatErrorKey } from '../../../../services/pointFormatErrors';
 import { wordFormats } from '../../../../services/pointFormatParser';
 import type { PointWordFormat } from '../../../../types/pointFormat';
-interface Props { simple?: boolean; port: RecordingPointOrderPort; workspaceId: string; deviceId: string; pointId: string; disabled: boolean }
+interface Props { simple?: boolean; inline?: boolean; port: RecordingPointOrderPort; workspaceId: string; deviceId: string; pointId: string; disabled: boolean }
 /** Canonical source detail only: no mapping fields, local decoding or activation. */
-export function RecordingPointOrder({ simple = false, port, workspaceId, deviceId, pointId, disabled }: Props) {
+export function RecordingPointOrder({ simple = false, inline = false, port, workspaceId, deviceId, pointId, disabled }: Props) {
   const { t } = useTranslation('point-format');
   const { t: text } = useTranslation('recording-editor');
   const scope = useMemo(() => ({ workspace_id: workspaceId, device_id: deviceId, point_id: pointId }), [workspaceId, deviceId, pointId]);
@@ -21,14 +21,14 @@ export function RecordingPointOrder({ simple = false, port, workspaceId, deviceI
   const orderControl = resolution && <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 block"><span className={simple ? 'sr-only' : undefined}>{t('editor.order')}</span>
           <select aria-label={t('editor.order')} value={value ?? ''} disabled={!canEdit} className="ml-2 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1 text-[var(--gw-text)]"
             onChange={event => port.choose(scope, event.target.value === 'inherit' ? { format_mode: 'inherit', configured_format: '' } : { format_mode: 'override', configured_format: event.target.value as PointWordFormat })}>
-            {resolution.format_mode === 'legacy' && <option value="legacy" disabled>{t('mode.legacy')}</option>}
-            <option value="inherit">{t('mode.inherit')}</option>
-            {wordFormats.map(format => <option key={format} value={format} disabled={!resolution.applicable}>{format} · {t('mode.override')}</option>)}
+            {resolution.format_mode === 'legacy' && <option value="legacy" disabled>{t(inline ? 'editor.legacyShort' : 'mode.legacy')}</option>}
+            <option value="inherit">{t(inline ? 'editor.inheritShort' : 'mode.inherit')}</option>
+            {wordFormats.map(format => <option key={format} value={format} disabled={!resolution.applicable}>{format}{!inline && <> · {t('mode.override')}</>}</option>)}
           </select>
-        </label><ParameterHelp compact={simple} help="point.order" /></div>;
+        </label>{!inline && <ParameterHelp compact={simple} help="point.order" />}</div>;
   const orderActions = <div className="flex flex-wrap gap-3">
-          {(!simple || resolution?.format_mode === 'override') && <button type="button" disabled={!canEdit} onClick={() => port.choose(scope, { format_mode: 'inherit', configured_format: '' })}>{t('editor.reset')}</button>}
-          {(!simple || (entry?.status === 'ready' && entry.intent)) && <button type="button" disabled={!canEdit || !entry?.intent} onClick={() => void port.save(scope)}>{t('editor.save')}</button>}
+          {!inline && (!simple || resolution?.format_mode === 'override') && <button type="button" disabled={!canEdit} onClick={() => port.choose(scope, { format_mode: 'inherit', configured_format: '' })}>{t('editor.reset')}</button>}
+          {(!simple || (entry?.status === 'ready' && entry.intent)) && <button type="button" aria-label={inline ? t('editor.save') : undefined} title={inline ? t('editor.save') : undefined} disabled={!canEdit || !entry?.intent} onClick={() => void port.save(scope)}>{inline ? <><span className="recording-point-order-save-wide">{t('editor.saveShort')}</span><span className="recording-point-order-save-narrow">{t('editor.saveNarrow')}</span></> : t('editor.save')}</button>}
         </div>;
   const operationStatus = <>      {busy && <p role="status">{t('editor.working')}</p>}
       {entry?.saved && !entry.recovered && <p role="status">{t('savedPending')}</p>}
@@ -38,6 +38,13 @@ export function RecordingPointOrder({ simple = false, port, workspaceId, deviceI
       {entry?.status === 'unknown' && <button type="button" disabled={disabled} onClick={() => void port.inspect(scope)}>{t('editor.inspect')}</button>}
       {entry && ['saved', 'recovery-unknown'].includes(entry.status) && <button type="button" disabled={disabled} onClick={() => void port.recover(scope)}>{t('editor.recover')}</button>}
       {entry?.recovered && <p role="status">{t(`editor.${entry.recovered.runtime_state}`)} · {t(entry.recovered.share_applied ? 'editor.shareApplied' : 'editor.shareDisabled')} {t('editor.notReading')}</p>}</>;
+  if (simple && inline) return <section className="recording-point-order-inline recording-point-order-inline--row" data-testid={`recording-point-order-${pointId}`}>
+    {resolution ? resolution.applicable ? <div className="recording-point-order-inline__controls">{orderControl}{orderActions}
+      {resolution.format_mode !== 'override' && !entry?.intent && <span data-testid="point-order-effective" title={`${t(`source.${resolution.effective_source}`)} · ${t(`policy.${resolution.effective_policy}`)} · ${t('editor.version')}: ${resolution.format_version}`}>{t('editor.currentShort')}: {resolution.effective_format || t('editor.native')}</span>}</div>
+      : <span data-testid="point-order-effective" title={t('editor.notApplicable')}>{t('editor.notApplicableShort')}</span>
+      : !busy && <span>{text('compact.formatUnknown')}</span>}
+    {operationStatus}
+  </section>;
   if (simple) return <section className="recording-point-order-inline" data-testid={`recording-point-order-${pointId}`}>
     <details className="recording-point-order-inline__details"><summary>{t('editor.title')}</summary>
       {resolution ? <>

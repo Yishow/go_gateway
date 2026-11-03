@@ -9,6 +9,8 @@
 .recording-point-picker table { width: 100%; min-width: 580px; table-layout: fixed; border-collapse: collapse; text-align: start; }
 .recording-point-picker th, .recording-point-picker td { padding: 0.625rem 0.5rem; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); vertical-align: top; }
 .recording-point-picker th { text-align: start; }
+.recording-point-picker .recording-point-picker__sort { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 44px; padding: 0; border: 0; background: transparent; font-weight: inherit; text-align: start; }
+.recording-point-picker__sort > span { color: var(--gw-muted); font-size: 0.75rem; }
 .recording-point-picker th:nth-child(1) { width: 42%; }
 .recording-point-picker th:nth-child(2) { width: 22%; }
 .recording-point-picker th:nth-child(3), .recording-point-picker th:nth-child(4) { width: 18%; }
@@ -20,6 +22,7 @@
 .recording-point-picker .recording-point-picker__rename:focus-visible { outline: var(--gw-focus-width) solid var(--gw-focus); outline-offset: var(--gw-focus-offset); }
 .recording-point-picker__point > span { min-width: 0; overflow-wrap: break-word; }
 .recording-point-picker__address { font-family: monospace; overflow-wrap: anywhere; }
+.recording-point-picker__horizontal-hint { display: none; }
 .recording-point-picker__meaning-note { color: var(--gw-muted); font-size: 12px; margin-block: var(--gw-space-xs); }
 .recording-point-picker small { display: block; font-size: 0.8125rem; }
 .recording-point-picker nav { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-block: 0.75rem; }
@@ -44,10 +47,15 @@
 .recording-selected-members :is(input, select, button) { min-height: var(--gw-control-height); color: var(--gw-text); background: var(--gw-surface); border-color: var(--gw-control); }
 .recording-selected-members :is(input, select, button):focus-visible { outline: var(--gw-focus-width) solid var(--gw-focus); outline-offset: var(--gw-focus-offset); }
 
-.recording-point-picker .recording-point-name-inline { flex: 1; min-width: 0; }
+.recording-point-picker .recording-point-name-inline { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--gw-space-xs); }
+.recording-point-picker .recording-point-name-inline > :not(input):not(.recording-point-name-inline__status) { grid-column: 1 / -1; }
+.recording-point-picker .recording-point-name-inline__status { margin: 0; color: var(--gw-muted); font-size: 12px; white-space: nowrap; }
 .recording-point-picker .recording-point-name-inline > input { width: 100%; min-width: 0; min-height: 36px; margin: 0; }
 .recording-point-picker .recording-point-name-inline__actions { display: flex; gap: var(--gw-space-xs); flex-wrap: wrap; margin-top: var(--gw-space-xs); }
 .recording-point-picker .recording-point-name-inline__actions button { min-height: 44px; }
-.recording-point-picker .recording-point-picker__added { flex: none; color: var(--gw-muted); white-space: nowrap; }
 
 .recording-point-picker__identity[data-inline-name='true'] > label { flex: none; }
+
+@media (max-width: 610px) {
+  .recording-point-picker__horizontal-hint { display: block; position: sticky; left: 0; color: var(--gw-muted); font-size: 12px; margin-block: var(--gw-space-xs); }
+}

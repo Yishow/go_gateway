@@ -1,13 +1,14 @@
 import { RecordingCompactMemberTable } from '../../../recording-editor/RecordingCompactMemberTable';
 import { ParameterHelp } from '../../../components/ParameterHelp';
 import * as React from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DbColumn } from '../../../state/dbSchemas';
 import type { Step4TargetMetadataStatus } from '../useStep4TargetColumns';
 import type { ExcludedCandidate, GroupCandidate } from '../../../state/writeGroup/candidates';
 import { columnCompatibility, type ColumnSuggestions, type WriteGroupSqlDialect } from '../../../state/writeGroup/columns';
 import { memberKey, type DraftIssue, type EditorDraft, type EditorMember } from '../../../state/writeGroup/draft';
+import type { RecordingPointOrderPort } from '../../../recording-editor/useRecordingPointOrder';
 
 export interface GroupMemberTableProps {
   scopedPresentation?: boolean;
@@ -18,6 +19,9 @@ export interface GroupMemberTableProps {
   columns: DbColumn[];
   metadataStatus: Step4TargetMetadataStatus;
   onRetryMetadata?: () => void;
+  metadataAtDestination?: boolean;
+  scopeInHeading?: boolean;
+  onScopeChange?: (scope: { shown: number; total: number }) => void;
   suggestions: ColumnSuggestions;
   issues: DraftIssue[];
   showEntityKey: boolean;
@@ -33,7 +37,10 @@ export interface GroupMemberTableProps {
   selectionControls?: { removeLabel: (member: EditorMember) => string; onRemove: (member: EditorMember) => void };
   /** Optional visible result column; the editor remains the calculation owner. */
   renderCalculation?: (member: EditorMember, tableCells?: boolean) => React.ReactNode;
-  renderSource?: (member: EditorMember) => React.ReactNode;
+  renderSource?: (member: EditorMember, inline?: boolean) => React.ReactNode;
+  renderName?: (candidate: GroupCandidate) => React.ReactNode;
+  nameLocked?: boolean;
+  pointOrderSort?: { workspaceId: string; port: RecordingPointOrderPort };
   onChange: (members: EditorMember[]) => void;
 }
 
@@ -57,7 +64,7 @@ function emptyMember(candidate: GroupCandidate, column: string): EditorMember {
  * bulk action names its scope and count and touches only the rows shown.
  */
 export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
-  scopedPresentation = false, presentation = 'guided', onRetryMetadata, renderSource, renderCalculation, candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
+  scopedPresentation = false, presentation = 'guided', onRetryMetadata, metadataAtDestination = false, scopeInHeading = false, onScopeChange, renderName, nameLocked = false, pointOrderSort, renderSource, renderCalculation, candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
   dialect = 'portable', managed = false, layoutVersion, columnsAssignedOnSave = false, onChange, selectionControls,
 }) => {
   const { t } = useTranslation('workbench-v2');
@@ -104,6 +111,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
     return haystack.includes(needle);
   });
   const shownKeys = new Set(shown.map((row) => row.candidate.key));
+  useEffect(() => { onScopeChange?.({ shown: shown.length, total: rows.length }); }, [onScopeChange, shown.length, rows.length]);
 
   const update = (candidate: GroupCandidate, patch: Partial<EditorMember>) =>
     onChange(members.map(member => member.key === candidate.key && (!selectionControls ||
@@ -139,7 +147,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
   const acceptable = shown.filter((row) => row.suggestion?.status === 'suggested' &&
     (!row.member || row.member.target_column === '')).length;
 
-  const simpleMetadata = metadataStatus !== 'exists' && <div className="recording-compact-members__metadata">
+  const simpleMetadata = !metadataAtDestination && metadataStatus !== 'exists' && <div className="recording-compact-members__metadata">
     <p role="status" data-testid="group-member-metadata-note">{metadataStatus === 'failed' ? editorText('compact.metadataFailed') : t(`step4.group.members.metadata_${metadataStatus}`)}</p>
     {metadataStatus === 'failed' && onRetryMetadata && <button type="button" className="gw-secondary" onClick={onRetryMetadata} data-testid="group-metadata-retry">{t('step4.group.retry')}</button>}
   </div>;
@@ -149,8 +157,8 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
   </div>;
   if (presentation === 'simple' && managed && selectionControls && excluded.length === 0) return <RecordingCompactMemberTable
     rows={shown} total={rows.length} query={query} setQuery={setQuery} problemsOnly={problemsOnly} setProblemsOnly={setProblemsOnly}
-    columns={columns} metadataStatus={metadataStatus} onRetryMetadata={onRetryMetadata} columnsAssignedOnSave={columnsAssignedOnSave} disabled={disabled}
-    showEntityKey={showEntityKey} controls={selectionControls} update={update} renderCalculation={renderCalculation} renderSource={renderSource} />;
+    metadataStatus={metadataStatus} onRetryMetadata={onRetryMetadata} metadataAtDestination={metadataAtDestination} scopeInHeading={scopeInHeading} disabled={disabled}
+    showEntityKey={showEntityKey} controls={selectionControls} update={update} renderCalculation={renderCalculation} renderSource={renderSource} renderName={renderName} nameLocked={nameLocked} pointOrderSort={pointOrderSort} />;
   const classes = (value: string) => value;
   return (
     <div className={classes('space-y-3')} data-testid="group-member-table">

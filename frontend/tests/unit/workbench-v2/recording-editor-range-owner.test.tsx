@@ -206,12 +206,13 @@ it('saves a new device then its range through the same stack, without selecting 
  expect(studioV2WorkspaceDevicesAPI.remove).not.toHaveBeenCalled(); expect(studioV2RulesAPI.remove).not.toHaveBeenCalled();
 });
 
-it('locates confirmed new points on their page, clears hiding filters with a reason, and keeps prior pending selection', async () => {
+it.each(['ascending', 'descending'] as const)('locates confirmed new points using %s address order while keeping prior pending selection', async direction => {
  const extra: GroupCandidate[] = Array.from({ length: 30 }, (_, i) => ({ key: `A${i}|T${i}`, device_id: 'dev-1', point_id: `A${i.toString().padStart(2, '0')}`, tag_id: `T${i}`, tag_key: `prior_${i}`, label: `Prior ${i}`, device_name: 'PLC', address: String(40100 + i), target_type: 'int16' }));
  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
  render(<QueryClientProvider client={client}><Harness extra={extra} /></QueryClientProvider>);
  fireEvent.click(await screen.findByTestId('recording-points-open'));
  fireEvent.click(screen.getByRole('checkbox', { name: 'Prior 0' }));
+ if (direction === 'descending') fireEvent.click(screen.getByRole('button', { name: 'picker.address' }));
  fireEvent.change(screen.getByLabelText('picker.device'), { target: { value: 'dev-1' } });
  fireEvent.change(screen.getByLabelText('picker.search'), { target: { value: 'hides everything' } });
  fireEvent.change(screen.getByLabelText('picker.pointType'), { target: { value: 'counter' } });
@@ -228,7 +229,6 @@ it('locates confirmed new points on their page, clears hiding filters with a rea
  expect(screen.getByRole('checkbox', { name: mapping!.display_name })).toHaveFocus();
  expect(screen.getByTestId('recording-range-located')).toBeVisible();
  expect(screen.getByRole('button', { name: 'picker.add' })).toBeEnabled();
- fireEvent.click(screen.getByRole('button', { name: 'picker.previous' }));
  expect(screen.getByRole('checkbox', { name: 'Prior 0' })).toBeChecked();
 });
 

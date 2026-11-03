@@ -18,7 +18,7 @@ import { semanticTokens } from '../tokens';
 import { RecordingPointPicker } from './RecordingPointPicker';
 import { recordingPickerLabels } from './recordingPickerLabels';
 import { addRecordingMembers, recordingPickerProjection } from './recordingMemberSelection';
-import { cancelPicker, createPicker, removeMember, sourceKey, type CandidateEvidence, type MemberHistory } from './recordingPickerState';
+import { cancelPicker, comparePickerRows, createPicker, removeMember, sourceKey, type CandidateEvidence, type MemberHistory } from './recordingPickerState';
 import '../../../../styles/semantic-modal.css';
 
 export interface RecordingSourceSlot {
@@ -37,7 +37,7 @@ export interface RecordingPointSelectionProps {
   deviceSource?: DeviceSourcePort;
   discover?: () => Promise<RecordingPickerDiscovery>;
   onDiscovery?: (observed: { scope: string; value: RecordingPickerDiscovery }) => void;
-  renderMembers?: (actions: { onRemove: (member: EditorMember) => void; undo?: { member: EditorMember; onUndo: () => void; disabled: boolean } }) => ReactNode;
+  renderMembers?: (actions: { onRemove: (member: EditorMember) => void; renderName?: (candidate: GroupCandidate) => ReactNode; nameLocked?: boolean; undo?: { member: EditorMember; onUndo: () => void; disabled: boolean } }) => ReactNode;
 }
 /** Controlled intent only. GroupEditor remains the sole recording draft/save owner.
  * Source content shares this one Radix shell; never mounts a second dialog. */
@@ -87,6 +87,7 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
   const sourceClose = useRef<(() => void) | undefined>(undefined);
   const [deviceConfirm, setDeviceConfirm] = useState(false);
   const [deviceMounted, setDeviceMounted] = useState(false);
+  const suppressNameBlur = useRef(false);
   const navigation = useRecordingDraftGuard({
     version: JSON.stringify([scope, picker.pending, deviceBuffer.buffer, rangeBuffer.buffer, nameBuffer.value?.name]),
     dirty: picker.pending.length > 0 || deviceBuffer.dirty || rangeBuffer.dirty || nameBuffer.dirty,
@@ -98,10 +99,27 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
   const active = !disabled && picker.scope === scope && history.scope === scope;
   const projection = recordingPickerProjection(scope, candidates, members, evidence);
   for (const row of candidates) if (deviceSource?.range?.canSelect?.(row.device_id, row.point_id) === false) projection.evidence = { ...projection.evidence, [sourceKey(row)]: { ...projection.evidence[sourceKey(row)], availability: 'unknown' } };
+  const nameIntent = useRef<GroupCandidate | undefined>(undefined);
+  const nameFlight = useRef(false);
+  const finishName = () => {
+    const next = nameIntent.current; nameIntent.current = undefined;
+    nameBuffer.reset();
+    if (next && document.activeElement instanceof HTMLElement && document.activeElement.dataset.pickerFocus === `name:${sourceKey(next)}`) void nameBuffer.begin(next);
+  };
+  const saveName = () => {
+    if (!active || nameFlight.current) return;
+    nameFlight.current = true;
+    void nameBuffer.save().then(saved => {
+      if (!saved || !active) { nameIntent.current = undefined; return; }
+      const rows = candidates.map(value => sourceKey(value) === sourceKey(saved) ? saved : value);
+      setRenamedCandidates(current => ({ scope, afterRequest: discovery.currentRequest(), supplied: suppliedCandidates, rows: [...(current?.scope === scope ? current.rows.filter(value => sourceKey(value) !== sourceKey(saved)) : []), saved] }));
+      onDiscovery?.({ scope, value: { candidates: rows, devices } }); finishName(); if (discover) void discovery.refresh();
+    }).finally(() => { nameFlight.current = false; });
+  };
   const back = () => { sourceIntent.current += 1; if (view === 'range-buffer' && rangeBuffer.dirty && !rangeBuffer.locked) setConfirm(true); else setView('picker'); };
   const close = () => {
     if (nameBuffer.pending || nameBuffer.value?.outcome?.status === 'unknown') return;
-    if (nameBuffer.dirty) { navigation.request(() => { nameBuffer.reset(); setPicker(cancelPicker(picker)); setOpen(false); }); return; }
+    if (nameBuffer.dirty) { suppressNameBlur.current = true; navigation.request(() => { suppressNameBlur.current = false; nameBuffer.reset(); setPicker(cancelPicker(picker)); setOpen(false); }, () => { suppressNameBlur.current = false; }); return; }
     nameBuffer.reset();
     sourceIntent.current += 1;
     if (view === 'device-buffer') { sourceClose.current?.(); return; }
@@ -136,9 +154,12 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
     if (!open || view !== 'range-buffer' || rangeBuffer.dirty || navigation?.scope !== scope || navigation.intent !== sourceIntent.current ||
       navigation.requestId !== result.request.requestId || navigation.sessionId !== result.request.sessionId || navigation.generation !== result.request.generation) return;
     setLocatedCount(rows.length);
-    const sorted = union.filter(row => row.device_id === result.request.deviceId).sort((a, b) => sourceKey(a) < sourceKey(b) ? -1 : 1);
-    const first = sorted.findIndex(row => rows.some(next => sourceKey(next) === sourceKey(row)));
-    setPicker(current => ({ ...current, query: '', pointType: 'all', deviceId: result.request.deviceId, page: Math.max(0, Math.floor(first / current.pageSize)), scrollTop: 0, focusKey: first >= 0 ? sourceKey(sorted[first]) : 'search' }));
+    const added = new Set(rows.map(sourceKey));
+    setPicker(current => {
+      const sorted = union.filter(row => row.device_id === result.request.deviceId).sort((a, b) => comparePickerRows(a, b, current.sort));
+      const first = sorted.findIndex(row => added.has(sourceKey(row)));
+      return { ...current, query: '', pointType: 'all', deviceId: result.request.deviceId, page: Math.max(0, Math.floor(first / current.pageSize)), scrollTop: 0, focusKey: first >= 0 ? sourceKey(sorted[first]) : 'search' };
+    });
     if (!rangeBuffer.dirty) setView('picker');
   }, [rangeBuffer.outcome, rangeBuffer.dirty, candidates, devices, discovery, onDiscovery, scope, open, view]);
   const source = (deviceId?: string) => {
@@ -148,11 +169,18 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
     if (device) startRange(device);
     else { setChoice(''); setView('device-choice'); }
   };
+  const renderName = deviceSource?.name ? (row: GroupCandidate) => <RecordingPointNameContent candidate={row} disabled={!active || (nameBuffer.value?.outcome?.status === 'unknown' || nameBuffer.dirty && !nameBuffer.value?.name.trim()) && sourceKey(nameBuffer.value!.candidate) !== sourceKey(row)}
+    controller={nameBuffer} onBegin={() => {
+      if (!active || nameBuffer.value?.outcome?.status === 'unknown') return;
+      if (nameBuffer.pending || nameBuffer.dirty) { nameIntent.current = row; if (!nameBuffer.pending && nameBuffer.value?.name.trim()) saveName(); return; }
+      nameBuffer.reset(); void nameBuffer.begin(row);
+    }} onBack={finishName} onSave={saveName} canAutoSave={() => !suppressNameBlur.current && !navigation.confirming} /> : undefined;
+  const nameLocked = Boolean(nameBuffer.pending || nameBuffer.dirty || nameBuffer.value?.outcome?.status === 'unknown');
   return <section className="recording-point-selection space-y-3" data-testid="recording-point-selection">
     <button ref={trigger} type="button" className="gw-secondary" data-testid="recording-points-open" disabled={!active}
       onClick={() => { setView('picker'); setLocatedCount(undefined); setOpen(true); if (discover) void discovery.refresh(); }}>{t('picker.open')}</button>
     {deviceBuffer.locked && (!open || view !== 'device-buffer') && <p role="status">{t('device.unresolved')}</p>}
-    {renderMembers?.({ onRemove: remove, undo: lastRemoved ? { member: lastRemoved, disabled: !active || !restored,
+    {renderMembers?.({ onRemove: remove, renderName, nameLocked, undo: lastRemoved ? { member: lastRemoved, disabled: !active || !restored,
       onUndo: () => { if (active && restored) { onChange(restored); setLastRemoved(undefined); } } } : undefined })}
     <Dialog.Root open={open} onOpenChange={value => { if (!value) { if (navigation.confirming) navigation.keep(); else close(); } }}>
       <Dialog.Portal><Dialog.Overlay className="gw-modal-overlay" />
@@ -161,7 +189,11 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
           onOpenAutoFocus={() => { ticket.current = captureReturnFocus(owner.current, trigger.current); }}
           onCloseAutoFocus={event => { event.preventDefault(); restoreReturnFocus(ticket.current, owner.current, trigger.current); }}
           onPointerDownOutside={event => event.preventDefault()}
-          onEscapeKeyDown={event => { event.preventDefault(); if (event.isComposing) return; if (navigation.confirming) { navigation.keep(); return; } if (view === 'device-buffer') { sourceClose.current?.(); return; } if (confirm) setConfirm(false); else close(); }}>
+          onEscapeKeyDown={event => { event.preventDefault(); if (event.isComposing) return; if (navigation.confirming) { navigation.keep(); return; }
+            const name = nameBuffer.value, focused = document.activeElement;
+            if (view === 'picker' && name && focused instanceof HTMLElement && focused.dataset.pickerFocus === `name:${sourceKey(name.candidate)}` &&
+              (name.outcome?.status === 'ready' || name.preparing && !name.outcome)) { nameIntent.current = undefined; nameBuffer.reset(); return; }
+            if (view === 'device-buffer') { sourceClose.current?.(); return; } if (confirm) setConfirm(false); else close(); }}>
           {navigation.confirmation ?? <header className="gw-modal-header"><Dialog.Title>{t(confirm || deviceConfirm ? 'device.discardTitle' : view === 'picker' ? 'picker.title' : view === 'range-buffer' ? 'range.title' : 'source.title')}</Dialog.Title>
             <Dialog.Description>{t(confirm || deviceConfirm ? 'device.discardDescription' : view === 'range-buffer' ? 'range.description' : 'picker.description')}</Dialog.Description></header>}
           <div style={{ display: navigation.confirming ? 'none' : 'contents' }}>
@@ -171,15 +203,7 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
           </footer></> : <>
             {view === 'picker' && <div className="gw-modal-body recording-picker-panel">{locatedCount !== undefined && <p role="status" data-testid="recording-range-located">{t('range.located', { count: locatedCount })}</p>}{rangeBuffer.recoverable && rangeBuffer.canResume() && <button type="button" data-testid="recording-range-resume" onClick={() => { if (rangeBuffer.resume()) setView('range-buffer'); }}>{t('range.resume')}</button>}{rangeBuffer.inactiveSources.map(item => <button key={item.request.requestId} type="button" data-testid={`recording-range-recover-${item.request.requestId}`} disabled={!rangeBuffer.canResume(item.request.requestId)} onClick={() => { sourceIntent.current += 1; if (rangeBuffer.resume(item.request.requestId)) setView('range-buffer'); }}>{t('range.resume')} · {devices.find(device => device.id === item.request.deviceId)?.name ?? item.request.deviceId} · {item.request.buffer.name} · {item.request.buffer.start_address}</button>)}{deviceBuffer.recoverable && <button type="button" data-testid="recording-source-resume" onClick={() => { if (deviceBuffer.resume()) { setDeviceMounted(true); setView('device-buffer'); } }}>{t('device.inspect')}</button>}<RecordingPointPicker state={picker} projection={projection} devices={devices}
               status={active ? pickerStatus : 'failed'} labels={recordingPickerLabels(t)} onChange={setPicker} onCancel={close} onRetry={discover ? () => { void discovery.refresh(); } : onRetry ?? (() => undefined)}
-              nameLocked={nameBuffer.pending || nameBuffer.dirty || nameBuffer.value?.outcome?.status === 'unknown'} nameNotice={deviceSource?.name ? t('name.shared') : undefined}
-              renderName={deviceSource?.name ? row => <RecordingPointNameContent candidate={row} disabled={!active || ((nameBuffer.pending || nameBuffer.dirty || nameBuffer.value?.outcome?.status === 'unknown') && sourceKey(nameBuffer.value!.candidate) !== sourceKey(row))}
-                controller={nameBuffer} onBegin={() => { if (active && !nameBuffer.pending && !nameBuffer.dirty && nameBuffer.value?.outcome?.status !== 'unknown') { nameBuffer.reset(); void nameBuffer.begin(row); } }}
-                onBack={() => nameBuffer.reset()} onSave={() => { if (!active) return; void nameBuffer.save().then(saved => {
-                  if (!saved || !active) return;
-                  const rows = candidates.map(value => sourceKey(value) === sourceKey(saved) ? saved : value);
-                  setRenamedCandidates(current => ({ scope, afterRequest: discovery.currentRequest(), supplied: suppliedCandidates, rows: [...(current?.scope === scope ? current.rows.filter(value => sourceKey(value) !== sourceKey(saved)) : []), saved] }));
-                  onDiscovery?.({ scope, value: { candidates: rows, devices } }); nameBuffer.reset(); if (discover) void discovery.refresh();
-                }); }} /> : undefined}
+              nameLocked={nameLocked} nameNotice={deviceSource?.name ? t('name.shared') : undefined} renderName={renderName}
               onAdd={identities => { const next = addRecordingMembers(members, history, identities, projection); if (active && next) { onChange(next); setPicker(cancelPicker(picker)); setOpen(false); } }} onSource={source} /></div>}
             {view === 'device-choice' && <><div className="gw-modal-body space-y-4">
               {choice && !rangeBuffer.canStart(choice) && <><p role="status" data-testid="recording-range-other-pending">{t('range.otherPending')}</p>

@@ -28,9 +28,9 @@
     "point_format_unknown": "無法確認操作結果，請查證原操作，勿重複儲存。"
   },
   "editor": {
-    "title": "點位字序",
+    "title": "點位字序", "currentShort": "目前", "notApplicableShort": "不適用", "inheritShort": "預設", "legacyShort": "原設定", "saveShort": "儲存", "saveNarrow": "存",
     "native": "協議原生組合",
-    "notApplicable": "此點位不支援多字組覆寫；保留既有協議解碼方式。",
+    "notApplicable": "此點位的型別或位址不支援多字字序覆寫。例如 int16 只使用一個 16 位元字，無需排列多個字；維持原協議解碼。",
     "order": "字序",
     "reset": "重設為來源預設",
     "save": "儲存字序",

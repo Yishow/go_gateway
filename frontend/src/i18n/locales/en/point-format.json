@@ -28,9 +28,9 @@
     "point_format_unknown": "The result could not be verified. Check the original operation; do not repeat the save."
   },
   "editor": {
-    "title": "Point word order",
+    "title": "Point word order", "currentShort": "Current", "notApplicableShort": "Not applicable", "inheritShort": "Default", "legacyShort": "Existing", "saveShort": "Save", "saveNarrow": "Save",
     "native": "Native assembly",
-    "notApplicable": "Multiword overrides are not available for this point. Existing protocol decoding is preserved.",
+    "notApplicable": "This point's type or address does not support multiword overrides. For example, int16 uses one 16-bit word, so there are no multiple words to reorder. Existing protocol decoding is preserved.",
     "order": "Word order",
     "reset": "Reset to source default",
     "save": "Save word order",

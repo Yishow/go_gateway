@@ -4,6 +4,7 @@ import type { GroupCandidate } from '../state/writeGroup/candidates';
 
 export type SourceIdentity = Pick<WriteGroupMemberDraft, 'device_id' | 'point_id' | 'tag_id'>;
 export type PointFilter = 'all' | 'gauge' | 'counter' | 'state';
+export type PickerSortKey = 'label' | 'device_name' | 'address' | 'target_type';
 export interface CandidateEvidence {
   /** Caller-owned validation; candidate IDs alone are NOT revision/CAS proof. */
   availability: 'eligible' | 'invalid' | 'stale' | 'unknown';
@@ -15,6 +16,7 @@ export interface PickerState {
   query: string;
   deviceId: string;
   pointType: PointFilter;
+  sort: { key: PickerSortKey; direction: 'ascending' | 'descending' };
   page: number;
   pageSize: 25 | 50;
   pending: readonly SourceIdentity[];
@@ -31,10 +33,35 @@ export function sourceKey(source: SourceIdentity): string {
   return JSON.stringify([source.device_id, source.point_id, source.tag_id]);
 }
 export function createPicker(scope: string): PickerState {
-  return { scope, query: '', deviceId: '', pointType: 'all', page: 0, pageSize: 25, pending: [], scrollTop: 0, focusKey: '' };
+  return { scope, query: '', deviceId: '', pointType: 'all', sort: { key: 'address', direction: 'ascending' }, page: 0, pageSize: 25, pending: [], scrollTop: 0, focusKey: '' };
 }
 export function filterPicker(state: PickerState, patch: Partial<Pick<PickerState, 'query' | 'deviceId' | 'pointType' | 'pageSize'>>): PickerState {
   return { ...state, ...patch, page: 0, scrollTop: 0 };
+}
+export function sortPicker(state: PickerState, key: PickerSortKey): PickerState {
+  const direction = state.sort.key === key && state.sort.direction === 'ascending' ? 'descending' : 'ascending';
+  return { ...state, sort: { key, direction }, page: 0, scrollTop: 0 };
+}
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+function addressParts(value: string) {
+  const raw = value.trim().toUpperCase();
+  const hex = /^([WB])([0-9A-F]+)$/.exec(raw);
+  const decimal = hex ? null : /^([A-Z]*)([0-9]+)$/.exec(raw);
+  const match = hex ?? decimal;
+  const offset = match ? Number.parseInt(match[2], hex ? 16 : 10) : undefined;
+  return { raw, area: match?.[1] ?? raw, offset: offset !== undefined && Number.isSafeInteger(offset) ? offset : undefined };
+}
+export function comparePointAddresses(left: string, right: string): number {
+  const a = addressParts(left), b = addressParts(right);
+  const area = collator.compare(a.area, b.area);
+  if (area) return area;
+  if (a.offset !== undefined && b.offset !== undefined) return a.offset - b.offset || collator.compare(a.raw, b.raw);
+  if (a.offset !== undefined || b.offset !== undefined) return a.offset !== undefined ? -1 : 1;
+  return collator.compare(a.raw, b.raw);
+}
+export function comparePickerRows(a: GroupCandidate, b: GroupCandidate, { key, direction }: PickerState['sort']): number {
+  const order = key === 'address' ? comparePointAddresses(a.address, b.address) : collator.compare(a[key], b[key]);
+  return (direction === 'ascending' ? order : -order) || (sourceKey(a) < sourceKey(b) ? -1 : sourceKey(a) > sourceKey(b) ? 1 : 0);
 }
 function eligible(source: SourceIdentity, projection: PickerProjection): boolean {
   const key = sourceKey(source);
@@ -63,7 +90,7 @@ export function pickerResults(state: PickerState, projection: PickerProjection) 
       state.pointType === 'counter' && semantic === 'signed_counter';
     return (!state.deviceId || row.device_id === state.deviceId) && typeMatches &&
       (!query || [row.label, row.device_name, row.address, row.tag_key].some(text => text.toLocaleLowerCase().includes(query)));
-  }).sort((a, b) => sourceKey(a) < sourceKey(b) ? -1 : sourceKey(a) > sourceKey(b) ? 1 : 0) : [];
+  }).sort((a, b) => comparePickerRows(a, b, state.sort)) : [];
   const pages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
   const page = Math.max(0, Math.min(Math.floor(state.page) || 0, pages - 1));
   const rows = filtered.slice(page * state.pageSize, (page + 1) * state.pageSize);

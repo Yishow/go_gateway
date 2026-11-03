@@ -1,12 +1,12 @@
 import { useId, useLayoutEffect, useRef, type ReactNode } from 'react';
-import { cancelPicker, filterPicker, pendingAddition, pickerResults, sourceKey, togglePending } from './recordingPickerState';
+import { cancelPicker, filterPicker, pendingAddition, pickerResults, sortPicker, sourceKey, togglePending } from './recordingPickerState';
 import './recordingPointPicker.css';
 import type { Device } from '../state/types';
-import type { PickerProjection, PickerState, PointFilter, SourceIdentity } from './recordingPickerState';
+import type { PickerProjection, PickerSortKey, PickerState, PointFilter, SourceIdentity } from './recordingPickerState';
 export interface PickerLabels {
   title: string; search: string; device: string; pointType: string; allDevices: string; allTypes: string;
   types: Record<Exclude<PointFilter, 'all'>, string>; unknownType: string; dataType: string; meaningUnknown: string; rename: string;
-  point: string; address: string; alreadyAdded: string; unavailable: string; cancel: string;
+  point: string; address: string; alreadyAdded: string; horizontalHint: string; unavailable: string; cancel: string;
   loading: string; failed: string; retry: string; empty: string; noMatches: string; clearFilters: string;
   newSource: string; invalidPending: string; previous: string; next: string; pageSize: string;
   matching: (count: number, added: number) => string;
@@ -56,8 +56,9 @@ export function RecordingPointPicker({ state, projection, devices, status, label
     const key = (event.target as HTMLElement).dataset.pickerFocus;
     if (key && key !== state.focusKey) onChange({ ...state, focusKey: key });
   }} onKeyDown={event => {
-    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (!event.nativeEvent.isComposing) cancel('escape'); }
+    if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); event.stopPropagation(); if (!event.nativeEvent.isComposing) cancel('escape'); }
   }}>
+    <span hidden id={`${id}-already-added`}>{labels.alreadyAdded}</span>
     <div className="recording-point-picker__toolbar">
       <label className="recording-point-picker__search" htmlFor={`${id}-search`}>{labels.search}
         <input data-picker-focus="search" id={`${id}-search`} disabled={nameLocked} type="search" value={state.query} onChange={event => patch({ query: event.target.value })} />
@@ -86,11 +87,18 @@ export function RecordingPointPicker({ state, projection, devices, status, label
         {nameNotice && <p className="recording-point-picker__meaning-note">{nameNotice}</p>}
         <p aria-live="polite">{labels.matching(result.total, result.added)}</p>
         {result.rows.some(row => !projection.evidence[sourceKey(row)]?.semantic) && <p className="recording-point-picker__meaning-note">{labels.meaningUnknown}</p>}
+        {result.total > 0 && <p className="recording-point-picker__horizontal-hint">{labels.horizontalHint}</p>}
         {result.total === 0 ? <div>
           <p>{narrowed ? labels.noMatches : labels.empty}</p>
           {narrowed && <button type="button" onClick={() => patch({ query: '', pointType: 'all' })}>{labels.clearFilters}</button>}
         </div> : <table>
-          <thead><tr><th scope="col">{labels.point}</th><th scope="col">{labels.device}</th><th scope="col">{labels.address}</th><th scope="col">{labels.dataType}</th></tr></thead>
+          <thead><tr>{([
+            ['label', labels.point], ['device_name', labels.device], ['address', labels.address], ['target_type', labels.dataType],
+          ] as const satisfies readonly (readonly [PickerSortKey, string])[]).map(([key, label]) => <th key={key} scope="col" aria-sort={state.sort.key === key ? state.sort.direction : undefined}>
+            <button type="button" className="recording-point-picker__sort" data-picker-focus={`sort:${key}`} disabled={nameLocked} onClick={() => onChange(sortPicker(state, key))}>
+              {label}<span aria-hidden="true">{state.sort.key === key ? state.sort.direction === 'ascending' ? '▲' : '▼' : '↕'}</span>
+            </button>
+          </th>)}</tr></thead>
           <tbody>{result.rows.map(row => {
             const key = sourceKey(row), added = members.has(key), evidence = projection.evidence[key];
             const semantic = evidence?.semantic;
@@ -98,9 +106,9 @@ export function RecordingPointPicker({ state, projection, devices, status, label
             const typeLabel = meaning === 'gauge' || meaning === 'counter' || meaning === 'state' ? labels.types[meaning] : undefined;
             const unavailable = evidence?.availability !== 'eligible';
             return <tr key={key}>
-              <td><div className="recording-point-picker__identity" data-inline-name={Boolean(renderName)}><label className="recording-point-picker__point"><input data-picker-focus={key} type="checkbox" aria-label={row.label} checked={added || pending.has(key)} disabled={added || unavailable && !pending.has(key)}
+              <td><div className="recording-point-picker__identity" data-inline-name={Boolean(renderName)}><label className="recording-point-picker__point"><input data-picker-focus={key} type="checkbox" aria-label={row.label} aria-describedby={added ? `${id}-already-added` : undefined} checked={added || pending.has(key)} disabled={added || unavailable && !pending.has(key)}
                 onChange={() => onChange(togglePending(state, row, projection))} />{!renderName && <span>{row.label}</span>}</label>{renderName?.(row)}
-                {!renderName && onRename && <button type="button" className="recording-point-picker__rename" data-picker-focus={`name:${key}`} aria-label={`${labels.rename} ${row.label}`} disabled={unavailable} onClick={() => onRename(row)}>{labels.rename}</button>}{added && <small className="recording-point-picker__added">{labels.alreadyAdded}</small>}</div>
+                {!renderName && onRename && <button type="button" className="recording-point-picker__rename" data-picker-focus={`name:${key}`} aria-label={`${labels.rename} ${row.label}`} disabled={unavailable} onClick={() => onRename(row)}>{labels.rename}</button>}</div>
                 {!added && unavailable && <small>{evidence?.reason || labels.unavailable}</small>}</td>
               <td>{row.device_name}</td><td className="recording-point-picker__address">{row.address}</td><td>{row.target_type}{typeLabel && <small>{typeLabel}</small>}</td>
             </tr>;

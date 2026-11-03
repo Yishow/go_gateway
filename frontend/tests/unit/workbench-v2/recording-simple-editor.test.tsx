@@ -262,12 +262,10 @@ it.each([
   for (const member of group.members) {
     const row = screen.getByTestId(`group-member-row-${member.point_id}`);
     expect(row).toHaveAttribute('data-problem', proposal ? 'column-missing' : '');
-    const column = screen.getByTestId(`group-member-column-${member.point_id}`);
     if (presentation === 'simple' && storage === 'managed') {
-      expect(column).toHaveTextContent('compact.systemManaged');
-      expect(column.matches('input, select')).toBe(false);
-      expect(within(row).getByText(member.target_column, { selector: 'code' })).toBeInTheDocument();
-    } else expect(column).toHaveAttribute('aria-invalid', String(proposal));
+      expect(screen.queryByTestId(`group-member-column-${member.point_id}`)).not.toBeInTheDocument();
+      expect(within(row).queryByText(member.target_column, { selector: 'code' })).not.toBeInTheDocument();
+    } else expect(screen.getByTestId(`group-member-column-${member.point_id}`)).toHaveAttribute('aria-invalid', String(proposal));
     if (proposal) expect(within(row).getByRole('alert')).toHaveTextContent('problem_column_missing');
     else expect(within(row).queryByRole('alert')).not.toBeInTheDocument();
   }
@@ -275,12 +273,10 @@ it.each([
   view.update({});
   const firstRow = screen.getByTestId('group-member-row-pt-0');
   expect(firstRow).toHaveAttribute('data-problem', proposal ? 'column-incompatible' : '');
-  const firstColumn = screen.getByTestId('group-member-column-pt-0');
   if (presentation === 'simple' && storage === 'managed') {
-    expect(firstColumn).toHaveTextContent('compact.systemManaged');
-    expect(firstColumn.matches('input, select')).toBe(false);
-    expect(within(firstRow).getByText('v_saved_0', { selector: 'code' })).toBeInTheDocument();
-  } else expect(firstColumn).toHaveAttribute('aria-invalid', String(proposal));
+    expect(screen.queryByTestId('group-member-column-pt-0')).not.toBeInTheDocument();
+    expect(within(firstRow).queryByText('v_saved_0', { selector: 'code' })).not.toBeInTheDocument();
+  } else expect(screen.getByTestId('group-member-column-pt-0')).toHaveAttribute('aria-invalid', String(proposal));
   if (proposal) expect(within(firstRow).getByRole('alert')).toHaveTextContent('problem_column_incompatible');
   else expect(within(firstRow).queryByRole('alert')).not.toBeInTheDocument();
   if (presentation === 'simple') expect(screen.getByTestId('recording-editor-summary')).not.toHaveTextContent('problem_column');

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { resolveGatewayUiVersion } from '../features/gateway/uiVersion';
 import { VITE_API_BASE_URL } from '../env';
 import type { APIResponse } from '../types/datalink';
-import type { SourceRuleCandidateSnapshotView } from '../types/sourceRuleCandidates';
+import type { SourceRuleCandidateSnapshotView, SourceRuleTagSnapshotView } from '../types/sourceRuleCandidates';
 
 const api = axios.create({
   baseURL: `${VITE_API_BASE_URL}/datalink`,
@@ -34,6 +34,10 @@ api.interceptors.response.use(
 );
 
 export const sourceRuleCandidateAPI = {
+  async getTags(ruleId: string, scope: SourceRuleCandidateScope): Promise<SourceRuleTagSnapshotView> {
+    const res = await api.get<APIResponse<SourceRuleTagSnapshotView>>(`/source-rules/${ruleId}/candidates`, { params: { ...scope, view: 'tags' } });
+    return res.data.data!;
+  },
   async get(ruleId: string, scope?: SourceRuleCandidateScope): Promise<SourceRuleCandidateSnapshotView> {
     const res = await api.get<APIResponse<SourceRuleCandidateSnapshotView>>(
       `/source-rules/${ruleId}/candidates`,

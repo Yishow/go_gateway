@@ -1,7 +1,9 @@
 import * as React from 'react';
 import { useQueries } from '@tanstack/react-query';
 import type { SourceRuleRecord } from '../../../types/datalink';
+import type { StudioLocatorEntryRead } from '../../../types/studioV2LocatorEntry';
 import type { StudioV2WorkspaceDeviceRecord } from '../../../services/studioV2WorkspaceDevices';
+import type { Rule } from '../../../features/datalink/workbench-v2/state/types';
 import { sourceRuleCandidateAPI } from '../../../services/sourceRuleCandidates';
 import {
   buildPersistedMCRuleState,
@@ -24,6 +26,31 @@ interface LocalPersistedMCRule {
   device_id: string;
   persisted?: boolean;
   revision_id?: string;
+}
+
+/** Project evidence for the locator editor without treating a server read as a user draft. */
+export function locatorMCDisplayRules(rules: readonly Rule[], evidence: Readonly<Record<string, PersistedMCRuleState>>): Rule[] {
+  return rules.map(rule => {
+    const proof = evidence[rule.id];
+    if (!proof) return rule;
+    return { ...rule, mc_persisted_points: !proof.scope || proof.scope.revision_id === rule.revision_id ? proof : undefined };
+  });
+}
+
+/** Keep locator reads immutable; only this editor's validated save may replace its original rule. */
+export function locatorMCSourceRules(entry: StudioLocatorEntryRead | undefined, acknowledged?: SourceRuleRecord): readonly SourceRuleRecord[] | undefined {
+  const rules = entry?.entry.source_rules;
+  if (!rules || !acknowledged) return rules;
+  return rules.map(rule => rule.id === acknowledged.id && rule.device_id === acknowledged.device_id ? acknowledged : rule);
+}
+
+/** Identifies the exact scoped MC evidence that authorizes a locator rule save. */
+export function locatorMCRuleAuthority(entry: StudioLocatorEntryRead | undefined, evidence: Readonly<Record<string, PersistedMCRuleState>>) {
+  if (!entry || entry.selection.state !== 'selected' || entry.locator.step !== 2 || !entry.locator.rule_id || !entry.locator.device_id ||
+      !entry.entry.devices?.some(device => device.id === entry.locator.device_id && device.protocol === 'mc_3e')) return;
+  const ruleId = entry.locator.rule_id, proof = evidence[ruleId];
+  return { ruleId, key: JSON.stringify([entry.workspace.id, entry.locator.device_id, ruleId, entry.entry.rule_heads[ruleId],
+    proof?.status ?? null, proof?.scope ?? null, proof?.points ?? null]) };
 }
 
 function evidenceSignature(evidenceByRule: Readonly<Record<string, PersistedMCRuleState>>): string {
@@ -65,7 +92,7 @@ export function useStudioV2PersistedMCPoints(
         workspaceScope?.workspace_revision ?? '',
         rule.revision_id,
       ],
-      queryFn: () => sourceRuleCandidateAPI.get(rule.id, {
+      queryFn: () => sourceRuleCandidateAPI.getTags(rule.id, {
         workspace_id: workspaceScope!.workspace_id,
         expected_workspace_revision: workspaceScope!.workspace_revision,
         revision_id: rule.revision_id,

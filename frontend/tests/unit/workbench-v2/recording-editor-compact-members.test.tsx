@@ -13,9 +13,9 @@ function props() {
   return { presentation: 'simple' as const, managed: true, candidates, members, columns: members.map((member) => ({ name: member.target_column, type: 'DOUBLE PRECISION', primary_key: false, nullable: true })), metadataStatus: 'exists' as const, suggestions: { assignments: {}, unmatched: [] }, issues: [], showEntityKey: false, disabled: false, onChange: vi.fn(), onRemove: vi.fn(), renderCalculation: (member: EditorMember, tableCells = false) => tableCells ? <><td>Calculation {member.point_id}</td><td>Cadence {member.point_id}</td></> : <span>Calculation {member.point_id}</span>, labels: { remove: (member: EditorMember) => `Remove ${member.point_id}`, unavailable: 'Unavailable', undo: 'Undo' } };
 }
 describe('simple managed selected points use compact recording rows', () => {
-  it('groups two exact selected points into the five recording columns without legacy inclusion or mapping headers', () => {
+  it('keeps two exact selected points in separate source and calculation columns', () => {
     const value = props(); render(<RecordingSelectedMembers {...value} />);
-    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['compact.point', 'compact.address', 'compact.calculation', 'compact.interval', 'compact.actions']);
+    expect(screen.getAllByRole('columnheader').map(header => header.getAttribute('data-column'))).toEqual(['device', 'pointOnly', 'addressOnly', 'wordOrder', 'dataType', 'calculation', 'interval', 'actions']);
     for (const candidate of candidates) {
       const row = screen.getByTestId(`group-member-row-${candidate.point_id}`);
       expect(within(row).getByText(candidate.label)).toBeVisible();
@@ -23,32 +23,29 @@ describe('simple managed selected points use compact recording rows', () => {
       expect(within(row).getByText(`Calculation ${candidate.point_id}`)).toBeVisible();
       expect(screen.queryByTestId(`group-member-include-${candidate.point_id}`)).not.toBeInTheDocument();
     }
-    const remove = within(screen.getByTestId('group-member-row-P2')).getByRole('button');
+    const remove = within(screen.getByTestId('group-member-row-P2')).getByRole('button', { name: 'Point P2 · Remove P2' });
     expect(remove).toHaveTextContent('compact.remove'); expect(remove).not.toHaveTextContent('P2');
     expect(remove).toHaveAccessibleName('Point P2 · Remove P2');
     fireEvent.click(remove);
     expect(value.onRemove).toHaveBeenCalledExactlyOnceWith(members[1]); expect(value.onChange).not.toHaveBeenCalled();
   });
-  it('keeps real issues visible outside secondary settings and preserves the exact update owner', () => {
+  it('keeps real issues and editable requirements visible and preserves the exact update owner', () => {
     const value = props(); render(<RecordingSelectedMembers {...value} members={[{ ...members[0], target_column: 'missing' }]} />);
     const problem = screen.getByTestId('group-member-problem-P1');
     expect(problem).toBeVisible(); expect(problem.closest('details')).toBeNull();
-    const settings = screen.getByTestId('group-member-settings-P1');
-    expect(within(settings).getByText('compact.settings')).toBeVisible();
-    fireEvent.click(within(settings).getByText('compact.settings'));
-    expect(screen.getByTestId('group-member-column-P1')).toHaveTextContent('compact.systemManaged');
-    expect(within(settings).getByText('missing')).toBeVisible();
-    expect(within(settings).queryByRole('combobox')).not.toBeInTheDocument();
-    fireEvent.click(within(settings).getByRole('checkbox'));
+    const row = screen.getByTestId('group-member-row-P1');
+    expect(within(row).queryByTestId('group-member-settings-P1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('group-member-column-P1')).not.toBeInTheDocument();
+    expect(within(row).queryByRole('combobox')).not.toBeInTheDocument();
+    fireEvent.click(within(row).getByRole('button', { name: 'step4.group.members.required_label' }));
     expect(value.onChange).toHaveBeenCalledExactlyOnceWith([{ ...members[0], target_column: 'missing', required: false }]);
   });
   it('keeps required settings and disabled removal rather than turning removal into disable', () => {
     const value = props(); render(<RecordingSelectedMembers {...value} disabled />);
     expect(screen.getByRole('button', { name: 'Point P1 · Remove P1' })).toBeDisabled();
-    const settings = screen.getByTestId('group-member-settings-P1');
-    fireEvent.click(within(settings).getByText('compact.settings'));
-    expect(within(settings).getByRole('checkbox')).toBeChecked();
-    expect(within(settings).getByRole('checkbox')).toBeDisabled();
+    const row = screen.getByTestId('group-member-row-P1');
+    expect(within(row).getByRole('button', { name: 'step4.group.members.required_label' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(row).getByRole('button', { name: 'step4.group.members.required_label' })).toBeDisabled();
     expect(value.onChange).not.toHaveBeenCalled();
   });
   it.each([{ presentation: 'guided' as const, managed: true }, { presentation: 'simple' as const, managed: false }])('retains legacy mapping for $presentation managed=$managed', (mode) => {
@@ -74,9 +71,9 @@ it('keeps the original help target outside compact mode and reuses the same comp
 
 it('shows saved legacy rows in the same simple panel without inventing per-point calculations', () => {
   render(<RecordingSelectedMembers {...props()} renderCalculation={undefined} />);
-  expect(screen.getByRole('columnheader', { name: 'compact.point' })).toBeVisible();
+  expect(screen.getByRole('columnheader', { name: 'compact.pointOnly' })).toBeVisible();
   expect(screen.queryByText('compact.groupRule')).not.toBeInTheDocument();
-  expect(screen.getAllByRole('columnheader')).toHaveLength(3);
+  expect(screen.getAllByRole('columnheader')).toHaveLength(6);
   expect(screen.queryByText('compact.groupCadence')).not.toBeInTheDocument();
   expect(screen.queryByRole('columnheader', { name: /step4.group.members.col_column/ })).not.toBeInTheDocument();
   expect(screen.queryByText('calculation.unavailable')).not.toBeInTheDocument();
@@ -102,28 +99,28 @@ it.each(['name', 'all'] as const)('keeps the original name owner and scopes inli
   expect(draft.name).toBe('Original recording');
 });
 
-it('keeps all 32 saved legacy identities and managed bindings without exposing a fake editable hash', () => {
+it('keeps all 32 saved legacy identities without exposing managed column hashes', () => {
   const value = props();
   const source = Array.from({ length: 32 }, (_, i) => ({ ...candidates[0], key: `P${i}|T${i}`, point_id: `P${i}`, tag_id: `T${i}`, label: `Point ${i}` }));
   const rows = source.map((point, i) => ({ ...members[0], ...point, target_column: `v_${i.toString(16).padStart(24, '0')}` }));
   render(<RecordingSelectedMembers {...value} candidates={source} members={rows} renderCalculation={undefined} />);
   expect(screen.queryByText('compact.groupRule')).not.toBeInTheDocument();
-  expect(screen.getAllByRole('columnheader')).toHaveLength(3);
+  expect(screen.getAllByRole('columnheader')).toHaveLength(6);
   expect(screen.queryByText('compact.groupCadence')).not.toBeInTheDocument();
   expect(screen.getAllByRole('row')).toHaveLength(33);
   for (const row of rows) expect(screen.getByTestId(`group-member-row-${row.point_id}`)).toHaveTextContent(row.label);
   const region = screen.getByRole('region', { name: 'step4.group.members.region' });
   expect(region).toHaveAttribute('tabindex', '0'); expect(region).toHaveClass('recording-selected-table-scroll');
   expect(within(region).getAllByRole('row')).toHaveLength(33);
-  const settings = screen.getByTestId('group-member-settings-P0'); fireEvent.click(within(settings).getByText('compact.settings'));
-  expect(within(settings).getByText(rows[0].target_column)).toBeVisible();
-  expect(within(settings).queryByRole('combobox')).not.toBeInTheDocument();
+  const row = screen.getByTestId('group-member-row-P0');
+  expect(within(row).queryByText(rows[0].target_column)).not.toBeInTheDocument();
+  expect(screen.queryByTestId('group-member-column-P0')).not.toBeInTheDocument();
+  expect(within(row).queryByRole('combobox')).not.toBeInTheDocument();
   expect(value.onChange).not.toHaveBeenCalled();
 });
 
 it('uses meaningful selected-point search and metadata impact without implementation reassurance', () => {
   render(<RecordingSelectedMembers {...props()} metadataStatus="failed" />);
-  fireEvent.click(screen.getByText(/compact\.filterSelected/, { selector: 'summary' }));
   expect(screen.getByLabelText('compact.search')).toHaveValue('');
   expect(screen.getByTestId('group-member-metadata-note')).toHaveTextContent('compact.metadataFailed');
   expect(screen.getByTestId('group-member-metadata-note')).not.toHaveTextContent('step4.group.members.metadata_failed');
@@ -148,4 +145,16 @@ it.each([
   expect(region.classList.contains('recording-selected-table-scroll')).toBe(mode.bounded);
   expect(within(region).getAllByRole('row')).toHaveLength(3);
   expect(value.onRemove).not.toHaveBeenCalled(); expect(value.onChange).not.toHaveBeenCalled();
+});
+
+
+it('shows the selected-point filters immediately and filters without changing membership', () => {
+  const value = props(); render(<RecordingSelectedMembers {...value} renderCalculation={undefined} />);
+  const search = screen.getByRole('searchbox', { name: 'compact.search' });
+  expect(search).toBeVisible();
+  expect(search).toHaveAttribute('placeholder', 'compact.searchPlaceholder');
+  fireEvent.change(search, { target: { value: '40003' } });
+  expect(screen.queryByTestId('group-member-row-P1')).not.toBeInTheDocument();
+  expect(screen.getByTestId('group-member-row-P2')).toBeVisible();
+  expect(value.onChange).not.toHaveBeenCalled(); expect(value.onRemove).not.toHaveBeenCalled();
 });

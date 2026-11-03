@@ -203,9 +203,9 @@
   "point": {
     "order": {
       "title": "Per-point decoding order",
-      "what": "Overrides or inherits byte/word order on this canonical source point.",
-      "how": "Only available choices apply to this data width. Reset means inherit; saving affects every recording using the point.",
-      "example": "A 32-bit point may use CDAB while another point keeps its inherited order."
+      "what": "Word order controls how bytes and words form a multiword value; this setting belongs to the shared source point.",
+      "how": "For supported multiword points, choose the source default or an override and save it. The change affects recordings using this point; saving does not mean it has been applied to active collection.",
+      "example": "An int16 uses one 16-bit word and keeps native decoding; a 32-bit point can specify CDAB."
     }
   },
   "record": {
@@ -266,10 +266,10 @@
       "example": "Exclude an unused point without changing its PLC definition."
     },
     "required": {
-      "title": "Required source",
-      "what": "Controls row completeness when this source is missing.",
-      "how": "Required-source failures and skip policies remain inline. Optional NULL retains its reason; zero is a real value.",
-      "example": "An optional unavailable value may be NULL, not fabricated 0."
+      "title": "Required point",
+      "what": "When enabled, this point is a required source for this recording. It does not change the device or other recordings.",
+      "how": "When a due point has no valid data, the recording format and missing-data policy may skip the output. Optional points still follow that policy and do not guarantee a write. Save the recording settings to apply a change.",
+      "example": "If required temperature data is missing, a skip policy may omit the record. When partial writes are supported, an optional missing value can retain NULL and a reason, rather than an invented zero."
     },
     "targetColumn": {
       "title": "Destination column",

@@ -79,7 +79,7 @@
     "previous": "上一頁",
     "next": "下一頁",
     "pageSize": "每頁筆數",
-    "matching": "符合 {{count}} 點 · {{added}} 點已在此記錄",
+    "matching": "符合 {{count}} 點 · {{added}} 點已加入",
     "pending": "待加入 {{count}} 點",
     "hidden": "另有 {{count}} 個已選點位不在目前頁面或篩選中",
     "add": "加入 {{count}} 點",
@@ -87,7 +87,7 @@
     "removePending": "移除失效選取 {{point}}",
     "removeMember": "移除 {{point}}",
     "undo": "復原上次移除",
-    "dataType": "資料型別",
+    "dataType": "資料型別", "horizontalHint": "左右滑動查看位址與資料型別",
     "meaningUnknown": "部分點位尚未設定量測用途；加入不代表已確認可平均或計算差值。"
   },
   "source": {
@@ -381,7 +381,7 @@
     "destinationHint": "設定這組記錄存在哪裡。保存、檢查結構與開始是分開的動作。",
     "calculationColumn": "記錄數值／間隔",
     "technical": "已保存識別與版本",
-    "legacySourcesHint": "選擇要記錄的點位；記錄方式與週期列在右側摘要。",
+    "legacySourcesHint": "選擇要記錄的點位；記錄方式與週期列在摘要。",
     "columnsAssignedOnSave": "儲存後由系統配置欄位對應，再檢查並確認資料表結構。",
     "pendingColumn": "儲存後配置",
     "sections": "本頁設定區段",
@@ -436,9 +436,9 @@
     "stale": "所選目的地已變更或無法使用，請重新確認並選擇後再保存。",
     "refresh": "重新確認已保存目的地"
   },
-  "compact": {
+  "compact": { "required": "必要", "optional": "非必要", "requiredInfo": "必要點說明", "orderInfo": "字序說明", "requiredHelp": "必要點缺少有效資料時，可能依記錄設定略過該筆輸出。", "horizontalHint": "左右滑動查看其餘欄位", "pointOnly": "點位", "device": "設備", "wordOrder": "點位字序", "addressOnly": "位址", "dataType": "型別",
     "formatUnknown": "字序設定尚未確認",
-    "metadataFailed": "無法讀取資料表欄位，目前無法確認這些點位的儲存欄位。",
+    "metadataFailed": "無法讀取資料表欄位，目前無法確認這些點位的儲存欄位。", "destinationMetadata": {"not_checked": "目的資料表尚未檢查。", "checking": "正在檢查目的資料表…", "missing": "找不到目的資料表；請在此處檢查與準備。", "forbidden": "目前連線無法讀取目的資料表，請檢查權限後重試。", "failed": "無法確認目的資料表。請檢查目的地連線與設定後重試；仍可調整點位。"},
     "selectedScope": "顯示 {{shown}} / {{total}} 點",
     "search": "搜尋點位",
     "point": "點位／設備",
@@ -486,10 +486,10 @@
   "name": {
     "title": "修改點位名稱",
     "rename": "修改名稱",
-    "shared": "此名稱會同步顯示在使用此點位的記錄。",
+    "shared": "此名稱會同步顯示在使用此點位的記錄。離開欄位或按 Enter 自動儲存；按 Esc 取消尚未送出的修改。", "required": "請輸入點位名稱。",
     "label": "點位名稱",
     "save": "保存名稱",
-    "pending": "正在保存點位名稱…",
+    "pending": "正在保存點位名稱…", "loading": "正在讀取點位來源…",
     "blocked": "來源已變更或暫時無法讀取。取消這次編輯，再點名稱重新讀取。",
     "unknown": "尚未確認這次保存結果，請先讀取目前名稱，不要重複送出。",
     "inspect": "讀取目前名稱",

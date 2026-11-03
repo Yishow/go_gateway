@@ -358,3 +358,18 @@ it.each(['rejected', 'unknown'] as const)('keeps the guided locator unchanged af
   expect(new URLSearchParams(router.state.location.search).get('group_revision')).toBe('G3');
   expect(new URLSearchParams(router.state.location.search).get('view')).toBe('advanced'); expect(api.update).toHaveBeenCalledTimes(1); expect(api.create).not.toHaveBeenCalled();
 });
+
+
+it('places a failed managed-table inspection with the destination and keeps retry bound to the saved target', async () => {
+  vi.mocked(studioV2WorkspaceDatabaseAPI.getMetadata).mockRejectedValueOnce(new Error('inspection unavailable'));
+  mount(); await screen.findByTestId('group-editor');
+  const note = await screen.findByTestId('recording-destination-metadata-note');
+  expect(note).toHaveTextContent('compact.destinationMetadata.failed');
+  expect(screen.getByTestId('recording-editor-destination')).toContainElement(note);
+  expect(screen.getByTestId('recording-editor-sources').querySelector('[data-testid="group-member-metadata-note"]')).toBeNull();
+  fireEvent.click(within(note).getByRole('button', { name: 'step4.group.retry' }));
+  await waitFor(() => expect(studioV2WorkspaceDatabaseAPI.getMetadata).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(screen.queryByTestId('recording-destination-metadata-note')).not.toBeInTheDocument());
+  expect(vi.mocked(studioV2WorkspaceDatabaseAPI.getMetadata).mock.calls.at(-1)).toEqual(['saved-target-rev', { groupId: 'G', groupRevision: 'G3' }, { workspaceId: 'W', workspaceRevision: 'W2' }]);
+  noWrites();
+});

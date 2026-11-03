@@ -71,7 +71,7 @@ vi.mock('../../../src/services/datalink', () => ({
 }));
 vi.mock('../../../src/services/studioV2Workspace', () => ({ studioV2WorkspaceAPI: { get: vi.fn() } }));
 vi.mock('../../../src/services/studioV2WorkspaceDevices', () => ({ studioV2WorkspaceDevicesAPI: { list: vi.fn() } }));
-vi.mock('../../../src/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { get: vi.fn() } }));
+vi.mock('../../../src/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { getTags: vi.fn() } }));
 vi.mock('../../../src/services/studioV2Rules', () => ({ studioV2RulesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() } }));
 vi.mock('../../../src/services/studioV2Mappings', () => ({ studioV2MappingsAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() } }));
 vi.mock('../../../src/services/studioV2WorkspaceDatabase', () => ({
@@ -151,7 +151,7 @@ describe('Step 4 first activation', () => {
     vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(null);
     vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue([]);
     vi.mocked(studioV2WorkspaceAuditAPI.list).mockResolvedValue({ entries: [] });
-    vi.mocked(sourceRuleCandidateAPI.get).mockResolvedValue(persistedMCCandidateSnapshot());
+    vi.mocked(sourceRuleCandidateAPI.getTags).mockResolvedValue(persistedMCCandidateSnapshot());
     vi.mocked(studioV2WorkspaceActivationAPI.activate).mockResolvedValue({ workspace_id: 'workspace-1', results: [] });
     vi.mocked(modbusShareAPI.status).mockResolvedValue({
       workspace_id: 'workspace-1',

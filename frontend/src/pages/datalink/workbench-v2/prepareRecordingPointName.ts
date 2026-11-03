@@ -53,11 +53,14 @@ export async function prepareRecordingPointName(workspaceId: string, identity: S
     const workspace = await studioV2WorkspaceAPI.get();
     const revision = workspace.modbus_share?.workspace_revision;
     if (!current() || !rawRule || workspace.id !== workspaceId || !revision?.trim() || !workspace.ordered_device_ids.includes(identity.device_id)) return;
-    const snapshot = await sourceRuleCandidateAPI.get(rawRule.id, { workspace_id: workspaceId, expected_workspace_revision: revision, revision_id: freshRule.revision_id });
+    const snapshot = await sourceRuleCandidateAPI.getTags(rawRule.id, { workspace_id: workspaceId, expected_workspace_revision: revision, revision_id: freshRule.revision_id });
     const after = await studioV2WorkspaceAPI.get();
     if (!current() || after.id !== workspaceId || after.modbus_share?.workspace_revision !== revision || !after.ordered_device_ids.includes(identity.device_id)) return;
     mcEvidence = buildPersistedMCRuleState(rawRule, { workspace_id: workspaceId, workspace_revision: revision, revision_id: freshRule.revision_id }, snapshot);
-    if (mcEvidence.status !== 'compatible' || !mcEvidence.points.some(value => value.point_id === identity.point_id && value.mapping_id === record.id && value.tag_id === identity.tag_id && value.address === record.address)) return;
+    // Older snapshots may predate the mapping. The scoped locator and mapping
+    // list above prove its identity; any IDs present in the snapshot must agree.
+    if (mcEvidence.status !== 'compatible' || !mcEvidence.points.some(value => value.point_id === identity.point_id && value.address === record.address &&
+      (!value.mapping_id || value.mapping_id === record.id) && (!value.tag_id || value.tag_id === identity.tag_id))) return;
   }
   const live = state(), rule = live.rules.find(value => value.id === record.rule_id), device = live.devices.find(value => value.id === identity.device_id);
   if (live.rules.filter(value => value.id === record.rule_id).length > 1 || live.devices.filter(value => value.id === identity.device_id).length > 1 ||

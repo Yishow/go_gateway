@@ -13,10 +13,20 @@ export function useRecordingPointNameBuffer(scope: string, port?: RecordingPoint
     setValue({ scope, candidate, name: candidate.label, preparing: true, failed: false });
     try {
       const outcome = await port.prepare(candidate);
-      if (sequence.current !== request || current.current.scope !== captured || current.current.port !== port) return false;
-      setValue({ scope, candidate, name: outcome?.submittedName ?? outcome?.session.displayName ?? candidate.label, outcome, preparing: false, failed: !outcome });
+      if (sequence.current !== request || current.current.scope !== captured || current.current.port !== port) {
+        if (outcome?.status === 'ready') port.release(outcome.session.id);
+        return false;
+      }
+      setValue(previous => {
+        if (sequence.current !== request || current.current.port !== port || !previous || previous.scope !== captured) return previous;
+        const edited = previous.name !== candidate.label;
+        const serverName = outcome?.session.displayName ?? candidate.label;
+        const changedWhileEditing = edited && outcome?.status === 'ready' && serverName !== candidate.label;
+        return { ...previous, name: edited && (!outcome || outcome.status === 'ready' || outcome.status === 'blocked') ? previous.name : outcome?.submittedName ?? serverName,
+          outcome: changedWhileEditing ? { ...outcome!, status: 'blocked' } : outcome, preparing: false, failed: !outcome || changedWhileEditing };
+      });
       return true;
-    } catch { if (sequence.current === request && current.current.scope === captured) setValue({ scope, candidate, name: candidate.label, preparing: false, failed: true }); return false; }
+    } catch { if (sequence.current === request && current.current.scope === captured && current.current.port === port) setValue(previous => previous?.scope === captured && sequence.current === request && current.current.port === port ? { ...previous, preparing: false, failed: true } : previous); return false; }
   };
   const save = async () => {
     if (current.current.disabled || !active?.outcome || active.outcome.status !== 'ready' || !active.name.trim() || !port) return;
@@ -46,6 +56,7 @@ export function useRecordingPointNameBuffer(scope: string, port?: RecordingPoint
     } finally { cancelling.current = false; }
   };
   const reset = () => { if (active?.outcome?.status === 'pending') return; sequence.current += 1; if (active?.outcome) port?.release(active.outcome.session.id); setValue(undefined); };
-  return { value: active, begin, save, inspect, reset, discardRejected, change: (name: string) => { if (!current.current.disabled && active?.outcome?.status === 'ready') setValue({ ...active, name }); },
-    pending: active?.preparing || active?.outcome?.status === 'pending', dirty: !!active && active.outcome?.status === 'ready' && active.name !== active.outcome.session.displayName };
+  return { value: active, begin, save, inspect, reset, discardRejected, change: (name: string) => { if (!current.current.disabled && (active?.outcome?.status === 'ready' || active?.preparing && !active.outcome)) setValue({ ...active, name }); },
+    pending: active?.preparing || active?.outcome?.status === 'pending', dirty: !!active && (active.outcome?.status === 'ready' || active.outcome?.status === 'blocked'
+      ? active.name !== active.outcome.session.displayName : !active.outcome && (active.preparing || active.failed) && active.name !== active.candidate.label) };
 }

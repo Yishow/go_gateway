@@ -57,7 +57,7 @@ vi.mock('../../../src/services/studioV2WorkspaceDatabase', async () => {
   return { studioV2WorkspaceDatabaseAPI: mocks.database };
 });
 vi.mock('../../../src/services/sourceRuleCandidates', () => ({
-  sourceRuleCandidateAPI: { get: vi.fn() },
+  sourceRuleCandidateAPI: { getTags: vi.fn() },
 }));
 vi.mock('../../../src/services/datalink', () => ({
   modbusShareAPI: { status: vi.fn(), reconcile: vi.fn() },
@@ -81,7 +81,7 @@ describe('persisted MC mapping queue recovery', () => {
     vi.mocked(modbusShareAPI.status).mockImplementation(async () => ({
       workspace_id: 'workspace-1', enabled: false, port: 5020, address: '127.0.0.1', bind_state: 'disabled', mapping_count: 0, workspace_revision: workspaceRevision,
     }));
-    vi.mocked(sourceRuleCandidateAPI.get).mockImplementation(async (_ruleID, scope) => {
+    vi.mocked(sourceRuleCandidateAPI.getTags).mockImplementation(async (_ruleID, scope) => {
       if (scope?.expected_workspace_revision === 'workspace-rev-2') {
         return new Promise((resolve) => { resolveNewCandidate = resolve; });
       }

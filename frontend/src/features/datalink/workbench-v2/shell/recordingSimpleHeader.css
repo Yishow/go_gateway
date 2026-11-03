@@ -1,11 +1,20 @@
 /* Local header rhythm only; the existing revision disclosure stays in its owner and DOM position. */
-.gw-simple-recording-main .gw-simple-recording-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; margin-bottom:8px; }
-.gw-simple-recording-main .gw-simple-recording-title { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; min-width:0; }
-.gw-simple-recording-main .gw-simple-recording-title h1 { margin:0; }
-.gw-simple-recording-main .gw-simple-recording-heading button { min-height:44px; }
-.gw-simple-recording-main .recording-editor-tools { align-items:flex-start; gap:8px 16px; }
-.gw-simple-recording-main .recording-editor-tools > button { min-height:44px; flex:none; }
+.gw-simple-recording-main .gw-simple-recording-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:var(--gw-space-xs) var(--gw-space-md); margin-bottom:var(--gw-space-xs); }
+.gw-simple-recording-main .gw-simple-recording-title { display:flex; flex-wrap:wrap; align-items:center; gap:var(--gw-space-xs) var(--gw-space-md); min-width:0; }
+.gw-simple-recording-main .gw-simple-recording-title h1 { margin:0; font-size:var(--gw-typography-title-size); line-height:var(--gw-typography-title-height); }
+.gw-simple-recording-main .gw-simple-recording-heading button { min-height:var(--gw-control-mobile); padding:var(--gw-space-xs) var(--gw-space-sm); color:var(--gw-text); background:var(--gw-surface); border:1px solid var(--gw-control); border-radius:var(--gw-radius-sm); }
+.gw-simple-recording-main .gw-simple-recording-heading button:hover { background:var(--gw-ground); }
+[data-workbench-v2] .gw-simple-recording-main .gw-simple-recording-heading button:focus-visible { outline:var(--gw-focus-width) solid var(--gw-focus); outline-offset:var(--gw-focus-offset); }
+.gw-simple-recording-main .recording-editor-tools { align-items:flex-start; gap:var(--gw-space-xs) var(--gw-space-md); }
+.gw-simple-recording-main .recording-editor-tools > button { min-height:var(--gw-control-mobile); flex:none; }
 .gw-simple-recording-main .recording-editor-tools > details { min-width:0; flex:1 1 200px; }
-.gw-simple-recording-main .recording-editor-tools > details > summary { display:list-item; list-style-position:inside; min-height:44px; padding-block:12px; line-height:20px; cursor:pointer; }
-.gw-simple-recording-main .recording-editor-tools + .recording-editor-layout { margin-top:8px; }
-@media(max-width:639px) { .gw-simple-recording-main { padding-block:16px; } .gw-simple-recording-main .gw-simple-recording-title { gap:8px; } .gw-simple-recording-main .gw-simple-recording-title h1 { font-size:20px; } }
+.gw-simple-recording-main .recording-editor-tools > details > summary { display:list-item; list-style-position:inside; min-height:var(--gw-control-mobile); padding-block:var(--gw-space-sm); line-height:var(--gw-typography-body-height); cursor:pointer; }
+.gw-simple-recording-main .recording-editor-tools + .recording-editor-layout { margin-top:var(--gw-space-xs); }
+@media(max-width:639px) { .gw-simple-recording-main { padding-block:var(--gw-space-md); } .gw-simple-recording-main .gw-simple-recording-title { gap:var(--gw-space-xs); } .gw-simple-recording-main .gw-simple-recording-title h1 { font-size:var(--gw-typography-modal-size); } }
+
+/* Keep page identity and section navigation above the scrolling editor. */
+.gw-simple-recording-main .gw-simple-recording-heading { position: sticky; top: 0; z-index: 30; padding-block: var(--gw-space-xs); background: var(--gw-ground); }
+.gw-simple-recording-main .recording-editor-steps { position: sticky; top: var(--recording-heading-height, 60px); z-index: 29; padding-block: var(--gw-space-xs); background: var(--gw-ground); }
+.gw-simple-recording-main .recording-editor-panel { scroll-margin-top: calc(var(--recording-heading-height, 60px) + var(--recording-nav-height, 60px) + var(--gw-space-xs)); }
+@media(min-width:1001px) { .gw-simple-recording-main .recording-editor-summary { top: calc(var(--recording-heading-height, 60px) + var(--recording-nav-height, 60px) + var(--gw-space-xs)); } }
+@media(max-width:1350px) { .gw-simple-recording-main .recording-editor-columns { grid-template-columns: minmax(0, 1fr); } .gw-simple-recording-main .recording-editor-summary { position: static; } }

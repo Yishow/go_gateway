@@ -24,3 +24,31 @@ it('suggests a descriptive editable name only on explicit request and preserves 
   fireEvent.click(screen.getByTestId('rule-suggest-name'));
   expect(dispatch).toHaveBeenCalledWith({ type: 'updateRule', ruleId: 'rule-1', patch: { name: 'PLC A 40001 · 4 float32' } });
 });
+
+it('summarizes contiguous saved MC points and makes the full addresses available on demand', async () => {
+  await i18n.changeLanguage('zh-TW');
+  const points = Array.from({ length: 32 }, (_, index) => ({ point_id: `P${index}`, address: `D${index}` }));
+  render(<RangeSummary startAddress="D0" count={32} dataType="int16" protocol="mc_3e" isPersistedMC
+    persistedMCPoints={{ status: 'compatible', points }} />);
+  expect(screen.getByText('D0–D31')).toBeVisible();
+  expect(screen.getByText(points.map(point => point.address).join(', '))).not.toBeVisible();
+  fireEvent.click(screen.getByText('查看全部位址'));
+  expect(screen.getByText(points.map(point => point.address).join(', '))).toBeVisible();
+});
+it('lists non-contiguous saved MC points without presenting their endpoints as a continuous range', async () => {
+  await i18n.changeLanguage('zh-TW');
+  render(<RangeSummary startAddress="D0" count={6} dataType="int16" protocol="mc_3e" isPersistedMC
+    persistedMCPoints={{ status: 'compatible', points: ['D0', 'D2', 'D5'].map((address, index) => ({ point_id: `P${index}`, address })) }} />);
+  expect(screen.getByText('位址不連續')).toBeVisible();
+  expect(screen.getByText('D0, D2, D5')).toBeVisible();
+  expect(screen.queryByText('D0–D5')).not.toBeInTheDocument();
+});
+
+it('summarizes consecutive MC hexadecimal points using the data width', async () => {
+  await i18n.changeLanguage('zh-TW');
+  render(<RangeSummary startAddress="W8" count={3} dataType="float32" protocol="mc_3e" isPersistedMC
+    persistedMCPoints={{ status: 'compatible', points: ['WC', 'W8', 'WA'].map((address, index) => ({ point_id: `P${index}`, address })) }} />);
+  expect(screen.getByText('W8–WC')).toBeVisible();
+  fireEvent.click(screen.getByText('查看全部位址'));
+  expect(screen.getByText('W8, WA, WC')).toBeVisible();
+});

@@ -12,7 +12,7 @@ const api = vi.hoisted(() => ({ workspace: vi.fn(), list: vi.fn(), read: vi.fn()
 vi.mock('../../../src/services/studioV2Workspace', () => ({ studioV2WorkspaceAPI: { get: api.workspace } }));
 vi.mock('../../../src/services/studioV2Mappings', () => ({ studioV2MappingsAPI: { list: api.list } }));
 vi.mock('../../../src/services/studioV2LocatorEntry', () => ({ readStudioLocatorEntry: api.read }));
-vi.mock('../../../src/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { get: api.candidates } }));
+vi.mock('../../../src/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { getTags: api.candidates } }));
 vi.mock('../../../src/hooks/datalink/useStudioV2Mappings', () => ({ useStudioV2MappingsQuery: () => ({ isSuccess: false, data: [], refetch: api.refetch }), useCreateStudioV2MappingMutation: () => ({ mutateAsync: api.create }), useUpdateStudioV2MappingMutation: () => ({ mutateAsync: api.update }), useDeleteStudioV2MappingMutation: () => ({ mutateAsync: api.remove }) }));
 const identity = { device_id: 'D', point_id: 'P-native', tag_id: 'T' };
 let record = { ...nativeMapping(), address: 'D0', target_type: 'int16' as const, scale: 1, unit: '' };
@@ -63,6 +63,15 @@ describe('shared point naming through the original mapping queue', () => {
     expect(api.create).not.toHaveBeenCalled(); expect(api.remove).not.toHaveBeenCalled();
     expect(h.stateRef.current.db).toBe(database); expect(h.stateRef.current.settings).toBe(settings);
     expect(h.stateRef.current.mappings['P-native']).toMatchObject({ mapping_id: 'M', persisted_point_id: 'P-native', tag_id: 'T', save_state: 'saved', display_name: 'Motor temperature' });
+  });
+  it('saves an MC name through the original queue when the candidate predates its mapping', async () => {
+    api.candidates.mockResolvedValue({ workspace_id: 'W', workspace_revision: 'W2', source_rule_id: 'R', revision_id: 'R2',
+      tags: { status: 'ready', candidates: [{ id: 'C', identity: { source_rule_id: 'R' }, address: 'D0', point_id: 'P-native', tag_key: 'temperature', display_name: 'Mapping M', data_type: 'int16', status: 'draft' }] } });
+    const h = setup(), ready = await h.result.current.port.prepare(identity);
+    expect(ready?.status).toBe('ready');
+    await act(async () => { expect(await h.result.current.port.submit(ready!.session.id, 'MC motor')).toMatchObject({ status: 'confirmed', currentName: 'MC motor' }); });
+    expect(api.update).toHaveBeenCalledExactlyOnceWith({ mappingId: 'M', request: expect.objectContaining({ address: 'D0', display_name: 'MC motor' }) });
+    expect(api.create).not.toHaveBeenCalled(); expect(api.remove).not.toHaveBeenCalled();
   });
   it('cancel releases only the local name buffer with zero mutation', async () => {
     const h = setup(), ready = await h.result.current.port.prepare(identity);

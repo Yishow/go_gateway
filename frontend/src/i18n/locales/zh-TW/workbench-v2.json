@@ -135,7 +135,7 @@
       "rule_color": "規則色彩"
     },
     "summary": {
-      "range_label": "位址範圍：",
+      "range_label": "位址範圍：", "noncontiguous": "位址不連續", "show_addresses": "查看全部位址",
       "register_count": "{{items}} 個 {{dataType}} 資料項目，占用 {{count}} {{registerUnit}}（每項 {{stride}} {{registerUnit}}）",
       "invalid_address": "位址不符合所選協議格式。", "conflict_detail_title": "衝突的位址（依設備判定）", "conflict_detail_item": "{{device}} · {{address}} · {{rules}}",
       "invalid_address_action": "請修正該規則的協議位址後再繼續。",

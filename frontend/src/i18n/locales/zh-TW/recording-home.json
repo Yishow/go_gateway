@@ -161,7 +161,7 @@
       "prefixHint": "例如 TEMP_，會用於產生每個點位的名稱。"
     },
     "cancelEdit": "取消",
-    "saveAndReturn": "儲存並返回",
+    "saveAndReturn": "儲存並返回", "moreBelow": "向下捲動查看其他設定",
     "ruleEnabled": "啟用此規則",
     "shareOff": "全域 Modbus Share 尚未啟用。請先到全域設定啟用，完成後返回此頁。",
     "shareUnknown": "尚未確認全域 Modbus Share 狀態，請重新讀取後再設定此規則。",

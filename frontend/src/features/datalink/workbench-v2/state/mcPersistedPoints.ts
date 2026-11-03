@@ -1,5 +1,5 @@
 import type {
-  SourceRuleCandidateSnapshotView,
+  SourceRuleTagSnapshotView,
   SourceRuleTagCandidateView,
 } from '../../../../types/sourceRuleCandidates';
 import type {
@@ -98,7 +98,7 @@ function candidateIdentity(candidate: SourceRuleTagCandidateView): PersistedMCPo
 export function buildPersistedMCRuleState(
   rule: SourceRuleRecord,
   scope: PersistedMCPointsScope | undefined,
-  snapshot?: SourceRuleCandidateSnapshotView,
+  snapshot?: SourceRuleTagSnapshotView,
 ): PersistedMCRuleState {
   if (!scope || !rule.revision_id) {
     return unavailable(scope, 'scope_unavailable');

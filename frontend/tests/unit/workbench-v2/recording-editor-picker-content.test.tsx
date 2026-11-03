@@ -8,7 +8,7 @@ import type { GroupCandidate } from '../../../src/features/datalink/workbench-v2
 const labels: PickerLabels = {
   rename: 'Change name',
   title: 'Select points', search: 'Search points', device: 'Device', pointType: 'Point type', allDevices: 'All devices', allTypes: 'All types',
-  types: { gauge: 'Gauge', counter: 'Counter', state: 'State' }, unknownType: 'Unknown meaning', dataType: 'Data type', meaningUnknown: 'Some points have no measurement purpose yet', point: 'Point', address: 'Address', alreadyAdded: 'Already added', unavailable: 'Check source', cancel: 'Cancel',
+  types: { gauge: 'Gauge', counter: 'Counter', state: 'State' }, unknownType: 'Unknown meaning', dataType: 'Data type', meaningUnknown: 'Some points have no measurement purpose yet', point: 'Point', address: 'Address', alreadyAdded: 'Already added', horizontalHint: 'Scroll sideways for more columns', unavailable: 'Check source', cancel: 'Cancel',
   loading: 'Loading sources', failed: 'Cannot load sources', retry: 'Retry', empty: 'No source points', noMatches: 'No matches', clearFilters: 'Clear filters',
   newSource: 'Add source', invalidPending: 'Revalidate pending points', previous: 'Previous', next: 'Next', pageSize: 'Rows per page',
   matching: (n, a) => `${n} matches, ${a} already added`, pending: n => `${n} pending`, hidden: n => `${n} outside this page`, add: n => `Add ${n} points`, page: (n, t) => `Page ${n} of ${t}`, removePending: identity => `Remove unavailable point ${identity.point_id}`,
@@ -217,6 +217,8 @@ it('keeps 32 existing members distinct from pending additions and shows actual t
   expect(screen.queryByText(labels.unknownType)).not.toBeInTheDocument();
   const existing = screen.getByRole('checkbox', { name: 'TAG_29' });
   expect(existing).toBeChecked(); expect(existing).toBeDisabled();
+  expect(within(existing.closest('tr')!).queryByText(labels.alreadyAdded)).not.toBeInTheDocument();
+  expect(existing).toHaveAccessibleDescription(labels.alreadyAdded);
   expect(existing.closest('label')).toHaveClass('recording-point-picker__point');
   expect(within(existing.closest('tr')!).getByText('float32')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Add 0 points' })).toBeDisabled();
@@ -225,4 +227,50 @@ it('keeps 32 existing members distinct from pending additions and shows actual t
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(value.onAdd).not.toHaveBeenCalled();
   expect(screen.getByRole('checkbox', { name: 'TAG_29' })).toBeChecked();
+});
+
+
+it('orders all matching points by address first, then sorts by a chosen column without losing selections', () => {
+  const value = props();
+  const rows = points.map((point, index) => ({ ...point, address: `D${30 - index}` }));
+  value.projection = { ...value.projection, candidates: rows, members: [rows[30]],
+    evidence: Object.fromEntries(rows.map(row => [sourceKey(row), { availability: 'eligible' }])) };
+  render(<Controlled value={value} />);
+  const addresses = () => within(screen.getByRole('table')).getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell')[2].textContent);
+  expect(addresses().slice(0, 4)).toEqual(['D0', 'D1', 'D2', 'D3']);
+  expect(screen.getByRole('columnheader', { name: 'Address' })).toHaveAttribute('aria-sort', 'ascending');
+  expect(screen.getByRole('checkbox', { name: 'Point 30' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Point 29' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Address' }));
+  expect(screen.getByText('Page 1 of 2')).toBeVisible();
+  expect(screen.getByRole('columnheader', { name: 'Address' })).toHaveAttribute('aria-sort', 'descending');
+  expect(addresses().slice(0, 3)).toEqual(['D30', 'D29', 'D28']);
+  expect(screen.getByText('1 pending')).toBeVisible();
+  expect(screen.getByText('1 outside this page')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Add 1 points' }));
+  expect(value.onAdd).toHaveBeenCalledWith([{ device_id: rows[29].device_id, point_id: 'p29', tag_id: 't29' }]);
+});
+
+
+it('sorts MC hexadecimal addresses and each visible column in a human-readable order', () => {
+  const value = props();
+  const rows: GroupCandidate[] = [
+    { ...points[0], label: 'Point 30', address: 'W10', device_name: 'PLC 2', target_type: 'int16' },
+    { ...points[1], label: 'Point 3', address: 'WA', device_name: 'PLC 10', target_type: 'float32' },
+    { ...points[2], label: 'Point 10', address: 'W9', device_name: 'PLC 1', target_type: 'bool' },
+  ];
+  value.projection = { ...value.projection, candidates: rows, members: [],
+    evidence: Object.fromEntries(rows.map(row => [sourceKey(row), { availability: 'eligible' }])) };
+  render(<Controlled value={value} />);
+  const cells = (index: number) => within(screen.getByRole('table')).getAllByRole('row').slice(1)
+    .map(row => within(row).getAllByRole('cell')[index].textContent?.trim());
+  expect(cells(2)).toEqual(['W9', 'WA', 'W10']);
+  fireEvent.click(screen.getByRole('button', { name: 'Point' }));
+  expect(cells(0)).toEqual(['Point 3', 'Point 10', 'Point 30']);
+  fireEvent.click(screen.getByRole('button', { name: 'Device' }));
+  expect(cells(1)).toEqual(['PLC 1', 'PLC 2', 'PLC 10']);
+  fireEvent.click(screen.getByRole('button', { name: 'Data type' }));
+  expect(cells(3)).toEqual(['bool', 'float32', 'int16']);
+  expect(value.onAdd).not.toHaveBeenCalled();
 });

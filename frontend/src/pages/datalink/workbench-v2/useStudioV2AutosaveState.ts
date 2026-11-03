@@ -24,7 +24,7 @@ import { useStudioV2DatabaseAutosave } from './useStudioV2DatabaseAutosave';
 import { hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseRowGroups } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
 import { deriveAllPoints } from '../../../features/datalink/workbench-v2/state/sourceRule';
 import { isPersistedMCRule, mergePersistedMCState, withPersistedMCEvidence } from '../../../features/datalink/workbench-v2/state/mcPersistedPoints';
-import { useStudioV2PersistedMCPoints, type PersistedMCWorkspaceScope } from './useStudioV2PersistedMCPoints';
+import { useStudioV2PersistedMCPoints, locatorMCRuleAuthority, locatorMCDisplayRules, locatorMCSourceRules, type PersistedMCWorkspaceScope } from './useStudioV2PersistedMCPoints';
 import { inferHydratedProgress } from './hydratedProgress';
 import type { ProtocolType } from '../../../types/datalink';
 import { getStudioV2AutosaveBarrier, hasPendingSave, isUnpersistedNonIdle } from './studioV2AutosaveBarrier';
@@ -142,7 +142,7 @@ export function useStudioV2AutosaveState(
       return readiness.device_id === id && readiness.activation_allowed === true;
     },
   });
-  const persistedMCPoints = useStudioV2PersistedMCPoints(enabled, rulesQuery.data, devicesQuery.data, persistedMCWorkspaceScope, actions.state.rules);
+  const persistedMCPoints = useStudioV2PersistedMCPoints(enabled || Boolean(locatorEntry?.locator.step === 2 && locatorHydration.ready), locatorEntry && !enabled ? locatorMCSourceRules(locatorEntry, locatorHydration.acknowledgedRule) : rulesQuery.data, locatorEntry && !enabled ? locatorEntry.entry.devices : devicesQuery.data, persistedMCWorkspaceScope, actions.state.rules);
   const namingGuards = React.useRef({ mutate: (_id: string): boolean => false, queue: (_id: string): boolean => false });
   const pointNames = useRecordingPointNameSubmission({ workspaceId: sourceWorkspaceId, scopeToken: locatorEntry, enabled: locatorEntry ? locatorHydration.ready : enabled && workspaceHydrated,
     stateRef, captureRead: locatorHydration.capturePointNameRead, captureSave: locatorHydration.capturePointNameSave, canMutateRule: id => namingGuards.current.mutate(id), canQueueRule: id => namingGuards.current.queue(id), canWriteRule: id => sourceRanges.canWrite(id), apply: action => { stateRef.current = workbenchV2Reducer(stateRef.current, action); actions.dispatch(action); },
@@ -161,7 +161,7 @@ export function useStudioV2AutosaveState(
     return persistedMCCanMutateRule(ruleID);
   }, [persistedMCCanMutateRule, sourceRanges]);
   const ruleObservation = composeRuleObservation(sourceRanges.ruleObservation, ruleObserver);
-  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule, ruleObservation, sourceWorkspaceId, locatorHydration.captureRuleSave);
+  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule, ruleObservation, sourceWorkspaceId, locatorHydration.captureRuleSave, locatorMCRuleAuthority(!enabled ? locatorEntry : undefined, persistedMCPoints.evidenceByRule));
   const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled, canMutateRule, composeMappingObservation(sourceRanges.mappingObservation, pointNames.observation), (point, mapping) => sourceRanges.canWrite(point.rule_id) && pointNames.allowPreparedMapping(point, mapping));
   namingGuards.current = { mutate: canMutateRule, queue: mappingAutosave.canSubmitPreparedMapping };
   rangeQueue.current = { rule: ruleAutosave.afterRuleAction, mapping: mappingAutosave.afterMappingAction };
@@ -493,8 +493,8 @@ export function useStudioV2AutosaveState(
     draftLossWarning,
     mappingsQuery: mappingAutosave.mappingsQuery,
     rulesQuery,
-    state: actions.state,
+    state: !workspaceHydrated && locatorEntry?.locator.step === 2 && locatorHydration.ready ? { ...actions.state, rules: locatorMCDisplayRules(actions.state.rules, persistedMCPoints.evidenceByRule) } : actions.state,
     workspaceHydrated,
-    autosaveBarrier: getStudioV2AutosaveBarrier(actions.state), locatorHydration,
+    autosaveBarrier: getStudioV2AutosaveBarrier(actions.state), locatorHydration, persistedMCPoints: persistedMCPoints.evidenceByRule,
   };
 }

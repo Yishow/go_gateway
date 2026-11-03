@@ -79,7 +79,7 @@
     "previous": "Previous",
     "next": "Next",
     "pageSize": "Rows per page",
-    "matching": "{{count}} matches · {{added}} in this recording",
+    "matching": "{{count}} matches · {{added}} already added",
     "pending": "{{count}} points to add",
     "hidden": "{{count}} selected outside this page/filter",
     "add": "Add {{count}} points",
@@ -87,7 +87,7 @@
     "removePending": "Remove unavailable selection {{point}}",
     "removeMember": "Remove {{point}}",
     "undo": "Undo last removal",
-    "dataType": "Data type",
+    "dataType": "Data type", "horizontalHint": "Scroll sideways to see address and data type",
     "meaningUnknown": "Some points have no measurement purpose yet. Adding does not confirm mean or delta use."
   },
   "source": {
@@ -436,9 +436,9 @@
     "stale": "The selected destination has changed or is unavailable. Check and select it again before saving.",
     "refresh": "Check saved destinations again"
   },
-  "compact": {
+  "compact": { "required": "Required", "optional": "Optional", "requiredInfo": "Required points", "orderInfo": "Word order", "requiredHelp": "When a required point has no valid data, the record settings may cause that output to be skipped.", "horizontalHint": "Scroll sideways to see the remaining columns", "pointOnly": "Point", "device": "Device", "wordOrder": "Word order", "addressOnly": "Address", "dataType": "Type",
     "formatUnknown": "Point format has not been verified",
-    "metadataFailed": "Table columns could not be read. Storage columns for these points cannot be verified yet.",
+    "metadataFailed": "Table columns could not be read. Storage columns for these points cannot be verified yet.", "destinationMetadata": {"not_checked": "The destination table has not been checked.", "checking": "Checking the destination table…", "missing": "The destination table was not found. Check and prepare it here.", "forbidden": "The connection cannot read the destination table. Check its permissions and retry.", "failed": "The destination table could not be verified. Check the destination connection and settings, then retry. You can still edit points."},
     "selectedScope": "Showing {{shown}} of {{total}} points",
     "search": "Search points",
     "point": "Point / device",
@@ -486,10 +486,10 @@
   "name": {
     "title": "Change point name",
     "rename": "Change name",
-    "shared": "This name is shared by recordings using this point.",
+    "shared": "This name is shared by recordings using this point. Leave the field or press Enter to save; press Esc to cancel an unsent edit.", "required": "Enter a point name.",
     "label": "Point name",
     "save": "Save name",
-    "pending": "Saving the point name…",
+    "pending": "Saving the point name…", "loading": "Reading the point source…",
     "blocked": "The source changed or could not be read. Cancel this edit, then select the name to read it again.",
     "unknown": "The save result is not confirmed. Check the current name before continuing; do not submit again.",
     "inspect": "Read current name",

@@ -10,7 +10,7 @@ import type { WorkbenchV2State } from '../../../src/features/datalink/workbench-
 import { locatorRead, nativeDevice, nativeMapping, nativeRule } from './studio-locator-fixtures';
 vi.mock('../../../src/services/studioV2Workspace', () => ({ studioV2DatalinkApi: { get: vi.fn() }, studioV2WorkspaceAPI: { get: vi.fn() } }));
 vi.mock('../../../src/services/studioV2Mappings', () => ({ studioV2MappingsAPI: { list: vi.fn() } }));
-vi.mock('../../../src/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { get: vi.fn() } }));
+vi.mock('../../../src/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { getTags: vi.fn() } }));
 const identity = { device_id: 'D', point_id: 'P-native', tag_id: 'T' };
 let state: WorkbenchV2State;
 function fixture(protocol: 'modbus_tcp' | 'mc_3e' = 'modbus_tcp') {
@@ -26,9 +26,8 @@ function fixture(protocol: 'modbus_tcp' | 'mc_3e' = 'modbus_tcp') {
 function mcFixture() {
   const read = fixture('mc_3e');
   vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ ...read.workspace, modbus_share: { hydration_state: 'ready', readiness: true, workspace_revision: 'SOURCE-REV' } });
-  vi.mocked(sourceRuleCandidateAPI.get).mockResolvedValue({ source_rule_id: 'R', workspace_id: 'W', workspace_revision: 'SOURCE-REV', revision_id: 'R2',
-    tags: { status: 'ready', candidates: [{ id: 'C', identity: { source_rule_id: 'R', candidate_type: 'tags', candidate_kind: 'tag', derived_from_rule_address: 'D0' }, proposed_signature: 'sig', address: 'D0', point_id: 'P-native', tag_id: 'T', mapping_id: 'M', tag_key: 'temperature', display_name: 'MC', data_type: 'float32', status: 'active' }] },
-    database_outputs: { status: 'ready', candidates: [] }, local_modbus_outputs: { status: 'deferred', candidates: [] } });
+  vi.mocked(sourceRuleCandidateAPI.getTags).mockResolvedValue({ source_rule_id: 'R', workspace_id: 'W', workspace_revision: 'SOURCE-REV', revision_id: 'R2',
+    tags: { status: 'ready', candidates: [{ id: 'C', identity: { source_rule_id: 'R', candidate_type: 'tags', candidate_kind: 'tag', derived_from_rule_address: 'D0' }, proposed_signature: 'sig', address: 'D0', point_id: 'P-native', tag_id: 'T', mapping_id: 'M', tag_key: 'temperature', display_name: 'MC', data_type: 'float32', status: 'active' }] } });
   return read;
 }
 beforeEach(() => { vi.resetAllMocks(); state = { ...structuredClone(INITIAL_STATE), devices: [], rules: [], points: [], mappings: {} }; });
@@ -38,7 +37,7 @@ it('uses the real Step3 D+M locator contract for a newly saved float32 range, th
   expect(prepared?.preparation).toMatchObject({ mappingId: 'M', ruleId: 'R', ruleRevision: 'R2', identity });
   expect(studioV2DatalinkApi.get).toHaveBeenCalledExactlyOnceWith('/studio-v2/workspace', expect.objectContaining({ params: { entry: 'locator', workspace_id: 'W', step: '3', device_id: 'D', mapping_id: 'M' } }));
   expect(prepared?.merge?.mappings['P-native']).toMatchObject({ mapping_id: 'M', tag_id: 'T', target_type: 'float32', display_name: 'SRC0 (40001)' });
-  expect(studioV2WorkspaceAPI.get).not.toHaveBeenCalled(); expect(sourceRuleCandidateAPI.get).not.toHaveBeenCalled();
+  expect(studioV2WorkspaceAPI.get).not.toHaveBeenCalled(); expect(sourceRuleCandidateAPI.getTags).not.toHaveBeenCalled();
 });
 it('still rejects a foreign mapping in the actual scoped locator response', async () => {
   const read = fixture(); read.entry.mappings![0] = { ...read.entry.mappings![0], tag_id: 'FOREIGN' };
@@ -47,7 +46,23 @@ it('still rejects a foreign mapping in the actual scoped locator response', asyn
 it('reads the MC source revision from the original workspace authority, never the detached database setup revision', async () => {
   mcFixture();
   expect((await prepareRecordingPointName('W', identity, () => state, () => true))?.preparation.mcEvidence).toMatchObject({ status: 'compatible', scope: { workspace_revision: 'SOURCE-REV' } });
-  expect(sourceRuleCandidateAPI.get).toHaveBeenCalledWith('R', { workspace_id: 'W', expected_workspace_revision: 'SOURCE-REV', revision_id: 'R2' });
+  expect(sourceRuleCandidateAPI.getTags).toHaveBeenCalledWith('R', { workspace_id: 'W', expected_workspace_revision: 'SOURCE-REV', revision_id: 'R2' });
+});
+
+it('allows an existing MC mapping when its older candidate snapshot has no tag or mapping ID', async () => {
+  mcFixture();
+  const snapshot = await sourceRuleCandidateAPI.getTags('R', { workspace_id: 'W', expected_workspace_revision: 'SOURCE-REV', revision_id: 'R2' });
+  snapshot.tags.candidates = snapshot.tags.candidates.map(candidate => ({ ...candidate, tag_id: undefined, mapping_id: undefined }));
+  vi.mocked(sourceRuleCandidateAPI.getTags).mockResolvedValue(snapshot);
+  expect((await prepareRecordingPointName('W', identity, () => state, () => true))?.preparation).toMatchObject({ mappingId: 'M', identity });
+});
+
+it.each(['tag_id', 'mapping_id'] as const)('rejects an MC candidate with a conflicting %s', async field => {
+  mcFixture();
+  const snapshot = await sourceRuleCandidateAPI.getTags('R', { workspace_id: 'W', expected_workspace_revision: 'SOURCE-REV', revision_id: 'R2' });
+  snapshot.tags.candidates = snapshot.tags.candidates.map(candidate => ({ ...candidate, [field]: 'FOREIGN' }));
+  vi.mocked(sourceRuleCandidateAPI.getTags).mockResolvedValue(snapshot);
+  expect(await prepareRecordingPointName('W', identity, () => state, () => true)).toBeUndefined();
 });
 
 it.each(['foreign-before', 'foreign-after', 'revision-after', 'candidate-rule-revision'])('rejects MC %s without borrowing the database setup revision', async kind => {
@@ -56,8 +71,8 @@ it.each(['foreign-before', 'foreign-after', 'revision-after', 'candidate-rule-re
   if (kind === 'foreign-after') vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce(valid).mockResolvedValueOnce({ ...valid, id: 'FOREIGN' });
   if (kind === 'revision-after') vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce(valid).mockResolvedValueOnce({ ...valid, modbus_share: { ...valid.modbus_share, workspace_revision: 'NEW-SOURCE-REV' } });
   if (kind === 'candidate-rule-revision') {
-    const snapshot = await sourceRuleCandidateAPI.get('R', { workspace_id: 'W', expected_workspace_revision: 'SOURCE-REV', revision_id: 'R2' });
-    vi.mocked(sourceRuleCandidateAPI.get).mockResolvedValue({ ...snapshot, revision_id: 'FOREIGN-RULE' });
+    const snapshot = await sourceRuleCandidateAPI.getTags('R', { workspace_id: 'W', expected_workspace_revision: 'SOURCE-REV', revision_id: 'R2' });
+    vi.mocked(sourceRuleCandidateAPI.getTags).mockResolvedValue({ ...snapshot, revision_id: 'FOREIGN-RULE' });
   }
   expect(await prepareRecordingPointName('W', identity, () => state, () => true)).toBeUndefined();
 });

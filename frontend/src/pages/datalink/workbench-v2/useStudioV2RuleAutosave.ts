@@ -39,11 +39,15 @@ export function useStudioV2RuleAutosave(
   observation?: RuleQueueObservation,
   workspaceId?: string,
   captureSavedRule?: (rule: Rule, workspaceId?: string) => ((saved: StudioV2RuntimeAppliedRecord<SourceRuleRecord>) => void) | undefined,
+  locatorMCAuthority?: { ruleId: string; key: string },
 ) {
   const captureSavedRuleRef = React.useRef(captureSavedRule);
   captureSavedRuleRef.current = captureSavedRule;
   const owner = React.useRef({ workspaceId });
   if (owner.current.workspaceId !== workspaceId) owner.current = { workspaceId };
+  const authorityKey = locatorMCAuthority ? JSON.stringify([locatorMCAuthority.ruleId, locatorMCAuthority.key]) : '';
+  const authority = React.useRef<{ key: string; ruleId?: string; token: object }>({ key: authorityKey, ruleId: locatorMCAuthority?.ruleId, token: {} });
+  if (authority.current.key !== authorityKey) authority.current = { key: authorityKey, ruleId: locatorMCAuthority?.ruleId, token: {} };
   const mounted = React.useRef(true);
   React.useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const fieldGenerationsRef = React.useRef<Record<string, RuleFieldGenerations>>({});
@@ -102,6 +106,7 @@ export function useStudioV2RuleAutosave(
 
     meta.inFlight = true;
     const requestOwner = owner.current;
+    const requestAuthority = authority.current.ruleId === ruleId ? authority.current.token : undefined;
     const requestGeneration = generationsRef.current.get(ruleId) ?? 0;
     const acceptSavedRule = captureSavedRuleRef.current?.(currentRule, requestOwner.workspaceId);
     applyRulePatch(ruleId, {
@@ -120,6 +125,11 @@ export function useStudioV2RuleAutosave(
         : await createRuleMutation.mutateAsync(toStudioV2RuleCreateRequest(currentRule));
 
       if (!mounted.current || owner.current !== requestOwner) { meta.pending = false; return; }
+      if (requestAuthority && authority.current.token !== requestAuthority) {
+        meta.pending = false;
+        if (stateRef.current.rules.some(rule => rule.id === ruleId)) applyRulePatch(ruleId, { save_state: 'draft-invalid', save_error: null });
+        return;
+      }
       const validIdentity = canHydrateStudioV2Rule(savedRule) && savedRule.id === ruleId && savedRule.device_id === currentRule.device_id &&
         (!(requestOwner.workspaceId ?? currentRule.workspace_id) || savedRule.workspace_id === (requestOwner.workspaceId ?? currentRule.workspace_id));
       const acknowledged = observationRef.current?.acknowledged(currentRule, savedRule);
@@ -160,14 +170,15 @@ export function useStudioV2RuleAutosave(
           save_state: meta.pending ? 'saving' : 'saved',
           save_error: null,
         }, 'acknowledgeRuleSave');
-        if (!meta.pending && (generationsRef.current.get(ruleId) ?? 0) === requestGeneration) acceptSavedRule?.(savedRule);
+        acceptSavedRule?.(savedRule);
         observationRef.current?.saved(currentRule, savedRule);
       }
     } catch (error) {
       if (!mounted.current || owner.current !== requestOwner) { meta.pending = false; return; }
       observationRef.current?.failed(currentRule, error);
       const latestRule = stateRef.current.rules.find((rule) => rule.id === ruleId);
-      if (!latestRule || persistedMCScopeKey(latestRule.mc_persisted_points) !== requestScopeKey || !canMutateRuleRef.current(ruleId)) {
+      if (!latestRule || requestAuthority && authority.current.token !== requestAuthority || persistedMCScopeKey(latestRule.mc_persisted_points) !== requestScopeKey || !canMutateRuleRef.current(ruleId)) {
+        if (requestAuthority && authority.current.token !== requestAuthority) meta.pending = false;
         if (latestRule && !meta.pending) applyRulePatch(ruleId, { save_state: 'draft-invalid', save_error: null });
         return;
       }

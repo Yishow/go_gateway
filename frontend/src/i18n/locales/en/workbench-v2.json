@@ -135,7 +135,7 @@
       "rule_color": "rule color"
     },
     "summary": {
-      "range_label": "Address range:",
+      "range_label": "Address range:", "noncontiguous": "Non-contiguous addresses", "show_addresses": "Show all addresses",
       "register_count": "{{items}} {{dataType}} data items use {{count}} {{registerUnit}} ({{stride}} {{registerUnit}} per item)",
       "invalid_address": "Address is invalid for the selected protocol.", "conflict_detail_title": "Conflicting addresses (per device)", "conflict_detail_item": "{{device}} · {{address}} · {{rules}}",
       "invalid_address_action": "Correct this rule's protocol address before continuing.",

@@ -81,7 +81,7 @@ vi.mock('../../../src/services/studioV2WorkspaceDatabase', async () => {
 });
 
 vi.mock('../../../src/services/sourceRuleCandidates', () => ({
-  sourceRuleCandidateAPI: { get: vi.fn() },
+  sourceRuleCandidateAPI: { getTags: vi.fn() },
 }));
 
 vi.mock('../../../src/services/datalink', () => ({
@@ -96,7 +96,7 @@ describe('persisted MC point hydration', () => {
   it('hydrates persisted MC point and mapping identities from the scoped candidate GET', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByTestId('mc-persisted-shell')).toBeInTheDocument());
-    await waitFor(() => expect(sourceRuleCandidateAPI.get).toHaveBeenCalledWith('rule-mc', {
+    await waitFor(() => expect(sourceRuleCandidateAPI.getTags).toHaveBeenCalledWith('rule-mc', {
       workspace_id: 'workspace-1',
       expected_workspace_revision: 'workspace-rev-1',
       revision_id: 'rule-rev-1',
@@ -127,12 +127,12 @@ describe('persisted MC point hydration', () => {
     });
   });
   it.each([
-    ['forbidden', () => vi.mocked(sourceRuleCandidateAPI.get).mockRejectedValueOnce({ response: { status: 403 } })],
-    ['revision conflict', () => vi.mocked(sourceRuleCandidateAPI.get).mockRejectedValueOnce({ response: { status: 409 } })],
-    ['service unavailable', () => vi.mocked(sourceRuleCandidateAPI.get).mockRejectedValueOnce({ response: { status: 503 } })],
-    ['wrong revision', () => vi.mocked(sourceRuleCandidateAPI.get).mockResolvedValueOnce(candidateSnapshot(legacyAddresses, { revision_id: 'rule-rev-old' }))],
-    ['incomplete', () => vi.mocked(sourceRuleCandidateAPI.get).mockResolvedValueOnce(candidateSnapshot(legacyAddresses.slice(0, -1)))],
-    ['missing points', () => vi.mocked(sourceRuleCandidateAPI.get).mockResolvedValueOnce(candidateSnapshot([]))],
+    ['forbidden', () => vi.mocked(sourceRuleCandidateAPI.getTags).mockRejectedValueOnce({ response: { status: 403 } })],
+    ['revision conflict', () => vi.mocked(sourceRuleCandidateAPI.getTags).mockRejectedValueOnce({ response: { status: 409 } })],
+    ['service unavailable', () => vi.mocked(sourceRuleCandidateAPI.getTags).mockRejectedValueOnce({ response: { status: 503 } })],
+    ['wrong revision', () => vi.mocked(sourceRuleCandidateAPI.getTags).mockResolvedValueOnce(candidateSnapshot(legacyAddresses, { revision_id: 'rule-rev-old' }))],
+    ['incomplete', () => vi.mocked(sourceRuleCandidateAPI.getTags).mockResolvedValueOnce(candidateSnapshot(legacyAddresses.slice(0, -1)))],
+    ['missing points', () => vi.mocked(sourceRuleCandidateAPI.getTags).mockResolvedValueOnce(candidateSnapshot([]))],
   ])('keeps persisted MC blocked for %s candidate evidence', async (_caseName, arrange) => {
     arrange();
     renderPage();
@@ -148,7 +148,7 @@ describe('persisted MC point hydration', () => {
     });
   });
   it('blocks mutations while scoped evidence is pending and retains unaffected points', async () => {
-    vi.mocked(sourceRuleCandidateAPI.get).mockImplementationOnce(() => new Promise(() => undefined));
+    vi.mocked(sourceRuleCandidateAPI.getTags).mockImplementationOnce(() => new Promise(() => undefined));
     renderPage();
     await waitFor(() => expect(screen.getByTestId('mc-persisted-status')).toHaveTextContent('checking'));
     expect(screen.getByTestId('mc-persisted-points')).toHaveTextContent('');
@@ -170,7 +170,7 @@ describe('persisted MC point hydration', () => {
     await waitFor(() => expect(studioV2ServiceMocks.rules.update).not.toHaveBeenCalled());
   });
   it('keeps a locally hydrated MC rule blocked if the server list drops its row', async () => {
-    vi.mocked(sourceRuleCandidateAPI.get).mockResolvedValueOnce(candidateSnapshot(compatibleAddresses));
+    vi.mocked(sourceRuleCandidateAPI.getTags).mockResolvedValueOnce(candidateSnapshot(compatibleAddresses));
     let ruleListCall = 0;
     vi.mocked(studioV2ServiceMocks.rules.list).mockImplementation(async () => {
       ruleListCall += 1;
@@ -206,7 +206,7 @@ describe('persisted MC point hydration', () => {
       workspace_id: 'workspace-1', enabled: false, port: 5020, address: '127.0.0.1', bind_state: 'disabled', mapping_count: 0, workspace_revision: workspaceRevision,
     }));
     vi.mocked(studioV2ServiceMocks.rules.list).mockImplementation(async () => [currentRule, ruleFixture({ id: 'rule-modbus', device_id: 'dev-modbus', start_address: '40001', count: 1, revision_id: 'rule-modbus-rev-1' })]);
-    vi.mocked(sourceRuleCandidateAPI.get).mockImplementation(async (_ruleID, scope) => candidateSnapshot(currentRule.count === 16 ? compatibleAddresses.slice(0, 16) : compatibleAddresses, { workspace_revision: scope?.expected_workspace_revision, revision_id: scope?.revision_id ?? currentRule.revision_id }));
+    vi.mocked(sourceRuleCandidateAPI.getTags).mockImplementation(async (_ruleID, scope) => candidateSnapshot(currentRule.count === 16 ? compatibleAddresses.slice(0, 16) : compatibleAddresses, { workspace_revision: scope?.expected_workspace_revision, revision_id: scope?.revision_id ?? currentRule.revision_id }));
     vi.mocked(studioV2ServiceMocks.rules.update).mockImplementation(async (_ruleID, request) => {
       revision += 1;
       currentRule = ruleFixture({ ...currentRule, ...request, revision_id: `rule-rev-${revision}` });
@@ -225,7 +225,7 @@ describe('persisted MC point hydration', () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.sourceRules() });
     });
-    await waitFor(() => expect(sourceRuleCandidateAPI.get).toHaveBeenCalledWith('rule-mc', expect.objectContaining({ expected_workspace_revision: 'workspace-rev-2', revision_id: 'rule-rev-2' })));
+    await waitFor(() => expect(sourceRuleCandidateAPI.getTags).toHaveBeenCalledWith('rule-mc', expect.objectContaining({ expected_workspace_revision: 'workspace-rev-2', revision_id: 'rule-rev-2' })));
     await waitFor(() => expect(screen.getByTestId('mc-persisted-status')).toHaveTextContent('compatible'));
     resolveFirstUpdate?.(currentRule);
     await waitFor(() => expect(screen.getByTestId('mc-rule-save-state')).toHaveTextContent('saved'));
@@ -240,7 +240,7 @@ describe('persisted MC point hydration', () => {
   it('does not let a late old-scope response restore writable persisted MC state', async () => {
     let resolveOld: ((snapshot: SourceRuleCandidateSnapshotView) => void) | undefined;
     let resolveNew: ((snapshot: SourceRuleCandidateSnapshotView) => void) | undefined;
-    vi.mocked(sourceRuleCandidateAPI.get)
+    vi.mocked(sourceRuleCandidateAPI.getTags)
       .mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve; }))
       .mockImplementationOnce(() => new Promise((resolve) => { resolveNew = resolve; }));
     let workspaceRead = 0;
@@ -270,11 +270,11 @@ describe('persisted MC point hydration', () => {
       workspace_revision: workspaceRead > 1 ? 'workspace-rev-2' : 'workspace-rev-1',
     }));
     const queryClient = renderPage();
-    await waitFor(() => expect(sourceRuleCandidateAPI.get).toHaveBeenCalledWith('rule-mc', expect.objectContaining({ workspace_id: 'workspace-1', expected_workspace_revision: 'workspace-rev-1' })));
+    await waitFor(() => expect(sourceRuleCandidateAPI.getTags).toHaveBeenCalledWith('rule-mc', expect.objectContaining({ workspace_id: 'workspace-1', expected_workspace_revision: 'workspace-rev-1' })));
     await act(async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     });
-    await waitFor(() => expect(sourceRuleCandidateAPI.get).toHaveBeenCalledWith('rule-mc', expect.objectContaining({ expected_workspace_revision: 'workspace-rev-2' })));
+    await waitFor(() => expect(sourceRuleCandidateAPI.getTags).toHaveBeenCalledWith('rule-mc', expect.objectContaining({ expected_workspace_revision: 'workspace-rev-2' })));
     expect(screen.getByTestId('mc-persisted-status')).toHaveTextContent('checking');
     resolveOld?.(candidateSnapshot());
     await waitFor(() => expect(screen.getByTestId('mc-persisted-status')).toHaveTextContent('checking'));
@@ -296,7 +296,7 @@ describe('persisted MC point hydration', () => {
     vi.mocked(modbusShareAPI.status).mockImplementation(async () => ({
       workspace_id: workspaceID, enabled: false, port: 5020, address: '127.0.0.1', bind_state: 'disabled', mapping_count: 0, workspace_revision: 'workspace-rev-1',
     }));
-    vi.mocked(sourceRuleCandidateAPI.get).mockImplementation(async (_ruleID, scope) => candidateSnapshot(compatibleAddresses, {
+    vi.mocked(sourceRuleCandidateAPI.getTags).mockImplementation(async (_ruleID, scope) => candidateSnapshot(compatibleAddresses, {
       workspace_id: scope?.workspace_id,
       workspace_revision: scope?.expected_workspace_revision,
       revision_id: scope?.revision_id,
@@ -307,7 +307,7 @@ describe('persisted MC point hydration', () => {
     await act(async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     });
-    await waitFor(() => expect(sourceRuleCandidateAPI.get).toHaveBeenCalledWith('rule-mc', expect.objectContaining({ workspace_id: 'workspace-2' })));
+    await waitFor(() => expect(sourceRuleCandidateAPI.getTags).toHaveBeenCalledWith('rule-mc', expect.objectContaining({ workspace_id: 'workspace-2' })));
     await waitFor(() => expect(screen.getByTestId('mc-persisted-scope')).toHaveTextContent('workspace-2@workspace-rev-1@rule-rev-1'));
   });
   it('retains a blocked mapping draft and resumes it only after matching evidence returns', async () => {
@@ -322,7 +322,7 @@ describe('persisted MC point hydration', () => {
       workspace_id: workspaceID, enabled: false, port: 5020, address: '127.0.0.1', bind_state: 'disabled', mapping_count: 0, workspace_revision: workspaceRevision,
     }));
     vi.mocked(studioV2ServiceMocks.mappings.update).mockResolvedValue(mappingFixture({ id: 'legacy-mapping-0', point_id: 'legacy-point-0', rule_id: 'rule-mc', device_id: 'dev-mc', address: 'W0', tag_key: 'edited.tag' }));
-    vi.mocked(sourceRuleCandidateAPI.get).mockImplementation(async (_ruleID, scope) => scope?.expected_workspace_revision === 'workspace-rev-2'
+    vi.mocked(sourceRuleCandidateAPI.getTags).mockImplementation(async (_ruleID, scope) => scope?.expected_workspace_revision === 'workspace-rev-2'
       ? candidateSnapshot(compatibleAddresses, { workspace_id: workspaceID, workspace_revision: workspaceRevision, revision_id: 'rule-rev-1' })
       : candidateSnapshot());
     const queryClient = renderPage();
@@ -360,7 +360,7 @@ describe('persisted MC point hydration', () => {
     vi.mocked(studioV2ServiceMocks.rules.update).mockImplementation(() => new Promise((resolve) => { resolveRule = resolve; }));
     vi.mocked(studioV2ServiceMocks.mappings.update).mockImplementation(() => new Promise((resolve) => { resolveMapping = resolve; }));
     vi.mocked(studioV2ServiceMocks.database.updateConfig).mockImplementation(() => new Promise((resolve) => { resolveDatabase = resolve; }));
-    vi.mocked(sourceRuleCandidateAPI.get).mockImplementation(async (_ruleID, scope) => {
+    vi.mocked(sourceRuleCandidateAPI.getTags).mockImplementation(async (_ruleID, scope) => {
       if (scope?.expected_workspace_revision === 'workspace-rev-2') {
         return new Promise((resolve) => { resolveNewCandidate = resolve; });
       }

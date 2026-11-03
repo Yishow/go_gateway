@@ -103,3 +103,47 @@ it('keeps simple per-point format settings in one detail while retaining the ori
   expect(screen.getByRole('button', { name: 'editor.save' })).toBeEnabled();
   expect(pointFormatAPI.save).not.toHaveBeenCalled();
 });
+
+
+it('allows a selected-row word-order change without opening a disclosure or bypassing explicit save', async () => {
+  function InlinePage() {
+    const port = useRecordingPointOrder('W', true);
+    return <RecordingPointOrder simple inline port={port} workspaceId="W" deviceId="D" pointId="P" disabled={false} />;
+  }
+  render(<InlinePage />);
+  const order = await screen.findByLabelText('editor.order');
+  expect(order).toBeVisible(); expect(order.closest('details')).toBeNull();
+  fireEvent.change(order, { target: { value: 'CDAB' } });
+  expect(pointFormatAPI.save).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'editor.save' }));
+  await waitFor(() => expect(pointFormatAPI.save).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ format_mode: 'override', configured_format: 'CDAB', expected_workspace_revision: 'source-7' })));
+});
+
+it('keeps unsupported selected-row word order visible without offering an invalid override', async () => {
+  const native = snapshot(); Object.assign(native.resolution, { applicable: false, effective_format: '', effective_source: 'native' });
+  vi.mocked(pointFormatAPI.read).mockResolvedValue(native);
+  function InlinePage() {
+    const port = useRecordingPointOrder('W', true);
+    return <RecordingPointOrder simple inline port={port} workspaceId="W" deviceId="D" pointId="P" disabled={false} />;
+  }
+  render(<InlinePage />);
+  const message = await screen.findByText('editor.notApplicableShort');
+  expect(message).toBeVisible(); expect(message).toHaveAttribute('title', 'editor.notApplicable');
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  expect(pointFormatAPI.save).not.toHaveBeenCalled();
+});
+
+it('lets an inline override return to source order through the same select and explicit save', async () => {
+  const overridden = snapshot(); overridden.point_revision = 'point-1';
+  Object.assign(overridden.resolution, { format_mode: 'override', configured_format: 'ABCD', effective_source: 'override', effective_policy: 'override_scalar', format_version: 1, point_revision: 'point-1' });
+  vi.mocked(pointFormatAPI.read).mockResolvedValue(overridden);
+  function InlinePage() {
+    const port = useRecordingPointOrder('W', true);
+    return <RecordingPointOrder simple inline port={port} workspaceId="W" deviceId="D" pointId="P" disabled={false} />;
+  }
+  render(<InlinePage />);
+  fireEvent.change(await screen.findByLabelText('editor.order'), { target: { value: 'inherit' } });
+  expect(pointFormatAPI.save).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'editor.save' }));
+  await waitFor(() => expect(pointFormatAPI.save).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ format_mode: 'inherit', configured_format: '' })));
+});

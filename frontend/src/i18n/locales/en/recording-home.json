@@ -161,7 +161,7 @@
       "prefixHint": "For example, TEMP_. This becomes part of each generated point name."
     },
     "cancelEdit": "Cancel",
-    "saveAndReturn": "Save and return",
+    "saveAndReturn": "Save and return", "moreBelow": "Scroll down for more settings",
     "ruleEnabled": "Enable rule",
     "shareOff": "Global Modbus Share is off. Enable it in global settings, then return here.",
     "shareUnknown": "Global Modbus Share status is unconfirmed. Refresh before configuring this rule.",

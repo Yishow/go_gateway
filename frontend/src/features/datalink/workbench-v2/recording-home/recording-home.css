@@ -161,3 +161,8 @@
 .gw-home-source-modal .gw-home-saved-range-form :is([data-testid=scale-section],[data-testid=share-section]) { padding-top:0; }
 .gw-home-source-modal .gw-home-saved-range-form :is([data-testid=scale-section],[data-testid=share-section]) > summary { min-height:44px; padding-block:12px; line-height:20px; }
 @media(max-width:639px) { .gw-recording-home [data-testid="home-device-summary"] li { grid-template-columns:minmax(0,1fr) auto; } .gw-home-source-modal[data-size=form] { width:calc(100vw - 16px); max-height:calc(100dvh - 16px); height:auto; } }
+
+.gw-home-range-scroll-cue { display: none; }
+@media (max-width: 639px) {
+  .gw-home-source-modal .gw-home-range-scroll-cue { display: block; flex: 0 0 100%; color: var(--gw-muted); font-size: 12px; line-height: 1.3; text-align: center; }
+}
