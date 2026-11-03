@@ -1,12 +1,15 @@
+import { createMemoryRouter, RouterProvider, useLocation, useNavigate } from 'react-router-dom';
+import { useStudioLocatorEntry } from '@/hooks/datalink/useStudioLocatorEntry';
+import { RecordingRouterNavigation } from '@/features/datalink/workbench-v2/recording-editor/RecordingRouterNavigation';
 import { WorkbenchV2Shell } from '@/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { useWorkbenchV2State } from '@/features/datalink/workbench-v2/state/useWorkbenchV2State';
-import { buildSimpleRecordingTarget } from '@/services/studioRecordingView';
+import { buildSimpleRecordingTarget, parseStudioPresentation } from '@/services/studioRecordingView';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Step4Database } from '@/features/datalink/workbench-v2/steps/step4/Step4Database';
 import { RecordingDraftNavigation } from '@/features/datalink/workbench-v2/recording-editor/RecordingDraftNavigation';
-import { readStudioLocatorEditorEntry } from '@/services/studioV2LocatorEntry';
+import { readStudioLocatorEditorEntry, readStudioLocatorEntry } from '@/services/studioV2LocatorEntry';
 import { studioV2WorkspaceDatabaseAPI } from '@/services/studioV2WorkspaceDatabase';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
 import { studioV2WriteGroupLifecycleAPI } from '@/services/studioV2WriteGroupLifecycle';
@@ -21,7 +24,7 @@ import { savedLifecycle } from '../../fixtures/writeGroupLifecycle';
 import { managedSchemaPreviewToken } from '../../fixtures/managedSchemaPreview';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('@/services/studioV2LocatorEntry', () => ({ readStudioLocatorEditorEntry: vi.fn() }));
+vi.mock('@/services/studioV2LocatorEntry', () => ({ readStudioLocatorEditorEntry: vi.fn(), readStudioLocatorEntry: vi.fn() }));
 vi.mock('@/services/studioV2WorkspaceDatabase', async original => ({ ...await original<typeof import('@/services/studioV2WorkspaceDatabase')>(), studioV2WorkspaceDatabaseAPI: { getMetadata: vi.fn(), updateConfig: vi.fn() } }));
 vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: {
   list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), readiness: vi.fn(), delivery: vi.fn(), schemaPreview: vi.fn(), schemaApply: vi.fn(), schemaOperation: vi.fn(), apply: vi.fn(), disable: vi.fn(), remove: vi.fn(), testWritePreview: vi.fn(), testWrite: vi.fn(), testWriteOperation: vi.fn(),
@@ -219,4 +222,90 @@ it('full advanced retains its original uncollapsed revisions and assignment cont
   mountLocalRecord({ fullAdvanced: true }); fireEvent.click(await screen.findByTestId('group-open-G')); await screen.findByTestId('group-editor');
   expect(screen.queryByTestId('group-revision-details')).not.toBeInTheDocument(); expect(screen.getByTestId('group-revisions')).toBeInTheDocument();
   expect(screen.getByTestId('group-member-column-P-native')).toBeInTheDocument(); expect(screen.getByTestId('group-table')).toBeInTheDocument(); noWrites();
+});
+
+function mountSavedHandoff() {
+  function RoutedRecord() {
+    const location = useLocation(), navigate = useNavigate(), intent = parseStudioPresentation(location.search), actions = useWorkbenchV2State();
+    const read = useStudioLocatorEntry(intent.locatorIntent.kind === 'locator' ? intent.locatorIntent.locator : null);
+    const entry = read.data?.ok ? read.data.value : undefined;
+    return <><output data-testid="record-url">{location.search}</output>{entry && <WorkbenchV2Shell
+      state={{ ...savedGroupState(), view: 'flow', current: 4 }} actions={actions} workspaceId="W" locatorEntry={entry} locatorOnly locatorCanLeave
+      recordingIntent={intent.presentation === 'recording' ? 'located' : undefined} navigateTo={navigate}
+      presentationLocation={{ search: location.search, hash: location.hash }} />}</>;
+  }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } }); clients.push(client);
+  const router = createMemoryRouter([{ path: '/studio/v2', element: <RecordingRouterNavigation><RoutedRecord /></RecordingRouterNavigation> }],
+    { initialEntries: [buildSimpleRecordingTarget({ kind: 'edit', workspaceId: 'W', groupId: 'G', groupRevision: 'G3' })!] });
+  render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>); return router;
+}
+function savedHandoffReads(foreignRevision = false) {
+  vi.mocked(readStudioLocatorEntry).mockImplementation(async locator => ({ ok: true, value: { ...structuredClone(current), locator } }));
+  vi.mocked(readStudioLocatorEditorEntry).mockImplementation(async (_locator, expected) => expected.groupRevision === current.entry.group_heads.G && expected.workspaceRevision === current.entry.workspace_revision
+    ? { ok: true, value: structuredClone(current) } : { ok: false, reason: 'stale-reference' });
+  api.update.mockImplementation(async (id, request) => {
+    expect(id).toBe('G'); expect(request.expected_group_revision).toBe('G3');
+    current.entry.write_groups!.groups[0] = { ...current.entry.write_groups!.groups[0], name: request.group.name, revision: 'G4' };
+    current.entry.workspace_revision = 'W3'; current.entry.write_groups!.workspace_revision = 'W3'; current.entry.group_heads.G = 'G4';
+    if (current.entry.database_config) current.entry.database_config.setup_revision = 'W3';
+    if (current.selection.state === 'selected') current = { ...current, selection: { ...current.selection, target: { ...current.selection.target, workspaceRevision: 'W3', groupRevision: 'G4' } } };
+    const result = { workspace_revision: 'W3', group: structuredClone(current.entry.write_groups!.groups[0]) };
+    if (foreignRevision) {
+      current.entry.write_groups!.groups[0].revision = 'G5'; current.entry.group_heads.G = 'G5';
+      if (current.selection.state === 'selected') current = { ...current, selection: { ...current.selection, target: { ...current.selection.target, groupRevision: 'G5' } } };
+    }
+    return result;
+  });
+}
+it('replaces a located record own-save URL only after its canonical read, then opens field settings with the new exact revisions', async () => {
+  savedHandoffReads(); const router = mountSavedHandoff(); await screen.findByTestId('group-editor');
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Own saved rename' } });
+  await waitFor(() => expect(screen.getByTestId('group-save')).toBeEnabled()); fireEvent.click(screen.getByTestId('group-save'));
+  await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(new URLSearchParams(router.state.location.search).get('group_revision')).toBe('G4'));
+  await screen.findByTestId('group-editor'); fireEvent.click(screen.getByRole('button', { name: 'simple.advancedPurpose' }));
+  fireEvent.click(await screen.findByTestId('group-open-G')); await screen.findByTestId('group-editor');
+  expect(vi.mocked(readStudioLocatorEditorEntry).mock.calls.at(-1)?.[1]).toEqual({ workspaceRevision: 'W3', groupRevision: 'G4' });
+  expect(screen.getByTestId('group-name')).toHaveValue('Own saved rename'); expect(api.update).toHaveBeenCalledTimes(1);
+  expect(screen.queryByTestId('studio-locator-open-error')).not.toBeInTheDocument(); expect(api.create).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'locator.backRecord' }));
+  await screen.findByTestId('simple-recording-shell'); await screen.findByTestId('group-editor');
+  expect(new URLSearchParams(router.state.location.search).get('group_revision')).toBe('G4'); expect(api.update).toHaveBeenCalledTimes(1);
+});
+it('does not replace the located URL with a later foreign revision after an own save', async () => {
+  savedHandoffReads(true); const router = mountSavedHandoff(); await screen.findByTestId('group-editor');
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Own saved rename' } });
+  await waitFor(() => expect(screen.getByTestId('group-save')).toBeEnabled()); fireEvent.click(screen.getByTestId('group-save'));
+  await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(vi.mocked(readStudioLocatorEditorEntry).mock.calls.some(([,expected]) => expected.groupRevision === 'G5')).toBe(true));
+  expect(new URLSearchParams(router.state.location.search).get('group_revision')).toBe('G3'); expect(api.create).not.toHaveBeenCalled();
+});
+
+it('does not replace a later Home navigation when the located own-save readback arrives after leaving', async () => {
+  savedHandoffReads();
+  let finish: (() => void) | undefined;
+  vi.mocked(readStudioLocatorEditorEntry).mockImplementation(async (_locator, expected) => {
+    if (expected.groupRevision === 'G4') await new Promise<void>(resolve => { finish = resolve; });
+    return expected.groupRevision === current.entry.group_heads.G && expected.workspaceRevision === current.entry.workspace_revision
+      ? { ok: true, value: structuredClone(current) } : { ok: false, reason: 'stale-reference' };
+  });
+  const router = mountSavedHandoff(); await screen.findByTestId('group-editor');
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Own saved rename' } });
+  await waitFor(() => expect(screen.getByTestId('group-save')).toBeEnabled()); fireEvent.click(screen.getByTestId('group-save'));
+  await waitFor(() => expect(finish).toBeDefined());
+  fireEvent.click(screen.getByRole('button', { name: 'simple.back' }));
+  if (screen.queryByRole('alertdialog')) fireEvent.click(screen.getByText('navigation.discard'));
+  await waitFor(() => expect(router.state.location.search).toBe('?view=recordings'));
+  await act(async () => { finish!(); });
+  expect(router.state.location.search).toBe('?view=recordings'); expect(api.update).toHaveBeenCalledTimes(1); expect(api.create).not.toHaveBeenCalled();
+});
+
+it.each(['rejected', 'unknown'] as const)('does not update a located URL after a %s Save outcome', async outcome => {
+  savedHandoffReads(); api.update.mockRejectedValue(outcome === 'rejected' ? { response: { status: 422 } } : new Error('Connection interrupted'));
+  const router = mountSavedHandoff(); await screen.findByTestId('group-editor');
+  fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Unconfirmed rename' } });
+  await waitFor(() => expect(screen.getByTestId('group-save')).toBeEnabled()); fireEvent.click(screen.getByTestId('group-save'));
+  await screen.findByTestId(outcome === 'unknown' ? 'group-save-unknown' : 'group-save-error');
+  expect(new URLSearchParams(router.state.location.search).get('group_revision')).toBe('G3');
+  expect(readStudioLocatorEditorEntry).toHaveBeenCalledTimes(1); expect(api.update).toHaveBeenCalledTimes(1); expect(api.create).not.toHaveBeenCalled();
 });

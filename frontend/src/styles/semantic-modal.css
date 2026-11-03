@@ -60,3 +60,6 @@
 .gw-modal .gw-evidence :is(dt, small, p) { color: var(--gw-muted); }
 .gw-modal .gw-evidence :is(dd, h3, h4) { color: var(--gw-text); }
 .gw-modal .gw-evidence :is(li, section) { border-color: var(--gw-border); }
+
+/* Existing source edit actions stay grouped; no effect on list/new/confirmation footers. */
+.gw-modal[data-size=form] .gw-modal-footer[data-edit-actions] > button { margin-inline: 0; }

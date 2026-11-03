@@ -52,7 +52,8 @@ function parseWriteGroupReadinessIssue(value: unknown): StudioV2WorkspaceReadine
   const severity = readRequiredText(value, 'severity');
   const step = readRequiredText(value, 'step');
   const scope = readPresentText(value, 'scope');
-  const message = readRequiredText(value, 'message');
+  // Descriptions use the existing 256-character JSON text bound, not the 128-character identifier bound.
+  const message = readPresentText(value, 'message')?.trim();
   if (!code || !severity || !READINESS_SEVERITIES.has(severity as StudioV2WorkspaceReadinessSeverity) ||
     !step || !READINESS_STEPS.has(step as StudioV2WorkspaceReadinessStep) || scope === undefined || scope === null ||
     !message) {

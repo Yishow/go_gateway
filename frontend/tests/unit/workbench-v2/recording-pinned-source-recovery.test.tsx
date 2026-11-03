@@ -1,3 +1,4 @@
+import { parseWriteGroupAPIData, parseWriteGroupReadinessData } from '@/utils/studioV2WriteGroupJson';
 import { retainSchemaOperation } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/schemaOperationRecovery';
 import { groupToDraft, draftToRequestGroup } from '@/features/datalink/workbench-v2/state/writeGroup/draft';
 import { mixedDraftToRequestGroup } from '@/features/datalink/workbench-v2/recording-editor/recordingMixedDraft';
@@ -105,4 +106,17 @@ it('keeps an unknown mixed save blocked rather than retrying or declaring the so
   fireEvent.click(await screen.findByTestId('recording-source-refresh-review')); fireEvent.click(screen.getByTestId('recording-source-refresh-confirm'));
   await screen.findByTestId('group-save-unknown'); expect(studioV2WorkspaceWriteGroupsAPI.update).toHaveBeenCalledOnce();
   expect(screen.queryByTestId('recording-source-refresh-review')).not.toBeInTheDocument(); expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
+});
+
+
+it('shows source review from the real parsed mixed blocking response without granting Start', async () => {
+  const data = stale(); data.issues.push({ code: 'recording-reduction-unavailable', severity: 'blocking', step: 'Step 4', scope: 'group-1', message: "the recording reduction, member recording metadata or layout is not supported or cannot be verified; the saved group cannot start a writer" });
+  vi.mocked(studioV2WorkspaceWriteGroupsAPI.readiness).mockImplementation(async () => parseWriteGroupAPIData({ success: true, data }, 'write-group readiness', parseWriteGroupReadinessData));
+  mount({ group: mixedGroup(), calculationCapabilities: capabilities });
+  expect(await screen.findByTestId('recording-source-refresh-review')).toBeEnabled();
+  expect(screen.queryByTestId('group-readiness-failed')).not.toBeInTheDocument();
+  expect(screen.getByTestId('group-apply')).toBeDisabled();
+  expect(screen.getByTestId('group-readiness-issues')).toHaveTextContent('recording-reduction-unavailable');
+  expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
+  expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
 });

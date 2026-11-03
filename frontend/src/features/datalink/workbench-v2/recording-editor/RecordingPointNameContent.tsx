@@ -10,6 +10,7 @@ export function RecordingPointNameContent({ controller, onBack, onSave, disabled
   if (candidate) return <div className="recording-point-name-inline" data-testid={`inline-point-name-${candidate.point_id}`}>
     <input ref={input} aria-label={`${t('name.label')} ${candidate.label}`} data-picker-focus={`name:${sourceKey(candidate)}`} value={value?.name ?? candidate.label}
       disabled={disabled} readOnly={!value || controller.pending || status !== 'ready'} aria-busy={Boolean(value && controller.pending)}
+      onPointerDown={event => { if (event.currentTarget.ownerDocument.activeElement === event.currentTarget && !value && !disabled) onBegin?.(); }}
       onFocus={() => { if (!value && !disabled) onBegin?.(); }} onChange={event => controller.change(event.target.value)} />
     {value && <>
       {controller.pending && <p role="status">{t('name.pending')}</p>}

@@ -67,7 +67,7 @@ it('keeps dirty inline name and pending selection on Keep, and explicit Discard 
   const input = screen.getByRole('textbox', { name: 'name.label Point 1' });
   await waitFor(() => expect(input).not.toHaveAttribute('readonly'));
   fireEvent.change(input, { target: { value: 'Unsent' } });
-  fireEvent.click(within(screen.getByRole('contentinfo')).getByRole('button', { name: 'picker.cancel' }));
+  fireEvent.keyDown(input, { key: 'Escape' });
   expect(screen.getByRole('alertdialog')).toBeVisible(); fireEvent.click(screen.getByRole('button', { name: 'navigation.keep' }));
   expect(input).toHaveValue('Unsent'); expect(screen.getByRole('checkbox', { name: 'Point 2' })).toBeChecked();
   expect(screen.getByRole('dialog').querySelector<HTMLElement>('.recording-point-picker__body')!.scrollTop).toBe(230);
@@ -85,11 +85,48 @@ it('keeps pending and unknown inline name visible on picker close and offers ori
   fireEvent.change(input, { target: { value: 'Submitted' } }); fireEvent.click(screen.getByRole('button', { name: 'name.save' }));
   fireEvent.click(within(screen.getByRole('contentinfo')).getByRole('button', { name: 'picker.cancel' }));
   expect(screen.getByRole('dialog')).toBeVisible(); expect(input).toHaveValue('Submitted');
+  fireEvent.pointerDown(input); expect(name.prepare).toHaveBeenCalledTimes(1); expect(name.submit).toHaveBeenCalledTimes(1);
   await act(async () => resolve?.({ session: inlineSession, status: 'unknown' }));
   fireEvent.keyDown(input, { key: 'Escape' });
   expect(screen.getByRole('dialog')).toBeVisible(); expect(screen.getByText('name.unknown')).toBeVisible();
   expect(screen.getByRole('button', { name: 'name.finishInspect' })).toBeVisible();
+  fireEvent.pointerDown(input); expect(name.prepare).toHaveBeenCalledTimes(1); expect(name.submit).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('checkbox', { name: 'Point 2' })).toBeChecked();
   fireEvent.click(screen.getByRole('button', { name: 'name.inspect' })); await waitFor(() => expect(name.inspect).toHaveBeenCalledExactlyOnceWith('S'));
   expect(name.submit).toHaveBeenCalledOnce(); expect(name.release).not.toHaveBeenCalled();
+});
+
+it('reopens the same focused inline name after Cancel and confirmed Save without duplicate preparation', async () => {
+  let savedName = 'Point 1';
+  const name: RecordingPointNamePort = { prepare: vi.fn(async () => ({ session: { ...inlineSession, displayName: savedName }, status: 'ready' as const })),
+    submit: vi.fn(async (_id, value) => { savedName = value; return { session: inlineSession, status: 'confirmed' as const, currentName: value }; }),
+    inspect: vi.fn(), release: vi.fn() };
+  render(<RecordingDraftNavigation><RecordingPointSelection disabled={false} scope="W/G" workspaceId="W" candidates={rows} members={[]} onChange={vi.fn()}
+    deviceSource={{ submit: vi.fn(), inspect: vi.fn(), observations: () => [], name }} devices={[{ id: 'D', name: 'PLC' }]} /></RecordingDraftNavigation>);
+  fireEvent.click(screen.getByTestId('recording-points-open'));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Point 2' }));
+  fireEvent.change(screen.getByLabelText('picker.search'), { target: { value: 'Point' } });
+  const body = screen.getByRole('dialog').querySelector<HTMLElement>('.recording-point-picker__body')!;
+  body.scrollTop = 230; fireEvent.scroll(body);
+  const input = screen.getByRole('textbox', { name: 'name.label Point 1' });
+  fireEvent.pointerDown(input); act(() => input.focus());
+  await waitFor(() => expect(input).not.toHaveAttribute('readonly'));
+  expect(name.prepare).toHaveBeenCalledTimes(1);
+  fireEvent.change(input, { target: { value: 'Discarded' } });
+  fireEvent.click(within(screen.getByTestId('inline-point-name-P1')).getByRole('button', { name: 'picker.cancel' }));
+  expect(input).toHaveFocus(); expect(input).toHaveAttribute('readonly'); expect(name.submit).not.toHaveBeenCalled();
+  // Keep the real DOM activeElement; do not blur or synthesize another focus event.
+  fireEvent.pointerDown(input);
+  await waitFor(() => expect(input).not.toHaveAttribute('readonly'));
+  expect(name.prepare).toHaveBeenCalledTimes(2);
+  fireEvent.change(input, { target: { value: 'Point renamed' } });
+  fireEvent.click(within(screen.getByTestId('inline-point-name-P1')).getByRole('button', { name: 'name.save' }));
+  const confirmed = await screen.findByRole('textbox', { name: 'name.label Point renamed' });
+  await waitFor(() => expect(confirmed).toHaveAttribute('readonly'));
+  expect(confirmed).toHaveFocus();
+  fireEvent.pointerDown(confirmed);
+  await waitFor(() => expect(confirmed).not.toHaveAttribute('readonly'));
+  expect(name.prepare).toHaveBeenCalledTimes(3); expect(name.submit).toHaveBeenCalledExactlyOnceWith('S', 'Point renamed');
+  expect(screen.getByRole('checkbox', { name: 'Point 2' })).toBeChecked();
+  expect(screen.getByLabelText('picker.search')).toHaveValue('Point'); expect(body.scrollTop).toBe(230);
 });

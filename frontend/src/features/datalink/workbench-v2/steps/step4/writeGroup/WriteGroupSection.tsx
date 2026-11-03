@@ -154,6 +154,8 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
     const original = editorEntry.selection.state === 'selected' ? editorEntry.selection.target : undefined;
     if (!original?.groupId) return;
     if (acknowledgement && (acknowledgement.group.workspace_id !== original.workspaceId || acknowledgement.group.id !== original.groupId)) return;
+    const handoff = acknowledgement && presentation === 'simple' && initialSelection === 'located' && onSavedLocation && startLease.current === renderStartLease
+      ? { acknowledgement, lease: renderStartLease } : undefined;
     const request = new AbortController(); openingRequest.current = request; setOpening(true); setOpenError(undefined);
     try {
       const latest = exactEntity ? await studioV2WorkspaceWriteGroupsAPI.get(original.groupId).then(result => ({
@@ -175,9 +177,14 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ presentati
         !result.value.entry.editor_hydrated || !group || !studioV2LocatorHydration(result.value)) {
         setOpenError('stale-reference'); return;
       }
+      if (handoff && (handoff.lease !== startLease.current || handoff.acknowledgement.workspace_revision !== target.workspaceRevision ||
+          handoff.acknowledgement.group.revision !== group.revision || group.workspace_id !== original.workspaceId || result.value.entry.group_heads[group.id] !== group.revision)) {
+        setOpenError('stale-reference'); return;
+      }
       if (acknowledgement) deviceSource?.acknowledgeLocatorGroupSave?.({ previous: editorEntry, acknowledgement, current: result.value });
       if (locatorEntry) listReceipt.current = { route: locatorEntry, read: result.value };
       setEditorEntry(result.value); setSelection({ kind: 'edit', id: group.id, saved: group });
+      if (handoff) { savedLocationReadback.current = handoff; setSavedLocationReady({ group, readback: handoff }); }
     } catch { if (!request.signal.aborted) setOpenError('unavailable'); }
     finally { if (openingRequest.current === request) { openingRequest.current = undefined; setOpening(false); } }
   };
