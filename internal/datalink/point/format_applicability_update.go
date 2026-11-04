@@ -11,9 +11,11 @@ import (
 func overrideShapeChanged(before, after *schema.Point) bool {
 	return before.FormatMode == schema.PointFormatOverride && after.FormatMode == schema.PointFormatOverride && (before.DataType != after.DataType || before.Address != after.Address || before.Function != after.Function)
 }
+// validateSQLOverrideUpdate reads format_mode through COALESCE because legacy
+// rows store it as NULL; a scan failure here would be misread as an uncertain write.
 func validateSQLOverrideUpdate(ctx context.Context, tx *sql.Tx, after *schema.Point, expected string) error {
 	var before schema.Point
-	err := tx.QueryRowContext(ctx, `SELECT data_type,address,function,format_mode FROM points WHERE id=? AND device_id=? AND revision_id=?`, after.ID, after.DeviceID, expected).Scan(&before.DataType, &before.Address, &before.Function, &before.FormatMode)
+	err := tx.QueryRowContext(ctx, `SELECT data_type,address,function,COALESCE(format_mode,'') FROM points WHERE id=? AND device_id=? AND revision_id=?`, after.ID, after.DeviceID, expected).Scan(&before.DataType, &before.Address, &before.Function, &before.FormatMode)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrFormatConflict
 	}

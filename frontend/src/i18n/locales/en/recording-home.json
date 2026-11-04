@@ -242,6 +242,7 @@
       "ownersTitle": "{{address}} belongs to several ranges. Choose the range to open.",
       "owner": "{{label}} · {{type}} · from {{start}}",
       "ownersCancel": "Cancel",
+      "value": {"loading": "Reading device values…", "error": "Device values could not be read; cells keep the last values received.", "live": "Live device values, refreshed every second (on-screen cells only).", "polling": "Live connection unavailable; refreshing every second.", "liveUpdated": "Live · every second · updated {{time}} · on-screen cells only", "pollingUpdated": "Live connection unavailable · refreshing every second · updated {{time}}", "cell": ", value {{value}}", "cellError": ", last read failed", "readAt": ", read at {{time}}"},
       "prefilled": "Starting address {{address}} was filled in from the memory view. Set the count and format, then save."
     }
   },

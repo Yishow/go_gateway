@@ -7,6 +7,7 @@ import { buildPersistedMCRuleState } from '../state/mcPersistedPoints';
 import './recordingHomeMemory.css';
 import { buildMemoryMap, initialMemoryWindow, locateMemoryOffset, memoryAddress, memoryRowStart, memoryRuleInputs, memoryWindow,
   type MemoryArea, type MemoryCell, type MemoryRuleInput } from './recordingHomeMemoryMap';
+import { memoryValueKey, type MemoryLiveValue, type MemoryValues } from './recordingHomeMemoryValues';
 
 export interface HomeRangeRead { rules: SourceRuleRecord[]; workspaceRevision?: string }
 /** MC proof is read for exactly the list's workspace revision and rule revisions;
@@ -27,8 +28,10 @@ export function useHomeRangeInputs(read: HomeRangeRead | undefined, readAt: numb
 
 const AREA_NAMES: Record<string, string> = { HR: '4x', IR: '3x', CS: '0x', IS: '1x' };
 export type HomeMemoryBlock = 'recovery' | 'local' | 'stale';
-export function RecordingHomeMemoryView({ protocol, inputs, status, checking, blocked, listScopeMissing, onOpen, onAdd, onBack, onClose, onRetry }: {
+export function RecordingHomeMemoryView({ protocol, inputs, status, checking, blocked, listScopeMissing, values, onOpen, onAdd, onBack, onClose, onRetry }: {
   protocol?: ProtocolType; inputs: MemoryRuleInput[]; status: 'loading' | 'error' | 'ready'; checking: boolean; blocked?: HomeMemoryBlock; listScopeMissing?: boolean;
+  /** The gateway's stored device readings; cells show these instead of point names. */
+  values?: MemoryValues;
   onOpen: (ruleId: string) => void; onAdd: (address: string) => void; onBack: () => void; onClose: () => void; onRetry?: () => void;
 }) {
   const { t } = useTranslation('recording-home');
@@ -76,6 +79,20 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
     observer?.observe(node);
     return () => { node.removeEventListener('scroll', read); observer?.disconnect(); };
   }, [status, checking, map]);
+  // Only on-screen value cells are streamed; the set is rebuilt whenever the shown cells change.
+  const reportVisible = values?.setVisible;
+  useEffect(() => {
+    const node = grid.current;
+    if (!node || !reportVisible) return undefined;
+    if (typeof IntersectionObserver === 'undefined') { reportVisible([...node.querySelectorAll<HTMLElement>('[data-value-key]')].map(cell => cell.dataset.valueKey!)); return undefined; }
+    const shown = new Set<string>();
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => { const key = (entry.target as HTMLElement).dataset.valueKey; if (key) { if (entry.isIntersecting) shown.add(key); else shown.delete(key); } });
+      reportVisible([...shown]);
+    });
+    node.querySelectorAll('[data-value-key]').forEach(cell => observer.observe(cell));
+    return () => observer.disconnect();
+  }, [reportVisible, area?.key, starts, map, status, checking, blocked]);
   const body = () => {
     if (status === 'loading') return <p role="status">{t('loading')}</p>;
     if (status === 'error') return <div role="alert" className="gw-memory-notice"><p>{t('source.memory.readFailed')}{retry}</p></div>;
@@ -94,13 +111,21 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
       else if (cell.state === 'used') onOpen(cell.owners[0].ruleId);
       else if (cell.state === 'conflict') setOwners(cell);
     };
+    const reading = (cell: MemoryCell): MemoryLiveValue | undefined => {
+      const owner = cell.owners[0];
+      if (cell.state !== 'used' || !owner || owner.part !== 1) return undefined;
+      // A value's first register is its own address.
+      return values?.byCell.get(memoryValueKey(area.key, cell.offset, owner.dataType));
+    };
     const describe = (cell: MemoryCell) => {
       if (cell.state === 'empty') return t('source.memory.cell.empty', { address: cell.address });
       if (cell.state === 'unconfirmed') return t('source.memory.cell.unconfirmed', { address: cell.address });
       if (cell.state === 'conflict') return t('source.memory.cell.conflict', { address: cell.address, count: cell.owners.length, labels: cell.owners.map(owner => owner.label).join(', ') });
-      const owner = cell.owners[0];
+      const owner = cell.owners[0], live = reading(cell);
       return [t('source.memory.cell.used', { address: cell.address, label: owner.label, type: owner.dataType, unit: t(`source.memory.unitName.${area.unit}`), part: owner.part, width: owner.width }),
-        owner.part > 1 && t('source.memory.cell.startsAt', { start: owner.valueAddress }), owner.skipped && t('source.memory.cell.skipped'), owner.partial && t('source.memory.cell.partial')].filter(Boolean).join('');
+        owner.part > 1 && t('source.memory.cell.startsAt', { start: owner.valueAddress }), owner.skipped && t('source.memory.cell.skipped'), owner.partial && t('source.memory.cell.partial'),
+        live && owner.part === 1 && (live.error ? t('source.memory.value.cellError') : live.value !== undefined ? t('source.memory.value.cell', { value: live.value }) : ''),
+        live?.readAt && owner.part === 1 && t('source.memory.value.readAt', { time: clock(live.readAt) })].filter(Boolean).join('');
     };
     // The flat grid wraps at the rendered track count (e.g. hex W shows 10 per row on tablet),
     // so keyboard rows and wrap cues use it; the logical radix count is only a fallback.
@@ -151,7 +176,9 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
         </div>
         <div className="gw-memory-meta">
           <ul className="gw-memory-legend" aria-label={t('source.memory.legend')}>{(['empty', 'used', 'conflict', 'unconfirmed'] as const).map(state =>
-            <li key={state}><span className="gw-memory-swatch" data-state={state} aria-hidden="true" />{t(`source.memory.state.${state}`)}</li>)}</ul></div>
+            <li key={state}><span className="gw-memory-swatch" data-state={state} aria-hidden="true" />{t(`source.memory.state.${state}`)}</li>)}</ul>
+          {values && <p className="gw-memory-live" data-status={values.status} role={values.status === 'error' ? 'alert' : 'status'} data-testid="home-memory-values-status">
+            <span className="gw-memory-live-dot" aria-hidden="true" />{(values.status === 'live' || values.status === 'polling') && values.updatedAt ? t(`source.memory.value.${values.status}Updated`, { time: clock(values.updatedAt) }) : t(`source.memory.value.${values.status}`)}</p>}</div>
         {owners && <section className="gw-memory-owners" data-testid="home-memory-owners" aria-labelledby="home-memory-owners-title">
           <h4 id="home-memory-owners-title" tabIndex={-1} ref={node => node?.focus()}>{t('source.memory.ownersTitle', { address: owners.address })}</h4>
           {owners.owners.map(owner => <button key={owner.ruleId} type="button" onClick={() => onOpen(owner.ruleId)}>{t('source.memory.owner', { label: owner.label, type: owner.dataType, start: owner.valueAddress })}</button>)}
@@ -165,11 +192,13 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
             const continuesBelow = Boolean(value && value.part < value.width && column === columns - 1), continued = Boolean(value && value.part > 1 && column === 0);
             const props = { 'data-testid': `home-memory-cell-${cell.address}`, 'data-state': cell.state, 'data-offset': cell.offset, 'aria-label': describe(cell),
               tabIndex: cell.offset === active ? 0 : -1, onFocus: () => setFocus(cell.offset), onKeyDown: (event: KeyboardEvent) => keyDown(event, cell),
-              'data-part': owner ? (owner.part === 1 ? 'first' : 'rest') : undefined, 'data-join-next': joinNext || undefined, 'data-multi': value ? true : undefined, title: describe(cell) };
+              'data-part': owner ? (owner.part === 1 ? 'first' : 'rest') : undefined,
+              'data-value-key': cell.state === 'used' && owner.part === 1 ? memoryValueKey(area.key, cell.offset, owner.dataType) : undefined, 'data-join-next': joinNext || undefined, 'data-multi': value ? true : undefined, title: describe(cell) };
             const content = <><span className="gw-memory-address">{cell.address}</span>
               {cell.state === 'unconfirmed' && <span className="gw-memory-value" aria-hidden="true">?</span>}
               {cell.state === 'conflict' && <><span className="gw-memory-value" aria-hidden="true">×{cell.owners.length}</span><span className="gw-memory-type" aria-hidden="true">{t('source.memory.state.conflict')}</span></>}
-              {cell.state === 'used' && <><span className="gw-memory-value" aria-hidden="true">{owner.part === 1 ? owner.label : continued ? t('source.memory.cell.continued', { start: owner.valueAddress }) : `↳ ${owner.valueAddress}`}</span>
+              {cell.state === 'used' && <>{owner.part === 1 ? <MemoryReading live={reading(cell)} pending={values?.status === 'loading'} />
+                : <span className="gw-memory-value" aria-hidden="true">{continued ? t('source.memory.cell.continued', { start: owner.valueAddress }) : `↳ ${owner.valueAddress}`}</span>}
                 <span className="gw-memory-type" aria-hidden="true"><span>{owner.dataType}</span>{value && <span> {value.part}/{value.width}</span>}{owner.partial && <span> ?</span>}{owner.skipped && <span> {t('source.memory.cell.skippedShort')}</span>}</span>
                 {continuesBelow && <span className="gw-memory-cue" aria-hidden="true">{t('source.memory.cell.continues')}</span>}</>}</>;
             return cell.state === 'unconfirmed' ? <div key={cell.offset} {...props}>{content}</div>
@@ -186,4 +215,15 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
     {body()}
   </section></div><footer className="gw-modal-footer"><button type="button" data-testid="home-memory-back" onClick={onBack}>{t('source.backToSettings')}</button>
     <button type="button" data-testid="home-memory-close" onClick={onClose}>{t('source.close')}</button></footer></>;
+}
+
+function clock(at: string | number): string {
+  const date = new Date(at);
+  return Number.isNaN(date.getTime()) ? String(at) : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+}
+
+/** First register of a value: the device reading, or why there is none. */
+function MemoryReading({ live, pending }: { live?: MemoryLiveValue; pending: boolean }) {
+  const state = live?.error ? 'error' : live?.value !== undefined ? (live.stale ? 'stale' : 'value') : pending ? 'pending' : 'none';
+  return <span className="gw-memory-value gw-memory-reading" data-reading={state} aria-hidden="true">{state === 'value' || state === 'stale' ? live!.value : state === 'error' ? '!' : state === 'pending' ? '…' : '—'}</span>;
 }

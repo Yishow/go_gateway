@@ -242,6 +242,7 @@
       "ownersTitle": "{{address}} 同時屬於多個範圍，請選擇要開啟的範圍。",
       "owner": "{{label}} · {{type}} · 起於 {{start}}",
       "ownersCancel": "取消",
+      "value": {"loading": "正在讀取設備數值…", "error": "無法讀取設備數值，格子保留最後一次取得的值。", "live": "設備數值每秒更新（僅畫面上的格子）。", "polling": "即時連線無法使用，改為每秒輪詢更新。", "liveUpdated": "即時 · 每秒更新 · 更新於 {{time}} · 僅更新畫面上的格子", "pollingUpdated": "即時連線無法使用 · 每秒輪詢 · 更新於 {{time}}", "cell": "，數值 {{value}}", "cellError": "，最近一次讀取失敗", "readAt": "，讀取於 {{time}}"},
       "prefilled": "已從記憶體視圖帶入起始位址 {{address}}；請設定項目數與格式後再儲存。"
     }
   },

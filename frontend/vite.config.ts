@@ -12,17 +12,27 @@ function resolveProxyTarget(env: Record<string, string>): string {
 }
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   // 載入環境變數（從 .env 文件）
   const env = loadEnv(mode, process.cwd(), "");
 
   // 從環境變數讀取配置，提供預設值
   const devPort = parseInt(env.VITE_DEV_PORT || "5173", 10);
   const proxyTarget = resolveProxyTarget(env);
+  // dev 預設先打包再送瀏覽器：/studio/v2 由約 577 個模組請求降為約 38 個，
+  // 遠端（Tailscale/LAN）開 dev server 時 F5 不再被逐模組往返拖慢。
+  // 實驗功能；遇到 HMR 異常可設 VITE_BUNDLED_DEV=false 回到逐模組模式。
+  // 只用於 dev server：vitest 也會載入本設定，bundledDev 下其 SSR transform 不處理 TS，
+  // setupTests.ts 會解析失敗，因此測試（VITEST / mode=test）一律關閉。
+  const isVitest = Boolean(process.env.VITEST) || mode === "test";
+  const bundledDev = command === "serve" && !isVitest && env.VITE_BUNDLED_DEV !== "false";
 
   return {
     plugins: [react()],
     base: "/",
+    experimental: {
+      bundledDev,
+    },
     /**
      * 強制所有依賴使用同一個 React 實例
      * 解決 react-i18next "Cannot read properties of null (reading 'useMemo')" 錯誤

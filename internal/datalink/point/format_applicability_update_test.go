@@ -111,3 +111,15 @@ func TestGuardedFormatMutationAndReceiptUseActualFunction(t *testing.T) {
 		})
 	}
 }
+
+// Legacy rows keep format_mode NULL; an ordinary revision update must not treat
+// that as uncertain persistence (it previously failed the scan and returned ErrFormatUnavailable).
+func TestOrdinarySQLUpdateAcceptsLegacyNullFormatMode(t *testing.T) {
+	db, svc, req := formatFixture(t)
+	_, err := db.ExecContext(t.Context(), `UPDATE points SET format_mode=NULL WHERE id=?`, req.PointID)
+	require.NoError(t, err)
+	name := "renamed"
+	got, err := svc.Update(t.Context(), req.PointID, UpdatePointRequest{Name: &name})
+	require.NoError(t, err)
+	require.Equal(t, name, got.Name)
+}

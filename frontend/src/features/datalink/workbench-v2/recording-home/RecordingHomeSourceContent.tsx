@@ -14,6 +14,7 @@ import { RecordingHomeSavedRangeEditor, type HomeSourceLeave } from './Recording
 import { readHomeDeviceRanges } from './recordingHomeSourceList';
 import type { HomeSourceControls } from './RecordingHomeSourceHost';
 import { RecordingHomeMemoryView, useHomeRangeInputs, type HomeMemoryBlock } from './RecordingHomeMemoryView';
+import { useHomeMemoryValues } from './recordingHomeMemoryValues';
 import { RecordingHomeRangeOptions } from './RecordingHomeRangeOptions';
 export interface RecordingHomeSourceContentProps extends HomeSourceControls {
   shareEnabled?: boolean; onRetryShare: () => void; onOpenShareSettings: () => void;
@@ -85,6 +86,7 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
   }, [unselected, target.workspaceId, target.deviceId, suspended, list.isFetching, listed, onSelect, device]);
   const loadingRanges = target.kind === 'points' && (list.isPending || unselected && !list.isError);
   const ranges = useHomeRangeInputs(list.isFetching ? undefined : list.data, list.dataUpdatedAt, device?.protocol, target.workspaceId);
+  const memoryValues = useHomeMemoryValues(device?.id, device?.protocol, target.view === 'memory');
   useLayoutEffect(() => { if (device) onDeviceName(device.name); }, [device, onDeviceName]);
   useLayoutEffect(() => { if (!suspended && (target.kind === 'connection' && device || target.kind === 'points' && (!device || !loadingRanges))) onReady(); }, [target.kind, suspended, device, loadingRanges, onReady]);
   useLayoutEffect(() => {
@@ -120,7 +122,7 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
     headerSlot={props.headerSlot} onLocked={props.onLocked} onClose={() => leave.current?.(onClose)} onLeave={props.onClose} ruleObserverRef={props.ruleObserverRef} />
     : <div className="gw-modal-body" role="alert">{t('source.unavailable')}</div>;
   if (target.view === 'memory') return <RecordingHomeMemoryView protocol={device.protocol} inputs={ranges.inputs} checking={ranges.checking} blocked={memoryBlock()}
-    listScopeMissing={ranges.listScopeMissing} onRetry={retry}
+    listScopeMissing={ranges.listScopeMissing} onRetry={retry} values={memoryValues}
     status={list.isError ? 'error' : list.isPending || list.isFetching ? 'loading' : 'ready'} onBack={() => select(target.returnRuleId, target.returnNewRange || !target.returnRuleId && !listed?.length)}
     onClose={() => { if (closeRef.current) closeRef.current(); else onClose(); }}
     onOpen={ruleId => select(ruleId)} onAdd={address => select(undefined, true, { startAddress: address })} />;
