@@ -11,7 +11,6 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"  // MySQL driver
-	_ "github.com/lib/pq"               // PostgreSQL driver
 	_ "github.com/microsoft/go-mssqldb" // SQL Server driver
 	_ "modernc.org/sqlite"              // SQLite driver (pure Go)
 )
@@ -131,9 +130,15 @@ func (m *DBManager) Connect() error {
 		return fmt.Errorf("不支援的資料庫類型: %s", m.config.Type)
 	}
 
-	db, err := sql.Open(driverName, m.config.DSN)
-	if err != nil {
-		return fmt.Errorf("開啟資料庫連接失敗: %w", err)
+	var db *sql.DB
+	if m.config.Type == DBTypePostgres {
+		db = sql.OpenDB(postgresHandshakeConnector{dsn: m.config.DSN})
+	} else {
+		var err error
+		db, err = sql.Open(driverName, m.config.DSN)
+		if err != nil {
+			return fmt.Errorf("開啟資料庫連接失敗: %w", err)
+		}
 	}
 
 	// 設定連接池

@@ -3,6 +3,7 @@ package dbtarget
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -51,7 +52,11 @@ func TestReadCatalogPostgresIntegration(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	catalog, err := readCatalogByKind(ctx, db, schema.DatabaseConnectorKindPostgres, ConnectionConfig{"schema": userSchema})
+	config, err := json.Marshal(ConnectionConfig{"dsn": dsn, "schema": userSchema})
+	require.NoError(t, err)
+	catalog, err := readSavedConnectorCatalog(ctx, &schema.DatabaseConnector{
+		Kind: schema.DatabaseConnectorKindPostgres, ConnectionConfig: string(config),
+	})
 	require.NoError(t, err)
 	require.Equal(t, userSchema, catalog.DefaultSchema)
 	var userCatalog, emptyCatalog *CatalogSchema
