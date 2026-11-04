@@ -109,7 +109,7 @@ test('range settings and memory view fit a 320px screen with a long device and r
   await expect(dialog.getByRole('button', { name: /^D0 · BOILER_OUTLET_TEMPERATURE_SENSOR_$/ })).toBeVisible();
   // The first screen after opening shows memory cells, not only navigation.
   await expect.soft(dialog.getByTestId('home-memory-cell-D0')).toBeInViewport();
-  const close = dialog.getByTestId('home-source-close');
+  const close = dialog.getByTestId('home-memory-close');
   await expect(close).toBeInViewport();
   await close.click();
   await expect(dialog).toBeHidden();

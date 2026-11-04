@@ -74,6 +74,14 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 900 }, { name: '
     await expect(dialog.getByTestId('home-memory-cell-D34')).toBeFocused();
     await dialog.getByTestId('home-memory-cell-D33').click();
     await expect(dialog.getByRole('textbox', { name: '起始位址', exact: true })).toHaveValue('D33');
+    const footer = dialog.locator('.gw-modal-footer');
+    const [back, save, edge] = await Promise.all([
+      footer.getByTestId('recording-range-back').boundingBox(), footer.getByRole('button', { name: '保存範圍' }).boundingBox(), footer.boundingBox(),
+    ]);
+    expect(back).not.toBeNull(); expect(save).not.toBeNull(); expect(edge).not.toBeNull();
+    expect(save!.x - (back!.x + back!.width)).toBeGreaterThanOrEqual(0);
+    expect(save!.x - (back!.x + back!.width)).toBeLessThanOrEqual(24);
+    expect(edge!.x + edge!.width - (save!.x + save!.width)).toBeLessThanOrEqual(32);
     await page.screenshot({ path: testInfo.outputPath(`prefill-${viewport.name}.png`) });
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();

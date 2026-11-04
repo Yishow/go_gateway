@@ -44,11 +44,10 @@ const scenario = scenarios[params.get('scenario') ?? 'mc'] ?? scenarios.mc;
 function Root() {
   const [last, setLast] = useState('');
   return <main data-workbench-v2 data-testid="recording-home" className="gw-recording-home"><h1>{i18n.t('recording-home:title', { defaultValue: '記錄工作台' })}</h1>
-    <div role="dialog" aria-labelledby="fixture-title" data-workbench-v2 className="gw-modal gw-home-source-modal" data-size="form" data-source-kind="points" style={{ color: 'var(--gw-text)', backgroundColor: 'var(--gw-raised)' }}>
-      <header className="gw-modal-header"><div><h2 id="fixture-title">Line 3 PLC · {i18n.t('recording-home:source.memory.title')}</h2><p>{i18n.t('recording-home:source.sharedDescription')}</p></div>
-        <button type="button">{i18n.t('recording-home:source.close')}</button></header>
+    <div role="dialog" aria-labelledby="fixture-title" data-workbench-v2 className="gw-modal gw-home-source-modal" data-size="form" data-source-kind="points" data-source-view="memory" style={{ color: 'var(--gw-text)', backgroundColor: 'var(--gw-raised)' }}>
+      <header className="gw-modal-header"><div><h2 id="fixture-title">Line 3 PLC · {i18n.t('recording-home:source.memory.title')}</h2><p>{i18n.t('recording-home:source.sharedDescription')}</p></div></header>
       <RecordingHomeMemoryView protocol={scenario.protocol} inputs={scenario.inputs} status="ready" checking={false}
-        onOpen={ruleId => setLast(`open:${ruleId}`)} onAdd={address => setLast(`add:${address}`)} onBack={() => setLast('back')} />
+        onOpen={ruleId => setLast(`open:${ruleId}`)} onAdd={address => setLast(`add:${address}`)} onBack={() => setLast('back')} onClose={() => setLast('close')} />
       <output data-testid="fixture-last-action" hidden>{last}</output>
     </div>
   </main>;

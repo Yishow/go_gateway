@@ -1,5 +1,16 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { locatorRead, nativeDevice, nativeRule } from '../unit/workbench-v2/studio-locator-fixtures';
+
+async function expectActionsAtBottomRight(dialog: Locator, first: Locator, last: Locator) {
+  const footer = dialog.locator('.gw-modal-footer');
+  await expect(footer).toContainText(await first.innerText());
+  const [frame, a, b] = await Promise.all([footer.boundingBox(), first.boundingBox(), last.boundingBox()]);
+  expect(frame).not.toBeNull(); expect(a).not.toBeNull(); expect(b).not.toBeNull();
+  expect(Math.abs(a!.y - b!.y)).toBeLessThanOrEqual(1);
+  expect(b!.x - (a!.x + a!.width)).toBeGreaterThanOrEqual(0);
+  expect(b!.x - (a!.x + a!.width)).toBeLessThanOrEqual(24);
+  expect(frame!.x + frame!.width - (b!.x + b!.width)).toBeLessThanOrEqual(32);
+}
 
 for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 568 }, { width: 390, height: 844, light: true }]) {
   test(`home keeps one loading view until its saved source editor is ready at ${viewport.width}px ${'light' in viewport ? 'light' : 'dark'}`, async ({ page }, info) => {
@@ -95,6 +106,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 568 
     const ready = await dialog.boundingBox();
     expect(Math.abs(ready!.y - first!.y)).toBeLessThanOrEqual(1); expect(Math.abs(ready!.height - first!.height)).toBeLessThanOrEqual(1);
     expect(Math.abs(ready!.width - first!.width)).toBeLessThanOrEqual(1);
+    await expectActionsAtBottomRight(dialog, dialog.getByTestId('home-range-done'), dialog.getByTestId('home-range-save'));
     const frames = await page.evaluate(() => (window as unknown as { sourceFrames: string[] }).sourceFrames);
     expect(frames.length).toBeGreaterThan(0); expect([...new Set(frames)]).toEqual([frames[0]]);
     await expect.poll(() => dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
@@ -119,8 +131,15 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 568 
     await dialog.getByTestId('home-range-memory').click();
     await expect(dialog.getByTestId('home-memory-view')).toBeVisible();
     await expect(dialog.getByTestId('home-memory-cell-40001')).toHaveAttribute('data-state', 'used');
+    await expect(dialog.locator('.gw-modal-header').getByRole('button', { name: '關閉', exact: true })).toHaveCount(0);
+    const memoryClose = dialog.locator('.gw-modal-footer').getByRole('button', { name: '關閉', exact: true });
+    await expectActionsAtBottomRight(dialog, dialog.getByTestId('home-memory-back'), memoryClose);
     await dialog.getByTestId('home-memory-back').click();
     await expect(dialog.getByTestId('rule-prefix-input')).toHaveValue('Rule R');
+    await dialog.getByTestId('home-range-memory').click();
+    await expect(dialog.getByTestId('home-memory-view')).toBeVisible();
+    await memoryClose.click();
+    await expect(dialog).toBeHidden();
     expect(requests.filter(value => value.startsWith('write:'))).toEqual([]);
   });
 }

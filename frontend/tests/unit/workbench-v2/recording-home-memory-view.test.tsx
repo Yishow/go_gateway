@@ -312,7 +312,7 @@ describe('memory view blocks every free cell while a recovery is unresolved', ()
   it('shows the recovery notice and renders empty cells as unconfirmed', async () => {
     const { RecordingHomeMemoryView } = await import('@/features/datalink/workbench-v2/recording-home/RecordingHomeMemoryView');
     const onAdd = vi.fn();
-    render(<RecordingHomeMemoryView protocol="modbus_tcp" status="ready" checking={false} blocked="recovery" onOpen={vi.fn()} onAdd={onAdd} onBack={vi.fn()}
+    render(<RecordingHomeMemoryView protocol="modbus_tcp" status="ready" checking={false} blocked="recovery" onOpen={vi.fn()} onAdd={onAdd} onBack={vi.fn()} onClose={vi.fn()}
       inputs={[{ id: 'A', label: 'A_', start_address: '40001', count: 1, data_type: 'int16', skipped_addresses: [] }]} />);
     expect(screen.getByRole('alert')).toHaveTextContent(/still unconfirmed/);
     expect(screen.getByTestId('home-memory-cell-40001')).toHaveAttribute('data-state', 'used');

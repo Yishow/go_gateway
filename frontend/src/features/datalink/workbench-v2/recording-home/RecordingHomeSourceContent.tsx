@@ -122,6 +122,7 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
   if (target.view === 'memory') return <RecordingHomeMemoryView protocol={device.protocol} inputs={ranges.inputs} checking={ranges.checking} blocked={memoryBlock()}
     listScopeMissing={ranges.listScopeMissing} onRetry={retry}
     status={list.isError ? 'error' : list.isPending || list.isFetching ? 'loading' : 'ready'} onBack={() => select(target.returnRuleId, target.returnNewRange || !target.returnRuleId && !listed?.length)}
+    onClose={() => { if (closeRef.current) closeRef.current(); else onClose(); }}
     onOpen={ruleId => select(ruleId)} onAdd={address => select(undefined, true, { startAddress: address })} />;
   return <NewRange device={device} source={source} suspended={suspended} controls={props} leave={leave} options={options} hasRanges={Boolean(listed?.length)} refreshList={retry} close={onClose} />;
 }

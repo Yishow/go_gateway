@@ -99,7 +99,7 @@ export function RecordingHomeSourceHost({ children, renderSource }: {
         <Dialog.Description>{t('source.sharedDescription')}</Dialog.Description></div>
         {points && <span ref={setHeaderSlot} className="gw-home-source-slot" />}
         {settingsOpen && <button type="button" data-testid="home-range-memory" disabled={locked} onClick={() => guarded(() => select(target, { view: 'memory', returnRuleId: target.ruleId, returnNewRange: Boolean(target.newRange) }))}>{t('source.memory.open')}</button>}
-        {(initialSourceLoading || target?.kind !== 'connection' && !target?.ruleId && !target?.newRange) && <button type="button" data-testid="home-source-close" onClick={close}>{t('source.close')}</button>}
+        {(initialSourceLoading || target?.kind !== 'connection' && !target?.ruleId && !target?.newRange && !target?.view) && <button type="button" data-testid="home-source-close" onClick={close}>{t('source.close')}</button>}
         {points && !target.view && deviceChoices.length > 0 && <div role="group" aria-label={t('source.devices')} className="gw-home-source-devices">{deviceChoices.map(item =>
           <button type="button" key={item.id} data-testid={`home-source-device-${item.id}`} aria-pressed={item.id === target.deviceId} disabled={locked}
             onClick={() => { if (item.id !== target.deviceId) guarded(() => switchDevice(target, item.id)); }}>

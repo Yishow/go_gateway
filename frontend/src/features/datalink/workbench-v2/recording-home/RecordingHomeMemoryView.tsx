@@ -27,9 +27,9 @@ export function useHomeRangeInputs(read: HomeRangeRead | undefined, readAt: numb
 
 const AREA_NAMES: Record<string, string> = { HR: '4x', IR: '3x', CS: '0x', IS: '1x' };
 export type HomeMemoryBlock = 'recovery' | 'local' | 'stale';
-export function RecordingHomeMemoryView({ protocol, inputs, status, checking, blocked, listScopeMissing, onOpen, onAdd, onBack, onRetry }: {
+export function RecordingHomeMemoryView({ protocol, inputs, status, checking, blocked, listScopeMissing, onOpen, onAdd, onBack, onClose, onRetry }: {
   protocol?: ProtocolType; inputs: MemoryRuleInput[]; status: 'loading' | 'error' | 'ready'; checking: boolean; blocked?: HomeMemoryBlock; listScopeMissing?: boolean;
-  onOpen: (ruleId: string) => void; onAdd: (address: string) => void; onBack: () => void; onRetry?: () => void;
+  onOpen: (ruleId: string) => void; onAdd: (address: string) => void; onBack: () => void; onClose: () => void; onRetry?: () => void;
 }) {
   const { t } = useTranslation('recording-home');
   const key = JSON.stringify([protocol, inputs, listScopeMissing]);
@@ -182,5 +182,6 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
     <p className="gw-muted gw-memory-intro">{t('source.memory.intro')}</p>
     <p className="gw-muted gw-memory-intro-short">{t('source.memory.introShort')}</p>
     {body()}
-  </section></div><footer className="gw-modal-footer"><button type="button" data-testid="home-memory-back" onClick={onBack}>{t('source.backToSettings')}</button></footer></>;
+  </section></div><footer className="gw-modal-footer"><button type="button" data-testid="home-memory-back" onClick={onBack}>{t('source.backToSettings')}</button>
+    <button type="button" data-testid="home-memory-close" onClick={onClose}>{t('source.close')}</button></footer></>;
 }

@@ -207,6 +207,10 @@
 .gw-home-source-modal .gw-home-range-options .gw-range-address { font-family: var(--gw-font-mono); font-size: 12px; }
 .gw-home-source-modal .gw-home-range-options-wrap > [role=alert] { margin-top: var(--gw-space-xs); }
 
+/* Keep source settings and memory-view actions together at the bottom right. */
+.gw-home-source-modal[data-size=form][data-source-kind=points] .gw-modal-footer { justify-content: flex-end; }
+.gw-home-source-modal[data-size=form][data-source-kind=points] .gw-modal-footer > .gw-primary { margin-inline-start: 0; }
+
 /* Light theme only: the address summary's dark-palette accents fall below 4.5:1 on this white frame. */
 html:not(.dark) .gw-home-source-modal [data-testid=range-summary] [data-testid=function-code-badge] { color: var(--gw-unknown-fg); }
 html:not(.dark) .gw-home-source-modal [data-testid=range-summary] [data-testid=persisted-mc-summary-status] { color: var(--gw-warning-fg); }

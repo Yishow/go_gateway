@@ -7,7 +7,7 @@ beforeEach(async () => { await i18n.changeLanguage('en'); });
 afterEach(cleanup);
 function view() {
   const onAdd = vi.fn(), onOpen = vi.fn();
-  render(<RecordingHomeMemoryView protocol="mc_3e" status="ready" checking={false} onAdd={onAdd} onOpen={onOpen} onBack={vi.fn()}
+  render(<RecordingHomeMemoryView protocol="mc_3e" status="ready" checking={false} onAdd={onAdd} onOpen={onOpen} onBack={vi.fn()} onClose={vi.fn()}
     inputs={[{ id: 'I', label: 'TEMP_', start_address: 'D0', count: 2, data_type: 'int16', skipped_addresses: [], proven: ['D0', 'D1'] }]} />);
   return { onAdd, onOpen };
 }
