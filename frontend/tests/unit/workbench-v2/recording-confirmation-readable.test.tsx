@@ -18,16 +18,17 @@ it('explains the exact compact schema blocker in Chinese without hiding the orig
   const value = readiness();
   render(<I18nextProvider i18n={i18n}><GroupReadinessPanel readiness={value} loading={false} failed={false} dirty={false} onRetry={vi.fn()} {...{ compact: true }} /></I18nextProvider>);
   expect(screen.getByText('請先檢查已儲存的目的地資料表，並明確確認準備內容，再開始記錄。', { exact: false })).toBeVisible();
-  const original = screen.getByText(`schema-confirmation-required: ${known}`);
-  expect(original).not.toBeVisible(); fireEvent.click(original.closest('details')!.querySelector('summary')!); expect(original).toBeVisible();
+  // The original code and message stay on screen as a quiet diagnostic line, not behind a disclosure.
+  const original = screen.getByText(`schema-confirmation-required · ${known}`, { exact: false });
+  expect(original).toBeVisible(); expect(original.closest('details')).toBeNull();
   expect(value.ready).toBe(false); expect(value.issues[0].message).toBe(known);
 });
 it('keeps unknown warnings visible as unverified issues rather than inventing a blocker translation', () => {
   const value = readiness(); value.ready = true; value.schema_ready = true; value.issues = [{ code: 'future-warning', severity: 'warning', step: 'Step 4', scope: 'G', message: 'Original warning from server' }];
   render(<I18nextProvider i18n={i18n}><GroupReadinessPanel readiness={value} loading={false} failed={false} dirty={false} onRetry={vi.fn()} {...{ compact: true }} /></I18nextProvider>);
-  expect(screen.getByText('有一項記錄狀態需要確認。請展開下方詳細資訊，查看原始原因。', { exact: false })).toBeVisible();
-  const original = screen.getByText('future-warning: Original warning from server'); expect(original).not.toBeVisible();
-  fireEvent.click(original.closest('details')!.querySelector('summary')!); expect(original).toBeVisible(); expect(value.ready).toBe(true);
+  expect(screen.getByText('有一項記錄狀態需要確認，原始原因列在下方。', { exact: false })).toBeVisible();
+  const original = screen.getByText('future-warning · Original warning from server', { exact: false });
+  expect(original).toBeVisible(); expect(value.ready).toBe(true);
 });
 it('groups only identical compact action reasons while every original permission and accessible reason remains intact', () => {
   const onAction = vi.fn();
@@ -50,17 +51,15 @@ it('keeps the original guided readiness text when compact is absent', () => {
   expect(screen.getByText(known, { exact: false })).toBeVisible();
 });
 
-it('folds diagnostic facts while keeping exact blocking issues visible and unexplained not-ready facts available', () => {
+it('shows readiness checks as one visible strip with text states while blocking issues stay visible', () => {
   const ready = readiness(); ready.ready = true; ready.schema_ready = true; ready.issues = [];
   const props = { readiness: ready, loading: false, failed: false, dirty: false, onRetry: vi.fn(), compact: true };
   const view = render(<I18nextProvider i18n={i18n}><GroupReadinessPanel {...props} /></I18nextProvider>);
-  const details = screen.getByTestId('recording-readiness-details'); expect(details).not.toHaveAttribute('open');
-  expect(details.querySelector('ul')).not.toBeVisible();
+  const checks = screen.getByTestId('recording-readiness-details');
+  expect(checks.tagName).toBe('UL'); expect(checks).toBeVisible(); expect(checks.closest('details')).toBeNull();
+  expect(checks.querySelectorAll('[data-state="pass"]')).toHaveLength(3);
   view.rerender(<I18nextProvider i18n={i18n}><GroupReadinessPanel {...props} readiness={readiness()} /></I18nextProvider>);
   expect(screen.getByTestId('group-readiness-issues')).toBeVisible();
-  expect(screen.getByTestId('recording-readiness-details').querySelector('ul')).not.toBeVisible();
-  const unexplained = readiness(); unexplained.issues = [];
-  view.rerender(<I18nextProvider i18n={i18n}><GroupReadinessPanel {...props} readiness={unexplained} /></I18nextProvider>);
-  expect(screen.queryByTestId('recording-readiness-details')).not.toBeInTheDocument();
-  expect(screen.getByTestId('group-readiness').querySelector('ul')).toBeVisible();
+  expect(screen.getByTestId('recording-readiness-details').querySelectorAll('[data-state="fail"]')).toHaveLength(2);
+  expect(screen.getByTestId('group-readiness').querySelector('details')).toBeNull();
 });

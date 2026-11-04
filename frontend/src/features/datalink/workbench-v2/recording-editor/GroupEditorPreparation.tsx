@@ -23,9 +23,9 @@ export function GroupEditorPreparation({ compact = false, managed, consentIdenti
   const newSchemaBlocked = () => blocked || retainedTestWrite || recordingTestWriteRecovery.read().references.some(
     reference => reference.workspace_id === workspaceId && reference.group_id === group?.id);
   const statusContent = compact && group ? <GroupReadinessPanel compact readiness={readiness.data} loading={readiness.loading && !save.dirty} failed={readiness.failed} dirty={save.dirty} onRetry={() => void readiness.check()} /> : undefined;
-  const props = { statusContent, sourceRefresh, save, readonly, blocked: blocked || retainedTestWrite, pendingTestWrite: retainedTestWrite, online: owner.online,
+  const props = { compact, statusContent, sourceRefresh, save, readonly, blocked: blocked || retainedTestWrite, pendingTestWrite: retainedTestWrite, online: owner.online,
     readinessReady: Boolean(fresh && readiness.data?.ready), readinessBusy: readiness.loading, checkReadiness: readiness.check };
-  return managed && group ? <GroupSchemaPanel {...schemaProps} guided={{ online: owner.online, consentEpoch: owner.epoch,
+  return managed && group ? <GroupSchemaPanel {...schemaProps} guided={{ online: owner.online, compact, consentEpoch: owner.epoch,
     newOperationBlocked: newSchemaBlocked(), isNewOperationBlocked: newSchemaBlocked, isPreviewRetryBlocked: newSchemaBlocked,
     renderActions: schema => <RecordingPreparationActions {...props} schema={schema} /> }} /> : <RecordingPreparationActions {...props} />;
 }

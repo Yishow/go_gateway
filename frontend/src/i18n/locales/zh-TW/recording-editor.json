@@ -394,6 +394,7 @@
     "nextMethod": "接著選記錄方式",
     "nextDestination": "接著選目的地",
     "methodHint": "每個已選點位，各自留下結果與時間窗。",
+    "goToMember": "前往點位",
     "methodEmpty": "先選擇點位，再於各列設定記錄數值與間隔。",
     "noSelectedPoints": "尚未選取點位。選擇點位後，在這裡設定各點的算法與間隔。",
     "requiredRisk": "必要點到期卻無有效結果時，可能略過輸出；選填缺值保留 NULL 與原因。未到期不影響其他點輸出。",
@@ -409,8 +410,7 @@
       "sources": "{{devices}} 台設備／{{points}} 點",
       "results": "各點算法／記錄間隔",
       "points": "{{count}} 點",
-      "localIntent": "未保存意圖 · 尚未套用此變更",
-      "savedIntent": "設定已保存 · 不代表已執行或寫入 SQL",
+      "table": "資料表",
       "legacy": "維持原全組記錄規則",
       "noPoints": "尚未選點"
     }
@@ -459,11 +459,12 @@
     "unsavedSettings": "未保存變更",
     "savedSettings": "設定已保存",
     "filterSelected": "篩選已選點位",
+    "mixedManagedOnly": "各點位計算只使用受管資料表；儲存前仍可選擇 Schema 與資料表，或自行輸入新名稱。",
     "searchPlaceholder": "名稱、設備或位址"
   },
   "confirmation": {
     "schemaRequired": "請先檢查已儲存的目的地資料表，並明確確認準備內容，再開始記錄。",
-    "unknownIssue": "有一項記錄狀態需要確認。請展開下方詳細資訊，查看原始原因。",
+    "unknownIssue": "有一項記錄狀態需要確認，原始原因列在下方。",
     "sourceStale": "這筆記錄的來源設定已變更，尚未更新至此記錄。",
     "configBlocked": "請先處理這筆記錄的設定問題，才能檢查資料表。"
   },
@@ -486,7 +487,7 @@
   "name": {
     "title": "修改點位名稱", "cancelTitle": "捨棄這次的點位名稱修改？", "cancelDescription": "尚未保存的名稱和本次待加入點位會捨棄；已保存的名稱和記錄草稿會保留。", "cancelKeep": "繼續編輯", "cancelDiscard": "捨棄並關閉選取",
     "rename": "修改名稱",
-    "shared": "此名稱會同步顯示在使用此點位的記錄。離開欄位或按 Enter 自動儲存；按 Esc 取消尚未送出的修改。", "required": "請輸入點位名稱。",
+    "shared": "點位名稱為共用設定，修改會同步到使用此點位的其他記錄。", "required": "請輸入點位名稱。",
     "label": "點位名稱",
     "save": "保存名稱",
     "pending": "正在保存點位名稱…", "loading": "正在讀取點位來源…",

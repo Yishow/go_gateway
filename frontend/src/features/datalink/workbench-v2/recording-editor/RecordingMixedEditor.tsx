@@ -10,6 +10,7 @@ import type { EditorDraft } from '../state/writeGroup/draft';
 import { mixedDraftIssues, newMixedDraft } from './recordingMixedDraft';
 import { cadenceInputInvalid } from './recordingMemberCalculation';
 import { RecordingIntentHelp } from './RecordingIntentHelp';
+import { RecordingMethodGroups } from './RecordingMethodGroups';
 export function mixedEditorAvailable(capabilities: WriteGroupCalculationCapabilities | undefined, dialect: string, layout?: string): boolean {
   return Boolean(capabilities?.editor_supported && capabilities.draft_supported &&
     capabilities.schema_dialects.some(value => value === dialect) && (!layout || capabilities.schema_layouts.some(value => value === layout)));
@@ -42,15 +43,18 @@ export function RecordingMixedEditor({ section = 'all', draft, saved, disabled, 
           if (!saved && !disabled && (layout === 'managed_long_v1' || layout === 'managed_wide_profile_v1') && capabilities?.schema_layouts.includes(layout)) onChange({ ...draft, layout_version: layout });
         }}>{(['managed_wide_profile_v1', 'managed_long_v1'] as const).map(layout => <option key={layout} value={layout} disabled={!capabilities?.schema_layouts.includes(layout)}>{t(`calculation.${layout}`)}</option>)}</select>
       </label><ParameterHelp help="record.layout" /></div>}
-      {section !== 'method' && <p>{t('calculation.savedNotApplied')}</p>}
     </>}
-    {section !== 'destination' && <RecordingIntentHelp visibleSafety={section === 'method' && mixed} hasMembers={draft.members.length > 0} hasCounter={draft.members.some(member => member.calculation === 'delta')} hasRequired={draft.members.some(member => member.required)} />}
-    {section === 'method' && mixed && capabilities && <details data-testid="recording-calculation-limits"><summary>{t('simple.parameterLimits')}</summary><p>{t('calculation.bounds', { min: capabilities.cadence.minimum, seconds: capabilities.cadence.max_seconds, minutes: capabilities.cadence.max_minutes })}</p></details>}
+    {section === 'method' && mixed && <RecordingMethodGroups draft={draft} />}
+    {section !== 'destination' && <RecordingIntentHelp compact={section === 'method'} visibleSafety={section === 'method' && mixed} hasMembers={draft.members.length > 0} hasCounter={draft.members.some(member => member.calculation === 'delta')} hasRequired={draft.members.some(member => member.required)} />}
     {section === 'method' && mixed && !available && <p role="status">{t('calculation.capability')}</p>}
   </section>;
 }
 
+/** A record that was never applied has no result windows to show; the block appears once it is. */
 export function RecordingMixedResults({ group, candidates }: { group: WriteGroup; candidates: GroupCandidate[] }) {
+  return group.applied_revision ? <AppliedMixedResults group={group} candidates={candidates} /> : null;
+}
+function AppliedMixedResults({ group, candidates }: { group: WriteGroup; candidates: GroupCandidate[] }) {
   const query = useWriteGroupDeliveryQuery(group.id, true, 5000);
   return <RecordingMemberResult group={group} candidates={candidates} delivery={query.isError ? undefined : query.data} />;
 }

@@ -41,6 +41,5 @@ export function RecordingMemberResult({ group, delivery, candidates = [] }: Reco
     {!available ? <p>{t('result.unavailable')}</p> : evidence.sources.map(source => <div key={JSON.stringify([source.device_id, source.point_id, source.tag_id])} className="space-y-2 border-t border-slate-800 pt-2">
       <h5 className="font-medium text-slate-200">{sourceLabel(source)}</h5>{result(source, 'latest')}{result(source, 'confirmed')}
     </div>)}
-    <p>{t('result.health')}</p>
   </section>;
 }

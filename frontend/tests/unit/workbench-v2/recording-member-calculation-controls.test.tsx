@@ -52,7 +52,9 @@ it('renders compact method and cadence in two native cells while preserving expl
   expect(view.container.querySelector('tr > fieldset')).toBeNull();
   const consent = screen.getByText('compact.unconfirmed'); expect(consent).toBeVisible(); expect(consent.closest('details')).toBeNull();
   expect(screen.getByRole('option', { name: 'calculation.mean' })).toBeDisabled(); expect(change).not.toHaveBeenCalled();
-  expect(screen.getByText(/calculation.counter_required/).closest('details')).toBe(screen.getByTestId('member-calculation-help-P'));
+  // The reason for an unavailable method rides on its option; no per-row disclosure is rendered.
+  expect(screen.getByRole('option', { name: 'calculation.delta' })).toHaveAttribute('title', 'calculation.counter_required');
+  expect(screen.queryByTestId('member-calculation-help-P')).not.toBeInTheDocument();
   const confirmation = screen.getByRole('button', { name: 'compact.confirmGauge' });
   expect(confirmation).toHaveClass('recording-gauge-confirm');
   expect(confirmation).toBeVisible(); expect(confirmation.closest('details')).toBeNull();

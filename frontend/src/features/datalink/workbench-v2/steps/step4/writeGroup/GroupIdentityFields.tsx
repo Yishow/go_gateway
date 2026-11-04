@@ -14,13 +14,15 @@ export interface GroupIdentityFieldsProps {
   readonly: boolean;
   /** A profile group keeps the layout, storage kind and shared table it was created with. */
   locked: boolean;
+  /** Storage kind lock; defaults to `locked`. A new per-point record is managed-only. */
+  storageLocked?: boolean;
   catalog?: RecordingCatalogView;
   onChange: (patch: Partial<EditorDraft>) => void;
   onStorageStrategy: (strategy: WriteGroupStorageStrategy) => void;
 }
 
 /** Name, storage kind and destination table of a group. */
-export const GroupIdentityFields: React.FC<GroupIdentityFieldsProps> = ({ scopedPresentation = false, section = 'all', draft, readonly, locked, catalog, onChange, onStorageStrategy }) => {
+export const GroupIdentityFields: React.FC<GroupIdentityFieldsProps> = ({ scopedPresentation = false, section = 'all', draft, readonly, locked, storageLocked = locked, catalog, onChange, onStorageStrategy }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: text } = useTranslation('recording-editor');
   return (
@@ -34,11 +36,12 @@ export const GroupIdentityFields: React.FC<GroupIdentityFieldsProps> = ({ scoped
         <legend>{t('step4.group.editor.storage')} <ParameterHelp compact={scopedPresentation} help="record.strategy" /></legend>
         {(['custom', 'managed'] as WriteGroupStorageStrategy[]).map((strategy) => (
           <label key={strategy} className="mr-4 inline-flex items-center gap-1 text-[var(--gw-text)]">
-            <input type="radio" name="group-storage" value={strategy} checked={draft.storage_strategy === strategy} disabled={readonly || locked} onChange={() => onStorageStrategy(strategy)} data-testid={`group-storage-${strategy}`} />
+            <input type="radio" name="group-storage" value={strategy} checked={draft.storage_strategy === strategy} disabled={readonly || storageLocked} onChange={() => onStorageStrategy(strategy)} data-testid={`group-storage-${strategy}`} />
             {t(`step4.group.editor.storage_${strategy}`)}
           </label>
         ))}
-        <p className="mt-1 text-[var(--gw-muted)]" data-testid="group-storage-note">{t(`step4.group.editor.storage_${draft.storage_strategy}_note`)}</p>
+        {!scopedPresentation && section !== 'destination' && <p className="mt-1 text-[var(--gw-muted)]" data-testid="group-storage-note">{t(`step4.group.editor.storage_${draft.storage_strategy}_note`)}</p>}
+        {storageLocked && !locked && <p className="mt-1 text-[var(--gw-muted)]" data-testid="group-storage-mixed-note">{text('compact.mixedManagedOnly')}</p>}
       </fieldset>
       {catalog?.status === 'ready' && !(scopedPresentation && locked && draft.storage_strategy === 'managed') ? <RecordingCatalogFields key={JSON.stringify([draft.connector_id, draft.connector_revision])} draft={draft} disabled={readonly || locked} scopedPresentation={scopedPresentation} catalog={catalog} onChange={onChange} /> : <><div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 text-xs text-[var(--gw-muted)]">
         {t('step4.group.editor.table')}

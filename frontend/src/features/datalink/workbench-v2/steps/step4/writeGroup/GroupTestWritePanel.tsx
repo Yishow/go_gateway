@@ -19,6 +19,7 @@ import { getSafeErrorMessage } from '../../../../../../utils/typedErrors';
 
 export interface GroupTestWritePanelProps {
   locatorScope?: StudioV2LocatorReadScope;
+  /** Accepted for callers; the panel now reads the same in both editors. */
   compact?: boolean;
   workspaceId: string;
   groupId: string;
@@ -39,7 +40,7 @@ export interface GroupTestWritePanelProps {
  * checked rather than repeated, and nothing is inferred from a missing field.
  */
 export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ workspaceId, groupId, scopeKey, enabled, disabledReason,
-  newOperationBlocked = false, isNewOperationBlocked, locatorScope, compact = false }) => {
+  newOperationBlocked = false, isNewOperationBlocked, locatorScope }) => {
   const { t } = useTranslation('workbench-v2');
   const recoveryList = useRecordingTestWriteRecovery(workspaceId, locatorScope);
   const previewMutation = useWriteGroupTestWritePreviewMutation();
@@ -203,13 +204,13 @@ export const GroupTestWritePanel: React.FC<GroupTestWritePanelProps> = ({ worksp
   );
   return (
     <section className="space-y-3 rounded-lg border border-[var(--gw-border)] p-4" aria-labelledby={`group-test-write-${groupId}`} data-testid="group-test-write">
-      {!compact && <><h4 id={`group-test-write-${groupId}`} className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.test_write.title')}</h4>
-      <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.test_write.intro')}</p></>}
+      {/* Always shown: a test write really writes, reads back and cleans up, so its intro states that next to the action. */}
+      <h4 id={`group-test-write-${groupId}`} className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.test_write.title')}</h4>
+      <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.test_write.intro')}</p>
 
       {(!enabled || newOperationBlocked) && disabledReason && <p className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-test-write-blocked">{disabledReason}</p>}
 
-      {compact ? <details data-testid="group-test-write-optional"><summary id={`group-test-write-${groupId}`}>{t('step4.group.test_write.title')}</summary>
-        <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.test_write.intro')}</p>{previewControl}</details> : previewControl}
+      {previewControl}
 
       {!recoveryList.available && <div role="alert" data-testid="group-test-write-list-unavailable">
         {t('step4.group.test_write.recovery_list_unavailable')}

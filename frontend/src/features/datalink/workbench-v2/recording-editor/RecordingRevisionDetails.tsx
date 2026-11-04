@@ -14,9 +14,16 @@ export function RecordingRevisionDetails({ group, simple, scopeDiagnostics }: { 
     <dt>{t('step4.group.editor.connector_revision')}</dt><dd className="font-mono text-[var(--gw-text)]">{group.destination.connector_revision}</dd>
   </dl>;
   if (!simple) return values;
-  return <details data-testid="group-revision-details" className="text-xs text-[var(--gw-muted)]">
-    <summary className="cursor-pointer"><span>{text('versions.details')}</span> · {status}</summary>
-    {scopeDiagnostics && <section className="mt-2 space-y-1" data-testid="locator-version-details">{scopeDiagnostics}</section>}
-    <section className="mt-2">{values}</section>
-  </details>;
+  // Side rail: one row per value, IDs shortened with the full value kept in the tooltip and selectable text.
+  const id = (value: string | undefined, empty: string) => value ? <span className="font-mono" title={value}>{value.length > 12 ? `${value.slice(0, 8)}…` : value}</span> : empty;
+  return <section data-testid="group-revision-details" className="recording-revision-details" aria-label={text('versions.details')}>
+    <h4>{text('versions.details')}</h4>
+    {scopeDiagnostics && <div className="space-y-1" data-testid="locator-version-details">{scopeDiagnostics}</div>}
+    <dl data-testid="group-revisions">
+      <div><dt>{home('savedStatus')}</dt><dd>{status}</dd></div>
+      <div><dt>{t('step4.group.editor.draft_revision')}</dt><dd>{id(group.revision, '—')}</dd></div>
+      <div><dt>{t('step4.group.editor.applied_revision')}</dt><dd data-testid="group-applied-revision">{id(group.applied_revision, t('step4.group.editor.not_applied'))}</dd></div>
+      <div><dt>{t('step4.group.editor.connector_revision')}</dt><dd>{id(group.destination.connector_revision, '—')}</dd></div>
+    </dl>
+  </section>;
 }

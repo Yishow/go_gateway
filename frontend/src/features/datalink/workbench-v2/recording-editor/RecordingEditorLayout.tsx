@@ -17,10 +17,11 @@ export interface RecordingEditorLayoutProps {
   memberCount: number;
   selectedScope?: { shown: number; total: number };
   selectedScopeInHeading?: boolean;
-  perPoint: boolean;
+  /** Kept for callers; the per-point and legacy hints were removed from the layout. */
+  perPoint?: boolean;
 }
 /** Presentation only: same-page navigation never changes history, intent or command owners. */
-export function RecordingEditorLayout({ presentation, identity, sources, method, destination, policy, summary, confirmation, fieldsDisabled = false, memberCount, selectedScope, selectedScopeInHeading = false, perPoint }: RecordingEditorLayoutProps) {
+export function RecordingEditorLayout({ presentation, identity, sources, method, destination, policy, summary, confirmation, fieldsDisabled = false, memberCount, selectedScope, selectedScopeInHeading = false }: RecordingEditorLayoutProps) {
   const { t } = useTranslation('recording-editor');
   const nav = useRef<HTMLElement>(null);
   const [activeSection, setActiveSection] = useState<SectionName>('sources');
@@ -57,10 +58,9 @@ export function RecordingEditorLayout({ presentation, identity, sources, method,
         <section className="recording-editor-panel" id="recording-editor-sources" tabIndex={-1} aria-labelledby="recording-editor-sources-title" data-testid="recording-editor-sources">
           <fieldset disabled={fieldsDisabled} className="min-w-0 space-y-3" data-testid="group-save-fields">
           {identity}
-          <header><h4 id="recording-editor-sources-title">{t('simple.section.sources')}</h4><p>{t(perPoint ? 'simple.sourcesHint' : 'simple.legacySourcesHint')}</p></header>
+          <header><h4 id="recording-editor-sources-title">{t('simple.section.sources')}</h4></header>
           <div className="recording-editor-source-selection"><h5 className="recording-editor-point-count" aria-live={selectedScopeInHeading ? 'polite' : undefined} data-testid={selectedScopeInHeading ? 'group-member-scope' : undefined}>{t('simple.sources', { count: memberCount })}{selectedScope && selectedScope.shown !== selectedScope.total && <> · {t('compact.selectedScope', selectedScope)}</>}</h5>
           {sources}</div>
-          <p className="recording-editor-note">{t('simple.sourceCadenceNote')}</p>
           </fieldset>
         </section>
         <section className="recording-editor-panel" id="recording-editor-method" tabIndex={-1} aria-labelledby="recording-editor-method-title" data-testid="recording-editor-method-note">

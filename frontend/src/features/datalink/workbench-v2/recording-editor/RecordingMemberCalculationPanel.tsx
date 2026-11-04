@@ -17,7 +17,7 @@ export function RecordingMemberCalculation({ compact = false, tableCells = false
   const methodControl = <div className={tableCells ? "recording-calculation-control" : "flex min-w-0 items-start gap-2"}><label className="min-w-0 flex-1"><span className={tableCells ? 'sr-only' : undefined}>{t('calculation.title')}</span><select disabled={blocked} className={FIELD} value={member.calculation ?? ''} onChange={event => {
         const method = event.target.value as WriteGroupMemberCalculation;
         if (!blocked && methods.includes(method)) onChange(changeMemberCalculation(member, method, context));
-      }}><option value="" disabled>{t('calculation.unavailable')}</option>{methods.map((method, index) => <option key={method} value={method} disabled={Boolean(reasons[index])}>{t(`calculation.${method}`)}</option>)}</select></label><ParameterHelp compact={compact} help="member.method" /></div>;
+      }}><option value="" disabled>{t('calculation.unavailable')}</option>{methods.map((method, index) => <option key={method} value={method} disabled={Boolean(reasons[index])} title={reasons[index] ? safeReason(reasons[index]) : undefined}>{t(`calculation.${method}`)}</option>)}</select></label><ParameterHelp compact={compact} help="member.method" /></div>;
   const intervalControl = <div className={tableCells ? "recording-calculation-control" : "flex min-w-0 items-start gap-2"}><label className="min-w-0 flex-1"><span className={tableCells ? 'sr-only' : undefined}>{t('calculation.interval')}</span><input disabled={blocked} className={FIELD} type="text" inputMode="numeric" value={member.cadence_input ?? (Number.isFinite(cadence?.interval) ? String(cadence?.interval) : '')}
         onChange={event => { if (!blocked && cadence) onChange({ ...member, cadence_input: event.target.value, cadence: { ...cadence, interval: event.target.value.trim() ? Number(event.target.value) : NaN } }); }} /></label><ParameterHelp compact={compact} help="member.cadence" /></div>;
   const unitControl = <div className={tableCells ? "recording-calculation-control" : "flex min-w-0 items-start gap-2"}><label className="min-w-0 flex-1"><span className={tableCells ? 'sr-only' : undefined}>{t('calculation.unit')}</span><select disabled={blocked} className={FIELD} value={cadence?.unit ?? ''} onChange={event => {
@@ -35,9 +35,6 @@ export function RecordingMemberCalculation({ compact = false, tableCells = false
         <button type="button" className="gw-secondary recording-gauge-confirm" disabled={blocked} onClick={() => { if (!blocked) onChange(confirmMemberGauge(member, context)); }}>{t('compact.confirmGauge')}</button><ParameterHelp compact help="member.gaugeConfirm" />
       </div>}
       {member.gauge_confirmation && !reasons[1] && <p className="recording-calculation-notes">{t('calculation.gaugeConfirmed')}</p>}
-      {reasons.some((reason, index) => reason && methods[index] !== member.calculation) && <details className="recording-calculation-notes" data-testid={`member-calculation-help-${member.point_id}`}><summary>{t('compact.methodHelp')}</summary>
-        {reasons.map((reason, index) => reason && methods[index] !== member.calculation && <p key={methods[index]}>{t(`calculation.${methods[index]}`)}: {safeReason(reason)}</p>)}
-      </details>}
     </td><td data-testid={`group-member-cadence-${member.point_id}`}><div className="recording-cadence-controls">{intervalControl}{unitControl}</div></td></>;
   }
   return <fieldset className={compact ? 'recording-calculation-compact min-w-64 space-y-2' : 'mt-2 space-y-2'} data-testid={`member-calculation-${member.point_id}`}>

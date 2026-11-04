@@ -350,7 +350,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
     >
       <div>
         <h4 id={titleId} className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.schema.title')}</h4>
-        <p className="mt-1 text-xs text-[var(--gw-muted)]">{t('step4.group.schema.intro')}</p>
+        {!guided?.compact && <p className="mt-1 text-xs text-[var(--gw-muted)]">{t('step4.group.schema.intro')}</p>}
       </div>
 
       {blockedReason && <p role="status" className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-schema-blocked">{blockedReason}</p>}

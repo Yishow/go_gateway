@@ -6,11 +6,21 @@ import { useStudioV2MySQLRecordingCapabilityQuery, useStudioV2SQLServerRecording
 import type { StudioV2MySQLRecordingCapability } from '../../../../../../types/studioV2MySQLRecordingCapability';
 import type { StudioV2SQLServerRecordingCapability } from '../../../../../../types/studioV2SQLServerRecordingCapability';
 import type { DbConnector } from '../../../state/types';
+import type { EditorDraft } from '../../../state/writeGroup/draft';
 import { mixedEditorAvailable } from '../../../recording-editor/RecordingMixedEditor';
 import type { GroupEditorProps } from './GroupEditor';
 export function destinationSaved(connector: DbConnector): boolean {
   return connector.persisted === true && connector.save_state === 'saved' &&
     Boolean(connector.connector_id && connector.identity_revision);
+}
+/** Saved profile and long-table records keep their storage, schema and table. A per-point
+ * (mixed) record may still choose schema and table until its first save; it is always a
+ * managed table, so only its storage kind stays fixed. Ownership is enforced by the server. */
+export function destinationLock(draft: EditorDraft, saved: boolean): { locked: boolean; storageLocked: boolean } {
+  if (draft.recording_profile?.kind === 'mixed') return { locked: saved, storageLocked: true };
+  const profile = (draft.layout_version === 'managed_long_v1' || draft.layout_version === 'managed_wide_profile_v1') && draft.recording_profile !== undefined;
+  const locked = profile || draft.layout_version === 'managed_long_v1';
+  return { locked, storageLocked: locked };
 }
 type CapabilityProps = GroupEditorProps & { Content: React.ComponentType<GroupEditorContentProps>; newDestination?: NewRecordingDestination };
 /** Dialect capabilities remain canonical, independently queried only for saved destinations. */

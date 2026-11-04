@@ -34,8 +34,10 @@ export function RecordingDestinationFields({ workspaceId, workspaceRevision, con
   const query = useQuery({ queryKey: ['studio-v2', 'database-catalog', workspaceId, workspaceRevision, scope.connectorId, scope.connectorRevision, scope.kind,
     scope.groupId ?? '', scope.groupRevision ?? '', ...studioLocatorReadKey(locatorScope)], queryFn: () => readRecordingDestinationCatalog(scope, locatorScope),
     enabled: eligible && destinationVisible, retry: false, refetchOnWindowFocus: false, staleTime: 0 });
-  const status: RecordingCatalogView['status'] = query.isFetching || query.isPending ? 'loading' : query.isError || !query.data ? 'error' : 'ready';
-  const catalog: RecordingCatalogView | undefined = eligible ? { status, defaultSchema: status === 'ready' ? query.data!.default_schema : '',
+  // A query that has not started (destination not yet on screen) is not "loading"; show plain fields until it runs.
+  const started = query.isFetching || query.isFetched;
+  const status: RecordingCatalogView['status'] = query.isFetching ? 'loading' : query.isError || !query.data ? 'error' : 'ready';
+  const catalog: RecordingCatalogView | undefined = eligible && started ? { status, defaultSchema: status === 'ready' ? query.data!.default_schema : '',
     schemas: status === 'ready' ? query.data!.schemas : [], blockedTables: status === 'ready' ? ownedWideCatalogTables(configuredDestinations,
       { workspaceId, workspaceRevision, connector, groupId: group?.id }, query.data!.default_schema) : [], retry: () => { void query.refetch(); } } : undefined;
   return <><span ref={marker} hidden /><GroupIdentityFields {...fields} section="destination" catalog={catalog} /></>;

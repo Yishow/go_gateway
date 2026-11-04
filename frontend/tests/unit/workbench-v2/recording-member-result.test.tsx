@@ -42,3 +42,8 @@ it('uses canonical result_present for a valid zero-capable result, never raw pre
  expect(screen.getByTestId('member-result-pt-0-latest')).toHaveTextContent('result.present'); expect(screen.getByTestId('member-result-pt-0-latest')).not.toHaveTextContent('result.null');
  expect(screen.getByText('result.raw')).toBeInTheDocument();
 });
+it('renders no result-window block for a record that was never applied', async () => {
+  const { RecordingMixedResults } = await import('../../../src/features/datalink/workbench-v2/recording-editor/RecordingMixedEditor');
+  const view = render(<RecordingMixedResults group={{ ...group, applied_revision: '' }} candidates={[]} />);
+  expect(view.container).toBeEmptyDOMElement();
+});

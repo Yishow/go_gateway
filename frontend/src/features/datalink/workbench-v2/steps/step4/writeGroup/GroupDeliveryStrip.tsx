@@ -38,7 +38,7 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
     return t(`step4.group.delivery.cause.${safeCause}`);
   };
   const facts = (
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <dl className={compact ? 'recording-kpi-strip' : 'grid grid-cols-2 gap-3 sm:grid-cols-4'}>
         {cell(t('step4.group.delivery.saved'), group.status === 'deleted' ? t('step4.group.status.deleted') : t('step4.group.delivery.yes'), 'delivery-saved')}
         {cell(t('step4.group.delivery.applied'), group.applied_revision ? t('step4.group.delivery.yes') : t('step4.group.delivery.no'), 'delivery-applied')}
         {cell(t('step4.group.delivery.collecting'), num(stages?.collecting), 'delivery-collecting')}
@@ -51,7 +51,7 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
   );
   return (
     <section aria-label={t('step4.group.delivery.title')} className="space-y-2" data-testid="group-delivery-strip">
-      {!compact && <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.delivery.title')}</h4>}
+      <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.delivery.title')}{compact && !confirmed && <span className="font-normal text-[var(--gw-muted)]"> · {unknown}</span>}</h4>
       {delivery.isError && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-delivery-failed">{t('step4.group.delivery.failed')}</p>}
       {compact && stages && stages.blocked + stages.quarantined + stages.unknown > 0 && <p role="status" data-testid="group-delivery-attention-summary">{t('step4.group.delivery.attention')}: {stages.blocked + stages.quarantined + stages.unknown}</p>}
       {compact && <div data-testid="recording-delivery-summary" className="space-y-1 text-sm">
@@ -60,7 +60,8 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
         {pending !== undefined && pending > 0 && <p data-testid="recording-delivery-pending">{t('step4.group.delivery.local')}: {pending}</p>}
         {confirmed?.backlog.some(item => item.pending > 0) && <p>{summaryText('deliverySummary.backlog')}</p>}
       </div>}
-      {compact ? <details data-testid="group-delivery-diagnostics"><summary>{t('step4.group.delivery.title')}{!confirmed && ` · ${unknown}`}</summary>{facts}<p className="text-xs text-[var(--gw-muted)]">{t('step4.group.delivery.note')}</p></details> : facts}
+      {/* A record that never ran shows its one-line summary only; eight zero cells would read as progress. */}
+      {compact ? (group.applied_revision || hasHistory || (pending ?? 0) > 0) && <div data-testid="group-delivery-diagnostics">{facts}</div> : facts}
       {recentIssues.length > 0 && (
         <div data-testid="delivery-bucket-causes" className="space-y-1">
           <p className="text-xs font-medium text-[var(--gw-text)]">{t('step4.group.delivery.recent_issues')}</p>
@@ -75,9 +76,9 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
           </ul>
         </div>
       )}
-      {group.applied_revision && <details className="text-xs text-[var(--gw-muted)]"><summary>{t('step4.group.delivery.recovery.diagnostics')}</summary>{group.applied_revision}</details>}
+      {group.applied_revision && <p className="text-xs text-[var(--gw-muted)]" data-testid="delivery-applied-revision">{t('step4.group.delivery.recovery.diagnostics')}：<span className="font-mono" title={group.applied_revision}>{group.applied_revision}</span></p>}
       <GroupDeliveryRecovery groupId={group.id} items={confirmed?.attention ?? []} readonly={readonly} onResolved={() => void delivery.refetch()} />
-      {!compact && <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.delivery.note')}</p>}
+      {(!compact || group.applied_revision || hasHistory || (pending ?? 0) > 0) && <p className="text-xs text-[var(--gw-muted)]">{t('step4.group.delivery.note')}</p>}
     </section>
   );
 };

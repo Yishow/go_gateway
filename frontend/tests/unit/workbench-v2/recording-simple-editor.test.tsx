@@ -86,9 +86,14 @@ it('orders visible source and per-point controls before the destination without 
   expect(within(destination).queryByRole('button', { name: 'Existing database owner' })).not.toBeInTheDocument();
   expect(within(destination).getByLabelText('calculation.layoutLabel')).toBeVisible();
   expect(screen.getByTestId('group-lateness')).toBeVisible();
-  expect(screen.getByText('calculation.firstBaseline')).not.toBeVisible();
+  // Only risks that apply stay visible; the method explanation lives in the section's help button.
+  expect(screen.queryByText('calculation.firstBaseline')).not.toBeInTheDocument();
   expect(screen.getByText('simple.requiredRisk')).toBeVisible();
-  expect(screen.getByTestId('recording-editor-method-note')).toHaveTextContent('calculation.dueUnion');
+  const method = screen.getByTestId('recording-editor-method-note');
+  expect(method).not.toHaveTextContent('calculation.dueUnion');
+  expect(within(method).getByTestId('recording-method-groups')).toHaveTextContent('simple.summary.points');
+  expect(method.querySelector('[data-parameter-help="record.method"]')).not.toBeNull();
+  expect(method.querySelector('details')).toBeNull();
   expect(screen.getByTestId('member-calculation-pt-0').closest('td')).toHaveAttribute('data-testid', 'group-member-calculation-pt-0');
 });
 it('keeps one repair action inside the padded editor before preparation and in the readonly fallback', () => {
@@ -163,16 +168,16 @@ it('keeps the empty simple picker focused and derives a read-only summary withou
   expect(screen.getByTestId('recording-summary-name')).toHaveTextContent('simple.unset');
   fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'My unsaved name' } });
   expect(screen.getByTestId('recording-summary-name')).toHaveTextContent('My unsaved name');
-  expect(screen.getByTestId('recording-summary-name').closest('details')).not.toHaveAttribute('open');
-  expect(screen.getByTestId('recording-summary-name')).not.toBeVisible();
-  fireEvent.click(screen.getByText('compact.identities'));
+  // The summary rail is always open: name and table are plain rows, not a disclosure.
+  expect(screen.getByTestId('recording-summary-name').closest('details')).toBeNull();
   expect(screen.getByTestId('recording-summary-name')).toBeVisible();
-  expect(screen.getByText('simple.summary.localIntent')).toBeVisible();
+  expect(screen.getByTestId('recording-summary-table')).toBeVisible();
+  expect(screen.getByText('compact.unsavedSettings')).toBeVisible();
   expect(screen.getAllByTestId('recording-preparation-actions')).toHaveLength(1);
   expect(screen.getAllByTestId('group-save')).toHaveLength(1);
   expect(screen.getByTestId('group-editor')).toHaveClass('recording-editor-simple');
   expect(screen.queryByTestId('group-editor-close')).not.toBeInTheDocument();
-  expect(screen.getByText('calculation.bounds')).not.toBeVisible();
+  expect(screen.queryByTestId('recording-calculation-limits')).not.toBeInTheDocument();
   expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
   expect(source.submit).not.toHaveBeenCalled();
 });
@@ -195,7 +200,7 @@ it('keeps relevant counter risks and capability denial visible rather than foldi
       cadence: { interval: 60, unit: 'second', alignment: 'utc_epoch' }, source_value_type: 'uint64', value_role: 'counter_raw', measurement_id: 'counter-1' }] } });
   expect(screen.getByText('calculation.firstBaseline')).toBeVisible();
   expect(screen.getByText('simple.requiredRisk')).toBeVisible();
-  expect(screen.getByTestId('recording-editor-method-note')).toHaveTextContent('calculation.dueUnion');
+  expect(screen.getByTestId('recording-method-groups')).toHaveTextContent('calculation.delta · 60 calculation.second');
   expect(screen.getByTestId('recording-editor-summary')).toHaveTextContent('60');
   view.update({ calculationCapabilities: undefined });
   expect(screen.getByText('calculation.capability')).toBeVisible();
@@ -210,25 +215,21 @@ it('keeps only the outer Back for unsupported simple records while guided retain
   expect(screen.getByRole('button', { name: 'step4.group.editor.back' })).toBeVisible();
 });
 
-it('collapses simple version identifiers while keeping actual status and destination denial visible', () => {
+it('shows simple version identifiers in the summary rail as short IDs with full values, keeping status and destination denial visible', () => {
   const state = savedGroupState();
   mount({ group: savedGroup(), scopeDiagnostics: <p>Fresh scoped revision W2</p>, connector: { ...state.db.connector, identity_revision: 'different-connector-revision' } });
   const versions = screen.getByTestId('group-revision-details');
   const values = screen.getByTestId('group-revisions');
-  expect(versions).not.toHaveAttribute('open');
-  expect(values).toBeInTheDocument(); expect(values).not.toBeVisible();
-  const summary = within(versions).getByText('versions.details').closest('summary');
-  expect(summary).toBeVisible(); expect(summary).toHaveTextContent('savedStatuses.ready');
-  expect(summary).toHaveTextContent(/^versions\.details · savedStatuses\.ready$/);
+  expect(versions.tagName).toBe('SECTION'); expect(versions.querySelector('details')).toBeNull();
+  expect(within(versions).getByRole('heading', { name: 'versions.details' })).toBeVisible();
+  expect(values).toBeVisible(); expect(values).toHaveTextContent('savedStatuses.ready');
+  expect(values).toHaveTextContent('rev-1'); expect(values).toHaveTextContent('crev-1');
   expect(screen.getByTestId('recording-editor-summary')).toContainElement(versions);
   expect(versions.closest('.recording-editor-tools')).toBeNull();
   expect(screen.getByTestId('group-lifecycle-return')).toHaveTextContent(savedGroup().name);
-  expect(screen.getByText('Fresh scoped revision W2').closest('details')).toBe(versions);
+  expect(versions).toContainElement(screen.getByText('Fresh scoped revision W2'));
   expect(screen.getAllByText('versions.details')).toHaveLength(1);
   expect(screen.getByTestId('group-destination-mismatch')).toBeVisible();
-  fireEvent.click(within(versions).getByText('versions.details'));
-  expect(values).toBeVisible(); expect(values).toHaveTextContent('rev-1');
-  expect(values).toHaveTextContent('crev-1');
 });
 it('keeps saved guided version identifiers visible without a disclosure wrapper', () => {
   mount({ presentation: 'guided', group: savedGroup() });
@@ -321,7 +322,7 @@ it('keeps the original saved confirmation owners inside the destination panel an
 it('keeps version diagnostics below the everyday summary rather than above source editing', () => {
   mount({ group: savedGroup(), scopeDiagnostics: <p>Exact diagnostic revision</p> });
   expect(screen.getByTestId('recording-editor-summary')).toContainElement(screen.getByTestId('group-revision-details'));
-  expect(screen.getByTestId('group-revisions')).not.toBeVisible();
+  expect(screen.getByTestId('group-revisions')).toBeVisible();
   expect(screen.getByTestId('recording-editor-summary')).toHaveTextContent('compact.savedSettings');
 });
 it.each([

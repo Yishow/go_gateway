@@ -13,6 +13,7 @@ it.each(['basic', 'mixed'] as const)('labels the actual %s review destination wi
  const review = vi.fn();
  render(<GroupLifecycleBar group={group} workspaceId="ws-1" workspaceRevision="W2" canApply readonly={false} onChanged={vi.fn()} onConflict={vi.fn()} onReviewScopedStart={review} />);
  expect(screen.getByTestId('group-apply')).toHaveTextContent('start.reviewSaved');
- expect(screen.getByTestId('group-apply-note')).toHaveTextContent('start.reviewSavedNote');
+ // The review destination's label says what happens next; the extra note sentence was removed.
+ expect(screen.queryByTestId('group-apply-note')).not.toBeInTheDocument();
  fireEvent.click(screen.getByTestId('group-apply')); expect(review).toHaveBeenCalledExactlyOnceWith(group);
 });

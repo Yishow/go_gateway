@@ -34,6 +34,7 @@ export const parameterHelpSources = {
   "record.strategy": { canonical: "EditorDraft.storage_strategy", source: "frontend/src/features/datalink/workbench-v2/state/writeGroup/draft.ts:validateDraft", demo: "formal-only" },
   "record.table": { canonical: "EditorDraft.table_name", source: "frontend/src/features/datalink/workbench-v2/state/writeGroup/draft.ts:validateDraft", demo: "table" },
   "record.schema": { canonical: "EditorDraft.table_schema", source: "frontend/src/features/datalink/workbench-v2/state/writeGroup/draft.ts:validateDraft", demo: "schema" },
+  "record.method": { canonical: "WriteGroupMember.calculation/cadence", source: "frontend/src/features/datalink/workbench-v2/recording-editor/recordingMemberCalculation.ts:changeMemberCalculation", demo: "method" },
   "record.layout": { canonical: "EditorDraft.layout_version", source: "frontend/src/features/datalink/workbench-v2/recording-editor/recordingMixedDraft.ts:mixedDraftIssues", demo: "layout" },
   "member.method": { canonical: "member.calculation", source: "internal/datalink/workspace/write_group_calculation_capabilities.go:RecordingCalculationCapabilities", demo: "memberCalcN" },
   "member.cadence": { canonical: "member.cadence.interval", source: "internal/datalink/workspace/write_group_calculation_capabilities.go:RecordingCalculationCapabilities", demo: "memberEveryN" },

@@ -167,7 +167,7 @@ describe('simple Stop confirmation on the original lifecycle owner', () => {
     wrap(<WriteGroupSection presentation="simple" state={savedGroupState()} workspaceId="ws-1" readonly={false} openGroupRequest={{ id: group.id }} />);
     const name = await screen.findByTestId('group-name');
     fireEvent.change(name, { target: { value: 'Unsaved different title' } });
-    fireEvent.click(screen.getByTestId('recording-secondary-management').querySelector('summary')!);
+    expect(screen.getByTestId('recording-secondary-management').tagName).toBe('SECTION');
     const trigger = screen.getByTestId('group-disable'); expect(trigger).toBeVisible(); trigger.focus(); fireEvent.click(trigger);
     const dialog = await screen.findByRole('alertdialog');
     expect(dialog).toHaveTextContent('stop.title'); expect(dialog).toHaveTextContent('Saved recorder');
@@ -275,12 +275,11 @@ describe('simple Stop confirmation on the original lifecycle owner', () => {
   });
 });
 
-it('keeps simple saved management secondary while original start and action owners remain independently reachable', () => {
+it('shows simple saved management in its own section while original start and action owners remain independently reachable', () => {
   const host = { onAction: vi.fn() }; wrap(bar({ compact: true, lifecycleHost: host }));
   expect(screen.getByTestId('group-apply')).toBeVisible(); expect(screen.getByTestId('group-apply')).toBeEnabled();
-  const management = screen.getByTestId('recording-secondary-management'); expect(management).not.toHaveAttribute('open');
-  expect(screen.getByTestId('group-disable')).not.toBeVisible();
-  fireEvent.click(management.querySelector('summary')!);
+  const management = screen.getByTestId('recording-secondary-management');
+  expect(management.tagName).toBe('SECTION'); expect(within(management).getByRole('heading', { name: 'workflow.manage' })).toBeVisible();
   expect(screen.getByTestId('group-disable')).toBeVisible(); expect(screen.getByTestId('group-delete')).toBeVisible();
   fireEvent.click(screen.getByTestId('saved-recording-edit'));
   expect(host.onAction).toHaveBeenCalledExactlyOnceWith({ workspaceId: 'ws-1', workspaceRevision: 'wrev-1', groupId: 'group-1', groupRevision: 'rev-1', action: 'edit' });

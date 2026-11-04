@@ -144,9 +144,9 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
         {routed ? recordingT('start.reviewSaved') : t('step4.group.lifecycle.apply')}
       </button>
       {!sharedReadinessReason && !canApply && !deleted && applyBlockedReason && <p className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-apply-blocked">{applyBlockedReason}</p>}
-      <p className="text-xs text-[var(--gw-muted)]" data-testid="group-apply-note">{routed ? recordingT('start.reviewSavedNote') : t('step4.group.lifecycle.apply_note')}</p>
+      {!routed && <p className="text-xs text-[var(--gw-muted)]" data-testid="group-apply-note">{t('step4.group.lifecycle.apply_note')}</p>}
     </>}
-    {compact ? <details className="recording-secondary-management" data-testid="recording-secondary-management"><summary>{recordingT('workflow.manage')}</summary>{management}<p className="text-xs text-[var(--gw-muted)]">{lifecycleT('stop.keeps')}</p></details> : management}
+    {compact ? <section className="recording-secondary-management" data-testid="recording-secondary-management" aria-labelledby={`group-manage-${group.id}`}><h4 id={`group-manage-${group.id}`} className="text-sm font-semibold text-[var(--gw-text)]">{recordingT('workflow.manage')}</h4>{management}<p className="text-xs text-[var(--gw-muted)]">{lifecycleT('stop.keeps')}</p></section> : management}
     {compact && !snapshot && <p role="status" className="text-sm text-[var(--gw-warning-fg)]">{lifecycleT('reason.lifecycle_unavailable')}</p>}
     {(!snapshot || refreshBlocked) && <button type="button" onClick={() => { void lifecycle.refetch(); onConflict(); }} className="text-xs underline" data-testid="saved-recording-refresh">{lifecycleT('refresh')}</button>}
     {!compact && <p className="text-xs text-[var(--gw-muted)]">{lifecycleT('stop.keeps')}</p>}

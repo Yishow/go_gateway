@@ -18,10 +18,8 @@ export interface GroupPolicyFieldsProps {
 /** Row policy of a group. Only the wide and custom layouts have a seconds interval and a completeness policy. */
 export const GroupPolicyFields: React.FC<GroupPolicyFieldsProps> = ({ expanded = false, draft, readonly, profile, onChange, onDedupe }) => {
   const { t } = useTranslation('workbench-v2');
-  return (
-    <details open={expanded || undefined} className="rounded border border-[var(--gw-control)] p-3" data-testid="group-advanced">
-      <summary className="cursor-pointer text-xs font-medium text-[var(--gw-text)]">{t('step4.group.editor.advanced')}</summary>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+  const fields = (
+      <div className="grid gap-3 sm:grid-cols-2">
         {!profile && (
           <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 text-xs text-[var(--gw-muted)]">{t('step4.group.editor.interval')}
             <input type="number" min={1} value={draft.interval_seconds} disabled={readonly || draft.recording_profile !== undefined} onChange={(event) => onChange({ interval_seconds: Number(event.target.value) })} className={FIELD} data-testid="group-interval" />
@@ -53,6 +51,17 @@ export const GroupPolicyFields: React.FC<GroupPolicyFieldsProps> = ({ expanded =
           </>
         )}
       </div>
-    </details>
+  );
+  return (
+    expanded
+      // The simple editor shows these rules as a plain section; only the guided flow folds them.
+      ? <fieldset className="rounded border border-[var(--gw-control)] p-3" data-testid="group-advanced">
+        <legend className="px-1 text-xs font-medium text-[var(--gw-text)]">{t('step4.group.editor.rules')}</legend>
+        {fields}
+      </fieldset>
+      : <details className="rounded border border-[var(--gw-control)] p-3" data-testid="group-advanced">
+        <summary className="cursor-pointer text-xs font-medium text-[var(--gw-text)]">{t('step4.group.editor.advanced')}</summary>
+        <div className="mt-3">{fields}</div>
+      </details>
   );
 };

@@ -233,6 +233,12 @@
       "how": "Use the existing connector and ownership rules. The same table name in another schema is a different destination.",
       "example": "public is a PostgreSQL schema example, not a universal default."
     },
+    "method": {
+      "title": "Recording method",
+      "what": "Latest stores the last eligible reading in the window; mean is the arithmetic mean of eligible readings; delta records a confirmed counter's change in the window.",
+      "how": "Each point has its own UTC-aligned windows. Wide tables leave not-due points NULL (not_due); long tables write due points only. No carry-forward and no zero fill.",
+      "example": "One recording can store temperature as latest every 15 s and energy as delta every 10 min."
+    },
     "layout": {
       "title": "Recording layout",
       "what": "Wide layouts place members in one row; long layouts store a row per member result.",
@@ -244,7 +250,7 @@
     "method": {
       "title": "Result to record",
       "what": "Latest stores the last reading; mean averages measurements; delta records a confirmed counter interval change.",
-      "how": "Use the available method and source semantics. Counter raw/state are not automatically averaged; first counter baseline is not zero.",
+      "how": "A disabled option means this source cannot use it yet: mean needs “Confirm measurement use” on the row, delta needs a confirmed counter definition. Counter raw/state are not averaged automatically; the first counter baseline is not zero.",
       "example": "The same source can use latest in one record and mean in another."
     },
     "cadence": {

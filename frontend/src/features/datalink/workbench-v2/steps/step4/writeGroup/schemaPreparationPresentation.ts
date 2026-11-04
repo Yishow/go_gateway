@@ -35,6 +35,8 @@ export interface SchemaPreparationPresentation {
 }
 export interface GuidedSchemaPresentation {
   readonly online: boolean;
+  /** Simple editor: the panel heading is enough; the generic intro sentence is omitted. */
+  readonly compact?: boolean;
   /** Parent-native consent generation; publication identity only, never mutation permission. */
   readonly consentEpoch?: number;
   readonly newOperationBlocked?: boolean;

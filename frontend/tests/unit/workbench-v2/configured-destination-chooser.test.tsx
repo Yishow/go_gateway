@@ -51,9 +51,10 @@ it('shows same table labels separately, explains foreign and wide owners, and se
  expect(row.getByRole('heading', { name: group.name })).toBeInTheDocument();
  expect(row.getByRole('button', { name: 'destinations.select' })).toHaveClass('inline-flex', 'h-9', 'border-[var(--gw-control)]', 'bg-[var(--gw-surface)]', 'focus-visible:outline-[var(--gw-focus)]');
  expect(row.getByRole('link')).toHaveClass('inline-flex', 'h-9', 'border-[var(--gw-control)]', 'bg-[var(--gw-surface)]', 'focus-visible:outline-[var(--gw-focus)]');
- expect(row.getByText('destinations.technical').closest('details')).not.toHaveAttribute('open');
- expect(row.getByText(group.revision)).toBeInTheDocument();
- expect(screen.getByText('destinations.reason.wideOwner').closest('details')).toBe(screen.getByTestId('configured-destinations'));
+ // Technical identity is a visible meta line: short ID with the full value in its tooltip.
+ expect(screen.getByTestId('configured-destinations').querySelector('details')).toBeNull();
+ expect(screen.getByTestId('configured-destination-long-1').querySelector(`[title="${group.revision}"]`)).toHaveTextContent(group.revision.slice(0, 8));
+ expect(screen.getByText('destinations.reason.wideOwner').closest('section')).toBe(screen.getByTestId('configured-destinations'));
 
 });
 it('the original editor refuses Save when fresh readback changes the selected reference and copies no proof', async () => {

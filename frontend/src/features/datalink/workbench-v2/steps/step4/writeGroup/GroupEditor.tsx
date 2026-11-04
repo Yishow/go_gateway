@@ -6,7 +6,7 @@ import { ConfiguredDestinationChooser, type ConfiguredDestinationObservation } f
 import { configuredDestinationPatch, configuredDestinationReason, configuredDestinationStillCurrent } from '../../../recording-editor/configuredRecordingDestinations';
 import { RecordingSourceNavigation } from '../../../recording-editor/RecordingSourceNavigation';
 import { useWriteGroupSaveActivity, writeGroupSaveOutcomeUnknown } from '../../../../../../hooks/datalink/useWriteGroupSaveActivity';
-import { GroupEditorWithCapabilities, destinationSaved, type GroupEditorContentProps } from './GroupEditorCapabilities';
+import { GroupEditorWithCapabilities, destinationLock, destinationSaved, type GroupEditorContentProps } from './GroupEditorCapabilities';
 import { RecordingDraftBoundary, useRecordingDraftGuard, useRecordingReadUnavailable } from '../../../recording-editor/RecordingDraftNavigation';
 import type { WriteGroupCalculationCapabilities } from '../../../../../../types/studioV2WriteGroupCalculation';
 import { RecordingMixedEditor, RecordingMixedResults, recordingMixedEditorIssues } from '../../../recording-editor/RecordingMixedEditor';
@@ -368,7 +368,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
 
       <RecordingEditorLayout presentation={presentation} fieldsDisabled={saveBusy || readUnavailable} perPoint={mixed} memberCount={draft.members.length} selectedScope={scopeInHeading ? selectedScope : undefined} selectedScopeInHeading={scopeInHeading}
         summary={presentation === 'simple' && <RecordingEditorSummary draft={draft} destinationName={saved && destinationMatches ? connector.name || connector.kind : undefined} saved={Boolean(group)} dirty={dirty} diagnostics={group && <RecordingRevisionDetails group={group} simple scopeDiagnostics={scopeDiagnostics} />} />}
-        identity={<GroupIdentityFields scopedPresentation={scopedPresentation} section={presentation === 'simple' ? 'name' : 'all'} draft={draft} readonly={readonly} locked={profile || draft.layout_version === 'managed_long_v1'} onChange={set} onStorageStrategy={changeStorageStrategy} />}
+        identity={<GroupIdentityFields scopedPresentation={scopedPresentation} section={presentation === 'simple' ? 'name' : 'all'} draft={draft} readonly={readonly} {...destinationLock(draft, Boolean(group))} onChange={set} onStorageStrategy={changeStorageStrategy} />}
         method={<>
       <RecordingMixedEditor section={presentation === 'simple' ? 'method' : 'all'} draft={draft} saved={Boolean(group)} disabled={readonly || saveBusy} capabilities={calculationCapabilities} dialect={connector.kind} onChange={next => { if (!savingRef.current) setDraft(next); }} />
       {profile && !mixed && <GroupProfileSummary draft={draft} />}
@@ -386,7 +386,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
           table_name: group?.layout_version === 'managed_long_v1' && draft.storage_strategy === 'managed' ? '' : connector.table ?? '' })} />}
 
           {presentation === 'simple' && <>
-      <RecordingDestinationFields workspaceId={workspaceId} workspaceRevision={workspaceRevision} connector={connector} group={group} locatorScope={locatorScope} configuredDestinations={configuredDestinations} scopedPresentation={scopedPresentation} draft={draft} readonly={readonly} locked={profile || draft.layout_version === 'managed_long_v1'} onChange={set} onStorageStrategy={changeStorageStrategy} />
+      <RecordingDestinationFields workspaceId={workspaceId} workspaceRevision={workspaceRevision} connector={connector} group={group} locatorScope={locatorScope} configuredDestinations={configuredDestinations} scopedPresentation={scopedPresentation} draft={draft} readonly={readonly} {...destinationLock(draft, Boolean(group))} onChange={set} onStorageStrategy={changeStorageStrategy} />
 
       <RecordingMixedEditor section="destination" draft={draft} saved={Boolean(group)} disabled={readonly || saveBusy} capabilities={calculationCapabilities} dialect={connector.kind} onChange={next => { if (!savingRef.current) setDraft(next); }} />
           </>}

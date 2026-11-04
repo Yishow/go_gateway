@@ -64,7 +64,8 @@ describe('GroupDeliveryStrip', () => {
     expect(screen.queryByTestId('delivery-bucket-causes')).not.toBeInTheDocument();
     expect(screen.getByTestId('delivery-saved')).toHaveTextContent('step4.group.delivery.yes');
     expect(screen.getByTestId('delivery-applied')).toHaveTextContent('step4.group.delivery.yes');
-    expect(screen.getByText('rev-applied').closest('details')).not.toBeNull();
+    expect(screen.getByTestId('delivery-applied-revision')).toHaveTextContent('rev-applied');
+    expect(screen.getByTestId('group-delivery-strip').querySelector('details')).toBeNull();
   });
 
   it('keeps delivery facts unconfirmed before the first response', () => {
@@ -103,14 +104,14 @@ describe('GroupDeliveryStrip', () => {
   });
 });
 
-it('folds only compact delivery diagnostics while errors and bucket risks remain visible', () => {
+it('shows compact delivery figures for an applied record without folding, while errors and bucket risks remain visible', () => {
   deliveryQuery.mockReturnValue({ data: delivery({ recent_bucket_issues: [{ group_revision: 'rev-1', bucket_start: '2026-10-03T00:00:00Z', kind: 'skipped', causes: ['missing'] }] }), isError: false } as never);
-  const view = render(<GroupDeliveryStrip group={savedGroup()} {...{ compact: true }} />);
-  expect(screen.getByTestId('group-delivery-diagnostics')).not.toHaveAttribute('open');
-  expect(screen.getByTestId('delivery-collecting')).not.toBeVisible();
+  const view = render(<GroupDeliveryStrip group={{ ...savedGroup(), applied_revision: 'rev-1' }} {...{ compact: true }} />);
+  expect(screen.getByTestId('group-delivery-diagnostics').querySelector('dl')).toHaveClass('recording-kpi-strip');
+  expect(screen.getByTestId('delivery-collecting')).toBeVisible();
   expect(screen.getByTestId('delivery-bucket-causes')).toBeVisible();
   deliveryQuery.mockReturnValue({ data: undefined, isError: true } as never);
-  view.rerender(<GroupDeliveryStrip group={savedGroup()} {...{ compact: true }} />);
+  view.rerender(<GroupDeliveryStrip group={{ ...savedGroup(), applied_revision: 'rev-1' }} {...{ compact: true }} />);
   expect(screen.getByTestId('group-delivery-failed')).toBeVisible();
 });
 
@@ -120,7 +121,7 @@ it('summarizes a confirmed not-running record without presenting eight zero cell
   render(<GroupDeliveryStrip group={savedGroup()} compact />);
   expect(screen.getByTestId('recording-delivery-summary')).toHaveTextContent('deliverySummary.notRunning');
   expect(screen.getByTestId('recording-delivery-summary')).toHaveTextContent('step4.group.delivery.yes');
-  expect(screen.getByTestId('delivery-collecting')).not.toBeVisible();
+  expect(screen.queryByTestId('delivery-collecting')).not.toBeInTheDocument();
   expect(screen.queryByTestId('recording-delivery-history')).not.toBeInTheDocument();
 });
 
@@ -141,5 +142,7 @@ it('does not confirm runtime or history from a foreign delivery response', () =>
   render(<GroupDeliveryStrip group={savedGroup()} compact />);
   expect(screen.getByTestId('recording-delivery-summary')).toHaveTextContent('deliverySummary.unconfirmed');
   expect(screen.queryByTestId('recording-delivery-history')).not.toBeInTheDocument();
-  expect(screen.getByTestId('delivery-committed')).toHaveTextContent('step4.group.delivery.unconfirmed');
+  // An unapplied record shows no figure cells at all, so a foreign 12 can never appear as committed rows.
+  expect(screen.queryByTestId('delivery-committed')).not.toBeInTheDocument();
+  expect(screen.queryByText('12')).not.toBeInTheDocument();
 });

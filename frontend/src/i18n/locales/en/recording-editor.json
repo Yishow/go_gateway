@@ -394,6 +394,7 @@
     "nextMethod": "Next: recording method",
     "nextDestination": "Next: destination",
     "methodHint": "Each selected point keeps its own result and interval.",
+    "goToMember": "Go to point",
     "methodEmpty": "Select points first. Their result and interval controls will appear beside each point.",
     "noSelectedPoints": "No points selected. Choose points to configure their results and intervals here.",
     "requiredRisk": "Missing results for due required points can suppress output; optional results remain NULL with their reason. A point that is not due does not suppress another point’s output.",
@@ -409,8 +410,7 @@
       "sources": "{{devices}} devices / {{points}} points",
       "results": "Per-point results / intervals",
       "points": "{{count}} points",
-      "localIntent": "Unsaved changes · not applied",
-      "savedIntent": "Saved settings · not proof of running or SQL writes",
+      "table": "Table",
       "legacy": "Original group-wide recording policy",
       "noPoints": "No points selected"
     }
@@ -459,11 +459,12 @@
     "unsavedSettings": "Unsaved changes",
     "savedSettings": "Saved settings",
     "filterSelected": "Filter selected points",
+    "mixedManagedOnly": "Per-point recordings use managed tables only; before the first save you can still choose a schema and table, or type a new name.",
     "searchPlaceholder": "Name, device or address"
   },
   "confirmation": {
     "schemaRequired": "Check the saved destination table, then explicitly confirm its preparation before starting.",
-    "unknownIssue": "A saved recording status needs review. Expand the details below for the original reason.",
+    "unknownIssue": "A recording status needs checking; the original reason is listed below.",
     "sourceStale": "The source settings changed and this recording still uses the earlier settings.",
     "configBlocked": "Resolve the recording configuration issues before checking the destination table."
   },
@@ -486,7 +487,7 @@
   "name": {
     "title": "Change point name", "cancelTitle": "Discard this point name change?", "cancelDescription": "The unsaved name and points waiting to be added will be discarded. Saved names and the recording draft will be kept.", "cancelKeep": "Keep editing", "cancelDiscard": "Discard and close selection",
     "rename": "Change name",
-    "shared": "This name is shared by recordings using this point. Leave the field or press Enter to save; press Esc to cancel an unsent edit.", "required": "Enter a point name.",
+    "shared": "Point names are shared; a rename also applies to other recordings that use the point.", "required": "Enter a point name.",
     "label": "Point name",
     "save": "Save name",
     "pending": "Saving the point name…", "loading": "Reading the point source…",
