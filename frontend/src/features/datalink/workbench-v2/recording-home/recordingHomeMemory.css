@@ -1,0 +1,67 @@
+/* Memory view: one area at a time, address-aligned square cells; colour marks occupancy only.
+   Scoped under .gw-modal so the modal's generic rounded control styles do not apply to cells. */
+.gw-home-memory { display: grid; gap: 12px; min-width: 0; }
+.gw-home-memory h3 { font-size: 16px; font-weight: 600; }
+.gw-modal .gw-home-memory h3:is(:focus, :focus-visible) { outline: none; }
+.gw-modal .gw-memory-tabs { display: flex; flex-wrap: wrap; gap: 0 12px; border-bottom: 1px solid var(--gw-border); }
+.gw-modal .gw-memory-tabs > button { min-height: 44px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; padding: 8px 2px; color: var(--gw-muted); white-space: nowrap; }
+.gw-modal .gw-memory-tabs > button:hover:not(:disabled) { background: transparent; color: var(--gw-text); }
+.gw-memory-tabs button span { font-size: 12px; }
+.gw-modal .gw-memory-tabs > button[aria-selected=true] { color: var(--gw-text); border-bottom-color: var(--gw-accent); font-weight: 600; }
+.gw-memory-panel { display: grid; gap: 12px; min-width: 0; }
+.gw-memory-notice { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--gw-warning-border); border-radius: var(--gw-radius-md); background: var(--gw-warning-bg); color: var(--gw-warning-fg); }
+.gw-memory-notice p { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.gw-memory-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.gw-memory-toolbar form { display: flex; flex: 0 1 360px; align-items: flex-end; gap: 8px; min-width: 0; margin-inline-end: auto; }
+.gw-memory-toolbar label { display: grid; flex: 1; gap: 4px; min-width: 0; font-size: 12px; color: var(--gw-muted); }
+.gw-memory-toolbar input { font-family: var(--gw-font-mono); }
+.gw-memory-toolbar input[aria-invalid=true] { border-color: var(--gw-danger-border); }
+.gw-memory-jumps { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13px; color: var(--gw-muted); }
+.gw-modal .gw-memory-jumps > button { min-height: 32px; padding: 2px 8px; font-family: var(--gw-font-mono); font-size: 12px; }
+.gw-memory-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; }
+.gw-memory-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--gw-muted); }
+.gw-memory-legend li { display: flex; align-items: center; gap: 6px; }
+.gw-memory-swatch { width: 14px; height: 14px; border: 1px solid var(--gw-border); }
+.gw-memory-owners { display: grid; gap: 8px; justify-items: start; padding: 12px; border: 1px solid var(--gw-border); border-radius: var(--gw-radius-md); background: var(--gw-surface); }
+.gw-memory-owners h4 { font-size: 14px; font-weight: 600; }
+
+/* The grid draws its outer top/left edge; each cell draws its right/bottom edge. */
+.gw-memory-grid { --gw-memory-line: color-mix(in srgb, var(--gw-border) 55%, var(--gw-raised)); display: grid; grid-template-columns: repeat(var(--gw-memory-cols), minmax(0, 1fr)); gap: 0;
+  border-top: 1px solid var(--gw-memory-line); border-left: 1px solid var(--gw-memory-line); }
+.gw-memory-intro-short { display: none; }
+.gw-modal .gw-memory-grid > :is(button, div) { position: relative; display: grid; align-content: start; gap: 2px;
+  min-width: 0; min-height: 68px; max-width: none; margin: 0; padding: 6px 6px 6px 8px;
+  border: 0; border-right: 1px solid var(--gw-memory-line); border-bottom: 1px solid var(--gw-memory-line); border-radius: 0; box-shadow: none;
+  background: var(--gw-raised); color: var(--gw-text); text-align: start; font: inherit; cursor: default; overflow-wrap: normal; }
+.gw-modal .gw-memory-grid > button { cursor: pointer; }
+.gw-modal .gw-memory-grid > button[data-state=empty]:hover:not(:disabled) { background: var(--gw-active); }
+.gw-modal .gw-memory-grid > :is(button, div):focus-visible { outline: var(--gw-focus-width, 2px) solid var(--gw-focus); outline-offset: -3px; }
+.gw-memory-address { font-family: var(--gw-font-mono); font-size: 12px; color: var(--gw-muted); font-variant-numeric: tabular-nums; }
+.gw-memory-value, .gw-memory-type, .gw-memory-cue { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; }
+.gw-memory-type { display: flex; flex-wrap: wrap; column-gap: 0; font-family: var(--gw-font-mono); font-size: 12px; color: var(--gw-muted); white-space: pre; }
+.gw-memory-cue { font-size: 12px; color: var(--gw-accent); }
+.gw-memory-grid :is(.gw-memory-value, .gw-memory-cue) { white-space: normal; overflow-wrap: break-word; word-break: normal; }
+.gw-modal .gw-memory-grid > [data-state=used], .gw-memory-swatch[data-state=used] { --gw-memory-line: color-mix(in srgb, var(--gw-accent) 38%, var(--gw-raised)); background: color-mix(in srgb, var(--gw-accent) 16%, var(--gw-raised)); }
+.gw-modal .gw-memory-grid > [data-state=used]:hover:not(:disabled) { background: color-mix(in srgb, var(--gw-accent) 26%, var(--gw-raised)); }
+/* A value's first register carries a 3px bar in the accent; later registers continue it unmarked. */
+.gw-modal .gw-memory-grid > [data-state=used][data-part=first][data-multi=true]::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--gw-accent); }
+.gw-modal .gw-memory-grid > [data-state=used][data-part=rest] .gw-memory-value { color: var(--gw-muted); }
+/* One multi-register value reads as one block: no divider between its parts in a row. */
+.gw-modal .gw-memory-grid > [data-join-next=true] { border-right-color: transparent; }
+.gw-modal .gw-memory-grid > [data-state=conflict], .gw-memory-swatch[data-state=conflict] { background: var(--gw-warning-bg); color: var(--gw-warning-fg); }
+.gw-modal .gw-memory-grid > [data-state=unconfirmed], .gw-memory-swatch[data-state=unconfirmed] { color: var(--gw-muted);
+  background: repeating-linear-gradient(135deg, var(--gw-surface) 0 4px, color-mix(in srgb, var(--gw-border) 70%, var(--gw-surface)) 4px 5px); }
+@media (max-width: 1023px) { .gw-memory-grid { grid-template-columns: repeat(var(--gw-memory-cols-md), minmax(0, 1fr)); } }
+@media (max-width: 639px) {
+  .gw-memory-grid { grid-template-columns: repeat(var(--gw-memory-cols-sm), minmax(0, 1fr)); }
+  .gw-memory-intro, .gw-memory-tabs button span { display: none; }
+  .gw-memory-intro-short { display: block; font-size: 13px; }
+  .gw-modal .gw-memory-tabs { flex-wrap: nowrap; overflow-x: auto; }
+  .gw-memory-toolbar form { flex: 1 1 100%; order: -1; }
+  .gw-memory-toolbar > button { flex: 1; }
+  .gw-modal .gw-memory-grid > :is(button, div) { min-height: 64px; padding: 4px 4px 4px 7px; }
+}
+
+/* Range list facts. */
+.gw-home-source-modal .gw-home-range-list li p { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.gw-range-flag { margin-inline-start: 8px; padding: 1px 6px; border: 1px solid var(--gw-border); border-radius: 4px; font-size: 12px; color: var(--gw-muted); white-space: nowrap; }

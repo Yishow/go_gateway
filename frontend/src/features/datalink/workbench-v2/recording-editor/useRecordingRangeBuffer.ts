@@ -40,10 +40,12 @@ export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourceP
     setTarget({ id: previous.request.deviceId, name: previous.request.deviceId }); setBuffer(raw(previous.request.buffer, previous.request.mappingDefaults?.unit)); setDirty(false);
     setOutcome(previous); requestRef.current = previous.request; generation.current = previous.request.generation; session.current = previous.request.sessionId; return true;
   };
-  const start = async (next: { id: string; name: string }) => {
+  /** `initial` is a non-dirty prefill for a fresh buffer only; it never replaces a resumed recovery. */
+  const start = async (next: { id: string; name: string }, initial?: Pick<RecordingRangeBuffer, 'address'>) => {
     if (disabled || !canStart(next.id)) return false;
     if ((locked || unresolved) && resume()) return true;
     reset(); setTarget(next); setDevice(undefined); setBlocked(false);
+    if (initial) setBuffer({ ...newRecordingRangeBuffer(), address: initial.address });
     if (!port) return true; // Local buffer exists, but no submit capability is claimed.
     const captured = owner, intent = ++prepareGeneration.current; setPreparing(true);
     try {
