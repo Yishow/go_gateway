@@ -46,7 +46,7 @@ export function RecordingHomeSourceHost({ children, renderSource }: {
   const close = () => { if (closeRef.current) closeRef.current(); else setTarget(undefined); };
   const captured = target;
   return <>{children(open, workspaceChanged, create)}<Dialog.Root open={Boolean(target)} onOpenChange={value => { if (!value) close(); }}>
-    <Dialog.Portal><Dialog.Overlay className="gw-modal-overlay" /><Dialog.Content data-workbench-v2 className="gw-modal gw-home-source-modal" data-source-kind={target?.kind} data-size={navigation.confirming ? 'confirm' : 'form'} role={navigation.confirming ? 'alertdialog' : 'dialog'}
+    <Dialog.Portal><Dialog.Overlay className="gw-modal-overlay" /><Dialog.Content data-workbench-v2 className="gw-modal gw-home-source-modal" data-source-kind={target?.kind} data-initial-loading={initialSourceLoading} data-size={navigation.confirming ? 'confirm' : 'form'} role={navigation.confirming ? 'alertdialog' : 'dialog'}
       style={{ color: semanticTokens.colors.text, backgroundColor: semanticTokens.colors.raised }}
       onPointerDownOutside={event => event.preventDefault()}
       onEscapeKeyDown={event => { event.preventDefault(); if (!event.isComposing) { if (navigation.confirming) navigation.keep(); else close(); } }}

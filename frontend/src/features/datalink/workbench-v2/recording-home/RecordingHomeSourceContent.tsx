@@ -19,7 +19,7 @@ export interface RecordingHomeSourceContentProps extends HomeSourceControls {
 }
 export function RecordingHomeSourceLoading({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation('recording-home');
-  return <><div className="gw-modal-body" role="status">{t('loading')}</div>
+  return <><div className="gw-modal-body gw-home-source-loading" role="status">{t('loading')}</div>
     <footer className="gw-modal-footer"><button type="button" onClick={onClose}>{t('source.close')}</button></footer></>;
 }
 function SavedConnection({ device, source, suspended, controls }: { device?: Device; source: DeviceSourcePort; suspended: boolean; controls: HomeSourceControls }) {

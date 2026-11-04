@@ -164,6 +164,18 @@
 @media(max-width:639px) { .gw-recording-home [data-testid="home-device-summary"] li { grid-template-columns:minmax(0,1fr) auto; } .gw-home-source-modal[data-size=form] { width:calc(100vw - 16px); max-height:calc(100dvh - 16px); height:auto; } }
 @media(max-width:639px) { .gw-home-source-modal[data-size=form]:is([data-source-kind=points],[data-source-kind=connection]) { height:calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); } }
 
+/* Show a loading cue without flashing an empty form frame before the scoped read completes. */
+.gw-home-source-modal[data-size=form][data-initial-loading=true]:has(.gw-home-source-loading) {
+  grid-template-rows:minmax(0,1fr) auto auto minmax(0,1fr); background-color:transparent !important; border-color:transparent; box-shadow:none;
+}
+.gw-home-source-modal[data-size=form][data-initial-loading=true]:has(.gw-home-source-loading) .gw-modal-header { opacity:0; pointer-events:none; }
+.gw-home-source-modal[data-size=form][data-initial-loading=true]:has(.gw-home-source-loading) .gw-modal-header > button { display:none; }
+.gw-home-source-modal[data-size=form][data-initial-loading=true]:has(.gw-home-source-loading) .gw-home-source-loading {
+  justify-self:center; padding:var(--gw-space-sm) var(--gw-space-md); text-align:center;
+  background:var(--gw-raised); border:1px solid var(--gw-border); border-radius:var(--gw-radius-md);
+}
+.gw-home-source-modal[data-size=form][data-initial-loading=true]:has(.gw-home-source-loading) .gw-modal-footer { justify-content:center; border-color:transparent; background:transparent; }
+
 .gw-home-range-scroll-cue { display: none; }
 @media (max-width: 639px) {
   .gw-home-source-modal .gw-home-range-scroll-cue { display: block; flex: 0 0 100%; color: var(--gw-muted); font-size: 12px; line-height: 1.3; text-align: center; }

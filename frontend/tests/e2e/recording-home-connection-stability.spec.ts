@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test';
 import { locatorRead, nativeDevice, nativeRule } from '../unit/workbench-v2/studio-locator-fixtures';
 
 for (const viewport of [{ width: 1440, height: 900 }, { width: 768, height: 1024 },
-  { width: 390, height: 844 }, { width: 320, height: 568 }, { width: 900, height: 430 }]) {
-  test(`home connection dialog loads without jumping at ${viewport.width}px`, async ({ page }, info) => {
-    await page.setViewportSize(viewport);
+  { width: 390, height: 844 }, { width: 320, height: 568 }, { width: 900, height: 430 }, { width: 390, height: 844, light: true }]) {
+  test(`home connection dialog loads without jumping at ${viewport.width}px ${'light' in viewport ? 'light' : 'dark'}`, async ({ page }, info) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
     let releaseDevice!: () => void;
     const deviceGate = new Promise<void>(resolve => { releaseDevice = resolve; });
     const requests: string[] = [];
@@ -26,15 +26,22 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 768, height: 1024
       else return route.abort();
       return route.fulfill({ json: { success: true, data } });
     });
-    await page.goto('/tests/e2e/fixtures/recording-home-source-host.html?home');
+    await page.goto(`/tests/e2e/fixtures/recording-home-source-host.html?home${'light' in viewport ? '&light' : ''}`);
     const trigger = page.locator('[data-home-focus="summary-connection-D"]');
     await expect(trigger).toBeVisible();
     await page.evaluate(() => {
       const seen: string[] = [];
+      const values: string[] = [];
       new MutationObserver(() => {
         if (document.querySelector('.gw-home-source-modal [data-testid="studio-locator-notice"]')) seen.push('locator-notice');
       }).observe(document.body, { childList: true, subtree: true });
       (window as unknown as { transientConnectionViews: string[] }).transientConnectionViews = seen;
+      (window as unknown as { connectionFirstValues: string[] }).connectionFirstValues = values;
+      const sample = () => { const input = document.querySelector<HTMLInputElement>('[data-testid="recording-source-name"]');
+        if (input?.getClientRects().length) values.push(JSON.stringify([input.value,
+          document.querySelector<HTMLInputElement>('[data-testid="input-host"]')?.value,
+          document.querySelector<HTMLInputElement>('[data-testid="input-port"]')?.value])); requestAnimationFrame(sample); };
+      requestAnimationFrame(sample);
     });
     await trigger.click();
     const dialog = page.getByRole('dialog');
@@ -43,10 +50,18 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 768, height: 1024
     const loading = await dialog.boundingBox();
     await page.screenshot({ path: info.outputPath(`connection-loading-${viewport.width}.png`) });
     await expect(dialog.getByRole('status')).toHaveText('正在讀取目前工作區…');
+    await expect(dialog).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)', { timeout: 1000 });
+    await expect(dialog).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)', { timeout: 1000 });
+    await expect(dialog.getByRole('button', { name: '關閉', exact: true })).toHaveCount(1);
+    await expect(dialog.getByRole('button', { name: '關閉', exact: true })).toBeFocused();
     await expect(dialog.getByTestId('studio-locator-notice')).toHaveCount(0);
     releaseDevice();
     const name = dialog.getByTestId('recording-source-name');
     await expect(name).toHaveValue('Device D');
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    const values = await page.evaluate(() => (window as unknown as { connectionFirstValues: string[] }).connectionFirstValues);
+    expect(values.length).toBeGreaterThan(0); expect(values.every(value => value === '["Device D","fixture.invalid","502"]')).toBe(true);
+    await expect.poll(() => dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
     const ready = await dialog.boundingBox();
     await page.screenshot({ path: info.outputPath(`connection-ready-${viewport.width}.png`) });
     expect(loading).not.toBeNull(); expect(ready).not.toBeNull();

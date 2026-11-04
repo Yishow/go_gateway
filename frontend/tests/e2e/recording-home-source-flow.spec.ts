@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { locatorRead, nativeDevice, nativeRule } from '../unit/workbench-v2/studio-locator-fixtures';
 
-for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 568 }]) {
-  test(`home keeps one loading view until its saved source editor is ready at ${viewport.width}px`, async ({ page }, info) => {
-    await page.setViewportSize(viewport);
+for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 568 }, { width: 390, height: 844, light: true }]) {
+  test(`home keeps one loading view until its saved source editor is ready at ${viewport.width}px ${'light' in viewport ? 'light' : 'dark'}`, async ({ page }, info) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
     let releaseDevice!: () => void, releaseList!: () => void, releaseRule!: () => void;
     const deviceGate = new Promise<void>(resolve => { releaseDevice = resolve; });
     const listGate = new Promise<void>(resolve => { releaseList = resolve; });
@@ -32,23 +32,34 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 568 
       else return route.abort();
       return route.fulfill({ json: { success: true, data } });
     });
-    await page.goto('/tests/e2e/fixtures/recording-home-source-host.html?home');
+    await page.goto(`/tests/e2e/fixtures/recording-home-source-host.html?home${'light' in viewport ? '&light' : ''}`);
     const trigger = page.getByTestId('home-device-points-D');
     await expect(trigger).toBeVisible();
     await page.evaluate(() => {
       const seen: string[] = [];
+      const values: string[] = [];
       new MutationObserver(() => {
         const dialog = document.querySelector('.gw-home-source-modal');
         if (dialog?.querySelector('[data-testid="studio-locator-notice"]')) seen.push('locator-notice');
         if (dialog?.querySelector('.gw-home-range-list')) seen.push('range-list');
       }).observe(document.body, { childList: true, subtree: true });
       (window as unknown as { transientSourceViews: string[] }).transientSourceViews = seen;
+      (window as unknown as { sourceFirstValues: string[] }).sourceFirstValues = values;
+      const sample = () => { const input = document.querySelector<HTMLInputElement>('[data-testid="rule-prefix-input"]');
+        if (input?.getClientRects().length) values.push(JSON.stringify([input.value,
+          document.querySelector<HTMLInputElement>('[data-testid="rule-start-input"]')?.value,
+          document.querySelector<HTMLInputElement>('[data-testid="rule-count-input"]')?.value])); requestAnimationFrame(sample); };
+      requestAnimationFrame(sample);
     });
     opened = true;
     await trigger.click();
     const dialog = page.getByRole('dialog'), status = dialog.getByRole('status');
     await expect.poll(() => requests.includes('locator:1')).toBe(true);
     await expect(status).toHaveText('正在讀取目前工作區…');
+    await expect(dialog).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)', { timeout: 1000 });
+    await expect(dialog).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)', { timeout: 1000 });
+    await expect(dialog.getByRole('button', { name: '關閉', exact: true })).toHaveCount(1);
+    await expect(dialog.getByRole('button', { name: '關閉', exact: true })).toBeFocused();
     const first = await status.boundingBox();
     await expect(dialog.getByTestId('studio-locator-notice')).toHaveCount(0);
     await page.screenshot({ path: info.outputPath(`device-loading-${viewport.width}.png`) });
@@ -69,6 +80,10 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 568 
     expect(Math.abs(third!.y - first!.y)).toBeLessThanOrEqual(1);
     releaseRule();
     await expect(dialog.getByTestId('rule-prefix-input')).toHaveValue('Rule R');
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    const values = await page.evaluate(() => (window as unknown as { sourceFirstValues: string[] }).sourceFirstValues);
+    expect(values.length).toBeGreaterThan(0); expect(values.every(value => value === '["Rule R","40001","2"]')).toBe(true);
+    await expect.poll(() => dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
     expect(await page.evaluate(() => (window as unknown as { transientSourceViews: string[] }).transientSourceViews)).toEqual([]);
     await page.screenshot({ path: info.outputPath(`ready-${viewport.width}.png`) });
     expect(requests.filter(value => value.startsWith('write:'))).toEqual([]);

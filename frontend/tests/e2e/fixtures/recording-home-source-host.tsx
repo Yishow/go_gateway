@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import i18n from '../../../src/i18n/config';
 import { RecordingDraftNavigation } from '../../../src/features/datalink/workbench-v2/recording-editor/RecordingDraftNavigation';
-import { RecordingHomeSourceContent } from '../../../src/features/datalink/workbench-v2/recording-home/RecordingHomeSourceContent';
+import { RecordingHomeSourceContent, RecordingHomeSourceLoading } from '../../../src/features/datalink/workbench-v2/recording-home/RecordingHomeSourceContent';
 import { RecordingHomeSourceHost } from '../../../src/features/datalink/workbench-v2/recording-home/RecordingHomeSourceHost';
 import { hydrateStudioV2Device } from '../../../src/features/datalink/workbench-v2/state/studioV2DeviceAutosave';
 import { hydrateStudioV2Rule } from '../../../src/features/datalink/workbench-v2/state/studioV2RuleAutosave';
@@ -16,7 +16,7 @@ import '../../../src/features/datalink/workbench-v2/styles/workbench-v2.css';
 import '../../../src/features/datalink/workbench-v2/recording-home/recording-home.css';
 
 await i18n.changeLanguage('zh-TW');
-document.documentElement.classList.add('dark');
+if (!new URLSearchParams(window.location.search).has('light')) document.documentElement.classList.add('dark');
 const at = '2026-10-29T00:00:00Z';
 const device: Device = { id: 'D', name: 'Fixture Modbus', description: '', protocol: 'modbus_tcp', status: 'draft',
   connection_config: '{"host":"fixture.invalid","port":502,"slave_id":1}', last_test_at: null, last_test_success: null,
@@ -40,11 +40,11 @@ function Root() {
     <DatalinkWorkbenchV2Page presentation="recordings" locatorIntent={{ kind: 'absent' }} presentationLocation={{ search: '?view=recordings', hash: '#home' }} />
   </RecordingDraftNavigation></QueryClientProvider>;
   return <QueryClientProvider client={client}><RecordingDraftNavigation><RecordingHomeSourceHost
-    renderSource={controls => <RecordingHomeSourceContent key={controls.target.epoch} {...controls} state={state}
+    renderSource={controls => params.has('inspect-loading') ? <RecordingHomeSourceLoading onClose={controls.onClose} /> : <RecordingHomeSourceContent key={controls.target.epoch} {...controls} state={state}
       dispatch={() => { throw new Error('Unexpected write'); }} source={source} suspended={false}
       onRetryShare={() => undefined} onOpenShareSettings={() => undefined} />}>
     {(open, workspaceChanged) => <Entry open={() => open('W', 'D', params.has('inspect-connection') ? 'connection' : 'points')}
-      workspaceChanged={workspaceChanged} autoOpen={params.has('inspect-connection')} />}
+      workspaceChanged={workspaceChanged} autoOpen={params.has('inspect-connection') || params.has('inspect-loading')} />}
   </RecordingHomeSourceHost></RecordingDraftNavigation></QueryClientProvider>;
 }
 createRoot(document.getElementById('root')!).render(<Root />);

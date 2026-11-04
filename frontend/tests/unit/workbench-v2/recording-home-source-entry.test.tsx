@@ -57,6 +57,29 @@ function noOtherWrites() {
     studioV2WorkspaceWriteGroupsAPI.create, studioV2WorkspaceWriteGroupsAPI.update, studioV2WorkspaceWriteGroupsAPI.apply]) expect(fn).not.toHaveBeenCalled();
 }
 describe('direct source entry and one shared form presentation', () => {
+  it.each(['points', 'connection'] as const)('can close the %s loading cue before a late locator response', async kind => {
+    let release!: () => void, started = false;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    vi.mocked(studioV2DatalinkApi.get).mockImplementation(async (url, config) => {
+      if (url !== '/studio-v2/workspace') throw new Error('Unexpected unscoped child read');
+      started = true; await gate;
+      const params = config?.params as Record<string, string>;
+      const read = locatorRead(params.step === '2' ? 2 : 1); read.workspace = workspace; read.entry.devices = [completeDevice()];
+      return { data: { success: true, data: { ...read.workspace, locator_entry: read.entry } } };
+    });
+    mount();
+    const points = await screen.findByTestId('home-device-points-D');
+    const trigger = kind === 'points' ? points : within(screen.getByTestId('home-device-summary')).getByRole('button', { name: 'Connection' });
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(started).toBe(true));
+    const footer = dialog.querySelector('footer');
+    expect(footer).not.toBeNull();
+    fireEvent.click(within(footer as HTMLElement).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await act(async () => release());
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); noOtherWrites();
+  });
   it('keeps one neutral loading state until the automatically selected range is ready', async () => {
     let releaseDevice!: () => void, releaseRule!: () => void, releaseList!: (rules: ReturnType<typeof nativeRule>[]) => void;
     const deviceGate = new Promise<void>(resolve => { releaseDevice = resolve; });

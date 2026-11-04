@@ -83,6 +83,7 @@ test('a failed range read keeps the dialog stable and allows closing', async ({ 
   const loading = await dialog.boundingBox();
   releaseList();
   await expect(dialog.getByRole('alert')).toBeVisible();
+  await expect(dialog).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   const failed = await dialog.boundingBox();
   expect(loading).not.toBeNull(); expect(failed).not.toBeNull();
   expect(Math.abs(failed!.height - loading!.height)).toBeLessThanOrEqual(1);
