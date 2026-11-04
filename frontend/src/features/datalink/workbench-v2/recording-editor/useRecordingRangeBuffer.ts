@@ -12,7 +12,9 @@ export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourceP
   const owner = useMemo(() => ({ workspaceId }), [workspaceId]), ownerRef = useRef(owner); ownerRef.current = owner;
   const generation = useRef(0), session = useRef<string>(createBasicRecordingRequestId()), requestRef = useRef<RangeSourceRequest | undefined>(undefined);
   const submitting = useRef(false), prepareGeneration = useRef(0), mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; prepareGeneration.current += 1; }; }, []);
+  // Unmount only clears `mounted`. Bumping the prepare intent here would orphan a StrictMode
+  // remount's in-flight prepare and leave `preparing` set forever; owner/intent still guard it.
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const locked = pending || outcome?.status === 'pending' || outcome?.status === 'unknown' || outcome?.status === 'persisted-unavailable';
   const unresolved = port?.observations().find(item => item.request.workspaceId === workspaceId && ['pending', 'unknown', 'persisted-unavailable'].includes(item.status));
   const inactiveSources = port?.observations().filter(item => item.request.workspaceId === workspaceId && item.status === 'saved-inactive') ?? [];
