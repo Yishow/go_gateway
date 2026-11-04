@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { createContext, useContext, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createThemePreference, type Theme, type ThemePreference, type ThemeSaveState } from './themePreference';
 interface ThemeContextType {
@@ -18,7 +18,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const owner = useMemo(() => createThemePreference(client), [client]);
   const snapshot = useSyncExternalStore(owner.subscribe, owner.snapshot, owner.snapshot);
   useEffect(() => owner.start(), [owner]);
-  useEffect(() => {
+  // Before paint, so a mismatched pre-paint class never shows one frame of the wrong theme.
+  useLayoutEffect(() => {
     const root = document.documentElement;
     root.classList.remove('light', 'dark'); root.classList.add(snapshot.theme);
     root.style.colorScheme = snapshot.theme;

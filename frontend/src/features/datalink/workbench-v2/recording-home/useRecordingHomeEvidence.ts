@@ -74,6 +74,8 @@ export function useRecordingHomeEvidence({ scope, bootstrapRevision, sources, ow
   const guidance = recordingHomeGuidance({ evidence: input, owners });
   const failed = [workspace, groups, ...lifecycle, ...delivery].some(query => query.isError);
   return { projection, guidance,
+    /** Any requested read is still in flight; presentation-only, never evidence. */
+    loading: [workspace, groups, ...lifecycle, ...delivery].some(query => query.isFetching),
     error: failed ? { code: 'recording_home_read_failed' as const, action: 'retry' as const } : null,
     // Explicit page recheck does not refetch list metadata and thereby unmount
     // its own query observers while their bounded transports are starting.

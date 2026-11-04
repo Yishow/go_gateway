@@ -8,9 +8,21 @@
     <script>
       (function() {
         try {
-          var savedTheme = localStorage.getItem('theme');
+          // 與 src/contexts/themePreference.ts 的 localPreference() 同序：版本化偏好 → 舊 theme 鍵 → 系統。
+          var preference = null;
+          for (var i = 0; i < localStorage.length && !preference; i++) {
+            var key = localStorage.key(i);
+            if (key && key.indexOf('gateway.theme.preference.v1:') === 0) {
+              try { var stored = JSON.parse(localStorage.getItem(key)); if (stored && stored.version === 1) preference = stored.preference; } catch (e) {}
+            }
+          }
+          if (preference === 'auto') preference = 'system';
+          if (preference !== 'light' && preference !== 'dark' && preference !== 'system') {
+            var legacy = localStorage.getItem('theme');
+            preference = legacy === 'light' || legacy === 'dark' ? legacy : 'system';
+          }
           var systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-          var theme = savedTheme || systemTheme;
+          var theme = preference === 'system' ? systemTheme : preference;
           
           if (theme === 'dark') {
             document.documentElement.classList.add('dark');
@@ -22,6 +34,11 @@
         } catch (e) {}
       })();
     </script>
+    <!-- 樣式表與 JS 載入前就套用頁面底色（--gw-ground），避免重整時先白／深藍再轉頁面色。 -->
+    <style>
+      html.light, html.light body { background: #F7F8F5; }
+      html.dark, html.dark body { background: #191A19; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

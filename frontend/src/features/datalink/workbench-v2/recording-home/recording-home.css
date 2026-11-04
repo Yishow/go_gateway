@@ -219,3 +219,12 @@ html:not(.dark) .gw-home-source-modal [data-testid=range-summary] [data-testid=r
 .gw-home-source-modal[data-source-view=memory] .gw-modal-header p {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
+
+/* First-load reading state: one stable frame instead of repainting each read batch. */
+.gw-recording-home[data-home-settling=true] .gw-home-guidance { position: relative; }
+.gw-recording-home[data-home-settling=true] .gw-home-guidance > :not(.gw-home-settling-status),
+.gw-recording-home[data-home-settling=true] .gw-management { visibility: hidden; }
+/* Fixed look while reads settle; guidance-state changes underneath must not restyle it. No fade on reveal:
+ * an opacity ramp from 0 reads as a blank flash. */
+.gw-recording-home[data-home-settling=true] .gw-home-guidance .gw-home-settling-status { position: absolute; inset-block-start: 0; inset-inline-start: 0;
+  color: var(--gw-unknown-fg); background: var(--gw-unknown-bg); padding: var(--gw-space-xs); border-inline-start: 3px solid var(--gw-unknown-border); }

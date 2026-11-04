@@ -12,23 +12,25 @@ import type { HomePresentation } from './recordingHomePresentation';
 export interface RecordingHomeCollectionProps {
   groups: readonly RecordingReadonly<WriteGroup>[]; devices: readonly HomeDeviceSummary[]; state: RecordingCollectionState;
   guidance: RecordingHomeGuidance; pendingDevices?: readonly string[]; summaries?: Readonly<Record<string, ReturnType<typeof recordingHomeResultSummary>>>; observedIds: readonly string[]; filterObservedIds?: readonly string[]; unverifiedObserved: boolean; onRecheck: () => void; sourcesAvailable: boolean; restored: HomePresentation;
+  /** False while the first-load reading state hides the collection; restore waits so focus can land. */
+  presentationReady?: boolean;
   onChange: (state: RecordingCollectionState) => void; onOpen: (id: string) => void; onOpenDevice: (id: string, kind: 'connection' | 'points') => void;
   onRemember: (scrollTop: number, focusId: string | null, page: number) => void;
 }
-export function RecordingHomeCollection({ groups, devices, state, guidance, summaries, pendingDevices = [], observedIds, filterObservedIds = observedIds, unverifiedObserved, onRecheck, sourcesAvailable, restored, onChange, onOpen, onOpenDevice, onRemember }: RecordingHomeCollectionProps) {
+export function RecordingHomeCollection({ groups, devices, state, guidance, summaries, pendingDevices = [], observedIds, filterObservedIds = observedIds, unverifiedObserved, onRecheck, sourcesAvailable, presentationReady = true, restored, onChange, onOpen, onOpenDevice, onRemember }: RecordingHomeCollectionProps) {
   const { t } = useTranslation('recording-home');
   const records = recordingCollection(groups, devices, state, new Set(filterObservedIds)), devicePage = deviceCollection(devices, state);
   const current = state.mode === 'devices' ? devicePage : records;
   const root = useRef<HTMLElement>(null), panel = useRef<HTMLDivElement>(null), heading = useRef<HTMLHeadingElement>(null), didRestore = useRef(false);
   useLayoutEffect(() => {
-    if (didRestore.current || !sourcesAvailable) return;
+    if (didRestore.current || !sourcesAvailable || !presentationReady) return;
     didRestore.current = true;
     if (panel.current) {
       panel.current.scrollTop = Math.min(restored.scrollTop, Math.max(0, panel.current.scrollHeight - panel.current.clientHeight));
       const target = [...(root.current?.querySelectorAll<HTMLButtonElement>('[data-home-focus]') ?? [])].find(node => node.dataset.homeFocus === restored.focusId);
       if (restored.focusId) (eligibleFocusTarget(target) ? target : eligibleFocusTarget(heading.current) ? heading.current : null)?.focus({ preventScroll: true });
     }
-  }, [sourcesAvailable, restored]);
+  }, [sourcesAvailable, presentationReady, restored]);
   const patch = (update: Partial<RecordingCollectionState>) => onChange({ ...state, ...update, page: 1 });
   const remember = (id: string | null) => onRemember(panel.current?.scrollTop ?? 0, id, current.page);
   const destinations = [...new Map(groups.map(group => [group.destination.connector_id, group.destination.database || group.destination.connector_id])).entries()];

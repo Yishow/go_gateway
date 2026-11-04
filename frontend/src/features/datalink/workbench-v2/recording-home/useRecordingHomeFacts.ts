@@ -93,5 +93,5 @@ export function useRecordingHomeFacts(scope: RecordingHomeScope, groups: readonl
     const observed = observedHistories[group.id], retained = retainedHistory.identity === identity ? retainedHistory.values[group.id] : undefined;
     return [group.id, retained && (!observed || Date.parse(retained.committedAt) > Date.parse(observed.committedAt)) ? retained : observed];
   }));
-  return { owners, runtimeGroups, histories, pendingDevices, retry: () => selected.length ? Promise.all([recovery.refetch(), ...runtime.map(query => query.refetch())]) : Promise.resolve([]) };
+  return { owners, runtimeGroups, histories, pendingDevices, loading: recovery.isFetching || runtime.some(query => query.isFetching), retry: () => selected.length ? Promise.all([recovery.refetch(), ...runtime.map(query => query.refetch())]) : Promise.resolve([]) };
 }

@@ -23,13 +23,23 @@ export function recordingHomeActionTarget(action: RecordingHomeGuidanceAction, l
   if (action.target === 'configure_points') return null; // Same-home device modal, not an advanced locator route.
   return buildStudioPresentationTarget(location.search, location.hash, 'advanced');
 }
+/** Product-header navigation shared by the home and its first-load frame, so the frame never jumps. */
+export function RecordingHomeTools({ location, onNavigate }: { location: RecordingHomeLocation; onNavigate?: (target: string) => void }) {
+  const { t } = useTranslation('recording-home');
+  const advanced = buildStudioPresentationTarget(location.search, location.hash, 'advanced');
+  return <>
+    {advanced && <button type="button" onClick={() => onNavigate?.(advanced)}>{t('advanced')}</button>}
+    {[['/studio/runtime', 'runtime'], ['/studio/logs', 'logs'], ['/test', 'test']].map(([target, key]) =>
+      <button key={target} type="button" onClick={() => onNavigate?.(target)}>{t(key)}</button>)}
+  </>;
+}
 /** Actual readonly home; visual hierarchy never changes evidence or command ownership. */
-export function RecordingHome({ guidance, location, onNavigate, onRetry, collection, onConfigurePoints, workspaceId, mode = 'recordings', onCreateDevice }: {
-  mode?: 'recordings' | 'devices'; onCreateDevice?: () => void; workspaceId?: string; guidance: RecordingHomeGuidance; location: RecordingHomeLocation; onNavigate?: (target: string) => void; onRetry: () => void; collection?: ReactNode; onConfigurePoints?: (deviceId: string) => void;
+export function RecordingHome({ guidance, location, onNavigate, onRetry, collection, onConfigurePoints, workspaceId, mode = 'recordings', onCreateDevice, settling = false }: {
+  /** First-load reads are still settling: hold one stable reading state instead of repainting each read batch. */
+  settling?: boolean; mode?: 'recordings' | 'devices'; onCreateDevice?: () => void; workspaceId?: string; guidance: RecordingHomeGuidance; location: RecordingHomeLocation; onNavigate?: (target: string) => void; onRetry: () => void; collection?: ReactNode; onConfigurePoints?: (deviceId: string) => void;
 }) {
   const { t } = useTranslation('recording-home');
   const { t: editorText } = useTranslation('recording-editor');
-  const advanced = buildStudioPresentationTarget(location.search, location.hash, 'advanced');
   const action = guidance.primaryAction;
   const logs = action?.target === 'recording' ? buildRecordingLogsTarget({ workspaceId: action.scope.workspaceId,
     groupId: action.groupId, groupRevision: action.groupRevision }, location.hash) : null;
@@ -37,17 +47,15 @@ export function RecordingHome({ guidance, location, onNavigate, onRetry, collect
     if (action.target === 'configure_points') { onConfigurePoints?.(action.deviceId); return; }
     const target = recordingHomeActionTarget(action, location); if (target) onNavigate?.(target);
   };
-  return <><RecordingProductShell workspaceId={workspaceId ?? guidance.primaryAction?.scope.workspaceId} tools={<>
-        {advanced && <button type="button" onClick={() => onNavigate?.(advanced)}>{t('advanced')}</button>}
-        {[['/studio/runtime', 'runtime'], ['/studio/logs', 'logs'], ['/test', 'test']].map(([target, key]) =>
-          <button key={target} type="button" onClick={() => onNavigate?.(target)}>{t(key)}</button>)}
-      </>} /><main data-workbench-v2="true" data-testid="recording-home" className="gw-recording-home">
+  return <><RecordingProductShell workspaceId={workspaceId ?? guidance.primaryAction?.scope.workspaceId}
+    tools={<RecordingHomeTools location={location} onNavigate={onNavigate} />} /><main data-workbench-v2="true" data-testid="recording-home" className="gw-recording-home" aria-busy={settling || undefined} data-home-settling={settling ? 'true' : 'false'}>
     <header className="gw-home-header">
       <h1>{t(mode === 'devices' ? 'devicesTitle' : 'title')}</h1>
       <button type="button" className={mode === 'devices' ? 'gw-home-create gw-primary' : 'gw-home-create'} onClick={() => { if (mode === 'devices') { onCreateDevice?.(); return; } const target = buildSimpleRecordingTarget({ kind: 'new' }, location.hash); if (target) onNavigate?.(target); }}>{mode === 'devices' ? t('createDevice') : editorText('simple.create')}</button>
 
     </header>
     <section aria-live="polite" className="gw-home-guidance" data-guidance-state={guidance.availability.state === 'unavailable' && guidance.availability.reason === 'error' ? 'error' : ['operation_recovery', 'delivery_attention', 'source_attention'].includes(guidance.reason) ? 'attention' : guidance.reason === 'evidence_unavailable' ? 'unknown' : 'neutral'} data-testid="recording-home-guidance">
+      {settling && <p className="gw-guidance-heading gw-home-settling-status" role="status">{t('loading')}</p>}
       <p className="gw-guidance-heading">{t(`reason.${guidance.reason}`)}</p>
       {guidance.availability.state === 'unavailable' && <p role={guidance.availability.reason === 'error' ? 'alert' : 'status'}>
         {t(guidance.availability.reason === 'loading' ? 'loading' : guidance.availability.reason === 'error' ? 'error' : 'unknown')}

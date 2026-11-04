@@ -78,7 +78,11 @@ export function createThemePreference(client: QueryClient) {
         const raw = items.find(item => item.key === 'theme');
         // Only the actual stored wire enum is intent; a mapper default never enters here.
         const saved = raw && ['auto', 'light', 'dark'].includes(String(raw.value)) ? normalizeTheme(raw.value) : null;
-        if (saved) { preference = saved; resolve(); }
+        if (saved) {
+          preference = saved; resolve();
+          // Cache the server intent so the next reload's pre-paint theme (index.html) already matches.
+          try { localStorage.setItem(THEME_PREFERENCE_KEY, JSON.stringify({ version: 1, preference: saved })); } catch { /* Optional browser storage. */ }
+        }
       }).catch(() => { /* Keep local/system fallback; failed GET is not persisted intent. */ });
       return () => {
         active = false; generation += 1;

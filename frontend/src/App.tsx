@@ -7,6 +7,9 @@ import { CardMinimizeProvider } from './components/CardMinimizeProvider'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
+// /studio/v2 is the landing route (/ redirects here): load it eagerly so a reload paints
+// the page's own reading frame directly instead of a generic Suspense fallback first.
+import DatalinkWorkbenchV2Page from './pages/datalink/workbench-v2/DatalinkWorkbenchV2Page'
 import {
   buildWorkbenchV2EntryRedirect,
   buildDashboardModalRedirect,
@@ -21,9 +24,6 @@ const RecordingStyleFrame = import.meta.env.DEV ? lazy(() => import('./dev/Recor
 const RuntimeLogsPage = lazy(() => import('./features/runtime-logs/RuntimeLogsPage'))
 const TestPage = lazy(() => import('./pages/TestPage'))
 const TestPageShell = lazy(() => import('./pages/TestPageShell'))
-const DatalinkWorkbenchV2Page = lazy(
-  () => import('./pages/datalink/workbench-v2/DatalinkWorkbenchV2Page'),
-)
 const RuntimeDashboardRoute = lazy(() =>
   import('./features/datalink/runtime-dashboard/RuntimeDashboardRoute').then((m) => ({
     default: m.RuntimeDashboardRoute,

@@ -84,7 +84,19 @@ describe('actual optional home entry', () => {
     expect(screen.queryByText('unknown')).not.toBeInTheDocument();
     expect(clients[0].getQueryCache().getAll().some(query => query.queryKey.includes('recording-home-sources') && query.queryKey.includes('NEXT'))).toBe(true);
   });
-
+  it('holds one stable reading frame until first-load sources settle, then reveals once', async () => {
+    let resolvePoints!: (value: Awaited<ReturnType<typeof pointAPI.list>>) => void;
+    vi.mocked(pointAPI.list).mockImplementation(() => new Promise(resolve => { resolvePoints = resolve; }));
+    mount(); await waitFor(() => expect(pointAPI.list).toHaveBeenCalled());
+    const home = screen.getByTestId('recording-home');
+    expect(home).toHaveAttribute('data-home-settling', 'true'); expect(home).toHaveAttribute('aria-busy', 'true');
+    expect(home.querySelector('.gw-home-settling-status')).toHaveTextContent('loading');
+    await act(async () => resolvePoints([]));
+    await waitFor(() => expect(pointAPI.list).toHaveBeenCalledTimes(2)); await act(async () => resolvePoints([]));
+    await waitFor(() => expect(screen.getByTestId('recording-home')).toHaveAttribute('data-home-settling', 'false'));
+    expect(screen.getByTestId('recording-home')).not.toHaveAttribute('aria-busy');
+    expect(screen.getByText('reason.missing_devices')).toBeInTheDocument();
+  });
 });
 import { group, fixture, delivery } from './recording-home-guidance-fixtures';
 import { rememberHomePresentation } from '@/features/datalink/workbench-v2/recording-home/recordingHomePresentation';
