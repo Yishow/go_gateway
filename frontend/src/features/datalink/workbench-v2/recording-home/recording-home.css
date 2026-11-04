@@ -116,6 +116,16 @@
 .gw-home-source-modal[data-size=form] .gw-modal-header > div { flex: 1; min-width: 0; }
 .gw-home-source-modal[data-size=form] .gw-modal-header > button { flex: none; }
 .gw-home-source-modal[data-size=form] .gw-modal-footer > .gw-primary { margin-inline-start: auto; }
+/* Source dialog titles wrap only between words, so a view name such as 記憶體視圖 never leaves an orphan
+   character and the "·" separator ends a line; an unbroken over-long name still wraps instead of overflowing. */
+.gw-home-source-modal .gw-modal-header h2 { word-break: keep-all; overflow-wrap: anywhere; }
+/* Narrow screens with two header actions: the full title and description take their own row,
+   the actions follow on the next row. A single Close stays beside the title. */
+@media (max-width: 559px) {
+  .gw-home-source-modal[data-size=form] .gw-modal-header:has(> button ~ button) { flex-wrap: wrap; row-gap: 8px; }
+  .gw-home-source-modal[data-size=form] .gw-modal-header:has(> button ~ button) > div { flex: 1 0 100%; }
+  .gw-home-source-modal[data-size=form] .gw-modal-header:has(> button ~ button) > [data-testid=home-source-close] { margin-inline-start: auto; }
+}
 /* Simple recording overview: object identity first, one action, bounded detail. */
 .gw-recording-home .gw-destination-name { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .gw-recording-home .gw-destination-identity { margin-top:4px; font-size:12px; color:var(--gw-muted); }

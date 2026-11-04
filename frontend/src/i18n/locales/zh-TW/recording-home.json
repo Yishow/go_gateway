@@ -190,6 +190,7 @@
       "disabled": "已停用",
       "previous": "上一段",
       "next": "下一段",
+      "navigation": "位址分段",
       "locate": "前往位址",
       "go": "前往",
       "locateInvalid": "此位址不在 {{area}} 區。",

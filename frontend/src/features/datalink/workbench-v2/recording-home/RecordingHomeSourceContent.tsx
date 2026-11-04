@@ -105,8 +105,9 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
         const input = ranges.inputs.find(value => value.id === item.id), span = input && device ? describeMemoryRule(device.protocol, { ...input, label: rule.naming_prefix }) : undefined;
         const footprint = span?.cells !== undefined ? t(`source.memory.${span.unit}`, { count: span.cells }) : t('source.memory.footprintUnknown');
         return <li key={rule.id}><div><strong>{rule.naming_prefix}</strong>{!rule.enabled && <span className="gw-range-flag">{t('source.memory.disabled')}</span>}
-          <p>{span?.end && span.end !== span.start ? `${span.start} – ${span.end}` : span?.start ?? rule.start_address} · {t('source.memory.items', { count: rule.count })} · {rule.data_type} · {footprint}
-            {rule.skipped_addresses.length > 0 && ` · ${t('source.memory.skipped', { count: rule.skipped_addresses.length })}`}</p></div>
+          <p className="gw-range-facts"><span className="gw-range-address">{span?.end && span.end !== span.start ? `${span.start} – ${span.end}` : span?.start ?? rule.start_address}</span>
+            <span className="gw-range-fact"> · {t('source.memory.items', { count: rule.count })}</span><span className="gw-range-fact"> · <span className="gw-range-type">{rule.data_type}</span></span><span className="gw-range-fact"> · {footprint}</span>
+            {rule.skipped_addresses.length > 0 && <span className="gw-range-fact"> · {t('source.memory.skipped', { count: rule.skipped_addresses.length })}</span>}</p></div>
         <button type="button" data-testid={`home-range-edit-${rule.id}`} onClick={() => select(rule.id)}>{t('source.edit')}</button></li>; })}</ul>
       {!listed?.length && <p>{t('source.emptyRanges')}</p>}
     </>}

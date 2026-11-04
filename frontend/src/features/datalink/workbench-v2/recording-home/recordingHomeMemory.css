@@ -3,10 +3,17 @@
 .gw-home-memory { display: grid; gap: 12px; min-width: 0; }
 .gw-home-memory h3 { font-size: 16px; font-weight: 600; }
 .gw-modal .gw-home-memory h3:is(:focus, :focus-visible) { outline: none; }
-.gw-modal .gw-memory-tabs { display: flex; flex-wrap: wrap; gap: 0 12px; border-bottom: 1px solid var(--gw-border); }
+/* One row of area tabs; when it overflows, the side with more tabs fades out and the row scrolls. */
+.gw-modal .gw-memory-tabs { display: flex; flex-wrap: nowrap; gap: 0 12px; overflow-x: auto; scrollbar-width: thin; scroll-padding-inline: 40px; border-bottom: 1px solid var(--gw-border); }
+.gw-modal .gw-memory-tabs > button { flex: none; }
+.gw-modal .gw-memory-tabs[data-more-after=true] { mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.gw-modal .gw-memory-tabs[data-more-before=true] { mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); }
+.gw-modal .gw-memory-tabs[data-more-before=true][data-more-after=true] { mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
 .gw-modal .gw-memory-tabs > button { min-height: 44px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; padding: 8px 2px; color: var(--gw-muted); white-space: nowrap; }
 .gw-modal .gw-memory-tabs > button:hover:not(:disabled) { background: transparent; color: var(--gw-text); }
 .gw-memory-tabs button span { font-size: 12px; }
+/* The scrolling row clips anything outside it, so the focus ring is drawn inside the tab. */
+.gw-modal .gw-memory-tabs > button:focus-visible { outline-offset: -3px; }
 .gw-modal .gw-memory-tabs > button[aria-selected=true] { color: var(--gw-text); border-bottom-color: var(--gw-accent); font-weight: 600; }
 .gw-memory-panel { display: grid; gap: 12px; min-width: 0; }
 .gw-memory-notice { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--gw-warning-border); border-radius: var(--gw-radius-md); background: var(--gw-warning-bg); color: var(--gw-warning-fg); }
@@ -17,7 +24,7 @@
 .gw-memory-toolbar input { font-family: var(--gw-font-mono); }
 .gw-memory-toolbar input[aria-invalid=true] { border-color: var(--gw-danger-border); }
 .gw-memory-jumps { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13px; color: var(--gw-muted); }
-.gw-modal .gw-memory-jumps > button { min-height: 32px; padding: 2px 8px; font-family: var(--gw-font-mono); font-size: 12px; }
+.gw-modal .gw-memory-jumps > button { min-height: 32px; padding: 2px 8px; font-family: var(--gw-font-mono); font-size: 12px; text-align: start; overflow-wrap: anywhere; }
 .gw-memory-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; }
 .gw-memory-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--gw-muted); }
 .gw-memory-legend li { display: flex; align-items: center; gap: 6px; }
@@ -32,7 +39,8 @@
 .gw-modal .gw-memory-grid > :is(button, div) { position: relative; display: grid; align-content: start; gap: 2px;
   min-width: 0; min-height: 68px; max-width: none; margin: 0; padding: 6px 6px 6px 8px;
   border: 0; border-right: 1px solid var(--gw-memory-line); border-bottom: 1px solid var(--gw-memory-line); border-radius: 0; box-shadow: none;
-  background: var(--gw-raised); color: var(--gw-text); text-align: start; font: inherit; cursor: default; overflow-wrap: normal; }
+  background: var(--gw-raised); color: var(--gw-text); text-align: start; font: inherit; cursor: default; overflow-wrap: normal;
+  transition: none; /* cells are reused across areas: show each state at once, never a fading previous state */ }
 .gw-modal .gw-memory-grid > button { cursor: pointer; }
 .gw-modal .gw-memory-grid > button[data-state=empty]:hover:not(:disabled) { background: var(--gw-active); }
 .gw-modal .gw-memory-grid > :is(button, div):focus-visible { outline: var(--gw-focus-width, 2px) solid var(--gw-focus); outline-offset: -3px; }
@@ -56,12 +64,36 @@
   .gw-memory-grid { grid-template-columns: repeat(var(--gw-memory-cols-sm), minmax(0, 1fr)); }
   .gw-memory-intro, .gw-memory-tabs button span { display: none; }
   .gw-memory-intro-short { display: block; font-size: 13px; }
-  .gw-modal .gw-memory-tabs { flex-wrap: nowrap; overflow-x: auto; }
-  .gw-memory-toolbar form { flex: 1 1 100%; order: -1; }
-  .gw-memory-toolbar > button { flex: 1; }
+  .gw-memory-toolbar form { max-width: none; }
+  /* Keep the first screen for cells: the area heading stays for assistive tech only (the tabs name the area),
+     the locate label sits beside its input, the legend fits one line and range shortcuts form one scrollable row
+     whose next shortcut peeks at the edge. */
+  .gw-home-memory h3 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .gw-memory-toolbar label { display: flex; align-items: center; gap: 8px; }
+  .gw-memory-locate-label { flex: none; font-size: 13px; }
+  .gw-memory-legend { gap: 4px 8px; font-size: 12px; }
+  .gw-memory-legend li { gap: 4px; }
+  .gw-memory-swatch { width: 12px; height: 12px; }
+  .gw-memory-jumps { flex-wrap: nowrap; overflow-x: auto; }
+  .gw-memory-jumps > span { flex: none; }
+  .gw-modal .gw-memory-jumps > button { flex: none; max-width: 70%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .gw-modal .gw-memory-grid > :is(button, div) { min-height: 64px; padding: 4px 4px 4px 7px; }
 }
 
-/* Range list facts. */
+/* One navigation row: previous block, the shown span, next block. */
+.gw-memory-nav { display: grid; grid-template-columns: auto auto auto; justify-content: start; align-items: center; gap: 12px; }
+.gw-memory-nav p { text-align: center; font-size: 13px; color: var(--gw-text); font-variant-numeric: tabular-nums; }
+@media (max-width: 559px) { .gw-memory-nav { grid-template-columns: auto minmax(0, 1fr) auto; justify-content: stretch; gap: 8px; } }
+.gw-memory-toolbar form { flex-basis: 100%; max-width: 420px; }
+
+/* Range list: identity first, then the address span and type in ink; counts stay muted. Long names wrap inside the row. */
+.gw-home-source-modal .gw-home-range-list { min-width: 0; grid-template-columns: minmax(0, 1fr); }
+.gw-home-source-modal .gw-home-range-list li > div { flex: 1 1 auto; min-width: 0; }
+.gw-home-source-modal .gw-home-range-list li > button { flex: none; }
+.gw-home-source-modal .gw-home-range-list li:last-child { border-bottom: 0; }
+.gw-home-source-modal .gw-home-range-list li strong { overflow-wrap: anywhere; }
 .gw-home-source-modal .gw-home-range-list li p { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.gw-home-source-modal .gw-home-range-list .gw-range-facts { margin-top: 2px; font-size: 13px; color: var(--gw-muted); }
+.gw-range-facts :is(.gw-range-address, .gw-range-type) { font-family: var(--gw-font-mono); color: var(--gw-text); }
+.gw-range-facts :is(.gw-range-fact, .gw-range-address) { white-space: nowrap; }
 .gw-range-flag { margin-inline-start: 8px; padding: 1px 6px; border: 1px solid var(--gw-border); border-radius: 4px; font-size: 12px; color: var(--gw-muted); white-space: nowrap; }
