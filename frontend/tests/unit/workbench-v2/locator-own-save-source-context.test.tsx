@@ -383,8 +383,8 @@ it.each(['cancel', 'save', 'reject-cancel'] as const)('keeps a cold saved Page r
   if (outcome === 'save') {
     fireEvent.change(input, { target: { value: 'Shared renamed point' } });
     fireEvent.click(within(screen.getByRole('contentinfo')).getByRole('button', { name: 'picker.cancel' }));
-    expect(screen.getByRole('alertdialog')).toBeVisible(); expect(studioV2MappingsAPI.update).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'navigation.keep' }));
+    expect(screen.getByRole('alertdialog', { name: 'name.cancelTitle' })).toBeVisible(); expect(studioV2MappingsAPI.update).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'name.cancelKeep' }));
     expect(input).toHaveValue('Shared renamed point'); expect(screen.getByRole('dialog')).toBeVisible();
     fireEvent.keyDown(input, { key: 'Enter' });
     await screen.findByRole('textbox', { name: 'name.label Shared renamed point' });
