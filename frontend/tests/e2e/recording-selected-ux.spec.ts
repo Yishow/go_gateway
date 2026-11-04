@@ -2,20 +2,27 @@ import { expect, test } from '@playwright/test';
 
 const fixtureUrl = (query = '') => `/tests/e2e/fixtures/recording-selected-host.html${query}`;
 
-test('keeps the first selected point and its actions in the first phone view', async ({ page }, testInfo) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+for (const width of [320, 390]) test(`shows the first selected point and reaches its actions at ${width}px`, async ({ page }, testInfo) => {
+  await page.setViewportSize({ width, height: 844 });
   await page.route('**/api/**', route => route.abort());
   await page.goto(fixtureUrl());
 
   const row = page.getByTestId('group-member-row-P0');
+  const region = page.getByTestId('group-member-table').getByRole('region');
+  if (width === 320) await region.scrollIntoViewIfNeeded();
   const rowBox = await row.boundingBox();
+  const nameBox = await row.getByRole('textbox').boundingBox(), regionBox = await region.boundingBox();
   const action = row.locator('td[data-column="actions"] button').first();
+  expect(nameBox!.x).toBeGreaterThanOrEqual(regionBox!.x);
+  expect(nameBox!.x + nameBox!.width, JSON.stringify({ nameBox, regionBox, device: await row.locator('td[data-column="device"]').boundingBox() })).toBeLessThanOrEqual(regionBox!.x + regionBox!.width);
+  await action.scrollIntoViewIfNeeded();
   const actionBox = await action.boundingBox();
   expect(rowBox).not.toBeNull();
   expect(actionBox).not.toBeNull();
   expect(rowBox!.y).toBeLessThan(844 - 120);
   expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(844);
-  await page.screenshot({ path: testInfo.outputPath('selected-mobile.png') });
+  expect(await region.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+  await page.screenshot({ path: testInfo.outputPath(`selected-mobile-${width}.png`) });
 });
 
 test('shows the first selected point in a mixed recording on the first phone view', async ({ page }, testInfo) => {

@@ -32,7 +32,7 @@ test('sizes desktop columns from their contents and gives the remaining space to
   expect(short.pointOnly).toBeGreaterThan(Math.max(short.device, short.addressOnly, short.wordOrder, short.dataType, short.actions));
 });
 
-for (const width of [320, 390, 768, 1000, 1001, 1280, 1440]) {
+for (const width of [320, 390, 640, 641, 768, 1000, 1001, 1280, 1440]) {
   test(`keeps navigation and the selected-points table usable at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 720 });
     await page.route('**/api/**', route => route.abort());
@@ -58,9 +58,12 @@ for (const width of [320, 390, 768, 1000, 1001, 1280, 1440]) {
       const right = element.getBoundingClientRect().right;
       return { scrollWidth: element.scrollWidth, clientWidth: element.clientWidth, outside: [...element.querySelectorAll('*')].filter(child => child.getBoundingClientRect().right > right + 1 || child.scrollWidth > child.clientWidth + 1).slice(0, 8).map(child => ({ tag: child.tagName, text: child.textContent?.slice(0, 40), class: child.className, scroll: child.scrollWidth, client: child.clientWidth })) };
     });
-    expect(overflow.scrollWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.clientWidth);
+    if (width <= 640) expect(overflow.scrollWidth, JSON.stringify(overflow)).toBeGreaterThan(overflow.clientWidth);
+    else expect(overflow.scrollWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.clientWidth);
+    if (width <= 640) await table.getByRole('columnheader', { name: '操作' }).scrollIntoViewIfNeeded();
     const regionBox = await scroll.boundingBox(), headerBox = await table.getByRole('columnheader', { name: '操作' }).boundingBox();
     expect(headerBox!.x).toBeGreaterThanOrEqual(regionBox!.x); expect(headerBox!.x + headerBox!.width).toBeLessThanOrEqual(regionBox!.x + regionBox!.width);
+    if (width <= 640) await scroll.evaluate(element => { element.scrollLeft = 0; });
     await page.screenshot({ path: testInfo.outputPath('top.png') });
     if (width === 1280) {
       await page.evaluate(() => window.scrollTo(0, 300));
@@ -72,7 +75,9 @@ for (const width of [320, 390, 768, 1000, 1001, 1280, 1440]) {
       const deviceBox = await cells.nth(0).boundingBox(), pointBox = await cells.nth(1).boundingBox(), addressBox = await cells.nth(2).boundingBox();
       const orderBox = await cells.nth(3).boundingBox(), actionBox = await cells.nth(5).boundingBox();
       expect(deviceBox!.y).toBe(pointBox!.y); expect(addressBox!.y).toBe(pointBox!.y);
-      expect(orderBox!.y).toBeGreaterThan(pointBox!.y); expect(actionBox!.y).toBe(orderBox!.y);
+      if (width <= 640) expect(orderBox!.y).toBe(pointBox!.y);
+      else expect(orderBox!.y).toBeGreaterThan(pointBox!.y);
+      expect(actionBox!.y).toBe(orderBox!.y);
       const remove = row.getByRole('button', { name: /移除/ });
       const typeMetrics = await cells.nth(4).evaluate(element => ({ available: element.clientWidth, content: element.scrollWidth, font: getComputedStyle(element).fontSize, padding: getComputedStyle(element).padding }));
       expect(typeMetrics.content, JSON.stringify(typeMetrics)).toBeLessThanOrEqual(typeMetrics.available);
@@ -82,7 +87,7 @@ for (const width of [320, 390, 768, 1000, 1001, 1280, 1440]) {
       const enabledColor = await toggle.evaluate(element => getComputedStyle(element).backgroundColor);
       await toggle.click(); await expect(toggle).toHaveAttribute('aria-pressed', 'false');
       expect(await toggle.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(enabledColor);
-      expect(await scroll.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+      expect(await scroll.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(width <= 640);
       if (width <= 390) {
         const order = row.getByRole('combobox', { name: '字序' }); await order.selectOption('CDAB');
         const selectBox = await order.boundingBox(), saveBox = await row.getByRole('button', { name: '儲存字序' }).boundingBox();
@@ -120,7 +125,7 @@ test('keeps a long device name and editable point usable on a narrow screen', as
   expect((await point.boundingBox())!.width).toBeGreaterThanOrEqual(60);
   await point.focus(); await expect(point).toBeEditable();
   await point.fill('新名稱'); await point.press('Enter'); await expect(point).toHaveValue('新名稱');
-  expect(await page.getByTestId('group-member-table').getByRole('region').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(await page.getByTestId('group-member-table').getByRole('region').evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -135,27 +140,32 @@ test('keeps English per-point controls and actions usable together at 320px', as
   expect((await order.boundingBox())!.width, JSON.stringify(metrics)).toBeGreaterThanOrEqual(60);
   expect(save!.x + save!.width).toBeLessThanOrEqual(orderBox!.x + orderBox!.width);
   for (const button of await row.locator('td[data-column="actions"] button').all()) expect(await button.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-  expect(await page.getByTestId('group-member-table').getByRole('region').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(await page.getByTestId('group-member-table').getByRole('region').evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true);
 });
 
 for (const width of [320, 390, 1280, 1440]) {
-  test(`keeps the English action buttons visible without horizontal scrolling at ${width}px`, async ({ page }) => {
+  test(`keeps the English action buttons usable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 720 });
     await page.route('**/api/**', route => route.abort());
     await page.goto('/tests/e2e/fixtures/recording-selected-host.html?lang=en');
     const scroll = page.getByTestId('group-member-table').getByRole('region');
     const row = page.getByTestId('group-member-row-P0'), cell = row.locator('td').last();
     const remove = cell.getByRole('button', { name: /Remove/ }), toggle = cell.locator('button[aria-pressed]');
-    const cellBox = await cell.boundingBox(), removeBox = await remove.boundingBox(), toggleBox = await toggle.boundingBox();
     const overflow = await scroll.evaluate(element => {
       const right = element.getBoundingClientRect().right;
       return { scrollWidth: element.scrollWidth, clientWidth: element.clientWidth, outside: [...element.querySelectorAll('*')].filter(child => child.getBoundingClientRect().right > right + 1 || child.scrollWidth > child.clientWidth + 1).slice(0, 8).map(child => ({ tag: child.tagName, text: child.textContent?.slice(0, 40), class: child.className, scroll: child.scrollWidth, client: child.clientWidth })) };
     });
-    expect(overflow.scrollWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.clientWidth);
+    if (width <= 640) expect(overflow.scrollWidth, JSON.stringify(overflow)).toBeGreaterThan(overflow.clientWidth);
+    else expect(overflow.scrollWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.clientWidth);
     const overhangingHeaders = await scroll.locator('th').evaluateAll(headers => headers.flatMap(header => {
       const button = header.querySelector('button'); return button && button.getBoundingClientRect().right > header.getBoundingClientRect().right + 1 ? [{ label: button.textContent, cell: header.getBoundingClientRect().width, button: button.getBoundingClientRect().width }] : [];
     }));
     expect(overhangingHeaders).toEqual([]);
+    await cell.scrollIntoViewIfNeeded();
+    const cellBox = await cell.boundingBox(), removeBox = await remove.boundingBox(), toggleBox = await toggle.boundingBox();
+    const regionBox = await scroll.boundingBox();
+    expect(toggleBox!.x).toBeGreaterThanOrEqual(regionBox!.x);
+    expect(removeBox!.x + removeBox!.width).toBeLessThanOrEqual(regionBox!.x + regionBox!.width);
     expect(toggleBox!.y).toBe(removeBox!.y);
     expect(toggleBox!.x + toggleBox!.width).toBeLessThanOrEqual(cellBox!.x + cellBox!.width);
     const toggleSize = await toggle.evaluate(element => ({ scroll: element.scrollWidth, client: element.clientWidth, width: element.getBoundingClientRect().width, font: getComputedStyle(element).fontSize, padding: getComputedStyle(element).padding }));
@@ -229,18 +239,21 @@ test('edits a selected name, changes word-order intent and sorts without changin
 });
 
 for (const width of [320, 390, 1280]) {
-  test(`keeps the optional entity key usable without horizontal scrolling at ${width}px`, async ({ page }) => {
+  test(`keeps the optional entity key usable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 720 });
     await page.route('**/api/**', route => route.abort());
     await page.goto('/tests/e2e/fixtures/recording-selected-host.html?entity');
     const scroll = page.getByTestId('group-member-table').getByRole('region');
     const cell = page.getByTestId('group-member-row-P0').locator('td').last();
     const input = cell.locator('input:not([type="checkbox"])');
+    await input.scrollIntoViewIfNeeded();
     const cellBox = await cell.boundingBox(), inputBox = await input.boundingBox();
     const metrics = await scroll.evaluate(element => ({ scroll: element.scrollWidth, client: element.clientWidth, tracks: getComputedStyle(element.querySelector('table')!).gridTemplateColumns, cells: [...element.querySelectorAll('tbody tr:first-child td')].map(cell => ({ name: cell.getAttribute('data-column') ?? cell.getAttribute('data-testid'), width: cell.getBoundingClientRect().width, scroll: cell.scrollWidth, client: cell.clientWidth })) }));
-    expect(metrics.scroll, JSON.stringify(metrics)).toBeLessThanOrEqual(metrics.client);
+    if (width <= 640) expect(metrics.scroll, JSON.stringify(metrics)).toBeGreaterThan(metrics.client);
+    else expect(metrics.scroll, JSON.stringify(metrics)).toBeLessThanOrEqual(metrics.client);
     expect(inputBox!.width).toBeGreaterThanOrEqual(50);
     expect(inputBox!.x + inputBox!.width).toBeLessThanOrEqual(cellBox!.x + cellBox!.width);
+    await input.fill('entity-1'); await expect(input).toHaveValue('entity-1');
   });
 }
 
@@ -252,9 +265,11 @@ for (const width of [320, 390, 768, 1001, 1280, 1440]) {
     const scroll = page.getByTestId('group-member-table').getByRole('region');
     const row = page.getByTestId('group-member-row-P0');
     const cadence = row.getByTestId('group-member-cadence-P0');
+    await cadence.scrollIntoViewIfNeeded();
     const cellBox = await cadence.boundingBox();
     const metrics = await scroll.evaluate(element => ({ scroll: element.scrollWidth, client: element.clientWidth, tracks: getComputedStyle(element.querySelector('table')!).gridTemplateColumns, cells: [...element.querySelectorAll('tbody tr:first-child td')].map(cell => ({ name: cell.getAttribute('data-column') ?? cell.getAttribute('data-testid'), width: cell.getBoundingClientRect().width, scroll: cell.scrollWidth, client: cell.clientWidth })) }));
-    expect(metrics.scroll, JSON.stringify(metrics)).toBeLessThanOrEqual(metrics.client);
+    if (width <= 640) expect(metrics.scroll, JSON.stringify(metrics)).toBeGreaterThan(metrics.client);
+    else expect(metrics.scroll, JSON.stringify(metrics)).toBeLessThanOrEqual(metrics.client);
     for (const control of await cadence.locator('input, select').all()) {
       const box = await control.boundingBox();
       expect(box!.width).toBeGreaterThanOrEqual(40);
@@ -268,6 +283,6 @@ for (const width of [320, 390, 768, 1001, 1280, 1440]) {
     const orderMetrics = await row.evaluate(element => ({ tracks: getComputedStyle(element.closest('table')!).gridTemplateColumns, cells: [...element.querySelectorAll('td')].map(cell => ({ name: cell.getAttribute('data-column') ?? cell.getAttribute('data-testid'), width: cell.getBoundingClientRect().width })) }));
     expect(selectBox!.width, JSON.stringify(orderMetrics)).toBeGreaterThanOrEqual(60);
     expect(saveBox!.x + saveBox!.width).toBeLessThanOrEqual(orderCellBox!.x + orderCellBox!.width);
-    expect(await scroll.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    expect(await scroll.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(width <= 640);
   });
 }

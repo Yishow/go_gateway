@@ -87,6 +87,7 @@
 /* Selected source diagnostics stay available without adding a full line of status per point. */
 .recording-compact-members__metadata { display: flex; align-items: center; flex-wrap: wrap; gap: var(--gw-space-sm); margin-bottom: var(--gw-space-sm); }
 .recording-compact-members__metadata p { margin: 0; }
+.recording-compact-members__horizontal-hint { display: none; margin: 0 0 var(--gw-space-xs); color: var(--gw-muted); font-size: var(--gw-typography-small-size); }
 .recording-compact-members__filters input[type='search'] { width: 100%; min-width: 0; padding: var(--gw-space-xs) var(--gw-space-sm); border: 1px solid var(--gw-control); border-radius: var(--gw-radius-sm); background: var(--gw-surface); color: var(--gw-text); }
 .recording-compact-members .recording-point-order-inline__details { font-size: var(--gw-typography-small-size); color: var(--gw-muted); }
 .recording-compact-members .recording-point-order-inline__details > summary { display: inline-block; cursor: pointer; }
@@ -103,9 +104,14 @@
 @media (max-width: 640px) {
   .recording-compact-members__filters { grid-template-columns: minmax(0, 1fr) auto; gap: var(--gw-space-xs) var(--gw-space-sm); }
   .recording-compact-members__search { grid-column: auto; }
+  .recording-compact-members__horizontal-hint { display: block; }
+  .recording-compact-members__scroll { overflow-x: auto; }
+  .recording-compact-members table { width: max-content; min-width: 100%; }
+  .recording-compact-members :is(th, td)[data-column='pointOnly'] { min-width: 10rem; }
+  .recording-compact-members td[data-column='device'] { white-space: normal; overflow-wrap: anywhere; max-width: 8rem; }
   .recording-selected-table-scroll { max-block-size: 26rem; }
 }
-@media (max-width: 1000px) {
+@media (min-width: 641px) and (max-width: 1000px) {
   .recording-compact-members table { display: grid; grid-template-columns: fit-content(6rem) minmax(0, 1fr) fit-content(4.5rem) fit-content(9rem); }
   .recording-compact-members :is(thead, tbody) { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; width: 100%; }
   .recording-compact-members thead { position: sticky; top: 0; z-index: 3; background: var(--gw-ground); }
@@ -133,7 +139,7 @@
   .recording-compact-members__actions > button { min-width: var(--gw-control-mobile); padding-inline: var(--gw-space-2xs); font-size: var(--gw-typography-small-size); }
 }
 @media (max-width: 360px) {
-  .recording-compact-members table { grid-template-columns: fit-content(4.5rem) minmax(0, 1fr) fit-content(4.5rem) fit-content(9rem); }
+  .recording-compact-members .recording-point-name-inline > input { width: 11rem; max-width: 100%; }
   .recording-compact-members th[data-column='wordOrder'] { padding-inline: 0; }
   .recording-compact-members :is(th[data-column='dataType'], td[data-column='dataType']) { padding-inline: 2px; }
   .recording-compact-members td[data-column='actions'] { padding-inline: 1px; }
