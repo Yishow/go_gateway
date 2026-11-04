@@ -69,11 +69,11 @@ it('keeps dirty inline name and pending selection on Keep, and explicit Discard 
   await waitFor(() => expect(input).not.toHaveAttribute('readonly'));
   fireEvent.change(input, { target: { value: 'Unsent' } });
   fireEvent.click(within(screen.getByRole('contentinfo')).getByRole('button', { name: 'picker.cancel' }));
-  expect(screen.getByRole('alertdialog')).toBeVisible(); fireEvent.click(screen.getByRole('button', { name: 'navigation.keep' }));
+  expect(screen.getByRole('alertdialog')).toBeVisible(); fireEvent.click(screen.getByRole('button', { name: 'name.cancelKeep' }));
   expect(input).toHaveValue('Unsent'); expect(screen.getByRole('checkbox', { name: 'Point 2' })).toBeChecked();
   expect(screen.getByRole('dialog').querySelector<HTMLElement>('.recording-point-picker__body')!.scrollTop).toBe(230);
   fireEvent.click(within(screen.getByRole('contentinfo')).getByRole('button', { name: 'picker.cancel' }));
-  fireEvent.click(screen.getByRole('button', { name: 'navigation.discard' }));
+  fireEvent.click(screen.getByRole('button', { name: 'name.cancelDiscard' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(name.submit).not.toHaveBeenCalled();
 });
 it('keeps pending and unknown inline name visible on picker close and offers original-result inspection', async () => {

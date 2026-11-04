@@ -7,7 +7,7 @@ import { useRecordingPickerDiscovery, type RecordingPickerDiscovery } from './us
 import type { DeviceSourcePort } from '../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { useRecordingDeviceBuffer } from './useRecordingDeviceBuffer';
 import { RecordingSourceDeviceContent } from './RecordingSourceDeviceContent';
-import { useEffect, useMemo, useRef, useState, type ReactNode, type MutableRefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MutableRefObject } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useTranslation } from 'react-i18next';
 import type { EditorMember } from '../state/writeGroup/draft';
@@ -84,16 +84,22 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
   const [choice, setChoice] = useState('');
 
   const [confirm, setConfirm] = useState(false);
+  const [nameConfirm, setNameConfirm] = useState(false);
+  const nameConfirmFocus = useRef<HTMLElement | null>(null), nameKeepButton = useRef<HTMLButtonElement>(null);
+  const nameConfirmSnapshot = useRef<{ scope: string; key: string; name: string } | undefined>(undefined);
   const sourceClose = useRef<(() => void) | undefined>(undefined);
   const [deviceConfirm, setDeviceConfirm] = useState(false);
   const [deviceMounted, setDeviceMounted] = useState(false);
   const suppressNameBlur = useRef(false);
+  // The selected list shares this name controller after the picker closes.
+  useEffect(() => { if (!open) suppressNameBlur.current = false; }, [open]);
   const navigation = useRecordingDraftGuard({
     version: JSON.stringify([scope, picker.pending, deviceBuffer.buffer, rangeBuffer.buffer, nameBuffer.value?.name]),
     dirty: picker.pending.length > 0 || deviceBuffer.dirty || rangeBuffer.dirty || nameBuffer.dirty,
     pending: deviceBuffer.locked || rangeBuffer.locked || nameBuffer.pending, host: open,
-    discard: () => { sourceIntent.current += 1; deviceBuffer.reset(); rangeBuffer.reset(); nameBuffer.reset(); setPicker(cancelPicker(picker)); setOpen(false); },
+    discard: () => { suppressNameBlur.current = true; nameConfirmSnapshot.current = undefined; setNameConfirm(false); sourceIntent.current += 1; deviceBuffer.reset(); rangeBuffer.reset(); nameBuffer.reset(); setPicker(cancelPicker(picker)); setOpen(false); },
   });
+  useLayoutEffect(() => { if (nameConfirm && !navigation.confirming) nameKeepButton.current?.focus(); }, [nameConfirm, navigation.confirming]);
   const trigger = useRef<HTMLButtonElement>(null), ticket = useRef<ReturnFocusTicket | null>(null);
   const owner = useRef({ scope });
   const active = !disabled && picker.scope === scope && history.scope === scope;
@@ -117,9 +123,18 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
     }).finally(() => { nameFlight.current = false; });
   };
   const back = () => { sourceIntent.current += 1; if (view === 'range-buffer' && rangeBuffer.dirty && !rangeBuffer.locked) setConfirm(true); else setView('picker'); };
+  const keepName = () => {
+    setNameConfirm(false); nameConfirmSnapshot.current = undefined; suppressNameBlur.current = false;
+    requestAnimationFrame(() => { if (nameConfirmFocus.current?.isConnected) nameConfirmFocus.current.focus({ preventScroll: true }); });
+  };
   const close = () => {
     if (nameBuffer.pending || nameBuffer.value?.outcome?.status === 'unknown') return;
-    if (nameBuffer.dirty) { suppressNameBlur.current = true; navigation.request(() => { suppressNameBlur.current = false; nameBuffer.reset(); setPicker(cancelPicker(picker)); setOpen(false); }, () => { suppressNameBlur.current = false; }); return; }
+    if (nameBuffer.dirty) {
+      const value = nameBuffer.value!;
+      nameConfirmSnapshot.current = { scope, key: sourceKey(value.candidate), name: value.name };
+      nameConfirmFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      suppressNameBlur.current = true; setNameConfirm(true); return;
+    }
     nameBuffer.reset();
     sourceIntent.current += 1;
     if (view === 'device-buffer') { sourceClose.current?.(); return; }
@@ -178,25 +193,33 @@ export function RecordingPointSelection({ scope, workspaceId, candidates: suppli
   const nameLocked = Boolean(nameBuffer.pending || nameBuffer.dirty || nameBuffer.value?.outcome?.status === 'unknown');
   return <section className="recording-point-selection space-y-3" data-testid="recording-point-selection">
     <button ref={trigger} type="button" className="gw-secondary" data-testid="recording-points-open" disabled={!active}
-      onClick={() => { setView('picker'); setLocatedCount(undefined); setOpen(true); if (discover) void discovery.refresh(); }}>{t('picker.open')}</button>
+      onClick={() => { suppressNameBlur.current = false; setView('picker'); setLocatedCount(undefined); setOpen(true); if (discover) void discovery.refresh(); }}>{t('picker.open')}</button>
     {deviceBuffer.locked && (!open || view !== 'device-buffer') && <p role="status">{t('device.unresolved')}</p>}
     {renderMembers?.({ onRemove: remove, renderName, nameLocked, undo: lastRemoved ? { member: lastRemoved, disabled: !active || !restored,
       onUndo: () => { if (active && restored) { onChange(restored); setLastRemoved(undefined); } } } : undefined })}
-    <Dialog.Root open={open} onOpenChange={value => { if (!value) { if (navigation.confirming) navigation.keep(); else close(); } }}>
+    <Dialog.Root open={open} onOpenChange={value => { if (!value) { if (navigation.confirming) navigation.keep(); else if (nameConfirm) keepName(); else close(); } }}>
       <Dialog.Portal><Dialog.Overlay className="gw-modal-overlay" />
-        <Dialog.Content className="gw-modal" data-size={navigation.confirming || confirm || deviceConfirm ? 'confirm' : 'form'} role={navigation.confirming || confirm || deviceConfirm ? 'alertdialog' : 'dialog'}
+        <Dialog.Content className="gw-modal" data-size={navigation.confirming || nameConfirm || confirm || deviceConfirm ? 'confirm' : 'form'} role={navigation.confirming || nameConfirm || confirm || deviceConfirm ? 'alertdialog' : 'dialog'}
           style={{ color: semanticTokens.colors.text, backgroundColor: semanticTokens.colors.raised }}
           onOpenAutoFocus={() => { ticket.current = captureReturnFocus(owner.current, trigger.current); }}
           onCloseAutoFocus={event => { event.preventDefault(); restoreReturnFocus(ticket.current, owner.current, trigger.current); }}
           onPointerDownOutside={event => event.preventDefault()}
-          onEscapeKeyDown={event => { event.preventDefault(); if (event.isComposing) return; if (navigation.confirming) { navigation.keep(); return; }
+          onEscapeKeyDown={event => { event.preventDefault(); if (event.isComposing) return; if (navigation.confirming) { navigation.keep(); return; } if (nameConfirm) { keepName(); return; }
             const name = nameBuffer.value, focused = document.activeElement;
             if (view === 'picker' && name && focused instanceof HTMLElement && focused.dataset.pickerFocus === `name:${sourceKey(name.candidate)}` &&
               (name.outcome?.status === 'ready' || name.preparing && !name.outcome)) { nameIntent.current = undefined; nameBuffer.reset(); return; }
             if (view === 'device-buffer') { sourceClose.current?.(); return; } if (confirm) setConfirm(false); else close(); }}>
-          {navigation.confirmation ?? <header className="gw-modal-header"><Dialog.Title>{t(confirm || deviceConfirm ? 'device.discardTitle' : view === 'picker' ? 'picker.title' : view === 'range-buffer' ? 'range.title' : 'source.title')}</Dialog.Title>
-            <Dialog.Description>{t(confirm || deviceConfirm ? 'device.discardDescription' : view === 'range-buffer' ? 'range.description' : 'picker.description')}</Dialog.Description></header>}
-          <div style={{ display: navigation.confirming ? 'none' : 'contents' }}>
+          {navigation.confirmation ?? <header className="gw-modal-header"><Dialog.Title>{t(nameConfirm ? 'name.cancelTitle' : confirm || deviceConfirm ? 'device.discardTitle' : view === 'picker' ? 'picker.title' : view === 'range-buffer' ? 'range.title' : 'source.title')}</Dialog.Title>
+            <Dialog.Description>{t(nameConfirm ? 'name.cancelDescription' : confirm || deviceConfirm ? 'device.discardDescription' : view === 'range-buffer' ? 'range.description' : 'picker.description')}</Dialog.Description></header>}
+          {nameConfirm && !navigation.confirming && <><div className="gw-modal-body" /><footer className="gw-modal-footer">
+            <button ref={nameKeepButton} type="button" className="gw-secondary" onClick={keepName}>{t('name.cancelKeep')}</button>
+            <button type="button" className="gw-primary" onClick={() => {
+              const value = nameBuffer.value, snapshot = nameConfirmSnapshot.current;
+              if (!active || !value || !nameBuffer.dirty || nameBuffer.pending || snapshot?.scope !== scope || snapshot.key !== sourceKey(value.candidate) || snapshot.name !== value.name) { keepName(); return; }
+              nameConfirmSnapshot.current = undefined; nameIntent.current = undefined; nameBuffer.reset(); sourceIntent.current += 1; setPicker(cancelPicker(picker)); setNameConfirm(false); setOpen(false);
+            }}>{t('name.cancelDiscard')}</button>
+          </footer></>}
+          <div style={{ display: navigation.confirming || nameConfirm ? 'none' : 'contents' }}>
           {confirm ? <><div className="gw-modal-body" /><footer className="gw-modal-footer">
             <button type="button" className="gw-secondary" onClick={() => setConfirm(false)}>{t('device.keep')}</button>
             <button type="button" className="gw-primary" onClick={() => { setConfirm(false); rangeBuffer.reset(); setView('picker'); }}>{t('device.discard')}</button>

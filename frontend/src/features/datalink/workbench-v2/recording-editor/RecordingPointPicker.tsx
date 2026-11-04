@@ -132,7 +132,7 @@ export function RecordingPointPicker({ state, projection, devices, status, label
             pending: state.pending.filter(item => sourceKey(item) !== sourceKey(identity)),
           })}>{labels.removePending(identity)}</button>)}
       </div>
-      <button type="button" onClick={() => cancel('cancel')}>{labels.cancel}</button>
+      <button type="button" onPointerDown={event => { if (nameLocked) event.preventDefault(); }} onClick={() => cancel('cancel')}>{labels.cancel}</button>
       <button type="button" disabled={nameLocked || !active || !result.canAdd} onClick={() => {
         const identities = pendingAddition(state, projection);
         if (!nameLocked && active && identities) onAdd(identities);

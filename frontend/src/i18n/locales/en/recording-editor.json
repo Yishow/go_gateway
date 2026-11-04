@@ -484,7 +484,7 @@
     "impact": "Recording cannot start yet. Confirm these are still the sources you want, then adopt their current settings and save."
   },
   "name": {
-    "title": "Change point name",
+    "title": "Change point name", "cancelTitle": "Discard this point name change?", "cancelDescription": "The unsaved name and points waiting to be added will be discarded. Saved names and the recording draft will be kept.", "cancelKeep": "Keep editing", "cancelDiscard": "Discard and close selection",
     "rename": "Change name",
     "shared": "This name is shared by recordings using this point. Leave the field or press Enter to save; press Esc to cancel an unsent edit.", "required": "Enter a point name.",
     "label": "Point name",
