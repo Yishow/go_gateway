@@ -107,6 +107,17 @@ describe('direct source entry and one shared form presentation', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     noOtherWrites();
   });
+  it('shows a real connection locator failure and allows closing', async () => {
+    mount();
+    await screen.findByTestId('home-device-points-D');
+    vi.mocked(studioV2DatalinkApi.get).mockRejectedValueOnce(new Error('fixture unavailable'));
+    fireEvent.click(within(screen.getByTestId('home-device-summary')).getByRole('button', { name: 'Connection' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByTestId('studio-locator-notice')).toHaveAttribute('role', 'alert');
+    fireEvent.click(within(dialog).getByTestId('home-source-close'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    noOtherWrites();
+  });
   it('opens the only saved range directly, then respects an explicit return to the list', async () => {
     const { navigate } = mount(); const dialog = await openRange();
     const form = await within(dialog).findByTestId('home-saved-range-form');

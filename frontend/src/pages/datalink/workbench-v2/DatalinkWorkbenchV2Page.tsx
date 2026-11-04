@@ -295,7 +295,7 @@ function AdvancedWorkbenchV2Page({
     : locatorQuery.isError ? 'unavailable' : 'loading';
   const locatorNotice = <StudioLocatorEntryNotice reason={locatorReason} entry={locatorEntry} navigateTo={navigateTo} />;
   if (locatorMode && !autosave.locatorHydration.ready && !autosave.workspaceHydrated && !autosave.locatorHydration.lastEntry) {
-    return homeSource?.target.kind === 'points' && locatorReason === 'loading' ? <RecordingHomeSourceLoading onClose={homeSource.onClose} /> : locatorNotice;
+    return homeSource && homeSource.target.kind !== 'create' && locatorReason === 'loading' ? <RecordingHomeSourceLoading onClose={homeSource.onClose} /> : locatorNotice;
   }
 
   const backgroundReadFailed = !locatorMode && (

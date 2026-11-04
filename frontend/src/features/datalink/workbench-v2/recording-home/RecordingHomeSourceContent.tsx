@@ -76,7 +76,7 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
     list.data.length <= 1 && list.data.every(rule => rule.workspace_id === target.workspaceId && rule.device_id === target.deviceId);
   const loadingRanges = target.kind === 'points' && !target.ruleId && !target.newRange && (list.isPending || list.isFetching || autoSelecting);
   useLayoutEffect(() => { if (device) onDeviceName(device.name); }, [device, onDeviceName]);
-  useLayoutEffect(() => { if (target.kind === 'points' && !suspended && (!device || !loadingRanges)) onReady(); }, [target.kind, suspended, device, loadingRanges, onReady]);
+  useLayoutEffect(() => { if (!suspended && (target.kind === 'connection' && device || target.kind === 'points' && (!device || !loadingRanges))) onReady(); }, [target.kind, suspended, device, loadingRanges, onReady]);
   useLayoutEffect(() => {
     if (target.kind === 'connection' || target.kind === 'create') return;
     closeRef.current = () => { if (leave.current) leave.current(onClose); else onClose(); };

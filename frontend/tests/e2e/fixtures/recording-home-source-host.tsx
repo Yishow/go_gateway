@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import i18n from '../../../src/i18n/config';
@@ -29,19 +29,22 @@ const source: DeviceSourcePort = { submit: async () => { throw new Error('Unexpe
   inspect: async () => undefined, observations: () => [] };
 const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
-function Entry({ open, workspaceChanged }: { open: () => void; workspaceChanged: (id: string) => void }) {
-  useEffect(() => { workspaceChanged('W'); }, [workspaceChanged]);
+function Entry({ open, workspaceChanged, autoOpen }: { open: () => void; workspaceChanged: (id: string) => void; autoOpen: boolean }) {
+  const opened = useRef(false);
+  useEffect(() => { workspaceChanged('W'); if (autoOpen && !opened.current) { opened.current = true; open(); } }, [autoOpen, open, workspaceChanged]);
   return <main data-testid="recording-home" className="gw-recording-home"><h1>記錄工作台</h1><button type="button" onClick={open}>讀取點位</button></main>;
 }
 function Root() {
-  if (new URLSearchParams(window.location.search).has('home')) return <QueryClientProvider client={client}><RecordingDraftNavigation>
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('home')) return <QueryClientProvider client={client}><RecordingDraftNavigation>
     <DatalinkWorkbenchV2Page presentation="recordings" locatorIntent={{ kind: 'absent' }} presentationLocation={{ search: '?view=recordings', hash: '#home' }} />
   </RecordingDraftNavigation></QueryClientProvider>;
   return <QueryClientProvider client={client}><RecordingDraftNavigation><RecordingHomeSourceHost
     renderSource={controls => <RecordingHomeSourceContent key={controls.target.epoch} {...controls} state={state}
       dispatch={() => { throw new Error('Unexpected write'); }} source={source} suspended={false}
       onRetryShare={() => undefined} onOpenShareSettings={() => undefined} />}>
-    {(open, workspaceChanged) => <Entry open={() => open('W', 'D', 'points')} workspaceChanged={workspaceChanged} />}
+    {(open, workspaceChanged) => <Entry open={() => open('W', 'D', params.has('inspect-connection') ? 'connection' : 'points')}
+      workspaceChanged={workspaceChanged} autoOpen={params.has('inspect-connection')} />}
   </RecordingHomeSourceHost></RecordingDraftNavigation></QueryClientProvider>;
 }
 createRoot(document.getElementById('root')!).render(<Root />);
