@@ -17,6 +17,11 @@ export interface RecordingHomeSourceContentProps extends HomeSourceControls {
   shareEnabled?: boolean; onRetryShare: () => void; onOpenShareSettings: () => void;
   state: WorkbenchV2State; dispatch: Dispatch<WorkbenchV2Action>; source: DeviceSourcePort; suspended: boolean; mcEvidenceByRule?: Readonly<Record<string, PersistedMCRuleState>>;
 }
+export function RecordingHomeSourceLoading({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation('recording-home');
+  return <><div className="gw-modal-body" role="status">{t('loading')}</div>
+    <footer className="gw-modal-footer"><button type="button" onClick={onClose}>{t('source.close')}</button></footer></>;
+}
 function SavedConnection({ device, source, suspended, controls }: { device?: Device; source: DeviceSourcePort; suspended: boolean; controls: HomeSourceControls }) {
   const { t } = useTranslation('recording-editor');
   const buffer = useRecordingDeviceBuffer(controls.target.workspaceId, source, suspended, device);
@@ -51,7 +56,7 @@ function NewRange({ device, source, suspended, controls, leave, list, refreshLis
 /** The original scoped Page supplies every command owner. This component selects
  * local form content only; list responses cannot install or authorize an editor. */
 export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProps) {
-  const { target, state, dispatch, source, suspended, onDeviceName, closeRef, onClose, onSelect } = props;
+  const { target, state, dispatch, source, suspended, onDeviceName, onReady, closeRef, onClose, onSelect } = props;
   const { t } = useTranslation('recording-home');
   const leave = useRef<((proceed: () => void) => void) | undefined>(undefined);
   const list = useQuery({ queryKey: ['recording-home-device-ranges', target.workspaceId, target.deviceId, target.epoch],
@@ -67,7 +72,11 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
     else if (list.data.length === 0) onSelect(undefined, true);
   }, [target, suspended, list.isSuccess, list.isFetching, list.data, onSelect, state.devices]);
   const device = state.devices.find(item => item.id === target.deviceId && item.persisted === true);
-  useEffect(() => { if (device) onDeviceName(device.name); }, [device, onDeviceName]);
+  const autoSelecting = target.kind === 'points' && target.initialSelection && !target.ruleId && !target.newRange && device && list.isSuccess &&
+    list.data.length <= 1 && list.data.every(rule => rule.workspace_id === target.workspaceId && rule.device_id === target.deviceId);
+  const loadingRanges = target.kind === 'points' && !target.ruleId && !target.newRange && (list.isPending || list.isFetching || autoSelecting);
+  useLayoutEffect(() => { if (device) onDeviceName(device.name); }, [device, onDeviceName]);
+  useLayoutEffect(() => { if (target.kind === 'points' && !suspended && (!device || !loadingRanges)) onReady(); }, [target.kind, suspended, device, loadingRanges, onReady]);
   useLayoutEffect(() => {
     if (target.kind === 'connection' || target.kind === 'create') return;
     closeRef.current = () => { if (leave.current) leave.current(onClose); else onClose(); };
@@ -80,6 +89,7 @@ export function RecordingHomeSourceContent(props: RecordingHomeSourceContentProp
   if (target.kind === 'create' && !suspended) return <SavedConnection source={source} suspended={suspended} controls={props} />;
   if (target.kind === 'create' || !device || suspended) return <div className="gw-modal-body" role="status">{t('source.unavailable')}</div>;
   if (target.kind === 'connection') return <SavedConnection device={device} source={source} suspended={suspended} controls={props} />;
+  if (loadingRanges) return <RecordingHomeSourceLoading onClose={onClose} />;
   const listContent = <section aria-label={t('source.ranges')} className="gw-home-range-list">
     <header className="gw-range-list-heading"><h3>{t('source.ranges')}</h3>{list.isSuccess && !list.isFetching && <button type="button" data-testid="home-range-new" onClick={() => select(undefined, true)}>{t('source.newRange')}</button>}</header>
     {list.isPending || list.isFetching ? <p role="status">{t('loading')}</p> : list.isError ? <p role="alert">{t('source.unavailable')}</p> : <>

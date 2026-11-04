@@ -36,7 +36,7 @@ function Host() {
   const observer = useRef<HomeRuleObserver | undefined>(undefined);
   return <RecordingDraftNavigation>
     <Dialog.Root open><Dialog.Portal><Dialog.Overlay className="gw-modal-overlay" />
-      <Dialog.Content data-workbench-v2 className="gw-modal gw-home-source-modal" data-size="form">
+      <Dialog.Content data-workbench-v2 className="gw-modal gw-home-source-modal" data-size="form" data-source-kind="points">
         <header className="gw-modal-header"><div><Dialog.Title>MC · 設定讀取點位</Dialog.Title>
           <Dialog.Description>這些是共用來源設定；只有按下儲存才會送出變更。</Dialog.Description></div></header>
         <RecordingHomeSavedRangeEditor target={{ workspaceId: 'W', deviceId: 'D', ruleId: 'R', kind: 'points', epoch: 1 }}

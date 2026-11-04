@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchV2Page from '@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2DatalinkApi, studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
@@ -57,6 +57,56 @@ function noOtherWrites() {
     studioV2WorkspaceWriteGroupsAPI.create, studioV2WorkspaceWriteGroupsAPI.update, studioV2WorkspaceWriteGroupsAPI.apply]) expect(fn).not.toHaveBeenCalled();
 }
 describe('direct source entry and one shared form presentation', () => {
+  it('keeps one neutral loading state until the automatically selected range is ready', async () => {
+    let releaseDevice!: () => void, releaseRule!: () => void, releaseList!: (rules: ReturnType<typeof nativeRule>[]) => void;
+    const deviceGate = new Promise<void>(resolve => { releaseDevice = resolve; });
+    const ruleGate = new Promise<void>(resolve => { releaseRule = resolve; });
+    const listGate = new Promise<ReturnType<typeof nativeRule>[]>(resolve => { releaseList = resolve; });
+    const requested: string[] = [];
+    vi.mocked(studioV2DatalinkApi.get).mockImplementation(async (url, config) => {
+      if (url !== '/studio-v2/workspace') throw new Error('Unexpected unscoped child read');
+      const params = config?.params as Record<string, string>, step = params.step;
+      requested.push(step);
+      await (step === '2' ? ruleGate : deviceGate);
+      const read = locatorRead(step === '2' ? 2 : 1); read.workspace = workspace; read.entry.devices = [completeDevice()];
+      return { data: { success: true, data: { ...read.workspace, locator_entry: read.entry } } };
+    });
+    mount();
+    const trigger = await screen.findByTestId('home-device-points-D');
+    let listStarted = false;
+    vi.mocked(studioV2RulesAPI.list).mockImplementationOnce(() => { listStarted = true; return listGate; });
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(requested).toContain('1'));
+    const expectLoading = () => {
+      expect(within(dialog).getByRole('status')).toHaveTextContent('Reading the current workspace');
+      expect(within(dialog).queryByTestId('studio-locator-notice')).not.toBeInTheDocument();
+      expect(within(dialog).queryByRole('region', { name: 'Read ranges' })).not.toBeInTheDocument();
+      expect(within(dialog).queryByTestId('rule-prefix-input')).not.toBeInTheDocument();
+    };
+    expectLoading();
+    await act(async () => releaseDevice());
+    await waitFor(() => expect(listStarted).toBe(true));
+    expectLoading();
+    await act(async () => releaseList([nativeRule()]));
+    await waitFor(() => expect(requested).toContain('2'));
+    expectLoading();
+    await act(async () => releaseRule());
+    expect(await within(dialog).findByTestId('rule-prefix-input')).toHaveValue('Rule R');
+    noOtherWrites();
+  });
+  it('still shows a real locator failure and allows closing the source dialog', async () => {
+    mount();
+    const trigger = await screen.findByTestId('home-device-points-D');
+    vi.mocked(studioV2DatalinkApi.get).mockRejectedValueOnce(new Error('fixture unavailable'));
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole('dialog');
+    const notice = await within(dialog).findByTestId('studio-locator-notice');
+    expect(notice).toHaveAttribute('role', 'alert');
+    fireEvent.click(within(dialog).getByTestId('home-source-close'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    noOtherWrites();
+  });
   it('opens the only saved range directly, then respects an explicit return to the list', async () => {
     const { navigate } = mount(); const dialog = await openRange();
     const form = await within(dialog).findByTestId('home-saved-range-form');

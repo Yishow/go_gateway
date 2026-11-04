@@ -1,6 +1,6 @@
 import { useStudioLocatorRecovery } from './useStudioLocatorRecovery';
 import { RecordingHomeSourceHost, type HomeSourceControls, type HomeRuleObserver } from '../../../features/datalink/workbench-v2/recording-home/RecordingHomeSourceHost';
-import { RecordingHomeSourceContent } from '../../../features/datalink/workbench-v2/recording-home/RecordingHomeSourceContent';
+import { RecordingHomeSourceContent, RecordingHomeSourceLoading } from '../../../features/datalink/workbench-v2/recording-home/RecordingHomeSourceContent';
 import { RecordingSourceNavigation } from '../../../features/datalink/workbench-v2/recording-editor/RecordingSourceNavigation';
 import { useTranslation } from 'react-i18next';
 import { RecordingDraftReadState, useRecordingNavigation } from '../../../features/datalink/workbench-v2/recording-editor/RecordingDraftNavigation';
@@ -294,7 +294,9 @@ function AdvancedWorkbenchV2Page({
       : locatorQuery.data.reason === 'stale-reference' ? 'stale' : 'unavailable'
     : locatorQuery.isError ? 'unavailable' : 'loading';
   const locatorNotice = <StudioLocatorEntryNotice reason={locatorReason} entry={locatorEntry} navigateTo={navigateTo} />;
-  if (locatorMode && !autosave.locatorHydration.ready && !autosave.workspaceHydrated && !autosave.locatorHydration.lastEntry) return locatorNotice;
+  if (locatorMode && !autosave.locatorHydration.ready && !autosave.workspaceHydrated && !autosave.locatorHydration.lastEntry) {
+    return homeSource?.target.kind === 'points' && locatorReason === 'loading' ? <RecordingHomeSourceLoading onClose={homeSource.onClose} /> : locatorNotice;
+  }
 
   const backgroundReadFailed = !locatorMode && (
     workspaceQuery.isError ||
