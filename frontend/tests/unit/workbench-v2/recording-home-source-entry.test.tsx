@@ -141,15 +141,15 @@ describe('direct source entry and one shared form presentation', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     noOtherWrites();
   });
-  it('opens the only saved range directly, then respects an explicit return to the list', async () => {
+  it('opens the only saved range directly and its Close closes the settings frame', async () => {
     const { navigate } = mount(); const dialog = await openRange();
     const form = await within(dialog).findByTestId('home-saved-range-form');
     expect(within(form).getByTestId('rule-prefix-input')).toHaveValue('Rule R');
     expect(within(dialog).queryByTestId('home-range-edit-R')).not.toBeInTheDocument();
     expect(studioV2DatalinkApi.get).toHaveBeenCalledWith('/studio-v2/workspace', expect.objectContaining({ params: expect.objectContaining({ step: '2', device_id: 'D', rule_id: 'R', workspace_id: 'W' }) }));
+    expect(within(dialog).getByTestId('home-range-done')).toHaveTextContent('Close');
     fireEvent.click(within(dialog).getByTestId('home-range-done'));
-    await within(dialog).findByTestId('home-range-edit-R');
-    expect(within(dialog).queryByTestId('home-saved-range-form')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(navigate).not.toHaveBeenCalled(); noOtherWrites(); expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
   });
   it('opens the first new range directly with visible examples and the actual prefix field', async () => {
@@ -165,10 +165,10 @@ describe('direct source entry and one shared form presentation', () => {
     expect(within(dialog).queryByTestId('home-range-new')).not.toBeInTheDocument();
     noOtherWrites();
   });
-  it('keeps multiple ranges as an explicit choice and uses the existing dirty confirmation on return', async () => {
+  it('opens the first of several ranges and keeps unsent edits through the dirty confirmation on close', async () => {
     vi.mocked(studioV2RulesAPI.list).mockResolvedValue([nativeRule(), nativeRule('R2')]);
     mount(); const dialog = await openRange();
-    fireEvent.click(await within(dialog).findByTestId('home-range-edit-R'));
+    expect(await within(dialog).findByTestId('home-range-option-R2')).toHaveAttribute('aria-pressed', 'false');
     const prefix = await within(dialog).findByTestId('rule-prefix-input');
     fireEvent.change(prefix, { target: { value: 'UNSENT_' } });
     fireEvent.click(within(dialog).getByTestId('home-range-done'));

@@ -46,9 +46,10 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 900 }, { name: '
     await page.goto(`/tests/e2e/fixtures/recording-home-source-host.html?home${'dark' in viewport ? '' : '&light'}`);
     await page.getByTestId('home-device-points-D').click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByTestId('home-range-edit-F')).toBeVisible();
-    await expect(dialog.getByTestId('home-range-edit-F').locator('xpath=ancestor::li')).toContainText('D39 – D42');
-    await page.screenshot({ path: testInfo.outputPath(`list-${viewport.name}.png`) });
+    // The first range opens directly; every range is an inline choice with its address span.
+    await expect(dialog.getByTestId('rule-prefix-input')).toHaveValue('TEMP_');
+    await expect(dialog.getByTestId('home-range-option-F')).toContainText('D39 – D42');
+    await page.screenshot({ path: testInfo.outputPath(`settings-${viewport.name}.png`) });
     await dialog.getByTestId('home-range-memory').click();
     await expect(dialog.getByTestId('home-memory-cell-D0')).toHaveAttribute('data-state', 'used');
     await expect(dialog.getByTestId('home-memory-cell-D40')).toHaveAttribute('aria-label', 'D40，FLOW_，float32，第 2/2 個暫存器，起始於 D39');

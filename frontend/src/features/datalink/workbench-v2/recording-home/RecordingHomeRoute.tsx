@@ -19,12 +19,13 @@ import { readRecordingHomeSources } from './recordingHomeSources';
 import { useRecordingHomeEvidence } from './useRecordingHomeEvidence';
 import { RecordingHome, type RecordingHomeLocation } from './RecordingHome';
 import type { RecordingHomeScope } from './recordingHomeProjection';
+import type { HomeSourceDevice } from './RecordingHomeSourceHost';
 
 // Request generation only, not configuration or workspace authority. Remounting
 // cannot reuse pending evidence from a previous visit, even A -> B -> A.
 let generation = 0;
 function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, onNavigate, reloadScope, onOpenDevice, onCreateDevice }: {
-  workspaceId: string; workspaceRevision: string; list: WriteGroupListResponse; location: RecordingHomeLocation; onNavigate?: (target: string) => void; reloadScope: () => Promise<unknown>; onOpenDevice?: (workspaceId: string, deviceId: string, kind: 'connection' | 'points') => void; onCreateDevice?: (workspaceId: string) => void;
+  workspaceId: string; workspaceRevision: string; list: WriteGroupListResponse; location: RecordingHomeLocation; onNavigate?: (target: string) => void; reloadScope: () => Promise<unknown>; onOpenDevice?: (workspaceId: string, deviceId: string, kind: 'connection' | 'points', devices?: readonly HomeSourceDevice[]) => void; onCreateDevice?: (workspaceId: string) => void;
 }) {
   const context = useQueryClient();
   const [restored, setRestored] = useState(() => readHomePresentation(context, workspaceId, workspaceRevision));
@@ -39,6 +40,9 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
   const groupsRead = recordingHomeProjection({ scope, groups: { state: 'available', scope, value: list } }).groups;
   const groups = groupsRead.state === 'available' ? groupsRead.value.map(item => item.group) : [];
   const devices = sources.data?.state === 'available' ? sources.data.value.devices : [];
+  // The same last validated projection the collection shows (a failed refresh replaces it with an error state).
+  // Every device chosen in the settings frame is re-validated by its own scoped locator read.
+  const switchable = sources.data?.state === 'available' ? devices.map(({ id, name }) => ({ id, name })) : undefined;
   const cached = cachedHomeReads(context, groups.map(group => ({ ...scope, groupId: group.id, groupRevision: group.revision, appliedRevision: group.applied_revision })));
   const collection = recordingCollection(groups, devices, state, new Set(filterObservedIds));
   const page = state.mode === 'devices' ? deviceCollection(devices, state).page : collection.page;
@@ -60,7 +64,7 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
     (cached.delivery[id]?.state !== 'available' || cached.lifecycle[id]?.state !== 'available' || !facts.runtimeGroups[id]));
   const displayedObservedIds = [...new Set([...observedIds, ...unverified])];
   return <RecordingHome mode={state.mode} onCreateDevice={() => onCreateDevice?.(workspaceId)} workspaceId={workspaceId} guidance={guidance} location={location} onNavigate={onNavigate}
-    onConfigurePoints={id => { if (devices.some(device => device.id === id)) onOpenDevice?.(workspaceId, id, 'points'); }}
+    onConfigurePoints={id => { if (devices.some(device => device.id === id)) onOpenDevice?.(workspaceId, id, 'points', switchable); }}
     onRetry={() => { void Promise.all([reloadScope(), sources.refetch(), home.retry(), facts.retry()]); }}
     collection={<RecordingHomeCollection groups={groups} devices={devices} state={state} guidance={guidance}
       pendingDevices={facts.pendingDevices}
@@ -84,13 +88,13 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
         }
       }}
       onOpenDevice={(id, kind) => {
-        if (devices.some(device => device.id === id)) onOpenDevice?.(workspaceId, id, kind);
+        if (devices.some(device => device.id === id)) onOpenDevice?.(workspaceId, id, kind, switchable);
       }} />} />;
 }
 /** Home mounts no autosave/activation owners. Bootstrap identity and DB setup
  * revision are read independently, with an explicit empty DB revision allowed. */
 export function RecordingHomeRoute({ location, onNavigate, onOpenDevice, onWorkspaceChange, onCreateDevice }: { location: RecordingHomeLocation; onNavigate?: (target: string) => void;
-  onOpenDevice?: (workspaceId: string, deviceId: string, kind: 'connection' | 'points') => void; onCreateDevice?: (workspaceId: string) => void; onWorkspaceChange?: (id?: string) => void }) {
+  onOpenDevice?: (workspaceId: string, deviceId: string, kind: 'connection' | 'points', devices?: readonly HomeSourceDevice[]) => void; onCreateDevice?: (workspaceId: string) => void; onWorkspaceChange?: (id?: string) => void }) {
   const { t } = useTranslation('recording-home');
   const workspace = useStudioV2WorkspaceQuery();
   useEffect(() => { onWorkspaceChange?.(workspace.data?.id); }, [workspace.data?.id, onWorkspaceChange]);

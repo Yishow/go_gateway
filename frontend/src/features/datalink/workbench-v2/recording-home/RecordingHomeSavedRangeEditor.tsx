@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type MutableRefObject, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { Rule, WorkbenchV2State } from '../state/types';
 import type { PersistedMCRuleState } from '../state/mcPersistedPoints';
 import { workbenchV2Reducer, type WorkbenchV2Action } from '../state/useWorkbenchV2State';
 import { hydrateStudioV2Rule, isStudioV2RuleValid } from '../state/studioV2RuleAutosave';
 import { RuleEditor } from '../steps/step2/RuleEditor';
+import { Toggle } from '../components/Toggle';
 import { readStudioLocatorEntry } from '../../../../services/studioV2LocatorEntry';
 import { useRecordingDraftGuard } from '../recording-editor/RecordingDraftNavigation';
 import type { HomeSourceTarget, HomeRuleObserver } from './RecordingHomeSourceHost';
@@ -12,9 +14,11 @@ export type HomeSourceLeave = MutableRefObject<((proceed: () => void) => void) |
 const editable = [ 'device_id', 'start_address', 'count', 'data_type', 'naming_prefix', 'enabled', 'skipped_addresses', 'scale_multiplier', 'scale_offset', 'data_format', 'share_enabled', 'share_start_register', 'share_stride'] as const satisfies readonly (keyof Rule)[];
 /** A local form only: one explicit dispatch hands the original saved-rule queue
  * its unchanged update contract. No new API, retry, CAS or operation receipt. */
-export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence, dispatch, leave, suspended, list, onLeave, onDone, ruleObserverRef, shareEnabled, onRetryShare, onOpenShareSettings }: {
+export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence, dispatch, leave, suspended, list, onLeave, onClose, headerSlot, onLocked, ruleObserverRef, shareEnabled, onRetryShare, onOpenShareSettings }: {
   shareEnabled?: boolean; onRetryShare: () => void; onOpenShareSettings: () => void;
-  target: HomeSourceTarget; state: WorkbenchV2State; rule: Rule; mcEvidence?: PersistedMCRuleState; dispatch: Dispatch<WorkbenchV2Action>; leave: HomeSourceLeave; suspended: boolean; list: ReactNode; onLeave: () => void; onDone: () => void; ruleObserverRef: MutableRefObject<HomeRuleObserver | undefined>;
+  target: HomeSourceTarget; state: WorkbenchV2State; rule: Rule; mcEvidence?: PersistedMCRuleState; dispatch: Dispatch<WorkbenchV2Action>; leave: HomeSourceLeave; suspended: boolean; list: ReactNode;
+  /** Leaves an unconfirmed save as sent (no cancel); `onClose` closes through the leave protection. */
+  onLeave: () => void; onClose: () => void; headerSlot: HTMLElement | null; onLocked: (locked: boolean) => void; ruleObserverRef: MutableRefObject<HomeRuleObserver | undefined>;
 }) {
   const { t } = useTranslation('recording-home');
   const [draft, setDraft] = useState(rule), base = useRef(rule);
@@ -47,9 +51,11 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
   const dirty = editable.some(key => JSON.stringify(draft[key]) !== JSON.stringify(base.current[key]));
   const locked = phase === 'checking' || phase === 'saving' || phase === 'unknown';
   useLayoutEffect(() => {
-    leave.current = proceed => { if (locked) return; if (dirty) setConfirm(() => proceed); else proceed(); };
+    // An open keep/discard question keeps its original destination; no other request may replace it.
+    leave.current = proceed => { if (locked || confirm) return; if (dirty) setConfirm(() => proceed); else proceed(); };
     return () => { leave.current = undefined; };
-  }, [dirty, locked, leave]);
+  }, [dirty, locked, confirm, leave]);
+  useLayoutEffect(() => { onLocked(locked || Boolean(confirm)); }, [locked, confirm, onLocked]);
   useRecordingDraftGuard({ version: JSON.stringify([target.epoch, phase, draft]), dirty: dirty && !locked, pending: locked, host: true,
     discard: () => { if (!locked) setDraft(base.current); } });
   useLayoutEffect(() => {
@@ -74,7 +80,6 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
   useEffect(() => {
     if (phase === 'saving' && (rule.save_state === 'save-error' || rule.save_state === 'draft-invalid')) setPhase('unknown');
   }, [phase, rule.save_state]);
-  useEffect(() => { if (phase === 'saved' && !suspended) onDone(); }, [phase, suspended, onDone]);
   const localDispatch = (action: WorkbenchV2Action) => {
     if (locked || suspended || !('ruleId' in action) || action.ruleId !== rule.id) return;
     const next = workbenchV2Reducer({ ...state, rules: [draft] }, action).rules.find(value => value.id === rule.id);
@@ -106,19 +111,23 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
     } catch { if (mounted.current) setCurrentRead('unavailable'); }
   };
   return <><div ref={body} className="gw-modal-body" data-testid="home-saved-range-form"><div ref={content} className="space-y-4">
-    {!confirm && list}
+    {!confirm && <fieldset className="gw-home-range-switch" disabled={locked || suspended}>{list}</fieldset>}
     {confirm ? <p>{t('source.discardDescription')}</p> : <>
-      <fieldset className="gw-home-saved-range-form" disabled={locked || suspended}><RuleEditor hideLocalName simplePresentation rule={{ ...draft, mc_persisted_points: currentEvidence }} devices={state.devices.filter(device => device.id === target.deviceId)}
+      <fieldset className="gw-home-saved-range-form" disabled={locked || suspended}><RuleEditor hideLocalName simplePresentation hideEnabledControl rule={{ ...draft, mc_persisted_points: currentEvidence }} devices={state.devices.filter(device => device.id === target.deviceId)}
         globalShareEnabled={state.settings.modbus_share.enabled} shareControls={{ enabled: shareEnabled, retry: onRetryShare, openSettings: () => leave.current?.(onOpenShareSettings) }} dispatch={localDispatch} /></fieldset>
       {phase === 'saved' && <p role="status" data-testid="home-range-saved">{t('source.saved')}</p>}
       {locked && <p role={phase === 'unknown' ? 'alert' : 'status'} data-testid={`home-range-${phase}`}>{t(`source.${phase}`)}</p>}
       {currentRead && <p role="status">{t(`source.currentRead.${currentRead}`)}</p>}
       {phase === 'stale' && <p role="alert">{t('source.stale')}</p>}
     </>}
-  </div></div><footer className="gw-modal-footer" data-edit-actions style={{ justifyContent: 'flex-end' }}>
+  </div></div>
+  {/* The title-bar switch is outside the form's fieldset, so every non-editable phase is applied explicitly. */}
+  {headerSlot && !confirm && createPortal(<Toggle checked={draft.enabled} disabled={locked || suspended} label={t('source.ruleEnabled')}
+    onChange={() => localDispatch({ type: 'toggleRuleEnabled', ruleId: rule.id })} />, headerSlot)}
+  <footer className="gw-modal-footer" data-edit-actions style={{ justifyContent: 'flex-end' }}>
     {moreBelow && <span className="gw-home-range-scroll-cue">{t('source.moreBelow')}</span>}
     {confirm ? <><button type="button" data-testid="home-source-keep" onClick={() => setConfirm(undefined)}>{t('source.keep')}</button>
       <button type="button" className="gw-primary" data-testid="home-source-discard" onClick={() => { const proceed = confirm; setDraft(base.current); setConfirm(undefined); proceed(); }}>{t('source.discard')}</button></>
-      : <><button type="button" data-testid="home-range-done" disabled={locked || suspended} onClick={onDone}>{t('source.cancelEdit')}</button>{phase === 'unknown' && <><button type="button" onClick={() => { void inspect(); }}>{t('source.inspect')}</button><button type="button" onClick={onLeave}>{t('source.leaveSent')}</button></>}<button type="button" className="gw-primary" data-testid="home-range-save" disabled={locked || suspended || mcBlocked || !dirty || !isStudioV2RuleValid(draft)} onClick={() => { void save(); }}>{t('source.saveAndReturn')}</button></>}
+      : <><button type="button" data-testid="home-range-done" disabled={locked} onClick={onClose}>{t('source.close')}</button>{phase === 'unknown' && <><button type="button" onClick={() => { void inspect(); }}>{t('source.inspect')}</button><button type="button" onClick={onLeave}>{t('source.leaveSent')}</button></>}<button type="button" className="gw-primary" data-testid="home-range-save" disabled={locked || suspended || mcBlocked || !dirty || !isStudioV2RuleValid(draft)} onClick={() => { void save(); }}>{t('source.save')}</button></>}
   </footer></>;
 }

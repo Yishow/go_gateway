@@ -182,5 +182,5 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
     <p className="gw-muted gw-memory-intro">{t('source.memory.intro')}</p>
     <p className="gw-muted gw-memory-intro-short">{t('source.memory.introShort')}</p>
     {body()}
-  </section></div><footer className="gw-modal-footer"><button type="button" data-testid="home-memory-back" onClick={onBack}>{t('source.backToList')}</button></footer></>;
+  </section></div><footer className="gw-modal-footer"><button type="button" data-testid="home-memory-back" onClick={onBack}>{t('source.backToSettings')}</button></footer></>;
 }

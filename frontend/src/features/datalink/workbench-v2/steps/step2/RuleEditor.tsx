@@ -17,6 +17,8 @@ export interface RuleEditorProps {
   globalShareEnabled: boolean;
   hideLocalName?: boolean;
   simplePresentation?: boolean;
+  /** The host renders the enabled switch elsewhere (bound to the same draft and dispatch). */
+  hideEnabledControl?: boolean;
   shareControls?: RuleShareControls;
   dispatch: React.Dispatch<WorkbenchV2Action>;
 }
@@ -34,6 +36,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
   globalShareEnabled,
   hideLocalName = false,
   simplePresentation = false,
+  hideEnabledControl = false,
   shareControls,
   dispatch,
 }) => {
@@ -130,7 +133,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
         </div>
       )}
 
-      {simplePresentation && !hasMissingDevice ? <div data-testid="source-range-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--gw-space-md)', minHeight: 'var(--gw-control-height)' }}><p className="recording-source-range-device">{owningDevice?.name}</p>{enabledControl}</div> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {simplePresentation && !hasMissingDevice ? hideEnabledControl ? null : <div data-testid="source-range-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--gw-space-md)', minHeight: 'var(--gw-control-height)' }}><p className="recording-source-range-device">{owningDevice?.name}</p>{enabledControl}</div> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* 裝置選擇 (僅在有多個裝置時啟用) */}
         <Field label="所屬設備來源">
           <Select
@@ -277,7 +280,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
       />
 
       {/* 啟用此規則 */}
-      {(!simplePresentation || hasMissingDevice) && <div className="border-t border-slate-800/60 pt-4 flex items-center justify-between">{enabledControl}</div>}
+      {(!simplePresentation || hasMissingDevice) && !hideEnabledControl && <div className="border-t border-slate-800/60 pt-4 flex items-center justify-between">{enabledControl}</div>}
     </div>
   );
 };

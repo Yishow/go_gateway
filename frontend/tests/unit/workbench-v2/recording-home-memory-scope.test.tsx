@@ -50,7 +50,8 @@ async function openEmptyMemory(workspace: typeof bound | typeof unbound) {
     presentationLocation={{ search: '?view=recordings', hash: '#home' }} navigateTo={vi.fn()} /></QueryClientProvider>);
   fireEvent.click(await screen.findByTestId('home-device-points-D'));
   const dialog = await screen.findByRole('dialog');
-  fireEvent.click(await within(dialog).findByTestId('recording-range-back'));
+  // A device without ranges opens its new-range setting; the memory view is entered from the title bar.
+  await within(dialog).findByTestId('home-range-option-new');
   fireEvent.click(await within(dialog).findByTestId('home-range-memory'));
   await within(dialog).findAllByRole('tab');
   return dialog;
@@ -83,8 +84,9 @@ it('keeps zero MC ranges with a valid revision free and prefills D0', async () =
 
 it('shows a failed range read with a re-read action and no cells', async () => {
   const dialog = await openEmptyMemory(bound);
-  vi.mocked(studioV2RulesAPI.list).mockRejectedValueOnce(new Error('offline'));
   fireEvent.click(within(dialog).getByTestId('home-memory-back'));
+  await waitFor(() => expect(within(dialog).getByTestId('home-range-option-new')).toHaveAttribute('aria-pressed', 'true'));
+  vi.mocked(studioV2RulesAPI.list).mockRejectedValueOnce(new Error('offline'));
   fireEvent.click(await within(dialog).findByTestId('home-range-memory'));
   const alert = await within(dialog).findByRole('alert');
   expect(within(dialog).queryByTestId(/home-memory-cell-/)).not.toBeInTheDocument();

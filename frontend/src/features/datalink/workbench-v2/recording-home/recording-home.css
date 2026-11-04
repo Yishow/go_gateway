@@ -174,19 +174,44 @@
 @media(max-width:639px) { .gw-recording-home [data-testid="home-device-summary"] li { grid-template-columns:minmax(0,1fr) auto; } .gw-home-source-modal[data-size=form] { width:calc(100vw - 16px); max-height:calc(100dvh - 16px); height:auto; } }
 @media(max-width:639px) { .gw-home-source-modal[data-size=form]:is([data-source-kind=points],[data-source-kind=connection]) { height:calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); } }
 
-/* Show a loading cue without flashing an empty form frame before the scoped read completes. */
-.gw-home-source-modal[data-size=form][data-initial-loading=true]:has(.gw-home-source-loading) {
-  grid-template-rows:minmax(0,1fr) auto auto minmax(0,1fr); background-color:transparent !important; border-color:transparent; box-shadow:none;
-}
-.gw-home-source-modal[data-size=form][data-initial-loading=true]:has(.gw-home-source-loading) .gw-modal-header { opacity:0; pointer-events:none; }
-.gw-home-source-modal[data-size=form][data-initial-loading=true]:has(.gw-home-source-loading) .gw-modal-header > button { display:none; }
-.gw-home-source-modal[data-size=form][data-initial-loading=true]:has(.gw-home-source-loading) .gw-home-source-loading {
-  justify-self:center; padding:var(--gw-space-sm) var(--gw-space-md); text-align:center;
-  background:var(--gw-raised); border:1px solid var(--gw-border); border-radius:var(--gw-radius-md);
-}
-.gw-home-source-modal[data-size=form][data-initial-loading=true]:has(.gw-home-source-loading) .gw-modal-footer { justify-content:center; border-color:transparent; background:transparent; }
+/* Loading stays inside the one settings frame: same size, background, border and header as the ready form. */
+.gw-home-source-modal .gw-home-source-loading { display:grid; place-items:center; color:var(--gw-muted); text-align:center; }
+.gw-home-source-modal:has(.gw-home-source-loading) .gw-modal-header > [data-testid=home-source-close] { display:none; }
 
 .gw-home-range-scroll-cue { display: none; }
 @media (max-width: 639px) {
   .gw-home-source-modal .gw-home-range-scroll-cue { display: block; flex: 0 0 100%; color: var(--gw-muted); font-size: 12px; line-height: 1.3; text-align: center; }
+}
+
+/* One settings frame: title row, then the selected device among the workspace's devices (scrolls sideways). */
+.gw-home-source-modal[data-size=form] .gw-modal-header { flex-wrap: wrap; row-gap: var(--gw-space-sm); }
+.gw-home-source-modal .gw-home-source-slot { display: flex; flex: none; align-items: center; min-height: var(--gw-control-height); }
+.gw-home-source-modal .gw-home-source-slot:empty { display: none; }
+.gw-home-source-modal[data-size=form] .gw-modal-header > .gw-home-source-devices {
+  flex: 1 0 100%; display: flex; gap: var(--gw-space-xs); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 2px;
+}
+.gw-home-source-modal .gw-home-source-devices > button { flex: none; display: inline-flex; align-items: center; gap: var(--gw-space-xs); max-width: 240px; scroll-snap-align: start; color: var(--gw-muted); }
+.gw-home-source-modal .gw-home-source-devices > button > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.gw-home-source-modal :is(.gw-home-source-devices, .gw-home-range-options) > button[aria-pressed=true] { color: var(--gw-text); background: var(--gw-active); border-color: var(--gw-accent); font-weight: 500; }
+/* Narrow screens: title and description take the first row, the switch and memory entry the next, then the device row. */
+@media (max-width: 639px) {
+  .gw-home-source-modal[data-size=form] .gw-modal-header:has(> .gw-home-source-slot:not(:empty), > [data-testid=home-range-memory]) > div:first-child { flex: 1 0 100%; }
+  .gw-home-source-modal[data-size=form] .gw-modal-header:has(> .gw-home-source-slot:not(:empty)) > [data-testid=home-range-memory] { margin-inline-start: auto; }
+}
+/* Ranges of the selected device, chosen inline above the form. */
+.gw-home-source-modal .gw-home-range-switch { min-width: 0; margin: 0 0 var(--gw-space-md); padding: 0; border: 0; }
+.gw-home-source-modal .gw-home-range-options { display: flex; flex-wrap: wrap; gap: var(--gw-space-xs); }
+.gw-home-source-modal .gw-home-range-options > button { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 100%; text-align: start; color: var(--gw-muted); }
+.gw-home-source-modal .gw-range-option-name { display: inline-flex; align-items: center; color: var(--gw-text); }
+.gw-home-source-modal .gw-range-option-facts { font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.gw-home-source-modal .gw-home-range-options .gw-range-address { font-family: var(--gw-font-mono); font-size: 12px; }
+.gw-home-source-modal .gw-home-range-options-wrap > [role=alert] { margin-top: var(--gw-space-xs); }
+
+/* Light theme only: the address summary's dark-palette accents fall below 4.5:1 on this white frame. */
+html:not(.dark) .gw-home-source-modal [data-testid=range-summary] [data-testid=function-code-badge] { color: var(--gw-unknown-fg); }
+html:not(.dark) .gw-home-source-modal [data-testid=range-summary] [data-testid=persisted-mc-summary-status] { color: var(--gw-warning-fg); }
+html:not(.dark) .gw-home-source-modal [data-testid=range-summary] [data-testid=range-summary-error] { color: var(--gw-danger-fg); }
+/* The memory view does not save anything: the shared-settings note stays for assistive technology only. */
+.gw-home-source-modal[data-source-view=memory] .gw-modal-header p {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }

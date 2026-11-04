@@ -50,8 +50,10 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 768, height: 1024
     const loading = await dialog.boundingBox();
     await page.screenshot({ path: info.outputPath(`connection-loading-${viewport.width}.png`) });
     await expect(dialog.getByRole('status')).toHaveText('正在讀取目前工作區…');
-    await expect(dialog).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)', { timeout: 1000 });
-    await expect(dialog).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)', { timeout: 1000 });
+    // The loading state uses the same opaque settings frame as the ready form.
+    await expect(dialog).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(dialog).not.toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+    await expect(dialog.locator('.gw-modal-header')).toHaveCSS('opacity', '1');
     await expect(dialog.getByRole('button', { name: '關閉', exact: true })).toHaveCount(1);
     await expect(dialog.getByRole('button', { name: '關閉', exact: true })).toBeFocused();
     await expect(dialog.getByTestId('studio-locator-notice')).toHaveCount(0);

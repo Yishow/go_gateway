@@ -120,11 +120,16 @@ describe('Home direct device creation through the original workspace owner', () 
     expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
     expect(studioV2WorkspaceDevicesAPI.update).not.toHaveBeenCalled();
     expect(studioV2RulesAPI.create).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByTestId('recording-range-back'));
+    // The created device is the selected one in the device row; without ranges, its cancel closes the frame.
+    const created = within(within(dialog).getByRole('group', { name: 'Devices' })).getByRole('button', { name: 'New Home PLC' });
+    expect(created).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('recording-range-back')).toHaveTextContent('Close');
     const entry = await within(dialog).findByTestId('home-range-memory');
     expect(entry).toBeVisible();
     fireEvent.click(entry);
     expect(await within(dialog).findByTestId('home-memory-view')).toBeVisible();
+    fireEvent.click(within(dialog).getByTestId('home-memory-back'));
+    expect(await screen.findByLabelText('Starting address', { selector: 'input' })).toHaveValue('');
     expect(navigate).not.toHaveBeenCalled();
   });
   it('keeps an uncertain create in the original locked inspect flow without a second create', async () => {

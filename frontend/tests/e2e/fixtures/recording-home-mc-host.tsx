@@ -41,7 +41,7 @@ function Host() {
           <Dialog.Description>這些是共用來源設定；只有按下儲存才會送出變更。</Dialog.Description></div></header>
         <RecordingHomeSavedRangeEditor target={{ workspaceId: 'W', deviceId: 'D', ruleId: 'R', kind: 'points', epoch: 1 }}
           state={state} rule={local} mcEvidence={evidence.evidenceByRule.R} dispatch={() => { throw new Error('Unexpected write'); }}
-          leave={leave} suspended={false} list={null} onLeave={() => undefined} onDone={() => undefined}
+          leave={leave} suspended={false} list={null} onLeave={() => undefined} onClose={() => undefined} headerSlot={null} onLocked={() => undefined}
           ruleObserverRef={observer} onRetryShare={() => undefined} onOpenShareSettings={() => undefined} />
       </Dialog.Content>
     </Dialog.Portal></Dialog.Root>

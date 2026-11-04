@@ -52,7 +52,7 @@ it('updates an already-open MC range when matching evidence arrives without losi
     const current = { ...local, mc_persisted_points: evidence };
     return <RecordingHomeSavedRangeEditor target={{ workspaceId: 'W', deviceId: 'D', ruleId: 'R', kind: 'points', epoch: 1 }}
       state={{ ...INITIAL_STATE, devices: [localDevice], rules: [current] }} rule={current} dispatch={dispatch} leave={leave} suspended={false} list={null}
-      onDone={vi.fn()} onLeave={vi.fn()} ruleObserverRef={observer} onRetryShare={vi.fn()} onOpenShareSettings={vi.fn()} />;
+      onClose={vi.fn()} headerSlot={null} onLocked={vi.fn()} onLeave={vi.fn()} ruleObserverRef={observer} onRetryShare={vi.fn()} onOpenShareSettings={vi.fn()} />;
   };
   const view = render(renderEditor(unavailable));
   expect(screen.getByTestId('rule-mc-persisted-status')).toHaveAttribute('data-status', 'unavailable');
@@ -75,7 +75,7 @@ it.each(['conflict', 'foreign-workspace', 'old-rule-revision'] as const)('keeps 
   const current = { ...local, mc_persisted_points: evidence }, dispatch = vi.fn();
   render(<RecordingHomeSavedRangeEditor target={{ workspaceId: 'W', deviceId: 'D', ruleId: 'R', kind: 'points', epoch: 1 }}
     state={{ ...INITIAL_STATE, devices: [localDevice], rules: [current] }} rule={current} dispatch={dispatch} leave={{ current: undefined }} suspended={false} list={null}
-    onDone={vi.fn()} onLeave={vi.fn()} ruleObserverRef={{ current: undefined }} onRetryShare={vi.fn()} onOpenShareSettings={vi.fn()} />);
+    onClose={vi.fn()} headerSlot={null} onLocked={vi.fn()} onLeave={vi.fn()} ruleObserverRef={{ current: undefined }} onRetryShare={vi.fn()} onOpenShareSettings={vi.fn()} />);
   fireEvent.change(screen.getByTestId('rule-prefix-input'), { target: { value: 'UNSENT_' } });
   expect(screen.getByTestId('home-range-save')).toBeDisabled();
   expect(screen.getByTestId('rule-mc-persisted-status')).toBeVisible();

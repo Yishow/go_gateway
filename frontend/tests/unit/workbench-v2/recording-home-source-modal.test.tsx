@@ -78,17 +78,17 @@ describe('Home uses the original scoped source owner inside the demo modal', () 
     fireEvent.click(screen.getByTestId('home-range-done'));
     fireEvent.click(await screen.findByTestId('home-source-keep')); expect(name).toHaveValue('Unsent range');
     fireEvent.click(screen.getByTestId('home-range-done')); fireEvent.click(await screen.findByTestId('home-source-discard'));
-    await screen.findByTestId('home-range-edit-R'); expect(screen.queryByTestId('home-saved-range-form')).not.toBeInTheDocument(); expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); noOtherWrites();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument()); expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); noOtherWrites();
   });
-  it('submits one exact original rule update and returns to its range list after ACK', async () => {
+  it('submits one exact original rule update and stays on the saved range after ACK', async () => {
     vi.mocked(studioV2RulesAPI.update).mockImplementation(async (_id, request) => { const saved = { ...nativeRule(), ...request, revision_id: 'R3', runtime_apply_status: 'not_running' as const }; vi.mocked(studioV2RulesAPI.list).mockResolvedValue([saved]); return saved; });
     mount(); const form = await editRange(); fireEvent.change(within(form).getByTestId('rule-prefix-input'), { target: { value: 'Saved range' } });
     expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); fireEvent.click(screen.getByTestId('home-range-save'));
     await waitFor(() => expect(studioV2RulesAPI.update).toHaveBeenCalledOnce());
     expect(studioV2RulesAPI.update).toHaveBeenCalledWith('R', expect.objectContaining({ naming_prefix: 'Saved range', device_id: 'D' }));
-    await waitFor(() => expect(screen.queryByTestId('home-saved-range-form')).not.toBeInTheDocument());
-    expect(screen.getByRole('dialog')).toBeInTheDocument(); expect((await screen.findByTestId('home-range-edit-R')).closest('li')).toHaveTextContent('Saved range');
-    expect(studioV2RulesAPI.update).toHaveBeenCalledOnce(); noOtherWrites();
+    await screen.findByTestId('home-range-saved');
+    expect(screen.getByTestId('rule-prefix-input')).toHaveValue('Saved range'); expect(screen.getByTestId('home-range-option-R')).toHaveTextContent('Saved range');
+    expect(screen.getByTestId('home-range-save')).toBeDisabled(); expect(studioV2RulesAPI.update).toHaveBeenCalledOnce(); noOtherWrites();
   });
   it('does not resend or pretend to cancel a pending or unknown original save', async () => {
     let reject!: (error: Error) => void; vi.mocked(studioV2RulesAPI.update).mockImplementation(() => new Promise((_resolve, fail) => { reject = fail; }));
@@ -175,12 +175,16 @@ describe('modal exact identity and original completion boundaries', () => {
     expect(studioV2WorkspaceDevicesAPI.create).not.toHaveBeenCalled(); expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
   });
   it('opens the original new-range buffer and discards unsent values without a source write', async () => {
-    mount(); const dialog = await openRange(); fireEvent.click(await within(dialog).findByTestId('home-range-done')); fireEvent.click(await within(dialog).findByTestId('home-range-new'));
+    mount(); const dialog = await openRange(); fireEvent.click(await within(dialog).findByTestId('home-range-option-new'));
     const name = await within(dialog).findByLabelText('Point-name prefix', { selector: 'input' });
     fireEvent.change(name, { target: { value: 'Unsent new prefix' } });
-    fireEvent.click(screen.getByTestId('home-source-close'));
+    expect(within(dialog).getByTestId('recording-range-back')).toHaveTextContent('Cancel new range');
+    fireEvent.click(within(dialog).getByTestId('recording-range-back'));
+    fireEvent.click(await screen.findByTestId('home-source-keep'));
+    expect(within(dialog).getByLabelText('Point-name prefix', { selector: 'input' })).toHaveValue('Unsent new prefix');
+    fireEvent.click(within(dialog).getByTestId('recording-range-back'));
     fireEvent.click(await screen.findByTestId('home-source-discard'));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument()); noOtherWrites();
+    expect(await within(dialog).findByTestId('rule-prefix-input')).toHaveValue('Rule R'); noOtherWrites();
   });
 
   it('creates one new Home range through the original owners and refreshes the acknowledged list and point count', async () => {
@@ -202,7 +206,7 @@ describe('modal exact identity and original completion boundaries', () => {
     });
     vi.mocked(pointAPI.get).mockImplementation(async () => ({ id: 'NEWPOINT', device_id: 'D', address: '40010', data_type: 'int16', enabled: false } as Awaited<ReturnType<typeof pointAPI.get>>));
     vi.mocked(tagAPI.get).mockImplementation(async () => ({ id: 'NEWTAG', key: mapping.tag_key, data_type: mapping.target_type, display_name: mapping.display_name, unit: mapping.unit ?? '', status: 'draft' } as Awaited<ReturnType<typeof tagAPI.get>>));
-    mount(); const dialog = await openRange(); fireEvent.click(await within(dialog).findByTestId('home-range-done')); fireEvent.click(await within(dialog).findByTestId('home-range-new'));
+    mount(); const dialog = await openRange(); fireEvent.click(await within(dialog).findByTestId('home-range-option-new'));
     fireEvent.change(await within(dialog).findByLabelText('Point-name prefix', { selector: 'input' }), { target: { value: 'New source' } });
     fireEvent.change(within(dialog).getByLabelText('Starting address', { selector: 'input' }), { target: { value: '40010' } });
     fireEvent.change(within(dialog).getByLabelText('Number of data items', { selector: 'input' }), { target: { value: '1' } });
@@ -210,9 +214,10 @@ describe('modal exact identity and original completion boundaries', () => {
     await waitFor(() => expect(save).toBeEnabled()); fireEvent.click(save);
     await within(dialog).findByTestId('recording-range-saved-inactive');
     expect(studioV2RulesAPI.create).toHaveBeenCalledOnce(); expect(studioV2MappingsAPI.create).toHaveBeenCalledOnce();
-    fireEvent.click(within(dialog).getByTestId('recording-range-back'));
-    const edit = await within(dialog).findByTestId(`home-range-edit-${saved.id}`);
-    expect(edit.closest('li')).toHaveTextContent('40010 · 1');
+    // The acknowledged list is read again: the new range becomes one of the inline choices.
+    const option = await within(dialog).findByTestId(`home-range-option-${saved.id}`);
+    expect(option).toHaveTextContent(saved.naming_prefix); expect(option).toHaveTextContent('40010');
+    expect(within(dialog).getByTestId('recording-range-back')).toHaveTextContent('Close');
     expect(studioV2WorkspaceDevicesAPI.update).not.toHaveBeenCalled(); expect(studioV2RulesAPI.remove).not.toHaveBeenCalled();
   });
 
@@ -278,22 +283,22 @@ describe('existing device modal has one cancel and an acknowledged save return',
 });
 
 describe('range modal explicit return and fresh Share presentation', () => {
-  it('places the unsent enabled switch at the top and exposes only Cancel and Save and return', async () => {
+  it('places the unsent enabled switch in the title bar and exposes only Close and Save', async () => {
     mount(); const form = await editRange();
     expect(screen.queryByTestId('home-source-close')).not.toBeInTheDocument();
-    expect(screen.getByTestId('home-range-done')).toHaveTextContent('Cancel');
-    expect(screen.getByTestId('home-range-save')).toHaveTextContent('Save and return');
-    const header = within(form).getByTestId('source-range-heading');
-    fireEvent.click(within(header).getByRole('switch'));
-    expect(within(header).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByTestId('home-range-done')).toHaveTextContent(/^Close$/);
+    expect(screen.getByTestId('home-range-save')).toHaveTextContent(/^Save$/);
+    expect(within(form).queryByTestId('source-range-heading')).not.toBeInTheDocument();
+    const header = within(screen.getByRole('dialog').querySelector<HTMLElement>('.gw-modal-header')!);
+    fireEvent.click(header.getByRole('switch', { name: 'Enable rule' }));
+    expect(header.getByRole('switch', { name: 'Enable rule' })).toHaveAttribute('aria-checked', 'false');
     expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId('home-range-done'));
     fireEvent.click(await screen.findByTestId('home-source-discard'));
-    await screen.findByTestId('home-range-edit-R');
-    expect(screen.queryByTestId('home-saved-range-form')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
   });
-  it('returns to the range list only after the exact original acknowledged save', async () => {
+  it('keeps the range open and unlocks it only after the exact original acknowledged save', async () => {
     let resolve!: () => void;
     vi.mocked(studioV2RulesAPI.update).mockImplementation((_id, request) => new Promise(done => { resolve = () => {
       const saved = { ...nativeRule(), ...request, revision_id: 'R3', runtime_apply_status: 'not_running' as const };
@@ -304,9 +309,11 @@ describe('range modal explicit return and fresh Share presentation', () => {
     fireEvent.click(screen.getByTestId('home-range-save'));
     await waitFor(() => expect(studioV2RulesAPI.update).toHaveBeenCalledOnce());
     expect(screen.getByTestId('home-range-done')).toBeDisabled(); expect(form).toBeInTheDocument();
+    expect(screen.queryByTestId('home-range-saved')).not.toBeInTheDocument();
     await act(async () => resolve());
-    await waitFor(() => expect(screen.queryByTestId('home-saved-range-form')).not.toBeInTheDocument());
-    expect((await screen.findByTestId('home-range-edit-R')).closest('li')).toHaveTextContent('ACK_');
+    await screen.findByTestId('home-range-saved');
+    expect(form).toBeInTheDocument(); expect(screen.getByTestId('home-range-done')).toBeEnabled();
+    expect(screen.getByTestId('home-range-option-R')).toHaveTextContent('ACK_');
     expect(studioV2RulesAPI.update).toHaveBeenCalledOnce();
   });
   it.each(['on', 'off', 'error', 'foreign'] as const)('uses fresh same-workspace Share %s, never scoped INITIAL false as evidence', async status => {

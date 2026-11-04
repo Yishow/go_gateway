@@ -65,14 +65,16 @@ function mount(strict = false) {
     presentationLocation={{ search: '?view=recordings', hash: '#home' }} navigateTo={vi.fn()} /></QueryClientProvider>;
   render(strict ? <StrictMode>{page}</StrictMode> : page);
 }
-async function openList() {
+/** No separate range list: the first saved range opens directly with every range as an inline choice. */
+async function openSettings() {
   mount(); fireEvent.click(await screen.findByTestId('home-device-points-D'));
   const dialog = await screen.findByRole('dialog');
-  await within(dialog).findByTestId(`home-range-edit-${rules[0].id}`);
+  await waitFor(() => expect(within(dialog).getByTestId(`home-range-option-${rules[0].id}`)).toHaveAttribute('aria-pressed', 'true'));
+  await within(dialog).findByTestId('rule-prefix-input');
   return dialog;
 }
 async function openMemory() {
-  const dialog = await openList();
+  const dialog = await openSettings();
   fireEvent.click(within(dialog).getByTestId('home-range-memory'));
   await within(dialog).findByTestId('home-memory-view');
   await within(dialog).findAllByRole('tab');
@@ -83,37 +85,38 @@ function noWrites() {
     studioV2RulesAPI.remove, studioV2MappingsAPI.create, studioV2MappingsAPI.update,
     studioV2WorkspaceWriteGroupsAPI.create, studioV2WorkspaceWriteGroupsAPI.update, studioV2WorkspaceWriteGroupsAPI.apply]) expect(fn).not.toHaveBeenCalled();
 }
-describe('Home range list shows saved facts and one top close', () => {
-  it('lists several saved ranges with real address span, type, item count and register footprint', async () => {
-    const dialog = await openList();
-    const first = within(dialog).getByTestId('home-range-edit-A').closest('li')!;
+describe('Home range choices show saved facts and one close', () => {
+  it('shows several saved ranges as inline choices with their real address span', async () => {
+    const dialog = await openSettings();
+    expect(within(dialog).getByTestId('rule-prefix-input')).toHaveValue('A_');
+    const first = within(dialog).getByTestId('home-range-option-A');
     expect(first).toHaveTextContent('40001 – 40002'); expect(first).toHaveTextContent('int16'); expect(first).toHaveTextContent('2 items'); expect(first).toHaveTextContent('2 registers');
-    const second = within(dialog).getByTestId('home-range-edit-B').closest('li')!;
+    const second = within(dialog).getByTestId('home-range-option-B');
     expect(second).toHaveTextContent('40010 – 40013'); expect(second).toHaveTextContent('float32'); expect(second).toHaveTextContent('4 registers');
     expect(within(dialog).getAllByRole('button', { name: 'Close' })).toHaveLength(1);
-    expect(within(dialog).getByTestId('home-source-close')).toBeInTheDocument();
+    expect(within(dialog).queryByTestId('home-source-close')).not.toBeInTheDocument();
     expect(within(dialog).getByTestId('home-range-memory')).toHaveTextContent('Memory view');
     noWrites();
   });
 
-  it('opens the only saved range directly and its Cancel returns to the range list with memory view', async () => {
+  it('opens the only saved range directly with the memory entry above the setting', async () => {
     arrange([range('A', '40001', 2, 'int16')]);
     mount(); fireEvent.click(await screen.findByTestId('home-device-points-D'));
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByTestId('rule-prefix-input')).toHaveValue('A_');
-    fireEvent.click(within(dialog).getByTestId('home-range-done'));
-    await within(dialog).findByTestId('home-range-edit-A');
-    expect(within(dialog).getByTestId('home-range-memory')).toBeInTheDocument();
+    expect(within(dialog).queryByTestId('home-range-edit-A')).not.toBeInTheDocument();
+    expect(await within(dialog).findByTestId('home-range-memory')).toBeInTheDocument();
     noWrites();
   });
 
-  it('shows the memory entry after returning from a single range in Strict Mode', async () => {
+  it('keeps the memory entry and its return to the single range in Strict Mode', async () => {
     arrange([range('A', '40001', 2, 'int16')]);
     mount(true); fireEvent.click(await screen.findByTestId('home-device-points-D'));
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByTestId('rule-prefix-input');
-    fireEvent.click(within(dialog).getByTestId('home-range-done'));
-    await within(dialog).findByTestId('home-range-edit-A');
+    fireEvent.click(await within(dialog).findByTestId('home-range-memory'));
+    fireEvent.click(await within(dialog).findByTestId('home-memory-back'));
+    expect(await within(dialog).findByTestId('rule-prefix-input')).toHaveValue('A_');
     expect(await within(dialog).findByTestId('home-range-memory')).toBeVisible();
     noWrites();
   });
@@ -146,21 +149,20 @@ describe('memory view opens exact cells into the original range flows', () => {
     expect(within(dialog).getByLabelText('Starting address', { selector: 'input' })).toHaveValue('40003');
     fireEvent.click(within(dialog).getByTestId('recording-range-back'));
     fireEvent.click(await within(dialog).findByTestId('home-source-discard'));
-    await within(dialog).findByTestId('home-range-edit-A');
+    expect(await within(dialog).findByTestId('rule-prefix-input')).toHaveValue('A_');
     expect(within(dialog).queryByTestId('home-memory-view')).not.toBeInTheDocument();
     noWrites();
   });
 
-  it('returns from a used cell editor to the range list and from the memory view with its own back', async () => {
+  it('returns from the memory view to the setting it was opened from and closes from a used cell editor', async () => {
     const dialog = await openMemory();
     fireEvent.click(within(dialog).getByTestId('home-memory-back'));
-    await within(dialog).findByTestId('home-range-edit-A');
-    fireEvent.click(within(dialog).getByTestId('home-range-memory'));
+    expect(await within(dialog).findByTestId('rule-prefix-input')).toHaveValue('A_');
+    fireEvent.click(await within(dialog).findByTestId('home-range-memory'));
     fireEvent.click(await within(dialog).findByTestId('home-memory-cell-40001'));
     await within(dialog).findByTestId('rule-prefix-input');
     fireEvent.click(within(dialog).getByTestId('home-range-done'));
-    await within(dialog).findByTestId('home-range-edit-A');
-    expect(within(dialog).queryByTestId('home-memory-view')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     noWrites();
   });
 
@@ -196,14 +198,16 @@ describe('memory view opens exact cells into the original range flows', () => {
   });
 
   it('shows no cells while the range read is slow or failed', async () => {
-    const dialog = await openList();
+    const dialog = await openSettings();
     let fail!: (error: Error) => void;
     vi.mocked(studioV2RulesAPI.list).mockImplementation(() => new Promise((_resolve, reject) => { fail = reject; }));
     fireEvent.click(within(dialog).getByTestId('home-range-memory'));
+    // The same frame shows its loading state until the scoped list read settles.
+    await waitFor(() => expect(fail).toBeTypeOf('function'));
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Reading the current workspace');
+    expect(within(dialog).queryByTestId(/home-memory-cell-/)).not.toBeInTheDocument();
+    fail(new Error('offline'));
     const view = await within(dialog).findByTestId('home-memory-view');
-    expect(within(view).getByRole('status')).toHaveTextContent('Reading the current workspace');
-    expect(within(view).queryByTestId(/home-memory-cell-/)).not.toBeInTheDocument();
-    await waitFor(() => expect(fail).toBeTypeOf('function')); fail(new Error('offline'));
     expect(await within(view).findByRole('alert')).toBeInTheDocument();
     expect(within(view).queryByTestId(/home-memory-cell-/)).not.toBeInTheDocument();
     noWrites();
@@ -244,7 +248,7 @@ describe('memory view opens exact cells into the original range flows', () => {
     const entry = await within(dialog).findByTestId('home-range-memory');
     expect(entry).toHaveTextContent('記憶體視圖'); fireEvent.click(entry);
     await within(dialog).findByTestId('home-memory-view');
-    expect(within(dialog).getByTestId('home-memory-back')).toHaveTextContent('返回範圍列表');
+    expect(within(dialog).getByTestId('home-memory-back')).toHaveTextContent('返回設定');
   });
 });
 
@@ -273,11 +277,16 @@ describe('MC proof is bound to the range list workspace revision', () => {
   it('reads no MC proof when the Share scope belongs to another workspace', async () => {
     vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ ...workspace, modbus_share: { ...workspace.modbus_share, workspace_id: 'OTHER' } });
     vi.mocked(sourceRuleCandidateAPI.getTags).mockImplementation(proof('W2'));
-    const dialog = await openMemory();
+    // The opened range editor keeps its own locator-scoped proof read; the memory view adds none for a foreign Share scope.
+    const dialog = await openSettings();
+    await waitFor(() => expect(within(dialog).queryByText('Checking saved MC points…')).not.toBeInTheDocument());
+    const editorReads = vi.mocked(sourceRuleCandidateAPI.getTags).mock.calls.length;
+    fireEvent.click(within(dialog).getByTestId('home-range-memory'));
+    await within(dialog).findAllByRole('tab');
     expect(within(dialog).getByTestId('home-memory-cell-D0')).toHaveAttribute('data-state', 'unconfirmed');
     fireEvent.click(within(dialog).getByRole('tab', { name: /^M/ }));
     expect(within(dialog).getByTestId('home-memory-cell-M0')).toHaveAttribute('data-state', 'unconfirmed');
-    expect(sourceRuleCandidateAPI.getTags).not.toHaveBeenCalledWith('I', expect.objectContaining({ expected_workspace_revision: 'W2' }));
+    expect(sourceRuleCandidateAPI.getTags).toHaveBeenCalledTimes(editorReads);
   });
 
   it('re-reads proof for the new revision after the list is read again', async () => {
@@ -288,7 +297,8 @@ describe('MC proof is bound to the range list workspace revision', () => {
     fireEvent.click(within(dialog).getByRole('tab', { name: /^M/ }));
     expect(within(dialog).getByTestId('home-memory-cell-M0')).toHaveAttribute('data-state', 'empty');
     fireEvent.click(within(dialog).getByTestId('home-memory-back'));
-    await within(dialog).findByTestId('home-range-edit-I');
+    expect(await within(dialog).findByTestId('rule-prefix-input')).toHaveValue('I_');
+    await within(dialog).findByTestId('home-range-memory');
     vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ ...workspace, modbus_share: { ...workspace.modbus_share, workspace_revision: 'W3' } });
     fireEvent.click(within(dialog).getByTestId('home-range-memory'));
     await within(dialog).findAllByRole('tab');

@@ -1,7 +1,7 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { locatorRead, nativeDevice, nativeRule } from '../unit/workbench-v2/studio-locator-fixtures';
 
-// Narrow-screen layout of the range list and memory view; every request is mocked, nothing reaches a device.
+// Narrow-screen layout of the range settings and memory view; every request is mocked, nothing reaches a device.
 const workspace = { ...locatorRead().workspace, ordered_device_ids: ['D'], modbus_share: { workspace_id: 'W', workspace_revision: 'W2', hydration_state: 'ready', readiness: true } };
 const device = { ...nativeDevice(), name: 'Packaging line 3 north PLC', protocol: 'mc_3e', connection_config: '{"host":"fixture.invalid","port":5000,"network_no":0,"pc_no":255,"io_no":1023,"station_no":0}' };
 const rules = [
@@ -54,7 +54,7 @@ async function headerCollisions(dialog: Locator) {
   });
 }
 
-test('range list and memory view fit a 320px screen with a long device and range name', async ({ page }, testInfo) => {
+test('range settings and memory view fit a 320px screen with a long device and range name', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.route('**/api/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname;
@@ -63,7 +63,12 @@ test('range list and memory view fit a 320px screen with a long device and range
     let data: unknown;
     const candidates = /^\/api\/v1\/datalink\/source-rules\/([^/]+)\/candidates$/.exec(path);
     if (path === '/api/v1/datalink/studio-v2/workspace' && url.searchParams.get('entry') === 'locator') {
-      const read = locatorRead(1); read.workspace = workspace; read.entry.devices = [device as never];
+      const step = url.searchParams.get('step') === '2' ? 2 : 1, selected = rules.find(rule => rule.id === url.searchParams.get('rule_id'));
+      const read = locatorRead(step); read.workspace = workspace; read.entry.devices = [device as never];
+      if (step === 2 && selected) {
+        read.locator.rule_id = selected.id; read.entry.source_rules = [selected as never]; read.entry.rule_heads = { [selected.id]: selected.revision_id };
+        read.entry.hydration_scope = { ...read.entry.hydration_scope, rule_ids: [selected.id] };
+      }
       const { modbus_share: _share, ...plain } = workspace; data = { ...plain, locator_entry: read.entry };
     } else if (path === '/api/v1/datalink/studio-v2/workspace') data = workspace;
     else if (path === '/api/v1/datalink/studio-v2/workspace/write-groups') data = { workspace_id: 'W', workspace_revision: 'W2', groups: [] };
@@ -81,13 +86,16 @@ test('range list and memory view fit a 320px screen with a long device and range
   await page.goto('/tests/e2e/fixtures/recording-home-source-host.html?home&light');
   await page.getByTestId('home-device-points-D').click();
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByTestId('home-range-edit-I')).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath('list-320.png') });
+  // No separate list: the first range opens with both ranges as inline choices under the device row.
+  await expect(dialog.getByTestId('rule-prefix-input')).toHaveValue('BOILER_OUTLET_TEMPERATURE_SENSOR_');
+  await expect(dialog.getByTestId('home-range-option-I')).toBeVisible(); await expect(dialog.getByTestId('home-range-option-F')).toContainText('D39 – D42');
+  await expect(dialog.getByRole('switch', { name: '啟用此規則' })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('settings-320.png') });
   expect.soft(await overflowing(dialog)).toEqual([]);
   expect.soft(await headerCollisions(dialog)).toEqual([]);
   expect.soft(await titleRow(dialog)).toEqual({ text: 'Packaging line 3 north PLC · 設定讀取點位', clipped: false, beside: 0 });
   expect.soft(await titlePhraseLines(dialog, '設定讀取點位')).toBe(1);
-  await expect(dialog.getByTestId('home-range-memory')).toBeInViewport(); await expect(dialog.getByTestId('home-source-close')).toBeInViewport();
+  await expect(dialog.getByTestId('home-range-memory')).toBeInViewport(); await expect(dialog.getByTestId('home-range-done')).toBeInViewport({ ratio: 1 });
   await dialog.getByTestId('home-range-memory').click();
   await expect(dialog.getByTestId('home-memory-cell-D0')).toHaveAttribute('data-state', 'used');
   await page.screenshot({ path: testInfo.outputPath('memory-320.png') });
