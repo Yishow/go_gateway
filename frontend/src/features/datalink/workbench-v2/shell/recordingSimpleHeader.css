@@ -18,3 +18,9 @@
 .gw-simple-recording-main .recording-editor-panel { scroll-margin-top: calc(var(--recording-heading-height, 60px) + var(--recording-nav-height, 60px) + var(--gw-space-xs)); }
 @media(min-width:1001px) { .gw-simple-recording-main .recording-editor-summary { top: calc(var(--recording-heading-height, 60px) + var(--recording-nav-height, 60px) + var(--gw-space-xs)); } }
 @media(max-width:1350px) { .gw-simple-recording-main .recording-editor-columns { grid-template-columns: minmax(0, 1fr); } .gw-simple-recording-main .recording-editor-summary { position: static; } }
+@media(max-width:639px) {
+  .gw-simple-recording-main { padding-block:var(--gw-space-sm); }
+  .gw-simple-recording-main .gw-simple-recording-heading { padding-block:0; }
+  .gw-simple-recording-main .recording-editor-steps { padding-block:var(--gw-space-2xs); }
+  .gw-simple-recording-main .recording-editor-steps { margin-bottom:var(--gw-space-xs); }
+}

@@ -102,7 +102,7 @@
 .recording-selected-point-meta .recording-point-order-inline__details > summary { cursor: pointer; }
 @media (max-width: 640px) {
   .recording-compact-members__filters { grid-template-columns: minmax(0, 1fr) auto; gap: var(--gw-space-xs) var(--gw-space-sm); }
-  .recording-compact-members__search { grid-column: 1 / -1; }
+  .recording-compact-members__search { grid-column: auto; }
   .recording-selected-table-scroll { max-block-size: 26rem; }
 }
 @media (max-width: 1000px) {
@@ -115,6 +115,7 @@
   .recording-compact-members[data-show-entity-key='true'] td[data-column='actions'] { min-width: 0; }
   .recording-compact-members td[data-column='wordOrder']:has(.recording-point-order-inline__controls button) { min-width: 0; }
   .recording-compact-members th { position: static; }
+  .recording-compact-members td[data-column='device'] { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
   .recording-compact-members :is(th[data-column='device'], td[data-column='device']) { grid-column: 1; grid-row: 1; }
   .recording-compact-members :is(th[data-column='pointOnly'], td[data-column='pointOnly']) { grid-column: 2 / 4; grid-row: 1; }
   .recording-compact-members :is(th[data-column='addressOnly'], td[data-column='addressOnly']) { grid-column: 4; grid-row: 1; }
