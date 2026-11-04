@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { StrictMode } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RecordingHomeSourceHost, type HomeSourceControls } from '@/features/datalink/workbench-v2/recording-home/RecordingHomeSourceHost';
@@ -49,11 +50,12 @@ beforeEach(async () => {
   vi.mocked(studioV2RulesAPI.update).mockImplementation(async (_id, request) => ({ ...nativeRule(), ...request, revision_id: 'R3', runtime_apply_status: 'not_running' }));
 });
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); });
-function mount() {
+function mount(strict = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } }); clients.push(client);
   const navigate = vi.fn();
-  const view = render(<QueryClientProvider client={client}><DatalinkWorkbenchV2Page presentation="recordings" locatorIntent={{ kind: 'absent' }}
-    presentationLocation={{ search: '?view=recordings', hash: '#home' }} navigateTo={navigate} /></QueryClientProvider>);
+  const page = <QueryClientProvider client={client}><DatalinkWorkbenchV2Page presentation="recordings" locatorIntent={{ kind: 'absent' }}
+    presentationLocation={{ search: '?view=recordings', hash: '#home' }} navigateTo={navigate} /></QueryClientProvider>;
+  const view = render(strict ? <StrictMode>{page}</StrictMode> : page);
   return { ...view, navigate, client };
 }
 function noOtherWrites() {
@@ -94,7 +96,7 @@ describe('Home direct device creation through the original workspace owner', () 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     noConfigurationWrites(); expect(navigate).not.toHaveBeenCalled();
   });
-  it('uses one original create ACK and real readback before entering the new device points form', async () => {
+  it.each([false, true])('uses one original create ACK and readback before entering the new device points form (strict=%s)', async strict => {
     vi.mocked(studioV2WorkspaceDevicesAPI.create).mockImplementation(async request => {
       if (!request.id) throw new Error('Expected original queue client identity');
       const saved = { ...completeDevice(), id: request.id, name: request.name, protocol: request.protocol, connection_config: JSON.stringify(request.connection_config) };
@@ -108,7 +110,7 @@ describe('Home direct device creation through the original workspace owner', () 
       });
       return saved;
     });
-    const { navigate } = mount(); const dialog = await openCreate();
+    const { navigate } = mount(strict); const dialog = await openCreate();
     fireEvent.change(within(dialog).getByTestId('recording-source-name'), { target: { value: 'New Home PLC' } });
     fireEvent.change(within(dialog).getByTestId('input-host'), { target: { value: '127.0.0.1' } });
     fireEvent.click(within(dialog).getByTestId('recording-source-save'));
@@ -118,6 +120,11 @@ describe('Home direct device creation through the original workspace owner', () 
     expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
     expect(studioV2WorkspaceDevicesAPI.update).not.toHaveBeenCalled();
     expect(studioV2RulesAPI.create).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('recording-range-back'));
+    const entry = await within(dialog).findByTestId('home-range-memory');
+    expect(entry).toBeVisible();
+    fireEvent.click(entry);
+    expect(await within(dialog).findByTestId('home-memory-view')).toBeVisible();
     expect(navigate).not.toHaveBeenCalled();
   });
   it('keeps an uncertain create in the original locked inspect flow without a second create', async () => {

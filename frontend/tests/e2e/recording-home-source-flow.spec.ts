@@ -32,7 +32,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 568 
       else return route.abort();
       return route.fulfill({ json: { success: true, data } });
     });
-    await page.goto(`/tests/e2e/fixtures/recording-home-source-host.html?home${'light' in viewport ? '&light' : ''}`);
+    await page.goto(`/tests/e2e/fixtures/recording-home-source-host.html?home&strict${'light' in viewport ? '&light' : ''}`);
     const trigger = page.getByTestId('home-device-points-D');
     await expect(trigger).toBeVisible();
     await page.evaluate(() => {
@@ -86,6 +86,13 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 320, height: 568 
     await expect.poll(() => dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
     expect(await page.evaluate(() => (window as unknown as { transientSourceViews: string[] }).transientSourceViews)).toEqual([]);
     await page.screenshot({ path: info.outputPath(`ready-${viewport.width}.png`) });
+    await dialog.getByTestId('home-range-done').click();
+    await expect(dialog.getByTestId('home-range-edit-R')).toBeVisible();
+    await expect(dialog.getByTestId('home-range-memory')).toBeVisible();
+    await page.screenshot({ path: info.outputPath(`memory-entry-${viewport.width}.png`) });
+    await dialog.getByTestId('home-range-memory').click();
+    await expect(dialog.getByTestId('home-memory-view')).toBeVisible();
+    await expect(dialog.getByTestId('home-memory-cell-40001')).toHaveAttribute('data-state', 'used');
     expect(requests.filter(value => value.startsWith('write:'))).toEqual([]);
   });
 }

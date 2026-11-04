@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { StrictMode } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchV2Page from '@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
@@ -58,10 +59,11 @@ beforeEach(async () => {
   arrange([range('A', '40001', 2, 'int16'), range('B', '40010', 2, 'float32')]);
 });
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); });
-function mount() {
+function mount(strict = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } }); clients.push(client);
-  render(<QueryClientProvider client={client}><DatalinkWorkbenchV2Page presentation="recordings" locatorIntent={{ kind: 'absent' }}
-    presentationLocation={{ search: '?view=recordings', hash: '#home' }} navigateTo={vi.fn()} /></QueryClientProvider>);
+  const page = <QueryClientProvider client={client}><DatalinkWorkbenchV2Page presentation="recordings" locatorIntent={{ kind: 'absent' }}
+    presentationLocation={{ search: '?view=recordings', hash: '#home' }} navigateTo={vi.fn()} /></QueryClientProvider>;
+  render(strict ? <StrictMode>{page}</StrictMode> : page);
 }
 async function openList() {
   mount(); fireEvent.click(await screen.findByTestId('home-device-points-D'));
@@ -102,6 +104,17 @@ describe('Home range list shows saved facts and one top close', () => {
     fireEvent.click(within(dialog).getByTestId('home-range-done'));
     await within(dialog).findByTestId('home-range-edit-A');
     expect(within(dialog).getByTestId('home-range-memory')).toBeInTheDocument();
+    noWrites();
+  });
+
+  it('shows the memory entry after returning from a single range in Strict Mode', async () => {
+    arrange([range('A', '40001', 2, 'int16')]);
+    mount(true); fireEvent.click(await screen.findByTestId('home-device-points-D'));
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByTestId('rule-prefix-input');
+    fireEvent.click(within(dialog).getByTestId('home-range-done'));
+    await within(dialog).findByTestId('home-range-edit-A');
+    expect(await within(dialog).findByTestId('home-range-memory')).toBeVisible();
     noWrites();
   });
 });

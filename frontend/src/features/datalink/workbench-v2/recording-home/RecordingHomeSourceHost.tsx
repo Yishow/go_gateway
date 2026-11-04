@@ -47,9 +47,11 @@ export function RecordingHomeSourceHost({ children, renderSource }: {
   }, []);
   const close = () => { if (closeRef.current) closeRef.current(); else setTarget(undefined); };
   const select = (captured: HomeSourceSelection, options?: HomeSourceSelectOptions, ruleId?: string, newRange?: boolean) => {
-    if (captured.kind === 'create' || workspace.current !== captured.workspaceId) return;
+    if (captured.kind === 'create' || workspace.current !== captured.workspaceId || captured.epoch !== serial.current) return;
+    // React may invoke a state updater twice in Strict Mode; allocate the epoch only once.
+    const epoch = ++serial.current;
     closeRef.current = undefined; ruleObserverRef.current = undefined;
-    setTarget(current => current?.epoch === captured.epoch ? { ...captured, ruleId, newRange, view: options?.view, startAddress: options?.startAddress, initialSelection: false, epoch: ++serial.current } : current);
+    setTarget(current => current?.epoch === captured.epoch ? { ...captured, ruleId, newRange, view: options?.view, startAddress: options?.startAddress, initialSelection: false, epoch } : current);
   };
   const captured = target;
   return <>{children(open, workspaceChanged, create)}<Dialog.Root open={Boolean(target)} onOpenChange={value => { if (!value) close(); }}>

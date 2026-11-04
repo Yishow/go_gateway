@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { StrictMode, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import i18n from '../../../src/i18n/config';
@@ -47,4 +47,5 @@ function Root() {
       workspaceChanged={workspaceChanged} autoOpen={params.has('inspect-connection') || params.has('inspect-loading')} />}
   </RecordingHomeSourceHost></RecordingDraftNavigation></QueryClientProvider>;
 }
-createRoot(document.getElementById('root')!).render(<Root />);
+const root = <Root />;
+createRoot(document.getElementById('root')!).render(new URLSearchParams(window.location.search).has('strict') ? <StrictMode>{root}</StrictMode> : root);
