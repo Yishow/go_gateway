@@ -48,7 +48,7 @@ func TestFormatHTTPLog_OmitsUserAgentAndNormalizesSpacing(t *testing.T) {
 		Request:    req,
 	})
 
-	want := "[HTTP] 00:10:57  PUT      /api/v1/datalink/studio-v2/workspace/source-rules/rule-A      500      2ms\n"
+	want := "[HTTP] 00:10:57  PUT      500      2ms  /api/v1/datalink/studio-v2/workspace/source-rules/rule-A\n"
 	if got != want {
 		t.Fatalf("unexpected log format:\nwant: %q\ngot:  %q", want, got)
 	}
@@ -69,7 +69,7 @@ func TestFormatHTTPLog_PreservesFullQueryString(t *testing.T) {
 		Request:    req,
 	})
 
-	want := "[HTTP] 00:20:17  GET      /api/v1/datalink/runtime/stream?device_id=dev-1234567890&point_ids=point-1,point-2  200      4ms\n"
+	want := "[HTTP] 00:20:17  GET      200      4ms  /api/v1/datalink/runtime/stream?device_id=dev-1234567890&point_ids=point-1,point-2\n"
 	if got != want {
 		t.Fatalf("unexpected query log format:\nwant: %q\ngot:  %q", want, got)
 	}

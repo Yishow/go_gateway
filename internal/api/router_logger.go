@@ -79,7 +79,21 @@ func formatDurationNoDecimals(d time.Duration) string {
 	return fmt.Sprintf("%dm%ds", m, s)
 }
 
+const maxHTTPLogTargetRunes = 100
+
 func formatHTTPLog(param gin.LogFormatterParams) string {
+	path := param.Path
+	if runes := []rune(path); len(runes) > maxHTTPLogTargetRunes {
+		// Keep the endpoint identifiable before shortening long query strings.
+		if endpoint, _, ok := strings.Cut(path, "?"); ok {
+			path = endpoint + "?..."
+			runes = []rune(path)
+		}
+		if len(runes) > maxHTTPLogTargetRunes {
+			left := (maxHTTPLogTargetRunes - 3) / 2
+			path = string(runes[:left]) + "..." + string(runes[len(runes)-(maxHTTPLogTargetRunes-3-left):])
+		}
+	}
 	errorMessage := strings.TrimSpace(param.ErrorMessage)
 	if errorMessage != "" {
 		errorMessage = " " + errorMessage
@@ -88,12 +102,12 @@ func formatHTTPLog(param gin.LogFormatterParams) string {
 	latencyStr := formatDurationNoDecimals(param.Latency)
 
 	if !param.IsOutputColor() {
-		return fmt.Sprintf("[HTTP] %s  %-7s  %-60s  %3d  %7s%s\n",
+		return fmt.Sprintf("[HTTP] %s  %-7s  %3d  %7s  %s%s\n",
 			param.TimeStamp.Format("15:04:05"),
 			param.Method,
-			param.Path,
 			param.StatusCode,
 			latencyStr,
+			path,
 			errorMessage,
 		)
 	}
@@ -120,20 +134,20 @@ func formatHTTPLog(param gin.LogFormatterParams) string {
 		errColor = "\033[31m"
 	}
 
-	return fmt.Sprintf("%s[HTTP] %s%s  %s%-7s%s  %-60s  %s%3d%s  %s%7s%s%s%s%s\n",
+	return fmt.Sprintf("%s[HTTP] %s%s  %s%-7s%s  %s%3d%s  %s%7s%s  %s%s%s%s\n",
 		tagColor,
 		param.TimeStamp.Format("15:04:05"),
 		resetColor,
 		methodColor,
 		param.Method,
 		resetColor,
-		param.Path,
 		statusColor,
 		param.StatusCode,
 		resetColor,
 		latencyColor,
 		latencyStr,
 		resetColor,
+		path,
 		errColor,
 		errorMessage,
 		resetColor,
