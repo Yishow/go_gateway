@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 import { studioLocatorReadKey } from '../../../../../../services/studioEntityLocator';
 import { readRecordingDestinationCatalog } from '../../../../../../services/studioV2DatabaseCatalog';
 import type { StudioV2LocatorReadScope } from '../../../../../../types/studioV2LocatorEntry';
@@ -14,16 +15,28 @@ import { ownedWideCatalogTables } from './recordingCatalogOwnership';
 export function RecordingDestinationFields({ workspaceId, workspaceRevision, connector, group, locatorScope, configuredDestinations, ...fields }: GroupIdentityFieldsProps & {
   workspaceId: string; workspaceRevision: string; connector: DbConnector; group?: WriteGroup; locatorScope?: StudioV2LocatorReadScope; configuredDestinations?: ConfiguredDestinationObservation;
 }) {
+  const marker = useRef<HTMLSpanElement>(null);
+  const [destinationVisible, setDestinationVisible] = useState(false);
+  useEffect(() => {
+    const section = marker.current?.closest('#recording-editor-destination');
+    if (!section || typeof IntersectionObserver === 'undefined') {
+      setDestinationVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(entries => setDestinationVisible(entries.some(entry => entry.isIntersecting)));
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
   const scope = { workspaceId, workspaceRevision, connectorId: connector.connector_id ?? '', connectorRevision: connector.identity_revision ?? '', kind: connector.kind,
     groupId: group?.id, groupRevision: group?.revision };
-  const enabled = destinationSaved(connector) && Boolean(workspaceId) && !(fields.scopedPresentation && fields.locked && fields.draft.storage_strategy === 'managed') && fields.draft.connector_id === scope.connectorId &&
+  const eligible = destinationSaved(connector) && Boolean(workspaceId) && !(fields.scopedPresentation && fields.locked && fields.draft.storage_strategy === 'managed') && fields.draft.connector_id === scope.connectorId &&
     fields.draft.connector_revision === scope.connectorRevision && (!group || Boolean(group.id && group.revision));
   const query = useQuery({ queryKey: ['studio-v2', 'database-catalog', workspaceId, workspaceRevision, scope.connectorId, scope.connectorRevision, scope.kind,
     scope.groupId ?? '', scope.groupRevision ?? '', ...studioLocatorReadKey(locatorScope)], queryFn: () => readRecordingDestinationCatalog(scope, locatorScope),
-    enabled, retry: false, refetchOnWindowFocus: false, staleTime: 0 });
+    enabled: eligible && destinationVisible, retry: false, refetchOnWindowFocus: false, staleTime: 0 });
   const status: RecordingCatalogView['status'] = query.isFetching || query.isPending ? 'loading' : query.isError || !query.data ? 'error' : 'ready';
-  const catalog: RecordingCatalogView | undefined = enabled ? { status, defaultSchema: status === 'ready' ? query.data!.default_schema : '',
+  const catalog: RecordingCatalogView | undefined = eligible ? { status, defaultSchema: status === 'ready' ? query.data!.default_schema : '',
     schemas: status === 'ready' ? query.data!.schemas : [], blockedTables: status === 'ready' ? ownedWideCatalogTables(configuredDestinations,
       { workspaceId, workspaceRevision, connector, groupId: group?.id }, query.data!.default_schema) : [], retry: () => { void query.refetch(); } } : undefined;
-  return <GroupIdentityFields {...fields} section="destination" catalog={catalog} />;
+  return <><span ref={marker} hidden /><GroupIdentityFields {...fields} section="destination" catalog={catalog} /></>;
 }
