@@ -45,6 +45,8 @@ import { useStep4TargetColumns } from '../useStep4TargetColumns';
 import { GroupColumnProposal } from './GroupColumnProposal';
 import { GroupDeliveryStrip } from './GroupDeliveryStrip';
 import { GroupIdentityFields } from './GroupIdentityFields';
+import { RecordingDestinationFields } from './RecordingDestinationFields';
+import { hasOwnedWideDestination } from './recordingCatalogOwnership';
 import { GroupLifecycleBar } from './GroupLifecycleBar';
 import type { SavedRecordingActionHost } from './lifecycle/SavedRecordingActions';
 import { GroupMemberTable } from './GroupMemberTable';
@@ -208,7 +210,6 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision]);
-
   const destinationMatches = draft.connector_id === connector.connector_id &&
     draft.connector_revision === connector.identity_revision;
   const scopedConnector = useMemo<DbConnector>(() => ({
@@ -238,7 +239,8 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const sourceWritePending = () => draft.members.some(member => sourceOwnerRef.current?.range?.sourceWriteState?.(member.device_id, member.point_id));
   const issues = mixed ? [] : validateDraft(draft, { destinationSaved: saved && destinationMatches, storageStrategy: draft.storage_strategy });
   const mixedIssues = mixed ? recordingMixedEditorIssues(draft, calculationCapabilities, connector.kind, saved && destinationMatches) : [];
-  const invalid = issues.length > 0 || mixedIssues.length > 0 || configuredInvalid || Boolean(!group && newDestination && !newDestination.current());
+  const ownedWideConflict = presentation === 'simple' && hasOwnedWideDestination(configuredDestinations, { workspaceId, workspaceRevision, connector, groupId: group?.id }, draft.table_schema, draft.table_name);
+  const invalid = issues.length > 0 || mixedIssues.length > 0 || configuredInvalid || ownedWideConflict || Boolean(!group && newDestination && !newDestination.current());
   const readiness = useWriteGroupReadinessQuery(group?.id, Boolean(group) && !dirty);
   const set = (patch: Partial<EditorDraft>) => { if (!savingRef.current) setDraft((current) => ({ ...current, ...patch })); };
   const setMembers = (members: EditorMember[]) => set({ members: mixed && (calculationCapabilities || presentation === 'simple') ? initializeMixedMembers(members, draft.members, candidates, calculationCapabilities,
@@ -384,14 +386,14 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
           table_name: group?.layout_version === 'managed_long_v1' && draft.storage_strategy === 'managed' ? '' : connector.table ?? '' })} />}
 
           {presentation === 'simple' && <>
-      <GroupIdentityFields scopedPresentation={scopedPresentation} section="destination" draft={draft} readonly={readonly} locked={profile || draft.layout_version === 'managed_long_v1'} onChange={set} onStorageStrategy={changeStorageStrategy} />
+      <RecordingDestinationFields workspaceId={workspaceId} workspaceRevision={workspaceRevision} connector={connector} group={group} locatorScope={locatorScope} configuredDestinations={configuredDestinations} scopedPresentation={scopedPresentation} draft={draft} readonly={readonly} locked={profile || draft.layout_version === 'managed_long_v1'} onChange={set} onStorageStrategy={changeStorageStrategy} />
 
       <RecordingMixedEditor section="destination" draft={draft} saved={Boolean(group)} disabled={readonly || saveBusy} capabilities={calculationCapabilities} dialect={connector.kind} onChange={next => { if (!savingRef.current) setDraft(next); }} />
           </>}
       {configuredDestinations && <ConfiguredDestinationChooser observation={configuredDestinations} context={configuredContext} workspaceRevision={workspaceRevision}
         disabled={readonly || saveBusy} selected={configuredChoice} onSelect={choice => { setConfiguredChoice(choice); set(configuredDestinationPatch(choice)); }}
         onReset={() => { setConfiguredChoice(undefined); set({ table_name: group?.destination.table_name ?? '' }); }} />}
-      {configuredInvalid && <p role="alert">{editorText(configuredDestinations?.failed ? 'destinations.error' : configuredDestinations?.loading ? 'destinations.loading' : configuredReason ? `destinations.reason.${configuredReason}` : 'destinations.stale')}</p>}
+      {configuredInvalid && <p role="alert">{editorText(configuredDestinations?.failed ? 'destinations.error' : configuredDestinations?.loading ? 'destinations.loading' : configuredReason ? `destinations.reason.${configuredReason}` : 'destinations.stale')}</p>}{ownedWideConflict && <p role="alert">{editorText('destinations.reason.wideOwner')} {editorText('newDestination.catalogOwned')}</p>}
 
         </>}
         policy={<GroupPolicyFields expanded={presentation === 'simple'} draft={draft} readonly={readonly} profile={profile} onChange={set} onDedupe={(capability) => { customDedupeRef.current = capability; set({ dedupe_capability: capability }); }} />}

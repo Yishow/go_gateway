@@ -427,14 +427,14 @@
     "details": "Configuration version details"
   },
   "newDestination": {
-    "label": "Saved destination",
-    "choose": "Choose a saved destination",
-    "scope": "This choice applies only to this new recording. Other recordings and the workspace default are unchanged.",
-    "loading": "Loading saved destinations…",
-    "error": "Saved destinations could not be read. Check again before saving.",
-    "empty": "No supported saved destination is available. Add a destination connection in Settings, then check again.",
-    "stale": "The selected destination has changed or is unavailable. Check and select it again before saving.",
-    "refresh": "Check saved destinations again"
+    "label": "Saved destination", "catalogLoading": "Loading schemas and tables…",
+    "choose": "Choose a saved destination", "catalogError": "Could not read the table list. Check the connection and retry; your entries are preserved.",
+    "scope": "This choice applies only to this new recording. Other recordings and the workspace default are unchanged.", "catalogRetry": "Reload tables",
+    "loading": "Loading saved destinations…", "catalogDefaultSchema": "Use the connection's default schema",
+    "error": "Saved destinations could not be read. Check again before saving.", "catalogManualSchema": "Enter a schema name",
+    "empty": "No supported saved destination is available. Add a destination connection in Settings, then check again.", "catalogAutoTable": "Let the server choose a new table name",
+    "stale": "The selected destination has changed or is unavailable. Check and select it again before saving.", "catalogChooseTable": "Choose a table",
+    "refresh": "Check saved destinations again", "catalogManualTable": "Enter a table name", "catalogNoTables": "No tables are available in this schema.", "catalogOuterSpace": "(leading or trailing spaces are not supported)", "catalogOwned": "(used by another recording; edit the original)"
   },
   "compact": { "required": "Required", "optional": "Optional", "requiredInfo": "Required points", "orderInfo": "Word order", "requiredHelp": "When a required point has no valid data, the record settings may cause that output to be skipped.", "horizontalHint": "Scroll sideways to see the remaining columns", "pointOnly": "Point", "device": "Device", "wordOrder": "Word order", "addressOnly": "Address", "dataType": "Type",
     "formatUnknown": "Point format has not been verified",

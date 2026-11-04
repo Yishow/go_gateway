@@ -427,14 +427,14 @@
     "details": "設定版本詳情"
   },
   "newDestination": {
-    "label": "已保存的目的地",
-    "choose": "選擇已保存的目的地",
-    "scope": "此選擇只用於這份新記錄，不會改動其他記錄或工作區預設目的地。",
-    "loading": "正在讀取已保存的目的地…",
-    "error": "目前無法讀取已保存的目的地，請重新確認後再保存。",
-    "empty": "目前沒有可用的已保存目的地。請先在設定新增目的地連線，再重新確認。",
-    "stale": "所選目的地已變更或無法使用，請重新確認並選擇後再保存。",
-    "refresh": "重新確認已保存目的地"
+    "label": "已保存的目的地", "catalogLoading": "正在讀取 Schema 與資料表…",
+    "choose": "選擇已保存的目的地", "catalogError": "無法讀取資料表清單，請檢查連線後重試；目前輸入會保留。",
+    "scope": "此選擇只用於這份新記錄，不會改動其他記錄或工作區預設目的地。", "catalogRetry": "重新讀取資料表",
+    "loading": "正在讀取已保存的目的地…", "catalogDefaultSchema": "使用連線預設 Schema",
+    "error": "目前無法讀取已保存的目的地，請重新確認後再保存。", "catalogManualSchema": "自行輸入 Schema",
+    "empty": "目前沒有可用的已保存目的地。請先在設定新增目的地連線，再重新確認。", "catalogAutoTable": "由伺服器決定新表名稱",
+    "stale": "所選目的地已變更或無法使用，請重新確認並選擇後再保存。", "catalogChooseTable": "選擇資料表",
+    "refresh": "重新確認已保存目的地", "catalogManualTable": "自行輸入資料表名稱", "catalogNoTables": "此 Schema 目前沒有可選的資料表。", "catalogOuterSpace": "（目前不支援名稱前後空白）", "catalogOwned": "（由其他記錄使用，請編輯原記錄）"
   },
   "compact": { "required": "必要", "optional": "非必要", "requiredInfo": "必要點說明", "orderInfo": "字序說明", "requiredHelp": "必要點缺少有效資料時，可能依記錄設定略過該筆輸出。", "horizontalHint": "左右滑動查看其餘欄位", "pointOnly": "點位", "device": "設備", "wordOrder": "點位字序", "addressOnly": "位址", "dataType": "型別",
     "formatUnknown": "字序設定尚未確認",
