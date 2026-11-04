@@ -16,6 +16,8 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 900 }, { name: '
   test(`memory view separates MC areas and prefills an exact free address at ${viewport.name}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     const writes: string[] = [];
+    let holdProof = false, pendingProof = 0, releaseProof!: () => void;
+    const proofGate = new Promise<void>(resolve => { releaseProof = resolve; });
     await page.route('**/api/**', async route => {
       const request = route.request(), url = new URL(request.url()), path = url.pathname;
       // The original new-range form prepares with saved readiness diagnostics only (no activation, no device I/O).
@@ -36,6 +38,7 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 900 }, { name: '
       else if (path === '/api/v1/datalink/studio-v2/workspace/source-rules') data = rules;
       else if (path === '/api/v1/datalink/studio-v2/workspace/mappings' || path === '/api/v1/datalink/points') data = [];
       else if (candidates) {
+        if (holdProof) { pendingProof += 1; await proofGate; }
         const rule = rules.find(item => item.id === candidates[1])!, area = rule.start_address[0], start = Number(rule.start_address.slice(1));
         data = { source_rule_id: rule.id, workspace_id: 'W', workspace_revision: url.searchParams.get('expected_workspace_revision'), revision_id: rule.revision_id,
           tags: { status: 'ready', candidates: Array.from({ length: rule.count }, (_, index) => ({ id: `${rule.id}${index}`, identity: { source_rule_id: rule.id, candidate_type: 'tags', candidate_kind: 'tag', derived_from_rule_address: rule.start_address },
@@ -48,9 +51,20 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 900 }, { name: '
     const dialog = page.getByRole('dialog');
     // The first range opens directly; every range is an inline choice with its address span.
     await expect(dialog.getByTestId('rule-prefix-input')).toHaveValue('TEMP_');
-    await expect(dialog.getByTestId('home-range-option-F')).toContainText('D39 – D42');
+    await expect(dialog.getByTestId('home-range-option-F')).toContainText('暫存器：D39～D42');
+    await expect(dialog.getByTestId('home-range-option-F')).toContainText('數目：2 個');
+    await expect(dialog.getByTestId('home-range-option-F')).toContainText('4 個暫存器');
+    await expect(dialog.getByTestId('home-range-option-M')).toContainText('位元：M0～M7');
     await page.screenshot({ path: testInfo.outputPath(`settings-${viewport.name}.png`) });
+    holdProof = true;
     await dialog.getByTestId('home-range-memory').click();
+    await expect.poll(() => pendingProof).toBeGreaterThan(0);
+    await expect(dialog.getByText('正在確認已保存的 MC 點位…')).toBeVisible();
+    // Pending proof must not flash false unconfirmed/conflict cells or notices before the real map appears.
+    await expect(dialog.getByTestId(/home-memory-cell-/)).toHaveCount(0);
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`checking-${viewport.name}.png`) });
+    releaseProof();
     await expect(dialog.getByTestId('home-memory-cell-D0')).toHaveAttribute('data-state', 'used');
     await expect(dialog.getByTestId('home-memory-cell-D40')).toHaveAttribute('aria-label', 'D40，FLOW_，float32，第 2/2 個暫存器，起始於 D39');
     await expect(dialog.getByTestId('home-memory-cell-D39')).toContainText('float32 1/2');

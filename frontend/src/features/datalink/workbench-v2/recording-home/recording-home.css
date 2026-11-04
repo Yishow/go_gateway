@@ -203,8 +203,8 @@
 .gw-home-source-modal .gw-home-range-options { display: flex; flex-wrap: wrap; gap: var(--gw-space-xs); }
 .gw-home-source-modal .gw-home-range-options > button { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 100%; text-align: start; color: var(--gw-muted); }
 .gw-home-source-modal .gw-range-option-name { display: inline-flex; align-items: center; color: var(--gw-text); }
-.gw-home-source-modal .gw-range-option-facts { font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
-.gw-home-source-modal .gw-home-range-options .gw-range-address { font-family: var(--gw-font-mono); font-size: 12px; }
+.gw-home-source-modal .gw-range-option-facts { display: grid; gap: 1px; font-size: var(--gw-typography-body-size); line-height: 1.4; overflow-wrap: anywhere; }
+.gw-home-source-modal .gw-home-range-options .gw-range-address { font-family: var(--gw-font-mono); }
 .gw-home-source-modal .gw-home-range-options-wrap > [role=alert] { margin-top: var(--gw-space-xs); }
 
 /* Keep source settings and memory-view actions together at the bottom right. */

@@ -90,12 +90,20 @@ describe('Home range choices show saved facts and one close', () => {
     const dialog = await openSettings();
     expect(within(dialog).getByTestId('rule-prefix-input')).toHaveValue('A_');
     const first = within(dialog).getByTestId('home-range-option-A');
-    expect(first).toHaveTextContent('40001 – 40002'); expect(first).toHaveTextContent('int16'); expect(first).toHaveTextContent('2 items'); expect(first).toHaveTextContent('2 registers');
+    expect(first).toHaveTextContent('register: 40001 – 40002'); expect(first).toHaveTextContent('Count: 2 items'); expect(first).toHaveTextContent('int16'); expect(first).toHaveTextContent('2 registers');
     const second = within(dialog).getByTestId('home-range-option-B');
     expect(second).toHaveTextContent('40010 – 40013'); expect(second).toHaveTextContent('float32'); expect(second).toHaveTextContent('4 registers');
     expect(within(dialog).getAllByRole('button', { name: 'Close' })).toHaveLength(1);
     expect(within(dialog).queryByTestId('home-source-close')).not.toBeInTheDocument();
     expect(within(dialog).getByTestId('home-range-memory')).toHaveTextContent('Memory view');
+    noWrites();
+  });
+
+  it('labels the address range and point count in Traditional Chinese', async () => {
+    await i18n.changeLanguage('zh-TW'); arrange([range('BLOCK2', '40001', 16, 'int16')]);
+    const dialog = await openSettings(), option = within(dialog).getByTestId('home-range-option-BLOCK2');
+    expect(option).toHaveTextContent('暫存器：40001～40016');
+    expect(option).toHaveTextContent('數目：16 個');
     noWrites();
   });
 
@@ -309,6 +317,14 @@ describe('MC proof is bound to the range list workspace revision', () => {
 });
 
 describe('memory view blocks every free cell while a recovery is unresolved', () => {
+  it('keeps a known recovery notice visible while MC proof is loading', async () => {
+    const { RecordingHomeMemoryView } = await import('@/features/datalink/workbench-v2/recording-home/RecordingHomeMemoryView');
+    render(<RecordingHomeMemoryView protocol="mc_3e" status="ready" checking blocked="recovery" onOpen={vi.fn()} onAdd={vi.fn()} onBack={vi.fn()} onClose={vi.fn()} inputs={[]} />);
+    expect(screen.getByRole('alert')).toHaveTextContent(/still unconfirmed/);
+    expect(screen.getByRole('status')).toHaveTextContent('Checking saved MC points');
+    expect(screen.queryByTestId(/home-memory-cell-/)).not.toBeInTheDocument();
+  });
+
   it('shows the recovery notice and renders empty cells as unconfirmed', async () => {
     const { RecordingHomeMemoryView } = await import('@/features/datalink/workbench-v2/recording-home/RecordingHomeMemoryView');
     const onAdd = vi.fn();

@@ -128,6 +128,8 @@
     "sharedDescription": "這些是共用來源設定；只有按下儲存才會送出變更。",
     "close": "關閉",
     "ranges": "讀取範圍",
+    "rangeAddress": "{{unit}}：", "rangeUnknownAddress": "位址", "rangeSpan": "{{start}}～{{end}}",
+    "rangeItemCount_one": "數目：{{count}} 個", "rangeItemCount_other": "數目：{{count}} 個",
     "emptyRanges": "此設備尚未保存讀取範圍。",
     "newRange": "＋新增讀取範圍",
     "edit": "編輯",

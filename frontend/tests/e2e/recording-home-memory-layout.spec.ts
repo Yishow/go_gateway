@@ -88,7 +88,7 @@ test('range settings and memory view fit a 320px screen with a long device and r
   const dialog = page.getByRole('dialog');
   // No separate list: the first range opens with both ranges as inline choices under the device row.
   await expect(dialog.getByTestId('rule-prefix-input')).toHaveValue('BOILER_OUTLET_TEMPERATURE_SENSOR_');
-  await expect(dialog.getByTestId('home-range-option-I')).toBeVisible(); await expect(dialog.getByTestId('home-range-option-F')).toContainText('D39 – D42');
+  await expect(dialog.getByTestId('home-range-option-I')).toBeVisible(); await expect(dialog.getByTestId('home-range-option-F')).toContainText('暫存器：D39～D42');
   await expect(dialog.getByRole('switch', { name: '啟用此規則' })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('settings-320.png') });
   expect.soft(await overflowing(dialog)).toEqual([]);

@@ -57,12 +57,12 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(read);
     observer?.observe(node);
     return () => observer?.disconnect();
-  }, [status, area?.key, map]);
+  }, [status, checking, area?.key, map]);
   // Whatever selected it (key, pointer or touch), the selected tab is scrolled fully into the tab row.
   const selectedTab = area?.key;
   useLayoutEffect(() => {
     if (selectedTab) document.getElementById(`home-memory-tab-${selectedTab}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-  }, [selectedTab]);
+  }, [selectedTab, checking]);
   // Area tabs stay on one row; mark which side still has tabs so the edge can show it.
   useLayoutEffect(() => {
     const node = tabs.current;
@@ -75,10 +75,13 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(read);
     observer?.observe(node);
     return () => { node.removeEventListener('scroll', read); observer?.disconnect(); };
-  }, [status, map]);
+  }, [status, checking, map]);
   const body = () => {
     if (status === 'loading') return <p role="status">{t('loading')}</p>;
     if (status === 'error') return <div role="alert" className="gw-memory-notice"><p>{t('source.memory.readFailed')}{retry}</p></div>;
+    // Missing proof is not an error while its scoped read is still pending.
+    if (checking) return <>{blocked && <div role="alert" className="gw-memory-notice"><p>{t(`source.memory.blocked.${blocked}`)}</p></div>}
+      <p role="status">{t('source.memory.checking')}</p></>;
     if (!map?.supported || !area) return <p role="alert">{t('source.memory.unsupported')}</p>;
     const window = initialMemoryWindow(area), start = starts[area.key] ?? window.start;
     const cells = memoryWindow(area, start, window.length, Boolean(blocked) || checking);
@@ -130,7 +133,6 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
         {messages.length > 0 && <div role="alert" className="gw-memory-notice">{messages.map(message => <p key={message.key}>{message.text}
           {message.ruleId && <button type="button" onClick={() => onOpen(message.ruleId!)}>{t('source.memory.openRange', { label: label(message.ruleId) })}</button>}
           {message.retry && retry}</p>)}</div>}
-        {checking && <p role="status">{t('source.memory.checking')}</p>}
         <div className="gw-memory-toolbar">
           <form onSubmit={event => { event.preventDefault(); go(); }}><label><span className="gw-memory-locate-label">{t('source.memory.locate')}</span><input value={locate} placeholder={memoryAddress(area, area.base)}
             aria-invalid={locateError} onChange={event => { setLocate(event.target.value); setLocateError(false); }} /></label><button type="submit">{t('source.memory.go')}</button></form>

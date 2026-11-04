@@ -17,14 +17,16 @@ export function RecordingHomeRangeOptions({ protocol, listed, inputs, state, tar
       {listed?.map(item => {
         const rule = state.rules.find(saved => saved.id === item.id && saved.workspace_id === target.workspaceId && saved.device_id === target.deviceId && saved.save_state === 'saved') ?? item;
         const input = inputs.find(value => value.id === item.id), span = input ? describeMemoryRule(protocol, { ...input, label: rule.naming_prefix }) : undefined;
-        const address = span?.end && span.end !== span.start ? `${span.start} – ${span.end}` : span?.start ?? rule.start_address;
+        const address = span?.end && span.end !== span.start ? t('source.rangeSpan', { start: span.start, end: span.end }) : span?.start ?? rule.start_address;
+        const unit = span?.unit ? t(`source.memory.unitName.${span.unit}`) : t('source.rangeUnknownAddress');
         const footprint = span?.cells !== undefined ? t(`source.memory.${span.unit}`, { count: span.cells }) : t('source.memory.footprintUnknown');
-        const facts = [t('source.memory.items', { count: rule.count }), rule.data_type, footprint,
+        const facts = [rule.data_type, footprint,
           ...(rule.skipped_addresses.length ? [t('source.memory.skipped', { count: rule.skipped_addresses.length })] : [])];
         const selected = item.id === target.ruleId;
         return <button type="button" key={item.id} data-testid={`home-range-option-${item.id}`} aria-pressed={selected} disabled={!ready && !selected} onClick={() => { if (ready && !selected) onSelect(item.id); }}>
           <span className="gw-range-option-name"><strong>{rule.naming_prefix}</strong>{!rule.enabled && <span className="gw-range-flag">{t('source.memory.disabled')}</span>}</span>
-          <span className="gw-range-option-facts"><span className="gw-range-address">{address}</span> · {facts.join(' · ')}</span></button>;
+          <span className="gw-range-option-facts"><span>{t('source.rangeAddress', { unit })}<span className="gw-range-address">{address}</span></span>
+            <span>{t('source.rangeItemCount', { count: rule.count })} · {facts.join(' · ')}</span></span></button>;
       })}
       <button type="button" data-testid="home-range-option-new" aria-pressed={Boolean(target.newRange)} disabled={!ready && !target.newRange} onClick={() => { if (ready && !target.newRange) onSelect(undefined, true); }}>{t('source.newRange')}</button>
     </div>
