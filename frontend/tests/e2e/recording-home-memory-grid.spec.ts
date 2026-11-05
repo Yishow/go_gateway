@@ -55,8 +55,15 @@ test('pointer selection of a half-visible area tab brings the whole tab into vie
   await page.goto('/tests/e2e/fixtures/recording-home-memory-host.html?scenario=mc&light');
   const tablist = page.getByRole('tablist'), last = tablist.getByRole('tab', { name: /^Y/ });
   await expect(tablist).toHaveAttribute('data-more-after', 'true');
+  // Set the half-visible precondition explicitly; modal width may otherwise hide Y completely.
+  await last.evaluate(node => {
+    const list = node.closest<HTMLElement>('[role=tablist]')!;
+    const tab = node.getBoundingClientRect();
+    list.scrollLeft += tab.x + tab.width / 2 - list.getBoundingClientRect().right;
+  });
   // Click the visible sliver of the clipped tab by coordinates, so Playwright does not scroll it first.
   const [list, tab] = await Promise.all([tablist.boundingBox(), last.boundingBox()]);
+  expect(tab!.x).toBeLessThan(list!.x + list!.width);
   expect(tab!.x + tab!.width).toBeGreaterThan(list!.x + list!.width);
   const visibleRight = list!.x + list!.width;
   await page.mouse.click((tab!.x + visibleRight) / 2, tab!.y + tab!.height / 2);
@@ -72,11 +79,16 @@ test('pointer re-selection of the already selected, half-visible area tab brings
   await page.goto('/tests/e2e/fixtures/recording-home-memory-host.html?scenario=mc&light');
   const tablist = page.getByRole('tablist'), first = tablist.getByRole('tab', { name: /^D/ });
   await expect(first).toHaveAttribute('aria-selected', 'true');
-  await tablist.evaluate(node => { node.scrollLeft = node.scrollWidth; });
+  await first.evaluate(node => {
+    const list = node.closest<HTMLElement>('[role=tablist]')!;
+    const tab = node.getBoundingClientRect();
+    list.scrollLeft += tab.x + tab.width / 2 - list.getBoundingClientRect().left;
+  });
   await expect.poll(() => tablist.evaluate(node => node.scrollLeft)).toBeGreaterThan(0);
   // D is selected but clipped on the left; click its visible sliver by coordinates.
   const [list, tab] = await Promise.all([tablist.boundingBox(), first.boundingBox()]);
   expect(tab!.x).toBeLessThan(list!.x);
+  expect(tab!.x + tab!.width).toBeGreaterThan(list!.x);
   await page.mouse.click((list!.x + tab!.x + tab!.width) / 2, tab!.y + tab!.height / 2);
   await expect(first).toHaveAttribute('aria-selected', 'true');
   await expect.poll(() => tablist.evaluate(node => node.scrollLeft)).toBe(0);
