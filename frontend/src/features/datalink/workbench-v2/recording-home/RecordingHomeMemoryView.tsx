@@ -5,6 +5,9 @@ import type { ProtocolType, SourceRuleRecord } from '../../../../types/datalink'
 import { sourceRuleCandidateAPI } from '../../../../services/sourceRuleCandidates';
 import { buildPersistedMCRuleState } from '../state/mcPersistedPoints';
 import './recordingHomeMemory.css';
+import './recordingHomeMemoryLayouts.css';
+import { MemoryRangeNavigation, MemoryRangeChapters, MemoryAddressMap, MemoryCellDetail } from './RecordingHomeMemoryPanels';
+import { RecordingHomeMemoryCells, memoryTypeFamily } from './RecordingHomeMemoryCells';
 import { buildMemoryMap, initialMemoryWindow, locateMemoryOffset, memoryAddress, memoryRowStart, memoryRuleInputs, memoryWindow,
   type MemoryArea, type MemoryCell, type MemoryRuleInput } from './recordingHomeMemoryMap';
 import { memoryValueKey, type MemoryLiveValue, type MemoryValues } from './recordingHomeMemoryValues';
@@ -26,6 +29,8 @@ export function useHomeRangeInputs(read: HomeRangeRead | undefined, readAt: numb
   return { inputs, checking: queries.some(query => query.isPending), listScopeMissing: protocol === 'mc_3e' && Boolean(read) && !revision };
 }
 
+const MEMORY_LAYOUTS = ['grid', 'navigator', 'map', 'chapters', 'detail'] as const;
+export type HomeMemoryLayout = typeof MEMORY_LAYOUTS[number];
 const AREA_NAMES: Record<string, string> = { HR: '4x', IR: '3x', CS: '0x', IS: '1x' };
 export type HomeMemoryBlock = 'recovery' | 'local' | 'stale';
 export function RecordingHomeMemoryView({ protocol, inputs, status, checking, blocked, listScopeMissing, values, onOpen, onAdd, onBack, onClose, onRetry }: {
@@ -38,11 +43,16 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
   const key = JSON.stringify([protocol, inputs, listScopeMissing]);
   const map = useMemo(() => protocol ? buildMemoryMap(protocol, inputs, { listScopeMissing }) : undefined, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const retry = onRetry && <button type="button" onClick={onRetry}>{t('source.memory.retry')}</button>;
+  const [layout, setLayout] = useState<HomeMemoryLayout>('grid');
   const [areaKey, setAreaKey] = useState<string>();
   const [starts, setStarts] = useState<Record<string, number>>({});
   const [focus, setFocus] = useState<number>();
+  // Pointer inspection must not move the keyboard tab stop or trigger a cell action.
+  const [inspected, setInspected] = useState<number>();
+  const select = (offset: number) => { setInspected(undefined); setFocus(offset); };
   const [owners, setOwners] = useState<MemoryCell>();
   const [locate, setLocate] = useState(''), [locateError, setLocateError] = useState(false);
+  const viewport = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null), grid = useRef<HTMLDivElement>(null), tabs = useRef<HTMLDivElement>(null);
   const [tabEdges, setTabEdges] = useState({ before: false, after: false });
   const [visualColumns, setVisualColumns] = useState<number>();
@@ -55,12 +65,12 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
   useLayoutEffect(() => {
     const node = grid.current;
     if (!node) return;
-    const read = () => { const tracks = getComputedStyle(node).gridTemplateColumns.split(' ').filter(track => track && track !== 'none').length; setVisualColumns(tracks > 1 ? tracks : undefined); };
+    const read = () => { const tracks = getComputedStyle(node).gridTemplateColumns.split(' ').filter(track => track && track !== 'none').length; setVisualColumns(tracks > 0 ? tracks : undefined); };
     read();
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(read);
     observer?.observe(node);
     return () => observer?.disconnect();
-  }, [status, checking, area?.key, map]);
+  }, [status, checking, area?.key, map, layout]);
   // Whatever selected it (key, pointer or touch), the selected tab is scrolled fully into the tab row.
   const selectedTab = area?.key;
   useLayoutEffect(() => {
@@ -78,21 +88,30 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(read);
     observer?.observe(node);
     return () => { node.removeEventListener('scroll', read); observer?.disconnect(); };
-  }, [status, checking, map]);
-  // Only on-screen value cells are streamed; the set is rebuilt whenever the shown cells change.
+  }, [status, checking, map, layout]);
+  // One subscription covers visible grid and detail readings; duplicate displays share a key.
   const reportVisible = values?.setVisible;
   useEffect(() => {
-    const node = grid.current;
+    const node = viewport.current;
     if (!node || !reportVisible) return undefined;
-    if (typeof IntersectionObserver === 'undefined') { reportVisible([...node.querySelectorAll<HTMLElement>('[data-value-key]')].map(cell => cell.dataset.valueKey!)); return undefined; }
-    const shown = new Set<string>();
+    const targets = [...node.querySelectorAll<HTMLElement>('[data-value-key]')];
+    // Loading/error/checking replaces the cells: do not keep their old subscription.
+    if (!targets.length) { reportVisible([]); return undefined; }
+    if (typeof IntersectionObserver === 'undefined') { reportVisible(targets.map(cell => cell.dataset.valueKey!)); return undefined; }
+    let observing = true;
+    const shown = new Map<Element, string>();
     const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => { const key = (entry.target as HTMLElement).dataset.valueKey; if (key) { if (entry.isIntersecting) shown.add(key); else shown.delete(key); } });
-      reportVisible([...shown]);
+      if (!observing) return;
+      entries.forEach(entry => {
+        const key = (entry.target as HTMLElement).dataset.valueKey;
+        if (key && entry.isIntersecting) shown.set(entry.target, key); else shown.delete(entry.target);
+      });
+      reportVisible([...new Set(shown.values())]);
     });
-    node.querySelectorAll('[data-value-key]').forEach(cell => observer.observe(cell));
-    return () => observer.disconnect();
-  }, [reportVisible, area?.key, starts, map, status, checking, blocked]);
+    targets.forEach(cell => observer.observe(cell));
+    // Do not clear here: populated hover/layout changes must not briefly unsubscribe.
+    return () => { observing = false; observer.disconnect(); };
+  }, [reportVisible, area?.key, starts, map, status, checking, blocked, layout, focus, inspected]);
   const body = () => {
     if (status === 'loading') return <p role="status">{t('loading')}</p>;
     if (status === 'error') return <div role="alert" className="gw-memory-notice"><p>{t('source.memory.readFailed')}{retry}</p></div>;
@@ -102,10 +121,10 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
     if (!map?.supported || !area) return <p role="alert">{t('source.memory.unsupported')}</p>;
     const window = initialMemoryWindow(area), start = starts[area.key] ?? window.start;
     const cells = memoryWindow(area, start, window.length, Boolean(blocked) || checking);
-    const selectArea = (key: string) => { setAreaKey(key); setOwners(undefined); setLocateError(false); };
+    const selectArea = (key: string) => { setAreaKey(key); setInspected(undefined); setOwners(undefined); setLocateError(false); };
     const issues = [...map.global, ...area.issues.filter(item => !map.global.includes(item))];
-    const move = (next: number) => { setStarts(current => ({ ...current, [area.key]: Math.max(area.base, Math.min(next, memoryRowStart(area, area.max))) })); setOwners(undefined); };
-    const go = () => { const offset = locateMemoryOffset(area, locate); setLocateError(offset === undefined); if (offset !== undefined) { move(memoryRowStart(area, offset)); setFocus(offset); } };
+    const move = (next: number) => { setInspected(undefined); setStarts(current => ({ ...current, [area.key]: Math.max(area.base, Math.min(next, memoryRowStart(area, area.max))) })); setOwners(undefined); };
+    const go = () => { const offset = locateMemoryOffset(area, locate); setLocateError(offset === undefined); if (offset !== undefined) { move(memoryRowStart(area, offset)); select(offset); } };
     const choose = (cell: MemoryCell) => {
       if (cell.state === 'empty') onAdd(cell.address);
       else if (cell.state === 'used') onOpen(cell.owners[0].ruleId);
@@ -135,9 +154,12 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
       if (!delta) return;
       event.preventDefault();
       const target = cells.find(item => item.offset === cell.offset + delta);
-      if (target) { setFocus(target.offset); grid.current?.querySelector<HTMLElement>(`[data-offset="${target.offset}"]`)?.focus(); }
+      if (target) { select(target.offset); grid.current?.querySelector<HTMLElement>(`[data-offset="${target.offset}"]`)?.focus(); }
     };
     const active = cells.some(cell => cell.offset === focus) ? focus : cells[0]?.offset;
+    const selected = cells.find(cell => cell.offset === inspected) ?? cells.find(cell => cell.offset === active);
+    const jump = (address: string) => { const offset = locateMemoryOffset(area, address); if (offset !== undefined) { move(memoryRowStart(area, offset)); select(offset); } };
+    const types = [...new Set(cells.flatMap(cell => cell.owners.map(owner => owner.dataType)))];
     const messages = [...issues.map(issue => ({ key: `${issue.ruleId}-${issue.issue}`, text: t(`source.memory.issue.${issue.issue}`, { label: issue.label }), ruleId: issue.ruleId || undefined, retry: issue.issue === 'list-scope' })),
       ...blocked ? [{ key: blocked, text: t(`source.memory.blocked.${blocked}`), ruleId: undefined, retry: false }] : []];
     return <>
@@ -158,12 +180,15 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
         {messages.length > 0 && <div role="alert" className="gw-memory-notice">{messages.map(message => <p key={message.key}>{message.text}
           {message.ruleId && <button type="button" onClick={() => onOpen(message.ruleId!)}>{t('source.memory.openRange', { label: label(message.ruleId) })}</button>}
           {message.retry && retry}</p>)}</div>}
+        <div className="gw-memory-workspace" data-layout={layout}>
+          {layout === 'navigator' && <MemoryRangeNavigation area={area} inputs={inputs} onJump={jump} />}
+          <div className="gw-memory-main">
         <div className="gw-memory-toolbar">
           <form onSubmit={event => { event.preventDefault(); go(); }}><label><span className="gw-memory-locate-label">{t('source.memory.locate')}</span><input value={locate} placeholder={memoryAddress(area, area.base)}
             aria-invalid={locateError} onChange={event => { setLocate(event.target.value); setLocateError(false); }} /></label><button type="submit">{t('source.memory.go')}</button></form>
         </div>
         {locateError && <p role="alert">{t('source.memory.locateInvalid', { area: name(area) })}</p>}
-        {area.ruleIds.length > 0 && <p className="gw-memory-jumps"><span>{t('source.memory.jumpTo')} <span className="gw-muted">{area.ruleIds.length}</span></span>{area.ruleIds.map(id => {
+        {area.ruleIds.length > 0 && layout !== 'navigator' && layout !== 'chapters' && <p className="gw-memory-jumps"><span>{t('source.memory.jumpTo')} <span className="gw-muted">{area.ruleIds.length}</span></span>{area.ruleIds.map(id => {
           const rule = inputs.find(item => item.id === id), offset = rule && locateMemoryOffset(area, rule.start_address);
           if (offset === undefined) return null;
           const text = `${memoryAddress(area, offset)} · ${rule!.label}`;
@@ -174,56 +199,50 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
           <p aria-live="polite">{t('source.memory.showing', { from: cells[0]?.address, to: cells.at(-1)?.address, unit: unit(area) })}</p>
           <button type="button" disabled={(cells.at(-1)?.offset ?? area.max) >= area.max} onClick={() => move(start + window.length)}>{t('source.memory.next')}<span aria-hidden="true"> ›</span></button>
         </div>
+        {layout === 'map' && <MemoryAddressMap cells={cells} selected={selected?.offset} onSelect={select} />}
+        {layout === 'chapters' && <MemoryRangeChapters area={area} inputs={inputs} onJump={jump} />}
+        {types.length > 0 && <ul className="gw-memory-type-legend" aria-label={t('source.memory.presentation.types')}>
+          {types.map(type => <li key={type} data-family={memoryTypeFamily(type)}>{type}</li>)}
+        </ul>}
         <div className="gw-memory-meta">
           <ul className="gw-memory-legend" aria-label={t('source.memory.legend')}>{(['empty', 'used', 'conflict', 'unconfirmed'] as const).map(state =>
             <li key={state}><span className="gw-memory-swatch" data-state={state} aria-hidden="true" />{t(`source.memory.state.${state}`)}</li>)}</ul>
           {values && <p className="gw-memory-live" data-status={values.status} role={values.status === 'error' ? 'alert' : 'status'} data-testid="home-memory-values-status">
             <span className="gw-memory-live-dot" aria-hidden="true" />{(values.status === 'live' || values.status === 'polling') && values.updatedAt ? t(`source.memory.value.${values.status}Updated`, { time: clock(values.updatedAt) }) : t(`source.memory.value.${values.status}`)}</p>}</div>
         {owners && <section className="gw-memory-owners" data-testid="home-memory-owners" aria-labelledby="home-memory-owners-title">
-          <h4 id="home-memory-owners-title" tabIndex={-1} ref={node => node?.focus()}>{t('source.memory.ownersTitle', { address: owners.address })}</h4>
+          <h4 id="home-memory-owners-title" tabIndex={-1} ref={focusOwnerHeading}>{t('source.memory.ownersTitle', { address: owners.address })}</h4>
           {owners.owners.map(owner => <button key={owner.ruleId} type="button" onClick={() => onOpen(owner.ruleId)}>{t('source.memory.owner', { label: owner.label, type: owner.dataType, start: owner.valueAddress })}</button>)}
           <button type="button" onClick={() => { setOwners(undefined); grid.current?.querySelector<HTMLElement>(`[data-offset="${owners.offset}"]`)?.focus(); }}>{t('source.memory.ownersCancel')}</button>
         </section>}
         <div ref={grid} role="group" aria-label={t('source.memory.gridLabel', { area: name(area), from: cells[0]?.address, to: cells.at(-1)?.address })} className="gw-memory-grid"
           style={{ ['--gw-memory-cols' as string]: area.columns, ['--gw-memory-cols-md' as string]: Math.min(area.columns, 10), ['--gw-memory-cols-sm' as string]: area.columns === 10 ? 5 : 4 }}>
-          {cells.map((cell, index) => {
-            const owner = cell.owners[0], value = cell.state === 'used' && owner.width > 1 && !owner.partial ? owner : undefined, column = index % columns;
-            const next = cells[index + 1]?.owners[0], joinNext = Boolean(value && value.part < value.width && column < columns - 1 && cells[index + 1]?.state === 'used' && next?.ruleId === value.ruleId && next.valueAddress === value.valueAddress);
-            const continuesBelow = Boolean(value && value.part < value.width && column === columns - 1), continued = Boolean(value && value.part > 1 && column === 0);
-            const props = { 'data-testid': `home-memory-cell-${cell.address}`, 'data-state': cell.state, 'data-offset': cell.offset, 'aria-label': describe(cell),
-              tabIndex: cell.offset === active ? 0 : -1, onFocus: () => setFocus(cell.offset), onKeyDown: (event: KeyboardEvent) => keyDown(event, cell),
-              'data-part': owner ? (owner.part === 1 ? 'first' : 'rest') : undefined,
-              'data-value-key': cell.state === 'used' && owner.part === 1 ? memoryValueKey(area.key, cell.offset, owner.dataType) : undefined, 'data-join-next': joinNext || undefined, 'data-multi': value ? true : undefined, title: describe(cell) };
-            const content = <><span className="gw-memory-address">{cell.address}</span>
-              {cell.state === 'unconfirmed' && <span className="gw-memory-value" aria-hidden="true">?</span>}
-              {cell.state === 'conflict' && <><span className="gw-memory-value" aria-hidden="true">×{cell.owners.length}</span><span className="gw-memory-type" aria-hidden="true">{t('source.memory.state.conflict')}</span></>}
-              {cell.state === 'used' && <>{owner.part === 1 ? <MemoryReading live={reading(cell)} pending={values?.status === 'loading'} />
-                : <span className="gw-memory-value" aria-hidden="true">{continued ? t('source.memory.cell.continued', { start: owner.valueAddress }) : `↳ ${owner.valueAddress}`}</span>}
-                <span className="gw-memory-type" aria-hidden="true"><span>{owner.dataType}</span>{value && <span> {value.part}/{value.width}</span>}{owner.partial && <span> ?</span>}{owner.skipped && <span> {t('source.memory.cell.skippedShort')}</span>}</span>
-                {continuesBelow && <span className="gw-memory-cue" aria-hidden="true">{t('source.memory.cell.continues')}</span>}</>}</>;
-            return cell.state === 'unconfirmed' ? <div key={cell.offset} {...props}>{content}</div>
-              : <button key={cell.offset} type="button" {...props} onClick={() => choose(cell)}>{content}</button>;
-          })}
+          <RecordingHomeMemoryCells cells={cells} columns={columns} areaKey={area.key} active={active} pending={values?.status === 'loading'}
+            describe={describe} reading={reading} onFocus={select} onHover={setInspected} onKeyDown={keyDown} onChoose={choose} />
+        </div>
+        {layout === 'map' && <div className="gw-memory-map-summary"><MemoryCellDetail area={area} cell={selected} values={values} cells={cells} onSelect={select} onChoose={choose} /></div>}
+          </div>
+          {layout === 'detail' && <MemoryCellDetail area={area} cell={selected} values={values} cells={cells} onSelect={select} onChoose={choose} />}
         </div>
       </div>
     </>;
   };
-  return <><div className="gw-modal-body" data-testid="home-memory-view"><section className="gw-home-memory" aria-labelledby="home-memory-heading">
+  return <><div ref={viewport} className="gw-modal-body" data-testid="home-memory-view" data-layout={layout}><section className="gw-home-memory" aria-labelledby="home-memory-heading">
     <h3 id="home-memory-heading" ref={heading} tabIndex={-1}>{t('source.memory.heading')}</h3>
     <p className="gw-muted gw-memory-intro">{t('source.memory.intro')}</p>
     <p className="gw-muted gw-memory-intro-short">{t('source.memory.introShort')}</p>
+    <div className="gw-memory-layouts" role="group" aria-label={t('source.memory.layouts.label')}>
+      {MEMORY_LAYOUTS.map(item => <button key={item} type="button" data-testid={`home-memory-layout-${item}`} aria-pressed={layout === item}
+        onClick={() => setLayout(item)}>{t(`source.memory.layouts.${item}`)}</button>)}
+    </div>
     {body()}
   </section></div><footer className="gw-modal-footer"><button type="button" data-testid="home-memory-back" onClick={onBack}>{t('source.backToSettings')}</button>
     <button type="button" data-testid="home-memory-close" onClick={onClose}>{t('source.close')}</button></footer></>;
 }
 
+// Stable ref focuses a newly opened chooser, never a later reading or pointer update.
+function focusOwnerHeading(node: HTMLHeadingElement | null) { node?.focus(); }
+
 function clock(at: string | number): string {
   const date = new Date(at);
   return Number.isNaN(date.getTime()) ? String(at) : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-}
-
-/** First register of a value: the device reading, or why there is none. */
-function MemoryReading({ live, pending }: { live?: MemoryLiveValue; pending: boolean }) {
-  const state = live?.error ? 'error' : live?.value !== undefined ? (live.stale ? 'stale' : 'value') : pending ? 'pending' : 'none';
-  return <span className="gw-memory-value gw-memory-reading" data-reading={state} aria-hidden="true">{state === 'value' || state === 'stale' ? live!.value : state === 'error' ? '!' : state === 'pending' ? '…' : '—'}</span>;
 }

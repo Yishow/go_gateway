@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import i18n from '@/i18n/config';
 import { RecordingHomeMemoryView } from '@/features/datalink/workbench-v2/recording-home/RecordingHomeMemoryView';
@@ -70,4 +70,58 @@ describe('memory view device values', () => {
     expect(setVisible).toHaveBeenLastCalledWith([memoryValueKey('HR', 2, 'int16')]);
     vi.unstubAllGlobals();
   });
+});
+
+describe('typed physical register geometry', () => {
+  const cell = (address: number) => screen.getByTestId(`home-memory-cell-${address}`);
+  function mount(start: number, type: 'int16' | 'float32' | 'int64' | 'float64') {
+    render(<RecordingHomeMemoryView protocol="modbus_tcp" status="ready" checking={false} onOpen={noop} onAdd={noop} onBack={noop} onClose={noop}
+      inputs={[{ id: 'A', label: 'A_', start_address: `${start}`, count: 1, data_type: type, skipped_addresses: [] }]} />);
+  }
+  it.each([['int16', 1], ['float32', 2], ['int64', 4], ['float64', 4]] as const)('shares one %s label and value across %i physical registers', (type, width) => {
+    mount(40001, type);
+    expect(cell(40001).querySelector('[data-shared-span]')).toHaveAttribute('data-shared-span', `${width}`);
+    for (let part = 0; part < width; part++) {
+      expect(cell(40001 + part).tagName).toBe('BUTTON');
+      expect(cell(40001 + part)).toHaveAccessibleName(expect.stringContaining(`register ${part + 1} of ${width}`));
+      if (part) { expect(cell(40001 + part).querySelector('.gw-memory-type')).toBeNull(); expect(cell(40001 + part)).not.toHaveAttribute('data-value-key'); }
+    }
+  });
+  it('splits a four-register value at the real row boundary with explicit continuation', () => {
+    mount(40009, 'float64');
+    expect(cell(40009).querySelector('[data-shared-span]')).toHaveAttribute('data-shared-span', '2');
+    expect(cell(40010)).toHaveTextContent('next row');
+    expect(cell(40011).querySelector('[data-shared-span]')).toHaveAttribute('data-shared-span', '2');
+    expect(cell(40011)).toHaveTextContent('cont. 40009');
+    expect(cell(40011)).toHaveTextContent('3/4');
+  });
+  it('keeps a page continuation addressable without inventing a new value key', () => {
+    mount(40249, 'float64');
+    // A capped 250-register window splits the value after its second register.
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '40001' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Go' }));
+    expect(cell(40249).querySelector('[data-shared-span]')).toHaveAttribute('data-shared-span', '2');
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    expect(cell(40251)).toHaveTextContent('cont. 40249');
+    expect(cell(40251)).toHaveTextContent('3/4');
+    expect(cell(40251)).not.toHaveAttribute('data-value-key');
+  });
+});
+
+it('uses the rendered five-column geometry for joins and keyboard movement', () => {
+  const original = window.getComputedStyle;
+  const style = vi.spyOn(window, 'getComputedStyle').mockImplementation((node, pseudo) => {
+    const result = original(node, pseudo);
+    if (node.classList.contains('gw-memory-grid')) Object.defineProperty(result, 'gridTemplateColumns', { value: '80px 80px 80px 80px 80px' });
+    return result;
+  });
+  try {
+    render(<RecordingHomeMemoryView protocol="modbus_tcp" status="ready" checking={false} onOpen={noop} onAdd={noop} onBack={noop} onClose={noop}
+      inputs={[{ id: 'A', label: 'A_', start_address: '40005', count: 1, data_type: 'float64', skipped_addresses: [] }]} />);
+    const first = screen.getByTestId('home-memory-cell-40005');
+    expect(first.querySelector('[data-shared-span]')).toHaveAttribute('data-shared-span', '1');
+    expect(screen.getByTestId('home-memory-cell-40006').querySelector('[data-shared-span]')).toHaveAttribute('data-shared-span', '3');
+    first.focus(); fireEvent.keyDown(first, { key: 'ArrowDown' });
+    expect(screen.getByTestId('home-memory-cell-40010')).toHaveFocus();
+  } finally { style.mockRestore(); }
 });
