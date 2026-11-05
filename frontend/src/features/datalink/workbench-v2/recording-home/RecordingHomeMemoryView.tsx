@@ -180,12 +180,14 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
         {messages.length > 0 && <div role="alert" className="gw-memory-notice">{messages.map(message => <p key={message.key}>{message.text}
           {message.ruleId && <button type="button" onClick={() => onOpen(message.ruleId!)}>{t('source.memory.openRange', { label: label(message.ruleId) })}</button>}
           {message.retry && retry}</p>)}</div>}
-        <div className="gw-memory-workspace" data-layout={layout}>
-          {layout === 'navigator' && <MemoryRangeNavigation area={area} inputs={inputs} onJump={jump} />}
-          <div className="gw-memory-main">
         <div className="gw-memory-toolbar">
           <form onSubmit={event => { event.preventDefault(); go(); }}><label><span className="gw-memory-locate-label">{t('source.memory.locate')}</span><input value={locate} placeholder={memoryAddress(area, area.base)}
             aria-invalid={locateError} onChange={event => { setLocate(event.target.value); setLocateError(false); }} /></label><button type="submit">{t('source.memory.go')}</button></form>
+        <div className="gw-memory-nav" role="group" aria-label={t('source.memory.navigation')}>
+          <button type="button" disabled={start <= area.base} onClick={() => move(start - window.length)}><span aria-hidden="true">‹ </span>{t('source.memory.previous')}</button>
+          <p aria-live="polite">{t('source.memory.showing', { from: cells[0]?.address, to: cells.at(-1)?.address, unit: unit(area) })}</p>
+          <button type="button" disabled={(cells.at(-1)?.offset ?? area.max) >= area.max} onClick={() => move(start + window.length)}>{t('source.memory.next')}<span aria-hidden="true"> ›</span></button>
+        </div>
         </div>
         {locateError && <p role="alert">{t('source.memory.locateInvalid', { area: name(area) })}</p>}
         {area.ruleIds.length > 0 && layout !== 'navigator' && layout !== 'chapters' && <p className="gw-memory-jumps"><span>{t('source.memory.jumpTo')} <span className="gw-muted">{area.ruleIds.length}</span></span>{area.ruleIds.map(id => {
@@ -194,21 +196,19 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
           const text = `${memoryAddress(area, offset)} · ${rule!.label}`;
           return <button key={id} type="button" aria-label={text} title={text} onClick={() => { move(memoryRowStart(area, offset)); setFocus(offset); }}>{text}</button>;
         })}</p>}
-        <div className="gw-memory-nav" role="group" aria-label={t('source.memory.navigation')}>
-          <button type="button" disabled={start <= area.base} onClick={() => move(start - window.length)}><span aria-hidden="true">‹ </span>{t('source.memory.previous')}</button>
-          <p aria-live="polite">{t('source.memory.showing', { from: cells[0]?.address, to: cells.at(-1)?.address, unit: unit(area) })}</p>
-          <button type="button" disabled={(cells.at(-1)?.offset ?? area.max) >= area.max} onClick={() => move(start + window.length)}>{t('source.memory.next')}<span aria-hidden="true"> ›</span></button>
-        </div>
-        {layout === 'map' && <MemoryAddressMap cells={cells} selected={selected?.offset} onSelect={select} />}
-        {layout === 'chapters' && <MemoryRangeChapters area={area} inputs={inputs} onJump={jump} />}
+        <div className="gw-memory-meta">
         {types.length > 0 && <ul className="gw-memory-type-legend" aria-label={t('source.memory.presentation.types')}>
           {types.map(type => <li key={type} data-family={memoryTypeFamily(type)}>{type}</li>)}
         </ul>}
-        <div className="gw-memory-meta">
           <ul className="gw-memory-legend" aria-label={t('source.memory.legend')}>{(['empty', 'used', 'conflict', 'unconfirmed'] as const).map(state =>
             <li key={state}><span className="gw-memory-swatch" data-state={state} aria-hidden="true" />{t(`source.memory.state.${state}`)}</li>)}</ul>
           {values && <p className="gw-memory-live" data-status={values.status} role={values.status === 'error' ? 'alert' : 'status'} data-testid="home-memory-values-status">
             <span className="gw-memory-live-dot" aria-hidden="true" />{(values.status === 'live' || values.status === 'polling') && values.updatedAt ? t(`source.memory.value.${values.status}Updated`, { time: clock(values.updatedAt) }) : t(`source.memory.value.${values.status}`)}</p>}</div>
+        <div className="gw-memory-workspace" data-layout={layout}>
+          {layout === 'navigator' && <MemoryRangeNavigation area={area} inputs={inputs} onJump={jump} />}
+          {layout === 'chapters' && <MemoryRangeChapters area={area} inputs={inputs} onJump={jump} />}
+          <div className="gw-memory-main">
+        {layout === 'map' && <MemoryAddressMap cells={cells} selected={selected?.offset} onSelect={select} />}
         {owners && <section className="gw-memory-owners" data-testid="home-memory-owners" aria-labelledby="home-memory-owners-title">
           <h4 id="home-memory-owners-title" tabIndex={-1} ref={focusOwnerHeading}>{t('source.memory.ownersTitle', { address: owners.address })}</h4>
           {owners.owners.map(owner => <button key={owner.ruleId} type="button" onClick={() => onOpen(owner.ruleId)}>{t('source.memory.owner', { label: owner.label, type: owner.dataType, start: owner.valueAddress })}</button>)}
@@ -226,9 +226,9 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
       </div>
     </>;
   };
-  return <><div ref={viewport} className="gw-modal-body" data-testid="home-memory-view" data-layout={layout}><section className="gw-home-memory" aria-labelledby="home-memory-heading">
+  return <><div ref={viewport} className="gw-modal-body" data-testid="home-memory-view" data-layout={layout}><section className="gw-home-memory" aria-labelledby="home-memory-heading" aria-describedby="home-memory-description">
     <h3 id="home-memory-heading" ref={heading} tabIndex={-1}>{t('source.memory.heading')}</h3>
-    <p className="gw-muted gw-memory-intro">{t('source.memory.intro')}</p>
+    <p id="home-memory-description" className="gw-muted gw-memory-intro">{t('source.memory.intro')}</p>
     <p className="gw-muted gw-memory-intro-short">{t('source.memory.introShort')}</p>
     <div className="gw-memory-layouts" role="group" aria-label={t('source.memory.layouts.label')}>
       {MEMORY_LAYOUTS.map(item => <button key={item} type="button" data-testid={`home-memory-layout-${item}`} aria-pressed={layout === item}

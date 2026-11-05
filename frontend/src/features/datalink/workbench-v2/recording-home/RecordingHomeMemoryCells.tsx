@@ -30,8 +30,10 @@ export function RecordingHomeMemoryCells({ cells, columns, areaKey, active, pend
     if (value && !joinedBefore) {
       while (span < value.width - value.part + 1 && column + span < columns && sameValue(cells[index + span], value)) span++;
     }
+    // Focus may scroll another cell under a stationary pointer and emit mouseenter.
+    // Only actual mouse movement should replace the keyboard-selected detail.
     const props = { 'data-testid': `home-memory-cell-${cell.address}`, 'data-state': cell.state, 'data-offset': cell.offset, 'data-selected': cell.offset === active || undefined, 'aria-label': describe(cell),
-      tabIndex: cell.offset === active ? 0 : -1, onFocus: () => onFocus(cell.offset), onMouseEnter: () => onHover(cell.offset), onKeyDown: (event: KeyboardEvent) => onKeyDown(event, cell),
+      tabIndex: cell.offset === active ? 0 : -1, onFocus: () => onFocus(cell.offset), onMouseMove: () => onHover(cell.offset), onKeyDown: (event: KeyboardEvent) => onKeyDown(event, cell),
       'data-part': owner ? (owner.part === 1 ? 'first' : 'rest') : undefined,
       'data-family': cell.state === 'used' ? memoryTypeFamily(owner.dataType) : undefined,
       'data-value-key': cell.state === 'used' && owner.part === 1 ? memoryValueKey(areaKey, cell.offset, owner.dataType) : undefined,

@@ -11,7 +11,9 @@ for (const width of [1440, 768, 390]) {
         await page.getByTestId(`home-memory-layout-${layout}`).click();
         const first = page.getByTestId('home-memory-cell-40001'), continuation = page.getByTestId('home-memory-cell-40018');
         const detail = page.getByTestId('home-memory-detail'), action = page.getByTestId('fixture-last-action');
-        await first.focus(); await continuation.hover();
+        await first.focus();
+        await expect(detail.locator('.gw-memory-detail-address')).toHaveText('40001');
+        await continuation.hover();
         await expect(detail.locator('.gw-memory-detail-address')).toHaveText('40018');
         await expect(detail.locator('.gw-memory-detail-reading')).toHaveText('12.5');
         await expect(detail).toContainText('40017');

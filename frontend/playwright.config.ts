@@ -15,6 +15,8 @@ export default defineConfig({
   },
   webServer: {
     command: 'npm run dev -- --port 4173 --host 127.0.0.1',
+    // Bundled dev serves the app entrypoint for isolated fixture HTML routes.
+    env: { VITE_BUNDLED_DEV: 'false' },
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: true,
     timeout: 120_000,

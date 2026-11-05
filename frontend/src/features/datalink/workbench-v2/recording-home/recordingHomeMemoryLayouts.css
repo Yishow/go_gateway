@@ -81,6 +81,27 @@
 .gw-memory-map-summary .gw-memory-detail-facts > div { display: flex; flex-wrap: wrap; gap: 4px 8px; }
 .gw-memory-map-summary .gw-memory-detail-reading { font-size: 16px; }
 
+/* Shared controls use the whole modal, leaving the address grid room in every layout. */
+@media (min-width: 640px) {
+  .gw-home-memory, .gw-memory-panel { gap: 8px; }
+  .gw-home-memory > :is(h3, .gw-memory-intro) { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .gw-home-memory > .gw-memory-intro-short { display: block; font-size: 13px; }
+  .gw-home-memory .gw-memory-toolbar form { flex: 1 1 240px; max-width: 360px; }
+  .gw-memory-toolbar label { display: flex; align-items: center; gap: 8px; }
+  .gw-memory-locate-label { flex: none; }
+  .gw-memory-toolbar .gw-memory-nav { margin-inline-start: auto; }
+  .gw-memory-jumps { flex-wrap: nowrap; overflow-x: auto; }
+  .gw-memory-jumps > span { flex: none; }
+  .gw-modal .gw-memory-jumps > button { flex: none; max-width: 70%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .gw-memory-workspace[data-layout=chapters] { grid-template-columns: minmax(180px, 220px) minmax(0, 1fr); }
+  .gw-memory-workspace[data-layout=chapters] .gw-memory-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .gw-memory-address-map { gap: 4px; padding-block: 6px; }
+}
+@media (min-width: 1024px) {
+  .gw-memory-workspace[data-layout=chapters] { grid-template-columns: minmax(220px, 260px) minmax(0, 1fr); }
+  .gw-memory-workspace[data-layout=chapters] .gw-memory-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+}
+
 @media (max-width: 639px) {
   .gw-home-memory, .gw-memory-panel, .gw-memory-main { gap: 8px; }
   .gw-memory-intro-short, .gw-memory-type-legend { display: none; }

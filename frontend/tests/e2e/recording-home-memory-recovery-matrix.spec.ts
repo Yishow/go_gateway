@@ -5,7 +5,7 @@ const layouts = ['grid', 'navigator', 'map', 'chapters', 'detail'] as const;
 async function control(page: Page, label: string, value: string) {
   const controls = page.getByTestId('fixture-controls');
   await controls.locator('summary').click();
-  await controls.getByLabel(label, { exact: true }).selectOption(value);
+  await controls.getByRole('combobox', { name: label, exact: true }).selectOption(value);
   await controls.locator('summary').click();
 }
 

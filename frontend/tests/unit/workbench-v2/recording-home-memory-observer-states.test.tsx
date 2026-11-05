@@ -44,7 +44,7 @@ it('does not transiently clear subscribed keys while hover rebinds a populated v
   fireEvent.click(screen.getByTestId('home-memory-layout-detail'));
   act(() => Observer.instances.at(-1)!.show(screen.getByTestId('home-memory-cell-40001')));
   setVisible.mockClear();
-  fireEvent.mouseEnter(screen.getByTestId('home-memory-cell-40002'));
+  fireEvent.mouseMove(screen.getByTestId('home-memory-cell-40002'));
   expect(setVisible).not.toHaveBeenCalledWith([]);
   const detail = screen.getByTestId('home-memory-detail').querySelector('[data-value-key]')!;
   act(() => Observer.instances.at(-1)!.show(detail));
