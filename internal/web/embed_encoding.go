@@ -10,37 +10,45 @@ import (
 	"strings"
 )
 
+const cssExtension = ".css"
+
 var hashedAssetName = regexp.MustCompile(`^.+-[A-Za-z0-9_-]{8,}\.[A-Za-z0-9]+$`)
 
 // The map is populated only at startup from the finite embedded asset set.
 // Retained gzip payload is strictly smaller than its source; no request adds keys.
 func buildCompressedAssets(assets fs.FS) map[string][]byte {
 	compressed := make(map[string][]byte)
-	_ = fs.WalkDir(assets, ".", func(name string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() || !hashedAssetName.MatchString(path.Base(name)) {
+	err := fs.WalkDir(assets, ".", func(name string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() || !hashedAssetName.MatchString(path.Base(name)) {
 			return nil
 		}
 		ext := strings.ToLower(path.Ext(name))
-		if ext != ".js" && ext != ".css" {
+		if ext != ".js" && ext != cssExtension {
 			return nil
 		}
 		original, err := fs.ReadFile(assets, name)
 		if err != nil {
-			return nil
+			return err
 		}
 		var buf bytes.Buffer
 		writer := gzip.NewWriter(&buf)
-		if _, err = writer.Write(original); err != nil {
-			return nil
+		if _, err := writer.Write(original); err != nil {
+			return err
 		}
-		if err = writer.Close(); err != nil {
-			return nil
+		if err := writer.Close(); err != nil {
+			return err
 		}
 		if buf.Len() < len(original) {
 			compressed[name] = bytes.Clone(buf.Bytes())
 		}
 		return nil
 	})
+	if err != nil {
+		return nil
+	}
 	return compressed
 }
 

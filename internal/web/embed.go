@@ -44,6 +44,11 @@ func setupStaticFS(router *gin.Engine, staticFiles fs.FS) {
 
 	compressed := buildCompressedAssets(assetsFS)
 	validators := buildStaticValidators(fsys, compressed)
+	// A failed scan must not publish partial derived representations or validators.
+	if compressed == nil || validators == nil {
+		compressed = nil
+		validators = nil
+	}
 
 	// 手動處理靜態資源請求，確保 MIME type 正確
 	serveAsset := func(c *gin.Context) {
@@ -89,7 +94,7 @@ func setupStaticFS(router *gin.Engine, staticFiles fs.FS) {
 		var contentType string
 
 		switch ext {
-		case ".css":
+		case cssExtension:
 			contentType = "text/css; charset=utf-8"
 		case ".js", ".mjs":
 			contentType = "application/javascript; charset=utf-8"
@@ -148,7 +153,7 @@ func setupStaticFS(router *gin.Engine, staticFiles fs.FS) {
 			c.JSON(http.StatusInternalServerError, gin.H{responseErrorKey: "vite.svg 檔案不支援讀取"})
 			return
 		}
-		c.Header("Cache-Control", "no-cache")
+		c.Header("Cache-Control", cacheRevalidate)
 		c.Header("ETag", validators["vite.svg"].identity)
 		c.Header("Content-Type", "image/svg+xml")
 		http.ServeContent(c.Writer, c.Request, "vite.svg", stat.ModTime(), readSeeker)
@@ -186,7 +191,7 @@ func setupStaticFS(router *gin.Engine, staticFiles fs.FS) {
 			c.JSON(http.StatusInternalServerError, gin.H{responseErrorKey: "index.html 檔案不支援讀取"})
 			return
 		}
-		c.Header("Cache-Control", "no-cache")
+		c.Header("Cache-Control", cacheRevalidate)
 		c.Header("ETag", validators["index.html"].identity)
 		c.Header("Content-Type", "text/html; charset=utf-8")
 		http.ServeContent(c.Writer, c.Request, "index.html", stat.ModTime(), readSeeker)

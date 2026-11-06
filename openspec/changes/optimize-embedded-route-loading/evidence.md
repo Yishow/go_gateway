@@ -2,7 +2,7 @@
 
 ## 當前狀態（最新指示）
 
-本案非browser實作、完整前端檢查、Go web檢查及49-path review完成，現在為9/11。3.3已完成；僅3.2真browser與3.4最終驗收／archive待辦。依使用者最新指示，非browser相關變更可先獨立commit，繼續後續三案，全部實作完成後一起在Mac驗收。雲端不得擴權，browser尚未通過，archive仍保留。以下舊8/10與「未繼續下一案」是前次checkpoint，不是目前的停止要求。
+本案首次非 browser 實作與 49-path review 已提交 ca372b31920917a5370df948a9f306a4f64b09f7；新增 Go 靜態檢查後的五檔錯誤路徑補查亦完成，現在為10/12。3.3與3.5已完成；僅3.2真browser與3.4最終驗收／archive待辦。依最新指示，非browser變更可獨立commit並繼續後續三案，全部實作完成後一起在Mac驗收。不擴權、不push。以下8/10、9/11與「未繼續下一案」屬歷史checkpoint。其他change進行中的前端diff不屬本次五檔補查；整合後前端檢查由後續change與最後批次執行。
 
 ## 1.1 實作前基準（2026-11-06）
 
@@ -65,3 +65,15 @@
 ## 驗收順序更新
 
 2026-11-06使用者明確要求全部非browser實作後再一起於Mac驗收，並保留archive以避免停止實作。前述「未archive／commit、後三案parked」是本次前段checkpoint，不是新的停止要求；後三案可依序繼續。雲端仍不得擴權。非browser品質已通過，browser與最後archive任務維持未完成，可先提交已授權的本案程式與證據。
+
+
+## 3.5 衍生快取失敗回退與 Go 靜態檢查
+
+官方 golangci-lint v2.6.2 以 Go1.25.5 於正常權限安裝至工作區工具目錄，module checksum 驗證開啟，沒有變更專案 go.mod／go.sum。補跑發現11項靜態問題，集中於被忽略的 WalkDir／讀取錯誤與重複常數／測試寫法。
+
+- 先加入 TestEmbeddedCacheFailureDiscardsPartialState，3類 fault injection 在修正前失敗：有效資產後讀取失敗、後續目錄走訪失敗、僅 validator 走訪失敗。
+- 任一建表失敗共同捨棄不完整 gzip／validator cache；可讀的原始 identity 繼續由 ServeContent 提供，identity被禁止則406，沒有半套ETag或gzip、沒有raw backend error。
+- 目前受影響檔案：internal/web/embed.go、embed_cache.go、embed_encoding.go、embed_delivery_test.go、新embed_failure_test.go。明確歸屬CLI task12（文件3.5）；未修改API／SSE或前端。
+- passed-current：go test ./internal/web -count=1、go vet ./internal/web、golangci-lint run --allow-serial-runners ./internal/web（0 issues）、bash tests/shell/embedded-frontend-delivery.sh（21/21）、scoped diff check、五檔獨立source review（0 findings）。初次lint因其他runner持鎖未完成，使用官方串行選項重跑成功。
+- 前端648檔7397項及lint/build是ca372b31提交內容的先前有效證據；本次不重跑未改的前端。B進行中的前端修改由其自行驗證，不能用A先前結果宣稱已通過。舊Linux binary屬先前build；最終包含所有change的binary仍須重建。
+- 真browser與archive仍未完成；shell腳本的多平台檢查不等於實際執行所有平台。
