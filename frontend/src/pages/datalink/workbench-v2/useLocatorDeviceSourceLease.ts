@@ -22,12 +22,12 @@ interface Owner {
 }
 function valid(owner: Owner): owner is Owner & { workspaceId: string; revision: string } {
   const selected = owner.entry?.selection;
-  return Boolean(owner.enabled && owner.workspaceId?.trim() && owner.revision?.trim() &&
+  return Boolean(owner.enabled && owner.workspaceId?.trim() && (owner.revision === '' || owner.revision?.trim()) &&
     owner.entry?.workspace.id === owner.workspaceId && owner.entry.locator.workspace_id === owner.workspaceId &&
     selected?.state === 'selected' && selected.target.workspaceId === owner.workspaceId && selected.target.workspaceRevision === owner.revision);
 }
 /** Local stable-read grant only. Neither an atomic source snapshot nor server CAS authority.
- * Uses database setup revision, never the unrelated Modbus Share revision.
+ * Uses database setup revision (empty before DB setup), never the unrelated Modbus Share revision.
  * No hydration dispatch occurs: an already-open recording draft is untouched. */
 export function useLocatorDeviceSourceLease(entry?: StudioLocatorEntryRead, sourceWorkspaceId?: string, enabled = true): LocatorDeviceSourceLease {
   const owner = useRef<Owner>({ origin: entry, originRevision: entry?.entry.workspace_revision, entry, workspaceId: sourceWorkspaceId, revision: entry?.entry.workspace_revision, enabled });
@@ -52,7 +52,8 @@ export function useLocatorDeviceSourceLease(entry?: StudioLocatorEntryRead, sour
     const beforeWorkspace = await studioV2WorkspaceAPI.get();
     if (!isCurrent(captured, request) || beforeWorkspace.id !== captured.workspaceId) return;
     const beforeGroups = await studioV2WorkspaceWriteGroupsAPI.list();
-    if (!isCurrent(captured, request) || beforeGroups.workspace_id !== captured.workspaceId || !beforeGroups.workspace_revision.trim() ||
+    if (!isCurrent(captured, request) || beforeGroups.workspace_id !== captured.workspaceId ||
+      (beforeGroups.workspace_revision !== '' && !beforeGroups.workspace_revision?.trim()) ||
       acquiring && beforeGroups.workspace_revision !== captured.revision) return;
     const devices = await studioV2WorkspaceDevicesAPI.list();
     if (!isCurrent(captured, request)) return;

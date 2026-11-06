@@ -20,7 +20,7 @@ vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWri
 vi.mock('@/services/studioV2WorkspaceDevices', () => ({ studioV2WorkspaceDevicesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn() } }));
 vi.mock('@/services/studioV2Rules', () => ({ studioV2RulesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() } }));
 vi.mock('@/services/studioV2Mappings', () => ({ studioV2MappingsAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn() } }));
-vi.mock('@/services/datalink', () => ({ modbusShareAPI: { status: vi.fn() }, pointAPI: { list: vi.fn(), get: vi.fn() }, tagAPI: { get: vi.fn() }, deviceAPI: { checkReadiness: vi.fn().mockResolvedValue({ device_id: 'D', activation_allowed: false }) } }));
+vi.mock('@/services/datalink', () => ({ modbusShareAPI: { status: vi.fn() }, pointAPI: { list: vi.fn(), get: vi.fn() }, tagAPI: { get: vi.fn() }, deviceAPI: { testConnection: vi.fn(), checkReadiness: vi.fn().mockResolvedValue({ device_id: 'D', activation_allowed: false }) } }));
 vi.mock('@/services/studioV2RuntimeContext', () => ({ studioV2RuntimeContextAPI: { getRuleEvidence: vi.fn() } }));
 const completeDevice = () => ({ ...nativeDevice(), connection_config: '{"host":"device.example","port":502,"slave_id":1,"timeout":1500}' });
 const clients: QueryClient[] = [];
@@ -59,12 +59,64 @@ async function editRange() {
   const dialog = await openRange();
   return within(dialog).findByTestId('home-saved-range-form');
 }
+async function openInactiveRange() {
+  const inactive = { ...nativeRule(), enabled: false };
+  vi.mocked(studioV2RulesAPI.list).mockResolvedValue([inactive]);
+  vi.mocked(studioV2DatalinkApi.get).mockImplementation(async (_url, config) => {
+    const params = config?.params as Record<string, string>;
+    const read = locatorRead(params.step === '2' ? 2 : 1); read.workspace = workspace; read.entry.devices = [completeDevice()];
+    if (params.step === '2') read.entry.source_rules = [inactive];
+    return { data: { success: true, data: { ...read.workspace, locator_entry: read.entry } } };
+  });
+  mount(); await editRange();
+  fireEvent.click(screen.getByRole('switch', { name: 'Enable rule' }));
+  fireEvent.click(screen.getByTestId('home-range-save'));
+  await screen.findByTestId('home-range-activation-not-ready');
+  return inactive;
+}
 function noOtherWrites() {
   for (const fn of [studioV2WorkspaceDevicesAPI.create, studioV2WorkspaceDevicesAPI.update, studioV2RulesAPI.create,
     studioV2RulesAPI.remove, studioV2MappingsAPI.create, studioV2MappingsAPI.update,
     studioV2WorkspaceWriteGroupsAPI.create, studioV2WorkspaceWriteGroupsAPI.update, studioV2WorkspaceWriteGroupsAPI.apply]) expect(fn).not.toHaveBeenCalled();
 }
 describe('Home uses the original scoped source owner inside the demo modal', () => {
+  it('explains missing readiness before enabling a saved offline range, without sending an invalid update', async () => {
+    const inactive = await openInactiveRange();
+    expect(screen.getByTestId('home-range-activation-not-ready')).toHaveTextContent('connection and read tests');
+    expect(screen.getByRole('button', { name: 'Test connection and save' })).toBeEnabled();
+    expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); expect(deviceAPI.testConnection).not.toHaveBeenCalled();
+    expect(screen.getByTestId('rule-prefix-input')).toHaveValue(inactive.naming_prefix); noOtherWrites();
+  });
+  it('tests only on explicit request and saves once after fresh readiness and scope checks', async () => {
+    await openInactiveRange();
+    vi.mocked(deviceAPI.testConnection).mockResolvedValue({ success: true } as Awaited<ReturnType<typeof deviceAPI.testConnection>>);
+    vi.mocked(deviceAPI.checkReadiness).mockResolvedValue({ device_id: 'D', activation_allowed: true } as Awaited<ReturnType<typeof deviceAPI.checkReadiness>>);
+    fireEvent.click(screen.getByRole('button', { name: 'Test connection and save' }));
+    await screen.findByTestId('home-range-saved');
+    expect(deviceAPI.testConnection).toHaveBeenCalledExactlyOnceWith('D');
+    expect(studioV2RulesAPI.update).toHaveBeenCalledExactlyOnceWith('R', expect.objectContaining({ enabled: true }));
+    noOtherWrites();
+  });
+  it.each(['failed', 'unavailable', 'foreign', 'not-ready', 'changed'] as const)('retains the offline range and unsent edit after %s activation evidence', async mode => {
+    await openInactiveRange();
+    vi.mocked(deviceAPI.testConnection).mockImplementation(async () => {
+      if (mode === 'unavailable') throw new Error('PRIVATE test failure');
+      if (mode === 'changed') vi.mocked(studioV2DatalinkApi.get).mockImplementation(async () => {
+        const read = locatorRead(2); read.workspace = workspace; read.entry.devices = [completeDevice()];
+        read.entry.rule_heads.R = 'R3'; read.entry.source_rules![0].revision_id = 'R3';
+        return { data: { success: true, data: { ...workspace, locator_entry: read.entry } } };
+      });
+      return { success: mode !== 'failed' } as Awaited<ReturnType<typeof deviceAPI.testConnection>>;
+    });
+    vi.mocked(deviceAPI.checkReadiness).mockResolvedValue({ device_id: mode === 'foreign' ? 'OTHER' : 'D', activation_allowed: mode !== 'not-ready' } as Awaited<ReturnType<typeof deviceAPI.checkReadiness>>);
+    fireEvent.click(screen.getByRole('button', { name: 'Test connection and save' }));
+    await waitFor(() => expect(screen.getByTestId('home-range-save')).toBeEnabled());
+    if (mode === 'changed') expect(screen.getByText(/saved range changed or could not be verified/i)).toBeVisible();
+    else expect(screen.getByTestId('home-range-activation-not-ready')).toBeVisible();
+    expect(screen.getByRole('switch', { name: 'Enable rule' })).toHaveAttribute('aria-checked', 'true');
+    expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain('PRIVATE'); noOtherWrites();
+  });
   it('opens the captured device and existing ranges without old navigation or writes', async () => {
     const { navigate } = mount(); const dialog = await openRange();
     expect(await within(dialog).findByTestId('rule-prefix-input')).toHaveValue('Rule R'); expect(navigate).not.toHaveBeenCalled();

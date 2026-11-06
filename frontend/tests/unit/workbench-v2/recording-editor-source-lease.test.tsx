@@ -21,6 +21,12 @@ function entry(revision = 'db-revision-1'): StudioLocatorEntryRead {
     selection: { state: 'selected', target: { workspaceId: 'workspace-1', workspaceRevision: revision, step: 4, groupId: 'group-1', groupRevision: 'g1' } } };
 }
 function setup(value = entry()) { return renderHook(({ read, enabled, workspaceId }) => useLocatorDeviceSourceLease(read, workspaceId, enabled), { initialProps: { read: value, enabled: true, workspaceId: 'workspace-1' } }); }
+function sourceEntry(revision: string): StudioLocatorEntryRead {
+  const read = entry(revision);
+  return { ...read, locator: { ...read.locator, step: 1, device_id: 'dev-A', group_id: null, group_revision: null },
+    entry: { ...read.entry, workspace_revision: revision },
+    selection: { state: 'selected', target: { workspaceId: 'workspace-1', workspaceRevision: revision, step: 1, deviceId: 'dev-A' } } };
+}
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(yes => { resolve = yes; }); return { resolve, promise }; }
 beforeEach(() => {
   vi.clearAllMocks();
@@ -36,6 +42,29 @@ describe('explicit locator device source read lease, not CAS', () => {
     expect(workspaces.get).toHaveBeenCalledTimes(2); expect(groups.list).toHaveBeenCalledTimes(2); expect(devices.list).toHaveBeenCalledOnce();
     expect(workspaces.get.mock.invocationCallOrder[0]).toBeLessThan(devices.list.mock.invocationCallOrder[0]);
     expect(workspaces.get.mock.invocationCallOrder[1]).toBeGreaterThan(devices.list.mock.invocationCallOrder[0]);
+  });
+  it('reads source devices with a stable empty DB revision before database setup', async () => {
+    groups.list.mockResolvedValue({ workspace_id: 'workspace-1', workspace_revision: '', groups: [] });
+    const current = setup(sourceEntry(''));
+    await act(async () => { expect(await current.result.current.acquire('workspace-1')).toBe(true); });
+    await act(async () => { expect(await current.result.current.readback()).toEqual([deviceFixture()]); });
+    expect(current.result.current.allowed).toBe(true);
+  });
+  it('rejects database setup created during an empty-revision source read', async () => {
+    groups.list.mockResolvedValueOnce({ workspace_id: 'workspace-1', workspace_revision: '', groups: [] })
+      .mockResolvedValue({ workspace_id: 'workspace-1', workspace_revision: 'new-db-revision', groups: [] });
+    const current = setup(sourceEntry(''));
+    await act(async () => { expect(await current.result.current.acquire('workspace-1')).toBe(false); });
+    expect(current.result.current.allowed).toBe(false);
+    expect(await current.result.current.readback()).toBeUndefined();
+  });
+  it.each([undefined, '   '])('does not treat missing or whitespace revision %s as unconfigured database setup', async revision => {
+    const invalidRevision = revision as unknown as string;
+    const current = setup(sourceEntry(invalidRevision));
+    groups.list.mockResolvedValue({ workspace_id: 'workspace-1', workspace_revision: invalidRevision, groups: [] });
+    await act(async () => { expect(await current.result.current.acquire('workspace-1')).toBe(false); });
+    expect(current.result.current.allowed).toBe(false);
+    expect(workspaces.get).not.toHaveBeenCalled();
   });
   it.each(['foreign', 'stale', 'empty', 'changed', 'missing-device', 'duplicate-device'] as const)('fails closed for %s evidence without returning candidate authority', async mode => {
     const current = setup();

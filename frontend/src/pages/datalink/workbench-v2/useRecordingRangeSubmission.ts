@@ -173,7 +173,9 @@ export function useRecordingRangeSubmission(options: RangeSubmissionOptions) {
             const after = await readRuleProof(source.receipt!, source.proof!.request);
             if (!active(entry) || !after || !unchangedLocal(source, after) || !await readRangeCompletion(after, [...source.mappings.values()]) || !same(before.record, after.record) || before.device.connection_config !== after.device.connection_config || before.device.protocol !== after.device.protocol) { inactive('source-changed'); return; }
             if (!active(entry) || !unchangedLocal(source, after)) { inactive('source-changed'); return; }
-            entry.receipt = undefined; entry.proof = undefined; entry.preparing = false; entry.mappingIds = new Set(); entry.mappings = new Map();
+            // Keep the just-revalidated MC proof until the queued rule is acknowledged;
+            // the existing queue gate requires this exact scoped revision to permit the write.
+            entry.receipt = undefined; entry.proof = after; entry.preparing = false; entry.mappingIds = new Set(); entry.mappings = new Map();
             const action: WorkbenchV2Action = { type: 'updateRule', ruleId: entry.snapshot.id, patch: { enabled: true } };
             mutationStarted = true; apply(action); current.current.queueRule(action);
           } catch { if (mutationStarted) publish(entry, 'unknown'); else inactive('diagnostic-failed'); }

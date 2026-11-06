@@ -165,6 +165,28 @@ describe('direct source entry and one shared form presentation', () => {
     expect(within(dialog).queryByTestId('home-range-new')).not.toBeInTheDocument();
     noOtherWrites();
   });
+  it.each([
+    { protocol: 'modbus_tcp', address: '40003' },
+    { protocol: 'mc_3e', address: 'D2' },
+  ] as const)('can prepare a $protocol range before database setup exists', async ({ protocol, address }) => {
+    const sourceWorkspace = { ...workspace, modbus_share: { workspace_id: 'W', workspace_revision: 'source-revision', hydration_state: 'ready' as const, readiness: false } };
+    const device = { ...completeDevice(), protocol };
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue(sourceWorkspace);
+    vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue({ workspace_id: 'W', workspace_revision: '', groups: [] });
+    vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([device]);
+    vi.mocked(studioV2RulesAPI.list).mockResolvedValue([]);
+    vi.mocked(studioV2DatalinkApi.get).mockImplementation(async () => {
+      const read = locatorRead(1);
+      return { data: { success: true, data: { ...workspace, locator_entry: { ...read.entry, workspace_revision: '', devices: [device] } } } };
+    });
+    mount(); const dialog = await openRange();
+    fireEvent.change(await within(dialog).findByLabelText('Starting address', { selector: 'input' }), { target: { value: address } });
+    fireEvent.change(within(dialog).getByLabelText('Number of data items', { selector: 'input' }), { target: { value: '1' } });
+    fireEvent.change(within(dialog).getByLabelText('Point-name prefix', { selector: 'input' }), { target: { value: 'FIRST_' } });
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Save range' })).toBeEnabled());
+    expect(within(dialog).queryByText(/Unable to confirm the current workspace or revision/)).not.toBeInTheDocument();
+    noOtherWrites();
+  });
   it('opens the first of several ranges and keeps unsent edits through the dirty confirmation on close', async () => {
     vi.mocked(studioV2RulesAPI.list).mockResolvedValue([nativeRule(), nativeRule('R2')]);
     mount(); const dialog = await openRange();

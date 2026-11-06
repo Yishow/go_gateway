@@ -120,11 +120,13 @@ export function RecordingHomeRoute({ location, onNavigate, onOpenDevice, onWorks
   const reload = () => Promise.all([workspace.refetch(), groups.refetch()]);
   const failed = workspace.isError || groups.isError;
   const loading = workspace.isFetching || workspace.isPending || groups.isFetching || groups.isPending;
-  const known = !failed && !loading && workspace.data?.id && groups.data?.workspace_id === workspace.data.id &&
+  // Keep the validated home mounted while refreshing the same scope. Its reads
+  // already expose pending evidence; refetching is not a new workspace visit.
+  const known = !failed && workspace.data?.id && groups.data?.workspace_id === workspace.data.id &&
     typeof groups.data.workspace_revision === 'string';
   // Same frame as the scoped home (product header + page header) so the hand-over does not jump.
   const settling = loading && !failed;
-  if (!known) return <><RecordingProductShell workspaceId={workspace.data?.id} scopePending={settling && !workspace.data?.id}
+  if (!known || !workspace.data || !groups.data) return <><RecordingProductShell workspaceId={workspace.data?.id} scopePending={settling && !workspace.data?.id}
     tools={settling ? <RecordingHomeTools location={location} onNavigate={onNavigate} /> : undefined} />
   <main data-workbench-v2="true" data-testid="recording-home" className="gw-recording-home"
     aria-busy={settling || undefined} data-home-settling={settling ? 'true' : 'false'}>

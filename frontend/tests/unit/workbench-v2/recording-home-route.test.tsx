@@ -44,6 +44,21 @@ function mount() {
   return navigate;
 }
 describe('actual optional home entry', () => {
+  it('keeps the same home and filters mounted during a same-workspace background refresh', async () => {
+    mount(); await screen.findByText('reason.missing_devices');
+    const home = screen.getByTestId('recording-home');
+    fireEvent.change(screen.getByLabelText('keyword'), { target: { value: 'keep my filter' } });
+    let resolve!: (value: typeof workspace) => void;
+    vi.mocked(studioV2WorkspaceAPI.get).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    let pending!: Promise<void>;
+    act(() => { pending = clients[0].invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap(), exact: true }); });
+    await waitFor(() => expect(resolve).toBeTypeOf('function'));
+    expect(screen.getByTestId('recording-home')).toBe(home);
+    expect(screen.getByLabelText('keyword')).toHaveValue('keep my filter');
+    await act(async () => { resolve(workspace); await pending; });
+    expect(screen.getByTestId('recording-home')).toBe(home);
+    expect(screen.getByLabelText('keyword')).toHaveValue('keep my filter');
+  });
   it('renders the initial empty database setup without Share and opens no autosave/mutation owners', async () => {
     const navigate = mount(); expect(screen.getByTestId('recording-home')).toBeInTheDocument();
     await screen.findByText('reason.missing_devices'); expect(useStudioV2AutosaveState).not.toHaveBeenCalled();

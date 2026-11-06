@@ -166,6 +166,8 @@
     "devices": "Devices", "rangesUnavailable": "The read ranges of this device could not be read. No changes have been sent.",
     "cancelNewRange": "Cancel new range", "save": "Save", "backToSettings": "Back to settings",
     "ruleEnabled": "Enable rule",
+    "activationNotReady": "This device has not passed its connection and read tests. Turn off the rule to save offline, or test the connection before saving it enabled.",
+    "testAndSave": "Test connection and save",
     "shareOff": "Global Modbus Share is off. Enable it in global settings, then return here.",
     "shareUnknown": "Global Modbus Share status is unconfirmed. Refresh before configuring this rule.",
     "openShareSettings": "Open global settings",

@@ -9,6 +9,7 @@ import { validateScatteredItems } from '../state/scatteredRange';
 import { RuleEditor } from '../steps/step2/RuleEditor';
 import { Toggle } from '../components/Toggle';
 import { readStudioLocatorEntry } from '../../../../services/studioV2LocatorEntry';
+import { deviceAPI } from '../../../../services/datalink';
 import { isKnownRuleValidationRejection } from '../../../../pages/datalink/workbench-v2/sourceQueueObservation';
 import { useRecordingDraftGuard } from '../recording-editor/RecordingDraftNavigation';
 import type { HomeSourceTarget, HomeRuleObserver } from './RecordingHomeSourceHost';
@@ -24,7 +25,7 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
 }) {
   const { t } = useTranslation('recording-home');
   const [draft, setDraft] = useState(rule), base = useRef(rule);
-  const [phase, setPhase] = useState<'editing' | 'checking' | 'saving' | 'saved' | 'validation' | 'unknown' | 'stale'>('editing');
+  const [phase, setPhase] = useState<'editing' | 'checking' | 'saving' | 'saved' | 'validation' | 'unknown' | 'stale' | 'activation-not-ready'>('editing');
   const [confirm, setConfirm] = useState<(() => void)>();
   const submitted = useRef<Partial<Rule> | undefined>(undefined), submittedRule = useRef<Rule | undefined>(undefined);
   const [currentRead, setCurrentRead] = useState<'available' | 'unavailable'>();
@@ -99,20 +100,42 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
     const next = workbenchV2Reducer({ ...state, rules: [draft] }, action).rules.find(value => value.id === rule.id);
     if (next && next.device_id === target.deviceId) { setDraft(next); setPhase('editing'); }
   };
-  const save = async () => {
+  const save = async (testConnection = false) => {
     if (flight.current || locked || suspended || mcBlocked || !dirty || !draftValid) return;
     flight.current = true; setPhase('checking');
     const original = base.current, sourceProof = current.current.proof;
-    let result;
-    try { result = await readStudioLocatorEntry({ step: 2, workspace_id: target.workspaceId, device_id: target.deviceId, rule_id: original.id,
-      mapping_id: null, group_id: null, group_revision: null }); } catch {
+    const readCurrent = async () => {
+      const result = await readStudioLocatorEntry({ step: 2, workspace_id: target.workspaceId, device_id: target.deviceId, rule_id: original.id,
+        mapping_id: null, group_id: null, group_revision: null });
+      const fresh = result.ok ? result.value.entry.source_rules?.find(item => item.id === original.id) : undefined;
+      return fresh && fresh.workspace_id === target.workspaceId && fresh.device_id === target.deviceId && fresh.revision_id === original.revision_id &&
+        !current.current.suspended && !current.current.mcBlocked && (!requiresMC || current.current.proof === sourceProof) &&
+        current.current.rule.revision_id === original.revision_id && current.current.rule.id === original.id && result.ok ? result.value : undefined;
+    };
+    let before;
+    try { before = await readCurrent(); } catch {
       if (mounted.current) { flight.current = false; setPhase('stale'); } return;
     }
     if (!mounted.current) return;
-    const fresh = result.ok ? result.value.entry.source_rules?.find(item => item.id === original.id) : undefined;
-    if (!fresh || fresh.workspace_id !== target.workspaceId || fresh.device_id !== target.deviceId || fresh.revision_id !== original.revision_id ||
-      current.current.suspended || current.current.mcBlocked || requiresMC && current.current.proof !== sourceProof || current.current.rule.revision_id !== original.revision_id || current.current.rule.id !== original.id) {
+    if (!before) {
       flight.current = false; setPhase('stale'); return;
+    }
+    if (draft.enabled && !original.enabled) {
+      let ready = false;
+      try {
+        const tested = !testConnection || (await deviceAPI.testConnection(target.deviceId)).success;
+        if (tested) {
+          const readiness = await deviceAPI.checkReadiness(target.deviceId);
+          ready = readiness.device_id === target.deviceId && readiness.activation_allowed === true;
+        }
+      } catch { ready = false; }
+      if (!mounted.current) return;
+      if (!ready) { flight.current = false; setPhase('activation-not-ready'); return; }
+      let after;
+      try { after = await readCurrent(); } catch { after = undefined; }
+      if (!mounted.current) return;
+      const config = (read: typeof before) => read?.entry.devices?.find(item => item.id === target.deviceId)?.connection_config;
+      if (!after || config(before) !== config(after)) { flight.current = false; setPhase('stale'); return; }
     }
     // Only edited fields: do not replay geometry keys and reset skips on a name-only save.
     const patch = Object.fromEntries(editable.filter(key => JSON.stringify(draft[key]) !== JSON.stringify(original[key])).map(key => [key, draft[key]]));
@@ -131,6 +154,7 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
         globalShareEnabled={state.settings.modbus_share.enabled} shareControls={{ enabled: shareEnabled, retry: onRetryShare, openSettings: () => leave.current?.(onOpenShareSettings) }} dispatch={localDispatch} /></fieldset>
       {phase === 'saved' && <p role="status" data-testid="home-range-saved">{t('source.saved')}</p>}
       {phase === 'validation' && <p role="alert" data-testid="home-range-validation-error">{t('errors.validation', { ns: 'workbench-v2' })} {t('errors.review_request', { ns: 'workbench-v2' })}</p>}
+      {phase === 'activation-not-ready' && <p role="alert" data-testid="home-range-activation-not-ready">{t('source.activationNotReady')}</p>}
       {locked && <p role={phase === 'unknown' ? 'alert' : 'status'} data-testid={`home-range-${phase}`}>{t(`source.${phase}`)}</p>}
       {currentRead && <p role="status">{t(`source.currentRead.${currentRead}`)}</p>}
       {phase === 'stale' && <p role="alert">{t('source.stale')}</p>}
@@ -143,6 +167,6 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
     {moreBelow && <span className="gw-home-range-scroll-cue">{t('source.moreBelow')}</span>}
     {confirm ? <><button type="button" data-testid="home-source-keep" onClick={() => setConfirm(undefined)}>{t('source.keep')}</button>
       <button type="button" className="gw-primary" data-testid="home-source-discard" onClick={() => { const proceed = confirm; setDraft(base.current); setConfirm(undefined); proceed(); }}>{t('source.discard')}</button></>
-      : <><button type="button" data-testid="home-range-done" disabled={locked} onClick={onClose}>{t('source.close')}</button>{phase === 'unknown' && <><button type="button" onClick={() => { void inspect(); }}>{t('source.inspect')}</button><button type="button" onClick={onLeave}>{t('source.leaveSent')}</button></>}<button type="button" className="gw-primary" data-testid="home-range-save" disabled={locked || suspended || mcBlocked || !dirty || !draftValid} onClick={() => { void save(); }}>{t('source.save')}</button></>}
+      : <><button type="button" data-testid="home-range-done" disabled={locked} onClick={onClose}>{t('source.close')}</button>{phase === 'unknown' && <><button type="button" onClick={() => { void inspect(); }}>{t('source.inspect')}</button><button type="button" onClick={onLeave}>{t('source.leaveSent')}</button></>}{phase === 'activation-not-ready' && <button type="button" disabled={suspended || mcBlocked || !dirty || !draftValid} onClick={() => { void save(true); }}>{t('source.testAndSave')}</button>}<button type="button" className="gw-primary" data-testid="home-range-save" disabled={locked || suspended || mcBlocked || !dirty || !draftValid} onClick={() => { void save(); }}>{t('source.save')}</button></>}
   </footer></>;
 }

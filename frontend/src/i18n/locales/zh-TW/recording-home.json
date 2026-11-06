@@ -166,6 +166,8 @@
     "devices": "設備", "rangesUnavailable": "無法讀取此設備的讀取範圍，未送出任何變更。",
     "cancelNewRange": "取消新增", "save": "儲存", "backToSettings": "返回設定",
     "ruleEnabled": "啟用此規則",
+    "activationNotReady": "設備尚未通過連線與讀取測試，無法啟用。可先停用規則保存，或測試連線後再儲存。",
+    "testAndSave": "測試連線並儲存",
     "shareOff": "全域 Modbus Share 尚未啟用。請先到全域設定啟用，完成後返回此頁。",
     "shareUnknown": "尚未確認全域 Modbus Share 狀態，請重新讀取後再設定此規則。",
     "openShareSettings": "開啟全域設定",
