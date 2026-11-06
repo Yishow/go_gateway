@@ -1,3 +1,5 @@
+import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
+import { homeSources } from './recording-home-source-fixtures';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -18,7 +20,8 @@ import i18n from '@/i18n/config';
 vi.mock('@/services/studioV2WorkspaceDatabase', () => ({ studioV2WorkspaceDatabaseAPI: { getConfig: vi.fn(), listTargets: vi.fn(), updateConfig: vi.fn(), upsertTarget: vi.fn() } }));
 vi.mock('@/services/studioV2WorkspaceAudit', () => ({ studioV2WorkspaceAuditAPI: { list: vi.fn().mockResolvedValue({ entries: [] }) } }));
 vi.mock('@/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { get: vi.fn() } }));
-vi.mock('@/services/studioV2Workspace', () => ({ studioV2DatalinkApi: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }, studioV2WorkspaceAPI: { get: vi.fn() } }));
+vi.mock('@/services/recordingHomeSources', () => ({ recordingHomeSourcesAPI: { read: vi.fn() } }));
+vi.mock('@/services/studioV2Workspace', () => ({ studioV2DatalinkApi: { defaults: { baseURL: '/api/v1/datalink' }, get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }, studioV2WorkspaceAPI: { get: vi.fn() } }));
 vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), apply: vi.fn() } }));
 vi.mock('@/services/studioV2WorkspaceDevices', () => ({ studioV2WorkspaceDevicesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn() } }));
 vi.mock('@/services/studioV2Rules', () => ({ studioV2RulesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() } }));
@@ -38,6 +41,7 @@ beforeEach(async () => {
   vi.mocked(deviceAPI.checkReadiness).mockResolvedValue({ device_id: 'D', status: 'ready', connect_status: 'success', probe_status: 'success', activation_allowed: false, planning_allowed: true, apply_allowed: false, blocking_reasons: [], checks: [] });
   vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue({ workspace_id: 'W', workspace_revision: 'W2', groups: [] });
   vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([completeDevice()]);
+  vi.mocked(recordingHomeSourcesAPI.read).mockResolvedValue(homeSources([completeDevice()]));
   vi.mocked(studioV2RulesAPI.list).mockResolvedValue([nativeRule()]);
   vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]); vi.mocked(pointAPI.list).mockResolvedValue([]);
   vi.mocked(studioV2RuntimeContextAPI.getRuleEvidence).mockResolvedValue({ ok: false, reason: 'unavailable', action: 'refresh' });
@@ -101,6 +105,7 @@ describe('Home direct device creation through the original workspace owner', () 
       if (!request.id) throw new Error('Expected original queue client identity');
       const saved = { ...completeDevice(), id: request.id, name: request.name, protocol: request.protocol, connection_config: JSON.stringify(request.connection_config) };
       vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([completeDevice(), saved]);
+      vi.mocked(recordingHomeSourcesAPI.read).mockResolvedValue(homeSources([completeDevice(), saved]));
       vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ ...workspace, ordered_device_ids: ['D', saved.id], modbus_share: { workspace_id: 'W', workspace_revision: 'W2', hydration_state: 'ready', readiness: false } });
       vi.mocked(studioV2DatalinkApi.get).mockImplementation(async (_url, config) => {
         expect(config?.params).toMatchObject({ workspace_id: 'W', device_id: saved.id, step: '1' });

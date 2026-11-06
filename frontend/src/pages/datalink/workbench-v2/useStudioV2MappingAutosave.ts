@@ -50,16 +50,16 @@ export function useStudioV2MappingAutosave(
   enabled: boolean,
   canMutateRule: CanMutateRule = allowAllRules,
   observation?: MappingQueueObservation,
-  allowPreparedMapping?: (point: Point, mapping: Mapping) => boolean,
+  allowPreparedMapping?: (point: Point, mapping: Mapping) => boolean, workspaceId?: string,
 ) {
   const { t } = useTranslation('workbench-v2');
   const observationRef = React.useRef(observation);
   observationRef.current = observation;
   const queryClient = useQueryClient();
   const mappingsQuery = useStudioV2MappingsQuery(enabled);
-  const createMappingMutation = useCreateStudioV2MappingMutation();
-  const updateMappingMutation = useUpdateStudioV2MappingMutation();
-  const deleteMappingMutation = useDeleteStudioV2MappingMutation();
+  const createMappingMutation = useCreateStudioV2MappingMutation(workspaceId);
+  const updateMappingMutation = useUpdateStudioV2MappingMutation(workspaceId);
+  const deleteMappingMutation = useDeleteStudioV2MappingMutation(workspaceId);
   const queues = React.useRef(new Map<string, RuleQueue>());
   const mounted = React.useRef(true);
   const draftVersions = React.useRef(new Map<string, number>());

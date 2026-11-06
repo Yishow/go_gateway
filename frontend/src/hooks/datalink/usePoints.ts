@@ -1,3 +1,4 @@
+import { observeRecordingHomeSourceMutation } from './useRecordingHomeSources';
 /**
  * Point Query Hooks
  *
@@ -69,7 +70,7 @@ export function useCreatePointMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreatePointRequest) => pointAPI.create(data),
+    mutationFn: (data: CreatePointRequest) => observeRecordingHomeSourceMutation(queryClient, () => pointAPI.create(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pointKeys.lists() });
     },
@@ -84,7 +85,7 @@ export function useUpdatePointMutation() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdatePointRequest }) =>
-      pointAPI.update(id, data),
+      observeRecordingHomeSourceMutation(queryClient, () => pointAPI.update(id, data)),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: pointKeys.lists() });
       queryClient.invalidateQueries({ queryKey: pointKeys.detail(id) });
@@ -99,7 +100,7 @@ export function useDeletePointMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => pointAPI.delete(id),
+    mutationFn: (id: string) => observeRecordingHomeSourceMutation(queryClient, () => pointAPI.delete(id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pointKeys.lists() });
     },

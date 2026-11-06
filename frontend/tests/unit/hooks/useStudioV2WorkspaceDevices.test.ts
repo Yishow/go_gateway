@@ -28,6 +28,7 @@ vi.mock('@tanstack/react-query', async () => {
     useQuery: (options: unknown) => useQueryMock(options),
     useMutation: (options: unknown) => useMutationMock(options),
     useQueryClient: () => ({
+      getQueryData: () => undefined,
       invalidateQueries: invalidateQueriesMock,
     }),
   };

@@ -20,7 +20,7 @@ import type { DeviceSourcePort } from '../../../../../../pages/datalink/workbenc
 import { RecordingPointSelection } from '../../../recording-editor/RecordingPointSelection';
 import { RecordingSelectedMembers } from '../../../recording-editor/RecordingSelectedMembers';
 import type { RecordingPickerDiscovery } from '../../../recording-editor/useRecordingPickerDiscovery';
-import { readRecordingHomeSources } from '../../../recording-home/recordingHomeSources';
+import { readRecordingSourceDiscovery } from '../../../recording-editor/recordingSourceDiscovery';
 import type { StudioV2LocatorReadScope } from '../../../../../../services/studioV2WorkspaceDatabase';
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -385,7 +385,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
         {deviceSource ? <RecordingPointSelection key={pickerScope} scope={pickerScope} workspaceId={workspaceId} candidates={candidates}
           members={draft.members} devices={sourceDevices} disabled={readonly || saveBusy} deviceSource={deviceSource} onChange={setMembers}
           onDiscovery={setObservedSources} discover={locatorScope ? async () => {
-            const read = await readRecordingHomeSources({ workspaceId, workspaceRevision, epoch: 0 });
+            const read = await readRecordingSourceDiscovery({ workspaceId, workspaceRevision, epoch: 0 });
             if (read.state !== 'available') throw new Error('Source observation unavailable');
             return { candidates: read.value.candidates, devices: read.value.devices };
           } : undefined}

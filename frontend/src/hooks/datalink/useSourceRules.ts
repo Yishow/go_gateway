@@ -1,3 +1,4 @@
+import { observeRecordingHomeSourceMutation } from './useRecordingHomeSources';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { sourceRuleAPI } from '../../services/datalink';
 import { mappingKeys, pointKeys, sourceRuleKeys, tagKeys } from './keys';
@@ -32,7 +33,7 @@ export function useCreateSourceRuleMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateSourceRuleRequest) => sourceRuleAPI.create(data),
+    mutationFn: (data: CreateSourceRuleRequest) => observeRecordingHomeSourceMutation(queryClient, () => sourceRuleAPI.create(data)),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: sourceRuleKeys.lists() });
       queryClient.invalidateQueries({ queryKey: pointKeys.lists() });
@@ -52,7 +53,7 @@ export function useUpdateSourceRuleMutation() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateSourceRuleRequest }) =>
-      sourceRuleAPI.update(id, data),
+      observeRecordingHomeSourceMutation(queryClient, () => sourceRuleAPI.update(id, data)),
     onSuccess: (rule, { id }) => {
       queryClient.invalidateQueries({ queryKey: sourceRuleKeys.lists() });
       queryClient.invalidateQueries({ queryKey: sourceRuleKeys.detail(id) });
@@ -70,7 +71,7 @@ export function useDeleteSourceRuleMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => sourceRuleAPI.delete(id),
+    mutationFn: (id: string) => observeRecordingHomeSourceMutation(queryClient, () => sourceRuleAPI.delete(id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: sourceRuleKeys.lists() });
       queryClient.invalidateQueries({ queryKey: pointKeys.lists() });
@@ -84,7 +85,7 @@ export function useEnableSourceRuleMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => sourceRuleAPI.enable(id),
+    mutationFn: (id: string) => observeRecordingHomeSourceMutation(queryClient, () => sourceRuleAPI.enable(id)),
     onSuccess: (rule, id) => {
       queryClient.invalidateQueries({ queryKey: sourceRuleKeys.lists() });
       queryClient.invalidateQueries({ queryKey: sourceRuleKeys.detail(id) });
@@ -102,7 +103,7 @@ export function useDisableSourceRuleMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => sourceRuleAPI.disable(id),
+    mutationFn: (id: string) => observeRecordingHomeSourceMutation(queryClient, () => sourceRuleAPI.disable(id)),
     onSuccess: (rule, id) => {
       queryClient.invalidateQueries({ queryKey: sourceRuleKeys.lists() });
       queryClient.invalidateQueries({ queryKey: sourceRuleKeys.detail(id) });

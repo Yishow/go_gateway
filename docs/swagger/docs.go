@@ -3033,6 +3033,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/datalink/studio-v2/recording-home/sources": {
+            "get": {
+                "description": "Readonly two-pass presentation evidence, not an atomic snapshot or command authorization. Unknown contains no partial summary.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Recording Home"
+                ],
+                "summary": "Observe recording home sources",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Existing workspace ID",
+                        "name": "workspace_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RecordingHomeSourcesEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RecordingHomeSourcesError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RecordingHomeSourcesError"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RecordingHomeSourcesError"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/datalink/studio-v2/workspace": {
             "get": {
                 "produces": [
@@ -5950,6 +5997,28 @@ const docTemplate = `{
                 },
                 "workspace_id": {
                     "type": "string"
+                }
+            }
+        },
+        "handlers.RecordingHomeSourcesEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/workspace.RecordingHomeSourcesObservation"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.RecordingHomeSourcesError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },
@@ -10605,6 +10674,101 @@ const docTemplate = `{
                 },
                 "warning_count": {
                     "type": "integer"
+                }
+            }
+        },
+        "workspace.RecordingHomeCandidate": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "device_name": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "tag_id": {
+                    "type": "string"
+                },
+                "tag_key": {
+                    "type": "string"
+                },
+                "target_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.RecordingHomeDeviceSummary": {
+            "type": "object",
+            "properties": {
+                "availability": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.RecordingHomeExcluded": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.RecordingHomeSourcesObservation": {
+            "type": "object",
+            "properties": {
+                "candidates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.RecordingHomeCandidate"
+                    }
+                },
+                "devices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.RecordingHomeDeviceSummary"
+                    }
+                },
+                "excluded": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.RecordingHomeExcluded"
+                    }
+                },
+                "reason_code": {
+                    "type": "string"
+                },
+                "source_digest": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
                 }
             }
         },

@@ -10,14 +10,13 @@ import { recordingCollection, deviceCollection } from './recordingHomeCollection
 import { readHomePresentation, rememberHomePresentation } from './recordingHomePresentation';
 import { buildSimpleRecordingTarget, buildStudioPresentationTarget } from '../../../../services/studioRecordingView';
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useStudioV2WorkspaceQuery } from '../../../../hooks/datalink/useStudioV2Workspace';
 import { useWriteGroupsQuery } from '../../../../hooks/datalink/useStudioV2WriteGroups';
-import { studioV2WorkspaceKeys } from '../../../../hooks/datalink/keys';
 import { useAcquisitionAnomalySummaryQuery } from '../../../../hooks/datalink/useAcquisitionAnomalies';
 import { anomalySummaryStatus } from './AcquisitionAnomalyButton';
-import { readRecordingHomeSources } from './recordingHomeSources';
+import { useRecordingHomeSources, recordingHomeSourceContext } from '../../../../hooks/datalink/useRecordingHomeSources';
 import { useRecordingHomeEvidence } from './useRecordingHomeEvidence';
 import { RecordingHome, RecordingHomeTools, type RecordingHomeLocation } from './RecordingHome';
 import { RecordingProductShell } from '../shell/RecordingProductShell';
@@ -27,47 +26,49 @@ import type { HomeSourceDevice } from './RecordingHomeSourceHost';
 // Request generation only, not configuration or workspace authority. Remounting
 // cannot reuse pending evidence from a previous visit, even A -> B -> A.
 let generation = 0;
+const clientTokens = new WeakMap<object, number>();
+let clientGeneration = 0;
 /** Upper bound for holding the first-load reading state; later reads render progressively as before. */
 export const RECORDING_HOME_SETTLE_LIMIT_MS = 2500;
 function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, onNavigate, reloadScope, onOpenDevice, onCreateDevice }: {
   workspaceId: string; workspaceRevision: string; list: WriteGroupListResponse; location: RecordingHomeLocation; onNavigate?: (target: string) => void; reloadScope: () => Promise<unknown>; onOpenDevice?: (workspaceId: string, deviceId: string, kind: 'connection' | 'points', devices?: readonly HomeSourceDevice[]) => void; onCreateDevice?: (workspaceId: string) => void;
 }) {
   const context = useQueryClient();
-  const [restored, setRestored] = useState(() => readHomePresentation(context, workspaceId, workspaceRevision));
+  const { t } = useTranslation('recording-home');
+  const [presentationContext] = useState(() => recordingHomeSourceContext());
+  const [restored, setRestored] = useState(() => readHomePresentation(context, workspaceId, workspaceRevision, presentationContext));
   const [state, setState] = useState(restored.state);
   // Freeze membership for this user-selected page. Recovered rows stay visible
   // until another filter/page intent; replies cannot pull the next batch in.
   const [filterObservedIds, setFilterObservedIds] = useState<readonly string[]>(restored.observedIds ?? []);
   const [demand, setDemand] = useState<{ state: typeof state; ids: string[] } | null>(null);
   const [scope] = useState<RecordingHomeScope>(() => ({ workspaceId, workspaceRevision, epoch: ++generation }));
-  const sources = useQuery({ queryKey: [...studioV2WorkspaceKeys.all, 'recording-home-sources', scope.workspaceId, scope.workspaceRevision, scope.epoch],
-    queryFn: () => readRecordingHomeSources(scope), retry: false, refetchOnWindowFocus: false, gcTime: 0 });
+  const sources = useRecordingHomeSources(scope);
   const groupsRead = recordingHomeProjection({ scope, groups: { state: 'available', scope, value: list } }).groups;
   const groups = groupsRead.state === 'available' ? groupsRead.value.map(item => item.group) : [];
-  const devices = sources.data?.state === 'available' ? sources.data.value.devices : [];
-  // The same last validated projection the collection shows (a failed refresh replaces it with an error state).
+  const devices = sources.observed?.devices ?? [];
+  // Last observed presentation remains visible; only the current visit can provide fresh evidence.
   // Every device chosen in the settings frame is re-validated by its own scoped locator read.
-  const switchable = sources.data?.state === 'available' ? devices.map(({ id, name }) => ({ id, name })) : undefined;
+  const switchable = sources.observed ? devices.map(({ id, name }) => ({ id, name })) : undefined;
   const cached = cachedHomeReads(context, groups.map(group => ({ ...scope, groupId: group.id, groupRevision: group.revision, appliedRevision: group.applied_revision })));
   const collection = recordingCollection(groups, devices, state, new Set(filterObservedIds));
   const page = state.mode === 'devices' ? deviceCollection(devices, state).page : collection.page;
   // Capture at most one page after source names are available (or failed).
   // Same-intent render/refetch/cache updates never replenish this demand.
-  if (!sources.isPending && demand?.state !== state) {
+  if ((sources.observed || !sources.isPending) && demand?.state !== state) {
     setDemand({ state, ids: state.mode === 'devices' ? [] : collection.rows.map(group => group.id) });
   }
   const demandIds = demand?.state === state ? demand.ids : [];
   const facts = useRecordingHomeFacts(scope, groups, demandIds);
   const anomalySummary = useAcquisitionAnomalySummaryQuery();
-  const home = useRecordingHomeEvidence({ scope, owners: facts.owners, detailGroupIds: demandIds, sources: sources.isFetching || sources.isPending
-    ? { state: 'loading', scope } : sources.isError ? { state: 'error', scope } : sources.data });
+  const home = useRecordingHomeEvidence({ scope, owners: facts.owners, detailGroupIds: demandIds, sources: sources.evidence });
   const summaries = Object.fromEntries(home.guidance.recordingItems.map(item => [item.id, recordingHomeResultSummary(item.evidence, {
     runtime: facts.runtimeGroups[item.id], history: facts.histories[item.id], owner: homeOwners(scope, item.evidence, facts.owners[item.id]).inspection,
   })]));
   const guidance = recordingHomeResultGuidance(home.guidance, summaries);
   // Presentation only: the first visit shows one stable reading state until sources and the
   // captured page's reads settle (success or failure), instead of repainting per read batch.
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(Boolean(sources.observed));
   const settling = !revealed && (sources.isPending || sources.isFetching || demand?.state !== state || home.loading || facts.loading);
   if (!revealed && !settling) setRevealed(true);
   useEffect(() => {
@@ -82,19 +83,19 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
   return <RecordingHome settling={settling} mode={state.mode} onCreateDevice={() => onCreateDevice?.(workspaceId)} workspaceId={workspaceId} guidance={guidance} location={location} onNavigate={onNavigate}
     onConfigurePoints={id => { if (devices.some(device => device.id === id)) onOpenDevice?.(workspaceId, id, 'points', switchable); }}
     onRetry={() => { void Promise.all([reloadScope(), sources.refetch(), home.retry(), facts.retry()]); }}
-    collection={<RecordingHomeCollection groups={groups} devices={devices} state={state} guidance={guidance}
+    collection={<><p data-testid="home-source-observation" data-source-status={sources.status} role={sources.status === 'error' ? 'alert' : 'status'}>{t(`sources.${sources.status}`)}</p><RecordingHomeCollection groups={groups} devices={devices} state={state} guidance={guidance}
       pendingDevices={facts.pendingDevices}
       summaries={summaries}
       anomalySummary={anomalySummaryStatus(anomalySummary)} onAnomaliesClosed={() => { void anomalySummary.refetch(); }}
       observedIds={displayedObservedIds} filterObservedIds={filterObservedIds} unverifiedObserved={unverified.length > 0} onRecheck={() => { void Promise.all([home.retryDetails(), facts.retry()]); }}
-      sourcesAvailable={sources.data?.state === 'available' && !sources.isFetching} presentationReady={!settling} restored={restored}
+      sourcesAvailable={sources.fresh} observedSourcesAvailable={Boolean(sources.observed)} presentationReady={!settling} restored={restored}
       onChange={next => {
         if (!state.observedOnly || !next.observedOnly) setFilterObservedIds(displayedObservedIds);
         setState(next); const presentation = { state: next, workspaceRevision, scrollTop: 0, focusId: null, observedIds: displayedObservedIds };
-        setRestored(presentation); rememberHomePresentation(context, workspaceId, presentation);
+        setRestored(presentation); rememberHomePresentation(context, workspaceId, presentation, presentationContext);
       }}
       onRemember={(scrollTop, focusId, currentPage) => rememberHomePresentation(context, workspaceId,
-        { state: { ...state, page: currentPage ?? page }, workspaceRevision, scrollTop, focusId, observedIds: displayedObservedIds })}
+        { state: { ...state, page: currentPage ?? page }, workspaceRevision, scrollTop, focusId, observedIds: displayedObservedIds }, presentationContext)}
       onOpen={id => {
         const item = home.guidance.recordingItems.find(candidate => candidate.id === id);
         if (item) {
@@ -106,7 +107,7 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
       }}
       onOpenDevice={(id, kind) => {
         if (devices.some(device => device.id === id)) onOpenDevice?.(workspaceId, id, kind, switchable);
-      }} />} />;
+      }} /></>} />;
 }
 /** Home mounts no autosave/activation owners. Bootstrap identity and DB setup
  * revision are read independently, with an explicit empty DB revision allowed. */
@@ -114,6 +115,8 @@ export function RecordingHomeRoute({ location, onNavigate, onOpenDevice, onWorks
   onOpenDevice?: (workspaceId: string, deviceId: string, kind: 'connection' | 'points', devices?: readonly HomeSourceDevice[]) => void; onCreateDevice?: (workspaceId: string) => void; onWorkspaceChange?: (id?: string) => void }) {
   const { t } = useTranslation('recording-home');
   const { t: editorText } = useTranslation('recording-editor');
+  const queryClient = useQueryClient();
+  if (!clientTokens.has(queryClient)) clientTokens.set(queryClient, ++clientGeneration);
   const workspace = useStudioV2WorkspaceQuery();
   useEffect(() => { onWorkspaceChange?.(workspace.data?.id); }, [workspace.data?.id, onWorkspaceChange]);
   const groups = useWriteGroupsQuery(workspace.isSuccess && Boolean(workspace.data?.id));
@@ -138,7 +141,8 @@ export function RecordingHomeRoute({ location, onNavigate, onOpenDevice, onWorks
       <button type="button" onClick={() => { const target = buildStudioPresentationTarget(location.search, location.hash, 'advanced'); if (target) onNavigate?.(target); }}>{t('advanced')}</button></div>
     </section>
   </main></>;
-  return <ScopedRecordingHome key={JSON.stringify([workspace.data.id, groups.data.workspace_revision])}
+  const backendContext = recordingHomeSourceContext();
+  return <ScopedRecordingHome key={JSON.stringify([workspace.data.id, groups.data.workspace_revision, clientTokens.get(queryClient), backendContext.backendToken, backendContext.apiOrigin])}
     workspaceId={workspace.data.id} workspaceRevision={groups.data.workspace_revision} list={groups.data}
     location={location} onNavigate={onNavigate} reloadScope={reload} onOpenDevice={onOpenDevice} onCreateDevice={onCreateDevice} />;
 }

@@ -36,8 +36,8 @@ vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleB
   return { GroupLifecycleBar: (props: ComponentProps<typeof actual.GroupLifecycleBar>) => <><actual.GroupLifecycleBar {...props} />
     <button onClick={() => props.onChanged(current.entry.write_groups!.groups[0], current.entry.workspace_revision)}>Generic lifecycle update</button></> };
 });
-vi.mock('@/features/datalink/workbench-v2/recording-home/recordingHomeSources', () => ({
-  readRecordingHomeSources: async (scope: object) => ({ state: 'available', scope, value: { candidates: discoveredCandidates, excluded: [], devices: [device] } }),
+vi.mock('@/features/datalink/workbench-v2/recording-editor/recordingSourceDiscovery', () => ({
+  readRecordingSourceDiscovery: async (scope: object) => ({ state: 'available', scope, value: { candidates: discoveredCandidates, excluded: [], devices: [device] } }),
 }));
 const device = deviceFixture({ id: 'dev-1', name: 'PLC', last_test_success: true });
 function editorRead(workspaceRevision = 'W2', groupRevision = 'G3'): StudioLocatorEntryRead {

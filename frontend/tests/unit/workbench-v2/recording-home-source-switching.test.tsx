@@ -1,3 +1,5 @@
+import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
+import { homeSources } from './recording-home-source-fixtures';
 import { StrictMode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -14,7 +16,8 @@ import type { SourceRuleRecord } from '@/types/datalink';
 import { locatorRead, nativeDevice, nativeRule } from './studio-locator-fixtures';
 import i18n from '@/i18n/config';
 vi.mock('@/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { get: vi.fn() } }));
-vi.mock('@/services/studioV2Workspace', () => ({ studioV2DatalinkApi: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }, studioV2WorkspaceAPI: { get: vi.fn() } }));
+vi.mock('@/services/recordingHomeSources', () => ({ recordingHomeSourcesAPI: { read: vi.fn() } }));
+vi.mock('@/services/studioV2Workspace', () => ({ studioV2DatalinkApi: { defaults: { baseURL: '/api/v1/datalink' }, get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }, studioV2WorkspaceAPI: { get: vi.fn() } }));
 vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), apply: vi.fn() } }));
 vi.mock('@/services/studioV2WorkspaceDevices', () => ({ studioV2WorkspaceDevicesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn() } }));
 vi.mock('@/services/studioV2Rules', () => ({ studioV2RulesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() } }));
@@ -47,6 +50,7 @@ beforeEach(async () => {
   vi.mocked(deviceAPI.checkReadiness).mockResolvedValue({ device_id: 'D', status: 'ready', connect_status: 'success', probe_status: 'success', activation_allowed: false, planning_allowed: true, apply_allowed: false, blocking_reasons: [], checks: [] });
   vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue({ workspace_id: 'W', workspace_revision: 'W2', groups: [] });
   vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([device('D'), device('B')]);
+  vi.mocked(recordingHomeSourcesAPI.read).mockResolvedValue(homeSources([device('D'), device('B')]));
   vi.mocked(studioV2RulesAPI.list).mockImplementation(async () => rules);
   vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]); vi.mocked(pointAPI.list).mockResolvedValue([]);
   vi.mocked(studioV2RuntimeContextAPI.getRuleEvidence).mockResolvedValue({ ok: false, reason: 'unavailable', action: 'refresh' });
@@ -144,9 +148,9 @@ describe('one settings frame switches devices', () => {
 describe('the device row uses the last validated Home projection', () => {
   it('offers every workspace device even when opened during a background source refresh', async () => {
     mount(); const trigger = await screen.findByTestId('home-device-points-D');
-    vi.mocked(studioV2WorkspaceDevicesAPI.list).mockImplementation(() => new Promise(() => undefined));
+    vi.mocked(recordingHomeSourcesAPI.read).mockImplementation(() => new Promise(() => undefined));
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-    await waitFor(() => expect(studioV2WorkspaceDevicesAPI.list).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(recordingHomeSourcesAPI.read).toHaveBeenCalledTimes(2));
     fireEvent.click(trigger);
     const dialog = await screen.findByRole('dialog'); await prefix(dialog);
     expect(within(devicesOf(dialog)).getAllByRole('button').map(button => button.dataset.testid)).toEqual(['home-source-device-D', 'home-source-device-B']);

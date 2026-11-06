@@ -1079,6 +1079,20 @@ definitions:
       workspace_id:
         type: string
     type: object
+  handlers.RecordingHomeSourcesEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/workspace.RecordingHomeSourcesObservation'
+      success:
+        type: boolean
+    type: object
+  handlers.RecordingHomeSourcesError:
+    properties:
+      code:
+        type: string
+      success:
+        type: boolean
+    type: object
   handlers.RecordingStartResponse:
     properties:
       data:
@@ -4329,6 +4343,68 @@ definitions:
       warning_count:
         type: integer
     type: object
+  workspace.RecordingHomeCandidate:
+    properties:
+      address:
+        type: string
+      device_id:
+        type: string
+      device_name:
+        type: string
+      key:
+        type: string
+      label:
+        type: string
+      point_id:
+        type: string
+      tag_id:
+        type: string
+      tag_key:
+        type: string
+      target_type:
+        type: string
+    type: object
+  workspace.RecordingHomeDeviceSummary:
+    properties:
+      availability:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      protocol:
+        type: string
+    type: object
+  workspace.RecordingHomeExcluded:
+    properties:
+      label:
+        type: string
+      reason:
+        type: string
+    type: object
+  workspace.RecordingHomeSourcesObservation:
+    properties:
+      candidates:
+        items:
+          $ref: '#/definitions/workspace.RecordingHomeCandidate'
+        type: array
+      devices:
+        items:
+          $ref: '#/definitions/workspace.RecordingHomeDeviceSummary'
+        type: array
+      excluded:
+        items:
+          $ref: '#/definitions/workspace.RecordingHomeExcluded'
+        type: array
+      reason_code:
+        type: string
+      source_digest:
+        type: string
+      state:
+        type: string
+      workspace_id:
+        type: string
+    type: object
   workspace.RecordingStartDeviceProgress:
     properties:
       activated:
@@ -7457,6 +7533,38 @@ paths:
       summary: List a device's acquisition anomalies
       tags:
       - Datalink Acquisition Anomalies
+  /v1/datalink/studio-v2/recording-home/sources:
+    get:
+      description: Readonly two-pass presentation evidence, not an atomic snapshot
+        or command authorization. Unknown contains no partial summary.
+      parameters:
+      - description: Existing workspace ID
+        in: query
+        name: workspace_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.RecordingHomeSourcesEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.RecordingHomeSourcesError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.RecordingHomeSourcesError'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.RecordingHomeSourcesError'
+      summary: Observe recording home sources
+      tags:
+      - Studio V2 Recording Home
   /v1/datalink/studio-v2/workspace:
     get:
       parameters:

@@ -23,7 +23,8 @@ vi.mock('../../../src/services/studioV2WorkspaceWriteGroups', () => ({ studioV2W
   testWritePreview: vi.fn(), testWrite: vi.fn(), testWriteOperation: vi.fn(), get: vi.fn(),
 } }));
 vi.mock('../../../src/services/studioV2LocatorEntry', () => ({ readStudioLocatorEditorEntry: vi.fn() }));
-vi.mock('../../../src/features/datalink/workbench-v2/recording-home/recordingHomeSources', () => ({ readRecordingHomeSources: async (scope: object) => ({ state: 'available', scope, value: { candidates: [], excluded: [], devices: [] } }) }));
+vi.mock('@/services/recordingHomeSources', () => ({ recordingHomeSourcesAPI: { read: async (workspace_id: string) => ({ workspace_id, state: 'available', source_digest: 'a'.repeat(64), candidates: [], excluded: [], devices: [] }) } }));
+vi.mock('../../../src/features/datalink/workbench-v2/recording-editor/recordingSourceDiscovery', () => ({ readRecordingSourceDiscovery: async (scope: object) => ({ state: 'available', scope, value: { candidates: [], excluded: [], devices: [] } }) }));
 vi.mock('../../../src/features/datalink/workbench-v2/recording-home/useRecordingHomeFacts', () => ({ useRecordingHomeFacts: () => ({ owners: {}, runtimeGroups: {}, histories: {}, pendingDevices: [], retry: vi.fn() }) }));
 const locator = locatorRead(4);
 function HomeToLocatorHarness() {

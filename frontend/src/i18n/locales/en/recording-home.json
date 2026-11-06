@@ -372,5 +372,13 @@
       "malformed_response": "The gateway returned an unreadable anomaly response. Retry; if it persists, check the gateway version.",
       "unknown": "Unable to read acquisition anomalies. Check the connection to the gateway and retry."
     }
+  },
+  "sources": {
+    "loading": "Reading sources…",
+    "refreshing": "Showing previously observed sources. Refreshing…",
+    "fresh": "Sources observed during this visit.",
+    "stale": "Showing previously observed sources. Current sources could not be verified. Retry to check again.",
+    "error": "Source refresh failed. Previously observed sources may be out of date. Retry to check again.",
+    "unknown": "Sources could not be verified. Retry to check again."
   }
 }

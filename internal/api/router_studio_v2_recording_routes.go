@@ -8,6 +8,7 @@ import (
 
 // registerStudioV2RecordingRoutes 註冊 Studio V2 遙測語意、記錄方案與歷史報表路由。
 func registerStudioV2RecordingRoutes(datalinkGroup *gin.RouterGroup, datalinkServices *DatalinkServices) {
+	registerRecordingHomeSourceRoutes(datalinkGroup, datalinkServices)
 	if datalinkServices == nil || datalinkServices.Workspace == nil {
 		return
 	}

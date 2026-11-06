@@ -107,10 +107,10 @@ export function useStudioV2AutosaveState(
   const actions = useWorkbenchV2State();
   const devicesQuery = useStudioV2WorkspaceDevicesQuery(enabled);
   const rulesQuery = useStudioV2RulesQuery(enabled);
-  const createDeviceMutation = useCreateStudioV2WorkspaceDeviceMutation();
-  const updateDeviceMutation = useUpdateStudioV2WorkspaceDeviceMutation();
-  const updateAvailabilityMutation = useUpdateStudioV2WorkspaceDeviceAvailabilityMutation();
-  const deleteDeviceMutation = useDeleteStudioV2WorkspaceDeviceMutation();
+  const createDeviceMutation = useCreateStudioV2WorkspaceDeviceMutation(sourceWorkspaceId ?? locatorEntry?.workspace.id);
+  const updateDeviceMutation = useUpdateStudioV2WorkspaceDeviceMutation(sourceWorkspaceId ?? locatorEntry?.workspace.id);
+  const updateAvailabilityMutation = useUpdateStudioV2WorkspaceDeviceAvailabilityMutation(sourceWorkspaceId ?? locatorEntry?.workspace.id);
+  const deleteDeviceMutation = useDeleteStudioV2WorkspaceDeviceMutation(sourceWorkspaceId ?? locatorEntry?.workspace.id);
   const stateRef = React.useRef(actions.state);
   const hydratedRef = React.useRef(false);
   const draftTrackingArmedRef = React.useRef(false);
@@ -161,8 +161,8 @@ export function useStudioV2AutosaveState(
     return persistedMCCanMutateRule(ruleID);
   }, [persistedMCCanMutateRule, sourceRanges]);
   const ruleObservation = composeRuleObservation(sourceRanges.ruleObservation, ruleObserver);
-  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule, ruleObservation, sourceWorkspaceId, locatorHydration.captureRuleSave, locatorMCRuleAuthority(!enabled ? locatorEntry : undefined, persistedMCPoints.evidenceByRule));
-  const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled, canMutateRule, composeMappingObservation(sourceRanges.mappingObservation, pointNames.observation), (point, mapping) => sourceRanges.canWrite(point.rule_id) && pointNames.allowPreparedMapping(point, mapping));
+  const ruleAutosave = useStudioV2RuleAutosave(actions, stateRef, canMutateRule, ruleObservation, sourceWorkspaceId ?? locatorEntry?.workspace.id, locatorHydration.captureRuleSave, locatorMCRuleAuthority(!enabled ? locatorEntry : undefined, persistedMCPoints.evidenceByRule));
+  const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled, canMutateRule, composeMappingObservation(sourceRanges.mappingObservation, pointNames.observation), (point, mapping) => sourceRanges.canWrite(point.rule_id) && pointNames.allowPreparedMapping(point, mapping), sourceWorkspaceId ?? locatorEntry?.workspace.id);
   namingGuards.current = { mutate: canMutateRule, queue: mappingAutosave.canSubmitPreparedMapping };
   rangeQueue.current = { rule: ruleAutosave.afterRuleAction, mapping: mappingAutosave.afterMappingAction };
   const databaseAutosave = useStudioV2DatabaseAutosave(actions, stateRef, enabled, canMutateRule);

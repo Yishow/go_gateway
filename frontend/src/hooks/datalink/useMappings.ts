@@ -1,3 +1,4 @@
+import { observeRecordingHomeSourceMutation, captureRecordingHomeSourceMutation, completeRecordingHomeSourceMutation } from './useRecordingHomeSources';
 /**
  * Mapping Query Hooks
  *
@@ -69,7 +70,7 @@ export function useCreateMappingMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateMappingRequest) => mappingAPI.create(data),
+    mutationFn: (data: CreateMappingRequest) => observeRecordingHomeSourceMutation(queryClient, () => mappingAPI.create(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: mappingKeys.lists() });
     },
@@ -84,7 +85,7 @@ export function useUpdateMappingMutation() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateMappingRequest }) =>
-      mappingAPI.update(id, data),
+      observeRecordingHomeSourceMutation(queryClient, () => mappingAPI.update(id, data)),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: mappingKeys.lists() });
       queryClient.invalidateQueries({ queryKey: mappingKeys.detail(id) });
@@ -99,7 +100,7 @@ export function useDeleteMappingMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => mappingAPI.delete(id),
+    mutationFn: (id: string) => observeRecordingHomeSourceMutation(queryClient, () => mappingAPI.delete(id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: mappingKeys.lists() });
     },
@@ -117,6 +118,7 @@ export function useToggleMappingStatusMutation() {
       return mappingAPI.update(id, { enabled: !enabled });
     },
     onMutate: async ({ id, enabled }) => {
+      const sourceObservation = captureRecordingHomeSourceMutation(queryClient);
       await queryClient.cancelQueries({ queryKey: mappingKeys.lists() });
       const previousMappings = queryClient.getQueryData<Mapping[]>(
         mappingKeys.list()
@@ -126,7 +128,10 @@ export function useToggleMappingStatusMutation() {
         old?.map((m) => (m.id === id ? { ...m, enabled: !enabled } : m))
       );
 
-      return { previousMappings };
+      return { previousMappings, sourceObservation };
+    },
+    onSuccess: (_data, _variables, context) => {
+      completeRecordingHomeSourceMutation(queryClient, context?.sourceObservation);
     },
     onError: (_, __, context) => {
       if (context?.previousMappings) {

@@ -30,6 +30,8 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844, 
         data = { ...read.workspace, locator_entry: read.entry };
       } else if (path === '/api/v1/datalink/studio-v2/workspace') data = workspace;
       else if (path === '/api/v1/datalink/studio-v2/workspace/write-groups') data = { workspace_id: 'W', workspace_revision: 'W2', groups: [] };
+      else if (path === '/api/v1/datalink/studio-v2/recording-home/sources') data = { workspace_id: 'W', state: 'available', source_digest: 'a'.repeat(64),
+        devices: devices.map(({ id, name, protocol }) => ({ id, name, protocol, availability: 'unknown' })), candidates: [], excluded: [] };
       else if (path === '/api/v1/datalink/studio-v2/workspace/devices') data = devices;
       else if (path === '/api/v1/datalink/studio-v2/workspace/source-rules') data = rules;
       else if (path === '/api/v1/datalink/studio-v2/workspace/mappings' || path === '/api/v1/datalink/points') data = [];

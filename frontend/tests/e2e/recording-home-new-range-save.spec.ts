@@ -34,6 +34,8 @@ async function simulate(page: Page, readiness: 'ok' | 'fail', seen: Seen) {
       data = { ...plain, locator_entry: read.entry };
     } else if (path === '/api/v1/datalink/studio-v2/workspace') data = workspace;
     else if (path === '/api/v1/datalink/studio-v2/workspace/write-groups') data = { workspace_id: 'W', workspace_revision: 'W2', groups: [] };
+    else if (path === '/api/v1/datalink/studio-v2/recording-home/sources') data = { workspace_id: 'W', state: 'available', source_digest: 'a'.repeat(64),
+      devices: [device].map(({ id, name, protocol }) => ({ id, name, protocol, availability: 'unknown' })), candidates: [], excluded: [] };
     else if (path === '/api/v1/datalink/studio-v2/workspace/devices') data = [device];
     else if (path === createPath) data = rules;
     else if (path === '/api/v1/datalink/studio-v2/workspace/mappings' || path === '/api/v1/datalink/points') data = [];

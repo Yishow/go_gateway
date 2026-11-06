@@ -54,9 +54,9 @@ export function useStudioV2RuleAutosave(
   const { t } = useTranslation('workbench-v2');
   const observationRef = React.useRef(observation);
   observationRef.current = observation;
-  const createRuleMutation = useCreateStudioV2RuleMutation();
-  const updateRuleMutation = useUpdateStudioV2RuleMutation();
-  const deleteRuleMutation = useDeleteStudioV2RuleMutation();
+  const createRuleMutation = useCreateStudioV2RuleMutation(workspaceId);
+  const updateRuleMutation = useUpdateStudioV2RuleMutation(workspaceId);
+  const deleteRuleMutation = useDeleteStudioV2RuleMutation(workspaceId);
   const saveMetaRef = React.useRef<Record<string, SaveMeta>>({});
   const canMutateRuleRef = React.useRef(canMutateRule);
   const flushRuleSaveRef = React.useRef<(ruleId: string) => void>(() => undefined);

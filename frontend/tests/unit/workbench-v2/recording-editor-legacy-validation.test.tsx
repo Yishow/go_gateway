@@ -17,7 +17,7 @@ vi.mock('@/services/datalink', async original => { const actual = await original
 vi.mock('@/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns', () => ({ useStep4TargetColumns: () => ({ columns: TABLE_COLUMNS, status: 'exists', refetch: vi.fn() }) }));
 vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: { list: vi.fn(), readiness: vi.fn(), delivery: vi.fn(), create: vi.fn(), update: vi.fn(), apply: vi.fn(), disable: vi.fn(), remove: vi.fn(), testWritePreview: vi.fn(), testWrite: vi.fn(), testWriteOperation: vi.fn(), get: vi.fn() } }));
 vi.mock('@/services/studioV2LocatorEntry', () => ({ readStudioLocatorEditorEntry: vi.fn() }));
-vi.mock('@/features/datalink/workbench-v2/recording-home/recordingHomeSources', () => ({ readRecordingHomeSources: async (scope: object) => ({ state: 'available', scope, value: { candidates: [], excluded: [], devices: [device] } }) }));
+vi.mock('@/features/datalink/workbench-v2/recording-editor/recordingSourceDiscovery', () => ({ readRecordingSourceDiscovery: async (scope: object) => ({ state: 'available', scope, value: { candidates: [], excluded: [], devices: [device] } }) }));
 vi.mock('@/features/datalink/workbench-v2/recording-home/useRecordingHomeFacts', () => ({ useRecordingHomeFacts: () => ({ owners: {}, runtimeGroups: {}, histories: {}, pendingDevices: [], retry: vi.fn() }) }));
 const device = deviceFixture({ id: 'dev-1', name: 'PLC', last_test_success: true });
 let diagnosed = new Set<string>();

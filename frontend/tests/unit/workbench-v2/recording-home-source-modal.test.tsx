@@ -1,3 +1,5 @@
+import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
+import { homeSources } from './recording-home-source-fixtures';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,7 +17,8 @@ import i18n from '@/i18n/config';
 import { sourceRuleCandidateAPI } from '@/services/sourceRuleCandidates';
 vi.mock('@/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { get: vi.fn() } }));
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
-vi.mock('@/services/studioV2Workspace', () => ({ studioV2DatalinkApi: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }, studioV2WorkspaceAPI: { get: vi.fn() } }));
+vi.mock('@/services/recordingHomeSources', () => ({ recordingHomeSourcesAPI: { read: vi.fn() } }));
+vi.mock('@/services/studioV2Workspace', () => ({ studioV2DatalinkApi: { defaults: { baseURL: '/api/v1/datalink' }, get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }, studioV2WorkspaceAPI: { get: vi.fn() } }));
 vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), apply: vi.fn() } }));
 vi.mock('@/services/studioV2WorkspaceDevices', () => ({ studioV2WorkspaceDevicesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn() } }));
 vi.mock('@/services/studioV2Rules', () => ({ studioV2RulesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() } }));
@@ -32,6 +35,7 @@ beforeEach(async () => {
   vi.mocked(deviceAPI.checkReadiness).mockResolvedValue({ device_id: 'D', status: 'ready', connect_status: 'success', probe_status: 'success', activation_allowed: false, planning_allowed: true, apply_allowed: false, blocking_reasons: [], checks: [] });
   vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue({ workspace_id: 'W', workspace_revision: 'W2', groups: [] });
   vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([completeDevice()]);
+  vi.mocked(recordingHomeSourcesAPI.read).mockResolvedValue(homeSources([completeDevice()]));
   vi.mocked(studioV2RulesAPI.list).mockResolvedValue([nativeRule()]);
   vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]); vi.mocked(pointAPI.list).mockResolvedValue([]);
   vi.mocked(studioV2RuntimeContextAPI.getRuleEvidence).mockResolvedValue({ ok: false, reason: 'unavailable', action: 'refresh' });
@@ -209,9 +213,13 @@ describe('modal exact identity and original completion boundaries', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument()); noOtherWrites();
   });
   it('updates the existing connection exactly once and closes only after the original ACK and readback', async () => {
+    let resolveSummary!: (value: ReturnType<typeof homeSources>) => void;
+    let savedSummary!: ReturnType<typeof homeSources>;
     vi.mocked(studioV2WorkspaceDevicesAPI.update).mockImplementation(async (_id, request) => {
       const saved = { ...completeDevice(), ...request, connection_config: JSON.stringify(request.connection_config), runtime_apply_status: 'not_running' as const };
       vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([saved]);
+      savedSummary = homeSources([saved]);
+      vi.mocked(recordingHomeSourcesAPI.read).mockImplementation(() => new Promise(resolve => { resolveSummary = resolve; }));
       return saved;
     });
     mount(); await screen.findByTestId('home-device-points-D'); fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
@@ -224,6 +232,13 @@ describe('modal exact identity and original completion boundaries', () => {
     await waitFor(() => expect(studioV2WorkspaceDevicesAPI.update).toHaveBeenCalledOnce());
     expect(studioV2WorkspaceDevicesAPI.update).toHaveBeenCalledWith('D', expect.objectContaining({ name: 'Saved device name' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(resolveSummary).toBeTypeOf('function'));
+    expect(recordingHomeSourcesAPI.read).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId('home-source-observation')).toHaveAttribute('data-source-status', 'refreshing');
+    expect(within(screen.getByTestId('home-management-table')).getByText('Device D')).toBeInTheDocument();
+    await act(async () => resolveSummary(savedSummary));
+    await within(screen.getByTestId('home-management-table')).findByText('Saved device name');
+    expect(recordingHomeSourcesAPI.read).toHaveBeenCalledTimes(2);
     expect(studioV2WorkspaceDevicesAPI.create).not.toHaveBeenCalled(); expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
   });
   it('opens the original new-range buffer and discards unsent values without a source write', async () => {

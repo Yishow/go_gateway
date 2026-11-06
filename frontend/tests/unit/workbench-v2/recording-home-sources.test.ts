@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { readRecordingHomeSources } from '@/features/datalink/workbench-v2/recording-home/recordingHomeSources';
+import { readRecordingSourceDiscovery } from '@/features/datalink/workbench-v2/recording-editor/recordingSourceDiscovery';
 import { studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
 import { studioV2WorkspaceDevicesAPI } from '@/services/studioV2WorkspaceDevices';
 import { studioV2RulesAPI } from '@/services/studioV2Rules';
@@ -23,47 +23,47 @@ beforeEach(() => {
 });
 describe('home readonly canonical source observation', () => {
   it('uses persisted point identities and the existing candidate resolver without deriving protocol addresses', async () => {
-    const result = await readRecordingHomeSources(scope);
+    const result = await readRecordingSourceDiscovery(scope);
     expect(result).toEqual({ state: 'available', scope, value: { candidates: [{ key: 'P|T', device_id: 'D', point_id: 'P', tag_id: 'T', tag_key: 'temperature', label: 'Temperature', device_name: 'Device', address: 'D0', target_type: 'float32' }], excluded: [], devices: [{ id: 'D', name: 'Device', protocol: 'unknown', availability: 'unknown' }] } });
     expect(JSON.stringify(result)).not.toContain('never show'); expect(pointAPI.list).toHaveBeenCalledTimes(2);
   });
   it('actual disabled points do not become source candidates', async () => {
     vi.mocked(pointAPI.list).mockResolvedValue([{ ...point, enabled: false }]);
-    expect(await readRecordingHomeSources(scope)).toMatchObject({ state: 'available', value: { candidates: [] } });
+    expect(await readRecordingSourceDiscovery(scope)).toMatchObject({ state: 'available', value: { candidates: [] } });
   });
   it('fresh workspace with no sources is an observed empty result', async () => {
     vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ ...workspace, status: 'empty', ordered_device_ids: [] });
     vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([]); vi.mocked(studioV2RulesAPI.list).mockResolvedValue([]);
     vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]); vi.mocked(pointAPI.list).mockResolvedValue([]);
-    expect(await readRecordingHomeSources(scope)).toEqual({ state: 'available', scope, value: { candidates: [], excluded: [], devices: [] } });
+    expect(await readRecordingSourceDiscovery(scope)).toEqual({ state: 'available', scope, value: { candidates: [], excluded: [], devices: [] } });
   });
   it('source revision changes during the read remain unknown even if Share would be unchanged', async () => {
     vi.mocked(studioV2RulesAPI.list).mockResolvedValueOnce([rule]).mockResolvedValue([{ ...rule, revision_id: 'changed' }]);
-    expect(await readRecordingHomeSources(scope)).toEqual({ state: 'unknown', scope });
+    expect(await readRecordingSourceDiscovery(scope)).toEqual({ state: 'unknown', scope });
   });
   it('membership changes during reads are unknown, not a coherent fabricated workspace', async () => {
     vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce(workspace).mockResolvedValue({ ...workspace, ordered_device_ids: [] });
-    expect(await readRecordingHomeSources(scope)).toEqual({ state: 'unknown', scope });
+    expect(await readRecordingSourceDiscovery(scope)).toEqual({ state: 'unknown', scope });
   });
   it.each([
     { workspace_id: 'foreign' }, { device_id: 'foreign' }, { point_id: 'missing' }, { address: 'different' }, { rule_id: 'missing' },
   ])('rejects unsupported mapping ownership %j', async patch => {
     vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([{ ...mapping, ...patch }]);
-    expect(await readRecordingHomeSources(scope)).toEqual({ state: 'unknown', scope });
+    expect(await readRecordingSourceDiscovery(scope)).toEqual({ state: 'unknown', scope });
   });
   it('source failure returns a safe error with captured scope, never details or empty candidates', async () => {
     vi.mocked(studioV2MappingsAPI.list).mockRejectedValue(new Error('password=secret private.host'));
-    expect(await readRecordingHomeSources(scope)).toEqual({ state: 'error', scope });
+    expect(await readRecordingSourceDiscovery(scope)).toEqual({ state: 'error', scope });
   });
   it('late completion keeps the originally captured epoch even if its caller object changes', async () => {
     const caller = { ...scope }; let resolve!: (value: typeof workspace) => void;
     vi.mocked(studioV2WorkspaceAPI.get).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
-    const pending = readRecordingHomeSources(caller); caller.epoch = 2; caller.workspaceId = 'other';
+    const pending = readRecordingSourceDiscovery(caller); caller.epoch = 2; caller.workspaceId = 'other';
     resolve(workspace); expect(await pending).toMatchObject({ state: 'available', scope });
   });
   it('other devices values are not projected into this workspace', async () => {
     vi.mocked(pointAPI.list).mockResolvedValue([point, { ...point, id: 'foreign', device_id: 'other' }]);
-    const result = await readRecordingHomeSources(scope);
+    const result = await readRecordingSourceDiscovery(scope);
     expect(result.state === 'available' && result.value.candidates).toHaveLength(1);
   });
   it('100 devices and 300 source rules use ten bulk reads, not per-device requests or polling', async () => {
@@ -74,7 +74,7 @@ describe('home readonly canonical source observation', () => {
     vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ ...workspace, ordered_device_ids: devices.map(item => item.id) });
     vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue(devices); vi.mocked(studioV2RulesAPI.list).mockResolvedValue(rules);
     vi.mocked(studioV2MappingsAPI.list).mockResolvedValue(mappings); vi.mocked(pointAPI.list).mockResolvedValue(points);
-    const result = await readRecordingHomeSources(scope);
+    const result = await readRecordingSourceDiscovery(scope);
     expect(result.state === 'available' && result.value.candidates).toHaveLength(300);
     for (const read of [studioV2WorkspaceAPI.get, studioV2WorkspaceDevicesAPI.list, studioV2RulesAPI.list, studioV2MappingsAPI.list, pointAPI.list]) {
       expect(read).toHaveBeenCalledTimes(2);
@@ -82,7 +82,7 @@ describe('home readonly canonical source observation', () => {
   });
   it('failed bulk reads do not retry or multiply requests across devices', async () => {
     vi.mocked(studioV2RulesAPI.list).mockRejectedValue(new Error('unavailable'));
-    expect(await readRecordingHomeSources(scope)).toEqual({ state: 'error', scope });
+    expect(await readRecordingSourceDiscovery(scope)).toEqual({ state: 'error', scope });
     for (const read of [studioV2WorkspaceAPI.get, studioV2WorkspaceDevicesAPI.list, studioV2RulesAPI.list, studioV2MappingsAPI.list, pointAPI.list]) {
       expect(read).toHaveBeenCalledTimes(1);
     }

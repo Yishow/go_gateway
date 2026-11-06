@@ -1,3 +1,4 @@
+import { observeRecordingHomeSourceMutation, captureRecordingHomeSourceMutation, completeRecordingHomeSourceMutation } from './useRecordingHomeSources';
 /**
  * Device Query Hooks
  *
@@ -72,7 +73,7 @@ export function useCreateDeviceMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateDeviceRequest) => deviceAPI.create(data),
+    mutationFn: (data: CreateDeviceRequest) => observeRecordingHomeSourceMutation(queryClient, () => deviceAPI.create(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: deviceKeys.lists() });
     },
@@ -89,7 +90,7 @@ export function useUpdateDeviceMutation() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateDeviceRequest }) =>
-      deviceAPI.update(id, data),
+      observeRecordingHomeSourceMutation(queryClient, () => deviceAPI.update(id, data)),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: deviceKeys.lists() });
       queryClient.invalidateQueries({ queryKey: deviceKeys.detail(id) });
@@ -106,7 +107,7 @@ export function useDeleteDeviceMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => deviceAPI.delete(id),
+    mutationFn: (id: string) => observeRecordingHomeSourceMutation(queryClient, () => deviceAPI.delete(id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: deviceKeys.lists() });
       queryClient.invalidateQueries({ queryKey: pointKeys.lists() });
@@ -168,6 +169,7 @@ export function useToggleDeviceStatusMutation() {
 
     // 樂觀更新：立即反映在 UI
     onMutate: async ({ id, currentStatus }) => {
+      const sourceObservation = captureRecordingHomeSourceMutation(queryClient);
       // 取消進行中的查詢，避免覆蓋樂觀更新
       await queryClient.cancelQueries({ queryKey: deviceKeys.lists() });
 
@@ -184,9 +186,12 @@ export function useToggleDeviceStatusMutation() {
         )
       );
 
-      return { previousDevices };
+      return { previousDevices, sourceObservation };
     },
 
+    onSuccess: (_data, _variables, context) => {
+      completeRecordingHomeSourceMutation(queryClient, context?.sourceObservation);
+    },
     // 錯誤時回退
     onError: (_, __, context) => {
       if (context?.previousDevices) {

@@ -55,9 +55,9 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
   },
 }));
 
-vi.mock('../../../src/services/studioV2Workspace', async () => {
+vi.mock('../../../src/services/studioV2Workspace', async original => {
   const { studioV2ServiceMocks: mocks } = await import('./helpers/studioV2ServiceMocks');
-  return { studioV2WorkspaceAPI: mocks.workspace };
+  return { ...await original<typeof import('../../../src/services/studioV2Workspace')>(), studioV2WorkspaceAPI: mocks.workspace };
 });
 
 vi.mock('../../../src/services/studioV2WorkspaceDevices', async () => {

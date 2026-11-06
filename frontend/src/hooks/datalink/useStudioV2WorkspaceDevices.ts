@@ -1,3 +1,4 @@
+import { observeRecordingHomeSourceMutation } from './useRecordingHomeSources';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { studioV2WorkspaceKeys } from './keys';
 import { modbusShareStatusKey } from './useModbusShareStatus';
@@ -16,12 +17,12 @@ export function useStudioV2WorkspaceDevicesQuery(enabled: boolean) {
   });
 }
 
-export function useCreateStudioV2WorkspaceDeviceMutation() {
+export function useCreateStudioV2WorkspaceDeviceMutation(workspaceId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     retry: false,
-    mutationFn: (request: CreateDeviceRequest) => studioV2WorkspaceDevicesAPI.create(request),
+    mutationFn: (request: CreateDeviceRequest) => observeRecordingHomeSourceMutation(queryClient, () => studioV2WorkspaceDevicesAPI.create(request), workspaceId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
@@ -30,13 +31,13 @@ export function useCreateStudioV2WorkspaceDeviceMutation() {
   });
 }
 
-export function useUpdateStudioV2WorkspaceDeviceMutation() {
+export function useUpdateStudioV2WorkspaceDeviceMutation(workspaceId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     retry: false,
     mutationFn: ({ deviceId, request }: { deviceId: string; request: UpdateDeviceRequest }) =>
-      studioV2WorkspaceDevicesAPI.update(deviceId, request),
+      observeRecordingHomeSourceMutation(queryClient, () => studioV2WorkspaceDevicesAPI.update(deviceId, request), workspaceId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
@@ -45,12 +46,12 @@ export function useUpdateStudioV2WorkspaceDeviceMutation() {
   });
 }
 
-export function useDeleteStudioV2WorkspaceDeviceMutation() {
+export function useDeleteStudioV2WorkspaceDeviceMutation(workspaceId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     retry: false,
-    mutationFn: (deviceId: string) => studioV2WorkspaceDevicesAPI.remove(deviceId),
+    mutationFn: (deviceId: string) => observeRecordingHomeSourceMutation(queryClient, () => studioV2WorkspaceDevicesAPI.remove(deviceId), workspaceId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
@@ -59,13 +60,13 @@ export function useDeleteStudioV2WorkspaceDeviceMutation() {
   });
 }
 
-export function useUpdateStudioV2WorkspaceDeviceAvailabilityMutation() {
+export function useUpdateStudioV2WorkspaceDeviceAvailabilityMutation(workspaceId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     retry: false,
     mutationFn: ({ deviceId, request }: { deviceId: string; request: StudioV2AvailabilityRequest }) =>
-      studioV2WorkspaceDevicesAPI.updateAvailability(deviceId, request),
+      observeRecordingHomeSourceMutation(queryClient, () => studioV2WorkspaceDevicesAPI.updateAvailability(deviceId, request), workspaceId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
@@ -74,12 +75,12 @@ export function useUpdateStudioV2WorkspaceDeviceAvailabilityMutation() {
   });
 }
 
-export function useUpdateStudioV2WorkspaceDeviceOrderMutation() {
+export function useUpdateStudioV2WorkspaceDeviceOrderMutation(workspaceId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     retry: false,
-    mutationFn: (orderedDeviceIDs: string[]) => studioV2WorkspaceDevicesAPI.updateOrder(orderedDeviceIDs),
+    mutationFn: (orderedDeviceIDs: string[]) => observeRecordingHomeSourceMutation(queryClient, () => studioV2WorkspaceDevicesAPI.updateOrder(orderedDeviceIDs), workspaceId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });

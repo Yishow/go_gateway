@@ -8,7 +8,9 @@ import { useStudioV2WorkspaceQuery } from '../../../src/hooks/datalink/useStudio
 import { studioV2WorkspaceAPI } from '../../../src/services/studioV2Workspace';
 
 vi.mock('../../../src/services/studioV2Mappings', () => ({ studioV2MappingsAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() } }));
-vi.mock('../../../src/services/studioV2Workspace', () => ({ studioV2WorkspaceAPI: { get: vi.fn() } }));
+vi.mock('../../../src/services/studioV2Workspace', async original => ({
+  ...await original<typeof import('../../../src/services/studioV2Workspace')>(), studioV2WorkspaceAPI: { get: vi.fn() },
+}));
 const bootstrapAPI = vi.mocked(studioV2WorkspaceAPI);
 const metadata = (ready: boolean) => workspaceFixture({ readiness_summary: { ready, blocking_count: ready ? 0 : 1, warning_count: 0, issues: [] } });
 async function observeBootstrap(client: QueryClient) {

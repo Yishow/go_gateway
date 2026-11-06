@@ -21,7 +21,7 @@ vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWri
   list: vi.fn(), readiness: vi.fn(), delivery: vi.fn(), create: vi.fn(), update: vi.fn(), apply: vi.fn(), disable: vi.fn(), remove: vi.fn(), testWritePreview: vi.fn(), testWrite: vi.fn(), testWriteOperation: vi.fn(), get: vi.fn(),
 } }));
 vi.mock('@/services/studioV2LocatorEntry', () => ({ readStudioLocatorEditorEntry: vi.fn() }));
-vi.mock('@/features/datalink/workbench-v2/recording-home/recordingHomeSources', () => ({ readRecordingHomeSources: async (scope: object) => ({ state: 'available', scope, value: { candidates: [], excluded: [], devices: [] } }) }));
+vi.mock('@/features/datalink/workbench-v2/recording-editor/recordingSourceDiscovery', () => ({ readRecordingSourceDiscovery: async (scope: object) => ({ state: 'available', scope, value: { candidates: [], excluded: [], devices: [] } }) }));
 const groups = vi.mocked(studioV2WorkspaceWriteGroupsAPI);
 const clients: QueryClient[] = [];
 const existing = deviceFixture({ id: 'dev-1' });

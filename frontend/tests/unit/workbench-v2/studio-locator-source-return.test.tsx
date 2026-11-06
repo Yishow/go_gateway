@@ -9,7 +9,7 @@ import i18n from '@/i18n/config';
 import { locatorRead, nativeDevice } from './studio-locator-fixtures';
 
 vi.mock('@/services/studioV2Workspace', () => ({
-  studioV2DatalinkApi: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+  studioV2DatalinkApi: { defaults: { baseURL: '/api/v1/datalink' }, get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
   studioV2WorkspaceAPI: { get: vi.fn() },
 }));
 const clients: QueryClient[] = [];

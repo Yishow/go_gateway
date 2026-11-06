@@ -1,3 +1,4 @@
+import { observeRecordingHomeSourceMutation } from './useRecordingHomeSources';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { studioV2WorkspaceKeys } from './keys';
 import { studioV2RulesAPI, type StudioV2UpdateSourceRuleRequest } from '../../services/studioV2Rules';
@@ -14,12 +15,12 @@ export function useStudioV2RulesQuery(enabled: boolean) {
   });
 }
 
-export function useCreateStudioV2RuleMutation() {
+export function useCreateStudioV2RuleMutation(workspaceId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     retry: false,
-    mutationFn: (request: CreateSourceRuleRequest) => studioV2RulesAPI.create(request),
+    mutationFn: (request: CreateSourceRuleRequest) => observeRecordingHomeSourceMutation(queryClient, () => studioV2RulesAPI.create(request), workspaceId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.sourceRules() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
@@ -27,13 +28,13 @@ export function useCreateStudioV2RuleMutation() {
   });
 }
 
-export function useUpdateStudioV2RuleMutation() {
+export function useUpdateStudioV2RuleMutation(workspaceId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     retry: false,
     mutationFn: ({ ruleId, request }: { ruleId: string; request: StudioV2UpdateSourceRuleRequest }) =>
-      studioV2RulesAPI.update(ruleId, request),
+      observeRecordingHomeSourceMutation(queryClient, () => studioV2RulesAPI.update(ruleId, request), workspaceId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.sourceRules() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
@@ -41,12 +42,12 @@ export function useUpdateStudioV2RuleMutation() {
   });
 }
 
-export function useDeleteStudioV2RuleMutation() {
+export function useDeleteStudioV2RuleMutation(workspaceId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     retry: false,
-    mutationFn: (ruleId: string) => studioV2RulesAPI.remove(ruleId),
+    mutationFn: (ruleId: string) => observeRecordingHomeSourceMutation(queryClient, () => studioV2RulesAPI.remove(ruleId), workspaceId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.sourceRules() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });

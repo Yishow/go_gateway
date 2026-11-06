@@ -1,3 +1,4 @@
+import { observeRecordingHomeSourceMutation, captureRecordingHomeSourceMutation, completeRecordingHomeSourceMutation } from './useRecordingHomeSources';
 /**
  * Tag Query Hooks
  *
@@ -68,7 +69,7 @@ export function useCreateTagMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateTagRequest) => tagAPI.create(data),
+    mutationFn: (data: CreateTagRequest) => observeRecordingHomeSourceMutation(queryClient, () => tagAPI.create(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
     },
@@ -83,7 +84,7 @@ export function useUpdateTagMutation() {
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateTagRequest }) =>
-      tagAPI.update(id, data),
+      observeRecordingHomeSourceMutation(queryClient, () => tagAPI.update(id, data)),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
       queryClient.invalidateQueries({ queryKey: tagKeys.detail(id) });
@@ -98,7 +99,7 @@ export function useDeleteTagMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => tagAPI.delete(id),
+    mutationFn: (id: string) => observeRecordingHomeSourceMutation(queryClient, () => tagAPI.delete(id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
     },
@@ -114,6 +115,7 @@ export function useActivateTagMutation() {
   return useMutation({
     mutationFn: (id: string) => tagAPI.activate(id),
     onMutate: async (id) => {
+      const sourceObservation = captureRecordingHomeSourceMutation(queryClient);
       await queryClient.cancelQueries({ queryKey: tagKeys.lists() });
       const previousTags = queryClient.getQueryData<Tag[]>(tagKeys.list());
       
@@ -121,7 +123,10 @@ export function useActivateTagMutation() {
         old?.map((t) => (t.id === id ? { ...t, status: 'active' as const } : t))
       );
       
-      return { previousTags };
+      return { previousTags, sourceObservation };
+    },
+    onSuccess: (_data, _variables, context) => {
+      completeRecordingHomeSourceMutation(queryClient, context?.sourceObservation);
     },
     onError: (_, __, context) => {
       if (context?.previousTags) {
@@ -143,6 +148,7 @@ export function useRetireTagMutation() {
   return useMutation({
     mutationFn: (id: string) => tagAPI.retire(id),
     onMutate: async (id) => {
+      const sourceObservation = captureRecordingHomeSourceMutation(queryClient);
       await queryClient.cancelQueries({ queryKey: tagKeys.lists() });
       const previousTags = queryClient.getQueryData<Tag[]>(tagKeys.list());
       
@@ -150,7 +156,10 @@ export function useRetireTagMutation() {
         old?.map((t) => (t.id === id ? { ...t, status: 'retired' as const } : t))
       );
       
-      return { previousTags };
+      return { previousTags, sourceObservation };
+    },
+    onSuccess: (_data, _variables, context) => {
+      completeRecordingHomeSourceMutation(queryClient, context?.sourceObservation);
     },
     onError: (_, __, context) => {
       if (context?.previousTags) {
@@ -170,7 +179,7 @@ export function useBatchCreateTagsMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (tags: CreateTagRequest[]) => tagAPI.batchCreate(tags),
+    mutationFn: (tags: CreateTagRequest[]) => observeRecordingHomeSourceMutation(queryClient, () => tagAPI.batchCreate(tags)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
     },

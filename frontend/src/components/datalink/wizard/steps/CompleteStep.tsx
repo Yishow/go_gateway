@@ -1,3 +1,5 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { observeRecordingHomeSourceMutation } from '../../../../hooks/datalink/useRecordingHomeSources';
 import React, { useState } from 'react';
 import { mappingAPI } from '../../../../services/datalink';
 import type { WizardFormData } from '../MappingWizard';
@@ -20,6 +22,7 @@ export const CompleteStep: React.FC<CompleteStepProps> = ({
   formData,
   onComplete,
 }) => {
+  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,12 +33,12 @@ export const CompleteStep: React.FC<CompleteStepProps> = ({
       setError(null);
 
       // 建立映射
-      await mappingAPI.create({
+      await observeRecordingHomeSourceMutation(queryClient, () => mappingAPI.create({
         point_id: formData.pointId,
         tag_id: formData.tagId,
         transform_pipeline: formData.transformPipeline,
         enabled: true,
-      });
+      }));
 
       setSuccess(true);
       onComplete();

@@ -1,5 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { studioV2WorkspaceKeys } from '../../../../hooks/datalink/keys';
 import { useRecordingNavigation } from '../recording-editor/RecordingDraftNavigation';
 import type { RuleQueueObservation } from '../../../../pages/datalink/workbench-v2/sourceQueueObservation';
 import { useCallback, useRef, useState, type ReactNode, type MutableRefObject } from 'react';
@@ -34,7 +32,6 @@ export function RecordingHomeSourceHost({ children, renderSource }: {
 }) {
   const { t } = useTranslation('recording-home');
   const navigation = useRecordingNavigation();
-  const context = useQueryClient();
   const [deviceName, setDeviceName] = useState('');
   const [initialSourceLoading, setInitialSourceLoading] = useState(false);
   const [locked, setLocked] = useState(false);
@@ -108,7 +105,7 @@ export function RecordingHomeSourceHost({ children, renderSource }: {
       </header>}<div style={{ display: navigation.confirming ? 'none' : 'contents' }}>
       {captured && renderSource({ target: captured, closeRef, ruleObserverRef, leaveRef, headerSlot: navigation.confirming ? null : headerSlot, onCreated: deviceId => {
           if (!deviceId || workspace.current !== captured.workspaceId || captured.kind !== 'create' || captured.epoch !== serial.current) return;
-          void context.invalidateQueries({ queryKey: [...studioV2WorkspaceKeys.all, 'recording-home-sources'] });
+          // The successful create owner already schedules exact scoped revalidation.
           // Allocate outside the updater: Strict Mode may invoke it twice.
           const epoch = ++serial.current;
           reset(); setInitialSourceLoading(true);

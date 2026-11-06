@@ -1,13 +1,12 @@
-import type { HomeDeviceSummary } from './recordingHomeCollections';
+import type { RecordingHomeSourceSummary } from '../../../../types/recordingHomeSources';
 import { studioV2WorkspaceAPI } from '../../../../services/studioV2Workspace';
 import { studioV2WorkspaceDevicesAPI } from '../../../../services/studioV2WorkspaceDevices';
 import { studioV2RulesAPI } from '../../../../services/studioV2Rules';
 import { studioV2MappingsAPI } from '../../../../services/studioV2Mappings';
 import { pointAPI } from '../../../../services/datalink';
-import { buildGroupCandidates, type GroupCandidates, type GroupCandidateState } from '../state/writeGroup/candidates';
-import type { RecordingHomeEvidence, RecordingHomeScope } from './recordingHomeProjection';
+import { buildGroupCandidates, type GroupCandidateState } from '../state/writeGroup/candidates';
+import type { RecordingHomeEvidence, RecordingHomeScope } from '../recording-home/recordingHomeProjection';
 
-export interface RecordingHomeSourceSummary extends GroupCandidates { devices: HomeDeviceSummary[] }
 async function readSources() {
   const [workspace, devices, rules, mappings, points] = await Promise.all([
     studioV2WorkspaceAPI.get(), studioV2WorkspaceDevicesAPI.list(), studioV2RulesAPI.list(), studioV2MappingsAPI.list(), pointAPI.list(),
@@ -48,7 +47,7 @@ function projectSources(value: Sources, scope: RecordingHomeScope): RecordingHom
 }
 /** Captured-generation readonly observation, not an atomic snapshot or command token.
  * Compare actual source content twice; Share revision cannot prove its freshness. */
-export async function readRecordingHomeSources(scope: RecordingHomeScope): Promise<RecordingHomeEvidence<RecordingHomeSourceSummary>> {
+export async function readRecordingSourceDiscovery(scope: RecordingHomeScope): Promise<RecordingHomeEvidence<RecordingHomeSourceSummary>> {
   const captured = { ...scope };
   try {
     const before = await readSources();
