@@ -19,6 +19,7 @@ export function studioV2LocatorHydration(read: StudioLocatorEntryRead): Workbenc
   const { target } = read.selection;
   const devices = (read.entry.devices ?? []).map(hydrateStudioV2Device);
   const rules = (read.entry.source_rules ?? []).map(hydrateStudioV2Rule);
+  let missingMixedGeometry = false;
   const points = target.mappingId || read.entry.editor_hydrated ? (read.entry.mappings ?? []).flatMap(record => {
     const rule = rules.find(value => value.id === record.rule_id && value.device_id === record.device_id);
     const device = devices.find(value => value.id === record.device_id);
@@ -26,9 +27,13 @@ export function studioV2LocatorHydration(read: StudioLocatorEntryRead): Workbenc
     // The address supplies display geometry, never identity lookup. The row key is the exact native Point ID.
     const geometry = device.protocol === 'mc_3e' && rule.persisted
       ? projectPersistedMCPoint(rule, { point_id: record.point_id, address: record.address })
-      : derivePoints({ ...rule, start_address: record.address, count: 1 }, device.id, new Set(), device.protocol)[0];
+      : rule.layout_mode === 'mixed'
+        ? derivePoints(rule, device.id, new Set(), device.protocol).find(point => point.address === record.address.trim().toUpperCase())
+        : derivePoints({ ...rule, start_address: record.address, count: 1 }, device.id, new Set(), device.protocol)[0];
+    if (!geometry && rule.layout_mode === 'mixed' && device.protocol !== 'mc_3e') missingMixedGeometry = true;
     return geometry ? [{ ...geometry, id: record.point_id, name: record.display_name }] : [];
   }) : deriveAllPoints(rules, Object.fromEntries(devices.map(device => [device.id, device.protocol])));
+  if (missingMixedGeometry) return null;
   const mappings = Object.fromEntries((read.entry.mappings ?? []).flatMap(record => {
     const point = points.find(value => value.id === record.point_id && value.rule_id === record.rule_id && value.device_id === record.device_id);
     return point ? [[point.id, hydrateStudioV2Mapping(point, record)]] : [];

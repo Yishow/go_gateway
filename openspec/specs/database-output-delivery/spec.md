@@ -1406,3 +1406,420 @@ tests:
   - frontend/tests/unit/workbench-v2/device-autosave-page.testHarness.tsx
   - frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx
 -->
+
+---
+### Requirement: Database output never blocks acquisition
+
+Legacy database output (database target mappings handled by the database target writer) SHALL be decoupled from the runtime ingest path. Ingesting a collected value SHALL only update an in-memory latest-value table keyed by mapping and return without any database I/O. Each enabled database connector SHALL own one background worker that, for every mapping it serves, writes at most one row per effective write interval containing the latest value at write time. The effective write interval SHALL keep its existing resolution: the mapping write interval, then the connector default write interval, then 15 seconds. Grouped mappings SHALL keep their existing grouping semantics, with flushing performed by the owning connector worker. A slow or unreachable connector SHALL NOT delay point state persistence, runtime value events, Modbus Share writes, or any other connector.
+
+#### Scenario: Unreachable connector does not slow ingest
+
+- **GIVEN** a connector whose connection attempts never complete and 32 points mapped to it
+- **WHEN** the runtime ingests one scan of 32 collected values
+- **THEN** every value is ingested and its runtime value event is broadcast without waiting for the connector
+- **AND** the connector status reports the failed write attempt
+
+#### Scenario: Only the latest value per interval is written
+
+- **GIVEN** an ungrouped mapping with a 15 second effective write interval
+- **WHEN** the point reports values 10, 11 and 12 within one interval
+- **THEN** the connector worker writes exactly one row with value 12 for that interval
+
+##### Example: interval snapshots
+
+| Values received in interval | Rows written |
+| --------------------------- | ------------ |
+| 10, 11, 12                  | one row, 12  |
+| none                        | no row; history records the skip reason |
+
+#### Scenario: Failed connector backs off
+
+- **WHEN** consecutive write attempts to one connector fail
+- **THEN** the worker retries after 1, 2, 4 and 8 seconds and then at most every 60 seconds
+- **AND** each failure is recorded through the existing write outcome and write history
+- **AND** values due during back-off are not queued; the next attempt writes only the then-latest values
+
+<!-- @trace
+source: decouple-acquisition-from-delivery
+updated: 2026-11-06
+code:
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingIntentHelp.tsx
+  - internal/api/router_acquisition_anomaly.go
+  - internal/datalink/collector/scheduler_auto_interval.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupProfileSummary.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
+  - frontend/src/services/studioV2Rules.ts
+  - frontend/src/pages/datalink/workbench-v2/rangeSourceReadback.ts
+  - internal/datalink/sourcerule/mixed_rule_plan.go
+  - internal/datalink/sourcerule/sql_rule_scan.go
+  - internal/datalink/point/service_device_acquisition_memory.go
+  - internal/datalink/dbtarget/writer_workers.go
+  - frontend/src/i18n/locales/zh-TW/recording-home.json
+  - internal/datalink/sourcerule/mutation_rollback.go
+  - frontend/src/types/measurement.ts
+  - internal/datalink/anomaly/sql_repo.go
+  - internal/datalink/dbtarget/writer_snapshot.go
+  - internal/datalink/device/service_crud.go
+  - internal/datalink/connector/adapters/mc3e_planned_scatter.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/recordingEditorLayout.css
+  - internal/protocol/mcprotocol/client.go
+  - internal/datalink/point/format_mutation_scope.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingDeviceSourceForm.tsx
+  - frontend/src/i18n/locales/en/recording-editor-constraints.json
+  - internal/datalink/sourcerule/service_update.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingEditorSummary.tsx
+  - internal/datalink/runtime/mixed_source_layout.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingCompactMemberTable.tsx
+  - frontend/src/hooks/datalink/keys.ts
+  - frontend/src/hooks/datalink/useAcquisitionAnomalies.ts
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingMemberCalculationPanel.tsx
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeSetupContextPanel.tsx
+  - frontend/src/i18n/locales/en/recording-editor.json
+  - internal/datalink/runtime/service_device_sync.go
+  - frontend/src/services/studioV2LocatorEntry.ts
+  - internal/datalink/schema/migrations/053_device_acquisition_sqlite.up.sql
+  - frontend/src/i18n/locales/zh-TW/parameter-help.json
+  - internal/datalink/sourcerule/mixed_identity_links.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/GroupEditorPreparation.tsx
+  - internal/datalink/sourcerule/mixed_rule.go
+  - internal/datalink/connector/read_profile.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/acquisitionAnomalies.css
+  - internal/api/handlers/acquisition_anomaly_types.go
+  - internal/datalink/anomaly/detector_scan.go
+  - internal/datalink/runtime/service_lifecycle.go
+  - internal/datalink/dbtarget/delivery_outcome.go
+  - internal/datalink/sourcerule/mutation_rollback_helpers.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupReadinessPanel.tsx
+  - internal/datalink/optimizer/acquisition_contiguous.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingInstantaneousMethod.tsx
+  - frontend/src/types/datalink.ts
+  - internal/datalink/collector/scheduler_acquisition_publication.go
+  - internal/datalink/dbtarget/writer_live_check.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingMethodGroups.tsx
+  - internal/protocol/mcprotocol/random_read.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/deviceSourceBuffer.ts
+  - frontend/src/types/acquisitionAnomaly.ts
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - internal/datalink/sourcerule/mixed_identity_retirement.go
+  - docs/swagger/docs.go
+  - internal/api/handlers/runtime_rule_status_projection.go
+  - internal/datalink/device/errors.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/recordingRangeBuffer.ts
+  - internal/datalink/schema/migrations/054_acquisition_anomalies_sqlite.up.sql
+  - frontend/src/i18n/locales/en/parameter-help-advanced.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/schemaPreparationPresentation.ts
+  - internal/protocol/mcprotocol/client_planned_exact.go
+  - internal/datalink/connector/acquisition_profile_decode.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx
+  - internal/datalink/optimizer/acquisition_builder.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/RecordingDestinationLockNotice.tsx
+  - frontend/src/features/datalink/workbench-v2/state/scatteredRange.ts
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingMemberResult.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - internal/datalink/dbtarget/tooling_types.go
+  - internal/datalink/dbtarget/writer_idle.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditorMethodSection.tsx
+  - internal/datalink/tag/workspace_save_rollback.go
+  - frontend/src/i18n/locales/zh-TW/recording-editor.json
+  - internal/datalink/device/sql_repo.go
+  - internal/datalink/device/sql_repo_acquisition_patch.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/recording-editor/useRecordingRangeBuffer.ts
+  - internal/datalink/sourcerule/point_update_plan.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - internal/datalink/point/service_device_polling_group.go
+  - frontend/src/services/acquisitionAnomalies.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleBar.tsx
+  - internal/datalink/dbtarget/writer_retry_group.go
+  - frontend/src/features/datalink/workbench-v2/components/parameterHelpContent.ts
+  - frontend/src/services/runtimeStatusProjection.ts
+  - internal/datalink/optimizer/acquisition_mc_profile.go
+  - internal/datalink/sourcerule/repository_rule_delete_revision.go
+  - docs/swagger/swagger.json
+  - internal/datalink/sourcerule/tag_mapping_sync_state.go
+  - internal/datalink/dbtarget/writer_config_busy.go
+  - internal/datalink/point/sql_repo_device_acquisition.go
+  - internal/datalink/point/service_batch_validation.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingAcquisitionSettings.tsx
+  - internal/datalink/collector/scheduler_acquisition_dispatch.go
+  - internal/datalink/connector/acquisition_profile_schema.go
+  - frontend/src/i18n/locales/zh-TW/acquisition-settings.json
+  - internal/datalink/optimizer/acquisition_random.go
+  - internal/datalink/point/service_materialized_batch.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingEditorLayout.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupTestWritePanel.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeSavedRangeEditor.tsx
+  - internal/datalink/collector/scheduler_acquisition_preview.go
+  - frontend/src/hooks/datalink/index.ts
+  - internal/datalink/sourcerule/errors.go
+  - internal/datalink/migrator_device_acquisition.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupMemberTable.tsx
+  - internal/datalink/runtime/service.go
+  - frontend/src/i18n/locales/en/acquisition-settings.json
+  - frontend/src/features/datalink/workbench-v2/recording-home/AcquisitionAnomalyButton.tsx
+  - internal/api/handlers/source_rule_handler.go
+  - internal/datalink/dbtarget/writer_refresh_tags.go
+  - internal/datalink/mapping/source_rule_retirement.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2RuleAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupIdentityFields.tsx
+  - internal/datalink/collector/scheduler_acquisition_snapshot.go
+  - internal/datalink/dbtarget/write_history.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupPolicyFields.tsx
+  - internal/datalink/anomaly/detector.go
+  - internal/datalink/schema/schema_point_models.go
+  - internal/datalink/sourcerule/tag_review_decision_stale.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/ConfiguredDestinationChooser.tsx
+  - internal/datalink/collector/scheduler_lifecycle.go
+  - internal/datalink/dbtarget/writer_group_flush.go
+  - frontend/src/i18n/locales/en/parameter-help.json
+  - internal/datalink/runtime/ingestor.go
+  - frontend/src/i18n/config.ts
+  - internal/datalink/device/repository_memory.go
+  - internal/datalink/sourcerule/share_recovery_sql_reads.go
+  - frontend/src/features/datalink/workbench-v2/state/mcPersistedPoints.ts
+  - internal/datalink/device/sql_repo_acquisition.go
+  - frontend/src/features/datalink/workbench-v2/state/acquisitionSettings.ts
+  - internal/datalink/collector/scheduler.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/recordingMethodGrouping.ts
+  - internal/datalink/tag/source_rule_retirement.go
+  - internal/datalink/dbtarget/writer_destination.go
+  - internal/datalink/point/memory_repo_materialized_batch.go
+  - internal/datalink/migrator.go
+  - internal/datalink/device/availability.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/instantaneousReduction.ts
+  - internal/datalink/sourcerule/sql_repo.go
+  - internal/datalink/anomaly/detector_recovered.go
+  - internal/datalink/point/sql_repo_materialized_batch.go
+  - internal/datalink/optimizer/acquisition_coverage_validation.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/AcquisitionAnomalyDialog.tsx
+  - internal/datalink/sourcerule/acquisition_source_exclusions.go
+  - internal/datalink/dbtarget/writer_group_snapshot.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2RuleAcknowledgement.ts
+  - frontend/src/types/acquisitionSettings.ts
+  - internal/datalink/sourcerule/mixed_identity_mapping.go
+  - internal/datalink/runtime/delivery_diagnostic.go
+  - internal/protocol/mcprotocol/client_word_read.go
+  - internal/datalink/dbtarget/writer_recovery.go
+  - internal/datalink/connector/read_profile_identity.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/recordingAcquisitionSettings.css
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditorCapabilities.tsx
+  - internal/api/handlers/acquisition_anomaly_handler.go
+  - internal/datalink/sourcerule/validation.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingRangeContent.tsx
+  - internal/datalink/runtime/status.go
+  - frontend/src/i18n/locales/zh-TW/recording-editor-constraints.json
+  - internal/datalink/dbtarget/writer.go
+  - frontend/src/features/datalink/workbench-v2/state/ruleReducer.ts
+  - internal/datalink/collector/scheduler_config_methods.go
+  - internal/datalink/sourcerule/acquisition_profile_source_identity.go
+  - internal/datalink/sourcerule/point_write_journal.go
+  - frontend/src/i18n/locales/zh-TW/parameter-help-advanced.json
+  - internal/datalink/sourcerule/acquisition_source_mixed.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingRevisionDetails.tsx
+  - internal/datalink/optimizer/acquisition_candidates.go
+  - internal/api/router.go
+  - internal/datalink/sourcerule/mc_address_plan.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeSourceContent.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingPointPicker.tsx
+  - internal/datalink/runtime/target_delivery.go
+  - internal/datalink/collector/scheduler_acquisition_execute.go
+  - frontend/src/pages/datalink/workbench-v2/deviceSourceSubmission.ts
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/features/datalink/workbench-v2/recording-editor/useRecordingDeviceBuffer.ts
+  - internal/datalink/collector/scheduler_dispatch.go
+  - frontend/src/services/studioV2WorkspaceDevices.ts
+  - internal/api/handlers/runtime_handler.go
+  - internal/datalink/point/source_rule_retirement.go
+  - internal/datalink/pollinggroup/memory_repo.go
+  - internal/datalink/sourcerule/service_requests.go
+  - internal/datalink/sourcerule/candidate_snapshot.go
+  - internal/datalink/sourcerule/mutation_rollback_created.go
+  - internal/datalink/point/service_polling_group.go
+  - internal/datalink/connector/acquisition_profile.go
+  - internal/datalink/anomaly/types.go
+  - internal/datalink/runtime/service_read_profile.go
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler.go
+  - frontend/src/i18n/locales/en/recording-home.json
+  - internal/datalink/measurement/source_rule_format.go
+  - docs/swagger/swagger.yaml
+  - internal/datalink/dbtarget/writer_retry.go
+  - internal/datalink/device/acquisition_validation.go
+  - internal/datalink/point/repository_memory.go
+  - frontend/src/pages/datalink/workbench-v2/useDeviceSourceSubmission.ts
+  - internal/datalink/sourcerule/service.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingSourceDeviceContent.tsx
+  - internal/datalink/migrator_acquisition_anomalies.go
+  - internal/datalink/connector/adapters/mc3e_planned_read.go
+  - internal/datalink/sourcerule/mixed_review_decision_cas.go
+  - internal/datalink/pollinggroup/sql_repo.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingPreparationActions.tsx
+  - internal/datalink/point/format_recovery_snapshot.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditorDestinationSection.tsx
+  - internal/api/handlers/device_handler.go
+  - internal/datalink/sourcerule/point_runtime_compensation.go
+  - internal/datalink/device/service_acquisition_update.go
+  - internal/datalink/sourcerule/tag_apply_service.go
+  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
+  - internal/datalink/runtime/anomaly_monitor.go
+  - internal/datalink/schema/schema_device_models.go
+  - internal/datalink/sourcerule/format_preflight.go
+  - internal/datalink/pollinggroup/acquisition_storage.go
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeSetupHelpers.tsx
+  - internal/datalink/workspace/write_group_source_format_identity.go
+  - frontend/src/features/datalink/workbench-v2/recording-editor/RecordingMixedEditor.tsx
+  - internal/datalink/sourcerule/mc_profile_address_plan.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeRoute.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step2/ScatteredRangeSection.tsx
+  - internal/protocol/mcprotocol/const.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeCollection.tsx
+  - internal/datalink/dbtarget/writer_skip.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/RecordingDestinationFields.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupDeliveryStrip.tsx
+  - internal/datalink/device/service.go
+  - internal/datalink/optimizer/acquisition_plan.go
+  - frontend/src/pages/datalink/workbench-v2/studioV2LocatorHydration.ts
+tests:
+  - internal/api/handlers/mixed_item_identity_regression_test.go
+  - internal/datalink/dbtarget/tooling_service_test.go
+  - frontend/tests/unit/workbench-v2/scattered-saved-editor-regression.test.tsx
+  - internal/datalink/dbtarget/destination_open_test.go
+  - cmd/test_ui/bug_a_activation_test.go
+  - internal/api/handlers/device_acquisition_profile_regression_test.go
+  - internal/datalink/sourcerule/acquisition_qiqr_geometry_regression_test.go
+  - frontend/tests/unit/workbench-v2/recording-readiness-unknown-codes.test.ts
+  - internal/datalink/migrator_acquisition_anomalies_test.go
+  - frontend/tests/e2e/fixtures/recording-mixed-review-host.tsx
+  - internal/datalink/point/mixed_rule_format_regression_test.go
+  - internal/datalink/runtime/anomaly_monitor_test.go
+  - frontend/tests/unit/workbench-v2/scattered-metadata-roundtrip.test.ts
+  - internal/api/handlers/device_acquisition_handler_test.go
+  - internal/datalink/runtime/mixed_rule_format_regression_test.go
+  - internal/datalink/runtime/service_device_sync_test.go
+  - frontend/tests/unit/workbench-v2/recording-destination-lock-notice.test.tsx
+  - frontend/tests/unit/workbench-v2/groupDeliveryStrip.test.tsx
+  - internal/datalink/point/format_mutation_sql_test.go
+  - frontend/tests/unit/workbench-v2/recording-acquisition-settings.test.tsx
+  - frontend/tests/unit/services/runtimeStatusSafety.test.ts
+  - cmd/test_ui/main.go
+  - internal/datalink/sourcerule/mixed_rule_test.go
+  - internal/api/router_acquisition_anomaly_swagger_test.go
+  - internal/api/handlers/studio_v2_workspace_rule_switch_test.go
+  - frontend/tests/unit/services/studio-v2-locator-acquisition.test.ts
+  - internal/datalink/dbtarget/writer_review_busy_test.go
+  - internal/protocol/mcprotocol/mcprotocol_test.go
+  - frontend/tests/unit/workbench-v2/configured-destination-chooser.test.tsx
+  - cmd/test_ui/acquisition_scheduled_safe_mixed_regression_test.go
+  - internal/datalink/dbtarget/writer_recovery_postgres_test.go
+  - internal/datalink/dbtarget/writer_ownership_async_test.go
+  - internal/datalink/dbtarget/writer_review_timeout_test.go
+  - internal/datalink/runtime/ingestor_database_decoupling_test.go
+  - frontend/tests/unit/workbench-v2/recording-method-groups.test.tsx
+  - internal/datalink/connector/acquisition_profile_radix_review_test.go
+  - frontend/tests/unit/hooks/useAcquisitionAnomalies.test.tsx
+  - frontend/tests/unit/workbench-v2/scattered-locator-regression.test.ts
+  - internal/datalink/sourcerule/mixed_review_decision_memory_test.go
+  - frontend/tests/unit/scatteredRangeReviewFixes.test.tsx
+  - cmd/test_ui/target_writer_shutdown_regression_test.go
+  - internal/datalink/connector/acquisition_profile_random_limit_test.go
+  - internal/datalink/dbtarget/writer_skip_reason_test.go
+  - internal/datalink/runtime/status_auto_interval_test.go
+  - internal/protocol/mcprotocol/client_validation_test.go
+  - internal/datalink/dbtarget/writer_starvation_test.go
+  - internal/datalink/dbtarget/writer_interval_test.go
+  - internal/datalink/optimizer/acquisition_review_regression_test.go
+  - internal/datalink/collector/scheduler_qiqr_shape_regression_test.go
+  - internal/datalink/device/service_acquisition_test.go
+  - cmd/test_ui/target_writer_lifecycle_test.go
+  - internal/datalink/workspace/runtime_acquisition_mixed_test.go
+  - frontend/tests/unit/services/acquisitionAnomalies.test.ts
+  - frontend/tests/unit/workbench-v2/recording-legacy-method.test.tsx
+  - internal/datalink/dbtarget/writer_retry_summary_regression_test.go
+  - internal/datalink/point/service_polling_group_owner_test.go
+  - internal/datalink/anomaly/detector_observation_regression_test.go
+  - internal/api/handlers/acquisition_anomaly_handler_test.go
+  - internal/datalink/collector/scheduler_auto_interval_test.go
+  - cmd/test_ui/service_wiring.go
+  - internal/datalink/connector/acquisition_profile_test.go
+  - internal/api/router_acquisition_anomaly_test.go
+  - frontend/tests/e2e/fixtures/recording-mixed-review-host.html
+  - internal/api/handlers/mixed_item_review_decision_regression_test.go
+  - cmd/test_ui/acquisition_scheduled_mixed_test.go
+  - internal/datalink/anomaly/sql_repo_test.go
+  - frontend/tests/unit/workbench-v2/recording-schema-instruction.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-readiness-plain-language.test.tsx
+  - internal/datalink/migrator_device_acquisition_test.go
+  - internal/datalink/sourcerule/mixed_identity_retirement_runtime_test.go
+  - internal/datalink/anomaly/detector_test.go
+  - cmd/test_ui/target_writer.go
+  - internal/datalink/dbtarget/writer_decouple_group_regression_test.go
+  - frontend/tests/unit/runtime-dashboard/diagnostics-no-write-claim.test.tsx
+  - internal/datalink/anomaly/detector_frozen_between_scans_regression_test.go
+  - internal/datalink/dbtarget/writer_recovery_test.go
+  - frontend/tests/unit/workbench-v2/recording-member-calculation-controls.test.tsx
+  - internal/datalink/pollinggroup/sql_repo_owner_test.go
+  - frontend/tests/unit/workbench-v2/recording-simple-editor.test.tsx
+  - cmd/test_ui/target_writer_async_test.go
+  - internal/api/handlers/runtime_rule_status_safety_test.go
+  - internal/api/handlers/mixed_item_replacement_regression_test.go
+  - frontend/tests/unit/workbench-v2/recording-simple-copy.test.tsx
+  - internal/datalink/dbtarget/delivery_outcome_test.go
+  - internal/datalink/dbtarget/writer_row_groups_test.go
+  - internal/datalink/pollinggroup/sql_repo_test.go
+  - frontend/tests/unit/workbench-v2/saved-recording-actions.test.tsx
+  - internal/datalink/connector/adapters/mc3e_planned_fixture_test.go
+  - frontend/tests/unit/services/studio-v2-locator-mixed-rule.test.ts
+  - internal/datalink/dbtarget/writer_review_refresh_test.go
+  - internal/datalink/dbtarget/service_writer_test.go
+  - internal/api/handlers/studio_v2_device_acquisition_concurrency_regression_test.go
+  - frontend/tests/unit/workbench-v2/scattered-mapping-identity-regression.test.tsx
+  - frontend/tests/e2e/fixtures/recording-anomalies-host.tsx
+  - internal/datalink/point/service_device_acquisition_concurrency_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-acquisition-anomalies.test.tsx
+  - internal/datalink/connector/adapters/mc3e_planned_peer_test.go
+  - internal/datalink/device/service_acquisition_concurrency_regression_test.go
+  - internal/datalink/optimizer/acquisition_random_contract_test.go
+  - internal/datalink/optimizer/acquisition_random_long_timer_regression_test.go
+  - cmd/test_ui/target_writer_throughput_test.go
+  - internal/api/handlers/mixed_address_profile_regression_test.go
+  - frontend/tests/e2e/fixtures/recording-anomalies-host.html
+  - internal/datalink/anomaly/detector_restart_regression_test.go
+  - frontend/tests/e2e/fixtures/recording-constraints-host.html
+  - internal/api/handlers/dbtarget_handler_tooling_test.go
+  - internal/datalink/dbtarget/writer_snapshot_test.go
+  - frontend/tests/unit/workbench-v2/recording-mixed-destination-lock.test.tsx
+  - frontend/tests/unit/scatteredRangeForm.test.tsx
+  - internal/datalink/sourcerule/service_device_polling_group_test.go
+  - internal/datalink/dbtarget/writer_worker_test.go
+  - internal/api/handlers/acquisition_anomaly_retention_regression_test.go
+  - internal/api/handlers/studio_v2_workspace_source_rules_mixed_test.go
+  - internal/datalink/connector/adapters/mc3e_planned_matrix_test.go
+  - internal/datalink/anomaly/testhelpers_test.go
+  - internal/datalink/anomaly/sql_repo_retention_regression_test.go
+  - frontend/tests/unit/workbench-v2/recording-instantaneous-method.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-member-result.test.tsx
+  - internal/datalink/sourcerule/acquisition_source_mixed_test.go
+  - frontend/tests/unit/workbench-v2/recording-hidden-and-pending-areas.test.tsx
+  - frontend/tests/unit/workbench-v2/saved-recording-start-label.test.tsx
+  - internal/datalink/dbtarget/writer_recovery_isolation_test.go
+  - internal/datalink/workspace/mixed_rule_format_regression_test.go
+  - internal/datalink/runtime/ingestor_async_acceptance_test.go
+  - internal/datalink/dbtarget/writer_backoff_test.go
+  - internal/datalink/point/service_device_acquisition_atomic_test.go
+  - cmd/test_ui/group_pipeline_legacy_takeover_test.go
+  - internal/datalink/dbtarget/live_projection_test.go
+  - frontend/tests/unit/workbench-v2/recording-legacy-source-refresh.test.tsx
+  - internal/api/handlers/mixed_item_replacement_concurrency_regression_test.go
+  - internal/datalink/pollinggroup/acquisition_mutation_test.go
+  - frontend/tests/unit/workbench-v2/recording-editor-sections.test.tsx
+  - internal/protocol/mcprotocol/client_planned_exact_test.go
+  - frontend/tests/unit/workbench-v2/recording-instant-role-label.test.tsx
+  - internal/datalink/dbtarget/writer_decouple_timeout_regression_test.go
+  - frontend/tests/unit/workbench-v2/recording-confirmation-readable.test.tsx
+  - frontend/tests/e2e/fixtures/recording-constraints-host.tsx
+  - internal/datalink/device/sql_repo_acquisition_test.go
+  - internal/protocol/mcprotocol/client_word_read_test.go
+  - internal/datalink/dbtarget/writer_outcome_time_regression_test.go
+  - internal/datalink/point/service_device_acquisition_settings_regression_test.go
+  - frontend/tests/unit/workbench-v2/groupTestWriteCleanupRepair.test.tsx
+-->

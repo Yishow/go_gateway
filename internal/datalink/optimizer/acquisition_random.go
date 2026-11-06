@@ -4,7 +4,9 @@ import (
 	"cmp"
 	"slices"
 
+	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/fatek"
+	"go-gateway/internal/protocol/mcprotocol"
 )
 
 func randomEligible(identity AcquisitionIdentity, capability AcquisitionCapability, bits int) bool {
@@ -13,11 +15,45 @@ func randomEligible(identity AcquisitionIdentity, capability AcquisitionCapabili
 	}
 	switch identity.Protocol {
 	case "mc", acquisitionProtocolMitsubishi:
-		return identity.Frame == acquisitionFrame3EBinary && bits == 16
+		return identity.Frame == acquisitionFrame3EBinary && (bits == 1 || bits == 16)
 	case acquisitionProtocolFatek:
 		return identity.Frame == acquisitionFrameASCII
 	}
 	return false
+}
+
+func randomScalarEligible(identity AcquisitionIdentity, capability AcquisitionCapability, coverage ReadableCoverage, scalar AcquisitionRequest) bool {
+	if len(scalar.Points) == 0 {
+		return false
+	}
+	p := scalar.Points[0]
+	if p.Point.DataType == schema.DataTypeString {
+		return false
+	}
+	if identity.Protocol == "mc" || identity.Protocol == acquisitionProtocolMitsubishi {
+		if mcprotocol.IsLongTimerOrCounter(scalar.Group.Area) {
+			return false
+		}
+	}
+	if slices.Contains(capability.RandomExcludedAreas, scalar.Group.Area) {
+		return false
+	}
+	return randomEligible(identity, capability, p.NativeBits) && safeMCRandomBitUnit(identity, capability, coverage, scalar)
+}
+
+func safeMCRandomBitUnit(identity AcquisitionIdentity, capability AcquisitionCapability, coverage ReadableCoverage, scalar AcquisitionRequest) bool {
+	if (identity.Protocol != "mc" && identity.Protocol != acquisitionProtocolMitsubishi) || scalar.Points[0].NativeBits != 1 {
+		return true
+	}
+	start := scalar.Start / 16 * 16
+	area := scalar.Group.Area
+	if unverifiedQIQRXYExclusions(identity, coverage, area) {
+		return false
+	}
+	return validNativeSpan(identity.Protocol, area, start, 16) &&
+		declaredSpanError(identity.Protocol, capability, area, start, 16) == "" &&
+		!intersectsRanges(coverage.Forbidden, area, start, start+16) &&
+		!intersectsRanges(coverage.Excluded, area, start, start+16)
 }
 
 func randomLimit(identity AcquisitionIdentity, capability AcquisitionCapability) int {
@@ -39,7 +75,15 @@ func randomFrameBytes(identity AcquisitionIdentity, units []NativeUnit) (Applica
 		if identity.Frame != acquisitionFrame3EBinary {
 			return ApplicationFrameBudget{}, false
 		}
-		return ApplicationFrameBudget{RequestBytes: 17 + 4*len(units), ResponseBytes: 11 + 2*len(units)}, true
+		responsePayload := 0
+		for _, u := range units {
+			if u.Bits == 32 {
+				responsePayload += 4
+			} else {
+				responsePayload += 2
+			}
+		}
+		return ApplicationFrameBudget{RequestBytes: 17 + 4*len(units), ResponseBytes: 11 + responsePayload}, true
 	case acquisitionProtocolFatek:
 		if identity.Frame != acquisitionFrameASCII {
 			return ApplicationFrameBudget{}, false
@@ -64,7 +108,7 @@ func randomFrameBytes(identity AcquisitionIdentity, units []NativeUnit) (Applica
 
 // packRandom adds complete scalars, deduplicating only identical native units.
 // A request has at most 255 units, bounding each candidate copy/lookup.
-func packRandom(scalars []AcquisitionRequest, capability AcquisitionCapability) ([]AcquisitionRequest, bool) {
+func packRandom(scalars []AcquisitionRequest, capability AcquisitionCapability, coverage ReadableCoverage) ([]AcquisitionRequest, bool) {
 	var result []AcquisitionRequest
 	var current *AcquisitionRequest
 	budget, valid := strictFrameBudget(capability)
@@ -72,17 +116,17 @@ func packRandom(scalars []AcquisitionRequest, capability AcquisitionCapability) 
 		return nil, false
 	}
 	for _, scalar := range scalars {
-		if !randomEligible(scalar.Group.Identity, capability, scalar.Points[0].NativeBits) {
+		if !randomScalarEligible(scalar.Group.Identity, capability, coverage, scalar) {
 			return nil, false
 		}
 		candidate := appendRandomScalar(current, scalar, capability)
-		if !randomWithinLimits(candidate) || !fitsFrameBudget(candidate.FrameBytes, budget) {
+		if !randomWithinLimits(candidate, capability) || !fitsFrameBudget(candidate.FrameBytes, budget) {
 			if current == nil {
 				return nil, false
 			}
 			result = append(result, *current)
 			candidate = appendRandomScalar(nil, scalar, capability)
-			if !randomWithinLimits(candidate) || !fitsFrameBudget(candidate.FrameBytes, budget) {
+			if !randomWithinLimits(candidate, capability) || !fitsFrameBudget(candidate.FrameBytes, budget) {
 				return nil, false
 			}
 		}
@@ -114,22 +158,66 @@ func appendRandomScalar(current *AcquisitionRequest, scalar AcquisitionRequest, 
 	}
 	point := scalar.Points[0]
 	point.Offset = -1
-	for n := range scalar.Length {
-		address := scalar.Start + n*scalar.AddressStep
-		unit := NativeUnit{Area: scalar.Group.Area, Address: address, Bits: point.NativeBits}
-		index := slices.Index(candidate.Units, unit)
-		if index < 0 {
-			index = len(candidate.Units)
-			candidate.Units = append(candidate.Units, unit)
-		}
-		if point.Offset < 0 {
-			point.Offset = index
+	isMC := scalar.Group.Identity.Protocol == "mc" || scalar.Group.Identity.Protocol == acquisitionProtocolMitsubishi
+	if isMC && point.NativeBits == 1 {
+		wordAddr := (scalar.Start / 16) * 16
+		unit := NativeUnit{Area: scalar.Group.Area, Address: wordAddr, Bits: 16}
+		point.Offset = insertMCUnit(&candidate, unit)
+		point.Length = 1
+		point.NativeBits = 16
+		point.BitIndex = scalar.Start % 16
+	} else if isMC && point.NativeBits == 16 && scalarBits(point.Point.DataType) == 32 {
+		unit := NativeUnit{Area: scalar.Group.Area, Address: scalar.Start, Bits: 32}
+		point.Offset = insertMCUnit(&candidate, unit)
+		point.Length = 1
+		point.NativeBits = 32
+	} else {
+		for n := range scalar.Length {
+			address := scalar.Start + n*scalar.AddressStep
+			unit := NativeUnit{Area: scalar.Group.Area, Address: address, Bits: point.NativeBits}
+			var index int
+			if isMC {
+				index = insertMCUnit(&candidate, unit)
+			} else {
+				index = slices.Index(candidate.Units, unit)
+				if index < 0 {
+					index = len(candidate.Units)
+					candidate.Units = append(candidate.Units, unit)
+				}
+			}
+			if point.Offset < 0 {
+				point.Offset = index
+			}
 		}
 	}
 	candidate.Points = append(candidate.Points, point)
 	candidate.Length = len(candidate.Units)
 	candidate.FrameBytes, candidate.FrameCostKnown = randomFrameBytes(candidate.Group.Identity, candidate.Units)
 	return candidate
+}
+
+func insertMCUnit(candidate *AcquisitionRequest, unit NativeUnit) int {
+	if index := slices.Index(candidate.Units, unit); index >= 0 {
+		return index
+	}
+	if unit.Bits == 32 {
+		candidate.Units = append(candidate.Units, unit)
+		return len(candidate.Units) - 1
+	}
+	insertAt := len(candidate.Units)
+	for i, existing := range candidate.Units {
+		if existing.Bits == 32 {
+			insertAt = i
+			break
+		}
+	}
+	candidate.Units = slices.Insert(candidate.Units, insertAt, unit)
+	for i := range candidate.Points {
+		if candidate.Points[i].Offset >= insertAt {
+			candidate.Points[i].Offset++
+		}
+	}
+	return insertAt
 }
 
 func sortScalarRequests(requests []AcquisitionRequest) {
@@ -151,7 +239,7 @@ func sortScalarRequests(requests []AcquisitionRequest) {
 }
 
 // Component caps are independent of FATEK's protocol word-cost budget.
-func randomWithinLimits(r AcquisitionRequest) bool {
+func randomWithinLimits(r AcquisitionRequest, capability AcquisitionCapability) bool {
 	if len(r.Units) > r.Limit {
 		return false
 	}
@@ -160,7 +248,11 @@ func randomWithinLimits(r AcquisitionRequest) bool {
 		for _, u := range r.Units {
 			cost += max(1, u.Bits/16)
 		}
-		return cost <= 64
+		wordLimit := 64
+		if capability.RandomProtocolLimit > 0 {
+			wordLimit = min(wordLimit, capability.RandomProtocolLimit)
+		}
+		return cost <= wordLimit
 	}
 	return true
 }

@@ -66,26 +66,35 @@ func loadSourceFormatProfile(ctx context.Context, runner writeGroupSQLRunner, qu
 		return connector.ErrReadProfile
 	}
 	defaults.ConnectionFormat = config.DataFormat
-	rows, err := runner.QueryContext(ctx, query(`SELECT l.rule_id,l.address,COALESCE(r.device_id,''),COALESCE(r.revision_id,''),COALESCE(r.data_format,'') FROM source_rule_links l LEFT JOIN source_rules r ON r.id=l.rule_id WHERE l.point_id=$1`), s.PointID)
+	rows, err := runner.QueryContext(ctx, query(`SELECT l.rule_id,l.address,COALESCE(r.device_id,''),COALESCE(r.revision_id,''),COALESCE(r.data_format,''),COALESCE(r.layout_mode,''),COALESCE(r.mixed_items,'') FROM source_rule_links l LEFT JOIN source_rules r ON r.id=l.rule_id WHERE l.point_id=$1`), s.PointID)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	count := 0
+	var sourceLayout string
 	for rows.Next() {
 		count++
-		var address, deviceID string
-		if err := rows.Scan(&defaults.RuleID, &address, &deviceID, &defaults.RuleRevision, &defaults.RuleFormat); err != nil {
+		var address string
+		var rule schema.SourceRule
+		if err := rows.Scan(&rule.ID, &address, &rule.DeviceID, &rule.RevisionID, &rule.DataFormat, &rule.LayoutMode, &rule.MixedItems); err != nil {
 			return err
 		}
-		if count > 1 || address != point.Address || deviceID != d.ID || defaults.RuleRevision == "" {
+		if count > 1 || address != point.Address || rule.DeviceID != d.ID || rule.RevisionID == "" {
 			return connector.ErrReadProfile
 		}
+		format, err := measurement.SourceRulePointFormat(&rule, &point)
+		if err != nil {
+			return connector.ErrReadProfile
+		}
+		defaults.RuleID, defaults.RuleRevision, defaults.RuleFormat = rule.ID, rule.RevisionID, format
+		sourceLayout = rule.LayoutMode
 		defaults.RuleOwned = true
 	}
 	if err := rows.Err(); err != nil {
 		return err
 	}
 	s.profile, err = connector.ResolveReadProfile(point, defaults)
+	s.profile = s.profile.WithSourceLayout(sourceLayout)
 	return err
 }

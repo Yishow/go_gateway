@@ -369,11 +369,10 @@ func TestClient_RandomRead(t *testing.T) {
 		t.Errorf("Expected 3 values, got %d", len(values))
 	}
 
-	// 測試位元設備
-	items[0].Device = "M"
-	_, err = client.RandomRead(items)
-	if err == nil {
-		t.Error("Expected error for bit device in RandomRead")
+	// 測試非 16 點對齊位元設備拒絕
+	items[0] = RandomReadItem{Device: "M", Addr: 5}
+	if _, err = client.RandomRead(items); err == nil {
+		t.Error("Expected error for unaligned bit device in RandomRead")
 	}
 
 	// 測試未知設備

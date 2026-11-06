@@ -4,9 +4,11 @@ import type { DeviceSourceBuffer } from '../../../../pages/datalink/workbench-v2
 import { ConnectionConfigForm } from '../steps/step1/ConnectionConfigForm';
 import { PROTOCOLS, getDefaultConfig } from '../state/protocols';
 import { getProtocolSupport } from '../state/protocolSupport';
+import type { RuntimeIntervalReadout } from '../../../../types/acquisitionSettings';
+import { RecordingAcquisitionSettings } from './RecordingAcquisitionSettings';
 
-export function RecordingDeviceSourceForm({ buffer, lockedProtocol, onChange, onProtocol, onSubtype }: {
-  buffer: DeviceSourceBuffer; lockedProtocol: boolean;
+export function RecordingDeviceSourceForm({ buffer, lockedProtocol, onChange, onProtocol, onSubtype, existingDevice, runtimeInterval }: {
+  buffer: DeviceSourceBuffer; lockedProtocol: boolean; existingDevice?: boolean; runtimeInterval?: RuntimeIntervalReadout;
   onChange: (buffer: DeviceSourceBuffer) => void;
   onProtocol: (buffer: DeviceSourceBuffer) => void;
   onSubtype?: (buffer: DeviceSourceBuffer) => void;
@@ -29,6 +31,7 @@ export function RecordingDeviceSourceForm({ buffer, lockedProtocol, onChange, on
           onSubtype({ ...buffer, config: { mode: patch.mode } });
         } else onChange({ ...buffer, config: { ...buffer.config, ...patch } });
       }} />
+    {buffer.protocol !== 'mqtt' && <RecordingAcquisitionSettings buffer={buffer} existingDevice={existingDevice} runtimeInterval={runtimeInterval} onChange={onChange} />}
     <p className="gw-muted">{t('device.scopeNote')}</p>
   </div>;
 }

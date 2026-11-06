@@ -49,11 +49,30 @@ type Device struct {
 	// JSON 儲存多維 readiness contract，至少含 connect/probe 狀態、planning/activation/apply eligibility 與 blocking reasons。
 	ReadinessStatus string `json:"readiness_status,omitempty" db:"readiness_status"`
 
+	// AcquisitionIntervalMs 設備採集頻率（毫秒，由設備專屬輪詢群組持有）。
+	AcquisitionIntervalMs *int `json:"acquisition_interval_ms,omitempty" db:"-"`
+
+	// StaleThresholdMs 點位多久沒有成功讀取視為 stale；nil 表示取值間隔 ×5 且至少 10 秒。
+	StaleThresholdMs *int `json:"stale_threshold_ms" db:"stale_threshold_ms"`
+
+	// FrozenThresholdMs 數值多久未變化視為凍結；0 表示停用（預設）。
+	FrozenThresholdMs int `json:"frozen_threshold_ms" db:"frozen_threshold_ms"`
+
+	// AcquisitionAutoInterval 是否依實測掃描耗時自動拉長有效取值間隔（預設停用）。
+	AcquisitionAutoInterval bool `json:"acquisition_auto_interval" db:"acquisition_auto_interval"`
+
 	// CreatedAt 建立時間
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 
 	// UpdatedAt 更新時間
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// DeviceAcquisitionSettings 是設備層級的採集門檻設定；取值間隔本身由設備專屬輪詢群組持有。
+type DeviceAcquisitionSettings struct {
+	StaleThresholdMs        *int
+	FrozenThresholdMs       int
+	AcquisitionAutoInterval bool
 }
 
 // ReadinessCheck 單項檢查結果

@@ -8,8 +8,9 @@ const numeric = (value: unknown): number => typeof value === 'number' && Number.
 const observedMetric = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
 const choice = <T extends string>(value: unknown, allowed: readonly T[], fallback: T): T => allowed.find((item) => item === value) ?? fallback;
 const timestamp = (value: unknown): string | null => typeof value === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(value) && Number.isFinite(Date.parse(value)) ? value : null;
-const stages = ['collector', 'mapping', 'runtime_projection', 'database_delivery', 'modbus_share_delivery', 'collected', 'mapped', 'db_write', 'db_write_failed', 'db_write_succeeded', 'accepted', 'queued', 'sql-committed', 'unknown'] as const;
+const stages = ['collector', 'mapping', 'runtime_projection', 'database_delivery', 'modbus_share_delivery', 'collected', 'mapped', 'buffer_accepted', 'db_write', 'db_write_failed', 'db_write_succeeded', 'accepted', 'queued', 'sql-committed', 'unknown'] as const;
 const stage = (value: unknown): string => choice(value, stages, 'unknown');
+const interval = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 const optionalStage = (value: unknown): string | undefined => value == null || value === '' ? undefined : stage(value);
 const failureCode = (value: unknown): string | undefined => ['runtime_snapshot_unavailable', 'modbus_share_delivery', 'database_delivery'].find((item) => item === value);
 function scope(value: unknown): string {
@@ -36,6 +37,7 @@ export function projectRuntimeStatus(value: unknown): RuntimeStatusWithDiagnosti
       breaker_state: choice(c.breaker_state, ['closed', 'open', 'half-open'], 'unavailable'),
       projection_alignment: safeRuntimeAlignment(c.projection_alignment),
       runtime_projection_version: id(c.runtime_projection_version), workspace_projection_version: id(c.workspace_projection_version),
+      ...(interval(c.configured_interval_ms) ? { configured_interval_ms: c.configured_interval_ms } : {}), ...(interval(c.effective_interval_ms) ? { effective_interval_ms: c.effective_interval_ms } : {}),
     })),
     diagnostics: list(v.diagnostics).map((d) => ({
       scope: scope(d.scope), device_id: id(d.device_id), point_id: id(d.point_id), tag_id: id(d.tag_id),

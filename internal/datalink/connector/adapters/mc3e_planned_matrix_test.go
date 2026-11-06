@@ -41,7 +41,11 @@ func TestMCPlannedCompleteScalarMatrix(t *testing.T) {
 					want := map[string]any{"scalar": tc.want}
 					if random {
 						points = append(points, mcPlannedPoint("far", "D20", schema.DataTypeInt16, ""))
-						words = append(words, 0xfffe)
+						if len(words) == 2 {
+							words = append([]uint16{0xfffe}, words...)
+						} else {
+							words = append(words, 0xfffe)
+						}
 						want["far"] = int16(-2)
 					}
 					req := mcPlannedRequest(t, points...)

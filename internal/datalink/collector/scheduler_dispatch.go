@@ -13,7 +13,7 @@ import (
 func (s *Scheduler) startGroupTicker(group *schema.PollingGroup) {
 	captured := *group
 	group = &captured
-	interval := time.Duration(group.IntervalMs) * time.Millisecond
+	interval := s.effectiveGroupIntervalLocked(group)
 	gt := &groupTicker{group: group, ticker: time.NewTicker(interval), stopCh: make(chan struct{}), done: make(chan struct{})}
 	s.groupTickers[group.ID] = gt
 	s.wg.Go(func() { s.runGroupTicker(gt) })
@@ -52,7 +52,8 @@ func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	snapshot := scheduledSnapshot{device: device, geometry: s.currentAcquisitionGeometryLocked(deviceID), points: slices.Clone(points), ctx: ctx, running: s.running, capturedAt: time.Now()}
+	autoInterval := s.deviceIntervals[deviceID] != nil && s.deviceIntervals[deviceID].autoInterval
+	snapshot := scheduledSnapshot{device: device, geometry: s.currentAcquisitionGeometryLocked(deviceID), points: slices.Clone(points), ctx: ctx, running: s.running, autoInterval: autoInterval, capturedAt: time.Now()}
 	if len(points) > 0 {
 		snapshot.groupID = points[0].PollingGroupID
 		snapshot.ticker = s.groupTickers[snapshot.groupID]

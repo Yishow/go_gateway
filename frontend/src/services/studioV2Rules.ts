@@ -16,6 +16,8 @@ export interface StudioV2UpdateSourceRuleRequest {
   share_enabled?: boolean;
   share_start_register?: number | null;
   share_stride?: number | null;
+  layout_mode?: import('../types/measurement').LayoutMode;
+  mixed_items?: import('../types/measurement').MixedItem[];
 }
 
 export const studioV2RulesAPI = {

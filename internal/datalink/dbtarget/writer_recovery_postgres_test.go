@@ -22,22 +22,21 @@ func TestWriter_PostgresMissingTableRecovery(t *testing.T) {
 			table := pgIdentifier(t, schemaName) + `.sensor_readings`
 			at := time.Date(2026, 10, 24, 0, 55, 0, 0, time.UTC)
 			for cycle := range 2 {
+				cycleAt := at.Add(time.Duration(cycle) * time.Minute)
 				if cycle > 0 {
 					_, err := admin.ExecContext(t.Context(), `DROP TABLE `+table)
 					require.NoError(t, err)
 				}
 				for i, mapping := range f.mappings {
-					require.NoError(t, f.writer.WriteTagValue(t.Context(), mapping.TagID, 21.5+float64(i), at))
+					require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), mapping.TagID, 21.5+float64(i), cycleAt), ErrSnapshotAccepted)
 				}
-				if grouped {
-					require.NoError(t, f.writer.flushBuckets(t.Context(), at.Add(time.Minute), false))
-				}
+				require.NoError(t, f.writer.flushDue(t.Context(), cycleAt.Add(time.Minute), false))
 				var temperature, pressure float64
 				var savedAt time.Time
 				require.NoError(t, admin.QueryRowContext(t.Context(), `SELECT temperature, pressure, ts FROM `+table).Scan(&temperature, &pressure, &savedAt))
 				require.Equal(t, 21.5, temperature)
 				require.Equal(t, 22.5, pressure)
-				require.True(t, at.Equal(savedAt))
+				require.True(t, cycleAt.Equal(savedAt))
 				var count int
 				require.NoError(t, admin.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+table).Scan(&count))
 				require.Equal(t, 1, count, "a recovery retry must not duplicate the sample")
@@ -66,7 +65,9 @@ func TestWriter_PostgresMissingTableRecoveryPermissionDenied(t *testing.T) {
 	require.NoError(t, err)
 	f := newWriterRecoveryFixture(t, schema.DatabaseConnectorKindPostgres,
 		postgresConnectorConfig(fields, schemaName, roleName, password), schemaName, false)
-	err = f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 42.0, time.Now())
+	at := time.Now()
+	require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 42.0, at), ErrSnapshotAccepted)
+	err = f.writer.flushDue(t.Context(), at.Add(time.Minute), false)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "自動重建資料表失敗")
 	var exists bool

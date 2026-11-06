@@ -1126,6 +1126,69 @@ const docTemplate = `{
                 }
             }
         },
+        "/datalink/studio-v2/workspace/recording-start/lookup": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Look up a scoped recording start by its original request",
+                "parameters": [
+                    {
+                        "description": "Original complete scoped start request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/workspace.RecordingStartRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RecordingStartResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/datalink/studio-v2/workspace/recording-start/operations/{id}": {
             "get": {
                 "produces": [
@@ -2849,6 +2912,127 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/datalink/acquisition-anomalies/summary": {
+            "get": {
+                "description": "Returns every device's number of active (not yet ended) anomaly events; devices without active events report 0.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datalink Acquisition Anomalies"
+                ],
+                "summary": "Summarize active acquisition anomalies per device",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AcquisitionAnomalySummaryResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AcquisitionAnomalyErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AcquisitionAnomalyErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/datalink/devices/{id}/acquisition-anomalies": {
+            "get": {
+                "description": "Lists persisted disconnected, stale and frozen events of one device, newest first, with the filtered total. Each device targets 5000 events by pruning the oldest ended events first. Active events are always retained, even above the target; ending an event triggers pruning again.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Datalink Acquisition Anomalies"
+                ],
+                "summary": "List a device's acquisition anomalies",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "active",
+                            "ended"
+                        ],
+                        "type": "string",
+                        "description": "Event state",
+                        "name": "state",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "disconnected",
+                            "stale",
+                            "frozen"
+                        ],
+                        "type": "string",
+                        "description": "Anomaly kind",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 500,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Page size (1-500, default 50)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "Number of events to skip (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AcquisitionAnomalyListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AcquisitionAnomalyErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AcquisitionAnomalyErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AcquisitionAnomalyErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AcquisitionAnomalyErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/datalink/studio-v2/workspace": {
             "get": {
                 "produces": [
@@ -2955,6 +3139,121 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/datalink/studio-v2/workspace/database-catalog": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Recording Plans"
+                ],
+                "summary": "Read the saved database catalog",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Exact owning workspace",
+                        "name": "workspace_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact saved database setup revision; empty is valid only for legacy-empty workspaces",
+                        "name": "expected_workspace_revision",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Enabled saved connector to inspect",
+                        "name": "connector_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Current saved connector identity revision",
+                        "name": "expected_connector_revision",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact saved write group; requires expected_group_revision",
+                        "name": "group_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Current saved write-group revision",
+                        "name": "expected_group_revision",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Locator-origin workspace identity; requires revision pair",
+                        "name": "locator_workspace_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Exact observed locator workspace revision",
+                        "name": "locator_workspace_revision",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.studioV2WorkspaceDatabaseCatalogResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/handlers.APIErrorResponse"
                         }
@@ -3650,6 +3949,111 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/datalink/studio-v2/workspace/source-rules": {
+            "post": {
+                "description": "A homogeneous rule expands start_address, count and data_type. A mixed rule (layout_mode=mixed) expands one point per mixed_items entry; items carry their own address and data_type, may use different areas, and must not overlap. Validation errors name the field and, for item conflicts, item_ids.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Source Rules"
+                ],
+                "summary": "Create workspace source rule",
+                "parameters": [
+                    {
+                        "description": "Source rule",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sourcerule.CreateRuleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SourceRuleEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/datalink/studio-v2/workspace/source-rules/{id}": {
+            "put": {
+                "description": "Omitted fields keep their stored values. layout_mode switches the layout; mixed_items replaces the complete item list of a mixed rule, and items are matched to existing points by item_id.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Source Rules"
+                ],
+                "summary": "Update workspace source rule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Source rule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Changed fields",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sourcerule.UpdateRuleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SourceRuleEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/datalink/studio-v2/workspace/write-groups/{id}/lifecycle": {
             "get": {
                 "description": "Local read only: saved status/actions, immutable per-generation history and sanitized successor_seed. Actions and seed are advisory, never mutation authority. Saved configuration, runtime health and delivery outcomes remain distinct; samples, outbox and unknown counts use separate units.",
@@ -4207,6 +4611,20 @@ const docTemplate = `{
                 },
                 "unique_address_units": {
                     "type": "integer"
+                }
+            }
+        },
+        "dbtarget.CatalogSchema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "tables": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -5165,6 +5583,172 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.AcquisitionAnomalyDeviceCount": {
+            "type": "object",
+            "properties": {
+                "active_count": {
+                    "type": "integer"
+                },
+                "device_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.AcquisitionAnomalyErrorEnvelope": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "dirty_state": {
+                    "type": "string"
+                },
+                "field": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "retryable": {
+                    "type": "boolean"
+                },
+                "settings_revision": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.AcquisitionAnomalyErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/handlers.AcquisitionAnomalyErrorEnvelope"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "handlers.AcquisitionAnomalyItem": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "duration_ms": {
+                    "type": "integer"
+                },
+                "ended_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "disconnected",
+                        "stale",
+                        "frozen"
+                    ]
+                },
+                "last_value": {
+                    "type": "string"
+                },
+                "point_address": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "point_name": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "ended"
+                    ]
+                }
+            }
+        },
+        "handlers.AcquisitionAnomalyListData": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.AcquisitionAnomalyItem"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.AcquisitionAnomalyListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.AcquisitionAnomalyListData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "handlers.AcquisitionAnomalySummaryData": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.AcquisitionAnomalyDeviceCount"
+                    }
+                },
+                "total_active": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.AcquisitionAnomalySummaryResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.AcquisitionAnomalySummaryData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
         "handlers.AcquisitionPreviewResponse": {
             "type": "object",
             "properties": {
@@ -5377,6 +5961,18 @@ const docTemplate = `{
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "handlers.SourceRuleEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.sourceRuleResponse"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
                 }
             }
         },
@@ -6555,8 +7151,27 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "layout_mode": {
+                    "description": "LayoutMode is homogeneous or mixed; a mixed rule's start_address, count and data_type project its first item.",
+                    "type": "string",
+                    "enum": [
+                        "homogeneous",
+                        "mixed"
+                    ]
+                },
                 "locked": {
                     "type": "boolean"
+                },
+                "mixed_items": {
+                    "description": "MixedItems lists the items of a mixed rule; each item owns one derived point at its address.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/measurement.MixedItem"
+                    }
+                },
+                "mixed_items_error": {
+                    "description": "MixedItemsError reports stored mixed items that could not be decoded.",
+                    "type": "string"
                 },
                 "naming_prefix": {
                     "type": "string"
@@ -6751,6 +7366,35 @@ const docTemplate = `{
                 "updated_at": {}
             }
         },
+        "handlers.studioV2WorkspaceDatabaseCatalogResponse": {
+            "type": "object",
+            "properties": {
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "default_schema": {
+                    "type": "string"
+                },
+                "kind": {
+                    "$ref": "#/definitions/schema.DatabaseConnectorKind"
+                },
+                "schemas": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dbtarget.CatalogSchema"
+                    }
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.studioV2WorkspaceDatabaseConfigResponse": {
             "type": "object",
             "properties": {
@@ -6941,6 +7585,13 @@ const docTemplate = `{
         "handlers.studioV2WorkspaceDeviceResponse": {
             "type": "object",
             "properties": {
+                "acquisition_auto_interval": {
+                    "type": "boolean"
+                },
+                "acquisition_interval_ms": {
+                    "description": "採集設定：間隔由設備專屬輪詢群組持有，門檻與自動調整存於設備。",
+                    "type": "integer"
+                },
                 "availability_reason": {
                     "type": "string"
                 },
@@ -6953,6 +7604,9 @@ const docTemplate = `{
                 "created_at": {},
                 "description": {
                     "type": "string"
+                },
+                "frozen_threshold_ms": {
+                    "type": "integer"
                 },
                 "id": {
                     "type": "string"
@@ -6978,6 +7632,9 @@ const docTemplate = `{
                 },
                 "runtime_apply_status": {
                     "type": "string"
+                },
+                "stale_threshold_ms": {
+                    "type": "integer"
                 },
                 "status": {
                     "$ref": "#/definitions/schema.DeviceStatus"
@@ -7181,6 +7838,68 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "measurement.MixedItem": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "bit_length": {
+                    "type": "integer"
+                },
+                "bit_offset": {
+                    "type": "integer"
+                },
+                "bitmask_labels": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "counter_policy": {
+                    "$ref": "#/definitions/measurement.CounterPolicy"
+                },
+                "data_format": {
+                    "type": "string"
+                },
+                "data_type": {
+                    "$ref": "#/definitions/schema.DataType"
+                },
+                "item_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "string"
+                },
+                "register_offset": {
+                    "type": "integer"
+                },
+                "scale_multiplier": {
+                    "type": "number"
+                },
+                "scale_offset": {
+                    "type": "number"
+                },
+                "semantic_kind": {
+                    "$ref": "#/definitions/measurement.SemanticKind"
+                },
+                "state_map": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "target_data_type": {
+                    "$ref": "#/definitions/schema.DataType"
+                },
+                "unit": {
                     "type": "string"
                 }
             }
@@ -9399,6 +10118,173 @@ const docTemplate = `{
                 "TransformConditional",
                 "TransformFormula"
             ]
+        },
+        "sourcerule.CreateRuleRequest": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "data_format": {
+                    "description": "DataFormat 字節序格式（可空）。空字串表示使用設備連線預設。",
+                    "type": "string"
+                },
+                "data_type": {
+                    "$ref": "#/definitions/schema.DataType"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "layout_mode": {
+                    "description": "LayoutMode is homogeneous (default) or mixed. A mixed rule derives\nstart_address, count and data_type from its first item.",
+                    "type": "string",
+                    "enum": [
+                        "homogeneous",
+                        "mixed"
+                    ]
+                },
+                "locked": {
+                    "type": "boolean"
+                },
+                "mixed_items": {
+                    "description": "MixedItems lists one point per item; each item has its own address and data_type.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/measurement.MixedItem"
+                    }
+                },
+                "naming_prefix": {
+                    "type": "string"
+                },
+                "origin": {
+                    "type": "string"
+                },
+                "scale_multiplier": {
+                    "description": "ScaleMultiplier 縮放倍率（可空）。",
+                    "type": "number"
+                },
+                "scale_offset": {
+                    "description": "ScaleOffset 偏移量（可空）。",
+                    "type": "number"
+                },
+                "share_enabled": {
+                    "description": "ShareEnabled controls whether this rule is exposed through the local Modbus Share output.",
+                    "type": "boolean"
+                },
+                "share_start_register": {
+                    "description": "ShareStartRegister is the optional local Modbus holding-register start address.",
+                    "type": "integer"
+                },
+                "share_stride": {
+                    "description": "ShareStride is the optional number of local Modbus registers allocated per point.",
+                    "type": "integer"
+                },
+                "skipped_addresses": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "start_address": {
+                    "type": "string"
+                },
+                "target_data_type": {
+                    "description": "TargetDataType 目標資料型態（可空）。預設與 DataType 相同。",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.DataType"
+                        }
+                    ]
+                },
+                "template_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "sourcerule.UpdateRuleRequest": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "data_format": {
+                    "description": "DataFormat 字節序格式（可空）；傳 null 並搭配 DataFormatSet 可清空為連線預設。",
+                    "type": "string"
+                },
+                "data_type": {
+                    "$ref": "#/definitions/schema.DataType"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "layout_mode": {
+                    "description": "LayoutMode switches the rule layout; omitted keeps the stored layout.",
+                    "type": "string",
+                    "enum": [
+                        "homogeneous",
+                        "mixed"
+                    ]
+                },
+                "locked": {
+                    "type": "boolean"
+                },
+                "mixed_items": {
+                    "description": "MixedItems replaces the complete item list of a mixed rule; omitted keeps the stored items.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/measurement.MixedItem"
+                    }
+                },
+                "naming_prefix": {
+                    "type": "string"
+                },
+                "scale_multiplier": {
+                    "description": "ScaleMultiplier 縮放倍率（可空）。",
+                    "type": "number"
+                },
+                "scale_offset": {
+                    "description": "ScaleOffset 偏移量（可空）。",
+                    "type": "number"
+                },
+                "share_enabled": {
+                    "description": "ShareEnabled controls whether this rule is exposed through the local Modbus Share output.",
+                    "type": "boolean"
+                },
+                "share_start_register": {
+                    "description": "ShareStartRegister is the optional local Modbus holding-register start address.",
+                    "type": "integer"
+                },
+                "share_stride": {
+                    "description": "ShareStride is the optional number of local Modbus registers allocated per point.",
+                    "type": "integer"
+                },
+                "skipped_addresses": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "start_address": {
+                    "type": "string"
+                },
+                "target_data_type": {
+                    "description": "TargetDataType 目標資料型態（可空）。",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.DataType"
+                        }
+                    ]
+                },
+                "template_name": {
+                    "type": "string"
+                }
+            }
         },
         "workspace.CutoverEnd": {
             "type": "object",

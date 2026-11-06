@@ -4,14 +4,16 @@ import { useTranslation } from 'react-i18next';
 import type { Rule, WorkbenchV2State } from '../state/types';
 import type { PersistedMCRuleState } from '../state/mcPersistedPoints';
 import { workbenchV2Reducer, type WorkbenchV2Action } from '../state/useWorkbenchV2State';
-import { hydrateStudioV2Rule, isStudioV2RuleValid } from '../state/studioV2RuleAutosave';
+import { hydrateStudioV2Rule, isStudioV2RuleValid, toStudioV2RuleUpdateRequest } from '../state/studioV2RuleAutosave';
+import { validateScatteredItems } from '../state/scatteredRange';
 import { RuleEditor } from '../steps/step2/RuleEditor';
 import { Toggle } from '../components/Toggle';
 import { readStudioLocatorEntry } from '../../../../services/studioV2LocatorEntry';
+import { isKnownRuleValidationRejection } from '../../../../pages/datalink/workbench-v2/sourceQueueObservation';
 import { useRecordingDraftGuard } from '../recording-editor/RecordingDraftNavigation';
 import type { HomeSourceTarget, HomeRuleObserver } from './RecordingHomeSourceHost';
 export type HomeSourceLeave = MutableRefObject<((proceed: () => void) => void) | undefined>;
-const editable = [ 'device_id', 'start_address', 'count', 'data_type', 'naming_prefix', 'enabled', 'skipped_addresses', 'scale_multiplier', 'scale_offset', 'data_format', 'share_enabled', 'share_start_register', 'share_stride'] as const satisfies readonly (keyof Rule)[];
+const editable = [ 'device_id', 'start_address', 'count', 'data_type', 'naming_prefix', 'enabled', 'skipped_addresses', 'scale_multiplier', 'scale_offset', 'data_format', 'share_enabled', 'share_start_register', 'share_stride', 'layout_mode', 'mixed_items'] as const satisfies readonly (keyof Rule)[];
 /** A local form only: one explicit dispatch hands the original saved-rule queue
  * its unchanged update contract. No new API, retry, CAS or operation receipt. */
 export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence, dispatch, leave, suspended, list, onLeave, onClose, headerSlot, onLocked, ruleObserverRef, shareEnabled, onRetryShare, onOpenShareSettings }: {
@@ -22,7 +24,7 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
 }) {
   const { t } = useTranslation('recording-home');
   const [draft, setDraft] = useState(rule), base = useRef(rule);
-  const [phase, setPhase] = useState<'editing' | 'checking' | 'saving' | 'saved' | 'unknown' | 'stale'>('editing');
+  const [phase, setPhase] = useState<'editing' | 'checking' | 'saving' | 'saved' | 'validation' | 'unknown' | 'stale'>('editing');
   const [confirm, setConfirm] = useState<(() => void)>();
   const submitted = useRef<Partial<Rule> | undefined>(undefined), submittedRule = useRef<Rule | undefined>(undefined);
   const [currentRead, setCurrentRead] = useState<'available' | 'unavailable'>();
@@ -49,6 +51,8 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
   if (proof.current.key !== proofKey) proof.current = { key: proofKey, token: {} };
   const current = useRef({ rule, suspended, mcBlocked, proof: proof.current.token }); current.current = { rule, suspended, mcBlocked, proof: proof.current.token };
   const dirty = editable.some(key => JSON.stringify(draft[key]) !== JSON.stringify(base.current[key]));
+  const protocol = state.devices.find(device => device.id === target.deviceId)?.protocol;
+  const draftValid = isStudioV2RuleValid(draft) && (draft.layout_mode !== 'mixed' || Boolean(protocol && validateScatteredItems(protocol, draft.mixed_items ?? []).valid));
   const locked = phase === 'checking' || phase === 'saving' || phase === 'unknown';
   useLayoutEffect(() => {
     // An open keep/discard question keeps its original destination; no other request may replace it.
@@ -67,12 +71,22 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
       saved: (value, acknowledgement) => {
         if (!mounted.current || value !== submittedRule.current || !submitted.current) return;
         const saved = hydrateStudioV2Rule(acknowledgement);
+        const request = toStudioV2RuleUpdateRequest(value), first = request.mixed_items?.[0];
+        const matches = value.layout_mode === 'mixed'
+          ? JSON.stringify(request) === JSON.stringify(toStudioV2RuleUpdateRequest(saved)) &&
+            saved.start_address === first?.address && saved.count === request.mixed_items?.length && saved.data_type === first?.data_type &&
+            saved.skipped_addresses.length === 0 && !saved.share_enabled
+          : Object.entries(submitted.current).every(([key, expected]) => JSON.stringify(saved[key as keyof Rule]) === JSON.stringify(expected));
         if (saved.id !== value.id || saved.workspace_id !== target.workspaceId || saved.device_id !== target.deviceId ||
           !saved.revision_id || saved.revision_id === base.current.revision_id ||
-          !Object.entries(submitted.current).every(([key, expected]) => JSON.stringify(saved[key as keyof Rule]) === JSON.stringify(expected))) { setPhase('unknown'); return; }
+          !matches) { setPhase('unknown'); return; }
         base.current = saved; setDraft(saved); setPhase('saved'); flight.current = false; submittedRule.current = undefined;
       },
-      failed: value => { if (mounted.current && value === submittedRule.current) setPhase('unknown'); },
+      failed: (value, error) => {
+        if (!mounted.current || value !== submittedRule.current) return;
+        if (isKnownRuleValidationRejection(error)) { flight.current = false; submittedRule.current = undefined; setPhase('validation'); }
+        else setPhase('unknown');
+      },
     };
     ruleObserverRef.current = observer;
     return () => { if (ruleObserverRef.current === observer) ruleObserverRef.current = undefined; };
@@ -86,7 +100,7 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
     if (next && next.device_id === target.deviceId) { setDraft(next); setPhase('editing'); }
   };
   const save = async () => {
-    if (flight.current || locked || suspended || mcBlocked || !dirty || !isStudioV2RuleValid(draft)) return;
+    if (flight.current || locked || suspended || mcBlocked || !dirty || !draftValid) return;
     flight.current = true; setPhase('checking');
     const original = base.current, sourceProof = current.current.proof;
     let result;
@@ -116,6 +130,7 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
       <fieldset className="gw-home-saved-range-form" disabled={locked || suspended}><RuleEditor hideLocalName simplePresentation hideEnabledControl rule={{ ...draft, mc_persisted_points: currentEvidence }} devices={state.devices.filter(device => device.id === target.deviceId)}
         globalShareEnabled={state.settings.modbus_share.enabled} shareControls={{ enabled: shareEnabled, retry: onRetryShare, openSettings: () => leave.current?.(onOpenShareSettings) }} dispatch={localDispatch} /></fieldset>
       {phase === 'saved' && <p role="status" data-testid="home-range-saved">{t('source.saved')}</p>}
+      {phase === 'validation' && <p role="alert" data-testid="home-range-validation-error">{t('errors.validation', { ns: 'workbench-v2' })} {t('errors.review_request', { ns: 'workbench-v2' })}</p>}
       {locked && <p role={phase === 'unknown' ? 'alert' : 'status'} data-testid={`home-range-${phase}`}>{t(`source.${phase}`)}</p>}
       {currentRead && <p role="status">{t(`source.currentRead.${currentRead}`)}</p>}
       {phase === 'stale' && <p role="alert">{t('source.stale')}</p>}
@@ -128,6 +143,6 @@ export function RecordingHomeSavedRangeEditor({ target, state, rule, mcEvidence,
     {moreBelow && <span className="gw-home-range-scroll-cue">{t('source.moreBelow')}</span>}
     {confirm ? <><button type="button" data-testid="home-source-keep" onClick={() => setConfirm(undefined)}>{t('source.keep')}</button>
       <button type="button" className="gw-primary" data-testid="home-source-discard" onClick={() => { const proceed = confirm; setDraft(base.current); setConfirm(undefined); proceed(); }}>{t('source.discard')}</button></>
-      : <><button type="button" data-testid="home-range-done" disabled={locked} onClick={onClose}>{t('source.close')}</button>{phase === 'unknown' && <><button type="button" onClick={() => { void inspect(); }}>{t('source.inspect')}</button><button type="button" onClick={onLeave}>{t('source.leaveSent')}</button></>}<button type="button" className="gw-primary" data-testid="home-range-save" disabled={locked || suspended || mcBlocked || !dirty || !isStudioV2RuleValid(draft)} onClick={() => { void save(); }}>{t('source.save')}</button></>}
+      : <><button type="button" data-testid="home-range-done" disabled={locked} onClick={onClose}>{t('source.close')}</button>{phase === 'unknown' && <><button type="button" onClick={() => { void inspect(); }}>{t('source.inspect')}</button><button type="button" onClick={onLeave}>{t('source.leaveSent')}</button></>}<button type="button" className="gw-primary" data-testid="home-range-save" disabled={locked || suspended || mcBlocked || !dirty || !draftValid} onClick={() => { void save(); }}>{t('source.save')}</button></>}
   </footer></>;
 }

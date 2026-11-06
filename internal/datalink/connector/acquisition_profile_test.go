@@ -43,9 +43,10 @@ func TestAcquisitionConfigProfilesHaveCommandSpecificLimits(t *testing.T) {
 	require.Equal(t, 192, cfg.Capability(16).RandomProtocolLimit)
 	require.Equal(t, 255, cfg.Capability(16).ClientLimit)
 	require.Equal(t, 3584, cfg.Capability(1).ProtocolLimit)
-	require.Zero(t, cfg.Capability(1).RandomProtocolLimit)
+	// SH-080008 0403：bit 裝置以 16 點 word 單位進入 random，共用 192 點上限。
+	require.Equal(t, 192, cfg.Capability(1).RandomProtocolLimit)
 	require.Equal(t, 2000, cfg.Capability(1).ClientLimit)
-	require.Equal(t, "unsupported", cfg.Capability(1).RandomSupport)
+	require.Equal(t, "supported", cfg.Capability(1).RandomSupport)
 	for name, points := range map[string][]optimizer.EffectivePoint{
 		"193 sparse words":     acquisitionConfigPoints(193, 10, "D", schema.DataTypeUint16),
 		"126 contiguous words": acquisitionConfigPoints(126, 1, "D", schema.DataTypeUint16),
@@ -60,8 +61,9 @@ func TestAcquisitionConfigProfilesHaveCommandSpecificLimits(t *testing.T) {
 			require.Empty(t, plan.Errors())
 			switch {
 			case bits == 1:
+				// 一次請求涵蓋全部 bit；optimizer 可選 0401 連續 bit 或 0403 的 16 點 word 單位。
 				require.Len(t, plan.Requests(), 1)
-				require.Equal(t, 193, plan.Requests()[0].Length)
+				require.Len(t, plan.Requests()[0].Points, 193)
 			case name == "193 sparse words":
 				require.Len(t, plan.Requests(), 2)
 				require.Equal(t, 192, plan.Requests()[0].Length)

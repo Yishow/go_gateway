@@ -11,4 +11,12 @@ describe('diagnostic evidence boundaries', () => {
     expect(panel).not.toHaveTextContent('所有點位皆已');
     expect(panel).not.toHaveTextContent('database_delivery');
   });
+  it('keeps an accepted database snapshot awaiting write evidence', () => {
+    render(<RuntimeDiagnosticsPanel selectedDeviceId="a" databaseDelivery={[{ device_id: 'a', point_id: 'p1', tag_id: 'tag-1',
+      status: 'accepted', stages: ['collected', 'mapped', 'buffer_accepted'], observed_at: '2026-11-04T10:00:01Z' }]} />);
+    const panel = screen.getByTestId('runtime-dashboard-diagnostics-panel');
+    expect(panel).toHaveTextContent('diagnostics.awaitingWriteEvidence');
+    expect(panel).not.toHaveTextContent('db_write_succeeded');
+    expect(panel).toHaveTextContent('Latest successful stage: Unavailable');
+  });
 });

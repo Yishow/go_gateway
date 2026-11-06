@@ -36,7 +36,9 @@ type AcquisitionCapability struct {
 	ProtocolLimit, ClientLimit, DeviceLimit int
 	// RandomProtocolLimit only tightens random commands, never contiguous reads.
 	// Omission preserves historical plan fingerprints when this limit is unknown.
-	RandomProtocolLimit                                             int `json:",omitempty"`
+	RandomProtocolLimit int `json:",omitempty"`
+	// RandomExcludedAreas lists native areas the declared profile forbids in random requests.
+	RandomExcludedAreas                                             []string `json:",omitempty"`
 	ProtocolFrameBudget, ClientFrameBudget, DeviceFrameBudget       ApplicationFrameBudget
 	ProtocolAddressBounds, ClientAddressBounds, DeviceAddressBounds []NativeAddressBound
 }

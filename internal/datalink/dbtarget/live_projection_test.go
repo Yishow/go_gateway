@@ -141,7 +141,8 @@ func TestWriter_IgnoresStaleMissingTagMappings(t *testing.T) {
 	createStaleTargetMapping(ctx, t, mappingRepo, connector.ID)
 
 	observedAt := time.Date(2026, 6, 7, 12, 0, 0, 0, time.UTC)
-	require.NoError(t, writer.WriteTagValue(ctx, "tag-old", 99.5, observedAt))
+	require.NoError(t, writer.RefreshMappings(ctx))
+	require.ErrorIs(t, writer.WriteTagValue(ctx, "tag-old", 99.5, observedAt), ErrOutputNotApplicable)
 }
 
 func createStaleTargetMapping(

@@ -151,6 +151,23 @@ func localModbusCandidateSnapshotStatus(
 
 func (s *Service) buildTagCandidates(ctx context.Context, rule *schema.SourceRule, links []*schema.SourceRuleLink) ([]schema.SourceRuleTagCandidate, error) {
 	candidates := make([]schema.SourceRuleTagCandidate, 0, len(links))
+	var mixedIDs map[string]string
+	if isMixedRule(rule) {
+		items, err := DecodeMixedItems(rule.MixedItems)
+		if err != nil {
+			return nil, fmt.Errorf("讀取混合項目識別失敗: %w", err)
+		}
+		mixedIDs = make(map[string]string, len(items))
+		seenIDs := make(map[string]bool, len(items))
+		for _, item := range items {
+			address, id := normalizeAddressKey(item.Address), strings.TrimSpace(item.ItemID)
+			if address == "" || id == "" || mixedIDs[address] != "" || seenIDs[id] {
+				return nil, fieldError("mixed_items", "stored item identities are ambiguous")
+			}
+			mixedIDs[address] = id
+			seenIDs[id] = true
+		}
+	}
 	for _, link := range links {
 		if link == nil {
 			continue
@@ -167,8 +184,16 @@ func (s *Service) buildTagCandidates(ctx context.Context, rule *schema.SourceRul
 		transformPipeline := s.buildRuleTransformPipeline(rule, pointRecord)
 		tagID := cloneOptionalString(link.TagID)
 		mappingID := cloneOptionalString(link.MappingID)
+		identity := buildTagCandidateIdentity(rule.ID, link.Address, dataType)
+		if mixedIDs != nil {
+			id := mixedIDs[normalizeAddressKey(link.Address)]
+			if id == "" {
+				return nil, fieldError("mixed_items", "source link has no item identity")
+			}
+			identity.TargetBindingScope = append(identity.TargetBindingScope, schema.SourceRuleCandidateScopeField{Key: "mixed_item_id", Value: id})
+		}
 		candidate := schema.SourceRuleTagCandidate{
-			Identity:          buildTagCandidateIdentity(rule.ID, link.Address, dataType),
+			Identity:          identity,
 			Address:           link.Address,
 			PointID:           link.PointID,
 			TagID:             tagID,

@@ -2,6 +2,7 @@ package device
 
 import (
 	"encoding/json"
+	"errors"
 
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
@@ -19,5 +20,8 @@ func validateAcquisitionDeclaration(protocol schema.ProtocolType, config map[str
 		return connector.ErrAcquisitionConfig
 	}
 	_, err = connector.ResolveAcquisitionConfig(protocol, string(raw))
+	if errors.Is(err, connector.ErrAcquisitionRandomPoints) {
+		return fieldValidationError("connection_config.acquisition.limits.random_points", "random_points 超過所選設定檔的上限")
+	}
 	return err
 }

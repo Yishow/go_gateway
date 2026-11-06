@@ -48,11 +48,16 @@ func (r *MemoryRepository) Update(ctx context.Context, device *schema.Device) er
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, exists := r.devices[device.ID]; !exists {
+	existing, exists := r.devices[device.ID]
+	if !exists {
 		return fmt.Errorf("設備不存在: %s", device.ID)
 	}
 
 	deviceCopy := *device
+	// 與 SQL 實作一致：採集門檻只經 UpdateAcquisitionSettings 寫入。
+	deviceCopy.StaleThresholdMs = cloneThreshold(existing.StaleThresholdMs)
+	deviceCopy.FrozenThresholdMs = existing.FrozenThresholdMs
+	deviceCopy.AcquisitionAutoInterval = existing.AcquisitionAutoInterval
 	r.devices[device.ID] = &deviceCopy
 
 	return nil

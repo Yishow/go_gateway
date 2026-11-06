@@ -38,6 +38,18 @@ func TestRuntimeRuleStatusSafetyLegacyNestedDiagnostics(t *testing.T) {
 	require.Equal(t, hostile, response.Diagnostics[0].Stages[0].Reason)
 }
 
+func TestRuntimeRuleStatusSafetyPreservesBufferAccepted(t *testing.T) {
+	response := runtimeStatusResponse{DatabaseDelivery: []datalinkruntime.DatabaseDeliveryDiagnostic{{
+		PointID: "point-1", TagID: "tag-1", Status: "accepted",
+		Stages: []datalinkruntime.DatabaseDeliveryStage{"collected", "mapped", "buffer_accepted"},
+	}}}
+	wire, err := json.Marshal(response)
+	require.NoError(t, err)
+	require.Contains(t, string(wire), `"status":"accepted"`)
+	require.Contains(t, string(wire), `"stages":["collected","mapped","buffer_accepted"]`)
+	require.NotContains(t, string(wire), "db_write_succeeded")
+}
+
 func TestRuntimeRuleStreamSafetyLegacyValuesAndStatus(t *testing.T) {
 	hostile := "postgres://operator:password-fixture@private-host:5432/private-db"
 	for _, tc := range []struct {

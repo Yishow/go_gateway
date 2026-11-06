@@ -34,7 +34,7 @@ func appendContiguous(out []AcquisitionRequest, candidates contiguousCandidates)
 		step := current.AddressStep
 		end := current.Start + current.Length*step
 		unionEnd := max(end, next.Start+next.Length*next.AddressStep)
-		if step == next.AddressStep && (next.Start-current.Start)%step == 0 && (unionEnd-current.Start)/step <= current.Limit && readableGap(candidates.coverage, current.Group.Area, end, next.Start) {
+		if step == next.AddressStep && (next.Start-current.Start)%step == 0 && (unionEnd-current.Start)/step <= current.Limit && readableGap(candidates.coverage, current.Group.Identity, current.Group.Area, end, next.Start) {
 			for _, point := range next.Points {
 				point.Offset += (next.Start - current.Start) / step
 				current.Points = append(current.Points, point)
@@ -58,11 +58,11 @@ func appendContiguous(out []AcquisitionRequest, candidates contiguousCandidates)
 
 // readableGap checks an interval union, not individual cells. Active spans need
 // no gap grant; unoccupied gaps require a versioned explicit readable statement.
-func readableGap(coverage ReadableCoverage, area string, start, end int) bool {
+func readableGap(coverage ReadableCoverage, identity AcquisitionIdentity, area string, start, end int) bool {
 	if start >= end {
 		return true
 	}
-	if coverage.Revision == "" || intersectsRanges(coverage.Forbidden, area, start, end) || intersectsRanges(coverage.Excluded, area, start, end) {
+	if coverage.Revision == "" || unverifiedQIQRXYExclusions(identity, coverage, area) || intersectsRanges(coverage.Forbidden, area, start, end) || intersectsRanges(coverage.Excluded, area, start, end) {
 		return false
 	}
 	ranges := append([]NativeRange(nil), coverage.Readable...)

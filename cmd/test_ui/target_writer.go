@@ -60,10 +60,15 @@ func newProductionTargetWriter(database datalinkruntime.TargetWriter, share *mod
 func (w fanoutTargetWriter) WriteTagValue(ctx context.Context, tagID string, value any, observedAt time.Time) error {
 	outcomes := w.WriteTagValueOutcomes(ctx, tagID, value, observedAt)
 	var firstErr error
+	accepted := false
 	for _, outcome := range outcomes {
 		if outcome.Err != nil && firstErr == nil {
 			firstErr = outcome.Err
 		}
+		accepted = accepted || outcome.Accepted
+	}
+	if firstErr == nil && accepted {
+		return dbtarget.ErrSnapshotAccepted
 	}
 	return firstErr
 }
@@ -84,14 +89,23 @@ func (w fanoutTargetWriter) WriteTagValueOutcomes(ctx context.Context, tagID str
 		if index == 1 {
 			targetName = datalinkruntime.TargetModbusShare
 		}
-		err := target.WriteTagValue(ctx, tagID, value, observedAt)
+		var accepted bool
+		var err error
+		if asyncWriter, ok := target.(datalinkruntime.AsyncAcceptingWriter); ok {
+			accepted, err = asyncWriter.AcceptTagValue(ctx, tagID, value, observedAt)
+			if !accepted && err == nil {
+				continue
+			}
+		} else {
+			err = target.WriteTagValue(ctx, tagID, value, observedAt)
+		}
 		if errors.Is(err, dbtarget.ErrOutputOwnedByWriteGroup) {
 			// A write group owns this output; its delivery truth comes from the
 			// durable group status, so the legacy diagnostic must not claim a
 			// successful write that never happened.
 			continue
 		}
-		results = append(results, datalinkruntime.TargetDeliveryOutcome{Target: targetName, Err: err})
+		results = append(results, datalinkruntime.TargetDeliveryOutcome{Target: targetName, Err: err, Accepted: accepted})
 	}
 	return results
 }
@@ -102,6 +116,22 @@ func (w fanoutTargetWriter) Close(ctx context.Context) error {
 	for _, target := range w.targets {
 		if closer, ok := target.(interface{ Close(context.Context) error }); ok {
 			if err := closer.Close(ctx); err != nil {
+				failures = append(failures, err)
+			}
+		}
+	}
+	return errors.Join(failures...)
+}
+
+// WaitClosed observes completion of the target closes already started.
+func (w fanoutTargetWriter) WaitClosed(ctx context.Context) error {
+	var failures []error
+	for _, target := range w.targets {
+		if waiter, ok := target.(interface {
+			Close(context.Context) error
+			WaitClosed(context.Context) error
+		}); ok {
+			if err := waiter.WaitClosed(ctx); err != nil {
 				failures = append(failures, err)
 			}
 		}

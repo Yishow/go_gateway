@@ -23,6 +23,14 @@ func validateCreateRequest(req CreateRuleRequest) error {
 	if strings.TrimSpace(req.DeviceID) == "" {
 		return validationError("device_id is required")
 	}
+	layout := normalizeLayoutMode(req.LayoutMode)
+	if err := validateMixedRuleFields(layout, len(req.MixedItems) > 0, req.ShareEnabled, req.SkippedAddresses, req.TargetDataType, req.ScaleMultiplier, req.ScaleOffset); err != nil {
+		return err
+	}
+	if layout == layoutMixed {
+		// start_address, count and data_type are projections of the items.
+		return validateRuleDataFormat(req.DataFormat)
+	}
 	if strings.TrimSpace(req.StartAddress) == "" {
 		return validationError("start_address is required")
 	}

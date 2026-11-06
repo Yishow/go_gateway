@@ -29,7 +29,7 @@ func (s *Service) rollbackCreatedPoints(ctx context.Context, pointIDs []string) 
 		if entry.current == nil {
 			continue
 		}
-		if err := s.pointSvc.DeleteRevision(ctx, entry.current); err != nil {
+		if err := s.pointSvc.DeleteUnmappedMaterializedObserved(ctx, entry.current, nil); err != nil {
 			rollbackErrs = append(rollbackErrs, err)
 			continue
 		}
@@ -42,6 +42,9 @@ func (s *Service) rollbackCreatedPoints(ctx context.Context, pointIDs []string) 
 
 func (s *Service) rollbackTagMappingSync(ctx context.Context, result tagMappingSyncResult) error {
 	if err := s.storageCompensationError(ctx); err != nil {
+		return err
+	}
+	if err := s.rollbackIdentityMoves(ctx, result); err != nil {
 		return err
 	}
 
@@ -71,6 +74,9 @@ func (s *Service) rollbackTagMappingSync(ctx context.Context, result tagMappingS
 				rollbackErrs = append(rollbackErrs, fmt.Errorf("delete created tag %s: %w", tagID, err))
 			}
 		}
+	}
+	if len(rollbackErrs) == 0 {
+		s.noteRestoredIdentityMoves(ctx, result)
 	}
 	return errors.Join(rollbackErrs...)
 }

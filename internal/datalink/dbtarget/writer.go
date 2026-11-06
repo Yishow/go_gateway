@@ -5,28 +5,64 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	datalinkbase "go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/schema"
 )
 
+// Writer delivers legacy database target mappings. Ingest (WriteTagValue) only
+// updates in-memory state: a latest-value table keyed by mapping for ungrouped
+// mappings and the grouped buckets for grouped mappings. One background worker
+// per enabled connector writes the due snapshots, so a slow or unreachable
+// connector never delays acquisition or any other connector.
 type Writer struct {
 	connectorRepo ConnectorRepository
 	mappingRepo   TargetMappingRepository
 	tagReader     ConnectorTagReader
 	suppress      func(connectorID, tagID string) bool
 	now           func() time.Time
+	open          func(schema.DatabaseConnectorKind, ConnectionConfig) (*datalinkbase.DBManager, error)
 	flushTick     <-chan time.Time
 	stopTick      func()
 	stopCh        chan struct{}
 	closeOnce     sync.Once
+	closeDone     chan struct{}
+	closeErr      error
 	wg            sync.WaitGroup
-	mu            sync.Mutex
-	recoveryMu    sync.Mutex
-	grouped       map[groupedWriteKey]*groupedWriteBucket
+	baseCtx       context.Context
+	cancelBase    context.CancelFunc
+	workerCtx     context.Context
+	cancelWorkers context.CancelFunc
+	recoveryLocks sync.Map
+
+	// mu guards the in-memory delivery state filled by ingest.
+	mu               sync.Mutex
+	closed           bool
+	grouped          map[groupedWriteKey]*groupedWriteBucket
+	groupedLocations map[string]groupedLocation
+	pending          map[string]map[string]*pendingWrite // connector ID -> mapping ID
+	lastFlush        map[string]time.Time                // mapping ID -> last attempted interval boundary
+	observed         map[string]*observedIntervalSet     // mapping ID -> occupied intervals
+
+	indexMu        sync.RWMutex
+	index          map[string][]indexedMapping // tag ID -> live mappings
+	connectorIDs   map[string]struct{}
+	indexErr       error
+	refreshMu      sync.Mutex
+	refreshing     atomic.Bool
+	refreshActive  atomic.Int64
+	refreshVersion atomic.Uint64
+	refreshReq     chan struct{}
+	refreshDone    chan struct{}
+
+	workersMu sync.Mutex
+	workers   map[string]*connectorWorker
+	openMu    sync.Mutex
+	opening   map[string]struct{}
 }
 
 func NewWriter(connectorRepo ConnectorRepository, mappingRepo TargetMappingRepository) *Writer {
@@ -34,6 +70,8 @@ func NewWriter(connectorRepo ConnectorRepository, mappingRepo TargetMappingRepos
 }
 
 type WriterConfig struct {
+	// FlushTick drives mapping refresh and connector workers; nil uses a
+	// ticker with FlushInterval (default one second).
 	FlushTick     <-chan time.Time
 	FlushInterval time.Duration
 	Now           func() time.Time
@@ -42,6 +80,9 @@ type WriterConfig struct {
 	// legacy writer skip that mapping because a canonical write group owns the
 	// output. It keeps exactly one writer per output.
 	SuppressMapping func(connectorID, tagID string) bool
+	// OpenDestination opens a connector's target database. Nil uses the
+	// production opener; tests inject unreachable connectors through it.
+	OpenDestination func(schema.DatabaseConnectorKind, ConnectionConfig) (*datalinkbase.DBManager, error)
 }
 
 type groupedWriteKey struct {
@@ -59,6 +100,14 @@ type groupedWriteBucket struct {
 	Key       groupedWriteKey
 	Connector *schema.DatabaseConnector
 	Values    map[string]any
+	Mappings  map[string]*schema.DatabaseTargetMapping
+	DueAt     time.Time
+	Retry     bool
+}
+
+type groupedLocation struct {
+	key    groupedWriteKey
+	column string
 }
 
 func NewWriterWithConfig(
@@ -66,14 +115,31 @@ func NewWriterWithConfig(
 	mappingRepo TargetMappingRepository,
 	config WriterConfig,
 ) *Writer {
+	baseCtx, cancelBase := context.WithCancel(context.Background())
+	workerCtx, cancelWorkers := context.WithCancel(context.Background())
 	writer := &Writer{
-		connectorRepo: connectorRepo,
-		mappingRepo:   mappingRepo,
-		tagReader:     config.TagReader,
-		suppress:      config.SuppressMapping,
-		now:           config.Now,
-		stopCh:        make(chan struct{}),
-		grouped:       make(map[groupedWriteKey]*groupedWriteBucket),
+		connectorRepo:    connectorRepo,
+		mappingRepo:      mappingRepo,
+		tagReader:        config.TagReader,
+		suppress:         config.SuppressMapping,
+		now:              config.Now,
+		open:             config.OpenDestination,
+		stopCh:           make(chan struct{}),
+		closeDone:        make(chan struct{}),
+		baseCtx:          baseCtx,
+		cancelBase:       cancelBase,
+		workerCtx:        workerCtx,
+		cancelWorkers:    cancelWorkers,
+		grouped:          make(map[groupedWriteKey]*groupedWriteBucket),
+		groupedLocations: make(map[string]groupedLocation),
+		pending:          make(map[string]map[string]*pendingWrite),
+		lastFlush:        make(map[string]time.Time),
+		observed:         make(map[string]*observedIntervalSet),
+		index:            make(map[string][]indexedMapping),
+		connectorIDs:     make(map[string]struct{}),
+		refreshReq:       make(chan struct{}, 1),
+		refreshDone:      make(chan struct{}, 1),
+		workers:          make(map[string]*connectorWorker),
 	}
 	if writer.now == nil {
 		writer.now = time.Now
@@ -90,102 +156,80 @@ func NewWriterWithConfig(
 		writer.flushTick = ticker.C
 		writer.stopTick = ticker.Stop
 	}
-	writer.wg.Add(1)
-	go writer.flushLoop()
+	if connectorRepo != nil && mappingRepo != nil {
+		if err := writer.RefreshMappings(baseCtx); err != nil {
+			slog.Error("load database target mappings", "error", err)
+		}
+	}
+	writer.wg.Go(writer.refreshLoop)
+	writer.wg.Go(writer.superviseLoop)
+	for id := range writer.indexedConnectorIDs() {
+		writer.workerFor(id)
+	}
 	return writer
 }
 
-// ErrOutputOwnedByWriteGroup is returned when every output of a tag is owned by
-// a canonical write group, so the legacy writer deliberately wrote nothing.
-// Callers must treat it as "not applicable", never as a successful delivery.
+// ErrOutputOwnedByWriteGroup remains available to legacy callers. The snapshot
+// writer checks ownership during the worker's flush, after buffer acceptance.
 var ErrOutputOwnedByWriteGroup = errors.New("output is owned by a write group")
 
+// ErrSnapshotAccepted indicates that the value is buffered, not committed.
+var ErrSnapshotAccepted = errors.New("snapshot accepted")
+
+// ErrOutputNotApplicable indicates that no enabled mapping accepted the value.
+var ErrOutputNotApplicable = errors.New("no database output accepted the value")
+
+// WriteTagValue returns ErrSnapshotAccepted when a value is buffered. Callers
+// must not treat acceptance as a successful SQL write.
 func (w *Writer) WriteTagValue(ctx context.Context, tagID string, value any, observedAt time.Time) error {
-	if strings.TrimSpace(tagID) == "" {
-		return fmt.Errorf("tagID 不可為空")
-	}
-
-	projection, err := listLiveTargetProjection(ctx, w.mappingRepo, TargetMappingListFilter{TagID: &tagID}, w.tagReader)
+	accepted, err := w.AcceptTagValue(ctx, tagID, value, observedAt)
 	if err != nil {
-		return fmt.Errorf("查詢資料庫目標映射失敗: %w", err)
+		return err
 	}
-	mappings := projection.Mappings
-	if len(mappings) == 0 {
-		return nil
+	if accepted {
+		return ErrSnapshotAccepted
+	}
+	return ErrOutputNotApplicable
+}
+
+// AcceptTagValue buffers the latest value without database I/O. The returned
+// boolean indicates acceptance, not whether a destination committed it.
+func (w *Writer) AcceptTagValue(_ context.Context, tagID string, value any, observedAt time.Time) (bool, error) {
+	if strings.TrimSpace(tagID) == "" {
+		return false, fmt.Errorf("tagID 不可為空")
 	}
 
-	var failures []string
-	suppressed, attempted := 0, 0
-	for _, mapping := range mappings {
-		connector, err := w.connectorRepo.GetByID(ctx, mapping.ConnectorID)
-		if err != nil {
-			recordWriteHistory(mapping.ConnectorID, WriteHistoryRecord{
-				ObservedAt:   observedAt,
-				Status:       deliveryOutcomeFailed,
-				RowCount:     0,
-				TableName:    mapping.TableName,
-				GroupKey:     cloneOptionalString(mapping.GroupKey),
-				ErrorSummary: err.Error(),
-			})
-			failures = append(failures, fmt.Sprintf("mapping %s 取得連接器失敗: %v", mapping.ID, err))
-			continue
-		}
-		if !connector.Enabled {
-			continue
-		}
-		if w.suppress != nil && w.suppress(mapping.ConnectorID, tagID) {
-			// A canonical write group owns this output; a second writer would
-			// duplicate it.
-			suppressed++
-			continue
-		}
-		attempted++
+	entries, err := w.lookupMappings(tagID)
+	if err != nil {
+		return false, err
+	}
+	if len(entries) == 0 {
+		return false, nil
+	}
 
+	var failures []error
+	accepted := false
+	for _, entry := range entries {
+		mapping := entry.Mapping
+		if entry.Err != nil {
+			failures = append(failures, fmt.Errorf("mapping %s 取得連接器失敗: %w", mapping.ID, entry.Err))
+			continue
+		}
 		if hasGroupedWriteKey(mapping) {
-			if err := w.bufferGroupedWrite(connector, mapping, value, observedAt); err != nil {
-				failures = append(failures, fmt.Sprintf("mapping %s 分組緩衝失敗: %v", mapping.ID, err))
+			if err := w.bufferGroupedWrite(entry.Connector, mapping, value, observedAt); err != nil {
+				failures = append(failures, fmt.Errorf("mapping %s 分組緩衝失敗: %w", mapping.ID, err))
+			} else {
+				accepted = true
 			}
 			continue
 		}
-
-		if err := w.writeMapping(ctx, connector, mapping, value, observedAt); err != nil {
-			if outcomeErr := w.recordWriteOutcome(ctx, connector, observedAt, deliveryOutcomeFailed, err.Error()); outcomeErr != nil {
-				failures = append(failures, fmt.Sprintf("mapping %s 更新寫入狀態失敗: %v", mapping.ID, outcomeErr))
-			}
-			recordWriteHistory(connector.ID, WriteHistoryRecord{
-				ObservedAt:               observedAt,
-				Status:                   deliveryOutcomeFailed,
-				RowCount:                 0,
-				TableName:                mapping.TableName,
-				GroupKey:                 cloneOptionalString(mapping.GroupKey),
-				EffectiveIntervalSeconds: effectiveWriteIntervalSeconds(mapping, connector),
-				ErrorSummary:             err.Error(),
-			})
-			failures = append(failures, fmt.Sprintf("mapping %s 寫入失敗: %v", mapping.ID, err))
-			continue
+		if err := w.storeLatest(entry, value, observedAt); err != nil {
+			failures = append(failures, fmt.Errorf("mapping %s 緩衝失敗: %w", mapping.ID, err))
+		} else {
+			accepted = true
 		}
-		if err := w.recordWriteOutcome(ctx, connector, observedAt, deliveryOutcomeSuccess, ""); err != nil {
-			failures = append(failures, fmt.Sprintf("mapping %s 更新寫入狀態失敗: %v", mapping.ID, err))
-			continue
-		}
-		recordWriteHistory(connector.ID, WriteHistoryRecord{
-			ObservedAt:               observedAt.UTC(),
-			Status:                   "success",
-			RowCount:                 1,
-			TableName:                mapping.TableName,
-			GroupKey:                 nil,
-			EffectiveIntervalSeconds: effectiveWriteIntervalSeconds(mapping, connector),
-		})
 	}
-
-	if len(failures) > 0 {
-		return fmt.Errorf("%s", strings.Join(failures, "; "))
-	}
-	if suppressed > 0 && attempted == 0 {
-		return ErrOutputOwnedByWriteGroup
-	}
-
-	return nil
+	return accepted, errors.Join(failures...)
 }
 
 func (w *Writer) writeMapping(
@@ -202,7 +246,7 @@ func (w *Writer) writeMapping(
 
 	// 執行期寫入不得自動建庫：目標資料庫消失屬於必須浮現的錯誤，
 	// 靜默重建會讓資料寫進一個空資料庫。
-	manager, err := openExternalDBManagerFunc(connector.Kind, connectionConfig)
+	manager, err := w.openDestination(ctx, connector, connectionConfig)
 	if err != nil {
 		return err
 	}
@@ -220,36 +264,6 @@ func (w *Writer) writeMapping(
 	return nil
 }
 
-func (w *Writer) Close(ctx context.Context) error {
-	var closeErr error
-	w.closeOnce.Do(func() {
-		close(w.stopCh)
-		if w.stopTick != nil {
-			w.stopTick()
-		}
-		w.wg.Wait()
-		closeErr = w.flushBuckets(ctx, w.now(), true)
-	})
-	return closeErr
-}
-
-func (w *Writer) flushLoop() {
-	defer w.wg.Done()
-	for {
-		select {
-		case tick, ok := <-w.flushTick:
-			if !ok {
-				return
-			}
-			if err := w.flushBuckets(context.Background(), tick, false); err != nil {
-				slog.Error("flush grouped database writes", "error", err)
-			}
-		case <-w.stopCh:
-			return
-		}
-	}
-}
-
 func (w *Writer) bufferGroupedWrite(
 	connector *schema.DatabaseConnector,
 	mapping *schema.DatabaseTargetMapping,
@@ -263,17 +277,60 @@ func (w *Writer) bufferGroupedWrite(
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	if w.closed {
+		return errors.New("database target writer is closed")
+	}
+	interval := time.Duration(key.EffectiveIntervalSeconds) * time.Second
+	if previous, ok := w.groupedLocations[mapping.ID]; ok {
+		if old := w.grouped[previous.key]; old != nil {
+			oldMapping := old.Mappings[previous.column]
+			if sameSnapshotBinding(oldMapping, old.Connector, mapping, connector) {
+				if old.Retry {
+					key = w.movePendingGroup(previous.key, key, connector)
+				} else if previous.key != key {
+					if !w.retainGroupedInterval(previous, key, mapping, connector) {
+						return nil
+					}
+				}
+			} else {
+				w.discardChangedGrouped(mapping, connector)
+			}
+		}
+	}
 
 	bucket, ok := w.grouped[key]
+	if ok && !sameConnectorIdentity(bucket.Connector, connector) {
+		for column, oldMapping := range bucket.Mappings {
+			w.recordMappingSkip(bucket.Connector, oldMapping, bucket.Key.BucketStart, skipMappingNotCurrent)
+			if latest, exists := w.groupedLocations[oldMapping.ID]; exists && latest == (groupedLocation{key: key, column: column}) {
+				delete(w.groupedLocations, oldMapping.ID)
+			}
+		}
+		delete(w.grouped, key)
+		bucket, ok = nil, false
+	}
 	if !ok {
 		bucket = &groupedWriteBucket{
 			Key:       key,
 			Connector: connector,
 			Values:    make(map[string]any),
+			Mappings:  make(map[string]*schema.DatabaseTargetMapping),
+			DueAt:     key.BucketStart.Add(interval),
 		}
 		w.grouped[key] = bucket
 	}
+	if previous := bucket.Mappings[mapping.ColumnName]; previous != nil && previous.ID != mapping.ID {
+		w.recordMappingSkip(bucket.Connector, previous, bucket.Key.BucketStart, skipColumnReplaced)
+		if latest, exists := w.groupedLocations[previous.ID]; exists && latest == (groupedLocation{key: key, column: mapping.ColumnName}) {
+			delete(w.groupedLocations, previous.ID)
+		}
+	}
 	bucket.Values[mapping.ColumnName] = normalizeDBValue(value)
+	bucket.Mappings[mapping.ColumnName] = mapping
+	if previous, ok := w.groupedLocations[mapping.ID]; !ok || !key.BucketStart.Before(previous.key.BucketStart) {
+		w.groupedLocations[mapping.ID] = groupedLocation{key: key, column: mapping.ColumnName}
+	}
+	w.markObserved(mapping.ID, key.EffectiveIntervalSeconds, key.BucketStart)
 	return nil
 }
 
@@ -310,68 +367,6 @@ func buildGroupedWriteKey(
 	}, nil
 }
 
-func (w *Writer) flushBuckets(ctx context.Context, now time.Time, flushAll bool) error {
-	buckets := w.takeFlushableBuckets(now.UTC(), flushAll)
-	if len(buckets) == 0 {
-		return nil
-	}
-
-	var failures []string
-	for _, bucket := range buckets {
-		if err := w.flushGroupedBucket(ctx, bucket); err != nil {
-			if outcomeErr := w.recordFlushOutcome(ctx, bucket.Connector, bucket.Key.BucketStart, deliveryOutcomeFailed, err.Error()); outcomeErr != nil {
-				failures = append(failures, outcomeErr.Error())
-			}
-			recordWriteHistory(bucket.Key.ConnectorID, WriteHistoryRecord{
-				ObservedAt:               bucket.Key.BucketStart,
-				Status:                   deliveryOutcomeFailed,
-				RowCount:                 0,
-				GroupKey:                 copyStringPointer(bucket.Key.GroupKey),
-				TableName:                bucket.Key.TableName,
-				EffectiveIntervalSeconds: bucket.Key.EffectiveIntervalSeconds,
-				ErrorSummary:             err.Error(),
-			})
-			failures = append(failures, err.Error())
-			continue
-		}
-		if err := w.recordFlushOutcome(ctx, bucket.Connector, bucket.Key.BucketStart, deliveryOutcomeSuccess, ""); err != nil {
-			failures = append(failures, err.Error())
-			continue
-		}
-		recordWriteHistory(bucket.Key.ConnectorID, WriteHistoryRecord{
-			ObservedAt:               bucket.Key.BucketStart,
-			Status:                   "success",
-			RowCount:                 1,
-			GroupKey:                 copyStringPointer(bucket.Key.GroupKey),
-			TableName:                bucket.Key.TableName,
-			EffectiveIntervalSeconds: bucket.Key.EffectiveIntervalSeconds,
-		})
-	}
-	if len(failures) > 0 {
-		return fmt.Errorf("%s", strings.Join(failures, "; "))
-	}
-	return nil
-}
-
-func (w *Writer) takeFlushableBuckets(now time.Time, flushAll bool) []*groupedWriteBucket {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	buckets := make([]*groupedWriteBucket, 0, len(w.grouped))
-	for key, bucket := range w.grouped {
-		dueAt := key.BucketStart.Add(time.Duration(key.EffectiveIntervalSeconds) * time.Second)
-		if !flushAll && now.Before(dueAt) {
-			continue
-		}
-		buckets = append(buckets, bucket)
-		delete(w.grouped, key)
-	}
-	slices.SortFunc(buckets, func(a, b *groupedWriteBucket) int {
-		return a.Key.BucketStart.Compare(b.Key.BucketStart)
-	})
-	return buckets
-}
-
 func (w *Writer) flushGroupedBucket(ctx context.Context, bucket *groupedWriteBucket) error {
 	connectionConfig, err := writerConnectionConfig(bucket.Connector)
 	if err != nil {
@@ -379,7 +374,7 @@ func (w *Writer) flushGroupedBucket(ctx context.Context, bucket *groupedWriteBuc
 	}
 
 	// 同上：批次寫入路徑同樣不自動建庫。
-	manager, err := openExternalDBManagerFunc(bucket.Connector.Kind, connectionConfig)
+	manager, err := w.openDestination(ctx, bucket.Connector, connectionConfig)
 	if err != nil {
 		return err
 	}

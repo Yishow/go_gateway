@@ -82,5 +82,12 @@ export const parameterHelpSources = {
   "cutover.target": { canonical: "CutoverScope.targets", source: "frontend/src/features/datalink/workbench-v2/state/cutoverFlow.ts:isCutoverTarget", demo: "formal-only" },
   "cutover.rollback": { canonical: "CutoverScope.cutoverId", source: "frontend/src/features/datalink/workbench-v2/state/cutoverFlow.ts:rollbackCandidates", demo: "formal-only" },
   "cutover.boundary": { canonical: "CutoverScope.boundary", source: "frontend/src/features/datalink/workbench-v2/state/cutoverFlow.ts:instantFromLocal", demo: "formal-only" },
+  "acquisition.interval": { canonical: "UpdateDeviceRequest.acquisition_interval_ms", source: "internal/datalink/device/service_crud.go:Update", demo: "formal-only" },
+  "acquisition.autoInterval": { canonical: "UpdateDeviceRequest.acquisition_auto_interval", source: "internal/datalink/collector/scheduler_auto_interval.go", demo: "formal-only" },
+  "acquisition.staleThreshold": { canonical: "UpdateDeviceRequest.stale_threshold_ms", source: "internal/datalink/device/service_crud.go:Update", demo: "formal-only" },
+  "acquisition.frozenThreshold": { canonical: "UpdateDeviceRequest.frozen_threshold_ms", source: "internal/datalink/device/service_crud.go:Update", demo: "formal-only" },
+  "acquisition.profile": { canonical: "ConnectionConfig.acquisition.profile", source: "internal/datalink/connector/acquisition_profile.go:ResolveAcquisitionConfig", demo: "formal-only" },
+  "acquisition.randomPoints": { canonical: "ConnectionConfig.acquisition.limits.random_points", source: "internal/datalink/connector/acquisition_profile.go:RandomPointLimit", demo: "formal-only" },
+  "acquisition.contiguous": { canonical: "ConnectionConfig.acquisition (Modbus: none)", source: "frontend/src/features/datalink/workbench-v2/state/acquisitionSettings.ts:acquisitionProfileOptions", demo: "formal-only" },
 } as const;
 export type ParameterHelpKey = keyof typeof parameterHelpSources;

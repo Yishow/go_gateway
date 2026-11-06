@@ -25,6 +25,9 @@ export * from './useMappings';
 // Polling Group Hooks
 export * from './usePollingGroups';
 
+// Acquisition Anomaly Hooks
+export * from './useAcquisitionAnomalies';
+
 // Settings Hooks
 export * from './useSettings';
 

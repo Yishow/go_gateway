@@ -16,6 +16,18 @@ func TestClient_RandomRead_RejectsInvalidInputsWithoutSending(t *testing.T) {
 		{name: "count above wire limit", items: items256},
 		{name: "negative address", items: []RandomReadItem{{Device: "D", Addr: -1}}},
 		{name: "address above 24 bit limit", items: []RandomReadItem{{Device: "D", Addr: 0x1000000}}},
+		{name: "unaligned bit device M5", items: []RandomReadItem{{Device: "M", Addr: 5}}},
+		{name: "bit device as double word", items: []RandomReadItem{{Device: "M", Addr: 0, DoubleWord: true}}},
+		{name: "long timer current value LTN", items: []RandomReadItem{{Device: "LTN", Addr: 0}}},
+		{name: "long timer contact LTS", items: []RandomReadItem{{Device: "LTS", Addr: 0}}},
+		{name: "long timer coil LTC", items: []RandomReadItem{{Device: "LTC", Addr: 0}}},
+		{name: "long retentive timer LSTS", items: []RandomReadItem{{Device: "LSTS", Addr: 0}}},
+		{name: "long retentive timer LSTC", items: []RandomReadItem{{Device: "LSTC", Addr: 0}}},
+		{name: "long retentive timer LSTN", items: []RandomReadItem{{Device: "LSTN", Addr: 0}}},
+		{name: "long counter contact LCS", items: []RandomReadItem{{Device: "LCS", Addr: 0}}},
+		{name: "long counter coil LCC", items: []RandomReadItem{{Device: "LCC", Addr: 0}}},
+		{name: "long counter current value LCN", items: []RandomReadItem{{Device: "LCN", Addr: 0}}},
+		{name: "string data type", items: []RandomReadItem{{Device: "D", Addr: 0, DataType: "string"}}},
 	}
 
 	for _, tt := range tests {

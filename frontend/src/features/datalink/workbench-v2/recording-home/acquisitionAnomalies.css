@@ -1,0 +1,33 @@
+/* Acquisition anomaly button (home) and its classified form modal; only DESIGN.md tokens. */
+.gw-recording-home .gw-anomaly-button[data-anomaly-state=active] { color: var(--gw-warning-fg); background: var(--gw-warning-bg); border-color: var(--gw-warning-border); font-weight: 600; }
+.gw-recording-home .gw-anomaly-button[data-anomaly-state=active]:hover:not(:disabled) { background: var(--gw-warning-bg); text-decoration: underline; }
+.gw-recording-home .gw-anomaly-button[data-anomaly-state=unknown] { color: var(--gw-unknown-fg); background: var(--gw-unknown-bg); border-style: dashed; }
+.gw-recording-home .gw-anomaly-button[data-anomaly-state=checking] { color: var(--gw-muted); }
+.gw-recording-home [data-testid="home-device-summary"] li:has(.gw-anomaly-button) { grid-template-columns: minmax(140px, 280px) minmax(100px, 180px) auto auto auto; }
+@media (max-width: 639px) {
+  .gw-recording-home [data-testid="home-device-summary"] li:has(.gw-anomaly-button) { grid-template-columns: minmax(0, 1fr) auto; }
+}
+
+.gw-anomaly-modal .gw-anomaly-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 220px)); gap: var(--gw-space-sm); margin-top: var(--gw-space-sm); }
+.gw-anomaly-modal .gw-anomaly-filters label { display: grid; gap: 4px; color: var(--gw-muted); }
+.gw-anomaly-modal .gw-anomaly-filters select { color: var(--gw-text); }
+.gw-anomaly-modal .gw-anomaly-error { display: grid; gap: var(--gw-space-sm); justify-items: start; }
+.gw-anomaly-modal .gw-anomaly-table-scroll { overflow-x: auto; max-width: 100%; }
+.gw-anomaly-modal .gw-anomaly-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.gw-anomaly-modal .gw-anomaly-table th { text-align: start; font-weight: 600; color: var(--gw-muted); white-space: nowrap; }
+.gw-anomaly-modal .gw-anomaly-table :is(th, td) { padding: var(--gw-space-xs) var(--gw-space-sm); border-bottom: 1px solid var(--gw-border); vertical-align: top; }
+.gw-anomaly-modal .gw-anomaly-table td { min-width: 6em; }
+.gw-anomaly-modal .gw-anomaly-reason { margin-top: 2px; color: var(--gw-muted); font-size: var(--gw-typography-small-size, 0.875rem); }
+.gw-anomaly-modal .gw-anomaly-state[data-anomaly-state=active] { color: var(--gw-warning-fg); background: var(--gw-warning-bg); border: 1px solid var(--gw-warning-border); border-radius: var(--gw-radius-sm); padding: 0 6px; white-space: nowrap; }
+.gw-anomaly-modal .gw-anomaly-address, .gw-anomaly-modal .gw-anomaly-value { font-family: var(--gw-font-mono, ui-monospace, monospace); overflow-wrap: anywhere; }
+.gw-anomaly-modal .gw-modal-footer > div { align-items: center; }
+@media (max-width: 639px) {
+  .gw-anomaly-modal .gw-anomaly-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Narrow screens stack each event so address and last value stay visible without sideways scrolling. */
+  .gw-anomaly-modal .gw-anomaly-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .gw-anomaly-modal .gw-anomaly-table :is(tbody, tr, td) { display: block; }
+  .gw-anomaly-modal .gw-anomaly-table tr { padding: var(--gw-space-xs) 0; border-bottom: 1px solid var(--gw-border); }
+  .gw-anomaly-modal .gw-anomaly-table td { display: grid; grid-template-columns: 7em minmax(0, 1fr); gap: var(--gw-space-sm); border-bottom: none; min-width: 0; padding: 2px 0; }
+  .gw-anomaly-modal .gw-anomaly-table td::before { content: attr(data-label); color: var(--gw-muted); }
+  .gw-anomaly-modal .gw-anomaly-table td > * { justify-self: start; }
+}

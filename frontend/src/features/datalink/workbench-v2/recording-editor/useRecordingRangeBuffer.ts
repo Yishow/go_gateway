@@ -3,7 +3,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RangeSourceBuffer, RangeSourceOutcome, RangeSourcePort, RangeSourceRequest } from '../../../../pages/datalink/workbench-v2/rangeSourceSubmission';
 import type { StudioV2WorkspaceDeviceRecord } from '../../../../services/studioV2WorkspaceDevices';
 import { newRecordingRangeBuffer, parseRecordingRangeBuffer, type RecordingRangeBuffer } from './recordingRangeBuffer';
-const raw = (buffer: RangeSourceBuffer, unit = ''): RecordingRangeBuffer => ({ name: buffer.name, address: buffer.start_address, count: String(buffer.count), dataType: buffer.data_type, scale: String(buffer.scale_multiplier), offset: String(buffer.scale_offset), dataFormat: buffer.data_format, unit });
+const raw = (buffer: RangeSourceBuffer, unit = ''): RecordingRangeBuffer => ({
+  name: buffer.name, address: buffer.start_address, count: String(buffer.count), dataType: buffer.data_type,
+  scale: String(buffer.scale_multiplier), offset: String(buffer.scale_offset), dataFormat: buffer.data_format, unit,
+  layoutMode: buffer.layout_mode ?? 'homogeneous', mixedItems: buffer.mixed_items ?? [],
+});
 export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourcePort, disabled = false) {
   const [buffer, setBuffer] = useState(newRecordingRangeBuffer), [dirty, setDirty] = useState(false);
   const [target, setTarget] = useState<{ id: string; name: string }>(), [device, setDevice] = useState<StudioV2WorkspaceDeviceRecord>();
@@ -70,7 +74,8 @@ export function useRecordingRangeBuffer(workspaceId: string, port?: RangeSourceP
     const rule = { ...parsed.rule, enabled: activationAllowed };
     const request: RangeSourceRequest = { workspaceId, sessionId: session.current, requestId: createBasicRecordingRequestId(), generation: generation.current, deviceId: rule.device_id, mappingDefaults: { unit: buffer.unit },
       buffer: { name: rule.name, naming_prefix: rule.naming_prefix, start_address: rule.start_address, count: rule.count, data_type: rule.data_type, enabled: rule.enabled,
-        scale_multiplier: rule.scale_multiplier, scale_offset: rule.scale_offset, data_format: rule.data_format, skipped_addresses: rule.skipped_addresses, share_enabled: rule.share_enabled, share_start_register: rule.share_start_register, share_stride: rule.share_stride } };
+        scale_multiplier: rule.scale_multiplier, scale_offset: rule.scale_offset, data_format: rule.data_format, skipped_addresses: rule.skipped_addresses, share_enabled: rule.share_enabled, share_start_register: rule.share_start_register, share_stride: rule.share_stride,
+        ...(rule.layout_mode === 'mixed' ? { layout_mode: 'mixed', mixed_items: rule.mixed_items } : {}) } };
     requestRef.current = request; submitting.current = true; setPending(true); setOutcome(undefined); const captured = owner;
     try { accept(await port.submit(request), captured); } catch { accept({ request, status: 'unknown' }, captured); }
   };

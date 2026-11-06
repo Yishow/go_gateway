@@ -4,10 +4,10 @@ package pollinggroup
 import (
 	"context"
 	"database/sql"
-	"os"
 	"testing"
 	"time"
 
+	"go-gateway/internal/datalink"
 	common "go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 
@@ -24,14 +24,9 @@ import (
 func setupTestDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
-	ctx := t.Context()
-	// 讀取並執行 migration 腳本
-	migrationPath := "../schema/migrations/001_initial_schema_sqlite.sql"
-	migrationContent, err := os.ReadFile(migrationPath)
-	require.NoError(t, err)
-
-	_, err = db.ExecContext(ctx, string(migrationContent))
-	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+	// 使用正式 migrator，確保 repository 讀寫與 production schema 一致
+	require.NoError(t, datalink.NewMigrator().Migrate(db))
 
 	return db
 }

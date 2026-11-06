@@ -26,7 +26,7 @@ func (response runtimeStatusResponse) MarshalJSON() ([]byte, error) {
 		d.DeviceID = runtimeSafeID(d.DeviceID)
 		d.PointID = runtimeSafeID(d.PointID)
 		d.TagID = runtimeSafeID(d.TagID)
-		d.Status = datalinkruntime.DatabaseDeliveryStatus(runtimeSafeEnum(string(d.Status), "succeeded", workspaceMappingCleanupFailedStatus))
+		d.Status = datalinkruntime.DatabaseDeliveryStatus(runtimeSafeEnum(string(d.Status), "succeeded", "accepted", workspaceMappingCleanupFailedStatus))
 		d.FailedStage = safeRuntimeDatabaseStage(d.FailedStage)
 		d.Stages = slices.Clone(d.Stages)
 		for j := range d.Stages {
@@ -90,7 +90,7 @@ func safeRuntimeStatusEvent(event datalinkruntime.DeviceStatusEvent) runtimeColl
 }
 
 func safeRuntimeDatabaseStage(value datalinkruntime.DatabaseDeliveryStage) datalinkruntime.DatabaseDeliveryStage {
-	return datalinkruntime.DatabaseDeliveryStage(runtimeSafeEnum(string(value), "collected", "mapped", "db_write", "db_write_failed", "db_write_succeeded"))
+	return datalinkruntime.DatabaseDeliveryStage(runtimeSafeEnum(string(value), "collected", "mapped", "buffer_accepted", "db_write", "db_write_failed", "db_write_succeeded"))
 }
 
 func safeRuntimeFlowStage(value datalinkruntime.RuntimeFlowStage) datalinkruntime.RuntimeFlowStage {

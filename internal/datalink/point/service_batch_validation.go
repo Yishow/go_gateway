@@ -13,7 +13,7 @@ import (
 const pointInputRegisterFunctionAlias = "fc04"
 
 var (
-	pointAddressPattern  = regexp.MustCompile(`^([A-Za-z]+\d+|[WB][A-F0-9]+|\d+)$`)
+	pointAddressPattern  = regexp.MustCompile(`^([A-Za-z]+\d+|[WBXY][A-F0-9]+|\d+)$`)
 	alphaFunctionPattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 )
 

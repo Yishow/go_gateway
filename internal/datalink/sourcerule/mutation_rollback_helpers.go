@@ -39,9 +39,12 @@ func (s *Service) rollbackUpdateState(
 	var failures []error
 	for _, restore := range []func() error{
 		func() error { return s.rollbackTagMappingSync(ctx, tagMappings) },
-		func() error { return s.rollbackUpdatedPoints(ctx, updatedPoints) },
-		func() error { return s.rollbackRuleState(ctx, rule, links) },
+		func() error { return s.restoreMixedTagReviewDecisions(ctx) },
 		func() error { return s.rollbackCreatedPoints(ctx, createdPointIDs) },
+		func() error { return s.rollbackUpdatedPoints(ctx, updatedPoints) },
+		func() error { return s.restoreRetiredRuleResources(ctx) },
+		func() error { return s.rollbackRuleState(ctx, rule, links) },
+		func() error { return s.restoreRetiredRuleRuntime(ctx) },
 	} {
 		if err := restore(); err != nil {
 			failures = append(failures, err)

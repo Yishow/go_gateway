@@ -91,7 +91,10 @@ export async function readRangeCompletion(proof: RangeRuleProof, receipts: reado
       // Candidate metadata is the rule proposal, not the actual explicitly saved
       // workspace mapping. Verify actual values against its receipt and Tag below.
       const [point, tag] = await Promise.all([pointAPI.get(ack.point_id), tagAPI.get(ack.tag_id)]);
-      if (point.id !== ack.point_id || point.device_id !== fresh.device.id || point.address !== ack.address || point.data_type !== fresh.record.data_type || point.enabled !== !inactive ||
+      const expectedDataType = fresh.record.layout_mode === 'mixed'
+        ? (fresh.record.mixed_items?.find(item => (item.address ?? '').trim().toUpperCase() === ack.address.trim().toUpperCase())?.data_type ?? fresh.record.data_type)
+        : fresh.record.data_type;
+      if (point.id !== ack.point_id || point.device_id !== fresh.device.id || point.address !== ack.address || point.data_type !== expectedDataType || point.enabled !== !inactive ||
         tag.id !== ack.tag_id || tag.key !== ack.tag_key || tag.data_type !== ack.target_type ||
         tag.display_name !== ack.display_name || (tag.unit === undefined ? '' : tag.unit) !== ack.unit || tag.status === 'retired') return;
       savedPoints.push({ device_id: fresh.device.id, point_id: point.id, tag_id: tag.id });

@@ -49,6 +49,17 @@ var (
 	DeviceCN = DeviceType{"CN", 0xC5, false} // Counter Current Value
 	DeviceSW = DeviceType{"SW", 0xB5, false}
 	DeviceZ  = DeviceType{"Z", 0xCC, false}
+
+	// Long Timer / Long Counter Devices (SH-080008; forbidden in 0403 random read)
+	DeviceLTC  = DeviceType{"LTC", 0x50, true}   // Long Timer Coil
+	DeviceLTS  = DeviceType{"LTS", 0x51, true}   // Long Timer Contact
+	DeviceLTN  = DeviceType{"LTN", 0x52, false}  // Long Timer Current Value
+	DeviceLCC  = DeviceType{"LCC", 0x54, true}   // Long Counter Coil
+	DeviceLCS  = DeviceType{"LCS", 0x55, true}   // Long Counter Contact
+	DeviceLCN  = DeviceType{"LCN", 0x56, false}  // Long Counter Current Value
+	DeviceLSTC = DeviceType{"LSTC", 0x58, true}  // Long Retentive Timer Coil
+	DeviceLSTS = DeviceType{"LSTS", 0x59, true}  // Long Retentive Timer Contact
+	DeviceLSTN = DeviceType{"LSTN", 0x5A, false} // Long Retentive Timer Current Value
 )
 
 var deviceMap = map[string]DeviceType{
@@ -56,6 +67,19 @@ var deviceMap = map[string]DeviceType{
 	"SB": DeviceSB, "S": DeviceS, "TS": DeviceTS, "TC": DeviceTC, "CS": DeviceCS, "CC": DeviceCC,
 	"D": DeviceD, "W": DeviceW, "R": DeviceR, "TN": DeviceTN, "CN": DeviceCN,
 	"SW": DeviceSW, "Z": DeviceZ,
+	"LTC": DeviceLTC, "LTS": DeviceLTS, "LTN": DeviceLTN,
+	"LCC": DeviceLCC, "LCS": DeviceLCS, "LCN": DeviceLCN,
+	"LSTC": DeviceLSTC, "LSTS": DeviceLSTS, "LSTN": DeviceLSTN,
+}
+
+// IsLongTimerOrCounter reports whether name is a Mitsubishi long timer or long counter device.
+func IsLongTimerOrCounter(name string) bool {
+	switch strings.ToUpper(name) {
+	case "LTN", "LTS", "LTC", "LSTS", "LSTC", "LSTN", "LCS", "LCC", "LCN":
+		return true
+	default:
+		return false
+	}
 }
 
 func GetDeviceType(name string) (DeviceType, error) {

@@ -38,12 +38,10 @@ func migratedLegacyGroup(t *testing.T, env *outageEnv) *workspace.WriteGroup {
 func legacyWriterCount(t *testing.T, env *outageEnv, connectorID string) int {
 	t.Helper()
 	// Same production SuppressMapping seam, backed by the production services.
-	writer := dbtarget.NewWriterWithConfig(dbtarget.NewSQLConnectorRepository(env.db), dbtarget.NewSQLTargetMappingRepository(env.db), dbtarget.WriterConfig{TagReader: env.services.tag, SuppressMapping: env.services.groupPipe.Owns})
-	defer func() { require.NoError(t, writer.Close(t.Context())) }()
-	err := writer.WriteTagValue(t.Context(), "tag-t-A", float64(215), time.Now())
-	if err != nil {
-		require.ErrorIs(t, err, dbtarget.ErrOutputOwnedByWriteGroup)
-	}
+	writer := dbtarget.NewWriterWithConfig(dbtarget.NewSQLConnectorRepository(env.db), dbtarget.NewSQLTargetMappingRepository(env.db), dbtarget.WriterConfig{TagReader: env.services.tag, SuppressMapping: env.services.groupPipe.Owns, FlushTick: make(chan time.Time)})
+	t.Cleanup(func() { _ = writer.Close(context.Background()) })
+	require.ErrorIs(t, writer.WriteTagValue(t.Context(), "tag-t-A", float64(215), time.Now()), dbtarget.ErrSnapshotAccepted)
+	require.NoError(t, writer.Close(t.Context()))
 	target, err := sql.Open("sqlite", env.targets[connectorID])
 	require.NoError(t, err)
 	defer target.Close()

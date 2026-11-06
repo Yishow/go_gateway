@@ -43,6 +43,7 @@ func (s *Scheduler) Start(groups []*schema.PollingGroup) error {
 
 	// 啟動所有已啟用的輪詢群組
 	for _, group := range groups {
+		s.storePollingGroupLocked(group)
 		if group.Enabled {
 			s.startGroupTicker(group)
 		}

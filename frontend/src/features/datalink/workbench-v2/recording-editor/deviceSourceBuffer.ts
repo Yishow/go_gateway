@@ -5,6 +5,7 @@ import type { DeviceSourceBuffer } from '../../../../pages/datalink/workbench-v2
 import { getDefaultConfig } from '../state/protocols';
 import { getProtocolSupport } from '../state/protocolSupport';
 import { isStudioV2DeviceValid } from '../state/studioV2DeviceAutosave';
+import { parseAcquisition } from '../state/acquisitionSettings';
 
 /** New-device defaults only: existing devices retain inactive fields in the shared form. */
 export function newConnectionDefaults(protocol: ProtocolId, subtype?: string): Record<string, unknown> {
@@ -34,6 +35,10 @@ export function parsedDeviceSourceBuffer(buffer: DeviceSourceBuffer): DeviceSour
     config[key] = parsed;
   }
   if (buffer.protocol === 'modbus_rtu' && !MODBUS_RTU_BAUD_RATES.includes(Number(config.baud_rate ?? config.baud))) return undefined;
-  const parsed = { ...buffer, config };
+  const acquisition = parseAcquisition({ ...buffer, config });
+  if (!acquisition) return undefined;
+  const { acquisitionInput: _input, randomPointsInput: _points, ...rest } = buffer;
+  void _input; void _points;
+  const parsed: DeviceSourceBuffer = { ...rest, config: acquisition.config, ...(acquisition.acquisition ? { acquisition: acquisition.acquisition } : {}) };
   return isStudioV2DeviceValid({ ...parsed, id: '', status: 'draft', test: null }) ? parsed : undefined;
 }

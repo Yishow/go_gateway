@@ -1,0 +1,8 @@
+/* Acquisition settings inside the shared source form; DESIGN.md tokens only. */
+.recording-acquisition-settings { border-top:1px solid var(--gw-border); padding-top:16px; }
+.recording-acquisition-title { font-size:14px; font-weight:600; line-height:20px; }
+.recording-acquisition-toggle { display:flex; align-items:center; gap:8px; min-height:44px; font-size:14px; }
+.recording-acquisition-toggle > input { width:20px; height:20px; }
+.recording-acquisition-runtime { display:flex; flex-wrap:wrap; gap:4px 12px; padding:8px 12px; border:1px solid var(--gw-border); border-radius:var(--gw-radius-md); font-size:14px; color:var(--gw-muted); }
+.recording-acquisition-runtime-title { color:var(--gw-text); font-weight:600; }
+.recording-acquisition-note > p { padding-inline-end:44px; min-height:28px; font-size:14px; line-height:1.5; }

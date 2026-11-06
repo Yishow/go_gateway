@@ -210,6 +210,71 @@ func TestService_RemoveDeviceRemovesSchedulerStateAndPointMeta(t *testing.T) {
 	}
 }
 
+func TestService_UpsertDevicePrefersDeviceOwnedPollingGroupAndFallsBackToAutoPolling(t *testing.T) {
+	ctx := t.Context()
+	runtimeSvc := newRuntimeServiceForDeviceSyncTest(t)
+	bank := memory.NewMemoryBank(64)
+	if err := bank.WriteWord(0, 100); err != nil {
+		t.Fatalf("write memory failed: %v", err)
+	}
+	server := virtualmodbus.NewServer(bank)
+	if err := server.Start(0); err != nil {
+		t.Fatalf("start virtual server failed: %v", err)
+	}
+	defer server.Stop()
+	cfgJSON, err := json.Marshal(map[string]any{
+		"host":     "127.0.0.1",
+		"port":     server.Port(),
+		"slave_id": 1,
+		"timeout":  2,
+	})
+	if err != nil {
+		t.Fatalf("marshal config failed: %v", err)
+	}
+
+	groupA, err := runtimeSvc.pointSvc.SetDeviceAcquisitionInterval(ctx, "device-a", 500)
+	if err != nil {
+		t.Fatalf("set device-a interval failed: %v", err)
+	}
+
+	devA := &schema.Device{ID: "device-a", Name: "device-a", Protocol: schema.ProtocolModbusTCP, Status: schema.DeviceStatusActive, ConnectionConfig: string(cfgJSON)}
+	devB := &schema.Device{ID: "device-b", Name: "device-b", Protocol: schema.ProtocolModbusTCP, Status: schema.DeviceStatusActive, ConnectionConfig: string(cfgJSON)}
+
+	ptA, err := runtimeSvc.pointSvc.Create(ctx, point.CreatePointRequest{DeviceID: "device-a", Name: "pa", Address: "40001", DataType: schema.DataTypeInt16, Mode: schema.PointModeReadOnly})
+	if err != nil {
+		t.Fatalf("create point A failed: %v", err)
+	}
+	ptB, err := runtimeSvc.pointSvc.Create(ctx, point.CreatePointRequest{DeviceID: "device-b", Name: "pb", Address: "40001", DataType: schema.DataTypeInt16, Mode: schema.PointModeReadOnly})
+	if err != nil {
+		t.Fatalf("create point B failed: %v", err)
+	}
+
+	// fixture 一次只投影一台設備，因此逐台 attach 後再 upsert。
+	attachDeviceProfileFixture(runtimeSvc, devA)
+	if err := runtimeSvc.UpsertDevice(ctx, devA); err != nil {
+		t.Fatalf("upsert device A failed: %v", err)
+	}
+	attachDeviceProfileFixture(runtimeSvc, devB)
+	if err := runtimeSvc.UpsertDevice(ctx, devB); err != nil {
+		t.Fatalf("upsert device B failed: %v", err)
+	}
+
+	gotA, err := runtimeSvc.pointSvc.GetByID(ctx, ptA.ID)
+	if err != nil {
+		t.Fatalf("get point A failed: %v", err)
+	}
+	if gotA.PollingGroupID == nil || *gotA.PollingGroupID != groupA.ID {
+		t.Fatalf("expected point A to use device-a owned group %s, got %v", groupA.ID, gotA.PollingGroupID)
+	}
+	gotB, err := runtimeSvc.pointSvc.GetByID(ctx, ptB.ID)
+	if err != nil {
+		t.Fatalf("get point B failed: %v", err)
+	}
+	if gotB.PollingGroupID == nil || *gotB.PollingGroupID == "" || *gotB.PollingGroupID == groupA.ID {
+		t.Fatalf("expected point B to use shared fallback group, got %v", gotB.PollingGroupID)
+	}
+}
+
 func newRuntimeServiceForDeviceSyncTest(t *testing.T) *Service {
 	t.Helper()
 

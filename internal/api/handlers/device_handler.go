@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -87,6 +88,10 @@ func (h *DeviceHandler) Create(c *gin.Context) {
 
 	dev, err := h.svc.Create(c.Request.Context(), req)
 	if err != nil {
+		if errors.Is(err, device.ErrValidation) {
+			renderDeviceValidationError(c, err)
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
@@ -101,12 +106,51 @@ func (h *DeviceHandler) Update(c *gin.Context) {
 		return
 	}
 
-	dev, err := h.svc.Update(c.Request.Context(), id, req)
+	ctx := c.Request.Context()
+	// 以儲存前後的實際值判斷傳輸連線是否改變；客戶端常會連同未改的 connection_config 一起送出。
+	var previousProtocol schema.ProtocolType
+	var previousConnection string
+	if req.HasAcquisitionChanges() || req.ConnectionConfig != nil {
+		previous, getErr := h.svc.GetByID(ctx, id)
+		if getErr != nil {
+			c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: deviceNotFoundMessage}})
+			return
+		}
+		previousProtocol, previousConnection = previous.Protocol, previous.ConnectionConfig
+	}
+	dev, err := h.svc.Update(ctx, id, req)
 	if err != nil {
+		if errors.Is(err, device.ErrValidation) {
+			renderDeviceValidationError(c, err)
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
+	acquisitionChanged := req.HasAcquisitionChanges() || (req.ConnectionConfig != nil && previousConnection != dev.ConnectionConfig)
+	if acquisitionChanged && h.runtimeSync != nil {
+		dev, err = h.svc.ApplyCurrentRuntimeDevice(ctx, id, func(current *schema.Device) error {
+			if current.Protocol != previousProtocol || !sameTransportConnectionConfig(previousConnection, current.ConnectionConfig) || current.Status != schema.DeviceStatusActive {
+				return nil
+			}
+			return h.runtimeSync.UpsertDevice(ctx, current)
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: "設定已儲存，但採集設定未能套用到執行中的 runtime，請稍後重試。"}})
+			return
+		}
+	}
 	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: dev})
+}
+
+// renderDeviceValidationError 以 400 回傳驗證錯誤，欄位錯誤附上 field。
+func renderDeviceValidationError(c *gin.Context, err error) {
+	payload := gin.H{apiResponseCodeKey: apiValidationErrorCode, apiResponseMessageKey: err.Error()}
+	var fieldErr *device.FieldError
+	if errors.As(err, &fieldErr) {
+		payload["field"] = fieldErr.Field
+	}
+	c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: payload})
 }
 
 func (h *DeviceHandler) Delete(c *gin.Context) {

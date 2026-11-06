@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -43,6 +44,25 @@ func (s *Service) syncPoints(ctx context.Context, points []*schema.Point) {
 func (s *Service) rollbackUpdatedPoints(ctx context.Context, plans []pointUpdatePlan) error {
 	if err := s.storageCompensationError(ctx); err != nil {
 		return err
+	}
+
+	if len(plans) > 0 && plans[0].batch {
+		restores := make([]point.RevisionRestore, 0, len(plans))
+		for _, plan := range plans {
+			if !plan.batch {
+				return fmt.Errorf("mixed point compensation ownership")
+			}
+			restores = append(restores, point.RevisionRestore{Point: plan.point, ExpectedRevision: plan.appliedRevision})
+		}
+		if err := s.pointSvc.RestoreRevisions(ctx, restores); err != nil {
+			return err
+		}
+		points := make([]*schema.Point, 0, len(plans))
+		for _, plan := range plans {
+			s.notePointRestored(ctx, plan.point)
+			points = append(points, plan.point)
+		}
+		return s.restoreOwnedRuntime(ctx, points)
 	}
 
 	var rollbackErrs []error

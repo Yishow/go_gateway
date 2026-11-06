@@ -1,3 +1,4 @@
+import type { DeviceAcquisitionSettings } from '../../../../types/acquisitionSettings';
 import type { StudioV2AvailabilityStatus } from '../../../../types/studioV2Availability';
 import type { StudioV2RuntimeApplyStatus } from '../../../../types/studioV2RuntimeApply';
 import type { PersistedMCRuleState } from './mcPersistedPoints';
@@ -74,6 +75,8 @@ export interface Device {
   availability_status?: StudioV2AvailabilityStatus | null;
   availability_reason?: string | null;
   running?: boolean;
+  /** Saved device-level acquisition settings; absent for new devices or older backends. */
+  acquisition?: DeviceAcquisitionSettings;
 }
 
 export interface Rule {
@@ -94,6 +97,9 @@ export interface Rule {
   share_enabled: boolean;
   share_start_register: number | null;
   share_stride: number | null;
+  layout_mode?: import('../../../../types/measurement').LayoutMode;
+  mixed_items?: import('../../../../types/measurement').MixedItem[];
+  mixed_items_error?: string;
   persisted?: boolean;
   mc_persisted_points?: PersistedMCRuleState;
   save_state?: RuleSaveState;

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"go-gateway/internal/datalink/optimizer"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -32,12 +33,12 @@ func (e *mcAddressPlanConflictError) Unwrap() []error {
 	return []error{errMCAddressPlanConflict, validationError(e.reason)}
 }
 
-func (s *Service) listAndValidatePersistedMCLinks(ctx context.Context, rule *schema.SourceRule, protocol schema.ProtocolType) ([]*schema.SourceRuleLink, error) {
+func (s *Service) listAndValidatePersistedMCLinks(ctx context.Context, rule *schema.SourceRule, protocol schema.ProtocolType, identities ...optimizer.AcquisitionIdentity) ([]*schema.SourceRuleLink, error) {
 	links, err := s.repo.ListLinks(ctx, rule.ID)
 	if err != nil {
 		return nil, fmt.Errorf("取得來源規則連結失敗: %w", err)
 	}
-	if err := validatePersistedMCAddressPlan(rule, protocol, links); err != nil {
+	if err := validatePersistedMCAddressPlan(rule, protocol, links, identities...); err != nil {
 		return nil, contextualRuleValidationError(rule.ID, rule.StartAddress, protocol, err)
 	}
 	return links, nil
@@ -46,12 +47,12 @@ func (s *Service) listAndValidatePersistedMCLinks(ctx context.Context, rule *sch
 // validatePersistedMCAddressPlan protects persisted MC links from an address
 // grammar correction. It intentionally plans from the stored rule, not from a
 // pending update, so a name/scale/range patch cannot move existing identities.
-func validatePersistedMCAddressPlan(rule *schema.SourceRule, protocol schema.ProtocolType, links []*schema.SourceRuleLink) error {
+func validatePersistedMCAddressPlan(rule *schema.SourceRule, protocol schema.ProtocolType, links []*schema.SourceRuleLink, identities ...optimizer.AcquisitionIdentity) error {
 	if protocol != schema.ProtocolMC3E {
 		return nil
 	}
 
-	expected, err := correctedMCAddressPlan(rule)
+	expected, err := persistedRuleAddressPlan(rule, identities...)
 	if err != nil {
 		return mcAddressPlanConflict(rule, err.Error())
 	}

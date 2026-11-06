@@ -43,7 +43,9 @@ export function ruleReducer(state: WorkbenchV2State, action: WorkbenchV2Action):
           if (r.id !== action.ruleId) return r;
           const patch = { ...action.patch };
           if (patch.count !== undefined) {
-            patch.count = Math.max(1, Math.min(64, patch.count));
+            patch.count = (patch.layout_mode ?? r.layout_mode) === 'mixed'
+              ? Math.max(1, (patch.mixed_items ?? r.mixed_items ?? []).length)
+              : Math.max(1, Math.min(64, patch.count));
           }
           const hasLinkedResetKeys =
             patch.start_address !== undefined ||

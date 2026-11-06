@@ -39,6 +39,9 @@ func (s *Service) Start(ctx context.Context) error {
 	case s.stopDone == nil:
 		s.wg.Go(func() { s.consumeLoop(runtimeCtx) })
 		s.wg.Go(s.statusLoop) //nolint:contextcheck // The status worker is owned by stopCh.
+		if s.anomalies != nil {
+			s.wg.Go(s.anomalyLoop) //nolint:contextcheck // The anomaly worker is owned by stopCh.
+		}
 	default:
 		err = fmt.Errorf("runtime stopped during startup")
 	}
@@ -114,6 +117,12 @@ func (s *Service) finishStop(ctx context.Context, started, done chan struct{}) {
 	var targetErr error
 	if closer, ok := s.target.(interface{ Close(context.Context) error }); ok && closer != nil {
 		targetErr = closer.Close(ctx)
+		if waiter, ok := s.target.(interface{ WaitClosed(context.Context) error }); ok {
+			waitErr := waiter.WaitClosed(observation)
+			if waitErr != nil && !errors.Is(targetErr, waitErr) {
+				targetErr = errors.Join(targetErr, waitErr)
+			}
+		}
 	}
 	var writerErr error
 	if closer, ok := s.writer.(interface {

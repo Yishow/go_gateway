@@ -37,7 +37,8 @@ func (s *Scheduler) captureScheduledGroup(groupID string, expected ...*groupTick
 	capturedAt := time.Now()
 	for id, points := range byDevice {
 		if device, exists := s.deviceConfigs[id]; exists {
-			result = append(result, scheduledSnapshot{device: device, geometry: s.currentAcquisitionGeometryLocked(id), points: points, groupID: groupID, cadence: cadence, ticker: ticker, ctx: ctx, running: s.running, capturedAt: capturedAt})
+			autoInterval := s.deviceIntervals[id] != nil && s.deviceIntervals[id].autoInterval
+			result = append(result, scheduledSnapshot{device: device, geometry: s.currentAcquisitionGeometryLocked(id), points: points, groupID: groupID, cadence: cadence, ticker: ticker, ctx: ctx, running: s.running, autoInterval: autoInterval, capturedAt: capturedAt})
 		}
 	}
 	return result
@@ -45,6 +46,9 @@ func (s *Scheduler) captureScheduledGroup(groupID string, expected ...*groupTick
 
 func (s *Scheduler) pollScheduledSnapshot(snapshot scheduledSnapshot) {
 	s.pollAcquisitionSnapshot(snapshot.ctx, snapshot, "", false, s.emitValue)
+	if snapshot.autoInterval && snapshot.cadence > 0 && snapshot.ctx.Err() == nil && s.admitScheduled(snapshot, snapshot.points) == nil {
+		s.RecordScanDuration(snapshot.device.ID, time.Since(snapshot.capturedAt))
+	}
 }
 
 // The ctx argument is the exact context stored in snapshot at capture. Callers

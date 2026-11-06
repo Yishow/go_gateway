@@ -7,6 +7,7 @@ import (
 	"go-gateway/internal/datalink/decoding"
 	"go-gateway/internal/datalink/optimizer"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/protocol/mcprotocol"
 	"go-gateway/lib/hsllogic"
 )
 
@@ -47,11 +48,34 @@ func decodeMCPlannedPoint(p optimizer.PointSlice, profile connector.ReadProfile,
 		}
 		return bits[p.Offset], []byte{raw}, nil
 	}
+	if p.NativeBits == 16 && p.BitIndex >= 0 {
+		if p.Length != 1 || p.Offset >= len(words) || p.Point.DataType != schema.DataTypeBool {
+			return nil, nil, decoding.ErrShortScalar
+		}
+		bitVal, err := mcprotocol.ExtractBitFromWord(words[p.Offset], p.BitIndex)
+		if err != nil {
+			return nil, nil, err
+		}
+		raw := byte(0)
+		if bitVal {
+			raw = 1
+		}
+		return bitVal, []byte{raw}, nil
+	}
 	width := schema.RegisterCountForDataType(p.Point.DataType)
-	if p.NativeBits != 16 || p.Length != width || p.Offset > len(words)-p.Length {
+	var scalar []int
+	switch {
+	case p.NativeBits == 32:
+		if width != 2 || p.Length != 1 || p.Offset >= len(words) {
+			return nil, nil, decoding.ErrShortScalar
+		}
+		u := uint32(words[p.Offset]) // #nosec G115 -- 32-bit random unit carries raw uint32 payload.
+		scalar = []int{int(uint16(u & 0xFFFF)), int(uint16(u >> 16))}
+	case p.NativeBits == 16 && p.Length == width && p.Offset <= len(words)-p.Length:
+		scalar = words[p.Offset : p.Offset+p.Length]
+	default:
 		return nil, nil, decoding.ErrShortScalar
 	}
-	scalar := words[p.Offset : p.Offset+p.Length]
 	registers := make([]uint16, len(scalar))
 	for i, v := range scalar {
 		registers[i] = uint16(v)

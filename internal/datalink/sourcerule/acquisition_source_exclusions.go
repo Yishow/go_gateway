@@ -14,6 +14,7 @@ const (
 	acquisitionSourceRuleGeometryUnsupported = "source-rule-geometry-unsupported"
 	acquisitionSourceSkipsUnsupported        = "source-skips-unsupported"
 	acquisitionSourceLinksIncomplete         = "source-links-incomplete"
+	acquisitionSourceLayoutUnsupported       = "source-layout-unsupported"
 )
 
 // AcquisitionSourceExclusions derives only source exclusions, not readability.
@@ -23,6 +24,7 @@ func AcquisitionSourceExclusions(input AcquisitionSourceRows) (ranges []optimize
 	if protocol == "" {
 		return nil, "source-protocol-unsupported"
 	}
+	identity := sourceAcquisitionIdentity(input.Device)
 	rules := map[string]*schema.SourceRule{}
 	points := map[string]*schema.Point{}
 	links := map[string][]*schema.SourceRuleLink{}
@@ -38,7 +40,7 @@ func AcquisitionSourceExclusions(input AcquisitionSourceRows) (ranges []optimize
 		if point == nil || point.ID == "" || point.DeviceID != input.Device.ID || points[point.ID] != nil {
 			return nil, acquisitionSourceOwnershipIncomplete
 		}
-		span, err := optimizer.AcquisitionPointSpan(protocol, acquisitionEffectivePoint(point))
+		span, err := optimizer.AcquisitionPointSpanForIdentity(identity, acquisitionEffectivePoint(point))
 		if err != nil {
 			return nil, "source-point-geometry-unsupported"
 		}
@@ -54,8 +56,9 @@ func AcquisitionSourceExclusions(input AcquisitionSourceRows) (ranges []optimize
 		owners[link.PointID] = link.RuleID
 		links[link.RuleID] = append(links[link.RuleID], link)
 	}
+	mixedAllowed := acquisitionMixedLayoutSupported(input.Device)
 	for _, rule := range input.Rules {
-		spans, reason := acquisitionRuleExclusions(protocol, input.Device.Protocol, rule, links[rule.ID], points)
+		spans, reason := acquisitionRuleExclusions(identity, input.Device.Protocol, mixedAllowed, rule, links[rule.ID], points)
 		if reason != "" {
 			return nil, reason
 		}
@@ -73,13 +76,16 @@ func AcquisitionSourceExclusions(input AcquisitionSourceRows) (ranges []optimize
 	return slices.Compact(excluded), ""
 }
 
-func acquisitionRuleExclusions(native string, protocol schema.ProtocolType, rule *schema.SourceRule, links []*schema.SourceRuleLink, points map[string]*schema.Point) (ranges []optimizer.NativeRange, reason string) {
+func acquisitionRuleExclusions(identity optimizer.AcquisitionIdentity, protocol schema.ProtocolType, mixedAllowed bool, rule *schema.SourceRule, links []*schema.SourceRuleLink, points map[string]*schema.Point) (ranges []optimizer.NativeRange, reason string) {
 	if (rule.LayoutMode != "" && rule.LayoutMode != "homogeneous") || strings.TrimSpace(rule.MixedItems) != "" {
-		return nil, "source-layout-unsupported"
+		if !mixedAllowed || rule.LayoutMode != layoutMixed {
+			return nil, acquisitionSourceLayoutUnsupported
+		}
+		return acquisitionMixedRuleExclusions(identity, rule, links, points)
 	}
 	// Validate the original address BEFORE the legacy rule expander: its decimal
 	// helper is permissive and must not overflow into an apparently valid start.
-	start, err := optimizer.AcquisitionPointSpan(native, optimizer.EffectivePoint{Address: rule.StartAddress, DataType: rule.DataType})
+	start, err := optimizer.AcquisitionPointSpanForIdentity(identity, optimizer.EffectivePoint{Address: rule.StartAddress, DataType: rule.DataType})
 	if err != nil || rule.Count < 0 {
 		return nil, acquisitionSourceRuleGeometryUnsupported
 	}
@@ -93,7 +99,7 @@ func acquisitionRuleExclusions(native string, protocol schema.ProtocolType, rule
 	}
 	excluded := make([]optimizer.NativeRange, 0, len(skipped))
 	for _, address := range skipped {
-		span, err := optimizer.AcquisitionPointSpan(native, optimizer.EffectivePoint{Address: address, DataType: rule.DataType})
+		span, err := optimizer.AcquisitionPointSpanForIdentity(identity, optimizer.EffectivePoint{Address: address, DataType: rule.DataType})
 		if err != nil {
 			return nil, acquisitionSourceSkipsUnsupported
 		}
@@ -109,20 +115,20 @@ func acquisitionRuleExclusions(native string, protocol schema.ProtocolType, rule
 		return nil, acquisitionSourceRuleGeometryUnsupported
 	}
 	if rule.Count > 0 {
-		last, err := offsetAddress(rule.StartAddress, (rule.Count-1)*step, protocol)
+		last, err := offsetAddressForIdentity(rule.StartAddress, (rule.Count-1)*step, protocol, identity)
 		if err != nil {
 			return nil, acquisitionSourceRuleGeometryUnsupported
 		}
-		if _, err = optimizer.AcquisitionPointSpan(native, optimizer.EffectivePoint{Address: last, DataType: rule.DataType}); err != nil {
+		if _, err = optimizer.AcquisitionPointSpanForIdentity(identity, optimizer.EffectivePoint{Address: last, DataType: rule.DataType}); err != nil {
 			return nil, acquisitionSourceRuleGeometryUnsupported
 		}
 	}
-	addresses, err := buildPlannedPointAddresses(rule.StartAddress, rule.Count, rule.DataType, protocol)
+	addresses, err := buildPlannedPointAddressesForIdentity(rule.StartAddress, rule.Count, rule.DataType, protocol, identity)
 	if err != nil {
 		return nil, acquisitionSourceRuleGeometryUnsupported
 	}
 	if len(addresses) > 0 {
-		first, err := optimizer.AcquisitionPointSpan(native, optimizer.EffectivePoint{Address: addresses[0], DataType: rule.DataType})
+		first, err := optimizer.AcquisitionPointSpanForIdentity(identity, optimizer.EffectivePoint{Address: addresses[0], DataType: rule.DataType})
 		if err != nil || first != start {
 			return nil, acquisitionSourceRuleGeometryUnsupported
 		}
@@ -130,7 +136,7 @@ func acquisitionRuleExclusions(native string, protocol schema.ProtocolType, rule
 	expected := map[string]bool{}
 	for _, address := range addresses {
 		if !rule.Enabled {
-			span, err := optimizer.AcquisitionPointSpan(native, optimizer.EffectivePoint{Address: address, DataType: rule.DataType})
+			span, err := optimizer.AcquisitionPointSpanForIdentity(identity, optimizer.EffectivePoint{Address: address, DataType: rule.DataType})
 			if err != nil {
 				return nil, acquisitionSourceRuleGeometryUnsupported
 			}
@@ -146,8 +152,8 @@ func acquisitionRuleExclusions(native string, protocol schema.ProtocolType, rule
 		if !expected[key] || point == nil || point.DataType != rule.DataType || (!rule.Enabled && point.Enabled) {
 			return nil, acquisitionSourceLinksIncomplete
 		}
-		want, err := optimizer.AcquisitionPointSpan(native, optimizer.EffectivePoint{Address: link.Address, DataType: rule.DataType})
-		actual, actualErr := optimizer.AcquisitionPointSpan(native, acquisitionEffectivePoint(point))
+		want, err := optimizer.AcquisitionPointSpanForIdentity(identity, optimizer.EffectivePoint{Address: link.Address, DataType: rule.DataType})
+		actual, actualErr := optimizer.AcquisitionPointSpanForIdentity(identity, acquisitionEffectivePoint(point))
 		if err != nil || actualErr != nil || want != actual {
 			return nil, acquisitionSourceLinksIncomplete
 		}

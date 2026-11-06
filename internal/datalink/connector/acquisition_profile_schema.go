@@ -41,6 +41,7 @@ func AcquisitionConfigSchema(protocol schema.ProtocolType) json.RawMessage {
 			"native_units":   positive("Optional stricter per-request native component count; protocol/client limits still apply."),
 			"request_bytes":  positive("Optional stricter complete application-request frame bytes."),
 			"response_bytes": positive("Optional stricter complete application-response frame bytes."),
+			"random_points":  positive("Optional lower per-request random point limit; must not exceed the profile limit (MC 192, FATEK 64)."),
 		}},
 		"coverage": map[string]any{typeKey: objectType, additionalPropertiesKey: false, requiredKey: []string{"revision"}, propertiesKey: map[string]any{
 			"revision": map[string]any{typeKey: stringType, "minLength": 1, "pattern": `\S`},

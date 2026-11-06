@@ -166,6 +166,15 @@ definitions:
       unique_address_units:
         type: integer
     type: object
+  dbtarget.CatalogSchema:
+    properties:
+      name:
+        type: string
+      tables:
+        items:
+          type: string
+        type: array
+    type: object
   dbtarget.ColumnInfo:
     properties:
       data_type:
@@ -825,6 +834,116 @@ definitions:
         example: false
         type: boolean
     type: object
+  handlers.AcquisitionAnomalyDeviceCount:
+    properties:
+      active_count:
+        type: integer
+      device_id:
+        type: string
+    type: object
+  handlers.AcquisitionAnomalyErrorEnvelope:
+    properties:
+      action:
+        type: string
+      code:
+        type: string
+      dirty_state:
+        type: string
+      field:
+        type: string
+      message:
+        type: string
+      operation_id:
+        type: string
+      request_id:
+        type: string
+      retryable:
+        type: boolean
+      settings_revision:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
+  handlers.AcquisitionAnomalyErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/handlers.AcquisitionAnomalyErrorEnvelope'
+      success:
+        example: false
+        type: boolean
+    type: object
+  handlers.AcquisitionAnomalyItem:
+    properties:
+      detail:
+        type: string
+      device_id:
+        type: string
+      duration_ms:
+        type: integer
+      ended_at:
+        type: string
+      id:
+        type: integer
+      kind:
+        enum:
+        - disconnected
+        - stale
+        - frozen
+        type: string
+      last_value:
+        type: string
+      point_address:
+        type: string
+      point_id:
+        type: string
+      point_name:
+        type: string
+      started_at:
+        type: string
+      state:
+        enum:
+        - active
+        - ended
+        type: string
+    type: object
+  handlers.AcquisitionAnomalyListData:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handlers.AcquisitionAnomalyItem'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  handlers.AcquisitionAnomalyListResponse:
+    properties:
+      data:
+        $ref: '#/definitions/handlers.AcquisitionAnomalyListData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  handlers.AcquisitionAnomalySummaryData:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handlers.AcquisitionAnomalyDeviceCount'
+        type: array
+      total_active:
+        type: integer
+    type: object
+  handlers.AcquisitionAnomalySummaryResponse:
+    properties:
+      data:
+        $ref: '#/definitions/handlers.AcquisitionAnomalySummaryData'
+      success:
+        example: true
+        type: boolean
+    type: object
   handlers.AcquisitionPreviewResponse:
     properties:
       data:
@@ -965,6 +1084,14 @@ definitions:
       data:
         $ref: '#/definitions/workspace.RecordingStartOperation'
       success:
+        type: boolean
+    type: object
+  handlers.SourceRuleEnvelope:
+    properties:
+      data:
+        $ref: '#/definitions/handlers.sourceRuleResponse'
+      success:
+        example: true
         type: boolean
     type: object
   handlers.StartModbusShareRequest:
@@ -1800,8 +1927,25 @@ definitions:
         type: boolean
       id:
         type: string
+      layout_mode:
+        description: LayoutMode is homogeneous or mixed; a mixed rule's start_address,
+          count and data_type project its first item.
+        enum:
+        - homogeneous
+        - mixed
+        type: string
       locked:
         type: boolean
+      mixed_items:
+        description: MixedItems lists the items of a mixed rule; each item owns one
+          derived point at its address.
+        items:
+          $ref: '#/definitions/measurement.MixedItem'
+        type: array
+      mixed_items_error:
+        description: MixedItemsError reports stored mixed items that could not be
+          decoded.
+        type: string
       naming_prefix:
         type: string
       origin:
@@ -1933,6 +2077,25 @@ definitions:
         $ref: '#/definitions/workspace.Status'
       updated_at: {}
     type: object
+  handlers.studioV2WorkspaceDatabaseCatalogResponse:
+    properties:
+      connector_id:
+        type: string
+      connector_revision:
+        type: string
+      default_schema:
+        type: string
+      kind:
+        $ref: '#/definitions/schema.DatabaseConnectorKind'
+      schemas:
+        items:
+          $ref: '#/definitions/dbtarget.CatalogSchema'
+        type: array
+      workspace_id:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
   handlers.studioV2WorkspaceDatabaseConfigResponse:
     properties:
       created_at: {}
@@ -2060,6 +2223,11 @@ definitions:
     type: object
   handlers.studioV2WorkspaceDeviceResponse:
     properties:
+      acquisition_auto_interval:
+        type: boolean
+      acquisition_interval_ms:
+        description: 採集設定：間隔由設備專屬輪詢群組持有，門檻與自動調整存於設備。
+        type: integer
       availability_reason:
         type: string
       availability_status:
@@ -2069,6 +2237,8 @@ definitions:
       created_at: {}
       description:
         type: string
+      frozen_threshold_ms:
+        type: integer
       id:
         type: string
       last_test_at: {}
@@ -2086,6 +2256,8 @@ definitions:
         type: string
       runtime_apply_status:
         type: string
+      stale_threshold_ms:
+        type: integer
       status:
         $ref: '#/definitions/schema.DeviceStatus'
       updated_at: {}
@@ -2230,6 +2402,47 @@ definitions:
       updated_at:
         type: string
       workspace_id:
+        type: string
+    type: object
+  measurement.MixedItem:
+    properties:
+      address:
+        type: string
+      bit_length:
+        type: integer
+      bit_offset:
+        type: integer
+      bitmask_labels:
+        additionalProperties:
+          type: string
+        type: object
+      counter_policy:
+        $ref: '#/definitions/measurement.CounterPolicy'
+      data_format:
+        type: string
+      data_type:
+        $ref: '#/definitions/schema.DataType'
+      item_id:
+        type: string
+      name:
+        type: string
+      quantity:
+        type: string
+      register_offset:
+        type: integer
+      scale_multiplier:
+        type: number
+      scale_offset:
+        type: number
+      semantic_kind:
+        $ref: '#/definitions/measurement.SemanticKind'
+      state_map:
+        additionalProperties:
+          type: string
+        type: object
+      target_data_type:
+        $ref: '#/definitions/schema.DataType'
+      unit:
         type: string
     type: object
   measurement.SemanticKind:
@@ -3771,6 +3984,131 @@ definitions:
     - TransformLookup
     - TransformConditional
     - TransformFormula
+  sourcerule.CreateRuleRequest:
+    properties:
+      count:
+        type: integer
+      data_format:
+        description: DataFormat 字節序格式（可空）。空字串表示使用設備連線預設。
+        type: string
+      data_type:
+        $ref: '#/definitions/schema.DataType'
+      device_id:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: string
+      layout_mode:
+        description: |-
+          LayoutMode is homogeneous (default) or mixed. A mixed rule derives
+          start_address, count and data_type from its first item.
+        enum:
+        - homogeneous
+        - mixed
+        type: string
+      locked:
+        type: boolean
+      mixed_items:
+        description: MixedItems lists one point per item; each item has its own address
+          and data_type.
+        items:
+          $ref: '#/definitions/measurement.MixedItem'
+        type: array
+      naming_prefix:
+        type: string
+      origin:
+        type: string
+      scale_multiplier:
+        description: ScaleMultiplier 縮放倍率（可空）。
+        type: number
+      scale_offset:
+        description: ScaleOffset 偏移量（可空）。
+        type: number
+      share_enabled:
+        description: ShareEnabled controls whether this rule is exposed through the
+          local Modbus Share output.
+        type: boolean
+      share_start_register:
+        description: ShareStartRegister is the optional local Modbus holding-register
+          start address.
+        type: integer
+      share_stride:
+        description: ShareStride is the optional number of local Modbus registers
+          allocated per point.
+        type: integer
+      skipped_addresses:
+        items:
+          type: string
+        type: array
+      start_address:
+        type: string
+      target_data_type:
+        allOf:
+        - $ref: '#/definitions/schema.DataType'
+        description: TargetDataType 目標資料型態（可空）。預設與 DataType 相同。
+      template_name:
+        type: string
+    type: object
+  sourcerule.UpdateRuleRequest:
+    properties:
+      count:
+        type: integer
+      data_format:
+        description: DataFormat 字節序格式（可空）；傳 null 並搭配 DataFormatSet 可清空為連線預設。
+        type: string
+      data_type:
+        $ref: '#/definitions/schema.DataType'
+      enabled:
+        type: boolean
+      layout_mode:
+        description: LayoutMode switches the rule layout; omitted keeps the stored
+          layout.
+        enum:
+        - homogeneous
+        - mixed
+        type: string
+      locked:
+        type: boolean
+      mixed_items:
+        description: MixedItems replaces the complete item list of a mixed rule; omitted
+          keeps the stored items.
+        items:
+          $ref: '#/definitions/measurement.MixedItem'
+        type: array
+      naming_prefix:
+        type: string
+      scale_multiplier:
+        description: ScaleMultiplier 縮放倍率（可空）。
+        type: number
+      scale_offset:
+        description: ScaleOffset 偏移量（可空）。
+        type: number
+      share_enabled:
+        description: ShareEnabled controls whether this rule is exposed through the
+          local Modbus Share output.
+        type: boolean
+      share_start_register:
+        description: ShareStartRegister is the optional local Modbus holding-register
+          start address.
+        type: integer
+      share_stride:
+        description: ShareStride is the optional number of local Modbus registers
+          allocated per point.
+        type: integer
+      skipped_addresses:
+        items:
+          type: string
+        type: array
+      start_address:
+        type: string
+      target_data_type:
+        allOf:
+        - $ref: '#/definitions/schema.DataType'
+        description: TargetDataType 目標資料型態（可空）。
+      template_name:
+        type: string
+    type: object
   workspace.CutoverEnd:
     properties:
       group_id:
@@ -5854,6 +6192,47 @@ paths:
       summary: Start recording for selected devices and groups
       tags:
       - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/recording-start/lookup:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Original complete scoped start request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/workspace.RecordingStartRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.RecordingStartResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Look up a scoped recording start by its original request
+      tags:
+      - Studio V2 Write Groups
   /datalink/studio-v2/workspace/recording-start/operations/{id}:
     get:
       parameters:
@@ -6992,6 +7371,92 @@ paths:
       summary: Save confirmed legacy single-mapping snapshot conversion
       tags:
       - Studio V2 Write Groups
+  /v1/datalink/acquisition-anomalies/summary:
+    get:
+      description: Returns every device's number of active (not yet ended) anomaly
+        events; devices without active events report 0.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AcquisitionAnomalySummaryResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.AcquisitionAnomalyErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.AcquisitionAnomalyErrorResponse'
+      summary: Summarize active acquisition anomalies per device
+      tags:
+      - Datalink Acquisition Anomalies
+  /v1/datalink/devices/{id}/acquisition-anomalies:
+    get:
+      description: Lists persisted disconnected, stale and frozen events of one device,
+        newest first, with the filtered total. Each device targets 5000 events by
+        pruning the oldest ended events first. Active events are always retained,
+        even above the target; ending an event triggers pruning again.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Event state
+        enum:
+        - active
+        - ended
+        in: query
+        name: state
+        type: string
+      - description: Anomaly kind
+        enum:
+        - disconnected
+        - stale
+        - frozen
+        in: query
+        name: kind
+        type: string
+      - description: Page size (1-500, default 50)
+        in: query
+        maximum: 500
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Number of events to skip (default 0)
+        in: query
+        minimum: 0
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AcquisitionAnomalyListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.AcquisitionAnomalyErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.AcquisitionAnomalyErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.AcquisitionAnomalyErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.AcquisitionAnomalyErrorResponse'
+      summary: List a device's acquisition anomalies
+      tags:
+      - Datalink Acquisition Anomalies
   /v1/datalink/studio-v2/workspace:
     get:
       parameters:
@@ -7077,6 +7542,84 @@ paths:
       summary: Read Studio v2 workspace or an exact read-only locator entry
       tags:
       - Datalink Studio v2
+  /v1/datalink/studio-v2/workspace/database-catalog:
+    get:
+      parameters:
+      - description: Exact owning workspace
+        in: query
+        name: workspace_id
+        required: true
+        type: string
+      - description: Exact saved database setup revision; empty is valid only for
+          legacy-empty workspaces
+        in: query
+        name: expected_workspace_revision
+        required: true
+        type: string
+      - description: Enabled saved connector to inspect
+        in: query
+        name: connector_id
+        required: true
+        type: string
+      - description: Current saved connector identity revision
+        in: query
+        name: expected_connector_revision
+        required: true
+        type: string
+      - description: Exact saved write group; requires expected_group_revision
+        in: query
+        name: group_id
+        type: string
+      - description: Current saved write-group revision
+        in: query
+        name: expected_group_revision
+        type: string
+      - description: Locator-origin workspace identity; requires revision pair
+        in: query
+        name: locator_workspace_id
+        type: string
+      - description: Exact observed locator workspace revision
+        in: query
+        name: locator_workspace_revision
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.studioV2WorkspaceDatabaseCatalogResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Read the saved database catalog
+      tags:
+      - Studio V2 Recording Plans
   /v1/datalink/studio-v2/workspace/database-metadata:
     get:
       parameters:
@@ -7545,6 +8088,81 @@ paths:
       summary: Get runtime workspace context
       tags:
       - datalink
+  /v1/datalink/studio-v2/workspace/source-rules:
+    post:
+      consumes:
+      - application/json
+      description: A homogeneous rule expands start_address, count and data_type.
+        A mixed rule (layout_mode=mixed) expands one point per mixed_items entry;
+        items carry their own address and data_type, may use different areas, and
+        must not overlap. Validation errors name the field and, for item conflicts,
+        item_ids.
+      parameters:
+      - description: Source rule
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sourcerule.CreateRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.SourceRuleEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Create workspace source rule
+      tags:
+      - Studio V2 Source Rules
+  /v1/datalink/studio-v2/workspace/source-rules/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Omitted fields keep their stored values. layout_mode switches the
+        layout; mixed_items replaces the complete item list of a mixed rule, and items
+        are matched to existing points by item_id.
+      parameters:
+      - description: Source rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Changed fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sourcerule.UpdateRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SourceRuleEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Update workspace source rule
+      tags:
+      - Studio V2 Source Rules
   /v1/datalink/studio-v2/workspace/write-groups/{id}/lifecycle:
     get:
       description: 'Local read only: saved status/actions, immutable per-generation

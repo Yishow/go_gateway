@@ -35,10 +35,19 @@ func (s *Service) markStaleTagReviewDecisions(ctx context.Context, rule *schema.
 			continue
 		}
 
+		previous := cloneTagReviewDecision(decision)
 		decision.Stale = true
 		decision.StaleRevisionID = rule.RevisionID
 		decision.StaleAt = &staleAt
 		decision.UpdatedAt = staleAt
+		journal := s.pointJournal(ctx)
+		if journal != nil && journal.guardMixedDecisions {
+			if err := s.compareAndSwapTagReviewDecision(ctx, previous, decision); err != nil {
+				return fmt.Errorf("標記來源規則 tag review decision stale 失敗: %w", err)
+			}
+			journal.reviewDecisionWrites = append(journal.reviewDecisionWrites, tagReviewDecisionWrite{before: previous, after: cloneTagReviewDecision(decision)})
+			continue
+		}
 		if err := s.repo.UpsertTagReviewDecision(ctx, decision); err != nil {
 			return fmt.Errorf("標記來源規則 tag review decision stale 失敗: %w", err)
 		}

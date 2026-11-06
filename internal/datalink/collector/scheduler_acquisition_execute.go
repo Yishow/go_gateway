@@ -105,7 +105,7 @@ func (s *Scheduler) executeAcquisitionPlan(ctx context.Context, conn *connector.
 // removed is not a device failure for its unchanged siblings. The established
 // scheduler->breaker lock order contains no I/O or callback into the scheduler.
 func (s *Scheduler) reportScheduledHealth(snapshot scheduledSnapshot, points []pointInfo, breaker *health.CircuitBreaker, err error) {
-	if breaker == nil || errors.Is(err, errAcquisitionSuperseded) || errors.Is(err, errActiveCapacityWait) {
+	if breaker == nil || errors.Is(err, errAcquisitionSuperseded) || errors.Is(err, errActiveCapacityWait) || errors.Is(err, errSourceLayoutUnsupported) {
 		return
 	}
 	s.mu.RLock()

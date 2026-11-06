@@ -10,8 +10,9 @@ import (
 // transport (and its single shared attempt budget), serializer and end-code error.
 type exactReadTransport struct {
 	Transport
-	count int
-	bits  bool
+	count        int
+	payloadBytes int
+	bits         bool
 }
 
 func (t exactReadTransport) SendReceive(req []byte) ([]byte, error) {
@@ -26,7 +27,9 @@ func (t exactReadTransport) SendReceive(req []byte) ([]byte, error) {
 		return response, nil
 	}
 	n := t.count * 2
-	if t.bits {
+	if t.payloadBytes > 0 {
+		n = t.payloadBytes
+	} else if t.bits {
 		n = (t.count + 1) / 2
 	}
 	if len(response) != 2+n {
@@ -45,8 +48,16 @@ func (t exactReadTransport) SendReceive(req []byte) ([]byte, error) {
 // RandomReadExact uses the existing random serializer, address/count checks and
 // status parser, rejecting empty, short or excess successful response payloads.
 func (c *MCClient) RandomReadExact(items []RandomReadItem) ([]int, error) {
+	payloadBytes := 0
+	for _, item := range items {
+		if item.DoubleWord {
+			payloadBytes += 4
+		} else {
+			payloadBytes += 2
+		}
+	}
 	view := *c
-	view.transport = exactReadTransport{Transport: c.transport, count: len(items)}
+	view.transport = exactReadTransport{Transport: c.transport, count: len(items), payloadBytes: payloadBytes}
 	return view.RandomRead(items)
 }
 

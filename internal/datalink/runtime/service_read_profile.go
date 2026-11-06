@@ -8,6 +8,7 @@ import (
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/decoding"
+	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
 )
@@ -23,7 +24,7 @@ func modernPoint(p *schema.Point) bool {
 func prepareProjectionProfiles(ctx context.Context, projection *workspace.RuntimeProjection, deviceIDs ...string) (context.Context, error) {
 	profiles := map[string]connector.ReadProfile{}
 	for _, p := range projection.Points {
-		if p == nil || !p.Enabled || !modernPoint(p) || (len(deviceIDs) > 0 && !slices.Contains(deviceIDs, p.DeviceID)) {
+		if p == nil || !p.Enabled || (!modernPoint(p) && !projectionMixedPoint(projection, p)) || (len(deviceIDs) > 0 && !slices.Contains(deviceIDs, p.DeviceID)) {
 			continue
 		}
 		active := false
@@ -81,6 +82,7 @@ func projectionReadProfile(projection *workspace.RuntimeProjection, p *schema.Po
 	}
 	defaults.ConnectionFormat = config.DataFormat
 	var link *schema.SourceRuleLink
+	var sourceLayout string
 	for _, candidate := range projection.RuleLinks {
 		if candidate != nil && candidate.PointID == p.ID {
 			if link != nil {
@@ -108,27 +110,42 @@ func projectionReadProfile(projection *workspace.RuntimeProjection, p *schema.Po
 		defaults.RuleID = rule.ID
 		defaults.RuleOwned = true
 		defaults.RuleRevision = rule.RevisionID
-		defaults.RuleFormat = rule.DataFormat
+		sourceLayout = rule.LayoutMode
+		format, err := measurement.SourceRulePointFormat(rule, p)
+		if err != nil {
+			return invalid()
+		}
+		defaults.RuleFormat = format
 	}
-	return connector.ResolveReadProfile(*p, defaults)
+	profile, err := connector.ResolveReadProfile(*p, defaults)
+	return profile.WithSourceLayout(sourceLayout), err
 }
 func (s *Service) pointReadProfile(ctx context.Context, p *schema.Point, allowInactive ...bool) (connector.ReadProfile, error) {
-	if !modernPoint(p) {
-		return connector.ReadProfile{}, nil
+	if p == nil {
+		return connector.ReadProfile{}, connector.ErrReadProfile
 	}
 	if profiles, ok := ctx.Value(readProfilesKey{}).(map[string]connector.ReadProfile); ok {
 		profile, found := profiles[p.ID]
-		if !found {
+		if found {
+			return profile, connector.ValidatePointReadProfile(p, profile)
+		}
+		if modernPoint(p) {
 			return connector.ReadProfile{}, connector.ErrReadProfile
 		}
-		return profile, connector.ValidatePointReadProfile(p, profile)
+		return connector.ReadProfile{}, nil
 	}
 	if s.workspace == nil {
+		if !modernPoint(p) {
+			return connector.ReadProfile{}, nil
+		}
 		return connector.ReadProfile{}, connector.ErrReadProfile
 	}
 	projection, err := s.workspace.RuntimeProjection(ctx)
 	if err != nil {
 		return connector.ReadProfile{}, connector.ErrReadProfile
+	}
+	if !modernPoint(p) && !projectionMixedPoint(projection, p) {
+		return connector.ReadProfile{}, nil
 	}
 	return projectionReadProfile(projection, p, allowInactive...)
 }

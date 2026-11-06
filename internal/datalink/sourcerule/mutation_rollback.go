@@ -78,6 +78,9 @@ func (s *Service) snapshotRule(ctx context.Context, id string) (*sourceRuleSnaps
 		snapshot.share = &shareSnapshot
 	}
 	s.snapshotRuntimeProjection(snapshot)
+	if snapshot.pointWrites != nil {
+		snapshot.pointWrites.retirementBaseline = snapshot
+	}
 	return snapshot, nil
 }
 
@@ -155,6 +158,15 @@ func (s *Service) restoreRuleSnapshot(ctx context.Context, snapshot *sourceRuleS
 	if currentErr != nil && (snapshot.pointWrites == nil || !snapshot.pointWrites.ruleDeleted || snapshot.pointWrites.ruleUncertain) {
 		return ErrRuleRevisionConflict
 	}
+	if err := s.restoreMixedTagReviewDecisions(ctx); err != nil {
+		return err
+	}
+	if snapshot.pointWrites != nil && snapshot.pointWrites.identitySync != nil {
+		if err := s.rollbackTagMappingSync(ctx, *snapshot.pointWrites.identitySync); err != nil {
+			return err
+		}
+		snapshot.pointWrites.identitySync = nil
+	}
 	var restoreErrs []error
 	currentLinks, linksErr := s.repo.ListLinks(ctx, snapshot.rule.ID)
 	if linksErr != nil {
@@ -168,6 +180,9 @@ func (s *Service) restoreRuleSnapshot(ctx context.Context, snapshot *sourceRuleS
 	restoredPoints, pointErr := s.restoreOwnedPoints(ctx, snapshot.pointWrites)
 	if pointErr != nil {
 		return pointErr
+	}
+	if err := s.restoreRetiredRuleResources(ctx); err != nil {
+		return err
 	}
 	oldPointIDs := make(map[string]struct{}, len(snapshot.points))
 	for id := range snapshot.points {
@@ -207,14 +222,20 @@ func (s *Service) restoreRuleSnapshot(ctx context.Context, snapshot *sourceRuleS
 		}
 	}
 
-	for _, record := range snapshot.tags {
+	for id, record := range snapshot.tags {
+		if snapshot.pointWrites != nil && snapshot.pointWrites.restoredIdentityTags[id] {
+			continue
+		}
 		if s.tagSvc != nil {
 			if err := s.tagSvc.Restore(ctx, record); err != nil {
 				restoreErrs = append(restoreErrs, err)
 			}
 		}
 	}
-	for _, record := range snapshot.mappings {
+	for id, record := range snapshot.mappings {
+		if snapshot.pointWrites != nil && snapshot.pointWrites.restoredIdentityMaps[id] {
+			continue
+		}
 		if s.mappingSvc != nil {
 			if err := s.mappingSvc.Restore(ctx, record); err != nil {
 				restoreErrs = append(restoreErrs, err)

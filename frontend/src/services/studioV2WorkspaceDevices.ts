@@ -2,8 +2,9 @@ import type { CreateDeviceRequest, Device, UpdateDeviceRequest, APIResponse, Stu
 import type { StudioV2Availability, StudioV2AvailabilityRequest } from '../types/studioV2Availability';
 import type { StudioV2RuntimeApply } from '../types/studioV2RuntimeApply';
 import { studioV2DatalinkApi } from './studioV2Workspace';
+import type { DeviceAcquisitionRecordFields } from '../types/acquisitionSettings';
 
-export type StudioV2WorkspaceDeviceRecord = Device & Partial<StudioV2Availability> & Partial<StudioV2RuntimeApply>;
+export type StudioV2WorkspaceDeviceRecord = Device & Partial<StudioV2Availability> & Partial<StudioV2RuntimeApply> & DeviceAcquisitionRecordFields;
 
 export const studioV2WorkspaceDevicesAPI = {
   async list(): Promise<StudioV2WorkspaceDeviceRecord[]> {

@@ -8,8 +8,10 @@ import { Toggle } from '../../components/Toggle';
 import { RangeSummary } from './RangeSummary';
 import { ScaleSection } from './ScaleSection';
 import { ShareSection, type RuleShareControls } from './ShareSection';
+import { ScatteredRangeSection } from './ScatteredRangeSection';
 import { RecordingSourceRangeField } from '../../recording-editor/RecordingSourceRangeFields';
 import { getRuleReadinessReason } from '../../state/sourceRule';
+import { asScatteredDataType } from '../../state/scatteredRange';
 
 export interface RuleEditorProps {
   rule: Rule;
@@ -91,195 +93,177 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
     ? t('step2.editor.addr_hint_modbus', '例: 40001')
     : t('step2.editor.addr_hint_plc', '例: D0, M0, W0');
   const addrPlaceholder = owningDevice ? (isModbus ? '40001' : 'D0') : '';
+  const isMixedMode = rule.layout_mode === 'mixed';
 
   const enabledControl = <Toggle checked={rule.enabled} onChange={() => dispatch({ type: 'toggleRuleEnabled', ruleId: rule.id })}
     label={simplePresentation ? sourceText('source.ruleEnabled') : '啟用此規則 (停用時將不衍生其所屬點位)'} data-testid="rule-editor-enable-toggle" />;
   return (
-    <div
-      className="flex flex-col gap-5 p-5 rounded-xl border border-slate-800 bg-slate-900/20"
-      data-testid="rule-editor"
-    >
+    <div className="flex flex-col gap-5 p-5 rounded-xl border border-slate-800 bg-slate-900/20" data-testid="rule-editor">
       {!simplePresentation && <h3 className="text-sm font-semibold text-slate-200">{t('step2.editor.rangeTitle')}</h3>}
 
       {hasMissingDevice && (
-        <div
-          className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
-          role="alert"
-          data-testid="rule-missing-device"
-          data-readiness-reason={readinessReason}
-        >
-          <div className="font-semibold">
-            {t(`step2.editor.${missingDeviceKey}`, missingDeviceFallback.title)}
-          </div>
-          <div className="mt-1">
-            {t(`step2.editor.${missingDeviceKey}_action`, missingDeviceFallback.action)}
-          </div>
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200" role="alert" data-testid="rule-missing-device" data-readiness-reason={readinessReason}>
+          <div className="font-semibold">{t(`step2.editor.${missingDeviceKey}`, missingDeviceFallback.title)}</div>
+          <div className="mt-1">{t(`step2.editor.${missingDeviceKey}_action`, missingDeviceFallback.action)}</div>
         </div>
       )}
 
       {hasPersistedMCBlock && (
-        <div
-          className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
-          role="alert"
-          data-testid="rule-mc-persisted-status"
-          data-status={persistedMCStatus}
-        >
-          <div className="font-semibold">
-            {t(`step2.editor.mc_points_${persistedMCStatus}`, 'Saved MC point evidence is not ready.')}
-          </div>
-          <div className="mt-1">
-            {t(`step2.editor.mc_points_${persistedMCStatus}_action`, 'Wait for matching saved point evidence before editing this rule.')}
-          </div>
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200" role="alert" data-testid="rule-mc-persisted-status" data-status={persistedMCStatus}>
+          <div className="font-semibold">{t(`step2.editor.mc_points_${persistedMCStatus}`, 'Saved MC point evidence is not ready.')}</div>
+          <div className="mt-1">{t(`step2.editor.mc_points_${persistedMCStatus}_action`, 'Wait for matching saved point evidence before editing this rule.')}</div>
         </div>
       )}
 
       {simplePresentation && !hasMissingDevice ? hideEnabledControl ? null : <div data-testid="source-range-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--gw-space-md)', minHeight: 'var(--gw-control-height)' }}><p className="recording-source-range-device">{owningDevice?.name}</p>{enabledControl}</div> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* 裝置選擇 (僅在有多個裝置時啟用) */}
         <Field label="所屬設備來源">
           <Select
             value={rule.device_id}
-            // The server keeps a saved rule on the device it was created for.
             disabled={(devices.length <= 1 && !hasMissingDevice) || (rule.persisted === true && !hasMissingDevice)}
             aria-invalid={hasMissingDevice}
             onChange={(e) => handleTextChange('device_id', e.target.value)}
             data-testid="rule-device-select"
           >
-            {hasMissingDevice && (
-              <option value={rule.device_id} disabled>
-                {t(`step2.editor.${missingDeviceKey}_option`, missingDeviceFallback.option)}
-              </option>
-            )}
-            {devices.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
+            {hasMissingDevice && <option value={rule.device_id} disabled>{t(`step2.editor.${missingDeviceKey}_option`, missingDeviceFallback.option)}</option>}
+            {devices.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </Select>
         </Field>
 
-        {/* 規則名稱 */}
         {!hideLocalName && <Field label={t('step2.editor.rangeName')}>
-          <Input
-            type="text"
-            value={rule.name}
-            onChange={(e) => handleTextChange('name', e.target.value)}
-            data-testid="rule-name-input"
-          />
+          <Input type="text" value={rule.name} onChange={(e) => handleTextChange('name', e.target.value)} data-testid="rule-name-input" />
           <button type="button" className="text-xs text-blue-300" data-testid="rule-suggest-name" onClick={() => handleTextChange('name', `${owningDevice?.name ?? ''} ${rule.start_address} · ${rule.count} ${rule.data_type}`)}>{t('step2.editor.suggestName')}</button>
         </Field>}
       </div>}
 
-      <div className={simplePresentation ? "recording-source-range-grid" : "grid grid-cols-2 sm:grid-cols-4 gap-4"}>
-        {/* 起始位址 */}
-        <EditorField label={simplePresentation ? sourceText('source.fields.address') : "起始暫存器位址"} help={simplePresentation ? "range.address" : undefined} hint={hasValidAddress ? addrHint : undefined}>
-          <Input
-            type="text"
-            value={rule.start_address}
-            placeholder={addrPlaceholder}
-            disabled={hasMissingDevice}
-            onChange={(e) => handleTextChange('start_address', e.target.value)}
-            aria-invalid={!hasValidAddress}
-            aria-describedby={!hasValidAddress ? addressErrorId : undefined}
-            data-testid="rule-start-input"
-          />
-          {!hasValidAddress && (
-            <span
-              id={addressErrorId}
-              data-testid="rule-start-error"
-              className="mt-1 flex items-center gap-1 text-xs text-red-300"
-            >
-              {hasMissingDevice
-                ? t('step2.editor.missing_device_address', '請先重新選擇或修復設備，再檢查位址。')
-                : hasInvalidAddress
-                ? t('step2.editor.addr_invalid', '位址不符合所選協議格式，請輸入有效位址。')
-                : null}
-            </span>
-          )}
-        </EditorField>
+      <ScatteredRangeSection
+        layoutMode={rule.layout_mode ?? 'homogeneous'}
+        items={rule.mixed_items ?? []}
+        mixedItemsError={rule.mixed_items_error}
+        device={owningDevice}
+        fallbackAddress={rule.start_address}
+        fallbackDataType={rule.data_type}
+        disabled={hasMissingDevice}
+        onChangeMode={(nextMode, nextItems) => {
+          if (nextMode === 'mixed') {
+            const items = nextItems ?? rule.mixed_items ?? [];
+            const first = items[0];
+            dispatch({
+              type: 'updateRule',
+              ruleId: rule.id,
+              patch: {
+                layout_mode: 'mixed',
+                mixed_items: items,
+                mixed_items_error: undefined,
+                start_address: first?.address || rule.start_address,
+                count: Math.max(1, items.length),
+                data_type: first ? asScatteredDataType(first.data_type) : asScatteredDataType(rule.data_type),
+                skipped_addresses: [],
+                share_enabled: false,
+              },
+            });
+          } else {
+            dispatch({ type: 'updateRule', ruleId: rule.id, patch: { layout_mode: 'homogeneous', mixed_items_error: undefined } });
+          }
+        }}
+        onChangeItems={(nextItems) => {
+          const first = nextItems[0];
+          dispatch({
+            type: 'updateRule',
+            ruleId: rule.id,
+            patch: {
+              layout_mode: 'mixed',
+              mixed_items: nextItems,
+              mixed_items_error: undefined,
+              ...(first?.address ? { start_address: first.address } : {}),
+              count: Math.max(1, nextItems.length),
+              ...(first?.data_type ? { data_type: asScatteredDataType(first.data_type) } : {}),
+            },
+          });
+        }}
+      />
 
-        {/* 點位數量 */}
-        <EditorField label={t('step2.editor.itemCount')} help={simplePresentation ? "range.count" : undefined} hint={simplePresentation ? sourceText('source.fields.countHint') : "範圍 1 至 64"}>
-          <Input
-            type="number"
-            min={1}
-            max={64}
-            value={rule.count}
-            onChange={(e) => handleNumberChange('count', e.target.value, 1)}
-            data-testid="rule-count-input"
-          />
-        </EditorField>
-
-        {/* 資料型別 */}
-        <EditorField label="資料型別" help={simplePresentation ? "range.dataType" : undefined} hint={simplePresentation ? sourceText('source.fields.typeHint') : undefined}>
-          <Select
-            value={rule.data_type}
-            onChange={(e) => handleTextChange('data_type', e.target.value)}
-            data-testid="rule-datatype-select"
-          >
-            <option value="bool">bool</option>
-            <option value="int16">int16</option>
-            <option value="uint16">uint16</option>
-            <option value="int32">int32</option>
-            <option value="uint32">uint32</option>
-            <option value="int64">int64</option>
-            <option value="uint64">uint64</option>
-            <option value="float32">float32</option>
-            <option value="float64">float64</option>
-            <option value="string">string</option>
-          </Select>
-        </EditorField>
-
-        {/* 命名前綴 */}
+      {isMixedMode ? (
         <EditorField label="點位名稱前綴" help={simplePresentation ? "range.name" : undefined} hint={simplePresentation ? sourceText('source.fields.prefixHint') : "例: TEMP_"}>
-          <Input
-            type="text"
-            value={rule.naming_prefix}
-            onChange={(e) => handleTextChange('naming_prefix', e.target.value)}
-            data-testid="rule-prefix-input"
-          />
+          <Input type="text" value={rule.naming_prefix} onChange={(e) => handleTextChange('naming_prefix', e.target.value)} data-testid="rule-prefix-input" />
         </EditorField>
-      </div>
-
-      {/* 暫存器區段摘要 */}
-      {owningDevice ? (
-        <RangeSummary
-          startAddress={rule.start_address}
-          count={rule.count}
-          dataType={rule.data_type}
-          protocol={owningDevice.protocol}
-          isPersistedMC={isPersistedMC}
-          persistedMCPoints={rule.mc_persisted_points}
-        />
       ) : (
-        <div
-          className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
-          data-testid="rule-missing-device-summary"
-        >
-          {t('step2.editor.missing_device_summary', '無法計算位址範圍，請先修復設備來源。')}
-        </div>
+        <>
+          <div className={simplePresentation ? "recording-source-range-grid" : "grid grid-cols-2 sm:grid-cols-4 gap-4"}>
+            <EditorField label={simplePresentation ? sourceText('source.fields.address') : "起始暫存器位址"} help={simplePresentation ? "range.address" : undefined} hint={hasValidAddress ? addrHint : undefined}>
+              <Input
+                type="text"
+                value={rule.start_address}
+                placeholder={addrPlaceholder}
+                disabled={hasMissingDevice}
+                onChange={(e) => handleTextChange('start_address', e.target.value)}
+                aria-invalid={!hasValidAddress}
+                aria-describedby={!hasValidAddress ? addressErrorId : undefined}
+                data-testid="rule-start-input"
+              />
+              {!hasValidAddress && (
+                <span id={addressErrorId} data-testid="rule-start-error" className="mt-1 flex items-center gap-1 text-xs text-red-300">
+                  {hasMissingDevice
+                    ? t('step2.editor.missing_device_address', '請先重新選擇或修復設備，再檢查位址。')
+                    : hasInvalidAddress
+                    ? t('step2.editor.addr_invalid', '位址不符合所選協議格式，請輸入有效位址。')
+                    : null}
+                </span>
+              )}
+            </EditorField>
+
+            <EditorField label={t('step2.editor.itemCount')} help={simplePresentation ? "range.count" : undefined} hint={simplePresentation ? sourceText('source.fields.countHint') : "範圍 1 至 64"}>
+              <Input type="number" min={1} max={64} value={rule.count} onChange={(e) => handleNumberChange('count', e.target.value, 1)} data-testid="rule-count-input" />
+            </EditorField>
+
+            <EditorField label="資料型別" help={simplePresentation ? "range.dataType" : undefined} hint={simplePresentation ? sourceText('source.fields.typeHint') : undefined}>
+              <Select value={rule.data_type} onChange={(e) => handleTextChange('data_type', e.target.value)} data-testid="rule-datatype-select">
+                <option value="bool">bool</option>
+                <option value="int16">int16</option>
+                <option value="uint16">uint16</option>
+                <option value="int32">int32</option>
+                <option value="uint32">uint32</option>
+                <option value="int64">int64</option>
+                <option value="uint64">uint64</option>
+                <option value="float32">float32</option>
+                <option value="float64">float64</option>
+                <option value="string">string</option>
+              </Select>
+            </EditorField>
+
+            <EditorField label="點位名稱前綴" help={simplePresentation ? "range.name" : undefined} hint={simplePresentation ? sourceText('source.fields.prefixHint') : "例: TEMP_"}>
+              <Input type="text" value={rule.naming_prefix} onChange={(e) => handleTextChange('naming_prefix', e.target.value)} data-testid="rule-prefix-input" />
+            </EditorField>
+          </div>
+
+          {owningDevice ? (
+            <RangeSummary
+              startAddress={rule.start_address}
+              count={rule.count}
+              dataType={rule.data_type}
+              protocol={owningDevice.protocol}
+              isPersistedMC={isPersistedMC}
+              persistedMCPoints={rule.mc_persisted_points}
+            />
+          ) : (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200" data-testid="rule-missing-device-summary">
+              {t('step2.editor.missing_device_summary', '無法計算位址範圍，請先修復設備來源。')}
+            </div>
+          )}
+
+          <ScaleSection ruleId={rule.id} multiplier={rule.scale_multiplier} offset={rule.scale_offset} dataFormat={rule.data_format} dispatch={dispatch} />
+
+          <ShareSection
+            ruleId={rule.id}
+            shareEnabled={rule.share_enabled}
+            shareStartRegister={rule.share_start_register}
+            shareStride={rule.share_stride}
+            globalShareEnabled={globalShareEnabled}
+            shareControls={simplePresentation ? shareControls : undefined}
+            dispatch={dispatch}
+          />
+        </>
       )}
 
-      {/* 線性縮放 Details */}
-      <ScaleSection
-        ruleId={rule.id}
-        multiplier={rule.scale_multiplier}
-        offset={rule.scale_offset}
-        dataFormat={rule.data_format}
-        dispatch={dispatch}
-      />
-
-      {/* Modbus Share Details */}
-      <ShareSection
-        ruleId={rule.id}
-        shareEnabled={rule.share_enabled}
-        shareStartRegister={rule.share_start_register}
-        shareStride={rule.share_stride}
-        globalShareEnabled={globalShareEnabled}
-        shareControls={simplePresentation ? shareControls : undefined}
-        dispatch={dispatch}
-      />
-
-      {/* 啟用此規則 */}
       {(!simplePresentation || hasMissingDevice) && !hideEnabledControl && <div className="border-t border-slate-800/60 pt-4 flex items-center justify-between">{enabledControl}</div>}
     </div>
   );

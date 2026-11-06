@@ -137,10 +137,11 @@ func TestWriter_RecordsLastWriteFailureOutcome(t *testing.T) {
 	connectorRepo := NewSQLConnectorRepository(mainDB)
 	mappingRepo := NewSQLTargetMappingRepository(mainDB)
 	connectorSvc := NewConnectorService(connectorRepo, mappingRepo)
+	attemptedAt := time.Date(2026, 6, 7, 13, 3, 0, 0, time.UTC)
 	writer := NewWriterWithConfig(
 		connectorRepo,
 		mappingRepo,
-		WriterConfig{FlushTick: make(chan time.Time), TagReader: tagSvc},
+		WriterConfig{FlushTick: make(chan time.Time), TagReader: tagSvc, Now: func() time.Time { return attemptedAt }},
 	)
 	t.Cleanup(func() {
 		_ = writer.Close(context.Background())
@@ -175,15 +176,17 @@ func TestWriter_RecordsLastWriteFailureOutcome(t *testing.T) {
 	}))
 
 	observedAt := time.Date(2026, 6, 7, 13, 0, 0, 0, time.UTC)
-	err = writer.WriteTagValue(ctx, tagEntity.ID, 42.5, observedAt)
+	require.NoError(t, writer.RefreshMappings(ctx))
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 42.5, observedAt), ErrSnapshotAccepted)
+	err = writer.flushDue(ctx, observedAt.Add(time.Minute), false)
 	require.Error(t, err)
 
 	updated, err := connectorRepo.GetByID(ctx, connector.ID)
 	require.NoError(t, err)
 	require.Equal(t, "failed", updated.LastWriteStatus)
 	require.NotNil(t, updated.LastWriteAt)
-	require.Equal(t, observedAt, updated.LastWriteAt.UTC())
-	require.Contains(t, updated.LastWriteError, "執行資料庫寫入失敗")
+	require.Equal(t, attemptedAt, updated.LastWriteAt.UTC())
+	require.Contains(t, updated.LastWriteError, "結構")
 }
 
 func TestWriter_RecordsLastFlushFailureOutcome(t *testing.T) {
@@ -240,7 +243,8 @@ func TestWriter_RecordsLastFlushFailureOutcome(t *testing.T) {
 	}))
 
 	observedAt := time.Date(2026, 6, 7, 14, 0, 0, 0, time.UTC)
-	require.NoError(t, writer.WriteTagValue(ctx, tagEntity.ID, 42.5, observedAt))
+	require.NoError(t, writer.RefreshMappings(ctx))
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 42.5, observedAt), ErrSnapshotAccepted)
 	require.Error(t, writer.Close(ctx))
 
 	updated, err := connectorRepo.GetByID(ctx, connector.ID)
@@ -248,5 +252,5 @@ func TestWriter_RecordsLastFlushFailureOutcome(t *testing.T) {
 	require.Equal(t, "failed", updated.LastFlushStatus)
 	require.NotNil(t, updated.LastFlushAt)
 	require.Equal(t, observedAt, updated.LastFlushAt.UTC())
-	require.Contains(t, updated.LastFlushError, "執行資料庫分組寫入失敗")
+	require.Contains(t, updated.LastFlushError, "結構")
 }

@@ -79,7 +79,7 @@ func mcPlannedRequest(t *testing.T, points ...schema.Point) connector.PlannedRea
 }
 func mcPlannedRequestCapability(t *testing.T, support string, points ...schema.Point) connector.PlannedReadRequest {
 	t.Helper()
-	source := optimizer.AcquisitionSource{Identity: optimizer.AcquisitionIdentity{DeviceID: "device", DeviceRevision: "device-rev", Station: "0", ConnectionRevision: connector.ReadConnectionRevision("{}"), Protocol: "mc", Frame: "3e-binary", ProtocolRevision: "mc-v1", PollingGroup: "fast", Cadence: time.Second}, Capability: optimizer.AcquisitionCapability{Revision: "cap-v1", RandomSupport: support, ProtocolLimit: 255}}
+	source := optimizer.AcquisitionSource{Identity: optimizer.AcquisitionIdentity{DeviceID: "device", DeviceRevision: "device-rev", Station: "0", ConnectionRevision: connector.ReadConnectionRevision("{}"), Protocol: "mc", Frame: "3e-binary", ProtocolRevision: "mc-v1", PollingGroup: "fast", Cadence: time.Second}, Capability: optimizer.AcquisitionCapability{Revision: "cap-v1", RandomSupport: support, RandomCrossArea: true, ProtocolLimit: 255}}
 	req := connector.PlannedReadRequest{AcquisitionID: "scan-1", RequestID: "request-1"}
 	for _, p := range points {
 		profile, err := connector.ResolveReadProfile(p, decoding.FormatContext{Protocol: schema.ProtocolMC3E, RuleOwned: true, RuleID: "rule", RuleRevision: "source-rev", ConnectionFormat: "CDAB", ConnectionRevision: connector.ReadConnectionRevision("{}")})
@@ -134,13 +134,13 @@ func TestMCPlannedRandomSparseDeduplicatesWholeScalars(t *testing.T) {
 	req := mcPlannedRequest(t, mcPlannedPoint("a", "D0", schema.DataTypeUint32, "ABCD"), mcPlannedPoint("b", "D0", schema.DataTypeUint32, "CDAB"), mcPlannedPoint("c", "D10", schema.DataTypeInt16, ""))
 	require.Len(t, req.Plan.Requests(), 1)
 	require.Equal(t, "random", req.Plan.Requests()[0].Kind)
-	tr := &mcPlannedTransport{response: mcPlannedWords(0x0102, 0x0304, 0x1234)}
+	tr := &mcPlannedTransport{response: mcPlannedWords(0x1234, 0x0102, 0x0304)}
 	results, err := mcPlannedConnector(tr).ReadPlanned(t.Context(), req)
 	require.NoError(t, err)
 	assertMCPlannedResults(t, req, results, map[string]any{"a": uint32(0x01020304), "b": uint32(0x03040102), "c": int16(0x1234)})
 	require.Len(t, tr.frames, 1)
-	require.Len(t, tr.frames[0], 29)
-	require.Equal(t, []byte{3, 4, 0, 0, 3, 0, 0, 0, 0, 0xa8, 1, 0, 0, 0xa8, 10, 0, 0, 0xa8}, tr.frames[0][11:])
+	require.Len(t, tr.frames[0], 25)
+	require.Equal(t, []byte{3, 4, 0, 0, 1, 1, 10, 0, 0, 0xa8, 0, 0, 0, 0xa8}, tr.frames[0][11:])
 }
 
 func TestMCPlannedThreeSparseWordsUseOneRandomRequest(t *testing.T) {

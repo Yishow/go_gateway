@@ -1,6 +1,7 @@
 import type { Rule, Point, ShareLayout, PointFunctionType } from './types';
 import { addressParser } from '../../../../utils/addressParser';
 import type { ProtocolType } from '../../../../types/datalink';
+import { asScatteredDataType, validateScatteredItems } from './scatteredRange';
 
 /** 可阻擋規則衍生或 Step 2 繼續的穩定原因碼。 */
 export type RuleReadinessReason =
@@ -87,16 +88,20 @@ export function projectPersistedMCPoint(
   const area = address.slice(0, 1);
   const isWord = area === 'W' || area === 'D';
   const skipped = new Set([...skippedSet].map((value) => value.trim().toUpperCase()));
+  const mixedItem = rule.layout_mode === 'mixed'
+    ? rule.mixed_items?.find((item) => (item.address ?? '').trim().toUpperCase() === address)
+    : undefined;
+  const itemDataType = mixedItem ? asScatteredDataType(mixedItem.data_type) : rule.data_type;
   return {
     id: identity.point_id,
     device_id: rule.device_id,
     rule_id: rule.id,
     rule_name: rule.name,
-    name: `${rule.naming_prefix}${address}`,
+    name: mixedItem?.name?.trim() || `${rule.naming_prefix}${address}`,
     address,
-    data_type: rule.data_type,
+    data_type: itemDataType,
     function: `${area} (${isWord ? 'Word' : 'Bit'})`,
-    width: dataTypeWidth(rule.data_type),
+    width: dataTypeWidth(itemDataType),
     enabled: rule.enabled && !skipped.has(address),
     skipped: skipped.has(address),
     _rule_scale: rule.scale_multiplier,
@@ -151,6 +156,10 @@ export function getRuleReadinessReason(
     if (evidence?.status !== 'compatible' || evidence.points.length === 0) return 'mc_points_unavailable';
   }
 
+  if (rule.layout_mode === 'mixed') {
+    return validateScatteredItems(protocol, rule.mixed_items ?? []).valid ? null : 'invalid_address';
+  }
+
   if (!addressParser.validate(rule.start_address, protocol).valid) return 'invalid_address';
   if (protocol === 'mc_3e') {
     try {
@@ -162,9 +171,7 @@ export function getRuleReadinessReason(
   }
   return null;
 }
-/**
- * 集中取得所有啟用規則的 readiness 問題，供 Step 2 的衍生與 UI gate 共用。
- */
+/** 集中取得所有啟用規則的 readiness 問題，供 Step 2 的衍生與 UI gate 共用。 */
 export function getRuleReadinessIssues(
   rules: Rule[],
   deviceProtocolMap: Record<string, ProtocolType>,
@@ -186,10 +193,7 @@ export function getRuleReadinessIssues(
       : [];
   });
 }
-/**
- * 判斷 Step 2 是否可交接至映射流程。
- * 每個啟用規則都必須擁有當前設備、合法位址與至少一個未略過點位。
- */
+/** 判斷 Step 2 是否可交接至映射流程。 */
 export function isStep2Ready(
   rules: Rule[],
   deviceProtocolMap: Record<string, ProtocolType>,
@@ -212,15 +216,7 @@ export function isStep2Ready(
   ));
 }
 
-/**
- * 根據規則與協議衍生出其底下的所有點位資訊
- * 
- * @param rule 規則資料
- * @param deviceId 所屬設備 ID
- * @param skippedSet 已略過的位址集合 (Set)
- * @param protocol 設備通訊協議 (預設 'modbus_tcp')
- * @returns 衍生出來的點位陣列
- */
+/** 根據規則與協議衍生出其底下的所有點位資訊 */
 export function derivePoints(
   rule: Rule,
   deviceId: string,
@@ -229,6 +225,29 @@ export function derivePoints(
 ): Point[] {
   if (rule.persisted === true && protocol === 'mc_3e') {
     return projectPersistedMCPoints(rule, skippedSet).map((point) => ({ ...point, device_id: deviceId }));
+  }
+
+  if (rule.layout_mode === 'mixed') {
+    if (!validateScatteredItems(protocol, rule.mixed_items ?? []).valid) return [];
+    return (rule.mixed_items ?? []).map((item, idx) => {
+      const addrStr = (item.address ?? '').trim().toUpperCase();
+      const itemDataType = asScatteredDataType(item.data_type);
+      return {
+        id: `${rule.id}-p-item-${item.item_id.trim()}`,
+        device_id: deviceId,
+        rule_id: rule.id,
+        rule_name: rule.name,
+        name: item.name?.trim() || `${rule.naming_prefix}${idx}`,
+        address: addrStr,
+        data_type: itemDataType,
+        function: fnFromAddr(addrStr, protocol),
+        width: dataTypeWidth(itemDataType),
+        enabled: rule.enabled,
+        skipped: false,
+        _rule_scale: 1,
+        _rule_offset: 0,
+      };
+    });
   }
 
   const points: Point[] = [];

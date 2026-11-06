@@ -3,6 +3,7 @@ import type { RecordingPointOrderPort } from '../../../features/datalink/workben
 import type { RecentConnectionPort } from '../../../features/datalink/workbench-v2/recording-editor/recentConnectionDefaults';
 import type { RangeSourcePort } from './rangeSourceSubmission';
 import type { Device } from '../../../features/datalink/workbench-v2/state/types';
+import type { DeviceAcquisitionInput } from '../../../types/acquisitionSettings';
 import type { StudioV2WorkspaceDeviceRecord } from '../../../services/studioV2WorkspaceDevices';
 import type { StudioLocatorEntryRead } from '../../../types/studioV2LocatorEntry';
 import type { WriteGroupMutationResponse } from '../../../types/studioV2WriteGroup';
@@ -13,7 +14,12 @@ export interface LocatorGroupSaveAcknowledgement {
   current: StudioLocatorEntryRead;
 }
 
-export type DeviceSourceBuffer = Pick<Device, 'name' | 'description' | 'protocol' | 'config'>;
+export type DeviceSourceBuffer = Pick<Device, 'name' | 'description' | 'protocol' | 'config' | 'acquisition'> & {
+  /** Raw form text for saved-device acquisition settings; replaced by `acquisition` when parsed. */
+  acquisitionInput?: DeviceAcquisitionInput;
+  /** Raw random limit text; parsed into `config.acquisition.limits.random_points`. */
+  randomPointsInput?: string;
+};
 export interface DeviceSourceRequest {
   workspaceId: string;
   sessionId: string;

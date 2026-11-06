@@ -27,7 +27,6 @@ func TestMappingService_CreateValidateAndWriter(t *testing.T) {
 	mappingRepo := NewSQLTargetMappingRepository(mainDB)
 	connectorSvc := NewConnectorService(connectorRepo, mappingRepo)
 	mappingSvc := NewMappingService(mappingRepo, connectorRepo, tagSvc)
-	writer := NewWriter(connectorRepo, mappingRepo)
 
 	tagEntity, err := tagSvc.Create(ctx, tag.CreateTagRequest{
 		Key:         "temperature",
@@ -63,9 +62,12 @@ func TestMappingService_CreateValidateAndWriter(t *testing.T) {
 	require.True(t, validation.Ready)
 	require.Empty(t, validation.Issues)
 
+	writer := NewWriter(connectorRepo, mappingRepo)
+	t.Cleanup(func() { _ = writer.Close(context.Background()) })
 	ts := time.Date(2026, 3, 16, 12, 30, 0, 0, time.UTC)
-	require.NoError(t, writer.WriteTagValue(ctx, tagEntity.ID, 42.5, ts))
-	require.NoError(t, writer.WriteTagValue(ctx, tagEntity.ID, 41.0, ts))
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 42.5, ts), ErrSnapshotAccepted)
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 41.0, ts), ErrSnapshotAccepted)
+	require.NoError(t, writer.flushDue(ctx, ts.Add(time.Minute), false))
 
 	targetDB, err := sql.Open("sqlite", targetDSN)
 	require.NoError(t, err)
@@ -211,9 +213,9 @@ func TestWriter_GroupedMappingsFlushOneRowPerBucketOnTimer(t *testing.T) {
 	firstObservedAt := time.Date(2026, 4, 6, 11, 0, 3, 0, time.UTC)
 	secondObservedAt := time.Date(2026, 4, 6, 11, 0, 10, 0, time.UTC)
 	bucketStart := time.Date(2026, 4, 6, 11, 0, 0, 0, time.UTC)
-
-	require.NoError(t, writer.WriteTagValue(ctx, tagA1.ID, 42.5, firstObservedAt))
-	require.NoError(t, writer.WriteTagValue(ctx, tagKW.ID, 7.25, secondObservedAt))
+	require.NoError(t, writer.RefreshMappings(ctx))
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagA1.ID, 42.5, firstObservedAt), ErrSnapshotAccepted)
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagKW.ID, 7.25, secondObservedAt), ErrSnapshotAccepted)
 
 	var rowCount int
 	err = targetDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM meter_rows`).Scan(&rowCount)
@@ -234,7 +236,7 @@ func TestWriter_GroupedMappingsFlushOneRowPerBucketOnTimer(t *testing.T) {
 	assert.Equal(t, bucketStart, storedTS.UTC())
 	assert.Equal(t, 42.5, a1Value)
 	assert.Equal(t, 7.25, kwValue)
-
+	require.Eventually(t, func() bool { return len(listWriteHistory(connector.ID, 1)) == 1 }, time.Second, 10*time.Millisecond)
 	records, err := connectorSvc.ListWriteHistory(ctx, connector.ID, 1)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
@@ -300,7 +302,8 @@ func TestWriter_CloseFlushesPendingGroupedBuckets(t *testing.T) {
 	require.NoError(t, err)
 
 	observedAt := time.Date(2026, 4, 6, 12, 5, 4, 0, time.UTC)
-	require.NoError(t, writer.WriteTagValue(ctx, tagEntity.ID, 18.5, observedAt))
+	require.NoError(t, writer.RefreshMappings(ctx))
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 18.5, observedAt), ErrSnapshotAccepted)
 
 	var rowCount int
 	err = targetDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM meter_rows`).Scan(&rowCount)
@@ -463,10 +466,10 @@ func TestConnectorService_UpdateAllowsClearingPassword(t *testing.T) {
 
 func openMigratedTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-
 	dbPath := filepath.Join(t.TempDir(), "main.db")
 	db, err := sql.Open("sqlite", dbPath)
 	require.NoError(t, err)
+	datalinkbase.ApplySQLitePoolDefaults(db)
 	t.Cleanup(func() {
 		_ = db.Close()
 	})

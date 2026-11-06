@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -45,6 +47,11 @@ type studioV2WorkspaceDeviceResponse struct {
 	Running             bool                `json:"running"`
 	RuntimeApplyStatus  string              `json:"runtime_apply_status,omitempty"`
 	RuntimeApplyMessage string              `json:"runtime_apply_message,omitempty"`
+	// 採集設定：間隔由設備專屬輪詢群組持有，門檻與自動調整存於設備。
+	AcquisitionIntervalMs   *int `json:"acquisition_interval_ms,omitempty"`
+	AcquisitionAutoInterval bool `json:"acquisition_auto_interval"`
+	StaleThresholdMs        *int `json:"stale_threshold_ms"`
+	FrozenThresholdMs       int  `json:"frozen_threshold_ms"`
 }
 
 type studioV2WorkspaceDeviceAvailabilityRequest struct {
@@ -131,6 +138,15 @@ func (h *StudioV2WorkspaceDevicesHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// 以實際儲存前後的連線設定判斷是否需要重啟；表單每次都會帶 connection_config，
+	// 只改採集設定時不得誤判為連線變更。
+	previous, err := h.deviceSvc.GetByID(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		renderStudioV2WorkspaceDeviceError(c, err)
+		return
+	}
+	previousProtocol, previousConnection := previous.Protocol, previous.ConnectionConfig
+
 	savedDevice, err := h.deviceSvc.Update(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
 		renderStudioV2WorkspaceDeviceError(c, err)
@@ -142,7 +158,17 @@ func (h *StudioV2WorkspaceDevicesHandler) Update(c *gin.Context) {
 		return
 	}
 
-	runtimeApplyStatus, runtimeApplyMessage := h.applyRuntimeDeviceUpdate(c.Request.Context(), savedDevice, req.ConnectionConfig != nil)
+	var runtimeApplyStatus, runtimeApplyMessage string
+	savedDevice, err = h.deviceSvc.ApplyCurrentRuntimeDevice(c.Request.Context(), savedDevice.ID, func(current *schema.Device) error {
+		connectionChanged := current.Protocol != previousProtocol ||
+			!sameTransportConnectionConfig(previousConnection, current.ConnectionConfig)
+		runtimeApplyStatus, runtimeApplyMessage = h.applyRuntimeDeviceUpdate(c.Request.Context(), current, connectionChanged)
+		return nil
+	})
+	if err != nil {
+		renderStudioV2WorkspaceDeviceError(c, err)
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		apiResponseSuccessKey: true,
@@ -248,13 +274,7 @@ func renderStudioV2WorkspaceBootstrapError(c *gin.Context) {
 }
 
 func renderStudioV2WorkspaceValidationError(c *gin.Context, err error) {
-	c.JSON(http.StatusBadRequest, gin.H{
-		apiResponseSuccessKey: false,
-		apiResponseErrorKey: gin.H{
-			apiResponseCodeKey:    apiValidationErrorCode,
-			apiResponseMessageKey: err.Error(),
-		},
-	})
+	renderDeviceValidationError(c, err)
 }
 
 func renderStudioV2WorkspaceDeviceError(c *gin.Context, err error) {
@@ -319,6 +339,11 @@ func mapStudioV2WorkspaceDeviceResponse(savedDevice *schema.Device, runtimeApply
 		Running:             isWorkspaceDeviceRunning(savedDevice),
 		RuntimeApplyStatus:  runtimeApplyStatus,
 		RuntimeApplyMessage: runtimeApplyMessage,
+
+		AcquisitionIntervalMs:   savedDevice.AcquisitionIntervalMs,
+		AcquisitionAutoInterval: savedDevice.AcquisitionAutoInterval,
+		StaleThresholdMs:        savedDevice.StaleThresholdMs,
+		FrozenThresholdMs:       savedDevice.FrozenThresholdMs,
 	}
 }
 
@@ -338,4 +363,28 @@ func isWorkspaceDeviceRunning(savedDevice *schema.Device) bool {
 	}
 	status, _ := device.AvailabilityOf(savedDevice)
 	return status == device.AvailabilityStatusAvailable
+}
+
+// sameTransportConnectionConfig 比對連線設定時忽略 acquisition 宣告：取值優化設定檔
+// 由 runtime 重新同步設備即可生效，不屬於需要重啟的傳輸連線變更。無法解析時視為不同。
+func sameTransportConnectionConfig(previous, next string) bool {
+	if previous == next {
+		return true
+	}
+	var before, after map[string]json.RawMessage
+	if json.Unmarshal([]byte(previous), &before) != nil || json.Unmarshal([]byte(next), &after) != nil {
+		return false
+	}
+	delete(before, "acquisition")
+	delete(after, "acquisition")
+	if len(before) != len(after) {
+		return false
+	}
+	for key, value := range before {
+		other, ok := after[key]
+		if !ok || !bytes.Equal(value, other) {
+			return false
+		}
+	}
+	return true
 }

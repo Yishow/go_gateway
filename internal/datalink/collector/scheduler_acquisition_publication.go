@@ -31,6 +31,7 @@ type AcquisitionGeometryUpdate struct {
 	mutation            *acquisitionGeometryMutation
 	candidate           *acquisitionGeometry
 	scopeRule           string
+	autoInterval        bool
 	sealed              bool
 	deviceApplied       bool
 }
@@ -49,7 +50,7 @@ func (s *Scheduler) PrepareAcquisitionGeometry(mutation AcquisitionGeometryMutat
 		definition = AcquisitionGeometryDefinition{}
 	}
 	cfg := deviceConfiguration(&device)
-	return &AcquisitionGeometryUpdate{expectedPublication: token.marker, owner: s, mutation: token, scopeRule: scopeRule, candidate: &acquisitionGeometry{workspaceID: definition.WorkspaceID, sourceRevision: definition.SourceRevision, revision: definition.Revision, excluded: slices.Clone(definition.Excluded), rules: maps.Clone(definition.Rules), device: cfg, slots: maps.Clone(token.before.slots)}}
+	return &AcquisitionGeometryUpdate{expectedPublication: token.marker, owner: s, mutation: token, scopeRule: scopeRule, autoInterval: device.AcquisitionAutoInterval, candidate: &acquisitionGeometry{workspaceID: definition.WorkspaceID, sourceRevision: definition.SourceRevision, revision: definition.Revision, excluded: slices.Clone(definition.Excluded), rules: maps.Clone(definition.Rules), device: cfg, slots: maps.Clone(token.before.slots)}}
 }
 
 // Installed records the exact successful return lease with its supplied frozen
@@ -210,6 +211,7 @@ func (s *Scheduler) ApplyAcquisitionDevice(u *AcquisitionGeometryUpdate) bool {
 		return false
 	}
 	s.addDeviceLocked(u.candidate.device)
+	s.setDeviceAutoIntervalLocked(u.mutation.deviceID, u.autoInterval)
 	u.deviceApplied = true
 	return true
 }

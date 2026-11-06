@@ -5,6 +5,8 @@
  * 遵循 TanStack Query 最佳實踐：階層式 Key 結構。
  */
 
+import type { AcquisitionAnomalyFilter } from '../../types/acquisitionAnomaly';
+
 /** Device 相關 Query Keys */
 export const deviceKeys = {
   /** 所有 Device 相關快取的根 Key */
@@ -139,4 +141,15 @@ export const historyKeys = {
   all: ['history'] as const,
   queries: () => [...historyKeys.all, 'query'] as const,
   query: (queryKey: string) => [...historyKeys.queries(), queryKey] as const,
+};
+
+/** Acquisition anomaly Query Keys；設備列表依 device 與 filter 分開快取 */
+export const acquisitionAnomalyKeys = {
+  all: ['acquisition-anomalies'] as const,
+  summary: () => [...acquisitionAnomalyKeys.all, 'summary'] as const,
+  deviceLists: (deviceId: string) => [...acquisitionAnomalyKeys.all, 'device', deviceId] as const,
+  deviceList: (deviceId: string, filter: AcquisitionAnomalyFilter) =>
+    [...acquisitionAnomalyKeys.deviceLists(deviceId), {
+      state: filter.state ?? null, kind: filter.kind ?? null, limit: filter.limit ?? null, offset: filter.offset ?? null,
+    }] as const,
 };

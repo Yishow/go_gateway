@@ -24,8 +24,9 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 	query := `
 		INSERT INTO devices (
 			id, name, description, protocol, status, connection_config,
-			last_test_at, last_test_success, last_test_error, readiness_status, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			last_test_at, last_test_success, last_test_error, readiness_status,
+			stale_threshold_ms, frozen_threshold_ms, acquisition_auto_interval, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	// 處理可選欄位：將 nil 指針轉換為適當的 SQL 值
@@ -71,6 +72,9 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 		lastTestSuccess,
 		lastTestError,
 		dev.ReadinessStatus,
+		dev.StaleThresholdMs,
+		dev.FrozenThresholdMs,
+		dev.AcquisitionAutoInterval,
 		createdAtStr,
 		updatedAtStr,
 	)
@@ -83,7 +87,8 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Device, error) {
 	query := `
 		SELECT id, name, description, protocol, status, connection_config,
-			   last_test_at, last_test_success, last_test_error, readiness_status, created_at, updated_at
+			   last_test_at, last_test_success, last_test_error, readiness_status,
+			   stale_threshold_ms, frozen_threshold_ms, acquisition_auto_interval, created_at, updated_at
 		FROM devices WHERE id = ?
 	`
 	row := r.db.QueryRowContext(ctx, query, id)
@@ -93,6 +98,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Device,
 	var lastTestSuccess sql.NullBool
 	var lastTestError sql.NullString
 	var readinessStatus sql.NullString
+	var staleThreshold sql.NullInt64
 	var createdAtStr, updatedAtStr string
 
 	err := row.Scan(
@@ -106,6 +112,9 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Device,
 		&lastTestSuccess,
 		&lastTestError,
 		&readinessStatus,
+		&staleThreshold,
+		&dev.FrozenThresholdMs,
+		&dev.AcquisitionAutoInterval,
 		&createdAtStr,
 		&updatedAtStr,
 	)
@@ -132,6 +141,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Device,
 	if readinessStatus.Valid {
 		dev.ReadinessStatus = readinessStatus.String
 	}
+	dev.StaleThresholdMs = nullableThreshold(staleThreshold)
 
 	return &dev, nil
 }
@@ -139,7 +149,8 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Device,
 func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.Device, error) {
 	query := `
 		SELECT id, name, description, protocol, status, connection_config,
-			   last_test_at, last_test_success, last_test_error, readiness_status, created_at, updated_at
+			   last_test_at, last_test_success, last_test_error, readiness_status,
+			   stale_threshold_ms, frozen_threshold_ms, acquisition_auto_interval, created_at, updated_at
 		FROM devices WHERE 1=1
 	`
 	var args []any
@@ -178,6 +189,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 		var lastTestSuccess sql.NullBool
 		var lastTestError sql.NullString
 		var readinessStatus sql.NullString
+		var staleThreshold sql.NullInt64
 		var createdAtStr, updatedAtStr string
 
 		err := rows.Scan(
@@ -191,6 +203,9 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 			&lastTestSuccess,
 			&lastTestError,
 			&readinessStatus,
+			&staleThreshold,
+			&dev.FrozenThresholdMs,
+			&dev.AcquisitionAutoInterval,
 			&createdAtStr,
 			&updatedAtStr,
 		)
@@ -214,6 +229,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 		if readinessStatus.Valid {
 			dev.ReadinessStatus = readinessStatus.String
 		}
+		dev.StaleThresholdMs = nullableThreshold(staleThreshold)
 
 		devices = append(devices, &dev)
 	}

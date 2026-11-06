@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"time"
@@ -18,10 +19,19 @@ const (
 	acquisitionProfileSafe     = "safe-v1"
 	acquisitionProfileFatek    = "fatek-fbs-ascii-v1"
 	acquisitionProfileFX5CPU   = "mitsubishi-fx5-cpu-3e-binary-v1"
+	acquisitionProfileQIQR     = "mitsubishi-q-iqr-3e-binary-v1"
+
+	// SH-080008 0403/0000: word + double word access points, 1–192 per request.
+	mcRandomProfileLimit = 192
+	// FBs command 48: at most 64 components and 64 weighted words.
+	fatekRandomProfileLimit = 64
 )
 
 // ErrAcquisitionConfig is intentionally free of connection settings or secrets.
 var ErrAcquisitionConfig = errors.New("invalid acquisition declaration")
+
+// ErrAcquisitionRandomPoints identifies a random limit outside the selected profile.
+var ErrAcquisitionRandomPoints = fmt.Errorf("%w: invalid random_points", ErrAcquisitionConfig)
 
 // AcquisitionConfig is a detached execution declaration derived only from the
 // saved device configuration. It does not probe or infer device capabilities.
@@ -31,6 +41,7 @@ type AcquisitionConfig struct {
 	declared          bool
 	readTimeout       time.Duration
 	nativeLimit       int
+	randomPoints      int
 	frameLimit        optimizer.ApplicationFrameBudget
 	coverage          optimizer.ReadableCoverage
 }
@@ -70,6 +81,13 @@ func ResolveAcquisitionConfig(protocol schema.ProtocolType, exactConfig string) 
 		if declaration.Limits != nil {
 			result.nativeLimit = positiveAcquisitionLimit(declaration.Limits.NativeUnits)
 			result.frameLimit = optimizer.ApplicationFrameBudget{RequestBytes: positiveAcquisitionLimit(declaration.Limits.RequestBytes), ResponseBytes: positiveAcquisitionLimit(declaration.Limits.ResponseBytes)}
+			if declaration.Limits.RandomPoints != nil {
+				profileLimit := randomProfileLimit(declaration.Profile)
+				if profileLimit == 0 || *declaration.Limits.RandomPoints > profileLimit {
+					return AcquisitionConfig{}, ErrAcquisitionRandomPoints
+				}
+				result.randomPoints = *declaration.Limits.RandomPoints
+			}
 		}
 		result.coverage = declaration.coverage()
 		if !optimizer.ValidateAcquisitionCoverage(identity.Protocol, result.coverage) {
@@ -81,11 +99,14 @@ func ResolveAcquisitionConfig(protocol schema.ProtocolType, exactConfig string) 
 	return result, nil
 }
 
-// Identity returns the transport-only identity. The installed caller adds the
-// original polling group and cadence; neither comes from recording selectors.
+// Identity returns the transport and profile-specific protocol identity. The
+// installed caller adds polling group and cadence, not recording selectors.
 func (c AcquisitionConfig) Identity(deviceID string) optimizer.AcquisitionIdentity {
 	result := c.identity
 	result.DeviceID = deviceID
+	if c.profile == acquisitionProfileQIQR {
+		result.ProtocolRevision = c.profile
+	}
 	return result
 }
 
@@ -97,6 +118,27 @@ func (c AcquisitionConfig) ReadTimeout() time.Duration { return c.readTimeout }
 
 // ProfileID is empty for a historical configuration without a declaration.
 func (c AcquisitionConfig) ProfileID() string { return c.profile }
+
+// RandomPointLimit returns the effective per-request random limit: the declared
+// random_points when lowered, otherwise the profile limit; 0 when the profile
+// does not support random reads.
+func (c AcquisitionConfig) RandomPointLimit() int {
+	if c.randomPoints > 0 {
+		return c.randomPoints
+	}
+	return randomProfileLimit(c.profile)
+}
+
+func randomProfileLimit(profile string) int {
+	switch profile {
+	case acquisitionProfileFX5CPU, acquisitionProfileQIQR:
+		return mcRandomProfileLimit
+	case acquisitionProfileFatek:
+		return fatekRandomProfileLimit
+	default:
+		return 0
+	}
+}
 
 // Declared distinguishes explicit safe policy from unknown historical policy.
 func (c AcquisitionConfig) Declared() bool { return c.declared }
@@ -132,15 +174,23 @@ func (c AcquisitionConfig) Capability(nativeBits int) optimizer.AcquisitionCapab
 	// FX5 CPU built-in Ethernet only: JY997D56001K, printed pp.57,151.
 	// 0403/0000 BIN: 192 word accesses; 0401/0001: 3584 bit accesses.
 	// https://www.mitsubishielectric.com/dl/fa/document/manual/plcf/jy997d56001/jy997d56001k.pdf
-	case acquisitionProfileFX5CPU:
+	case acquisitionProfileFX5CPU, acquisitionProfileQIQR:
 		capability.RandomSupport, capability.RandomCrossArea = "supported", true
-		capability.ProtocolLimit = 960       // 0401/0000 BIN word access; client remains 125.
-		capability.RandomProtocolLimit = 192 // 0403/0000 BIN, independently of client 255.
+		capability.ProtocolLimit = 960                        // 0401/0000 BIN word access; client remains 125.
+		capability.RandomProtocolLimit = mcRandomProfileLimit // 0403/0000 BIN, independently of client 255.
 		if nativeBits == 1 {
+			// Contiguous 0401/0001 bit access; random reads bit devices as aligned
+			// 16-point word units within the same 192-point 0403 budget.
 			capability.ProtocolLimit = 3584
-			capability.RandomProtocolLimit = 0
-			capability.RandomSupport = "unsupported"
 		}
+		// MELSEC-Q／iQ-R (SH-080008): the ZR file register is excluded from random
+		// access for this profile; it is read by contiguous requests instead.
+		if c.profile == acquisitionProfileQIQR {
+			capability.RandomExcludedAreas = []string{"ZR"}
+		}
+	}
+	if c.randomPoints > 0 {
+		capability.RandomProtocolLimit = c.randomPoints
 	}
 	return capability
 }
@@ -171,7 +221,7 @@ func acquisitionProfiles(protocol schema.ProtocolType) []string {
 	profiles := []string{acquisitionProfileSafe}
 	switch protocol {
 	case schema.ProtocolMC3E:
-		profiles = append(profiles, acquisitionProfileFX5CPU)
+		profiles = append(profiles, acquisitionProfileFX5CPU, acquisitionProfileQIQR)
 	case schema.ProtocolFatekFBs:
 		profiles = append(profiles, acquisitionProfileFatek)
 	}

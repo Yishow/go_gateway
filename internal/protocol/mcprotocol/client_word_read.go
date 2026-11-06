@@ -35,6 +35,9 @@ func (c *MCClient) batchReadWord(device string, addr, count int, exact bool) ([]
 	if devType.IsBit {
 		return nil, fmt.Errorf("device type %s is a bit device, use BatchReadBit instead", device)
 	}
+	if IsLongTimerOrCounter(devType.Name) {
+		return nil, fmt.Errorf("device type %s is a long timer/counter and is not supported in MC 3E word read", device)
+	}
 
 	// Prepare Data: Head(3) + Code(1) + Count(2)
 	data := make([]byte, 6)

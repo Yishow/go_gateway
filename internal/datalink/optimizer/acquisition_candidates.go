@@ -8,6 +8,21 @@ import (
 // chooseAcquisitionRequests compares at most six candidates, never exponential
 // partitions. Random uses original complete scalars, not pre-fixed dense runs.
 func chooseAcquisitionRequests(group contiguousCandidates) []AcquisitionRequest {
+	var eligible, ineligible []AcquisitionRequest
+	for _, s := range group.requests {
+		if randomScalarEligible(s.Group.Identity, group.capability, group.coverage, s) {
+			eligible = append(eligible, s)
+		} else {
+			if randomEligible(s.Group.Identity, group.capability, s.Points[0].NativeBits) && !safeMCRandomBitUnit(s.Group.Identity, group.capability, group.coverage, s) {
+				s.FallbackReason = "random-bit-unit-unsafe"
+			}
+			ineligible = append(ineligible, s)
+		}
+	}
+	if len(eligible) > 0 && len(ineligible) > 0 {
+		out := chooseAcquisitionRequests(contiguousCandidates{coverage: group.coverage, capability: group.capability, requests: eligible})
+		return append(out, chooseAcquisitionRequests(contiguousCandidates{coverage: group.coverage, capability: group.capability, requests: ineligible})...)
+	}
 	scalars := append([]AcquisitionRequest(nil), group.requests...)
 	sortScalarRequests(scalars)
 	var contiguous []AcquisitionRequest
@@ -20,7 +35,7 @@ func chooseAcquisitionRequests(group contiguousCandidates) []AcquisitionRequest 
 		start = end
 	}
 	best := contiguous
-	random, valid := packRandom(scalars, group.capability)
+	random, valid := packRandom(scalars, group.capability, group.coverage)
 	if !valid {
 		return best
 	}
@@ -49,7 +64,7 @@ func chooseAcquisitionRequests(group contiguousCandidates) []AcquisitionRequest 
 				remainder = append(remainder, scalar)
 			}
 		}
-		packed, ok := packRandom(remainder, group.capability)
+		packed, ok := packRandom(remainder, group.capability, group.coverage)
 		if ok {
 			best = betterRequests(best, append(fixed, packed...))
 		}

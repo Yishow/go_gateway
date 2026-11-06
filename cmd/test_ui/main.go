@@ -204,6 +204,7 @@ func initializeGateway(h *gatewayHost) (runErr error) {
 		ShareRestore:               newWorkspaceShareRestoreBarrier(workspaceSvc, sourceRuleSvc, modbusShareSvc, reconciler),
 		PointFormatRecovery:        newPointFormatRecovery(services, reconciler),
 		RecordingStartShareBarrier: newRecordingStartShareBarrier(sourceRuleSvc, modbusShareSvc),
+		AcquisitionAnomalies:       services.anomalies,
 	}
 
 	if h.startupCtx.Err() != nil {

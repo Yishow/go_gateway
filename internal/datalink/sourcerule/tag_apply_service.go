@@ -180,6 +180,8 @@ func newTagMappingSyncResult() tagMappingSyncResult {
 func mergeTagMappingSyncResult(target *tagMappingSyncResult, source tagMappingSyncResult) {
 	target.createdTagIDs = append(target.createdTagIDs, source.createdTagIDs...)
 	target.createdMappingIDs = append(target.createdMappingIDs, source.createdMappingIDs...)
+	target.tagIdentityMoves = append(target.tagIdentityMoves, source.tagIdentityMoves...)
+	target.mapIdentityMoves = append(target.mapIdentityMoves, source.mapIdentityMoves...)
 	if len(source.updatedMappings) > 0 {
 		if target.updatedMappings == nil {
 			target.updatedMappings = make(map[string]mappingRollbackState, len(source.updatedMappings))

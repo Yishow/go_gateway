@@ -10,6 +10,7 @@ import (
 
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/decoding"
+	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -17,6 +18,7 @@ type formatSnapshot struct {
 	connectionConfigRaw string
 	point               *schema.Point
 	ruleRevision        string
+	ruleLayout          string
 	defaults            decoding.FormatContext
 }
 
@@ -68,16 +70,21 @@ func (r *SQLRepository) formatSnapshot(ctx context.Context, tx *sql.Tx, req Form
 	if ruleID != req.RuleID || linkAddress != p.Address {
 		return formatSnapshot{}, ErrFormatScope
 	}
-	var deviceID string
-	var format sql.NullString
-	if err = tx.QueryRowContext(ctx, `SELECT device_id,revision_id,data_format FROM source_rules WHERE id=?`, ruleID).Scan(&deviceID, &result.ruleRevision, &format); err != nil {
+	var rule schema.SourceRule
+	if err = tx.QueryRowContext(ctx, `SELECT device_id,revision_id,COALESCE(data_format,''),COALESCE(layout_mode,''),COALESCE(mixed_items,'') FROM source_rules WHERE id=?`, ruleID).Scan(&rule.DeviceID, &rule.RevisionID, &rule.DataFormat, &rule.LayoutMode, &rule.MixedItems); err != nil {
 		return formatSnapshot{}, ErrFormatUnavailable
 	}
-	if deviceID != p.DeviceID {
+	if rule.DeviceID != p.DeviceID {
 		return formatSnapshot{}, ErrFormatScope
 	}
+	format, err := measurement.SourceRulePointFormat(&rule, p)
+	if err != nil {
+		return formatSnapshot{}, ErrFormatUnavailable
+	}
+	result.ruleRevision = rule.RevisionID
+	result.ruleLayout = rule.LayoutMode
 	result.defaults.RuleOwned = true
-	result.defaults.RuleFormat = format.String
+	result.defaults.RuleFormat = format
 	result.defaults.RuleRevision = result.ruleRevision
 	return result, nil
 }

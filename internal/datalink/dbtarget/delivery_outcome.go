@@ -14,6 +14,11 @@ const (
 	deliveryOutcomeFailed  = "failed"
 )
 
+// Destination timeouts must not cancel recording their own failure outcome.
+func writeOutcomeContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+}
+
 func (s *ConnectorService) recordSchemaEnsureOutcome(
 	ctx context.Context,
 	connector *schema.DatabaseConnector,
@@ -50,7 +55,9 @@ func (w *Writer) recordWriteOutcome(
 	connector.LastWriteStatus = strings.TrimSpace(status)
 	connector.LastWriteError = strings.TrimSpace(errorSummary)
 	connector.UpdatedAt = time.Now()
-	if err := w.connectorRepo.UpdateWriteOutcome(ctx, connector.ID, outcomeAt, status, errorSummary); err != nil {
+	if err := retryWriterConfigBusy(ctx, func() error {
+		return w.connectorRepo.UpdateWriteOutcome(ctx, connector.ID, outcomeAt, status, errorSummary)
+	}); err != nil {
 		return fmt.Errorf("更新資料庫 write outcome 失敗: %w", err)
 	}
 	return nil
@@ -71,7 +78,9 @@ func (w *Writer) recordFlushOutcome(
 	connector.LastFlushStatus = strings.TrimSpace(status)
 	connector.LastFlushError = strings.TrimSpace(errorSummary)
 	connector.UpdatedAt = time.Now()
-	if err := w.connectorRepo.UpdateFlushOutcome(ctx, connector.ID, outcomeAt, status, errorSummary); err != nil {
+	if err := retryWriterConfigBusy(ctx, func() error {
+		return w.connectorRepo.UpdateFlushOutcome(ctx, connector.ID, outcomeAt, status, errorSummary)
+	}); err != nil {
 		return fmt.Errorf("更新資料庫 flush outcome 失敗: %w", err)
 	}
 	return nil

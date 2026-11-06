@@ -93,11 +93,22 @@ func TestAcquisitionRandomUnknownAndUnsupportedStaySafe(t *testing.T) {
 	}
 	in := randomInput("mc", 0, 10)
 	for i := range in.Sources[0].Points {
+		in.Sources[0].Points[i].Address = fmt.Sprintf("LTN%d", i*10)
+	}
+	longTimers := BuildAcquisitionPlan(in)
+	if r := longTimers.Requests(); len(r) != 0 {
+		t.Fatalf("MC cannot request long timers: %+v", r)
+	}
+	if errors := longTimers.Errors(); len(errors) != 2 || errors[0].Code != "unsupported-mc-long-timer-counter" || errors[1].Code != "unsupported-mc-long-timer-counter" {
+		t.Fatalf("MC must report unsupported long timers: %+v", errors)
+	}
+	in = randomInput("mc", 0, 10)
+	for i := range in.Sources[0].Points {
 		in.Sources[0].Points[i].Address = fmt.Sprintf("M%d", i*10)
 		in.Sources[0].Points[i].DataType = schema.DataTypeBool
 	}
-	if r := BuildAcquisitionPlan(in).Requests(); len(r) != 2 || r[0].Kind != "contiguous" {
-		t.Fatal("MC random cannot read bits")
+	if r := BuildAcquisitionPlan(in).Requests(); len(r) != 1 || r[0].Kind != acquisitionKindRandom || len(r[0].Units) != 1 || r[0].Units[0] != (NativeUnit{Area: "M", Address: 0, Bits: 16}) {
+		t.Fatalf("MC random should read M0 and M10 via one aligned M0 word unit: %+v", r)
 	}
 }
 
@@ -158,5 +169,85 @@ func TestAcquisitionRandomBoundedHybridAndDeterminism(t *testing.T) {
 	other := BuildAcquisitionPlan(in)
 	if !reflect.DeepEqual(r, other.Requests()) || p.Fingerprint() != other.Fingerprint() {
 		t.Fatal("input ordering changes random plan")
+	}
+}
+
+func TestAcquisitionRandomMCWordDoubleWordAndBitInOne0403(t *testing.T) {
+	in := randomInput("mc")
+	in.Sources[0].Capability.RandomCrossArea = true
+	in.Sources[0].Points = []EffectivePoint{
+		{ID: "d39", Address: "D39", DataType: schema.DataTypeInt16, NativeWidth: 1, Format: "CDAB"},
+		{ID: "d100", Address: "D100", DataType: schema.DataTypeInt32, NativeWidth: 2, Format: "CDAB"},
+		{ID: "m5", Address: "M5", DataType: schema.DataTypeBool, NativeWidth: 1},
+	}
+	p := BuildAcquisitionPlan(in)
+	if len(p.Errors()) != 0 {
+		t.Fatalf("unexpected plan errors: %+v", p.Errors())
+	}
+	r := p.Requests()
+	if len(r) != 1 || r[0].Kind != acquisitionKindRandom {
+		t.Fatalf("expected 1 random request, got %+v", r)
+	}
+	wantUnits := []NativeUnit{
+		{Area: "D", Address: 39, Bits: 16},
+		{Area: "M", Address: 0, Bits: 16},
+		{Area: "D", Address: 100, Bits: 32},
+	}
+	if !reflect.DeepEqual(r[0].Units, wantUnits) {
+		t.Fatalf("got units %+v, want %+v", r[0].Units, wantUnits)
+	}
+	if r[0].Length != 3 || r[0].FrameBytes.RequestBytes != 29 || r[0].FrameBytes.ResponseBytes != 19 {
+		t.Fatalf("unexpected cost: length=%d frame=%+v", r[0].Length, r[0].FrameBytes)
+	}
+	byID := map[string]PointSlice{}
+	for _, slice := range r[0].Points {
+		byID[slice.Point.ID] = slice
+	}
+	if s := byID["d39"]; s.Offset != 0 || s.Length != 1 || s.NativeBits != 16 || s.BitIndex != -1 {
+		t.Fatalf("unexpected D39 slice: %+v", s)
+	}
+	if s := byID["m5"]; s.Offset != 1 || s.Length != 1 || s.NativeBits != 16 || s.BitIndex != 5 {
+		t.Fatalf("unexpected M5 slice: %+v", s)
+	}
+	if s := byID["d100"]; s.Offset != 2 || s.Length != 1 || s.NativeBits != 32 || s.BitIndex != -1 {
+		t.Fatalf("unexpected D100 slice: %+v", s)
+	}
+}
+
+func TestAcquisitionRandomMCRejectsLongTimerAndFallsBackForString(t *testing.T) {
+	in := randomInput("mc")
+	in.Sources[0].Capability.RandomCrossArea = true
+	in.Sources[0].Points = []EffectivePoint{
+		{ID: "d10", Address: "D10", DataType: schema.DataTypeInt16, NativeWidth: 1},
+		{ID: "d20", Address: "D20", DataType: schema.DataTypeInt16, NativeWidth: 1},
+		{ID: "ltn0", Address: "LTN0", DataType: schema.DataTypeInt32, NativeWidth: 2},
+		{ID: "str", Address: "D30", DataType: schema.DataTypeString, NativeWidth: 8},
+	}
+	p := BuildAcquisitionPlan(in)
+	if errors := p.Errors(); len(errors) != 1 || errors[0].PointID != "ltn0" || errors[0].Code != "unsupported-mc-long-timer-counter" {
+		t.Fatalf("expected unsupported long timer error: %+v", errors)
+	}
+	r := p.Requests()
+	if len(r) != 2 {
+		t.Fatalf("expected 1 random + 1 contiguous request, got %+v", r)
+	}
+	var randomReq *AcquisitionRequest
+	contiguousByArea := map[string]AcquisitionRequest{}
+	for i := range r {
+		switch r[i].Kind {
+		case acquisitionKindRandom:
+			randomReq = &r[i]
+		case "contiguous":
+			contiguousByArea[r[i].Group.Area] = r[i]
+		}
+	}
+	if randomReq == nil || len(randomReq.Units) != 2 || randomReq.Units[0].Address != 10 || randomReq.Units[1].Address != 20 {
+		t.Fatalf("expected D10 and D20 in random request, got %+v", randomReq)
+	}
+	if ltn, ok := contiguousByArea["LTN"]; ok {
+		t.Fatalf("LTN0 must not produce a request: %+v", ltn)
+	}
+	if strReq, ok := contiguousByArea["D"]; !ok || strReq.Start != 30 || strReq.Length != 8 || strReq.FallbackReason == "" {
+		t.Fatalf("expected string D30 in non-random request with explicit reason, got %+v", strReq)
 	}
 }

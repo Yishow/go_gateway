@@ -63,6 +63,8 @@ func (s *Service) RemoveDevice(deviceID string) {
 
 	if s.scheduler != nil {
 		s.scheduler.RemoveDevice(deviceID)
+		// 設備專屬輪詢群組沒有其他點位，移除設備時一併停止其 ticker，避免閒置 goroutine 累積。
+		s.scheduler.RemoveDeviceOwnedPollingGroups(deviceID)
 	}
 	s.pointMetaMu.Unlock()
 	s.clearDeviceProjection(deviceID)
@@ -74,18 +76,33 @@ func (s *Service) removeDevicePointMetaLocked(deviceID string) {
 	})
 }
 
-// ensurePointPollingGroup 為缺少 polling group 的啟用點位補上一個可用的預設群組。
+// ensurePointPollingGroup 為缺少 polling group 的啟用點位補上設備專屬或預設群組，並確保已指派群組同步至排程器。
 func (s *Service) ensurePointPollingGroup(ctx context.Context, pointRecord *schema.Point) (*schema.Point, error) {
-	if pointRecord == nil || pointRecord.PollingGroupID != nil || s.pointSvc == nil {
+	if pointRecord == nil || s.pointSvc == nil {
+		return pointRecord, nil
+	}
+	if pointRecord.PollingGroupID != nil && *pointRecord.PollingGroupID != "" {
+		if s.scheduler != nil {
+			if group, err := s.pointSvc.GetPollingGroupByID(ctx, *pointRecord.PollingGroupID); err == nil && group != nil && group.Enabled {
+				if existing, ok := s.scheduler.PollingGroup(group.ID); !ok || existing.IntervalMs != group.IntervalMs {
+					s.scheduler.AddPollingGroup(group)
+				}
+			}
+		}
 		return pointRecord, nil
 	}
 
-	group, err := s.pointSvc.EnsureDefaultPollingGroup(ctx)
+	group, err := s.pointSvc.EnsureDevicePollingGroup(ctx, pointRecord.DeviceID)
 	if err != nil {
 		return nil, fmt.Errorf("確保預設輪詢群組失敗: %w", err)
 	}
 	if group == nil {
 		return pointRecord, nil
+	}
+	if s.scheduler != nil && group.Enabled {
+		if existing, ok := s.scheduler.PollingGroup(group.ID); !ok || existing.IntervalMs != group.IntervalMs {
+			s.scheduler.AddPollingGroup(group)
+		}
 	}
 
 	groupID := group.ID

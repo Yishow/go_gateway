@@ -3,11 +3,13 @@ import { createBasicRecordingRequestId } from '../state/basicRecording';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DeviceSourceBuffer, DeviceSourceOutcome, DeviceSourcePort, DeviceSourceRequest } from '../../../../pages/datalink/workbench-v2/deviceSourceSubmission';
 import { newConnectionDefaults, newDeviceSourceBuffer, parsedDeviceSourceBuffer } from './deviceSourceBuffer';
+import { acquisitionInputFromSettings } from '../state/acquisitionSettings';
 /** Ephemeral form state only. All submission and causal observations remain in
  * the existing workspace queue port. Lives above the modal's mount boundary. */
 export function useRecordingDeviceBuffer(workspaceId: string, port?: DeviceSourcePort, disabled = false, initialDevice?: Device) {
   const initial = useRef(initialDevice);
-  const freshBuffer = () => initial.current ? { name: initial.current.name, description: initial.current.description, protocol: initial.current.protocol, config: { ...initial.current.config } } : newDeviceSourceBuffer();
+  const freshBuffer = (): DeviceSourceBuffer => initial.current ? { name: initial.current.name, description: initial.current.description, protocol: initial.current.protocol, config: { ...initial.current.config },
+    ...(initial.current.acquisition ? { acquisitionInput: acquisitionInputFromSettings(initial.current.acquisition) } : {}) } : newDeviceSourceBuffer();
   const [buffer, setBuffer] = useState(freshBuffer);
   const initialized = useRef(Boolean(initialDevice));
   const [reuseBaseline, setReuseBaseline] = useState<string>();

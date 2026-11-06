@@ -297,5 +297,76 @@
     "notRunning": "Not currently recording",
     "blocked": "Intake is retiring or blocked; resolve the issues shown",
     "backlog": "Rows from an earlier revision are still pending. Updating settings does not retarget them."
+  },
+  "acquisitionAnomalies": {
+    "button": "Acquisition anomalies",
+    "buttonActive": "Acquisition anomalies {{count}}",
+    "buttonUnknown": "Acquisition anomalies: status unknown",
+    "buttonChecking": "Acquisition anomalies: checking",
+    "title": "Acquisition anomalies · {{device}}",
+    "description": "Disconnections, points that stopped updating and frozen values recorded for this device, newest first. They mark periods when collected data was unreliable; settings and recordings are not changed.",
+    "filters": "Anomaly filters",
+    "kindFilter": "Kind",
+    "stateFilter": "Status",
+    "allKinds": "All kinds",
+    "allStates": "All statuses",
+    "kinds": {
+      "disconnected": "Disconnected",
+      "stale": "Not updating",
+      "frozen": "Value frozen"
+    },
+    "states": {
+      "active": "Ongoing",
+      "ended": "Ended"
+    },
+    "reasonSeparator": "; ",
+    "reasons": {
+      "connection-failed": "Connection failed",
+      "circuit-open": "Connection paused after repeated failures",
+      "breaker-open": "Connection paused after repeated failures",
+      "no-successful-read": "No successful read",
+      "value-unchanged": "Value unchanged",
+      "monitoring-stopped": "Monitoring stopped",
+      "frozen-detection-disabled": "Frozen detection turned off",
+      "unknown": "Other reason"
+    },
+    "columns": {
+      "kind": "Kind",
+      "state": "Status",
+      "startedAt": "Start",
+      "endedAt": "End",
+      "duration": "Duration",
+      "address": "Point address",
+      "lastValue": "Last value"
+    },
+    "ongoing": "Ongoing",
+    "ongoingDuration": "Still ongoing",
+    "deviceLevel": "Whole device",
+    "pointRemoved": "Point no longer exists",
+    "noValue": "Not recorded",
+    "emptyValue": "Empty value",
+    "duration": {
+      "underSecond": "Under 1 s",
+      "hours": "{{count}} h",
+      "minutes": "{{count}} min",
+      "seconds": "{{count}} s"
+    },
+    "loading": "Reading acquisition anomalies…",
+    "empty": "No acquisition anomalies recorded for this device.",
+    "emptyFiltered": "No anomalies match these filters.",
+    "pageEmpty": "This page has no events any more. Older events may have been removed.",
+    "firstPage": "Go to first page",
+    "tableRegion": "Acquisition anomaly events",
+    "pageStatus": "Page {{page}} of {{pages}} · {{count}} events",
+    "retry": "Retry",
+    "close": "Close",
+    "errors": {
+      "invalid_filter": "The anomaly filter was rejected. Clear the filters and try again.",
+      "device_not_found": "This device no longer exists. Close this window and refresh the device list.",
+      "capability_unavailable": "Acquisition anomaly records are not available on this gateway. Check the runtime setup.",
+      "unavailable": "Unable to read acquisition anomalies right now. Retry in a moment.",
+      "malformed_response": "The gateway returned an unreadable anomaly response. Retry; if it persists, check the gateway version.",
+      "unknown": "Unable to read acquisition anomalies. Check the connection to the gateway and retry."
+    }
   }
 }

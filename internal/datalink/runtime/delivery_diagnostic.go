@@ -31,6 +31,8 @@ const (
 	DatabaseDeliveryStageCollected DatabaseDeliveryStage = "collected"
 	// DatabaseDeliveryStageMapped means the collected value reached a mapped tag.
 	DatabaseDeliveryStageMapped DatabaseDeliveryStage = "mapped"
+	// DatabaseDeliveryStageBufferAccepted means the value is awaiting delivery.
+	DatabaseDeliveryStageBufferAccepted DatabaseDeliveryStage = "buffer_accepted"
 	// DatabaseDeliveryStageDBWrite means the value reached the database writer stage.
 	DatabaseDeliveryStageDBWrite DatabaseDeliveryStage = "db_write"
 	// DatabaseDeliveryStageDBWriteFailed means the database writer rejected the value.
@@ -43,6 +45,8 @@ const (
 type DatabaseDeliveryStatus string
 
 const (
+	// DatabaseDeliveryStatusAccepted means a value was accepted for later delivery.
+	DatabaseDeliveryStatusAccepted DatabaseDeliveryStatus = "accepted"
 	// DatabaseDeliveryStatusSucceeded means the latest database delivery reached the writer successfully.
 	DatabaseDeliveryStatusSucceeded DatabaseDeliveryStatus = "succeeded"
 	// DatabaseDeliveryStatusFailed means the latest database delivery failed after collection and mapping.

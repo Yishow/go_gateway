@@ -22,6 +22,12 @@ type StudioV2WorkspaceSourceRulesHandler struct {
 	ruleSvc      *sourcerule.Service
 }
 
+// SourceRuleEnvelope documents the success wrapper of a saved source rule.
+type SourceRuleEnvelope struct {
+	Success bool               `json:"success" example:"true"`
+	Data    sourceRuleResponse `json:"data"`
+}
+
 type studioV2WorkspaceUpdateRuleRequest struct {
 	DeviceID *string `json:"device_id,omitempty"`
 	sourcerule.UpdateRuleRequest
@@ -62,6 +68,17 @@ func (h *StudioV2WorkspaceSourceRulesHandler) List(c *gin.Context) {
 	})
 }
 
+// Create saves a workspace source rule and derives its points.
+// @Summary Create workspace source rule
+// @Description A homogeneous rule expands start_address, count and data_type. A mixed rule (layout_mode=mixed) expands one point per mixed_items entry; items carry their own address and data_type, may use different areas, and must not overlap. Validation errors name the field and, for item conflicts, item_ids.
+// @Tags Studio V2 Source Rules
+// @Accept json
+// @Produce json
+// @Param body body sourcerule.CreateRuleRequest true "Source rule"
+// @Success 201 {object} SourceRuleEnvelope
+// @Failure 400 {object} APIErrorResponse
+// @Failure 500 {object} APIErrorResponse
+// @Router /v1/datalink/studio-v2/workspace/source-rules [post]
 func (h *StudioV2WorkspaceSourceRulesHandler) Create(c *gin.Context) {
 	record, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
 	if err != nil {
@@ -112,6 +129,19 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: payload})
 }
 
+// Update changes a workspace source rule and reconciles its derived points.
+// @Summary Update workspace source rule
+// @Description Omitted fields keep their stored values. layout_mode switches the layout; mixed_items replaces the complete item list of a mixed rule, and items are matched to existing points by item_id.
+// @Tags Studio V2 Source Rules
+// @Accept json
+// @Produce json
+// @Param id path string true "Source rule ID"
+// @Param body body sourcerule.UpdateRuleRequest true "Changed fields"
+// @Success 200 {object} SourceRuleEnvelope
+// @Failure 400 {object} APIErrorResponse
+// @Failure 404 {object} APIErrorResponse
+// @Failure 500 {object} APIErrorResponse
+// @Router /v1/datalink/studio-v2/workspace/source-rules/{id} [put]
 func (h *StudioV2WorkspaceSourceRulesHandler) Update(c *gin.Context) {
 	record, rule, ok := h.requireWorkspaceRule(c)
 	if !ok {
@@ -214,7 +244,14 @@ func parseStudioV2WorkspaceUpdateRuleRequest(c *gin.Context) (studioV2WorkspaceU
 }
 
 func renderStudioV2WorkspaceSourceRuleError(c *gin.Context, err error) {
+	var fieldErr *sourcerule.FieldError
 	switch {
+	case errors.As(err, &fieldErr):
+		payload := gin.H{apiResponseCodeKey: apiValidationErrorCode, apiResponseMessageKey: err.Error(), "field": fieldErr.Field}
+		if len(fieldErr.ItemIDs) > 0 {
+			payload["item_ids"] = fieldErr.ItemIDs
+		}
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: payload})
 	case errors.Is(err, sourcerule.ErrValidation):
 		renderStudioV2WorkspaceValidationError(c, err)
 	case errors.Is(err, sourcerule.ErrSourceRuleNotFound):

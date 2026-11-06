@@ -28,7 +28,7 @@ func (s *Service) Create(ctx context.Context, req CreateDeviceRequest) (*schema.
 
 	// 驗證連線配置
 	if err := validateConnectionConfig(req.Protocol, req.ConnectionConfig); err != nil {
-		return nil, validationError(fmt.Sprintf("連線配置無效: %v", err))
+		return nil, connectionConfigValidationError(err)
 	}
 
 	// 序列化連線配置
@@ -72,6 +72,13 @@ type CreateDeviceRequest struct {
 	ConnectionConfig map[string]any      `json:"connection_config"`
 }
 
+const (
+	// MinAcquisitionIntervalMs 設備採集頻率最小毫秒數 (100ms)
+	MinAcquisitionIntervalMs = 100
+	// MaxAcquisitionIntervalMs 設備採集頻率最大毫秒數 (1h)
+	MaxAcquisitionIntervalMs = 3600000
+)
+
 // Update 更新設備
 func (s *Service) Update(ctx context.Context, id string, req UpdateDeviceRequest) (*schema.Device, error) {
 	device, err := s.repo.GetByID(ctx, id)
@@ -104,7 +111,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateDeviceRequest
 	if req.ConnectionConfig != nil {
 		// 驗證連線配置
 		if err := validateConnectionConfig(targetProtocol, req.ConnectionConfig); err != nil {
-			return nil, validationError(fmt.Sprintf("連線配置無效: %v", err))
+			return nil, connectionConfigValidationError(err)
 		}
 		configJSON, err := json.Marshal(req.ConnectionConfig)
 		if err != nil {
@@ -114,6 +121,26 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateDeviceRequest
 		device.ConnectionConfig = string(configJSON)
 	}
 	device.Protocol = targetProtocol
+	if req.AcquisitionIntervalMs != nil {
+		if *req.AcquisitionIntervalMs < MinAcquisitionIntervalMs || *req.AcquisitionIntervalMs > MaxAcquisitionIntervalMs {
+			return nil, fieldValidationError("acquisition_interval_ms", "acquisition_interval_ms 必須介於 100 到 3600000 毫秒之間")
+		}
+	}
+	if req.StaleThresholdMs != nil {
+		if *req.StaleThresholdMs <= 0 {
+			return nil, fieldValidationError("stale_threshold_ms", "stale_threshold_ms 必須大於 0，或留空使用預設值")
+		}
+		device.StaleThresholdMs = common.Ptr(*req.StaleThresholdMs)
+	}
+	if req.FrozenThresholdMs != nil {
+		if *req.FrozenThresholdMs < 0 {
+			return nil, fieldValidationError("frozen_threshold_ms", "frozen_threshold_ms 不能小於 0（0 表示停用）")
+		}
+		device.FrozenThresholdMs = *req.FrozenThresholdMs
+	}
+	if req.AcquisitionAutoInterval != nil {
+		device.AcquisitionAutoInterval = *req.AcquisitionAutoInterval
+	}
 
 	if protocolChanged || connectionChanged {
 		device.LastTestAt = nil
@@ -136,16 +163,36 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateDeviceRequest
 	if err := s.repo.Update(ctx, device); err != nil {
 		return nil, fmt.Errorf("更新設備失敗: %w", err)
 	}
+	if err := s.updateDeviceAcquisition(ctx, device, req); err != nil {
+		return nil, err
+	}
+	if req.HasAcquisitionChanges() {
+		device, err = s.repo.GetByID(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("重新讀取設備採集設定失敗: %w", err)
+		}
+		s.hydrateDeviceAcquisitionInterval(ctx, device)
+	}
 
 	return device, nil
 }
 
 // UpdateDeviceRequest 更新設備請求
 type UpdateDeviceRequest struct {
-	Name             *string              `json:"name,omitempty"`
-	Description      *string              `json:"description,omitempty"`
-	Protocol         *schema.ProtocolType `json:"protocol,omitempty"`
-	ConnectionConfig map[string]any       `json:"connection_config,omitempty"`
+	Name                    *string              `json:"name,omitempty"`
+	Description             *string              `json:"description,omitempty"`
+	Protocol                *schema.ProtocolType `json:"protocol,omitempty"`
+	ConnectionConfig        map[string]any       `json:"connection_config,omitempty"`
+	AcquisitionIntervalMs   *int                 `json:"acquisition_interval_ms,omitempty"`
+	AcquisitionAutoInterval *bool                `json:"acquisition_auto_interval,omitempty"`
+	StaleThresholdMs        *int                 `json:"stale_threshold_ms,omitempty"`
+	FrozenThresholdMs       *int                 `json:"frozen_threshold_ms,omitempty"`
+}
+
+// HasAcquisitionChanges 回報請求是否包含採集間隔、自動調整或異常門檻欄位。
+func (r UpdateDeviceRequest) HasAcquisitionChanges() bool {
+	return r.AcquisitionIntervalMs != nil || r.AcquisitionAutoInterval != nil ||
+		r.StaleThresholdMs != nil || r.FrozenThresholdMs != nil
 }
 
 // Delete 刪除設備
@@ -166,6 +213,7 @@ func (s *Service) GetByID(ctx context.Context, id string) (*schema.Device, error
 	if err != nil {
 		return nil, fmt.Errorf("取得設備失敗: %w", err)
 	}
+	s.hydrateDeviceAcquisitionInterval(ctx, device)
 	return device, nil
 }
 
@@ -175,5 +223,40 @@ func (s *Service) List(ctx context.Context, filter ListFilter) ([]*schema.Device
 	if err != nil {
 		return nil, fmt.Errorf("列出設備失敗: %w", err)
 	}
+	s.hydrateDevicesAcquisitionInterval(ctx, devices)
 	return devices, nil
+}
+
+// hydrateDevicesAcquisitionInterval 只讀一次輪詢群組，依擁有設備對應取值間隔，避免每台設備各查一次。
+func (s *Service) hydrateDevicesAcquisitionInterval(ctx context.Context, devices []*schema.Device) {
+	if s == nil || s.acquisitionCoordinator == nil || len(devices) == 0 {
+		return
+	}
+	groups, err := s.acquisitionCoordinator.ListPollingGroups(ctx)
+	if err != nil {
+		return
+	}
+	intervalByOwner := make(map[string]int, len(groups))
+	for _, group := range groups {
+		if group != nil && group.OwnerDeviceID != nil {
+			intervalByOwner[*group.OwnerDeviceID] = group.IntervalMs
+		}
+	}
+	for _, dev := range devices {
+		if dev == nil {
+			continue
+		}
+		if interval, ok := intervalByOwner[dev.ID]; ok {
+			dev.AcquisitionIntervalMs = common.Ptr(interval)
+		}
+	}
+}
+
+func (s *Service) hydrateDeviceAcquisitionInterval(ctx context.Context, dev *schema.Device) {
+	if s == nil || s.acquisitionCoordinator == nil || dev == nil {
+		return
+	}
+	if group, err := s.acquisitionCoordinator.GetPollingGroupByOwnerDeviceID(ctx, dev.ID); err == nil && group != nil {
+		dev.AcquisitionIntervalMs = common.Ptr(group.IntervalMs)
+	}
 }

@@ -5,6 +5,7 @@ package device
 
 import (
 	"context"
+	"sync"
 
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
@@ -61,8 +62,17 @@ type ListFilter struct {
 
 // Service 設備管理服務
 type Service struct {
-	repo    Repository
-	connMgr *connector.ConnectionManager
+	repo                   Repository
+	connMgr                *connector.ConnectionManager
+	acquisitionCoordinator AcquisitionIntervalCoordinator
+	runtimeApplyMu         sync.Mutex
+}
+
+// AcquisitionIntervalCoordinator 協調設備專屬輪詢群組與點位歸屬。
+type AcquisitionIntervalCoordinator interface {
+	SetDeviceAcquisitionInterval(ctx context.Context, deviceID string, intervalMs int) (*schema.PollingGroup, error)
+	GetPollingGroupByOwnerDeviceID(ctx context.Context, deviceID string) (*schema.PollingGroup, error)
+	ListPollingGroups(ctx context.Context) ([]*schema.PollingGroup, error)
 }
 
 // NewService 建立新的設備服務
@@ -74,4 +84,12 @@ func NewService(repo Repository, connMgr *connector.ConnectionManager) *Service 
 		repo:    repo,
 		connMgr: connMgr,
 	}
+}
+
+// SetAcquisitionIntervalCoordinator 注入設備採集頻率協調器。
+func (s *Service) SetAcquisitionIntervalCoordinator(coord AcquisitionIntervalCoordinator) {
+	if s == nil {
+		return
+	}
+	s.acquisitionCoordinator = coord
 }

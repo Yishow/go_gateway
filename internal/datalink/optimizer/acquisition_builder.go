@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"slices"
+	"strconv"
+	"strings"
 
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/fatek"
@@ -36,17 +38,22 @@ func BuildAcquisitionPlan(input AcquisitionInput) AcquisitionPlan {
 			// Include complete capability/coverage declarations as well as revisions:
 			// a malformed caller reusing a revision must not merge conflicting scopes.
 			groupIdentity := request.Group
-			if source.Capability.RandomCrossArea && randomEligible(source.Identity, source.Capability, request.Points[0].NativeBits) {
+			groupCapability := source.Capability
+			if source.Capability.RandomCrossArea && randomScalarEligible(source.Identity, source.Capability, source.Coverage, request) {
 				groupIdentity.Area = ""
+				if source.Identity.Protocol == "mc" || source.Identity.Protocol == acquisitionProtocolMitsubishi {
+					groupCapability.ProtocolLimit = randomLimit(source.Identity, source.Capability)
+					groupCapability.ClientLimit = 0
+				}
 			}
 			key := canonicalJSON(struct {
 				Group      AcquisitionGroup
 				Capability AcquisitionCapability
 				Coverage   ReadableCoverage
-			}{groupIdentity, source.Capability, source.Coverage})
+			}{groupIdentity, groupCapability, source.Coverage})
 			group := groups[key]
 			if group == nil {
-				group = &contiguousCandidates{coverage: source.Coverage, capability: source.Capability}
+				group = &contiguousCandidates{coverage: source.Coverage, capability: groupCapability}
 				groups[key] = group
 			}
 			group.requests = append(group.requests, request)
@@ -104,7 +111,7 @@ func canonicalRanges(ranges []NativeRange) []NativeRange {
 }
 
 func planScalar(source AcquisitionSource, point EffectivePoint) (plannedRequest AcquisitionRequest, rejectionReason string) {
-	resolved := pointNativeAddress(source.Identity.Protocol, point)
+	resolved := pointAddressForIdentity(source.Identity, point)
 	area, start, nativeBits, bitIndex, function, code := resolved.area, resolved.start, resolved.nativeBits, resolved.bitIndex, resolved.function, resolved.code
 	if code != "" {
 		return AcquisitionRequest{}, code
@@ -113,10 +120,16 @@ func planScalar(source AcquisitionSource, point EffectivePoint) (plannedRequest 
 		return AcquisitionRequest{}, "invalid-coverage"
 	}
 	bits := scalarBits(point.DataType)
-	if bits == 0 || ((nativeBits == 1 || bitIndex >= 0) && point.DataType != schema.DataTypeBool) {
+	isStringScalar := point.DataType == schema.DataTypeString && point.NativeWidth > 0 && nativeBits == 16 && bitIndex < 0
+	if (!isStringScalar && bits == 0) || ((nativeBits == 1 || bitIndex >= 0) && point.DataType != schema.DataTypeBool) {
 		return AcquisitionRequest{}, "unsupported-type"
 	}
 	width := (bits + nativeBits - 1) / nativeBits
+	if isStringScalar {
+		width = point.NativeWidth
+	} else if (source.Identity.Protocol == "mc" || source.Identity.Protocol == acquisitionProtocolMitsubishi) && mcprotocol.IsLongTimerOrCounter(area) && nativeBits == 16 && bits == 32 && point.NativeWidth == 1 {
+		width = 1
+	}
 	if point.NativeWidth != width {
 		return AcquisitionRequest{}, "invalid-native-width"
 	}
@@ -156,6 +169,10 @@ func planScalar(source AcquisitionSource, point EffectivePoint) (plannedRequest 
 	reason := "scalar-plan"
 	if (source.Identity.Protocol == "mc" || source.Identity.Protocol == acquisitionProtocolMitsubishi || source.Identity.Protocol == acquisitionProtocolFatek) && (capability.RandomSupport == "" || capability.RandomSupport == "unknown") {
 		reason = "random-capability-unknown"
+	} else if isStringScalar {
+		reason = "random-unsupported-type"
+	} else if (source.Identity.Protocol == "mc" || source.Identity.Protocol == acquisitionProtocolMitsubishi) && mcprotocol.IsLongTimerOrCounter(area) {
+		reason = "random-unsupported-device"
 	}
 	return AcquisitionRequest{
 		Group: AcquisitionGroup{Identity: source.Identity, CapabilityRevision: capability.Revision, CoverageRevision: source.Coverage.Revision, Function: function, Area: area},
@@ -196,6 +213,9 @@ func nativeAddress(protocol, address string) (area string, start, nativeBits, bi
 	var parserProtocol hsllogic.ProtocolType
 	switch protocol {
 	case "mc", acquisitionProtocolMitsubishi:
+		if area, start, nativeBits, code, ok := parseMCLongTimerCounterAddress(address); ok {
+			return area, start, nativeBits, -1, code
+		}
 		parserProtocol = hsllogic.ProtocolMitsubishi
 	case acquisitionProtocolModbus:
 		parserProtocol = hsllogic.ProtocolModbus
@@ -223,4 +243,36 @@ func nativeAddress(protocol, address string) (area string, start, nativeBits, bi
 		nativeBits = 1
 	}
 	return parsed.DeviceType, parsed.Offset, nativeBits, parsed.BitIndex, ""
+}
+
+func parseMCLongTimerCounterAddress(address string) (area string, start, nativeBits int, code string, matched bool) {
+	upper := strings.ToUpper(address)
+	for _, prefix := range []string{"LSTS", "LSTC", "LSTN", "LTN", "LTS", "LTC", "LCS", "LCC", "LCN"} {
+		if !strings.HasPrefix(upper, prefix) {
+			continue
+		}
+		rest := address[len(prefix):]
+		if rest == "" {
+			return "", 0, 0, acquisitionReasonInvalidAddress, true
+		}
+		for i := 0; i < len(rest); i++ {
+			if rest[i] < '0' || rest[i] > '9' {
+				return "", 0, 0, acquisitionReasonInvalidAddress, true
+			}
+		}
+		offset, err := strconv.Atoi(rest)
+		if err != nil {
+			return "", 0, 0, acquisitionReasonInvalidAddress, true
+		}
+		dev, err := mcprotocol.GetDeviceType(prefix)
+		if err != nil {
+			return "", 0, 0, "unsupported-area", true
+		}
+		bits := 16
+		if dev.IsBit {
+			bits = 1
+		}
+		return dev.Name, offset, bits, "", true
+	}
+	return "", 0, 0, "", false
 }

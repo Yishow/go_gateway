@@ -38,8 +38,8 @@ func (r *SQLRepository) Create(ctx context.Context, group *schema.PollingGroup) 
 	}
 
 	query := `
-		INSERT INTO polling_groups (id, name, description, interval_ms, priority, enabled, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO polling_groups (id, name, description, interval_ms, priority, enabled, owner_device_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -49,6 +49,7 @@ func (r *SQLRepository) Create(ctx context.Context, group *schema.PollingGroup) 
 		group.IntervalMs,
 		group.Priority,
 		group.Enabled,
+		group.OwnerDeviceID,
 		group.CreatedAt,
 		group.UpdatedAt,
 	)
@@ -60,7 +61,7 @@ func (r *SQLRepository) Create(ctx context.Context, group *schema.PollingGroup) 
 	return nil
 }
 
-// Update 更新輪詢群組
+// Update 更新輪詢群組；owner_device_id 只在建立時寫入，一般更新不會移轉或清除擁有設備。
 func (r *SQLRepository) Update(ctx context.Context, group *schema.PollingGroup) error {
 	query := `
 		UPDATE polling_groups 
@@ -119,7 +120,7 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 // GetByID 根據 ID 取得輪詢群組
 func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.PollingGroup, error) {
 	query := `
-		SELECT id, name, description, interval_ms, priority, enabled, created_at, updated_at
+		SELECT id, name, description, interval_ms, priority, enabled, owner_device_id, created_at, updated_at
 		FROM polling_groups WHERE id = ?
 	`
 
@@ -130,7 +131,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Polling
 // List 列出輪詢群組
 func (r *SQLRepository) List(ctx context.Context) ([]*schema.PollingGroup, error) {
 	query := `
-		SELECT id, name, description, interval_ms, priority, enabled, created_at, updated_at
+		SELECT id, name, description, interval_ms, priority, enabled, owner_device_id, created_at, updated_at
 		FROM polling_groups
 		ORDER BY priority DESC, name ASC
 	`
@@ -175,7 +176,7 @@ func (r *SQLRepository) Clear(ctx context.Context) error {
 // scanGroup 從單一行掃描輪詢群組
 func (r *SQLRepository) scanGroup(row *sql.Row) (*schema.PollingGroup, error) {
 	var group schema.PollingGroup
-	var description sql.NullString
+	var description, owner sql.NullString
 	var createdAt, updatedAt string
 
 	err := row.Scan(
@@ -185,6 +186,7 @@ func (r *SQLRepository) scanGroup(row *sql.Row) (*schema.PollingGroup, error) {
 		&group.IntervalMs,
 		&group.Priority,
 		&group.Enabled,
+		&owner,
 		&createdAt,
 		&updatedAt,
 	)
@@ -198,6 +200,9 @@ func (r *SQLRepository) scanGroup(row *sql.Row) (*schema.PollingGroup, error) {
 
 	if description.Valid {
 		group.Description = description.String
+	}
+	if owner.Valid {
+		group.OwnerDeviceID = &owner.String
 	}
 
 	parsedCreatedAt, err := common.ParseTimeString(createdAt)
@@ -217,7 +222,7 @@ func (r *SQLRepository) scanGroup(row *sql.Row) (*schema.PollingGroup, error) {
 // scanGroupFromRows 從多行結果掃描輪詢群組
 func (r *SQLRepository) scanGroupFromRows(rows *sql.Rows) (*schema.PollingGroup, error) {
 	var group schema.PollingGroup
-	var description sql.NullString
+	var description, owner sql.NullString
 	var createdAt, updatedAt string
 
 	err := rows.Scan(
@@ -227,6 +232,7 @@ func (r *SQLRepository) scanGroupFromRows(rows *sql.Rows) (*schema.PollingGroup,
 		&group.IntervalMs,
 		&group.Priority,
 		&group.Enabled,
+		&owner,
 		&createdAt,
 		&updatedAt,
 	)
@@ -237,6 +243,9 @@ func (r *SQLRepository) scanGroupFromRows(rows *sql.Rows) (*schema.PollingGroup,
 
 	if description.Valid {
 		group.Description = description.String
+	}
+	if owner.Valid {
+		group.OwnerDeviceID = &owner.String
 	}
 
 	parsedCreatedAt, err := common.ParseTimeString(createdAt)

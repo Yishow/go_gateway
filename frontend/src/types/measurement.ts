@@ -67,6 +67,8 @@ export interface SampleEnvelope {
   quality_reason?: string;
 }
 
+export type LayoutMode = 'homogeneous' | 'mixed';
+
 export interface MixedItem {
   item_id: string;
   name: string;

@@ -247,7 +247,10 @@ func TestDatabaseTargetHandler_ListWriteHistory_ReturnsLatestRecords(t *testing.
 	require.NoError(t, err)
 
 	ts := time.Date(2026, 4, 6, 11, 0, 0, 0, time.UTC)
-	require.NoError(t, fixture.writer.WriteTagValue(ctx, tagEntity.ID, 42.5, ts))
+	require.NoError(t, fixture.writer.RefreshMappings(ctx))
+	require.ErrorIs(t, fixture.writer.WriteTagValue(ctx, tagEntity.ID, 42.5, ts), dbtarget.ErrSnapshotAccepted)
+	// 舊式輸出改由連接器 worker 非同步寫入；Close 會把待寫快照 flush 出去。
+	require.NoError(t, fixture.writer.Close(ctx))
 
 	req, err := http.NewRequestWithContext(
 		ctx, http.MethodGet,
@@ -343,8 +346,9 @@ func TestDatabaseTargetHandler_ListWriteHistory_ReturnsGroupedFlushMetadata(t *t
 	})
 
 	observedAt := time.Date(2026, 4, 6, 11, 0, 5, 0, time.UTC)
-	require.NoError(t, writer.WriteTagValue(ctx, tagA1.ID, 42.5, observedAt))
-	require.NoError(t, writer.WriteTagValue(ctx, tagKW.ID, 7.25, observedAt.Add(3*time.Second)))
+	require.NoError(t, writer.RefreshMappings(ctx))
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagA1.ID, 42.5, observedAt), dbtarget.ErrSnapshotAccepted)
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagKW.ID, 7.25, observedAt.Add(3*time.Second)), dbtarget.ErrSnapshotAccepted)
 	tickCh <- time.Date(2026, 4, 6, 11, 0, 15, 0, time.UTC)
 
 	require.Eventually(t, func() bool {

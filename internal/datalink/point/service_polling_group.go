@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	common "go-gateway/internal/datalink/common"
@@ -21,6 +22,7 @@ const (
 // EnsureDefaultPollingGroup 取得可用的預設輪詢群組。
 //
 // 規則如下：
+// 僅考慮共用群組（OwnerDeviceID 為 nil）；設備專屬群組一律排除。
 // 1. 若已存在啟用中的群組，優先回傳排序後第一個。
 // 2. 若有群組但全部停用，則啟用排序後第一個並回傳。
 // 3. 若完全沒有群組，則建立一個系統預設群組。
@@ -30,10 +32,14 @@ func (s *Service) EnsureDefaultPollingGroup(ctx context.Context) (*schema.Pollin
 		return nil, nil
 	}
 
-	groups, err := s.groupRepo.List(ctx)
+	all, err := s.groupRepo.List(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("列出輪詢群組失敗: %w", err)
 	}
+	// 設備專屬群組只屬於其擁有設備，不可成為其他點位的後備群組。
+	groups := slices.DeleteFunc(slices.Clone(all), func(group *schema.PollingGroup) bool {
+		return group == nil || group.OwnerDeviceID != nil
+	})
 	if len(groups) == 0 {
 		group, err := s.CreatePollingGroup(ctx, CreatePollingGroupRequest{
 			Name:        defaultPollingGroupName,
@@ -87,7 +93,7 @@ func (s *Service) syncAutoPollingGroup(group *schema.PollingGroup) {
 
 // CreatePollingGroup 建立輪詢群組
 func (s *Service) CreatePollingGroup(ctx context.Context, req CreatePollingGroupRequest) (*schema.PollingGroup, error) {
-	if req.IntervalMs < 100 {
+	if req.IntervalMs < minPollingGroupIntervalMs {
 		return nil, fmt.Errorf("輪詢間隔不能小於 100ms")
 	}
 
@@ -96,15 +102,23 @@ func (s *Service) CreatePollingGroup(ctx context.Context, req CreatePollingGroup
 		return nil, fmt.Errorf("建立輪詢群組 ID 失敗: %w", err)
 	}
 
+	var ownerDeviceID *string
+	if req.OwnerDeviceID != nil {
+		if trimmed := strings.TrimSpace(*req.OwnerDeviceID); trimmed != "" {
+			ownerDeviceID = &trimmed
+		}
+	}
+
 	group := &schema.PollingGroup{
-		ID:          id,
-		Name:        req.Name,
-		Description: req.Description,
-		IntervalMs:  req.IntervalMs,
-		Priority:    req.Priority,
-		Enabled:     true,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:            id,
+		Name:          req.Name,
+		Description:   req.Description,
+		IntervalMs:    req.IntervalMs,
+		Priority:      req.Priority,
+		Enabled:       true,
+		OwnerDeviceID: ownerDeviceID,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 
 	if group.Priority == 0 {
@@ -120,10 +134,11 @@ func (s *Service) CreatePollingGroup(ctx context.Context, req CreatePollingGroup
 
 // CreatePollingGroupRequest 建立輪詢群組請求
 type CreatePollingGroupRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	IntervalMs  int    `json:"interval_ms"`
-	Priority    int    `json:"priority,omitempty"`
+	Name          string  `json:"name"`
+	Description   string  `json:"description,omitempty"`
+	IntervalMs    int     `json:"interval_ms"`
+	Priority      int     `json:"priority,omitempty"`
+	OwnerDeviceID *string `json:"owner_device_id,omitempty"`
 }
 
 // UpdatePollingGroup 更新輪詢群組

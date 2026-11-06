@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -53,4 +54,25 @@ func TestBatchReadWordExactPreservesEndCodeAndCancellation(t *testing.T) {
 	_, err = NewClientWithTransport(tr).WithContext(ctx).BatchReadWordExact("D", 0, 1)
 	require.ErrorIs(t, err, context.Canceled)
 	require.Equal(t, 1, tr.sends)
+}
+
+func TestBatchReadWordRejectsLongTimerCounterWithoutSending(t *testing.T) {
+	methods := []struct {
+		name string
+		read func(*MCClient, string, int, int) ([]int, error)
+	}{
+		{"word", (*MCClient).BatchReadWord},
+		{"word-exact", (*MCClient).BatchReadWordExact},
+	}
+	for _, method := range methods {
+		for _, device := range []string{"LTN", "ltn", "LSTN", "LCN"} {
+			t.Run(method.name+"/"+device, func(t *testing.T) {
+				tr := &exactWordTransport{body: []byte{0, 0, 0x34, 0x12}}
+				values, err := method.read(NewClientWithTransport(tr), device, 0, 1)
+				if err == nil || !strings.Contains(err.Error(), "long timer/counter") || !strings.Contains(err.Error(), "not supported") || values != nil || tr.sends != 0 {
+					t.Errorf("device %s: values=%v err=%v sends=%d frame=%x", device, values, err, tr.sends, tr.request)
+				}
+			})
+		}
+	}
 }

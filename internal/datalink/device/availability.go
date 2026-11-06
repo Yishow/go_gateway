@@ -71,6 +71,7 @@ func (s *Service) SetAvailability(ctx context.Context, id, status, reason string
 	if err := s.repo.Update(ctx, record); err != nil {
 		return nil, fmt.Errorf("更新設備可用狀態失敗: %w", err)
 	}
+	s.hydrateDeviceAcquisitionInterval(ctx, record)
 
 	return record, nil
 }

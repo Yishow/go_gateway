@@ -15,6 +15,8 @@ import { useTranslation } from 'react-i18next';
 import { useStudioV2WorkspaceQuery } from '../../../../hooks/datalink/useStudioV2Workspace';
 import { useWriteGroupsQuery } from '../../../../hooks/datalink/useStudioV2WriteGroups';
 import { studioV2WorkspaceKeys } from '../../../../hooks/datalink/keys';
+import { useAcquisitionAnomalySummaryQuery } from '../../../../hooks/datalink/useAcquisitionAnomalies';
+import { anomalySummaryStatus } from './AcquisitionAnomalyButton';
 import { readRecordingHomeSources } from './recordingHomeSources';
 import { useRecordingHomeEvidence } from './useRecordingHomeEvidence';
 import { RecordingHome, RecordingHomeTools, type RecordingHomeLocation } from './RecordingHome';
@@ -56,6 +58,7 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
   }
   const demandIds = demand?.state === state ? demand.ids : [];
   const facts = useRecordingHomeFacts(scope, groups, demandIds);
+  const anomalySummary = useAcquisitionAnomalySummaryQuery();
   const home = useRecordingHomeEvidence({ scope, owners: facts.owners, detailGroupIds: demandIds, sources: sources.isFetching || sources.isPending
     ? { state: 'loading', scope } : sources.isError ? { state: 'error', scope } : sources.data });
   const summaries = Object.fromEntries(home.guidance.recordingItems.map(item => [item.id, recordingHomeResultSummary(item.evidence, {
@@ -82,6 +85,7 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
     collection={<RecordingHomeCollection groups={groups} devices={devices} state={state} guidance={guidance}
       pendingDevices={facts.pendingDevices}
       summaries={summaries}
+      anomalySummary={anomalySummaryStatus(anomalySummary)} onAnomaliesClosed={() => { void anomalySummary.refetch(); }}
       observedIds={displayedObservedIds} filterObservedIds={filterObservedIds} unverifiedObserved={unverified.length > 0} onRecheck={() => { void Promise.all([home.retryDetails(), facts.retry()]); }}
       sourcesAvailable={sources.data?.state === 'available' && !sources.isFetching} presentationReady={!settling} restored={restored}
       onChange={next => {

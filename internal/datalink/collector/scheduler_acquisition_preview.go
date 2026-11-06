@@ -84,8 +84,12 @@ func (s *Scheduler) PreviewAcquisition(ctx context.Context, workspaceID, deviceI
 		for _, u := range effective.WireUnits() {
 			group.UniqueWireUnits = append(group.UniqueWireUnits, AcquisitionPreviewUnits{Area: u.Group.Area, Function: u.Group.Function, AddressUnitBits: u.AddressUnitBits, UniqueAddressUnits: u.UniqueAddressUnits})
 		}
-		for id := range scan.failures {
-			group.PointErrors = append(group.PointErrors, AcquisitionPreviewPointError{PointID: id, Code: "source_point_invalid"})
+		for id, failure := range scan.failures {
+			code := "source_point_invalid"
+			if errors.Is(failure, errSourceLayoutUnsupported) {
+				code = "source-layout-unsupported"
+			}
+			group.PointErrors = append(group.PointErrors, AcquisitionPreviewPointError{PointID: id, Code: code})
 		}
 		for _, e := range effective.Errors() {
 			if _, exists := scan.failures[e.PointID]; !exists {

@@ -11,15 +11,16 @@ import (
 // Raw batch requests do not carry it: each scatter slice retains its own profile.
 // Installation leases and acquisition proof belong to the collector envelope.
 type ReadProfile struct {
-	version    uint8
-	ruleID     string
-	protocol   schema.ProtocolType
-	deviceID   string
-	pointID    string
-	address    string
-	function   string
-	dataType   schema.DataType
-	resolution decoding.PointResolution
+	version      uint8
+	ruleID       string
+	sourceLayout string
+	protocol     schema.ProtocolType
+	deviceID     string
+	pointID      string
+	address      string
+	function     string
+	dataType     schema.DataType
+	resolution   decoding.PointResolution
 }
 
 var ErrReadProfile = errors.New("invalid or mismatched point read profile")
@@ -43,6 +44,18 @@ func (p ReadProfile) Protocol() schema.ProtocolType        { return p.protocol }
 func (p ReadProfile) DeviceID() string                     { return p.deviceID }
 func (p ReadProfile) PointID() string                      { return p.pointID }
 func (p ReadProfile) Resolution() decoding.PointResolution { return p.resolution }
+
+// WithSourceLayout binds a rule's persisted layout to the same resolved source
+// revision. It does not change the point's decoding intent.
+func (p ReadProfile) WithSourceLayout(layout string) ReadProfile {
+	if p.Present() && p.ruleID != "" && layout == "mixed" {
+		p.sourceLayout = layout
+	}
+	return p
+}
+
+// SourceLayout is the persisted layout of the rule that owns this point.
+func (p ReadProfile) SourceLayout() string { return p.sourceLayout }
 
 // ValidateReadProfile compares logical scalar identity, never batch wire layout.
 // Empty profiles are only the compatibility path for existing legacy callers.

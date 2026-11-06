@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sourcerule"
@@ -46,6 +47,12 @@ type sourceRuleResponse struct {
 	ShareEnabled       bool   `json:"share_enabled"`
 	ShareStartRegister *int   `json:"share_start_register"`
 	ShareStride        *int   `json:"share_stride"`
+	// LayoutMode is homogeneous or mixed; a mixed rule's start_address, count and data_type project its first item.
+	LayoutMode string `json:"layout_mode" enums:"homogeneous,mixed"`
+	// MixedItems lists the items of a mixed rule; each item owns one derived point at its address.
+	MixedItems []measurement.MixedItem `json:"mixed_items,omitempty"`
+	// MixedItemsError reports stored mixed items that could not be decoded.
+	MixedItemsError string `json:"mixed_items_error,omitempty"`
 	// RuntimeApplyStatus V2 autosave 成功後的 runtime 套用狀態。
 	RuntimeApplyStatus string `json:"runtime_apply_status,omitempty"`
 	// RuntimeApplyMessage 只在 apply_failed 時帶出錯誤說明。
@@ -246,6 +253,14 @@ func mapSourceRuleResponse(rule *schema.SourceRule) sourceRuleResponse {
 		targetDataType = &value
 	}
 
+	layoutMode, mixedItems, mixedItemsError := "homogeneous", []measurement.MixedItem(nil), ""
+	if rule.LayoutMode != "" {
+		layoutMode = rule.LayoutMode
+		var decodeErr error
+		if mixedItems, decodeErr = sourcerule.DecodeMixedItems(rule.MixedItems); decodeErr != nil {
+			mixedItemsError = "stored mixed_items are unreadable; save the complete item list again"
+		}
+	}
 	return sourceRuleResponse{
 		ID:                 rule.ID,
 		DeviceID:           rule.DeviceID,
@@ -268,5 +283,8 @@ func mapSourceRuleResponse(rule *schema.SourceRule) sourceRuleResponse {
 		ShareEnabled:       rule.ShareEnabled,
 		ShareStartRegister: rule.ShareStartRegister,
 		ShareStride:        rule.ShareStride,
+		LayoutMode:         layoutMode,
+		MixedItems:         mixedItems,
+		MixedItemsError:    mixedItemsError,
 	}
 }

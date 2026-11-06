@@ -69,6 +69,16 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	if req.ScaleOffset != nil || req.ScaleOffsetSet {
 		next.ScaleOffset = cloneFloat64Ptr(req.ScaleOffset)
 	}
+	if req.LayoutMode != nil && normalizeLayoutMode(*req.LayoutMode) == layoutMixed && !isMixedRule(rule) {
+		// Legacy homogeneous forms persist identity scaling. Clear only those
+		// defaults when switching layout; custom scaling must be rejected.
+		if !req.ScaleMultiplierSet && req.ScaleMultiplier == nil && next.ScaleMultiplier != nil && *next.ScaleMultiplier == 1 {
+			next.ScaleMultiplier = nil
+		}
+		if !req.ScaleOffsetSet && req.ScaleOffset == nil && next.ScaleOffset != nil && *next.ScaleOffset == 0 {
+			next.ScaleOffset = nil
+		}
+	}
 	if req.DataFormat != nil || req.DataFormatSet {
 		if req.DataFormat != nil {
 			next.DataFormat = normalizeDataFormat(*req.DataFormat)
@@ -106,17 +116,16 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		return nil, contextualRuleValidationError(id, next.StartAddress, deviceRecord.Protocol, err)
 	}
 
-	links, err := s.listAndValidatePersistedMCLinks(ctx, rule, deviceRecord.Protocol)
+	identity := sourceAcquisitionIdentity(*deviceRecord)
+	links, err := s.listAndValidatePersistedMCLinks(ctx, rule, deviceRecord.Protocol, identity)
 	if err != nil {
 		return nil, err
 	}
-	desiredAddresses, err := buildPlannedPointAddresses(next.StartAddress, next.Count, next.DataType, deviceRecord.Protocol)
+	layout, err := planUpdateRulePoints(rule, &next, req, deviceRecord.Protocol, identity)
 	if err != nil {
 		return nil, contextualRuleValidationError(id, next.StartAddress, deviceRecord.Protocol, err)
 	}
-	if err := s.validateRulePointFormats(ctx, rule, &next, deviceRecord.Protocol, links); err != nil {
-		return nil, err
-	}
+	desiredAddresses := layout.addresses
 	skipped, err := parseSkippedAddresses(next.SkippedAddresses)
 	if err != nil {
 		return nil, err
@@ -130,10 +139,15 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		filteredAddresses = append(filteredAddresses, address)
 	}
 
-	linkByAddress := make(map[string]*schema.SourceRuleLink, len(links))
+	linkByAddress, err := matchRulePlanLinks(rule, layout, links)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.validateRulePointFormats(ctx, rule, &next, deviceRecord.Protocol, links, layout, linkByAddress); err != nil {
+		return nil, err
+	}
 	keepPointIDs := make(map[string]struct{}, len(links))
 	for _, link := range links {
-		linkByAddress[normalizeAddressKey(link.Address)] = link
 		keepPointIDs[link.PointID] = struct{}{}
 	}
 	if err := s.preflightPointAddresses(ctx, next.DeviceID, keepPointIDs, filteredAddresses, nil); err != nil {
@@ -192,6 +206,8 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	}
 	createPlans := make([]pointCreatePlan, 0)
 	removedLinks := make([]*schema.SourceRuleLink, 0)
+	retainedPointIDs := make(map[string]bool, len(links))
+	addressesMoved := false
 
 	for _, address := range filteredAddresses {
 		existingLink, exists := linkByAddress[normalizeAddressKey(address)]
@@ -203,10 +219,11 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 
 			s.capturePointBaseline(ctx, pointRecord)
 			name := buildPointName(next.NamingPrefix, address)
+			addressesMoved = addressesMoved || pointRecord.Address != address
 			updatePlans = append(updatePlans, pointUpdatePlan{
-				name:  name,
-				point: pointRecord,
+				name: name, address: address, point: pointRecord,
 			})
+			retainedPointIDs[existingLink.PointID] = true
 			existingLink.Address = address
 			existingLink.UpdatedAt = time.Now()
 			newLinks = append(newLinks, existingLink)
@@ -223,12 +240,8 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		})
 	}
 
-	desiredSet := make(map[string]struct{}, len(filteredAddresses))
-	for _, address := range filteredAddresses {
-		desiredSet[normalizeAddressKey(address)] = struct{}{}
-	}
 	for _, link := range links {
-		if _, keep := desiredSet[normalizeAddressKey(link.Address)]; keep {
+		if retainedPointIDs[link.PointID] {
 			continue
 		}
 		removedLinks = append(removedLinks, link)
@@ -241,30 +254,70 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	if err := s.updateOwnedRule(ctx, rule, &next); err != nil {
 		return nil, fmt.Errorf("更新來源規則失敗: %w", err)
 	}
+	if journal := s.pointJournal(ctx); journal != nil {
+		journal.guardMixedDecisions = isMixedRule(rule) || isMixedRule(&next)
+	}
 	appliedUpdatePlans := make([]pointUpdatePlan, 0, len(updatePlans))
-	defaultPollingGroupID, err := s.resolveDerivedPointPollingGroupID(ctx)
+	occupiedTargets := make(map[string]bool, len(filteredAddresses))
+	for _, address := range filteredAddresses {
+		occupiedTargets[normalizeAddressKey(address)] = true
+	}
+	for _, link := range removedLinks {
+		if !occupiedTargets[normalizeAddressKey(link.Address)] {
+			continue
+		}
+		if retireErr := s.retireCollidingRuleLink(ctx, link); retireErr != nil {
+			return nil, s.finishUpdateRollback(ctx, fmt.Errorf("移除佔用位址的舊點位失敗: %w", retireErr), tagMappingSyncResult{}, appliedUpdatePlans, rule, rollbackLinks, nil)
+		}
+	}
+	defaultPollingGroupID, err := s.resolveDerivedPointPollingGroupID(ctx, next.DeviceID)
 	if err != nil {
 		return nil, s.finishUpdateRollback(ctx, err, tagMappingSyncResult{}, appliedUpdatePlans, rule, rollbackLinks, nil)
 	}
-	for _, plan := range updatePlans {
-		// Rule defaults are resolver inputs, never edits to a surviving point's intent
-		// or legacy DataFormat policy. New identities are created separately below.
-		dataType := next.DataType
-		updateReq := point.UpdatePointRequest{
-			Name:     &plan.name,
-			DataType: &dataType,
-			Enabled:  &effectiveEnabled,
+	if addressesMoved && len(updatePlans) > 1 {
+		changes := make([]point.MaterializedChange, 0, len(updatePlans))
+		for _, plan := range updatePlans {
+			dataType, address := layout.dataType(plan.address, next.DataType), plan.address
+			request := point.UpdatePointRequest{Name: &plan.name, Address: &address, DataType: &dataType, Enabled: &effectiveEnabled}
+			if plan.point.PollingGroupID == nil && defaultPollingGroupID != nil {
+				request.PollingGroupID = defaultPollingGroupID
+			}
+			changes = append(changes, point.MaterializedChange{Before: plan.point, Request: request})
 		}
-		if plan.point.PollingGroupID == nil && defaultPollingGroupID != nil {
-			updateReq.PollingGroupID = defaultPollingGroupID
-		}
-		pointRecord, updateErr := s.pointSvc.UpdateMaterializedObserved(ctx, plan.point, updateReq, s.observePointWrite(ctx))
+		updated, updateErr := s.pointSvc.UpdateMaterializedBatchObserved(ctx, changes, s.observePointWrite(ctx))
 		if updateErr != nil {
 			return nil, s.finishUpdateRollback(ctx, fmt.Errorf("更新衍生點位失敗: %w", updateErr), tagMappingSyncResult{}, appliedUpdatePlans, rule, rollbackLinks, nil)
 		}
-		plan.appliedRevision = pointRecord.RevisionID
-		appliedUpdatePlans = append(appliedUpdatePlans, plan)
-		s.syncPoints(ctx, []*schema.Point{pointRecord})
+		for i, plan := range updatePlans {
+			plan.appliedRevision, plan.batch = updated[i].RevisionID, true
+			appliedUpdatePlans = append(appliedUpdatePlans, plan)
+		}
+	} else {
+		for _, plan := range updatePlans {
+			// Rule defaults are resolver inputs, never edits to a surviving point's intent
+			// or legacy DataFormat policy. New identities are created separately below.
+			dataType := layout.dataType(plan.address, next.DataType)
+			updateReq := point.UpdatePointRequest{
+				Name:     &plan.name,
+				DataType: &dataType,
+				Enabled:  &effectiveEnabled,
+			}
+			if plan.point.Address != plan.address {
+				updateReq.Address = &plan.address
+			}
+			if plan.point.PollingGroupID == nil && defaultPollingGroupID != nil {
+				updateReq.PollingGroupID = defaultPollingGroupID
+			}
+			pointRecord, updateErr := s.pointSvc.UpdateMaterializedObserved(ctx, plan.point, updateReq, s.observePointWrite(ctx))
+			if updateErr != nil {
+				return nil, s.finishUpdateRollback(ctx, fmt.Errorf("更新衍生點位失敗: %w", updateErr), tagMappingSyncResult{}, appliedUpdatePlans, rule, rollbackLinks, nil)
+			}
+			plan.appliedRevision = pointRecord.RevisionID
+			appliedUpdatePlans = append(appliedUpdatePlans, plan)
+			if !addressesMoved {
+				s.syncPoints(ctx, []*schema.Point{pointRecord})
+			}
+		}
 	}
 
 	createdPointIDs := make([]string, 0, len(createPlans))
@@ -275,8 +328,8 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 			DeviceID:       next.DeviceID,
 			Name:           buildPointName(next.NamingPrefix, plan.address),
 			Address:        plan.address,
-			DataType:       next.DataType,
-			DataFormat:     next.DataFormat,
+			DataType:       layout.dataType(plan.address, next.DataType),
+			DataFormat:     layout.dataFormat(plan.address, next.DataFormat),
 			Mode:           schema.PointModeReadOnly,
 			PollingGroupID: defaultPollingGroupID,
 		})
@@ -308,25 +361,62 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		}
 	}
 
-	syncResult, err := s.syncRuleTagMappings(ctx, rule, &next, newLinks, effectiveEnabled)
+	syncLinks := newLinks
+	if addressesMoved {
+		syncLinks = identitySyncLinks(rollbackLinks, newLinks)
+	}
+	syncResult, err := s.syncRuleTagMappings(ctx, rule, &next, syncLinks, effectiveEnabled)
 	if err != nil {
 		return nil, s.finishUpdateRollback(ctx, fmt.Errorf("同步來源規則標籤映射失敗: %w", err), syncResult, appliedUpdatePlans, rule, rollbackLinks, createdPointIDs)
+	}
+	if addressesMoved {
+		moveResult, moveErr := s.rekeyMixedIdentities(ctx, rule, rollbackLinks, newLinks)
+		mergeTagMappingSyncResult(&syncResult, moveResult)
+		if moveErr != nil {
+			var uncertain *identityMoveUncertainError
+			if errors.As(moveErr, &uncertain) {
+				return nil, s.dirtyUnknown(ctx)
+			}
+			return nil, s.finishUpdateRollback(ctx, fmt.Errorf("更新混合項目關聯失敗: %w", moveErr), syncResult, appliedUpdatePlans, rule, rollbackLinks, createdPointIDs)
+		}
 	}
 
 	if err := s.repo.ReplaceLinks(ctx, next.ID, newLinks); err != nil {
 		return nil, s.finishUpdateRollback(ctx, fmt.Errorf("重建來源規則連結失敗: %w", err), syncResult, appliedUpdatePlans, rule, rollbackLinks, createdPointIDs)
+	}
+	if addressesMoved {
+		updated := make([]*schema.Point, 0, len(appliedUpdatePlans))
+		for _, plan := range appliedUpdatePlans {
+			current, getErr := s.pointSvc.GetByID(ctx, plan.point.ID)
+			if getErr != nil {
+				return nil, s.finishUpdateRollback(ctx, fmt.Errorf("取得更新後點位失敗: %w", getErr), syncResult, appliedUpdatePlans, rule, rollbackLinks, createdPointIDs)
+			}
+			updated = append(updated, current)
+		}
+		s.syncPoints(ctx, updated)
 	}
 	if err := s.persistCandidateSnapshots(ctx, &next, newLinks); err != nil {
 		return nil, s.finishUpdateRollback(ctx, fmt.Errorf("持久化來源規則候選快照失敗: %w", err), syncResult, appliedUpdatePlans, rule, rollbackLinks, createdPointIDs)
 	}
 
 	for _, link := range removedLinks {
-		if err := s.cleanupRuleLinkResources(ctx, &next, link); err != nil {
-			return nil, s.finishRollbackErrors(ctx, fmt.Errorf("刪除已移除衍生點位失敗: %w", err), s.repo.DeleteCandidateSnapshots(ctx, next.ID, next.RevisionID))
+		var cleanupErr error
+		if s.retiredRuleLink(ctx, link.ID) != nil {
+			cleanupErr = s.cleanupRetiredRuleTag(ctx, rule, link)
+		} else {
+			cleanupErr = s.cleanupRuleLinkResources(ctx, &next, link)
+		}
+		if cleanupErr != nil {
+			return nil, s.finishRollbackErrors(ctx, fmt.Errorf("刪除已移除衍生點位失敗: %w", cleanupErr), s.repo.DeleteCandidateSnapshots(ctx, next.ID, next.RevisionID))
 		}
 	}
 
 	s.syncPoints(ctx, createdRuntimePoints)
+	if len(syncResult.tagIdentityMoves)+len(syncResult.mapIdentityMoves) > 0 {
+		if journal := s.pointJournal(ctx); journal != nil {
+			journal.identitySync = &syncResult
+		}
+	}
 
 	return &next, nil
 }

@@ -150,6 +150,7 @@ func (r *SQLRepository) readFormatRecoveryInTx(ctx context.Context, tx *sql.Tx, 
 	// formatSnapshot has already proven this exact rule owns the point in this tx.
 	snapshot.defaults.RuleID = req.RuleID
 	profile, err := connector.ResolveReadProfile(*snapshot.point, snapshot.defaults)
+	profile = profile.WithSourceLayout(snapshot.ruleLayout)
 	resolved := profile.Resolution()
 	if err != nil {
 		return nil, ErrFormatInvalid

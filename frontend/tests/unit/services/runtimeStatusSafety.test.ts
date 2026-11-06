@@ -31,6 +31,12 @@ describe('runtime status safe legacy projection', () => {
     expect(result.database_delivery?.[0].stages).toEqual(['collected', 'mapped', 'db_write', 'db_write_failed', 'db_write_succeeded']);
     expect(result.collectors[0]).toHaveProperty('projection_alignment', 'restart-required');
   });
+  it('preserves buffer acceptance without claiming a completed database write', async () => {
+    const result = await read({ database_delivery: [{ point_id: 'point-1', tag_id: 'tag-1', status: 'accepted',
+      stages: ['collected', 'mapped', 'buffer_accepted'] }] });
+    expect(result.database_delivery?.[0]).toMatchObject({ status: 'accepted',
+      stages: ['collected', 'mapped', 'buffer_accepted'], last_success_at: null });
+  });
   it('does not permit a network address through identity fields', async () => {
     expect(JSON.stringify(await read({ collectors: [{ device_id: '10.20.30.40' }] }))).not.toContain('10.20.30.40');
   });

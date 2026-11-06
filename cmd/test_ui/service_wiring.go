@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 
+	"go-gateway/internal/datalink/anomaly"
 	"go-gateway/internal/datalink/audit"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
@@ -56,7 +57,9 @@ type gatewayServices struct {
 	scheduler      *collector.Scheduler
 	runtime        *datalinkruntime.Service
 	sourceRule     *sourcerule.Service
-	fixture        groupFixtureHooks
+	// anomalies is the repository the runtime detector writes and the API reads.
+	anomalies *anomaly.SQLRepository
+	fixture   groupFixtureHooks
 }
 
 func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) (gatewayServices, error) {
@@ -73,6 +76,7 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 	pgSvc := pollinggroup.NewService(pgRepo)
 	pointRepo := point.NewSQLRepository(db)
 	pointSvc := point.NewService(pointRepo, pgRepo)
+	devSvc.SetAcquisitionIntervalCoordinator(pointSvc)
 	tagRepo := tag.NewSQLRepository(db)
 	tagSvc := tag.NewService(tagRepo)
 	mappingRepo := mapping.NewSQLRepository(db)
@@ -143,10 +147,11 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 	}
 	scheduler := collector.NewScheduler(schedulerConfig, connMgr)
 	runtimeWriter := storage.NewBatchWriter(storage.NewSQLiteWriter(db), storage.DefaultBatchWriterConfig()) //nolint:contextcheck // Persistent timer is joined by runtime shutdown.
+	anomalyRepo := anomaly.NewSQLRepository(db)
 	runtimeSvc, err := datalinkruntime.NewService(datalinkruntime.DefaultConfig(), datalinkruntime.Dependencies{
 		Scheduler: scheduler, Writer: runtimeWriter, TargetWriter: newProductionTargetWriter(dbTargetWriter, modbusShareSvc),
 		DeviceService: devSvc, PointService: pointSvc, MappingService: mappingSvc, TagService: tagSvc, PollingGroupService: pgSvc,
-		SampleSink: sampleSink, SourceRuleObserver: newSourceRuleEventObserver(logs),
+		SampleSink: sampleSink, SourceRuleObserver: newSourceRuleEventObserver(logs), AnomalyRepository: anomalyRepo,
 		MappingObserver: newMappingEventObserver(logs), //nolint:contextcheck // Runtime observers outlive the wiring context.
 	})
 	if err != nil {
@@ -194,7 +199,7 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 		Groups: writeGroupsSvc, Tags: tagSvc, Destinations: dbTargetConnectorSvc,
 		Inspector: dbtarget.NewReadOnlyTableInspector(dbTargetConnectorSvc), Ledger: recordingPlanSvc,
 	}, grouptestwrite.Config{})
-	return gatewayServices{recordingPlan: recordingPlanSvc, groupTestWrite: groupTestWriteSvc, device: devSvc, pollingGroup: pgSvc, point: pointSvc, tag: tagSvc, mapping: mappingSvc, settings: settingsSvc, modbusShare: modbusShareSvc, shareLoaded: shareSettingsLoaded, workspace: workspaceSvc, writeGroups: writeGroupsSvc, groupPipe: groupPipe, audit: auditSvc, dbTarget: dbTargetConnectorSvc, dbMapping: dbTargetMappingSvc, scheduler: scheduler, runtime: runtimeSvc, sourceRule: sourceRuleSvc, fixture: fixture}, nil
+	return gatewayServices{recordingPlan: recordingPlanSvc, groupTestWrite: groupTestWriteSvc, device: devSvc, pollingGroup: pgSvc, point: pointSvc, tag: tagSvc, mapping: mappingSvc, settings: settingsSvc, modbusShare: modbusShareSvc, shareLoaded: shareSettingsLoaded, workspace: workspaceSvc, writeGroups: writeGroupsSvc, groupPipe: groupPipe, audit: auditSvc, dbTarget: dbTargetConnectorSvc, dbMapping: dbTargetMappingSvc, scheduler: scheduler, runtime: runtimeSvc, sourceRule: sourceRuleSvc, anomalies: anomalyRepo, fixture: fixture}, nil
 }
 
 // groupDeliveryQuotaBytes caps accepted-but-undelivered group data, matching the

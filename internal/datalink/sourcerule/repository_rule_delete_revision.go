@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const sourceRuleStatePredicate = `id=? AND device_id=? AND revision_id=? AND start_address=? AND count=? AND data_type=? AND naming_prefix=? AND enabled=? AND locked=? AND origin=? AND template_name IS ? AND skipped_addresses=? AND target_data_type IS ? AND scale_multiplier IS ? AND scale_offset IS ? AND data_format IS ? AND share_enabled=? AND share_start_register IS ? AND share_stride IS ?`
+const sourceRuleStatePredicate = `id=? AND device_id=? AND revision_id=? AND start_address=? AND count=? AND data_type=? AND naming_prefix=? AND enabled=? AND locked=? AND origin=? AND template_name IS ? AND skipped_addresses=? AND target_data_type IS ? AND scale_multiplier IS ? AND scale_offset IS ? AND data_format IS ? AND share_enabled=? AND share_start_register IS ? AND share_stride IS ? AND layout_mode=? AND mixed_items IS ?`
 
 type ruleRevisionDeleter interface {
 	DeleteRevision(context.Context, *schema.SourceRule) error
@@ -53,5 +53,5 @@ func (r *MemoryRepository) DeleteRevision(_ context.Context, expected *schema.So
 // only updated_at: SQLite's timestamp trigger has second precision, and an
 // enable toggle intentionally keeps its rule revision under the existing API.
 func ruleStateArgs(p *schema.SourceRule) []any {
-	return []any{p.ID, p.DeviceID, p.RevisionID, p.StartAddress, p.Count, p.DataType, p.NamingPrefix, p.Enabled, p.Locked, p.Origin, p.TemplateName, p.SkippedAddresses, p.TargetDataType, p.ScaleMultiplier, p.ScaleOffset, p.DataFormat, p.ShareEnabled, p.ShareStartRegister, p.ShareStride}
+	return []any{p.ID, p.DeviceID, p.RevisionID, p.StartAddress, p.Count, p.DataType, p.NamingPrefix, p.Enabled, p.Locked, p.Origin, p.TemplateName, p.SkippedAddresses, p.TargetDataType, p.ScaleMultiplier, p.ScaleOffset, p.DataFormat, p.ShareEnabled, p.ShareStartRegister, p.ShareStride, storedLayoutMode(p), nullableMixedItems(p)}
 }

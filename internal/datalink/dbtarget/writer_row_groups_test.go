@@ -93,8 +93,9 @@ func TestWriter_InsertModeRowGroupsEmitSeparateRowsForSharedColumn(t *testing.T)
 	require.NoError(t, err)
 
 	observedAt := time.Date(2026, 6, 9, 10, 30, 2, 0, time.UTC)
-	require.NoError(t, writer.WriteTagValue(ctx, tagA.ID, 21.5, observedAt))
-	require.NoError(t, writer.WriteTagValue(ctx, tagB.ID, 23.75, observedAt.Add(time.Second)))
+	require.NoError(t, writer.RefreshMappings(ctx))
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagA.ID, 21.5, observedAt), ErrSnapshotAccepted)
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagB.ID, 23.75, observedAt.Add(time.Second)), ErrSnapshotAccepted)
 
 	tickCh <- time.Date(2026, 6, 9, 10, 30, 15, 0, time.UTC)
 

@@ -31,6 +31,7 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 			quality = schema.QualityGood
 		}
 	}
+	s.observeAcquisitionAnomaly(cv, quality)
 
 	if !s.persistCapturedPointState(ctx, cv) {
 		return
@@ -85,6 +86,11 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 			if outcomeWriter, ok := s.target.(TargetOutcomeWriter); ok {
 				for _, outcome := range outcomeWriter.WriteTagValueOutcomes(ctx, b.TagID, finalValue, cv.Timestamp) {
 					s.recordTargetDeliveryOutcome(deviceID, cv.PointID, b.TagID, outcome, cv.Timestamp)
+				}
+			} else if asyncWriter, ok := s.target.(AsyncAcceptingWriter); ok {
+				accepted, err := asyncWriter.AcceptTagValue(ctx, b.TagID, finalValue, cv.Timestamp)
+				if accepted || err != nil {
+					s.recordTargetDeliveryOutcome(deviceID, cv.PointID, b.TagID, TargetDeliveryOutcome{Target: TargetDatabase, Accepted: accepted, Err: err}, cv.Timestamp)
 				}
 			} else if err := s.target.WriteTagValue(ctx, b.TagID, finalValue, cv.Timestamp); err != nil {
 				s.writeError.Add(1)
@@ -149,7 +155,10 @@ func (s *Service) recordTargetDeliveryOutcome(deviceID, pointID, tagID string, o
 		s.recordModbusShareDeliveryDiagnostic(diagnostic)
 	case TargetDatabase:
 		diagnostic := DatabaseDeliveryDiagnostic{DeviceID: deviceID, PointID: pointID, TagID: tagID, Status: DatabaseDeliveryStatusSucceeded, Stages: databaseDeliverySuccessStages(), ObservedAt: observedAt}
-		if outcome.Err != nil {
+		if outcome.Accepted && outcome.Err == nil {
+			diagnostic.Status = DatabaseDeliveryStatusAccepted
+			diagnostic.Stages = []DatabaseDeliveryStage{DatabaseDeliveryStageCollected, DatabaseDeliveryStageMapped, DatabaseDeliveryStageBufferAccepted}
+		} else if outcome.Err != nil {
 			diagnostic.Status = DatabaseDeliveryStatusFailed
 			diagnostic.Stages = databaseDeliveryFailureStages()
 			diagnostic.FailedStage = DatabaseDeliveryStageDBWrite

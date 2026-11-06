@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go-gateway/internal/datalink/anomaly"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/device"
@@ -56,6 +57,8 @@ type Dependencies struct {
 	SampleSink          SampleSink
 	SourceRuleObserver  SourceRuleObserver
 	MappingObserver     MappingObserver
+	// AnomalyRepository enables acquisition anomaly detection when non-nil.
+	AnomalyRepository anomaly.Repository
 }
 
 type TargetWriter interface {
@@ -107,6 +110,7 @@ type Service struct {
 	workspace          WorkspaceProjectionReader
 	sourceRuleObserver SourceRuleObserver
 	mappingObserver    MappingObserver
+	anomalies          *anomaly.Detector
 
 	// snapshot mode 使用
 	snapshot Snapshot
@@ -190,6 +194,9 @@ func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 		s.mappingSvc = deps.MappingService
 		s.tagSvc = deps.TagService
 		s.groupSvc = deps.PollingGroupService
+		if deps.AnomalyRepository != nil {
+			s.anomalies = anomaly.NewDetector(deps.AnomalyRepository, time.Now)
+		}
 		s.pointSvc.SetPollingGroupSyncer(s.scheduler)
 		return s, nil
 	}

@@ -90,7 +90,9 @@ type Scheduler struct {
 	connMgr             *connector.ConnectionManager
 
 	// 輪詢群組 Ticker
-	groupTickers map[string]*groupTicker
+	groupTickers     map[string]*groupTicker
+	configuredGroups map[string]*schema.PollingGroup
+	deviceIntervals  map[string]*deviceIntervalState
 
 	// 值輸出通道
 	valueChan chan CollectedValue

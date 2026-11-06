@@ -4,8 +4,9 @@ import type { DeviceSourceBuffer } from '../../../../pages/datalink/workbench-v2
 import type { RecordingSourceSlot } from './RecordingPointSelection';
 import type { RecordingDeviceBufferController } from './useRecordingDeviceBuffer';
 import { RecordingDeviceSourceForm } from './RecordingDeviceSourceForm';
+import type { RuntimeIntervalReadout } from '../../../../types/acquisitionSettings';
 /** Content of the host's sole dialog, never a dialog or mutation owner itself. */
-export function RecordingSourceDeviceContent({ controller: device, slot, existingEdit = false, cancelLabel }: { controller: RecordingDeviceBufferController; slot: RecordingSourceSlot; existingEdit?: boolean; cancelLabel?: string }) {
+export function RecordingSourceDeviceContent({ controller: device, slot, existingEdit = false, cancelLabel, runtimeInterval }: { controller: RecordingDeviceBufferController; slot: RecordingSourceSlot; existingEdit?: boolean; cancelLabel?: string; runtimeInterval?: RuntimeIntervalReadout }) {
   const { t } = useTranslation('recording-editor');
   const { onConfirmChange } = slot;
   const [confirm, setConfirm] = useState<'back' | 'clear' | DeviceSourceBuffer>();
@@ -28,7 +29,7 @@ export function RecordingSourceDeviceContent({ controller: device, slot, existin
   return <>
     <div className="gw-modal-body space-y-4">
       {!confirm && <>
-        <RecordingDeviceSourceForm buffer={device.buffer} lockedProtocol={Boolean(device.deviceId) || device.locked} onChange={device.change}
+        <RecordingDeviceSourceForm buffer={device.buffer} lockedProtocol={Boolean(device.deviceId) || device.locked} onChange={device.change} existingDevice={Boolean(device.deviceId)} runtimeInterval={runtimeInterval}
           onSubtype={!device.deviceId ? next => { if (device.dirty) setConfirm(next); else device.selectConnection(next); } : undefined}
           onProtocol={next => { if (device.dirty) setConfirm(next); else device.selectConnection(next); }} />
         {device.reused && !device.deviceId && <div data-testid="recording-source-reuse" className="space-y-2">

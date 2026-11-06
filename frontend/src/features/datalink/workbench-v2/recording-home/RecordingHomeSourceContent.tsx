@@ -16,6 +16,8 @@ import type { HomeSourceControls } from './RecordingHomeSourceHost';
 import { RecordingHomeMemoryView, useHomeRangeInputs, type HomeMemoryBlock } from './RecordingHomeMemoryView';
 import { useHomeMemoryValues } from './recordingHomeMemoryValues';
 import { RecordingHomeRangeOptions } from './RecordingHomeRangeOptions';
+import { useRuntimeStatus } from '../../runtime-dashboard/useRuntimeStatus';
+import { runtimeIntervalReadout } from '../state/acquisitionSettings';
 export interface RecordingHomeSourceContentProps extends HomeSourceControls {
   shareEnabled?: boolean; onRetryShare: () => void; onOpenShareSettings: () => void;
   state: WorkbenchV2State; dispatch: Dispatch<WorkbenchV2Action>; source: DeviceSourcePort; suspended: boolean; mcEvidenceByRule?: Readonly<Record<string, PersistedMCRuleState>>;
@@ -28,12 +30,13 @@ export function RecordingHomeSourceLoading({ onClose }: { onClose: () => void })
 function SavedConnection({ device, source, suspended, controls }: { device?: Device; source: DeviceSourcePort; suspended: boolean; controls: HomeSourceControls }) {
   const { t } = useTranslation('recording-editor');
   const buffer = useRecordingDeviceBuffer(controls.target.workspaceId, source, suspended, device);
+  const runtime = useRuntimeStatus({ deviceId: device?.id ?? null, pollingIntervalMs: 5000 });
   const started = useRef(false), innerClose = useRef<(() => void) | undefined>(undefined);
   const [, setConfirm] = useState(false);
   useEffect(() => { if (!started.current) { started.current = true; void buffer.start(); } }, [buffer]);
   useLayoutEffect(() => { controls.closeRef.current = () => { if (!buffer.locked) innerClose.current?.(); }; return () => { controls.closeRef.current = undefined; }; }, [buffer.locked, controls.closeRef]);
   useRecordingDraftGuard({ version: JSON.stringify([controls.target.epoch, buffer.buffer]), dirty: buffer.dirty && !buffer.locked, pending: buffer.locked, host: true, discard: buffer.reset });
-  return <RecordingSourceDeviceContent cancelLabel={t('device.cancelEdit')} existingEdit={Boolean(device)} controller={{ ...buffer, disabled: buffer.disabled || buffer.preparing || buffer.blocked }} slot={{ active: true, closeRef: innerClose, onConfirmChange: setConfirm,
+  return <RecordingSourceDeviceContent cancelLabel={t('device.cancelEdit')} existingEdit={Boolean(device)} runtimeInterval={device ? runtimeIntervalReadout(device.id, runtime) : undefined} controller={{ ...buffer, disabled: buffer.disabled || buffer.preparing || buffer.blocked }} slot={{ active: true, closeRef: innerClose, onConfirmChange: setConfirm,
     onReturn: () => { if (!buffer.pending) controls.onClose(); }, onSaved: saved => { if (controls.target.kind === 'create') controls.onCreated(saved.id); else controls.onClose(); } }} />;
 }
 function NewRange({ device, source, suspended, controls, leave, options, hasRanges, refreshList, close }: { device: Device; source: DeviceSourcePort; suspended: boolean; controls: HomeSourceControls; leave: HomeSourceLeave; options: ReactNode; hasRanges: boolean; refreshList: () => void; close: () => void }) {

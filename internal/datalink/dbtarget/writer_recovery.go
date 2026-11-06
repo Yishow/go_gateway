@@ -8,6 +8,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 
 	"go-gateway/internal/datalink/schema"
 
@@ -60,9 +61,12 @@ func missingWriterTable(kind schema.DatabaseConnectorKind, err error) bool {
 }
 
 func (w *Writer) recoverWriterTable(ctx context.Context, db *sql.DB, connector *schema.DatabaseConnector, schemaName, tableName string) error {
-	// Concurrent samples must inspect again after the first recovery commits.
-	w.recoveryMu.Lock()
-	defer w.recoveryMu.Unlock()
+	// Serialize recovery only for the same connector. An unreachable target must
+	// not hold up table recovery for another connector.
+	lock, _ := w.recoveryLocks.LoadOrStore(connector.ID, &sync.Mutex{})
+	mutex := lock.(*sync.Mutex)
+	mutex.Lock()
+	defer mutex.Unlock()
 
 	if schemaName == "" {
 		schemaName = defaultSchemaForConnector(connector)

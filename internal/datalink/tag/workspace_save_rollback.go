@@ -26,7 +26,7 @@ func (s *Service) RestoreWorkspaceSave(ctx context.Context, expected, previous *
 
 // RestoreWorkspaceSave conditionally restores the last authored persisted fields.
 func (r *SQLRepository) RestoreWorkspaceSave(ctx context.Context, expected, previous *schema.Tag) error {
-	result, err := r.db.ExecContext(ctx, `UPDATE tags SET display_name=?,data_type=?,unit=?,description=?,status=?,labels=?,updated_at=? WHERE id=? AND key=? AND display_name=? AND data_type=? AND unit=? AND description=? AND status=? AND labels=?`, previous.DisplayName, previous.DataType, previous.Unit, previous.Description, previous.Status, previous.Labels, previous.UpdatedAt, expected.ID, expected.Key, expected.DisplayName, expected.DataType, expected.Unit, expected.Description, expected.Status, expected.Labels)
+	result, err := r.db.ExecContext(ctx, `UPDATE tags SET display_name=?,data_type=?,unit=?,description=?,status=?,labels=?,updated_at=? WHERE id=? AND key=? AND display_name=? AND data_type=? AND COALESCE(unit,'')=? AND COALESCE(description,'')=? AND status=? AND COALESCE(labels,'')=?`, previous.DisplayName, previous.DataType, previous.Unit, previous.Description, previous.Status, previous.Labels, previous.UpdatedAt, expected.ID, expected.Key, expected.DisplayName, expected.DataType, expected.Unit, expected.Description, expected.Status, expected.Labels)
 	if err != nil {
 		return fmt.Errorf("restore failed workspace tag save: %w", err)
 	}

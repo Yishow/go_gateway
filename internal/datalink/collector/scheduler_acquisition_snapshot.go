@@ -16,6 +16,7 @@ import (
 )
 
 var errAcquisitionSuperseded = errors.New("acquisition installation superseded")
+var errSourceLayoutUnsupported = errors.New("source-layout-unsupported")
 
 const acquisitionRequestRandom = "random"
 
@@ -34,6 +35,7 @@ type scheduledSnapshot struct {
 	ticker        *groupTicker
 	ctx           context.Context
 	running       bool
+	autoInterval  bool
 	capturedAt    time.Time
 }
 
@@ -94,7 +96,11 @@ func buildScheduledPlan(snapshot scheduledSnapshot) (scheduledPlan, error) {
 		// Include rejected points too: an invalid source is still membership, not
 		// an omitted input. This closed identity has no live values or timestamps.
 		proof = append(proof, installed.ID, installed.configRevision, installed.Address, installed.Function, string(installed.DataType), installed.DataFormat, string(installed.Mode), installed.PollingGroupID, string(profileProof))
-		binding, bits, err := plannedBinding(snapshot.device, identity.Protocol, installed)
+		if installed.readProfile.SourceLayout() == "mixed" && (!config.Declared() || config.RandomPointLimit() == 0 || identity.Protocol == "modbus") {
+			out.failures[installed.ID] = errSourceLayoutUnsupported
+			continue
+		}
+		binding, bits, err := plannedBinding(snapshot.device, pointIdentity, installed)
 		if err != nil {
 			out.failures[installed.ID] = err
 			continue
@@ -138,7 +144,7 @@ func comparePointID(a, b string) int {
 	return 0
 }
 
-func plannedBinding(cfg deviceConfig, protocol string, pt pointInfo) (connector.PlannedPointBinding, int, error) {
+func plannedBinding(cfg deviceConfig, identity optimizer.AcquisitionIdentity, pt pointInfo) (connector.PlannedPointBinding, int, error) {
 	point := pt.identityPoint()
 	profile := pt.readProfile
 	if !profile.Present() {
@@ -163,7 +169,7 @@ func plannedBinding(cfg deviceConfig, protocol string, pt pointInfo) (connector.
 		sourceID, sourceRevision = pt.ID, pt.configRevision
 	}
 	effective := optimizer.EffectivePoint{ID: pt.ID, SourceIdentity: sourceID, SourceRevision: sourceRevision, Address: pt.Address, Function: pt.Function, DataType: pt.DataType, Format: resolution.EffectiveFormat, FormatSource: string(resolution.Source), FormatRevision: pt.configRevision}
-	bits, width, err := optimizer.AcquisitionPointShape(protocol, effective)
+	bits, width, err := optimizer.AcquisitionPointShapeForIdentity(identity, effective)
 	if err != nil {
 		return connector.PlannedPointBinding{}, 0, err
 	}

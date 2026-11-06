@@ -33,6 +33,13 @@ type pointWriteJournal struct {
 	storageFailure       error
 	ruleDeleted          bool
 	candidateWrites      map[string]bool
+	identitySync         *tagMappingSyncResult
+	restoredIdentityTags map[string]bool
+	restoredIdentityMaps map[string]bool
+	retiredLinks         map[string]*retiredRuleLink
+	retirementBaseline   *sourceRuleSnapshot
+	guardMixedDecisions  bool
+	reviewDecisionWrites []tagReviewDecisionWrite
 }
 
 func (s *Service) pointJournal(ctx context.Context) *pointWriteJournal {
@@ -110,25 +117,55 @@ func (s *Service) restoreOwnedPoints(ctx context.Context, journal *pointWriteJou
 			return nil, fmt.Errorf("point write outcome is uncertain")
 		}
 	}
-	restored := make([]*schema.Point, 0, len(journal.points))
 	for _, e := range journal.points {
 		if e.before == nil {
 			if e.current != nil {
-				if err := s.pointSvc.DeleteRevision(ctx, e.current); err != nil {
+				if err := s.pointSvc.DeleteUnmappedMaterializedObserved(ctx, e.current, nil); err != nil {
 					return nil, err
 				}
 				e.current = nil
 			}
+		}
+	}
+	// Restore exchanged addresses together, after removing newly-created points
+	// that may occupy an original address.
+	var batch []point.RevisionRestore
+	addressChanged := false
+	for _, e := range journal.points {
+		if e.before != nil && e.current != nil {
+			batch = append(batch, point.RevisionRestore{Point: e.before, ExpectedRevision: e.current.RevisionID})
+			addressChanged = addressChanged || e.before.Address != e.current.Address
+		}
+	}
+	if addressChanged && len(batch) > 1 {
+		if err := s.pointSvc.RestoreRevisions(ctx, batch); err != nil {
+			return nil, err
+		}
+		for _, entry := range batch {
+			journal.points[entry.Point.ID].current = clonePointSnapshot(entry.Point)
+		}
+	}
+	restored := make([]*schema.Point, 0, len(journal.points))
+	// Restore live moved points before reinserting a removed point whose old
+	// address may currently be occupied by one of those moved points.
+	for _, e := range journal.points {
+		if e.before == nil || e.current == nil {
 			continue
 		}
-		if e.current == nil {
-			if err := s.pointSvc.RestoreAbsent(ctx, e.before); err != nil {
-				return nil, err
-			}
-		} else {
+		if !(addressChanged && len(batch) > 1) {
 			if err := s.pointSvc.RestoreRevision(ctx, e.before, e.current.RevisionID); err != nil {
 				return nil, err
 			}
+		}
+		e.current = clonePointSnapshot(e.before)
+		restored = append(restored, clonePointSnapshot(e.before))
+	}
+	for _, e := range journal.points {
+		if e.before == nil || e.current != nil {
+			continue
+		}
+		if err := s.pointSvc.RestoreAbsent(ctx, e.before); err != nil {
+			return nil, err
 		}
 		e.current = clonePointSnapshot(e.before)
 		restored = append(restored, clonePointSnapshot(e.before))

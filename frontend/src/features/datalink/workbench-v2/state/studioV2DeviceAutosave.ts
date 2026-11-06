@@ -5,6 +5,8 @@ import type {
 import type { StudioV2WorkspaceDeviceRecord } from '../../../../services/studioV2WorkspaceDevices';
 import type { Device, DeviceTest, ProtocolId } from './types';
 import { getDefaultConfig } from './protocols';
+import { acquisitionSettingsFromRecord, acquisitionUpdateFields } from './acquisitionSettings';
+import type { DeviceAcquisitionUpdateFields } from '../../../../types/acquisitionSettings';
 
 function asNonEmptyString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
@@ -182,12 +184,13 @@ export function toStudioV2DeviceCreateRequest(device: Device): CreateDeviceReque
 
 export function toStudioV2DeviceUpdateRequest(
   device: Device,
-): UpdateDeviceRequest & { protocol: ProtocolId } {
+): UpdateDeviceRequest & DeviceAcquisitionUpdateFields & { protocol: ProtocolId } {
   return {
     name: device.name,
     description: device.description,
     protocol: device.protocol,
     connection_config: toBackendConnectionConfig(device),
+    ...acquisitionUpdateFields(device.acquisition),
   };
 }
 
@@ -218,6 +221,7 @@ export function hydrateStudioV2Device(record: StudioV2WorkspaceDeviceRecord): De
       };
 
   const protocol = record.protocol as ProtocolId;
+  const acquisition = acquisitionSettingsFromRecord(record);
 
   return {
     id: record.id,
@@ -235,5 +239,6 @@ export function hydrateStudioV2Device(record: StudioV2WorkspaceDeviceRecord): De
     availability_status: record.availability_status ?? 'available',
     availability_reason: record.availability_reason ?? null,
     running: record.running ?? false,
+    ...(acquisition ? { acquisition } : {}),
   };
 }

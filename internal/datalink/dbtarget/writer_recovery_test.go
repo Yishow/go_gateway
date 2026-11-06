@@ -1,6 +1,7 @@
 package dbtarget
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -36,7 +37,7 @@ func newWriterRecoveryFixture(t *testing.T, kind schema.DatabaseConnectorKind, c
 	})
 	require.NoError(t, err)
 	writer := NewWriterWithConfig(connectors, repo, WriterConfig{TagReader: tags, FlushTick: make(chan time.Time)})
-	t.Cleanup(func() { _ = writer.Close(t.Context()) })
+	t.Cleanup(func() { _ = writer.Close(context.Background()) })
 	f := writerRecoveryFixture{writer: writer, connector: connector, repo: repo, connectors: connectors}
 	for i, column := range []string{"temperature", "pressure"} {
 		tagRecord, err := tags.Create(t.Context(), tag.CreateTagRequest{
@@ -55,6 +56,7 @@ func newWriterRecoveryFixture(t *testing.T, kind schema.DatabaseConnectorKind, c
 		require.NoError(t, repo.Create(t.Context(), mapping))
 		f.mappings = append(f.mappings, mapping)
 	}
+	require.NoError(t, writer.RefreshMappings(t.Context()))
 	return f
 }
 
@@ -74,16 +76,15 @@ func TestWriter_RecreatesMissingTableAndRetriesSameSample(t *testing.T) {
 			f, db, _ := sqliteWriterRecoveryFixture(t, grouped)
 			at := time.Date(2026, 10, 24, 0, 55, 0, 0, time.UTC)
 			for cycle := range 2 {
+				cycleAt := at.Add(time.Duration(cycle) * time.Minute)
 				if cycle > 0 {
 					_, err := db.ExecContext(t.Context(), `DROP TABLE sensor_readings`)
 					require.NoError(t, err)
 				}
 				for i, mapping := range f.mappings {
-					require.NoError(t, f.writer.WriteTagValue(t.Context(), mapping.TagID, 12.5+float64(i), at))
+					require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), mapping.TagID, 12.5+float64(i), cycleAt), ErrSnapshotAccepted)
 				}
-				if grouped {
-					require.NoError(t, f.writer.flushBuckets(t.Context(), at.Add(time.Minute), false))
-				}
+				require.NoError(t, f.writer.flushDue(t.Context(), cycleAt.Add(time.Minute), false))
 				var temperature, pressure float64
 				require.NoError(t, db.QueryRowContext(t.Context(), `SELECT temperature, pressure FROM sensor_readings`).Scan(&temperature, &pressure))
 				require.Equal(t, 12.5, temperature)
@@ -116,11 +117,12 @@ func TestWriter_MissingTableConcurrentRecovery(t *testing.T) {
 	wg.Wait()
 	close(errors)
 	for err := range errors {
-		require.NoError(t, err)
+		require.ErrorIs(t, err, ErrSnapshotAccepted)
 	}
+	require.NoError(t, f.writer.flushDue(t.Context(), time.Date(2026, 10, 24, 0, 10, 0, 0, time.UTC), false))
 	var count int
 	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sensor_readings`).Scan(&count))
-	require.Equal(t, 8, count)
+	require.Equal(t, 1, count, "concurrent values coalesce into a single latest snapshot")
 }
 
 func TestWriter_MissingTableInsertRetriesWithoutDuplicate(t *testing.T) {
@@ -130,7 +132,10 @@ func TestWriter_MissingTableInsertRetriesWithoutDuplicate(t *testing.T) {
 		mapping.TimestampColumn = nil
 		require.NoError(t, f.repo.Update(t.Context(), mapping))
 	}
-	require.NoError(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 12.5, time.Now()))
+	require.NoError(t, f.writer.RefreshMappings(t.Context()))
+	at := time.Now()
+	require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 12.5, at), ErrSnapshotAccepted)
+	require.NoError(t, f.writer.flushDue(t.Context(), at.Add(time.Minute), false))
 	var count int
 	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sensor_readings WHERE temperature = 12.5`).Scan(&count))
 	require.Equal(t, 1, count)
@@ -139,7 +144,9 @@ func TestWriter_MissingTableInsertRetriesWithoutDuplicate(t *testing.T) {
 func TestWriter_RecoveryExcludesOutputsOwnedByWriteGroups(t *testing.T) {
 	f, db, _ := sqliteWriterRecoveryFixture(t, false)
 	f.writer.suppress = func(_, tagID string) bool { return tagID == f.mappings[1].TagID }
-	require.NoError(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 12.5, time.Now()))
+	at := time.Now()
+	require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 12.5, at), ErrSnapshotAccepted)
+	require.NoError(t, f.writer.flushDue(t.Context(), at.Add(time.Minute), false))
 	var value float64
 	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT temperature FROM sensor_readings`).Scan(&value))
 	_, err := db.ExecContext(t.Context(), `SELECT pressure FROM sensor_readings`)
@@ -153,7 +160,9 @@ func TestWriter_RecoveryDoesNotAlterExistingTableOrCreateMissingDatabase(t *test
 		require.NoError(t, err)
 		_, err = db.ExecContext(t.Context(), `INSERT INTO sensor_readings VALUES ('preserved', 'keep')`)
 		require.NoError(t, err)
-		require.Error(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 1.0, time.Now()))
+		at := time.Now()
+		require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 1.0, at), ErrSnapshotAccepted)
+		require.Error(t, f.writer.flushDue(t.Context(), at.Add(time.Minute), false))
 		var sentinel string
 		require.NoError(t, db.QueryRowContext(t.Context(), `SELECT sentinel FROM sensor_readings`).Scan(&sentinel))
 		require.Equal(t, "keep", sentinel)
@@ -164,7 +173,9 @@ func TestWriter_RecoveryDoesNotAlterExistingTableOrCreateMissingDatabase(t *test
 		f, db, path := sqliteWriterRecoveryFixture(t, false)
 		require.NoError(t, db.Close())
 		require.NoError(t, os.Remove(path))
-		require.Error(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 1.0, time.Now()))
+		at := time.Now()
+		require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 1.0, at), ErrSnapshotAccepted)
+		require.Error(t, f.writer.flushDue(t.Context(), at.Add(time.Minute), false))
 		require.NoFileExists(t, path)
 	})
 }

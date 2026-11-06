@@ -383,6 +383,7 @@ func TestConnectorService_ListWriteHistory_ReturnsLatestWriteRecord(t *testing.T
 	connectorSvc := NewConnectorService(connectorRepo, mappingRepo)
 	mappingSvc := NewMappingService(mappingRepo, connectorRepo, tagSvc)
 	writer := NewWriter(connectorRepo, mappingRepo)
+	t.Cleanup(func() { _ = writer.Close(context.Background()) })
 
 	tagEntity, err := tagSvc.Create(ctx, tag.CreateTagRequest{
 		Key:         "db.write.history",
@@ -412,8 +413,10 @@ func TestConnectorService_ListWriteHistory_ReturnsLatestWriteRecord(t *testing.T
 	require.NoError(t, err)
 
 	ts := time.Date(2026, 4, 6, 10, 0, 0, 0, time.UTC)
-	require.NoError(t, writer.WriteTagValue(ctx, tagEntity.ID, 42.5, ts))
-	require.NoError(t, writer.WriteTagValue(ctx, tagEntity.ID, 41.0, ts.Add(time.Minute)))
+	require.NoError(t, writer.RefreshMappings(ctx))
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 42.5, ts), ErrSnapshotAccepted)
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 41.0, ts.Add(time.Minute)), ErrSnapshotAccepted)
+	require.NoError(t, writer.flushDue(ctx, ts.Add(2*time.Minute), false))
 
 	records, err := connectorSvc.ListWriteHistory(ctx, connector.ID, 1)
 	require.NoError(t, err)

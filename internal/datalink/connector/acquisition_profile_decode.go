@@ -19,6 +19,7 @@ type acquisitionLimits struct {
 	NativeUnits   *int `json:"native_units,omitempty"`
 	RequestBytes  *int `json:"request_bytes,omitempty"`
 	ResponseBytes *int `json:"response_bytes,omitempty"`
+	RandomPoints  *int `json:"random_points,omitempty"`
 }
 type acquisitionCoverage struct {
 	Revision  string             `json:"revision"`
@@ -79,7 +80,7 @@ func decodeAcquisitionDeclaration(raw []byte) (acquisitionDeclaration, error) {
 		return result, ErrAcquisitionConfig
 	}
 	if nested, exists := fields["limits"]; exists {
-		if _, ok := exactAcquisitionObject(nested, "native_units", "request_bytes", "response_bytes"); !ok {
+		if _, ok := exactAcquisitionObject(nested, "native_units", "request_bytes", "response_bytes", "random_points"); !ok {
 			return result, ErrAcquisitionConfig
 		}
 	}
@@ -106,7 +107,7 @@ func decodeAcquisitionDeclaration(raw []byte) (acquisitionDeclaration, error) {
 		return result, ErrAcquisitionConfig
 	}
 	if result.Limits != nil {
-		for _, value := range []*int{result.Limits.NativeUnits, result.Limits.RequestBytes, result.Limits.ResponseBytes} {
+		for _, value := range []*int{result.Limits.NativeUnits, result.Limits.RequestBytes, result.Limits.ResponseBytes, result.Limits.RandomPoints} {
 			if value != nil && *value <= 0 {
 				return result, ErrAcquisitionConfig
 			}

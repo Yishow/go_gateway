@@ -6,7 +6,7 @@ import { hydrateStudioV2Rule } from './studioV2RuleAutosave';
 const persistedFields = [
   'device_id', 'start_address', 'count', 'data_type', 'naming_prefix', 'enabled',
   'skipped_addresses', 'scale_multiplier', 'scale_offset', 'data_format',
-  'share_enabled', 'share_start_register', 'share_stride',
+  'share_enabled', 'share_start_register', 'share_stride', 'layout_mode', 'mixed_items',
 ] as const satisfies readonly (keyof Rule)[];
 export type RuleFieldGenerations = Partial<Record<keyof Rule, number>>;
 const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
@@ -17,7 +17,7 @@ export function ruleSaveFields(action: WorkbenchV2Action): readonly (keyof Rule)
     case 'addRule': return persistedFields;
     case 'updateRule': {
       const fields: (keyof Rule)[] = persistedFields.filter(field => action.patch[field] !== undefined);
-      if (fields.some(field => ['start_address', 'count', 'data_type'].includes(field))) fields.push('skipped_addresses');
+      if (fields.some(field => ['start_address', 'count', 'data_type', 'layout_mode', 'mixed_items'].includes(field))) fields.push('skipped_addresses');
       return fields;
     }
     case 'toggleRuleEnabled': return ['enabled'];

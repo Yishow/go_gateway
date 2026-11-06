@@ -35,6 +35,14 @@ func (r *MemoryRepository) Create(ctx context.Context, group *schema.PollingGrou
 		return fmt.Errorf("輪詢群組 ID 已存在: %s", group.ID)
 	}
 
+	if group.OwnerDeviceID != nil {
+		for _, existing := range r.groups {
+			if existing.OwnerDeviceID != nil && *existing.OwnerDeviceID == *group.OwnerDeviceID {
+				return fmt.Errorf("設備已有專屬輪詢群組: %s", *group.OwnerDeviceID)
+			}
+		}
+	}
+
 	groupCopy := *group
 	r.groups[group.ID] = &groupCopy
 
@@ -46,11 +54,14 @@ func (r *MemoryRepository) Update(ctx context.Context, group *schema.PollingGrou
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, exists := r.groups[group.ID]; !exists {
+	existing, exists := r.groups[group.ID]
+	if !exists {
 		return fmt.Errorf("輪詢群組不存在: %s", group.ID)
 	}
 
 	groupCopy := *group
+	// 與 SQL 實作一致：擁有設備只在建立時寫入。
+	groupCopy.OwnerDeviceID = existing.OwnerDeviceID
 	r.groups[group.ID] = &groupCopy
 
 	return nil

@@ -62,6 +62,8 @@ type DatalinkServices struct {
 	ShareRestore               handlers.ShareRestoreBarrier
 	PointFormatRecovery        handlers.PointFormatRecovery
 	RecordingStartShareBarrier func(context.Context, workspace.RecordingStartRequest) error
+	// AcquisitionAnomalies reads anomaly history; nil makes its routes answer unavailable.
+	AcquisitionAnomalies handlers.AcquisitionAnomalyReader
 }
 
 // NewRouter 建立並配置 Gin 路由器
@@ -232,6 +234,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.POST("/devices/:id/activate", deviceHandler.Activate)
 			datalinkGroup.POST("/devices/:id/disable", deviceHandler.Disable)
 			datalinkGroup.POST("/devices/test-batch", deviceHandler.TestConnectionBatch)
+			registerAcquisitionAnomalyRoutes(datalinkGroup, datalinkServices)
 
 			// Source Rules
 			if datalinkServices.SourceRule != nil {

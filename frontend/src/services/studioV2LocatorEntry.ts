@@ -23,6 +23,7 @@ const text: Predicate = value => typeof value === 'string';
 const boolean: Predicate = value => typeof value === 'boolean';
 const number: Predicate = value => typeof value === 'number' && Number.isFinite(value);
 const identity: Predicate = value => !!safeRuntimeIdentity(value);
+const positiveInt: Predicate = value => Number.isSafeInteger(value) && Number(value) > 0;
 const nullable = (check: Predicate): Predicate => value => value === null || check(value);
 const oneOf = (values: readonly unknown[]): Predicate => value => values.includes(value);
 const dataType = oneOf(DATALINK_DATA_TYPES);
@@ -42,13 +43,31 @@ function device(value: unknown): Device {
   return record(value, { ...texts('name', 'description', 'connection_config', 'created_at', 'updated_at'), last_test_error: oneOf(['']), id: identity,
     protocol: oneOf(['modbus_tcp', 'modbus_rtu', 'modbus_udp', 'fatek_fbs', 'mc_3e', 'mqtt']), status: oneOf(['draft', 'active', 'disabled']),
     last_test_at: nullable(text), last_test_success: nullable(boolean) }, { readiness_status: oneOf(['ready', 'not_ready', 'error']),
-    availability_status: oneOf(['available', 'unavailable']), availability_reason: oneOf(['']), running: boolean }) as unknown as Device;
+    availability_status: oneOf(['available', 'unavailable']), availability_reason: oneOf(['']), running: boolean, acquisition_interval_ms: positiveInt,
+    acquisition_auto_interval: boolean, stale_threshold_ms: nullable(positiveInt), frozen_threshold_ms: (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 }) as unknown as Device;
 }
+// mixed 規則的項目：只接受後端 5.3 允許儲存的欄位，其餘一律 fail closed。
+const nonEmptyText: Predicate = value => typeof value === 'string' && value.trim() !== '';
+const mixedDataType = oneOf(DATALINK_DATA_TYPES.filter(type => type !== 'string'));
+const mixedItem: Predicate = value => {
+  try {
+    record(value, { item_id: nonEmptyText, address: nonEmptyText, data_type: mixedDataType, semantic_kind: nonEmptyText },
+      { name: text, register_offset: v => v === 0, data_format: text, quantity: text, unit: text });
+    return true;
+  } catch { return false; }
+};
+const mixedItems: Predicate = value => Array.isArray(value) && value.length > 0 && value.every(mixedItem);
 function rule(value: unknown): SourceRuleRecord {
-  return record(value, { ...texts('start_address', 'naming_prefix', 'created_at', 'updated_at'), id: identity, workspace_id: identity, device_id: identity,
+  const parsed = record(value, { ...texts('start_address', 'naming_prefix', 'created_at', 'updated_at'), id: identity, workspace_id: identity, device_id: identity,
     revision_id: identity, count: v => number(v) && Number.isInteger(v) && (v as number) > 0, data_type: dataType, enabled: boolean, locked: boolean,
     origin: oneOf(['manual', 'template']), skipped_addresses: strings }, { template_name: text, save_state: oneOf(['saved']), target_data_type: dataType,
-    scale_multiplier: number, scale_offset: number, data_format: text, share_enabled: boolean, share_start_register: nullable(number), share_stride: nullable(number) }) as unknown as SourceRuleRecord;
+    scale_multiplier: number, scale_offset: number, data_format: text, share_enabled: boolean, share_start_register: nullable(number), share_stride: nullable(number),
+    layout_mode: oneOf(['homogeneous', 'mixed']), mixed_items: mixedItems, mixed_items_error: nonEmptyText });
+  // layout_mode 與 mixed_items/mixed_items_error 必須一致：mixed 需且僅需其一，homogeneous 不得帶兩者。
+  const hasItems = Object.hasOwn(parsed, 'mixed_items');
+  const hasItemsError = Object.hasOwn(parsed, 'mixed_items_error');
+  if (parsed.layout_mode === 'mixed' ? hasItems === hasItemsError : (hasItems || hasItemsError)) reject();
+  return parsed as unknown as SourceRuleRecord;
 }
 function mapping(value: unknown): StudioV2WorkspaceMappingRecord {
   return record(value, { ...texts('address', 'tag_key', 'display_name', 'unit', 'created_at', 'updated_at'), id: identity, workspace_id: identity, device_id: identity,

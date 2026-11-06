@@ -37,6 +37,8 @@ type DeviceRuntimeStatus struct {
 	AvailabilityStatus         string     `json:"availability_status"`
 	AvailabilityReason         *string    `json:"availability_reason,omitempty"`
 	Running                    bool       `json:"running"`
+	ConfiguredIntervalMs       int        `json:"configured_interval_ms"`
+	EffectiveIntervalMs        int        `json:"effective_interval_ms"`
 	PointsTotal                int        `json:"points_total"`
 	PointsHealthy              int        `json:"points_healthy"`
 	PointsStale                int        `json:"points_stale"`
@@ -188,6 +190,7 @@ func (s *Service) deriveDeviceStatuses(
 				status.AvailabilityReason = &availabilityReason
 			}
 		}
+		status.ConfiguredIntervalMs, status.EffectiveIntervalMs = s.resolveDeviceIntervalStatus(dev, pointsByDeviceID[dev.ID], groups)
 
 		scope, scoped := scopes[dev.ID]
 		scoped = scoped || s.workspace != nil
@@ -230,7 +233,8 @@ func (s *Service) deriveDeviceStatuses(
 				continue
 			}
 
-			if (scoped && (current.DeviceID != dev.ID || !current.Readable)) || now.Sub(*pt.LastReadAt) > effectiveRuntimePointInterval(groupIntervalByID, pt) {
+			pointInterval := max(effectiveRuntimePointInterval(groupIntervalByID, pt), time.Duration(status.EffectiveIntervalMs)*time.Millisecond)
+			if (scoped && (current.DeviceID != dev.ID || !current.Readable)) || now.Sub(*pt.LastReadAt) > pointInterval {
 				status.PointsStale++
 				continue
 			}
@@ -274,6 +278,54 @@ func effectiveRuntimePointInterval(groupIntervalByID map[string]time.Duration, p
 		return interval
 	}
 	return groupInterval
+}
+
+func (s *Service) resolveDeviceIntervalStatus(
+	dev *schema.Device,
+	devicePoints []*schema.Point,
+	groups []*schema.PollingGroup,
+) (configuredMs, effectiveMs int) {
+	if dev != nil {
+		for _, g := range groups {
+			if g != nil && g.OwnerDeviceID != nil && *g.OwnerDeviceID == dev.ID && g.IntervalMs > 0 {
+				configuredMs = g.IntervalMs
+				break
+			}
+		}
+	}
+	if configuredMs <= 0 {
+		for _, pt := range devicePoints {
+			if pt == nil || pt.PollingGroupID == nil {
+				continue
+			}
+			for _, g := range groups {
+				if g != nil && g.ID == *pt.PollingGroupID && g.IntervalMs > 0 {
+					configuredMs = g.IntervalMs
+					break
+				}
+			}
+			if configuredMs > 0 {
+				break
+			}
+		}
+	}
+	if s.scheduler != nil && dev != nil {
+		if iv, ok := s.scheduler.DeviceIntervalStatus(dev.ID); ok {
+			if configuredMs <= 0 && iv.ConfiguredIntervalMs > 0 {
+				configuredMs = iv.ConfiguredIntervalMs
+			}
+			if dev.AcquisitionAutoInterval && iv.EffectiveIntervalMs > 0 {
+				effectiveMs = max(configuredMs, iv.EffectiveIntervalMs)
+			}
+		}
+	}
+	if configuredMs <= 0 {
+		configuredMs = 1000
+	}
+	if effectiveMs <= 0 {
+		effectiveMs = configuredMs
+	}
+	return configuredMs, effectiveMs
 }
 
 func deriveRuntimeDeviceState(status DeviceRuntimeStatus, running bool) string {
@@ -391,6 +443,8 @@ func runtimeStatusEqual(left, right DeviceRuntimeStatus) bool {
 		left.DeviceName != right.DeviceName ||
 		left.Protocol != right.Protocol ||
 		left.Status != right.Status ||
+		left.ConfiguredIntervalMs != right.ConfiguredIntervalMs ||
+		left.EffectiveIntervalMs != right.EffectiveIntervalMs ||
 		left.PointsTotal != right.PointsTotal ||
 		left.PointsHealthy != right.PointsHealthy ||
 		left.PointsStale != right.PointsStale ||

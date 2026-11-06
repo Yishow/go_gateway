@@ -26,6 +26,8 @@ func scanRule(row rowScanner) (*schema.SourceRule, error) {
 	var shareStride sql.NullInt64
 	var createdAt string
 	var updatedAt string
+	var layoutMode sql.NullString
+	var mixedItems sql.NullString
 	err := row.Scan(
 		&rule.ID,
 		&rule.DeviceID,
@@ -48,6 +50,8 @@ func scanRule(row rowScanner) (*schema.SourceRule, error) {
 		&createdAt,
 		&updatedAt,
 		&rule.RevisionID,
+		&layoutMode,
+		&mixedItems,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -58,6 +62,8 @@ func scanRule(row rowScanner) (*schema.SourceRule, error) {
 
 	rule.TemplateName = strings.TrimSpace(templateName.String)
 	rule.SkippedAddresses = skipped.String
+	rule.LayoutMode = ruleLayoutMode(layoutMode.String)
+	rule.MixedItems = mixedItems.String
 
 	if targetDataType.Valid {
 		dt := schema.DataType(targetDataType.String)

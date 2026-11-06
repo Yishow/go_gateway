@@ -17,33 +17,6 @@ import (
 	"go-gateway/internal/datalink/tag"
 )
 
-type pointUpdatePlan struct {
-	appliedRevision string
-	name            string
-	point           *schema.Point
-}
-
-type mappingRollbackState struct {
-	enabled              bool
-	transformPipeline    []schema.TransformStep
-	status               schema.MappingStatus
-	ruleCandidateID      string
-	proposedSignature    string
-	lastAppliedSignature string
-	blockingReason       string
-}
-
-type tagRollbackState struct {
-	dataType schema.DataType
-}
-
-type tagMappingSyncResult struct {
-	createdTagIDs     []string
-	createdMappingIDs []string
-	updatedMappings   map[string]mappingRollbackState
-	updatedTags       map[string]tagRollbackState
-}
-
 const (
 	ruleManagedTagLabelSource  = "source"
 	ruleManagedTagLabelRuleID  = "source_rule_id"
@@ -51,65 +24,6 @@ const (
 	ruleManagedTagLabelValue   = "source-rule"
 	ruleOriginManual           = "manual"
 )
-
-type CreateRuleRequest struct {
-	ID               string          `json:"id,omitempty"`
-	DeviceID         string          `json:"device_id"`
-	StartAddress     string          `json:"start_address"`
-	Count            int             `json:"count"`
-	DataType         schema.DataType `json:"data_type"`
-	NamingPrefix     string          `json:"naming_prefix"`
-	Enabled          bool            `json:"enabled"`
-	Locked           bool            `json:"locked"`
-	Origin           string          `json:"origin,omitempty"`
-	TemplateName     string          `json:"template_name,omitempty"`
-	SkippedAddresses []string        `json:"skipped_addresses,omitempty"`
-	// TargetDataType 目標資料型態（可空）。預設與 DataType 相同。
-	TargetDataType *schema.DataType `json:"target_data_type,omitempty"`
-	// ScaleMultiplier 縮放倍率（可空）。
-	ScaleMultiplier *float64 `json:"scale_multiplier,omitempty"`
-	// ScaleOffset 偏移量（可空）。
-	ScaleOffset *float64 `json:"scale_offset,omitempty"`
-	// DataFormat 字節序格式（可空）。空字串表示使用設備連線預設。
-	DataFormat string `json:"data_format,omitempty"`
-	// ShareEnabled controls whether this rule is exposed through the local Modbus Share output.
-	ShareEnabled bool `json:"share_enabled"`
-	// ShareStartRegister is the optional local Modbus holding-register start address.
-	ShareStartRegister *int `json:"share_start_register"`
-	// ShareStride is the optional number of local Modbus registers allocated per point.
-	ShareStride *int `json:"share_stride"`
-}
-
-type UpdateRuleRequest struct {
-	StartAddress     *string          `json:"start_address,omitempty"`
-	Count            *int             `json:"count,omitempty"`
-	DataType         *schema.DataType `json:"data_type,omitempty"`
-	NamingPrefix     *string          `json:"naming_prefix,omitempty"`
-	Enabled          *bool            `json:"enabled,omitempty"`
-	Locked           *bool            `json:"locked,omitempty"`
-	TemplateName     *string          `json:"template_name,omitempty"`
-	SkippedAddresses *[]string        `json:"skipped_addresses,omitempty"`
-	// TargetDataType 目標資料型態（可空）。
-	TargetDataType    *schema.DataType `json:"target_data_type,omitempty"`
-	TargetDataTypeSet bool             `json:"-"`
-	// ScaleMultiplier 縮放倍率（可空）。
-	ScaleMultiplier    *float64 `json:"scale_multiplier,omitempty"`
-	ScaleMultiplierSet bool     `json:"-"`
-	// ScaleOffset 偏移量（可空）。
-	ScaleOffset    *float64 `json:"scale_offset,omitempty"`
-	ScaleOffsetSet bool     `json:"-"`
-	// DataFormat 字節序格式（可空）；傳 null 並搭配 DataFormatSet 可清空為連線預設。
-	DataFormat    *string `json:"data_format,omitempty"`
-	DataFormatSet bool    `json:"-"`
-	// ShareEnabled controls whether this rule is exposed through the local Modbus Share output.
-	ShareEnabled *bool `json:"share_enabled,omitempty"`
-	// ShareStartRegister is the optional local Modbus holding-register start address.
-	ShareStartRegister    *int `json:"share_start_register,omitempty"`
-	ShareStartRegisterSet bool `json:"-"`
-	// ShareStride is the optional number of local Modbus registers allocated per point.
-	ShareStride    *int `json:"share_stride,omitempty"`
-	ShareStrideSet bool `json:"-"`
-}
 
 func NewService(repo Repository, deviceSvc *device.Service, pointSvc *point.Service, runtimeSync RuntimeSyncer) *Service {
 	return &Service{
@@ -148,11 +62,11 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (result *sc
 	defer finishAcquisition()
 	defer func(finalizeCtx context.Context) { err = s.finalizePointWrites(finalizeCtx, err) }(ctx)
 
-	plannedAddresses, err := buildPlannedPointAddresses(strings.TrimSpace(strings.ToUpper(req.StartAddress)), req.Count, req.DataType, deviceRecord.Protocol)
+	plan, err := planCreateRulePoints(&req, deviceRecord.Protocol, sourceAcquisitionIdentity(*deviceRecord))
 	if err != nil {
 		return nil, contextualRuleValidationError(id, req.StartAddress, deviceRecord.Protocol, err)
 	}
-	if err := s.preflightPointAddresses(ctx, req.DeviceID, nil, plannedAddresses, req.SkippedAddresses); err != nil {
+	if err := s.preflightPointAddresses(ctx, req.DeviceID, nil, plan.addresses, req.SkippedAddresses); err != nil {
 		return nil, err
 	}
 	enabled, err := s.initialRuleEnabled(ctx, req.Enabled, req.DeviceID)
@@ -183,6 +97,8 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (result *sc
 		ShareEnabled:       req.ShareEnabled,
 		ShareStartRegister: cloneIntPtr(req.ShareStartRegister),
 		ShareStride:        cloneIntPtr(req.ShareStride),
+		LayoutMode:         plan.mixedLayout(),
+		MixedItems:         plan.encoded,
 		CreatedAt:          now,
 		UpdatedAt:          now,
 	}
@@ -196,7 +112,7 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (result *sc
 	createdPointIDs := make([]string, 0, req.Count)
 	links := make([]*schema.SourceRuleLink, 0, req.Count)
 	createdPoints := make([]*schema.Point, 0, req.Count)
-	defaultPollingGroupID, err := s.resolveDerivedPointPollingGroupID(ctx)
+	defaultPollingGroupID, err := s.resolveDerivedPointPollingGroupID(ctx, req.DeviceID)
 	if err != nil {
 		if rollbackErr := s.rollbackCreatedRule(ctx, rule.ID, rule.RevisionID, nil, tagMappingSyncResult{}); rollbackErr != nil {
 			return nil, s.dirtyUnknown(ctx)
@@ -204,7 +120,7 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (result *sc
 		return nil, err
 	}
 
-	for _, address := range plannedAddresses {
+	for _, address := range plan.addresses {
 		if containsAddress(req.SkippedAddresses, address) {
 			continue
 		}
@@ -213,11 +129,9 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (result *sc
 			DeviceID:       rule.DeviceID,
 			Name:           buildPointName(rule.NamingPrefix, address),
 			Address:        address,
-			DataType:       rule.DataType,
-			DataFormat:     rule.DataFormat,
+			DataType:       plan.dataType(address, rule.DataType),
+			DataFormat:     plan.dataFormat(address, rule.DataFormat),
 			Mode:           schema.PointModeReadOnly,
-			Function:       "",
-			Description:    "",
 			PollingGroupID: defaultPollingGroupID,
 		})
 		if createErr != nil {
@@ -362,11 +276,7 @@ func (s *Service) syncRuleLinksEnabled(ctx context.Context, ruleID string, enabl
 	if err != nil {
 		return nil, fmt.Errorf("取得來源規則連結失敗: %w", err)
 	}
-	defaultPollingGroupID, err := s.resolveDerivedPointPollingGroupID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+	var defaultPollingGroupID *string
 	appliedPlans := make([]pointUpdatePlan, 0, len(links))
 	for _, link := range links {
 		pointRecord, getErr := s.pointSvc.GetByID(ctx, link.PointID)
@@ -374,10 +284,13 @@ func (s *Service) syncRuleLinksEnabled(ctx context.Context, ruleID string, enabl
 			return nil, s.finishRollbackErrors(ctx, fmt.Errorf("取得衍生點位失敗: %w", getErr), s.rollbackUpdatedPoints(ctx, appliedPlans))
 		}
 		original := pointRecord
-		updateReq := point.UpdatePointRequest{
-			Enabled: &enabled,
-		}
-		if enabled && pointRecord.PollingGroupID == nil && defaultPollingGroupID != nil {
+		updateReq := point.UpdatePointRequest{Enabled: &enabled}
+		if enabled && pointRecord.PollingGroupID == nil {
+			if defaultPollingGroupID == nil {
+				if defaultPollingGroupID, getErr = s.resolveDerivedPointPollingGroupID(ctx, pointRecord.DeviceID); getErr != nil {
+					return nil, s.finishRollbackErrors(ctx, getErr, s.rollbackUpdatedPoints(ctx, appliedPlans))
+				}
+			}
 			updateReq.PollingGroupID = defaultPollingGroupID
 		}
 		if s.syncUnchangedRulePoint(ctx, original, updateReq) {
@@ -446,21 +359,18 @@ func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) (err 
 }
 
 // resolveDerivedPointPollingGroupID 取得來源規則衍生點位應使用的預設輪詢群組。
-func (s *Service) resolveDerivedPointPollingGroupID(ctx context.Context) (*string, error) {
+func (s *Service) resolveDerivedPointPollingGroupID(ctx context.Context, deviceID string) (*string, error) {
 	if s.pointSvc == nil {
 		return nil, nil
 	}
-
-	group, err := s.pointSvc.EnsureDefaultPollingGroup(ctx)
+	group, err := s.pointSvc.EnsureDevicePollingGroup(ctx, deviceID)
 	if err != nil {
 		return nil, fmt.Errorf("確保預設輪詢群組失敗: %w", err)
 	}
 	if group == nil {
 		return nil, nil
 	}
-
-	groupID := group.ID
-	return &groupID, nil
+	return common.Ptr(group.ID), nil
 }
 
 func (s *Service) syncRuleManagedTagDataType(

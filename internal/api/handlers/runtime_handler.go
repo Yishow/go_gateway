@@ -71,6 +71,8 @@ type runtimeCollectorResponse struct {
 	WorkspaceProjectionVersion string     `json:"workspace_projection_version,omitempty"`
 	ProjectionMessage          string     `json:"projection_message,omitempty"`
 	ProjectionCode             string     `json:"projection_code,omitempty"`
+	ConfiguredIntervalMs       int        `json:"configured_interval_ms"`
+	EffectiveIntervalMs        int        `json:"effective_interval_ms"`
 }
 
 type runtimeWorkspaceContextResponse struct {
@@ -479,5 +481,7 @@ func mapRuntimeCollectorResponse(collectorStatus datalinkruntime.DeviceRuntimeSt
 		WorkspaceProjectionVersion: collectorStatus.WorkspaceProjectionVersion,
 		ProjectionMessage:          collectorStatus.ProjectionMessage,
 		ProjectionCode:             collectorStatus.ProjectionCode,
+		ConfiguredIntervalMs:       collectorStatus.ConfiguredIntervalMs,
+		EffectiveIntervalMs:        collectorStatus.EffectiveIntervalMs,
 	}
 }

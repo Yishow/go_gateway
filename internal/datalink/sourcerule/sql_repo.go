@@ -21,7 +21,7 @@ const updateRuleQuery = `
 		    enabled = ?, locked = ?, origin = ?, template_name = ?, skipped_addresses = ?,
 		    target_data_type = ?, scale_multiplier = ?, scale_offset = ?, data_format = ?,
 		    share_enabled = ?, share_start_register = ?, share_stride = ?,
-		    updated_at = ?, revision_id = ?
+		    layout_mode = ?, mixed_items = ?, updated_at = ?, revision_id = ?
 		WHERE id = ?
 	`
 
@@ -38,8 +38,8 @@ func (r *SQLRepository) Create(ctx context.Context, rule *schema.SourceRule) err
 			enabled, locked, origin, template_name, skipped_addresses,
 			target_data_type, scale_multiplier, scale_offset, data_format,
 			share_enabled, share_start_register, share_stride, revision_id,
-			created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			created_at, updated_at, layout_mode, mixed_items
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var targetDataType any
@@ -89,6 +89,8 @@ func (r *SQLRepository) Create(ctx context.Context, rule *schema.SourceRule) err
 		rule.RevisionID,
 		rule.CreatedAt,
 		rule.UpdatedAt,
+		storedLayoutMode(rule),
+		nullableMixedItems(rule),
 	)
 	if err != nil {
 		return fmt.Errorf("建立來源規則失敗: %w", err)
@@ -145,6 +147,8 @@ func (r *SQLRepository) updateRuleRevision(ctx context.Context, rule, expected *
 		rule.ShareEnabled,
 		shareStartRegister,
 		shareStride,
+		storedLayoutMode(rule),
+		nullableMixedItems(rule),
 		rule.UpdatedAt,
 		rule.RevisionID,
 		rule.ID,
@@ -201,7 +205,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.SourceR
 		       enabled, locked, origin, template_name, skipped_addresses,
 		       target_data_type, scale_multiplier, scale_offset, data_format,
 		       share_enabled, share_start_register, share_stride,
-		       created_at, updated_at, revision_id
+		       created_at, updated_at, revision_id, layout_mode, mixed_items
 		FROM source_rules WHERE id = ?
 	`, id)
 	return scanRule(row)

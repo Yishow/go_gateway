@@ -35,7 +35,7 @@ func (c *MC3EConnector) ReadPlanned(ctx context.Context, req connector.PlannedRe
 		case request.Kind == plannedReadKindRandom:
 			items := make([]mcprotocol.RandomReadItem, len(request.Units))
 			for i, u := range request.Units {
-				items[i] = mcprotocol.RandomReadItem{Device: u.Area, Addr: u.Address}
+				items[i] = mcprotocol.RandomReadItem{Device: u.Area, Addr: u.Address, DoubleWord: u.Bits == 32}
 			}
 			words, readErr = client.RandomReadExact(items)
 		case request.Points[0].NativeBits == 1:

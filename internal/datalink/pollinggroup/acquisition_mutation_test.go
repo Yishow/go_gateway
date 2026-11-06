@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"os"
 	"path/filepath"
 	"testing"
 
+	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/point"
 
 	"github.com/stretchr/testify/require"
@@ -48,10 +48,7 @@ func acquisitionDeleteFixture(t *testing.T) (*sql.DB, *SQLRepository, string) {
 	require.NoError(t, err)
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { db.Close() })
-	raw, err := os.ReadFile("../schema/migrations/001_initial_schema_sqlite.sql")
-	require.NoError(t, err)
-	_, err = db.ExecContext(t.Context(), string(raw))
-	require.NoError(t, err)
+	require.NoError(t, datalink.NewMigrator().Migrate(db))
 	for _, query := range []string{
 		`INSERT INTO devices(id,name,protocol,status) VALUES('a','a','modbus_tcp','active'),('b','b','modbus_tcp','active'),('c','c','modbus_tcp','active')`,
 		`INSERT INTO polling_groups(id,name) VALUES('g','delete-me'),('other','keep-me')`,

@@ -36,6 +36,7 @@ func (s *Scheduler) AddDevice(device *schema.Device) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.addDeviceLocked(cfg)
+	s.setDeviceAutoIntervalLocked(device.ID, device.AcquisitionAutoInterval)
 }
 
 func deviceConfiguration(device *schema.Device) deviceConfig {
@@ -77,6 +78,7 @@ func (s *Scheduler) RemoveDevice(deviceID string) {
 
 func (s *Scheduler) removeDeviceLocked(deviceID string) {
 	delete(s.deviceConfigs, deviceID)
+	delete(s.deviceIntervals, deviceID)
 	delete(s.deviceBreakers, deviceID)
 	delete(s.acquisitionDowngrades, deviceID)
 	delete(s.acquisitionGeometry, deviceID)
@@ -116,6 +118,7 @@ func (s *Scheduler) AddPollingGroup(group *schema.PollingGroup) {
 	defer s.mu.Unlock()
 
 	s.ensureDeviceLocks()
+	s.storePollingGroupLocked(group)
 
 	if previous, exists := s.groupTickers[group.ID]; exists {
 		close(previous.stopCh)
@@ -134,10 +137,37 @@ func (s *Scheduler) RemovePollingGroup(groupID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.removePollingGroupConfigLocked(groupID)
 	if gt, exists := s.groupTickers[groupID]; exists {
 		close(gt.stopCh)
 		gt.ticker.Stop()
 		delete(s.groupTickers, groupID)
+	}
+	s.pruneAcquisitionEvidenceLocked()
+}
+
+// RemoveDeviceOwnedPollingGroups stops the tickers of polling groups owned by
+// deviceID. Shared groups are untouched; the device's owned group is added back
+// when the device is synchronised again.
+func (s *Scheduler) RemoveDeviceOwnedPollingGroups(deviceID string) {
+	if s == nil || deviceID == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for groupID, gt := range s.groupTickers {
+		if gt == nil || gt.group == nil || gt.group.OwnerDeviceID == nil || *gt.group.OwnerDeviceID != deviceID {
+			continue
+		}
+		s.removePollingGroupConfigLocked(groupID)
+		close(gt.stopCh)
+		gt.ticker.Stop()
+		delete(s.groupTickers, groupID)
+	}
+	for groupID, group := range s.configuredGroups {
+		if group != nil && group.OwnerDeviceID != nil && *group.OwnerDeviceID == deviceID {
+			s.removePollingGroupConfigLocked(groupID)
+		}
 	}
 	s.pruneAcquisitionEvidenceLocked()
 }

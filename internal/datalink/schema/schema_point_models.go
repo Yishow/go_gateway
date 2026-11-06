@@ -153,6 +153,9 @@ type PollingGroup struct {
 	// Enabled 是否啟用
 	Enabled bool `json:"enabled" db:"enabled"`
 
+	// OwnerDeviceID 設備專屬群組的擁有設備；nil 表示共用群組（例如 Auto Polling）。
+	OwnerDeviceID *string `json:"owner_device_id" db:"owner_device_id"`
+
 	// CreatedAt 建立時間
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 

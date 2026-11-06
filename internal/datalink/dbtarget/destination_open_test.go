@@ -1,6 +1,7 @@
 package dbtarget
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"os"
@@ -128,11 +129,12 @@ func TestProductionGroupOutageRecoveryLegacyWriterSkipsMappingsOwnedByAGroup(t *
 
 	owned := false
 	writer := NewWriterWithConfig(connectorRepo, mappingRepo, WriterConfig{
-		TagReader: tagSvc,
+		TagReader: tagSvc, FlushTick: make(chan time.Time),
 		SuppressMapping: func(connectorID, tagID string) bool {
 			return owned && connectorID == connector.ID && tagID == tagEntity.ID
 		},
 	})
+	t.Cleanup(func() { _ = writer.Close(context.Background()) })
 	ts := time.Date(2026, 3, 16, 12, 30, 0, 0, time.UTC)
 	rows := func() int {
 		db, err := sql.Open("sqlite", targetDSN)
@@ -143,11 +145,13 @@ func TestProductionGroupOutageRecoveryLegacyWriterSkipsMappingsOwnedByAGroup(t *
 		return n
 	}
 
-	require.NoError(t, writer.WriteTagValue(ctx, tagEntity.ID, 1.5, ts))
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 1.5, ts), ErrSnapshotAccepted)
+	require.NoError(t, writer.flushDue(ctx, ts.Add(time.Minute), false))
 	require.Equal(t, 1, rows(), "before a group owns the output the legacy writer works as before")
 
 	owned = true
-	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 2.5, ts.Add(time.Minute)), ErrOutputOwnedByWriteGroup)
+	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 2.5, ts.Add(time.Minute)), ErrSnapshotAccepted)
+	require.NoError(t, writer.flushDue(ctx, ts.Add(2*time.Minute), false))
 	require.Equal(t, 1, rows(), "once a group owns the output the legacy writer stops, so there is exactly one writer")
 
 	otherTag, err := tagSvc.Create(ctx, tag.CreateTagRequest{Key: "pressure", DisplayName: "Pressure", DataType: schema.DataTypeFloat64})
@@ -157,7 +161,9 @@ func TestProductionGroupOutageRecoveryLegacyWriterSkipsMappingsOwnedByAGroup(t *
 		WriteMode: schema.DatabaseWriteModeUpsert, TimestampColumn: common.Ptr("ts"),
 	})
 	require.NoError(t, err)
-	require.NoError(t, writer.WriteTagValue(ctx, otherTag.ID, 9.5, ts.Add(2*time.Minute)))
+	require.NoError(t, writer.RefreshMappings(ctx))
+	require.ErrorIs(t, writer.WriteTagValue(ctx, otherTag.ID, 9.5, ts.Add(2*time.Minute)), ErrSnapshotAccepted)
+	require.NoError(t, writer.flushDue(ctx, ts.Add(3*time.Minute), false))
 	require.Equal(t, 2, rows(), "tags the group does not own are unaffected")
 }
 
@@ -181,12 +187,19 @@ func TestRevisionBoundBacklogLegacyWriterReportsOwnedOutputAsNotApplicable(t *te
 	})
 	require.NoError(t, err)
 	writer := NewWriterWithConfig(connectorRepo, mappingRepo, WriterConfig{
-		TagReader:       tagSvc,
+		TagReader: tagSvc, FlushTick: make(chan time.Time),
 		SuppressMapping: func(string, string) bool { return true },
 	})
+	t.Cleanup(func() { _ = writer.Close(context.Background()) })
 
-	err = writer.WriteTagValue(ctx, tagEntity.ID, 1.5, time.Now())
-	require.ErrorIs(t, err, ErrOutputOwnedByWriteGroup, "a write that never happened must not look like success (nil)")
+	at := time.Now()
+	err = writer.WriteTagValue(ctx, tagEntity.ID, 1.5, at)
+	require.ErrorIs(t, err, ErrSnapshotAccepted, "acceptance must not claim that SQL was written")
+	require.NoError(t, writer.flushDue(ctx, at.Add(time.Minute), false))
+	history := listWriteHistory(connector.ID, 10)
+	require.Len(t, history, 1)
+	require.Equal(t, "skipped", history[0].Status, "an owned output must not record a successful legacy write")
+	require.Equal(t, "write_group_owned", history[0].SkipReason)
 }
 
 func TestRevisionBoundBacklogCredentialRejectionBlocksOnlyThatDestination(t *testing.T) {

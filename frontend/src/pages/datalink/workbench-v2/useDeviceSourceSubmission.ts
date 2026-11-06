@@ -5,6 +5,7 @@ import type { MutableRefObject } from 'react';
 import type { Device, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
 import type { WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { isStudioV2DeviceValid, toBackendConnectionConfig } from '../../../features/datalink/workbench-v2/state/studioV2DeviceAutosave';
+import { acquisitionMatches } from '../../../features/datalink/workbench-v2/state/acquisitionSettings';
 import type { StudioV2WorkspaceDeviceRecord } from '../../../services/studioV2WorkspaceDevices';
 import type { DeviceSourceOutcome, DeviceSourcePort } from './deviceSourceSubmission';
 
@@ -36,6 +37,7 @@ function comparable(value: unknown): string {
 }
 function matches(record: StudioV2WorkspaceDeviceRecord, entry: Entry): boolean {
   if (record.id !== entry.deviceId || record.name !== entry.snapshot.name || record.description !== entry.snapshot.description || record.protocol !== entry.snapshot.protocol) return false;
+  if (!acquisitionMatches(record, entry.snapshot.acquisition)) return false;
   try { return comparable(JSON.parse(record.connection_config)) === comparable(toBackendConnectionConfig(entry.snapshot)); }
   catch { return false; }
 }

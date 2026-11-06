@@ -23,6 +23,7 @@ func recordWriteHistory(connectorID string, record WriteHistoryRecord) {
 	}
 	record.Status = strings.TrimSpace(record.Status)
 	record.ErrorSummary = strings.TrimSpace(record.ErrorSummary)
+	record.SkipReason = strings.TrimSpace(record.SkipReason)
 	record.TableName = strings.TrimSpace(record.TableName)
 	if record.ObservedAt.IsZero() {
 		record.ObservedAt = time.Now().UTC()
@@ -63,6 +64,16 @@ func listWriteHistory(connectorID string, limit int) []WriteHistoryRecord {
 	}
 	copied := slices.Clone(records)
 	slices.SortFunc(copied, func(a, b WriteHistoryRecord) int {
+		aTime, bTime := a.ObservedAt, b.ObservedAt
+		if a.AttemptedAt != nil {
+			aTime = *a.AttemptedAt
+		}
+		if b.AttemptedAt != nil {
+			bTime = *b.AttemptedAt
+		}
+		if comparison := bTime.Compare(aTime); comparison != 0 {
+			return comparison
+		}
 		return b.ObservedAt.Compare(a.ObservedAt)
 	})
 

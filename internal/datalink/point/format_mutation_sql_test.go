@@ -24,6 +24,10 @@ func formatFixture(t *testing.T) (*sql.DB, *Service, FormatMutationRequest) {
 	}
 	_, err := db.ExecContext(t.Context(), `ALTER TABLE source_rules ADD COLUMN data_format TEXT`)
 	require.NoError(t, err)
+	_, err = db.ExecContext(t.Context(), `ALTER TABLE source_rules ADD COLUMN layout_mode TEXT NOT NULL DEFAULT 'homogeneous'`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(t.Context(), `ALTER TABLE source_rules ADD COLUMN mixed_items TEXT`)
+	require.NoError(t, err)
 	dev, _ := setupTestData(t, db)
 	repo := NewSQLRepository(db)
 	p := createTestPoint(dev)

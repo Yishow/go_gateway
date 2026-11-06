@@ -58,5 +58,49 @@
       "how": "The existing converter sends an instant; the server-reviewed boundary remains authoritative. Review before applying.",
       "example": "A future local time agreed for the switch."
     }
+  },
+  "acquisition": {
+    "interval": {
+      "title": "Acquisition interval",
+      "what": "How often this device reads all of its points.",
+      "how": "Enter 100 to 3,600,000 ms; after saving, this device's own polling group uses it.",
+      "example": "1000 reads once per second."
+    },
+    "autoInterval": {
+      "title": "Automatic interval adjustment",
+      "what": "Stretches the interval actually used when scans take longer than the configured interval.",
+      "how": "When on, the interval steps back toward the configured value after scans stay on time; the effective value is shown below.",
+      "example": "Configured 500 ms with 700 ms scans stretches the effective value."
+    },
+    "staleThreshold": {
+      "title": "Stale threshold",
+      "what": "How long a point may go without a successful read before a stale anomaly is recorded.",
+      "how": "Enter milliseconds above 0; leave empty for the default (interval x5, at least 10 seconds).",
+      "example": "5000 records an anomaly after 5 seconds without a successful read."
+    },
+    "frozenThreshold": {
+      "title": "Frozen value threshold",
+      "what": "Reads succeed but the value never changes; after this time a frozen anomaly is recorded.",
+      "how": "Enter 0 or more milliseconds; 0 disables it.",
+      "example": "600000 records it after 10 minutes without any change."
+    },
+    "profile": {
+      "title": "Acquisition optimization profile",
+      "what": "Declares which read methods the PLC supports, so the system can decide whether random reads may merge scattered addresses.",
+      "how": "Choose a profile only when the PLC model is confirmed; if unsure keep undeclared or safe-v1, which use safe contiguous reads.",
+      "example": "Choose mitsubishi-q-iqr-3e-binary-v1 for a Q/iQ-R CPU."
+    },
+    "randomPoints": {
+      "title": "Random point limit",
+      "what": "The most points one random read request may contain.",
+      "how": "Defaults to the protocol limit (MC 192, FATEK 64 weighted words) and can only be lowered; larger sets are split into several requests.",
+      "example": "Lower it to 120 when the PLC responds slowly."
+    },
+    "contiguous": {
+      "title": "Contiguous block aggregation",
+      "what": "Modbus merges points with adjacent addresses into one read.",
+      "how": "No profile is needed; keeping point addresses contiguous reduces the number of requests.",
+      "example": "40001–40010 are read in a single request."
+    }
   }
 }

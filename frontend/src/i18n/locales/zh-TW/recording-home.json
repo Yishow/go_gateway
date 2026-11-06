@@ -297,5 +297,76 @@
     "notRunning": "目前未開始記錄",
     "blocked": "採集已停止接收或受阻，請處理顯示的問題",
     "backlog": "仍有較早版本的資料等待交付；不會因設定更新而改寫其目的地。"
+  },
+  "acquisitionAnomalies": {
+    "button": "採集異常",
+    "buttonActive": "採集異常 {{count}}",
+    "buttonUnknown": "採集異常：狀態未知",
+    "buttonChecking": "採集異常：確認中",
+    "title": "{{device}} 的採集異常",
+    "description": "列出這台設備記錄到的斷線、未更新與數值凍結事件，最新的在最前面。異常只標示採集資料不可靠的期間，不會變更設定或記錄。",
+    "filters": "異常篩選",
+    "kindFilter": "類型",
+    "stateFilter": "狀態",
+    "allKinds": "全部類型",
+    "allStates": "全部狀態",
+    "kinds": {
+      "disconnected": "斷線",
+      "stale": "未更新",
+      "frozen": "數值凍結"
+    },
+    "states": {
+      "active": "進行中",
+      "ended": "已結束"
+    },
+    "reasonSeparator": "；",
+    "reasons": {
+      "connection-failed": "連線失敗",
+      "circuit-open": "連續失敗後暫停連線",
+      "breaker-open": "連續失敗後暫停連線",
+      "no-successful-read": "沒有成功讀取",
+      "value-unchanged": "數值沒有變化",
+      "monitoring-stopped": "已停止監看",
+      "frozen-detection-disabled": "已關閉凍結偵測",
+      "unknown": "其他原因"
+    },
+    "columns": {
+      "kind": "類型",
+      "state": "狀態",
+      "startedAt": "開始",
+      "endedAt": "結束",
+      "duration": "持續時間",
+      "address": "點位位址",
+      "lastValue": "最後數值"
+    },
+    "ongoing": "進行中",
+    "ongoingDuration": "仍在持續",
+    "deviceLevel": "整台設備",
+    "pointRemoved": "點位已不存在",
+    "noValue": "無紀錄",
+    "emptyValue": "空值",
+    "duration": {
+      "underSecond": "不到 1 秒",
+      "hours": "{{count}} 小時",
+      "minutes": "{{count}} 分",
+      "seconds": "{{count}} 秒"
+    },
+    "loading": "正在讀取採集異常…",
+    "empty": "這台設備沒有採集異常紀錄。",
+    "emptyFiltered": "沒有符合篩選條件的異常。",
+    "pageEmpty": "這一頁已沒有事件，較舊的事件可能已被移除。",
+    "firstPage": "回到第一頁",
+    "tableRegion": "採集異常事件",
+    "pageStatus": "第 {{page}}／{{pages}} 頁 · 共 {{count}} 筆",
+    "retry": "重試",
+    "close": "關閉",
+    "errors": {
+      "invalid_filter": "異常篩選條件被拒絕。請清除篩選後再試一次。",
+      "device_not_found": "這台設備已不存在。請關閉視窗並重新整理設備列表。",
+      "capability_unavailable": "此閘道目前無法提供採集異常記錄。請檢查 runtime 設定。",
+      "unavailable": "目前無法讀取採集異常，請稍後重試。",
+      "malformed_response": "閘道回傳的異常資料無法辨識。請重試；若持續發生，請檢查閘道版本。",
+      "unknown": "無法讀取採集異常。請檢查與閘道的連線後重試。"
+    }
   }
 }

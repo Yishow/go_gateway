@@ -17,7 +17,7 @@ func readShareList(ctx context.Context, q shareSQLReader, filter ListFilter) ([]
 		       enabled, locked, origin, template_name, skipped_addresses,
 		       target_data_type, scale_multiplier, scale_offset, data_format,
 		       share_enabled, share_start_register, share_stride,
-		       created_at, updated_at, revision_id
+		       created_at, updated_at, revision_id, layout_mode, mixed_items
 		FROM source_rules
 		WHERE 1 = 1
 	`

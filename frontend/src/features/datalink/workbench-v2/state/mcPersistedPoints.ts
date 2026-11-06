@@ -55,7 +55,19 @@ function unavailable(scope: PersistedMCPointsScope | undefined, reason: string):
   return { status: 'unavailable', ...(scope ? { scope } : {}), points: [], reason };
 }
 
-function expectedAddresses(rule: Pick<SourceRuleRecord, 'start_address' | 'count' | 'data_type' | 'skipped_addresses'>): string[] | null {
+function expectedAddresses(
+  rule: Pick<SourceRuleRecord, 'start_address' | 'count' | 'data_type' | 'skipped_addresses' | 'layout_mode' | 'mixed_items'>,
+): string[] | null {
+  if (rule.layout_mode === 'mixed') {
+    if (!Array.isArray(rule.mixed_items) || rule.mixed_items.length === 0) {
+      return null;
+    }
+    const items = rule.mixed_items.map((item) => normalizeAddress(item.address ?? ''));
+    if (items.some((addr) => addr === '') || new Set(items).size !== items.length) {
+      return null;
+    }
+    return items;
+  }
   if (!Number.isInteger(rule.count) || rule.count < 0) {
     return null;
   }

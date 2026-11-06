@@ -18,8 +18,15 @@ const (
 // TargetDeliveryOutcome records one target's independent delivery result.
 // Err is nil when that target accepted the value.
 type TargetDeliveryOutcome struct {
-	Target TargetName
-	Err    error
+	Target   TargetName
+	Err      error
+	Accepted bool
+}
+
+// AsyncAcceptingWriter reports whether a value was accepted for later delivery.
+// Acceptance is not evidence that a destination has committed the value.
+type AsyncAcceptingWriter interface {
+	AcceptTagValue(context.Context, string, any, time.Time) (bool, error)
 }
 
 // TargetOutcomeWriter is an optional richer target seam. Implementations must
