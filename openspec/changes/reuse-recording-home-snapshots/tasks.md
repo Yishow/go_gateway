@@ -26,3 +26,9 @@
 契約澄清：source inspection 發現 GroupEditor 的明確來源 discovery 是舊 adapter 的既有 caller。2.3 僅重定位 editor ownership，不刪除其既有 authority／await／readback，也不改用 compact evidence；新舊路徑須明確歸屬與提交。
 
 - [x] 3.4 [after: 2.3] 修復review與parity驗證發現：ECMAScript BOM／NEL label trim精確一致；persisted null／non-array skips與mapped empty skips不得提升available，合法unconfigured empty保留。以49-fixture parity、十項persisted-source skip regression、四package focused Go tests／vet與new-from-base lint確認，逐檔歸屬review修復，不更動已完成任務歷史。
+
+## 4. 最終 Mac 驗收腳本（雲端只撰寫）
+
+- [x] 4.1 [after: 3.2] 撰寫真 /studio/v2 routed compact mock 驗收：editor 返回一個摘要 GET、普通 source modal Close 零新增 GET、成功 source save 獨立一次 revalidation；涵蓋 filter/page/scroll/focus、Back/Forward、A→B→A 舊回覆、失敗唯讀 retry、當前 locator proof 拒絕與可見頁 request ceiling。完整 stateful fixture 先以 unit regression 驗證，禁止 catch-all 假成功與 production test setter；保留 cancelled 和 delivered late response 的證據區分。雲端只執行 helper unit/lint/types/discovery，不跑 browser。
+- [x] 4.2 [after: 3.2] 重用 A 已驗證 owned embedded server helper，透過正式 API 在可丟棄 loopback SQLite seed 20 draft devices／20 disabled rules／2,000 points，sentinel 證明無 protocol 連線；撰寫真 endpoint canonical parity、bytes、return request ledger 與 read-only configuration table hash 驗收，不新增 authority endpoint、不測外部 PLC/DB。先跑 helper RED/GREEN 與安全 build/start/seed/HTTP/SQLite smoke，browser 結果保持 NOT RUN。
+- [x] 4.3 [after: 4.1, 4.2] 以 c296c2cdb7ab5db5e673c9fc6538cdd9c6326ffb 為範圍基準完成 harness lint/types/discovery、diff/line、Spectra verify 與獨立 review，保存完整 commit packet 與 Mac 指令；既有 3.1／3.3 保留未完成，腳本存在不得冒稱 Mac browser 已通過。
