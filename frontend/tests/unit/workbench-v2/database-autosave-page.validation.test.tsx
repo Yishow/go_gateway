@@ -1,3 +1,4 @@
+import { recordingHomeSourceContext } from '@/hooks/datalink/recordingHomeSourceCache';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -39,7 +40,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
     await waitFor(() => {
       expect(studioV2WorkspaceDatabaseAPI.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
         table: 'sensor_values_v2',
-      }));
+      }), { baseURL: recordingHomeSourceContext().apiOrigin });
       expect(screen.getByTestId('connector-save-state')).toHaveTextContent('saved');
     });
 

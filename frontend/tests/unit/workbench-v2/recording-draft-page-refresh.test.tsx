@@ -1,3 +1,4 @@
+import { configReadContext, configReadKey } from '@/hooks/datalink/recordingConfigRefresh';
 import { useState } from 'react';
 import { RecordingDraftNavigation, useRecordingDraftGuard, useRecordingReadUnavailable } from '../../../src/features/datalink/workbench-v2/recording-editor/RecordingDraftNavigation';
 import { studioV2WorkspaceKeys } from '../../../src/hooks/datalink/keys';
@@ -23,7 +24,8 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
     return <input aria-label="record draft" data-unavailable={unavailable} value={text} onChange={event => setText(event.target.value)} />;
   },
 }));
-vi.mock('../../../src/services/studioV2Workspace', () => ({ studioV2WorkspaceAPI: mocks.workspace }));
+vi.mock('../../../src/services/studioV2Workspace', async importOriginal => ({
+  ...await importOriginal<typeof import('../../../src/services/studioV2Workspace')>(), studioV2WorkspaceAPI: mocks.workspace }));
 vi.mock('../../../src/services/studioV2WorkspaceDevices', () => ({ studioV2WorkspaceDevicesAPI: mocks.devices }));
 vi.mock('../../../src/services/studioV2Rules', () => ({ studioV2RulesAPI: mocks.rules }));
 vi.mock('../../../src/services/studioV2Mappings', () => ({ studioV2MappingsAPI: mocks.mappings }));
@@ -64,7 +66,7 @@ describe('DatalinkWorkbenchV2Page Modbus Share status', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={queryClient}><RecordingDraftNavigation><DatalinkWorkbenchV2Page /></RecordingDraftNavigation></QueryClientProvider>);
     fireEvent.change(await screen.findByLabelText('record draft'), { target: { value: 'Unsaved page fields' } });
-    const key = kind === 'workspace' ? studioV2WorkspaceKeys.bootstrap() : studioV2WorkspaceKeys.mappings();
+    const key = kind === 'workspace' ? configReadKey(studioV2WorkspaceKeys.bootstrap(), configReadContext()) : studioV2WorkspaceKeys.mappings();
     const read = kind === 'workspace' ? mocks.workspace.get : mocks.mappings.list;
     const saved = queryClient.getQueryData(key);
     read.mockRejectedValue(new Error('offline'));

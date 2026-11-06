@@ -10,7 +10,8 @@ import { studioV2WriteGroupLifecycleAPI } from '@/services/studioV2WriteGroupLif
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import { fixture, group, scope } from './recording-home-guidance-fixtures';
 import type { RecordingHomeScope } from '@/features/datalink/workbench-v2/recording-home/recordingHomeProjection';
-vi.mock('@/services/studioV2Workspace', () => ({ studioV2WorkspaceAPI: { get: vi.fn() } }));
+vi.mock('@/services/studioV2Workspace', async importOriginal => ({
+  ...await importOriginal<typeof import('@/services/studioV2Workspace')>(), studioV2WorkspaceAPI: { get: vi.fn() } }));
 vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({ studioV2WorkspaceWriteGroupsAPI: {
   list: vi.fn(), delivery: vi.fn(), create: vi.fn(), apply: vi.fn(), schemaApply: vi.fn(), update: vi.fn(), remove: vi.fn(),
 } }));

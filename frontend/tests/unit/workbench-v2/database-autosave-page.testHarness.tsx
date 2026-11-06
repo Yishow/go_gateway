@@ -61,7 +61,7 @@ function mappingFixture(overrides: Partial<StudioV2WorkspaceMappingRecord> = {})
 function sqliteConfigFixture(overrides: Partial<StudioV2WorkspaceDatabaseConfigRecord> = {}):
   StudioV2WorkspaceDatabaseConfigRecord {
   return {
-    id: 'db-1', workspace_id: 'workspace-1', kind: 'sqlite', name: 'Line A SQLite', host: '', port: 0,
+    id: 'db-1', workspace_id: 'workspace-1', identity_revision: 'identity-1', setup_revision: 'setup-1', kind: 'sqlite', name: 'Line A SQLite', host: '', port: 0,
     database: '/tmp/target.db', username: '', schema: 'main', table: 'sensor_values', write_mode: 'insert',
     write_interval_seconds: 5, timestamp_column: 'ts', status: 'ready', save_state: 'saved',
     created_at: '2026-05-30T00:00:00Z', updated_at: '2026-05-30T00:00:00Z', ...overrides,
@@ -233,7 +233,8 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
   ),
 }));
 
-vi.mock('../../../src/services/studioV2Workspace', () => ({
+vi.mock('../../../src/services/studioV2Workspace', async importOriginal => ({
+  ...await importOriginal<typeof import('../../../src/services/studioV2Workspace')>(),
   studioV2WorkspaceAPI: studioV2ServiceMocks.workspace,
 }));
 

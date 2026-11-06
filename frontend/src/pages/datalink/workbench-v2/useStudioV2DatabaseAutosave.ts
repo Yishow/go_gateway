@@ -1,3 +1,4 @@
+import { configReadContext } from '../../../hooks/datalink/recordingConfigRefresh';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -100,11 +101,18 @@ export function useStudioV2DatabaseAutosave(
   stateRef: React.MutableRefObject<WorkbenchV2State>,
   enabled: boolean,
   canMutateRule: CanMutateRule = allowAllRules,
+  ownerWorkspaceId?: string,
 ) {
   const { t } = useTranslation('workbench-v2');
-  const databaseConfigQuery = useStudioV2DatabaseConfigQuery(enabled);
-  const databaseTargetsQuery = useStudioV2DatabaseTargetsQuery(enabled);
-  const updateConfigMutation = useUpdateStudioV2DatabaseConfigMutation();
+  const workspaceId = ownerWorkspaceId ?? stateRef.current.db.connector.workspace_id;
+  const apiOrigin = configReadContext().apiOrigin;
+  const ownerRef = React.useRef({ workspaceId, apiOrigin, enabled });
+  if (ownerRef.current.workspaceId !== workspaceId || ownerRef.current.apiOrigin !== apiOrigin || ownerRef.current.enabled !== enabled) {
+    ownerRef.current = { workspaceId, apiOrigin, enabled };
+  }
+  const databaseConfigQuery = useStudioV2DatabaseConfigQuery(enabled, workspaceId);
+  const databaseTargetsQuery = useStudioV2DatabaseTargetsQuery(enabled, workspaceId);
+  const updateConfigMutation = useUpdateStudioV2DatabaseConfigMutation(workspaceId);
   const upsertTargetMutation = useUpsertStudioV2DatabaseTargetMutation();
   const lastConfigSignatureRef = React.useRef<string | null>(null);
   const lastTargetsSignatureRef = React.useRef<string | null>(null);
@@ -170,10 +178,10 @@ export function useStudioV2DatabaseAutosave(
   }, [applyTargetPatch, stateRef]);
 
   React.useEffect(() => {
-    if (!enabled || !databaseConfigQuery.isSuccess || !databaseConfigQuery.data) {
+    if (!enabled || !databaseConfigQuery.isSuccess || databaseConfigQuery.isFetching || databaseConfigQuery.isStale || !databaseConfigQuery.data) {
       return;
     }
-    const signature = `${databaseConfigQuery.data.id}:${databaseConfigQuery.data.updated_at}`;
+    const signature = `${databaseConfigQuery.data.workspace_id}:${databaseConfigQuery.data.id}:${databaseConfigQuery.data.identity_revision}:${databaseConfigQuery.data.setup_revision}:${databaseConfigQuery.data.updated_at}`;
     if (lastConfigSignatureRef.current === signature) {
       return;
     }
@@ -181,10 +189,10 @@ export function useStudioV2DatabaseAutosave(
     const action: WorkbenchV2Action = { type: 'hydrateDbConnector', record: databaseConfigQuery.data };
     stateRef.current = workbenchV2Reducer(stateRef.current, action);
     actions.dispatch(action);
-  }, [actions, databaseConfigQuery.data, databaseConfigQuery.isSuccess, enabled, stateRef]);
+  }, [actions, databaseConfigQuery.data, databaseConfigQuery.isSuccess, databaseConfigQuery.isFetching, databaseConfigQuery.isStale, enabled, stateRef]);
 
   const reconcilePersistedTargets = React.useCallback(() => {
-    if (!databaseTargetsQuery.isSuccess) {
+    if (!databaseTargetsQuery.isSuccess || databaseTargetsQuery.isFetching || databaseTargetsQuery.isStale) {
       return;
     }
     const aliases = buildPersistedPointAliases(stateRef.current);
@@ -218,7 +226,7 @@ export function useStudioV2DatabaseAutosave(
     const action: WorkbenchV2Action = { type: 'replaceDbTargets', targets: nextTargets };
     stateRef.current = workbenchV2Reducer(stateRef.current, action);
     actions.dispatch(action);
-  }, [actions, databaseTargetsQuery.data, databaseTargetsQuery.isSuccess, stateRef]);
+  }, [actions, databaseTargetsQuery.data, databaseTargetsQuery.isSuccess, databaseTargetsQuery.isFetching, databaseTargetsQuery.isStale, stateRef]);
 
   React.useEffect(() => {
     if (enabled) reconcilePersistedTargets();
@@ -226,7 +234,9 @@ export function useStudioV2DatabaseAutosave(
 
   const runConnectorSave = React.useCallback(async (snapshot: WorkbenchV2State): Promise<boolean> => {
     if (!mountedRef.current || !activeRef.current) return false;
-    const requestWorkspace = stateRef.current.db.connector.workspace_id;
+    const requestWorkspace = ownerWorkspaceId ?? stateRef.current.db.connector.workspace_id;
+    const requestOwner = ownerRef.current;
+    const requestOrigin = requestOwner.apiOrigin;
     if (snapshot.db.connector.workspace_id && snapshot.db.connector.workspace_id !== requestWorkspace) return false;
     const unknown = unknownConnectorRef.current;
     if (unknown && unknown.workspaceId === requestWorkspace) {
@@ -253,7 +263,7 @@ export function useStudioV2DatabaseAutosave(
       const savedConnector = await updateConfigMutation.mutateAsync(
         toStudioV2DatabaseConfigRequest(submittedConnector, snapshot.db.row_groups ?? []),
       );
-      if (!mountedRef.current || !activeRef.current || requestWorkspace !== stateRef.current.db.connector.workspace_id) return false;
+      if (!mountedRef.current || !activeRef.current || requestOwner !== ownerRef.current || requestOrigin !== configReadContext().apiOrigin) return false;
       if (submittedConnector.connector_id && savedConnector.id !== submittedConnector.connector_id ||
         requestWorkspace && savedConnector.workspace_id !== requestWorkspace) {
         throw new Error('Database save response does not match the submitted identity');
@@ -273,7 +283,7 @@ export function useStudioV2DatabaseAutosave(
       actions.dispatch(action);
       return true;
     } catch (error) {
-      if (!mountedRef.current || !activeRef.current || requestWorkspace !== stateRef.current.db.connector.workspace_id) return false;
+      if (!mountedRef.current || !activeRef.current || requestOwner !== ownerRef.current || requestOrigin !== configReadContext().apiOrigin) return false;
       const message = errorMessageOf(error, t('errors.autosave_failed'));
       const status = isAxiosError(error) ? error.response?.status : undefined;
       const rejected = status !== undefined && status >= 400 && status < 500 && status !== 408 && Boolean(normalizeTypedEnvelope(error).code);
@@ -292,7 +302,7 @@ export function useStudioV2DatabaseAutosave(
       applyConnectorPatch({ save_state: 'save-error', save_error: message });
       return false;
     }
-  }, [actions, applyConnectorPatch, applyConnectorStatus, stateRef, t, updateConfigMutation]);
+  }, [actions, applyConnectorPatch, applyConnectorStatus, stateRef, t, updateConfigMutation, ownerWorkspaceId]);
 
   const runTargetSave = React.useCallback(async (pointId: string): Promise<boolean> => {
     const currentTarget = stateRef.current.db.targets[pointId];

@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import {
@@ -10,7 +11,7 @@ import { studioV2MappingsAPI } from '@/services/studioV2Mappings';
 
 const useMutationMock = vi.fn();
 const useQueryMock = vi.fn();
-const invalidateQueriesMock = vi.fn();
+let queryClient: QueryClient;
 
 vi.mock('@tanstack/react-query', async () => {
   const actual =
@@ -22,10 +23,7 @@ vi.mock('@tanstack/react-query', async () => {
     ...actual,
     useQuery: (options: unknown) => useQueryMock(options),
     useMutation: (options: unknown) => useMutationMock(options),
-    useQueryClient: () => ({
-      getQueryData: () => undefined,
-      invalidateQueries: invalidateQueriesMock,
-    }),
+    useQueryClient: () => queryClient,
   };
 });
 
@@ -42,7 +40,8 @@ describe('useStudioV2Mappings hooks', () => {
   beforeEach(() => {
     useMutationMock.mockReset();
     useQueryMock.mockReset();
-    invalidateQueriesMock.mockReset();
+    queryClient = new QueryClient();
+    vi.spyOn(queryClient, 'invalidateQueries');
   });
 
   it('queries workspace mappings with the dedicated key', async () => {
@@ -88,10 +87,10 @@ describe('useStudioV2Mappings hooks', () => {
     });
 
     await options.onSuccess();
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none',
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
   });
@@ -115,10 +114,10 @@ describe('useStudioV2Mappings hooks', () => {
     ).resolves.toEqual({ id: 'mapping-01', runtime_apply_status: 'not_running' });
 
     await options.onSuccess();
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none',
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
   });
@@ -159,10 +158,10 @@ describe('useStudioV2Mappings hooks', () => {
     });
 
     await options.onSuccess();
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none',
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
   });

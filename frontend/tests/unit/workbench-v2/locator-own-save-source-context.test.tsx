@@ -222,7 +222,8 @@ it.each(['ack', 'readback'])('late own %s cannot refresh source authority after 
     expect(studioV2WorkspaceWriteGroupsAPI.testWritePreview).not.toHaveBeenCalled();
     expect(studioV2WorkspaceWriteGroupsAPI.testWrite).not.toHaveBeenCalled();
   }
-  expect(screen.getByTestId('group-name')).toBeEnabled();
+  // Releasing the transport does not settle its awaited readback/notification chain.
+  await waitFor(() => expect(screen.getByTestId('group-name')).toBeEnabled());
   fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Keep newer local draft after ABA' } });
   expect(screen.getByTestId('group-name')).toHaveValue('Keep newer local draft after ABA');
   expect(screen.getByTestId('group-save')).toBeDisabled();

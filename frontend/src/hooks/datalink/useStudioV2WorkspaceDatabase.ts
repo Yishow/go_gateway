@@ -1,3 +1,4 @@
+import { beginConfigSave, confirmConfigSave, failConfigSave, validateConfigAck, configReadContext, configReadKey, fencedConfigRead } from './recordingConfigRefresh';
 import type { StudioV2LocatorReadScope } from '../../types/studioV2LocatorEntry';
 import { studioLocatorReadKey } from '../../services/studioEntityLocator';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,10 +9,15 @@ import {
   type StudioV2WorkspaceDatabaseTargetRequest,
 } from '../../services/studioV2WorkspaceDatabase';
 
-export function useStudioV2DatabaseConfigQuery(enabled: boolean) {
+export function useStudioV2DatabaseConfigQuery(enabled: boolean, workspaceId?: string) {
+  const context = configReadContext(workspaceId);
   return useQuery({
-    queryKey: studioV2WorkspaceKeys.databaseConfig(),
-    queryFn: () => studioV2WorkspaceDatabaseAPI.getConfig(),
+    queryKey: configReadKey(studioV2WorkspaceKeys.databaseConfig(), context),
+    queryFn: ({ signal, client }) => fencedConfigRead(client, context, signal, async () => {
+      const record = await studioV2WorkspaceDatabaseAPI.getConfig({ signal, baseURL: context.apiOrigin });
+      if (record && workspaceId && record.workspace_id !== workspaceId) throw new Error('Configuration observation unavailable');
+      return record;
+    }),
     enabled,
     retry: false,
     refetchOnWindowFocus: false,
@@ -43,10 +49,15 @@ export function useStudioV2SQLServerRecordingCapabilityQuery(connectorId: string
   });
 }
 
-export function useStudioV2DatabaseTargetsQuery(enabled: boolean) {
+export function useStudioV2DatabaseTargetsQuery(enabled: boolean, workspaceId?: string) {
+  const context = configReadContext(workspaceId);
   return useQuery({
-    queryKey: studioV2WorkspaceKeys.databaseTargets(),
-    queryFn: () => studioV2WorkspaceDatabaseAPI.listTargets(),
+    queryKey: configReadKey(studioV2WorkspaceKeys.databaseTargets(), context),
+    queryFn: ({ signal, client }) => fencedConfigRead(client, context, signal, async () => {
+      const records = await studioV2WorkspaceDatabaseAPI.listTargets({ signal, baseURL: context.apiOrigin });
+      if (workspaceId && records.some(record => record.workspace_id !== workspaceId)) throw new Error('Target observation unavailable');
+      return records;
+    }),
     enabled,
     retry: false,
     refetchOnWindowFocus: false,
@@ -81,16 +92,19 @@ export function useStudioV2DatabaseMetadataQuery(scope: StudioV2DatabaseMetadata
   });
 }
 
-export function useUpdateStudioV2DatabaseConfigMutation() {
+export function useUpdateStudioV2DatabaseConfigMutation(workspaceId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     retry: false,
-    mutationFn: (request: StudioV2WorkspaceDatabaseConfigRequest) => studioV2WorkspaceDatabaseAPI.updateConfig(request),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.databaseConfig() });
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.databaseTargets() });
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
+    mutationFn: async (request: StudioV2WorkspaceDatabaseConfigRequest) => {
+      const captured = beginConfigSave(queryClient, workspaceId);
+      try {
+        const record = await studioV2WorkspaceDatabaseAPI.updateConfig(request, { baseURL: captured.context.apiOrigin });
+        validateConfigAck(record, request, captured.context.workspaceId);
+        confirmConfigSave(queryClient, captured);
+        return record;
+      } catch (error) { failConfigSave(queryClient, captured); throw error; }
     },
   });
 }

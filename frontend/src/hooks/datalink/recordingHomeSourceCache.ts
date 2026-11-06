@@ -47,7 +47,7 @@ export function notifySources(partition: Partition) {
 }
 /** Marks presentation stale synchronously. Adds no awaited read to a save barrier. */
 export function invalidateRecordingHomeSources(client: QueryClient, options: HomeSourceContext & { workspaceId?: string } = {}): void {
-  const workspaceId = options.workspaceId ?? client.getQueryData<{ id: string }>(studioV2WorkspaceKeys.bootstrap())?.id;
+  const workspaceId = options.workspaceId ?? recordingHomeWorkspaceOwner(client, options);
   if (!workspaceId) return;
   const partition = sourcePartition(client, options), entry = sourceEntry(partition, workspaceId);
   entry.generation++;
@@ -55,4 +55,21 @@ export function invalidateRecordingHomeSources(client: QueryClient, options: Hom
   const queryKey = recordingHomeSourcePrefix(options, workspaceId);
   void client.cancelQueries({ queryKey });
   void client.invalidateQueries({ queryKey, refetchType: 'none' });
+}
+
+/** Resolve current bootstrap authority, including origin-scoped observers. No mirror cache. */
+export function recordingHomeWorkspaceOwner(client: QueryClient, options: HomeSourceContext = {}): string | undefined {
+  const context = recordingHomeSourceContext(options);
+  const scoped = client.getQueryCache().findAll({ queryKey: studioV2WorkspaceKeys.bootstrap() }).filter(query => {
+    const index = query.queryKey.indexOf('api-context');
+    return index >= 0 && query.queryKey[index + 1] === context.backendToken && query.queryKey[index + 2] === context.apiOrigin;
+  });
+  // A scoped observer, even if currently failing, supersedes legacy unscoped data.
+  if (scoped.length) {
+    const active = scoped.filter(query => query.isActive());
+    if (!active.length || active.some(query => query.state.status !== 'success' || !(query.state.data as { id?: string } | undefined)?.id)) return undefined;
+    const owners = new Set(active.map(query => (query.state.data as { id: string }).id));
+    return owners.size === 1 ? [...owners][0] : undefined;
+  }
+  return client.getQueryData<{ id: string }>(studioV2WorkspaceKeys.bootstrap())?.id;
 }

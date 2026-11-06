@@ -1,3 +1,4 @@
+import { configReadContext, configReadKey } from '@/hooks/datalink/recordingConfigRefresh';
 import { useRecordingReadUnavailable } from '../../../src/features/datalink/workbench-v2/recording-editor/RecordingDraftNavigation';
 import { studioV2WorkspaceKeys } from '../../../src/hooks/datalink/keys';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -195,7 +196,7 @@ describe('DatalinkWorkbenchV2Page mapping autosave orchestration', () => {
     await waitFor(() => expect(screen.getByTestId('mapping-tag-key-rule-A-p-0')).toHaveTextContent('line.a.persisted'));
     fireEvent.click(screen.getByTestId('make-rule-A-fail'));
     await waitFor(() => expect(screen.getByTestId('mapping-save-state-rule-A-p-0')).toHaveTextContent('save-error'));
-    await act(async () => { queryClient.setQueryData(studioV2WorkspaceKeys.bootstrap(), workspaceFixture({ id: 'workspace-2' })); });
+    await act(async () => { queryClient.setQueryData(configReadKey(studioV2WorkspaceKeys.bootstrap(), configReadContext()), workspaceFixture({ id: 'workspace-2' })); });
     vi.mocked(studioV2MappingsAPI.list).mockRejectedValueOnce(new Error('reload unavailable'));
     fireEvent.click(screen.getByTestId('retry-rule-A'));
     await screen.findByTestId('workbench-v2-bootstrap-error');

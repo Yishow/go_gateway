@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import {
@@ -11,7 +12,7 @@ import type { StudioV2RuntimeAppliedRecord, StudioV2RuntimeApplyStatus } from '@
 
 const useMutationMock = vi.fn();
 const useQueryMock = vi.fn();
-const invalidateQueriesMock = vi.fn();
+let queryClient: QueryClient;
 
 function studioV2RuleRuntimeResponse(
   status: StudioV2RuntimeApplyStatus,
@@ -32,10 +33,7 @@ vi.mock('@tanstack/react-query', async () => {
     ...actual,
     useQuery: (options: unknown) => useQueryMock(options),
     useMutation: (options: unknown) => useMutationMock(options),
-    useQueryClient: () => ({
-      getQueryData: () => undefined,
-      invalidateQueries: invalidateQueriesMock,
-    }),
+    useQueryClient: () => queryClient,
   };
 });
 
@@ -52,7 +50,8 @@ describe('useStudioV2Rules hooks', () => {
   beforeEach(() => {
     useMutationMock.mockReset();
     useQueryMock.mockReset();
-    invalidateQueriesMock.mockReset();
+    queryClient = new QueryClient();
+    vi.spyOn(queryClient, 'invalidateQueries');
   });
 
   it('queries workspace source rules with the dedicated key', async () => {
@@ -97,10 +96,10 @@ describe('useStudioV2Rules hooks', () => {
     });
 
     await options.onSuccess();
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.sourceRules(),
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
   });
@@ -123,10 +122,10 @@ describe('useStudioV2Rules hooks', () => {
     ).resolves.toEqual({ id: 'rule-01', runtime_apply_status: 'aligned' });
 
     await options.onSuccess();
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.sourceRules(),
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
   });

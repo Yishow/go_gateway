@@ -1,3 +1,4 @@
+import { configReadContext, configReadKey } from '@/hooks/datalink/recordingConfigRefresh';
 import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
 import { studioV2RuntimeContextAPI } from '@/services/studioV2RuntimeContext';
 import { listRecordingTestWriteRecovery } from '@/services/recordingTestWriteRecovery';
@@ -57,7 +58,7 @@ describe('actual optional home entry', () => {
     let resolve!: (value: typeof workspace) => void;
     vi.mocked(studioV2WorkspaceAPI.get).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
     let pending!: Promise<void>;
-    act(() => { pending = clients[0].invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap(), exact: true }); });
+    act(() => { pending = clients[0].invalidateQueries({ queryKey: configReadKey(studioV2WorkspaceKeys.bootstrap(), configReadContext()), exact: true }); });
     await waitFor(() => expect(resolve).toBeTypeOf('function'));
     expect(screen.getByTestId('recording-home')).toBe(home);
     expect(screen.getByLabelText('keyword')).toHaveValue('keep my filter');
@@ -97,7 +98,7 @@ describe('actual optional home entry', () => {
     vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ ...workspace, id: 'NEXT' });
     vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue({ workspace_id: 'NEXT', workspace_revision: '', groups: [] });
     await act(async () => { await Promise.all([
-      clients[0].invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap(), exact: true }),
+      clients[0].invalidateQueries({ queryKey: configReadKey(studioV2WorkspaceKeys.bootstrap(), configReadContext()), exact: true }),
       clients[0].invalidateQueries({ queryKey: studioV2WorkspaceKeys.writeGroups(), exact: true }),
     ]); });
     await screen.findByText('reason.missing_devices');
@@ -279,7 +280,7 @@ it.each(['API base URL', 'QueryClient'] as const)('isolates observed home and pr
     vi.mocked(recordingHomeSourcesAPI.read).mockImplementationOnce(() => new Promise(resolve => { resolveNext = resolve; }));
     if (change === 'API base URL') studioV2DatalinkApi.defaults.baseURL = '/different-backend/api/v1/datalink';
     else {
-      nextClient.setQueryData(studioV2WorkspaceKeys.bootstrap(), scope);
+      nextClient.setQueryData(configReadKey(studioV2WorkspaceKeys.bootstrap(), configReadContext()), scope);
       nextClient.setQueryData(studioV2WorkspaceKeys.writeGroups(), { workspace_id: 'W', workspace_revision: '', groups: [] });
     }
     view.rerender(content(change === 'QueryClient' ? nextClient : firstClient));

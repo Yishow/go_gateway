@@ -165,7 +165,7 @@ export function useStudioV2AutosaveState(
   const mappingAutosave = useStudioV2MappingAutosave(actions, stateRef, enabled, canMutateRule, composeMappingObservation(sourceRanges.mappingObservation, pointNames.observation), (point, mapping) => sourceRanges.canWrite(point.rule_id) && pointNames.allowPreparedMapping(point, mapping), sourceWorkspaceId ?? locatorEntry?.workspace.id);
   namingGuards.current = { mutate: canMutateRule, queue: mappingAutosave.canSubmitPreparedMapping };
   rangeQueue.current = { rule: ruleAutosave.afterRuleAction, mapping: mappingAutosave.afterMappingAction };
-  const databaseAutosave = useStudioV2DatabaseAutosave(actions, stateRef, enabled, canMutateRule);
+  const databaseAutosave = useStudioV2DatabaseAutosave(actions, stateRef, enabled, canMutateRule, sourceWorkspaceId);
   React.useEffect(() => {
     stateRef.current = actions.state;
   }, [actions.state]);

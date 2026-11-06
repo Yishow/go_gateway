@@ -1,9 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { studioV2WorkspaceKeys } from './keys';
-import { invalidateRecordingHomeSources, recordingHomeSourceContext, recordingHomeSourcePrefix } from './recordingHomeSourceCache';
+import { invalidateRecordingHomeSources, recordingHomeWorkspaceOwner, recordingHomeSourceContext, recordingHomeSourcePrefix } from './recordingHomeSourceCache';
 /** Capture before any mutation-owner await, including optimistic preflight. */
 export function captureRecordingHomeSourceMutation(client: QueryClient, workspaceId?: string) {
-  const owner = workspaceId ?? client.getQueryData<{ id: string }>(studioV2WorkspaceKeys.bootstrap())?.id;
+  const owner = workspaceId ?? recordingHomeWorkspaceOwner(client);
   // Never resolve a different workspace after awaiting acknowledgement.
   return owner ? { ...recordingHomeSourceContext(), workspaceId: owner } : undefined;
 }

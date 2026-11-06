@@ -6,6 +6,8 @@ import { ConnectorSection } from '@/features/datalink/workbench-v2/steps/step4/C
 import { INITIAL_STATE, workbenchV2Reducer, type WorkbenchV2Action } from '@/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { hydrateStudioV2DatabaseConnector } from '@/features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
 import { useStudioV2DatabaseAutosave } from '@/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave';
+import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { recordingHomeSourceContext } from '@/hooks/datalink/recordingHomeSourceCache';
 import { studioV2WorkspaceDatabaseAPI } from '@/services/studioV2WorkspaceDatabase';
 import { savedGroupState } from '../../fixtures/writeGroupState';
 import type { StudioV2RuntimeAppliedRecord } from '@/types/studioV2RuntimeApply';
@@ -35,7 +37,7 @@ function Consumer({ fresh = false }: { fresh?: boolean }) {
     } : {}) } },
   });
   const stateRef = React.useRef(state);
-  const autosave = useStudioV2DatabaseAutosave({ dispatch }, stateRef, true);
+  const autosave = useStudioV2DatabaseAutosave({ dispatch }, stateRef, true, undefined, 'ws-1');
   React.useEffect(() => { stateRef.current = state; }, [state]);
   const perform = (action: WorkbenchV2Action) => {
     stateRef.current = workbenchV2Reducer(stateRef.current, action);
@@ -73,7 +75,7 @@ describe('connector input through real query, mutation, reducer and form consume
     const third = deferred<ReturnType<typeof record>>();
     vi.mocked(studioV2WorkspaceDatabaseAPI.updateConfig)
       .mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise).mockReturnValueOnce(third.promise);
-    renderConsumer();
+    const client = renderConsumer();
     await waitFor(() => expect(studioV2WorkspaceDatabaseAPI.getConfig).toHaveBeenCalledTimes(1));
     await act(async () => {});
     const input = screen.getByRole('textbox', { name: label }) as HTMLInputElement;
@@ -83,8 +85,11 @@ describe('connector input through real query, mutation, reducer and form consume
     const firstSaved = record({ [field]: firstText, setup_revision: 'setup-2', updated_at: '2026-10-31T08:00:01Z' });
     vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(firstSaved);
     await act(async () => { first.resolve(firstSaved); });
-    await waitFor(() => expect(studioV2WorkspaceDatabaseAPI.getConfig).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(studioV2WorkspaceDatabaseAPI.updateConfig).toHaveBeenCalledTimes(2));
+    // The queued write coalesces the first ACK's refresh. Explicitly inject an
+    // older GET while that second write is pending to preserve the race coverage.
+    await act(async () => { await client.invalidateQueries({ queryKey: studioV2WorkspaceKeys.databaseConfig() }); });
+    await waitFor(() => expect(studioV2WorkspaceDatabaseAPI.getConfig).toHaveBeenCalledTimes(2));
     expect(input).toHaveValue(middleText);
     expect(screen.getByTestId('save-state')).toHaveTextContent('saving');
     // Browser typing appends to the actual controlled DOM value, not the desired string.
@@ -96,7 +101,7 @@ describe('connector input through real query, mutation, reducer and form consume
     expect(input).toHaveValue(finalText);
     expect(studioV2WorkspaceDatabaseAPI.updateConfig).toHaveBeenLastCalledWith(expect.objectContaining({
       [field]: finalText, expected_setup_revision: 'setup-3', connector_id: 'db-1',
-    }));
+    }), { baseURL: recordingHomeSourceContext().apiOrigin });
     const finalSaved = record({ [field]: finalText, setup_revision: 'setup-4', updated_at: '2026-10-31T08:00:03Z' });
     vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(finalSaved);
     await act(async () => { third.resolve(finalSaved); });
@@ -149,7 +154,7 @@ describe('connector input through real query, mutation, reducer and form consume
     vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(saved);
     await act(async () => { first.resolve(saved); });
     await waitFor(() => expect(studioV2WorkspaceDatabaseAPI.updateConfig).toHaveBeenCalledTimes(2));
-    expect(studioV2WorkspaceDatabaseAPI.updateConfig).toHaveBeenLastCalledWith(expect.objectContaining({ connector_id: 'db-1', name: 'Linux QA' }));
+    expect(studioV2WorkspaceDatabaseAPI.updateConfig).toHaveBeenLastCalledWith(expect.objectContaining({ connector_id: 'db-1', name: 'Linux QA' }), { baseURL: recordingHomeSourceContext().apiOrigin });
     await act(async () => { second.reject(new Error('Network Error')); });
     await waitFor(() => expect(screen.getByTestId('save-state')).toHaveTextContent('save-error'));
     fireEvent.change(input, { target: { value: 'Linux QA SQLite' } });

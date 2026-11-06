@@ -26,7 +26,8 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
     );
   },
 }));
-vi.mock('../../../src/services/studioV2Workspace', () => ({ studioV2WorkspaceAPI: mocks.workspace }));
+vi.mock('../../../src/services/studioV2Workspace', async importOriginal => ({
+  ...await importOriginal<typeof import('../../../src/services/studioV2Workspace')>(), studioV2WorkspaceAPI: mocks.workspace }));
 vi.mock('../../../src/services/studioV2WorkspaceDevices', () => ({ studioV2WorkspaceDevicesAPI: mocks.devices }));
 vi.mock('../../../src/services/studioV2Rules', () => ({ studioV2RulesAPI: mocks.rules }));
 vi.mock('../../../src/services/studioV2Mappings', () => ({ studioV2MappingsAPI: mocks.mappings }));

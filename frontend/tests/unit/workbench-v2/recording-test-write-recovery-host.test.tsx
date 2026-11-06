@@ -6,7 +6,10 @@ import { Step4Database } from '@/features/datalink/workbench-v2/steps/step4/Step
 import { INITIAL_STATE } from '@/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { studioV2DatalinkApi } from '@/services/studioV2Workspace';
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('@/services/studioV2Workspace', () => ({ studioV2DatalinkApi: { get: vi.fn(), post: vi.fn() } }));
+vi.mock('@/services/studioV2Workspace', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/studioV2Workspace')>();
+  return { ...actual, studioV2DatalinkApi: { defaults: actual.studioV2DatalinkApi.defaults, get: vi.fn(), post: vi.fn() } };
+});
 vi.mock('@/hooks/datalink/useStudioV2WriteGroups', () => ({ useWriteGroupsQuery: () => ({ data: { workspace_id: 'W1', workspace_revision: 'WR2', groups: [] }, refetch: vi.fn() }) }));
 vi.mock('@/features/datalink/workbench-v2/steps/step4/BasicRecordingPanel', () => ({ BasicRecordingPanel: () => null }));
 vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection', () => ({ WriteGroupSection: () => null }));

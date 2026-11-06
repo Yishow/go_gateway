@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 import { resolveGatewayUiVersion } from '../features/gateway/uiVersion';
 import { VITE_API_BASE_URL } from '../env';
 import type { APIResponse, StudioV2Workspace } from '../types/datalink';
@@ -27,8 +27,8 @@ studioV2DatalinkApi.interceptors.response.use(
 );
 
 export const studioV2WorkspaceAPI = {
-  async get(): Promise<StudioV2Workspace> {
-    const res = await studioV2DatalinkApi.get<APIResponse<StudioV2Workspace>>('/studio-v2/workspace');
+  async get(options?: AxiosRequestConfig): Promise<StudioV2Workspace> {
+    const res = await studioV2DatalinkApi.get<APIResponse<StudioV2Workspace>>('/studio-v2/workspace', options);
     return res.data.data!;
   },
 };

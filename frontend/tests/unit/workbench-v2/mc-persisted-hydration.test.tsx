@@ -4,6 +4,7 @@ import { studioV2WorkspaceKeys } from '../../../src/hooks/datalink/keys';
 import {
   compatibleAddresses,
   candidateSnapshot,
+  dbTargetFixture,
   legacyAddresses,
   mappingFixture,
   ruleFixture,
@@ -285,6 +286,10 @@ describe('persisted MC point hydration', () => {
   });
   it('re-hydrates when the cached candidate scope changes even if revision and identities match', async () => {
     let workspaceID = 'workspace-1';
+    vi.mocked(studioV2ServiceMocks.database.getConfig).mockImplementation(async () => sqliteConfigFixture({
+      workspace_id: workspaceID, identity_revision: 'identity-1', setup_revision: 'setup-1',
+    }));
+    vi.mocked(studioV2ServiceMocks.database.listTargets).mockImplementation(async () => [dbTargetFixture({ workspace_id: workspaceID, point_id: 'legacy-point-0' })]);
     vi.mocked(studioV2ServiceMocks.workspace.get).mockImplementation(async () => workspaceFixture({
       id: workspaceID,
       ordered_device_ids: ['dev-mc', 'dev-modbus'],
@@ -312,6 +317,10 @@ describe('persisted MC point hydration', () => {
   });
   it('retains a blocked mapping draft and resumes it only after matching evidence returns', async () => {
     let workspaceID = 'workspace-1';
+    vi.mocked(studioV2ServiceMocks.database.getConfig).mockImplementation(async () => sqliteConfigFixture({
+      workspace_id: workspaceID, identity_revision: 'identity-1', setup_revision: 'setup-1',
+    }));
+    vi.mocked(studioV2ServiceMocks.database.listTargets).mockImplementation(async () => [dbTargetFixture({ workspace_id: workspaceID, point_id: 'legacy-point-0' })]);
     let workspaceRevision = 'workspace-rev-1';
     vi.mocked(studioV2ServiceMocks.workspace.get).mockImplementation(async () => workspaceFixture({
       id: workspaceID, ordered_device_ids: ['dev-mc', 'dev-modbus'],
@@ -340,6 +349,10 @@ describe('persisted MC point hydration', () => {
   });
   it('does not apply late rule, mapping, or database acknowledgements after scope changes', async () => {
     let workspaceID = 'workspace-1';
+    vi.mocked(studioV2ServiceMocks.database.getConfig).mockImplementation(async () => sqliteConfigFixture({
+      workspace_id: workspaceID, identity_revision: 'identity-1', setup_revision: 'setup-1',
+    }));
+    vi.mocked(studioV2ServiceMocks.database.listTargets).mockImplementation(async () => [dbTargetFixture({ workspace_id: workspaceID, point_id: 'legacy-point-0' })]);
     let workspaceRevision = 'workspace-rev-1';
     const workspaceForScope = () => workspaceFixture({
       id: workspaceID,
@@ -384,7 +397,7 @@ describe('persisted MC point hydration', () => {
     await waitFor(() => expect(screen.getByTestId('mc-persisted-status')).toHaveTextContent('checking'));
     resolveRule?.(ruleFixture({ id: 'rule-mc', device_id: 'dev-mc', start_address: 'W0', count: 17, revision_id: 'rule-rev-2', naming_prefix: 'SERVER_' }));
     resolveMapping?.(mappingFixture({ id: 'legacy-mapping-0', point_id: 'legacy-point-0', rule_id: 'rule-mc', device_id: 'dev-mc', address: 'W0', tag_key: 'server.tag' }));
-    resolveDatabase?.(sqliteConfigFixture({ table: 'server_table', updated_at: '2026-10-30T00:01:00Z' }));
+    resolveDatabase?.(sqliteConfigFixture({ workspace_id: 'workspace-1', identity_revision: 'identity-1', setup_revision: 'setup-1', table: 'server_table', updated_at: '2026-10-30T00:01:00Z' }));
     await waitFor(() => {
       expect(studioV2ServiceMocks.rules.update).toHaveBeenCalledTimes(1);
       expect(studioV2ServiceMocks.mappings.update).toHaveBeenCalledTimes(1);

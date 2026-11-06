@@ -1,3 +1,4 @@
+import { useRecordingConfigRefresh } from '../../../../../hooks/datalink/recordingConfigRefresh';
 import type { StudioRecordingRepair } from '../../../../../services/studioRecordingView';
 import { SavedRecordingStartReview } from '../../recording-editor/SavedRecordingStartReview';
 import { savedRecordingStartDevices } from '../../recording-editor/savedRecordingStartScope';
@@ -95,6 +96,7 @@ function Step4DatabaseContent({
   // Only the read-back of an earlier activation is shown; no workspace-wide start is wired to this page.
   const activation = useStep4Activation(undefined, recoverActivationStatus, workspaceId);
   const { connector, targets } = state.db;
+  const configRefresh = useRecordingConfigRefresh(workspaceId ?? connector.workspace_id);
   const rowGroups = useMemo(() => state.db.row_groups ?? [], [state.db.row_groups]);
   const enabledPoints = useMemo(() => state.points.filter(p => p.enabled), [state.points]);
 
@@ -206,19 +208,19 @@ function Step4DatabaseContent({
   }, [workspaceId]);
 
   const recordingChange = useRecordingChangeController({
-    workspaceId: workspaceId ?? '', readonly: basicOperationActive || savedOperationActive,
+    workspaceId: workspaceId ?? '', readonly: basicOperationActive || savedOperationActive || configRefresh.unavailable,
     onChanged: (group) => { setOpenGroupRequest({ id: group.id }); void groupsQuery.refetch(); },
   });
   const lifecycleLocked = recordingChange.isOpen || recordingChange.busy || recordingChange.unresolved;
   const actionHost: SavedRecordingActionHost = {
     tryAcquire: () => {
-      if (savedOperationLock.current || basicOperationActive || lifecycleLocked) return false;
+      if (savedOperationLock.current || basicOperationActive || lifecycleLocked || configRefresh.unavailable) return false;
       savedOperationLock.current = true; return true;
     },
     onBusyChange: (active) => { savedOperationLock.current = active; setSavedOperationActive(active); },
     onReviewScopedStart: reviewScopedStart,
     onAction: (intent) => {
-      if (savedOperationLock.current || basicOperationActive || lifecycleLocked || intent.workspaceId !== workspaceId) return;
+      if (savedOperationLock.current || basicOperationActive || lifecycleLocked || configRefresh.unavailable || intent.workspaceId !== workspaceId) return;
       if (intent.action === 'edit') { setOpenGroupRequest({ id: intent.groupId }); openAdvanced(); return; }
       if (intent.action === 'recreate' || intent.action === 'transition') {
         savedOperationLock.current = true;
@@ -226,7 +228,7 @@ function Step4DatabaseContent({
       }
     },
   };
-  const savedActionsLocked = savedOperationActive || lifecycleLocked;
+  const savedActionsLocked = savedOperationActive || lifecycleLocked || configRefresh.unavailable;
   const hasSavedDatabaseContext = Boolean(connector.persisted && connector.connector_id && connector.identity_revision);
   const destinations = state.settings.connectors.filter((item) => item.enabled && item.id && item.identity_revision)
     .map((item) => ({ id: item.id, name: item.name, revision: item.identity_revision! }));
@@ -238,13 +240,13 @@ function Step4DatabaseContent({
         onUpdateConnector={handleUpdateConnector}
         onKindChange={handleKindChange}
         onSelectConnector={handleSelectConnectorPool}
-        disabled={basicOperationActive || savedActionsLocked}
+        disabled={basicOperationActive || savedOperationActive || lifecycleLocked}
       />);
   const recordingDialogs = <>
       {savedStartReview && savedStartReview.workspaceId === workspaceId && workspaceId && <SavedRecordingStartReview
         key={`${workspaceId}/${savedStartReview.group.id}`} group={liveGroups.find(group => group.id === savedStartReview.group.id) ?? savedStartReview.group}
         workspaceId={workspaceId} workspaceRevision={groupsQuery.data?.workspace_revision ?? ''} state={state}
-        readonly={basicOperationActive || lifecycleLocked || configurationState !== 'ready'} shareStatus={shareStatus} deviceSource={deviceSource}
+        readonly={basicOperationActive || lifecycleLocked || configRefresh.unavailable || configurationState !== 'ready'} shareStatus={shareStatus} deviceSource={deviceSource}
         fetchLatest={async () => { const latest = await groupsQuery.refetch(); return latest.isError ? undefined : latest.data; }}
         onOperationActiveChange={setSavedOperationActive} onClose={() => setSavedStartReview(undefined)} />}
       <RecordingChangeDialog controller={recordingChange} destinations={destinations} fallbackFocus={() => returnHeading.current} />

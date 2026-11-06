@@ -1,3 +1,4 @@
+import { useRecordingConfigRefresh } from '../../../hooks/datalink/recordingConfigRefresh';
 import { useStudioLocatorRecovery } from './useStudioLocatorRecovery';
 import { type HomeSourceControls, type HomeRuleObserver } from '../../../features/datalink/workbench-v2/recording-home/RecordingHomeSourceHost';
 import { RecordingHomeSourceContent, RecordingHomeSourceLoading } from '../../../features/datalink/workbench-v2/recording-home/RecordingHomeSourceContent';
@@ -146,7 +147,9 @@ export default function AdvancedWorkbenchV2Page({
     saved: (rule, saved) => homeRuleObserverRef.current?.saved(rule, saved),
     failed: (rule, error) => homeRuleObserverRef.current?.failed(rule, error),
   } : undefined, [homeRuleObserverRef]);
-  const autosave = useStudioV2AutosaveState(!locatorMode && workspaceQuery.isSuccess, locatorEntry, locatorEditorMounted, persistedMCWorkspaceScope, locatorEntry?.workspace.id ?? workspaceQuery.data?.id, homeRuleObserver);
+  const configRefresh = useRecordingConfigRefresh(workspaceQuery.data?.id);
+  const retainedConfigOwner = configRefresh.confirmed && configRefresh.unavailable && Boolean(workspaceQuery.data?.id);
+  const autosave = useStudioV2AutosaveState(!locatorMode && (workspaceQuery.isSuccess || retainedConfigOwner), locatorEntry, locatorEditorMounted, persistedMCWorkspaceScope, locatorEntry?.workspace.id ?? workspaceQuery.data?.id, homeRuleObserver);
   const waitForAutosaveSettlement = useStudioV2AutosaveSettlement(autosave.state);
   const activationMutation = useActivateStudioV2WorkspaceMutation();
   const activationInFlight = React.useRef(false);
@@ -301,7 +304,9 @@ export default function AdvancedWorkbenchV2Page({
       mapping.save_state === 'save-error' && mapping.save_error_detail?.code === 'workspace_mapping_not_found');
   // A failed refresh must not destroy an already-hydrated editor's unsent intent.
   // This retains the existing form, not a second persisted draft or fresh readiness proof.
-  if (backgroundReadFailed && !(workspaceQuery.data && autosave.workspaceHydrated && (hasUnsavedRecording() || retainMappingRetry))) {
+  const retainSavedConfig = configRefresh.confirmed && configRefresh.unavailable &&
+    workspaceQuery.data?.id === autosave.state.db.connector.workspace_id;
+  if (backgroundReadFailed && !(workspaceQuery.data && autosave.workspaceHydrated && (hasUnsavedRecording() || retainMappingRetry || retainSavedConfig))) {
     return <WorkbenchV2BootstrapState status="error" />;
   }
 
@@ -348,7 +353,7 @@ export default function AdvancedWorkbenchV2Page({
           {autosave.draftLossWarning}
         </div>
       )}
-      <RecordingDraftReadState unavailable={backgroundReadFailed}><RecordingSourceNavigation workspaceId={workspace.id} source={autosave.deviceSource}><WorkbenchV2Shell
+      <RecordingDraftReadState unavailable={backgroundReadFailed || configRefresh.unavailable}><RecordingSourceNavigation workspaceId={workspace.id} source={autosave.deviceSource}><WorkbenchV2Shell
         state={autosave.state}
         recordingIntent={recordingIntent} presentationLocation={presentationLocation}
         workspaceId={workspace.id}

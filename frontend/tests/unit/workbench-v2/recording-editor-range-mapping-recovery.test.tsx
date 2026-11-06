@@ -13,7 +13,8 @@ import type { StudioV2MappingSaveResult, StudioV2WorkspaceMappingRequest } from 
 import { savedGroupState } from '../../fixtures/writeGroupState';
 
 const api = vi.hoisted(() => ({ workspace: vi.fn(), rules: vi.fn(), devices: vi.fn(), candidates: vi.fn(), list: vi.fn(), create: vi.fn(), update: vi.fn(), point: vi.fn(), tag: vi.fn() }));
-vi.mock('@/services/studioV2Workspace', () => ({ studioV2WorkspaceAPI: { get: api.workspace } }));
+vi.mock('@/services/studioV2Workspace', async importOriginal => ({
+  ...await importOriginal<typeof import('@/services/studioV2Workspace')>(), studioV2WorkspaceAPI: { get: api.workspace } }));
 vi.mock('@/services/studioV2Rules', () => ({ studioV2RulesAPI: { list: api.rules } }));
 vi.mock('@/services/studioV2WorkspaceDevices', () => ({ studioV2WorkspaceDevicesAPI: { list: api.devices } }));
 vi.mock('@/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { get: api.candidates } }));

@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import { modbusShareStatusKey } from '@/hooks/datalink/useModbusShareStatus';
@@ -15,7 +16,7 @@ import {
 
 const useMutationMock = vi.fn();
 const useQueryMock = vi.fn();
-const invalidateQueriesMock = vi.fn();
+let queryClient: QueryClient;
 
 vi.mock('@tanstack/react-query', async () => {
   const actual =
@@ -27,10 +28,7 @@ vi.mock('@tanstack/react-query', async () => {
     ...actual,
     useQuery: (options: unknown) => useQueryMock(options),
     useMutation: (options: unknown) => useMutationMock(options),
-    useQueryClient: () => ({
-      getQueryData: () => undefined,
-      invalidateQueries: invalidateQueriesMock,
-    }),
+    useQueryClient: () => queryClient,
   };
 });
 
@@ -49,7 +47,8 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
   beforeEach(() => {
     useMutationMock.mockReset();
     useQueryMock.mockReset();
-    invalidateQueriesMock.mockReset();
+    queryClient = new QueryClient();
+    vi.spyOn(queryClient, 'invalidateQueries');
   });
 
   it('queries the workspace device list with the dedicated key', async () => {
@@ -90,13 +89,13 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
     await expect(options.mutationFn({ id: 'dev-01' })).resolves.toEqual({ id: 'dev-01' });
 
     await options.onSuccess();
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.devices(),
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: modbusShareStatusKey,
     });
   });
@@ -124,13 +123,13 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
     ).resolves.toEqual({ id: 'dev-01', runtime_apply_status: 'restart-required' });
 
     await options.onSuccess();
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.devices(),
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: modbusShareStatusKey,
     });
   });
@@ -158,13 +157,13 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
     ).resolves.toEqual({ id: 'dev-01', availability_status: 'unavailable' });
 
     await options.onSuccess();
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.devices(),
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: modbusShareStatusKey,
     });
   });
@@ -183,13 +182,13 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
     await expect(options.mutationFn('dev-01')).resolves.toBeUndefined();
 
     await options.onSuccess();
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.devices(),
     });
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: modbusShareStatusKey,
     });
   });

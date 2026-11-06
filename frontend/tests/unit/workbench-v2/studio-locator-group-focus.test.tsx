@@ -24,7 +24,10 @@ vi.mock('@/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/Saved
   } };
 });
 vi.mock('@/services/studioV2LocatorEntry', () => ({ readStudioLocatorEditorEntry: vi.fn() }));
-vi.mock('@/services/studioV2Workspace', () => ({ studioV2DatalinkApi: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }));
+vi.mock('@/services/studioV2Workspace', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/studioV2Workspace')>();
+  return { ...actual, studioV2DatalinkApi: { defaults: actual.studioV2DatalinkApi.defaults, get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } };
+});
 vi.mock('@/services/studioV2WorkspaceWriteGroups', async importOriginal => {
   const actual = await importOriginal<typeof import('@/services/studioV2WorkspaceWriteGroups')>();
   return { studioV2WorkspaceWriteGroupsAPI: { ...actual.studioV2WorkspaceWriteGroupsAPI, list: vi.fn(), delivery: vi.fn(), create: vi.fn(), update: vi.fn() } };

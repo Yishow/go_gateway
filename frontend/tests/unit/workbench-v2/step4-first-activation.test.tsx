@@ -69,7 +69,8 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
 vi.mock('../../../src/services/datalink', () => ({
   modbusShareAPI: { status: vi.fn(), reconcile: vi.fn() },
 }));
-vi.mock('../../../src/services/studioV2Workspace', () => ({ studioV2WorkspaceAPI: { get: vi.fn() } }));
+vi.mock('../../../src/services/studioV2Workspace', async importOriginal => ({
+  ...await importOriginal<typeof import('../../../src/services/studioV2Workspace')>(), studioV2WorkspaceAPI: { get: vi.fn() } }));
 vi.mock('../../../src/services/studioV2WorkspaceDevices', () => ({ studioV2WorkspaceDevicesAPI: { list: vi.fn() } }));
 vi.mock('../../../src/services/sourceRuleCandidates', () => ({ sourceRuleCandidateAPI: { getTags: vi.fn() } }));
 vi.mock('../../../src/services/studioV2Rules', () => ({ studioV2RulesAPI: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() } }));
@@ -195,7 +196,7 @@ describe('Step 4 first activation', () => {
     expect(studioV2WorkspaceActivationAPI.activate).not.toHaveBeenCalled();
 
     resolveSave({
-      id: 'database-config-1', workspace_id: 'workspace-1', kind: 'postgres', name: 'Updated connector',
+      id: 'database-config-1', workspace_id: 'workspace-1', identity_revision: 'identity-1', setup_revision: 'setup-1', kind: 'postgres', name: 'Updated connector',
       host: 'tsdb.internal', port: 5432, database: 'gateway_metrics', username: 'gw_writer',
       schema: 'public', table: 'sensor_readings', write_mode: 'insert', write_interval_seconds: 5,
       timestamp_column: 'ts', status: 'ready', save_state: 'saved', created_at: '2026-08-26T00:00:00Z',

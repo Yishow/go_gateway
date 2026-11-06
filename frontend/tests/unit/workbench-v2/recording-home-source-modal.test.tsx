@@ -1,3 +1,4 @@
+import { configReadContext, configReadKey } from '@/hooks/datalink/recordingConfigRefresh';
 import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
 import { homeSources } from './recording-home-source-fixtures';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -197,7 +198,7 @@ describe('modal exact identity and original completion boundaries', () => {
     let resolve!: (value: Awaited<ReturnType<typeof studioV2DatalinkApi.get>>) => void;
     vi.mocked(studioV2DatalinkApi.get).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
     fireEvent.click(screen.getByTestId('home-range-save')); await waitFor(() => expect(resolve).toBeTypeOf('function'));
-    await act(async () => { client.setQueryData(studioV2WorkspaceKeys.bootstrap(), { ...workspace, id: 'NEXT' }); });
+    await act(async () => { client.setQueryData(configReadKey(studioV2WorkspaceKeys.bootstrap(), configReadContext()), { ...workspace, id: 'NEXT' }); });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     const read = locatorRead(2); read.workspace = workspace;
     await act(async () => resolve({ data: { success: true, data: { ...read.workspace, locator_entry: read.entry } } }));

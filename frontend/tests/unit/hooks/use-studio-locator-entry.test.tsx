@@ -7,7 +7,10 @@ import { useStudioV2WorkspaceQuery } from '@/hooks/datalink/useStudioV2Workspace
 import { studioV2DatalinkApi, studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import type { EntityLocator } from '@/types/runtimeRuleEvidence';
-vi.mock('@/services/studioV2Workspace', () => ({ studioV2DatalinkApi: { get: vi.fn() }, studioV2WorkspaceAPI: { get: vi.fn() } }));
+vi.mock('@/services/studioV2Workspace', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/studioV2Workspace')>();
+  return { ...actual, studioV2DatalinkApi: { defaults: actual.studioV2DatalinkApi.defaults, get: vi.fn() }, studioV2WorkspaceAPI: { get: vi.fn() } };
+});
 const locator: EntityLocator = { step: 1, workspace_id: 'W', device_id: 'D', rule_id: null, mapping_id: null, group_id: null, group_revision: null };
 const at = '2026-10-29T00:00:00Z';
 function response(device = 'D') {

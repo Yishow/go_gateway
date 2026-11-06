@@ -11,7 +11,10 @@ import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import i18n from '@/i18n/config';
 import { locatorRead, nativeMapping } from './studio-locator-fixtures';
 import type { StudioLocatorEntryRead } from '@/types/studioV2LocatorEntry';
-vi.mock('@/services/studioV2Workspace', () => ({ studioV2DatalinkApi: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }, studioV2WorkspaceAPI: { get: vi.fn() } }));
+vi.mock('@/services/studioV2Workspace', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/studioV2Workspace')>();
+  return { ...actual, studioV2DatalinkApi: { defaults: actual.studioV2DatalinkApi.defaults, get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }, studioV2WorkspaceAPI: { get: vi.fn() } };
+});
 const native = vi.hoisted(() => ({ shell: false }));
 vi.mock('@/features/datalink/workbench-v2/shell/WorkbenchV2Shell', async importOriginal => {
   const actual = await importOriginal<typeof import('@/features/datalink/workbench-v2/shell/WorkbenchV2Shell')>();

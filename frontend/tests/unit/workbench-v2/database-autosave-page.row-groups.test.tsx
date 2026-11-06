@@ -1,3 +1,4 @@
+import { recordingHomeSourceContext } from '@/hooks/datalink/recordingHomeSourceCache';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -109,7 +110,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
     await waitFor(() => {
       expect(studioV2WorkspaceDatabaseAPI.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
         row_groups: [expect.objectContaining({ id: 'row-group-delayed' })],
-      }));
+      }), { baseURL: recordingHomeSourceContext().apiOrigin });
     });
     expect(studioV2WorkspaceDatabaseAPI.upsertTarget).not.toHaveBeenCalled();
 
@@ -169,7 +170,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
     await waitFor(() => {
       expect(studioV2WorkspaceDatabaseAPI.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
         row_groups: [expect.objectContaining({ id: 'row-group-delayed' })],
-      }));
+      }), { baseURL: recordingHomeSourceContext().apiOrigin });
     });
 
     // 排隊期間其他寫入讓 targets 查詢失效並帶回較新的後端版本，不得覆蓋尚未送出的本地編輯。
@@ -252,7 +253,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
       expect(screen.getByTestId('row-group-count')).toHaveTextContent('1');
       expect(studioV2WorkspaceDatabaseAPI.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
         row_groups: [expect.objectContaining({ id: 'row-group-delayed' })],
-      }));
+      }), { baseURL: recordingHomeSourceContext().apiOrigin });
     });
 
     await waitFor(() => {
@@ -271,7 +272,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
       expect(studioV2WorkspaceDatabaseAPI.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
         table: 'sensor_values_v2',
         row_groups: [],
-      }));
+      }), { baseURL: recordingHomeSourceContext().apiOrigin });
     });
 
     expect(studioV2WorkspaceDatabaseAPI.upsertTarget).not.toHaveBeenCalled();

@@ -26,7 +26,8 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
   ),
 }));
 
-vi.mock('../../../src/services/studioV2Workspace', () => ({
+vi.mock('../../../src/services/studioV2Workspace', async importOriginal => ({
+  ...await importOriginal<typeof import('../../../src/services/studioV2Workspace')>(),
   studioV2WorkspaceAPI: {
     get: vi.fn(),
   },

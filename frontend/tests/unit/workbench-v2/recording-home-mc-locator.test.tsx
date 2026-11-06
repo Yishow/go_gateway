@@ -1,3 +1,4 @@
+import { configReadContext, configReadKey } from '@/hooks/datalink/recordingConfigRefresh';
 import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
 import { homeSources } from './recording-home-source-fixtures';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -82,13 +83,13 @@ it('does not confirm a saved MC range when workspace evidence changes and then r
   fireEvent.click(within(dialog).getByTestId('home-range-save'));
   await waitFor(() => expect(studioV2RulesAPI.update).toHaveBeenCalledOnce());
   await act(async () => {
-    client.setQueryData(studioV2WorkspaceKeys.bootstrap(), { ...workspace, modbus_share: { ...workspace.modbus_share, workspace_revision: 'W3' } });
+    client.setQueryData(configReadKey(studioV2WorkspaceKeys.bootstrap(), configReadContext()), { ...workspace, modbus_share: { ...workspace.modbus_share, workspace_revision: 'W3' } });
     client.setQueryData(modbusShareStatusKey, { workspace_id: 'W', workspace_revision: 'W3', configured_enabled: false, enabled: false,
       port: 502, address: '127.0.0.1', bind_state: 'disabled', mapping_count: 0 });
   });
   await waitFor(() => expect(sourceRuleCandidateAPI.getTags).toHaveBeenCalledWith('R', expect.objectContaining({ expected_workspace_revision: 'W3' })));
   await act(async () => {
-    client.setQueryData(studioV2WorkspaceKeys.bootstrap(), workspace);
+    client.setQueryData(configReadKey(studioV2WorkspaceKeys.bootstrap(), configReadContext()), workspace);
     client.setQueryData(modbusShareStatusKey, { workspace_id: 'W', workspace_revision: 'W2', configured_enabled: false, enabled: false,
       port: 502, address: '127.0.0.1', bind_state: 'disabled', mapping_count: 0 });
   });
@@ -107,7 +108,7 @@ it('does not queue a range edit if MC evidence changes during the pre-save read'
   fireEvent.click(within(dialog).getByTestId('home-range-save'));
   await waitFor(() => expect(completeRead).toBeTypeOf('function'));
   await act(async () => {
-    client.setQueryData(studioV2WorkspaceKeys.bootstrap(), { ...workspace, modbus_share: { ...workspace.modbus_share, workspace_revision: 'W3' } });
+    client.setQueryData(configReadKey(studioV2WorkspaceKeys.bootstrap(), configReadContext()), { ...workspace, modbus_share: { ...workspace.modbus_share, workspace_revision: 'W3' } });
     client.setQueryData(modbusShareStatusKey, { workspace_id: 'W', workspace_revision: 'W3', configured_enabled: false, enabled: false,
       port: 502, address: '127.0.0.1', bind_state: 'disabled', mapping_count: 0 });
   });
@@ -117,7 +118,7 @@ it('does not queue a range edit if MC evidence changes during the pre-save read'
   await act(async () => completeRead({ data: { success: true, data: { ...locatorWorkspace, locator_entry: read.entry } } }));
   await within(dialog).findByText('source.stale');
   await act(async () => {
-    client.setQueryData(studioV2WorkspaceKeys.bootstrap(), workspace);
+    client.setQueryData(configReadKey(studioV2WorkspaceKeys.bootstrap(), configReadContext()), workspace);
     client.setQueryData(modbusShareStatusKey, { workspace_id: 'W', workspace_revision: 'W2', configured_enabled: false, enabled: false,
       port: 502, address: '127.0.0.1', bind_state: 'disabled', mapping_count: 0 });
   });

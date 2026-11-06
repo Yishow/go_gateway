@@ -1,3 +1,5 @@
+import { QueryClient } from '@tanstack/react-query';
+import { recordingHomeSourceContext } from '@/hooks/datalink/recordingHomeSourceCache';
 import { describe, expect, it, vi } from 'vitest';
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import { useStudioV2WorkspaceQuery } from '@/hooks/datalink/useStudioV2Workspace';
@@ -17,7 +19,8 @@ vi.mock('@tanstack/react-query', async () => {
   };
 });
 
-vi.mock('@/services/studioV2Workspace', () => ({
+vi.mock('@/services/studioV2Workspace', async importOriginal => ({
+  ...await importOriginal<typeof import('@/services/studioV2Workspace')>(),
   studioV2WorkspaceAPI: {
     get: vi.fn(),
   },
@@ -31,7 +34,7 @@ describe('useStudioV2WorkspaceQuery', () => {
 
     expect(useQueryMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        queryKey: studioV2WorkspaceKeys.bootstrap(),
+        queryKey: [...studioV2WorkspaceKeys.bootstrap(), 'api-context', expect.any(Number), recordingHomeSourceContext().apiOrigin, ''],
         queryFn: expect.any(Function),
         retry: false,
         refetchOnWindowFocus: false,
@@ -39,7 +42,7 @@ describe('useStudioV2WorkspaceQuery', () => {
     );
 
     const options = useQueryMock.mock.calls[0]?.[0] as {
-      queryFn: () => Promise<unknown>;
+      queryFn: (context: { signal: AbortSignal; client: QueryClient }) => Promise<unknown>;
     };
 
     vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
@@ -51,7 +54,8 @@ describe('useStudioV2WorkspaceQuery', () => {
       updated_at: '2026-05-30T00:00:00Z',
     });
 
-    await expect(options.queryFn()).resolves.toEqual({
+    const signal = new AbortController().signal;
+    await expect(options.queryFn({ signal, client: new QueryClient() })).resolves.toEqual({
       id: 'ws-1',
       kind: 'single',
       status: 'empty',
@@ -60,5 +64,6 @@ describe('useStudioV2WorkspaceQuery', () => {
       updated_at: '2026-05-30T00:00:00Z',
     });
     expect(studioV2WorkspaceAPI.get).toHaveBeenCalledTimes(1);
+    expect(studioV2WorkspaceAPI.get).toHaveBeenCalledWith({ signal, baseURL: recordingHomeSourceContext().apiOrigin });
   });
 });

@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from 'axios';
 import type { StudioV2LocatorReadScope } from '../types/studioV2LocatorEntry';
 export type { StudioV2LocatorReadScope } from '../types/studioV2LocatorEntry';
 import { captureStudioLocatorReadScope, studioLocatorReadParams, assertStudioLocatorWorkspaceBinding, throwStudioLocatorReadError } from './studioEntityLocator';
@@ -215,18 +216,18 @@ export function parseStudioV2DatabaseMetadata(value: unknown): StudioV2DatabaseM
 }
 
 export const studioV2WorkspaceDatabaseAPI = {
-  async getConfig(): Promise<StudioV2WorkspaceDatabaseConfigRecord | null> {
-    const res = await studioV2DatalinkApi.get<APIResponse<StudioV2WorkspaceDatabaseConfigRecord | null>>('/studio-v2/workspace/database-config');
+  async getConfig(options?: AxiosRequestConfig): Promise<StudioV2WorkspaceDatabaseConfigRecord | null> {
+    const res = await studioV2DatalinkApi.get<APIResponse<StudioV2WorkspaceDatabaseConfigRecord | null>>('/studio-v2/workspace/database-config', options);
     return res.data.data ?? null;
   },
 
-  async updateConfig(request: StudioV2WorkspaceDatabaseConfigRequest): Promise<StudioV2RuntimeAppliedRecord<StudioV2WorkspaceDatabaseConfigRecord>> {
-    const res = await studioV2DatalinkApi.put<APIResponse<StudioV2RuntimeAppliedRecord<StudioV2WorkspaceDatabaseConfigRecord>>>('/studio-v2/workspace/database-config', request);
+  async updateConfig(request: StudioV2WorkspaceDatabaseConfigRequest, options?: AxiosRequestConfig): Promise<StudioV2RuntimeAppliedRecord<StudioV2WorkspaceDatabaseConfigRecord>> {
+    const res = await studioV2DatalinkApi.put<APIResponse<StudioV2RuntimeAppliedRecord<StudioV2WorkspaceDatabaseConfigRecord>>>('/studio-v2/workspace/database-config', request, options);
     return res.data.data!;
   },
 
-  async listTargets(): Promise<StudioV2WorkspaceDatabaseTargetRecord[]> {
-    const res = await studioV2DatalinkApi.get<APIResponse<StudioV2WorkspaceDatabaseTargetRecord[]>>('/studio-v2/workspace/database-targets');
+  async listTargets(options?: AxiosRequestConfig): Promise<StudioV2WorkspaceDatabaseTargetRecord[]> {
+    const res = await studioV2DatalinkApi.get<APIResponse<StudioV2WorkspaceDatabaseTargetRecord[]>>('/studio-v2/workspace/database-targets', options);
     return res.data.data ?? [];
   },
 

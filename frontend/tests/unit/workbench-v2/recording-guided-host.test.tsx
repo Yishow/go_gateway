@@ -44,6 +44,11 @@ function show(state = savedGroupState(), hasWorkspace = true) {
   const view = render(tree());
   return { ...view, rerenderHost: () => view.rerender(tree()) };
 }
+function showSupportPanels(connector: ReturnType<typeof savedGroupState>['db']['connector']) {
+  const client = new QueryClient(); clients.push(client);
+  return render(<QueryClientProvider client={client}><Step4SupportPanels connector={connector} destinationReady
+    onUpdateConnector={mutate} onKindChange={mutate} /></QueryClientProvider>);
+}
 beforeEach(() => {
   vi.clearAllMocks(); sessionStorage.clear();
   groups.data = { workspace_id: 'ws-1', workspace_revision: 'WR1', groups: [] };
@@ -121,7 +126,7 @@ describe('Step4 mounted guided summary bridge', () => {
 
 it('uses a safe connector alias in collapsed destination summary, without changing the intentional database editor', () => {
   const connector = { ...savedGroupState().db.connector, database: '/private/operator/archive.sqlite' };
-  render(<Step4SupportPanels connector={connector} destinationReady onUpdateConnector={mutate} onKindChange={mutate} />);
+  showSupportPanels(connector);
   const card = screen.getByTestId('database-connection-card');
   expect(within(card).getByText('Line DB')).toBeVisible();
   expect(within(card).queryByText('/private/operator/archive.sqlite')).not.toBeInTheDocument();
@@ -132,7 +137,7 @@ it('uses a safe connector alias in collapsed destination summary, without changi
 
 it.each(['/private/operator/db', 'postgres://user:secret@db.example/private'])('does not derive a destination alias from unsafe name %s', name => {
   const connector = { ...savedGroupState().db.connector, name, database: '/private/operator/archive.sqlite' };
-  render(<Step4SupportPanels connector={connector} destinationReady onUpdateConnector={mutate} onKindChange={mutate} />);
+  showSupportPanels(connector);
   const card = screen.getByTestId('database-connection-card');
   expect(within(card).queryByText(name)).not.toBeInTheDocument();
   expect(within(card).queryByText(connector.database)).not.toBeInTheDocument();

@@ -1,3 +1,4 @@
+import { useRecordingConfigRefresh } from '../../../../../hooks/datalink/recordingConfigRefresh';
 import { safeRuntimeLabel } from '../../../../../utils/runtimeOperatorSafety';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +29,7 @@ export function Step4SupportPanels({
   destinationReady = false,
 }: Step4SupportPanelsProps) {
   const { t } = useTranslation('workbench-v2');
+  const refresh = useRecordingConfigRefresh(connector.workspace_id);
   const destinationAlias = safeRuntimeLabel(connector.name) || t('step4.connector_title');
   const unsaved = ['saving', 'save-error', 'draft-invalid'].includes(connector.save_state ?? '');
   const saveFailed = connector.save_state === 'save-error';
@@ -56,6 +58,10 @@ export function Step4SupportPanels({
               {t(`step4.saveStates.${connector.save_state}`)} — {t(saveFailed ? 'step4.connector_save_failed'
                 : unsaved ? 'step4.connector_save_pending' : 'step4.configuration_saved')}
             </span>}
+            {connector.save_state === 'saved' && refresh.confirmed && refresh.unavailable && <div className="basis-full text-xs text-[var(--gw-warning-fg)]" data-testid="database-connector-refresh-status" role={refresh.status === 'stale-error' ? 'alert' : 'status'}>
+              <p>{t(refresh.status === 'stale-error' ? 'step4.config_refresh_failed' : 'step4.config_refresh_pending')}</p>
+              {refresh.status === 'stale-error' && <button type="button" className="gw-secondary" onClick={() => { void refresh.retry(); }}>{t('step4.config_refresh_retry')}</button>}
+            </div>}
           </div>
         }
       >
