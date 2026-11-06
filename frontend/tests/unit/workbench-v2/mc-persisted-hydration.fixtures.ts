@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { createElement } from 'react';
 import { vi } from 'vitest';
-import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
+import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page';
 import { sourceRuleCandidateAPI } from '../../../src/services/sourceRuleCandidates';
 import { modbusShareAPI } from '../../../src/services/datalink';
 import { studioV2ServiceMocks } from './helpers/studioV2ServiceMocks';

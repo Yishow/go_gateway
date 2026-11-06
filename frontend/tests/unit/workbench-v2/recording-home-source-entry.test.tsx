@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchV2Page from '@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2DatalinkApi, studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
@@ -199,3 +199,6 @@ describe('direct source entry and one shared form presentation', () => {
     expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); noOtherWrites();
   });
 });
+
+// Cold chunk behavior is covered by advanced-home-source-loading; these cases exercise source owners.
+beforeAll(async () => { await import('@/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page'); });

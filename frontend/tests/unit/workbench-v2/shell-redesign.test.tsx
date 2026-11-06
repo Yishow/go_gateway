@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
+import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page';
 import { Button, SectionCard } from '../../../src/features/datalink/workbench-v2/components';
 import { StepRail } from '../../../src/features/datalink/workbench-v2/shell/StepRail';
 

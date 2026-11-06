@@ -13,7 +13,7 @@ import {
 
 async function renderPage() {
   const { default: DatalinkWorkbenchV2Page } = await import(
-    '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page'
+    '../../../src/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page'
   );
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -149,7 +149,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
     })));
 
     const { default: DatalinkWorkbenchV2Page } = await import(
-      '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page'
+      '../../../src/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page'
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(

@@ -49,6 +49,24 @@ export default defineConfig(({ command, mode }) => {
     build: {
       outDir: "dist",
       emptyOutDir: true,
+      manifest: true,
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            // Group only matched dependencies, never their importing route modules.
+            includeDependenciesRecursively: false,
+            groups: [{ name(id: string) {
+              const dependency = id.replaceAll('\\', '/').split('/node_modules/').at(-1);
+              if (!id.includes('node_modules') || !dependency) return null;
+              if (/^(react|react-dom|scheduler|react-is|use-sync-external-store)\//.test(dependency)) return 'react-vendor';
+              if (/^(recharts|recharts-scale|d3-[^/]+|victory-vendor|internmap|decimal.js-light)\//.test(dependency)) return 'charts-vendor';
+              if (/^(@mui|@emotion)\//.test(dependency)) return 'mui-vendor';
+              if (/^(@tanstack|react-router|react-router-dom|i18next|react-i18next|i18next-browser-languagedetector)\//.test(dependency)) return 'app-vendor';
+              return 'misc-vendor';
+            } }],
+          },
+        },
+      },
     },
     server: {
       fs: {

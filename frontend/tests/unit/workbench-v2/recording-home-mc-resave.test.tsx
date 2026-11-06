@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { beforeAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchV2Page from '@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2DatalinkApi, studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
@@ -92,3 +92,7 @@ it('saves an MC range twice only with proof scoped to the acknowledged revision'
   expect(rule.revision_id).toBe('R3');
   await within(dialog).findByTestId('home-range-saved');
 });
+
+// Warm only the code: these cases still exercise the real wrapper, scoped reads, and draft owners.
+// Cold import timing and failures remain covered by the dedicated advanced-loading tests.
+beforeAll(async () => { await import('@/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page'); });

@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { WorkbenchV2Shell, type WorkbenchV2ShellProps } from '@/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { INITIAL_STATE } from '@/features/datalink/workbench-v2/state/useWorkbenchV2State';
@@ -208,3 +208,7 @@ describe('locator receiver initialization through native parser and router', () 
   });
 
 });
+
+// Warm only the code: these cases still exercise the real wrapper, scoped reads, and draft owners.
+// Cold import timing and failures remain covered by the dedicated advanced-loading tests.
+beforeAll(async () => { await import('@/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page'); });

@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { beforeAll, afterEach, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchV2Page from '@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2DatalinkApi, studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
@@ -121,3 +121,7 @@ it('does not queue a range edit if MC evidence changes during the pre-save read'
   expect(within(dialog).getByTestId('rule-prefix-input')).toHaveValue('KEEP_DRAFT_');
   expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
 });
+
+// Warm only the code: these cases still exercise the real wrapper, scoped reads, and draft owners.
+// Cold import timing and failures remain covered by the dedicated advanced-loading tests.
+beforeAll(async () => { await import('@/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page'); });

@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import DatalinkWorkbenchV2Page from '@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2DatalinkApi, studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
@@ -194,3 +194,7 @@ describe('precise locator versus full advanced navigation', () => {
     expect(studioV2DatalinkApi.put).not.toHaveBeenCalled();
   });
 });
+
+// Warm only the code: these cases still exercise the real wrapper, scoped reads, and draft owners.
+// Cold import timing and failures remain covered by the dedicated advanced-loading tests.
+beforeAll(async () => { await import('@/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page'); });

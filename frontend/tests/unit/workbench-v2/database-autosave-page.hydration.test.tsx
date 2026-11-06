@@ -5,7 +5,7 @@ import { resetDatabaseAutosaveMocks } from './database-autosave-page.testHarness
 
 async function renderPage() {
   const { default: DatalinkWorkbenchV2Page } = await import(
-    '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page'
+    '../../../src/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page'
   );
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
+import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page';
 import type { WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
 import { modbusShareAPI } from '../../../src/services/datalink';
 import { studioV2WorkspaceActivationAPI } from '../../../src/services/studioV2WorkspaceActivation';

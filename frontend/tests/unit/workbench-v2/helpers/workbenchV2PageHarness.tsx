@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import type { StudioV2WorkspaceDeviceRecord } from '../../../../src/services/studioV2WorkspaceDevices';
-import DatalinkWorkbenchV2Page from '../../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
+import DatalinkWorkbenchV2Page from '../../../../src/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page';
 import type {
   SourceRuleRecord,
   StudioV2WorkspaceDatabaseConfigRecord,

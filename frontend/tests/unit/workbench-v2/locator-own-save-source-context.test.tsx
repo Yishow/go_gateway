@@ -351,6 +351,8 @@ it('releases the save-only fence on failed readback and exposes the existing err
 
 it.each(['cancel', 'save', 'reject-cancel'] as const)('keeps a cold saved Page return available after inline name %s without treating source reads as edits', async outcome => {
   vi.doUnmock('@/features/datalink/workbench-v2/shell/WorkbenchV2Shell');
+  // Preload after unmocking so the real Page owner sees the real shell.
+  await import('@/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page');
   const { default: DatalinkWorkbenchV2Page } = await import('@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page');
   let mapping = { ...nativeMapping(), device_id: device.id, point_id: 'pt-0', tag_id: 'tag-0', address: '40001', display_name: 'Point 0' };
   const sourceRead = () => {

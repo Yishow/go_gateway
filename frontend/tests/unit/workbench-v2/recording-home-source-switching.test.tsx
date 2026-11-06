@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchV2Page from '@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2DatalinkApi, studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
@@ -271,3 +271,6 @@ describe('title bar controls follow the one draft', () => {
     await waitFor(() => expect(within(dialog).getByTestId('rule-prefix-input')).toHaveValue('Rule R')); noWrites();
   });
 });
+
+// Cold chunk behavior is covered by advanced-home-source-loading; these cases exercise source owners.
+beforeAll(async () => { await import('@/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page'); });

@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
+import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page';
 import { activateStudioV2WorkspaceWithShare, syncStudioV2ShareMappings } from '../../../src/features/datalink/workbench-v2/state/studioV2ShareActivation';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';

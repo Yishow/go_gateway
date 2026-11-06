@@ -9,7 +9,7 @@ import {
   studioV2WorkspaceDevicesAPI,
   workspaceFixture,
 } from './device-autosave-page.testHarness';
-import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
+import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page';
 
 function renderPage() {
   const queryClient = new QueryClient({

@@ -2,7 +2,7 @@ import { dbTargetAPI } from '@/services/datalink';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider, useLocation, useNavigate } from 'react-router-dom';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { beforeAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import DatalinkWorkbenchV2Page from '@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { RecordingRouterNavigation } from '@/features/datalink/workbench-v2/recording-editor/RecordingRouterNavigation';
@@ -166,3 +166,7 @@ it('never updates the source after a create ACK incorrectly returns the source i
  expect(screen.getByTestId('group-name')).toBeDisabled(); expect(screen.getByTestId('group-save')).toBeDisabled();
  expect(view.router.state.location.search).toContain('intent=copy'); expect(studioV2WorkspaceWriteGroupsAPI.create).toHaveBeenCalledOnce();
 });
+
+// Warm only the code: these cases still exercise the real wrapper, scoped reads, and draft owners.
+// Cold import timing and failures remain covered by the dedicated advanced-loading tests.
+beforeAll(async () => { await import('@/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page'); });

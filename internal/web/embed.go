@@ -1,12 +1,14 @@
 package web
 
 import (
+	"bytes"
 	"embed"
 	"io"
 	"io/fs"
 	"log"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +22,10 @@ const responseErrorKey = "error"
 //   - router: Gin 路由器
 //   - staticFiles: 嵌入的靜態檔案系統
 func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
+	setupStaticFS(router, staticFiles)
+}
+
+func setupStaticFS(router *gin.Engine, staticFiles fs.FS) {
 	// 取得嵌入的檔案系統
 	// embed 路徑是相對於包含 //go:embed 註解的檔案位置
 	// 從 cmd/test_ui/main.go 來看，路徑是 static
@@ -36,6 +42,9 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 		return
 	}
 
+	compressed := buildCompressedAssets(assetsFS)
+	validators := buildStaticValidators(fsys, compressed)
+
 	// 手動處理靜態資源請求，確保 MIME type 正確
 	serveAsset := func(c *gin.Context) {
 		path := c.Param("filepath")
@@ -50,7 +59,6 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 		// 嘗試開啟檔案
 		file, err := assetsFS.Open(path)
 		if err != nil {
-			log.Printf("⚠️ 找不到靜態檔案: %s", path)
 			c.Status(http.StatusNotFound)
 			return
 		}
@@ -60,6 +68,19 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 		if err != nil {
 			log.Printf("❌ 無法讀取檔案狀態: %s", path)
 			c.Status(http.StatusInternalServerError)
+			return
+		}
+
+		if stat.IsDir() {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		c.Header("Vary", "Accept-Encoding")
+		gzipQ, identityQ := encodingQuality(c.Request.Header.Values("Accept-Encoding"))
+		encoded := compressed[path]
+		useGzip := c.Request.Header.Get("Range") == "" && len(encoded) > 0 && gzipQ > 0 && gzipQ >= identityQ
+		if !useGzip && identityQ <= 0 {
+			c.Status(http.StatusNotAcceptable)
 			return
 		}
 
@@ -86,10 +107,16 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 		}
 
 		c.Header("Content-Type", contentType)
-		// 設定快取 (1年)
-		c.Header("Cache-Control", "public, max-age=31536000")
+		c.Header("Cache-Control", staticCachePolicy(path))
+		c.Header("ETag", validators["assets/"+path].identity)
 
-		log.Printf("📦 Serving Asset: %s (%s)", path, contentType)
+		if useGzip {
+			c.Header("ETag", validators["assets/"+path].gzip)
+			c.Header("Content-Encoding", "gzip")
+			c.Header("Content-Length", strconv.Itoa(len(encoded)))
+			http.ServeContent(c.Writer, c.Request, path, stat.ModTime(), bytes.NewReader(encoded))
+			return
+		}
 
 		readSeeker, ok := file.(io.ReadSeeker)
 		if !ok {
@@ -121,6 +148,8 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 			c.JSON(http.StatusInternalServerError, gin.H{responseErrorKey: "vite.svg 檔案不支援讀取"})
 			return
 		}
+		c.Header("Cache-Control", "no-cache")
+		c.Header("ETag", validators["vite.svg"].identity)
 		c.Header("Content-Type", "image/svg+xml")
 		http.ServeContent(c.Writer, c.Request, "vite.svg", stat.ModTime(), readSeeker)
 	})
@@ -157,6 +186,8 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 			c.JSON(http.StatusInternalServerError, gin.H{responseErrorKey: "index.html 檔案不支援讀取"})
 			return
 		}
+		c.Header("Cache-Control", "no-cache")
+		c.Header("ETag", validators["index.html"].identity)
 		c.Header("Content-Type", "text/html; charset=utf-8")
 		http.ServeContent(c.Writer, c.Request, "index.html", stat.ModTime(), readSeeker)
 	})

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
-import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
+import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/AdvancedWorkbenchV2Page';
 import { WorkbenchV2Shell, type WorkbenchV2ShellProps } from '../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { studioV2MappingsAPI } from '../../../src/services/studioV2Mappings';
