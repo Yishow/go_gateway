@@ -4,10 +4,14 @@ import enParameterHelp from './locales/en/parameter-help.json';
 import zhTWParameterHelp from './locales/zh-TW/parameter-help.json';
 import enAcquisitionPreview from './locales/en/acquisition-preview.json';
 import zhTWAcquisitionPreview from './locales/zh-TW/acquisition-preview.json';
+import enAcquisitionSettings from './locales/en/acquisition-settings.json';
+import zhTWAcquisitionSettings from './locales/zh-TW/acquisition-settings.json';
 import enPointFormat from './locales/en/point-format.json';
 import zhTWPointFormat from './locales/zh-TW/point-format.json';
 import enRecordingEditor from './locales/en/recording-editor.json';
 import zhTWRecordingEditor from './locales/zh-TW/recording-editor.json';
+import enRecordingEditorConstraints from './locales/en/recording-editor-constraints.json';
+import zhTWRecordingEditorConstraints from './locales/zh-TW/recording-editor-constraints.json';
 import enTheme from './locales/en/theme.json';
 import zhTWTheme from './locales/zh-TW/theme.json';
 import enRecordingHome from './locales/en/recording-home.json';
@@ -67,9 +71,11 @@ i18n
       en: {
         'recording-home': enRecordingHome,
         'recording-editor': enRecordingEditor,
+        'recording-editor-constraints': enRecordingEditorConstraints,
         'parameter-help': { ...enParameterHelp, ...enParameterHelpAdvanced },
         'point-format': enPointFormat,
         'acquisition-preview': enAcquisitionPreview,
+        'acquisition-settings': enAcquisitionSettings,
         theme: enTheme,
         translation: mergeTranslations(
           enTranslations,
@@ -92,9 +98,11 @@ i18n
       'zh-TW': {
         'recording-home': zhTWRecordingHome,
         'recording-editor': zhTWRecordingEditor,
+        'recording-editor-constraints': zhTWRecordingEditorConstraints,
         'parameter-help': { ...zhTWParameterHelp, ...zhTWParameterHelpAdvanced },
         'point-format': zhTWPointFormat,
         'acquisition-preview': zhTWAcquisitionPreview,
+        'acquisition-settings': zhTWAcquisitionSettings,
         theme: zhTWTheme,
         translation: mergeTranslations(
           zhTWTranslations,

@@ -1,15 +1,14 @@
 import { useRecordingSourceRefresh } from '../../../recording-editor/RecordingSourceRefresh';
 import { RecordingRevisionDetails } from '../../../recording-editor/RecordingRevisionDetails';
 import { createBasicRecordingRequestId } from '../../../state/basicRecording';
-import { RecordingDestinationMismatch, RecordingNewDestinationChooser, RecordingSavedDestination } from '../../../recording-editor/RecordingNewDestination';
-import { ConfiguredDestinationChooser, type ConfiguredDestinationObservation } from '../../../recording-editor/ConfiguredDestinationChooser';
-import { configuredDestinationPatch, configuredDestinationReason, configuredDestinationStillCurrent } from '../../../recording-editor/configuredRecordingDestinations';
+import type { ConfiguredDestinationObservation } from '../../../recording-editor/ConfiguredDestinationChooser';
+import { configuredDestinationReason, configuredDestinationStillCurrent } from '../../../recording-editor/configuredRecordingDestinations';
 import { RecordingSourceNavigation } from '../../../recording-editor/RecordingSourceNavigation';
 import { useWriteGroupSaveActivity, writeGroupSaveOutcomeUnknown } from '../../../../../../hooks/datalink/useWriteGroupSaveActivity';
 import { GroupEditorWithCapabilities, destinationLock, destinationSaved, type GroupEditorContentProps } from './GroupEditorCapabilities';
 import { RecordingDraftBoundary, useRecordingDraftGuard, useRecordingReadUnavailable } from '../../../recording-editor/RecordingDraftNavigation';
 import type { WriteGroupCalculationCapabilities } from '../../../../../../types/studioV2WriteGroupCalculation';
-import { RecordingMixedEditor, RecordingMixedResults, recordingMixedEditorIssues } from '../../../recording-editor/RecordingMixedEditor';
+import { RecordingMixedResults, recordingMixedEditorIssues } from '../../../recording-editor/RecordingMixedEditor';
 import { createRecordingCopyDraft, type RecordingCopyPrefill } from '../../../recording-editor/recordingCopyDraft';
 import { RecordingEditorSummary } from '../../../recording-editor/RecordingEditorSummary';
 import { RecordingEditorLayout } from '../../../recording-editor/RecordingEditorLayout';
@@ -45,13 +44,14 @@ import { useStep4TargetColumns } from '../useStep4TargetColumns';
 import { GroupColumnProposal } from './GroupColumnProposal';
 import { GroupDeliveryStrip } from './GroupDeliveryStrip';
 import { GroupIdentityFields } from './GroupIdentityFields';
-import { RecordingDestinationFields } from './RecordingDestinationFields';
+import { GroupEditorDestinationSection } from './GroupEditorDestinationSection';
+import { GroupEditorMethodSection } from './GroupEditorMethodSection';
 import { hasOwnedWideDestination } from './recordingCatalogOwnership';
 import { GroupLifecycleBar } from './GroupLifecycleBar';
 import type { SavedRecordingActionHost } from './lifecycle/SavedRecordingActions';
-import { GroupMemberTable } from './GroupMemberTable';
+import { GroupMemberTable, type GroupMemberTableHandle } from './GroupMemberTable';
 import { GroupPolicyFields } from './GroupPolicyFields';
-import { GroupProfileMembers, GroupProfileSummary } from './GroupProfileSummary';
+import { GroupProfileMembers } from './GroupProfileSummary';
 import { GroupReadinessPanel } from './GroupReadinessPanel';
 import { GroupEditorPreparation } from '../../../recording-editor/GroupEditorPreparation';
 import { GroupTestWritePanel } from './GroupTestWritePanel';
@@ -128,6 +128,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const pickerScope = pickerIdentity.current.scope;
   const [observedSources, setObservedSources] = useState<{ scope: string; value: RecordingPickerDiscovery }>();
   const [selectedScope, setSelectedScope] = useState<{ shown: number; total: number }>();
+  const memberTableRef = useRef<GroupMemberTableHandle>(null);
   const candidates = useMemo(() => observedSources?.scope === pickerScope ? [...observedSources.value.candidates] : suppliedCandidates, [observedSources, pickerScope, suppliedCandidates]);
   const readonly = operatorReadonly || readUnavailable || editorReadonly || propGroup?.status === 'deleted';
   const renderCalculation = (member: EditorMember, tableCells = false) => <RecordingMemberCalculationSource tableCells={tableCells} member={member} disabled={readonly || saveBusy} compact={presentation === 'simple'}
@@ -243,6 +244,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
   const invalid = issues.length > 0 || mixedIssues.length > 0 || configuredInvalid || ownedWideConflict || Boolean(!group && newDestination && !newDestination.current());
   const readiness = useWriteGroupReadinessQuery(group?.id, Boolean(group) && !dirty);
   const set = (patch: Partial<EditorDraft>) => { if (!savingRef.current) setDraft((current) => ({ ...current, ...patch })); };
+  const replaceDraft = (next: EditorDraft) => { if (!savingRef.current) setDraft(next); };
   const setMembers = (members: EditorMember[]) => set({ members: mixed && (calculationCapabilities || presentation === 'simple') ? initializeMixedMembers(members, draft.members, candidates, calculationCapabilities,
     presentation === 'simple' ? { interval: 15, unit: 'second', alignment: 'utc_epoch' } : undefined) : members });
   const changeStorageStrategy = (storage_strategy: WriteGroupStorageStrategy) => setDraft((current) => {
@@ -359,7 +361,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing && !event.defaultPrevented && !(event.target as HTMLElement).closest('[role="dialog"], [role="alertdialog"], [role="tooltip"], [data-state="open"]')) { event.preventDefault(); closeEditor(); } }}>
       <div className={presentation === 'simple' ? 'recording-editor-tools' : 'flex items-center justify-between'}>
         {presentation !== 'simple' && <h3 className="text-sm font-semibold text-[var(--gw-text)]">{group ? group.name : t('step4.group.editor.new_title')}</h3>}
-        {presentation === 'simple' && group && onCopy && <button type="button" className="gw-secondary" disabled={readonly || saveBusy || saveUnknown || saveReadbackPending} onClick={() => navigation.request(onCopy)} data-testid="recording-copy">{editorText('copy.action')}</button>}
+        {presentation === 'simple' && group && onCopy && <button type="button" className="gw-secondary rounded-md border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-1.5 text-sm text-[var(--gw-text)] hover:bg-[var(--gw-ground)] disabled:opacity-50" disabled={readonly || saveBusy || saveUnknown || saveReadbackPending} onClick={() => navigation.request(onCopy)} data-testid="recording-copy">{editorText('copy.action')}</button>}
         {presentation !== 'simple' && <button type="button" onClick={closeEditor} className="text-xs text-[var(--gw-muted)] underline" data-testid="group-editor-close">{t('step4.group.editor.back')}</button>}
       </div>
 
@@ -369,33 +371,14 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
       <RecordingEditorLayout presentation={presentation} fieldsDisabled={saveBusy || readUnavailable} perPoint={mixed} memberCount={draft.members.length} selectedScope={scopeInHeading ? selectedScope : undefined} selectedScopeInHeading={scopeInHeading}
         summary={presentation === 'simple' && <RecordingEditorSummary draft={draft} destinationName={saved && destinationMatches ? connector.name || connector.kind : undefined} saved={Boolean(group)} dirty={dirty} diagnostics={group && <RecordingRevisionDetails group={group} simple scopeDiagnostics={scopeDiagnostics} />} />}
         identity={<GroupIdentityFields scopedPresentation={scopedPresentation} section={presentation === 'simple' ? 'name' : 'all'} draft={draft} readonly={readonly} {...destinationLock(draft, Boolean(group))} onChange={set} onStorageStrategy={changeStorageStrategy} />}
-        method={<>
-      <RecordingMixedEditor section={presentation === 'simple' ? 'method' : 'all'} draft={draft} saved={Boolean(group)} disabled={readonly || saveBusy} capabilities={calculationCapabilities} dialect={connector.kind} onChange={next => { if (!savingRef.current) setDraft(next); }} />
-      {profile && !mixed && <GroupProfileSummary draft={draft} />}
-        </>}
-        destination={<>
-      {presentation === 'simple' && draft.storage_strategy === 'managed' && editorMetadata.status !== 'exists' && <div className="recording-compact-members__metadata" data-testid="recording-destination-metadata-note"><p role="status">{editorText(`compact.destinationMetadata.${editorMetadata.status}`)}</p>{(editorMetadata.status === 'failed' || editorMetadata.status === 'forbidden') && <button type="button" className="gw-secondary" onClick={metadata.refetch}>{t('step4.group.retry')}</button>}</div>}
-      {presentation === 'simple' && group ? <RecordingSavedDestination group={group} connector={connector} workspaceId={workspaceId} /> : newDestination && !newDestination.initialSetup ? !group && <RecordingNewDestinationChooser value={newDestination} selectedId={draft.connector_id}
-        disabled={readonly || saveBusy || saveUnknown || Boolean(saveReadbackPending)} onSelect={id => {
-          if (groupRef.current || readonly || savingRef.current || saveUnknown || saveReadbackPending) return;
-          const next = newDestination.choose(id); if (!next) return;
-          setConfiguredChoice(undefined); set({ connector_id: next.connector_id ?? '', connector_revision: next.identity_revision ?? '', table_schema: next.schema, table_name: '' });
-        }} /> : destinationContent}
-      {!destinationMatches && (!newDestination || newDestination.initialSetup) && <RecordingDestinationMismatch locatorUnknown={Boolean(locatorScope && !saved)} saved={saved} readonly={readonly}
-        onUseCurrent={() => set({ connector_id: connector.connector_id ?? '', connector_revision: connector.identity_revision ?? '', table_schema: connector.schema ?? '',
-          table_name: group?.layout_version === 'managed_long_v1' && draft.storage_strategy === 'managed' ? '' : connector.table ?? '' })} />}
-
-          {presentation === 'simple' && <>
-      <RecordingDestinationFields workspaceId={workspaceId} workspaceRevision={workspaceRevision} connector={connector} group={group} locatorScope={locatorScope} configuredDestinations={configuredDestinations} scopedPresentation={scopedPresentation} draft={draft} readonly={readonly} {...destinationLock(draft, Boolean(group))} onChange={set} onStorageStrategy={changeStorageStrategy} />
-
-      <RecordingMixedEditor section="destination" draft={draft} saved={Boolean(group)} disabled={readonly || saveBusy} capabilities={calculationCapabilities} dialect={connector.kind} onChange={next => { if (!savingRef.current) setDraft(next); }} />
-          </>}
-      {configuredDestinations && <ConfiguredDestinationChooser observation={configuredDestinations} context={configuredContext} workspaceRevision={workspaceRevision}
-        disabled={readonly || saveBusy} selected={configuredChoice} onSelect={choice => { setConfiguredChoice(choice); set(configuredDestinationPatch(choice)); }}
-        onReset={() => { setConfiguredChoice(undefined); set({ table_name: group?.destination.table_name ?? '' }); }} />}
-      {configuredInvalid && <p role="alert">{editorText(configuredDestinations?.failed ? 'destinations.error' : configuredDestinations?.loading ? 'destinations.loading' : configuredReason ? `destinations.reason.${configuredReason}` : 'destinations.stale')}</p>}{ownedWideConflict && <p role="alert">{editorText('destinations.reason.wideOwner')} {editorText('newDestination.catalogOwned')}</p>}
-
-        </>}
+        method={<GroupEditorMethodSection presentation={presentation} draft={draft} saved={Boolean(group)} disabled={readonly || saveBusy} capabilities={calculationCapabilities} dialect={connector.kind} candidates={candidates} savedGroup={group} saveError={saveError} onReplaceDraft={replaceDraft} onHiddenMember={pointId => memberTableRef.current?.focusCalculation(pointId)} onStartNew={next => navigation.request(() => { if (!savingRef.current) { setConfiguredChoice(undefined); groupRef.current = undefined; setEditorGroup(undefined); setDraft(next); onCopy?.(); } })} />}
+        destination={<GroupEditorDestinationSection presentation={presentation} scopedPresentation={scopedPresentation} workspaceId={workspaceId} workspaceRevision={workspaceRevision} connector={connector} group={group} locatorScope={locatorScope}
+          saved={saved} destinationMatches={destinationMatches} draft={draft} readonly={readonly} disabled={saveBusy} saveUnknown={saveUnknown} saveReadbackPending={saveReadbackPending} metadataStatus={editorMetadata.status} onRetryMetadata={metadata.refetch}
+          newDestination={newDestination} destinationContent={destinationContent} ownedWideConflict={ownedWideConflict} calculationCapabilities={calculationCapabilities}
+          configured={{ observation: configuredDestinations, context: configuredContext, choice: configuredChoice, invalid: configuredInvalid, reason: configuredReason, onChoose: setConfiguredChoice }}
+          canChooseNewDestination={() => !groupRef.current && !readonly && !savingRef.current && !saveUnknown && !saveReadbackPending}
+          onChange={set} onStorageStrategy={changeStorageStrategy} onReplaceDraft={replaceDraft} candidates={candidates} onStartNew={next => navigation.request(() => { if (!savingRef.current) { setConfiguredChoice(undefined); groupRef.current = undefined; setEditorGroup(undefined); setDraft(next); onCopy?.(); } })}
+          onCopy={onCopy && (() => navigation.request(onCopy))} copyDisabled={readonly || saveBusy || saveUnknown || Boolean(saveReadbackPending)} />}
         policy={<GroupPolicyFields expanded={presentation === 'simple'} draft={draft} readonly={readonly} profile={profile} onChange={set} onDedupe={(capability) => { customDedupeRef.current = capability; set({ dedupe_capability: capability }); }} />}
         sources={profile && !mixed ? <GroupProfileMembers renderSource={renderPointOrder} draft={draft} candidates={candidates} locatorScope={locatorScope} workspaceId={workspaceId} readonly={readonly} /> : (
         <>
@@ -406,12 +389,12 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
             if (read.state !== 'available') throw new Error('Source observation unavailable');
             return { candidates: read.value.candidates, devices: read.value.devices };
           } : undefined}
-          renderMembers={actions => <RecordingSelectedMembers scopedPresentation={scopedPresentation} presentation={presentation} onScopeChange={scopeInHeading ? setSelectedScope : undefined} scopeInHeading={scopeInHeading} pointOrderSort={deviceSource?.pointOrder ? { workspaceId, port: deviceSource.pointOrder } : undefined} metadataAtDestination={presentation === 'simple' && draft.storage_strategy === 'managed'} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} {...actions} managed={draft.storage_strategy === 'managed'} layoutVersion={draft.layout_version} dialect={dialect}
+          renderMembers={actions => <RecordingSelectedMembers focusRef={memberTableRef} scopedPresentation={scopedPresentation} presentation={presentation} onScopeChange={scopeInHeading ? setSelectedScope : undefined} scopeInHeading={scopeInHeading} pointOrderSort={deviceSource?.pointOrder ? { workspaceId, port: deviceSource.pointOrder } : undefined} metadataAtDestination={presentation === 'simple' && draft.storage_strategy === 'managed'} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} {...actions} managed={draft.storage_strategy === 'managed'} layoutVersion={draft.layout_version} dialect={dialect}
             candidates={candidates} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status} onRetryMetadata={metadata.refetch}
             suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly || saveBusy}
             onChange={setMembers} labels={{ remove: member => editorText('picker.removeMember', { point: member.point_id }),
               unavailable: editorText('picker.unavailable'), undo: editorText('picker.undo') }} />} /> :
-        <GroupMemberTable scopedPresentation={scopedPresentation} presentation={presentation} metadataAtDestination={presentation === 'simple' && draft.storage_strategy === 'managed'} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} managed={draft.storage_strategy === 'managed'} layoutVersion={draft.layout_version} dialect={dialect}
+        <GroupMemberTable focusRef={memberTableRef} scopedPresentation={scopedPresentation} presentation={presentation} metadataAtDestination={presentation === 'simple' && draft.storage_strategy === 'managed'} columnsAssignedOnSave={columnsAssignedOnSave} renderCalculation={presentation === 'simple' && mixed ? renderCalculation : undefined} renderSource={renderPointOrder} managed={draft.storage_strategy === 'managed'} layoutVersion={draft.layout_version} dialect={dialect}
           candidates={candidates} excluded={excluded} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status} onRetryMetadata={metadata.refetch}
           suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly || saveBusy}
           onChange={setMembers} />}

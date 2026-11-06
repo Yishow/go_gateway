@@ -11,6 +11,7 @@ import type {
 } from '../../../types/studioV2RuntimeContext';
 import {
   buildStudioV2FocusTarget,
+  describeReadinessIssue,
   formatReadinessStatus,
   readinessStepLabel,
   readinessActionFor,
@@ -37,6 +38,8 @@ export function RuntimeSetupContextPanel({
   onSourceSelection,
 }: RuntimeSetupContextPanelProps) {
   const { t } = useTranslation('runtime-dashboard');
+  const { t: constraints } = useTranslation('recording-editor-constraints');
+  const { t: workbench } = useTranslation('workbench-v2');
   const scope = evidenceScope && evidenceScope.device_id === selectedDevice?.device_id &&
     Object.values(evidenceScope).every((id) => Boolean(id) && safeRuntimeIdentity(id) === id) ? evidenceScope : null;
   const scopeKey = scope ? JSON.stringify([scope.workspace_id, scope.workspace_revision, scope.device_id]) : '';
@@ -129,26 +132,29 @@ export function RuntimeSetupContextPanel({
             </div>
             {visibleIssues.length > 0 ? (
               <ul className="mt-3 space-y-3">
-                {visibleIssues.map((issue) => (
-                  <li key={`${issue.code}-${issue.scope}`} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-slate-100">
-                      <span className="font-semibold text-amber-200">{readinessStepLabel(issue)}</span>
-                      <span className="rounded bg-slate-900 px-2 py-0.5 font-mono text-xs text-amber-300">{issue.code}</span>
-                    </div>
-                    <p className="mt-1.5 text-xs text-slate-300 leading-relaxed">{issue.message}</p>
-                    <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-amber-500/10 pt-2">
-                      <p className="text-xs text-cyan-200">{readinessActionFor(issue, t)}</p>
-                      <a
-                        href={buildStudioV2FocusTarget(issue)}
-                        data-testid={`runtime-dashboard-setup-fix-${issue.code}`}
-                        onClick={handleStudioTargetClick(navigateTo, buildStudioV2FocusTarget(issue))}
-                        className="inline-flex items-center gap-1 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
-                      >
-                        {fixInStudioLabel(t, readinessStepLabel(issue))}
-                      </a>
-                    </div>
-                  </li>
-                ))}
+                {visibleIssues.map((issue) => {
+                  const described = describeReadinessIssue(issue, constraints);
+                  return (
+                    <li key={`${issue.code}-${issue.scope}`} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-slate-100">
+                        <span className="font-semibold text-amber-200">{readinessStepLabel(issue)}</span>
+                      </div>
+                      <p className="mt-1.5 text-xs text-slate-200 leading-relaxed">{described.primary}</p>
+                      <p className="mt-1 font-mono text-[11px] text-slate-400 leading-relaxed">{workbench('step4.basic.diagnostics')}：{described.diagnostic}</p>
+                      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-amber-500/10 pt-2">
+                        <p className="text-xs text-cyan-200">{readinessActionFor(issue, t)}</p>
+                        <a
+                          href={buildStudioV2FocusTarget(issue)}
+                          data-testid={`runtime-dashboard-setup-fix-${issue.code}`}
+                          onClick={handleStudioTargetClick(navigateTo, buildStudioV2FocusTarget(issue))}
+                          className="inline-flex items-center gap-1 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
+                        >
+                          {fixInStudioLabel(t, readinessStepLabel(issue))}
+                        </a>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="mt-3 text-xs text-slate-400">

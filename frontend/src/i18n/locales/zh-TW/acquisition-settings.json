@@ -1,0 +1,84 @@
+{
+  "title": "取值與異常偵測",
+  "newDevice": "取值間隔與異常門檻在設備儲存後才能設定；儲存後請從首頁的「連線設定」調整。取值優化設定檔可以現在選擇。",
+  "unavailable": "目前讀不到這台設備的取值設定，因此不提供編輯。請關閉後重新開啟連線設定；若仍出現，請確認後端版本支援取值設定。",
+  "fields": {
+    "interval": "取值間隔（毫秒）",
+    "autoInterval": "自動調整間隔",
+    "staleThreshold": "未更新門檻（毫秒）",
+    "frozenThreshold": "數值凍結門檻（毫秒）",
+    "profile": "取值優化設定檔",
+    "randomPoints": "每次 random 讀取點數上限"
+  },
+  "hints": {
+    "interval": "100 到 3,600,000 毫秒。",
+    "autoInterval": "掃描來不及時拉長有效間隔，恢復後逐步縮回設定值。",
+    "stale": "留空使用預設：取值間隔 ×5，至少 10 秒。",
+    "staleSaved": "已儲存自訂值；目前無法改回預設，只能改成其他大於 0 的毫秒數。",
+    "frozen": "0 表示停用凍結偵測。",
+    "profile": "只寫入連線設定的 acquisition 宣告；未宣告時一律使用安全連續讀取。",
+    "randomPoints": "預設為協議上限 {{limit}}，只能改小。"
+  },
+  "placeholders": {
+    "stale": "預設"
+  },
+  "autoOn": "啟用",
+  "autoOff": "停用",
+  "profiles": {
+    "undeclared": "未宣告（安全連續讀取）",
+    "safe-v1": "safe-v1（只連續讀取）",
+    "mitsubishi-fx5-cpu-3e-binary-v1": "mitsubishi-fx5-cpu-3e-binary-v1（FX5 CPU）",
+    "mitsubishi-q-iqr-3e-binary-v1": "mitsubishi-q-iqr-3e-binary-v1（Q／iQ-R）",
+    "fatek-fbs-ascii-v1": "fatek-fbs-ascii-v1（FBs）",
+    "unrecognized": "目前設定 {{profile}}（不在此協議清單）"
+  },
+  "modbusNote": "Modbus 會自動把位址連續的區塊合併成一次讀取，不提供 random 讀取設定檔。",
+  "errors": {
+    "intervalRange": "請輸入 {{min}} 到 {{max}} 之間的整數毫秒。",
+    "staleInvalid": "請輸入大於 0 的整數毫秒，或留空使用預設。",
+    "staleRequired": "已儲存的未更新門檻無法清空改回預設；請輸入大於 0 的整數毫秒。",
+    "frozenInvalid": "請輸入 0 以上的整數毫秒（0 表示停用）。",
+    "randomRange": "請輸入 1 到 {{limit}} 的整數。",
+    "fx5Route": "FX5 CPU 設定檔只適用於本站路由：網路號 0、PC 號 0 或 255、I/O 號 0 或 1023、站號 0。請改用其他設定檔或調整路由。"
+  },
+  "runtime": {
+    "title": "執行中的取值間隔",
+    "loading": "正在讀取執行狀態…",
+    "unavailable": "目前無法讀取執行中的取值間隔；設定仍可儲存，稍後重新開啟即可查看。",
+    "notRunning": "這台設備目前沒有在採集，尚無有效間隔。",
+    "values": "設定值 {{configured}} 毫秒 · 有效值 {{effective}} 毫秒",
+    "stretched": "自動調整已拉長有效間隔"
+  },
+  "scatteredRange": {
+    "modeLabel": "讀取範圍模式",
+    "contiguousMode": "連續位址",
+    "scatteredMode": "分散位址",
+    "usageLabel": "Random 點數用量",
+    "usageCounter": "{{used}} / {{limit}} 點",
+    "mcRuleNote": "MC：16-bit 與 32-bit 項目各算 1 點；64-bit 項目算 4 點；Bit 項目依 16 點對齊單位每單位算 1 點。",
+    "fatekRuleNote": "FATEK：16-bit 項目算 1 點；32-bit 項目算 2 點；64-bit 項目算 4 點。",
+    "corruptItemsError": "已儲存的分散位址項目無法讀取。請在下方新增或編輯位址項目並重新儲存以修復此讀取範圍。",
+    "emptyItemsError": "儲存前請至少新增一筆分散位址項目。",
+    "warningNearLimit": "Random 點數用量已達單次請求有效上限的 90% 以上（{{used}} / {{limit}}），繼續新增可能會拆分為多次請求。",
+    "overLimitSplit": "Random 點數用量（{{used}} / {{limit}}）已超過單次請求上限；仍可儲存，採集時將自動拆分為多次請求。",
+    "disabledReasons": {
+      "no_device": "尚未取得設備的連線設定（可能尚未選擇設備，或工作區尚未完成資料庫設定），無法判斷是否支援分散位址。",
+      "protocol_not_supported": "此協議（如 Modbus）不支援分散位址模式，系統會自動合併連續位址區塊。",
+      "profile_not_enabled": "設備目前的取值優化設定檔（{{profile}}）未啟用 Random 讀取；請先至連線設定選擇支援 Random 的設定檔。"
+    },
+    "itemsTitle": "分散位址項目清單",
+    "addItem": "新增位址項目",
+    "removeItem": "移除項目",
+    "addressHeader": "位址",
+    "dataTypeHeader": "資料型別",
+    "nameHeader": "點位名稱（選填）",
+    "namePlaceholder": "選填名稱",
+    "itemErrors": {
+      "empty_address": "請輸入有效的 PLC 位址。",
+      "invalid_address": "位址格式不符合此設備協議。",
+      "unsupported_string": "分散位址模式不支援 string 型別。",
+      "bit_requires_bool": "位元區域位址僅支援 bool 型別。",
+      "overlap": "與此範圍內的位址 {{address}} 跨度重疊。"
+    }
+  }
+}

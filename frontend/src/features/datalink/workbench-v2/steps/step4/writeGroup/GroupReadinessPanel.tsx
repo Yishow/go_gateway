@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
+import { describeReadinessIssue } from '../../../../runtime-dashboard/RuntimeSetupHelpers';
 import type { WriteGroupReadiness } from '../../../../../../types/studioV2WriteGroup';
 
 export interface GroupReadinessPanelProps {
@@ -29,7 +30,7 @@ function Fact({ label, value, compact = false }: { label: string; value: boolean
 /** Shows the backend's persisted-readiness answer for the saved group; the editor never computes it. */
 export const GroupReadinessPanel: React.FC<GroupReadinessPanelProps> = ({ readiness, loading, failed, dirty, onRetry, compact = false }) => {
   const { t } = useTranslation('workbench-v2');
-  const { t: editorText } = useTranslation('recording-editor');
+  const { t: constraints } = useTranslation('recording-editor-constraints');
   if (loading) return <p className="text-xs text-[var(--gw-muted)]" role="status" data-testid="group-readiness-loading">{t('step4.group.readiness.loading')}</p>;
   if (failed) {
     return (
@@ -57,15 +58,22 @@ export const GroupReadinessPanel: React.FC<GroupReadinessPanelProps> = ({ readin
         <ul className={compact ? 'recording-readiness-issues' : 'space-y-1'} data-testid="group-readiness-issues">
           {visibleIssues.map((issue) => {
             const severity = issue.severity === 'blocking' ? t('step4.group.readiness.blocking') : t('step4.group.readiness.warning');
+            const described = describeReadinessIssue(issue, constraints);
             if (!compact) return <li key={`${issue.code}-${issue.scope}`} className={issue.severity === 'blocking' ? 'text-[var(--gw-danger-fg)]' : 'text-[var(--gw-warning-fg)]'}>
-              <span className="font-semibold">{severity}</span>{' · '}{issue.message}
+              <span className="font-semibold">{severity}</span>{' · '}<span>{described.primary}</span>{' '}
+              <span className="text-[var(--gw-muted)]">{t('step4.basic.diagnostics')}：{described.diagnostic}</span>
             </li>;
             const diagnostics = [issue, ...(sourceStale && issue.code === 'source-revision-stale' ? readiness.issues.filter(item => item.code === 'schema-check-blocked') : [])];
             // Plain-language instruction first; the server's code and message stay visible as a quiet diagnostic line.
             return <li key={`${issue.code}-${issue.scope}`} className="recording-readiness-issue" data-severity={issue.severity}>
               <span className="recording-readiness-issue__pill">{severity}</span>
-              <span className="recording-readiness-issue__text">{editorText(issue.code === 'schema-confirmation-required' ? 'confirmation.schemaRequired' : issue.code === 'source-revision-stale' ? 'confirmation.sourceStale' : issue.code === 'schema-check-blocked' ? 'confirmation.configBlocked' : 'confirmation.unknownIssue')}</span>
-              {diagnostics.map(item => <span key={`${item.code}-${item.scope}`} className="recording-readiness-issue__code">{t('step4.basic.diagnostics')}：{item.code} · {item.message}</span>)}
+              <span className="recording-readiness-issue__text">{described.primary}</span>
+              {diagnostics.map(item => {
+                const diag = describeReadinessIssue(item, constraints);
+                return <span key={`${item.code}-${item.scope}`} className="recording-readiness-issue__code">
+                  {t('step4.basic.diagnostics')}：{diag.diagnostic}
+                </span>;
+              })}
             </li>;
           })}
         </ul>

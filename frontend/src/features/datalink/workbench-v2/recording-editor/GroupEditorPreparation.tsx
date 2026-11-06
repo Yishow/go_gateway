@@ -1,5 +1,6 @@
 import { GroupReadinessPanel } from '../steps/step4/writeGroup/GroupReadinessPanel';
 import { useRef, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { recordingTestWriteRecovery } from '../state/recordingTestWriteRecovery';
 import { GroupSchemaPanel, type GroupSchemaPanelProps } from '../steps/step4/writeGroup/GroupSchemaPanel';
 import { useRecordingPreparationOwner } from '../steps/step4/useRecordingPreparationOwner';
@@ -13,6 +14,7 @@ export interface GroupEditorPreparationProps extends Omit<GroupSchemaPanelProps,
 /** Reuses the original save/schema/query owners; stores only a denial-only native consent generation. */
 export function GroupEditorPreparation({ compact = false, managed, consentIdentity, save, blocked, readiness, sourceRefresh, ...schemaProps }: GroupEditorPreparationProps) {
   const { group, workspaceId, workspaceRevision, readonly } = schemaProps;
+  const { t: constraints } = useTranslation('recording-editor-constraints');
   const owner = useRecordingPreparationOwner(consentIdentity, workspaceId, group ? [group.id] : []);
   const lease = useRef({ epoch: owner.epoch, observedAt: 0 });
   if (lease.current.epoch !== owner.epoch) lease.current = { epoch: owner.epoch, observedAt: readiness.updatedAt };
@@ -22,7 +24,8 @@ export function GroupEditorPreparation({ compact = false, managed, consentIdenti
   const retainedTestWrite = owner.testWrite.state === 'unresolved';
   const newSchemaBlocked = () => blocked || retainedTestWrite || recordingTestWriteRecovery.read().references.some(
     reference => reference.workspace_id === workspaceId && reference.group_id === group?.id);
-  const statusContent = compact && group ? <GroupReadinessPanel compact readiness={readiness.data} loading={readiness.loading && !save.dirty} failed={readiness.failed} dirty={save.dirty} onRetry={() => void readiness.check()} /> : undefined;
+  const statusContent = compact && group ? <GroupReadinessPanel compact readiness={readiness.data} loading={readiness.loading && !save.dirty} failed={readiness.failed} dirty={save.dirty} onRetry={() => void readiness.check()} />
+    : managed && !group ? <p className="text-xs text-[var(--gw-muted)]" data-testid="group-preparation-unsaved-note">{constraints('preparation.unsavedManagedNote')}</p> : undefined;
   const props = { compact, statusContent, sourceRefresh, save, readonly, blocked: blocked || retainedTestWrite, pendingTestWrite: retainedTestWrite, online: owner.online,
     readinessReady: Boolean(fresh && readiness.data?.ready), readinessBusy: readiness.loading, checkReadiness: readiness.check };
   return managed && group ? <GroupSchemaPanel {...schemaProps} guided={{ online: owner.online, compact, consentEpoch: owner.epoch,

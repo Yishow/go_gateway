@@ -1,0 +1,84 @@
+{
+  "title": "Acquisition and anomaly detection",
+  "newDevice": "The acquisition interval and anomaly thresholds can be set after the device is saved; adjust them later from Connection settings on the home page. You can choose the acquisition optimization profile now.",
+  "unavailable": "This device's acquisition settings could not be read, so they cannot be edited here. Close and reopen Connection settings; if this persists, check that the backend version supports acquisition settings.",
+  "fields": {
+    "interval": "Acquisition interval (ms)",
+    "autoInterval": "Adjust interval automatically",
+    "staleThreshold": "Stale threshold (ms)",
+    "frozenThreshold": "Frozen value threshold (ms)",
+    "profile": "Acquisition optimization profile",
+    "randomPoints": "Random read points per request"
+  },
+  "hints": {
+    "interval": "100 to 3,600,000 ms.",
+    "autoInterval": "Stretches the effective interval when scans overrun, then steps back to the configured value.",
+    "stale": "Leave empty for the default: interval x5, at least 10 seconds.",
+    "staleSaved": "A custom value is saved; it cannot be reset to the default yet, only changed to another value above 0 ms.",
+    "frozen": "0 disables frozen value detection.",
+    "profile": "Writes only the acquisition declaration in the connection settings; undeclared always uses safe contiguous reads.",
+    "randomPoints": "Defaults to the protocol limit {{limit}}; it can only be lowered."
+  },
+  "placeholders": {
+    "stale": "Default"
+  },
+  "autoOn": "On",
+  "autoOff": "Off",
+  "profiles": {
+    "undeclared": "Undeclared (safe contiguous reads)",
+    "safe-v1": "safe-v1 (contiguous reads only)",
+    "mitsubishi-fx5-cpu-3e-binary-v1": "mitsubishi-fx5-cpu-3e-binary-v1 (FX5 CPU)",
+    "mitsubishi-q-iqr-3e-binary-v1": "mitsubishi-q-iqr-3e-binary-v1 (Q/iQ-R)",
+    "fatek-fbs-ascii-v1": "fatek-fbs-ascii-v1 (FBs)",
+    "unrecognized": "Current setting {{profile}} (not offered for this protocol)"
+  },
+  "modbusNote": "Modbus automatically merges blocks of contiguous addresses into one read; no random read profile is offered.",
+  "errors": {
+    "intervalRange": "Enter a whole number of milliseconds from {{min}} to {{max}}.",
+    "staleInvalid": "Enter a whole number of milliseconds above 0, or leave empty for the default.",
+    "staleRequired": "A saved stale threshold cannot be cleared back to the default; enter a whole number of milliseconds above 0.",
+    "frozenInvalid": "Enter a whole number of milliseconds, 0 or more (0 disables it).",
+    "randomRange": "Enter a whole number from 1 to {{limit}}.",
+    "fx5Route": "The FX5 CPU profile only applies to the own-station route: network 0, PC 0 or 255, I/O 0 or 1023, station 0. Choose another profile or change the route."
+  },
+  "runtime": {
+    "title": "Running acquisition interval",
+    "loading": "Reading runtime status…",
+    "unavailable": "The running acquisition interval cannot be read right now; settings can still be saved. Reopen later to check it.",
+    "notRunning": "This device is not collecting right now, so there is no effective interval.",
+    "values": "Configured {{configured}} ms · effective {{effective}} ms",
+    "stretched": "Automatic adjustment has stretched the effective interval"
+  },
+  "scatteredRange": {
+    "modeLabel": "Address range mode",
+    "contiguousMode": "Contiguous range",
+    "scatteredMode": "Scattered addresses",
+    "usageLabel": "Random point usage",
+    "usageCounter": "{{used}} / {{limit}} pts",
+    "mcRuleNote": "MC: 16-bit and 32-bit items count 1 point each; 64-bit items count 4 points; bit items share 1 point per aligned 16-point unit.",
+    "fatekRuleNote": "FATEK: 16-bit items count 1 point; 32-bit items count 2 points; 64-bit items count 4 points.",
+    "corruptItemsError": "The saved scattered address items could not be read. Add or edit the address items below and save again to repair this range.",
+    "emptyItemsError": "Add at least one scattered address item before saving.",
+    "warningNearLimit": "Random point usage has reached 90% or more of the single-request limit ({{used}} / {{limit}}). Adding more items may split acquisition into multiple requests.",
+    "overLimitSplit": "Random point usage ({{used}} / {{limit}}) exceeds the single-request limit. Saving is allowed; acquisition will automatically split into multiple requests.",
+    "disabledReasons": {
+      "no_device": "The device's connection settings are not available yet (no device is selected, or the workspace database is not configured), so scattered address support cannot be determined.",
+      "protocol_not_supported": "Scattered address mode is unavailable for Modbus; Modbus merges contiguous blocks automatically.",
+      "profile_not_enabled": "Scattered address mode requires a random-enabled acquisition profile ({{profile}} only supports contiguous reads). Enable a random profile in Connection settings first."
+    },
+    "itemsTitle": "Scattered address items",
+    "addItem": "Add address item",
+    "removeItem": "Remove item",
+    "addressHeader": "Address",
+    "dataTypeHeader": "Data type",
+    "nameHeader": "Label (optional)",
+    "namePlaceholder": "Optional name",
+    "itemErrors": {
+      "empty_address": "Enter a valid PLC address.",
+      "invalid_address": "Address format is invalid for this protocol.",
+      "unsupported_string": "String items are not supported in scattered address mode.",
+      "bit_requires_bool": "Bit area addresses must use the bool data type.",
+      "overlap": "Overlaps with address {{address}} in this range."
+    }
+  }
+}

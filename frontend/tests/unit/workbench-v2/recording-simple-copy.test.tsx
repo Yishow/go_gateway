@@ -88,6 +88,16 @@ it('opens one fresh local copy through the real page, shell and editor without s
  expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled(); expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled(); expect(studioV2WorkspaceWriteGroupsAPI.apply).not.toHaveBeenCalled();
  expect(studioV2WorkspaceWriteGroupsAPI.list).not.toHaveBeenCalled();
 });
+it('offers the same copy action beside the locked destination of a saved record', async () => {
+ const view = mount(sourceURL); expect(await screen.findByTestId('group-name')).toHaveValue('Original recording');
+ expect(screen.getByTestId('recording-destination-lock-reason')).not.toBeEmptyDOMElement();
+ fireEvent.click(screen.getByTestId('recording-destination-lock-copy'));
+ await waitFor(() => expect(view.router.state.location.search).toContain('intent=copy'));
+ await waitFor(() => expect(screen.getByTestId('group-name')).toHaveValue('Original recording copy'));
+ expect(screen.queryByTestId('recording-destination-lock-notice')).not.toBeInTheDocument();
+ expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled(); expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
+});
+
 it('saves a copy using only the original create owner then replaces the URL with the new canonical identity', async () => {
  const view = mount(); const save = await screen.findByTestId('group-save'); await waitFor(() => expect(save).toBeEnabled()); fireEvent.click(save); fireEvent.click(save);
  await waitFor(() => expect(studioV2WorkspaceWriteGroupsAPI.create).toHaveBeenCalledOnce());

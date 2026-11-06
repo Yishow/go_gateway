@@ -9,7 +9,7 @@ import { CounterPolicyEditor } from './CounterPolicyEditor';
  * The saved recording profile of a canonical circuit group, exactly as Basic edits it. The period is shown in its
  * native unit and is never a second, independent seconds setting; layout and storage are fixed once created.
  */
-export const GroupProfileSummary: React.FC<{ draft: EditorDraft }> = ({ draft }) => {
+export const GroupProfileSummary: React.FC<{ draft: EditorDraft; editableInstantaneous?: boolean }> = ({ draft, editableInstantaneous = false }) => {
   const { t } = useTranslation('workbench-v2');
   const profile = draft.recording_profile;
   if (!profile) return null;
@@ -36,7 +36,7 @@ export const GroupProfileSummary: React.FC<{ draft: EditorDraft }> = ({ draft })
           </>
         )}
       </dl>
-      <p className="text-[var(--gw-muted)]">{t('step4.group.profile.note')}</p>
+      {!editableInstantaneous && <p className="text-[var(--gw-muted)]">{t('step4.group.profile.note')}</p>}
     </section>
   );
 };
@@ -44,6 +44,7 @@ export const GroupProfileSummary: React.FC<{ draft: EditorDraft }> = ({ draft })
 /** The sources of a profile group. Their columns are fixed by the shared long layout, so there is nothing to map or require. */
 export const GroupProfileMembers: React.FC<{ draft: EditorDraft; candidates: GroupCandidate[]; workspaceId: string; readonly: boolean; locatorScope?: StudioV2LocatorReadScope; renderSource?: (member: EditorMember) => React.ReactNode }> = ({ draft, candidates, workspaceId, readonly, locatorScope, renderSource }) => {
   const { t } = useTranslation('workbench-v2');
+  const { t: constraints } = useTranslation('recording-editor-constraints');
   const labels = new Map(candidates.map((candidate) => [candidate.key, candidate.label]));
   return (
     <section aria-label={t('step4.group.profile.members_title')} className="space-y-1 text-xs text-[var(--gw-text)]">
@@ -53,7 +54,10 @@ export const GroupProfileMembers: React.FC<{ draft: EditorDraft; candidates: Gro
           <li key={member.key} className="rounded border border-[var(--gw-border)] bg-[var(--gw-surface)] px-2.5 py-1.5">
             <span className="font-medium">{labels.get(memberKey(member.point_id, member.tag_id)) ?? member.tag_id}</span>
             {member.circuit_name && <span className="ml-2 text-[var(--gw-muted)]">{member.circuit_name}</span>}
-            {member.value_role && <span className="ml-2 text-[var(--gw-muted)]">{t(`step4.group.profile.role.${member.value_role}`)}</span>}
+            {member.value_role && <span className="ml-2 text-[var(--gw-muted)]">
+              {member.value_role === 'gauge' && draft.recording_profile?.kind === 'instantaneous' && (draft.recording_profile.sample_reduction ?? 'latest') === 'latest'
+                ? constraints('sourceRole.gaugeLatest') : t(`step4.group.profile.role.${member.value_role}`)}
+            </span>}
             {renderSource?.(member)}
           </li>
         ))}

@@ -114,3 +114,43 @@ export function readinessActionFor(
       return t('setup.actions.default', 'Open Studio V2 and resolve the owning step shown above.');
   }
 }
+
+const KNOWN_READINESS_ISSUE_DEFAULTS: Readonly<Record<string, string>> = {
+  'schema-confirmation-required': '尚未確認並套用資料表結構；開始記錄前請先檢查並確認。',
+  'write-group-apply-required': '記錄設定已保存，尚未套用至資料庫與執行階段。',
+  'database-target-missing': '尚未建立此點位的資料庫記錄目標。',
+  'source-revision-stale': '來源點位或規則已更新，請重新保存此記錄設定。',
+  'schema-check-blocked': '請先完成上方阻擋問題，才能檢查資料表結構。',
+};
+
+const UNKNOWN_READINESS_ISSUE_DEFAULT = '需要處理的設定問題';
+
+export function describeReadinessIssue(
+  issue: { code: string; message: string },
+  tConstraints: (key: string, options: { defaultValue: string }) => string,
+): { known: boolean; primary: string; diagnostic: string } {
+  const trimmedMessage = issue.message.trim();
+  const knownDefault = Object.hasOwn(KNOWN_READINESS_ISSUE_DEFAULTS, issue.code)
+    ? KNOWN_READINESS_ISSUE_DEFAULTS[issue.code] : undefined;
+  if (knownDefault) {
+    const key = `readinessIssue.${issue.code}`;
+    const translated = tConstraints(key, { defaultValue: knownDefault });
+    const primary = translated && translated !== key ? translated : knownDefault;
+    return {
+      known: true,
+      primary,
+      diagnostic: trimmedMessage ? `${issue.code}：${primary}（${trimmedMessage}）` : `${issue.code}：${primary}`,
+    };
+  }
+  const unknownKey = 'readinessIssue.unknown';
+  const translatedUnknown = tConstraints(unknownKey, { defaultValue: UNKNOWN_READINESS_ISSUE_DEFAULT });
+  const primary =
+    translatedUnknown && translatedUnknown !== unknownKey
+      ? translatedUnknown
+      : UNKNOWN_READINESS_ISSUE_DEFAULT;
+  return {
+    known: false,
+    primary,
+    diagnostic: trimmedMessage ? `${issue.code}：${primary}（${trimmedMessage}）` : `${issue.code}：${primary}`,
+  };
+}

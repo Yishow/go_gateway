@@ -21,9 +21,9 @@ export function recordingMixedEditorIssues(draft: EditorDraft, capabilities: Wri
   if (draft.members.some(cadenceInputInvalid)) issues.push('member-cadence-invalid');
   return [...new Set(issues)];
 }
-export interface RecordingMixedEditorProps { section?: 'all' | 'method' | 'destination'; draft: EditorDraft; saved: boolean; disabled: boolean; capabilities?: WriteGroupCalculationCapabilities; dialect: string; onChange: (draft: EditorDraft) => void }
+export interface RecordingMixedEditorProps { section?: 'all' | 'method' | 'destination'; draft: EditorDraft; saved: boolean; disabled: boolean; capabilities?: WriteGroupCalculationCapabilities; dialect: string; onChange: (draft: EditorDraft) => void; onHiddenMember?: (pointId: string) => void }
 /** Intent-only controls. The enclosing GroupEditor retains its single CAS/save/schema authority. */
-export function RecordingMixedEditor({ section = 'all', draft, saved, disabled, capabilities, dialect, onChange }: RecordingMixedEditorProps) {
+export function RecordingMixedEditor({ section = 'all', draft, saved, disabled, capabilities, dialect, onChange, onHiddenMember }: RecordingMixedEditorProps) {
   const { t } = useTranslation('recording-editor');
   const mixed = draft.recording_profile?.kind === 'mixed';
   const available = mixedEditorAvailable(capabilities, dialect);
@@ -44,7 +44,7 @@ export function RecordingMixedEditor({ section = 'all', draft, saved, disabled, 
         }}>{(['managed_wide_profile_v1', 'managed_long_v1'] as const).map(layout => <option key={layout} value={layout} disabled={!capabilities?.schema_layouts.includes(layout)}>{t(`calculation.${layout}`)}</option>)}</select>
       </label><ParameterHelp help="record.layout" /></div>}
     </>}
-    {section === 'method' && mixed && <RecordingMethodGroups draft={draft} />}
+    {section === 'method' && mixed && <RecordingMethodGroups draft={draft} onHiddenMember={onHiddenMember} />}
     {section !== 'destination' && <RecordingIntentHelp compact={section === 'method'} visibleSafety={section === 'method' && mixed} hasMembers={draft.members.length > 0} hasCounter={draft.members.some(member => member.calculation === 'delta')} hasRequired={draft.members.some(member => member.required)} />}
     {section === 'method' && mixed && !available && <p role="status">{t('calculation.capability')}</p>}
   </section>;

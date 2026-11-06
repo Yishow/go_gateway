@@ -18,8 +18,12 @@ export interface GroupPolicyFieldsProps {
 /** Row policy of a group. Only the wide and custom layouts have a seconds interval and a completeness policy. */
 export const GroupPolicyFields: React.FC<GroupPolicyFieldsProps> = ({ expanded = false, draft, readonly, profile, onChange, onDedupe }) => {
   const { t } = useTranslation('workbench-v2');
+  const { t: constraints } = useTranslation('recording-editor-constraints');
+  const mixed = draft.recording_profile?.kind === 'mixed';
   const fields = (
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="space-y-3">
+        {mixed && <p className="text-xs text-[var(--gw-muted)]" data-testid="group-policy-mixed-note">{constraints('policy.mixedHiddenNote')}</p>}
+        <div className="grid gap-3 sm:grid-cols-2">
         {!profile && (
           <div className="flex min-w-0 items-start gap-2"><label className="min-w-0 flex-1 text-xs text-[var(--gw-muted)]">{t('step4.group.editor.interval')}
             <input type="number" min={1} value={draft.interval_seconds} disabled={readonly || draft.recording_profile !== undefined} onChange={(event) => onChange({ interval_seconds: Number(event.target.value) })} className={FIELD} data-testid="group-interval" />
@@ -50,6 +54,7 @@ export const GroupPolicyFields: React.FC<GroupPolicyFieldsProps> = ({ expanded =
             </label><ParameterHelp help="policy.provenanceColumn" /></div>
           </>
         )}
+        </div>
       </div>
   );
   return (

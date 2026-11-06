@@ -29,7 +29,7 @@ export function RecordingDestinationFields({ workspaceId, workspaceRevision, con
   }, []);
   const scope = { workspaceId, workspaceRevision, connectorId: connector.connector_id ?? '', connectorRevision: connector.identity_revision ?? '', kind: connector.kind,
     groupId: group?.id, groupRevision: group?.revision };
-  const eligible = destinationSaved(connector) && Boolean(workspaceId) && !(fields.scopedPresentation && fields.locked && fields.draft.storage_strategy === 'managed') && fields.draft.connector_id === scope.connectorId &&
+  const eligible = destinationSaved(connector) && Boolean(workspaceId) && !fields.locked && fields.draft.connector_id === scope.connectorId &&
     fields.draft.connector_revision === scope.connectorRevision && (!group || Boolean(group.id && group.revision));
   const query = useQuery({ queryKey: ['studio-v2', 'database-catalog', workspaceId, workspaceRevision, scope.connectorId, scope.connectorRevision, scope.kind,
     scope.groupId ?? '', scope.groupRevision ?? '', ...studioLocatorReadKey(locatorScope)], queryFn: () => readRecordingDestinationCatalog(scope, locatorScope),

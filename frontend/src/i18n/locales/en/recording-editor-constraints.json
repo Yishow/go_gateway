@@ -1,0 +1,46 @@
+{
+  "destinationLock": {
+    "longTable": "Long-table recordings share one table with the other long-table recordings in the same schema, so the destination is fixed after saving.",
+    "boundTable": "This recording is bound to its table, so the destination is fixed after saving."
+  },
+  "policy": {
+    "mixedHiddenNote": "Intervals are set per point; incomplete rows are fixed to partial results; managed-table duplicate protection, entity key and provenance columns are system-defined."
+  },
+  "preparation": {
+    "unsavedManagedNote": "Save the configuration before checking the table structure."
+  },
+  "catalog": {
+    "error": "Could not reach the destination database (could not read the table list). Check the connection and retry; your entries are preserved."
+  },
+  "legacyMethod": {
+    "label": "Latest (legacy wide table)",
+    "secondsUnit": "s",
+    "summary": "Latest (legacy wide table) · every {{seconds}} s",
+    "createWithPoints": "Create new recording with these points"
+  },
+  "methodGroups": {
+    "goToSourceTable": "Go to source table"
+  },
+  "readinessIssue": {
+    "schema-confirmation-required": "The table structure has not been confirmed and applied. Check and confirm it before starting recording.",
+    "write-group-apply-required": "The recording is saved but not yet applied to the database and runtime.",
+    "database-target-missing": "No database recording target exists for this point yet.",
+    "source-revision-stale": "The source point or rule has changed; save this recording again.",
+    "schema-check-blocked": "Resolve the blocking issues above before checking the table structure.",
+    "unknown": "A setting needs attention"
+  },
+  "sourceRole": {
+    "gaugeLatest": "Measurement (latest)"
+  },
+  "instantaneousMethod": {
+    "reductionLabel": "Value recorded each interval",
+    "latest": "Latest value",
+    "mean": "Arithmetic mean",
+    "meanConsentTitle": "Confirm before switching to arithmetic mean",
+    "cancelMean": "Keep latest value",
+    "intervalLabel": "Recording interval (seconds)",
+    "intervalInvalid": "Enter a whole number of seconds from {{min}} to {{max}}.",
+    "pendingNote": "Saving creates a new version of this recording. Check and confirm the table structure again in the preparation area before recording uses it; data already recorded is not recalculated.",
+    "rejected": "The gateway could not save these settings. Your changes are kept and not applied. Check the recording settings, source points and interval, then try again."
+  }
+}

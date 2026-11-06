@@ -61,7 +61,7 @@ export function RecordingPointPicker({ state, projection, devices, status, label
     <span hidden id={`${id}-already-added`}>{labels.alreadyAdded}</span>
     <div className="recording-point-picker__toolbar">
       <label className="recording-point-picker__search" htmlFor={`${id}-search`}>{labels.search}
-        <input data-picker-focus="search" id={`${id}-search`} disabled={nameLocked} type="search" value={state.query} onChange={event => patch({ query: event.target.value })} />
+        <input data-picker-focus="search" id={`${id}-search`} disabled={nameLocked} type="search" autoComplete="off" value={state.query} onChange={event => patch({ query: event.target.value })} />
       </label>
       <label htmlFor={`${id}-device`}>{labels.device}
         <select data-picker-focus="device" id={`${id}-device`} disabled={nameLocked} value={state.deviceId} onChange={event => patch({ deviceId: event.target.value })}>

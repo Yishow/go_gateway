@@ -1,7 +1,7 @@
 import { RecordingCompactMemberTable } from '../../../recording-editor/RecordingCompactMemberTable';
 import { ParameterHelp } from '../../../components/ParameterHelp';
 import * as React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DbColumn } from '../../../state/dbSchemas';
 import type { Step4TargetMetadataStatus } from '../useStep4TargetColumns';
@@ -10,7 +10,10 @@ import { columnCompatibility, type ColumnSuggestions, type WriteGroupSqlDialect 
 import { memberKey, type DraftIssue, type EditorDraft, type EditorMember } from '../../../state/writeGroup/draft';
 import type { RecordingPointOrderPort } from '../../../recording-editor/useRecordingPointOrder';
 
+export interface GroupMemberTableHandle { focusCalculation: (pointId: string) => void }
+
 export interface GroupMemberTableProps {
+  focusRef?: React.Ref<GroupMemberTableHandle>;
   scopedPresentation?: boolean;
   presentation?: 'guided' | 'simple';
   candidates: GroupCandidate[];
@@ -64,13 +67,24 @@ function emptyMember(candidate: GroupCandidate, column: string): EditorMember {
  * bulk action names its scope and count and touches only the rows shown.
  */
 export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
-  scopedPresentation = false, presentation = 'guided', onRetryMetadata, metadataAtDestination = false, scopeInHeading = false, onScopeChange, renderName, nameLocked = false, pointOrderSort, renderSource, renderCalculation, candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
+  focusRef, scopedPresentation = false, presentation = 'guided', onRetryMetadata, metadataAtDestination = false, scopeInHeading = false, onScopeChange, renderName, nameLocked = false, pointOrderSort, renderSource, renderCalculation, candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
   dialect = 'portable', managed = false, layoutVersion, columnsAssignedOnSave = false, onChange, selectionControls,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: editorText } = useTranslation('recording-editor');
   const [query, setQuery] = useState('');
   const [problemsOnly, setProblemsOnly] = useState(false);
+  const [focusRequest, setFocusRequest] = useState<{ pointId: string }>();
+  useImperativeHandle(focusRef, () => ({ focusCalculation: pointId => {
+    setQuery(''); setProblemsOnly(false); setFocusRequest({ pointId });
+  } }), []);
+  useLayoutEffect(() => {
+    if (!focusRequest) return;
+    const control = document.querySelector<HTMLElement>(`[data-testid="group-member-calculation-${CSS.escape(focusRequest.pointId)}"] select`);
+    const target = control ?? document.getElementById('recording-editor-sources');
+    target?.scrollIntoView({ block: 'center' });
+    target?.focus({ preventScroll: true });
+  }, [focusRequest]);
   const byKey = useMemo(() => new Map(members.map((member) => [member.key, member])), [members]);
   const metadataKnown = metadataStatus === 'exists';
   const memberColumnsKnown = metadataKnown && !(managed && layoutVersion === 'managed_long_v1');
@@ -166,7 +180,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
         <label className={classes('flex flex-col text-sm text-[var(--gw-muted)]')}>
           {t('step4.group.members.search')}
           <input
-            type="search" value={query} onChange={(event) => setQuery(event.target.value)}
+            type="search" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)}
             className={classes('mt-1 rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-2 py-1 text-sm text-[var(--gw-text)]')}
             data-testid="group-member-search"
           />

@@ -63,7 +63,7 @@ export function RecordingCompactMemberTable({ rows, total, query, setQuery, prob
   const toggleSort = (column: SortColumn) => setSort(current => ({ column, direction: current.column === column && current.direction === 'ascending' ? 'descending' : 'ascending' }));
   return <div className="recording-compact-members" data-testid="group-member-table" data-calculation-scope={renderCalculation ? 'member' : 'group'} data-show-entity-key={showEntityKey}>
     <div className="recording-compact-members__filters">
-      <label className="recording-compact-members__search">{text('compact.search')}<input type="search" placeholder={text('compact.searchPlaceholder')} value={query} disabled={nameLocked} onChange={event => setQuery(event.target.value)} data-testid="group-member-search" /></label>
+      <label className="recording-compact-members__search">{text('compact.search')}<input type="search" autoComplete="off" placeholder={text('compact.searchPlaceholder')} value={query} disabled={nameLocked} onChange={event => setQuery(event.target.value)} data-testid="group-member-search" /></label>
       <label className="recording-compact-members__problems"><input type="checkbox" checked={problemsOnly} disabled={nameLocked} onChange={event => setProblemsOnly(event.target.checked)} data-testid="group-member-problems-only" />{t('step4.group.members.problems_only')}</label>
       {!scopeInHeading && <span role="status" data-testid="group-member-scope">{text('compact.selectedScope', { shown: rows.length, total })}</span>}
     </div>

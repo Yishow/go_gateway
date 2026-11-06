@@ -25,6 +25,7 @@ export interface GroupIdentityFieldsProps {
 export const GroupIdentityFields: React.FC<GroupIdentityFieldsProps> = ({ scopedPresentation = false, section = 'all', draft, readonly, locked, storageLocked = locked, catalog, onChange, onStorageStrategy }) => {
   const { t } = useTranslation('workbench-v2');
   const { t: text } = useTranslation('recording-editor');
+  const { t: constraints } = useTranslation('recording-editor-constraints');
   return (
     <div className={section === 'name' ? 'grid gap-3' : section === 'destination' ? 'recording-destination-fields grid gap-3 sm:grid-cols-2' : 'grid gap-3 sm:grid-cols-2'}>
       {section !== 'destination' && <div className={section === 'name' ? 'recording-simple-name min-w-0' : 'flex min-w-0 items-start gap-2'}><label className="min-w-0 flex-1 text-xs text-[var(--gw-muted)]">
@@ -52,7 +53,7 @@ export const GroupIdentityFields: React.FC<GroupIdentityFieldsProps> = ({ scoped
         {t('step4.group.editor.schema')}
         <input type="text" value={draft.table_schema} disabled={readonly || locked} onChange={(event) => onChange({ table_schema: event.target.value })} className={FIELD} data-testid="group-schema" />
       </label><ParameterHelp compact={scopedPresentation} help="record.schema" /></div></>}
-      {catalog && catalog.status !== 'ready' && <div role={catalog.status === 'error' ? 'alert' : 'status'} className="text-xs text-[var(--gw-muted)]">{text(`newDestination.catalog${catalog.status === 'error' ? 'Error' : 'Loading'}`)}
+      {catalog && catalog.status !== 'ready' && <div role={catalog.status === 'error' ? 'alert' : 'status'} className="text-xs text-[var(--gw-muted)]">{catalog.status === 'error' ? constraints('catalog.error') : text('newDestination.catalogLoading')}
         {catalog.status === 'error' && <button type="button" className="ml-2 underline" onClick={catalog.retry}>{text('newDestination.catalogRetry')}</button>}</div>}
       </>}
     </div>
