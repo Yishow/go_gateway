@@ -6,7 +6,7 @@ import { sourceRuleCandidateAPI } from '../../../../services/sourceRuleCandidate
 import { buildPersistedMCRuleState } from '../state/mcPersistedPoints';
 import './recordingHomeMemory.css';
 import './recordingHomeMemoryLayouts.css';
-import { MemoryRangeNavigation, MemoryRangeChapters, MemoryAddressMap, MemoryCellDetail } from './RecordingHomeMemoryPanels';
+import { MemoryRangeNavigation, MemoryRangeChapters, MemoryAddressMap, MemoryCellDetail, MemoryCellSummary } from './RecordingHomeMemoryPanels';
 import { RecordingHomeMemoryCells, memoryTypeFamily } from './RecordingHomeMemoryCells';
 import { buildMemoryMap, initialMemoryWindow, locateMemoryOffset, memoryAddress, memoryRowStart, memoryRuleInputs, memoryWindow,
   type MemoryArea, type MemoryCell, type MemoryRuleInput } from './recordingHomeMemoryMap';
@@ -97,7 +97,7 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
     const targets = [...node.querySelectorAll<HTMLElement>('[data-value-key]')];
     // Loading/error/checking replaces the cells: do not keep their old subscription.
     if (!targets.length) { reportVisible([]); return undefined; }
-    if (typeof IntersectionObserver === 'undefined') { reportVisible(targets.map(cell => cell.dataset.valueKey!)); return undefined; }
+    if (typeof IntersectionObserver === 'undefined') { reportVisible([...new Set(targets.map(cell => cell.dataset.valueKey!))]); return undefined; }
     let observing = true;
     const shown = new Map<Element, string>();
     const observer = new IntersectionObserver(entries => {
@@ -121,7 +121,7 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
     if (!map?.supported || !area) return <p role="alert">{t('source.memory.unsupported')}</p>;
     const window = initialMemoryWindow(area), start = starts[area.key] ?? window.start;
     const cells = memoryWindow(area, start, window.length, Boolean(blocked) || checking);
-    const selectArea = (key: string) => { setAreaKey(key); setInspected(undefined); setOwners(undefined); setLocateError(false); };
+    const selectArea = (key: string) => { if (key !== area.key) setFocus(undefined); setAreaKey(key); setInspected(undefined); setOwners(undefined); setLocateError(false); };
     const issues = [...map.global, ...area.issues.filter(item => !map.global.includes(item))];
     const move = (next: number) => { setInspected(undefined); setStarts(current => ({ ...current, [area.key]: Math.max(area.base, Math.min(next, memoryRowStart(area, area.max))) })); setOwners(undefined); };
     const go = () => { const offset = locateMemoryOffset(area, locate); setLocateError(offset === undefined); if (offset !== undefined) { move(memoryRowStart(area, offset)); select(offset); } };
@@ -140,11 +140,16 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
       if (cell.state === 'empty') return t('source.memory.cell.empty', { address: cell.address });
       if (cell.state === 'unconfirmed') return t('source.memory.cell.unconfirmed', { address: cell.address });
       if (cell.state === 'conflict') return t('source.memory.cell.conflict', { address: cell.address, count: cell.owners.length, labels: cell.owners.map(owner => owner.label).join(', ') });
-      const owner = cell.owners[0], live = reading(cell);
+      const owner = cell.owners[0];
+      const valueStart = locateMemoryOffset(area, owner.valueAddress);
+      const live = !owner.partial && valueStart !== undefined ? values?.byCell.get(memoryValueKey(area.key, valueStart, owner.dataType)) : undefined;
+      const freshness = live?.error ? 'failed' : live?.value !== undefined ? live.stale ? 'stale' : 'available'
+        : values?.status === 'loading' ? 'waiting' : 'missing';
       return [t('source.memory.cell.used', { address: cell.address, label: owner.label, type: owner.dataType, unit: t(`source.memory.unitName.${area.unit}`), part: owner.part, width: owner.width }),
         owner.part > 1 && t('source.memory.cell.startsAt', { start: owner.valueAddress }), owner.skipped && t('source.memory.cell.skipped'), owner.partial && t('source.memory.cell.partial'),
-        live && owner.part === 1 && (live.error ? t('source.memory.value.cellError') : live.value !== undefined ? t('source.memory.value.cell', { value: live.value }) : ''),
-        live?.readAt && owner.part === 1 && t('source.memory.value.readAt', { time: clock(live.readAt) })].filter(Boolean).join('');
+        live && (live.error ? t('source.memory.value.cellError') : live.value !== undefined ? t('source.memory.value.cell', { value: live.value }) : ''),
+        !owner.partial && `, ${t('source.memory.presentation.reading.' + freshness)}`,
+        live?.readAt && t('source.memory.value.readAt', { time: clock(live.readAt) })].filter(Boolean).join('');
     };
     // The flat grid wraps at the rendered track count (e.g. hex W shows 10 per row on tablet),
     // so keyboard rows and wrap cues use it; the logical radix count is only a fallback.
@@ -205,7 +210,7 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
           {values && <p className="gw-memory-live" data-status={values.status} role={values.status === 'error' ? 'alert' : 'status'} data-testid="home-memory-values-status">
             <span className="gw-memory-live-dot" aria-hidden="true" />{(values.status === 'live' || values.status === 'polling') && values.updatedAt ? t(`source.memory.value.${values.status}Updated`, { time: clock(values.updatedAt) }) : t(`source.memory.value.${values.status}`)}</p>}</div>
         <div className="gw-memory-workspace" data-layout={layout}>
-          {layout === 'navigator' && <MemoryRangeNavigation area={area} inputs={inputs} onJump={jump} />}
+          {layout === 'navigator' && <MemoryRangeNavigation area={area} inputs={inputs} onJump={jump} cells={cells} selected={cells.find(cell => cell.offset === focus)} />}
           {layout === 'chapters' && <MemoryRangeChapters area={area} inputs={inputs} onJump={jump} />}
           <div className="gw-memory-main">
         {layout === 'map' && <MemoryAddressMap cells={cells} selected={selected?.offset} onSelect={select} />}
@@ -214,12 +219,11 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
           {owners.owners.map(owner => <button key={owner.ruleId} type="button" onClick={() => onOpen(owner.ruleId)}>{t('source.memory.owner', { label: owner.label, type: owner.dataType, start: owner.valueAddress })}</button>)}
           <button type="button" onClick={() => { setOwners(undefined); grid.current?.querySelector<HTMLElement>(`[data-offset="${owners.offset}"]`)?.focus(); }}>{t('source.memory.ownersCancel')}</button>
         </section>}
-        <div ref={grid} role="group" aria-label={t('source.memory.gridLabel', { area: name(area), from: cells[0]?.address, to: cells.at(-1)?.address })} className="gw-memory-grid"
-          style={{ ['--gw-memory-cols' as string]: area.columns, ['--gw-memory-cols-md' as string]: Math.min(area.columns, 10), ['--gw-memory-cols-sm' as string]: area.columns === 10 ? 5 : 4 }}>
+        <div ref={grid} role="group" aria-label={t('source.memory.gridLabel', { area: name(area), from: cells[0]?.address, to: cells.at(-1)?.address })} className="gw-memory-grid">
           <RecordingHomeMemoryCells cells={cells} columns={columns} areaKey={area.key} active={active} pending={values?.status === 'loading'}
             describe={describe} reading={reading} onFocus={select} onHover={setInspected} onKeyDown={keyDown} onChoose={choose} />
         </div>
-        {layout === 'map' && <div className="gw-memory-map-summary"><MemoryCellDetail area={area} cell={selected} values={values} cells={cells} onSelect={select} onChoose={choose} /></div>}
+        {layout === 'map' && <MemoryCellSummary area={area} cell={selected} values={values} cells={cells} onSelect={select} onChoose={choose} />}
           </div>
           {layout === 'detail' && <MemoryCellDetail area={area} cell={selected} values={values} cells={cells} onSelect={select} onChoose={choose} />}
         </div>

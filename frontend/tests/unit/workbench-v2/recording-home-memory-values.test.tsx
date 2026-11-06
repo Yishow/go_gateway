@@ -35,7 +35,9 @@ describe('memory view device values', () => {
       inputs={[{ id: 'A', label: 'A_', start_address: '40001', count: 4, data_type: 'int16', skipped_addresses: [] }]} />);
     const first = screen.getByTestId('home-memory-cell-40001');
     expect(first).toHaveTextContent('1234');
-    expect(first).not.toHaveTextContent('A_');
+    // The ordinary reading is not replaced with a rule label; focused inspection may name its owner.
+    expect(first.querySelector('.gw-memory-shared')).not.toHaveTextContent('A_');
+    expect(first.querySelector('.gw-memory-focus-information')).toHaveTextContent('A_');
     expect(first).toHaveAttribute('aria-label', expect.stringContaining('value 1234'));
     expect(screen.getByTestId('home-memory-cell-40002').querySelector('[data-reading]')).toHaveAttribute('data-reading', 'none');
     expect(screen.getByTestId('home-memory-cell-40003').querySelector('[data-reading]')).toHaveAttribute('data-reading', 'error');
@@ -65,8 +67,10 @@ describe('memory view device values', () => {
     const setVisible = vi.fn();
     render(<RecordingHomeMemoryView protocol="modbus_tcp" status="ready" checking={false} values={{ status: 'live', byCell: new Map(), setVisible }} onOpen={vi.fn()} onAdd={noop} onBack={noop} onClose={noop}
       inputs={[{ id: 'A', label: 'A_', start_address: '40001', count: 2, data_type: 'int16', skipped_addresses: [] }]} />);
-    expect(observed.map(el => el.getAttribute('data-value-key'))).toEqual([memoryValueKey('HR', 1, 'int16'), memoryValueKey('HR', 2, 'int16')]);
-    notify([{ target: observed[1], isIntersecting: true } as unknown as IntersectionObserverEntry], {} as IntersectionObserver);
+    expect(observed.map(el => el.getAttribute('data-value-key'))).toEqual(['HR:1:int16', 'HR:1:int16', 'HR:2:int16', 'HR:2:int16']);
+    const second = screen.getByTestId('home-memory-cell-40002');
+    const disclosure = second.querySelector('.gw-memory-focus-information')!;
+    notify([{ target: second, isIntersecting: true }, { target: disclosure, isIntersecting: true }] as IntersectionObserverEntry[], {} as IntersectionObserver);
     expect(setVisible).toHaveBeenLastCalledWith([memoryValueKey('HR', 2, 'int16')]);
     vi.unstubAllGlobals();
   });

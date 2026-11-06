@@ -17,7 +17,7 @@ it.each(['map', 'detail'])('%s keeps keyboard detail when scrolling brings a cel
   view(); fireEvent.click(screen.getByTestId(`home-memory-layout-${layout}`));
   const first = screen.getByTestId('home-memory-cell-40001'), hovered = screen.getByTestId('home-memory-cell-40008');
   act(() => first.focus());
-  const address = () => screen.getByTestId('home-memory-detail').querySelector('.gw-memory-detail-address');
+  const address = () => screen.getByTestId(layout === 'map' ? 'home-memory-summary' : 'home-memory-detail').querySelector('.gw-memory-detail-address');
   // Focus/arrow scrolling can emit enter without the user moving the mouse.
   fireEvent.mouseEnter(hovered);
   expect(address()).toHaveTextContent('40001');
@@ -36,7 +36,7 @@ it.each(['map', 'detail'])('%s previews hovered continuation without moving keyb
   const first = screen.getByTestId('home-memory-cell-40001');
   act(() => first.focus());
   fireEvent.mouseMove(screen.getByTestId('home-memory-cell-40002'));
-  const detail = screen.getByTestId('home-memory-detail');
+  const detail = screen.getByTestId(layout === 'map' ? 'home-memory-summary' : 'home-memory-detail');
   expect(detail.querySelector('.gw-memory-detail-address')).toHaveTextContent('40002');
   expect(detail.querySelector('.gw-memory-detail-reading')).toHaveTextContent('12.5');
   expect(first).toHaveFocus(); expect(first).toHaveAttribute('tabindex', '0');

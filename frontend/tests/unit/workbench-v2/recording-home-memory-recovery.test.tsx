@@ -128,7 +128,7 @@ describe.each(layouts)('%s memory recovery interactions', layout => {
     fireEvent.keyDown(unknown, { key: 'Enter' });
     fireEvent.keyDown(unknown, { key: ' ' });
     if (layout === 'map' || layout === 'detail') {
-      expect(screen.getByTestId('home-memory-detail')).toHaveTextContent('40010');
+      expect(screen.getByTestId(layout === 'map' ? 'home-memory-summary' : 'home-memory-detail')).toHaveTextContent('40010');
       expect(screen.queryByTestId('home-memory-detail-action')).not.toBeInTheDocument();
     }
     fireEvent.click(screen.getByTestId('home-memory-cell-40001'));

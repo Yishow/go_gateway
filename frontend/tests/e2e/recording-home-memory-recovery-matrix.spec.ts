@@ -22,7 +22,7 @@ for (const width of [1440, 768, 390]) {
         const view = page.getByTestId('home-memory-view'), action = page.getByTestId('fixture-last-action');
         await expect(view).toHaveAttribute('data-layout', layout);
         const used = page.getByTestId('home-memory-cell-D0'), free = page.getByTestId('home-memory-cell-D33');
-        const detail = page.getByTestId('home-memory-detail');
+        const detail = page.locator('[data-memory-inspection]');
 
         await test.step('all three source blocks prohibit creation but preserve known owners', async () => {
           for (const [block, notice] of [

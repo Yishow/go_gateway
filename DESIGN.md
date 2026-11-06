@@ -1,5 +1,50 @@
 # Gateway 記錄介面設計契約
 
+## 記憶體五視圖增補（雲端實作完成，瀏覽器待驗）
+
+本節由 `refine-memory-view-visuals` 負責後續視覺校正，延伸本文件而不取代全站 tokens。
+`add-switchable-memory-views` 的歷史功能與驗收紀錄保留；本節不宣稱新樣式已驗收。
+以下 px、百分比、斷點、對比與截圖矩陣都是設計／驗收條件，不是參考 PNG 的量測結果。
+
+### 參考與配色權威
+
+- 五張原圖依序是 51e970e9（grid）、86b48a15（navigator）、c91df0e8（map）、943be82c（chapters）、201f2c58（detail）；原圖為明暗並列，沒有 `.dc.html`。
+- 原圖決定資訊層級、構圖及群組關係；色彩沿本文件 Quiet mineral 語意角色，不採原圖淡藍／navy／漸層／發光。這不是新的全站 palette exception。
+- 原圖中的示範位址、數值、計數、時間與「正常」標記不是資料 authority，不複製到產品。
+
+### 共用型別與卡片語彙
+
+- memory viewport 使用 ground；一般卡片使用 surface；modal 與浮層使用 raised。靜態卡片不用陰影，panel radius 8px，間距只用 4／8／12／16／24px 既有 scale，不新增玻璃與裝飾漸層。
+- 每格固定為位址、完整 datatype badge、讀值／狀態三層。空格有安靜輪廓；已用格以淡型別底色、輪廓及完整文字共同辨識，不用左色條，不將整頁畫成無差異白面板。
+- 型別 family recipe 使用現有角色：signed=text、unsigned=muted、float=accent、bool=success-fg、text=warning-fg；light/dark 都以該角色 12% 與 surface 混合作底色、24% 與 border 混合作輪廓。比例是待 browser 對比驗收的設計值，失敗時只調本 recipe 並同步本文件，不換全站 tokens。
+- 上述顏色只輔助型別，bool 綠不表示成功、text 黃不表示警告。unknown、conflict、stale、failed、pending 的狀態文案與樣式優先；unknown 的語意 hatch 不授權裝飾漸層。
+- 同一 confirmed 2／4-register value 外觀相連，badge 與 value 不重複堆疊；每個 physical address 仍保留自己的焦點。跨列／頁顯示起始位址與 continuation，不強迫整個值永不換行。
+- 選取、keyboard focus 具非色彩標記。完整位址、datatype、重要讀值不能只靠被截斷文字；長值可換行或透過可鍵盤到達的完整資訊呈現。
+
+### 五種構圖
+
+- Grid：地址格使用完整內容寬度，不加無用途側欄；格內三層同軸對齊。
+- Navigator：左側已存範圍清單、右側主 grid；range identity／address／type 清楚，真實選取與「位於本頁」分開。
+- Map：grid 上方為緊湊水平占用條與真實視窗端點，下方為單列可換行摘要。每個 window slot 都被表達，256-slot fixture 不用裝飾抽樣替代；slider 保留精確鍵盤與觸控定位。
+- Chapters：全寬 accordion 章節帶在 grid 上方，不做第二個左側 navigator。summary 同軸呈現範圍、datatype、真實 count；長清單可捲且有界，grid 與定位控制仍可到達。
+- Detail：主 grid＋右 inspector，依選取位址、型別／跨度、讀值／新鮮度、合法動作分區，不為每個 fact 再套卡片；手機 inspector 放在 grid 下方。
+- 窄螢幕 navigator 折為可收合上方區，其他控制可換行；欄數隨實際可用寬度計算，不把原圖的示範欄數當固定契約。
+
+### 記憶體 modal 與可達性
+
+- 只限 `[data-source-view=memory]`：viewport 寬至少 640px 且高至少 480px 時維持 85vw × 85dvh，為一般 75% form modal 的範圍限定例外；不改其他 modal。
+- 更小視窗沿既有總計 16px gutters 與 safe-area 扣除規則。header／footer 固定，body 內捲；focus trap、關閉返回 focus、Escape／dirty guard 不變。
+- 手機主要 label/data 至少 14px、觸控 target 至少 44px；一般文字對比至少 4.5:1，控制邊界／焦點至少 3:1，以實際相鄰背景驗證。不是只檢查 hex 字串。
+
+### 資料保真與驗收
+
+- 共用 `buildMemoryMap`／`memoryWindow`、唯一父層 `useHomeMemoryValues`、MC workspace/rule proof 與 unknown/string-width/bit-width fail-closed，不因美化更改來源權威。
+- 切換保留 area/window/focus/owner selection；observer 依實際 DOM 重綁，hover inspect 不移 keyboard tab stop。empty 精確新增、used 開 owner、conflict chooser、unknown 禁新增不變。
+- 即時設備讀值不是 SQL committed、readback verified 或 cleanup completed；缺證據不以成功 badge 補位。
+- 基礎對照為五視圖 × light/dark × 1440／768／390px，共 30 個狀態；另測低於 480px 高度、長名稱／大值、unknown/conflict、四格跨列／頁。每筆附 reference ID、產品 SHA、viewport、fixture 與差異說明。
+- 截圖之外仍須測切換、選址、鍵盤、Close/Cancel、Back/Forward 與重複點擊；新證據不能借用歷史 118 項 browser 驗收。
+- 雲端 Chromium socket EPERM 是既有環境阻擋，不是產品通過；未取得可執行 browser 環境時標 blocked，依 owner 最新次序，四案雲端實作及測試撰寫完成後統一上 Mac 驗證；此前 browser／archive 保持待驗，不降低驗收門檻。
+
 ## 目前決策／Supersedes
 
 本段依 `docs/verification/simple-recording/owner-checkpoint-2026-10-30.md` 與 `implementation-decision-2026-10-30.md`，取代本文較早「待 owner 確認／未 apply／owner gate 停止」的當前狀態解讀。v2、v4、v5 原型與待確認敘述保留為歷史；正式實作參考已固定為 Site v9（commit `c7698bf137dc0d966e2be19c0ba6b06110da02d4`）。2026-10-30 的 owner 指示及已記錄判斷已解除是否開始正式實作的待決狀態，無需再次詢問布局。

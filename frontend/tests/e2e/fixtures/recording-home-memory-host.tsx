@@ -2,6 +2,7 @@
 // Mock sample readings only: no API, no device, no HSL connection and no write.
 // Query: ?scenario=reference|mc|modbus|unconfirmed|conflict|w, ?light, ?en, ?controls.
 // Optional blocked/read/values query parameters select the same mock-only controls below.
+import { longNumber, unknownString, visualScenarios } from './recording-memory-visual-data';
 import { useCallback, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import i18n from '../../../src/i18n/config';
@@ -20,6 +21,7 @@ await i18n.changeLanguage(params.has('en') ? 'en' : 'zh-TW');
 if (!params.has('light')) document.documentElement.classList.add('dark');
 const span = (area: string, start: number, count: number, width: number) => Array.from({ length: count }, (_, index) => `${area}${start + index * width}`);
 const scenarios: Record<string, { protocol: ProtocolType; inputs: MemoryRuleInput[] }> = {
+  ...visualScenarios,
   reference: { protocol: 'modbus_tcp', inputs: [
     { id: 'I16', label: 'SAMPLE_INT16_', start_address: '40001', count: 16, data_type: 'int16', skipped_addresses: [] },
     { id: 'F32', label: 'SAMPLE_FLOAT32_', start_address: '40017', count: 8, data_type: 'float32', skipped_addresses: [] },
@@ -70,6 +72,10 @@ const sampleValues: MemoryValues = { status: 'live', updatedAt: Date.parse(sampl
       return [[memoryValueKey(area.key, cell.offset, owner.dataType), { value: sample, readAt: sampledAt }] as const];
     })),
 ) };
+
+if (params.get('scenario') === 'long') sampleValues.byCell = new Map([...sampleValues.byCell, ['HR:1:float64', { value: longNumber, readAt: sampledAt }]]);
+// An injected string must remain hidden because no physical width is proven.
+if (params.get('scenario') === 'unknownLong') sampleValues.byCell = new Map([...sampleValues.byCell, ['HR:1:string', { value: unknownString, readAt: sampledAt }]]);
 
 const blockModes = ['none', 'recovery', 'local', 'stale'] as const;
 const readModes = ['ready', 'loading', 'error', 'checking'] as const;

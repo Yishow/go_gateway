@@ -19,17 +19,20 @@ function RangeFacts({ area, rule }: { area: MemoryArea; rule: MemoryRuleInput })
 }
 
 /** Navigation is a projection of the same saved rules, never a second source of ranges. */
-export function MemoryRangeNavigation({ area, inputs, onJump }: RangeProps) {
+export function MemoryRangeNavigation({ area, inputs, onJump, cells, selected }: RangeProps & { cells: readonly MemoryCell[]; selected?: MemoryCell }) {
   const { t } = useTranslation('recording-home');
   const rules = inputs.filter(rule => area.ruleIds.includes(rule.id));
+  const selectedRule = selected?.state === 'used' ? selected.owners[0]?.ruleId : undefined;
+  const windowRules = new Set(cells.flatMap(cell => cell.owners.map(owner => owner.ruleId)));
   const [expanded, setExpanded] = useState(() => typeof matchMedia === 'undefined' || !matchMedia('(max-width: 639px)').matches);
   return <aside className="gw-memory-range-nav" data-testid="home-memory-range-nav" aria-label={t('source.memory.presentation.rangeNavigation')}>
     <details open={expanded} onToggle={event => setExpanded(event.currentTarget.open)}><summary>{t('source.memory.presentation.savedRanges', { count: rules.length })}</summary>
       {!rules.length && <p>{t('source.memory.presentation.noRanges')}</p>}
-      <ul>{rules.map(rule => <li key={rule.id}>
-        <button type="button" data-testid={`home-memory-range-jump-${rule.id}`} onClick={() => onJump(rule.start_address)}>
-          <strong>{rule.label}</strong><span>{describeMemoryRule(area.protocol, rule).start}</span>
-        </button><RangeFacts area={area} rule={rule} />
+      <ul>{rules.map(rule => <li key={rule.id} data-in-window={windowRules.has(rule.id) || undefined}>
+        <button type="button" data-testid={`home-memory-range-jump-${rule.id}`} aria-current={selectedRule === rule.id ? true : undefined} onClick={() => onJump(rule.start_address)}>
+          <strong>{rule.label}</strong><span>{describeMemoryRule(area.protocol, rule).start} · {rule.data_type}</span>
+          {selectedRule === rule.id && <span>{t('source.memory.presentation.selectedRange')}</span>}
+        </button>{windowRules.has(rule.id) && <p className="gw-memory-window-membership">{t('source.memory.presentation.inWindow')}</p>}<RangeFacts area={area} rule={rule} />
       </li>)}</ul>
     </details>
   </aside>;
@@ -42,15 +45,16 @@ export function MemoryRangeChapters({ area, inputs, onJump }: RangeProps) {
   return <section className="gw-memory-chapters" data-testid="home-memory-chapters" aria-label={t('source.memory.presentation.rangeChapters')}>
     <h4>{t('source.memory.presentation.savedRanges', { count: rules.length })}</h4>
     {!rules.length && <p>{t('source.memory.presentation.noRanges')}</p>}
-    {rules.map(rule => {
+    <div className="gw-memory-chapter-list">{rules.map(rule => {
       const span = describeMemoryRule(area.protocol, rule);
       return <details key={rule.id} data-testid={`home-memory-chapter-${rule.id}`}>
-        <summary><strong>{rule.label}</strong> <span>{span.start} – {span.end ?? t('source.memory.presentation.uncertain')}</span> <span>{rule.data_type}</span></summary>
+        <summary><span className="gw-memory-chapter-summary"><strong>{rule.label}</strong><span>{span.start} – {span.end ?? t('source.memory.presentation.uncertain')}</span><span>{rule.data_type}</span>
+          <span>{t('source.memory.presentation.valueCount', { count: rule.count })} · {span.cells === undefined ? t('source.memory.presentation.uncertain') : t(`source.memory.presentation.${area.unit}Count`, { count: span.cells })}</span></span></summary>
         <div className="gw-memory-chapter-body"><RangeFacts area={area} rule={rule} />
           <button type="button" data-testid={`home-memory-range-jump-${rule.id}`} onClick={() => onJump(rule.start_address)}>{t('source.memory.presentation.jumpRange')}</button>
         </div>
       </details>;
-    })}
+    })}</div>
   </section>;
 }
 
@@ -74,18 +78,24 @@ export function MemoryAddressMap({ cells, selected, onSelect }: {
 }
 
 /** Inspect the selected physical slot, resolving a continuation's reading at its value start. */
-export function MemoryCellDetail({ area, cell, values, onChoose, onSelect, cells }: {
+interface InspectionProps {
   area: MemoryArea; cell?: MemoryCell; values?: MemoryValues; onChoose: (cell: MemoryCell) => void;
   onSelect: (offset: number) => void; cells: readonly MemoryCell[];
-}) {
-  const { t } = useTranslation('recording-home');
+}
+function inspection({ area, cell, values, cells }: InspectionProps) {
   const owner = cell?.state === 'used' ? cell.owners[0] : undefined;
   const start = owner && locateMemoryOffset(area, owner.valueAddress);
   const live = owner && !owner.partial && start !== undefined ? values?.byCell.get(memoryValueKey(area.key, start, owner.dataType)) : undefined;
   const index = cells.findIndex(item => item.offset === cell?.offset);
   const readingState = live?.error ? 'failed' : live?.value !== undefined ? live.stale ? 'stale' : 'available'
     : values?.status === 'loading' ? 'waiting' : 'missing';
-  return <aside className="gw-memory-detail" data-testid="home-memory-detail" aria-label={t('source.memory.presentation.cellDetail')}>
+  return { owner, start, live, index, readingState };
+}
+export function MemoryCellDetail(props: InspectionProps) {
+  const { area, cell, values, cells, onSelect, onChoose } = props;
+  const { t } = useTranslation('recording-home');
+  const { owner, start, live, index, readingState } = inspection(props);
+  return <aside className="gw-memory-detail gw-memory-inspection" data-memory-inspection data-testid="home-memory-detail" aria-label={t('source.memory.presentation.cellDetail')}>
     <header><h4>{t('source.memory.presentation.cellDetail')}</h4><div className="gw-memory-detail-navigation">
       <button type="button" data-testid="home-memory-detail-previous" aria-label={t('source.memory.presentation.previousAddress')} disabled={index <= 0}
         onClick={() => { if (index > 0) onSelect(cells[index - 1].offset); }}>‹</button>
@@ -94,19 +104,49 @@ export function MemoryCellDetail({ area, cell, values, onChoose, onSelect, cells
     </div></header>
     {!cell ? <p>{t('source.memory.presentation.noSelection')}</p> : <>
       <p className="gw-memory-detail-address">{cell.address}</p>
-      <dl className="gw-memory-detail-facts">
+      <dl className="gw-memory-detail-facts" data-detail-group="type">
         <div><dt>{t('source.memory.presentation.type')}</dt><dd>{owner?.dataType ?? t('source.memory.presentation.notApplicable')}</dd></div>
         <div><dt>{t('source.memory.presentation.valueStart')}</dt><dd>{owner?.valueAddress ?? t('source.memory.presentation.notApplicable')}</dd></div>
         <div><dt>{t('source.memory.presentation.width')}</dt><dd>{owner ? owner.partial ? t('source.memory.presentation.uncertain')
           : t(`source.memory.presentation.${area.unit}Count`, { count: owner.width }) : t('source.memory.presentation.notApplicable')}</dd></div>
-        <div><dt>{t('source.memory.presentation.currentReading')}</dt><dd className="gw-memory-detail-reading" data-value-key={owner && start !== undefined ? memoryValueKey(area.key, start, owner.dataType) : undefined}>{live?.error ? '!' : live?.value ?? (values?.status === 'loading' ? '…' : t('source.memory.presentation.notApplicable'))}</dd></div>
+      </dl>
+      <dl className="gw-memory-detail-facts" data-detail-group="reading">
+        <div><dt>{t('source.memory.presentation.currentReading')}</dt><dd className="gw-memory-detail-reading" data-value-key={owner && !owner.partial && start !== undefined ? memoryValueKey(area.key, start, owner.dataType) : undefined}>{live?.error ? '!' : live?.value ?? (values?.status === 'loading' ? '…' : t('source.memory.presentation.notApplicable'))}</dd></div>
         <div><dt>{t('source.memory.presentation.status')}</dt><dd>{t(`source.memory.presentation.state.${cell.state}`)}
           {owner?.skipped && <span> · {t('source.memory.presentation.skipped')}</span>}</dd></div>
         <div><dt>{t('source.memory.presentation.freshness')}</dt><dd>{t(`source.memory.presentation.reading.${readingState}`)}
           {live?.readAt && <time dateTime={live.readAt}> · {live.readAt}</time>}</dd></div>
       </dl>
-      {cell.state !== 'unconfirmed' && <button type="button" data-testid="home-memory-detail-action" onClick={() => onChoose(cell)}>
-        {t(`source.memory.presentation.action.${cell.state}`)}</button>}
+      <div data-detail-group="actions">{cell.state !== 'unconfirmed' && <button type="button" data-testid="home-memory-detail-action" onClick={() => onChoose(cell)}>
+        {t(`source.memory.presentation.action.${cell.state}`)}</button>}</div>
     </>}
   </aside>;
+}
+
+/** Compact map selection, not the full right-hand inspector. Shares canonical reading resolution. */
+export function MemoryCellSummary(props: InspectionProps) {
+  const { area, cell, values, cells, onSelect, onChoose } = props;
+  const { t } = useTranslation('recording-home');
+  const { owner, start, live, index, readingState } = inspection(props);
+  return <section className="gw-memory-map-summary gw-memory-inspection" data-memory-inspection data-testid="home-memory-summary" aria-label={t('source.memory.presentation.cellDetail')}>
+    {!cell ? <p>{t('source.memory.presentation.noSelection')}</p> : <>
+      <span className="gw-memory-summary-field"><span>{t('source.memory.presentation.cellDetail')}</span><strong className="gw-memory-detail-address">{cell.address}</strong></span>
+      <span className="gw-memory-summary-field"><span>{t('source.memory.presentation.type')}</span><strong>{owner?.dataType ?? t('source.memory.presentation.notApplicable')}</strong></span>
+      {owner && <span className="gw-memory-summary-field"><span>{t('source.memory.presentation.valueStart')}</span><strong>{owner.valueAddress}</strong>
+        <span>{owner.partial ? t('source.memory.presentation.uncertain') : t(`source.memory.presentation.${area.unit}Count`, { count: owner.width })}</span></span>}
+      <span className="gw-memory-summary-field"><span>{t('source.memory.presentation.currentReading')}</span>
+        <strong className="gw-memory-detail-reading" data-value-key={owner && !owner.partial && start !== undefined ? memoryValueKey(area.key, start, owner.dataType) : undefined}>
+          {live?.error ? '!' : live?.value ?? (values?.status === 'loading' ? '…' : t('source.memory.presentation.notApplicable'))}</strong>
+        <span>{t(`source.memory.presentation.reading.${readingState}`)}</span>{live?.readAt && <time dateTime={live.readAt}>{live.readAt}</time>}</span>
+      <span className="gw-memory-summary-field"><span>{t('source.memory.presentation.status')}</span><strong>{t(`source.memory.presentation.state.${cell.state}`)}</strong>
+        {owner?.skipped && <span>{t('source.memory.presentation.skipped')}</span>}</span>
+      <div className="gw-memory-detail-navigation">
+        <button type="button" data-testid="home-memory-detail-previous" aria-label={t('source.memory.presentation.previousAddress')} disabled={index <= 0}
+          onClick={() => { if (index > 0) onSelect(cells[index - 1].offset); }}>‹</button>
+        <button type="button" data-testid="home-memory-detail-next" aria-label={t('source.memory.presentation.nextAddress')} disabled={index < 0 || index >= cells.length - 1}
+          onClick={() => { if (index >= 0 && index < cells.length - 1) onSelect(cells[index + 1].offset); }}>›</button>
+      </div>
+      {cell.state !== 'unconfirmed' && <button type="button" data-testid="home-memory-detail-action" onClick={() => onChoose(cell)}>{t(`source.memory.presentation.action.${cell.state}`)}</button>}
+    </>}
+  </section>;
 }

@@ -45,6 +45,9 @@ export function RecordingHomeMemoryCells({ cells, columns, areaKey, active, pend
         <span className="gw-memory-type"><span>{owner.dataType}</span>{value && <span> {value.part}/{value.width}</span>}{owner.partial && <span> ?</span>}{owner.skipped && <span> {t('source.memory.cell.skippedShort')}</span>}</span>
         {owner.part === 1 ? <MemoryReading live={reading(cell)} pending={pending} /> : <span className="gw-memory-value gw-memory-continuation">{t('source.memory.cell.continued', { start: owner.valueAddress })}</span>}
       </span>}
+      {/* Confirmed owner.part identifies the canonical start even outside this page. */}
+      <span className="gw-memory-focus-information" aria-hidden="true"
+        data-value-key={cell.state === 'used' && !owner.partial ? memoryValueKey(areaKey, cell.offset - owner.part + 1, owner.dataType) : undefined}>{describe(cell)}</span>
       {continuesBelow && <span className="gw-memory-cue" aria-hidden="true">{t('source.memory.cell.continues')}</span>}
     </>;
     return cell.state === 'unconfirmed' ? <div key={cell.offset} {...props}>{content}</div>

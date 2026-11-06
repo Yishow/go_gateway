@@ -140,8 +140,8 @@ describe('memory view opens exact cells into the original range flows', () => {
     expect(within(dialog).getByRole('tab', { name: /4x/ })).toHaveAttribute('aria-selected', 'true');
     expect(within(dialog).getByRole('tab', { name: /3x/ })).toBeInTheDocument();
     expect(within(dialog).getByTestId('home-memory-cell-40001')).toHaveAttribute('data-state', 'used');
-    expect(within(dialog).getByTestId('home-memory-cell-40010')).toHaveAccessibleName('40010, B_, float32, register 1 of 2');
-    expect(within(dialog).getByTestId('home-memory-cell-40011')).toHaveAccessibleName('40011, B_, float32, register 2 of 2, starts at 40010');
+    expect(within(dialog).getByTestId('home-memory-cell-40010')).toHaveAccessibleName('40010, B_, float32, register 1 of 2, No reading');
+    expect(within(dialog).getByTestId('home-memory-cell-40011')).toHaveAccessibleName('40011, B_, float32, register 2 of 2, starts at 40010, No reading');
     expect(within(dialog).getByTestId('home-memory-cell-40001')).toHaveTextContent('int16'); expect(within(dialog).getByTestId('home-memory-cell-40010')).toHaveTextContent(/float32 1\/2.*next row/);
     expect(within(dialog).getByTestId('home-memory-cell-40011')).toHaveTextContent('cont. 40010'); expect(within(dialog).getByTestId('home-memory-cell-40012')).toHaveAttribute('data-join-next', 'true');
     fireEvent.click(within(dialog).getByRole('tab', { name: /3x/ }));

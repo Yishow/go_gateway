@@ -125,7 +125,7 @@ function event(value: number, extra: Partial<RuntimeValueEvent> = {}): RuntimeVa
 async function showDetailOnly(detailFirst = false) {
   act(() => {
     for (const observer of MockIntersectionObserver.instances.filter(item => !item.disconnected)) {
-      const entries = observer.targets.map(target => ({ target, visible: Boolean(target.closest('.gw-memory-detail')) }));
+      const entries = observer.targets.map(target => ({ target, visible: Boolean(target.closest('[data-memory-inspection]')) }));
       // Deliver duplicate-key visibility in both orders, as a browser observer may do.
       entries.sort((a, b) => detailFirst ? Number(b.visible) - Number(a.visible) : Number(a.visible) - Number(b.visible));
       observer.setVisibility(entries);
@@ -142,7 +142,7 @@ describe('memory layout and live hook integration continuity', () => {
     expectSubscription(stream);
     act(() => stream.emit(event(58)));
     await advance(1000);
-    expect(screen.getByTestId('home-memory-detail').querySelector('.gw-memory-detail-reading')).toHaveTextContent('58');
+    expect(screen.getByTestId(layout === 'map' ? 'home-memory-summary' : 'home-memory-detail').querySelector('.gw-memory-detail-reading')).toHaveTextContent('58');
   });
 
   it.each(['map', 'detail'] as const)('does not drop the shared %s value key when detail-visible precedes grid-hidden', async layout => {
@@ -152,13 +152,13 @@ describe('memory layout and live hook integration continuity', () => {
     expectSubscription(stream);
     act(() => stream.emit(event(61)));
     await advance(1000);
-    expect(screen.getByTestId('home-memory-detail').querySelector('.gw-memory-detail-reading')).toHaveTextContent('61');
+    expect(screen.getByTestId(layout === 'map' ? 'home-memory-summary' : 'home-memory-detail').querySelector('.gw-memory-detail-reading')).toHaveTextContent('61');
   });
 
-  it('observes the value-start key of a selected continuation even when its first register is outside the page', async () => {
+  it.each(['map', 'detail'] as const)('%s observes the value-start key of a selected continuation even when its first register is outside the page', async layout => {
     vi.mocked(pointAPI.list).mockResolvedValue([{ ...point, address: '40249', data_type: 'int64' }]);
     const stream = await mount([{ ...inputs[0], start_address: '40249', data_type: 'int64' }]);
-    await switchTo('detail');
+    await switchTo(layout);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '40001' } });
     fireEvent.click(screen.getByRole('button', { name: 'Go' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -167,11 +167,11 @@ describe('memory layout and live hook integration continuity', () => {
     await showDetailOnly(true);
     expectSubscription(stream);
     const observedDetail = MockIntersectionObserver.instances.filter(observer => !observer.disconnected)
-      .flatMap(observer => observer.targets).find(target => target.closest('.gw-memory-detail'));
+      .flatMap(observer => observer.targets).find(target => target.closest('[data-memory-inspection]'));
     expect(observedDetail).toHaveAttribute('data-value-key', 'HR:249:int64');
     act(() => stream.emit(event(84, { address: '40249' })));
     await advance(1000);
-    expect(screen.getByTestId('home-memory-detail').querySelector('.gw-memory-detail-reading')).toHaveTextContent('84');
+    expect(screen.getByTestId(layout === 'map' ? 'home-memory-summary' : 'home-memory-detail').querySelector('.gw-memory-detail-reading')).toHaveTextContent('84');
   });
 
   it('preserves zero, pushed values, stale and error state across all five layouts without resubscribing or mutating', async () => {
@@ -222,4 +222,28 @@ describe('memory layout and live hook integration continuity', () => {
     expect(stream.close).toHaveBeenCalledTimes(1);
     expect(stream.listeners.size).toBe(0);
   });
+});
+
+it.each(['grid', 'navigator', 'chapters'] as const)('%s keeps a focused off-page continuation subscribed', async layout => {
+  vi.mocked(pointAPI.list).mockResolvedValue([{ ...point, address: '40249', data_type: 'int64' }]);
+  const stream = await mount([{ ...inputs[0], start_address: '40249', data_type: 'int64' }]);
+  await switchTo(layout);
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '40001' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Go' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  const continuation = screen.getByTestId('home-memory-cell-40251');
+  act(() => continuation.focus());
+  expect(screen.queryByTestId('home-memory-cell-40249')).not.toBeInTheDocument();
+  const information = continuation.querySelector('.gw-memory-focus-information')!;
+  act(() => {
+    for (const observer of MockIntersectionObserver.instances.filter(item => !item.disconnected)) {
+      observer.setVisibility(observer.targets.map(target => ({ target, visible: target === information })));
+    }
+  });
+  await advance(300);
+  expect(information).toHaveAttribute('data-value-key', 'HR:249:int64');
+  expectSubscription(stream);
+  act(() => stream.emit(event(84, { address: '40249' })));
+  await advance(1000);
+  expect(continuation.querySelector('.gw-memory-focus-information')).toHaveTextContent('84');
 });

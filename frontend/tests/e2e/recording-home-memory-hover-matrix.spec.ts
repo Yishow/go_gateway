@@ -10,7 +10,7 @@ for (const width of [1440, 768, 390]) {
         await expect(page.getByTestId('fixture-sample-notice')).toContainText('MOCK SAMPLE');
         await page.getByTestId(`home-memory-layout-${layout}`).click();
         const first = page.getByTestId('home-memory-cell-40001'), continuation = page.getByTestId('home-memory-cell-40018');
-        const detail = page.getByTestId('home-memory-detail'), action = page.getByTestId('fixture-last-action');
+        const detail = page.locator('[data-memory-inspection]'), action = page.getByTestId('fixture-last-action');
         await first.focus();
         await expect(detail.locator('.gw-memory-detail-address')).toHaveText('40001');
         await continuation.hover();

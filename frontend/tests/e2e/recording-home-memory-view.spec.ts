@@ -68,14 +68,24 @@ for (const viewport of [{ name: 'desktop', width: 1440, height: 900 }, { name: '
     await page.screenshot({ path: testInfo.outputPath(`checking-${viewport.name}.png`) });
     releaseProof();
     await expect(dialog.getByTestId('home-memory-cell-D0')).toHaveAttribute('data-state', 'used');
-    await expect(dialog.getByTestId('home-memory-cell-D40')).toHaveAttribute('aria-label', 'D40，FLOW_，float32，第 2/2 個暫存器，起始於 D39');
+    await expect(dialog.getByTestId('home-memory-cell-D40')).toHaveAttribute('aria-label', 'D40，FLOW_，float32，第 2/2 個暫存器，起始於 D39, 尚無讀值');
     await expect(dialog.getByTestId('home-memory-cell-D39')).toContainText('float32 1/2');
     await expect(dialog.getByTestId('home-memory-cell-D0')).toContainText('int16');
-    // D39 ends a row at 10 and at 5 columns: the value continues on the next row instead of joining across the wrap.
-    await expect(dialog.getByTestId('home-memory-cell-D39')).toContainText('續下一列');
-    await expect(dialog.getByTestId('home-memory-cell-D40')).toContainText('接續 D39');
-    await expect(dialog.getByTestId('home-memory-cell-D41')).toHaveAttribute('data-join-next', 'true');
-    await expect(dialog.getByTestId('home-memory-cell-D42')).not.toHaveAttribute('data-join-next', 'true');
+    // Continuation follows actual tracks after available-width sizing, not old 10/5 assumptions.
+    const columns = await dialog.locator('.gw-memory-grid').evaluate(node => getComputedStyle(node).gridTemplateColumns.split(' ').filter(Boolean).length);
+    for (const start of [39, 41]) {
+      const first = dialog.getByTestId(`home-memory-cell-D${start}`), next = dialog.getByTestId(`home-memory-cell-D${start + 1}`);
+      if (start % columns === columns - 1) {
+        await expect(first).toContainText('續下一列');
+        await expect(first).not.toHaveAttribute('data-join-next', 'true');
+        await expect(next).toContainText(`接續 D${start}`);
+      } else {
+        await expect(first).toHaveAttribute('data-join-next', 'true');
+        await expect(next).toHaveAttribute('data-join-before', 'true');
+        await expect(next).not.toContainText(`接續 D${start}`);
+      }
+      await expect(next).not.toHaveAttribute('data-join-next', 'true');
+    }
     await expect(dialog.getByTestId('home-memory-cell-D33')).toHaveAttribute('data-state', 'empty');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
