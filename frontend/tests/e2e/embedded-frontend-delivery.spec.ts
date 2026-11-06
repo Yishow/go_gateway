@@ -1,69 +1,6 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { cp, mkdtemp, rm } from 'node:fs/promises';
-import { createServer, type AddressInfo } from 'node:net';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-
+import { buildEmbedded, startEmbedded, type EmbeddedBuild } from './helpers/embedded-server';
 import { expect, test, type Page, type Request } from '@playwright/test';
 import type { RuntimeLogSnapshot } from '../../src/types/runtimeLogs';
-
-const repoRoot = process.cwd().endsWith('frontend') ? resolve(process.cwd(), '..') : process.cwd();
-const embeddedPort = async (): Promise<number> => {
-  const probe = createServer();
-  await new Promise<void>((resolveProbe, reject) => {
-    probe.once('error', reject);
-    probe.listen(0, '127.0.0.1', () => resolveProbe());
-  });
-
-  const address = probe.address() as AddressInfo;
-  const port = address.port;
-  await new Promise<void>((resolveClose, reject) => {
-    probe.close((error) => (error ? reject(error) : resolveClose()));
-  });
-  return port;
-};
-
-async function runProcess(
-  command: string,
-  args: string[],
-  options: { cwd: string; env?: Record<string, string | undefined> },
-): Promise<string> {
-  const child = spawn(command, args, {
-    cwd: options.cwd,
-    env: { ...process.env, ...options.env },
-    stdio: ['ignore', 'pipe', 'pipe'],
-    windowsHide: true,
-  });
-  const output: string[] = [];
-  child.stdout.on('data', (chunk: Buffer) => output.push(chunk.toString()));
-  child.stderr.on('data', (chunk: Buffer) => output.push(chunk.toString()));
-
-  const exitCode = await new Promise<number>((resolveProcess, reject) => {
-    child.once('error', reject);
-    child.once('close', (code) => resolveProcess(code ?? 1));
-  });
-  if (exitCode !== 0) {
-    throw new Error(`${command} ${args.join(' ')} failed (${exitCode})\n${output.join('').slice(-4000)}`);
-  }
-  return output.join('');
-}
-
-async function waitForServer(baseURL: string, child: ChildProcessWithoutNullStreams): Promise<void> {
-  const deadline = Date.now() + 120_000;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) {
-      throw new Error(`embedded server exited before readiness with code ${child.exitCode}`);
-    }
-    try {
-      const response = await fetch(`${baseURL}/`);
-      if (response.status === 200) return;
-    } catch {
-      // The embedded process may still be compiling migrations or binding its port.
-    }
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 250));
-  }
-  throw new Error(`embedded server did not become ready at ${baseURL}`);
-}
 
 function isAssetRequest(request: Request, origin: string): boolean {
   const url = new URL(request.url());
@@ -114,47 +51,20 @@ function expectNoLegacyAssets(paths: string[]): void {
 test.describe.configure({ mode: 'serial', timeout: 180_000 });
 
 test.describe('Embedded frontend delivery smoke', () => {
-  let server: ChildProcessWithoutNullStreams;
-  let workDir: string;
+  let build: EmbeddedBuild;
+  let server: Awaited<ReturnType<typeof startEmbedded>>;
   let baseURL: string;
 
   test.beforeAll(async () => {
-    workDir = await mkdtemp(join(tmpdir(), 'go-gateway-embedded-e2e-'));
-    const port = await embeddedPort();
-    baseURL = `http://127.0.0.1:${port}`;
-    const binary = join(workDir, process.platform === 'win32' ? 'test-ui.exe' : 'test-ui');
-
-    const frontendRoot = join(repoRoot, 'frontend');
-    const staticRoot = join(repoRoot, 'cmd', 'test_ui', 'static');
-    await runProcess(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'], { cwd: frontendRoot, env: { VITE_API_BASE_URL: '/api/v1' } });
-    await rm(join(staticRoot, 'assets'), { recursive: true, force: true });
-    await cp(join(frontendRoot, 'dist'), staticRoot, { recursive: true, force: true });
-    await runProcess('go', ['build', '-o', binary, './cmd/test_ui'], { cwd: repoRoot });
-    server = spawn(binary, [], {
-      cwd: workDir,
-      env: {
-        ...process.env,
-        PORT: String(port),
-        HOST: '127.0.0.1',
-        API_BASE_PATH: '/api/v1',
-        GATEWAY_DB_PATH: join(workDir, 'datalink.db'),
-        LOG_FILE: join(workDir, 'gateway-runtime.jsonl'),
-        LOG_OUTPUT: 'console',
-        AUTO_OPEN_BROWSER: 'false',
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
-      windowsHide: true,
-    });
-    await waitForServer(baseURL, server);
+    test.setTimeout(600_000);
+    build = await buildEmbedded();
+    server = await startEmbedded(build);
+    baseURL = server.baseURL;
   });
 
   test.afterAll(async () => {
-    if (server && server.exitCode === null) {
-      const closed = new Promise<void>((resolveExit) => server.once('close', () => resolveExit()));
-      server.kill();
-      await closed;
-    }
-    if (workDir) await rm(workDir, { recursive: true, force: true });
+    if (server) await server.stop();
+    if (build) await build.dispose();
   });
 
   async function openRoute(page: Page, path: string, readySelector: string) {
@@ -260,10 +170,10 @@ test.describe('Embedded frontend delivery smoke', () => {
       localStorage.setItem('i18nextLng', 'en');
       const originalFetch = window.fetch.bind(window);
       window.fetch = (input, init) => {
-        const url = input instanceof Request ? input.url : String(input);
+        const url = input instanceof window.Request ? input.url : String(input);
         if (!new URL(url, location.href).pathname.endsWith('/system/logs/stream')) return originalFetch(input, init);
         const fault = new AbortController();
-        (window as Window & { dropLogStream: () => void }).dropLogStream = () => fault.abort();
+        (window as unknown as Window & { dropLogStream: () => void }).dropLogStream = () => fault.abort();
         const signals = init?.signal ? [init.signal, fault.signal] : [fault.signal];
         return originalFetch(input, { ...init, signal: AbortSignal.any(signals) });
       };
@@ -283,7 +193,7 @@ test.describe('Embedded frontend delivery smoke', () => {
       await context.setOffline(true);
       // Chromium offline mode blocks new requests but can keep an existing SSE
       // socket alive; cancel that real fetch to inject the dropped connection.
-      await page.evaluate(() => (window as Window & { dropLogStream: () => void }).dropLogStream());
+      await page.evaluate(() => (window as unknown as Window & { dropLogStream: () => void }).dropLogStream());
       await expect(status).toHaveText('Disconnected · reconnecting');
       expect(await rows.allTextContents()).toEqual(before);
     } finally {

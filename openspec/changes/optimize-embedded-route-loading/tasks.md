@@ -27,3 +27,9 @@
 後續指示：「一樣照此實作，archive時先保留，最後一起上Mac,更新你的記憶，之後都依此方式，避免停止實作」。因此各案非browser實作及verify/review/fix完成後可先做範圍限定commit，archive與真browser驗收延至四案實作完成後；不因雲端browser限制停止後續實作。
 
 非瀏覽器補查註記：官方 golangci-lint 補齊後發現建表錯誤處理與靜態寫法問題，新增3.5修復及回歸，保留所有已完成任務原描述；browser及archive仍待最終Mac驗收。
+
+## 4. 雲端補齊瀏覽器驗收腳本
+
+- [x] 4.1 [after: 3.5] 在雲端撰寫真 production embedded lifecycle、advanced chunk 延遲／失敗、query/hash／history／dirty cancel、雙版本同 origin 快取及五次 cold/warm 原始 bytes/request/timing 腳本；固定 fixture/toolchain 身分，隔離 fault injection 與無 routing 快取量測，以 E2E discovery、受影響型別／lint、交付 build/shell 及 Spectra verify/review 驗證腳本可交接。此項只驗證 authoring，3.2 真 Mac 執行及3.4 archive 不得因此勾選；空白 backend 不代表 live-reading 或大型來源效能。
+
+- [x] 4.2 [after: 4.1] 修復 embedded server 驗收工具誤認 occupied origin：以 owned stub／延遲不監聽 child 重現 HTTP200 不代表 owned server，拒絕無效與已占用port，透過唯一 build-only 靜態身分驗證才交出baseURL；不新增產品API或終止無關process。執行focused lifecycle回歸、E2E型別／lint／discovery、真build smoke與獨立Spectra review，browser保持未執行。
