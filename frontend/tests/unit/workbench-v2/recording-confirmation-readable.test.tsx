@@ -17,17 +17,18 @@ function readiness(): WriteGroupReadiness {
 it('explains the exact compact schema blocker in Chinese without hiding the original issue or changing readiness', () => {
   const value = readiness();
   render(<I18nextProvider i18n={i18n}><GroupReadinessPanel readiness={value} loading={false} failed={false} dirty={false} onRetry={vi.fn()} {...{ compact: true }} /></I18nextProvider>);
-  expect(screen.getByText('請先檢查已儲存的目的地資料表，並明確確認準備內容，再開始記錄。', { exact: false })).toBeVisible();
-  // The original code and message stay on screen as a quiet diagnostic line, not behind a disclosure.
-  const original = screen.getByText(`schema-confirmation-required · ${known}`, { exact: false });
+  expect(screen.getByText('尚未確認並套用資料表結構；開始記錄前請先檢查並確認。')).toBeVisible();
+  // The original code and message stay on screen as one quiet diagnostic line, not behind a disclosure or duplicated.
+  const original = screen.getByText(`schema-confirmation-required：尚未確認並套用資料表結構；開始記錄前請先檢查並確認。（${known}）`, { exact: false });
   expect(original).toBeVisible(); expect(original.closest('details')).toBeNull();
+  expect(screen.getAllByText(/schema-confirmation-required|preview and explicitly confirm/)).toEqual([original]);
   expect(value.ready).toBe(false); expect(value.issues[0].message).toBe(known);
 });
 it('keeps unknown warnings visible as unverified issues rather than inventing a blocker translation', () => {
   const value = readiness(); value.ready = true; value.schema_ready = true; value.issues = [{ code: 'future-warning', severity: 'warning', step: 'Step 4', scope: 'G', message: 'Original warning from server' }];
   render(<I18nextProvider i18n={i18n}><GroupReadinessPanel readiness={value} loading={false} failed={false} dirty={false} onRetry={vi.fn()} {...{ compact: true }} /></I18nextProvider>);
-  expect(screen.getByText('有一項記錄狀態需要確認，原始原因列在下方。', { exact: false })).toBeVisible();
-  const original = screen.getByText('future-warning · Original warning from server', { exact: false });
+  expect(screen.getByText('需要處理的設定問題')).toBeVisible();
+  const original = screen.getByText('future-warning：需要處理的設定問題（Original warning from server）', { exact: false });
   expect(original).toBeVisible(); expect(value.ready).toBe(true);
 });
 it('groups only identical compact action reasons while every original permission and accessible reason remains intact', () => {

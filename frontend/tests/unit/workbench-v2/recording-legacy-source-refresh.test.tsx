@@ -51,10 +51,11 @@ it('explains one stale source cause while retaining its derived schema issue in 
   render(<GroupReadinessPanel compact readiness={value} loading={false} failed={false} dirty={false} onRetry={vi.fn()} />);
   const issues = screen.getByTestId('group-readiness-issues');
   expect(issues.children).toHaveLength(1);
-  expect(within(issues).getByText('confirmation.sourceStale', { exact: false })).toBeVisible();
+  expect(within(issues).getByText('來源點位或規則已更新，請重新保存此記錄設定。')).toBeVisible();
   // The derived schema issue stays as a visible diagnostic line under the one plain-language cause.
-  const original = within(issues).getByText('schema-check-blocked · destination schema check is blocked by configuration issues', { exact: false });
+  const original = within(issues).getByText('schema-check-blocked：請先完成上方阻擋問題，才能檢查資料表結構。（destination schema check is blocked by configuration issues）', { exact: false });
   expect(original).toBeVisible(); expect(original.closest('details')).toBeNull();
+  expect(within(issues).getAllByText(/schema-check-blocked|destination schema check is blocked/)).toEqual([original]);
   expect(value.issues).toHaveLength(2); expect(value.ready).toBe(false);
 });
 it('offers explicit source review on an unchanged saved legacy recording without requiring a fake name edit', async () => {
@@ -155,8 +156,8 @@ it('reuses the plain-language source recovery and folded runtime facts only in a
   const preparation = screen.getByTestId('recording-preparation-actions');
   expect(within(preparation).getByTestId('group-readiness')).toBeVisible();
   expect(screen.getAllByTestId('group-readiness')).toHaveLength(1);
-  expect(screen.getByTestId('group-readiness-issues')).toHaveTextContent('confirmation.sourceStale');
-  expect(screen.getByText('source-revision-stale · saved source or mapping revision is stale', { exact: false })).toBeVisible();
+  expect(screen.getByTestId('group-readiness-issues')).toHaveTextContent('來源點位或規則已更新，請重新保存此記錄設定。');
+  expect(screen.getByText('source-revision-stale：來源點位或規則已更新，請重新保存此記錄設定。（saved source or mapping revision is stale）', { exact: false })).toBeVisible();
   expect(screen.getByTestId('recording-delivery-summary')).toBeVisible();
   expect(screen.getByTestId('group-delivery-strip').querySelector('details')).toBeNull();
   expect(screen.getByTestId('recording-secondary-management').tagName).toBe('SECTION');

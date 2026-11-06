@@ -96,6 +96,44 @@ it('orders visible source and per-point controls before the destination without 
   expect(method.querySelector('details')).toBeNull();
   expect(screen.getByTestId('member-calculation-pt-0').closest('td')).toHaveAttribute('data-testid', 'group-member-calculation-pt-0');
 });
+it('finds the first matching member when source table filters hide it', async () => {
+  const originalScroll = HTMLElement.prototype.scrollIntoView;
+  const scroll = vi.fn();
+  HTMLElement.prototype.scrollIntoView = scroll;
+  try {
+    mount();
+    fireEvent.click(screen.getByTestId('group-member-include-pt-0'));
+    fireEvent.click(screen.getByTestId('group-member-include-pt-1'));
+    const secondCalculation = await screen.findByTestId('member-calculation-pt-1');
+    fireEvent.change(within(secondCalculation).getByLabelText('calculation.interval'), { target: { value: '30' } });
+    const goToThirtySeconds = () => {
+      const method = within(screen.getByTestId('recording-method-groups')).getByText(/calculation.latest · 30 /).closest('li');
+      if (!method) throw new Error('Thirty-second recording method group is missing');
+      scroll.mockClear();
+      fireEvent.click(within(method).getByRole('button', { name: 'methodGroups.goToSourceTable' }));
+    };
+    fireEvent.change(screen.getByTestId('group-member-search'), { target: { value: 'no matching member' } });
+    expect(screen.queryByTestId('group-member-calculation-pt-1')).not.toBeInTheDocument();
+    goToThirtySeconds();
+    await waitFor(() => expect(screen.getByTestId('group-member-search')).toHaveValue(''));
+    const control = within(screen.getByTestId('group-member-calculation-pt-1')).getByRole('combobox', { name: 'calculation.title' });
+    expect(control).toHaveFocus();
+    expect(scroll).toHaveBeenLastCalledWith({ block: 'center' });
+    expect(scroll.mock.contexts.at(-1)).toBe(control);
+    fireEvent.click(screen.getByTestId('group-member-problems-only'));
+    expect(screen.queryByTestId('group-member-calculation-pt-1')).not.toBeInTheDocument();
+    goToThirtySeconds();
+    await waitFor(() => expect(screen.getByTestId('group-member-problems-only')).not.toBeChecked());
+    const revealed = within(screen.getByTestId('group-member-calculation-pt-1')).getByRole('combobox', { name: 'calculation.title' });
+    expect(revealed).toHaveFocus();
+    expect(scroll).toHaveBeenLastCalledWith({ block: 'center' });
+    expect(scroll.mock.contexts.at(-1)).toBe(revealed);
+    expect(studioV2WorkspaceWriteGroupsAPI.create).not.toHaveBeenCalled();
+    expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
+  } finally {
+    HTMLElement.prototype.scrollIntoView = originalScroll;
+  }
+});
 it('keeps one repair action inside the padded editor before preparation and in the readonly fallback', () => {
   const lookup = vi.fn();
   const repairContent = <button type="button" data-testid="repair-slot" onClick={lookup}>Original operation lookup</button>;
@@ -337,10 +375,11 @@ it.each([
   if (profile.kind === 'cumulative') expect(summary).not.toHaveTextContent('calculation.mean');
   expect(studioV2WorkspaceWriteGroupsAPI.update).not.toHaveBeenCalled();
 });
-it('shows a known legacy interval without inventing a recording method', () => {
+it('shows a known legacy interval with the legacy wide-table method label', () => {
   mount({ group: savedGroup({ recording_profile: undefined, row_policy: { ...savedGroup().row_policy, interval_seconds: 7 } }) });
   const summary = screen.getByTestId('recording-editor-summary');
-  expect(summary).toHaveTextContent('7'); expect(summary).toHaveTextContent('simple.summary.methodUnknown');
+  expect(summary).toHaveTextContent('7'); expect(summary).toHaveTextContent('legacyMethod.label');
+  expect(summary).not.toHaveTextContent('simple.summary.methodUnknown');
   expect(summary).not.toHaveTextContent('calculation.latest'); expect(summary).not.toHaveTextContent('calculation.mean');
 });
 
