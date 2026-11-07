@@ -1,0 +1,81 @@
+{
+  "created_utc": "2026-11-06T09:47:45.104261+00:00",
+  "product_commit": "0f54740e2df083ff0e6695897bfa4963039d5fda",
+  "original_evidence_files_retained": 1426,
+  "excluded_executable_count": 4,
+  "excluded_executables": [
+    {
+      "path": "test-ui",
+      "bytes": 75414706,
+      "sha256": "f0c12714d64ff98859f174ffec10c3d935cc7d3cf1a99a92ca5132634421204f"
+    },
+    {
+      "path": "test-ui-final",
+      "bytes": 78502530,
+      "sha256": "8cb3f2b647e439563232171334610f0349400db0e9aaca294db900d55d0ecc89"
+    },
+    {
+      "path": "test-ui-modal85",
+      "bytes": 81639874,
+      "sha256": "6b78e839ce4db15f3f7d55cc4fa3fca0ff478b25eb15e06867bd5faae98544f4"
+    },
+    {
+      "path": "test-ui-published",
+      "bytes": 78502530,
+      "sha256": "01d550b852d25962702ba752dc3084edc8929b20a2f4b427117e85beffefd095"
+    }
+  ],
+  "archive": {
+    "path": "local-only/original-evidence.tar.gz",
+    "sha256": "a6e6bbfda398bbaeff8c7f1a7885c8613ea71875c137036101793c7f8e0817eb",
+    "bytes": 124447238,
+    "git_policy": "ignored local backup"
+  },
+  "database_snapshots": [
+    {
+      "source": "worktree/datalink.db",
+      "snapshot": "local-only/worktree-datalink.sqlite",
+      "sha256": "a05527532a2a7df705a666187972d5555a49a20b72e8f601b1bee3738f6f97d6",
+      "bytes": 901120,
+      "integrity_check": "ok",
+      "tables": 49,
+      "wal_committed_data_included": true
+    },
+    {
+      "source": "evidence/gateway-test.sqlite",
+      "snapshot": "local-only/evidence-gateway-test.sqlite",
+      "sha256": "22ba59dc39f36568a02ef1229b15e3cffab3f11002152cd401d79e363d8b35e7",
+      "bytes": 925696,
+      "integrity_check": "ok",
+      "tables": 48,
+      "wal_committed_data_included": true
+    }
+  ],
+  "public_copies": 129,
+  "checks": {
+    "archive_members_sha256": "PASS",
+    "copied_files_sha256": "PASS",
+    "sqlite_integrity": "PASS"
+  },
+  "limits": [
+    "No new product acceptance run",
+    "Original visual differences remain",
+    "Mixed test write unsupported",
+    "Instant stop intake not proven",
+    "Original scripts need new runtime paths"
+  ],
+  "source_directories_not_removed": true,
+  "source_product_and_database_data_not_written": true,
+  "service_stop": {
+    "old_launcher_pid": 18923,
+    "old_air_pid": 18971,
+    "old_gateway_pid": 19064,
+    "old_vite_pid": 19102,
+    "ports_closed": {
+      "8080": true,
+      "5173": true
+    },
+    "same_worktree_service_commands_absent": true,
+    "other_projects_not_stopped": true
+  }
+}

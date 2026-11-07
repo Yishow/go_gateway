@@ -1,0 +1,3 @@
+interface:
+  display_name: "go_gateway 完整記錄 E2E"
+  short_description: "從新增設備驗到真實資料庫記錄與重載，保留逐步證據及踩坑經驗"
