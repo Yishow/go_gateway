@@ -18,7 +18,7 @@ var ErrReadinessUnavailable = errors.New("workspace readiness unavailable")
 
 type readinessDeviceService interface {
 	GetByID(ctx context.Context, id string) (*schema.Device, error)
-	CheckReadiness(ctx context.Context, id string) (*schema.DeviceReadiness, error)
+	ReadReadiness(ctx context.Context, id string) (*schema.DeviceReadiness, error)
 }
 
 type readinessSourceRuleService interface {
@@ -150,7 +150,7 @@ func (s *Service) Readiness(ctx context.Context) (*ReadinessSummary, error) {
 		})
 	}
 	for _, deviceID := range record.OrderedDeviceIDs {
-		readiness, err := s.readinessDevices.CheckReadiness(ctx, deviceID)
+		readiness, err := s.readinessDevices.ReadReadiness(ctx, deviceID)
 		if err != nil {
 			return nil, fmt.Errorf("evaluate workspace device readiness %s: %w", deviceID, err)
 		}

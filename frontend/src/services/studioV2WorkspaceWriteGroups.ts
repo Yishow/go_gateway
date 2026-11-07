@@ -1,3 +1,4 @@
+import { parseWriteGroupListAPIData } from '../utils/studioV2WriteGroupListJson';
 import type { StudioV2LocatorReadScope } from '../types/studioV2LocatorEntry';
 import { captureStudioLocatorReadScope, studioLocatorReadParams, assertStudioLocatorWorkspaceBinding, throwStudioLocatorReadError } from './studioEntityLocator';
 import type { DeliveryDecision, DeliveryDecisionResult } from '../types/studioV2WriteGroupDelivery';
@@ -15,7 +16,6 @@ import type {
 import type { SchemaOperation, SchemaPreviewToken } from '../types/recordingPlan';
 import {
   parseWriteGroupAPIData,
-  parseWriteGroupListData,
   parseWriteGroupMutationData,
   parseWriteGroupReadinessData,
 } from '../utils/studioV2WriteGroupJson';
@@ -112,7 +112,7 @@ function cloneUpdateRequest(request: WriteGroupUpdateRequest): WriteGroupUpdateR
 export const studioV2WorkspaceWriteGroupsAPI = {
   async list(): Promise<WriteGroupListResponse> {
     const res = await studioV2DatalinkApi.get<unknown>('/studio-v2/workspace/write-groups');
-    return parseWriteGroupAPIData(res.data, 'write-group list', parseWriteGroupListData, WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH);
+    return parseWriteGroupListAPIData(res.data);
   },
 
   async get(id: string): Promise<WriteGroupMutationResponse> {

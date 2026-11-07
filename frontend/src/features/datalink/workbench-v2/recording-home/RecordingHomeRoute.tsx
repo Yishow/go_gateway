@@ -117,9 +117,11 @@ export function RecordingHomeRoute({ location, onNavigate, onOpenDevice, onWorks
   const { t: editorText } = useTranslation('recording-editor');
   const queryClient = useQueryClient();
   if (!clientTokens.has(queryClient)) clientTokens.set(queryClient, ++clientGeneration);
-  const workspace = useStudioV2WorkspaceQuery();
+  const workspace = useStudioV2WorkspaceQuery(true, undefined, { refetchOnMount: 'always' });
   useEffect(() => { onWorkspaceChange?.(workspace.data?.id); }, [workspace.data?.id, onWorkspaceChange]);
-  const groups = useWriteGroupsQuery(workspace.isSuccess && Boolean(workspace.data?.id));
+  // The singleton workspace can change while away, even inside either cache stale window.
+  // Revalidate both owners on each home visit; the identity check still rejects mismatched scopes.
+  const groups = useWriteGroupsQuery(workspace.isSuccess && Boolean(workspace.data?.id), undefined, { refetchOnMount: 'always' });
   const reload = () => Promise.all([workspace.refetch(), groups.refetch()]);
   const failed = workspace.isError || groups.isError;
   const loading = workspace.isFetching || workspace.isPending || groups.isFetching || groups.isPending;

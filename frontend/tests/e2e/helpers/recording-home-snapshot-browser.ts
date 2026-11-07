@@ -1,5 +1,6 @@
-import { test as base, expect, type Page, type Request } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
 import { createRecordingHomeSnapshotAPI, type RecordingHomeSnapshotAPI, type SnapshotCall } from '../fixtures/recording-home-snapshot-api';
+import { installSnapshotTransport } from '../fixtures/recording-home-snapshot-transport';
 import { assertSnapshotHomeDemand } from './recording-home-snapshot-ledger';
 export const HOME_URL = '/studio/v2?view=recordings#snapshot-proof';
 export const sourceCount = (api: RecordingHomeSnapshotAPI) => api.ledger.filter(call => call.action === 'sources').length;
@@ -44,9 +45,9 @@ export async function returnHome(page: Page, api: RecordingHomeSnapshotAPI) {
 export async function filterPageTwo(page: Page, api: RecordingHomeSnapshotAPI, count: number) {
   const filters = page.getByRole('search', { name: 'Search and filters' });
   const changes = [() => filters.getByRole('searchbox').fill('Line A'),
-    () => filters.getByLabel('Device', { exact: true }).selectOption('D-A'),
-    () => filters.getByLabel('Saved status', { exact: true }).selectOption('ready'),
-    () => filters.getByLabel('Destination', { exact: true }).selectOption('conn-1')];
+    () => filters.getByRole('combobox', { name: 'Device', exact: true }).selectOption('D-A'),
+    () => filters.getByRole('combobox', { name: 'Saved status', exact: true }).selectOption('ready'),
+    () => filters.getByRole('combobox', { name: 'Destination', exact: true }).selectOption('conn-1')];
   for (const change of changes) { const checkpoint = api.ledger.length; await change(); await assertPageDemand(page, api, checkpoint); }
   const checkpoint = api.ledger.length;
   await home(page).getByRole('button', { name: 'Next', exact: true }).click();
@@ -57,9 +58,9 @@ export async function filterPageTwo(page: Page, api: RecordingHomeSnapshotAPI, c
 export async function expectFiltersRestored(page: Page, count = 60) {
   const filters = page.getByRole('search', { name: 'Search and filters' });
   await expect(filters.getByRole('searchbox')).toHaveValue('Line A');
-  await expect(filters.getByLabel('Device', { exact: true })).toHaveValue('D-A');
-  await expect(filters.getByLabel('Saved status', { exact: true })).toHaveValue('ready');
-  await expect(filters.getByLabel('Destination', { exact: true })).toHaveValue('conn-1');
+  await expect(filters.getByRole('combobox', { name: 'Device', exact: true })).toHaveValue('D-A');
+  await expect(filters.getByRole('combobox', { name: 'Saved status', exact: true })).toHaveValue('ready');
+  await expect(filters.getByRole('combobox', { name: 'Destination', exact: true })).toHaveValue('conn-1');
   await expect(page.getByTestId('home-page-status')).toHaveText(`Page 2 of ${Math.ceil(count / 25)} · ${count} matches`);
 }
 export async function openSourceRange(page: Page, api: RecordingHomeSnapshotAPI) {
@@ -72,27 +73,7 @@ export const test = base.extend<{ snapshot: RecordingHomeSnapshotAPI; groupCount
   groupCount: [60, { option: true }],
   snapshot: async ({ page, groupCount }, runCase, info) => {
     const api = createRecordingHomeSnapshotAPI({ groupCount });
-    const calls = new WeakMap<Request, SnapshotCall>();
-    page.on('requestfinished', request => { const call = calls.get(request); if (call) call.delivery = 'finished'; });
-    page.on('requestfailed', request => {
-      const call = calls.get(request); if (!call) return;
-      call.failure = request.failure()?.errorText ?? 'unknown request failure';
-      call.delivery = /abort|cancel/i.test(call.failure) ? 'cancelled' : 'not-delivered';
-    });
-    await page.route('**/api/**', async route => {
-      const request = route.request(), reply = api.handle({ method: request.method(), url: request.url(),
-        body: request.postData() ? request.postDataJSON() : undefined });
-      calls.set(request, reply.call);
-      await reply.wait;
-      try {
-        await route.fulfill({ status: reply.status, json: reply.body });
-        if (reply.call.delivery === 'pending') reply.call.delivery = 'fulfilled';
-      } catch (error) {
-        if (reply.call.delivery !== 'cancelled') reply.call.delivery = 'not-delivered';
-        reply.call.failure = String(error);
-      }
-    });
-    await page.addInitScript(() => { localStorage.setItem('i18nextLng', 'en'); });
+    const unexpectedTransport = await installSnapshotTransport(page, api, String(info.project.use.baseURL));
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.clock.setFixedTime(new Date('2030-01-01T00:00:00Z'));
     try { await runCase(api); }
@@ -101,6 +82,7 @@ export const test = base.extend<{ snapshot: RecordingHomeSnapshotAPI; groupCount
       await info.attach('routed-snapshot-ledger-MOCK-API-NOT-production-backend', { contentType: 'application/json',
         body: Buffer.from(JSON.stringify({ layer: 'production-/studio/v2-frontend-on-Vite-with-mocked-API', browserExecuted: true,
           route: page.url(), groupCount, lateResponseMeaning: 'finished = browser transport completed; fulfilled alone does not prove delivery; cancelled/not-delivered never counts as an ignored delivered reply', ledger: api.ledger }, null, 2)) });
+      expect(unexpectedTransport, 'No external or non-fixture transport may escape').toEqual([]);
       expect(api.ledger.filter(call => call.unexpected), 'Every unlisted API/method/body must fail acceptance').toEqual([]);
       expect(api.ledger.filter(call => call.mutation && !(call.action === 'save-rule' && call.status === 200)), 'Only the separately approved source save may mutate').toEqual([]);
     }

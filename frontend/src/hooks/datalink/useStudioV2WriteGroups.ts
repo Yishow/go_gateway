@@ -11,10 +11,11 @@ import type {
 } from '../../types/studioV2WriteGroup';
 import { studioV2WorkspaceKeys } from './keys';
 
-export function useWriteGroupsQuery(enabled: boolean, scope?: StudioV2RecordingReadScope) {
+export function useWriteGroupsQuery(enabled: boolean, scope?: StudioV2RecordingReadScope, options: { refetchOnMount?: 'always' } = {}) {
   return useQuery({
     queryKey: recordingReadKey(studioV2WorkspaceKeys.writeGroups(), scope),
     queryFn: () => studioV2WorkspaceWriteGroupsAPI.list(),
+    ...options,
     enabled: enabled && (!scope || validRecordingReadScope(scope)),
     retry: false,
     refetchOnWindowFocus: false,

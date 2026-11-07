@@ -88,7 +88,7 @@ func (recordingStartReadinessDeviceStub) GetByID(_ context.Context, id string) (
 	return &schema.Device{ID: id}, nil
 }
 
-func (recordingStartReadinessDeviceStub) CheckReadiness(_ context.Context, id string) (*schema.DeviceReadiness, error) {
+func (recordingStartReadinessDeviceStub) ReadReadiness(_ context.Context, id string) (*schema.DeviceReadiness, error) {
 	if id == "" {
 		return nil, errors.New("device id is empty")
 	}

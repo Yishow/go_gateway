@@ -57,7 +57,7 @@ func (s *Service) readinessScopeWithApplyRequirement(
 
 	issues := make([]ReadinessIssue, 0, len(selection.deviceIDs)+len(selection.groupIDs))
 	for _, deviceID := range selection.deviceIDs {
-		readiness, err := s.readinessDevices.CheckReadiness(ctx, deviceID)
+		readiness, err := s.readinessDevices.ReadReadiness(ctx, deviceID)
 		if err != nil {
 			return nil, nil, fmt.Errorf("evaluate scoped device readiness %s: %w", deviceID, err)
 		}

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { studioV2WorkspaceKeys } from './keys';
 import { studioV2WorkspaceAPI } from '../../services/studioV2Workspace';
 
-export function useStudioV2WorkspaceQuery(enabled = true, scope?: StudioV2RecordingReadScope) {
+export function useStudioV2WorkspaceQuery(enabled = true, scope?: StudioV2RecordingReadScope, options: { refetchOnMount?: 'always' } = {}) {
   const context = configReadContext(scope?.workspaceId);
   return useQuery({
     queryKey: recordingReadKey(configReadKey(studioV2WorkspaceKeys.bootstrap(), context), scope),
@@ -13,6 +13,7 @@ export function useStudioV2WorkspaceQuery(enabled = true, scope?: StudioV2Record
       if (!result?.id || context.workspaceId && result.id !== context.workspaceId) throw new Error('Workspace observation unavailable');
       return result;
     }),
+    ...options,
     enabled: enabled && (!scope || validRecordingReadScope(scope)),
     retry: false,
     refetchOnWindowFocus: false,

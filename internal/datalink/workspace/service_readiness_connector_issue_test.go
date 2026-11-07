@@ -16,7 +16,7 @@ func (connectorIssueReadinessDeviceStub) GetByID(context.Context, string) (*sche
 	return &schema.Device{ID: "dev-A"}, nil
 }
 
-func (connectorIssueReadinessDeviceStub) CheckReadiness(context.Context, string) (*schema.DeviceReadiness, error) {
+func (connectorIssueReadinessDeviceStub) ReadReadiness(context.Context, string) (*schema.DeviceReadiness, error) {
 	return &schema.DeviceReadiness{
 		ActivationAllowed: true,
 		ConnectStatus:     schema.ReadinessStageStatusSuccess,

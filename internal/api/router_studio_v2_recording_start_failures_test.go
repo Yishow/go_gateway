@@ -20,7 +20,7 @@ func (recordingStartBlockedDeviceStub) GetByID(_ context.Context, id string) (*s
 	return &schema.Device{ID: id}, nil
 }
 
-func (recordingStartBlockedDeviceStub) CheckReadiness(_ context.Context, id string) (*schema.DeviceReadiness, error) {
+func (recordingStartBlockedDeviceStub) ReadReadiness(_ context.Context, id string) (*schema.DeviceReadiness, error) {
 	return &schema.DeviceReadiness{
 		DeviceID: id, BlockingReasons: []string{"test readiness block"},
 	}, nil

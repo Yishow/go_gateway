@@ -26,6 +26,32 @@ func (s *Service) CheckReadiness(ctx context.Context, id string) (*schema.Device
 		return nil, fmt.Errorf("取得設備失敗: %w", err)
 	}
 
+	readiness := evaluateReadiness(device)
+
+	// Update device readiness status in DB
+	readinessJSON, err := json.Marshal(readiness)
+	if err != nil {
+		return nil, fmt.Errorf("序列化設備就緒狀態失敗: %w", err)
+	}
+	device.ReadinessStatus = string(readinessJSON)
+	if err := s.repo.Update(ctx, device); err != nil {
+		return nil, fmt.Errorf("更新設備就緒狀態失敗: %w", err)
+	}
+
+	return readiness, nil
+}
+
+// ReadReadiness derives current diagnostics without refreshing persisted device
+// metadata. Observation callers must not use the explicit CheckReadiness command.
+func (s *Service) ReadReadiness(ctx context.Context, id string) (*schema.DeviceReadiness, error) {
+	device, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("取得設備失敗: %w", err)
+	}
+	return evaluateReadiness(device), nil
+}
+
+func evaluateReadiness(device *schema.Device) *schema.DeviceReadiness {
 	connectStatus, probeStatus, blockingReasons := deriveReadinessDiagnostics(device)
 	readiness := &schema.DeviceReadiness{
 		DeviceID:           device.ID,
@@ -44,17 +70,7 @@ func (s *Service) CheckReadiness(ctx context.Context, id string) (*schema.Device
 	readiness.Status = deriveLegacyReadinessStatus(readiness)
 	readiness.Checks = buildReadinessChecks(device, readiness)
 
-	// Update device readiness status in DB
-	readinessJSON, err := json.Marshal(readiness)
-	if err != nil {
-		return nil, fmt.Errorf("序列化設備就緒狀態失敗: %w", err)
-	}
-	device.ReadinessStatus = string(readinessJSON)
-	if err := s.repo.Update(ctx, device); err != nil {
-		return nil, fmt.Errorf("更新設備就緒狀態失敗: %w", err)
-	}
-
-	return readiness, nil
+	return readiness
 }
 
 func deriveReadinessDiagnostics(device *schema.Device) (

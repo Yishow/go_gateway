@@ -17,7 +17,7 @@ func (rowGroupReadinessDeviceService) GetByID(context.Context, string) (*schema.
 	return &schema.Device{ID: "dev-A", Status: schema.DeviceStatusDraft}, nil
 }
 
-func (rowGroupReadinessDeviceService) CheckReadiness(context.Context, string) (*schema.DeviceReadiness, error) {
+func (rowGroupReadinessDeviceService) ReadReadiness(context.Context, string) (*schema.DeviceReadiness, error) {
 	return &schema.DeviceReadiness{
 		ActivationAllowed: true,
 		ConnectStatus:     schema.ReadinessStageStatusSuccess,

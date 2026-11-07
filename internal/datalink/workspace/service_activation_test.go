@@ -46,7 +46,7 @@ func (s *stubActivationDeviceService) Disable(_ context.Context, id string) erro
 	return nil
 }
 
-func (s *stubActivationDeviceService) CheckReadiness(_ context.Context, id string) (*schema.DeviceReadiness, error) {
+func (s *stubActivationDeviceService) ReadReadiness(_ context.Context, id string) (*schema.DeviceReadiness, error) {
 	if s.readiness != nil {
 		readiness, ok := s.readiness[id]
 		if !ok {

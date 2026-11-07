@@ -7,6 +7,7 @@ import { parseStudioV2WriteGroup } from './studioV2WriteGroupDefinitionJson';
 export { parseStudioV2WriteGroup } from './studioV2WriteGroupDefinitionJson';
 const READINESS_SEVERITIES = new Set<StudioV2WorkspaceReadinessSeverity>(['blocking', 'warning']);
 const READINESS_STEPS = new Set<StudioV2WorkspaceReadinessStep>(['Step 1', 'Step 2', 'Step 3', 'Step 4']);
+export const MAX_WRITE_GROUP_LIST_LENGTH = 2048;
 type ResponseOutcome = 'failed' | 'unconfirmed';
 
 function parseWorkspaceRevision(value: unknown): string | null {
@@ -22,7 +23,7 @@ export function parseWriteGroupListData(value: unknown): WriteGroupListResponse 
   if (capabilities === null) return null;
   const rawGroups = value.groups;
   if (!workspaceId || workspaceRevision === null || !Array.isArray(rawGroups) ||
-    rawGroups.length > MAX_SAFE_JSON_ARRAY_LENGTH) return null;
+    rawGroups.length > MAX_WRITE_GROUP_LIST_LENGTH) return null;
   const groups = rawGroups.map(parseStudioV2WriteGroup);
   const seenGroupIds = new Set<string>();
   for (const group of groups) {
