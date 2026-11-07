@@ -149,7 +149,10 @@ export class DatabaseSaveFeedbackApi {
     try {
       if (this.disposed) return await route.abort('aborted');
       if (plan.mode === 'conflict') {
-        await route.fulfill({ status: 409, json: { success: false, error: { code: 'workspace_revision_conflict', message: 'Configuration changed' } } });
+        // Match the backend typed rejection; an invented code is correctly treated as an uncertain write.
+        await route.fulfill({ status: 409, json: { success: false, error: { code: 'revision_mismatch',
+          message: 'database setup changed; reload the saved configuration', request_id: 'fixture-config-conflict',
+          retryable: false, action: 'reload' } } });
         this.mark('config-rejected:409'); return;
       }
       // Lost/timeout ACK simulates a committed write with no reply. Only GET can observe it later.
@@ -170,16 +173,22 @@ export class DatabaseSaveFeedbackApi {
     } finally { plan.finish(); }
   }
   async install(page: Page) {
-    await page.addInitScript(() => { localStorage.setItem('i18nextLng', 'zh-TW'); });
+    await page.addInitScript(() => {
+      // Dev-only react-grab otherwise requests its version and Google Fonts, unrelated to App acceptance.
+      // Use its startup opt-out before main.tsx imports it, never allow or fabricate those external replies.
+      Reflect.set(window, '__REACT_GRAB_DISABLED__', true);
+      localStorage.setItem('i18nextLng', 'zh-TW');
+    });
     page.on('pageerror', error => this.pageErrors.push(error.message));
     // Catch all HTTP requests: same-origin app assets may continue; every other transport aborts.
     await page.route('**/*', route => {
       const url = new URL(route.request().url());
-      if (url.pathname.startsWith('/api/')) return this.handle(route);
+      const sameOrigin = url.origin === 'http://127.0.0.1:4173';
+      if (sameOrigin && url.pathname.startsWith('/api/')) return this.handle(route);
       const request = route.request();
       const asset = ['script', 'stylesheet', 'font', 'image', 'manifest'].includes(request.resourceType());
       const document = request.resourceType() === 'document' && url.pathname === '/studio/v2';
-      if (url.origin === 'http://127.0.0.1:4173' && request.method() === 'GET' && (asset || document)) return route.continue();
+      if (sameOrigin && request.method() === 'GET' && (asset || document)) return route.continue();
       this.unexpected.push(`non-fixture transport ${request.method()} ${url.origin}${url.pathname}`);
       return route.abort('blockedbyclient');
     });
