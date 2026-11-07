@@ -26,5 +26,9 @@
       "WebFetch(domain:app.gitter.im)",
       "Bash(rtk wc *)"
     ]
+  },
+  "skillOverrides": {
+    "use-modern-go": "user-invocable-only",
+    "design-taste-frontend": "user-invocable-only"
   }
 }

@@ -132,3 +132,4 @@ test-results/
 
 # Herdr web UI 現場資料夾
 .herdr-web-ui/
+.ovis
