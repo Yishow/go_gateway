@@ -14,12 +14,12 @@
 
 ## 3. 返回導覽驗收
 
-- [ ] 3.1 [after: 2.3] 依雲端實作與最終 Mac 瀏覽器驗收，在全部四項 change 非瀏覽器實作完成後集中於 Mac browser 驗證首頁→編輯→返回、Back/Forward、scope switch、refresh error、重複 retry 無 mutation 且保留 presentation，記 cold/warm request/bytes/timing；受限制時保持未完成並回報，不擴權或重試受限雲端 Chromium。
+- [x] 3.1 [after: 2.3] 依雲端實作與最終 Mac 瀏覽器驗收，在全部四項 change 非瀏覽器實作完成後集中於 Mac browser 驗證首頁→編輯→返回、Back/Forward、scope switch、refresh error、重複 retry 無 mutation 且保留 presentation，記 cold/warm request/bytes/timing；受限制時保持未完成並回報，不擴權或重試受限雲端 Chromium。
 - [x] 3.2 [after: 2.3, 3.4] 完成 scoped source review、affected Go/API tests、frontend lint/test/build、git diff --check、make check-lines、Spectra verify/review，非瀏覽器品質門檻與 browser／field 狀態分列；browser 未跑不得當成通過，並交接 exact invalidation keys 給 shorten-recording-save-feedback。
 
 任務切片以每項不超過一小時為規劃估算，不是工期承諾；若實作探索證明超過，先把同一行為拆成可獨立測試的垂直批次並保留 dependencies，不擴張 scope。所有 checkbox 目前未執行。
 
-- [ ] 3.3 [after: 3.1, 3.2] 最終確認 Mac browser 證據與全部非瀏覽器檢查有效，Spectra verify/review 無未處理阻擋後，才交接 archive；非瀏覽器品質通過後允許先做 scoped commit 並繼續其他實作，不能宣稱 browser 通過。
+- [x] 3.3 [after: 3.1, 3.2] 最終確認 Mac browser 證據與全部非瀏覽器檢查有效，Spectra verify/review 無未處理阻擋後，才交接 archive；非瀏覽器品質通過後允許先做 scoped commit 並繼續其他實作，不能宣稱 browser 通過。
 
 變更註記：原 3.1 雲端 browser／不使用 Mac 限制依最新使用者授權由設計的雲端實作與最終 Mac 瀏覽器驗收取代，不視為已完成。
 
@@ -32,3 +32,7 @@
 - [x] 4.1 [after: 3.2] 撰寫真 /studio/v2 routed compact mock 驗收：editor 返回一個摘要 GET、普通 source modal Close 零新增 GET、成功 source save 獨立一次 revalidation；涵蓋 filter/page/scroll/focus、Back/Forward、A→B→A 舊回覆、失敗唯讀 retry、當前 locator proof 拒絕與可見頁 request ceiling。完整 stateful fixture 先以 unit regression 驗證，禁止 catch-all 假成功與 production test setter；保留 cancelled 和 delivered late response 的證據區分。雲端只執行 helper unit/lint/types/discovery，不跑 browser。
 - [x] 4.2 [after: 3.2] 重用 A 已驗證 owned embedded server helper，透過正式 API 在可丟棄 loopback SQLite seed 20 draft devices／20 disabled rules／2,000 points，sentinel 證明無 protocol 連線；撰寫真 endpoint canonical parity、bytes、return request ledger 與 read-only configuration table hash 驗收，不新增 authority endpoint、不測外部 PLC/DB。先跑 helper RED/GREEN 與安全 build/start/seed/HTTP/SQLite smoke，browser 結果保持 NOT RUN。
 - [x] 4.3 [after: 4.1, 4.2] 以 c296c2cdb7ab5db5e673c9fc6538cdd9c6326ffb 為範圍基準完成 harness lint/types/discovery、diff/line、Spectra verify 與獨立 review，保存完整 commit packet 與 Mac 指令；既有 3.1／3.3 保留未完成，腳本存在不得冒稱 Mac browser 已通過。
+
+## 2026-11-07 最終收斂
+
+0ffe74b5 的 B11/11、真 embedded 49表hash／sentinel0、routed60/1000groups及history/focus/scroll/readonlyretry已核對。最終verify/review無未解產品問題，3.1／3.3依實證結算；詳見final-acceptance.md。上方「所有checkbox目前未執行」與browser pending為提案／撰寫階段歷史說明，不作目前狀態。保留歷史2336bytes與此次2306bytesfixture差異、cancelled vsdelivered晚回覆、39項既存lint界線，不push。
