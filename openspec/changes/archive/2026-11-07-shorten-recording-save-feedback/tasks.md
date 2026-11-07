@@ -12,10 +12,10 @@
 
 ## 3. 保存與返回驗收
 
-- [ ] 3.1 [after: 2.3] 最終 Mac browser 合併實測有效保存、失敗刷新、再次編輯、返回首頁及 unresolved write，分別記 ACK/refresh/readback 時間與實際狀態；全部 change 實作完成前保持本項未完成；不使用正式 DB，不擴權。
+- [x] 3.1 [after: 2.3] 最終 Mac browser 合併實測有效保存、失敗刷新、再次編輯、返回首頁及 unresolved write，分別記 ACK/refresh/readback 時間與實際狀態；全部 change 實作完成前保持本項未完成；不使用正式 DB，不擴權。
 - [x] 3.2 [after: 2.3] 完成 config-only scope review、affected integration/activation tests、一次 frontend lint/test/build、git diff --check、make check-lines、Spectra verify/review，明列未跑的 browser／SQL／field 驗收，不擴張 write-group helper 範圍。
 
-- [ ] 3.3 [after: 3.1, 3.2] 依最終 Mac 驗收與同範圍保留完成真實 browser 證據、必要修復與最終 verify/review，再執行 archive；雲端階段不提前勾選。
+- [x] 3.3 [after: 3.1, 3.2] 依最終 Mac 驗收與同範圍保留完成真實 browser 證據、必要修復與最終 verify/review，再執行 archive；雲端階段不提前勾選。
 
 變更記錄：最新使用者指示替換 3.1 雲端 browser 與 3.2 browser 前置；驗收本身完整保留，新增 3.3 最終 archive gate。
 
@@ -28,3 +28,7 @@
 ## 5. 獨立 review 修復
 
 - [x] 5.1 [after: 2.1] 修復 review 確認的 config refresh recovery／owner epoch 邊界；新增回歸先證明失敗，恢復後唯讀觀察可清除過期 refresh error，A→B→A／origin 切換後舊 ACK 不作用於新 owner，保留 unknown 不重送與原操作等待；重跑受影響測試並由獨立 reviewer 複查，不改寫已完成任務歸屬。
+
+## 2026-11-07 最終收斂
+
+0ffe74b5 的 C20/20已實跑，ACK／三GET刷新／unknown／409／新編輯與history逐案ledger已核對；精確1ms＋200ms單元example保留。最終verify/review無未解產品缺陷，3.1／3.3依證據結算，詳見final-acceptance.md。原browser pending是雲端撰寫階段歷史紀錄；此驗收不把mock config GET稱為外部SQL readback，也未新增database-only navigation guard。不push。
