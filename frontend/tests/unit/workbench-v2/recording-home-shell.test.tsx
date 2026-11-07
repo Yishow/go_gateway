@@ -83,7 +83,8 @@ describe('one readonly home renderer', () => {
     render(<RecordingHome guidance={recordingHomeGuidance({ ...input, owners: undefined })}
       location={{ search: '?view=recordings', hash: '' }} onNavigate={navigate} onRetry={vi.fn()} />);
     expect(screen.getByText('statusUnknown')).toBeInTheDocument(); expect(screen.queryByText('attention')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText('Recording G')); expect(navigate.mock.calls[0][0]).toContain('group_id=G');
+    // The unconfirmed list also names G; the saved-list entry is its button.
+    fireEvent.click(screen.getByRole('button', { name: 'Recording G' })); expect(navigate.mock.calls[0][0]).toContain('group_id=G');
   });
 
 });

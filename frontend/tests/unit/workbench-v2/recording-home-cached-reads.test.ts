@@ -23,3 +23,17 @@ describe('home observed-only cache index', () => {
     expect(cachedHomeReads(client, []).delivery).toEqual({}); client.clear();
   });
 });
+
+describe('home cache keeps an actual exact-scope failure distinct from never requested', () => {
+  it('reports error only for the failed exact key, never available, and unknown for any other scope', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); const item = group('G'); const scope = groupScope(item);
+    const deliveryKey = writeGroupDeliveryQueryOptions('G', false, undefined, scope).queryKey;
+    await client.fetchQuery({ queryKey: deliveryKey, queryFn: () => Promise.reject(new Error('failed')) }).catch(() => undefined);
+    expect(cachedHomeReads(client, [scope]).delivery.G.state).toBe('error');
+    expect(cachedHomeReads(client, [scope]).lifecycle.G.state).toBe('unknown');
+    for (const patch of [{ epoch: 999 }, { workspaceRevision: 'new' }, { groupRevision: 'new' }]) {
+      expect(cachedHomeReads(client, [{ ...scope, ...patch }]).delivery.G.state).toBe('unknown');
+    }
+    client.clear();
+  });
+});

@@ -66,9 +66,12 @@ export function useRecordingHomeEvidence({ scope, bootstrapRevision, sources, ow
       writeGroupDeliveryQueryOptions(bound.groupId, readable, undefined, bound, signal).queryFn(), signal),
   })) });
   const cached = cachedHomeReads(queryClient, allScopes);
+  // Merge only reads this scope actually made: retained success or an exact-scope failure. A group
+  // never requested stays absent (projected as missing, still never healthy), not a current unknown.
+  const observed = <T,>(reads: Record<string, T & { state: string }>) => Object.fromEntries(Object.entries(reads).filter(([, read]) => read.state === 'available' || read.state === 'error'));
   const input = { ...base,
-    lifecycle: { ...cached.lifecycle, ...Object.fromEntries(scopes.map((bound, index) => [bound.groupId, evidence(lifecycle[index], bound)])) },
-    delivery: { ...cached.delivery, ...Object.fromEntries(scopes.map((bound, index) => [bound.groupId, evidence(delivery[index], bound)])) },
+    lifecycle: { ...observed(cached.lifecycle), ...Object.fromEntries(scopes.map((bound, index) => [bound.groupId, evidence(lifecycle[index], bound)])) },
+    delivery: { ...observed(cached.delivery), ...Object.fromEntries(scopes.map((bound, index) => [bound.groupId, evidence(delivery[index], bound)])) },
   };
   const projection = recordingHomeProjection(input);
   const guidance = recordingHomeGuidance({ evidence: input, owners });

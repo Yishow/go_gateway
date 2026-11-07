@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import type { RecordingHomeGuidance, RecordingHomeGuidanceAction } from './recordingHomeGuidance';
 import { buildRecordingRepairTarget, buildSimpleRecordingTarget, buildStudioPresentationTarget } from '../../../../services/studioRecordingView';
 import { buildRecordingLogsTarget } from '../../../../services/runtimeLogsNavigation';
+import { CircleHelp, CircleX, Info, TriangleAlert } from 'lucide-react';
+import { RecordingHomeUnconfirmed } from './RecordingHomeUnconfirmed';
 
 export interface RecordingHomeLocation { search: string; hash: string }
 export function recordingHomeActionTarget(action: RecordingHomeGuidanceAction, location: RecordingHomeLocation): string | null {
@@ -45,8 +47,18 @@ export function RecordingHome({ guidance, location, onNavigate, onRetry, collect
     groupId: action.groupId, groupRevision: action.groupRevision }, location.hash) : null;
   const navigate = (action: RecordingHomeGuidanceAction) => {
     if (action.target === 'configure_points') { onConfigurePoints?.(action.deviceId); return; }
-    const target = recordingHomeActionTarget(action, location); if (target) onNavigate?.(target);
+    // A removed item without a known operation opens its original management entry, never a deleted editor.
+    const removed = action.target === 'recording' && !action.intent &&
+      guidance.recordingItems.some(item => item.id === action.groupId && item.evidence.group.status === 'deleted');
+    const target = removed ? buildStudioPresentationTarget('?step=output&target=database', location.hash, 'advanced')
+      : recordingHomeActionTarget(action, location);
+    if (target) onNavigate?.(target);
   };
+  const guidanceState = guidance.availability.state === 'unavailable' && guidance.availability.reason === 'error' ? 'error'
+    : ['operation_recovery', 'delivery_attention', 'source_attention'].includes(guidance.reason) ? 'attention' : guidance.reason === 'evidence_unavailable' ? 'unknown' : 'neutral';
+  const GuidanceIcon = { error: CircleX, attention: TriangleAlert, unknown: CircleHelp, neutral: Info }[guidanceState];
+  // Item-level gaps are named below; only an unreadable home says the whole state is unread.
+  const heading = guidance.reason === 'evidence_unavailable' && guidance.availability.state === 'available' ? 'reason.evidence_unconfirmed' : `reason.${guidance.reason}`;
   return <><RecordingProductShell workspaceId={workspaceId ?? guidance.primaryAction?.scope.workspaceId}
     tools={<RecordingHomeTools location={location} onNavigate={onNavigate} />} /><main data-workbench-v2="true" data-testid="recording-home" className="gw-recording-home" aria-busy={settling || undefined} data-home-settling={settling ? 'true' : 'false'}>
     <header className="gw-home-header">
@@ -54,9 +66,9 @@ export function RecordingHome({ guidance, location, onNavigate, onRetry, collect
       <button type="button" className={mode === 'devices' ? 'gw-home-create gw-primary' : 'gw-home-create'} onClick={() => { if (mode === 'devices') { onCreateDevice?.(); return; } const target = buildSimpleRecordingTarget({ kind: 'new' }, location.hash); if (target) onNavigate?.(target); }}>{mode === 'devices' ? t('createDevice') : editorText('simple.create')}</button>
 
     </header>
-    <section aria-live="polite" className="gw-home-guidance" data-guidance-state={guidance.availability.state === 'unavailable' && guidance.availability.reason === 'error' ? 'error' : ['operation_recovery', 'delivery_attention', 'source_attention'].includes(guidance.reason) ? 'attention' : guidance.reason === 'evidence_unavailable' ? 'unknown' : 'neutral'} data-testid="recording-home-guidance">
+    <section aria-live="polite" className="gw-home-guidance" data-guidance-state={guidanceState} data-testid="recording-home-guidance">
       {settling && <p className="gw-guidance-heading gw-home-settling-status" role="status">{t('loading')}</p>}
-      <p className="gw-guidance-heading">{t(`reason.${guidance.reason}`)}</p>
+      <p className="gw-guidance-heading"><GuidanceIcon aria-hidden="true" size={18} />{t(heading)}</p>
       {guidance.availability.state === 'unavailable' && <p role={guidance.availability.reason === 'error' ? 'alert' : 'status'}>
         {t(guidance.availability.reason === 'loading' ? 'loading' : guidance.availability.reason === 'error' ? 'error' : 'unknown')}
       </p>}
@@ -64,6 +76,10 @@ export function RecordingHome({ guidance, location, onNavigate, onRetry, collect
       {logs && <button type="button" data-testid="recording-scoped-logs" onClick={() => onNavigate?.(logs)}>{t('logs')}</button>}
       <button type="button" onClick={onRetry}>{t('retry')}</button></div>
     </section>
+    {/* Unresolved/unknown evidence stays traceable in both object modes. */}
+    <RecordingHomeUnconfirmed guidance={guidance} onInspect={item => navigate(item.action)}
+      onLogs={item => { const target = buildRecordingLogsTarget({ workspaceId: item.action.scope.workspaceId, groupId: item.id,
+        groupRevision: item.evidence.group.revision }, location.hash); if (target) onNavigate?.(target); }} />
     {collection ?? <section aria-label={t('saved')}>
       <h2 className="text-lg font-semibold">{t('saved')}</h2>
       <ul>{guidance.recordingItems.map(item => <li key={item.id} className="my-2">

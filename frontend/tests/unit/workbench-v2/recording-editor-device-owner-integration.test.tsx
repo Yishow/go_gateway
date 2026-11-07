@@ -107,9 +107,9 @@ describe('recording device source real owner integration', () => {
       editor_hydrated: true, database_config: null, database_targets: [] } } });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     render(<QueryClientProvider client={client}><HomeToLocatorHarness /></QueryClientProvider>);
-    await screen.findByText('Shared recorder');
+    await screen.findAllByText('Shared recorder'); // The unconfirmed list may also name it.
     await waitFor(() => expect(client.getQueryCache().getAll().filter(q => q.queryKey.includes('write-groups') || q.queryKey.includes('bootstrap')).every(q => q.state.status === 'success' && q.state.fetchStatus === 'idle')).toBe(true));
-    fireEvent.click(within(screen.getByText('Shared recorder').closest('tr')!).getByRole('button', { name: 'openRecord' }));
+    fireEvent.click(within(within(screen.getByTestId('home-management-table')).getByText('Shared recorder').closest('tr')!).getByRole('button', { name: 'openRecord' }));
     studioV2WorkspaceAPI.get.mockClear();
     fireEvent.click(await screen.findByTestId('group-open-G'));
     const name = await screen.findByTestId('group-name');

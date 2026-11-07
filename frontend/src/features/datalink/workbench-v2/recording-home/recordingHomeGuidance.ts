@@ -1,7 +1,7 @@
-import { compareIdentity, groupAction, homeAttention, homeOwners } from './recordingHomeGuidanceEvidence';
+import { compareIdentity, groupAction, homeAttention, homeOwners, homeUnconfirmed } from './recordingHomeGuidanceEvidence';
 import { recordingHomeProjection } from './recordingHomeProjection';
 import type { RecordingNextIntent } from '../state/recordingWorkflowView';
-import type { RecordingOwnerObservations } from '../state/recordingOwnerObservation';
+import type { RecordingOwner, RecordingOwnerObservations } from '../state/recordingOwnerObservation';
 import type { RecordingHomeGroupEvidence, RecordingHomeGroupProjection, RecordingHomeInput, RecordingHomeScope } from './recordingHomeProjection';
 import type { RecordingUnavailable } from '../state/recordingWorkflowView';
 
@@ -20,9 +20,25 @@ export interface RecordingHomeGuidanceItem {
   readonly evidence: RecordingHomeGroupProjection;
   readonly action: RecordingHomeGuidanceAction;
 }
+/** Which reads did not confirm this item. Presentation only: never health, absence or permission. */
+export interface RecordingHomeUnconfirmed {
+  readonly lifecycle: boolean;
+  readonly delivery: boolean;
+  /** Owners without a current observed result; unknown is never inferred from another owner's empty list. */
+  readonly owners: readonly RecordingOwner[];
+}
 export interface RecordingHomeAttentionItem extends RecordingHomeGuidanceItem {
   readonly reason: 'operation_recovery' | 'delivery_attention' | 'source_attention' | 'evidence_unavailable';
+  readonly unconfirmed?: RecordingHomeUnconfirmed;
 }
+const absent = (read: { readonly state: string; readonly reason?: string }) => read.state === 'unavailable' && read.reason === 'missing';
+/** Neither detail read was ever provided for this item (e.g. off the requested page): not an observed gap. */
+export const recordingHomeNotRequested = (item: RecordingHomeGuidanceItem): boolean =>
+  absent(item.evidence.lifecycle) && absent(item.evidence.delivery);
+/** Unknown that must not lead the page: a removed item's history, or an item whose details were never
+ * requested. Both stay non-healthy; known unresolved work and actual read failures still lead. */
+export const recordingHomeBackgroundAttention = (item: RecordingHomeAttentionItem): boolean =>
+  item.reason === 'evidence_unavailable' && (item.evidence.group.status === 'deleted' || recordingHomeNotRequested(item));
 export interface RecordingHomeGuidanceInput {
   readonly evidence: RecordingHomeInput;
   /** Retained owner observations, not absence inferred from running or successful delivery. */
@@ -48,7 +64,7 @@ function resolveGuidance(input: RecordingHomeGuidanceInput): RecordingHomeGuidan
   }));
   const attentionItems = recordingItems.flatMap(item => {
     const attention = homeAttention(scope, item.evidence, homeOwners(scope, item.evidence, input.owners?.[item.id]));
-    return attention ? [attention] : [];
+    return attention ? [attention.reason === 'evidence_unavailable' ? { ...attention, unconfirmed: homeUnconfirmed(scope, item.evidence, input.owners?.[item.id]) } : attention] : [];
   });
   const priority = { operation_recovery: 0, delivery_attention: 1, source_attention: 2, evidence_unavailable: 3 };
   attentionItems.sort((a, b) => priority[a.reason] - priority[b.reason] || compareIdentity(a.id, b.id));
@@ -63,7 +79,8 @@ function resolveGuidance(input: RecordingHomeGuidanceInput): RecordingHomeGuidan
     return { ...base, availability: { state: 'unavailable', reason: 'scope_mismatch' }, reason: 'evidence_unavailable',
       primaryAction: { kind: 'navigate', scope, target: 'evidence' } };
   }
-  if (attentionItems.length) return { ...base, reason: attentionItems[0].reason, primaryAction: attentionItems[0].action };
+  const lead = attentionItems.find(item => !recordingHomeBackgroundAttention(item));
+  if (lead) return { ...base, reason: lead.reason, primaryAction: lead.action };
   if (draftItems.length) return { ...base, reason: 'draft', primaryAction: draftItems[0].action };
   const devices = [...workspaceDevices].sort(compareIdentity);
   if (!devices.length) return { ...base, reason: 'missing_devices', primaryAction: { kind: 'navigate', scope, target: 'connect_device' } };

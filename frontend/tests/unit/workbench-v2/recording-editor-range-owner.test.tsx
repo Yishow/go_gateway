@@ -146,9 +146,9 @@ it('Home precise locator saves an empty-device range without replacing the open 
  vi.mocked(readStudioLocatorEditorEntry).mockResolvedValue({ ok: true, value: { ...locator, entry: { ...locator.entry, editor_hydrated: true, database_config: null, database_targets: [] } } });
  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
  render(<QueryClientProvider client={client}><HomeHarness /></QueryClientProvider>);
- await screen.findByText('Shared recorder');
+ await screen.findAllByText('Shared recorder'); // The unconfirmed list may also name it.
  await waitFor(() => expect(client.getQueryCache().getAll().filter(q => q.queryKey.includes('write-groups') || q.queryKey.includes('bootstrap')).every(q => q.state.status === 'success' && q.state.fetchStatus === 'idle')).toBe(true));
- fireEvent.click(within(screen.getByText('Shared recorder').closest('tr')!).getByRole('button', { name: 'openRecord' }));
+ fireEvent.click(within(within(screen.getByTestId('home-management-table')).getByText('Shared recorder').closest('tr')!).getByRole('button', { name: 'openRecord' }));
  fireEvent.click(await screen.findByTestId('group-open-G'));
  fireEvent.change(await screen.findByTestId('group-name'), { target: { value: 'Keep precise draft' } });
  fireEvent.click(screen.getByTestId('recording-points-open'));

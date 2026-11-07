@@ -1,4 +1,4 @@
-import type { RecordingHomeGuidance, RecordingHomeAttentionItem } from './recordingHomeGuidance';
+import { recordingHomeBackgroundAttention, type RecordingHomeGuidance, type RecordingHomeAttentionItem } from './recordingHomeGuidance';
 import { groupAction } from './recordingHomeGuidanceEvidence';
 import type { recordingHomeResultSummary } from './recordingHomeResultSummary';
 /** Current scoped negative evidence may guide inspection even when operation
@@ -20,7 +20,7 @@ export function recordingHomeResultGuidance(guidance: RecordingHomeGuidance,
   }
   const priority: Record<RecordingHomeAttentionItem['reason'], number> = { operation_recovery: 0, delivery_attention: 1, source_attention: 2, evidence_unavailable: 3 };
   const attentionItems = [...byId.values()].sort((a, b) => priority[a.reason] - priority[b.reason] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const first = attentionItems[0];
+  const first = attentionItems.find(item => !recordingHomeBackgroundAttention(item));
   const fallback = guidance.draftItems[0] ?? guidance.recordingItems[0];
   const withoutObsoleteFault = ['delivery_attention', 'source_attention', 'operation_recovery', 'evidence_unavailable'].includes(guidance.reason) && !first && guidance.availability.state === 'available' && fallback
     ? { reason: guidance.draftItems.length ? 'draft' as const : 'recordings' as const, primaryAction: fallback.action } : {};

@@ -235,3 +235,66 @@ html:not(.dark) .gw-home-source-modal [data-testid=range-summary] [data-testid=r
  * an opacity ramp from 0 reads as a blank flash. */
 .gw-recording-home[data-home-settling=true] .gw-home-guidance .gw-home-settling-status { position: absolute; inset-block-start: 0; inset-inline-start: 0;
   color: var(--gw-unknown-fg); background: var(--gw-unknown-bg); padding: var(--gw-space-xs); border-inline-start: 3px solid var(--gw-unknown-border); }
+
+/* Status graphics: decorative icons beside real text; semantic tokens only, no motion. */
+.gw-recording-home .gw-guidance-heading { display: inline-flex; align-items: center; gap: var(--gw-space-xs); }
+.gw-recording-home .gw-guidance-heading svg, .gw-recording-home :is(.gw-home-badge, .gw-home-chip, .gw-home-flow, .gw-home-sql-fact, .gw-observed-issue) svg { flex: none; }
+.gw-recording-home :is(.gw-home-badge, .gw-home-chip) { display: inline-flex; align-items: center; gap: var(--gw-space-2xs); padding: 1px var(--gw-space-xs); border: 1px solid var(--gw-border); border-radius: 999px; background: var(--gw-ground); font-size: var(--gw-typography-small-size); line-height: 1.5; white-space: nowrap; }
+.gw-recording-home [data-status-badge=draft] { color: var(--gw-unknown-fg); background: var(--gw-unknown-bg); border-color: var(--gw-unknown-border); }
+.gw-recording-home [data-status-badge=deleted], .gw-recording-home [data-status-badge=disabled] { color: var(--gw-muted); }
+.gw-recording-home .gw-home-flow, .gw-recording-home .gw-home-sql-fact, .gw-recording-home .gw-observed-issue { display: flex; align-items: flex-start; gap: var(--gw-space-2xs); min-width: 0; }
+.gw-recording-home .gw-home-flow svg, .gw-recording-home .gw-home-sql-fact svg, .gw-recording-home .gw-observed-issue svg { margin-top: 0.2em; color: var(--gw-muted); }
+.gw-recording-home .gw-home-flow-arrow { color: var(--gw-faint); }
+.gw-recording-home .gw-observed-issue { margin-top: var(--gw-space-2xs); color: var(--gw-warning-fg); }
+.gw-recording-home .gw-observed-issue svg { color: inherit; }
+.gw-recording-home .gw-home-object-modes button { display: inline-flex; align-items: center; gap: var(--gw-space-xs); }
+.gw-recording-home .gw-home-status-distribution { display: grid; gap: var(--gw-space-2xs); }
+.gw-recording-home .gw-home-status-scope { color: var(--gw-muted); font-size: var(--gw-typography-small-size); }
+.gw-recording-home .gw-home-status-distribution ul { display: flex; flex-wrap: wrap; gap: var(--gw-space-xs) var(--gw-space-md); margin: 0; padding: 0; list-style: none; }
+.gw-recording-home .gw-home-status-distribution li { display: inline-flex; align-items: center; gap: var(--gw-space-xs); font-variant-numeric: tabular-nums; }
+.gw-recording-home .gw-home-status-count { font-weight: 600; }
+.gw-recording-home [data-testid="home-device-summary"] .gw-home-device-icon { color: var(--gw-muted); flex: none; }
+/* Unconfirmed list: each item names its status, the specific gaps and read-only check entries. */
+.gw-recording-home .gw-home-unconfirmed { display: grid; gap: var(--gw-space-sm); margin-block-end: var(--gw-space-md); padding: var(--gw-space-md); border: 1px solid var(--gw-unknown-border); border-radius: var(--gw-radius-md); background: var(--gw-surface); }
+.gw-recording-home .gw-home-unconfirmed-list { display: grid; gap: var(--gw-space-sm); margin: 0; padding: 0; list-style: none; }
+.gw-recording-home .gw-home-unconfirmed-list > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--gw-space-sm); align-items: start; padding-block-start: var(--gw-space-sm); border-top: 1px solid var(--gw-border); }
+.gw-recording-home .gw-home-unconfirmed-list > li:first-child { border-top: 0; padding-block-start: 0; }
+.gw-recording-home .gw-home-unconfirmed-icon { margin-top: 0.15em; color: var(--gw-unknown-fg); }
+.gw-recording-home [data-unconfirmed-kind=unresolved] .gw-home-unconfirmed-icon { color: var(--gw-warning-fg); }
+.gw-recording-home .gw-home-unconfirmed-name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--gw-space-xs); }
+.gw-recording-home .gw-home-unconfirmed-gaps { margin: var(--gw-space-2xs) 0 0; padding-inline-start: 1.1em; }
+.gw-recording-home .gw-home-unconfirmed-note { margin-top: var(--gw-space-2xs); color: var(--gw-muted); font-size: var(--gw-typography-small-size); }
+.gw-recording-home .gw-home-unconfirmed-actions { display: flex; flex-wrap: wrap; gap: var(--gw-space-xs); }
+.gw-recording-home .gw-home-unconfirmed-more summary { cursor: pointer; color: var(--gw-accent); }
+.gw-recording-home .gw-home-unconfirmed-more > ul { margin-top: var(--gw-space-sm); }
+@media (max-width: 639px) {
+  .gw-recording-home .gw-home-unconfirmed { padding: var(--gw-space-sm); }
+  .gw-recording-home .gw-home-unconfirmed-list > li { grid-template-columns: auto minmax(0, 1fr); }
+  .gw-recording-home .gw-home-unconfirmed-actions { grid-column: 2; }
+}
+/* Device summary keeps its existing grid cells: icon+name, then protocol+setting badge. */
+.gw-recording-home [data-testid="home-device-summary"] :is(.gw-home-device-name, .gw-home-device-meta) { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--gw-space-xs); min-width: 0; }
+.gw-recording-home [data-testid="home-device-summary"] .gw-home-device-meta .gw-home-badge { color: var(--gw-muted); }
+.gw-recording-home [data-availability-badge] { color: var(--gw-muted); }
+.gw-recording-home .gw-home-status-bar { display: flex; gap: 2px; height: 6px; max-width: 480px; border-radius: 999px; overflow: hidden; }
+.gw-recording-home .gw-home-status-bar > span { min-width: 4px; background: var(--gw-border); }
+.gw-recording-home .gw-home-status-bar > [data-status-segment=draft] { background: var(--gw-unknown-border); }
+.gw-recording-home .gw-home-status-bar > :is([data-status-segment=ready], [data-status-segment=running]) { background: var(--gw-accent); }
+.gw-recording-home .gw-home-status-bar > [data-status-segment=disabled] { background: var(--gw-control); }
+.gw-recording-home .gw-home-status-bar > [data-status-segment=deleted] { background: var(--gw-faint); }
+@media (forced-colors: active) { .gw-recording-home .gw-home-status-bar > span { background: CanvasText; } }
+/* Narrow: a saved row (<1024px) or device row (<640px) is one grid card that fits without sideways scrolling; headers stay for assistive tech. */
+@media (max-width: 1023px) {
+  .gw-recording-home table[data-mode=recordings] { min-width: 0; } .gw-recording-home table[data-mode=recordings] thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .gw-recording-home table[data-mode=recordings] tbody, .gw-recording-home table[data-mode=recordings] td { display: block; min-width: 0; padding: 0; border-bottom: 0; }
+  .gw-recording-home table[data-mode=recordings] tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; grid-template-areas: "name name status open" "source destination writes writes"; gap: 8px 16px; padding: 12px 8px; border-bottom: 1px solid var(--gw-border); }
+  .gw-recording-home table[data-mode=recordings] td:nth-child(1) { grid-area: name; } .gw-recording-home table[data-mode=recordings] td:nth-child(2) { grid-area: status; } .gw-recording-home table[data-mode=recordings] td:nth-child(3) { grid-area: source; }
+  .gw-recording-home table[data-mode=recordings] td:nth-child(4) { grid-area: destination; } .gw-recording-home table[data-mode=recordings] td:nth-child(5) { grid-area: writes; } .gw-recording-home table[data-mode=recordings] td:nth-child(6) { grid-area: open; }
+  .gw-recording-home table[data-mode=recordings] td[data-label]::before { content: attr(data-label) / ""; display: block; margin-bottom: 2px; color: var(--gw-muted); font-size: 12px; } .gw-recording-home table[data-mode] tr:last-child { border-bottom: 0; }
+}
+@media (max-width: 639px) {
+  .gw-recording-home table[data-mode=recordings] tr { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name open" "status status" "source source" "destination destination" "writes writes"; }
+  .gw-recording-home table[data-mode=devices] { min-width: 0; } .gw-recording-home table[data-mode=devices] thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .gw-recording-home table[data-mode=devices] tbody, .gw-recording-home table[data-mode=devices] td { display: block; min-width: 0; padding: 0; border-bottom: 0; } .gw-recording-home table[data-mode=devices] tr { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; padding: 12px 8px; border-bottom: 1px solid var(--gw-border); }
+  .gw-recording-home table[data-mode=devices] td:first-child, .gw-recording-home table[data-mode=devices] td.gw-row-actions { grid-column: 1 / -1; } .gw-recording-home table[data-mode=devices] td.gw-row-actions { display: flex; }
+}

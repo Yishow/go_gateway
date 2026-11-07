@@ -1,6 +1,6 @@
-import { inspectRecordingOwners, type RecordingOwnerInspection, type RecordingOwnerObservations } from '../state/recordingOwnerObservation';
+import { inspectRecordingOwners, recordingOwnerScopeReason, type RecordingOwner, type RecordingOwnerInspection, type RecordingOwnerObservations } from '../state/recordingOwnerObservation';
 import type { RecordingHomeGroupEvidence, RecordingHomeGroupProjection, RecordingHomeScope } from './recordingHomeProjection';
-import type { RecordingHomeAttentionItem, RecordingHomeGuidanceAction } from './recordingHomeGuidance';
+import type { RecordingHomeAttentionItem, RecordingHomeGuidanceAction, RecordingHomeUnconfirmed } from './recordingHomeGuidance';
 
 export const compareIdentity = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 
@@ -63,4 +63,25 @@ export function homeAttention(scope: RecordingHomeScope, item: RecordingHomeGrou
   if (item.group.status !== 'draft' && (inspection.state === 'unavailable' || !delivery || item.lifecycle.state !== 'available')) {
     return { ...base, reason: 'evidence_unavailable', action: groupAction(scope, item) };
   }
+}
+
+const ownerKinds: readonly RecordingOwner[] = ['schema', 'start', 'test_write'];
+/** Names the reads that did not confirm this item. An owner counts as confirmed only when every
+ * member context has its own current observed result; anything else stays listed as unconfirmed. */
+export function homeUnconfirmed(scope: RecordingHomeScope, item: RecordingHomeGroupProjection,
+  evidence: RecordingHomeGroupEvidence<RecordingOwnerObservations> | undefined,
+): RecordingHomeUnconfirmed {
+  const group = item.group;
+  const reads = { lifecycle: item.lifecycle.state !== 'available', delivery: item.delivery.state !== 'available' };
+  const bound = evidence?.state === 'available' ? evidence.scope : undefined;
+  const contexts = [...new Map(group.members.map(member => [JSON.stringify([member.device_id, member.circuit_id ?? null]),
+    { deviceId: member.device_id, circuitId: member.circuit_id }])).values()];
+  if (!contexts.length && group.basic_managed_device_id) contexts.push({ deviceId: group.basic_managed_device_id, circuitId: undefined });
+  if (evidence?.state !== 'available' || !bound || !contexts.length || bound.workspaceId !== scope.workspaceId || bound.workspaceRevision !== scope.workspaceRevision ||
+    bound.epoch !== scope.epoch || bound.groupId !== group.id || bound.groupRevision !== group.revision || bound.appliedRevision !== group.applied_revision) {
+    return { ...reads, owners: ownerKinds };
+  }
+  return { ...reads, owners: ownerKinds.filter(owner => !contexts.every(context => evidence.value.some(observation =>
+    observation.owner === owner && observation.state === 'observed' && !recordingOwnerScopeReason(observation.scope, { ...scope, ...context,
+      groupId: group.id, groupRevision: group.revision, appliedRevision: group.applied_revision }, owner === 'schema')))) };
 }
