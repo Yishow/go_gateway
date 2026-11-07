@@ -132,7 +132,7 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
     };
     const reading = (cell: MemoryCell): MemoryLiveValue | undefined => {
       const owner = cell.owners[0];
-      if (cell.state !== 'used' || !owner || owner.part !== 1) return undefined;
+      if (cell.state !== 'used' || !owner || owner.partial || owner.part !== 1) return undefined;
       // A value's first register is its own address.
       return values?.byCell.get(memoryValueKey(area.key, cell.offset, owner.dataType));
     };
@@ -220,7 +220,7 @@ export function RecordingHomeMemoryView({ protocol, inputs, status, checking, bl
           <button type="button" onClick={() => { setOwners(undefined); grid.current?.querySelector<HTMLElement>(`[data-offset="${owners.offset}"]`)?.focus(); }}>{t('source.memory.ownersCancel')}</button>
         </section>}
         <div ref={grid} role="group" aria-label={t('source.memory.gridLabel', { area: name(area), from: cells[0]?.address, to: cells.at(-1)?.address })} className="gw-memory-grid">
-          <RecordingHomeMemoryCells cells={cells} columns={columns} areaKey={area.key} active={active} pending={values?.status === 'loading'}
+          <RecordingHomeMemoryCells cells={cells} columns={columns} areaKey={area.key} active={active} expanded={focus} pending={values?.status === 'loading'}
             describe={describe} reading={reading} onFocus={select} onHover={setInspected} onKeyDown={keyDown} onChoose={choose} />
         </div>
         {layout === 'map' && <MemoryCellSummary area={area} cell={selected} values={values} cells={cells} onSelect={select} onChoose={choose} />}

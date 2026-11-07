@@ -109,7 +109,7 @@ function Root() {
     {screen === 'memory' ? <div role="dialog" aria-labelledby="fixture-title" data-workbench-v2 className="gw-modal gw-home-source-modal" data-size="form" data-source-kind="points" data-source-view="memory" data-fixture-instance={instance} style={{ color: 'var(--gw-text)', backgroundColor: 'var(--gw-raised)' }}>
       <header className="gw-modal-header"><div><h2 id="fixture-title">Line 3 PLC · {i18n.t('recording-home:source.memory.title')}</h2><p>{i18n.t('recording-home:source.sharedDescription')}</p>
       {/* Keep fixture-only content in the header so the real body retains its bounded scrolling row. */}
-      <p data-testid="fixture-sample-notice">MOCK SAMPLE readings · not connected to HSL or a device</p>
+      <div data-testid="fixture-sample-notice">MOCK SAMPLE readings · not connected to HSL or a device</div>
       {params.has('controls') && <details data-testid="fixture-controls"><summary>MOCK SAMPLE controls</summary>
         <div style={{ display: 'grid', gap: 4 }}>
           <label>Mock source blocking <select value={blocked} onChange={event => setBlocked(queryChoice(event.target.value, blockModes, 'none'))}>

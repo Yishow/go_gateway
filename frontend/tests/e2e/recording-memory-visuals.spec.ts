@@ -174,9 +174,19 @@ for (const scenario of ['conflict', 'unknownLong']) test(`${scenario} keeps safe
     await expect(page.getByTestId('home-memory-owners')).toContainText('RIGHT_');
     await expect(page.getByTestId('fixture-last-action')).toHaveText('');
   } else {
-    await expect(page.getByTestId('home-memory-cell-40001')).toHaveAttribute('data-state', 'unconfirmed');
-    await expect(page.getByTestId('home-memory-summary').getByTestId('home-memory-detail-action')).toHaveCount(0);
+    // A saved start proves ownership, not string width or a usable reading.
+    const start = page.getByTestId('home-memory-cell-40001');
+    await expect(start).toHaveAttribute('data-state', 'used');
+    await expect(start).toHaveAttribute('aria-label', /span after this address cannot be confirmed/);
     await expect(page.getByRole('dialog')).not.toContainText(unknownString);
+    await expect(page.getByRole('dialog').locator('[data-value-key="HR:1:string"]')).toHaveCount(0);
+    await start.click();
+    await expect(page.getByTestId('fixture-last-action')).toHaveText('open:STRING');
+    const remainder = page.getByTestId('home-memory-cell-40002');
+    await expect(remainder).toHaveAttribute('data-state', 'unconfirmed');
+    await remainder.click();
+    await expect(page.getByTestId('fixture-last-action')).toHaveText('open:STRING');
+    await expect(page.getByTestId('home-memory-summary').getByTestId('home-memory-detail-action')).toHaveCount(0);
   }
   await noHorizontalOverflow(page); await evidence(page, info, scenario, { scenario });
 });

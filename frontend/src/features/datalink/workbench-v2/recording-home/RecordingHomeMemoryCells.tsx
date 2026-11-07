@@ -14,8 +14,8 @@ function sameValue(cell: MemoryCell | undefined, owner: MemoryOwner) {
 }
 
 /** Each address remains a separate focus target; a visual label spans only contiguous physical slots. */
-export function RecordingHomeMemoryCells({ cells, columns, areaKey, active, pending, describe, reading, onFocus, onHover, onKeyDown, onChoose }: {
-  cells: MemoryCell[]; columns: number; areaKey: string; active?: number; pending: boolean;
+export function RecordingHomeMemoryCells({ cells, columns, areaKey, active, expanded, pending, describe, reading, onFocus, onHover, onKeyDown, onChoose }: {
+  cells: MemoryCell[]; columns: number; areaKey: string; active?: number; expanded?: number; pending: boolean;
   describe: (cell: MemoryCell) => string; reading: (cell: MemoryCell) => MemoryLiveValue | undefined;
   onFocus: (offset: number) => void; onHover: (offset: number) => void; onKeyDown: (event: KeyboardEvent, cell: MemoryCell) => void; onChoose: (cell: MemoryCell) => void;
 }) {
@@ -33,10 +33,11 @@ export function RecordingHomeMemoryCells({ cells, columns, areaKey, active, pend
     // Focus may scroll another cell under a stationary pointer and emit mouseenter.
     // Only actual mouse movement should replace the keyboard-selected detail.
     const props = { 'data-testid': `home-memory-cell-${cell.address}`, 'data-state': cell.state, 'data-offset': cell.offset, 'data-selected': cell.offset === active || undefined, 'aria-label': describe(cell),
+      'data-expanded': cell.offset === expanded || undefined,
       tabIndex: cell.offset === active ? 0 : -1, onFocus: () => onFocus(cell.offset), onMouseMove: () => onHover(cell.offset), onKeyDown: (event: KeyboardEvent) => onKeyDown(event, cell),
       'data-part': owner ? (owner.part === 1 ? 'first' : 'rest') : undefined,
       'data-family': cell.state === 'used' ? memoryTypeFamily(owner.dataType) : undefined,
-      'data-value-key': cell.state === 'used' && owner.part === 1 ? memoryValueKey(areaKey, cell.offset, owner.dataType) : undefined,
+      'data-value-key': cell.state === 'used' && !owner.partial && owner.part === 1 ? memoryValueKey(areaKey, cell.offset, owner.dataType) : undefined,
       'data-join-next': joinNext || undefined, 'data-join-before': joinedBefore || undefined, 'data-multi': value ? true : undefined, title: describe(cell) };
     const content = <><span className="gw-memory-address">{cell.address}</span>
       {cell.state === 'unconfirmed' && <span className="gw-memory-value" aria-hidden="true">?</span>}

@@ -132,10 +132,11 @@
 
 .gw-modal .gw-memory-grid > [data-selected=true] { outline: 2px solid var(--gw-focus); outline-offset: -2px; }
 
-/* Keyboard inspection expands in normal flow, never a clipped tooltip or another tab stop. */
+/* Explicit inspection stays expanded on blur so controls cannot move between pointerdown and click.
+   The initial fallback tab stop stays compact; full information remains in normal flow. */
 .gw-memory-focus-information { display: none; }
-.gw-memory-grid > :focus .gw-memory-focus-information { display: block; margin-top: 64px; font-size: 14px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; color: var(--gw-text); }
-.gw-memory-grid > :focus .gw-memory-shared { bottom: auto; }
+.gw-memory-grid > [data-expanded=true] .gw-memory-focus-information { display: block; margin-top: 64px; font-size: 14px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; color: var(--gw-text); }
+.gw-memory-grid > [data-expanded=true] .gw-memory-shared { bottom: auto; }
 .gw-modal .gw-memory-grid > :focus { z-index: 2; }
 @media (max-width: 639px) {
   .gw-memory-toolbar label, .gw-memory-locate-label, .gw-memory-jumps, .gw-memory-nav p { font-size: 14px; }

@@ -68,10 +68,10 @@
   .gw-memory-layouts { gap: 2px; }
   .gw-modal .gw-memory-layouts > button { min-height: 40px; padding-inline: 8px; }
 }
-/* All current slots remain in the strip, including dense 256-address windows. */
+/* All slots remain visible even below 2px wide: side outlines would cover their state/type fill. */
 .gw-memory-map-strip { gap: 0; }
-.gw-memory-map-strip > span { border: 0; border-radius: 0; box-shadow: inset 0 0 0 1px var(--gw-border); }
-.gw-memory-map-strip > [data-state=conflict] { box-shadow: inset 0 0 0 1px var(--gw-warning-border); }
+.gw-memory-map-strip > span { border: 0; border-radius: 0; box-shadow: inset 0 1px var(--gw-border), inset 0 -1px var(--gw-border); }
+.gw-memory-map-strip > [data-state=conflict] { box-shadow: inset 0 1px var(--gw-warning-border), inset 0 -1px var(--gw-warning-border); }
 .gw-memory-map-strip > [data-state=unconfirmed] { outline: 1px dashed var(--gw-muted); outline-offset: -1px; }
 .gw-memory-type-legend li[data-family] { --gw-memory-tint: var(--gw-accent); }
 .gw-memory-type-legend li[data-family=signed] { --gw-memory-tint: var(--gw-text); }
