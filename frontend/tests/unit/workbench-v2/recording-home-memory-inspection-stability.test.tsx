@@ -6,27 +6,30 @@ import { RecordingHomeMemoryView } from '@/features/datalink/workbench-v2/record
 beforeEach(async () => { await i18n.changeLanguage('en'); });
 afterEach(cleanup);
 
-it.each(['grid', 'navigator', 'map', 'chapters', 'detail'])('%s keeps explicit inspection expanded while a toolbar control receives focus', layout => {
+it.each(['grid', 'navigator', 'map', 'chapters', 'detail'])('%s keeps separate inspection visible while a toolbar control receives focus', layout => {
   const onAdd = vi.fn(), onOpen = vi.fn();
   render(<RecordingHomeMemoryView protocol="modbus_tcp" status="ready" checking={false}
     inputs={[{ id: 'A', label: 'Pressure', start_address: '40001', count: 4, data_type: 'int16', skipped_addresses: [] }]}
     onAdd={onAdd} onOpen={onOpen} onBack={vi.fn()} onClose={vi.fn()} />);
   fireEvent.click(screen.getByTestId(`home-memory-layout-${layout}`));
   const first = screen.getByTestId('home-memory-cell-40001'), second = screen.getByTestId('home-memory-cell-40002');
-  // A fallback tab stop must not expand the initial view before anyone inspects a cell.
-  expect(first).not.toHaveAttribute('data-expanded', 'true');
+  const inspection = screen.getByTestId('home-memory-inspection');
+  expect(inspection).not.toHaveTextContent('40001');
   fireEvent.mouseMove(second);
-  expect(second).not.toHaveAttribute('data-expanded', 'true');
+  expect(inspection).not.toHaveTextContent('40002');
   act(() => first.focus());
-  expect(first).toHaveAttribute('data-expanded', 'true');
+  expect(inspection).toHaveTextContent('40001');
+  expect(first).not.toContainElement(inspection);
   act(() => within(screen.getByRole('group', { name: 'Address blocks' })).getByRole('button', { name: /Next/ }).focus());
   // Blur must not collapse the row and move the control between pointerdown and pointerup.
-  expect(first).toHaveAttribute('data-expanded', 'true');
+  expect(inspection).toHaveTextContent('40001');
+  expect(first).not.toContainElement(inspection);
   act(() => second.focus());
-  expect(first).not.toHaveAttribute('data-expanded', 'true');
-  expect(second).toHaveAttribute('data-expanded', 'true');
+  expect(inspection).not.toHaveTextContent('40001');
+  expect(inspection).toHaveTextContent('40002');
   fireEvent.click(screen.getByTestId('home-memory-area-IR'));
-  expect(screen.getByTestId('home-memory-cell-30002')).not.toHaveAttribute('data-expanded', 'true');
+  expect(inspection).not.toHaveTextContent('40002');
+  expect(inspection).not.toHaveAttribute('data-value-key');
   expect(onAdd).not.toHaveBeenCalled();
   expect(onOpen).not.toHaveBeenCalled();
 });

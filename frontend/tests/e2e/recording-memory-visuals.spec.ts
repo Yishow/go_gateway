@@ -109,7 +109,7 @@ for (const light of [true, false]) test(`long content, bounded full lists and ke
   await page.setViewportSize({ width: 390, height: 844 }); await open(page, 'long', light);
   const first = page.getByTestId('home-memory-cell-40001');
   await first.focus();
-  const full = first.locator('.gw-memory-focus-information');
+  const full = page.getByTestId('home-memory-inspection');
   await expect(full).toBeVisible(); await expect(full).toContainText(longNumber); await expect(full).toContainText('float64');
   expect(await full.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
   await locate(page, '40001');
@@ -158,7 +158,7 @@ test('four-register row/page continuation keeps every physical focus and origina
   await page.getByRole('group', { name: 'Address blocks' }).getByRole('button', { name: 'Next', exact: true }).click();
   await expect(page.getByTestId('home-memory-cell-40251')).toContainText('cont. 40249');
   await page.getByTestId('home-memory-cell-40251').focus();
-  await expect(page.getByTestId('home-memory-cell-40251').locator('.gw-memory-focus-information')).toHaveAttribute('data-value-key', 'HR:249:float64');
+  await expect(page.getByTestId('home-memory-inspection')).toHaveAttribute('data-value-key', 'HR:249:float64');
   await expect.poll(() => page.getByTestId('fixture-visible-keys').textContent()).toContain('HR:249:float64');
   await choose(page, 'map'); await page.getByTestId('home-memory-cell-40251').focus();
   await expect(page.getByTestId('home-memory-summary')).toContainText('40249');

@@ -234,7 +234,7 @@ it.each(['grid', 'navigator', 'chapters'] as const)('%s keeps a focused off-page
   const continuation = screen.getByTestId('home-memory-cell-40251');
   act(() => continuation.focus());
   expect(screen.queryByTestId('home-memory-cell-40249')).not.toBeInTheDocument();
-  const information = continuation.querySelector('.gw-memory-focus-information')!;
+  const information = screen.getByTestId('home-memory-inspection')!;
   act(() => {
     for (const observer of MockIntersectionObserver.instances.filter(item => !item.disconnected)) {
       observer.setVisibility(observer.targets.map(target => ({ target, visible: target === information })));
@@ -245,5 +245,5 @@ it.each(['grid', 'navigator', 'chapters'] as const)('%s keeps a focused off-page
   expectSubscription(stream);
   act(() => stream.emit(event(84, { address: '40249' })));
   await advance(1000);
-  expect(continuation.querySelector('.gw-memory-focus-information')).toHaveTextContent('84');
+  expect(screen.getByTestId('home-memory-inspection')).toHaveTextContent('84');
 });

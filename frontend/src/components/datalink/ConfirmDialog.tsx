@@ -107,20 +107,20 @@ export default function ConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={messageId}
-        className="relative bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl ring-1 ring-white/10 w-full max-w-md p-6 animate-in fade-in zoom-in duration-200"
+        className="gw-legacy-confirm relative bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl ring-1 ring-white/10 w-full max-w-md p-6 animate-in fade-in zoom-in duration-200"
       >
         {/* 標題 */}
-        <h3 id={titleId} className="text-xl font-bold text-slate-100 mb-3">
+        <h3 id={titleId} className="gw-dialog-header text-xl font-bold text-slate-100 mb-3">
           {title}
         </h3>
 
         {/* 訊息 */}
-        <p id={messageId} className="text-slate-300 mb-6 leading-relaxed">
+        <p id={messageId} tabIndex={0} className="gw-dialog-body text-slate-300 mb-6 leading-relaxed">
           {message}
         </p>
 
         {/* 按鈕組 */}
-        <div className="flex justify-end gap-3">
+        <div className="gw-dialog-footer flex justify-end gap-3">
           <button
             ref={cancelButtonRef}
             onClick={onCancel}

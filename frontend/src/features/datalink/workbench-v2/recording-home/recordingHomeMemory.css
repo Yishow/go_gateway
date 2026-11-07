@@ -132,13 +132,20 @@
 
 .gw-modal .gw-memory-grid > [data-selected=true] { outline: 2px solid var(--gw-focus); outline-offset: -2px; }
 
-/* Explicit inspection stays expanded on blur so controls cannot move between pointerdown and click.
-   The initial fallback tab stop stays compact; full information remains in normal flow. */
-.gw-memory-focus-information { display: none; }
-.gw-memory-grid > [data-expanded=true] .gw-memory-focus-information { display: block; margin-top: 64px; font-size: 14px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; color: var(--gw-text); }
-.gw-memory-grid > [data-expanded=true] .gw-memory-shared { bottom: auto; }
 .gw-modal .gw-memory-grid > :focus { z-index: 2; }
 @media (max-width: 639px) {
   .gw-memory-toolbar label, .gw-memory-locate-label, .gw-memory-jumps, .gw-memory-nav p { font-size: 14px; }
   .gw-modal .gw-memory-jumps > button { min-height: 44px; font-size: 14px; }
 }
+
+/* Selection facts live outside the grid. Focus cannot stretch a row or move the toolbar. */
+.gw-modal .gw-modal-footer.gw-memory-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; }
+.gw-memory-inspection { margin: 0; min-width: 0; height: 4.2em; overflow: auto; overscroll-behavior: contain; padding-inline-end: 8px; font-size: 13px; line-height: 1.4; color: var(--gw-muted); overflow-wrap: anywhere; }
+.gw-memory-inspection[data-value-key] { color: var(--gw-text); }
+.gw-modal .gw-modal-footer.gw-memory-footer > button { white-space: nowrap; }
+@media (max-width: 639px) {
+  .gw-modal .gw-modal-footer.gw-memory-footer { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .gw-memory-inspection { grid-column: 1 / -1; height: 2.8em; font-size: 14px; }
+  .gw-modal .gw-modal-footer.gw-memory-footer > button { justify-self: end; }
+}
+@media (max-height: 479px) { .gw-memory-inspection { height: 2.8em; } }

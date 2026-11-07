@@ -14,8 +14,8 @@ function sameValue(cell: MemoryCell | undefined, owner: MemoryOwner) {
 }
 
 /** Each address remains a separate focus target; a visual label spans only contiguous physical slots. */
-export function RecordingHomeMemoryCells({ cells, columns, areaKey, active, expanded, pending, describe, reading, onFocus, onHover, onKeyDown, onChoose }: {
-  cells: MemoryCell[]; columns: number; areaKey: string; active?: number; expanded?: number; pending: boolean;
+export function RecordingHomeMemoryCells({ cells, columns, areaKey, active, pending, describe, reading, onFocus, onHover, onKeyDown, onChoose }: {
+  cells: MemoryCell[]; columns: number; areaKey: string; active?: number; pending: boolean;
   describe: (cell: MemoryCell) => string; reading: (cell: MemoryCell) => MemoryLiveValue | undefined;
   onFocus: (offset: number) => void; onHover: (offset: number) => void; onKeyDown: (event: KeyboardEvent, cell: MemoryCell) => void; onChoose: (cell: MemoryCell) => void;
 }) {
@@ -33,11 +33,10 @@ export function RecordingHomeMemoryCells({ cells, columns, areaKey, active, expa
     // Focus may scroll another cell under a stationary pointer and emit mouseenter.
     // Only actual mouse movement should replace the keyboard-selected detail.
     const props = { 'data-testid': `home-memory-cell-${cell.address}`, 'data-state': cell.state, 'data-offset': cell.offset, 'data-selected': cell.offset === active || undefined, 'aria-label': describe(cell),
-      'data-expanded': cell.offset === expanded || undefined,
       tabIndex: cell.offset === active ? 0 : -1, onFocus: () => onFocus(cell.offset), onMouseMove: () => onHover(cell.offset), onKeyDown: (event: KeyboardEvent) => onKeyDown(event, cell),
       'data-part': owner ? (owner.part === 1 ? 'first' : 'rest') : undefined,
       'data-family': cell.state === 'used' ? memoryTypeFamily(owner.dataType) : undefined,
-      'data-value-key': cell.state === 'used' && !owner.partial && owner.part === 1 ? memoryValueKey(areaKey, cell.offset, owner.dataType) : undefined,
+      'data-value-key': cell.state === 'used' && !owner.partial ? memoryValueKey(areaKey, cell.offset - owner.part + 1, owner.dataType) : undefined,
       'data-join-next': joinNext || undefined, 'data-join-before': joinedBefore || undefined, 'data-multi': value ? true : undefined, title: describe(cell) };
     const content = <><span className="gw-memory-address">{cell.address}</span>
       {cell.state === 'unconfirmed' && <span className="gw-memory-value" aria-hidden="true">?</span>}
@@ -46,9 +45,6 @@ export function RecordingHomeMemoryCells({ cells, columns, areaKey, active, expa
         <span className="gw-memory-type"><span>{owner.dataType}</span>{value && <span> {value.part}/{value.width}</span>}{owner.partial && <span> ?</span>}{owner.skipped && <span> {t('source.memory.cell.skippedShort')}</span>}</span>
         {owner.part === 1 ? <MemoryReading live={reading(cell)} pending={pending} /> : <span className="gw-memory-value gw-memory-continuation">{t('source.memory.cell.continued', { start: owner.valueAddress })}</span>}
       </span>}
-      {/* Confirmed owner.part identifies the canonical start even outside this page. */}
-      <span className="gw-memory-focus-information" aria-hidden="true"
-        data-value-key={cell.state === 'used' && !owner.partial ? memoryValueKey(areaKey, cell.offset - owner.part + 1, owner.dataType) : undefined}>{describe(cell)}</span>
       {continuesBelow && <span className="gw-memory-cue" aria-hidden="true">{t('source.memory.cell.continues')}</span>}
     </>;
     return cell.state === 'unconfirmed' ? <div key={cell.offset} {...props}>{content}</div>

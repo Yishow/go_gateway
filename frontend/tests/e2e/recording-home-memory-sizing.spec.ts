@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 test('memory modal follows 85% of the desktop viewport across resizes', async ({ page }) => {
   await page.goto('/tests/e2e/fixtures/recording-home-memory-host.html?scenario=reference&en');
   const dialog = page.getByRole('dialog');
-  for (const viewport of [{ width: 1920, height: 1080 }, { width: 1440, height: 1000 }, { width: 768, height: 1000 }]) {
+  for (const viewport of [{ width: 1920, height: 1080 }, { width: 1440, height: 1000 }]) {
     await page.setViewportSize(viewport);
     await expect.poll(async () => {
       const box = await dialog.boundingBox();
@@ -16,19 +16,19 @@ test('memory modal follows 85% of the desktop viewport across resizes', async ({
   }
 });
 
-for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }, { width: 844, height: 390 }]) {
+for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 844, height: 390 }]) {
   test(`memory modal stays inside small viewport ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto('/tests/e2e/fixtures/recording-home-memory-host.html?scenario=reference&en');
     const dialog = page.getByRole('dialog');
     const box = await dialog.boundingBox();
     expect(box).not.toBeNull();
-    expect(box!.x).toBeGreaterThanOrEqual(8);
-    expect(box!.y).toBeGreaterThanOrEqual(8);
-    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width - 8);
-    expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height - 8);
-    expect(box!.width).toBeCloseTo(viewport.width - 16, 0);
-    expect(box!.height).toBeCloseTo(viewport.height - 16, 0);
+    expect(box!.x).toBeCloseTo(0, 0);
+    expect(box!.y).toBeCloseTo(0, 0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height);
+    expect(box!.width).toBeCloseTo(viewport.width, 0);
+    expect(box!.height).toBeCloseTo(viewport.height, 0);
     await expect(dialog.locator('.gw-modal-footer')).toBeInViewport();
     const body = page.getByTestId('home-memory-view');
     expect(await body.evaluate(node => node.clientWidth >= node.scrollWidth)).toBe(true);

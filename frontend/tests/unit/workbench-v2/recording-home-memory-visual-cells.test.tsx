@@ -18,12 +18,12 @@ it('provides complete focused values including continuations without another tab
   for (const address of ['40009', '40010', '40011', '40012']) {
     const cell = screen.getByTestId(`home-memory-cell-${address}`);
     fireEvent.focus(cell);
-    const disclosure = cell.querySelector('.gw-memory-focus-information');
+    const disclosure = screen.getByTestId('home-memory-inspection');
     expect(disclosure).not.toBeNull();
     expect(disclosure).toHaveTextContent(full);
     expect(disclosure).toHaveTextContent('int64');
     expect(disclosure).toHaveTextContent(address);
-    expect(disclosure).not.toHaveAttribute('tabindex');
+    expect(disclosure).toHaveAttribute('tabindex', '0');
     expect(disclosure).toHaveAttribute('data-value-key', 'HR:9:int64');
     expect(cell).toHaveAttribute('tabindex', '0');
     expect(document.querySelectorAll('.gw-memory-grid [tabindex="0"]')).toHaveLength(1);
@@ -53,7 +53,7 @@ it('discloses a continuation reading when its original start is outside the page
   expect(screen.queryByTestId('home-memory-cell-40249')).not.toBeInTheDocument();
   const continuation = screen.getByTestId('home-memory-cell-40251');
   fireEvent.focus(continuation);
-  const information = continuation.querySelector('.gw-memory-focus-information');
+  const information = screen.getByTestId('home-memory-inspection');
   expect(information).toHaveTextContent('40249');
   expect(information).toHaveTextContent('9223372036854775807');
   expect(information).toHaveTextContent('Stale reading');

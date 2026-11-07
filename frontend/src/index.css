@@ -1,5 +1,6 @@
 
 @import 'tailwindcss';
+@import './styles/responsive-modal.css';
 @config '../tailwind.config.cjs';
 
 /* Preserve the existing v3 visual scale while using the v4 compiler. */

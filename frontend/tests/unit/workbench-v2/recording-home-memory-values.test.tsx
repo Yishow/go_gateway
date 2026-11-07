@@ -37,7 +37,8 @@ describe('memory view device values', () => {
     expect(first).toHaveTextContent('1234');
     // The ordinary reading is not replaced with a rule label; focused inspection may name its owner.
     expect(first.querySelector('.gw-memory-shared')).not.toHaveTextContent('A_');
-    expect(first.querySelector('.gw-memory-focus-information')).toHaveTextContent('A_');
+    fireEvent.focus(first);
+    expect(screen.getByTestId('home-memory-inspection')).toHaveTextContent('A_');
     expect(first).toHaveAttribute('aria-label', expect.stringContaining('value 1234'));
     expect(screen.getByTestId('home-memory-cell-40002').querySelector('[data-reading]')).toHaveAttribute('data-reading', 'none');
     expect(screen.getByTestId('home-memory-cell-40003').querySelector('[data-reading]')).toHaveAttribute('data-reading', 'error');
@@ -67,10 +68,9 @@ describe('memory view device values', () => {
     const setVisible = vi.fn();
     render(<RecordingHomeMemoryView protocol="modbus_tcp" status="ready" checking={false} values={{ status: 'live', byCell: new Map(), setVisible }} onOpen={vi.fn()} onAdd={noop} onBack={noop} onClose={noop}
       inputs={[{ id: 'A', label: 'A_', start_address: '40001', count: 2, data_type: 'int16', skipped_addresses: [] }]} />);
-    expect(observed.map(el => el.getAttribute('data-value-key'))).toEqual(['HR:1:int16', 'HR:1:int16', 'HR:2:int16', 'HR:2:int16']);
+    expect(observed.map(el => el.getAttribute('data-value-key'))).toEqual(['HR:1:int16', 'HR:2:int16']);
     const second = screen.getByTestId('home-memory-cell-40002');
-    const disclosure = second.querySelector('.gw-memory-focus-information')!;
-    notify([{ target: second, isIntersecting: true }, { target: disclosure, isIntersecting: true }] as IntersectionObserverEntry[], {} as IntersectionObserver);
+    notify([{ target: second, isIntersecting: true }] as unknown as IntersectionObserverEntry[], {} as IntersectionObserver);
     expect(setVisible).toHaveBeenLastCalledWith([memoryValueKey('HR', 2, 'int16')]);
     vi.unstubAllGlobals();
   });
@@ -88,7 +88,7 @@ describe('typed physical register geometry', () => {
     for (let part = 0; part < width; part++) {
       expect(cell(40001 + part).tagName).toBe('BUTTON');
       expect(cell(40001 + part)).toHaveAccessibleName(expect.stringContaining(`register ${part + 1} of ${width}`));
-      if (part) { expect(cell(40001 + part).querySelector('.gw-memory-type')).toBeNull(); expect(cell(40001 + part)).not.toHaveAttribute('data-value-key'); }
+      if (part) { expect(cell(40001 + part).querySelector('.gw-memory-type')).toBeNull(); expect(cell(40001 + part)).toHaveAttribute('data-value-key', `HR:1:${type}`); }
     }
   });
   it('splits a four-register value at the real row boundary with explicit continuation', () => {
@@ -108,7 +108,7 @@ describe('typed physical register geometry', () => {
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
     expect(cell(40251)).toHaveTextContent('cont. 40249');
     expect(cell(40251)).toHaveTextContent('3/4');
-    expect(cell(40251)).not.toHaveAttribute('data-value-key');
+    expect(cell(40251)).toHaveAttribute('data-value-key', 'HR:249:float64');
   });
 });
 

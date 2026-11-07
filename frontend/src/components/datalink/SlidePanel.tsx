@@ -95,14 +95,14 @@ export function SlidePanel({
         aria-modal="true"
         aria-labelledby={titleId}
         className={`
-          relative h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 shadow-2xl 
+          gw-slide-dialog relative h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 shadow-2xl
           transform transition-transform duration-300 ease-out flex flex-col
           max-w-[90vw]
           ${widthClass}
         `}
       >
         {/* Header */}
-        <div className="h-14 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+        <div className="gw-dialog-header h-14 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
           <h2 id={titleId} className="text-lg font-semibold text-slate-800 dark:text-slate-100">
             {title}
           </h2>
@@ -117,7 +117,7 @@ export function SlidePanel({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="gw-dialog-body flex-1 overflow-y-auto p-6">
           {children}
         </div>
       </div>

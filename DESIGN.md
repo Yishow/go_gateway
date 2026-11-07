@@ -1,5 +1,24 @@
 # Gateway 記錄介面設計契約
 
+## 手機／平板 modal 與選取資訊修訂（2026-11-07）
+
+本節由 `improve-tablet-modal-layout` 負責，依使用者平板截圖與「手機和平板所有 modal 全螢幕」要求，取代下文較早的手機近滿版、平板75%／85%及行動短確認較小等尺寸決策。舊節與歷史驗收保留；其測試結果不代表本次實作已驗收。以下均為本案設計條件，browser結果另記本案驗證文件。
+
+### 目前有效的尺寸與保護
+
+- CSS viewport 寬≤1024px，或 `pointer: coarse` 且寬≤1366px，所有真正 modal 採全螢幕；高度≤479px的短視窗也採此布局。外框填滿 `100vw × 100dvh`、無外緣與圓角；safe-area加入內部padding，不把內容壓入瀏海／home indicator。
+- 涵蓋一般form、短confirm、來源／記憶體modal，以及既有Dialog、ConfirmDialog、SlidePanel；非modal的ⓘ／MappingSaveInfo不套全螢幕。以明確modal class分類，不使用全域role=dialog選擇器。
+- 桌面未符合上述條件時保留既有75% form、85% memory與來源modal例外，以及小型auto-height confirmation；主頁與記錄編輯頁仍是正常RWD頁面。
+- header／footer保留在modal框內，body獨立捲動；極短畫面時header／footer有界可捲，仍可到達標題、錯誤、關閉與主要動作。focus trap、返回焦點、Escape、dirty guard、未決操作及原送出行為不變。
+
+### 緊湊記憶體格與完整選取資訊
+
+- 格子只承載位址、完整datatype badge與讀值／狀態。單格內容左對齊，讀值18px；相連多register值仍共用置中badge與讀值，保留每個實體位址和續接標記。字型、色彩及狀態角色沿原tokens，不因重排新增配色。
+- 完整選取說明移至固定footer資訊區，不再放進窄格撐高整排；桌面預留三行、手機與短視窗兩行高度，內容超出時可捲動。未選取也保留同一空間，focus／blur不改變格列或操作按鈕位置。
+- 資訊區完整說明可鍵盤到達；格子的完整aria-label保留。每個已確認used物理格與footer資訊區都使用值的canonical起始地址訂閱，跨頁continuation不漏值；partial／unknown不取得虛構讀值，仍只有原父層live-value owner。
+- 五視圖保持grid／navigator／map／chapters／detail的各自結構，依原圖整理工具列與格子密度，不更改occupancy、即時讀值來源或安全動作。手機觸控目標至少44px，必要文字與完整型別不得為容納布局而縮小或消失。
+- 本次驗收矩陣為390×844、768×1024、1024×768、1366×1024 touch及1440×900 desktop，另含明暗五視圖、長名稱／長值、選取、旋轉與關閉／返回；未取得當前browser證據前不得稱本節驗收完成。
+
 ## 記憶體五視圖增補（最終 Mac 視覺與互動驗收完成）
 
 本節由 `refine-memory-view-visuals` 負責視覺校正，延伸本文件而不取代全站 tokens。
@@ -30,7 +49,7 @@
 - Detail：主 grid＋右 inspector，依選取位址、型別／跨度、讀值／新鮮度、合法動作分區，不為每個 fact 再套卡片；手機 inspector 放在 grid 下方。
 - 窄螢幕 navigator 折為可收合上方區，其他控制可換行；欄數隨實際可用寬度計算，不把原圖的示範欄數當固定契約。
 
-### 記憶體 modal 與可達性
+### 記憶體 modal 與可達性（歷史尺寸，以上方修訂為準）
 
 - 只限 `[data-source-view=memory]`：viewport 寬至少 640px 且高至少 480px 時維持 85vw × 85dvh，為一般 75% form modal 的範圍限定例外；不改其他 modal。
 - 更小視窗沿既有總計 16px gutters 與 safe-area 扣除規則。header／footer 固定，body 內捲；focus trap、關閉返回 focus、Escape／dirty guard 不變。
@@ -79,7 +98,7 @@
 - setup在同一active modal替換內容，不疊dialog。單設備scope直接標明唯讀目標；全部設備時在setup才明確選既有設備或新增設備，不暗選第一台。設備與範圍分別明確保存，已保存來源不因取消後一步或取消picker而刪除；未決操作查證，不聲稱取消成功。
 - 主頁draft、picker pending及source form buffer分開；「加入」僅合併新identity到draft，不保存整份記錄、不啟動；「取消／關閉／Escape」只捨棄本次pending，不跳整份記錄捨棄。來源未送出buffer另經dirty guard；背景點擊不默默關閉。主頁尚未通過驗證的輸入文字、既有method／interval及同ID復原／重加意圖均保留。
 - 同scope返回恢復query/filter/page/scroll/focus與pending；保存新範圍成功是明示例外：定位新點並說明清除阻擋條件原因，不自動勾選。移除／revision失效仍保留可辨識原因，重驗後才可加入，不拿同名／同位址替代ID。
-- 一般modal尺寸沿75vw × 75dvh及既有小視窗例外。手機搜尋一列、兩filter同列、第一結果列在上方60%內（設計條件，以1440/768/390實際畫面確認），footer可換行但不遮內容；短列表不硬放pagination，大量資料沿25/50有界頁。主頁與picker的主要動作屬不同active context，不用背景primary爭搶注意力。
+- 一般modal尺寸採本文件上方最新分類，桌面沿75vw × 75dvh、手機與平板全螢幕。手機搜尋一列、兩filter同列、第一結果列在上方60%內（設計條件，以1440/768/390實際畫面確認），footer可換行但不遮內容；短列表不硬放pagination，大量資料沿25/50有界頁。主頁與picker的主要動作屬不同active context，不用背景primary爭搶注意力。
 
 這是本輪流程與層級修訂，不是owner視覺核准、browser結果或後端完成證據；固定新版demo仍需owner checkpoint。
 
@@ -94,7 +113,7 @@
 - html.light/html.dark 與 native color-scheme 同步，V2 新 surfaces 不再強制 dark；body portal、dialog/menu/select/focus 使用相同 resolved theme。主題變化不能送設備／DB 命令、重設草稿或重新啟動記錄。
 - 本輪遷移新首頁、編輯器及重用的受影響 modal/dialog/error controls；未觸及舊頁不全面換皮，但跨頁 provider 選擇保持一致，不新增相互矛盾的 theme 控制。
 
-## Modal 尺寸與未決選項
+## Modal 尺寸與未決選項（歷史尺寸決策，以上方修訂為準）
 
 使用者已確認：modal 本身 width=目前 browser viewport 的75%、height=75%，置中且內容內捲（75vw × 75dvh）。主頁正常 RWD，不是將頁面縮至75%。不使用側邊滑出設定頁；focus trap、返回焦點、Escape與dirty guard保留。
 
@@ -267,4 +286,4 @@ v4離線測試通過不代表使用者接受；已知邏輯／樣式缺陷現在
 
 首頁以記錄管理列表為主，設備短摘要最多4列（設計條件）＋同頁管理模式；完整列表可搜尋、依設備/狀態/目的地篩選、穩定排序與25/50分頁（設計條件），不無限鋪卡。設備完整管理模式也有自身搜尋/filter/page狀態；100設備/300規則fixtures只是測試設計，不是performance承諾。pagination是已載入資料的client projection，不宣稱已有跨設備後端索引。返回維持同scope的query/filter/page/scroll/focus，revision變化清失效selection並clamp page。
 
-generic dialog不設定尺寸，以明確data-size=form|confirm等語意分類；短確認不可只檢查單一dialog id；「尚未套用的修改」必屬短確認，height:auto/fit-content、grid-template-rows:auto auto auto並解除native dialog inset stretching、bounded max-height、長文僅body內捲，不被regular75%覆寫。實際render驗證不可由CSS字串或jsdom替代。
+歷史桌面分類：generic dialog不設定尺寸，以明確data-size=form|confirm等語意分類；行動版改採上方最新全螢幕契約，短確認不可只檢查單一dialog id；「尚未套用的修改」必屬短確認，height:auto/fit-content、grid-template-rows:auto auto auto並解除native dialog inset stretching、bounded max-height、長文僅body內捲，不被regular75%覆寫。實際render驗證不可由CSS字串或jsdom替代。

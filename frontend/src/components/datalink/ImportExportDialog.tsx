@@ -116,7 +116,7 @@ export function ImportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="gw-dialog-body space-y-4 py-4">
           {/* 檔案選擇 */}
           <div className="flex items-center gap-2">
             <input
@@ -256,7 +256,7 @@ export function ExportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="gw-dialog-body space-y-4 py-4">
           {/* 格式選擇 */}
           <div className="space-y-2">
             <label className="text-sm font-medium">匯出格式</label>

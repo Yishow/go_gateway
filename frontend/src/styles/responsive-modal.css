@@ -1,0 +1,43 @@
+/* Explicit modal classes only: non-modal information popovers retain their placement.
+   Repeated .gw-modal deliberately outranks lazy-loaded source/memory size selectors. */
+@media (max-width: 1024px), (pointer: coarse) and (max-width: 1366px), (max-height: 479px) {
+  .gw-modal.gw-modal.gw-modal[data-size],
+  .gw-legacy-dialog.gw-legacy-dialog, .gw-legacy-confirm.gw-legacy-confirm, .gw-slide-dialog.gw-slide-dialog {
+    position: fixed; inset: 0; margin: 0; transform: none; translate: none;
+    width: 100vw; max-width: none; height: 100dvh; max-height: none; min-height: 0;
+    box-sizing: border-box; border: 0; border-radius: 0; overflow: hidden;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  }
+  .gw-modal.gw-modal.gw-modal[data-size] { grid-template-rows: auto minmax(0, 1fr) auto; }
+  .gw-modal .gw-modal-header, .gw-modal .gw-modal-footer {
+    max-height: 35dvh; overflow: auto; overscroll-behavior: contain;
+    padding: var(--gw-space-sm) var(--gw-space-md);
+  }
+  .gw-modal .gw-modal-body { padding: var(--gw-space-md); }
+  .gw-modal :is(button, input, select, textarea, summary),
+  :is(.gw-legacy-dialog, .gw-legacy-confirm, .gw-slide-dialog) :is(button, select, input:not([type=checkbox], [type=radio])) {
+    min-height: var(--gw-control-mobile, 44px);
+  }
+  /* iOS must not zoom the viewport when a text control receives focus. */
+  :is(.gw-modal.gw-modal, .gw-legacy-dialog, .gw-legacy-confirm, .gw-slide-dialog) :is(input:not([type=checkbox], [type=radio], [type=range]), select, textarea) {
+    font-size: max(16px, 1rem);
+  }
+  .gw-legacy-confirm > .gw-dialog-body:focus-visible { outline: 2px solid var(--gw-focus); outline-offset: -3px; }
+  .gw-legacy-dialog, .gw-legacy-confirm, .gw-slide-dialog { display: flex; flex-direction: column; gap: 0; }
+  :is(.gw-legacy-dialog, .gw-legacy-confirm, .gw-slide-dialog) > * { min-width: 0; box-sizing: border-box; }
+  :is(.gw-legacy-dialog, .gw-legacy-confirm, .gw-slide-dialog) > :is(.gw-dialog-header, .gw-dialog-footer) {
+    flex: none; max-height: 35dvh; overflow: auto; margin: 0;
+    padding: var(--gw-space-md, 16px); overflow-wrap: anywhere;
+  }
+  .gw-legacy-dialog > .gw-dialog-header { padding-inline-end: 64px; }
+  :is(.gw-legacy-dialog, .gw-legacy-confirm, .gw-slide-dialog) > .gw-dialog-body {
+    flex: 1 1 auto; min-height: 0; margin: 0; overflow: auto; overscroll-behavior: contain;
+    padding: var(--gw-space-md, 16px); overflow-wrap: anywhere;
+  }
+  .gw-legacy-dialog > .gw-dialog-close {
+    position: absolute; top: calc(env(safe-area-inset-top, 0px) + 8px); right: calc(env(safe-area-inset-right, 0px) + 8px);
+    display: grid; place-items: center; width: 44px; height: 44px;
+  }
+  .gw-slide-dialog > .gw-dialog-header { height: auto; min-height: 60px; gap: 12px; }
+  .gw-slide-dialog > .gw-dialog-header > button { flex: none; min-width: 44px; }
+}

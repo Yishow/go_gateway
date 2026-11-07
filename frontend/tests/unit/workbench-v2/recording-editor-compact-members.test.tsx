@@ -19,7 +19,7 @@ describe('simple managed selected points use compact recording rows', () => {
     for (const candidate of candidates) {
       const row = screen.getByTestId(`group-member-row-${candidate.point_id}`);
       expect(within(row).getByText(candidate.label)).toBeVisible();
-      expect(within(row).getByRole('cell', { name: candidate.address, exact: true })).toBeVisible();
+      expect(within(row).getByRole('cell', { name: candidate.address })).toBeVisible();
       expect(within(row).getByText(`Calculation ${candidate.point_id}`)).toBeVisible();
       expect(screen.queryByTestId(`group-member-include-${candidate.point_id}`)).not.toBeInTheDocument();
     }

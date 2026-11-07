@@ -123,3 +123,22 @@ html:not(.dark) .gw-modal .gw-memory-address-map input[type=range]::-webkit-slid
 .gw-memory-map-summary .gw-memory-detail-address { margin: 0; font-size: 18px; }
 .gw-memory-map-summary .gw-memory-detail-reading { font-size: 16px; }
 @media (max-width: 639px) { .gw-memory-map-summary { font-size: 14px; } }
+
+/* The address grid carries the detail; controls remain a compact, quiet frame. */
+.gw-home-memory > .gw-memory-intro-short { display: none; }
+.gw-memory-layouts { width: fit-content; max-width: 100%; padding: 4px; border-radius: 8px; background: var(--gw-ground); }
+.gw-modal .gw-memory-layouts > button { border-radius: 6px; }
+.gw-modal .gw-memory-layouts > button[aria-pressed=true] { background: var(--gw-raised); border-color: var(--gw-control); }
+.gw-memory-panel { background: transparent; }
+.gw-memory-grid { padding: 12px; border-radius: 8px; background: var(--gw-ground); }
+.gw-memory-grid .gw-memory-address { justify-self: start; color: var(--gw-text); font-weight: 600; }
+.gw-memory-grid .gw-memory-shared { justify-items: start; padding-inline: 8px; }
+.gw-memory-grid [data-multi=true] .gw-memory-shared { justify-items: center; }
+.gw-memory-grid .gw-memory-shared .gw-memory-reading { justify-self: start; }
+.gw-memory-grid [data-multi=true] .gw-memory-shared .gw-memory-reading { justify-self: center; }
+.gw-memory-grid .gw-memory-reading { font-size: 18px; }
+.gw-memory-grid .gw-memory-type { font-size: 12px; }
+@media (max-width: 639px) {
+  .gw-memory-grid { padding: 8px; }
+  .gw-memory-grid .gw-memory-type { font-size: 14px; }
+}

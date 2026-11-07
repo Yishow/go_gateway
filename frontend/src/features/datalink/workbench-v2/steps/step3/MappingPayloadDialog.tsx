@@ -53,7 +53,7 @@ export const MappingPayloadDialog: React.FC<MappingPayloadDialogProps> = ({
               {point.address}
             </DialogDescription>
           </DialogHeader>
-          <PayloadPreview point={point} mapping={mapping} />
+          <div className="gw-dialog-body"><PayloadPreview point={point} mapping={mapping} /></div>
         </DialogContent>
       </Dialog>
     </td>
