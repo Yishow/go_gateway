@@ -139,17 +139,22 @@ test.describe('Embedded route loading and navigation', () => {
     await home(page);
     await devices(page);
     const trigger = page.getByRole('button', { name: 'Add device', exact: true });
+    expect(requests).toHaveLength(0);
     await trigger.click();
     const error = page.getByTestId('advanced-load-error');
     await expect(error).toBeVisible();
     await expect(error).not.toContainText(/Failed to fetch|https?:\/\/|\.js/);
+    // A failed modulepreload can be followed by import() during this first open.
+    // The contract is no new request on reopen, not one browser request per import.
+    const firstAttemptRequests = requests.length;
+    expect(firstAttemptRequests).toBeGreaterThan(0);
     await error.getByRole('button', { name: 'Close', exact: true }).click();
     await expect(trigger).toBeFocused();
     await page.getByRole('searchbox').fill('home after rejection');
     await page.getByRole('searchbox').fill('');
     await trigger.click();
     await expect(error).toBeVisible();
-    expect(requests).toHaveLength(1); // React.lazy caches its rejection until reload.
+    expect(requests).toHaveLength(firstAttemptRequests); // React.lazy caches its rejection until reload.
     await page.unroute(advancedURL);
     await error.getByRole('button', { name: 'Refresh', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Devices', exact: true })).toBeVisible();
@@ -157,7 +162,7 @@ test.describe('Embedded route loading and navigation', () => {
     await trigger.click();
     await expect(page.getByTestId('recording-source-name')).toBeEditable();
     await expect(error).toHaveCount(0);
-    expect(requests).toHaveLength(2);
+    expect(requests).toHaveLength(firstAttemptRequests + 1);
   });
 
   test('advanced direct link retains query and hash through chunk delay and reload', async ({ page }) => {

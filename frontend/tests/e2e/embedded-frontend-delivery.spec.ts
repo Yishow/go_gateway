@@ -132,17 +132,18 @@ test.describe('Embedded frontend delivery smoke', () => {
     await expect(page).toHaveURL(/\/studio\/runtime\?device_id=device-A/);
   });
 
+  // A connected log feed is transport evidence, never proof of acquisition or SQL delivery.
   test('/studio/logs connects locally and browser controls preserve logging', async ({ page }, testInfo) => {
     await page.addInitScript(() => localStorage.setItem('i18nextLng', 'en'));
     const observer = await openRoute(page, '/studio/logs', 'h1');
     await expect(page.getByRole('heading', { name: 'Runtime logs' })).toBeVisible();
-    await expect(page.getByRole('status')).toHaveText('Connected');
+    await expect(page.getByRole('status')).toHaveText('Connected · log feed only');
     expect(assetPaths(observer).some((path) => path.includes('RuntimeLogsPage-'))).toBe(true);
     await page.getByLabel('Minimum severity').selectOption('warn');
     await page.getByLabel('Source (exact ID)').selectOption('runtime');
     await page.getByLabel('Search safe text').fill('no-match-embedded-smoke');
     await page.getByRole('button', { name: 'Apply filters' }).click();
-    await expect(page.getByRole('status')).toHaveText('Connected');
+    await expect(page.getByRole('status')).toHaveText('Connected · log feed only');
     await expect(page.getByText('No matching retained records')).toBeVisible();
     await page.getByRole('button', { name: 'Pause view' }).focus();
     await page.keyboard.press('Enter');
@@ -152,7 +153,7 @@ test.describe('Embedded frontend delivery smoke', () => {
     expect(snapshot.ok()).toBe(true);
     expect(Array.isArray((await snapshot.json()).records)).toBe(true);
     await page.getByRole('button', { name: 'Resume view' }).click();
-    await expect(page.getByRole('status')).toHaveText('Connected');
+    await expect(page.getByRole('status')).toHaveText('Connected · log feed only');
     await page.getByLabel('Follow tail').uncheck();
     await expect(page.getByLabel('Follow tail')).not.toBeChecked();
     await page.screenshot({ path: testInfo.outputPath('runtime-logs-embedded.png'), fullPage: true });
@@ -160,7 +161,7 @@ test.describe('Embedded frontend delivery smoke', () => {
     await expect(page.getByRole('link', { name: 'Runtime logs' })).toBeVisible();
     await page.goBack();
     await expect(page.getByRole('heading', { name: 'Runtime logs' })).toBeVisible();
-    await expect(page.getByRole('status')).toHaveText('Connected');
+    await expect(page.getByRole('status')).toHaveText('Connected · log feed only');
   });
 
   // These cases use the owned embedded process and its real retained records;
@@ -185,7 +186,7 @@ test.describe('Embedded frontend delivery smoke', () => {
     await openRoute(page, '/studio/logs', 'h1');
     const status = page.getByRole('status');
     const rows = page.locator('tbody tr');
-    await expect(status).toHaveText('Connected');
+    await expect(status).toHaveText('Connected · log feed only');
     await expect.poll(() => rows.count()).toBeGreaterThan(0);
     const before = await rows.allTextContents();
     const initialStreams = streams.length;
@@ -199,7 +200,7 @@ test.describe('Embedded frontend delivery smoke', () => {
     } finally {
       await context.setOffline(false);
     }
-    await expect(status).toHaveText('Connected');
+    await expect(status).toHaveText('Connected · log feed only');
     await expect.poll(() => streams.length).toBeGreaterThan(initialStreams);
     expect(new URL(streams.at(-1)!).searchParams.get('after')).toMatch(/^[A-Za-z0-9_-]+:[0-9]+$/);
     expect(await rows.allTextContents()).toEqual(before);
@@ -209,7 +210,7 @@ test.describe('Embedded frontend delivery smoke', () => {
     await page.addInitScript(() => localStorage.setItem('i18nextLng', 'en'));
     await openRoute(page, '/studio/logs', 'h1');
     const status = page.getByRole('status');
-    await expect(status).toHaveText('Connected');
+    await expect(status).toHaveText('Connected · log feed only');
     await expect.poll(() => page.locator('tbody tr').count()).toBeGreaterThan(0);
     const beforeResponse = await page.request.get(`${baseURL}/api/v1/system/logs`);
     expect(beforeResponse.ok()).toBe(true);
@@ -228,7 +229,7 @@ test.describe('Embedded frontend delivery smoke', () => {
     expect(identities(after)).toEqual(expect.arrayContaining(identities(before)));
     expect(after.capture_dropped).toBe(before.capture_dropped);
     await page.getByRole('button', { name: 'Resume view' }).click();
-    await expect(status).toHaveText('Connected');
+    await expect(status).toHaveText('Connected · log feed only');
     await expect(page.locator('tbody tr')).toHaveCount(0);
   });
 
@@ -237,10 +238,10 @@ test.describe('Embedded frontend delivery smoke', () => {
     const response = await page.request.get(`${baseURL}/api/v1/system/logs`);
     expect(response.ok()).toBe(true);
     const snapshot: RuntimeLogSnapshot = await response.json();
-    const retained = snapshot.records.find((record) => record.source === 'startup');
+    const retained = snapshot.records.find((record) => record.source === 'startup' && record.code === 'startup.begin');
     expect(retained).toBeDefined();
     await openRoute(page, '/studio/logs', 'h1');
-    await expect(page.getByRole('status')).toHaveText('Connected');
+    await expect(page.getByRole('status')).toHaveText('Connected · log feed only');
     await page.getByLabel('Source (exact ID)').selectOption(retained!.source);
     await page.getByLabel('Search safe text').fill(retained!.code);
     const filteredRequest = page.waitForResponse((candidate) => {
@@ -254,12 +255,16 @@ test.describe('Embedded frontend delivery smoke', () => {
     const matching: RuntimeLogSnapshot = await filtered.json();
     expect(matching.records.length).toBeGreaterThan(0);
     expect(matching.records.every((record) => record.source === retained!.source && record.code === retained!.code)).toBe(true);
-    await expect(page.getByRole('status')).toHaveText('Connected');
+    await expect(page.getByRole('status')).toHaveText('Connected · log feed only');
     await expect(page.locator('tbody tr')).toHaveCount(matching.records.length);
-    await expect(page.getByText(retained!.message, { exact: true })).toBeVisible();
+    const retainedRow = page.locator(`tbody tr[data-log-cursor="${retained!.instance_id}:${retained!.sequence}"]`);
+    // Operator text is derived from the safe event code, never the raw message.
+    await expect(retainedRow.getByRole('heading', { name: 'Gateway startup began', exact: true })).toBeVisible();
+    await expect(retainedRow.getByText('The gateway process began startup. This is not acquisition or delivery evidence.', { exact: true })).toBeVisible();
+    await expect(page.getByText(retained!.message, { exact: true })).toHaveCount(0);
     await page.getByLabel('Search safe text').fill('no-match-logs-retained-browser-contract');
     await page.getByRole('button', { name: 'Apply filters' }).click();
-    await expect(page.getByRole('status')).toHaveText('Connected');
+    await expect(page.getByRole('status')).toHaveText('Connected · log feed only');
     await expect(page.getByText('No matching retained records')).toBeVisible();
     await expect(page.locator('tbody tr')).toHaveCount(0);
   });
@@ -267,30 +272,39 @@ test.describe('Embedded frontend delivery smoke', () => {
   test('zh-TW keyboard path reaches /studio/logs from Studio v2 and runs real controls', async ({ page }, testInfo) => {
     await page.addInitScript(() => localStorage.setItem('i18nextLng', 'zh-TW'));
     await openRoute(page, '/studio/v2', '[data-workbench-v2="true"]');
-    await expect(page.locator('[data-testid="workbench-v2-bootstrap-loading"]')).toBeHidden();
-    const studioEntry = page.getByRole('link', { name: '執行日誌', exact: true });
-    await expect(studioEntry).toHaveAttribute('href', '/studio/logs');
-    await studioEntry.focus();
-    await expect(studioEntry).toBeFocused();
+    await expect(page.getByTestId('recording-home')).toHaveAttribute('data-home-settling', 'false');
+    const tools = page.getByTestId('recording-product-header').locator('summary');
+    await expect(tools).toHaveText('工具');
+    await tools.focus();
+    await expect(tools).toBeFocused();
+    await page.keyboard.press('Enter');
+    for (const name of ['進階設定', '即時狀態', '日誌']) {
+      await page.keyboard.press('Tab');
+      await expect(page.getByRole('button', { name, exact: true })).toBeFocused();
+    }
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/studio\/logs$/);
     await expect(page.getByRole('heading', { name: '執行日誌' })).toBeVisible();
     const status = page.getByRole('status');
-    await expect(status).toHaveText('已連線');
+    await expect(status).toHaveText('已連線・僅日誌傳輸');
     await page.getByLabel('搜尋安全文字').focus();
     await page.keyboard.type('no-match-embedded-zh-tw');
+    await page.keyboard.press('Tab');
+    const actionable = page.getByRole('checkbox', { name: '有處理建議／狀態不明', exact: true });
+    await expect(actionable).toBeFocused();
+    await expect(actionable).not.toBeChecked();
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: '套用篩選' })).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page.getByText('沒有符合條件的保留紀錄')).toBeVisible();
-    await expect(status).toHaveText('已連線');
+    await expect(status).toHaveText('已連線・僅日誌傳輸');
     const toggle = page.getByRole('button', { name: '暫停檢視' });
     await toggle.focus();
     await page.keyboard.press('Enter');
     await expect(status).toHaveText('已暫停');
     await expect(page.getByRole('button', { name: '繼續檢視' })).toBeFocused();
     await page.keyboard.press('Space');
-    await expect(status).toHaveText('已連線');
+    await expect(status).toHaveText('已連線・僅日誌傳輸');
     await page.screenshot({ path: testInfo.outputPath('runtime-logs-embedded-zh-TW.png'), fullPage: true });
     const runtimeEntry = page.getByRole('link', { name: '開啟執行監看', exact: true });
     await expect(runtimeEntry).toHaveAttribute('href', '/studio/runtime');
@@ -302,7 +316,7 @@ test.describe('Embedded frontend delivery smoke', () => {
     await logsEntry.focus();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/studio\/logs$/);
-    await expect(page.getByRole('status')).toHaveText('已連線');
+    await expect(page.getByRole('status')).toHaveText('已連線・僅日誌傳輸');
   });
 
   test('/test keeps the independent engineering tool loadable', async ({ page }) => {
