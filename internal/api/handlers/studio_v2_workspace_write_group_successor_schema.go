@@ -115,18 +115,20 @@ func (h *StudioV2WorkspaceWriteGroupSuccessorHandler) validateCompleted(ctx cont
 		return false, err
 	}
 	proofSaved := op != nil && op.Status == recordingplan.SchemaOperationSucceeded && saved.Group.Destination.SchemaRevision == op.OperationID && saved.Group.Destination.SchemaDigest == op.VerifiedDigest
-	currentReq := req
 	if proofSaved {
-		currentReq.Current.WorkspaceRevision = saved.WorkspaceRevision
+		if op.Token != token.Token || op.Action != token.Action {
+			return false, recordingplan.ErrSchemaOperationMismatch
+		}
+		// The persisted replay path revalidates the exact ledger, reservation,
+		// scope and schema proof without making a fresh destination probe.
+		evidence := &workspace.StorageEvidence{Layout: *token.GroupLayout, CreatedTable: createsTable(token)}
+		_, err = h.groups.ConfirmSuccessorSchema(ctx, id, req, op.OperationID, op.VerifiedDigest, evidence)
+		return err == nil, err
 	}
-	scope, err := h.scope(ctx, id, currentReq)
+	scope, err := h.scope(ctx, id, req)
 	if err != nil {
 		return false, err
 	}
-	if proofSaved {
-		scope.SchemaRevision, scope.SchemaDigest = token.SchemaRevision, token.SchemaDigest
-		scope.WorkspaceRevision = token.WorkspaceRevision
-	}
 	_, err = h.ledger.ValidatePreviewTokenForApply(ctx, token.Token, scope)
-	return proofSaved, err
+	return false, err
 }

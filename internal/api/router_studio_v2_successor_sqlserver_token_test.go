@@ -108,6 +108,40 @@ func TestSQLServerSuccessorSchemaProofReplayOffline(t *testing.T) {
 			require.Zero(t, spy.calls, "exact schema confirmation replay cannot re-probe or run DDL")
 			require.Equal(t, before, sqlServerSuccessorLocalState(t, r.f.db))
 			require.Equal(t, external, r.targetState(t))
+
+			for _, fault := range []string{"digest", "operation", "connector_revision", "lineage_revision", "alias_token"} {
+				t.Run(fault, func(t *testing.T) {
+					bad := successorAPIConfirmRequest(t, r.successorAPIFixture, r.preparationReview, r.prepared, token)
+					// Keep the original pre-confirm CAS for exact replay.
+					bad["current"] = request["current"]
+					current := bad["current"].(workspace.WriteGroupSuccessorCurrentCAS)
+					switch fault {
+					case "digest":
+						bad["digest"] = "foreign-digest"
+					case "operation":
+						bad["schema_operation_id"] = "foreign-operation"
+					case "connector_revision":
+						current.TargetConnectorRevision = "foreign-revision"
+						bad["current"] = current
+					case "lineage_revision":
+						current.LineageRevision++
+						bad["current"] = current
+					case "alias_token":
+						alias := token.Token + "-alias"
+						_, err := r.f.db.ExecContext(t.Context(), `INSERT INTO managed_schema_preview_tokens
+(token, workspace_id, plan_id, plan_revision, connector_id, table_prefix, statements, expires_at, created_at, operation_id, action, workspace_revision, connector_revision, dialect, database_name, schema_name, no_change_reason, digest, tables)
+SELECT ?, workspace_id, plan_id, plan_revision, connector_id, table_prefix, statements, expires_at, created_at, operation_id, action, workspace_revision, connector_revision, dialect, database_name, schema_name, no_change_reason, digest, tables FROM managed_schema_preview_tokens WHERE token=?`, alias, token.Token)
+						require.NoError(t, err)
+						bad["token"] = alias
+					}
+					state := sqlServerSuccessorLocalState(t, r.f.db)
+					denied := performJSONRequest(t, r.f.router, http.MethodPost, writeGroupsPath+"/"+r.groupID+"/successor", bad)
+					require.GreaterOrEqual(t, denied.Code, 400, denied.Body.String())
+					require.Zero(t, spy.calls, "invalid replay cannot probe or execute DDL")
+					require.Equal(t, state, sqlServerSuccessorLocalState(t, r.f.db))
+					require.Equal(t, external, r.targetState(t))
+				})
+			}
 		})
 	}
 }
