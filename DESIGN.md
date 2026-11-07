@@ -1,9 +1,9 @@
 # Gateway 記錄介面設計契約
 
-## 記憶體五視圖增補（雲端實作完成，瀏覽器待驗）
+## 記憶體五視圖增補（最終 Mac 視覺與互動驗收完成）
 
-本節由 `refine-memory-view-visuals` 負責後續視覺校正，延伸本文件而不取代全站 tokens。
-`add-switchable-memory-views` 的歷史功能與驗收紀錄保留；本節不宣稱新樣式已驗收。
+本節由 `refine-memory-view-visuals` 負責視覺校正，延伸本文件而不取代全站 tokens。
+`add-switchable-memory-views` 的歷史功能與驗收紀錄保留；本案於 2026-11-07 完成最終 Mac 172 項測試與 30＋8 張實圖驗收，來源 0ffe74b5，詳見本案 final-acceptance.md。
 以下 px、百分比、斷點、對比與截圖矩陣都是設計／驗收條件，不是參考 PNG 的量測結果。
 
 ### 參考與配色權威
