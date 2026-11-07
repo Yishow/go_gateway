@@ -91,6 +91,8 @@ function summary(fields: Record<string, unknown>): DomainSummary | null {
 }
 function compatibleReason(code: RuntimeLogDomainCode, kind: DomainEvidenceKind, reason: EvidenceReason): boolean {
   switch (reason) {
+    case 'target-unavailable':
+      return kind === 'durable-transition' && (code === 'domain.delivery.retrying' || code === 'domain.delivery.blocked');
     case 'counter-replay-proof-missing': case 'counter-replay-proof-conflict': case 'counter-replay-proof-unsupported':
       return code === 'domain.counter-replay.quarantined' && kind === 'counter-replay-inputs';
     case 'recording-ownership-unavailable': case 'recording-ownership-conflict': case 'recording-handoff-proof-conflict': case 'recording-cutover-finalized-overlap':

@@ -348,6 +348,7 @@
     "reasons": {
       "none": "未回報其他原因",
       "unavailable": "原因尚無證據",
+      "target-unavailable": "資料庫目的地無法使用，可能是連線問題",
       "stale-reference": "證據版本已變更",
       "foreign-scope": "證據不屬於此範圍",
       "deleted": "參照的設定已移除",

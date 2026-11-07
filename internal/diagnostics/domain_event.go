@@ -325,6 +325,8 @@ func validDomainEvidence(v DomainEventRef) bool {
 // must be checked at backend handoff, never inferred from the event's code alone.
 func compatibleDomainReason(v DomainEventRef) bool {
 	switch v.Reason {
+	case runtimeview.ReasonTargetUnavailable:
+		return v.Evidence.Kind == domainDurableTransitionKind && (v.Code == domainDeliveryRetrying || v.Code == domainDeliveryBlocked)
 	case runtimeview.ReasonNone, runtimeview.ReasonUnavailable, runtimeview.ReasonStale,
 		runtimeview.ReasonForeign, runtimeview.ReasonDeleted, runtimeview.ReasonUnsupported, runtimeview.ReasonMissingProof:
 		return v.Evidence.Kind != domainCounterReplayInputsKind && v.Evidence.Kind != domainRecordingRefusalKind

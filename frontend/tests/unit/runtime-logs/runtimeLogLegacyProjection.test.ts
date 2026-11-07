@@ -8,12 +8,24 @@ import { legacyCases, legacyInstant, legacyRecord, legacyRequestID } from './leg
 function suppressed(value: RuntimeLogRecord) { expect(projectRuntimeLogLegacy(value).kind).toBe('suppressed'); }
 
 describe('closed legacy runtime log presentation', () => {
-  it('matches all 33 actual Go legacy template codes, severity and source', () => {
+  it('shows bounded database failure details without retaining raw error text', () => {
+    const record = legacyRecord('runtime.started', {
+      code: 'runtime.database_write_failing', level: 'warn',
+      fields: { connector_id: 'connector-A', failure_count: 11, first_failure_at: legacyInstant },
+      message: 'password=fixture-secret',
+    });
+    expect(projectRuntimeLogLegacy(record)).toMatchObject({
+      kind: 'legacy', connectorID: 'connector-A', failureCount: 11, firstFailureAt: legacyInstant,
+    });
+    expect(JSON.stringify(projectRuntimeLogLegacy(record))).not.toContain('fixture-secret');
+  });
+
+  it('matches all 36 actual Go legacy template codes, severity and source', () => {
     const go = readFileSync(resolve(process.cwd(), '../internal/diagnostics/projection.go'), 'utf8').split('func project')[0];
     const actual = [...go.matchAll(/"((?:startup|runtime|shutdown|http)\.[^"]+)":\s*\{level(\w+),\s*source(\w+),/g)]
       .map(([, code, level, source]) => [code, level.toLowerCase(), source.toLowerCase()]);
     actual.push(['raw.suppressed', 'info', 'application']);
-    expect(actual).toEqual(legacyCases); expect(actual).toHaveLength(33);
+    expect(actual).toEqual(legacyCases); expect(actual).toHaveLength(36);
   });
   it.each(legacyCases)('projects known %s without trusting candidate message', (code, level, source) => {
     const record = legacyRecord(code, { message: 'password_fixture <script>private.example</script>' });

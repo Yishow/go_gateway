@@ -10,7 +10,7 @@ export type EvidenceStage = 'unavailable' | 'acquisition' | 'accepted' | 'collec
   'sql-committed' | 'readback-verified' | 'cleanup-completed' | 'transport-event'
 export type EvidenceAction = 'none' | 'refresh' | 'inspect-settings' | 'inspect-delivery' |
   'open-workspace-list' | 'inspect-immutable-evidence'
-export type EvidenceReason = 'none' | 'unavailable' | 'stale-reference' | 'foreign-scope' |
+export type EvidenceReason = 'none' | 'unavailable' | 'target-unavailable' | 'stale-reference' | 'foreign-scope' |
   'deleted' | 'unsupported' | 'effective-proof-missing' | 'counter-replay-proof-missing' |
   'counter-replay-proof-conflict' | 'counter-replay-proof-unsupported' |
   'recording-ownership-unavailable' | 'recording-ownership-conflict' |

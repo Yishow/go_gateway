@@ -129,6 +129,7 @@
     "reasons": {
       "none": "此事件未指出失敗",
       "unavailable": "證據無法取得",
+      "target-unavailable": "資料庫目的地無法使用，可能是連線問題",
       "stale-reference": "參照已變更",
       "foreign-scope": "不在可用範圍內",
       "deleted": "參照實體已刪除",
@@ -280,6 +281,11 @@
     "duration": "耗時（毫秒）",
     "requestID": "請求 ID",
     "phase": "關閉階段",
+    "connectorID": "連線器 ID",
+    "failureCount": "失敗次數",
+    "firstFailureAt": "首次失敗時間",
+    "failureReason": "失敗類型",
+    "failureReasons": { "connection": "連線失敗", "timeout": "逾時", "write": "寫入或狀態更新失敗" },
     "safeRequestSummary": "僅顯示安全的請求摘要。",
     "suppressedProblem": "診斷內容已隱藏",
     "suppressedImpact": "此紀錄無法安全呈現，不據此推論作業結果或系統正常。",
@@ -336,6 +342,9 @@
         "degraded": "執行程序已降級",
         "share_degraded": "本機分享已降級",
         "group_failed": "寫入群組作業失敗",
+        "database_write_failed": "資料庫目的地寫入失敗",
+        "database_write_failing": "資料庫目的地持續寫入失敗",
+        "database_write_recovered": "資料庫目的地寫入已恢復",
         "stopped": "執行程序已停止"
       },
       "shutdown": {
@@ -381,6 +390,9 @@
         "degraded": "請檢視目前執行狀態；此程序觀察不識別個別來源，也不證明交付。",
         "share_degraded": "請檢視目前輸出狀態；本機分享與 SQL 交付不同。",
         "group_failed": "請檢視目前寫入證據；此舊式觀察沒有已驗證的群組身分或收據。",
+        "database_write_failed": "請檢查資料庫目的地與連線設定；尚不能視為資料已寫入。",
+        "database_write_failing": "請檢查資料庫目的地與連線設定；待處理資料尚不能視為已寫入。",
+        "database_write_recovered": "先前失敗後有一次寫入成功；此事件不證明其他資料均已送達。",
         "stopped": "執行程序回報已停止；待交付資料與 SQL 結果仍須分別確認。"
       },
       "shutdown": {

@@ -37,6 +37,45 @@ beforeEach(() => {
 });
 
 describe('GroupDeliveryStrip', () => {
+  it('alerts when a pending row could not reach its database destination and clears after delivery', () => {
+    const data = delivery({
+      backlog: [{
+        group_revision: 'rev-1', connector_id: 'connector-1', connector_revision: 'revision-1',
+        table_schema: 'public', table_name: 'readings', pending: 1, error_codes: ['target-unavailable'],
+      }],
+    });
+    data.stages.retrying = 1;
+    deliveryQuery.mockReturnValue({ data, isError: false } as never);
+    const view = render(<GroupDeliveryStrip group={savedGroup({ applied_revision: 'rev-1' })} />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('deliverySummary.destinationUnavailable');
+    expect(screen.getByTestId('delivery-local')).toHaveTextContent('1');
+    expect(screen.getByTestId('delivery-committed')).toHaveTextContent('0');
+
+    deliveryQuery.mockReturnValue({ data: delivery(), isError: false } as never);
+    view.rerender(<GroupDeliveryStrip group={savedGroup({ applied_revision: 'rev-1' })} />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('does not infer a connection problem from another error or an unconfirmed response', () => {
+    const data = delivery({ backlog: [{
+      group_revision: 'rev-1', connector_id: 'connector-1', connector_revision: 'revision-1',
+      table_schema: 'public', table_name: 'readings', pending: 1, error_codes: ['insert-failed'],
+    }] });
+    deliveryQuery.mockReturnValue({ data, isError: false } as never);
+    const view = render(<GroupDeliveryStrip group={savedGroup()} />);
+    expect(screen.queryByTestId('group-destination-unavailable')).not.toBeInTheDocument();
+
+    data.backlog[0].error_codes = ['target-unavailable'];
+    deliveryQuery.mockReturnValue({ data, isError: true } as never);
+    view.rerender(<GroupDeliveryStrip group={savedGroup()} />);
+    expect(screen.queryByTestId('group-destination-unavailable')).not.toBeInTheDocument();
+
+    deliveryQuery.mockReturnValue({ data: { ...data, group_id: 'foreign-group' }, isError: false } as never);
+    view.rerender(<GroupDeliveryStrip group={savedGroup()} />);
+    expect(screen.queryByTestId('group-destination-unavailable')).not.toBeInTheDocument();
+  });
+
   it('shows skipped and no-data bucket counts as separate delivery facts', () => {
     render(<GroupDeliveryStrip group={savedGroup()} />);
 

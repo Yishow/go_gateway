@@ -5,46 +5,50 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
 type template struct{ level, source, message string }
 
 var templates = map[string]template{
-	domainUnavailableCode:      {levelWarn, sourceRuntime, "A runtime observation has no verified identity; inspect current runtime evidence."},
-	"startup.begin":            {levelInfo, sourceStartup, "Gateway startup has begun."},
-	"startup.ready":            {levelInfo, sourceStartup, "The embedded web service is ready."},
-	"startup.failed":           {levelError, sourceStartup, "Gateway startup failed; review the stable diagnostic code."},
-	"startup.config_invalid":   {levelError, sourceStartup, "Startup configuration is invalid. Check the configured values."},
-	"startup.path_ambiguous":   {levelError, sourceStartup, "The database location is ambiguous. Configure an explicit absolute database path."},
-	"startup.path_unusable":    {levelError, sourceStartup, "The selected data location is unavailable. Check access permissions."},
-	"startup.owner_busy":       {levelError, sourceStartup, "This database already has an active gateway owner."},
-	"startup.log_unavailable":  {levelError, sourceStartup, "Managed diagnostic storage is unavailable. Check its location and permissions."},
-	"startup.tray_failed":      {levelError, sourceStartup, "The desktop control icon could not be initialized."},
-	"startup.bind_failed":      {levelError, sourceStartup, "The configured listener could not be bound. Check its port."},
-	"startup.assets_missing":   {levelError, sourceStartup, "Embedded application assets are missing. Use a complete product build."},
-	"startup.database_linked":  {levelError, sourceStartup, "The selected database has multiple hardlinks, so its WAL and SHM locations are ambiguous. Use one canonical database location."},
-	"startup.db_open_failed":   {levelError, sourceStartup, "The selected database could not be opened."},
-	"startup.db_ping_failed":   {levelError, sourceStartup, "The selected database did not pass its connection check."},
-	"startup.migration_failed": {levelError, sourceStartup, "Database initialization failed. Preserve the data and review diagnostics."},
-	"startup.service_failed":   {levelError, sourceStartup, "Application services could not be initialized."},
-	"startup.pipeline_failed":  {levelError, sourceStartup, "The data pipeline could not be initialized."},
-	"runtime.started":          {levelInfo, sourceRuntime, "Acquisition runtime has started."},
-	"runtime.degraded":         {levelWarn, sourceRuntime, "Acquisition runtime is degraded. Review runtime status."},
-	"runtime.share_degraded":   {levelWarn, sourceRuntime, "Local sharing is degraded. Review output status."},
-	"runtime.group_failed":     {levelError, sourceRuntime, "A recording group operation failed. Review recording status."},
-	"runtime.stopped":          {levelInfo, sourceRuntime, "Acquisition runtime has stopped."},
-	"shutdown.begin":           {levelInfo, sourceShutdown, "Gateway shutdown has begun."},
-	"shutdown.finalizing":      {levelInfo, sourceShutdown, "Finalizing local diagnostics. Delivery completion is not implied."},
-	"shutdown.complete":        {levelInfo, sourceShutdown, "Gateway shutdown has completed."},
-	"shutdown.timeout":         {levelWarn, sourceShutdown, "Shutdown is still in progress; completion has not been confirmed."},
-	"shutdown.failed":          {levelError, sourceShutdown, "A shutdown phase failed; completion has not been confirmed."},
-	"http.access":              {levelInfo, sourceHTTP, "An HTTP request completed."},
-	"http.request":             {levelInfo, sourceHTTP, "An HTTP request completed."},
-	"http.recovered":           {levelError, sourceHTTP, "An HTTP application fault was recovered; raw details were suppressed."},
-	"http.recovery":            {levelError, sourceHTTP, "An HTTP application fault was recovered; raw details were suppressed."},
-	"http.server_error":        {levelError, sourceHTTP, "The HTTP server reported an error; raw details were suppressed."},
-	codeRawSuppressed:          {levelInfo, "application", "Unclassified diagnostic content was suppressed."},
+	domainUnavailableCode:              {levelWarn, sourceRuntime, "A runtime observation has no verified identity; inspect current runtime evidence."},
+	"startup.begin":                    {levelInfo, sourceStartup, "Gateway startup has begun."},
+	"startup.ready":                    {levelInfo, sourceStartup, "The embedded web service is ready."},
+	"startup.failed":                   {levelError, sourceStartup, "Gateway startup failed; review the stable diagnostic code."},
+	"startup.config_invalid":           {levelError, sourceStartup, "Startup configuration is invalid. Check the configured values."},
+	"startup.path_ambiguous":           {levelError, sourceStartup, "The database location is ambiguous. Configure an explicit absolute database path."},
+	"startup.path_unusable":            {levelError, sourceStartup, "The selected data location is unavailable. Check access permissions."},
+	"startup.owner_busy":               {levelError, sourceStartup, "This database already has an active gateway owner."},
+	"startup.log_unavailable":          {levelError, sourceStartup, "Managed diagnostic storage is unavailable. Check its location and permissions."},
+	"startup.tray_failed":              {levelError, sourceStartup, "The desktop control icon could not be initialized."},
+	"startup.bind_failed":              {levelError, sourceStartup, "The configured listener could not be bound. Check its port."},
+	"startup.assets_missing":           {levelError, sourceStartup, "Embedded application assets are missing. Use a complete product build."},
+	"startup.database_linked":          {levelError, sourceStartup, "The selected database has multiple hardlinks, so its WAL and SHM locations are ambiguous. Use one canonical database location."},
+	"startup.db_open_failed":           {levelError, sourceStartup, "The selected database could not be opened."},
+	"startup.db_ping_failed":           {levelError, sourceStartup, "The selected database did not pass its connection check."},
+	"startup.migration_failed":         {levelError, sourceStartup, "Database initialization failed. Preserve the data and review diagnostics."},
+	"startup.service_failed":           {levelError, sourceStartup, "Application services could not be initialized."},
+	"startup.pipeline_failed":          {levelError, sourceStartup, "The data pipeline could not be initialized."},
+	"runtime.started":                  {levelInfo, sourceRuntime, "Acquisition runtime has started."},
+	"runtime.degraded":                 {levelWarn, sourceRuntime, "Acquisition runtime is degraded. Review runtime status."},
+	"runtime.share_degraded":           {levelWarn, sourceRuntime, "Local sharing is degraded. Review output status."},
+	"runtime.group_failed":             {levelError, sourceRuntime, "A recording group operation failed. Review recording status."},
+	"runtime.database_write_failed":    {levelError, sourceRuntime, "Database target write failed. Check the destination and connection."},
+	"runtime.database_write_failing":   {levelWarn, sourceRuntime, "Database target writes are still failing. Check the destination and connection."},
+	"runtime.database_write_recovered": {levelInfo, sourceRuntime, "A database target write succeeded after failures."},
+	"runtime.stopped":                  {levelInfo, sourceRuntime, "Acquisition runtime has stopped."},
+	"shutdown.begin":                   {levelInfo, sourceShutdown, "Gateway shutdown has begun."},
+	"shutdown.finalizing":              {levelInfo, sourceShutdown, "Finalizing local diagnostics. Delivery completion is not implied."},
+	"shutdown.complete":                {levelInfo, sourceShutdown, "Gateway shutdown has completed."},
+	"shutdown.timeout":                 {levelWarn, sourceShutdown, "Shutdown is still in progress; completion has not been confirmed."},
+	"shutdown.failed":                  {levelError, sourceShutdown, "A shutdown phase failed; completion has not been confirmed."},
+	"http.access":                      {levelInfo, sourceHTTP, "An HTTP request completed."},
+	"http.request":                     {levelInfo, sourceHTTP, "An HTTP request completed."},
+	"http.recovered":                   {levelError, sourceHTTP, "An HTTP application fault was recovered; raw details were suppressed."},
+	"http.recovery":                    {levelError, sourceHTTP, "An HTTP application fault was recovered; raw details were suppressed."},
+	"http.server_error":                {levelError, sourceHTTP, "The HTTP server reported an error; raw details were suppressed."},
+	codeRawSuppressed:                  {levelInfo, "application", "Unclassified diagnostic content was suppressed."},
 }
 
 func project(in Input, routes map[string]struct{}) Event {
@@ -65,6 +69,20 @@ func project(in Input, routes map[string]struct{}) Event {
 		return e
 	}
 	e.Fields = make(map[string]any, 6)
+	if strings.HasPrefix(code, "runtime.database_write_") {
+		if id, ok := in.Fields["connector_id"].(string); ok && safeConnectorID(id) {
+			e.Fields["connector_id"] = strings.Clone(id)
+		}
+		if count, ok := number(in.Fields["failure_count"]); ok && count >= 1 && count <= 9007199254740991 && math.Trunc(count) == count {
+			e.Fields["failure_count"] = int64(count)
+		}
+		if at, ok := in.Fields["first_failure_at"].(time.Time); ok && !at.IsZero() && at.Year() >= 1 && at.Year() <= 9999 {
+			e.Fields["first_failure_at"] = at.UTC().Format(time.RFC3339Nano)
+		}
+		if reason, ok := in.Fields["failure_reason"].(string); ok && slices.Contains([]string{"connection", "timeout", "write"}, reason) {
+			e.Fields["failure_reason"] = strings.Clone(reason)
+		}
+	}
 	if strings.HasPrefix(code, "http.") {
 		if method, ok := in.Fields["method"].(string); ok && slices.Contains([]string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "CONNECT", "TRACE"}, method) {
 			e.Fields["method"] = strings.Clone(method)
@@ -94,6 +112,19 @@ func project(in Input, routes map[string]struct{}) Event {
 		}
 	}
 	return e
+}
+
+// Connector references are opaque IDs, never hostnames, endpoints or DSNs.
+func safeConnectorID(id string) bool {
+	if id == "" || len(id) > 128 {
+		return false
+	}
+	for _, c := range id {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_' && c != '-' {
+			return false
+		}
+	}
+	return true
 }
 func number(v any) (float64, bool) {
 	var n float64

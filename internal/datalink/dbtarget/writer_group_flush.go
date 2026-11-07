@@ -9,7 +9,7 @@ import (
 
 // flushBuckets writes the due grouped buckets of one connector; an empty
 // connectorID selects every connector.
-func (w *Writer) flushBuckets(ctx context.Context, connectorID string, now time.Time, flushAll bool, retryDelay time.Duration) error {
+func (w *Writer) flushBuckets(ctx context.Context, connectorID string, now time.Time, flushAll bool, retryDelay time.Duration, wrote map[string]struct{}) error {
 	var failures []error
 	for bucket := w.takeFlushableBucket(connectorID, now.UTC(), flushAll); bucket != nil; bucket = w.takeFlushableBucket(connectorID, now.UTC(), flushAll) {
 		writeCtx, cancelWrite := context.WithTimeout(ctx, 5*time.Second)
@@ -65,9 +65,10 @@ func (w *Writer) flushBuckets(ctx context.Context, connectorID string, now time.
 				NextRetryAt:              optionalRetryAt(attemptedAt, retryDelay),
 			})
 			w.restoreGrouped(bucket)
-			failures = append(failures, &snapshotRetryError{cause: fmt.Errorf("分組寫入失敗: %w", writeErr), retryAt: attemptedAt.Add(retryDelay)})
+			failures = append(failures, &snapshotRetryError{cause: fmt.Errorf("分組寫入失敗: %w", writeErr), retryAt: attemptedAt.Add(retryDelay), connectorRevision: bucket.Connector.IdentityRevision})
 			return errors.Join(failures...)
 		}
+		wrote[bucket.Connector.IdentityRevision] = struct{}{}
 		if !flushAll {
 			w.discardSupersededGrouped(bucket)
 		}

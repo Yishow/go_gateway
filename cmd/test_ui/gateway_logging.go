@@ -30,11 +30,32 @@ type managedSlog struct {
 	mirror slog.Handler
 }
 
+const rawSuppressedCode = "raw.suppressed"
+
 func (h managedSlog) Enabled(ctx context.Context, level slog.Level) bool {
 	return h.mirror == nil || h.mirror.Enabled(ctx, level)
 }
 func (h managedSlog) Handle(ctx context.Context, record slog.Record) error {
-	h.broker.Emit(diagnostics.Input{Code: "raw.suppressed", Fields: map[string]any{"source": "slog"}})
+	code := rawSuppressedCode
+	switch {
+	case record.Message == "flush database target snapshot" && record.Level == slog.LevelError:
+		code = "runtime.database_write_failed"
+	case record.Message == "database target snapshot is still failing" && record.Level == slog.LevelWarn:
+		code = "runtime.database_write_failing"
+	case record.Message == "database target snapshot recovered" && record.Level == slog.LevelInfo:
+		code = "runtime.database_write_recovered"
+	}
+	fields := map[string]any{"source": "slog"}
+	if code != rawSuppressedCode {
+		record.Attrs(func(attr slog.Attr) bool {
+			switch attr.Key {
+			case "connector_id", "failure_count", "first_failure_at", "failure_reason":
+				fields[attr.Key] = attr.Value.Resolve().Any()
+			}
+			return true
+		})
+	}
+	h.broker.Emit(diagnostics.Input{Code: code, Fields: fields})
 	if h.mirror != nil {
 		return h.mirror.Handle(ctx, record)
 	}
@@ -66,7 +87,7 @@ func (h *gatewayHost) installLogging(mirror bool) {
 	}
 	slog.SetDefault(slog.New(managedSlog{broker: h.logs, mirror: slogMirror}))
 	// SetDefault rewires standard log. Install its separate safe adapter afterward.
-	log.SetOutput(managedWriter{broker: h.logs, code: "raw.suppressed", source: "standard", mirror: h.consoleWriter})
+	log.SetOutput(managedWriter{broker: h.logs, code: rawSuppressedCode, source: "standard", mirror: h.consoleWriter})
 	log.SetFlags(oldFlags)
 	h.restoreLogging = func() {
 		slog.SetDefault(oldSlog)

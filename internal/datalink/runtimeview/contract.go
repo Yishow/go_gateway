@@ -53,6 +53,7 @@ type Reason string
 const (
 	ReasonNone                 Reason = "none"
 	ReasonUnavailable          Reason = "unavailable"
+	ReasonTargetUnavailable    Reason = "target-unavailable"
 	ReasonStale                Reason = "stale-reference"
 	ReasonForeign              Reason = "foreign-scope"
 	ReasonDeleted              Reason = "deleted"
@@ -406,7 +407,7 @@ func MarshalRuleEvidence(v RuleEvidenceView, scope Scope) ([]byte, error) {
 	return json.Marshal(checked)
 }
 
-const reasonValues = "none,unavailable,stale-reference,foreign-scope,deleted,unsupported,effective-proof-missing,counter-replay-proof-missing,counter-replay-proof-conflict,counter-replay-proof-unsupported,recording-ownership-unavailable,recording-ownership-conflict,recording-handoff-proof-conflict,recording-cutover-finalized-overlap"
+const reasonValues = "none,unavailable,target-unavailable,stale-reference,foreign-scope,deleted,unsupported,effective-proof-missing,counter-replay-proof-missing,counter-replay-proof-conflict,counter-replay-proof-unsupported,recording-ownership-unavailable,recording-ownership-conflict,recording-handoff-proof-conflict,recording-cutover-finalized-overlap"
 const stageValues = "unavailable,acquisition,accepted,collecting,queued,retrying,blocked,quarantined,unknown,skipped,sql-committed,readback-verified,cleanup-completed,transport-event"
 
 // ParseStage degrades future stages safely; it cannot assert any evidence by itself.
@@ -432,7 +433,7 @@ func ActionForReason(reason Reason) Action {
 		return ActionNone
 	case ReasonForeign, ReasonDeleted:
 		return ActionOpenWorkspaceList
-	case ReasonUnsupported:
+	case ReasonUnsupported, ReasonTargetUnavailable:
 		return ActionInspectSettings
 	case ReasonCounterMissing, ReasonCounterConflict, ReasonCounterUnsupported, ReasonOwnershipUnavailable, ReasonOwnershipConflict, ReasonHandoffConflict, ReasonFinalizedOverlap:
 		return ActionInspectImmutableEvidence

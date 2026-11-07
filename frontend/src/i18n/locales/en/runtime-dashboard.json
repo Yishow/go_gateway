@@ -348,6 +348,7 @@
     "reasons": {
       "none": "No additional reason reported",
       "unavailable": "Reason evidence unavailable",
+      "target-unavailable": "Database destination unavailable; connection may have failed",
       "stale-reference": "Evidence revision changed",
       "foreign-scope": "Evidence is outside this scope",
       "deleted": "Referenced configuration removed",

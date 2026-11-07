@@ -12,8 +12,9 @@ import (
 // snapshotRetryError identifies a destination failure, not a failure to
 // persist the outcome after a successful write.
 type snapshotRetryError struct {
-	cause   error
-	retryAt time.Time
+	cause             error
+	retryAt           time.Time
+	connectorRevision string
 }
 
 func (e *snapshotRetryError) Error() string { return e.cause.Error() }

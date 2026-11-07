@@ -25,6 +25,9 @@ const templates = {
   'runtime.degraded': ['warn', 'runtime'],
   'runtime.share_degraded': ['warn', 'runtime'],
   'runtime.group_failed': ['error', 'runtime'],
+  'runtime.database_write_failed': ['error', 'runtime'],
+  'runtime.database_write_failing': ['warn', 'runtime'],
+  'runtime.database_write_recovered': ['info', 'runtime'],
   'runtime.stopped': ['info', 'runtime'],
   'shutdown.begin': ['info', 'shutdown'],
   'shutdown.finalizing': ['info', 'shutdown'],
@@ -45,6 +48,8 @@ export interface LegacyPresentation {
   kind: 'legacy'; code: RuntimeLogLegacyCode; category: 'process' | 'http' | 'suppressed';
   timestamp: string; level: RuntimeLogLevel; source: LegacySource; cursor: string; truncated: boolean;
   method: string | null; status: number | null; durationMs: number | null; requestID: string | null; phase: LegacyPhase | null;
+  connectorID: string | null; failureCount: number | null; firstFailureAt: string | null;
+  failureReason: 'connection' | 'timeout' | 'write' | null;
 }
 export type RuntimeLogLegacyProjection = LegacyPresentation | { kind: 'suppressed'; timestamp: string | null; cursor: string | null; truncated: boolean };
 const envelopeKeys = ['instance_id', 'sequence', 'timestamp', 'level', 'source', 'code', 'message', 'fields', 'truncated'];
@@ -101,13 +106,18 @@ export function projectRuntimeLogLegacy(record: RuntimeLogRecord): RuntimeLogLeg
     if (input.level !== level || input.source !== source) return refuse();
     const category = code === 'raw.suppressed' ? 'suppressed' : code.startsWith('http.') ? 'http' : 'process';
     const fields = object(input.fields, category === 'http' ? ['method', 'route', 'status', 'duration_ms', 'request_id'] :
-      code.startsWith('shutdown.') ? ['phase'] : []);
+      code.startsWith('shutdown.') ? ['phase'] : code.startsWith('runtime.database_write_') ?
+        ['connector_id', 'failure_count', 'first_failure_at', 'failure_reason'] : []);
     // Registered route ownership remains exclusively in Go. Validate only its producer shape and never retain its bytes.
     if (Object.hasOwn(fields, 'route') && (typeof fields.route !== 'string' || encoder.encode(fields.route).byteLength > 1024)) return refuse();
     return { kind: 'legacy', code, category, timestamp, level, source, cursor, truncated,
       method: optional(fields, 'method', value => enumeration(value, methods)),
       status: optional(fields, 'status', value => numeric(value, 599, 100, true)),
       durationMs: optional(fields, 'duration_ms', value => numeric(value, 86400000)), requestID: optional(fields, 'request_id', requestID),
-      phase: optional(fields, 'phase', value => enumeration(value, phases)) };
+      phase: optional(fields, 'phase', value => enumeration(value, phases)),
+      connectorID: optional(fields, 'connector_id', value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value) ? value : refuse()),
+      failureCount: optional(fields, 'failure_count', value => numeric(value, Number.MAX_SAFE_INTEGER, 1, true)),
+      firstFailureAt: optional(fields, 'first_failure_at', value => utc(value) ?? refuse()),
+      failureReason: optional(fields, 'failure_reason', value => enumeration(value, ['connection', 'timeout', 'write'] as const)) };
   } catch { return { kind: 'suppressed', timestamp, cursor, truncated }; }
 }

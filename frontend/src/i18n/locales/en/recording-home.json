@@ -315,7 +315,8 @@
     "active": "Collecting",
     "notRunning": "Not currently recording",
     "blocked": "Intake is retiring or blocked; resolve the issues shown",
-    "backlog": "Rows from an earlier revision are still pending. Updating settings does not retarget them."
+    "backlog": "Rows from an earlier revision are still pending. Updating settings does not retarget them.",
+    "destinationUnavailable": "An earlier attempt could not use the database destination, possibly because of a connection problem. Rows are still awaiting delivery; check the database and connection settings."
   },
   "acquisitionAnomalies": {
     "button": "Acquisition anomalies",

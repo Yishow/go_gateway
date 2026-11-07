@@ -258,66 +258,25 @@ func (w *Writer) takeDuePending(connectorID string, now time.Time, all bool) *pe
 	return nil
 }
 
-// flushConnector writes the due snapshot of one connector: the latest value of
-// every due ungrouped mapping and every due grouped bucket. It is only called
-// by that connector's worker, or by Close after every worker stopped.
-func (w *Writer) flushConnector(ctx context.Context, connectorID string, now time.Time, all bool, retryDelay time.Duration) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	var failures []error
-	for write := w.takeDuePending(connectorID, now.UTC(), all); write != nil; write = w.takeDuePending(connectorID, now.UTC(), all) {
-		writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		err := w.writePending(writeCtx, write, retryDelay)
-		cancel()
-		if err != nil {
-			failures = append(failures, err)
-			if ctx.Err() != nil {
-				return errors.Join(failures...)
-			}
-			var retryErr *snapshotRetryError
-			if errors.As(err, &retryErr) {
-				return errors.Join(failures...)
-			}
-		}
-	}
-	if err := w.flushBuckets(ctx, connectorID, now, all, retryDelay); err != nil {
-		failures = append(failures, err)
-	}
-	return errors.Join(failures...)
-}
-
-// flushDue flushes every connector synchronously.
-func (w *Writer) flushDue(ctx context.Context, now time.Time) error {
-	ids := w.connectorsWithPendingData()
-	var failures []error
-	for _, id := range slices.Sorted(maps.Keys(ids)) {
-		if err := w.flushConnector(ctx, id, now, false, 0); err != nil {
-			failures = append(failures, err)
-		}
-	}
-	return errors.Join(failures...)
-}
-
-func (w *Writer) writePending(ctx context.Context, write *pendingWrite, retryDelay time.Duration) error {
+func (w *Writer) writePending(ctx context.Context, write *pendingWrite, retryDelay time.Duration) (bool, error) {
 	mapping, connector := write.Mapping, write.Connector
 	current, err := w.mappingIsCurrent(ctx, mapping, connector)
 	if err != nil {
 		if ctx.Err() != nil && w.baseCtx.Err() != nil {
 			w.restorePending(write)
-			return err
+			return false, err
 		}
 		w.recordMappingSkip(connector, mapping, write.ObservedAt, skipMappingCheckError)
-		return err
+		return false, err
 	}
 	if !current {
 		w.recordMappingSkip(connector, mapping, write.ObservedAt, skipMappingNotCurrent)
-		return nil
+		return false, nil
 	}
 	if w.suppress != nil && w.suppress(mapping.ConnectorID, mapping.TagID) {
 		// Ownership moved to a canonical write group after ingest.
 		w.recordMappingSkip(connector, mapping, write.ObservedAt, skipWriteGroupOwned)
-		return nil
+		return false, nil
 	}
 	writeErr := w.writeMapping(ctx, connector, mapping, write.Value, write.ObservedAt)
 	attemptedAt := w.now().UTC()
@@ -326,7 +285,7 @@ func (w *Writer) writePending(ctx context.Context, write *pendingWrite, retryDel
 	if writeErr != nil {
 		var failures []error
 		failure := fmt.Errorf("mapping %s 寫入失敗: %w", mapping.ID, writeErr)
-		failures = append(failures, &snapshotRetryError{cause: failure, retryAt: attemptedAt.Add(retryDelay)})
+		failures = append(failures, &snapshotRetryError{cause: failure, retryAt: attemptedAt.Add(retryDelay), connectorRevision: connector.IdentityRevision})
 		if outcomeErr := w.recordWriteOutcome(outcomeCtx, connector, attemptedAt, deliveryOutcomeFailed, retryFailureSummary(writeErr, retryDelay)); outcomeErr != nil {
 			failures = append(failures, fmt.Errorf("mapping %s 更新寫入狀態失敗: %w", mapping.ID, outcomeErr))
 		}
@@ -343,7 +302,7 @@ func (w *Writer) writePending(ctx context.Context, write *pendingWrite, retryDel
 			NextRetryAt:              optionalRetryAt(attemptedAt, retryDelay),
 		})
 		w.restorePending(write)
-		return errors.Join(failures...)
+		return false, errors.Join(failures...)
 	}
 	outcomeErr := w.recordWriteOutcome(outcomeCtx, connector, attemptedAt, deliveryOutcomeSuccess, "")
 	recordWriteHistory(connector.ID, WriteHistoryRecord{
@@ -355,9 +314,9 @@ func (w *Writer) writePending(ctx context.Context, write *pendingWrite, retryDel
 		EffectiveIntervalSeconds: write.IntervalSeconds,
 	})
 	if outcomeErr != nil {
-		return fmt.Errorf("mapping %s 更新寫入狀態失敗: %w", mapping.ID, outcomeErr)
+		return true, fmt.Errorf("mapping %s 更新寫入狀態失敗: %w", mapping.ID, outcomeErr)
 	}
-	return nil
+	return true, nil
 }
 
 // A buffered value belongs to the mapping and connector revision observed at

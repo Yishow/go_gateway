@@ -25,6 +25,7 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
   const hasHistory = Boolean(committed || confirmed?.last_sql_committed_at);
   const intakeLabel = !confirmed ? 'unconfirmed' : confirmed.intake.state === 'active' ? 'active' : confirmed.intake.state === 'not_running' ? 'notRunning' : confirmed.intake.state === 'blocked' || confirmed.intake.state === 'retiring' ? 'blocked' : 'unconfirmed';
   const recentIssues = confirmed?.recent_bucket_issues ?? [];
+  const destinationUnavailable = confirmed?.backlog.some(item => item.pending > 0 && item.error_codes.includes('target-unavailable'));
   const cell = (label: string, value: string, testId: string) => (
     <div key={testId} className="min-w-0">
       <dt className="text-xs text-[var(--gw-muted)]">{label}</dt>
@@ -53,6 +54,7 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolea
     <section aria-label={t('step4.group.delivery.title')} className="space-y-2" data-testid="group-delivery-strip">
       <h4 className="text-sm font-semibold text-[var(--gw-text)]">{t('step4.group.delivery.title')}{compact && !confirmed && <span className="font-normal text-[var(--gw-muted)]"> · {unknown}</span>}</h4>
       {delivery.isError && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]" data-testid="group-delivery-failed">{t('step4.group.delivery.failed')}</p>}
+      {destinationUnavailable && <p role="alert" className="text-sm text-[var(--gw-warning-fg)]" data-testid="group-destination-unavailable">{summaryText('deliverySummary.destinationUnavailable')}</p>}
       {compact && stages && stages.blocked + stages.quarantined + stages.unknown > 0 && <p role="status" data-testid="group-delivery-attention-summary">{t('step4.group.delivery.attention')}: {stages.blocked + stages.quarantined + stages.unknown}</p>}
       {compact && <div data-testid="recording-delivery-summary" className="space-y-1 text-sm">
         <p>{t('step4.group.delivery.saved')}: {group.status === 'deleted' ? t('step4.group.status.deleted') : t('step4.group.delivery.yes')} · {summaryText(`deliverySummary.${intakeLabel}`)}</p>

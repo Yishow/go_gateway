@@ -129,6 +129,7 @@
     "reasons": {
       "none": "No failure indicated by this event",
       "unavailable": "Evidence unavailable",
+      "target-unavailable": "Database destination unavailable; connection may have failed",
       "stale-reference": "Reference changed",
       "foreign-scope": "Outside the available scope",
       "deleted": "Referenced entity deleted",
@@ -280,6 +281,11 @@
     "duration": "Duration (ms)",
     "requestID": "Request ID",
     "phase": "Shutdown phase",
+    "connectorID": "Connector ID",
+    "failureCount": "Failure count",
+    "firstFailureAt": "First failure",
+    "failureReason": "Failure type",
+    "failureReasons": { "connection": "Connection failed", "timeout": "Timed out", "write": "Write or status update failed" },
     "safeRequestSummary": "Only a safe request summary is shown.",
     "suppressedProblem": "Diagnostic content suppressed",
     "suppressedImpact": "This record cannot be safely presented. No operation or system health is inferred.",
@@ -336,6 +342,9 @@
         "degraded": "Runtime degraded",
         "share_degraded": "Local sharing degraded",
         "group_failed": "Recording group operation failed",
+        "database_write_failed": "Database destination write failed",
+        "database_write_failing": "Database destination writes are still failing",
+        "database_write_recovered": "Database destination write recovered",
         "stopped": "Runtime stopped"
       },
       "shutdown": {
@@ -381,6 +390,9 @@
         "degraded": "Review current runtime status. This process observation does not identify a source or prove delivery.",
         "share_degraded": "Review current output status; local sharing and SQL delivery are separate.",
         "group_failed": "Review current recording evidence. This legacy observation has no verified group identity or receipt.",
+        "database_write_failed": "Check the database destination and connection settings. Delivery is not confirmed.",
+        "database_write_failing": "Check the database destination and connection settings. Pending data is not confirmed written.",
+        "database_write_recovered": "One write succeeded after failures. This does not prove all other data was delivered.",
         "stopped": "The runtime process reported stopped; pending delivery and SQL outcomes remain separate."
       },
       "shutdown": {

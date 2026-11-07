@@ -315,7 +315,8 @@
     "active": "正在採集",
     "notRunning": "目前未開始記錄",
     "blocked": "採集已停止接收或受阻，請處理顯示的問題",
-    "backlog": "仍有較早版本的資料等待交付；不會因設定更新而改寫其目的地。"
+    "backlog": "仍有較早版本的資料等待交付；不會因設定更新而改寫其目的地。",
+    "destinationUnavailable": "資料庫目的地曾無法使用，可能是連線失敗。資料仍待交付，請檢查資料庫與連線。"
   },
   "acquisitionAnomalies": {
     "button": "採集異常",

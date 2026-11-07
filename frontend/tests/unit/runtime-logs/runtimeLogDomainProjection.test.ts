@@ -10,6 +10,13 @@ import { domainCases, domainInstant, domainRecord } from './domain-event-fixture
 function rejected(record: RuntimeLogRecord) { expect(projectRuntimeLogDomain(record)).toMatchObject({ kind: 'unavailable' }); }
 
 describe('closed runtime domain presentation', () => {
+  it('shows an unavailable database destination only on a matching delivery failure', () => {
+    const fields = { reason: 'target-unavailable', action: 'inspect-settings' };
+    expect(projectRuntimeLogDomain(domainRecord('domain.delivery.retrying', { fields })))
+      .toMatchObject({ kind: 'domain', reason: 'target-unavailable', action: 'inspect-settings' });
+    rejected(domainRecord('domain.source.rejected', { fields }));
+  });
+
   it('keeps all 24 consumer examples aligned with the actual Go producer matrix', () => {
     const go = readFileSync(resolve(process.cwd(), '../internal/diagnostics/domain_event.go'), 'utf8');
     const actual = [...go.matchAll(/\{"(domain\.[^"]+)", "([^"]+)", "([^"]+)", ([1-4]), (true|false)\}/g)]

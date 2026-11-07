@@ -16,6 +16,10 @@ export default function RuntimeLogLegacyEvent({ record }: { record: RuntimeLogRe
       [t('legacy.duration'), view.durationMs === null ? null : String(view.durationMs)],
       [t('legacy.requestID'), view.requestID]);
     if (view.code.startsWith('shutdown.')) facts.push([t('legacy.phase'), view.phase === null ? null : t(`legacy.phases.${view.phase}`)]);
+    if (view.code.startsWith('runtime.database_write_')) {
+      facts.push([t('legacy.connectorID'), view.connectorID], [t('legacy.failureCount'), view.failureCount === null ? null : String(view.failureCount)],
+        [t('legacy.firstFailureAt'), view.firstFailureAt], [t('legacy.failureReason'), view.failureReason === null ? null : t(`legacy.failureReasons.${view.failureReason}`)]);
+    }
   }
   return <tr role="row" data-log-cursor={view.cursor ?? undefined} className="block align-top font-sans sm:table-row">
     <td role="cell" className="block whitespace-nowrap p-3 text-slate-600 sm:table-cell">

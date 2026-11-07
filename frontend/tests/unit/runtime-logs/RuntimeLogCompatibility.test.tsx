@@ -49,6 +49,19 @@ beforeEach(async () => {
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); expect(unexpected).toEqual([]); });
 
 describe('closed legacy and domain compatibility on the actual runtime log page', () => {
+  it('renders safe database failure details on the actual log page', async () => {
+    data.records = [legacyRecord('runtime.database_write_failing', {
+      message: secret,
+      fields: { connector_id: 'connector-A', failure_count: 11, first_failure_at: legacyInstant },
+    })];
+    render(<RuntimeLogsPage />); await connected();
+    const current = row(); if (!current) throw new Error('Missing database failure row');
+    expect(current).toHaveTextContent('Database destination writes are still failing');
+    expect(detailsValue(current, 'Connector ID')).toBe('connector-A');
+    expect(detailsValue(current, 'Failure count')).toBe('11');
+    expect(document.body).not.toHaveTextContent(secret);
+  });
+
   it.each(legacyCases)('renders fixed %s meaning without trusting candidate text', async (code) => {
     data.records = [legacyRecord(code, { message: secret })];
     const view = render(<RuntimeLogsPage />); await connected();

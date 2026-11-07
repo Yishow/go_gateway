@@ -9,10 +9,11 @@ import (
 )
 
 type connectorWorker struct {
-	ticks    chan time.Time
-	failures int
-	retryAt  time.Time
-	idle     map[string]idleIntervalState
+	ticks      chan time.Time
+	failures   int
+	retryAt    time.Time
+	idle       map[string]idleIntervalState
+	failureLog connectorFailureLog
 }
 
 // superviseLoop refreshes configuration outside ingest and signals independent
@@ -108,9 +109,10 @@ func (w *Writer) runConnectorWorker(connectorID string, worker *connectorWorker)
 				w.recordIdleIntervals(connectorID, worker, now)
 				continue
 			}
-			err := w.flushConnector(w.workerCtx, connectorID, now, false, retryDelay(worker.failures))
+			wrote, err := w.flushConnector(w.workerCtx, connectorID, now, false, retryDelay(worker.failures))
 			var retryErr *snapshotRetryError
 			if errors.As(err, &retryErr) {
+				worker.failureLog.selectRevision(retryErr.connectorRevision)
 				worker.failures = min(worker.failures+1, 6)
 				worker.retryAt = retryErr.retryAt
 			} else {
@@ -118,7 +120,9 @@ func (w *Writer) runConnectorWorker(connectorID string, worker *connectorWorker)
 				worker.retryAt = time.Time{}
 			}
 			if err != nil {
-				slog.Error("flush database target snapshot", "connector_id", connectorID, "error", err)
+				worker.failureLog.failed(connectorID, err, w.now().UTC())
+			} else if _, sameRevision := wrote[worker.failureLog.revision]; sameRevision && worker.failureLog.revision != "" {
+				worker.failureLog.recovered(connectorID)
 			}
 			w.recordIdleIntervals(connectorID, worker, now)
 		case <-w.stopCh:
@@ -184,8 +188,13 @@ func (w *Writer) flushClosing(ctx context.Context, now time.Time) error {
 			failures = append(failures, fmt.Errorf("connector %s has a snapshot pending during backoff", connectorID))
 			continue
 		}
-		if err := w.flushConnector(ctx, connectorID, now, true, 0); err != nil {
+		wrote, err := w.flushConnector(ctx, connectorID, now, true, 0)
+		if err != nil {
 			failures = append(failures, err)
+		} else if worker != nil {
+			if _, sameRevision := wrote[worker.failureLog.revision]; sameRevision && worker.failureLog.revision != "" {
+				worker.failureLog.recovered(connectorID)
+			}
 		}
 	}
 	return errors.Join(failures...)

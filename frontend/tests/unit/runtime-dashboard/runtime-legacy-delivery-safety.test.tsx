@@ -41,6 +41,15 @@ function mount(value: unknown) {
 beforeEach(async () => { await i18n.changeLanguage('en'); vi.clearAllMocks(); });
 afterEach(() => { cleanup(); clients.splice(0).forEach((client) => client.clear()); });
 describe('legacy delivery is a detached safe read DTO, not editable setup', () => {
+  it('shows a localized database warning for a pending unavailable destination from the API', async () => {
+    const value = fixture();
+    value.backlog[0].error_codes = ['target-unavailable'];
+    mount(value);
+    await screen.findByTestId('group-destination-unavailable');
+    expect(screen.getByRole('alert')).toHaveTextContent('could not use the database destination');
+    expect(document.body).not.toHaveTextContent('target-unavailable');
+  });
+
   it('detaches named attention fields and does not retain hidden connector payload or mutate input', () => {
     const value = fixture(); const item = value.attention?.[0]; if (!item) throw new Error('Missing attention fixture');
     Object.assign(item, { connection_config: { password: 'fixture-password', database: '/private/fixture.sqlite' } }); Object.freeze(item);

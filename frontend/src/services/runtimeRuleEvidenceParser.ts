@@ -46,7 +46,7 @@ function object<T extends object>(shape: { [K in keyof T]-?: Parser<T[K]> }): Pa
     return result
   }
 }
-const reasons: EvidenceReason[] = ['none', 'unavailable', 'stale-reference', 'foreign-scope', 'deleted', 'unsupported', 'effective-proof-missing', 'counter-replay-proof-missing', 'counter-replay-proof-conflict', 'counter-replay-proof-unsupported', 'recording-ownership-unavailable', 'recording-ownership-conflict', 'recording-handoff-proof-conflict', 'recording-cutover-finalized-overlap']
+const reasons: EvidenceReason[] = ['none', 'unavailable', 'target-unavailable', 'stale-reference', 'foreign-scope', 'deleted', 'unsupported', 'effective-proof-missing', 'counter-replay-proof-missing', 'counter-replay-proof-conflict', 'counter-replay-proof-unsupported', 'recording-ownership-unavailable', 'recording-ownership-conflict', 'recording-handoff-proof-conflict', 'recording-cutover-finalized-overlap']
 const stages: EvidenceStage[] = ['unavailable', 'acquisition', 'accepted', 'collecting', 'queued', 'retrying', 'blocked', 'quarantined', 'unknown', 'skipped', 'sql-committed', 'readback-verified', 'cleanup-completed', 'transport-event']
 /** Unknown owner codes/stages never reflect arbitrary text into diagnostics. */
 export function parseEvidenceReason(v: unknown): EvidenceReason { return reasons.find((r) => r === v) ?? 'unavailable' }
@@ -56,7 +56,7 @@ export function actionForEvidenceReason(reason: EvidenceReason): EvidenceAction 
   switch (reason) {
     case 'none': return 'none'
     case 'foreign-scope': case 'deleted': return 'open-workspace-list'
-    case 'unsupported': return 'inspect-settings'
+    case 'unsupported': case 'target-unavailable': return 'inspect-settings'
     case 'counter-replay-proof-missing': case 'counter-replay-proof-conflict': case 'counter-replay-proof-unsupported':
     case 'recording-ownership-unavailable': case 'recording-ownership-conflict': case 'recording-handoff-proof-conflict':
     case 'recording-cutover-finalized-overlap': return 'inspect-immutable-evidence'
