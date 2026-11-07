@@ -84,7 +84,7 @@ function WorkbenchV2BootstrapState({ status }: WorkbenchV2BootstrapStateProps) {
 
 /**
  * Datalink Workbench V2 頁面入口
- * 
+ *
  * 路由策略：/studio/v2 是唯一設定入口；/studio 依既有 generic unknown-route policy 收斂。
  * 限制 scope 與狀態綁定。
  */
@@ -378,4 +378,3 @@ export default function AdvancedWorkbenchV2Page({
     </div>
   );
 }
-

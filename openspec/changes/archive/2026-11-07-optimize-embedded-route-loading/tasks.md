@@ -14,9 +14,9 @@
 ## 3. 交付驗收與收斂
 
 - [x] 3.1 [after: 2.2, 2.5] 執行 tests/shell/embedded-frontend-delivery.sh 與 embedded build，確認完整同步、placeholder、stale removal、missing input fail-closed，且壓縮 cache 固定有界並記 RAM 成本；比對基準證明 eager JS 與 transfer bytes 均減少。
-- [ ] 3.2 [after: 3.1] 依最終 Mac 瀏覽器驗收，在四案非browser實作完成後，統一於Mac實測 cold/warm/deep-link/chunk failure/版本更新及五次同條件數據，執行 frontend/tests/e2e/embedded-frontend-delivery.spec.ts；保留真實截圖與原始值，未執行保持未完成，不拿replay或歷史Mac證據代替。
+- [x] 3.2 [after: 3.1] 依最終 Mac 瀏覽器驗收，在四案非browser實作完成後，統一於Mac實測 cold/warm/deep-link/chunk failure/版本更新及五次同條件數據，執行 frontend/tests/e2e/embedded-frontend-delivery.spec.ts；保留真實截圖與原始值，未執行保持未完成，不拿replay或歷史Mac證據代替。
 - [x] 3.3 [after: 3.1] 完成本案非browser實作收斂，移除僅本案migration adapter並review scope；完成affected Go tests、frontend lint/test/build、git diff --check、make check-lines及Spectra verify/review，修復可成立的發現，明列browser延後及未跑的跨平台風險。
-- [ ] 3.4 [after: 3.2, 3.3, 3.5] 最終Mac驗收後對本案scope重新verify/review，修復並重跑受影響測試，確認browser證據與最終程式一致，全部任務實證完成後才進行archive；非browser品質通過的相關變更可先獨立commit並保留未完成驗收，不push或部署。
+- [x] 3.4 [after: 3.2, 3.3, 3.5] 最終Mac驗收後對本案scope重新verify/review，修復並重跑受影響測試，確認browser證據與最終程式一致，全部任務實證完成後才進行archive；非browser品質通過的相關變更可先獨立commit並保留未完成驗收，不push或部署。
 
 - [x] 3.5 [after: 3.3] 補齊 Static representations preserve HTTP and version semantics 的非瀏覽器錯誤路徑：任何預壓縮或 validator 建表讀取／走訪失敗，捨棄不完整衍生快取，保留可讀 identity 與 identity 被禁止時的406；先以 TestEmbeddedCacheFailureDiscardsPartialState 重現，再修復並通過 go test／go vet／golangci-lint ./internal/web、交付 shell tests、Spectra verify/review，不擴張 API／SSE 或 browser 範圍。
 
@@ -33,3 +33,7 @@
 - [x] 4.1 [after: 3.5] 在雲端撰寫真 production embedded lifecycle、advanced chunk 延遲／失敗、query/hash／history／dirty cancel、雙版本同 origin 快取及五次 cold/warm 原始 bytes/request/timing 腳本；固定 fixture/toolchain 身分，隔離 fault injection 與無 routing 快取量測，以 E2E discovery、受影響型別／lint、交付 build/shell 及 Spectra verify/review 驗證腳本可交接。此項只驗證 authoring，3.2 真 Mac 執行及3.4 archive 不得因此勾選；空白 backend 不代表 live-reading 或大型來源效能。
 
 - [x] 4.2 [after: 4.1] 修復 embedded server 驗收工具誤認 occupied origin：以 owned stub／延遲不監聽 child 重現 HTTP200 不代表 owned server，拒絕無效與已占用port，透過唯一 build-only 靜態身分驗證才交出baseURL；不新增產品API或終止無關process。執行focused lifecycle回歸、E2E型別／lint／discovery、真build smoke與獨立Spectra review，browser保持未執行。
+
+## 2026-11-07 最終收斂
+
+最終 Mac 來源 0ffe74b5 的 A22/22、五次 cold/warm raw ledger、升級／失敗／路由與截圖保留已核實。完整基準檢查發現的兩處純空白已清理，編譯輸出一致，routing 5/5、lint/build 再驗通過；詳見 final-acceptance.md。既有歷史 browser pending 紀錄不改寫，當前任務依此次證據勾選。全庫 Go test/vet 通過；39項既存 lint 問題與未驗現場範圍明列，未 push。
